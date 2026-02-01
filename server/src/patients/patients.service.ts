@@ -4,6 +4,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 import { SoftDeleteService } from '../common/soft-delete.service';
+import { createHash } from 'crypto';
 
 @Injectable()
 export class PatientsService {
@@ -71,13 +72,20 @@ export class PatientsService {
   ) {
     const mrn = await this.generateNextMrn(hospitalId);
 
-    return this.prisma.patient.create({
+    return this.prisma.extended.patient.create({
       data: {
         ...data,
         mrn,
         hospital: { connect: { id: hospitalId } },
       },
     });
+  }
+
+  private generateSearchHash(value: string): string | null {
+    if (!value) return null;
+    return createHash('sha256')
+      .update(value.trim().toLowerCase()) // توحيد النص (lowercase) ضروري جداً
+      .digest('hex');
   }
 
   async findAll(params: {
@@ -89,32 +97,54 @@ export class PatientsService {
     const { hospitalId, page = 1, limit = 20, search } = params;
     const skip = (page - 1) * limit;
 
-    // بناء شرط البحث
+    // 1. تنظيف وتجهيز مدخل البحث
+    const cleanSearch = search?.trim();
+
+    // 2. توليد الـ Hash للبحث (Blind Index)
+    // نستخدم نفس الخوارزمية المستخدمة في Prisma Extension (SHA-256)
+    const sHash = cleanSearch
+      ? createHash('sha256').update(cleanSearch.toLowerCase()).digest('hex')
+      : null;
+
+    // 3. بناء شرط البحث المطور
     const where: Prisma.PatientWhereInput = {
       hospitalId,
       isDeleted: false,
       isActive: true,
-      ...(search
-        ? {
-            OR: [
-              { fullName: { contains: search, mode: 'insensitive' } },
-              { mrn: { contains: search, mode: 'insensitive' } },
-              { phone: { contains: search, mode: 'insensitive' } },
-              { nationalId: { contains: search, mode: 'insensitive' } },
-            ],
-          }
-        : {}),
     };
 
-    // جلب البيانات والعدد الإجمالي في وقت واحد (Transaction)
+    if (cleanSearch) {
+      where.OR = [
+        // أ) الاسم: يبقى بحث نصي جزئي (لأنه غير مشفر لسهولة التعرف)
+        { fullName: { contains: cleanSearch, mode: 'insensitive' } },
+
+        // ب) الحقول المشفرة: نستخدم الـ Hash للمطابقة الدقيقة (Exact Match)
+        // هذا يضمن أمان البيانات وسرعة الاستعلام (Index performance)
+        { mrnHash: sHash },
+        { phoneHash: sHash },
+        { emailHash: sHash },
+        { nationalIdHash: sHash },
+        { identityNumberHash: sHash },
+
+        // ج) الرقم الوطني: إذا قمت بإضافة nationalIdHash للسكيما، فقم بتفعيله هنا
+        // { nationalIdHash: sHash },
+      ];
+    }
+
+    // 4. جلب البيانات والعدد الإجمالي في وقت واحد (Transaction)
     const [items, totalCount] = await this.prisma.$transaction([
-      this.prisma.patient.findMany({
+      this.prisma.extended.patient.findMany({
         where,
         skip,
         take: limit,
         orderBy: { createdAt: 'desc' },
         include: {
-          insurancePolicy: { include: { provider: true, plan: true } },
+          insurancePolicy: {
+            include: {
+              provider: true,
+              plan: true,
+            },
+          },
         },
       }),
       this.prisma.patient.count({ where }),
@@ -131,8 +161,59 @@ export class PatientsService {
     };
   }
 
+  // async findAll(params: {
+  //   hospitalId: number;
+  //   page?: number;
+  //   limit?: number;
+  //   search?: string;
+  // }) {
+  //   const { hospitalId, page = 1, limit = 20, search } = params;
+  //   const skip = (page - 1) * limit;
+
+  //   // بناء شرط البحث
+  //   const where: Prisma.PatientWhereInput = {
+  //     hospitalId,
+  //     isDeleted: false,
+  //     isActive: true,
+  //     ...(search
+  //       ? {
+  //           OR: [
+  //             { fullName: { contains: search, mode: 'insensitive' } },
+  //             { mrn: { contains: search, mode: 'insensitive' } },
+  //             { phone: { contains: search, mode: 'insensitive' } },
+  //             { nationalId: { contains: search, mode: 'insensitive' } },
+  //           ],
+  //         }
+  //       : {}),
+  //   };
+
+  //   // جلب البيانات والعدد الإجمالي في وقت واحد (Transaction)
+  //   const [items, totalCount] = await this.prisma.$transaction([
+  //     this.prisma.patient.findMany({
+  //       where,
+  //       skip,
+  //       take: limit,
+  //       orderBy: { createdAt: 'desc' },
+  //       include: {
+  //         insurancePolicy: { include: { provider: true, plan: true } },
+  //       },
+  //     }),
+  //     this.prisma.patient.count({ where }),
+  //   ]);
+
+  //   return {
+  //     items,
+  //     meta: {
+  //       totalCount,
+  //       page,
+  //       limit,
+  //       totalPages: Math.ceil(totalCount / limit),
+  //     },
+  //   };
+  // }
+
   async findOne(hospitalId: number, id: number) {
-    const patient = await this.prisma.patient.findFirst({
+    const patient = await this.prisma.extended.patient.findFirst({
       where: {
         id,
         hospitalId,
@@ -177,7 +258,7 @@ export class PatientsService {
       }
     }
 
-    return this.prisma.patient.update({
+    return this.prisma.extended.patient.update({
       where: { id },
       data: updateInput,
     });
@@ -206,7 +287,7 @@ export class PatientsService {
       reaction?: string;
     },
   ) {
-    const patient = await this.prisma.patient.findFirst({
+    const patient = await this.prisma.extended.patient.findFirst({
       where: { id: data.patientId, hospitalId },
     });
 
@@ -228,7 +309,7 @@ export class PatientsService {
   // 2. جلب الحساسيات
   async getAllergies(hospitalId: number, patientId: number) {
     // التأكد من أن المريض يتبع المستشفى
-    const patient = await this.prisma.patient.findFirst({
+    const patient = await this.prisma.extended.patient.findFirst({
       where: { id: patientId, hospitalId },
     });
     if (!patient) throw new NotFoundException('المريض غير موجود');

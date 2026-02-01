@@ -277,7 +277,7 @@ export function MainLayout() {
       // If permission code exists but user doesn't have it -> strictly fail?
       // Or fallback to roles? Usually if protected by permission, roles don't matter unless configured.
       // Let's assume strict permission check if code is present.
-      return false; 
+      return false;
     }
 
     // 4. Fallback: Check roles if no specific permission code
@@ -335,7 +335,7 @@ export function MainLayout() {
           access: "clinical:appointment:create",
         },
         {
-          label: "المنومين حالياً",
+          label: "حالات الإيواء",
           path: "/active-inpatients",
           access: "emr:patient:view",
         },
@@ -345,7 +345,7 @@ export function MainLayout() {
           access: "emr:vitals:record",
         },
         { label: "الصيدلية", path: "/pharmacy", requiredModule: "PHARMACY" },
-        { label: "المعمل", path: "/lab", requiredModule: "LAB" },
+        { label: "مختبر التحاليل", path: "/lab", requiredModule: "LAB" },
         { label: "الأشعة", path: "/radiology", requiredModule: "RADIOLOGY" },
         { label: "تجهيز الأسرة", path: "/housekeeping" },
       ],
@@ -442,11 +442,27 @@ export function MainLayout() {
           path: "/suppliers/aging",
           access: "purchases:invoice:view",
         },
-        { label: "مخزون الصيدلية", path: "/pharmacy/stock", requiredModule: "PHARMACY" },
-        { label: "تنبيهات المخزون 🔔", path: "/inventory/alerts", access: "inventory:stock:view" },
-        { label: "تقرير حركات المخزون", path: "/pharmacy/stock-report", requiredModule: "PHARMACY" },
+        {
+          label: "مخزون الصيدلية",
+          path: "/pharmacy/stock",
+          requiredModule: "PHARMACY",
+        },
+        {
+          label: "تنبيهات المخزون 🔔",
+          path: "/inventory/alerts",
+          access: "inventory:stock:view",
+        },
+        {
+          label: "تقرير حركات المخزون",
+          path: "/pharmacy/stock-report",
+          requiredModule: "PHARMACY",
+        },
         { label: "التحويلات المخزنية", path: "/inventory/transfers" },
-        { label: "جرد المخزون", path: "/inventory/counts", access: "inventory:stock:view" },
+        {
+          label: "جرد المخزون",
+          path: "/inventory/counts",
+          access: "inventory:stock:view",
+        },
       ],
     },
     {
@@ -556,8 +572,11 @@ export function MainLayout() {
         { label: "إدارة الأسرة", path: "/settings/bed-management" },
         { label: "سجل التدقيق (Audit Logs)", path: "/audit/logs" },
         { label: "جداول الأطباء", path: "/settings/doctor-schedules" },
-        { label: "اللوحة التنفيذية (KPIs)", path: "/analytics/executive", access: "analytics:executive:view" },
-
+        {
+          label: "اللوحة التنفيذية (KPIs)",
+          path: "/analytics/executive",
+          access: "analytics:executive:view",
+        },
       ],
     },
   ];
@@ -569,20 +588,24 @@ export function MainLayout() {
     // Filter Logic
     return menuStructure
       .map((section) => {
-          // Check Section Module
-          if (section.requiredModule && !isModuleEnabled(section.requiredModule)) {
-              return null;
-          }
-           
-          // Filter Items
-          const validItems = section.items.filter((item) => hasAccess(item, section.allowedRoles));
-          
-          if (validItems.length === 0) return null;
+        // Check Section Module
+        if (
+          section.requiredModule &&
+          !isModuleEnabled(section.requiredModule)
+        ) {
+          return null;
+        }
 
-          return { ...section, items: validItems };
+        // Filter Items
+        const validItems = section.items.filter((item) =>
+          hasAccess(item, section.allowedRoles),
+        );
+
+        if (validItems.length === 0) return null;
+
+        return { ...section, items: validItems };
       })
       .filter((section): section is MenuSection => section !== null);
-
   }, [user, isModuleEnabled]);
 
   const navLinkClasses = ({ isActive }: { isActive: boolean }) =>
@@ -669,10 +692,12 @@ export function MainLayout() {
         {/* Grace Period Warning */}
         {licenseDetails?.isGracePeriod && (
           <div className="bg-rose-900/90 text-white text-center text-sm py-2 px-4 shadow-lg backdrop-blur-sm z-50 animate-pulse border-b border-rose-500/30">
-            ⚠️ <strong>تنبيه:</strong> انتهت فترة الاشتراك الخاصة بك. أنت تعمل حالياً في فترة سماح (Grace Period) مدتها 7 أيام. يرجى تجديد الاشتراك فوراً لتجنب توقف الخدمة.
+            ⚠️ <strong>تنبيه:</strong> انتهت فترة الاشتراك الخاصة بك. أنت تعمل
+            حالياً في فترة سماح (Grace Period) مدتها 7 أيام. يرجى تجديد الاشتراك
+            فوراً لتجنب توقف الخدمة.
           </div>
         )}
-        
+
         <header className="flex-shrink-0 flex items-center justify-between px-6 py-3 border-b border-slate-800 bg-slate-950/90 backdrop-blur z-30">
           <div className="hidden md:block text-slate-400 text-xs font-medium">
             مرحباً بك في نظام السرايا الطبي - النسخة التشغيلية

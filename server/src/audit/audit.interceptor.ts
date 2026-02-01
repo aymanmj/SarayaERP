@@ -35,10 +35,9 @@ export class AuditInterceptor implements NestInterceptor {
     const isMutation = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method);
 
     // 2. Check for @Sensitive decorator
-    const sensitiveAnnotation = this.reflector.getAllAndOverride<string | boolean>(
-      IS_SENSITIVE_KEY,
-      [context.getHandler(), context.getClass()],
-    );
+    const sensitiveAnnotation = this.reflector.getAllAndOverride<
+      string | boolean
+    >(IS_SENSITIVE_KEY, [context.getHandler(), context.getClass()]);
 
     const isSensitiveRead = method === 'GET' && !!sensitiveAnnotation;
 
@@ -52,19 +51,25 @@ export class AuditInterceptor implements NestInterceptor {
     return next.handle().pipe(
       tap(async (responseBody) => {
         const duration = Date.now() - start;
-
-        // 2. استنتاج الكيان والـ ID
         const { entity, entityId } = this.inferEntityAndId(path, req);
 
-        // 3. تحديد نوع الحدث
         let actionName = `${method} ${path.split('?')[0]}`;
-        if (isSensitiveRead && typeof sensitiveAnnotation === 'string') {
-          actionName = sensitiveAnnotation;
-        } else if (isSensitiveRead) {
-           actionName = `VIEW_SENSITIVE_DATA`;
+        let patientName = null;
+
+        // إذا كانت القراءة حساسة (مثلاً عرض ملف مريض)
+        if (isSensitiveRead) {
+          actionName =
+            typeof sensitiveAnnotation === 'string'
+              ? sensitiveAnnotation
+              : 'VIEW_SENSITIVE_DATA';
+
+          // محاولة استخراج اسم المريض من نتيجة البحث ليكون التقرير واضحاً
+          if (responseBody) {
+            patientName =
+              responseBody.fullName || responseBody.patient?.fullName;
+          }
         }
 
-        // 4. تسجيل العملية
         try {
           await this.audit.log({
             hospitalId: user?.hospitalId ?? null,
@@ -73,15 +78,12 @@ export class AuditInterceptor implements NestInterceptor {
             entity: entity,
             entityId: entityId,
             ipAddress: req.ip || req.connection?.remoteAddress,
-            clientName: req.headers['user-agent'], // أو x-client-name
+            clientName: req.headers['user-agent'],
             details: {
-              method,
-              path,
-              params: req.params,
-              query: req.query,
+              patientName, // الآن سيعرف المدير الأمني من هو المريض المطلع عليه
               statusCode: context.switchToHttp().getResponse().statusCode,
               durationMs: duration,
-              // في القراءة لا نسجل الـ Body، في الكتابة نسجل ما تم إرساله (بحذر)
+              accessType: isSensitiveRead ? 'READ_ACCESS' : 'WRITE_ACCESS',
               body: isMutation ? this.sanitizeBody(req.body) : undefined,
             },
           });
@@ -90,6 +92,48 @@ export class AuditInterceptor implements NestInterceptor {
         }
       }),
     );
+
+    // return next.handle().pipe(
+    //   tap(async (responseBody) => {
+    //     const duration = Date.now() - start;
+
+    //     // 2. استنتاج الكيان والـ ID
+    //     const { entity, entityId } = this.inferEntityAndId(path, req);
+
+    //     // 3. تحديد نوع الحدث
+    //     let actionName = `${method} ${path.split('?')[0]}`;
+    //     if (isSensitiveRead && typeof sensitiveAnnotation === 'string') {
+    //       actionName = sensitiveAnnotation;
+    //     } else if (isSensitiveRead) {
+    //        actionName = `VIEW_SENSITIVE_DATA`;
+    //     }
+
+    //     // 4. تسجيل العملية
+    //     try {
+    //       await this.audit.log({
+    //         hospitalId: user?.hospitalId ?? null,
+    //         userId: user?.sub ?? null,
+    //         action: actionName,
+    //         entity: entity,
+    //         entityId: entityId,
+    //         ipAddress: req.ip || req.connection?.remoteAddress,
+    //         clientName: req.headers['user-agent'], // أو x-client-name
+    //         details: {
+    //           method,
+    //           path,
+    //           params: req.params,
+    //           query: req.query,
+    //           statusCode: context.switchToHttp().getResponse().statusCode,
+    //           durationMs: duration,
+    //           // في القراءة لا نسجل الـ Body، في الكتابة نسجل ما تم إرساله (بحذر)
+    //           body: isMutation ? this.sanitizeBody(req.body) : undefined,
+    //         },
+    //       });
+    //     } catch (err) {
+    //       this.logger.error('Failed to log audit', err);
+    //     }
+    //   }),
+    // );
   }
 
   // استنتاج الكيان (مثلاً patients) والـ ID من الرابط

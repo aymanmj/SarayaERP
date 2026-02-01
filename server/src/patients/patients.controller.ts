@@ -24,28 +24,62 @@ import { Sensitive } from '../audit/audit.decorator';
 export class PatientsController {
   constructor(private readonly patientsService: PatientsService) {}
 
+  // @Post()
+  // @Roles('ADMIN', 'RECEPTION')
+  // create(@Body() body: any, @CurrentUser() user: JwtPayload) {
+  //   let dob: Date | undefined;
+  //   if (body.dateOfBirth) {
+  //     const d = new Date(body.dateOfBirth);
+  //     if (Number.isNaN(d.getTime())) {
+  //       throw new BadRequestException('تاريخ الميلاد غير صالح');
+  //     }
+  //     dob = d;
+  //   }
+
+  //   return this.patientsService.create(user.hospitalId, {
+  //     fullName: body.fullName,
+  //     nationalId: body.nationalId || undefined,
+  //     dateOfBirth: dob,
+  //     gender: body.gender || undefined,
+  //     phone: body.phone || undefined,
+  //     address: body.address || undefined,
+  //     email: body.email || undefined,
+  //     notes: body.notes || undefined,
+  //     // ✅ [NEW] حقول التأمين
+  //     insurancePolicy: body.insurancePolicyId
+  //       ? { connect: { id: Number(body.insurancePolicyId) } }
+  //       : undefined,
+  //     insuranceMemberId: body.insuranceMemberId || undefined,
+  //   });
+  // }
+
   @Post()
   @Roles('ADMIN', 'RECEPTION')
   create(@Body() body: any, @CurrentUser() user: JwtPayload) {
     let dob: Date | undefined;
     if (body.dateOfBirth) {
       const d = new Date(body.dateOfBirth);
-      if (Number.isNaN(d.getTime())) {
-        throw new BadRequestException('تاريخ الميلاد غير صالح');
-      }
-      dob = d;
+      if (!isNaN(d.getTime())) dob = d;
     }
 
     return this.patientsService.create(user.hospitalId, {
       fullName: body.fullName,
-      nationalId: body.nationalId || undefined,
+      nationalId: body.nationalId,
       dateOfBirth: dob,
-      gender: body.gender || undefined,
-      phone: body.phone || undefined,
-      address: body.address || undefined,
-      email: body.email || undefined,
-      notes: body.notes || undefined,
-      // ✅ [NEW] حقول التأمين
+      gender: body.gender,
+      phone: body.phone,
+      address: body.address,
+      email: body.email,
+      notes: body.notes,
+      // ✅ إضافة الحقول الجديدة هنا لكي تصل للـ Service
+      motherName: body.motherName,
+      familyBooklet: body.familyBooklet,
+      familySheet: body.familySheet,
+      registryNumber: body.registryNumber,
+      identityType: body.identityType,
+      identityNumber: body.identityNumber,
+      maritalStatus: body.maritalStatus,
+      // بيانات التأمين
       insurancePolicy: body.insurancePolicyId
         ? { connect: { id: Number(body.insurancePolicyId) } }
         : undefined,
@@ -79,6 +113,35 @@ export class PatientsController {
     return this.patientsService.findOne(user.hospitalId, id);
   }
 
+  // @Patch(':id')
+  // @Roles('ADMIN', 'RECEPTION')
+  // update(
+  //   @Param('id', ParseIntPipe) id: number,
+  //   @Body() body: any,
+  //   @CurrentUser() user: JwtPayload,
+  // ) {
+  //   let dob: Date | undefined;
+  //   if (body.dateOfBirth) {
+  //     dob = new Date(body.dateOfBirth);
+  //   }
+
+  //   return this.patientsService.update(user.hospitalId, id, {
+  //     fullName: body.fullName,
+  //     nationalId: body.nationalId,
+  //     dateOfBirth: dob,
+  //     gender: body.gender,
+  //     phone: body.phone,
+  //     address: body.address,
+  //     email: body.email,
+  //     notes: body.notes,
+  //     // ✅ [NEW] تحديث التأمين
+  //     insurancePolicyId: body.insurancePolicyId
+  //       ? Number(body.insurancePolicyId)
+  //       : null, // null لفك الارتباط
+  //     insuranceMemberId: body.insuranceMemberId,
+  //   });
+  // }
+
   @Patch(':id')
   @Roles('ADMIN', 'RECEPTION')
   update(
@@ -87,9 +150,7 @@ export class PatientsController {
     @CurrentUser() user: JwtPayload,
   ) {
     let dob: Date | undefined;
-    if (body.dateOfBirth) {
-      dob = new Date(body.dateOfBirth);
-    }
+    if (body.dateOfBirth) dob = new Date(body.dateOfBirth);
 
     return this.patientsService.update(user.hospitalId, id, {
       fullName: body.fullName,
@@ -100,10 +161,17 @@ export class PatientsController {
       address: body.address,
       email: body.email,
       notes: body.notes,
-      // ✅ [NEW] تحديث التأمين
+      // ✅ إضافة الحقول الجديدة هنا أيضاً للتحديث
+      motherName: body.motherName,
+      familyBooklet: body.familyBooklet,
+      familySheet: body.familySheet,
+      registryNumber: body.registryNumber,
+      identityType: body.identityType,
+      identityNumber: body.identityNumber,
+      maritalStatus: body.maritalStatus,
       insurancePolicyId: body.insurancePolicyId
         ? Number(body.insurancePolicyId)
-        : null, // null لفك الارتباط
+        : null,
       insuranceMemberId: body.insuranceMemberId,
     });
   }

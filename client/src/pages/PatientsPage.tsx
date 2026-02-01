@@ -4,7 +4,12 @@ import { useMemo, useState } from "react";
 import { apiClient } from "../api/apiClient";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
+import {
+  useQuery,
+  useMutation,
+  useQueryClient,
+  keepPreviousData,
+} from "@tanstack/react-query";
 import { DatePicker } from "@/components/ui/date-picker";
 
 // --- Types ---
@@ -81,6 +86,12 @@ export function PatientsPage() {
     nationalId: "",
     dateOfBirth: "",
     gender: "MALE" as Gender,
+    motherName: "",
+    familyBooklet: "",
+    familySheet: "",
+    registryNumber: "",
+    identityType: "PERSONAL_ID",
+    maritalStatus: "SINGLE",
     phone: "",
     address: "",
     notes: "",
@@ -91,12 +102,12 @@ export function PatientsPage() {
 
   // 1. Fetch Patients
   const { data: patientsData, isLoading: loadingOptions } = useQuery({
-    queryKey: ['patients', page, search],
+    queryKey: ["patients", page, search],
     queryFn: async () => {
-        const res = await apiClient.get<ListResponse>("/patients", {
-            params: { page, limit, search: search || undefined },
-        });
-        return res.data;
+      const res = await apiClient.get<ListResponse>("/patients", {
+        params: { page, limit, search: search || undefined },
+      });
+      return res.data;
     },
     placeholderData: keepPreviousData,
   });
@@ -107,47 +118,52 @@ export function PatientsPage() {
 
   // 2. Fetch Providers
   const { data: providers = [] } = useQuery({
-      queryKey: ['insuranceProviders'],
-      queryFn: async () => {
-          const res = await apiClient.get<InsuranceProvider[]>("/insurance/providers");
-          return res.data;
-      },
-      staleTime: 1000 * 60 * 5, // 5 min cache
+    queryKey: ["insuranceProviders"],
+    queryFn: async () => {
+      const res = await apiClient.get<InsuranceProvider[]>(
+        "/insurance/providers",
+      );
+      return res.data;
+    },
+    staleTime: 1000 * 60 * 5, // 5 min cache
   });
 
   // 3. Save Mutation
   const saveMutation = useMutation({
-      mutationFn: async (payload: any) => {
-          if (editingPatient) {
-              await apiClient.patch(`/patients/${editingPatient.id}`, payload);
-          } else {
-              await apiClient.post("/patients", payload);
-          }
-      },
-      onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: ['patients'] });
-          toast.success(editingPatient ? "تم تحديث بيانات المريض بنجاح" : "تم تسجيل المريض بنجاح");
-          setModalOpen(false);
-      },
-      onError: (err: any) => {
-          toast.error(err.response?.data?.message || "فشل في حفظ البيانات");
+    mutationFn: async (payload: any) => {
+      if (editingPatient) {
+        await apiClient.patch(`/patients/${editingPatient.id}`, payload);
+      } else {
+        await apiClient.post("/patients", payload);
       }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["patients"] });
+      toast.success(
+        editingPatient
+          ? "تم تحديث بيانات المريض بنجاح"
+          : "تم تسجيل المريض بنجاح",
+      );
+      setModalOpen(false);
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.message || "فشل في حفظ البيانات");
+    },
   });
 
   // 4. Delete Mutation
   const deleteMutation = useMutation({
-      mutationFn: async (id: number) => {
-          await apiClient.delete(`/patients/${id}`);
-      },
-      onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: ['patients'] });
-          toast.success("تمت الأرشفة بنجاح");
-      },
-      onError: () => {
-          toast.error("فشل في أرشفة السجل");
-      }
+    mutationFn: async (id: number) => {
+      await apiClient.delete(`/patients/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["patients"] });
+      toast.success("تمت الأرشفة بنجاح");
+    },
+    onError: () => {
+      toast.error("فشل في أرشفة السجل");
+    },
   });
-
 
   // --- Event Handlers ---
 
@@ -165,6 +181,13 @@ export function PatientsPage() {
         phone: patient.phone || "",
         address: patient.address || "",
         notes: patient.notes || "",
+        motherName: patient.motherName || "",
+        familyBooklet: patient.familyBooklet || "",
+        familySheet: patient.familySheet || "",
+        registryNumber: patient.registryNumber || "",
+        identityType: patient.identityType || "PERSONAL_ID",
+        identityNumber: patient.identityNumber || "", // 👈 الحقل الجديد
+        maritalStatus: patient.maritalStatus || "SINGLE",
         insuranceProviderId:
           patient.insurancePolicy?.provider.id.toString() || "",
         insurancePolicyId: patient.insurancePolicyId?.toString() || "",
@@ -194,12 +217,12 @@ export function PatientsPage() {
     if (!formData.fullName) return toast.error("اسم المريض مطلوب");
 
     const payload = {
-        ...formData,
-        insurancePolicyId: formData.insurancePolicyId
-          ? Number(formData.insurancePolicyId)
-          : null,
-      };
-    
+      ...formData,
+      insurancePolicyId: formData.insurancePolicyId
+        ? Number(formData.insurancePolicyId)
+        : null,
+    };
+
     saveMutation.mutate(payload);
   };
 
@@ -458,9 +481,16 @@ export function PatientsPage() {
               <div className="space-y-1">
                 <label className="text-slate-400 text-xs">تاريخ الميلاد</label>
                 <DatePicker
-                  date={formData.dateOfBirth ? new Date(formData.dateOfBirth) : undefined}
+                  date={
+                    formData.dateOfBirth
+                      ? new Date(formData.dateOfBirth)
+                      : undefined
+                  }
                   onChange={(d) =>
-                    setFormData({ ...formData, dateOfBirth: d ? d.toISOString().slice(0, 10) : "" })
+                    setFormData({
+                      ...formData,
+                      dateOfBirth: d ? d.toISOString().slice(0, 10) : "",
+                    })
                   }
                   className="bg-slate-900 border-slate-700 h-10 px-3 w-full"
                 />
@@ -481,6 +511,117 @@ export function PatientsPage() {
                   <option value="MALE">ذكر</option>
                   <option value="FEMALE">أنثى</option>
                 </select>
+              </div>
+              <div className="col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-slate-800 pt-4 mt-2">
+                <div className="space-y-1">
+                  <label className="text-slate-400 text-[10px] font-bold">
+                    إسم الأم
+                  </label>
+                  <input
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:border-sky-500 outline-none"
+                    value={formData.motherName}
+                    onChange={(e) =>
+                      setFormData({ ...formData, motherName: e.target.value })
+                    }
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-slate-400 text-[10px] font-bold">
+                    رقم كتيب العائلة
+                  </label>
+                  <input
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:border-sky-500 outline-none"
+                    value={formData.familyBooklet}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        familyBooklet: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-slate-400 text-[10px] font-bold">
+                    رقم ورقة العائلة
+                  </label>
+                  <input
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:border-sky-500 outline-none"
+                    value={formData.familySheet}
+                    onChange={(e) =>
+                      setFormData({ ...formData, familySheet: e.target.value })
+                    }
+                  />
+                </div>
+              </div>
+
+              <div className="col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-1">
+                  <label className="text-slate-400 text-[10px] font-bold">
+                    رقم القيد
+                  </label>
+                  <input
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:border-sky-500 outline-none"
+                    value={formData.registryNumber}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        registryNumber: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-slate-400 text-[10px] font-bold">
+                    نوع الهوية
+                  </label>
+                  <select
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:border-sky-500 outline-none"
+                    value={formData.identityType}
+                    onChange={(e) =>
+                      setFormData({ ...formData, identityType: e.target.value })
+                    }
+                  >
+                    <option value="PERSONAL_ID">بطاقة شخصية</option>
+                    <option value="PASSPORT">جواز سفر</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-slate-400 text-[10px] font-bold">
+                    رقم الهوية المختارة
+                  </label>
+                  <input
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:border-sky-500 outline-none"
+                    placeholder="أدخل رقم البطاقة أو الجواز"
+                    value={formData.identityNumber}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        identityNumber: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-slate-400 text-[10px] font-bold">
+                    الحالة الاجتماعية
+                  </label>
+                  <select
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:border-sky-500 outline-none"
+                    value={formData.maritalStatus}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        maritalStatus: e.target.value,
+                      })
+                    }
+                  >
+                    <option value="SINGLE">أعزب / عزباء</option>
+                    <option value="MARRIED">متزوج / ة</option>
+                    <option value="DIVORCED">مطلق / ة</option>
+                    <option value="WIDOWED">أرمل / ة</option>
+                  </select>
+                </div>
               </div>
               <div className="space-y-1">
                 <label className="text-slate-400 text-xs">رقم الهاتف</label>

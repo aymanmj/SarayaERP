@@ -46,7 +46,7 @@ export default function ActiveInpatientsPage() {
 
       // ⚠️ ملاحظة: سأعطيك كود الـ Backend الإضافي لهذا الـ Endpoint أدناه
       const res = await apiClient.get<ActiveInpatient[]>(
-        "/encounters/list/active-inpatients"
+        "/encounters/list/active-inpatients",
       );
       setPatients(res.data);
     } catch (err) {
@@ -64,7 +64,7 @@ export default function ActiveInpatientsPage() {
   const handleDischarge = async (encounterId: number, patientName: string) => {
     if (
       !confirm(
-        `هل أنت متأكد من إجراء خروج للمريض: ${patientName}؟\nسيتم التحقق من الفواتير وتحرير السرير.`
+        `هل أنت متأكد من إجراء خروج للمريض: ${patientName}؟\nسيتم التحقق من الفواتير وتحرير السرير.`,
       )
     )
       return;
@@ -88,25 +88,25 @@ export default function ActiveInpatientsPage() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold mb-1">
-            المرضى المنومين (Inpatients)
+            حالات الإيواء (Inpatients)
           </h1>
           <p className="text-sm text-slate-400">
-            قائمة المرضى المتواجدين حالياً في الأسرة لإدارة الخروج.
+            قائمة المرضى المتواجدين حالياً في غرف الإيواء.
           </p>
         </div>
         <div className="flex gap-2">
-           <button
-             onClick={() => navigate("/doctor-rounds")}
-             className="px-4 py-2 bg-sky-600 hover:bg-sky-500 rounded-xl text-sm font-bold shadow-lg shadow-sky-900/20"
-           >
-             👨‍⚕️ المرور الطبي (My Rounds)
-           </button>
-           <button
-             onClick={loadData}
-             className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-sm"
-           >
-             تحديث
-           </button>
+          <button
+            onClick={() => navigate("/doctor-rounds")}
+            className="px-4 py-2 bg-sky-600 hover:bg-sky-500 rounded-xl text-sm font-bold shadow-lg shadow-sky-900/20"
+          >
+            👨‍⚕️ المرور الطبي (My Rounds)
+          </button>
+          <button
+            onClick={loadData}
+            className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-sm"
+          >
+            تحديث
+          </button>
         </div>
       </div>
 

@@ -27,6 +27,7 @@ async function main() {
       name: 'مستشفى السرايا الدولي',
       displayName: 'Saraya International Hospital',
       isActive: true,
+      printHeaderFooter: true,
     },
   });
 

@@ -311,6 +311,13 @@ model Patient {
   nationalId        String?
   dateOfBirth       DateTime?
   gender            Gender?
+  motherName        String?
+  familyBooklet     String?
+  familySheet       String?
+  registryNumber    String?
+  identityType      IdentityType?
+  identityNumber    String?
+  maritalStatus     MaritalStatus?
   phone             String?
   address           String?
   email             String?
@@ -333,6 +340,12 @@ model Patient {
   allergies         PatientAllergy[]
   preAuthorizations PreAuthorization[]
   prescriptions     Prescription[]
+
+  nationalIdHash     String? @unique
+  identityNumberHash String? @unique
+  phoneHash          String? @unique
+  emailHash          String? @unique
+  mrnHash            String? @unique
 
   @@index([hospitalId, phone])
   @@index([hospitalId, fullName])
@@ -2395,4 +2408,16 @@ enum NoteType {
   DOCTOR_ADMISSION
   DOCTOR_DISCHARGE
   CONSULTATION
+}
+
+enum MaritalStatus {
+  SINGLE
+  MARRIED
+  DIVORCED
+  WIDOWED
+}
+
+enum IdentityType {
+  PERSONAL_ID
+  PASSPORT
 }
