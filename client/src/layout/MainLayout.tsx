@@ -1,0 +1,1345 @@
+// src/layout/MainLayout.tsx
+
+import { Outlet, NavLink, useLocation } from "react-router-dom";
+import { useAuthStore } from "../stores/authStore";
+import { useSocketStore } from "../stores/socketStore";
+import { useState, useEffect, useMemo } from "react";
+import type { ReactNode } from "react";
+import { NotificationBell } from "../components/NotificationBell";
+
+// ... (Icons تبقى كما هي - لا تغيير) ...
+const Icons = {
+  ChevronLeft: () => (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="m15 18-6-6 6-6" />
+    </svg>
+  ),
+  Activity: () => (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+    </svg>
+  ),
+  Users: () => (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+    </svg>
+  ),
+  DollarSign: () => (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <line x1="12" x2="12" y1="2" y2="22" />
+      <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+    </svg>
+  ),
+  Package: () => (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="m7.5 4.27 9 5.15" />
+      <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
+      <path d="m3.3 7 8.7 5 8.7-5" />
+      <path d="M12 22.08V12" />
+    </svg>
+  ),
+  Calculator: () => (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect width="16" height="20" x="4" y="2" rx="2" />
+      <line x1="8" x2="16" y1="6" y2="6" />
+      <line x1="16" x2="16" y1="14" y2="18" />
+      <path d="M16 10h.01" />
+      <path d="M12 10h.01" />
+      <path d="M8 10h.01" />
+      <path d="M12 14h.01" />
+      <path d="M8 14h.01" />
+      <path d="M12 18h.01" />
+      <path d="M8 18h.01" />
+    </svg>
+  ),
+  Building: () => (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect width="16" height="20" x="4" y="2" rx="2" ry="2" />
+      <path d="M9 22v-4h6v4" />
+      <path d="M8 6h.01" />
+      <path d="M16 6h.01" />
+      <path d="M12 6h.01" />
+      <path d="M12 10h.01" />
+      <path d="M12 14h.01" />
+      <path d="M16 10h.01" />
+      <path d="M16 14h.01" />
+      <path d="M8 10h.01" />
+      <path d="M8 14h.01" />
+    </svg>
+  ),
+  Settings: () => (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  ),
+  Scissors: () => (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="6" cy="6" r="3" />
+      <circle cx="6" cy="18" r="3" />
+      <line x1="20" x2="8.12" y1="4" y2="15.88" />
+      <line x1="14.47" x2="20" y1="14.48" y2="20" />
+      <line x1="8.12" x2="12" y1="8.12" y2="12" />
+    </svg>
+  ),
+  Home: () => (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+      <polyline points="9 22 9 12 15 12 15 22" />
+    </svg>
+  ),
+  Network: () => (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect x="16" y="16" width="6" height="6" rx="1" />
+      <rect x="2" y="16" width="6" height="6" rx="1" />
+      <rect x="9" y="2" width="6" height="6" rx="1" />
+      <path d="M5 16v-3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3" />
+      <path d="M12 12V8" />
+    </svg>
+  ),
+};
+
+import { useLicenseStore } from "../stores/licenseStore"; // Import store
+
+type MenuItem = {
+  label: string;
+  path: string;
+  access?: string; // كود الصلاحية الدقيق
+  requiredModule?: string; // 👈 جديد: المودل المطلوب لتفعيل هذا العنصر
+};
+
+type MenuSection = {
+  key: string;
+  title: string;
+  icon: ReactNode;
+  allowedRoles: string[];
+  items: MenuItem[];
+  requiredModule?: string; // 👈 جديد: المودل المطلوب للقسم كله
+};
+
+export function MainLayout() {
+  const user = useAuthStore((s) => s.user);
+  const logout = useAuthStore((s) => s.logout);
+  const location = useLocation();
+  const [openSection, setOpenSection] = useState<string | null>(null);
+
+  // License Store
+  const fetchLicenseStatus = useLicenseStore((s) => s.fetchLicenseStatus);
+  const isModuleEnabled = useLicenseStore((s) => s.isModuleEnabled);
+  const licenseDetails = useLicenseStore((s) => s.details);
+  const licenseState = useLicenseStore((s) => s.licenseState);
+
+  const toggleSection = (key: string) => {
+    setOpenSection((prev) => (prev === key ? null : key));
+  };
+
+  const { connect, disconnect } = useSocketStore();
+
+  useEffect(() => {
+    if (user) {
+      connect();
+      fetchLicenseStatus(); // ✅ Fetch license on auth
+    }
+    return () => disconnect();
+  }, [user]);
+
+  // ✅ الدالة المصححة للتحقق من الوصول
+  const hasAccess = (item: MenuItem, allowedRoles: string[]) => {
+    if (!user) return false;
+
+    // 1. License Check (Global override)
+    if (item.requiredModule && !isModuleEnabled(item.requiredModule)) {
+      return false;
+    }
+
+    // 2. Admin sees everything (provided license allows it!)
+    if (user.roles.includes("ADMIN")) return true;
+
+    // 3. Role/Permission Check
+    const permissionCode = item.access;
+    if (permissionCode) {
+      if (user.permissions && user.permissions.includes(permissionCode)) {
+        return true;
+      }
+      // If permission code exists but user doesn't have it -> strictly fail?
+      // Or fallback to roles? Usually if protected by permission, roles don't matter unless configured.
+      // Let's assume strict permission check if code is present.
+      return false; 
+    }
+
+    // 4. Fallback: Check roles if no specific permission code
+    if (allowedRoles && allowedRoles.length > 0) {
+      return allowedRoles.some((r) => user.roles.includes(r));
+    }
+
+    return false;
+  };
+
+  const menuStructure: MenuSection[] = [
+    {
+      key: "home",
+      title: "الرئيسية",
+      icon: <Icons.Home />,
+      allowedRoles: [
+        "ADMIN",
+        "DOCTOR",
+        "NURSE",
+        "RECEPTION",
+        "PHARMACIST",
+        "LAB_TECH",
+        "RAD_TECH",
+        "ACCOUNTANT",
+        "STORE_KEEPER",
+        "HR",
+      ],
+      items: [{ label: "لوحة المتابعة", path: "/" }],
+    },
+    {
+      key: "clinical",
+      title: "التشغيل السريري",
+      icon: <Icons.Activity />,
+      allowedRoles: ["ADMIN", "DOCTOR", "NURSE", "RECEPTION"],
+      items: [
+        {
+          label: "فرز الطوارئ (Triage)",
+          path: "/triage",
+          access: "emr:vitals:record",
+        },
+        {
+          label: "المواعيد",
+          path: "/appointments",
+          access: "clinical:appointment:view",
+        },
+        { label: "المرضى", path: "/patients", access: "emr:patient:view" },
+        {
+          label: "سجل الحالات",
+          path: "/encounters",
+          access: "emr:patient:view",
+        },
+        {
+          label: "الإيواء (Admissions)",
+          path: "/admissions",
+          access: "clinical:appointment:create",
+        },
+        {
+          label: "المنومين حالياً",
+          path: "/active-inpatients",
+          access: "emr:patient:view",
+        },
+        {
+          label: "محطة التمريض (Ward)",
+          path: "/nursing",
+          access: "emr:vitals:record",
+        },
+        { label: "الصيدلية", path: "/pharmacy", requiredModule: "PHARMACY" },
+        { label: "المعمل", path: "/lab", requiredModule: "LAB" },
+        { label: "الأشعة", path: "/radiology", requiredModule: "RADIOLOGY" },
+        { label: "تجهيز الأسرة", path: "/housekeeping" },
+      ],
+    },
+    {
+      key: "surgery",
+      title: "العمليات الجراحية",
+      icon: <Icons.Scissors />,
+      allowedRoles: ["ADMIN", "DOCTOR", "NURSE"],
+      items: [{ label: "جدول العمليات", path: "/surgery" }],
+    },
+    {
+      key: "humanResources",
+      title: "الموارد البشرية",
+      icon: <Icons.Users />,
+      allowedRoles: ["ADMIN", "HR"],
+      requiredModule: "HR", // 👈 Section Level
+      items: [
+        { label: "تعريف الورديات", path: "/hr/shifts" },
+        { label: "جدول المناوبات", path: "/hr/roster" },
+        { label: "إدارة الإجازات", path: "/hr/leaves" },
+        { label: "الحضور والانصراف", path: "/attendance" },
+        { label: "الرواتب والأجور", path: "/payroll" },
+      ],
+    },
+    {
+      key: "revenue",
+      title: "الإيرادات والخزينة",
+      icon: <Icons.DollarSign />,
+      allowedRoles: ["ADMIN", "ACCOUNTANT", "CASHIER"],
+      items: [
+        { label: "الخزينة (POS)", path: "/cashier" },
+        {
+          label: "سجل الفواتير",
+          path: "/invoices",
+          access: "billing:invoice:view",
+        },
+        {
+          label: "تقرير الكاشير اليومي",
+          path: "/cashier/reports/daily",
+          access: "billing:invoice:view",
+        },
+        {
+          label: "تقرير المستخدمين",
+          path: "/cashier/reports/by-cashier",
+          access: "billing:invoice:view",
+        },
+        {
+          label: "الشفتات المقفولة",
+          path: "/cashier/shifts",
+          access: "billing:invoice:view",
+        },
+        {
+          label: "تحليل ذمم المرضى",
+          path: "/accounting/patients-aging",
+          access: "acc:report:view",
+        },
+        {
+          label: "شركات التأمين",
+          path: "/insurance/providers",
+          access: "billing:invoice:create",
+        },
+        {
+          label: "الموافقات المسبقة",
+          path: "/insurance/pre-auth",
+          access: "billing:invoice:create",
+        },
+        {
+          label: "مطالبات التأمين",
+          path: "/insurance/claims",
+          access: "billing:invoice:view",
+        },
+        {
+          label: "لوحة التقارير والتحليلات",
+          path: "/reports",
+          access: "acc:report:view",
+        },
+      ],
+    },
+    {
+      key: "purchases",
+      title: "المشتريات والمخزون",
+      icon: <Icons.Package />,
+      allowedRoles: ["ADMIN", "ACCOUNTANT", "STORE_KEEPER"],
+      items: [
+        { label: "الموردون", path: "/suppliers" },
+        {
+          label: "فواتير المشتريات",
+          path: "/purchases/invoices",
+          access: "purchases:invoice:create",
+        },
+        {
+          label: "تحليل ذمم الموردين",
+          path: "/suppliers/aging",
+          access: "purchases:invoice:view",
+        },
+        { label: "مخزون الصيدلية", path: "/pharmacy/stock", requiredModule: "PHARMACY" },
+        { label: "تنبيهات المخزون 🔔", path: "/inventory/alerts", access: "inventory:stock:view" },
+        { label: "تقرير حركات المخزون", path: "/pharmacy/stock-report", requiredModule: "PHARMACY" },
+        { label: "التحويلات المخزنية", path: "/inventory/transfers" },
+        { label: "جرد المخزون", path: "/inventory/counts", access: "inventory:stock:view" },
+      ],
+    },
+    {
+      key: "assets",
+      title: "الأصول والصيانة",
+      icon: <Icons.Building />,
+      allowedRoles: ["ADMIN", "ACCOUNTANT", "STORE_KEEPER"],
+      requiredModule: "ASSETS", // 👈 Section Level
+      items: [
+        { label: "سجل الأصول", path: "/assets", access: "acc:report:view" },
+        { label: "إدارة الصيانة", path: "/assets/maintenance" },
+        {
+          label: "احتساب الإهلاك",
+          path: "/assets/depreciation",
+          access: "acc:entry:create",
+        },
+      ],
+    },
+    {
+      key: "accounting",
+      title: "المحاسبة العامة",
+      icon: <Icons.Calculator />,
+      allowedRoles: ["ADMIN", "ACCOUNTANT"],
+      requiredModule: "ACCOUNTS", // 👈 Section Level
+      items: [
+        {
+          label: "السنوات المالية",
+          path: "/financial-years",
+          access: "acc:report:view",
+        },
+        {
+          label: "دليل الحسابات",
+          path: "/accounting/chart-of-accounts",
+          access: "acc:report:view",
+        },
+        {
+          label: "الأرصدة الافتتاحية",
+          path: "/accounting/opening-balances",
+          access: "acc:entry:create",
+        },
+        {
+          label: "قيد يدوي",
+          path: "/accounting/manual-entry",
+          access: "acc:entry:create",
+        },
+        {
+          label: "دفتر اليومية العامة",
+          path: "/accounting/journal",
+          access: "acc:report:view",
+        },
+        {
+          label: "سجل القيود المحاسبية (Entries)",
+          path: "/accounting/entries",
+          access: "acc:report:view",
+        },
+        {
+          label: "دفتر الأستاذ",
+          path: "/accounting/ledger",
+          access: "acc:report:view",
+        },
+        {
+          label: "ميزان المراجعة",
+          path: "/accounting/trial-balance",
+          access: "acc:report:view",
+        },
+        {
+          label: "قائمة الدخل",
+          path: "/accounting/income-statement",
+          access: "acc:report:view",
+        },
+        {
+          label: "مراكز التكلفة",
+          path: "/accounting/cost-centers",
+          access: "acc:report:view",
+        },
+        {
+          label: "الميزانية العمومية",
+          path: "/accounting/balance-sheet",
+          access: "acc:report:view",
+        },
+        {
+          label: "إقفال السنة",
+          path: "/accounting/year-closing",
+          access: "acc:year:close",
+        },
+      ],
+    },
+    {
+      key: "integration",
+      title: "الربط والتكامل",
+      icon: <Icons.Network />,
+      allowedRoles: ["ADMIN", "IT_ADMIN"],
+      items: [{ label: "إدارة الأجهزة (LIS/PACS)", path: "/integration" }],
+    },
+    {
+      key: "settings",
+      title: "الإعدادات",
+      icon: <Icons.Settings />,
+      allowedRoles: ["ADMIN"],
+      items: [
+        { label: "الإعدادات العامة", path: "/settings" },
+        { label: "الأقسام (Departments)", path: "/settings/departments" },
+        { label: "التخصصات (Specialties)", path: "/settings/specialties" },
+        { label: "قوائم الأسعار", path: "/settings/price-lists" },
+        { label: "الخدمات والأسعار", path: "/services" },
+        { label: "المستخدمون والصلاحيات", path: "/users" },
+        { label: "إدارة الأسرة", path: "/settings/bed-management" },
+        { label: "سجل التدقيق (Audit Logs)", path: "/audit/logs" },
+        { label: "جداول الأطباء", path: "/settings/doctor-schedules" },
+        { label: "اللوحة التنفيذية (KPIs)", path: "/analytics/executive", access: "analytics:executive:view" },
+
+      ],
+    },
+  ];
+
+  // فلترة القائمة
+  const authorizedMenu = useMemo(() => {
+    if (!user) return [];
+
+    // Filter Logic
+    return menuStructure
+      .map((section) => {
+          // Check Section Module
+          if (section.requiredModule && !isModuleEnabled(section.requiredModule)) {
+              return null;
+          }
+           
+          // Filter Items
+          const validItems = section.items.filter((item) => hasAccess(item, section.allowedRoles));
+          
+          if (validItems.length === 0) return null;
+
+          return { ...section, items: validItems };
+      })
+      .filter((section): section is MenuSection => section !== null);
+
+  }, [user, isModuleEnabled]);
+
+  const navLinkClasses = ({ isActive }: { isActive: boolean }) =>
+    `block w-full px-4 py-2.5 rounded-lg text-xs md:text-sm transition-all duration-200 border-r-[3px] 
+     ${isActive ? "bg-sky-500/10 text-sky-400 border-sky-500 font-medium" : "text-slate-400 border-transparent hover:text-slate-200 hover:bg-white/5"}`;
+
+  return (
+    <div className="h-screen w-screen flex bg-slate-950 text-slate-100 overflow-hidden">
+      <aside className="w-64 hidden md:flex flex-col border-l border-slate-800 bg-slate-950/95 backdrop-blur h-full flex-shrink-0 z-40">
+        <div className="px-5 py-5 border-b border-slate-800 flex-shrink-0">
+          <div className="text-[10px] uppercase tracking-[0.2em] text-sky-500 font-bold mb-1">
+            HOSPITAL SUITE
+          </div>
+          <div className="font-bold text-lg text-white">نظام السرايا الطبي</div>
+        </div>
+
+        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto custom-scrollbar">
+          {authorizedMenu.map((section) => {
+            const isOpen = openSection === section.key;
+            return (
+              <div key={section.key} className="mb-1">
+                <button
+                  type="button"
+                  onClick={() => toggleSection(section.key)}
+                  className={`flex items-center justify-between w-full px-3 py-3 text-sm font-medium rounded-xl transition-colors duration-200
+                    ${isOpen ? "text-slate-100" : "text-slate-400 hover:text-slate-200 hover:bg-slate-900/50"}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <span
+                      className={isOpen ? "text-sky-500" : "text-slate-500"}
+                    >
+                      {section.icon}
+                    </span>
+                    <span>{section.title}</span>
+                  </div>
+                  <span
+                    className={`transition-transform duration-300 text-slate-600 ${isOpen ? "-rotate-90" : "rotate-0"}`}
+                  >
+                    <Icons.ChevronLeft />
+                  </span>
+                </button>
+
+                <div
+                  className={`overflow-hidden transition-all duration-300 ease-in-out ${isOpen ? "max-h-[800px] opacity-100 mt-1" : "max-h-0 opacity-0"}`}
+                >
+                  <div className="pr-4 pl-1 space-y-1 py-1 mr-2 border-r border-slate-800/50">
+                    {section.items.map((item) => (
+                      <NavLink
+                        key={item.path}
+                        to={item.path}
+                        className={navLinkClasses}
+                      >
+                        {item.label}
+                      </NavLink>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </nav>
+
+        <div className="p-4 border-t border-slate-800 bg-slate-950 flex-shrink-0">
+          {user && (
+            <div className="mb-3">
+              <div className="font-semibold text-sm text-white">
+                {user.fullName}
+              </div>
+              <div className="text-slate-500 text-[10px] truncate">
+                {user.roles?.join(" | ")}
+              </div>
+            </div>
+          )}
+          <button
+            onClick={logout}
+            className="w-full flex items-center justify-center gap-2 rounded-xl bg-rose-900/20 hover:bg-rose-900/40 text-rose-400 hover:text-rose-300 text-xs py-2 transition border border-rose-900/30"
+          >
+            تسجيل الخروج
+          </button>
+        </div>
+      </aside>
+
+      <main className="flex-1 flex flex-col h-full overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 relative">
+        {/* Grace Period Warning */}
+        {licenseDetails?.isGracePeriod && (
+          <div className="bg-rose-900/90 text-white text-center text-sm py-2 px-4 shadow-lg backdrop-blur-sm z-50 animate-pulse border-b border-rose-500/30">
+            ⚠️ <strong>تنبيه:</strong> انتهت فترة الاشتراك الخاصة بك. أنت تعمل حالياً في فترة سماح (Grace Period) مدتها 7 أيام. يرجى تجديد الاشتراك فوراً لتجنب توقف الخدمة.
+          </div>
+        )}
+        
+        <header className="flex-shrink-0 flex items-center justify-between px-6 py-3 border-b border-slate-800 bg-slate-950/90 backdrop-blur z-30">
+          <div className="hidden md:block text-slate-400 text-xs font-medium">
+            مرحباً بك في نظام السرايا الطبي - النسخة التشغيلية
+          </div>
+          <div className="flex items-center gap-4">
+            <NotificationBell />
+            {user && (
+              <div className="text-left text-[11px] hidden md:block">
+                <div className="text-white font-medium">{user.fullName}</div>
+                <div className="text-slate-500">{user.roles?.[0]}</div>
+              </div>
+            )}
+          </div>
+        </header>
+
+        <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6 custom-scrollbar">
+          <div className="max-w-[1600px] mx-auto min-h-full">
+            <Outlet />
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+// // src/layout/MainLayout.tsx
+
+// import { Outlet, NavLink, useLocation } from "react-router-dom";
+// import { useAuthStore } from "../stores/authStore";
+// import { useState, ReactNode, useEffect, useMemo } from "react";
+// import { NotificationBell } from "../components/NotificationBell";
+
+// // --- الأيقونات ---
+// const Icons = {
+//   ChevronLeft: () => (
+//     <svg
+//       xmlns="http://www.w3.org/2000/svg"
+//       width="16"
+//       height="16"
+//       viewBox="0 0 24 24"
+//       fill="none"
+//       stroke="currentColor"
+//       strokeWidth="2"
+//       strokeLinecap="round"
+//       strokeLinejoin="round"
+//     >
+//       <path d="m15 18-6-6 6-6" />
+//     </svg>
+//   ),
+//   Activity: () => (
+//     <svg
+//       xmlns="http://www.w3.org/2000/svg"
+//       width="18"
+//       height="18"
+//       viewBox="0 0 24 24"
+//       fill="none"
+//       stroke="currentColor"
+//       strokeWidth="2"
+//       strokeLinecap="round"
+//       strokeLinejoin="round"
+//     >
+//       <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+//     </svg>
+//   ),
+//   Users: () => (
+//     <svg
+//       xmlns="http://www.w3.org/2000/svg"
+//       width="18"
+//       height="18"
+//       viewBox="0 0 24 24"
+//       fill="none"
+//       stroke="currentColor"
+//       strokeWidth="2"
+//       strokeLinecap="round"
+//       strokeLinejoin="round"
+//     >
+//       <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+//       <circle cx="9" cy="7" r="4" />
+//       <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+//       <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+//     </svg>
+//   ),
+//   DollarSign: () => (
+//     <svg
+//       xmlns="http://www.w3.org/2000/svg"
+//       width="18"
+//       height="18"
+//       viewBox="0 0 24 24"
+//       fill="none"
+//       stroke="currentColor"
+//       strokeWidth="2"
+//       strokeLinecap="round"
+//       strokeLinejoin="round"
+//     >
+//       <line x1="12" x2="12" y1="2" y2="22" />
+//       <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+//     </svg>
+//   ),
+//   Package: () => (
+//     <svg
+//       xmlns="http://www.w3.org/2000/svg"
+//       width="18"
+//       height="18"
+//       viewBox="0 0 24 24"
+//       fill="none"
+//       stroke="currentColor"
+//       strokeWidth="2"
+//       strokeLinecap="round"
+//       strokeLinejoin="round"
+//     >
+//       <path d="m7.5 4.27 9 5.15" />
+//       <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
+//       <path d="m3.3 7 8.7 5 8.7-5" />
+//       <path d="M12 22.08V12" />
+//     </svg>
+//   ),
+//   Calculator: () => (
+//     <svg
+//       xmlns="http://www.w3.org/2000/svg"
+//       width="18"
+//       height="18"
+//       viewBox="0 0 24 24"
+//       fill="none"
+//       stroke="currentColor"
+//       strokeWidth="2"
+//       strokeLinecap="round"
+//       strokeLinejoin="round"
+//     >
+//       <rect width="16" height="20" x="4" y="2" rx="2" />
+//       <line x1="8" x2="16" y1="6" y2="6" />
+//       <line x1="16" x2="16" y1="14" y2="18" />
+//       <path d="M16 10h.01" />
+//       <path d="M12 10h.01" />
+//       <path d="M8 10h.01" />
+//       <path d="M12 14h.01" />
+//       <path d="M8 14h.01" />
+//       <path d="M12 18h.01" />
+//       <path d="M8 18h.01" />
+//     </svg>
+//   ),
+//   Building: () => (
+//     <svg
+//       xmlns="http://www.w3.org/2000/svg"
+//       width="18"
+//       height="18"
+//       viewBox="0 0 24 24"
+//       fill="none"
+//       stroke="currentColor"
+//       strokeWidth="2"
+//       strokeLinecap="round"
+//       strokeLinejoin="round"
+//     >
+//       <rect width="16" height="20" x="4" y="2" rx="2" ry="2" />
+//       <path d="M9 22v-4h6v4" />
+//       <path d="M8 6h.01" />
+//       <path d="M16 6h.01" />
+//       <path d="M12 6h.01" />
+//       <path d="M12 10h.01" />
+//       <path d="M12 14h.01" />
+//       <path d="M16 10h.01" />
+//       <path d="M16 14h.01" />
+//       <path d="M8 10h.01" />
+//       <path d="M8 14h.01" />
+//     </svg>
+//   ),
+//   Settings: () => (
+//     <svg
+//       xmlns="http://www.w3.org/2000/svg"
+//       width="18"
+//       height="18"
+//       viewBox="0 0 24 24"
+//       fill="none"
+//       stroke="currentColor"
+//       strokeWidth="2"
+//       strokeLinecap="round"
+//       strokeLinejoin="round"
+//     >
+//       <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+//       <circle cx="12" cy="12" r="3" />
+//     </svg>
+//   ),
+//   Scissors: () => (
+//     <svg
+//       xmlns="http://www.w3.org/2000/svg"
+//       width="18"
+//       height="18"
+//       viewBox="0 0 24 24"
+//       fill="none"
+//       stroke="currentColor"
+//       strokeWidth="2"
+//       strokeLinecap="round"
+//       strokeLinejoin="round"
+//     >
+//       <circle cx="6" cy="6" r="3" />
+//       <circle cx="6" cy="18" r="3" />
+//       <line x1="20" x2="8.12" y1="4" y2="15.88" />
+//       <line x1="14.47" x2="20" y1="14.48" y2="20" />
+//       <line x1="8.12" x2="12" y1="8.12" y2="12" />
+//     </svg>
+//   ),
+//   Home: () => (
+//     <svg
+//       xmlns="http://www.w3.org/2000/svg"
+//       width="18"
+//       height="18"
+//       viewBox="0 0 24 24"
+//       fill="none"
+//       stroke="currentColor"
+//       strokeWidth="2"
+//       strokeLinecap="round"
+//       strokeLinejoin="round"
+//     >
+//       <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+//       <polyline points="9 22 9 12 15 12 15 22" />
+//     </svg>
+//   ),
+//   Network: () => (
+//     <svg
+//       xmlns="http://www.w3.org/2000/svg"
+//       width="18"
+//       height="18"
+//       viewBox="0 0 24 24"
+//       fill="none"
+//       stroke="currentColor"
+//       strokeWidth="2"
+//       strokeLinecap="round"
+//       strokeLinejoin="round"
+//     >
+//       <rect x="16" y="16" width="6" height="6" rx="1" />
+//       <rect x="2" y="16" width="6" height="6" rx="1" />
+//       <rect x="9" y="2" width="6" height="6" rx="1" />
+//       <path d="M5 16v-3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3" />
+//       <path d="M12 12V8" />
+//     </svg>
+//   ),
+// };
+
+// type MenuItem = {
+//   label: string;
+//   path: string;
+//   access?: string; // كود الصلاحية (Permission Code)
+// };
+
+// type MenuSection = {
+//   key: string;
+//   title: string;
+//   icon: ReactNode;
+//   allowedRoles: string[]; // أدوار (Roles) للتحقق الثانوي
+//   items: MenuItem[];
+// };
+
+// export function MainLayout() {
+//   const user = useAuthStore((s) => s.user);
+//   const logout = useAuthStore((s) => s.logout);
+//   const location = useLocation();
+//   const [openSection, setOpenSection] = useState<string | null>(null);
+
+//   const toggleSection = (key: string) => {
+//     setOpenSection((prev) => (prev === key ? null : key));
+//   };
+
+//   // --- دالة فحص الصلاحية ---
+//   const hasAccess = (permissionCode?: string) => {
+//     if (!user) return false;
+//     if (user.roles.includes("ADMIN")) return true; // الأدمن يرى كل شيء
+//     if (!permissionCode) return true; // عنصر ليس له صلاحية محددة (متاح للجميع ضمن الدور)
+//     return user.permissions?.includes(permissionCode);
+//   };
+
+//   const navLinkClasses = ({ isActive }: { isActive: boolean }) =>
+//     `block w-full px-4 py-2.5 rounded-lg text-xs md:text-sm transition-all duration-200 border-r-[3px]
+//      ${isActive ? "bg-sky-500/10 text-sky-400 border-sky-500 font-medium" : "text-slate-400 border-transparent hover:text-slate-200 hover:bg-white/5"}`;
+
+//   // === هيكلية القائمة الكاملة ===
+//   const menuStructure: MenuSection[] = [
+//     {
+//       key: "home",
+//       title: "الرئيسية",
+//       icon: <Icons.Home />,
+//       allowedRoles: [
+//         "ADMIN",
+//         "DOCTOR",
+//         "NURSE",
+//         "RECEPTION",
+//         "PHARMACIST",
+//         "LAB_TECH",
+//         "RAD_TECH",
+//         "ACCOUNTANT",
+//         "STORE_KEEPER",
+//         "HR",
+//       ],
+//       items: [{ label: "لوحة المتابعة", path: "/" }],
+//     },
+//     {
+//       key: "clinical",
+//       title: "التشغيل السريري",
+//       icon: <Icons.Activity />,
+//       allowedRoles: ["ADMIN", "DOCTOR", "NURSE", "RECEPTION"],
+//       items: [
+//         {
+//           label: "فرز الطوارئ (Triage)",
+//           path: "/triage",
+//           access: "emr:vitals:record",
+//         },
+//         {
+//           label: "المواعيد",
+//           path: "/appointments",
+//           access: "clinical:appointment:view",
+//         },
+//         { label: "المرضى", path: "/patients", access: "emr:patient:view" },
+//         {
+//           label: "سجل الحالات",
+//           path: "/encounters",
+//           access: "emr:patient:view",
+//         },
+//         {
+//           label: "الإيواء (Admissions)",
+//           path: "/admissions",
+//           access: "clinical:appointment:create",
+//         },
+//         {
+//           label: "حالات الإيواء حالياً",
+//           path: "/active-inpatients",
+//           access: "emr:patient:view",
+//         },
+//         {
+//           label: "محطة التمريض (Ward)",
+//           path: "/nursing",
+//           access: "emr:vitals:record",
+//         },
+//         { label: "الصيدلية", path: "/pharmacy" },
+//         { label: "المعمل", path: "/lab" },
+//         { label: "الأشعة", path: "/radiology" },
+//         { label: "تجهيز الأسرة (Housekeeping)", path: "/housekeeping" },
+//       ],
+//     },
+//     {
+//       key: "surgery",
+//       title: "العمليات الجراحية",
+//       icon: <Icons.Scissors />,
+//       allowedRoles: ["ADMIN", "DOCTOR", "NURSE"],
+//       items: [{ label: "جدول العمليات", path: "/surgery" }],
+//     },
+//     {
+//       key: "humanResources",
+//       title: "الموارد البشرية",
+//       icon: <Icons.Users />,
+//       allowedRoles: ["ADMIN", "HR"],
+//       items: [
+//         { label: "تعريف الورديات", path: "/hr/shifts" },
+//         { label: "جدول المناوبات", path: "/hr/roster" },
+//         { label: "إدارة الإجازات", path: "/hr/leaves" },
+//         { label: "الحضور والانصراف", path: "/attendance" },
+//         { label: "الرواتب والأجور", path: "/payroll" },
+//       ],
+//     },
+//     {
+//       key: "revenue",
+//       title: "الإيرادات والخزينة",
+//       icon: <Icons.DollarSign />,
+//       allowedRoles: ["ADMIN", "ACCOUNTANT", "CASHIER"],
+//       items: [
+//         {
+//           label: "لوحة التقارير والتحليلات",
+//           path: "/reports",
+//           access: "acc:report:view",
+//         },
+//         { label: "الخزينة (POS)", path: "/cashier" },
+//         {
+//           label: "سجل الفواتير",
+//           path: "/invoices",
+//           access: "billing:invoice:view",
+//         },
+//         {
+//           label: "تقرير الكاشير اليومي",
+//           path: "/cashier/reports/daily",
+//           access: "billing:invoice:view",
+//         },
+//         {
+//           label: "تقرير المستخدمين",
+//           path: "/cashier/reports/by-cashier",
+//           access: "billing:invoice:view",
+//         },
+//         {
+//           label: "الشفتات المقفولة",
+//           path: "/cashier/shifts",
+//           access: "billing:invoice:view",
+//         },
+//         {
+//           label: "تحليل ذمم المرضى",
+//           path: "/accounting/patients-aging",
+//           access: "acc:report:view",
+//         },
+//         {
+//           label: "شركات التأمين",
+//           path: "/insurance/providers",
+//           access: "billing:invoice:create",
+//         },
+//         {
+//           label: "الموافقات المسبقة",
+//           path: "/insurance/pre-auth",
+//           access: "billing:invoice:create",
+//         },
+//         {
+//           label: "مطالبات التأمين",
+//           path: "/insurance/claims",
+//           access: "billing:invoice:view",
+//         },
+//       ],
+//     },
+//     {
+//       key: "purchases",
+//       title: "المشتريات والمخزون",
+//       icon: <Icons.Package />,
+//       allowedRoles: ["ADMIN", "ACCOUNTANT", "STORE_KEEPER"],
+//       items: [
+//         { label: "الموردون", path: "/suppliers" },
+//         {
+//           label: "فواتير المشتريات",
+//           path: "/purchases/invoices",
+//           access: "purchases:invoice:create",
+//         },
+//         {
+//           label: "تحليل ذمم الموردين",
+//           path: "/suppliers/aging",
+//           access: "purchases:invoice:view",
+//         },
+//         { label: "مخزون الصيدلية", path: "/pharmacy/stock" },
+//         { label: "تقرير حركات المخزون", path: "/pharmacy/stock-report" },
+//         { label: "التحويلات المخزنية", path: "/inventory/transfers" },
+//       ],
+//     },
+//     {
+//       key: "assets",
+//       title: "الأصول والصيانة",
+//       icon: <Icons.Building />,
+//       allowedRoles: ["ADMIN", "ACCOUNTANT", "STORE_KEEPER"],
+//       items: [
+//         { label: "سجل الأصول", path: "/assets", access: "acc:report:view" },
+//         { label: "إدارة الصيانة", path: "/assets/maintenance" },
+//         {
+//           label: "احتساب الإهلاك",
+//           path: "/assets/depreciation",
+//           access: "acc:entry:create",
+//         },
+//       ],
+//     },
+//     {
+//       key: "accounting",
+//       title: "المحاسبة العامة",
+//       icon: <Icons.Calculator />,
+//       allowedRoles: ["ADMIN", "ACCOUNTANT"],
+//       items: [
+//         {
+//           label: "السنوات المالية",
+//           path: "/financial-years",
+//           access: "acc:report:view",
+//         },
+//         {
+//           label: "دليل الحسابات",
+//           path: "/accounting/chart-of-accounts",
+//           access: "acc:report:view",
+//         },
+//         {
+//           label: "الأرصدة الافتتاحية",
+//           path: "/accounting/opening-balances",
+//           access: "acc:entry:create",
+//         },
+//         {
+//           label: "قيد يدوي",
+//           path: "/accounting/manual-entry",
+//           access: "acc:entry:create",
+//         },
+//         {
+//           label: "دفتر اليومية العامة",
+//           path: "/accounting/journal",
+//           access: "acc:report:view",
+//         },
+//         {
+//           label: "سجل القيود (Entries)",
+//           path: "/accounting/entries",
+//           access: "acc:report:view",
+//         },
+//         {
+//           label: "دفتر الأستاذ",
+//           path: "/accounting/ledger",
+//           access: "acc:report:view",
+//         },
+//         {
+//           label: "ميزان المراجعة",
+//           path: "/accounting/trial-balance",
+//           access: "acc:report:view",
+//         },
+//         {
+//           label: "قائمة الدخل",
+//           path: "/accounting/income-statement",
+//           access: "acc:report:view",
+//         },
+//         {
+//           label: "الميزانية العمومية",
+//           path: "/accounting/balance-sheet",
+//           access: "acc:report:view",
+//         },
+//         {
+//           label: "إقفال السنة",
+//           path: "/accounting/year-closing",
+//           access: "acc:year:close",
+//         },
+//       ],
+//     },
+//     {
+//       key: "integration",
+//       title: "الربط والتكامل",
+//       icon: <Icons.Network />,
+//       allowedRoles: ["ADMIN", "IT_ADMIN"],
+//       items: [{ label: "إدارة الأجهزة (LIS/PACS)", path: "/integration" }],
+//     },
+//     {
+//       key: "settings",
+//       title: "الإعدادات",
+//       icon: <Icons.Settings />,
+//       allowedRoles: ["ADMIN"],
+//       items: [
+//         { label: "الإعدادات العامة", path: "/settings" },
+//         { label: "الأقسام (Departments)", path: "/settings/departments" },
+//         { label: "التخصصات (Specialties)", path: "/settings/specialties" },
+//         { label: "قوائم الأسعار", path: "/settings/price-lists" },
+//         { label: "الخدمات والأسعار", path: "/services" },
+//         { label: "المستخدمون والصلاحيات", path: "/users" },
+//       ],
+//     },
+//   ];
+
+//   // 🛡️ فلترة القائمة ديناميكياً
+//   const authorizedMenu = useMemo(() => {
+//     if (!user) return [];
+
+//     // إذا كان أدمن، نعرض كل شيء
+//     if (user.roles.includes("ADMIN")) return menuStructure;
+
+//     return (
+//       menuStructure
+//         .map((section) => ({
+//           ...section,
+//           // نفلتر العناصر بناءً على الصلاحية الدقيقة (access code)
+//           // وإذا لم يكن هناك كود، نعتمد على التحقق من الدور العام (allowedRoles) للقسم
+//           items: section.items.filter((item) => {
+//             // التحقق من الصلاحية الدقيقة
+//             const hasPermission = hasAccess(item.access);
+
+//             // التحقق من الدور العام للقسم (Secondary Check)
+//             const hasRole = section.allowedRoles.some((role) =>
+//               user.roles.includes(role),
+//             );
+
+//             return hasPermission && hasRole;
+//           }),
+//         }))
+//         // إخفاء القسم بالكامل إذا لم يتبقَ فيه أي عناصر
+//         .filter((section) => section.items.length > 0)
+//     );
+//   }, [user, menuStructure]);
+
+//   return (
+//     <div className="h-screen w-screen flex bg-slate-950 text-slate-100 overflow-hidden">
+//       {/* Sidebar */}
+//       <aside className="w-64 hidden md:flex flex-col border-l border-slate-800 bg-slate-950/95 backdrop-blur h-full flex-shrink-0 z-40">
+//         {/* Header */}
+//         <div className="px-5 py-5 border-b border-slate-800 flex-shrink-0">
+//           <div className="text-[10px] uppercase tracking-[0.2em] text-sky-500 font-bold mb-1">
+//             HOSPITAL SUITE
+//           </div>
+//           <div className="font-bold text-lg text-white">نظام السرايا الطبي</div>
+//         </div>
+
+//         {/* Navigation */}
+//         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto custom-scrollbar">
+//           {authorizedMenu.map((section) => {
+//             const isOpen = openSection === section.key;
+//             return (
+//               <div key={section.key} className="mb-1">
+//                 <button
+//                   type="button"
+//                   onClick={() => toggleSection(section.key)}
+//                   className={`flex items-center justify-between w-full px-3 py-3 text-sm font-medium rounded-xl transition-colors duration-200
+//                     ${isOpen ? "text-slate-100" : "text-slate-400 hover:text-slate-200 hover:bg-slate-900/50"}`}
+//                 >
+//                   <div className="flex items-center gap-3">
+//                     <span
+//                       className={isOpen ? "text-sky-500" : "text-slate-500"}
+//                     >
+//                       {section.icon}
+//                     </span>
+//                     <span>{section.title}</span>
+//                   </div>
+//                   <span
+//                     className={`transition-transform duration-300 text-slate-600 ${isOpen ? "-rotate-90" : "rotate-0"}`}
+//                   >
+//                     <Icons.ChevronLeft />
+//                   </span>
+//                 </button>
+
+//                 <div
+//                   className={`overflow-hidden transition-all duration-300 ease-in-out ${isOpen ? "max-h-[800px] opacity-100 mt-1" : "max-h-0 opacity-0"}`}
+//                 >
+//                   <div className="pr-4 pl-1 space-y-1 py-1 mr-2 border-r border-slate-800/50">
+//                     {section.items.map((item) => (
+//                       <NavLink
+//                         key={item.path}
+//                         to={item.path}
+//                         className={navLinkClasses}
+//                       >
+//                         {item.label}
+//                       </NavLink>
+//                     ))}
+//                   </div>
+//                 </div>
+//               </div>
+//             );
+//           })}
+//         </nav>
+
+//         {/* Footer */}
+//         <div className="p-4 border-t border-slate-800 bg-slate-950 flex-shrink-0">
+//           {user && (
+//             <div className="mb-3">
+//               <div className="font-semibold text-sm text-white">
+//                 {user.fullName}
+//               </div>
+//               <div className="text-slate-500 text-[10px] truncate">
+//                 {user.roles?.join(" | ")}
+//               </div>
+//             </div>
+//           )}
+//           <button
+//             onClick={logout}
+//             className="w-full flex items-center justify-center gap-2 rounded-xl bg-rose-900/20 hover:bg-rose-900/40 text-rose-400 hover:text-rose-300 text-xs py-2 transition border border-rose-900/30"
+//           >
+//             تسجيل الخروج
+//           </button>
+//         </div>
+//       </aside>
+
+//       {/* Main Content */}
+//       <main className="flex-1 flex flex-col h-full overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 relative">
+//         {/* Header (Desktop & Mobile) */}
+//         <header className="flex-shrink-0 flex items-center justify-between px-6 py-3 border-b border-slate-800 bg-slate-950/90 backdrop-blur z-30">
+//           <div className="hidden md:block text-slate-400 text-xs font-medium">
+//             مرحباً بك في نظام السرايا الطبي - النسخة التشغيلية
+//           </div>
+//           <div className="flex items-center gap-4">
+//             <NotificationBell />
+//             {user && (
+//               <div className="text-left text-[11px] hidden md:block">
+//                 <div className="text-white font-medium">{user.fullName}</div>
+//                 <div className="text-slate-500">{user.roles?.[0]}</div>
+//               </div>
+//             )}
+//           </div>
+//         </header>
+
+//         <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6 custom-scrollbar">
+//           <div className="max-w-[1600px] mx-auto min-h-full">
+//             <Outlet />
+//           </div>
+//         </div>
+//       </main>
+//     </div>
+//   );
+// }

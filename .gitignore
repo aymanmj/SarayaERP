@@ -1,0 +1,92 @@
+############################
+# Node.js / JavaScript / TypeScript
+############################
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+############################
+# Build Outputs
+############################
+dist/
+build/
+.out/
+.next/
+coverage/
+
+############################
+# Environment Variables
+############################
+.env
+.env.*
+!.env.example
+
+############################
+# Logs
+############################
+logs/
+*.log
+
+############################
+# OS Files
+############################
+.DS_Store
+Thumbs.db
+
+############################
+# IDE / Editors
+############################
+.vscode/
+.idea/
+*.swp
+*.swo
+
+############################
+# Cache
+############################
+.cache/
+.eslintcache
+.parcel-cache
+.turbo
+
+############################
+# Testing
+############################
+.nyc_output/
+coverage/
+
+############################
+# Docker
+############################
+docker-data/
+*.pid
+
+############################
+# Prisma / ORM
+############################
+prisma/dev.db
+prisma/dev.db-journal
+
+############################
+# Monorepo Tools
+############################
+nx-cache/
+lerna-debug.log*
+
+############################
+# Misc
+############################
+tmp/
+temp/
+
+
+
+############################
+# Certificates
+############################
+*.pem
+*.key
+*.crt
+secrets/

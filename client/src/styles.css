@@ -1,0 +1,60 @@
+@import "tailwindcss";
+
+body {
+  direction: rtl;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  background-color: #0f172a; /* خلفية غامقة بسيطة */
+}
+
+/* ==== طباعة فاتورة الكاشير ==== */
+
+@page {
+  size: A4 portrait;
+  margin: 10mm;
+}
+
+@media print {
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+    background: #ffffff;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* إخفاء كل شيء مبدئياً */
+  body * {
+    visibility: hidden;
+  }
+
+  /* إظهار جذر الفاتورة فقط */
+  #invoice-print-root,
+  #invoice-print-root * {
+    visibility: visible;
+  }
+
+  /* إزالة تأثير التصميم العام في الطباعة */
+  #invoice-print-root {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    padding: 0;
+    background: #ffffff;
+  }
+
+  /* تنسيق ورقة الفاتورة نفسها */
+  #invoice-print-root .print-wrapper {
+    width: 190mm; /* أصغر من A4 قليلاً */
+    margin: 0 auto;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    background: #ffffff !important;
+  }
+
+  /* إخفاء الأزرار */
+  .no-print {
+    display: none !important;
+  }
+}

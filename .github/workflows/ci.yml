@@ -1,0 +1,89 @@
+name: Saraya ERP CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  backend-test:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: admin
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: saraya_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    defaults:
+      run:
+        working-directory: ./server
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Use Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+        cache-dependency-path: server/package-lock.json
+
+    - name: Install Dependencies
+      run: npm ci
+
+    - name: Generate Prisma Client
+      run: npx prisma generate
+
+    - name: Push DB Schema
+      env:
+        DATABASE_URL: postgresql://admin:password@localhost:5432/saraya_test?schema=public
+      run: npm run test:db:push
+
+    - name: Run Lint
+      run: npm run lint
+
+    - name: Run E2E Tests
+      env:
+        DATABASE_URL: postgresql://admin:password@localhost:5432/saraya_test?schema=public
+        JWT_SECRET: test_secret_key
+      run: npm run test:e2e
+
+  frontend-test:
+    runs-on: ubuntu-latest
+    
+    defaults:
+      run:
+        working-directory: ./client
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Use Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+        cache-dependency-path: client/package-lock.json
+
+    - name: Install Dependencies
+      run: npm install # Using install because package-lock might be out of sync in dev
+
+    - name: Run Lint
+      run: npm run lint
+
+    - name: Run Tests
+      run: npm test -- run # Vitest run once
+
+    - name: Build
+      run: npm run build

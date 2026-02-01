@@ -1,0 +1,47 @@
+# ============================================
+# Prometheus Configuration
+# ============================================
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'saraya-erp'
+
+# Alert rules
+rule_files:
+  - 'alert.rules.yml'
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - 'alertmanager:9093'
+
+# Scrape configurations
+scrape_configs:
+  # Saraya ERP Backend
+  - job_name: 'saraya-backend'
+    scrape_interval: 30s
+    metrics_path: '/health/metrics'
+    static_configs:
+      - targets: ['host.docker.internal:3000']
+        labels:
+          app: 'saraya-erp'
+          service: 'backend'
+
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Node Exporter (host metrics)
+  - job_name: 'node'
+    static_configs:
+      - targets: ['node-exporter:9100']
+
+  # PostgreSQL (if using postgres_exporter)
+  # - job_name: 'postgresql'
+  #   static_configs:
+  #     - targets: ['postgres-exporter:9187']
