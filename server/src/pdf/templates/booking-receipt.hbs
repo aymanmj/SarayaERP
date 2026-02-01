@@ -1,0 +1,172 @@
+<html lang='ar' dir='rtl'>
+  <head>
+    <meta charset='UTF-8' />
+    <title>إيصال حجز موعد #{{appointmentId}}</title>
+    <style>
+      body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        font-size: 12px;
+        color: #1f2937;
+        line-height: 1.5;
+        margin: 0;
+        padding: 0;
+      }
+
+      .container {
+        width: 100%;
+        margin: 0 auto;
+        padding: 20px;
+        max-width: 400px; /* إيصال حراري أو صغير */
+        border: 1px solid #e2e8f0;
+      }
+
+      .header {
+        text-align: center;
+        border-bottom: 2px solid #0f766e;
+        padding-bottom: 10px;
+        margin-bottom: 20px;
+      }
+
+      .hospital-name {
+        color: #0f766e;
+        font-size: 18px;
+        margin: 0 0 5px 0;
+      }
+
+      .title {
+        font-size: 16px;
+        font-weight: bold;
+        text-transform: uppercase;
+        margin-top: 10px;
+      }
+
+      .queue-box {
+        text-align: center;
+        margin: 20px 0;
+        padding: 15px;
+        background-color: #f0fdfa;
+        border: 2px dashed #0f766e;
+        border-radius: 8px;
+      }
+
+      .queue-label {
+        font-size: 14px;
+        color: #555;
+        display: block;
+        margin-bottom: 5px;
+      }
+
+      .queue-number {
+        font-size: 48px;
+        font-weight: 800;
+        color: #0f766e;
+        line-height: 1;
+      }
+
+      .details-table {
+        width: 100%;
+        margin-bottom: 20px;
+      }
+
+      .details-table td {
+        padding: 5px 0;
+        border-bottom: 1px solid #f1f5f9;
+      }
+
+      .label {
+        color: #64748b;
+        font-weight: bold;
+        width: 100px;
+      }
+
+      .value {
+        color: #0f172a;
+        font-weight: 600;
+      }
+
+      .footer {
+        text-align: center;
+        font-size: 10px;
+        color: #94a3b8;
+        margin-top: 20px;
+        border-top: 1px solid #e2e8f0;
+        padding-top: 10px;
+      }
+
+      .qr-code {
+        margin-top: 15px;
+        text-align: center;
+      }
+      
+      .qr-img {
+        width: 80px;
+        height: 80px;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- تصميم مناسب للطابعات الحرارية (Thermal Printer Friendly) -->
+    
+    {{#if printHeaderFooter}}
+    <div class='header'>
+      <h1 class='hospital-name'>{{hospitalName}}</h1>
+      <div>{{address}}</div>
+      <div class='title'>إيصال حجز موعد<br>Appointment Ticket</div>
+    </div>
+    {{else}}
+    <div style="height: 60px;"></div>
+    <div style="text-align: center; font-weight: bold; margin-bottom: 20px; font-size: 16px;">
+        إيصال حجز موعد
+    </div>
+    {{/if}}
+
+    <div class="queue-box">
+      <span class="queue-label">رقم الدور / Queue No</span>
+      <span class="queue-number">{{queueNumber}}</span>
+    </div>
+
+    <table class="details-table">
+      <tr>
+        <td class="label">المريض:</td>
+        <td class="value">{{patientName}}</td>
+      </tr>
+      <tr>
+        <td class="label">رقم الملف:</td>
+        <td class="value">{{mrn}}</td>
+      </tr>
+      <tr>
+        <td class="label">العيادة/القسم:</td>
+        <td class="value">{{departmentName}}</td>
+      </tr>
+      <tr>
+        <td class="label">الطبيب:</td>
+        <td class="value">{{doctorName}}</td>
+      </tr>
+      <tr>
+        <td class="label">التاريخ:</td>
+        <td class="value">{{formatDate date}}</td>
+      </tr>
+      <tr>
+        <td class="label">الوقت:</td>
+        <td class="value">{{time}}</td>
+      </tr>
+      <tr>
+        <td class="label" style="color: #059669;">قيمة الكشف:</td>
+        <td class="value" style="color: #059669; font-size: 14px;">{{price}}</td>
+      </tr>
+    </table>
+
+    <div class='footer'>
+      <div style="font-weight: bold;">يرجى الحضور قبل الموعد بـ 15 دقيقة</div>
+      <div>نظام السرايا الطبي - Saraya ERP</div>
+      <div>{{printDate}}</div>
+      
+      <div class='qr-code'>
+        {{#if qrCode}}
+          <img src='{{qrCode}}' class='qr-img' />
+        {{/if}}
+      </div>
+    </div>
+
+  </body>
+</html>

@@ -1,0 +1,349 @@
+<html lang='ar' dir='rtl'>
+  <head>
+    <meta charset='UTF-8' />
+    <title>{{#if (eq invoiceType 'CREDIT_NOTE')}}إشعار دائن{{else}}فاتورة ضريبية{{/if}} #{{invoiceId}}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+      body {
+        font-family: 'Cairo', 'Segoe UI', Tahoma, sans-serif;
+        font-size: 10px;
+        color: #334155; /* Slate-700 */
+        line-height: 1.5;
+        margin: 0;
+        padding: 0;
+      }
+
+      .container {
+        width: 100%;
+        margin: 0 auto;
+      }
+
+      /* Header Styling */
+      .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center; /* Center Vertically */
+        border-bottom: 2px solid #0f766e; /* Emerald-700 */
+        padding-bottom: 25px;
+        margin-bottom: 30px;
+      }
+
+      .hospital-info h1 {
+        color: #0f766e;
+        font-size: 22px;
+        margin: 0 0 5px 0;
+        font-weight: 700;
+      }
+
+      .hospital-info p {
+        margin: 2px 0;
+        font-size: 10px;
+        color: #64748b;
+      }
+
+      .invoice-info {
+        text-align: left;
+      }
+
+      .doc-title {
+        font-size: 18px;
+        font-weight: 700;
+        text-transform: uppercase;
+        color: #1e293b;
+        margin-bottom: 5px;
+      }
+      
+      .doc-title.credit-note {
+        color: #be123c; /* Rose-700 */
+      }
+
+      .invoice-number-badge {
+        background: #f1f5f9;
+        padding: 5px 10px;
+        border-radius: 4px;
+        font-family: 'Courier New', Courier, monospace;
+        font-weight: bold;
+        font-size: 14px;
+        color: #334155;
+        border: 1px solid #e2e8f0;
+        display: inline-block;
+      }
+
+      /* Meta Grid */
+      .meta-box {
+        display: flex;
+        flex-wrap: wrap;
+        background-color: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        padding: 15px;
+        margin-bottom: 25px;
+      }
+
+      .meta-item {
+        width: 25%; /* 4 columns */
+        margin-bottom: 5px;
+      }
+
+      .meta-label {
+        font-size: 9px;
+        color: #94a3b8;
+        font-weight: 600;
+        display: block;
+        margin-bottom: 2px;
+      }
+
+      .meta-value {
+        font-size: 11px;
+        font-weight: 700;
+        color: #0f172a;
+      }
+
+      /* Table */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 30px;
+      }
+
+      th {
+        background-color: #0f766e;
+        color: white;
+        padding: 10px;
+        text-align: right;
+        font-size: 10px;
+        font-weight: 600;
+      }
+
+      td {
+        padding: 10px;
+        border-bottom: 1px solid #e2e8f0;
+        font-size: 10px;
+        vertical-align: middle;
+      }
+
+      tr:nth-child(even) {
+        background-color: #f8fafc;
+      }
+      
+      .row-num {
+        color: #94a3b8;
+        font-family: monospace;
+      }
+
+      /* Footer Section */
+      .footer-section {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-top: 10px;
+        page-break-inside: avoid;
+      }
+
+      .notes-box {
+        width: 55%;
+        font-size: 9px;
+        color: #64748b;
+        padding: 12px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        line-height: 1.6;
+      }
+
+      .totals-box {
+        width: 35%;
+      }
+
+      .total-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 5px 0;
+        font-size: 11px;
+      }
+
+      .total-row.final {
+        border-top: 2px solid #0f172a;
+        background: #f1f5f9;
+        padding: 10px;
+        margin-top: 10px;
+        border-radius: 4px;
+        font-size: 14px;
+        font-weight: 800;
+        color: #0f766e;
+      }
+      
+      .total-row.final.credit {
+        color: #be123c;
+      }
+
+      /* Watermark */
+      .watermark {
+        position: fixed;
+        top: 40%;
+        left: 25%;
+        transform: rotate(-30deg);
+        font-size: 80px;
+        color: rgba(190, 18, 60, 0.05);
+        font-weight: 800;
+        z-index: -1;
+        border: 8px solid rgba(190, 18, 60, 0.05);
+        padding: 40px;
+        border-radius: 20px;
+      }
+
+      .qr-code {
+        margin-top: 20px;
+        text-align: left; /* Align with headers if needed, or keeping styling minimal */
+      }
+      .qr-img {
+        width: 80px;
+        height: 80px;
+        border: 1px solid #eee;
+        padding: 4px;
+        background: white;
+      }
+      
+      .system-footer {
+        text-align: center;
+        margin-top: 40px;
+        padding-top: 10px;
+        border-top: 1px solid #e2e8f0;
+        font-size: 8px;
+        color: #cbd5e1;
+      }
+    </style>
+  </head>
+  <body>
+
+    {{#if (eq invoiceType 'CREDIT_NOTE')}}
+      <div class="watermark">مرتجع / RETURN</div>
+    {{/if}}
+
+    {{#if printHeaderFooter}}
+    <!-- Header -->
+    <div class='header'>
+      <div class="hospital-info">
+        <h1 class='hospital-name'>{{hospitalName}}</h1>
+        <p>{{address}}</p>
+        <p dir="ltr">{{phone}} | {{email}}</p>
+      </div>
+      <div class="invoice-info">
+        {{#if (eq invoiceType 'CREDIT_NOTE')}}
+          <div class='doc-title credit-note'>إشعار دائن <span style="font-size:12px; color:#94a3b8; font-weight:400;">(Credit Note)</span></div>
+        {{else}}
+          <div class='doc-title'>فاتورة ضريبية <span style="font-size:12px; color:#94a3b8; font-weight:400;">(Tax Invoice)</span></div>
+        {{/if}}
+        <div class='invoice-number-badge'>#{{invoiceId}}</div>
+      </div>
+    </div>
+    {{else}}
+    <!-- Spacer for pre-printed paper -->
+    <div style="height: 150px;"></div>
+    <div class="invoice-info" style="text-align: left; margin-bottom: 20px;">
+        <div class='invoice-number-badge'>#{{invoiceId}}</div>
+    </div>
+    {{/if}}
+
+    <!-- Meta Grid -->
+    <div class='meta-box'>
+      <div class='meta-item'>
+        <span class='meta-label'>المريض (Patient)</span>
+        <span class='meta-value'>{{patientName}}</span>
+        <div style="font-size: 9px; color: #64748b; margin-top:1px;">MRN: {{mrn}}</div>
+      </div>
+      
+      <div class='meta-item'>
+        <span class='meta-label'>التاريخ (Date)</span>
+        <span class='meta-value'>{{formatDate invoiceDate}}</span>
+      </div>
+
+      <div class='meta-item'>
+        <span class='meta-label'>العميل/الضامن (Client)</span>
+        <span class='meta-value'>{{insuranceProvider}}</span>
+      </div>
+
+      <div class='meta-item'>
+        <span class='meta-label'>الحالة (Status)</span>
+        <span class='meta-value' style="{{#if (eq status 'PAID')}}color:#15803d;{{else}}color:#b45309;{{/if}}">
+          {{status}}
+        </span>
+      </div>
+    </div>
+
+    <!-- Items Table -->
+    <table>
+      <thead>
+        <tr>
+          <th width='5%'>#</th>
+          <th width='50%'>الخدمة (Description)</th>
+          <th width='10%' style="text-align: center;">الكمية</th>
+          <th width='15%'>سعر الوحدة</th>
+          <th width='20%'>الإجمالي</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each items}}
+          <tr>
+            <td class="row-num">{{inc @index}}</td>
+            <td>
+              <div style='font-weight: 700;'>{{serviceName}}</div>
+            </td>
+            <td style="text-align: center;">{{quantity}}</td>
+            <td>{{formatMoney unitPrice}}</td>
+            <td>{{formatMoney totalAmount}}</td>
+          </tr>
+        {{/each}}
+      </tbody>
+    </table>
+
+    <!-- Footer & Totals -->
+    <div class='footer-section'>
+      <div class="notes-box">
+        <strong>ملاحظات / Notes:</strong><br>
+        تم إصدار هذه الفاتورة إلكترونياً ولا تحتاج إلى توقيع.<br>
+        يرجى الاحتفاظ بهذا المستند للمراجعة.
+        {{#if (eq invoiceType 'CREDIT_NOTE')}}
+        <br><span style="color: #be123c;">* هذا المستند يمثل استرداداً للمبلغ.</span>
+        {{/if}}
+        
+        <div class='qr-code'>
+          {{#if qrCode}}
+            <img src='{{qrCode}}' class='qr-img' />
+          {{/if}}
+        </div>
+      </div>
+
+      <div class='totals-box'>
+        <div class='total-row'>
+          <span>المجموع (Subtotal)</span>
+          <span>{{formatMoney subTotal}}</span>
+        </div>
+        
+        {{#if (gt discountAmount 0)}}
+        <div class='total-row' style="color: #be123c;">
+          <span>الخصم (Discount)</span>
+          <span>- {{formatMoney discountAmount}}</span>
+        </div>
+        {{/if}}
+
+        {{#if (gt vatAmount 0)}}
+        <div class='total-row'>
+          <span>الضريبة (VAT)</span>
+          <span>{{formatMoney vatAmount}}</span>
+        </div>
+        {{/if}}
+
+        <div class="total-row {{#if (eq invoiceType 'CREDIT_NOTE')}}final credit{{else}}final{{/if}}">
+          <span>الإجمالي (Total)</span>
+          <span><span style="font-size:10px; font-weight:normal;">LYD</span> {{formatMoney netAmount}}</span>
+        </div>
+      </div>
+    </div>
+    
+    <div class="system-footer">
+       Saraya ERP Systems &copy; 2026
+    </div>
+
+  </body>
+</html>

@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE "User" ADD COLUMN     "basicSalary" DECIMAL(18,3) NOT NULL DEFAULT 0,
+ADD COLUMN     "housingAllowance" DECIMAL(18,3) NOT NULL DEFAULT 0,
+ADD COLUMN     "otherAllowance" DECIMAL(18,3) NOT NULL DEFAULT 0,
+ADD COLUMN     "transportAllowance" DECIMAL(18,3) NOT NULL DEFAULT 0;
