@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { createPrismaMock } from '../test-utils';
 import { PatientsService } from './patients.service';
 
 import { PrismaService } from '../prisma/prisma.service';
@@ -8,7 +9,7 @@ import { SoftDeleteService } from '../common/soft-delete.service';
 describe('PatientsService', () => {
   let service: PatientsService;
 
-  const mockPrismaService = {
+  const mockPrismaService = ({
     patient: {
       findMany: jest.fn(),
       findUnique: jest.fn(),
@@ -18,7 +19,7 @@ describe('PatientsService', () => {
       count: jest.fn(),
     },
     $transaction: jest.fn((fn) => Promise.resolve([[], 0])), // simplified transaction mock
-  };
+  });
 
   const mockSoftDeleteService = {
     softDelete: jest.fn(),

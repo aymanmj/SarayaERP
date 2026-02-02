@@ -69,24 +69,24 @@ import { JwtService } from '@nestjs/jwt';
     PrismaModule,
     EventEmitterModule.forRoot(),
     ScheduleModule.forRoot(),
-    
+
     // ✅ Rate Limiting Configuration
     ThrottlerModule.forRoot({
       throttlers: [
         {
           name: 'short',
-          ttl: 1000,    // 1 second
-          limit: 10,    // 10 requests per second
+          ttl: 1000, // 1 second
+          limit: 100, // 10 requests per second
         },
         {
           name: 'medium',
-          ttl: 10000,   // 10 seconds
-          limit: 50,    // 50 requests per 10 seconds
+          ttl: 10000, // 10 seconds
+          limit: 200, // 50 requests per 10 seconds
         },
         {
           name: 'long',
-          ttl: 60000,   // 1 minute
-          limit: 200,   // 200 requests per minute
+          ttl: 60000, // 1 minute
+          limit: 1000, // 200 requests per minute
         },
       ],
     }),
@@ -140,7 +140,7 @@ import { JwtService } from '@nestjs/jwt';
     HrModule,
 
     ClinicalModule,
-    CDSSModule,       // ✅ [NEW] نظام دعم القرار السريري
+    CDSSModule, // ✅ [NEW] نظام دعم القرار السريري
 
     // Departments & Specialties
     DepartmentsModule,

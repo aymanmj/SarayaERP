@@ -54,4 +54,11 @@ export class AttendanceController {
       uId,
     );
   }
+
+  @Post('upload')
+  @Roles('ADMIN', 'HR')
+  async uploadAttendanceFile(@Body() body: { data: any[] }) {
+    // body.data متوقع أن تكون مصفوفة: [{ employeeId: 101, timestamp: '2025-02-01 08:00:00' }, ...]
+    return this.attendanceService.processBulkPunches(body.data);
+  }
 }

@@ -2,6 +2,7 @@
 // Unit tests for Pharmacy Service
 
 import { Test, TestingModule } from '@nestjs/testing';
+import { createPrismaMock } from '../test-utils';
 import { PharmacyService } from './pharmacy.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -57,7 +58,7 @@ describe('PharmacyService', () => {
     { id: 11, name: 'Paracetamol 500mg', code: 'PCM500', sellPrice: new Decimal(0.5) },
   ];
 
-  const mockPrismaService = {
+  const mockPrismaService = ({
     prescription: {
       findFirst: jest.fn(),
       findMany: jest.fn(),
@@ -89,7 +90,7 @@ describe('PharmacyService', () => {
       create: jest.fn(),
     },
     $transaction: jest.fn((fn) => fn(mockPrismaService)),
-  };
+  });
 
   const mockEventEmitter = {
     emit: jest.fn(),

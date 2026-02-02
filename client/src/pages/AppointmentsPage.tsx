@@ -7,6 +7,8 @@ import { useAuthStore } from "../stores/authStore";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { DatePicker } from "@/components/ui/date-picker";
+import { format, addDays, startOfDay } from 'date-fns';
+import { ar } from 'date-fns/locale';
 
 // --- Types ---
 type AppointmentStatus =

@@ -2,6 +2,7 @@
 // Unit tests for Billing Service
 
 import { Test, TestingModule } from '@nestjs/testing';
+import { createPrismaMock } from '../test-utils';
 import { BillingService } from './billing.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -25,6 +26,7 @@ describe('BillingService', () => {
     hospitalId: mockHospitalId,
     patientId: 1,
     status: 'OPEN',
+    type: 'OUTPATIENT',
     patient: {
       id: 1,
       fullName: 'أحمد محمد',
@@ -60,7 +62,7 @@ describe('BillingService', () => {
     },
   ];
 
-  const mockPrismaService = {
+  const mockPrismaService = ({
     encounter: {
       findFirst: jest.fn(),
       findUnique: jest.fn(),
@@ -81,7 +83,7 @@ describe('BillingService', () => {
       findMany: jest.fn(),
     },
     $transaction: jest.fn((fn) => fn(mockPrismaService)),
-  };
+  });
 
   const mockEventEmitter = {
     emit: jest.fn(),
@@ -96,6 +98,11 @@ describe('BillingService', () => {
   };
 
   const mockInsuranceCalcService = {
+    calculateCoverage: jest.fn().mockResolvedValue({
+      patientShare: { toNumber: () => 100 },
+      insuranceShare: { toNumber: () => 0 },
+      details: [],
+    }),
     calculateInsuranceSplit: jest.fn().mockResolvedValue({
       patientShare: { toNumber: () => 100 },
       insuranceShare: { toNumber: () => 0 },
@@ -299,6 +306,7 @@ describe('BillingService', () => {
         hospitalId: mockHospitalId,
         status: 'ISSUED',
         charges: mockCharges,
+        payments: [], // Empty payments array
       };
 
       mockPrismaService.invoice.findFirst.mockResolvedValue(mockInvoice);

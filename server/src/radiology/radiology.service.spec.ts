@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { createPrismaMock } from '../test-utils';
 import { RadiologyService } from './radiology.service';
 
 import { PrismaService } from '../prisma/prisma.service';
@@ -9,7 +10,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 describe('RadiologyService', () => {
   let service: RadiologyService;
 
-  const mockPrismaService = {
+  const mockPrismaService = ({
     radiologyOrder: {
       findMany: jest.fn(),
       findFirst: jest.fn(),
@@ -17,7 +18,7 @@ describe('RadiologyService', () => {
       update: jest.fn(),
     },
     $transaction: jest.fn((fn) => fn(mockPrismaService)),
-  };
+  });
 
   const mockAccountingService = {
     getCurrentPeriod: jest.fn(),

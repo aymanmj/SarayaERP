@@ -2,6 +2,7 @@
 // Unit tests for Lab Service
 
 import { Test, TestingModule } from '@nestjs/testing';
+import { createPrismaMock } from '../test-utils';
 import { LabService } from './labs.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -58,7 +59,7 @@ describe('LabService', () => {
     },
   };
 
-  const mockPrismaService = {
+  const mockPrismaService = ({
     labTest: {
       findMany: jest.fn(),
       findFirst: jest.fn(),
@@ -92,7 +93,7 @@ describe('LabService', () => {
       findUnique: jest.fn().mockResolvedValue({ id: 1, fullName: 'Doctor' }),
     },
     $transaction: jest.fn((fn) => fn(mockPrismaService)),
-  };
+  });
 
   const mockEventEmitter = {
     emit: jest.fn(),
