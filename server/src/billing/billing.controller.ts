@@ -155,48 +155,44 @@ export class BillingController {
 
     // 3. Prepare Data for Template
     const pdfData = {
-      hospitalName: hospitalInfo.name,
-      address: hospitalInfo.address,
-      phone: hospitalInfo.phone,
-      email: hospitalInfo.email,
-      printHeaderFooter: hospitalInfo.printHeaderFooter, // ✅
+      // Organization data (flat structure for template)
+      hospitalName: String(hospitalInfo.name || ''),
+      address: String(hospitalInfo.address || ''),
+      phone: String(hospitalInfo.phone || ''),
+      email: String(hospitalInfo.email || ''),
 
-      invoiceId: invoiceData.invoice.id,
-      invoiceType: invoiceData.invoice.type,
-      originalInvoiceId: invoiceData.invoice.originalInvoiceId,
-      invoiceDate: invoiceData.invoice.createdAt,
-      status: invoiceData.invoice.status,
+      invoiceId: Number(invoiceData.invoice.id),
+      invoiceType: String(invoiceData.invoice.type || ''),
+      originalInvoiceId: invoiceData.invoice.originalInvoiceId ? Number(invoiceData.invoice.originalInvoiceId) : null,
+      invoiceDate: new Date(invoiceData.invoice.createdAt),
+      status: String(invoiceData.invoice.status || ''),
 
-      patientName: invoiceData.patient.fullName,
-      mrn: invoiceData.patient.mrn,
-      insuranceProvider: insuranceShare > 0 ? 'تأمين' : 'نقدي',
+      // Patient data (flat structure for template)
+      patientName: String(invoiceData.patient.fullName || ''),
+      mrn: String(invoiceData.patient.mrn || ''),
+      insuranceProvider: insuranceShare > 0 ? 'تأمين' : 'نقدي (مريض)',
 
+      // Items data
       items: invoiceData.charges.map((c) => ({
-        serviceName: c.serviceItem.name,
-        quantity: c.quantity,
-        unitPrice: c.unitPrice,
-        totalAmount: c.totalAmount,
+        serviceName: String(c.serviceItem.name || ''),
+        code: c.serviceItem.code ? String(c.serviceItem.code) : null,
+        quantity: Number(c.quantity || 0),
+        unitPrice: Number(c.unitPrice || 0),
+        totalAmount: Number(c.totalAmount || 0),
       })),
 
-      totalAmount: invoiceData.invoice.totalAmount,
-      discountAmount: invoiceData.invoice.discountAmount,
-      // VAT logic if needed, currently reusing logic
-      vatAmount: 0, // Placeholder if not in data
-      subTotal: invoiceData.invoice.totalAmount, // Assuming totalAmount includes everything or is subtotal? Usually total = sub - discount + vat. 
-                                                // Adjust based on your business logic. 
-                                                // Looking at template: uses 'subTotal', 'discountAmount', 'vatAmount', 'netAmount'.
-      // Correct mapping based on typical schema:
-      // invoice.totalAmount is usually the FINAL amount in some systems, or the sum of items.
-      // Let's assume invoice.totalAmount is the SUM of items (Subtotal).
+      // Totals
+      totalAmount: Number(invoiceData.invoice.totalAmount || 0),
+      discountAmount: Number(invoiceData.invoice.discountAmount || 0),
+      netAmount: Number(invoiceData.invoice.totalAmount || 0) - Number(invoiceData.invoice.discountAmount || 0),
+      paidAmount: Number(invoiceData.invoice.paidAmount || 0),
+      remainingAmount: (Number(invoiceData.invoice.totalAmount || 0) - Number(invoiceData.invoice.discountAmount || 0)) - Number(invoiceData.invoice.paidAmount || 0),
       
-      netAmount:
-        Number(invoiceData.invoice.totalAmount) -
-        Number(invoiceData.invoice.discountAmount),
-      currentDate: new Date(),
+      currentDateTime: new Date(),
     };
 
     // 4. Generate PDF
-    const buffer = await this.pdfService.generatePdf('invoice', pdfData);
+    const buffer = await this.pdfService.generatePdf('invoice-modern', pdfData);
 
     // 5. Send Response
     res.set({

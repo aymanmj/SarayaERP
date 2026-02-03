@@ -13,8 +13,11 @@ const CashierClosedShiftsPage = lazy(
   () => import("../pages/CashierClosedShiftsPage"),
 );
 const PaymentReceiptPage = lazy(() => import("../pages/PaymentReceiptPage"));
+const PaymentReceiptPrintPage = lazy(() => import("../pages/PaymentReceiptPrintPage"));
+const TestPrintPage = lazy(() => import("../pages/TestPrintPage"));
 const PatientStatementPage = lazy(() => import("../pages/PatientStatementPage"));
 const InvoicePrintPage = lazy(() => import("../pages/InvoicePrintPage"));
+const InvoicePrintCleanPage = lazy(() => import("../pages/InvoicePrintCleanPage"));
 const InvoicesListPage = lazy(() => import("../pages/InvoicesListPage"));
 const InvoiceDetailsPage = lazy(() => import("../pages/InvoiceDetailsPage"));
 const InsuranceProvidersPage = lazy(
@@ -94,12 +97,16 @@ export const FinanceRoutes = (
       element={<InvoiceDetailsPage />}
     />
     <Route
-      path="/invoices/:id/print"
+      path="/invoices/:id/print/old"
       element={<InvoicePrintPage />}
     />
     <Route
       path="/payments/:id/receipt"
       element={<PaymentReceiptPage />}
+    />
+    <Route
+      path="/test-print"
+      element={<TestPrintPage />}
     />
     <Route
       path="/patients/:id/statement"

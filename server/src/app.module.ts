@@ -7,6 +7,7 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler'; // ✅ Rate
 
 // Modules
 import { AuthModule } from './auth/auth.module';
+import { AdmissionModule } from './admission/admission.module';
 import { PatientsModule } from './patients/patients.module';
 import { EncountersModule } from './encounters/encounters.module';
 import { VisitsModule } from './visits/visits.module';
@@ -98,6 +99,7 @@ import { JwtService } from '@nestjs/jwt';
     AuditModule,
 
     // Medical & Clinical
+    AdmissionModule,
     PatientsModule,
     EncountersModule,
     VisitsModule,

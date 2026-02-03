@@ -140,6 +140,24 @@ const Icons = {
       <path d="M8 14h.01" />
     </svg>
   ),
+  ChartBar: () => (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M3 3v18h18" />
+      <path d="M18 17V9" />
+      <path d="M13 17V5" />
+      <path d="M8 17v-3" />
+    </svg>
+  ),
   Settings: () => (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -418,6 +436,19 @@ export function MainLayout() {
           path: "/insurance/claims",
           access: "billing:invoice:view",
         },
+      ],
+    },
+    {
+      key: "analytics",
+      title: "التحليلات والتقارير",
+      icon: <Icons.ChartBar />,
+      allowedRoles: ["ADMIN", "ACCOUNTANT", "CEO"],
+      items: [
+        {
+          label: "اللوحة التنفيذية (KPIs)",
+          path: "/analytics/executive",
+          access: "analytics:executive:view",
+        },
         {
           label: "لوحة التقارير والتحليلات",
           path: "/reports",
@@ -572,11 +603,6 @@ export function MainLayout() {
         { label: "إدارة الأسرة", path: "/settings/bed-management" },
         { label: "سجل التدقيق (Audit Logs)", path: "/audit/logs" },
         { label: "جداول الأطباء", path: "/settings/doctor-schedules" },
-        {
-          label: "اللوحة التنفيذية (KPIs)",
-          path: "/analytics/executive",
-          access: "analytics:executive:view",
-        },
       ],
     },
   ];

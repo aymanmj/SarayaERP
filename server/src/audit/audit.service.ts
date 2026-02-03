@@ -41,22 +41,85 @@ export class AuditService {
   async findAll(hospitalId: number, query: any) {
     const where: any = { hospitalId };
 
-    if (query.actionType === 'VIEW') {
-      where.action = { contains: 'VIEW' };
-    } else if (query.actionType === 'WRITE') {
-      where.action = { not: { contains: 'VIEW' } };
+    // Enhanced filtering
+    if (query.actionType) {
+      if (query.actionType === 'VIEW') {
+        where.action = { contains: 'VIEW', mode: 'insensitive' };
+      } else if (query.actionType === 'CREATE') {
+        where.action = { contains: 'CREATE', mode: 'insensitive' };
+      } else if (query.actionType === 'UPDATE') {
+        where.action = { contains: 'UPDATE', mode: 'insensitive' };
+      } else if (query.actionType === 'DELETE') {
+        where.action = { contains: 'DELETE', mode: 'insensitive' };
+      } else if (query.actionType === 'WRITE') {
+        where.action = { not: { contains: 'VIEW', mode: 'insensitive' } };
+      }
     }
 
-    if (query.entity)
+    if (query.entity) {
       where.entity = { contains: query.entity, mode: 'insensitive' };
-    if (query.userId) where.userId = Number(query.userId);
+    }
+    
+    if (query.userId) {
+      where.userId = Number(query.userId);
+    }
 
-    return this.prisma.auditLog.findMany({
+    // Date range filtering
+    if (query.dateFrom || query.dateTo) {
+      where.createdAt = {};
+      if (query.dateFrom) {
+        where.createdAt.gte = new Date(query.dateFrom);
+      }
+      if (query.dateTo) {
+        where.createdAt.lte = new Date(query.dateTo);
+      }
+    }
+
+    // Search in multiple fields
+    if (query.q) {
+      where.OR = [
+        { action: { contains: query.q, mode: 'insensitive' } },
+        { entity: { contains: query.q, mode: 'insensitive' } },
+        { user: { fullName: { contains: query.q, mode: 'insensitive' } } },
+        { user: { username: { contains: query.q, mode: 'insensitive' } } },
+        { ipAddress: { contains: query.q, mode: 'insensitive' } },
+      ];
+    }
+
+    // Pagination
+    const page = Number(query.page) || 1;
+    const limit = Number(query.limit) || 25;
+    const skip = (page - 1) * limit;
+
+    // Get total count for pagination
+    const total = await this.prisma.auditLog.count({ where });
+
+    // Get logs with pagination
+    const logs = await this.prisma.auditLog.findMany({
       where,
-      include: { user: { select: { fullName: true, username: true } } },
+      include: { 
+        user: { 
+          select: { 
+            fullName: true, 
+            username: true 
+          } 
+        } 
+      },
       orderBy: { createdAt: 'desc' },
-      take: 100,
+      skip,
+      take: limit,
     });
+
+    // Return paginated response
+    return {
+      logs,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
   // async findAll(hospitalId: number, query: any) {

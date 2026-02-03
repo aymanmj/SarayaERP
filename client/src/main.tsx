@@ -24,6 +24,11 @@ const DashboardPage = lazy(() =>
   import("./pages/DashboardPage").then((m) => ({ default: m.DashboardPage })),
 );
 
+// Print Pages (outside MainLayout)
+const InvoicePrintCleanPage = lazy(() => import("./pages/InvoicePrintCleanPage"));
+const InvoicePrintPDFPage = lazy(() => import("./pages/InvoicePrintPDFPage"));
+const PaymentReceiptPrintPage = lazy(() => import("./pages/PaymentReceiptPrintPage"));
+
 // --- Component Loader ---
 const PageLoader = () => (
   <div className="h-full w-full flex flex-col items-center justify-center text-slate-500 min-h-[60vh]">
@@ -61,6 +66,11 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
             {/* Public Routes */}
             <Route path="/login" element={<LoginPage />} />
             <Route path="/activation" element={<ActivationPage />} />
+
+            {/* Print Routes - Outside MainLayout */}
+            <Route path="/invoices/:id/print" element={<InvoicePrintCleanPage />} />
+            <Route path="/invoices/:id/pdf" element={<InvoicePrintPDFPage />} />
+            <Route path="/payments/:id/receipt/print" element={<PaymentReceiptPrintPage />} />
 
             {/* Protected Routes */}
             <Route element={<ProtectedRoute />}>

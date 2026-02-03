@@ -1,13 +1,13 @@
 // src/pages/AppointmentsPage.tsx
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiClient } from "../api/apiClient";
 import { useAuthStore } from "../stores/authStore";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { DatePicker } from "@/components/ui/date-picker";
-import { format, addDays, startOfDay } from 'date-fns';
+import { format, addDays, startOfDay, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, startOfWeek, endOfWeek } from 'date-fns';
 import { ar } from 'date-fns/locale';
 
 // --- Types ---
@@ -100,12 +100,18 @@ export default function AppointmentsPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const [date, setDate] = useState<string>(() => formatDateInput(new Date()));
+  const [date, setDate] = useState<string>(() => format(new Date(), 'yyyy-MM-dd'));
   const [updatingId, setUpdatingId] = useState<number | null>(null);
+
+  // Calendar View State
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [viewMode, setViewMode] = useState<'table' | 'calendar'>('table');
+  const [selectedDoctor, setSelectedDoctor] = useState<number | null>(null);
 
   // Modals State
   const [showAppointmentModal, setShowAppointmentModal] = useState(false);
-  const [showERModal, setShowERModal] = useState(false); // ✅ مودال الطوارئ
+  const [showERModal, setShowERModal] = useState(false);
 
   // Appointment Form
   const [form, setForm] = useState({
@@ -139,6 +145,27 @@ export default function AppointmentsPage() {
         return res.data;
     }
   });
+
+  // Fetch month appointments for calendar view
+  const { data: monthData = [], isLoading: monthLoading } = useQuery({
+    queryKey: ['appointments-calendar', currentMonth, selectedDoctor],
+    queryFn: async () => {
+      const monthStart = startOfMonth(currentMonth);
+      const monthEnd = endOfMonth(currentMonth);
+      const res = await apiClient.get<Appointment[]>("/appointments", {
+        params: {
+          startDate: monthStart.toISOString().split('T')[0],
+          endDate: monthEnd.toISOString().split('T')[0],
+          doctorId: selectedDoctor
+        }
+      });
+      return res.data;
+    },
+    enabled: viewMode === 'calendar'
+  });
+
+  // Use monthData directly without useEffect
+  const monthAppointments = monthData || [];
 
   const error = queryError ? "حدث خطأ أثناء تحميل المواعيد." : null;
 
@@ -235,6 +262,49 @@ export default function AppointmentsPage() {
          toast.error(err?.response?.data?.message || "فشل تحديث الحالة.");
       }
   });
+
+  // Calendar Functions
+  const generateCalendarDays = () => {
+    const monthStart = startOfMonth(currentMonth);
+    const monthEnd = endOfMonth(currentMonth);
+    const calendarStart = startOfWeek(monthStart);
+    const calendarEnd = endOfWeek(monthEnd);
+    
+    const days = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
+    
+    return days.map(day => ({
+      date: day,
+      appointments: appointments.filter(apt => isSameDay(new Date(apt.scheduledStart), day)),
+      isCurrentMonth: isSameMonth(day, currentMonth),
+      isToday: isSameDay(day, new Date()),
+      isSelected: selectedDate ? isSameDay(day, selectedDate) : false
+    }));
+  };
+
+  const handleDayClick = (date: Date) => {
+    setSelectedDate(date);
+    const dayString = format(date, 'yyyy-MM-dd');
+    setDate(dayString);
+    setViewMode('table');
+  };
+
+  const navigateMonth = (direction: 'prev' | 'next') => {
+    setCurrentMonth(prev => direction === 'prev' ? subMonths(prev, 1) : addMonths(prev, 1));
+  };
+
+  const weekDays = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+
+  const getStatusColor = (status: AppointmentStatus) => {
+    switch (status) {
+      case 'REQUESTED': return 'bg-blue-500';
+      case 'CONFIRMED': return 'bg-green-500';
+      case 'CHECKED_IN': return 'bg-yellow-500';
+      case 'COMPLETED': return 'bg-gray-500';
+      case 'CANCELLED': return 'bg-red-500';
+      case 'NO_SHOW': return 'bg-orange-500';
+      default: return 'bg-gray-400';
+    }
+  };
 
   // Filter Patients
   const getFilteredPatients = (query: string) => {
@@ -342,6 +412,30 @@ export default function AppointmentsPage() {
           </p>
         </div>
         <div className="flex gap-2">
+          {/* View Mode Toggle */}
+          <div className="flex bg-slate-700 rounded-lg p-1">
+            <button
+              onClick={() => setViewMode('table')}
+              className={`px-3 py-1 rounded text-sm transition-colors ${
+                viewMode === 'table' 
+                  ? 'bg-sky-600 text-white' 
+                  : 'text-slate-300 hover:text-white'
+              }`}
+            >
+              جدول
+            </button>
+            <button
+              onClick={() => setViewMode('calendar')}
+              className={`px-3 py-1 rounded text-sm transition-colors ${
+                viewMode === 'calendar' 
+                  ? 'bg-sky-600 text-white' 
+                  : 'text-slate-300 hover:text-white'
+              }`}
+            >
+              تقويم
+            </button>
+          </div>
+          
           {/* ✅ زر الطوارئ الجديد */}
           <button
             onClick={() => setShowERModal(true)}
@@ -360,14 +454,58 @@ export default function AppointmentsPage() {
       </div>
 
       <div className="flex flex-wrap items-center gap-4">
-        <div className="flex items-center gap-2 bg-slate-900/50 p-2 rounded-xl border border-slate-800 w-fit">
-          <span className="text-sm text-slate-400 mr-2">تاريخ العرض:</span>
-          <DatePicker
-            date={date ? new Date(date) : undefined}
-            onChange={(d) => setDate(d ? d.toISOString().slice(0, 10) : "")}
-            className="bg-slate-950 border-slate-700 h-9 px-2 text-sm text-slate-200"
-          />
-        </div>
+        {/* Date Controls */}
+        {viewMode === 'table' ? (
+          <div className="flex items-center gap-2 bg-slate-900/50 p-2 rounded-xl border border-slate-800 w-fit">
+            <span className="text-sm text-slate-400 mr-2">تاريخ العرض:</span>
+            <DatePicker
+              date={date ? new Date(date) : undefined}
+              onChange={(d) => setDate(d ? d.toISOString().slice(0, 10) : "")}
+              className="bg-slate-950 border-slate-700 h-9 px-2 text-sm text-slate-200"
+            />
+          </div>
+        ) : (
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => navigateMonth('prev')}
+              className="p-2 bg-slate-700 hover:bg-slate-600 rounded-lg"
+            >
+              →
+            </button>
+            
+            <h2 className="text-xl font-semibold min-w-[200px] text-center">
+              {format(currentMonth, 'MMMM yyyy', { locale: ar })}
+            </h2>
+            
+            <button
+              onClick={() => navigateMonth('next')}
+              className="p-2 bg-slate-700 hover:bg-slate-600 rounded-lg"
+            >
+              ←
+            </button>
+            
+            <button
+              onClick={() => setCurrentMonth(new Date())}
+              className="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm"
+            >
+              اليوم
+            </button>
+            
+            <select
+              value={selectedDoctor || ''}
+              onChange={(e) => setSelectedDoctor(e.target.value ? Number(e.target.value) : null)}
+              className="bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm"
+            >
+              <option value="">جميع الأطباء</option>
+              {doctorsList.map((doctor: any) => (
+                <option key={doctor.id} value={doctor.id}>
+                  {doctor.fullName}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+        
         <div className="flex gap-2 text-xs text-slate-300">
           <span className="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700">
             إجمالي: {stats.total}
@@ -384,150 +522,212 @@ export default function AppointmentsPage() {
         </div>
       )}
 
-      {/* Appointment Table */}
-      <div className="flex-1 rounded-3xl border border-slate-800 bg-slate-950/80 overflow-auto p-4">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-900/50 text-slate-400 border-b border-slate-800">
-            <tr>
-              <th className="py-3 px-4 text-right">الرقم</th>
-              <th className="py-3 px-4 text-right">الوقت</th>
-              <th className="py-3 px-4 text-right">المريض</th>
-              <th className="py-3 px-4 text-right">الطبيب</th>
-              <th className="py-3 px-4 text-right">الحالة</th>
-              <th className="py-3 px-4 text-right w-48">إجراءات</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-800">
-            {loading ? (
+      {/* Content based on view mode */}
+      {viewMode === 'table' ? (
+        /* Appointment Table */
+        <div className="flex-1 rounded-3xl border border-slate-800 bg-slate-950/80 overflow-auto p-4">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-900/50 text-slate-400 border-b border-slate-800">
               <tr>
-                <td colSpan={6} className="py-8 text-center text-slate-500">
-                  جارِ التحميل...
-                </td>
+                <th className="py-3 px-4 text-right">الرقم</th>
+                <th className="py-3 px-4 text-right">الوقت</th>
+                <th className="py-3 px-4 text-right">المريض</th>
+                <th className="py-3 px-4 text-right">الطبيب</th>
+                <th className="py-3 px-4 text-right">الحالة</th>
+                <th className="py-3 px-4 text-right w-48">إجراءات</th>
               </tr>
-            ) : appointments.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="py-8 text-center text-slate-500">
-                  لا توجد مواعيد لهذا اليوم.
-                </td>
-              </tr>
-            ) : (
-              appointments.map((appt) => (
-                <tr key={appt.id} className="hover:bg-slate-900/40 transition">
-                  <td className="py-3 px-4 text-slate-400">
-                    #{appt.queueNumber ?? appt.id}
-                  </td>
-                  <td className="py-3 px-4 font-mono text-sky-300">
-                    {formatTime(appt.scheduledStart)}
-                  </td>
-                  <td className="py-3 px-4">
-                    <div className="font-medium text-slate-200">
-                      {appt.patient?.fullName}
-                    </div>
-                    <div className="text-xs text-slate-500">
-                      {appt.patient?.mrn}
-                    </div>
-                  </td>
-                  <td className="py-3 px-4 text-slate-300">
-                    {appt.doctor?.fullName ?? "—"}
-                  </td>
-                  <td className="py-3 px-4">
-                    <span
-                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        statusClasses[appt.status]
-                      }`}
-                    >
-                      {statusLabels[appt.status]}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4">
-                    <div className="flex gap-2">
-                      {isReception && appt.status === "REQUESTED" && (
-                        <button
-                          onClick={() =>
-                            handleChangeStatus(appt.id, "CONFIRMED")
-                          }
-                          className="px-3 py-1 bg-emerald-700 hover:bg-emerald-600 rounded text-xs text-white"
-                        >
-                          تأكيد
-                        </button>
-                      )}
-
-                      {isDoctor &&
-                        (appt.status === "CONFIRMED" ||
-                          appt.status === "REQUESTED") && (
-                          <button
-                            disabled={updatingId === appt.id}
-                            onClick={() => handleStartVisit(appt)}
-                            className="px-3 py-1 bg-sky-600 hover:bg-sky-500 rounded text-xs text-white shadow-md shadow-sky-500/20 font-bold flex items-center gap-1"
-                          >
-                            <span>▶</span> ابدأ الكشف
-                          </button>
-                        )}
-
-                      {isDoctor &&
-                        appt.status === "CHECKED_IN" &&
-                        appt.encounterId && (
-                          <>
-                            <button
-                              onClick={() =>
-                                navigate(`/encounters/${appt.encounterId}`)
-                              }
-                              className="px-3 py-1 bg-amber-600 hover:bg-amber-500 rounded text-xs text-white shadow-md"
-                            >
-                              الملف الطبي
-                            </button>
-                            <button
-                              onClick={() => handleCompleteVisit(appt)}
-                              className="px-3 py-1 bg-emerald-700 hover:bg-emerald-600 rounded text-xs text-white shadow-md"
-                            >
-                              إنهاء
-                            </button>
-                          </>
-                        )}
-
-                      {isReception &&
-                        appt.status !== "CANCELLED" &&
-                        appt.status !== "COMPLETED" && (
-                          <button
-                            onClick={() =>
-                              handleChangeStatus(appt.id, "CANCELLED")
-                            }
-                            className="text-rose-400 hover:text-rose-300 text-xs px-2"
-                          >
-                            إلغاء
-                          </button>
-                        )}
-
-                       {/* ✅ زر دخول الاجتماع (Video Call) */}
-                       {appt.type === "ONLINE" && appt.meetingLink && (
-                          <a
-                            href={appt.meetingLink}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="px-3 py-1 bg-purple-700 hover:bg-purple-600 rounded text-xs text-white shadow-md shadow-purple-500/20 flex items-center gap-1"
-                          >
-                             📹 اتصال
-                          </a>
-                       )}
-
-                       {/* ✅ زر طباعة الإيصال (Ticket) */}
-                       {(appt.status === "CONFIRMED" || appt.status === "REQUESTED") && (
-                          <button
-                            onClick={() => handlePrintReceipt(appt.id)}
-                            className="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded text-xs text-slate-200 border border-slate-600 flex items-center gap-1"
-                            title="طباعة تذكرة موعد"
-                          >
-                            🖨️ تذكرة
-                          </button>
-                       )}
-                    </div>
+            </thead>
+            <tbody className="divide-y divide-slate-800">
+              {loading ? (
+                <tr>
+                  <td colSpan={6} className="py-8 text-center text-slate-500">
+                    جارِ التحميل...
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+              ) : appointments.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-8 text-center text-slate-500">
+                    لا توجد مواعيد لهذا اليوم.
+                  </td>
+                </tr>
+              ) : (
+                appointments.map((appt) => (
+                  <tr key={appt.id} className="hover:bg-slate-900/40 transition">
+                    <td className="py-3 px-4 text-slate-400">
+                      #{appt.queueNumber ?? appt.id}
+                    </td>
+                    <td className="py-3 px-4 font-mono text-sky-300">
+                      {formatTime(appt.scheduledStart)}
+                    </td>
+                    <td className="py-3 px-4">
+                      <div className="font-medium text-slate-200">
+                        {appt.patient?.fullName}
+                      </div>
+                      <div className="text-xs text-slate-500">
+                        {appt.patient?.mrn}
+                      </div>
+                    </td>
+                    <td className="py-3 px-4 text-slate-300">
+                      {appt.doctor?.fullName ?? "—"}
+                    </td>
+                    <td className="py-3 px-4">
+                      <span
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          statusClasses[appt.status]
+                        }`}
+                      >
+                        {statusLabels[appt.status]}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4">
+                      <div className="flex gap-2">
+                        {isReception && appt.status === "REQUESTED" && (
+                          <button
+                            onClick={() =>
+                              handleChangeStatus(appt.id, "CONFIRMED")
+                            }
+                            className="px-3 py-1 bg-emerald-700 hover:bg-emerald-600 rounded text-xs text-white"
+                          >
+                            تأكيد
+                          </button>
+                        )}
+
+                        {isDoctor &&
+                          (appt.status === "CONFIRMED" ||
+                            appt.status === "REQUESTED") && (
+                            <button
+                              disabled={updatingId === appt.id}
+                              onClick={() => handleStartVisit(appt)}
+                              className="px-3 py-1 bg-sky-600 hover:bg-sky-500 rounded text-xs text-white shadow-md shadow-sky-500/20 font-bold flex items-center gap-1"
+                            >
+                              <span>▶</span> ابدأ الكشف
+                            </button>
+                          )}
+
+                        {isDoctor &&
+                          appt.status === "CHECKED_IN" &&
+                          appt.encounterId && (
+                            <>
+                              <button
+                                onClick={() =>
+                                  navigate(`/encounters/${appt.encounterId}`)
+                                }
+                                className="px-3 py-1 bg-amber-600 hover:bg-amber-500 rounded text-xs text-white shadow-md"
+                              >
+                                الملف الطبي
+                              </button>
+                              <button
+                                onClick={() => handleCompleteVisit(appt)}
+                                className="px-3 py-1 bg-emerald-700 hover:bg-emerald-600 rounded text-xs text-white shadow-md"
+                              >
+                                إنهاء
+                              </button>
+                            </>
+                          )}
+
+                        {isReception &&
+                          appt.status !== "CANCELLED" &&
+                          appt.status !== "COMPLETED" && (
+                            <button
+                              onClick={() =>
+                                handleChangeStatus(appt.id, "CANCELLED")
+                              }
+                              className="text-rose-400 hover:text-rose-300 text-xs px-2"
+                            >
+                              إلغاء
+                            </button>
+                          )}
+
+                         {/* ✅ زر دخول الاجتماع (Video Call) */}
+                         {appt.type === "ONLINE" && appt.meetingLink && (
+                            <a
+                              href={appt.meetingLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="px-3 py-1 bg-purple-700 hover:bg-purple-600 rounded text-xs text-white shadow-md shadow-purple-500/20 flex items-center gap-1"
+                            >
+                               📹 اتصال
+                            </a>
+                         )}
+
+                         {/* ✅ زر طباعة الإيصال (Ticket) */}
+                         {(appt.status === "CONFIRMED" || appt.status === "REQUESTED") && (
+                            <button
+                              onClick={() => handlePrintReceipt(appt.id)}
+                              className="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded text-xs text-slate-200 border border-slate-600 flex items-center gap-1"
+                              title="طباعة تذكرة موعد"
+                            >
+                              🖨️ تذكرة
+                            </button>
+                         )}
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        /* Calendar View */
+        <div className="bg-slate-900/50 rounded-xl border border-slate-700 overflow-hidden">
+          {/* Week days header */}
+          <div className="grid grid-cols-7 bg-slate-800/50 border-b border-slate-700">
+            {weekDays.map(day => (
+              <div key={day} className="p-3 text-center text-sm font-medium text-slate-300">
+                {day}
+              </div>
+            ))}
+          </div>
+          
+          {/* Calendar days */}
+          <div className="grid grid-cols-7">
+            {generateCalendarDays().map((day, index) => (
+              <div
+                key={index}
+                onClick={() => handleDayClick(day.date)}
+                className={`min-h-[100px] p-2 border border-slate-700 cursor-pointer transition-colors ${
+                  !day.isCurrentMonth ? 'bg-slate-800/30 text-slate-500' : 'bg-slate-900/30'
+                } ${
+                  day.isToday ? 'ring-2 ring-sky-500' : ''
+                } ${
+                  day.isSelected ? 'bg-slate-700/50' : ''
+                } hover:bg-slate-700/50`}
+              >
+                <div className="flex justify-between items-start mb-1">
+                  <span className={`text-sm font-medium ${
+                    day.isToday ? 'text-sky-400' : ''
+                  }`}>
+                    {format(day.date, 'd')}
+                  </span>
+                  {day.appointments.length > 0 && (
+                    <span className="text-xs bg-sky-600 px-1 rounded">
+                      {day.appointments.length}
+                    </span>
+                  )}
+                </div>
+                
+                <div className="space-y-1">
+                  {day.appointments.slice(0, 3).map((apt, idx) => (
+                    <div
+                      key={apt.id}
+                      className={`text-xs p-1 rounded truncate ${getStatusColor(apt.status)} text-white`}
+                      title={`${apt.patient.fullName} - ${formatTime(apt.scheduledStart)}`}
+                    >
+                      {apt.patient.fullName.split(' ')[0]} - {formatTime(apt.scheduledStart)}
+                    </div>
+                  ))}
+                  {day.appointments.length > 3 && (
+                    <div className="text-xs text-slate-400">
+                      +{day.appointments.length - 3} أخرى
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Appointment Modal */}
       {showAppointmentModal && (

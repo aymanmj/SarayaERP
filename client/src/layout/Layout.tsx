@@ -40,6 +40,30 @@ export function Layout() {
             >
               المواعيد
             </Link>
+
+            <Link
+              to="/discharge-planning"
+              className={
+                "px-3 py-1 rounded " +
+                (location.pathname.startsWith("/discharge-planning")
+                  ? "bg-sky-100 text-sky-800"
+                  : "hover:bg-slate-100")
+              }
+            >
+              تخطيط التفريغ
+            </Link>
+
+            <Link
+              to="/bed-management"
+              className={
+                "px-3 py-1 rounded " +
+                (location.pathname.startsWith("/bed-management")
+                  ? "bg-sky-100 text-sky-800"
+                  : "hover:bg-slate-100")
+              }
+            >
+              إدارة الأسرة
+            </Link>
           </nav>
         </div>
 

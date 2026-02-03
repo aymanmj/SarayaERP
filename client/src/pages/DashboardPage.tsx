@@ -3,6 +3,19 @@
 import { useAuthStore } from "../stores/authStore";
 import { apiClient } from "../api/apiClient";
 import { useQuery } from "@tanstack/react-query";
+import { 
+  UserGroupIcon, 
+  CalendarIcon, 
+  BanknotesIcon, 
+  ExclamationTriangleIcon,
+  ChartBarIcon,
+  BuildingOfficeIcon,
+  ClockIcon,
+  ClipboardDocumentListIcon,
+  CurrencyDollarIcon,
+  BeakerIcon,
+  ArrowTrendingUpIcon
+} from "@heroicons/react/24/outline";
 
 // Types
 type DashboardStats = {
@@ -48,7 +61,7 @@ export function DashboardPage() {
       const res = await apiClient.get<LicenseInfoResponse>("/license/info");
       return res.data;
     },
-    staleTime: 1000 * 60 * 60, // Cache for 1 hour (license rarely changes)
+    staleTime: 1000 * 60 * 60, // Cache for 1 hour
   });
 
   const license = licenseInfo?.details;
@@ -76,19 +89,62 @@ export function DashboardPage() {
     value,
     subtext,
     colorClass,
+    icon: Icon,
   }: {
     title: string;
     value: string | number;
     subtext: string;
     colorClass: string;
+    icon: any;
   }) => (
-    <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 flex flex-col justify-between h-32 hover:bg-slate-900/90 transition-colors shadow-sm">
-      <div className="text-xs text-slate-400 font-medium">{title}</div>
+    <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 flex flex-col justify-between h-32 hover:bg-slate-900/90 transition-all duration-200 shadow-sm hover:shadow-md">
+      <div className="flex items-center justify-between">
+        <div className="text-xs text-slate-400 font-medium">{title}</div>
+        <Icon className={`w-4 h-4 ${colorClass}`} />
+      </div>
       <div className={`text-3xl font-bold ${colorClass}`}>
         {loading ? "..." : value}
       </div>
       <div className="text-[11px] text-slate-500">{subtext}</div>
     </div>
+  );
+
+  const QuickActionCard = ({
+    title,
+    description,
+    icon: Icon,
+    href,
+    colorClass,
+    badge,
+  }: {
+    title: string;
+    description: string;
+    icon: any;
+    href: string;
+    colorClass: string;
+    badge?: string;
+  }) => (
+    <a
+      href={href}
+      className="group rounded-2xl border border-slate-800 bg-slate-900/40 p-5 hover:bg-slate-900/60 transition-all duration-200 hover:border-slate-700 hover:shadow-lg"
+    >
+      <div className="flex items-start justify-between mb-3">
+        <div className={`p-2 rounded-lg ${colorClass} bg-opacity-10`}>
+          <Icon className={`w-5 h-5 ${colorClass.replace('text-', 'text-')}`} />
+        </div>
+        {badge && (
+          <span className="px-2 py-1 text-xs rounded-full bg-sky-900/30 text-sky-300 border border-sky-700/50">
+            {badge}
+          </span>
+        )}
+      </div>
+      <h3 className="text-sm font-semibold text-slate-200 mb-1 group-hover:text-white transition-colors">
+        {title}
+      </h3>
+      <p className="text-xs text-slate-400 leading-relaxed">
+        {description}
+      </p>
+    </a>
   );
 
   return (
@@ -100,7 +156,7 @@ export function DashboardPage() {
             أهلاً {user?.fullName?.split(" ")[0]} 👋
           </h1>
           <p className="text-sm text-slate-400">
-            ملخص الأداء التشغيلي والمالي للمستشفى لهذا اليوم.
+            لوحة التحكم الرئيسية - إدارة سريعة للمستشفى
           </p>
         </div>
 
@@ -143,268 +199,148 @@ export function DashboardPage() {
         )}
       </div>
 
-      {/* Cards Grid */}
+      {/* Essential Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          title="المرضى المنومين حالياً"
+          title="المرضى المنومين"
           value={stats?.activeInpatients ?? 0}
-          subtext={`نسبة إشغال الأسرة: ${stats?.occupancyRate ?? 0}%`}
+          subtext={`إشغال: ${stats?.occupancyRate ?? 0}%`}
           colorClass="text-sky-400"
+          icon={BuildingOfficeIcon}
         />
 
         <StatCard
           title="مواعيد اليوم"
           value={stats?.appointmentsToday ?? 0}
-          subtext="إجمالي الحجوزات (العيادات)"
+          subtext="إجمالي الحجوزات"
           colorClass="text-amber-400"
+          icon={CalendarIcon}
         />
 
         <StatCard
           title={
             stats?.isPersonalRevenue
-              ? "إيرادك اليوم (وردية)"
-              : "إيرادات اليوم (المحصلة)"
+              ? "إيرادك اليوم"
+              : "إيرادات اليوم"
           }
           value={`${(stats?.todayRevenue ?? 0).toLocaleString()} د.ل`}
-          subtext={
-            stats?.isPersonalRevenue
-              ? "المدفوعات التي قمت بتحصيلها"
-              : "المدفوعات النقدية والبنكية للمستشفى"
-          }
+          subtext={stats?.isPersonalRevenue ? "ورديتك" : "المحصلة"}
           colorClass="text-emerald-400"
+          icon={BanknotesIcon}
         />
 
         <StatCard
           title="نواقص المخزون"
           value={stats?.lowStockCount ?? 0}
-          subtext="أصناف وصلت للحد الأدنى"
-          colorClass={
-            (stats?.lowStockCount ?? 0) > 0 ? "text-rose-400" : "text-slate-200"
-          }
+          subtext="أصناف تحتاج طلب"
+          colorClass={(stats?.lowStockCount ?? 0) > 0 ? "text-rose-400" : "text-slate-200"}
+          icon={ExclamationTriangleIcon}
         />
       </div>
 
-      {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-2">
-        <div className="rounded-3xl border border-slate-800 bg-slate-900/40 p-5">
-          <h3 className="text-sm font-semibold text-slate-200 mb-4">
+      {/* Quick Actions & Advanced Dashboards */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Quick Actions */}
+        <div>
+          <h3 className="text-lg font-semibold text-slate-200 mb-4 flex items-center gap-2">
+            <ClockIcon className="w-5 h-5 text-slate-400" />
             وصول سريع
           </h3>
-          <div className="grid grid-cols-2 gap-3">
-            <a
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <QuickActionCard
+              title="مكتب الدخول"
+              description="إدخال المرضى الجدد وإدارة الإيواء"
+              icon={ClipboardDocumentListIcon}
               href="/admissions"
-              className="p-4 rounded-2xl bg-slate-950 border border-slate-800 hover:border-sky-500/50 hover:bg-slate-900 text-xs text-center transition group"
-            >
-              <div className="text-lg mb-1 group-hover:scale-110 transition-transform">
-                🛏️
-              </div>
-              مكتب الدخول
-            </a>
-            <a
+              colorClass="text-blue-400"
+            />
+            <QuickActionCard
+              title="حجز المواعيد"
+              description="جدولة المواعيد للعيادات"
+              icon={CalendarIcon}
               href="/appointments"
-              className="p-4 rounded-2xl bg-slate-950 border border-slate-800 hover:border-amber-500/50 hover:bg-slate-900 text-xs text-center transition group"
-            >
-              <div className="text-lg mb-1 group-hover:scale-110 transition-transform">
-                📅
-              </div>
-              حجز موعد
-            </a>
-            <a
+              colorClass="text-amber-400"
+            />
+            <QuickActionCard
+              title="الخزينة"
+              description="تحصيل المدفوعات وإدارة الفواتير"
+              icon={CurrencyDollarIcon}
               href="/cashier"
-              className="p-4 rounded-2xl bg-slate-950 border border-slate-800 hover:border-emerald-500/50 hover:bg-slate-900 text-xs text-center transition group"
-            >
-              <div className="text-lg mb-1 group-hover:scale-110 transition-transform">
-                💰
-              </div>
-              الخزينة
-            </a>
-            <a
+              colorClass="text-emerald-400"
+            />
+            <QuickActionCard
+              title="الصيدلية"
+              description="إدارة الأدوية والمخزون الطبي"
+              icon={BeakerIcon}
               href="/pharmacy"
-              className="p-4 rounded-2xl bg-slate-950 border border-slate-800 hover:border-purple-500/50 hover:bg-slate-900 text-xs text-center transition group"
-            >
-              <div className="text-lg mb-1 group-hover:scale-110 transition-transform">
-                💊
-              </div>
-              الصيدلية
-            </a>
+              colorClass="text-purple-400"
+            />
           </div>
         </div>
 
-        {/* Placeholder for Charts */}
-        <div className="md:col-span-2 rounded-3xl border border-slate-800 bg-slate-900/40 p-5 flex flex-col justify-center items-center text-center">
-          <div className="text-4xl mb-4 opacity-20">📊</div>
-          <div className="text-slate-500 text-sm font-medium">
-            سيتم إضافة رسوم بيانية للإيرادات الأسبوعية هنا قريباً
+        {/* Advanced Dashboards */}
+        <div>
+          <h3 className="text-lg font-semibold text-slate-200 mb-4 flex items-center gap-2">
+            <ChartBarIcon className="w-5 h-5 text-slate-400" />
+            لوحات تحكم متقدمة
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <QuickActionCard
+              title="لوحة تنفيذية"
+              description="إحصائيات وتقارير مفصلة للمستشفى"
+              icon={ArrowTrendingUpIcon}
+              href="/dashboard/executive"
+              colorClass="text-indigo-400"
+              badge="جديدة"
+            />
+            <QuickActionCard
+              title="تخطيط التفريغ"
+              description="إدارة عملية تفريغ المرضى"
+              icon={UserGroupIcon}
+              href="/discharge-planning"
+              colorClass="text-green-400"
+              badge="محدثة"
+            />
+            <QuickActionCard
+              title="إدارة الأسرة"
+              description="مراقبة حالة الأسرة والعنابر"
+              icon={BuildingOfficeIcon}
+              href="/bed-management"
+              colorClass="text-cyan-400"
+              badge="مباشر"
+            />
+            <QuickActionCard
+              title="التقارير"
+              description="تقارير مالية وإدارية شاملة"
+              icon={ChartBarIcon}
+              href="/reports"
+              colorClass="text-orange-400"
+            />
           </div>
-          <div className="text-slate-600 text-xs mt-2">
-            (متاحة في قسم التقارير حالياً)
+        </div>
+      </div>
+
+      {/* System Status */}
+      <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-5">
+        <h3 className="text-sm font-semibold text-slate-200 mb-4">حالة النظام</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+            <span className="text-sm text-slate-300">قاعدة البيانات</span>
+            <span className="text-xs text-green-400">نشطة</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+            <span className="text-sm text-slate-300">الخادم</span>
+            <span className="text-xs text-green-400">يعمل</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+            <span className="text-sm text-slate-300">النسخ الاحتياطي</span>
+            <span className="text-xs text-green-400">محدث</span>
           </div>
         </div>
       </div>
     </div>
   );
 }
-
-// // src/pages/DashboardPage.tsx
-
-// import { useEffect, useState } from "react";
-// import { useAuthStore } from "../stores/authStore";
-// import { apiClient } from "../api/apiClient";
-
-// type DashboardStats = {
-//   activeInpatients: number;
-//   occupiedBeds: number;
-//   totalBeds: number;
-//   occupancyRate: number;
-//   appointmentsToday: number;
-//   todayRevenue: number;
-//   lowStockCount: number;
-//   isPersonalRevenue?: boolean;
-// };
-
-// export function DashboardPage() {
-//   const user = useAuthStore((s) => s.user);
-//   const [stats, setStats] = useState<DashboardStats | null>(null);
-//   const [loading, setLoading] = useState(false);
-
-//   useEffect(() => {
-//     async function loadStats() {
-//       setLoading(true);
-//       try {
-//         const res = await apiClient.get<DashboardStats>("/dashboard/stats");
-//         setStats(res.data);
-//       } catch (err) {
-//         console.error(err);
-//       } finally {
-//         setLoading(false);
-//       }
-//     }
-//     loadStats();
-//   }, []);
-
-//   const StatCard = ({
-//     title,
-//     value,
-//     subtext,
-//     colorClass,
-//   }: {
-//     title: string;
-//     value: string | number;
-//     subtext: string;
-//     colorClass: string;
-//   }) => (
-//     <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 flex flex-col justify-between h-32 hover:bg-slate-900/90 transition-colors">
-//       <div className="text-xs text-slate-400 font-medium">{title}</div>
-//       <div className={`text-3xl font-bold ${colorClass}`}>
-//         {loading ? "..." : value}
-//       </div>
-//       <div className="text-[11px] text-slate-500">{subtext}</div>
-//     </div>
-//   );
-
-//   return (
-//     <div className="h-full flex flex-col gap-8">
-//       {/* Header */}
-//       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-//         <div>
-//           <h1 className="text-2xl font-bold text-slate-50">
-//             أهلاً {user?.fullName} 👋
-//           </h1>
-//           <p className="text-sm text-slate-400 mt-1">
-//             ملخص الأداء التشغيلي والمالي للمستشفى لهذا اليوم.
-//           </p>
-//         </div>
-//         <div className="flex gap-2 text-xs">
-//           <span className="px-3 py-1 rounded-full bg-sky-900/30 text-sky-300 border border-sky-700/50">
-//             {new Date().toLocaleDateString("ar-LY")}
-//           </span>
-//         </div>
-//       </div>
-
-//       {/* Cards Grid */}
-//       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-//         {/* 1. الإيواء والإشغال */}
-//         <StatCard
-//           title="المرضى المنومين حالياً"
-//           value={stats?.activeInpatients ?? 0}
-//           subtext={`نسبة إشغال الأسرة: ${stats?.occupancyRate ?? 0}%`}
-//           colorClass="text-sky-400"
-//         />
-
-//         {/* 2. المواعيد */}
-//         <StatCard
-//           title="مواعيد اليوم"
-//           value={stats?.appointmentsToday ?? 0}
-//           subtext="إجمالي الحجوزات (العيادات)"
-//           colorClass="text-amber-400"
-//         />
-
-//         {/* 3. الإيرادات */}
-//         <StatCard
-//           title={
-//             stats?.isPersonalRevenue
-//               ? "إيرادك اليوم (وردية)"
-//               : "إيرادات اليوم (المحصلة)"
-//           }
-//           value={`${(stats?.todayRevenue ?? 0).toLocaleString()} د.ل`}
-//           subtext={
-//             stats?.isPersonalRevenue
-//               ? "المدفوعات التي قمت بتحصيلها"
-//               : "المدفوعات النقدية والبنكية للمستشفى"
-//           }
-//           colorClass="text-emerald-400"
-//         />
-
-//         {/* 4. تنبيهات المخزون */}
-//         <StatCard
-//           title="نواقص المخزون"
-//           value={stats?.lowStockCount ?? 0}
-//           subtext="أصناف وصلت للحد الأدنى"
-//           colorClass={
-//             (stats?.lowStockCount ?? 0) > 0 ? "text-rose-400" : "text-slate-200"
-//           }
-//         />
-//       </div>
-
-//       {/* قسم الإجراءات السريعة (Quick Actions) */}
-//       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-2">
-//         <div className="rounded-3xl border border-slate-800 bg-slate-950/40 p-5">
-//           <h3 className="text-sm font-semibold text-slate-200 mb-3">
-//             وصول سريع
-//           </h3>
-//           <div className="grid grid-cols-2 gap-2">
-//             <a
-//               href="/admissions"
-//               className="p-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-xs text-center border border-slate-800 transition"
-//             >
-//               🛏️ مكتب الدخول
-//             </a>
-//             <a
-//               href="/appointments"
-//               className="p-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-xs text-center border border-slate-800 transition"
-//             >
-//               📅 حجز موعد
-//             </a>
-//             <a
-//               href="/cashier"
-//               className="p-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-xs text-center border border-slate-800 transition"
-//             >
-//               💰 الخزينة
-//             </a>
-//             <a
-//               href="/pharmacy"
-//               className="p-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-xs text-center border border-slate-800 transition"
-//             >
-//               💊 الصيدلية
-//             </a>
-//           </div>
-//         </div>
-
-//         {/* مساحة فارغة لمخططات بيانية مستقبلية */}
-//         <div className="md:col-span-2 rounded-3xl border border-slate-800 bg-slate-950/40 p-5 flex items-center justify-center text-slate-500 text-sm">
-//           (سيتم إضافة رسوم بيانية للإيرادات الأسبوعية هنا قريباً)
-//         </div>
-//       </div>
-//     </div>
-//   );
-// }

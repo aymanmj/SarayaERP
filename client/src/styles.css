@@ -15,46 +15,120 @@ body {
 }
 
 @media print {
-  html,
-  body {
-    margin: 0;
-    padding: 0;
-    background: #ffffff;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
+  /* إخفاء العناصر الرئيسية التي لا نريدها في الطباعة */
+  header,
+  nav,
+  aside,
+  .sidebar,
+  .navigation,
+  .menu,
+  /* إخفاء شريط الأدوات العلوي */
+  .no-print,
+  div[class*="no-print"],
+  /* إخفاء شريط التمرير */
+  ::-webkit-scrollbar {
+    display: none !important;
+    visibility: hidden !important;
   }
 
-  /* إخفاء كل شيء مبدئياً */
-  body * {
-    visibility: hidden;
-  }
-
-  /* إظهار جذر الفاتورة فقط */
-  #invoice-print-root,
-  #invoice-print-root * {
-    visibility: visible;
-  }
-
-  /* إزالة تأثير التصميم العام في الطباعة */
-  #invoice-print-root {
-    position: absolute;
-    inset: 0;
-    margin: 0;
-    padding: 0;
-    background: #ffffff;
-  }
-
-  /* تنسيق ورقة الفاتورة نفسها */
-  #invoice-print-root .print-wrapper {
-    width: 190mm; /* أصغر من A4 قليلاً */
-    margin: 0 auto;
+  /* إظهار حاوية الطباعة */
+  #print-container {
+    display: block !important;
+    position: relative !important;
+    left: auto !important;
+    top: auto !important;
+    width: 100% !important;
+    height: auto !important;
+    background: white !important;
     box-shadow: none !important;
     border-radius: 0 !important;
-    background: #ffffff !important;
+    margin: 0 !important;
+    padding: 8mm !important;
+    overflow: visible !important;
   }
 
-  /* إخفاء الأزرار */
-  .no-print {
+  /* إخفاء شريط التمرير في كل المتصفحات */
+  * {
+    scrollbar-width: none !important; /* Firefox */
+    -ms-overflow-style: none !important; /* IE and Edge */
+  }
+  
+  *::-webkit-scrollbar {
+    display: none !important; /* Chrome, Safari, Opera */
+  }
+
+  /* إظهار كل المحتوى داخل حاوية الطباعة */
+  #print-container,
+  #print-container * {
+    visibility: visible !important;
+  }
+
+  /* ضبط الجداول للطباعة */
+  #print-container table {
+    display: table !important;
+  }
+  
+  #print-container tr {
+    display: table-row !important;
+  }
+  
+  #print-container td,
+  #print-container th {
+    display: table-cell !important;
+  }
+
+  /* إظهار العناصر المرنة */
+  #print-container .flex {
+    display: flex !important;
+  }
+  
+  #print-container .grid {
+    display: grid !important;
+  }
+
+  /* إظهار كل العناصر المهمة */
+  #print-container div,
+  #print-container header,
+  #print-container main,
+  #print-container footer,
+  #print-container section,
+  #print-container h1,
+  #print-container h2,
+  #print-container h3,
+  #print-container h4,
+  #print-container h5,
+  #print-container h6,
+  #print-container p,
+  #print-container span,
+  #print-container ul,
+  #print-container ol,
+  #print-container li,
+  #print-container b,
+  #print-container strong,
+  #print-container i,
+  #print-container em,
+  #print-container a,
+  #print-container small {
+    display: block !important;
+    visibility: visible !important;
+  }
+
+  /* إظهار العناصر المضمنة */
+  #print-container b,
+  #print-container strong,
+  #print-container i,
+  #print-container em,
+  #print-container a,
+  #print-container small {
+    display: inline !important;
+  }
+
+  /* إخفاء العناصر الرئيسية في التطبيق */
+  .app-header,
+  .app-sidebar,
+  .app-nav,
+  .main-layout,
+  .layout-wrapper {
     display: none !important;
   }
 }

@@ -9,8 +9,11 @@ const EncountersListPage = lazy(() => import("../pages/EncountersListPage"));
 const EncounterDetailsPage = lazy(() => import("../pages/EncounterDetailsPage"));
 const AppointmentsPage = lazy(() => import("../pages/AppointmentsPage"));
 const AdmissionsPage = lazy(() => import("../pages/AdmissionsPage"));
+const AdvancedAdmissionManagementPage = lazy(() => import("../pages/AdvancedAdmissionManagement"));
 const ActiveInpatientsPage = lazy(() => import("../pages/ActiveInpatientsPage"));
 const DoctorRoundsPage = lazy(() => import("../pages/DoctorRoundsPage")); // ✅
+const DischargePlanningPage = lazy(() => import("../pages/DischargePlanningPage")); // 🆕
+const BedManagementDashboardPage = lazy(() => import("../pages/BedManagementDashboard")); // 🆕
 const TriageDashboardPage = lazy(() =>
   import("../pages/clinical/triage/TriageDashboard").then((m) => ({
     default: m.TriageDashboard,
@@ -58,8 +61,11 @@ export const ClinicalRoutes = (
     <Route path="/encounters/:id" element={<EncounterDetailsPage />} />
     <Route path="/appointments" element={<AppointmentsPage />} />
     <Route path="/admissions" element={<AdmissionsPage />} />
+    <Route path="/admissions/advanced" element={<AdvancedAdmissionManagementPage />} />
     <Route path="/active-inpatients" element={<ActiveInpatientsPage />} />
     <Route path="/doctor-rounds" element={<DoctorRoundsPage />} /> {/* ✅ */}
+    <Route path="/discharge-planning" element={<DischargePlanningPage />} /> {/* 🆕 */}
+    <Route path="/bed-management" element={<BedManagementDashboardPage />} /> {/* 🆕 */}
     <Route path="/triage" element={<TriageDashboardPage />} />
     {/* Triage Assessment Route */}
     <Route

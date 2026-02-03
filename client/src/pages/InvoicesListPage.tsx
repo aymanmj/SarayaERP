@@ -42,6 +42,33 @@ interface InvoiceListResponse {
 export default function InvoicesListPage() {
   const navigate = useNavigate();
 
+  // دالة طباعة PDF باستخدام نفس الطريقة المستخدمة في InvoiceDetailsPage
+  const handlePrintPdf = async (invoiceId: number) => {
+    try {
+      // طلب الملف كـ Blob من نفس endpoint المستخدم في InvoiceDetailsPage
+      const response = await apiClient.get(`/billing/invoices/${invoiceId}/pdf`, {
+        responseType: "blob",
+      });
+
+      // إنشاء رابط مؤقت للملف في المتصفح
+      const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
+
+      // فتح الملف في نافذة جديدة
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("target", "_blank");
+      document.body.appendChild(link);
+      link.click();
+
+      // تنظيف الذاكرة
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Error generating PDF:', err);
+      toast.error("فشل تحميل ملف الـ PDF. تأكد من إعدادات السيرفر.");
+    }
+  };
+
   // --- States ---
   // --- Search & Pagination ---
   const [page, setPage] = useState(1);
@@ -236,9 +263,7 @@ export default function InvoicesListPage() {
                           التفاصيل
                         </button>
                         <button
-                          onClick={() =>
-                            window.open(`/invoices/${inv.id}/print`, "_blank")
-                          }
+                          onClick={() => handlePrintPdf(inv.id)}
                           className="px-3 py-1.5 bg-sky-600 hover:bg-sky-500 text-white rounded-lg text-[10px] font-bold shadow-lg transition-all"
                         >
                           طباعة ⎙

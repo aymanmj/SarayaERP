@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>فاتورة ضريبية #{{invoiceId}}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Tajawal', sans-serif;
+            font-size: 12px;
+            color: #1e293b;
+            background-color: #f1f5f9;
+            -webkit-print-color-adjust: exact;
+            margin: 0;
+            padding: 2rem;
+        }
+        .page-container {
+            width: 210mm;
+            min-height: 297mm;
+            margin: auto;
+            background-color: white;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            border-radius: 1rem;
+            display: flex;
+            flex-direction: column;
+        }
+        header {
+            background-image: linear-gradient(to right, #ecfdf5, white, #f8fafc);
+            border-bottom: 2px solid #059669;
+            padding: 2rem 2rem 2rem;
+            margin-bottom: 1.5rem;
+            position: relative;
+            z-index: 10;
+        }
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+        .org-info h1 {
+            font-size: 2.25rem;
+            font-weight: 700;
+            color: #0f172a;
+            font-family: 'Tajawal', sans-serif;
+        }
+        .org-info .address {
+            font-size: 1rem;
+            color: #475569;
+            max-width: 400px;
+            line-height: 1.6;
+            margin-top: 0.75rem;
+            font-family: 'Tajawal', sans-serif;
+        }
+        .contact-details {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            font-size: 0.875rem;
+            color: #64748b;
+            margin-top: 1rem;
+        }
+        .contact-item {
+            display: flex;
+            align-items: center;
+            gap: 0.375rem;
+            padding: 0.375rem 0.75rem;
+            background-color: #f1f5f9;
+            border-radius: 0.5rem;
+        }
+        .invoice-title-section {
+            text-align: left;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+        }
+        .logo {
+            width: 5rem;
+            height: 5rem;
+            background-color: #d1fae5;
+            border-radius: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 0.5rem;
+            font-size: 2rem;
+            color: #059669;
+        }
+        .invoice-title {
+            font-size: 2.25rem;
+            font-weight: 700;
+            color: #064e3b;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+            font-family: 'Tajawal', sans-serif;
+        }
+        .invoice-subtitle {
+            font-size: 0.875rem;
+            color: #059669;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+            font-family: 'Tajawal', sans-serif;
+        }
+        .invoice-ref {
+            font-size: 0.75rem;
+            font-family: monospace;
+            background-color: #f1f5f9;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            display: inline-block;
+            color: #64748b;
+        }
+        main {
+            flex-grow: 1;
+            padding: 0 2rem 2rem;
+            position: relative;
+            z-index: 10;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+            font-size: 0.75rem;
+        }
+        .info-card {
+            background-color: rgba(248, 250, 252, 0.5);
+            padding: 1rem;
+            border-radius: 0.5rem;
+            border: 1px solid #e2e8f0;
+        }
+        .info-card-title {
+            font-size: 0.625rem;
+            color: #94a3b8;
+            text-transform: uppercase;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.75rem;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 0.25rem;
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+        }
+        .info-label {
+            color: #64748b;
+        }
+        .info-value {
+            font-weight: 600;
+            color: #0f172a;
+        }
+        .status-badge {
+            padding: 0.125rem 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.625rem;
+            font-weight: 700;
+            border: 1px solid;
+        }
+        .status-paid {
+            background-color: #f0fdf4;
+            color: #166534;
+            border-color: #bbf7d0;
+        }
+        .table {
+            width: 100%;
+            font-size: 0.75rem;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+        .table thead tr {
+            background-color: #0f172a;
+            color: white;
+        }
+        .table th {
+            padding: 0.5rem 1rem;
+            text-align: right;
+            font-weight: 700;
+        }
+        .table th:first-child { border-top-right-radius: 0.375rem; }
+        .table th:last-child { border-top-left-radius: 0.375rem; }
+        .table tbody tr:nth-child(odd) { background-color: white; }
+        .table tbody tr:nth-child(even) { background-color: rgba(248, 250, 252, 0.5); }
+        .table td {
+            padding: 0.5rem 1rem;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .table tfoot {
+            border-top: 2px solid #0f172a;
+        }
+        .totals-section {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 2rem;
+        }
+        .totals-card {
+            width: 300px;
+            background-color: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        }
+        .totals-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            margin-bottom: 0.5rem;
+        }
+        .totals-row.net {
+            font-size: 1rem;
+            font-weight: 900;
+            color: #0f172a;
+            border-bottom: 2px solid #0f172a;
+            padding-bottom: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+        footer {
+            margin-top: auto;
+            background-image: linear-gradient(to right, #f8fafc, #ecfdf5);
+            border-top: 1px solid #e2e8f0;
+            text-align: center;
+            padding: 1.5rem 2rem;
+        }
+        .footer-note {
+            font-size: 0.875rem;
+            color: #475569;
+            margin-bottom: 1rem;
+            font-style: italic;
+            background-color: white;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            border: 1px solid #e5e7eb;
+            font-family: 'Tajawal', sans-serif;
+        }
+        .footer-meta {
+            font-size: 0.625rem;
+            color: #6b7280;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            text-transform: uppercase;
+            font-family: 'Tajawal', sans-serif;
+        }
+    </style>
+</head>
+<body>
+    <div class="page-container">
+        <header>
+            <div class="header-content">
+                <div class="org-info">
+                    <h1 style="font-family: 'Tajawal', sans-serif;">{{hospitalName}}</h1>
+                    <div class="address" style="font-family: 'Tajawal', sans-serif;">{{address}}</div>
+                    <div class="contact-details">
+                        <div class="contact-item"><span>📞</span><span>{{phone}}</span></div>
+                        <div class="contact-item"><span>✉️</span><span>{{email}}</span></div>
+                    </div>
+                </div>
+                <div class="invoice-title-section">
+                    <div class="logo">🏥</div>
+                    <div class="invoice-title" style="font-family: 'Tajawal', sans-serif;">{{#if (eq invoiceType 'CREDIT_NOTE')}}إشعار دائن{{else}}فاتورة ضريبية{{/if}}</div>
+                    <div class="invoice-subtitle" style="font-family: 'Tajawal', sans-serif;">{{#if (eq invoiceType 'CREDIT_NOTE')}}Credit Note{{else}}Tax Invoice{{/if}}</div>
+                    <div class="invoice-ref">المرجع: #{{invoiceId}}</div>
+                </div>
+            </div>
+        </header>
+        <main>
+            <div class="info-grid">
+                <div class="info-card">
+                    <div class="info-card-title">بيانات المريض (PATIENT INFO)</div>
+                    <div class="info-row"><span class="info-label">الاسم:</span><span class="info-value">{{patientName}}</span></div>
+                    <div class="info-row"><span class="info-label">رقم الملف:</span><span class="info-value" style="font-family: monospace;">{{mrn}}</span></div>
+                    <div class="info-row"><span class="info-label">الجهة الضامنة:</span><span class="info-value">{{insuranceProvider}}</span></div>
+                </div>
+                <div class="info-card">
+                    <div class="info-card-title">تفاصيل الفاتورة (INVOICE DETAILS)</div>
+                    <div class="info-row"><span class="info-label">التاريخ:</span><span class="info-value" style="font-family: monospace;">{{formatDateTime invoiceDate}}</span></div>
+                    <div class="info-row"><span class="info-label">الحالة:</span><span class="status-badge status-paid">{{status}}</span></div>
+                </div>
+            </div>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th style="width: 48px;">#</th>
+                        <th>البيان / Description</th>
+                        <th style="width: 88px; text-align: center;">الكمية</th>
+                        <th style="width: 120px;">سعر الوحدة</th>
+                        <th style="width: 120px;">الإجمالي</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{#each items}}
+                    <tr>
+                        <td>{{inc @index}}</td>
+                        <td>{{serviceName}}<div style="font-size: 0.75rem; color: #94a3b8; font-family: monospace;">{{code}}</div></td>
+                        <td style="text-align: center; font-family: monospace;">{{quantity}}</td>
+                        <td style="font-family: monospace;">{{formatMoney unitPrice}}</td>
+                        <td style="font-weight: 700; font-family: monospace;">{{formatMoney totalAmount}}</td>
+                    </tr>
+                    {{/each}}
+                </tbody>
+                <tfoot>
+                    <tr style="background-color: #f8fafc;">
+                        <td colspan="3"></td>
+                        <td style="font-weight: 700;">المجموع:</td>
+                        <td style="font-weight: 700; font-family: monospace;">{{formatMoney totalAmount}}</td>
+                    </tr>
+                </tfoot>
+            </table>
+            <div class="totals-section">
+                <div class="totals-card">
+                    {{#if discountAmount}}
+                    <div class="totals-row" style="color: #dc2626;"><span>الخصم:</span><span style="font-family: monospace; font-weight: 700;">-{{formatMoney discountAmount}}</span></div>
+                    {{/if}}
+                    <div class="totals-row net"><span>الصافي:</span><span style="font-family: monospace;">{{formatMoney netAmount}}</span></div>
+                    <div class="totals-row" style="color: #059669; padding-top: 0.25rem;"><span>تم دفع:</span><span style="font-family: monospace; font-weight: 700;">{{formatMoney paidAmount}}</span></div>
+                    <div class="totals-row" style="border-top: 1px solid #e2e8f0; margin-top: 0.5rem; padding-top: 0.5rem;"><span>المتبقي:</span><span style="font-family: monospace; font-weight: 700; color: {{#if remainingAmount}}#dc2626{{else}}#475569{{/if}};">{{formatMoney remainingAmount}}</span></div>
+                </div>
+            </div>
+        </main>
+        <footer>
+            <div class="footer-note" style="font-family: 'Tajawal', sans-serif;">نسخة إلكترونية معتمدة</div>
+            <div class="footer-meta">
+                <div><span>Powered by</span><span style="font-weight: 700; color: #059669;">Saraya ERP</span></div>
+                <div><span>{{formatDateTime currentDateTime}}</span><span style="margin: 0 0.5rem;">•</span><span>صفحة 1 من 1</span></div>
+            </div>
+        </footer>
+    </div>
+</body>
+</html>

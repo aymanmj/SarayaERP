@@ -23,16 +23,49 @@ export class PdfService {
       this.formatCurrency(Number(val)),
     );
 
+    handlebars.registerHelper('formatCurrency', (val, currency = '') => {
+      const formatted = this.formatCurrency(Number(val));
+      return currency ? `${formatted} ${currency}` : formatted;
+    });
+
     handlebars.registerHelper('formatDate', (val) => {
       if (!val) return '-';
-      return new Date(val).toLocaleDateString('ar-LY', {
+      const date = new Date(val);
+      if (isNaN(date.getTime())) return '-';
+      return date.toLocaleDateString('ar-LY', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      });
+    });
+
+    handlebars.registerHelper('formatDateTime', (val) => {
+      if (!val) return '-';
+      const date = new Date(val);
+      if (isNaN(date.getTime())) return '-';
+      return date.toLocaleString('ar-LY', {
         year: 'numeric',
         month: '2-digit',
         day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
       });
     });
 
     handlebars.registerHelper('inc', (value) => parseInt(value) + 1);
+
+    // Helper to handle objects and convert to string
+    handlebars.registerHelper('toString', (val) => {
+      if (val === null || val === undefined) return '';
+      if (typeof val === 'object') return JSON.stringify(val);
+      return String(val);
+    });
+
+    // Helper to handle numbers and ensure they're numbers
+    handlebars.registerHelper('toNumber', (val) => {
+      if (val === null || val === undefined) return 0;
+      return Number(val);
+    });
   }
 
   // دالة مساعدة لتنسيق العملة

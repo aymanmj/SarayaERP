@@ -92,6 +92,7 @@ model Department {
   costCenterId     Int?
   appointments     Appointment[]
   assets           Asset[]
+  admissions       Admission[]
   costCenter       CostCenter?       @relation(fields: [costCenterId], references: [id])
   hospital         Hospital          @relation(fields: [hospitalId], references: [id])
   encounters       Encounter[]
@@ -254,6 +255,26 @@ model User {
   userRoles                 UserRole[]
   visits                    Visit[]                    @relation("VisitDoctor")
   vitalSigns                VitalSign[]
+  
+  // Admission Relations
+  admittingAdmissions       Admission[]                @relation("AdmittingDoctor")
+  primaryPhysicianAdmissions Admission[]               @relation("PrimaryPhysician")
+  referringAdmissions       Admission[]                @relation("ReferringDoctor")
+  attendingNurseAdmissions  Admission[]                @relation("AttendingNurse")
+  createdAdmissions         Admission[]                @relation("AdmissionCreator")
+  updatedAdmissions         Admission[]                @relation("AdmissionUpdater")
+  admissionNotes            AdmissionNote[]
+  
+  // Discharge Planning Relations
+  dischargeCaseManaged     DischargePlanning[]         @relation("DischargeCaseManager")
+  dischargeSocialWorked     DischargePlanning[]         @relation("DischargeSocialWorker")
+  dischargeFollowUpDoctor   DischargePlanning[]         @relation("DischargeFollowUpDoctor")
+  createdDischargePlanning  DischargePlanning[]         @relation("DischargeCreator")
+  
+  // Bed Transfer Relations
+  requestedBedTransfers     BedTransfer[]               @relation("TransferRequestedBy")
+  approvedBedTransfers      BedTransfer[]               @relation("TransferApprovedBy")
+  completedBedTransfers     BedTransfer[]               @relation("TransferCompletedBy")
 }
 
 model RefreshToken {
@@ -350,6 +371,9 @@ model Patient {
   @@index([hospitalId, phone])
   @@index([hospitalId, fullName])
   @@index([nationalId])
+  
+  // Relations
+  admissions Admission[]
 }
 
 model PatientAllergy {
@@ -391,6 +415,7 @@ model Encounter {
   doctor                    User?                      @relation("EncounterDoctor", fields: [doctorId], references: [id])
   hospital                  Hospital                   @relation(fields: [hospitalId], references: [id])
   patient                   Patient                    @relation(fields: [patientId], references: [id])
+  admission                 Admission?
   charges                   EncounterCharge[]
   encounterDiagnoses        EncounterDiagnosis[]
   invoices                  Invoice[]
@@ -621,6 +646,7 @@ model Ward {
   serviceItemId Int?
   beds          Bed[]
   rooms         Room[]
+  admissions    Admission[]
   hospital      Hospital     @relation(fields: [hospitalId], references: [id])
   serviceItem   ServiceItem? @relation(fields: [serviceItemId], references: [id])
 }
@@ -632,6 +658,7 @@ model Room {
   isActive   Boolean  @default(true)
   roomNumber String
   beds       Bed[]
+  admissions Admission[]
   hospital   Hospital @relation(fields: [hospitalId], references: [id])
   ward       Ward     @relation(fields: [wardId], references: [id])
 }
@@ -648,6 +675,9 @@ model Bed {
   room        Room            @relation(fields: [roomId], references: [id])
   ward        Ward            @relation(fields: [wardId], references: [id])
   assignments BedAssignment[]
+  admissions   Admission[]
+  transferFrom BedTransfer[]   @relation("TransferFromBed")
+  transferTo   BedTransfer[]   @relation("TransferToBed")
 }
 
 model BedAssignment {
@@ -2420,4 +2450,302 @@ enum MaritalStatus {
 enum IdentityType {
   PERSONAL_ID
   PASSPORT
+}
+
+// Admission Management Enums
+enum AdmissionType {
+  EMERGENCY
+  URGENT
+  ELECTIVE
+  TRANSFER
+  OBSERVATION
+}
+
+enum AdmissionStatus {
+  SCHEDULED
+  ADMITTED
+  IN_PROGRESS
+  DISCHARGE_PENDING
+  DISCHARGED
+  CANCELLED
+}
+
+enum AdmissionPriority {
+  CRITICAL
+  URGENT
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum DischargeDisposition {
+  HOME
+  TRANSFER_TO_ANOTHER_FACILITY
+  REHABILITATION
+  LONG_TERM_CARE
+  HOME_HEALTH_CARE
+  HOSPICE
+  LEFT_AGAINST_MEDICAL_ADVICE
+  EXPIRED
+}
+
+enum IsolationType {
+  NONE
+  STANDARD
+  DROPLET
+  AIRBORNE
+  CONTACT
+  PROTECTIVE
+}
+
+// Comprehensive Admission Management Model
+model Admission {
+  id                    Int                  @id @default(autoincrement())
+  hospitalId            Int
+  patientId             Int
+  encounterId           Int                  @unique
+  admissionType         AdmissionType
+  admissionStatus       AdmissionStatus      @default(SCHEDULED)
+  priority              AdmissionPriority
+  
+  // Admission Timing
+  scheduledAdmissionDate DateTime?
+  actualAdmissionDate   DateTime
+  dischargeDate         DateTime?
+  expectedDischargeDate DateTime?
+  
+  // Location Information
+  bedId                 Int?
+  roomId                Int?
+  wardId                Int?
+  departmentId          Int?
+  
+  // Medical Team
+  admittingDoctorId     Int
+  primaryPhysicianId    Int
+  referringDoctorId     Int?
+  attendingNurseId      Int?
+  
+  // Insurance Information
+  insuranceProviderId   String?
+  insurancePolicyId     String?
+  preAuthNumber         String?
+  insuranceStatus       String?
+  
+  // Clinical Information
+  admissionReason       String
+  primaryDiagnosis      String?
+  secondaryDiagnoses    Json?
+  procedures            Json?
+  medications           Json?
+  allergies             Json?
+  specialInstructions   String?
+  
+  // Risk Assessment
+  fallRisk              String?
+  pressureUlcerRisk     String?
+  nutritionRisk         String?
+  infectionRisk         String?
+  
+  // Isolation and Safety
+  isolationRequired     Boolean              @default(false)
+  isolationType         IsolationType        @default(NONE)
+  isolationStartDate    DateTime?
+  isolationEndDate      DateTime?
+  
+  // Emergency Information
+  isEmergency           Boolean              @default(false)
+  emergencyContact      Json?
+  emergencyNotes        String?
+  
+  // Readmission Information
+  isReadmission         Boolean              @default(false)
+  previousAdmissionId   Int?
+  readmissionReason     String?
+  readmissionWithin30Days Boolean           @default(false)
+  
+  // Discharge Planning
+  dischargeDisposition  DischargeDisposition?
+  dischargeInstructions Json?
+  followUpRequired      Boolean              @default(false)
+  followUpInstructions  Json?
+  
+  // Financial Information
+  estimatedCost         Decimal?
+  actualCost            Decimal?
+  paymentStatus         String?
+  billingStatus         String?
+  
+  // Quality Metrics
+  lengthOfStay          Int?                 // in days
+  complicationFlag      Boolean              @default(false)
+  complicationDetails   Json?
+  
+  // Audit and Tracking
+  createdBy             Int
+  updatedBy             Int?
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+  
+  // Relations
+  patient               Patient              @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  encounter             Encounter            @relation(fields: [encounterId], references: [id], onDelete: Cascade)
+  bed                   Bed?                 @relation(fields: [bedId], references: [id], onDelete: SetNull)
+  room                  Room?                @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  ward                  Ward?                @relation(fields: [wardId], references: [id], onDelete: SetNull)
+  department            Department?          @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  admittingDoctor       User                 @relation("AdmittingDoctor", fields: [admittingDoctorId], references: [id])
+  primaryPhysician      User                 @relation("PrimaryPhysician", fields: [primaryPhysicianId], references: [id])
+  referringDoctor       User?                @relation("ReferringDoctor", fields: [referringDoctorId], references: [id])
+  attendingNurse        User?                @relation("AttendingNurse", fields: [attendingNurseId], references: [id])
+  creator               User                 @relation("AdmissionCreator", fields: [createdBy], references: [id])
+  updater               User?                @relation("AdmissionUpdater", fields: [updatedBy], references: [id])
+  previousAdmission     Admission?           @relation("ReadmissionHistory", fields: [previousAdmissionId], references: [id])
+  readmissions          Admission[]          @relation("ReadmissionHistory")
+  
+  // Related Records
+  dischargePlanning     DischargePlanning?
+  bedTransfers          BedTransfer[]
+  admissionNotes        AdmissionNote[]
+  // vitalSigns            VitalSign[]
+  // medicationOrders      MedicationAdministration[]
+  
+  // Indexes for Performance
+  @@index([hospitalId, admissionStatus])
+  @@index([hospitalId, patientId])
+  @@index([hospitalId, actualAdmissionDate])
+  @@index([hospitalId, dischargeDate])
+  @@index([hospitalId, wardId])
+  @@index([hospitalId, departmentId])
+  @@index([hospitalId, admittingDoctorId])
+  
+  @@map("admissions")
+}
+
+// Admission Notes Model
+model AdmissionNote {
+  id          Int      @id @default(autoincrement())
+  admissionId Int
+  hospitalId  Int
+  type        String   // ADMISSION, PROGRESS, DISCHARGE, etc.
+  content     String
+  isCritical  Boolean  @default(false)
+  createdBy   Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  admission   Admission @relation(fields: [admissionId], references: [id], onDelete: Cascade)
+  creator     User      @relation(fields: [createdBy], references: [id])
+  
+  @@index([admissionId, type])
+  @@map("admission_notes")
+}
+
+// Discharge Planning Model
+model DischargePlanning {
+  id                    Int      @id @default(autoincrement())
+  admissionId           Int      @unique
+  hospitalId            Int
+  
+  // Planning Timeline
+  plannedDischargeDate  DateTime
+  dischargePlanningDate DateTime @default(now())
+  
+  // Discharge Criteria
+  medicalStability      Boolean  @default(false)
+  vitalsStable          Boolean  @default(false)
+  painControlled        Boolean  @default(false)
+  medicationsReady      Boolean  @default(false)
+  educationCompleted    Boolean  @default(false)
+  
+  // Discharge Destination
+  dischargeDisposition  DischargeDisposition
+  destinationFacility   String?
+  
+  // Home Care Planning
+  homeHealthRequired    Boolean  @default(false)
+  equipmentNeeded       Json?
+  homeModifications     Json?
+  
+  // Follow-up Planning
+  followUpAppointment   DateTime?
+  followUpDoctorId      Int?
+  followUpInstructions  String?
+  
+  // Care Coordination
+  caseManagerId         Int?
+  socialWorkerId        Int?
+  familyNotified        Boolean  @default(false)
+  familyInstructions    Json?
+  
+  // Financial Planning
+  insuranceApproval     Boolean  @default(false)
+  estimatedCost         Decimal?
+  paymentArrangements   Json?
+  
+  // Status and Tracking
+  status                String   @default("PLANNING")
+  completedDate         DateTime?
+  barriers              Json?
+  notes                 String?
+  
+  createdBy             Int
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  admission             Admission @relation(fields: [admissionId], references: [id], onDelete: Cascade)
+  caseManager           User?     @relation("DischargeCaseManager", fields: [caseManagerId], references: [id])
+  socialWorker          User?     @relation("DischargeSocialWorker", fields: [socialWorkerId], references: [id])
+  followUpDoctor        User?     @relation("DischargeFollowUpDoctor", fields: [followUpDoctorId], references: [id])
+  creator               User      @relation("DischargeCreator", fields: [createdBy], references: [id])
+  
+  @@map("discharge_planning")
+}
+
+// Bed Transfer Model
+model BedTransfer {
+  id              Int      @id @default(autoincrement())
+  admissionId     Int
+  hospitalId      Int
+  
+  // Transfer Information
+  fromBedId       Int
+  fromRoomId      Int
+  fromWardId      Int
+  toBedId         Int
+  toRoomId        Int
+  toWardId        Int
+  
+  // Transfer Details
+  transferReason  String
+  transferType    String   // ROUTINE, URGENT, EMERGENCY
+  priority        String
+  
+  // Timing
+  requestedAt     DateTime @default(now())
+  scheduledAt     DateTime?
+  completedAt     DateTime?
+  
+  // Medical Staff
+  requestedBy     Int
+  approvedBy      Int?
+  completedBy     Int?
+  
+  // Status
+  status          String   @default("REQUESTED")
+  notes           String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  admission       Admission @relation(fields: [admissionId], references: [id], onDelete: Cascade)
+  fromBed         Bed       @relation("TransferFromBed", fields: [fromBedId], references: [id])
+  toBed           Bed       @relation("TransferToBed", fields: [toBedId], references: [id])
+  requestedUser   User      @relation("TransferRequestedBy", fields: [requestedBy], references: [id])
+  approvedUser    User?     @relation("TransferApprovedBy", fields: [approvedBy], references: [id])
+  completedUser   User?     @relation("TransferCompletedBy", fields: [completedBy], references: [id])
+  
+  @@index([admissionId, status])
+  @@index([hospitalId, status])
+  @@map("bed_transfers")
 }

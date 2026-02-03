@@ -60,13 +60,25 @@ function App() {
             نظام إدارة المستشفيات والعيادات الطبية المتكامل - حلول احترافية للرعاية الصحية
           </p>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12 max-w-4xl mx-auto">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12 max-w-4xl mx-auto">
             <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-6 border border-slate-700 hover:bg-slate-800/70 transition-colors">
               <div className="text-3xl mb-4">🏥</div>
               <h3 className="text-xl font-semibold text-white mb-2">إدارة المستشفيات</h3>
               <p className="text-slate-300 text-sm">
                 إدارة شاملة للمرضى، المواعيد، الإقامات، والسجلات الطبية
               </p>
+              <button
+                onClick={() => navigate('/admissions')}
+                className="mt-4 px-4 py-2 bg-sky-600 text-white font-medium rounded-lg hover:bg-sky-500 transition-all"
+              >
+                الإيواء الأساسي
+              </button>
+              <button
+                onClick={() => navigate('/admissions/advanced')}
+                className="mt-2 px-4 py-2 bg-sky-700 text-white font-medium rounded-lg hover:bg-sky-600 transition-all"
+              >
+                الإدارة المتقدمة
+              </button>
             </div>
 
             <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-6 border border-slate-700 hover:bg-slate-800/70 transition-colors">

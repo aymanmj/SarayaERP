@@ -12,6 +12,7 @@ import {
   Post,
   UseGuards,
   BadRequestException,
+  Res,
 } from '@nestjs/common';
 import { CashierService } from './cashier.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -22,6 +23,9 @@ import type { JwtPayload } from '../auth/jwt-payload.type';
 import { IsNumber, IsOptional, IsString } from 'class-validator';
 import { PaymentMethod } from '@prisma/client';
 import type { PaymentReceiptDto } from './cashier.service';
+import { PdfService } from '../pdf/pdf.service';
+import { PrismaService } from '../prisma/prisma.service';
+import type { Response } from 'express';
 
 class RecordPaymentDto {
   @IsNumber()
@@ -56,7 +60,11 @@ class CloseShiftDto {
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('cashier')
 export class CashierController {
-  constructor(private readonly cashierService: CashierService) {}
+  constructor(
+    private readonly cashierService: CashierService,
+    private readonly pdfService: PdfService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   // 1) Worklist للكاشير
   @Get('worklist')
@@ -112,6 +120,72 @@ export class CashierController {
   ): Promise<PaymentReceiptDto> {
     const user = req.user;
     return this.cashierService.getPaymentReceipt(user.hospitalId, id);
+  }
+
+  @Get('payments/:id/receipt/pdf')
+  @Roles('ADMIN', 'CASHIER', 'ACCOUNTANT')
+  async downloadPaymentReceiptPdf(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: JwtPayload,
+    @Res() res: Response,
+  ) {
+    // 1. Get Payment Receipt Data
+    const receiptData = await this.cashierService.getPaymentReceipt(user.hospitalId, id);
+
+    // 2. Get Hospital Settings from DB
+    const hospital = await this.prisma.hospital.findUnique({
+      where: { id: user.hospitalId },
+    });
+
+    const organization = {
+      displayName: hospital?.displayName || hospital?.name || 'Saraya Hospital',
+      address: [hospital?.addressLine1, hospital?.addressLine2, hospital?.city].filter(Boolean).join(' - '),
+      phone: hospital?.phone || '',
+      email: hospital?.email || '',
+    };
+
+    // 3. Prepare Data for Template
+    const pdfData = {
+      paymentId: receiptData.payment.id,
+      amount: receiptData.payment.amount,
+      currency: receiptData.invoice.currency,
+      paymentMethod: receiptData.payment.method,
+      paymentDate: receiptData.payment.paidAt,
+      reference: receiptData.payment.reference,
+      
+      patient: {
+        fullName: receiptData.patient.fullName,
+        mrn: receiptData.patient.mrn,
+      },
+      
+      encounter: {
+        type: receiptData.encounter?.type || '',
+      },
+      
+      invoiceId: receiptData.invoice.id,
+      invoiceDate: receiptData.invoice.createdAt,
+      invoiceStatus: receiptData.invoice.status,
+      totalAmount: receiptData.invoice.totalAmount,
+      discountAmount: receiptData.invoice.discountAmount,
+      netAmount: Number(receiptData.invoice.totalAmount) - Number(receiptData.invoice.discountAmount || 0),
+      paidAmount: receiptData.invoice.paidAmount,
+      remainingAmount: receiptData.invoice.remainingAmount,
+      
+      organization,
+      currentDateTime: new Date(),
+    };
+
+    // 4. Generate PDF
+    const buffer = await this.pdfService.generatePdf('booking-receipt-modern', pdfData);
+
+    // 5. Send Response
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `inline; filename=receipt-${id}.pdf`,
+      'Content-Length': buffer.length,
+    });
+
+    res.end(buffer);
   }
 
   // تقرير يومي للكاشير (بدون تحديد مستخدم)

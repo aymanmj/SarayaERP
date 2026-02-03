@@ -2,7 +2,7 @@ import React from "react";
 import { apiClient } from "../../api/apiClient";
 import type { OrganizationSettings } from "../../types/organization";
 import { useQuery } from "@tanstack/react-query";
-import { Loader2 } from "lucide-react";
+import { Loader2, Printer, X, Download, Share2 } from "lucide-react";
 
 interface PrintLayoutProps {
   title: string;
@@ -11,7 +11,9 @@ interface PrintLayoutProps {
   children: React.ReactNode;
   footerNotes?: string;
   pageSize?: "A4" | "A5";
-  organizationSettings?: OrganizationSettings; // ✅ نستقبلها كخاصية لتجنب الطلب المتكرر
+  organizationSettings?: OrganizationSettings;
+  showWatermark?: boolean;
+  watermarkText?: string;
 }
 
 export default function PrintLayout({
@@ -22,147 +24,300 @@ export default function PrintLayout({
   footerNotes,
   pageSize = "A4",
   organizationSettings,
+  showWatermark = false,
+  watermarkText = "ORIGINAL",
 }: PrintLayoutProps) {
-  // ✅ استخدام React Query مع StaleTime لا نهائي (البيانات لا تتغير كل لحظة)
   const { data: fetchedOrg, isLoading } = useQuery({
     queryKey: ["organizationSettings"],
     queryFn: async () => {
-      const res = await apiClient.get<OrganizationSettings>(
-        "/settings/organization",
-      );
+      const res = await apiClient.get<OrganizationSettings>("/settings/organization");
       return res.data;
     },
-    enabled: !organizationSettings, // لا تجلب إذا تم تمرير البيانات
-    staleTime: Infinity, // ✅ احتفظ بالبيانات في الكاش للأبد (تمنع التكرار)
+    enabled: !organizationSettings,
+    staleTime: Infinity,
   });
 
   const org = organizationSettings || fetchedOrg;
 
+  const handlePrint = async () => {
+    try {
+      // استخراج ID من المسار الحالي
+      const currentPath = window.location.pathname;
+      const idMatch = currentPath.match(/\/(\d+)(?:\/|$)/);
+      const id = idMatch ? idMatch[1] : null;
+      
+      if (!id) {
+        console.error('Could not extract ID from path');
+        return;
+      }
+
+      // طلب الملف كـ Blob من نفس endpoint المستخدم في InvoiceDetailsPage
+      const response = await apiClient.get(`/billing/invoices/${id}/pdf`, {
+        responseType: "blob",
+      });
+
+      // إنشاء رابط مؤقت للملف في المتصفح
+      const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
+
+      // فتح الملف في نافذة جديدة
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("target", "_blank");
+      document.body.appendChild(link);
+      link.click();
+
+      // تنظيف الذاكرة
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Error generating PDF:', err);
+    }
+  };
+
+  const handleDownload = () => {
+    // يمكن إضافة منطق التحميل هنا
+    window.print();
+  };
+
+  const handleShare = () => {
+    // يمكن إضافة منطق المشاركة هنا
+    if (navigator.share) {
+      navigator.share({
+        title: title,
+        text: `مستند: ${title}`,
+        url: window.location.href,
+      });
+    }
+  };
+
   if (isLoading && !org) {
     return (
-      <div className="flex h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4 p-8 bg-white rounded-2xl shadow-lg">
+          <Loader2 className="h-12 w-12 animate-spin text-emerald-600" />
+          <div className="text-slate-600 font-medium">جاري تحميل بيانات الطباعة...</div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 flex justify-center py-8 print:bg-white print:p-0 print:m-0">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex justify-center py-8 print:bg-white print:p-0 print:m-0">
       <div
         id="print-container"
-        className={`bg-white text-slate-900 shadow-2xl rounded-sm p-8 flex flex-col print:shadow-none print:w-full print:h-auto print:rounded-none
+        className={`bg-white text-slate-900 shadow-2xl rounded-2xl overflow-hidden flex flex-col print:shadow-none print:w-full print:h-auto print:rounded-none
           ${pageSize === "A5" ? "w-[148mm] min-h-[210mm]" : "w-[210mm] min-h-[297mm]"}
         `}
         dir="rtl"
       >
-        {/* Actions Bar (Hidden in Print) */}
-        <div className="no-print flex justify-between items-center mb-8 border-b pb-4 border-slate-100">
-          <div className="text-sm text-slate-400">معاينة الطباعة</div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => window.print()}
-              className="px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md font-medium shadow-sm transition-colors flex items-center gap-2"
-            >
-              <span>🖨</span>
-              <span>طباعة المستند</span>
-            </button>
-            <button
-              onClick={() => window.close()}
-              className="px-6 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-md font-medium shadow-sm transition-colors"
-            >
-              إغلاق
-            </button>
+        {/* Enhanced Actions Bar */}
+        <div className="no-print bg-gradient-to-r from-emerald-50 to-slate-50 border-b border-emerald-200 px-6 py-4">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-100 text-emerald-700 rounded-lg text-sm font-medium">
+                <Printer className="w-4 h-4" />
+                معاينة الطباعة
+              </div>
+              {documentId && (
+                <div className="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-sm font-mono">
+                  #{documentId}
+                </div>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleShare}
+                className="px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-lg font-medium transition-all duration-200 flex items-center gap-2 text-sm"
+              >
+                <Share2 className="w-4 h-4" />
+                مشاركة
+              </button>
+              <button
+                onClick={handleDownload}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-all duration-200 flex items-center gap-2 text-sm shadow-sm"
+              >
+                <Download className="w-4 h-4" />
+                تحميل
+              </button>
+              <button
+                onClick={handlePrint}
+                className="px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium transition-all duration-200 flex items-center gap-2 text-sm shadow-lg hover:shadow-xl"
+              >
+                <Printer className="w-4 h-4" />
+                طباعة المستند
+              </button>
+              <button
+                onClick={() => window.close()}
+                className="p-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-lg transition-all duration-200"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Header */}
-        <header className="flex justify-between items-start border-b-2 border-emerald-600 pb-6 mb-6">
-          {/* Organization Info */}
-          <div className="text-right space-y-2">
-            <h1 className="text-2xl font-bold text-slate-900">
-              {org?.displayName || "المستشفى المركزي"}
-            </h1>
-            <div className="text-sm text-slate-500 max-w-[300px] leading-relaxed">
-              {org?.address || "العنوان الرئيسي للمنشأة"}
+        {/* Enhanced Header */}
+        <header className="relative bg-gradient-to-r from-emerald-50 via-white to-slate-50 border-b-2 border-emerald-600 pb-8 mb-6">
+          {/* Watermark */}
+          {showWatermark && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 opacity-5">
+              <div className="text-[100px] font-black text-emerald-600 rotate-12 select-none">
+                {watermarkText}
+              </div>
             </div>
-            <div className="flex gap-4 text-xs text-slate-500 mt-2">
-              {org?.phone && (
-                <div className="flex items-center gap-1">
-                  <span>📞</span> {org.phone}
-                </div>
-              )}
-              {org?.email && (
-                <div className="flex items-center gap-1">
-                  <span>✉️</span> {org.email}
-                </div>
-              )}
-            </div>
-          </div>
+          )}
 
-          {/* Logo & Document Title */}
-          <div className="text-left flex flex-col items-end">
-            {org?.logoUrl && (
-              <img
-                src={org.logoUrl}
-                alt="Logo"
-                className="h-16 w-auto object-contain mb-3"
-              />
-            )}
-            <div className="text-3xl font-bold text-emerald-900 uppercase tracking-wide">
-              {title}
+          <div className="relative z-10 px-8 pt-8">
+            <div className="flex justify-between items-start">
+              {/* Organization Info */}
+              <div className="text-right space-y-3">
+                <h1 className="text-3xl font-bold text-slate-900 tracking-tight">
+                  {org?.displayName || "المستشفى المركزي"}
+                </h1>
+                <div className="text-sm text-slate-600 max-w-[350px] leading-relaxed">
+                  {org?.address || "العنوان الرئيسي للمنشأة"}
+                </div>
+                <div className="flex flex-wrap gap-4 text-xs text-slate-500">
+                  {org?.phone && (
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 rounded-lg">
+                      <span className="text-slate-400">📞</span>
+                      <span className="font-medium">{org.phone}</span>
+                    </div>
+                  )}
+                  {org?.email && (
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 rounded-lg">
+                      <span className="text-slate-400">✉️</span>
+                      <span className="font-medium">{org.email}</span>
+                    </div>
+                  )}
+                  {org?.website && (
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 rounded-lg">
+                      <span className="text-slate-400">🌐</span>
+                      <span className="font-medium">{org.website}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Logo & Document Title */}
+              <div className="text-left flex flex-col items-end">
+                {org?.logoUrl && (
+                  <div className="mb-4 p-2 bg-white rounded-lg shadow-sm">
+                    <img
+                      src={org.logoUrl}
+                      alt="Logo"
+                      className="h-20 w-auto object-contain"
+                    />
+                  </div>
+                )}
+                <div className="text-right">
+                  <div className="text-4xl font-bold text-emerald-900 uppercase tracking-wider mb-2">
+                    {title}
+                  </div>
+                  {subtitle && (
+                    <div className="text-sm text-emerald-600 font-medium uppercase tracking-wider mb-2">
+                      {subtitle}
+                    </div>
+                  )}
+                  {documentId && (
+                    <div className="text-xs text-slate-400 font-mono bg-slate-100 px-2 py-1 rounded inline-block">
+                      المرجع: #{documentId}
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
-            {subtitle && (
-              <div className="text-sm text-emerald-600 font-medium uppercase tracking-wider">
-                {subtitle}
-              </div>
-            )}
-            {documentId && (
-              <div className="text-xs text-slate-400 mt-1 font-mono">
-                Ref: #{documentId}
-              </div>
-            )}
           </div>
         </header>
 
-        {/* content */}
-        <main className="flex-grow">{children}</main>
+        {/* Enhanced Content Area */}
+        <main className="flex-grow px-8 pb-8 relative z-10">
+          {children}
+        </main>
 
-        {/* Footer */}
-        <footer className="mt-auto pt-6 border-t border-slate-200 text-center">
+        {/* Enhanced Footer */}
+        <footer className="mt-auto relative z-10 bg-gradient-to-r from-slate-50 to-emerald-50 border-t border-slate-200 text-center px-8 py-6">
           {footerNotes && (
-            <div className="text-sm text-slate-600 mb-4 italic">
+            <div className="text-sm text-slate-600 mb-4 italic bg-white p-3 rounded-lg border border-slate-200">
               {footerNotes}
             </div>
           )}
 
-          <div className="flex justify-center items-center gap-8 text-[10px] text-slate-400 uppercase tracking-widest">
-            <span>Powered by Saraya ERP</span>
-            <span>•</span>
-            <span>{new Date().toLocaleString("en-US")}</span>
-            <span>•</span>
-            <span>Page 1 of 1</span>
+          <div className="flex justify-between items-center text-[10px] text-slate-500 uppercase tracking-wider">
+            <div className="flex items-center gap-2">
+              <span>Powered by</span>
+              <span className="font-bold text-emerald-600">Saraya ERP</span>
+            </div>
+            <div className="flex items-center gap-4">
+              <span>{new Date().toLocaleString("ar-LY")}</span>
+              <span>•</span>
+              <span>صفحة 1 من 1</span>
+            </div>
+          </div>
+
+          {/* Security Features */}
+          <div className="mt-4 pt-4 border-t border-slate-200">
+            <div className="flex justify-center items-center gap-6 text-[9px] text-slate-400">
+              <div className="flex items-center gap-1">
+                <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
+                <span>مستند أصلي</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                <span>مؤمن رقمياً</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                <span>معتمد إلكترونياً</span>
+              </div>
+            </div>
           </div>
         </footer>
       </div>
 
+      {/* Enhanced Print Styles */}
       <style>{`
         @media print {
           @page {
             size: ${pageSize};
-            margin: 0;
+            margin: 10mm;
           }
           body {
-            background: white;
+            background: white !important;
             -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
           }
           .no-print {
             display: none !important;
           }
           #print-container {
-            box-shadow: none;
-            width: 100%;
-            margin: 0;
-            padding: ${pageSize === "A5" ? "5mm" : "10mm"}; 
+            box-shadow: none !important;
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 8mm !important;
+            border-radius: 0 !important;
+            background: white !important;
+          }
+          #print-container header {
+            background: white !important;
+            border-bottom: 2px solid #10b981 !important;
+          }
+          #print-container footer {
+            background: white !important;
+            border-top: 1px solid #e2e8f0 !important;
+          }
+          #print-container main {
+            background: white !important;
+          }
+        }
+
+        @media screen {
+          #print-container {
+            transition: all 0.3s ease;
+          }
+          #print-container:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
           }
         }
       `}</style>

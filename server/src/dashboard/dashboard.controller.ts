@@ -18,4 +18,9 @@ export class DashboardController {
       req.user.roles,
     );
   }
+
+  @Get('recent-activities')
+  async getRecentActivities(@Req() req: any) {
+    return this.dashboardService.getRecentActivities(req.user.hospitalId);
+  }
 }
