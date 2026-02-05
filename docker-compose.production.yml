@@ -317,6 +317,8 @@ services:
     image: containrrr/watchtower
     container_name: saraya_watchtower
     restart: always
+    environment:
+      - DOCKER_API_VERSION=1.44
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - /root/.docker/config.json:/config.json
@@ -344,6 +346,17 @@ services:
     networks:
       - saraya_net
 
+  # 11. لوحة التحكم (Portainer)
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: saraya_portainer
+    restart: always
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+    networks:
+      - saraya_net
+
 # وحدات التخزين الدائمة
 volumes:
   postgres_data:
@@ -361,6 +374,8 @@ volumes:
   alertmanager_data:
     driver: local
   tailscale_data:
+    driver: local
+  portainer_data:
     driver: local
 
 # الشبكة الداخلية المعزولة
