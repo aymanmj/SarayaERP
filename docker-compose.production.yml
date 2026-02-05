@@ -1,9 +1,7 @@
-version: "3.8"
-
 services:
   # 1. قاعدة البيانات (PostgreSQL)
   postgres:
-    image: postgres:15-alpine
+    image: postgres:15
     container_name: saraya_db
     restart: always
     environment:
@@ -217,7 +215,7 @@ services:
 
   # 8. خدمة النسخ الاحتياطي
   backup:
-    image: postgres:15-alpine
+    image: postgres:15
     container_name: saraya_backup
     restart: always
     volumes:
