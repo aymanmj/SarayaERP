@@ -55,10 +55,7 @@ services:
 
   # 3. السيرفر (Backend API)
   backend:
-    build: 
-      context: ./server
-      dockerfile: Dockerfile
-      target: production
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-aymanmj}/saraya-backend:latest
     container_name: saraya_backend
     restart: always
     environment:
@@ -127,10 +124,7 @@ services:
 
   # 4. الواجهة الأمامية (Frontend)
   frontend:
-    build:
-      context: ./client
-      dockerfile: Dockerfile
-      target: production
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-aymanmj}/saraya-frontend:latest
     container_name: saraya_frontend
     restart: always
     environment:
@@ -317,6 +311,18 @@ services:
       - saraya_net
     # profiles:
     #   - monitoring
+
+  # 9. التحديث التلقائي (Watchtower)
+  watchtower:
+    image: containrrr/watchtower
+    container_name: saraya_watchtower
+    restart: always
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /root/.docker/config.json:/config.json
+    command: --interval 3600 --cleanup --include-restarting
+    networks:
+      - saraya_net
 
 # وحدات التخزين الدائمة
 volumes:
