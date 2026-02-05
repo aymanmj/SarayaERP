@@ -10,6 +10,9 @@ import {
 } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
+import { seedCDSS } from './seeds/seed-cdss';
+import { seedMedicalData } from './seeds/data/seed-medical-data';
+
 const prisma = new PrismaClient();
 
 async function main() {
@@ -1418,46 +1421,13 @@ async function main() {
     });
   }
 
-  // 3. Drug Interactions
-  const interactions = [
-    {
-      drugA: 'Warfarin',
-      drugB: 'Aspirin',
-      severity: 'SEVERE',
-      desc: 'Increased risk of bleeding. Concurrent use should be avoided or monitored closely.',
-      rec: 'Monitor INR closely. Consider alternative antiplatelet if needed.',
-    },
-    {
-      drugA: 'Sildenafil',
-      drugB: 'Nitroglycerin',
-      severity: 'CONTRAINDICATED',
-      desc: 'Risk of severe hypotension (fatal).',
-      rec: 'Do not use together.',
-    },
-  ];
+  // 3. Drug Interactions & CDSS ✅ [MODULAR]
+  await seedCDSS();
 
-  for (const i of interactions) {
-    await prisma.drugInteraction.upsert({
-      where: {
-        drugAGeneric_drugBGeneric: {
-          drugAGeneric: i.drugA.toLowerCase(),
-          drugBGeneric: i.drugB.toLowerCase(),
-        },
-      },
-      update: {},
-      create: {
-        drugAGeneric: i.drugA.toLowerCase(),
-        drugBGeneric: i.drugB.toLowerCase(),
-        severity: i.severity as any, // Enum cast
-        description: i.desc,
-        recommendation: i.rec,
-        isActive: true,
-        source: 'FDA',
-      },
-    });
-  }
+  // 4. Clinical Data (ICD-10 & Products) ✅ [MODULAR]
+  await seedMedicalData();
 
-  console.log('🛡️  CDSS Rules: Done.');
+  console.log('✅ ALL SEEDS COMPLETED SUCCESSFULLY! System is ready.');
 }
 
 main()

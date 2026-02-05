@@ -1,61 +1,68 @@
 # ============================================
-# Alertmanager Configuration for Saraya ERP
+# Saraya ERP - Alertmanager Configuration for Windows
 # ============================================
 
 global:
-  resolve_timeout: 5m
-  # SMTP configuration for email alerts
-  # smtp_smarthost: 'smtp.example.com:587'
-  # smtp_from: 'alerts@saraya-erp.com'
-  # smtp_auth_username: 'alerts@saraya-erp.com'
-  # smtp_auth_password: 'your-password'
+  smtp_smarthost: 'localhost:587'
+  smtp_from: 'alerts@saraya-erp.com'
+  smtp_auth_username: ''
+  smtp_auth_password: ''
 
+# Route configuration
 route:
-  group_by: ['alertname', 'severity']
+  group_by: ['alertname', 'cluster', 'service']
   group_wait: 10s
   group_interval: 10s
   repeat_interval: 1h
-  receiver: 'default-receiver'
-  
+  receiver: 'web.hook'
   routes:
-    # Critical alerts - immediate notification
     - match:
         severity: critical
-      receiver: 'critical-receiver'
-      continue: true
-    
-    # Warning alerts - batch notifications
+      receiver: 'critical-alerts'
     - match:
         severity: warning
-      receiver: 'warning-receiver'
-      group_wait: 30s
-      group_interval: 5m
+      receiver: 'warning-alerts'
 
+# Receivers
 receivers:
-  # Default receiver (console/log)
-  - name: 'default-receiver'
-    # webhook_configs:
-    #   - url: 'http://localhost:3000/webhooks/alerts'
+  - name: 'web.hook'
+    webhook_configs:
+      - url: 'http://localhost:5001/'
+        send_resolved: true
 
-  # Critical alerts receiver
-  - name: 'critical-receiver'
-    # email_configs:
-    #   - to: 'admin@saraya-erp.com'
-    #     send_resolved: true
-    # slack_configs:
-    #   - api_url: 'https://hooks.slack.com/services/xxx'
-    #     channel: '#alerts-critical'
-    
-  # Warning alerts receiver  
-  - name: 'warning-receiver'
-    # email_configs:
-    #   - to: 'ops@saraya-erp.com'
-    #     send_resolved: true
+  - name: 'critical-alerts'
+    email_configs:
+      - to: 'admin@saraya-erp.com'
+        headers:
+          Subject: '[CRITICAL] Saraya ERP Alert: {{ .GroupLabels.alertname }}'
+        html: |
+          {{ range .Alerts }}
+          <p><strong>Alert:</strong> {{ .Annotations.summary }}</p>
+          <p><strong>Description:</strong> {{ .Annotations.description }}</p>
+          <p><strong>Labels:</strong> {{ range .Labels.SortedPairs }}{{ .Name }}={{ .Value }} {{ end }}</p>
+          <hr/>
+          {{ end }}
+    webhook_configs:
+      - url: 'http://localhost:5001/webhook'
+        send_resolved: true
 
-# Inhibition rules - suppress lower severity alerts when higher severity fires
+  - name: 'warning-alerts'
+    email_configs:
+      - to: 'admin@saraya-erp.com'
+        headers:
+          Subject: '[WARNING] Saraya ERP Alert: {{ .GroupLabels.alertname }}'
+        html: |
+          {{ range .Alerts }}
+          <p><strong>Alert:</strong> {{ .Annotations.summary }}</p>
+          <p><strong>Description:</strong> {{ .Annotations.description }}</p>
+          <p><strong>Labels:</strong> {{ range .Labels.SortedPairs }}{{ .Name }}={{ .Value }} {{ end }}</p>
+          <hr/>
+          {{ end }}
+
+# Inhibition rules
 inhibit_rules:
   - source_match:
       severity: 'critical'
     target_match:
       severity: 'warning'
-    equal: ['alertname', 'instance']
+    equal: ['alertname', 'cluster', 'service']

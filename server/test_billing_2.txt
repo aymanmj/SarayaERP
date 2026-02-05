@@ -1,0 +1,290 @@
+﻿node.exe : FAIL src/bil
+ling/billing.service.sp
+ec.ts
+At C:\Program Files\nod
+ejs\npx.ps1:29 char:3
++   & $NODE_EXE 
+$NPX_CLI_JS $args
++   ~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~
+    + CategoryInfo     
+         : NotSpecifi  
+  ed: (FAIL src/bill   
+ ing/billing.servic    
+e.spec.ts:String)     
+[], RemoteExceptio    n
+    + FullyQualifiedEr 
+   rorId : NativeComm  
+  andError
+ 
+  BillingService
+    ΓêÜ should be 
+defined (24 ms)
+    getEncounterBilling
+      ├ù should return 
+encounter billing data 
+with charges (20 ms)
+      ΓêÜ should throw 
+NotFoundException if 
+encounter not found 
+(24 ms)
+    createInvoiceForEnc
+ounter
+      ├ù should create 
+invoice with unbilled 
+charges (5 ms)
+      ΓêÜ should throw 
+error if no unbilled 
+charges exist (5 ms)
+      ├ù should 
+calculate total amount 
+correctly (2 ms)
+    listInvoices
+      ΓêÜ should 
+return paginated list 
+of invoices (4 ms)
+      ΓêÜ should apply 
+pagination correctly 
+(6 ms)
+    validateInvoiceIsEd
+itable (private)
+      Γùï skipped 
+should allow editing 
+DRAFT invoices
+      Γùï skipped 
+should throw error for 
+PAID invoices
+      Γùï skipped 
+should throw error for 
+CANCELLED invoices
+      Γùï skipped 
+should throw error for 
+ISSUED invoices
+    cancelInvoice
+      ΓêÜ should 
+cancel invoice and 
+unlink charges (5 ms)
+
+  ΓùÅ BillingService 
+ΓÇ║ 
+getEncounterBilling 
+ΓÇ║ should return 
+encounter billing data 
+with charges
+
+    expect(received).to
+Equal(expected) // 
+deep equality
+
+    - Expected  - 30
+    + Received  +  1
+
+    - Array [
+    -   Object {
+    -     
+"encounterId": 100,
+    -     
+"hospitalId": 1,
+    -     "id": 1,
+    -     "invoiceId": 
+null,
+    -     "quantity": 
+1,
+    -     
+"serviceItem": Object {
+    -       "name": 
+"╪º╪│╪¬╪┤╪º╪▒╪⌐ 
+╪╖╪¿┘è╪⌐",
+    -       "type": 
+"CONSULTATION",
+    -     },
+    -     
+"serviceItemId": 1,
+    -     
+"totalAmount": 50,
+    -     "unitPrice": 
+50,
+    -   },
+    -   Object {
+    -     
+"encounterId": 100,
+    -     
+"hospitalId": 1,
+    -     "id": 2,
+    -     "invoiceId": 
+null,
+    -     "quantity": 
+2,
+    -     
+"serviceItem": Object {
+    -       "name": 
+"╪¬╪¡┘ä┘è┘ä ╪»┘à",
+    -       "type": 
+"LAB",
+    -     },
+    -     
+"serviceItemId": 2,
+    -     
+"totalAmount": 50,
+    -     "unitPrice": 
+25,
+    -   },
+    - ]
+    + Array []
+
+    [0m [90m 164 
+|[39m       expect(res
+ult)[33m.[39mtoBeDefi
+ned()[33m;[39m
+     [90m 165 |[39m  
+     expect(result[33m
+.[39mencounter[33m.[
+39mid)[33m.[39mtoBe(m
+ockEncounterId)[33m;[
+39m
+    [31m[1m>[22m[39
+m[90m 166 |[39m      
+ expect(result[33m.[3
+9mcharges)[33m.[39mto
+Equal(mockCharges)[33m
+;[39m
+     [90m     |[39m  
+                       
+     
+[31m[1m^[22m[39m
+     [90m 167 |[39m  
+   })[33m;[39m
+     [90m 168 |[39m
+     [90m 169 |[39m  
+   it([32m'should 
+throw 
+NotFoundException if 
+encounter not 
+found'[39m[33m,[39m 
+[36masync[39m () 
+[33m=>[39m {[0m
+
+      at 
+Object.<anonymous> (bil
+ling/billing.service.sp
+ec.ts:166:30)
+
+  ΓùÅ BillingService 
+ΓÇ║ createInvoiceForEnc
+ounter ΓÇ║ should 
+create invoice with 
+unbilled charges
+
+    TypeError: 
+value?.toNumber is not 
+a function
+
+    [0m [90m 202 
+|[39m   [90m/** 
+╪¬╪¡┘ê┘è┘ä Prisma 
+Decimal ╪Ñ┘ä┘ë number 
+*/[39m
+     [90m 203 |[39m  
+ [36mstatic[39m fromP
+risma(value[33m:[39m 
+{ 
+toNumber()[33m:[39m 
+number } [33m|[39m 
+[36mnull[39m 
+[33m|[39m 
+undefined)[33m:[39m 
+number {
+    [31m[1m>[22m[39
+m[90m 204 |[39m     
+[36mreturn[39m value
+[33m?[39m[33m.[39mto
+Number() 
+[33m?[39m[33m?[39m 
+[35m0[39m[33m;[39m
+     [90m     |[39m  
+                 
+[31m[1m^[22m[39m
+     [90m 205 |[39m  
+ }
+     [90m 206 |[39m }
+     [90m 207 
+|[39m[0m
+
+      at 
+Function.fromPrisma (co
+mmon/utils/money.util.t
+s:204:19)
+      at BillingService
+.createInvoiceForEncoun
+ter (billing/billing.se
+rvice.ts:129:32)
+      at 
+Object.<anonymous> (bil
+ling/billing.service.sp
+ec.ts:201:22)
+
+  ΓùÅ BillingService 
+ΓÇ║ createInvoiceForEnc
+ounter ΓÇ║ should 
+calculate total amount 
+correctly
+
+    TypeError: 
+value?.toNumber is not 
+a function
+
+    [0m [90m 202 
+|[39m   [90m/** 
+╪¬╪¡┘ê┘è┘ä Prisma 
+Decimal ╪Ñ┘ä┘ë number 
+*/[39m
+     [90m 203 |[39m  
+ [36mstatic[39m fromP
+risma(value[33m:[39m 
+{ 
+toNumber()[33m:[39m 
+number } [33m|[39m 
+[36mnull[39m 
+[33m|[39m 
+undefined)[33m:[39m 
+number {
+    [31m[1m>[22m[39
+m[90m 204 |[39m     
+[36mreturn[39m value
+[33m?[39m[33m.[39mto
+Number() 
+[33m?[39m[33m?[39m 
+[35m0[39m[33m;[39m
+     [90m     |[39m  
+                 
+[31m[1m^[22m[39m
+     [90m 205 |[39m  
+ }
+     [90m 206 |[39m }
+     [90m 207 
+|[39m[0m
+
+      at 
+Function.fromPrisma (co
+mmon/utils/money.util.t
+s:204:19)
+      at BillingService
+.createInvoiceForEncoun
+ter (billing/billing.se
+rvice.ts:129:32)
+      at 
+Object.<anonymous> (bil
+ling/billing.service.sp
+ec.ts:243:7)
+
+Test Suites: 1 failed, 
+1 total
+Tests:       3 failed, 
+4 skipped, 6 passed, 
+13 total
+Snapshots:   0 total
+Time:        1.911 s, 
+estimated 2 s
+Ran all test suites 
+matching src/billing/bi
+lling.service.spec.ts.

@@ -172,7 +172,7 @@ class RecordSupplierPaymentDto {
   @IsNumber()
   amount!: number;
 
-  @IsEnum(PaymentMethod)
+  @IsEnum(['CASH', 'CARD', 'TRANSFER', 'INSURANCE', 'OTHER'])
   method!: PaymentMethod;
 
   @IsOptional()

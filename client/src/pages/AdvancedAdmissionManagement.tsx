@@ -842,7 +842,7 @@ export default function AdvancedAdmissionManagement() {
                   type="date"
                   value={editingAdmission.expectedDischargeDate?.split('T')[0] || ''}
                   onChange={(e) => setEditingAdmission({...editingAdmission, expectedDischargeDate: e.target.value})}
-                  className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2"
+                  className="w-full bg-slate-800 border border-slate-600 text-slate-100 rounded-lg px-3 py-2 [&::-webkit-calendar-picker-indicator]:w-5 [&::-webkit-calendar-picker-indicator]:h-5 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:filter [&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:sepia-0 [&::-webkit-calendar-picker-indicator]:saturate-0 [&::-webkit-calendar-picker-indicator]:hue-rotate-180 [&::-webkit-calendar-picker-indicator]:brightness-200 [&::-webkit-calendar-picker-indicator]:contrast-100"
                 />
               </div>
               <div>
@@ -887,7 +887,7 @@ export default function AdvancedAdmissionManagement() {
                 <input
                   type="date"
                   onChange={(e) => setSelectedAdmission({...selectedAdmission, expectedDischargeDate: e.target.value})}
-                  className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2"
+                  className="w-full bg-slate-800 border border-slate-600 text-slate-100 rounded-lg px-3 py-2 [&::-webkit-calendar-picker-indicator]:w-5 [&::-webkit-calendar-picker-indicator]:h-5 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:filter [&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:sepia-0 [&::-webkit-calendar-picker-indicator]:saturate-0 [&::-webkit-calendar-picker-indicator]:hue-rotate-180 [&::-webkit-calendar-picker-indicator]:brightness-200 [&::-webkit-calendar-picker-indicator]:contrast-100"
                 />
               </div>
               <div>

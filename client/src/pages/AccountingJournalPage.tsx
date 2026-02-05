@@ -61,7 +61,8 @@ const AccountingJournalPage = () => {
         setEntries(res.data.data.items);
         setTotal(res.data.data.total);
       } else {
-        toast.error(res.data.error.message);
+        const errData = res.data as ApiErr;
+        toast.error(errData.error.message);
       }
     } catch (err) {
       console.error(err);
@@ -92,7 +93,8 @@ const AccountingJournalPage = () => {
       if (res.data.success) {
         setSelectedEntry(res.data.data);
       } else {
-        toast.error(res.data.error.message);
+        const errData = res.data as ApiErr;
+        toast.error(errData.error.message);
       }
     } catch (err) {
       console.error(err);

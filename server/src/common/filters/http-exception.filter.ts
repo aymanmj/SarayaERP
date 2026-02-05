@@ -25,11 +25,13 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     // ✅ التعديل هنا: السماح للمتغير بقبول نص أو قيمة فارغة
     let errorDetails: string | null = null;
+    let errorResponse: any = null;
 
     // 1. معالجة أخطاء NestJS القياسية
     if (exception instanceof HttpException) {
       status = exception.getStatus();
       const res: any = exception.getResponse();
+      errorResponse = res;
       if (typeof res === 'string') {
         message = res;
       } else if (typeof res === 'object' && res.message) {
@@ -82,6 +84,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       success: false,
       statusCode: status,
       message,
+      error: errorResponse && typeof errorResponse === 'object' ? errorResponse['error'] : undefined,
       timestamp: new Date().toISOString(),
       path: request.url,
       // يمكن عرض التفاصيل فقط في بيئة التطوير

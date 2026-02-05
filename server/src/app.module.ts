@@ -53,6 +53,7 @@ import { AnalyticsModule } from './analytics/analytics.module';
 import { PatientPortalModule } from './patient-portal/patient-portal.module';
 import { PdfModule } from './pdf/pdf.module';
 import { CDSSModule } from './cdss/cdss.module'; // ✅ [NEW] نظام دعم القرار السريري
+import { WebsocketModule } from './websocket/websocket.module'; // ✅ [NEW] WebSocket for real-time updates
 import { AuditInterceptor } from './audit/audit.interceptor';
 import { APP_INTERCEPTOR, APP_GUARD } from '@nestjs/core';
 
@@ -63,6 +64,7 @@ import { SoftDeleteService } from './common/soft-delete.service';
 import { LicensingModule } from './licensing/licensing.module';
 import { EventsGateway } from './events/events.gateway';
 import { JwtService } from '@nestjs/jwt';
+import { PrometheusModule } from '@willsoto/nestjs-prometheus'; // ✅ Monitoring
 
 @Module({
   imports: [
@@ -70,6 +72,7 @@ import { JwtService } from '@nestjs/jwt';
     PrismaModule,
     EventEmitterModule.forRoot(),
     ScheduleModule.forRoot(),
+    PrometheusModule.register(), // ✅ Expose /metrics
 
     // ✅ Rate Limiting Configuration
     ThrottlerModule.forRoot({
@@ -151,6 +154,9 @@ import { JwtService } from '@nestjs/jwt';
     // Reports
     ReportsModule,
 
+    // Real-time Communication
+    WebsocketModule, // ✅ [NEW] WebSocket for real-time nursing updates
+
     // System
     CronModule,
     DashboardModule,
@@ -191,66 +197,6 @@ export class AppModule {}
 // import { BillingModule } from './billing/billing.module';
 // import { PharmacyModule } from './pharmacy/pharmacy.module';
 // import { AuditModule } from './audit/audit.module';
-// import { SoftDeleteService } from './common/soft-delete.service';
-// import { AppointmentsModule } from './appointments/appointments.module';
-// import { LabModule } from './labs/labs.module';
-// import { RadiologyModule } from './radiology/radiology.module';
-// import { LabOrdersModule } from './lab-orders/lab-orders.module';
-// import { CashierService } from './cashier/cashier.service';
-// import { CashierController } from './cashier/cashier.controller';
-// import { CashierModule } from './cashier/cashier.module';
-// import { FinancialYearsModule } from './financial-years/financial-years.module';
-// import { SettingsModule } from './settings/settings.module';
-// import { AccountingModule } from './accounting/accounting.module';
-// import { SuppliersModule } from './suppliers/suppliers.module';
-// import { PurchasesModule } from './purchases/purchases.module';
-// import { HealthModule } from './health/health.module';
-// import { InventoryModule } from './inventory/inventory.module';
-// import { ScheduleModule } from '@nestjs/schedule';
-// import { CronModule } from './cron/cron.module';
-// import { DiagnosisModule } from './diagnosis/diagnosis.module';
-// import { VitalsModule } from './vitals/vitals.module';
-// import { DashboardModule } from './dashboard/dashboard.module';
-// import { ServicesModule } from './services/services.module';
-// import { UsersModule } from './users/users.module';
-// import { PayrollModule } from './payroll/payroll.module';
-// import { AttendanceModule } from './attendance/attendance.module';
-// import { InsuranceModule } from './insurance/insurance.module';
-// import { NursingModule } from './nursing/nursing.module';
-// import { HrModule } from './hr/hr.module';
-
-// @Module({
-//   imports: [
-//     ConfigModule.forRoot({ isGlobal: true }),
-//     PrismaModule,
-//     EventEmitterModule.forRoot(),
-//     HealthModule,
-//     SettingsModule,
-//     AuthModule,
-//     AccountingModule,
-//     PatientsModule,
-//     EncountersModule,
-//     VisitsModule,
-//     OrdersModule,
-//     BedsModule,
-//     BillingModule,
-//     PharmacyModule,
-//     AuditModule,
-//     AppointmentsModule,
-//     LabModule,
-//     RadiologyModule,
-//     LabOrdersModule,
-//     CashierModule,
-//     FinancialYearsModule,
-//     SuppliersModule,
-//     PurchasesModule,
-//     InventoryModule,
-//     ScheduleModule.forRoot(),
-//     CronModule,
-//     DiagnosisModule,
-//     VitalsModule,
-//     DashboardModule,
-//     ServicesModule,
 //     UsersModule,
 //     PayrollModule,
 //     AttendanceModule,

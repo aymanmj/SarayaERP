@@ -5,6 +5,9 @@ import { useEffect, useState } from "react";
 import { apiClient } from "../api/apiClient";
 import { toast } from "sonner";
 import { formatDate } from "@/lib/utils";
+import { useNursingWebSocket } from "../hooks/useNursingWebSocket";
+import { NursingNotificationCenter } from "../components/nursing/NursingNotificationCenter";
+import { ExclamationTriangleIcon } from "@heroicons/react/24/outline";
 
 type CarePlanExecution = {
   id: number;
@@ -56,6 +59,17 @@ export default function NursingStationPage() {
   const [executeForm, setExecuteForm] = useState({ resultValue: "", note: "" });
   const [saving, setSaving] = useState(false);
 
+  // WebSocket integration
+  const {
+    isConnected,
+    alerts,
+    medicationUpdates,
+    vitalsUpdates,
+    joinWard,
+    reportMedicationAdministered,
+    reportVitalsUpdated,
+  } = useNursingWebSocket();
+
   const loadData = async () => {
     setLoading(true);
     try {
@@ -103,6 +117,15 @@ export default function NursingStationPage() {
         resultValue: executeForm.resultValue || null,
         note: executeForm.note || null,
       });
+      
+      // Report to WebSocket for real-time updates
+      reportMedicationAdministered({
+        encounterId: selectedEncounter.id,
+        medicationName: selectedItem.instruction,
+        administeredBy: "Current User", // Should come from auth context
+        status: "ADMINISTERED",
+      });
+      
       toast.success("تم تسجيل التنفيذ بنجاح");
       setShowExecuteModal(false);
       handleSelectPatient(selectedEncounter); // Refresh
@@ -141,13 +164,29 @@ export default function NursingStationPage() {
     <div className="p-6 h-full flex flex-col text-slate-100" dir="rtl">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold flex items-center gap-3">
-          <span className="text-3xl">🏥</span>
-          محطة التمريض
-        </h1>
-        <p className="text-sm text-slate-400">
-          عرض وتنفيذ الأوامر الطبية للمرضى المنومين
-        </p>
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold flex items-center gap-3">
+              <span className="text-3xl">🏥</span>
+              محطة التمريض
+            </h1>
+            <p className="text-sm text-slate-400">
+              عرض وتنفيذ الأوامر الطبية للمرضى المنومين
+            </p>
+          </div>
+          <div className="flex items-center gap-4">
+            {/* Connection Status */}
+            <div className="flex items-center gap-2">
+              <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-emerald-500' : 'bg-red-500'}`}></div>
+              <span className="text-xs text-slate-400">
+                {isConnected ? 'متصل' : 'غير متصل'}
+              </span>
+            </div>
+            
+            {/* Notification Center */}
+            <NursingNotificationCenter />
+          </div>
+        </div>
       </div>
 
       <div className="flex-1 flex gap-6 overflow-hidden">
@@ -185,6 +224,16 @@ export default function NursingStationPage() {
                   <div className="text-[10px] mt-1 opacity-50">
                     {enc.carePlanItems?.filter(i => i.status === "ACTIVE").length || 0} أوامر نشطة
                   </div>
+                  
+                  {/* Real-time Alerts */}
+                  {alerts.filter(alert => alert.encounterId === enc.id).length > 0 && (
+                    <div className="mt-2 flex items-center gap-1">
+                      <ExclamationTriangleIcon className="w-3 h-3 text-red-500" />
+                      <span className="text-[10px] text-red-400">
+                        {alerts.filter(alert => alert.encounterId === enc.id).length} تنبيه
+                      </span>
+                    </div>
+                  )}
                 </button>
               );
             })}

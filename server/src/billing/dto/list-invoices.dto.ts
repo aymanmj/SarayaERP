@@ -16,6 +16,6 @@ export class ListInvoicesQueryDto {
   financialPeriodId?: number;
 
   @IsOptional()
-  @IsEnum(InvoiceStatus)
+  @IsEnum(['DRAFT', 'ISSUED', 'PARTIALLY_PAID', 'PAID', 'CANCELLED'])
   status?: InvoiceStatus;
 }

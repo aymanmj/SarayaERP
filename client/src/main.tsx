@@ -23,6 +23,9 @@ import { InventoryRoutes } from "./routes/InventoryRoutes";
 const DashboardPage = lazy(() =>
   import("./pages/DashboardPage").then((m) => ({ default: m.DashboardPage })),
 );
+const AboutPage = lazy(() =>
+  import("./pages/AboutPage").then((m) => ({ default: m.AboutPage })),
+);
 
 // Print Pages (outside MainLayout)
 const InvoicePrintCleanPage = lazy(() => import("./pages/InvoicePrintCleanPage"));
@@ -77,6 +80,7 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
               <Route element={<MainLayout />}>
                 {/* Dashboard */}
                 <Route path="/" element={<DashboardPage />} />
+                <Route path="/about" element={<AboutPage />} />
 
                 {/* Module Routes */}
                 {ClinicalRoutes}

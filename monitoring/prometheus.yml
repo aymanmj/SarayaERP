@@ -1,47 +1,50 @@
 # ============================================
-# Prometheus Configuration
+# Saraya ERP - Prometheus Configuration for Windows
 # ============================================
 
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
   external_labels:
-    monitor: 'saraya-erp'
-
-# Alert rules
-rule_files:
-  - 'alert.rules.yml'
+    cluster: 'saraya-erp'
+    replica: 'prometheus-1'
 
 # Alertmanager configuration
 alerting:
   alertmanagers:
     - static_configs:
         - targets:
-            - 'alertmanager:9093'
+          - alertmanager:9093
+
+# Load rules
+rule_files:
+  - "alert_rules.yml"
 
 # Scrape configurations
 scrape_configs:
-  # Saraya ERP Backend
-  - job_name: 'saraya-backend'
-    scrape_interval: 30s
-    metrics_path: '/health/metrics'
-    static_configs:
-      - targets: ['host.docker.internal:3000']
-        labels:
-          app: 'saraya-erp'
-          service: 'backend'
-
-  # Prometheus self-monitoring
+  # Prometheus itself
   - job_name: 'prometheus'
     static_configs:
       - targets: ['localhost:9090']
 
-  # Node Exporter (host metrics)
-  - job_name: 'node'
+  # Saraya ERP Backend
+  - job_name: 'saraya-backend'
+    static_configs:
+      - targets: ['backend:3000']
+    metrics_path: '/api/metrics'
+    scrape_interval: 30s
+
+  # Node Exporter (System Metrics)
+  - job_name: 'node-exporter'
     static_configs:
       - targets: ['node-exporter:9100']
 
-  # PostgreSQL (if using postgres_exporter)
-  # - job_name: 'postgresql'
-  #   static_configs:
-  #     - targets: ['postgres-exporter:9187']
+  # PostgreSQL Exporter
+  - job_name: 'postgres-exporter'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+
+  # Redis Exporter
+  - job_name: 'redis-exporter'
+    static_configs:
+      - targets: ['redis-exporter:9121']

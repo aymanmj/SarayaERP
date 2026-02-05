@@ -47,7 +47,7 @@ export class CreateDischargePlanningDto {
   @IsBoolean()
   educationCompleted?: boolean = false;
 
-  @IsEnum(DischargeDisposition)
+  @IsEnum(['HOME', 'TRANSFER_TO_ANOTHER_FACILITY', 'REHABILITATION', 'LONG_TERM_CARE', 'HOME_HEALTH_CARE', 'HOSPICE', 'LEFT_AGAINST_MEDICAL_ADVICE', 'EXPIRED'])
   dischargeDisposition: DischargeDisposition;
 
   @IsOptional()

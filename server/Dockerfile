@@ -19,15 +19,20 @@ RUN npm ci
 COPY . .
 
 # توليد Prisma Client
+ENV DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy"
 RUN npx prisma generate
 
 # بناء المشروع (تحويل TypeScript إلى JavaScript)
+# بناء المشروع (تحويل TypeScript إلى JavaScript)
 RUN npm run build
+
+# تجميع سكربت الـ Seed
+RUN npx tsc prisma/seed.ts --outDir dist/prisma --module commonjs --target es2019 --esModuleInterop --skipLibCheck --moduleResolution node
 
 # ==========================================
 # Stage 2: Production (التشغيل)
 # ==========================================
-FROM node:20-alpine
+FROM node:20-alpine AS production
 
 WORKDIR /app
 
@@ -41,7 +46,8 @@ RUN apk add --no-cache \
       ca-certificates \
       ttf-freefont \
       nodejs \
-      yarn
+      yarn \
+      curl
 
 # إخبار Puppeteer باستخدام الكروم المثبت في النظام بدلاً من تنزيله
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
@@ -50,12 +56,19 @@ ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
 # نسخ ملفات التعريف فقط
 COPY package*.json ./
 
+# تعديل أمر الـ seed ليعمل في بيئة الإنتاج (استخدام الملف المترجم بدلاً من ts-node)
+RUN sed -i 's/"ts-node prisma\/seed.ts"/"node dist\/prisma\/seed.js"/g' package.json
+
 # تنصيب مكتبات الإنتاج فقط (لتصغير حجم الصورة)
 RUN npm ci --only=production
 
 # نسخ الملفات المبنية من المرحلة السابقة
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
+
+# Generate Prisma Client for Production
+ENV DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy"
+RUN npx prisma generate
 
 # ✅ هام جداً: نسخ المفتاح العام للترخيص
 # تأكد أن الملف public.key موجود في هذا المسار قبل البناء
@@ -65,4 +78,4 @@ COPY --from=builder /app/src/licensing/public.key ./src/licensing/public.key
 EXPOSE 3000
 
 # أمر التشغيل: تنفيذ المايجريشن أولاً ثم تشغيل السيرفر
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main"]
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/src/main.js"]

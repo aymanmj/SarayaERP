@@ -29,6 +29,12 @@ export class LicenseGuard implements CanActivate {
       return true;
     }
 
+    // 📊 Allow Prometheus to scrape metrics without license-locking the health/obs layer
+    const request = context.switchToHttp().getRequest();
+    if (request.url.includes('/metrics')) {
+      return true;
+    }
+
     // 2. Check license validity
     const status = this.licenseService.getStatus();
 

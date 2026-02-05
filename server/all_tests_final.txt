@@ -1,0 +1,1396 @@
+﻿
+> server@0.0.1 test
+> jest
+
+node.exe : FAIL src/int
+egration/patient-journe
+y.integration.spec.ts 
+(6.145 s)
+At C:\Program Files\nod
+ejs\npm.ps1:29 char:3
++   & $NODE_EXE 
+$NPM_CLI_JS $args
++   ~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~
+    + CategoryInfo     
+         : NotSpecifi  
+  ed: (FAIL src/inte   
+ gr...ec.ts (6.145     
+s):String) [], Rem    
+oteException
+    + FullyQualifiedEr 
+   rorId : NativeComm  
+  andError
+ 
+  ΓùÅ Patient Journey 
+Integration Tests ΓÇ║ 
+should be defined
+
+    Nest can't resolve 
+dependencies of the 
+PatientsService 
+(PrismaService, ?). 
+Please make sure that 
+the argument 
+SoftDeleteService at 
+index [1] is available 
+in the RootTestModule 
+context.
+
+    Potential 
+solutions:
+    - Is 
+RootTestModule a valid 
+NestJS module?
+    - If 
+SoftDeleteService is a 
+provider, is it part 
+of the current 
+RootTestModule?
+    - If 
+SoftDeleteService is 
+exported from a 
+separate @Module, is 
+that module imported 
+within RootTestModule?
+      @Module({
+        imports: [ /* 
+the Module containing 
+SoftDeleteService */ ]
+      })
+
+    For more common 
+dependency resolution 
+issues, see: https://do
+cs.nestjs.com/faq/commo
+n-errors
+
+    [0m [90m 12 
+|[39m
+     [90m 13 |[39m   
+beforeEach([36masync[
+39m () [33m=>[39m {
+    [31m[1m>[22m[39
+m[90m 14 |[39m     
+[36mconst[39m 
+module[33m:[39m [33m
+TestingModule[39m 
+[33m=[39m 
+[36mawait[39m [33mTe
+st[39m[33m.[39mcreat
+eTestingModule({
+     [90m    |[39m   
+                       
+         
+[31m[1m^[22m[39m
+     [90m 15 |[39m   
+    
+providers[33m:[39m [
+     [90m 16 |[39m   
+      [33mPatientsServ
+ice[39m[33m,[39m
+     [90m 17 |[39m   
+      [33mEncountersSe
+rvice[39m[33m,[39m[
+0m
+
+      at TestingInjecto
+r.lookupComponentInPare
+ntModules (../node_modu
+les/@nestjs/core/inject
+or/injector.js:286:19)
+      at TestingInjecto
+r.resolveComponentWrapp
+er (../node_modules/@ne
+stjs/testing/testing-in
+jector.js:19:45)
+      at resolveParam (
+../node_modules/@nestjs
+/core/injector/injector
+.js:140:38)
+          at async 
+Promise.all (index 1)
+      at TestingInjecto
+r.resolveConstructorPar
+ams (../node_modules/@n
+estjs/core/injector/inj
+ector.js:169:27)
+      at TestingInjecto
+r.loadInstance (../node
+_modules/@nestjs/core/i
+njector/injector.js:75:
+13)
+      at TestingInjecto
+r.loadProvider (../node
+_modules/@nestjs/core/i
+njector/injector.js:103
+:9)
+      at ../node_module
+s/@nestjs/core/injector
+/instance-loader.js:56:
+13
+          at async 
+Promise.all (index 3)
+      at TestingInstanc
+eLoader.createInstances
+OfProviders (../node_mo
+dules/@nestjs/core/inje
+ctor/instance-loader.js
+:55:9)
+      at ../node_module
+s/@nestjs/core/injector
+/instance-loader.js:40:
+13
+          at async 
+Promise.all (index 1)
+      at TestingInstanc
+eLoader.createInstances
+ (../node_modules/@nest
+js/core/injector/instan
+ce-loader.js:39:9)
+      at TestingInstanc
+eLoader.createInstances
+OfDependencies (../node
+_modules/@nestjs/core/i
+njector/instance-loader
+.js:22:13)
+      at TestingInstanc
+eLoader.createInstances
+OfDependencies (../node
+_modules/@nestjs/testin
+g/testing-instance-load
+er.js:9:9)
+      at TestingModuleB
+uilder.createInstancesO
+fDependencies (../node_
+modules/@nestjs/testing
+/testing-module.builder
+.js:118:9)
+      at TestingModuleB
+uilder.compile (../node
+_modules/@nestjs/testin
+g/testing-module.builde
+r.js:74:9)
+      at 
+Object.<anonymous> (int
+egration/patient-journe
+y.integration.spec.ts:1
+4:35)
+
+PASS src/financial-year
+s/financial-years.contr
+oller.spec.ts (7.395 s)
+PASS src/encounters/enc
+ounters.controller.spec
+.ts (7.557 s)
+PASS src/beds/beds.cont
+roller.spec.ts (7.647 
+s)
+FAIL src/billing/billin
+g.controller.spec.ts 
+(7.852 s)
+  ΓùÅ 
+BillingController ΓÇ║ 
+should be defined
+
+    Nest can't resolve 
+dependencies of the 
+BillingController 
+(BillingService, ?, 
+PrismaService). Please 
+make sure that the 
+argument PdfService at 
+index [1] is available 
+in the RootTestModule 
+context.
+
+    Potential 
+solutions:
+    - Is 
+RootTestModule a valid 
+NestJS module?
+    - If PdfService is 
+a provider, is it part 
+of the current 
+RootTestModule?
+    - If PdfService is 
+exported from a 
+separate @Module, is 
+that module imported 
+within RootTestModule?
+      @Module({
+        imports: [ /* 
+the Module containing 
+PdfService */ ]
+      })
+
+    For more common 
+dependency resolution 
+issues, see: https://do
+cs.nestjs.com/faq/commo
+n-errors
+
+    [0m [90m  7 
+|[39m
+     [90m  8 |[39m   
+beforeEach([36masync[
+39m () [33m=>[39m {
+    [31m[1m>[22m[39
+m[90m  9 |[39m     
+[36mconst[39m 
+module[33m:[39m [33m
+TestingModule[39m 
+[33m=[39m 
+[36mawait[39m [33mTe
+st[39m[33m.[39mcreat
+eTestingModule({
+     [90m    |[39m   
+                       
+         
+[31m[1m^[22m[39m
+     [90m 10 |[39m   
+    
+controllers[33m:[39m 
+[[33mBillingController
+[39m][33m,[39m
+     [90m 11 |[39m   
+    
+providers[33m:[39m [
+     [90m 12 |[39m   
+      {[0m
+
+      at TestingInjecto
+r.lookupComponentInPare
+ntModules (../node_modu
+les/@nestjs/core/inject
+or/injector.js:286:19)
+      at TestingInjecto
+r.resolveComponentWrapp
+er (../node_modules/@ne
+stjs/testing/testing-in
+jector.js:19:45)
+      at resolveParam (
+../node_modules/@nestjs
+/core/injector/injector
+.js:140:38)
+          at async 
+Promise.all (index 1)
+      at TestingInjecto
+r.resolveConstructorPar
+ams (../node_modules/@n
+estjs/core/injector/inj
+ector.js:169:27)
+      at TestingInjecto
+r.loadInstance (../node
+_modules/@nestjs/core/i
+njector/injector.js:75:
+13)
+      at TestingInjecto
+r.loadController (../no
+de_modules/@nestjs/core
+/injector/injector.js:9
+4:9)
+      at ../node_module
+s/@nestjs/core/injector
+/instance-loader.js:68:
+13
+          at async 
+Promise.all (index 0)
+      at TestingInstanc
+eLoader.createInstances
+OfControllers (../node_
+modules/@nestjs/core/in
+jector/instance-loader.
+js:67:9)
+      at ../node_module
+s/@nestjs/core/injector
+/instance-loader.js:42:
+13
+          at async 
+Promise.all (index 1)
+      at TestingInstanc
+eLoader.createInstances
+ (../node_modules/@nest
+js/core/injector/instan
+ce-loader.js:39:9)
+      at TestingInstanc
+eLoader.createInstances
+OfDependencies (../node
+_modules/@nestjs/core/i
+njector/instance-loader
+.js:22:13)
+      at TestingInstanc
+eLoader.createInstances
+OfDependencies (../node
+_modules/@nestjs/testin
+g/testing-instance-load
+er.js:9:9)
+      at TestingModuleB
+uilder.createInstancesO
+fDependencies (../node_
+modules/@nestjs/testing
+/testing-module.builder
+.js:118:9)
+      at TestingModuleB
+uilder.compile (../node
+_modules/@nestjs/testin
+g/testing-module.builde
+r.js:74:9)
+      at 
+Object.<anonymous> (bil
+ling/billing.controller
+.spec.ts:9:35)
+
+FAIL src/appointments/a
+ppointments.controller.
+spec.ts (8.926 s)
+  ΓùÅ 
+AppointmentsController 
+ΓÇ║ should be defined
+
+    Nest can't resolve 
+dependencies of the 
+AppointmentsController 
+(AppointmentsService, 
+?, PrismaService). 
+Please make sure that 
+the argument 
+PdfService at index 
+[1] is available in 
+the RootTestModule 
+context.
+
+    Potential 
+solutions:
+    - Is 
+RootTestModule a valid 
+NestJS module?
+    - If PdfService is 
+a provider, is it part 
+of the current 
+RootTestModule?
+    - If PdfService is 
+exported from a 
+separate @Module, is 
+that module imported 
+within RootTestModule?
+      @Module({
+        imports: [ /* 
+the Module containing 
+PdfService */ ]
+      })
+
+    For more common 
+dependency resolution 
+issues, see: https://do
+cs.nestjs.com/faq/commo
+n-errors
+
+    [0m [90m  7 
+|[39m
+     [90m  8 |[39m   
+beforeEach([36masync[
+39m () [33m=>[39m {
+    [31m[1m>[22m[39
+m[90m  9 |[39m     
+[36mconst[39m 
+module[33m:[39m [33m
+TestingModule[39m 
+[33m=[39m 
+[36mawait[39m [33mTe
+st[39m[33m.[39mcreat
+eTestingModule({
+     [90m    |[39m   
+                       
+         
+[31m[1m^[22m[39m
+     [90m 10 |[39m   
+    
+controllers[33m:[39m 
+[[33mAppointmentsContr
+oller[39m][33m,[39m
+     [90m 11 |[39m   
+    
+providers[33m:[39m [
+     [90m 12 |[39m   
+      {[0m
+
+      at TestingInjecto
+r.lookupComponentInPare
+ntModules (../node_modu
+les/@nestjs/core/inject
+or/injector.js:286:19)
+      at TestingInjecto
+r.resolveComponentWrapp
+er (../node_modules/@ne
+stjs/testing/testing-in
+jector.js:19:45)
+      at resolveParam (
+../node_modules/@nestjs
+/core/injector/injector
+.js:140:38)
+          at async 
+Promise.all (index 1)
+      at TestingInjecto
+r.resolveConstructorPar
+ams (../node_modules/@n
+estjs/core/injector/inj
+ector.js:169:27)
+      at TestingInjecto
+r.loadInstance (../node
+_modules/@nestjs/core/i
+njector/injector.js:75:
+13)
+      at TestingInjecto
+r.loadController (../no
+de_modules/@nestjs/core
+/injector/injector.js:9
+4:9)
+      at ../node_module
+s/@nestjs/core/injector
+/instance-loader.js:68:
+13
+          at async 
+Promise.all (index 0)
+      at TestingInstanc
+eLoader.createInstances
+OfControllers (../node_
+modules/@nestjs/core/in
+jector/instance-loader.
+js:67:9)
+      at ../node_module
+s/@nestjs/core/injector
+/instance-loader.js:42:
+13
+          at async 
+Promise.all (index 1)
+      at TestingInstanc
+eLoader.createInstances
+ (../node_modules/@nest
+js/core/injector/instan
+ce-loader.js:39:9)
+      at TestingInstanc
+eLoader.createInstances
+OfDependencies (../node
+_modules/@nestjs/core/i
+njector/instance-loader
+.js:22:13)
+      at TestingInstanc
+eLoader.createInstances
+OfDependencies (../node
+_modules/@nestjs/testin
+g/testing-instance-load
+er.js:9:9)
+      at TestingModuleB
+uilder.createInstancesO
+fDependencies (../node_
+modules/@nestjs/testing
+/testing-module.builder
+.js:118:9)
+      at TestingModuleB
+uilder.compile (../node
+_modules/@nestjs/testin
+g/testing-module.builde
+r.js:74:9)
+      at 
+Object.<anonymous> (app
+ointments/appointments.
+controller.spec.ts:9:35
+)
+
+FAIL src/cashier/cashie
+r.controller.spec.ts 
+(8.906 s)
+  ΓùÅ 
+CashierController ΓÇ║ 
+should be defined
+
+    Nest can't resolve 
+dependencies of the 
+CashierController 
+(CashierService, ?, 
+PrismaService). Please 
+make sure that the 
+argument PdfService at 
+index [1] is available 
+in the RootTestModule 
+context.
+
+    Potential 
+solutions:
+    - Is 
+RootTestModule a valid 
+NestJS module?
+    - If PdfService is 
+a provider, is it part 
+of the current 
+RootTestModule?
+    - If PdfService is 
+exported from a 
+separate @Module, is 
+that module imported 
+within RootTestModule?
+      @Module({
+        imports: [ /* 
+the Module containing 
+PdfService */ ]
+      })
+
+    For more common 
+dependency resolution 
+issues, see: https://do
+cs.nestjs.com/faq/commo
+n-errors
+
+    [0m [90m  7 
+|[39m
+     [90m  8 |[39m   
+beforeEach([36masync[
+39m () [33m=>[39m {
+    [31m[1m>[22m[39
+m[90m  9 |[39m     
+[36mconst[39m 
+module[33m:[39m [33m
+TestingModule[39m 
+[33m=[39m 
+[36mawait[39m [33mTe
+st[39m[33m.[39mcreat
+eTestingModule({
+     [90m    |[39m   
+                       
+         
+[31m[1m^[22m[39m
+     [90m 10 |[39m   
+    
+controllers[33m:[39m 
+[[33mCashierController
+[39m][33m,[39m
+     [90m 11 |[39m   
+    
+providers[33m:[39m [
+     [90m 12 |[39m   
+      {[0m
+
+      at TestingInjecto
+r.lookupComponentInPare
+ntModules (../node_modu
+les/@nestjs/core/inject
+or/injector.js:286:19)
+      at TestingInjecto
+r.resolveComponentWrapp
+er (../node_modules/@ne
+stjs/testing/testing-in
+jector.js:19:45)
+      at resolveParam (
+../node_modules/@nestjs
+/core/injector/injector
+.js:140:38)
+          at async 
+Promise.all (index 1)
+      at TestingInjecto
+r.resolveConstructorPar
+ams (../node_modules/@n
+estjs/core/injector/inj
+ector.js:169:27)
+      at TestingInjecto
+r.loadInstance (../node
+_modules/@nestjs/core/i
+njector/injector.js:75:
+13)
+      at TestingInjecto
+r.loadController (../no
+de_modules/@nestjs/core
+/injector/injector.js:9
+4:9)
+      at ../node_module
+s/@nestjs/core/injector
+/instance-loader.js:68:
+13
+          at async 
+Promise.all (index 0)
+      at TestingInstanc
+eLoader.createInstances
+OfControllers (../node_
+modules/@nestjs/core/in
+jector/instance-loader.
+js:67:9)
+      at ../node_module
+s/@nestjs/core/injector
+/instance-loader.js:42:
+13
+          at async 
+Promise.all (index 1)
+      at TestingInstanc
+eLoader.createInstances
+ (../node_modules/@nest
+js/core/injector/instan
+ce-loader.js:39:9)
+      at TestingInstanc
+eLoader.createInstances
+OfDependencies (../node
+_modules/@nestjs/core/i
+njector/instance-loader
+.js:22:13)
+      at TestingInstanc
+eLoader.createInstances
+OfDependencies (../node
+_modules/@nestjs/testin
+g/testing-instance-load
+er.js:9:9)
+      at TestingModuleB
+uilder.createInstancesO
+fDependencies (../node_
+modules/@nestjs/testing
+/testing-module.builder
+.js:118:9)
+      at TestingModuleB
+uilder.compile (../node
+_modules/@nestjs/testin
+g/testing-module.builde
+r.js:74:9)
+      at 
+Object.<anonymous> (cas
+hier/cashier.controller
+.spec.ts:9:35)
+
+PASS src/visits/visits.
+controller.spec.ts
+PASS src/lab-orders/lab
+-orders.service.spec.ts
+PASS src/auth/auth.serv
+ice.spec.ts
+PASS src/labs/labs.cont
+roller.spec.ts
+PASS src/auth/auth.cont
+roller.spec.ts
+PASS src/audit/audit.in
+terceptor.spec.ts
+PASS src/encounters/enc
+ounters.service.spec.ts
+PASS src/pharmacy/pharm
+acy.controller.spec.ts
+PASS src/radiology/radi
+ology.controller.spec.t
+s
+PASS src/lab-orders/lab
+-orders.controller.spec
+.ts
+PASS src/appointments/a
+ppointments.service.spe
+c.ts
+PASS src/labs/labs.serv
+ice.spec.ts
+PASS src/patients/patie
+nts.controller.spec.ts
+PASS src/cashier/cashie
+r.service.spec.ts
+PASS src/licensing/lice
+nse.spec.ts
+PASS src/integration/cl
+inical-services.integra
+tion.spec.ts
+PASS src/licensing/veri
+fy_license_api.spec.ts
+PASS src/visits/visits.
+service.spec.ts
+PASS src/financial-year
+s/financial-years.servi
+ce.spec.ts
+PASS src/billing/billin
+g.service.spec.ts
+PASS src/beds/beds.serv
+ice.spec.ts
+PASS src/patients/patie
+nts.service.spec.ts
+PASS src/radiology/radi
+ology.service.spec.ts
+PASS src/app.controller
+.spec.ts
+PASS src/audit/audit.se
+rvice.spec.ts
+FAIL src/pharmacy/pharm
+acy.service.spec.ts
+  ΓùÅ Test suite 
+failed to run
+
+    ReferenceError: 
+bitumen is not defined
+
+    [0m [90m 40 
+|[39m   })[33m;[39m
+     [90m 41 |[39m 
+})[33m;[39m
+    [31m[1m>[22m[39
+m[90m 42 |[39m  
+bitumen
+     [90m    |[39m  
+[31m[1m^[22m[39m
+     [90m 43 
+|[39m[0m
+
+      at 
+Object.<anonymous> (pha
+rmacy/pharmacy.service.
+spec.ts:42:2)
+
+Summary of all failing 
+tests
+FAIL integration/patien
+t-journey.integration.s
+pec.ts (6.145 s)
+  ΓùÅ Patient Journey 
+Integration Tests ΓÇ║ 
+should be defined
+
+    Nest can't resolve 
+dependencies of the 
+PatientsService 
+(PrismaService, ?). 
+Please make sure that 
+the argument 
+SoftDeleteService at 
+index [1] is available 
+in the RootTestModule 
+context.
+
+    Potential 
+solutions:
+    - Is 
+RootTestModule a valid 
+NestJS module?
+    - If 
+SoftDeleteService is a 
+provider, is it part 
+of the current 
+RootTestModule?
+    - If 
+SoftDeleteService is 
+exported from a 
+separate @Module, is 
+that module imported 
+within RootTestModule?
+      @Module({
+        imports: [ /* 
+the Module containing 
+SoftDeleteService */ ]
+      })
+
+    For more common 
+dependency resolution 
+issues, see: https://do
+cs.nestjs.com/faq/commo
+n-errors
+
+    [0m [90m 12 
+|[39m
+     [90m 13 |[39m   
+beforeEach([36masync[
+39m () [33m=>[39m {
+    [31m[1m>[22m[39
+m[90m 14 |[39m     
+[36mconst[39m 
+module[33m:[39m [33m
+TestingModule[39m 
+[33m=[39m 
+[36mawait[39m [33mTe
+st[39m[33m.[39mcreat
+eTestingModule({
+     [90m    |[39m   
+                       
+         
+[31m[1m^[22m[39m
+     [90m 15 |[39m   
+    
+providers[33m:[39m [
+     [90m 16 |[39m   
+      [33mPatientsServ
+ice[39m[33m,[39m
+     [90m 17 |[39m   
+      [33mEncountersSe
+rvice[39m[33m,[39m[
+0m
+
+      at TestingInjecto
+r.lookupComponentInPare
+ntModules (../node_modu
+les/@nestjs/core/inject
+or/injector.js:286:19)
+      at TestingInjecto
+r.resolveComponentWrapp
+er (../node_modules/@ne
+stjs/testing/testing-in
+jector.js:19:45)
+      at resolveParam (
+../node_modules/@nestjs
+/core/injector/injector
+.js:140:38)
+          at async 
+Promise.all (index 1)
+      at TestingInjecto
+r.resolveConstructorPar
+ams (../node_modules/@n
+estjs/core/injector/inj
+ector.js:169:27)
+      at TestingInjecto
+r.loadInstance (../node
+_modules/@nestjs/core/i
+njector/injector.js:75:
+13)
+      at TestingInjecto
+r.loadProvider (../node
+_modules/@nestjs/core/i
+njector/injector.js:103
+:9)
+      at ../node_module
+s/@nestjs/core/injector
+/instance-loader.js:56:
+13
+          at async 
+Promise.all (index 3)
+      at TestingInstanc
+eLoader.createInstances
+OfProviders (../node_mo
+dules/@nestjs/core/inje
+ctor/instance-loader.js
+:55:9)
+      at ../node_module
+s/@nestjs/core/injector
+/instance-loader.js:40:
+13
+          at async 
+Promise.all (index 1)
+      at TestingInstanc
+eLoader.createInstances
+ (../node_modules/@nest
+js/core/injector/instan
+ce-loader.js:39:9)
+      at TestingInstanc
+eLoader.createInstances
+OfDependencies (../node
+_modules/@nestjs/core/i
+njector/instance-loader
+.js:22:13)
+      at TestingInstanc
+eLoader.createInstances
+OfDependencies (../node
+_modules/@nestjs/testin
+g/testing-instance-load
+er.js:9:9)
+      at TestingModuleB
+uilder.createInstancesO
+fDependencies (../node_
+modules/@nestjs/testing
+/testing-module.builder
+.js:118:9)
+      at TestingModuleB
+uilder.compile (../node
+_modules/@nestjs/testin
+g/testing-module.builde
+r.js:74:9)
+      at 
+Object.<anonymous> (int
+egration/patient-journe
+y.integration.spec.ts:1
+4:35)
+
+FAIL billing/billing.co
+ntroller.spec.ts 
+(7.852 s)
+  ΓùÅ 
+BillingController ΓÇ║ 
+should be defined
+
+    Nest can't resolve 
+dependencies of the 
+BillingController 
+(BillingService, ?, 
+PrismaService). Please 
+make sure that the 
+argument PdfService at 
+index [1] is available 
+in the RootTestModule 
+context.
+
+    Potential 
+solutions:
+    - Is 
+RootTestModule a valid 
+NestJS module?
+    - If PdfService is 
+a provider, is it part 
+of the current 
+RootTestModule?
+    - If PdfService is 
+exported from a 
+separate @Module, is 
+that module imported 
+within RootTestModule?
+      @Module({
+        imports: [ /* 
+the Module containing 
+PdfService */ ]
+      })
+
+    For more common 
+dependency resolution 
+issues, see: https://do
+cs.nestjs.com/faq/commo
+n-errors
+
+    [0m [90m  7 
+|[39m
+     [90m  8 |[39m   
+beforeEach([36masync[
+39m () [33m=>[39m {
+    [31m[1m>[22m[39
+m[90m  9 |[39m     
+[36mconst[39m 
+module[33m:[39m [33m
+TestingModule[39m 
+[33m=[39m 
+[36mawait[39m [33mTe
+st[39m[33m.[39mcreat
+eTestingModule({
+     [90m    |[39m   
+                       
+         
+[31m[1m^[22m[39m
+     [90m 10 |[39m   
+    
+controllers[33m:[39m 
+[[33mBillingController
+[39m][33m,[39m
+     [90m 11 |[39m   
+    
+providers[33m:[39m [
+     [90m 12 |[39m   
+      {[0m
+
+      at TestingInjecto
+r.lookupComponentInPare
+ntModules (../node_modu
+les/@nestjs/core/inject
+or/injector.js:286:19)
+      at TestingInjecto
+r.resolveComponentWrapp
+er (../node_modules/@ne
+stjs/testing/testing-in
+jector.js:19:45)
+      at resolveParam (
+../node_modules/@nestjs
+/core/injector/injector
+.js:140:38)
+          at async 
+Promise.all (index 1)
+      at TestingInjecto
+r.resolveConstructorPar
+ams (../node_modules/@n
+estjs/core/injector/inj
+ector.js:169:27)
+      at TestingInjecto
+r.loadInstance (../node
+_modules/@nestjs/core/i
+njector/injector.js:75:
+13)
+      at TestingInjecto
+r.loadController (../no
+de_modules/@nestjs/core
+/injector/injector.js:9
+4:9)
+      at ../node_module
+s/@nestjs/core/injector
+/instance-loader.js:68:
+13
+          at async 
+Promise.all (index 0)
+      at TestingInstanc
+eLoader.createInstances
+OfControllers (../node_
+modules/@nestjs/core/in
+jector/instance-loader.
+js:67:9)
+      at ../node_module
+s/@nestjs/core/injector
+/instance-loader.js:42:
+13
+          at async 
+Promise.all (index 1)
+      at TestingInstanc
+eLoader.createInstances
+ (../node_modules/@nest
+js/core/injector/instan
+ce-loader.js:39:9)
+      at TestingInstanc
+eLoader.createInstances
+OfDependencies (../node
+_modules/@nestjs/core/i
+njector/instance-loader
+.js:22:13)
+      at TestingInstanc
+eLoader.createInstances
+OfDependencies (../node
+_modules/@nestjs/testin
+g/testing-instance-load
+er.js:9:9)
+      at TestingModuleB
+uilder.createInstancesO
+fDependencies (../node_
+modules/@nestjs/testing
+/testing-module.builder
+.js:118:9)
+      at TestingModuleB
+uilder.compile (../node
+_modules/@nestjs/testin
+g/testing-module.builde
+r.js:74:9)
+      at 
+Object.<anonymous> (bil
+ling/billing.controller
+.spec.ts:9:35)
+
+FAIL appointments/appoi
+ntments.controller.spec
+.ts (8.926 s)
+  ΓùÅ 
+AppointmentsController 
+ΓÇ║ should be defined
+
+    Nest can't resolve 
+dependencies of the 
+AppointmentsController 
+(AppointmentsService, 
+?, PrismaService). 
+Please make sure that 
+the argument 
+PdfService at index 
+[1] is available in 
+the RootTestModule 
+context.
+
+    Potential 
+solutions:
+    - Is 
+RootTestModule a valid 
+NestJS module?
+    - If PdfService is 
+a provider, is it part 
+of the current 
+RootTestModule?
+    - If PdfService is 
+exported from a 
+separate @Module, is 
+that module imported 
+within RootTestModule?
+      @Module({
+        imports: [ /* 
+the Module containing 
+PdfService */ ]
+      })
+
+    For more common 
+dependency resolution 
+issues, see: https://do
+cs.nestjs.com/faq/commo
+n-errors
+
+    [0m [90m  7 
+|[39m
+     [90m  8 |[39m   
+beforeEach([36masync[
+39m () [33m=>[39m {
+    [31m[1m>[22m[39
+m[90m  9 |[39m     
+[36mconst[39m 
+module[33m:[39m [33m
+TestingModule[39m 
+[33m=[39m 
+[36mawait[39m [33mTe
+st[39m[33m.[39mcreat
+eTestingModule({
+     [90m    |[39m   
+                       
+         
+[31m[1m^[22m[39m
+     [90m 10 |[39m   
+    
+controllers[33m:[39m 
+[[33mAppointmentsContr
+oller[39m][33m,[39m
+     [90m 11 |[39m   
+    
+providers[33m:[39m [
+     [90m 12 |[39m   
+      {[0m
+
+      at TestingInjecto
+r.lookupComponentInPare
+ntModules (../node_modu
+les/@nestjs/core/inject
+or/injector.js:286:19)
+      at TestingInjecto
+r.resolveComponentWrapp
+er (../node_modules/@ne
+stjs/testing/testing-in
+jector.js:19:45)
+      at resolveParam (
+../node_modules/@nestjs
+/core/injector/injector
+.js:140:38)
+          at async 
+Promise.all (index 1)
+      at TestingInjecto
+r.resolveConstructorPar
+ams (../node_modules/@n
+estjs/core/injector/inj
+ector.js:169:27)
+      at TestingInjecto
+r.loadInstance (../node
+_modules/@nestjs/core/i
+njector/injector.js:75:
+13)
+      at TestingInjecto
+r.loadController (../no
+de_modules/@nestjs/core
+/injector/injector.js:9
+4:9)
+      at ../node_module
+s/@nestjs/core/injector
+/instance-loader.js:68:
+13
+          at async 
+Promise.all (index 0)
+      at TestingInstanc
+eLoader.createInstances
+OfControllers (../node_
+modules/@nestjs/core/in
+jector/instance-loader.
+js:67:9)
+      at ../node_module
+s/@nestjs/core/injector
+/instance-loader.js:42:
+13
+          at async 
+Promise.all (index 1)
+      at TestingInstanc
+eLoader.createInstances
+ (../node_modules/@nest
+js/core/injector/instan
+ce-loader.js:39:9)
+      at TestingInstanc
+eLoader.createInstances
+OfDependencies (../node
+_modules/@nestjs/core/i
+njector/instance-loader
+.js:22:13)
+      at TestingInstanc
+eLoader.createInstances
+OfDependencies (../node
+_modules/@nestjs/testin
+g/testing-instance-load
+er.js:9:9)
+      at TestingModuleB
+uilder.createInstancesO
+fDependencies (../node_
+modules/@nestjs/testing
+/testing-module.builder
+.js:118:9)
+      at TestingModuleB
+uilder.compile (../node
+_modules/@nestjs/testin
+g/testing-module.builde
+r.js:74:9)
+      at 
+Object.<anonymous> (app
+ointments/appointments.
+controller.spec.ts:9:35
+)
+
+FAIL cashier/cashier.co
+ntroller.spec.ts 
+(8.906 s)
+  ΓùÅ 
+CashierController ΓÇ║ 
+should be defined
+
+    Nest can't resolve 
+dependencies of the 
+CashierController 
+(CashierService, ?, 
+PrismaService). Please 
+make sure that the 
+argument PdfService at 
+index [1] is available 
+in the RootTestModule 
+context.
+
+    Potential 
+solutions:
+    - Is 
+RootTestModule a valid 
+NestJS module?
+    - If PdfService is 
+a provider, is it part 
+of the current 
+RootTestModule?
+    - If PdfService is 
+exported from a 
+separate @Module, is 
+that module imported 
+within RootTestModule?
+      @Module({
+        imports: [ /* 
+the Module containing 
+PdfService */ ]
+      })
+
+    For more common 
+dependency resolution 
+issues, see: https://do
+cs.nestjs.com/faq/commo
+n-errors
+
+    [0m [90m  7 
+|[39m
+     [90m  8 |[39m   
+beforeEach([36masync[
+39m () [33m=>[39m {
+    [31m[1m>[22m[39
+m[90m  9 |[39m     
+[36mconst[39m 
+module[33m:[39m [33m
+TestingModule[39m 
+[33m=[39m 
+[36mawait[39m [33mTe
+st[39m[33m.[39mcreat
+eTestingModule({
+     [90m    |[39m   
+                       
+         
+[31m[1m^[22m[39m
+     [90m 10 |[39m   
+    
+controllers[33m:[39m 
+[[33mCashierController
+[39m][33m,[39m
+     [90m 11 |[39m   
+    
+providers[33m:[39m [
+     [90m 12 |[39m   
+      {[0m
+
+      at TestingInjecto
+r.lookupComponentInPare
+ntModules (../node_modu
+les/@nestjs/core/inject
+or/injector.js:286:19)
+      at TestingInjecto
+r.resolveComponentWrapp
+er (../node_modules/@ne
+stjs/testing/testing-in
+jector.js:19:45)
+      at resolveParam (
+../node_modules/@nestjs
+/core/injector/injector
+.js:140:38)
+          at async 
+Promise.all (index 1)
+      at TestingInjecto
+r.resolveConstructorPar
+ams (../node_modules/@n
+estjs/core/injector/inj
+ector.js:169:27)
+      at TestingInjecto
+r.loadInstance (../node
+_modules/@nestjs/core/i
+njector/injector.js:75:
+13)
+      at TestingInjecto
+r.loadController (../no
+de_modules/@nestjs/core
+/injector/injector.js:9
+4:9)
+      at ../node_module
+s/@nestjs/core/injector
+/instance-loader.js:68:
+13
+          at async 
+Promise.all (index 0)
+      at TestingInstanc
+eLoader.createInstances
+OfControllers (../node_
+modules/@nestjs/core/in
+jector/instance-loader.
+js:67:9)
+      at ../node_module
+s/@nestjs/core/injector
+/instance-loader.js:42:
+13
+          at async 
+Promise.all (index 1)
+      at TestingInstanc
+eLoader.createInstances
+ (../node_modules/@nest
+js/core/injector/instan
+ce-loader.js:39:9)
+      at TestingInstanc
+eLoader.createInstances
+OfDependencies (../node
+_modules/@nestjs/core/i
+njector/instance-loader
+.js:22:13)
+      at TestingInstanc
+eLoader.createInstances
+OfDependencies (../node
+_modules/@nestjs/testin
+g/testing-instance-load
+er.js:9:9)
+      at TestingModuleB
+uilder.createInstancesO
+fDependencies (../node_
+modules/@nestjs/testing
+/testing-module.builder
+.js:118:9)
+      at TestingModuleB
+uilder.compile (../node
+_modules/@nestjs/testin
+g/testing-module.builde
+r.js:74:9)
+      at 
+Object.<anonymous> (cas
+hier/cashier.controller
+.spec.ts:9:35)
+
+FAIL pharmacy/pharmacy.
+service.spec.ts
+  ΓùÅ Test suite 
+failed to run
+
+    ReferenceError: 
+bitumen is not defined
+
+    [0m [90m 40 
+|[39m   })[33m;[39m
+     [90m 41 |[39m 
+})[33m;[39m
+    [31m[1m>[22m[39
+m[90m 42 |[39m  
+bitumen
+     [90m    |[39m  
+[31m[1m^[22m[39m
+     [90m 43 
+|[39m[0m
+
+      at 
+Object.<anonymous> (pha
+rmacy/pharmacy.service.
+spec.ts:42:2)
+
+
+Test Suites: 5 failed, 
+28 passed, 33 total
+Tests:       4 failed, 
+4 skipped, 50 passed, 
+58 total
+Snapshots:   0 total
+Time:        16.18 s
+Ran all test suites.

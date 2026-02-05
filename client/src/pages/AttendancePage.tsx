@@ -254,7 +254,7 @@ export default function AttendancePage() {
               </select>
               <input
                 type="date"
-                className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm"
+                className="w-full bg-slate-800 border border-slate-600 text-slate-100 rounded-xl px-3 py-2 text-sm [&::-webkit-calendar-picker-indicator]:w-5 [&::-webkit-calendar-picker-indicator]:h-5 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:filter [&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:sepia-0 [&::-webkit-calendar-picker-indicator]:saturate-0 [&::-webkit-calendar-picker-indicator]:hue-rotate-180 [&::-webkit-calendar-picker-indicator]:brightness-200 [&::-webkit-calendar-picker-indicator]:contrast-100"
                 value={manualData.date}
                 onChange={(e) =>
                   setManualData({ ...manualData, date: e.target.value })

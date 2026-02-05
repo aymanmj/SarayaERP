@@ -6,6 +6,8 @@ import { apiClient } from "../api/apiClient";
 import { VitalsPane } from "../components/encounter/VitalsPane";
 import { MedicationAdministrationPane } from "../components/nursing/MedicationAdministrationPane";
 import { toast } from "sonner";
+import { useNursingWebSocket } from "../hooks/useNursingWebSocket";
+import { NursingNotificationCenter } from "../components/nursing/NursingNotificationCenter";
 
 type NursingNote = {
   id: number;
@@ -34,6 +36,15 @@ export default function NursingPatientDetailsPage() {
   const [notes, setNotes] = useState<NursingNote[]>([]);
   const [newNote, setNewNote] = useState("");
   const [isHandover, setIsHandover] = useState(false);
+
+  // WebSocket integration
+  const {
+    isConnected,
+    alerts,
+    medicationUpdates,
+    vitalsUpdates,
+    reportVitalsUpdated,
+  } = useNursingWebSocket();
 
   const loadHeader = async () => {
     try {
@@ -125,7 +136,18 @@ export default function NursingPatientDetailsPage() {
             </span>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
+          {/* Connection Status */}
+          <div className="flex items-center gap-2">
+            <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-emerald-500' : 'bg-red-500'}`}></div>
+            <span className="text-xs text-slate-400">
+              {isConnected ? 'متصل' : 'غير متصل'}
+            </span>
+          </div>
+          
+          {/* Notification Center */}
+          <NursingNotificationCenter />
+          
           {/* يمكن إضافة أزرار سريعة هنا مثل "طلب استشارة" */}
         </div>
       </div>

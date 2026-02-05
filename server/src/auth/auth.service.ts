@@ -69,6 +69,17 @@ export class AuthService {
     });
   }
 
+  // التحقق من التوكن
+  async verifyToken(token: string) {
+    try {
+      return await this.jwtService.verifyAsync(token, {
+        secret: this.configService.get<string>('JWT_SECRET'),
+      });
+    } catch {
+      return null;
+    }
+  }
+
   // توليد Refresh Token (Opaque Token stored in DB)
   async generateRefreshToken(userId: number) {
     const token = crypto.randomBytes(32).toString('hex');
@@ -151,12 +162,31 @@ export class AuthService {
 
     // 2. Reuse Detection (If revoked or replaced -> Compromised!)
     if (rtRecord.revoked) {
-      // Possible theft! Revoke all tokens for this user family
-      await this.prisma.refreshToken.updateMany({
-        where: { userId: rtRecord.userId },
-        data: { revoked: true },
-      });
-      throw new ForbiddenException('Token Reuse Detected - Access Revoked');
+      // 🛡️ Added Grace Period: If the token was rotated in the last 10 seconds, allow it.
+      // This handles race conditions when multiple parallel requests trigger refresh.
+      const GRACE_PERIOD_MS = 10000;
+      const updatedAt = (rtRecord as any).updatedAt as Date | undefined;
+      const isRecentlyRotated = 
+        rtRecord.replacedByToken === 'ROTATED' && 
+        updatedAt &&
+        (new Date().getTime() - updatedAt.getTime()) < GRACE_PERIOD_MS;
+
+      if (!isRecentlyRotated) {
+        // Real theft or old reuse! Revoke all tokens for this user
+        await this.prisma.refreshToken.updateMany({
+          where: { userId: rtRecord.userId },
+          data: { revoked: true },
+        });
+        throw new ForbiddenException('Token Reuse Detected - Access Revoked');
+      }
+      
+      // If it IS in the grace period, we should technically return the NEW tokens 
+      // but we don't have them easily here without extra DB lookups.
+      // However, the client should have already received them from the first request.
+      // To break the loop, we can either throw or return a specific signal.
+      // For now, let's just throw a slightly different message or allow it to return old-but-valid?
+      // Actually, NestJS refresh logic usually just needs to NOT nuke everything.
+      throw new ForbiddenException('Refresh Concurrency - Please Wait');
     }
 
     // 3. Verify Hash

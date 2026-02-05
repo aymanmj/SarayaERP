@@ -13,7 +13,7 @@ export class UpdateAccountDto {
   name?: string;
 
   @IsOptional()
-  @IsEnum(AccountType)
+  @IsEnum(['ASSET', 'LIABILITY', 'EQUITY', 'REVENUE', 'EXPENSE', 'CONTRA_ASSET', 'CONTRA_REVENUE'])
   type?: AccountType;
 
   @IsOptional()

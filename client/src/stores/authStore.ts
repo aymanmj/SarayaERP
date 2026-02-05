@@ -13,6 +13,7 @@ interface User {
 
 interface AuthState {
   user: User | null;
+  token: string | null;
   isAuthenticated: boolean;
   login: (username: string, password: string) => Promise<void>;
   logout: () => void;
@@ -23,6 +24,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   user: typeof window !== "undefined" && localStorage.getItem("user_info") 
         ? JSON.parse(localStorage.getItem("user_info") || "null") 
         : null,
+  token: typeof window !== "undefined" ? localStorage.getItem("auth_token") : null,
   isAuthenticated:
     typeof window !== "undefined" ? localStorage.getItem("auth_status") === "true" : false,
 
@@ -33,24 +35,30 @@ export const useAuthStore = create<AuthState>((set) => ({
     // Persist UI state
     localStorage.setItem("auth_status", "true");
     localStorage.setItem("user_info", JSON.stringify(payload.user));
+    localStorage.setItem("auth_token", payload.token || "");
 
     useLicenseStore.getState().reset();
 
     set({
       user: payload.user,
+      token: payload.token || null,
       isAuthenticated: true,
     });
   },
 
   async logout() {
+    // 1. Clear State Immediately
+    set({ user: null, token: null, isAuthenticated: false });
+    localStorage.removeItem("auth_status");
+    localStorage.removeItem("user_info");
+    localStorage.removeItem("auth_token");
+
+    // 2. Attempt API Logout (Fire & Forget)
     try {
         await apiClient.post("/auth/logout");
     } catch (e) {
-        console.warn("Logout API failed, clearing local state anyway");
+        // Ignore errors, we are already logged out locally
     }
-    localStorage.removeItem("auth_status");
-    localStorage.removeItem("user_info");
-    set({ user: null, isAuthenticated: false });
   },
 
   hydrateFromStorage: () => {

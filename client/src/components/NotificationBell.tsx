@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { apiClient } from "../api/apiClient";
 import { useNavigate } from "react-router-dom";
+import { useAuthStore } from "../stores/authStore";
 
 type Notification = {
   id: number;
@@ -38,9 +39,11 @@ export function NotificationBell() {
   const [unreadCount, setUnreadCount] = useState(0);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+  const user = useAuthStore((s) => s.user);
 
   // جلب الإشعارات
   const fetchNotifications = async () => {
+    if (!user) return;
     try {
       const res = await apiClient.get<Notification[]>("/notifications");
       setNotifications(res.data);
@@ -52,10 +55,12 @@ export function NotificationBell() {
 
   // Poll كل 60 ثانية
   useEffect(() => {
-    fetchNotifications();
-    const interval = setInterval(fetchNotifications, 60000);
-    return () => clearInterval(interval);
-  }, []);
+    if (user) {
+      fetchNotifications();
+      const interval = setInterval(fetchNotifications, 60000);
+      return () => clearInterval(interval);
+    }
+  }, [user]);
 
   // إغلاق القائمة عند النقر خارجها
   useEffect(() => {

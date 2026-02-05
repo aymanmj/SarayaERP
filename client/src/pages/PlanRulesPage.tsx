@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { apiClient } from "../api/apiClient";
 import { toast } from "sonner";
-import type { InsurancePlan, CoverageRule } from "../../types/insurance";
+import type { InsurancePlan, CoverageRule } from "../types/insurance";
 
 type ServiceCategory = { id: number; name: string };
 type ServiceItem = {

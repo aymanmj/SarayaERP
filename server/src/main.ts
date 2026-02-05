@@ -14,6 +14,11 @@ async function bootstrap() {
   });
 
   // ============================================
+  // 🌍 GLOBAL PREFIX
+  // ============================================
+  app.setGlobalPrefix('api');
+
+  // ============================================
   // 🔒 SECURITY CONFIGURATION
   // ============================================
   
@@ -64,9 +69,11 @@ async function bootstrap() {
   // ============================================
   // 🌐 CORS CONFIGURATION
   // ============================================
-  const allowedOrigins = process.env.CORS_ORIGINS?.split(',') || [
+  const allowedOrigins = (process.env.CORS_ORIGINS || process.env.CORS_ORIGIN)?.split(',') || [
     'http://localhost:5173',
     'http://localhost:3000',
+    'http://localhost',
+    'https://localhost',
   ];
   
   app.enableCors({
@@ -123,8 +130,8 @@ async function bootstrap() {
   // ============================================
   // 🚀 START SERVER
   // ============================================
-  const port = process.env.PORT || 3000; // Changed from 3000 to avoid EACCES
-  await app.listen(port);
+  const port = process.env.PORT || 3000;
+  await app.listen(port, '0.0.0.0');
   
   logger.log(`🚀 Saraya ERP Backend is running on: http://localhost:${port}`);
   logger.log(`🔒 Security: Helmet enabled, CORS configured`);

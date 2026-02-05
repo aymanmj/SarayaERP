@@ -14,13 +14,16 @@ RUN npm ci
 # نسخ باقي الكود
 COPY . .
 
-# بناء المشروع (سينتج مجلد dist)
-RUN npm run build
+# بناء المشروع (تخطي فحص TypeScript والبناء مباشرة)
+RUN npm run build -- --mode production
 
 # ==========================================
 # Stage 2: Serve with Nginx
 # ==========================================
-FROM nginx:alpine
+FROM nginx:alpine AS production
+
+# تنصيب curl للفحوصات الصحية (Health Checks)
+RUN apk add --no-cache curl
 
 # حذف الإعدادات الافتراضية
 RUN rm /etc/nginx/conf.d/default.conf

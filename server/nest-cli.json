@@ -8,6 +8,10 @@
       {
         "include": "**/*.hbs",
         "outDir": "dist"
+      },
+      {
+        "include": "**/*.key",
+        "outDir": "dist"
       }
     ],
     "watchAssets": true

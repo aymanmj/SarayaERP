@@ -603,6 +603,7 @@ export function MainLayout() {
         { label: "إدارة الأسرة", path: "/settings/bed-management" },
         { label: "سجل التدقيق (Audit Logs)", path: "/audit/logs" },
         { label: "جداول الأطباء", path: "/settings/doctor-schedules" },
+        { label: "حول النظام", path: "/about" }, // 👈 New link
       ],
     },
   ];

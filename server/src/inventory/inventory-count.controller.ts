@@ -23,7 +23,7 @@ class CreateInventoryCountDto {
   @Type(() => Number)
   warehouseId: number;
 
-  @IsEnum(InventoryCountType)
+  @IsEnum(['FULL', 'QUARTERLY', 'SPOT_CHECK'])
   type: InventoryCountType;
 
   @IsOptional()

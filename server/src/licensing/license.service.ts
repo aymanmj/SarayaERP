@@ -175,6 +175,9 @@ export class LicenseService implements OnModuleInit {
   }
 
   activateLicense(licenseKey: string): { success: boolean; message: string } {
+    // 🔄 Always reload key from disk to support Hot-Swap (docker cp)
+    this._loadPublicKey();
+
     if (!this._publicKey) {
       return { success: false, message: 'System error: No public key loaded.' };
     }

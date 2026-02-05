@@ -6,7 +6,7 @@ import { getProducts } from '../data/products'; // تأكد من المسار
 
 const prisma = new PrismaClient();
 
-async function main() {
+export async function seedMedicalData() {
   console.log('🚀 Starting Massive Medical Seeding...');
 
   // 1. التحقق من وجود مستشفى
@@ -23,10 +23,6 @@ async function main() {
   const diagnoses = getDiagnoses();
   console.log(`🩺 Seeding ${diagnoses.length} diagnosis codes...`);
 
-  // نستخدم createMany إذا كانت قاعدة البيانات تدعمه (Postgres تدعمه) لتسريع العملية
-  // لكن upsert أضمن لتجنب التكرار عند إعادة التشغيل.
-  // للسرعة والأمان، سنستخدم loop مع upsert
-
   let diagCount = 0;
   for (const d of diagnoses) {
     await prisma.diagnosisCode.upsert({
@@ -40,7 +36,7 @@ async function main() {
       },
     });
     diagCount++;
-    if (diagCount % 50 === 0) process.stdout.write('.');
+    if (diagCount % 100 === 0) process.stdout.write('.');
   }
   console.log(`\n✅ Finished Diagnoses (${diagCount}).`);
 
@@ -53,7 +49,7 @@ async function main() {
     await prisma.product.upsert({
       where: { hospitalId_code: { hospitalId, code: p.code } },
       update: {
-        stockOnHand: p.stockOnHand, // تحديث الرصيد إذا أعدنا التشغيل
+        stockOnHand: p.stockOnHand,
       },
       create: {
         hospitalId,
@@ -71,18 +67,19 @@ async function main() {
       },
     });
     prodCount++;
-    if (prodCount % 50 === 0) process.stdout.write('.');
+    if (prodCount % 100 === 0) process.stdout.write('.');
   }
   console.log(`\n✅ Finished Products (${prodCount}).`);
-
-  console.log('🎉 ALL SEEDING COMPLETED SUCCESSFULLY!');
 }
 
-main()
-  .catch((e) => {
-    console.error(e);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+// Run if executed directly
+if (require.main === module) {
+  seedMedicalData()
+    .catch((e) => {
+      console.error(e);
+      process.exit(1);
+    })
+    .finally(async () => {
+      await prisma.$disconnect();
+    });
+}

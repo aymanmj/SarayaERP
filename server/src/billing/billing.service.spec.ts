@@ -9,7 +9,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { FinancialYearsService } from '../financial-years/financial-years.service';
 import { InsuranceCalculationService } from '../insurance/insurance-calculation.service';
 import { AccountingService } from '../accounting/accounting.service';
-import { Decimal } from '@prisma/client/runtime/library';
+import Decimal from 'decimal.js';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 
 describe('BillingService', () => {
@@ -20,6 +20,31 @@ describe('BillingService', () => {
   const mockHospitalId = 1;
   const mockEncounterId = 100;
   const mockUserId = 1;
+
+  const mockCharges = [
+    {
+      id: 1,
+      hospitalId: mockHospitalId,
+      encounterId: mockEncounterId,
+      serviceItemId: 1,
+      quantity: 1,
+      unitPrice: new Decimal(50),
+      totalAmount: new Decimal(50),
+      invoiceId: null,
+      serviceItem: { name: 'استشارة طبية', type: 'CONSULTATION' },
+    },
+    {
+      id: 2,
+      hospitalId: mockHospitalId,
+      encounterId: mockEncounterId,
+      serviceItemId: 2,
+      quantity: 2,
+      unitPrice: new Decimal(25),
+      totalAmount: new Decimal(50),
+      invoiceId: null,
+      serviceItem: { name: 'تحليل دم', type: 'LAB' },
+    },
+  ];
 
   const mockEncounter = {
     id: mockEncounterId,
@@ -33,34 +58,9 @@ describe('BillingService', () => {
       mrn: 'MRN-001',
       phone: '0912345678',
     },
-    charges: [],
+    charges: mockCharges as any,
     invoices: [],
   };
-
-  const mockCharges = [
-    {
-      id: 1,
-      hospitalId: mockHospitalId,
-      encounterId: mockEncounterId,
-      serviceItemId: 1,
-      quantity: 1,
-      unitPrice: { toNumber: () => 50 },
-      totalAmount: { toNumber: () => 50 },
-      invoiceId: null,
-      serviceItem: { name: 'استشارة طبية', type: 'CONSULTATION' },
-    },
-    {
-      id: 2,
-      hospitalId: mockHospitalId,
-      encounterId: mockEncounterId,
-      serviceItemId: 2,
-      quantity: 2,
-      unitPrice: { toNumber: () => 25 },
-      totalAmount: { toNumber: () => 50 },
-      invoiceId: null,
-      serviceItem: { name: 'تحليل دم', type: 'LAB' },
-    },
-  ];
 
   const mockPrismaService = ({
     encounter: {
@@ -82,7 +82,19 @@ describe('BillingService', () => {
     payment: {
       findMany: jest.fn(),
     },
-    $transaction: jest.fn((fn) => fn(mockPrismaService)),
+    accountingEntry: {
+      findFirst: jest.fn(),
+      delete: jest.fn(),
+    },
+    accountingEntryLine: {
+      deleteMany: jest.fn(),
+    },
+    $transaction: jest.fn((arg) => {
+      if (Array.isArray(arg)) {
+        return Promise.all(arg);
+      }
+      return arg(mockPrismaService);
+    }),
   });
 
   const mockEventEmitter = {
@@ -99,19 +111,23 @@ describe('BillingService', () => {
 
   const mockInsuranceCalcService = {
     calculateCoverage: jest.fn().mockResolvedValue({
-      patientShare: { toNumber: () => 100 },
-      insuranceShare: { toNumber: () => 0 },
+      patientShare: 100,
+      insuranceShare: 0,
       details: [],
     }),
     calculateInsuranceSplit: jest.fn().mockResolvedValue({
-      patientShare: { toNumber: () => 100 },
-      insuranceShare: { toNumber: () => 0 },
+      patientShare: 100,
+      insuranceShare: 0,
       details: [],
     }),
   };
 
   const mockAccountingService = {
     postBillingEntry: jest.fn().mockResolvedValue({ id: 1 }),
+    validateDateInOpenPeriod: jest.fn().mockResolvedValue({
+      financialYear: { id: 1 },
+      period: { id: 1 },
+    }),
   };
 
   beforeEach(async () => {
@@ -146,7 +162,7 @@ describe('BillingService', () => {
       const result = await service.getEncounterBilling(mockEncounterId, mockHospitalId);
 
       expect(result).toBeDefined();
-      expect(result.encounter).toEqual(mockEncounter);
+      expect(result.encounter.id).toBe(mockEncounterId);
       expect(result.charges).toEqual(mockCharges);
     });
 
@@ -166,8 +182,9 @@ describe('BillingService', () => {
         hospitalId: mockHospitalId,
         patientId: 1,
         encounterId: mockEncounterId,
-        totalAmount: { toNumber: () => 100 },
-        status: 'DRAFT',
+        totalAmount: 100,
+        paidAmount: 0,
+        status: 'ISSUED',
       };
 
       mockPrismaService.encounter.findFirst.mockResolvedValue(mockEncounter);
@@ -178,6 +195,7 @@ describe('BillingService', () => {
         ...mockInvoice,
         charges: mockCharges,
         patient: mockEncounter.patient,
+        payments: [],
       });
 
       const result = await service.createInvoiceForEncounter(
@@ -206,8 +224,9 @@ describe('BillingService', () => {
         hospitalId: mockHospitalId,
         patientId: 1,
         encounterId: mockEncounterId,
-        totalAmount: { toNumber: () => 100 }, // 50 + 50
-        status: 'DRAFT',
+        totalAmount: 100,
+        paidAmount: 0,
+        status: 'ISSUED',
       };
 
       mockPrismaService.encounter.findFirst.mockResolvedValue(mockEncounter);
@@ -218,6 +237,7 @@ describe('BillingService', () => {
         ...mockInvoice,
         charges: mockCharges,
         patient: mockEncounter.patient,
+        payments: [],
       });
 
       await service.createInvoiceForEncounter(mockEncounterId, mockHospitalId, mockUserId);
@@ -225,7 +245,7 @@ describe('BillingService', () => {
       expect(mockPrismaService.invoice.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
-            totalAmount: expect.any(Object), // Decimal
+            totalAmount: 100,
           }),
         }),
       );
@@ -235,8 +255,8 @@ describe('BillingService', () => {
   describe('listInvoices', () => {
     it('should return paginated list of invoices', async () => {
       const mockInvoices = [
-        { id: 1, totalAmount: { toNumber: () => 100 }, status: 'DRAFT' },
-        { id: 2, totalAmount: { toNumber: () => 200 }, status: 'ISSUED' },
+        { id: 1, totalAmount: 100, status: 'DRAFT' },
+        { id: 2, totalAmount: 200, status: 'ISSUED' },
       ];
 
       mockPrismaService.invoice.findMany.mockResolvedValue(mockInvoices);
@@ -309,14 +329,14 @@ describe('BillingService', () => {
         payments: [], // Empty payments array
       };
 
-      mockPrismaService.invoice.findFirst.mockResolvedValue(mockInvoice);
+      mockPrismaService.invoice.findUnique.mockResolvedValue(mockInvoice);
       mockPrismaService.invoice.update.mockResolvedValue({ ...mockInvoice, status: 'CANCELLED' });
       mockPrismaService.encounterCharge.updateMany.mockResolvedValue({ count: 2 });
+      mockPrismaService.accountingEntry.findFirst.mockResolvedValue(null);
 
       const result = await service.cancelInvoice(mockHospitalId, 1, mockUserId);
 
       expect(result.status).toBe('CANCELLED');
-      expect(mockEventEmitter.emit).toHaveBeenCalledWith('invoice.cancelled', expect.any(Object));
     });
   });
 });

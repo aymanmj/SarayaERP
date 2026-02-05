@@ -1,0 +1,23 @@
+# Dependencies
+node_modules
+npm-debug.log
+dist
+
+# Environment
+.env
+.env.*
+
+# Licensing & Keys
+saraya.lic
+private.key
+*.pem
+licensing-tools/
+admin-tools/
+
+# Git
+.git
+.gitignore
+
+# IDE
+.vscode
+.idea

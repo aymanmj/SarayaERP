@@ -23,6 +23,7 @@ import { FhirController } from './fhir/fhir.controller';
           port: configService.get('REDIS_PORT')
             ? Number(configService.get('REDIS_PORT'))
             : 6379,
+          password: configService.get('REDIS_PASSWORD'),
         },
       }),
       inject: [ConfigService],

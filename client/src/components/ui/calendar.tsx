@@ -17,7 +17,7 @@ function Calendar({
     <DayPicker
       showOutsideDays={showOutsideDays}
       // ✅ تفعيل اختيار السنة والشهر من قوائم منسدلة
-      captionLayout="dropdown-buttons"
+      captionLayout="dropdown"
       // ✅ تحديد نطاق السنوات (من 1900 إلى بعد 10 سنوات من الآن)
       fromYear={1900}
       toYear={new Date().getFullYear() + 10}

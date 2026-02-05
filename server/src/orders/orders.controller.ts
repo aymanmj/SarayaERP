@@ -67,7 +67,7 @@ class UpdateLabResultDto {
   @IsString()
   referenceRange?: string;
 
-  @IsEnum(LabResultStatus)
+  @IsEnum(['PENDING', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'])
   resultStatus: LabResultStatus;
 }
 
@@ -77,7 +77,7 @@ class UpdateRadiologyReportDto {
   @Min(1)
   radiologyOrderId: number;
 
-  @IsEnum(RadiologyStatus)
+  @IsEnum(['PENDING', 'SCHEDULED', 'COMPLETED', 'CANCELLED', 'IN_PROGRESS'])
   status: RadiologyStatus;
 
   @IsOptional()

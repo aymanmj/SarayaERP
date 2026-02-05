@@ -5,7 +5,7 @@ import { FinancialYearStatus } from '@prisma/client';
 
 export class UpdateFinancialYearStatusDto {
   @IsOptional()
-  @IsEnum(FinancialYearStatus, {
+  @IsEnum(['OPEN', 'CLOSED', 'ARCHIVED'], {
     message: 'الحالة يجب أن تكون OPEN أو CLOSED أو ARCHIVED',
   })
   status?: FinancialYearStatus;

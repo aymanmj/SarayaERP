@@ -57,10 +57,10 @@ export class CreateAdmissionDto {
   @Min(1)
   encounterId?: number;
 
-  @IsEnum(AdmissionType)
+  @IsEnum(['EMERGENCY', 'URGENT', 'ELECTIVE', 'TRANSFER', 'OBSERVATION'])
   admissionType: AdmissionType;
 
-  @IsEnum(AdmissionPriority)
+  @IsEnum(['CRITICAL', 'URGENT', 'HIGH', 'MEDIUM', 'LOW'])
   priority: AdmissionPriority;
 
   @IsOptional()
@@ -179,7 +179,7 @@ export class CreateAdmissionDto {
   isolationRequired?: boolean = false;
 
   @IsOptional()
-  @IsEnum(IsolationType)
+  @IsEnum(['NONE', 'STANDARD', 'DROPLET', 'AIRBORNE', 'CONTACT', 'PROTECTIVE'])
   isolationType?: IsolationType = IsolationType.NONE;
 
   @IsOptional()

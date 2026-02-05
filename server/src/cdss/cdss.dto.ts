@@ -88,7 +88,7 @@ export class CheckLabResultDto {
 
   @ApiPropertyOptional({ description: 'جنس المريض', enum: Gender })
   @IsOptional()
-  @IsEnum(Gender)
+  @IsEnum(['MALE', 'FEMALE', 'OTHER'])
   gender?: Gender;
 }
 

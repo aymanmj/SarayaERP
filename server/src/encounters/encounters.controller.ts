@@ -28,8 +28,8 @@ class CreateEncounterDto {
   @Min(1)
   patientId: number;
 
-  @IsEnum(EncounterType)
-  type: EncounterType; // OPD | ER | IPD
+  @IsEnum(['OPD', 'ER', 'IPD', 'VIRTUAL', 'HOME'])
+  type: EncounterType; 
 
   @IsOptional()
   @IsInt()

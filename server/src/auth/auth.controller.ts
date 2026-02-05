@@ -67,9 +67,14 @@ export class AuthController {
   }
 
   private setCookies(res: Response, at: string, rt: string) {
+    const isSecure =
+      process.env.COOKIE_SECURE === 'true' ||
+      (process.env.NODE_ENV === 'production' &&
+        process.env.COOKIE_SECURE !== 'false');
+
     res.cookie('Authentication', at, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: isSecure,
       sameSite: 'lax',
       path: '/',
       maxAge: 15 * 60 * 1000, // 15m
@@ -77,7 +82,7 @@ export class AuthController {
 
     res.cookie('Refresh', rt, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: isSecure,
       sameSite: 'lax',
       path: '/',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7d

@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { apiClient } from "../api/apiClient";
 import { useNavigate } from "react-router-dom";
+import { Patient, PatientLite } from "@/types";
 import { toast } from "sonner";
 import {
   useQuery,
@@ -25,26 +26,6 @@ interface InsuranceProvider {
   id: number;
   name: string;
   policies: InsurancePolicy[];
-}
-
-interface Patient {
-  id: number;
-  mrn: string;
-  fullName: string;
-  nationalId: string | null;
-  dateOfBirth: string | null;
-  gender: Gender;
-  phone: string | null;
-  address: string | null;
-  notes: string | null;
-  isActive: boolean;
-  insurancePolicyId: number | null;
-  insuranceMemberId: string | null;
-  insurancePolicy?: {
-    id: number;
-    name: string;
-    provider: { id: number; name: string };
-  } | null;
 }
 
 interface PaginationMeta {
@@ -91,6 +72,7 @@ export function PatientsPage() {
     familySheet: "",
     registryNumber: "",
     identityType: "PERSONAL_ID",
+    identityNumber: "",
     maritalStatus: "SINGLE",
     phone: "",
     address: "",
@@ -204,6 +186,13 @@ export function PatientsPage() {
         phone: "",
         address: "",
         notes: "",
+        motherName: "",
+        familyBooklet: "",
+        familySheet: "",
+        registryNumber: "",
+        identityType: "PERSONAL_ID",
+        identityNumber: "",
+        maritalStatus: "SINGLE",
         insuranceProviderId: "",
         insurancePolicyId: "",
         insuranceMemberId: "",

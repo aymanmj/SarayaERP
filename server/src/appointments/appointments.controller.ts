@@ -71,7 +71,7 @@ class CreateAppointmentDto {
   scheduledEnd: string;
 
   @IsOptional()
-  @IsEnum(AppointmentType)
+  @IsEnum(['IN_PERSON', 'ONLINE'])
   type?: AppointmentType;
 
   @IsOptional()
@@ -109,7 +109,7 @@ class ListAppointmentsQueryDto {
   departmentId?: number;
 
   @IsOptional()
-  @IsEnum(AppointmentStatus)
+  @IsEnum(['REQUESTED', 'CONFIRMED', 'CHECKED_IN', 'COMPLETED', 'CANCELLED', 'NO_SHOW'])
   status?: AppointmentStatus;
 
   @IsOptional()
@@ -119,7 +119,7 @@ class ListAppointmentsQueryDto {
 }
 
 class UpdateAppointmentStatusDto {
-  @IsEnum(AppointmentStatus)
+  @IsEnum(['REQUESTED', 'CONFIRMED', 'CHECKED_IN', 'COMPLETED', 'CANCELLED', 'NO_SHOW'])
   status: AppointmentStatus;
 }
 
