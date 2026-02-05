@@ -354,6 +354,8 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - portainer_data:/data
+    ports:
+      - "9000:9000"
     networks:
       - saraya_net
 
