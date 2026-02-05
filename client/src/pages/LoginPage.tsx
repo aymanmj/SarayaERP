@@ -185,7 +185,6 @@ export function LoginPage() {
 
               <div className="flex items-center justify-between text-[11px] text-slate-400 mt-1">
                 <span>بيانات الدخول خاصة وسرّية.</span>
-                <span>نسخة تجريبية داخلية</span>
               </div>
 
               <button
