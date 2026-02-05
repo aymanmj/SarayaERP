@@ -324,6 +324,26 @@ services:
     networks:
       - saraya_net
 
+  # 10. الوصول عن بعد (Tailscale VPN)
+  tailscale:
+    image: tailscale/tailscale:latest
+    container_name: saraya_tailscale
+    hostname: saraya-server
+    restart: always
+    environment:
+      - TS_AUTHKEY=${TAILSCALE_AUTHKEY}
+      - TS_STATE_DIR=/var/lib/tailscale
+      - TS_USERSPACE=false
+      - TS_ROUTES=172.20.0.0/16
+    volumes:
+      - tailscale_data:/var/lib/tailscale
+      - /dev/net/tun:/dev/net/tun
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    networks:
+      - saraya_net
+
 # وحدات التخزين الدائمة
 volumes:
   postgres_data:
@@ -339,6 +359,8 @@ volumes:
   grafana_data:
     driver: local
   alertmanager_data:
+    driver: local
+  tailscale_data:
     driver: local
 
 # الشبكة الداخلية المعزولة
