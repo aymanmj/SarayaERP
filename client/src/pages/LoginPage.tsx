@@ -141,7 +141,6 @@ export function LoginPage() {
             <p className="text-xs text-slate-400 mt-2">
               أدخل بيانات حسابك للوصول إلى لوحة إدارة المستشفى.
               <br />
-              (تجريبيًا: admin / admin123 أو dr_ahmed / doctor123)
             </p>
           </div>
 
