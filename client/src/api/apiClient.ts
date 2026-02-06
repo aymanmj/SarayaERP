@@ -103,6 +103,18 @@ apiClient.interceptors.response.use(
       }
     }
 
+    // 🛡️ التحقق من خطأ الترخيص - التوجيه لصفحة التفعيل
+    if (
+      error.response &&
+      error.response.status === 403 &&
+      error.response.data?.message === "LICENSE_REQUIRED"
+    ) {
+      if (!window.location.pathname.includes("/activation")) {
+        window.location.href = "/activation";
+      }
+      return Promise.reject(error);
+    }
+
     return Promise.reject(error);
   }
 );

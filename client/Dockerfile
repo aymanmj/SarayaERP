@@ -1,12 +1,26 @@
 # ==========================================
+# Saraya ERP - Frontend Dockerfile
+# ==========================================
+# STANDARD BASE IMAGES:
+#   - Build Stage: node:20-slim (Debian)
+#   - Production Stage: nginx:alpine (lightweight)
+# ==========================================
+
+# ==========================================
 # Stage 1: Build React App
 # ==========================================
-FROM node:20-alpine AS builder
+FROM node:20-slim AS builder
 
 WORKDIR /app
 
 # نسخ ملفات التعريف
 COPY package*.json ./
+
+# إعدادات الشبكة لتجنب ECONNRESET
+RUN npm config set fetch-retry-maxtimeout 600000 \
+    && npm config set fetch-retries 5 \
+    && npm config set fetch-retry-mintimeout 20000 \
+    && npm config set fetch-retry-factor 10
 
 # تنصيب المكتبات
 RUN npm ci
@@ -14,7 +28,7 @@ RUN npm ci
 # نسخ باقي الكود
 COPY . .
 
-# بناء المشروع (تخطي فحص TypeScript والبناء مباشرة)
+# بناء المشروع
 RUN npm run build -- --mode production
 
 # ==========================================

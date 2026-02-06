@@ -1,12 +1,25 @@
 # ==========================================
+# Saraya ERP - Backend Dockerfile
+# ==========================================
+# STANDARD BASE IMAGES:
+#   - Build Stage: node:20-slim (Debian)
+#   - Production Stage: node:20-slim (Debian)
+# 
+# NOTE: We use Debian-based images because:
+#   - Better compatibility with native modules (bcrypt, node-machine-id)
+#   - Chromium for PDF generation works reliably
+#   - More stable package management (apt vs apk)
+# ==========================================
+
+# ==========================================
 # Stage 1: Builder (البناء)
 # ==========================================
-FROM node:20-alpine AS builder
+FROM node:20-slim AS builder
 
 WORKDIR /app
 
 # تنصيب أدوات البناء اللازمة للمكتبات التي تعتمد على C++ (مثل node-machine-id)
-RUN apk add --no-cache python3 make g++
+RUN apt-get update && apt-get install -y python3 make g++ && rm -rf /var/lib/apt/lists/*
 
 # نسخ ملفات التعريف
 COPY package*.json ./
@@ -23,7 +36,6 @@ ENV DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy"
 RUN npx prisma generate
 
 # بناء المشروع (تحويل TypeScript إلى JavaScript)
-# بناء المشروع (تحويل TypeScript إلى JavaScript)
 RUN npm run build
 
 # تجميع سكربت الـ Seed
@@ -32,26 +44,26 @@ RUN npx tsc prisma/seed.ts --outDir dist/prisma --module commonjs --target es201
 # ==========================================
 # Stage 2: Production (التشغيل)
 # ==========================================
-FROM node:20-alpine AS production
+FROM node:20-slim AS production
 
 WORKDIR /app
 
-# تنصيب المكتبات اللازمة لتشغيل Puppeteer (Chromium) في بيئة Alpine
+# تنصيب المكتبات اللازمة لتشغيل Puppeteer (Chromium) في بيئة Debian
 # هذه الخطوة حرجة جداً لضمان عمل الطباعة PDF
-RUN apk add --no-cache \
-      chromium \
-      nss \
-      freetype \
-      harfbuzz \
-      ca-certificates \
-      ttf-freefont \
-      nodejs \
-      yarn \
-      curl
+RUN apt-get update && apt-get install -y \
+    chromium \
+    libnss3 \
+    libfreetype6 \
+    libharfbuzz0b \
+    ca-certificates \
+    fonts-freefont-ttf \
+    curl \
+    --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
 
 # إخبار Puppeteer باستخدام الكروم المثبت في النظام بدلاً من تنزيله
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
-    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
 # نسخ ملفات التعريف فقط
 COPY package*.json ./
@@ -71,11 +83,14 @@ ENV DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy"
 RUN npx prisma generate
 
 # ✅ هام جداً: نسخ المفتاح العام للترخيص
-# تأكد أن الملف public.key موجود في هذا المسار قبل البناء
 COPY --from=builder /app/src/licensing/public.key ./src/licensing/public.key
+
+# نسخ سكربت التشغيل
+COPY docker-entrypoint.sh /app/docker-entrypoint.sh
+RUN chmod +x /app/docker-entrypoint.sh
 
 # فتح المنفذ
 EXPOSE 3000
 
-# أمر التشغيل: تنفيذ المايجريشن أولاً ثم تشغيل السيرفر
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/src/main.js"]
+# أمر التشغيل: تنفيذ المايجريشن + الـ Seed (إن لزم) + تشغيل السيرفر
+CMD ["/app/docker-entrypoint.sh"]

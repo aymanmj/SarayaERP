@@ -51,9 +51,12 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  # 3. السيرفر (Backend API)
+  # 2. الخادم الخلفي (Backend)
   backend:
-    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-aymanmj}/saraya-backend:latest
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    image: saraya-backend:latest
     container_name: saraya_backend
     restart: always
     environment:
@@ -120,9 +123,12 @@ services:
           memory: 512M
           cpus: '0.25'
 
-  # 4. الواجهة الأمامية (Frontend)
+  # 5. الواجهة الأمامية (Frontend)
   frontend:
-    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-aymanmj}/saraya-frontend:latest
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    image: saraya-frontend:latest
     container_name: saraya_frontend
     restart: always
     environment:
