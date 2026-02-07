@@ -225,8 +225,8 @@ download_files() {
     curl -fsSL "https://raw.githubusercontent.com/$GITHUB_OWNER/$GITHUB_REPO/$BRANCH/.env.example" \
         -o .env.example
 
-    # تحميل nginx.conf
-    curl -fsSL "https://raw.githubusercontent.com/$GITHUB_OWNER/$GITHUB_REPO/$BRANCH/production/nginx/nginx.conf" \
+    # تحميل nginx.conf (HTTP only - without SSL)
+    curl -fsSL "https://raw.githubusercontent.com/$GITHUB_OWNER/$GITHUB_REPO/$BRANCH/production/nginx/nginx-http.conf" \
         -o production/nginx/nginx.conf
 
     # تحميل السكربتات
@@ -237,8 +237,38 @@ download_files() {
         -o scripts/backup.sh
     curl -fsSL "https://raw.githubusercontent.com/$GITHUB_OWNER/$GITHUB_REPO/$BRANCH/scripts/setup-ghcr.sh" \
         -o scripts/setup-ghcr.sh
+    curl -fsSL "https://raw.githubusercontent.com/$GITHUB_OWNER/$GITHUB_REPO/$BRANCH/scripts/auto-update.sh" \
+        -o scripts/auto-update.sh
 
     chmod +x scripts/*.sh
+
+    # ════════════════════════════════════════════════════════════════════════════════
+    # تحميل ملفات المراقبة (Monitoring)
+    # ════════════════════════════════════════════════════════════════════════════════
+    print_info "جاري تحميل ملفات المراقبة..."
+    
+    mkdir -p monitoring/grafana/datasources
+    mkdir -p monitoring/grafana/dashboards
+    
+    # Prometheus configuration
+    curl -fsSL "https://raw.githubusercontent.com/$GITHUB_OWNER/$GITHUB_REPO/$BRANCH/monitoring/prometheus.yml" \
+        -o monitoring/prometheus.yml
+    
+    # Alert rules
+    curl -fsSL "https://raw.githubusercontent.com/$GITHUB_OWNER/$GITHUB_REPO/$BRANCH/monitoring/alert_rules.yml" \
+        -o monitoring/alert_rules.yml
+    
+    # Alertmanager configuration
+    curl -fsSL "https://raw.githubusercontent.com/$GITHUB_OWNER/$GITHUB_REPO/$BRANCH/monitoring/alertmanager.yml" \
+        -o monitoring/alertmanager.yml
+    
+    # Grafana datasources
+    curl -fsSL "https://raw.githubusercontent.com/$GITHUB_OWNER/$GITHUB_REPO/$BRANCH/monitoring/grafana/datasources/prometheus.yml" \
+        -o monitoring/grafana/datasources/prometheus.yml
+    
+    # Grafana dashboards
+    curl -fsSL "https://raw.githubusercontent.com/$GITHUB_OWNER/$GITHUB_REPO/$BRANCH/monitoring/grafana/dashboards/dashboard.yml" \
+        -o monitoring/grafana/dashboards/dashboard.yml
 
     print_status "تم تحميل جميع الملفات"
 }
@@ -303,7 +333,14 @@ GRAFANA_PASSWORD=admin123
 # Backup
 BACKUP_SCHEDULE="0 2,14 * * *"
 BACKUP_RETENTION_DAYS=30
+
+# CORS Configuration
+CORS_ORIGIN=*
+CORS_ORIGINS=*
 EOF
+
+    # Create symlink for default .env (important for docker-compose)
+    ln -sf .env.production "$INSTALL_DIR/.env"
 
     print_status "تم إنشاء ملف .env.production"
     print_warning "كلمات المرور تم توليدها تلقائياً - احتفظ بنسخة احتياطية!"
@@ -391,22 +428,45 @@ pull_and_start() {
     cd "$INSTALL_DIR"
 
     print_info "جاري سحب صور Docker..."
-    docker compose -f docker-compose.production.yml --env-file .env.production pull >> "$LOG_FILE" 2>&1
-    print_status "تم سحب جميع الصور"
+    docker compose -f docker-compose.production.yml --env-file .env.production pull >> "$LOG_FILE" 2>&1 || true
+    print_status "تم سحب الصور المتاحة"
 
-    print_info "جاري تشغيل النظام..."
-    docker compose -f docker-compose.production.yml --env-file .env.production up -d >> "$LOG_FILE" 2>&1
-    print_status "تم تشغيل جميع الخدمات"
-
-    # انتظار بدء الخدمات
-    print_info "جاري انتظار بدء الخدمات..."
+    print_info "جاري تشغيل الخدمات الأساسية..."
+    
+    # Start core services first (in order)
+    docker compose -f docker-compose.production.yml --env-file .env.production up -d postgres redis >> "$LOG_FILE" 2>&1
+    print_info "انتظار PostgreSQL و Redis..."
+    sleep 15
+    
+    # Start backend
+    docker compose -f docker-compose.production.yml --env-file .env.production up -d backend >> "$LOG_FILE" 2>&1
+    print_info "انتظار Backend..."
     sleep 30
+    
+    # Start frontend and nginx
+    docker compose -f docker-compose.production.yml --env-file .env.production up -d frontend nginx >> "$LOG_FILE" 2>&1
+    print_info "انتظار Frontend و Nginx..."
+    sleep 10
+    
+    # Start optional services (portainer, watchtower)
+    docker compose -f docker-compose.production.yml --env-file .env.production up -d portainer watchtower >> "$LOG_FILE" 2>&1 || true
+    
+    print_status "تم تشغيل جميع الخدمات الأساسية"
 
     # التحقق من الحالة
-    if curl -s http://localhost:3000/api/health > /dev/null 2>&1; then
-        print_status "Backend يعمل بشكل صحيح ✓"
+    print_info "جاري التحقق من حالة الخدمات..."
+    sleep 5
+    
+    if docker ps --format "{{.Names}}" | grep -q "saraya_backend"; then
+        print_status "Backend يعمل ✓"
     else
         print_warning "Backend قد يحتاج وقتاً إضافياً للبدء"
+    fi
+    
+    if docker ps --format "{{.Names}}" | grep -q "saraya_nginx"; then
+        print_status "Nginx يعمل ✓"
+    else
+        print_warning "Nginx قد يحتاج وقتاً إضافياً للبدء"
     fi
 }
 
@@ -436,6 +496,41 @@ EOF
     systemctl daemon-reload
     systemctl enable saraya-erp.service >> "$LOG_FILE" 2>&1
     print_status "تم إنشاء خدمة systemd للتشغيل التلقائي"
+}
+
+# ════════════════════════════════════════════════════════════════════════════════
+# إعداد التحديث التلقائي (Cron)
+# ════════════════════════════════════════════════════════════════════════════════
+
+setup_cron_jobs() {
+    print_info "جاري إعداد التحديث التلقائي..."
+    
+    # Create cron job for auto-update at 3 AM daily
+    cat > /etc/cron.d/saraya-update << EOF
+# Saraya ERP - Automatic Update
+# Runs daily at 3:00 AM
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+
+0 3 * * * root $INSTALL_DIR/scripts/auto-update.sh >> /var/log/saraya-update.log 2>&1
+EOF
+
+    chmod 644 /etc/cron.d/saraya-update
+    
+    # Create cron job for daily backup at 2 AM
+    cat > /etc/cron.d/saraya-backup << EOF
+# Saraya ERP - Automatic Backup
+# Runs daily at 2:00 AM (before update)
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+
+0 2 * * * root $INSTALL_DIR/scripts/backup.sh >> /var/log/saraya-backup.log 2>&1
+EOF
+
+    chmod 644 /etc/cron.d/saraya-backup
+    
+    print_status "تم إعداد التحديث التلقائي (3:00 صباحاً يومياً)"
+    print_status "تم إعداد النسخ الاحتياطي التلقائي (2:00 صباحاً يومياً)"
 }
 
 # ════════════════════════════════════════════════════════════════════════════════
@@ -555,6 +650,10 @@ main() {
     # الخطوة 9: إنشاء خدمة systemd
     print_step "9" "إعداد التشغيل التلقائي"
     create_systemd_service
+
+    # الخطوة 10: إعداد التحديث التلقائي
+    print_step "10" "إعداد التحديث والنسخ الاحتياطي التلقائي"
+    setup_cron_jobs
 
     # عرض الملخص
     show_summary

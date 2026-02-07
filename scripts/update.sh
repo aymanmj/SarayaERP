@@ -95,7 +95,7 @@ restart_services() {
     read -p "هل تريد المتابعة؟ (y/n): " confirm
     
     if [ "$confirm" = "y" ] || [ "$confirm" = "Y" ]; then
-        docker-compose -f docker-compose.production.yml --env-file .env.production up -d backend frontend
+        docker compose -f docker-compose.production.yml --env-file .env.production up -d backend frontend
         print_status "تم إعادة تشغيل الخدمات بنجاح!"
     else
         print_warning "تم الإلغاء"
@@ -119,7 +119,7 @@ rollback() {
     
     if [ -n "$rollback_tag" ]; then
         export IMAGE_TAG="$rollback_tag"
-        docker-compose -f docker-compose.production.yml --env-file .env.production up -d backend frontend
+        docker compose -f docker-compose.production.yml --env-file .env.production up -d backend frontend
         print_status "تم التراجع للإصدار: $rollback_tag"
     else
         print_warning "تم الإلغاء"
