@@ -31,7 +31,7 @@ export const AboutPage = () => {
             {/* Content Section */}
             <div className="text-center md:text-right flex-1 space-y-6">
               <div>
-                <h1 className="text-2xl md:text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400 mb-2">
+                <h1 className="text-2xl md:text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400 mb-2">
                   نظام السرايا الطبي - Saraya ERP
                 </h1>
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sky-500/10 border border-sky-500/20 text-sky-400 text-sm font-mono">
