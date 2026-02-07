@@ -31,7 +31,7 @@ export const AboutPage = () => {
             {/* Content Section */}
             <div className="text-center md:text-right flex-1 space-y-6">
               <div>
-                <h1 className="text-4xl md:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400 mb-2">
+                <h1 className="text-2xl md:text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400 mb-2">
                   نظام السرايا الطبي - Saraya ERP
                 </h1>
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sky-500/10 border border-sky-500/20 text-sky-400 text-sm font-mono">
@@ -42,10 +42,10 @@ export const AboutPage = () => {
 
               <div className="space-y-4">
                 <div className="p-4 rounded-xl bg-slate-900/50 border border-slate-700/50 md:text-right">
-                  <p className="text-slate-400 text-xs uppercase tracking-wider mb-1">
+                  <p className="text-slate-400 text-left text-xs uppercase tracking-wider mb-1">
                     Developed By
                   </p>
-                  <p className="text-white font-medium text-lg">
+                  <p className="text-white text-left font-medium text-lg">
                     Eng. Ayman Jaballa
                   </p>
                 </div>
