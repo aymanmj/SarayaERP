@@ -269,6 +269,15 @@ download_files() {
     curl -fsSL "https://raw.githubusercontent.com/$GITHUB_OWNER/$GITHUB_REPO/$BRANCH/monitoring/grafana/dashboards/dashboard.yml" \
         -o monitoring/grafana/dashboards/dashboard.yml
 
+    # ============================================================
+    # Download Frontend Environment Template
+    # ============================================================
+    print_info "Downloading frontend environment template..."
+    
+    mkdir -p client
+    curl -fsSL "https://raw.githubusercontent.com/$GITHUB_OWNER/$GITHUB_REPO/$BRANCH/client/.env.example" \
+        -o client/.env.example
+
     print_status "All files downloaded"
 }
 
@@ -343,6 +352,42 @@ EOF
 
     print_status ".env.production created"
     print_warning "Passwords were auto-generated - keep a backup!"
+}
+
+# ════════════════════════════════════════════════════════════════════════════════
+# إعداد ملف بيئة الواجهة الأمامية
+# ════════════════════════════════════════════════════════════════════════════════
+
+generate_frontend_env() {
+    print_info "Configuring frontend environment file..."
+
+    # Get server IP
+    SERVER_IP=$(hostname -I | awk '{print $1}')
+
+    # Create client directory if not exists
+    mkdir -p "$INSTALL_DIR/client"
+
+    # Copy .env.example to .env.local
+    if [ -f "$INSTALL_DIR/client/.env.example" ]; then
+        cp "$INSTALL_DIR/client/.env.example" "$INSTALL_DIR/client/.env.local"
+        
+        # Replace YOUR_SERVER_IP with actual server IP
+        sed -i "s/YOUR_SERVER_IP/$SERVER_IP/g" "$INSTALL_DIR/client/.env.local"
+        
+        print_status "Frontend .env.local created with server IP: $SERVER_IP"
+    else
+        # Create minimal .env.local if template not found
+        cat > "$INSTALL_DIR/client/.env.local" <<EOF
+# Saraya ERP - Frontend Environment (Auto-generated)
+VITE_API_URL=http://$SERVER_IP:3000
+VITE_API_BASE_URL=http://$SERVER_IP:3000
+VITE_APP_NAME=Saraya ERP
+VITE_APP_VERSION=1.0.1
+VITE_ENABLE_NOTIFICATIONS=true
+VITE_DEBUG_MODE=false
+EOF
+        print_status "Frontend .env.local created with server IP: $SERVER_IP"
+    fi
 }
 
 # ════════════════════════════════════════════════════════════════════════════════
@@ -626,8 +671,9 @@ main() {
     setup_ghcr
 
     # Step 6: Create environment file
-    print_step "6" "Creating Environment File"
+    print_step "6" "Creating Environment Files"
     generate_env_file
+    generate_frontend_env
 
     # Step 7: License file
     print_step "7" "License File"
