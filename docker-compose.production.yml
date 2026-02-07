@@ -88,6 +88,10 @@ services:
       
       # إعدادات الرخصة
       LICENSE_PATH: /app/data/saraya.lic
+      
+      # إعدادات CORS
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+      CORS_ORIGINS: ${CORS_ORIGINS:-*}
     volumes:
       - app_data:/app/data
       - app_uploads:/app/uploads
