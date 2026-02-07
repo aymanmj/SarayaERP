@@ -69,32 +69,35 @@ async function bootstrap() {
   // ============================================
   // 🌐 CORS CONFIGURATION
   // ============================================
-  const allowedOrigins = (process.env.CORS_ORIGINS || process.env.CORS_ORIGIN)?.split(',') || [
-    'http://localhost:5173',
-    'http://localhost:3000',
-    'http://localhost',
-    'https://localhost',
-  ];
+  const configuredOrigins = (process.env.CORS_ORIGINS || process.env.CORS_ORIGIN || '')
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean);
   
   // Check if wildcard is enabled
-  const allowAllOrigins = allowedOrigins.includes('*');
+  const allowAllOrigins = configuredOrigins.includes('*') || configuredOrigins.length === 0;
   
   app.enableCors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (mobile apps, Postman)
-      if (!origin) return callback(null, true);
-      
-      // Allow all origins if '*' is in the list
-      if (allowAllOrigins) {
+      // Allow requests with no origin (mobile apps, Postman, curl)
+      if (!origin) {
         return callback(null, true);
       }
       
-      if (allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        logger.warn(`Blocked CORS request from: ${origin}`);
-        callback(new Error('Not allowed by CORS'));
+      // If wildcard or empty config, reflect the requesting origin
+      // (required when credentials: true, can't use literal '*')
+      if (allowAllOrigins) {
+        return callback(null, origin);
       }
+      
+      // Check if origin is in whitelist
+      if (configuredOrigins.includes(origin)) {
+        return callback(null, origin);
+      }
+      
+      // Origin not allowed
+      logger.warn(`Blocked CORS request from: ${origin}`);
+      return callback(new Error('Not allowed by CORS'), false);
     },
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
     allowedHeaders: [
