@@ -53,12 +53,11 @@ services:
 
   # 2. الخادم الخلفي (Backend)
   backend:
-    build:
-      context: ./server
-      dockerfile: Dockerfile
-    image: saraya-backend:latest
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-aymanmj}/saraya-backend:${IMAGE_TAG:-latest}
     container_name: saraya_backend
     restart: always
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
     environment:
       # الاتصال بقاعدة البيانات
       DATABASE_URL: "postgresql://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-saraya_erp}?schema=public"
@@ -125,12 +124,11 @@ services:
 
   # 5. الواجهة الأمامية (Frontend)
   frontend:
-    build:
-      context: ./client
-      dockerfile: Dockerfile
-    image: saraya-frontend:latest
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-aymanmj}/saraya-frontend:${IMAGE_TAG:-latest}
     container_name: saraya_frontend
     restart: always
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
     environment:
       REACT_APP_API_URL: http://localhost:${SERVER_PORT:-3000}
       REACT_APP_WS_URL: ws://localhost:${SERVER_PORT:-3000}
@@ -323,32 +321,48 @@ services:
     restart: always
     environment:
       - DOCKER_API_VERSION=1.44
+      - WATCHTOWER_LABEL_ENABLE=true
+      - WATCHTOWER_POLL_INTERVAL=3600
+      - WATCHTOWER_CLEANUP=true
+      - WATCHTOWER_INCLUDE_RESTARTING=true
+      - WATCHTOWER_HTTP_API_UPDATE=true
+      - WATCHTOWER_HTTP_API_TOKEN=${WATCHTOWER_TOKEN:-saraya-update-token}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - /root/.docker/config.json:/config.json
-    command: --interval 3600 --cleanup --include-restarting
+    command: --interval 3600 --cleanup --include-restarting --label-enable --http-api-update
+    ports:
+      - "8080:8080"
     networks:
       - saraya_net
+    labels:
+      - "com.centurylinklabs.watchtower.enable=false"
 
   # 10. الوصول عن بعد (Tailscale VPN)
   tailscale:
     image: tailscale/tailscale:latest
     container_name: saraya_tailscale
-    hostname: saraya-server
+    hostname: ${TAILSCALE_HOSTNAME:-saraya-server}
     restart: always
     environment:
       - TS_AUTHKEY=${TAILSCALE_AUTHKEY}
       - TS_STATE_DIR=/var/lib/tailscale
       - TS_USERSPACE=false
       - TS_ROUTES=172.20.0.0/16
+      - TS_EXTRA_ARGS=--advertise-routes=172.20.0.0/16 --accept-dns=false
     volumes:
       - tailscale_data:/var/lib/tailscale
       - /dev/net/tun:/dev/net/tun
     cap_add:
       - NET_ADMIN
       - NET_RAW
+    # Expose ports for Tailscale Serve (if using funnel)
+    ports:
+      - "41641:41641/udp"
     networks:
       - saraya_net
+    labels:
+      - "com.centurylinklabs.watchtower.enable=false"
 
   # 11. لوحة التحكم (Portainer)
   portainer:
