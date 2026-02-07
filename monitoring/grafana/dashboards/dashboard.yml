@@ -1,16 +1,13 @@
-# ============================================
-# Saraya ERP - Grafana Dashboard Configuration
-# ============================================
-
 apiVersion: 1
 
 providers:
-  - name: 'default'
+  - name: 'Saraya ERP Dashboards'
     orgId: 1
-    folder: ''
+    folder: 'Saraya ERP'
+    folderUid: 'saraya-folder'
     type: file
     disableDeletion: false
-    updateIntervalSeconds: 10
+    updateIntervalSeconds: 30
     allowUiUpdates: true
     options:
       path: /etc/grafana/provisioning/dashboards

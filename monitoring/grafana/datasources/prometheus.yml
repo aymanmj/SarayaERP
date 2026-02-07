@@ -1,18 +1,15 @@
-# ============================================
-# Saraya ERP - Grafana Prometheus Datasource
-# ============================================
-
 apiVersion: 1
 
 datasources:
   - name: Prometheus
     type: prometheus
+    uid: prometheus
     access: proxy
     url: http://prometheus:9090
     isDefault: true
     editable: true
     jsonData:
-      timeInterval: "5s"
-      queryTimeout: "60s"
-      httpMethod: "POST"
-    secureJsonData: {}
+      httpMethod: POST
+      manageAlerts: true
+      prometheusType: Prometheus
+      prometheusVersion: 2.45.0
