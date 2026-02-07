@@ -76,10 +76,18 @@ async function bootstrap() {
     'https://localhost',
   ];
   
+  // Check if wildcard is enabled
+  const allowAllOrigins = allowedOrigins.includes('*');
+  
   app.enableCors({
     origin: (origin, callback) => {
       // Allow requests with no origin (mobile apps, Postman)
       if (!origin) return callback(null, true);
+      
+      // Allow all origins if '*' is in the list
+      if (allowAllOrigins) {
+        return callback(null, true);
+      }
       
       if (allowedOrigins.includes(origin)) {
         callback(null, true);
