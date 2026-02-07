@@ -6,7 +6,7 @@ services:
     restart: always
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-admin}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-AamyHISERP56223911llQq3399..Aa}
       POSTGRES_DB: ${POSTGRES_DB:-saraya_erp}
       POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
     volumes:
@@ -60,7 +60,7 @@ services:
       - "com.centurylinklabs.watchtower.enable=true"
     environment:
       # الاتصال بقاعدة البيانات
-      DATABASE_URL: "postgresql://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-saraya_erp}?schema=public"
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:-AamyHISERP56223911llQq3399..Aa}@postgres:5432/${POSTGRES_DB:-saraya_erp}?schema=public"
       
       # مفاتيح الأمان
       JWT_SECRET: ${JWT_SECRET}
