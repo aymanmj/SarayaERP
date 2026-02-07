@@ -63,7 +63,7 @@ log() {
 
 print_step() {
     echo -e "\n${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${BOLD}${MAGENTA}  الخطوة $1: $2${NC}"
+    echo -e "${BOLD}${MAGENTA}  Step $1: $2${NC}"
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
     log "STEP $1: $2"
 }
@@ -107,8 +107,8 @@ spinner() {
 
 check_root() {
     if [ "$EUID" -ne 0 ]; then
-        print_error "يجب تشغيل هذا السكربت كـ root"
-        echo -e "  استخدم: ${YELLOW}sudo ./install.sh${NC}"
+        print_error "Must run as root (يجب تشغيل السكربت كـ root)"
+        echo -e "  Use: ${YELLOW}sudo ./install.sh${NC}"
         exit 1
     fi
 }
@@ -119,16 +119,16 @@ check_os() {
         OS=$ID
         VERSION=$VERSION_ID
     else
-        print_error "نظام التشغيل غير مدعوم"
+        print_error "Unsupported OS"
         exit 1
     fi
 
     case $OS in
         ubuntu|debian)
-            print_status "نظام التشغيل: $PRETTY_NAME"
+            print_status "OS: $PRETTY_NAME"
             ;;
         *)
-            print_error "نظام التشغيل $OS غير مدعوم. يُدعم فقط Ubuntu/Debian"
+            print_error "OS $OS not supported. Only Ubuntu/Debian supported"
             exit 1
             ;;
     esac
@@ -138,22 +138,22 @@ check_resources() {
     # RAM
     TOTAL_RAM=$(free -m | awk '/^Mem:/{print $2}')
     if [ "$TOTAL_RAM" -lt 3500 ]; then
-        print_warning "RAM: ${TOTAL_RAM}MB (الحد الأدنى 4GB)"
+        print_warning "RAM: ${TOTAL_RAM}MB (min 4GB)"
     else
-        print_status "RAM: ${TOTAL_RAM}MB ✓"
+        print_status "RAM: ${TOTAL_RAM}MB OK"
     fi
 
     # Disk
     AVAILABLE_DISK=$(df -BG / | awk 'NR==2 {print $4}' | tr -d 'G')
     if [ "$AVAILABLE_DISK" -lt 40 ]; then
-        print_warning "المساحة المتاحة: ${AVAILABLE_DISK}GB (الحد الأدنى 50GB)"
+        print_warning "Disk: ${AVAILABLE_DISK}GB (min 50GB)"
     else
-        print_status "المساحة المتاحة: ${AVAILABLE_DISK}GB ✓"
+        print_status "Disk: ${AVAILABLE_DISK}GB OK"
     fi
 
     # CPU
     CPU_CORES=$(nproc)
-    print_status "عدد الأنوية: $CPU_CORES"
+    print_status "CPU Cores: $CPU_CORES"
 }
 
 # ════════════════════════════════════════════════════════════════════════════════
@@ -162,22 +162,22 @@ check_resources() {
 
 install_docker() {
     if command -v docker &> /dev/null; then
-        print_status "Docker مثبت بالفعل: $(docker --version)"
+        print_status "Docker already installed: $(docker --version)"
     else
-        print_info "جاري تثبيت Docker..."
+        print_info "Installing Docker..."
         curl -fsSL https://get.docker.com | sh >> "$LOG_FILE" 2>&1
-        print_status "تم تثبيت Docker بنجاح"
+        print_status "Docker installed successfully"
     fi
 
-    # تفعيل Docker
+    # Enable Docker
     systemctl enable docker >> "$LOG_FILE" 2>&1
     systemctl start docker >> "$LOG_FILE" 2>&1
-    print_status "Docker يعمل ومفعل عند الإقلاع"
+    print_status "Docker is running and enabled on boot"
 
-    # إضافة المستخدم للمجموعة
+    # Add user to group
     if [ -n "$SUDO_USER" ]; then
         usermod -aG docker "$SUDO_USER"
-        print_status "تمت إضافة $SUDO_USER لمجموعة docker"
+        print_status "Added $SUDO_USER to docker group"
     fi
 }
 
@@ -186,10 +186,10 @@ install_docker() {
 # ════════════════════════════════════════════════════════════════════════════════
 
 install_dependencies() {
-    print_info "جاري تثبيت الأدوات المطلوبة..."
+    print_info "Installing required tools..."
     apt-get update >> "$LOG_FILE" 2>&1
     apt-get install -y curl wget git nano net-tools jq unzip >> "$LOG_FILE" 2>&1
-    print_status "تم تثبيت جميع الأدوات المطلوبة"
+    print_status "All required tools installed"
 }
 
 # ════════════════════════════════════════════════════════════════════════════════
@@ -197,15 +197,18 @@ install_dependencies() {
 # ════════════════════════════════════════════════════════════════════════════════
 
 setup_directories() {
-    print_info "جاري إعداد المجلدات..."
+    print_info "Setting up directories..."
 
-    mkdir -p "$INSTALL_DIR"/{backups,logs,ssl,production/nginx}
+    mkdir -p "$INSTALL_DIR"/{backups,logs,ssl,production/nginx,scripts,monitoring/grafana/datasources,monitoring/grafana/dashboards}
+    
+    # Fix permissions - run as root
+    chmod -R 755 "$INSTALL_DIR"
     
     if [ -n "$SUDO_USER" ]; then
         chown -R "$SUDO_USER":"$SUDO_USER" "$INSTALL_DIR"
     fi
 
-    print_status "تم إنشاء المجلدات في $INSTALL_DIR"
+    print_status "Directories created in $INSTALL_DIR"
 }
 
 # ════════════════════════════════════════════════════════════════════════════════
@@ -213,24 +216,23 @@ setup_directories() {
 # ════════════════════════════════════════════════════════════════════════════════
 
 download_files() {
-    print_info "جاري تحميل ملفات المشروع..."
+    print_info "Downloading project files..."
 
     cd "$INSTALL_DIR"
 
-    # تحميل docker-compose.production.yml
+    # Download docker-compose.production.yml
     curl -fsSL "https://raw.githubusercontent.com/$GITHUB_OWNER/$GITHUB_REPO/$BRANCH/docker-compose.production.yml" \
         -o docker-compose.production.yml
 
-    # تحميل .env.example
+    # Download .env.example
     curl -fsSL "https://raw.githubusercontent.com/$GITHUB_OWNER/$GITHUB_REPO/$BRANCH/.env.example" \
         -o .env.example
 
-    # تحميل nginx.conf (HTTP only - without SSL)
+    # Download nginx.conf (HTTP only - without SSL)
     curl -fsSL "https://raw.githubusercontent.com/$GITHUB_OWNER/$GITHUB_REPO/$BRANCH/production/nginx/nginx-http.conf" \
         -o production/nginx/nginx.conf
 
-    # تحميل السكربتات
-    mkdir -p scripts
+    # Download scripts
     curl -fsSL "https://raw.githubusercontent.com/$GITHUB_OWNER/$GITHUB_REPO/$BRANCH/scripts/update.sh" \
         -o scripts/update.sh
     curl -fsSL "https://raw.githubusercontent.com/$GITHUB_OWNER/$GITHUB_REPO/$BRANCH/scripts/backup.sh" \
@@ -242,13 +244,10 @@ download_files() {
 
     chmod +x scripts/*.sh
 
-    # ════════════════════════════════════════════════════════════════════════════════
-    # تحميل ملفات المراقبة (Monitoring)
-    # ════════════════════════════════════════════════════════════════════════════════
-    print_info "جاري تحميل ملفات المراقبة..."
-    
-    mkdir -p monitoring/grafana/datasources
-    mkdir -p monitoring/grafana/dashboards
+    # ============================================================
+    # Download Monitoring files
+    # ============================================================
+    print_info "Downloading monitoring files..."
     
     # Prometheus configuration
     curl -fsSL "https://raw.githubusercontent.com/$GITHUB_OWNER/$GITHUB_REPO/$BRANCH/monitoring/prometheus.yml" \
@@ -270,7 +269,7 @@ download_files() {
     curl -fsSL "https://raw.githubusercontent.com/$GITHUB_OWNER/$GITHUB_REPO/$BRANCH/monitoring/grafana/dashboards/dashboard.yml" \
         -o monitoring/grafana/dashboards/dashboard.yml
 
-    print_status "تم تحميل جميع الملفات"
+    print_status "All files downloaded"
 }
 
 # ════════════════════════════════════════════════════════════════════════════════
@@ -278,9 +277,9 @@ download_files() {
 # ════════════════════════════════════════════════════════════════════════════════
 
 generate_env_file() {
-    print_info "جاري إنشاء ملف الإعدادات..."
+    print_info "Creating environment file..."
 
-    # توليد قيم عشوائية
+    # Generate random values
     POSTGRES_PASSWORD=$(openssl rand -base64 32 | tr -dc 'a-zA-Z0-9' | head -c 32)
     JWT_SECRET=$(openssl rand -hex 32)
     WATCHTOWER_TOKEN=$(openssl rand -base64 24 | tr -dc 'a-zA-Z0-9' | head -c 24)
@@ -342,8 +341,8 @@ EOF
     # Create symlink for default .env (important for docker-compose)
     ln -sf .env.production "$INSTALL_DIR/.env"
 
-    print_status "تم إنشاء ملف .env.production"
-    print_warning "كلمات المرور تم توليدها تلقائياً - احتفظ بنسخة احتياطية!"
+    print_status ".env.production created"
+    print_warning "Passwords were auto-generated - keep a backup!"
 }
 
 # ════════════════════════════════════════════════════════════════════════════════
@@ -352,41 +351,41 @@ EOF
 
 setup_ghcr() {
     echo ""
-    print_info "لسحب صور Docker، تحتاج GitHub Personal Access Token"
+    print_info "To pull Docker images, you need a GitHub Personal Access Token"
     echo ""
-    echo -e "  ${YELLOW}للحصول على Token:${NC}"
-    echo "  1. افتح: https://github.com/settings/tokens"
-    echo "  2. اضغط 'Generate new token (classic)'"
-    echo "  3. اختر صلاحية: ✓ read:packages"
-    echo "  4. انسخ الـ Token"
+    echo -e "  ${YELLOW}To get a Token:${NC}"
+    echo "  1. Open: https://github.com/settings/tokens"
+    echo "  2. Click 'Generate new token (classic)'"
+    echo "  3. Select scope: read:packages"
+    echo "  4. Copy the Token"
     echo ""
 
-    read -p "  أدخل GitHub Username: " GITHUB_USER
-    read -sp "  أدخل GitHub PAT: " GITHUB_PAT
+    read -p "  Enter GitHub Username: " GITHUB_USER
+    read -sp "  Enter GitHub PAT: " GITHUB_PAT
     echo ""
 
     if [ -z "$GITHUB_USER" ] || [ -z "$GITHUB_PAT" ]; then
-        print_warning "تم تخطي إعداد GHCR - ستحتاج إعداده لاحقاً"
+        print_warning "Skipped GHCR setup - you'll need to configure it later"
         return
     fi
 
     echo "$GITHUB_PAT" | docker login ghcr.io -u "$GITHUB_USER" --password-stdin >> "$LOG_FILE" 2>&1
 
     if [ $? -eq 0 ]; then
-        print_status "تم تسجيل الدخول لـ GHCR بنجاح"
+        print_status "Successfully logged in to GHCR"
 
-        # نسخ credentials لـ root (يحتاجها Watchtower)
+        # Copy credentials for root (needed by Watchtower)
         if [ -n "$SUDO_USER" ]; then
             USER_HOME=$(eval echo ~$SUDO_USER)
             if [ -f "$USER_HOME/.docker/config.json" ]; then
                 mkdir -p /root/.docker
                 cp "$USER_HOME/.docker/config.json" /root/.docker/config.json
                 chmod 600 /root/.docker/config.json
-                print_status "تم إعداد Watchtower للوصول لـ GHCR"
+                print_status "Watchtower configured for GHCR access"
             fi
         fi
     else
-        print_error "فشل تسجيل الدخول - تحقق من Username و PAT"
+        print_error "Login failed - check Username and PAT"
     fi
 }
 
@@ -396,27 +395,27 @@ setup_ghcr() {
 
 collect_client_info() {
     echo ""
-    echo -e "${BOLD}${CYAN}  معلومات العميل${NC}"
+    echo -e "${BOLD}${CYAN}  Client Information${NC}"
     echo -e "${CYAN}  ─────────────────${NC}"
     echo ""
 
-    read -p "  اسم المؤسسة (بالإنجليزية، بدون مسافات): " CLIENT_NAME
+    read -p "  Organization name (English, no spaces): " CLIENT_NAME
     CLIENT_NAME=${CLIENT_NAME:-saraya-client}
     CLIENT_NAME=$(echo "$CLIENT_NAME" | tr ' ' '-' | tr '[:upper:]' '[:lower:]')
 
     TAILSCALE_HOSTNAME="saraya-${CLIENT_NAME}"
-    print_status "اسم Tailscale: $TAILSCALE_HOSTNAME"
+    print_status "Tailscale hostname: $TAILSCALE_HOSTNAME"
 
     echo ""
-    echo -e "  ${YELLOW}مفتاح Tailscale (اختياري - للوصول البعيد):${NC}"
-    echo "  احصل عليه من: https://login.tailscale.com/admin/settings/keys"
+    echo -e "  ${YELLOW}Tailscale Auth Key (optional - for remote access):${NC}"
+    echo "  Get it from: https://login.tailscale.com/admin/settings/keys"
     echo ""
-    read -p "  أدخل Tailscale Auth Key (أو اضغط Enter للتخطي): " TAILSCALE_AUTHKEY
+    read -p "  Enter Tailscale Auth Key (or press Enter to skip): " TAILSCALE_AUTHKEY
     
     if [ -z "$TAILSCALE_AUTHKEY" ]; then
-        print_warning "تم تخطي Tailscale - يمكنك إضافته لاحقاً"
+        print_warning "Tailscale skipped - you can add it later"
     else
-        print_status "تم إضافة مفتاح Tailscale"
+        print_status "Tailscale key added"
     fi
 }
 
@@ -427,46 +426,46 @@ collect_client_info() {
 pull_and_start() {
     cd "$INSTALL_DIR"
 
-    print_info "جاري سحب صور Docker..."
+    print_info "Pulling Docker images..."
     docker compose -f docker-compose.production.yml --env-file .env.production pull >> "$LOG_FILE" 2>&1 || true
-    print_status "تم سحب الصور المتاحة"
+    print_status "Images pulled"
 
-    print_info "جاري تشغيل الخدمات الأساسية..."
+    print_info "Starting core services..."
     
     # Start core services first (in order)
     docker compose -f docker-compose.production.yml --env-file .env.production up -d postgres redis >> "$LOG_FILE" 2>&1
-    print_info "انتظار PostgreSQL و Redis..."
+    print_info "Waiting for PostgreSQL and Redis..."
     sleep 15
     
     # Start backend
     docker compose -f docker-compose.production.yml --env-file .env.production up -d backend >> "$LOG_FILE" 2>&1
-    print_info "انتظار Backend..."
+    print_info "Waiting for Backend..."
     sleep 30
     
     # Start frontend and nginx
     docker compose -f docker-compose.production.yml --env-file .env.production up -d frontend nginx >> "$LOG_FILE" 2>&1
-    print_info "انتظار Frontend و Nginx..."
+    print_info "Waiting for Frontend and Nginx..."
     sleep 10
     
     # Start optional services (portainer, watchtower)
     docker compose -f docker-compose.production.yml --env-file .env.production up -d portainer watchtower >> "$LOG_FILE" 2>&1 || true
     
-    print_status "تم تشغيل جميع الخدمات الأساسية"
+    print_status "All core services started"
 
-    # التحقق من الحالة
-    print_info "جاري التحقق من حالة الخدمات..."
+    # Health check
+    print_info "Checking service status..."
     sleep 5
     
     if docker ps --format "{{.Names}}" | grep -q "saraya_backend"; then
-        print_status "Backend يعمل ✓"
+        print_status "Backend is running OK"
     else
-        print_warning "Backend قد يحتاج وقتاً إضافياً للبدء"
+        print_warning "Backend may need more time to start"
     fi
     
     if docker ps --format "{{.Names}}" | grep -q "saraya_nginx"; then
-        print_status "Nginx يعمل ✓"
+        print_status "Nginx is running OK"
     else
-        print_warning "Nginx قد يحتاج وقتاً إضافياً للبدء"
+        print_warning "Nginx may need more time to start"
     fi
 }
 
@@ -495,7 +494,7 @@ EOF
 
     systemctl daemon-reload
     systemctl enable saraya-erp.service >> "$LOG_FILE" 2>&1
-    print_status "تم إنشاء خدمة systemd للتشغيل التلقائي"
+    print_status "systemd service created for auto-start"
 }
 
 # ════════════════════════════════════════════════════════════════════════════════
@@ -503,7 +502,7 @@ EOF
 # ════════════════════════════════════════════════════════════════════════════════
 
 setup_cron_jobs() {
-    print_info "جاري إعداد التحديث التلقائي..."
+    print_info "Setting up automatic updates..."
     
     # Create cron job for auto-update at 3 AM daily
     cat > /etc/cron.d/saraya-update << EOF
@@ -529,8 +528,8 @@ EOF
 
     chmod 644 /etc/cron.d/saraya-backup
     
-    print_status "تم إعداد التحديث التلقائي (3:00 صباحاً يومياً)"
-    print_status "تم إعداد النسخ الاحتياطي التلقائي (2:00 صباحاً يومياً)"
+    print_status "Auto-update configured (daily at 3:00 AM)"
+    print_status "Auto-backup configured (daily at 2:00 AM)"
 }
 
 # ════════════════════════════════════════════════════════════════════════════════
@@ -538,55 +537,55 @@ EOF
 # ════════════════════════════════════════════════════════════════════════════════
 
 show_summary() {
-    # الحصول على IP
+    # Get server IP
     SERVER_IP=$(hostname -I | awk '{print $1}')
 
     echo ""
-    echo -e "${GREEN}╔════════════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${GREEN}║                                                                ║${NC}"
-    echo -e "${GREEN}║            ✓ تم تثبيت Saraya ERP بنجاح!                        ║${NC}"
-    echo -e "${GREEN}║                                                                ║${NC}"
-    echo -e "${GREEN}╚════════════════════════════════════════════════════════════════╝${NC}"
+    echo -e "${GREEN}+================================================================+${NC}"
+    echo -e "${GREEN}|                                                                |${NC}"
+    echo -e "${GREEN}|            SUCCESS: Saraya ERP Installed!                      |${NC}"
+    echo -e "${GREEN}|                                                                |${NC}"
+    echo -e "${GREEN}+================================================================+${NC}"
     echo ""
-    echo -e "${BOLD}  معلومات الوصول:${NC}"
-    echo -e "  ─────────────────────────────────────────────────────────────"
+    echo -e "${BOLD}  Access Information:${NC}"
+    echo -e "  -----------------------------------------------------------------"
     echo ""
-    echo -e "  ${CYAN}🌐 التطبيق:${NC}       http://$SERVER_IP"
-    echo -e "  ${CYAN}📊 Portainer:${NC}    http://$SERVER_IP:9000"
-    echo -e "  ${CYAN}📈 Grafana:${NC}      http://$SERVER_IP:3001"
+    echo -e "  ${CYAN}Web App:${NC}         http://$SERVER_IP"
+    echo -e "  ${CYAN}Portainer:${NC}       http://$SERVER_IP:9000"
+    echo -e "  ${CYAN}Grafana:${NC}         http://$SERVER_IP:3001"
     echo ""
-    echo -e "  ${BOLD}أوامر مفيدة:${NC}"
-    echo -e "  ─────────────────────────────────────────────────────────────"
+    echo -e "  ${BOLD}Useful Commands:${NC}"
+    echo -e "  -----------------------------------------------------------------"
     echo ""
-    echo -e "  ${YELLOW}# عرض حالة الخدمات${NC}"
+    echo -e "  ${YELLOW}# Check service status${NC}"
     echo -e "  cd $INSTALL_DIR && docker compose -f docker-compose.production.yml ps"
     echo ""
-    echo -e "  ${YELLOW}# عرض السجلات${NC}"
+    echo -e "  ${YELLOW}# View logs${NC}"
     echo -e "  cd $INSTALL_DIR && docker compose -f docker-compose.production.yml logs -f"
     echo ""
-    echo -e "  ${YELLOW}# تحديث النظام${NC}"
+    echo -e "  ${YELLOW}# Update system${NC}"
     echo -e "  cd $INSTALL_DIR && ./scripts/update.sh"
     echo ""
-    echo -e "  ${YELLOW}# إيقاف/تشغيل النظام${NC}"
+    echo -e "  ${YELLOW}# Stop/Start system${NC}"
     echo -e "  sudo systemctl stop saraya-erp"
     echo -e "  sudo systemctl start saraya-erp"
     echo ""
-    echo -e "  ${BOLD}ملفات مهمة:${NC}"
-    echo -e "  ─────────────────────────────────────────────────────────────"
-    echo -e "  📁 مجلد التثبيت:     $INSTALL_DIR"
-    echo -e "  📄 ملف الإعدادات:    $INSTALL_DIR/.env.production"
-    echo -e "  📄 سجل التثبيت:      $LOG_FILE"
+    echo -e "  ${BOLD}Important Files:${NC}"
+    echo -e "  -----------------------------------------------------------------"
+    echo -e "  Install Directory:  $INSTALL_DIR"
+    echo -e "  Config File:        $INSTALL_DIR/.env.production"
+    echo -e "  Install Log:        $LOG_FILE"
     echo ""
 
     if [ -n "$TAILSCALE_HOSTNAME" ] && [ -n "$TAILSCALE_AUTHKEY" ]; then
-        echo -e "  ${BOLD}الوصول البعيد (Tailscale):${NC}"
-        echo -e "  ─────────────────────────────────────────────────────────────"
-        echo -e "  🔗 الاسم: $TAILSCALE_HOSTNAME"
-        echo -e "  ⚠️  تذكر تفعيل Subnet Routes في Tailscale Admin Console"
+        echo -e "  ${BOLD}Remote Access (Tailscale):${NC}"
+        echo -e "  -----------------------------------------------------------------"
+        echo -e "  Hostname: $TAILSCALE_HOSTNAME"
+        echo -e "  NOTE: Enable Subnet Routes in Tailscale Admin Console"
         echo ""
     fi
 
-    echo -e "  ${RED}⚠️  مهم: احتفظ بنسخة من ملف .env.production${NC}"
+    echo -e "  ${RED}IMPORTANT: Keep a backup of .env.production file!${NC}"
     echo ""
 }
 
@@ -602,60 +601,60 @@ main() {
     print_header
     log "Starting Saraya ERP Installation"
 
-    # الخطوة 1: التحقق من المتطلبات
-    print_step "1" "التحقق من المتطلبات"
+    # Step 1: Check requirements
+    print_step "1" "Checking Requirements"
     check_root
     check_os
     check_resources
 
-    # الخطوة 2: جمع معلومات العميل
-    print_step "2" "معلومات العميل"
+    # Step 2: Collect client info
+    print_step "2" "Client Information"
     collect_client_info
 
-    # الخطوة 3: تثبيت المتطلبات
-    print_step "3" "تثبيت المتطلبات"
+    # Step 3: Install dependencies
+    print_step "3" "Installing Dependencies"
     install_dependencies
     install_docker
 
-    # الخطوة 4: إعداد المجلدات
-    print_step "4" "إعداد المجلدات"
+    # Step 4: Setup directories
+    print_step "4" "Setting Up Directories"
     setup_directories
     download_files
 
-    # الخطوة 5: إعداد GHCR
-    print_step "5" "إعداد GitHub Container Registry"
+    # Step 5: Setup GHCR
+    print_step "5" "GitHub Container Registry Setup"
     setup_ghcr
 
-    # الخطوة 6: إنشاء ملف البيئة
-    print_step "6" "إعداد ملف البيئة"
+    # Step 6: Create environment file
+    print_step "6" "Creating Environment File"
     generate_env_file
 
-    # الخطوة 7: نسخ ملف الرخصة
-    print_step "7" "ملف الرخصة"
+    # Step 7: License file
+    print_step "7" "License File"
     echo ""
-    echo -e "  ${YELLOW}هل لديك ملف الرخصة (saraya.lic)؟${NC}"
-    read -p "  أدخل المسار الكامل للملف (أو اضغط Enter للتخطي): " LICENSE_PATH
+    echo -e "  ${YELLOW}Do you have a license file (saraya.lic)?${NC}"
+    read -p "  Enter full path to license file (or press Enter to skip): " LICENSE_PATH
     
     if [ -n "$LICENSE_PATH" ] && [ -f "$LICENSE_PATH" ]; then
         cp "$LICENSE_PATH" "$INSTALL_DIR/saraya.lic"
-        print_status "تم نسخ ملف الرخصة"
+        print_status "License file copied"
     else
-        print_warning "تم تخطي ملف الرخصة - النظام سيعمل في وضع التفعيل"
+        print_warning "License file skipped - system will run in activation mode"
     fi
 
-    # الخطوة 8: سحب وتشغيل
-    print_step "8" "تشغيل النظام"
+    # Step 8: Pull and start
+    print_step "8" "Starting System"
     pull_and_start
 
-    # الخطوة 9: إنشاء خدمة systemd
-    print_step "9" "إعداد التشغيل التلقائي"
+    # Step 9: Create systemd service
+    print_step "9" "Auto-Start Setup"
     create_systemd_service
 
-    # الخطوة 10: إعداد التحديث التلقائي
-    print_step "10" "إعداد التحديث والنسخ الاحتياطي التلقائي"
+    # Step 10: Setup automatic updates
+    print_step "10" "Auto-Update and Backup Setup"
     setup_cron_jobs
 
-    # عرض الملخص
+    # Show summary
     show_summary
 
     log "Installation completed successfully"
