@@ -34,7 +34,7 @@ export const AboutPage = () => {
                 <h1 className="text-2xl md:text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400 mb-2">
                   نظام السرايا الطبي - Saraya ERP
                 </h1>
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sky-500/10 border border-sky-500/20 text-sky-400 text-sm font-mono">
+                <div className="text-left inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sky-500/10 border border-sky-500/20 text-sky-400 text-sm font-mono">
                   <span>Version 1.0.1</span>
                   <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse"></span>
                 </div>
@@ -51,7 +51,7 @@ export const AboutPage = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <p className="text-slate-400 text-sm">Powered by</p>
+                  <p className="text-left text-slate-400 text-sm">Powered by</p>
                   <h3 className="text-2xl font-semibold text-sky-100">
                     شركة السرايا للتقنية
                   </h3>
