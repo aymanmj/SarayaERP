@@ -18,9 +18,15 @@ export const useSocketStore = create<SocketState>((set, get) => ({
     const { token, user } = useAuthStore.getState();
     if (!token || get().socket) return;
 
-    const socket = io("http://localhost:3000", {
+    // Use environment variable for socket connection
+    let wsUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    // Remove /api suffix if present
+    wsUrl = wsUrl.replace(/\/api\/?$/, '');
+
+    const socket = io(wsUrl, {
       auth: { token: `Bearer ${token}` },
       reconnectionAttempts: 5,
+      withCredentials: true,
     });
 
     socket.on("connect", () => {

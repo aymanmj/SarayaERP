@@ -48,9 +48,13 @@ export function useNursingWebSocket() {
     
     console.log('🔌 Connecting to WebSocket with cookie-based authentication...');
     
-    // Initialize socket connection - use same port as backend
-    const wsUrl = import.meta.env.VITE_WS_URL || 'http://localhost:3000';
-    console.log('Connecting to WebSocket at:', wsUrl);
+    // Initialize socket connection - use same URL as backend API
+    // In development: localhost:3000
+    // In production: same as VITE_API_URL (e.g., http://server:3000)
+    let wsUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    // Remove /api suffix if present (WebSocket connects to root)
+    wsUrl = wsUrl.replace(/\/api\/?$/, '');
+    console.log('🔌 Connecting to WebSocket at:', wsUrl);
     
     const socket = io(`${wsUrl}/nursing`, {
       // No token needed - using cookies
