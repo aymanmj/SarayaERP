@@ -13,6 +13,11 @@ set -e
 echo "🚀 Starting Saraya ERP Backend..."
 
 # Step 1: Sync database schema (Safe Migration)
+if [ "$BASELINE_MIGRATIONS" = "true" ]; then
+    echo "⚠️ BASELINE_MIGRATIONS=true detected. Running baseline script..."
+    node scripts/baseline.js
+fi
+
 echo "📦 Applying database migrations..."
 npx prisma migrate deploy
 

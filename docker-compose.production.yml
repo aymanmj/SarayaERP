@@ -74,6 +74,7 @@ services:
       # بيئة التشغيل
       NODE_ENV: production
       PORT: 3000
+      # BASELINE_MIGRATIONS: "true" # Set to "true" ONCE to fix P3005 error (then remove/comment)
       COOKIE_SECURE: "false" # Set to "true" or remove for HTTPS production
       
       # مسار الملفات
