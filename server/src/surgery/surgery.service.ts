@@ -68,8 +68,9 @@ export class SurgeryService {
     surgeryName: string;
     scheduledStart: Date;
     scheduledEnd: Date;
+    scheduledEnd: Date;
     serviceItemId?: number; // لربطها بسعر الخدمة (Package Price)
-    surgeonId?: number; // الجراح الأساسي (اختياري مبدئياً)
+    teamMembers?: { userId: number; role: SurgeryRole }[];
   }) {
     const { hospitalId, encounterId, theatreId, scheduledStart, scheduledEnd } =
       params;
@@ -106,14 +107,16 @@ export class SurgeryService {
       },
     });
 
-    // إذا تم تحديد جراح، نضيفه للطاقم فوراً
-    if (params.surgeonId) {
-      await this.addTeamMember(
-        hospitalId,
-        surgery.id,
-        params.surgeonId,
-        SurgeryRole.SURGEON,
-      );
+    // إضافة الطاقم الطبي المحدد
+    if (params.teamMembers && params.teamMembers.length > 0) {
+      for (const member of params.teamMembers) {
+        await this.addTeamMember(
+          hospitalId,
+          surgery.id,
+          member.userId,
+          member.role,
+        );
+      }
     }
 
     return surgery;

@@ -44,7 +44,7 @@ export class SurgeryController {
       serviceItemId: body.serviceItemId
         ? Number(body.serviceItemId)
         : undefined,
-      surgeonId: body.surgeonId ? Number(body.surgeonId) : undefined,
+      teamMembers: body.teamMembers,
     });
   }
 

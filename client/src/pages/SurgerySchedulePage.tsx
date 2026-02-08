@@ -72,7 +72,15 @@ export default function SurgerySchedulePage() {
     surgeryName: "",
     startTime: "08:00",
     durationMinutes: 60,
+    surgeonId: "",
+    assistantId: "",
+    anesthetistId: "",
+    anesthesiaTechId: "",
+    scrubNurseId: "",
+    circulatingNurseId: "",
   });
+
+  const [users, setUsers] = useState<{ id: number; fullName: string }[]>([]);
 
   const loadData = async () => {
     setLoading(true);
@@ -90,12 +98,14 @@ export default function SurgerySchedulePage() {
 
   const loadResources = async () => {
     try {
-      const [thRes, patRes] = await Promise.all([
+      const [thRes, patRes, userRes] = await Promise.all([
         apiClient.get<Theatre[]>("/surgery/theatres"),
         apiClient.get<ActiveInpatient[]>("/encounters/list/active-inpatients"),
+        apiClient.get<{ id: number; fullName: string }[]>("/cashier/users"),
       ]);
       setTheatres(thRes.data);
       setInpatients(patRes.data);
+      setUsers(userRes.data);
     } catch (e) {
       console.error(e);
     }
@@ -117,6 +127,35 @@ export default function SurgerySchedulePage() {
     const start = new Date(`${date}T${form.startTime}`);
     const end = new Date(start.getTime() + form.durationMinutes * 60000);
 
+    const teamMembers = [];
+    if (form.surgeonId)
+      teamMembers.push({ userId: Number(form.surgeonId), role: "SURGEON" });
+    if (form.assistantId)
+      teamMembers.push({
+        userId: Number(form.assistantId),
+        role: "ASSISTANT_SURGEON",
+      });
+    if (form.anesthetistId)
+      teamMembers.push({
+        userId: Number(form.anesthetistId),
+        role: "ANESTHETIST",
+      });
+    if (form.anesthesiaTechId)
+      teamMembers.push({
+        userId: Number(form.anesthesiaTechId),
+        role: "TECHNICIAN",
+      });
+    if (form.scrubNurseId)
+      teamMembers.push({
+        userId: Number(form.scrubNurseId),
+        role: "SCRUB_NURSE",
+      });
+    if (form.circulatingNurseId)
+      teamMembers.push({
+        userId: Number(form.circulatingNurseId),
+        role: "CIRCULATING_NURSE",
+      });
+
     try {
       await apiClient.post("/surgery/schedule", {
         hospitalId: 1, // يأخذه الباكند من التوكن، لكن للتوضيح
@@ -125,6 +164,7 @@ export default function SurgerySchedulePage() {
         surgeryName: form.surgeryName,
         scheduledStart: start.toISOString(),
         scheduledEnd: end.toISOString(),
+        teamMembers,
       });
       toast.success("تم حجز العملية بنجاح");
       setShowModal(false);
@@ -419,9 +459,135 @@ export default function SurgerySchedulePage() {
                   />
                 </div>
               </div>
+
+              {/* Team Selection */}
+              <div className="border-t border-slate-800 pt-3 space-y-3">
+                <h3 className="text-sm font-semibold text-slate-300">
+                  الطاقم الطبي (اختياري)
+                </h3>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] text-sky-400 block mb-1">
+                      الجراح الرئيسي
+                    </label>
+                    <select
+                      className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 text-xs"
+                      value={form.surgeonId}
+                      onChange={(e) =>
+                        setForm({ ...form, surgeonId: e.target.value })
+                      }
+                    >
+                      <option value="">-- اختر --</option>
+                      {users.map((u) => (
+                        <option key={u.id} value={u.id}>
+                          {u.fullName}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-sky-400 block mb-1">
+                      مساعد جراح
+                    </label>
+                    <select
+                      className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 text-xs"
+                      value={form.assistantId}
+                      onChange={(e) =>
+                        setForm({ ...form, assistantId: e.target.value })
+                      }
+                    >
+                      <option value="">-- اختر --</option>
+                      {users.map((u) => (
+                        <option key={u.id} value={u.id}>
+                          {u.fullName}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-amber-400 block mb-1">
+                      طبيب التخدير
+                    </label>
+                    <select
+                      className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 text-xs"
+                      value={form.anesthetistId}
+                      onChange={(e) =>
+                        setForm({ ...form, anesthetistId: e.target.value })
+                      }
+                    >
+                      <option value="">-- اختر --</option>
+                      {users.map((u) => (
+                        <option key={u.id} value={u.id}>
+                          {u.fullName}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-amber-400 block mb-1">
+                      فني تخدير
+                    </label>
+                    <select
+                      className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 text-xs"
+                      value={form.anesthesiaTechId}
+                      onChange={(e) =>
+                        setForm({ ...form, anesthesiaTechId: e.target.value })
+                      }
+                    >
+                      <option value="">-- اختر --</option>
+                      {users.map((u) => (
+                        <option key={u.id} value={u.id}>
+                          {u.fullName}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-emerald-400 block mb-1">
+                      ممرضة تعقيم (Scrub)
+                    </label>
+                    <select
+                      className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 text-xs"
+                      value={form.scrubNurseId}
+                      onChange={(e) =>
+                        setForm({ ...form, scrubNurseId: e.target.value })
+                      }
+                    >
+                      <option value="">-- اختر --</option>
+                      {users.map((u) => (
+                        <option key={u.id} value={u.id}>
+                          {u.fullName}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-emerald-400 block mb-1">
+                      ممرضة متجولة (Circulating)
+                    </label>
+                    <select
+                      className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 text-xs"
+                      value={form.circulatingNurseId}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          circulatingNurseId: e.target.value,
+                        })
+                      }
+                    >
+                      <option value="">-- اختر --</option>
+                      {users.map((u) => (
+                        <option key={u.id} value={u.id}>
+                          {u.fullName}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <div className="flex justify-end gap-3 pt-4">
+            <div className="flex justify-end gap-3 pt-4 border-t border-slate-800">
               <button
                 onClick={() => setShowModal(false)}
                 className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 text-sm hover:bg-slate-700"
