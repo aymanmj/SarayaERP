@@ -1,0 +1,27 @@
+# Admin & Sensitive Tools (CRITICAL)
+admin-tools
+admin-tools/
+deploy-packages
+deploy-packages/
+
+# Version Control
+.git
+.gitignore
+
+# Environment Files
+.env
+.env.*
+!.env.example
+
+# IDE & System
+.vscode
+.idea
+*.log
+npm-debug.log
+
+# Node Modules (if present in root)
+node_modules
+
+# Documentation & Design
+docs
+design

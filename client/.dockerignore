@@ -1,0 +1,23 @@
+# Dependencies
+node_modules
+npm-debug.log
+yarn-error.log
+
+# Build Output
+dist
+build
+
+# Environment
+.env
+.env.local
+.env.*
+!.env.example
+
+# Tools
+.vscode
+.idea
+*.log
+
+# Git
+.git
+.gitignore
