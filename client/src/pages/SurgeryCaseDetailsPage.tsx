@@ -195,20 +195,85 @@ export default function SurgeryCaseDetailsPage() {
             👨‍⚕️ الطاقم الطبي
           </h2>
 
-          <div className="flex-1 overflow-y-auto mb-4 space-y-2">
-            {surgery.team.map((t) => (
-              <div
-                key={t.id}
-                className="flex justify-between items-center p-3 bg-slate-950/50 rounded-xl border border-slate-800"
-              >
-                <span className="font-semibold text-slate-200">
-                  {t.user.fullName}
-                </span>
-                <span className="text-xs text-slate-500 bg-slate-900 px-2 py-1 rounded">
-                  {t.role}
-                </span>
-              </div>
-            ))}
+          <div className="flex-1 overflow-y-auto mb-4 space-y-4 pr-1">
+            {/* Surgical Team */}
+            <div className="space-y-2">
+              <h3 className="text-xs font-bold text-sky-400 uppercase tracking-wider bg-sky-950/30 p-2 rounded border border-sky-900/50">
+                فريق الجراحة - Surgical Team
+              </h3>
+              {surgery.team
+                .filter((t) =>
+                  ["SURGEON", "ASSISTANT_SURGEON"].includes(t.role)
+                )
+                .map((t) => (
+                  <div
+                    key={t.id}
+                    className="flex justify-between items-center p-3 bg-slate-950/50 rounded-xl border border-slate-800"
+                  >
+                    <span className="font-semibold text-slate-200">
+                      {t.user.fullName}
+                    </span>
+                    <span className="text-xs text-slate-500 bg-slate-900 px-2 py-1 rounded border border-slate-800">
+                      {t.role === "SURGEON" ? "جراح رئيسي" : "مساعد جراح"}
+                    </span>
+                  </div>
+                ))}
+              {surgery.team.filter((t) =>
+                ["SURGEON", "ASSISTANT_SURGEON"].includes(t.role)
+              ).length === 0 && (
+                <div className="text-xs text-slate-600 italic px-2">
+                  -- لا يوجد --
+                </div>
+              )}
+            </div>
+
+            {/* Anesthesia Team */}
+            <div className="space-y-2">
+              <h3 className="text-xs font-bold text-amber-400 uppercase tracking-wider bg-amber-950/30 p-2 rounded border border-amber-900/50">
+                فريق التخدير - Anesthesia Team
+              </h3>
+              {surgery.team
+                .filter((t) => ["ANESTHETIST", "TECHNICIAN"].includes(t.role))
+                .map((t) => (
+                  <div
+                    key={t.id}
+                    className="flex justify-between items-center p-3 bg-slate-950/50 rounded-xl border border-slate-800"
+                  >
+                    <span className="font-semibold text-slate-200">
+                      {t.user.fullName}
+                    </span>
+                    <span className="text-xs text-slate-500 bg-slate-900 px-2 py-1 rounded border border-slate-800">
+                      {t.role === "ANESTHETIST"
+                        ? "طبيب تخدير"
+                        : "فني تخدير / عمليات"}
+                    </span>
+                  </div>
+                ))}
+            </div>
+
+            {/* Nursing Team */}
+            <div className="space-y-2">
+              <h3 className="text-xs font-bold text-emerald-400 uppercase tracking-wider bg-emerald-950/30 p-2 rounded border border-emerald-900/50">
+                فريق التمريض - Nursing Team
+              </h3>
+              {surgery.team
+                .filter((t) =>
+                  ["SCRUB_NURSE", "CIRCULATING_NURSE"].includes(t.role)
+                )
+                .map((t) => (
+                  <div
+                    key={t.id}
+                    className="flex justify-between items-center p-3 bg-slate-950/50 rounded-xl border border-slate-800"
+                  >
+                    <span className="font-semibold text-slate-200">
+                      {t.user.fullName}
+                    </span>
+                    <span className="text-xs text-slate-500 bg-slate-900 px-2 py-1 rounded border border-slate-800">
+                      {t.role === "SCRUB_NURSE" ? "ممرضة تعقيم" : "ممرضة متجولة"}
+                    </span>
+                  </div>
+                ))}
+            </div>
           </div>
 
           {!isCompleted && (
@@ -234,7 +299,16 @@ export default function SurgeryCaseDetailsPage() {
                   >
                     {ROLES.map((r) => (
                       <option key={r} value={r}>
-                        {r}
+                        {
+                          {
+                            SURGEON: "جراح رئيسي",
+                            ASSISTANT_SURGEON: "مساعد جراح",
+                            ANESTHETIST: "طبيب تخدير",
+                            TECHNICIAN: "فني تخدير / عمليات",
+                            SCRUB_NURSE: "ممرضة تعقيم",
+                            CIRCULATING_NURSE: "ممرضة متجولة",
+                          }[r]
+                        }
                       </option>
                     ))}
                   </select>

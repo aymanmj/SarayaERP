@@ -23,7 +23,7 @@ type SurgeryCaseLite = {
   encounter: {
     patient: { fullName: string; mrn: string };
   };
-  team: { user: { fullName: string } }[];
+  team: { role: string; user: { fullName: string } }[];
 };
 
 type Theatre = { id: number; name: string };
@@ -179,56 +179,152 @@ export default function SurgerySchedulePage() {
           </div>
         )}
 
-        {cases.map((c) => (
-          <div
-            key={c.id}
-            onClick={() => navigate(`/surgery/${c.id}`)}
-            className="bg-slate-900/50 border border-slate-800 p-4 rounded-2xl hover:bg-slate-800 cursor-pointer transition group"
-          >
-            <div className="flex justify-between items-start">
-              <div className="flex gap-4">
-                <div className="flex flex-col items-center justify-center bg-slate-950 p-3 rounded-xl border border-slate-800 min-w-[80px]">
-                  <span className="text-lg font-bold text-slate-200">
-                    {formatTime(c.scheduledStart)}
-                  </span>
-                  <span className="text-xs text-slate-500">
-                    إلى {formatTime(c.scheduledEnd)}
-                  </span>
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold text-white group-hover:text-sky-400 transition">
-                    {c.surgeryName}
-                  </h3>
-                  <div className="text-sm text-slate-400 flex gap-2 mt-1">
-                    <span>👤 {c.encounter.patient.fullName}</span>
-                    <span className="text-slate-600">|</span>
-                    <span>🏥 {c.theatre.name}</span>
-                  </div>
-                  {c.team.length > 0 && (
-                    <div className="mt-2 flex gap-1">
-                      {c.team.map((t, idx) => (
-                        <span
-                          key={idx}
-                          className="text-[10px] bg-slate-800 px-2 py-0.5 rounded text-slate-300"
-                        >
-                          {t.user.fullName}
-                        </span>
-                      ))}
-                    </div>
-                  )}
+        {cases.map((c) => {
+          // Group roles for display
+          const surgeons = c.team.filter((t) =>
+            ["SURGEON", "ASSISTANT_SURGEON"].includes(t.role)
+          );
+          const anesthesia = c.team.filter((t) =>
+            ["ANESTHETIST", "TECHNICIAN"].includes(t.role)
+          );
+          const nursing = c.team.filter((t) =>
+            ["SCRUB_NURSE", "CIRCULATING_NURSE"].includes(t.role)
+          );
+
+          return (
+            <div
+              key={c.id}
+              onClick={() => navigate(`/surgery/${c.id}`)}
+              className="bg-slate-900/50 border border-slate-800 p-4 rounded-2xl hover:bg-slate-800 cursor-pointer transition group relative overflow-hidden"
+            >
+              {/* Status Badge */}
+              <div className="absolute top-4 left-4">
+                <div
+                  className={`px-3 py-1 rounded-full text-xs border font-medium ${getStatusColor(
+                    c.status
+                  )}`}
+                >
+                  {
+                    {
+                      SCHEDULED: "مجدولة",
+                      IN_PROGRESS: "جارية الآن",
+                      RECOVERY: "إفاقة",
+                      COMPLETED: "مكتملة",
+                      CANCELLED: "ملغاة",
+                    }[c.status]
+                  }
                 </div>
               </div>
 
-              <div
-                className={`px-3 py-1 rounded-full text-xs border font-medium ${getStatusColor(
-                  c.status
-                )}`}
-              >
-                {c.status}
+              <div className="flex flex-col md:flex-row gap-6">
+                {/* Time & Room */}
+                <div className="flex flex-col items-center justify-center bg-slate-950 p-4 rounded-xl border border-slate-800 min-w-[100px] text-center h-fit">
+                  <span className="text-xl font-bold text-slate-200">
+                    {formatTime(c.scheduledStart)}
+                  </span>
+                  <span className="text-xs text-slate-500 mb-2">
+                    إلى {formatTime(c.scheduledEnd)}
+                  </span>
+                  <span className="text-[10px] text-sky-400 bg-sky-950/30 px-2 py-0.5 rounded border border-sky-900/50">
+                    {c.theatre.name}
+                  </span>
+                </div>
+
+                {/* Case Info */}
+                <div className="flex-1 space-y-3">
+                  <div>
+                    <h3 className="text-lg font-bold text-white group-hover:text-sky-400 transition">
+                      {c.surgeryName}
+                    </h3>
+                    <div className="text-sm text-slate-400 flex items-center gap-2 mt-1">
+                      <span>👤 المريض: {c.encounter.patient.fullName}</span>
+                      <span className="text-slate-600">|</span>
+                      <span>🔢 الملف: {c.encounter.patient.mrn}</span>
+                    </div>
+                  </div>
+
+                  {/* Team Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3 bg-slate-950/30 p-3 rounded-xl border border-slate-800/50">
+                    {/* Surgeons */}
+                    <div className="space-y-1">
+                      <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">
+                        فريق الجراحة
+                      </p>
+                      {surgeons.length > 0 ? (
+                        surgeons.map((t, idx) => (
+                          <div key={idx} className="text-xs text-slate-300">
+                            • {t.user.fullName}
+                            <span className="text-[10px] text-slate-500 mr-1">
+                              (
+                              {t.role === "SURGEON"
+                                ? "جراح رئيسي"
+                                : "مساعد جراح"}
+                              )
+                            </span>
+                          </div>
+                        ))
+                      ) : (
+                        <span className="text-[10px] text-slate-600 italic">
+                          -- غير محدد --
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Anesthesia */}
+                    <div className="space-y-1">
+                      <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">
+                        فريق التخدير
+                      </p>
+                      {anesthesia.length > 0 ? (
+                        anesthesia.map((t, idx) => (
+                          <div key={idx} className="text-xs text-slate-300">
+                            • {t.user.fullName}
+                            <span className="text-[10px] text-slate-500 mr-1">
+                              (
+                              {t.role === "ANESTHETIST"
+                                ? "طبيب تخدير"
+                                : "فني تخدير"}
+                              )
+                            </span>
+                          </div>
+                        ))
+                      ) : (
+                        <span className="text-[10px] text-slate-600 italic">
+                          -- غير محدد --
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Nursing */}
+                    <div className="space-y-1">
+                      <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">
+                        فريق التمريض
+                      </p>
+                      {nursing.length > 0 ? (
+                        nursing.map((t, idx) => (
+                          <div key={idx} className="text-xs text-slate-300">
+                            • {t.user.fullName}
+                            <span className="text-[10px] text-slate-500 mr-1">
+                              (
+                              {t.role === "SCRUB_NURSE"
+                                ? "Scrub"
+                                : "Circulating"}
+                              )
+                            </span>
+                          </div>
+                        ))
+                      ) : (
+                        <span className="text-[10px] text-slate-600 italic">
+                          -- غير محدد --
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Booking Modal */}
