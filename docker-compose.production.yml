@@ -176,48 +176,7 @@ services:
       timeout: 10s
       retries: 3
 
-  # 6. المراقبة (Prometheus)
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: saraya_prometheus
-    restart: always
-    ports:
-      - "9090:9090"
-    volumes:
-      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - prometheus_data:/prometheus
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--web.console.libraries=/etc/prometheus/console_libraries'
-      - '--web.console.templates=/etc/prometheus/consoles'
-      - '--storage.tsdb.retention.time=30d'
-      - '--web.enable-lifecycle'
-    networks:
-      - saraya_net
-    # profiles:
-    #   - monitoring
 
-  # 7. لوحة المراقبة (Grafana)
-  grafana:
-    image: grafana/grafana:latest
-    container_name: saraya_grafana
-    restart: always
-    ports:
-      - "3001:3000"
-    environment:
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin123}
-      GF_USERS_ALLOW_SIGN_UP: false
-    volumes:
-      - grafana_data:/var/lib/grafana
-      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
-      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
-    depends_on:
-      - prometheus
-    networks:
-      - saraya_net
-    # profiles:
-    #   - monitoring
 
   # 8. خدمة النسخ الاحتياطي
   backup:
@@ -388,24 +347,18 @@ services:
     image: tailscale/tailscale:latest
     container_name: saraya_tailscale
     hostname: ${TAILSCALE_HOSTNAME:-saraya-server}
-    restart: always
+    restart: unless-stopped
     environment:
-      - TS_AUTHKEY=${TAILSCALE_AUTHKEY}
+      - TS_AUTHKEY=${TAILSCALE_AUTHKEY:-}
       - TS_STATE_DIR=/var/lib/tailscale
-      - TS_USERSPACE=false
-      - TS_ROUTES=172.20.0.0/16
-      - TS_EXTRA_ARGS=--advertise-routes=172.20.0.0/16 --accept-dns=false
+      - TS_ACCEPT_DNS=false
     volumes:
       - tailscale_data:/var/lib/tailscale
       - /dev/net/tun:/dev/net/tun
     cap_add:
       - NET_ADMIN
       - NET_RAW
-    # Expose ports for Tailscale Serve (if using funnel)
-    ports:
-      - "41641:41641/udp"
-    networks:
-      - saraya_net
+    network_mode: host
     labels:
       - "com.centurylinklabs.watchtower.enable=false"
 
