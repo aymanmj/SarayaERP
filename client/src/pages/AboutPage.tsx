@@ -1,116 +1,189 @@
 import React from "react";
+import {
+  ShieldCheck,
+  Server,
+  Activity,
+  Globe,
+  Mail,
+  Phone,
+  Database,
+  Layout,
+} from "lucide-react";
 
 export const AboutPage = () => {
   return (
-    <div className="min-h-[80vh] flex items-center justify-center p-4">
-      <div className="relative w-full max-w-3xl">
-        {/* Background Glow Effects */}
-        <div className="absolute -top-20 -left-20 w-72 h-72 bg-sky-500/20 rounded-full blur-[100px] animate-pulse"></div>
-        <div className="absolute -bottom-20 -right-20 w-72 h-72 bg-blue-600/20 rounded-full blur-[100px] animate-pulse delay-1000"></div>
+    <div className="min-h-screen bg-slate-950 text-slate-100 overflow-hidden relative">
+      {/* Background Decor */}
+      <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
+        <div className="absolute top-[-10%] right-[-5%] w-[500px] h-[500px] bg-sky-600/10 rounded-full blur-[120px]" />
+        <div className="absolute bottom-[-10%] left-[-5%] w-[500px] h-[500px] bg-emerald-600/10 rounded-full blur-[120px]" />
+      </div>
 
-        {/* Main Card */}
-        <div className="relative bg-slate-800/40 backdrop-blur-xl border border-slate-700/50 rounded-3xl p-12 shadow-2xl overflow-hidden">
-          {/* Decorative Shine */}
-          <div className="absolute top-0 right-0 w-full h-full bg-gradient-to-br from-white/5 to-transparent pointer-events-none"></div>
+      <div className="relative z-10 container mx-auto px-4 py-16 lg:py-24">
+        {/* Header / Hero */}
+        <div className="text-center mb-16 space-y-4">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-900 border border-slate-800 text-sky-400 text-sm font-medium mb-4">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-sky-500"></span>
+            </span>
+            v1.0.1 Production Ready
+          </div>
 
-          <div className="flex flex-col md:flex-row items-center gap-12 relative z-10">
-            {/* Logo Section */}
-            <div className="flex-shrink-0">
-              <div className="relative group">
-                <div className="absolute inset-0 bg-gradient-to-br from-sky-400 to-blue-600 rounded-full blur opacity-40 group-hover:opacity-60 transition-opacity duration-500"></div>
-                <div className="relative w-48 h-48 bg-white rounded-full p-6 shadow-2xl border-4 border-slate-700/50 flex items-center justify-center overflow-hidden transform group-hover:scale-105 transition-transform duration-500">
-                  <img
-                    src="/saraya-tech-logo.jpg"
-                    alt="Al-Saraya Technology Company"
-                    className="w-full h-full object-contain"
-                  />
-                </div>
-              </div>
+          <h1 className="text-4xl md:text-6xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-slate-200 to-slate-400">
+            Saraya ERP
+          </h1>
+          <p className="text-lg md:text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed">
+            نظام إدارة مستشفيات متكامل، صُمم بمعايير عالمية ليوفر دقة مالية،
+            كفاءة تشغيلية، وتجربة مستخدم لا تضاهى.
+          </p>
+        </div>
+
+        {/* Feature Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-20">
+          <FeatureCard
+            icon={<Activity className="w-6 h-6 text-emerald-400" />}
+            title="دقة سريرية"
+            desc="إدارة كاملة للمرضى، التمريض، والأطباء مع دعم Triage و ADT."
+          />
+          <FeatureCard
+            icon={<ShieldCheck className="w-6 h-6 text-sky-400" />}
+            title="أمان وموثوقية"
+            desc="حماية بيانات متقدمة، صلاحيات دقيقة (RBAC)، وسجلات تدقيق شاملة."
+          />
+          <FeatureCard
+            icon={<Server className="w-6 h-6 text-indigo-400" />}
+            title="قوة مالية"
+            desc="محاسبة مزدوجة القيد، فوترة تأمين معقدة، وإدارة مخزون صارمة."
+          />
+        </div>
+
+        {/* Technical Architecture */}
+        <div className="mb-20">
+          <div className="text-center mb-10">
+            <h2 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-sky-300 to-purple-300 inline-block">
+              البنية التقنية - Technical Architecture
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <TechItem
+              label="Frontend"
+              value="React + Vite"
+              icon={<Layout className="text-sky-400" />}
+            />
+            <TechItem
+              label="Backend"
+              value="NestJS Node.js"
+              icon={<Server className="text-red-400" />}
+            />
+            <TechItem
+              label="Database"
+              value="PostgreSQL"
+              icon={<Database className="text-blue-400" />}
+            />
+            <TechItem
+              label="State"
+              value="TanStack Query"
+              icon={<Activity className="text-amber-400" />}
+            />
+          </div>
+        </div>
+
+        {/* Company Info */}
+        <div className="max-w-4xl mx-auto rounded-3xl bg-slate-900/50 border border-slate-800 p-8 md:p-12 relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-full h-1 bg-gradient-to-r from-transparent via-sky-500 to-transparent opacity-50"></div>
+
+          <div className="flex flex-col md:flex-row items-center gap-8">
+            <div className="w-32 h-32 bg-white rounded-full p-4 shadow-xl flex-shrink-0">
+              <img
+                src="/saraya-tech-logo.jpg"
+                alt="Saraya Tech"
+                className="w-full h-full object-contain"
+              />
             </div>
 
-            {/* Content Section */}
-            <div className="text-center md:text-right flex-1 space-y-6">
-              <div>
-                <h1 className="text-2xl md:text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400 mb-2">
-                  نظام السرايا الطبي - Saraya ERP
-                </h1>
-                <div className="text-left inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sky-500/10 border border-sky-500/20 text-sky-400 text-sm font-mono">
-                  <span>Version 1.0.1</span>
-                  <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse"></span>
-                </div>
-              </div>
+            <div className="flex-1 text-center md:text-right space-y-4">
+              <h3 className="text-3xl font-bold text-white">
+                شركة السرايا للتقنية
+              </h3>
+              <p className="text-slate-400">
+                نبتكر حلولاً برمجية ذكية تعيد تعريف طريقة إدارة المؤسسات الصحية.
+                نلتزم بالجودة، السرعة، والدعم المستمر.
+              </p>
 
-              <div className="space-y-4">
-                <div className="p-4 rounded-xl bg-slate-900/50 border border-slate-700/50 md:text-right">
-                  <p className="text-slate-400 text-left text-xs uppercase tracking-wider mb-1">
-                    Developed By
-                  </p>
-                  <p className="text-white text-left font-medium text-lg">
-                    Eng. Ayman Jaballa
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <p className="text-left text-slate-400 text-sm">Powered by</p>
-                  <h3 className="text-2xl font-semibold text-sky-100">
-                    شركة السرايا للتقنية
-                  </h3>
-                  <p className="text-slate-400 text-sm">Al-Saraya Technology</p>
-                </div>
-              </div>
-
-              {/* Contact Info */}
-              <div className="flex flex-col md:flex-row items-center justify-end gap-4 pt-4 border-t border-slate-700/50 text-sm">
+              <div className="flex flex-wrap items-center justify-center md:justify-start gap-6 pt-4">
                 <a
                   href="https://alsarayatech.ly"
                   target="_blank"
-                  rel="noopener noreferrer"
+                  rel="noreferrer"
                   className="flex items-center gap-2 text-sky-400 hover:text-sky-300 transition-colors"
                 >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <circle cx="12" cy="12" r="10" />
-                    <line x1="2" x2="22" y1="12" y2="12" />
-                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-                  </svg>
-                  alsarayatech.ly
+                  <Globe size={18} /> alsarayatech.ly
                 </a>
-                <span className="hidden md:block text-slate-600">|</span>
+                <a
+                  href="mailto:info@alsarayatech.ly"
+                  className="flex items-center gap-2 text-slate-300 hover:text-white transition-colors"
+                >
+                  <Mail size={18} /> info@alsarayatech.ly
+                </a>
                 <span className="flex items-center gap-2 text-slate-300">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
-                  </svg>
-                  091-6523403
+                  <Phone size={18} /> 091-6523403
                 </span>
               </div>
             </div>
           </div>
         </div>
-        
+
         {/* Footer */}
-        <div className="text-center mt-8 text-slate-500 text-xs">
-          © {new Date().getFullYear()} All Rights Reserved.
+        <div className="text-center mt-16 text-slate-600 text-sm">
+          Developed with <span className="text-rose-500">❤</span> by Eng. Ayman
+          Jaballa & Saraya Team <br />© {new Date().getFullYear()} All Rights
+          Reserved.
         </div>
       </div>
     </div>
   );
 };
+
+function FeatureCard({
+  icon,
+  title,
+  desc,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  desc: string;
+}) {
+  return (
+    <div className="p-6 rounded-2xl bg-slate-900/40 border border-slate-800 hover:border-slate-700 transition-colors group">
+      <div className="w-12 h-12 rounded-xl bg-slate-800/50 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+        {icon}
+      </div>
+      <h3 className="text-lg font-semibold text-slate-200 mb-2">{title}</h3>
+      <p className="text-slate-400 text-sm leading-relaxed">{desc}</p>
+    </div>
+  );
+}
+
+function TechItem({
+  label,
+  value,
+  icon,
+}: {
+  label: string;
+  value: string;
+  icon: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center gap-4 p-4 rounded-xl bg-slate-900/30 border border-slate-800/50">
+      <div className="p-2 bg-slate-800 rounded-lg">{icon}</div>
+      <div className="text-right">
+        <div className="text-xs text-slate-500 uppercase tracking-wider">
+          {label}
+        </div>
+        <div className="font-mono text-sky-100 font-semibold">{value}</div>
+      </div>
+    </div>
+  );
+}
