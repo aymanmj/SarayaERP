@@ -89,6 +89,9 @@ COPY --from=builder /app/src/licensing/public.key ./src/licensing/public.key
 COPY docker-entrypoint.sh /app/docker-entrypoint.sh
 RUN chmod +x /app/docker-entrypoint.sh
 
+# نسخ السكربتات المساعدة (مثل baseline.js)
+COPY --from=builder /app/scripts ./scripts
+
 # فتح المنفذ
 EXPOSE 3000
 
