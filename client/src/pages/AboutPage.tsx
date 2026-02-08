@@ -94,13 +94,17 @@ export const AboutPage = () => {
         <div className="max-w-4xl mx-auto rounded-3xl bg-slate-900/50 border border-slate-800 p-8 md:p-12 relative overflow-hidden group">
           <div className="absolute top-0 right-0 w-full h-1 bg-gradient-to-r from-transparent via-sky-500 to-transparent opacity-50"></div>
 
-          <div className="flex flex-col md:flex-row items-center gap-8">
-            <div className="w-32 h-32 bg-white rounded-full p-4 shadow-xl flex-shrink-0">
-              <img
-                src="/saraya-tech-logo.jpg"
-                alt="Saraya Tech"
-                className="w-full h-full object-contain"
-              />
+          <div className="flex flex-col md:flex-row items-center gap-8 relative z-10">
+            {/* Logo Container */}
+            <div className="relative group flex-shrink-0">
+              <div className="absolute -inset-1 bg-gradient-to-r from-sky-500 to-blue-600 rounded-full blur opacity-40 group-hover:opacity-75 transition duration-500"></div>
+              <div className="relative w-32 h-32 md:w-36 md:h-36 bg-white rounded-full p-2 shadow-2xl flex items-center justify-center overflow-hidden ring-4 ring-slate-800/50">
+                <img
+                  src="/saraya-tech-logo.jpg"
+                  alt="Saraya Tech"
+                  className="w-full h-full object-contain transform group-hover:scale-105 transition-transform duration-500"
+                />
+              </div>
             </div>
 
             <div className="flex-1 text-center md:text-right space-y-4">
