@@ -41,7 +41,8 @@ export class LicenseService implements OnModuleInit {
   private readonly logger = new Logger(LicenseService.name);
 
   // --- Paths ---
-  private readonly licenseFilePath = path.join(process.cwd(), 'saraya.lic');
+  private readonly licenseFilePath = process.env.LICENSE_PATH || path.join(process.cwd(), 'saraya.lic');
+  private readonly machineIdFilePath = path.join(path.dirname(this.licenseFilePath), 'machine.id');
 
   // --- State (Cached) ---
   private _machineId: string = 'LOADING...';
@@ -71,6 +72,7 @@ export class LicenseService implements OnModuleInit {
 
   private _loadPublicKey(): void {
     const possiblePaths = [
+      path.join(path.dirname(this.licenseFilePath), 'public.key'), // Check persistent dir first
       path.join(process.cwd(), 'src/licensing/public.key'),
       path.join(process.cwd(), 'dist/licensing/public.key'),
       path.join(process.cwd(), 'public.key'),
@@ -95,13 +97,30 @@ export class LicenseService implements OnModuleInit {
   }
 
   private async _initMachineId(): Promise<void> {
+    // 0. Try loading from persistent storage first
+    try {
+      if (fs.existsSync(this.machineIdFilePath)) {
+        const savedId = fs.readFileSync(this.machineIdFilePath, 'utf8').trim();
+        if (savedId && savedId.length > 0) {
+          this._machineId = savedId;
+          this.logger.log(`📍 Machine ID loaded from storage: ${this._machineId}`);
+          return;
+        }
+      }
+    } catch (err: any) {
+      this.logger.warn(`Could not read persistent machine ID: ${err.message}`);
+    }
+
+    this.logger.log('Generating new Machine ID...');
+    
     // Strategy 1: node-machine-id
     try {
       const nodeMachineId = require('node-machine-id');
       const id = nodeMachineId.machineIdSync(true);
       if (id && typeof id === 'string' && id.length > 10) {
         this._machineId = id;
-        this.logger.log(`📍 Machine ID (node-machine-id): ${this._machineId}`);
+        this.logger.log(`📍 Generated Machine ID (node-machine-id): ${this._machineId}`);
+        this._persistMachineId();
         return;
       }
     } catch (err: any) {
@@ -118,7 +137,8 @@ export class LicenseService implements OnModuleInit {
       const match = result.match(/MachineGuid\s+REG_SZ\s+(\S+)/i);
       if (match && match[1]) {
         this._machineId = match[1].replace(/-/g, '');
-        this.logger.log(`📍 Machine ID (Windows Registry): ${this._machineId}`);
+        this.logger.log(`📍 Generated Machine ID (Windows Registry): ${this._machineId}`);
+        this._persistMachineId();
         return;
       }
     } catch (err: any) {
@@ -131,14 +151,31 @@ export class LicenseService implements OnModuleInit {
       const crypto = require('crypto');
       const data = `${os.hostname()}-${os.userInfo().username}-${os.platform()}`;
       this._machineId = crypto.createHash('sha256').update(data).digest('hex').substring(0, 32);
-      this.logger.log(`📍 Machine ID (Hash): ${this._machineId}`);
+      this.logger.log(`📍 Generated Machine ID (Hash): ${this._machineId}`);
+      this._persistMachineId();
       return;
     } catch (err: any) {
       this.logger.warn(`⚠️ Hash fallback failed: ${err.message}`);
     }
 
     this._machineId = `FALLBACK-${Date.now()}`;
-    this.logger.error(`❌ All machine ID strategies failed!`);
+    this.logger.error(`❌ All machine ID strategies failed! Using fallback.`);
+    this._persistMachineId();
+  }
+
+  private _persistMachineId() {
+    try {
+        // Ensure directory exists
+        const dir = path.dirname(this.machineIdFilePath);
+        if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir, { recursive: true });
+        }
+        
+        fs.writeFileSync(this.machineIdFilePath, this._machineId, 'utf8');
+        this.logger.log(`💾 Machine ID persisted to: ${this.machineIdFilePath}`);
+    } catch (err: any) {
+        this.logger.error(`❌ Failed to persist Machine ID: ${err.message}`);
+    }
   }
 
   // ============================================================

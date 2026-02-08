@@ -12,12 +12,9 @@ set -e
 
 echo "🚀 Starting Saraya ERP Backend..."
 
-# Step 1: Sync database schema (handles any drift)
-echo "📦 Syncing database schema..."
-npx prisma db push --accept-data-loss 2>/dev/null || {
-    echo "⚠️ db push failed, trying migrate deploy..."
-    npx prisma migrate deploy
-}
+# Step 1: Sync database schema (Safe Migration)
+echo "📦 Applying database migrations..."
+npx prisma migrate deploy
 
 # Step 2: Check if seeding is needed (first run detection)
 # We check if the admin user exists - if not, this is a fresh database
