@@ -68,7 +68,6 @@ export class SurgeryService {
     surgeryName: string;
     scheduledStart: Date;
     scheduledEnd: Date;
-    scheduledEnd: Date;
     serviceItemId?: number; // لربطها بسعر الخدمة (Package Price)
     teamMembers?: { userId: number; role: SurgeryRole }[];
   }) {
