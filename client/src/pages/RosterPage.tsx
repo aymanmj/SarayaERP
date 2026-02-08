@@ -51,6 +51,16 @@ export default function RosterPage() {
     isOffDay: false,
   });
 
+  // --- Edit/Delete Modal State ---
+  const [selectedEntry, setSelectedEntry] = useState<RosterEntry | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editForm, setEditForm] = useState({
+    workShiftId: "",
+    isOffDay: false,
+  });
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
   const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
@@ -114,6 +124,59 @@ export default function RosterPage() {
       loadRoster();
     } catch (err) {
       toast.error("فشل عملية التوزيع");
+    }
+  };
+
+  // --- Edit Entry Handler ---
+  const handleOpenEdit = (entry: RosterEntry) => {
+    setSelectedEntry(entry);
+    setEditForm({
+      workShiftId: entry.workShiftId?.toString() || "",
+      isOffDay: entry.isOffDay,
+    });
+    setShowEditModal(true);
+    setShowDeleteConfirm(false);
+  };
+
+  const handleUpdate = async () => {
+    if (!selectedEntry) return;
+    if (!editForm.isOffDay && !editForm.workShiftId) {
+      toast.warning("يرجى اختيار وردية أو تحديد يوم راحة");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await apiClient.patch(`/hr/roster/${selectedEntry.id}`, {
+        workShiftId: editForm.isOffDay ? null : Number(editForm.workShiftId),
+        isOffDay: editForm.isOffDay,
+      });
+      toast.success("تم تحديث الإدخال بنجاح");
+      setShowEditModal(false);
+      setSelectedEntry(null);
+      loadRoster();
+    } catch (err) {
+      toast.error("فشل تحديث الإدخال");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!selectedEntry) return;
+
+    setIsSubmitting(true);
+    try {
+      await apiClient.delete(`/hr/roster/${selectedEntry.id}`);
+      toast.success("تم حذف الإدخال بنجاح");
+      setShowEditModal(false);
+      setShowDeleteConfirm(false);
+      setSelectedEntry(null);
+      loadRoster();
+    } catch (err) {
+      toast.error("فشل حذف الإدخال");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -206,10 +269,11 @@ export default function RosterPage() {
                       >
                         {entry ? (
                           <div
-                            className={`py-1.5 rounded-lg border ${
+                            onClick={() => handleOpenEdit(entry)}
+                            className={`py-1.5 rounded-lg border cursor-pointer hover:opacity-80 transition-opacity ${
                               entry.isOffDay
-                                ? "bg-rose-950/20 border-rose-900/50 text-rose-500"
-                                : "bg-emerald-950/20 border-emerald-900/50 text-emerald-400"
+                                ? "bg-rose-950/20 border-rose-900/50 text-rose-500 hover:bg-rose-900/30"
+                                : "bg-emerald-950/20 border-emerald-900/50 text-emerald-400 hover:bg-emerald-900/30"
                             }`}
                           >
                             {entry.isOffDay
@@ -333,6 +397,138 @@ export default function RosterPage() {
                 className="px-8 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold shadow-lg shadow-sky-900/20 transition"
               >
                 تطبيق الجدول
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit/Delete Modal */}
+      {showEditModal && selectedEntry && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+          <div className="bg-slate-900 border border-slate-700 rounded-3xl p-6 w-full max-w-md space-y-5 animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+              <h3 className="text-xl font-bold text-white">
+                تعديل وردية الموظف
+              </h3>
+              <button
+                onClick={() => {
+                  setShowEditModal(false);
+                  setSelectedEntry(null);
+                  setShowDeleteConfirm(false);
+                }}
+                className="text-slate-400 hover:text-white text-xl"
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Entry Info */}
+            <div className="bg-slate-950 rounded-2xl p-4 border border-slate-800">
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="text-slate-500 block mb-1">الموظف</span>
+                  <span className="font-bold text-white">
+                    {selectedEntry.user.fullName}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-500 block mb-1">التاريخ</span>
+                  <span className="font-bold text-sky-400">
+                    {format(new Date(selectedEntry.date), "EEEE d MMMM", { locale: ar })}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Edit Form */}
+            <div className="space-y-4">
+              <label className="flex items-center gap-3 cursor-pointer p-3 bg-slate-950 rounded-xl border border-slate-800 hover:border-rose-500/50 transition">
+                <input
+                  type="checkbox"
+                  checked={editForm.isOffDay}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, isOffDay: e.target.checked })
+                  }
+                  className="w-5 h-5 rounded accent-rose-500"
+                />
+                <span className="text-sm font-bold text-rose-400">
+                  يوم راحة (Off Day)
+                </span>
+              </label>
+
+              {!editForm.isOffDay && (
+                <div className="animate-in fade-in slide-in-from-top-2">
+                  <label className="text-xs text-slate-400 block mb-2">
+                    الوردية
+                  </label>
+                  <select
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-sm outline-none focus:border-emerald-500"
+                    value={editForm.workShiftId}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, workShiftId: e.target.value })
+                    }
+                  >
+                    <option value="">-- اختر الوردية --</option>
+                    {shifts.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name} ({s.startTime} - {s.endTime})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+
+            {/* Delete Confirmation */}
+            {showDeleteConfirm ? (
+              <div className="bg-rose-950/30 border border-rose-900/50 rounded-xl p-4 animate-in fade-in">
+                <p className="text-rose-400 text-sm mb-3">
+                  هل أنت متأكد من حذف هذا الإدخال؟
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleDelete}
+                    disabled={isSubmitting}
+                    className="flex-1 px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-sm font-bold disabled:opacity-50"
+                  >
+                    {isSubmitting ? "جارِ الحذف..." : "نعم، احذف"}
+                  </button>
+                  <button
+                    onClick={() => setShowDeleteConfirm(false)}
+                    className="px-4 py-2 bg-slate-800 text-slate-300 hover:bg-slate-700 rounded-xl text-sm"
+                  >
+                    إلغاء
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowDeleteConfirm(true)}
+                className="w-full px-4 py-2.5 bg-rose-950/30 border border-rose-900/50 text-rose-400 hover:bg-rose-900/30 rounded-xl text-sm font-bold transition"
+              >
+                🗑️ حذف هذا الإدخال
+              </button>
+            )}
+
+            {/* Action Buttons */}
+            <div className="flex justify-end gap-3 pt-3 border-t border-slate-800">
+              <button
+                onClick={() => {
+                  setShowEditModal(false);
+                  setSelectedEntry(null);
+                  setShowDeleteConfirm(false);
+                }}
+                className="px-6 py-2.5 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 transition"
+              >
+                إلغاء
+              </button>
+              <button
+                onClick={handleUpdate}
+                disabled={isSubmitting}
+                className="px-8 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold shadow-lg shadow-emerald-900/20 transition disabled:opacity-50"
+              >
+                {isSubmitting ? "جارِ الحفظ..." : "حفظ التعديلات"}
               </button>
             </div>
           </div>

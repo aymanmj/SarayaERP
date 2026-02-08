@@ -3,6 +3,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseIntPipe,
@@ -66,6 +67,25 @@ export class HrController {
       new Date(to),
       userId ? Number(userId) : undefined,
     );
+  }
+
+  @Patch('roster/:id')
+  @Roles('ADMIN', 'HR')
+  async updateRosterEntry(
+    @Req() req: any,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { workShiftId?: number; isOffDay?: boolean },
+  ) {
+    return this.hrService.updateRosterEntry(req.user.hospitalId, id, body);
+  }
+
+  @Delete('roster/:id')
+  @Roles('ADMIN', 'HR')
+  async deleteRosterEntry(
+    @Req() req: any,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.hrService.deleteRosterEntry(req.user.hospitalId, id);
   }
 
   // --- Leaves ---

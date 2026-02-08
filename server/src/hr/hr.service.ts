@@ -102,6 +102,50 @@ export class HrService {
     });
   }
 
+  // تعديل إدخال roster واحد
+  async updateRosterEntry(
+    hospitalId: number,
+    id: number,
+    data: { workShiftId?: number; isOffDay?: boolean },
+  ) {
+    // التحقق من وجود الإدخال وأنه يخص هذا المستشفى
+    const entry = await this.prisma.employeeRoster.findUnique({
+      where: { id },
+    });
+
+    if (!entry || entry.hospitalId !== hospitalId) {
+      throw new NotFoundException('إدخال الجدول غير موجود');
+    }
+
+    return this.prisma.employeeRoster.update({
+      where: { id },
+      data: {
+        workShiftId: data.workShiftId,
+        isOffDay: data.isOffDay ?? false,
+      },
+      include: {
+        user: { select: { fullName: true } },
+        shift: true,
+      },
+    });
+  }
+
+  // حذف إدخال roster واحد
+  async deleteRosterEntry(hospitalId: number, id: number) {
+    // التحقق من وجود الإدخال وأنه يخص هذا المستشفى
+    const entry = await this.prisma.employeeRoster.findUnique({
+      where: { id },
+    });
+
+    if (!entry || entry.hospitalId !== hospitalId) {
+      throw new NotFoundException('إدخال الجدول غير موجود');
+    }
+
+    return this.prisma.employeeRoster.delete({
+      where: { id },
+    });
+  }
+
   // --- إدارة الإجازات (Leaves) ---
 
   async requestLeave(params: {
