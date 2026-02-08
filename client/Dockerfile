@@ -28,6 +28,20 @@ RUN npm ci
 # نسخ باقي الكود
 COPY . .
 
+# ==========================================
+# Build Arguments for Vite
+# متغيرات البناء للواجهة الأمامية
+# ==========================================
+ARG VITE_API_URL=http://localhost:3000
+ARG VITE_APP_NAME=Saraya\ ERP
+ARG VITE_APP_VERSION=1.0.1
+
+# تحويل ARG إلى ENV ليتعرف عليها Vite
+ENV VITE_API_URL=$VITE_API_URL
+ENV VITE_API_BASE_URL=$VITE_API_URL
+ENV VITE_APP_NAME=$VITE_APP_NAME
+ENV VITE_APP_VERSION=$VITE_APP_VERSION
+
 # بناء المشروع
 RUN npm run build -- --mode production
 

@@ -128,14 +128,21 @@ services:
 
   # 5. الواجهة الأمامية (Frontend)
   frontend:
+    # Use GHCR image (default) or build locally
     image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-aymanmj}/saraya-frontend:${IMAGE_TAG:-latest}
+    # Uncomment below to build locally instead of using GHCR image:
+    # build:
+    #   context: ./client
+    #   args:
+    #     VITE_API_URL: http://${SERVER_IP:-localhost}:3000
     container_name: saraya_frontend
     restart: always
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
     environment:
-      REACT_APP_API_URL: http://localhost:${SERVER_PORT:-3000}
-      REACT_APP_WS_URL: ws://localhost:${SERVER_PORT:-3000}
+      # These are for runtime reference only (Vite uses build-time vars)
+      VITE_API_URL: http://${SERVER_IP:-localhost}:${SERVER_PORT:-3000}
+      REACT_APP_API_URL: http://${SERVER_IP:-localhost}:${SERVER_PORT:-3000}
     # Removed host port mapping to avoid conflict with Nginx
     expose:
       - "80"

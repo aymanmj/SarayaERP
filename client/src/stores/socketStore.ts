@@ -4,6 +4,7 @@ import { create } from "zustand";
 import { io, Socket } from "socket.io-client";
 import { useAuthStore } from "./authStore";
 import { toast } from "sonner";
+import { getSocketUrl } from "../utils/socketUrl";
 
 interface SocketState {
   socket: Socket | null;
@@ -18,10 +19,9 @@ export const useSocketStore = create<SocketState>((set, get) => ({
     const { token, user } = useAuthStore.getState();
     if (!token || get().socket) return;
 
-    // Use environment variable for socket connection
-    let wsUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-    // Remove /api suffix if present
-    wsUrl = wsUrl.replace(/\/api\/?$/, '');
+    // Use automatic URL detection - works in any environment
+    const wsUrl = getSocketUrl();
+    console.log('🔌 Connecting to socket at:', wsUrl);
 
     const socket = io(wsUrl, {
       auth: { token: `Bearer ${token}` },

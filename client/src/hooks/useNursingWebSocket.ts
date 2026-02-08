@@ -1,6 +1,7 @@
 // src/hooks/useNursingWebSocket.ts
 import { useEffect, useRef, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
+import { getSocketUrl } from '../utils/socketUrl';
 
 interface NursingUpdate {
   type: string;
@@ -48,12 +49,10 @@ export function useNursingWebSocket() {
     
     console.log('🔌 Connecting to WebSocket with cookie-based authentication...');
     
-    // Initialize socket connection - use same URL as backend API
-    // In development: localhost:3000
-    // In production: same as VITE_API_URL (e.g., http://server:3000)
-    let wsUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-    // Remove /api suffix if present (WebSocket connects to root)
-    wsUrl = wsUrl.replace(/\/api\/?$/, '');
+    // Use automatic URL detection - works in any environment
+    // Development: http://localhost:3000
+    // Production: same as browser URL (Nginx proxies WebSocket)
+    const wsUrl = getSocketUrl();
     console.log('🔌 Connecting to WebSocket at:', wsUrl);
     
     const socket = io(`${wsUrl}/nursing`, {
