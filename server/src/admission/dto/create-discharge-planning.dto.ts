@@ -60,6 +60,14 @@ export class CreateDischargePlanningDto {
   homeHealthRequired?: boolean = false;
 
   @IsOptional()
+  @IsBoolean()
+  homeHealthServices?: boolean = false;
+
+  @IsOptional()
+  @IsBoolean()
+  followUpRequired?: boolean = false;
+
+  @IsOptional()
   @IsArray()
   equipmentNeeded?: any[];
 

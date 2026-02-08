@@ -538,10 +538,42 @@ export class AdmissionService {
       create: {
         admissionId,
         hospitalId,
-        ...dto,
+        plannedDischargeDate: dto.plannedDischargeDate,
+        medicalStability: dto.medicalStability,
+        vitalsStable: dto.vitalsStable,
+        painControlled: dto.painControlled,
+        medicationsReady: dto.medicationsReady,
+        educationCompleted: dto.educationCompleted,
+        dischargeDisposition: dto.dischargeDisposition,
+        destinationFacility: dto.destinationFacility,
+        homeHealthRequired: dto.homeHealthRequired || dto.homeHealthServices,
+        equipmentNeeded: dto.equipmentNeeded,
+        homeModifications: dto.homeModifications,
+        followUpAppointment: dto.followUpAppointment,
+        followUpDoctorId: dto.followUpDoctorId,
+        followUpInstructions: dto.followUpInstructions,
+        caseManagerId: dto.caseManagerId,
+        socialWorkerId: dto.socialWorkerId,
+        familyNotified: dto.familyNotified,
+        familyInstructions: dto.familyInstructions,
+        insuranceApproval: dto.insuranceApproval,
+        estimatedCost: dto.estimatedCost,
+        paymentArrangements: dto.paymentArrangements,
+        status: dto.status,
+        barriers: dto.barriers,
+        notes: dto.notes,
         createdBy: userId,
       },
     });
+
+    // If followUpRequired provided, update admission directly as it's an admission-level flag
+    if (dto.followUpRequired !== undefined) {
+      await this.prisma.admission.update({
+        where: { id: admissionId },
+        data: { followUpRequired: dto.followUpRequired },
+      });
+    }
+
 
     return dischargePlanning;
   }
