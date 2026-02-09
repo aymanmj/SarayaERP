@@ -405,8 +405,8 @@ setup_ghcr() {
     echo "  4. Copy the Token"
     echo ""
 
-    read -p "  Enter GitHub Username: " GITHUB_USER
-    read -sp "  Enter GitHub PAT: " GITHUB_PAT
+    read -p "  Enter GitHub Username: " GITHUB_USER < /dev/tty
+    read -sp "  Enter GitHub PAT: " GITHUB_PAT < /dev/tty
     echo ""
 
     if [ -z "$GITHUB_USER" ] || [ -z "$GITHUB_PAT" ]; then
@@ -444,7 +444,7 @@ collect_client_info() {
     echo -e "${CYAN}  ─────────────────${NC}"
     echo ""
 
-    read -p "  Organization name (English, no spaces): " CLIENT_NAME
+    read -p "  Organization name (English, no spaces): " CLIENT_NAME < /dev/tty
     CLIENT_NAME=${CLIENT_NAME:-saraya-client}
     CLIENT_NAME=$(echo "$CLIENT_NAME" | tr ' ' '-' | tr '[:upper:]' '[:lower:]')
 
@@ -455,7 +455,7 @@ collect_client_info() {
     echo -e "  ${YELLOW}Tailscale Auth Key (optional - for remote access):${NC}"
     echo "  Get it from: https://login.tailscale.com/admin/settings/keys"
     echo ""
-    read -p "  Enter Tailscale Auth Key (or press Enter to skip): " TAILSCALE_AUTHKEY
+    read -p "  Enter Tailscale Auth Key (or press Enter to skip): " TAILSCALE_AUTHKEY < /dev/tty
     
     if [ -z "$TAILSCALE_AUTHKEY" ]; then
         print_warning "Tailscale skipped - you can add it later"
@@ -686,7 +686,7 @@ main() {
 
     echo ""
     echo -e "  ${YELLOW}Do you have a license file (saraya.lic)?${NC}"
-    read -p "  Enter full path to license file (or press Enter to skip): " LICENSE_INPUT_PATH
+    read -p "  Enter full path to license file (or press Enter to skip): " LICENSE_INPUT_PATH < /dev/tty
     
     HAS_LICENSE=false
     if [ -n "$LICENSE_INPUT_PATH" ] && [ -f "$LICENSE_INPUT_PATH" ]; then
