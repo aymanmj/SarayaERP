@@ -109,14 +109,31 @@ export class PdfService {
     try {
       const page = await browser.newPage();
 
-      const templatePath = path.join(
-        __dirname,
-        'templates',
-        `${templateName}.hbs`,
-      );
+      // Robust template path resolution
+      const templateFilename = `${templateName}.hbs`;
+      const possiblePaths = [
+        // 1. Relative to current file (standard for most builds)
+        path.join(__dirname, 'templates', templateFilename),
+        // 2. Relative to src/pdf (if __dirname is in dist/src/pdf)
+        path.join(process.cwd(), 'dist/src/pdf/templates', templateFilename),
+        // 3. Relative to dist/pdf (if src was flattened)
+        path.join(process.cwd(), 'dist/pdf/templates', templateFilename),
+        // 4. Source path (fallback for local dev / ts-node)
+        path.join(process.cwd(), 'src/pdf/templates', templateFilename),
+      ];
 
-      if (!fs.existsSync(templatePath)) {
-        throw new Error(`Template file not found: ${templatePath}`);
+      let templatePath = '';
+      for (const p of possiblePaths) {
+        if (fs.existsSync(p)) {
+          templatePath = p;
+          this.logger.log(`Found template at: ${templatePath}`);
+          break;
+        }
+      }
+
+      if (!templatePath) {
+        this.logger.error(`Template not found. Checked paths: ${JSON.stringify(possiblePaths)}`);
+        throw new Error(`Template file not found: ${templateFilename}`);
       }
 
       const templateHtml = fs.readFileSync(templatePath, 'utf8');
@@ -152,7 +169,7 @@ export class PdfService {
       this.logger.error('Error generating PDF', error);
       throw error;
     } finally {
-      await browser.close();
+      if (browser) await browser.close();
     }
   }
 }
