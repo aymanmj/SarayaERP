@@ -677,13 +677,22 @@ main() {
 
     # Step 7: License file
     print_step "7" "License File"
+    
+    # Clean up legacy saraya.lic if it exists (fix for EISDIR error)
+    if [ -e "$INSTALL_DIR/saraya.lic" ]; then
+        print_info "Removing legacy license file/directory..."
+        rm -rf "$INSTALL_DIR/saraya.lic"
+    fi
+
     echo ""
     echo -e "  ${YELLOW}Do you have a license file (saraya.lic)?${NC}"
-    read -p "  Enter full path to license file (or press Enter to skip): " LICENSE_PATH
+    read -p "  Enter full path to license file (or press Enter to skip): " LICENSE_INPUT_PATH
     
-    if [ -n "$LICENSE_PATH" ] && [ -f "$LICENSE_PATH" ]; then
-        cp "$LICENSE_PATH" "$INSTALL_DIR/saraya.lic"
-        print_status "License file copied"
+    HAS_LICENSE=false
+    if [ -n "$LICENSE_INPUT_PATH" ] && [ -f "$LICENSE_INPUT_PATH" ]; then
+        cp "$LICENSE_INPUT_PATH" "$INSTALL_DIR/saraya.lic.tmp"
+        HAS_LICENSE=true
+        print_status "License file staged for installation"
     else
         print_warning "License file skipped - system will run in activation mode"
     fi
@@ -691,6 +700,23 @@ main() {
     # Step 8: Pull and start
     print_step "8" "Starting System"
     pull_and_start
+
+    # Inject license if provided
+    if [ "$HAS_LICENSE" = true ]; then
+        print_info "Injecting license into backend container..."
+        # Wait a moment for container availability
+        sleep 5
+        if docker cp "$INSTALL_DIR/saraya.lic.tmp" saraya_backend:/app/data/saraya.lic; then
+            print_status "License installed successfully"
+            rm -f "$INSTALL_DIR/saraya.lic.tmp"
+            
+            # Restart backend to pick up the license immediately
+            print_info "Restarting backend to apply license..."
+            docker restart saraya_backend >> "$LOG_FILE" 2>&1
+        else
+            print_error "Failed to inject license. You may need to upload it manually."
+        fi
+    fi
 
     # Step 9: Create systemd service
     print_step "9" "Auto-Start Setup"
