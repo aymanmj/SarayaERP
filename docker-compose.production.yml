@@ -398,6 +398,8 @@ volumes:
     driver: local
   portainer_data:
     driver: local
+  license_data:
+    driver: local
 
 # الشبكة الداخلية المعزولة
 networks:
