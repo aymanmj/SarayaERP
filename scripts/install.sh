@@ -320,6 +320,7 @@ REDIS_PASSWORD=$REDIS_PASSWORD
 NODE_ENV=production
 PORT=3000
 SERVER_PORT=3000
+BASELINE_MIGRATIONS="false" # Only set to "true" if you need to resolve drift on existing DB
 
 # License
 LICENSE_PATH=/app/data/saraya.lic
