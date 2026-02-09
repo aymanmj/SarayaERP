@@ -478,17 +478,35 @@ pull_and_start() {
     print_info "Starting core services..."
     
     # Start core services first (in order)
-    docker compose -f docker-compose.production.yml --env-file .env.production up -d postgres redis >> "$LOG_FILE" 2>&1
+    if ! docker compose -f docker-compose.production.yml --env-file .env.production up -d postgres redis >> "$LOG_FILE" 2>&1; then
+        print_error "Failed to start database services!"
+        echo -e "${YELLOW}Last 20 lines of log:${NC}"
+        tail -n 20 "$LOG_FILE"
+        exit 1
+    fi
+    
     print_info "Waiting for PostgreSQL and Redis..."
     sleep 15
     
     # Start backend
-    docker compose -f docker-compose.production.yml --env-file .env.production up -d backend >> "$LOG_FILE" 2>&1
+    if ! docker compose -f docker-compose.production.yml --env-file .env.production up -d backend >> "$LOG_FILE" 2>&1; then
+        print_error "Failed to start Backend service!"
+        echo -e "${YELLOW}Last 20 lines of log:${NC}"
+        tail -n 30 "$LOG_FILE"
+        exit 1
+    fi
+    
     print_info "Waiting for Backend..."
     sleep 30
     
     # Start frontend and nginx
-    docker compose -f docker-compose.production.yml --env-file .env.production up -d frontend nginx >> "$LOG_FILE" 2>&1
+    if ! docker compose -f docker-compose.production.yml --env-file .env.production up -d frontend nginx >> "$LOG_FILE" 2>&1; then
+        print_error "Failed to start Frontend/Nginx!"
+        echo -e "${YELLOW}Last 30 lines of log:${NC}"
+        tail -n 30 "$LOG_FILE"
+        exit 1
+    fi
+    
     print_info "Waiting for Frontend and Nginx..."
     sleep 10
     
