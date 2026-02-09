@@ -110,8 +110,8 @@ export class PdfService {
       const page = await browser.newPage();
 
       const templatePath = path.join(
-        process.cwd(),
-        'src/pdf/templates',
+        __dirname,
+        'templates',
         `${templateName}.hbs`,
       );
 
