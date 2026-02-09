@@ -131,7 +131,16 @@ export default function AppointmentsPage() {
   });
 
   const [patientSearch, setPatientSearch] = useState("");
+  const [showPatientList, setShowPatientList] = useState(false); // ✅ Control dropdown visibility
   const [erPatientSearch, setErPatientSearch] = useState(""); // بحث خاص بالطوارئ
+
+  // ✅ Clear search when modal closes
+  useEffect(() => {
+    if (!showAppointmentModal) {
+      setPatientSearch("");
+      setShowPatientList(false);
+    }
+  }, [showAppointmentModal]);
 
   const isReception = roles.includes("ADMIN") || roles.includes("RECEPTION");
   const isDoctor = roles.includes("DOCTOR") || roles.includes("ADMIN");
@@ -832,68 +841,87 @@ export default function AppointmentsPage() {
 
             {/* Content */}
             <div className="flex-1 overflow-y-auto p-6 space-y-6">
-              {/* Date Selection */}
+              {/* Date Selection - Custom Styled */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-slate-300">
                   التاريخ
                 </label>
-                <div className="relative max-w-sm">
+                <div className="relative group">
+                  {/* Decorative Box */}
+                  <div className="flex items-center justify-between w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded-lg group-hover:border-sky-500/50 transition-colors cursor-pointer">
+                    <span className="text-slate-200 font-medium">
+                      {format(new Date(date), 'eeee، d MMMM yyyy', { locale: ar })}
+                    </span>
+                    <Calendar className="w-5 h-5 text-sky-500/80" />
+                  </div>
+                  
+                  {/* Hidden Overlay Input */}
                   <input
                     type="date"
                     value={date}
                     onChange={(e) => setDate(e.target.value)}
-                    className="block w-full px-3 py-2.5 bg-slate-800 border border-slate-600 text-slate-100 text-sm rounded-lg focus:ring-sky-500 focus:border-sky-500 shadow-sm placeholder:text-slate-400 [&::-webkit-calendar-picker-indicator]:w-5 [&::-webkit-calendar-picker-indicator]:h-5 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:filter [&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:sepia-0 [&::-webkit-calendar-picker-indicator]:saturate-0 [&::-webkit-calendar-picker-indicator]:hue-rotate-180 [&::-webkit-calendar-picker-indicator]:brightness-200 [&::-webkit-calendar-picker-indicator]:contrast-100"
-                    placeholder="اختر التاريخ"
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                   />
-                </div>
-                <div className="text-xs text-slate-500">
-                  التاريخ المحدد: {format(new Date(date), 'dd MMMM yyyy', { locale: ar })}
                 </div>
               </div>
 
               {/* Patient Search */}
-              <div className="space-y-2">
+              <div className="space-y-2 relative">
                 <label className="text-sm font-medium text-slate-300">المريض</label>
                 <div className="relative">
-                  <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                   <input
                     type="text"
                     placeholder="ابحث عن مريض بالاسم أو الرقم الطبي..."
                     value={patientSearch}
-                    onChange={(e) => setPatientSearch(e.target.value)}
+                    onChange={(e) => {
+                      setPatientSearch(e.target.value);
+                      setShowPatientList(true);
+                      if (e.target.value === "") setForm({ ...form, patientId: "" });
+                    }}
+                    onFocus={() => setShowPatientList(true)}
+                    // onBlur with delay to allow clicking items
+                    onBlur={() => setTimeout(() => setShowPatientList(false), 200)}
                     className="w-full bg-slate-900 border border-slate-700 rounded-lg px-10 py-3 text-sm focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 outline-none transition-all"
                   />
                 </div>
                 
-                {/* Patient List */}
-                {patientSearch && (
-                  <div className="absolute z-10 w-full bg-slate-900 border border-slate-700 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                {/* Patient List Dropdown */}
+                {showPatientList && patientSearch && (
+                  <div className="absolute z-50 w-full bg-slate-900 border border-slate-700 rounded-lg shadow-xl max-h-60 overflow-y-auto mt-1">
                     {patientsList
                       .filter((p) =>
                         p.fullName.toLowerCase().includes(patientSearch.toLowerCase()) ||
                         p.mrn.includes(patientSearch)
                       )
-                      .slice(0, 5)
+                      .slice(0, 10)
                       .map((p) => (
                         <div
                           key={p.id}
-                          onClick={() =>
-                            setForm({ ...form, patientId: String(p.id) })
-                          }
-                          className={`cursor-pointer px-4 py-3 text-sm border-b border-slate-800 last:border-0 hover:bg-slate-800 transition-colors
-                            ${form.patientId === String(p.id) ? "bg-sky-600 text-white" : "text-slate-300"}
-                          `}
+                          className="cursor-pointer px-4 py-3 text-sm border-b border-slate-800 last:border-0 hover:bg-slate-800 transition-colors flex justify-between items-center group"
+                          onMouseDown={(e) => {
+                            e.preventDefault(); // Prevent blur before click
+                            setForm({ ...form, patientId: String(p.id) });
+                            setPatientSearch(p.fullName); // ✅ Update input to show name
+                            setShowPatientList(false); // ✅ Close dropdown
+                          }}
                         >
                           <div className="flex flex-col">
-                            <span className="font-medium">{p.fullName}</span>
-                            <span
-                              className={`text-xs ${form.patientId === String(p.id) ? "text-sky-200" : "text-slate-500"}`}
-                            >
+                            <span className="font-medium text-slate-200 group-hover:text-sky-400 transition-colors">{p.fullName}</span>
+                            <span className="text-xs text-slate-500">
                               {p.mrn} {p.phone && `• ${p.phone}`}
                             </span>
                           </div>
+                          {form.patientId === String(p.id) && (
+                            <span className="text-sky-500 text-xs">تم الاختيار</span>
+                          )}
                         </div>
                       ))}
+                    {getFilteredPatients(patientSearch).length === 0 && (
+                      <div className="p-4 text-center text-slate-500 text-sm">
+                        لا توجد نتائج مطابقة
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
