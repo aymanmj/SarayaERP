@@ -15,7 +15,7 @@ NC='\033[0m'
 
 # Configuration
 source .env.production 2>/dev/null || true
-WATCHTOWER_HTTP_API_TOKEN="${WATCHTOWER_HTTP_API_TOKEN:-saraya-update-token}"
+WATCHTOWER_TOKEN="${WATCHTOWER_TOKEN:-saraya-update-token}"
 WATCHTOWER_HOST="${WATCHTOWER_HOST:-localhost}"
 WATCHTOWER_PORT="${WATCHTOWER_PORT:-8080}"
 
@@ -52,14 +52,14 @@ trigger_update() {
     print_status "جاري الاتصال بـ Watchtower..."
     
     RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" \
-        -H "Authorization: Bearer ${WATCHTOWER_HTTP_API_TOKEN}" \
+        -H "Authorization: Bearer ${WATCHTOWER_TOKEN}" \
         "http://${WATCHTOWER_HOST}:${WATCHTOWER_PORT}/v1/update" 2>/dev/null || echo "000")
     
     if [ "$RESPONSE" = "200" ]; then
         print_status "تم تشغيل التحديث بنجاح!"
         echo -e "${YELLOW}انتظر بضع دقائق لاكتمال التحديث...${NC}"
     elif [ "$RESPONSE" = "401" ]; then
-        print_error "خطأ في المصادقة - تحقق من WATCHTOWER_HTTP_API_TOKEN"
+        print_error "خطأ في المصادقة - تحقق من WATCHTOWER_TOKEN"
     elif [ "$RESPONSE" = "000" ]; then
         print_error "لا يمكن الاتصال بـ Watchtower - تأكد من أنه يعمل"
         echo "جاري المحاولة عبر docker exec..."
