@@ -97,7 +97,6 @@ services:
       - app_data:/app/data
       - app_uploads:/app/uploads
       - ${BACKUP_PATH:-./backups}:/backups
-      - ./saraya.lic:/app/data/saraya.lic:ro
     ports:
       - "${SERVER_PORT:-3000}:3000"
     depends_on:

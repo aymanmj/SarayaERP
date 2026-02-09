@@ -30,6 +30,7 @@ export interface LicenseStatus {
   isGracePeriod?: boolean;
   daysRemaining?: number;
   error?: string;
+  licensePath?: string;
 }
 
 // ============================================================
@@ -283,6 +284,7 @@ export class LicenseService implements OnModuleInit {
 
     if (!fs.existsSync(this.licenseFilePath)) {
       baseStatus.error = 'No license file found.';
+      baseStatus.licensePath = this.licenseFilePath;
       this._updateCache(baseStatus);
       return baseStatus;
     }
@@ -329,6 +331,7 @@ export class LicenseService implements OnModuleInit {
         modules: decoded.modules,
         isGracePeriod,
         daysRemaining,
+        licensePath: this.licenseFilePath,
       };
 
       this.logger.log(

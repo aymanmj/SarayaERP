@@ -11,6 +11,7 @@ export default function ActivationPage() {
   const [licenseKey, setLicenseKey] = useState("");
   const [loading, setLoading] = useState(false);
   const [pageLoading, setPageLoading] = useState(true);
+  const [licensePath, setLicensePath] = useState("");
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -19,6 +20,7 @@ export default function ActivationPage() {
       try {
         const res = await apiClient.get("/license/status");
         setMachineId(res.data.machineId || "غير متوفر");
+        setLicensePath(res.data.licensePath || "");
 
         // If already valid, redirect to home
         if (res.data.isValid) {
@@ -127,6 +129,16 @@ export default function ActivationPage() {
               أرسل هذا المعرف للدعم الفني للحصول على مفتاح الترخيص
             </p>
           </div>
+
+          {/* License Path (Debug Info) */}
+          {licensePath && (
+            <div className="mb-6 text-center">
+               <p className="text-[10px] text-slate-500 mb-1">مسار ملف الترخيص (Primary)</p>
+               <code className="block text-[10px] bg-slate-950 px-3 py-2 rounded-lg text-emerald-500/80 font-mono border border-slate-800 break-all">
+                 {licensePath}
+               </code>
+            </div>
+          )}
 
           {/* License Key Input */}
           <div className="mb-6">
