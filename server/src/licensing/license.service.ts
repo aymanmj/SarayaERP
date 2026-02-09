@@ -123,6 +123,8 @@ export class LicenseService implements OnModuleInit {
   private _loadPublicKey() {
     const paths = [
       path.join(path.dirname(this.licenseFilePath), 'public.key'),
+      path.join(process.cwd(), 'src/licensing/public.key'),
+      path.join(process.cwd(), 'dist/licensing/public.key'),
       path.join(process.cwd(), 'public.key'),
       path.join(__dirname, 'public.key'),
     ];
