@@ -1,203 +1,134 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/bin/bash
+set -e
 
-# ================================
-# Saraya ERP Production Installer
-# ================================
+# ============================================================
+# Saraya ERP - Automated Installation Script (FIXED)
+# ============================================================
 
-APP_NAME="Saraya ERP"
-INSTALL_DIR="/opt/saraya"
-LOG_FILE="/var/log/saraya-install.log"
-COMPOSE_FILE="docker-compose.production.yml"
+# (كل ما قبل هذا لم يتغير)
 
-# ---------- Colors ----------
-GREEN="\e[32m"
-RED="\e[31m"
-YELLOW="\e[33m"
-BLUE="\e[34m"
-RESET="\e[0m"
-
-# ---------- Helpers ----------
-print_info()    { echo -e "${BLUE}[INFO]${RESET} $1"; }
-print_success() { echo -e "${GREEN}[OK]${RESET}   $1"; }
-print_warn()    { echo -e "${YELLOW}[WARN]${RESET} $1"; }
-print_error()   { echo -e "${RED}[ERROR]${RESET} $1"; }
-
-require_root() {
-  if [[ $EUID -ne 0 ]]; then
-    print_error "This installer must be run as root"
-    exit 1
-  fi
+# ============================================================
+# FIX 1️⃣ تحميل env بشكل صريح قبل docker compose
+# ============================================================
+load_env() {
+    if [ -f "$INSTALL_DIR/.env.production" ]; then
+        set -a
+        source "$INSTALL_DIR/.env.production"
+        set +a
+        print_status "Environment variables loaded"
+    else
+        print_error ".env.production not found"
+        exit 1
+    fi
 }
 
-check_dependencies() {
-  print_info "Checking system dependencies..."
+# ============================================================
+# FIX 2️⃣ تعديل مسار الرخصة (توحيد المسار)
+# ============================================================
+# في generate_env_file() غيّر فقط هذا السطر:
+#
+# قبل:
+# LICENSE_PATH=/app/data/saraya.lic
+#
+# بعد:
+# LICENSE_PATH=/app/data/license/saraya.lic
+#
+# (لا تغيّر أي شيء آخر)
 
-  command -v docker >/dev/null 2>&1 || {
-    print_error "Docker is not installed"
-    exit 1
-  }
+# ============================================================
+# FIX 3️⃣ pull_and_start (التعديل الأهم)
+# ============================================================
+pull_and_start() {
+    cd "$INSTALL_DIR"
 
-  docker compose version >/dev/null 2>&1 || {
-    print_error "Docker Compose v2 is required"
-    exit 1
-  }
+    # 🔧 FIX: load env
+    load_env
 
-  print_success "All dependencies are satisfied"
+    print_info "Pulling Docker images..."
+    docker compose -f docker-compose.production.yml --env-file .env.production pull >> "$LOG_FILE" 2>&1
+    print_status "Images pulled successfully"
+
+    print_info "Starting core services (Postgres, Redis)..."
+    docker compose -f docker-compose.production.yml --env-file .env.production up -d postgres redis >> "$LOG_FILE" 2>&1
+
+    print_info "Waiting for database..."
+    sleep 20
+
+    if ! docker ps --format "{{.Names}}" | grep -q saraya_db; then
+        print_error "Postgres failed to start"
+        docker compose logs postgres | tail -50
+        exit 1
+    fi
+
+    if ! docker ps --format "{{.Names}}" | grep -q saraya_redis; then
+        print_error "Redis failed to start"
+        exit 1
+    fi
+
+    print_status "Core services are healthy"
+
+    print_info "Starting backend..."
+    docker compose -f docker-compose.production.yml --env-file .env.production up -d backend >> "$LOG_FILE" 2>&1
+    sleep 25
+
+    if ! docker ps --format "{{.Names}}" | grep -q saraya_backend; then
+        print_error "Backend failed to start"
+        docker compose logs backend | tail -50
+        exit 1
+    fi
+    print_status "Backend is running"
+
+    print_info "Starting frontend & nginx..."
+    docker compose -f docker-compose.production.yml --env-file .env.production up -d frontend nginx >> "$LOG_FILE" 2>&1
+    sleep 15
+
+    print_status "Frontend and Nginx started"
+
+    print_info "Starting optional services..."
+    docker compose -f docker-compose.production.yml --env-file .env.production up -d portainer watchtower >> "$LOG_FILE" 2>&1 || true
+
+    print_status "System startup completed"
 }
 
-prepare_directories() {
-  print_info "Preparing directories..."
+# ============================================================
+# FIX 4️⃣ حقن الرخصة (بدون تعارض volume)
+# ============================================================
+# غيّر فقط هذا السطر في Step 8:
+#
+# قبل:
+# docker cp "$INSTALL_DIR/saraya.lic.tmp" saraya_backend:/app/data/saraya.lic
+#
+# بعد:
+# docker cp "$INSTALL_DIR/saraya.lic.tmp" saraya_backend:/app/data/license/saraya.lic
+#
+# (ولا تغيّر أي شيء آخر)
 
-  mkdir -p "$INSTALL_DIR"
-  mkdir -p "$INSTALL_DIR/data"
-  mkdir -p "$INSTALL_DIR/backups"
+# ============================================================
+# FIX 5️⃣ systemd service (تحميل env قبل التشغيل)
+# ============================================================
+create_systemd_service() {
+    cat > /etc/systemd/system/saraya-erp.service << EOF
+[Unit]
+Description=Saraya ERP System
+Requires=docker.service
+After=docker.service
 
-  touch "$LOG_FILE"
-  chmod 600 "$LOG_FILE"
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=$INSTALL_DIR
+ExecStart=/bin/bash -c 'set -a && source .env.production && set +a && docker compose -f docker-compose.production.yml up -d'
+ExecStop=/usr/bin/docker compose -f docker-compose.production.yml down
+TimeoutStartSec=0
 
-  print_success "Directories ready"
-}
-
-create_env_file() {
-  print_info "Creating .env.production file..."
-
-  if [[ -f "$INSTALL_DIR/.env.production" ]]; then
-    print_warn ".env.production already exists, skipping creation"
-    return
-  fi
-
-  read -rp "Hospital Name: " HOSPITAL_NAME
-  read -rp "Domain (or server IP): " APP_DOMAIN
-
-  cat > "$INSTALL_DIR/.env.production" <<EOF
-# ===========================
-# Saraya ERP - Production ENV
-# ===========================
-
-NODE_ENV=production
-
-# Images
-GITHUB_REPOSITORY_OWNER=aymanmj
-IMAGE_TAG=latest
-
-# Database
-POSTGRES_DB=saraya
-POSTGRES_USER=saraya
-POSTGRES_PASSWORD=ChangeThisPassword
-
-# Redis
-REDIS_PASSWORD=ChangeRedisPassword
-
-# Application
-APP_DOMAIN=${APP_DOMAIN}
-HOSPITAL_NAME=${HOSPITAL_NAME}
-
-# License
-LICENSE_PATH=/app/data/license/saraya.lic
-MACHINE_ID_PATH=/host-machine-id
+[Install]
+WantedBy=multi-user.target
 EOF
 
-  chmod 600 "$INSTALL_DIR/.env.production"
-  print_success ".env.production created"
+    systemctl daemon-reload
+    systemctl enable saraya-erp.service >> "$LOG_FILE" 2>&1
+    print_status "systemd service created (env-safe)"
 }
-
-load_env() {
-  print_info "Loading environment variables..."
-  set -a
-  source "$INSTALL_DIR/.env.production"
-  set +a
-}
-
-pull_images() {
-  print_info "Pulling Docker images..."
-  cd "$INSTALL_DIR"
-
-  docker compose \
-    -f "$COMPOSE_FILE" \
-    --env-file .env.production \
-    pull >> "$LOG_FILE" 2>&1
-
-  print_success "Images pulled successfully"
-}
-
-start_core_services() {
-  print_info "Starting core services (Postgres, Redis)..."
-
-  docker compose \
-    -f "$COMPOSE_FILE" \
-    --env-file .env.production \
-    up -d postgres redis >> "$LOG_FILE" 2>&1
-
-  sleep 5
-
-  if ! docker ps | grep -q postgres; then
-    print_error "Postgres failed to start"
-    exit 1
-  fi
-
-  if ! docker ps | grep -q redis; then
-    print_error "Redis failed to start"
-    exit 1
-  fi
-
-  print_success "Core services are running"
-}
-
-start_application() {
-  print_info "Starting Saraya ERP services..."
-
-  docker compose \
-    -f "$COMPOSE_FILE" \
-    --env-file .env.production \
-    up -d backend frontend >> "$LOG_FILE" 2>&1
-
-  sleep 5
-
-  if ! docker ps | grep -q saraya_backend; then
-    print_error "Backend failed to start"
-    exit 1
-  fi
-
-  print_success "Saraya ERP is running"
-}
-
-show_status() {
-  echo ""
-  print_info "Current container status:"
-  docker compose -f "$COMPOSE_FILE" ps
-  echo ""
-}
-
-final_message() {
-  echo ""
-  print_success "🎉 Installation completed successfully!"
-  echo ""
-  echo "➡️  Installation directory: $INSTALL_DIR"
-  echo "➡️  Logs: $LOG_FILE"
-  echo "➡️  License file path: $LICENSE_PATH"
-  echo ""
-  echo "Next steps:"
-  echo "1) Activate license"
-  echo "2) Open browser and visit: http://$APP_DOMAIN"
-  echo ""
-}
-
-# =============================
-# Main
-# =============================
-
-require_root
-check_dependencies
-prepare_directories
-create_env_file
-load_env
-pull_images
-start_core_services
-start_application
-show_status
-final_message
-
 
 
 
