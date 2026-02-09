@@ -88,7 +88,7 @@ services:
       SMTP_PASSWORD: ${SMTP_PASSWORD}
       
       # إعدادات الرخصة
-      LICENSE_PATH: /app/data/saraya.lic
+      LICENSE_PATH: /app/data/license/saraya.lic
       MACHINE_ID_PATH: /host-machine-id
       
       # إعدادات CORS
