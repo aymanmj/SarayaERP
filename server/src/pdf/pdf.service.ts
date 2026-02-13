@@ -132,7 +132,7 @@ export class PdfService implements OnModuleInit, OnModuleDestroy {
     const finalHtml = template({ ...data, qrCode: qrCodeImage });
 
     // 3. إنشاء صفحة جديدة داخل المتصفح المفتوح مسبقاً
-    let page = null;
+    let page: puppeteer.Page | null = null;
     try {
       if (!this.browser) throw new Error('Browser not initialized');
 
