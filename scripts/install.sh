@@ -199,13 +199,23 @@ install_dependencies() {
 setup_directories() {
     print_info "Setting up directories..."
 
-    mkdir -p "$INSTALL_DIR"/{backups,logs,certs,production/nginx,scripts,monitoring/grafana/datasources,monitoring/grafana/dashboards}
+    mkdir -p "$INSTALL_DIR"/{backups,logs,certs,production/nginx,scripts,monitoring/grafana/datasources,monitoring/grafana/dashboards,data/license,uploads}
     
     # Fix permissions - run as root
     chmod -R 755 "$INSTALL_DIR"
+
+    # Set ownership for data directories to node user (UID 1000)
+    # This fixes the EACCES error for license and uploads
+    chown -R 1000:1000 "$INSTALL_DIR/data/license"
+    chown -R 1000:1000 "$INSTALL_DIR/uploads"
+    chmod 775 "$INSTALL_DIR/data/license"
+    chmod 775 "$INSTALL_DIR/uploads"
     
     if [ -n "$SUDO_USER" ]; then
-        chown -R "$SUDO_USER":"$SUDO_USER" "$INSTALL_DIR"
+        # Keep config files owned by user, but data owned by container user
+        chown "$SUDO_USER":"$SUDO_USER" "$INSTALL_DIR"
+        chown -R "$SUDO_USER":"$SUDO_USER" "$INSTALL_DIR/production"
+        chown -R "$SUDO_USER":"$SUDO_USER" "$INSTALL_DIR/scripts"
     fi
 
     print_status "Directories created in $INSTALL_DIR"

@@ -79,8 +79,8 @@ services:
       SMTP_USER: ${SMTP_USER}
       SMTP_PASSWORD: ${SMTP_PASSWORD}
     volumes:
-      - app_uploads:/app/uploads
-      - license_data:/app/data/license
+      - ./uploads:/app/uploads
+      - ./data/license:/app/data/license
     depends_on:
       postgres:
         condition: service_healthy
