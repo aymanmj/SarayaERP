@@ -1,107 +1,86 @@
+# version: '3.8'
+
 services:
-  # 1. قاعدة البيانات (PostgreSQL)
+  # ==========================================
+  # 1. طبقة البيانات (Data Layer)
+  # ==========================================
   postgres:
-    image: postgres:15
+    image: postgres:15-alpine
     container_name: saraya_db
     restart: always
+    shm_size: 1g # تحسين الأداء: زيادة الذاكرة المشتركة
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-admin}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-AamyHISERP56223911llQq3399..Aa}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB:-saraya_erp}
-      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+      TZ: Africa/Tripoli
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ${BACKUP_PATH:-./backups}:/backups
     networks:
       - saraya_net
-    ports:
-      - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-admin} -d ${POSTGRES_DB:-saraya_erp}"]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-admin} -d ${POSTGRES_DB:-saraya_erp}",
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 30s
-    logging:
+    logging: &default_logging
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
 
-  # 2. نظام الطوابير (Redis)
   redis:
     image: redis:7-alpine
     container_name: saraya_redis
     restart: always
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis123}
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
     volumes:
       - redis_data:/data
     networks:
       - saraya_net
-    ports:
-      - "6379:6379"
     healthcheck:
-      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 10s
       timeout: 3s
       retries: 5
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+    logging: *default_logging
 
-  # 2. الخادم الخلفي (Backend)
+  # ==========================================
+  # 2. طبقة التطبيق (Application Layer)
+  # ==========================================
   backend:
     image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-aymanmj}/saraya-backend:${IMAGE_TAG:-latest}
     container_name: saraya_backend
     restart: always
-    labels:
-      - "com.centurylinklabs.watchtower.enable=true"
+    user: "node" # تشغيل بمستخدم غير الروت للأمان
     environment:
-      # الاتصال بقاعدة البيانات
-      DATABASE_URL: "postgresql://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:-AamyHISERP56223911llQq3399..Aa}@postgres:5432/${POSTGRES_DB:-saraya_erp}?schema=public"
-      
-      # مفاتيح الأمان
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-saraya_erp}?schema=public"
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-86400s}
-      
-      # اتصال Redis
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis123}
-      
-      # بيئة التشغيل
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
       NODE_ENV: production
       PORT: 3000
-      BASELINE_MIGRATIONS: ${BASELINE_MIGRATIONS:-"false"} # Set to "true" ONCE to fix P3005 error (then remove/comment)
-      COOKIE_SECURE: "false" # Set to "true" or remove for HTTPS production
-      
-      # مسار الملفات
-      UPLOAD_PATH: /app/uploads
-      MAX_FILE_SIZE: ${MAX_FILE_SIZE:-10485760}
-      
-      # إعدادات البريد
+      TZ: Africa/Tripoli
+      LICENSE_PATH: /app/data/license/saraya.lic
+      # 🔒 Security: تحديد المصادر المسموحة (CORS)
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
+      # 🔒 Security: مفتاح تشفير بيانات المرضى (AES-256)
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      ENCRYPTION_SALT: ${ENCRYPTION_SALT:-saraya-default-salt-123}
+      # إعدادات البريد (تأكد من وجودها في .env)
       SMTP_HOST: ${SMTP_HOST}
-      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_PORT: ${SMTP_PORT}
       SMTP_USER: ${SMTP_USER}
       SMTP_PASSWORD: ${SMTP_PASSWORD}
-      
-      # إعدادات الرخصة
-      LICENSE_PATH: /app/data/license/saraya.lic
-      MACHINE_ID_PATH: /host-machine-id
-      
-      # إعدادات CORS
-      CORS_ORIGIN: ${CORS_ORIGIN:-*}
-      CORS_ORIGINS: ${CORS_ORIGINS:-*}
     volumes:
-      - app_data:/app/data
       - app_uploads:/app/uploads
-      - ${BACKUP_PATH:-./backups}:/backups
-      - /etc/machine-id:/host-machine-id:ro
       - license_data:/app/data/license
-    ports:
-      - "${SERVER_PORT:-3000}:3000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -114,35 +93,12 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-          cpus: '0.5'
-        reservations:
-          memory: 512M
-          cpus: '0.25'
+    logging: *default_logging
 
-  # 5. الواجهة الأمامية (Frontend)
   frontend:
-    # Pull from GitHub Container Registry (production)
     image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-aymanmj}/saraya-frontend:${IMAGE_TAG:-latest}
     container_name: saraya_frontend
     restart: always
-    labels:
-      - "com.centurylinklabs.watchtower.enable=true"
-    # Removed host port mapping to avoid conflict with Nginx
-    expose:
-      - "80"
-    depends_on:
-      backend:
-        condition: service_healthy
     networks:
       - saraya_net
     healthcheck:
@@ -150,27 +106,24 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+    logging: *default_logging
 
-  # 5. Nginx Reverse Proxy (للإنتاج)
+  # ==========================================
+  # 3. بوابة الوصول (Gateway / Proxy)
+  # ==========================================
   nginx:
     image: nginx:alpine
-    container_name: saraya_nginx
+    container_name: saraya_gateway
     restart: always
     ports:
       - "80:80"
       - "443:443"
     volumes:
       - ./production/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ${SSL_PATH:-./ssl}:/etc/nginx/ssl:ro
-      - ${LOGS_PATH:-./logs}/nginx:/var/log/nginx
+      - ${SSL_CERT_PATH:-./certs}:/etc/nginx/certs:ro
     depends_on:
-      - frontend
       - backend
+      - frontend
     networks:
       - saraya_net
     healthcheck:
@@ -178,14 +131,18 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+    logging: *default_logging
 
+  # ==========================================
+  # 4. الخدمات المساندة (Support Services)
+  # ==========================================
 
-
-  # 8. خدمة النسخ الاحتياطي
+  # خدمة النسخ الاحتياطي
   backup:
-    image: postgres:15
+    image: postgres:15-alpine
     container_name: saraya_backup
     restart: always
+    user: root # يحتاج روت لتنصيب curl وضبط المجلدات
     volumes:
       - ${BACKUP_PATH:-./backups}:/backups
       - ./scripts/backup.sh:/backup.sh:ro
@@ -194,56 +151,30 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-saraya_erp}
       POSTGRES_USER: ${POSTGRES_USER:-admin}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      BACKUP_SCHEDULE: ${BACKUP_SCHEDULE:-"0 2,14 * * *"}
       BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-30}
-    depends_on:
-      postgres:
-        condition: service_healthy
-    networks:
-      - saraya_net
-    command: >
-      sh -c "
-        echo '⏳ Backup service started...';
-        while true; do
-          sleep 86400;
-          /backup.sh;
+      TZ: Africa/Tripoli
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        apk add --no-cache curl
+        chmod +x /backup.sh
+        echo "⏳ Backup service started..."
+        # حلقة بسيطة للنسخ الاحتياطي كل 24 ساعة (86400 ثانية)
+        while true; do 
+          sleep 86400; 
+          /backup.sh; 
         done
-      "
-    # profiles:
-    #   - monitoring
-
-  postgres-exporter:
-    image: prometheuscommunity/postgres-exporter:latest
-    container_name: saraya_postgres_exporter
-    restart: always
-    environment:
-      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-saraya_erp}?sslmode=disable"
-    ports:
-      - "9187:9187"
     depends_on:
       postgres:
         condition: service_healthy
     networks:
       - saraya_net
-    # profiles:
-    #   - monitoring
 
-  redis-exporter:
-    image: oliver006/redis_exporter:latest
-    container_name: saraya_redis_exporter
-    restart: always
-    environment:
-      REDIS_ADDR: "redis://redis:6379"
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis123}
-    ports:
-      - "9121:9121"
-    depends_on:
-      - redis
-    networks:
-      - saraya_net
-    # profiles:
-    #   - monitoring
+  # ==========================================
+  # 5. المراقبة (Monitoring Stack)
+  # ==========================================
 
+  # مجمع مقاييس السيرفر (CPU, RAM, Disk)
   node-exporter:
     image: prom/node-exporter:latest
     container_name: saraya_node_exporter
@@ -253,119 +184,89 @@ services:
       - /sys:/host/sys:ro
       - /:/rootfs:ro
     command:
-      - '--path.procfs=/host/proc'
-      - '--path.rootfs=/rootfs'
-      - '--path.sysfs=/host/sys'
-      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+      - "--path.procfs=/host/proc"
+      - "--path.rootfs=/rootfs"
+      - "--path.sysfs=/host/sys"
+      - "--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)"
     networks:
       - saraya_net
 
-  # Prometheus - Metrics Collection
+  # مجمع مقاييس قاعدة البيانات
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: saraya_postgres_exporter
+    restart: always
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-saraya_erp}?sslmode=disable"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - saraya_net
+
+  # مجمع مقاييس Redis
+  redis-exporter:
+    image: oliver006/redis_exporter:latest
+    container_name: saraya_redis_exporter
+    restart: always
+    environment:
+      REDIS_ADDR: "redis://redis:6379"
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    depends_on:
+      - redis
+    networks:
+      - saraya_net
+
+  # Prometheus - تجميع البيانات
   prometheus:
     image: prom/prometheus:latest
     container_name: saraya_prometheus
     restart: always
-    ports:
-      - "9090:9090"
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - ./monitoring/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
       - prometheus_data:/prometheus
     command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--storage.tsdb.retention.time=15d'
-      - '--web.console.libraries=/etc/prometheus/console_libraries'
-      - '--web.console.templates=/etc/prometheus/consoles'
-      - '--web.enable-lifecycle'
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=15d"
     networks:
       - saraya_net
 
-  # Grafana - Monitoring Dashboard
+  # Grafana - لوحة العرض
   grafana:
     image: grafana/grafana:latest
     container_name: saraya_grafana
     restart: always
     ports:
-      - "3001:3000"
+      - "3001:3000" # يمكن الوصول لـ Grafana عبر المنفذ 3001
     environment:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin123}
       - GF_USERS_ALLOW_SIGN_UP=false
-      - GF_SERVER_ROOT_URL=http://localhost:3001
-      - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-piechart-panel
     volumes:
       - grafana_data:/var/lib/grafana
-      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
-      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
     depends_on:
       - prometheus
     networks:
       - saraya_net
 
-  alertmanager:
-    image: prom/alertmanager:latest
-    container_name: saraya_alertmanager
-    restart: always
-    ports:
-      - "9093:9093"
-    volumes:
-      - ./monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
-      - alertmanager_data:/alertmanager
-    command:
-      - '--config.file=/etc/alertmanager/alertmanager.yml'
-      - '--storage.path=/alertmanager'
-      - '--web.external-url=http://localhost:9093'
-    networks:
-      - saraya_net
-    # profiles:
-    #   - monitoring
+  # ==========================================
+  # 6. أدوات الإدارة عن بعد
+  # ==========================================
 
-  # 9. التحديث التلقائي (Watchtower)
   watchtower:
     image: containrrr/watchtower
     container_name: saraya_watchtower
     restart: always
     environment:
-      - DOCKER_API_VERSION=1.44
-      - WATCHTOWER_LABEL_ENABLE=true
-      - WATCHTOWER_POLL_INTERVAL=3600
       - WATCHTOWER_CLEANUP=true
       - WATCHTOWER_INCLUDE_RESTARTING=true
-      - WATCHTOWER_HTTP_API_UPDATE=true
-      - WATCHTOWER_HTTP_API_TOKEN=${WATCHTOWER_TOKEN:-saraya-update-token}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - /root/.docker/config.json:/config.json
-    command: --interval 3600 --cleanup --include-restarting --label-enable --http-api-update
-    ports:
-      - "8080:8080"
+    command: --interval 3600 --cleanup
     networks:
       - saraya_net
-    labels:
-      - "com.centurylinklabs.watchtower.enable=false"
 
-  # 10. الوصول عن بعد (Tailscale VPN)
-  tailscale:
-    image: tailscale/tailscale:latest
-    container_name: saraya_tailscale
-    hostname: ${TAILSCALE_HOSTNAME:-saraya-server}
-    restart: unless-stopped
-    environment:
-      - TS_AUTHKEY=${TAILSCALE_AUTHKEY:-}
-      - TS_STATE_DIR=/var/lib/tailscale
-      - TS_ACCEPT_DNS=false
-    volumes:
-      - tailscale_data:/var/lib/tailscale
-      - /dev/net/tun:/dev/net/tun
-    cap_add:
-      - NET_ADMIN
-      - NET_RAW
-    network_mode: host
-    labels:
-      - "com.centurylinklabs.watchtower.enable=false"
-
-  # 11. لوحة التحكم (Portainer)
   portainer:
     image: portainer/portainer-ce:latest
     container_name: saraya_portainer
@@ -378,34 +279,18 @@ services:
     networks:
       - saraya_net
 
-# وحدات التخزين الدائمة
+# ==========================================
+# وحدات التخزين والشبكات
+# ==========================================
 volumes:
   postgres_data:
-    driver: local
   redis_data:
-    driver: local
-  app_data:
-    driver: local
   app_uploads:
-    driver: local
-  prometheus_data:
-    driver: local
-  grafana_data:
-    driver: local
-  alertmanager_data:
-    driver: local
-  tailscale_data:
-    driver: local
-  portainer_data:
-    driver: local
   license_data:
-    driver: local
+  prometheus_data:
+  grafana_data:
+  portainer_data:
 
-# الشبكة الداخلية المعزولة
 networks:
   saraya_net:
-    name: saraya_net
     driver: bridge
-    ipam:
-      config:
-        - subnet: 172.20.0.0/16

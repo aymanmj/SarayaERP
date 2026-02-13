@@ -85,9 +85,25 @@ export function useNursingWebSocket() {
     });
 
     // Initial data
-    socket.on('initial_data', (data) => {
+    socket.on('initial_data', (data: { criticalAlerts: PatientAlert[], pendingMedications: any[] }) => {
       console.log('Received initial data:', data);
       // Handle initial data
+      if (data.criticalAlerts && Array.isArray(data.criticalAlerts)) {
+        setAlerts(data.criticalAlerts);
+        
+        // Notify for critical alerts on load
+        data.criticalAlerts.forEach(alert => {
+          if (alert.type === 'CRITICAL' && Notification.permission === 'granted') {
+             new Notification(`Critical Alert: ${alert.patientName}`, {
+              body: alert.message,
+              icon: '/alert-icon.png',
+            });
+          }
+        });
+      }
+      
+      // Also handle medications if needed
+      // setMedicationUpdates(data.pendingMedications...);
     });
 
     // Real-time updates

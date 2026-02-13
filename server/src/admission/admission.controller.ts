@@ -183,6 +183,7 @@ export class AdmissionController {
       patientId: number;
       bedId: number;
       admittingDoctorId: number;
+      departmentId: number;
       admissionReason: string;
       primaryDiagnosis?: string;
     },

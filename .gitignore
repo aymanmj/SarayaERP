@@ -80,14 +80,17 @@ lerna-debug.log*
 ############################
 tmp/
 temp/
+admin-tools/
 
 
 
 ############################
 # Certificates
 ############################
+certs/
 *.pem
 *.key
 !server/src/licensing/public.key
 *.crt
 secrets/
+

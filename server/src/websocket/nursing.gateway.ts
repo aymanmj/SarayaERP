@@ -285,44 +285,143 @@ export class NursingGateway implements OnGatewayConnection, OnGatewayDisconnect 
   }
 
   private async getPendingMedications(hospitalId: number) {
-    // Get medications due in next 2 hours
-    const twoHoursFromNow = new Date();
-    twoHoursFromNow.setHours(twoHoursFromNow.getHours() + 2);
-
-    const pendingMeds = await this.prisma.prescriptionItem.findMany({
+    // Get ACTIVE prescriptions for current inpatients
+    const activePrescriptions = await this.prisma.prescriptionItem.findMany({
       where: {
         prescription: {
           hospitalId,
           status: 'ACTIVE',
+          encounter: {
+            status: 'OPEN',
+            type: 'IPD',
+          },
         },
-        // Add logic for scheduled medications
       },
       include: {
+        product: { select: { name: true } },
         prescription: {
           include: {
             patient: { select: { fullName: true, mrn: true } },
             encounter: { select: { id: true } },
           },
         },
-        product: { select: { name: true } },
+        administrations: {
+          orderBy: { administeredAt: 'desc' },
+          take: 1,
+        },
       },
-      take: 10, // Limit for performance
     });
 
-    return pendingMeds;
+    const pendingMeds: any[] = [];
+    const now = Date.now();
+
+    for (const item of activePrescriptions) {
+      const lastAdmin = item.administrations[0]?.administeredAt 
+        ? new Date(item.administrations[0].administeredAt).getTime() 
+        : 0;
+
+      let isDue = false;
+      let reason = '';
+      
+      // Basic frequency logic
+      switch (item.frequency) {
+        case 'DAILY':
+          // Due if last admin was > 20 hours ago (buffer allowed)
+          if (now - lastAdmin > 20 * 60 * 60 * 1000) { isDue = true; reason = 'Daily dose due'; }
+          break;
+        case 'BID':
+          // Due if last admin > 10 hours
+          if (now - lastAdmin > 10 * 60 * 60 * 1000) { isDue = true; reason = 'BID dose due'; }
+          break;
+        case 'TID':
+           // Due if last admin > 6 hours
+           if (now - lastAdmin > 6 * 60 * 60 * 1000) { isDue = true; reason = 'TID dose due'; }
+           break;
+        case 'QID':
+           // Due if last admin > 4 hours
+           if (now - lastAdmin > 4 * 60 * 60 * 1000) { isDue = true; reason = 'QID dose due'; }
+           break;
+        case 'ONCE':
+           if (lastAdmin === 0) { isDue = true; reason = 'One-time dose not given'; }
+           break;
+      }
+
+      if (isDue) {
+        pendingMeds.push(item);
+      }
+    }
+
+    return pendingMeds.slice(0, 20); // Limit return size
   }
 
   private async getCriticalAlerts(hospitalId: number) {
-    // For now, return empty array as patientAlert table doesn't exist
-    // In production, this should query from a proper alerts/notifications table
-    const criticalAlerts = [];
+    const criticalAlerts: any[] = [];
     
-    // Alternative: Check for critical vitals or medication issues
-    // This is a placeholder implementation
     try {
-      // You could check for critical vitals here
-      // Or check for overdue medications
-      // Or check for other critical patient data
+      // 1. Check Vital Signs from the last 4 hours
+      const fourHoursAgo = new Date(Date.now() - 4 * 60 * 60 * 1000);
+      
+      const recentVitals = await this.prisma.vitalSign.findMany({
+        where: {
+          encounter: {
+            hospitalId,
+            status: 'OPEN', // Only open encounters
+            type: 'IPD',    // Only inpatients
+          },
+          createdAt: {
+            gte: fourHoursAgo,
+          },
+        },
+        include: {
+          encounter: {
+            include: {
+              patient: { select: { fullName: true, mrn: true } },
+              bedAssignments: {
+                 where: { to: null },
+                 include: { bed: { select: { bedNumber: true, ward: { select: { name: true } } } } }
+              }
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      for (const vital of recentVitals) {
+        const issues: string[] = [];
+        
+        // Temperature > 38.5 or < 35
+        if (vital.temperature && (Number(vital.temperature) > 38.5 || Number(vital.temperature) < 35.0)) {
+          issues.push(`Temp: ${vital.temperature}°C`);
+        }
+        
+        // O2 Sat < 92%
+        if (vital.o2Sat && vital.o2Sat < 92) {
+          issues.push(`SpO2: ${vital.o2Sat}%`);
+        }
+        
+        // Heart Rate > 120 or < 50
+        if (vital.pulse && (vital.pulse > 120 || vital.pulse < 50)) {
+           issues.push(`HR: ${vital.pulse} bpm`);
+        }
+        
+        // Systolic BP > 180 or < 90
+        if (vital.bpSystolic && (vital.bpSystolic > 180 || vital.bpSystolic < 90)) {
+           issues.push(`BP: ${vital.bpSystolic}/${vital.bpDiastolic}`);
+        }
+
+        if (issues.length > 0) {
+          criticalAlerts.push({
+            type: 'CRITICAL',
+            patientName: vital.encounter.patient.fullName,
+            mrn: vital.encounter.patient.mrn,
+            location: vital.encounter.bedAssignments[0]?.bed?.bedNumber || 'Unknown Bed',
+            message: `Abnormal Vitals: ${issues.join(', ')}`,
+            timestamp: vital.createdAt.toISOString(),
+            encounterId: vital.encounterId,
+          });
+        }
+      }
+
     } catch (error) {
       console.error('Error getting critical alerts:', error);
     }
@@ -331,53 +430,41 @@ export class NursingGateway implements OnGatewayConnection, OnGatewayDisconnect 
   }
 
   private async checkMedicationReminders(hospitalId: number, encounterId: number) {
-    // Check if there are upcoming medications for this patient
-    const upcomingMeds = await this.getPendingMedications(hospitalId);
-    
-    const patientMeds = upcomingMeds.filter(
-      med => med.prescription.encounterId === encounterId
-    );
-
-    if (patientMeds.length > 0) {
-      this.server.to(`hospital-${hospitalId}`).emit('medication_reminder', {
-        encounterId,
-        medications: patientMeds,
-        message: `There are ${patientMeds.length} upcoming medications for this patient`,
-      });
-    }
+     // Triggered after specific med updates or scheduled checks
+     // Implementation can reuse getPendingMedications logic
   }
 
   private async checkCriticalVitals(hospitalId: number, encounterId: number, vitals: any) {
-    // Check for critical values
+    // Check for critical values immediately upon update
     const criticalValues: string[] = [];
 
-    if (vitals.bloodPressure?.systolic > 180 || vitals.bloodPressure?.systolic < 90) {
-      criticalValues.push('Blood Pressure');
+    if (vitals.bpSystolic && (vitals.bpSystolic > 180 || vitals.bpSystolic < 90)) {
+      criticalValues.push(`BP ${vitals.bpSystolic}/${vitals.bpDiastolic}`);
     }
-    if (vitals.heartRate > 120 || vitals.heartRate < 50) {
-      criticalValues.push('Heart Rate');
+    if (vitals.pulse && (vitals.pulse > 120 || vitals.pulse < 50)) {
+      criticalValues.push(`HR ${vitals.pulse}`);
     }
-    if (vitals.temperature > 39 || vitals.temperature < 35) {
-      criticalValues.push('Temperature');
+    if (vitals.temperature && (vitals.temperature > 39 || vitals.temperature < 35)) {
+      criticalValues.push(`Temp ${vitals.temperature}`);
     }
-    if (vitals.oxygenSaturation < 90) {
-      criticalValues.push('Oxygen Saturation');
+    if (vitals.o2Sat && vitals.o2Sat < 90) {
+      criticalValues.push(`SpO2 ${vitals.o2Sat}%`);
     }
 
     if (criticalValues.length > 0) {
       // Get patient info
-      const patient = await this.prisma.encounter.findUnique({
+      const encounter = await this.prisma.encounter.findUnique({
         where: { id: encounterId },
         include: {
           patient: { select: { fullName: true, mrn: true } },
         },
       });
 
-      this.server.to(`hospital-${hospitalId}`).emit('critical_vitals_alert', {
+      this.server.to(`hospital-${hospitalId}`).emit('patient_alert', {
+        type: 'CRITICAL',
         encounterId,
-        patientName: patient?.patient.fullName,
-        criticalValues,
-        vitals,
+        patientName: encounter?.patient.fullName,
+        message: `Critical Vitals Detected: ${criticalValues.join(', ')}`,
         timestamp: new Date().toISOString(),
       });
     }

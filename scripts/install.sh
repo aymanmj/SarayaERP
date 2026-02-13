@@ -188,7 +188,7 @@ install_docker() {
 install_dependencies() {
     print_info "Installing required tools..."
     apt-get update >> "$LOG_FILE" 2>&1
-    apt-get install -y curl wget git nano net-tools jq unzip >> "$LOG_FILE" 2>&1
+    apt-get install -y curl wget git nano net-tools jq unzip openssl >> "$LOG_FILE" 2>&1
     print_status "All required tools installed"
 }
 
@@ -199,7 +199,7 @@ install_dependencies() {
 setup_directories() {
     print_info "Setting up directories..."
 
-    mkdir -p "$INSTALL_DIR"/{backups,logs,ssl,production/nginx,scripts,monitoring/grafana/datasources,monitoring/grafana/dashboards}
+    mkdir -p "$INSTALL_DIR"/{backups,logs,certs,production/nginx,scripts,monitoring/grafana/datasources,monitoring/grafana/dashboards}
     
     # Fix permissions - run as root
     chmod -R 755 "$INSTALL_DIR"
@@ -228,8 +228,8 @@ download_files() {
     curl -fsSL "https://raw.githubusercontent.com/$GITHUB_OWNER/$GITHUB_REPO/$BRANCH/.env.example" \
         -o .env.example
 
-    # Download nginx.conf (HTTP only - without SSL)
-    curl -fsSL "https://raw.githubusercontent.com/$GITHUB_OWNER/$GITHUB_REPO/$BRANCH/production/nginx/nginx-http.conf" \
+    # Download nginx.conf (SSL-enabled)
+    curl -fsSL "https://raw.githubusercontent.com/$GITHUB_OWNER/$GITHUB_REPO/$BRANCH/production/nginx/nginx.conf" \
         -o production/nginx/nginx.conf
 
     # Download scripts
@@ -293,6 +293,16 @@ generate_env_file() {
     JWT_SECRET=$(openssl rand -hex 32)
     WATCHTOWER_TOKEN=$(openssl rand -base64 24 | tr -dc 'a-zA-Z0-9' | head -c 24)
     REDIS_PASSWORD=$(openssl rand -base64 16 | tr -dc 'a-zA-Z0-9' | head -c 16)
+    ENCRYPTION_KEY=$(openssl rand -base64 32)
+    ENCRYPTION_SALT="saraya-${CLIENT_NAME}-salt-$(openssl rand -hex 4)"
+
+    # Determine CORS origins
+    SERVER_IP=$(hostname -I | awk '{print $1}')
+    if [ -n "$CLIENT_DOMAIN" ]; then
+        CORS_VALUE="https://${CLIENT_DOMAIN}"
+    else
+        CORS_VALUE="https://${SERVER_IP},http://${SERVER_IP}"
+    fi
 
     cat > "$INSTALL_DIR/.env.production" << EOF
 # ════════════════════════════════════════════════════════════════════════════════
@@ -311,6 +321,16 @@ DATABASE_URL=postgresql://admin:$POSTGRES_PASSWORD@postgres:5432/saraya_erp?sche
 JWT_SECRET=$JWT_SECRET
 JWT_EXPIRES_IN=86400
 
+# 🔒 Encryption (Patient PII - AES-256)
+ENCRYPTION_KEY=$ENCRYPTION_KEY
+ENCRYPTION_SALT=$ENCRYPTION_SALT
+
+# 🌐 CORS (Allowed Origins)
+CORS_ORIGINS=$CORS_VALUE
+
+# SSL Certificates
+SSL_CERT_PATH=./certs
+
 # Redis
 REDIS_HOST=redis
 REDIS_PORT=6379
@@ -320,7 +340,7 @@ REDIS_PASSWORD=$REDIS_PASSWORD
 NODE_ENV=production
 PORT=3000
 SERVER_PORT=3000
-BASELINE_MIGRATIONS="false" # Only set to "true" if you need to resolve drift on existing DB
+BASELINE_MIGRATIONS="false"
 
 # License
 LICENSE_PATH=/app/data/saraya.lic
@@ -342,17 +362,16 @@ GRAFANA_PASSWORD=admin123
 # Backup
 BACKUP_SCHEDULE="0 2,14 * * *"
 BACKUP_RETENTION_DAYS=30
-
-# CORS Configuration
-CORS_ORIGIN=*
-CORS_ORIGINS=*
 EOF
 
     # Create symlink for default .env (important for docker-compose)
     ln -sf .env.production "$INSTALL_DIR/.env"
 
     print_status ".env.production created"
+    print_status "🔒 ENCRYPTION_KEY generated (unique per client)"
+    print_status "🌐 CORS_ORIGINS set to: $CORS_VALUE"
     print_warning "Passwords were auto-generated - keep a backup!"
+    print_warning "⚠️ ENCRYPTION_KEY must NEVER be changed after data is stored!"
 }
 
 # ════════════════════════════════════════════════════════════════════════════════
@@ -365,6 +384,15 @@ generate_frontend_env() {
     # Get server IP
     SERVER_IP=$(hostname -I | awk '{print $1}')
 
+    # Determine API URL based on domain availability
+    if [ -n "$CLIENT_DOMAIN" ]; then
+        API_URL="https://${CLIENT_DOMAIN}/api"
+        API_BASE_URL="https://${CLIENT_DOMAIN}"
+    else
+        API_URL="http://${SERVER_IP}:3000"
+        API_BASE_URL="http://${SERVER_IP}:3000"
+    fi
+
     # Create client directory if not exists
     mkdir -p "$INSTALL_DIR/client"
 
@@ -372,23 +400,103 @@ generate_frontend_env() {
     if [ -f "$INSTALL_DIR/client/.env.example" ]; then
         cp "$INSTALL_DIR/client/.env.example" "$INSTALL_DIR/client/.env.local"
         
-        # Replace YOUR_SERVER_IP with actual server IP
-        sed -i "s/YOUR_SERVER_IP/$SERVER_IP/g" "$INSTALL_DIR/client/.env.local"
+        # Replace placeholders with actual values
+        sed -i "s|YOUR_SERVER_IP|$SERVER_IP|g" "$INSTALL_DIR/client/.env.local"
+        if [ -n "$CLIENT_DOMAIN" ]; then
+            sed -i "s|http://$SERVER_IP:3000|$API_URL|g" "$INSTALL_DIR/client/.env.local"
+        fi
         
-        print_status "Frontend .env.local created with server IP: $SERVER_IP"
+        print_status "Frontend .env.local created (API: $API_BASE_URL)"
     else
         # Create minimal .env.local if template not found
         cat > "$INSTALL_DIR/client/.env.local" <<EOF
 # Saraya ERP - Frontend Environment (Auto-generated)
-VITE_API_URL=http://$SERVER_IP:3000
-VITE_API_BASE_URL=http://$SERVER_IP:3000
+VITE_API_URL=$API_URL
+VITE_API_BASE_URL=$API_BASE_URL
 VITE_APP_NAME=Saraya ERP
 VITE_APP_VERSION=1.0.1
 VITE_ENABLE_NOTIFICATIONS=true
 VITE_DEBUG_MODE=false
 EOF
-        print_status "Frontend .env.local created with server IP: $SERVER_IP"
+        print_status "Frontend .env.local created (API: $API_BASE_URL)"
     fi
+}
+
+# ════════════════════════════════════════════════════════════════════════════════
+# إعداد شهادات SSL
+# ════════════════════════════════════════════════════════════════════════════════
+
+setup_ssl_certificates() {
+    print_info "Setting up SSL certificates for HTTPS..."
+
+    CERTS_DIR="$INSTALL_DIR/certs"
+    mkdir -p "$CERTS_DIR"
+
+    # Check if certificates already exist
+    if [ -f "$CERTS_DIR/fullchain.pem" ] && [ -f "$CERTS_DIR/privkey.pem" ]; then
+        print_status "SSL certificates already exist in $CERTS_DIR"
+        return
+    fi
+
+    echo ""
+    echo -e "  ${BOLD}${CYAN}SSL Certificate Options:${NC}"
+    echo ""
+    echo -e "  ${YELLOW}1)${NC} Import existing certificates (Cloudflare Origin, Let's Encrypt, etc.)"
+    echo -e "  ${YELLOW}2)${NC} Generate self-signed certificate (for internal/LAN use)"
+    echo -e "  ${YELLOW}3)${NC} Skip (configure later)"
+    echo ""
+    read -p "  Choose option [1-3]: " SSL_OPTION < /dev/tty
+
+    case $SSL_OPTION in
+        1)
+            echo ""
+            read -p "  Path to fullchain.pem (certificate): " CERT_PATH < /dev/tty
+            read -p "  Path to privkey.pem (private key): " KEY_PATH < /dev/tty
+
+            if [ -f "$CERT_PATH" ] && [ -f "$KEY_PATH" ]; then
+                cp "$CERT_PATH" "$CERTS_DIR/fullchain.pem"
+                cp "$KEY_PATH" "$CERTS_DIR/privkey.pem"
+                chmod 600 "$CERTS_DIR/privkey.pem"
+                chmod 644 "$CERTS_DIR/fullchain.pem"
+                print_status "SSL certificates imported successfully"
+            else
+                print_error "Certificate files not found!"
+                print_warning "Falling back to self-signed certificate..."
+                generate_self_signed_cert
+            fi
+            ;;
+        2)
+            generate_self_signed_cert
+            ;;
+        3)
+            print_warning "SSL skipped - HTTPS will not work until certificates are added"
+            print_info "To add later: place fullchain.pem and privkey.pem in $CERTS_DIR"
+            ;;
+        *)
+            print_info "No option selected - generating self-signed certificate..."
+            generate_self_signed_cert
+            ;;
+    esac
+}
+
+generate_self_signed_cert() {
+    CERTS_DIR="$INSTALL_DIR/certs"
+    CERT_CN="${CLIENT_DOMAIN:-saraya-erp}"
+
+    print_info "Generating self-signed certificate for: $CERT_CN"
+
+    openssl req -x509 -nodes -days 3650 \
+        -newkey rsa:2048 \
+        -keyout "$CERTS_DIR/privkey.pem" \
+        -out "$CERTS_DIR/fullchain.pem" \
+        -subj "/CN=$CERT_CN/O=Saraya ERP/C=LY" \
+        >> "$LOG_FILE" 2>&1
+
+    chmod 600 "$CERTS_DIR/privkey.pem"
+    chmod 644 "$CERTS_DIR/fullchain.pem"
+
+    print_status "Self-signed SSL certificate generated (valid for 10 years)"
+    print_warning "Browsers will show a security warning - this is normal for self-signed certs"
 }
 
 # ════════════════════════════════════════════════════════════════════════════════
@@ -451,6 +559,18 @@ collect_client_info() {
 
     TAILSCALE_HOSTNAME="saraya-${CLIENT_NAME}"
     print_status "Tailscale hostname: $TAILSCALE_HOSTNAME"
+
+    echo ""
+    echo -e "  ${YELLOW}Domain name (optional - for HTTPS):${NC}"
+    echo "  Example: erp.yourdomain.com"
+    echo ""
+    read -p "  Enter domain (or press Enter for IP-only access): " CLIENT_DOMAIN < /dev/tty
+    
+    if [ -n "$CLIENT_DOMAIN" ]; then
+        print_status "Domain: $CLIENT_DOMAIN"
+    else
+        print_info "No domain - system will be accessed via IP"
+    fi
 
     echo ""
     echo -e "  ${YELLOW}Tailscale Auth Key (optional - for remote access):${NC}"
@@ -614,7 +734,11 @@ show_summary() {
     echo -e "${BOLD}  Access Information:${NC}"
     echo -e "  -----------------------------------------------------------------"
     echo ""
-    echo -e "  ${CYAN}Web App:${NC}         http://$SERVER_IP"
+    if [ -n "$CLIENT_DOMAIN" ]; then
+        echo -e "  ${CYAN}Web App:${NC}         https://$CLIENT_DOMAIN"
+    else
+        echo -e "  ${CYAN}Web App:${NC}         https://$SERVER_IP"
+    fi
     echo -e "  ${CYAN}Portainer:${NC}       http://$SERVER_IP:9000"
     echo -e "  ${CYAN}Grafana:${NC}         http://$SERVER_IP:3001"
     echo ""
@@ -638,6 +762,7 @@ show_summary() {
     echo -e "  -----------------------------------------------------------------"
     echo -e "  Install Directory:  $INSTALL_DIR"
     echo -e "  Config File:        $INSTALL_DIR/.env.production"
+    echo -e "  SSL Certificates:   $INSTALL_DIR/certs/"
     echo -e "  Install Log:        $LOG_FILE"
     echo ""
 
@@ -650,6 +775,7 @@ show_summary() {
     fi
 
     echo -e "  ${RED}IMPORTANT: Keep a backup of .env.production file!${NC}"
+    echo -e "  ${RED}IMPORTANT: ENCRYPTION_KEY must NEVER be changed after installation!${NC}"
     echo ""
 }
 
@@ -693,6 +819,10 @@ main() {
     print_step "6" "Creating Environment Files"
     generate_env_file
     generate_frontend_env
+
+    # Step 6.5: Setup SSL Certificates
+    print_step "6.5" "SSL Certificate Setup"
+    setup_ssl_certificates
 
     # Step 7: License file
     print_step "7" "License File"

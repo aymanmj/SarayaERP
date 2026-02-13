@@ -46,8 +46,9 @@ export class AdmissionService {
     });
 
     if (activeAdmission) {
+      console.warn(`[CREATE_ADMISSION] Active admission found for patient ${dto.patientId}: ID=${activeAdmission.id}, Status=${activeAdmission.admissionStatus}`);
       throw new BadRequestException(
-        'Patient already has an active admission',
+        `المريض يمتلك حالياً دخول نشط! (ID: ${activeAdmission.id}, Status: ${activeAdmission.admissionStatus})`
       );
     }
 
@@ -74,8 +75,21 @@ export class AdmissionService {
       if (!encounter) {
         throw new NotFoundException('Encounter not found');
       }
+      
+      // Ensure encounter is IPD
+      if (encounter.type !== EncounterType.IPD) {
+          await this.prisma.encounter.update({
+              where: { id: encounterId },
+              data: { 
+                  type: EncounterType.IPD,
+                  // Ensure department is set if provided in DTO update
+                  ...(dto.departmentId ? { departmentId: dto.departmentId } : {})
+              }
+          });
+      }
     } else {
       // Create new encounter
+      // ✅ [ROBUST] Department ID is now mandatory in DTO, no fallback needed
       const encounter = await this.prisma.encounter.create({
         data: {
           hospitalId,

@@ -1,6 +1,7 @@
+import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { ValidationPipe, Logger } from '@nestjs/common';
+import { ValidationPipe, Logger, BadRequestException } from '@nestjs/common';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
@@ -45,7 +46,7 @@ async function bootstrap() {
     new ValidationPipe({
       whitelist: true,           // Strip unknown properties
       transform: true,           // Auto-transform types
-      forbidNonWhitelisted: true, // Throw on unknown properties
+      forbidNonWhitelisted: false, // Allow unknown properties (strip them instead of throwing)
       transformOptions: {
         enableImplicitConversion: true,
       },
@@ -55,7 +56,7 @@ async function bootstrap() {
           field: error.property,
           constraints: Object.values(error.constraints || {}),
         }));
-        return new Error(JSON.stringify(messages));
+        return new BadRequestException(JSON.stringify(messages));
       },
     }),
   );
@@ -74,18 +75,23 @@ async function bootstrap() {
     .map(s => s.trim())
     .filter(Boolean);
   
-  // Check if wildcard is enabled
-  const allowAllOrigins = configuredOrigins.includes('*') || configuredOrigins.length === 0;
+  const isProduction = process.env.NODE_ENV === 'production';
   
+  // In production: require explicit CORS_ORIGINS. In dev: allow all for convenience.
+  const allowAllOrigins = !isProduction && (configuredOrigins.includes('*') || configuredOrigins.length === 0);
+  
+  if (isProduction && configuredOrigins.length === 0) {
+    logger.warn('⚠️ CORS_ORIGINS is not set in production! Only same-origin requests will be allowed.');
+  }
+
   app.enableCors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (mobile apps, Postman, curl)
+      // Allow requests with no origin (mobile apps, Postman, curl, same-origin)
       if (!origin) {
         return callback(null, true);
       }
       
-      // If wildcard or empty config, reflect the requesting origin
-      // (required when credentials: true, can't use literal '*')
+      // In dev mode with no config: reflect requesting origin
       if (allowAllOrigins) {
         return callback(null, origin);
       }
@@ -99,6 +105,7 @@ async function bootstrap() {
       logger.warn(`Blocked CORS request from: ${origin}`);
       return callback(new Error('Not allowed by CORS'), false);
     },
+
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
     allowedHeaders: [
       'Content-Type',

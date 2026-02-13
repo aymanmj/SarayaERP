@@ -14,6 +14,7 @@ const ActiveInpatientsPage = lazy(() => import("../pages/ActiveInpatientsPage"))
 const DoctorRoundsPage = lazy(() => import("../pages/DoctorRoundsPage")); // ✅
 const DischargePlanningPage = lazy(() => import("../pages/DischargePlanningPage")); // 🆕
 const BedManagementDashboardPage = lazy(() => import("../pages/BedManagementDashboard")); // 🆕
+const DeliveryRegistrationPage = lazy(() => import("../pages/obgyn/DeliveryRegistrationPage")); // 🆕 OBGYN
 const TriageDashboardPage = lazy(() =>
   import("../pages/clinical/triage/TriageDashboard").then((m) => ({
     default: m.TriageDashboard,
@@ -66,6 +67,7 @@ export const ClinicalRoutes = (
     <Route path="/doctor-rounds" element={<DoctorRoundsPage />} /> {/* ✅ */}
     <Route path="/discharge-planning" element={<DischargePlanningPage />} /> {/* 🆕 */}
     <Route path="/bed-management" element={<BedManagementDashboardPage />} /> {/* 🆕 */}
+    <Route path="/obgyn/deliveries/new" element={<DeliveryRegistrationPage />} /> {/* 🆕 OBGYN */}
     <Route path="/triage" element={<TriageDashboardPage />} />
     {/* Triage Assessment Route */}
     <Route

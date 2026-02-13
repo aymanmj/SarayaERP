@@ -115,6 +115,17 @@ async function main() {
     { code: 'emr:diagnosis:edit', description: 'إضافة وتعديل التشخيصات' },
     { code: 'emr:vitals:record', description: 'تسجيل العلامات الحيوية' },
 
+    // موديول التنويم (Inpatient)
+    { code: 'INPATIENT_VIEW_ALL_PATIENTS', description: 'عرض كل المرضى في القسم (تمريض)' },
+    { code: 'INPATIENT_VIEW_MY_PATIENTS', description: 'عرض قائمة مرضى الطبيب' },
+    { code: 'INPATIENT_VIEW_NOTES', description: 'عرض ملاحظات التمريض والمرور' },
+    { code: 'INPATIENT_ADD_NOTE', description: 'إضافة ملاحظة جديدة' },
+    { code: 'INPATIENT_VIEW_CARE_PLAN', description: 'عرض خطة الرعاية' },
+    { code: 'INPATIENT_ADD_ORDER', description: 'إضافة أمر طبي (طبيب)' },
+    { code: 'INPATIENT_COMPLETE_ORDER', description: 'إكمال تنفيذ أمر طبي' },
+    { code: 'INPATIENT_EXECUTE_ORDER', description: 'تنفيذ أمر طبي (تمريض)' },
+    { code: 'INPATIENT_VIEW_EXECUTIONS', description: 'سجل تنفيذ الأوامر' },
+
     // موديول المواعيد
     {
       code: 'clinical:doctors:list',
@@ -142,8 +153,28 @@ async function main() {
   // 3. ربط الصلاحيات بالأدوار (Role-Permission Mapping) ✅ [NEW]
   // ====================================================
 
-  const rolePermissionMapping = {
+  // ====================================================
+  // 3. ربط الصلاحيات بالأدوار (Role-Permission Mapping) ✅ [ROBUST] SOURCE OF TRUTH
+  // ====================================================
+
+  const rolePermissionMapping: Record<string, string[]> = {
     ADMIN: permissionsList.map((p) => p.code), // الأدمن له كل شيء
+
+    NURSE: [
+        // Inpatient / Nursing Station
+        'INPATIENT_VIEW_ALL_PATIENTS',
+        'INPATIENT_VIEW_NOTES',
+        'INPATIENT_ADD_NOTE',
+        'INPATIENT_VIEW_CARE_PLAN',
+        'INPATIENT_ADD_ORDER',
+        'INPATIENT_COMPLETE_ORDER',
+        'INPATIENT_EXECUTE_ORDER',
+        'INPATIENT_VIEW_EXECUTIONS',
+        'INPATIENT_VIEW_MY_PATIENTS',
+        // EMR & Vitals
+        'emr:patient:view',
+        'emr:vitals:record',
+    ],
 
     ACCOUNTANT: [
       'billing:invoice:view',
@@ -174,6 +205,12 @@ async function main() {
       'emr:diagnosis:edit',
       'emr:vitals:record',
       'clinical:appointment:view',
+      'INPATIENT_VIEW_MY_PATIENTS',
+      'INPATIENT_VIEW_NOTES',
+      'INPATIENT_ADD_NOTE',
+      'INPATIENT_VIEW_CARE_PLAN',
+      'INPATIENT_ADD_ORDER',
+      'INPATIENT_VIEW_EXECUTIONS',
     ],
   };
 

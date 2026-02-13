@@ -161,57 +161,6 @@ export class PatientsService {
     };
   }
 
-  // async findAll(params: {
-  //   hospitalId: number;
-  //   page?: number;
-  //   limit?: number;
-  //   search?: string;
-  // }) {
-  //   const { hospitalId, page = 1, limit = 20, search } = params;
-  //   const skip = (page - 1) * limit;
-
-  //   // بناء شرط البحث
-  //   const where: Prisma.PatientWhereInput = {
-  //     hospitalId,
-  //     isDeleted: false,
-  //     isActive: true,
-  //     ...(search
-  //       ? {
-  //           OR: [
-  //             { fullName: { contains: search, mode: 'insensitive' } },
-  //             { mrn: { contains: search, mode: 'insensitive' } },
-  //             { phone: { contains: search, mode: 'insensitive' } },
-  //             { nationalId: { contains: search, mode: 'insensitive' } },
-  //           ],
-  //         }
-  //       : {}),
-  //   };
-
-  //   // جلب البيانات والعدد الإجمالي في وقت واحد (Transaction)
-  //   const [items, totalCount] = await this.prisma.$transaction([
-  //     this.prisma.patient.findMany({
-  //       where,
-  //       skip,
-  //       take: limit,
-  //       orderBy: { createdAt: 'desc' },
-  //       include: {
-  //         insurancePolicy: { include: { provider: true, plan: true } },
-  //       },
-  //     }),
-  //     this.prisma.patient.count({ where }),
-  //   ]);
-
-  //   return {
-  //     items,
-  //     meta: {
-  //       totalCount,
-  //       page,
-  //       limit,
-  //       totalPages: Math.ceil(totalCount / limit),
-  //     },
-  //   };
-  // }
-
   async findOne(hospitalId: number, id: number) {
     const patient = await this.prisma.extended.patient.findFirst({
       where: {

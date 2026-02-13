@@ -18,6 +18,7 @@ import { PrescriptionsTab } from "../components/encounter/PrescriptionsTab";
 import { BillingTab } from "../components/encounter/BillingTab";
 // ✅ استيراد المكون الجديد
 import { AllergiesPane } from "../components/encounter/AllergiesPane";
+import { ObstetricHistoryCard } from "./obgyn/ObstetricHistoryCard";
 
 // --- Types ---
 type EncounterStatus = "OPEN" | "CLOSED" | "CANCELLED";
@@ -59,19 +60,21 @@ type EncounterDetail = {
   department?: { name: string };
 };
 
-// ✅ إضافة ALLERGIES
+// ✅ إضافة ALLERGIES و OBGYN
 type TabKey =
   | "VISITS"
   | "LABS"
   | "RADIOLOGY"
   | "PRESCRIPTIONS"
   | "BILLING"
-  | "ALLERGIES";
+  | "ALLERGIES"
+  | "OBGYN";
 
 // ✅ إضافة التبويب للقائمة
-const tabs: { key: TabKey; label: string; icon: string; alert?: boolean }[] = [
+const tabs: { key: TabKey; label: string; icon: string; alert?: boolean; gender?: "MALE" | "FEMALE" }[] = [
   { key: "VISITS", label: "التشخيص والزيارة", icon: "🩺" },
   { key: "ALLERGIES", label: "الحساسية والمخاطر", icon: "⚠️", alert: true }, // مميز
+  { key: "OBGYN", label: "النساء والولادة", icon: "🤰", gender: "FEMALE" },  // ✅ خاص بالنساء
   { key: "LABS", label: "المختبر", icon: "🧪" },
   { key: "RADIOLOGY", label: "الأشعة", icon: "☢️" },
   { key: "PRESCRIPTIONS", label: "الأدوية", icon: "💊" },
@@ -318,7 +321,9 @@ export default function EncounterDetailsPage() {
         <div className="flex-1 flex flex-col gap-4 overflow-hidden">
           {/* Custom Tab Navigation */}
           <div className="flex gap-2 border-b border-slate-800 pb-1 overflow-x-auto">
-            {tabs.map((tab) => (
+            {tabs
+              .filter(tab => !tab.gender || tab.gender === encounter.patient?.gender) // ✅ فلترة حسب الجنس
+              .map((tab) => (
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
@@ -329,6 +334,7 @@ export default function EncounterDetailsPage() {
                                 : "text-slate-400 hover:text-slate-200 hover:bg-slate-900"
                             }
                             ${tab.alert ? "text-amber-400 hover:text-amber-200" : ""}
+                            ${tab.key === "OBGYN" ? "text-pink-400 hover:text-pink-200" : ""} 
                             `}
               >
                 <span>{tab.icon}</span> {tab.label}
@@ -400,6 +406,21 @@ export default function EncounterDetailsPage() {
               </div>
             )}
 
+            {/* ✅ عرض تبويب النساء والولادة */}
+            {activeTab === "OBGYN" && (
+               <div className="max-w-3xl space-y-6">
+                 <ObstetricHistoryCard patientId={encounter.patientId} editable={true} />
+                 <div className="flex justify-end">
+                    <button
+                      onClick={() => navigate(`/obgyn/deliveries/new?encounterId=${encId}`)}
+                      className="bg-pink-600 hover:bg-pink-500 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg"
+                    >
+                      <span>👶</span> تسجيل ولادة جديدة
+                    </button>
+                 </div>
+               </div>
+            )}
+
             {activeTab === "LABS" && (
               <LabsTab
                 encounterId={encounter.id}
@@ -457,6 +478,15 @@ export default function EncounterDetailsPage() {
                 >
                   <span>🛏️</span> دخول (Admission)
                 </button>
+
+                {encounter.patient?.gender === 'FEMALE' && (
+                  <button
+                    onClick={() => navigate(`/obgyn/deliveries/new?encounterId=${encId}`)}
+                    className="w-full py-2.5 bg-pink-600 hover:bg-pink-500 text-white rounded-xl text-xs font-bold shadow transition flex justify-center items-center gap-2"
+                  >
+                    <span>👶</span> تسجيل ولادة (Delivery)
+                  </button>
+                )}
               </div>
             </div>
           )}

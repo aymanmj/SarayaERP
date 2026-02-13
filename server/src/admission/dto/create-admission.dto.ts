@@ -86,10 +86,9 @@ export class CreateAdmissionDto {
   @Min(1)
   wardId?: number;
 
-  @IsOptional()
   @IsInt()
   @Min(1)
-  departmentId?: number;
+  departmentId: number;
 
   @IsInt()
   @Min(1)

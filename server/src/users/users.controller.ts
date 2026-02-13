@@ -81,4 +81,17 @@ export class UsersController {
   ) {
     return this.usersService.updateRolePermissions(id, body.permissionIds);
   }
+
+  // ✅ [Diagnostic] Fix Doctor Permissions
+  // Allow simplified access for debugging
+  @Post('fix-permissions')
+  async fixPermissions() {
+      return this.usersService.fixDoctorPermissions();
+  }
+
+  // ✅ [Diagnostic] Fix Nurse Permissions
+  @Post('fix-nurse-permissions')
+  async fixNursePermissions() {
+      return this.usersService.fixNursePermissions();
+  }
 }

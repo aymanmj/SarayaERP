@@ -374,7 +374,14 @@ model Patient {
   @@index([nationalId])
   
   // Relations
-  admissions Admission[]
+  admissions        Admission[]
+  obstetricHistory  ObstetricHistory?
+  birthRecord       BabyProfile?       @relation("BabyPatient")
+  
+  // Mother-Child Linkage
+  motherId          Int?
+  mother            Patient?           @relation("MotherChild", fields: [motherId], references: [id])
+  children          Patient[]          @relation("MotherChild")
 }
 
 model PatientAllergy {
@@ -428,6 +435,7 @@ model Encounter {
   triageAssessments         TriageAssessment[]
   visits                    Visit[]
   vitalSigns                VitalSign[]
+  deliveryAdmission         DeliveryAdmission?
 }
 
 model TriageAssessment {
@@ -798,6 +806,87 @@ model PurchaseOrderItem {
   receivedQuantity Decimal       @default(0) @db.Decimal(18, 3)
   product          Product       @relation(fields: [productId], references: [id])
   purchaseOrder    PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+}
+
+// ==========================================
+// OB/GYN Module
+// ==========================================
+
+model ObstetricHistory {
+  id               Int      @id @default(autoincrement())
+  patientId        Int      @unique
+  gravida          Int      @default(0) // Total pregnancies
+  para             Int      @default(0) // Viable births
+  abortion         Int      @default(0) // Miscarriages/Abortions
+  prevCSCount      Int      @default(0) // Previous C-Sections (Critical for pricing)
+  lastDeliveryDate DateTime?
+  bloodGroup       String?  // e.g., "A+", "O-"
+  riskFactors      String?  // Text description of risks
+  notes            String?
+  updatedAt        DateTime @updatedAt
+  
+  patient          Patient  @relation(fields: [patientId], references: [id])
+}
+
+model DeliveryAdmission {
+  id              Int       @id @default(autoincrement())
+  encounterId     Int       @unique
+  deliveryMethod  DeliveryMethod
+  inductionMethod InductionMethod @default(NONE)
+  placentaDelivery PlacentaDelivery @default(SPONTANEOUS)
+  episiotomy      Boolean   @default(false)
+  perinealTear    PerinealTear @default(NONE)
+  bloodLoss       Int?      // in ml
+  babyCount       Int       @default(1)
+  notes           String?
+  
+  encounter       Encounter @relation(fields: [encounterId], references: [id])
+  babies          BabyProfile[]
+}
+
+model BabyProfile {
+  id                  Int               @id @default(autoincrement())
+  deliveryAdmissionId Int
+  gender              Gender
+  weight              Decimal?          @db.Decimal(5, 3) // kg
+  birthTime           DateTime
+  apgarScore1         Int?
+  apgarScore5         Int?
+  notes               String?
+  
+  // Link to a real patient file if created
+  generatedPatientId  Int?              @unique
+  
+  deliveryAdmission   DeliveryAdmission @relation(fields: [deliveryAdmissionId], references: [id])
+  generatedPatient    Patient?          @relation("BabyPatient", fields: [generatedPatientId], references: [id])
+}
+
+enum DeliveryMethod {
+  NVD
+  ASSISTED_NVD
+  CS_ELECTIVE
+  CS_EMERGENCY
+  VBAC
+}
+
+enum InductionMethod {
+  NONE
+  OXYTOCIN
+  PROSTAGLANDIN
+  MECHANICAL
+}
+
+enum PlacentaDelivery {
+  SPONTANEOUS
+  MANUAL
+}
+
+enum PerinealTear {
+  NONE
+  DEGREE_1
+  DEGREE_2
+  DEGREE_3
+  DEGREE_4
 }
 
 model GoodsReceipt {

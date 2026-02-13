@@ -26,7 +26,7 @@ export class InpatientRoundsController {
   @Get('all-patients')
   @Permissions('INPATIENT_VIEW_ALL_PATIENTS')
   async getAllPatients(@CurrentUser() user: JwtPayload) {
-    return this.service.getAllInpatients(user.hospitalId);
+    return this.service.getAllInpatients(user.hospitalId, user.sub);
   }
 
   @Get('encounters/:id/notes')
@@ -83,5 +83,13 @@ export class InpatientRoundsController {
   @Permissions('INPATIENT_VIEW_EXECUTIONS')
   async getExecutions(@Param('itemId', ParseIntPipe) itemId: number) {
     return this.service.getExecutionHistory(itemId);
+  }
+
+  // --- Utility / Data Fixes ---
+  
+  @Post('fix-data/update-departments')
+  @Permissions('INPATIENT_VIEW_ALL_PATIENTS') // Reusing admin/nurse permission basically
+  async fixEncounterDepartments() {
+      return this.service.fixDepartmentIds();
   }
 }
