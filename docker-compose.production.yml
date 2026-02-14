@@ -99,38 +99,49 @@ services:
     image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-aymanmj}/saraya-frontend:${IMAGE_TAG:-latest}
     container_name: saraya_frontend
     restart: always
+    environment:
+      VITE_API_URL: /api
+    depends_on:
+      - backend
     networks:
       - saraya_net
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:80"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
     logging: *default_logging
 
   # ==========================================
-  # 3. بوابة الوصول (Gateway / Proxy)
+  # 3. الوصول والشبكة (Access Layer)
   # ==========================================
   nginx:
     image: nginx:alpine
-    container_name: saraya_gateway
+    container_name: saraya_nginx
     restart: always
     ports:
       - "80:80"
       - "443:443"
     volumes:
       - ./production/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ${SSL_CERT_PATH:-./certs}:/etc/nginx/certs:ro
+      - ./certs:/etc/nginx/certs:ro
     depends_on:
       - backend
       - frontend
     networks:
       - saraya_net
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:80/api/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:80/health"]
       interval: 30s
       timeout: 10s
       retries: 3
+    logging: *default_logging
+
+  # 🔒 Cloudflare Tunnel (Access from Internet without opening ports)
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: saraya_tunnel
+    restart: always
+    command: tunnel run
+    environment:
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN:-eyJhIjoiNTAxNTAxNTA3YWYzZGI5MzFlMjNjOWZlYWZlMjEwNjAiLCJ0IjoiNWEwNDYwYzUtYWVkYi00MDc2LTkyNzQtM2NlNmZhNmYwZjQ2IiwicyI6Ik1tVTBZelUwWXpjdE5HWXpNeTAwTnpsbUxUa3laV010TVdJNVpUTTJObVUwT1dFdyJ9}
+    networks:
+      - saraya_net
     logging: *default_logging
 
   # ==========================================
