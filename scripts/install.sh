@@ -169,14 +169,22 @@ install_docker() {
         print_status "Docker installed successfully"
     fi
 
-    # Enable Docker
-    systemctl enable docker >> "$LOG_FILE" 2>&1
-    systemctl start docker >> "$LOG_FILE" 2>&1
-    print_status "Docker is running and enabled on boot"
+    # Enable Docker (Try systemctl, fallback to warning)
+    if systemctl enable docker >> "$LOG_FILE" 2>&1; then
+        print_status "Docker enabled on boot"
+    else
+        print_warning "Could not enable docker service (systemctl failed or not available)"
+    fi
+    
+    if systemctl start docker >> "$LOG_FILE" 2>&1; then
+        print_status "Docker service started"
+    else
+        print_warning "Could not start docker service via systemctl (check manually)"
+    fi
 
     # Add user to group
     if [ -n "$SUDO_USER" ]; then
-        usermod -aG docker "$SUDO_USER"
+        usermod -aG docker "$SUDO_USER" >> "$LOG_FILE" 2>&1 || true
         print_status "Added $SUDO_USER to docker group"
     fi
 }
@@ -187,8 +195,20 @@ install_docker() {
 
 install_dependencies() {
     print_info "Installing required tools..."
-    apt-get update >> "$LOG_FILE" 2>&1
-    apt-get install -y curl wget git nano net-tools jq unzip openssl >> "$LOG_FILE" 2>&1
+    
+    # Update package lists
+    if ! apt-get update >> "$LOG_FILE" 2>&1; then
+        print_warning "apt-get update failed - continuing anyway..."
+    fi
+
+    # Install packages
+    PACKAGES="curl wget git nano net-tools jq unzip openssl"
+    if ! apt-get install -y $PACKAGES >> "$LOG_FILE" 2>&1; then
+        print_error "Failed to install dependencies. Check log for details:"
+        tail -n 20 "$LOG_FILE"
+        exit 1
+    fi
+    
     print_status "All required tools installed"
 }
 
