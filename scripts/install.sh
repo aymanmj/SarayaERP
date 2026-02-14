@@ -218,6 +218,14 @@ setup_directories() {
         chown -R "$SUDO_USER":"$SUDO_USER" "$INSTALL_DIR/scripts"
     fi
 
+    # Copy public.key if present (handles custom keys)
+    if [ -f "public.key" ]; then
+        cp public.key "$INSTALL_DIR/data/license/public.key"
+        chown 1000:1000 "$INSTALL_DIR/data/license/public.key"
+        chmod 644 "$INSTALL_DIR/data/license/public.key"
+        print_status "Custom public.key installed"
+    fi
+
     print_status "Directories created in $INSTALL_DIR"
 }
 
