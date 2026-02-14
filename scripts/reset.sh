@@ -76,14 +76,19 @@ echo -e "${BOLD}  Step 1: Stopping containers...${NC}"
 echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 
 # إيقاف خدمة systemd
+# إيقاف خدمة systemd
 if systemctl is-active --quiet saraya-erp 2>/dev/null; then
-    systemctl stop saraya-erp
+    echo -e "  ${CYAN}ℹ${NC} Stopping systemd service..."
+    timeout 15s systemctl stop saraya-erp || echo -e "  ${YELLOW}⚠${NC} Systemd stop timed out, forcing container removal..."
     echo -e "  ${GREEN}✓${NC} systemd service stopped"
+else
+    echo -e "  ${CYAN}ℹ${NC} systemd service not running"
 fi
 
 # إيقاف الحاويات
+echo -e "  ${CYAN}ℹ${NC} Stopping Docker containers..."
 cd "$INSTALL_DIR" 2>/dev/null && \
-    docker compose -f docker-compose.production.yml down --remove-orphans 2>/dev/null || true
+    docker compose -f docker-compose.production.yml down --remove-orphans --timeout 15 2>/dev/null || true
 echo -e "  ${GREEN}✓${NC} Docker containers stopped and removed"
 
 echo ""
