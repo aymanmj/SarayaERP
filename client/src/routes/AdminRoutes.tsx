@@ -12,6 +12,7 @@ const BedManagementSettingsPage = lazy(
 );
 const ServicesMasterPage = lazy(() => import("../pages/ServicesMasterPage"));
 const BackupSettingsPage = lazy(() => import("../pages/settings/BackupSettingsPage"));
+const SystemSettingsPage = lazy(() => import("../pages/settings/SystemSettingsPage"));
 const PriceListsPage = lazy(() => import("../pages/PriceListsPage"));
 const PriceListDetailsPage = lazy(() => import("../pages/PriceListDetailsPage"));
 const UsersAndRolesPage = lazy(() => import("../pages/UsersAndRolesPage"));
@@ -59,6 +60,7 @@ export const AdminRoutes = (
       element={<PriceListsPage />}
     />
     <Route path="/settings/backup" element={<BackupSettingsPage />} />
+    <Route path="/settings/system" element={<SystemSettingsPage />} />
     <Route
       path="/price-lists/:id"
       element={<PriceListDetailsPage />}

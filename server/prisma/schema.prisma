@@ -73,6 +73,7 @@ model Hospital {
   supplierPayments          SupplierPayment[]
   surgeryCases              SurgeryCase[]
   systemAccountMappings     SystemAccountMapping[]
+  systemSettings            SystemSetting[]
   triageAssessments         TriageAssessment[]
   users                     User[]
   wards                     Ward[]
@@ -722,6 +723,7 @@ model Product {
   updatedAt            DateTime              @updatedAt
   expenseAccountId     Int?
   version              Int                   @default(1)
+  rxNormCode           String?               // Standard RxNorm Code
   assets               Asset[]
   dispenseItems        DispenseItem[]
   grnItems             GoodsReceiptItem[]
@@ -742,6 +744,7 @@ model Product {
   @@index([hospitalId, name])
   @@index([hospitalId, code])
   @@index([hospitalId, type])
+  @@index([rxNormCode])
 }
 
 model PurchaseRequest {
@@ -1177,7 +1180,31 @@ model SystemAccountMapping {
   accountingEntry   AccountingEntry? @relation(fields: [accountingEntryId], references: [id])
   hospital          Hospital         @relation(fields: [hospitalId], references: [id])
 
+
+
   @@unique([hospitalId, key])
+}
+
+model SystemSetting {
+  id          Int               @id @default(autoincrement())
+  hospitalId  Int
+  key         String
+  value       String
+  group       String?
+  type        SystemSettingType @default(STRING)
+  description String?
+  updatedAt   DateTime          @updatedAt
+  hospital    Hospital          @relation(fields: [hospitalId], references: [id])
+
+  @@unique([hospitalId, key])
+  @@index([hospitalId, group])
+}
+
+enum SystemSettingType {
+  STRING
+  NUMBER
+  BOOLEAN
+  JSON
 }
 
 model Account {
@@ -1453,11 +1480,13 @@ model DiagnosisCode {
   nameEn             String
   nameAr             String?
   isActive           Boolean              @default(true)
+  icd10Code          String?              // Standard ICD-10 Code
   encounterDiagnoses EncounterDiagnosis[]
   visitDiagnoses     VisitDiagnosis[]
 
   @@index([code])
   @@index([nameEn])
+  @@index([icd10Code])
 }
 
 model VisitDiagnosis {

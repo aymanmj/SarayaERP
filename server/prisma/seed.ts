@@ -2603,14 +2603,62 @@ main()
 //     });
 //   }
 
-//   console.log('✅ ALL SEEDS COMPLETED SUCCESSFULLY! System is ready.');
-// }
+//   // 12. إعدادات النظام الافتراضية (System Settings)
+  const defaultSettings = [
+    {
+      key: 'billing.debtLimit',
+      value: '0.01',
+      type: 'NUMBER',
+      group: 'BILLING',
+      description: 'الحد الأدنى للمديونية المسموح بها',
+    },
+    {
+      key: 'billing.currency',
+      value: 'LYD',
+      type: 'STRING',
+      group: 'BILLING',
+      description: 'العملة الافتراضية للنظام',
+    },
+    {
+      key: 'accounting.allowNegativeStock',
+      value: 'false',
+      type: 'BOOLEAN',
+      group: 'INVENTORY',
+      description: 'السماح بالسحب بالسالب من المخزون',
+    },
+    {
+      key: 'medical.defaultLanguage',
+      value: 'ar',
+      type: 'STRING',
+      group: 'MEDICAL',
+      description: 'اللغة الافتراضية للتقارير الطبية',
+    },
+  ];
 
-// main()
-//   .catch((e) => {
-//     console.error(e);
-//     process.exit(1);
-//   })
-//   .finally(async () => {
-//     await prisma.$disconnect();
-//   });
+  for (const s of defaultSettings) {
+    await prisma.systemSetting.upsert({
+      where: { hospitalId_key: { hospitalId: hospital.id, key: s.key } },
+      update: {},
+      create: {
+        hospitalId: hospital.id,
+        key: s.key,
+        value: s.value,
+        type: s.type as any,
+        group: s.group,
+        description: s.description,
+      },
+    });
+  }
+  console.log('⚙️ System Settings: Done.');
+
+  console.log('✅ ALL SEEDS COMPLETED SUCCESSFULLY! System is ready.');
+}
+
+main()
+  .catch((e) => {
+    console.error(e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });

@@ -167,7 +167,7 @@ import { BackupModule } from './backup/backup.module';
     IntegrationModule,
     AnalyticsModule,
     BackupModule, // ✅ [NEW] Backup & Restore
-    PatientPortalModule, // 👈 Phase 5: Patient Access
+    PatientPortalModule, SystemSettingsModule, // 👈 Phase 5: Patient Access
   ],
   controllers: [AppController],
   providers: [
@@ -201,6 +201,7 @@ export class AppModule {}
 // import { BillingModule } from './billing/billing.module';
 // import { PharmacyModule } from './pharmacy/pharmacy.module';
 // import { AuditModule } from './audit/audit.module';
+import { SystemSettingsModule } from './system-settings/system-settings.module';
 //     UsersModule,
 //     PayrollModule,
 //     AttendanceModule,
