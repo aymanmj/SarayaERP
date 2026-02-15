@@ -178,6 +178,10 @@ setup_files() {
     
     mkdir -p "$INSTALL_DIR"/{backups,logs,ssl,production/nginx,scripts}
     
+    # Fix permissions for backup folder (node user in container is 1000)
+    chown -R 1000:1000 "$INSTALL_DIR/backups" 2>/dev/null || true
+    chmod 775 "$INSTALL_DIR/backups"
+    
     if [ "$INSTALL_MODE" = "local" ]; then
         # Copy from shared folder
         info "Copying files from shared folder..."

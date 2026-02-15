@@ -228,8 +228,10 @@ setup_directories() {
     # This fixes the EACCES error for license and uploads
     chown -R 1000:1000 "$INSTALL_DIR/data/license"
     chown -R 1000:1000 "$INSTALL_DIR/uploads"
+    chown -R 1000:1000 "$INSTALL_DIR/backups"
     chmod 775 "$INSTALL_DIR/data/license"
     chmod 775 "$INSTALL_DIR/uploads"
+    chmod 775 "$INSTALL_DIR/backups"
     
     if [ -n "$SUDO_USER" ]; then
         # Keep config files owned by user, but data owned by container user

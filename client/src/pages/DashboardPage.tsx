@@ -153,7 +153,7 @@ export function DashboardPage() {
       <div className="flex flex-col xl:flex-row justify-between items-start xl:items-end gap-6">
         <div>
           <h1 className="text-3xl font-black text-slate-50 mb-2">
-            أهلاً {user?.fullName?.split(" ")[0]} 👋
+            أهلاً {user?.fullName} 👋
           </h1>
           <p className="text-sm text-slate-400">
             لوحة التحكم الرئيسية - إدارة سريعة للمستشفى
