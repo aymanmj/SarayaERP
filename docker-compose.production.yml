@@ -81,6 +81,7 @@ services:
     volumes:
       - ./uploads:/app/uploads
       - ./data/license:/app/data/license
+      - ${BACKUP_PATH:-./backups}:/backups
     depends_on:
       postgres:
         condition: service_healthy
@@ -156,7 +157,7 @@ services:
     user: root # يحتاج روت لتنصيب curl وضبط المجلدات
     volumes:
       - ${BACKUP_PATH:-./backups}:/backups
-      - ./scripts/backup.sh:/backup.sh:ro
+      - ./scripts:/opt/saraya-erp/scripts:ro
     environment:
       POSTGRES_HOST: postgres
       POSTGRES_DB: ${POSTGRES_DB:-saraya_erp}
@@ -168,13 +169,9 @@ services:
     command:
       - |
         apk add --no-cache curl
-        chmod +x /backup.sh
-        echo "⏳ Backup service started..."
-        # حلقة بسيطة للنسخ الاحتياطي كل 24 ساعة (86400 ثانية)
-        while true; do 
-          sleep 86400; 
-          /backup.sh; 
-        done
+        chmod +x /opt/saraya-erp/scripts/*.sh
+        echo "⏳ Backup worker started..."
+        /opt/saraya-erp/scripts/backup-worker.sh
     depends_on:
       postgres:
         condition: service_healthy

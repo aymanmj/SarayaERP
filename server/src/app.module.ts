@@ -66,6 +66,7 @@ import { LicensingModule } from './licensing/licensing.module';
 import { EventsGateway } from './events/events.gateway';
 import { JwtService } from '@nestjs/jwt';
 import { PrometheusModule } from '@willsoto/nestjs-prometheus'; // ✅ Monitoring
+import { BackupModule } from './backup/backup.module';
 
 @Module({
   imports: [
@@ -165,6 +166,7 @@ import { PrometheusModule } from '@willsoto/nestjs-prometheus'; // ✅ Monitorin
     NotificationsModule,
     IntegrationModule,
     AnalyticsModule,
+    BackupModule, // ✅ [NEW] Backup & Restore
     PatientPortalModule, // 👈 Phase 5: Patient Access
   ],
   controllers: [AppController],
