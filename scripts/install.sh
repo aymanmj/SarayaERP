@@ -553,11 +553,12 @@ setup_ghcr() {
     echo ""
 
     read -p "  Enter GitHub Username: " GITHUB_USER < /dev/tty
+    echo -e "  (Input is hidden - paste and press Enter even if you see nothing)"
     read -sp "  Enter GitHub PAT: " GITHUB_PAT < /dev/tty
     echo ""
 
     if [ -z "$GITHUB_USER" ] || [ -z "$GITHUB_PAT" ]; then
-        print_warning "Skipped GHCR setup - you'll need to configure it later"
+        print_warning "Skipped GHCR setup - attempting public access or local build"
         return
     fi
 
