@@ -2868,3 +2868,5 @@ model BedTransfer {
   @@index([hospitalId, status])
   @@map("bed_transfers")
 }
+
+
