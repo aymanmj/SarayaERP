@@ -16,8 +16,7 @@ log() {
 }
 
 # Ensure scripts are executable
-chmod +x /opt/saraya-erp/scripts/backup.sh
-chmod +x /opt/saraya-erp/scripts/restore.sh
+
 
 log "Backup Worker Started. Watching $BACKUP_DIR for triggers..."
 

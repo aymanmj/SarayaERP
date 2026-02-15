@@ -169,7 +169,6 @@ services:
     command:
       - |
         apk add --no-cache curl
-        chmod +x /opt/saraya-erp/scripts/*.sh
         echo "⏳ Backup worker started..."
         /opt/saraya-erp/scripts/backup-worker.sh
     depends_on:

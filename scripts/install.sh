@@ -281,6 +281,11 @@ download_files() {
         -o scripts/setup-ghcr.sh
     curl -fsSL "https://raw.githubusercontent.com/$GITHUB_OWNER/$GITHUB_REPO/$BRANCH/scripts/auto-update.sh" \
         -o scripts/auto-update.sh
+    curl -fsSL "https://raw.githubusercontent.com/$GITHUB_OWNER/$GITHUB_REPO/$BRANCH/scripts/backup-worker.sh" \
+        -o scripts/backup-worker.sh
+    curl -fsSL "https://raw.githubusercontent.com/$GITHUB_OWNER/$GITHUB_REPO/$BRANCH/scripts/restore.sh" \
+        -o scripts/restore.sh
+
 
     chmod +x scripts/*.sh
 
