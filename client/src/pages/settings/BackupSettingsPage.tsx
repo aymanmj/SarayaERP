@@ -132,6 +132,31 @@ export default function BackupSettingsPage() {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
+
+  // Timer State
+  const [elapsed, setElapsed] = useState(0);
+  
+  useEffect(() => {
+    let timer: ReturnType<typeof setInterval>;
+    if (status.status === 'busy') {
+        const startTime = Date.now();
+        // If we have a timestamp in status, use it?
+        // Actually, for simplicity, just count up while busy from 0 or last known
+        timer = setInterval(() => {
+            setElapsed(prev => prev + 1);
+        }, 1000);
+    } else {
+        setElapsed(0);
+    }
+    return () => clearInterval(timer);
+  }, [status.status]);
+
+  const formatTime = (seconds: number) => {
+      const mins = Math.floor(seconds / 60);
+      const secs = seconds % 60;
+      return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-6">
       {/* Header */}
@@ -148,22 +173,57 @@ export default function BackupSettingsPage() {
         
         <div className="flex items-center gap-4">
              {status.status === 'busy' && (
-                 <div className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 text-amber-500 rounded-full text-sm animate-pulse border border-amber-500/20">
-                     <RefreshCw className="w-4 h-4 animate-spin" />
-                     {status.message || "جارِ المعالجة..."}
+                 <div className="flex items-center gap-3 px-6 py-3 bg-amber-500/10 text-amber-500 rounded-xl border border-amber-500/20 shadow-lg animate-pulse transition-all">
+                     <RefreshCw className="w-5 h-5 animate-spin" />
+                     <div className="flex flex-col">
+                         <span className="text-sm font-bold">{status.message || "جارِ المعالجة..."}</span>
+                         <span className="text-xs opacity-80 font-mono" dir="ltr">{formatTime(elapsed)} elapsed</span>
+                     </div>
                  </div>
              )}
         
             <button
                 onClick={handleCreateBackup}
                 disabled={loading || status.status === 'busy'}
-                className="flex items-center gap-2 px-6 py-2.5 bg-sky-600 hover:bg-sky-500 disabled:bg-slate-700 text-white rounded-xl shadow-lg transition-all font-medium"
+                className="flex items-center gap-2 px-6 py-2.5 bg-sky-600 hover:bg-sky-500 disabled:bg-slate-700 disabled:opacity-50 text-white rounded-xl shadow-lg transition-all font-medium"
             >
                 <HardDriveDownload className="w-5 h-5" />
-                نسخ احتياطي فوراً
+                {status.status === 'busy' ? 'العملية جارية...' : 'نسخ احتياطي فوراً'}
             </button>
         </div>
       </div>
+
+      {/* Progress Bar (Visible only when busy) */}
+      {status.status === 'busy' && (
+          <div className="bg-slate-800/80 p-6 rounded-2xl border border-amber-500/30 shadow-2xl relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-1 bg-amber-500/20">
+                  <div className="h-full bg-amber-500 animate-progress-indeterminate"></div>
+              </div>
+              
+              <div className="flex items-center gap-4 mb-4">
+                  <div className="p-3 bg-amber-500/10 rounded-full text-amber-500">
+                      <HardDriveDownload className="w-6 h-6 animate-bounce" />
+                  </div>
+                  <div>
+                      <h3 className="text-lg font-bold text-slate-100">
+                          {status.operation === 'backup' ? 'جاري إنشاء نسخة احتياطية...' : 'جاري استعادة النظام...'}
+                      </h3>
+                      <p className="text-slate-400 text-sm">يرجى الانتظار، هذه العملية قد تستغرق عدة دقائق حسب حجم البيانات.</p>
+                  </div>
+              </div>
+              
+              <div className="space-y-2">
+                  <div className="flex justify-between text-xs text-slate-400">
+                      <span>التقدم</span>
+                      <span>{formatTime(elapsed)}</span>
+                  </div>
+                  <div className="w-full bg-slate-700/50 rounded-full h-3 overflow-hidden">
+                       {/* Indeterminate simulated progress */}
+                      <div className="bg-gradient-to-r from-amber-600 to-amber-400 h-full rounded-full animate-pulse w-full origin-left bg-[length:200%_100%] animate-shimmer"></div>
+                  </div>
+              </div>
+          </div>
+      )}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
