@@ -33,7 +33,13 @@ async function bootstrap() {
         styleSrc: ["'self'", "'unsafe-inline'"],
         scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
         imgSrc: ["'self'", 'data:', 'blob:'],
-        connectSrc: ["'self'", 'http://localhost:*', 'ws://localhost:*'],
+        connectSrc: [
+          "'self'",
+          'http://localhost:*',
+          'ws://localhost:*',
+          'https://erp.alsarayatech.ly',
+          'wss://erp.alsarayatech.ly',
+        ],
       },
     },
     crossOriginEmbedderPolicy: false, // For WebSocket compatibility

@@ -262,12 +262,13 @@ services:
   # ==========================================
 
   watchtower:
-    image: containrrr/watchtower
+    image: containrrr/watchtower:latest
     container_name: saraya_watchtower
     restart: always
     environment:
       - WATCHTOWER_CLEANUP=true
       - WATCHTOWER_INCLUDE_RESTARTING=true
+      - DOCKER_API_VERSION=1.44 # Fix old client error
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     command: --interval 3600 --cleanup
