@@ -71,18 +71,7 @@ export class EncountersController {
     });
   }
 
-  // جلب Encounter واحد بتفاصيله
-  // @Get(':id')
-  // @Roles('ADMIN', 'RECEPTION', 'DOCTOR', 'NURSE')
-  // getOne(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
-  //   const encId = Number(id);
-  //   if (!encId || Number.isNaN(encId)) {
-  //     throw new BadRequestException('رقم Encounter غير صحيح');
-  //   }
-
-  //   return this.encountersService.getEncounterById(user.hospitalId, encId);
-  // }
-
+ 
   @Get(':id')
   @Roles('ADMIN', 'RECEPTION', 'DOCTOR', 'NURSE')
   @Sensitive('VIEW_ENCOUNTER_DETAILS')
@@ -114,19 +103,6 @@ export class EncountersController {
     return encounter;
   }
 
-  // جلب كل Encounters لمريض معيّن
-  // @Get()
-  // @Roles('ADMIN', 'RECEPTION', 'DOCTOR', 'NURSE')
-  // listForPatient(
-  //   @Query() query: ListEncountersQueryDto,
-  //   @CurrentUser() user: JwtPayload,
-  // ) {
-  //   return this.encountersService.listForPatient(
-  //     user.hospitalId,
-  //     query.patientId,
-  //   );
-  // }
-
   // إغلاق Encounter
   @Patch(':id/close')
   @Roles('ADMIN', 'RECEPTION')
@@ -149,12 +125,6 @@ export class EncountersController {
 
     return this.encountersService.softDelete(user.hospitalId, encId, user.sub);
   }
-
-  // @Get('active-inpatients')
-  // @Roles('ADMIN', 'RECEPTION', 'NURSE', 'DOCTOR')
-  // async listActiveInpatients(@CurrentUser() user: JwtPayload) {
-  //   return this.encountersService.listActiveInpatients(user.hospitalId);
-  // }
 
   @Get('list/active-inpatients')
   @Roles('ADMIN', 'RECEPTION', 'NURSE', 'DOCTOR')

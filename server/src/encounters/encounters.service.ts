@@ -24,6 +24,122 @@ export class EncountersService {
     private systemSettings: SystemSettingsService,
   ) {}
 
+  async createEncounter(
+    hospitalId: number,
+    data: {
+      patientId: number;
+      type: EncounterType;
+      departmentId?: number;
+      doctorId?: number;
+      chiefComplaint?: string;
+    },
+  ) {
+    const { patientId, type, departmentId, doctorId, chiefComplaint } = data;
+
+    // 1. التحقق من وجود المريض
+    const patient = await this.prisma.patient.findUnique({
+      where: { id: patientId },
+    });
+
+    if (!patient || patient.hospitalId !== hospitalId) {
+      throw new NotFoundException('المريض غير موجود.');
+    }
+
+    // 2. التحقق من وجود حالة مفتوحة (للطوارئ والإيواء) لتجنب التكرار
+    if (type === EncounterType.IPD || type === EncounterType.ER) {
+      const activeEncounter = await this.prisma.encounter.findFirst({
+        where: {
+          hospitalId,
+          patientId,
+          status: EncounterStatus.OPEN,
+          type: { in: [EncounterType.IPD, EncounterType.ER] },
+        },
+      });
+
+      if (activeEncounter) {
+        throw new BadRequestException(
+          'المريض لديه زيارة فعالة (طوارئ أو تنويم) بالفعل. يجب إغلاقها قبل فتح زيارة جديدة.',
+        );
+      }
+    }
+
+    // 3. إنشاء الزيارة
+    return this.prisma.encounter.create({
+      data: {
+        hospitalId,
+        patientId,
+        type,
+        departmentId,
+        doctorId,
+        chiefComplaint,
+        status: EncounterStatus.OPEN,
+        admissionDate: type === EncounterType.IPD ? new Date() : null, // تاريخ الدخول للمقيمين فقط
+      },
+      include: {
+        patient: { select: { fullName: true, mrn: true } },
+        doctor: { select: { fullName: true } },
+        department: { select: { name: true } },
+      },
+    });
+  }
+
+  async getEncounterById(hospitalId: number, id: number) {
+    const encounter = await this.prisma.encounter.findUnique({
+      where: { id },
+      include: {
+        patient: true,
+        doctor: true,
+        department: true,
+        bedAssignments: {
+          where: { to: null },
+          include: {
+            bed: {
+              include: {
+                ward: true,
+              },
+            },
+          },
+        },
+        invoices: true,
+      },
+    });
+
+    if (!encounter || encounter.hospitalId !== hospitalId) {
+      throw new NotFoundException('الزيارة غير موجودة');
+    }
+
+    return encounter;
+  }
+
+  async closeEncounter(hospitalId: number, encounterId: number) {
+    const encounter = await this.prisma.encounter.findUnique({
+      where: { id: encounterId },
+    });
+
+    if (!encounter || encounter.hospitalId !== hospitalId) {
+      throw new NotFoundException('الزيارة غير موجودة');
+    }
+
+    if (encounter.status !== EncounterStatus.OPEN) {
+      throw new BadRequestException('الزيارة مغلقة بالفعل');
+    }
+
+    // IPD encounters should be discharged via dischargePatient to handle bed release
+    if (encounter.type === EncounterType.IPD) {
+      throw new BadRequestException(
+        'حالات التنويم يجب إغلاقها عبر إجراء الخروج (Discharge).',
+      );
+    }
+
+    return this.prisma.encounter.update({
+      where: { id: encounterId },
+      data: {
+        status: EncounterStatus.CLOSED,
+        dischargeDate: new Date(),
+      },
+    });
+  }
+
   // ... (previous code)
 
   // ✅ [NEW] دالة الخروج الآمن (Discharge & Clearance)

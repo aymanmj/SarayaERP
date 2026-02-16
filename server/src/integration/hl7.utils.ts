@@ -72,37 +72,3 @@ export function createACK(
   return `${ackMsh}\r${msa}\r`;
 }
 
-// // src/integration/hl7.utils.ts
-
-// // ثوابت بروتوكول MLLP (Minimal Lower Layer Protocol)
-// // يستخدم لتغليف رسائل HL7 عبر TCP/IP
-// export const VT = String.fromCharCode(0x0b); // Start Block
-// export const FS = String.fromCharCode(0x1c); // End Block
-// export const CR = String.fromCharCode(0x0d); // Carriage Return
-
-// /**
-//  * تغليف الرسالة النصية ببروتوكول MLLP
-//  */
-// export function wrapInMLLP(data: string): string {
-//   return `${VT}${data}${FS}${CR}`;
-// }
-
-// /**
-//  * فك تغليف الرسالة القادمة (إزالة رموز البداية والنهاية)
-//  */
-// export function unwrapMLLP(data: string): string {
-//   return data
-//     .replace(new RegExp(`^${VT}`), '')
-//     .replace(new RegExp(`${FS}${CR}$`), '');
-// }
-
-// /**
-//  * تنسيق التاريخ لصيغة HL7 القياسية
-//  * Format: YYYYMMDDHHMMSS
-//  */
-// export function getHL7Date(date = new Date()): string {
-//   return date
-//     .toISOString()
-//     .replace(/[-T:.Z]/g, '')
-//     .slice(0, 14);
-// }
