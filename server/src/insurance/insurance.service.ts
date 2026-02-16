@@ -26,7 +26,174 @@ export class InsuranceService {
     private systemSettings: SystemSettingsService,
   ) {}
 
-  // ... (keeping other methods as is)
+
+  // 1. القائمة الكاملة لشركات التأمين
+  async findAllProviders(hospitalId: number) {
+    return this.prisma.insuranceProvider.findMany({
+      where: {
+        hospitalId,
+        isActive: true, // فقط الشركات النشطة
+      },
+      include: {
+        _count: {
+          select: { policies: true },
+        },
+      },
+    });
+  }
+
+  // 2. إنشاء شركة تأمين جديدة
+  async createProvider(hospitalId: number, data: any) {
+    return this.prisma.insuranceProvider.create({
+      data: {
+        hospitalId,
+        name: data.name,
+        code: data.code,
+        phone: data.phone,
+        email: data.email,
+        address: data.address,
+        isActive: true,
+      },
+    });
+  }
+
+  // 3. إنشاء بوليصة تأمين
+  async createPolicy(providerId: number, data: any) {
+    return this.prisma.insurancePolicy.create({
+      data: {
+        insuranceProviderId: providerId,
+        name: data.name,
+        policyNumber: data.policyNumber,
+        startDate: data.startDate ? new Date(data.startDate) : undefined,
+        endDate: data.endDate ? new Date(data.endDate) : undefined,
+        planId: data.planId ? Number(data.planId) : undefined,
+        patientCopayRate: data.patientCopayRate || 0,
+        maxCoverageAmount: data.maxCoverageAmount,
+      },
+    });
+  }
+
+  // 4. إنشاء خطة تأمين
+  async createPlan(providerId: number, data: any) {
+    return this.prisma.insurancePlan.create({
+      data: {
+        providerId,
+        name: data.name,
+        defaultCopayRate: data.defaultCopayRate || 0,
+        maxCopayAmount: data.maxCopayAmount,
+      },
+    });
+  }
+
+  // 5. تفاصيل الخطة
+  async getPlanDetails(planId: number) {
+    return this.prisma.insurancePlan.findUnique({
+      where: { id: planId },
+      include: {
+        rules: {
+          include: {
+            serviceCategory: true,
+            serviceItem: true,
+          },
+        },
+      },
+    });
+  }
+
+  // 6. إضافة قاعدة تغطية
+  async addCoverageRule(planId: number, data: any) {
+    return this.prisma.coverageRule.create({
+      data: {
+        planId,
+        serviceCategoryId: data.serviceCategoryId
+          ? Number(data.serviceCategoryId)
+          : undefined,
+        serviceItemId: data.serviceItemId
+          ? Number(data.serviceItemId)
+          : undefined,
+        ruleType: data.ruleType || CoverageRuleType.INCLUSION,
+        copayType: data.copayType || CopayType.PERCENTAGE,
+        copayValue: data.copayValue || 0,
+        requiresApproval: data.requiresApproval || false,
+      },
+    });
+  }
+
+  // 7. طلب موافقة مسبقة
+  async createPreAuth(hospitalId: number, data: any) {
+    return this.prisma.preAuthorization.create({
+      data: {
+        hospitalId,
+        patientId: Number(data.patientId),
+        policyId: Number(data.policyId),
+        serviceItemId: data.serviceItemId
+          ? Number(data.serviceItemId)
+          : undefined,
+        diagnosisCodeId: data.diagnosisCodeId
+          ? Number(data.diagnosisCodeId)
+          : undefined,
+        requestedAmount: data.requestedAmount,
+        notes: data.notes,
+        status: 'PENDING',
+      },
+    });
+  }
+
+  // 8. جلب الموافقات
+  async getPreAuths(hospitalId: number, patientId?: number) {
+    const where: any = { hospitalId };
+    if (patientId) where.patientId = patientId;
+
+    return this.prisma.preAuthorization.findMany({
+      where,
+      include: {
+        patient: true,
+        policy: { include: { provider: true } },
+        serviceItem: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  // 9. تقرير المطالبات (استبدال النسخة الموجودة ربما)
+  async getClaims(
+    hospitalId: number,
+    filters: {
+      providerId?: number;
+      status?: string;
+      fromDate?: Date;
+      toDate?: Date;
+    },
+  ) {
+    const where: any = {
+      hospitalId,
+      insuranceShare: { gt: 0 },
+    };
+
+    if (filters.providerId) {
+      where.insuranceProviderId = filters.providerId;
+    }
+
+    if (filters.status) {
+      where.claimStatus = filters.status;
+    }
+
+    if (filters.fromDate || filters.toDate) {
+      where.createdAt = {};
+      if (filters.fromDate) where.createdAt.gte = filters.fromDate;
+      if (filters.toDate) where.createdAt.lte = filters.toDate;
+    }
+
+    return this.prisma.invoice.findMany({
+      where,
+      include: {
+        insuranceProvider: true,
+        patient: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
 
   // ✅ 11. تحديث حالة المطالبة (الذكي)
   async updateClaimsStatus(
