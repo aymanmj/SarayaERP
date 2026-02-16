@@ -5,8 +5,10 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { AccountingModule } from '../accounting/accounting.module';
 import { InsuranceCalculationService } from './insurance-calculation.service';
 
+import { SystemSettingsModule } from '../system-settings/system-settings.module';
+
 @Module({
-  imports: [PrismaModule, AccountingModule],
+  imports: [PrismaModule, AccountingModule, SystemSettingsModule],
   controllers: [InsuranceController],
   providers: [InsuranceService, InsuranceCalculationService],
   exports: [InsuranceService, InsuranceCalculationService], // نحتاجه في BillingService لاحقاً

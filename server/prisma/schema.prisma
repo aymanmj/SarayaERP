@@ -2270,6 +2270,7 @@ enum AccountingSourceModule {
   PURCHASE_RETURN
   PATIENT_REFUND
   INVENTORY_ADJUSTMENT
+  JOURNAL_REVERSAL
 }
 
 enum PurchaseReturnStatus {

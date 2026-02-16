@@ -67,6 +67,7 @@ import { EventsGateway } from './events/events.gateway';
 import { JwtService } from '@nestjs/jwt';
 import { PrometheusModule } from '@willsoto/nestjs-prometheus'; // ✅ Monitoring
 import { BackupModule } from './backup/backup.module';
+import { SystemSettingsModule } from './system-settings/system-settings.module';
 
 @Module({
   imports: [
@@ -167,7 +168,8 @@ import { BackupModule } from './backup/backup.module';
     IntegrationModule,
     AnalyticsModule,
     BackupModule, // ✅ [NEW] Backup & Restore
-    PatientPortalModule, SystemSettingsModule, // 👈 Phase 5: Patient Access
+    PatientPortalModule,
+    SystemSettingsModule, // 👈 Phase 5: Patient Access
   ],
   controllers: [AppController],
   providers: [
@@ -187,36 +189,3 @@ import { BackupModule } from './backup/backup.module';
   ],
 })
 export class AppModule {}
-
-// import { Module } from '@nestjs/common';
-// import { ConfigModule } from '@nestjs/config';
-// import { PrismaModule } from './prisma/prisma.module';
-// import { EventEmitterModule } from '@nestjs/event-emitter';
-// import { AuthModule } from './auth/auth.module';
-// import { PatientsModule } from './patients/patients.module';
-// import { EncountersModule } from './encounters/encounters.module';
-// import { VisitsModule } from './visits/visits.module';
-// import { OrdersModule } from './orders/orders.module';
-// import { BedsModule } from './beds/beds.module';
-// import { BillingModule } from './billing/billing.module';
-// import { PharmacyModule } from './pharmacy/pharmacy.module';
-// import { AuditModule } from './audit/audit.module';
-import { SystemSettingsModule } from './system-settings/system-settings.module';
-//     UsersModule,
-//     PayrollModule,
-//     AttendanceModule,
-//     InsuranceModule,
-//     NursingModule,
-//     HrModule,
-//   ],
-//   providers: [SoftDeleteService, CashierService],
-//   controllers: [CashierController],
-// })
-// export class AppModule {}
-
-// @Module({
-//   imports: [PatientsModule, AuthModule],
-//   controllers: [AppController],
-//   providers: [AppService],
-// })
-// export class AppModule {}

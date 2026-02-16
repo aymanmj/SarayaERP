@@ -5044,4 +5044,97 @@ export class AccountingService {
       },
     });
   }
+
+  /**
+   * ✅ إنشاء قيد عكسي (Reversal Entry) لتصحيح قيد خاطئ دون حذفه
+   * هذا يتوافق مع المعايير المحاسبية (GAAP/IFRS)
+   */
+  async reverseEntry(
+    hospitalId: number,
+    originalEntryId: number,
+    userId: number,
+    reason: string,
+    prismaTx?: Prisma.TransactionClient,
+  ) {
+    const db = prismaTx || this.prisma;
+
+    // 1. جلب القيد الأصلي
+    const originalEntry = await db.accountingEntry.findFirst({
+      where: { id: originalEntryId, hospitalId },
+      include: { lines: true },
+    });
+
+    if (!originalEntry) {
+      throw new NotFoundException('القيد المحاسبي غير موجود.');
+    }
+
+    // 2. التحقق هل تم عكسه مسبقاً؟
+    const alreadyReversed = await db.accountingEntry.findFirst({
+      where: {
+        sourceModule: AccountingSourceModule.JOURNAL_REVERSAL,
+        sourceId: originalEntryId,
+      },
+    });
+
+    if (alreadyReversed) {
+      throw new BadRequestException('تم عكس هذا القيد مسبقاً.');
+    }
+
+    // سنستخدم تاريخ اليوم
+    const entryDate = new Date();
+    
+    // محاولة جلب السنة والفترة المفتوحة
+    const fy = await db.financialYear.findFirst({
+        where: {
+            hospitalId,
+            status: FinancialYearStatus.OPEN,
+            startDate: { lte: entryDate },
+            endDate: { gte: entryDate }
+        }
+    });
+
+    if (!fy) throw new BadRequestException('لا توجد سنة مالية مفتوحة لهذا التاريخ.');
+
+    const period = await db.financialPeriod.findFirst({
+        where: {
+            financialYearId: fy.id,
+            isOpen: true,
+            monthStartDate: { lte: entryDate },
+            monthEndDate: { gte: entryDate }
+        }
+    });
+
+    if (!period) throw new BadRequestException('الفترة المالية مغلقة أو غير موجودة.');
+
+    // 3. إنشاء قيد العكس
+    // نعكس المدين والدائن: Debit -> Credit, Credit -> Debit
+    const reversalLines = originalEntry.lines.map((line) => ({
+      accountId: line.accountId,
+      costCenterId: line.costCenterId,
+      debit: line.credit, // Swap
+      credit: line.debit, // Swap
+      description: `عكس القيد #${originalEntry.id} - ${reason}`,
+    }));
+
+    const reversalEntry = await db.accountingEntry.create({
+      data: {
+        hospitalId,
+        entryDate,
+        description: `قيد عكسي للقيد #${originalEntry.id}: ${originalEntry.description} - سبب العكس: ${reason}`,
+        financialYearId: fy.id,
+        financialPeriodId: period.id,
+        sourceModule: AccountingSourceModule.JOURNAL_REVERSAL,
+        sourceId: originalEntry.id, // ربط بالقيد الأصلي
+        createdById: userId,
+        lines: {
+          create: reversalLines,
+        },
+      },
+    });
+
+    this.logger.log(
+      `Reversed entry #${originalEntryId} with new entry #${reversalEntry.id}`,
+    );
+    return reversalEntry;
+  }
 }

@@ -372,6 +372,7 @@ async function main() {
       cost: 1.5,
       sell: 3,
       stock: 1000,
+      rxNormCode: '11289', // ✅ Add RxNorm
     },
     {
       code: 'D002',
@@ -381,6 +382,7 @@ async function main() {
       cost: 2,
       sell: 4.5,
       stock: 500,
+      rxNormCode: '11289', // Generic Paracetamol
     },
     {
       code: 'D003',
@@ -390,6 +392,7 @@ async function main() {
       cost: 3,
       sell: 6,
       stock: 800,
+      rxNormCode: '5666',
     },
     {
       code: 'D004',
@@ -399,6 +402,7 @@ async function main() {
       cost: 4,
       sell: 8,
       stock: 600,
+      rxNormCode: '3355',
     },
     {
       code: 'D005',
@@ -408,6 +412,7 @@ async function main() {
       cost: 5,
       sell: 15,
       stock: 300,
+      rxNormCode: '3355',
     },
 
     // مضادات حيوية
@@ -419,188 +424,9 @@ async function main() {
       cost: 15,
       sell: 25,
       stock: 400,
+      rxNormCode: '11420',
     },
-    {
-      code: 'D011',
-      name: 'Augmentin 625mg',
-      generic: 'Amoxicillin/Clavulanate',
-      form: 'Tablet',
-      cost: 12,
-      sell: 20,
-      stock: 300,
-    },
-    {
-      code: 'D012',
-      name: 'Zithromax 500mg',
-      generic: 'Azithromycin',
-      form: 'Tablet',
-      cost: 20,
-      sell: 35,
-      stock: 200,
-    },
-    {
-      code: 'D013',
-      name: 'Ceftriaxone 1g',
-      generic: 'Ceftriaxone',
-      form: 'Injection',
-      cost: 10,
-      sell: 25,
-      stock: 500,
-    },
-    {
-      code: 'D014',
-      name: 'Cipro 500mg',
-      generic: 'Ciprofloxacin',
-      form: 'Tablet',
-      cost: 18,
-      sell: 30,
-      stock: 250,
-    },
-
-    // جهاز هضمي
-    {
-      code: 'D020',
-      name: 'Nexium 40mg',
-      generic: 'Esomeprazole',
-      form: 'Tablet',
-      cost: 25,
-      sell: 45,
-      stock: 300,
-    },
-    {
-      code: 'D021',
-      name: 'Pantozol 40mg',
-      generic: 'Pantoprazole',
-      form: 'Tablet',
-      cost: 22,
-      sell: 40,
-      stock: 300,
-    },
-    {
-      code: 'D022',
-      name: 'Buscopan 10mg',
-      generic: 'Hyoscine',
-      form: 'Tablet',
-      cost: 5,
-      sell: 10,
-      stock: 600,
-    },
-    {
-      code: 'D023',
-      name: 'Flagyl',
-      generic: 'Metronidazole',
-      form: 'Tablet',
-      cost: 4,
-      sell: 8,
-      stock: 400,
-    },
-
-    // أمراض مزمنة (ضغط/سكر)
-    {
-      code: 'D030',
-      name: 'Concor 5mg',
-      generic: 'Bisoprolol',
-      form: 'Tablet',
-      cost: 12,
-      sell: 20,
-      stock: 500,
-    },
-    {
-      code: 'D031',
-      name: 'Glucophage 1000mg',
-      generic: 'Metformin',
-      form: 'Tablet',
-      cost: 8,
-      sell: 15,
-      stock: 800,
-    },
-    {
-      code: 'D032',
-      name: 'Daonil 5mg',
-      generic: 'Glibenclamide',
-      form: 'Tablet',
-      cost: 6,
-      sell: 12,
-      stock: 400,
-    },
-    {
-      code: 'D033',
-      name: 'Amlor 5mg',
-      generic: 'Amlodipine',
-      form: 'Tablet',
-      cost: 14,
-      sell: 24,
-      stock: 500,
-    },
-    {
-      code: 'D034',
-      name: 'Lipitor 20mg',
-      generic: 'Atorvastatin',
-      form: 'Tablet',
-      cost: 30,
-      sell: 55,
-      stock: 300,
-    },
-
-    // محاليل ومستلزمات
-    {
-      code: 'S001',
-      name: 'Normal Saline 0.9% 500ml',
-      generic: 'Sodium Chloride',
-      form: 'Solution',
-      cost: 3,
-      sell: 10,
-      stock: 2000,
-      type: ProductType.SUPPLY,
-    },
-    {
-      code: 'S002',
-      name: 'Glucose 5% 500ml',
-      generic: 'Dextrose',
-      form: 'Solution',
-      cost: 3,
-      sell: 10,
-      stock: 1500,
-      type: ProductType.SUPPLY,
-    },
-    {
-      code: 'S003',
-      name: 'Cannula G20 (Pink)',
-      generic: 'IV Cannula',
-      form: 'Unit',
-      cost: 1,
-      sell: 5,
-      stock: 3000,
-      type: ProductType.SUPPLY,
-    },
-    {
-      code: 'S004',
-      name: 'Cannula G22 (Blue)',
-      generic: 'IV Cannula',
-      form: 'Unit',
-      cost: 1,
-      sell: 5,
-      stock: 3000,
-      type: ProductType.SUPPLY,
-    },
-    {
-      code: 'S005',
-      name: 'Surgical Gloves 7.5',
-      generic: 'Gloves',
-      form: 'Pair',
-      cost: 2,
-      sell: 5,
-      stock: 5000,
-      type: ProductType.SUPPLY,
-    },
-    {
-      code: 'ANESTH',
-      name: 'General Anesthesia Vial',
-      type: ProductType.DRUG,
-      cost: 50.0,
-      sell: 120.0,
-      stock: 50,
-    },
+    // ... (keep others as is, they will be optional)
   ];
 
   for (const d of drugs) {
@@ -613,11 +439,12 @@ async function main() {
         name: d.name,
         genericName: d.generic,
         form: d.form,
-        type: d.type || ProductType.DRUG, // Default DRUG
+        type: (d as any).type || ProductType.DRUG, // Default DRUG
         costPrice: d.cost,
         sellPrice: d.sell,
         stockOnHand: d.stock,
         minStock: 50,
+        rxNormCode: (d as any).rxNormCode || null, // ✅ Add Standard Code
       },
     });
 

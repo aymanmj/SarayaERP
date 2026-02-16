@@ -487,12 +487,14 @@ export class BillingService {
       });
 
       if (entry) {
-        // هنا نستدعي دالة الحذف التي قمنا بتأمينها في الخطوة السابقة
-        // ملاحظة: validateEntryModification ستسمح بالحذف هنا لأننا داخل Transaction الإلغاء
-        await tx.accountingEntryLine.deleteMany({
-          where: { entryId: entry.id },
-        });
-        await tx.accountingEntry.delete({ where: { id: entry.id } });
+        // ✅ [REFRACTOR] استخدام القيد العكسي بدلاً من الحذف النهائي
+        await this.accounting.reverseEntry(
+          hospitalId,
+          entry.id,
+          userId,
+          `إلغاء الفاتورة #${invoiceId}`,
+          tx, // نمرر الترانزكشن الحالية
+        );
       }
 
       this.logger.log(`Invoice #${invoiceId} cancelled by user ${userId}`);

@@ -27,12 +27,17 @@ export async function seedMedicalData() {
   for (const d of diagnoses) {
     await prisma.diagnosisCode.upsert({
       where: { code: d.code },
-      update: { nameEn: d.nameEn, nameAr: d.nameAr },
+      update: {
+        nameEn: d.nameEn,
+        nameAr: d.nameAr,
+        icd10Code: d.code, // ✅ Add Standard Code
+      },
       create: {
         code: d.code,
         nameEn: d.nameEn,
         nameAr: d.nameAr,
         isActive: true,
+        icd10Code: d.code, // ✅ Add Standard Code
       },
     });
     diagCount++;
@@ -50,6 +55,7 @@ export async function seedMedicalData() {
       where: { hospitalId_code: { hospitalId, code: p.code } },
       update: {
         stockOnHand: p.stockOnHand,
+        // rxNormCode: p.rxNormCode, // Optional update
       },
       create: {
         hospitalId,
@@ -64,6 +70,7 @@ export async function seedMedicalData() {
         stockOnHand: p.stockOnHand,
         minStock: p.minStock,
         isActive: true,
+        rxNormCode: p.rxNormCode, // ✅ Add Standard Code
       },
     });
     prodCount++;

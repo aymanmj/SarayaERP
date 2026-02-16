@@ -206,6 +206,7 @@ export class PharmacyService {
         strength: true,
         form: true,
         sellPrice: true,
+        rxNormCode: true, // ✅ Add RxNorm
       },
     });
   }

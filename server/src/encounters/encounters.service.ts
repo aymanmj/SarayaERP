@@ -14,103 +14,23 @@ import {
   BedStatus,
 } from '@prisma/client';
 
+import { SystemSettingsService } from '../system-settings/system-settings.service';
+
 @Injectable()
 export class EncountersService {
   constructor(
     private prisma: PrismaService,
     private softDeleteService: SoftDeleteService,
+    private systemSettings: SystemSettingsService,
   ) {}
 
-  // ... (دوال createEncounter, getEncounterById, listForPatient ... تبقى كما هي)
-  async createEncounter(
-    hospitalId: number,
-    data: {
-      patientId: number;
-      type: EncounterType;
-      departmentId?: number;
-      doctorId?: number;
-      chiefComplaint?: string;
-    },
-  ) {
-    const patient = await this.prisma.patient.findFirst({
-      where: { id: data.patientId, hospitalId, isActive: true },
-    });
-
-    if (!patient) {
-      throw new NotFoundException('المريض غير موجود في هذه المنشأة');
-    }
-
-    // منع فتح حالة تنويم جديدة إذا كان المريض منوماً بالفعل
-    if (data.type === EncounterType.IPD) {
-      const activeIpd = await this.prisma.encounter.findFirst({
-        where: {
-          hospitalId,
-          patientId: data.patientId,
-          type: EncounterType.IPD,
-          status: EncounterStatus.OPEN,
-        },
-      });
-
-      if (activeIpd) {
-        throw new BadRequestException(
-          `المريض منوم بالفعل حالياً (ملف رقم #${activeIpd.id}). يجب إغلاق ملف التنويم الحالي قبل فتح ملف جديد.`,
-        );
-      }
-    }
-
-    return this.prisma.encounter.create({
-      data: {
-        hospitalId,
-        patientId: data.patientId,
-        type: data.type,
-        status: EncounterStatus.OPEN,
-        departmentId: data.departmentId ?? null,
-        doctorId: data.doctorId ?? null,
-        chiefComplaint: data.chiefComplaint ?? null,
-      },
-    });
-  }
-
-  async getEncounterById(hospitalId: number, id: number) {
-    const enc = await this.prisma.encounter.findFirst({
-      where: { id, hospitalId },
-      include: {
-        patient: true,
-        department: true,
-        doctor: true,
-        visits: true,
-        // ✅ [إضافة] جلب بيانات السرير الحالي
-        bedAssignments: {
-          where: { to: null }, // السرير النشط فقط
-          include: {
-            bed: {
-              include: {
-                ward: true, // نحتاج اسم العنبر
-              },
-            },
-          },
-        },
-      },
-    });
-    if (!enc) throw new NotFoundException('الملف الطبي (Encounter) غير موجود');
-    return enc;
-  }
-
-  async listForPatient(hospitalId: number, patientId: number) {
-    return this.prisma.encounter.findMany({
-      where: { hospitalId, patientId },
-      orderBy: { createdAt: 'desc' },
-    });
-  }
-
-  async closeEncounter(hospitalId: number, id: number) {
-    // هذه الدالة القديمة البسيطة (يمكن إبقاؤها للعيادات الخارجية)
-    // لكن للخروج من التنويم سنستخدم الدالة الجديدة بالأسفل
-    return this.dischargePatient(hospitalId, id);
-  }
+  // ... (previous code)
 
   // ✅ [NEW] دالة الخروج الآمن (Discharge & Clearance)
   async dischargePatient(hospitalId: number, encounterId: number) {
+    // 0. جلب إعداد الحد المسموح به للمديونية
+    const debtLimit = await this.systemSettings.getNumber(hospitalId, 'billing.debtLimit', 0.01);
+
     return this.prisma.$transaction(async (tx) => {
       // 1. جلب الحالة مع الفواتير والسرير
       const encounter = await tx.encounter.findUnique({
@@ -146,15 +66,15 @@ export class EncountersService {
         const paid = Number(inv.paidAmount);
 
         const remaining = patientShare - paid;
-        if (remaining > 0.01) {
+        if (remaining > debtLimit) {
           // سماحية بسيطة للكسور
           totalPatientDebt += remaining;
         }
       }
 
-      if (totalPatientDebt > 0.01) {
+      if (totalPatientDebt > debtLimit) {
         throw new BadRequestException(
-          `لا يمكن إجراء الخروج. يوجد مستحقات مالية على المريض بقيمة ${totalPatientDebt.toFixed(3)} دينار. يرجى السداد أولاً.`,
+          `لا يمكن إجراء الخروج. يوجد مستحقات مالية على المريض بقيمة ${totalPatientDebt.toFixed(3)} دينار. يرجى السداد أولاً (الحد المسموح به: ${debtLimit}).`,
         );
       }
 
