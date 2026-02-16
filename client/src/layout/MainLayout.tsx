@@ -362,6 +362,26 @@ export function MainLayout() {
           path: "/nursing",
           access: "emr:vitals:record",
         },
+        {
+          label: "جولات الأطباء",
+          path: "/doctor-rounds",
+          access: "clinical:appointment:view", // Adjust access if needed
+        },
+        {
+          label: "تخطيط الخروج",
+          path: "/discharge-planning",
+          access: "clinical:appointment:view", // Adjust access if needed
+        },
+        {
+          label: "إدارة الأسرة (Dashboard)",
+          path: "/bed-management",
+          access: "adt:bed:view",
+        },
+        {
+          label: "تسجيل ولادة (OB/GYN)",
+          path: "/obgyn/deliveries/new",
+          requiredModule: "OBGYN", // Assuming OBGYN module exists, else use standard access
+        },
         { label: "الصيدلية", path: "/pharmacy", requiredModule: "PHARMACY" },
         { label: "مختبر التحاليل", path: "/lab", requiredModule: "LAB" },
         { label: "الأشعة", path: "/radiology", requiredModule: "RADIOLOGY" },
@@ -595,6 +615,7 @@ export function MainLayout() {
       allowedRoles: ["ADMIN"],
       items: [
         { label: "الإعدادات العامة", path: "/settings" },
+        { label: "إعدادات النظام", path: "/settings/system" },
         { label: "الأقسام (Departments)", path: "/settings/departments" },
         { label: "التخصصات (Specialties)", path: "/settings/specialties" },
         { label: "قوائم الأسعار", path: "/settings/price-lists" },
