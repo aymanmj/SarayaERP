@@ -1,17 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Alert, ActivityIndicator, FlatList, Button } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import api from '../../services/api';
+import LabResultsList from "../../components/LabResultsList";
+import { Ionicons } from '@expo/vector-icons';
 
 export default function PatientDetailScreen() {
   const params = useLocalSearchParams();
   const { id, name, diagnosis, gender, dob, vitals } = params;
 
   const [notes, setNotes] = useState<any[]>([]);
-  const [loadingNotes, setLoadingNotes] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [newNote, setNewNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [activeTab, setActiveTab] = useState<'notes' | 'labs'>('notes');
 
   useEffect(() => {
     if (id) {
@@ -20,14 +23,14 @@ export default function PatientDetailScreen() {
   }, [id]);
 
   const fetchNotes = async () => {
-    setLoadingNotes(true);
+    setLoading(true);
     try {
       const data = await api.getClinicalNotes(Number(id));
-      setNotes(data);
+      setNotes(data || []);
     } catch (error) {
       console.error("Failed to fetch notes", error);
     } finally {
-      setLoadingNotes(false);
+      setLoading(false);
     }
   };
 
@@ -42,145 +45,130 @@ export default function PatientDetailScreen() {
     }
     setSubmitting(true);
     try {
-      console.log('Creating note for encounter:', Number(id), 'Type:', 'DOCTOR_ROUND');
       await api.createClinicalNote(Number(id), newNote, 'DOCTOR_ROUND');
       setNewNote('');
       setModalVisible(false);
-      fetchNotes(); // Refresh list
+      fetchNotes(); 
       Alert.alert("Success", "Note added successfully");
     } catch (error: any) {
       console.error("Failed to add note", error);
-      const errorMessage = error.response?.data?.message 
-        ? JSON.stringify(error.response.data.message) 
-        : "Failed to add note";
-      Alert.alert("Error", errorMessage);
+      Alert.alert("Error", "Failed to add note");
     } finally {
       setSubmitting(false);
     }
   };
 
-  // Calculate Age
-  const calculateAge = (dobString: string) => {
-    if (!dobString) return 'N/A';
-    const birthDate = new Date(dobString);
-    const today = new Date();
-    let age = today.getFullYear() - birthDate.getFullYear();
-    const m = today.getMonth() - birthDate.getMonth();
-    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
-      age--;
+  // Helper to parse vitals safely
+  const parseVitals = (vitalsStr: any) => {
+    try {
+      if (typeof vitalsStr === 'string') return JSON.parse(vitalsStr);
+      return vitalsStr;
+    } catch (e) {
+      return null;
     }
-    return age;
   };
 
-  const age = dob ? calculateAge(dob as string) : 'N/A';
-  
-  // Parse Vitals
-  let parsedVitals = null;
-  if (vitals) {
-    try {
-      parsedVitals = JSON.parse(vitals as string);
-    } catch (e) {
-      console.error("Failed to parse vitals", e);
-    }
-  }
-
+  const parsedVitals = vitals ? parseVitals(vitals) : null;
   const patientDetails = {
-    id,
-    name: name || 'Unknown Patient',
-    age: age,
-    gender: gender || 'Unknown',
-    vitals: parsedVitals ? {
-      bp: parsedVitals.bpSystolic && parsedVitals.bpDiastolic ? `${parsedVitals.bpSystolic}/${parsedVitals.bpDiastolic}` : 'N/A',
-      hr: parsedVitals.heartRate || 'N/A',
-      temp: parsedVitals.temperature ? `${parsedVitals.temperature}°C` : 'N/A'
-    } : { bp: 'N/A', hr: 'N/A', temp: 'N/A' },
-    notes: `Admitted for ${diagnosis}.`
+      bp: parsedVitals?.bpSystolic && parsedVitals?.bpDiastolic ? `${parsedVitals.bpSystolic}/${parsedVitals.bpDiastolic}` : 'N/A',
+      hr: parsedVitals?.heartRate || 'N/A',
+      temp: parsedVitals?.temperature ? `${parsedVitals.temperature}°C` : 'N/A'
   };
 
   return (
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.header}>
-          <Text style={styles.name}>{patientDetails.name}</Text>
-          <Text style={styles.details}>{patientDetails.age} Y / {patientDetails.gender}</Text>
-        </View>
+      {/* Header Section */}
+      <View style={styles.header}>
+        <Text style={styles.patientName}>{name || "Unknown Patient"}</Text>
+        <Text style={styles.patientDetail}>MRN: {id ? `MRN-${id}` : 'N/A'}</Text>
+        <Text style={styles.patientDetail}>
+            {dob ? new Date().getFullYear() - new Date(dob as string).getFullYear() : 'N/A'} Years | {gender || 'Unknown'}
+        </Text>
+      </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Latest Vitals</Text>
-          <View style={styles.vitalsGrid}>
-            <View style={styles.vitalItem}>
-              <Text style={styles.vitalLabel}>BP</Text>
-              <Text style={styles.vitalValue}>{patientDetails.vitals.bp}</Text>
-            </View>
-            <View style={styles.vitalItem}>
-              <Text style={styles.vitalLabel}>HR</Text>
-              <Text style={styles.vitalValue}>{patientDetails.vitals.hr}</Text>
-            </View>
-            <View style={styles.vitalItem}>
-              <Text style={styles.vitalLabel}>Temp</Text>
-              <Text style={styles.vitalValue}>{patientDetails.vitals.temp}</Text>
-            </View>
-          </View>
-        </View>
+      {/* Tabs */}
+      <View style={styles.tabContainer}>
+        <TouchableOpacity 
+          style={[styles.tab, activeTab === 'notes' && styles.activeTab]} 
+          onPress={() => setActiveTab('notes')}
+        >
+          <Text style={[styles.tabText, activeTab === 'notes' && styles.activeTabText]}>Clinical Notes</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={[styles.tab, activeTab === 'labs' && styles.activeTab]} 
+          onPress={() => setActiveTab('labs')}
+        >
+          <Text style={[styles.tabText, activeTab === 'labs' && styles.activeTabText]}>Lab Results</Text>
+        </TouchableOpacity>
+      </View>
 
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Clinical Notes</Text>
-            <TouchableOpacity onPress={() => setModalVisible(true)} style={styles.addButton}>
-              <Text style={styles.addButtonText}>+ Add Note</Text>
-            </TouchableOpacity>
-          </View>
-          
-          {loadingNotes ? (
-            <ActivityIndicator size="small" color="#007AFF" />
-          ) : notes.length === 0 ? (
-            <Text style={styles.emptyText}>No notes recorded yet.</Text>
-          ) : (
-            notes.map((note) => (
-              <View key={note.id} style={styles.noteCard}>
-                <View style={styles.noteHeader}>
-                  <Text style={styles.noteAuthor}>{note.createdBy?.fullName || 'Unknown'}</Text>
-                  <Text style={styles.noteDate}>{new Date(note.createdAt).toLocaleString()}</Text>
-                </View>
-                <Text style={styles.noteContent}>{note.content}</Text>
-              </View>
-            ))
-          )}
-        </View>
-      </ScrollView>
+      {/* Content Area */}
+      <View style={styles.content}>
+        {activeTab === 'notes' ? (
+          <>
+            <View style={styles.vitalsCard}>
+               <Text style={styles.vitalsTitle}>Latest Vitals</Text>
+               <View style={styles.vitalsRow}>
+                   <Text style={styles.vitalText}>BP: {patientDetails.bp}</Text>
+                   <Text style={styles.vitalText}>HR: {patientDetails.hr}</Text>
+                   <Text style={styles.vitalText}>Temp: {patientDetails.temp}</Text>
+               </View>
+            </View>
 
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Notes History</Text>
+              <TouchableOpacity onPress={() => setModalVisible(true)} style={styles.addButton}>
+                <Ionicons name="add" size={24} color="#fff" />
+              </TouchableOpacity>
+            </View>
+
+            {loading ? (
+              <ActivityIndicator size="large" color="#0000ff" />
+            ) : (
+              <FlatList
+                data={notes}
+                keyExtractor={(item) => item.id.toString()}
+                renderItem={({ item }) => (
+                  <View style={styles.noteCard}>
+                    <Text style={styles.noteType}>{item.type}</Text>
+                    <Text style={styles.noteContent}>{item.content}</Text>
+                    <Text style={styles.noteMeta}>
+                      {item.createdBy?.fullName || 'Unknown'} | {new Date(item.createdAt).toLocaleString()}
+                    </Text>
+                  </View>
+                )}
+                ListEmptyComponent={<Text style={styles.emptyText}>No notes found.</Text>} 
+              />
+            )}
+          </>
+        ) : (
+          <LabResultsList encounterId={Number(id)} />
+        )}
+      </View>
+
+      {/* Add Note Modal */}
       <Modal
         animationType="slide"
         transparent={true}
         visible={modalVisible}
         onRequestClose={() => setModalVisible(false)}
       >
-        <View style={styles.centeredView}>
-          <View style={styles.modalView}>
-            <Text style={styles.modalTitle}>Add Clinical Note</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter note details..."
-              multiline
-              numberOfLines={4}
-              value={newNote}
-              onChangeText={setNewNote}
-            />
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.button, styles.buttonClose]}
-                onPress={() => setModalVisible(false)}
-              >
-                <Text style={styles.textStyle}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.button, styles.buttonSave]}
-                onPress={handleAddNote}
-                disabled={submitting}
-              >
-                <Text style={styles.textStyle}>{submitting ? 'Saving...' : 'Save Note'}</Text>
-              </TouchableOpacity>
-            </View>
+        <View style={styles.modalView}>
+          <Text style={styles.modalTitle}>Add Clinical Note</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Enter note content..."
+            value={newNote}
+            onChangeText={setNewNote}
+            multiline
+          />
+          <View style={styles.modalButtons}>
+            <TouchableOpacity style={styles.modalButtonCancel} onPress={() => setModalVisible(false)}>
+                <Text style={styles.modalButtonText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.modalButtonSave} onPress={handleAddNote} disabled={submitting}>
+                <Text style={styles.modalButtonText}>{submitting ? "Saving..." : "Save"}</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -189,170 +177,40 @@ export default function PatientDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  scrollContent: {
-    padding: 16,
-  },
-  header: {
-    marginBottom: 24,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-    paddingBottom: 16,
-  },
-  name: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#000',
-  },
-  details: {
-    fontSize: 16,
-    color: '#666',
-    marginTop: 4,
-  },
-  section: {
-    marginBottom: 24,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-  },
-  vitalsGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  vitalItem: {
-    backgroundColor: '#f8f9fa',
-    padding: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-    width: '30%',
-  },
-  vitalLabel: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 4,
-  },
-  vitalValue: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#007AFF',
-  },
-  notes: {
-    fontSize: 16,
-    lineHeight: 24,
-    color: '#444',
-  },
-  addButton: {
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-  },
-  addButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  emptyText: {
-    fontStyle: 'italic',
-    color: '#999',
-    textAlign: 'center',
-    marginTop: 8,
-  },
-  noteCard: {
-    backgroundColor: '#f8f9fa',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 8,
-    borderLeftWidth: 4,
-    borderLeftColor: '#007AFF',
-  },
-  noteHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 6,
-  },
-  noteAuthor: {
-    fontWeight: '600',
-    fontSize: 14,
-    color: '#333',
-  },
-  noteDate: {
-    fontSize: 12,
-    color: '#888',
-  },
-  noteContent: {
-    fontSize: 14,
-    color: '#444',
-    lineHeight: 20,
-  },
-  centeredView: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 22,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-  },
-  modalView: {
-    width: '90%',
-    margin: 20,
-    backgroundColor: 'white',
-    borderRadius: 20,
-    padding: 24,
-    alignItems: 'stretch',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 20,
-    textAlignVertical: 'top',
-    height: 100,
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  button: {
-    borderRadius: 8,
-    padding: 12,
-    elevation: 2,
-    width: '48%',
-  },
-  buttonClose: {
-    backgroundColor: '#888',
-  },
-  buttonSave: {
-    backgroundColor: '#007AFF',
-  },
-  textStyle: {
-    color: 'white',
-    fontWeight: 'bold',
-    textAlign: 'center',
-  },
+  container: { flex: 1, backgroundColor: "#f8f9fa" },
+  header: { padding: 20, backgroundColor: "#0284c7", borderBottomLeftRadius: 20, borderBottomRightRadius: 20, paddingBottom: 30 },
+  patientName: { fontSize: 24, fontWeight: "bold", color: "#fff", marginBottom: 5 },
+  patientDetail: { fontSize: 16, color: "#e0f2fe" },
+  
+  // Tabs
+  tabContainer: { flexDirection: 'row', backgroundColor: '#fff', marginHorizontal: 20, marginTop: -20, borderRadius: 12, padding: 4, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 4, elevation: 4 },
+  tab: { flex: 1, paddingVertical: 12, alignItems: 'center', borderRadius: 8 },
+  activeTab: { backgroundColor: '#0284c7' },
+  tabText: { fontWeight: '600', color: '#64748b' },
+  activeTabText: { color: '#fff' },
+
+  content: { flex: 1, padding: 20 },
+  sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 15 },
+  sectionTitle: { fontSize: 20, fontWeight: "bold", color: "#333" },
+  addButton: { backgroundColor: "#0284c7", width: 40, height: 40, borderRadius: 20, justifyContent: "center", alignItems: "center" },
+  
+  // Vitals Card
+  vitalsCard: { backgroundColor: '#fff', padding: 15, borderRadius: 10, marginBottom: 20, borderWidth: 1, borderColor: '#e2e8f0' },
+  vitalsTitle: { fontSize: 14, fontWeight: 'bold', color: '#64748b', marginBottom: 10 },
+  vitalsRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  vitalText: { fontSize: 16, fontWeight: 'bold', color: '#333' },
+
+  noteCard: { backgroundColor: "#fff", padding: 15, borderRadius: 10, marginBottom: 10, shadowColor: "#000", shadowOpacity: 0.1, shadowRadius: 5, elevation: 3 },
+  noteType: { fontSize: 14, fontWeight: "bold", color: "#0284c7", marginBottom: 5 },
+  noteContent: { fontSize: 16, color: "#333", marginBottom: 10 },
+  noteMeta: { fontSize: 12, color: "#777" },
+  emptyText: { textAlign: "center", marginTop: 20, color: "#777" },
+  
+  modalView: { flex: 1, justifyContent: "center", padding: 20, backgroundColor: "rgba(0,0,0,0.9)" }, // Darker background
+  modalTitle: { fontSize: 22, fontWeight: "bold", color: "#fff", marginBottom: 20, textAlign: 'center' },
+  input: { backgroundColor: "#fff", padding: 15, borderRadius: 10, marginBottom: 20, minHeight: 100, textAlignVertical: 'top' },
+  modalButtons: { flexDirection: "row", justifyContent: "space-around" },
+  modalButtonCancel: { backgroundColor: "#ef4444", padding: 10, borderRadius: 8, width: '40%', alignItems: 'center' },
+  modalButtonSave: { backgroundColor: "#0284c7", padding: 10, borderRadius: 8, width: '40%', alignItems: 'center' },
+  modalButtonText: { color: '#fff', fontWeight: 'bold' } 
 });

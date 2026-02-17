@@ -83,62 +83,110 @@ async function main() {
   }
 
   // ====================================================
-  // 2. تعريف الصلاحيات القياسية (System Permissions) ✅ [NEW]
+  // 2. تعريف الصلاحيات القياسية (System Permissions) ✅ [IMPROVED]
   // ====================================================
   const permissionsList = [
-    // موديول الفوترة
-    { code: 'billing:invoice:create', description: 'إصدار فاتورة مريض' },
-    { code: 'billing:invoice:cancel', description: 'إلغاء فاتورة مريض معتمدة' },
-    {
-      code: 'billing:invoice:view',
-      description: 'عرض التقارير المالية للفواتير',
-    },
+    // --- الشؤون الإدارية (Admin) ---
+    { code: 'admin:dashboard:view', description: 'عرض لوحة تحكم الإدارة' },
+    { code: 'admin:settings:manage', description: 'إدارة إعدادات النظام' },
+    { code: 'admin:users:manage', description: 'إدارة المستخدمين والأدوار' },
+    { code: 'admin:audit:view', description: 'عرض سجلات النظام' },
 
-    // موديول المشتريات
-    { code: 'purchases:invoice:create', description: 'إنشاء فاتورة مشتريات' },
-    {
-      code: 'purchases:invoice:approve',
-      description: 'اعتماد المشتريات وتحديث المخزن',
-    },
-    { code: 'purchases:payment:record', description: 'تسجيل دفعات للموردين' },
+    // --- الاستقبال والعيادات (Clinical & Reception) ---
+    { code: 'clinical:dashboard:view', description: 'عرض لوحة التحكم السريرية' },
+    { code: 'clinical:appointments:view', description: 'عرض المواعيد' },
+    { code: 'clinical:appointments:manage', description: 'إدارة وحجز المواعيد' },
+    { code: 'clinical:patients:view', description: 'عرض ملفات المرضى' },
+    { code: 'clinical:patients:manage', description: 'إدارة بيانات المرضى' },
+    { code: 'clinical:encounters:view', description: 'عرض الزيارات الطبية' },
+    { code: 'clinical:encounters:create', description: 'فتح زيارة جديدة' },
+    { code: 'clinical:doctor:view', description: 'واجهة الطبيب' },
+    { code: 'clinical:diagnoses:manage', description: 'إدارة التشخيصات' },
+    { code: 'clinical:vitals:manage', description: 'تسجيل العلامات الحيوية' },
 
-    // موديول المحاسبة
-    { code: 'acc:entry:create', description: 'إدخال قيود محاسبية يدوية' },
+    // --- التمريض والأقسام (Nursing & Inpatient) ---
+    { code: 'nursing:dashboard:view', description: 'عرض لوحة التحكم التمريضية' },
+    { code: 'nursing:station:view', description: 'الدخول لمحطة التمريض' },
+    { code: 'nursing:triage:manage', description: 'إدارة الفرز (Triage)' },
+    { code: 'nursing:notes:manage', description: 'إدارة ملاحظات التمريض' },
+    { code: 'adt:dashboard:view', description: 'عرض لوحة الدخول والخروج' },
+    { code: 'adt:admissions:create', description: 'تسجيل دخول إيواء' },
+    { code: 'adt:bed:view', description: 'عرض حالة الأسرة' },
+    { code: 'adt:bed:manage', description: 'إدارة وتسكين الأسرة' },
+
+    // --- المختبر (Lab) ---
+    { code: 'lab:dashboard:view', description: 'عرض لوحة تحكم المختبر' },
+    { code: 'lab:requests:view', description: 'عرض طلبات التحليل' },
+    { code: 'lab:requests:create', description: 'إنشاء طلب تحليل جديد' },
+    { code: 'lab:results:enter', description: 'إدخال نتائج التحاليل' },
+    { code: 'lab:results:verify', description: 'اعتماد نتائج التحاليل' },
+    { code: 'lab:settings:manage', description: 'إدارة إعدادات المختبر' },
+
+    // --- الأشعة (Radiology) ---
+    { code: 'rad:dashboard:view', description: 'عرض لوحة تحكم الأشعة' },
+    { code: 'rad:requests:view', description: 'عرض طلبات الأشعة' },
+    { code: 'rad:requests:create', description: 'إنشاء طلب أشعة جديد' },
+    { code: 'rad:images:upload', description: 'رفع صور الأشعة' },
+    { code: 'rad:reports:create', description: 'كتابة تقارير الأشعة' },
+    { code: 'rad:settings:manage', description: 'إدارة إعدادات الأشعة' },
+
+    // --- الصيدلية (Pharmacy) ---
+    { code: 'pharmacy:dashboard:view', description: 'عرض لوحة تحكم الصيدلية' },
+    { code: 'pharmacy:prescriptions:view', description: 'عرض الوصفات الطبية' },
+    { code: 'pharmacy:dispense', description: 'صرف الأدوية' },
+    { code: 'pharmacy:inventory:view', description: 'عرض مخزون الصيدلية' },
+    { code: 'pharmacy:inventory:manage', description: 'إدارة مخزون الصيدلية' },
+    { code: 'pharmacy:products:manage', description: 'إدارة قائمة الأدوية' },
+
+    // --- العمليات (Surgery) ---
+    { code: 'surgery:dashboard:view', description: 'عرض جدول العمليات' },
+    { code: 'surgery:schedule:manage', description: 'جدولة العمليات' },
+    { code: 'surgery:report:create', description: 'كتابة تقرير العملية' },
+
+    // --- الموارد البشرية (HR) ---
+    { code: 'hr:dashboard:view', description: 'عرض لوحة الموارد البشرية' },
+    { code: 'hr:employees:manage', description: 'إدارة بيانات الموظفين' },
+    { code: 'hr:shifts:manage', description: 'إدارة الورديات والمناوبات' },
+    { code: 'hr:leave:manage', description: 'إدارة الإجازات' },
+    { code: 'hr:payroll:manage', description: 'إدارة الرواتب' },
+    { code: 'hr:attendance:manage', description: 'إدارة الحضور والانصراف' },
+
+    // --- الفوترة والحسابات (Billing & Accounting) ---
+    { code: 'billing:dashboard:view', description: 'عرض لوحة الفوترة والإيرادات' },
+    { code: 'billing:invoices:create', description: 'إصدار الفواتير' },
+    { code: 'billing:invoices:view', description: 'عرض سجل الفواتير' },
+    { code: 'billing:payments:collect', description: 'استلام المدفوعات (الكاشير)' },
+    { code: 'billing:insurance:manage', description: 'إدارة التأمين والمطالبات' },
+    { code: 'acc:dashboard:view', description: 'عرض لوحة المحاسبة' },
+    { code: 'acc:entries:view', description: 'عرض القيود المحاسبية' },
+    { code: 'acc:entries:create', description: 'إنشاء قيود يومية' },
+    { code: 'acc:reports:view', description: 'عرض التقارير المالية' },
     { code: 'acc:year:close', description: 'إقفال السنة المالية' },
-    {
-      code: 'acc:report:view',
-      description: 'الاطلاع على الميزانية وميزان المراجعة',
-    },
+    { code: 'acc:cost_centers:manage', description: 'إدارة مراكز التكلفة' },
 
-    // موديول الملف الطبي
-    { code: 'emr:patient:view', description: 'الاطلاع على الملف الطبي للمريض' },
-    { code: 'emr:diagnosis:edit', description: 'إضافة وتعديل التشخيصات' },
-    { code: 'emr:vitals:record', description: 'تسجيل العلامات الحيوية' },
-
-    // موديول التنويم (Inpatient)
-    { code: 'INPATIENT_VIEW_ALL_PATIENTS', description: 'عرض كل المرضى في القسم (تمريض)' },
-    { code: 'INPATIENT_VIEW_MY_PATIENTS', description: 'عرض قائمة مرضى الطبيب' },
-    { code: 'INPATIENT_VIEW_NOTES', description: 'عرض ملاحظات التمريض والمرور' },
-    { code: 'INPATIENT_ADD_NOTE', description: 'إضافة ملاحظة جديدة' },
-    { code: 'INPATIENT_VIEW_CARE_PLAN', description: 'عرض خطة الرعاية' },
-    { code: 'INPATIENT_ADD_ORDER', description: 'إضافة أمر طبي (طبيب)' },
-    { code: 'INPATIENT_COMPLETE_ORDER', description: 'إكمال تنفيذ أمر طبي' },
-    { code: 'INPATIENT_EXECUTE_ORDER', description: 'تنفيذ أمر طبي (تمريض)' },
-    { code: 'INPATIENT_VIEW_EXECUTIONS', description: 'سجل تنفيذ الأوامر' },
-
-    // موديول المواعيد
-    {
-      code: 'clinical:doctors:list',
-      description: 'رؤية قائمة الأطباء فقط لحجز المواعيد',
-    },
-    { code: 'clinical:appointment:create', description: 'حجز موعد طبي' },
-    { code: 'clinical:appointment:view', description: 'عرض المواعيد الطبية' },
-    {
-      code: 'system:users:manage',
-      description: 'إدارة الموظفين والرواتب (أدمن فقط)',
-    },
+    // --- المشتريات والمخزون (Purchases & Inventory) ---
+    { code: 'purchases:dashboard:view', description: 'عرض لوحة المشتريات' },
+    { code: 'purchases:suppliers:manage', description: 'إدارة الموردين' },
+    { code: 'purchases:orders:create', description: 'إنشاء أوامر شراء' },
+    { code: 'purchases:invoices:manage', description: 'إدارة فواتير المشتريات' },
+    { code: 'inventory:dashboard:view', description: 'عرض لوحة المخزون' },
+    { code: 'inventory:stock:view', description: 'عرض أرصدة المخزون' },
+    { code: 'inventory:stock:manage', description: 'إدارة الجرد والتسويات' },
+    { code: 'inventory:transfers:manage', description: 'إدارة التحويلات المخزنية' },
+    
+    // --- الأصول (Assets) ---
+    { code: 'assets:dashboard:view', description: 'عرض إدارة الأصول' },
+    { code: 'assets:manage', description: 'إضافة وإدارة الأصول' },
+    { code: 'assets:maintenance:manage', description: 'إدارة الصيانة' },
+    
+    // --- التكامل (Integration) ---
+    { code: 'integration:manage', description: 'إدارة الربط مع الأجهزة والأنظمة' },
   ];
 
+  /* 
+     يتم هنا إعادة إنشاء الصلاحيات. في بيئة الإنتاج يفضل استخدام apsert بحذر
+     أو ترحيل البيانات (Migration). هنا نفترض أننا نعيد التهيئة.
+  */
   for (const p of permissionsList) {
     await prisma.permission.upsert({
       where: { code: p.code },
@@ -150,67 +198,142 @@ async function main() {
   console.log('🔑 Permissions created.');
 
   // ====================================================
-  // 3. ربط الصلاحيات بالأدوار (Role-Permission Mapping) ✅ [NEW]
-  // ====================================================
-
-  // ====================================================
-  // 3. ربط الصلاحيات بالأدوار (Role-Permission Mapping) ✅ [ROBUST] SOURCE OF TRUTH
+  // 3. ربط الصلاحيات بالأدوار (Role-Permission Mapping) ✅ [IMPROVED]
   // ====================================================
 
   const rolePermissionMapping: Record<string, string[]> = {
-    ADMIN: permissionsList.map((p) => p.code), // الأدمن له كل شيء
+    // 1. المدير العام (Full Access)
+    ADMIN: permissionsList.map((p) => p.code),
 
-    NURSE: [
-        // Inpatient / Nursing Station
-        'INPATIENT_VIEW_ALL_PATIENTS',
-        'INPATIENT_VIEW_NOTES',
-        'INPATIENT_ADD_NOTE',
-        'INPATIENT_VIEW_CARE_PLAN',
-        'INPATIENT_ADD_ORDER',
-        'INPATIENT_COMPLETE_ORDER',
-        'INPATIENT_EXECUTE_ORDER',
-        'INPATIENT_VIEW_EXECUTIONS',
-        'INPATIENT_VIEW_MY_PATIENTS',
-        // EMR & Vitals
-        'emr:patient:view',
-        'emr:vitals:record',
-    ],
-
-    ACCOUNTANT: [
-      'billing:invoice:view',
-      'purchases:invoice:create',
-      'purchases:invoice:approve',
-      'purchases:payment:record',
-      'acc:entry:create',
-      'acc:report:view',
-    ],
-
-    // RECEPTION: [
-    //   'billing:invoice:create',
-    //   'emr:patient:view',
-    //   'clinical:appointment:view',
-    //   'clinical:appointment:create',
-    // ],
-
-    RECEPTION: [
-      'clinical:doctors:list',
-      'clinical:appointment:create',
-      'clinical:appointment:view',
-      'emr:patient:view',
-      'billing:invoice:create',
-    ],
-
+    // 2. الطبيب (Doctor)
     DOCTOR: [
-      'emr:patient:view',
-      'emr:diagnosis:edit',
-      'emr:vitals:record',
-      'clinical:appointment:view',
-      'INPATIENT_VIEW_MY_PATIENTS',
-      'INPATIENT_VIEW_NOTES',
-      'INPATIENT_ADD_NOTE',
-      'INPATIENT_VIEW_CARE_PLAN',
-      'INPATIENT_ADD_ORDER',
-      'INPATIENT_VIEW_EXECUTIONS',
+      'clinical:dashboard:view',
+      'clinical:appointments:view',
+      'clinical:patients:view',
+      'clinical:encounters:view',
+      'clinical:encounters:create',
+      'clinical:doctor:view',
+      'clinical:diagnoses:manage',
+      'lab:requests:create',       // طلب تحاليل
+      'lab:requests:view',         // رؤية النتائج
+      'rad:requests:create',       // طلب أشعة
+      'rad:requests:view',         // رؤية التقارير
+      'pharmacy:prescriptions:view', // رؤية الأدوية
+      'nursing:station:view',      // رؤية التمريض (للمتابعة)
+      'adt:bed:view',              // رؤية الأسرة
+      'surgery:dashboard:view',    // جدول العمليات
+      'surgery:report:create',     // تقارير العمليات
+    ],
+
+    // 3. التمريض (Nurse)
+    NURSE: [
+      'clinical:dashboard:view',
+      'clinical:patients:view',
+      'nursing:dashboard:view',
+      'nursing:station:view',
+      'nursing:triage:manage',
+      'nursing:notes:manage',
+      'clinical:vitals:manage',
+      'adt:bed:view',
+      'adt:admissions:create', 
+      'lab:requests:view',     // متابعة الطلبات
+      'rad:requests:view',     // متابعة الطلبات
+      'pharmacy:prescriptions:view',
+    ],
+
+    // 4. موظف الاستقبال (Reception)
+    RECEPTION: [
+      'clinical:dashboard:view',
+      'clinical:appointments:view',
+      'clinical:appointments:manage',
+      'clinical:patients:view',
+      'clinical:patients:manage',
+      'billing:invoices:create',   // إنشاء فاتورة مبدئية
+      'billing:payments:collect',  // استلام نقدية (إذا كان يقوم دور الكاشير أيضاً)
+    ],
+
+    // 5. الصيدلي (Pharmacist)
+    PHARMACIST: [
+      'pharmacy:dashboard:view',
+      'pharmacy:prescriptions:view',
+      'pharmacy:dispense',
+      'pharmacy:inventory:view',
+      'pharmacy:inventory:manage',
+      'pharmacy:products:manage',
+      'purchases:orders:create',   // طلب أدوية ناقصة
+    ],
+
+    // 6. فني المختبر (Lab Tech)
+    LAB_TECH: [
+      'lab:dashboard:view',
+      'lab:requests:view',
+      'lab:results:enter',
+      'lab:results:verify',
+      'lab:settings:manage',
+    ],
+
+    // 7. فني الأشعة (Rad Tech)
+    RAD_TECH: [
+      'rad:dashboard:view',
+      'rad:requests:view',
+      'rad:images:upload',
+      'rad:reports:create',
+      'rad:settings:manage',
+    ],
+
+    // 8. المحاسب (Accountant)
+    ACCOUNTANT: [
+      'billing:dashboard:view',
+      'billing:invoices:view',
+      'billing:invoices:create',
+      'billing:payments:collect',
+      'billing:insurance:manage',
+      'acc:dashboard:view',
+      'acc:entries:view',
+      'acc:entries:create',
+      'acc:reports:view',
+      'acc:year:close',
+      'acc:cost_centers:manage',
+      'purchases:invoices:manage',
+      'purchases:dashboard:view',
+      'assets:dashboard:view',
+      'inventory:stock:view',      // للمراجعة
+    ],
+
+    // 9. الكاشير (Cashier)
+    CASHIER: [
+      'billing:dashboard:view',
+      'billing:payments:collect',
+      'billing:invoices:view',
+    ],
+
+    // 10. أمين المخزن (Store Keeper)
+    STORE_KEEPER: [
+      'inventory:dashboard:view',
+      'inventory:stock:view',
+      'inventory:stock:manage',
+      'inventory:transfers:manage',
+      'purchases:orders:create',
+      'purchases:suppliers:manage',
+    ],
+
+    // 11. الموارد البشرية (HR)
+    HR: [
+      'hr:dashboard:view',
+      'hr:employees:manage',
+      'hr:shifts:manage',
+      'hr:leave:manage',
+      'hr:payroll:manage',
+      'hr:attendance:manage',
+    ],
+
+    // 12. مسؤول الأنظمة (IT Admin)
+    IT_ADMIN: [
+      'admin:dashboard:view',
+      'admin:settings:manage',
+      'admin:users:manage',
+      'admin:audit:view',
+      'integration:manage',
     ],
   };
 

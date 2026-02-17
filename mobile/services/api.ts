@@ -84,6 +84,10 @@ const extendedApi = {
 
   createClinicalNote: (encounterId: number, content: string, type: string = 'DOCTOR_ROUND') =>
     api.post('/clinical-notes', { encounterId, content, type }).then((res) => res.data),
+
+  // Lab Results
+  getLabOrders: (encounterId: number) =>
+    api.get(`/lab/encounters/${encounterId}/orders`).then((res) => res.data),
 };
 
 export default extendedApi;

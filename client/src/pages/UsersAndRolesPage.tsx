@@ -104,20 +104,22 @@ const roleColors: Record<string, string> = {
 
 // ===== PERMISSION GROUP LABELS =====
 const permissionGroupLabels: Record<string, { label: string; icon: string }> = {
-  ADMIN: { label: "الإدارة العامة", icon: "⚙️" },
-  PATIENT: { label: "المرضى", icon: "🧑‍🤝‍🧑" },
-  ENCOUNTER: { label: "الزيارات", icon: "📋" },
-  APPOINTMENT: { label: "المواعيد", icon: "📅" },
-  INPATIENT: { label: "الإيواء", icon: "🏥" },
-  NURSING: { label: "التمريض", icon: "💉" },
-  BILLING: { label: "الفوترة", icon: "💰" },
-  PAYMENT: { label: "المدفوعات", icon: "💳" },
-  PHARMACY: { label: "الصيدلية", icon: "💊" },
-  LAB: { label: "المختبر", icon: "🧪" },
-  RADIOLOGY: { label: "الأشعة", icon: "📷" },
-  ROLE: { label: "الأدوار", icon: "🔐" },
-  USER: { label: "المستخدمون", icon: "👥" },
-  VIEW: { label: "العرض", icon: "👁️" },
+  admin: { label: "الإدارة العامة", icon: "⚙️" },
+  clinical: { label: "العيادات والاستقبال", icon: "🩺" },
+  nursing: { label: "التمريض", icon: "💉" },
+  adt: { label: "الدخول والخروج (ADT)", icon: "🏥" },
+  lab: { label: "المختبر", icon: "🧪" },
+  rad: { label: "الأشعة", icon: "💀" },
+  pharmacy: { label: "الصيدلية", icon: "💊" },
+  surgery: { label: "العمليات", icon: "🔪" },
+  hr: { label: "الموارد البشرية", icon: "👥" },
+  billing: { label: "الفوترة", icon: "💰" },
+  acc: { label: "المحاسبة", icon: "🧮" },
+  purchases: { label: "المشتريات", icon: "📦" },
+  inventory: { label: "المخزون", icon: "🏭" },
+  assets: { label: "الأصول والصيانة", icon: "🏗️" },
+  integration: { label: "الربط والأنظمة", icon: "🔌" },
+  system: { label: "النظام", icon: "🖥️" },
 };
 
 export default function UsersAndRolesPage() {
@@ -341,7 +343,8 @@ export default function UsersAndRolesPage() {
 
   const groupedPermissions = useMemo(() => {
     return allPermissions.reduce((acc, perm) => {
-      const prefix = perm.code.split("_")[0] || "OTHER";
+      // Split by colon to get the module prefix (e.g., 'lab:view' -> 'lab')
+      const prefix = perm.code.split(":")[0] || "other"; 
       if (!acc[prefix]) acc[prefix] = [];
       acc[prefix].push(perm);
       return acc;
