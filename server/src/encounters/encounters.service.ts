@@ -269,7 +269,13 @@ export class EncountersService {
       },
       include: {
         patient: {
-          select: { id: true, fullName: true, mrn: true },
+          select: {
+            id: true,
+            fullName: true,
+            mrn: true,
+            dateOfBirth: true,
+            gender: true,
+          },
         },
         doctor: {
           select: { fullName: true },
@@ -284,6 +290,13 @@ export class EncountersService {
             },
           },
         },
+        vitalSigns: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+        },
+        admission: {
+            select: { primaryDiagnosis: true }
+        }
       },
       orderBy: {
         admissionDate: 'desc',

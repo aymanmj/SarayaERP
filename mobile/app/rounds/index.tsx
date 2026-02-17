@@ -15,12 +15,24 @@ interface Encounter {
   id: number;
   patientId: number;
   status: string;
-  patient: { fullName: string; mrn: string };
+  patient: {
+    fullName: string;
+    mrn: string;
+    dateOfBirth?: string;
+    gender?: string;
+  };
   admission?: {
-    diagnosis?: string; // Now we are fetching this
+    primaryDiagnosis?: string;
   };
   bedAssignments: {
-    bed: { name: string; ward: { name: string } };
+    bed: { bedNumber: string; ward: { name: string } };
+  }[];
+  vitalSigns?: {
+    bpSystolic: number;
+    bpDiastolic: number;
+    heartRate: number;
+    temperature: number;
+    createdAt: string;
   }[];
 }
 
@@ -48,8 +60,10 @@ export default function RoundsScreen() {
   const renderItem = ({ item }: { item: Encounter }) => {
     const currentBed = item.bedAssignments?.[0]?.bed;
     const location = currentBed
-      ? `${currentBed.ward.name} - ${currentBed.name}`
+      ? `${currentBed.ward.name} - ${currentBed.bedNumber}`
       : "No Bed Assigned";
+
+    const latestVitals = item.vitalSigns?.[0];
 
     return (
       <TouchableOpacity
@@ -60,7 +74,11 @@ export default function RoundsScreen() {
             params: {
               id: item.id,
               name: item.patient.fullName,
-              diagnosis: item.admission?.diagnosis || "No Diagnosis",
+              mrn: item.patient.mrn,
+              gender: item.patient.gender,
+              dob: item.patient.dateOfBirth,
+              diagnosis: item.admission?.primaryDiagnosis || "No Diagnosis",
+              vitals: latestVitals ? JSON.stringify(latestVitals) : undefined,
             },
           })
         }
@@ -70,7 +88,7 @@ export default function RoundsScreen() {
           <Text style={styles.room}>{location}</Text>
         </View>
         <Text style={styles.diagnosis}>
-          {item.admission?.diagnosis || "No Diagnosis Recorded"}
+          {item.admission?.primaryDiagnosis || "No Diagnosis Recorded"}
         </Text>
         <Text style={styles.status}>Status: {item.status}</Text>
         <Text style={styles.actionText}>Tap to start round</Text>

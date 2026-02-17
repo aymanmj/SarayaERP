@@ -657,10 +657,8 @@ cleanup_containers() {
     )
 
     for container in "${CONTAINERS[@]}"; do
-        if docker ps -a --format '{{.Names}}' | grep -q "^${container}$"; then
-            print_info "Removing existing container: $container"
-            docker rm -f "$container" >> "$LOG_FILE" 2>&1 || true
-        fi
+        print_info "Removing container if exists: $container"
+        docker rm -f "$container" > /dev/null 2>&1 || true
     done
     
     # Also try down if compose file exists

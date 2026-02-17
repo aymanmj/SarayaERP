@@ -2,16 +2,45 @@ import { View, Text, StyleSheet } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 
 export default function PatientDetailScreen() {
-  const { id, name, diagnosis } = useLocalSearchParams();
+  const params = useLocalSearchParams();
+  const { id, name, diagnosis, gender, dob, vitals } = params;
 
-  // Mock data lookup (in real app, useQuery hook)
+  // Calculate Age
+  const calculateAge = (dobString: string) => {
+    if (!dobString) return 'N/A';
+    const birthDate = new Date(dobString);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const m = today.getMonth() - birthDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    return age;
+  };
+
+  const age = dob ? calculateAge(dob as string) : 'N/A';
+  
+  // Parse Vitals
+  let parsedVitals = null;
+  if (vitals) {
+    try {
+      parsedVitals = JSON.parse(vitals as string);
+    } catch (e) {
+      console.error("Failed to parse vitals", e);
+    }
+  }
+
   const patientDetails = {
     id,
     name: name || 'Unknown Patient',
-    age: 45, // Still mock
-    gender: 'Male', // Still mock
-    vitals: { bp: '120/80', hr: 72, temp: '37.1°C' },
-    notes: `Admitted for ${diagnosis}. Patient is stable.`
+    age: age,
+    gender: gender || 'Unknown',
+    vitals: parsedVitals ? {
+      bp: parsedVitals.bpSystolic && parsedVitals.bpDiastolic ? `${parsedVitals.bpSystolic}/${parsedVitals.bpDiastolic}` : 'N/A',
+      hr: parsedVitals.heartRate || 'N/A',
+      temp: parsedVitals.temperature ? `${parsedVitals.temperature}°C` : 'N/A'
+    } : { bp: 'N/A', hr: 'N/A', temp: 'N/A' },
+    notes: `Admitted for ${diagnosis}.`
   };
 
   return (
