@@ -32,17 +32,28 @@ export default function PatientDetailScreen() {
   };
 
   const handleAddNote = async () => {
-    if (!newNote.trim()) return;
+    if (!newNote.trim()) {
+      Alert.alert("Validation", "Note content cannot be empty");
+      return;
+    }
+    if (!id || isNaN(Number(id))) {
+      Alert.alert("Error", "Invalid Encounter ID");
+      return;
+    }
     setSubmitting(true);
     try {
-      await api.createClinicalNote(Number(id), newNote);
+      console.log('Creating note for encounter:', Number(id), 'Type:', 'DOCTOR_ROUND');
+      await api.createClinicalNote(Number(id), newNote, 'DOCTOR_ROUND');
       setNewNote('');
       setModalVisible(false);
       fetchNotes(); // Refresh list
       Alert.alert("Success", "Note added successfully");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to add note", error);
-      Alert.alert("Error", "Failed to add note");
+      const errorMessage = error.response?.data?.message 
+        ? JSON.stringify(error.response.data.message) 
+        : "Failed to add note";
+      Alert.alert("Error", errorMessage);
     } finally {
       setSubmitting(false);
     }

@@ -77,6 +77,10 @@ export class AllExceptionsFilter implements ExceptionFilter {
       );
     } else {
       this.logger.warn(`[${request.method}] ${request.url} >> ${message}`);
+      // Log details for validation errors to help debugging
+      if (exception instanceof Prisma.PrismaClientValidationError) {
+        this.logger.error(`Prisma Validation Error Details: ${exception.message}`);
+      }
     }
 
     // الرد الموحد

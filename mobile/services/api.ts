@@ -37,6 +37,9 @@ api.interceptors.response.use(
     return response;
   },
   (error) => {
+    if (error.response && error.response.status === 400) {
+      console.error('API Validation Error:', JSON.stringify(error.response.data, null, 2));
+    }
     return Promise.reject(error);
   }
 );
@@ -79,7 +82,7 @@ const extendedApi = {
   getClinicalNotes: (encounterId: number) => 
     api.get(`/clinical-notes/encounter/${encounterId}`).then((res) => res.data),
 
-  createClinicalNote: (encounterId: number, content: string, type: string = 'NURSING_ROUTINE') =>
+  createClinicalNote: (encounterId: number, content: string, type: string = 'DOCTOR_ROUND') =>
     api.post('/clinical-notes', { encounterId, content, type }).then((res) => res.data),
 };
 
