@@ -31,7 +31,7 @@ export class AuthController {
     );
 
     this.setCookies(response, accessToken, refreshToken);
-    return { user, success: true };
+    return { user, success: true, accessToken }; // Added accessToken for mobile support
   }
 
   @UseGuards(AuthGuard('jwt'))

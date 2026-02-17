@@ -19,6 +19,7 @@ export class InpatientRoundsService {
       },
       include: {
         patient: true,
+        admission: true, // [NEW] Added for mobile rounds
         bedAssignments: {
           where: { to: null },
           include: {
