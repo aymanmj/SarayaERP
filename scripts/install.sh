@@ -632,11 +632,52 @@ collect_client_info() {
 }
 
 # ════════════════════════════════════════════════════════════════════════════════
+# تنظيف الحاويات القديمة (لتجنب التعارض)
+# ════════════════════════════════════════════════════════════════════════════════
+
+cleanup_containers() {
+    print_info "Cleaning up existing containers..."
+    
+    # List of known container names to remove
+    CONTAINERS=(
+        "saraya_db"
+        "saraya_redis"
+        "saraya_backend"
+        "saraya_frontend"
+        "saraya_nginx"
+        "saraya_tunnel"
+        "saraya_backup"
+        "saraya_node_exporter"
+        "saraya_postgres_exporter"
+        "saraya_redis_exporter"
+        "saraya_prometheus"
+        "saraya_grafana"
+        "saraya_watchtower"
+        "saraya_portainer"
+    )
+
+    for container in "${CONTAINERS[@]}"; do
+        if docker ps -a --format '{{.Names}}' | grep -q "^${container}$"; then
+            print_info "Removing existing container: $container"
+            docker rm -f "$container" >> "$LOG_FILE" 2>&1 || true
+        fi
+    done
+    
+    # Also try down if compose file exists
+    if [ -f "docker-compose.production.yml" ]; then
+        docker compose -f docker-compose.production.yml down --remove-orphans >> "$LOG_FILE" 2>&1 || true
+    fi
+}
+
+# ════════════════════════════════════════════════════════════════════════════════
 # سحب الصور وتشغيل النظام
 # ════════════════════════════════════════════════════════════════════════════════
 
 pull_and_start() {
     cd "$INSTALL_DIR"
+
+    # Clean up old containers first
+    cleanup_containers
 
     print_info "Pulling Docker images..."
     docker compose -f docker-compose.production.yml --env-file .env.production pull >> "$LOG_FILE" 2>&1 || true
