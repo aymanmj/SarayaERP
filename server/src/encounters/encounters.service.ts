@@ -230,6 +230,32 @@ export class EncountersService {
         },
       });
 
+      // 5. ✅ [NEW] تحديث حالة الإيواء (Admission) المرتبطة
+      // يجب البحث عن أي دخول مرتبط بهذه الزيارة ولم يخرج بعد
+      const activeAdmission = await tx.admission.findFirst({
+        where: {
+          encounterId: encounterId,
+          admissionStatus: { in: ['ADMITTED', 'IN_PROGRESS'] }, // استخدمنا القيم النصية بدلاً من Enum لتجنب مشاكل الاستيراد إذا لم يكن موجوداً
+        },
+      });
+
+      if (activeAdmission) {
+        await tx.admission.update({
+          where: { id: activeAdmission.id },
+          data: {
+            admissionStatus: 'DISCHARGED', // AdmissionStatus.DISCHARGED
+            dischargeDate: new Date(),
+            lengthOfStay: Math.max(
+              0,
+              Math.floor(
+                (new Date().getTime() - activeAdmission.actualAdmissionDate.getTime()) /
+                  (1000 * 60 * 60 * 24),
+              ),
+            ),
+          },
+        });
+      }
+
       return updatedEncounter;
     });
   }
