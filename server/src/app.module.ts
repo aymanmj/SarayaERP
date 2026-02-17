@@ -68,6 +68,7 @@ import { JwtService } from '@nestjs/jwt';
 import { PrometheusModule } from '@willsoto/nestjs-prometheus'; // ✅ Monitoring
 import { BackupModule } from './backup/backup.module';
 import { SystemSettingsModule } from './system-settings/system-settings.module';
+import { ClinicalNotesModule } from './clinical-notes/clinical-notes.module';
 
 @Module({
   imports: [
@@ -150,6 +151,7 @@ import { SystemSettingsModule } from './system-settings/system-settings.module';
     ClinicalModule,
     CDSSModule, // ✅ [NEW] نظام دعم القرار السريري
     ObGynModule,
+    ClinicalNotesModule, // ✅ [NEW] Clinical Notes
 
     // Departments & Specialties
     DepartmentsModule,

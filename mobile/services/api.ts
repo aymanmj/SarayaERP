@@ -1,11 +1,9 @@
+
 import axios from "axios";
 import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
 
 // UPDATE THIS IP WITH YOUR COMPUTER'S LAN IP
-// If using Tunnel, this might not matter as much, but for LAN it's critical.
-// For Android Emulator, use 'http://10.0.2.2:3000'
-// For Physical Device, use your PC's IP, e.g., 'http://192.168.1.5:3000'
 const BASE_URL = "https://erp.alsarayatech.ly/api";
 
 const api = axios.create({
@@ -29,10 +27,9 @@ api.interceptors.request.use(
   },
 );
 
-// Response interceptor to unwrap the 'data' property (standard NestJS response structure)
+// Response interceptor to unwrap the 'data' property
 api.interceptors.response.use(
   (response) => {
-    // If the response follows the standard format { success: true, data: ... }
     if (response.data && response.data.success && response.data.data !== undefined) {
       console.log('API Response Interceptor: Unwrapping data');
       response.data = response.data.data;
@@ -68,4 +65,22 @@ export const removeAuthToken = async () => {
   }
 };
 
-export default api;
+// Extend the api object with custom methods
+const extendedApi = {
+  ...api,
+  get: api.get,
+  post: api.post,
+  put: api.put,
+  delete: api.delete,
+  defaults: api.defaults,
+  interceptors: api.interceptors,
+  
+  // Clinical Notes
+  getClinicalNotes: (encounterId: number) => 
+    api.get(`/clinical-notes/encounter/${encounterId}`).then((res) => res.data),
+
+  createClinicalNote: (encounterId: number, content: string, type: string = 'NURSING_ROUTINE') =>
+    api.post('/clinical-notes', { encounterId, content, type }).then((res) => res.data),
+};
+
+export default extendedApi;
