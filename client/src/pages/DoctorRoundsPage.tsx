@@ -29,6 +29,13 @@ type Inpatient = {
   bedAssignments: { bed: { bedNumber: string; ward: { name: string } } }[];
   clinicalNotes: { content: string; createdAt: string }[];
   carePlanItems?: CarePlanItem[];
+  vitalSigns?: {
+    temperature: number;
+    bpSystolic: number;
+    bpDiastolic: number;
+    heartRate: number;
+    createdAt: string;
+  }[];
 };
 
 export default function DoctorRoundsPage() {
@@ -287,17 +294,29 @@ export default function DoctorRoundsPage() {
              {/* Vitals Summary */}
              <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-4">
                 <h3 className="font-bold text-slate-300 mb-2">آخر العلامات الحيوية (Vitals)</h3>
-                <div className="flex gap-4 text-sm text-slate-400">
-                   <div className="bg-slate-950 px-4 py-2 rounded-lg border border-slate-800">
-                     BP: <span className="text-white font-mono">120/80</span>
-                   </div>
-                   <div className="bg-slate-950 px-4 py-2 rounded-lg border border-slate-800">
-                     HR: <span className="text-white font-mono">75</span>
-                   </div>
-                   <div className="bg-slate-950 px-4 py-2 rounded-lg border border-slate-800">
-                     Temp: <span className="text-white font-mono">37.0</span>
-                   </div>
-                </div>
+                
+                {selectedPatient.vitalSigns && selectedPatient.vitalSigns.length > 0 ? (
+                  <div className="flex gap-4 text-sm text-slate-400">
+                     <div className="bg-slate-950 px-4 py-2 rounded-lg border border-slate-800">
+                       BP: <span className="text-white font-mono">
+                         {selectedPatient.vitalSigns[0].bpSystolic}/{selectedPatient.vitalSigns[0].bpDiastolic}
+                       </span>
+                     </div>
+                     <div className="bg-slate-950 px-4 py-2 rounded-lg border border-slate-800">
+                       HR: <span className="text-white font-mono">{selectedPatient.vitalSigns[0].heartRate}</span>
+                     </div>
+                     <div className="bg-slate-950 px-4 py-2 rounded-lg border border-slate-800">
+                       Temp: <span className="text-white font-mono">{selectedPatient.vitalSigns[0].temperature}</span>
+                     </div>
+                     <div className="text-xs text-slate-500 mt-2 self-center">
+                        {new Date(selectedPatient.vitalSigns[0].createdAt).toLocaleTimeString('ar-SA')}
+                     </div>
+                  </div>
+                ) : (
+                  <div className="text-slate-500 text-sm italic">
+                    لا توجد علامات حيوية مسجلة حديثاً
+                  </div>
+                )}
              </div>
           </div>
         )}
