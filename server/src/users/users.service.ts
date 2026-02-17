@@ -263,6 +263,7 @@ export class UsersService {
       select: {
         id: true,
         fullName: true,
+        departmentId: true, // ✅ [NEW] Required for admission
         specialty: { select: { name: true } }, // جلب التخصص للمساعدة في الاختيار
       },
       orderBy: { fullName: 'asc' },

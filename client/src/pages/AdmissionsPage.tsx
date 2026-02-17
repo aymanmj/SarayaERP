@@ -44,6 +44,7 @@ type PatientLite = {
 type DoctorLite = {
   id: number;
   fullName: string;
+  departmentId?: number; // [NEW] Added
 };
 
 // واجهة الاستجابة الجديدة للمرضى
@@ -110,12 +111,16 @@ export default function AdmissionsPage() {
 
     setSubmitting(true);
     try {
+      // Find selected doctor to get departmentId
+      const selectedDoctor = doctors.find(d => d.id === Number(selectedDoctorId));
+
       // استخدام Admission API الجديد
       const admissionData = {
         patientId: Number(selectedPatientId),
         bedId: selectedBed.id,
         admittingDoctorId: Number(selectedDoctorId),
         primaryPhysicianId: Number(selectedDoctorId),
+        departmentId: selectedDoctor?.departmentId || 1, // ✅ [NEW] Use doctor's department or default to 1
         admissionType: "ELECTIVE",
         priority: "MEDIUM",
         admissionReason: "دخول تنويم عبر نظام الإيواء",
@@ -171,11 +176,15 @@ export default function AdmissionsPage() {
 
     setSubmitting(true);
     try {
+      // Find selected doctor to get departmentId
+      const selectedDoctor = doctors.find(d => d.id === Number(selectedDoctorId));
+
       // استخدام Quick Admission API للطوارئ
       const quickAdmissionData = {
         patientId: Number(selectedPatientId),
         bedId: selectedBed.id,
         admittingDoctorId: Number(selectedDoctorId),
+        departmentId: selectedDoctor?.departmentId || 1, // ✅ [NEW] Use doctor's department or default to 1
         admissionReason: "حالة طارئة - إيواء سريع",
         primaryDiagnosis: "حالة طارئة",
       };

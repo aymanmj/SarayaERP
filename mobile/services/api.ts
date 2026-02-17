@@ -29,6 +29,21 @@ api.interceptors.request.use(
   },
 );
 
+// Response interceptor to unwrap the 'data' property (standard NestJS response structure)
+api.interceptors.response.use(
+  (response) => {
+    // If the response follows the standard format { success: true, data: ... }
+    if (response.data && response.data.success && response.data.data !== undefined) {
+      console.log('API Response Interceptor: Unwrapping data');
+      response.data = response.data.data;
+    }
+    return response;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
 export const setAuthToken = async (token: string) => {
   if (Platform.OS === 'web') {
     localStorage.setItem('userToken', token);
