@@ -33,9 +33,14 @@ export class InpatientRoundsService {
           take: 1,
           where: { type: NoteType.DOCTOR_ROUND },
         },
+
         carePlanItems: {
           where: { status: CarePlanStatus.ACTIVE },
           include: { executions: { orderBy: { executedAt: 'desc' }, take: 1 } },
+        },
+        vitalSigns: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
         },
       },
     });
@@ -87,6 +92,10 @@ export class InpatientRoundsService {
             executions: { orderBy: { executedAt: 'desc' }, take: 1, include: { executedBy: true } },
           },
           orderBy: { createdAt: 'desc' },
+        },
+        vitalSigns: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
         },
       },
     });
