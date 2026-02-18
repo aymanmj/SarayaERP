@@ -37,7 +37,7 @@ export class NursingController {
 
   // 3. تسجيل إعطاء دواء
   @Post('encounters/:id/administer-med')
-  @Roles('ADMIN', 'NURSE')
+  @Roles('ADMIN', 'NURSE', 'DOCTOR')
   async administerMed(
     @Req() req: any,
     @Param('id', ParseIntPipe) encounterId: number,

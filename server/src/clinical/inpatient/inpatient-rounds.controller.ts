@@ -16,8 +16,13 @@ export class InpatientRoundsController {
   // ======================== DOCTOR ENDPOINTS ========================
 
   @Get('my-rotation')
-  @Permissions('INPATIENT_VIEW_MY_PATIENTS')
+  @Permissions('INPATIENT_VIEW_MY_PATIENTS', 'nursing:station:view', 'clinical:patients:view')
   async getMyRotation(@CurrentUser() user: JwtPayload) {
+    // If user is a Nurse or Admin, show all patients (or filtered by their dept)
+    if (user.roles.includes('NURSE') || user.roles.includes('ADMIN')) {
+      return this.service.getAllInpatients(user.hospitalId, user.sub);
+    }
+    // Otherwise (Doctor), show only assigned patients
     return this.service.getMyPatients(user.sub);
   }
 
