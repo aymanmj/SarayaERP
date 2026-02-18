@@ -94,7 +94,18 @@ const extendedApi = {
     api.get(`/vitals/encounter/${encounterId}`).then((res) => res.data),
 
   createVitals: (encounterId: number, data: any) =>
-    api.post(`/vitals/encounter/${encounterId}`, data).then((res) => res.data),
+    extendedApi.post(`/vitals/encounter/${encounterId}`, data).then((res: any) => res.data),
+
+  // Nursing / eMAR
+  getPatientMAR: (encounterId: number) =>
+    extendedApi.get(`/nursing/encounters/${encounterId}/mar`).then((res: any) => res.data),
+
+  administerMedication: (encounterId: number, prescriptionItemId: number, status: string, notes?: string) =>
+    extendedApi.post(`/nursing/encounters/${encounterId}/administer-med`, {
+      prescriptionItemId,
+      status, 
+      notes
+    }).then((res: any) => res.data),
 };
 
 export default extendedApi;
