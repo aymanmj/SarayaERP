@@ -88,6 +88,13 @@ const extendedApi = {
   // Lab Results
   getLabOrders: (encounterId: number) =>
     api.get(`/lab/encounters/${encounterId}/orders`).then((res) => res.data),
+
+  // Vitals
+  getVitals: (encounterId: number) =>
+    api.get(`/vitals/encounter/${encounterId}`).then((res) => res.data),
+
+  createVitals: (encounterId: number, data: any) =>
+    api.post(`/vitals/encounter/${encounterId}`, data).then((res) => res.data),
 };
 
 export default extendedApi;

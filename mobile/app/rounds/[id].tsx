@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput,
 import { useLocalSearchParams } from 'expo-router';
 import api from '../../services/api';
 import LabResultsList from "../../components/LabResultsList";
+import VitalsList from "../../components/VitalsList";
 import { Ionicons } from '@expo/vector-icons';
 
 export default function PatientDetailScreen() {
@@ -14,7 +15,7 @@ export default function PatientDetailScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [newNote, setNewNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [activeTab, setActiveTab] = useState<'notes' | 'labs'>('notes');
+  const [activeTab, setActiveTab] = useState<'notes' | 'labs' | 'vitals'>('notes');
 
   useEffect(() => {
     if (id) {
@@ -95,6 +96,12 @@ export default function PatientDetailScreen() {
           <Text style={[styles.tabText, activeTab === 'notes' && styles.activeTabText]}>Clinical Notes</Text>
         </TouchableOpacity>
         <TouchableOpacity 
+          style={[styles.tab, activeTab === 'vitals' && styles.activeTab]} 
+          onPress={() => setActiveTab('vitals')}
+        >
+          <Text style={[styles.tabText, activeTab === 'vitals' && styles.activeTabText]}>Vitals</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
           style={[styles.tab, activeTab === 'labs' && styles.activeTab]} 
           onPress={() => setActiveTab('labs')}
         >
@@ -141,6 +148,8 @@ export default function PatientDetailScreen() {
               />
             )}
           </>
+        ) : activeTab === 'vitals' ? (
+          <VitalsList encounterId={Number(id)} />
         ) : (
           <LabResultsList encounterId={Number(id)} />
         )}
