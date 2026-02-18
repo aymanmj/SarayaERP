@@ -30,10 +30,14 @@ type Inpatient = {
   clinicalNotes: { content: string; createdAt: string }[];
   carePlanItems?: CarePlanItem[];
   vitalSigns?: {
-    temperature: number;
-    bpSystolic: number;
-    bpDiastolic: number;
-    heartRate: number;
+    temperature?: number;
+    bpSystolic?: number;
+    bpDiastolic?: number;
+    pulse?: number;
+    respRate?: number;
+    o2Sat?: number;
+    weight?: number;
+    height?: number;
     createdAt: string;
   }[];
 };
@@ -296,20 +300,53 @@ export default function DoctorRoundsPage() {
                 <h3 className="font-bold text-slate-300 mb-2">آخر العلامات الحيوية (Vitals)</h3>
                 
                 {selectedPatient.vitalSigns && selectedPatient.vitalSigns.length > 0 ? (
-                  <div className="flex gap-4 text-sm text-slate-400">
-                     <div className="bg-slate-950 px-4 py-2 rounded-lg border border-slate-800">
-                       BP: <span className="text-white font-mono">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 w-full">
+                     <div className="bg-slate-950 px-4 py-3 rounded-xl border border-slate-800 flex flex-col items-center">
+                       <span className="text-slate-500 text-xs mb-1">Blood Pressure</span>
+                       <span className="text-white font-bold text-lg">
                          {selectedPatient.vitalSigns[0].bpSystolic}/{selectedPatient.vitalSigns[0].bpDiastolic}
                        </span>
+                       <span className="text-xs text-slate-600">mmHg</span>
                      </div>
-                     <div className="bg-slate-950 px-4 py-2 rounded-lg border border-slate-800">
-                       HR: <span className="text-white font-mono">{selectedPatient.vitalSigns[0].heartRate}</span>
+                     
+                     <div className="bg-slate-950 px-4 py-3 rounded-xl border border-slate-800 flex flex-col items-center">
+                       <span className="text-slate-500 text-xs mb-1">Heart Rate</span>
+                       <div className="text-white font-bold text-lg flex items-baseline gap-1">
+                          {selectedPatient.vitalSigns[0].pulse || '-'} 
+                          <span className="text-xs text-slate-500 font-normal">bpm</span>
+                       </div>
                      </div>
-                     <div className="bg-slate-950 px-4 py-2 rounded-lg border border-slate-800">
-                       Temp: <span className="text-white font-mono">{selectedPatient.vitalSigns[0].temperature}</span>
+
+                     <div className="bg-slate-950 px-4 py-3 rounded-xl border border-slate-800 flex flex-col items-center">
+                       <span className="text-slate-500 text-xs mb-1">Temperature</span>
+                       <div className="text-white font-bold text-lg flex items-baseline gap-1">
+                         {selectedPatient.vitalSigns[0].temperature || '-'}
+                         <span className="text-xs text-slate-500 font-normal">°C</span>
+                       </div>
                      </div>
-                     <div className="text-xs text-slate-500 mt-2 self-center">
-                        {new Date(selectedPatient.vitalSigns[0].createdAt).toLocaleTimeString('ar-SA')}
+
+                     <div className="bg-slate-950 px-4 py-3 rounded-xl border border-slate-800 flex flex-col items-center">
+                       <span className="text-slate-500 text-xs mb-1">O2 Saturation</span>
+                       <div className="text-white font-bold text-lg flex items-baseline gap-1">
+                         {selectedPatient.vitalSigns[0].o2Sat || '-'}
+                         <span className="text-xs text-slate-500 font-normal">%</span>
+                       </div>
+                     </div>
+
+                     {selectedPatient.vitalSigns[0].respRate && (
+                       <div className="bg-slate-950 px-4 py-3 rounded-xl border border-slate-800 flex flex-col items-center">
+                         <span className="text-slate-500 text-xs mb-1">Resp. Rate</span>
+                         <div className="text-white font-bold text-lg flex items-baseline gap-1">
+                           {selectedPatient.vitalSigns[0].respRate}
+                           <span className="text-xs text-slate-500 font-normal">/min</span>
+                         </div>
+                       </div>
+                     )}
+                     
+                     <div className="col-span-2 md:col-span-4 text-center mt-2">
+                        <span className="text-xs text-slate-500 flex items-center justify-center gap-1">
+                          🕒 recorded at {new Date(selectedPatient.vitalSigns[0].createdAt).toLocaleString('ar-SA')}
+                        </span>
                      </div>
                   </div>
                 ) : (
