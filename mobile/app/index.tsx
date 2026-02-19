@@ -1,12 +1,29 @@
-import { View, Text, StyleSheet, TouchableOpacity, StatusBar, ImageBackground, Dimensions } from 'react-native';
+import { useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, StatusBar, ImageBackground, Dimensions, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { getAuthToken } from '../services/api';
 
 const { width } = Dimensions.get('window');
 
 export default function HomeScreen() {
   const router = useRouter();
+
+  useEffect(() => {
+    checkLogin();
+  }, []);
+
+  const checkLogin = async () => {
+    try {
+      const token = await getAuthToken();
+      if (token) {
+        router.replace('/rounds');
+      }
+    } catch (e) {
+      console.log('Error checking token', e);
+    }
+  };
 
   return (
     <View style={styles.container}>

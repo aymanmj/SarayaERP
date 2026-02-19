@@ -11,10 +11,13 @@ interface AdministerMedModalProps {
   onSuccess: () => void;
 }
 
+import ScannerModal from './ScannerModal';
+
 export default function AdministerMedModal({ visible, onClose, medication, encounterId, onSuccess }: AdministerMedModalProps) {
   const [status, setStatus] = useState<'GIVEN' | 'NOT_GIVEN' | 'HELD'>('GIVEN');
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [scannerVisible, setScannerVisible] = useState(false);
 
   const handleSubmit = async () => {
     if (!medication) return;
@@ -32,6 +35,24 @@ export default function AdministerMedModal({ visible, onClose, medication, encou
       Alert.alert("Error", "Failed to record administration");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleScan = (data: string) => {
+    setScannerVisible(false);
+    
+    const drugName = medication.drugItem?.name || medication.product?.name || '';
+    const drugCode = medication.drugItem?.code || medication.product?.code || '';
+    
+    // Simple matching logic
+    // In production, might need to query API to resolve barcode to product
+    const isMatch = (data === drugCode) || (drugName.toLowerCase().includes(data.toLowerCase())) || (data.toLowerCase().includes(drugName.toLowerCase()));
+
+    if (isMatch) {
+        setStatus('GIVEN');
+        Alert.alert("Match Confirmed", "Medication verified successfully.");
+    } else {
+        Alert.alert("Mismatch Warning", `Scanned code '${data}' does not match '${drugName}'. Please verify manually.`);
     }
   };
 
@@ -57,9 +78,14 @@ export default function AdministerMedModal({ visible, onClose, medication, encou
             {/* Header */}
             <View style={styles.header}>
               <Text style={styles.title}>Administer Medication</Text>
-              <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-                <Ionicons name="close" size={20} color="#64748b" />
-              </TouchableOpacity>
+              <View style={{flexDirection: 'row', gap: 8}}>
+                  <TouchableOpacity onPress={() => setScannerVisible(true)} style={styles.scanBtn}>
+                    <Ionicons name="qr-code-outline" size={20} color="#0284c7" />
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+                    <Ionicons name="close" size={20} color="#64748b" />
+                  </TouchableOpacity>
+              </View>
             </View>
 
             {/* Drug Info Card */}
@@ -135,6 +161,13 @@ export default function AdministerMedModal({ visible, onClose, medication, encou
           </View>
         </KeyboardAvoidingView>
       </TouchableOpacity>
+      
+      <ScannerModal 
+        visible={scannerVisible} 
+        onClose={() => setScannerVisible(false)} 
+        onScan={handleScan}
+        title={`Scan ${medication.drugItem?.name || 'Medication'}`}
+      />
     </Modal>
   );
 }
@@ -158,6 +191,7 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
   title: { fontSize: 18, fontWeight: '700', color: '#1e293b' },
   closeBtn: { padding: 4, backgroundColor: '#f1f5f9', borderRadius: 20 },
+  scanBtn: { padding: 4, backgroundColor: '#f0f9ff', borderRadius: 20, borderWidth: 1, borderColor: '#e0f2fe' },
 
   drugCard: { 
     flexDirection: 'row', 

@@ -12,7 +12,7 @@ import {
   StatusBar,
 } from "react-native";
 import { useRouter } from "expo-router";
-import api, { setAuthToken } from "../services/api";
+import api, { setAuthToken, setUserInfo } from "../services/api";
 import { Ionicons } from "@expo/vector-icons";
 
 export default function LoginScreen() {
@@ -33,6 +33,11 @@ export default function LoginScreen() {
 
       if (response.data.success && response.data.accessToken) {
         await setAuthToken(response.data.accessToken);
+        // Assuming response.data.user contains user details like { id, username, fullName, role }
+        // If not, we might need to decode the token or fetch profile
+        if (response.data.user) {
+            await setUserInfo(response.data.user);
+        }
         router.replace("/rounds"); // Navigate to Rounds and replace history
       } else {
         const msg = response.data.message || "Invalid credentials";

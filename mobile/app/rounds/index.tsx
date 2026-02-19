@@ -20,6 +20,7 @@ interface Encounter {
   patient: {
     fullName: string;
     mrn: string;
+    nationalId?: string;
     dateOfBirth?: string;
     gender?: string;
   };
@@ -38,24 +39,60 @@ interface Encounter {
   }[];
 }
 
+import ScannerModal from "../../components/ScannerModal";
+
+import StorageService from "../../services/StorageService";
+
 export default function RoundsScreen() {
   const router = useRouter();
   const [encounters, setEncounters] = useState<Encounter[]>([]);
   const [loading, setLoading] = useState(true);
+  const [scannerVisible, setScannerVisible] = useState(false);
+  const [isOffline, setIsOffline] = useState(false);
 
   useEffect(() => {
+    checkConnectivity();
     fetchRounds();
   }, []);
 
+  const checkConnectivity = async () => {
+     const online = await StorageService.isOnline();
+     setIsOffline(!online);
+  };
+
   const fetchRounds = async () => {
     try {
-      const response = await api.get("/clinical/inpatient/my-rotation");
-      setEncounters(response.data);
+      const data = await api.getMyRotation();
+      setEncounters(data);
     } catch (error: any) {
       console.error(error);
       Alert.alert("Error", "Failed to fetch rounds data");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleScan = (data: string) => {
+    setScannerVisible(false);
+    // Assuming data is MRN or similar identifier
+    // In a real app, you might want to call an API to search by MRN if not in the list
+    const foundEncounter = encounters.find(e => e.patient.mrn === data || e.patient.nationalId === data);
+    
+    if (foundEncounter) {
+       router.push({
+        pathname: "/rounds/[id]",
+        params: {
+          id: foundEncounter.id,
+          name: foundEncounter.patient.fullName,
+          mrn: foundEncounter.patient.mrn,
+          gender: foundEncounter.patient.gender,
+          dob: foundEncounter.patient.dateOfBirth,
+          diagnosis: foundEncounter.admission?.primaryDiagnosis || "No Diagnosis",
+          vitals: foundEncounter.vitalSigns?.[0] ? JSON.stringify(foundEncounter.vitalSigns?.[0]) : undefined,
+        },
+      });
+    } else {
+      Alert.alert("Not Found", `No active encounter found for ID: ${data}`);
     }
   };
 
@@ -133,9 +170,26 @@ export default function RoundsScreen() {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
+      {isOffline && (
+        <View style={styles.offlineBanner}>
+            <Text style={styles.offlineText}>You are currently offline. Viewing cached data.</Text>
+        </View>
+      )}
       <View style={styles.header}>
-         <Text style={styles.headerTitle}>Doctor Rounds</Text>
-         <Text style={styles.headerSubtitle}>My Active Patients</Text>
+         <View style={styles.headerTopRow}>
+             <View>
+                 <Text style={styles.headerTitle}>Doctor Rounds</Text>
+                 <Text style={styles.headerSubtitle}>My Active Patients</Text>
+             </View>
+             <View style={{flexDirection: 'row', gap: 12}}>
+                <TouchableOpacity style={styles.iconButton} onPress={() => router.push("/profile")}>
+                     <Ionicons name="person-circle-outline" size={32} color="#fff" />
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.scanButton} onPress={() => setScannerVisible(true)}>
+                     <Ionicons name="qr-code-outline" size={24} color="#0284c7" />
+                </TouchableOpacity>
+             </View>
+         </View>
       </View>
       <FlatList
         data={encounters}
@@ -152,6 +206,13 @@ export default function RoundsScreen() {
             </Text>
           </View>
         }
+      />
+      
+      <ScannerModal 
+        visible={scannerVisible}
+        onClose={() => setScannerVisible(false)}
+        onScan={handleScan}
+        title="Scan Patient Wristband"
       />
     </View>
   );
@@ -182,6 +243,11 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 8,
   },
+  headerTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   headerTitle: {
     fontSize: 28,
     fontWeight: "800",
@@ -192,6 +258,25 @@ const styles = StyleSheet.create({
     color: "#e0f2fe",
     marginTop: 4,
     fontWeight: "500",
+  },
+  scanButton: {
+    backgroundColor: 'white',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  iconButton: {
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   listContent: {
     padding: 16,
@@ -241,7 +326,7 @@ const styles = StyleSheet.create({
   mrn: {
     fontSize: 12,
     color: "#64748b",
-    fontFamily: "monospace", // If handled by font loading, otherwise system mono
+    fontFamily: "monospace", 
   },
   statusBadge: {
     paddingHorizontal: 8,
@@ -304,5 +389,16 @@ const styles = StyleSheet.create({
     marginTop: 16,
     color: "#94a3b8",
     fontSize: 16,
+  },
+  offlineBanner: {
+    backgroundColor: '#b91c1c',
+    padding: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  offlineText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '700',
   },
 });

@@ -8,6 +8,8 @@ import MedicationList from "../../components/MedicationList";
 import RadiologyList from "../../components/RadiologyList";
 import { Ionicons } from '@expo/vector-icons';
 
+import StorageService from "../../services/StorageService";
+
 export default function PatientDetailScreen() {
   const params = useLocalSearchParams();
   const { id, name, diagnosis, gender, dob, vitals } = params;
@@ -18,12 +20,19 @@ export default function PatientDetailScreen() {
   const [newNote, setNewNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState<'notes' | 'vitals' | 'meds' | 'labs' | 'radiology'>('notes');
+  const [isOffline, setIsOffline] = useState(false);
 
   useEffect(() => {
+    checkConnectivity();
     if (id) {
       fetchNotes();
     }
   }, [id]);
+
+  const checkConnectivity = async () => {
+    const online = await StorageService.isOnline();
+    setIsOffline(!online);
+  };
 
   const fetchNotes = async () => {
     setLoading(true);
@@ -48,11 +57,28 @@ export default function PatientDetailScreen() {
     }
     setSubmitting(true);
     try {
-      await api.createClinicalNote(Number(id), newNote, 'DOCTOR_ROUND');
+      const result = await api.createClinicalNote(Number(id), newNote, 'DOCTOR_ROUND');
+      
       setNewNote('');
       setModalVisible(false);
-      fetchNotes(); 
-      Alert.alert("Success", "Note added successfully");
+      
+      if (result.offline) {
+         Alert.alert("Offline", "Note saved locally and will sync when online.");
+         // Optimistically add to list or reload from cache
+         // For simplicity, just fetchNotes which should return cached + maybe we should append locally if api.getClinicalNotes doesn't return the queued one.
+         // Since our mock getClinicalNotes only returns server data (cached), the new note won't appear unless we manually add it.
+         // Let's manually append for UI feedback
+         setNotes(prev => [{
+            id: 'temp-' + Date.now(),
+            content: newNote,
+            createdAt: new Date().toISOString(),
+            type: 'DOCTOR_ROUND',
+            createdBy: { fullName: 'You (Offline)' }
+         }, ...prev]);
+      } else {
+         fetchNotes(); 
+         Alert.alert("Success", "Note added successfully");
+      }
     } catch (error: any) {
       console.error("Failed to add note", error);
       Alert.alert("Error", "Failed to add note");
@@ -99,6 +125,13 @@ export default function PatientDetailScreen() {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#0284c7" />
       
+      {/* Offline Banner */}
+      {isOffline && (
+        <View style={styles.offlineBanner}>
+            <Text style={styles.offlineText}>Offline Mode</Text>
+        </View>
+      )}
+
       {/* Dynamic Header */}
       <View style={styles.header}>
         <View style={styles.headerTop}>
@@ -332,4 +365,16 @@ const styles = StyleSheet.create({
   saveBtn: { backgroundColor: '#0284c7', paddingVertical: 12, paddingHorizontal: 24, borderRadius: 10 },
   saveBtnText: { color: '#fff', fontWeight: '600' },
   disabledBtn: { opacity: 0.7 },
+  
+  offlineBanner: {
+    backgroundColor: '#b91c1c',
+    padding: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  offlineText: {
+      color: '#fff',
+      fontSize: 12,
+      fontWeight: '700',
+  },
 });

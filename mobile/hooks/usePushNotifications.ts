@@ -43,10 +43,16 @@ async function registerForPushNotificationsAsync() {
     return null;
   }
 
-  const projectId =
-    Constants?.expoConfig?.extra?.eas?.projectId ?? Constants?.easConfig?.projectId;
-
   try {
+    const projectId =
+      Constants?.expoConfig?.extra?.eas?.projectId ?? Constants?.easConfig?.projectId;
+    
+    // Check if we are in Expo Go on Android, where this might fail
+    if (Platform.OS === 'android' && Constants.appOwnership === 'expo') {
+       console.log('Push Notifications are not supported in Expo Go for Android. Use a Development Build.');
+       return null;
+    }
+
     const pushTokenString = (
       await Notifications.getExpoPushTokenAsync({
         projectId,
@@ -55,7 +61,7 @@ async function registerForPushNotificationsAsync() {
     // console.log(pushTokenString);
     return pushTokenString;
   } catch (e: unknown) {
-    // console.error(e);
+    console.log('Error getting push token:', e);
     return null;
   }
 }

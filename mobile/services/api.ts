@@ -2,6 +2,7 @@
 import axios from "axios";
 import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
+import StorageService from './StorageService';
 
 // UPDATE THIS IP WITH YOUR COMPUTER'S LAN IP
 const BASE_URL = "https://erp.alsarayatech.ly/api";
@@ -68,6 +69,35 @@ export const removeAuthToken = async () => {
   }
 };
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+export const setUserInfo = async (userInfo: any) => {
+  const jsonValue = JSON.stringify(userInfo);
+  try {
+    await AsyncStorage.setItem("userInfo", jsonValue);
+  } catch (e) {
+    console.error("Failed to save user info", e);
+  }
+};
+
+export const getUserInfo = async () => {
+  try {
+    const jsonValue = await AsyncStorage.getItem("userInfo");
+    return jsonValue != null ? JSON.parse(jsonValue) : null;
+  } catch (e) {
+    console.error("Failed to get user info", e);
+    return null;
+  }
+};
+
+export const removeUserInfo = async () => {
+    try {
+      await AsyncStorage.removeItem("userInfo");
+    } catch (e) {
+      console.error("Failed to remove user info", e);
+    }
+  };
+
 // Extend the api object with custom methods
 const extendedApi = {
   ...api,
@@ -77,39 +107,152 @@ const extendedApi = {
   delete: api.delete,
   defaults: api.defaults,
   interceptors: api.interceptors,
+
+  // Rounds - Offline Capable
+  getMyRotation: async () => {
+    if (await StorageService.isOnline()) {
+      try {
+        const response = await api.get("/clinical/inpatient/my-rotation");
+        // Save to offline storage
+        if (response.data) {
+             await StorageService.saveRounds(response.data);
+        }
+        return response.data;
+      } catch (error) {
+        console.warn("Online fetch failed, falling back to offline", error);
+        return await StorageService.getRounds();
+      }
+    } else {
+      return await StorageService.getRounds();
+    }
+  },
   
-  // Clinical Notes
-  getClinicalNotes: (encounterId: number) => 
-    api.get(`/clinical-notes/encounter/${encounterId}`).then((res) => res.data),
+  // Clinical Notes - Offline Capable
+  getClinicalNotes: async (encounterId: number) => {
+     if (await StorageService.isOnline()) {
+         try {
+             const res = await api.get(`/clinical-notes/encounter/${encounterId}`);
+             // We serve patient details as a whole usually, but here we can't easily cache *just* notes unless we structured it that way.
+             // For now, let's cache what we get if we build a 'getPatientDetails' aggregate.
+             // Or we just rely on online for now for details, OR we cache individual parts.
+             // Simpler approach: lets cache this specific response
+             await StorageService.savePatientDetails(encounterId, { ...await StorageService.getPatientDetails(encounterId), notes: res.data });
+             return res.data;
+         } catch(e) {
+             const cached = await StorageService.getPatientDetails(encounterId);
+             return cached?.notes || [];
+         }
+     } else {
+         const cached = await StorageService.getPatientDetails(encounterId);
+         return cached?.notes || [];
+     }
+  },
 
-  createClinicalNote: (encounterId: number, content: string, type: string = 'DOCTOR_ROUND') =>
-    api.post('/clinical-notes', { encounterId, content, type }).then((res) => res.data),
+  createClinicalNote: async (encounterId: number, content: string, type: string = 'DOCTOR_ROUND') => {
+    if (await StorageService.isOnline()) {
+        return api.post('/clinical-notes', { encounterId, content, type }).then((res) => res.data);
+    } else {
+        // Queue action
+        await StorageService.queueAction({
+            type: 'CREATE_NOTE',
+            payload: { encounterId, content, type }
+        });
+        // Return fake success
+        return { success: true, offline: true, message: 'Saved offline' };
+    }
+  },
 
-  // Lab Results
-  getLabOrders: (encounterId: number) =>
-    api.get(`/lab/encounters/${encounterId}/orders`).then((res) => res.data),
+  // Lab Results - Offline Capable
+  getLabOrders: async (encounterId: number) => {
+    if (await StorageService.isOnline()) {
+        try {
+            const res = await api.get(`/lab/encounters/${encounterId}/orders`);
+            await StorageService.savePatientDetails(`${encounterId}_labs`, res.data);
+            return res.data;
+        } catch(e) {
+            console.warn("Online fetch labs failed", e);
+            return await StorageService.getPatientDetails(`${encounterId}_labs`) || [];
+        }
+    } else {
+        return await StorageService.getPatientDetails(`${encounterId}_labs`) || [];
+    }
+  },
 
-  // Vitals
-  getVitals: (encounterId: number) =>
-    api.get(`/vitals/encounter/${encounterId}`).then((res) => res.data),
+  // Vitals - Offline Capable
+  getVitals: async (encounterId: number) => {
+    if (await StorageService.isOnline()) {
+        try {
+            const res = await api.get(`/vitals/encounter/${encounterId}`);
+            await StorageService.savePatientDetails(`${encounterId}_vitals`, res.data);
+            return res.data;
+        } catch(e) {
+            console.warn("Online fetch vitals failed", e);
+            return await StorageService.getPatientDetails(`${encounterId}_vitals`) || [];
+        }
+    } else {
+        return await StorageService.getPatientDetails(`${encounterId}_vitals`) || [];
+    }
+  },
 
-  createVitals: (encounterId: number, data: any) =>
-    extendedApi.post(`/vitals/encounter/${encounterId}`, data).then((res: any) => res.data),
+  createVitals: async (encounterId: number, data: any) => {
+    if (await StorageService.isOnline()) {
+        return extendedApi.post(`/vitals/encounter/${encounterId}`, data).then((res: any) => res.data);
+    } else {
+        await StorageService.queueAction({
+            type: 'CREATE_VITALS',
+            payload: { encounterId, ...data }
+        });
+        return { success: true, offline: true, message: 'Vitals saved offline' };
+    }
+  },
 
-  // Radiology
-  getRadiologyOrders: (encounterId: number) =>
-    api.get(`/radiology/encounters/${encounterId}/orders`).then((res) => res.data),
+  // Radiology - Offline Capable
+  getRadiologyOrders: async (encounterId: number) => {
+    if (await StorageService.isOnline()) {
+        try {
+            const res = await api.get(`/radiology/encounters/${encounterId}/orders`);
+            await StorageService.savePatientDetails(`${encounterId}_radiology`, res.data);
+            return res.data;
+        } catch(e) {
+            console.warn("Online fetch radiology failed", e);
+            return await StorageService.getPatientDetails(`${encounterId}_radiology`) || [];
+        }
+    } else {
+       return await StorageService.getPatientDetails(`${encounterId}_radiology`) || [];
+    }
+  },
 
-  // Nursing / eMAR
-  getPatientMAR: (encounterId: number) =>
-    extendedApi.get(`/nursing/encounters/${encounterId}/mar`).then((res: any) => res.data),
+  // Nursing / eMAR - Offline Capable
+  getPatientMAR: async (encounterId: number) => {
+    if (await StorageService.isOnline()) {
+        try {
+            const res = await extendedApi.get(`/nursing/encounters/${encounterId}/mar`);
+            await StorageService.savePatientDetails(`${encounterId}_mar`, res.data);
+            return res.data;
+        } catch(e) {
+            console.warn("Online fetch MAR failed", e);
+            return await StorageService.getPatientDetails(`${encounterId}_mar`) || [];
+        }
+    } else {
+        return await StorageService.getPatientDetails(`${encounterId}_mar`) || [];
+    }
+  },
 
-  administerMedication: (encounterId: number, prescriptionItemId: number, status: string, notes?: string) =>
-    extendedApi.post(`/nursing/encounters/${encounterId}/administer-med`, {
-      prescriptionItemId,
-      status, 
-      notes
-    }).then((res: any) => res.data),
+  administerMedication: async (encounterId: number, prescriptionItemId: number, status: string, notes?: string) => {
+    if (await StorageService.isOnline()) {
+        return extendedApi.post(`/nursing/encounters/${encounterId}/administer-med`, {
+          prescriptionItemId,
+          status, 
+          notes
+        }).then((res: any) => res.data);
+    } else {
+        await StorageService.queueAction({
+            type: 'ADMINISTER_MED',
+            payload: { encounterId, prescriptionItemId, status, notes }
+        });
+        return { success: true, offline: true, message: 'Administration queued offline' };
+    }
+  },
 
   // Push Notifications
   registerDevice: (token: string, platform?: string) =>
