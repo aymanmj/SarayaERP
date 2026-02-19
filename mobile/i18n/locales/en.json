@@ -1,0 +1,50 @@
+{
+  "common": {
+    "welcome": "Welcome",
+    "loading": "Loading...",
+    "error": "Error",
+    "retry": "Retry",
+    "save": "Save",
+    "cancel": "Cancel",
+    "logout": "Log Out",
+    "back": "Back",
+    "search": "Search",
+    "offline": "You are offline"
+  },
+  "login": {
+    "title": "Login",
+    "email": "Email",
+    "password": "Password",
+    "submit": "Login",
+    "failed": "Login Failed"
+  },
+  "rounds": {
+    "title": "Doctor Rounds",
+    "subtitle": "My Active Patients",
+    "scan": "Scan",
+    "noPatients": "No active patients found"
+  },
+  "patient": {
+    "details": "Patient Details",
+    "gender": "Gender",
+    "dob": "Date of Birth",
+    "mrn": "MRN",
+    "tabs": {
+      "overview": "Overview",
+      "history": "History",
+      "meds": "Meds",
+      "vitals": "Vitals",
+      "notes": "Notes",
+      "labs": "Labs",
+      "radiology": "Radiology"
+    }
+  },
+  "pharmacy": {
+    "title": "Pharmacy",
+    "worklist": "Worklist",
+    "stock": "Stock",
+    "dispense": "Dispense",
+    "items": "Items",
+    "pending": "Pending"
+  }
+}

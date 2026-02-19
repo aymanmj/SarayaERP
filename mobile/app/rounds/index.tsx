@@ -43,7 +43,10 @@ import ScannerModal from "../../components/ScannerModal";
 
 import StorageService from "../../services/StorageService";
 
+import { useTranslation } from "react-i18next";
+
 export default function RoundsScreen() {
+  const { t } = useTranslation();
   const router = useRouter();
   const [encounters, setEncounters] = useState<Encounter[]>([]);
   const [loading, setLoading] = useState(true);
@@ -178,12 +181,18 @@ export default function RoundsScreen() {
       <View style={styles.header}>
          <View style={styles.headerTopRow}>
              <View>
-                 <Text style={styles.headerTitle}>Doctor Rounds</Text>
-                 <Text style={styles.headerSubtitle}>My Active Patients</Text>
+                 <Text style={styles.headerTitle}>{t('rounds.title')}</Text>
+                 <Text style={styles.headerSubtitle}>{t('rounds.subtitle')}</Text>
              </View>
              <View style={{flexDirection: 'row', gap: 12}}>
                 <TouchableOpacity style={styles.iconButton} onPress={() => router.push("/profile")}>
                      <Ionicons name="person-circle-outline" size={32} color="#fff" />
+                </TouchableOpacity>
+                <TouchableOpacity 
+                    style={[styles.scanButton, { backgroundColor: '#10b981' }]} 
+                    onPress={() => router.push('/pharmacy')}
+                >
+                     <Ionicons name="medkit" size={24} color="#fff" />
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.scanButton} onPress={() => setScannerVisible(true)}>
                      <Ionicons name="qr-code-outline" size={24} color="#0284c7" />
@@ -202,7 +211,7 @@ export default function RoundsScreen() {
           <View style={styles.emptyContainer}>
             <Ionicons name="people-outline" size={64} color="#cbd5e1" />
             <Text style={styles.emptyText}>
-              No active patients found for your rotation.
+              {t('rounds.noPatients')}
             </Text>
           </View>
         }

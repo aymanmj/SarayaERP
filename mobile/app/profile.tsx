@@ -4,9 +4,17 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { getUserInfo, removeAuthToken, removeUserInfo } from '../services/api';
 
+import i18n, { LANGUAGE_KEY } from '../i18n';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Updates from 'expo-updates';
+import { I18nManager } from 'react-native';
+
 export default function ProfileScreen() {
   const router = useRouter();
   const [userInfo, setUserInfoState] = useState<any>(null);
+
+  // Trigger re-render on language change
+  const [, setTick] = useState(0);
 
   useEffect(() => {
     loadUserInfo();
@@ -15,6 +23,37 @@ export default function ProfileScreen() {
   const loadUserInfo = async () => {
     const info = await getUserInfo();
     setUserInfoState(info);
+  };
+
+  const toggleLanguage = async () => {
+      const currentLang = i18n.language;
+      const newLang = currentLang === 'en' ? 'ar' : 'en';
+      const isRTL = newLang === 'ar';
+
+      await AsyncStorage.setItem(LANGUAGE_KEY, newLang);
+      await i18n.changeLanguage(newLang);
+      
+      I18nManager.allowRTL(isRTL);
+      I18nManager.forceRTL(isRTL);
+
+      Alert.alert(
+          newLang === 'ar' ? "تغيير اللغة" : "Change Language",
+          newLang === 'ar' ? "سيتم إعادة تشغيل التطبيق لتطبيق اللغة العربية" : "The app will restart to apply English language",
+          [
+              {
+                  text: "OK",
+                  onPress: async () => {
+                      try {
+                        await Updates.reloadAsync();
+                      } catch (e) {
+                          // Fallback for Expo Go or dev mode if reloadAsync fails/is not supported properly
+                         Alert.alert("Note", "Please manually restart the app for RTL layout changes to take full effect.");
+                         setTick(t => t + 1); // Force re-render at least
+                      }
+                  }
+              }
+          ]
+      );
   };
 
   const handleLogout = async () => {
@@ -85,15 +124,19 @@ export default function ProfileScreen() {
              <Text style={styles.settingValue}>System</Text>
           </View>
 
-          <View style={styles.settingRow}>
-             <View style={styles.settingLeft}>
-               <View style={[styles.iconBox, {backgroundColor: '#dcfce7'}]}>
-                 <Ionicons name="language-outline" size={20} color="#16a34a" />
-               </View>
-               <Text style={styles.settingLabel}>Language</Text>
+             <View style={styles.settingRow}>
+                <View style={styles.settingLeft}>
+                  <View style={[styles.iconBox, {backgroundColor: '#dcfce7'}]}>
+                    <Ionicons name="language-outline" size={20} color="#16a34a" />
+                  </View>
+                  <Text style={styles.settingLabel}>{i18n.t('common.language') || 'Language'}</Text>
+                </View>
+                <TouchableOpacity onPress={toggleLanguage}>
+                    <Text style={[styles.settingValue, { color: '#0284c7', fontWeight: 'bold' }]}>
+                        {i18n.language === 'ar' ? 'العربية' : 'English'}
+                    </Text>
+                </TouchableOpacity>
              </View>
-             <Text style={styles.settingValue}>English</Text>
-          </View>
         </View>
 
         {/* Support Section */}

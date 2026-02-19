@@ -15,7 +15,11 @@ import { useRouter } from "expo-router";
 import api, { setAuthToken, setUserInfo } from "../services/api";
 import { Ionicons } from "@expo/vector-icons";
 
+import { useTranslation } from "react-i18next";
+import { I18nManager } from "react-native";
+
 export default function LoginScreen() {
+  const { t } = useTranslation();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -69,8 +73,8 @@ export default function LoginScreen() {
         <View style={styles.inputContainer}>
           <Ionicons name="person-outline" size={20} color="#64748b" style={styles.inputIcon} />
           <TextInput
-            style={styles.input}
-            placeholder="Username"
+            style={[styles.input, {textAlign: I18nManager.isRTL ? 'right' : 'left'}]}
+            placeholder={t('login.email')}
             value={username}
             onChangeText={setUsername}
             autoCapitalize="none"
@@ -81,8 +85,8 @@ export default function LoginScreen() {
         <View style={styles.inputContainer}>
           <Ionicons name="lock-closed-outline" size={20} color="#64748b" style={styles.inputIcon} />
           <TextInput
-            style={styles.input}
-            placeholder="Password"
+            style={[styles.input, {textAlign: I18nManager.isRTL ? 'right' : 'left'}]}
+            placeholder={t('login.password')}
             value={password}
             onChangeText={setPassword}
             secureTextEntry
@@ -99,7 +103,7 @@ export default function LoginScreen() {
           {loading ? (
             <ActivityIndicator size="small" color="#fff" />
           ) : (
-            <Text style={styles.loginButtonText}>LOGIN</Text>
+            <Text style={styles.loginButtonText}>{t('login.submit')}</Text>
           )}
         </TouchableOpacity>
         

@@ -5,16 +5,68 @@ const KEYS = {
   ROUNDS: 'offline_rounds',
   PATIENT_PREFIX: 'offline_patient_',
   PENDING_ACTIONS: 'offline_pending_actions',
+  FAILED_ACTIONS: 'offline_failed_actions',
 };
+
+  // ... existing methods ...
+
+export type OfflineActionType =
+  | 'CREATE_NOTE'
+  | 'CREATE_VITALS'
+  | 'ADMINISTER_MED'
+  | 'DISPENSE_PRESCRIPTION'
+  | 'ADJUST_STOCK';
 
 export interface OfflineAction {
   id: string;
-  type: 'CREATE_NOTE' | 'ADMINISTER_MED' | 'CREATE_VITALS' | 'DISPENSE_PRESCRIPTION' | 'ADJUST_STOCK';
+  type: OfflineActionType;
   payload: any;
   timestamp: number;
 }
 
+export interface FailedAction extends OfflineAction {
+  error: string;
+  failedAt: number;
+}
+
 const StorageService = {
+  // ... existing methods ...
+
+  // Failed Actions
+  saveFailedAction: async (action: OfflineAction, error: string) => {
+    try {
+      const failedAction: FailedAction = {
+        ...action,
+        error,
+        failedAt: Date.now(),
+      };
+      
+      const existingJson = await AsyncStorage.getItem(KEYS.FAILED_ACTIONS);
+      const existing: FailedAction[] = existingJson ? JSON.parse(existingJson) : [];
+      
+      const updated = [...existing, failedAction];
+      await AsyncStorage.setItem(KEYS.FAILED_ACTIONS, JSON.stringify(updated));
+    } catch (e) {
+      console.error('Failed to save failed action', e);
+    }
+  },
+
+  getFailedActions: async () => {
+    try {
+      const json = await AsyncStorage.getItem(KEYS.FAILED_ACTIONS);
+      return json ? JSON.parse(json) : [];
+    } catch (e) {
+      return [];
+    }
+  },
+
+  clearFailedActions: async () => {
+    await AsyncStorage.removeItem(KEYS.FAILED_ACTIONS);
+  },
+  
+  // Existing queue methods (ensure they use KEYS.PENDING_ACTIONS correctly reference)
+  // ...
+  
   // Network Check
   isOnline: async () => {
     const state = await NetInfo.fetch();

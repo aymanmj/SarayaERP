@@ -7,11 +7,17 @@ import NetInfo from '@react-native-community/netinfo';
 import SyncService from '../services/SyncService';
 import ErrorBoundary from '../components/ErrorBoundary';
 import Logger from '../services/Logger';
+import { initI18n } from '../i18n';
 
 export default function Layout() {
   const { expoPushToken } = usePushNotifications();
   const [isSyncing, setIsSyncing] = useState(false);
+  const [i18nLoaded, setI18nLoaded] = useState(false);
   
+  useEffect(() => {
+    initI18n().then(() => setI18nLoaded(true));
+  }, []);
+
   useEffect(() => {
     if(expoPushToken) {
        console.log("Push Token Active:", expoPushToken);
@@ -19,25 +25,23 @@ export default function Layout() {
   }, [expoPushToken]);
 
   useEffect(() => {
-    const unsubscribe = NetInfo.addEventListener(state => {
-      if (state.isConnected && state.isInternetReachable) {
-        handleSync();
-      }
+    // Initialize Sync Service Listener
+    const unsubscribeSync = SyncService.init();
+
+    // Additional manual listener if needed for UI state
+    const unsubscribeNet = NetInfo.addEventListener(state => {
+      // Optional: Set global online/offline state context here if we had one
     });
 
-    return () => unsubscribe();
+    return () => {
+        unsubscribeSync();
+        unsubscribeNet();
+    };
   }, []);
 
-  const handleSync = async () => {
-    setIsSyncing(true);
-    try {
-      await SyncService.sync();
-    } catch (e) {
-      console.error("Sync failed:", e);
-    } finally {
-      setIsSyncing(false);
-    }
-  };
+  // Removed manual handleSync as SyncService.init handles it internally now
+
+  if (!i18nLoaded) return null; // Or a splash screen
 
   return (
     <ErrorBoundary>

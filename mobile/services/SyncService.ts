@@ -1,21 +1,48 @@
 import StorageService, { OfflineAction } from './StorageService';
 import api from './api'; 
 import Logger from './Logger'; 
+import NetInfo from '@react-native-community/netinfo';
+
+let isSyncing = false;
 
 const SyncService = {
+  init: () => {
+    const unsubscribe = NetInfo.addEventListener(state => {
+      if (state.isConnected && state.isInternetReachable) {
+        Logger.info('SyncService: Network online, triggering sync...');
+        SyncService.sync();
+      }
+    });
+    return unsubscribe;
+  },
+
   sync: async () => {
-    const isOnline = await StorageService.isOnline();
-    if (!isOnline) return;
+    if (isSyncing) return;
+    isSyncing = true;
 
-    const pendingActions = await StorageService.getPendingActions();
-    if (pendingActions.length === 0) return;
+    try {
+        const isOnline = await StorageService.isOnline();
+        if (!isOnline) {
+            isSyncing = false;
+            return;
+        }
 
-    if (pendingActions.length === 0) return;
+        const pendingActions = await StorageService.getPendingActions();
+        if (pendingActions.length === 0) {
+            isSyncing = false;
+            return;
+        }
 
-    Logger.info(`SyncService: Found ${pendingActions.length} pending actions.`);
+        Logger.info(`SyncService: Found ${pendingActions.length} pending actions.`);
 
-    for (const action of pendingActions) {
-      await SyncService.processAction(action);
+        // Process sequentially to maintain order
+        for (const action of pendingActions) {
+            await SyncService.processAction(action);
+        }
+    } catch (e) {
+        Logger.error('SyncService: General sync error', e);
+    } finally {
+        isSyncing = false;
     }
   },
 
@@ -47,12 +74,28 @@ const SyncService = {
             Logger.warn(`SyncService: Unknown action type ${action.type}`);
             break;
       }
-      // If successful (no error thrown), remove from queue
+      
+      // Success: Remove from queue
       await StorageService.removeAction(action.id);
       Logger.info(`SyncService: Action ${action.id} processed and removed.`);
-    } catch (error) {
+
+    } catch (error: any) {
       Logger.error(`SyncService: Failed to process action ${action.id}`, error);
-      // Simple strategy: keep in queue for retry
+      
+      // Determine if error is permanent (4xx) or transient (5xx / Network)
+      const status = error.response?.status;
+      
+      if (status >= 400 && status < 500) {
+          // Permanent failure (e.g. Validation Error, Forbidden)
+          // Move to Failed List so we don't block the queue forever
+          await StorageService.saveFailedAction(action, error.message || JSON.stringify(error.response?.data));
+          await StorageService.removeAction(action.id);
+          Logger.warn(`SyncService: Action ${action.id} failed permanently. Moved to Failed Actions.`);
+      } else {
+          // Transient failure (Network, Server Error)
+          // Keep in queue, will retry next sync
+          Logger.info(`SyncService: Action ${action.id} failed transiently. Keeping in queue.`);
+      }
     }
   }
 };

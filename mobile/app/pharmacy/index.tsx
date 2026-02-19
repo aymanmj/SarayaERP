@@ -6,7 +6,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import api from '../../services/api';
 import StorageService from '../../services/StorageService'; // Explicit import to use isOnline directly if needed
 
+import { useTranslation } from 'react-i18next';
+import { I18nManager } from 'react-native';
+
 export default function PharmacyDashboard() {
+  const { t } = useTranslation();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'worklist' | 'stock'>('worklist');
   const [loading, setLoading] = useState(false);
@@ -54,7 +58,8 @@ export default function PharmacyDashboard() {
         onPress={() => router.push(`/pharmacy/dispense/${item.id}`)}
     >
       <View style={styles.cardHeader}>
-        <Text style={styles.patientName}>{item.encounter?.patient?.fullName || 'Unknown Patient'}</Text>
+        {/* Fix: patient is at root, not inside encounter */}
+        <Text style={styles.patientName}>{item.patient?.fullName || 'Unknown Patient'}</Text>
         <Text style={[styles.statusBadge, { backgroundColor: item.status === 'PENDING' ? '#f59e0b' : '#10b981' }]}>
             {item.status}
         </Text>
@@ -68,11 +73,12 @@ export default function PharmacyDashboard() {
   const renderStockItem = ({ item }: { item: any }) => (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
-        <Text style={styles.drugName}>{item.drugItem?.tradeName}</Text>
-        <Text style={styles.stockLevel}>{item.currentBalance} {item.drugItem?.dispensingUnit}</Text>
+        {/* Fix: Stock item IS the product, not nested in drugItem */}
+        <Text style={styles.drugName}>{item.name}</Text>
+        <Text style={styles.stockLevel}>{item.stockOnHand || 0} {item.form || 'Units'}</Text>
       </View>
-      <Text style={styles.detailText}>Generic: {item.drugItem?.genericName}</Text>
-      <Text style={styles.detailText}>Batch: {item.batchNumber || 'N/A'} (Exp: {item.expiryDate ? new Date(item.expiryDate).toLocaleDateString() : 'N/A'})</Text>
+      <Text style={styles.detailText}>Generic: {item.genericName || 'N/A'}</Text>
+      <Text style={styles.detailText}>Price: {item.unitPrice?.toFixed(2)}</Text>
     </View>
   );
 
@@ -83,7 +89,7 @@ export default function PharmacyDashboard() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
            <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Pharmacy</Text>
+        <Text style={styles.headerTitle}>{t('pharmacy.title')}</Text>
         <TouchableOpacity onPress={() => router.push('/pharmacy/scan')} style={styles.scanButton}>
             <Ionicons name="scan" size={24} color="#fff" />
         </TouchableOpacity>
@@ -95,13 +101,13 @@ export default function PharmacyDashboard() {
             style={[styles.tab, activeTab === 'worklist' && styles.activeTab]}
             onPress={() => setActiveTab('worklist')}
         >
-            <Text style={[styles.tabText, activeTab === 'worklist' && styles.activeTabText]}>Worklist</Text>
+            <Text style={[styles.tabText, activeTab === 'worklist' && styles.activeTabText]}>{t('pharmacy.worklist')}</Text>
         </TouchableOpacity>
         <TouchableOpacity 
             style={[styles.tab, activeTab === 'stock' && styles.activeTab]}
             onPress={() => setActiveTab('stock')}
         >
-            <Text style={[styles.tabText, activeTab === 'stock' && styles.activeTabText]}>Stock</Text>
+            <Text style={[styles.tabText, activeTab === 'stock' && styles.activeTabText]}>{t('pharmacy.stock')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -110,8 +116,8 @@ export default function PharmacyDashboard() {
           <View style={styles.searchContainer}>
               <Ionicons name="search" size={20} color="#64748b" />
               <TextInput 
-                 style={styles.searchInput}
-                 placeholder="Search drugs..."
+                 style={[styles.searchInput, {textAlign: I18nManager.isRTL ? 'right' : 'left'}]}
+                 placeholder={t('common.search')}
                  value={searchQuery}
                  onChangeText={setSearchQuery}
                  onSubmitEditing={handleSearch}
@@ -130,7 +136,7 @@ export default function PharmacyDashboard() {
             contentContainerStyle={styles.list}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
             ListEmptyComponent={
-                <Text style={styles.emptyText}>No items found.</Text>
+                <Text style={styles.emptyText}>{t('common.noData') || 'No items found.'}</Text>
             }
           />
       )}

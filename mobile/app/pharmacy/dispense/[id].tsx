@@ -98,7 +98,7 @@ export default function DispenseScreen() {
             <ScrollView contentContainerStyle={styles.content}>
                 <View style={styles.section}>
                     <Text style={styles.label}>Patient</Text>
-                    <Text style={styles.value}>{prescription.encounter?.patient?.fullName}</Text>
+                    <Text style={styles.value}>{prescription.patient?.fullName || 'Unknown'}</Text>
                     <Text style={styles.label}>Doctor</Text>
                     <Text style={styles.value}>{prescription.doctor?.fullName}</Text>
                 </View>
