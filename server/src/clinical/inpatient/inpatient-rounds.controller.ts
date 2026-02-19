@@ -17,21 +17,34 @@ export class InpatientRoundsController {
 
   @Get('my-rotation')
   @Permissions('INPATIENT_VIEW_MY_PATIENTS', 'nursing:station:view', 'clinical:patients:view')
-  async getMyRotation(@CurrentUser() user: JwtPayload) {
+  async getMyRotation(
+    @CurrentUser() user: JwtPayload,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const p = page ? parseInt(page) : 1;
+    const l = limit ? parseInt(limit) : 20;
+
     // If user is a Nurse or Admin, show all patients (or filtered by their dept)
     if (user.roles.includes('NURSE') || user.roles.includes('ADMIN')) {
-      return this.service.getAllInpatients(user.hospitalId, user.sub);
+      return this.service.getAllInpatients(user.hospitalId, user.sub, p, l);
     }
     // Otherwise (Doctor), show only assigned patients
-    return this.service.getMyPatients(user.sub);
+    return this.service.getMyPatients(user.sub, p, l);
   }
 
   // ======================== NURSING ENDPOINTS ========================
 
   @Get('all-patients')
   @Permissions('INPATIENT_VIEW_ALL_PATIENTS')
-  async getAllPatients(@CurrentUser() user: JwtPayload) {
-    return this.service.getAllInpatients(user.hospitalId, user.sub);
+  async getAllPatients(
+    @CurrentUser() user: JwtPayload,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const p = page ? parseInt(page) : 1;
+    const l = limit ? parseInt(limit) : 20;
+    return this.service.getAllInpatients(user.hospitalId, user.sub, p, l);
   }
 
   @Get('encounters/:id/notes')

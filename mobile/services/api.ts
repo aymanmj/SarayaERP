@@ -109,15 +109,19 @@ const extendedApi = {
   interceptors: api.interceptors,
 
   // Rounds - Offline Capable
-  getMyRotation: async () => {
+  getMyRotation: async (page?: number, limit?: number) => {
     if (await StorageService.isOnline()) {
       try {
-        const response = await api.get("/clinical/inpatient/my-rotation");
-        // Save to offline storage
-        if (response.data) {
-             await StorageService.saveRounds(response.data);
+        const url = page && limit ? `/clinical/inpatient/my-rotation?page=${page}&limit=${limit}` : "/clinical/inpatient/my-rotation";
+        const response = await api.get(url);
+        // Extract array from paginated format or use directly
+        const items = Array.isArray(response.data) ? response.data : (response.data?.data || []);
+        
+        // Save to offline storage for the first page
+        if (items && items.length > 0 && (!page || page === 1)) {
+             await StorageService.saveRounds(items);
         }
-        return response.data;
+        return items;
       } catch (error) {
         console.warn("Online fetch failed, falling back to offline", error);
         return await StorageService.getRounds();
@@ -258,12 +262,17 @@ const extendedApi = {
   registerDevice: (token: string, platform?: string) =>
     extendedApi.post('/notifications/devices', { token, platform }).then((res: any) => res.data),
   // Pharmacy & Inventory
-  getPharmacyWorklist: async () => {
+  getPharmacyWorklist: async (page?: number, limit?: number) => {
     if (await StorageService.isOnline()) {
         try {
-            const res = await api.get('/pharmacy/worklist');
-            await StorageService.savePatientDetails('pharmacy_worklist', res.data);
-            return res.data;
+            const url = page && limit ? `/pharmacy/worklist?page=${page}&limit=${limit}` : '/pharmacy/worklist';
+            const res = await api.get(url);
+            const items = Array.isArray(res.data) ? res.data : (res.data?.data || []);
+            
+            if (items && items.length > 0 && (!page || page === 1)) {
+                await StorageService.savePatientDetails('pharmacy_worklist', items);
+            }
+            return items;
         } catch(e) {
             console.warn("Online fetch pharmacy worklist failed", e);
             return await StorageService.getPatientDetails('pharmacy_worklist') || [];

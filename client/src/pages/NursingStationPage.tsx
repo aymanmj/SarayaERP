@@ -76,13 +76,15 @@ export default function NursingStationPage() {
     setLoading(true);
     try {
       // Get all inpatients for nursing view
-      const res = await apiClient.get<InpatientEncounter[]>("/clinical/inpatient/all-patients");
-      setEncounters(res.data);
+      const res = await apiClient.get<any>("/clinical/inpatient/all-patients");
+      const listA = Array.isArray(res.data) ? res.data : (res.data.data || []);
+      setEncounters(listA);
     } catch (err) {
       // Fallback: try getting via my-rotation (for testing)
       try {
-        const res = await apiClient.get<InpatientEncounter[]>("/clinical/inpatient/my-rotation?doctorId=1");
-        setEncounters(res.data);
+        const res = await apiClient.get<any>("/clinical/inpatient/my-rotation?doctorId=1");
+        const listB = Array.isArray(res.data) ? res.data : (res.data.data || []);
+        setEncounters(listB);
       } catch {
         toast.error("فشل تحميل قائمة مرضى الإيواء");
       }

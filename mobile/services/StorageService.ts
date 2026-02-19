@@ -8,7 +8,6 @@ const KEYS = {
   FAILED_ACTIONS: 'offline_failed_actions',
 };
 
-  // ... existing methods ...
 
 export type OfflineActionType =
   | 'CREATE_NOTE'

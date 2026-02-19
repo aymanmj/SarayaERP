@@ -81,8 +81,9 @@ export default function PharmacyWorklistPage() {
     try {
       setLoading(true);
       const res =
-        await apiClient.get<WorklistPrescription[]>("/pharmacy/worklist");
-      setData(res.data);
+        await apiClient.get<any>("/pharmacy/worklist");
+      const listA = Array.isArray(res.data) ? res.data : (res.data.data || []);
+      setData(listA);
     } catch (err) {
       toast.error("فشل تحميل القائمة.");
     } finally {

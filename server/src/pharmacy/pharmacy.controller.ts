@@ -89,9 +89,15 @@ export class PharmacyController {
   // ✅ Worklist الصيدلية
   @Get('worklist')
   @Roles('ADMIN', 'PHARMACIST')
-  async getWorklist(@Req() req: any) {
+  async getWorklist(
+    @Req() req: any,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
     const hospitalId = req.user.hospitalId;
-    return this.pharmacy.getWorklist(hospitalId);
+    const p = page ? parseInt(page) : 1;
+    const l = limit ? parseInt(limit) : 20;
+    return this.pharmacy.getWorklist(hospitalId, p, l);
   }
 
   // ✅ صرف وصفة (Dispense) - يدعم الآن الصرف التلقائي حسب FEFO

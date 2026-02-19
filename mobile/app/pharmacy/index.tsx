@@ -19,17 +19,30 @@ export default function PharmacyDashboard() {
   const [stockList, setStockList] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
 
   useEffect(() => {
-    loadData();
+    setPage(1);
+    loadData(1);
   }, [activeTab]);
 
-  const loadData = async () => {
-    setLoading(true);
+  const loadData = async (pageNum = 1) => {
+    if (pageNum === 1) setLoading(true);
     try {
       if (activeTab === 'worklist') {
-        const data = await api.getPharmacyWorklist();
-        setWorklist(data || []);
+        const limit = 10;
+        const data = await api.getPharmacyWorklist(pageNum, limit);
+        if (pageNum === 1) {
+          setWorklist(data || []);
+        } else {
+          setWorklist(prev => [...prev, ...(data || [])]);
+        }
+        if ((data || []).length < limit) {
+          setHasMore(false);
+        } else {
+          setHasMore(true);
+        }
       } else {
         const data = await api.getDrugStock(searchQuery);
         setStockList(data || []);
@@ -37,14 +50,25 @@ export default function PharmacyDashboard() {
     } catch (error) {
       console.error("Failed to load pharmacy data", error);
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (pageNum === 1) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
   };
 
   const onRefresh = () => {
     setRefreshing(true);
-    loadData();
+    setPage(1);
+    loadData(1);
+  };
+
+  const handleLoadMore = () => {
+    if (activeTab === 'worklist' && !loading && hasMore) {
+      const nextPage = page + 1;
+      setPage(nextPage);
+      loadData(nextPage);
+    }
   };
 
   const handleSearch = () => {
@@ -156,6 +180,9 @@ const StockCard = memo(({ item }: { item: any }) => (
             keyExtractor={(item) => item.id.toString()}
             contentContainerStyle={styles.list}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+            onEndReached={handleLoadMore}
+            onEndReachedThreshold={0.5}
+            ListFooterComponent={activeTab === 'worklist' && hasMore && !loading ? <ActivityIndicator style={{marginTop: 10}} /> : null}
             initialNumToRender={10}
             maxToRenderPerBatch={10}
             windowSize={5}

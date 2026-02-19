@@ -111,8 +111,11 @@ export class PharmacyService {
     return allocation;
   }
 
-  async getWorklist(hospitalId: number) {
-    const prescriptions = await this.prisma.prescription.findMany({
+  async getWorklist(hospitalId: number, page: number = 1, limit: number = 20) {
+    const skip = (page - 1) * limit;
+
+    const [prescriptions, totalCount] = await this.prisma.$transaction([
+      this.prisma.prescription.findMany({
       where: {
         hospitalId,
         status: PrescriptionStatus.ACTIVE,
@@ -125,9 +128,19 @@ export class PharmacyService {
         items: { include: { product: true } },
       },
       orderBy: { createdAt: 'asc' },
-    });
+      skip,
+      take: limit,
+    }),
+      this.prisma.prescription.count({
+        where: {
+          hospitalId,
+          status: PrescriptionStatus.ACTIVE,
+          dispenses: { none: {} },
+        }
+      })
+    ]);
 
-    return prescriptions.map((p) => ({
+    const mapped = prescriptions.map((p) => ({
       id: p.id,
       status: p.status,
       createdAt: p.createdAt,
@@ -158,6 +171,16 @@ export class PharmacyService {
           : null,
       })),
     }));
+
+    return {
+      data: mapped,
+      meta: {
+        totalCount,
+        page,
+        limit,
+        totalPages: Math.ceil(totalCount / limit),
+      }
+    };
   }
 
   async getEncounterPrescriptions(hospitalId: number, encounterId: number) {

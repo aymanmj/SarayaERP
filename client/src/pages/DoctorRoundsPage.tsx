@@ -66,8 +66,9 @@ export default function DoctorRoundsPage() {
   const loadRotation = async () => {
     setLoading(true);
     try {
-      const res = await apiClient.get<Inpatient[]>("/clinical/inpatient/my-rotation");
-      setPatients(res.data);
+      const res = await apiClient.get<any>("/clinical/inpatient/my-rotation");
+      const patientsList: Inpatient[] = Array.isArray(res.data) ? res.data : (res.data.data || []);
+      setPatients(patientsList);
     } catch (e) {
       toast.error("فشل تحميل قائمة المرضى");
     } finally {

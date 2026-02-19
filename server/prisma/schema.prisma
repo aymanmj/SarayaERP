@@ -440,6 +440,9 @@ model Encounter {
   visits                    Visit[]
   vitalSigns                VitalSign[]
   deliveryAdmission         DeliveryAdmission?
+
+  @@index([hospitalId, type, status])
+  @@index([patientId])
 }
 
 model TriageAssessment {
@@ -601,6 +604,9 @@ model LabOrder {
   order          Order            @relation(fields: [orderId], references: [id])
   test           LabTest          @relation(fields: [testId], references: [id])
   results        LabOrderResult[]
+
+  @@index([resultStatus])
+  @@index([orderId])
 }
 
 model LabOrderResult {
@@ -1014,6 +1020,9 @@ model Prescription {
   hospital      Hospital           @relation(fields: [hospitalId], references: [id])
   patient       Patient            @relation(fields: [patientId], references: [id])
   items         PrescriptionItem[]
+
+  @@index([hospitalId, status])
+  @@index([patientId])
 }
 
 model PrescriptionItem {

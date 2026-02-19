@@ -9,9 +9,11 @@ export class InpatientRoundsService {
 
   // --- Doctor Rotation / Rounds ---
 
-  async getMyPatients(doctorId: number) {
-    // Return patients admitted under this doctor
-    return this.prisma.encounter.findMany({
+  async getMyPatients(doctorId: number, page: number = 1, limit: number = 20) {
+    const skip = (page - 1) * limit;
+    
+    const [items, totalCount] = await this.prisma.$transaction([
+      this.prisma.encounter.findMany({
       where: {
         type: EncounterType.IPD,
         status: EncounterStatus.OPEN,
@@ -43,12 +45,34 @@ export class InpatientRoundsService {
           take: 1,
         },
       },
-    });
+      skip,
+      take: limit,
+      orderBy: { createdAt: 'desc' }
+    }),
+      this.prisma.encounter.count({
+        where: {
+          type: EncounterType.IPD,
+          status: EncounterStatus.OPEN,
+          doctorId: doctorId,
+        }
+      })
+    ]);
+
+    return {
+      data: items,
+      meta: {
+        totalCount,
+        page,
+        limit,
+        totalPages: Math.ceil(totalCount / limit),
+      }
+    };
   }
 
   // --- All Inpatients for Nursing ---
 
-  async getAllInpatients(hospitalId: number, requestingUserId?: number) {
+  async getAllInpatients(hospitalId: number, requestingUserId?: number, page: number = 1, limit: number = 20) {
+    const skip = (page - 1) * limit;
     let departmentIdFilter: number | undefined = undefined;
 
     // If a specific user is requesting, check their department
@@ -66,7 +90,8 @@ export class InpatientRoundsService {
         }
     }
 
-    return this.prisma.encounter.findMany({
+    const [items, totalCount] = await this.prisma.$transaction([
+      this.prisma.encounter.findMany({
       where: {
         type: EncounterType.IPD,
         status: EncounterStatus.OPEN,
@@ -98,7 +123,29 @@ export class InpatientRoundsService {
           take: 1,
         },
       },
-    });
+      skip,
+      take: limit,
+      orderBy: { createdAt: 'desc' }
+    }),
+      this.prisma.encounter.count({
+        where: {
+          type: EncounterType.IPD,
+          status: EncounterStatus.OPEN,
+          patient: { hospitalId },
+          ...(departmentIdFilter ? { departmentId: departmentIdFilter } : {}),
+        }
+      })
+    ]);
+
+    return {
+      data: items,
+      meta: {
+        totalCount,
+        page,
+        limit,
+        totalPages: Math.ceil(totalCount / limit),
+      }
+    };
   }
 
   async addRoundNote(

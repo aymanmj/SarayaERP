@@ -55,6 +55,8 @@ export default function RoundsScreen() {
   const [loading, setLoading] = useState(true);
   const [scannerVisible, setScannerVisible] = useState(false);
   const [isOffline, setIsOffline] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
 
   useEffect(() => {
     checkConnectivity();
@@ -81,15 +83,37 @@ export default function RoundsScreen() {
     fetchRounds();
   };
 
-  const fetchRounds = async () => {
+  const fetchRounds = async (pageNum = 1) => {
+    if (pageNum === 1) setLoading(true);
     try {
-      const data = await api.getMyRotation();
-      setEncounters(data);
+      // Pass pagination params if not offline
+      const limit = 10;
+      const data = await api.getMyRotation(isOffline ? undefined : pageNum, limit);
+      
+      if (pageNum === 1) {
+        setEncounters(data);
+      } else {
+        setEncounters(prev => [...prev, ...data]);
+      }
+      
+      if (data.length < limit) {
+        setHasMore(false);
+      } else {
+        setHasMore(true);
+      }
     } catch (error: any) {
       console.error(error);
       showToast("Failed to fetch rounds data", "error");
     } finally {
-      setLoading(false);
+      if (pageNum === 1) setLoading(false);
+    }
+  };
+
+  const handleLoadMore = () => {
+    if (!loading && hasMore && !isOffline) {
+      const nextPage = page + 1;
+      setPage(nextPage);
+      fetchRounds(nextPage);
     }
   };
 
@@ -258,8 +282,11 @@ const EncounterCard = memo(({ item, onPress }: { item: Encounter, onPress: () =>
         keyExtractor={(item) => item.id.toString()}
         renderItem={renderItem}
         contentContainerStyle={styles.listContent}
-        refreshing={loading}
-        onRefresh={fetchRounds}
+        refreshing={loading && page === 1}
+        onRefresh={() => { setPage(1); fetchRounds(1); }}
+        onEndReached={handleLoadMore}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={hasMore && !isOffline && !loading ? <ActivityIndicator style={{marginTop: 10}} /> : null}
         initialNumToRender={10}
         maxToRenderPerBatch={10}
         windowSize={5}
