@@ -9,7 +9,7 @@ const KEYS = {
 
 export interface OfflineAction {
   id: string;
-  type: 'CREATE_NOTE' | 'ADMINISTER_MED' | 'CREATE_VITALS';
+  type: 'CREATE_NOTE' | 'ADMINISTER_MED' | 'CREATE_VITALS' | 'DISPENSE_PRESCRIPTION' | 'ADJUST_STOCK';
   payload: any;
   timestamp: number;
 }

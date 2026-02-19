@@ -1,5 +1,6 @@
 import StorageService, { OfflineAction } from './StorageService';
 import api from './api'; 
+import Logger from './Logger'; 
 
 const SyncService = {
   sync: async () => {
@@ -9,7 +10,9 @@ const SyncService = {
     const pendingActions = await StorageService.getPendingActions();
     if (pendingActions.length === 0) return;
 
-    console.log(`SyncService: Found ${pendingActions.length} pending actions.`);
+    if (pendingActions.length === 0) return;
+
+    Logger.info(`SyncService: Found ${pendingActions.length} pending actions.`);
 
     for (const action of pendingActions) {
       await SyncService.processAction(action);
@@ -18,7 +21,7 @@ const SyncService = {
 
   processAction: async (action: OfflineAction) => {
     try {
-      console.log(`SyncService: Processing action ${action.type} (${action.id})`);
+      Logger.debug(`SyncService: Processing action ${action.type} (${action.id})`);
       switch (action.type) {
         case 'CREATE_NOTE':
             await api.post('/clinical-notes', action.payload);
@@ -32,15 +35,23 @@ const SyncService = {
             const { encounterId: medEncId, prescriptionItemId, status, notes } = action.payload;
             await api.administerMedication(Number(medEncId), Number(prescriptionItemId), status, notes);
             break;
+        case 'DISPENSE_PRESCRIPTION':
+            const { prescriptionId, items, notes: dispenseNotes } = action.payload;
+            await api.dispensePrescription(Number(prescriptionId), items, dispenseNotes);
+            break;
+        case 'ADJUST_STOCK':
+             const { drugItemId, quantity, type, reason } = action.payload;
+             await api.adjustStock(Number(drugItemId), Number(quantity), type, reason);
+             break;
         default:
-            console.warn(`SyncService: Unknown action type ${action.type}`);
+            Logger.warn(`SyncService: Unknown action type ${action.type}`);
             break;
       }
       // If successful (no error thrown), remove from queue
       await StorageService.removeAction(action.id);
-      console.log(`SyncService: Action ${action.id} processed and removed.`);
+      Logger.info(`SyncService: Action ${action.id} processed and removed.`);
     } catch (error) {
-      console.error(`SyncService: Failed to process action ${action.id}`, error);
+      Logger.error(`SyncService: Failed to process action ${action.id}`, error);
       // Simple strategy: keep in queue for retry
     }
   }

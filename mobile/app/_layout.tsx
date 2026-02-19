@@ -5,6 +5,8 @@ import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import NetInfo from '@react-native-community/netinfo';
 import SyncService from '../services/SyncService';
+import ErrorBoundary from '../components/ErrorBoundary';
+import Logger from '../services/Logger';
 
 export default function Layout() {
   const { expoPushToken } = usePushNotifications();
@@ -38,7 +40,7 @@ export default function Layout() {
   };
 
   return (
-    <>
+    <ErrorBoundary>
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index" />
         <Stack.Screen name="login" />
@@ -55,7 +57,7 @@ export default function Layout() {
            </View>
         </SafeAreaView>
       )}
-    </>
+    </ErrorBoundary>
   );
 }
 

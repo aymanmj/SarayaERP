@@ -138,7 +138,7 @@ services:
     image: cloudflare/cloudflared:latest
     container_name: saraya_tunnel
     restart: always
-    command: tunnel run
+    command: tunnel run --protocol http2
     environment:
       TUNNEL_TOKEN: ${TUNNEL_TOKEN:-eyJhIjoiNTAxNTAxNTA3YWYzZGI5MzFlMjNjOWZlYWZlMjEwNjAiLCJ0IjoiNWEwNDYwYzUtYWVkYi00MDc2LTkyNzQtM2NlNmZhNmYwZjQ2IiwicyI6Ik1tVTBZelUwWXpjdE5HWXpNeTAwTnpsbUxUa3laV010TVdJNVpUTTJObVUwT1dFdyJ9}
     networks:

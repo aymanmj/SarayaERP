@@ -257,6 +257,71 @@ const extendedApi = {
   // Push Notifications
   registerDevice: (token: string, platform?: string) =>
     extendedApi.post('/notifications/devices', { token, platform }).then((res: any) => res.data),
+  // Pharmacy & Inventory
+  getPharmacyWorklist: async () => {
+    if (await StorageService.isOnline()) {
+        try {
+            const res = await api.get('/pharmacy/worklist');
+            await StorageService.savePatientDetails('pharmacy_worklist', res.data);
+            return res.data;
+        } catch(e) {
+            console.warn("Online fetch pharmacy worklist failed", e);
+            return await StorageService.getPatientDetails('pharmacy_worklist') || [];
+        }
+    } else {
+        return await StorageService.getPatientDetails('pharmacy_worklist') || [];
+    }
+  },
+
+  getDrugStock: async (query?: string) => {
+    // Stock is large, maybe only cache if query is empty (full list) or handles specifics?
+    // For simplicity, we cache the full list if query is empty
+    if (await StorageService.isOnline()) {
+        try {
+            const res = await api.get('/pharmacy/stock', { params: { q: query } });
+            if (!query) {
+                await StorageService.savePatientDetails('pharmacy_stock', res.data);
+            }
+            return res.data;
+        } catch(e) {
+             if (!query) {
+                 return await StorageService.getPatientDetails('pharmacy_stock') || [];
+             }
+             throw e;
+        }
+    } else {
+        if (!query) {
+            return await StorageService.getPatientDetails('pharmacy_stock') || [];
+        }
+        return [];
+    }
+  },
+
+  dispensePrescription: async (prescriptionId: number, items: any[], notes?: string) => {
+    // Offline dispensing is tricky due to stock checks. 
+    // We will allow queuing but warn user that stock might not be available.
+    if (await StorageService.isOnline()) {
+        return api.post(`/pharmacy/prescriptions/${prescriptionId}/dispense`, { items, notes }).then((res) => res.data);
+    } else {
+         await StorageService.queueAction({
+            type: 'DISPENSE_PRESCRIPTION',
+            payload: { prescriptionId, items, notes }
+        });
+        return { success: true, offline: true, message: 'Dispense queued offline' };
+    }
+  },
+
+  adjustStock: async (drugItemId: number, quantity: number, type: 'IN' | 'ADJUST', reason?: string) => {
+      if (await StorageService.isOnline()) {
+        return api.post('/pharmacy/stock/transactions', { drugItemId, quantity, type, notes: reason }).then((res) => res.data);
+      } else {
+           await StorageService.queueAction({
+            type: 'ADJUST_STOCK',
+            payload: { drugItemId, quantity, type, reason }
+        });
+        return { success: true, offline: true, message: 'Adjustment queued offline' };
+      }
+  }
 };
 
 export default extendedApi;
