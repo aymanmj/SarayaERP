@@ -1,11 +1,78 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { Expo, ExpoPushMessage } from 'expo-server-sdk';
 
 @Injectable()
 export class NotificationsService {
-  constructor(private prisma: PrismaService) {}
+  private expo: Expo;
+  private readonly logger = new Logger(NotificationsService.name);
 
-  // 1. إنشاء إشعار لمستخدم معين
+  constructor(private prisma: PrismaService) {
+    this.expo = new Expo();
+  }
+
+  // 1. تسجيل جهاز جديد
+  async registerDevice(userId: number, token: string, platform?: string) {
+    // التحقق من صحة الكود
+    if (!Expo.isExpoPushToken(token)) {
+      this.logger.warn(`Push token ${token} is not a valid Expo push token`);
+      // قد نقرر رمي خطأ أو تجاهله، سأتجاهله هنا وأعيد false
+      return false;
+    }
+
+    // Upsert: إذا كان موجوداً، نحدثه (مثلاً آخر ظهور)
+    await this.prisma.userDevice.upsert({
+      where: { token },
+      update: { userId, platform, updatedAt: new Date() },
+      create: { userId, token, platform },
+    });
+    return true;
+  }
+
+  // 2. إرسال Push Notification لمستخدم معين
+  async sendPushNotification(
+    userId: number,
+    title: string,
+    body: string,
+    data?: any,
+  ) {
+    // جلب أجهزة المستخدم
+    const devices = await this.prisma.userDevice.findMany({
+      where: { userId },
+    });
+
+    if (devices.length === 0) return;
+
+    const messages: ExpoPushMessage[] = [];
+    for (const device of devices) {
+      if (!Expo.isExpoPushToken(device.token)) {
+        this.logger.error(
+          `Push token ${device.token} is not valid Expo push token`,
+        );
+        continue;
+      }
+      messages.push({
+        to: device.token,
+        sound: 'default',
+        title,
+        body,
+        data,
+      });
+    }
+
+    const chunks = this.expo.chunkPushNotifications(messages);
+    for (const chunk of chunks) {
+      try {
+        const ticketChunk = await this.expo.sendPushNotificationsAsync(chunk);
+        // يمكن هنا معالجة التذاكر (Tickets) للتأكد من الإرسال
+        this.logger.log(`Sent ${chunk.length} push notifications`);
+      } catch (error) {
+        this.logger.error(error);
+      }
+    }
+  }
+
+  // 3. إنشاء إشعار داخلي + Push
   async create(
     hospitalId: number,
     userId: number,
@@ -13,7 +80,8 @@ export class NotificationsService {
     message: string,
     link?: string,
   ) {
-    return this.prisma.notification.create({
+    // 1. حفظ في قاعدة البيانات
+    const notification = await this.prisma.notification.create({
       data: {
         hospitalId,
         userId,
@@ -22,10 +90,14 @@ export class NotificationsService {
         link,
       },
     });
+
+    // 2. إرسال Push Notification
+    await this.sendPushNotification(userId, title, message, { link, notificationId: notification.id });
+
+    return notification;
   }
 
-  // 2. إنشاء إشعار لمجموعة مستخدمين بناءً على الصلاحية (Role)
-  // مثال: إشعار نقص مخزون يذهب لكل الصيادلة وأمناء المخازن
+  // 4. إرسال لمجموعة أدوار (مع Push)
   async notifyRoles(
     hospitalId: number,
     roles: string[],
@@ -33,7 +105,6 @@ export class NotificationsService {
     message: string,
     link?: string,
   ) {
-    // نجد المستخدمين الذين يملكون هذه الأدوار
     const users = await this.prisma.user.findMany({
       where: {
         hospitalId,
@@ -47,8 +118,8 @@ export class NotificationsService {
       select: { id: true },
     });
 
-    // إنشاء الإشعارات دفعة واحدة
     if (users.length > 0) {
+      // Create DB Notifications
       await this.prisma.notification.createMany({
         data: users.map((u) => ({
           hospitalId,
@@ -58,10 +129,16 @@ export class NotificationsService {
           link,
         })),
       });
+
+      // Send Push to all users (Async/Independent)
+      // Note: For large numbers, this should be a Job Queue (BullMQ)
+      for (const u of users) {
+        this.sendPushNotification(u.id, title, message, { link });
+      }
     }
   }
 
-  // 3. جلب إشعارات المستخدم
+  // 5. جلب إشعارات المستخدم
   async getUserNotifications(
     hospitalId: number,
     userId: number,
@@ -74,20 +151,19 @@ export class NotificationsService {
         isRead: unreadOnly ? false : undefined,
       },
       orderBy: { createdAt: 'desc' },
-      take: 50, // آخر 50 إشعار
+      take: 50,
     });
   }
 
-  // 4. تحديد كـ مقروء
+  // 6. تحديد كـ مقروء
   async markAsRead(hospitalId: number, userId: number, notificationId: number) {
-    // نستخدم updateMany للأمان (للتأكد أن الإشعار يخص المستخدم)
     return this.prisma.notification.updateMany({
       where: { id: notificationId, userId, hospitalId },
       data: { isRead: true },
     });
   }
 
-  // 5. تحديد الكل كمقروء
+  // 7. تحديد الكل كمقروء
   async markAllRead(hospitalId: number, userId: number) {
     return this.prisma.notification.updateMany({
       where: { userId, hospitalId, isRead: false },

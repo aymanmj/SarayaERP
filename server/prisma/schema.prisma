@@ -276,6 +276,9 @@ model User {
   requestedBedTransfers     BedTransfer[]               @relation("TransferRequestedBy")
   approvedBedTransfers      BedTransfer[]               @relation("TransferApprovedBy")
   completedBedTransfers     BedTransfer[]               @relation("TransferCompletedBy")
+  
+  // Push Notifications
+  devices                   UserDevice[]
 }
 
 model RefreshToken {
@@ -2868,6 +2871,18 @@ model BedTransfer {
   @@index([admissionId, status])
   @@index([hospitalId, status])
   @@map("bed_transfers")
+}
+
+model UserDevice {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  token     String   @unique
+  platform  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 

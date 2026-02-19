@@ -96,6 +96,10 @@ const extendedApi = {
   createVitals: (encounterId: number, data: any) =>
     extendedApi.post(`/vitals/encounter/${encounterId}`, data).then((res: any) => res.data),
 
+  // Radiology
+  getRadiologyOrders: (encounterId: number) =>
+    api.get(`/radiology/encounters/${encounterId}/orders`).then((res) => res.data),
+
   // Nursing / eMAR
   getPatientMAR: (encounterId: number) =>
     extendedApi.get(`/nursing/encounters/${encounterId}/mar`).then((res: any) => res.data),
@@ -106,6 +110,10 @@ const extendedApi = {
       status, 
       notes
     }).then((res: any) => res.data),
+
+  // Push Notifications
+  registerDevice: (token: string, platform?: string) =>
+    extendedApi.post('/notifications/devices', { token, platform }).then((res: any) => res.data),
 };
 
 export default extendedApi;

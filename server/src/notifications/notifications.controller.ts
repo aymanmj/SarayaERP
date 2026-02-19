@@ -7,6 +7,9 @@ import {
   Req,
   UseGuards,
   Query,
+  Post,
+  Body,
+  BadRequestException,
 } from '@nestjs/common';
 import { NotificationsService } from './notifications.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -22,6 +25,25 @@ export class NotificationsController {
       req.user.hospitalId,
       req.user.sub,
       unread === 'true',
+    );
+  }
+
+  @Post('devices')
+  async registerDevice(@Req() req: any, @Body() body: { token: string; platform?: string }) {
+    if (!body.token) {
+      throw new BadRequestException('Token is required');
+    }
+    return this.service.registerDevice(req.user.sub, body.token, body.platform);
+  }
+
+  // ✅ TEST ENDPOINT
+  @Post('test-push')
+  async testPush(@Req() req: any) {
+    return this.service.create(
+      req.user.hospitalId,
+      req.user.sub,
+      'Test Notification',
+      'This is a test push notification from the backend!',
     );
   }
 

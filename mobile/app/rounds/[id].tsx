@@ -5,6 +5,7 @@ import api from '../../services/api';
 import LabResultsList from "../../components/LabResultsList";
 import VitalsList from "../../components/VitalsList";
 import MedicationList from "../../components/MedicationList";
+import RadiologyList from "../../components/RadiologyList";
 import { Ionicons } from '@expo/vector-icons';
 
 export default function PatientDetailScreen() {
@@ -16,7 +17,7 @@ export default function PatientDetailScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [newNote, setNewNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [activeTab, setActiveTab] = useState<'notes' | 'vitals' | 'meds' | 'labs'>('notes');
+  const [activeTab, setActiveTab] = useState<'notes' | 'vitals' | 'meds' | 'labs' | 'radiology'>('notes');
 
   useEffect(() => {
     if (id) {
@@ -117,7 +118,7 @@ export default function PatientDetailScreen() {
 
       {/* Modern Tabs */}
       <View style={styles.tabBar}>
-        {['notes', 'vitals', 'meds', 'labs'].map((tab) => (
+        {['notes', 'vitals', 'meds', 'labs', 'radiology'].map((tab) => (
           <TouchableOpacity 
             key={tab}
             style={[styles.tabItem, activeTab === tab && styles.activeTabItem]} 
@@ -187,8 +188,10 @@ export default function PatientDetailScreen() {
           <VitalsList encounterId={Number(id)} />
         ) : activeTab === 'meds' ? (
           <MedicationList encounterId={Number(id)} />
-        ) : (
+        ) : activeTab === 'labs' ? (
           <LabResultsList encounterId={Number(id)} />
+        ) : (
+          <RadiologyList encounterId={Number(id)} />
         )}
       </View>
 
