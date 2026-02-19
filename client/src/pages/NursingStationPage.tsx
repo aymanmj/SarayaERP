@@ -2,6 +2,7 @@
 // صفحة محطة التمريض - تنفيذ أوامر الأطباء
 
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { apiClient } from "../api/apiClient";
 import { toast } from "sonner";
 import { formatDate } from "@/lib/utils";
@@ -51,6 +52,7 @@ type InpatientEncounter = {
 };
 
 export default function NursingStationPage() {
+  const navigate = useNavigate();
   const [encounters, setEncounters] = useState<InpatientEncounter[]>([]);
   const [selectedEncounter, setSelectedEncounter] = useState<InpatientEncounter | null>(null);
   const [loading, setLoading] = useState(false);
@@ -268,12 +270,20 @@ export default function NursingStationPage() {
                       MRN: {selectedEncounter.patient.mrn}
                     </p>
                   </div>
-                  <button
-                    onClick={() => handleSelectPatient(selectedEncounter)}
-                    className="text-xs bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg"
-                  >
-                    🔄 تحديث
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => navigate(`/nursing/patient/${selectedEncounter.id}`)}
+                      className="text-xs bg-sky-600 hover:bg-sky-500 text-white px-3 py-1.5 rounded-lg flex items-center gap-1"
+                    >
+                      📂 الملف الكامل
+                    </button>
+                    <button
+                      onClick={() => handleSelectPatient(selectedEncounter)}
+                      className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg"
+                    >
+                      🔄 تحديث
+                    </button>
+                  </div>
                 </div>
               </div>
 
