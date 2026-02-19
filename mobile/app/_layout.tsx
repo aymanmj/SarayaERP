@@ -8,6 +8,7 @@ import SyncService from '../services/SyncService';
 import ErrorBoundary from '../components/ErrorBoundary';
 import Logger from '../services/Logger';
 import { initI18n } from '../i18n';
+import { ToastProvider } from '../components/ToastContext';
 
 export default function Layout() {
   const { expoPushToken } = usePushNotifications();
@@ -45,22 +46,24 @@ export default function Layout() {
 
   return (
     <ErrorBoundary>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="index" />
-        <Stack.Screen name="login" />
-        <Stack.Screen name="rounds/index" options={{ title: 'Doctor Rounds', headerShown: true }} />
-        <Stack.Screen name="rounds/[id]" options={{ title: 'Patient Details', headerShown: true }} />
-        <Stack.Screen name="profile" options={{ headerShown: false }} />
-      </Stack>
-      
-      {isSyncing && (
-        <SafeAreaView style={styles.syncContainer}>
-           <View style={styles.syncBadge}>
-              <ActivityIndicator size="small" color="#fff" />
-              <Text style={styles.syncText}>Syncing data...</Text>
-           </View>
-        </SafeAreaView>
-      )}
+      <ToastProvider>
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="index" />
+          <Stack.Screen name="login" />
+          <Stack.Screen name="rounds/index" options={{ title: 'Doctor Rounds', headerShown: true }} />
+          <Stack.Screen name="rounds/[id]" options={{ title: 'Patient Details', headerShown: true }} />
+          <Stack.Screen name="profile" options={{ headerShown: false }} />
+        </Stack>
+        
+        {isSyncing && (
+          <SafeAreaView style={styles.syncContainer}>
+             <View style={styles.syncBadge}>
+                <ActivityIndicator size="small" color="#fff" />
+                <Text style={styles.syncText}>Syncing data...</Text>
+             </View>
+          </SafeAreaView>
+        )}
+      </ToastProvider>
     </ErrorBoundary>
   );
 }

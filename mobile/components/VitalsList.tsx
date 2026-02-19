@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback, memo } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../services/api';
@@ -28,34 +28,7 @@ interface VitalsListProps {
   encounterId: number;
 }
 
-const VitalsList: React.FC<VitalsListProps> = ({ encounterId }) => {
-  const [vitals, setVitals] = useState<VitalSign[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [modalVisible, setModalVisible] = useState(false);
-
-  const fetchVitals = async () => {
-    try {
-      const data = await api.getVitals(encounterId);
-      setVitals(data);
-    } catch (error) {
-      console.error('Failed to fetch vitals:', error);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchVitals();
-  }, [encounterId]);
-
-  const onRefresh = () => {
-    setRefreshing(true);
-    fetchVitals();
-  };
-
-  const renderItem = ({ item }: { item: VitalSign }) => (
+const VitalItemCard = memo(({ item }: { item: VitalSign }) => (
     <View style={styles.card}>
       <View style={styles.header}>
         <Text style={styles.date}>
@@ -110,7 +83,38 @@ const VitalsList: React.FC<VitalsListProps> = ({ encounterId }) => {
         </View>
       )}
     </View>
-  );
+));
+
+const VitalsList: React.FC<VitalsListProps> = ({ encounterId }) => {
+  const [vitals, setVitals] = useState<VitalSign[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
+
+  const fetchVitals = async () => {
+    try {
+      const data = await api.getVitals(encounterId);
+      setVitals(data);
+    } catch (error) {
+      console.error('Failed to fetch vitals:', error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchVitals();
+  }, [encounterId]);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchVitals();
+  }, [encounterId]);
+
+  const renderItem = useCallback(({ item }: { item: VitalSign }) => (
+    <VitalItemCard item={item} />
+  ), []);
 
   return (
     <View style={styles.container}>

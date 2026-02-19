@@ -17,9 +17,11 @@ import { Ionicons } from "@expo/vector-icons";
 
 import { useTranslation } from "react-i18next";
 import { I18nManager } from "react-native";
+import { useToast } from "../components/ToastContext";
 
 export default function LoginScreen() {
   const { t } = useTranslation();
+  const { showToast } = useToast();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -27,7 +29,7 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     if (!username || !password) {
-      Alert.alert("Error", "Please enter username and password");
+      showToast(t('login.validationError') || "Please enter username and password", 'warning');
       return;
     }
 
@@ -41,15 +43,24 @@ export default function LoginScreen() {
         // If not, we might need to decode the token or fetch profile
         if (response.data.user) {
             await setUserInfo(response.data.user);
+            
+            // Role-based redirection
+            const roles = response.data.user.roles || [];
+            if (roles.includes('PHARMACIST')) {
+                router.replace("/pharmacy");
+            } else {
+                router.replace("/rounds");
+            }
+        } else {
+             router.replace("/rounds"); 
         }
-        router.replace("/rounds"); // Navigate to Rounds and replace history
       } else {
         const msg = response.data.message || "Invalid credentials";
-        Alert.alert("Login Failed", msg);
+        showToast(msg, 'error');
       }
     } catch (error: any) {
       console.error(error);
-      Alert.alert("Login Error", error.message || "Connection failed");
+      showToast(error.message || "Connection failed", 'error');
     } finally {
       setLoading(false);
     }

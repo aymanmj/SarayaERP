@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, memo } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, TextInput, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -8,6 +8,7 @@ import StorageService from '../../services/StorageService'; // Explicit import t
 
 import { useTranslation } from 'react-i18next';
 import { I18nManager } from 'react-native';
+import SkeletonLoader from '../../components/SkeletonLoader';
 
 export default function PharmacyDashboard() {
   const { t } = useTranslation();
@@ -52,10 +53,10 @@ export default function PharmacyDashboard() {
      }
   };
 
-  const renderWorklistItem = ({ item }: { item: any }) => (
+const WorklistCard = memo(({ item, onPress }: { item: any, onPress: () => void }) => (
     <TouchableOpacity 
         style={styles.card}
-        onPress={() => router.push(`/pharmacy/dispense/${item.id}`)}
+        onPress={onPress}
     >
       <View style={styles.cardHeader}>
         {/* Fix: patient is at root, not inside encounter */}
@@ -68,9 +69,9 @@ export default function PharmacyDashboard() {
       <Text style={styles.detailText}>{new Date(item.createdAt).toLocaleDateString()}</Text>
       <Text style={styles.itemsCount}>{item.items?.length || 0} Items</Text>
     </TouchableOpacity>
-  );
+));
 
-  const renderStockItem = ({ item }: { item: any }) => (
+const StockCard = memo(({ item }: { item: any }) => (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
         {/* Fix: Stock item IS the product, not nested in drugItem */}
@@ -80,7 +81,15 @@ export default function PharmacyDashboard() {
       <Text style={styles.detailText}>Generic: {item.genericName || 'N/A'}</Text>
       <Text style={styles.detailText}>Price: {item.unitPrice?.toFixed(2)}</Text>
     </View>
-  );
+));
+
+  const renderWorklistItem = useCallback(({ item }: { item: any }) => (
+    <WorklistCard item={item} onPress={() => router.push(`/pharmacy/dispense/${item.id}`)} />
+  ), [router]);
+
+  const renderStockItem = useCallback(({ item }: { item: any }) => (
+    <StockCard item={item} />
+  ), []);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -127,7 +136,19 @@ export default function PharmacyDashboard() {
 
       {/* Content */}
       {loading && !refreshing ? (
-          <ActivityIndicator size="large" color="#0284c7" style={{ marginTop: 20 }} />
+          <View style={styles.list}>
+              {[1, 2, 3].map((key) => (
+                  <View key={key} style={styles.card}>
+                      <View style={styles.cardHeader}>
+                          <SkeletonLoader width="60%" height={20} />
+                          <SkeletonLoader width={60} height={20} borderRadius={10} />
+                      </View>
+                      <SkeletonLoader width="40%" height={16} style={{ marginBottom: 4 }} />
+                      <SkeletonLoader width="30%" height={16} style={{ marginBottom: 4 }} />
+                      <SkeletonLoader width="20%" height={16} style={{ marginTop: 8 }} />
+                  </View>
+              ))}
+          </View>
       ) : (
           <FlatList
             data={activeTab === 'worklist' ? worklist : stockList}
@@ -135,6 +156,10 @@ export default function PharmacyDashboard() {
             keyExtractor={(item) => item.id.toString()}
             contentContainerStyle={styles.list}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+            initialNumToRender={10}
+            maxToRenderPerBatch={10}
+            windowSize={5}
+            removeClippedSubviews={true}
             ListEmptyComponent={
                 <Text style={styles.emptyText}>{t('common.noData') || 'No items found.'}</Text>
             }

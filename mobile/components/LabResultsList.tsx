@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback, memo } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, FlatList } from 'react-native';
 import api from '../services/api';
 
@@ -69,7 +69,7 @@ export default function LabResultsList({ encounterId, refreshTrigger }: LabResul
       }
   };
 
-  const renderItem = ({ item }: { item: LabOrder }) => (
+const LabResultItem = memo(({ item }: { item: LabOrder }) => (
     <View style={styles.card}>
       <View style={styles.header}>
         <Text style={styles.testName}>{item.test.name}</Text>
@@ -95,7 +95,11 @@ export default function LabResultsList({ encounterId, refreshTrigger }: LabResul
         </Text>
       </View>
     </View>
-  );
+));
+
+  const renderItem = useCallback(({ item }: { item: LabOrder }) => (
+    <LabResultItem item={item} />
+  ), []);
 
   if (loading && orders.length === 0) {
     return <ActivityIndicator size="small" color="#0284c7" style={{ marginTop: 20 }} />;

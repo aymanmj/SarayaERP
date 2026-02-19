@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback, memo } from "react";
 import {
   View,
   Text,
@@ -10,8 +10,10 @@ import {
   StatusBar,
 } from "react-native";
 import { useRouter } from "expo-router";
-import api from "../../services/api";
+import api, { getUserInfo } from "../../services/api";
 import { Ionicons } from "@expo/vector-icons";
+import SkeletonLoader from "../../components/SkeletonLoader";
+import { useToast } from "../../components/ToastContext";
 
 interface Encounter {
   id: number;
@@ -48,6 +50,7 @@ import { useTranslation } from "react-i18next";
 export default function RoundsScreen() {
   const { t } = useTranslation();
   const router = useRouter();
+  const { showToast } = useToast();
   const [encounters, setEncounters] = useState<Encounter[]>([]);
   const [loading, setLoading] = useState(true);
   const [scannerVisible, setScannerVisible] = useState(false);
@@ -55,12 +58,27 @@ export default function RoundsScreen() {
 
   useEffect(() => {
     checkConnectivity();
-    fetchRounds();
+    checkPermissionsAndFetch();
   }, []);
 
   const checkConnectivity = async () => {
      const online = await StorageService.isOnline();
      setIsOffline(!online);
+  };
+
+  const checkPermissionsAndFetch = async () => {
+    const userInfo = await getUserInfo();
+    const roles = userInfo?.roles || [];
+    
+    // If pharmacist efficiently redirect or don't fetch
+    if (roles.includes('PHARMACIST') && !roles.includes('DOCTOR') && !roles.includes('NURSE')) {
+        // Optional: Redirect if they somehow got here
+        // router.replace("/pharmacy"); // Commented out to avoid layout flicker if we just want to show empty
+        setLoading(false);
+        return; 
+    }
+    
+    fetchRounds();
   };
 
   const fetchRounds = async () => {
@@ -69,7 +87,7 @@ export default function RoundsScreen() {
       setEncounters(data);
     } catch (error: any) {
       console.error(error);
-      Alert.alert("Error", "Failed to fetch rounds data");
+      showToast("Failed to fetch rounds data", "error");
     } finally {
       setLoading(false);
     }
@@ -95,35 +113,20 @@ export default function RoundsScreen() {
         },
       });
     } else {
-      Alert.alert("Not Found", `No active encounter found for ID: ${data}`);
+      showToast(`No active encounter found for ID: ${data}`, "warning");
     }
   };
 
-  const renderItem = ({ item }: { item: Encounter }) => {
+const EncounterCard = memo(({ item, onPress }: { item: Encounter, onPress: () => void }) => {
     const currentBed = item.bedAssignments?.[0]?.bed;
     const location = currentBed
       ? `${currentBed.ward.name} - ${currentBed.bedNumber}`
       : "No Bed Assigned";
 
-    const latestVitals = item.vitalSigns?.[0];
-
     return (
       <TouchableOpacity
         style={styles.card}
-        onPress={() =>
-          router.push({
-            pathname: "/rounds/[id]",
-            params: {
-              id: item.id,
-              name: item.patient.fullName,
-              mrn: item.patient.mrn,
-              gender: item.patient.gender,
-              dob: item.patient.dateOfBirth,
-              diagnosis: item.admission?.primaryDiagnosis || "No Diagnosis",
-              vitals: latestVitals ? JSON.stringify(latestVitals) : undefined,
-            },
-          })
-        }
+        onPress={onPress}
         activeOpacity={0.7}
       >
         <View style={styles.cardHeader}>
@@ -160,12 +163,62 @@ export default function RoundsScreen() {
         </View>
       </TouchableOpacity>
     );
-  };
+});
+
+  const renderItem = useCallback(({ item }: { item: Encounter }) => {
+    const latestVitals = item.vitalSigns?.[0];
+    return (
+        <EncounterCard 
+            item={item} 
+            onPress={() =>
+              router.push({
+                pathname: "/rounds/[id]",
+                params: {
+                  id: item.id,
+                  name: item.patient.fullName,
+                  mrn: item.patient.mrn,
+                  gender: item.patient.gender,
+                  dob: item.patient.dateOfBirth,
+                  diagnosis: item.admission?.primaryDiagnosis || "No Diagnosis",
+                  vitals: latestVitals ? JSON.stringify(latestVitals) : undefined,
+                },
+              })
+            } 
+        />
+    )
+  }, [router]);
 
   if (loading) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#0284c7" />
+      <View style={styles.container}>
+        <StatusBar barStyle="light-content" />
+        <View style={styles.header}>
+            <View style={styles.headerTopRow}>
+                 <View>
+                     <Text style={styles.headerTitle}>{t('rounds.title')}</Text>
+                     <Text style={styles.headerSubtitle}>{t('rounds.subtitle')}</Text>
+                 </View>
+            </View>
+        </View>
+        <View style={styles.listContent}>
+            {[1, 2, 3].map((key) => (
+                <View key={key} style={styles.card}>
+                    <View style={styles.cardHeader}>
+                        <SkeletonLoader width={48} height={48} borderRadius={24} style={{ marginRight: 12 }} />
+                        <View style={{ flex: 1 }}>
+                            <SkeletonLoader width="60%" height={20} style={{ marginBottom: 6 }} />
+                            <SkeletonLoader width="40%" height={14} />
+                        </View>
+                        <SkeletonLoader width={60} height={24} borderRadius={12} />
+                    </View>
+                    <View style={styles.divider} />
+                    <View style={styles.detailsContainer}>
+                        <SkeletonLoader width="80%" height={16} style={{ marginBottom: 8 }} />
+                        <SkeletonLoader width="90%" height={16} />
+                    </View>
+                </View>
+            ))}
+        </View>
       </View>
     );
   }
@@ -207,6 +260,10 @@ export default function RoundsScreen() {
         contentContainerStyle={styles.listContent}
         refreshing={loading}
         onRefresh={fetchRounds}
+        initialNumToRender={10}
+        maxToRenderPerBatch={10}
+        windowSize={5}
+        removeClippedSubviews={true}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Ionicons name="people-outline" size={64} color="#cbd5e1" />

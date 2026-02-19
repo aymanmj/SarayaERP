@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, TextInput, Alert, ActivityIndicator, FlatList, StatusBar } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import api from '../../services/api';
+import { useToast } from '../../components/ToastContext';
 import LabResultsList from "../../components/LabResultsList";
 import VitalsList from "../../components/VitalsList";
 import MedicationList from "../../components/MedicationList";
@@ -12,6 +13,7 @@ import StorageService from "../../services/StorageService";
 
 export default function PatientDetailScreen() {
   const params = useLocalSearchParams();
+  const { showToast } = useToast();
   const { id, name, diagnosis, gender, dob, vitals } = params;
 
   const [notes, setNotes] = useState<any[]>([]);
@@ -48,11 +50,11 @@ export default function PatientDetailScreen() {
 
   const handleAddNote = async () => {
     if (!newNote.trim()) {
-      Alert.alert("Validation", "Note content cannot be empty");
+      showToast("Note content cannot be empty", "warning");
       return;
     }
     if (!id || isNaN(Number(id))) {
-      Alert.alert("Error", "Invalid Encounter ID");
+      showToast("Invalid Encounter ID", "error");
       return;
     }
     setSubmitting(true);
@@ -62,8 +64,9 @@ export default function PatientDetailScreen() {
       setNewNote('');
       setModalVisible(false);
       
+      
       if (result.offline) {
-         Alert.alert("Offline", "Note saved locally and will sync when online.");
+         showToast("Note saved locally and will sync when online.", "info");
          // Optimistically add to list or reload from cache
          // For simplicity, just fetchNotes which should return cached + maybe we should append locally if api.getClinicalNotes doesn't return the queued one.
          // Since our mock getClinicalNotes only returns server data (cached), the new note won't appear unless we manually add it.
@@ -77,11 +80,11 @@ export default function PatientDetailScreen() {
          }, ...prev]);
       } else {
          fetchNotes(); 
-         Alert.alert("Success", "Note added successfully");
+         showToast("Note added successfully", "success");
       }
     } catch (error: any) {
       console.error("Failed to add note", error);
-      Alert.alert("Error", "Failed to add note");
+      showToast("Failed to add note", "error");
     } finally {
       setSubmitting(false);
     }

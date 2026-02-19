@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback, memo } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../services/api';
@@ -43,10 +43,10 @@ export default function MedicationList({ encounterId }: MedicationListProps) {
     );
   };
 
-  const renderActiveItem = ({ item }: { item: any }) => (
+const ActiveMedCard = memo(({ item, onPressAdminister, onPressCard }: { item: any, onPressAdminister: (item: any) => void, onPressCard: (item: any) => void }) => (
     <TouchableOpacity 
       style={styles.card} 
-      onPress={() => setSelectedMed(item)}
+      onPress={() => onPressCard(item)}
       activeOpacity={0.7}
     >
       <View style={styles.cardHeader}>
@@ -86,15 +86,15 @@ export default function MedicationList({ encounterId }: MedicationListProps) {
         </View>
         <TouchableOpacity 
           style={styles.administerBtn}
-          onPress={() => setSelectedMed(item)}
+          onPress={() => onPressAdminister(item)}
         >
           <Text style={styles.btnText}>Administer</Text>
         </TouchableOpacity>
       </View>
     </TouchableOpacity>
-  );
+));
 
-  const renderHistoryItem = ({ item }: { item: any }) => (
+const HistoryMedCard = memo(({ item }: { item: any }) => (
     <View style={styles.historyItem}>
       <View style={styles.timelineLeft}>
          <View style={[styles.timelineDot, item.status === 'GIVEN' ? {backgroundColor: '#22c55e'} : item.status === 'NOT_GIVEN' ? {backgroundColor: '#ef4444'} : {backgroundColor: '#f59e0b'}]} />
@@ -117,7 +117,19 @@ export default function MedicationList({ encounterId }: MedicationListProps) {
           {item.notes && <Text style={styles.historyNotes}>"{item.notes}"</Text>}
       </View>
     </View>
-  );
+));
+
+  const renderActiveItem = useCallback(({ item }: { item: any }) => (
+    <ActiveMedCard 
+        item={item} 
+        onPressCard={setSelectedMed} 
+        onPressAdminister={setSelectedMed} 
+    />
+  ), []);
+
+  const renderHistoryItem = useCallback(({ item }: { item: any }) => (
+    <HistoryMedCard item={item} />
+  ), []);
 
   if (loading) return <ActivityIndicator style={{marginTop: 50}} size="large" color="#0284c7" />;
 
