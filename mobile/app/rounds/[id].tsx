@@ -8,7 +8,9 @@ import VitalsList from "../../components/VitalsList";
 import MedicationList from "../../components/MedicationList";
 import RadiologyList from "../../components/RadiologyList";
 import { Ionicons } from '@expo/vector-icons';
-
+import { useGetClinicalNotes } from '../../hooks/api/useClinicalNotes';
+import { useQueryClient } from '@tanstack/react-query';
+import { theme } from '../../constants/theme';
 import StorageService from "../../services/StorageService";
 
 export default function PatientDetailScreen() {
@@ -16,19 +18,17 @@ export default function PatientDetailScreen() {
   const { showToast } = useToast();
   const { id, name, diagnosis, gender, dob, vitals } = params;
 
-  const [notes, setNotes] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [newNote, setNewNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState<'notes' | 'vitals' | 'meds' | 'labs' | 'radiology'>('notes');
   const [isOffline, setIsOffline] = useState(false);
 
+  const queryClient = useQueryClient();
+  const { data: notes = [], isLoading: loading, refetch: fetchNotes } = useGetClinicalNotes(Number(id));
+
   useEffect(() => {
     checkConnectivity();
-    if (id) {
-      fetchNotes();
-    }
   }, [id]);
 
   const checkConnectivity = async () => {
@@ -36,57 +36,59 @@ export default function PatientDetailScreen() {
     setIsOffline(!online);
   };
 
-  const fetchNotes = async () => {
-    setLoading(true);
-    try {
-      const data = await api.getClinicalNotes(Number(id));
-      setNotes(data || []);
-    } catch (error) {
-      console.error("Failed to fetch notes", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleAddNote = async () => {
     if (!newNote.trim()) {
       showToast("Note content cannot be empty", "warning");
       return;
     }
-    if (!id || isNaN(Number(id))) {
+    const numericId = Number(id);
+    if (!id || isNaN(numericId)) {
       showToast("Invalid Encounter ID", "error");
       return;
     }
+    
+    const tempNoteId = 'temp-' + Date.now();
     setSubmitting(true);
     try {
-      const result = await api.createClinicalNote(Number(id), newNote, 'DOCTOR_ROUND');
-      
-      setNewNote('');
-      setModalVisible(false);
-      
-      
-      if (result.offline) {
-         showToast("Note saved locally and will sync when online.", "info");
-         // Optimistically add to list or reload from cache
-         // For simplicity, just fetchNotes which should return cached + maybe we should append locally if api.getClinicalNotes doesn't return the queued one.
-         // Since our mock getClinicalNotes only returns server data (cached), the new note won't appear unless we manually add it.
-         // Let's manually append for UI feedback
-         setNotes(prev => [{
-            id: 'temp-' + Date.now(),
+        // Optimistic Update
+        const tempNote = {
+            id: tempNoteId,
             content: newNote,
             createdAt: new Date().toISOString(),
             type: 'DOCTOR_ROUND',
-            createdBy: { fullName: 'You (Offline)' }
-         }, ...prev]);
-      } else {
-         fetchNotes(); 
-         showToast("Note added successfully", "success");
-      }
-    } catch (error: any) {
-      console.error("Failed to add note", error);
-      showToast("Failed to add note", "error");
+            createdBy: { fullName: "You (Pending...)" },
+        };
+        
+        queryClient.setQueryData(['clinicalNotes', numericId], (oldData: any) => {
+            if (!Array.isArray(oldData)) return [tempNote];
+            return [tempNote, ...oldData];
+        });
+
+        const result = await api.createClinicalNote(numericId, newNote, 'DOCTOR_ROUND');
+        
+        setModalVisible(false);
+        setNewNote('');
+        
+        if (result?.offline) {
+             showToast("Note saved locally and will sync when online.", "info");
+        } else {
+             showToast("Note added successfully", "success");
+        }
+        
+        // Background refresh to confirm server state
+        setTimeout(() => {
+             queryClient.invalidateQueries({ queryKey: ['clinicalNotes', numericId] });
+        }, 500);
+
+    } catch (error) {
+        console.error("Failed to save note:", error);
+        showToast("Failed to save note", "error");
+        // Revert optimistic update if it fails
+        queryClient.setQueryData(['clinicalNotes', numericId], (oldData: any) => {
+            return oldData?.filter((note: any) => note.id !== tempNoteId);
+        });
     } finally {
-      setSubmitting(false);
+        setSubmitting(false);
     }
   };
 
@@ -280,103 +282,96 @@ export default function PatientDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f1f5f9" },
+  container: { flex: 1, backgroundColor: theme.colors.background },
 
   // Header 
   header: { 
-    padding: 24, 
+    padding: theme.sizes.lg, 
     paddingTop: 40,
-    backgroundColor: "#0284c7", 
+    backgroundColor: theme.colors.primary, 
     borderBottomLeftRadius: 24, 
     borderBottomRightRadius: 24,
-    shadowColor: "#0284c7",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 8,
+    ...theme.shadows.medium,
     zIndex: 10,
   },
   headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  patientName: { fontSize: 22, fontWeight: "700", color: "#fff", flex: 1 },
+  patientName: { fontSize: 22, fontWeight: "700", color: theme.colors.surface, flex: 1 },
   badge: { backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
-  badgeText: { color: '#fff', fontSize: 12, fontWeight: '600' },
+  badgeText: { color: theme.colors.surface, fontSize: 12, fontWeight: '600' },
   headerDetails: { flexDirection: 'row', alignItems: 'center' },
-  headerDetailText: { fontSize: 14, color: "#e0f2fe", fontWeight: '500' },
-  headerSeparator: { marginHorizontal: 8, color: '#bae6fd' },
+  headerDetailText: { fontSize: 14, color: theme.colors.primaryLight, fontWeight: '500' },
+  headerSeparator: { marginHorizontal: 8, color: theme.colors.primaryLight },
 
   // Tabs
   tabBar: { 
     flexDirection: 'row', 
-    backgroundColor: '#fff', 
+    backgroundColor: theme.colors.surface, 
     marginHorizontal: 16, 
     marginTop: -20, 
-    borderRadius: 16, 
+    borderRadius: theme.sizes.md, 
     padding: 4, 
-    shadowColor: '#000', 
-    shadowOpacity: 0.05, 
-    shadowRadius: 10, 
-    elevation: 4,
+    ...theme.shadows.small,
     marginBottom: 16,
     zIndex: 20,
   },
   tabItem: { flex: 1, paddingVertical: 12, alignItems: 'center', justifyContent: 'center' },
   activeTabItem: {},
-  tabLabel: { fontSize: 13, fontWeight: '600', color: '#64748b' },
-  activeTabLabel: { color: '#0284c7', fontWeight: '700' },
-  activeIndicator: { width: 4, height: 4, borderRadius: 2, backgroundColor: '#0284c7', marginTop: 4 },
+  tabLabel: { fontSize: 13, fontWeight: '600', color: theme.colors.textLight },
+  activeTabLabel: { color: theme.colors.primary, fontWeight: '700' },
+  activeIndicator: { width: 4, height: 4, borderRadius: 2, backgroundColor: theme.colors.primary, marginTop: 4 },
 
   // Content
   content: { flex: 1, paddingHorizontal: 16 },
   
   // Summary Card
-  summaryCard: { backgroundColor: '#fff', borderRadius: 16, padding: 16, marginBottom: 20, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, elevation: 2 },
-  cardTitle: { fontSize: 15, fontWeight: '600', color: '#475569', marginBottom: 16 },
+  summaryCard: { backgroundColor: theme.colors.surface, borderRadius: 16, padding: 16, marginBottom: 20, ...theme.shadows.small },
+  cardTitle: { fontSize: 15, fontWeight: '600', color: theme.colors.textLight, marginBottom: 16 }, // #475569
   vitalsGrid: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   vitalItem: { alignItems: 'center', flex: 1 },
-  vitalLabel: { fontSize: 12, color: '#94a3b8', marginTop: 4, marginBottom: 2 },
-  vitalValue: { fontSize: 18, fontWeight: '700', color: '#1e293b' },
-  vitalDivider: { width: 1, height: 30, backgroundColor: '#e2e8f0' },
+  vitalLabel: { fontSize: 12, color: theme.colors.textMuted, marginTop: 4, marginBottom: 2 }, // #94a3b8
+  vitalValue: { fontSize: 18, fontWeight: '700', color: theme.colors.text }, // #1e293b
+  vitalDivider: { width: 1, height: 30, backgroundColor: theme.colors.border }, // #e2e8f0
 
   // Notes & Timeline
   sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
-  sectionTitle: { fontSize: 18, fontWeight: "700", color: "#1e293b" },
-  fabButton: { backgroundColor: "#0284c7", width: 44, height: 44, borderRadius: 22, justifyContent: "center", alignItems: "center", elevation: 4, shadowColor: '#0284c7', shadowOpacity: 0.3, shadowRadius: 4, shadowOffset: {width:0, height:2} },
+  sectionTitle: { fontSize: 18, fontWeight: "700", color: theme.colors.text },
+  fabButton: { backgroundColor: theme.colors.primary, width: 44, height: 44, borderRadius: 22, justifyContent: "center", alignItems: "center", ...theme.shadows.small },
 
   timelineItem: { flexDirection: 'row', marginBottom: 0 },
   timelineLeft: { width: 24, alignItems: 'center', marginRight: 12 },
-  timelineDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: '#0284c7', marginTop: 4 },
-  timelineLine: { width: 2, flex: 1, backgroundColor: '#e2e8f0', marginTop: 4 },
-  timelineContent: { flex: 1, backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 16, shadowColor: '#000', shadowOpacity: 0.02, shadowRadius: 4, elevation: 1 },
+  timelineDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: theme.colors.primary, marginTop: 4 },
+  timelineLine: { width: 2, flex: 1, backgroundColor: theme.colors.border, marginTop: 4 },
+  timelineContent: { flex: 1, backgroundColor: theme.colors.surface, borderRadius: 12, padding: 16, marginBottom: 16, ...theme.shadows.small },
   noteHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
-  noteAuthor: { fontSize: 13, fontWeight: '600', color: '#334155' },
-  noteTime: { fontSize: 11, color: '#94a3b8' },
-  noteTypeBadge: { alignSelf: 'flex-start', backgroundColor: '#e0f2fe', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4, color: '#0369a1', fontSize: 10, fontWeight: '600', marginBottom: 8, overflow: 'hidden' },
-  noteText: { fontSize: 14, color: '#475569', lineHeight: 20 },
+  noteAuthor: { fontSize: 13, fontWeight: '600', color: theme.colors.text },
+  noteTime: { fontSize: 11, color: theme.colors.textMuted },
+  noteTypeBadge: { alignSelf: 'flex-start', backgroundColor: '#e0f2fe', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4, color: theme.colors.primaryDark, fontSize: 10, fontWeight: '600', marginBottom: 8, overflow: 'hidden' },
+  noteText: { fontSize: 14, color: theme.colors.textLight, lineHeight: 20 },
 
   emptyState: { alignItems: 'center', marginTop: 40 },
-  emptyText: { marginTop: 12, color: '#94a3b8', fontSize: 14 },
+  emptyText: { marginTop: 12, color: theme.colors.textMuted, fontSize: 14 },
 
   // Modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 24 },
-  modalContent: { backgroundColor: '#fff', borderRadius: 20, padding: 24, shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 10, elevation: 10 },
+  modalContent: { backgroundColor: theme.colors.surface, borderRadius: 20, padding: 24, ...theme.shadows.large },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  modalTitle: { fontSize: 18, fontWeight: '700', color: '#1e293b' },
-  textInput: { backgroundColor: '#f8fafc', borderRadius: 12, padding: 16, height: 120, fontSize: 15, color: '#334155', borderWidth: 1, borderColor: '#e2e8f0', marginBottom: 24 },
+  modalTitle: { fontSize: 18, fontWeight: '700', color: theme.colors.text },
+  textInput: { backgroundColor: theme.colors.background, borderRadius: 12, padding: 16, height: 120, fontSize: 15, color: theme.colors.text, borderWidth: 1, borderColor: theme.colors.border, marginBottom: 24 },
   modalFooter: { flexDirection: 'row', justifyContent: 'flex-end', gap: 12 },
   cancelBtn: { paddingVertical: 12, paddingHorizontal: 16, borderRadius: 10 },
-  cancelBtnText: { color: '#64748b', fontWeight: '600' },
-  saveBtn: { backgroundColor: '#0284c7', paddingVertical: 12, paddingHorizontal: 24, borderRadius: 10 },
-  saveBtnText: { color: '#fff', fontWeight: '600' },
+  cancelBtnText: { color: theme.colors.textLight, fontWeight: '600' },
+  saveBtn: { backgroundColor: theme.colors.primary, paddingVertical: 12, paddingHorizontal: 24, borderRadius: 10 },
+  saveBtnText: { color: theme.colors.surface, fontWeight: '600' },
   disabledBtn: { opacity: 0.7 },
   
   offlineBanner: {
-    backgroundColor: '#b91c1c',
+    backgroundColor: theme.colors.error,
     padding: 4,
     alignItems: 'center',
     justifyContent: 'center',
   },
   offlineText: {
-      color: '#fff',
+      color: theme.colors.surface,
       fontSize: 12,
       fontWeight: '700',
   },

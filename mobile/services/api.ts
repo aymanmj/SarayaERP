@@ -4,8 +4,8 @@ import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
 import StorageService from './StorageService';
 
-// UPDATE THIS IP WITH YOUR COMPUTER'S LAN IP
-const BASE_URL = "https://erp.alsarayatech.ly/api";
+// Read from environment variable, fallback to hardcoded URL if missing
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL || "https://erp.alsarayatech.ly/api";
 
 const api = axios.create({
   baseURL: BASE_URL,

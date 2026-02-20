@@ -14,6 +14,8 @@ import api, { getUserInfo } from "../../services/api";
 import { Ionicons } from "@expo/vector-icons";
 import SkeletonLoader from "../../components/SkeletonLoader";
 import { useToast } from "../../components/ToastContext";
+import { useGetRounds } from "../../hooks/api/useRounds";
+import { theme } from "../../constants/theme";
 
 interface Encounter {
   id: number;
@@ -51,16 +53,16 @@ export default function RoundsScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const { showToast } = useToast();
-  const [encounters, setEncounters] = useState<Encounter[]>([]);
-  const [loading, setLoading] = useState(true);
+  
+  const { data, isLoading: loading, fetchNextPage, hasNextPage, isFetchingNextPage, refetch } = useGetRounds(10);
+  const encounters = data?.pages.flat() || [];
+  const hasMore = hasNextPage;
+
   const [scannerVisible, setScannerVisible] = useState(false);
   const [isOffline, setIsOffline] = useState(false);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
 
   useEffect(() => {
     checkConnectivity();
-    checkPermissionsAndFetch();
   }, []);
 
   const checkConnectivity = async () => {
@@ -68,52 +70,9 @@ export default function RoundsScreen() {
      setIsOffline(!online);
   };
 
-  const checkPermissionsAndFetch = async () => {
-    const userInfo = await getUserInfo();
-    const roles = userInfo?.roles || [];
-    
-    // If pharmacist efficiently redirect or don't fetch
-    if (roles.includes('PHARMACIST') && !roles.includes('DOCTOR') && !roles.includes('NURSE')) {
-        // Optional: Redirect if they somehow got here
-        // router.replace("/pharmacy"); // Commented out to avoid layout flicker if we just want to show empty
-        setLoading(false);
-        return; 
-    }
-    
-    fetchRounds();
-  };
-
-  const fetchRounds = async (pageNum = 1) => {
-    if (pageNum === 1) setLoading(true);
-    try {
-      // Pass pagination params if not offline
-      const limit = 10;
-      const data = await api.getMyRotation(isOffline ? undefined : pageNum, limit);
-      
-      if (pageNum === 1) {
-        setEncounters(data);
-      } else {
-        setEncounters(prev => [...prev, ...data]);
-      }
-      
-      if (data.length < limit) {
-        setHasMore(false);
-      } else {
-        setHasMore(true);
-      }
-    } catch (error: any) {
-      console.error(error);
-      showToast("Failed to fetch rounds data", "error");
-    } finally {
-      if (pageNum === 1) setLoading(false);
-    }
-  };
-
   const handleLoadMore = () => {
-    if (!loading && hasMore && !isOffline) {
-      const nextPage = page + 1;
-      setPage(nextPage);
-      fetchRounds(nextPage);
+    if (hasNextPage && !isFetchingNextPage && !isOffline) {
+      fetchNextPage();
     }
   };
 
@@ -282,11 +241,11 @@ const EncounterCard = memo(({ item, onPress }: { item: Encounter, onPress: () =>
         keyExtractor={(item) => item.id.toString()}
         renderItem={renderItem}
         contentContainerStyle={styles.listContent}
-        refreshing={loading && page === 1}
-        onRefresh={() => { setPage(1); fetchRounds(1); }}
+        refreshing={loading && encounters.length === 0}
+        onRefresh={refetch}
         onEndReached={handleLoadMore}
         onEndReachedThreshold={0.5}
-        ListFooterComponent={hasMore && !isOffline && !loading ? <ActivityIndicator style={{marginTop: 10}} /> : null}
+        ListFooterComponent={isFetchingNextPage && !isOffline ? <ActivityIndicator style={{marginTop: 10}} /> : null}
         initialNumToRender={10}
         maxToRenderPerBatch={10}
         windowSize={5}
@@ -314,27 +273,23 @@ const EncounterCard = memo(({ item, onPress }: { item: Encounter, onPress: () =>
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f8fafc",
+    backgroundColor: theme.colors.background,
   },
   center: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#f8fafc",
+    backgroundColor: theme.colors.background,
   },
   header: {
-    backgroundColor: "#0284c7",
+    backgroundColor: theme.colors.primary,
     paddingTop: 60,
     paddingBottom: 20,
     paddingHorizontal: 20,
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
     marginBottom: 10,
-    shadowColor: "#0284c7",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 8,
+    ...theme.shadows.medium,
   },
   headerTopRow: {
     flexDirection: 'row',
@@ -344,26 +299,22 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 28,
     fontWeight: "800",
-    color: "#fff",
+    color: theme.colors.surface,
   },
   headerSubtitle: {
     fontSize: 14,
-    color: "#e0f2fe",
+    color: theme.colors.primaryLight,
     marginTop: 4,
     fontWeight: "500",
   },
   scanButton: {
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.surface,
     width: 44,
     height: 44,
     borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
+    ...theme.shadows.small,
   },
   iconButton: {
     width: 44,
@@ -376,17 +327,13 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   card: {
-    backgroundColor: "white",
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
-    elevation: 3,
-    shadowColor: "#64748b",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.sizes.md,
+    padding: theme.sizes.md,
+    marginBottom: theme.sizes.md,
+    ...theme.shadows.medium,
     borderWidth: 1,
-    borderColor: "#f1f5f9",
+    borderColor: theme.colors.border,
   },
   cardHeader: {
     flexDirection: "row",
@@ -405,7 +352,7 @@ const styles = StyleSheet.create({
   avatarText: {
     fontSize: 20,
     fontWeight: "bold",
-    color: "#0369a1",
+    color: theme.colors.primaryDark,
   },
   headerText: {
     flex: 1,
@@ -413,12 +360,12 @@ const styles = StyleSheet.create({
   patientName: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#1e293b",
+    color: theme.colors.text,
     marginBottom: 2,
   },
   mrn: {
     fontSize: 12,
-    color: "#64748b",
+    color: theme.colors.textLight,
     fontFamily: "monospace", 
   },
   statusBadge: {
@@ -430,7 +377,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#dcfce7",
   },
   statusClosed: {
-    backgroundColor: "#f1f5f9",
+    backgroundColor: theme.colors.border,
   },
   statusText: {
     fontSize: 10,
@@ -438,14 +385,14 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
   },
   statusTextOpen: {
-    color: "#166534",
+    color: theme.colors.success,
   },
   statusTextClosed: {
-    color: "#64748b",
+    color: theme.colors.textLight,
   },
   divider: {
     height: 1,
-    backgroundColor: "#f1f5f9",
+    backgroundColor: theme.colors.border,
     marginBottom: 12,
   },
   detailsContainer: {
@@ -459,7 +406,7 @@ const styles = StyleSheet.create({
   },
   detailText: {
     fontSize: 14,
-    color: "#475569",
+    color: theme.colors.textLight,
     flex: 1,
   },
   cardFooter: {
@@ -470,7 +417,7 @@ const styles = StyleSheet.create({
   },
   actionText: {
     fontSize: 12,
-    color: "#0284c7",
+    color: theme.colors.primary,
     fontWeight: "600",
   },
   emptyContainer: {
@@ -480,17 +427,17 @@ const styles = StyleSheet.create({
   emptyText: {
     textAlign: "center",
     marginTop: 16,
-    color: "#94a3b8",
+    color: theme.colors.textMuted,
     fontSize: 16,
   },
   offlineBanner: {
-    backgroundColor: '#b91c1c',
+    backgroundColor: theme.colors.error,
     padding: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
   offlineText: {
-    color: '#fff',
+    color: theme.colors.surface,
     fontSize: 12,
     fontWeight: '700',
   },

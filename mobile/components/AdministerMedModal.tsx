@@ -2,6 +2,25 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, TextInput, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Keyboard } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../services/api';
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { useQueryClient } from '@tanstack/react-query';
+
+const administerSchema = z.object({
+  status: z.enum(['GIVEN', 'NOT_GIVEN', 'HELD']),
+  notes: z.string().optional(),
+}).superRefine((data, ctx) => {
+  if (data.status !== 'GIVEN' && (!data.notes || data.notes.trim().length === 0)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Required when medication is not given or held",
+      path: ["notes"]
+    });
+  }
+});
+
+type AdministerFormValues = z.infer<typeof administerSchema>;
 
 interface AdministerMedModalProps {
   visible: boolean;
@@ -14,21 +33,43 @@ interface AdministerMedModalProps {
 import ScannerModal from './ScannerModal';
 
 export default function AdministerMedModal({ visible, onClose, medication, encounterId, onSuccess }: AdministerMedModalProps) {
-  const [status, setStatus] = useState<'GIVEN' | 'NOT_GIVEN' | 'HELD'>('GIVEN');
-  const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [scannerVisible, setScannerVisible] = useState(false);
 
-  const handleSubmit = async () => {
+  const queryClient = useQueryClient();
+
+  const { control, handleSubmit, watch, setValue, reset, formState: { errors } } = useForm<AdministerFormValues>({
+    resolver: zodResolver(administerSchema),
+    defaultValues: { status: 'GIVEN', notes: '' }
+  });
+
+  const status = watch('status');
+
+  const onSubmit = async (data: AdministerFormValues) => {
     if (!medication) return;
 
     setSubmitting(true);
     try {
-      await api.administerMedication(encounterId, medication.id, status, notes);
+      // Optimistic update
+      const tempAdmin = {
+        id: Date.now(),
+        prescriptionItemId: medication.id,
+        status: data.status,
+        notes: data.notes,
+        administeredAt: new Date().toISOString(),
+        performer: { id: 0, fullName: "You (Pending)" }
+      };
+
+      queryClient.setQueryData(['medications', encounterId], (oldData: any) => {
+        if (!oldData) return oldData;
+        const newHistory = [tempAdmin, ...(oldData.administrations || [])];
+        return { ...oldData, administrations: newHistory };
+      });
+
+      await api.administerMedication(encounterId, medication.id, data.status, data.notes || '');
       Alert.alert("Success", "Medication administration recorded");
       onSuccess();
-      setNotes('');
-      setStatus('GIVEN');
+      reset();
       onClose();
     } catch (error) {
       console.error(error);
@@ -49,7 +90,7 @@ export default function AdministerMedModal({ visible, onClose, medication, encou
     const isMatch = (data === drugCode) || (drugName.toLowerCase().includes(data.toLowerCase())) || (data.toLowerCase().includes(drugName.toLowerCase()));
 
     if (isMatch) {
-        setStatus('GIVEN');
+        setValue('status', 'GIVEN');
         Alert.alert("Match Confirmed", "Medication verified successfully.");
     } else {
         Alert.alert("Mismatch Warning", `Scanned code '${data}' does not match '${drugName}'. Please verify manually.`);
@@ -104,7 +145,7 @@ export default function AdministerMedModal({ visible, onClose, medication, encou
             <View style={styles.statusContainer}>
               <TouchableOpacity
                 style={[styles.statusBtn, status === 'GIVEN' && styles.statusBtnGiven]}
-                onPress={() => setStatus('GIVEN')}
+                onPress={() => setValue('status', 'GIVEN')}
               >
                 <Ionicons name="checkmark-circle" size={18} color={status === 'GIVEN' ? '#fff' : '#15803d'} />
                 <Text style={[styles.statusText, status === 'GIVEN' && styles.statusTextActive]}>Given</Text>
@@ -112,7 +153,7 @@ export default function AdministerMedModal({ visible, onClose, medication, encou
 
               <TouchableOpacity
                 style={[styles.statusBtn, status === 'NOT_GIVEN' && styles.statusBtnNotGiven]}
-                onPress={() => setStatus('NOT_GIVEN')}
+                onPress={() => setValue('status', 'NOT_GIVEN')}
               >
                 <Ionicons name="alert-circle" size={18} color={status === 'NOT_GIVEN' ? '#fff' : '#b91c1c'} />
                 <Text style={[styles.statusText, status === 'NOT_GIVEN' && styles.statusTextActive]}>Not Given</Text>
@@ -120,7 +161,7 @@ export default function AdministerMedModal({ visible, onClose, medication, encou
               
               <TouchableOpacity
                 style={[styles.statusBtn, status === 'HELD' && styles.statusBtnHeld]}
-                onPress={() => setStatus('HELD')}
+                onPress={() => setValue('status', 'HELD')}
               >
                 <Ionicons name="hand-left" size={18} color={status === 'HELD' ? '#fff' : '#b45309'} />
                 <Text style={[styles.statusText, status === 'HELD' && styles.statusTextActive]}>Held</Text>
@@ -128,16 +169,23 @@ export default function AdministerMedModal({ visible, onClose, medication, encou
             </View>
 
             {/* Notes Input */}
-            <Text style={styles.sectionLabel}>Notes (Optional)</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Add any observations or reasons..."
-              placeholderTextColor="#94a3b8"
-              value={notes}
-              onChangeText={setNotes}
-              multiline
-              textAlignVertical="top"
+            <Text style={styles.sectionLabel}>Notes {status === 'GIVEN' ? '(Optional)' : '*'}</Text>
+            <Controller
+              control={control}
+              name="notes"
+              render={({ field: { onChange, value } }) => (
+                <TextInput
+                  style={[styles.input, errors.notes && styles.inputError]}
+                  placeholder="Add any observations or reasons..."
+                  placeholderTextColor="#94a3b8"
+                  value={value}
+                  onChangeText={onChange}
+                  multiline
+                  textAlignVertical="top"
+                />
+              )}
             />
+            {errors.notes && <Text style={styles.errorText}>{errors.notes.message}</Text>}
 
             {/* Submit Button */}
             <TouchableOpacity
@@ -147,7 +195,7 @@ export default function AdministerMedModal({ visible, onClose, medication, encou
                 status === 'NOT_GIVEN' ? styles.btnNotGiven : styles.btnHeld,
                 submitting && styles.disabledButton
               ]}
-              onPress={handleSubmit}
+              onPress={handleSubmit(onSubmit)}
               disabled={submitting}
             >
               {submitting ? (
@@ -246,7 +294,16 @@ const styles = StyleSheet.create({
     height: 100, 
     fontSize: 14, 
     color: '#334155', 
-    marginBottom: 24 
+    marginBottom: 4 
+  },
+  inputError: {
+    borderColor: '#ef4444',
+  },
+  errorText: {
+    color: '#ef4444',
+    fontSize: 10,
+    marginBottom: 16,
+    marginLeft: 4,
   },
 
   submitButton: { 

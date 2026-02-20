@@ -50,7 +50,7 @@ export function Layout() {
                   : "hover:bg-slate-100")
               }
             >
-              تخطيط التفريغ
+              تخطيط الخروج
             </Link>
 
             <Link

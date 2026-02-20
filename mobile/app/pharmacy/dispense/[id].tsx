@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../../../services/api';
+import { useQueryClient } from '@tanstack/react-query';
+import { theme } from '../../../constants/theme';
+import ScannerModal from '../../../components/ScannerModal';
 
 export default function DispenseScreen() {
     const { id } = useLocalSearchParams();
@@ -12,31 +15,46 @@ export default function DispenseScreen() {
     const [loading, setLoading] = useState(true);
     const [dispensing, setDispensing] = useState(false);
     const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
+    const [scannerVisible, setScannerVisible] = useState(false);
+    const queryClient = useQueryClient();
 
     useEffect(() => {
         if (id) fetchPrescription();
     }, [id]);
 
     const fetchPrescription = async () => {
-        // We reuse the worklist payload or fetch details. 
-        // Assuming we need to fetch specific details or filter from worklist cache
-        // Currently api.getPharmacyWorklist returns list. 
-        // Ideally we should have getPrescription(id)
-        // For MVP, we'll re-fetch worklist and find item. Not efficient but works for now.
         setLoading(true);
         try {
-            const list = await api.getPharmacyWorklist();
-            const found = list.find((p: any) => p.id == id);
+            // First try to resolve from React Query cache
+            let found = null;
+            const data: any = queryClient.getQueryData(['pharmacyWorklist', 10]);
+            if (data?.pages) {
+                for (const page of data.pages) {
+                    found = page.find((p: any) => p.id == id);
+                    if (found) break;
+                }
+            }
+            
+            // Fallback to fetch first page
+            if (!found) {
+                const list = await api.getPharmacyWorklist(1, 20);
+                found = list.find((p: any) => p.id == id);
+            }
+
             if (found) {
                 setPrescription(found);
-                // Pre-select all items for easier flow? Or force check?
-                // Let's force check
+                // Pre-select all items by default
+                if (found.items) {
+                    setSelectedItems(new Set(found.items.map((i: any) => i.id)));
+                }
             } else {
-                Alert.alert("Error", "Prescription not found");
+                Alert.alert("Error", "Prescription not found in recent worklist");
                 router.back();
             }
         } catch (e) {
             console.error(e);
+            Alert.alert("Error", "Failed to load prescription");
+            router.back();
         } finally {
             setLoading(false);
         }
@@ -47,6 +65,28 @@ export default function DispenseScreen() {
         if (next.has(itemId)) next.delete(itemId);
         else next.add(itemId);
         setSelectedItems(next);
+    };
+
+    const handleScan = (data: string) => {
+        setScannerVisible(false);
+        
+        // Find matching item by code or name
+        const match = prescription?.items?.find((item: any) => {
+            const drugName = item.drugItem?.name || item.drugItem?.tradeName || '';
+            const drugCode = item.drugItem?.code || '';
+            return (data === drugCode) || 
+                   (drugName.toLowerCase().includes(data.toLowerCase())) || 
+                   (data.toLowerCase().includes(drugName.toLowerCase()));
+        });
+
+        if (match) {
+            const next = new Set(selectedItems);
+            next.add(match.id);
+            setSelectedItems(next);
+            Alert.alert("Match Confirmed", `${match.drugItem?.tradeName || 'Medication'} verified and selected.`);
+        } else {
+            Alert.alert("Mismatch Warning", `Scanned code '${data}' does not match any items in this prescription.`);
+        }
     };
 
     const handleDispense = async () => {
@@ -109,8 +149,9 @@ export default function DispenseScreen() {
                         key={item.id} 
                         style={[styles.itemCard, selectedItems.has(item.id) && styles.selectedCard]}
                         onPress={() => toggleItem(item.id)}
+                        activeOpacity={0.7}
                     >
-                        <View style={styles.checkbox}>
+                        <View style={[styles.checkbox, selectedItems.has(item.id) && styles.checkboxSelected]}>
                              {selectedItems.has(item.id) && <Ionicons name="checkmark" size={16} color="#fff" />}
                         </View>
                         <View style={{ flex: 1 }}>
@@ -118,7 +159,12 @@ export default function DispenseScreen() {
                             <Text style={styles.drugDetail}>{item.dose} - {item.route} - {item.frequency}</Text>
                             <Text style={styles.drugDetail}>Qty: {item.quantity} days</Text>
                         </View>
-                        <Ionicons name="scan-circle-outline" size={28} color="#0284c7" />
+                        <TouchableOpacity 
+                            style={{ padding: 8 }}
+                            onPress={() => setScannerVisible(true)}
+                        >
+                            <Ionicons name="scan-circle-outline" size={28} color={theme.colors.primary} />
+                        </TouchableOpacity>
                     </TouchableOpacity>
                 ))}
             </ScrollView>
@@ -132,27 +178,35 @@ export default function DispenseScreen() {
                     {dispensing ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Dispense Selected</Text>}
                 </TouchableOpacity>
             </View>
+
+            <ScannerModal 
+                visible={scannerVisible} 
+                onClose={() => setScannerVisible(false)} 
+                onScan={handleScan}
+                title="Scan Medication Barcode"
+            />
         </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#f8fafc' },
+    container: { flex: 1, backgroundColor: theme.colors.background },
     center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, backgroundColor: '#fff', elevation: 1 },
-    headerTitle: { fontSize: 18, fontWeight: 'bold', color: '#1e293b' },
-    content: { padding: 16 },
-    section: { backgroundColor: '#fff', padding: 16, borderRadius: 12, marginBottom: 24, elevation: 1 },
-    label: { fontSize: 12, color: '#64748b', marginBottom: 2 },
-    value: { fontSize: 16, fontWeight: '600', color: '#1e293b', marginBottom: 12 },
-    sectionTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 16, color: '#334155' },
-    itemCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', padding: 16, borderRadius: 12, marginBottom: 12, borderWidth: 1, borderColor: '#e2e8f0' },
-    selectedCard: { borderColor: '#0284c7', backgroundColor: '#f0f9ff' },
-    checkbox: { width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: '#cbd5e1', marginRight: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' },
-    drugName: { fontSize: 16, fontWeight: '700', color: '#1e293b' },
-    drugDetail: { color: '#64748b' },
-    footer: { padding: 16, backgroundColor: '#fff', elevation: 8 },
-    dispenseBtn: { backgroundColor: '#0284c7', padding: 16, borderRadius: 12, alignItems: 'center' },
-    disabledBtn: { backgroundColor: '#94a3b8' },
-    btnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' }
+    header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: theme.sizes.lg, backgroundColor: theme.colors.surface, ...theme.shadows.small },
+    headerTitle: { fontSize: 18, fontWeight: '700', color: theme.colors.text },
+    content: { padding: theme.sizes.lg },
+    section: { backgroundColor: theme.colors.surface, padding: theme.sizes.lg, borderRadius: theme.sizes.md, marginBottom: 24, ...theme.shadows.small },
+    label: { fontSize: 12, color: theme.colors.textMuted, marginBottom: 4 },
+    value: { fontSize: 16, fontWeight: '600', color: theme.colors.text, marginBottom: 16 },
+    sectionTitle: { fontSize: 18, fontWeight: '700', marginBottom: 16, color: theme.colors.text },
+    itemCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.colors.surface, padding: 16, borderRadius: theme.sizes.md, marginBottom: 12, borderWidth: 1, borderColor: theme.colors.border },
+    selectedCard: { borderColor: theme.colors.primary, backgroundColor: '#f0f9ff' },
+    checkbox: { width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: theme.colors.border, marginRight: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.surface },
+    checkboxSelected: { borderColor: theme.colors.primary, backgroundColor: theme.colors.primary },
+    drugName: { fontSize: 16, fontWeight: '700', color: theme.colors.text },
+    drugDetail: { color: theme.colors.textLight, marginTop: 4, fontSize: 13 },
+    footer: { padding: theme.sizes.lg, backgroundColor: theme.colors.surface, ...theme.shadows.medium, borderTopWidth: 1, borderTopColor: theme.colors.border },
+    dispenseBtn: { backgroundColor: theme.colors.primary, padding: 16, borderRadius: theme.sizes.sm, alignItems: 'center' },
+    disabledBtn: { backgroundColor: theme.colors.textMuted },
+    btnText: { color: theme.colors.surface, fontSize: 16, fontWeight: '700' }
 });

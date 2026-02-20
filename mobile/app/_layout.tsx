@@ -9,6 +9,10 @@ import ErrorBoundary from '../components/ErrorBoundary';
 import Logger from '../services/Logger';
 import { initI18n } from '../i18n';
 import { ToastProvider } from '../components/ToastContext';
+import { AuthProvider } from '../context/AuthContext';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+const queryClient = new QueryClient();
 
 export default function Layout() {
   const { expoPushToken } = usePushNotifications();
@@ -46,8 +50,10 @@ export default function Layout() {
 
   return (
     <ErrorBoundary>
-      <ToastProvider>
-        <Stack screenOptions={{ headerShown: false }}>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <ToastProvider>
+            <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="index" />
           <Stack.Screen name="login" />
           <Stack.Screen name="rounds/index" options={{ title: 'Doctor Rounds', headerShown: true }} />
@@ -63,7 +69,9 @@ export default function Layout() {
              </View>
           </SafeAreaView>
         )}
-      </ToastProvider>
+          </ToastProvider>
+        </AuthProvider>
+      </QueryClientProvider>
     </ErrorBoundary>
   );
 }

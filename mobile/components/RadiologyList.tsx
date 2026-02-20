@@ -1,7 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, FlatList, TouchableOpacity, Linking, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../services/api';
+import { theme } from '../constants/theme';
+import { useGetRadiologyOrders } from '../hooks/api/useRadiologyOrders';
 
 type RadiologyOrder = {
   id: number;
@@ -30,36 +32,20 @@ interface RadiologyListProps {
 }
 
 export default function RadiologyList({ encounterId }: RadiologyListProps) {
-  const [orders, setOrders] = useState<RadiologyOrder[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { data: orders = [], isLoading: loading, error, refetch, isFetching } = useGetRadiologyOrders(encounterId);
+  const refreshing = isFetching && !loading;
 
-  const fetchOrders = async () => {
-    if (!encounterId) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await api.getRadiologyOrders(encounterId);
-      setOrders(Array.isArray(data) ? data : []);
-    } catch (err) {
-      setError('Failed to load radiology orders');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchOrders();
-  }, [encounterId]);
+  const fetchOrders = useCallback(() => {
+    refetch();
+  }, [refetch]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'COMPLETED': return '#10b981'; // emerald-500
-      case 'IN_PROGRESS': return '#3b82f6'; // blue-500
-      case 'PENDING': return '#f59e0b'; // amber-500
-      case 'CANCELLED': return '#ef4444'; // red-500
-      default: return '#64748b'; // slate-500
+      case 'COMPLETED': return theme.colors.success;
+      case 'IN_PROGRESS': return theme.colors.info;
+      case 'PENDING': return theme.colors.warning;
+      case 'CANCELLED': return theme.colors.error;
+      default: return theme.colors.textLight;
     }
   };
 
@@ -140,7 +126,7 @@ export default function RadiologyList({ encounterId }: RadiologyListProps) {
   }
 
   if (error) {
-    return <Text style={styles.error}>{error}</Text>;
+    return <Text style={styles.error}>{error.message}</Text>;
   }
 
   if (orders.length === 0) {
@@ -158,7 +144,7 @@ export default function RadiologyList({ encounterId }: RadiologyListProps) {
       keyExtractor={(item) => item.id.toString()}
       renderItem={renderItem}
       contentContainerStyle={styles.container}
-      refreshing={loading}
+      refreshing={refreshing}
       onRefresh={fetchOrders}
     />
   );
@@ -171,17 +157,13 @@ const styles = StyleSheet.create({
     paddingBottom: 20
   },
   card: {
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.surface,
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: theme.colors.border,
     marginBottom: 10,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
+    ...theme.shadows.small,
   },
   header: {
     flexDirection: 'row',
@@ -196,12 +178,12 @@ const styles = StyleSheet.create({
   studyName: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#1e293b',
+    color: theme.colors.text,
     marginBottom: 2,
   },
   modality: {
       fontSize: 12,
-      color: '#64748b',
+      color: theme.colors.textLight,
       fontWeight: '600',
   },
   badge: {
@@ -214,22 +196,22 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   reportContainer: {
-    backgroundColor: '#f8fafc',
+    backgroundColor: theme.colors.background,
     padding: 12,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#f1f5f9',
+    borderColor: theme.colors.border,
     marginTop: 8,
   },
   reportLabel: {
     fontSize: 12,
-    color: '#64748b',
+    color: theme.colors.textLight,
     fontWeight: 'bold',
     marginBottom: 4,
   },
   reportText: {
     fontSize: 14,
-    color: '#334155',
+    color: theme.colors.text,
     lineHeight: 20,
   },
   pacsButton: {
@@ -244,7 +226,7 @@ const styles = StyleSheet.create({
       borderColor: '#bae6fd',
   },
   pacsButtonText: {
-      color: '#0284c7',
+      color: theme.colors.primary,
       fontWeight: '600',
       marginLeft: 8,
   },
@@ -254,28 +236,28 @@ const styles = StyleSheet.create({
   },
   noteLabel: {
       fontSize: 12,
-      color: '#94a3b8',
+      color: theme.colors.textMuted,
       marginRight: 4,
   },
   noteValue: {
       fontSize: 12,
-      color: '#64748b',
+      color: theme.colors.textLight,
       fontStyle: 'italic',
       flex: 1,
   },
   footer: {
     marginTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#f1f5f9',
+    borderTopColor: theme.colors.border,
     paddingTop: 8,
   },
   date: {
     fontSize: 11,
-    color: '#94a3b8',
+    color: theme.colors.textMuted,
     marginBottom: 2,
   },
   error: {
-      color: '#ef4444',
+      color: theme.colors.error,
       textAlign: 'center',
       marginTop: 20,
   },
@@ -285,7 +267,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
       marginTop: 12,
-      color: '#94a3b8',
+      color: theme.colors.textMuted,
       fontSize: 16,
   }
 });

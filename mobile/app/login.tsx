@@ -14,6 +14,8 @@ import {
 import { useRouter } from "expo-router";
 import api, { setAuthToken, setUserInfo } from "../services/api";
 import { Ionicons } from "@expo/vector-icons";
+import { theme } from "../constants/theme";
+import { useAuth } from "../context/AuthContext";
 
 import { useTranslation } from "react-i18next";
 import { I18nManager } from "react-native";
@@ -22,6 +24,7 @@ import { useToast } from "../components/ToastContext";
 export default function LoginScreen() {
   const { t } = useTranslation();
   const { showToast } = useToast();
+  const { signIn } = useAuth();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -43,8 +46,10 @@ export default function LoginScreen() {
         // If not, we might need to decode the token or fetch profile
         if (response.data.user) {
             await setUserInfo(response.data.user);
+            await signIn(response.data.accessToken, response.data.user);
             
-            // Role-based redirection
+            // Role-based redirection is now handled inside AuthContext or we can do it here.
+            // But let's keep it here for now to ensure proper navigation
             const roles = response.data.user.roles || [];
             if (roles.includes('PHARMACIST')) {
                 router.replace("/pharmacy");
@@ -52,6 +57,7 @@ export default function LoginScreen() {
                 router.replace("/rounds");
             }
         } else {
+             await signIn(response.data.accessToken, {} as any);
              router.replace("/rounds"); 
         }
       } else {
@@ -74,7 +80,7 @@ export default function LoginScreen() {
       <StatusBar barStyle="dark-content" />
       <View style={styles.header}>
         <View style={styles.iconContainer}>
-           <Ionicons name="person" size={50} color="#0284c7" />
+           <Ionicons name="person" size={50} color={theme.colors.primary} />
         </View>
         <Text style={styles.title}>Welcome Back</Text>
         <Text style={styles.subtitle}>Sign in to continue</Text>
@@ -82,26 +88,26 @@ export default function LoginScreen() {
 
       <View style={styles.form}>
         <View style={styles.inputContainer}>
-          <Ionicons name="person-outline" size={20} color="#64748b" style={styles.inputIcon} />
+          <Ionicons name="person-outline" size={20} color={theme.colors.textLight} style={styles.inputIcon} />
           <TextInput
             style={[styles.input, {textAlign: I18nManager.isRTL ? 'right' : 'left'}]}
             placeholder={t('login.email')}
             value={username}
             onChangeText={setUsername}
             autoCapitalize="none"
-            placeholderTextColor="#94a3b8"
+            placeholderTextColor={theme.colors.textMuted}
           />
         </View>
 
         <View style={styles.inputContainer}>
-          <Ionicons name="lock-closed-outline" size={20} color="#64748b" style={styles.inputIcon} />
+          <Ionicons name="lock-closed-outline" size={20} color={theme.colors.textLight} style={styles.inputIcon} />
           <TextInput
             style={[styles.input, {textAlign: I18nManager.isRTL ? 'right' : 'left'}]}
             placeholder={t('login.password')}
             value={password}
             onChangeText={setPassword}
             secureTextEntry
-            placeholderTextColor="#94a3b8"
+            placeholderTextColor={theme.colors.textMuted}
           />
         </View>
 
@@ -129,7 +135,7 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f8fafc", // Slate 50
+    backgroundColor: theme.colors.background,
     justifyContent: "center",
   },
   header: {
@@ -145,22 +151,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 20,
     borderWidth: 4,
-    borderColor: '#fff',
-    shadowColor: "#0284c7",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    borderColor: theme.colors.surface,
+    ...theme.shadows.small,
   },
   title: {
     fontSize: 28,
     fontWeight: "800",
-    color: "#1e293b",
+    color: theme.colors.text,
     marginBottom: 5,
   },
   subtitle: {
     fontSize: 16,
-    color: "#64748b",
+    color: theme.colors.textLight,
   },
   form: {
     paddingHorizontal: 30,
@@ -168,12 +170,12 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.surface,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 12,
-    marginBottom: 16,
-    paddingHorizontal: 16,
+    borderColor: theme.colors.border,
+    borderRadius: theme.borderRadius.lg,
+    marginBottom: theme.sizes.md,
+    paddingHorizontal: theme.sizes.md,
     height: 56,
   },
   inputIcon: {
@@ -182,23 +184,19 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: 16,
-    color: '#334155',
+    color: theme.colors.text,
   },
   loginButton: {
-    backgroundColor: '#0284c7', // Sky 600
+    backgroundColor: theme.colors.primary,
     height: 56,
-    borderRadius: 12,
+    borderRadius: theme.borderRadius.lg,
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 20,
-    shadowColor: "#0284c7",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
+    ...theme.shadows.medium,
   },
   loginButtonText: {
-    color: '#fff',
+    color: theme.colors.surface,
     fontSize: 16,
     fontWeight: 'bold',
     letterSpacing: 1,
@@ -208,7 +206,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   footerText: {
-    color: '#94a3b8',
+    color: theme.colors.textMuted,
     fontSize: 14,
   },
 });

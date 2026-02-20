@@ -2,6 +2,27 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, TextInput, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../services/api';
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { useQueryClient } from '@tanstack/react-query';
+
+const numericStringRefinement = (min: number, max: number, message: string) => 
+  z.string().optional().refine(val => !val || (Number(val) >= min && Number(val) <= max), { message });
+
+const vitalSchema = z.object({
+  temperature: numericStringRefinement(30, 45, "حرارة غير منطقية"),
+  bpSystolic: numericStringRefinement(40, 250, "قيمة غير منطقية"),
+  bpDiastolic: numericStringRefinement(20, 150, "قيمة غير منطقية"),
+  pulse: numericStringRefinement(20, 300, "نبض غير منطقي"),
+  respRate: numericStringRefinement(5, 80, "قيمة غير منطقية"),
+  o2Sat: numericStringRefinement(50, 100, "يجب أن يكون بين 50 و 100"),
+  weight: z.string().optional(),
+  height: z.string().optional(),
+  note: z.string().optional(),
+});
+
+type VitalFormValues = z.infer<typeof vitalSchema>;
 
 interface AddVitalModalProps {
   visible: boolean;
@@ -12,37 +33,28 @@ interface AddVitalModalProps {
 
 const AddVitalModal: React.FC<AddVitalModalProps> = ({ visible, onClose, encounterId, onSuccess }) => {
   const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState({
-    temperature: '',
-    bpSystolic: '',
-    bpDiastolic: '',
-    pulse: '',
-    respRate: '',
-    o2Sat: '',
-    weight: '',
-    height: '',
-    note: '',
+  const queryClient = useQueryClient();
+  const { control, handleSubmit, reset, formState: { errors } } = useForm<VitalFormValues>({
+    resolver: zodResolver(vitalSchema),
+    defaultValues: {
+      temperature: '', bpSystolic: '', bpDiastolic: '', pulse: '', respRate: '', o2Sat: '', weight: '', height: '', note: ''
+    }
   });
 
-  const handleChange = (key: string, value: string) => {
-    setFormData(prev => ({ ...prev, [key]: value }));
-  };
-
-  const handleSubmit = async () => {
+  const onSubmit = async (data: VitalFormValues) => {
     setLoading(true);
     try {
       const payload: any = {};
       
-      // Convert non-empty strings to numbers
-      if (formData.temperature) payload.temperature = parseFloat(formData.temperature);
-      if (formData.bpSystolic) payload.bpSystolic = parseInt(formData.bpSystolic);
-      if (formData.bpDiastolic) payload.bpDiastolic = parseInt(formData.bpDiastolic);
-      if (formData.pulse) payload.pulse = parseInt(formData.pulse);
-      if (formData.respRate) payload.respRate = parseInt(formData.respRate);
-      if (formData.o2Sat) payload.o2Sat = parseInt(formData.o2Sat);
-      if (formData.weight) payload.weight = parseFloat(formData.weight);
-      if (formData.height) payload.height = parseFloat(formData.height);
-      if (formData.note) payload.note = formData.note;
+      if (data.temperature) payload.temperature = parseFloat(data.temperature);
+      if (data.bpSystolic) payload.bpSystolic = parseInt(data.bpSystolic);
+      if (data.bpDiastolic) payload.bpDiastolic = parseInt(data.bpDiastolic);
+      if (data.pulse) payload.pulse = parseInt(data.pulse);
+      if (data.respRate) payload.respRate = parseInt(data.respRate);
+      if (data.o2Sat) payload.o2Sat = parseInt(data.o2Sat);
+      if (data.weight) payload.weight = parseFloat(data.weight);
+      if (data.height) payload.height = parseFloat(data.height);
+      if (data.note) payload.note = data.note;
 
       if (Object.keys(payload).length === 0) {
         Alert.alert('تنبيه', 'يجب إدخال قيمة واحدة على الأقل');
@@ -50,25 +62,25 @@ const AddVitalModal: React.FC<AddVitalModalProps> = ({ visible, onClose, encount
         return;
       }
 
+      // Optimistic Update
+      const tempVital = {
+        id: Date.now(),
+        ...payload,
+        createdAt: new Date().toISOString(),
+        createdBy: { id: 0, fullName: "You (Pending)" }
+      };
+
+      queryClient.setQueryData(['vitals', encounterId], (oldData: any) => {
+        if (!Array.isArray(oldData)) return [tempVital];
+        return [tempVital, ...oldData];
+      });
+
       await api.createVitals(encounterId, payload);
       
-      // Reset form
-      setFormData({
-        temperature: '',
-        bpSystolic: '',
-        bpDiastolic: '',
-        pulse: '',
-        respRate: '',
-        o2Sat: '',
-        weight: '',
-        height: '',
-        note: '',
-      });
-      
+      reset();
       onSuccess();
       onClose();
       Alert.alert('نجاح', 'تم تسجيل العلامات الحيوية بنجاح');
-
     } catch (error: any) {
       console.error('Failed to create vitals:', error);
       Alert.alert('خطأ', error.response?.data?.message || 'فشل تسجيل العلامات الحيوية');
@@ -100,23 +112,25 @@ const AddVitalModal: React.FC<AddVitalModalProps> = ({ visible, onClose, encount
             <View style={styles.row}>
               <View style={styles.halfInput}>
                 <Text style={styles.label}>Diastolic</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="80"
-                  keyboardType="numeric"
-                  value={formData.bpDiastolic}
-                  onChangeText={(text) => handleChange('bpDiastolic', text)}
+                <Controller
+                  control={control}
+                  name="bpDiastolic"
+                  render={({ field: { onChange, value } }) => (
+                    <TextInput style={[styles.input, errors.bpDiastolic && styles.inputError]} placeholder="80" keyboardType="numeric" value={value} onChangeText={onChange} />
+                  )}
                 />
+                {errors.bpDiastolic && <Text style={styles.errorText}>{errors.bpDiastolic.message}</Text>}
               </View>
               <View style={styles.halfInput}>
                 <Text style={styles.label}>Systolic</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="120"
-                  keyboardType="numeric"
-                  value={formData.bpSystolic}
-                  onChangeText={(text) => handleChange('bpSystolic', text)}
+                <Controller
+                  control={control}
+                  name="bpSystolic"
+                  render={({ field: { onChange, value } }) => (
+                    <TextInput style={[styles.input, errors.bpSystolic && styles.inputError]} placeholder="120" keyboardType="numeric" value={value} onChangeText={onChange} />
+                  )}
                 />
+                {errors.bpSystolic && <Text style={styles.errorText}>{errors.bpSystolic.message}</Text>}
               </View>
             </View>
 
@@ -124,23 +138,25 @@ const AddVitalModal: React.FC<AddVitalModalProps> = ({ visible, onClose, encount
             <View style={styles.row}>
               <View style={styles.halfInput}>
                 <Text style={styles.label}>الحرارة (°C)</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="37.0"
-                  keyboardType="numeric"
-                  value={formData.temperature}
-                  onChangeText={(text) => handleChange('temperature', text)}
+                <Controller
+                  control={control}
+                  name="temperature"
+                  render={({ field: { onChange, value } }) => (
+                    <TextInput style={[styles.input, errors.temperature && styles.inputError]} placeholder="37.0" keyboardType="numeric" value={value} onChangeText={onChange} />
+                  )}
                 />
+                {errors.temperature && <Text style={styles.errorText}>{errors.temperature.message}</Text>}
               </View>
               <View style={styles.halfInput}>
                 <Text style={styles.label}>النبض (bpm)</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="75"
-                  keyboardType="numeric"
-                  value={formData.pulse}
-                  onChangeText={(text) => handleChange('pulse', text)}
+                <Controller
+                  control={control}
+                  name="pulse"
+                  render={({ field: { onChange, value } }) => (
+                    <TextInput style={[styles.input, errors.pulse && styles.inputError]} placeholder="75" keyboardType="numeric" value={value} onChangeText={onChange} />
+                  )}
                 />
+                {errors.pulse && <Text style={styles.errorText}>{errors.pulse.message}</Text>}
               </View>
             </View>
 
@@ -148,23 +164,25 @@ const AddVitalModal: React.FC<AddVitalModalProps> = ({ visible, onClose, encount
             <View style={styles.row}>
               <View style={styles.halfInput}>
                 <Text style={styles.label}>O2 Sat (%)</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="98"
-                  keyboardType="numeric"
-                  value={formData.o2Sat}
-                  onChangeText={(text) => handleChange('o2Sat', text)}
+                <Controller
+                  control={control}
+                  name="o2Sat"
+                  render={({ field: { onChange, value } }) => (
+                    <TextInput style={[styles.input, errors.o2Sat && styles.inputError]} placeholder="98" keyboardType="numeric" value={value} onChangeText={onChange} />
+                  )}
                 />
+                {errors.o2Sat && <Text style={styles.errorText}>{errors.o2Sat.message}</Text>}
               </View>
               <View style={styles.halfInput}>
                 <Text style={styles.label}>التنفس (/min)</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="16"
-                  keyboardType="numeric"
-                  value={formData.respRate}
-                  onChangeText={(text) => handleChange('respRate', text)}
+                <Controller
+                  control={control}
+                  name="respRate"
+                  render={({ field: { onChange, value } }) => (
+                    <TextInput style={[styles.input, errors.respRate && styles.inputError]} placeholder="16" keyboardType="numeric" value={value} onChangeText={onChange} />
+                  )}
                 />
+                {errors.respRate && <Text style={styles.errorText}>{errors.respRate.message}</Text>}
               </View>
             </View>
 
@@ -172,35 +190,33 @@ const AddVitalModal: React.FC<AddVitalModalProps> = ({ visible, onClose, encount
             <View style={styles.row}>
               <View style={styles.halfInput}>
                 <Text style={styles.label}>الطول (cm)</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="170"
-                  keyboardType="numeric"
-                  value={formData.height}
-                  onChangeText={(text) => handleChange('height', text)}
+                <Controller
+                  control={control}
+                  name="height"
+                  render={({ field: { onChange, value } }) => (
+                    <TextInput style={[styles.input, errors.height && styles.inputError]} placeholder="170" keyboardType="numeric" value={value} onChangeText={onChange} />
+                  )}
                 />
               </View>
               <View style={styles.halfInput}>
                 <Text style={styles.label}>الوزن (kg)</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="70"
-                  keyboardType="numeric"
-                  value={formData.weight}
-                  onChangeText={(text) => handleChange('weight', text)}
+                <Controller
+                  control={control}
+                  name="weight"
+                  render={({ field: { onChange, value } }) => (
+                    <TextInput style={[styles.input, errors.weight && styles.inputError]} placeholder="70" keyboardType="numeric" value={value} onChangeText={onChange} />
+                  )}
                 />
               </View>
             </View>
 
             <Text style={styles.label}>ملاحظات</Text>
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              placeholder="أي ملاحظات إضافية..."
-              multiline
-              numberOfLines={3}
-              textAlignVertical="top"
-              value={formData.note}
-              onChangeText={(text) => handleChange('note', text)}
+            <Controller
+              control={control}
+              name="note"
+              render={({ field: { onChange, value } }) => (
+                <TextInput style={[styles.input, styles.textArea]} placeholder="أي ملاحظات إضافية..." multiline numberOfLines={3} textAlignVertical="top" value={value} onChangeText={onChange} />
+              )}
             />
 
             <View style={{ height: 20 }} />
@@ -217,7 +233,7 @@ const AddVitalModal: React.FC<AddVitalModalProps> = ({ visible, onClose, encount
 
             <TouchableOpacity 
               style={[styles.btn, styles.btnSave]} 
-              onPress={handleSubmit}
+              onPress={handleSubmit(onSubmit)}
               disabled={loading}
             >
               {loading ? (
@@ -298,6 +314,15 @@ const styles = StyleSheet.create({
   },
   textArea: {
     textAlign: 'right', // Notes are likely Arabic text
+  },
+  inputError: {
+    borderColor: '#ef4444',
+  },
+  errorText: {
+    color: '#ef4444',
+    fontSize: 10,
+    marginTop: 2,
+    textAlign: 'right',
   },
   footer: {
     flexDirection: 'row',

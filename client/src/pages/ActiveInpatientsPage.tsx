@@ -25,6 +25,10 @@ type ActiveInpatient = {
       };
     };
   }[];
+  admission?: {
+    id: number;
+    primaryDiagnosis?: string;
+  };
 };
 
 // Local formatDate removed
@@ -61,22 +65,32 @@ export default function ActiveInpatientsPage() {
     loadData();
   }, []);
 
-  const handleDischarge = async (encounterId: number, patientName: string) => {
+  const handleDischarge = async (encounterId: number, patientName: string, admissionId?: number) => {
+    if (!admissionId) {
+      toast.error("بيانات الدخول (الإيواء) غير متوفرة لهذا المريض.");
+      return;
+    }
+
     if (
       !confirm(
-        `هل أنت متأكد من إجراء خروج للمريض: ${patientName}؟\nسيتم التحقق من الفواتير وتحرير السرير.`,
+        `هل أنت متأكد من إجراء خروج للمريض: ${patientName}؟\nسيتم مراجعة خطة الخروج الطبية والموقف المالي.`,
       )
     )
       return;
 
     try {
-      await apiClient.patch(`/encounters/${encounterId}/discharge`);
+      await apiClient.post(`/admissions/${admissionId}/discharge`, {});
       toast.success("تم إجراء الخروج بنجاح. السرير الآن في حالة 'تنظيف'.");
       loadData();
     } catch (err: any) {
       console.error(err);
       const msg = err?.response?.data?.message || "فشل إجراء الخروج.";
-      toast.error(msg);
+      if (msg.includes("خطة الخروج الطبية غير مكتملة")) {
+        toast.error("خطة الخروج الطبية غير مكتملة. سيتم تحويلك لصفحة تخطيط الخروج.");
+        navigate("/discharge-planning");
+      } else {
+        toast.error(msg);
+      }
     }
   };
 
@@ -179,7 +193,7 @@ export default function ActiveInpatientsPage() {
                       الملف الطبي
                     </button>
                     <button
-                      onClick={() => handleDischarge(p.id, p.patient.fullName)}
+                      onClick={() => handleDischarge(p.id, p.patient.fullName, p.admission?.id)}
                       className="px-3 py-1 bg-rose-600 hover:bg-rose-500 rounded text-xs text-white font-bold shadow-lg shadow-rose-900/20"
                     >
                       إجراء خروج

@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useCallback, memo } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import api from '../services/api';
-// @ts-ignore - Temporary fix for resolution issue if persistent, but likely just a touch needed
+import { useGetVitals } from '../hooks/api/useVitals';
 import AddVitalModal from './AddVitalModal';
+import { theme } from '../constants/theme';
 
 interface VitalSign {
   id: number;
@@ -86,31 +86,14 @@ const VitalItemCard = memo(({ item }: { item: VitalSign }) => (
 ));
 
 const VitalsList: React.FC<VitalsListProps> = ({ encounterId }) => {
-  const [vitals, setVitals] = useState<VitalSign[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
-
-  const fetchVitals = async () => {
-    try {
-      const data = await api.getVitals(encounterId);
-      setVitals(data);
-    } catch (error) {
-      console.error('Failed to fetch vitals:', error);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchVitals();
-  }, [encounterId]);
+  
+  const { data: vitals = [], isLoading: loading, refetch, isFetching } = useGetVitals(encounterId);
+  const refreshing = isFetching && !loading;
 
   const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    fetchVitals();
-  }, [encounterId]);
+    refetch();
+  }, [refetch]);
 
   const renderItem = useCallback(({ item }: { item: VitalSign }) => (
     <VitalItemCard item={item} />
@@ -147,7 +130,7 @@ const VitalsList: React.FC<VitalsListProps> = ({ encounterId }) => {
         visible={modalVisible}
         onClose={() => setModalVisible(false)}
         encounterId={encounterId}
-        onSuccess={fetchVitals}
+        onSuccess={() => refetch()}
       />
     </View>
   );
@@ -156,51 +139,47 @@ const VitalsList: React.FC<VitalsListProps> = ({ encounterId }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: theme.colors.background,
   },
   addButton: {
-    backgroundColor: '#0284c7',
+    backgroundColor: theme.colors.primary,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 12,
     margin: 16,
     borderRadius: 8,
-    elevation: 2,
+    ...theme.shadows.small,
   },
   addButtonText: {
-    color: 'white',
+    color: theme.colors.surface,
     fontSize: 16,
     fontWeight: 'bold',
     marginLeft: 8,
   },
   card: {
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.surface,
     borderRadius: 12,
     padding: 16,
     marginHorizontal: 16,
     marginBottom: 12,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
+    ...theme.shadows.small,
   },
   header: {
     flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     marginBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
+    borderBottomColor: theme.colors.border,
     paddingBottom: 8,
   },
   date: {
-    color: '#64748b',
+    color: theme.colors.textLight,
     fontSize: 12,
   },
   author: {
     fontWeight: 'bold',
-    color: '#0f172a',
+    color: theme.colors.text,
     fontSize: 14,
   },
   grid: {
@@ -210,7 +189,7 @@ const styles = StyleSheet.create({
   },
   gridItem: {
     width: '48%',
-    backgroundColor: '#f1f5f9',
+    backgroundColor: theme.colors.background,
     padding: 10,
     borderRadius: 8,
     marginBottom: 8,
@@ -219,12 +198,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   label: {
-    color: '#64748b',
+    color: theme.colors.textLight,
     fontSize: 12,
     marginBottom: 4,
   },
   value: {
-    color: '#0f172a',
+    color: theme.colors.text,
     fontSize: 16,
     fontWeight: 'bold',
   },
@@ -232,24 +211,24 @@ const styles = StyleSheet.create({
     marginTop: 8,
     paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: '#e2e8f0',
+    borderTopColor: theme.colors.border,
   },
   noteLabel: {
     fontSize: 12,
-    color: '#64748b',
+    color: theme.colors.textLight,
     fontWeight: 'bold',
     marginBottom: 4,
     textAlign: 'right',
   },
   noteText: {
-    color: '#334155',
+    color: theme.colors.text,
     fontSize: 14,
     textAlign: 'right',
   },
   emptyText: {
     textAlign: 'center',
     marginTop: 40,
-    color: '#94a3b8',
+    color: theme.colors.textMuted,
     fontSize: 16,
   },
 });

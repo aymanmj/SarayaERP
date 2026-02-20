@@ -2,6 +2,8 @@
 import React, { useEffect, useState, useCallback, memo } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, FlatList } from 'react-native';
 import api from '../services/api';
+import { theme } from '../constants/theme';
+import { useGetLabOrders } from '../hooks/api/useLabResults';
 
 type LabOrder = {
   id: number;
@@ -25,37 +27,26 @@ interface LabResultsListProps {
 }
 
 export default function LabResultsList({ encounterId, refreshTrigger }: LabResultsListProps) {
-  const [orders, setOrders] = useState<LabOrder[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { data: orders = [], isLoading: loading, error, refetch, isFetching } = useGetLabOrders(encounterId);
+  const refreshing = isFetching && !loading;
 
-  const fetchOrders = async () => {
-    if (!encounterId) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await api.getLabOrders(encounterId);
-      // Backend returns array directly based on controller
-      setOrders(Array.isArray(data) ? data : []); 
-    } catch (err) {
-      setError('Failed to load lab results');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const fetchOrders = useCallback(() => {
+    refetch();
+  }, [refetch]);
 
   useEffect(() => {
-    fetchOrders();
-  }, [encounterId, refreshTrigger]);
+    if (refreshTrigger) {
+      fetchOrders();
+    }
+  }, [refreshTrigger, fetchOrders]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'COMPLETED': return '#10b981'; // emerald-500
-      case 'PENDING': return '#f59e0b'; // amber-500
-      case 'IN_PROGRESS': return '#3b82f6'; // blue-500
-      case 'CANCELLED': return '#ef4444'; // red-500
-      default: return '#64748b'; // slate-500
+      case 'COMPLETED': return theme.colors.success;
+      case 'PENDING': return theme.colors.warning;
+      case 'IN_PROGRESS': return theme.colors.info;
+      case 'CANCELLED': return theme.colors.error;
+      default: return theme.colors.textLight;
     }
   };
 
@@ -106,7 +97,7 @@ const LabResultItem = memo(({ item }: { item: LabOrder }) => (
   }
 
   if (error) {
-    return <Text style={styles.error}>{error}</Text>;
+    return <Text style={styles.error}>{error.message}</Text>;
   }
 
   if (orders.length === 0) {
@@ -123,7 +114,7 @@ const LabResultItem = memo(({ item }: { item: LabOrder }) => (
       keyExtractor={(item) => item.id.toString()}
       renderItem={renderItem}
       contentContainerStyle={styles.container}
-      refreshing={loading}
+      refreshing={refreshing}
       onRefresh={fetchOrders}
     />
   );
@@ -132,21 +123,17 @@ const LabResultItem = memo(({ item }: { item: LabOrder }) => (
 const styles = StyleSheet.create({
   container: {
     paddingVertical: 10,
-    paddingHorizontal: 2, // Add some horizontal padding if needed
+    paddingHorizontal: 2, 
     paddingBottom: 20
   },
   card: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.sizes.md,
+    padding: theme.sizes.md,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: theme.colors.border,
     marginBottom: 10,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
+    ...theme.shadows.small,
   },
   header: {
     flexDirection: 'row',
@@ -157,7 +144,7 @@ const styles = StyleSheet.create({
   testName: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#1e293b',
+    color: theme.colors.text,
   },
   badge: {
     paddingHorizontal: 8,
@@ -171,35 +158,35 @@ const styles = StyleSheet.create({
   resultContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f8fafc',
+    backgroundColor: theme.colors.background,
     padding: 12,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#f1f5f9',
+    borderColor: theme.colors.border,
   },
   resultLabel: {
     fontSize: 14,
-    color: '#64748b',
+    color: theme.colors.textLight,
     marginRight: 8,
   },
   resultValue: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#0f172a',
+    color: theme.colors.darkBackground,
   },
   footer: {
     marginTop: 10,
     borderTopWidth: 1,
-    borderTopColor: '#f1f5f9',
+    borderTopColor: theme.colors.border,
     paddingTop: 8,
   },
   date: {
     fontSize: 11,
-    color: '#94a3b8',
+    color: theme.colors.textMuted,
     textAlign: 'left',
   },
   error: {
-      color: '#ef4444',
+      color: theme.colors.error,
       textAlign: 'center',
       marginTop: 20,
   },
@@ -208,7 +195,7 @@ const styles = StyleSheet.create({
       alignItems: 'center',
   },
   emptyText: {
-      color: '#94a3b8',
+      color: theme.colors.textMuted,
       fontStyle: 'italic',
   }
 });

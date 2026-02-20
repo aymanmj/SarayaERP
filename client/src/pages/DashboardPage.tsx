@@ -294,8 +294,8 @@ export function DashboardPage() {
               badge="جديدة"
             />
             <QuickActionCard
-              title="تخطيط التفريغ"
-              description="إدارة عملية تفريغ المرضى"
+              title="تخطيط الخروج"
+              description="إدارة عملية خروج المرضى"
               icon={UserGroupIcon}
               href="/discharge-planning"
               colorClass="text-green-400"

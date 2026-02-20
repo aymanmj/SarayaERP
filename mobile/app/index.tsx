@@ -3,27 +3,33 @@ import { View, Text, StyleSheet, TouchableOpacity, StatusBar, ImageBackground, D
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { getAuthToken } from '../services/api';
+import { theme } from '../constants/theme';
+import { useAuth } from '../context/AuthContext';
 
 const { width } = Dimensions.get('window');
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { user, isLoading } = useAuth();
 
   useEffect(() => {
-    checkLogin();
-  }, []);
-
-  const checkLogin = async () => {
-    try {
-      const token = await getAuthToken();
-      if (token) {
-        router.replace('/rounds');
-      }
-    } catch (e) {
-      console.log('Error checking token', e);
+    if (!isLoading && user) {
+        const roles = user.roles || [];
+        if (roles.includes('PHARMACIST')) {
+            router.replace("/pharmacy");
+        } else {
+            router.replace("/rounds");
+        }
     }
-  };
+  }, [user, isLoading]);
+
+  if (isLoading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -31,7 +37,7 @@ export default function HomeScreen() {
       
       {/* Background Gradient */}
       <LinearGradient
-        colors={['#0f172a', '#1e293b', '#0369a1']}
+        colors={[theme.colors.darkBackground, theme.colors.darkSurface, theme.colors.primaryDark]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.background}
@@ -45,10 +51,10 @@ export default function HomeScreen() {
         <View style={styles.logoSection}>
           <View style={styles.iconContainer}>
             <LinearGradient
-              colors={['#38bdf8', '#0284c7']}
+              colors={[theme.colors.primaryLight, theme.colors.primary]}
               style={styles.iconGradient}
             >
-              <Ionicons name="fitness" size={64} color="#fff" />
+              <Ionicons name="fitness" size={64} color={theme.colors.surface} />
             </LinearGradient>
           </View>
           
@@ -63,13 +69,13 @@ export default function HomeScreen() {
             activeOpacity={0.9}
           >
             <LinearGradient
-              colors={['#0ea5e9', '#0284c7']}
+              colors={[theme.colors.secondary, theme.colors.primary]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.buttonGradient}
             >
               <Text style={styles.buttonText}>Get Started</Text>
-              <Ionicons name="arrow-forward" size={20} color="#fff" />
+              <Ionicons name="arrow-forward" size={20} color={theme.colors.surface} />
             </LinearGradient>
           </TouchableOpacity>
           
@@ -83,7 +89,7 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f172a',
+    backgroundColor: theme.colors.darkBackground,
   },
   background: {
     position: 'absolute',
@@ -143,16 +149,16 @@ const styles = StyleSheet.create({
   appName: {
     fontSize: 48,
     fontWeight: '800',
-    color: '#fff',
+    color: theme.colors.surface,
     letterSpacing: -1,
     marginBottom: 8,
   },
   appNameHighlight: {
-    color: '#38bdf8',
+    color: theme.colors.primaryLight,
   },
   tagline: {
     fontSize: 16,
-    color: '#94a3b8',
+    color: theme.colors.textMuted,
     letterSpacing: 0.5,
     textAlign: 'center',
   },
@@ -178,13 +184,13 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   buttonText: {
-    color: '#fff',
+    color: theme.colors.surface,
     fontSize: 18,
     fontWeight: '700',
     letterSpacing: 0.5,
   },
   versionText: {
-    color: '#64748b',
+    color: theme.colors.textLight,
     fontSize: 12,
   },
 });

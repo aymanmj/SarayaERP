@@ -9,71 +9,69 @@ import StorageService from '../../services/StorageService'; // Explicit import t
 import { useTranslation } from 'react-i18next';
 import { I18nManager } from 'react-native';
 import SkeletonLoader from '../../components/SkeletonLoader';
+import { usePharmacyWorklist } from '../../hooks/api/usePharmacyWorklist';
 
 export default function PharmacyDashboard() {
   const { t } = useTranslation();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'worklist' | 'stock'>('worklist');
-  const [loading, setLoading] = useState(false);
-  const [worklist, setWorklist] = useState<any[]>([]);
   const [stockList, setStockList] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
+  const [loadingStock, setLoadingStock] = useState(false);
+
+  // Worklist uses Infinite Query
+  const { 
+    data: worklistData, 
+    fetchNextPage, 
+    hasNextPage, 
+    isFetchingNextPage, 
+    isLoading: loadingWorklist, 
+    refetch,
+    isRefetching
+  } = usePharmacyWorklist();
+
+  // Flatten infinite query pages
+  const worklist = worklistData?.pages.flat() || [];
 
   useEffect(() => {
-    setPage(1);
-    loadData(1);
+    if (activeTab === 'stock') {
+      loadStock();
+    }
   }, [activeTab]);
 
-  const loadData = async (pageNum = 1) => {
-    if (pageNum === 1) setLoading(true);
+  const loadStock = async () => {
+    setLoadingStock(true);
     try {
-      if (activeTab === 'worklist') {
-        const limit = 10;
-        const data = await api.getPharmacyWorklist(pageNum, limit);
-        if (pageNum === 1) {
-          setWorklist(data || []);
-        } else {
-          setWorklist(prev => [...prev, ...(data || [])]);
-        }
-        if ((data || []).length < limit) {
-          setHasMore(false);
-        } else {
-          setHasMore(true);
-        }
-      } else {
-        const data = await api.getDrugStock(searchQuery);
-        setStockList(data || []);
-      }
+      const data = await api.getDrugStock(searchQuery);
+      setStockList(data || []);
     } catch (error) {
-      console.error("Failed to load pharmacy data", error);
+      console.error("Failed to load stock data", error);
     } finally {
-      if (pageNum === 1) {
-        setLoading(false);
-        setRefreshing(false);
-      }
+      setLoadingStock(false);
+      setRefreshing(false);
     }
   };
 
-  const onRefresh = () => {
+  const onRefresh = async () => {
     setRefreshing(true);
-    setPage(1);
-    loadData(1);
+    if (activeTab === 'worklist') {
+      await refetch();
+      setRefreshing(false);
+    } else {
+      loadStock();
+    }
   };
 
   const handleLoadMore = () => {
-    if (activeTab === 'worklist' && !loading && hasMore) {
-      const nextPage = page + 1;
-      setPage(nextPage);
-      loadData(nextPage);
+    if (activeTab === 'worklist' && hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
     }
   };
 
   const handleSearch = () => {
      if (activeTab === 'stock') {
-         loadData();
+         loadStock();
      }
   };
 
@@ -159,7 +157,7 @@ const StockCard = memo(({ item }: { item: any }) => (
       )}
 
       {/* Content */}
-      {loading && !refreshing ? (
+      {(activeTab === 'worklist' ? loadingWorklist : loadingStock) && !refreshing && !isRefetching ? (
           <View style={styles.list}>
               {[1, 2, 3].map((key) => (
                   <View key={key} style={styles.card}>
@@ -182,7 +180,7 @@ const StockCard = memo(({ item }: { item: any }) => (
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
             onEndReached={handleLoadMore}
             onEndReachedThreshold={0.5}
-            ListFooterComponent={activeTab === 'worklist' && hasMore && !loading ? <ActivityIndicator style={{marginTop: 10}} /> : null}
+            ListFooterComponent={activeTab === 'worklist' && isFetchingNextPage ? <ActivityIndicator style={{marginTop: 10}} /> : null}
             initialNumToRender={10}
             maxToRenderPerBatch={10}
             windowSize={5}

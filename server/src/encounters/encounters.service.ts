@@ -165,6 +165,10 @@ export class EncountersService {
         throw new NotFoundException('الحالة غير موجودة.');
       }
 
+      if (encounter.type === EncounterType.IPD) {
+        throw new BadRequestException('حالات التنويم (الإيواء) يجب إغلاقها استكمال "خطة الخروج الطبية" أولاً ولضمان الفوترة التلقائية لرسوم السرير.');
+      }
+
       if (encounter.status !== EncounterStatus.OPEN) {
         throw new BadRequestException('الحالة مغلقة بالفعل.');
       }
@@ -295,7 +299,7 @@ export class EncountersService {
           take: 1,
         },
         admission: {
-            select: { primaryDiagnosis: true }
+            select: { id: true, primaryDiagnosis: true }
         }
       },
       orderBy: {

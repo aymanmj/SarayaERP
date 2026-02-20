@@ -15,10 +15,14 @@ import { CreateAdmissionDto } from './dto/create-admission.dto';
 import { UpdateAdmissionDto } from './dto/update-admission.dto';
 import { CreateDischargePlanningDto } from './dto/create-discharge-planning.dto';
 import { CreateBedTransferDto } from './dto/create-bed-transfer.dto';
+import { SystemSettingsService } from '../system-settings/system-settings.service';
 
 @Injectable()
 export class AdmissionService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private systemSettings: SystemSettingsService,
+  ) {}
 
   // ==================== ADMISSION MANAGEMENT ====================
 
@@ -455,7 +459,11 @@ export class AdmissionService {
   ) {
     const admission = await this.prisma.admission.findFirst({
       where: { id: admissionId, hospitalId },
-      include: { bed: true, encounter: true },
+      include: { 
+        bed: { include: { ward: true } }, 
+        encounter: { include: { invoices: true } },
+        dischargePlanning: true
+      },
     });
 
     if (!admission) {
@@ -466,11 +474,75 @@ export class AdmissionService {
       throw new BadRequestException('Patient is already discharged');
     }
 
+    // 1. Medical Clearance
+    if (!admission.dischargePlanning) {
+      throw new BadRequestException('لا يمكن إجراء الخروج: خطة الخروج الطبية غير موجودة. يرجى التنسيق مع الطبيب لإنشاء الخطة أولاً.');
+    }
+
     // Calculate length of stay
     const lengthOfStay = Math.floor(
       (new Date().getTime() - admission.actualAdmissionDate.getTime()) /
         (1000 * 60 * 60 * 24),
     );
+    const daysToCharge = Math.max(1, lengthOfStay);
+
+    // 2. Room Service Generation
+    if (admission.bed?.ward?.serviceItemId) {
+      const wardServiceId = admission.bed.ward.serviceItemId;
+      const existingCharges = await this.prisma.encounterCharge.findMany({
+        where: { encounterId: admission.encounterId, serviceItemId: wardServiceId }
+      });
+      const billedDays = existingCharges.reduce((sum, c) => sum + Number(c.quantity), 0);
+      const remainingDays = daysToCharge - billedDays;
+      
+      if (remainingDays > 0) {
+        const wardService = await this.prisma.serviceItem.findUnique({
+          where: { id: wardServiceId }
+        });
+        if (wardService) {
+          await this.prisma.encounterCharge.create({
+            data: {
+              hospitalId,
+              encounterId: admission.encounterId,
+              serviceItemId: wardServiceId,
+              sourceType: 'BED',
+              quantity: remainingDays,
+              unitPrice: wardService.defaultPrice,
+              totalAmount: Number(wardService.defaultPrice) * remainingDays,
+              createdAt: new Date(),
+            }
+          });
+        }
+      }
+    }
+
+    // 3. Financial Clearance
+    const debtLimit = await this.systemSettings.getNumber(hospitalId, 'billing.debtLimit', 0.01);
+    
+    let totalPatientDebt = 0;
+    for (const inv of admission.encounter.invoices) {
+      if (inv.status === 'CANCELLED') continue;
+      const patientShare = Number(inv.patientShare);
+      const paid = Number(inv.paidAmount);
+      const remaining = patientShare - paid;
+      if (remaining > debtLimit) totalPatientDebt += remaining;
+    }
+
+    if (totalPatientDebt > debtLimit) {
+      throw new BadRequestException(
+        `لا يمكن إجراء الخروج. يوجد مستحقات مالية على المريض بقيمة ${totalPatientDebt.toFixed(3)} د.ل. الحد المسموح به هو ${debtLimit} د.ل. يرجى تسوية الفواتير أولاً.`
+      );
+    }
+
+    const uninvoicedCharges = await this.prisma.encounterCharge.count({
+      where: { encounterId: admission.encounterId, invoiceId: null },
+    });
+
+    if (uninvoicedCharges > 0) {
+      throw new BadRequestException(
+        `لا يمكن الخروج وجود مستحقات ومطالبات غير مسددة (${uninvoicedCharges} بند). يرجى مراجعة الاستقبال أو الحسابات لإصدار التسوية المالية أولاً.`
+      );
+    }
 
     // Update admission
     const updatedAdmission = await this.prisma.admission.update({
@@ -478,10 +550,10 @@ export class AdmissionService {
       data: {
         admissionStatus: AdmissionStatus.DISCHARGED,
         dischargeDate: new Date(),
-        dischargeDisposition: dischargeData.dischargeDisposition,
-        dischargeInstructions: dischargeData.dischargeInstructions,
-        followUpRequired: dischargeData.followUpRequired || false,
-        followUpInstructions: dischargeData.followUpInstructions,
+        dischargeDisposition: dischargeData?.dischargeDisposition || admission.dischargePlanning?.dischargeDisposition || 'HOME',
+        dischargeInstructions: dischargeData?.dischargeInstructions || admission.dischargePlanning?.followUpInstructions,
+        followUpRequired: dischargeData?.followUpRequired ?? admission.followUpRequired ?? false,
+        followUpInstructions: dischargeData?.followUpInstructions ?? admission.dischargePlanning?.followUpInstructions,
         actualCost: dischargeData.actualCost,
         lengthOfStay,
       },
@@ -506,7 +578,7 @@ export class AdmissionService {
     // Close encounter
     await this.prisma.encounter.update({
       where: { id: admission.encounterId },
-      data: { status: 'CLOSED' },
+      data: { status: 'CLOSED', dischargeDate: new Date() },
     });
 
     // Create discharge note

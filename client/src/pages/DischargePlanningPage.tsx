@@ -168,7 +168,7 @@ export default function DischargePlanningPage() {
         notes: item.notes
       })));
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || 'فشل تحميل خطط التفريغ');
+      toast.error(error?.response?.data?.message || 'فشل تحميل خطط الخروج');
     } finally {
       setLoading(false);
     }
@@ -192,7 +192,7 @@ export default function DischargePlanningPage() {
         notes: formData.notes
       });
       
-      toast.success('تم إنشاء خطة التفريغ بنجاح');
+      toast.success('تم إنشاء خطة الخروج بنجاح');
       setShowCreateModal(false);
       setFormData({
         admissionId: '',
@@ -206,30 +206,31 @@ export default function DischargePlanningPage() {
       });
       loadDischargePlans();
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || 'فشل إنشاء خطة التفريغ');
+      toast.error(error?.response?.data?.message || 'فشل إنشاء خطة الخروج');
     }
   };
 
   const handleUpdatePlanStatus = async (planId: number, newStatus: string) => {
     try {
-      // استخدام endpoint الموجود في admissions controller
       if (newStatus === 'COMPLETED') {
-        await apiClient.post(`/admissions/${planId}/discharge`, {
-          dischargeDate: new Date().toISOString(),
-          dischargeType: 'ROUTINE',
-          notes: 'تم إكمال خطة التفريغ'
+        // تحديث الخطة أولاً ثم محاولة الخروج (Discharge) لتطبيق التسوية المالية 
+        await apiClient.post(`/admissions/${planId}/discharge-planning`, {
+          status: 'COMPLETED'
         });
+        
+        await apiClient.post(`/admissions/${planId}/discharge`, {});
+        toast.success('تم إكمال الخطة وإجراء الخروج بنجاح. السرير الآن في حالة تنظيف.');
       } else {
         // تحديث حالة الإدخال
-        await apiClient.patch(`/admissions/${planId}`, {
-          status: newStatus === 'IN_PROGRESS' ? 'ACTIVE' : 'ACTIVE'
+        await apiClient.post(`/admissions/${planId}/discharge-planning`, {
+          status: newStatus
         });
+        toast.success('تم تحديث حالة الخطة بنجاح');
       }
       
-      toast.success('تم تحديث حالة الخطة بنجاح');
       loadDischargePlans();
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || 'فشل تحديث حالة الخطة');
+      toast.error(error?.response?.data?.message || 'فشل النظام في إنهاء الخطة. تأكد من استيفاءك لمتطلبات التسوية المالية.');
     }
   };
 
@@ -290,16 +291,16 @@ export default function DischargePlanningPage() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold mb-1">تخطيط التفريغ</h1>
+          <h1 className="text-2xl font-bold mb-1">تخطيط الخروج</h1>
           <p className="text-sm text-slate-400">
-            إدارة خطط تفريغ المرضى وضمان انتقال آمن للرعاية
+            إدارة خطط خروج المرضى وضمان انتقال آمن للرعاية
           </p>
         </div>
         <button
           onClick={() => setShowCreateModal(true)}
           className="px-6 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold shadow-lg shadow-sky-500/20 transition-all"
         >
-          + إنشاء خطة تفريغ
+          + إنشاء خطة خروج
         </button>
       </div>
 
@@ -384,7 +385,7 @@ export default function DischargePlanningPage() {
               <tr>
                 <th className="px-4 py-3 text-right text-sm font-medium">المريض</th>
                 <th className="px-4 py-3 text-right text-sm font-medium">القسم</th>
-                <th className="px-4 py-3 text-right text-sm font-medium">تاريخ التفريغ</th>
+                <th className="px-4 py-3 text-right text-sm font-medium">تاريخ الخروج</th>
                 <th className="px-4 py-3 text-right text-sm font-medium">الوجهة</th>
                 <th className="px-4 py-3 text-right text-sm font-medium">الحالة</th>
                 <th className="px-4 py-3 text-right text-sm font-medium">المتبقي</th>
@@ -401,7 +402,7 @@ export default function DischargePlanningPage() {
               ) : plans.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-4 py-8 text-center text-slate-500">
-                    لا توجد خطط تفريغ
+                    لا توجد خطط خروج
                   </td>
                 </tr>
               ) : (
@@ -493,7 +494,7 @@ export default function DischargePlanningPage() {
               </div>
               
               <div>
-                <label className="block text-sm font-medium mb-2">تاريخ التفريغ المخطط</label>
+                <label className="block text-sm font-medium mb-2">تاريخ الخروج المخطط</label>
                 <input
                   type="date"
                   value={formData.plannedDischargeDate}
@@ -503,7 +504,7 @@ export default function DischargePlanningPage() {
               </div>
               
               <div>
-                <label className="block text-sm font-medium mb-2">وجهة التفريغ</label>
+                <label className="block text-sm font-medium mb-2">وجهة الخروج</label>
                 <select
                   value={formData.dischargeDisposition}
                   onChange={(e) => setFormData({...formData, dischargeDisposition: e.target.value as any})}
@@ -585,7 +586,7 @@ export default function DischargePlanningPage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-slate-800 rounded-xl p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-start mb-4">
-              <h3 className="text-xl font-bold">تفاصيل خطة التفريغ</h3>
+              <h3 className="text-xl font-bold">تفاصيل خطة الخروج</h3>
               <button
                 onClick={() => setShowDetailsModal(false)}
                 className="text-slate-400 hover:text-slate-200"
@@ -620,10 +621,10 @@ export default function DischargePlanningPage() {
               
               {/* Discharge Plan */}
               <div className="bg-slate-700/50 rounded-lg p-4 md:col-span-2">
-                <h4 className="font-semibold mb-3">خطة التفريغ</h4>
+                <h4 className="font-semibold mb-3">خطة الخروج</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                   <div>
-                    <span className="text-slate-400">تاريخ التفريغ المخطط:</span>
+                    <span className="text-slate-400">تاريخ الخروج المخطط:</span>
                     <div className="font-medium">
                       {selectedPlan.plannedDischargeDate 
                         ? format(new Date(selectedPlan.plannedDischargeDate), 'dd/MM/yyyy', { locale: ar })
