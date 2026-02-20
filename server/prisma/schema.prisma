@@ -99,6 +99,7 @@ model Department {
   encounters       Encounter[]
   purchaseRequests PurchaseRequest[]
   users            User[]
+  wards            Ward[]
 }
 
 model Specialty {
@@ -256,29 +257,29 @@ model User {
   userRoles                 UserRole[]
   visits                    Visit[]                    @relation("VisitDoctor")
   vitalSigns                VitalSign[]
-  
+
   // Admission Relations
-  admittingAdmissions       Admission[]                @relation("AdmittingDoctor")
-  primaryPhysicianAdmissions Admission[]               @relation("PrimaryPhysician")
-  referringAdmissions       Admission[]                @relation("ReferringDoctor")
-  attendingNurseAdmissions  Admission[]                @relation("AttendingNurse")
-  createdAdmissions         Admission[]                @relation("AdmissionCreator")
-  updatedAdmissions         Admission[]                @relation("AdmissionUpdater")
-  admissionNotes            AdmissionNote[]
-  
+  admittingAdmissions        Admission[]     @relation("AdmittingDoctor")
+  primaryPhysicianAdmissions Admission[]     @relation("PrimaryPhysician")
+  referringAdmissions        Admission[]     @relation("ReferringDoctor")
+  attendingNurseAdmissions   Admission[]     @relation("AttendingNurse")
+  createdAdmissions          Admission[]     @relation("AdmissionCreator")
+  updatedAdmissions          Admission[]     @relation("AdmissionUpdater")
+  admissionNotes             AdmissionNote[]
+
   // Discharge Planning Relations
-  dischargeCaseManaged     DischargePlanning[]         @relation("DischargeCaseManager")
-  dischargeSocialWorked     DischargePlanning[]         @relation("DischargeSocialWorker")
-  dischargeFollowUpDoctor   DischargePlanning[]         @relation("DischargeFollowUpDoctor")
-  createdDischargePlanning  DischargePlanning[]         @relation("DischargeCreator")
-  
+  dischargeCaseManaged     DischargePlanning[] @relation("DischargeCaseManager")
+  dischargeSocialWorked    DischargePlanning[] @relation("DischargeSocialWorker")
+  dischargeFollowUpDoctor  DischargePlanning[] @relation("DischargeFollowUpDoctor")
+  createdDischargePlanning DischargePlanning[] @relation("DischargeCreator")
+
   // Bed Transfer Relations
-  requestedBedTransfers     BedTransfer[]               @relation("TransferRequestedBy")
-  approvedBedTransfers      BedTransfer[]               @relation("TransferApprovedBy")
-  completedBedTransfers     BedTransfer[]               @relation("TransferCompletedBy")
-  
+  requestedBedTransfers BedTransfer[] @relation("TransferRequestedBy")
+  approvedBedTransfers  BedTransfer[] @relation("TransferApprovedBy")
+  completedBedTransfers BedTransfer[] @relation("TransferCompletedBy")
+
   // Push Notifications
-  devices                   UserDevice[]
+  devices UserDevice[]
 }
 
 model RefreshToken {
@@ -373,19 +374,19 @@ model Patient {
   emailHash          String? @unique
   mrnHash            String? @unique
 
+  // Relations
+  admissions       Admission[]
+  obstetricHistory ObstetricHistory?
+  birthRecord      BabyProfile?      @relation("BabyPatient")
+
+  // Mother-Child Linkage
+  motherId Int?
+  mother   Patient?  @relation("MotherChild", fields: [motherId], references: [id])
+  children Patient[] @relation("MotherChild")
+
   @@index([hospitalId, phone])
   @@index([hospitalId, fullName])
   @@index([nationalId])
-  
-  // Relations
-  admissions        Admission[]
-  obstetricHistory  ObstetricHistory?
-  birthRecord       BabyProfile?       @relation("BabyPatient")
-  
-  // Mother-Child Linkage
-  motherId          Int?
-  mother            Patient?           @relation("MotherChild", fields: [motherId], references: [id])
-  children          Patient[]          @relation("MotherChild")
 }
 
 model PatientAllergy {
@@ -663,37 +664,39 @@ model Ward {
   isActive      Boolean      @default(true)
   type          String?
   serviceItemId Int?
+  departmentId  Int?
   beds          Bed[]
   rooms         Room[]
   admissions    Admission[]
   hospital      Hospital     @relation(fields: [hospitalId], references: [id])
   serviceItem   ServiceItem? @relation(fields: [serviceItemId], references: [id])
+  department    Department?  @relation(fields: [departmentId], references: [id])
 }
 
 model Room {
-  id         Int      @id @default(autoincrement())
+  id         Int         @id @default(autoincrement())
   wardId     Int
   hospitalId Int
-  isActive   Boolean  @default(true)
+  isActive   Boolean     @default(true)
   roomNumber String
   beds       Bed[]
   admissions Admission[]
-  hospital   Hospital @relation(fields: [hospitalId], references: [id])
-  ward       Ward     @relation(fields: [wardId], references: [id])
+  hospital   Hospital    @relation(fields: [hospitalId], references: [id])
+  ward       Ward        @relation(fields: [wardId], references: [id])
 }
 
 model Bed {
-  id          Int             @id @default(autoincrement())
-  roomId      Int
-  status      BedStatus       @default(AVAILABLE)
-  bedNumber   String
-  hospitalId  Int
-  isActive    Boolean         @default(true)
-  wardId      Int
-  hospital    Hospital        @relation(fields: [hospitalId], references: [id])
-  room        Room            @relation(fields: [roomId], references: [id])
-  ward        Ward            @relation(fields: [wardId], references: [id])
-  assignments BedAssignment[]
+  id           Int             @id @default(autoincrement())
+  roomId       Int
+  status       BedStatus       @default(AVAILABLE)
+  bedNumber    String
+  hospitalId   Int
+  isActive     Boolean         @default(true)
+  wardId       Int
+  hospital     Hospital        @relation(fields: [hospitalId], references: [id])
+  room         Room            @relation(fields: [roomId], references: [id])
+  ward         Ward            @relation(fields: [wardId], references: [id])
+  assignments  BedAssignment[]
   admissions   Admission[]
   transferFrom BedTransfer[]   @relation("TransferFromBed")
   transferTo   BedTransfer[]   @relation("TransferToBed")
@@ -732,7 +735,7 @@ model Product {
   updatedAt            DateTime              @updatedAt
   expenseAccountId     Int?
   version              Int                   @default(1)
-  rxNormCode           String?               // Standard RxNorm Code
+  rxNormCode           String? // Standard RxNorm Code
   assets               Asset[]
   dispenseItems        DispenseItem[]
   grnItems             GoodsReceiptItem[]
@@ -825,52 +828,52 @@ model PurchaseOrderItem {
 // ==========================================
 
 model ObstetricHistory {
-  id               Int      @id @default(autoincrement())
-  patientId        Int      @unique
-  gravida          Int      @default(0) // Total pregnancies
-  para             Int      @default(0) // Viable births
-  abortion         Int      @default(0) // Miscarriages/Abortions
-  prevCSCount      Int      @default(0) // Previous C-Sections (Critical for pricing)
+  id               Int       @id @default(autoincrement())
+  patientId        Int       @unique
+  gravida          Int       @default(0) // Total pregnancies
+  para             Int       @default(0) // Viable births
+  abortion         Int       @default(0) // Miscarriages/Abortions
+  prevCSCount      Int       @default(0) // Previous C-Sections (Critical for pricing)
   lastDeliveryDate DateTime?
-  bloodGroup       String?  // e.g., "A+", "O-"
-  riskFactors      String?  // Text description of risks
+  bloodGroup       String? // e.g., "A+", "O-"
+  riskFactors      String? // Text description of risks
   notes            String?
-  updatedAt        DateTime @updatedAt
-  
-  patient          Patient  @relation(fields: [patientId], references: [id])
+  updatedAt        DateTime  @updatedAt
+
+  patient Patient @relation(fields: [patientId], references: [id])
 }
 
 model DeliveryAdmission {
-  id              Int       @id @default(autoincrement())
-  encounterId     Int       @unique
-  deliveryMethod  DeliveryMethod
-  inductionMethod InductionMethod @default(NONE)
+  id               Int              @id @default(autoincrement())
+  encounterId      Int              @unique
+  deliveryMethod   DeliveryMethod
+  inductionMethod  InductionMethod  @default(NONE)
   placentaDelivery PlacentaDelivery @default(SPONTANEOUS)
-  episiotomy      Boolean   @default(false)
-  perinealTear    PerinealTear @default(NONE)
-  bloodLoss       Int?      // in ml
-  babyCount       Int       @default(1)
-  notes           String?
-  
-  encounter       Encounter @relation(fields: [encounterId], references: [id])
-  babies          BabyProfile[]
+  episiotomy       Boolean          @default(false)
+  perinealTear     PerinealTear     @default(NONE)
+  bloodLoss        Int? // in ml
+  babyCount        Int              @default(1)
+  notes            String?
+
+  encounter Encounter     @relation(fields: [encounterId], references: [id])
+  babies    BabyProfile[]
 }
 
 model BabyProfile {
-  id                  Int               @id @default(autoincrement())
+  id                  Int      @id @default(autoincrement())
   deliveryAdmissionId Int
   gender              Gender
-  weight              Decimal?          @db.Decimal(5, 3) // kg
+  weight              Decimal? @db.Decimal(5, 3) // kg
   birthTime           DateTime
   apgarScore1         Int?
   apgarScore5         Int?
   notes               String?
-  
+
   // Link to a real patient file if created
-  generatedPatientId  Int?              @unique
-  
-  deliveryAdmission   DeliveryAdmission @relation(fields: [deliveryAdmissionId], references: [id])
-  generatedPatient    Patient?          @relation("BabyPatient", fields: [generatedPatientId], references: [id])
+  generatedPatientId Int? @unique
+
+  deliveryAdmission DeliveryAdmission @relation(fields: [deliveryAdmissionId], references: [id])
+  generatedPatient  Patient?          @relation("BabyPatient", fields: [generatedPatientId], references: [id])
 }
 
 enum DeliveryMethod {
@@ -1192,8 +1195,6 @@ model SystemAccountMapping {
   accountingEntry   AccountingEntry? @relation(fields: [accountingEntryId], references: [id])
   hospital          Hospital         @relation(fields: [hospitalId], references: [id])
 
-
-
   @@unique([hospitalId, key])
 }
 
@@ -1492,7 +1493,7 @@ model DiagnosisCode {
   nameEn             String
   nameAr             String?
   isActive           Boolean              @default(true)
-  icd10Code          String?              // Standard ICD-10 Code
+  icd10Code          String? // Standard ICD-10 Code
   encounterDiagnoses EncounterDiagnosis[]
   visitDiagnoses     VisitDiagnosis[]
 
@@ -2632,116 +2633,116 @@ enum IsolationType {
 
 // Comprehensive Admission Management Model
 model Admission {
-  id                    Int                  @id @default(autoincrement())
-  hospitalId            Int
-  patientId             Int
-  encounterId           Int                  @unique
-  admissionType         AdmissionType
-  admissionStatus       AdmissionStatus      @default(SCHEDULED)
-  priority              AdmissionPriority
-  
+  id              Int               @id @default(autoincrement())
+  hospitalId      Int
+  patientId       Int
+  encounterId     Int               @unique
+  admissionType   AdmissionType
+  admissionStatus AdmissionStatus   @default(SCHEDULED)
+  priority        AdmissionPriority
+
   // Admission Timing
   scheduledAdmissionDate DateTime?
-  actualAdmissionDate   DateTime
-  dischargeDate         DateTime?
-  expectedDischargeDate DateTime?
-  
+  actualAdmissionDate    DateTime
+  dischargeDate          DateTime?
+  expectedDischargeDate  DateTime?
+
   // Location Information
-  bedId                 Int?
-  roomId                Int?
-  wardId                Int?
-  departmentId          Int?
-  
+  bedId        Int?
+  roomId       Int?
+  wardId       Int?
+  departmentId Int?
+
   // Medical Team
-  admittingDoctorId     Int
-  primaryPhysicianId    Int
-  referringDoctorId     Int?
-  attendingNurseId      Int?
-  
+  admittingDoctorId  Int
+  primaryPhysicianId Int
+  referringDoctorId  Int?
+  attendingNurseId   Int?
+
   // Insurance Information
-  insuranceProviderId   String?
-  insurancePolicyId     String?
-  preAuthNumber         String?
-  insuranceStatus       String?
-  
+  insuranceProviderId String?
+  insurancePolicyId   String?
+  preAuthNumber       String?
+  insuranceStatus     String?
+
   // Clinical Information
-  admissionReason       String
-  primaryDiagnosis      String?
-  secondaryDiagnoses    Json?
-  procedures            Json?
-  medications           Json?
-  allergies             Json?
-  specialInstructions   String?
-  
+  admissionReason     String
+  primaryDiagnosis    String?
+  secondaryDiagnoses  Json?
+  procedures          Json?
+  medications         Json?
+  allergies           Json?
+  specialInstructions String?
+
   // Risk Assessment
-  fallRisk              String?
-  pressureUlcerRisk     String?
-  nutritionRisk         String?
-  infectionRisk         String?
-  
+  fallRisk          String?
+  pressureUlcerRisk String?
+  nutritionRisk     String?
+  infectionRisk     String?
+
   // Isolation and Safety
-  isolationRequired     Boolean              @default(false)
-  isolationType         IsolationType        @default(NONE)
-  isolationStartDate    DateTime?
-  isolationEndDate      DateTime?
-  
+  isolationRequired  Boolean       @default(false)
+  isolationType      IsolationType @default(NONE)
+  isolationStartDate DateTime?
+  isolationEndDate   DateTime?
+
   // Emergency Information
-  isEmergency           Boolean              @default(false)
-  emergencyContact      Json?
-  emergencyNotes        String?
-  
+  isEmergency      Boolean @default(false)
+  emergencyContact Json?
+  emergencyNotes   String?
+
   // Readmission Information
-  isReadmission         Boolean              @default(false)
-  previousAdmissionId   Int?
-  readmissionReason     String?
-  readmissionWithin30Days Boolean           @default(false)
-  
+  isReadmission           Boolean @default(false)
+  previousAdmissionId     Int?
+  readmissionReason       String?
+  readmissionWithin30Days Boolean @default(false)
+
   // Discharge Planning
   dischargeDisposition  DischargeDisposition?
   dischargeInstructions Json?
-  followUpRequired      Boolean              @default(false)
+  followUpRequired      Boolean               @default(false)
   followUpInstructions  Json?
-  
+
   // Financial Information
-  estimatedCost         Decimal?
-  actualCost            Decimal?
-  paymentStatus         String?
-  billingStatus         String?
-  
+  estimatedCost Decimal?
+  actualCost    Decimal?
+  paymentStatus String?
+  billingStatus String?
+
   // Quality Metrics
-  lengthOfStay          Int?                 // in days
-  complicationFlag      Boolean              @default(false)
-  complicationDetails   Json?
-  
+  lengthOfStay        Int? // in days
+  complicationFlag    Boolean @default(false)
+  complicationDetails Json?
+
   // Audit and Tracking
-  createdBy             Int
-  updatedBy             Int?
-  createdAt             DateTime             @default(now())
-  updatedAt             DateTime             @updatedAt
-  
+  createdBy Int
+  updatedBy Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   // Relations
-  patient               Patient              @relation(fields: [patientId], references: [id], onDelete: Cascade)
-  encounter             Encounter            @relation(fields: [encounterId], references: [id], onDelete: Cascade)
-  bed                   Bed?                 @relation(fields: [bedId], references: [id], onDelete: SetNull)
-  room                  Room?                @relation(fields: [roomId], references: [id], onDelete: SetNull)
-  ward                  Ward?                @relation(fields: [wardId], references: [id], onDelete: SetNull)
-  department            Department?          @relation(fields: [departmentId], references: [id], onDelete: SetNull)
-  admittingDoctor       User                 @relation("AdmittingDoctor", fields: [admittingDoctorId], references: [id])
-  primaryPhysician      User                 @relation("PrimaryPhysician", fields: [primaryPhysicianId], references: [id])
-  referringDoctor       User?                @relation("ReferringDoctor", fields: [referringDoctorId], references: [id])
-  attendingNurse        User?                @relation("AttendingNurse", fields: [attendingNurseId], references: [id])
-  creator               User                 @relation("AdmissionCreator", fields: [createdBy], references: [id])
-  updater               User?                @relation("AdmissionUpdater", fields: [updatedBy], references: [id])
-  previousAdmission     Admission?           @relation("ReadmissionHistory", fields: [previousAdmissionId], references: [id])
-  readmissions          Admission[]          @relation("ReadmissionHistory")
-  
+  patient           Patient     @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  encounter         Encounter   @relation(fields: [encounterId], references: [id], onDelete: Cascade)
+  bed               Bed?        @relation(fields: [bedId], references: [id], onDelete: SetNull)
+  room              Room?       @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  ward              Ward?       @relation(fields: [wardId], references: [id], onDelete: SetNull)
+  department        Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  admittingDoctor   User        @relation("AdmittingDoctor", fields: [admittingDoctorId], references: [id])
+  primaryPhysician  User        @relation("PrimaryPhysician", fields: [primaryPhysicianId], references: [id])
+  referringDoctor   User?       @relation("ReferringDoctor", fields: [referringDoctorId], references: [id])
+  attendingNurse    User?       @relation("AttendingNurse", fields: [attendingNurseId], references: [id])
+  creator           User        @relation("AdmissionCreator", fields: [createdBy], references: [id])
+  updater           User?       @relation("AdmissionUpdater", fields: [updatedBy], references: [id])
+  previousAdmission Admission?  @relation("ReadmissionHistory", fields: [previousAdmissionId], references: [id])
+  readmissions      Admission[] @relation("ReadmissionHistory")
+
   // Related Records
-  dischargePlanning     DischargePlanning?
-  bedTransfers          BedTransfer[]
-  admissionNotes        AdmissionNote[]
+  dischargePlanning DischargePlanning?
+  bedTransfers      BedTransfer[]
+  admissionNotes    AdmissionNote[]
   // vitalSigns            VitalSign[]
   // medicationOrders      MedicationAdministration[]
-  
+
   // Indexes for Performance
   @@index([hospitalId, admissionStatus])
   @@index([hospitalId, patientId])
@@ -2750,7 +2751,6 @@ model Admission {
   @@index([hospitalId, wardId])
   @@index([hospitalId, departmentId])
   @@index([hospitalId, admittingDoctorId])
-  
   @@map("admissions")
 }
 
@@ -2759,124 +2759,124 @@ model AdmissionNote {
   id          Int      @id @default(autoincrement())
   admissionId Int
   hospitalId  Int
-  type        String   // ADMISSION, PROGRESS, DISCHARGE, etc.
+  type        String // ADMISSION, PROGRESS, DISCHARGE, etc.
   content     String
   isCritical  Boolean  @default(false)
   createdBy   Int
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  
-  admission   Admission @relation(fields: [admissionId], references: [id], onDelete: Cascade)
-  creator     User      @relation(fields: [createdBy], references: [id])
-  
+
+  admission Admission @relation(fields: [admissionId], references: [id], onDelete: Cascade)
+  creator   User      @relation(fields: [createdBy], references: [id])
+
   @@index([admissionId, type])
   @@map("admission_notes")
 }
 
 // Discharge Planning Model
 model DischargePlanning {
-  id                    Int      @id @default(autoincrement())
-  admissionId           Int      @unique
-  hospitalId            Int
-  
+  id          Int @id @default(autoincrement())
+  admissionId Int @unique
+  hospitalId  Int
+
   // Planning Timeline
   plannedDischargeDate  DateTime
   dischargePlanningDate DateTime @default(now())
-  
+
   // Discharge Criteria
-  medicalStability      Boolean  @default(false)
-  vitalsStable          Boolean  @default(false)
-  painControlled        Boolean  @default(false)
-  medicationsReady      Boolean  @default(false)
-  educationCompleted    Boolean  @default(false)
-  
+  medicalStability   Boolean @default(false)
+  vitalsStable       Boolean @default(false)
+  painControlled     Boolean @default(false)
+  medicationsReady   Boolean @default(false)
+  educationCompleted Boolean @default(false)
+
   // Discharge Destination
-  dischargeDisposition  DischargeDisposition
-  destinationFacility   String?
-  
+  dischargeDisposition DischargeDisposition
+  destinationFacility  String?
+
   // Home Care Planning
-  homeHealthRequired    Boolean  @default(false)
-  equipmentNeeded       Json?
-  homeModifications     Json?
-  
+  homeHealthRequired Boolean @default(false)
+  equipmentNeeded    Json?
+  homeModifications  Json?
+
   // Follow-up Planning
-  followUpAppointment   DateTime?
-  followUpDoctorId      Int?
-  followUpInstructions  String?
-  
+  followUpAppointment  DateTime?
+  followUpDoctorId     Int?
+  followUpInstructions String?
+
   // Care Coordination
-  caseManagerId         Int?
-  socialWorkerId        Int?
-  familyNotified        Boolean  @default(false)
-  familyInstructions    Json?
-  
+  caseManagerId      Int?
+  socialWorkerId     Int?
+  familyNotified     Boolean @default(false)
+  familyInstructions Json?
+
   // Financial Planning
-  insuranceApproval     Boolean  @default(false)
-  estimatedCost         Decimal?
-  paymentArrangements   Json?
-  
+  insuranceApproval   Boolean  @default(false)
+  estimatedCost       Decimal?
+  paymentArrangements Json?
+
   // Status and Tracking
-  status                String   @default("PLANNING")
-  completedDate         DateTime?
-  barriers              Json?
-  notes                 String?
-  
-  createdBy             Int
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
-  
-  admission             Admission @relation(fields: [admissionId], references: [id], onDelete: Cascade)
-  caseManager           User?     @relation("DischargeCaseManager", fields: [caseManagerId], references: [id])
-  socialWorker          User?     @relation("DischargeSocialWorker", fields: [socialWorkerId], references: [id])
-  followUpDoctor        User?     @relation("DischargeFollowUpDoctor", fields: [followUpDoctorId], references: [id])
-  creator               User      @relation("DischargeCreator", fields: [createdBy], references: [id])
-  
+  status        String    @default("PLANNING")
+  completedDate DateTime?
+  barriers      Json?
+  notes         String?
+
+  createdBy Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  admission      Admission @relation(fields: [admissionId], references: [id], onDelete: Cascade)
+  caseManager    User?     @relation("DischargeCaseManager", fields: [caseManagerId], references: [id])
+  socialWorker   User?     @relation("DischargeSocialWorker", fields: [socialWorkerId], references: [id])
+  followUpDoctor User?     @relation("DischargeFollowUpDoctor", fields: [followUpDoctorId], references: [id])
+  creator        User      @relation("DischargeCreator", fields: [createdBy], references: [id])
+
   @@map("discharge_planning")
 }
 
 // Bed Transfer Model
 model BedTransfer {
-  id              Int      @id @default(autoincrement())
-  admissionId     Int
-  hospitalId      Int
-  
+  id          Int @id @default(autoincrement())
+  admissionId Int
+  hospitalId  Int
+
   // Transfer Information
-  fromBedId       Int
-  fromRoomId      Int
-  fromWardId      Int
-  toBedId         Int
-  toRoomId        Int
-  toWardId        Int
-  
+  fromBedId  Int
+  fromRoomId Int
+  fromWardId Int
+  toBedId    Int
+  toRoomId   Int
+  toWardId   Int
+
   // Transfer Details
-  transferReason  String
-  transferType    String   // ROUTINE, URGENT, EMERGENCY
-  priority        String
-  
+  transferReason String
+  transferType   String // ROUTINE, URGENT, EMERGENCY
+  priority       String
+
   // Timing
-  requestedAt     DateTime @default(now())
-  scheduledAt     DateTime?
-  completedAt     DateTime?
-  
+  requestedAt DateTime  @default(now())
+  scheduledAt DateTime?
+  completedAt DateTime?
+
   // Medical Staff
-  requestedBy     Int
-  approvedBy      Int?
-  completedBy     Int?
-  
+  requestedBy Int
+  approvedBy  Int?
+  completedBy Int?
+
   // Status
-  status          String   @default("REQUESTED")
-  notes           String?
-  
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
-  admission       Admission @relation(fields: [admissionId], references: [id], onDelete: Cascade)
-  fromBed         Bed       @relation("TransferFromBed", fields: [fromBedId], references: [id])
-  toBed           Bed       @relation("TransferToBed", fields: [toBedId], references: [id])
-  requestedUser   User      @relation("TransferRequestedBy", fields: [requestedBy], references: [id])
-  approvedUser    User?     @relation("TransferApprovedBy", fields: [approvedBy], references: [id])
-  completedUser   User?     @relation("TransferCompletedBy", fields: [completedBy], references: [id])
-  
+  status String  @default("REQUESTED")
+  notes  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  admission     Admission @relation(fields: [admissionId], references: [id], onDelete: Cascade)
+  fromBed       Bed       @relation("TransferFromBed", fields: [fromBedId], references: [id])
+  toBed         Bed       @relation("TransferToBed", fields: [toBedId], references: [id])
+  requestedUser User      @relation("TransferRequestedBy", fields: [requestedBy], references: [id])
+  approvedUser  User?     @relation("TransferApprovedBy", fields: [approvedBy], references: [id])
+  completedUser User?     @relation("TransferCompletedBy", fields: [completedBy], references: [id])
+
   @@index([admissionId, status])
   @@index([hospitalId, status])
   @@map("bed_transfers")
@@ -2893,5 +2893,3 @@ model UserDevice {
 
   @@index([userId])
 }
-
-

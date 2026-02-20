@@ -144,7 +144,7 @@ export default function DischargePlanningPage() {
           lengthOfStay: item.admission?.lengthOfStay,
           primaryDiagnosis: item.admission?.primaryDiagnosis,
           admittingDoctor: item.admission?.admittingDoctor?.fullName || 'غير محدد',
-          department: item.admission?.ward?.name || 'غير محدد',
+          department: item.admission?.department?.name || 'غير محدد',
           bed: {
             bedNumber: item.admission?.bed?.bedNumber || 'غير محدد',
             ward: item.admission?.ward?.name || 'غير محدد'

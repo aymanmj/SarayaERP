@@ -745,6 +745,7 @@ export class AdmissionService {
               patient: true,
               bed: { include: { ward: true } },
               ward: true,
+              department: true,
               admittingDoctor: true,
             },
           },

@@ -54,6 +54,8 @@ export class BedsService {
     return this.prisma.ward.findMany({
       where: { hospitalId, isActive: true },
       include: {
+        department: { select: { id: true, name: true } },
+        serviceItem: { select: { id: true, name: true, defaultPrice: true } },
         rooms: {
           where: { isActive: true },
           include: {
@@ -222,6 +224,7 @@ export class BedsService {
       type: string;
       gender: string;
       serviceItemId?: number;
+      departmentId?: number;
     },
   ) {
     return this.prisma.ward.create({
@@ -230,7 +233,8 @@ export class BedsService {
         name: data.name,
         type: data.type,
         gender: data.gender,
-        serviceItemId: data.serviceItemId, // ربط السعر
+        serviceItemId: data.serviceItemId,
+        departmentId: data.departmentId,
       },
     });
   }

@@ -13,11 +13,16 @@ type Ward = {
   rooms: Room[];
   serviceItemId?: number; // السعر المرتبط
   serviceItem?: ServiceItemLite;
+  departmentId?: number;
+  department?: { id: number; name: string };
 };
+
+type DepartmentLite = { id: number; name: string };
 
 export default function BedManagementSettingsPage() {
   const [wards, setWards] = useState<Ward[]>([]);
   const [services, setServices] = useState<ServiceItemLite[]>([]);
+  const [departments, setDepartments] = useState<DepartmentLite[]>([]);
   const [loading, setLoading] = useState(false);
 
   // Modal States
@@ -26,6 +31,7 @@ export default function BedManagementSettingsPage() {
     name: "",
     type: "General",
     serviceItemId: "",
+    departmentId: "",
   });
 
   const [activeWardId, setActiveWardId] = useState<number | null>(null);
@@ -37,12 +43,14 @@ export default function BedManagementSettingsPage() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [wRes, sRes] = await Promise.all([
+      const [wRes, sRes, dRes] = await Promise.all([
         apiClient.get<Ward[]>("/beds/tree"),
         apiClient.get<ServiceItemLite[]>("/beds/services"),
+        apiClient.get<DepartmentLite[]>("/departments"),
       ]);
       setWards(wRes.data);
       setServices(sRes.data);
+      setDepartments(dRes.data);
     } catch {
       toast.error("فشل تحميل البيانات");
     } finally {
@@ -63,6 +71,9 @@ export default function BedManagementSettingsPage() {
         gender: "Mixed",
         serviceItemId: newWard.serviceItemId
           ? Number(newWard.serviceItemId)
+          : null,
+        departmentId: newWard.departmentId
+          ? Number(newWard.departmentId)
           : null,
       });
       toast.success("تم إنشاء العنبر");
@@ -147,6 +158,12 @@ export default function BedManagementSettingsPage() {
                       <span className="text-rose-400">غير مسعر!</span>
                     )}
                   </span>
+                  {ward.department && (
+                    <>
+                      <span>•</span>
+                      <span>القسم: {ward.department.name}</span>
+                    </>
+                  )}
                 </div>
               </div>
               <button
@@ -270,6 +287,25 @@ export default function BedManagementSettingsPage() {
                   <option value="General">عام (General)</option>
                   <option value="ICU">عناية مركزة (ICU)</option>
                   <option value="Private">خاص (Private)</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-slate-400 block mb-1">
+                  القسم التابع له (اخياري)
+                </label>
+                <select
+                  className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-sm"
+                  value={newWard.departmentId}
+                  onChange={(e) =>
+                    setNewWard({ ...newWard, departmentId: e.target.value })
+                  }
+                >
+                  <option value="">-- القسم (اختياري) --</option>
+                  {departments.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div>
