@@ -275,6 +275,17 @@ export default function DischargePlanningPage() {
     }
   };
 
+  const handleDeletePlan = async (admissionId: number, patientName: string) => {
+    if (!confirm(`هل أنت متأكد من حذف خطة الخروج للمريض: ${patientName}؟`)) return;
+    try {
+      await apiClient.delete(`/admissions/${admissionId}/discharge-planning`);
+      toast.success('تم حذف خطة الخروج بنجاح.');
+      loadDischargePlans();
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'فشل حذف الخطة.');
+    }
+  };
+
   const getDispositionLabel = (disposition: string) => {
     const labels = {
       'HOME': 'العودة للمنزل',
@@ -492,12 +503,20 @@ export default function DischargePlanningPage() {
                           تفاصيل
                         </button>
                         {plan.status === 'PENDING' && (
-                          <button
-                            onClick={() => handleUpdatePlanStatus(plan.id, 'IN_PROGRESS')}
-                            className="px-3 py-1 bg-blue-600 hover:bg-blue-500 rounded text-xs transition-colors"
-                          >
-                            بدء
-                          </button>
+                          <>
+                            <button
+                              onClick={() => handleUpdatePlanStatus(plan.id, 'IN_PROGRESS')}
+                              className="px-3 py-1 bg-blue-600 hover:bg-blue-500 rounded text-xs transition-colors"
+                            >
+                              بدء
+                            </button>
+                            <button
+                              onClick={() => handleDeletePlan(plan.admissionId, plan.patient?.fullName || '')}
+                              className="px-3 py-1 bg-rose-700 hover:bg-rose-600 rounded text-xs transition-colors"
+                            >
+                              حذف
+                            </button>
+                          </>
                         )}
                         {plan.status === 'IN_PROGRESS' && (
                           <button

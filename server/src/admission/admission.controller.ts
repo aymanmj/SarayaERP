@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Put,
+  Delete,
   Body,
   Param,
   Query,
@@ -122,6 +123,19 @@ export class AdmissionController {
     @CurrentUser() user: JwtPayload,
   ) {
     return this.admissionService.createDischargePlanning(user.hospitalId, id, dto, user.sub);
+  }
+
+  @Delete(':id/discharge-planning')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'NURSE', 'DOCTOR', 'CASE_MANAGER')
+  @Sensitive('DELETE_DISCHARGE_PLANNING')
+  @ApiOperation({ summary: 'Delete discharge planning (PENDING only)' })
+  @ApiResponse({ status: 200, description: 'Discharge planning deleted successfully' })
+  async deleteDischargePlanning(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.admissionService.deleteDischargePlanning(user.hospitalId, id);
   }
 
   @Post(':id/bed-transfer/request')

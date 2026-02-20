@@ -687,6 +687,32 @@ export class AdmissionService {
     return dischargePlanning;
   }
 
+  /**
+   * Delete a discharge planning (only PENDING/PLANNING)
+   */
+  async deleteDischargePlanning(
+    hospitalId: number,
+    admissionId: number,
+  ) {
+    const plan = await this.prisma.dischargePlanning.findFirst({
+      where: { admissionId, admission: { hospitalId } },
+    });
+
+    if (!plan) {
+      throw new NotFoundException('خطة الخروج غير موجودة.');
+    }
+
+    if (plan.status !== 'PLANNING' && plan.status !== 'PENDING') {
+      throw new BadRequestException('لا يمكن حذف خطة خروج قيد التنفيذ أو مكتملة.');
+    }
+
+    await this.prisma.dischargePlanning.delete({
+      where: { id: plan.id },
+    });
+
+    return { message: 'تم حذف خطة الخروج بنجاح.' };
+  }
+
   // ==================== BED TRANSFER ====================
 
   /**
