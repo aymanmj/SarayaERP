@@ -83,16 +83,26 @@ export default function DischargePlanningPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterDepartment, setFilterDepartment] = useState('');
 
+  // Active inpatients for selector
+  const [activeInpatients, setActiveInpatients] = useState<any[]>([]);
+  const [loadingInpatients, setLoadingInpatients] = useState(false);
+
   // Form state for creating new plan
   const [formData, setFormData] = useState({
     admissionId: '',
     plannedDischargeDate: '',
-    dischargeDisposition: 'HOME' as const,
+    dischargeDisposition: 'HOME' as string,
     followUpRequired: false,
     followUpInstructions: '',
     homeHealthServices: false,
     equipmentNeeded: [] as string[],
-    notes: ''
+    notes: '',
+    // Medical readiness
+    medicalStability: false,
+    vitalsStable: false,
+    painControlled: false,
+    medicationsReady: false,
+    educationCompleted: false,
   });
 
   // Load discharge plans
@@ -174,22 +184,43 @@ export default function DischargePlanningPage() {
     }
   };
 
+  // Load active inpatients for the selector
+  const loadActiveInpatients = async () => {
+    setLoadingInpatients(true);
+    try {
+      const res = await apiClient.get('/encounters/list/active-inpatients');
+      setActiveInpatients(res.data || []);
+    } catch {
+      toast.error('فشل تحميل قائمة المنومين');
+    } finally {
+      setLoadingInpatients(false);
+    }
+  };
+
   const handleCreatePlan = async () => {
     if (!formData.admissionId || !formData.plannedDischargeDate) {
-      toast.error('يرجى ملء جميع الحقول المطلوبة');
+      toast.error('يرجى اختيار المريض وتحديد تاريخ الخروج المخطط');
       return;
     }
 
     try {
-      // استخدام endpoint الموجود في admissions controller
+      // Convert date to ISO 8601 string
+      const isoDate = new Date(formData.plannedDischargeDate).toISOString();
+
       await apiClient.post(`/admissions/${formData.admissionId}/discharge-planning`, {
-        plannedDischargeDate: formData.plannedDischargeDate,
+        plannedDischargeDate: isoDate,
         dischargeDisposition: formData.dischargeDisposition,
         followUpRequired: formData.followUpRequired,
         followUpInstructions: formData.followUpInstructions,
         homeHealthServices: formData.homeHealthServices,
         equipmentNeeded: formData.equipmentNeeded,
-        notes: formData.notes
+        notes: formData.notes,
+        medicalStability: formData.medicalStability,
+        vitalsStable: formData.vitalsStable,
+        painControlled: formData.painControlled,
+        medicationsReady: formData.medicationsReady,
+        educationCompleted: formData.educationCompleted,
+        status: 'PLANNING',
       });
       
       toast.success('تم إنشاء خطة الخروج بنجاح');
@@ -202,11 +233,21 @@ export default function DischargePlanningPage() {
         followUpInstructions: '',
         homeHealthServices: false,
         equipmentNeeded: [],
-        notes: ''
+        notes: '',
+        medicalStability: false,
+        vitalsStable: false,
+        painControlled: false,
+        medicationsReady: false,
+        educationCompleted: false,
       });
       loadDischargePlans();
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || 'فشل إنشاء خطة الخروج');
+      const msg = error?.response?.data?.message;
+      if (Array.isArray(msg)) {
+        toast.error(msg.map((m: any) => m.constraints ? Object.values(m.constraints).join(', ') : m).join(' | '));
+      } else {
+        toast.error(msg || 'فشل إنشاء خطة الخروج');
+      }
     }
   };
 
@@ -297,7 +338,7 @@ export default function DischargePlanningPage() {
           </p>
         </div>
         <button
-          onClick={() => setShowCreateModal(true)}
+          onClick={() => { setShowCreateModal(true); loadActiveInpatients(); }}
           className="px-6 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold shadow-lg shadow-sky-500/20 transition-all"
         >
           + إنشاء خطة خروج
@@ -478,101 +519,162 @@ export default function DischargePlanningPage() {
 
       {/* Create Plan Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-slate-800 rounded-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <h3 className="text-xl font-bold mb-4">إنشاء خطة تفريغ جديدة</h3>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-2">رقم الإدخال</label>
-                <input
-                  type="number"
-                  value={formData.admissionId}
-                  onChange={(e) => setFormData({...formData, admissionId: e.target.value})}
-                  className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2"
-                  placeholder="أدخل رقم الإدخال"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium mb-2">تاريخ الخروج المخطط</label>
-                <input
-                  type="date"
-                  value={formData.plannedDischargeDate}
-                  onChange={(e) => setFormData({...formData, plannedDischargeDate: e.target.value})}
-                  className="w-full bg-slate-800 border border-slate-600 text-slate-100 rounded-lg px-3 py-2 [&::-webkit-calendar-picker-indicator]:w-5 [&::-webkit-calendar-picker-indicator]:h-5 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:filter [&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:sepia-0 [&::-webkit-calendar-picker-indicator]:saturate-0 [&::-webkit-calendar-picker-indicator]:hue-rotate-180 [&::-webkit-calendar-picker-indicator]:brightness-200 [&::-webkit-calendar-picker-indicator]:contrast-100"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium mb-2">وجهة الخروج</label>
-                <select
-                  value={formData.dischargeDisposition}
-                  onChange={(e) => setFormData({...formData, dischargeDisposition: e.target.value as any})}
-                  className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2"
-                >
-                  <option value="HOME">العودة للمنزل</option>
-                  <option value="TRANSFER">نقل لمستشفى آخر</option>
-                  <option value="REHAB">مركز تأهيل</option>
-                  <option value="LTC">رعاية طويلة الأمد</option>
-                  <option value="AMA">مغادرة برغبة المريض</option>
-                </select>
-              </div>
-              
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={formData.followUpRequired}
-                  onChange={(e) => setFormData({...formData, followUpRequired: e.target.checked})}
-                  className="w-4 h-4 text-sky-600 bg-slate-700 border-slate-600 rounded"
-                />
-                <label className="text-sm">يتطلب متابعة</label>
-              </div>
-              
-              {formData.followUpRequired && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => setShowCreateModal(false)}>
+          <div className="bg-slate-800 rounded-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto border border-slate-700 shadow-2xl" onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-700">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-sky-600/20 flex items-center justify-center text-sky-400 text-lg">📋</div>
                 <div>
-                  <label className="block text-sm font-medium mb-2">تعليمات المتابعة</label>
+                  <h3 className="text-lg font-bold">إنشاء خطة خروج جديدة</h3>
+                  <p className="text-xs text-slate-400">اختر المريض وحدد تفاصيل الخروج</p>
+                </div>
+              </div>
+              <button onClick={() => setShowCreateModal(false)} className="text-slate-400 hover:text-white transition-colors text-xl">✕</button>
+            </div>
+
+            <div className="space-y-5">
+              {/* Patient Selector */}
+              <div>
+                <label className="block text-sm font-semibold mb-2 text-slate-300">🏥 اختر المريض المنوّم <span className="text-rose-400">*</span></label>
+                {loadingInpatients ? (
+                  <div className="text-center py-4 text-slate-500 text-sm">جارِ تحميل قائمة المنومين...</div>
+                ) : activeInpatients.length === 0 ? (
+                  <div className="text-center py-4 text-slate-500 text-sm">لا يوجد مرضى منومين حالياً.</div>
+                ) : (
+                  <select
+                    value={formData.admissionId}
+                    onChange={(e) => setFormData({...formData, admissionId: e.target.value})}
+                    className="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition-all"
+                  >
+                    <option value="">— اختر مريضاً —</option>
+                    {activeInpatients.map((inp: any) => {
+                      const bed = inp.bedAssignments?.[0]?.bed;
+                      const ward = bed?.ward?.name || '';
+                      const admId = inp.admission?.id;
+                      if (!admId) return null;
+                      return (
+                        <option key={inp.id} value={admId}>
+                          {inp.patient?.fullName} — {inp.patient?.mrn}{ward ? ` — ${ward}` : ''}{bed ? ` / سرير ${bed.bedNumber}` : ''}
+                        </option>
+                      );
+                    })}
+                  </select>
+                )}
+              </div>
+
+              {/* Date + Disposition Row */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold mb-2 text-slate-300">📅 تاريخ الخروج المخطط <span className="text-rose-400">*</span></label>
+                  <input
+                    type="date"
+                    value={formData.plannedDischargeDate}
+                    onChange={(e) => setFormData({...formData, plannedDischargeDate: e.target.value})}
+                    className="w-full bg-slate-900 border border-slate-600 text-slate-100 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-sky-500 [&::-webkit-calendar-picker-indicator]:invert"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold mb-2 text-slate-300">🏠 وجهة الخروج</label>
+                  <select
+                    value={formData.dischargeDisposition}
+                    onChange={(e) => setFormData({...formData, dischargeDisposition: e.target.value})}
+                    className="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-sky-500"
+                  >
+                    <option value="HOME">العودة للمنزل</option>
+                    <option value="TRANSFER_TO_ANOTHER_FACILITY">نقل لمستشفى آخر</option>
+                    <option value="REHABILITATION">مركز تأهيل</option>
+                    <option value="LONG_TERM_CARE">رعاية طويلة الأمد</option>
+                    <option value="HOME_HEALTH_CARE">رعاية منزلية</option>
+                    <option value="HOSPICE">رعاية ملطفة</option>
+                    <option value="LEFT_AGAINST_MEDICAL_ADVICE">مغادرة ضد الرأي الطبي</option>
+                    <option value="EXPIRED">وفاة</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Medical Readiness */}
+              <div className="bg-slate-900/60 rounded-xl p-4 border border-slate-700">
+                <h4 className="text-sm font-semibold text-emerald-400 mb-3">✅ الجاهزية الطبية</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {[
+                    { key: 'medicalStability', label: 'الاستقرار الطبي' },
+                    { key: 'vitalsStable', label: 'استقرار العلامات الحيوية' },
+                    { key: 'painControlled', label: 'السيطرة على الألم' },
+                    { key: 'medicationsReady', label: 'الأدوية جاهزة' },
+                    { key: 'educationCompleted', label: 'إكمال تثقيف المريض' },
+                  ].map(item => (
+                    <label key={item.key} className="flex items-center gap-2 cursor-pointer group">
+                      <input
+                        type="checkbox"
+                        checked={(formData as any)[item.key]}
+                        onChange={(e) => setFormData({...formData, [item.key]: e.target.checked})}
+                        className="w-4 h-4 text-emerald-500 bg-slate-700 border-slate-600 rounded focus:ring-emerald-500"
+                      />
+                      <span className="text-sm text-slate-300 group-hover:text-white transition-colors">{item.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Follow-up */}
+              <div className="bg-slate-900/60 rounded-xl p-4 border border-slate-700">
+                <label className="flex items-center gap-2 cursor-pointer mb-3">
+                  <input
+                    type="checkbox"
+                    checked={formData.followUpRequired}
+                    onChange={(e) => setFormData({...formData, followUpRequired: e.target.checked})}
+                    className="w-4 h-4 text-sky-500 bg-slate-700 border-slate-600 rounded"
+                  />
+                  <span className="text-sm font-semibold text-sky-400">🔄 يتطلب متابعة بعد الخروج</span>
+                </label>
+                {formData.followUpRequired && (
                   <textarea
                     value={formData.followUpInstructions}
                     onChange={(e) => setFormData({...formData, followUpInstructions: e.target.value})}
-                    rows={3}
-                    className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2"
-                    placeholder="أدخل تعليمات المتابعة..."
+                    rows={2}
+                    className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-sm"
+                    placeholder="تعليمات المتابعة (مثل: مراجعة العيادة بعد أسبوع...)"
                   />
-                </div>
-              )}
-              
-              <div className="flex items-center gap-2">
+                )}
+              </div>
+
+              {/* Home Health */}
+              <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={formData.homeHealthServices}
                   onChange={(e) => setFormData({...formData, homeHealthServices: e.target.checked})}
                   className="w-4 h-4 text-sky-600 bg-slate-700 border-slate-600 rounded"
                 />
-                <label className="text-sm">خدمات الرعاية المنزلية</label>
-              </div>
-              
+                <span className="text-sm text-slate-300">🏡 يحتاج خدمات رعاية منزلية</span>
+              </label>
+
+              {/* Notes */}
               <div>
-                <label className="block text-sm font-medium mb-2">ملاحظات إضافية</label>
+                <label className="block text-sm font-semibold mb-2 text-slate-300">📝 ملاحظات إضافية</label>
                 <textarea
                   value={formData.notes}
                   onChange={(e) => setFormData({...formData, notes: e.target.value})}
-                  rows={3}
-                  className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2"
-                  placeholder="ملاحظات إضافية..."
+                  rows={2}
+                  className="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-sm"
+                  placeholder="ملاحظات للفريق الطبي..."
                 />
               </div>
             </div>
             
-            <div className="flex gap-3 mt-6">
+            {/* Actions */}
+            <div className="flex gap-3 mt-6 pt-4 border-t border-slate-700">
               <button
                 onClick={handleCreatePlan}
-                className="px-4 py-2 bg-sky-600 hover:bg-sky-500 rounded-lg"
+                disabled={!formData.admissionId || !formData.plannedDischargeDate}
+                className="flex-1 px-4 py-3 bg-sky-600 hover:bg-sky-500 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl font-bold text-sm transition-colors"
               >
-                إنشاء الخطة
+                ✅ إنشاء الخطة
               </button>
               <button
                 onClick={() => setShowCreateModal(false)}
-                className="px-4 py-2 bg-slate-600 hover:bg-slate-500 rounded-lg"
+                className="px-6 py-3 bg-slate-700 hover:bg-slate-600 rounded-xl text-sm transition-colors"
               >
                 إلغاء
               </button>
