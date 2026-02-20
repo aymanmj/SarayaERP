@@ -113,69 +113,56 @@ export default function DischargePlanningPage() {
   const loadDischargePlans = async () => {
     setLoading(true);
     try {
-      // استخدام endpoint الموجود في admissions controller مع الأسماء الصحيحة للparameters
-      const response = await apiClient.get('/admissions', {
+      const response = await apiClient.get('/admissions/discharge-planning/list', {
         params: {
-          status: activeTab === 'pending' ? 'ADMITTED' : activeTab === 'in-progress' ? 'IN_PROGRESS' : 'DISCHARGED',
-          // استخدام departmentId بدلاً من department
+          status: activeTab === 'pending' ? 'PLANNING' : activeTab === 'in-progress' ? 'IN_PROGRESS' : 'COMPLETED',
           departmentId: filterDepartment ? parseInt(filterDepartment) : undefined,
-          // إضافة page و limit للـ pagination
           page: 1,
           limit: 50
         }
       });
       
-      // تحويل البيانات لتناسب الشكل المتوقع
-      const transformedData = response.data.admissions || response.data.items || response.data || [];
+      const transformedData = response.data.items || [];
       let filteredData = transformedData;
       
-      // فلترة محلية بالبحث إذا كان هناك نص بحث
       if (searchTerm) {
         filteredData = transformedData.filter((item: any) => 
-          item.patient?.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          item.patient?.mrn?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          item.ward?.name?.toLowerCase().includes(searchTerm.toLowerCase())
+          item.admission?.patient?.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          item.admission?.patient?.mrn?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          item.admission?.ward?.name?.toLowerCase().includes(searchTerm.toLowerCase())
         );
       }
       
       setPlans(filteredData.map((item: any) => ({
         id: item.id,
-        admissionId: item.id,
-        patient: item.patient,
+        admissionId: item.admissionId,
+        patient: item.admission?.patient,
         admission: {
-          id: item.id,
-          admissionDate: item.actualAdmissionDate || item.scheduledAdmissionDate,
-          expectedDischargeDate: item.expectedDischargeDate,
-          lengthOfStay: item.lengthOfStay,
-          primaryDiagnosis: item.primaryDiagnosis,
-          admittingDoctor: item.admittingDoctor?.fullName || 'غير محدد',
-          department: item.ward?.name || 'غير محدد',
+          id: item.admission?.id,
+          admissionDate: item.admission?.actualAdmissionDate || item.admission?.scheduledAdmissionDate,
+          expectedDischargeDate: item.admission?.expectedDischargeDate,
+          lengthOfStay: item.admission?.lengthOfStay,
+          primaryDiagnosis: item.admission?.primaryDiagnosis,
+          admittingDoctor: item.admission?.admittingDoctor?.fullName || 'غير محدد',
+          department: item.admission?.ward?.name || 'غير محدد',
           bed: {
-            bedNumber: item.bed?.bedNumber || 'غير محدد',
-            ward: item.ward?.name || 'غير محدد'
+            bedNumber: item.admission?.bed?.bedNumber || 'غير محدد',
+            ward: item.admission?.ward?.name || 'غير محدد'
           }
         },
-        plannedDischargeDate: item.expectedDischargeDate,
-        dischargeDisposition: 'HOME',
-        followUpRequired: false,
-        followUpInstructions: '',
-        homeHealthServices: false,
-        equipmentNeeded: [],
-        instructions: {
-          diet: '',
-          activity: '',
-          woundCare: '',
-          medication: '',
-          followUp: ''
-        },
-        status: item.admissionStatus === 'ADMITTED' ? 'PENDING' : 
-               item.admissionStatus === 'IN_PROGRESS' ? 'IN_PROGRESS' : 'COMPLETED',
+        plannedDischargeDate: item.plannedDischargeDate,
+        dischargeDisposition: item.dischargeDisposition,
+        followUpRequired: item.admission?.followUpRequired || false,
+        followUpInstructions: item.followUpInstructions || '',
+        homeHealthServices: item.homeHealthRequired || false,
+        equipmentNeeded: item.equipmentNeeded || [],
+        notes: item.notes || '',
+        status: item.status === 'PLANNING' ? 'PENDING' : item.status,
         createdAt: item.createdAt,
         updatedAt: item.updatedAt,
-        createdBy: item.createdBy?.fullName || 'نظام',
-        reviewedBy: '',
-        reviewedAt: '',
-        notes: item.notes
+        createdBy: item.creator?.fullName || 'نظام',
+        reviewedBy: item.caseManager?.fullName || '',
+        reviewedAt: item.completedDate || '',
       })));
     } catch (error: any) {
       toast.error(error?.response?.data?.message || 'فشل تحميل خطط الخروج');
@@ -251,19 +238,17 @@ export default function DischargePlanningPage() {
     }
   };
 
-  const handleUpdatePlanStatus = async (planId: number, newStatus: string) => {
+  const handleUpdatePlanStatus = async (planId: number, admissionId: number, newStatus: string) => {
     try {
       if (newStatus === 'COMPLETED') {
-        // تحديث الخطة أولاً ثم محاولة الخروج (Discharge) لتطبيق التسوية المالية 
-        await apiClient.post(`/admissions/${planId}/discharge-planning`, {
+        await apiClient.patch(`/admissions/discharge-planning/${planId}/status`, {
           status: 'COMPLETED'
         });
         
-        await apiClient.post(`/admissions/${planId}/discharge`, {});
+        await apiClient.post(`/admissions/${admissionId}/discharge`, {});
         toast.success('تم إكمال الخطة وإجراء الخروج بنجاح. السرير الآن في حالة تنظيف.');
       } else {
-        // تحديث حالة الإدخال
-        await apiClient.post(`/admissions/${planId}/discharge-planning`, {
+        await apiClient.patch(`/admissions/discharge-planning/${planId}/status`, {
           status: newStatus
         });
         toast.success('تم تحديث حالة الخطة بنجاح');
@@ -505,7 +490,7 @@ export default function DischargePlanningPage() {
                         {plan.status === 'PENDING' && (
                           <>
                             <button
-                              onClick={() => handleUpdatePlanStatus(plan.id, 'IN_PROGRESS')}
+                              onClick={() => handleUpdatePlanStatus(plan.id, plan.admissionId, 'IN_PROGRESS')}
                               className="px-3 py-1 bg-blue-600 hover:bg-blue-500 rounded text-xs transition-colors"
                             >
                               بدء
@@ -520,7 +505,7 @@ export default function DischargePlanningPage() {
                         )}
                         {plan.status === 'IN_PROGRESS' && (
                           <button
-                            onClick={() => handleUpdatePlanStatus(plan.id, 'COMPLETED')}
+                            onClick={() => handleUpdatePlanStatus(plan.id, plan.admissionId, 'COMPLETED')}
                             className="px-3 py-1 bg-green-600 hover:bg-green-500 rounded text-xs transition-colors"
                           >
                             إكمال
@@ -791,7 +776,7 @@ export default function DischargePlanningPage() {
               {selectedPlan.status === 'PENDING' && (
                 <button
                   onClick={() => {
-                    handleUpdatePlanStatus(selectedPlan.id, 'IN_PROGRESS');
+                    handleUpdatePlanStatus(selectedPlan.id, selectedPlan.admissionId, 'IN_PROGRESS');
                     setShowDetailsModal(false);
                   }}
                   className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg"
@@ -802,7 +787,7 @@ export default function DischargePlanningPage() {
               {selectedPlan.status === 'IN_PROGRESS' && (
                 <button
                   onClick={() => {
-                    handleUpdatePlanStatus(selectedPlan.id, 'COMPLETED');
+                    handleUpdatePlanStatus(selectedPlan.id, selectedPlan.admissionId, 'COMPLETED');
                     setShowDetailsModal(false);
                   }}
                   className="px-4 py-2 bg-green-600 hover:bg-green-500 rounded-lg"

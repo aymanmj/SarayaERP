@@ -713,6 +713,84 @@ export class AdmissionService {
     return { message: 'تم حذف خطة الخروج بنجاح.' };
   }
 
+  /**
+   * List discharge plans
+   */
+  async listDischargePlans(
+    hospitalId: number,
+    query: { page?: number; limit?: number; status?: string; departmentId?: number }
+  ) {
+    const page = Number(query.page) || 1;
+    const limit = Number(query.limit) || 50;
+    const skip = (page - 1) * limit;
+
+    const where: any = { hospitalId };
+
+    if (query.status) {
+      where.status = query.status;
+    }
+
+    if (query.departmentId) {
+      where.admission = {
+        departmentId: Number(query.departmentId),
+      };
+    }
+
+    const [items, total] = await Promise.all([
+      this.prisma.dischargePlanning.findMany({
+        where,
+        include: {
+          admission: {
+            include: {
+              patient: true,
+              bed: { include: { ward: true } },
+              ward: true,
+              admittingDoctor: true,
+            },
+          },
+          creator: true,
+          caseManager: true,
+          socialWorker: true,
+          followUpDoctor: true,
+        },
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.dischargePlanning.count({ where }),
+    ]);
+
+    return {
+      items,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  /**
+   * Update discharge plan status
+   */
+  async updateDischargePlanStatus(
+    hospitalId: number,
+    planId: number,
+    status: string,
+  ) {
+    const plan = await this.prisma.dischargePlanning.findFirst({
+      where: { id: planId, hospitalId },
+    });
+
+    if (!plan) {
+      throw new NotFoundException('خطة الخروج غير موجودة');
+    }
+
+    return this.prisma.dischargePlanning.update({
+      where: { id: planId },
+      data: { status, updatedAt: new Date() },
+    });
+  }
+
   // ==================== BED TRANSFER ====================
 
   /**

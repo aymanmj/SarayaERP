@@ -4,6 +4,7 @@ import {
   Post,
   Put,
   Delete,
+  Patch,
   Body,
   Param,
   Query,
@@ -136,6 +137,45 @@ export class AdmissionController {
     @CurrentUser() user: JwtPayload,
   ) {
     return this.admissionService.deleteDischargePlanning(user.hospitalId, id);
+  }
+
+  @Get('discharge-planning/list')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'NURSE', 'DOCTOR', 'CASE_MANAGER')
+  @ApiOperation({ summary: 'List discharge plans' })
+  async listDischargePlans(
+    @Query('page') page: number,
+    @Query('limit') limit: number,
+    @Query('status') status: string,
+    @Query('departmentId') departmentId: number,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.admissionService.listDischargePlans(user.hospitalId, {
+      page,
+      limit,
+      status,
+      departmentId,
+    });
+  }
+
+  @Patch('discharge-planning/:planId/status')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'NURSE', 'DOCTOR', 'CASE_MANAGER')
+  @Sensitive('UPDATE_DISCHARGE_PLANNING')
+  @ApiOperation({ summary: 'Update discharge plan status' })
+  async updateDischargePlanStatus(
+    @Param('planId', ParseIntPipe) planId: number,
+    @Body('status') status: string,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    if (!status) {
+      throw new BadRequestException('Status is required');
+    }
+    return this.admissionService.updateDischargePlanStatus(
+      user.hospitalId,
+      planId,
+      status,
+    );
   }
 
   @Post(':id/bed-transfer/request')
