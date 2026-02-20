@@ -70,21 +70,20 @@ RUN sed -i 's/"ts-node prisma\/seed.ts"/"node dist\/prisma\/seed.js"/g' package.
 # تثبيت تبعيات الإنتاج فقط
 RUN npm ci --only=production
 
-# نسخ الملفات من الـ Builder
-COPY --from=builder /app/dist ./dist
+# ========= طبقات نادرة التغيير (Prisma + مفاتيح + سكربتات) =========
+# نسخ Prisma schema + توليد Client (تتغير فقط لو تغير schema.prisma)
 COPY --from=builder /app/prisma ./prisma
-# نسخ المفتاح العام للمكان الذي يتوقعه الكود المترجم (داخل dist أحياناً أو في الجذر)
-# سننسخه للجذر ولداخل dist لضمان العثور عليه
-COPY --from=builder /app/src/licensing/public.key ./public.key
-COPY --from=builder /app/src/licensing/public.key ./dist/licensing/public.key
-
-# توليد Prisma Client للإنتاج
 ENV DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy"
 RUN npx prisma generate
 
-# إعداد سكربت التشغيل والصلاحيات
+# نسخ المفتاح العام والسكربتات (نادرة التغيير)
+COPY --from=builder /app/src/licensing/public.key ./public.key
+COPY --from=builder /app/src/licensing/public.key ./dist/licensing/public.key
 COPY docker-entrypoint.sh /app/docker-entrypoint.sh
 COPY --from=builder /app/scripts ./scripts
+
+# ========= طبقة كثيرة التغيير (كود التطبيق) — الأخيرة دائماً! =========
+COPY --from=builder /app/dist ./dist
 
 # ✅ ضبط الصلاحيات للمستخدم node (غير الروت)
 RUN chmod +x /app/docker-entrypoint.sh && \
