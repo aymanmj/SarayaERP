@@ -203,7 +203,7 @@ export default function BedManagementDashboard() {
   const filteredWards = wards.filter(ward => {
     const matchesSearch = ward.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          ward.type.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesFilter = selectedWard ? ward.id === selectedWard : true;
+    const matchesFilter = (activeTab === 'wards' && selectedWard) ? ward.id === selectedWard : true;
     return matchesSearch && matchesFilter;
   });
 
@@ -212,6 +212,15 @@ export default function BedManagementDashboard() {
       hour: '2-digit', 
       minute: '2-digit' 
     });
+  };
+
+  const handleRefresh = () => {
+    loadData();
+    if (activeTab === 'overview') {
+      setSelectedWard(null);
+      setSearchTerm('');
+      setStatusFilter('ALL');
+    }
   };
 
   return (
@@ -226,7 +235,7 @@ export default function BedManagementDashboard() {
         </div>
         <div className="flex gap-2">
           <button
-            onClick={loadData}
+            onClick={handleRefresh}
             className="px-4 py-2 bg-sky-600 hover:bg-sky-500 rounded-lg flex items-center gap-2"
           >
             🔄 تحديث
@@ -341,7 +350,13 @@ export default function BedManagementDashboard() {
         ].map((tab) => (
           <button
             key={tab.id}
-            onClick={() => setActiveTab(tab.id as any)}
+            onClick={() => {
+              setActiveTab(tab.id as any);
+              if (tab.id === 'overview') {
+                setSelectedWard(null);
+                setSearchTerm('');
+              }
+            }}
             className={`px-4 py-2 text-sm font-medium transition-colors ${
               activeTab === tab.id
                 ? "text-sky-400 border-b-2 border-sky-400"

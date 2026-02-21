@@ -10,22 +10,18 @@ export class DashboardService {
 
   // ✅ نستقبل الآن الـ User بالكامل لتحديد الصلاحيات
   async getStats(hospitalId: number, userId: number, roles: string[]) {
-    // تحديد بداية ونهاية اليوم بدقة
+    // تحديد بداية ونهاية اليوم بدقة (المحلية)
     const now = new Date();
-    const todayStart = new Date(
-      Date.UTC(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0),
-    );
-    const todayEnd = new Date(
-      Date.UTC(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59),
-    );
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
 
     // تحديد بداية ونهاية الشهر الماضي
     const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+    const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
 
     // تحديد بداية الأسبوع
-    const weekStart = new Date(now);
-    weekStart.setDate(now.getDate() - now.getDay());
+    const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    weekStart.setDate(weekStart.getDate() - weekStart.getDay());
     weekStart.setHours(0, 0, 0, 0);
 
     // 1. الإحصائيات العامة
@@ -115,33 +111,41 @@ export class DashboardService {
     const isAdmin =
       roles.includes('ADMIN') ||
       roles.includes('CEO') ||
-      roles.includes('ACCOUNTANT');
+      roles.includes('ACCOUNTANT') ||
+      roles.includes('FINANCE');
     const isCashier = roles.includes('CASHIER');
+    const hasRevenueAccess = isAdmin || isCashier;
 
-    if (isCashier && !isAdmin) {
-      revenueQuery.cashierId = userId;
+    let todayRevenue = 0;
+    let lastMonthRevenue = 0;
+
+    if (hasRevenueAccess) {
+      if (isCashier && !isAdmin) {
+        revenueQuery.cashierId = userId;
+      }
+
+      const [revenueAgg, lastMonthRevenueAgg] = await Promise.all([
+        // إيرادات اليوم
+        this.prisma.payment.aggregate({
+          where: revenueQuery,
+          _sum: { amount: true },
+        }),
+        // إيرادات الشهر الماضي
+        this.prisma.payment.aggregate({
+          where: {
+            hospitalId,
+            paidAt: { gte: lastMonthStart, lte: lastMonthEnd },
+            ...(isCashier && !isAdmin ? { cashierId: userId } : {}),
+          },
+          _sum: { amount: true },
+        }),
+      ]);
+
+      todayRevenue = Number(revenueAgg._sum.amount ?? 0);
+      lastMonthRevenue = Number(lastMonthRevenueAgg._sum.amount ?? 0);
     }
 
-    const [revenueAgg, lastMonthRevenueAgg] = await Promise.all([
-      // إيرادات اليوم
-      this.prisma.payment.aggregate({
-        where: revenueQuery,
-        _sum: { amount: true },
-      }),
-      // إيرادات الشهر الماضي
-      this.prisma.payment.aggregate({
-        where: {
-          hospitalId,
-          paidAt: { gte: lastMonthStart, lte: lastMonthEnd },
-          ...(isCashier && !isAdmin ? { cashierId: userId } : {}),
-        },
-        _sum: { amount: true },
-      }),
-    ]);
-
     const occupancyRate = totalBeds > 0 ? Math.round((occupiedBeds / totalBeds) * 100) : 0;
-    const todayRevenue = Number(revenueAgg._sum.amount ?? 0);
-    const lastMonthRevenue = Number(lastMonthRevenueAgg._sum.amount ?? 0);
 
     // حساب قيمة المخزون (الكمية × التكلفة)
     const inventoryValueCalc = Number(inventoryValue._sum.costPrice || 0) * Number(inventoryValue._sum.stockOnHand || 0);
@@ -149,8 +153,10 @@ export class DashboardService {
     // 3. بيانات الأسبوعي للمخططات
     const weeklyTrend = await this.getWeeklyTrend(hospitalId, weekStart);
 
-    // 4. توزيع الإيرادات حسب القسم
-    const departmentDistribution = await this.getDepartmentDistribution(hospitalId, todayStart, todayEnd);
+    // 4. توزيع الإيرادات حسب القسم (إخفاء التفاصيل المالية إذا لم يكن لديه صلاحية)
+    const departmentDistribution = hasRevenueAccess 
+      ? await this.getDepartmentDistribution(hospitalId, todayStart, todayEnd)
+      : [];
 
     // 5. حالة الأسرة
     const bedStatus = await this.getBedStatus(hospitalId);
@@ -181,6 +187,7 @@ export class DashboardService {
 
       // معلومات إضافية
       isPersonalRevenue: !isAdmin && isCashier,
+      hasRevenueAccess,
       lastUpdated: new Date().toISOString(),
     };
   }

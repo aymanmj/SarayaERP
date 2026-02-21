@@ -27,6 +27,7 @@ type DashboardStats = {
   todayRevenue: number;
   lowStockCount: number;
   isPersonalRevenue?: boolean;
+  hasRevenueAccess?: boolean;
 };
 
 type LicenseDetails = {
@@ -42,17 +43,30 @@ type LicenseInfoResponse = {
   details: LicenseDetails;
 };
 
+import { useState, useEffect } from "react";
+
 export function DashboardPage() {
   const user = useAuthStore((s) => s.user);
+  const [apiLatency, setApiLatency] = useState<number | null>(null);
+  const [dbStatus, setDbStatus] = useState<"ACTIVE" | "ERROR" | "CHECKING">("CHECKING");
 
   // 1. Fetch Stats
-  const { data: stats, isLoading: statsLoading } = useQuery({
+  const { data: stats, isLoading: statsLoading, isError: statsError } = useQuery({
     queryKey: ["dashboardStats", user?.hospitalId],
     queryFn: async () => {
+      const start = performance.now();
       const res = await apiClient.get<DashboardStats>("/dashboard/stats");
+      setApiLatency(Math.round(performance.now() - start));
+      setDbStatus("ACTIVE");
       return res.data;
     },
   });
+
+  useEffect(() => {
+    if (statsError) {
+      setDbStatus("ERROR");
+    }
+  }, [statsError]);
 
   // 2. Fetch License Info
   const { data: licenseInfo, isLoading: licenseLoading } = useQuery({
@@ -217,17 +231,19 @@ export function DashboardPage() {
           icon={CalendarIcon}
         />
 
-        <StatCard
-          title={
-            stats?.isPersonalRevenue
-              ? "إيرادك اليوم"
-              : "إيرادات اليوم"
-          }
-          value={`${(stats?.todayRevenue ?? 0).toLocaleString()} د.ل`}
-          subtext={stats?.isPersonalRevenue ? "ورديتك" : "المحصلة"}
-          colorClass="text-emerald-400"
-          icon={BanknotesIcon}
-        />
+        {stats?.hasRevenueAccess && (
+          <StatCard
+            title={
+              stats.isPersonalRevenue
+                ? "إيرادك اليوم"
+                : "إيرادات اليوم"
+            }
+            value={`${(stats.todayRevenue ?? 0).toLocaleString()} د.ل`}
+            subtext={stats.isPersonalRevenue ? "ورديتك" : "المحصلة"}
+            colorClass="text-emerald-400"
+            icon={BanknotesIcon}
+          />
+        )}
 
         <StatCard
           title="نواقص المخزون"
@@ -289,7 +305,7 @@ export function DashboardPage() {
               title="لوحة تنفيذية"
               description="إحصائيات وتقارير مفصلة للمستشفى"
               icon={ArrowTrendingUpIcon}
-              href="/dashboard/executive"
+              href="/analytics/executive"
               colorClass="text-indigo-400"
               badge="جديدة"
             />
@@ -321,23 +337,29 @@ export function DashboardPage() {
       </div>
 
       {/* System Status */}
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-5">
+      <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-5 mt-4">
         <h3 className="text-sm font-semibold text-slate-200 mb-4">حالة النظام</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+            <div className={`w-2 h-2 rounded-full ${dbStatus === 'ACTIVE' ? 'bg-emerald-500 animate-pulse' : dbStatus === 'ERROR' ? 'bg-rose-500' : 'bg-amber-500 animate-pulse'}`}></div>
             <span className="text-sm text-slate-300">قاعدة البيانات</span>
-            <span className="text-xs text-green-400">نشطة</span>
+            <span className={`text-xs ${dbStatus === 'ACTIVE' ? 'text-emerald-400' : dbStatus === 'ERROR' ? 'text-rose-400' : 'text-amber-400'}`}>
+              {dbStatus === 'ACTIVE' ? 'متصلة' : dbStatus === 'ERROR' ? 'خطأ' : 'جارٍ الفحص...'}
+            </span>
           </div>
           <div className="flex items-center gap-3">
-            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-            <span className="text-sm text-slate-300">الخادم</span>
-            <span className="text-xs text-green-400">يعمل</span>
+            <div className={`w-2 h-2 rounded-full ${apiLatency !== null ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500 animate-pulse'}`}></div>
+            <span className="text-sm text-slate-300">استجابة الخادم</span>
+            <span className={`text-xs ${apiLatency !== null ? 'text-emerald-400' : 'text-amber-400'}`}>
+              {apiLatency !== null ? `${apiLatency}ms` : 'جارٍ الفحص...'}
+            </span>
           </div>
           <div className="flex items-center gap-3">
-            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-            <span className="text-sm text-slate-300">النسخ الاحتياطي</span>
-            <span className="text-xs text-green-400">محدث</span>
+            <div className={`w-2 h-2 rounded-full ${navigator.onLine ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`}></div>
+            <span className="text-sm text-slate-300">حالة الشبكة</span>
+            <span className={`text-xs ${navigator.onLine ? 'text-emerald-400' : 'text-rose-400'}`}>
+              {navigator.onLine ? 'متصل' : 'غير متصل'}
+            </span>
           </div>
         </div>
       </div>
