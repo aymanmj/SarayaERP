@@ -166,18 +166,19 @@ export class DashboardService {
 
     return {
       // الإحصائيات الأساسية
-      dailyRevenue: todayRevenue,
-      dailyVisits: appointmentsToday,
+      todayRevenue: todayRevenue,
+      appointmentsToday: appointmentsToday,
       inventoryValue: inventoryValueCalc,
       activeInpatients,
+      occupiedBeds,
       totalBeds,
       occupancyRate,
-      todayAppointments: appointmentsToday,
       completedAppointments,
       pendingAdmissions,
       emergencyCases,
       monthlyRevenue: todayRevenue, // يمكن حسابه بشكل مختلف
       lastMonthRevenue,
+      lowStockCount,
 
       // بيانات المخططات
       weeklyTrend,
