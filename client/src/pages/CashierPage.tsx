@@ -126,6 +126,25 @@ export default function CashierPage() {
     }
   };
 
+  const handlePrintPdf = async (invoiceId: number) => {
+    try {
+      const response = await apiClient.get(`/billing/invoices/${invoiceId}/pdf`, {
+        responseType: "blob",
+      });
+      const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("target", "_blank");
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Error generating PDF:', err);
+      toast.error("فشل تحميل ملف الـ PDF. تأكد من إعدادات السيرفر.");
+    }
+  };
+
   const handlePay = async () => {
     if (!selectedInvoice) {
       toast.warning("اختر فاتورة أولاً.");
@@ -302,7 +321,7 @@ export default function CashierPage() {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            window.open(`/invoices/${inv.id}/print`, "_blank");
+                            handlePrintPdf(inv.id);
                           }}
                           className="text-sky-400 hover:text-sky-300 underline"
                         >

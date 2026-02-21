@@ -73,20 +73,24 @@ export class PdfService implements OnModuleInit, OnModuleDestroy {
 
     handlebars.registerHelper('formatDate', (val) => {
       if (!val) return '-';
-      return new Date(val).toLocaleDateString('ar-LY');
+      const d = new Date(val);
+      if (isNaN(d.getTime())) return '-';
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      return `${yyyy}/${mm}/${dd}`;
     });
 
     handlebars.registerHelper('formatDateTime', (val) => {
       if (!val) return '-';
-      const date = new Date(val);
-      if (isNaN(date.getTime())) return '-';
-      return date.toLocaleString('ar-LY', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
+      const d = new Date(val);
+      if (isNaN(d.getTime())) return '-';
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      const hh = String(d.getHours()).padStart(2, '0');
+      const min = String(d.getMinutes()).padStart(2, '0');
+      return `${yyyy}/${mm}/${dd} ${hh}:${min}`;
     });
 
     handlebars.registerHelper('inc', (value) => parseInt(value) + 1);
