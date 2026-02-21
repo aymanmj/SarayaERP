@@ -76,7 +76,40 @@ export class PdfService implements OnModuleInit, OnModuleDestroy {
       return new Date(val).toLocaleDateString('ar-LY');
     });
 
+    handlebars.registerHelper('formatDateTime', (val) => {
+      if (!val) return '-';
+      const date = new Date(val);
+      if (isNaN(date.getTime())) return '-';
+      return date.toLocaleString('ar-LY', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    });
+
     handlebars.registerHelper('inc', (value) => parseInt(value) + 1);
+
+    handlebars.registerHelper('formatMoney', (val) => {
+       if (val === undefined || val === null) return '0.000';
+       return new Intl.NumberFormat('en-US', {
+         style: 'decimal',
+         minimumFractionDigits: 3,
+         maximumFractionDigits: 3,
+       }).format(Number(val));
+    });
+
+    handlebars.registerHelper('toString', (val) => {
+      if (val === null || val === undefined) return '';
+      if (typeof val === 'object') return JSON.stringify(val);
+      return String(val);
+    });
+
+    handlebars.registerHelper('toNumber', (val) => {
+      if (val === null || val === undefined) return 0;
+      return Number(val);
+    });
   }
 
   /**
