@@ -252,10 +252,29 @@ services:
       - GF_USERS_ALLOW_SIGN_UP=false
     volumes:
       - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
     depends_on:
       - prometheus
     networks:
       - saraya_net
+
+  # Alertmanager - إدارة التنبيهات
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: saraya_alertmanager
+    restart: always
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager_data:/alertmanager
+    command:
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
+      - "--storage.path=/alertmanager"
+    networks:
+      - saraya_net
+
 
   # ==========================================
   # 6. أدوات الإدارة عن بعد
@@ -298,6 +317,7 @@ volumes:
   prometheus_data:
   grafana_data:
   portainer_data:
+  alertmanager_data:
 
 networks:
   saraya_net:

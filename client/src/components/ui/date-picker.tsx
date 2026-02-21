@@ -101,7 +101,8 @@ export function DatePicker({
 
       <PopoverContent
         className="w-auto p-0 bg-transparent border-0 shadow-none z-50"
-        align="start"
+        align="end"
+        sideOffset={4}
       >
         <Calendar
           mode="single"
