@@ -21,23 +21,23 @@ function Calendar({
       // تحديد نطاق السنوات (من 1900 إلى بعد 10 سنوات من الآن)
       fromYear={1900}
       toYear={new Date().getFullYear() + 10}
-      className={cn("p-4 bg-slate-950/95 backdrop-blur-xl border border-slate-800 rounded-2xl shadow-2xl", className)}
+      className={cn("relative p-4 bg-slate-950/95 backdrop-blur-xl border border-slate-800 rounded-2xl shadow-2xl w-full flex flex-col items-center", className)}
       classNames={{
-        months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-x-reverse sm:space-y-0",
-        month: "space-y-4",
-        caption: "flex justify-center pt-1 relative items-center mb-4",
+        months: "w-full flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-x-reverse sm:space-y-0",
+        month: "space-y-4 w-full flex flex-col items-center",
+        caption: "flex justify-center pt-2 relative items-center mb-4 w-full",
         caption_label: "hidden", // إخفاء النص العادي لإظهار القوائم المستدلة
-        caption_dropdowns: "flex gap-2 justify-center items-center w-full px-8", // مساحة في المنتصف للقوائم
-        dropdown: "appearance-none bg-slate-900 border border-slate-700 text-slate-100 text-sm font-semibold rounded-lg px-2 py-1.5 outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 cursor-pointer transition-all hover:bg-slate-800",
+        caption_dropdowns: "flex gap-2 justify-center items-center w-full px-10", // مساحة في المنتصف للقوائم
+        dropdown: "bg-slate-900 border border-slate-700 text-slate-100 text-sm font-semibold rounded-lg px-2 py-1.5 outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 cursor-pointer transition-all hover:bg-slate-800",
         dropdown_icon: "hidden",
         dropdown_month: "ml-1", 
         dropdown_year: "mr-1",
-        nav: "space-x-1 flex items-center",
-        button_previous: "absolute right-0 h-8 w-8 bg-slate-900 hover:bg-slate-800 text-slate-300 rounded-lg flex items-center justify-center border border-slate-800 transition-colors z-10 cursor-pointer hover:text-white",
-        button_next: "absolute left-0 h-8 w-8 bg-slate-900 hover:bg-slate-800 text-slate-300 rounded-lg flex items-center justify-center border border-slate-800 transition-colors z-10 cursor-pointer hover:text-white",
-        month_grid: "w-full border-collapse space-y-1",
-        weekdays: "flex justify-between mb-2",
-        weekday: "text-slate-500 w-9 font-medium text-[0.8rem] uppercase tracking-wider",
+        nav: "absolute top-5 left-4 right-4 flex items-center justify-between pointer-events-none z-20",
+        button_previous: "h-8 w-8 bg-slate-900 hover:bg-slate-800 text-slate-300 rounded-lg flex items-center justify-center border border-slate-800 transition-colors cursor-pointer hover:text-white pointer-events-auto",
+        button_next: "h-8 w-8 bg-slate-900 hover:bg-slate-800 text-slate-300 rounded-lg flex items-center justify-center border border-slate-800 transition-colors cursor-pointer hover:text-white pointer-events-auto",
+        month_grid: "w-full border-collapse space-y-1 mx-auto",
+        weekdays: "flex justify-between mb-2 w-full",
+        weekday: "text-slate-500 w-9 font-medium text-[0.8rem] uppercase tracking-wider text-center",
         week: "flex justify-between w-full mt-2",
         day: "h-9 w-9 text-center text-sm p-0 relative focus-within:relative focus-within:z-20 rounded-xl",
         day_button: "h-9 w-9 p-0 font-medium aria-selected:opacity-100 text-slate-300 hover:bg-sky-500/20 hover:text-sky-300 rounded-xl flex items-center justify-center transition-all cursor-pointer m-auto",

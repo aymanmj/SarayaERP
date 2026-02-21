@@ -109,14 +109,7 @@ EOF
 echo ""
 echo -e "  ${YELLOW}إنشاء ملف ZIP...${NC}"
 cd "$OUTPUT_DIR"
-if command -v zip &> /dev/null; then
-    zip -r "$PACKAGE_NAME.zip" "$PACKAGE_NAME" > /dev/null
-else
-    # Fallback for Windows users (Git Bash / WSL) when zip is not installed
-    echo -e "  ${YELLOW}أداة zip غير موجودة، محاولة استخدام PowerShell المدمج...${NC}"
-    powershell.exe -NoProfile -Command "Compress-Archive -Path '$PACKAGE_NAME\*' -DestinationPath '$PACKAGE_NAME.zip' -Force" > /dev/null || \
-    echo -e "${RED}فشل في إنشاء ملف الـ ZIP، يمكنك ضغط المجلد '${PACKAGE_NAME}' يدوياً.${NC}"
-fi
+zip -r "$PACKAGE_NAME.zip" "$PACKAGE_NAME" > /dev/null
 
 # Cleanup
 rm -rf "$OUTPUT_DIR/$PACKAGE_NAME"

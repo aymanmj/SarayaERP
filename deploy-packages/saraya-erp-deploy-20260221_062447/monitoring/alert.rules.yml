@@ -1,0 +1,70 @@
+# ============================================
+# Prometheus Alert Rules for Saraya ERP
+# ============================================
+
+groups:
+  - name: saraya-critical
+    rules:
+      # Database down
+      - alert: DatabaseDown
+        expr: saraya_database_up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "قاعدة البيانات لا تعمل"
+          description: "Database has been down for more than 1 minute"
+
+      # High database latency
+      - alert: HighDatabaseLatency
+        expr: saraya_database_latency_ms > 2000
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "بطء في استجابة قاعدة البيانات"
+          description: "Database latency is above 2 seconds for 5 minutes"
+
+      # Application unhealthy
+      - alert: ApplicationUnhealthy
+        expr: saraya_health_status == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "حالة التطبيق غير صحية"
+          description: "Application health check is failing"
+
+  - name: saraya-resources
+    rules:
+      # High memory usage
+      - alert: HighMemoryUsage
+        expr: (saraya_memory_used_bytes / saraya_memory_total_bytes) * 100 > 90
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "استخدام عالي للذاكرة"
+          description: "Memory usage is above 90% for 5 minutes"
+
+      # Application down
+      - alert: ApplicationDown
+        expr: up{job="saraya-backend"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "تطبيق Saraya ERP لا يستجيب"
+          description: "Backend application is not responding to health checks"
+
+  - name: saraya-business
+    rules:
+      # High error rate (placeholder - needs actual metrics)
+      - alert: HighErrorRate
+        expr: rate(saraya_http_errors_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "معدل أخطاء عالي"
+          description: "Error rate is above 10% for 5 minutes"

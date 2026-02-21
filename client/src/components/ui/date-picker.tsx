@@ -11,6 +11,7 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
+  PopoverAnchor,
 } from "@/components/ui/popover";
 
 interface DatePickerProps {
@@ -76,33 +77,35 @@ export function DatePicker({
 
   return (
     <Popover>
-      <div className={cn("relative w-full group", className)}>
-        {/* أيقونة التقويم - عند الضغط عليها يفتح الـ Popover */}
-        <PopoverTrigger asChild>
-          <div className="absolute inset-y-0 right-0 flex items-center pr-3.5 cursor-pointer z-10 text-slate-400 group-hover:text-sky-400 transition-colors">
-            <CalendarIcon className="w-[18px] h-[18px]" />
-          </div>
-        </PopoverTrigger>
+      <PopoverAnchor asChild>
+        <div className={cn("relative w-full group", className)}>
+          {/* أيقونة التقويم - عند الضغط عليها يفتح الـ Popover */}
+          <PopoverTrigger asChild>
+            <div className="absolute inset-y-0 right-0 flex items-center pr-3.5 cursor-pointer z-10 text-slate-400 group-hover:text-sky-400 transition-colors">
+              <CalendarIcon className="w-[18px] h-[18px]" />
+            </div>
+          </PopoverTrigger>
 
-        {/* حقل الإدخال للكتابة اليدوية */}
-        <input
-          type="text"
-          value={inputValue}
-          onChange={handleInputChange}
-          placeholder={placeholder}
-          disabled={disabled}
-          dir="ltr"
-          className={cn(
-            "block w-full text-right pl-3 pr-10 py-2.5 bg-slate-900 border border-slate-700 text-slate-100 text-sm font-medium rounded-xl hover:bg-slate-800/80 focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 outline-none transition-all shadow-sm",
-            disabled && "opacity-50 cursor-not-allowed bg-slate-950",
-          )}
-        />
-      </div>
+          {/* حقل الإدخال للكتابة اليدوية */}
+          <input
+            type="text"
+            value={inputValue}
+            onChange={handleInputChange}
+            placeholder={placeholder}
+            disabled={disabled}
+            dir="ltr"
+            className={cn(
+              "block w-full text-right pl-3 pr-10 py-2.5 bg-slate-900 border border-slate-700 text-slate-100 text-sm font-medium rounded-xl hover:bg-slate-800/80 focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 outline-none transition-all shadow-sm",
+              disabled && "opacity-50 cursor-not-allowed bg-slate-950",
+            )}
+          />
+        </div>
+      </PopoverAnchor>
 
       <PopoverContent
-        className="w-auto p-0 bg-transparent border-0 shadow-none z-50"
-        align="end"
-        sideOffset={4}
+        className="min-w-[var(--radix-popover-trigger-width)] w-auto p-0 bg-transparent border-0 shadow-none z-50 flex items-center justify-center"
+        align="center"
+        sideOffset={6}
       >
         <Calendar
           mode="single"
