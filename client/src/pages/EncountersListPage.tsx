@@ -99,8 +99,8 @@ export default function EncountersListPage() {
   const stats = useMemo(() => {
     return {
       active: encounters.filter((e) => e.status === "OPEN").length,
-      er: encounters.filter((e) => e.type === "ER").length,
-      ipd: encounters.filter((e) => e.type === "IPD").length,
+      er: encounters.filter((e) => e.type === "ER" && e.status === "OPEN").length,
+      ipd: encounters.filter((e) => e.type === "IPD" && e.status === "OPEN").length,
     };
   }, [encounters]);
 
@@ -122,7 +122,7 @@ export default function EncountersListPage() {
       case "ER":
         return { label: "طوارئ", color: "text-rose-400 bg-rose-400/10" };
       case "IPD":
-        return { label: "تنويم", color: "text-purple-400 bg-purple-400/10" };
+        return { label: "إيواء", color: "text-purple-400 bg-purple-400/10" };
       case "OPD":
         return { label: "عيادة", color: "text-sky-400 bg-sky-400/10" };
       default:
@@ -142,7 +142,7 @@ export default function EncountersListPage() {
             سجل الحالات الطبية
           </h1>
           <p className="text-sm text-slate-400 mt-1">
-            متابعة الزيارات، حالات الطوارئ، وعمليات التنويم النشطة.
+            متابعة الزيارات، حالات الطوارئ، وعمليات الإيواء النشطة.
           </p>
         </div>
 
@@ -195,7 +195,7 @@ export default function EncountersListPage() {
           </div>
           <div>
             <div className="text-[10px] text-slate-500 font-bold uppercase">
-              قيد التنويم
+              قيد الإيواء
             </div>
             <div className="text-xl font-black text-white">{stats.ipd}</div>
           </div>
@@ -228,7 +228,7 @@ export default function EncountersListPage() {
             <option value="">الكل</option>
             <option value="OPD">عيادات خارجية</option>
             <option value="ER">طوارئ</option>
-            <option value="IPD">تنويم / إيواء</option>
+            <option value="IPD">إيواء</option>
           </select>
         </div>
 

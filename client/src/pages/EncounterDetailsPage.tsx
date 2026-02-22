@@ -191,10 +191,10 @@ export default function EncounterDetailsPage() {
       },
       onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: ['encounter', encId] });
-          toast.success("تم تحويل المريض للتنويم (Inpatient). يرجى مراجعة مكتب الدخول لتخصيص سرير.");
+          toast.success("تم تحويل المريض للإيواء (Inpatient). يرجى مراجعة مكتب الدخول لتخصيص سرير.");
           setShowAdmitModal(false);
       },
-      onError: (err: any) => toast.error(err.response?.data?.message || "فشل التنويم")
+      onError: (err: any) => toast.error(err.response?.data?.message || "فشل الإيواء")
   });
 
 
@@ -514,7 +514,7 @@ export default function EncounterDetailsPage() {
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
           <div className="bg-slate-950 border border-slate-700 rounded-2xl w-full max-w-sm p-6 shadow-2xl">
             <h3 className="text-lg font-bold text-white mb-4">
-              قرار تنويم المريض
+              قرار إيواء المريض
             </h3>
             <div className="space-y-3 mb-6">
               <label className="text-xs text-slate-400">إلى أي قسم؟</label>

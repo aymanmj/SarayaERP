@@ -127,7 +127,7 @@ export class EncountersService {
     // IPD encounters should be discharged via dischargePatient to handle bed release
     if (encounter.type === EncounterType.IPD) {
       throw new BadRequestException(
-        'حالات التنويم يجب إغلاقها عبر إجراء الخروج (Discharge).',
+        'حالات الإيواء يجب إغلاقها عبر إجراء الخروج (Discharge).',
       );
     }
 
@@ -166,7 +166,7 @@ export class EncountersService {
       }
 
       if (encounter.type === EncounterType.IPD) {
-        throw new BadRequestException('حالات التنويم (الإيواء) يجب إغلاقها استكمال "خطة الخروج الطبية" أولاً ولضمان الفوترة التلقائية لرسوم السرير.');
+        throw new BadRequestException('حالات الإيواء يجب إغلاقها استكمال "خطة الخروج الطبية" أولاً ولضمان الفوترة التلقائية لرسوم السرير.');
       }
 
       if (encounter.status !== EncounterStatus.OPEN) {

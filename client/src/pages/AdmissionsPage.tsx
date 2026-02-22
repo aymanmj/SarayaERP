@@ -79,7 +79,7 @@ export default function AdmissionsPage() {
         setDoctors(doctorsRes.data);
       } catch (err) {
         console.error(err);
-        toast.error("حدث خطأ أثناء تحميل بيانات التنويم.");
+        toast.error("حدث خطأ أثناء تحميل بيانات الإيواء.");
       } finally {
         setLoading(false);
       }
@@ -104,7 +104,7 @@ export default function AdmissionsPage() {
 
     if (
       !confirm(
-        `هل أنت متأكد من تنويم المريض في السرير ${selectedBed.number} (${selectedBed.wardName})؟`,
+        `هل أنت متأكد من إيواء المريض في السرير ${selectedBed.number} (${selectedBed.wardName})؟`,
       )
     )
       return;
@@ -123,7 +123,7 @@ export default function AdmissionsPage() {
         departmentId: selectedDoctor?.departmentId || 1, // ✅ [NEW] Use doctor's department or default to 1
         admissionType: "ELECTIVE",
         priority: "MEDIUM",
-        admissionReason: "دخول تنويم عبر نظام الإيواء",
+        admissionReason: "دخول إيواء عبر نظام الإيواء",
         isEmergency: false,
         isolationRequired: false,
       };
@@ -146,7 +146,7 @@ export default function AdmissionsPage() {
       }
     } catch (err: any) {
       console.error(err);
-      toast.error(err?.response?.data?.message || "فشل عملية التنويم.");
+      toast.error(err?.response?.data?.message || "فشل عملية الإيواء.");
     } finally {
       setSubmitting(false);
     }
