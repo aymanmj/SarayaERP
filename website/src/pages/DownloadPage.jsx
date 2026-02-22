@@ -29,8 +29,10 @@ export default function DownloadPage() {
 
             <div className="flex flex-col sm:flex-row gap-4 pt-4 border-t border-slate-100">
               <a 
-                href="/downloads/saraya-erp-v1.0.0.apk"
-                download 
+                href="https://expo.dev/artifacts/eas/qmYidwi8oXq68z5ygWNvrk.apk"
+                download="saraya-erp.apk"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="flex flex-1 items-center justify-center gap-3 px-8 py-5 bg-saraya-blue text-white rounded-2xl font-bold shadow-soft hover:bg-blue-900 transition-all transform hover:-translate-y-1 hover:shadow-xl"
               >
                 <Download className="w-6 h-6" />
