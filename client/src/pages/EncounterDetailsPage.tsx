@@ -410,7 +410,13 @@ export default function EncounterDetailsPage() {
             {activeTab === "OBGYN" && (
                <div className="max-w-3xl space-y-6">
                  <ObstetricHistoryCard patientId={encounter.patientId} editable={true} />
-                 <div className="flex justify-end">
+                 <div className="flex justify-end gap-3">
+                    <button
+                      onClick={() => navigate(`/obgyn/anc?patientId=${encounter.patientId}`)}
+                      className="bg-violet-600 hover:bg-violet-500 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg"
+                    >
+                      <span>🤰</span> متابعة الحمل (ANC)
+                    </button>
                     <button
                       onClick={() => navigate(`/obgyn/deliveries/new?encounterId=${encId}`)}
                       className="bg-pink-600 hover:bg-pink-500 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg"
