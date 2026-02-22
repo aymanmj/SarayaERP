@@ -46,8 +46,7 @@ export class UsersController {
   }
 
   @Get('doctors-list')
-  // @Roles('ADMIN', 'RECEPTION', 'CASHIER')
-  @Permissions('VIEW_DOCTORS_LIST')
+  @Roles('ADMIN', 'DOCTOR', 'NURSE', 'RECEPTION', 'CASHIER')
   async getDoctors(@CurrentUser() user: JwtPayload) {
     return this.usersService.findActiveDoctors(user.hospitalId);
   }
