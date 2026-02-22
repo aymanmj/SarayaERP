@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { SoftDeleteService } from '../common/soft-delete.service';
@@ -12,16 +13,23 @@ import {
   EncounterStatus,
   EncounterType,
   BedStatus,
+  ChargeSource,
 } from '@prisma/client';
 
 import { SystemSettingsService } from '../system-settings/system-settings.service';
+import { PriceListsService } from '../price-lists/price-lists.service';
+import { AccountingService } from '../accounting/accounting.service';
 
 @Injectable()
 export class EncountersService {
+  private readonly logger = new Logger(EncountersService.name);
+
   constructor(
     private prisma: PrismaService,
     private softDeleteService: SoftDeleteService,
     private systemSettings: SystemSettingsService,
+    private priceService: PriceListsService,
+    private accounting: AccountingService,
   ) {}
 
   async createEncounter(
@@ -36,9 +44,10 @@ export class EncountersService {
   ) {
     const { patientId, type, departmentId, doctorId, chiefComplaint } = data;
 
-    // 1. التحقق من وجود المريض
+    // 1. التحقق من وجود المريض (مع بيانات التأمين)
     const patient = await this.prisma.patient.findUnique({
       where: { id: patientId },
+      include: { insurancePolicy: true },
     });
 
     if (!patient || patient.hospitalId !== hospitalId) {
@@ -58,28 +67,137 @@ export class EncountersService {
 
       if (activeEncounter) {
         throw new BadRequestException(
-          'المريض لديه زيارة فعالة (طوارئ أو تنويم) بالفعل. يجب إغلاقها قبل فتح زيارة جديدة.',
+          'المريض لديه زيارة فعالة (طوارئ أو إيواء) بالفعل. يجب إغلاقها قبل فتح زيارة جديدة.',
         );
       }
     }
 
-    // 3. إنشاء الزيارة
-    return this.prisma.encounter.create({
-      data: {
-        hospitalId,
-        patientId,
-        type,
-        departmentId,
-        doctorId,
-        chiefComplaint,
-        status: EncounterStatus.OPEN,
-        admissionDate: type === EncounterType.IPD ? new Date() : null, // تاريخ الدخول للمقيمين فقط
-      },
-      include: {
-        patient: { select: { fullName: true, mrn: true } },
-        doctor: { select: { fullName: true } },
-        department: { select: { name: true } },
-      },
+    // 3. إنشاء الزيارة (مع فوترة تلقائية لحالات الطوارئ)
+    return this.prisma.$transaction(async (tx) => {
+      const encounter = await tx.encounter.create({
+        data: {
+          hospitalId,
+          patientId,
+          type,
+          departmentId,
+          doctorId,
+          chiefComplaint,
+          status: EncounterStatus.OPEN,
+          admissionDate: type === EncounterType.IPD ? new Date() : null,
+        },
+      });
+
+      // ✅ [NEW] فوترة تلقائية لحالات الطوارئ (ER Auto-Billing)
+      if (type === EncounterType.ER) {
+        try {
+          const erService = await tx.serviceItem.findFirst({
+            where: { hospitalId, code: 'ER-VISIT', isActive: true },
+          });
+
+          if (erService) {
+            // حساب السعر (يراعي التأمين إن وُجد)
+            const policyId =
+              patient.insurancePolicy?.isActive
+                ? patient.insurancePolicy.id
+                : null;
+
+            const price = await this.priceService.getServicePrice(
+              hospitalId,
+              erService.id,
+              policyId,
+            );
+
+            // إنشاء بند مالي (Charge)
+            const charge = await tx.encounterCharge.create({
+              data: {
+                hospitalId,
+                encounterId: encounter.id,
+                serviceItemId: erService.id,
+                sourceType: ChargeSource.MANUAL,
+                quantity: 1,
+                unitPrice: price,
+                totalAmount: price,
+                performerId: doctorId ?? null,
+              },
+            });
+
+            // حساب حصص الدفع (مريض / تأمين)
+            let patientShare = price;
+            let insuranceShare = 0;
+            let insuranceProviderId: number | null = null;
+
+            if (patient.insurancePolicy?.isActive) {
+              const copayRate =
+                Number(patient.insurancePolicy.patientCopayRate || 0) / 100;
+              patientShare = Math.round(price * copayRate * 100) / 100;
+              insuranceShare = Math.round((price - patientShare) * 100) / 100;
+              insuranceProviderId =
+                patient.insurancePolicy.insuranceProviderId;
+            }
+
+            // محاولة إنشاء فاتورة (قد تفشل إذا الفترة المالية مغلقة)
+            try {
+              const { financialYear, period } =
+                await this.accounting.validateDateInOpenPeriod(
+                  hospitalId,
+                  new Date(),
+                );
+
+              const invoice = await tx.invoice.create({
+                data: {
+                  hospitalId,
+                  patientId,
+                  encounterId: encounter.id,
+                  status: 'ISSUED',
+                  totalAmount: price,
+                  discountAmount: 0,
+                  paidAmount: 0,
+                  currency: 'LYD',
+                  patientShare,
+                  insuranceShare,
+                  insuranceProviderId,
+                  financialYearId: financialYear.id,
+                  financialPeriodId: period.id,
+                },
+              });
+
+              // ربط البند بالفاتورة
+              await tx.encounterCharge.update({
+                where: { id: charge.id },
+                data: { invoiceId: invoice.id },
+              });
+
+              this.logger.log(
+                `✅ ER Auto-Billing: Invoice #${invoice.id} created for encounter #${encounter.id} (${price} LYD)`,
+              );
+            } catch (invoiceErr) {
+              // الفاتورة فشلت (فترة مالية مغلقة مثلاً) — البند يبقى بدون فاتورة
+              this.logger.warn(
+                `⚠️ ER charge created but invoice failed for encounter #${encounter.id}: ${invoiceErr.message}`,
+              );
+            }
+          } else {
+            this.logger.warn(
+              `⚠️ ER-VISIT service item not found. Skipping auto-billing for encounter #${encounter.id}.`,
+            );
+          }
+        } catch (billingErr) {
+          // لا نمنع فتح حالة الطوارئ بسبب فشل الفوترة
+          this.logger.error(
+            `❌ ER Auto-Billing failed for encounter #${encounter.id}: ${billingErr.message}`,
+          );
+        }
+      }
+
+      // إرجاع الحالة مع العلاقات
+      return tx.encounter.findUnique({
+        where: { id: encounter.id },
+        include: {
+          patient: { select: { fullName: true, mrn: true } },
+          doctor: { select: { fullName: true } },
+          department: { select: { name: true } },
+        },
+      });
     });
   }
 
