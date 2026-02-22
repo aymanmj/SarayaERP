@@ -243,6 +243,7 @@ services:
   grafana:
     image: grafana/grafana:latest
     container_name: saraya_grafana
+    user: root
     restart: always
     ports:
       - "3001:3000" # يمكن الوصول لـ Grafana عبر المنفذ 3001
