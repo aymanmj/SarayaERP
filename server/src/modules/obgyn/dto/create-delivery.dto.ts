@@ -34,13 +34,27 @@ export enum Gender {
   FEMALE = 'FEMALE',
 }
 
+export enum BabyStatus {
+  ALIVE = 'ALIVE',
+  STILLBORN = 'STILLBORN',
+  NICU = 'NICU',
+}
+
 export class CreateBabyProfileDto {
   @IsEnum(Gender)
   gender: Gender;
 
   @IsNumber()
   @IsOptional()
-  weight?: number;
+  weight?: number; // kg
+
+  @IsNumber()
+  @IsOptional()
+  length?: number; // cm
+
+  @IsNumber()
+  @IsOptional()
+  headCircumference?: number; // cm
 
   @IsDateString()
   birthTime: string; // ISO Date
@@ -52,6 +66,22 @@ export class CreateBabyProfileDto {
   @IsInt()
   @IsOptional()
   apgarScore5?: number;
+
+  @IsInt()
+  @IsOptional()
+  apgarScore10?: number;
+
+  @IsEnum(BabyStatus)
+  @IsOptional()
+  status?: BabyStatus;
+
+  @IsBoolean()
+  @IsOptional()
+  vitaminKGiven?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  bcgVaccineGiven?: boolean;
 
   @IsOptional()
   notes?: string;

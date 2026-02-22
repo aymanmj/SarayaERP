@@ -75,9 +75,15 @@ export class DeliveryService {
             create: dto.babies.map(baby => ({
                 gender: baby.gender,
                 weight: baby.weight,
+                length: baby.length,
+                headCircumference: baby.headCircumference,
                 birthTime: baby.birthTime,
                 apgarScore1: baby.apgarScore1,
                 apgarScore5: baby.apgarScore5,
+                apgarScore10: baby.apgarScore10,
+                status: baby.status || 'ALIVE',
+                vitaminKGiven: baby.vitaminKGiven ?? false,
+                bcgVaccineGiven: baby.bcgVaccineGiven ?? false,
                 notes: baby.notes,
             }))
         }
@@ -86,31 +92,26 @@ export class DeliveryService {
     });
 
     // 4. Create Patient Records for Babies
-    for (const babyProfile of delivery.babies) {
-        const babyName = `Baby of ${encounter.patient.fullName}`;
+    for (let i = 0; i < delivery.babies.length; i++) {
+        const babyProfile = delivery.babies[i];
+        const babyIndex = delivery.babyCount > 1 ? ` (${i + 1})` : '';
+        const babyName = `مولود ${encounter.patient.fullName}${babyIndex}`;
         
-        // We link to mother via motherId if it exists in schema, otherwise just create generic patient
+        // MRN آمن: NB-{hospitalId}-{YYMMDD}-{deliveryId}-{index}
+        const now = new Date();
+        const dateStr = `${String(now.getFullYear()).slice(2)}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+        const safeMrn = `NB-${encounter.hospitalId}-${dateStr}-${delivery.id}-${i + 1}`;
+        
         const newPatient = await this.prisma.patient.create({
             data: {
                 hospitalId: encounter.hospitalId,
                 fullName: babyName,
                 gender: babyProfile.gender,
                 dateOfBirth: babyProfile.birthTime, 
-                mrn: `BABY-${Date.now()}-${babyProfile.id}`.slice(0, 20), // Ensure limit
- 
+                mrn: safeMrn,
+                motherId: encounter.patientId,
             }
         });
-
-        // Link to mother separately to avoid type issues with self-relations in create
-        if (encounter.patientId) {
-            await this.prisma.patient.update({
-                where: { id: newPatient.id },
-                data: {
-                    // @ts-ignore: motherId type definition issue despite valid schema
-                    motherId: encounter.patientId
-                }
-            });
-        }
 
         // Link back to BabyProfile
         await this.prisma.babyProfile.update({
@@ -245,6 +246,7 @@ export class DeliveryService {
 
 class Utils {
     static isCesarean(method: DeliveryMethod): boolean {
-        return method === DeliveryMethod.CS_ELECTIVE || method === DeliveryMethod.CS_EMERGENCY || method === DeliveryMethod.VBAC; 
+        // VBAC هي ولادة طبيعية بعد قيصرية — ليست قيصرية!
+        return method === DeliveryMethod.CS_ELECTIVE || method === DeliveryMethod.CS_EMERGENCY;
     }
 }

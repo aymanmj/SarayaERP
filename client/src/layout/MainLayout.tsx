@@ -371,6 +371,11 @@ export function MainLayout() {
           path: "/obgyn/deliveries/new",
           requiredModule: "OBGYN",
         },
+        {
+          label: "متابعة الحمل (ANC)",
+          path: "/obgyn/anc",
+          requiredModule: "OBGYN",
+        },
         { 
           label: "الصيدلية", 
           path: "/pharmacy", 

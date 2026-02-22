@@ -95,8 +95,11 @@ export default function DeliveryRegistrationPage() {
             babies: babies.map(b => ({
                 ...b,
                 weight: b.weight ? Number(b.weight) : undefined,
+                length: b.length ? Number(b.length) : undefined,
+                headCircumference: b.headCircumference ? Number(b.headCircumference) : undefined,
                 apgarScore1: b.apgarScore1 ? Number(b.apgarScore1) : undefined,
                 apgarScore5: b.apgarScore5 ? Number(b.apgarScore5) : undefined,
+                apgarScore10: b.apgarScore10 ? Number(b.apgarScore10) : undefined,
                 birthTime: new Date(b.birthTime).toISOString(),
             }))
         };
@@ -241,7 +244,7 @@ export default function DeliveryRegistrationPage() {
                                 {babies.map((baby, index) => (
                                     <div key={index} className="bg-slate-900/50 p-4 rounded-lg border border-slate-700">
                                         <h4 className="font-semibold mb-2 text-pink-400">مولود #{index + 1}</h4>
-                                        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                                             <div className="space-y-1">
                                                 <Label className="text-slate-400">الجنس</Label>
                                                 <Select value={baby.gender} onValueChange={(v) => updateBaby(index, 'gender', v)}>
@@ -259,6 +262,26 @@ export default function DeliveryRegistrationPage() {
                                                     step="0.01" 
                                                     value={baby.weight} 
                                                     onChange={(e) => updateBaby(index, 'weight', e.target.value)}
+                                                    className="bg-slate-950 border-slate-700 text-white"
+                                                />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <Label className="text-slate-400">الطول (سم)</Label>
+                                                <Input 
+                                                    type="number" 
+                                                    step="0.1" 
+                                                    value={baby.length || ''} 
+                                                    onChange={(e) => updateBaby(index, 'length', e.target.value)}
+                                                    className="bg-slate-950 border-slate-700 text-white"
+                                                />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <Label className="text-slate-400">محيط الرأس (سم)</Label>
+                                                <Input 
+                                                    type="number" 
+                                                    step="0.1" 
+                                                    value={baby.headCircumference || ''} 
+                                                    onChange={(e) => updateBaby(index, 'headCircumference', e.target.value)}
                                                     className="bg-slate-950 border-slate-700 text-white"
                                                 />
                                             </div>
@@ -290,6 +313,47 @@ export default function DeliveryRegistrationPage() {
                                                     onChange={(e) => updateBaby(index, 'apgarScore5', e.target.value)}
                                                     className="bg-slate-950 border-slate-700 text-white"
                                                 />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <Label className="text-slate-400">Apgar 10m</Label>
+                                                <Input 
+                                                    type="number" 
+                                                    max={10}
+                                                    value={baby.apgarScore10 || ''} 
+                                                    onChange={(e) => updateBaby(index, 'apgarScore10', e.target.value)}
+                                                    className="bg-slate-950 border-slate-700 text-white"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">
+                                            <div className="space-y-1">
+                                                <Label className="text-slate-400">حالة المولود</Label>
+                                                <Select value={baby.status || 'ALIVE'} onValueChange={(v) => updateBaby(index, 'status', v)}>
+                                                    <SelectTrigger className="bg-slate-950 border-slate-700 text-white"><SelectValue /></SelectTrigger>
+                                                    <SelectContent className="bg-slate-900 border-slate-700 text-white">
+                                                        <SelectItem value="ALIVE" className="focus:bg-slate-800 focus:text-white">حي</SelectItem>
+                                                        <SelectItem value="STILLBORN" className="focus:bg-slate-800 focus:text-white">ميت</SelectItem>
+                                                        <SelectItem value="NICU" className="focus:bg-slate-800 focus:text-white">عناية مركزة (NICU)</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                            <div className="flex items-center gap-2 pt-5">
+                                                <input 
+                                                    type="checkbox" 
+                                                    checked={baby.vitaminKGiven || false}
+                                                    onChange={(e) => updateBaby(index, 'vitaminKGiven', e.target.checked)}
+                                                    className="h-4 w-4 rounded border-slate-600"
+                                                />
+                                                <Label className="text-slate-300">فيتامين K</Label>
+                                            </div>
+                                            <div className="flex items-center gap-2 pt-5">
+                                                <input 
+                                                    type="checkbox" 
+                                                    checked={baby.bcgVaccineGiven || false}
+                                                    onChange={(e) => updateBaby(index, 'bcgVaccineGiven', e.target.checked)}
+                                                    className="h-4 w-4 rounded border-slate-600"
+                                                />
+                                                <Label className="text-slate-300">تطعيم BCG</Label>
                                             </div>
                                         </div>
                                     </div>

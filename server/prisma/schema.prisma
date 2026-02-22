@@ -79,6 +79,7 @@ model Hospital {
   wards                     Ward[]
   warehouses                Warehouse[]
   workShifts                WorkShift[]
+  antenatalCares            AntenatalCare[]
 }
 
 model Department {
@@ -257,6 +258,7 @@ model User {
   userRoles                 UserRole[]
   visits                    Visit[]                    @relation("VisitDoctor")
   vitalSigns                VitalSign[]
+  antenatalCares            AntenatalCare[]            @relation("ANCDoctor")
 
   // Admission Relations
   admittingAdmissions        Admission[]     @relation("AdmittingDoctor")
@@ -383,6 +385,9 @@ model Patient {
   motherId Int?
   mother   Patient?  @relation("MotherChild", fields: [motherId], references: [id])
   children Patient[] @relation("MotherChild")
+
+  // Antenatal Care
+  antenatalCares AntenatalCare[]
 
   @@index([hospitalId, phone])
   @@index([hospitalId, fullName])
@@ -860,13 +865,19 @@ model DeliveryAdmission {
 }
 
 model BabyProfile {
-  id                  Int      @id @default(autoincrement())
+  id                  Int         @id @default(autoincrement())
   deliveryAdmissionId Int
   gender              Gender
-  weight              Decimal? @db.Decimal(5, 3) // kg
+  weight              Decimal?    @db.Decimal(5, 3) // kg
+  length              Decimal?    @db.Decimal(5, 1) // cm
+  headCircumference   Decimal?    @db.Decimal(5, 1) // cm
   birthTime           DateTime
   apgarScore1         Int?
   apgarScore5         Int?
+  apgarScore10        Int?
+  status              BabyStatus  @default(ALIVE)
+  vitaminKGiven       Boolean     @default(false)
+  bcgVaccineGiven     Boolean     @default(false)
   notes               String?
 
   // Link to a real patient file if created
@@ -874,6 +885,12 @@ model BabyProfile {
 
   deliveryAdmission DeliveryAdmission @relation(fields: [deliveryAdmissionId], references: [id])
   generatedPatient  Patient?          @relation("BabyPatient", fields: [generatedPatientId], references: [id])
+}
+
+enum BabyStatus {
+  ALIVE
+  STILLBORN
+  NICU   // Neonatal Intensive Care Unit
 }
 
 enum DeliveryMethod {
@@ -902,6 +919,71 @@ enum PerinealTear {
   DEGREE_2
   DEGREE_3
   DEGREE_4
+}
+
+// ==========================================
+// Antenatal Care (ANC) — متابعة الحمل
+// ==========================================
+
+model AntenatalCare {
+  id               Int              @id @default(autoincrement())
+  hospitalId       Int
+  patientId        Int
+  doctorId         Int?
+  lmpDate          DateTime         // Last Menstrual Period — تاريخ آخر دورة
+  eddDate          DateTime         // Expected Delivery Date — تاريخ الولادة المتوقع
+  gravida          Int              @default(1)
+  para             Int              @default(0)
+  bloodGroup       String?          // A+, O-, etc.
+  rhFactor         String?          // Positive / Negative
+  riskLevel        PregnancyRisk    @default(LOW)
+  riskFactors      String?          // Comma-separated or text
+  status           PregnancyStatus  @default(ACTIVE)
+  notes            String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  hospital Hospital         @relation(fields: [hospitalId], references: [id])
+  patient  Patient          @relation(fields: [patientId], references: [id])
+  doctor   User?            @relation("ANCDoctor", fields: [doctorId], references: [id])
+  visits   AntenatalVisit[]
+}
+
+model AntenatalVisit {
+  id              Int      @id @default(autoincrement())
+  antenatalCareId Int
+  visitDate       DateTime @default(now())
+  gestationalWeek Int?     // أسبوع الحمل
+  weight          Decimal? @db.Decimal(5, 1) // وزن الأم (كجم)
+  bloodPressureSys Int?    // ضغط الدم الانقباضي
+  bloodPressureDia Int?    // ضغط الدم الانبساطي
+  fundalHeight    Decimal? @db.Decimal(5, 1) // ارتفاع الرحم (سم)
+  fetalHeartRate  Int?     // نبض الجنين
+  fetalMovement   Boolean? // هل يوجد حركة جنين
+  presentation    String?  // وضع الجنين (cephalic, breech, transverse)
+  edema           Boolean  @default(false)
+  urineProtein    String?  // Nil, Trace, +, ++, +++
+  urineGlucose    String?  // Nil, Trace, +, ++, +++
+  hemoglobin      Decimal? @db.Decimal(4, 1) // g/dL
+  complaints      String?  // شكاوى المريضة
+  notes           String?  // ملاحظات الطبيب
+  nextVisitDate   DateTime?
+
+  antenatalCare AntenatalCare @relation(fields: [antenatalCareId], references: [id])
+}
+
+enum PregnancyRisk {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum PregnancyStatus {
+  ACTIVE      // حمل نشط
+  DELIVERED   // تمت الولادة
+  MISCARRIAGE // إجهاض
+  ECTOPIC     // حمل خارج الرحم
+  CANCELLED   // ملغي
 }
 
 model GoodsReceipt {

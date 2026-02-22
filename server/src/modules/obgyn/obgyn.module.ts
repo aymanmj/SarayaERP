@@ -5,13 +5,14 @@ import { PrismaModule } from '../../prisma/prisma.module';
 import { PatientsModule } from '../../patients/patients.module';
 import { DeliveryService } from './services/delivery.service';
 import { DeliveryController } from './controllers/delivery.controller';
-
+import { AntenatalCareService } from './services/antenatal-care.service';
+import { AntenatalCareController } from './controllers/antenatal-care.controller';
 import { BillingModule } from '../../billing/billing.module';
 
 @Module({
   imports: [PrismaModule, PatientsModule, BillingModule],
-  controllers: [ObstetricHistoryController, DeliveryController],
-  providers: [ObstetricHistoryService, DeliveryService],
-  exports: [ObstetricHistoryService, DeliveryService],
+  controllers: [ObstetricHistoryController, DeliveryController, AntenatalCareController],
+  providers: [ObstetricHistoryService, DeliveryService, AntenatalCareService],
+  exports: [ObstetricHistoryService, DeliveryService, AntenatalCareService],
 })
 export class ObGynModule {}
