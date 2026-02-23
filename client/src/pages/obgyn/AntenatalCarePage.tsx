@@ -133,7 +133,7 @@ export default function AntenatalCarePage() {
       });
       toast.success('تم تسجيل الحمل بنجاح');
       setShowNewCareForm(false);
-      navigate(`/obgyn/anc?careId=${res.data.id}`);
+      navigate(`/obgyn/anc?careId=${res.data.id}`, { replace: true });
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'فشل تسجيل الحمل');
     }
@@ -220,7 +220,15 @@ export default function AntenatalCarePage() {
             <h1 className="text-2xl font-bold text-white">متابعة الحمل</h1>
             <p className="text-slate-400">{care.patient?.fullName} — MRN: {care.patient?.mrn}</p>
           </div>
-          <Button variant="secondary" onClick={() => navigate(-1)} className="bg-slate-800 text-slate-200 hover:bg-slate-700">رجوع</Button>
+          <Button variant="secondary" onClick={() => {
+            if (patientId) {
+              navigate(`/obgyn/anc?patientId=${patientId}`, { replace: true });
+            } else if (care?.patientId) {
+              navigate(`/obgyn/anc?patientId=${care.patientId}`, { replace: true });
+            } else {
+              navigate(-1);
+            }
+          }} className="bg-slate-800 text-slate-200 hover:bg-slate-700">رجوع</Button>
         </div>
 
         {/* === Rh Warning Banner === */}
@@ -574,7 +582,7 @@ export default function AntenatalCarePage() {
       {cares.length > 0 ? (
         <div className="space-y-3">
           {cares.map(c => (
-            <Card key={c.id} className={`bg-transparent border cursor-pointer hover:border-pink-500/50 transition-colors ${c.status === 'ACTIVE' ? 'border-pink-500/30' : 'border-slate-700'}`} onClick={() => navigate(`/obgyn/anc?careId=${c.id}`)}>
+            <Card key={c.id} className={`bg-transparent border cursor-pointer hover:border-pink-500/50 transition-colors ${c.status === 'ACTIVE' ? 'border-pink-500/30' : 'border-slate-700'}`} onClick={() => navigate(`/obgyn/anc?careId=${c.id}`, { replace: true })}>
               <CardContent className="p-4 flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className={`px-3 py-1 rounded-full text-xs font-bold border ${c.status === 'ACTIVE' ? riskColors[c.riskLevel] : 'text-slate-500 bg-slate-800 border-slate-700'}`}>
