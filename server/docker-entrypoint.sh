@@ -71,6 +71,43 @@ if [ "$SKIP_SEED" != "true" ]; then
 fi
 
 # --------------------------------------------
+# 2.5 تحديث كتالوج التحاليل والأشعة (Lab & Radiology Catalog Update)
+# --------------------------------------------
+# يتحقق إذا كان الكتالوج الموسّع موجود، وإن لم يكن يضيفه تلقائياً
+# آمن تماماً (upsert) — لن يكرر أو يحذف بيانات موجودة
+echo "🔍 Checking Lab & Radiology catalog..."
+CATALOG_CHECK=$(node -e "
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
+prisma.labTest.count({ where: { isActive: true } })
+  .then(count => {
+    console.log(count > 20 ? 'UPDATED' : 'NEEDS_UPDATE');
+    prisma.\$disconnect();
+  })
+  .catch(err => {
+    console.log('SKIP');
+    prisma.\$disconnect();
+  });
+" 2>/dev/null || echo "SKIP")
+
+if [ "$CATALOG_CHECK" = "NEEDS_UPDATE" ]; then
+    echo "📦 Updating Lab & Radiology catalogs..."
+    if [ -f "dist/prisma/seeds/seed-lab-radiology.js" ]; then
+        node -e "
+        const { seedLabRadiology } = require('./dist/prisma/seeds/seed-lab-radiology');
+        seedLabRadiology().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); });
+        "
+        echo "✅ Lab & Radiology catalogs updated."
+    else
+        echo "⚠️  Catalog seed file not found in dist. Skipping."
+    fi
+elif [ "$CATALOG_CHECK" = "UPDATED" ]; then
+    echo "✅ Lab & Radiology catalogs already up to date."
+else
+    echo "⚠️  Could not check catalog status. Skipping."
+fi
+
+# --------------------------------------------
 # 3. تشغيل الخادم (Start Server)
 # --------------------------------------------
 echo "🏁 Starting NestJS Application..."
