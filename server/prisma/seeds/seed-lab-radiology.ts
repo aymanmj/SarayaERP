@@ -3,8 +3,6 @@
 
 import { PrismaClient, ServiceType } from '@prisma/client';
 
-const prisma = new PrismaClient();
-
 // Price tiers by category (in LYD)
 const labPriceMap: Record<string, number> = {
   'Hematology': 25, 'Biochemistry': 20, 'Hormones': 50, 'OB/GYN & Fertility': 45,
@@ -309,7 +307,9 @@ const radiologyStudies = [
 //                     SEED FUNCTION
 // ============================================================
 
-async function main() {
+export async function seedLabRadiology() {
+  const prisma = new PrismaClient();
+  try {
   console.log('🧪 Seeding Comprehensive Lab & Radiology Catalogs...');
 
   const hospital = await prisma.hospital.findFirst();
@@ -385,9 +385,8 @@ async function main() {
     radCount++;
   }
   console.log(`✅ ${radCount} radiology studies seeded with prices.`);
-  console.log('🎉 Done!');
+  console.log('🎉 Lab & Radiology catalogs seeded successfully!');
+  } finally {
+    await prisma.$disconnect();
+  }
 }
-
-main()
-  .catch((e) => console.error(e))
-  .finally(async () => await prisma.$disconnect());

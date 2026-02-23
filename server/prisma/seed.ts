@@ -12,6 +12,7 @@ import * as bcrypt from 'bcrypt';
 
 import { seedCDSS } from './seeds/seed-cdss';
 import { seedMedicalData } from './seeds/data/seed-medical-data';
+import { seedLabRadiology } from './seeds/seed-lab-radiology';
 
 const prisma = new PrismaClient();
 
@@ -1413,6 +1414,9 @@ async function main() {
 
   // 4. Clinical Data (ICD-10 & Products) ✅ [MODULAR]
   await seedMedicalData();
+
+  // 5. Lab & Radiology Catalogs with Pricing ✅ [MODULAR]
+  await seedLabRadiology();
 
   console.log('✅ ALL SEEDS COMPLETED SUCCESSFULLY! System is ready.');
 
