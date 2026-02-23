@@ -36,6 +36,7 @@ export class RadiologyService {
         id: true,
         code: true,
         name: true,
+        arabicName: true,
         modality: true,
         bodyPart: true,
       },

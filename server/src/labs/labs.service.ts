@@ -42,6 +42,7 @@ export class LabService {
         id: true,
         code: true,
         name: true,
+        arabicName: true,
         category: true,
         unit: true,
       },
