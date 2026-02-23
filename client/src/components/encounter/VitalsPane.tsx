@@ -189,27 +189,34 @@ export function VitalsPane({ encounterId }: { encounterId: number }) {
 
       {activeTab === "LIST" ? (
         <>
-          {/* ── Latest Vitals Summary Cards ── */}
-          {latest && (
-            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-              {[
-                { label: 'BP', value: latest.bpSystolic ? `${latest.bpSystolic}/${latest.bpDiastolic}` : null, icon: '💓', color: 'text-sky-400', bg: 'bg-sky-950/20 border-sky-800/30' },
-                { label: 'النبض', value: latest.pulse, icon: '❤️', color: 'text-rose-400', bg: 'bg-rose-950/20 border-rose-800/30', suffix: 'bpm' },
-                { label: 'الحرارة', value: latest.temperature, icon: '🌡️', color: 'text-amber-400', bg: 'bg-amber-950/20 border-amber-800/30', suffix: '°C' },
-                { label: 'O₂', value: latest.o2Sat, icon: '🫁', color: 'text-emerald-400', bg: 'bg-emerald-950/20 border-emerald-800/30', suffix: '%' },
-                { label: 'الوزن', value: latest.weight, icon: '⚖️', color: 'text-violet-400', bg: 'bg-violet-950/20 border-violet-800/30', suffix: 'kg' },
-                { label: 'التنفس', value: latest.respRate, icon: '🌬️', color: 'text-cyan-400', bg: 'bg-cyan-950/20 border-cyan-800/30', suffix: '/min' },
-              ].map((card, i) => (
-                <div key={i} className={`rounded-xl border p-2.5 text-center ${card.bg}`}>
-                  <div className="text-xs mb-0.5">{card.icon}</div>
-                  <div className={`text-lg font-bold font-mono ${card.value ? card.color : 'text-slate-700'}`}>
-                    {card.value || '—'}
+          {/* ── Latest Vitals Summary Cards (only show available values) ── */}
+          {latest && (() => {
+            const cards = [
+              { label: 'ضغط الدم', value: latest.bpSystolic ? `${latest.bpSystolic}/${latest.bpDiastolic}` : null, icon: '💓', color: 'text-sky-400', bg: 'bg-sky-950/20 border-sky-800/30', suffix: 'mmHg' },
+              { label: 'النبض', value: latest.pulse, icon: '❤️', color: 'text-rose-400', bg: 'bg-rose-950/20 border-rose-800/30', suffix: 'bpm' },
+              { label: 'الحرارة', value: latest.temperature, icon: '🌡️', color: 'text-amber-400', bg: 'bg-amber-950/20 border-amber-800/30', suffix: '°C' },
+              { label: 'الأكسجين', value: latest.o2Sat, icon: '🫁', color: 'text-emerald-400', bg: 'bg-emerald-950/20 border-emerald-800/30', suffix: '%' },
+              { label: 'التنفس', value: latest.respRate, icon: '🌬️', color: 'text-cyan-400', bg: 'bg-cyan-950/20 border-cyan-800/30', suffix: '/min' },
+              { label: 'الوزن', value: latest.weight, icon: '⚖️', color: 'text-violet-400', bg: 'bg-violet-950/20 border-violet-800/30', suffix: 'kg' },
+            ].filter(c => c.value != null);
+            return cards.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {cards.map((card, i) => (
+                  <div key={i} className={`rounded-xl border px-4 py-2.5 text-center flex-1 min-w-[100px] max-w-[160px] ${card.bg}`}>
+                    <div className="text-[10px] text-slate-500 mb-0.5 flex items-center justify-center gap-1">
+                      <span>{card.icon}</span> {card.label}
+                    </div>
+                    <div className={`text-xl font-bold font-mono ${card.color}`}>
+                      {card.value}
+                    </div>
+                    {card.suffix && (
+                      <div className="text-[8px] text-slate-600 mt-0.5">{card.suffix}</div>
+                    )}
                   </div>
-                  <div className="text-[9px] text-slate-500 mt-0.5">{card.label}</div>
-                </div>
-              ))}
-            </div>
-          )}
+                ))}
+              </div>
+            ) : null;
+          })()}
 
           {/* ── Input Form ── */}
           {showForm && (
