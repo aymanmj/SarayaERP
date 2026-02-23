@@ -376,6 +376,11 @@ export function MainLayout() {
           path: "/obgyn/anc",
           requiredModule: "OBGYN",
         },
+        {
+          label: "الحقن المجهري (IVF)",
+          path: "/obgyn/fertility",
+          requiredModule: "OBGYN",
+        },
         { 
           label: "الصيدلية", 
           path: "/pharmacy", 

@@ -3,6 +3,7 @@ import { PrismaService } from '../../../prisma/prisma.service';
 import { CreateDeliveryDto, DeliveryMethod } from '../dto/create-delivery.dto';
 import { ObstetricHistoryService } from './obstetric-history.service';
 import { BillingService } from '../../../billing/billing.service';
+import { NotificationsService } from '../../../notifications/notifications.service';
 import { EncounterStatus, ChargeSource, EncounterType } from '@prisma/client';
 
 @Injectable()
@@ -13,6 +14,7 @@ export class DeliveryService {
     private prisma: PrismaService,
     private historyService: ObstetricHistoryService,
     private billingService: BillingService,
+    private notifications: NotificationsService,
   ) {}
 
   async create(dto: CreateDeliveryDto, userId: number) {
@@ -133,6 +135,9 @@ export class DeliveryService {
         });
     }
 
+    // 7. === تنبيه Rh بعد الولادة ===
+    await this.checkPostDeliveryRhAlert(encounter.patientId, encounter.hospitalId, userId);
+
     return delivery;
   }
 
@@ -241,6 +246,46 @@ export class DeliveryService {
         }
       }
     });
+  }
+
+  /**
+   * تنبيه Rh بعد الولادة — فحص دم المولود + Anti-D
+   */
+  private async checkPostDeliveryRhAlert(patientId: number, hospitalId: number, userId: number) {
+    try {
+      const activeCare = await this.prisma.antenatalCare.findFirst({
+        where: {
+          patientId,
+          hospitalId,
+          status: 'ACTIVE',
+          rhFactor: 'Negative',
+        },
+        include: { patient: { select: { fullName: true, mrn: true } } },
+      });
+
+      if (!activeCare) return;
+
+      const patientName = activeCare.patient?.fullName || 'مريضة';
+      const targetDoctor = activeCare.doctorId || userId;
+
+      await this.notifications.create(
+        hospitalId, targetDoctor,
+        '🚨 ولادة لأم Rh سالب — فحص دم المولود مطلوب',
+        `تمت ولادة المريضة ${patientName} (MRN: ${activeCare.patient?.mrn}). ` +
+        `الأم Rh سالب (-). يرجى فحص فصيلة دم المولود فوراً. ` +
+        `إذا كان المولود Rh موجب (+) → يجب إعطاء الأم حقنة Anti-D خلال 72 ساعة.`,
+        `/obgyn/anc?careId=${activeCare.id}`,
+      );
+
+      await this.prisma.antenatalCare.update({
+        where: { id: activeCare.id },
+        data: { status: 'DELIVERED' },
+      });
+
+      this.logger.log(`[Rh Post-Delivery] Alert sent for patient ${patientId}`);
+    } catch (error) {
+      this.logger.error('[Rh Post-Delivery] Error checking Rh alert', error);
+    }
   }
 }
 

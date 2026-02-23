@@ -7,7 +7,6 @@ import {
   Param,
   ParseIntPipe,
   UseGuards,
-  Query,
 } from '@nestjs/common';
 import { AntenatalCareService } from '../services/antenatal-care.service';
 import { CreateAntenatalCareDto, CreateAntenatalVisitDto } from '../dto/antenatal-care.dto';
@@ -34,6 +33,28 @@ export class AntenatalCareController {
   @Roles('ADMIN', 'DOCTOR', 'NURSE')
   async addVisit(@Body() dto: CreateAntenatalVisitDto, @CurrentUser() user: JwtPayload) {
     return this.ancService.addVisit(user.hospitalId, dto);
+  }
+
+  /** تحديث Rh الزوج */
+  @Patch(':id/partner-rh')
+  @Roles('ADMIN', 'DOCTOR', 'NURSE')
+  async updatePartnerRh(
+    @Param('id', ParseIntPipe) id: number,
+    @Body('partnerRhFactor') partnerRhFactor: string,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.ancService.updatePartnerRh(user.hospitalId, id, partnerRhFactor, user.sub);
+  }
+
+  /** تسجيل حقنة Anti-D */
+  @Patch(':id/anti-d')
+  @Roles('ADMIN', 'DOCTOR', 'NURSE')
+  async recordAntiD(
+    @Param('id', ParseIntPipe) id: number,
+    @Body('type') type: 'week28' | 'postpartum',
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.ancService.recordAntiD(user.hospitalId, id, type);
   }
 
   /** جلب سجلات حمل لمريضة */

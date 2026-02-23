@@ -17,6 +17,10 @@ interface AntenatalCare {
   para: number;
   bloodGroup?: string;
   rhFactor?: string;
+  partnerRhFactor?: string;
+  rhIncompatible?: boolean;
+  antiDWeek28Given?: boolean;
+  antiDPostpartumGiven?: boolean;
   riskLevel: string;
   riskFactors?: string;
   status: string;
@@ -25,6 +29,7 @@ interface AntenatalCare {
   patient?: { fullName: string; mrn: string; dateOfBirth?: string };
   doctor?: { fullName: string };
   visits: AntenatalVisit[];
+  _count?: { visits: number };
 }
 
 interface AntenatalVisit {
@@ -65,6 +70,7 @@ export default function AntenatalCarePage() {
   const [para, setPara] = useState(0);
   const [bloodGroup, setBloodGroup] = useState('');
   const [rhFactor, setRhFactor] = useState('');
+  const [partnerRhFactor, setPartnerRhFactor] = useState('');
   const [riskLevel, setRiskLevel] = useState('LOW');
   const [riskFactors, setRiskFactors] = useState('');
 
@@ -122,7 +128,8 @@ export default function AntenatalCarePage() {
       const res = await apiClient.post('/obgyn/anc', {
         patientId: Number(patientId),
         lmpDate: new Date(lmpDate).toISOString(),
-        gravida, para, bloodGroup, rhFactor, riskLevel, riskFactors,
+        gravida, para, bloodGroup, rhFactor, partnerRhFactor: partnerRhFactor || undefined,
+        riskLevel, riskFactors,
       });
       toast.success('تم تسجيل الحمل بنجاح');
       setShowNewCareForm(false);
@@ -154,13 +161,34 @@ export default function AntenatalCarePage() {
       toast.success('تم إضافة زيارة المتابعة');
       setShowVisitForm(false);
       loadCare(care.id);
-      // Reset form
       setVisitWeight(''); setBpSys(''); setBpDia(''); setFundalHeight('');
       setFhr(''); setFetalMovement(true); setPresentation(''); setEdema(false);
       setUrineProtein('Nil'); setUrineGlucose('Nil'); setHemoglobin('');
       setComplaints(''); setVisitNotes(''); setNextVisitDate('');
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'فشل إضافة الزيارة');
+    }
+  };
+
+  const handleUpdatePartnerRh = async (value: string) => {
+    if (!care) return;
+    try {
+      await apiClient.patch(`/obgyn/anc/${care.id}/partner-rh`, { partnerRhFactor: value });
+      toast.success('تم تحديث Rh الزوج');
+      loadCare(care.id);
+    } catch {
+      toast.error('فشل تحديث Rh الزوج');
+    }
+  };
+
+  const handleRecordAntiD = async (type: 'week28' | 'postpartum') => {
+    if (!care) return;
+    try {
+      await apiClient.patch(`/obgyn/anc/${care.id}/anti-d`, { type });
+      toast.success('تم تسجيل حقنة Anti-D');
+      loadCare(care.id);
+    } catch {
+      toast.error('فشل تسجيل الحقنة');
     }
   };
 
@@ -182,6 +210,9 @@ export default function AntenatalCarePage() {
 
   // === Single Care View ===
   if (care) {
+    const isRhNegative = care.rhFactor === 'Negative';
+    const showRhWarning = isRhNegative && care.status === 'ACTIVE';
+
     return (
       <div className="container mx-auto p-6 space-y-6" dir="rtl">
         <div className="flex items-center justify-between">
@@ -191,6 +222,70 @@ export default function AntenatalCarePage() {
           </div>
           <Button variant="secondary" onClick={() => navigate(-1)} className="bg-slate-800 text-slate-200 hover:bg-slate-700">رجوع</Button>
         </div>
+
+        {/* === Rh Warning Banner === */}
+        {showRhWarning && (
+          <div className={`rounded-xl p-4 border-2 ${care.rhIncompatible ? 'bg-red-950/40 border-red-500/60' : 'bg-amber-950/30 border-amber-500/40'}`}>
+            <div className="flex items-start gap-3">
+              <span className="text-3xl">{care.rhIncompatible ? '🔴' : '⚠️'}</span>
+              <div className="flex-1">
+                <h3 className={`font-bold text-lg ${care.rhIncompatible ? 'text-red-400' : 'text-amber-400'}`}>
+                  {care.rhIncompatible ? 'عدم توافق Rh مؤكد — بروتوكول Anti-D مفعّل' : 'تنبيه: الأم Rh سالب (-)'}
+                </h3>
+                <p className="text-slate-300 text-sm mt-1">
+                  {care.rhIncompatible
+                    ? 'الزوج Rh موجب أو غير معروف. يجب إعطاء حقنة Anti-D في الأسبوع 28 وبعد الولادة مباشرة.'
+                    : 'يرجى فحص فصيلة دم الزوج لتحديد ما إذا كان هناك خطر عدم توافق Rh.'}
+                </p>
+
+                {/* Partner Rh Update */}
+                <div className="flex items-center gap-3 mt-3">
+                  <Label className="text-slate-300 whitespace-nowrap">Rh الزوج:</Label>
+                  <Select
+                    value={care.partnerRhFactor || 'none'}
+                    onValueChange={(v) => { if (v !== 'none') handleUpdatePartnerRh(v); }}
+                  >
+                    <SelectTrigger className="bg-slate-950 border-slate-600 text-white w-48"><SelectValue /></SelectTrigger>
+                    <SelectContent className="bg-slate-900 border-slate-700 text-white">
+                      <SelectItem value="none" className="focus:bg-slate-800 focus:text-white">غير محدد</SelectItem>
+                      <SelectItem value="Positive" className="focus:bg-slate-800 focus:text-white">موجب (+)</SelectItem>
+                      <SelectItem value="Negative" className="focus:bg-slate-800 focus:text-white">سالب (-)</SelectItem>
+                      <SelectItem value="Unknown" className="focus:bg-slate-800 focus:text-white">غير معروف</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  {care.partnerRhFactor === 'Negative' && (
+                    <span className="text-green-400 text-sm font-bold">✅ الخطر قد زال — الجنين سيكون Rh سالب</span>
+                  )}
+                </div>
+
+                {/* Anti-D Tracking */}
+                {care.rhIncompatible && (
+                  <div className="flex items-center gap-4 mt-3 flex-wrap">
+                    <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${care.antiDWeek28Given ? 'bg-green-900/30 border-green-500/40 text-green-400' : 'bg-red-900/20 border-red-500/30 text-red-400'}`}>
+                      <span>{care.antiDWeek28Given ? '✅' : '❌'}</span>
+                      <span className="text-sm font-medium">Anti-D الأسبوع 28</span>
+                      {!care.antiDWeek28Given && (
+                        <Button size="sm" onClick={() => handleRecordAntiD('week28')} className="bg-red-600 hover:bg-red-500 text-white text-xs h-7 px-2 mr-1">
+                          تسجيل الحقنة
+                        </Button>
+                      )}
+                    </div>
+                    <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${care.antiDPostpartumGiven ? 'bg-green-900/30 border-green-500/40 text-green-400' : 'bg-slate-800 border-slate-600 text-slate-400'}`}>
+                      <span>{care.antiDPostpartumGiven ? '✅' : '⏳'}</span>
+                      <span className="text-sm font-medium">Anti-D بعد الولادة</span>
+                      {!care.antiDPostpartumGiven && care.status === 'ACTIVE' && (
+                        <Button size="sm" onClick={() => handleRecordAntiD('postpartum')} className="bg-slate-700 hover:bg-slate-600 text-white text-xs h-7 px-2 mr-1">
+                          تسجيل
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Pregnancy Summary */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
@@ -424,13 +519,25 @@ export default function AntenatalCarePage() {
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label className="text-slate-400">عامل Rh</Label>
+                <Label className="text-slate-400">عامل Rh (الأم)</Label>
                 <Select value={rhFactor || 'none'} onValueChange={v => setRhFactor(v === 'none' ? '' : v)}>
                   <SelectTrigger className="bg-slate-900 border-slate-700 text-white"><SelectValue /></SelectTrigger>
                   <SelectContent className="bg-slate-900 border-slate-700 text-white">
                     <SelectItem value="none" className="focus:bg-slate-800 focus:text-white">—</SelectItem>
-                    <SelectItem value="Positive" className="focus:bg-slate-800 focus:text-white">إيجابي</SelectItem>
-                    <SelectItem value="Negative" className="focus:bg-slate-800 focus:text-white">سلبي</SelectItem>
+                    <SelectItem value="Positive" className="focus:bg-slate-800 focus:text-white">إيجابي (+)</SelectItem>
+                    <SelectItem value="Negative" className="focus:bg-slate-800 focus:text-white">سلبي (-)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-slate-400">عامل Rh (الزوج)</Label>
+                <Select value={partnerRhFactor || 'none'} onValueChange={v => setPartnerRhFactor(v === 'none' ? '' : v)}>
+                  <SelectTrigger className="bg-slate-900 border-slate-700 text-white"><SelectValue /></SelectTrigger>
+                  <SelectContent className="bg-slate-900 border-slate-700 text-white">
+                    <SelectItem value="none" className="focus:bg-slate-800 focus:text-white">غير محدد</SelectItem>
+                    <SelectItem value="Positive" className="focus:bg-slate-800 focus:text-white">إيجابي (+)</SelectItem>
+                    <SelectItem value="Negative" className="focus:bg-slate-800 focus:text-white">سلبي (-)</SelectItem>
+                    <SelectItem value="Unknown" className="focus:bg-slate-800 focus:text-white">غير معروف</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -445,11 +552,19 @@ export default function AntenatalCarePage() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1 col-span-2">
+              <div className="space-y-1">
                 <Label className="text-slate-400">عوامل الخطورة</Label>
                 <Input value={riskFactors} onChange={e => setRiskFactors(e.target.value)} placeholder="سكري حمل، ضغط مرتفع..." className="bg-slate-900 border-slate-700 text-white" />
               </div>
             </div>
+
+            {/* Rh Warning in Form */}
+            {rhFactor === 'Negative' && (
+              <div className="bg-amber-950/30 border border-amber-500/40 rounded-lg p-3 text-amber-300 text-sm">
+                ⚠️ الأم Rh سالب — سيتم رفع مستوى الخطورة تلقائياً وإرسال تنبيهات سريرية للطبيب.
+              </div>
+            )}
+
             <Button onClick={handleCreateCare} className="bg-pink-600 hover:bg-pink-500 text-white w-full font-bold">تسجيل الحمل</Button>
           </CardContent>
         </Card>
@@ -466,11 +581,14 @@ export default function AntenatalCarePage() {
                     {statusLabels[c.status] || c.status}
                   </div>
                   <div>
-                    <div className="text-white font-bold">G{c.gravida} P{c.para}</div>
+                    <div className="text-white font-bold">
+                      G{c.gravida} P{c.para}
+                      {c.rhFactor === 'Negative' && <span className="text-red-400 mr-2 text-xs">🔴 Rh-</span>}
+                    </div>
                     <div className="text-xs text-slate-400">LMP: {new Date(c.lmpDate).toLocaleDateString('ar-LY')} — EDD: {new Date(c.eddDate).toLocaleDateString('ar-LY')}</div>
                   </div>
                 </div>
-                <div className="text-sm text-slate-400">{(c as any)._count?.visits || 0} زيارات</div>
+                <div className="text-sm text-slate-400">{c._count?.visits || 0} زيارات</div>
               </CardContent>
             </Card>
           ))}

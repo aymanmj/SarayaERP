@@ -34,6 +34,10 @@ export class CreateAntenatalCareDto {
   @IsOptional()
   rhFactor?: string;
 
+  @IsString()
+  @IsOptional()
+  partnerRhFactor?: string;
+
   @IsEnum(PregnancyRisk)
   @IsOptional()
   riskLevel?: PregnancyRisk;
