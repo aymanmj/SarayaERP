@@ -141,6 +141,13 @@ export class UsersService {
           housingAllowance: data.housingAllowance || 0,
           transportAllowance: data.transportAllowance || 0,
           otherAllowance: data.otherAllowance || 0,
+
+          // ✅ [FIX] حقول كانت مفقودة عند الإنشاء (موجودة فقط في التعديل)
+          departmentId: data.departmentId || null,
+          specialtyId: data.specialtyId || null,
+          jobRank: data.isDoctor && data.jobRank ? data.jobRank : null,
+          commissionRate: data.commissionRate ?? null,
+          annualLeaveBalance: data.annualLeaveBalance ?? null,
         },
       });
 
