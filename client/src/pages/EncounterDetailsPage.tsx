@@ -238,13 +238,22 @@ export default function EncounterDetailsPage() {
 
   const admitMutation = useMutation({
       mutationFn: async (deptId: number) => {
-          await apiClient.patch(`/encounters/${encId}/admit`, {
+          // Changed from /encounters/:id/admit to /admissions to create an actual admission record
+          await apiClient.post(`/admissions`, {
+            patientId: encounter?.patientId,
+            encounterId: encId,
             departmentId: deptId,
+            admissionType: "EMERGENCY", // From ER
+            priority: "HIGH",
+            admissionReason: "دخول من قسم الطوارئ",
+            isEmergency: true,
+            admittingDoctorId: encounter?.doctorId || user?.id, // Fallback to current doctor
+            primaryPhysicianId: encounter?.doctorId || user?.id,
           });
       },
       onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: ['encounter', encId] });
-          toast.success("تم تحويل المريض للإيواء (Inpatient). يرجى مراجعة مكتب الدخول لتخصيص سرير.");
+          toast.success("تم تحويل المريض للإيواء بنجاح وأُضيف لجدول التنويم النشط.");
           setShowAdmitModal(false);
       },
       onError: (err: any) => toast.error(err.response?.data?.message || "فشل الإيواء")

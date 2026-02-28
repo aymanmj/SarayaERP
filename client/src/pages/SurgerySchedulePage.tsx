@@ -62,6 +62,8 @@ export default function SurgerySchedulePage() {
 
   // Modal State
   const [showModal, setShowModal] = useState(false);
+  const [showOTModal, setShowOTModal] = useState(false);
+  const [newOTName, setNewOTName] = useState("");
   const [theatres, setTheatres] = useState<Theatre[]>([]);
   const [inpatients, setInpatients] = useState<ActiveInpatient[]>([]);
 
@@ -98,16 +100,25 @@ export default function SurgerySchedulePage() {
 
   const loadResources = async () => {
     try {
-      const [thRes, patRes, userRes] = await Promise.all([
-        apiClient.get<Theatre[]>("/surgery/theatres"),
-        apiClient.get<ActiveInpatient[]>("/encounters/list/active-inpatients"),
-        apiClient.get<{ id: number; fullName: string }[]>("/cashier/users"),
-      ]);
+      const thRes = await apiClient.get<Theatre[]>("/surgery/theatres");
       setTheatres(thRes.data);
+    } catch (e) {
+      console.error("Failed to load theatres", e);
+    }
+
+    try {
+      const patRes = await apiClient.get<ActiveInpatient[]>("/encounters/list/active-inpatients");
       setInpatients(patRes.data);
+    } catch (e) {
+      console.error("Failed to load active inpatients", e);
+    }
+
+    try {
+      // ✅ Changed from /cashier/users to /users/doctors-list to allow Doctors to fetch it without 403 Forbidden
+      const userRes = await apiClient.get<{ id: number; fullName: string }[]>("/users/doctors-list");
       setUsers(userRes.data);
     } catch (e) {
-      console.error(e);
+      console.error("Failed to load users", e);
     }
   };
 
@@ -174,6 +185,19 @@ export default function SurgerySchedulePage() {
     }
   };
 
+  const handleAddOT = async () => {
+    if (!newOTName.trim()) return;
+    try {
+      await apiClient.post("/surgery/theatres", { name: newOTName });
+      toast.success("تم إضافة غرفة العمليات بنجاح");
+      setShowOTModal(false);
+      setNewOTName("");
+      loadResources();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "فشل إضافة الغرفة");
+    }
+  };
+
   return (
     <div
       className="p-6 text-slate-100 h-full flex flex-col space-y-6"
@@ -188,12 +212,20 @@ export default function SurgerySchedulePage() {
             إدارة الحجوزات وغرف العمليات.
           </p>
         </div>
-        <button
-          onClick={() => setShowModal(true)}
-          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-sm font-bold shadow-lg"
-        >
-          + حجز عملية جديدة
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setShowOTModal(true)}
+            className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-xl text-sm shadow-lg"
+          >
+            ⚙️ إدارة غرف العمليات
+          </button>
+          <button
+            onClick={() => setShowModal(true)}
+            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-sm font-bold shadow-lg"
+          >
+            + حجز عملية جديدة
+          </button>
+        </div>
       </div>
 
       {/* Date Filter */}
@@ -201,7 +233,7 @@ export default function SurgerySchedulePage() {
         <span className="text-sm text-slate-400">تاريخ العرض:</span>
         <DatePicker
             date={date ? new Date(date) : undefined}
-            onChange={(d) => setDate(d ? d.toISOString().slice(0, 10) : "")}
+            onChange={(d: Date | undefined) => setDate(d ? d.toISOString().slice(0, 10) : "")}
             className="bg-slate-950 border-slate-700 h-9 px-2 text-sm"
         />
       </div>
@@ -599,6 +631,41 @@ export default function SurgerySchedulePage() {
                 className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-sm font-bold hover:bg-emerald-500"
               >
                 تأكيد الحجز
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* OT Management Modal */}
+      {showOTModal && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-sm p-6">
+            <h2 className="text-lg font-bold text-white mb-4">إضافة غرفة عمليات (OT)</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs text-slate-400 mb-1 block">اسم الغرفة</label>
+                <input
+                  type="text"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-sm"
+                  placeholder="مثال: الغرفة الرئيسية، Theatre A"
+                  value={newOTName}
+                  onChange={(e) => setNewOTName(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-800">
+              <button
+                onClick={() => setShowOTModal(false)}
+                className="px-6 py-2 bg-slate-800 text-slate-300 rounded-xl text-sm hover:bg-slate-700"
+              >
+                إلغاء
+              </button>
+              <button
+                onClick={handleAddOT}
+                className="px-6 py-2 bg-sky-600 text-white font-bold rounded-xl text-sm"
+              >
+                حفظ
               </button>
             </div>
           </div>

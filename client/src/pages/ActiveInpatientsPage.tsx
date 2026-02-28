@@ -185,19 +185,29 @@ export default function ActiveInpatientsPage() {
                       <span className="text-rose-400">بدون سرير!</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 flex gap-2">
-                    <button
-                      onClick={() => navigate(`/encounters/${p.id}`)}
-                      className="px-3 py-1 bg-slate-800 hover:bg-slate-700 rounded text-xs text-white"
-                    >
-                      الملف الطبي
-                    </button>
-                    <button
-                      onClick={() => handleDischarge(p.id, p.patient.fullName, p.admission?.id)}
-                      className="px-3 py-1 bg-rose-600 hover:bg-rose-500 rounded text-xs text-white font-bold shadow-lg shadow-rose-900/20"
-                    >
-                      إجراء خروج
-                    </button>
+                  <td className="px-4 py-3">
+                    <div className="flex flex-col gap-2">
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => navigate(`/encounters/${p.id}`)}
+                          className="flex-1 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-medium transition-all"
+                        >
+                          📄 الملف الطبي
+                        </button>
+                        <button
+                          onClick={() => navigate(`/surgery?encounterId=${p.id}`)}
+                          className="flex-1 px-3 py-1.5 bg-purple-600/20 hover:bg-purple-600/50 text-purple-400 border border-purple-500/30 rounded-lg text-xs font-medium transition-all"
+                        >
+                          🔪 حجز عملية
+                        </button>
+                      </div>
+                      <button
+                        onClick={() => handleDischarge(p.id, p.patient.fullName, p.admission?.id)}
+                        className="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 rounded-lg text-xs text-white font-bold shadow-lg shadow-rose-900/20"
+                      >
+                        إجراء خروج
+                      </button>
+                    </div>
                   </td>
                 </tr>
               );
