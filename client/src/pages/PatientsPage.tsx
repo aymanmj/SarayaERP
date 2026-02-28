@@ -389,6 +389,16 @@ export function PatientsPage() {
                           💰
                         </button>
 
+                        <button
+                          onClick={() =>
+                            navigate(`/patients/${p.id}/consents`)
+                          }
+                          className="p-2 bg-slate-800 hover:bg-rose-900/40 text-rose-400 rounded-xl transition-all border border-slate-700 font-bold"
+                          title="نماذج الموافقة"
+                        >
+                          ✍️
+                        </button>
+
                         {/* 🗑️ زر الأرشفة  */}
                         <button
                           onClick={() => handleSoftDelete(p)}

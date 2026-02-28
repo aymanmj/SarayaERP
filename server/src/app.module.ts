@@ -55,6 +55,7 @@ import { PdfModule } from './pdf/pdf.module';
 import { CDSSModule } from './cdss/cdss.module'; // ✅ [NEW] نظام دعم القرار السريري
 import { WebsocketModule } from './websocket/websocket.module'; // ✅ [NEW] WebSocket for real-time updates
 import { ObGynModule } from './modules/obgyn/obgyn.module'; // ✅ [NEW] Obstetric Module
+import { ConsentFormsModule } from './modules/clinical/consent-forms/consent-forms.module'; // ✅ [NEW] Consent Forms
 import { AuditInterceptor } from './audit/audit.interceptor';
 import { APP_INTERCEPTOR, APP_GUARD } from '@nestjs/core';
 
@@ -151,6 +152,7 @@ import { ClinicalNotesModule } from './clinical-notes/clinical-notes.module';
     ClinicalModule,
     CDSSModule, // ✅ [NEW] نظام دعم القرار السريري
     ObGynModule,
+    ConsentFormsModule, // ✅ [NEW] Consent Forms
     ClinicalNotesModule, // ✅ [NEW] Clinical Notes
 
     // Departments & Specialties
