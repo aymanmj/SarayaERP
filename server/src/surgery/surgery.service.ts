@@ -189,6 +189,22 @@ export class SurgeryService {
     });
   }
 
+  async updateNotes(
+    hospitalId: number,
+    caseId: number,
+    data: {
+      surgeonNotes?: string;
+      anesthesiaNotes?: string;
+      preOpDiagnosis?: string;
+      postOpDiagnosis?: string;
+    },
+  ) {
+    return this.prisma.surgeryCase.update({
+      where: { id: caseId, hospitalId },
+      data,
+    });
+  }
+
   // --------------------------------------------------------
   // 4. إدارة الطاقم (Team)
   // --------------------------------------------------------

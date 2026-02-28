@@ -74,6 +74,21 @@ export class SurgeryController {
     );
   }
 
+  @Post('cases/:id/notes')
+  async updateNotes(
+    @Req() req: any,
+    @Param('id', ParseIntPipe) id: number,
+    @Body()
+    body: {
+      surgeonNotes?: string;
+      anesthesiaNotes?: string;
+      preOpDiagnosis?: string;
+      postOpDiagnosis?: string;
+    },
+  ) {
+    return this.surgeryService.updateNotes(req.user.hospitalId, id, body);
+  }
+
   @Post('cases/:id/team')
   async addTeamMember(
     @Req() req: any,
