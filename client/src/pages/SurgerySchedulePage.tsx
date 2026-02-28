@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { apiClient } from "../api/apiClient";
 import { toast } from "sonner";
 import { DatePicker } from "@/components/ui/date-picker";
+import { useAuthStore } from "../stores/authStore";
 
 type SurgeryStatus =
   | "SCHEDULED"
@@ -56,6 +57,7 @@ function getStatusColor(s: SurgeryStatus) {
 
 export default function SurgerySchedulePage() {
   const navigate = useNavigate();
+  const { user } = useAuthStore();
   const [cases, setCases] = useState<SurgeryCaseLite[]>([]);
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [loading, setLoading] = useState(false);
@@ -213,12 +215,14 @@ export default function SurgerySchedulePage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <button
-            onClick={() => setShowOTModal(true)}
-            className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-xl text-sm shadow-lg"
-          >
-            ⚙️ إدارة غرف العمليات
-          </button>
+          {user?.roles?.includes("ADMIN") && (
+            <button
+              onClick={() => setShowOTModal(true)}
+              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-xl text-sm shadow-lg"
+            >
+              ⚙️ إدارة غرف العمليات
+            </button>
+          )}
           <button
             onClick={() => setShowModal(true)}
             className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-sm font-bold shadow-lg"
