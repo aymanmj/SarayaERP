@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import { toast } from "sonner";
 import { apiClient } from "../../../api/apiClient";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useLicenseStore } from "../../../stores/licenseStore";
 
 interface ConsentFormDialogProps {
   isOpen: boolean;
@@ -23,6 +24,8 @@ export function ConsentFormDialog({
   existingForm,
 }: ConsentFormDialogProps) {
   const queryClient = useQueryClient();
+  const { details: licenseDetails } = useLicenseStore();
+  const hospitalName = licenseDetails?.hospitalName;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [signedByRef, setSignedByRef] = useState("المريض نفسه");
@@ -96,7 +99,7 @@ export function ConsentFormDialog({
       await apiClient.post("/consent-forms", payload);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["consentForms", patientId] });
+      queryClient.invalidateQueries({ queryKey: ["consentForms", String(patientId)] });
       toast.success("تم تدوين النموذج بنجاح");
       onClose();
     },
@@ -119,7 +122,7 @@ export function ConsentFormDialog({
       await apiClient.put(`/consent-forms/${existingForm.id}/sign`, payload);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["consentForms", patientId] });
+      queryClient.invalidateQueries({ queryKey: ["consentForms", String(patientId)] });
       toast.success("تم توقيع النموذج وحفظه");
       onClose();
     },
@@ -133,6 +136,91 @@ export function ConsentFormDialog({
     } else if (isSignMode) {
       signMutation.mutate();
     }
+  };
+
+  // --- Print ---
+  const handlePrint = () => {
+    const formData = existingForm || { formType, title, content, status: "DRAFT", signedAt: null, signature: null, signedByRef: null };
+    const typeLabel = formData.formType === "SURGERY" ? "عملية جراحية" : formData.formType === "ANESTHESIA" ? "تخدير" : formData.formType === "PROCEDURE" ? "إجراء طبي" : "موافقة عامة";
+    const statusLabel = formData.status === "SIGNED" ? "موقّع" : formData.status === "REVOKED" ? "ملغى" : "مسودة - بانتظار التوقيع";
+    const createdDate = formData.createdAt ? new Date(formData.createdAt).toLocaleDateString("ar-LY", { year: "numeric", month: "long", day: "numeric" }) : new Date().toLocaleDateString("ar-LY", { year: "numeric", month: "long", day: "numeric" });
+    const signedDate = formData.signedAt ? new Date(formData.signedAt).toLocaleDateString("ar-LY", { year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" }) : null;
+
+    const printWindow = window.open("", "_blank", "width=800,height=1000");
+    if (!printWindow) { toast.error("الرجاء السماح بالنوافذ المنبثقة للطباعة"); return; }
+
+    printWindow.document.write(`
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <title>نموذج موافقة - ${formData.title}</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap');
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Cairo', sans-serif; direction: rtl; color: #1a1a2e; padding: 30px 40px; max-width: 800px; margin: 0 auto; }
+    .header { text-align: center; border-bottom: 3px double #1a1a2e; padding-bottom: 16px; margin-bottom: 20px; }
+    .header h1 { font-size: 22px; font-weight: 800; color: #0f172a; margin-bottom: 4px; }
+    .header .subtitle { font-size: 13px; color: #475569; }
+    .form-type-badge { display: inline-block; background: #f1f5f9; border: 1px solid #cbd5e1; padding: 3px 14px; border-radius: 20px; font-size: 12px; font-weight: 700; margin-top: 10px; }
+    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 20px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 18px; }
+    .info-item { font-size: 13px; }
+    .info-item .label { color: #64748b; font-weight: 600; }
+    .info-item .value { color: #0f172a; font-weight: 700; }
+    .consent-text { border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin-bottom: 24px; line-height: 2; font-size: 14px; background: #fff; min-height: 120px; white-space: pre-wrap; }
+    .consent-text-title { font-size: 15px; font-weight: 700; margin-bottom: 10px; color: #334155; }
+    .signature-section { border: 1px solid #cbd5e1; border-radius: 8px; padding: 18px; margin-bottom: 20px; }
+    .signature-section h3 { font-size: 14px; font-weight: 700; margin-bottom: 12px; color: #334155; }
+    .signature-box { border: 2px dashed #94a3b8; border-radius: 8px; min-height: 100px; display: flex; align-items: center; justify-content: center; background: #fafafa; }
+    .signature-box img { max-width: 300px; max-height: 120px; }
+    .signature-box .placeholder { color: #94a3b8; font-size: 13px; }
+    .signature-meta { display: flex; justify-content: space-between; margin-top: 10px; font-size: 12px; color: #64748b; }
+    .footer { text-align: center; border-top: 1px solid #e2e8f0; padding-top: 12px; margin-top: 20px; font-size: 11px; color: #94a3b8; }
+    .status-badge { display: inline-block; padding: 2px 12px; border-radius: 12px; font-size: 11px; font-weight: 700; }
+    .status-signed { background: #d1fae5; color: #065f46; }
+    .status-draft { background: #fef3c7; color: #92400e; }
+    .status-revoked { background: #fee2e2; color: #991b1b; }
+    @media print { body { padding: 10px 20px; } }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <img src="/sarayalogo.jpeg" alt="" style="width:60px;height:60px;border-radius:10px;margin:0 auto 8px;display:block;object-fit:contain;" />
+    <h1>${hospitalName || "المستشفى"}</h1>
+    <div class="subtitle">نموذج موافقة / تفويض طبي</div>
+    <div class="form-type-badge">${typeLabel}</div>
+  </div>
+
+  <div class="info-grid">
+    <div class="info-item"><span class="label">عنوان النموذج: </span><span class="value">${formData.title}</span></div>
+    <div class="info-item"><span class="label">رقم النموذج: </span><span class="value">#${formData.id || "جديد"}</span></div>
+    <div class="info-item"><span class="label">تاريخ الإنشاء: </span><span class="value">${createdDate}</span></div>
+    <div class="info-item"><span class="label">الحالة: </span><span class="status-badge ${formData.status === "SIGNED" ? "status-signed" : formData.status === "REVOKED" ? "status-revoked" : "status-draft"}">${statusLabel}</span></div>
+    ${formData.doctor?.fullName ? `<div class="info-item"><span class="label">الطبيب المسئول: </span><span class="value">${formData.doctor.fullName}</span></div>` : ""}
+  </div>
+
+  <div class="consent-text-title">📝 نص الموافقة / التفويض:</div>
+  <div class="consent-text">${formData.content}</div>
+
+  <div class="signature-section">
+    <h3>✉️ التوقيع:</h3>
+    <div class="signature-box">
+      ${formData.signature ? `<img src="${formData.signature}" alt="توقيع" />` : `<span class="placeholder">مساحة التوقيع</span>`}
+    </div>
+    <div class="signature-meta">
+      <span>صاحب التوقيع: ${formData.signedByRef || "________________"}</span>
+      <span>تاريخ التوقيع: ${signedDate || "____/____/________"}</span>
+    </div>
+  </div>
+
+  <div class="footer">
+    تم إنشاء هذا النموذج إلكترونياً بواسطة نظام السرايا الطبي &bull; ${new Date().toLocaleDateString("ar-LY")}
+  </div>
+</body>
+</html>
+    `);
+    printWindow.document.close();
+    setTimeout(() => { printWindow.print(); }, 400);
   };
 
   if (!isOpen) return null;
@@ -237,6 +325,13 @@ export function ConsentFormDialog({
 
         {/* Footer */}
         <div className="bg-slate-900 border-t border-slate-800 p-4 flex justify-end gap-3 rounded-b-2xl">
+          <button
+            onClick={handlePrint}
+            className="px-5 py-2 rounded-xl text-slate-300 font-bold hover:bg-slate-800 transition border border-slate-700"
+            title="طباعة النموذج"
+          >
+            🖨️ طباعة
+          </button>
           <button
             onClick={onClose}
             className="px-5 py-2 rounded-xl text-slate-300 font-bold hover:bg-slate-800 transition"

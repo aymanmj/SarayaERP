@@ -686,11 +686,14 @@ export function MainLayout() {
   return (
     <div className="h-screen w-screen flex bg-slate-950 text-slate-100 overflow-hidden">
       <aside className="w-64 hidden md:flex flex-col border-l border-slate-800 bg-slate-950/95 backdrop-blur h-full flex-shrink-0 z-40">
-        <div className="px-5 py-5 border-b border-slate-800 flex-shrink-0">
-          <div className="text-[10px] uppercase tracking-[0.2em] text-sky-500 font-bold mb-1">
-            HOSPITAL SUITE
+        <div className="px-5 py-4 border-b border-slate-800 flex-shrink-0 flex items-center gap-3">
+          <img src="/sarayalogo.jpeg" alt="السرايا" className="w-10 h-10 rounded-lg object-contain" />
+          <div>
+            <div className="text-[10px] uppercase tracking-[0.2em] text-sky-500 font-bold mb-0.5">
+              HOSPITAL SUITE
+            </div>
+            <div className="font-bold text-sm text-white leading-tight">نظام السرايا الطبي</div>
           </div>
-          <div className="font-bold text-lg text-white">نظام السرايا الطبي</div>
         </div>
 
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto custom-scrollbar">

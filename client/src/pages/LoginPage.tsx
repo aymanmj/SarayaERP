@@ -96,9 +96,9 @@ export function LoginPage() {
         {/* Logo + Name */}
         <div className="flex items-center gap-4 mb-auto">
           <img
-            src="/logo.png"
-            alt="الشعار"
-            className="w-12 h-12 object-contain drop-shadow-[0_0_12px_rgba(197,160,68,0.4)]"
+            src="/sarayalogo.jpeg"
+            alt="نظام السرايا الطبي"
+            className="w-14 h-14 object-contain rounded-xl drop-shadow-[0_0_12px_rgba(197,160,68,0.4)]"
           />
           <div>
             <div className="text-xl font-black tracking-tight text-white leading-tight">
@@ -168,9 +168,9 @@ export function LoginPage() {
           {/* Mobile-only branding */}
           <div className="lg:hidden flex flex-col items-center mb-10">
             <img
-              src="/logo.png"
-              alt="الشعار"
-              className="w-14 h-14 object-contain drop-shadow-[0_0_18px_rgba(197,160,68,0.5)] mb-3"
+              src="/sarayalogo.jpeg"
+              alt="نظام السرايا الطبي"
+              className="w-16 h-16 object-contain rounded-xl drop-shadow-[0_0_18px_rgba(197,160,68,0.5)] mb-3"
             />
             <div className="text-lg font-black text-[#c5a044]">السرايا للتقنية</div>
             <div className="text-[10px] text-slate-500 tracking-widest uppercase">
