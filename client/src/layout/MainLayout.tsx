@@ -494,6 +494,10 @@ export function MainLayout() {
           path: "/reports",
           access: "acc:reports:view",
         },
+        {
+          label: "تقارير أداء الأطباء",
+          path: "/reports/doctor-performance",
+        },
       ],
     },
     {

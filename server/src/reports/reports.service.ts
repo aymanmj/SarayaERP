@@ -143,4 +143,165 @@ export class ReportsService {
       patientsCount: d._count.id,
     }));
   }
+
+  /**
+   * 📊 تقرير أداء الأطباء التفصيلي
+   * يجمع 6 مقاييس لكل طبيب: الحالات، الإيواء، العمليات، الإيرادات، متوسط الاستشارة، الإحالات
+   */
+  async getDoctorPerformance(hospitalId: number, dateFrom?: Date, dateTo?: Date) {
+    const dateFilter = {
+      ...(dateFrom && { gte: dateFrom }),
+      ...(dateTo && { lte: dateTo }),
+    };
+    const hasDateFilter = dateFrom || dateTo;
+
+    // 1. Get all doctors who have encounters
+    const doctorEncounters = await this.prisma.encounter.groupBy({
+      by: ['doctorId'],
+      where: {
+        hospitalId,
+        doctorId: { not: null },
+        ...(hasDateFilter && { admissionDate: dateFilter }),
+      },
+      _count: { id: true },
+    });
+
+    const doctorIds = doctorEncounters.map((d) => d.doctorId!).filter(Boolean);
+    if (doctorIds.length === 0) {
+      return { doctors: [], summary: { totalEncounters: 0, totalRevenue: 0, totalSurgeries: 0, activeDoctors: 0 } };
+    }
+
+    // 2. Fetch doctor info
+    const users = await this.prisma.user.findMany({
+      where: { id: { in: doctorIds } },
+      select: { id: true, fullName: true, specialty: true },
+    });
+
+    // 3. Admissions per doctor (via encounter)
+    const admissions = await this.prisma.admission.groupBy({
+      by: ['admittingDoctorId'],
+      where: {
+        hospitalId,
+        admittingDoctorId: { in: doctorIds },
+        ...(hasDateFilter && { admissionDate: dateFilter }),
+      },
+      _count: { id: true },
+    });
+
+    // 4. Surgery count per doctor (from surgery team)
+    const surgeryTeamRecords = await this.prisma.surgeryTeam.findMany({
+      where: {
+        userId: { in: doctorIds },
+        role: 'SURGEON',
+        surgeryCase: {
+          hospitalId,
+          ...(hasDateFilter && { scheduledStart: dateFilter }),
+        },
+      },
+      select: { userId: true, surgeryCaseId: true },
+    });
+    const surgeryCountMap = new Map<number, number>();
+    surgeryTeamRecords.forEach((t) => {
+      surgeryCountMap.set(t.userId, (surgeryCountMap.get(t.userId) || 0) + 1);
+    });
+
+    // 5. Revenue per doctor (from encounter charges)
+    const encountersByDoctor = await this.prisma.encounter.findMany({
+      where: {
+        hospitalId,
+        doctorId: { in: doctorIds },
+        ...(hasDateFilter && { admissionDate: dateFilter }),
+      },
+      select: { id: true, doctorId: true },
+    });
+    const encounterIdsByDoctor = new Map<number, number[]>();
+    encountersByDoctor.forEach((e) => {
+      if (!e.doctorId) return;
+      const list = encounterIdsByDoctor.get(e.doctorId) || [];
+      list.push(e.id);
+      encounterIdsByDoctor.set(e.doctorId, list);
+    });
+
+    const allEncounterIds = encountersByDoctor.map((e) => e.id);
+    const charges = await this.prisma.encounterCharge.groupBy({
+      by: ['encounterId'],
+      where: { encounterId: { in: allEncounterIds } },
+      _sum: { totalAmount: true },
+    });
+    const chargeMap = new Map<number, number>();
+    charges.forEach((c) => {
+      chargeMap.set(c.encounterId, Number(c._sum.totalAmount || 0));
+    });
+
+    // 6. Avg consultation duration (encounters with both admission and discharge dates)
+    const closedEncounters = await this.prisma.encounter.findMany({
+      where: {
+        hospitalId,
+        doctorId: { in: doctorIds },
+        dischargeDate: { not: null },
+        ...(hasDateFilter && { admissionDate: dateFilter }),
+      },
+      select: { doctorId: true, admissionDate: true, dischargeDate: true },
+    });
+    const durationMap = new Map<number, number[]>();
+    closedEncounters.forEach((e) => {
+      if (!e.doctorId || !e.dischargeDate) return;
+      const mins = Math.round((e.dischargeDate!.getTime() - (e.admissionDate?.getTime() ?? 0)) / 60000);
+      if (mins > 0 && mins < 1440) { // فقط أقل من يوم (لاستبعاد حالات الإيواء)
+        const list = durationMap.get(e.doctorId) || [];
+        list.push(mins);
+        durationMap.set(e.doctorId, list);
+      }
+    });
+
+    // Build results
+    let totalRevenue = 0;
+    let totalSurgeries = 0;
+    let totalEncounters = 0;
+
+    const doctors = doctorIds.map((docId) => {
+      const user = users.find((u) => u.id === docId);
+      const encounters = doctorEncounters.find((d) => d.doctorId === docId)?._count?.id || 0;
+      const admissionCount = admissions.find((a) => a.admittingDoctorId === docId)?._count?.id || 0;
+      const surgeryCount = surgeryCountMap.get(docId) || 0;
+
+      // Revenue from all encounters of this doctor
+      const encIds = encounterIdsByDoctor.get(docId) || [];
+      const revenue = encIds.reduce((sum, eid) => sum + (chargeMap.get(eid) || 0), 0);
+
+      // Avg consultation
+      const durations = durationMap.get(docId) || [];
+      const avgConsultationMins = durations.length > 0
+        ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length)
+        : 0;
+
+      totalRevenue += revenue;
+      totalSurgeries += surgeryCount;
+      totalEncounters += encounters;
+
+      return {
+        id: docId,
+        fullName: user?.fullName || 'غير معروف',
+        specialty: user?.specialty || '—',
+        totalEncounters: encounters,
+        totalAdmissions: admissionCount,
+        totalSurgeries: surgeryCount,
+        totalRevenue: Math.round(revenue * 100) / 100,
+        avgConsultationMins,
+      };
+    });
+
+    // Sort by encounters desc
+    doctors.sort((a, b) => b.totalEncounters - a.totalEncounters);
+
+    return {
+      doctors,
+      summary: {
+        totalEncounters,
+        totalRevenue: Math.round(totalRevenue * 100) / 100,
+        totalSurgeries,
+        activeDoctors: doctors.length,
+      },
+    };
+  }
 }

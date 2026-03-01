@@ -23,6 +23,7 @@ const ExecutiveDashboardPage = lazy(() =>
     default: m.ExecutiveDashboard,
   })),
 );
+const DoctorPerformancePage = lazy(() => import("../pages/DoctorPerformancePage"));
 
 // --- HR ---
 const PayrollPage = lazy(() => import("../pages/PayrollPage"));
@@ -70,6 +71,7 @@ export const AdminRoutes = (
     <Route path="/audit/logs" element={<AuditLogsPage />} />
     <Route path="/integration" element={<IntegrationPage />} />
     <Route path="/analytics/executive" element={<ExecutiveDashboardPage />} />
+    <Route path="/reports/doctor-performance" element={<DoctorPerformancePage />} />
 
     {/* HR */}
     <Route path="/hr/shifts" element={<ShiftsPage />} />
