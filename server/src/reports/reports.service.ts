@@ -183,7 +183,7 @@ export class ReportsService {
       where: {
         hospitalId,
         admittingDoctorId: { in: doctorIds },
-        ...(hasDateFilter && { admissionDate: dateFilter }),
+        ...(hasDateFilter && { actualAdmissionDate: dateFilter }),
       },
       _count: { id: true },
     });
