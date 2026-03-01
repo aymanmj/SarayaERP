@@ -174,7 +174,7 @@ export class ReportsService {
     // 2. Fetch doctor info
     const users = await this.prisma.user.findMany({
       where: { id: { in: doctorIds } },
-      select: { id: true, fullName: true, specialty: true },
+      select: { id: true, fullName: true, specialty: { select: { name: true } } },
     });
 
     // 3. Admissions per doctor (via encounter)
@@ -282,7 +282,7 @@ export class ReportsService {
       return {
         id: docId,
         fullName: user?.fullName || 'غير معروف',
-        specialty: user?.specialty || '—',
+        specialty: (user?.specialty as any)?.name || '—',
         totalEncounters: encounters,
         totalAdmissions: admissionCount,
         totalSurgeries: surgeryCount,

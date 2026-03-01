@@ -55,7 +55,6 @@ export class ReportsController {
    * GET /reports/doctor-performance?from=2026-01-01&to=2026-03-01
    */
   @Get('doctor-performance')
-  @Roles('ADMIN', 'CEO')
   async getDoctorPerformance(
     @Req() req: any,
     @Query('from') from?: string,
