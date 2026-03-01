@@ -133,7 +133,7 @@ export class EncountersController {
   }
 
   @Patch(':id/discharge')
-  @Roles('ADMIN', 'RECEPTION', 'NURSE')
+  @Roles('ADMIN', 'RECEPTION', 'NURSE', 'DOCTOR')
   async discharge(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
     const encId = Number(id);
     if (!encId || Number.isNaN(encId)) {

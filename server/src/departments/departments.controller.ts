@@ -24,7 +24,7 @@ export class DepartmentsController {
   constructor(private readonly departmentsService: DepartmentsService) {}
 
   @Get()
-  @Roles('ADMIN', 'CASHIER', 'RECEPTION')
+  @Roles('ADMIN', 'CASHIER', 'RECEPTION', 'DOCTOR', 'NURSE')
   async findAll(@Req() req: any) {
     return this.departmentsService.findAll(req.user.hospitalId);
   }
