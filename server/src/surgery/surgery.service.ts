@@ -157,7 +157,23 @@ export class SurgeryService {
     return this.prisma.surgeryCase.findFirst({
       where: { id: caseId, hospitalId },
       include: {
-        encounter: { include: { patient: true } },
+        encounter: {
+          include: {
+            patient: true,
+            department: true,
+            bedAssignments: {
+              where: { to: null }, // السرير الحالي فقط
+              include: {
+                bed: {
+                  include: {
+                    room: true,
+                    ward: true,
+                  },
+                },
+              },
+            },
+          },
+        },
         theatre: true,
         team: { include: { user: true } },
         consumables: { include: { product: true } },

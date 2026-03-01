@@ -167,6 +167,14 @@ export default function EncounterDetailsPage() {
   // Admission Modal
   const [showAdmitModal, setShowAdmitModal] = useState(false);
   const [selectedDept, setSelectedDept] = useState("");
+  const [selectedWardId, setSelectedWardId] = useState("");
+  const [selectedBedId, setSelectedBedId] = useState("");
+  const [wardTree, setWardTree] = useState<{ id: number; name: string; rooms: { id: number; roomNumber: string; beds: { id: number; bedNumber: string; status: string }[] }[] }[]>([]);
+
+  // Load ward tree for bed selection
+  useEffect(() => {
+    apiClient.get("/beds/tree").then((res) => setWardTree(res.data)).catch(() => {});
+  }, []);
 
   // 1. Fetch Encounter Details
   const { data: encounter, isLoading: loading, error } = useQuery({
@@ -237,7 +245,7 @@ export default function EncounterDetailsPage() {
   });
 
   const admitMutation = useMutation({
-      mutationFn: async (deptId: number) => {
+      mutationFn: async ({ deptId, bedId }: { deptId: number; bedId?: number }) => {
           // Changed from /encounters/:id/admit to /admissions to create an actual admission record
           await apiClient.post(`/admissions`, {
             patientId: encounter?.patientId,
@@ -249,7 +257,16 @@ export default function EncounterDetailsPage() {
             isEmergency: true,
             admittingDoctorId: encounter?.doctorId || user?.id, // Fallback to current doctor
             primaryPhysicianId: encounter?.doctorId || user?.id,
+            bedId: bedId || undefined,
           });
+          // If bed was selected but not in DTO, assign it separately
+          if (bedId && encId) {
+            try {
+              await apiClient.post('/beds/assign', { encounterId: encId, bedId });
+            } catch {
+              // Bed assignment is best-effort, admission already succeeded
+            }
+          }
       },
       onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: ['encounter', encId] });
@@ -283,7 +300,10 @@ export default function EncounterDetailsPage() {
       toast.warning("يرجى اختيار القسم المحول إليه");
       return;
     }
-    admitMutation.mutate(Number(selectedDept));
+    admitMutation.mutate({
+      deptId: Number(selectedDept),
+      bedId: selectedBedId ? Number(selectedBedId) : undefined,
+    });
   };
 
   // Loading States aliases for UI
@@ -572,26 +592,83 @@ export default function EncounterDetailsPage() {
       {/* Admission Modal */}
       {showAdmitModal && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-          <div className="bg-slate-950 border border-slate-700 rounded-2xl w-full max-w-sm p-6 shadow-2xl">
+          <div className="bg-slate-950 border border-slate-700 rounded-2xl w-full max-w-md p-6 shadow-2xl">
             <h3 className="text-lg font-bold text-white mb-4">
               قرار إيواء المريض
             </h3>
-            <div className="space-y-3 mb-6">
-              <label className="text-xs text-slate-400">إلى أي قسم؟</label>
-              <select
-                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm outline-none focus:border-purple-500"
-                value={selectedDept}
-                onChange={(e) => setSelectedDept(e.target.value)}
-              >
-                <option value="">-- اختر القسم --</option>
-                {departments.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.name}
-                  </option>
-                ))}
-              </select>
+            <div className="space-y-4 mb-6">
+              {/* Department Selection */}
+              <div>
+                <label className="text-xs text-slate-400 mb-1 block">إلى أي قسم؟</label>
+                <select
+                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm outline-none focus:border-purple-500"
+                  value={selectedDept}
+                  onChange={(e) => setSelectedDept(e.target.value)}
+                >
+                  <option value="">-- اختر القسم --</option>
+                  {departments.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Ward Selection */}
+              <div>
+                <label className="text-xs text-slate-400 mb-1 block">العنبر (اختياري)</label>
+                <select
+                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm outline-none focus:border-purple-500"
+                  value={selectedWardId}
+                  onChange={(e) => {
+                    setSelectedWardId(e.target.value);
+                    setSelectedBedId("");
+                  }}
+                >
+                  <option value="">-- اختر العنبر --</option>
+                  {wardTree.map((w) => (
+                    <option key={w.id} value={w.id}>
+                      {w.name} ({w.rooms.flatMap((r) => r.beds.filter((b) => b.status === "AVAILABLE")).length} سرير متاح)
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Bed Selection */}
+              {selectedWardId && (() => {
+                const ward = wardTree.find((w) => w.id === Number(selectedWardId));
+                const beds = ward?.rooms.flatMap((room) =>
+                  room.beds
+                    .filter((b) => b.status === "AVAILABLE")
+                    .map((b) => ({ ...b, roomNumber: room.roomNumber }))
+                ) || [];
+                return (
+                  <div>
+                    <label className="text-xs text-slate-400 mb-1 block">السرير</label>
+                    {beds.length === 0 ? (
+                      <p className="text-xs text-rose-400 bg-rose-950/30 border border-rose-800/30 rounded-xl p-2">
+                        ⚠️ لا توجد أسرّة متاحة في هذا العنبر.
+                      </p>
+                    ) : (
+                      <select
+                        className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm outline-none focus:border-purple-500"
+                        value={selectedBedId}
+                        onChange={(e) => setSelectedBedId(e.target.value)}
+                      >
+                        <option value="">-- اختر السرير --</option>
+                        {beds.map((b) => (
+                          <option key={b.id} value={b.id}>
+                            غرفة {b.roomNumber} — سرير {b.bedNumber}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                );
+              })()}
+
               <p className="text-[10px] text-slate-500">
-                * سيتحول نوع الحالة إلى IPD وسيتمكن مكتب الدخول من تخصيص سرير.
+                * اختيار السرير اختياري. يمكن تعيين السرير لاحقاً من صفحة حالات الإيواء.
               </p>
             </div>
             <div className="flex justify-end gap-2">

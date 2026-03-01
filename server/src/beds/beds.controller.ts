@@ -55,7 +55,7 @@ export class BedsController {
 
   // 🔹 ربط Encounter بسرير (تنويم مريض)
   @Post('assign')
-  @Roles('ADMIN', 'NURSE')
+  @Roles('ADMIN', 'NURSE', 'DOCTOR')
   assignBed(@Body() dto: AssignBedDto, @CurrentUser() user: JwtPayload) {
     return this.bedsService.assignBed(
       user.hospitalId,

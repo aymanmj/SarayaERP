@@ -23,7 +23,17 @@ type SurgeryCaseDetails = {
   anesthesiaNotes?: string;
   preOpDiagnosis?: string;
   postOpDiagnosis?: string;
-  encounter: { patient: { fullName: string; mrn: string } };
+  encounter: {
+    patient: { fullName: string; mrn: string };
+    department?: { name: string };
+    bedAssignments?: {
+      bed: {
+        bedNumber: string;
+        room: { roomNumber: string };
+        ward: { name: string };
+      };
+    }[];
+  };
   theatre: { name: string };
   team: { id: number; role: string; user: { fullName: string } }[];
   consumables: {
@@ -225,9 +235,35 @@ export default function SurgeryCaseDetailsPage() {
             <span className="text-slate-200 font-semibold">
               {surgery.encounter.patient.fullName}
             </span>{" "}
-            | الغرفة:{" "}
+            | غرفة العمليات:{" "}
             <span className="text-sky-400">{surgery.theatre.name}</span>
           </div>
+          {/* Patient Location Card */}
+          {(surgery.encounter.department || surgery.encounter.bedAssignments?.length) && (
+            <div className="flex items-center gap-3 mt-2 flex-wrap">
+              {surgery.encounter.department && (
+                <span className="text-xs text-slate-500 bg-slate-950 px-2 py-1 rounded border border-slate-800">
+                  🏥 {surgery.encounter.department.name}
+                </span>
+              )}
+              {surgery.encounter.bedAssignments?.[0]?.bed && (
+                <>
+                  <span className="text-xs text-emerald-400 bg-emerald-950/30 px-2 py-1 rounded border border-emerald-800/40">
+                    🛏️ {surgery.encounter.bedAssignments[0].bed.ward.name}
+                    {" — "}
+                    غرفة {surgery.encounter.bedAssignments[0].bed.room.roomNumber}
+                    {" — "}
+                    سرير {surgery.encounter.bedAssignments[0].bed.bedNumber}
+                  </span>
+                </>
+              )}
+              {!surgery.encounter.bedAssignments?.length && (
+                <span className="text-xs text-rose-400 bg-rose-950/30 px-2 py-1 rounded border border-rose-800/40 animate-pulse">
+                  ⚠️ بدون سرير معيّن
+                </span>
+              )}
+            </div>
+          )}
           {/* Timestamps */}
           {surgery.actualStart && (
             <div className="text-xs text-slate-500 mt-2 space-y-1">

@@ -31,24 +31,36 @@ type ActiveInpatient = {
   };
 };
 
-// Local formatDate removed
+type WardTree = {
+  id: number;
+  name: string;
+  rooms: {
+    id: number;
+    roomNumber: string;
+    beds: {
+      id: number;
+      bedNumber: string;
+      status: string;
+    }[];
+  }[];
+};
 
 export default function ActiveInpatientsPage() {
   const [patients, setPatients] = useState<ActiveInpatient[]>([]);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
+  // Bed Assignment Modal
+  const [showBedModal, setShowBedModal] = useState(false);
+  const [selectedPatient, setSelectedPatient] = useState<ActiveInpatient | null>(null);
+  const [wardTree, setWardTree] = useState<WardTree[]>([]);
+  const [selectedWard, setSelectedWard] = useState("");
+  const [selectedBed, setSelectedBed] = useState("");
+  const [assigningBed, setAssigningBed] = useState(false);
+
   const loadData = async () => {
     setLoading(true);
     try {
-      // سنحتاج لإضافة endpoint مخصص لهذا الغرض في Backend أو نستخدم الفلتر الموجود
-      // للتبسيط، سنفترض وجود هذا المسار أو نقوم بفلترة Encounters
-      // الأفضل: إضافة دالة listActiveInpatients في الـ Backend
-      // حالياً، سنستخدم خدعة بسيطة:
-      // (يفترض أنك ستضيف هذا الـ endpoint في الـ controller، أو نستخدم البحث العام)
-      // سأستخدم هنا endpoint افتراضي، إذا لم يعمل معك، أخبرني لنضيفه في الـ Backend
-
-      // ⚠️ ملاحظة: سأعطيك كود الـ Backend الإضافي لهذا الـ Endpoint أدناه
       const res = await apiClient.get<ActiveInpatient[]>(
         "/encounters/list/active-inpatients",
       );
@@ -61,8 +73,18 @@ export default function ActiveInpatientsPage() {
     }
   };
 
+  const loadWardTree = async () => {
+    try {
+      const res = await apiClient.get<WardTree[]>("/beds/tree");
+      setWardTree(res.data);
+    } catch (err) {
+      console.error("Failed to load ward tree", err);
+    }
+  };
+
   useEffect(() => {
     loadData();
+    loadWardTree();
   }, []);
 
   const handleDischarge = async (encounterId: number, patientName: string, admissionId?: number) => {
@@ -93,6 +115,46 @@ export default function ActiveInpatientsPage() {
       }
     }
   };
+
+  const openBedModal = (patient: ActiveInpatient) => {
+    setSelectedPatient(patient);
+    setSelectedWard("");
+    setSelectedBed("");
+    setShowBedModal(true);
+  };
+
+  const handleAssignBed = async () => {
+    if (!selectedPatient || !selectedBed) return;
+    setAssigningBed(true);
+    try {
+      await apiClient.post("/beds/assign", {
+        encounterId: selectedPatient.id,
+        bedId: Number(selectedBed),
+      });
+      toast.success("تم تعيين السرير بنجاح!");
+      setShowBedModal(false);
+      loadData();
+      loadWardTree(); // Refresh availability
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "فشل تعيين السرير");
+    } finally {
+      setAssigningBed(false);
+    }
+  };
+
+  // Get available beds for selected ward
+  const availableBeds = selectedWard
+    ? wardTree
+        .find((w) => w.id === Number(selectedWard))
+        ?.rooms.flatMap((room) =>
+          room.beds
+            .filter((b) => b.status === "AVAILABLE")
+            .map((b) => ({
+              ...b,
+              roomNumber: room.roomNumber,
+            }))
+        ) || []
+    : [];
 
   return (
     <div
@@ -178,11 +240,25 @@ export default function ActiveInpatientsPage() {
                   </td>
                   <td className="px-4 py-3">
                     {bedInfo ? (
-                      <span className="px-2 py-1 rounded bg-slate-800 border border-slate-700 text-xs">
-                        {wardName} - {bedInfo.bedNumber}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="px-2 py-1 rounded bg-slate-800 border border-slate-700 text-xs">
+                          {wardName} - {bedInfo.bedNumber}
+                        </span>
+                        <button
+                          onClick={() => openBedModal(p)}
+                          className="text-[10px] text-amber-400 hover:text-amber-300 underline"
+                          title="نقل إلى سرير آخر"
+                        >
+                          نقل
+                        </button>
+                      </div>
                     ) : (
-                      <span className="text-rose-400">بدون سرير!</span>
+                      <button
+                        onClick={() => openBedModal(p)}
+                        className="px-3 py-1 bg-rose-600/20 border border-rose-500/40 text-rose-400 rounded-lg text-xs hover:bg-rose-600/40 transition-all animate-pulse"
+                      >
+                        ⚠️ تعيين سرير
+                      </button>
                     )}
                   </td>
                   <td className="px-4 py-3">
@@ -215,6 +291,88 @@ export default function ActiveInpatientsPage() {
           </tbody>
         </table>
       </div>
+
+      {/* Bed Assignment / Transfer Modal */}
+      {showBedModal && selectedPatient && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+          <div className="bg-slate-950 border border-slate-700 rounded-2xl w-full max-w-md p-6 shadow-2xl">
+            <h3 className="text-lg font-bold text-white mb-1">
+              🛏️ تعيين / نقل سرير
+            </h3>
+            <p className="text-xs text-slate-400 mb-4">
+              المريض: <span className="text-sky-400 font-semibold">{selectedPatient.patient.fullName}</span>
+              {selectedPatient.bedAssignments[0]?.bed && (
+                <span className="text-amber-400 mr-2">
+                  (حالياً: {selectedPatient.bedAssignments[0].bed.ward.name} - {selectedPatient.bedAssignments[0].bed.bedNumber})
+                </span>
+              )}
+            </p>
+
+            <div className="space-y-4 mb-6">
+              {/* Ward Selection */}
+              <div>
+                <label className="text-xs text-slate-400 mb-1 block">العنبر / القسم</label>
+                <select
+                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-sky-500"
+                  value={selectedWard}
+                  onChange={(e) => {
+                    setSelectedWard(e.target.value);
+                    setSelectedBed("");
+                  }}
+                >
+                  <option value="">-- اختر العنبر --</option>
+                  {wardTree.map((w) => (
+                    <option key={w.id} value={w.id}>
+                      {w.name} ({w.rooms.flatMap((r) => r.beds.filter((b) => b.status === "AVAILABLE")).length} سرير متاح)
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Bed Selection */}
+              {selectedWard && (
+                <div>
+                  <label className="text-xs text-slate-400 mb-1 block">السرير المتاح</label>
+                  {availableBeds.length === 0 ? (
+                    <p className="text-xs text-rose-400 bg-rose-950/30 border border-rose-800/30 rounded-xl p-3">
+                      ⚠️ لا توجد أسرّة متاحة في هذا العنبر. جرّب عنبراً آخر.
+                    </p>
+                  ) : (
+                    <select
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-sky-500"
+                      value={selectedBed}
+                      onChange={(e) => setSelectedBed(e.target.value)}
+                    >
+                      <option value="">-- اختر السرير --</option>
+                      {availableBeds.map((b) => (
+                        <option key={b.id} value={b.id}>
+                          غرفة {b.roomNumber} — سرير {b.bedNumber}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowBedModal(false)}
+                className="px-4 py-2 bg-slate-800 rounded-xl text-xs text-slate-300"
+              >
+                إلغاء
+              </button>
+              <button
+                onClick={handleAssignBed}
+                disabled={!selectedBed || assigningBed}
+                className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-xl text-xs text-white font-bold disabled:opacity-50"
+              >
+                {assigningBed ? "جارِ التعيين..." : "✅ تعيين السرير"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
