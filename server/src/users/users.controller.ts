@@ -51,6 +51,12 @@ export class UsersController {
     return this.usersService.findActiveDoctors(user.hospitalId);
   }
 
+  @Get('staff-list')
+  @Roles('ADMIN', 'DOCTOR', 'NURSE', 'RECEPTION', 'CASHIER')
+  async getStaff(@CurrentUser() user: JwtPayload) {
+    return this.usersService.findActiveStaff(user.hospitalId);
+  }
+
   @Get('roles')
   @Permissions('ROLE_VIEW')
   async getRoles() {

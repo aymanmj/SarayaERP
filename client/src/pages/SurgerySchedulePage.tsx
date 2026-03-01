@@ -116,8 +116,8 @@ export default function SurgerySchedulePage() {
     }
 
     try {
-      // ✅ Changed from /cashier/users to /users/doctors-list to allow Doctors to fetch it without 403 Forbidden
-      const userRes = await apiClient.get<{ id: number; fullName: string }[]>("/users/doctors-list");
+      // ✅ Changed to /users/staff-list to include nurses and technicians for surgery team
+      const userRes = await apiClient.get<{ id: number; fullName: string }[]>("/users/staff-list");
       setUsers(userRes.data);
     } catch (e) {
       console.error("Failed to load users", e);

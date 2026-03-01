@@ -103,7 +103,7 @@ export default function SurgeryCaseDetailsPage() {
 
   const loadLists = async () => {
     try {
-      const res = await apiClient.get("/users/doctors-list");
+      const res = await apiClient.get("/users/staff-list");
       setUsers(res.data);
     } catch (e) {
       console.error("Failed to load users", e);
@@ -278,7 +278,7 @@ export default function SurgeryCaseDetailsPage() {
             </p>
           </div>
           <button
-            onClick={() => navigate("/inpatient/active")}
+            onClick={() => navigate("/active-inpatients")}
             className="px-4 py-2 bg-emerald-700 hover:bg-emerald-600 text-white rounded-xl text-sm"
           >
             إدارة الإيواء

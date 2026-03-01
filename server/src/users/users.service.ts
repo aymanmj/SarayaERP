@@ -277,6 +277,23 @@ export class UsersService {
     });
   }
 
+  // ✅ [NEW] جلب جميع الموظفين الطبيين (أطباء + تمريض + فنيين) لطاقم العمليات
+  async findActiveStaff(hospitalId: number) {
+    return this.prisma.user.findMany({
+      where: {
+        hospitalId,
+        isActive: true,
+        isDeleted: false,
+      },
+      select: {
+        id: true,
+        fullName: true,
+        departmentId: true,
+      },
+      orderBy: { fullName: 'asc' },
+    });
+  }
+
   async findAllRoles() {
     return this.prisma.role.findMany({
       orderBy: { name: 'asc' },
