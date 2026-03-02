@@ -9,11 +9,24 @@ export class DashboardService {
   constructor(private prisma: PrismaService) {}
 
   // ✅ نستقبل الآن الـ User بالكامل لتحديد الصلاحيات
-  async getStats(hospitalId: number, userId: number, roles: string[]) {
-    // تحديد بداية ونهاية اليوم بدقة (المحلية)
+  async getStats(hospitalId: number, userId: number, roles: string[], period: string = 'today') {
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
     const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+
+    // ✅ حساب بداية ونهاية الفترة المحددة
+    let periodStart: Date;
+    const periodEnd = todayEnd; // دائماً حتى نهاية اليوم
+
+    if (period === 'week') {
+      periodStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      periodStart.setDate(periodStart.getDate() - periodStart.getDay());
+      periodStart.setHours(0, 0, 0, 0);
+    } else if (period === 'month') {
+      periodStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+    } else {
+      periodStart = todayStart;
+    }
 
     // تحديد بداية ونهاية الشهر الماضي
     const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
@@ -50,18 +63,18 @@ export class DashboardService {
       }),
       // إجمالي الأسرة
       this.prisma.bed.count({ where: { hospitalId, isActive: true } }),
-      // مواعيد اليوم
+      // مواعيد الفترة
       this.prisma.appointment.count({
         where: {
           hospitalId,
-          scheduledStart: { gte: todayStart, lte: todayEnd },
+          scheduledStart: { gte: periodStart, lte: periodEnd },
         },
       }),
-      // المواعيد المكتملة اليوم
+      // المواعيد المكتملة
       this.prisma.appointment.count({
         where: {
           hospitalId,
-          scheduledStart: { gte: todayStart, lte: todayEnd },
+          scheduledStart: { gte: periodStart, lte: periodEnd },
           status: 'COMPLETED',
         },
       }),
@@ -72,11 +85,11 @@ export class DashboardService {
           admissionStatus: AdmissionStatus.SCHEDULED,
         },
       }),
-      // حالات الطوارئ اليوم
+      // حالات الطوارئ
       this.prisma.appointment.count({
         where: {
           hospitalId,
-          scheduledStart: { gte: todayStart, lte: todayEnd },
+          scheduledStart: { gte: periodStart, lte: periodEnd },
           isEmergency: true,
         },
       }),
@@ -104,7 +117,7 @@ export class DashboardService {
     // 2. ✅ حساب الإيرادات
     let revenueQuery: any = {
       hospitalId,
-      paidAt: { gte: todayStart, lte: todayEnd },
+      paidAt: { gte: periodStart, lte: periodEnd },
     };
 
     // فلترة حسب الصلاحيات
@@ -155,14 +168,14 @@ export class DashboardService {
 
     // 4. توزيع الإيرادات حسب القسم (إخفاء التفاصيل المالية إذا لم يكن لديه صلاحية)
     const departmentDistribution = hasRevenueAccess 
-      ? await this.getDepartmentDistribution(hospitalId, todayStart, todayEnd)
+      ? await this.getDepartmentDistribution(hospitalId, periodStart, periodEnd)
       : [];
 
     // 5. حالة الأسرة
     const bedStatus = await this.getBedStatus(hospitalId);
 
     // 6. النشاط الساعي
-    const hourlyActivity = await this.getHourlyActivity(hospitalId, todayStart, todayEnd);
+    const hourlyActivity = await this.getHourlyActivity(hospitalId, periodStart, periodEnd);
 
     // 7. ✅ [NEW] متوسط مدة الإقامة (Average Length of Stay)
     const dischargedAdmissions = await this.prisma.admission.findMany({

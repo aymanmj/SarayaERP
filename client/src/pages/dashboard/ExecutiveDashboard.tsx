@@ -80,7 +80,9 @@ export function ExecutiveDashboard() {
   const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useQuery({
     queryKey: ['executive-stats', selectedPeriod],
     queryFn: async () => {
-      const res = await apiClient.get<ExecutiveStats>("/dashboard/stats");
+      const res = await apiClient.get<ExecutiveStats>("/dashboard/stats", {
+        params: { period: selectedPeriod },
+      });
       return res.data;
     },
     refetchInterval: 30000, // Auto-refresh every 30 seconds
