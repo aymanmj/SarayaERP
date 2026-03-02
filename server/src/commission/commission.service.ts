@@ -33,21 +33,23 @@ export class CommissionService {
     },
   ) {
     const hospitalRate = Math.round((100 - data.doctorRate) * 100) / 100;
-    const doctorId = data.doctorId || null;
+    const doctorId = data.doctorId ?? null;
 
-    return this.prisma.commissionRule.upsert({
-      where: {
-        hospitalId_serviceType_doctorId: {
-          hospitalId,
-          serviceType: data.serviceType,
-          doctorId: doctorId as any,
-        },
-      },
-      update: {
-        doctorRate: data.doctorRate,
-        hospitalRate,
-      },
-      create: {
+    // Prisma's upsert doesn't allow null in composite unique where clauses,
+    // so we use findFirst + update/create instead.
+    const existing = await this.prisma.commissionRule.findFirst({
+      where: { hospitalId, serviceType: data.serviceType, doctorId },
+    });
+
+    if (existing) {
+      return this.prisma.commissionRule.update({
+        where: { id: existing.id },
+        data: { doctorRate: data.doctorRate, hospitalRate },
+      });
+    }
+
+    return this.prisma.commissionRule.create({
+      data: {
         hospitalId,
         serviceType: data.serviceType,
         doctorId,
