@@ -211,7 +211,7 @@ export class CashierController {
 
   // 🔹 قائمة المستخدمين (للاختيار في تقرير الكاشير) - للـ ADMIN فقط
   @Get('users')
-  @Roles('ADMIN', 'CASHIER', 'RECEPTION')
+  @Roles('ADMIN', 'CASHIER', 'RECEPTION', 'HR')
   async listCashierUsers(@Req() req: any) {
     const hospitalId = req.user.hospitalId as number;
     return this.cashierService.listCashierUsers(hospitalId);
