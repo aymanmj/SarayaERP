@@ -317,4 +317,115 @@ export class ReportsService {
       },
     };
   }
+
+  /**
+   * تقرير الإيرادات حسب القسم/التخصص
+   */
+  async getRevenueByDepartment(hospitalId: number, dateFrom?: Date, dateTo?: Date) {
+    if (dateTo) {
+      dateTo.setHours(23, 59, 59, 999);
+    }
+
+    const dateFilter = {
+      ...(dateFrom && { gte: dateFrom }),
+      ...(dateTo && { lte: dateTo }),
+    };
+    const hasDateFilter = dateFrom || dateTo;
+
+    // 1. Revenue by ServiceType
+    const byServiceType = await this.prisma.encounterCharge.groupBy({
+      by: ['serviceItemId'],
+      where: {
+        hospitalId,
+        ...(hasDateFilter && { createdAt: dateFilter }),
+      },
+      _sum: { totalAmount: true },
+      _count: { _all: true },
+    });
+
+    // Get service items to map their types
+    const serviceItemIds = byServiceType.map((r) => r.serviceItemId);
+    const serviceItems = await this.prisma.serviceItem.findMany({
+      where: { id: { in: serviceItemIds } },
+      select: { id: true, type: true, name: true },
+    });
+    const serviceItemMap = new Map(serviceItems.map((s) => [s.id, s]));
+
+    // Aggregate by service type
+    const typeAgg = new Map<string, { revenue: number; count: number }>();
+    for (const row of byServiceType) {
+      const si = serviceItemMap.get(row.serviceItemId);
+      const type = si?.type || 'OTHER';
+      const existing = typeAgg.get(type) || { revenue: 0, count: 0 };
+      existing.revenue += Number(row._sum.totalAmount || 0);
+      existing.count += row._count._all;
+      typeAgg.set(type, existing);
+    }
+
+    const typeLabels: Record<string, string> = {
+      CONSULTATION: 'الاستشارات',
+      LAB: 'المختبر',
+      RADIOLOGY: 'الأشعة',
+      PROCEDURE: 'الإجراءات',
+      BED: 'التنويم',
+      PHARMACY: 'الصيدلية',
+      OTHER: 'أخرى',
+    };
+
+    const byType = Array.from(typeAgg.entries())
+      .map(([type, data]) => ({
+        type,
+        label: typeLabels[type] || type,
+        revenue: Math.round(data.revenue * 100) / 100,
+        count: data.count,
+      }))
+      .sort((a, b) => b.revenue - a.revenue);
+
+    // 2. Revenue by Specialty (from performer's specialty)
+    const chargesWithPerformer = await this.prisma.encounterCharge.findMany({
+      where: {
+        hospitalId,
+        performerId: { not: null },
+        ...(hasDateFilter && { createdAt: dateFilter }),
+      },
+      select: {
+        totalAmount: true,
+        performer: {
+          select: {
+            specialty: { select: { name: true } },
+          },
+        },
+      },
+    });
+
+    const specialtyAgg = new Map<string, { revenue: number; count: number }>();
+    for (const charge of chargesWithPerformer) {
+      const specialtyName = (charge.performer as any)?.specialty?.name || 'غير محدد';
+      const existing = specialtyAgg.get(specialtyName) || { revenue: 0, count: 0 };
+      existing.revenue += Number(charge.totalAmount || 0);
+      existing.count += 1;
+      specialtyAgg.set(specialtyName, existing);
+    }
+
+    const bySpecialty = Array.from(specialtyAgg.entries())
+      .map(([specialty, data]) => ({
+        specialty,
+        revenue: Math.round(data.revenue * 100) / 100,
+        count: data.count,
+      }))
+      .sort((a, b) => b.revenue - a.revenue);
+
+    // 3. Total
+    const totalRevenue = byType.reduce((s, r) => s + r.revenue, 0);
+    const totalCount = byType.reduce((s, r) => s + r.count, 0);
+
+    return {
+      byServiceType: byType,
+      bySpecialty,
+      total: {
+        revenue: Math.round(totalRevenue * 100) / 100,
+        count: totalCount,
+      },
+    };
+  }
 }

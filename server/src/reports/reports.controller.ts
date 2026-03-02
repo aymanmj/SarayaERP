@@ -64,6 +64,21 @@ export class ReportsController {
     const dateTo = to ? new Date(to) : undefined;
     return this.reportsService.getDoctorPerformance(req.user.hospitalId, dateFrom, dateTo);
   }
+
+  /**
+   * 6. تقرير الإيرادات حسب القسم/التخصص
+   * GET /reports/revenue-by-department?from=2026-01-01&to=2026-03-01
+   */
+  @Get('revenue-by-department')
+  async getRevenueByDepartment(
+    @Req() req: any,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    const dateFrom = from ? new Date(from) : undefined;
+    const dateTo = to ? new Date(to) : undefined;
+    return this.reportsService.getRevenueByDepartment(req.user.hospitalId, dateFrom, dateTo);
+  }
 }
 
 // import { Controller, Get, Query, Req, UseGuards } from '@nestjs/common';

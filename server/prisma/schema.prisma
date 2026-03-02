@@ -83,6 +83,8 @@ model Hospital {
   fertilityCases            FertilityCase[]
   consentForms              ConsentForm[]
   commissionRules           CommissionRule[]
+  referrals                 Referral[]
+  clinicalNoteTemplates     ClinicalNoteTemplate[]
 }
 
 model Department {
@@ -291,6 +293,13 @@ model User {
 
   // Commission Rules
   commissionRules CommissionRule[] @relation("DoctorCommissionRules")
+
+  // Referrals
+  sentReferrals     Referral[] @relation("ReferralFrom")
+  receivedReferrals Referral[] @relation("ReferralTo")
+
+  // Clinical Note Templates
+  createdNoteTemplates ClinicalNoteTemplate[]
 }
 
 model RefreshToken {
@@ -404,6 +413,9 @@ model Patient {
   // Consent Forms
   consentForms  ConsentForm[]
 
+  // Referrals
+  referrals     Referral[]
+
   @@index([hospitalId, phone])
   @@index([hospitalId, fullName])
   @@index([nationalId])
@@ -462,6 +474,7 @@ model Encounter {
   vitalSigns                VitalSign[]
   deliveryAdmission         DeliveryAdmission?
   consentForms              ConsentForm[]
+  referrals                 Referral[]
 
   @@index([hospitalId, type, status])
   @@index([patientId])
@@ -3191,4 +3204,64 @@ enum ConsentFormType {
   ANESTHESIA
   PROCEDURE
   OTHER
+}
+
+// ================================================
+// نظام الإحالات بين الأطباء
+// ================================================
+
+enum ReferralStatus {
+  PENDING
+  ACCEPTED
+  COMPLETED
+  REJECTED
+  CANCELLED
+}
+
+model Referral {
+  id                Int            @id @default(autoincrement())
+  hospitalId        Int
+  encounterId       Int?
+  patientId         Int
+  referringDoctorId Int
+  receivingDoctorId Int
+  reason            String
+  clinicalSummary   String?        @db.Text
+  priority          String         @default("ROUTINE")
+  status            ReferralStatus @default(PENDING)
+  notes             String?
+  completedAt       DateTime?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  hospital        Hospital   @relation(fields: [hospitalId], references: [id])
+  patient         Patient    @relation(fields: [patientId], references: [id])
+  referringDoctor User       @relation("ReferralFrom", fields: [referringDoctorId], references: [id])
+  receivingDoctor User       @relation("ReferralTo", fields: [receivingDoctorId], references: [id])
+  encounter       Encounter? @relation(fields: [encounterId], references: [id])
+
+  @@index([hospitalId, status])
+  @@index([receivingDoctorId, status])
+}
+
+// ================================================
+// قوالب الملاحظات الطبية
+// ================================================
+
+model ClinicalNoteTemplate {
+  id          Int      @id @default(autoincrement())
+  hospitalId  Int
+  name        String
+  specialty   String?
+  noteType    NoteType
+  content     String   @db.Text
+  isActive    Boolean  @default(true)
+  createdById Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  hospital  Hospital @relation(fields: [hospitalId], references: [id])
+  createdBy User     @relation(fields: [createdById], references: [id])
+
+  @@index([hospitalId, specialty])
 }

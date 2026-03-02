@@ -56,6 +56,11 @@ interface ExecutiveStats {
   bedStatus: Array<{ status: string; count: number; color: string }>;
   hourlyActivity: Array<{ hour: string; visits: number; appointments: number }>;
   lastUpdated: string;
+  // ✅ [NEW] Enhanced KPIs
+  avgLengthOfStay?: number;
+  top5Diagnoses?: Array<{ code: string; name: string; count: number }>;
+  revenueGrowthRate?: number;
+  currentMonthRevenue?: number;
 }
 
 interface RecentActivity {
@@ -251,6 +256,65 @@ export function ExecutiveDashboard() {
           </div>
           <div className="text-xs text-slate-400">
             {stats?.pendingAdmissions || 0} في الانتظار
+          </div>
+        </div>
+      </div>
+
+      {/* ✅ [NEW] Enhanced KPI Row */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Average Length of Stay */}
+        <div className={cardClass}>
+          <div className="flex items-center justify-between mb-4">
+            <span className="text-slate-400 text-sm">متوسط مدة الإقامة</span>
+            <ClockIcon className="w-5 h-5 text-indigo-500" />
+          </div>
+          <div className="text-2xl font-bold text-indigo-400 mb-2">
+            {(stats as any)?.avgLengthOfStay || 0} <span className="text-sm text-slate-500">يوم</span>
+          </div>
+          <div className="text-xs text-slate-400">من آخر 100 حالة خروج</div>
+        </div>
+
+        {/* Revenue Growth Rate */}
+        <div className={cardClass}>
+          <div className="flex items-center justify-between mb-4">
+            <span className="text-slate-400 text-sm">نمو الإيرادات الشهري</span>
+            <ChartBarIcon className="w-5 h-5 text-cyan-500" />
+          </div>
+          <div className="flex items-center gap-2 mb-2">
+            <span className={`text-2xl font-bold ${((stats as any)?.revenueGrowthRate || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+              {((stats as any)?.revenueGrowthRate || 0) >= 0 ? '+' : ''}{(stats as any)?.revenueGrowthRate || 0}%
+            </span>
+            {((stats as any)?.revenueGrowthRate || 0) >= 0 ? (
+              <ArrowTrendingUpIcon className="w-5 h-5 text-emerald-400" />
+            ) : (
+              <ArrowTrendingDownIcon className="w-5 h-5 text-red-400" />
+            )}
+          </div>
+          <div className="text-xs text-slate-400">
+            {((stats as any)?.currentMonthRevenue || 0).toLocaleString()} د.ل هذا الشهر
+          </div>
+        </div>
+
+        {/* Top 5 Diagnoses */}
+        <div className={cardClass}>
+          <div className="flex items-center justify-between mb-4">
+            <span className="text-slate-400 text-sm">أعلى 5 تشخيصات</span>
+            <ClipboardDocumentListIcon className="w-5 h-5 text-amber-500" />
+          </div>
+          <div className="space-y-2">
+            {((stats as any)?.top5Diagnoses || []).length > 0 ? (
+              ((stats as any)?.top5Diagnoses || []).map((d: any, i: number) => (
+                <div key={i} className="flex justify-between items-center text-xs">
+                  <div className="flex items-center gap-2 truncate flex-1">
+                    <span className="bg-amber-900/30 text-amber-400 px-1.5 py-0.5 rounded text-[10px] font-mono">{d.code}</span>
+                    <span className="text-slate-300 truncate">{d.name}</span>
+                  </div>
+                  <span className="text-slate-400 font-mono mr-2">{d.count}</span>
+                </div>
+              ))
+            ) : (
+              <div className="text-center text-slate-500 py-4">لا توجد بيانات</div>
+            )}
           </div>
         </div>
       </div>

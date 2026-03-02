@@ -25,6 +25,9 @@ const ExecutiveDashboardPage = lazy(() =>
 );
 const DoctorPerformancePage = lazy(() => import("../pages/DoctorPerformancePage"));
 const CommissionSettingsPage = lazy(() => import("../pages/settings/CommissionSettingsPage"));
+const RevenueDepartmentPage = lazy(() => import("../pages/RevenueDepartmentPage"));
+const ReferralsPage = lazy(() => import("../pages/ReferralsPage"));
+const NoteTemplatesPage = lazy(() => import("../pages/settings/NoteTemplatesPage"));
 
 // --- HR ---
 const PayrollPage = lazy(() => import("../pages/PayrollPage"));
@@ -74,7 +77,10 @@ export const AdminRoutes = (
     <Route path="/integration" element={<IntegrationPage />} />
     <Route path="/analytics/executive" element={<ExecutiveDashboardPage />} />
     <Route path="/reports/doctor-performance" element={<DoctorPerformancePage />} />
+    <Route path="/reports/revenue-department" element={<RevenueDepartmentPage />} />
+    <Route path="/referrals" element={<ReferralsPage />} />
     <Route path="/settings/commissions" element={<CommissionSettingsPage />} />
+    <Route path="/settings/note-templates" element={<NoteTemplatesPage />} />
 
     {/* HR */}
     <Route path="/hr/shifts" element={<ShiftsPage />} />

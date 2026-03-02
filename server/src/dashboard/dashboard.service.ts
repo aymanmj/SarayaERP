@@ -164,6 +164,78 @@ export class DashboardService {
     // 6. النشاط الساعي
     const hourlyActivity = await this.getHourlyActivity(hospitalId, todayStart, todayEnd);
 
+    // 7. ✅ [NEW] متوسط مدة الإقامة (Average Length of Stay)
+    const dischargedAdmissions = await this.prisma.admission.findMany({
+      where: {
+        hospitalId,
+        dischargeDate: { not: undefined as unknown as null },
+        actualAdmissionDate: { not: undefined as unknown as null },
+      },
+      select: { actualAdmissionDate: true, dischargeDate: true },
+      orderBy: { dischargeDate: 'desc' },
+      take: 100,
+    });
+
+    let avgLengthOfStay = 0;
+    if (dischargedAdmissions.length > 0) {
+      const totalDays = dischargedAdmissions.reduce((sum, adm) => {
+        const admDate = adm.actualAdmissionDate!.getTime();
+        const disDate = adm.dischargeDate!.getTime();
+        return sum + (disDate - admDate) / (1000 * 60 * 60 * 24);
+      }, 0);
+      avgLengthOfStay = Math.round((totalDays / dischargedAdmissions.length) * 10) / 10;
+    }
+
+    // 8. ✅ [NEW] أعلى 5 تشخيصات (Top 5 Diagnoses)
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const topDiagnoses = await this.prisma.encounterDiagnosis.groupBy({
+      by: ['diagnosisCodeId'],
+      where: {
+        encounter: { hospitalId },
+        createdAt: { gte: monthStart },
+      },
+      _count: { _all: true },
+      orderBy: { _count: { diagnosisCodeId: 'desc' } },
+      take: 5,
+    });
+
+    const diagCodeIds = topDiagnoses.map((d) => d.diagnosisCodeId);
+    const diagCodes = await this.prisma.diagnosisCode.findMany({
+      where: { id: { in: diagCodeIds } },
+      select: { id: true, code: true, nameAr: true, nameEn: true },
+    });
+    const diagMap = new Map(diagCodes.map((d) => [d.id, d]));
+
+    const top5Diagnoses = topDiagnoses.map((d) => {
+      const code = diagMap.get(d.diagnosisCodeId);
+      return {
+        code: code?.code || '—',
+        name: code?.nameAr || code?.nameEn || '—',
+        count: d._count._all,
+      };
+    });
+
+    // 9. ✅ [NEW] معدل نمو الإيرادات الشهري
+    const currentMonthRevenue = hasRevenueAccess
+      ? Number(
+          (
+            await this.prisma.payment.aggregate({
+              where: {
+                hospitalId,
+                paidAt: { gte: monthStart, lte: todayEnd },
+                ...(isCashier && !isAdmin ? { cashierId: userId } : {}),
+              },
+              _sum: { amount: true },
+            })
+          )._sum.amount ?? 0,
+        )
+      : 0;
+
+    const revenueGrowthRate =
+      lastMonthRevenue > 0
+        ? Math.round(((currentMonthRevenue - lastMonthRevenue) / lastMonthRevenue) * 100 * 10) / 10
+        : 0;
+
     return {
       // الإحصائيات الأساسية
       todayRevenue: todayRevenue,
@@ -185,6 +257,12 @@ export class DashboardService {
       departmentDistribution,
       bedStatus,
       hourlyActivity,
+
+      // ✅ [NEW] مؤشرات أداء محسنة
+      avgLengthOfStay,
+      top5Diagnoses,
+      revenueGrowthRate,
+      currentMonthRevenue,
 
       // معلومات إضافية
       isPersonalRevenue: !isAdmin && isCashier,

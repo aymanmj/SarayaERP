@@ -163,6 +163,7 @@ export default function EncounterDetailsPage() {
   // UI State
   const [visitNotes, setVisitNotes] = useState("");
   const [activeTab, setActiveTab] = useState<TabKey>("VISITS");
+  const [noteTemplates, setNoteTemplates] = useState<{ id: number; name: string; content: string }[]>([]);
   
   // Admission Modal
   const [showAdmitModal, setShowAdmitModal] = useState(false);
@@ -174,6 +175,7 @@ export default function EncounterDetailsPage() {
   // Load ward tree for bed selection
   useEffect(() => {
     apiClient.get("/beds/tree").then((res) => setWardTree(res.data)).catch(() => {});
+    apiClient.get("/note-templates").then((res) => setNoteTemplates(res.data)).catch(() => {});
   }, []);
 
   // 1. Fetch Encounter Details
@@ -439,24 +441,44 @@ export default function EncounterDetailsPage() {
                   </h3>
 
                   {!isClosed && (
-                    <form
-                      onSubmit={handleAddVisitNote}
-                      className="mb-6 flex gap-3 items-start"
-                    >
-                      <textarea
-                        className="flex-1 bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm focus:border-sky-500 outline-none min-h-[80px]"
-                        placeholder="اكتب ملاحظاتك وتوصياتك هنا..."
-                        value={visitNotes}
-                        onChange={(e) => setVisitNotes(e.target.value)}
-                      ></textarea>
-                      <button
-                        type="submit"
-                        disabled={!encounter.doctorId || savingVisit}
-                        className="h-[80px] px-6 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-sm font-bold shadow-lg disabled:opacity-50"
+                    <div className="mb-6">
+                      {noteTemplates.length > 0 && (
+                        <div className="mb-2">
+                          <select
+                            className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-300 outline-none focus:border-sky-500"
+                            defaultValue=""
+                            onChange={(e) => {
+                              const tpl = noteTemplates.find((t) => t.id === Number(e.target.value));
+                              if (tpl) setVisitNotes(tpl.content);
+                              e.target.value = "";
+                            }}
+                          >
+                            <option value="" disabled>📋 تحميل من قالب...</option>
+                            {noteTemplates.map((t) => (
+                              <option key={t.id} value={t.id}>{t.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                      <form
+                        onSubmit={handleAddVisitNote}
+                        className="flex gap-3 items-start"
                       >
-                        حفظ
-                      </button>
-                    </form>
+                        <textarea
+                          className="flex-1 bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm focus:border-sky-500 outline-none min-h-[80px]"
+                          placeholder="اكتب ملاحظاتك وتوصياتك هنا..."
+                          value={visitNotes}
+                          onChange={(e) => setVisitNotes(e.target.value)}
+                        ></textarea>
+                        <button
+                          type="submit"
+                          disabled={!encounter.doctorId || savingVisit}
+                          className="h-[80px] px-6 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-sm font-bold shadow-lg disabled:opacity-50"
+                        >
+                          حفظ
+                        </button>
+                      </form>
+                    </div>
                   )}
 
                   <div className="space-y-4">

@@ -71,6 +71,8 @@ import { PrometheusModule } from '@willsoto/nestjs-prometheus'; // ✅ Monitorin
 import { BackupModule } from './backup/backup.module';
 import { SystemSettingsModule } from './system-settings/system-settings.module';
 import { ClinicalNotesModule } from './clinical-notes/clinical-notes.module';
+import { ReferralModule } from './referral/referral.module';
+import { NoteTemplatesModule } from './note-templates/note-templates.module';
 
 @Module({
   imports: [
@@ -163,6 +165,8 @@ import { ClinicalNotesModule } from './clinical-notes/clinical-notes.module';
     // Reports
     ReportsModule,
     CommissionModule, // ✅ [NEW] Doctor Commission Rules
+    ReferralModule, // ✅ [NEW] Doctor Referral System
+    NoteTemplatesModule, // ✅ [NEW] Clinical Note Templates
 
     // Real-time Communication
     WebsocketModule, // ✅ [NEW] WebSocket for real-time nursing updates

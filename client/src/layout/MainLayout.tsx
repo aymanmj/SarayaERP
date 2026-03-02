@@ -400,6 +400,7 @@ export function MainLayout() {
           requiredModule: "RADIOLOGY" 
         },
         { label: "تجهيز الأسرة", path: "/housekeeping", access: "adt:bed:manage" },
+        { label: "📋 نظام الإحالات", path: "/referrals" },
       ],
     },
     {
@@ -501,6 +502,10 @@ export function MainLayout() {
         {
           label: "⚙️ إعدادات العمولات",
           path: "/settings/commissions",
+        },
+        {
+          label: "📊 إيرادات الأقسام",
+          path: "/reports/revenue-department",
         },
       ],
     },
@@ -655,6 +660,7 @@ export function MainLayout() {
         { label: "سجل التدقيق (Audit Logs)", path: "/audit/logs", access: "admin:audit:view" },
         { label: "جداول الأطباء", path: "/settings/doctor-schedules", access: "admin:settings:manage" },
         { label: "النسخ الاحتياطي والاستعادة", path: "/settings/backup", access: "admin:settings:manage" }, 
+        { label: "📝 قوالب الملاحظات الطبية", path: "/settings/note-templates", access: "admin:settings:manage" },
         { label: "حول النظام", path: "/about" }, 
       ],
     },
