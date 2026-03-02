@@ -10,32 +10,35 @@ export class DashboardService {
 
   // ✅ نستقبل الآن الـ User بالكامل لتحديد الصلاحيات
   async getStats(hospitalId: number, userId: number, roles: string[], period: string = 'today') {
-    const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
-    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+    // ✅ تعويض فرق التوقيت — السيرفر UTC والبيانات بتوقيت ليبيا UTC+2
+    const LIBYA_OFFSET_MS = 2 * 60 * 60 * 1000; // +2 ساعة
+    const nowUTC = new Date();
+    const nowLibya = new Date(nowUTC.getTime() + LIBYA_OFFSET_MS);
+
+    // بداية ونهاية "اليوم" بتوقيت ليبيا (ثم نعيده لـ UTC للاستعلام)
+    const todayStart = new Date(Date.UTC(nowLibya.getUTCFullYear(), nowLibya.getUTCMonth(), nowLibya.getUTCDate()) - LIBYA_OFFSET_MS);
+    const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000 - 1);
 
     // ✅ حساب بداية ونهاية الفترة المحددة
     let periodStart: Date;
     const periodEnd = todayEnd; // دائماً حتى نهاية اليوم
 
     if (period === 'week') {
-      periodStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      periodStart.setDate(periodStart.getDate() - periodStart.getDay());
-      periodStart.setHours(0, 0, 0, 0);
+      const dayOfWeek = nowLibya.getUTCDay();
+      periodStart = new Date(todayStart.getTime() - dayOfWeek * 24 * 60 * 60 * 1000);
     } else if (period === 'month') {
-      periodStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+      periodStart = new Date(Date.UTC(nowLibya.getUTCFullYear(), nowLibya.getUTCMonth(), 1) - LIBYA_OFFSET_MS);
     } else {
       periodStart = todayStart;
     }
 
     // تحديد بداية ونهاية الشهر الماضي
-    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+    const lastMonthStart = new Date(Date.UTC(nowLibya.getUTCFullYear(), nowLibya.getUTCMonth() - 1, 1) - LIBYA_OFFSET_MS);
+    const lastMonthEnd = new Date(Date.UTC(nowLibya.getUTCFullYear(), nowLibya.getUTCMonth(), 1) - LIBYA_OFFSET_MS - 1);
 
     // تحديد بداية الأسبوع
-    const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-    weekStart.setHours(0, 0, 0, 0);
+    const dayOfWeek = nowLibya.getUTCDay();
+    const weekStart = new Date(todayStart.getTime() - dayOfWeek * 24 * 60 * 60 * 1000);
 
     // 1. الإحصائيات العامة
     const [
@@ -200,7 +203,7 @@ export class DashboardService {
     }
 
     // 8. ✅ [NEW] أعلى 5 تشخيصات (Top 5 Diagnoses)
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const monthStart = new Date(Date.UTC(nowLibya.getUTCFullYear(), nowLibya.getUTCMonth(), 1) - LIBYA_OFFSET_MS);
     const topDiagnoses = await this.prisma.encounterDiagnosis.groupBy({
       by: ['diagnosisCodeId'],
       where: {
@@ -251,8 +254,8 @@ export class DashboardService {
 
     return {
       // الإحصائيات الأساسية
-      todayRevenue: todayRevenue,
-      appointmentsToday: appointmentsToday,
+      dailyRevenue: todayRevenue,
+      dailyVisits: appointmentsToday,
       inventoryValue: inventoryValueCalc,
       activeInpatients,
       occupiedBeds,
