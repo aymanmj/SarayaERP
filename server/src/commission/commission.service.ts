@@ -68,7 +68,7 @@ export class CommissionService {
       doctorRate: number;
     }>,
   ) {
-    const results = [];
+    const results: Awaited<ReturnType<CommissionService['upsert']>>[] = [];
     for (const rule of rules) {
       const result = await this.upsert(hospitalId, rule);
       results.push(result);
