@@ -20,6 +20,8 @@ type DoctorRow = {
   totalAdmissions: number;
   totalSurgeries: number;
   totalRevenue: number;
+  commissionRate: number;
+  doctorCommission: number;
   avgConsultationMins: number;
 };
 
@@ -33,7 +35,7 @@ type PerformanceData = {
   };
 };
 
-type SortKey = keyof Pick<DoctorRow, "totalEncounters" | "totalAdmissions" | "totalSurgeries" | "totalRevenue" | "avgConsultationMins">;
+type SortKey = keyof Pick<DoctorRow, "totalEncounters" | "totalAdmissions" | "totalSurgeries" | "totalRevenue" | "doctorCommission" | "avgConsultationMins">;
 
 const CHART_COLORS = [
   "#6366f1", "#8b5cf6", "#a78bfa", "#c084fc", "#d8b4fe",
@@ -85,6 +87,7 @@ export default function DoctorPerformancePage() {
     totalAdmissions: "الإيواء",
     totalSurgeries: "العمليات",
     totalRevenue: "الإيرادات",
+    doctorCommission: "حصة الطبيب",
     avgConsultationMins: "متوسط الاستشارة",
   };
 
@@ -326,6 +329,13 @@ export default function DoctorPerformancePage() {
                       >
                         الإيرادات {sortKey === "totalRevenue" ? (sortAsc ? "↑" : "↓") : ""}
                       </th>
+                      <th className="px-4 py-3 font-bold">نسبة العمولة</th>
+                      <th
+                        className="px-4 py-3 font-bold cursor-pointer hover:text-sky-400 transition"
+                        onClick={() => handleSort("doctorCommission")}
+                      >
+                        حصة الطبيب {sortKey === "doctorCommission" ? (sortAsc ? "↑" : "↓") : ""}
+                      </th>
                       <th
                         className="px-4 py-3 font-bold cursor-pointer hover:text-sky-400 transition"
                         onClick={() => handleSort("avgConsultationMins")}
@@ -379,6 +389,14 @@ export default function DoctorPerformancePage() {
                           </td>
                           <td className="px-4 py-3 text-center font-mono text-xs text-emerald-400">
                             {doc.totalRevenue.toLocaleString()} <span className="text-slate-600">د.ل</span>
+                          </td>
+                          <td className="px-4 py-3 text-center font-mono text-xs text-slate-400">
+                            {doc.commissionRate > 0 ? `${doc.commissionRate}%` : "—"}
+                          </td>
+                          <td className="px-4 py-3 text-center font-mono text-xs text-cyan-400">
+                            {doc.doctorCommission > 0
+                              ? <>{doc.doctorCommission.toLocaleString()} <span className="text-slate-600">د.ل</span></>
+                              : "—"}
                           </td>
                           <td className="px-4 py-3 text-center font-mono text-xs text-amber-400">
                             {doc.avgConsultationMins > 0

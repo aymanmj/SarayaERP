@@ -82,6 +82,7 @@ model Hospital {
   antenatalCares            AntenatalCare[]
   fertilityCases            FertilityCase[]
   consentForms              ConsentForm[]
+  commissionRules           CommissionRule[]
 }
 
 model Department {
@@ -287,6 +288,9 @@ model User {
   
   // Consent Forms
   consentFormsRequested ConsentForm[] @relation("DoctorConsentForms")
+
+  // Commission Rules
+  commissionRules CommissionRule[] @relation("DoctorCommissionRules")
 }
 
 model RefreshToken {
@@ -2415,6 +2419,25 @@ enum ServiceType {
   BED
   PHARMACY
   OTHER
+}
+
+// نظام توزيع الإيرادات بين المستشفى والأطباء
+model CommissionRule {
+  id          Int         @id @default(autoincrement())
+  hospitalId  Int
+  serviceType ServiceType
+  doctorId    Int?        // null = قاعدة افتراضية للجميع
+  doctorRate  Decimal     @default(0) @db.Decimal(5, 2)  // نسبة الطبيب %
+  hospitalRate Decimal    @default(100) @db.Decimal(5, 2) // نسبة المستشفى %
+  isActive    Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @default(now()) @updatedAt
+
+  hospital Hospital @relation(fields: [hospitalId], references: [id])
+  doctor   User?    @relation("DoctorCommissionRules", fields: [doctorId], references: [id], onDelete: SetNull)
+
+  @@unique([hospitalId, serviceType, doctorId])
+  @@map("CommissionRule")
 }
 
 enum ChargeSource {

@@ -56,6 +56,7 @@ import { CDSSModule } from './cdss/cdss.module'; // ✅ [NEW] نظام دعم ا
 import { WebsocketModule } from './websocket/websocket.module'; // ✅ [NEW] WebSocket for real-time updates
 import { ObGynModule } from './modules/obgyn/obgyn.module'; // ✅ [NEW] Obstetric Module
 import { ConsentFormsModule } from './modules/clinical/consent-forms/consent-forms.module'; // ✅ [NEW] Consent Forms
+import { CommissionModule } from './commission/commission.module'; // ✅ [NEW] Commission Rules
 import { AuditInterceptor } from './audit/audit.interceptor';
 import { APP_INTERCEPTOR, APP_GUARD } from '@nestjs/core';
 
@@ -161,6 +162,7 @@ import { ClinicalNotesModule } from './clinical-notes/clinical-notes.module';
 
     // Reports
     ReportsModule,
+    CommissionModule, // ✅ [NEW] Doctor Commission Rules
 
     // Real-time Communication
     WebsocketModule, // ✅ [NEW] WebSocket for real-time nursing updates

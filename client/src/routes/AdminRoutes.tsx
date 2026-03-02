@@ -24,6 +24,7 @@ const ExecutiveDashboardPage = lazy(() =>
   })),
 );
 const DoctorPerformancePage = lazy(() => import("../pages/DoctorPerformancePage"));
+const CommissionSettingsPage = lazy(() => import("../pages/settings/CommissionSettingsPage"));
 
 // --- HR ---
 const PayrollPage = lazy(() => import("../pages/PayrollPage"));
@@ -62,6 +63,7 @@ export const AdminRoutes = (
     />
     <Route path="/settings/backup" element={<BackupSettingsPage />} />
     <Route path="/settings/system" element={<SystemSettingsPage />} />
+    <Route path="/settings/commissions" element={<CommissionSettingsPage />} />
     <Route
       path="/price-lists/:id"
       element={<PriceListDetailsPage />}
@@ -72,6 +74,7 @@ export const AdminRoutes = (
     <Route path="/integration" element={<IntegrationPage />} />
     <Route path="/analytics/executive" element={<ExecutiveDashboardPage />} />
     <Route path="/reports/doctor-performance" element={<DoctorPerformancePage />} />
+    <Route path="/settings/commissions" element={<CommissionSettingsPage />} />
 
     {/* HR */}
     <Route path="/hr/shifts" element={<ShiftsPage />} />

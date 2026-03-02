@@ -498,6 +498,10 @@ export function MainLayout() {
           label: "تقارير أداء الأطباء",
           path: "/reports/doctor-performance",
         },
+        {
+          label: "⚙️ إعدادات العمولات",
+          path: "/settings/commissions",
+        },
       ],
     },
     {

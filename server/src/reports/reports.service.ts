@@ -171,10 +171,10 @@ export class ReportsService {
       return { doctors: [], summary: { totalEncounters: 0, totalRevenue: 0, totalSurgeries: 0, activeDoctors: 0 } };
     }
 
-    // 2. Fetch doctor info
+    // 2. Fetch doctor info (including commissionRate)
     const users = await this.prisma.user.findMany({
       where: { id: { in: doctorIds } },
-      select: { id: true, fullName: true, specialty: { select: { name: true } } },
+      select: { id: true, fullName: true, commissionRate: true, specialty: { select: { name: true } } },
     });
 
     // 3. Admissions per doctor (via encounter)
@@ -205,32 +205,21 @@ export class ReportsService {
       surgeryCountMap.set(t.userId, (surgeryCountMap.get(t.userId) || 0) + 1);
     });
 
-    // 5. Revenue per doctor (from encounter charges)
-    const encountersByDoctor = await this.prisma.encounter.findMany({
+    // 5. Revenue per doctor — using performerId directly (same as payroll)
+    const revenueByDoctor = await this.prisma.encounterCharge.groupBy({
+      by: ['performerId'],
       where: {
         hospitalId,
-        doctorId: { in: doctorIds },
-        ...(hasDateFilter && { admissionDate: dateFilter }),
+        performerId: { in: doctorIds },
+        ...(hasDateFilter && { createdAt: dateFilter }),
       },
-      select: { id: true, doctorId: true },
-    });
-    const encounterIdsByDoctor = new Map<number, number[]>();
-    encountersByDoctor.forEach((e) => {
-      if (!e.doctorId) return;
-      const list = encounterIdsByDoctor.get(e.doctorId) || [];
-      list.push(e.id);
-      encounterIdsByDoctor.set(e.doctorId, list);
-    });
-
-    const allEncounterIds = encountersByDoctor.map((e) => e.id);
-    const charges = await this.prisma.encounterCharge.groupBy({
-      by: ['encounterId'],
-      where: { encounterId: { in: allEncounterIds } },
       _sum: { totalAmount: true },
     });
-    const chargeMap = new Map<number, number>();
-    charges.forEach((c) => {
-      chargeMap.set(c.encounterId, Number(c._sum.totalAmount || 0));
+    const revenueMap = new Map<number, number>();
+    revenueByDoctor.forEach((r) => {
+      if (r.performerId) {
+        revenueMap.set(r.performerId, Number(r._sum.totalAmount || 0));
+      }
     });
 
     // 6. Avg consultation duration (encounters with both admission and discharge dates)
@@ -264,10 +253,9 @@ export class ReportsService {
       const encounters = doctorEncounters.find((d) => d.doctorId === docId)?._count?.id || 0;
       const admissionCount = admissions.find((a) => a.admittingDoctorId === docId)?._count?.id || 0;
       const surgeryCount = surgeryCountMap.get(docId) || 0;
-
-      // Revenue from all encounters of this doctor
-      const encIds = encounterIdsByDoctor.get(docId) || [];
-      const revenue = encIds.reduce((sum, eid) => sum + (chargeMap.get(eid) || 0), 0);
+      const revenue = revenueMap.get(docId) || 0;
+      const commissionRate = Number(user?.commissionRate || 0);
+      const doctorCommission = commissionRate > 0 ? Math.round(revenue * commissionRate) / 100 : 0;
 
       // Avg consultation
       const durations = durationMap.get(docId) || [];
@@ -287,6 +275,8 @@ export class ReportsService {
         totalAdmissions: admissionCount,
         totalSurgeries: surgeryCount,
         totalRevenue: Math.round(revenue * 100) / 100,
+        commissionRate,
+        doctorCommission: Math.round(doctorCommission * 100) / 100,
         avgConsultationMins,
       };
     });
