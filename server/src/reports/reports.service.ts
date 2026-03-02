@@ -2,11 +2,15 @@
 
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { InvoiceStatus } from '@prisma/client';
+import { CommissionService } from '../commission/commission.service';
+import { InvoiceStatus, ServiceType } from '@prisma/client';
 
 @Injectable()
 export class ReportsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private commissionService: CommissionService,
+  ) {}
 
   /**
    * 📊 الملخص المالي التنفيذي (Cash Flow)
@@ -149,6 +153,10 @@ export class ReportsService {
    * يجمع 6 مقاييس لكل طبيب: الحالات، الإيواء، العمليات، الإيرادات، متوسط الاستشارة، الإحالات
    */
   async getDoctorPerformance(hospitalId: number, dateFrom?: Date, dateTo?: Date) {
+    // Fix: ensure dateTo includes full end-of-day
+    if (dateTo) {
+      dateTo.setHours(23, 59, 59, 999);
+    }
     const dateFilter = {
       ...(dateFrom && { gte: dateFrom }),
       ...(dateTo && { lte: dateTo }),
@@ -243,6 +251,16 @@ export class ReportsService {
       }
     });
 
+    // 7. Get commission rates from CommissionRule system for each doctor
+    const commissionRateMap = new Map<number, number>();
+    await Promise.all(
+      doctorIds.map(async (docId) => {
+        // getDoctorRate returns: doctor-specific rule → default rule → 0
+        const rate = await this.commissionService.getDoctorRate(hospitalId, docId, ServiceType.CONSULTATION);
+        commissionRateMap.set(docId, rate);
+      }),
+    );
+
     // Build results
     let totalRevenue = 0;
     let totalSurgeries = 0;
@@ -254,8 +272,13 @@ export class ReportsService {
       const admissionCount = admissions.find((a) => a.admittingDoctorId === docId)?._count?.id || 0;
       const surgeryCount = surgeryCountMap.get(docId) || 0;
       const revenue = revenueMap.get(docId) || 0;
-      const commissionRate = Number(user?.commissionRate || 0);
-      const doctorCommission = commissionRate > 0 ? Math.round(revenue * commissionRate) / 100 : 0;
+
+      // Commission rate: CommissionRule system first, then User.commissionRate as fallback
+      const ruleRate = commissionRateMap.get(docId) || 0;
+      const userRate = Number(user?.commissionRate || 0);
+      // ruleRate is already 0-100 (percentage), userRate is 0-1 (fraction)
+      const commissionPct = ruleRate > 0 ? ruleRate : (userRate * 100);
+      const doctorCommission = commissionPct > 0 ? Math.round(revenue * commissionPct) / 100 : 0;
 
       // Avg consultation
       const durations = durationMap.get(docId) || [];
@@ -275,7 +298,7 @@ export class ReportsService {
         totalAdmissions: admissionCount,
         totalSurgeries: surgeryCount,
         totalRevenue: Math.round(revenue * 100) / 100,
-        commissionRate,
+        commissionRate: Math.round(commissionPct * 100) / 100,
         doctorCommission: Math.round(doctorCommission * 100) / 100,
         avgConsultationMins,
       };
