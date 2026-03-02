@@ -9,13 +9,15 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { AccountingService } from '../accounting/accounting.service';
 import { AttendanceService } from '../attendance/attendance.service';
+import { CommissionService } from '../commission/commission.service';
 import {
   PayrollStatus,
   SystemAccountKey,
   AccountingSourceModule,
   InvoiceStatus,
+  ServiceType,
 } from '@prisma/client';
-import { Money } from '../common/utils/money.util'; // ✅ [NEW] استيراد Money Utility
+import { Money } from '../common/utils/money.util';
 
 @Injectable()
 export class PayrollService {
@@ -25,6 +27,7 @@ export class PayrollService {
     private prisma: PrismaService,
     private accounting: AccountingService,
     private attendanceService: AttendanceService,
+    private commissionService: CommissionService,
   ) {}
 
   async generatePayroll(
@@ -33,6 +36,19 @@ export class PayrollService {
     month: number,
     year: number,
   ) {
+    // Fetch commission rates from CommissionRule system for all doctors before transaction
+    const doctors = await this.prisma.user.findMany({
+      where: { hospitalId, isActive: true, isDeleted: false, isDoctor: true },
+      select: { id: true },
+    });
+    const commissionRateMap = new Map<number, number>();
+    await Promise.all(
+      doctors.map(async (doc) => {
+        const rate = await this.commissionService.getDoctorRate(hospitalId, doc.id, ServiceType.CONSULTATION);
+        commissionRateMap.set(doc.id, rate);
+      }),
+    );
+
     return this.prisma.$transaction(
       async (tx) => {
         const existing = await tx.payrollRun.findUnique({
@@ -102,7 +118,12 @@ export class PayrollService {
           );
 
           let commission = 0;
-          if (emp.isDoctor && Money.gt(emp.commissionRate, 0)) {
+          // استخدام نظام العمولات الجديد (CommissionRule) مع fallback للنسبة القديمة
+          const ruleRate = commissionRateMap.get(emp.id) || 0; // 0-100 percentage
+          const userRate = Number(emp.commissionRate || 0); // 0-1 fraction
+          const effectiveRate = ruleRate > 0 ? (ruleRate / 100) : userRate; // convert to fraction
+
+          if (emp.isDoctor && effectiveRate > 0) {
             const revenue = await tx.encounterCharge.aggregate({
               where: {
                 hospitalId,
@@ -115,7 +136,7 @@ export class PayrollService {
             });
             commission = Money.rate(
               Money.fromPrisma(revenue._sum.totalAmount),
-              Money.fromPrisma(emp.commissionRate),
+              effectiveRate,
             );
           }
 

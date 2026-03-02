@@ -5,14 +5,15 @@ import { PayrollService } from './payroll.service';
 import { PayrollController } from './payroll.controller';
 import { PrismaModule } from '../prisma/prisma.module';
 import { AccountingModule } from '../accounting/accounting.module';
-// 👇 استيراد الموديول
 import { AttendanceModule } from '../attendance/attendance.module';
+import { CommissionModule } from '../commission/commission.module';
 
 @Module({
   imports: [
     PrismaModule,
     AccountingModule,
-    AttendanceModule, // 👈 إضافة AttendanceModule هنا
+    AttendanceModule,
+    CommissionModule,
   ],
   controllers: [PayrollController],
   providers: [PayrollService],
