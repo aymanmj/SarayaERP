@@ -168,8 +168,8 @@ export class DashboardService {
     const dischargedAdmissions = await this.prisma.admission.findMany({
       where: {
         hospitalId,
-        dischargeDate: { not: undefined as unknown as null },
-        actualAdmissionDate: { not: undefined as unknown as null },
+        dischargeDate: { gte: new Date('2000-01-01') },
+        actualAdmissionDate: { gte: new Date('2000-01-01') },
       },
       select: { actualAdmissionDate: true, dischargeDate: true },
       orderBy: { dischargeDate: 'desc' },
