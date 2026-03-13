@@ -1,4 +1,4 @@
-﻿-- CreateEnum
+-- CreateEnum
 CREATE TYPE "BabyStatus" AS ENUM ('ALIVE', 'STILLBORN', 'NICU');
 
 -- CreateEnum
@@ -737,4 +737,3 @@ ALTER TABLE "ICUFlowsheetEntry" ADD CONSTRAINT "ICUFlowsheetEntry_recordedById_f
 
 -- AddForeignKey
 ALTER TABLE "VentilatorLog" ADD CONSTRAINT "VentilatorLog_entryId_fkey" FOREIGN KEY ("entryId") REFERENCES "ICUFlowsheetEntry"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
