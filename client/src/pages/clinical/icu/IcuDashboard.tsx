@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api from '../../../utils/api'; // Assume api module exists
-import { LoadingSpinner } from '../../../components/ui/LoadingSpinner'; // Assumed component
+import { apiClient } from '../../../api/apiClient';
+import { Loader2 } from 'lucide-react';
 
 export const IcuDashboard = () => {
   const [transfers, setTransfers] = useState<any[]>([]);
@@ -14,7 +14,7 @@ export const IcuDashboard = () => {
 
   const fetchPendingTransfers = async () => {
     try {
-      const res = await api.get('/transfers/pending');
+      const res = await apiClient.get('/transfers/pending');
       setTransfers(res.data);
     } catch (err) {
       console.error(err);
@@ -25,7 +25,7 @@ export const IcuDashboard = () => {
 
   const allocateBed = async (id: number, bedId: number) => {
     try {
-      await api.patch(`/transfers/${id}/allocate`, { toBedId: bedId });
+      await apiClient.patch(`/transfers/${id}/allocate`, { toBedId: bedId });
       fetchPendingTransfers();
     } catch (err) {
       console.error(err);
@@ -33,7 +33,7 @@ export const IcuDashboard = () => {
     }
   };
 
-  if (loading) return <div className="p-8"><LoadingSpinner /></div>;
+  if (loading) return <div className="flex justify-center items-center p-8"><Loader2 className="w-8 h-8 animate-spin text-sky-600" /></div>;
 
   return (
     <div className="p-6">
@@ -75,7 +75,7 @@ export const IcuDashboard = () => {
                     {(t.status === 'HANDOVER_SIGNED' || t.status === 'BED_ALLOCATED') && (
                       <button 
                          onClick={async () => {
-                           await api.patch(`/transfers/${t.id}/arrive`);
+                           await apiClient.patch(`/transfers/${t.id}/arrive`);
                            fetchPendingTransfers();
                          }}
                          className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700">
