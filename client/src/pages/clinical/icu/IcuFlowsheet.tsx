@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import api from '../../../utils/api'; // Assume api module exists
+import { apiClient as api } from '../../../api/apiClient';
 
 export const IcuFlowsheet = () => {
   const { encounterId } = useParams<{ encounterId: string }>();
