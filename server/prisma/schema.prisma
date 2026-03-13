@@ -85,6 +85,8 @@ model Hospital {
   commissionRules           CommissionRule[]
   referrals                 Referral[]
   clinicalNoteTemplates     ClinicalNoteTemplate[]
+  transferOrders            TransferOrder[]
+  icuFlowsheets             ICUFlowsheet[]
 }
 
 model Department {
@@ -287,7 +289,7 @@ model User {
 
   // Push Notifications
   devices UserDevice[]
-  
+
   // Consent Forms
   consentFormsRequested ConsentForm[] @relation("DoctorConsentForms")
 
@@ -300,6 +302,13 @@ model User {
 
   // Clinical Note Templates
   createdNoteTemplates ClinicalNoteTemplate[]
+
+  // ICU Transfers
+  transferOrdersRequested TransferOrder[]     @relation("TransferOrderRequestedBy")
+  transferOrdersAllocated TransferOrder[]     @relation("TransferOrderAllocatedBy")
+  handoverNotesDrafted    HandoverNote[]      @relation("HandoverDraftedBy")
+  handoverNotesSigned     HandoverNote[]      @relation("HandoverSignedBy")
+  icuFlowsheetEntries     ICUFlowsheetEntry[]
 }
 
 model RefreshToken {
@@ -351,42 +360,45 @@ model RolePermission {
 }
 
 model Patient {
-  id                Int                @id @default(autoincrement())
-  hospitalId        Int
-  mrn               String             @unique
-  fullName          String
-  nationalId        String?
-  dateOfBirth       DateTime?
-  gender            Gender?
-  motherName        String?
-  familyBooklet     String?
-  familySheet       String?
-  registryNumber    String?
-  identityType      IdentityType?
-  identityNumber    String?
-  maritalStatus     MaritalStatus?
-  phone             String?
-  address           String?
-  email             String?
-  notes             String?
-  isActive          Boolean            @default(true)
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
-  deletedAt         DateTime?
-  deletedById       Int?
-  isDeleted         Boolean            @default(false)
-  insuranceMemberId String?
-  insurancePolicyId Int?
-  webPassword       String?
-  appointments      Appointment[]
-  cdssAlerts        CDSSAlert[]
-  encounters        Encounter[]
-  invoices          Invoice[]
-  hospital          Hospital           @relation(fields: [hospitalId], references: [id])
-  insurancePolicy   InsurancePolicy?   @relation(fields: [insurancePolicyId], references: [id])
-  allergies         PatientAllergy[]
-  preAuthorizations PreAuthorization[]
-  prescriptions     Prescription[]
+  id                 Int                @id @default(autoincrement())
+  hospitalId         Int
+  mrn                String             @unique
+  fullName           String
+  nationalId         String?
+  dateOfBirth        DateTime?
+  gender             Gender?
+  motherName         String?
+  familyBooklet      String?
+  familySheet        String?
+  registryNumber     String?
+  identityType       IdentityType?
+  identityNumber     String?
+  maritalStatus      MaritalStatus?
+  phone              String?
+  address            String?
+  email              String?
+  notes              String?
+  isActive           Boolean            @default(true)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  deletedAt          DateTime?
+  deletedById        Int?
+  isDeleted          Boolean            @default(false)
+  insuranceMemberId  String?
+  insurancePolicyId  Int?
+  guarantorId        Int?
+  webPassword        String?
+  appointments       Appointment[]
+  cdssAlerts         CDSSAlert[]
+  encounters         Encounter[]
+  invoices           Invoice[]
+  hospital           Hospital           @relation(fields: [hospitalId], references: [id])
+  insurancePolicy    InsurancePolicy?   @relation(fields: [insurancePolicyId], references: [id])
+  guarantor          Patient?           @relation("PatientGuarantor", fields: [guarantorId], references: [id])
+  guaranteedPatients Patient[]          @relation("PatientGuarantor")
+  allergies          PatientAllergy[]
+  preAuthorizations  PreAuthorization[]
+  prescriptions      Prescription[]
 
   nationalIdHash     String? @unique
   identityNumberHash String? @unique
@@ -411,10 +423,10 @@ model Patient {
   fertilityCases FertilityCase[]
 
   // Consent Forms
-  consentForms  ConsentForm[]
+  consentForms ConsentForm[]
 
   // Referrals
-  referrals     Referral[]
+  referrals Referral[]
 
   @@index([hospitalId, phone])
   @@index([hospitalId, fullName])
@@ -475,6 +487,8 @@ model Encounter {
   deliveryAdmission         DeliveryAdmission?
   consentForms              ConsentForm[]
   referrals                 Referral[]
+  transferOrders            TransferOrder[]
+  icuFlowsheets             ICUFlowsheet[]
 
   @@index([hospitalId, type, status])
   @@index([patientId])
@@ -544,6 +558,8 @@ model MedicationAdministration {
   administeredAt     DateTime             @default(now())
   status             AdministrationStatus @default(GIVEN)
   notes              String?
+  infusionRate       Decimal?             @db.Decimal(10, 2)
+  titrationLog       Json?
   performerId        Int
   createdAt          DateTime             @default(now())
   updatedAt          DateTime             @updatedAt
@@ -720,20 +736,22 @@ model Room {
 }
 
 model Bed {
-  id           Int             @id @default(autoincrement())
-  roomId       Int
-  status       BedStatus       @default(AVAILABLE)
-  bedNumber    String
-  hospitalId   Int
-  isActive     Boolean         @default(true)
-  wardId       Int
-  hospital     Hospital        @relation(fields: [hospitalId], references: [id])
-  room         Room            @relation(fields: [roomId], references: [id])
-  ward         Ward            @relation(fields: [wardId], references: [id])
-  assignments  BedAssignment[]
-  admissions   Admission[]
-  transferFrom BedTransfer[]   @relation("TransferFromBed")
-  transferTo   BedTransfer[]   @relation("TransferToBed")
+  id                 Int             @id @default(autoincrement())
+  roomId             Int
+  status             BedStatus       @default(AVAILABLE)
+  bedNumber          String
+  hospitalId         Int
+  isActive           Boolean         @default(true)
+  wardId             Int
+  hospital           Hospital        @relation(fields: [hospitalId], references: [id])
+  room               Room            @relation(fields: [roomId], references: [id])
+  ward               Ward            @relation(fields: [wardId], references: [id])
+  assignments        BedAssignment[]
+  admissions         Admission[]
+  transferFrom       BedTransfer[]   @relation("TransferFromBed")
+  transferTo         BedTransfer[]   @relation("TransferToBed")
+  transferOrdersFrom TransferOrder[] @relation("TransferOrderFromBed")
+  transferOrdersTo   TransferOrder[] @relation("TransferOrderToBed")
 }
 
 model BedAssignment {
@@ -894,19 +912,19 @@ model DeliveryAdmission {
 }
 
 model BabyProfile {
-  id                  Int         @id @default(autoincrement())
+  id                  Int        @id @default(autoincrement())
   deliveryAdmissionId Int
   gender              Gender
-  weight              Decimal?    @db.Decimal(5, 3) // kg
-  length              Decimal?    @db.Decimal(5, 1) // cm
-  headCircumference   Decimal?    @db.Decimal(5, 1) // cm
+  weight              Decimal?   @db.Decimal(5, 3) // kg
+  length              Decimal?   @db.Decimal(5, 1) // cm
+  headCircumference   Decimal?   @db.Decimal(5, 1) // cm
   birthTime           DateTime
   apgarScore1         Int?
   apgarScore5         Int?
   apgarScore10        Int?
-  status              BabyStatus  @default(ALIVE)
-  vitaminKGiven       Boolean     @default(false)
-  bcgVaccineGiven     Boolean     @default(false)
+  status              BabyStatus @default(ALIVE)
+  vitaminKGiven       Boolean    @default(false)
+  bcgVaccineGiven     Boolean    @default(false)
   notes               String?
 
   // Link to a real patient file if created
@@ -919,7 +937,7 @@ model BabyProfile {
 enum BabyStatus {
   ALIVE
   STILLBORN
-  NICU   // Neonatal Intensive Care Unit
+  NICU // Neonatal Intensive Care Unit
 }
 
 enum DeliveryMethod {
@@ -955,26 +973,26 @@ enum PerinealTear {
 // ==========================================
 
 model AntenatalCare {
-  id               Int              @id @default(autoincrement())
-  hospitalId       Int
-  patientId        Int
-  doctorId         Int?
-  lmpDate          DateTime         // Last Menstrual Period — تاريخ آخر دورة
-  eddDate          DateTime         // Expected Delivery Date — تاريخ الولادة المتوقع
-  gravida          Int              @default(1)
-  para             Int              @default(0)
-  bloodGroup       String?          // A+, O-, etc.
-  rhFactor         String?          // Positive / Negative
-  partnerRhFactor  String?          // Rh الزوج: Positive / Negative / Unknown
-  rhIncompatible   Boolean          @default(false) // هل يوجد عدم توافق Rh؟
-  antiDWeek28Given Boolean          @default(false) // هل أُعطيت حقنة Anti-D في الأسبوع 28؟
-  antiDPostpartumGiven Boolean      @default(false) // هل أُعطيت حقنة Anti-D بعد الولادة؟
-  riskLevel        PregnancyRisk    @default(LOW)
-  riskFactors      String?          // Comma-separated or text
-  status           PregnancyStatus  @default(ACTIVE)
-  notes            String?
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
+  id                   Int             @id @default(autoincrement())
+  hospitalId           Int
+  patientId            Int
+  doctorId             Int?
+  lmpDate              DateTime // Last Menstrual Period — تاريخ آخر دورة
+  eddDate              DateTime // Expected Delivery Date — تاريخ الولادة المتوقع
+  gravida              Int             @default(1)
+  para                 Int             @default(0)
+  bloodGroup           String? // A+, O-, etc.
+  rhFactor             String? // Positive / Negative
+  partnerRhFactor      String? // Rh الزوج: Positive / Negative / Unknown
+  rhIncompatible       Boolean         @default(false) // هل يوجد عدم توافق Rh؟
+  antiDWeek28Given     Boolean         @default(false) // هل أُعطيت حقنة Anti-D في الأسبوع 28؟
+  antiDPostpartumGiven Boolean         @default(false) // هل أُعطيت حقنة Anti-D بعد الولادة؟
+  riskLevel            PregnancyRisk   @default(LOW)
+  riskFactors          String? // Comma-separated or text
+  status               PregnancyStatus @default(ACTIVE)
+  notes                String?
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
 
   hospital Hospital         @relation(fields: [hospitalId], references: [id])
   patient  Patient          @relation(fields: [patientId], references: [id])
@@ -983,24 +1001,24 @@ model AntenatalCare {
 }
 
 model AntenatalVisit {
-  id              Int      @id @default(autoincrement())
-  antenatalCareId Int
-  visitDate       DateTime @default(now())
-  gestationalWeek Int?     // أسبوع الحمل
-  weight          Decimal? @db.Decimal(5, 1) // وزن الأم (كجم)
-  bloodPressureSys Int?    // ضغط الدم الانقباضي
-  bloodPressureDia Int?    // ضغط الدم الانبساطي
-  fundalHeight    Decimal? @db.Decimal(5, 1) // ارتفاع الرحم (سم)
-  fetalHeartRate  Int?     // نبض الجنين
-  fetalMovement   Boolean? // هل يوجد حركة جنين
-  presentation    String?  // وضع الجنين (cephalic, breech, transverse)
-  edema           Boolean  @default(false)
-  urineProtein    String?  // Nil, Trace, +, ++, +++
-  urineGlucose    String?  // Nil, Trace, +, ++, +++
-  hemoglobin      Decimal? @db.Decimal(4, 1) // g/dL
-  complaints      String?  // شكاوى المريضة
-  notes           String?  // ملاحظات الطبيب
-  nextVisitDate   DateTime?
+  id               Int       @id @default(autoincrement())
+  antenatalCareId  Int
+  visitDate        DateTime  @default(now())
+  gestationalWeek  Int? // أسبوع الحمل
+  weight           Decimal?  @db.Decimal(5, 1) // وزن الأم (كجم)
+  bloodPressureSys Int? // ضغط الدم الانقباضي
+  bloodPressureDia Int? // ضغط الدم الانبساطي
+  fundalHeight     Decimal?  @db.Decimal(5, 1) // ارتفاع الرحم (سم)
+  fetalHeartRate   Int? // نبض الجنين
+  fetalMovement    Boolean? // هل يوجد حركة جنين
+  presentation     String? // وضع الجنين (cephalic, breech, transverse)
+  edema            Boolean   @default(false)
+  urineProtein     String? // Nil, Trace, +, ++, +++
+  urineGlucose     String? // Nil, Trace, +, ++, +++
+  hemoglobin       Decimal?  @db.Decimal(4, 1) // g/dL
+  complaints       String? // شكاوى المريضة
+  notes            String? // ملاحظات الطبيب
+  nextVisitDate    DateTime?
 
   antenatalCare AntenatalCare @relation(fields: [antenatalCareId], references: [id])
 }
@@ -1012,11 +1030,11 @@ enum PregnancyRisk {
 }
 
 enum PregnancyStatus {
-  ACTIVE      // حمل نشط
-  DELIVERED   // تمت الولادة
+  ACTIVE // حمل نشط
+  DELIVERED // تمت الولادة
   MISCARRIAGE // إجهاض
-  ECTOPIC     // حمل خارج الرحم
-  CANCELLED   // ملغي
+  ECTOPIC // حمل خارج الرحم
+  CANCELLED // ملغي
 }
 
 // ==========================================
@@ -1024,25 +1042,25 @@ enum PregnancyStatus {
 // ==========================================
 
 model FertilityCase {
-  id                Int               @id @default(autoincrement())
-  hospitalId        Int
-  patientId         Int               // المريضة
-  partnerName       String?           // اسم الزوج
-  partnerAge        Int?
-  infertilityType   InfertilityType   @default(UNEXPLAINED)
-  diagnosis         String?           // التشخيص التفصيلي
-  durationYears     Int?              // مدة عدم الإنجاب (سنوات)
-  previousTreatments String?          // علاجات سابقة
-  amhLevel          Decimal?          @db.Decimal(5, 2) // Anti-Müllerian Hormone
-  fshLevel          Decimal?          @db.Decimal(5, 2) // FSH
-  lhLevel           Decimal?          @db.Decimal(5, 2) // LH
-  spermCount        Decimal?          @db.Decimal(8, 2) // مليون/مل
-  spermMotility     Decimal?          @db.Decimal(5, 2) // % الحركة
-  spermMorphology   Decimal?          @db.Decimal(5, 2) // % الشكل الطبيعي
-  status            FertilityCaseStatus @default(ACTIVE)
-  notes             String?
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
+  id                 Int                 @id @default(autoincrement())
+  hospitalId         Int
+  patientId          Int // المريضة
+  partnerName        String? // اسم الزوج
+  partnerAge         Int?
+  infertilityType    InfertilityType     @default(UNEXPLAINED)
+  diagnosis          String? // التشخيص التفصيلي
+  durationYears      Int? // مدة عدم الإنجاب (سنوات)
+  previousTreatments String? // علاجات سابقة
+  amhLevel           Decimal?            @db.Decimal(5, 2) // Anti-Müllerian Hormone
+  fshLevel           Decimal?            @db.Decimal(5, 2) // FSH
+  lhLevel            Decimal?            @db.Decimal(5, 2) // LH
+  spermCount         Decimal?            @db.Decimal(8, 2) // مليون/مل
+  spermMotility      Decimal?            @db.Decimal(5, 2) // % الحركة
+  spermMorphology    Decimal?            @db.Decimal(5, 2) // % الشكل الطبيعي
+  status             FertilityCaseStatus @default(ACTIVE)
+  notes              String?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
 
   hospital Hospital   @relation(fields: [hospitalId], references: [id])
   patient  Patient    @relation(fields: [patientId], references: [id])
@@ -1050,107 +1068,107 @@ model FertilityCase {
 }
 
 model IVFCycle {
-  id                Int             @id @default(autoincrement())
-  fertilityCaseId   Int
-  cycleNumber       Int             @default(1)
-  cycleType         CycleType       @default(IVF)
-  protocol          String?         // Long, Short, Antagonist, Natural
-  startDate         DateTime
-  stimulationDays   Int?            // أيام التحفيز
-  eggRetrievalDate  DateTime?       // تاريخ سحب البويضات
-  eggsRetrieved     Int?            // عدد البويضات المسحوبة
-  eggsMature        Int?            // بويضات ناضجة (MII)
-  eggsFertilized    Int?            // بويضات مخصبة
-  embryosDay3       Int?            // أجنة يوم 3
-  embryosDay5       Int?            // أجنة يوم 5 (blastocyst)
-  transferDate      DateTime?       // تاريخ الترجيع
-  embryosTransferred Int?           // عدد الأجنة المرجعة
-  embryosFrozen     Int?            // أجنة مجمدة
-  endometrialThickness Decimal?     @db.Decimal(4, 1) // سماكة بطانة الرحم (مم)
-  betaHCGDate       DateTime?       // تاريخ تحليل الحمل
-  betaHCGResult     Decimal?        @db.Decimal(8, 2) // HCG result
-  pregnancyResult   PregnancyResult @default(PENDING)
-  cancelReason      String?         // سبب الإلغاء إن وجد
-  notes             String?
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
+  id                   Int             @id @default(autoincrement())
+  fertilityCaseId      Int
+  cycleNumber          Int             @default(1)
+  cycleType            CycleType       @default(IVF)
+  protocol             String? // Long, Short, Antagonist, Natural
+  startDate            DateTime
+  stimulationDays      Int? // أيام التحفيز
+  eggRetrievalDate     DateTime? // تاريخ سحب البويضات
+  eggsRetrieved        Int? // عدد البويضات المسحوبة
+  eggsMature           Int? // بويضات ناضجة (MII)
+  eggsFertilized       Int? // بويضات مخصبة
+  embryosDay3          Int? // أجنة يوم 3
+  embryosDay5          Int? // أجنة يوم 5 (blastocyst)
+  transferDate         DateTime? // تاريخ الترجيع
+  embryosTransferred   Int? // عدد الأجنة المرجعة
+  embryosFrozen        Int? // أجنة مجمدة
+  endometrialThickness Decimal?        @db.Decimal(4, 1) // سماكة بطانة الرحم (مم)
+  betaHCGDate          DateTime? // تاريخ تحليل الحمل
+  betaHCGResult        Decimal?        @db.Decimal(8, 2) // HCG result
+  pregnancyResult      PregnancyResult @default(PENDING)
+  cancelReason         String? // سبب الإلغاء إن وجد
+  notes                String?
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
 
-  fertilityCase  FertilityCase         @relation(fields: [fertilityCaseId], references: [id])
-  embryos        EmbryoRecord[]
-  medications    FertilityMedication[]
+  fertilityCase FertilityCase         @relation(fields: [fertilityCaseId], references: [id])
+  embryos       EmbryoRecord[]
+  medications   FertilityMedication[]
 }
 
 model EmbryoRecord {
-  id              Int           @id @default(autoincrement())
-  ivfCycleId      Int
-  embryoNumber    Int           // رقم الجنين في الدورة
-  day             Int           // يوم التقييم (3 أو 5)
-  grade           String?       // التصنيف: 4AA, 3BB, etc.
-  cellCount       Int?          // عدد الخلايا (يوم 3)
-  fragmentation   String?       // نسبة التفتت: None, <10%, 10-25%, >25%
-  status          EmbryoStatus  @default(DEVELOPING)
-  freezeDate      DateTime?     // تاريخ التجميد
-  thawDate        DateTime?     // تاريخ الإذابة
-  notes           String?
-  createdAt       DateTime      @default(now())
+  id            Int          @id @default(autoincrement())
+  ivfCycleId    Int
+  embryoNumber  Int // رقم الجنين في الدورة
+  day           Int // يوم التقييم (3 أو 5)
+  grade         String? // التصنيف: 4AA, 3BB, etc.
+  cellCount     Int? // عدد الخلايا (يوم 3)
+  fragmentation String? // نسبة التفتت: None, <10%, 10-25%, >25%
+  status        EmbryoStatus @default(DEVELOPING)
+  freezeDate    DateTime? // تاريخ التجميد
+  thawDate      DateTime? // تاريخ الإذابة
+  notes         String?
+  createdAt     DateTime     @default(now())
 
   ivfCycle IVFCycle @relation(fields: [ivfCycleId], references: [id])
 }
 
 model FertilityMedication {
-  id              Int      @id @default(autoincrement())
-  ivfCycleId      Int
-  medicationName  String   // اسم الدواء: Gonal-F, Menopur, Cetrotide, etc.
-  dose            String   // الجرعة: "150 IU", "75 IU"
-  route           String?  // طريقة الإعطاء: SC, IM, PO
-  startDate       DateTime
-  endDate         DateTime?
-  durationDays    Int?
-  notes           String?
-  createdAt       DateTime @default(now())
+  id             Int       @id @default(autoincrement())
+  ivfCycleId     Int
+  medicationName String // اسم الدواء: Gonal-F, Menopur, Cetrotide, etc.
+  dose           String // الجرعة: "150 IU", "75 IU"
+  route          String? // طريقة الإعطاء: SC, IM, PO
+  startDate      DateTime
+  endDate        DateTime?
+  durationDays   Int?
+  notes          String?
+  createdAt      DateTime  @default(now())
 
   ivfCycle IVFCycle @relation(fields: [ivfCycleId], references: [id])
 }
 
 enum InfertilityType {
-  MALE_FACTOR       // عامل ذكوري
-  FEMALE_FACTOR     // عامل أنثوي
-  BOTH              // عامل مشترك
-  UNEXPLAINED       // غير مفسر
+  MALE_FACTOR // عامل ذكوري
+  FEMALE_FACTOR // عامل أنثوي
+  BOTH // عامل مشترك
+  UNEXPLAINED // غير مفسر
 }
 
 enum CycleType {
-  IVF               // أطفال أنابيب
-  ICSI              // حقن مجهري
-  IUI               // تلقيح صناعي
-  FET               // نقل أجنة مجمدة
-  EGG_FREEZING      // تجميد بويضات
-  NATURAL           // طبيعي
+  IVF // أطفال أنابيب
+  ICSI // حقن مجهري
+  IUI // تلقيح صناعي
+  FET // نقل أجنة مجمدة
+  EGG_FREEZING // تجميد بويضات
+  NATURAL // طبيعي
 }
 
 enum FertilityCaseStatus {
   ACTIVE
-  SUCCESSFUL        // حمل ناجح
-  DISCONTINUED      // متوقف
-  REFERRED          // محول لمركز آخر
+  SUCCESSFUL // حمل ناجح
+  DISCONTINUED // متوقف
+  REFERRED // محول لمركز آخر
 }
 
 enum PregnancyResult {
-  PENDING           // في الانتظار
-  POSITIVE          // إيجابي (حمل)
-  NEGATIVE          // سلبي
-  BIOCHEMICAL       // حمل كيميائي (مبكر جداً)
-  ECTOPIC           // حمل خارج الرحم
-  MISCARRIAGE       // إجهاض
+  PENDING // في الانتظار
+  POSITIVE // إيجابي (حمل)
+  NEGATIVE // سلبي
+  BIOCHEMICAL // حمل كيميائي (مبكر جداً)
+  ECTOPIC // حمل خارج الرحم
+  MISCARRIAGE // إجهاض
 }
 
 enum EmbryoStatus {
-  DEVELOPING        // قيد التطور
-  TRANSFERRED       // تم الترجيع
-  FROZEN            // مجمد
-  THAWED            // مذاب
-  DISCARDED         // تم التخلص منه
-  DONATED           // تم التبرع به
+  DEVELOPING // قيد التطور
+  TRANSFERRED // تم الترجيع
+  FROZEN // مجمد
+  THAWED // مذاب
+  DISCARDED // تم التخلص منه
+  DONATED // تم التبرع به
 }
 
 model GoodsReceipt {
@@ -2366,6 +2384,9 @@ enum EncounterType {
   OPD
   ER
   IPD
+  ICU
+  NICU
+  PICU
 }
 
 enum EncounterStatus {
@@ -2378,6 +2399,7 @@ enum BedStatus {
   AVAILABLE
   OCCUPIED
   CLEANING
+  NEEDS_CLEANING
   MAINTENANCE
   BLOCKED
 }
@@ -2436,15 +2458,15 @@ enum ServiceType {
 
 // نظام توزيع الإيرادات بين المستشفى والأطباء
 model CommissionRule {
-  id          Int         @id @default(autoincrement())
-  hospitalId  Int
-  serviceType ServiceType
-  doctorId    Int?        // null = قاعدة افتراضية للجميع
-  doctorRate  Decimal     @default(0) @db.Decimal(5, 2)  // نسبة الطبيب %
-  hospitalRate Decimal    @default(100) @db.Decimal(5, 2) // نسبة المستشفى %
-  isActive    Boolean     @default(true)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @default(now()) @updatedAt
+  id           Int         @id @default(autoincrement())
+  hospitalId   Int
+  serviceType  ServiceType
+  doctorId     Int? // null = قاعدة افتراضية للجميع
+  doctorRate   Decimal     @default(0) @db.Decimal(5, 2) // نسبة الطبيب %
+  hospitalRate Decimal     @default(100) @db.Decimal(5, 2) // نسبة المستشفى %
+  isActive     Boolean     @default(true)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @default(now()) @updatedAt
 
   hospital Hospital @relation(fields: [hospitalId], references: [id])
   doctor   User?    @relation("DoctorCommissionRules", fields: [doctorId], references: [id], onDelete: SetNull)
@@ -2916,6 +2938,10 @@ model Admission {
   dischargeDate          DateTime?
   expectedDischargeDate  DateTime?
 
+  // Discharge Clearances
+  medicalClearance   Boolean @default(false)
+  financialClearance Boolean @default(false)
+
   // Location Information
   bedId        Int?
   roomId       Int?
@@ -3168,27 +3194,27 @@ model UserDevice {
 // ==========================================
 
 model ConsentForm {
-  id           Int              @id @default(autoincrement())
-  hospitalId   Int
-  patientId    Int
-  encounterId  Int?
-  doctorId     Int?             // Doctor who requested or explained the consent
-  formType     ConsentFormType  @default(GENERAL)
-  title        String
-  content      String           @db.Text
-  status       ConsentStatus    @default(DRAFT)
-  signedAt     DateTime?
-  signature    String?          @db.Text
-  signedByRef  String?          // e.g. Patient, Father, Guardian
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
-  deletedAt    DateTime?
-  isDeleted    Boolean          @default(false)
+  id          Int             @id @default(autoincrement())
+  hospitalId  Int
+  patientId   Int
+  encounterId Int?
+  doctorId    Int? // Doctor who requested or explained the consent
+  formType    ConsentFormType @default(GENERAL)
+  title       String
+  content     String          @db.Text
+  status      ConsentStatus   @default(DRAFT)
+  signedAt    DateTime?
+  signature   String?         @db.Text
+  signedByRef String? // e.g. Patient, Father, Guardian
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  deletedAt   DateTime?
+  isDeleted   Boolean         @default(false)
 
-  hospital     Hospital         @relation(fields: [hospitalId], references: [id])
-  patient      Patient          @relation(fields: [patientId], references: [id])
-  encounter    Encounter?       @relation(fields: [encounterId], references: [id])
-  doctor       User?            @relation("DoctorConsentForms", fields: [doctorId], references: [id])
+  hospital  Hospital   @relation(fields: [hospitalId], references: [id])
+  patient   Patient    @relation(fields: [patientId], references: [id])
+  encounter Encounter? @relation(fields: [encounterId], references: [id])
+  doctor    User?      @relation("DoctorConsentForms", fields: [doctorId], references: [id])
 }
 
 enum ConsentStatus {
@@ -3264,4 +3290,126 @@ model ClinicalNoteTemplate {
   createdBy User     @relation(fields: [createdById], references: [id])
 
   @@index([hospitalId, specialty])
+}
+
+// ================================================
+// ICU & Patient Transfer Module
+// ================================================
+
+enum TransferOrderStatus {
+  REQUESTED
+  BED_ALLOCATED
+  HANDOVER_DRAFTED
+  HANDOVER_SIGNED
+  TRANSFERRED
+  COMPLETED
+  CANCELLED
+}
+
+model TransferOrder {
+  id            Int                 @id @default(autoincrement())
+  hospitalId    Int
+  encounterId   Int // The patient's current encounter
+  fromBedId     Int? // Bed transferred from (if any)
+  toBedId       Int? // Bed allocated in ICU/Ward
+  status        TransferOrderStatus @default(REQUESTED)
+  requestedById Int // Doctor/Nurse requesting
+  allocatedById Int? // Charge Nurse who allocated the bed
+  requestedAt   DateTime            @default(now())
+  allocatedAt   DateTime?
+  transferredAt DateTime? // Time patient physically arrived
+  reason        String?
+  notes         String?
+
+  hospital    Hospital  @relation(fields: [hospitalId], references: [id])
+  encounter   Encounter @relation(fields: [encounterId], references: [id])
+  fromBed     Bed?      @relation("TransferOrderFromBed", fields: [fromBedId], references: [id])
+  toBed       Bed?      @relation("TransferOrderToBed", fields: [toBedId], references: [id])
+  requestedBy User      @relation("TransferOrderRequestedBy", fields: [requestedById], references: [id])
+  allocatedBy User?     @relation("TransferOrderAllocatedBy", fields: [allocatedById], references: [id])
+
+  handoverNote HandoverNote?
+
+  @@index([hospitalId, status])
+  @@index([encounterId])
+}
+
+model HandoverNote {
+  id              Int       @id @default(autoincrement())
+  transferOrderId Int       @unique
+  situation       String    @db.Text
+  background      String    @db.Text
+  assessment      String    @db.Text
+  recommendation  String    @db.Text
+  draftedById     Int?
+  signedById      Int?
+  signedAt        DateTime?
+
+  transferOrder TransferOrder @relation(fields: [transferOrderId], references: [id])
+  draftedBy     User?         @relation("HandoverDraftedBy", fields: [draftedById], references: [id])
+  signedBy      User?         @relation("HandoverSignedBy", fields: [signedById], references: [id])
+}
+
+model ICUFlowsheet {
+  id          Int      @id @default(autoincrement())
+  hospitalId  Int
+  encounterId Int
+  shiftDate   DateTime @db.Date
+  shiftName   String // e.g., 'MORNING', 'EVENING', 'NIGHT'
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  hospital  Hospital            @relation(fields: [hospitalId], references: [id])
+  encounter Encounter           @relation(fields: [encounterId], references: [id])
+  entries   ICUFlowsheetEntry[]
+
+  @@unique([encounterId, shiftDate, shiftName])
+  @@index([hospitalId])
+}
+
+model ICUFlowsheetEntry {
+  id           Int      @id @default(autoincrement())
+  flowsheetId  Int
+  recordedAt   DateTime @default(now())
+  recordedById Int
+
+  // Vitals
+  heartRate      Int?
+  respRate       Int?
+  bpSystolic     Int?
+  bpDiastolic    Int?
+  meanArterialBp Int?
+  temperature    Decimal? @db.Decimal(4, 2)
+  o2Sat          Int?
+
+  // Intake & Output
+  intakeType   String? // IV, Oral, Tube
+  intakeAmount Decimal? @db.Decimal(10, 2)
+  outputType   String? // Urine, Drain, Emesis
+  outputAmount Decimal? @db.Decimal(10, 2)
+
+  // Clinical Scores
+  gcsScore   Int?
+  apgarScore Int?
+
+  notes String? @db.Text
+
+  flowsheet  ICUFlowsheet @relation(fields: [flowsheetId], references: [id], onDelete: Cascade)
+  recordedBy User         @relation(fields: [recordedById], references: [id])
+
+  ventilatorLog VentilatorLog?
+}
+
+model VentilatorLog {
+  id             Int      @id @default(autoincrement())
+  entryId        Int      @unique
+  mode           String
+  fio2           Decimal? @db.Decimal(5, 2) // Fraction of Inspired Oxygen %
+  peep           Decimal? @db.Decimal(5, 2) // Positive End-Expiratory Pressure
+  pip            Decimal? @db.Decimal(5, 2) // Peak Inspiratory Pressure
+  tidalVolume    Int? // ml
+  respRateSet    Int? // Set Respiratory Rate
+  respRateActual Int? // Actual Respiratory Rate
+
+  entry ICUFlowsheetEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
 }

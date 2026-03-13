@@ -73,6 +73,8 @@ import { SystemSettingsModule } from './system-settings/system-settings.module';
 import { ClinicalNotesModule } from './clinical-notes/clinical-notes.module';
 import { ReferralModule } from './referral/referral.module';
 import { NoteTemplatesModule } from './note-templates/note-templates.module';
+import { TransfersModule } from './transfers/transfers.module';
+import { IcuModule } from './icu/icu.module';
 
 @Module({
   imports: [
@@ -179,7 +181,9 @@ import { NoteTemplatesModule } from './note-templates/note-templates.module';
     AnalyticsModule,
     BackupModule, // ✅ [NEW] Backup & Restore
     PatientPortalModule,
-    SystemSettingsModule, // 👈 Phase 5: Patient Access
+    SystemSettingsModule,
+    TransfersModule,
+    IcuModule, // 👈 Phase 5: Patient Access
   ],
   controllers: [AppController],
   providers: [

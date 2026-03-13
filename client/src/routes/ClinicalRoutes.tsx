@@ -23,6 +23,10 @@ const TriageDashboardPage = lazy(() =>
     default: m.TriageDashboard,
   })),
 );
+
+// ICU
+const IcuDashboardPage = lazy(() => import("../pages/clinical/icu/IcuDashboard").then(m => ({ default: m.IcuDashboard })));
+const IcuFlowsheetPage = lazy(() => import("../pages/clinical/icu/IcuFlowsheet").then(m => ({ default: m.IcuFlowsheet })));
 const TriageAssessmentFormPage = lazy(() =>
   import("../pages/clinical/triage/TriageAssessmentForm").then((m) => ({
     default: m.TriageAssessmentForm,
@@ -75,6 +79,8 @@ export const ClinicalRoutes = (
     <Route path="/obgyn/anc" element={<AntenatalCarePage />} /> {/* 🆕 ANC */}
     <Route path="/obgyn/fertility" element={<FertilityDashboardPage />} /> {/* 🆕 IVF */}
     <Route path="/triage" element={<TriageDashboardPage />} />
+    <Route path="/icu/dashboard" element={<IcuDashboardPage />} /> {/* 🆕 ICU */}
+    <Route path="/icu/flowsheet/:encounterId" element={<IcuFlowsheetPage />} /> {/* 🆕 ICU */}
     {/* Triage Assessment Route */}
     <Route
       path="/clinical/triage/assess/:id"
