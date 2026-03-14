@@ -1,6 +1,7 @@
 // src/cron/nightly-billing.service.ts
 
 import { Injectable, Logger } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   EncounterType,
@@ -15,6 +16,7 @@ export class NightlyBillingService {
 
   constructor(private prisma: PrismaService) {}
 
+  @Cron(CronExpression.EVERY_DAY_AT_11PM) // Runs every day at 23:00
   async runDailyBedCharges() {
     this.logger.log('🔄 Starting Nightly Bed Charges Job (Dynamic Pricing)...');
 
@@ -94,7 +96,78 @@ export class NightlyBillingService {
     this.logger.log(
       `✅ Finished. Charged ${count} beds using dynamic ward pricing.`,
     );
+
+    // 2. ICU Ventilator Charges
+    await this.runVentilatorCharges();
+
     return { success: true, chargedCount: count, errors };
+  }
+
+  private async runVentilatorCharges() {
+    this.logger.log('🔄 Starting Nightly ICU Ventilator Charges Job...');
+
+    // Find a service item for Ventilator Usage
+    // Note: Assuming there is a service code like 'VENT-USAGE-DAY' or similar. 
+    // For safety, we pull a general 'ICU Equipment' or 'Ventilator' service item, or create a placeholder logic if missing.
+    const ventService = await this.prisma.serviceItem.findFirst({
+      where: { code: 'VENT-USAGE-DAY', isActive: true }
+    });
+
+    if (!ventService) {
+       this.logger.warn('⚠️ No active service item found with code "VENT-USAGE-DAY". Skipping ventilator billing.');
+       return;
+    }
+
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+
+    // Find all patients who had a ventilator log today
+    const flowsheetsWithVent = await this.prisma.iCUFlowsheet.findMany({
+      where: {
+         shiftDate: { gte: todayStart, lte: todayEnd },
+         entries: { some: { ventilatorLog: { isNot: null } } }
+      },
+      include: {
+        entries: {
+          where: { ventilatorLog: { isNot: null } },
+          include: { ventilatorLog: true }
+        }
+      }
+    });
+
+    let count = 0;
+
+    for (const flowsheet of flowsheetsWithVent) {
+       // Check if we already billed them today
+       const existingCharge = await this.prisma.encounterCharge.findFirst({
+         where: {
+           encounterId: flowsheet.encounterId,
+           serviceItemId: ventService.id,
+           createdAt: { gte: todayStart, lte: todayEnd }
+         }
+       });
+
+       if (existingCharge) continue;
+
+       // Create charge
+       await this.prisma.encounterCharge.create({
+         data: {
+           hospitalId: flowsheet.hospitalId,
+           encounterId: flowsheet.encounterId,
+           serviceItemId: ventService.id,
+           sourceType: ChargeSource.MANUAL, // or EQUIPMENT if you have it in your enum
+           quantity: 1,
+           unitPrice: ventService.defaultPrice,
+           totalAmount: ventService.defaultPrice
+         }
+       });
+
+       count++;
+    }
+
+    this.logger.log(`✅ Finished. Charged ${count} patients for Ventilator usage.`);
   }
 }
 

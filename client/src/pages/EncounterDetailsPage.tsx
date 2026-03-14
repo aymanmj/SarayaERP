@@ -16,9 +16,9 @@ import { RadiologyTab } from "../components/encounter/RadiologyTab";
 import { LabsTab } from "../components/encounter/LabsTab";
 import { PrescriptionsTab } from "../components/encounter/PrescriptionsTab";
 import { BillingTab } from "../components/encounter/BillingTab";
-// ✅ استيراد المكون الجديد
 import { AllergiesPane } from "../components/encounter/AllergiesPane";
 import { ObstetricHistoryCard } from "./obgyn/ObstetricHistoryCard";
+import { RequestTransferModal } from "./clinical/transfers/RequestTransferModal";
 
 // --- Types ---
 type EncounterStatus = "OPEN" | "CLOSED" | "CANCELLED";
@@ -171,6 +171,9 @@ export default function EncounterDetailsPage() {
   const [selectedWardId, setSelectedWardId] = useState("");
   const [selectedBedId, setSelectedBedId] = useState("");
   const [wardTree, setWardTree] = useState<{ id: number; name: string; rooms: { id: number; roomNumber: string; beds: { id: number; bedNumber: string; status: string }[] }[] }[]>([]);
+
+  // Transfer Modal
+  const [showTransferModal, setShowTransferModal] = useState(false);
 
   // Load ward tree for bed selection
   useEffect(() => {
@@ -607,6 +610,20 @@ export default function EncounterDetailsPage() {
             </div>
           )}
 
+          {!isClosed && encounter.type === "IPD" && (
+            <div className="bg-slate-800 border border-slate-700 p-4 rounded-2xl shadow-lg mt-4">
+              <h2 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
+                🔄 أوامر النقل
+              </h2>
+              <button
+                onClick={() => setShowTransferModal(true)}
+                className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold shadow transition flex justify-center items-center gap-2"
+              >
+                <span>🚑</span> طلب نقل (عناية/قسم)
+              </button>
+            </div>
+          )}
+
           <QuickSummaryCard encounterId={encId} status={encounter.status} />
         </div>
       </div>
@@ -709,6 +726,20 @@ export default function EncounterDetailsPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Transfer Request Modal */}
+      {encounter.patient && (
+        <RequestTransferModal 
+          isOpen={showTransferModal}
+          onClose={() => setShowTransferModal(false)}
+          encounterId={encId}
+          patientName={encounter.patient.fullName}
+          fromBedId={null} // Can't easily grab bed from pure encounter query here, backend will figure it out if it exists
+          onSuccess={() => {
+            // Can show a toast or refresh
+          }}
+        />
       )}
     </div>
   );

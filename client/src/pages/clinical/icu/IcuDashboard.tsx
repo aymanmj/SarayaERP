@@ -1,12 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../../../api/apiClient';
-import { Loader2 } from 'lucide-react';
+import { Loader2, FileSignature } from 'lucide-react';
+import { HandoverNoteModal } from '../transfers/HandoverNoteModal';
 
 export const IcuDashboard = () => {
   const [transfers, setTransfers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+
+  // Handover Modal State
+  const [showHandoverModal, setShowHandoverModal] = useState(false);
+  const [selectedTransfer, setSelectedTransfer] = useState<any>(null);
 
   useEffect(() => {
     fetchPendingTransfers();
@@ -82,6 +87,14 @@ export const IcuDashboard = () => {
                         Confirm Arrival
                       </button>
                     )}
+                    <button 
+                      onClick={() => {
+                        setSelectedTransfer(t);
+                        setShowHandoverModal(true);
+                      }} 
+                      className="px-3 py-1 flex items-center gap-1 bg-indigo-600 text-white rounded text-sm hover:bg-indigo-700">
+                       <FileSignature className="w-4 h-4" /> SBAR Handover
+                    </button>
                     <button onClick={() => navigate(`/clinical/icu/flowsheet/${t.encounterId}`)} className="px-3 py-1 bg-slate-600 text-white rounded text-sm hover:bg-slate-700">
                        View Flowsheet
                     </button>
@@ -103,6 +116,16 @@ export const IcuDashboard = () => {
            </ul>
         </div>
       </div>
+
+      {showHandoverModal && selectedTransfer && (
+        <HandoverNoteModal
+          isOpen={showHandoverModal}
+          onClose={() => setShowHandoverModal(false)}
+          transferId={selectedTransfer.id}
+          patientName={selectedTransfer.encounter?.patient?.fullName}
+          onSuccess={fetchPendingTransfers}
+        />
+      )}
     </div>
   );
 };

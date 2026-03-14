@@ -5,6 +5,8 @@ import { apiClient } from "../api/apiClient";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { formatDate } from "@/lib/utils";
+import { RequestTransferModal } from "./clinical/transfers/RequestTransferModal";
+import { NicuSeparationModal } from "./clinical/icu/NicuSeparationModal";
 
 type ActiveInpatient = {
   id: number; // encounterId
@@ -13,12 +15,14 @@ type ActiveInpatient = {
     id: number;
     fullName: string;
     mrn: string;
+    gender?: string;
   };
   doctor?: {
     fullName: string;
   };
   bedAssignments: {
     bed: {
+      id: number;
       bedNumber: string;
       ward: {
         name: string;
@@ -57,6 +61,15 @@ export default function ActiveInpatientsPage() {
   const [selectedWard, setSelectedWard] = useState("");
   const [selectedBed, setSelectedBed] = useState("");
   const [assigningBed, setAssigningBed] = useState(false);
+
+  // Transfer Request Modal
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [transferPatient, setTransferPatient] = useState<{ id: number; name: string; fromBedId: number | null }>({ id: 0, name: '', fromBedId: null });
+
+  // NICU Separation Modal
+  const [showNicuModal, setShowNicuModal] = useState(false);
+  const [nicuMother, setNicuMother] = useState<{ id: number; name: string }>({ id: 0, name: '' });
+
 
   const loadData = async () => {
     setLoading(true);
@@ -141,6 +154,24 @@ export default function ActiveInpatientsPage() {
       setAssigningBed(false);
     }
   };
+
+  const openTransferModal = (patient: ActiveInpatient) => {
+    setTransferPatient({
+      id: patient.id,
+      name: patient.patient.fullName,
+      fromBedId: patient.bedAssignments[0]?.bed.id || null
+    });
+    setShowTransferModal(true);
+  };
+
+  const openNicuModal = (patient: ActiveInpatient) => {
+    setNicuMother({
+      id: patient.patient.id, // we need mother's patient ID, not encounter ID
+      name: patient.patient.fullName,
+    });
+    setShowNicuModal(true);
+  };
+
 
   // Get available beds for selected ward
   const availableBeds = selectedWard
@@ -271,18 +302,40 @@ export default function ActiveInpatientsPage() {
                           📄 الملف الطبي
                         </button>
                         <button
-                          onClick={() => navigate(`/surgery?encounterId=${p.id}`)}
-                          className="flex-1 px-3 py-1.5 bg-purple-600/20 hover:bg-purple-600/50 text-purple-400 border border-purple-500/30 rounded-lg text-xs font-medium transition-all"
+                          onClick={() => openTransferModal(p)}
+                          className="flex-1 px-3 py-1.5 bg-indigo-600/20 hover:bg-indigo-600/50 text-indigo-400 border border-indigo-500/30 rounded-lg text-xs font-medium transition-all"
+                          title="طلب نقل إلى العناية أو قسم آخر"
                         >
-                          🔪 حجز عملية
+                          🚑 نقل
                         </button>
                       </div>
-                      <button
-                        onClick={() => handleDischarge(p.id, p.patient.fullName, p.admission?.id)}
-                        className="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 rounded-lg text-xs text-white font-bold shadow-lg shadow-rose-900/20"
-                      >
-                        إجراء خروج
-                      </button>
+                      <div className="flex gap-2">
+                         <button
+                           onClick={() => navigate(`/surgery?encounterId=${p.id}`)}
+                           className="flex-1 px-3 py-1.5 bg-purple-600/20 hover:bg-purple-600/50 text-purple-400 border border-purple-500/30 rounded-lg text-xs font-medium transition-all"
+                         >
+                           🔪 حجز عملية
+                         </button>
+                         <button
+                           onClick={() => handleDischarge(p.id, p.patient.fullName, p.admission?.id)}
+                           className="flex-1 px-3 py-1.5 bg-rose-600 hover:bg-rose-500 rounded-lg text-xs text-white font-bold shadow-lg shadow-rose-900/20"
+                         >
+                           استخراج
+                         </button>
+                      </div>
+                      
+                      {/* Show NICU Separation for female patients only (Simplified check, reality might be maternity ward check) */}
+                      {p.patient.gender === 'FEMALE' && (
+                        <div className="flex gap-2 w-full mt-2">
+                          <button
+                            onClick={() => openNicuModal(p)}
+                            className="flex-1 px-3 py-1.5 bg-pink-600/20 hover:bg-pink-600/50 text-pink-400 border border-pink-500/30 rounded-lg text-xs font-medium transition-all"
+                            title="فصل وإنشاء ملف إيواء لمولود جديد وتعيينه كضامن"
+                          >
+                            🍼 تسجيل مولود (NICU)
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -373,6 +426,27 @@ export default function ActiveInpatientsPage() {
           </div>
         </div>
       )}
+
+      {/* Request Transfer Modal */}
+      <RequestTransferModal 
+        isOpen={showTransferModal}
+        onClose={() => setShowTransferModal(false)}
+        encounterId={transferPatient.id}
+        patientName={transferPatient.name}
+        fromBedId={transferPatient.fromBedId}
+        onSuccess={() => {
+           // Provide visual feedback, don't necessarily need to reload everything
+        }}
+      />
+
+      {/* NICU Separation Modal */}
+      <NicuSeparationModal
+        isOpen={showNicuModal}
+        onClose={() => setShowNicuModal(false)}
+        motherPatientId={nicuMother.id}
+        motherName={nicuMother.name}
+        onSuccess={() => loadData()} // reload to see new baby possibly? (Depends if baby auto-admits. Current logic just creates patient record).
+      />
     </div>
   );
 }
