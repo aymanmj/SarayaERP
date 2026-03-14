@@ -1,4 +1,4 @@
--- ==============================================================
+﻿-- ==============================================================
 -- Idempotent Migration: Safe to run on databases where some
 -- objects may already exist (e.g. applied via db push).
 -- ==============================================================
@@ -525,7 +525,6 @@ DO $$ BEGIN ALTER TABLE "ICUFlowsheet" ADD CONSTRAINT "ICUFlowsheet_encounterId_
 DO $$ BEGIN ALTER TABLE "ICUFlowsheetEntry" ADD CONSTRAINT "ICUFlowsheetEntry_flowsheetId_fkey" FOREIGN KEY ("flowsheetId") REFERENCES "ICUFlowsheet"("id") ON DELETE CASCADE ON UPDATE CASCADE; EXCEPTION WHEN duplicate_object THEN null; END $$;
 DO $$ BEGIN ALTER TABLE "ICUFlowsheetEntry" ADD CONSTRAINT "ICUFlowsheetEntry_recordedById_fkey" FOREIGN KEY ("recordedById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE; EXCEPTION WHEN duplicate_object THEN null; END $$;
 DO $$ BEGIN ALTER TABLE "VentilatorLog" ADD CONSTRAINT "VentilatorLog_entryId_fkey" FOREIGN KEY ("entryId") REFERENCES "ICUFlowsheetEntry"("id") ON DELETE CASCADE ON UPDATE CASCADE; EXCEPTION WHEN duplicate_object THEN null; END $$;
-- -   A l t e r T a b l e 
- A L T E R   T A B L E   " a d m i s s i o n s "   A D D   C O L U M N   I F   N O T   E X I S T S   " f i n a n c i a l C l e a r a n c e "   B O O L E A N   N O T   N U L L   D E F A U L T   f a l s e ; 
- A L T E R   T A B L E   " a d m i s s i o n s "   A D D   C O L U M N   I F   N O T   E X I S T S   " m e d i c a l C l e a r a n c e "   B O O L E A N   N O T   N U L L   D E F A U L T   f a l s e ;  
- 
+-- AlterTable
+ALTER TABLE "admissions" ADD COLUMN IF NOT EXISTS "financialClearance" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "admissions" ADD COLUMN IF NOT EXISTS "medicalClearance" BOOLEAN NOT NULL DEFAULT false;
