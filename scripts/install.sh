@@ -219,7 +219,7 @@ install_dependencies() {
 setup_directories() {
     print_info "Setting up directories..."
 
-    mkdir -p "$INSTALL_DIR"/{backups,logs,certs,production/nginx,scripts,monitoring/grafana/datasources,monitoring/grafana/dashboards,data/license,uploads}
+    mkdir -p "$INSTALL_DIR"/{backups,logs,certs,production/nginx,scripts,monitoring/grafana/provisioning/datasources,monitoring/grafana/provisioning/dashboards,monitoring/grafana/dashboards,data/license,uploads}
     
     # Fix permissions - run as root
     chmod -R 755 "$INSTALL_DIR"
@@ -307,12 +307,18 @@ download_files() {
         -o monitoring/alertmanager.yml
     
     # Grafana datasources
-    curl -fsSL "https://raw.githubusercontent.com/$GITHUB_OWNER/$GITHUB_REPO/$BRANCH/monitoring/grafana/datasources/prometheus.yml" \
-        -o monitoring/grafana/datasources/prometheus.yml
+    curl -fsSL "https://raw.githubusercontent.com/$GITHUB_OWNER/$GITHUB_REPO/$BRANCH/monitoring/grafana/provisioning/datasources/prometheus.yml" \
+        -o monitoring/grafana/provisioning/datasources/prometheus.yml
     
-    # Grafana dashboards
-    curl -fsSL "https://raw.githubusercontent.com/$GITHUB_OWNER/$GITHUB_REPO/$BRANCH/monitoring/grafana/dashboards/dashboard.yml" \
-        -o monitoring/grafana/dashboards/dashboard.yml
+    # Grafana dashboard provisioning
+    curl -fsSL "https://raw.githubusercontent.com/$GITHUB_OWNER/$GITHUB_REPO/$BRANCH/monitoring/grafana/provisioning/dashboards/dashboard.yml" \
+        -o monitoring/grafana/provisioning/dashboards/dashboard.yml
+
+    # Grafana dashboard JSON files
+    curl -fsSL "https://raw.githubusercontent.com/$GITHUB_OWNER/$GITHUB_REPO/$BRANCH/monitoring/grafana/dashboards/saraya-main.json" \
+        -o monitoring/grafana/dashboards/saraya-main.json
+    curl -fsSL "https://raw.githubusercontent.com/$GITHUB_OWNER/$GITHUB_REPO/$BRANCH/monitoring/grafana/dashboards/saraya-system.json" \
+        -o monitoring/grafana/dashboards/saraya-system.json
 
     # ============================================================
     # Download Frontend Environment Template
