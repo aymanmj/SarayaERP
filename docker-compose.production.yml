@@ -155,7 +155,6 @@ services:
       - TS_AUTHKEY=${TAILSCALE_AUTHKEY}
       - TS_STATE_DIR=/var/lib/tailscale
       - TS_ROUTES=192.168.0.0/24,10.0.0.0/8 # Optional: useful if subnet routing is needed
-      - TS_EXTRA_ARGS=--advertise-tags=tag:server
     volumes:
       - tailscale_data:/var/lib/tailscale
       - /dev/net/tun:/dev/net/tun
