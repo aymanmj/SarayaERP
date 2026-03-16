@@ -11,7 +11,7 @@ export class IcuController {
   @Post('flowsheet')
   async recordEntry(@Req() req: any, @Body() dto: RecordVitalsDto) {
     const hospitalId = req.user?.hospitalId || 1;
-    const userId = req.user?.id;
+    const userId = req.user?.sub;
     return this.icuService.recordFlowsheetEntry(hospitalId, userId, dto);
   }
 
@@ -42,7 +42,7 @@ export class IcuController {
     @Body() details: any
   ) {
     const hospitalId = req.user?.hospitalId || 1;
-    const userId = req.user?.id;
+    const userId = req.user?.sub;
     return this.icuService.separateNewbornPatient(hospitalId, userId, motherId, details);
   }
 }

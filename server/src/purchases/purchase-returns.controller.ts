@@ -20,7 +20,7 @@ export class PurchaseReturnsController {
 
   @Post()
   async create(@Request() req, @Body() dto: CreatePurchaseReturnDto) {
-    const userId = req.user.id;
+    const userId = req.user.sub;
     const hospitalId = req.user.hospitalId;
 
     // 1. Create the Return record (Transaction inside service)

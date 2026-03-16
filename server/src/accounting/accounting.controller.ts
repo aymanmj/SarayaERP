@@ -169,7 +169,7 @@ export class AccountingController {
   @Post('opening-balances')
   async saveOpeningBalances(@Req() req, @Body() dto: SaveOpeningBalancesDto) {
     const hospitalId = req.user.hospitalId as number;
-    const userId = req.user.id as number;
+    const userId = req.user.sub as number;
 
     return this.accountingService.saveOpeningBalances({
       hospitalId,
@@ -213,7 +213,7 @@ export class AccountingController {
   @Post('manual-entry')
   async createManualEntry(@Req() req, @Body() dto: CreateManualEntryDto) {
     const hospitalId = req.user.hospitalId as number;
-    const userId = req.user.id as number;
+    const userId = req.user.sub as number;
 
     return this.accountingService.createManualEntry({
       hospitalId,
