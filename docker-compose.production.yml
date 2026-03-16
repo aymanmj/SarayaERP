@@ -161,8 +161,6 @@ services:
     cap_add:
       - net_admin
       - sys_module
-    networks:
-      - saraya_net
     logging: *default_logging
 
   # ==========================================
