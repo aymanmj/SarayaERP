@@ -145,6 +145,27 @@ services:
       - saraya_net
     logging: *default_logging
 
+  # 🌐 Tailscale (Secure VPN access)
+  tailscale:
+    image: tailscale/tailscale:latest
+    container_name: saraya_tailscale
+    hostname: ${TAILSCALE_HOSTNAME:-saraya-erp}
+    restart: always
+    environment:
+      - TS_AUTHKEY=${TAILSCALE_AUTHKEY}
+      - TS_STATE_DIR=/var/lib/tailscale
+      - TS_ROUTES=192.168.0.0/24,10.0.0.0/8 # Optional: useful if subnet routing is needed
+      - TS_EXTRA_ARGS=--advertise-tags=tag:server
+    volumes:
+      - tailscale_data:/var/lib/tailscale
+      - /dev/net/tun:/dev/net/tun
+    cap_add:
+      - net_admin
+      - sys_module
+    networks:
+      - saraya_net
+    logging: *default_logging
+
   # ==========================================
   # 4. الخدمات المساندة (Support Services)
   # ==========================================
@@ -319,6 +340,7 @@ volumes:
   grafana_data:
   portainer_data:
   alertmanager_data:
+  tailscale_data:
 
 networks:
   saraya_net:
