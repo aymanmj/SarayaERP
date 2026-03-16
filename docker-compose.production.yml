@@ -151,10 +151,10 @@ services:
     container_name: saraya_tailscale
     hostname: ${TAILSCALE_HOSTNAME:-saraya-erp}
     restart: always
+    network_mode: host
     environment:
       - TS_AUTHKEY=${TAILSCALE_AUTHKEY}
       - TS_STATE_DIR=/var/lib/tailscale
-      - TS_ROUTES=192.168.0.0/24,10.0.0.0/8 # Optional: useful if subnet routing is needed
     volumes:
       - tailscale_data:/var/lib/tailscale
       - /dev/net/tun:/dev/net/tun
