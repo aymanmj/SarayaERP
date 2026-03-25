@@ -87,6 +87,11 @@ model Hospital {
   clinicalNoteTemplates     ClinicalNoteTemplate[]
   transferOrders            TransferOrder[]
   icuFlowsheets             ICUFlowsheet[]
+  
+  // ICU Relations
+  icuDailyAssessments ICUDailyAssessment[]
+  icuMedicationDrips  ICUMedicationDrip[]
+  icuEquipmentUsages  ICUEquipmentUsage[]
 }
 
 model Department {
@@ -309,6 +314,10 @@ model User {
   handoverNotesDrafted    HandoverNote[]      @relation("HandoverDraftedBy")
   handoverNotesSigned     HandoverNote[]      @relation("HandoverSignedBy")
   icuFlowsheetEntries     ICUFlowsheetEntry[]
+
+  // ICU Additions
+  icuDailyAssessments     ICUDailyAssessment[] @relation("ICUAssessedBy")
+  icuMedicationDripsOrdered ICUMedicationDrip[] @relation("ICUDripOrderedBy")
 }
 
 model RefreshToken {
@@ -489,6 +498,11 @@ model Encounter {
   referrals                 Referral[]
   transferOrders            TransferOrder[]
   icuFlowsheets             ICUFlowsheet[]
+  
+  // ICU Extensions
+  icuDailyAssessments       ICUDailyAssessment[]
+  icuMedicationDrips        ICUMedicationDrip[]
+  icuEquipmentUsages        ICUEquipmentUsage[]
 
   @@index([hospitalId, type, status])
   @@index([patientId])
@@ -3412,4 +3426,103 @@ model VentilatorLog {
   respRateActual Int? // Actual Respiratory Rate
 
   entry ICUFlowsheetEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+}
+
+model ICUDailyAssessment {
+  id              Int      @id @default(autoincrement())
+  hospitalId      Int
+  encounterId     Int
+  assessmentDate  DateTime @db.Date
+  
+  // Clinical Scores
+  gcsEye          Int?     // 1-4
+  gcsVerbal       Int?     // 1-5  
+  gcsMotor        Int?     // 1-6
+  gcsTotal        Int?     // 3-15
+  
+  apacheIIScore   Int?     // 0-71
+  sofaScore       Int?     // 0-24
+  rassScore       Int?     // -5 to +4
+  painScore       Int?     // 0-10 (NRS)
+  
+  // Sedation & Neuro
+  pupilLeft       String?  // REACTIVE, FIXED, SLUGGISH
+  pupilRight      String?
+  sedationTarget  String?
+  
+  // Respiratory
+  oxygenDevice    String?  // NASAL_CANNULA, FACE_MASK, VENTILATOR, BIPAP, CPAP, HIGH_FLOW
+  fio2            Decimal? @db.Decimal(5,2)
+  
+  // Lines & Drains
+  centralLine     String?  // PRESENT, ABSENT
+  arterialLine    String?
+  foleyPresent    Boolean  @default(false)
+  drains          Json?    // Array of drain descriptions
+  
+  // Skin & Wounds
+  skinIntegrity   String?
+  pressureUlcer   String?
+  woundNotes      String?
+  
+  // Plan
+  dailyGoals      String?  @db.Text
+  nutritionPlan   String?
+  mobilityPlan    String?
+  
+  assessedById    Int
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  hospital  Hospital  @relation(fields: [hospitalId], references: [id])
+  encounter Encounter @relation(fields: [encounterId], references: [id])
+  assessedBy User     @relation("ICUAssessedBy", fields: [assessedById], references: [id])
+  
+  @@unique([encounterId, assessmentDate])
+  @@index([hospitalId])
+}
+
+model ICUMedicationDrip {
+  id              Int       @id @default(autoincrement())
+  hospitalId      Int
+  encounterId     Int
+  medicationName  String
+  concentration   String?   // e.g., "400mg/250ml"
+  currentRate     Decimal?  @db.Decimal(10,2) // ml/hr
+  doseUnit        String?   // mcg/kg/min, units/hr, ml/hr
+  startedAt       DateTime  @default(now())
+  stoppedAt       DateTime?
+  status          String    @default("RUNNING") // RUNNING, PAUSED, STOPPED, TITRATED
+  titrationLog    Json?     // Array of { time, rate, reason }
+  orderedById     Int
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  hospital  Hospital  @relation(fields: [hospitalId], references: [id])
+  encounter Encounter @relation(fields: [encounterId], references: [id])
+  orderedBy User      @relation("ICUDripOrderedBy", fields: [orderedById], references: [id])
+  
+  @@index([hospitalId, encounterId])
+  @@index([encounterId, status])
+}
+
+model ICUEquipmentUsage {
+  id            Int       @id @default(autoincrement())
+  hospitalId    Int
+  encounterId   Int
+  equipmentType String    // VENTILATOR, CARDIAC_MONITOR, INFUSION_PUMP, FEEDING_PUMP, etc.
+  equipmentName String?
+  startedAt     DateTime  @default(now())
+  stoppedAt     DateTime?
+  dailyRate     Decimal?  @db.Decimal(10,2) // Billing rate per day
+  notes         String?
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  hospital  Hospital  @relation(fields: [hospitalId], references: [id])
+  encounter Encounter @relation(fields: [encounterId], references: [id])
+  
+  @@index([hospitalId, encounterId])
 }
