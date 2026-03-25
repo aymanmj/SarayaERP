@@ -307,14 +307,15 @@ export const IcuDashboard = () => {
                         )
                       )}
                       
-                      {t.status === 'BED_ALLOCATED' && (
+                      {(t.status === 'BED_ALLOCATED' || t.status === 'HANDOVER_DRAFTED') && (
                          <button 
                            onClick={() => {
                              setSelectedTransfer(t);
                              setShowHandoverModal(true);
                            }} 
-                           className="w-full py-2.5 flex items-center justify-center gap-1.5 bg-indigo-600/20 hover:bg-indigo-600/40 border border-indigo-500/50 text-indigo-400 rounded-xl text-xs font-bold transition-all">
-                            <FileSignature className="w-3.5 h-3.5" /> استلام المريض ومراجعة SBAR
+                           className="w-full py-2.5 flex items-center justify-center gap-1.5 bg-indigo-600/20 hover:bg-indigo-600/40 border border-indigo-500/50 text-indigo-400 rounded-xl text-xs font-bold transition-all"
+                         >
+                            <FileSignature className="w-3.5 h-3.5" /> {t.status === 'HANDOVER_DRAFTED' ? 'متابعة تقرير التسليم SBAR' : 'استلام المريض ومراجعة SBAR'}
                          </button>
                       )}
 

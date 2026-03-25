@@ -89,32 +89,32 @@ export const EquipmentPanel = ({ encounterId }: Props) => {
           </div>
         ) : (
           <table className="w-full text-right text-sm">
-            <thead className="bg-slate-950 text-slate-400 font-bold text-xs border-b border-slate-800">
+            <thead className="bg-slate-950 text-slate-400 font-bold text-sm border-b border-slate-800">
               <tr>
-                <th className="p-4">نوع الجهاز</th>
-                <th className="p-4">التفاصيل</th>
-                <th className="p-4">وقت التوصيل</th>
-                <th className="p-4">وقت الفصل</th>
-                <th className="p-4 text-center">الإجراءات</th>
+                <th className="p-5 text-right font-bold text-slate-300">نوع الجهاز</th>
+                <th className="p-5 text-right font-bold text-slate-300">التفاصيل</th>
+                <th className="p-5 text-right font-bold text-slate-300">وقت التوصيل</th>
+                <th className="p-5 text-right font-bold text-slate-300">وقت الفصل</th>
+                <th className="p-5 text-center font-bold text-slate-300">الإجراءات</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/50">
               {equipmentList.map(eq => (
                 <tr key={eq.id} className={`${!eq.stoppedAt ? 'bg-indigo-900/10' : 'bg-transparent'} hover:bg-slate-800/50 transition-colors`}>
-                  <td className="p-4 font-bold text-white flex items-center gap-2">
-                    {!eq.stoppedAt && <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)] inline-block animate-pulse"></span>}
+                  <td className="p-5 font-bold text-white text-base flex items-center gap-3">
+                    {!eq.stoppedAt && <span className="w-3 h-3 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)] inline-block animate-pulse shrink-0"></span>}
                     {eq.equipmentType.replace('_', ' ')}
                   </td>
-                  <td className="p-4 text-slate-400">{eq.equipmentName || '-'}</td>
-                  <td className="p-4 text-slate-400">{new Date(eq.startedAt).toLocaleString('ar-LY', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'})}</td>
-                  <td className="p-4 text-slate-400">
-                    {eq.stoppedAt ? new Date(eq.stoppedAt).toLocaleString('ar-LY', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'}) : <span className="text-emerald-400 font-bold bg-emerald-900/20 px-2 py-1 rounded tracking-wide border border-emerald-500/20 text-xs">متصل حالياً</span>}
+                  <td className="p-5 text-slate-300 font-medium text-sm">{eq.equipmentName || '-'}</td>
+                  <td className="p-5 text-slate-400 text-sm font-mono tracking-tight">{new Date(eq.startedAt).toLocaleString('ar-LY', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'})}</td>
+                  <td className="p-5 text-slate-400 text-sm font-mono tracking-tight">
+                    {eq.stoppedAt ? new Date(eq.stoppedAt).toLocaleString('ar-LY', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'}) : <span className="text-emerald-400 font-bold bg-emerald-900/20 px-3 py-1.5 rounded-lg tracking-wide border border-emerald-500/20 text-xs">متصل حالياً</span>}
                   </td>
-                  <td className="p-4 text-center">
+                  <td className="p-5 text-center">
                     {!eq.stoppedAt && (
                       <button 
                         onClick={() => stopEquipment(eq.id)}
-                        className="px-3 py-1.5 bg-transparent border border-rose-500/50 text-rose-400 hover:bg-rose-900/30 hover:border-rose-400 rounded-lg flex items-center gap-1.5 font-bold transition-all mx-auto text-xs"
+                        className="px-4 py-2 bg-transparent border border-rose-500/50 text-rose-400 hover:bg-rose-900/30 hover:border-rose-400 rounded-xl flex items-center justify-center gap-2 font-bold transition-all mx-auto text-sm"
                       >
                         <StopCircle className="w-4 h-4" /> فصل الجهاز
                       </button>
