@@ -43,53 +43,56 @@ export const IcuPatientDetail = () => {
   return (
     <div className="p-4 md:p-6 lg:max-w-7xl mx-auto space-y-6 text-slate-100 min-h-screen" dir="rtl">
       {/* HEADER */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-800 relative overflow-hidden">
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 bg-slate-900 p-6 rounded-2xl shadow-xl border border-slate-800 relative overflow-hidden">
         {/* Decorative background glow */}
         <div className="absolute -top-24 -right-24 w-64 h-64 bg-sky-600/10 rounded-full blur-3xl pointer-events-none"></div>
 
-        <div className="flex items-center gap-5 z-10 w-full md:w-auto">
-          <button onClick={() => navigate('/clinical/icu')} className="p-2.5 bg-slate-950 hover:bg-slate-800 border border-slate-700 rounded-xl transition-colors text-slate-400 hover:text-white">
+        <div className="flex items-center gap-4 z-10">
+          <button 
+            onClick={() => navigate('/clinical/icu')} 
+            className="p-3 bg-slate-950 hover:bg-slate-800 border border-slate-800 rounded-xl transition-colors text-slate-400 hover:text-white"
+          >
             <ArrowLeft className="w-5 h-5 rotate-180" />
           </button>
           
-          <div className="w-16 h-16 rounded-2xl bg-slate-950 border border-slate-800 text-sky-400 flex items-center justify-center font-bold flex-shrink-0 text-3xl shadow-inner shadow-sky-900/20">
+          <div className="w-16 h-16 rounded-xl bg-slate-950 border border-slate-800 text-sky-400 flex items-center justify-center font-bold text-3xl shadow-inner shadow-sky-900/20 shrink-0">
             {patientData?.patient?.fullName?.charAt(0) || <User className="w-8 h-8" />}
           </div>
           
-          <div>
-            <h1 className="text-2xl lg:text-3xl font-bold text-white mb-2 tracking-tight">
-              {patientData?.patient?.fullName || `ملف طبي #${encounterId}`}
+          <div className="flex flex-col">
+            <h1 className="text-2xl font-bold text-white mb-2">
+              {patientData?.patient?.fullName || `ملف المريض #${encounterId}`}
             </h1>
-            <div className="flex flex-wrap items-center gap-3 text-xs md:text-sm font-medium">
-              <span className="flex items-center gap-1.5 bg-slate-950/50 px-3 py-1.5 rounded-lg border border-slate-800">
-                <span className="text-slate-500 font-mono">#{patientData?.patient?.mrn || 'N/A'}</span>
+            <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-slate-300">
+              <span className="bg-slate-950 px-2.5 py-1 rounded-md border border-slate-800 px-3">
+                <span className="text-slate-500 font-mono tracking-wider" dir="ltr">{patientData?.patient?.mrn || 'N/A'}</span>
               </span>
-              <span className="flex items-center gap-1.5 bg-sky-900/20 text-sky-300 px-3 py-1.5 rounded-lg border border-sky-500/20">
+              <span className="bg-sky-900/30 text-sky-400 px-2.5 py-1 rounded-md border border-sky-500/20">
                 سرير {patientData?.bed?.bedNumber || 'N/A'} ({patientData?.bed?.ward?.name})
               </span>
-              <span className="flex items-center gap-1.5 bg-slate-950/50 px-3 py-1.5 rounded-lg border border-slate-800 text-slate-400">
-                الدخول: {new Date(patientData?.createdAt).toLocaleDateString('ar-LY')}
+              <span className="bg-slate-950 px-2.5 py-1 rounded-md border border-slate-800 text-slate-400 font-mono" dir="ltr">
+                {new Date(patientData?.createdAt).toLocaleDateString('en-GB')} الدخول
               </span>
             </div>
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2 w-full md:w-auto z-10 mt-4 md:mt-0">
+        <div className="flex gap-3 w-full lg:w-auto z-10">
            <button 
              onClick={() => setShowAssessmentModal(true)} 
-             className="flex-1 md:flex-none px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold shadow-lg shadow-indigo-900/30 transition-all flex items-center justify-center gap-2"
+             className="flex-1 lg:flex-none px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold shadow-lg shadow-indigo-900/30 transition-all flex items-center justify-center gap-2"
            >
              <FileText className="w-4 h-4" /> التقييم اليومي
            </button>
            <button 
              onClick={() => navigate(`/clinical/icu/flowsheet/${encounterId}`)} 
-             className="flex-1 md:flex-none px-5 py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white rounded-xl font-bold shadow-sm transition-all flex items-center justify-center gap-2"
+             className="flex-1 lg:flex-none px-4 py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white rounded-xl font-bold shadow-sm transition-all flex items-center justify-center gap-2"
            >
              <Activity className="w-4 h-4 text-sky-400" /> المخطط السريري
            </button>
            <button 
              onClick={() => setShowTransferModal(true)} 
-             className="flex-1 md:flex-none px-5 py-2.5 bg-rose-900/30 hover:bg-rose-900/50 border border-rose-500/30 text-rose-400 rounded-xl font-bold transition-all flex items-center justify-center gap-2"
+             className="flex-1 lg:flex-none px-4 py-2.5 bg-rose-900/30 hover:bg-rose-900/50 border border-rose-500/30 text-rose-400 rounded-xl font-bold transition-all flex items-center justify-center gap-2"
            >
              <ArrowLeftRight className="w-4 h-4" /> نقل (Step-down)
            </button>

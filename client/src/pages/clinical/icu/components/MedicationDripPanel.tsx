@@ -84,16 +84,16 @@ export const MedicationDripPanel = ({ encounterId }: Props) => {
   if (loading) return <div className="p-4 text-center text-slate-500">جاري تحميل البيانات...</div>;
 
   return (
-    <div className="bg-slate-900 rounded-2xl shadow-sm border border-slate-800 overflow-hidden" dir="ltr">
+    <div className="bg-slate-900 rounded-2xl shadow-sm border border-slate-800 overflow-hidden" dir="rtl">
       <div className="flex justify-between items-center p-5 border-b border-slate-800 bg-slate-950/50">
         <h3 className="text-lg font-bold text-white flex items-center gap-2">
-          <Syringe className="w-5 h-5 text-rose-400" /> Active Continuous Infusions
+          <Syringe className="w-5 h-5 text-rose-400" /> الأدوية الوريدية المستمرة
         </h3>
         <button 
           onClick={() => setShowAddModal(true)} 
           className="px-4 py-2 bg-rose-900/30 text-rose-400 border border-rose-500/30 font-semibold rounded-xl hover:bg-rose-900/50 transition-colors flex items-center gap-2 text-sm shadow-inner"
         >
-          <PlusCircle className="w-4 h-4" /> Start Infusion
+          <PlusCircle className="w-4 h-4" /> إضافة دواء
         </button>
       </div>
 
@@ -101,7 +101,7 @@ export const MedicationDripPanel = ({ encounterId }: Props) => {
         {drips.length === 0 ? (
           <div className="text-center p-8 text-slate-500 flex flex-col items-center bg-slate-950/30 rounded-xl border border-dashed border-slate-800">
              <Syringe className="w-12 h-12 text-slate-700 mb-3" />
-             <p>No active continuous infusions.</p>
+             <p>لا توجد أدوية وريدية مستمرة.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -109,38 +109,38 @@ export const MedicationDripPanel = ({ encounterId }: Props) => {
               <div key={drip.id} className="border border-rose-500/20 bg-slate-950 rounded-2xl overflow-hidden shadow-sm hover:border-rose-500/40 transition-colors group">
                 <div className="p-4 border-b border-rose-500/20 bg-rose-900/10 flex justify-between items-start">
                   <div>
-                    <h4 className="font-bold text-white tracking-wide truncate pr-2" title={drip.medicationName}>
+                    <h4 className="font-bold text-white tracking-wide truncate pl-2" title={drip.medicationName}>
                       {drip.medicationName}
                     </h4>
-                    <p className="text-xs text-rose-200/50 mt-1">{drip.concentration || 'Standard Conc.'}</p>
+                    <p className="text-xs text-rose-200/50 mt-1">{drip.concentration || 'تركيز اعتيادي'}</p>
                   </div>
-                  <span className="flex h-2.5 w-2.5 mt-1.5 relative">
+                  <span className="flex h-2.5 w-2.5 mt-1.5 relative shrink-0">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                     <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]"></span>
                   </span>
                 </div>
                 
                 <div className="p-5 text-center bg-slate-900/50">
-                   <p className="text-4xl font-black text-white my-2 tracking-tighter">
+                   <p className="text-4xl font-black text-white my-2 tracking-tighter" dir="ltr">
                      {drip.currentRate} <span className="text-sm font-bold text-slate-500 tracking-wide">{drip.doseUnit}</span>
                    </p>
                    <p className="text-[10px] text-slate-500 mt-2 font-mono">
-                     Started: {new Date(drip.startedAt).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'})}
+                     لبداية: {new Date(drip.startedAt).toLocaleString('ar-LY', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'})}
                    </p>
                 </div>
 
-                <div className="grid grid-cols-2 border-t border-slate-800 divide-x divide-slate-800">
+                <div className="grid grid-cols-2 border-t border-slate-800 divide-x divide-x-reverse divide-slate-800">
                    <button 
                      onClick={() => titrateDrip(drip.id, drip.currentRate)}
                      className="p-3 text-xs font-bold text-indigo-400 hover:bg-slate-800 transition flex items-center justify-center gap-2"
                    >
-                     <TrendingUp className="w-4 h-4" /> Titrate
+                     <TrendingUp className="w-4 h-4" /> تعديل الجرعة
                    </button>
                    <button 
                      onClick={() => stopDrip(drip.id)}
                      className="p-3 text-xs font-bold text-rose-400 hover:bg-slate-800 transition flex items-center justify-center gap-2"
                    >
-                     <Square className="w-4 h-4" /> Stop
+                     <Square className="w-4 h-4" /> إيقاف
                    </button>
                 </div>
               </div>
@@ -151,53 +151,44 @@ export const MedicationDripPanel = ({ encounterId }: Props) => {
 
       {/* ADD DRIP MODAL */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4" dir="ltr">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4" dir="rtl">
           <div className="bg-slate-900 border border-slate-700 max-w-md w-full rounded-2xl shadow-2xl overflow-hidden">
             <div className="flex justify-between items-center p-5 border-b border-slate-800 bg-slate-950">
-              <h3 className="font-bold text-lg text-white">Start Continuous Infusion</h3>
+              <h3 className="font-bold text-lg text-white">إضافة دواء وريدي مستمر</h3>
               <button onClick={() => setShowAddModal(false)} className="text-slate-500 hover:text-white transition-colors">✕</button>
             </div>
             <form onSubmit={startDrip} className="p-6 space-y-5">
               <div>
-                <label className="block text-xs font-bold text-slate-400 mb-1.5">Medication Name</label>
+                <label className="block text-xs font-bold text-slate-400 mb-1.5">اسم الدواء</label>
                 <input 
                   required
                   type="text" 
                   value={newDrip.medicationName} 
                   onChange={e => setNewDrip({...newDrip, medicationName: e.target.value})}
                   className="w-full p-2.5 bg-slate-950 border border-slate-700 text-white placeholder-slate-600 rounded-xl focus:outline-none focus:border-rose-500 transition-colors"
-                  placeholder="e.g. Norepinephrine, Propofol..."
+                  placeholder="مثال: Norepinephrine, Propofol..."
+                  dir="ltr"
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-400 mb-1.5">Concentration (Optional)</label>
+                <label className="block text-xs font-bold text-slate-400 mb-1.5">التركيز (اختياري)</label>
                 <input 
                   type="text" 
                   value={newDrip.concentration} 
                   onChange={e => setNewDrip({...newDrip, concentration: e.target.value})}
                   className="w-full p-2.5 bg-slate-950 border border-slate-700 text-white placeholder-slate-600 rounded-xl focus:outline-none focus:border-rose-500 transition-colors"
-                  placeholder="e.g. 4mg/250ml"
+                  placeholder="مثال: 4mg/250ml"
+                  dir="ltr"
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 mb-1.5">Initial Rate</label>
-                  <input 
-                    required
-                    type="number" 
-                    step="0.01"
-                    value={newDrip.currentRate} 
-                    onChange={e => setNewDrip({...newDrip, currentRate: e.target.value})}
-                    className="w-full p-2.5 bg-slate-950 border border-slate-700 text-white placeholder-slate-600 rounded-xl focus:outline-none focus:border-rose-500 transition-colors"
-                    placeholder="0.0"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-400 mb-1.5">Dose Unit</label>
+                  <label className="block text-xs font-bold text-slate-400 mb-1.5">وحدة الجرعة</label>
                   <select 
                     value={newDrip.doseUnit} 
                     onChange={e => setNewDrip({...newDrip, doseUnit: e.target.value})}
                     className="w-full p-2.5 bg-slate-950 border border-slate-700 text-white rounded-xl focus:outline-none focus:border-rose-500 transition-colors"
+                    dir="ltr"
                   >
                     <option value="ml/hr">ml/hr</option>
                     <option value="mcg/kg/min">mcg/kg/min</option>
@@ -206,11 +197,24 @@ export const MedicationDripPanel = ({ encounterId }: Props) => {
                     <option value="units/hr">units/hr</option>
                   </select>
                 </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 mb-1.5">الجرعة المبدئية</label>
+                  <input 
+                    required
+                    type="number" 
+                    step="0.01"
+                    value={newDrip.currentRate} 
+                    onChange={e => setNewDrip({...newDrip, currentRate: e.target.value})}
+                    className="w-full p-2.5 bg-slate-950 border border-slate-700 text-white placeholder-slate-600 rounded-xl focus:outline-none focus:border-rose-500 transition-colors"
+                    placeholder="0.0"
+                    dir="ltr"
+                  />
+                </div>
               </div>
               <div className="pt-6 flex gap-3">
-                <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 py-2.5 text-slate-300 bg-slate-800 hover:bg-slate-700 rounded-xl font-bold transition-colors">Cancel</button>
-                <button type="submit" className="flex-[2] py-2.5 bg-rose-600 text-white rounded-xl hover:bg-rose-500 font-bold transition-colors shadow-lg shadow-rose-900/40 flex items-center justify-center gap-2">
-                  <Play className="w-4 h-4 fill-current" /> Start Drip
+                <button type="button" onClick={() => setShowAddModal(false)} className="flex-[2] py-2.5 text-slate-300 bg-slate-800 hover:bg-slate-700 rounded-xl font-bold transition-colors">إلغاء</button>
+                <button type="submit" className="flex-[3] py-2.5 bg-rose-600 text-white rounded-xl hover:bg-rose-500 font-bold transition-colors shadow-lg shadow-rose-900/40 flex items-center justify-center gap-2">
+                  <Play className="w-4 h-4 fill-current" /> بدء الحقن
                 </button>
               </div>
             </form>

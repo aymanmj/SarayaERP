@@ -40,130 +40,132 @@ export const IcuFlowsheet = () => {
   if (loading) return <div className="flex justify-center items-center h-[calc(100vh-200px)]"><Activity className="w-10 h-10 animate-spin text-sky-600" /></div>;
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
+    <div className="p-6 max-w-7xl mx-auto space-y-6" dir="rtl">
       
       {/* Header */}
-      <div className="flex justify-between items-center bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
+      <div className="flex justify-between items-center bg-slate-900 p-6 rounded-2xl shadow-xl border border-slate-800">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
-            <Activity className="w-6 h-6 text-sky-500" /> Clinical Flowsheet
+          <h1 className="text-2xl font-bold text-white flex items-center gap-3">
+            <Activity className="w-8 h-8 text-sky-400" /> السجل السريري (Flowsheet)
           </h1>
-          <p className="text-slate-500 text-sm mt-1">Encounter #{encounterId} Timeline</p>
+          <p className="text-slate-400 text-sm mt-1 flex items-center gap-2">
+            <span>تسلسل زمني للمريض رقم:</span> <span className="text-sky-400 font-bold">#{encounterId}</span>
+          </p>
         </div>
-        <div className="flex gap-4">
-          <div className="text-right mr-4 hidden md:block border-r border-slate-200 dark:border-slate-700 pr-6">
-             <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">I/O Balance Target</p>
-             <p className={`text-xl font-bold ${ioBalance.balance < 0 ? 'text-amber-500' : 'text-sky-500'}`}>
-               {ioBalance.balance > 0 ? '+' : ''}{ioBalance.balance} ml
+        <div className="flex items-center gap-6">
+          <div className="text-center hidden md:block border-l border-slate-800 pl-6">
+             <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">توازن السوائل (I/O)</p>
+             <p className={`text-2xl font-black ${ioBalance.balance < 0 ? 'text-amber-500 drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]' : 'text-sky-400 drop-shadow-[0_0_8px_rgba(56,189,248,0.5)]'}`}>
+               <span dir="ltr">{ioBalance.balance > 0 ? '+' : ''}{ioBalance.balance} ml</span>
              </p>
           </div>
           <button 
             onClick={() => setShowEntryModal(true)} 
-            className="px-5 py-2.5 bg-sky-600 font-semibold text-white rounded-lg hover:bg-sky-700 transition flex items-center gap-2 shadow-sm"
+            className="px-6 py-3 bg-sky-600 font-bold text-white rounded-xl hover:bg-sky-500 transition-colors flex items-center gap-2 shadow-lg shadow-sky-900/40"
           >
-            <PlusCircle className="w-5 h-5" /> Chart Entry
+            <PlusCircle className="w-5 h-5" /> إدراج قراءة جديدة
           </button>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 border-b border-slate-200 dark:border-slate-700 pb-px">
+      <div className="flex gap-2 border-b border-slate-800 pb-px">
         <button 
           onClick={() => setActiveTab('vitals')}
-          className={`px-4 py-2 flex items-center gap-2 font-medium rounded-t-lg transition-colors ${activeTab === 'vitals' ? 'bg-white dark:bg-slate-800 border-t border-l border-r border-slate-200 dark:border-slate-700 text-sky-600 dark:text-sky-400' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50'}`}
+          className={`px-5 py-3 flex items-center gap-2 font-bold rounded-t-xl transition-colors ${activeTab === 'vitals' ? 'bg-slate-900 border-t border-l border-r border-slate-800 text-sky-400' : 'text-slate-500 hover:bg-slate-900/50 hover:text-slate-300'}`}
         >
-          <Activity className="w-4 h-4" /> Vitals
+          <Activity className="w-4 h-4" /> العلامات الحيوية
         </button>
         <button 
           onClick={() => setActiveTab('io')}
-          className={`px-4 py-2 flex items-center gap-2 font-medium rounded-t-lg transition-colors ${activeTab === 'io' ? 'bg-white dark:bg-slate-800 border-t border-l border-r border-slate-200 dark:border-slate-700 text-blue-600 dark:text-blue-400' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50'}`}
+          className={`px-5 py-3 flex items-center gap-2 font-bold rounded-t-xl transition-colors ${activeTab === 'io' ? 'bg-slate-900 border-t border-l border-r border-slate-800 text-blue-400' : 'text-slate-500 hover:bg-slate-900/50 hover:text-slate-300'}`}
         >
-          <Droplets className="w-4 h-4" /> Fluid Balance
+          <Droplets className="w-4 h-4" /> توازن السوائل
         </button>
         <button 
           onClick={() => setActiveTab('vent')}
-          className={`px-4 py-2 flex items-center gap-2 font-medium rounded-t-lg transition-colors ${activeTab === 'vent' ? 'bg-white dark:bg-slate-800 border-t border-l border-r border-slate-200 dark:border-slate-700 text-emerald-600 dark:text-emerald-400' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50'}`}
+          className={`px-5 py-3 flex items-center gap-2 font-bold rounded-t-xl transition-colors ${activeTab === 'vent' ? 'bg-slate-900 border-t border-l border-r border-slate-800 text-emerald-400' : 'text-slate-500 hover:bg-slate-900/50 hover:text-slate-300'}`}
         >
-          <Wind className="w-4 h-4" /> Ventilator
+          <Wind className="w-4 h-4" /> التنفس الصناعي
         </button>
         <button 
           onClick={() => setActiveTab('neuro')}
-          className={`px-4 py-2 flex items-center gap-2 font-medium rounded-t-lg transition-colors ${activeTab === 'neuro' ? 'bg-white dark:bg-slate-800 border-t border-l border-r border-slate-200 dark:border-slate-700 text-purple-600 dark:text-purple-400' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50'}`}
+          className={`px-5 py-3 flex items-center gap-2 font-bold rounded-t-xl transition-colors ${activeTab === 'neuro' ? 'bg-slate-900 border-t border-l border-r border-slate-800 text-purple-400' : 'text-slate-500 hover:bg-slate-900/50 hover:text-slate-300'}`}
         >
-          <BrainCircuit className="w-4 h-4" /> Neuro/GCS
+          <BrainCircuit className="w-4 h-4" /> الأعصاب
         </button>
       </div>
 
       {/* Grid Container */}
-      <div className="bg-white dark:bg-slate-800 rounded-b-xl rounded-tr-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-x-auto">
-        <table className="w-full text-left text-sm whitespace-nowrap">
-          <thead className="bg-slate-50 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 font-semibold sticky top-0 border-b border-slate-200 dark:border-slate-700">
+      <div className="bg-slate-900 rounded-b-xl rounded-tl-xl shadow-xl border border-slate-800 overflow-x-auto custom-scrollbar">
+        <table className="w-full text-right text-sm whitespace-nowrap">
+          <thead className="bg-slate-950 text-slate-300 font-bold sticky top-0 border-b border-slate-800">
             <tr>
-              <th className="p-4 w-32 bg-slate-100 dark:bg-slate-700/50 sticky left-0 z-10 border-r border-slate-200 dark:border-slate-700">Parameter / Time</th>
+              <th className="p-4 w-40 bg-slate-950 sticky right-0 z-10 border-l border-slate-800 border-b border-slate-800 drop-shadow-md">المؤشر / الوقت</th>
               {entries.map((entry, idx) => (
-                <th key={idx} className="p-4 min-w-[120px] text-center border-r border-slate-200 dark:border-slate-700">
-                  <div className="flex items-center justify-center flex-col">
-                    <span className="text-xs text-slate-400 font-normal">{new Date(entry.recordedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
-                    <span className="text-sky-600 dark:text-sky-400 text-base">{new Date(entry.recordedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                <th key={idx} className="p-4 min-w-[120px] text-center border-l border-slate-800 border-b border-slate-800">
+                  <div className="flex items-center justify-center flex-col gap-1">
+                    <span className="text-xs text-slate-500 font-bold">{new Date(entry.recordedAt).toLocaleDateString('ar-LY', { month: 'short', day: 'numeric' })}</span>
+                    <span className="text-sky-400 text-base drop-shadow-[0_0_8px_rgba(56,189,248,0.5)] bg-slate-900/50 px-3 py-1 rounded-lg border border-slate-800">{new Date(entry.recordedAt).toLocaleTimeString('ar-LY', {hour: '2-digit', minute:'2-digit'})}</span>
                   </div>
                 </th>
               ))}
-              {entries.length === 0 && <th className="p-4 text-center text-slate-400 font-normal italic">No entries charting available</th>}
+              {entries.length === 0 && <th className="p-4 text-center text-slate-500 font-bold border-b border-slate-800">لا توجد قراءات حتى الآن</th>}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+          <tbody className="divide-y divide-slate-800">
             
             {activeTab === 'vitals' && (
               <>
-                <tr className="hover:bg-slate-50 dark:hover:bg-slate-700/30">
-                  <td className="p-3 font-semibold text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-800 sticky left-0 z-10 border-r border-slate-200 dark:border-slate-700">Heart Rate</td>
+                <tr className="hover:bg-slate-800/50 transition-colors">
+                  <td className="p-4 font-bold text-slate-300 bg-slate-950 sticky right-0 z-10 border-l border-slate-800">نبض القلب (HR)</td>
                   {entries.map((e, idx) => (
-                    <td key={idx} className={`p-3 text-center border-r border-slate-100 dark:border-slate-700/50 font-medium ${e.heartRate < 60 || e.heartRate > 100 ? 'text-rose-500 bg-rose-50 dark:bg-rose-900/20' : ''}`}>
+                    <td key={idx} className={`p-4 text-center border-l border-slate-800 font-bold text-lg ${e.heartRate < 60 || e.heartRate > 100 ? 'text-rose-400 bg-rose-950/20' : 'text-slate-300'}`}>
                       {e.heartRate || '-'}
                     </td>
                   ))}
                   {entries.length === 0 && <td></td>}
                 </tr>
-                <tr className="hover:bg-slate-50 dark:hover:bg-slate-700/30">
-                  <td className="p-3 font-semibold text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-800 sticky left-0 z-10 border-r border-slate-200 dark:border-slate-700">BP Systolic</td>
+                <tr className="hover:bg-slate-800/50 transition-colors">
+                  <td className="p-4 font-bold text-slate-300 bg-slate-950 sticky right-0 z-10 border-l border-slate-800">ضغط الدم الانقباضي</td>
                   {entries.map((e, idx) => (
-                    <td key={idx} className={`p-3 text-center border-r border-slate-100 dark:border-slate-700/50 ${e.bpSystolic < 90 || e.bpSystolic > 140 ? 'text-amber-500 font-bold' : ''}`}>
+                    <td key={idx} className={`p-4 text-center border-l border-slate-800 font-bold text-lg ${e.bpSystolic < 90 || e.bpSystolic > 140 ? 'text-amber-400 bg-amber-950/20' : 'text-slate-300'}`}>
                       {e.bpSystolic || '-'}
                     </td>
                   ))}
                   {entries.length === 0 && <td></td>}
                 </tr>
-                <tr className="hover:bg-slate-50 dark:hover:bg-slate-700/30">
-                  <td className="p-3 font-semibold text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-800 sticky left-0 z-10 border-r border-slate-200 dark:border-slate-700">BP Diastolic</td>
+                <tr className="hover:bg-slate-800/50 transition-colors">
+                  <td className="p-4 font-bold text-slate-300 bg-slate-950 sticky right-0 z-10 border-l border-slate-800">ضغط الدم الانبساطي</td>
                   {entries.map((e, idx) => (
-                    <td key={idx} className="p-3 text-center border-r border-slate-100 dark:border-slate-700/50">
+                    <td key={idx} className="p-4 text-center border-l border-slate-800 font-bold text-lg text-slate-300">
                       {e.bpDiastolic || '-'}
                     </td>
                   ))}
                   {entries.length === 0 && <td></td>}
                 </tr>
-                <tr className="hover:bg-slate-50 dark:hover:bg-slate-700/30">
-                  <td className="p-3 font-semibold text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-800 sticky left-0 z-10 border-r border-slate-200 dark:border-slate-700">SpO2 (%)</td>
+                <tr className="hover:bg-slate-800/50 transition-colors">
+                  <td className="p-4 font-bold text-slate-300 bg-slate-950 sticky right-0 z-10 border-l border-slate-800">الأكسجين (SpO2 %)</td>
                   {entries.map((e, idx) => (
-                    <td key={idx} className={`p-3 text-center border-r border-slate-100 dark:border-slate-700/50 ${e.o2Sat < 90 ? 'text-rose-500 font-bold' : 'text-sky-600 dark:text-sky-400'}`}>
+                    <td key={idx} className={`p-4 text-center border-l border-slate-800 font-bold text-lg ${e.o2Sat < 90 ? 'text-rose-400 bg-rose-950/20 drop-shadow-[0_0_8px_rgba(244,63,94,0.5)]' : 'text-sky-400'}`}>
                       {e.o2Sat || '-'}
                     </td>
                   ))}
                   {entries.length === 0 && <td></td>}
                 </tr>
-                <tr className="hover:bg-slate-50 dark:hover:bg-slate-700/30">
-                  <td className="p-3 font-semibold text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-800 sticky left-0 z-10 border-r border-slate-200 dark:border-slate-700">Temperature</td>
+                <tr className="hover:bg-slate-800/50 transition-colors">
+                  <td className="p-4 font-bold text-slate-300 bg-slate-950 sticky right-0 z-10 border-l border-slate-800">الحرارة (Temp)</td>
                   {entries.map((e, idx) => (
-                    <td key={idx} className={`p-3 text-center border-r border-slate-100 dark:border-slate-700/50 ${e.temperature > 37.5 ? 'text-amber-500 font-bold' : ''}`}>
+                    <td key={idx} className={`p-4 text-center border-l border-slate-800 font-bold text-lg ${e.temperature > 37.5 ? 'text-amber-400 bg-amber-950/20' : 'text-slate-300'}`}>
                       {e.temperature || '-'}
                     </td>
                   ))}
                   {entries.length === 0 && <td></td>}
                 </tr>
-                <tr className="hover:bg-slate-50 dark:hover:bg-slate-700/30">
-                  <td className="p-3 font-semibold text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-800 sticky left-0 z-10 border-r border-slate-200 dark:border-slate-700">Resp Rate</td>
+                <tr className="hover:bg-slate-800/50 transition-colors">
+                  <td className="p-4 font-bold text-slate-300 bg-slate-950 sticky right-0 z-10 border-l border-slate-800">معدل التنفس (RR)</td>
                   {entries.map((e, idx) => (
-                    <td key={idx} className="p-3 text-center border-r border-slate-100 dark:border-slate-700/50">
+                    <td key={idx} className="p-4 text-center border-l border-slate-800 font-bold text-lg text-slate-300">
                       {e.respRate || '-'}
                     </td>
                   ))}
@@ -174,44 +176,44 @@ export const IcuFlowsheet = () => {
 
             {activeTab === 'io' && (
               <>
-                <tr className="bg-sky-50 dark:bg-sky-900/10">
-                  <td colSpan={entries.length + 1} className="p-2 px-4 text-xs font-bold text-sky-800 dark:text-sky-300 uppercase tracking-wider sticky left-0">Intake</td>
+                <tr className="bg-sky-950/20">
+                  <td colSpan={entries.length + 1} className="p-3 px-5 text-sm font-bold text-sky-400 sticky right-0">المدخلات (Intake)</td>
                 </tr>
-                <tr className="hover:bg-slate-50 dark:hover:bg-slate-700/30">
-                  <td className="p-3 font-medium text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-800 sticky left-0 z-10 border-r border-slate-200 dark:border-slate-700 pl-8">Type</td>
+                <tr className="hover:bg-slate-800/50 transition-colors border-t border-slate-800">
+                  <td className="p-4 font-bold text-slate-400 bg-slate-950 sticky right-0 z-10 border-l border-slate-800 pr-10">النوع</td>
                   {entries.map((e, idx) => (
-                    <td key={idx} className="p-3 text-center border-r border-slate-100 dark:border-slate-700/50 text-xs">
+                    <td key={idx} className="p-4 text-center border-l border-slate-800 text-slate-300">
                       {e.intakeType || '-'}
                     </td>
                   ))}
                   {entries.length === 0 && <td></td>}
                 </tr>
-                <tr className="hover:bg-slate-50 dark:hover:bg-slate-700/30">
-                  <td className="p-3 font-medium text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-800 sticky left-0 z-10 border-r border-slate-200 dark:border-slate-700 pl-8">Amount (ml)</td>
+                <tr className="hover:bg-slate-800/50 transition-colors">
+                  <td className="p-4 font-bold text-slate-400 bg-slate-950 sticky right-0 z-10 border-l border-slate-800 pr-10">الكمية (ml)</td>
                   {entries.map((e, idx) => (
-                    <td key={idx} className="p-3 text-center border-r border-slate-100 dark:border-slate-700/50 font-bold text-sky-600 dark:text-sky-400">
+                    <td key={idx} className="p-4 text-center border-l border-slate-800 font-bold text-lg text-sky-400">
                       {e.intakeAmount || '-'}
                     </td>
                   ))}
                   {entries.length === 0 && <td></td>}
                 </tr>
 
-                <tr className="bg-amber-50 dark:bg-amber-900/10 border-t border-slate-200 dark:border-slate-700">
-                   <td colSpan={entries.length + 1} className="p-2 px-4 text-xs font-bold text-amber-800 dark:text-amber-300 uppercase tracking-wider sticky left-0">Output</td>
+                <tr className="bg-amber-950/20 border-t border-b border-slate-800">
+                   <td colSpan={entries.length + 1} className="p-3 px-5 text-sm font-bold text-amber-500 sticky right-0">المخرجات (Output)</td>
                 </tr>
-                <tr className="hover:bg-slate-50 dark:hover:bg-slate-700/30">
-                  <td className="p-3 font-medium text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-800 sticky left-0 z-10 border-r border-slate-200 dark:border-slate-700 pl-8">Type</td>
+                <tr className="hover:bg-slate-800/50 transition-colors">
+                  <td className="p-4 font-bold text-slate-400 bg-slate-950 sticky right-0 z-10 border-l border-slate-800 pr-10">النوع</td>
                   {entries.map((e, idx) => (
-                    <td key={idx} className="p-3 text-center border-r border-slate-100 dark:border-slate-700/50 text-xs">
+                    <td key={idx} className="p-4 text-center border-l border-slate-800 text-slate-300">
                       {e.outputType || '-'}
                     </td>
                   ))}
                   {entries.length === 0 && <td></td>}
                 </tr>
-                <tr className="hover:bg-slate-50 dark:hover:bg-slate-700/30 border-b-2 border-slate-200 dark:border-slate-700">
-                  <td className="p-3 font-medium text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-800 sticky left-0 z-10 border-r border-slate-200 dark:border-slate-700 pl-8">Amount (ml)</td>
+                <tr className="hover:bg-slate-800/50 transition-colors border-b-2 border-slate-800">
+                  <td className="p-4 font-bold text-slate-400 bg-slate-950 sticky right-0 z-10 border-l border-slate-800 pr-10">الكمية (ml)</td>
                   {entries.map((e, idx) => (
-                    <td key={idx} className="p-3 text-center border-r border-slate-100 dark:border-slate-700/50 font-bold text-amber-600 dark:text-amber-400">
+                    <td key={idx} className="p-4 text-center border-l border-slate-800 font-bold text-lg text-amber-500">
                       {e.outputAmount || '-'}
                     </td>
                   ))}
@@ -222,28 +224,28 @@ export const IcuFlowsheet = () => {
 
             {activeTab === 'vent' && (
                <>
-                <tr className="hover:bg-slate-50 dark:hover:bg-slate-700/30">
-                  <td className="p-3 font-semibold text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-800 sticky left-0 z-10 border-r border-slate-200 dark:border-slate-700">Mode</td>
+                <tr className="hover:bg-slate-800/50 transition-colors">
+                  <td className="p-4 font-bold text-slate-300 bg-slate-950 sticky right-0 z-10 border-l border-slate-800">وضع التنفس (Mode)</td>
                   {entries.map((e, idx) => (
-                    <td key={idx} className="p-3 text-center border-r border-slate-100 dark:border-slate-700/50 font-bold text-emerald-600 dark:text-emerald-400">
+                    <td key={idx} className="p-4 text-center border-l border-slate-800 font-bold text-lg text-emerald-400 uppercase tracking-wider">
                       {e.ventilatorLog?.mode || '-'}
                     </td>
                   ))}
                   {entries.length === 0 && <td></td>}
                 </tr>
-                <tr className="hover:bg-slate-50 dark:hover:bg-slate-700/30">
-                  <td className="p-3 font-semibold text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-800 sticky left-0 z-10 border-r border-slate-200 dark:border-slate-700">FiO2 (%)</td>
+                <tr className="hover:bg-slate-800/50 transition-colors">
+                  <td className="p-4 font-bold text-slate-300 bg-slate-950 sticky right-0 z-10 border-l border-slate-800">FiO2 (%)</td>
                   {entries.map((e, idx) => (
-                    <td key={idx} className="p-3 text-center border-r border-slate-100 dark:border-slate-700/50">
+                    <td key={idx} className="p-4 text-center border-l border-slate-800 font-bold text-lg text-slate-300">
                       {e.ventilatorLog?.fio2 || '-'}
                     </td>
                   ))}
                   {entries.length === 0 && <td></td>}
                 </tr>
-                <tr className="hover:bg-slate-50 dark:hover:bg-slate-700/30 border-b-2 border-slate-200 dark:border-slate-700">
-                  <td className="p-3 font-semibold text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-800 sticky left-0 z-10 border-r border-slate-200 dark:border-slate-700">PEEP</td>
+                <tr className="hover:bg-slate-800/50 transition-colors border-b-2 border-slate-800">
+                  <td className="p-4 font-bold text-slate-300 bg-slate-950 sticky right-0 z-10 border-l border-slate-800">PEEP</td>
                   {entries.map((e, idx) => (
-                    <td key={idx} className="p-3 text-center border-r border-slate-100 dark:border-slate-700/50">
+                    <td key={idx} className="p-4 text-center border-l border-slate-800 font-bold text-lg text-slate-300">
                       {e.ventilatorLog?.peep || '-'}
                     </td>
                   ))}
@@ -254,10 +256,10 @@ export const IcuFlowsheet = () => {
 
             {activeTab === 'neuro' && (
               <>
-                <tr className="hover:bg-slate-50 dark:hover:bg-slate-700/30 border-b-2 border-slate-200 dark:border-slate-700">
-                  <td className="p-3 font-semibold text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-800 sticky left-0 z-10 border-r border-slate-200 dark:border-slate-700">GCS Score (3-15)</td>
+                <tr className="hover:bg-slate-800/50 transition-colors border-b-2 border-slate-800">
+                  <td className="p-4 font-bold text-slate-300 bg-slate-950 sticky right-0 z-10 border-l border-slate-800">مقياس الغيبوبة (GCS Score)</td>
                   {entries.map((e, idx) => (
-                    <td key={idx} className={`p-3 text-center border-r border-slate-100 dark:border-slate-700/50 font-bold ${e.gcsScore < 8 ? 'text-rose-500' : 'text-purple-600 dark:text-purple-400'}`}>
+                    <td key={idx} className={`p-4 text-center border-l border-slate-800 font-bold text-lg ${e.gcsScore < 8 ? 'text-rose-400 drop-shadow-[0_0_8px_rgba(244,63,94,0.5)]' : 'text-purple-400 drop-shadow-[0_0_8px_rgba(192,132,252,0.5)]'}`}>
                       {e.gcsScore || '-'}
                     </td>
                   ))}
@@ -267,10 +269,10 @@ export const IcuFlowsheet = () => {
             )}
 
              {/* Bottom row for Notes across all tabs */}
-             <tr className="bg-slate-50 dark:bg-slate-800/80">
-               <td className="p-3 font-medium text-slate-500 sticky left-0 z-10 border-r border-slate-200 dark:border-slate-700">Notes</td>
+             <tr className="bg-slate-950">
+               <td className="p-4 font-bold text-slate-500 sticky right-0 z-10 border-l border-slate-800">ملاحظات</td>
                {entries.map((e, idx) => (
-                 <td key={idx} className="p-3 text-xs text-slate-500 border-r border-slate-200 dark:border-slate-700/50 max-w-[150px] truncate" title={e.notes}>
+                 <td key={idx} className="p-4 text-xs font-medium text-slate-400 border-l border-slate-800 whitespace-pre-wrap leading-relaxed max-w-[200px]" title={e.notes}>
                    {e.notes || '-'}
                  </td>
                ))}
