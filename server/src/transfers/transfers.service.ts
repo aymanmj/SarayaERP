@@ -13,11 +13,21 @@ export class TransfersService {
     });
     if (!encounter) throw new NotFoundException('Encounter not found');
 
+    let fromBedId = dto.fromBedId;
+    if (!fromBedId) {
+      const currentAssignment = await this.prisma.bedAssignment.findFirst({
+        where: { hospitalId, encounterId: dto.encounterId, to: null }
+      });
+      if (currentAssignment) {
+        fromBedId = currentAssignment.bedId;
+      }
+    }
+
     const transfer = await this.prisma.transferOrder.create({
       data: {
         hospitalId,
         encounterId: dto.encounterId,
-        fromBedId: dto.fromBedId,
+        fromBedId,
         requestedById: userId,
         status: TransferOrderStatus.REQUESTED,
         reason: dto.reason,

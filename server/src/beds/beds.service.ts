@@ -108,9 +108,16 @@ export class BedsService {
     });
 
     if (existingForEncounter) {
-      throw new BadRequestException(
-        'يوجد بالفعل سرير مرتبط بهذه الحالة (Encounter)',
-      );
+      // IF THEY ALREADY HAVE A BED, THIS IS A DIRECT TRANSFER. RELEASE THE OLD BED
+      await this.prisma.bedAssignment.update({
+        where: { id: existingForEncounter.id },
+        data: { to: new Date() },
+      });
+
+      await this.prisma.bed.update({
+        where: { id: existingForEncounter.bedId },
+        data: { status: BedStatus.CLEANING },
+      });
     }
 
     // 4. التحقق: هل السرير محجوز بالفعل؟
@@ -122,7 +129,7 @@ export class BedsService {
       throw new BadRequestException('السرير محجوز بالفعل لحالة أخرى');
     }
 
-    // 5. ✅ [تعديل هام] التحقق: هل المريض (نفس الشخص) يشغل سريراً آخر حالياً؟
+    // 5. ✅ [تعديل هام] التحقق: هل المريض (نفس الشخص) يشغل سريراً آخر حالياً في حالة تنويم أخرى؟
     // يمنع فتح حالتي تنويم لنفس المريض في نفس الوقت وحجز سريرين
     const patientActiveBed = await this.prisma.bedAssignment.findFirst({
       where: {
@@ -130,6 +137,7 @@ export class BedsService {
         encounter: {
           patientId: encounter.patientId, // نفس المريض
         },
+        encounterId: { not: encounterId }, // استثناء الحالة الحالية لأننا نعالجها أعلاه كنقل
         to: null, // الحجز ما زال نشطاً
       },
       include: {

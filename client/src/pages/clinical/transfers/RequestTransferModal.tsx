@@ -33,12 +33,14 @@ export const RequestTransferModal: React.FC<RequestTransferModalProps> = ({
 
     setSubmitting(true);
     try {
-      await apiClient.post('/transfers/request', {
+      const payload: any = {
         encounterId,
-        fromBedId,
         reason,
         notes
-      });
+      };
+      if (fromBedId) payload.fromBedId = fromBedId;
+
+      await apiClient.post('/transfers/request', payload);
       toast.success('تم إرسال طلب النقل إلى العناية/القسم بنجاح');
       onSuccess();
       onClose();
