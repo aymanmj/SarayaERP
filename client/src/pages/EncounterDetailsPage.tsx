@@ -8,6 +8,7 @@ import { apiClient } from "../api/apiClient";
 import { toast } from "sonner";
 import { useAuthStore } from "../stores/authStore";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { AlertCircle, Clock, CheckCircle2 } from "lucide-react";
 
 // Components
 import { VitalsPane } from "../components/encounter/VitalsPane";
@@ -201,6 +202,18 @@ export default function EncounterDetailsPage() {
       staleTime: Infinity, // Departments rarely change
   });
 
+  // 3. Fetch Active Transfers for this Encounter
+  const { data: pendingTransfers = [] } = useQuery({
+      queryKey: ['transfers', encId],
+      queryFn: async () => {
+          const res = await apiClient.get<any[]>("/transfers/pending"); 
+          return res.data.filter((t: any) => t.encounterId === encId);
+      },
+      enabled: !!encId
+  });
+
+  const activeTransfer = pendingTransfers.length > 0 ? pendingTransfers[0] : null;
+
   // --- Mutations ---
 
   const assignDoctorMutation = useMutation({
@@ -332,6 +345,31 @@ export default function EncounterDetailsPage() {
   return (
     <div className="flex flex-col h-full text-slate-100 p-4 md:p-6 space-y-6 overflow-hidden">
       {/* 1. Header */}
+      {activeTransfer && (
+        <div className="bg-amber-900/20 border border-amber-500/50 rounded-2xl p-4 flex items-center gap-4 shadow-sm animate-pulse">
+            <div className="p-2 bg-amber-500/20 text-amber-400 rounded-full">
+               <Clock className="w-6 h-6" />
+            </div>
+            <div className="flex-1">
+               <h3 className="text-amber-400 font-bold text-sm">يوجد طلب نقل قيد المعالجة (Transfer Pending)</h3>
+               <p className="text-amber-200/70 text-xs mt-1">
+                  {activeTransfer.status === 'REQUESTED' 
+                    ? "بانتظار طبيب/تمريض القسم المستقبل لتخصيص سرير للمريض." 
+                    : activeTransfer.status === 'BED_ALLOCATED' 
+                    ? "تم تخصيص السرير بنجاح! يرجى التواصل مع فريق التمريض لتسليم الحالة (SBAR Handover) قبل نقل المريض فعلياً."
+                    : activeTransfer.status === 'HANDOVER_SIGNED'
+                    ? "تم تسليم الحالة. بانتظار تأكيد وصول المريض للقسم المستقبل."
+                    : "الطلب قيد المعالجة."}
+               </p>
+            </div>
+            <div className="text-left shrink-0">
+               <span className="bg-amber-950/50 text-amber-500 border border-amber-500/30 px-3 py-1 rounded-xl text-xs font-bold">
+                 الحالة: {activeTransfer.status}
+               </span>
+            </div>
+        </div>
+      )}
+
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 shadow-sm">
         <div>
           <div className="flex items-center gap-3 mb-1">
@@ -615,12 +653,19 @@ export default function EncounterDetailsPage() {
               <h2 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
                 🔄 أوامر النقل
               </h2>
-              <button
-                onClick={() => setShowTransferModal(true)}
-                className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold shadow transition flex justify-center items-center gap-2"
-              >
-                <span>🚑</span> طلب نقل (عناية/قسم)
-              </button>
+              {activeTransfer ? (
+                <div className="w-full py-2.5 bg-slate-700/50 border border-slate-600/50 text-slate-400 rounded-xl text-xs font-bold flex flex-col justify-center items-center gap-2 cursor-not-allowed">
+                  <span>⏳ طلب النقل قيد الانتظار</span>
+                  <span className="text-[10px] text-slate-500 font-normal">لا يمكنك طلب نقل جديد حالياً</span>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowTransferModal(true)}
+                  className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold shadow transition flex justify-center items-center gap-2"
+                >
+                  <span>🚑</span> طلب نقل (عناية/قسم)
+                </button>
+              )}
             </div>
           )}
 

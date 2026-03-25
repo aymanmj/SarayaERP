@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../../../api/apiClient';
-import { Loader2, FileSignature, Activity, Users, Bed, AlertCircle } from 'lucide-react';
+import { Loader2, FileSignature, Activity, Users, Bed, AlertCircle, HeartPulse, ShieldAlert } from 'lucide-react';
 import { HandoverNoteModal } from '../transfers/HandoverNoteModal';
 
 export const IcuDashboard = () => {
@@ -43,231 +43,279 @@ export const IcuDashboard = () => {
       fetchData();
     } catch (err) {
       console.error(err);
-      alert('Failed to allocate bed');
+      alert('فشل تعيين السرير');
     }
   };
 
-  if (loading) return <div className="flex justify-center items-center h-[calc(100vh-200px)]"><Loader2 className="w-10 h-10 animate-spin text-sky-600" /></div>;
+  const confirmArrival = async (id: number) => {
+    try {
+      await apiClient.patch(`/transfers/${id}/arrive`);
+      fetchData();
+    } catch (err) {
+      console.error(err);
+      alert('فشل تأكيد الوصول');
+    }
+  };
+
+  if (loading) return (
+    <div className="flex flex-col items-center justify-center h-[calc(100vh-200px)] text-slate-400">
+      <Loader2 className="w-10 h-10 animate-spin text-sky-500 mb-4" />
+      <span className="text-sm animate-pulse">جارِ تحميل بيانات العناية المركزة...</span>
+    </div>
+  );
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      <div className="flex justify-between items-center mb-6">
+    <div className="flex flex-col h-full text-slate-100 p-4 lg:p-6 space-y-6 overflow-hidden max-w-7xl mx-auto" dir="rtl">
+      
+      {/* 1. Header */}
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-sm shrink-0">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800 dark:text-white">ICU Central Dashboard</h1>
-          <p className="text-slate-500 text-sm">Real-time overview of Intensive Care Units</p>
+          <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-3">
+            <div className="p-2 bg-sky-900/30 text-sky-400 rounded-xl border border-sky-500/30">
+              <Activity className="w-6 h-6" />
+            </div>
+            لوحة تحكم العناية المركزة (ICU)
+          </h1>
+          <p className="text-slate-400 text-sm mt-1">
+            مراقبة حية للمرضى، الأسرة، والتحويلات القادمة للعناية الفائقة
+          </p>
         </div>
         <div className="flex gap-3">
-          <button onClick={() => fetchData()} className="px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800">
-            Refresh
+          <button 
+            onClick={() => fetchData()} 
+            className="px-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-slate-300 hover:bg-slate-700 hover:text-white transition-colors flex items-center gap-2 text-sm font-medium shadow-sm"
+          >
+            <span>🔄</span> تحديث البيانات
           </button>
         </div>
       </div>
 
-      {/* STATS CARDS */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-5 flex items-center">
-          <div className="p-3 bg-blue-100 text-blue-600 rounded-lg mr-4">
+      {/* 2. STATS CARDS */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 shrink-0">
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex items-center hover:border-slate-700 transition-colors shadow-sm relative overflow-hidden group">
+          <div className="absolute -inset-1 bg-gradient-to-r from-blue-600/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity blur-xl"></div>
+          <div className="absolute top-0 right-0 w-16 h-16 bg-blue-500/10 rounded-bl-full"></div>
+          <div className="p-3 bg-blue-900/30 text-blue-400 border border-blue-500/30 rounded-xl ml-4 z-10">
             <Users className="w-6 h-6" />
           </div>
-          <div>
-            <p className="text-sm text-slate-500 font-medium">Admitted Patients</p>
-            <h3 className="text-2xl font-bold text-slate-800 dark:text-white">{patients.length}</h3>
+          <div className="z-10">
+            <p className="text-xs text-slate-400 font-medium mb-1">المرضى المنومين</p>
+            <h3 className="text-2xl font-bold text-white">{patients.length}</h3>
           </div>
         </div>
         
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-5 flex items-center">
-          <div className="p-3 bg-emerald-100 text-emerald-600 rounded-lg mr-4">
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex items-center hover:border-slate-700 transition-colors shadow-sm relative overflow-hidden group">
+           <div className="absolute -inset-1 bg-gradient-to-r from-emerald-600/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity blur-xl"></div>
+          <div className="absolute top-0 right-0 w-16 h-16 bg-emerald-500/10 rounded-bl-full"></div>
+          <div className="p-3 bg-emerald-900/30 text-emerald-400 border border-emerald-500/30 rounded-xl ml-4 z-10">
             <Bed className="w-6 h-6" />
           </div>
-          <div>
-            <p className="text-sm text-slate-500 font-medium">Available Beds</p>
-            <h3 className="text-2xl font-bold text-slate-800 dark:text-white">{stats?.beds?.available ?? 0}</h3>
+          <div className="z-10">
+            <p className="text-xs text-slate-400 font-medium mb-1">الأسرة المتاحة</p>
+            <h3 className="text-2xl font-bold text-white">{stats?.beds?.available ?? 0}</h3>
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-5 flex items-center">
-          <div className="p-3 bg-purple-100 text-purple-600 rounded-lg mr-4">
-            <Activity className="w-6 h-6" />
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex items-center hover:border-slate-700 transition-colors shadow-sm relative overflow-hidden group">
+           <div className="absolute -inset-1 bg-gradient-to-r from-purple-600/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity blur-xl"></div>
+          <div className="absolute top-0 right-0 w-16 h-16 bg-purple-500/10 rounded-bl-full"></div>
+          <div className="p-3 bg-purple-900/30 text-purple-400 border border-purple-500/30 rounded-xl ml-4 z-10">
+            <HeartPulse className="w-6 h-6" />
           </div>
-          <div>
-            <p className="text-sm text-slate-500 font-medium">Active Ventilators</p>
-            <h3 className="text-2xl font-bold text-slate-800 dark:text-white">{stats?.activeVentilators ?? 0}</h3>
+          <div className="z-10">
+            <p className="text-xs text-slate-400 font-medium mb-1">أجهزة التنفس النشطة</p>
+            <h3 className="text-2xl font-bold text-white">{stats?.activeVentilators ?? 0}</h3>
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-5 flex items-center">
-          <div className="p-3 bg-amber-100 text-amber-600 rounded-lg mr-4">
-            <AlertCircle className="w-6 h-6" />
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex items-center hover:border-slate-700 transition-colors shadow-sm relative overflow-hidden group">
+           <div className="absolute -inset-1 bg-gradient-to-r from-rose-600/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity blur-xl"></div>
+          <div className="absolute top-0 right-0 w-16 h-16 bg-rose-500/10 rounded-bl-full"></div>
+          <div className="p-3 bg-rose-900/30 text-rose-400 border border-rose-500/30 rounded-xl ml-4 z-10">
+            <ShieldAlert className="w-6 h-6" />
           </div>
-          <div>
-            <p className="text-sm text-slate-500 font-medium">Pending Transfers</p>
-            <h3 className="text-2xl font-bold text-slate-800 dark:text-white">{transfers.length}</h3>
+          <div className="z-10">
+            <p className="text-xs text-slate-400 font-medium mb-1">طلبات نقل معلقة</p>
+            <h3 className="text-2xl font-bold text-white">{transfers.length}</h3>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* LEFT COLUMN - PATIENTS (Spans 2 cols) */}
-        <div className="lg:col-span-2 space-y-6">
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
-              <h2 className="text-lg font-semibold text-slate-800 dark:text-white flex items-center gap-2">
-                <Users className="w-5 h-5 text-sky-500" /> Current ICU Patients
-              </h2>
-            </div>
-            
+      {/* 3. MAIN CONTENT GRID */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 min-h-0">
+        
+        {/* RIGHT COLUMN (RTL) / MAIN AREA - PATIENTS (Spans 2 cols) */}
+        <div className="lg:col-span-2 flex flex-col bg-slate-900/50 border border-slate-800 rounded-2xl overflow-hidden shadow-sm h-[600px] lg:h-auto">
+          <div className="px-6 py-4 border-b border-slate-800 bg-slate-900 shrink-0">
+            <h2 className="text-sm font-bold text-white flex items-center gap-2">
+              <Users className="w-4 h-4 text-sky-400" /> مرضى العناية المركزة حالياً
+            </h2>
+          </div>
+          
+          <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-3">
             {patients.length === 0 ? (
-              <div className="p-8 text-center text-slate-500">
-                No active patients in ICU right now.
+              <div className="text-center text-slate-500 flex flex-col items-center justify-center h-full">
+                <Bed className="w-16 h-16 mb-4 opacity-20" />
+                <p>لا يوجد مرضى منومين في العناية المركزة حالياً.</p>
               </div>
             ) : (
-              <div className="divide-y divide-slate-200 dark:divide-slate-700">
-                {patients.map(p => (
-                  <div key={p.id} className="p-4 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors flex items-center justify-between">
-                    <div className="flex items-start gap-4">
-                      <div className="w-12 h-12 rounded-full bg-slate-200 dark:bg-slate-600 flex items-center justify-center text-slate-600 dark:text-slate-300 font-semibold text-lg shrink-0">
-                        {p.patient?.fullName?.charAt(0) || '?'}
-                      </div>
-                      <div>
-                        <h3 className="font-semibold text-slate-800 dark:text-slate-100 leading-tight">
-                          {p.patient?.fullName}
-                        </h3>
-                        <p className="text-sm text-slate-500 mt-1 flex items-center gap-2">
-                          <span className="bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded text-xs">MRN: {p.patient?.mrn}</span>
-                          {p.bed && (
-                            <span className="bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 px-2 py-0.5 rounded text-xs flex items-center gap-1">
-                              <Bed className="w-3 h-3" /> Bed {p.bed.bedNumber} ({p.bed.ward?.name})
-                            </span>
-                          )}
-                        </p>
-                      </div>
+              patients.map(p => (
+                <div key={p.id} className="p-4 bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-2xl transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 group">
+                  <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 rounded-full bg-slate-950 border border-slate-700 flex items-center justify-center text-sky-400 font-bold text-xl shrink-0 shadow-inner group-hover:border-sky-500/50 transition-colors">
+                      {p.patient?.fullName?.charAt(0) || '?'}
                     </div>
-                    <div className="flex gap-2">
-                      <button 
-                        onClick={() => navigate(`/clinical/icu/patient/${p.encounterId}`)} 
-                        className="px-3 py-1.5 bg-white border border-slate-300 dark:border-slate-600 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded hover:bg-slate-50 dark:hover:bg-slate-700 text-sm font-medium transition-colors">
-                        Details
-                      </button>
-                      <button 
-                        onClick={() => navigate(`/clinical/icu/flowsheet/${p.encounterId}`)} 
-                        className="px-3 py-1.5 bg-sky-600 text-white rounded hover:bg-sky-700 text-sm font-medium transition-colors">
-                        Flowsheet
-                      </button>
+                    <div>
+                      <h3 className="font-bold text-slate-100 text-sm leading-tight mb-2">
+                        {p.patient?.fullName}
+                      </h3>
+                      <div className="flex flex-wrap items-center gap-2 text-[10px] md:text-xs">
+                        <span className="text-slate-500 font-mono">#{p.patient?.mrn}</span>
+                        {p.bed && (
+                          <span className="bg-sky-900/30 text-sky-300 border border-sky-500/30 px-2 py-0.5 rounded flex items-center gap-1 font-medium">
+                            <Bed className="w-3 h-3" /> سرير {p.bed.bedNumber} ({p.bed.ward?.name})
+                          </span>
+                        )}
+                        <span className="bg-emerald-900/20 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded font-medium">
+                          مستقر
+                        </span>
+                      </div>
                     </div>
                   </div>
-                ))}
-              </div>
+                  <div className="flex gap-2 w-full sm:w-auto mt-2 sm:mt-0">
+                    <button 
+                      onClick={() => navigate(`/clinical/icu/patient/${p.encounterId}`)} 
+                      className="flex-1 sm:flex-none px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 rounded-xl text-xs font-bold transition-colors shadow-sm"
+                    >
+                      الملف الطبي
+                    </button>
+                    <button 
+                      onClick={() => navigate(`/clinical/icu/flowsheet/${p.encounterId}`)} 
+                      className="flex-1 sm:flex-none px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-sky-900/50"
+                    >
+                      المخطط السريري
+                    </button>
+                  </div>
+                </div>
+              ))
             )}
           </div>
         </div>
 
-        {/* RIGHT COLUMN - TRANSFERS & OVERVIEW */}
-        <div className="space-y-6">
+        {/* LEFT COLUMN (RTL) - TRANSFERS & OVERVIEW */}
+        <div className="flex flex-col gap-6 h-full overflow-hidden shrink-0">
+          
           {/* PENDING TRANSFERS */}
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
-            <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
-              <h2 className="text-lg font-semibold text-slate-800 dark:text-white flex items-center gap-2">
-                Incoming Transfers
-                {transfers.length > 0 && <span className="bg-red-100 text-red-600 text-xs px-2 py-0.5 rounded-full font-bold">{transfers.length}</span>}
+          <div className="flex-1 flex flex-col bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-sm h-[400px]">
+            <div className="px-5 py-4 border-b border-slate-800 bg-slate-900 flex justify-between items-center shrink-0">
+              <h2 className="text-sm font-bold text-white flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-amber-400" />
+                تحويلات قادمة
               </h2>
+              {transfers.length > 0 && <span className="bg-rose-500/20 text-rose-400 border border-rose-500/30 text-[10px] px-2 py-0.5 rounded font-bold">{transfers.length} معلق</span>}
             </div>
             
-            <div className="p-4">
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-3">
               {transfers.length === 0 ? (
-                <p className="text-sm text-slate-500 text-center py-4">No pending incoming transfers.</p>
-              ) : (
-                <div className="space-y-3">
-                  {transfers.map(t => (
-                    <div key={t.id} className="p-3 border border-amber-200 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-800/30 rounded-lg">
-                      <div className="flex justify-between items-start mb-2">
-                        <span className="font-semibold text-amber-900 dark:text-amber-200 text-sm">{t.encounter?.patient?.fullName}</span>
-                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider bg-amber-200/50 text-amber-800 dark:text-amber-300">{t.status.replace('_', ' ')}</span>
-                      </div>
-                      <p className="text-xs text-amber-700/80 dark:text-amber-400 mb-3">{t.reason}</p>
-                      
-                      <div className="flex flex-row flex-wrap gap-2 w-full mt-2">
-                        {t.status === 'REQUESTED' && (
-                          <button 
-                             onClick={() => {
-                               const bedIdStr = prompt('Enter Bed ID (1-10) to allocate:');
-                               if (bedIdStr && !isNaN(Number(bedIdStr))) allocateBed(t.id, Number(bedIdStr));
-                             }}
-                             className="flex-1 py-1.5 px-2 bg-white border border-amber-300 text-amber-700 rounded text-xs font-semibold hover:bg-amber-100 transition-colors whitespace-nowrap">
-                            Allocate Bed
-                          </button>
-                        )}
-                        {(t.status === 'HANDOVER_SIGNED' || t.status === 'BED_ALLOCATED') && (
-                          <button 
-                             onClick={async () => {
-                               await apiClient.patch(`/transfers/${t.id}/arrive`);
-                               fetchData();
-                             }}
-                             className="flex-1 py-1.5 px-2 bg-emerald-600 text-white rounded text-xs font-semibold hover:bg-emerald-700 transition-colors whitespace-nowrap">
-                            Confirm Arrival
-                          </button>
-                        )}
-                        <button 
-                          onClick={() => {
-                            setSelectedTransfer(t);
-                            setShowHandoverModal(true);
-                          }} 
-                          className="flex-1 py-1.5 px-2 flex items-center justify-center gap-1.5 bg-indigo-600 text-white rounded text-xs font-semibold hover:bg-indigo-700 transition-colors whitespace-nowrap">
-                           <FileSignature className="w-3.5 h-3.5" /> SBAR Handover Note
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                <div className="text-center py-8">
+                   <AlertCircle className="w-8 h-8 text-slate-700 mx-auto mb-3" />
+                  <p className="text-xs text-slate-500">لا توجد طلبات نقل معلقة حالياً.</p>
                 </div>
+              ) : (
+                transfers.map(t => (
+                  <div key={t.id} className="p-4 border border-slate-800 bg-slate-950 rounded-2xl shadow-sm relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 w-1 h-full bg-amber-500"></div>
+                    <div className="flex justify-between items-start mb-3">
+                      <span className="font-bold text-slate-200 text-sm">{t.encounter?.patient?.fullName}</span>
+                    </div>
+                    
+                    <div className="mb-4">
+                      <span className={`inline-block text-[10px] font-bold px-2 py-1 rounded mb-2 tracking-wide ${
+                        t.status === 'REQUESTED' ? 'bg-amber-900/40 text-amber-400 border border-amber-500/30' : 
+                        t.status === 'BED_ALLOCATED' ? 'bg-purple-900/40 text-purple-400 border border-purple-500/30' :
+                        'bg-sky-900/40 text-sky-400 border border-sky-500/30'
+                      }`}>
+                        {t.status === 'REQUESTED' ? 'طلب جديد - في انتظار سرير' : 
+                         t.status === 'BED_ALLOCATED' ? 'تم تعيين سرير - بانتظار المريض' :
+                         t.status === 'HANDOVER_SIGNED' ? 'اكتمل تسليم الحالة' : t.status}
+                      </span>
+                      <p className="text-xs text-slate-400 bg-slate-900 p-3 rounded-xl border border-slate-800 leading-relaxed">
+                        <span className="text-slate-500 block mb-1">سبب تحويل الحالة:</span>
+                        {t.reason}
+                      </p>
+                    </div>
+                    
+                    <div className="flex flex-col gap-2 w-full mt-2">
+                      {t.status === 'REQUESTED' && (
+                        <button 
+                           onClick={() => {
+                             const bedIdStr = prompt('أدخل رقم الـ ID للسرير المتاح (مثال: 1 أو 2):');
+                             if (bedIdStr && !isNaN(Number(bedIdStr))) allocateBed(t.id, Number(bedIdStr));
+                           }}
+                           className="w-full py-2.5 bg-amber-600/20 hover:bg-amber-600/40 border border-amber-500/50 text-amber-400 rounded-xl text-xs font-bold transition-all">
+                          تخصيص سرير لاستقبال الحالة
+                        </button>
+                      )}
+                      
+                      {t.status === 'BED_ALLOCATED' && (
+                         <button 
+                           onClick={() => {
+                             setSelectedTransfer(t);
+                             setShowHandoverModal(true);
+                           }} 
+                           className="w-full py-2.5 flex items-center justify-center gap-1.5 bg-indigo-600/20 hover:bg-indigo-600/40 border border-indigo-500/50 text-indigo-400 rounded-xl text-xs font-bold transition-all">
+                            <FileSignature className="w-3.5 h-3.5" /> استلام المريض ومراجعة SBAR
+                         </button>
+                      )}
+
+                      {t.status === 'HANDOVER_SIGNED' && (
+                        <button 
+                           onClick={() => confirmArrival(t.id)}
+                           className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-emerald-900/20">
+                          تأكيد وصول المريض للعناية
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))
               )}
             </div>
           </div>
 
-          {/* BED STATUS OVERVIEW */}
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-5">
-             <h2 className="text-lg font-semibold mb-4 text-slate-800 dark:text-white border-b border-slate-100 dark:border-slate-700 pb-2">Bed Utilization</h2>
-             <ul className="space-y-3 text-sm">
-               <li className="flex justify-between items-center">
-                 <span className="text-slate-600 dark:text-slate-400">Total ICU Beds</span> 
-                 <span className="font-bold text-slate-800 dark:text-slate-200">{stats?.beds?.total ?? 0}</span>
-               </li>
-               <li className="flex justify-between items-center">
-                 <span className="text-slate-600 dark:text-slate-400 flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-red-500"></div> Occupied</span> 
-                 <span className="font-bold text-slate-800 dark:text-slate-200">{stats?.beds?.occupied ?? 0}</span>
-               </li>
-               <li className="flex justify-between items-center">
-                 <span className="text-slate-600 dark:text-slate-400 flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-emerald-500"></div> Available</span> 
-                 <span className="font-bold text-emerald-600 dark:text-emerald-400">{stats?.beds?.available ?? 0}</span>
-               </li>
-               <li className="flex justify-between items-center">
-                 <span className="text-slate-600 dark:text-slate-400 flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-amber-500"></div> Cleaning/Maintenance</span> 
-                 <span className="font-bold text-amber-600 dark:text-amber-400">{stats?.beds?.cleaning ?? 0}</span>
-               </li>
-             </ul>
-             
-             {/* Progress Bar */}
-             <div className="mt-5">
-                <div className="flex justify-between text-xs mb-1 text-slate-500">
-                  <span>Occupancy Rate</span>
-                  <span>{stats?.beds?.total ? Math.round((stats.beds.occupied / stats.beds.total) * 100) : 0}%</span>
+          {/* BED UTILIZATION COMPACT */}
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-sm shrink-0">
+             <h2 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
+               <Bed className="w-4 h-4 text-emerald-400" /> ملخص الأسرة
+             </h2>
+             <div className="space-y-3">
+                <div className="flex justify-between items-center bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+                  <span className="text-xs text-slate-400">إجمالي أسرة العناية</span> 
+                  <span className="font-bold text-slate-200">{stats?.beds?.total ?? 0}</span>
                 </div>
-                <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2.5 overflow-hidden flex">
-                  <div className="bg-red-500 h-2.5" style={{ width: `${stats?.beds?.total ? (stats.beds.occupied / stats.beds.total) * 100 : 0}%` }}></div>
-                  <div className="bg-amber-500 h-2.5" style={{ width: `${stats?.beds?.total ? (stats.beds.cleaning / stats.beds.total) * 100 : 0}%` }}></div>
+                <div className="flex justify-between items-center bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+                  <span className="text-xs text-slate-400 flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-rose-500"></div> مشغول</span> 
+                  <span className="font-bold text-rose-400">{stats?.beds?.occupied ?? 0}</span>
+                </div>
+                <div className="flex justify-between items-center bg-slate-950 p-2.5 rounded-xl border border-emerald-500/20 shadow-[inset_0_0_10px_rgba(16,185,129,0.05)]">
+                  <span className="text-xs text-emerald-400 flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]"></div> متاح (Available)</span> 
+                  <span className="font-bold text-emerald-400 text-lg">{stats?.beds?.available ?? 0}</span>
                 </div>
              </div>
           </div>
+
         </div>
       </div>
 
-      {showHandoverModal && selectedTransfer && (
-        <HandoverNoteModal
-          isOpen={showHandoverModal}
-          onClose={() => setShowHandoverModal(false)}
-          transferId={selectedTransfer.id}
-          patientName={selectedTransfer.encounter?.patient?.fullName}
-          onSuccess={fetchData}
-        />
-      )}
+      <HandoverNoteModal 
+        isOpen={showHandoverModal} 
+        onClose={() => setShowHandoverModal(false)}
+        transferId={selectedTransfer?.id}
+        patientName={selectedTransfer?.encounter?.patient?.fullName || ''}
+        onSuccess={() => {
+          setShowHandoverModal(false);
+          fetchData();
+        }}
+      />
     </div>
   );
 };
