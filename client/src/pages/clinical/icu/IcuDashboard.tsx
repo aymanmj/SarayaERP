@@ -15,6 +15,11 @@ export const IcuDashboard = () => {
   const [showHandoverModal, setShowHandoverModal] = useState(false);
   const [selectedTransfer, setSelectedTransfer] = useState<any>(null);
 
+  // Bed Allocation State
+  const [wardTree, setWardTree] = useState<any[]>([]);
+  const [allocatingTransferId, setAllocatingTransferId] = useState<number | null>(null);
+  const [selectedBedId, setSelectedBedId] = useState<string>('');
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -36,6 +41,12 @@ export const IcuDashboard = () => {
       const res = await apiClient.get('/icu/patients');
       setPatients(res.data);
     } catch(err) { console.error("Failed to load ICU patients:", err); }
+
+    try {
+      const res = await apiClient.get('/beds/tree');
+      const icuTree = res.data.filter((w: any) => w.type === 'ICU' || w.name.includes('عناية') || w.name.includes('ICU'));
+      setWardTree(icuTree);
+    } catch(err) { console.error("Failed to load ICU ward tree:", err); }
 
     setLoading(false);
   };
@@ -250,14 +261,50 @@ export const IcuDashboard = () => {
                     
                     <div className="flex flex-col gap-2 w-full mt-2">
                       {t.status === 'REQUESTED' && (
-                        <button 
-                           onClick={() => {
-                             const bedIdStr = prompt('أدخل رقم الـ ID للسرير المتاح (مثال: 1 أو 2):');
-                             if (bedIdStr && !isNaN(Number(bedIdStr))) allocateBed(t.id, Number(bedIdStr));
-                           }}
-                           className="w-full py-2.5 bg-amber-600/20 hover:bg-amber-600/40 border border-amber-500/50 text-amber-400 rounded-xl text-xs font-bold transition-all">
-                          تخصيص سرير لاستقبال الحالة
-                        </button>
+                        allocatingTransferId === t.id ? (
+                          <div className="flex flex-col gap-2 w-full p-3 bg-slate-950 border border-amber-500/30 rounded-xl relative shadow-inner">
+                             <label className="text-xs font-bold text-amber-400 mb-1 block">اختر سريراً متاحاً:</label>
+                             <select 
+                               className="w-full bg-slate-900 border border-slate-700 text-white text-xs p-2.5 rounded-lg focus:outline-none focus:border-amber-500" 
+                               value={selectedBedId} 
+                               onChange={e => setSelectedBedId(e.target.value)}
+                             >
+                               <option value="">-- اختر السرير --</option>
+                               {wardTree.flatMap(w => w.rooms.flatMap((r: any) => r.beds.filter((b: any) => b.status === 'AVAILABLE').map((b: any) => (
+                                 <option key={b.id} value={b.id}>{w.name} - السرير {b.bedNumber} {r.roomNumber ? `(غرفة ${r.roomNumber})` : ''}</option>
+                               ))))}
+                             </select>
+                             <div className="flex gap-2 mt-3">
+                               <button 
+                                 onClick={() => {
+                                   setAllocatingTransferId(null);
+                                   setSelectedBedId('');
+                                 }} 
+                                 className="flex-1 bg-slate-800 border border-slate-700 text-slate-300 py-2 rounded-lg text-xs font-bold hover:bg-slate-700 transition-colors"
+                               >
+                                 إلغاء
+                               </button>
+                               <button 
+                                 onClick={() => {
+                                   if (!selectedBedId) return alert('يرجى اختيار السرير المتاح من القائمة');
+                                   allocateBed(t.id, Number(selectedBedId));
+                                   setAllocatingTransferId(null);
+                                   setSelectedBedId('');
+                                 }} 
+                                 className="flex-1 bg-amber-600 hover:bg-amber-500 text-white py-2 rounded-lg text-xs font-bold shadow-md shadow-amber-900/20 transition-all"
+                               >
+                                 تأكيد الحجز
+                               </button>
+                             </div>
+                          </div>
+                        ) : (
+                          <button 
+                             onClick={() => setAllocatingTransferId(t.id)}
+                             className="w-full py-2.5 bg-amber-600/20 hover:bg-amber-600/40 border border-amber-500/50 text-amber-400 rounded-xl text-xs font-bold transition-all"
+                          >
+                            تخصيص سرير لاستقبال الحالة
+                          </button>
+                        )
                       )}
                       
                       {t.status === 'BED_ALLOCATED' && (

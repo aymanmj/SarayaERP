@@ -23,6 +23,26 @@ export class TransfersService {
       }
     }
 
+    // Prevent duplicate active transfer requests
+    const existingActiveTransfer = await this.prisma.transferOrder.findFirst({
+      where: {
+        hospitalId,
+        encounterId: dto.encounterId,
+        status: {
+          in: [
+            TransferOrderStatus.REQUESTED, 
+            TransferOrderStatus.BED_ALLOCATED, 
+            TransferOrderStatus.HANDOVER_DRAFTED, 
+            TransferOrderStatus.HANDOVER_SIGNED
+          ]
+        }
+      }
+    });
+
+    if (existingActiveTransfer) {
+      throw new BadRequestException('يوجد طلب نقل نشط مسبقاً لهذا المريض');
+    }
+
     const transfer = await this.prisma.transferOrder.create({
       data: {
         hospitalId,

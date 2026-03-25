@@ -62,65 +62,61 @@ export const EquipmentPanel = ({ encounterId }: Props) => {
     }
   };
 
-  if (loading) return <div className="p-4 text-slate-500">Loading equipment...</div>;
+  if (loading) return <div className="p-4 text-center text-slate-500">جاري تحميل البيانات...</div>;
 
   const activeCount = equipmentList.filter(e => !e.stoppedAt).length;
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
-      <div className="flex justify-between items-center p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 rounded-t-xl">
-        <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
-          <Monitor className="w-5 h-5 text-indigo-500" /> Equipment Usage
-          {activeCount > 0 && <span className="ml-2 bg-indigo-100 text-indigo-700 text-xs px-2 py-0.5 rounded-full">{activeCount} Active</span>}
+    <div className="bg-slate-900 rounded-2xl shadow-sm border border-slate-800 overflow-hidden" dir="rtl">
+      <div className="flex justify-between items-center p-5 border-b border-slate-800 bg-slate-950/50">
+        <h3 className="text-lg font-bold text-white flex items-center gap-2">
+          <Monitor className="w-5 h-5 text-indigo-400" /> الأجهزة الموصولة
+          {activeCount > 0 && <span className="mr-2 bg-indigo-900/40 text-indigo-300 border border-indigo-500/30 text-[10px] px-2.5 py-1 rounded-lg font-bold tracking-wide">{activeCount} قيد الاستخدام</span>}
         </h3>
         <button 
           onClick={() => setShowAddModal(true)} 
-          className="px-3 py-1.5 bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 font-semibold rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors flex items-center gap-1.5 text-sm"
+          className="px-4 py-2 bg-indigo-900/30 text-indigo-400 border border-indigo-500/30 font-semibold rounded-xl hover:bg-indigo-900/50 transition-colors flex items-center gap-2 text-sm shadow-inner"
         >
-          <PlusCircle className="w-4 h-4" /> Add Equipment
+          <PlusCircle className="w-4 h-4" /> إضافة جهاز
         </button>
       </div>
 
-      <div className="p-0">
+      <div className="p-0 overflow-x-auto">
         {equipmentList.length === 0 ? (
-          <div className="text-center p-6 text-slate-500 flex flex-col items-center">
-             <Monitor className="w-12 h-12 text-slate-300 dark:text-slate-600 mb-3" />
-             <p>No equipment currently tracked.</p>
+          <div className="text-center p-8 text-slate-500 flex flex-col items-center bg-slate-950/30 m-4 rounded-xl border border-dashed border-slate-800">
+             <Monitor className="w-12 h-12 text-slate-700 mb-3" />
+             <p>لا يوجد أجهزة موصولة حالياً.</p>
           </div>
         ) : (
-          <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 dark:bg-slate-700/50 text-slate-500 font-medium">
+          <table className="w-full text-right text-sm">
+            <thead className="bg-slate-950 text-slate-400 font-bold text-xs border-b border-slate-800">
               <tr>
-                <th className="p-3 pl-4">Equipment Type</th>
-                <th className="p-3">Details</th>
-                <th className="p-3">Time Started</th>
-                <th className="p-3">Time Stopped</th>
-                <th className="p-3">Daily Fee</th>
-                <th className="p-3 pr-4 text-right">Actions</th>
+                <th className="p-4">نوع الجهاز</th>
+                <th className="p-4">التفاصيل</th>
+                <th className="p-4">وقت التوصيل</th>
+                <th className="p-4">وقت الفصل</th>
+                <th className="p-4 text-center">الإجراءات</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+            <tbody className="divide-y divide-slate-800/50">
               {equipmentList.map(eq => (
-                <tr key={eq.id} className={!eq.stoppedAt ? 'bg-indigo-50/30' : ''}>
-                  <td className="p-3 pl-4 font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
-                    {!eq.stoppedAt && <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse"></span>}
+                <tr key={eq.id} className={`${!eq.stoppedAt ? 'bg-indigo-900/10' : 'bg-transparent'} hover:bg-slate-800/50 transition-colors`}>
+                  <td className="p-4 font-bold text-white flex items-center gap-2">
+                    {!eq.stoppedAt && <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)] inline-block animate-pulse"></span>}
                     {eq.equipmentType.replace('_', ' ')}
                   </td>
-                  <td className="p-3 text-slate-600 dark:text-slate-400">{eq.equipmentName || '-'}</td>
-                  <td className="p-3 text-slate-600 dark:text-slate-400">{new Date(eq.startedAt).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'})}</td>
-                  <td className="p-3 text-slate-600 dark:text-slate-400">
-                    {eq.stoppedAt ? new Date(eq.stoppedAt).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'}) : <span className="text-emerald-500 font-medium tracking-wide">RUNNING</span>}
+                  <td className="p-4 text-slate-400">{eq.equipmentName || '-'}</td>
+                  <td className="p-4 text-slate-400">{new Date(eq.startedAt).toLocaleString('ar-LY', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'})}</td>
+                  <td className="p-4 text-slate-400">
+                    {eq.stoppedAt ? new Date(eq.stoppedAt).toLocaleString('ar-LY', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'}) : <span className="text-emerald-400 font-bold bg-emerald-900/20 px-2 py-1 rounded tracking-wide border border-emerald-500/20 text-xs">متصل حالياً</span>}
                   </td>
-                  <td className="p-3 font-medium text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                    <Receipt className="w-4 h-4 text-slate-400" /> {eq.dailyRate ? `${eq.dailyRate} LYD` : '-'}
-                  </td>
-                  <td className="p-3 pr-4 text-right">
+                  <td className="p-4 text-center">
                     {!eq.stoppedAt && (
                       <button 
                         onClick={() => stopEquipment(eq.id)}
-                        className="px-3 py-1 bg-white border border-rose-200 text-rose-600 rounded flex items-center gap-1 hover:bg-rose-50 text-xs font-semibold uppercase tracking-wider ml-auto"
+                        className="px-3 py-1.5 bg-transparent border border-rose-500/50 text-rose-400 hover:bg-rose-900/30 hover:border-rose-400 rounded-lg flex items-center gap-1.5 font-bold transition-all mx-auto text-xs"
                       >
-                        <StopCircle className="w-3.5 h-3.5" /> Stop
+                        <StopCircle className="w-4 h-4" /> فصل الجهاز
                       </button>
                     )}
                   </td>
@@ -133,54 +129,43 @@ export const EquipmentPanel = ({ encounterId }: Props) => {
 
       {/* ADD EQUIPMENT MODAL */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-          <div className="bg-white dark:bg-slate-800 max-w-sm w-full rounded-xl shadow-xl overflow-hidden">
-            <div className="flex justify-between items-center p-4 border-b border-slate-200 dark:border-slate-700">
-              <h3 className="font-bold text-lg text-slate-800 dark:text-white">Track Equipment</h3>
-              <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-slate-600">×</button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4" dir="rtl">
+          <div className="bg-slate-900 border border-slate-700 max-w-sm w-full rounded-2xl shadow-2xl overflow-hidden">
+            <div className="flex justify-between items-center p-5 border-b border-slate-800 bg-slate-950">
+              <h3 className="font-bold text-lg text-white">إضافة جهاز</h3>
+              <button onClick={() => setShowAddModal(false)} className="text-slate-500 hover:text-white transition-colors">✕</button>
             </div>
-            <form onSubmit={startEquipment} className="p-5 space-y-4">
+            <form onSubmit={startEquipment} className="p-6 space-y-5">
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Equipment Type</label>
+                <label className="block text-xs font-bold text-slate-400 mb-1.5">نوع الجهاز</label>
                 <select 
                   value={newEq.equipmentType} 
                   onChange={e => setNewEq({...newEq, equipmentType: e.target.value})}
-                  className="w-full p-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-700 rounded-lg"
+                  className="w-full p-2.5 bg-slate-950 border border-slate-700 text-white rounded-xl focus:outline-none focus:border-indigo-500 transition-colors"
                 >
-                  <option value="VENTILATOR">Ventilator</option>
-                  <option value="CARDIAC_MONITOR">Cardiac Monitor</option>
-                  <option value="INFUSION_PUMP">Infusion/Syringe Pump</option>
-                  <option value="FEEDING_PUMP">Enteral Feeding Pump</option>
-                  <option value="DIALYSIS_CRRT">CRRT / Dialysis</option>
-                  <option value="ECMO">ECMO</option>
-                  <option value="HEATER_COOLER">Heater/Cooler</option>
+                  <option value="VENTILATOR">تنفّس صناعي (Ventilator)</option>
+                  <option value="CARDIAC_MONITOR">مراقب قلب (Cardiac Monitor)</option>
+                  <option value="INFUSION_PUMP">مضخة تسريب (Infusion Pump)</option>
+                  <option value="FEEDING_PUMP">مضخة تغذية (Feeding Pump)</option>
+                  <option value="DIALYSIS_CRRT">غسيل كلوي (CRRT / Dialysis)</option>
+                  <option value="ECMO">إيكمو (ECMO)</option>
+                  <option value="HEATER_COOLER">جهاز تدفئة/تبريد</option>
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Specific Name/ID (Optional)</label>
+                <label className="block text-xs font-bold text-slate-400 mb-1.5">اسم/رقم الجهاز (اختياري)</label>
                 <input 
                   type="text" 
                   value={newEq.equipmentName} 
                   onChange={e => setNewEq({...newEq, equipmentName: e.target.value})}
-                  className="w-full p-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-700 rounded-lg"
-                  placeholder="e.g. Vent #12, Pump A"
+                  className="w-full p-2.5 bg-slate-950 border border-slate-700 text-white placeholder-slate-600 rounded-xl focus:outline-none focus:border-indigo-500 transition-colors"
+                  placeholder="مثال: Vent #12"
                 />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Daily Billing Rate (LYD)</label>
-                <input 
-                  type="number" 
-                  value={newEq.dailyRate} 
-                  onChange={e => setNewEq({...newEq, dailyRate: e.target.value})}
-                  className="w-full p-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-700 rounded-lg"
-                  placeholder="e.g. 500"
-                />
-                <p className="text-xs text-slate-500 mt-1">Leave blank if integrated to ward fee.</p>
               </div>
               
-              <div className="pt-2 flex justify-end gap-3 border-t border-slate-100 dark:border-slate-700 mt-6">
-                <button type="button" onClick={() => setShowAddModal(false)} className="px-4 py-2 text-slate-600 bg-slate-100 rounded-lg">Cancel</button>
-                <button type="submit" className="px-5 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-semibold">Start Tracking</button>
+              <div className="pt-6 flex gap-3 border-t border-slate-800 mt-2">
+                <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 py-2.5 text-slate-300 bg-slate-800 hover:bg-slate-700 rounded-xl font-bold transition-colors">إلغاء</button>
+                <button type="submit" className="flex-[2] py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-500 font-bold transition-colors shadow-lg shadow-indigo-900/40 flex items-center justify-center gap-2">تأكيد الإضافة</button>
               </div>
             </form>
           </div>

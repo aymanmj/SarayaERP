@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { apiClient } from '../../../api/apiClient';
-import { User, Activity, FileText, ArrowLeft, BrainCircuit } from 'lucide-react';
+import { User, Activity, FileText, ArrowLeft, BrainCircuit, ArrowLeftRight } from 'lucide-react';
 import { MedicationDripPanel } from './components/MedicationDripPanel';
 import { EquipmentPanel } from './components/EquipmentPanel';
 import { DailyAssessmentForm } from './components/DailyAssessmentForm';
+import { RequestTransferModal } from '../transfers/RequestTransferModal';
 
 export const IcuPatientDetail = () => {
   const { encounterId } = useParams<{ encounterId: string }>();
@@ -13,6 +14,7 @@ export const IcuPatientDetail = () => {
   const [assessments, setAssessments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAssessmentModal, setShowAssessmentModal] = useState(false);
+  const [showTransferModal, setShowTransferModal] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -36,74 +38,107 @@ export const IcuPatientDetail = () => {
     }
   };
 
-  if (loading) return <div className="flex justify-center items-center h-screen"><Activity className="w-10 h-10 animate-spin text-sky-600" /></div>;
+  if (loading) return <div className="flex justify-center items-center h-screen bg-slate-950"><Activity className="w-10 h-10 animate-spin text-sky-500" /></div>;
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
+    <div className="p-4 md:p-6 lg:max-w-7xl mx-auto space-y-6 text-slate-100 min-h-screen" dir="rtl">
       {/* HEADER */}
-      <div className="flex items-center gap-4 bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
-        <button onClick={() => navigate('/clinical/icu')} className="p-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 rounded-full transition-colors text-slate-600 dark:text-slate-300">
-          <ArrowLeft className="w-5 h-5" />
-        </button>
-        <div className="w-16 h-16 rounded-full bg-indigo-100 text-indigo-600 dark:bg-indigo-900 dark:text-indigo-300 flex items-center justify-center font-bold flex-shrink-0 text-2xl">
-          {patientData?.patient?.fullName?.charAt(0) || <User />}
-        </div>
-        <div className="flex-1">
-          <h1 className="text-2xl font-bold text-slate-800 dark:text-white mb-1">
-            {patientData?.patient?.fullName || `Encounter ${encounterId}`}
-          </h1>
-          <div className="flex flex-wrap gap-4 text-sm text-slate-500 font-medium">
-            <span className="flex items-center gap-1"><span className="text-slate-400">MRN:</span> {patientData?.patient?.mrn || 'N/A'}</span>
-            <span className="flex items-center gap-1"><span className="text-slate-400">Bed:</span> {patientData?.bed?.bedNumber || 'N/A'} ({patientData?.bed?.ward?.name})</span>
-            <span className="flex items-center gap-1"><span className="text-slate-400">Admitted:</span> {new Date(patientData?.createdAt).toLocaleDateString()}</span>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-800 relative overflow-hidden">
+        {/* Decorative background glow */}
+        <div className="absolute -top-24 -right-24 w-64 h-64 bg-sky-600/10 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div className="flex items-center gap-5 z-10 w-full md:w-auto">
+          <button onClick={() => navigate('/clinical/icu')} className="p-2.5 bg-slate-950 hover:bg-slate-800 border border-slate-700 rounded-xl transition-colors text-slate-400 hover:text-white">
+            <ArrowLeft className="w-5 h-5 rotate-180" />
+          </button>
+          
+          <div className="w-16 h-16 rounded-2xl bg-slate-950 border border-slate-800 text-sky-400 flex items-center justify-center font-bold flex-shrink-0 text-3xl shadow-inner shadow-sky-900/20">
+            {patientData?.patient?.fullName?.charAt(0) || <User className="w-8 h-8" />}
+          </div>
+          
+          <div>
+            <h1 className="text-2xl lg:text-3xl font-bold text-white mb-2 tracking-tight">
+              {patientData?.patient?.fullName || `ملف طبي #${encounterId}`}
+            </h1>
+            <div className="flex flex-wrap items-center gap-3 text-xs md:text-sm font-medium">
+              <span className="flex items-center gap-1.5 bg-slate-950/50 px-3 py-1.5 rounded-lg border border-slate-800">
+                <span className="text-slate-500 font-mono">#{patientData?.patient?.mrn || 'N/A'}</span>
+              </span>
+              <span className="flex items-center gap-1.5 bg-sky-900/20 text-sky-300 px-3 py-1.5 rounded-lg border border-sky-500/20">
+                سرير {patientData?.bed?.bedNumber || 'N/A'} ({patientData?.bed?.ward?.name})
+              </span>
+              <span className="flex items-center gap-1.5 bg-slate-950/50 px-3 py-1.5 rounded-lg border border-slate-800 text-slate-400">
+                الدخول: {new Date(patientData?.createdAt).toLocaleDateString('ar-LY')}
+              </span>
+            </div>
           </div>
         </div>
-        <div className="flex flex-col gap-2">
+
+        <div className="flex flex-wrap gap-2 w-full md:w-auto z-10 mt-4 md:mt-0">
            <button 
              onClick={() => setShowAssessmentModal(true)} 
-             className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-semibold shadow-sm transition-colors flex items-center gap-2"
+             className="flex-1 md:flex-none px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold shadow-lg shadow-indigo-900/30 transition-all flex items-center justify-center gap-2"
            >
-             <FileText className="w-4 h-4" /> Daily Assessment
+             <FileText className="w-4 h-4" /> التقييم اليومي
            </button>
            <button 
              onClick={() => navigate(`/clinical/icu/flowsheet/${encounterId}`)} 
-             className="px-4 py-2 bg-sky-50 text-sky-700 border border-sky-200 dark:bg-sky-900/30 dark:border-sky-800 dark:text-sky-300 rounded-lg hover:bg-sky-100 dark:hover:bg-sky-900/50 font-semibold transition-colors flex items-center gap-2"
+             className="flex-1 md:flex-none px-5 py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white rounded-xl font-bold shadow-sm transition-all flex items-center justify-center gap-2"
            >
-             <Activity className="w-4 h-4" /> Go to Flowsheet
+             <Activity className="w-4 h-4 text-sky-400" /> المخطط السريري
+           </button>
+           <button 
+             onClick={() => setShowTransferModal(true)} 
+             className="flex-1 md:flex-none px-5 py-2.5 bg-rose-900/30 hover:bg-rose-900/50 border border-rose-500/30 text-rose-400 rounded-xl font-bold transition-all flex items-center justify-center gap-2"
+           >
+             <ArrowLeftRight className="w-4 h-4" /> نقل (Step-down)
            </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-         {/* LEFT COLUMN: History */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-12">
+         {/* RIGHT COLUMN (RTL): History */}
          <div className="space-y-6">
-            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
-              <div className="flex justify-between items-center p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 rounded-t-xl">
-                 <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                    <BrainCircuit className="w-5 h-5 text-purple-500" /> Assessment History
+            <div className="bg-slate-900 rounded-2xl shadow-sm border border-slate-800 overflow-hidden">
+              <div className="flex justify-between items-center p-5 border-b border-slate-800 bg-slate-950/50">
+                 <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                    <BrainCircuit className="w-5 h-5 text-purple-400" /> التقييمات السابقة
                  </h3>
               </div>
+              
               <div className="p-0">
                  {assessments.length === 0 ? (
-                    <div className="p-6 text-center text-slate-500">No daily assessments recorded yet.</div>
+                    <div className="p-12 text-center text-slate-500 flex flex-col items-center">
+                       <FileText className="w-12 h-12 opacity-20 mb-4" />
+                       <p>لا توجد تقييمات يومية مسجلة بعد.</p>
+                    </div>
                  ) : (
-                    <div className="divide-y divide-slate-100 dark:divide-slate-700">
+                    <div className="divide-y divide-slate-800/50 p-3">
                        {assessments.map(acc => (
-                         <div key={acc.id} className="p-4 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
-                            <div className="flex justify-between items-start mb-3">
-                               <h4 className="font-bold text-slate-800 dark:text-slate-200">
-                                 {new Date(acc.assessmentDate).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+                         <div key={acc.id} className="p-4 bg-slate-950/30 rounded-xl border border-transparent hover:border-slate-800 transition-colors mb-3 last:mb-0">
+                            <div className="flex justify-between items-start mb-4">
+                               <h4 className="font-bold text-white text-sm">
+                                 {new Date(acc.assessmentDate).toLocaleDateString('ar-LY', { weekday: 'long', month: 'long', day: 'numeric' })}
                                </h4>
-                               <div className="flex gap-2">
-                                 {acc.gcsTotal && <span className="text-xs bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 px-2 py-1 rounded font-bold">GCS: {acc.gcsTotal}</span>}
-                                 {acc.sofaScore && <span className="text-xs bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300 px-2 py-1 rounded font-bold">SOFA: {acc.sofaScore}</span>}
-                                 {acc.apacheIIScore && <span className="text-xs bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300 px-2 py-1 rounded font-bold">APACHE II: {acc.apacheIIScore}</span>}
+                               <div className="flex flex-wrap justify-end gap-2">
+                                 {acc.gcsTotal && <span className="text-xs bg-indigo-900/40 border border-indigo-500/30 text-indigo-300 px-2.5 py-1 rounded-lg font-bold tracking-wide">GCS: {acc.gcsTotal}</span>}
+                                 {acc.sofaScore && <span className="text-xs bg-rose-900/40 border border-rose-500/30 text-rose-300 px-2.5 py-1 rounded-lg font-bold tracking-wide">SOFA: {acc.sofaScore}</span>}
+                                 {acc.apacheIIScore && <span className="text-xs bg-amber-900/40 border border-amber-500/30 text-amber-300 px-2.5 py-1 rounded-lg font-bold tracking-wide">APACHE II: {acc.apacheIIScore}</span>}
                                </div>
                             </div>
-                            <div className="grid grid-cols-2 gap-y-2 text-sm">
-                               <p><span className="text-slate-500">Respiratory:</span> <span className="font-medium text-slate-700 dark:text-slate-300">{acc.oxygenDevice?.replace('_',' ')} {acc.fio2 ? `(${acc.fio2}%)` : ''}</span></p>
-                               <p><span className="text-slate-500">Sedation Goal:</span> <span className="font-medium text-slate-700 dark:text-slate-300">{acc.sedationTarget || 'N/A'}</span></p>
-                               <p className="col-span-2"><span className="text-slate-500">Daily Goal:</span> <span className="font-medium text-slate-700 dark:text-slate-300">{acc.dailyGoals || 'N/A'}</span></p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-y-3 gap-x-4 text-xs">
+                               <div className="bg-slate-900 p-3 rounded-lg border border-slate-800">
+                                  <span className="text-slate-500 block mb-1">دعم التنفس:</span> 
+                                  <span className="font-bold text-slate-300">{acc.oxygenDevice?.replace('_',' ')} {acc.fio2 ? `(${acc.fio2}%)` : ''}</span>
+                               </div>
+                               <div className="bg-slate-900 p-3 rounded-lg border border-slate-800">
+                                  <span className="text-slate-500 block mb-1">هدف التخدير:</span> 
+                                  <span className="font-bold text-slate-300">{acc.sedationTarget || 'غير محدد'}</span>
+                               </div>
+                               <div className="md:col-span-2 bg-slate-900 p-3 rounded-lg border border-slate-800">
+                                  <span className="text-slate-500 block mb-1">الأهداف اليومية للحالة:</span> 
+                                  <span className="font-medium text-slate-300 leading-relaxed">{acc.dailyGoals || 'غير محدد'}</span>
+                               </div>
                             </div>
                          </div>
                        ))}
@@ -113,7 +148,7 @@ export const IcuPatientDetail = () => {
             </div>
          </div>
 
-         {/* RIGHT COLUMN: Drips & Equipment */}
+         {/* LEFT COLUMN (RTL): Drips & Equipment */}
          <div className="space-y-6">
             <MedicationDripPanel encounterId={Number(encounterId)} />
             <EquipmentPanel encounterId={Number(encounterId)} />
@@ -121,7 +156,7 @@ export const IcuPatientDetail = () => {
       </div>
 
       {showAssessmentModal && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/60 backdrop-blur-sm p-4 pt-10">
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/80 backdrop-blur-sm p-4 pt-10" dir="ltr">
            <div className="w-full max-w-5xl">
               <DailyAssessmentForm 
                  encounterId={Number(encounterId)} 
@@ -131,6 +166,19 @@ export const IcuPatientDetail = () => {
            </div>
         </div>
       )}
+
+      {/* STEP DOWN TRANSFER MODAL */}
+      <RequestTransferModal 
+        isOpen={showTransferModal}
+        onClose={() => setShowTransferModal(false)}
+        encounterId={Number(encounterId)}
+        patientName={patientData?.patient?.fullName || ''}
+        fromBedId={patientData?.bedId}
+        onSuccess={() => {
+           setShowTransferModal(false);
+           navigate('/clinical/icu');
+        }}
+      />
     </div>
   );
 };

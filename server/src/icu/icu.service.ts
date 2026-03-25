@@ -12,21 +12,26 @@ export class IcuService {
   // ==========================================
   // DASHBOARD & STATS
   // ==========================================
-
   async getIcuDashboardStats(hospitalId: number) {
-    // We get all beds in wards that are marked as ICU.
-    // Assuming type="ICU" or departmentId belongs to ICU department.
-    // For now, let's use all beds to avoid overcomplicating department queries,
-    // or we query admitted patients in ICU locations.
-    
-    // For realistic MVP, let's count active ICU admissions
+    // Universal condition to identify ICU wards/departments
+    const icuWardCondition = {
+      hospitalId,
+      OR: [
+        { type: 'ICU' },
+        { name: { contains: 'عناية' } },
+        { name: { contains: 'ICU' } } // PostgreSQL in Prisma usually supports mode: 'insensitive' but let's stick to standard if it's strict
+      ]
+    };
+
     const activeTransfers = await this.prisma.transferOrder.count({
-      where: { hospitalId, status: { in: ['REQUESTED', 'BED_ALLOCATED', 'HANDOVER_SIGNED'] } }
+      where: { hospitalId, status: { in: ['REQUESTED', 'BED_ALLOCATED', 'HANDOVER_SIGNED'] }, encounter: { status: 'OPEN' } } // ensure open encounters only
     });
 
-    // In a real system, you'd filter by Ward type='ICU'
     const beds = await this.prisma.bed.findMany({
-      where: { hospitalId }, // Ideally: ward: { department: { name: 'ICU' } }
+      where: { 
+        hospitalId, 
+        ward: icuWardCondition 
+      },
       include: { ward: true }
     });
 
@@ -34,7 +39,6 @@ export class IcuService {
     const occupiedBeds = beds.filter(b => b.status === 'OCCUPIED').length;
     const cleaningBeds = beds.filter(b => b.status === 'NEEDS_CLEANING').length;
 
-    // Count ventilated patients
     const activeVentilators = await this.prisma.iCUEquipmentUsage.count({
       where: { hospitalId, equipmentType: 'VENTILATOR', stoppedAt: null }
     });
@@ -52,13 +56,20 @@ export class IcuService {
   }
 
   async getIcuPatients(hospitalId: number) {
-    // Get all encounters currently assigned to an ICU bed
-    // For simplicity of this module demo, we'll return all encounters with an active admission
+    const icuWardCondition = {
+      hospitalId,
+      OR: [
+        { type: 'ICU' },
+        { name: { contains: 'عناية' } },
+        { name: { contains: 'ICU' } }
+      ]
+    };
+
     return this.prisma.admission.findMany({
       where: { 
         hospitalId, 
-        admissionStatus: { in: ['ADMITTED', 'IN_PROGRESS'] }
-        // Ideally filter by ward type = ICU
+        admissionStatus: { in: ['ADMITTED', 'IN_PROGRESS'] },
+        bed: { ward: icuWardCondition }
       },
       include: {
         patient: { select: { fullName: true, mrn: true, dateOfBirth: true, gender: true } },
