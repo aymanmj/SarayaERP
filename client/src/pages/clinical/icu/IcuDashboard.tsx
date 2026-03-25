@@ -21,20 +21,23 @@ export const IcuDashboard = () => {
 
   const fetchData = async () => {
     setLoading(true);
+    
     try {
-      const [transfersRes, statsRes, patientsRes] = await Promise.all([
-        apiClient.get('/transfers/pending'),
-        apiClient.get('/icu/dashboard/stats'),
-        apiClient.get('/icu/patients')
-      ]);
-      setTransfers(transfersRes.data);
-      setStats(statsRes.data);
-      setPatients(patientsRes.data);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
+      const res = await apiClient.get('/transfers/pending');
+      setTransfers(res.data);
+    } catch(err) { console.error("Failed to load transfers:", err); }
+
+    try {
+      const res = await apiClient.get('/icu/dashboard/stats');
+      setStats(res.data);
+    } catch(err) { console.error("Failed to load ICU stats:", err); }
+
+    try {
+      const res = await apiClient.get('/icu/patients');
+      setPatients(res.data);
+    } catch(err) { console.error("Failed to load ICU patients:", err); }
+
+    setLoading(false);
   };
 
   const allocateBed = async (id: number, bedId: number) => {
