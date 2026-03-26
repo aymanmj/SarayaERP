@@ -23,6 +23,21 @@ export class TransfersService {
       }
     }
 
+    // Prevent transfer if patient still has active ICU procedures running
+    const activeEquipment = await this.prisma.iCUEquipmentUsage.findFirst({
+      where: { encounterId: dto.encounterId, stoppedAt: null }
+    });
+    if (activeEquipment) {
+      throw new BadRequestException('لا يمكن إنشاء طلب النقل: يوجد جهاز عناية مركزة متصل بالمريض ولم يتم فصله.');
+    }
+
+    const activeDrips = await this.prisma.iCUMedicationDrip.findFirst({
+      where: { encounterId: dto.encounterId, stoppedAt: null }
+    });
+    if (activeDrips) {
+      throw new BadRequestException('لا يمكن إنشاء طلب النقل: توجد أدوية وريدية مستمرة (Drips) لم يتم إيقافها.');
+    }
+
     // Prevent duplicate active transfer requests
     const existingActiveTransfer = await this.prisma.transferOrder.findFirst({
       where: {
