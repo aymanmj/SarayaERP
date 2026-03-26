@@ -2496,6 +2496,7 @@ enum ChargeSource {
   BED
   OTHER
   PHARMACY
+  ICU
 }
 
 enum InvoiceStatus {

@@ -8,6 +8,7 @@ export const IcuFlowsheet = () => {
   const { encounterId } = useParams<{ encounterId: string }>();
   const [entries, setEntries] = useState<any[]>([]);
   const [ioBalance, setIoBalance] = useState({ totalIntake: 0, totalOutput: 0, balance: 0 });
+  const [patientData, setPatientData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('vitals');
   const [showEntryModal, setShowEntryModal] = useState(false);
@@ -18,9 +19,10 @@ export const IcuFlowsheet = () => {
 
   const fetchFlowsheetData = async () => {
     try {
-      const [fsRes, ioRes] = await Promise.all([
+      const [fsRes, ioRes, pRes] = await Promise.all([
         api.get(`/icu/flowsheet/${encounterId}`),
-        api.get(`/icu/io-balance/${encounterId}`)
+        api.get(`/icu/io-balance/${encounterId}`),
+        api.get('/icu/patients')
       ]);
       
       if (fsRes.data && fsRes.data.length > 0) {
@@ -30,6 +32,8 @@ export const IcuFlowsheet = () => {
       }
       
       setIoBalance(ioRes.data);
+      const found = pRes.data.find((p: any) => p.encounterId === Number(encounterId));
+      if (found) setPatientData(found);
     } catch (err) {
       console.error(err);
     } finally {
@@ -48,8 +52,10 @@ export const IcuFlowsheet = () => {
           <h1 className="text-2xl font-bold text-white flex items-center gap-3">
             <Activity className="w-8 h-8 text-sky-400" /> السجل السريري (Flowsheet)
           </h1>
-          <p className="text-slate-400 text-sm mt-1 flex items-center gap-2">
-            <span>تسلسل زمني للمريض رقم:</span> <span className="text-sky-400 font-bold">#{encounterId}</span>
+          <p className="text-slate-400 text-sm mt-2 flex items-center gap-2 flex-wrap">
+            <span className="text-white font-bold">{patientData?.patient?.fullName || `مريض #${encounterId}`}</span>
+            {patientData?.patient?.mrn && <span className="text-slate-500 font-mono text-xs bg-slate-800 px-2 py-0.5 rounded border border-slate-700" dir="ltr">MRN: {patientData.patient.mrn}</span>}
+            {patientData?.bed && <span className="text-sky-400 text-xs bg-sky-500/10 px-2 py-0.5 rounded border border-sky-500/20">سرير {patientData.bed.bedNumber} · {patientData.bed.ward?.name}</span>}
           </p>
         </div>
         <div className="flex items-center gap-6">

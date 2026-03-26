@@ -1,13 +1,81 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { RecordVitalsDto } from './dto/icu.dto';
 import { DailyAssessmentDto } from './dto/icu-assessment.dto';
 import { CreateMedicationDripDto, TitrateDripDto } from './dto/icu-drip.dto';
 import { CreateEquipmentUsageDto } from './dto/icu-equipment.dto';
+import { ChargeSource } from '@prisma/client';
 
 @Injectable()
 export class IcuService {
+  private readonly logger = new Logger(IcuService.name);
+
   constructor(private readonly prisma: PrismaService) {}
+
+  // ==========================================
+  // BILLING HELPER
+  // ==========================================
+
+  /**
+   * Creates an EncounterCharge for an ICU service if the service item exists.
+   * Silently skips if no matching ServiceItem is found (admin can add later).
+   */
+  private async createIcuCharge(opts: {
+    hospitalId: number;
+    encounterId: number;
+    serviceCode: string;
+    quantity: number;
+    overridePrice?: number;
+    sourceId?: number;
+    performerId?: number;
+  }) {
+    try {
+      const serviceItem = await this.prisma.serviceItem.findFirst({
+        where: { code: opts.serviceCode, hospitalId: opts.hospitalId },
+      });
+
+      if (!serviceItem) {
+        this.logger.warn(`ServiceItem '${opts.serviceCode}' not found for hospital ${opts.hospitalId}. Skipping ICU charge.`);
+        return null;
+      }
+
+      const unitPrice = opts.overridePrice ?? Number(serviceItem.defaultPrice);
+      const totalAmount = unitPrice * opts.quantity;
+
+      const charge = await this.prisma.encounterCharge.create({
+        data: {
+          hospitalId: opts.hospitalId,
+          encounterId: opts.encounterId,
+          serviceItemId: serviceItem.id,
+          sourceType: ChargeSource.ICU,
+          sourceId: opts.sourceId,
+          quantity: opts.quantity,
+          unitPrice,
+          totalAmount,
+          performerId: opts.performerId,
+        },
+      });
+
+      this.logger.log(`ICU Charge created: ${opts.serviceCode} x${opts.quantity} = ${totalAmount} for encounter #${opts.encounterId}`);
+      return charge;
+    } catch (err) {
+      this.logger.error(`Failed to create ICU charge for ${opts.serviceCode}`, err);
+      return null;
+    }
+  }
+
+  /** Maps equipment type to a default service item code */
+  private getEquipmentServiceCode(equipmentType: string): string {
+    const map: Record<string, string> = {
+      VENTILATOR: 'ICU_VENTILATOR_DAILY',
+      CARDIAC_MONITOR: 'ICU_MONITOR_DAILY',
+      INFUSION_PUMP: 'ICU_INFUSION_PUMP_DAILY',
+      FEEDING_PUMP: 'ICU_FEEDING_PUMP_DAILY',
+      DIALYSIS_CRRT: 'ICU_DIALYSIS_DAILY',
+      ECMO: 'ICU_ECMO_DAILY',
+    };
+    return map[equipmentType] || 'ICU_EQUIPMENT_DAILY';
+  }
 
   // ==========================================
   // DASHBOARD & STATS
@@ -218,7 +286,7 @@ export class IcuService {
   // ==========================================
 
   async createMedicationDrip(hospitalId: number, userId: number, dto: CreateMedicationDripDto) {
-    return this.prisma.iCUMedicationDrip.create({
+    const drip = await this.prisma.iCUMedicationDrip.create({
       data: {
         hospitalId,
         encounterId: dto.encounterId,
@@ -234,6 +302,18 @@ export class IcuService {
         }]
       }
     });
+
+    // ── BILLING: Charge for IV drip administration ──
+    await this.createIcuCharge({
+      hospitalId,
+      encounterId: dto.encounterId,
+      serviceCode: 'ICU_DRIP_ADMIN',
+      quantity: 1,
+      sourceId: drip.id,
+      performerId: userId,
+    });
+
+    return drip;
   }
 
   async titrateDrip(hospitalId: number, dripId: number, userId: number, dto: TitrateDripDto) {
@@ -297,7 +377,7 @@ export class IcuService {
   // ==========================================
 
   async createEquipmentUsage(hospitalId: number, dto: CreateEquipmentUsageDto) {
-    return this.prisma.iCUEquipmentUsage.create({
+    const usage = await this.prisma.iCUEquipmentUsage.create({
       data: {
         hospitalId,
         encounterId: dto.encounterId,
@@ -307,16 +387,47 @@ export class IcuService {
         notes: dto.notes
       }
     });
+
+    // ── BILLING: Create initial 1-day charge ──
+    const serviceCode = this.getEquipmentServiceCode(dto.equipmentType);
+    await this.createIcuCharge({
+      hospitalId,
+      encounterId: dto.encounterId,
+      serviceCode,
+      quantity: 1,
+      overridePrice: dto.dailyRate ? Number(dto.dailyRate) : undefined,
+      sourceId: usage.id,
+    });
+
+    return usage;
   }
 
   async stopEquipmentUsage(hospitalId: number, usageId: number) {
     const usage = await this.prisma.iCUEquipmentUsage.findUnique({ where: { id: usageId, hospitalId } });
     if (!usage) throw new NotFoundException('Equipment usage not found');
 
-    return this.prisma.iCUEquipmentUsage.update({
+    const now = new Date();
+    const result = await this.prisma.iCUEquipmentUsage.update({
       where: { id: usageId },
-      data: { stoppedAt: new Date() }
+      data: { stoppedAt: now }
     });
+
+    // ── BILLING: Update charge with actual days used ──
+    const totalDays = Math.max(1, Math.ceil((now.getTime() - usage.startedAt.getTime()) / (1000 * 60 * 60 * 24)));
+    const existingCharge = await this.prisma.encounterCharge.findFirst({
+      where: { hospitalId, encounterId: usage.encounterId, sourceType: ChargeSource.ICU, sourceId: usageId, invoiceId: null },
+    });
+
+    if (existingCharge && totalDays > 1) {
+      const unitPrice = Number(existingCharge.unitPrice);
+      await this.prisma.encounterCharge.update({
+        where: { id: existingCharge.id },
+        data: { quantity: totalDays, totalAmount: unitPrice * totalDays },
+      });
+      this.logger.log(`Updated equipment charge #${existingCharge.id}: ${totalDays} days × ${unitPrice} = ${unitPrice * totalDays}`);
+    }
+
+    return result;
   }
 
   async getEquipmentUsage(hospitalId: number, encounterId: number) {
