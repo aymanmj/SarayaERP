@@ -159,23 +159,22 @@ export class TransfersService {
     const toBedId = transfer.toBedId; // Capture for TS closure narrowing
 
     const result = await this.prisma.$transaction(async (tx) => {
-      // 1. Mark fromBed as NEEDS_CLEANING
+      // 1. Mark fromBed as CLEANING
       if (transfer.fromBedId) {
         await tx.bed.update({
           where: { id: transfer.fromBedId },
-          data: { status: BedStatus.NEEDS_CLEANING }
-        });
-
-        // Close old bed assignment
-        await tx.bedAssignment.updateMany({
-          where: {
-            encounterId: transfer.encounterId,
-            bedId: transfer.fromBedId,
-            to: null
-          },
-          data: { to: now }
+          data: { status: BedStatus.CLEANING }
         });
       }
+
+      // Close ALL previous active bed assignments to enforce single source of truth
+      await tx.bedAssignment.updateMany({
+        where: {
+          encounterId: transfer.encounterId,
+          to: null
+        },
+        data: { to: now }
+      });
 
       // 2. Mark toBed as OCCUPIED
       await tx.bed.update({

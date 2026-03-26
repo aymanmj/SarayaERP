@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, Patch, Delete, Param, ParseIntPipe, UseGuards } from '@nestjs/common';
 import { BedsService } from './beds.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -104,6 +104,46 @@ export class BedsController {
       body.bedNumber,
     );
   }
+
+  // ============== EDIT / DELETE ENDPOINTS ==============
+
+  @Patch('wards/:id')
+  @Roles('ADMIN')
+  updateWard(@CurrentUser() user: JwtPayload, @Param('id', ParseIntPipe) id: number, @Body() body: any) {
+    return this.bedsService.updateWard(user.hospitalId, id, body);
+  }
+
+  @Delete('wards/:id')
+  @Roles('ADMIN')
+  deleteWard(@CurrentUser() user: JwtPayload, @Param('id', ParseIntPipe) id: number) {
+    return this.bedsService.deleteWard(user.hospitalId, id);
+  }
+
+  @Patch('rooms/:id')
+  @Roles('ADMIN')
+  updateRoom(@CurrentUser() user: JwtPayload, @Param('id', ParseIntPipe) id: number, @Body() body: any) {
+    return this.bedsService.updateRoom(user.hospitalId, id, body);
+  }
+
+  @Delete('rooms/:id')
+  @Roles('ADMIN')
+  deleteRoom(@CurrentUser() user: JwtPayload, @Param('id', ParseIntPipe) id: number) {
+    return this.bedsService.deleteRoom(user.hospitalId, id);
+  }
+
+  @Patch('beds/:id')
+  @Roles('ADMIN')
+  updateBed(@CurrentUser() user: JwtPayload, @Param('id', ParseIntPipe) id: number, @Body() body: any) {
+    return this.bedsService.updateBed(user.hospitalId, id, body);
+  }
+
+  @Delete('beds/:id')
+  @Roles('ADMIN')
+  deleteBed(@CurrentUser() user: JwtPayload, @Param('id', ParseIntPipe) id: number) {
+    return this.bedsService.deleteBed(user.hospitalId, id);
+  }
+
+  // =====================================================
 
   @Get('services')
   @Roles('ADMIN')

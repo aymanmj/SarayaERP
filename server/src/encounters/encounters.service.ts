@@ -404,6 +404,8 @@ export class EncountersService {
         },
         bedAssignments: {
           where: { to: null },
+          orderBy: { from: 'desc' },
+          take: 1,
           include: {
             bed: {
               include: {

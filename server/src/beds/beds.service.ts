@@ -248,10 +248,31 @@ export class BedsService {
   }
 
   async updateWard(hospitalId: number, id: number, data: any) {
+    const ward = await this.prisma.ward.findFirst({ where: { id, hospitalId, isActive: true } });
+    if (!ward) throw new NotFoundException('العنبر غير موجود');
     return this.prisma.ward.update({
       where: { id },
-      data,
+      data: {
+        name: data.name,
+        type: data.type,
+        gender: data.gender,
+        serviceItemId: data.serviceItemId,
+        departmentId: data.departmentId,
+      },
     });
+  }
+
+  async deleteWard(hospitalId: number, id: number) {
+    const ward = await this.prisma.ward.findFirst({ where: { id, hospitalId, isActive: true } });
+    if (!ward) throw new NotFoundException('العنبر غير موجود');
+    
+    // Check if ward has active rooms
+    const activeRooms = await this.prisma.room.count({ where: { wardId: id, isActive: true } });
+    if (activeRooms > 0) {
+      throw new BadRequestException('لا يمكن حذف عنبر يحتوي على غرف نشطة. قم بحذف الغرف أولاً.');
+    }
+
+    return this.prisma.ward.update({ where: { id }, data: { isActive: false } });
   }
 
   // 2. إدارة الغرف (Rooms)
@@ -263,6 +284,28 @@ export class BedsService {
         roomNumber,
       },
     });
+  }
+
+  async updateRoom(hospitalId: number, id: number, data: any) {
+    const room = await this.prisma.room.findFirst({ where: { id, hospitalId, isActive: true } });
+    if (!room) throw new NotFoundException('الغرفة غير موجودة');
+    return this.prisma.room.update({
+      where: { id },
+      data: { roomNumber: data.roomNumber },
+    });
+  }
+
+  async deleteRoom(hospitalId: number, id: number) {
+    const room = await this.prisma.room.findFirst({ where: { id, hospitalId, isActive: true } });
+    if (!room) throw new NotFoundException('الغرفة غير موجودة');
+
+    // Check if room has active beds
+    const activeBeds = await this.prisma.bed.count({ where: { roomId: id, isActive: true } });
+    if (activeBeds > 0) {
+      throw new BadRequestException('لا يمكن حذف غرفة تحتوي على أسرة نشطة. قم بحذف الأسرة أولاً.');
+    }
+
+    return this.prisma.room.update({ where: { id }, data: { isActive: false } });
   }
 
   // 3. إدارة الأسرة (Beds)
@@ -282,13 +325,25 @@ export class BedsService {
     });
   }
 
+  async updateBed(hospitalId: number, id: number, data: any) {
+    const bed = await this.prisma.bed.findFirst({ where: { id, hospitalId, isActive: true } });
+    if (!bed) throw new NotFoundException('السرير غير موجود');
+    return this.prisma.bed.update({
+      where: { id },
+      data: { bedNumber: data.bedNumber, status: data.status },
+    });
+  }
+
   // 4. حذف (Soft Delete أو منع الحذف إذا كان مرتبطاً)
-  async deleteBed(id: number) {
+  async deleteBed(hospitalId: number, id: number) {
+    const bed = await this.prisma.bed.findFirst({ where: { id, hospitalId, isActive: true } });
+    if (!bed) throw new NotFoundException('السرير غير موجود');
+
     // تحقق من عدم وجود مرضى حالياً
     const active = await this.prisma.bedAssignment.findFirst({
       where: { bedId: id, to: null },
     });
-    if (active) throw new BadRequestException('لا يمكن حذف سرير مشغول.');
+    if (active) throw new BadRequestException('لا يمكن حذف سرير مشغول بمريض حالياً.');
     return this.prisma.bed.update({ where: { id }, data: { isActive: false } });
   }
 
