@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { apiClient } from '../../../api/apiClient';
 import { User, Activity, FileText, ArrowRight, BrainCircuit, ArrowLeftRight, Syringe, Monitor, PlusCircle, TrendingUp, Square, Play, StopCircle } from 'lucide-react';
 import { DailyAssessmentForm } from './components/DailyAssessmentForm';
-import { RequestTransferModal } from '../transfers/RequestTransferModal';
+import { IcuStepDownModal } from './components/IcuStepDownModal';
 
 /* ═══════════════════════════════════════════════════════
    ICU PATIENT DETAIL — FULL REDESIGN
@@ -207,19 +207,20 @@ export const IcuPatientDetail = () => {
                 <div className="space-y-3">
                   {equipmentList.map(eq => (
                     <div key={eq.id} className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl border transition ${!eq.stoppedAt ? 'bg-indigo-500/5 border-indigo-500/20' : 'bg-slate-950/30 border-slate-800'}`}>
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
                         {!eq.stoppedAt && <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)] animate-pulse shrink-0" />}
-                        <div>
-                          <p className="font-bold text-white text-sm">{eq.equipmentType.replace('_', ' ')}</p>
-                          <p className="text-xs text-slate-500 mt-0.5">{eq.equipmentName || '—'} · {new Date(eq.startedAt).toLocaleString('ar-LY', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
+                        <div className="min-w-0">
+                          <p className="font-bold text-white text-sm truncate">{eq.equipmentType.replace('_', ' ')}</p>
+                          <p className="text-xs text-slate-500 mt-0.5 truncate">{eq.equipmentName || '—'}</p>
+                          <p className="text-[11px] text-slate-600 font-mono mt-0.5" dir="ltr">{new Date(eq.startedAt).toLocaleString('ar-LY', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
                         {eq.stoppedAt ? (
-                          <span className="text-xs text-slate-500 bg-slate-800 px-3 py-1 rounded-lg border border-slate-700">تم الفصل: {new Date(eq.stoppedAt).toLocaleString('ar-LY', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                          <span className="text-[11px] text-slate-500 bg-slate-800 px-3 py-1 rounded-lg border border-slate-700 whitespace-nowrap">تم الفصل: {new Date(eq.stoppedAt).toLocaleString('ar-LY', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
                         ) : (
                           <>
-                            <span className="text-xs text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-lg border border-emerald-500/20 font-bold">متصل حالياً</span>
+                            <span className="text-[11px] text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-lg border border-emerald-500/20 font-bold whitespace-nowrap">متصل حالياً</span>
                             <button onClick={() => stopEquipment(eq.id)} className="text-xs font-bold text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 px-3 py-1.5 rounded-lg transition flex items-center gap-1.5">
                               <StopCircle className="w-3.5 h-3.5" /> فصل
                             </button>
@@ -388,14 +389,19 @@ export const IcuPatientDetail = () => {
         </div>
       )}
 
-      {/* Transfer modal */}
-      <RequestTransferModal
+      {/* ICU STEP-DOWN MODAL */}
+      <IcuStepDownModal
         isOpen={showTransferModal}
         onClose={() => setShowTransferModal(false)}
         encounterId={Number(encounterId)}
         patientName={patientData?.patient?.fullName || ''}
         fromBedId={patientData?.bedId}
-        onSuccess={() => { setShowTransferModal(false); navigate('/clinical/icu'); }}
+        currentWardName={patientData?.bed?.ward?.name}
+        currentBedNumber={patientData?.bed?.bedNumber}
+        onSuccess={() => {
+          setShowTransferModal(false);
+          navigate('/clinical/icu');
+        }}
       />
     </div>
   );

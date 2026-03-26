@@ -21,126 +21,125 @@ export const GcsCalculator = ({ initialScore, onChange, readonly = false }: Prop
   const totalScore = (eye || 0) + (verbal || 0) + (motor || 0);
 
   const getSeverity = () => {
-    if (totalScore === 0) return { label: 'Incomplete', color: 'text-slate-400 bg-slate-100 dark:bg-slate-800' };
-    if (totalScore <= 8) return { label: 'Severe Injury (Coma)', color: 'text-rose-700 bg-rose-100 border-rose-200 dark:bg-rose-900/30' };
-    if (totalScore <= 12) return { label: 'Moderate Injury', color: 'text-amber-700 bg-amber-100 border-amber-200 dark:bg-amber-900/30' };
-    return { label: 'Minor Injury', color: 'text-emerald-700 bg-emerald-100 border-emerald-200 dark:bg-emerald-900/30' };
+    if (totalScore === 0) return { label: 'INCOMPLETE', color: 'text-slate-400 bg-slate-800 border-slate-700' };
+    if (totalScore <= 8) return { label: 'Severe (Coma)', color: 'text-rose-400 bg-rose-500/15 border-rose-500/30' };
+    if (totalScore <= 12) return { label: 'Moderate', color: 'text-amber-400 bg-amber-500/15 border-amber-500/30' };
+    return { label: 'Minor', color: 'text-emerald-400 bg-emerald-500/15 border-emerald-500/30' };
   };
 
   const severity = getSeverity();
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
-      <div className="flex justify-between items-center p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 rounded-t-xl">
-        <h3 className="text-lg font-semibold text-slate-800 dark:text-white flex items-center gap-2">
-          <BrainCircuit className="w-5 h-5 text-indigo-500" /> 
+    <div className="bg-slate-950/50 rounded-2xl border border-slate-800 overflow-hidden">
+      {/* Header */}
+      <div className="flex justify-between items-center px-5 py-4 border-b border-slate-800 bg-slate-950/80">
+        <h3 className="text-base font-extrabold text-white flex items-center gap-2">
+          <BrainCircuit className="w-5 h-5 text-indigo-400" />
           Glasgow Coma Scale (GCS)
         </h3>
-        <div className={`px-4 py-1 rounded-lg border font-bold flex items-center gap-3 ${severity.color}`}>
-          <span className="text-2xl">{totalScore || '-'}</span> 
-          <span className="text-xs uppercase tracking-wider hidden sm:inline-block">{severity.label}</span>
+        <div className={`px-4 py-1.5 rounded-xl border font-bold flex items-center gap-3 text-sm ${severity.color}`}>
+          <span className="text-2xl font-black">{totalScore || '—'}</span>
+          <span className="text-[10px] uppercase tracking-widest hidden sm:inline-block">{severity.label}</span>
         </div>
       </div>
 
-      <div className="p-5 grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
+      {/* 3 Columns */}
+      <div className="p-5 grid grid-cols-1 lg:grid-cols-3 gap-5">
+
         {/* EYE RESPONSE */}
-        <div className="space-y-3">
-          <h4 className="font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2 border-b border-slate-100 dark:border-slate-700 pb-2">
-            <Eye className="w-4 h-4 text-sky-500" /> Eye Opening (E)
+        <div className="space-y-2.5">
+          <h4 className="font-bold text-slate-300 text-sm flex items-center gap-2 border-b border-slate-800 pb-2 mb-1">
+            <Eye className="w-4 h-4 text-sky-400" /> Eye Opening (E)
           </h4>
-          <div className="flex flex-col gap-2">
-            {[
-              { score: 4, label: 'Spontaneous', desc: 'Opens eyes on own' },
-              { score: 3, label: 'To Speech', desc: 'Opens eyes when asked' },
-              { score: 2, label: 'To Pain', desc: 'Opens eyes on pain' },
-              { score: 1, label: 'None', desc: 'Does not open eyes' },
-            ].map(item => (
-              <button
-                key={item.score}
-                disabled={readonly}
-                onClick={() => setEye(item.score)}
-                className={`flex justify-between items-center p-3 rounded-lg border text-left transition-colors ${
-                  eye === item.score 
-                    ? 'bg-sky-50 border-sky-500 ring-1 ring-sky-500 dark:bg-sky-900/30 dark:border-sky-400' 
-                    : 'border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700'
-                } ${readonly ? 'opacity-70 cursor-not-allowed' : ''}`}
-              >
-                <div>
-                  <div className={`font-semibold ${eye === item.score ? 'text-sky-700 dark:text-sky-300' : 'text-slate-700 dark:text-slate-300'}`}>{item.label}</div>
-                  <div className="text-xs text-slate-500 dark:text-slate-400">{item.desc}</div>
-                </div>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${eye === item.score ? 'bg-sky-100 text-sky-700 dark:bg-sky-800 dark:text-sky-200' : 'bg-slate-100 text-slate-400 dark:bg-slate-700'}`}>{item.score}</div>
-              </button>
-            ))}
-          </div>
+          {[
+            { score: 4, label: 'Spontaneous', desc: 'Opens eyes on own' },
+            { score: 3, label: 'To Speech', desc: 'Opens eyes when asked' },
+            { score: 2, label: 'To Pain', desc: 'Opens eyes on pain' },
+            { score: 1, label: 'None', desc: 'Does not open eyes' },
+          ].map(item => (
+            <button
+              key={item.score}
+              type="button"
+              disabled={readonly}
+              onClick={() => setEye(item.score)}
+              className={`w-full flex justify-between items-center p-3 rounded-xl border text-right transition-all ${
+                eye === item.score
+                  ? 'bg-sky-500/10 border-sky-500/50 ring-1 ring-sky-500/30'
+                  : 'bg-slate-900/50 border-slate-800 hover:bg-slate-800 hover:border-slate-700'
+              } ${readonly ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm shrink-0 ${eye === item.score ? 'bg-sky-500/20 text-sky-300' : 'bg-slate-800 text-slate-500'}`}>{item.score}</div>
+              <div className="text-right mr-3">
+                <div className={`font-bold text-sm ${eye === item.score ? 'text-sky-300' : 'text-slate-300'}`}>{item.label}</div>
+                <div className="text-[11px] text-slate-500">{item.desc}</div>
+              </div>
+            </button>
+          ))}
         </div>
 
         {/* VERBAL RESPONSE */}
-        <div className="space-y-3">
-          <h4 className="font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2 border-b border-slate-100 dark:border-slate-700 pb-2">
-            <MessageCircle className="w-4 h-4 text-emerald-500" /> Verbal Response (V)
+        <div className="space-y-2.5">
+          <h4 className="font-bold text-slate-300 text-sm flex items-center gap-2 border-b border-slate-800 pb-2 mb-1">
+            <MessageCircle className="w-4 h-4 text-emerald-400" /> Verbal Response (V)
           </h4>
-          <div className="flex flex-col gap-2">
-            {[
-              { score: 5, label: 'Oriented', desc: 'Converses normally' },
-              { score: 4, label: 'Confused', desc: 'Disoriented conversation' },
-              { score: 3, label: 'Inappropriate', desc: 'Words but no conversation' },
-              { score: 2, label: 'Incomprehensible', desc: 'Sounds only' },
-              { score: 1, label: 'None', desc: 'No sounds' },
-            ].map(item => (
-              <button
-                key={item.score}
-                disabled={readonly}
-                onClick={() => setVerbal(item.score)}
-                className={`flex justify-between items-center p-3 rounded-lg border text-left transition-colors ${
-                  verbal === item.score 
-                    ? 'bg-emerald-50 border-emerald-500 ring-1 ring-emerald-500 dark:bg-emerald-900/30 dark:border-emerald-400' 
-                    : 'border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700'
-                } ${readonly ? 'opacity-70 cursor-not-allowed' : ''}`}
-              >
-                <div>
-                  <div className={`font-semibold ${verbal === item.score ? 'text-emerald-700 dark:text-emerald-300' : 'text-slate-700 dark:text-slate-300'}`}>{item.label}</div>
-                  <div className="text-xs text-slate-500 dark:text-slate-400">{item.desc}</div>
-                </div>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${verbal === item.score ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-800 dark:text-emerald-200' : 'bg-slate-100 text-slate-400 dark:bg-slate-700'}`}>{item.score}</div>
-              </button>
-            ))}
-          </div>
+          {[
+            { score: 5, label: 'Oriented', desc: 'Converses normally' },
+            { score: 4, label: 'Confused', desc: 'Disoriented conversation' },
+            { score: 3, label: 'Inappropriate', desc: 'Words but no conversation' },
+            { score: 2, label: 'Incomprehensible', desc: 'Sounds only' },
+            { score: 1, label: 'None', desc: 'No sounds' },
+          ].map(item => (
+            <button
+              key={item.score}
+              type="button"
+              disabled={readonly}
+              onClick={() => setVerbal(item.score)}
+              className={`w-full flex justify-between items-center p-3 rounded-xl border text-right transition-all ${
+                verbal === item.score
+                  ? 'bg-emerald-500/10 border-emerald-500/50 ring-1 ring-emerald-500/30'
+                  : 'bg-slate-900/50 border-slate-800 hover:bg-slate-800 hover:border-slate-700'
+              } ${readonly ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm shrink-0 ${verbal === item.score ? 'bg-emerald-500/20 text-emerald-300' : 'bg-slate-800 text-slate-500'}`}>{item.score}</div>
+              <div className="text-right mr-3">
+                <div className={`font-bold text-sm ${verbal === item.score ? 'text-emerald-300' : 'text-slate-300'}`}>{item.label}</div>
+                <div className="text-[11px] text-slate-500">{item.desc}</div>
+              </div>
+            </button>
+          ))}
         </div>
 
         {/* MOTOR RESPONSE */}
-        <div className="space-y-3">
-          <h4 className="font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2 border-b border-slate-100 dark:border-slate-700 pb-2">
-            <Activity className="w-4 h-4 text-rose-500" /> Motor Response (M)
+        <div className="space-y-2.5">
+          <h4 className="font-bold text-slate-300 text-sm flex items-center gap-2 border-b border-slate-800 pb-2 mb-1">
+            <Activity className="w-4 h-4 text-rose-400" /> Motor Response (M)
           </h4>
-          <div className="flex flex-col gap-2">
-            {[
-              { score: 6, label: 'Obeys Commands', desc: 'Follows instructions' },
-              { score: 5, label: 'Localizes Pain', desc: 'Moves to pain stimulus' },
-              { score: 4, label: 'Withdraws', desc: 'Pulls away from pain' },
-              { score: 3, label: 'Abnormal Flexion', desc: 'Decorticate posturing' },
-              { score: 2, label: 'Extension', desc: 'Decerebrate posturing' },
-              { score: 1, label: 'None', desc: 'No movement' },
-            ].map(item => (
-              <button
-                key={item.score}
-                disabled={readonly}
-                onClick={() => setMotor(item.score)}
-                className={`flex justify-between items-center p-2.5 rounded-lg border text-left transition-colors ${
-                  motor === item.score 
-                    ? 'bg-rose-50 border-rose-500 ring-1 ring-rose-500 dark:bg-rose-900/30 dark:border-rose-400' 
-                    : 'border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700'
-                } ${readonly ? 'opacity-70 cursor-not-allowed' : ''}`}
-              >
-                <div>
-                  <div className={`font-semibold ${motor === item.score ? 'text-rose-700 dark:text-rose-300' : 'text-slate-700 dark:text-slate-300'}`}>{item.label}</div>
-                  <div className="text-xs text-slate-500 dark:text-slate-400">{item.desc}</div>
-                </div>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold shrink-0 ml-2 ${motor === item.score ? 'bg-rose-100 text-rose-700 dark:bg-rose-800 dark:text-rose-200' : 'bg-slate-100 text-slate-400 dark:bg-slate-700'}`}>{item.score}</div>
-              </button>
-            ))}
-          </div>
+          {[
+            { score: 6, label: 'Obeys Commands', desc: 'Follows instructions' },
+            { score: 5, label: 'Localizes Pain', desc: 'Moves to pain stimulus' },
+            { score: 4, label: 'Withdraws', desc: 'Pulls away from pain' },
+            { score: 3, label: 'Abnormal Flexion', desc: 'Decorticate posturing' },
+            { score: 2, label: 'Extension', desc: 'Decerebrate posturing' },
+            { score: 1, label: 'None', desc: 'No movement' },
+          ].map(item => (
+            <button
+              key={item.score}
+              type="button"
+              disabled={readonly}
+              onClick={() => setMotor(item.score)}
+              className={`w-full flex justify-between items-center p-3 rounded-xl border text-right transition-all ${
+                motor === item.score
+                  ? 'bg-rose-500/10 border-rose-500/50 ring-1 ring-rose-500/30'
+                  : 'bg-slate-900/50 border-slate-800 hover:bg-slate-800 hover:border-slate-700'
+              } ${readonly ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm shrink-0 ${motor === item.score ? 'bg-rose-500/20 text-rose-300' : 'bg-slate-800 text-slate-500'}`}>{item.score}</div>
+              <div className="text-right mr-3">
+                <div className={`font-bold text-sm ${motor === item.score ? 'text-rose-300' : 'text-slate-300'}`}>{item.label}</div>
+                <div className="text-[11px] text-slate-500">{item.desc}</div>
+              </div>
+            </button>
+          ))}
         </div>
 
       </div>
