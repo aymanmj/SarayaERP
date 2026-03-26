@@ -84,13 +84,13 @@ export const IcuStepDownModal = ({ isOpen, onClose, encounterId, patientName, fr
 
       // Step 2: Allocate the target bed
       setStatusText('تخصيص السرير في القسم الجديد...');
-      await apiClient.put(`/transfers/${transferId}/allocate-bed`, {
+      await apiClient.patch(`/transfers/${transferId}/allocate`, {
         toBedId: Number(selectedBedId)
       });
 
       // Step 3: Confirm arrival (complete transfer)
       setStatusText('تأكيد النقل وتحديث السجلات...');
-      await apiClient.put(`/transfers/${transferId}/confirm-arrival`);
+      await apiClient.patch(`/transfers/${transferId}/arrive`);
 
       setStep('done');
     } catch (err: any) {
