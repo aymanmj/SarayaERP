@@ -21,6 +21,8 @@ const PatientChartPage = lazy(() => import("../pages/PatientChartPage")); // �
 const DeliveryRegistrationPage = lazy(() => import("../pages/obgyn/DeliveryRegistrationPage")); // 🆕 OBGYN
 const AntenatalCarePage = lazy(() => import("../pages/obgyn/AntenatalCarePage")); // 🆕 ANC
 const FertilityDashboardPage = lazy(() => import("../pages/obgyn/FertilityDashboardPage")); // 🆕 IVF
+const OrderSetsPage = lazy(() => import("../pages/OrderSetsPage")); // 🆕 Phase 3
+const ClinicalPathwaysPage = lazy(() => import("../pages/ClinicalPathwaysPage")); // 🆕 Phase 3
 const TriageDashboardPage = lazy(() =>
   import("../pages/clinical/triage/TriageDashboard").then((m) => ({
     default: m.TriageDashboard,
@@ -129,5 +131,9 @@ export const ClinicalRoutes = (
     {/* Surgery */}
     <Route path="/surgery" element={<SurgerySchedulePage />} />
     <Route path="/surgery/:id" element={<SurgeryCaseDetailsPage />} />
+
+    {/* EMR - Phase 3 (Order Sets & Clinical Pathways) */}
+    <Route path="/clinical/order-sets" element={<OrderSetsPage />} />
+    <Route path="/clinical/pathways" element={<ClinicalPathwaysPage />} />
   </>
 );

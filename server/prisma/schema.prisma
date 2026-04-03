@@ -101,6 +101,10 @@ model Hospital {
   patientPMHEntries        PatientPMHEntry[]
   patientSurgicalEntries   PatientSurgicalEntry[]
   patientFamilyEntries     PatientFamilyHistoryEntry[]
+
+  // Order Sets & Clinical Pathways
+  orderSets                OrderSet[]
+  clinicalPathways         ClinicalPathway[]
 }
 
 model Department {
@@ -166,6 +170,7 @@ model ServiceItem {
   hospital          Hospital           @relation(fields: [hospitalId], references: [id])
   surgeryCases      SurgeryCase[]
   wards             Ward[]
+  orderSetItems     OrderSetItem[]     @relation("OrderSetService")
 }
 
 model Invoice {
@@ -335,6 +340,12 @@ model User {
   createdPatientProblems     PatientProblem[]     @relation("ProblemCreatedBy")
   createdHomeMedications     HomeMedication[]     @relation("HomeMedCreatedBy")
   verifiedHomeMedications    HomeMedication[]     @relation("HomeMedVerifiedBy")
+
+  // Order Sets & Clinical Pathways
+  createdOrderSets           OrderSet[]           @relation("OrderSetCreator")
+  createdClinicalPathways    ClinicalPathway[]    @relation("PathwayCreator")
+  pathwayEnrollments         PathwayEnrollment[]  @relation("PathwayEnroller")
+  pathwayVariances           PathwayVariance[]    @relation("VarianceReporter")
 }
 
 model RefreshToken {
@@ -666,6 +677,7 @@ model LabTest {
   serviceItem   ServiceItem?       @relation(fields: [serviceItemId], references: [id])
   parameters    LabTestParameter[]
   testMappings  TestMapping[]
+  orderSetItems OrderSetItem[]     @relation("OrderSetLabTest")
 
   @@unique([hospitalId, code])
 }
@@ -729,6 +741,7 @@ model RadiologyStudy {
   radiologyOrders RadiologyOrder[]
   hospital        Hospital         @relation(fields: [hospitalId], references: [id])
   serviceItem     ServiceItem?     @relation(fields: [serviceItemId], references: [id])
+  orderSetItems   OrderSetItem[]   @relation("OrderSetStudy")
 
   @@unique([hospitalId, code])
 }
@@ -843,6 +856,7 @@ model Product {
   purchaseReturnLines  PurchaseReturnLine[]
   stockTransactions    StockTransaction[]
   surgeryConsumables   SurgeryConsumable[]
+  orderSetItems        OrderSetItem[]        @relation("OrderSetProduct")
 
   @@unique([hospitalId, code])
   @@index([hospitalId, name])
@@ -3820,4 +3834,160 @@ enum MedicationSource {
   PHARMACY_RECORD
   REFERRAL_LETTER
   PREVIOUS_ADMISSION
+}
+
+// =====================================================================
+// Phase 3: Order Sets & Clinical Pathways
+// =====================================================================
+
+model OrderSet {
+  id           Int             @id @default(autoincrement())
+  hospitalId   Int
+  name         String
+  nameAr       String?
+  description  String?
+  category     String?
+  specialty    String?
+  isActive     Boolean         @default(true)
+  createdById  Int
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  hospital     Hospital        @relation(fields: [hospitalId], references: [id])
+  createdBy    User            @relation("OrderSetCreator", fields: [createdById], references: [id])
+  items        OrderSetItem[]
+  pathwaySteps ClinicalPathwayStep[]
+
+  @@unique([hospitalId, name])
+  @@index([hospitalId, category])
+  @@index([hospitalId, specialty])
+}
+
+model OrderSetItem {
+  id               Int              @id @default(autoincrement())
+  orderSetId       Int
+  itemType         OrderSetItemType
+  labTestId        Int?
+  radiologyStudyId Int?
+  productId        Int?
+  dose             String?
+  route            String?
+  frequency        String?
+  durationDays     Int?
+  serviceItemId    Int?
+  nursingAction    String?
+  priority         String           @default("ROUTINE")
+  instructions     String?
+  isRequired       Boolean          @default(true)
+  sortOrder        Int              @default(0)
+
+  orderSet       OrderSet        @relation(fields: [orderSetId], references: [id], onDelete: Cascade)
+  labTest        LabTest?        @relation("OrderSetLabTest", fields: [labTestId], references: [id])
+  radiologyStudy RadiologyStudy? @relation("OrderSetStudy", fields: [radiologyStudyId], references: [id])
+  product        Product?        @relation("OrderSetProduct", fields: [productId], references: [id])
+  serviceItem    ServiceItem?    @relation("OrderSetService", fields: [serviceItemId], references: [id])
+
+  @@index([orderSetId])
+}
+
+model ClinicalPathway {
+  id              Int                    @id @default(autoincrement())
+  hospitalId      Int
+  name            String
+  nameAr          String?
+  description     String?
+  targetDiagnosis String?
+  expectedLOS     Int?
+  isActive        Boolean                @default(true)
+  version         Int                    @default(1)
+  createdById     Int
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+
+  hospital        Hospital               @relation(fields: [hospitalId], references: [id])
+  createdBy       User                   @relation("PathwayCreator", fields: [createdById], references: [id])
+  steps           ClinicalPathwayStep[]
+  enrollments     PathwayEnrollment[]
+
+  @@unique([hospitalId, name, version])
+  @@index([hospitalId, targetDiagnosis])
+}
+
+model ClinicalPathwayStep {
+  id              Int                    @id @default(autoincrement())
+  pathwayId       Int
+  dayNumber       Int
+  phase           String?
+  title           String
+  titleAr         String?
+  description     String?
+  orderSetId      Int?
+  expectedOutcome String?
+  milestones      String?
+  sortOrder       Int                    @default(0)
+
+  pathway         ClinicalPathway        @relation(fields: [pathwayId], references: [id], onDelete: Cascade)
+  orderSet        OrderSet?              @relation(fields: [orderSetId], references: [id])
+  variances       PathwayVariance[]
+
+  @@index([pathwayId, dayNumber])
+}
+
+model PathwayEnrollment {
+  id              Int                    @id @default(autoincrement())
+  pathwayId       Int
+  encounterId     Int
+  patientId       Int
+  enrolledById    Int
+  enrolledAt      DateTime               @default(now())
+  status          PathwayEnrollmentStatus @default(ACTIVE)
+  currentDay      Int                    @default(0)
+  completedAt     DateTime?
+  notes           String?
+
+  pathway         ClinicalPathway        @relation(fields: [pathwayId], references: [id])
+  enrolledBy      User                   @relation("PathwayEnroller", fields: [enrolledById], references: [id])
+  variances       PathwayVariance[]
+
+  @@unique([pathwayId, encounterId])
+  @@index([encounterId])
+  @@index([status])
+}
+
+model PathwayVariance {
+  id              Int                    @id @default(autoincrement())
+  enrollmentId    Int
+  stepId          Int
+  varianceType    VarianceType
+  reason          String
+  reportedById    Int
+  reportedAt      DateTime               @default(now())
+
+  enrollment      PathwayEnrollment      @relation(fields: [enrollmentId], references: [id])
+  step            ClinicalPathwayStep    @relation(fields: [stepId], references: [id])
+  reportedBy      User                   @relation("VarianceReporter", fields: [reportedById], references: [id])
+
+  @@index([enrollmentId])
+}
+
+enum OrderSetItemType {
+  LAB
+  RADIOLOGY
+  MEDICATION
+  PROCEDURE
+  NURSING
+}
+
+enum PathwayEnrollmentStatus {
+  ACTIVE
+  COMPLETED
+  DEVIATED
+  CANCELLED
+}
+
+enum VarianceType {
+  DELAY
+  OMISSION
+  COMPLICATION
+  OTHER
 }

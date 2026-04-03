@@ -77,6 +77,8 @@ import { TransfersModule } from './transfers/transfers.module';
 import { IcuModule } from './icu/icu.module';
 import { ClinicalProfileModule } from './clinical-profile/clinical-profile.module';
 import { DischargeSummaryModule } from './discharge-summary/discharge-summary.module';
+import { OrderSetsModule } from './order-sets/order-sets.module'; // ✅ [NEW] Phase 3: Order Sets
+import { ClinicalPathwaysModule } from './clinical-pathways/clinical-pathways.module'; // ✅ [NEW] Phase 3: Clinical Pathways
 
 @Module({
   imports: [
@@ -162,6 +164,8 @@ import { DischargeSummaryModule } from './discharge-summary/discharge-summary.mo
     ConsentFormsModule, // ✅ [NEW] Consent Forms
     ClinicalNotesModule, // ✅ [NEW] Clinical Notes
     ClinicalProfileModule, // ✅ [NEW] Patient Clinical Profile (EMR)
+    OrderSetsModule, // ✅ [NEW] Phase 3: Order Sets
+    ClinicalPathwaysModule, // ✅ [NEW] Phase 3: Clinical Pathways
 
     // Departments & Specialties
     DepartmentsModule,
