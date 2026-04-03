@@ -11,6 +11,7 @@ const AppointmentsPage = lazy(() => import("../pages/AppointmentsPage"));
 const AdmissionsPage = lazy(() => import("../pages/AdmissionsPage"));
 const AdvancedAdmissionManagementPage = lazy(() => import("../pages/AdvancedAdmissionManagement"));
 const ActiveInpatientsPage = lazy(() => import("../pages/ActiveInpatientsPage"));
+const AdmissionDetailsPage = lazy(() => import("../pages/AdmissionDetailsPage")); // ✅
 const DoctorRoundsPage = lazy(() => import("../pages/DoctorRoundsPage")); // ✅
 const DischargePlanningPage = lazy(() => import("../pages/DischargePlanningPage")); // 🆕
 const DischargeSummaryBuilderPage = lazy(() => import("../pages/DischargeSummaryBuilderPage").then(m => ({ default: m.DischargeSummaryBuilderPage }))); // 🆕
@@ -76,6 +77,7 @@ export const ClinicalRoutes = (
     <Route path="/appointments" element={<AppointmentsPage />} />
     <Route path="/admissions" element={<AdmissionsPage />} />
     <Route path="/admissions/advanced" element={<AdvancedAdmissionManagementPage />} />
+    <Route path="/admissions/:id" element={<AdmissionDetailsPage />} />
     <Route path="/active-inpatients" element={<ActiveInpatientsPage />} />
     <Route path="/doctor-rounds" element={<DoctorRoundsPage />} /> {/* ✅ */}
     <Route path="/discharge-planning" element={<DischargePlanningPage />} /> {/* 🆕 */}

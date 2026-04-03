@@ -630,7 +630,7 @@ export default function AdvancedAdmissionManagement() {
                           <div>
                             <div className="font-medium">{admission.bed?.bedNumber || '-'}</div>
                             <div className="text-sm text-slate-400">
-                              {admission.ward?.name || '-'}
+                              {admission.ward?.name || admission.department?.name || '-'}
                             </div>
                           </div>
                         </td>
@@ -644,7 +644,7 @@ export default function AdvancedAdmissionManagement() {
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex flex-col gap-1">
-                            <span className={`px-2 py-1 rounded-full text-xs ${getIsolationColor(admission.isolationType)}`}>
+                            <span className={`px-2 py-1 rounded-full text-xs whitespace-nowrap text-center ${getIsolationColor(admission.isolationType)}`}>
                               {getIsolationTypeLabel(admission.isolationType)}
                             </span>
                             {admission.isolationRequired && (
@@ -659,8 +659,8 @@ export default function AdvancedAdmissionManagement() {
                             {getPriorityLabel(admission.priority)}
                           </span>
                         </td>
-                        <td className="px-4 py-3">
-                          {new Date(admission.actualAdmissionDate).toLocaleDateString('ar-SA')}
+                        <td className="px-4 py-3 whitespace-nowrap text-right">
+                          {new Date(admission.actualAdmissionDate).toLocaleDateString('en-GB')}
                         </td>
                         <td className="px-4 py-3">
                           {admission.lengthOfStay ? `${admission.lengthOfStay} يوم` : '-'}
