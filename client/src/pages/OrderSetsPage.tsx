@@ -121,7 +121,7 @@ export default function OrderSetsPage() {
   const loadBuilderResources = async () => {
     try {
       const [labRes, radRes, prodRes] = await Promise.all([
-        apiClient.get('/labs/catalog'),
+        apiClient.get('/lab/catalog'),
         apiClient.get('/radiology/catalog'),
         apiClient.get('/pharmacy/catalog', { params: { limit: 500 } }),
       ]);
