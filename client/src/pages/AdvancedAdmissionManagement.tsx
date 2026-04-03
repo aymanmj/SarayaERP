@@ -373,6 +373,27 @@ export default function AdvancedAdmissionManagement() {
     }
   };
 
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case "ADMITTED": return "منوم";
+      case "IN_PROGRESS": return "قيد العلاج";
+      case "DISCHARGE_PENDING": return "انتظار الخروج";
+      case "DISCHARGED": return "مُسرح";
+      default: return status;
+    }
+  };
+
+  const getPriorityLabel = (priority: string) => {
+    switch (priority) {
+      case "CRITICAL": return "حرجة";
+      case "URGENT": return "عاجلة";
+      case "HIGH": return "عالية";
+      case "MEDIUM": return "متوسطة";
+      case "LOW": return "منخفضة";
+      default: return priority;
+    }
+  };
+
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case "CRITICAL":
@@ -545,10 +566,10 @@ export default function AdvancedAdmissionManagement() {
                       </div>
                       <div className="flex items-center gap-2">
                         <span className={`px-2 py-1 rounded-full text-xs ${getStatusColor(admission.admissionStatus)}`}>
-                          {admission.admissionStatus}
+                          {getStatusLabel(admission.admissionStatus)}
                         </span>
                         <span className={`px-2 py-1 rounded-full text-xs ${getPriorityColor(admission.priority)}`}>
-                          {admission.priority}
+                          {getPriorityLabel(admission.priority)}
                         </span>
                       </div>
                     </div>
@@ -618,7 +639,7 @@ export default function AdvancedAdmissionManagement() {
                         </td>
                         <td className="px-4 py-3">
                           <span className={`px-2 py-1 rounded-full text-xs ${getStatusColor(admission.admissionStatus)}`}>
-                            {admission.admissionStatus}
+                            {getStatusLabel(admission.admissionStatus)}
                           </span>
                         </td>
                         <td className="px-4 py-3">
@@ -635,7 +656,7 @@ export default function AdvancedAdmissionManagement() {
                         </td>
                         <td className="px-4 py-3">
                           <span className={`px-2 py-1 rounded-full text-xs ${getPriorityColor(admission.priority)}`}>
-                            {admission.priority}
+                            {getPriorityLabel(admission.priority)}
                           </span>
                         </td>
                         <td className="px-4 py-3">
@@ -645,53 +666,65 @@ export default function AdvancedAdmissionManagement() {
                           {admission.lengthOfStay ? `${admission.lengthOfStay} يوم` : '-'}
                         </td>
                         <td className="px-4 py-3">
-                          <div className="flex gap-2 flex-wrap">
-                            <button
-                              onClick={() => handleViewAdmissionDetails(admission.id)}
-                              className="px-3 py-1 bg-sky-600 hover:bg-sky-500 rounded text-xs transition-colors"
-                            >
-                              تفاصيل
-                            </button>
-                            <button
-                              onClick={() => handleEditAdmission(admission)}
-                              className="px-3 py-1 bg-blue-600 hover:bg-blue-500 rounded text-xs transition-colors"
-                            >
-                              تعديل
-                            </button>
-                            <button
-                              onClick={() => handleManageIsolation(admission)}
-                              className="px-3 py-1 bg-orange-600 hover:bg-orange-500 rounded text-xs transition-colors"
-                            >
-                              العزل
-                            </button>
-                            {admission.admissionStatus !== 'DISCHARGED' && (
-                              <>
-                                <button
-                                  onClick={() => handleDischargePlanning(admission)}
-                                  className="px-3 py-1 bg-yellow-600 hover:bg-yellow-500 rounded text-xs transition-colors"
-                                >
-                                  تخطيط التسريح
-                                </button>
-                                <button
-                                  onClick={() => handleBedTransfer(admission)}
-                                  className="px-3 py-1 bg-purple-600 hover:bg-purple-500 rounded text-xs transition-colors"
-                                >
-                                  نقل سرير
-                                </button>
+                          <div className="flex flex-col gap-2">
+                            {/* Primary Actions (Clinical & Operational) */}
+                            <div className="flex gap-2">
+                              {admission.admissionStatus !== 'DISCHARGED' && (
+                                <>
                                   <button
                                     onClick={() => navigate(`/discharge-summary/${admission.id}`)}
-                                    className="px-3 py-1 bg-amber-600 hover:bg-amber-500 rounded text-xs transition-colors shadow-sm"
+                                    className="flex-1 px-3 py-1 bg-amber-600 hover:bg-amber-500 rounded text-xs transition-colors shadow-sm font-semibold flex justify-center items-center gap-1"
+                                    title="تعبئة ملخص الخروج الطبي"
                                   >
                                     📝 التخريج الطبي 
                                   </button>
                                   <button
                                     onClick={() => handleDischargePatient(admission)}
-                                    className="px-3 py-1 bg-green-600 hover:bg-green-500 rounded text-xs transition-colors shadow-lg font-bold"
+                                    className="flex-1 px-3 py-1 bg-green-600 hover:bg-green-500 rounded text-xs transition-colors shadow-lg font-bold flex justify-center items-center gap-1"
+                                    title="إخلاء السرير وإنهاء الإيواء وتسوية الرصيد"
                                   >
-                                    تسريح وإخلاء
+                                    🚪 تسريح وإخلاء
                                   </button>
-                              </>
-                            )}
+                                </>
+                              )}
+                            </div>
+                            {/* Secondary Actions (Administrative) */}
+                            <div className="flex gap-2 flex-wrap justify-start">
+                              <button
+                                onClick={() => handleViewAdmissionDetails(admission.id)}
+                                className="px-3 py-1 bg-sky-600 hover:bg-sky-500 rounded text-xs transition-colors"
+                              >
+                                تفاصيل
+                              </button>
+                              <button
+                                onClick={() => handleEditAdmission(admission)}
+                                className="px-3 py-1 bg-slate-600 hover:bg-slate-500 rounded text-xs transition-colors"
+                              >
+                                تعديل
+                              </button>
+                              <button
+                                onClick={() => handleManageIsolation(admission)}
+                                className="px-3 py-1 bg-orange-600 hover:bg-orange-500 rounded text-xs transition-colors"
+                              >
+                                العزل
+                              </button>
+                              {admission.admissionStatus !== 'DISCHARGED' && (
+                                <>
+                                  <button
+                                    onClick={() => handleDischargePlanning(admission)}
+                                    className="px-3 py-1 bg-blue-600 hover:bg-blue-500 rounded text-xs transition-colors"
+                                  >
+                                    تخطيط خروج
+                                  </button>
+                                  <button
+                                    onClick={() => handleBedTransfer(admission)}
+                                    className="px-3 py-1 bg-purple-600 hover:bg-purple-500 rounded text-xs transition-colors"
+                                  >
+                                    نقل سرير
+                                  </button>
+                                </>
+                              )}
+                            </div>
                           </div>
                         </td>
                       </tr>
@@ -810,7 +843,7 @@ export default function AdvancedAdmissionManagement() {
               <div className="bg-slate-900/50 rounded-xl p-6 border border-slate-700">
                 <h3 className="text-lg font-semibold mb-4">تحليل الأداء</h3>
                 <div className="text-center py-8 text-slate-400">
-                  <p>مخططات وتحليلات إضافية قيد التطوير...</p>
+                  <p>البيانات الحالية ممتازة، سيتم دمج المزيد من المؤشرات التحليلية لاحقاً لدعم اتخاذ القرار.</p>
                 </div>
               </div>
             </div>
@@ -905,8 +938,24 @@ export default function AdvancedAdmissionManagement() {
                 />
               </div>
               <div>
+                <label className="block text-sm font-medium mb-2">وجهة التخريج</label>
+                <select
+                  id="dischargeDispositionSelect"
+                  className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2"
+                  defaultValue="HOME"
+                >
+                  <option value="HOME">المنزل</option>
+                  <option value="TRANSFER">نقل مستشفى آخر</option>
+                  <option value="REHAB">تأهيل طبي</option>
+                  <option value="LTC">رعاية طويلة الأمد</option>
+                  <option value="AMA">خروج على غير مشورة</option>
+                  <option value="EXPIRED">وفاة</option>
+                </select>
+              </div>
+              <div>
                 <label className="block text-sm font-medium mb-2">ملاحظات التخطيط</label>
                 <textarea
+                  id="dischargeNotesInput"
                   rows={4}
                   placeholder="أدخل ملاحظات تخطيط التسريح..."
                   className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2"
@@ -915,10 +964,15 @@ export default function AdvancedAdmissionManagement() {
             </div>
             <div className="flex gap-3 mt-6">
               <button
-                onClick={() => handleCreateDischargePlanning({
-                  plannedDischargeDate: selectedAdmission.expectedDischargeDate,
-                  notes: "ملاحظات التخطيط"
-                })}
+                onClick={() => {
+                  const dispositionSelect = document.getElementById('dischargeDispositionSelect') as HTMLSelectElement;
+                  const notesInput = document.getElementById('dischargeNotesInput') as HTMLTextAreaElement;
+                  handleCreateDischargePlanning({
+                    plannedDischargeDate: selectedAdmission.expectedDischargeDate,
+                    dischargeDisposition: dispositionSelect?.value || 'HOME',
+                    notes: notesInput?.value || "ملاحظات التخطيط"
+                  });
+                }}
                 className="px-4 py-2 bg-sky-600 hover:bg-sky-500 rounded-lg"
               >
                 إنشاء خطة التسريح

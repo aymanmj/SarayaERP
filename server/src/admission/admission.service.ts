@@ -1026,7 +1026,102 @@ export class AdmissionService {
    * Get bed occupancy report
    */
   async getBedOccupancyReport(hospitalId: number) {
-    // TODO: Implement proper bed occupancy report
-    return [];
+    const wards = await this.prisma.ward.findMany({
+      where: { hospitalId },
+      include: {
+        rooms: {
+          include: {
+            beds: {
+               include: {
+                  assignments: {
+                     where: { to: null },
+                     include: {
+                        encounter: {
+                           include: {
+                              patient: true,
+                              admission: true
+                           }
+                        }
+                     }
+                  }
+               }
+            }
+          }
+        }
+      }
+    });
+
+    return wards.map((ward) => {
+      let totalBeds = 0;
+      let occupiedBeds = 0;
+      let availableBeds = 0;
+      let cleaningBeds = 0;
+      let maintenanceBeds = 0;
+
+      const roomsResult = ward.rooms.map((room) => {
+        let roomTotal = 0;
+        let roomOccupied = 0;
+        let roomAvailable = 0;
+
+        const bedsResult = room.beds.map((bed: any) => {
+          roomTotal++;
+          totalBeds++;
+
+          if (bed.status === 'OCCUPIED') {
+            roomOccupied++;
+            occupiedBeds++;
+          } else if (bed.status === 'AVAILABLE') {
+            roomAvailable++;
+            availableBeds++;
+          } else if (bed.status === 'CLEANING') {
+            cleaningBeds++;
+          } else if (bed.status === 'MAINTENANCE') {
+            maintenanceBeds++;
+          }
+
+          const activeAssignment = bed.assignments && bed.assignments.length > 0 ? bed.assignments[0] : null;
+          let patientInfo: { admissionId: number; patientName: string; patientMrn: string } | undefined = undefined;
+
+          if (activeAssignment && activeAssignment.encounter && activeAssignment.encounter.patient) {
+            patientInfo = {
+                admissionId: activeAssignment.encounter.admission?.[0]?.id || 0,
+                patientName: activeAssignment.encounter.patient.fullName,
+                patientMrn: activeAssignment.encounter.patient.mrn
+            };
+          }
+
+          return {
+            bedId: bed.id,
+            bedNumber: bed.bedNumber,
+            status: bed.status,
+            patient: patientInfo
+          };
+        });
+
+        return {
+          roomId: room.id,
+          roomNumber: room.roomNumber,
+          totalBeds: roomTotal,
+          occupiedBeds: roomOccupied,
+          availableBeds: roomAvailable,
+          beds: bedsResult
+        };
+      });
+
+      const occupancyRate = totalBeds > 0 ? (occupiedBeds / totalBeds) * 100 : 0;
+
+      return {
+        wardId: ward.id,
+        wardName: ward.name,
+        wardType: ward.type,
+        totalBeds,
+        occupiedBeds,
+        availableBeds,
+        cleaningBeds,
+        maintenanceBeds,
+        occupancyRate,
+        rooms: roomsResult
+      };
+    });
   }
 }
