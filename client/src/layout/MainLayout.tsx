@@ -402,6 +402,8 @@ export function MainLayout() {
         { label: "تجهيز الأسرة", path: "/housekeeping", access: "adt:bed:manage" },
         { label: "📋 نظام الإحالات", path: "/referrals" },
         { label: "العناية المركزة (ICU)", path: "/clinical/icu", access: "adt:bed:view" },
+        { label: "مجموعات الطلبات (Order Sets)", path: "/clinical/order-sets" },
+        { label: "المسارات العلاجية (Pathways)", path: "/clinical/pathways" },
       ],
     },
     {
