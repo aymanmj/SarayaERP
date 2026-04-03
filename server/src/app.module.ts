@@ -76,6 +76,7 @@ import { NoteTemplatesModule } from './note-templates/note-templates.module';
 import { TransfersModule } from './transfers/transfers.module';
 import { IcuModule } from './icu/icu.module';
 import { ClinicalProfileModule } from './clinical-profile/clinical-profile.module';
+import { DischargeSummaryModule } from './discharge-summary/discharge-summary.module';
 
 @Module({
   imports: [
@@ -185,7 +186,8 @@ import { ClinicalProfileModule } from './clinical-profile/clinical-profile.modul
     PatientPortalModule,
     SystemSettingsModule,
     TransfersModule,
-    IcuModule, // 👈 Phase 5: Patient Access
+    IcuModule,
+    DischargeSummaryModule, // 👈 Phase 5: Patient Access
   ],
   controllers: [AppController],
   providers: [

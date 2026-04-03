@@ -12,8 +12,33 @@ export class CreateClinicalNoteDto {
   type?: NoteType;
 
   @IsString()
-  @IsNotEmpty()
-  content: string;
+  @IsOptional()
+  content?: string;
+
+  // Structured SOAP Fields
+  @IsString()
+  @IsOptional()
+  subjective?: string;
+
+  @IsString()
+  @IsOptional()
+  objective?: string;
+
+  @IsString()
+  @IsOptional()
+  assessment?: string;
+
+  @IsString()
+  @IsOptional()
+  plan?: string;
+
+  // Metadata
+  @IsOptional()
+  isAddendum?: boolean;
+
+  @IsNumber()
+  @IsOptional()
+  parentNoteId?: number;
 
   @IsNumber()
   @IsOptional()

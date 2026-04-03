@@ -1,9 +1,9 @@
-
 import { useEffect, useState } from "react";
 import { apiClient } from "../api/apiClient";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuthStore } from "../stores/authStore";
+import { StructuredSOAPNote } from "../components/clinical/StructuredSOAPNote";
 
 type Execution = {
   id: number;
@@ -50,8 +50,8 @@ export default function DoctorRoundsPage() {
   const [loading, setLoading] = useState(false);
 
   // Forms
-  const [note, setNote] = useState("");
   const [instruction, setInstruction] = useState("");
+  const [formKey, setFormKey] = useState(Date.now()); // For resetting SOAP note
   const [carePlan, setCarePlan] = useState<CarePlanItem[]>([]);
 
   useEffect(() => {
@@ -86,15 +86,16 @@ export default function DoctorRoundsPage() {
     }
   };
 
-  const handleAddNote = async () => {
-    if (!selectedPatient || !note.trim()) return;
+  const handleSaveNote = async (data: any) => {
+    if (!selectedPatient) return;
     try {
-      await apiClient.post(`/clinical/inpatient/encounters/${selectedPatient.id}/notes`, {
-        content: note,
+      await apiClient.post(`/clinical-notes`, {
+        ...data,
+        encounterId: selectedPatient.id,
         type: "DOCTOR_ROUND",
       });
-      toast.success("تم حفظ الملاحظة");
-      setNote("");
+      toast.success("تم حفظ الملاحظة السريرية");
+      setFormKey(Date.now());
       loadRotation();
     } catch (e) {
       toast.error("فشل الحفظ");
@@ -192,21 +193,13 @@ export default function DoctorRoundsPage() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* 1. Progress Note (SOAP) */}
               <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
-                <h3 className="font-bold text-lg mb-3 text-sky-300">📝 ملاحظات المرور (Progress Note)</h3>
-                <textarea
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl p-4 min-h-[150px] focus:border-sky-500 outline-none text-sm"
-                  placeholder="S: Subjective...&#10;O: Objective...&#10;A: Assessment...&#10;P: Plan..."
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                ></textarea>
-                <div className="mt-3 flex justify-end">
-                  <button
-                    onClick={handleAddNote}
-                    className="px-6 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-xl font-bold shadow-lg shadow-sky-900/20"
-                  >
-                    حفظ الملاحظة
-                  </button>
-                </div>
+                <StructuredSOAPNote
+                  key={`soap-${selectedPatient.id}-${formKey}`}
+                  note={{}}
+                  onSave={handleSaveNote}
+                  onSign={async () => {}} // Disabled for new notes directly
+                  onCoSign={async () => {}}
+                />
               </div>
 
               {/* 2. Care Plan / Orders with Execution Status */}

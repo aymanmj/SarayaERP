@@ -58,6 +58,7 @@ type EncounterDetail = {
   patient?: Patient;
   visits?: Visit[];
   doctor?: { fullName: string };
+  admission?: { id: number };
   department?: { name: string };
 };
 
@@ -391,6 +392,16 @@ export default function EncounterDetailsPage() {
             >
               📋 السجل الطبي
             </Link>
+            
+            {encounter.type === "IPD" && encounter.admission?.id && (
+              <Link
+                to={`/discharge-summary/${encounter.admission.id}`}
+                className="bg-amber-900/30 text-amber-300 border border-amber-500/30 px-2.5 py-0.5 rounded text-xs font-bold hover:bg-amber-800/40 transition-colors flex items-center gap-1"
+              >
+                📝 ملخص الخروج (Discharge Summary)
+              </Link>
+            )}
+
             <span
               className={`px-2 py-0.5 rounded text-[10px] font-bold border ${encounter.type === "ER" ? "bg-rose-900/20 text-rose-300 border-rose-500/30" : "bg-purple-900/20 text-purple-300 border-purple-500/30"}`}
             >

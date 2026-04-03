@@ -20,4 +20,14 @@ export class ClinicalNotesController {
   findAllByEncounter(@Param('id', ParseIntPipe) id: number) {
     return this.clinicalNotesService.findAllByEncounter(id);
   }
+
+  @Post(':id/sign')
+  signNote(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: any) {
+    return this.clinicalNotesService.signNote(id, user.sub);
+  }
+
+  @Post(':id/cosign')
+  coSignNote(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: any) {
+    return this.clinicalNotesService.coSignNote(id, user.sub);
+  }
 }

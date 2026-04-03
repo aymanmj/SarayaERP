@@ -66,6 +66,7 @@ model Hospital {
   purchaseReturns           PurchaseReturn[]
   radiologyStudies          RadiologyStudy[]
   rooms                     Room[]
+  dischargeSummaries        DischargeSummary[]
   serviceCategories         ServiceCategory[]
   serviceItems              ServiceItem[]
   stockTransactions         StockTransaction[]
@@ -244,7 +245,10 @@ model User {
   executedCarePlans         CarePlanExecution[]
   createdCarePlanItems      CarePlanItem[]
   cashierShiftClosings      CashierShiftClosing[]      @relation("UserCashierShifts")
-  createdClinicalNotes      ClinicalNote[]
+  createdClinicalNotes      ClinicalNote[]             @relation("NoteCreator")
+  signedClinicalNotes       ClinicalNote[]             @relation("NoteSigner")
+  coSignedClinicalNotes     ClinicalNote[]             @relation("NoteCoSigner")
+  createdDischargeSummaries DischargeSummary[]         @relation("DischargeSummaryCreator")
   dispensesAsPharmacist     DispenseRecord[]           @relation("PharmacistUser")
   doctorSchedule            DoctorSchedule?
   rosters                   EmployeeRoster[]
@@ -290,8 +294,8 @@ model User {
   admissionNotes             AdmissionNote[]
 
   // Discharge Planning Relations
-  dischargeCaseManaged     DischargePlanning[] @relation("DischargeCaseManager")
-  dischargeSocialWorked    DischargePlanning[] @relation("DischargeSocialWorker")
+  dischargeCaseManaged      DischargePlanning[]        @relation("DischargeCaseManager")
+  dischargeSocialWorked     DischargePlanning[]        @relation("DischargeSocialWorker")
   dischargeFollowUpDoctor  DischargePlanning[] @relation("DischargeFollowUpDoctor")
   createdDischargePlanning DischargePlanning[] @relation("DischargeCreator")
 
@@ -498,6 +502,7 @@ model Encounter {
   cdssAlerts                CDSSAlert[]
   carePlanItems             CarePlanItem[]
   clinicalNotes             ClinicalNote[]
+  dischargeSummary          DischargeSummary?
   department                Department?                @relation(fields: [departmentId], references: [id])
   doctor                    User?                      @relation("EncounterDoctor", fields: [doctorId], references: [id])
   hospital                  Hospital                   @relation(fields: [hospitalId], references: [id])
@@ -2216,13 +2221,36 @@ model ClinicalNote {
   id          Int       @id @default(autoincrement())
   encounterId Int
   type        NoteType  @default(NURSING_ROUTINE)
-  content     String
+  
+  content     String?   @db.Text
+
+  // Structured SOAP fields
+  subjective  String?   @db.Text
+  objective   String?   @db.Text
+  assessment  String?   @db.Text
+  plan        String?   @db.Text
+
+  // Metadata & Hierarchy
+  isAddendum  Boolean   @default(false)
+  parentNoteId Int?
+  
+  // Signature fields
+  signedById  Int?
+  signedAt    DateTime?
+  coSignedById Int?
+  coSignedAt  DateTime?
+
   shiftId     Int?
   createdById Int
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
-  createdBy   User      @relation(fields: [createdById], references: [id])
+  
+  createdBy   User      @relation("NoteCreator", fields: [createdById], references: [id])
   encounter   Encounter @relation(fields: [encounterId], references: [id])
+  signedBy    User?     @relation("NoteSigner", fields: [signedById], references: [id])
+  coSignedBy  User?     @relation("NoteCoSigner", fields: [coSignedById], references: [id])
+  parentNote  ClinicalNote?  @relation("NoteAddendum", fields: [parentNoteId], references: [id])
+  appendages  ClinicalNote[] @relation("NoteAddendum")
 
   @@index([encounterId])
   @@index([type])
@@ -3070,6 +3098,7 @@ model Admission {
 
   // Related Records
   dischargePlanning DischargePlanning?
+  dischargeSummary  DischargeSummary?
   bedTransfers      BedTransfer[]
   admissionNotes    AdmissionNote[]
   // vitalSigns            VitalSign[]
@@ -3165,6 +3194,58 @@ model DischargePlanning {
 
   @@map("discharge_planning")
 }
+
+// -------------------------------------------------------------
+// Medical Discharge Summary Model
+// -------------------------------------------------------------
+model DischargeSummary {
+  id            Int       @id @default(autoincrement())
+  admissionId   Int       @unique
+  encounterId   Int       @unique
+  hospitalId    Int
+
+  // Administrative
+  admissionDate     DateTime
+  dischargeDate     DateTime
+  lengthOfStay      Int          // in days
+  
+  // Clinical Summary
+  admissionDiagnosis   String    @db.Text
+  dischargeDiagnosis   String    @db.Text
+  proceduresPerformed  Json?     // [{name, date, notes}]
+  consultations        Json?     // [{specialty, doctor, findings}]
+  
+  // Course of Treatment
+  hospitalCourse       String    @db.Text
+  significantFindings  String?   @db.Text  
+  
+  // Discharge Plan
+  dischargeMedications Json?     // [{name, dose, frequency, duration}]
+  followUpInstructions String?   @db.Text
+  followUpDate         DateTime?
+  followUpDoctor       String?
+  activityRestrictions String?   @db.Text
+  dietInstructions     String?   @db.Text
+  
+  // Warnings and Education
+  patientEducation     String?   @db.Text
+  warningSignsToWatch  String?   @db.Text
+  
+  // Sign-off
+  createdById          Int
+  completedAt          DateTime?
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  admission  Admission @relation(fields: [admissionId], references: [id])
+  encounter  Encounter @relation(fields: [encounterId], references: [id])
+  hospital   Hospital  @relation(fields: [hospitalId], references: [id])
+  createdBy  User      @relation("DischargeSummaryCreator", fields: [createdById], references: [id])
+
+  @@index([hospitalId])
+}
+
 
 // Bed Transfer Model
 model BedTransfer {

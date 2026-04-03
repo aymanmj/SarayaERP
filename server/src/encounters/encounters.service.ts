@@ -219,6 +219,7 @@ export class EncountersService {
           },
         },
         invoices: true,
+        admission: true,
       },
     });
 

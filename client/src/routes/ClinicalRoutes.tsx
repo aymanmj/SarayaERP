@@ -13,6 +13,7 @@ const AdvancedAdmissionManagementPage = lazy(() => import("../pages/AdvancedAdmi
 const ActiveInpatientsPage = lazy(() => import("../pages/ActiveInpatientsPage"));
 const DoctorRoundsPage = lazy(() => import("../pages/DoctorRoundsPage")); // ✅
 const DischargePlanningPage = lazy(() => import("../pages/DischargePlanningPage")); // 🆕
+const DischargeSummaryBuilderPage = lazy(() => import("../pages/DischargeSummaryBuilderPage").then(m => ({ default: m.DischargeSummaryBuilderPage }))); // 🆕
 const BedManagementDashboardPage = lazy(() => import("../pages/BedManagementDashboard")); // 🆕
 const ConsentFormsPage = lazy(() => import("../pages/clinical/consent-forms/ConsentFormsPage").then(m => ({ default: m.ConsentFormsPage }))); // 🆕 Consent Forms
 const PatientChartPage = lazy(() => import("../pages/PatientChartPage")); // 🆕 EMR Patient Chart
@@ -78,6 +79,7 @@ export const ClinicalRoutes = (
     <Route path="/active-inpatients" element={<ActiveInpatientsPage />} />
     <Route path="/doctor-rounds" element={<DoctorRoundsPage />} /> {/* ✅ */}
     <Route path="/discharge-planning" element={<DischargePlanningPage />} /> {/* 🆕 */}
+    <Route path="/discharge-summary/:admissionId" element={<DischargeSummaryBuilderPage />} /> {/* 🆕 */}
     <Route path="/bed-management" element={<BedManagementDashboardPage />} /> {/* 🆕 */}
     <Route path="/obgyn/deliveries/new" element={<DeliveryRegistrationPage />} /> {/* 🆕 OBGYN */}
     <Route path="/obgyn/anc" element={<AntenatalCarePage />} /> {/* 🆕 ANC */}
