@@ -1,35 +1,38 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, ParseIntPipe, Req } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, ParseIntPipe, Req, UseGuards } from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { CurrentUser } from '../auth/current-user.decorator';
 import { DischargeSummaryService } from './discharge-summary.service';
 import { CreateDischargeSummaryDto } from './dto/discharge-summary.dto';
 
 @Controller('discharge-summary')
+@UseGuards(JwtAuthGuard)
 export class DischargeSummaryController {
   constructor(private readonly dischargeSummaryService: DischargeSummaryService) {}
 
   @Get('admission/:admissionId')
   getOrCreateDraft(
     @Param('admissionId', ParseIntPipe) admissionId: number,
-    @Req() req: any
+    @CurrentUser() user: any
   ) {
-    return this.dischargeSummaryService.getOrCreateDraft(admissionId, req.user.hospitalId);
+    return this.dischargeSummaryService.getOrCreateDraft(admissionId, user.hospitalId);
   }
 
   @Post()
   saveSummary(
     @Body() dto: CreateDischargeSummaryDto,
-    @Req() req: any
+    @CurrentUser() user: any
   ) {
-    if (dto.hospitalId !== req.user.hospitalId) {
+    if (dto.hospitalId !== user.hospitalId) {
         throw new Error('Hospital ID mismatch');
     }
-    return this.dischargeSummaryService.saveSummary(req.user.id, dto);
+    return this.dischargeSummaryService.saveSummary(user.id, dto);
   }
 
   @Post(':id/sign')
   signOff(
     @Param('id', ParseIntPipe) id: number,
-    @Req() req: any
+    @CurrentUser() user: any
   ) {
-    return this.dischargeSummaryService.signOff(id, req.user.hospitalId);
+    return this.dischargeSummaryService.signOff(id, user.hospitalId);
   }
 }

@@ -474,9 +474,17 @@ export class AdmissionService {
       throw new BadRequestException('Patient is already discharged');
     }
 
-    // 1. Medical Clearance
     if (!admission.dischargePlanning) {
-      throw new BadRequestException('لا يمكن إجراء الخروج: خطة الخروج الطبية غير موجودة. يرجى التنسيق مع الطبيب لإنشاء الخطة أولاً.');
+      throw new BadRequestException('لا يمكن إجراء الخروج: خطة التخريج (Discharge Plan) التشغيلية غير موجودة.');
+    }
+
+    // 1.5 Medical Summary Clearance (Phase 2 Requirement)
+    const dischargeSummary = await this.prisma.dischargeSummary.findFirst({
+      where: { admissionId: admissionId, completedAt: { not: null } }
+    });
+
+    if (!dischargeSummary) {
+      throw new BadRequestException("لا يمكن إجراء الخروج: 'ملخص الخروج' الطبي (Discharge Summary) لم يُعتمد أو لم يُوقع بعد من الطبيب المعالج.");
     }
 
     // Calculate length of stay

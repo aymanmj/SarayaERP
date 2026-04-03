@@ -6,7 +6,8 @@ import { useNavigate } from "react-router-dom";
 // Types
 type Admission = {
   id: number;
-  patient: { fullName: string; mrn: string };
+  encounterId?: number;
+  patient: { id?: number; fullName: string; mrn: string };
   bed?: { bedNumber: string; room?: { roomNumber: string; ward?: { name: string } } };
   ward?: { name: string };
   department?: { name: string };
@@ -204,20 +205,27 @@ export default function AdvancedAdmissionManagement() {
     }
   };
 
-  const handleDischargePatient = async (admissionId: number) => {
-    if (!confirm("هل أنت متأكد من تسريح المريض؟")) return;
+  const handleDischargePatient = async (admission: Admission) => {
+    if (!confirm("هل أنت متأكد من تسريح المريض عملياً وإخلاء السرير؟\n\nتأكد انه تم توثيق 'ملخص الخروج' طبياً وتخليص الفواتير مالياً.")) return;
 
     try {
-      await apiClient.post(`/admissions/${admissionId}/discharge`, {
+      await apiClient.post(`/admissions/${admission.id}/discharge`, {
         dischargeDisposition: "HOME",
         followUpRequired: false,
         notes: "تسريح عادي",
       });
 
-      toast.success("تم تسريح المريض بنجاح");
+      toast.success("تم تسريح المريض بنجاح، السرير الآن متاح للتنظيف.", {
+        action: {
+          label: "طباعة الفاتورة الشاملة والنتائج",
+          onClick: () => navigate(`/encounters/${admission.encounterId}`)
+        },
+        duration: 10000
+      });
       loadData();
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || "فشل تسريح المريض");
+      const msg = err?.response?.data?.message || "فشل تسريح المريض";
+      toast.error(msg, { duration: 10000 });
     }
   };
 
@@ -670,12 +678,18 @@ export default function AdvancedAdmissionManagement() {
                                 >
                                   نقل سرير
                                 </button>
-                                <button
-                                  onClick={() => handleDischargePatient(admission.id)}
-                                  className="px-3 py-1 bg-green-600 hover:bg-green-500 rounded text-xs transition-colors"
-                                >
-                                  تسريح
-                                </button>
+                                  <button
+                                    onClick={() => navigate(`/discharge-summary/${admission.id}`)}
+                                    className="px-3 py-1 bg-amber-600 hover:bg-amber-500 rounded text-xs transition-colors shadow-sm"
+                                  >
+                                    📝 التخريج الطبي 
+                                  </button>
+                                  <button
+                                    onClick={() => handleDischargePatient(admission)}
+                                    className="px-3 py-1 bg-green-600 hover:bg-green-500 rounded text-xs transition-colors shadow-lg font-bold"
+                                  >
+                                    تسريح وإخلاء
+                                  </button>
                               </>
                             )}
                           </div>

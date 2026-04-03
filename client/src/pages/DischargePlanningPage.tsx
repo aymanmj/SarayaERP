@@ -241,12 +241,15 @@ export default function DischargePlanningPage() {
   const handleUpdatePlanStatus = async (planId: number, admissionId: number, newStatus: string) => {
     try {
       if (newStatus === 'COMPLETED') {
+        const confirmMsg = "هل أنت متأكد من إنهاء خطة التخريج وإخلاء المريض نهائياً؟\nتأكد من توقيع ملخص الخروج السريري وتصفية الحساب المالي.";
+        if (!confirm(confirmMsg)) return;
+
         await apiClient.patch(`/admissions/discharge-planning/${planId}/status`, {
           status: 'COMPLETED'
         });
         
         await apiClient.post(`/admissions/${admissionId}/discharge`, {});
-        toast.success('تم إكمال الخطة وإجراء الخروج بنجاح. السرير الآن في حالة تنظيف.');
+        toast.success('تم إكمال الخطة وإجراء الخروج بنجاح. السرير الآن متاح للتنظيف.', { duration: 8000 });
       } else {
         await apiClient.patch(`/admissions/discharge-planning/${planId}/status`, {
           status: newStatus
@@ -256,7 +259,7 @@ export default function DischargePlanningPage() {
       
       loadDischargePlans();
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || 'فشل النظام في إنهاء الخطة. تأكد من استيفاءك لمتطلبات التسوية المالية.');
+      toast.error(error?.response?.data?.message || 'فشل النظام في إجراء التخريج الفعلي. تأكد من استكمال ملخص الخروج (Medical Summary) والتسوية المالية.', { duration: 10000 });
     }
   };
 
