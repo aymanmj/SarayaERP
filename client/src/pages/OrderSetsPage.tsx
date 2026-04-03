@@ -62,8 +62,18 @@ export default function OrderSetsPage() {
   const [selectedSet, setSelectedSet] = useState<OrderSet | null>(null);
   const [showBuilder, setShowBuilder] = useState(false);
   const [showExecuteModal, setShowExecuteModal] = useState(false);
-  const [executeEncounterId, setExecuteEncounterId] = useState('');
   const [executing, setExecuting] = useState(false);
+  const [encounterSearchTerm, setEncounterSearchTerm] = useState('');
+  const [activeEncounters, setActiveEncounters] = useState<any[]>([]);
+  const [selectedEncounter, setSelectedEncounter] = useState<any | null>(null);
+
+  const searchEncounters = async (q: string) => {
+    if (q.length < 2) { setActiveEncounters([]); return; }
+    try {
+      const res = await apiClient.get('/encounters', { params: { search: q, status: 'OPEN', limit: 10 } });
+      setActiveEncounters(res.data?.items || res.data || []);
+    } catch {}
+  };
   const [searchFilter, setSearchFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [categories, setCategories] = useState<string[]>([]);
@@ -231,15 +241,16 @@ export default function OrderSetsPage() {
   };
 
   const executeOrderSet = async () => {
-    if (!selectedSet || !executeEncounterId) return;
+    if (!selectedSet || !selectedEncounter?.id) return;
     setExecuting(true);
     try {
       const result = await apiClient.post(`/order-sets/${selectedSet.id}/execute`, {
-        encounterId: +executeEncounterId,
+        encounterId: selectedEncounter.id,
       });
-      toast.success(`تم تنفيذ "${selectedSet.nameAr || selectedSet.name}" بنجاح — ${result.data.total} طلب`, { duration: 8000 });
+      toast.success(`تم تنفيذ "${selectedSet.nameAr || selectedSet.name}" بنجاح للـ ${selectedEncounter.patient?.fullName}`, { duration: 8000 });
       setShowExecuteModal(false);
-      setExecuteEncounterId('');
+      setSelectedEncounter(null);
+      setEncounterSearchTerm('');
     } catch (err: any) {
       toast.error(err?.response?.data?.message || 'فشل تنفيذ مجموعة الطلبات', { duration: 8000 });
     } finally {
@@ -496,10 +507,12 @@ export default function OrderSetsPage() {
 
       {/* ==================== Execute Modal ==================== */}
       {showExecuteModal && selectedSet && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-slate-800 rounded-2xl p-6 w-full max-w-lg border border-slate-600">
-            <h3 className="text-xl font-bold mb-2">تنفيذ: {selectedSet.nameAr || selectedSet.name}</h3>
-            <p className="text-sm text-slate-400 mb-5">سيتم إصدار {selectedSet.items.length} طلب تلقائياً للحالة المحددة</p>
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-900 border border-slate-700/60 rounded-3xl p-6 md:p-8 w-full max-w-lg shadow-[0_0_50px_-12px_rgba(14,165,233,0.15)] relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-sky-500/10 rounded-full blur-3xl -mx-10 -my-10" />
+            
+            <h3 className="text-2xl font-black mb-2 text-white">تنفيذ: {selectedSet.nameAr || selectedSet.name}</h3>
+            <p className="text-sm text-slate-400 mb-6">سيتم إصدار {selectedSet.items.length} طلب إكلينيكي بضغطة زر</p>
 
             {/* Items preview */}
             <div className="space-y-1.5 mb-5 max-h-40 overflow-y-auto">
@@ -513,24 +526,55 @@ export default function OrderSetsPage() {
               ))}
             </div>
 
-            <div className="mb-5">
-              <label className="block text-sm font-medium mb-2">رقم الحالة (Encounter ID)</label>
-              <input
-                type="number"
-                value={executeEncounterId}
-                onChange={e => setExecuteEncounterId(e.target.value)}
-                className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm"
-                placeholder="أدخل رقم الحالة المرضية..."
-              />
+            <div className="mb-8">
+              <label className="block text-sm font-bold mb-3 text-slate-300">اختر الحالة النشطة المشرفة على المريض <span className="text-red-400">*</span></label>
+              <div className="relative z-10">
+                <input
+                  type="text"
+                  value={encounterSearchTerm}
+                  onChange={e => {
+                    setEncounterSearchTerm(e.target.value);
+                    setSelectedEncounter(null);
+                    searchEncounters(e.target.value);
+                  }}
+                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3.5 text-sm focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition-all placeholder-slate-500"
+                  placeholder="ابحث بالاسم، رقم الهاتف، أو الـ MRN..."
+                />
+                
+                {activeEncounters.length > 0 && !selectedEncounter && (
+                  <div className="absolute w-full top-full mt-2 bg-slate-800 border border-slate-700 rounded-xl max-h-56 overflow-y-auto shadow-2xl py-1 z-50 custom-scrollbar">
+                    {activeEncounters.map((enc: any) => (
+                      <button
+                        key={enc.id}
+                        onClick={() => {
+                          setSelectedEncounter(enc);
+                          setEncounterSearchTerm(`${enc.patient?.fullName || 'غير معروف'} - ${enc.patient?.mrn || ''}`);
+                          setActiveEncounters([]);
+                        }}
+                        className="w-full px-4 py-3 hover:bg-slate-700/50 transition-colors flex justify-between items-center border-b border-slate-700/30 last:border-0 rounded-lg mx-1 w-[calc(100%-8px)]"
+                      >
+                        <div className="text-right">
+                          <div className="font-bold text-sm text-slate-100">{enc.patient?.fullName || "مريض غير معروف"}</div>
+                          <div className="text-xs text-sky-400 font-mono mt-0.5">#{enc.patient?.mrn}</div>
+                        </div>
+                        <div className="text-left bg-slate-900/50 px-2 py-1.5 rounded-lg border border-slate-700/50">
+                          <div className="text-[10px] text-slate-300 font-bold">{enc.department?.name || 'بدون قسم'} <span className="text-slate-500 px-1">•</span> {enc.type}</div>
+                          <div className="text-[10px] text-slate-400 mt-0.5">🩺 {enc.doctor?.fullName || 'بدون طبيب'}</div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
-            <div className="flex gap-3">
-              <button onClick={executeOrderSet} disabled={executing || !executeEncounterId}
-                className="px-6 py-2.5 bg-green-600 hover:bg-green-500 disabled:bg-slate-600 disabled:cursor-not-allowed rounded-xl font-bold transition-colors">
-                {executing ? 'جاري التنفيذ...' : '▶ تنفيذ الآن'}
+            <div className="flex gap-3 mt-4 relative z-0">
+              <button onClick={executeOrderSet} disabled={executing || !selectedEncounter}
+                className="flex-1 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 disabled:from-slate-700 disabled:to-slate-800 disabled:text-slate-500 disabled:border-slate-700 disabled:cursor-not-allowed rounded-xl font-bold transition-all shadow-lg shadow-green-900/20 text-white border border-green-500/30">
+                {executing ? 'جاري التنفيذ...' : '▶ تنفيذ بروتوكول الطلبات الآن'}
               </button>
-              <button onClick={() => { setShowExecuteModal(false); setExecuteEncounterId(''); }}
-                className="px-6 py-2.5 bg-slate-600 hover:bg-slate-500 rounded-xl transition-colors">
+              <button onClick={() => { setShowExecuteModal(false); setSelectedEncounter(null); setEncounterSearchTerm(''); setActiveEncounters([]); }}
+                className="px-6 py-3 bg-slate-800 hover:bg-slate-700 rounded-xl transition-colors font-semibold border border-slate-700 text-slate-300">
                 إلغاء
               </button>
             </div>

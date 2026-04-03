@@ -84,9 +84,19 @@ export default function ClinicalPathwaysPage() {
   const [bSteps, setBSteps] = useState<any[]>([]);
 
   // Enroll state
-  const [enrollEncounterId, setEnrollEncounterId] = useState('');
-  const [enrollNotes, setEnrollNotes] = useState('');
   const [enrolling, setEnrolling] = useState(false);
+  const [enrollNotes, setEnrollNotes] = useState('');
+  const [encounterSearchTerm, setEncounterSearchTerm] = useState('');
+  const [activeEncounters, setActiveEncounters] = useState<any[]>([]);
+  const [selectedEncounter, setSelectedEncounter] = useState<any | null>(null);
+
+  const searchEncounters = async (q: string) => {
+    if (q.length < 2) { setActiveEncounters([]); return; }
+    try {
+      const res = await apiClient.get('/encounters', { params: { search: q, status: 'OPEN', limit: 10 } });
+      setActiveEncounters(res.data?.items || res.data || []);
+    } catch {}
+  };
 
   // Order Sets for linking
   const [orderSets, setOrderSets] = useState<any[]>([]);
@@ -191,16 +201,17 @@ export default function ClinicalPathwaysPage() {
   };
 
   const enrollPatient = async () => {
-    if (!selectedPathway || !enrollEncounterId) return;
+    if (!selectedPathway || !selectedEncounter?.id) return;
     setEnrolling(true);
     try {
       await apiClient.post(`/clinical-pathways/${selectedPathway.id}/enroll`, {
-        encounterId: +enrollEncounterId,
+        encounterId: selectedEncounter.id,
         notes: enrollNotes || undefined,
       });
       toast.success(`تم تسجيل المريض في المسار "${selectedPathway.nameAr || selectedPathway.name}" بنجاح`);
       setShowEnrollModal(false);
-      setEnrollEncounterId('');
+      setSelectedEncounter(null);
+      setEncounterSearchTerm('');
       setEnrollNotes('');
     } catch (err: any) {
       toast.error(err?.response?.data?.message || 'فشل التسجيل');
@@ -538,31 +549,70 @@ export default function ClinicalPathwaysPage() {
 
       {/* ==================== Enroll Modal ==================== */}
       {showEnrollModal && selectedPathway && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-slate-800 rounded-2xl p-6 w-full max-w-md border border-slate-600">
-            <h3 className="text-xl font-bold mb-2">تسجيل مريض في المسار</h3>
-            <p className="text-sm text-slate-400 mb-5">{selectedPathway.nameAr || selectedPathway.name}</p>
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-900 border border-slate-700/60 rounded-3xl p-6 md:p-8 w-full max-w-lg shadow-[0_0_50px_-12px_rgba(236,72,153,0.15)] relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-pink-500/10 rounded-full blur-3xl -mx-10 -my-10" />
+            
+            <h3 className="text-2xl font-black mb-2 text-white">تسجيل حالة في مسار علاجي</h3>
+            <p className="text-sm text-slate-400 mb-6">مسار: {selectedPathway.nameAr || selectedPathway.name}</p>
 
-            <div className="space-y-4 mb-5">
+            <div className="space-y-6 mb-8">
               <div>
-                <label className="block text-sm font-medium mb-2">رقم الحالة (Encounter ID)</label>
-                <input type="number" value={enrollEncounterId} onChange={e => setEnrollEncounterId(e.target.value)}
-                  className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm" placeholder="أدخل رقم الحالة..." />
+                <label className="block text-sm font-bold mb-3 text-slate-300">بحث عن الحالة النشطة المعنية <span className="text-red-400">*</span></label>
+                <div className="relative z-10">
+                  <input
+                    type="text"
+                    value={encounterSearchTerm}
+                    onChange={e => {
+                      setEncounterSearchTerm(e.target.value);
+                      setSelectedEncounter(null);
+                      searchEncounters(e.target.value);
+                    }}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3.5 text-sm focus:border-pink-500 focus:ring-1 focus:ring-pink-500 outline-none transition-all placeholder-slate-500"
+                    placeholder="ابحث بالاسم، رقم الهاتف، أو הـ MRN..."
+                  />
+                  
+                  {activeEncounters.length > 0 && !selectedEncounter && (
+                    <div className="absolute w-full top-full mt-2 bg-slate-800 border border-slate-700 rounded-xl max-h-56 overflow-y-auto shadow-2xl py-1 z-50 custom-scrollbar">
+                      {activeEncounters.map((enc: any) => (
+                        <button
+                          key={enc.id}
+                          onClick={() => {
+                            setSelectedEncounter(enc);
+                            setEncounterSearchTerm(`${enc.patient?.fullName || 'غير معروف'} - ${enc.patient?.mrn || ''}`);
+                            setActiveEncounters([]);
+                          }}
+                          className="w-full px-4 py-3 hover:bg-slate-700/50 transition-colors flex justify-between items-center border-b border-slate-700/30 last:border-0 rounded-lg mx-1 w-[calc(100%-8px)]"
+                        >
+                          <div className="text-right">
+                            <div className="font-bold text-sm text-slate-100">{enc.patient?.fullName || "مريض غير معروف"}</div>
+                            <div className="text-xs text-pink-400 font-mono mt-0.5">#{enc.patient?.mrn}</div>
+                          </div>
+                          <div className="text-left bg-slate-900/50 px-2 py-1.5 rounded-lg border border-slate-700/50">
+                            <div className="text-[10px] text-slate-300 font-bold">{enc.department?.name || 'بدون قسم'} <span className="text-slate-500 px-1">•</span> {enc.type}</div>
+                            <div className="text-[10px] text-slate-400 mt-0.5">🩺 {enc.doctor?.fullName || 'بدون طبيب'}</div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
+
               <div>
-                <label className="block text-sm font-medium mb-2">ملاحظات (اختياري)</label>
+                <label className="block text-sm font-medium mb-3 text-slate-300">ملاحظات سريرية تخص التسجيل (اختياري)</label>
                 <textarea value={enrollNotes} onChange={e => setEnrollNotes(e.target.value)} rows={3}
-                  className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm" placeholder="ملاحظات إكلينيكية..." />
+                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:border-pink-500 outline-none transition-all resize-none" placeholder="اكتب ملاحظاتك للطاقم هنا..." />
               </div>
             </div>
 
-            <div className="flex gap-3">
-              <button onClick={enrollPatient} disabled={enrolling || !enrollEncounterId}
-                className="px-6 py-2.5 bg-green-600 hover:bg-green-500 disabled:bg-slate-600 rounded-xl font-bold transition-colors">
-                {enrolling ? 'جاري التسجيل...' : '📋 تسجيل المريض'}
+            <div className="flex gap-3 relative z-0">
+              <button onClick={enrollPatient} disabled={enrolling || !selectedEncounter}
+                className="flex-1 py-3 bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 disabled:from-slate-700 disabled:to-slate-800 disabled:text-slate-500 disabled:border-slate-700 disabled:cursor-not-allowed rounded-xl font-bold transition-all shadow-lg shadow-pink-900/20 text-white border border-pink-500/30">
+                {enrolling ? 'جاري التسجيل...' : '📋 تسجيل وبدء المسار'}
               </button>
-              <button onClick={() => { setShowEnrollModal(false); setEnrollEncounterId(''); setEnrollNotes(''); }}
-                className="px-6 py-2.5 bg-slate-600 hover:bg-slate-500 rounded-xl transition-colors">
+              <button onClick={() => { setShowEnrollModal(false); setSelectedEncounter(null); setEncounterSearchTerm(''); setActiveEncounters([]); setEnrollNotes(''); }}
+                className="px-6 py-3 bg-slate-800 hover:bg-slate-700 rounded-xl transition-colors font-semibold border border-slate-700 text-slate-300">
                 إلغاء
               </button>
             </div>
