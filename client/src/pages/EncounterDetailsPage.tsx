@@ -3,7 +3,7 @@
 // src/pages/EncounterDetailsPage.tsx
 
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { apiClient } from "../api/apiClient";
 import { toast } from "sonner";
 import { useAuthStore } from "../stores/authStore";
@@ -385,6 +385,12 @@ export default function EncounterDetailsPage() {
             <span className="bg-sky-900/30 text-sky-300 border border-sky-500/30 px-2 py-0.5 rounded text-xs font-mono">
               {encounter.patient?.mrn}
             </span>
+            <Link
+              to={`/patients/${encounter.patientId}/chart`}
+              className="bg-emerald-900/30 text-emerald-300 border border-emerald-500/30 px-2.5 py-0.5 rounded text-xs font-bold hover:bg-emerald-800/40 transition-colors flex items-center gap-1"
+            >
+              📋 السجل الطبي
+            </Link>
             <span
               className={`px-2 py-0.5 rounded text-[10px] font-bold border ${encounter.type === "ER" ? "bg-rose-900/20 text-rose-300 border-rose-500/30" : "bg-purple-900/20 text-purple-300 border-purple-500/30"}`}
             >

@@ -92,6 +92,14 @@ model Hospital {
   icuDailyAssessments ICUDailyAssessment[]
   icuMedicationDrips  ICUMedicationDrip[]
   icuEquipmentUsages  ICUEquipmentUsage[]
+
+  // Clinical Profile (EMR)
+  patientProblems          PatientProblem[]
+  patientMedicalHistories  PatientMedicalHistory[]
+  homeMedications          HomeMedication[]
+  patientPMHEntries        PatientPMHEntry[]
+  patientSurgicalEntries   PatientSurgicalEntry[]
+  patientFamilyEntries     PatientFamilyHistoryEntry[]
 }
 
 model Department {
@@ -318,6 +326,11 @@ model User {
   // ICU Additions
   icuDailyAssessments     ICUDailyAssessment[] @relation("ICUAssessedBy")
   icuMedicationDripsOrdered ICUMedicationDrip[] @relation("ICUDripOrderedBy")
+
+  // Clinical Profile (EMR)
+  createdPatientProblems     PatientProblem[]     @relation("ProblemCreatedBy")
+  createdHomeMedications     HomeMedication[]     @relation("HomeMedCreatedBy")
+  verifiedHomeMedications    HomeMedication[]     @relation("HomeMedVerifiedBy")
 }
 
 model RefreshToken {
@@ -436,6 +449,14 @@ model Patient {
 
   // Referrals
   referrals Referral[]
+
+  // Clinical Profile (EMR)
+  problems         PatientProblem[]
+  medicalHistory   PatientMedicalHistory?
+  homeMedications  HomeMedication[]
+  pmhEntries       PatientPMHEntry[]
+  surgicalEntries  PatientSurgicalEntry[]
+  familyEntries    PatientFamilyHistoryEntry[]
 
   @@index([hospitalId, phone])
   @@index([hospitalId, fullName])
@@ -1777,6 +1798,7 @@ model DiagnosisCode {
   icd10Code          String? // Standard ICD-10 Code
   encounterDiagnoses EncounterDiagnosis[]
   visitDiagnoses     VisitDiagnosis[]
+  patientProblems    PatientProblem[]
 
   @@index([code])
   @@index([nameEn])
@@ -3526,4 +3548,195 @@ model ICUEquipmentUsage {
   encounter Encounter @relation(fields: [encounterId], references: [id])
   
   @@index([hospitalId, encounterId])
+}
+
+// ================================================
+// السجل الطبي الإلكتروني — Patient Clinical Profile (EMR)
+// ================================================
+
+// ---- قائمة المشاكل الصحية (Problem List) ----
+
+model PatientProblem {
+  id              Int              @id @default(autoincrement())
+  patientId       Int
+  hospitalId      Int
+  diagnosisCodeId Int?
+  description     String           // وصف المشكلة الصحية
+  type            ProblemType      @default(ACTIVE)
+  severity        ProblemSeverity?
+  onsetDate       DateTime?        // تاريخ بداية المشكلة
+  resolvedDate    DateTime?        // تاريخ الحل (إن وجد)
+  notes           String?
+  isChronic       Boolean          @default(false)
+  createdById     Int
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  patient       Patient        @relation(fields: [patientId], references: [id])
+  hospital      Hospital       @relation(fields: [hospitalId], references: [id])
+  diagnosisCode DiagnosisCode? @relation(fields: [diagnosisCodeId], references: [id])
+  createdBy     User           @relation("ProblemCreatedBy", fields: [createdById], references: [id])
+
+  @@index([patientId, type])
+  @@index([hospitalId, patientId])
+}
+
+enum ProblemType {
+  ACTIVE
+  RESOLVED
+  CHRONIC
+  INACTIVE
+}
+
+enum ProblemSeverity {
+  MILD
+  MODERATE
+  SEVERE
+  LIFE_THREATENING
+}
+
+// ---- التاريخ المرضي الشامل (Medical History) ----
+
+model PatientMedicalHistory {
+  id           Int      @id @default(autoincrement())
+  patientId    Int      @unique  // سجل واحد لكل مريض
+  hospitalId   Int
+
+  // Social History
+  smokingStatus   SmokingStatus?
+  alcoholUse      String?
+  occupation      String?
+  exerciseLevel   String?
+  dietNotes       String?
+  socialNotes     String?
+
+  // Functional Status
+  mobilityStatus  String?
+  adlStatus       String?          // Activities of Daily Living
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  patient  Patient  @relation(fields: [patientId], references: [id])
+  hospital Hospital @relation(fields: [hospitalId], references: [id])
+
+  @@index([patientId])
+}
+
+enum SmokingStatus {
+  NEVER
+  FORMER
+  CURRENT
+  UNKNOWN
+}
+
+// ---- التاريخ المرضي السابق (Past Medical History) ----
+
+model PatientPMHEntry {
+  id            Int      @id @default(autoincrement())
+  patientId     Int
+  hospitalId    Int
+  condition     String           // اسم المرض/الحالة
+  diagnosisYear Int?             // سنة التشخيص
+  isActive      Boolean  @default(true)
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  patient  Patient  @relation(fields: [patientId], references: [id])
+  hospital Hospital @relation(fields: [hospitalId], references: [id])
+
+  @@index([patientId])
+}
+
+// ---- التاريخ الجراحي (Past Surgical History) ----
+
+model PatientSurgicalEntry {
+  id            Int      @id @default(autoincrement())
+  patientId     Int
+  hospitalId    Int
+  procedure     String           // اسم العملية
+  surgeryYear   Int?             // سنة العملية
+  hospitalName  String?          // المؤسسة (إن كانت خارجية)
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  patient  Patient  @relation(fields: [patientId], references: [id])
+  hospital Hospital @relation(fields: [hospitalId], references: [id])
+
+  @@index([patientId])
+}
+
+// ---- التاريخ العائلي (Family History) ----
+
+model PatientFamilyHistoryEntry {
+  id            Int            @id @default(autoincrement())
+  patientId     Int
+  hospitalId    Int
+  relation      FamilyRelation // صلة القرابة
+  condition     String         // المرض / الحالة
+  ageOfOnset    Int?           // عمر ظهور المرض
+  isDeceased    Boolean        @default(false)
+  causeOfDeath  String?
+  notes         String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  patient  Patient  @relation(fields: [patientId], references: [id])
+  hospital Hospital @relation(fields: [hospitalId], references: [id])
+
+  @@index([patientId])
+}
+
+enum FamilyRelation {
+  FATHER
+  MOTHER
+  BROTHER
+  SISTER
+  SON
+  DAUGHTER
+  GRANDFATHER
+  GRANDMOTHER
+  UNCLE
+  AUNT
+  OTHER
+}
+
+// ---- الأدوية المنزلية (Home Medications / Medication Reconciliation) ----
+
+model HomeMedication {
+  id             Int              @id @default(autoincrement())
+  patientId      Int
+  hospitalId     Int
+  medicationName String           // اسم الدواء (حر — لأدوية خارج النظام)
+  dose           String?
+  frequency      String?
+  route          String?
+  prescribedBy   String?          // طبيب خارجي أو اسم المصدر
+  reason         String?          // السبب / التشخيص
+  startDate      DateTime?
+  isActive       Boolean          @default(true)
+  source         MedicationSource @default(PATIENT_REPORTED)
+  verifiedById   Int?             // الطبيب الذي تحقق من الدواء
+  verifiedAt     DateTime?
+  notes          String?
+  createdById    Int
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  patient    Patient  @relation(fields: [patientId], references: [id])
+  hospital   Hospital @relation(fields: [hospitalId], references: [id])
+  createdBy  User     @relation("HomeMedCreatedBy", fields: [createdById], references: [id])
+  verifiedBy User?    @relation("HomeMedVerifiedBy", fields: [verifiedById], references: [id])
+
+  @@index([patientId, isActive])
+  @@index([hospitalId, patientId])
+}
+
+enum MedicationSource {
+  PATIENT_REPORTED
+  PHARMACY_RECORD
+  REFERRAL_LETTER
+  PREVIOUS_ADMISSION
 }

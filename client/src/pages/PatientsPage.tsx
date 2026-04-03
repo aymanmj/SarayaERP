@@ -391,6 +391,16 @@ export function PatientsPage() {
 
                         <button
                           onClick={() =>
+                            navigate(`/patients/${p.id}/chart`)
+                          }
+                          className="p-2 bg-slate-800 hover:bg-sky-900/40 text-sky-400 rounded-xl transition-all border border-slate-700"
+                          title="السجل الطبي الشامل (EMR)"
+                        >
+                          📋
+                        </button>
+
+                        <button
+                          onClick={() =>
                             navigate(`/patients/${p.id}/consents`)
                           }
                           className="p-2 bg-slate-800 hover:bg-rose-900/40 text-rose-400 rounded-xl transition-all border border-slate-700 font-bold"

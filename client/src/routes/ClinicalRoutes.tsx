@@ -15,6 +15,7 @@ const DoctorRoundsPage = lazy(() => import("../pages/DoctorRoundsPage")); // ✅
 const DischargePlanningPage = lazy(() => import("../pages/DischargePlanningPage")); // 🆕
 const BedManagementDashboardPage = lazy(() => import("../pages/BedManagementDashboard")); // 🆕
 const ConsentFormsPage = lazy(() => import("../pages/clinical/consent-forms/ConsentFormsPage").then(m => ({ default: m.ConsentFormsPage }))); // 🆕 Consent Forms
+const PatientChartPage = lazy(() => import("../pages/PatientChartPage")); // 🆕 EMR Patient Chart
 const DeliveryRegistrationPage = lazy(() => import("../pages/obgyn/DeliveryRegistrationPage")); // 🆕 OBGYN
 const AntenatalCarePage = lazy(() => import("../pages/obgyn/AntenatalCarePage")); // 🆕 ANC
 const FertilityDashboardPage = lazy(() => import("../pages/obgyn/FertilityDashboardPage")); // 🆕 IVF
@@ -68,6 +69,7 @@ export const ClinicalRoutes = (
     {/* Core Clinical */}
     <Route path="/patients" element={<PatientsPage />} />
     <Route path="/patients/:id/consents" element={<ConsentFormsPage />} /> {/* 🆕 Consent Forms */}
+    <Route path="/patients/:id/chart" element={<PatientChartPage />} /> {/* 🆕 EMR Patient Chart */}
     <Route path="/encounters" element={<EncountersListPage />} />
     <Route path="/encounters/:id" element={<EncounterDetailsPage />} />
     <Route path="/appointments" element={<AppointmentsPage />} />

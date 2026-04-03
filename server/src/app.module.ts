@@ -75,6 +75,7 @@ import { ReferralModule } from './referral/referral.module';
 import { NoteTemplatesModule } from './note-templates/note-templates.module';
 import { TransfersModule } from './transfers/transfers.module';
 import { IcuModule } from './icu/icu.module';
+import { ClinicalProfileModule } from './clinical-profile/clinical-profile.module';
 
 @Module({
   imports: [
@@ -159,6 +160,7 @@ import { IcuModule } from './icu/icu.module';
     ObGynModule,
     ConsentFormsModule, // ✅ [NEW] Consent Forms
     ClinicalNotesModule, // ✅ [NEW] Clinical Notes
+    ClinicalProfileModule, // ✅ [NEW] Patient Clinical Profile (EMR)
 
     // Departments & Specialties
     DepartmentsModule,

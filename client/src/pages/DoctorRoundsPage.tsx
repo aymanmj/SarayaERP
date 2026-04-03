@@ -1,6 +1,7 @@
 
 import { useEffect, useState } from "react";
 import { apiClient } from "../api/apiClient";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuthStore } from "../stores/authStore";
 
@@ -172,9 +173,17 @@ export default function DoctorRoundsPage() {
         ) : (
           <div className="space-y-6">
             <header className="border-b border-slate-800 pb-4">
-              <h1 className="text-3xl font-bold text-white mb-1">
-                {selectedPatient.patient.fullName}
-              </h1>
+              <div className="flex items-center gap-3 mb-1">
+                <h1 className="text-3xl font-bold text-white">
+                  {selectedPatient.patient.fullName}
+                </h1>
+                <Link
+                  to={`/patients/${selectedPatient.patient.id}/chart`}
+                  className="bg-emerald-900/30 text-emerald-300 border border-emerald-500/30 px-2.5 py-1 rounded-xl text-[10px] font-bold hover:bg-emerald-800/40 transition-colors"
+                >
+                  📋 السجل الطبي
+                </Link>
+              </div>
               <p className="text-slate-400 text-sm">
                 ملف: {selectedPatient.patient.mrn} | دخول رقم #{selectedPatient.id}
               </p>
