@@ -6,6 +6,7 @@
 
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { decrypt } from '../common/utils/encryption.util';
 import {
   CreateProblemDto,
   UpdateProblemDto,
@@ -445,6 +446,14 @@ export class ClinicalProfileService {
 
     if (!patient) throw new NotFoundException('المريض غير موجود');
 
+    // فك تشفير الحقول الحساسة (احتياطي في حال لم تعالجها الـ extension)
+    const decryptedPatient = {
+      ...patient,
+      phone: decrypt(patient.phone) ?? patient.phone,
+      email: decrypt(patient.email) ?? patient.email,
+      address: decrypt(patient.address) ?? patient.address,
+    };
+
     // إحصائيات سريعة
     const totalEncounters = await this.prisma.encounter.count({
       where: { patientId, hospitalId },
@@ -455,7 +464,7 @@ export class ClinicalProfileService {
     });
 
     return {
-      patient,
+      patient: decryptedPatient,
       problems,
       medicalHistory,
       homeMedications,
