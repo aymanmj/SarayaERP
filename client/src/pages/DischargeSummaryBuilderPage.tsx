@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 import { apiClient } from "../api/apiClient";
 import { useAuthStore } from "../stores/authStore";
 
