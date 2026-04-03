@@ -377,107 +377,169 @@ export default function ClinicalPathwaysPage() {
         </div>
       )}
 
-      {/* ==================== Builder Modal ==================== */}
       {showBuilder && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-slate-800 rounded-2xl p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto border border-slate-600">
-            <h3 className="text-xl font-bold mb-5">{selectedPathway ? 'تعديل المسار العلاجي' : 'إنشاء مسار علاجي جديد'}</h3>
-
-            <div className="grid grid-cols-2 gap-4 mb-5">
-              <div>
-                <label className="block text-sm font-medium mb-1">الاسم (EN)</label>
-                <input value={bName} onChange={e => setBName(e.target.value)}
-                  className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm" placeholder="Pneumonia Clinical Pathway" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">الاسم (AR)</label>
-                <input value={bNameAr} onChange={e => setBNameAr(e.target.value)}
-                  className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm" placeholder="المسار السريري لالتهاب الرئة" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">التشخيص المستهدف</label>
-                <input value={bDiagnosis} onChange={e => setBDiagnosis(e.target.value)}
-                  className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm" placeholder="J18.9 - Pneumonia" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">مدة الإقامة المتوقعة (أيام)</label>
-                <input type="number" value={bLOS} onChange={e => setBLOS(e.target.value)}
-                  className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm" placeholder="5" />
-              </div>
-              <div className="col-span-2">
-                <label className="block text-sm font-medium mb-1">الوصف</label>
-                <textarea value={bDescription} onChange={e => setBDescription(e.target.value)} rows={2}
-                  className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm" />
-              </div>
+        <div className="fixed inset-0 bg-slate-950 z-[100] flex flex-col animate-in fade-in zoom-in-95 duration-200">
+          {/* Header */}
+          <div className="bg-slate-900 border-b border-slate-800 px-6 py-4 flex items-center justify-between shadow-sm shrink-0">
+            <div>
+              <h2 className="text-xl font-black text-white">{selectedPathway ? 'تعديل المسار العلاجي' : 'بناء مسار علاجي جديد'}</h2>
+              <p className="text-xs text-slate-400 mt-1">
+                قم ببناء خطوات معيارية مبنية على الأدلة السريرية تساهم في تنظيم رحلة المريض وتوقعات العلاج
+              </p>
             </div>
+            <div className="flex gap-3">
+              <button onClick={() => { setShowBuilder(false); resetBuilder(); }}
+                className="px-6 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl transition-colors font-bold border border-slate-700">
+                إلغاء التغييرات
+              </button>
+              <button onClick={savePathway}
+                className="px-8 py-2.5 bg-pink-600 hover:bg-pink-500 text-white rounded-xl font-bold transition-colors shadow-lg shadow-pink-900/30">
+                💾 حفظ المسار العلاجي
+              </button>
+            </div>
+          </div>
 
-            {/* Steps */}
-            <div className="mb-4">
-              <div className="flex justify-between items-center mb-3">
-                <h4 className="text-sm font-semibold">الخطوات ({bSteps.length})</h4>
-                <button onClick={addStep}
-                  className="px-3 py-1 bg-sky-600 hover:bg-sky-500 rounded-lg text-xs font-bold transition-colors">
-                  + إضافة خطوة
-                </button>
-              </div>
-              <div className="space-y-3 max-h-96 overflow-y-auto">
-                {bSteps.map((step, idx) => (
-                  <div key={idx} className="bg-slate-900/50 rounded-xl p-4 border border-slate-700">
-                    <div className="flex justify-between items-center mb-3">
-                      <span className="text-sm font-bold text-sky-400">اليوم {step.dayNumber}</span>
-                      <button onClick={() => removeStep(idx)} className="text-red-400 hover:text-red-300 text-sm">✕ حذف</button>
-                    </div>
-                    <div className="grid grid-cols-3 gap-3">
-                      <div>
-                        <label className="block text-xs mb-1">رقم اليوم</label>
-                        <input type="number" value={step.dayNumber} onChange={e => updateStep(idx, 'dayNumber', +e.target.value)}
-                          className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-1.5 text-sm" />
-                      </div>
-                      <div>
-                        <label className="block text-xs mb-1">المرحلة</label>
-                        <select value={step.phase} onChange={e => updateStep(idx, 'phase', e.target.value)}
-                          className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-1.5 text-sm">
-                          <option value="">بدون</option>
-                          <option value="Assessment">التقييم</option>
-                          <option value="Treatment">العلاج</option>
-                          <option value="Monitoring">المتابعة</option>
-                          <option value="Discharge">الخروج</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-xs mb-1">مجموعة طلبات (اختياري)</label>
-                        <select value={step.orderSetId} onChange={e => updateStep(idx, 'orderSetId', e.target.value)}
-                          className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-1.5 text-sm">
-                          <option value="">بدون</option>
-                          {orderSets.map((os: any) => <option key={os.id} value={os.id}>{os.nameAr || os.name}</option>)}
-                        </select>
-                      </div>
-                      <div className="col-span-2">
-                        <label className="block text-xs mb-1">العنوان</label>
-                        <input value={step.title} onChange={e => updateStep(idx, 'title', e.target.value)}
-                          className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-1.5 text-sm" placeholder="Initial Assessment & Orders" />
-                      </div>
-                      <div>
-                        <label className="block text-xs mb-1">الهدف المتوقع</label>
-                        <input value={step.expectedOutcome} onChange={e => updateStep(idx, 'expectedOutcome', e.target.value)}
-                          className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-1.5 text-sm" placeholder="Pain < 3/10" />
-                      </div>
+          <div className="flex-1 overflow-hidden flex flex-col xl:flex-row">
+            {/* Right Pane: Settings */}
+            <div className="w-full xl:w-[400px] bg-slate-900/50 border-l border-slate-800 overflow-y-auto p-6 custom-scrollbar shrink-0">
+              <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
+                <span className="w-8 h-8 rounded-lg bg-pink-500/20 text-pink-400 flex items-center justify-center">⚙️</span>
+                الإعدادات والمحددات الأساسية
+              </h3>
+              
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 mb-1.5">الاسم الإنجليزي (EN) <span className="text-red-400">*</span></label>
+                  <input value={bName} onChange={e => setBName(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm outline-none focus:border-pink-500 transition-all" placeholder="Pneumonia Pathway" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 mb-1.5">الاسم العربي (AR) <span className="text-red-400">*</span></label>
+                  <input value={bNameAr} onChange={e => setBNameAr(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm outline-none focus:border-pink-500 transition-all" placeholder="مسار التهاب الرئة" />
+                </div>
+                
+                <div className="bg-rose-900/10 border border-rose-500/20 rounded-2xl p-5">
+                  <div className="mb-4">
+                    <label className="block text-xs font-bold text-slate-400 mb-1.5">التشخيص المستهدف الطبي (ICD)</label>
+                    <input value={bDiagnosis} onChange={e => setBDiagnosis(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm outline-none focus:border-rose-500 transition-all" placeholder="J18.9 - Pneumonia" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 mb-1.5 flex justify-between">
+                      <span>مدة الإقامة المتوقعة (LOS)</span>
+                      <span className="bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded text-[10px]">مهم للمتابعة</span>
+                    </label>
+                    <div className="relative">
+                      <input type="number" value={bLOS} onChange={e => setBLOS(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm outline-none focus:border-amber-500 transition-all pl-12" placeholder="5" />
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 text-xs font-bold">أيام</span>
                     </div>
                   </div>
-                ))}
-                {bSteps.length === 0 && <p className="text-sm text-slate-500 text-center py-8">لم يتم إضافة خطوات بعد</p>}
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 mb-1.5">الوصف العلمي</label>
+                  <textarea value={bDescription} onChange={e => setBDescription(e.target.value)} rows={5}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm outline-none focus:border-pink-500 transition-all resize-none" placeholder="نطاق المسار والأهداف العامة..." />
+                </div>
               </div>
             </div>
 
-            <div className="flex gap-3">
-              <button onClick={savePathway}
-                className="px-6 py-2.5 bg-sky-600 hover:bg-sky-500 rounded-xl font-bold transition-colors">
-                {selectedPathway ? 'حفظ التعديلات' : 'إنشاء المسار'}
-              </button>
-              <button onClick={() => { setShowBuilder(false); resetBuilder(); }}
-                className="px-6 py-2.5 bg-slate-600 hover:bg-slate-500 rounded-xl transition-colors">
-                إلغاء
-              </button>
+            {/* Left Pane: Items Builder */}
+            <div className="flex-1 bg-slate-950 flex flex-col relative overflow-hidden">
+              <div className="absolute inset-0 bg-pink-900/5 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-pink-900/10 via-transparent to-transparent pointer-events-none" />
+              
+              <div className="p-6 shrink-0 z-10 flex justify-between items-end border-b border-slate-800/50 pb-4">
+                <div>
+                  <h3 className="text-xl font-bold flex items-center gap-2 text-white">
+                    <span className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center">🛤️</span>
+                    الخطوات والمراحل الزمنية
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-1 mr-10">إضافة الإجراءات وبروتوكولات الطلبات مقسمة حسب الأيام ومراحل العلاج.</p>
+                </div>
+                <button onClick={addStep}
+                  className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold shadow-lg shadow-emerald-900/30 transition-all h-[42px] whitespace-nowrap">
+                  + خطوة جديدة للمسار
+                </button>
+              </div>
+
+              {/* Timeline Steps Content */}
+              <div className="flex-1 overflow-y-auto p-6 md:p-8 custom-scrollbar z-10 relative">
+                {bSteps.length === 0 ? (
+                  <div className="h-full flex flex-col items-center justify-center text-slate-500">
+                    <div className="text-6xl mb-4 opacity-50">⏳</div>
+                    <p className="text-xl font-bold text-white mb-2">رحلة العلاج خالية لم تبدأ بعد</p>
+                    <p className="text-sm max-w-sm text-center">أضف اليوم الأول والتدخلات التمريضية والطبية المرتبطة به لتبدأ برسم المسار للمرضى</p>
+                  </div>
+                ) : (
+                  <div className="max-w-4xl mx-auto space-y-6">
+                    {bSteps.map((step, idx) => (
+                      <div key={idx} className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-sm relative group hover:border-slate-700 transition-all">
+                        {/* Connecting Line effect */}
+                        {idx !== bSteps.length - 1 && (
+                          <div className="absolute top-[100%] right-10 w-0.5 h-6 bg-slate-800 z-0"></div>
+                        )}
+                        
+                        <div className="flex justify-between items-center mb-5">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-slate-800 text-slate-300 font-bold flex items-center justify-center text-lg border-2 border-slate-700">
+                              {step.dayNumber}
+                            </div>
+                            <div>
+                              <h4 className="text-sm border-b border-transparent placeholder-slate-500 px-0 outline-none w-48 font-bold text-sky-400">تدخلات اليوم المحددة</h4>
+                            </div>
+                          </div>
+                          <button onClick={() => removeStep(idx)} className="text-white hover:bg-red-500 bg-slate-800 w-8 h-8 rounded-lg flex items-center justify-center transition-all opacity-30 group-hover:opacity-100 shadow-sm shrink-0">
+                            ✕
+                          </button>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-12 gap-5 ml-4 pl-4 border-l-2 border-slate-800">
+                          <div className="md:col-span-2">
+                            <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase">رقم اليوم</label>
+                            <input type="number" value={step.dayNumber} onChange={e => updateStep(idx, 'dayNumber', +e.target.value)}
+                              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm outline-none focus:border-pink-500 font-mono text-center" />
+                          </div>
+                          
+                          <div className="md:col-span-4">
+                            <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase">المرحلة السريرية (Phase)</label>
+                            <select value={step.phase} onChange={e => updateStep(idx, 'phase', e.target.value)}
+                              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm outline-none focus:border-pink-500">
+                              <option value="">بدون مرحلة مخصصة</option>
+                              <option value="Assessment">التقييم (Assessment)</option>
+                              <option value="Treatment">العلاج (Treatment)</option>
+                              <option value="Monitoring">المتابعة (Monitoring)</option>
+                              <option value="Discharge">التجهيز للخروج (Discharge)</option>
+                            </select>
+                          </div>
+
+                          <div className="md:col-span-6">
+                            <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase">ربط بمجموعة طلبات طبية (Order Set)</label>
+                            <select value={step.orderSetId} onChange={e => updateStep(idx, 'orderSetId', e.target.value)}
+                              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm outline-none focus:border-pink-500 text-sky-300 font-bold">
+                              <option value="">بدون (استقلالية الإجراءات)</option>
+                              {orderSets.map((os: any) => <option key={os.id} value={os.id}>📦 {os.nameAr || os.name}</option>)}
+                            </select>
+                          </div>
+
+                          <div className="md:col-span-6">
+                            <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase">اسم الإجراء بالخطوة</label>
+                            <input value={step.title} onChange={e => updateStep(idx, 'title', e.target.value)}
+                              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm outline-none focus:border-pink-500" placeholder="Cardiology Monitoring..." />
+                          </div>
+
+                          <div className="md:col-span-6">
+                            <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase">الهدف المرجو والمتوقع قياسه</label>
+                            <input value={step.expectedOutcome} onChange={e => updateStep(idx, 'expectedOutcome', e.target.value)}
+                              className="w-full bg-emerald-950/20 border border-emerald-900/50 rounded-xl px-3 py-2 text-sm outline-none focus:border-emerald-500 text-emerald-400 placeholder-emerald-900" placeholder="مثال: استقرار معدل ضربات القلب" />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

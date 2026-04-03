@@ -121,13 +121,13 @@ export default function OrderSetsPage() {
   const loadBuilderResources = async () => {
     try {
       const [labRes, radRes, prodRes] = await Promise.all([
-        apiClient.get('/labs/tests'),
-        apiClient.get('/radiology/studies'),
-        apiClient.get('/pharmacy/products', { params: { limit: 200 } }),
+        apiClient.get('/labs/catalog'),
+        apiClient.get('/radiology/catalog'),
+        apiClient.get('/pharmacy/catalog', { params: { limit: 500 } }),
       ]);
-      setLabTests(labRes.data || []);
-      setRadiologyStudies(radRes.data || []);
-      setProducts(Array.isArray(prodRes.data) ? prodRes.data : prodRes.data?.items || []);
+      setLabTests(labRes.data?.items || labRes.data || []);
+      setRadiologyStudies(radRes.data?.items || radRes.data || []);
+      setProducts(prodRes.data?.items || prodRes.data || []);
     } catch (err) {
       console.error('Error loading builder resources:', err);
     }
@@ -389,117 +389,164 @@ export default function OrderSetsPage() {
         </div>
       )}
 
-      {/* ==================== Builder Modal ==================== */}
+      {/* ==================== Fullscreen Builder Modal ==================== */}
       {showBuilder && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-slate-800 rounded-2xl p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto border border-slate-600">
-            <h3 className="text-xl font-bold mb-5">{selectedSet ? 'تعديل مجموعة الطلبات' : 'إنشاء مجموعة طلبات جديدة'}</h3>
-
-            <div className="grid grid-cols-2 gap-4 mb-5">
-              <div>
-                <label className="block text-sm font-medium mb-1">الاسم (EN)</label>
-                <input value={builderName} onChange={e => setBuilderName(e.target.value)}
-                  className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm" placeholder="Chest Pain Workup" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">الاسم (AR)</label>
-                <input value={builderNameAr} onChange={e => setBuilderNameAr(e.target.value)}
-                  className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm" placeholder="بروتوكول ألم الصدر" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">الفئة</label>
-                <input value={builderCategory} onChange={e => setBuilderCategory(e.target.value)}
-                  className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm" placeholder="Cardiology" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">التخصص</label>
-                <input value={builderSpecialty} onChange={e => setBuilderSpecialty(e.target.value)}
-                  className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm" placeholder="Cardiology" />
-              </div>
-              <div className="col-span-2">
-                <label className="block text-sm font-medium mb-1">الوصف</label>
-                <textarea value={builderDescription} onChange={e => setBuilderDescription(e.target.value)} rows={2}
-                  className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm" placeholder="وصف مختصر لمجموعة الطلبات..." />
-              </div>
+        <div className="fixed inset-0 bg-slate-950 z-[100] flex flex-col animate-in fade-in zoom-in-95 duration-200">
+          {/* Header */}
+          <div className="bg-slate-900 border-b border-slate-800 px-6 py-4 flex items-center justify-between shadow-sm shrink-0">
+            <div>
+              <h2 className="text-xl font-black text-white">{selectedSet ? 'تعديل مجموعة الطلبات' : 'بناء مجموعة طلبات جديدة'}</h2>
+              <p className="text-xs text-slate-400 mt-1">
+                {selectedSet ? 'تعديل المعايير والفحوصات المرفقة بهذه المجموعة' : 'قم ببناء بروتوكول متكامل يضم التحاليل، الأشعة، الأدوية وغيرها لاستخدامه بضغطة زر'}
+              </p>
             </div>
-
-            {/* Current Items */}
-            <div className="mb-4">
-              <h4 className="text-sm font-semibold mb-2">العناصر ({builderItems.length})</h4>
-              <div className="space-y-2 max-h-48 overflow-y-auto">
-                {builderItems.map((item, idx) => (
-                  <div key={idx} className="flex items-center justify-between bg-slate-700/50 rounded-lg px-3 py-2">
-                    <div className="flex items-center gap-2">
-                      <span className={`px-2 py-0.5 rounded text-[10px] border ${ITEM_TYPE_COLORS[item.itemType as OrderSetItemType]}`}>
-                        {ITEM_TYPE_LABELS[item.itemType as OrderSetItemType]}
-                      </span>
-                      <span className="text-sm">{item._label}</span>
-                      <span className="text-[10px] text-slate-400">{PRIORITY_LABELS[item.priority] || item.priority}</span>
-                    </div>
-                    <button onClick={() => removeBuilderItem(idx)} className="text-red-400 hover:text-red-300 text-sm">✕</button>
-                  </div>
-                ))}
-                {builderItems.length === 0 && <p className="text-sm text-slate-500 text-center py-4">لم يتم إضافة عناصر بعد</p>}
-              </div>
-            </div>
-
-            {/* Add Item */}
-            <div className="bg-slate-900/50 rounded-xl p-4 border border-slate-700 mb-5">
-              <h4 className="text-sm font-semibold mb-3">إضافة عنصر</h4>
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-xs mb-1">النوع</label>
-                  <select value={newItemType} onChange={e => { setNewItemType(e.target.value as OrderSetItemType); setNewItemRefId(''); }}
-                    className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm">
-                    {Object.entries(ITEM_TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs mb-1">العنصر</label>
-                  {newItemType === 'NURSING' ? (
-                    <input value={newItemNursingAction} onChange={e => setNewItemNursingAction(e.target.value)}
-                      className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm" placeholder="إجراء التمريض..." />
-                  ) : (
-                    <select value={newItemRefId} onChange={e => setNewItemRefId(e.target.value)}
-                      className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm">
-                      <option value="">اختر...</option>
-                      {newItemType === 'LAB' && labTests.map(t => <option key={t.id} value={t.id}>{t.arabicName || t.name}</option>)}
-                      {newItemType === 'RADIOLOGY' && radiologyStudies.map(s => <option key={s.id} value={s.id}>{s.arabicName || s.name}</option>)}
-                      {newItemType === 'MEDICATION' && products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                    </select>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-xs mb-1">الأولوية</label>
-                  <select value={newItemPriority} onChange={e => setNewItemPriority(e.target.value)}
-                    className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm">
-                    {Object.entries(PRIORITY_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                  </select>
-                </div>
-              </div>
-              <div className="mt-3 flex gap-3 items-end">
-                <div className="flex-1">
-                  <label className="block text-xs mb-1">تعليمات (اختياري)</label>
-                  <input value={newItemInstructions} onChange={e => setNewItemInstructions(e.target.value)}
-                    className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm" placeholder="تعليمات إضافية..." />
-                </div>
-                <button onClick={addBuilderItem}
-                  className="px-4 py-2 bg-sky-600 hover:bg-sky-500 rounded-lg text-sm font-bold transition-colors whitespace-nowrap">
-                  + إضافة
-                </button>
-              </div>
-            </div>
-
-            {/* Actions */}
             <div className="flex gap-3">
-              <button onClick={saveOrderSet}
-                className="px-6 py-2.5 bg-sky-600 hover:bg-sky-500 rounded-xl font-bold transition-colors">
-                {selectedSet ? 'حفظ التعديلات' : 'إنشاء المجموعة'}
-              </button>
               <button onClick={() => { setShowBuilder(false); resetBuilder(); }}
-                className="px-6 py-2.5 bg-slate-600 hover:bg-slate-500 rounded-xl transition-colors">
-                إلغاء
+                className="px-6 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl transition-colors font-bold border border-slate-700">
+                إلغاء التغييرات
               </button>
+              <button onClick={saveOrderSet}
+                className="px-8 py-2.5 bg-sky-600 hover:bg-sky-500 text-white rounded-xl font-bold transition-colors shadow-lg shadow-sky-900/30">
+                💾 حفظ البروتوكول
+              </button>
+            </div>
+          </div>
+
+          {/* Main Content Split View */}
+          <div className="flex-1 overflow-hidden flex flex-col md:flex-row">
+            {/* Right Pane: Settings */}
+            <div className="w-full md:w-1/3 min-w-[320px] bg-slate-900/50 border-l border-slate-800 overflow-y-auto p-6 custom-scrollbar shrink-0">
+              <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
+                <span className="w-8 h-8 rounded-lg bg-sky-500/20 text-sky-400 flex items-center justify-center">⚙️</span>
+                الإعدادات الأساسية
+              </h3>
+              <div className="space-y-5">
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 mb-1.5">الاسم الإنجليزي (EN) <span className="text-red-400">*</span></label>
+                  <input value={builderName} onChange={e => setBuilderName(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm focus:border-sky-500 transition-all outline-none" placeholder="Chest Pain Protocol" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 mb-1.5">الاسم العربي (AR) <span className="text-red-400">*</span></label>
+                  <input value={builderNameAr} onChange={e => setBuilderNameAr(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm focus:border-sky-500 transition-all outline-none" placeholder="بروتوكول ألم الصدر" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 mb-1.5">الفئة التصنيفية</label>
+                    <input value={builderCategory} onChange={e => setBuilderCategory(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm focus:border-sky-500 transition-all outline-none" placeholder="القلبية" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 mb-1.5">التخصص الداخلي</label>
+                    <input value={builderSpecialty} onChange={e => setBuilderSpecialty(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm focus:border-sky-500 transition-all outline-none" placeholder="عناية القسطرة" />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 mb-1.5">وصف البروتوكول ودواعي الاستخدام</label>
+                  <textarea value={builderDescription} onChange={e => setBuilderDescription(e.target.value)} rows={4}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm focus:border-sky-500 transition-all outline-none resize-none" placeholder="وصف مبسط للحالات المستهدفة من هذه المجموعة..." />
+                </div>
+              </div>
+            </div>
+
+            {/* Left Pane: Items Builder */}
+            <div className="flex-1 bg-slate-950 flex flex-col relative overflow-hidden">
+              <div className="absolute inset-0 bg-sky-900/5 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-sky-900/10 via-transparent to-transparent pointer-events-none" />
+              
+              <div className="p-6 shrink-0 z-10 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-bold flex items-center gap-2">
+                    <span className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center">📦</span>
+                    عناصر الأوامر الطبية (Items)
+                  </h3>
+                  <span className="px-3 py-1 bg-slate-800 border border-slate-700 rounded-full text-xs font-mono">{builderItems.length} عنصر مضاف</span>
+                </div>
+
+                {/* Add Item Panel */}
+                <div className="bg-slate-900 border border-slate-700/50 rounded-2xl p-4 shadow-lg flex flex-col lg:flex-row gap-4 items-end">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 flex-1 w-full">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-400 mb-1.5">النوع</label>
+                      <select value={newItemType} onChange={e => { setNewItemType(e.target.value as OrderSetItemType); setNewItemRefId(''); }}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-sky-500">
+                        {Object.entries(ITEM_TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-400 mb-1.5">الخدمة المُضافة من الدليل الطبّي</label>
+                      {newItemType === 'NURSING' ? (
+                        <input value={newItemNursingAction} onChange={e => setNewItemNursingAction(e.target.value)}
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-sky-500" placeholder="اكتب إجراء التمريض تفصيلاً..." />
+                      ) : (
+                        <select value={newItemRefId} onChange={e => setNewItemRefId(e.target.value)}
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-sky-500">
+                          <option value="">-- ابحث عن خدمة --</option>
+                          {newItemType === 'LAB' && labTests.map(t => <option key={t.id} value={t.id}>{t.arabicName || t.name}</option>)}
+                          {newItemType === 'RADIOLOGY' && radiologyStudies.map(s => <option key={s.id} value={s.id}>{s.arabicName || s.name}</option>)}
+                          {newItemType === 'MEDICATION' && products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                        </select>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-400 mb-1.5">الأولوية</label>
+                      <select value={newItemPriority} onChange={e => setNewItemPriority(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-sky-500">
+                        {Object.entries(PRIORITY_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  
+                  <div className="w-full lg:w-48 xl:w-64">
+                    <label className="block text-xs font-bold text-slate-400 mb-1.5">ملاحظات لتنفيذ الطلب</label>
+                    <input value={newItemInstructions} onChange={e => setNewItemInstructions(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-sky-500" placeholder="اختياري..." />
+                  </div>
+
+                  <button onClick={addBuilderItem}
+                    className="px-6 py-2.5 bg-sky-600 hover:bg-sky-500 text-white rounded-xl font-bold transition-all whitespace-nowrap shadow-md h-[42px] shrink-0">
+                    + إدراج
+                  </button>
+                </div>
+              </div>
+
+              {/* Items List */}
+              <div className="flex-1 overflow-y-auto px-6 pb-6 custom-scrollbar z-10">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                  {builderItems.map((item, idx) => (
+                    <div key={idx} className="bg-slate-900 border border-slate-800 rounded-xl p-4 flex items-center justify-between hover:border-sky-500/30 transition-all group shadow-sm">
+                      <div className="flex gap-4 items-center">
+                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold text-sm border-2 ${ITEM_TYPE_COLORS[item.itemType as OrderSetItemType]} bg-transparent`}>
+                          {item.itemType.substring(0, 3)}
+                        </div>
+                        <div>
+                          <div className="font-bold text-sm text-white mb-0.5">{item._label}</div>
+                          <div className="flex items-center gap-2 text-[10px]">
+                            <span className="text-slate-400">{PRIORITY_LABELS[item.priority] || item.priority}</span>
+                            {item.instructions && (
+                              <>
+                                <span className="text-slate-600">•</span>
+                                <span className="text-slate-400 italic max-w-[120px] truncate">{item.instructions}</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <button onClick={() => removeBuilderItem(idx)} className="w-8 h-8 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white flex items-center justify-center transition-all opacity-50 group-hover:opacity-100">
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                {builderItems.length === 0 && (
+                  <div className="h-full flex flex-col items-center justify-center text-slate-500 py-20">
+                    <div className="text-5xl mb-4 opacity-50">📋</div>
+                    <p className="text-lg font-bold">مساحة عمل خالية</p>
+                    <p className="text-sm max-w-sm text-center mt-2">قم باختيار الأدوية أو التحاليل أو الأشعة من شريط الإدراج بالأعلى ليتم إضافتها إلى هذه المجموعة</p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
