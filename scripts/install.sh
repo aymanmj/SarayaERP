@@ -260,31 +260,44 @@ download_files() {
 
     cd "$INSTALL_DIR"
 
+    # Build auth header if PAT is available (required for private repos)
+    AUTH_HEADER=""
+    if [ -n "$GITHUB_PAT" ]; then
+        AUTH_HEADER="Authorization: token $GITHUB_PAT"
+        print_info "Using authenticated GitHub access (private repo)"
+    fi
+
+    # Helper function for authenticated GitHub raw file download
+    gh_download() {
+        local file_path="$1"
+        local output_path="$2"
+        local url="https://raw.githubusercontent.com/$GITHUB_OWNER/$GITHUB_REPO/$BRANCH/$file_path"
+
+        if [ -n "$AUTH_HEADER" ]; then
+            curl -fsSL -H "$AUTH_HEADER" "$url" -o "$output_path" 2>>"$LOG_FILE"
+        else
+            curl -fsSL "$url" -o "$output_path" 2>>"$LOG_FILE"
+        fi
+    }
+
     # Download docker-compose.production.yml
-    curl -fsSL "https://raw.githubusercontent.com/$GITHUB_OWNER/$GITHUB_REPO/$BRANCH/docker-compose.production.yml" \
-        -o docker-compose.production.yml
+    gh_download "docker-compose.production.yml" "docker-compose.production.yml"
 
     # Download .env.example
-    curl -fsSL "https://raw.githubusercontent.com/$GITHUB_OWNER/$GITHUB_REPO/$BRANCH/.env.example" \
-        -o .env.example
+    gh_download ".env.example" ".env.example"
 
     # Download nginx.conf (SSL-enabled)
-    curl -fsSL "https://raw.githubusercontent.com/$GITHUB_OWNER/$GITHUB_REPO/$BRANCH/production/nginx/nginx.conf" \
-        -o production/nginx/nginx.conf
+    gh_download "production/nginx/nginx.conf" "production/nginx/nginx.conf"
 
     # Download scripts
-    curl -fsSL "https://raw.githubusercontent.com/$GITHUB_OWNER/$GITHUB_REPO/$BRANCH/scripts/update.sh" \
-        -o scripts/update.sh
-    curl -fsSL "https://raw.githubusercontent.com/$GITHUB_OWNER/$GITHUB_REPO/$BRANCH/scripts/backup.sh" \
-        -o scripts/backup.sh
-    curl -fsSL "https://raw.githubusercontent.com/$GITHUB_OWNER/$GITHUB_REPO/$BRANCH/scripts/setup-ghcr.sh" \
-        -o scripts/setup-ghcr.sh
-    curl -fsSL "https://raw.githubusercontent.com/$GITHUB_OWNER/$GITHUB_REPO/$BRANCH/scripts/auto-update.sh" \
-        -o scripts/auto-update.sh
-    curl -fsSL "https://raw.githubusercontent.com/$GITHUB_OWNER/$GITHUB_REPO/$BRANCH/scripts/backup-worker.sh" \
-        -o scripts/backup-worker.sh
-    curl -fsSL "https://raw.githubusercontent.com/$GITHUB_OWNER/$GITHUB_REPO/$BRANCH/scripts/restore.sh" \
-        -o scripts/restore.sh
+    gh_download "scripts/update.sh" "scripts/update.sh"
+    gh_download "scripts/backup.sh" "scripts/backup.sh"
+    gh_download "scripts/setup-ghcr.sh" "scripts/setup-ghcr.sh"
+    gh_download "scripts/auto-update.sh" "scripts/auto-update.sh"
+    gh_download "scripts/backup-worker.sh" "scripts/backup-worker.sh"
+    gh_download "scripts/restore.sh" "scripts/restore.sh"
+    gh_download "scripts/reset.sh" "scripts/reset.sh"
+    gh_download "scripts/health-check.sh" "scripts/health-check.sh"
 
 
     chmod +x scripts/*.sh
@@ -295,30 +308,27 @@ download_files() {
     print_info "Downloading monitoring files..."
     
     # Prometheus configuration
-    curl -fsSL "https://raw.githubusercontent.com/$GITHUB_OWNER/$GITHUB_REPO/$BRANCH/monitoring/prometheus.yml" \
-        -o monitoring/prometheus.yml
+    gh_download "monitoring/prometheus.yml" "monitoring/prometheus.yml"
     
     # Alert rules
-    curl -fsSL "https://raw.githubusercontent.com/$GITHUB_OWNER/$GITHUB_REPO/$BRANCH/monitoring/alert_rules.yml" \
-        -o monitoring/alert_rules.yml
+    gh_download "monitoring/alert_rules.yml" "monitoring/alert_rules.yml"
     
     # Alertmanager configuration
-    curl -fsSL "https://raw.githubusercontent.com/$GITHUB_OWNER/$GITHUB_REPO/$BRANCH/monitoring/alertmanager.yml" \
-        -o monitoring/alertmanager.yml
+    gh_download "monitoring/alertmanager.yml" "monitoring/alertmanager.yml"
     
     # Grafana datasources
-    curl -fsSL "https://raw.githubusercontent.com/$GITHUB_OWNER/$GITHUB_REPO/$BRANCH/monitoring/grafana/provisioning/datasources/prometheus.yml" \
-        -o monitoring/grafana/provisioning/datasources/prometheus.yml
+    gh_download "monitoring/grafana/provisioning/datasources/prometheus.yml" \
+        "monitoring/grafana/provisioning/datasources/prometheus.yml"
     
     # Grafana dashboard provisioning
-    curl -fsSL "https://raw.githubusercontent.com/$GITHUB_OWNER/$GITHUB_REPO/$BRANCH/monitoring/grafana/provisioning/dashboards/dashboard.yml" \
-        -o monitoring/grafana/provisioning/dashboards/dashboard.yml
+    gh_download "monitoring/grafana/provisioning/dashboards/dashboard.yml" \
+        "monitoring/grafana/provisioning/dashboards/dashboard.yml"
 
     # Grafana dashboard JSON files
-    curl -fsSL "https://raw.githubusercontent.com/$GITHUB_OWNER/$GITHUB_REPO/$BRANCH/monitoring/grafana/dashboards/saraya-main.json" \
-        -o monitoring/grafana/dashboards/saraya-main.json
-    curl -fsSL "https://raw.githubusercontent.com/$GITHUB_OWNER/$GITHUB_REPO/$BRANCH/monitoring/grafana/dashboards/saraya-system.json" \
-        -o monitoring/grafana/dashboards/saraya-system.json
+    gh_download "monitoring/grafana/dashboards/saraya-main.json" \
+        "monitoring/grafana/dashboards/saraya-main.json"
+    gh_download "monitoring/grafana/dashboards/saraya-system.json" \
+        "monitoring/grafana/dashboards/saraya-system.json"
 
     # ============================================================
     # Download Frontend Environment Template
@@ -326,8 +336,7 @@ download_files() {
     print_info "Downloading frontend environment template..."
     
     mkdir -p client
-    curl -fsSL "https://raw.githubusercontent.com/$GITHUB_OWNER/$GITHUB_REPO/$BRANCH/client/.env.example" \
-        -o client/.env.example
+    gh_download "client/.env.example" "client/.env.example"
 
     print_status "All files downloaded"
 }
@@ -700,8 +709,14 @@ cleanup_containers() {
     
     # Also try down if compose file exists
     if [ -f "docker-compose.production.yml" ]; then
-        docker compose -f docker-compose.production.yml down --remove-orphans >> "$LOG_FILE" 2>&1 || true
+        docker compose -f docker-compose.production.yml down -v --remove-orphans >> "$LOG_FILE" 2>&1 || true
     fi
+
+    # Clean up stale Docker volumes (prevents auth mismatch on reinstall)
+    print_info "Cleaning up old Docker volumes..."
+    docker volume ls --filter "name=saraya" -q | xargs -r docker volume rm 2>/dev/null || true
+    docker volume ls --filter "name=opt_saraya" -q | xargs -r docker volume rm 2>/dev/null || true
+    print_status "Old volumes cleaned"
 }
 
 # ════════════════════════════════════════════════════════════════════════════════
@@ -755,6 +770,24 @@ pull_and_start() {
     
     # Start optional services (portainer, watchtower)
     docker compose -f docker-compose.production.yml --env-file .env.production up -d portainer watchtower >> "$LOG_FILE" 2>&1 || true
+
+    # Start Cloudflare Tunnel ONLY if token was provided
+    if [ -n "$CF_TUNNEL_TOKEN" ]; then
+        print_info "Starting Cloudflare Tunnel..."
+        docker compose -f docker-compose.production.yml --env-file .env.production up -d tunnel >> "$LOG_FILE" 2>&1 || true
+        print_status "Cloudflare Tunnel started"
+    else
+        print_warning "Cloudflare Tunnel skipped (no token provided)"
+    fi
+
+    # Start Tailscale ONLY if auth key was provided
+    if [ -n "$TAILSCALE_AUTHKEY" ]; then
+        print_info "Starting Tailscale..."
+        docker compose -f docker-compose.production.yml --env-file .env.production up -d tailscale >> "$LOG_FILE" 2>&1 || true
+        print_status "Tailscale started"
+    else
+        print_warning "Tailscale skipped (no auth key provided)"
+    fi
     
     print_status "All core services started"
 
@@ -928,14 +961,14 @@ main() {
     install_dependencies
     install_docker
 
-    # Step 4: Setup directories
-    print_step "4" "Setting Up Directories"
+    # Step 4: Setup GHCR (BEFORE download - PAT needed for private repo)
+    print_step "4" "GitHub Container Registry Setup"
+    setup_ghcr
+
+    # Step 5: Setup directories and download files
+    print_step "5" "Setting Up Directories & Downloading Files"
     setup_directories
     download_files
-
-    # Step 5: Setup GHCR
-    print_step "5" "GitHub Container Registry Setup"
-    setup_ghcr
 
     # Step 6: Create environment file
     print_step "6" "Creating Environment Files"
