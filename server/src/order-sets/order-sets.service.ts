@@ -1,6 +1,8 @@
 import { Injectable, NotFoundException, ForbiddenException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { OrdersService } from '../orders/orders.service';
+import { LabService } from '../labs/labs.service';
+import { RadiologyService } from '../radiology/radiology.service';
 import { OrderSetItemType } from '@prisma/client';
 
 @Injectable()
@@ -10,6 +12,8 @@ export class OrderSetsService {
   constructor(
     private prisma: PrismaService,
     private ordersService: OrdersService,
+    private labService: LabService,
+    private radiologyService: RadiologyService,
   ) {}
 
   // ==================== CRUD ====================
@@ -239,35 +243,64 @@ export class OrderSetsService {
       total: 0,
     };
 
+    const labTestIds: number[] = [];
+    const radStudyIds: number[] = [];
+    const labNotesArr: string[] = [];
+    const radNotesArr: string[] = [];
+
+    // Group items for billing batch
+    for (const item of orderSet.items) {
+       if (item.itemType === 'LAB' && item.labTestId) {
+         labTestIds.push(item.labTestId);
+         if (item.instructions) labNotesArr.push(item.instructions);
+       } else if (item.itemType === 'RADIOLOGY' && item.radiologyStudyId) {
+         radStudyIds.push(item.radiologyStudyId);
+         if (item.instructions) radNotesArr.push(item.instructions);
+       }
+    }
+
+    // 1. Dispatch Lab Orders via LabService to trigger Billing & Invoices
+    if (labTestIds.length > 0) {
+      try {
+         const labResults = await this.labService.createOrdersForEncounter({
+            encounterId,
+            hospitalId,
+            doctorId: userId,
+            testIds: labTestIds,
+            notes: labNotesArr.length > 0 ? labNotesArr.join(' | ') : `أوامر مختبر من بروتوكول: ${orderSet.name}`,
+         });
+         results.labOrders.push(...labResults);
+         results.total += labResults.length;
+      } catch (err: any) {
+         this.logger.warn(`Error dispatching Lab Orders in OrderSet: ${err.message}`);
+         results.skipped.push(`LAB_BATCH: خطأ - ${err.message}`);
+      }
+    }
+
+    // 2. Dispatch Radiology Orders via RadiologyService
+    if (radStudyIds.length > 0) {
+       try {
+          const radResults = await this.radiologyService.createOrdersForEncounter({
+              encounterId,
+              hospitalId,
+              doctorId: userId,
+              studyIds: radStudyIds,
+              notes: radNotesArr.length > 0 ? radNotesArr.join(' | ') : `أوامر أشعة من بروتوكول: ${orderSet.name}`,
+          });
+          results.radiologyOrders.push(...radResults);
+          results.total += radResults.length;
+       } catch (err: any) {
+          this.logger.warn(`Error dispatching Rad Orders in OrderSet: ${err.message}`);
+          results.skipped.push(`RADIOLOGY_BATCH: خطأ - ${err.message}`);
+       }
+    }
+
     for (const item of orderSet.items) {
       try {
         switch (item.itemType) {
           case 'LAB':
-            if (item.labTestId) {
-              const labResult = await this.ordersService.createLabOrder({
-                hospitalId,
-                encounterId,
-                orderedById: userId,
-                testId: item.labTestId,
-                notes: item.instructions || undefined,
-              });
-              results.labOrders.push(labResult);
-              results.total++;
-            }
-            break;
-
           case 'RADIOLOGY':
-            if (item.radiologyStudyId) {
-              const radResult = await this.ordersService.createRadiologyOrder({
-                hospitalId,
-                encounterId,
-                orderedById: userId,
-                studyId: item.radiologyStudyId,
-                notes: item.instructions || undefined,
-              });
-              results.radiologyOrders.push(radResult);
-              results.total++;
-            }
+            // Already handled via batch above
             break;
 
           case 'MEDICATION':
@@ -303,7 +336,7 @@ export class OrderSetsService {
             results.skipped.push(`${item.itemType}: ${item.nursingAction || item.instructions || 'N/A'}`);
             break;
         }
-      } catch (err) {
+      } catch (err: any) {
         this.logger.warn(`Error executing order set item ${item.id}: ${err.message}`);
         results.skipped.push(`${item.itemType}: خطأ - ${err.message}`);
       }
