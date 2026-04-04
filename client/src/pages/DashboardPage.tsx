@@ -93,9 +93,11 @@ export function DashboardPage() {
   const daysLeft = getDaysRemaining();
 
   const getPlanLabel = (plan: string) => {
-    if (plan === "ENTERPRISE") return "مؤسسات (شامل)";
-    if (plan === "PRO") return "احترافي";
-    return "أساسي";
+    const p = (plan || '').toUpperCase();
+    if (p === "ENTERPRISE" || plan === "مؤسسة") return "مؤسسة (شامل)";
+    if (p === "PRO" || plan === "احترافي") return "احترافي";
+    if (p === "BASIC" || plan === "أساسي") return "أساسي";
+    return plan || "أساسي";
   };
 
   const StatCard = ({

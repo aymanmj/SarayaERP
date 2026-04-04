@@ -134,13 +134,15 @@ services:
     logging: *default_logging
 
   # 🔒 Cloudflare Tunnel (Access from Internet without opening ports)
+  # كل عميل يحتاج Tunnel Token خاص به مرتبط بـ Subdomain فريد
+  # مثال: rehab.alsarayatech.ly, nokhba.alsarayatech.ly
   tunnel:
     image: cloudflare/cloudflared:latest
     container_name: saraya_tunnel
     restart: always
     command: tunnel run --protocol http2
     environment:
-      TUNNEL_TOKEN: ${TUNNEL_TOKEN:-eyJhIjoiNTAxNTAxNTA3YWYzZGI5MzFlMjNjOWZlYWZlMjEwNjAiLCJ0IjoiNWEwNDYwYzUtYWVkYi00MDc2LTkyNzQtM2NlNmZhNmYwZjQ2IiwicyI6Ik1tVTBZelUwWXpjdE5HWXpNeTAwTnpsbUxUa3laV010TVdJNVpUTTJObVUwT1dFdyJ9}
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN}
     networks:
       - saraya_net
     logging: *default_logging

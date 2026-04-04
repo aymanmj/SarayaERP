@@ -360,6 +360,7 @@ generate_env_file() {
 # Saraya ERP - Production Environment (Auto-generated)
 # Generated on: $(date)
 # Client: $CLIENT_NAME
+# Domain: ${CLIENT_DOMAIN:-N/A}
 # ════════════════════════════════════════════════════════════════════════════════
 
 # Database
@@ -395,6 +396,9 @@ BASELINE_MIGRATIONS="false"
 
 # License
 LICENSE_PATH=/app/data/saraya.lic
+
+# ☁️ Cloudflare Tunnel (unique per client)
+TUNNEL_TOKEN=$CF_TUNNEL_TOKEN
 
 # Tailscale
 TAILSCALE_AUTHKEY=$TAILSCALE_AUTHKEY
@@ -614,7 +618,7 @@ collect_client_info() {
 
     echo ""
     echo -e "  ${YELLOW}Domain name (optional - for HTTPS):${NC}"
-    echo "  Example: erp.yourdomain.com"
+    echo "  Example: rehab.alsarayatech.ly"
     echo ""
     read -p "  Enter domain (or press Enter for IP-only access): " CLIENT_DOMAIN < /dev/tty
     
@@ -624,6 +628,33 @@ collect_client_info() {
         print_info "No domain - system will be accessed via IP"
     fi
 
+    # ─── Cloudflare Tunnel Setup ───
+    echo ""
+    echo -e "  ${BOLD}${CYAN}Cloudflare Tunnel Setup${NC}"
+    echo -e "  ${CYAN}─────────────────────${NC}"
+    echo ""
+    echo -e "  ${YELLOW}Steps to create a tunnel for this client:${NC}"
+    echo "  1. Go to: https://one.dash.cloudflare.com → Zero Trust → Networks → Tunnels"
+    echo "  2. Click 'Create a tunnel'"
+    echo "  3. Name it: saraya-${CLIENT_NAME}"
+    echo "  4. Copy the TUNNEL_TOKEN from the install command"
+    echo "  5. In 'Public Hostname' tab, add:"
+    if [ -n "$CLIENT_DOMAIN" ]; then
+        echo -e "     Subdomain: ${GREEN}${CLIENT_DOMAIN}${NC}"
+    else
+        echo -e "     Subdomain: ${GREEN}${CLIENT_NAME}.alsarayatech.ly${NC}"
+    fi
+    echo "     Service: http://nginx:80"
+    echo ""
+    read -p "  Paste the Tunnel Token (or press Enter to skip): " CF_TUNNEL_TOKEN < /dev/tty
+    
+    if [ -n "$CF_TUNNEL_TOKEN" ]; then
+        print_status "Cloudflare Tunnel Token saved"
+    else
+        print_warning "Cloudflare Tunnel skipped - add TUNNEL_TOKEN to .env.production later"
+    fi
+
+    # ─── Tailscale Setup ───
     echo ""
     echo -e "  ${YELLOW}Tailscale Auth Key (optional - for remote access):${NC}"
     echo "  Get it from: https://login.tailscale.com/admin/settings/keys"
