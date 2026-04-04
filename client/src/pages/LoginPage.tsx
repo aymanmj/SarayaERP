@@ -96,7 +96,7 @@ export function LoginPage() {
         {/* Logo + Name */}
         <div className="flex items-center gap-4 mb-auto">
           <img
-            src="/sarayalogo.jpeg"
+            src="/sarayalogo.png"
             alt="نظام السرايا الطبي"
             className="w-14 h-14 object-contain rounded-xl drop-shadow-[0_0_12px_rgba(197,160,68,0.4)]"
           />
@@ -168,7 +168,7 @@ export function LoginPage() {
           {/* Mobile-only branding */}
           <div className="lg:hidden flex flex-col items-center mb-10">
             <img
-              src="/sarayalogo.jpeg"
+              src="/sarayalogo.png"
               alt="نظام السرايا الطبي"
               className="w-16 h-16 object-contain rounded-xl drop-shadow-[0_0_18px_rgba(197,160,68,0.5)] mb-3"
             />

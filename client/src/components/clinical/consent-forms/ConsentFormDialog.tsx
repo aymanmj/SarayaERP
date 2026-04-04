@@ -185,7 +185,7 @@ export function ConsentFormDialog({
 </head>
 <body>
   <div class="header">
-    <img src="/sarayalogo.jpeg" alt="" style="width:60px;height:60px;border-radius:10px;margin:0 auto 8px;display:block;object-fit:contain;" />
+    <img src="/sarayalogo.png" alt="" style="width:60px;height:60px;border-radius:10px;margin:0 auto 8px;display:block;object-fit:contain;" />
     <h1>${hospitalName || "المستشفى"}</h1>
     <div class="subtitle">نموذج موافقة / تفويض طبي</div>
     <div class="form-type-badge">${typeLabel}</div>
