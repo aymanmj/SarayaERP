@@ -1,6 +1,6 @@
 // server/src/licensing/license.service.ts
-// Professional Licensing System 3.1
-// Docker-safe • Host-bound • Backward Compatible
+// Professional Licensing System 4.0
+// Docker-safe • Host-bound • Smart Renewal • Grace Period Fix
 
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import * as jwt from 'jsonwebtoken';
@@ -17,7 +17,7 @@ export interface LicensePayload {
   hwFingerprint: string;
   hospitalName: string;
   expiryDate: string;
-  plan: 'BASIC' | 'PRO' | 'ENTERPRISE';
+  plan: string;
   maxUsers: number;
   modules: string[];
 }
@@ -31,9 +31,18 @@ export interface LicenseStatus {
   maxUsers?: number;
   modules?: string[];
   isGracePeriod?: boolean;
+  isExpired?: boolean;
   daysRemaining?: number;
+  graceDaysRemaining?: number;
   error?: string;
   licensePath?: string;
+}
+
+export interface RenewalResult {
+  success: boolean;
+  message: string;
+  newExpiryDate?: string;
+  bonusDays?: number;
 }
 
 // ============================================================
@@ -43,6 +52,9 @@ export interface LicenseStatus {
 @Injectable()
 export class LicenseService implements OnModuleInit {
   private readonly logger = new Logger(LicenseService.name);
+
+  // Grace period = exactly 7 full days
+  private readonly GRACE_PERIOD_DAYS = 7;
 
   private readonly licenseFilePath =
     process.env.LICENSE_PATH ||
@@ -58,14 +70,14 @@ export class LicenseService implements OnModuleInit {
 
   private _cachedStatus: LicenseStatus | null = null;
   private _lastValidationTime = 0;
-  private readonly CACHE_TTL_MS = 60 * 1000;
+  private readonly CACHE_TTL_MS = 30 * 1000; // 30 seconds cache
 
   // ============================================================
   // INIT
   // ============================================================
 
   async onModuleInit() {
-    this.logger.log('🔑 Initializing License Service...');
+    this.logger.log('🔑 Initializing License Service v4.0...');
     this._loadPublicKey();
     await this._initMachineId();
     this._validateLicenseInternal();
@@ -178,7 +190,7 @@ export class LicenseService implements OnModuleInit {
   }
 
   // ============================================================
-  // ACTIVATION
+  // ACTIVATION (New install / First time)
   // ============================================================
 
   activateLicense(key: string): { success: boolean; message: string } {
@@ -204,8 +216,16 @@ export class LicenseService implements OnModuleInit {
         return { success: false, message: 'License fingerprint mismatch' };
       }
 
+      // Write the new license file
+      const dir = path.dirname(this.licenseFilePath);
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
       fs.writeFileSync(this.licenseFilePath, key, 'utf8');
+
+      // Invalidate cache to force re-validation
       this._cachedStatus = null;
+      this._lastValidationTime = 0;
+
+      this.logger.log(`✅ License activated for ${decoded.hospitalName}, expires ${decoded.expiryDate}`);
 
       return { success: true, message: 'تم تفعيل الترخيص بنجاح' };
     } catch (e: any) {
@@ -214,7 +234,145 @@ export class LicenseService implements OnModuleInit {
   }
 
   // ============================================================
-  // VALIDATION
+  // RENEWAL (Smart renewal with remaining days)
+  // ============================================================
+
+  renewLicense(key: string): RenewalResult {
+    if (!this._publicKey) {
+      return { success: false, message: 'Public key missing' };
+    }
+
+    try {
+      // 1. Decode the new license key
+      const newLicense = jwt.verify(key, this._publicKey, {
+        algorithms: ['RS256'],
+      }) as LicensePayload;
+
+      // 2. Validate machine ID
+      if (newLicense.hwId !== this._machineId) {
+        return { success: false, message: 'كود الجهاز غير مطابق. هذا المفتاح خاص بجهاز آخر.' };
+      }
+
+      // 3. Validate fingerprint
+      const expectedFp = this._generateFingerprint(
+        this._machineId,
+        newLicense.hospitalName,
+      );
+      if (newLicense.hwFingerprint !== expectedFp) {
+        return { success: false, message: 'بصمة الترخيص غير مطابقة.' };
+      }
+
+      // 4. Calculate bonus days from current license
+      let bonusDays = 0;
+      const currentStatus = this.getStatus(true);
+
+      if (currentStatus.isValid && !currentStatus.isGracePeriod && !currentStatus.isExpired) {
+        // License is still active and not in grace period → add remaining days
+        const currentExpiry = new Date(currentStatus.expiryDate!);
+        currentExpiry.setHours(23, 59, 59, 999);
+        const now = new Date();
+        const remainingMs = currentExpiry.getTime() - now.getTime();
+
+        if (remainingMs > 0) {
+          bonusDays = Math.floor(remainingMs / 86400000);
+          this.logger.log(`📅 Remaining days from current license: ${bonusDays}`);
+        }
+      }
+
+      // 5. Calculate new expiry date
+      const newExpiry = new Date(newLicense.expiryDate);
+      if (bonusDays > 0) {
+        newExpiry.setDate(newExpiry.getDate() + bonusDays);
+      }
+      const finalExpiryDate = newExpiry.toISOString().split('T')[0];
+
+      // 6. Create a modified payload with the adjusted expiry
+      //    We re-sign if we have remaining days (bonus), otherwise just use the new key as-is
+      if (bonusDays > 0) {
+        // We need to create a new JWT with the adjusted expiry
+        // But we only have the public key on server... so we store metadata separately
+        // Strategy: Store the new license + bonus days metadata
+        this._storeLicenseWithBonus(key, bonusDays, finalExpiryDate);
+      } else {
+        // No bonus days - just replace the license file
+        const dir = path.dirname(this.licenseFilePath);
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+        fs.writeFileSync(this.licenseFilePath, key, 'utf8');
+        // Clean up any bonus metadata
+        this._clearBonusMetadata();
+      }
+
+      // 7. Invalidate cache
+      this._cachedStatus = null;
+      this._lastValidationTime = 0;
+
+      this.logger.log(
+        `🔄 License renewed for ${newLicense.hospitalName}. ` +
+        `New expiry: ${finalExpiryDate} (bonus: +${bonusDays} days)`,
+      );
+
+      return {
+        success: true,
+        message: bonusDays > 0
+          ? `تم تجديد الاشتراك بنجاح! تمت إضافة ${bonusDays} يوم متبقي من الاشتراك السابق. ينتهي في ${finalExpiryDate}`
+          : `تم تجديد الاشتراك بنجاح! ينتهي في ${finalExpiryDate}`,
+        newExpiryDate: finalExpiryDate,
+        bonusDays,
+      };
+    } catch (e: any) {
+      this.logger.error(`❌ Renewal failed: ${e.message}`);
+      return { success: false, message: `فشل التجديد: ${e.message}` };
+    }
+  }
+
+  // ============================================================
+  // BONUS DAYS METADATA (for remaining days carry-over)
+  // ============================================================
+
+  private get _bonusMetadataPath(): string {
+    return path.join(path.dirname(this.licenseFilePath), 'renewal.meta.json');
+  }
+
+  private _storeLicenseWithBonus(licenseKey: string, bonusDays: number, adjustedExpiry: string) {
+    const dir = path.dirname(this.licenseFilePath);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+
+    // Save the license key
+    fs.writeFileSync(this.licenseFilePath, licenseKey, 'utf8');
+
+    // Save bonus metadata
+    const metadata = {
+      bonusDays,
+      adjustedExpiryDate: adjustedExpiry,
+      renewedAt: new Date().toISOString(),
+    };
+    fs.writeFileSync(this._bonusMetadataPath, JSON.stringify(metadata, null, 2), 'utf8');
+  }
+
+  private _loadBonusMetadata(): { bonusDays: number; adjustedExpiryDate: string } | null {
+    try {
+      if (fs.existsSync(this._bonusMetadataPath)) {
+        const raw = fs.readFileSync(this._bonusMetadataPath, 'utf8');
+        return JSON.parse(raw);
+      }
+    } catch {
+      // Ignore corrupt metadata
+    }
+    return null;
+  }
+
+  private _clearBonusMetadata() {
+    try {
+      if (fs.existsSync(this._bonusMetadataPath)) {
+        fs.unlinkSync(this._bonusMetadataPath);
+      }
+    } catch {
+      // Ignore
+    }
+  }
+
+  // ============================================================
+  // VALIDATION (Fixed Grace Period Calculation)
   // ============================================================
 
   private _validateLicenseInternal(): LicenseStatus {
@@ -249,37 +407,76 @@ export class LicenseService implements OnModuleInit {
         return this._cache(base);
       }
 
-      const expiry = new Date(decoded.expiryDate);
+      // ── Determine effective expiry date ──
+      // Check for bonus days from renewal
+      const bonusMeta = this._loadBonusMetadata();
+      let effectiveExpiryStr = decoded.expiryDate;
+      if (bonusMeta?.adjustedExpiryDate) {
+        effectiveExpiryStr = bonusMeta.adjustedExpiryDate;
+      }
+
+      const expiry = new Date(effectiveExpiryStr);
       expiry.setHours(23, 59, 59, 999);
       const now = new Date();
 
-      let grace = false;
-      let days = Math.ceil(
-        (expiry.getTime() - now.getTime()) / 86400000,
-      );
+      // ── Calculate days remaining ──
+      const diffMs = expiry.getTime() - now.getTime();
+      const daysRemaining = Math.ceil(diffMs / 86400000);
 
-      if (now > expiry) {
-        if (Math.abs(days) <= 7) {
-          grace = true;
-          days = 7 - Math.abs(days);
-        } else {
-          base.error = 'License expired';
-          return this._cache(base);
-        }
+      // ── License is still active (not expired) ──
+      if (now <= expiry) {
+        return this._cache({
+          isValid: true,
+          machineId: this._machineId,
+          hospitalName: decoded.hospitalName,
+          plan: decoded.plan,
+          expiryDate: effectiveExpiryStr,
+          maxUsers: decoded.maxUsers,
+          modules: decoded.modules,
+          isGracePeriod: false,
+          isExpired: false,
+          daysRemaining: Math.max(0, daysRemaining),
+          licensePath: this.licenseFilePath,
+        });
       }
 
-      return this._cache({
-        isValid: true,
-        machineId: this._machineId,
-        hospitalName: decoded.hospitalName,
-        plan: decoded.plan,
-        expiryDate: decoded.expiryDate,
-        maxUsers: decoded.maxUsers,
-        modules: decoded.modules,
-        isGracePeriod: grace,
-        daysRemaining: days,
-        licensePath: this.licenseFilePath,
-      });
+      // ── License expired - check grace period ──
+      const daysPastExpiry = Math.floor(
+        (now.getTime() - expiry.getTime()) / 86400000,
+      );
+
+      if (daysPastExpiry < this.GRACE_PERIOD_DAYS) {
+        // In grace period
+        const graceDaysLeft = this.GRACE_PERIOD_DAYS - daysPastExpiry;
+
+        this.logger.warn(
+          `⏳ Grace period: day ${daysPastExpiry + 1}/${this.GRACE_PERIOD_DAYS}, ` +
+          `${graceDaysLeft} days left`,
+        );
+
+        return this._cache({
+          isValid: true,
+          machineId: this._machineId,
+          hospitalName: decoded.hospitalName,
+          plan: decoded.plan,
+          expiryDate: effectiveExpiryStr,
+          maxUsers: decoded.maxUsers,
+          modules: decoded.modules,
+          isGracePeriod: true,
+          isExpired: true,
+          daysRemaining: 0,
+          graceDaysRemaining: graceDaysLeft,
+          licensePath: this.licenseFilePath,
+        });
+      }
+
+      // ── Grace period exhausted - license is dead ──
+      this.logger.error(
+        `❌ License expired ${daysPastExpiry} days ago. Grace period (${this.GRACE_PERIOD_DAYS} days) exhausted.`,
+      );
+      base.error = 'License expired';
+      base.isExpired = true;
+      return this._cache(base);
     } catch (e: any) {
       base.error = e.message;
       return this._cache(base);
@@ -292,5 +489,3 @@ export class LicenseService implements OnModuleInit {
     return status;
   }
 }
-
-

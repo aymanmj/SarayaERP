@@ -1,256 +1,389 @@
-// license-tools/issue-license.js
+// ============================================================
+// admin-tools/issue-license.js
+// Saraya ERP - Professional License Generator v4.0
+// Supports: New Activation • Renewal • Smart Duration
+// ============================================================
+
 const jwt = require("jsonwebtoken");
 const fs = require("fs");
 const crypto = require("crypto");
 const readline = require("readline");
+const path = require("path");
 
+// ── Terminal Interface ──
 const rl = readline.createInterface({
   input: process.stdin,
   output: process.stdout,
 });
+const ask = (question) => new Promise((resolve) => rl.question(question, resolve));
 
-const ask = (q) => new Promise((r) => rl.question(q, r));
+// ── ANSI Colors for pretty output ──
+const color = {
+  reset: "\x1b[0m",
+  bold: "\x1b[1m",
+  dim: "\x1b[2m",
+  red: "\x1b[31m",
+  green: "\x1b[32m",
+  yellow: "\x1b[33m",
+  blue: "\x1b[34m",
+  cyan: "\x1b[36m",
+  white: "\x1b[37m",
+  bgBlue: "\x1b[44m",
+  bgGreen: "\x1b[42m",
+  bgRed: "\x1b[41m",
+};
+
+// ── Pretty Logging Helpers ──
+function printHeader(text) {
+  console.log(`\n${color.bgBlue}${color.white}${color.bold}  ${text}  ${color.reset}`);
+}
+
+function printSuccess(text) {
+  console.log(`  ${color.green}✅ ${text}${color.reset}`);
+}
+
+function printInfo(text) {
+  console.log(`  ${color.cyan}ℹ️  ${text}${color.reset}`);
+}
+
+function printWarning(text) {
+  console.log(`  ${color.yellow}⚠️  ${text}${color.reset}`);
+}
+
+function printError(text) {
+  console.log(`  ${color.red}❌ ${text}${color.reset}`);
+}
+
+function printField(label, value) {
+  console.log(`  ${color.dim}${label}:${color.reset}  ${color.bold}${value}${color.reset}`);
+}
+
+function printDivider() {
+  console.log(`  ${color.dim}${"─".repeat(54)}${color.reset}`);
+}
+
+function printDoubleDivider() {
+  console.log(`${color.dim}${"═".repeat(58)}${color.reset}`);
+}
+
+// ── Available Modules Definition ──
+const ALL_MODULES = [
+  { code: "LAB",       nameAr: "مختبر التحاليل",      defaultInPro: true },
+  { code: "RADIOLOGY", nameAr: "الأشعة التشخيصية",    defaultInPro: true },
+  { code: "PHARMACY",  nameAr: "الصيدلية",            defaultInPro: true },
+  { code: "HR",        nameAr: "الموارد البشرية",      defaultInPro: false },
+  { code: "ASSETS",    nameAr: "إدارة الأصول",        defaultInPro: false },
+  { code: "ACCOUNTS",  nameAr: "المحاسبة العامة",      defaultInPro: false },
+  { code: "CDSS",      nameAr: "دعم القرار السريري",   defaultInPro: true },
+  { code: "OBGYN",     nameAr: "النساء والتوليد",      defaultInPro: false },
+];
+
+// ── Duration Presets ──
+const DURATION_OPTIONS = [
+  { key: "1", days: 14,  label: "تجريبي",    labelEn: "Trial (14 days)" },
+  { key: "2", days: 30,  label: "شهري",      labelEn: "Monthly (30 days)" },
+  { key: "3", days: 90,  label: "ربع سنوي",  labelEn: "Quarterly (90 days)" },
+  { key: "4", days: 180, label: "نصف سنوي",  labelEn: "Semi-Annual (180 days)" },
+  { key: "5", days: 365, label: "سنوي",      labelEn: "Annual (365 days)" },
+  { key: "6", days: 730, label: "سنتان",     labelEn: "2-Year (730 days)" },
+];
+
+// ============================================================
+// MAIN FLOW
+// ============================================================
 
 (async () => {
-  console.log("\n🔐 Saraya ERP License Generator (with hwFingerprint)\n");
+  printHeader("🔐 Saraya ERP - License Generator v4.0");
+  printDoubleDivider();
+
   try {
-    if (!fs.existsSync("private.key")) {
-      throw new Error("private.key غي ر موجود. يرجى توليد المفاتيح أولاً (generate-keys.js).");
+    // ── Validate Private Key ──
+    const privateKeyPath = path.join(__dirname, "private.key");
+    if (!fs.existsSync(privateKeyPath)) {
+      throw new Error(
+        "ملف private.key غير موجود!\n" +
+        "  يرجى توليد المفاتيح أولاً بتشغيل:\n" +
+        "  node generate-keys.js"
+      );
     }
-    const privateKey = fs.readFileSync("private.key", "utf8");
+    const privateKey = fs.readFileSync(privateKeyPath, "utf8");
+    printSuccess("المفتاح الخاص (private.key) محمّل بنجاح");
 
-    const hwId = (await ask("1️⃣  أدخل كود جهاز العميل (Machine ID): ")).trim();
-    if (!hwId) throw new Error("كود الجهاز مطلوب!");
+    // ─────────────────────────────────────────────
+    // STEP 1: Operation Type
+    // ─────────────────────────────────────────────
+    printHeader("📋 الخطوة 1: نوع العملية");
+    console.log("");
+    console.log("  1. 🆕  تفعيل جديد  (New Activation)");
+    console.log("  2. 🔄  تجديد اشتراك (Renewal)");
+    console.log("");
 
-    const hospitalName = (await ask("2️⃣  اسم المستشفى/العيادة: ")).trim();
-    if (!hospitalName) throw new Error("اسم المنشأة مطلوب.");
+    const operationType = (await ask("  👉 اختر (1-2): ")).trim();
+    const isRenewal = operationType === "2";
 
-    console.log("\n--- 📅 مدة الاشتراك ---");
-    console.log("1. تجريبي (14 يوم)");
-    console.log("2. شهري (30 يوم)");
-    console.log("3. سنوي (365 يوم)");
-    console.log("4. مخصص (YYYY-MM-DD)");
-    const dur = (await ask("اختر المدة (1-4): ")).trim();
-
-    const now = new Date();
-    let expiry;
-    switch (dur) {
-      case "1":
-        now.setDate(now.getDate() + 14);
-        expiry = now.toISOString().split("T")[0];
-        break;
-      case "2":
-        now.setDate(now.getDate() + 30);
-        expiry = now.toISOString().split("T")[0];
-        break;
-      case "3":
-        now.setDate(now.getDate() + 365);
-        expiry = now.toISOString().split("T")[0];
-        break;
-      case "4":
-        expiry = (await ask("أدخل تاريخ الانتهاء (YYYY-MM-DD): ")).trim();
-        break;
-      default:
-        throw new Error("اختيار غير صحيح.");
+    if (isRenewal) {
+      printInfo("وضع التجديد مفعّل");
+      printInfo("عند استخدام المفتاح عبر صفحة التجديد,");
+      printInfo("سيتم احتساب الأيام المتبقية تلقائياً وإضافتها");
+    } else {
+      printInfo("وضع التفعيل الجديد - مفتاح نظيف يبدأ من الصفر");
     }
 
-    // 3. عدد المستخدمين (Seats)
-    console.log("\n--- 👥 عدد المستخدمين ---");
-    console.log("أدخل رقم محدد (مثلاً 5, 10, 50)");
-    console.log("أدخل -1 لعدد غير محدود (Unlimited)");
+    // ─────────────────────────────────────────────
+    // STEP 2: Client Information
+    // ─────────────────────────────────────────────
+    printHeader("🏥 الخطوة 2: بيانات العميل");
+    console.log("");
 
-    const maxUsersInput = (await ask("الحد الأقصى للمستخدمين: ")).trim();
+    const hwId = (await ask("  🖥️  كود الجهاز (Machine ID): ")).trim();
+    if (!hwId) throw new Error("كود الجهاز مطلوب! احصل عليه من صفحة التفعيل.");
+
+    const hospitalName = (await ask("  🏥 اسم المنشأة الصحية:    ")).trim();
+    if (!hospitalName) throw new Error("اسم المنشأة مطلوب!");
+
+    printSuccess(`العميل: ${hospitalName}`);
+    printSuccess(`الجهاز: ${hwId.substring(0, 8)}...`);
+
+    // ─────────────────────────────────────────────
+    // STEP 3: Subscription Duration
+    // ─────────────────────────────────────────────
+    printHeader("📅 الخطوة 3: مدة الاشتراك");
+    console.log("");
+
+    // Show preset options
+    for (const opt of DURATION_OPTIONS) {
+      console.log(`  ${opt.key}. ${opt.label.padEnd(12)} (${opt.days} يوم)`);
+    }
+    console.log(`  7. مخصص        (تاريخ محدد YYYY-MM-DD)`);
+    console.log(`  8. أيام مخصصة  (عدد أيام محدد)`);
+    console.log("");
+
+    const durationChoice = (await ask("  👉 اختر (1-8): ")).trim();
+
+    let expiryDate;
+    let durationLabel = "";
+    const calculationDate = new Date();
+
+    // Find preset or handle custom
+    const preset = DURATION_OPTIONS.find((o) => o.key === durationChoice);
+
+    if (preset) {
+      // Preset duration
+      calculationDate.setDate(calculationDate.getDate() + preset.days);
+      expiryDate = calculationDate.toISOString().split("T")[0];
+      durationLabel = `${preset.label} (${preset.days} يوم)`;
+    } else if (durationChoice === "7") {
+      // Custom date
+      expiryDate = (await ask("  📅 تاريخ الانتهاء (YYYY-MM-DD): ")).trim();
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(expiryDate)) {
+        throw new Error("صيغة التاريخ غير صحيحة. استخدم YYYY-MM-DD");
+      }
+      durationLabel = `مخصص حتى ${expiryDate}`;
+    } else if (durationChoice === "8") {
+      // Custom days
+      const customDays = parseInt(
+        (await ask("  🔢 عدد الأيام: ")).trim(),
+        10
+      );
+      if (isNaN(customDays) || customDays <= 0) {
+        throw new Error("عدد الأيام يجب أن يكون رقماً صحيحاً أكبر من صفر.");
+      }
+      calculationDate.setDate(calculationDate.getDate() + customDays);
+      expiryDate = calculationDate.toISOString().split("T")[0];
+      durationLabel = `${customDays} يوم`;
+    } else {
+      throw new Error("اختيار غير صحيح للمدة.");
+    }
+
+    printSuccess(`ينتهي في: ${expiryDate}`);
+
+    // ─────────────────────────────────────────────
+    // STEP 4: Max Users (Seats)
+    // ─────────────────────────────────────────────
+    printHeader("👥 الخطوة 4: عدد المستخدمين");
+    console.log("");
+    console.log("  أدخل رقم محدد (مثلاً: 5, 10, 25, 50, 100)");
+    console.log("  أدخل -1 لعدد غير محدود (Unlimited)");
+    console.log("");
+
+    const maxUsersInput = (await ask("  👉 الحد الأقصى: ")).trim();
     const maxUsers = parseInt(maxUsersInput, 10);
-    if (isNaN(maxUsers)) throw new Error("Invalid max users number.");
+    if (isNaN(maxUsers)) {
+      throw new Error("رقم المستخدمين غير صحيح.");
+    }
 
-    console.log("\n--- الباقة ---\n1) أساسي\n2) احترافي\n3) مؤسسة");
-    const planChoice = (await ask("اختر الباقة (1-3): ")).trim();
+    printSuccess(
+      maxUsers === -1
+        ? "عدد المستخدمين: غير محدود ∞"
+        : `عدد المستخدمين: ${maxUsers}`
+    );
+
+    // ─────────────────────────────────────────────
+    // STEP 5: Plan (Tier)
+    // ─────────────────────────────────────────────
+    printHeader("📦 الخطوة 5: الباقة");
+    console.log("");
+    console.log("  1. أساسي       (Basic)      - الحد الأدنى");
+    console.log("  2. احترافي     (Pro)        - معظم الوحدات");
+    console.log("  3. مؤسسة شامل (Enterprise)  - كل شيء");
+    console.log("");
+
+    const planChoice = (await ask("  👉 اختر (1-3): ")).trim();
     let plan = "أساسي";
     if (planChoice === "2") plan = "احترافي";
-    if (planChoice === "3") plan = "مؤسسة";
+    if (planChoice === "3") plan = "مؤسسة (شامل)";
 
-    const allModules = ['LAB', 'RADIOLOGY', 'PHARMACY', 'HR', 'ASSETS', 'ACCOUNTS', 'CDSS'];
+    printSuccess(`الباقة: ${plan}`);
+
+    // ─────────────────────────────────────────────
+    // STEP 6: Modules Selection
+    // ─────────────────────────────────────────────
+    printHeader("🧩 الخطوة 6: الوحدات (Modules)");
+    console.log("");
+
     const selectedModules = [];
-    console.log("\nاختر الوحدات المراد تفعيلها (y/n). اضغط Enter لقبول الافتراضي.");
-    for (const mod of allModules) {
-      const ans = (await ask(`تفعيل ${mod}? (y/N): `)).trim().toLowerCase();
-      if (ans === 'y') selectedModules.push(mod);
+
+    if (planChoice === "3") {
+      // Enterprise = all modules
+      selectedModules.push(...ALL_MODULES.map((m) => m.code));
+      printSuccess("تم تفعيل جميع الوحدات تلقائياً (باقة مؤسسة شامل)");
+    } else {
+      // Manual selection
+      console.log("  اختر الوحدات التي تريد تفعيلها:");
+      console.log("  اضغط Enter للقبول بالافتراضي\n");
+
+      for (const mod of ALL_MODULES) {
+        const isDefault = planChoice === "2" && mod.defaultInPro;
+        const defaultIndicator = isDefault ? "Y" : "N";
+        const prompt = `  ${mod.code.padEnd(12)} ${mod.nameAr.padEnd(22)} [${defaultIndicator}]: `;
+
+        const answer = (await ask(prompt)).trim().toLowerCase();
+        const accepted =
+          answer === "y" || answer === "yes" || (answer === "" && isDefault);
+
+        if (accepted) {
+          selectedModules.push(mod.code);
+        }
+      }
     }
 
-    // compute fingerprint
-    const fingerprint = crypto
-      .createHash('sha256')
-      .update(`${hwId}::${hospitalName}`)
-      .digest('hex');
+    console.log("");
+    printSuccess(`الوحدات المفعّلة: ${selectedModules.join(", ") || "لا يوجد"}`);
 
+    // ─────────────────────────────────────────────
+    // STEP 7: Generate License Token
+    // ─────────────────────────────────────────────
+    printHeader("🔑 توليد مفتاح الترخيص");
+
+    // Compute hardware fingerprint
+    const hwFingerprint = crypto
+      .createHash("sha256")
+      .update(`${hwId}::${hospitalName}`)
+      .digest("hex");
+
+    // Build JWT payload
     const payload = {
       hwId,
-      hwFingerprint: fingerprint,
+      hwFingerprint,
       hospitalName,
-      expiryDate: expiry,
+      expiryDate,
       maxUsers,
       plan,
       modules: selectedModules,
     };
 
+    // Sign with RSA-256
     const token = jwt.sign(payload, privateKey, { algorithm: "RS256" });
 
-    console.log("\n==================================================");
-    console.log("✅ License issued successfully!");
-    console.log("==================================================");
-    console.log(`🏥 Client: ${hospitalName}`);
-    console.log(`📅 Expires: ${expiry}`);
-    console.log(`👥 Max Users: ${maxUsers === -1 ? "Unlimited" : maxUsers}`);
-    console.log(`📦 Plan: ${plan}`);
-    console.log(`🧩 Modules: ${selectedModules.join(', ') || 'None'}`);
-    console.log("==================================================\n");
-    console.log("COPY THE LICENSE TOKEN BELOW AND SEND TO CLIENT:\n");
+    printSuccess("تم توليد المفتاح بنجاح!");
+
+    // ─────────────────────────────────────────────
+    // STEP 8: Display Summary
+    // ─────────────────────────────────────────────
+    console.log("");
+    printDoubleDivider();
+    printHeader(isRenewal ? "🔄 مفتاح التجديد جاهز!" : "✅ مفتاح التفعيل جاهز!");
+    printDoubleDivider();
+    console.log("");
+
+    printField("🏥 المنشأة     ", hospitalName);
+    printField("🖥️  كود الجهاز  ", hwId);
+    printField("📅 المدة       ", durationLabel);
+    printField("📅 تاريخ الانتهاء", expiryDate);
+    printField("👥 المستخدمين  ", maxUsers === -1 ? "غير محدود ∞" : String(maxUsers));
+    printField("📦 الباقة      ", plan);
+    printField("🧩 الوحدات     ", selectedModules.join(", ") || "لا يوجد");
+    printField("🔑 نوع العملية ", isRenewal ? "تجديد اشتراك" : "تفعيل جديد");
+    printField("🔏 البصمة      ", hwFingerprint.substring(0, 16) + "...");
+
+    console.log("");
+    printDivider();
+
+    // ─────────────────────────────────────────────
+    // STEP 9: Output Token
+    // ─────────────────────────────────────────────
+    console.log(
+      `\n${color.bgGreen}${color.white}${color.bold}  👇 انسخ المفتاح التالي وأرسله للعميل:  ${color.reset}\n`
+    );
     console.log(token);
-    console.log("\n==================================================");
+    console.log("");
+
+    // ─────────────────────────────────────────────
+    // STEP 10: Save to Files
+    // ─────────────────────────────────────────────
+    printDivider();
+
+    // Save token to text file
+    const tokenFileName = isRenewal ? "renewal-key.txt" : "activation-key.txt";
+    const tokenFilePath = path.join(__dirname, tokenFileName);
+    fs.writeFileSync(tokenFilePath, token, "utf8");
+    printSuccess(`المفتاح محفوظ في: ${tokenFileName}`);
+
+    // Save metadata to JSON
+    const metadata = {
+      key: token,
+      type: isRenewal ? "renewal" : "activation",
+      hospitalName,
+      hwId,
+      expiryDate,
+      plan,
+      maxUsers,
+      modules: selectedModules,
+      fingerprint: hwFingerprint,
+      generatedAt: new Date().toISOString(),
+    };
+    const metadataPath = path.join(__dirname, "activation.json");
+    fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2), "utf8");
+    printSuccess(`البيانات محفوظة في: activation.json`);
+
+    // ─────────────────────────────────────────────
+    // STEP 11: Instructions
+    // ─────────────────────────────────────────────
+    console.log("");
+    printDivider();
+
+    if (isRenewal) {
+      printWarning("تعليمات التجديد:");
+      console.log(`  ${color.yellow}1. أرسل المفتاح للعميل${color.reset}`);
+      console.log(`  ${color.yellow}2. العميل يفتح صفحة "تجديد الاشتراك" في النظام${color.reset}`);
+      console.log(`  ${color.yellow}3. يلصق المفتاح ويضغط "تجديد الاشتراك"${color.reset}`);
+      console.log(`  ${color.yellow}4. الأيام المتبقية تُضاف تلقائياً إن وُجدت${color.reset}`);
+    } else {
+      printInfo("تعليمات التفعيل:");
+      console.log(`  ${color.cyan}1. أرسل المفتاح للعميل${color.reset}`);
+      console.log(`  ${color.cyan}2. العميل يفتح صفحة التفعيل في النظام${color.reset}`);
+      console.log(`  ${color.cyan}3. يلصق المفتاح ويضغط "تفعيل النظام"${color.reset}`);
+    }
+
+    console.log("");
+    printDoubleDivider();
+    printSuccess("تمت العملية بنجاح! 🎉");
+    printDoubleDivider();
   } catch (err) {
-    console.error("\n❌ Error:", err.message || err);
+    console.log("");
+    printError(err.message || err);
+    console.log("");
   } finally {
     rl.close();
   }
 })();
-
-
-
-
-// // license-tools/issue-license.js
-
-// const jwt = require("jsonwebtoken");
-// const fs = require("fs");
-// const readline = require("readline");
-
-// // إعداد واجهة الإدخال
-// const rl = readline.createInterface({
-//   input: process.stdin,
-//   output: process.stdout,
-// });
-
-// const ask = (query) => new Promise((resolve) => rl.question(query, resolve));
-
-// (async () => {
-//   console.log("\n🔐 --- Saraya ERP License Generator (Advanced) --- 🔐\n");
-
-//   try {
-//     // التأكد من وجود المفتاح الخاص
-//     if (!fs.existsSync("private.key")) {
-//       throw new Error("ملف private.key غير موجود! يرجى توليد المفاتيح أولاً.");
-//     }
-//     const privateKey = fs.readFileSync("private.key", "utf8");
-
-//     // 1. بيانات العميل
-//     const hwId = await ask("1️⃣  أدخل كود جهاز العميل (Machine ID): ");
-//     if (!hwId) throw new Error("كود الجهاز مطلوب!");
-
-//     const hospitalName = await ask("2️⃣  اسم المستشفى/العيادة: ");
-
-//     // 2. نوع الاشتراك (المدة)
-//     console.log("\n--- 📅 مدة الاشتراك ---");
-//     console.log("1. تجريبي (14 يوم)");
-//     console.log("2. شهري (30 يوم)");
-//     console.log("3. سنوي (365 يوم)");
-//     console.log("4. مخصص (تاريخ محدد)");
-
-//     const durationChoice = await ask("اختر المدة (1-4): ");
-//     let expiryDate;
-//     const now = new Date();
-
-//     switch (durationChoice.trim()) {
-//       case "1":
-//         now.setDate(now.getDate() + 14);
-//         expiryDate = now.toISOString().split("T")[0];
-//         break;
-//       case "2":
-//         now.setDate(now.getDate() + 30);
-//         expiryDate = now.toISOString().split("T")[0];
-//         break;
-//       case "3":
-//         now.setDate(now.getDate() + 365);
-//         expiryDate = now.toISOString().split("T")[0];
-//         break;
-//       case "4":
-//         expiryDate = await ask("أدخل تاريخ الانتهاء (YYYY-MM-DD): ");
-//         break;
-//       default:
-//         throw new Error("خيار غير صحيح.");
-//     }
-
-//     // 3. عدد المستخدمين (Seats)
-//     console.log("\n--- 👥 عدد المستخدمين ---");
-//     console.log("أدخل رقم محدد (مثلاً 5, 10, 50)");
-//     console.log("أدخل -1 لعدد غير محدود (Unlimited)");
-//     const maxUsersInput = await ask("الحد الأقصى للمستخدمين: ");
-//     const maxUsers = parseInt(maxUsersInput, 10);
-
-//     if (isNaN(maxUsers)) throw new Error("رقم المستخدمين غير صحيح.");
-
-//     // 4. نوع الباقة (Tier) - For display mostly
-//     console.log("\n--- 📦 نوع الباقة (Display Tier) ---");
-//     console.log("1. BASIC");
-//     console.log("2. PRO");
-//     console.log("3. ENTERPRISE");
-
-//     const planChoice = await ask("اختر مسمى الباقة (1-3): ");
-//     let plan = "BASIC";
-//     if (planChoice === "2") plan = "PRO";
-//     if (planChoice === "3") plan = "ENTERPRISE";
-
-//     // 5. الموديلات (Modules)
-//     console.log("\n--- 🧩 الموديلات (Modules) ---");
-//     const allModules = ['LAB', 'RADIOLOGY', 'PHARMACY', 'HR', 'ASSETS', 'ACCOUNTS', 'CDSS'];
-//     const selectedModules = [];
-    
-//     // Auto-select based on Plan for convenience, but allow override?
-//     // Let's just ask one by one for maximum control.
-//     console.log("اختر الموديلات التي تريد تفعيلها (y/n):");
-    
-//     for (const mod of allModules) {
-//         // Default logic
-//         let defaultAns = 'n';
-//         if (plan === 'ENTERPRISE') defaultAns = 'y';
-//         else if (plan === 'PRO' && ['LAB', 'RADIOLOGY', 'PHARMACY', 'CDSS'].includes(mod)) defaultAns = 'y';
-//         else if (plan === 'BASIC' && !['LAB', 'RADIOLOGY', 'PHARMACY', 'HR', 'ASSETS', 'ACCOUNTS', 'CDSS'].includes(mod)) defaultAns = 'y'; // Basic has none of these usually
-
-//         const ans = await ask(`✅ تفعيل ${mod}؟ (${defaultAns === 'y' ? 'Y/n' : 'y/N'}): `);
-//         const choice = ans.trim().toLowerCase();
-        
-//         if (choice === 'y' || (choice === '' && defaultAns === 'y')) {
-//             selectedModules.push(mod);
-//         }
-//     }
-    
-//     // تجميع البيانات
-//     const payload = {
-//       hwId: hwId.trim(),
-//       hospitalName: hospitalName.trim(),
-//       expiryDate: expiryDate,
-//       maxUsers: maxUsers,
-//       plan: plan,
-//       modules: selectedModules
-//     };
-
-//     // التشفير والتوقيع
-//     const token = jwt.sign(payload, privateKey, { algorithm: "RS256" });
-
-//     console.log("\n==================================================");
-//     console.log("✅ تم إصدار الرخصة بنجاح!");
-//     console.log("==================================================");
-//     console.log(`🏥 العميل:       ${payload.hospitalName}`);
-//     console.log(`📅 تاريخ الانتهاء: ${payload.expiryDate}`);
-//     console.log(`👥 المستخدمين:    ${maxUsers === -1 ? "مفتوح" : maxUsers}`);
-//     console.log(`📦 الباقة:       ${plan}`);
-//     console.log(`🧩 الموديلات:    ${selectedModules.join(', ') || 'لا يوجد'}`);
-//     console.log("==================================================");
-//     console.log("\n👇 انسخ كود التفعيل التالي وأرسله للعميل:\n");
-//     console.log(token);
-//     console.log("\n==================================================");
-//   } catch (error) {
-//     console.error("\n❌ خطأ:", error.message);
-//   } finally {
-//     rl.close();
-//   }
-// })();
-

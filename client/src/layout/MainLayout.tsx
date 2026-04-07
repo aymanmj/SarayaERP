@@ -782,10 +782,42 @@ export function MainLayout() {
       <main className="flex-1 flex flex-col h-full overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 relative">
         {/* Grace Period Warning */}
         {licenseDetails?.isGracePeriod && (
-          <div className="bg-rose-900/90 text-white text-center text-sm py-2 px-4 shadow-lg backdrop-blur-sm z-50 animate-pulse border-b border-rose-500/30">
-            ⚠️ <strong>تنبيه:</strong> انتهت فترة الاشتراك الخاصة بك. أنت تعمل
-            حالياً في فترة سماح (Grace Period) مدتها 7 أيام. يرجى تجديد الاشتراك
-            فوراً لتجنب توقف الخدمة.
+          <div className="bg-rose-900/90 text-white text-center text-sm py-2 px-4 shadow-lg backdrop-blur-sm z-50 border-b border-rose-500/30 flex items-center justify-center gap-3 flex-wrap">
+            <span className="animate-pulse">⚠️</span>
+            <span>
+              <strong>تنبيه:</strong> انتهت فترة الاشتراك. متبقي{" "}
+              <strong className="text-amber-300">
+                {licenseDetails.graceDaysRemaining ?? "?"} يوم
+              </strong>{" "}
+              من فترة السماح. سيتوقف النظام بعدها.
+            </span>
+            <a
+              href="/activation"
+              className="inline-block bg-white/20 hover:bg-white/30 text-white text-xs font-bold px-4 py-1.5 rounded-lg transition-colors border border-white/20"
+            >
+              🔄 تجديد الاشتراك الآن
+            </a>
+          </div>
+        )}
+
+        {/* Expiring Soon Warning (within 7 days but not yet expired) */}
+        {!licenseDetails?.isGracePeriod &&
+          licenseDetails?.daysRemaining !== undefined &&
+          licenseDetails.daysRemaining <= 7 &&
+          licenseDetails.daysRemaining > 0 && (
+          <div className="bg-amber-900/80 text-white text-center text-sm py-2 px-4 shadow-lg backdrop-blur-sm z-50 border-b border-amber-500/30 flex items-center justify-center gap-3 flex-wrap">
+            <span>⏳</span>
+            <span>
+              ينتهي اشتراكك خلال{" "}
+              <strong className="text-amber-200">{licenseDetails.daysRemaining} يوم</strong>.
+              جدّد مبكراً للاحتفاظ بالأيام المتبقية!
+            </span>
+            <a
+              href="/activation"
+              className="inline-block bg-white/20 hover:bg-white/30 text-white text-xs font-bold px-4 py-1.5 rounded-lg transition-colors border border-white/20"
+            >
+              تجديد مبكر
+            </a>
           </div>
         )}
 

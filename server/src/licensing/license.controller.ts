@@ -1,5 +1,5 @@
 // server/src/licensing/license.controller.ts
-// Professional Licensing System 2.0
+// Professional Licensing System 4.0 - Smart Renewal
 
 import {
   Controller,
@@ -24,7 +24,8 @@ export class LicenseController {
   @Public()
   @Get('status')
   getStatus() {
-    return this.licenseService.getStatus();
+    // Force fresh validation (bypass cache)
+    return this.licenseService.getStatus(true);
   }
 
   /**
@@ -40,7 +41,7 @@ export class LicenseController {
   }
 
   /**
-   * Activate a license using a license key.
+   * Activate a license using a license key (first time / new install).
    * This endpoint is PUBLIC.
    */
   @Public()
@@ -52,6 +53,29 @@ export class LicenseController {
     }
 
     const result = this.licenseService.activateLicense(body.key.trim());
+
+    if (!result.success) {
+      throw new BadRequestException(result.message);
+    }
+
+    return result;
+  }
+
+  /**
+   * Renew a license with smart bonus days calculation.
+   * - If renewed before expiry: bonus days = remaining days from current license
+   * - If renewed during grace period or after expiry: starts from today
+   * This endpoint is PUBLIC (must be accessible even when license is expired).
+   */
+  @Public()
+  @Post('renew')
+  @HttpCode(HttpStatus.OK)
+  renew(@Body() body: { key: string }) {
+    if (!body.key || typeof body.key !== 'string') {
+      throw new BadRequestException('يرجى إدخال مفتاح التجديد.');
+    }
+
+    const result = this.licenseService.renewLicense(body.key.trim());
 
     if (!result.success) {
       throw new BadRequestException(result.message);
@@ -76,6 +100,9 @@ export class LicenseController {
             maxUsers: status.maxUsers,
             modules: status.modules,
             isGracePeriod: status.isGracePeriod,
+            isExpired: status.isExpired,
+            daysRemaining: status.daysRemaining,
+            graceDaysRemaining: status.graceDaysRemaining,
           }
         : null,
     };
