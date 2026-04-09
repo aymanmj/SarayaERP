@@ -25,7 +25,7 @@ export class DischargeSummaryController {
     if (dto.hospitalId !== user.hospitalId) {
         throw new Error('Hospital ID mismatch');
     }
-    return this.dischargeSummaryService.saveSummary(user.id, dto);
+    return this.dischargeSummaryService.saveSummary(user.sub, dto);
   }
 
   @Post(':id/sign')

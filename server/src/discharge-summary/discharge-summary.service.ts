@@ -87,7 +87,13 @@ export class DischargeSummaryService {
     if (!admission) throw new NotFoundException('حالة التنويم غير موجودة');
 
     // استخراج الحقول الخاصة بالعلاقات من الـ DTO، والباقي حقول نصية
-    const { admissionId, encounterId, hospitalId, ...textFields } = dto;
+    const { admissionId, encounterId, hospitalId, followUpDate, ...textFields } = dto;
+
+    // Convert followUpDate from 'YYYY-MM-DD' string to full DateTime for Prisma
+    const dateFields: Record<string, any> = {};
+    if (followUpDate) {
+      dateFields.followUpDate = new Date(followUpDate + 'T00:00:00.000Z');
+    }
 
     const computedFields = {
       admissionDate: admission.actualAdmissionDate,
@@ -102,14 +108,20 @@ export class DischargeSummaryService {
         where: { id: existing.id },
         data: {
             ...textFields,
+            ...dateFields,
             ...computedFields,
         }
       });
     }
 
+    if (!userId) {
+      throw new Error('لم يتم التعرف على المستخدم. يرجى تسجيل الدخول مرة أخرى.');
+    }
+
     return this.prisma.dischargeSummary.create({
       data: {
         ...textFields,
+        ...dateFields,
         ...computedFields,
         admission: { connect: { id: admissionId } },
         encounter: { connect: { id: encounterId } },
