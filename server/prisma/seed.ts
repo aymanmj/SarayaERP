@@ -1468,6 +1468,104 @@ async function main() {
   }
   console.log('⚙️ System Settings: Done.');
 
+  // ====================================================
+  // 12. بنود خدمات العناية المركزة (ICU Service Items)
+  // ====================================================
+
+  const icuServiceItems = [
+    {
+      code: 'ICU_BED_DAILY',
+      name: 'رسوم سرير العناية المركزة (يومي)',
+      type: 'BED' as const,
+      defaultPrice: 200,
+    },
+    {
+      code: 'ICU_VENTILATOR_DAILY',
+      name: 'رسوم جهاز التنفس الصناعي (يومي)',
+      type: 'PROCEDURE' as const,
+      defaultPrice: 200,
+    },
+    {
+      code: 'ICU_MONITOR_DAILY',
+      name: 'رسوم جهاز المراقبة القلبية (يومي)',
+      type: 'PROCEDURE' as const,
+      defaultPrice: 200,
+    },
+    {
+      code: 'ICU_INFUSION_PUMP_DAILY',
+      name: 'رسوم مضخة التسريب الوريدي (يومي)',
+      type: 'PROCEDURE' as const,
+      defaultPrice: 200,
+    },
+    {
+      code: 'ICU_DRIP_ADMIN',
+      name: 'رسوم إدارة الأدوية الوريدية',
+      type: 'PROCEDURE' as const,
+      defaultPrice: 200,
+    },
+    {
+      code: 'ICU_FEEDING_PUMP_DAILY',
+      name: 'رسوم مضخة التغذية (يومي)',
+      type: 'PROCEDURE' as const,
+      defaultPrice: 200,
+    },
+    {
+      code: 'ICU_DIALYSIS_DAILY',
+      name: 'رسوم غسيل الكلى / CRRT (يومي)',
+      type: 'PROCEDURE' as const,
+      defaultPrice: 500,
+    },
+    {
+      code: 'ICU_ECMO_DAILY',
+      name: 'رسوم جهاز ECMO (يومي)',
+      type: 'PROCEDURE' as const,
+      defaultPrice: 1000,
+    },
+    {
+      code: 'ICU_EQUIPMENT_DAILY',
+      name: 'رسوم معدات العناية المركزة (عام)',
+      type: 'PROCEDURE' as const,
+      defaultPrice: 150,
+    },
+    // خدمات الولادة (OBGYN)
+    {
+      code: 'DELIVERY_NORMAL',
+      name: 'رسوم ولادة طبيعية',
+      type: 'PROCEDURE' as const,
+      defaultPrice: 500,
+    },
+    {
+      code: 'DELIVERY_CESAREAN',
+      name: 'رسوم ولادة قيصرية',
+      type: 'PROCEDURE' as const,
+      defaultPrice: 1500,
+    },
+    {
+      code: 'DELIVERY_ASSISTED',
+      name: 'رسوم ولادة مساعدة',
+      type: 'PROCEDURE' as const,
+      defaultPrice: 800,
+    },
+  ];
+
+  for (const item of icuServiceItems) {
+    await prisma.serviceItem.upsert({
+      where: { code: item.code },
+      update: {},
+      create: {
+        hospitalId: hospital.id,
+        code: item.code,
+        name: item.name,
+        type: item.type as any,
+        defaultPrice: item.defaultPrice,
+        isActive: true,
+        isBillable: true,
+      },
+    });
+  }
+
+  console.log('🏥 ICU & OBGYN Service Items: Done.');
+
   console.log('✅ ALL SEEDS COMPLETED SUCCESSFULLY! System is ready.');
 }
 
