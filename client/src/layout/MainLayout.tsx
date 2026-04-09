@@ -253,6 +253,7 @@ export function MainLayout() {
   const logout = useAuthStore((s) => s.logout);
   const location = useLocation();
   const [openSection, setOpenSection] = useState<string | null>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // License Store
   const fetchLicenseStatus = useLicenseStore((s) => s.fetchLicenseStatus);
@@ -273,6 +274,11 @@ export function MainLayout() {
     }
     return () => disconnect();
   }, [user]);
+
+  // إغلاق القائمة الجانبية عند تغيير الصفحة (للموبايل)
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [location.pathname]);
 
   // ✅ الدالة المصححة للتحقق من الوصول
   const hasAccess = (item: MenuItem, allowedRoles: string[]) => {
@@ -702,7 +708,19 @@ export function MainLayout() {
 
   return (
     <div className="h-screen w-screen flex bg-slate-950 text-slate-100 overflow-hidden">
-      <aside className="w-64 hidden md:flex flex-col border-l border-slate-800 bg-slate-950/95 backdrop-blur h-full flex-shrink-0 z-40">
+      {/* Mobile Overlay */}
+      {mobileMenuOpen && (
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
+
+      <aside className={`w-64 flex flex-col border-l border-slate-800 bg-slate-950/95 backdrop-blur h-full flex-shrink-0 z-50
+        fixed md:relative top-0 right-0
+        transition-transform duration-300 ease-in-out
+        ${mobileMenuOpen ? 'translate-x-0' : 'translate-x-full md:translate-x-0'}
+        md:flex`}>
         <div className="px-5 py-4 border-b border-slate-800 flex-shrink-0 flex items-center gap-3">
           <img src="/sarayalogo.png" alt="السرايا" className="w-10 h-10 rounded-lg object-contain" />
           <div>
@@ -740,7 +758,7 @@ export function MainLayout() {
                 </button>
 
                 <div
-                  className={`overflow-hidden transition-all duration-300 ease-in-out ${isOpen ? "max-h-[800px] opacity-100 mt-1" : "max-h-0 opacity-0"}`}
+                  className={`overflow-hidden transition-all duration-300 ease-in-out ${isOpen ? "max-h-[2000px] opacity-100 mt-1" : "max-h-0 opacity-0"}`}
                 >
                   <div className="pr-4 pl-1 space-y-1 py-1 mr-2 border-r border-slate-800/50">
                     {section.items.map((item) => (
@@ -822,6 +840,18 @@ export function MainLayout() {
         )}
 
         <header className="flex-shrink-0 flex items-center justify-between px-6 py-3 border-b border-slate-800 bg-slate-950/90 backdrop-blur z-30">
+          {/* زر القائمة للموبايل */}
+          <button
+            onClick={() => setMobileMenuOpen(true)}
+            className="md:hidden p-2 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+            aria-label="فتح القائمة"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="3" x2="21" y1="6" y2="6" />
+              <line x1="3" x2="21" y1="12" y2="12" />
+              <line x1="3" x2="21" y1="18" y2="18" />
+            </svg>
+          </button>
           <div className="hidden md:block text-slate-400 text-xs font-medium">
             مرحباً بك في نظام السرايا الطبي - النسخة التشغيلية
           </div>

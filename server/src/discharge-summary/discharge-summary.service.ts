@@ -86,27 +86,35 @@ export class DischargeSummaryService {
 
     if (!admission) throw new NotFoundException('حالة التنويم غير موجودة');
 
+    // استخراج الحقول الخاصة بالعلاقات من الـ DTO، والباقي حقول نصية
+    const { admissionId, encounterId, hospitalId, ...textFields } = dto;
+
+    const computedFields = {
+      admissionDate: admission.actualAdmissionDate,
+      dischargeDate: admission.dischargeDate || new Date(),
+      lengthOfStay: Math.ceil((new Date(admission.dischargeDate || new Date()).getTime() - new Date(admission.actualAdmissionDate).getTime()) / (1000 * 3600 * 24)),
+    };
+
     if (existing) {
       if (existing.completedAt) throw new Error('لا يمكن تعديل ملخص الخروج بعد توثيقه (Sign off)');
       
       return this.prisma.dischargeSummary.update({
         where: { id: existing.id },
         data: {
-            ...dto,
-            admissionDate: admission.actualAdmissionDate,
-            dischargeDate: admission.dischargeDate || new Date(),
-            lengthOfStay: Math.ceil((new Date(admission.dischargeDate || new Date()).getTime() - new Date(admission.actualAdmissionDate).getTime()) / (1000 * 3600 * 24)),
+            ...textFields,
+            ...computedFields,
         }
       });
     }
 
     return this.prisma.dischargeSummary.create({
       data: {
-        ...dto,
-        createdById: userId,
-        admissionDate: admission.actualAdmissionDate,
-        dischargeDate: admission.dischargeDate || new Date(),
-        lengthOfStay: Math.ceil((new Date(admission.dischargeDate || new Date()).getTime() - new Date(admission.actualAdmissionDate).getTime()) / (1000 * 3600 * 24)),
+        ...textFields,
+        ...computedFields,
+        admission: { connect: { id: admissionId } },
+        encounter: { connect: { id: encounterId } },
+        hospital: { connect: { id: hospitalId } },
+        createdBy: { connect: { id: userId } },
       }
     });
   }
