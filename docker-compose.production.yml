@@ -193,7 +193,7 @@ services:
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
-        apk add --no-cache curl
+        apk add --no-cache curl jq
         echo "⏳ Backup worker started..."
         /opt/saraya-erp/scripts/backup-worker.sh
     depends_on:

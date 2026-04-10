@@ -40,10 +40,14 @@ while true; do
         PRIMARY_PATH=""
         SECONDARY_PATH=""
 
-        if echo "$TRIGGER_CONTENT" | jq . >/dev/null 2>&1; then
-            # المحتوى JSON
+        # محاولة 1: استخدام jq (إن وُجد)
+        if command -v jq &>/dev/null && echo "$TRIGGER_CONTENT" | jq . >/dev/null 2>&1; then
             PRIMARY_PATH=$(echo "$TRIGGER_CONTENT" | jq -r '.primaryPath // empty')
             SECONDARY_PATH=$(echo "$TRIGGER_CONTENT" | jq -r '.secondaryPath // empty')
+        # محاولة 2: استخدام sed (fallback بدون jq)
+        elif echo "$TRIGGER_CONTENT" | grep -q '"primaryPath"'; then
+            PRIMARY_PATH=$(echo "$TRIGGER_CONTENT" | sed -n 's/.*"primaryPath"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+            SECONDARY_PATH=$(echo "$TRIGGER_CONTENT" | sed -n 's/.*"secondaryPath"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
         else
             # المحتوى نص عادي (backward compatibility)
             PRIMARY_PATH="$TRIGGER_CONTENT"
