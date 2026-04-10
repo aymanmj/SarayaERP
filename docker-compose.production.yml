@@ -82,8 +82,8 @@ services:
       - ./uploads:/app/uploads
       - ./data/license:/app/data/license
       - ${BACKUP_PATH:-./backups}:/backups
-      - /mnt:/mnt:rw      # الوصول للأقراص الخارجية المُركبة
-      - /media:/media:rw   # الوصول لأقراص USB المُركبة تلقائياً
+      - /mnt:/mnt:rw,rslave      # الأقراص الخارجية (تظهر تلقائياً بدون إعادة تشغيل)
+      - /media:/media:rw,rslave   # أقراص USB (تظهر تلقائياً بدون إعادة تشغيل)
     depends_on:
       postgres:
         condition: service_healthy
@@ -181,8 +181,8 @@ services:
     volumes:
       - ${BACKUP_PATH:-./backups}:/backups
       - ./scripts:/opt/saraya-erp/scripts:ro
-      - /mnt:/mnt:rw      # الوصول للأقراص الخارجية
-      - /media:/media:rw   # الوصول لأقراص USB
+      - /mnt:/mnt:rw,rslave      # الأقراص الخارجية (تظهر تلقائياً)
+      - /media:/media:rw,rslave   # أقراص USB (تظهر تلقائياً)
     environment:
       POSTGRES_HOST: postgres
       POSTGRES_DB: ${POSTGRES_DB:-saraya_erp}
@@ -256,6 +256,7 @@ services:
     restart: always
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/alert.rules.yml:/etc/prometheus/alert.rules.yml:ro
       - prometheus_data:/prometheus
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
@@ -279,7 +280,7 @@ services:
     volumes:
       - grafana_data:/var/lib/grafana
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
-      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
     depends_on:
       - prometheus
     networks:
