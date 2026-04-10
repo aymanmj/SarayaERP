@@ -1,12 +1,13 @@
 #!/bin/bash
 # ============================================
 # Saraya ERP - Database Restore Script
+# يقبل المسار الكامل لملف النسخة أو اسم الملف فقط
 # ============================================
 
 set -e
 
 # Configuration
-BACKUP_DIR="/backups"
+DEFAULT_BACKUP_DIR="/backups"
 LOG_FILE="/var/log/saraya-restore.log"
 
 # Colors for output
@@ -25,39 +26,41 @@ log_error() {
 
 # Check arguments
 if [ -z "$1" ]; then
-    echo "Usage: $0 <backup_filename>"
+    echo "Usage: $0 <backup_file_path_or_filename>"
     exit 1
 fi
 
-BACKUP_FILE="${BACKUP_DIR}/$1"
+# تحديد المسار الكامل للملف
+INPUT="$1"
+if [[ "$INPUT" == /* ]]; then
+    # مسار كامل (يبدأ بـ /)
+    BACKUP_FILE="$INPUT"
+else
+    # اسم ملف فقط — نبحث في المسار الافتراضي
+    BACKUP_FILE="${DEFAULT_BACKUP_DIR}/$INPUT"
+fi
 
 log "=========================================="
-log "Starting restore process..."
-log "Target File: $BACKUP_FILE"
+log "بدء عملية الاستعادة..."
+log "ملف النسخة: $BACKUP_FILE"
 
-# check if file exists
+# التحقق من وجود الملف
 if [ ! -f "$BACKUP_FILE" ]; then
-    log_error "Backup file not found: $BACKUP_FILE"
+    log_error "ملف النسخة غير موجود: $BACKUP_FILE"
     exit 1
 fi
 
-# Confirm file is not empty
+# التحقق من أن الملف غير فارغ
 if [ ! -s "$BACKUP_FILE" ]; then
-    log_error "Backup file is empty"
+    log_error "ملف النسخة فارغ"
     exit 1
 fi
 
-log "Restoring database saraya_erp..."
+# عرض حجم الملف
+FILE_SIZE=$(ls -lh "$BACKUP_FILE" | awk '{print $5}')
+log "📦 حجم ملف النسخة: $FILE_SIZE"
 
-# Drop and recreate database to ensure clean slate?
-# No, pg_restore with -c (clean) option handles it if format is custom (-F c).
-# But backup.sh uses -F c (custom). So we use pg_restore.
-
-# Wait, check backup.sh:
-# pg_dump -F c | gzip > file
-
-# So restore is:
-# gunzip -c file | pg_restore -d dbname -c
+log "جاري استعادة قاعدة البيانات saraya_erp..."
 
 export PGPASSWORD=${POSTGRES_PASSWORD}
 
@@ -68,9 +71,9 @@ if gunzip -c "$BACKUP_FILE" | pg_restore \
     -c --if-exists \
     -v >> "$LOG_FILE" 2>&1; then
     
-    log "✅ Restore completed successfully"
+    log "✅ تمت الاستعادة بنجاح"
 else
-    log_error "❌ Restore failed - Check logs"
+    log_error "❌ فشلت الاستعادة — راجع السجلات"
     exit 1
 fi
 

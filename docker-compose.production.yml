@@ -82,6 +82,8 @@ services:
       - ./uploads:/app/uploads
       - ./data/license:/app/data/license
       - ${BACKUP_PATH:-./backups}:/backups
+      - /mnt:/mnt:rw      # الوصول للأقراص الخارجية المُركبة
+      - /media:/media:rw   # الوصول لأقراص USB المُركبة تلقائياً
     depends_on:
       postgres:
         condition: service_healthy
@@ -179,6 +181,8 @@ services:
     volumes:
       - ${BACKUP_PATH:-./backups}:/backups
       - ./scripts:/opt/saraya-erp/scripts:ro
+      - /mnt:/mnt:rw      # الوصول للأقراص الخارجية
+      - /media:/media:rw   # الوصول لأقراص USB
     environment:
       POSTGRES_HOST: postgres
       POSTGRES_DB: ${POSTGRES_DB:-saraya_erp}
