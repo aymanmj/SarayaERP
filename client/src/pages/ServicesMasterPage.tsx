@@ -17,6 +17,7 @@ type ServiceItem = {
 
 const SERVICE_TYPES = [
   { label: "كشف (Consultation)", value: "CONSULTATION" },
+  { label: "عملية جراحية (Surgery)", value: "SURGERY" },
   { label: "مختبر (Lab)", value: "LAB" },
   { label: "أشعة (Radiology)", value: "RADIOLOGY" },
   { label: "إجراء طبي (Procedure)", value: "PROCEDURE" },

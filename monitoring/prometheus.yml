@@ -1,26 +1,22 @@
 # ============================================
-# Saraya ERP - Prometheus Configuration for Windows
+# Saraya ERP - Prometheus Configuration
 # ============================================
 
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
-  external_labels:
-    cluster: 'saraya-erp'
-    replica: 'prometheus-1'
 
-# Alertmanager configuration
+# Alertmanager
 alerting:
   alertmanagers:
     - static_configs:
-        - targets:
-          - alertmanager:9093
+        - targets: ['alertmanager:9093']
 
-# Load rules
+# Alert rules
 rule_files:
   - "alert.rules.yml"
 
-# Scrape configurations
+# Scrape targets
 scrape_configs:
   # Prometheus itself
   - job_name: 'prometheus'
@@ -33,6 +29,7 @@ scrape_configs:
       - targets: ['backend:3000']
     metrics_path: '/api/health/metrics'
     scrape_interval: 30s
+    scrape_timeout: 10s
 
   # Node Exporter (System Metrics)
   - job_name: 'node-exporter'

@@ -4,7 +4,8 @@ import { apiClient } from "../../api/apiClient";
 
 const SERVICE_TYPES = [
   { key: "CONSULTATION", label: "استشارة طبية", icon: "🩺" },
-  { key: "PROCEDURE", label: "إجراء / عملية", icon: "🔪" },
+  { key: "SURGERY", label: "عملية جراحية", icon: "🏥" },
+  { key: "PROCEDURE", label: "إجراء طبي", icon: "🔪" },
   { key: "LAB", label: "مختبر", icon: "🧪" },
   { key: "RADIOLOGY", label: "أشعة", icon: "📡" },
   { key: "PHARMACY", label: "صيدلية", icon: "💊" },

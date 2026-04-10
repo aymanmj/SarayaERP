@@ -2529,6 +2529,7 @@ enum ServiceType {
   LAB
   RADIOLOGY
   PROCEDURE
+  SURGERY
   BED
   PHARMACY
   OTHER
@@ -2558,6 +2559,7 @@ enum ChargeSource {
   LAB_ORDER
   RADIOLOGY_ORDER
   BED
+  SURGERY
   OTHER
   PHARMACY
   ICU

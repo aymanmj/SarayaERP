@@ -20,6 +20,7 @@ import { SurgeryStatus, SurgeryRole } from '@prisma/client';
 export class SurgeryController {
   constructor(private readonly surgeryService: SurgeryService) {}
 
+  // ── غرف العمليات ──
   @Get('theatres')
   async getTheatres(@Req() req: any) {
     return this.surgeryService.getTheatres(req.user.hospitalId);
@@ -31,6 +32,13 @@ export class SurgeryController {
     return this.surgeryService.createTheatre(req.user.hospitalId, body.name);
   }
 
+  // ── خدمات العمليات (Service Catalog) ──
+  @Get('service-items')
+  async getServiceItems(@Req() req: any) {
+    return this.surgeryService.getSurgeryServiceItems(req.user.hospitalId);
+  }
+
+  // ── جدولة عملية ──
   @Post('schedule')
   @Roles('ADMIN', 'DOCTOR', 'NURSE')
   async schedule(@Req() req: any, @Body() body: any) {
@@ -38,16 +46,15 @@ export class SurgeryController {
       hospitalId: req.user.hospitalId,
       encounterId: Number(body.encounterId),
       theatreId: Number(body.theatreId),
-      surgeryName: body.surgeryName,
+      serviceItemId: Number(body.serviceItemId),
+      surgeryName: body.surgeryName || undefined,
       scheduledStart: new Date(body.scheduledStart),
       scheduledEnd: new Date(body.scheduledEnd),
-      serviceItemId: body.serviceItemId
-        ? Number(body.serviceItemId)
-        : undefined,
       teamMembers: body.teamMembers,
     });
   }
 
+  // ── قائمة العمليات ──
   @Get('cases')
   async getCases(@Req() req: any, @Query('date') date?: string) {
     return this.surgeryService.getSurgeryCases(
@@ -61,6 +68,7 @@ export class SurgeryController {
     return this.surgeryService.getCaseDetails(req.user.hospitalId, id);
   }
 
+  // ── تحديث الحالة ──
   @Post('cases/:id/status')
   async updateStatus(
     @Req() req: any,
@@ -74,6 +82,7 @@ export class SurgeryController {
     );
   }
 
+  // ── ملاحظات (تقرير العملية) ──
   @Post('cases/:id/notes')
   async updateNotes(
     @Req() req: any,
@@ -89,6 +98,7 @@ export class SurgeryController {
     return this.surgeryService.updateNotes(req.user.hospitalId, id, body);
   }
 
+  // ── إدارة الطاقم ──
   @Post('cases/:id/team')
   async addTeamMember(
     @Req() req: any,
@@ -104,6 +114,7 @@ export class SurgeryController {
     );
   }
 
+  // ── مستهلكات العمليات ──
   @Post('cases/:id/consumables')
   async addConsumable(
     @Req() req: any,

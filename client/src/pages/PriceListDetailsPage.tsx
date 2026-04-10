@@ -173,6 +173,7 @@ export default function PriceListDetailsPage() {
           >
             <option value="ALL">كل الأنواع</option>
             <option value="CONSULTATION">كشف</option>
+            <option value="SURGERY">عملية جراحية</option>
             <option value="LAB">مختبر</option>
             <option value="RADIOLOGY">أشعة</option>
             <option value="BED">إقامة</option>

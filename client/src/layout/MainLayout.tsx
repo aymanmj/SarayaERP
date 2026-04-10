@@ -492,12 +492,11 @@ export function MainLayout() {
       key: "analytics",
       title: "التحليلات والتقارير",
       icon: <Icons.ChartBar />,
-      allowedRoles: ["ADMIN", "CEO"], // Keep admin override for simplified view
+      allowedRoles: ["ADMIN", "CEO"],
       items: [
         {
           label: "اللوحة التنفيذية (KPIs)",
           path: "/analytics/executive",
-          // access: "admin:dashboard:view",
         },
         {
           label: "لوحة التقارير والتحليلات",
@@ -507,10 +506,6 @@ export function MainLayout() {
         {
           label: "تقارير أداء الأطباء",
           path: "/reports/doctor-performance",
-        },
-        {
-          label: "⚙️ إعدادات العمولات",
-          path: "/settings/commissions",
         },
         {
           label: "📊 إيرادات الأقسام",
@@ -670,6 +665,7 @@ export function MainLayout() {
         { label: "جداول الأطباء", path: "/settings/doctor-schedules", access: "admin:settings:manage" },
         { label: "النسخ الاحتياطي والاستعادة", path: "/settings/backup", access: "admin:settings:manage" }, 
         { label: "📝 قوالب الملاحظات الطبية", path: "/settings/note-templates", access: "admin:settings:manage" },
+        { label: "⚙️ إعدادات العمولات", path: "/settings/commissions", access: "admin:settings:manage" },
         { label: "حول النظام", path: "/about" }, 
       ],
     },

@@ -23,6 +23,7 @@ type SurgeryCaseDetails = {
   anesthesiaNotes?: string;
   preOpDiagnosis?: string;
   postOpDiagnosis?: string;
+  serviceItem?: { id: number; name: string; code: string; defaultPrice: string };
   encounter: {
     patient: { fullName: string; mrn: string };
     department?: { name: string };
@@ -35,7 +36,7 @@ type SurgeryCaseDetails = {
     }[];
   };
   theatre: { name: string };
-  team: { id: number; role: string; user: { fullName: string } }[];
+  team: { id: number; role: string; commissionAmount?: string; user: { fullName: string } }[];
   consumables: {
     id: number;
     quantity: string;
@@ -43,6 +44,7 @@ type SurgeryCaseDetails = {
     totalPrice: string;
   }[];
 };
+
 
 type UserLite = { id: number; fullName: string };
 type ProductLite = { id: number; name: string; stockOnHand: string };
@@ -319,6 +321,71 @@ export default function SurgeryCaseDetailsPage() {
           >
             إدارة الإيواء
           </button>
+        </div>
+      )}
+
+      {/* 💰 ملخص مالي */}
+      {surgery.serviceItem && (
+        <div className="bg-gradient-to-l from-slate-900 to-sky-950/20 border border-slate-800 rounded-2xl p-5">
+          <h3 className="text-sm font-bold text-sky-400 mb-3 flex items-center gap-2">
+            💰 الملخص المالي للعملية
+          </h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {/* رسوم العملية */}
+            <div className="bg-slate-950/50 rounded-xl p-3 border border-slate-800">
+              <div className="text-[10px] text-slate-500 mb-1">رسوم العملية</div>
+              <div className="text-lg font-bold text-emerald-400 font-mono">
+                {Number(surgery.serviceItem.defaultPrice).toLocaleString()}
+              </div>
+              <div className="text-[10px] text-slate-600">
+                {surgery.serviceItem.code} — {surgery.serviceItem.name}
+              </div>
+            </div>
+            {/* إجمالي المستهلكات */}
+            <div className="bg-slate-950/50 rounded-xl p-3 border border-slate-800">
+              <div className="text-[10px] text-slate-500 mb-1">المستهلكات</div>
+              <div className="text-lg font-bold text-amber-400 font-mono">
+                {surgery.consumables
+                  .reduce((sum, c) => sum + Number(c.totalPrice), 0)
+                  .toLocaleString()}
+              </div>
+              <div className="text-[10px] text-slate-600">{surgery.consumables.length} صنف</div>
+            </div>
+            {/* الإجمالي */}
+            <div className="bg-slate-950/50 rounded-xl p-3 border border-sky-900/30">
+              <div className="text-[10px] text-slate-500 mb-1">الإجمالي</div>
+              <div className="text-lg font-bold text-white font-mono">
+                {(
+                  Number(surgery.serviceItem.defaultPrice) +
+                  surgery.consumables.reduce((sum, c) => sum + Number(c.totalPrice), 0)
+                ).toLocaleString()}
+              </div>
+              <div className="text-[10px] text-slate-600">د.ل</div>
+            </div>
+            {/* عمولة الجراح */}
+            {surgery.team.some((t) => t.commissionAmount && Number(t.commissionAmount) > 0) && (
+              <div className="bg-slate-950/50 rounded-xl p-3 border border-violet-900/30">
+                <div className="text-[10px] text-slate-500 mb-1">عمولة الجراح</div>
+                <div className="text-lg font-bold text-violet-400 font-mono">
+                  {surgery.team
+                    .filter((t) => t.commissionAmount)
+                    .reduce((sum, t) => sum + Number(t.commissionAmount), 0)
+                    .toLocaleString()}
+                </div>
+                <div className="text-[10px] text-slate-600">د.ل</div>
+              </div>
+            )}
+          </div>
+          {isCompleted && (
+            <div className="mt-2 text-[10px] text-emerald-500 flex items-center gap-1">
+              ✅ تم تسجيل الرسوم في فاتورة المريض تلقائياً
+            </div>
+          )}
+          {!isCompleted && (
+            <div className="mt-2 text-[10px] text-amber-500 flex items-center gap-1">
+              ⏳ سيتم تسجيل رسوم العملية عند اكتمالها
+            </div>
+          )}
         </div>
       )}
 

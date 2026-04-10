@@ -5,23 +5,27 @@ import {
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { CommissionService } from '../commission/commission.service';
 import {
   SurgeryStatus,
   SurgeryRole,
   StockTransactionType,
   ChargeSource,
+  ServiceType,
 } from '@prisma/client';
 
 @Injectable()
 export class SurgeryService {
   private readonly logger = new Logger(SurgeryService.name);
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private commissionService: CommissionService,
+  ) {}
 
   // --------------------------------------------------------
   // 🏥 Helper: تحديد مخزون العمليات
   // --------------------------------------------------------
   private async getOTWarehouseId(hospitalId: number): Promise<number> {
-    // نبحث عن مخزون يحمل اسم "عمليات" أو "Operations" أو "OT"
     const wh = await this.prisma.warehouse.findFirst({
       where: {
         hospitalId,
@@ -36,15 +40,13 @@ export class SurgeryService {
 
     if (wh) return wh.id;
 
-    // إذا لم نجد، نستخدم أول مخزن متاح (مع التحذير) أو نمنع العملية
-    // للأمان سنمنع العملية لتجبار الإعداد الصحيح
     throw new BadRequestException(
       'لم يتم العثور على "مخزن عمليات" معرف في النظام. يرجى إنشاء مخزن باسم "Operations Store" أو "مخزون العمليات".',
     );
   }
 
   // --------------------------------------------------------
-  // 1. التعريفات (غرف العمليات)
+  // 1. غرف العمليات (Theatres)
   // --------------------------------------------------------
   async getTheatres(hospitalId: number) {
     return this.prisma.operatingTheatre.findMany({
@@ -59,22 +61,51 @@ export class SurgeryService {
   }
 
   // --------------------------------------------------------
-  // 2. حجز وجدولة عملية (Booking)
+  // 2. خدمات العمليات من كتالوج الخدمات
+  // --------------------------------------------------------
+  async getSurgeryServiceItems(hospitalId: number) {
+    return this.prisma.serviceItem.findMany({
+      where: {
+        hospitalId,
+        isActive: true,
+        isDeleted: false,
+        type: ServiceType.SURGERY,
+      },
+      select: {
+        id: true,
+        code: true,
+        name: true,
+        defaultPrice: true,
+      },
+      orderBy: { name: 'asc' },
+    });
+  }
+
+  // --------------------------------------------------------
+  // 3. حجز وجدولة عملية (Booking)
   // --------------------------------------------------------
   async scheduleSurgery(params: {
     hospitalId: number;
     encounterId: number;
     theatreId: number;
-    surgeryName: string;
+    serviceItemId: number;
+    surgeryName?: string; // اختياري — سيُملأ من الخدمة إذا لم يُحدد
     scheduledStart: Date;
     scheduledEnd: Date;
-    serviceItemId?: number; // لربطها بسعر الخدمة (Package Price)
     teamMembers?: { userId: number; role: SurgeryRole }[];
   }) {
     const { hospitalId, encounterId, theatreId, scheduledStart, scheduledEnd } =
       params;
 
-    // التحقق من تضارب المواعيد (بسيط)
+    // جلب بيانات الخدمة لملء اسم العملية
+    const serviceItem = await this.prisma.serviceItem.findFirst({
+      where: { id: params.serviceItemId, hospitalId, isActive: true },
+    });
+    if (!serviceItem) {
+      throw new BadRequestException('خدمة العملية غير موجودة في كتالوج الخدمات.');
+    }
+
+    // التحقق من تضارب المواعيد
     const conflict = await this.prisma.surgeryCase.findFirst({
       where: {
         hospitalId,
@@ -98,7 +129,7 @@ export class SurgeryService {
         hospitalId,
         encounterId,
         theatreId,
-        surgeryName: params.surgeryName,
+        surgeryName: params.surgeryName || serviceItem.name,
         serviceItemId: params.serviceItemId,
         scheduledStart,
         scheduledEnd,
@@ -106,7 +137,7 @@ export class SurgeryService {
       },
     });
 
-    // إضافة الطاقم الطبي المحدد
+    // إضافة الطاقم الطبي
     if (params.teamMembers && params.teamMembers.length > 0) {
       for (const member of params.teamMembers) {
         await this.addTeamMember(
@@ -134,7 +165,6 @@ export class SurgeryService {
     return this.prisma.surgeryCase.findMany({
       where,
       include: {
-        // ✅ [تصحيح] جلب المريض من خلال Encounter بدلاً من طلبه مباشرة
         encounter: {
           include: {
             patient: {
@@ -143,6 +173,7 @@ export class SurgeryService {
           },
         },
         theatre: true,
+        serviceItem: { select: { id: true, name: true, code: true, defaultPrice: true } },
         team: {
           include: {
             user: { select: { fullName: true } },
@@ -162,7 +193,7 @@ export class SurgeryService {
             patient: true,
             department: true,
             bedAssignments: {
-              where: { to: null }, // السرير الحالي فقط
+              where: { to: null },
               include: {
                 bed: {
                   include: {
@@ -183,7 +214,7 @@ export class SurgeryService {
   }
 
   // --------------------------------------------------------
-  // 3. إدارة الحالة (Start / End)
+  // 4. إدارة الحالة (Start / End) + الربط المالي
   // --------------------------------------------------------
   async updateStatus(
     hospitalId: number,
@@ -197,12 +228,103 @@ export class SurgeryService {
       data.actualEnd = new Date();
     }
 
-    // عند الاكتمال، يمكننا هنا إضافة "رسوم العملية" (Professional Fee) للفاتورة إذا لم تضف مسبقاً
-
-    return this.prisma.surgeryCase.update({
+    const updated = await this.prisma.surgeryCase.update({
       where: { id: caseId, hospitalId },
       data,
+      include: {
+        serviceItem: true,
+        team: true,
+      },
     });
+
+    // ──────────────────────────────────────────
+    // 💰 الربط المالي: عند اكتمال العملية
+    // ──────────────────────────────────────────
+    if (status === SurgeryStatus.COMPLETED && updated.serviceItemId) {
+      await this.createSurgeryCharge(hospitalId, updated);
+    }
+
+    return updated;
+  }
+
+  /**
+   * 💰 إنشاء رسوم العملية الجراحية + حساب العمولات
+   */
+  private async createSurgeryCharge(hospitalId: number, surgeryCase: any) {
+    try {
+      const serviceItem = surgeryCase.serviceItem;
+      if (!serviceItem) return;
+
+      // التحقق من عدم وجود Charge مسبق لنفس العملية
+      const existingCharge = await this.prisma.encounterCharge.findFirst({
+        where: {
+          hospitalId,
+          encounterId: surgeryCase.encounterId,
+          sourceType: ChargeSource.SURGERY,
+          sourceId: surgeryCase.id,
+        },
+      });
+
+      if (existingCharge) {
+        this.logger.warn(
+          `Charge already exists for surgery case #${surgeryCase.id}`,
+        );
+        return;
+      }
+
+      // الجراح الرئيسي (للعمولة)
+      const leadSurgeon = surgeryCase.team?.find(
+        (t: any) => t.role === SurgeryRole.SURGEON,
+      );
+
+      // إنشاء الرسم
+      await this.prisma.encounterCharge.create({
+        data: {
+          hospitalId,
+          encounterId: surgeryCase.encounterId,
+          serviceItemId: serviceItem.id,
+          sourceType: ChargeSource.SURGERY,
+          sourceId: surgeryCase.id,
+          quantity: 1,
+          unitPrice: serviceItem.defaultPrice,
+          totalAmount: serviceItem.defaultPrice,
+          performerId: leadSurgeon?.userId || null,
+        },
+      });
+
+      this.logger.log(
+        `✅ Surgery charge created: case #${surgeryCase.id}, amount: ${serviceItem.defaultPrice}`,
+      );
+
+      // حساب وتسجيل عمولات الطاقم
+      if (leadSurgeon?.userId) {
+        const doctorRate = await this.commissionService.getDoctorRate(
+          hospitalId,
+          leadSurgeon.userId,
+          ServiceType.SURGERY,
+        );
+
+        if (doctorRate > 0) {
+          const commissionAmount =
+            (Number(serviceItem.defaultPrice) * doctorRate) / 100;
+
+          await this.prisma.surgeryTeam.update({
+            where: { id: leadSurgeon.id },
+            data: { commissionAmount },
+          });
+
+          this.logger.log(
+            `💰 Surgeon commission: ${commissionAmount} (${doctorRate}%) for user #${leadSurgeon.userId}`,
+          );
+        }
+      }
+    } catch (error) {
+      this.logger.error(
+        `Failed to create surgery charge for case #${surgeryCase.id}`,
+        error,
+      );
+      // لا نمنع اكتمال العملية بسبب خطأ مالي
+    }
   }
 
   async updateNotes(
@@ -222,7 +344,7 @@ export class SurgeryService {
   }
 
   // --------------------------------------------------------
-  // 4. إدارة الطاقم (Team)
+  // 5. إدارة الطاقم (Team)
   // --------------------------------------------------------
   async addTeamMember(
     hospitalId: number,
@@ -246,11 +368,11 @@ export class SurgeryService {
   }
 
   // --------------------------------------------------------
-  // 5. استهلاك المواد (Consumables) من مخزن العمليات
+  // 6. استهلاك المواد (Consumables) من مخزن العمليات
   // --------------------------------------------------------
   async addConsumable(params: {
     hospitalId: number;
-    userId: number; // المستخدم الذي سجل الحركة
+    userId: number;
     caseId: number;
     productId: number;
     quantity: number;
@@ -261,8 +383,7 @@ export class SurgeryService {
     const otWarehouseId = await this.getOTWarehouseId(hospitalId);
 
     return this.prisma.$transaction(async (tx) => {
-      // 2. 🛡️ حجز الأرصدة ومنع التضارب (Pessimistic Locking)
-      // نستخدم FEFO: الصرف من الأقرب انتهاءً أولاً
+      // 2. حجز الأرصدة ومنع التضارب (Pessimistic Locking + FEFO)
       const stocks = await tx.$queryRaw<any[]>`
         SELECT id, quantity, "batchNumber", "expiryDate"
         FROM "ProductStock"
@@ -281,7 +402,7 @@ export class SurgeryService {
         );
       }
 
-      // 3. جلب بيانات المنتج للحصول على الأسعار والتكلفة
+      // 3. جلب بيانات المنتج
       const product = await tx.product.findUnique({ where: { id: productId } });
       if (!product)
         throw new NotFoundException('المنتج غير موجود في قاعدة البيانات');
@@ -289,20 +410,18 @@ export class SurgeryService {
       let remainingQty = quantity;
       let totalUsageCost = 0;
 
-      // 4. الخصم من التشغيلات بناءً على الحجز الصارم (FEFO)
+      // 4. الخصم من التشغيلات (FEFO)
       for (const stock of stocks) {
         if (remainingQty <= 0) break;
 
         const availableInBatch = Number(stock.quantity);
         const take = Math.min(remainingQty, availableInBatch);
 
-        // أ) تحديث رصيد التشغيلة في المخزن
         await tx.productStock.update({
           where: { id: stock.id },
           data: { quantity: { decrement: take } },
         });
 
-        // ب) تسجيل حركة مخزنية تفصيلية لكل تشغيلة
         await tx.stockTransaction.create({
           data: {
             hospitalId,
@@ -324,13 +443,13 @@ export class SurgeryService {
         totalUsageCost += Number(product.costPrice) * take;
       }
 
-      // 5. تحديث إجمالي الرصيد في جدول المنتجات الرئيسي
+      // 5. تحديث إجمالي الرصيد
       await tx.product.update({
         where: { id: productId },
         data: { stockOnHand: { decrement: quantity } },
       });
 
-      // 6. تسجيل المستهلك في سجل العملية الجراحية
+      // 6. تسجيل المستهلك
       const totalSalesPrice = Number(product.sellPrice) * quantity;
 
       const consumable = await tx.surgeryConsumable.create({
@@ -352,12 +471,10 @@ export class SurgeryService {
       if (!surgeryCase)
         throw new NotFoundException('العملية الجراحية غير موجودة');
 
-      // البحث عن كود خدمة المستهلكات (يجب أن يكون موجوداً في السيرفس كاتالوج)
       let serviceItem = await tx.serviceItem.findFirst({
         where: { hospitalId, code: 'SURGERY-CONS', isActive: true },
       });
 
-      // Fallback: إذا لم نجد الكود المخصص، نستخدم كود الصيدلية العام
       if (!serviceItem) {
         serviceItem = await tx.serviceItem.findFirst({
           where: { hospitalId, code: 'PHARMACY-DRUGS', isActive: true },
@@ -386,141 +503,4 @@ export class SurgeryService {
       return consumable;
     });
   }
-
-  // --------------------------------------------------------
-  // 5. استهلاك المواد (Consumables) من مخزن العمليات
-  // // --------------------------------------------------------
-  // async addConsumable(params: {
-  //   hospitalId: number;
-  //   userId: number; // المستخدم الذي سجل الحركة
-  //   caseId: number;
-  //   productId: number;
-  //   quantity: number;
-  // }) {
-  //   const { hospitalId, userId, caseId, productId, quantity } = params;
-
-  //   // 1. تحديد مخزن العمليات
-  //   const otWarehouseId = await this.getOTWarehouseId(hospitalId);
-
-  //   return this.prisma.$transaction(async (tx) => {
-  //     // 2. التحقق من توفر الكمية في مخزن العمليات (إجمالي الرصيد بغض النظر عن التشغيلة للتبسيط، أو استخدام FEFO كما في الصيدلية)
-  //     // للسرعة هنا، سنستخدم أي تشغيلة متوفرة (FEFO مبسط)
-
-  //     const stocks = await tx.productStock.findMany({
-  //       where: { warehouseId: otWarehouseId, productId, quantity: { gt: 0 } },
-  //       orderBy: { expiryDate: 'asc' },
-  //     });
-
-  //     const totalAvail = stocks.reduce((acc, s) => acc + Number(s.quantity), 0);
-  //     if (totalAvail < quantity) {
-  //       throw new BadRequestException(
-  //         `الكمية غير متوفرة في مخزن العمليات. المتاح: ${totalAvail}`,
-  //       );
-  //     }
-
-  //     // 3. جلب بيانات المنتج للسعر
-  //     const product = await tx.product.findUnique({ where: { id: productId } });
-  //     if (!product) throw new NotFoundException('المنتج غير موجود');
-
-  //     let remainingQty = quantity;
-  //     let totalCost = 0;
-
-  //     // الخصم من التشغيلات (FEFO)
-  //     for (const stock of stocks) {
-  //       if (remainingQty <= 0) break;
-  //       const take = Math.min(remainingQty, Number(stock.quantity));
-
-  //       // تحديث الرصيد
-  //       await tx.productStock.update({
-  //         where: { id: stock.id },
-  //         data: { quantity: { decrement: take } },
-  //       });
-
-  //       // تسجيل حركة مخزنية (صرف عمليات)
-  //       await tx.stockTransaction.create({
-  //         data: {
-  //           hospitalId,
-  //           warehouseId: otWarehouseId,
-  //           productId,
-  //           type: StockTransactionType.OUT,
-  //           quantity: take,
-  //           unitCost: product.costPrice,
-  //           totalCost: Number(product.costPrice) * take,
-  //           referenceType: 'SURGERY_CONSUMABLE',
-  //           referenceId: caseId,
-  //           createdById: userId,
-  //           batchNumber: stock.batchNumber,
-  //           expiryDate: stock.expiryDate,
-  //         },
-  //       });
-
-  //       remainingQty -= take;
-  //       totalCost += Number(product.costPrice) * take;
-  //     }
-
-  //     // تحديث الرصيد العام
-  //     await tx.product.update({
-  //       where: { id: productId },
-  //       data: { stockOnHand: { decrement: quantity } },
-  //     });
-
-  //     // 4. تسجيل المستهلك في جدول العملية
-  //     const totalPrice = Number(product.sellPrice) * quantity;
-
-  //     const consumable = await tx.surgeryConsumable.create({
-  //       data: {
-  //         surgeryCaseId: caseId,
-  //         productId,
-  //         quantity,
-  //         unitPrice: product.sellPrice,
-  //         totalPrice: totalPrice,
-  //       },
-  //     });
-
-  //     // 5. إضافة التكلفة لفاتورة المريض (Encounter Charge)
-  //     // نحتاج معرفة الـ encounterId
-  //     const surgeryCase = await tx.surgeryCase.findUnique({
-  //       where: { id: caseId },
-  //     });
-
-  //     // هنا نحتاج لـ ServiceItem عام اسمه "مستهلكات عمليات" أو نستخدم اسم المنتج
-  //     // سنستخدم ChargeSource.OTHER مؤقتاً أو يمكن إضافة SURGERY للـ Enum لاحقاً
-  //     // سنعتبره كـ Pharmacy Item من ناحية الفاتورة لأنه دواء/مستلزم
-
-  //     // للتبسيط: سنبحث عن ServiceItem عام للمستلزمات، أو ننشئ Charge مباشر
-  //     // الأفضل: أن يكون لكل Product ربط بـ ServiceItem، لكن بما أننا وحدنا الجدول،
-  //     // سنقوم بإنشاء Charge يمثل هذا المستهلك.
-
-  //     // سنبحث عن خدمة عامة "Surgery Consumables"
-  //     let serviceItem = await tx.serviceItem.findFirst({
-  //       where: { hospitalId, code: 'SURGERY-CONS' },
-  //     });
-  //     if (!serviceItem) {
-  //       // Fallback or create dummy one (يفضل أن تكون موجودة في Seed)
-  //       // لنفترض وجود خدمة عامة ID=1 أو نوقف العملية.
-  //       // سنستخدم خدمة "PHARMACY-DRUGS" كبديل إذا لم نجد
-  //       serviceItem = await tx.serviceItem.findFirst({
-  //         where: { hospitalId, code: 'PHARMACY-DRUGS' },
-  //       });
-  //     }
-
-  //     if (serviceItem) {
-  //       await tx.encounterCharge.create({
-  //         data: {
-  //           hospitalId,
-  //           encounterId: surgeryCase!.encounterId,
-  //           serviceItemId: serviceItem.id,
-  //           sourceType: ChargeSource.OTHER, // أو PHARMACY
-  //           sourceId: consumable.id, // نربط بالمستهلك
-  //           quantity: 1, // الكمية الإجمالية كبند واحد
-  //           unitPrice: totalPrice,
-  //           totalAmount: totalPrice,
-  //           // note: `مستهلك عمليات: ${product.name} (x${quantity})`
-  //         },
-  //       });
-  //     }
-
-  //     return consumable;
-  //   });
-  // }
 }

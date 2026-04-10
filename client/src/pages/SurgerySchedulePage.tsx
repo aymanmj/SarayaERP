@@ -21,6 +21,7 @@ type SurgeryCaseLite = {
   scheduledEnd: string;
   status: SurgeryStatus;
   theatre: { name: string };
+  serviceItem?: { name: string; code: string; defaultPrice: string };
   encounter: {
     patient: { fullName: string; mrn: string };
   };
@@ -31,6 +32,12 @@ type Theatre = { id: number; name: string };
 type ActiveInpatient = {
   id: number;
   patient: { fullName: string; mrn: string };
+};
+type SurgeryServiceItem = {
+  id: number;
+  code: string;
+  name: string;
+  defaultPrice: string;
 };
 
 function formatTime(iso: string) {
@@ -68,12 +75,13 @@ export default function SurgerySchedulePage() {
   const [newOTName, setNewOTName] = useState("");
   const [theatres, setTheatres] = useState<Theatre[]>([]);
   const [inpatients, setInpatients] = useState<ActiveInpatient[]>([]);
+  const [surgeryItems, setSurgeryItems] = useState<SurgeryServiceItem[]>([]);
 
   // Booking Form
   const [form, setForm] = useState({
     encounterId: "",
     theatreId: "",
-    surgeryName: "",
+    serviceItemId: "",
     startTime: "08:00",
     durationMinutes: 60,
     surgeonId: "",
@@ -85,6 +93,11 @@ export default function SurgerySchedulePage() {
   });
 
   const [users, setUsers] = useState<{ id: number; fullName: string }[]>([]);
+
+  // الحصول على سعر العملية المحددة
+  const selectedSurgery = surgeryItems.find(
+    (s) => s.id === Number(form.serviceItemId)
+  );
 
   const loadData = async () => {
     setLoading(true);
@@ -116,7 +129,13 @@ export default function SurgerySchedulePage() {
     }
 
     try {
-      // ✅ Changed to /users/staff-list to include nurses and technicians for surgery team
+      const svcRes = await apiClient.get<SurgeryServiceItem[]>("/surgery/service-items");
+      setSurgeryItems(svcRes.data);
+    } catch (e) {
+      console.error("Failed to load surgery service items", e);
+    }
+
+    try {
       const userRes = await apiClient.get<{ id: number; fullName: string }[]>("/users/staff-list");
       setUsers(userRes.data);
     } catch (e) {
@@ -132,8 +151,8 @@ export default function SurgerySchedulePage() {
   }, []);
 
   const handleBook = async () => {
-    if (!form.encounterId || !form.theatreId || !form.surgeryName) {
-      toast.warning("يرجى تعبئة كافة الحقول");
+    if (!form.encounterId || !form.theatreId || !form.serviceItemId) {
+      toast.warning("يرجى اختيار المريض وغرفة العمليات ونوع العملية");
       return;
     }
 
@@ -171,10 +190,9 @@ export default function SurgerySchedulePage() {
 
     try {
       await apiClient.post("/surgery/schedule", {
-        hospitalId: 1, // يأخذه الباكند من التوكن، لكن للتوضيح
         encounterId: Number(form.encounterId),
         theatreId: Number(form.theatreId),
-        surgeryName: form.surgeryName,
+        serviceItemId: Number(form.serviceItemId),
         scheduledStart: start.toISOString(),
         scheduledEnd: end.toISOString(),
         teamMembers,
@@ -256,7 +274,6 @@ export default function SurgerySchedulePage() {
         )}
 
         {cases.map((c) => {
-          // Group roles for display
           const surgeons = c.team.filter((t) =>
             ["SURGEON", "ASSISTANT_SURGEON"].includes(t.role)
           );
@@ -274,7 +291,7 @@ export default function SurgerySchedulePage() {
               className="bg-slate-900/50 border border-slate-800 p-4 rounded-2xl hover:bg-slate-800 cursor-pointer transition group relative overflow-hidden"
             >
               {/* Status Badge */}
-              <div className="absolute top-4 left-4">
+              <div className="absolute top-4 left-4 flex items-center gap-2">
                 <div
                   className={`px-3 py-1 rounded-full text-xs border font-medium ${getStatusColor(
                     c.status
@@ -290,6 +307,12 @@ export default function SurgerySchedulePage() {
                     }[c.status]
                   }
                 </div>
+                {/* سعر العملية */}
+                {c.serviceItem && (
+                  <span className="text-[10px] text-emerald-400 bg-emerald-950/30 px-2 py-1 rounded border border-emerald-800/40 font-mono">
+                    {Number(c.serviceItem.defaultPrice).toLocaleString()} د.ل
+                  </span>
+                )}
               </div>
 
               <div className="flex flex-col md:flex-row gap-6">
@@ -312,6 +335,11 @@ export default function SurgerySchedulePage() {
                     <h3 className="text-lg font-bold text-white group-hover:text-sky-400 transition">
                       {c.surgeryName}
                     </h3>
+                    {c.serviceItem?.code && (
+                      <span className="text-[10px] text-slate-500 font-mono bg-slate-950 px-2 py-0.5 rounded border border-slate-800 ml-2">
+                        {c.serviceItem.code}
+                      </span>
+                    )}
                     <div className="text-sm text-slate-400 flex items-center gap-2 mt-1">
                       <span>👤 المريض: {c.encounter.patient.fullName}</span>
                       <span className="text-slate-600">|</span>
@@ -406,7 +434,7 @@ export default function SurgerySchedulePage() {
       {/* Booking Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 w-full max-w-lg space-y-4">
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 w-full max-w-lg space-y-4 max-h-[90vh] overflow-y-auto">
             <h2 className="text-lg font-bold text-white">حجز غرفة عمليات</h2>
 
             <div className="space-y-3">
@@ -450,18 +478,41 @@ export default function SurgerySchedulePage() {
                 </select>
               </div>
 
+              {/* ✅ اختيار نوع العملية من كتالوج الخدمات */}
               <div>
                 <label className="text-xs text-slate-400 block mb-1">
-                  اسم العملية / الإجراء
+                  نوع العملية / الإجراء الجراحي
                 </label>
-                <input
+                <select
                   className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm"
-                  placeholder="مثال: استئصال الزائدة الدودية"
-                  value={form.surgeryName}
+                  value={form.serviceItemId}
                   onChange={(e) =>
-                    setForm({ ...form, surgeryName: e.target.value })
+                    setForm({ ...form, serviceItemId: e.target.value })
                   }
-                />
+                >
+                  <option value="">-- اختر العملية --</option>
+                  {surgeryItems.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name} ({s.code})
+                    </option>
+                  ))}
+                </select>
+                {/* عرض السعر */}
+                {selectedSurgery && (
+                  <div className="mt-1 flex items-center gap-2">
+                    <span className="text-[10px] text-emerald-400 bg-emerald-950/30 px-2 py-1 rounded border border-emerald-800/40">
+                      💰 السعر: {Number(selectedSurgery.defaultPrice).toLocaleString()} د.ل
+                    </span>
+                    <span className="text-[10px] text-slate-500">
+                      (سيُضاف للفاتورة تلقائياً عند اكتمال العملية)
+                    </span>
+                  </div>
+                )}
+                {surgeryItems.length === 0 && (
+                  <p className="text-[10px] text-amber-400 mt-1">
+                    ⚠️ لا توجد عمليات معرفة. أضف خدمات من نوع "عملية جراحية" في الإعدادات → الخدمات والأسعار
+                  </p>
+                )}
               </div>
 
               <div className="flex gap-4">
