@@ -73,7 +73,7 @@ function formatDate(iso?: string | null) {
 
 function formatMoney(val: number | string | null | undefined) {
   const num = Number(val ?? 0);
-  return num.toLocaleString("ar-LY", {
+  return num.toLocaleString("en-US", {
     minimumFractionDigits: 3,
     maximumFractionDigits: 3,
   });
@@ -160,7 +160,6 @@ export default function PaymentReceiptPage() {
       title="إيصال دفعة"
       subtitle="PAYMENT RECEIPT"
       documentId={payment.id}
-      footerNotes="إيصال رسمي معتمد — سعداء بخدمتكم"
       showWatermark={true}
       watermarkText="PAID"
     >
@@ -384,9 +383,9 @@ export default function PaymentReceiptPage() {
       <div className="receipt-amount-box">
         <div>
           <span className="receipt-amount-value">
-            {formatMoney(payment.amount)}
+            <span dir="ltr">{formatMoney(payment.amount)}</span>
           </span>
-          <span className="receipt-amount-currency">{invoice.currency}</span>
+          <span className="receipt-amount-currency" dir="ltr">&nbsp;{invoice.currency}</span>
         </div>
         <div>
           <span className="receipt-amount-method">
@@ -479,7 +478,7 @@ export default function PaymentReceiptPage() {
           <div className="receipt-summary-row">
             <span className="receipt-summary-label">المبلغ الإجمالي:</span>
             <span className="receipt-summary-value">
-              {formatMoney(invoice.totalAmount)} {invoice.currency}
+              <span dir="ltr">{formatMoney(invoice.totalAmount)}&nbsp;{invoice.currency}</span>
             </span>
           </div>
 
@@ -490,7 +489,7 @@ export default function PaymentReceiptPage() {
                 className="receipt-summary-value"
                 style={{ color: "#dc2626" }}
               >
-                -{formatMoney(invoice.discountAmount)} {invoice.currency}
+                <span dir="ltr">-{formatMoney(invoice.discountAmount)}&nbsp;{invoice.currency}</span>
               </span>
             </div>
           )}
@@ -498,7 +497,7 @@ export default function PaymentReceiptPage() {
           <div className="receipt-summary-row receipt-summary-highlight">
             <span className="receipt-summary-label">الصافي:</span>
             <span className="receipt-summary-value">
-              {formatMoney(netTotal)} {invoice.currency}
+              <span dir="ltr">{formatMoney(netTotal)}&nbsp;{invoice.currency}</span>
             </span>
           </div>
 
@@ -508,7 +507,7 @@ export default function PaymentReceiptPage() {
               className="receipt-summary-value"
               style={{ color: "#059669" }}
             >
-              {formatMoney(invoice.paidAmount)} {invoice.currency}
+              <span dir="ltr">{formatMoney(invoice.paidAmount)}&nbsp;{invoice.currency}</span>
             </span>
           </div>
 
@@ -527,7 +526,7 @@ export default function PaymentReceiptPage() {
                   Number(invoice.remainingAmount) > 0 ? "#dc2626" : "#059669",
               }}
             >
-              {formatMoney(invoice.remainingAmount)} {invoice.currency}
+              <span dir="ltr">{formatMoney(invoice.remainingAmount)}&nbsp;{invoice.currency}</span>
             </span>
           </div>
         </div>

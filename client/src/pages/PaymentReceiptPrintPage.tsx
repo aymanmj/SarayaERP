@@ -64,7 +64,7 @@ function fmtDate(iso?: string | null) {
 }
 
 function fmtMoney(val: number | string | null | undefined) {
-  return Number(val ?? 0).toLocaleString("ar-LY", {
+  return Number(val ?? 0).toLocaleString("en-US", {
     minimumFractionDigits: 3,
     maximumFractionDigits: 3,
   });
@@ -85,7 +85,7 @@ function visitLabel(t: EncounterType) {
   const map: Record<string, string> = {
     OPD: "عيادات خارجية",
     ER: "طوارئ",
-    IPD: "تنويم",
+    IPD: "إيواء",
   };
   return map[t] || t;
 }
@@ -315,8 +315,8 @@ export default function PaymentReceiptPrintPage() {
         {/* ── Amount ── */}
         <div className="r-amount-box">
           <div>
-            <span className="r-amount">{fmtMoney(payment.amount)}</span>
-            <span className="r-currency">{invoice.currency}</span>
+            <span className="r-amount"><span dir="ltr">{fmtMoney(payment.amount)}</span></span>
+            <span className="r-currency" dir="ltr">&nbsp;{invoice.currency}</span>
           </div>
           <div>
             <span className="r-method-badge">
@@ -367,24 +367,24 @@ export default function PaymentReceiptPrintPage() {
           <div className="r-box-header">📊 ملخص الفاتورة</div>
           <div className="r-summary-row">
             <span className="r-summary-label">المبلغ الإجمالي:</span>
-            <span className="r-summary-value">{fmtMoney(invoice.totalAmount)} {invoice.currency}</span>
+            <span className="r-summary-value"><span dir="ltr">{fmtMoney(invoice.totalAmount)}&nbsp;{invoice.currency}</span></span>
           </div>
           {Number(invoice.discountAmount) > 0 && (
             <div className="r-summary-row">
               <span className="r-summary-label">الخصم:</span>
               <span className="r-summary-value" style={{ color: "#dc2626" }}>
-                -{fmtMoney(invoice.discountAmount)} {invoice.currency}
+                <span dir="ltr">-{fmtMoney(invoice.discountAmount)}&nbsp;{invoice.currency}</span>
               </span>
             </div>
           )}
           <div className="r-summary-row r-summary-hl">
             <span className="r-summary-label">الصافي:</span>
-            <span className="r-summary-value">{fmtMoney(net)} {invoice.currency}</span>
+            <span className="r-summary-value"><span dir="ltr">{fmtMoney(net)}&nbsp;{invoice.currency}</span></span>
           </div>
           <div className="r-summary-row">
             <span className="r-summary-label">إجمالي المدفوع:</span>
             <span className="r-summary-value" style={{ color: "#059669" }}>
-              {fmtMoney(invoice.paidAmount)} {invoice.currency}
+              <span dir="ltr">{fmtMoney(invoice.paidAmount)}&nbsp;{invoice.currency}</span>
             </span>
           </div>
           <div className="r-summary-row r-summary-hl">
@@ -393,7 +393,7 @@ export default function PaymentReceiptPrintPage() {
               fontSize: 18,
               color: Number(invoice.remainingAmount) > 0 ? "#dc2626" : "#059669",
             }}>
-              {fmtMoney(invoice.remainingAmount)} {invoice.currency}
+              <span dir="ltr">{fmtMoney(invoice.remainingAmount)}&nbsp;{invoice.currency}</span>
             </span>
           </div>
         </div>
