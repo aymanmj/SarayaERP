@@ -160,7 +160,7 @@ export default function PaymentReceiptPage() {
       title="إيصال دفعة"
       subtitle="PAYMENT RECEIPT"
       documentId={payment.id}
-      footerNotes="إيصال رسمي معتمد — شكراً لدفعكم"
+      footerNotes="إيصال رسمي معتمد — سعداء بخدمتكم"
       showWatermark={true}
       watermarkText="PAID"
     >

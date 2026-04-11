@@ -100,67 +100,73 @@ export default function PrintLayout({
 
   return (
     <div className="print-page-wrapper">
-      <div id="print-container" dir="rtl">
-        {/* Actions Bar (Hidden in Print) */}
-        <div className="no-print" style={{
-          background: "linear-gradient(to right, #ecfdf5, #f8fafc)",
-          borderBottom: "1px solid #a7f3d0",
-          padding: "12px 24px",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+      {/* Actions Bar (Hidden in Print) */}
+      <div className="no-print" style={{
+        background: "linear-gradient(to right, #ecfdf5, #f8fafc)",
+        borderBottom: "1px solid #a7f3d0",
+        padding: "12px 24px",
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.05)",
+        marginBottom: "24px",
+        borderRadius: "8px",
+        maxWidth: pageSize === "A5" ? "148mm" : "210mm",
+        width: "100%",
+        margin: "0 auto 24px"
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{
+            display: "flex", alignItems: "center", gap: 8,
+            background: "#dcfce7", color: "#166534", borderRadius: 8,
+            padding: "6px 14px", fontSize: 13, fontWeight: 600,
+          }}>
+            <Printer style={{ width: 16, height: 16 }} />
+            معاينة الطباعة
+          </div>
+          {documentId && (
             <div style={{
-              display: "flex", alignItems: "center", gap: 8,
-              background: "#dcfce7", color: "#166534", borderRadius: 8,
-              padding: "6px 14px", fontSize: 13, fontWeight: 600,
+              background: "#f1f5f9", color: "#64748b", borderRadius: 8,
+              padding: "6px 14px", fontSize: 13, fontFamily: "monospace",
             }}>
-              <Printer style={{ width: 16, height: 16 }} />
-              معاينة الطباعة
+              #{documentId}
             </div>
-            {documentId && (
-              <div style={{
-                background: "#f1f5f9", color: "#64748b", borderRadius: 8,
-                padding: "6px 14px", fontSize: 13, fontFamily: "monospace",
-              }}>
-                #{documentId}
-              </div>
-            )}
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <button onClick={handleShare} style={{
-              padding: "8px 16px", background: "white", border: "1px solid #d1d5db",
-              borderRadius: 8, fontSize: 13, fontWeight: 600, color: "#475569",
-              cursor: "pointer", display: "flex", alignItems: "center", gap: 6,
-            }}>
-              <Share2 style={{ width: 14, height: 14 }} /> مشاركة
-            </button>
-            <button onClick={handleDownload} style={{
-              padding: "8px 16px", background: "#2563eb", border: "none",
-              borderRadius: 8, fontSize: 13, fontWeight: 600, color: "white",
-              cursor: "pointer", display: "flex", alignItems: "center", gap: 6,
-            }}>
-              <Download style={{ width: 14, height: 14 }} /> تحميل
-            </button>
-            <button onClick={handlePrint} style={{
-              padding: "8px 20px", background: "#059669", border: "none",
-              borderRadius: 8, fontSize: 13, fontWeight: 700, color: "white",
-              cursor: "pointer", display: "flex", alignItems: "center", gap: 6,
-              boxShadow: "0 4px 6px rgba(5, 150, 105, 0.25)",
-            }}>
-              <Printer style={{ width: 14, height: 14 }} /> طباعة المستند
-            </button>
-            <button onClick={() => window.history.back()} style={{
-              padding: 8, background: "white", border: "1px solid #d1d5db",
-              borderRadius: 8, color: "#64748b", cursor: "pointer",
-              display: "flex", alignItems: "center",
-            }}>
-              <X style={{ width: 16, height: 16 }} />
-            </button>
-          </div>
+          )}
         </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <button onClick={handleShare} style={{
+            padding: "8px 16px", background: "white", border: "1px solid #d1d5db",
+            borderRadius: 8, fontSize: 13, fontWeight: 600, color: "#475569",
+            cursor: "pointer", display: "flex", alignItems: "center", gap: 6,
+          }}>
+            <Share2 style={{ width: 14, height: 14 }} /> مشاركة
+          </button>
+          <button onClick={handleDownload} style={{
+            padding: "8px 16px", background: "#2563eb", border: "none",
+            borderRadius: 8, fontSize: 13, fontWeight: 600, color: "white",
+            cursor: "pointer", display: "flex", alignItems: "center", gap: 6,
+          }}>
+            <Download style={{ width: 14, height: 14 }} /> تحميل
+          </button>
+          <button onClick={handlePrint} style={{
+            padding: "8px 20px", background: "#059669", border: "none",
+            borderRadius: 8, fontSize: 13, fontWeight: 700, color: "white",
+            cursor: "pointer", display: "flex", alignItems: "center", gap: 6,
+            boxShadow: "0 4px 6px rgba(5, 150, 105, 0.25)",
+          }}>
+            <Printer style={{ width: 14, height: 14 }} /> طباعة المستند
+          </button>
+          <button onClick={() => window.history.back()} style={{
+            padding: 8, background: "white", border: "1px solid #d1d5db",
+            borderRadius: 8, color: "#64748b", cursor: "pointer",
+            display: "flex", alignItems: "center",
+          }}>
+            <X style={{ width: 16, height: 16 }} />
+          </button>
+        </div>
+      </div>
 
+      <div id="print-container" dir="rtl">
         {/* Header */}
         <header className="print-header">
           {/* Watermark */}

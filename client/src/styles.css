@@ -7,128 +7,51 @@ body {
   background-color: #0f172a; /* خلفية غامقة بسيطة */
 }
 
-/* ==== طباعة فاتورة الكاشير ==== */
-
-@page {
-  size: A4 portrait;
-  margin: 10mm;
-}
+/* ==== إعدادات الطباعة العامة ==== */
 
 @media print {
-  /* إخفاء العناصر الرئيسية التي لا نريدها في الطباعة */
+  /* إخفاء واجهات النظام الرئيسية في الطباعة */
   header,
   nav,
   aside,
   .sidebar,
   .navigation,
   .menu,
-  /* إخفاء شريط الأدوات العلوي */
-  .no-print,
-  div[class*="no-print"],
-  /* إخفاء شريط التمرير */
-  ::-webkit-scrollbar {
-    display: none !important;
-    visibility: hidden !important;
-  }
-
-  /* إظهار حاوية الطباعة */
-  #print-container {
-    display: block !important;
-    position: relative !important;
-    left: auto !important;
-    top: auto !important;
-    width: 100% !important;
-    height: auto !important;
-    background: white !important;
-    box-shadow: none !important;
-    border-radius: 0 !important;
-    margin: 0 !important;
-    padding: 8mm !important;
-    overflow: visible !important;
-  }
-
-  /* إخفاء شريط التمرير في كل المتصفحات */
-  * {
-    scrollbar-width: none !important; /* Firefox */
-    -ms-overflow-style: none !important; /* IE and Edge */
-  }
-  
-  *::-webkit-scrollbar {
-    display: none !important; /* Chrome, Safari, Opera */
-  }
-
-  /* إظهار كل المحتوى داخل حاوية الطباعة */
-  #print-container,
-  #print-container * {
-    visibility: visible !important;
-  }
-
-  /* ضبط الجداول للطباعة */
-  #print-container table {
-    display: table !important;
-  }
-  
-  #print-container tr {
-    display: table-row !important;
-  }
-  
-  #print-container td,
-  #print-container th {
-    display: table-cell !important;
-  }
-
-  /* إظهار العناصر المرنة */
-  #print-container .flex {
-    display: flex !important;
-  }
-  
-  #print-container .grid {
-    display: grid !important;
-  }
-
-  /* إظهار كل العناصر المهمة */
-  #print-container div,
-  #print-container header,
-  #print-container main,
-  #print-container footer,
-  #print-container section,
-  #print-container h1,
-  #print-container h2,
-  #print-container h3,
-  #print-container h4,
-  #print-container h5,
-  #print-container h6,
-  #print-container p,
-  #print-container span,
-  #print-container ul,
-  #print-container ol,
-  #print-container li,
-  #print-container b,
-  #print-container strong,
-  #print-container i,
-  #print-container em,
-  #print-container a,
-  #print-container small {
-    display: block !important;
-    visibility: visible !important;
-  }
-
-  /* إظهار العناصر المضمنة */
-  #print-container b,
-  #print-container strong,
-  #print-container i,
-  #print-container em,
-  #print-container a,
-  #print-container small {
-    display: inline !important;
-  }
-
-  /* إخفاء العناصر الرئيسية في التطبيق */
   .app-header,
   .app-sidebar,
   .app-nav,
   .main-layout,
-  .layout-wrapper {
+  footer:not(.print-footer) {
     display: none !important;
+  }
+
+  /* إخفاء الأزرار والأدوات التي لا تُطبع */
+  .no-print {
+    display: none !important;
+  }
+
+  /* حذف الهوامش والخلفيات الداكنة والتمرير لتخرج الورقة نظيفة */
+  html, body {
+    background-color: white !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    overflow: visible !important;
+  }
+
+  ::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  /* إعادة ضبط حاوية الصفحة لتمتد كاملة بدون إطارات */
+  #main-content,
+  .layout-wrapper {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    background: transparent !important;
+    box-shadow: none !important;
   }
 }
