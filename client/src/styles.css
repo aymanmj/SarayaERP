@@ -11,7 +11,7 @@ body {
 
 @media print {
   /* إخفاء واجهات النظام الرئيسية في الطباعة */
-  header,
+  header:not(.print-header),
   nav,
   aside,
   .sidebar,
@@ -44,14 +44,15 @@ body {
     display: none !important;
   }
 
-  /* إعادة ضبط حاوية الصفحة لتمتد كاملة بدون إطارات */
-  #main-content,
-  .layout-wrapper {
+  /* إعادة ضبط حاوية الصفحة لتمتد كاملة بدون إطارات أو خلفيات قاتمة من التخطيط الأساسي */
+  html, body, #root, .print-page-wrapper, main, div[class*="bg-slate-95"], div[class*="from-slate-95"] {
     margin: 0 !important;
     padding: 0 !important;
     width: 100% !important;
     max-width: 100% !important;
     background: transparent !important;
+    background-color: white !important;
     box-shadow: none !important;
+    border: none !important;
   }
 }
