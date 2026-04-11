@@ -1,12 +1,10 @@
 // src/pages/PaymentReceiptPage.tsx
 
-import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { apiClient } from "../api/apiClient";
 import PrintLayout from "../components/print/PrintLayout";
-import type { OrganizationSettings } from "../types/organization";
 import { useQuery } from "@tanstack/react-query";
-import { Loader2, CheckCircle, CreditCard, Calendar, User, FileText, Building2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 type EncounterType = "OPD" | "ER" | "IPD";
 
@@ -81,33 +79,17 @@ function formatMoney(val: number | string | null | undefined) {
   });
 }
 
-function getPaymentMethodIcon(method: string) {
-  switch (method.toLowerCase()) {
-    case 'cash':
-      return '💵';
-    case 'card':
-    case 'credit_card':
-      return '💳';
-    case 'bank_transfer':
-      return '🏦';
-    case 'check':
-      return '📄';
-    default:
-      return '💰';
-  }
-}
-
 function getPaymentMethodLabel(method: string) {
   switch (method.toLowerCase()) {
-    case 'cash':
-      return 'نقدي';
-    case 'card':
-    case 'credit_card':
-      return 'بطاقة ائتمان';
-    case 'bank_transfer':
-      return 'تحويل بنكي';
-    case 'check':
-      return 'شيك';
+    case "cash":
+      return "نقدي";
+    case "card":
+    case "credit_card":
+      return "بطاقة ائتمان";
+    case "bank_transfer":
+      return "تحويل بنكي";
+    case "check":
+      return "شيك";
     default:
       return method;
   }
@@ -115,12 +97,12 @@ function getPaymentMethodLabel(method: string) {
 
 function getEncounterTypeLabel(type: EncounterType) {
   switch (type) {
-    case 'OPD':
-      return 'عيادات خارجية';
-    case 'ER':
-      return 'طوارئ';
-    case 'IPD':
-      return 'إقامة';
+    case "OPD":
+      return "عيادات خارجية";
+    case "ER":
+      return "طوارئ";
+    case "IPD":
+      return "تنويم";
     default:
       return type;
   }
@@ -146,7 +128,9 @@ export default function PaymentReceiptPage() {
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
         <div className="flex flex-col items-center gap-4 p-8 bg-white rounded-2xl shadow-lg">
           <Loader2 className="w-12 h-12 animate-spin text-emerald-600" />
-          <div className="text-slate-600 font-medium">جاري إعداد إيصال الدفعة...</div>
+          <div className="text-slate-600 font-medium">
+            جاري إعداد إيصال الدفعة...
+          </div>
         </div>
       </div>
     );
@@ -156,7 +140,9 @@ export default function PaymentReceiptPage() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-rose-50 to-slate-100 flex items-center justify-center">
         <div className="flex flex-col items-center gap-4 p-8 bg-white rounded-2xl shadow-lg border border-rose-200">
-          <div className="text-rose-600 font-bold text-center">خطأ: {(error as any)?.message}</div>
+          <div className="text-rose-600 font-bold text-center">
+            خطأ: {(error as any)?.message}
+          </div>
         </div>
       </div>
     );
@@ -166,645 +152,411 @@ export default function PaymentReceiptPage() {
 
   const { payment, invoice, patient, encounter } = data as PaymentReceiptData;
   const isFullyPaid = Number(invoice.remainingAmount) <= 0;
+  const netTotal =
+    Number(invoice.totalAmount) - Number(invoice.discountAmount);
 
   return (
     <PrintLayout
       title="إيصال دفعة"
-      subtitle="Payment Receipt"
+      subtitle="PAYMENT RECEIPT"
       documentId={payment.id}
-      footerNotes="إيصال رسمي معتمد - شكراً لدفعكم"
+      footerNotes="إيصال رسمي معتمد — شكراً لدفعكم"
       showWatermark={true}
       watermarkText="PAID"
     >
-      <div className="space-y-6">
-        {/* Success Header */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-emerald-100 rounded-full mb-4">
-            <CheckCircle className="w-8 h-8 text-emerald-600" />
-          </div>
-          <h2 className="text-2xl font-bold text-emerald-600 mb-2">تم استلام الدفعة بنجاح</h2>
-          <p className="text-slate-600">نشكرك لثقتكم بنا</p>
-        </div>
+      {/* ─── Receipt Styles for Print ─── */}
+      <style>{`
+        .receipt-table {
+          width: 100%;
+          border-collapse: collapse;
+          font-family: 'Cairo', 'Noto Sans Arabic', 'Segoe UI', Tahoma, sans-serif;
+        }
+        .receipt-table th,
+        .receipt-table td {
+          padding: 10px 14px;
+          text-align: right;
+          font-size: 13px;
+          border-bottom: 1px solid #e2e8f0;
+        }
+        .receipt-table th {
+          color: #64748b;
+          font-weight: 600;
+          font-size: 12px;
+          white-space: nowrap;
+        }
+        .receipt-table td {
+          color: #1e293b;
+          font-weight: 700;
+        }
+        .receipt-section {
+          border: 1px solid #e2e8f0;
+          border-radius: 10px;
+          overflow: hidden;
+          margin-bottom: 16px;
+        }
+        .receipt-section-header {
+          background: #f8fafc;
+          padding: 10px 16px;
+          font-weight: 700;
+          font-size: 14px;
+          color: #334155;
+          border-bottom: 1px solid #e2e8f0;
+        }
+        .receipt-amount-box {
+          background: linear-gradient(135deg, #ecfdf5, #f0f9ff);
+          border: 2px solid #10b981;
+          border-radius: 12px;
+          padding: 24px;
+          text-align: center;
+          margin-bottom: 20px;
+        }
+        .receipt-amount-value {
+          font-size: 32px;
+          font-weight: 900;
+          color: #059669;
+          letter-spacing: -0.5px;
+        }
+        .receipt-amount-currency {
+          font-size: 16px;
+          font-weight: 600;
+          color: #64748b;
+          margin-right: 6px;
+        }
+        .receipt-amount-method {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          background: white;
+          border: 1px solid #d1d5db;
+          border-radius: 20px;
+          padding: 4px 14px;
+          font-size: 12px;
+          color: #475569;
+          margin-top: 10px;
+        }
+        .receipt-status {
+          display: inline-block;
+          padding: 3px 12px;
+          border-radius: 6px;
+          font-size: 11px;
+          font-weight: 700;
+        }
+        .receipt-status-paid {
+          background: #dcfce7;
+          color: #166534;
+          border: 1px solid #bbf7d0;
+        }
+        .receipt-status-partial {
+          background: #fef3c7;
+          color: #92400e;
+          border: 1px solid #fde68a;
+        }
+        .receipt-success {
+          text-align: center;
+          margin-bottom: 24px;
+        }
+        .receipt-success-icon {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 56px;
+          height: 56px;
+          background: #dcfce7;
+          border-radius: 50%;
+          margin-bottom: 12px;
+        }
+        .receipt-success-icon svg {
+          width: 28px;
+          height: 28px;
+          color: #16a34a;
+        }
+        .receipt-success-title {
+          font-size: 20px;
+          font-weight: 800;
+          color: #16a34a;
+          margin-bottom: 4px;
+        }
+        .receipt-success-subtitle {
+          font-size: 13px;
+          color: #64748b;
+        }
+        .receipt-summary-row {
+          display: flex;
+          justify-content: space-between;
+          padding: 8px 16px;
+          font-size: 13px;
+        }
+        .receipt-summary-label {
+          color: #64748b;
+        }
+        .receipt-summary-value {
+          font-weight: 700;
+          color: #1e293b;
+        }
+        .receipt-summary-highlight {
+          background: #f8fafc;
+          border-top: 1px solid #e2e8f0;
+        }
+        .receipt-divider {
+          border: none;
+          border-top: 1px dashed #cbd5e1;
+          margin: 12px 0;
+        }
+        .receipt-signatures {
+          display: flex;
+          justify-content: space-between;
+          margin-top: 40px;
+          padding-top: 20px;
+        }
+        .receipt-signature-box {
+          text-align: center;
+          width: 35%;
+        }
+        .receipt-signature-line {
+          border-top: 1px solid #94a3b8;
+          margin-bottom: 6px;
+        }
+        .receipt-signature-label {
+          font-size: 11px;
+          color: #64748b;
+          font-weight: 600;
+        }
+        .receipt-footer-notes {
+          text-align: center;
+          font-size: 11px;
+          color: #64748b;
+          background: #f8fafc;
+          border-radius: 8px;
+          padding: 12px;
+          margin-top: 16px;
+          line-height: 1.8;
+          border: 1px solid #e2e8f0;
+        }
+        @media print {
+          .receipt-amount-box {
+            background: #f0fdf4 !important;
+            border: 2px solid #10b981 !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+          .receipt-section-header {
+            background: #f8fafc !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+          .receipt-success-icon {
+            background: #dcfce7 !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+          .receipt-status-paid {
+            background: #dcfce7 !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+          .receipt-status-partial {
+            background: #fef3c7 !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+        }
+      `}</style>
 
-        {/* Payment Summary Card */}
-        <div className="bg-gradient-to-r from-emerald-50 to-blue-50 border border-emerald-200 rounded-xl p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-              <CreditCard className="w-5 h-5 text-emerald-600" />
-              تفاصيل الدفعة
-            </h3>
-            <div className="text-2xl font-bold text-emerald-600">
-              {formatMoney(payment.amount)} {invoice.currency}
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div className="flex justify-between">
-              <span className="text-slate-600">طريقة الدفع:</span>
-              <span className="font-medium text-slate-800 flex items-center gap-1">
-                <span>{getPaymentMethodIcon(payment.method)}</span>
-                {getPaymentMethodLabel(payment.method)}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-slate-600">التاريخ:</span>
-              <span className="font-medium text-slate-800">{formatDateTime(payment.paidAt)}</span>
-            </div>
-            {payment.reference && (
-              <div className="flex justify-between col-span-2">
-                <span className="text-slate-600">رقم المرجع:</span>
-                <span className="font-medium text-slate-800 font-mono">{payment.reference}</span>
-              </div>
-            )}
-          </div>
+      {/* ─── Success Header ─── */}
+      <div className="receipt-success">
+        <div className="receipt-success-icon">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M20 6 9 17l-5-5" />
+          </svg>
         </div>
+        <div className="receipt-success-title">تم استلام الدفعة بنجاح</div>
+        <div className="receipt-success-subtitle">نشكرك لثقتكم بنا</div>
+      </div>
 
-        {/* Patient & Invoice Info */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Patient Information */}
-          <div className="bg-slate-50 border border-slate-200 rounded-xl p-6">
-            <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-              <User className="w-5 h-5 text-blue-600" />
-              بيانات المريض
-            </h3>
-            <div className="space-y-3">
-              <div className="flex justify-between">
-                <span className="text-slate-600">الاسم:</span>
-                <span className="font-medium text-slate-800">{patient?.fullName || "—"}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-600">رقم الملف:</span>
-                <span className="font-mono text-slate-800">{patient?.mrn || "—"}</span>
-              </div>
+      {/* ─── Amount Box ─── */}
+      <div className="receipt-amount-box">
+        <div>
+          <span className="receipt-amount-value">
+            {formatMoney(payment.amount)}
+          </span>
+          <span className="receipt-amount-currency">{invoice.currency}</span>
+        </div>
+        <div>
+          <span className="receipt-amount-method">
+            {getPaymentMethodLabel(payment.method)} •{" "}
+            {formatDateTime(payment.paidAt)}
+          </span>
+        </div>
+        {payment.reference && (
+          <div
+            style={{
+              marginTop: 6,
+              fontSize: 11,
+              color: "#64748b",
+            }}
+          >
+            رقم المرجع:{" "}
+            <strong style={{ fontFamily: "monospace" }}>
+              {payment.reference}
+            </strong>
+          </div>
+        )}
+      </div>
+
+      {/* ─── Patient & Invoice Info ─── */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: 16,
+          marginBottom: 16,
+        }}
+      >
+        {/* بيانات المريض */}
+        <div className="receipt-section">
+          <div className="receipt-section-header">👤 بيانات المريض</div>
+          <table className="receipt-table">
+            <tbody>
+              <tr>
+                <th>الاسم</th>
+                <td>{patient?.fullName || "—"}</td>
+              </tr>
+              <tr>
+                <th>رقم الملف</th>
+                <td style={{ fontFamily: "monospace" }}>
+                  {patient?.mrn || "—"}
+                </td>
+              </tr>
               {encounter && (
-                <div className="flex justify-between">
-                  <span className="text-slate-600">نوع الزيارة:</span>
-                  <span className="font-medium text-slate-800">
-                    {getEncounterTypeLabel(encounter.type)}
-                  </span>
-                </div>
+                <tr>
+                  <th>نوع الزيارة</th>
+                  <td>{getEncounterTypeLabel(encounter.type)}</td>
+                </tr>
               )}
-            </div>
-          </div>
-
-          {/* Invoice Information */}
-          <div className="bg-slate-50 border border-slate-200 rounded-xl p-6">
-            <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-              <FileText className="w-5 h-5 text-purple-600" />
-              بيانات الفاتورة
-            </h3>
-            <div className="space-y-3">
-              <div className="flex justify-between">
-                <span className="text-slate-600">رقم الفاتورة:</span>
-                <span className="font-mono text-slate-800">#{invoice.id}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-600">تاريخ الفاتورة:</span>
-                <span className="font-medium text-slate-800">{formatDate(invoice.createdAt)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-600">الحالة:</span>
-                <span className={`px-2 py-1 rounded text-xs font-medium ${
-                  isFullyPaid 
-                    ? 'bg-emerald-100 text-emerald-700' 
-                    : 'bg-amber-100 text-amber-700'
-                }`}>
-                  {isFullyPaid ? 'مدفوعة بالكامل' : 'مدفوعة جزئياً'}
-                </span>
-              </div>
-            </div>
-          </div>
+            </tbody>
+          </table>
         </div>
 
-        {/* Invoice Summary */}
-        <div className="bg-white border-2 border-slate-200 rounded-xl p-6">
-          <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-            <Building2 className="w-5 h-5 text-indigo-600" />
-              ملخص الفاتورة
-          </h3>
-          
-          <div className="space-y-3">
-            <div className="flex justify-between text-sm">
-              <span className="text-slate-600">المبلغ الإجمالي:</span>
-              <span className="font-medium text-slate-800">{formatMoney(invoice.totalAmount)} {invoice.currency}</span>
-            </div>
-            
-            {Number(invoice.discountAmount) > 0 && (
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-600">الخصم:</span>
-                <span className="font-medium text-rose-600">-{formatMoney(invoice.discountAmount)} {invoice.currency}</span>
-              </div>
-            )}
-            
-            <div className="flex justify-between text-sm border-t pt-3">
-              <span className="text-slate-600">المبلغ الصافي:</span>
-              <span className="font-bold text-slate-800">
-                {formatMoney(Number(invoice.totalAmount) - Number(invoice.discountAmount))} {invoice.currency}
+        {/* بيانات الفاتورة */}
+        <div className="receipt-section">
+          <div className="receipt-section-header">📄 بيانات الفاتورة</div>
+          <table className="receipt-table">
+            <tbody>
+              <tr>
+                <th>رقم الفاتورة</th>
+                <td style={{ fontFamily: "monospace" }}>#{invoice.id}</td>
+              </tr>
+              <tr>
+                <th>تاريخ الفاتورة</th>
+                <td>{formatDate(invoice.createdAt)}</td>
+              </tr>
+              <tr>
+                <th>الحالة</th>
+                <td>
+                  <span
+                    className={`receipt-status ${isFullyPaid ? "receipt-status-paid" : "receipt-status-partial"}`}
+                  >
+                    {isFullyPaid ? "مدفوعة بالكامل" : "مدفوعة جزئياً"}
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* ─── Invoice Summary ─── */}
+      <div className="receipt-section">
+        <div className="receipt-section-header">📊 ملخص الفاتورة</div>
+        <div>
+          <div className="receipt-summary-row">
+            <span className="receipt-summary-label">المبلغ الإجمالي:</span>
+            <span className="receipt-summary-value">
+              {formatMoney(invoice.totalAmount)} {invoice.currency}
+            </span>
+          </div>
+
+          {Number(invoice.discountAmount) > 0 && (
+            <div className="receipt-summary-row">
+              <span className="receipt-summary-label">الخصم:</span>
+              <span
+                className="receipt-summary-value"
+                style={{ color: "#dc2626" }}
+              >
+                -{formatMoney(invoice.discountAmount)} {invoice.currency}
               </span>
             </div>
-            
-            <div className="flex justify-between text-sm">
-              <span className="text-slate-600">المبلغ المدفوع:</span>
-              <span className="font-medium text-emerald-600">{formatMoney(invoice.paidAmount)} {invoice.currency}</span>
-            </div>
-            
-            <div className="flex justify-between text-sm border-t pt-3">
-              <span className="text-slate-600 font-medium">المبلغ المتبقي:</span>
-              <span className={`font-bold text-lg ${
-                Number(invoice.remainingAmount) > 0 ? 'text-rose-600' : 'text-emerald-600'
-              }`}>
-                {formatMoney(invoice.remainingAmount)} {invoice.currency}
-              </span>
-            </div>
+          )}
+
+          <div className="receipt-summary-row receipt-summary-highlight">
+            <span className="receipt-summary-label">الصافي:</span>
+            <span className="receipt-summary-value">
+              {formatMoney(netTotal)} {invoice.currency}
+            </span>
+          </div>
+
+          <div className="receipt-summary-row">
+            <span className="receipt-summary-label">إجمالي المدفوع:</span>
+            <span
+              className="receipt-summary-value"
+              style={{ color: "#059669" }}
+            >
+              {formatMoney(invoice.paidAmount)} {invoice.currency}
+            </span>
+          </div>
+
+          <div className="receipt-summary-row receipt-summary-highlight">
+            <span
+              className="receipt-summary-label"
+              style={{ fontWeight: 700 }}
+            >
+              المبلغ المتبقي:
+            </span>
+            <span
+              className="receipt-summary-value"
+              style={{
+                fontSize: 18,
+                color:
+                  Number(invoice.remainingAmount) > 0 ? "#dc2626" : "#059669",
+              }}
+            >
+              {formatMoney(invoice.remainingAmount)} {invoice.currency}
+            </span>
           </div>
         </div>
+      </div>
 
-        {/* Payment Breakdown */}
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
-          <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-blue-600" />
-              تفاصيل الدفعة
-          </h3>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-            <div className="bg-white p-4 rounded-lg border border-blue-100">
-              <div className="text-slate-600 mb-1">رقم الدفعة</div>
-              <div className="font-bold text-slate-800 text-lg">#{payment.id}</div>
-            </div>
-            <div className="bg-white p-4 rounded-lg border border-blue-100">
-              <div className="text-slate-600 mb-1">المبلغ المدفوع</div>
-              <div className="font-bold text-emerald-600 text-lg">{formatMoney(payment.amount)}</div>
-            </div>
-            <div className="bg-white p-4 rounded-lg border border-blue-100">
-              <div className="text-slate-600 mb-1">طريقة الدفع</div>
-              <div className="font-bold text-slate-800 flex items-center gap-1">
-                <span>{getPaymentMethodIcon(payment.method)}</span>
-                {getPaymentMethodLabel(payment.method)}
-              </div>
-            </div>
+      {/* ─── Footer Notes ─── */}
+      <div className="receipt-footer-notes">
+        <div>• هذا الإيصال دليل على الدفعة ولا يعتبر فاتورة ضريبية</div>
+        <div>• يرجى الاحتفاظ به للمراجعة والمطالبة</div>
+      </div>
+
+      {/* ─── Signatures ─── */}
+      <div className="receipt-signatures">
+        <div className="receipt-signature-box">
+          <div className="receipt-signature-line" />
+          <div className="receipt-signature-label">
+            توقيع المستلم (الكاشير)
           </div>
+          {payment.cashierName && (
+            <div style={{ fontSize: 10, color: "#94a3b8", marginTop: 2 }}>
+              {payment.cashierName}
+            </div>
+          )}
         </div>
-
-        {/* Footer Notes */}
-        <div className="text-center text-sm text-slate-600 bg-slate-50 rounded-lg p-4">
-          <p className="mb-2">• هذا الإيصال دليل على الدفعة ولا يعتبر فاتورة ضريبية</p>
-          <p>• يرجى الاحتفاظ به للمراجعة والمطالبة</p>
-          <p className="mt-2 font-medium text-emerald-600">شكراً لدفعكم!</p>
+        <div className="receipt-signature-box">
+          <div className="receipt-signature-line" />
+          <div className="receipt-signature-label">توقيع الدافع (المريض)</div>
         </div>
       </div>
     </PrintLayout>
   );
 }
-
-// // src/pages/PaymentReceiptPage.tsx
-
-// import { useEffect, useState } from "react";
-// import { useParams } from "react-router-dom";
-// import { apiClient } from "../api/apiClient";
-// import PrintLayout from "../components/print/PrintLayout";
-// import type { OrganizationSettings } from "../types/organization";
-
-// type EncounterType = "OPD" | "ER" | "IPD";
-
-// type Patient = {
-//   id: number;
-//   fullName: string;
-//   mrn: string;
-// };
-
-// type EncounterLite = {
-//   id: number;
-//   type: EncounterType;
-// } | null;
-
-// type Payment = {
-//   id: number;
-//   amount: number;
-//   method: string;
-//   paidAt: string;
-//   reference: string | null;
-// };
-
-// type Invoice = {
-//   id: number;
-//   status: string;
-//   totalAmount: number;
-//   discountAmount: number;
-//   paidAmount: number;
-//   remainingAmount: number;
-//   currency: string;
-//   createdAt: string;
-// };
-
-// type PaymentReceiptData = {
-//   payment: Payment;
-//   invoice: Invoice;
-//   patient: Patient | null;
-//   encounter: EncounterLite;
-// };
-
-// function formatDateTime(iso?: string | null) {
-//   if (!iso) return "—";
-//   const d = new Date(iso);
-//   return d.toLocaleString("ar-LY", {
-//     year: "numeric",
-//     month: "2-digit",
-//     day: "2-digit",
-//     hour: "2-digit",
-//     minute: "2-digit",
-//   });
-// }
-
-// function formatMoney(val: number | string | null | undefined) {
-//   const num = Number(val ?? 0);
-//   return num.toLocaleString("en-US", {
-//     minimumFractionDigits: 3,
-//     maximumFractionDigits: 3,
-//   });
-// }
-
-// export default function PaymentReceiptPage() {
-//   const { id } = useParams();
-//   const paymentId = Number(id);
-
-//   const [data, setData] = useState<PaymentReceiptData | null>(null);
-//   const [org, setOrg] = useState<OrganizationSettings | null>(null);
-//   const [loading, setLoading] = useState(false);
-//   const [error, setError] = useState<string | null>(null);
-
-//   useEffect(() => {
-//     if (!paymentId || Number.isNaN(paymentId)) {
-//       setError("رقم الدفعة غير صحيح.");
-//       return;
-//     }
-
-//     const load = async () => {
-//       setLoading(true);
-//       setError(null);
-//       try {
-//         const [receiptRes, orgRes] = await Promise.all([
-//           apiClient.get<PaymentReceiptData>(
-//             `/cashier/payments/${paymentId}/receipt`,
-//           ),
-//           apiClient.get<OrganizationSettings>("/settings/organization"),
-//         ]);
-//         setData(receiptRes.data);
-//         setOrg(orgRes.data);
-//       } catch (err: any) {
-//         console.error(err);
-//         setError("حدث خطأ أثناء تحميل بيانات إيصال الدفع.");
-//       } finally {
-//         setLoading(false);
-//       }
-//     };
-
-//     load();
-//   }, [paymentId]);
-
-//   const currency = data?.invoice.currency ?? "LYD";
-
-//   if (loading) {
-//     return (
-//       <div className="min-h-screen flex items-center justify-center bg-slate-50">
-//         <div className="text-slate-500 animate-pulse font-medium">
-//           جارِ إعداد معاينة الإيصال...
-//         </div>
-//       </div>
-//     );
-//   }
-
-//   if (error) {
-//     return (
-//       <div className="min-h-screen flex items-center justify-center bg-slate-50 text-rose-500 font-bold">
-//         خطأ: {error}
-//       </div>
-//     );
-//   }
-
-//   if (!data) return null;
-
-//   const { payment, invoice, patient } = data;
-//   const afterThisPayment = invoice.remainingAmount;
-
-//   return (
-//     <PrintLayout
-//       title="إيصال استلام نقدية"
-//       subtitle={`Receipt #${payment.id}`}
-//       documentId={payment.id}
-//       pageSize="A5"
-//       footerNotes="شكراً لتعاملكم معنا. نتمنى لكم الشفاء العاجل."
-//     >
-//       {/* شبكة معلومات صغيرة ومكثفة لتناسب A5 */}
-//       <div className="grid grid-cols-2 gap-4 mb-6 text-xs">
-//         {/* بيانات المريض */}
-//         <div className="bg-slate-50 p-3 rounded border border-slate-200">
-//           <div className="font-bold text-slate-800 border-b border-slate-300 pb-1 mb-2 text-[10px] uppercase tracking-wider">
-//             بيانات المريض
-//           </div>
-//           <div className="space-y-1">
-//             <div className="flex justify-between">
-//               <span className="text-slate-500">الاسم:</span>
-//               <span className="font-bold text-slate-900">
-//                 {patient?.fullName}
-//               </span>
-//             </div>
-//             <div className="flex justify-between">
-//               <span className="text-slate-500">رقم الملف:</span>
-//               <span className="font-mono text-slate-700 font-semibold">
-//                 {patient?.mrn}
-//               </span>
-//             </div>
-//           </div>
-//         </div>
-
-//         {/* تفاصيل الفاتورة المرتبطة */}
-//         <div className="bg-slate-50 p-3 rounded border border-slate-200">
-//           <div className="font-bold text-slate-800 border-b border-slate-300 pb-1 mb-2 text-[10px] uppercase tracking-wider">
-//             المرجع (الفاتورة)
-//           </div>
-//           <div className="space-y-1">
-//             <div className="flex justify-between">
-//               <span className="text-slate-500">رقم الفاتورة:</span>
-//               <span className="font-mono text-slate-700 font-semibold">
-//                 #{invoice.id}
-//               </span>
-//             </div>
-//             <div className="flex justify-between">
-//               <span className="text-slate-500">تاريخها:</span>
-//               <span className="font-mono text-slate-700">
-//                 {formatDateTime(invoice.createdAt)}
-//               </span>
-//             </div>
-//           </div>
-//         </div>
-//       </div>
-
-//       {/* المبلغ المستلم - أبرز جزء */}
-//       <div className="border-2 border-dashed border-slate-300 rounded-xl p-6 mb-6 text-center bg-slate-50/50 relative overflow-hidden">
-//         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-400 to-sky-400"></div>
-//         <div className="text-[10px] text-slate-400 uppercase tracking-widest mb-1 font-bold">
-//           المبلغ المستلم
-//         </div>
-//         <div className="text-4xl font-black text-slate-900 font-mono tracking-tight my-2">
-//           {formatMoney(payment.amount)}{" "}
-//           <span className="text-lg text-slate-400 font-medium">{currency}</span>
-//         </div>
-//         <div className="inline-flex items-center gap-2 px-3 py-1 bg-white border border-slate-200 rounded-full text-xs font-bold text-slate-600 shadow-sm mt-1">
-//           <span>{payment.method}</span>
-//           {payment.reference && (
-//             <span className="text-slate-400 font-normal border-r border-slate-200 pr-2 mr-2">
-//               Ref: {payment.reference}
-//             </span>
-//           )}
-//         </div>
-//       </div>
-
-//       {/* جدول التفاصيل المالية المصغرة */}
-//       <div className="bg-white border border-slate-200 rounded-lg overflow-hidden mb-6">
-//         <table className="w-full text-xs">
-//           <thead className="bg-slate-100 border-b border-slate-200 text-slate-500">
-//             <tr>
-//               <th className="py-2 px-3 text-right font-semibold">البيان</th>
-//               <th className="py-2 px-3 text-left font-semibold">القيمة</th>
-//             </tr>
-//           </thead>
-//           <tbody className="divide-y divide-slate-100">
-//             <tr>
-//               <td className="py-2 px-3 text-slate-600">إجمالي قيمة الفاتورة</td>
-//               <td className="py-2 px-3 text-left font-mono text-slate-900">
-//                 {formatMoney(invoice.totalAmount)}
-//               </td>
-//             </tr>
-//             <tr>
-//               <td className="py-2 px-3 text-slate-600">
-//                 إجمالي المدفوع سابقاً
-//               </td>
-//               <td className="py-2 px-3 text-left font-mono text-slate-900">
-//                 {formatMoney(invoice.paidAmount - payment.amount)}
-//               </td>
-//             </tr>
-//             <tr className="bg-emerald-50/50">
-//               <td className="py-2 px-3 font-bold text-emerald-800">
-//                 الدفعة الحالية
-//               </td>
-//               <td className="py-2 px-3 text-left font-bold font-mono text-emerald-700">
-//                 {formatMoney(payment.amount)}
-//               </td>
-//             </tr>
-//             <tr className="bg-slate-50/50 font-bold">
-//               <td className="py-2 px-3 text-slate-900">المتبقي بعد الدفع</td>
-//               <td
-//                 className={`py-2 px-3 text-left font-mono ${afterThisPayment > 0 ? "text-rose-600" : "text-emerald-600"}`}
-//               >
-//                 {formatMoney(afterThisPayment)}
-//               </td>
-//             </tr>
-//           </tbody>
-//         </table>
-//       </div>
-
-//       {/* التاريخ والوقت */}
-//       <div className="text-[10px] text-slate-400 text-center mb-8 border-t border-slate-100 pt-2">
-//         تمت العملية في:{" "}
-//         <span className="font-mono text-slate-600 font-medium">
-//           {formatDateTime(payment.paidAt)}
-//         </span>
-//       </div>
-
-//       {/* التوقيع */}
-//       <div className="flex justify-between items-end mt-auto pt-6">
-//         <div className="text-center w-1/3">
-//           <div className="h-px bg-slate-300 mb-2 w-full"></div>
-//           <div className="text-[10px] text-slate-500 font-medium">
-//             توقيع المستلم (الكاشير)
-//           </div>
-//         </div>
-//         <div className="text-center w-1/3">
-//           <div className="h-px bg-slate-300 mb-2 w-full"></div>
-//           <div className="text-[10px] text-slate-500 font-medium">
-//             توقيع الدافع (المريض)
-//           </div>
-//         </div>
-//       </div>
-//     </PrintLayout>
-//   );
-// }
-
-// // src/pages/PaymentReceiptPage.tsx
-
-// import { useEffect, useState } from "react";
-// import { useParams } from "react-router-dom";
-// import { apiClient } from "../api/apiClient";
-// import PrintLayout from "../components/print/PrintLayout";
-// import type { OrganizationSettings } from "../types/organization";
-
-// type EncounterType = "OPD" | "ER" | "IPD";
-
-// type Patient = {
-//   id: number;
-//   fullName: string;
-//   mrn: string;
-// };
-
-// type EncounterLite = {
-//   id: number;
-//   type: EncounterType;
-// } | null;
-
-// type Payment = {
-//   id: number;
-//   amount: number;
-//   method: string;
-//   paidAt: string;
-//   reference: string | null;
-// };
-
-// type Invoice = {
-//   id: number;
-//   status: string;
-//   totalAmount: number;
-//   discountAmount: number;
-//   paidAmount: number;
-//   remainingAmount: number;
-//   currency: string;
-//   createdAt: string;
-// };
-
-// type PaymentReceiptData = {
-//   payment: Payment;
-//   invoice: Invoice;
-//   patient: Patient | null;
-//   encounter: EncounterLite;
-// };
-
-// function formatDateTime(iso?: string | null) {
-//   if (!iso) return "—";
-//   const d = new Date(iso);
-//   return d.toLocaleString("ar-LY", {
-//     year: "numeric",
-//     month: "2-digit",
-//     day: "2-digit",
-//     hour: "2-digit",
-//     minute: "2-digit",
-//   });
-// }
-
-// function formatMoney(val: number | string | null | undefined) {
-//   const num = Number(val ?? 0);
-//   return num.toFixed(3);
-// }
-
-// export default function PaymentReceiptPage() {
-//   const { id } = useParams();
-//   const paymentId = Number(id);
-
-//   const [data, setData] = useState<PaymentReceiptData | null>(null);
-//   const [org, setOrg] = useState<OrganizationSettings | null>(null);
-//   const [loading, setLoading] = useState(false);
-//   const [error, setError] = useState<string | null>(null);
-
-//   useEffect(() => {
-
-//   return (
-//     <PrintLayout
-//       title="إيصال استلام نقدية"
-//       subtitle={`Receipt #${payment.id}`}
-//       documentId={payment.id}
-//       pageSize="A5"
-//       footerNotes="شكراً لتعاملكم معنا."
-//     >
-//       {/* شبكة معلومات صغيرة ومكثفة لتناسب A5 */}
-//       <div className="grid grid-cols-2 gap-4 mb-6 text-xs">
-//         {/* بيانات المريض */}
-//         <div className="bg-slate-50 p-3 rounded border border-slate-100">
-//           <div className="font-bold text-slate-900 border-b border-slate-200 pb-1 mb-2">بيانات المريض</div>
-//           <div className="space-y-1">
-//             <div className="flex justify-between">
-//               <span className="text-slate-500">الاسم:</span>
-//               <span className="font-bold">{patient?.fullName}</span>
-//             </div>
-//             <div className="flex justify-between">
-//               <span className="text-slate-500">رقم الملف:</span>
-//               <span className="font-mono">{patient?.mrn}</span>
-//             </div>
-//           </div>
-//         </div>
-
-//         {/* تفاصيل الفاتورة المرتبطة */}
-//         <div className="bg-slate-50 p-3 rounded border border-slate-100">
-//           <div className="font-bold text-slate-900 border-b border-slate-200 pb-1 mb-2">المرجع (الفاتورة)</div>
-//           <div className="space-y-1">
-//             <div className="flex justify-between">
-//               <span className="text-slate-500">رقم الفاتورة:</span>
-//               <span className="font-mono">#{invoice.id}</span>
-//             </div>
-//             <div className="flex justify-between">
-//               <span className="text-slate-500">تاريخها:</span>
-//               <span>{formatDateTime(invoice.createdAt)}</span>
-//             </div>
-//           </div>
-//         </div>
-//       </div>
-
-//       {/* المبلغ المستلم - أبرز جزء */}
-//       <div className="border-2 border-slate-900 rounded-lg p-4 mb-6 text-center bg-slate-50">
-//         <div className="text-xs text-slate-500 uppercase tracking-widest mb-1">المبلغ المستلم</div>
-//         <div className="text-3xl font-bold text-slate-900 font-mono">
-//           {formatMoney(payment.amount)} <span className="text-lg text-slate-500">{currency}</span>
-//         </div>
-//         <div className="text-xs font-bold text-emerald-600 mt-2 bg-emerald-50 inline-block px-3 py-1 rounded-full border border-emerald-100">
-//           {payment.method}
-//           {payment.reference && <span className="text-slate-400 font-normal"> - Ref: {payment.reference}</span>}
-//         </div>
-//       </div>
-
-//       {/* جدول التفاصيل المالية المصغرة */}
-//       <div className="bg-white border border-slate-200 rounded-lg overflow-hidden mb-4">
-//         <table className="w-full text-xs">
-//           <thead className="bg-slate-50 border-b border-slate-200">
-//             <tr>
-//               <th className="py-2 px-3 text-right font-medium text-slate-500">البيان</th>
-//               <th className="py-2 px-3 text-left font-medium text-slate-500">القيمة</th>
-//             </tr>
-//           </thead>
-//           <tbody className="divide-y divide-slate-100">
-//             <tr>
-//               <td className="py-2 px-3 text-slate-700">إجمالي قيمة الفاتورة</td>
-//               <td className="py-2 px-3 text-left font-mono">{formatMoney(invoice.totalAmount)}</td>
-//             </tr>
-//             <tr>
-//               <td className="py-2 px-3 text-slate-700">إجمالي المدفوع سابقاً</td>
-//               <td className="py-2 px-3 text-left font-mono">{formatMoney(invoice.paidAmount - payment.amount)}</td>
-//             </tr>
-//             <tr className="bg-slate-50/50">
-//               <td className="py-2 px-3 font-bold text-emerald-700">الدفعة الحالية</td>
-//               <td className="py-2 px-3 text-left font-bold font-mono text-emerald-700">{formatMoney(payment.amount)}</td>
-//             </tr>
-//             <tr>
-//               <td className="py-2 px-3 font-bold text-slate-900">المتبقي بعد الدفع</td>
-//               <td className="py-2 px-3 text-left font-bold font-mono text-rose-600">{formatMoney(afterThisPayment)}</td>
-//             </tr>
-//           </tbody>
-//         </table>
-//       </div>
-
-//       {/* التاريخ والوقت */}
-//       <div className="text-xs text-slate-400 text-center mb-8">
-//         تاريخ ووقت العملية: <span className="font-mono text-slate-600">{formatDateTime(payment.paidAt)}</span>
-//       </div>
-
-//       {/* التوقيع */}
-//       <div className="flex justify-between items-end mt-auto pt-8">
-//         <div className="text-center">
-//           <div className="h-px w-32 bg-slate-300 mb-2"></div>
-//           <div className="text-[10px] text-slate-500">توقيع المستلم (الكاشير)</div>
-//         </div>
-//         <div className="text-center">
-//           <div className="h-px w-32 bg-slate-300 mb-2"></div>
-//           <div className="text-[10px] text-slate-500">توقيع الدافع (المريض)</div>
-//         </div>
-//       </div>
-//     </PrintLayout>
-//   );
-// }
-// }
