@@ -231,7 +231,8 @@ export default function PrintLayout({
           min-height: 100vh;
           background: linear-gradient(135deg, #f8fafc, #f1f5f9);
           display: flex;
-          justify-content: center;
+          flex-direction: column;
+          align-items: center;
           padding: 32px 0;
           font-family: 'Cairo', 'Noto Sans Arabic', 'Segoe UI', Tahoma, sans-serif;
         }
@@ -278,8 +279,10 @@ export default function PrintLayout({
           display: flex;
           justify-content: space-between;
           align-items: flex-start;
+          gap: 20px;
         }
         .print-org-info {
+          flex: 1;
           text-align: right;
         }
         .print-org-name {
@@ -313,6 +316,7 @@ export default function PrintLayout({
           display: flex;
           flex-direction: column;
           align-items: flex-end;
+          flex-shrink: 0;
         }
         .print-logo-box {
           margin-bottom: 12px;
