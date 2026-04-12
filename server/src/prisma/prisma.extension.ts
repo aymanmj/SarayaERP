@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { encrypt, decrypt } from '../common/utils/encryption.util';
 import { createHash } from 'crypto';
 
