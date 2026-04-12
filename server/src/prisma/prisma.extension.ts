@@ -44,6 +44,16 @@ function handleDecryption(data: any) {
   return decryptObject(data);
 }
 
+// Prepare a cached Set of models that actually support soft deletes (have 'isDeleted' field)
+const SOFT_DELETABLE_MODELS = new Set<string>();
+if (Prisma.dmmf && Prisma.dmmf.datamodel) {
+  Prisma.dmmf.datamodel.models.forEach((model) => {
+    if (model.fields.some((field) => field.name === 'isDeleted')) {
+      SOFT_DELETABLE_MODELS.add(model.name);
+    }
+  });
+}
+
 export const extendedPrisma = (prisma: PrismaClient) => {
   return prisma.$extends({
     query: {
@@ -98,29 +108,39 @@ export const extendedPrisma = (prisma: PrismaClient) => {
       // منطق الحذف الناعم لباقي الموديلات
       $allModels: {
         async delete({ model, args, query }) {
-          return (prisma as any)[model].update({
-            ...args,
-            data: { isDeleted: true, deletedAt: new Date() },
-          });
+          if (SOFT_DELETABLE_MODELS.has(model)) {
+            return (prisma as any)[model].update({
+              ...args,
+              data: { isDeleted: true, ...((args as any).data || {}) },
+            });
+          }
+          return query(args);
         },
         async deleteMany({ model, args, query }) {
-          return (prisma as any)[model].updateMany({
-            ...args,
-            data: { isDeleted: true, deletedAt: new Date() },
-          });
+          if (SOFT_DELETABLE_MODELS.has(model)) {
+            return (prisma as any)[model].updateMany({
+              ...args,
+              data: { isDeleted: true, ...((args as any).data || {}) },
+            });
+          }
+          return query(args);
         },
         async findMany({ model, args, query }) {
           if (model === 'Patient') return query(args); // المريض معالج بالأعلى
           const a = args as any;
-          a.where = a.where || {};
-          if (a.where.isDeleted === undefined) a.where.isDeleted = false;
+          if (SOFT_DELETABLE_MODELS.has(model)) {
+            a.where = a.where || {};
+            if (a.where.isDeleted === undefined) a.where.isDeleted = false;
+          }
           return query(a);
         },
         async findFirst({ model, args, query }) {
           if (model === 'Patient') return query(args); // المريض معالج بالأعلى
           const a = args as any;
-          a.where = a.where || {};
-          if (a.where.isDeleted === undefined) a.where.isDeleted = false;
+          if (SOFT_DELETABLE_MODELS.has(model)) {
+            a.where = a.where || {};
+            if (a.where.isDeleted === undefined) a.where.isDeleted = false;
+          }
           return query(a);
         },
       },
