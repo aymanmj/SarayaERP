@@ -32,7 +32,7 @@ export class PrismaService
 
   get extended() {
     if (!this._extendedClient) {
-      this._extendedClient = extendedPrisma(this).$extends(auditExtension(this.cls));
+      this._extendedClient = extendedPrisma(this).$extends(auditExtension(this.cls, this));
     }
     return this._extendedClient;
   }
