@@ -72,7 +72,7 @@ export class PatientsService {
   ) {
     const mrn = await this.generateNextMrn(hospitalId);
 
-    return this.prisma.extended.patient.create({
+    return this.prisma.patient.create({
       data: {
         ...data,
         mrn,
@@ -133,7 +133,7 @@ export class PatientsService {
 
     // 4. جلب البيانات والعدد الإجمالي في وقت واحد (Transaction)
     const [items, totalCount] = await this.prisma.$transaction([
-      this.prisma.extended.patient.findMany({
+      this.prisma.patient.findMany({
         where,
         skip,
         take: limit,
@@ -162,7 +162,7 @@ export class PatientsService {
   }
 
   async findOne(hospitalId: number, id: number) {
-    const patient = await this.prisma.extended.patient.findFirst({
+    const patient = await this.prisma.patient.findFirst({
       where: {
         id,
         hospitalId,
@@ -207,7 +207,7 @@ export class PatientsService {
       }
     }
 
-    return this.prisma.extended.patient.update({
+    return this.prisma.patient.update({
       where: { id },
       data: updateInput,
     });
@@ -236,7 +236,7 @@ export class PatientsService {
       reaction?: string;
     },
   ) {
-    const patient = await this.prisma.extended.patient.findFirst({
+    const patient = await this.prisma.patient.findFirst({
       where: { id: data.patientId, hospitalId },
     });
 
@@ -258,7 +258,7 @@ export class PatientsService {
   // 2. جلب الحساسيات
   async getAllergies(hospitalId: number, patientId: number) {
     // التأكد من أن المريض يتبع المستشفى
-    const patient = await this.prisma.extended.patient.findFirst({
+    const patient = await this.prisma.patient.findFirst({
       where: { id: patientId, hospitalId },
     });
     if (!patient) throw new NotFoundException('المريض غير موجود');

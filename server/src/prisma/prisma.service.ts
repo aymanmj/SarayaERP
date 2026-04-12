@@ -28,7 +28,6 @@ export class PrismaService
     // Attach lifecycle hooks to the proxy so NestJS can call them
     (client as any).onModuleInit = this.onModuleInit.bind(this);
     (client as any).onModuleDestroy = this.onModuleDestroy.bind(this);
-    (client as any).extended = client;
 
     // Return the proxy so it gets injected everywhere instead of the raw client
     return client as any;
