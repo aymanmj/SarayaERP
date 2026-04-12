@@ -19,23 +19,22 @@ export class PrismaService
 {
   private readonly logger = new Logger(PrismaService.name);
   
-  // NOTE: We cannot strongly type the double-extended client easily without complex types,
-  // so we'll use `any` for the internal instance to avoid TypeScript errors when chaining extensions.
-  private _extendedClient: any;
-
   constructor(private readonly cls: ClsService) {
     super();
+    
+    // Wrap the Prisma client with extensions
+    const client = extendedPrisma(this).$extends(auditExtension(this.cls, this));
+    
+    // Attach lifecycle hooks to the proxy so NestJS can call them
+    (client as any).onModuleInit = this.onModuleInit.bind(this);
+    (client as any).onModuleDestroy = this.onModuleDestroy.bind(this);
+
+    // Return the proxy so it gets injected everywhere instead of the raw client
+    return client as any;
   }
 
   // تايمر للـ keep-alive
   private keepAliveTimer: NodeJS.Timeout | null = null;
-
-  get extended() {
-    if (!this._extendedClient) {
-      this._extendedClient = extendedPrisma(this).$extends(auditExtension(this.cls, this));
-    }
-    return this._extendedClient;
-  }
 
   async onModuleInit() {
     this.logger.log('Connecting to PostgreSQL via Prisma...');
