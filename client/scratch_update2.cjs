@@ -1,305 +1,18 @@
-// src/pages/PatientStatementPage.tsx
+const fs = require('fs');
+const file = 'e:/SarayaERP/client/src/pages/PatientStatementPage.tsx';
+let content = fs.readFileSync(file, 'utf8');
 
-import { useEffect, useMemo, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { apiClient } from "../api/apiClient";
-import PrintLayout from "../components/print/PrintLayout";
-
-type InvoiceStatus =
-  | "DRAFT"
-  | "ISSUED"
-  | "PARTIALLY_PAID"
-  | "PAID"
-  | "CANCELLED";
-
-type PaymentMethod = "CASH" | "CARD" | "TRANSFER" | "INSURANCE" | "OTHER";
-
-type PatientLite = {
-  id: number;
-  fullName: string;
-  mrn: string;
-};
-
-type InvoiceDto = {
-  id: number;
-  status: InvoiceStatus;
-  totalAmount: number;
-  discountAmount: number;
-  paidAmount: number;
-  remainingAmount: number;
-  createdAt: string;
-  encounter: {
-    id: number;
-    type: string;
-  } | null;
-};
-
-type PaymentDto = {
-  id: number;
-  invoiceId: number;
-  amount: number;
-  method: PaymentMethod;
-  reference?: string | null;
-  paidAt: string;
-  invoice: {
-    id: number;
-    createdAt: string;
-  } | null;
-};
-
-type StatementResponse = {
-  patient: PatientLite;
-  summary: {
-    totalInvoiced: number;
-    totalDiscount: number;
-    totalPaid: number;
-    remaining: number;
-  };
-  invoices: InvoiceDto[];
-  payments: PaymentDto[];
-};
-
-type DispensedDrugLite = {
-  id: number;
-  code: string | null;
-  name: string;
-  strength: string | null;
-  form: string | null;
-};
-
-type DispenseItemRow = {
-  id: number;
-  quantity: number;
-  unitPrice: number;
-  totalAmount: number;
-  dispensedDrug: DispensedDrugLite | null;
-  originalDrug: DispensedDrugLite | null;
-  isSubstitute: boolean;
-};
-
-type DispenseSummary = {
-  id: number;
-  createdAt: string;
-  notes: string | null;
-  doctor: { id: number; fullName: string } | null;
-  totalAmount: number;
-  items: DispenseItemRow[];
-};
-
-type StatementRow = {
-  date: string;
-  kind: "INVOICE" | "PAYMENT";
-  ref: string;
-  description: string;
-  debit: number;
-  credit: number;
-  balance: number; // الرصيد التراكمي على المريض بعد هذا السطر
-};
-
-// encounterId -> list of dispenses from pharmacy
-type EncounterDispenseMap = Record<number, DispenseSummary[]>;
-
-function formatDateTime(iso: string) {
-  const d = new Date(iso);
-  return d.toLocaleString("ar-LY", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+if (!content.includes('PrintLayout')) {
+  content = content.replace('import { apiClient } from "../api/apiClient";', 'import { apiClient } from "../api/apiClient";\nimport PrintLayout from "../components/print/PrintLayout";');
 }
 
-function formatStatus(status: InvoiceStatus) {
-  switch (status) {
-    case "DRAFT":
-      return "مسودة";
-    case "ISSUED":
-      return "صادرة";
-    case "PARTIALLY_PAID":
-      return "مدفوعة جزئياً";
-    case "PAID":
-      return "مدفوعة";
-    case "CANCELLED":
-      return "ملغاة";
-    default:
-      return status;
-  }
+const returnIndex = content.lastIndexOf('  return (');
+if (returnIndex === -1) {
+  console.error('Could not find return statement');
+  process.exit(1);
 }
 
-function formatMethod(method: PaymentMethod) {
-  switch (method) {
-    case "CASH":
-      return "نقداً";
-    case "CARD":
-      return "بطاقة";
-    case "TRANSFER":
-      return "حوالة";
-    case "INSURANCE":
-      return "تأمين";
-    default:
-      return "أخرى";
-  }
-}
-
-function formatMoney(value: number) {
-  return value.toFixed(3) + " LYD";
-}
-
-export default function PatientStatementPage() {
-  const { id } = useParams();
-  const navigate = useNavigate();
-  const patientId = Number(id);
-
-  const [data, setData] = useState<StatementResponse | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const [pharmacyDispenses, setPharmacyDispenses] =
-    useState<EncounterDispenseMap>({});
-  const [loadingPharmacy, setLoadingPharmacy] = useState(false);
-
-  async function loadPharmacyDispensesForInvoices(invoices: InvoiceDto[]) {
-    // نستخرج كل encounterId من الفواتير
-    const encounterIds = Array.from(
-      new Set(
-        invoices
-          .map((inv) => inv.encounter?.id)
-          .filter((id): id is number => typeof id === "number")
-      )
-    );
-
-    if (encounterIds.length === 0) {
-      setPharmacyDispenses({});
-      return;
-    }
-
-    try {
-      setLoadingPharmacy(true);
-
-      const results: EncounterDispenseMap = {};
-
-      // نعمل طلب لكل Encounter
-      await Promise.all(
-        encounterIds.map(async (encId) => {
-          try {
-            const res = await apiClient.get<DispenseSummary[]>(
-              `/pharmacy/encounters/${encId}/dispenses-summary`
-            );
-            results[encId] = res.data;
-          } catch (err) {
-            console.error(
-              "error loading pharmacy dispenses for encounter",
-              encId,
-              err
-            );
-          }
-        })
-      );
-
-      setPharmacyDispenses(results);
-    } finally {
-      setLoadingPharmacy(false);
-    }
-  }
-  useEffect(() => {
-    if (!patientId || Number.isNaN(patientId)) {
-      setError("رقم المريض غير صحيح.");
-      return;
-    }
-
-    async function load() {
-      setLoading(true);
-      setError(null);
-      try {
-        const res = await apiClient.get<StatementResponse>(
-          `/cashier/patients/${patientId}/statement`
-        );
-        setData(res.data);
-
-        // ⭐ بعد تحميل كشف الحساب، نحمل صرف الصيدلية لكل الـ encounters الموجودة في الفواتير
-        if (res.data.invoices && res.data.invoices.length > 0) {
-          loadPharmacyDispensesForInvoices(res.data.invoices);
-        } else {
-          setPharmacyDispenses({});
-        }
-      } catch (err: any) {
-        console.error(err);
-        const msg = err?.response?.data?.message;
-        if (typeof msg === "string") setError(msg);
-        else setError("حدث خطأ أثناء تحميل كشف حساب المريض.");
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    load();
-  }, [patientId]);
-
-  const summary = data?.summary;
-  const patient = data?.patient;
-
-  const statementRows = useMemo<StatementRow[]>(() => {
-    if (!data) return [];
-
-    type BaseRow = Omit<StatementRow, "balance">;
-    const tmp: BaseRow[] = [];
-
-    // 🧾 الفواتير = مدين على المريض
-    for (const inv of data.invoices) {
-      const total = Number(inv.totalAmount ?? 0);
-      const discount = Number(inv.discountAmount ?? 0);
-      const netAmount = total - discount; // الصافي المستحق على المريض
-
-      if (netAmount === 0) continue;
-
-      tmp.push({
-        date: inv.createdAt,
-        kind: "INVOICE",
-        ref: `فاتورة #${inv.id}`,
-        description: inv.encounter
-          ? `حالة #${inv.encounter.id} – ${inv.encounter.type}`
-          : "فاتورة خدمات للمريض",
-        debit: netAmount,
-        credit: 0,
-      });
-    }
-
-    // 💵 الدفعات = دائن (تسديد من المريض)
-    for (const p of data.payments) {
-      const amount = Number(p.amount ?? 0);
-      if (amount === 0) continue;
-
-      tmp.push({
-        date: p.paidAt,
-        kind: "PAYMENT",
-        ref: `دفعة #${p.id}`,
-        description: p.invoice
-          ? `سداد على فاتورة #${p.invoice.id} (${formatMethod(p.method)})`
-          : `دفعة (${formatMethod(p.method)})`,
-        debit: 0,
-        credit: amount,
-      });
-    }
-
-    // ⏱️ ترتيب زمني (الفواتير قبل الدفعات إذا في نفس اللحظة)
-    tmp.sort((a, b) => {
-      const ta = new Date(a.date).getTime();
-      const tb = new Date(b.date).getTime();
-      if (ta !== tb) return ta - tb;
-      if (a.kind === b.kind) return 0;
-      return a.kind === "INVOICE" ? -1 : 1;
-    });
-
-    // 🧮 حساب الرصيد المتحرك (على المريض)
-    let running = 0;
-    return tmp.map((row) => {
-      running += row.debit - row.credit;
-      return { ...row, balance: running };
-    });
-  }, [data]);
-
-  return (
+const newReturn = `  return (
     <div className="flex flex-col h-full gap-4">
       {/* ─── Actions Bar (Screen Only) ─── */}
       <div className="print:hidden flex items-center justify-between bg-slate-900/60 border border-slate-800 p-4 rounded-2xl">
@@ -349,11 +62,11 @@ export default function PatientStatementPage() {
           <PrintLayout
             title="كشف حساب مريض"
             subtitle="PATIENT STATEMENT OF ACCOUNT"
-            documentId={patient?.mrn || `ID-${patientId}`}
+            documentId={patient?.mrn || \`ID-\${patientId}\`}
             showWatermark={summary?.remaining === 0}
             watermarkText="CLEARED"
           >
-            <style>{`
+            <style>{\`
               .statement-wrapper {
                 font-family: 'Cairo', 'Noto Sans Arabic', 'Segoe UI', Tahoma, sans-serif;
                 color: #1e293b;
@@ -467,7 +180,7 @@ export default function PatientStatementPage() {
                 .badge-payment { background: #dcfce7 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
                 .statement-table tbody tr:nth-child(even) { background-color: #f8fafc !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
               }
-            `}</style>
+            \`}</style>
             
             <div className="statement-wrapper">
               
@@ -518,9 +231,9 @@ export default function PatientStatementPage() {
                     {formatMoney(summary?.totalPaid ?? 0)}
                   </div>
                 </div>
-                <div className={`summary-card ${(summary?.remaining ?? 0) > 0 ? 'danger' : 'highlight'}`}>
+                <div className={\`summary-card \${(summary?.remaining ?? 0) > 0 ? 'danger' : 'highlight'}\`}>
                   <div className="summary-label">الرصيد المتبقي</div>
-                  <div className={`summary-value num-val ${(summary?.remaining ?? 0) > 0 ? 'red' : 'green'}`}>
+                  <div className={\`summary-value num-val \${(summary?.remaining ?? 0) > 0 ? 'red' : 'green'}\`}>
                     {formatMoney(summary?.remaining ?? 0)}
                   </div>
                 </div>
@@ -557,7 +270,7 @@ export default function PatientStatementPage() {
                             {formatDateTime(row.date)}
                           </td>
                           <td>
-                            <span className={`badge ${row.kind === "INVOICE" ? "badge-invoice" : "badge-payment"}`}>
+                            <span className={\`badge \${row.kind === "INVOICE" ? "badge-invoice" : "badge-payment"}\`}>
                               {row.kind === "INVOICE" ? "فاتورة" : "دفعة"}
                             </span>
                           </td>
@@ -623,7 +336,7 @@ export default function PatientStatementPage() {
                               {d.items.map(it => (
                                 <tr key={it.id}>
                                   <td>
-                                    {it.dispensedDrug?.name ?? "-"} {it.dispensedDrug?.strength ? `(${it.dispensedDrug.strength})` : ""}
+                                    {it.dispensedDrug?.name ?? "-"} {it.dispensedDrug?.strength ? \`(\${it.dispensedDrug.strength})\` : ""}
                                     {it.isSubstitute && <span style={{ color: '#d97706', fontSize: '10px', marginRight: '4px' }}>(بديل)</span>}
                                   </td>
                                   <td className="num-val">{it.quantity.toFixed(3)}</td>
@@ -659,3 +372,8 @@ export default function PatientStatementPage() {
     </div>
   );
 }
+`;
+
+const preReturnStr = content.substring(0, returnIndex);
+fs.writeFileSync(file, preReturnStr + newReturn, 'utf8');
+console.log('Successfully replaced the file contents via split!');
