@@ -59,6 +59,7 @@ import { ConsentFormsModule } from './modules/clinical/consent-forms/consent-for
 import { CommissionModule } from './commission/commission.module'; // ✅ [NEW] Commission Rules
 import { AuditInterceptor } from './audit/audit.interceptor';
 import { APP_INTERCEPTOR, APP_GUARD } from '@nestjs/core';
+import { ClsModule } from 'nestjs-cls';
 
 // Services & Controllers
 import { AppController } from './app.controller';
@@ -83,6 +84,10 @@ import { ClinicalPathwaysModule } from './clinical-pathways/clinical-pathways.mo
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    ClsModule.forRoot({
+      global: true,
+      middleware: { mount: true },
+    }),
     PrismaModule,
     EventEmitterModule.forRoot(),
     ScheduleModule.forRoot(),

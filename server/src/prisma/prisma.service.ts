@@ -9,20 +9,30 @@ import {
 import { PrismaClient } from '@prisma/client';
 import { extendedPrisma } from './prisma.extension';
 
+import { ClsService } from 'nestjs-cls';
+import { auditExtension } from './audit.extension';
+
 @Injectable()
 export class PrismaService
   extends PrismaClient
   implements OnModuleInit, OnModuleDestroy
 {
   private readonly logger = new Logger(PrismaService.name);
-  private _extendedClient: ReturnType<typeof extendedPrisma>;
+  
+  // NOTE: We cannot strongly type the double-extended client easily without complex types,
+  // so we'll use `any` for the internal instance to avoid TypeScript errors when chaining extensions.
+  private _extendedClient: any;
+
+  constructor(private readonly cls: ClsService) {
+    super();
+  }
 
   // تايمر للـ keep-alive
   private keepAliveTimer: NodeJS.Timeout | null = null;
 
   get extended() {
     if (!this._extendedClient) {
-      this._extendedClient = extendedPrisma(this);
+      this._extendedClient = extendedPrisma(this).$extends(auditExtension(this.cls));
     }
     return this._extendedClient;
   }

@@ -139,6 +139,30 @@ export default function AuditLogsPage() {
     return "📋";
   };
 
+  const getChanges = (oldData: any, newData: any) => {
+    if (!oldData && !newData) return [];
+    
+    // If it's a creation, oldData is null, all fields are new
+    if (!oldData && newData) {
+      return Object.keys(newData).map(key => ({ key, old: undefined, new: newData[key] }));
+    }
+    
+    // If it's a deletion, newData is null, all fields are old
+    if (oldData && !newData) {
+      return Object.keys(oldData).map(key => ({ key, old: oldData[key], new: undefined }));
+    }
+
+    const allKeys = Array.from(new Set([...Object.keys(oldData || {}), ...Object.keys(newData || {})]));
+    return allKeys.map(key => {
+      const o = oldData?.[key];
+      const n = newData?.[key];
+      if (JSON.stringify(o) !== JSON.stringify(n)) {
+        return { key, old: o, new: n };
+      }
+      return null;
+    }).filter(Boolean);
+  };
+
   return (
     <div
       className="p-6 text-slate-100 h-full flex flex-col space-y-6"
@@ -227,16 +251,49 @@ export default function AuditLogsPage() {
                 <div><span className="text-slate-400">الوقت:</span> {new Date(selectedLog.createdAt).toLocaleString()}</div>
                 <div><span className="text-slate-400">المستخدم:</span> {selectedLog.user?.fullName || 'System'}</div>
               </div>
-              {selectedLog.oldValues && (
-                <div className="bg-rose-950/30 border border-rose-900/50 rounded p-3">
-                  <h3 className="text-rose-400 font-bold mb-2">القيم السابقة</h3>
-                  <pre className="text-xs overflow-auto">{JSON.stringify(selectedLog.oldValues, null, 2)}</pre>
-                </div>
-              )}
-              {selectedLog.newValues && (
-                <div className="bg-emerald-950/30 border border-emerald-900/50 rounded p-3">
-                  <h3 className="text-emerald-400 font-bold mb-2">القيم الجديدة</h3>
-                  <pre className="text-xs overflow-auto">{JSON.stringify(selectedLog.newValues, null, 2)}</pre>
+              {/* Detailed Diff View */}
+              {(selectedLog.oldValues || selectedLog.newValues) && (
+                <div className="mt-6 border border-slate-700 bg-slate-950 rounded-xl overflow-hidden">
+                  <div className="bg-slate-800 p-3 font-bold border-b border-slate-700 text-slate-300">
+                    تفاصيل التعديلات
+                  </div>
+                  <div className="p-4 space-y-3 max-h-[40vh] overflow-auto">
+                    {getChanges(selectedLog.oldValues, selectedLog.newValues).length === 0 ? (
+                      <div className="text-slate-500 text-center py-4">لم يتم رصد تغييرات في الحقول</div>
+                    ) : (
+                      getChanges(selectedLog.oldValues, selectedLog.newValues).map((change: any, index: number) => (
+                        <div key={index} className="flex flex-col border-b border-slate-800 pb-3 last:border-0 last:pb-0">
+                          <div className="text-sky-400 font-mono text-xs mb-2 font-bold bg-sky-950/30 self-start px-2 py-1 rounded">
+                            {change.key}
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                            {/* القديم */}
+                            <div className="flex flex-col">
+                              <span className="text-[10px] text-slate-500 mb-1 font-bold">القيمة القديمة:</span>
+                              {change.old !== undefined ? (
+                                <div className="bg-rose-950/40 text-rose-300 p-2 rounded text-xs font-mono break-all line-through decoration-rose-500/50">
+                                  {typeof change.old === 'object' ? JSON.stringify(change.old) : String(change.old)}
+                                </div>
+                              ) : (
+                                <div className="bg-slate-900/50 text-slate-600 p-2 rounded text-xs italic">لا يوجد</div>
+                              )}
+                            </div>
+                            {/* الجديد */}
+                            <div className="flex flex-col">
+                              <span className="text-[10px] text-slate-500 mb-1 font-bold">القيمة الجديدة:</span>
+                              {change.new !== undefined ? (
+                                <div className="bg-emerald-950/40 text-emerald-300 p-2 rounded text-xs font-mono break-all">
+                                  {typeof change.new === 'object' ? JSON.stringify(change.new) : String(change.new)}
+                                </div>
+                              ) : (
+                                <div className="bg-slate-900/50 text-slate-600 p-2 rounded text-xs italic">محذوف</div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
                 </div>
               )}
             </div>

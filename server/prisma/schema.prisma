@@ -1431,6 +1431,8 @@ model AuditLog {
   createdAt  DateTime  @default(now())
   clientName String?
   details    Json?
+  oldValues  Json?
+  newValues  Json?
   entity     String?
   action     String
   hospital   Hospital? @relation(fields: [hospitalId], references: [id])

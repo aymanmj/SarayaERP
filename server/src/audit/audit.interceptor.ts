@@ -23,15 +23,14 @@ export class AuditInterceptor implements NestInterceptor {
     const path: string = req.originalUrl ?? req.url;
 
     // Determine if this operation should be audited
-    const isMutation = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method);
     const sensitiveAnnotation = this.reflector.getAllAndOverride<string | boolean>(
       IS_SENSITIVE_KEY,
       [context.getHandler(), context.getClass()]
     );
     const isSensitiveRead = method === 'GET' && !!sensitiveAnnotation;
 
-    // Skip if not a mutation or sensitive read
-    if (!isMutation && !isSensitiveRead) {
+    // Skip if not a sensitive read. Mutations are logged by Prisma AuditExtension.
+    if (!isSensitiveRead) {
       return next.handle();
     }
 
@@ -58,8 +57,7 @@ export class AuditInterceptor implements NestInterceptor {
               path,
               statusCode: context.switchToHttp().getResponse().statusCode,
               durationMs: duration,
-              accessType: isSensitiveRead ? 'READ_ACCESS' : 'WRITE_ACCESS',
-              body: isMutation ? this.sanitizeBody(req.body) : undefined,
+              accessType: 'READ_ACCESS',
               params: req.params,
               query: req.query,
             },
@@ -78,24 +76,9 @@ export class AuditInterceptor implements NestInterceptor {
     sensitiveAnnotation: string | boolean | undefined,
     responseBody: any
   ): string {
-    if (isSensitiveRead) {
-      return typeof sensitiveAnnotation === 'string' 
-        ? sensitiveAnnotation 
-        : 'VIEW_SENSITIVE_DATA';
-    }
-
-    // Map HTTP methods to action types
-    const actionMap: Record<string, string> = {
-      'POST': 'CREATE',
-      'PUT': 'UPDATE',
-      'PATCH': 'UPDATE',
-      'DELETE': 'DELETE',
-    };
-
-    const baseAction = actionMap[method] || method;
-    const entity = this.inferEntityAndId(path, {} as any).entity;
-    
-    return `${baseAction}_${entity?.toUpperCase() || 'UNKNOWN'}`;
+    return typeof sensitiveAnnotation === 'string' 
+      ? sensitiveAnnotation 
+      : 'VIEW_SENSITIVE_DATA';
   }
 
   private inferEntityAndId(path: string, req: any) {
