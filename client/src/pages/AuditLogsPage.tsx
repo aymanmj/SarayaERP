@@ -170,7 +170,10 @@ export default function AuditLogsPage() {
     >
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold mb-1">سجل التدقيق (Audit Trail)</h1>
+          <h1 className="text-2xl font-bold mb-1 flex items-center gap-2">
+            سجل التدقيق (Audit Trail)
+            <span className="text-[10px] bg-sky-500/20 text-sky-400 px-2 py-0.5 rounded-full border border-sky-500/30">V2 الاحترافي</span>
+          </h1>
           <p className="text-sm text-slate-400">
             مراقبة الوصول وتعديل البيانات الحساسة.
           </p>
@@ -214,7 +217,14 @@ export default function AuditLogsPage() {
                       <td className="p-3 text-slate-400">{new Date(log.createdAt).toLocaleString()}</td>
                       <td className="p-3 text-white">{log.user ? `${log.user.fullName} (${log.user.username})` : "System/Guest"}</td>
                       <td className={`p-3 font-bold rounded ${getActionColor(log.action)}`}>{getActionIcon(log.action)} {log.action}</td>
-                      <td className="p-3 text-amber-200">{log.entity}</td>
+                      <td className="p-3 text-amber-200">
+                        {log.entity}
+                        {(log.oldValues || log.newValues) && (
+                          <span className="mr-2 text-[9px] bg-slate-800 text-sky-300 px-1.5 py-0.5 rounded shadow-sm border border-slate-700">
+                            🔍 تعديلات دقيقة
+                          </span>
+                        )}
+                      </td>
                       <td className="p-3 text-slate-300">{log.entityId}</td>
                       <td className="p-3 text-slate-500">{log.ipAddress}</td>
                     </tr>

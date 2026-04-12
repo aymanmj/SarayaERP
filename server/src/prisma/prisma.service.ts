@@ -36,6 +36,12 @@ export class PrismaService
   // تايمر للـ keep-alive
   private keepAliveTimer: NodeJS.Timeout | null = null;
 
+  // Since constructor returns the extended proxy, 'this' is already extended.
+  // We keep this getter for backwards compatibility with existing usage like `this.prisma.extended.patient.create`.
+  get extended(): any {
+    return this as any;
+  }
+
   async onModuleInit() {
     this.logger.log('Connecting to PostgreSQL via Prisma...');
     await this.$connect();
