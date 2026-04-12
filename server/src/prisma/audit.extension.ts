@@ -4,7 +4,7 @@ import { ClsService } from 'nestjs-cls';
 // List of tables to skip auditing
 const SKIP_MODELS = ['AuditLog', 'Session', 'SystemSetting'];
 
-export const auditExtension = (cls: ClsService) => {
+export const auditExtension = (cls: ClsService, rootPrisma: any) => {
   return Prisma.defineExtension({
     name: 'AuditExtension',
     query: {
@@ -19,8 +19,7 @@ export const auditExtension = (cls: ClsService) => {
 
           if (userId) {
             // Save audit log asynchronously
-            const prisma = Prisma.getExtensionContext(this) as any;
-            prisma.auditLog.create({
+            rootPrisma.auditLog.create({
               data: {
                 userId,
                 hospitalId,
@@ -38,13 +37,11 @@ export const auditExtension = (cls: ClsService) => {
         async update({ model, args, query }) {
           if (SKIP_MODELS.includes(model)) return query(args);
 
-          const prisma = Prisma.getExtensionContext(this) as any;
-          
           // Get the original record before update
           let originalRecord = null;
           try {
             if (args.where?.id) {
-              originalRecord = await prisma[model].findUnique({ where: args.where });
+              originalRecord = await rootPrisma[model].findUnique({ where: args.where });
             }
           } catch (e) {
             // Safe fallback
@@ -69,7 +66,7 @@ export const auditExtension = (cls: ClsService) => {
                }
             }
 
-            prisma.auditLog.create({
+            rootPrisma.auditLog.create({
               data: {
                 userId,
                 hospitalId,
@@ -88,10 +85,9 @@ export const auditExtension = (cls: ClsService) => {
         async delete({ model, args, query }) {
           if (SKIP_MODELS.includes(model)) return query(args);
 
-          const prisma = Prisma.getExtensionContext(this) as any;
           let originalRecord = null;
           try {
-             originalRecord = await prisma[model].findUnique({ where: args.where });
+             originalRecord = await rootPrisma[model].findUnique({ where: args.where });
           } catch (e) {}
 
           const result = await query(args);
@@ -100,7 +96,7 @@ export const auditExtension = (cls: ClsService) => {
           const hospitalId = cls.isActive() ? cls.get('hospitalId') : null;
 
           if (userId && originalRecord) {
-            prisma.auditLog.create({
+            rootPrisma.auditLog.create({
               data: {
                 userId,
                 hospitalId,
