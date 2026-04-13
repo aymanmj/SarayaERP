@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Dialog } from '@headlessui/react';
 import { X } from 'lucide-react';
 import { CreateVoucherDto, VoucherType } from '../../services/vouchersService';
-import api from '../../services/api';
+import { apiClient } from '../../api/apiClient';
 
 interface VoucherModalProps {
   isOpen: boolean;
@@ -27,7 +26,7 @@ export default function VoucherModal({ isOpen, onClose, onSave, initialData }: V
 
   useEffect(() => {
     if (isOpen) {
-      api.get('/accounting/accounts-lite').then(res => setAccounts(res.data)).catch(console.error);
+      apiClient.get('/accounting/accounts-lite').then(res => setAccounts(res.data)).catch(console.error);
     }
   }, [isOpen]);
 
@@ -71,15 +70,17 @@ export default function VoucherModal({ isOpen, onClose, onSave, initialData }: V
     onClose();
   };
 
+  if (!isOpen) return null;
+
   return (
-    <Dialog open={isOpen} onClose={onClose} className="relative z-50">
-      <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
-      <div className="fixed inset-0 flex items-center justify-center p-4">
-        <Dialog.Panel className="mx-auto w-full max-w-2xl rounded-lg bg-white p-6 shadow-xl" dir="rtl">
+    <div className="relative z-50">
+      <div className="fixed inset-0 bg-black/30" aria-hidden="true" onClick={onClose} />
+      <div className="fixed inset-0 flex items-center justify-center p-4 pointer-events-none">
+        <div className="mx-auto w-full max-w-2xl rounded-lg bg-white p-6 shadow-xl pointer-events-auto overflow-y-auto max-h-[90vh]" dir="rtl">
           <div className="flex justify-between items-center mb-6 border-b pb-4">
-            <Dialog.Title className="text-xl font-bold">
+            <h2 className="text-xl font-bold">
               {initialData ? 'تعديل السند' : 'إنشاء سند جديد'}
-            </Dialog.Title>
+            </h2>
             <button onClick={onClose} className="text-gray-400 hover:text-gray-500">
               <X className="h-6 w-6" />
             </button>
@@ -147,7 +148,7 @@ export default function VoucherModal({ isOpen, onClose, onSave, initialData }: V
                   className="w-full border-gray-300 rounded-md shadow-sm"
                   required
                 >
-                  <option value={0}>-- الرجا اختيار الصندوق/البنك --</option>
+                  <option value={0}>-- الرجاء اختيار الصندوق/البنك --</option>
                   {cashAccounts.map(a => (
                     <option key={a.id} value={a.id}>{a.code} - {a.name}</option>
                   ))}
@@ -198,20 +199,20 @@ export default function VoucherModal({ isOpen, onClose, onSave, initialData }: V
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 bg-white"
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 bg-white cursor-pointer"
               >
                 إلغاء
               </button>
               <button
                 type="submit"
-                className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 cursor-pointer"
               >
                 حفظ كمسودة
               </button>
             </div>
           </form>
-        </Dialog.Panel>
+        </div>
       </div>
-    </Dialog>
+    </div>
   );
 }

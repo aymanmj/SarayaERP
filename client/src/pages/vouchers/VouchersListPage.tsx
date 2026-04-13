@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Search, Check, X, Printer, Edit } from 'lucide-react';
 import { getVouchers, createVoucher, updateVoucher, postVoucher, cancelVoucher, Voucher, VoucherType, VoucherStatus } from '../../services/vouchersService';
 import VoucherModal from '../../components/vouchers/VoucherModal';
-import { toast } from 'react-hot-toast';
+import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 
 export default function VouchersListPage() {

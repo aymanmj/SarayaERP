@@ -1,15 +1,17 @@
-import api from './api';
+import { apiClient } from '../api/apiClient';
 
-export enum VoucherType {
-  PAYMENT = 'PAYMENT',
-  RECEIPT = 'RECEIPT',
-}
+export const VoucherType = {
+  PAYMENT: 'PAYMENT',
+  RECEIPT: 'RECEIPT',
+} as const;
+export type VoucherType = typeof VoucherType[keyof typeof VoucherType];
 
-export enum VoucherStatus {
-  DRAFT = 'DRAFT',
-  POSTED = 'POSTED',
-  CANCELLED = 'CANCELLED',
-}
+export const VoucherStatus = {
+  DRAFT: 'DRAFT',
+  POSTED: 'POSTED',
+  CANCELLED: 'CANCELLED',
+} as const;
+export type VoucherStatus = typeof VoucherStatus[keyof typeof VoucherStatus];
 
 export interface Voucher {
   id: number;
@@ -29,36 +31,38 @@ export interface Voucher {
   createdAt: string;
 }
 
+export type CreateVoucherDto = Partial<Voucher>;
+
 export const getVouchers = async (params?: any): Promise<Voucher[]> => {
-  const response = await api.get('/vouchers', { params });
+  const response = await apiClient.get('/vouchers', { params });
   return response.data;
 };
 
 export const getVoucher = async (id: number): Promise<Voucher> => {
-  const response = await api.get(`/vouchers/${id}`);
+  const response = await apiClient.get(`/vouchers/${id}`);
   return response.data;
 };
 
 export const createVoucher = async (data: Partial<Voucher>): Promise<Voucher> => {
-  const response = await api.post('/vouchers', data);
+  const response = await apiClient.post('/vouchers', data);
   return response.data;
 };
 
 export const updateVoucher = async (id: number, data: Partial<Voucher>): Promise<Voucher> => {
-  const response = await api.put(`/vouchers/${id}`, data);
+  const response = await apiClient.put(`/vouchers/${id}`, data);
   return response.data;
 };
 
 export const deleteVoucher = async (id: number): Promise<void> => {
-  await api.delete(`/vouchers/${id}`);
+  await apiClient.delete(`/vouchers/${id}`);
 };
 
 export const postVoucher = async (id: number): Promise<Voucher> => {
-  const response = await api.post(`/vouchers/${id}/post`);
+  const response = await apiClient.post(`/vouchers/${id}/post`);
   return response.data;
 };
 
 export const cancelVoucher = async (id: number): Promise<Voucher> => {
-  const response = await api.post(`/vouchers/${id}/cancel`);
+  const response = await apiClient.post(`/vouchers/${id}/cancel`);
   return response.data;
 };
