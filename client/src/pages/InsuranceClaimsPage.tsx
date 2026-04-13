@@ -18,6 +18,7 @@ type ClaimInvoice = {
   insuranceShare: number;
   patientShare: number;
   claimStatus: string | null;
+  rejectionReason?: string | null;
   patient: {
     fullName: string;
     mrn: string;
@@ -45,6 +46,10 @@ export default function InsuranceClaimsPage() {
 
   // Selection for Batch Action
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
+
+  // Rejection Modal State
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState("");
 
   // Load Providers
   useEffect(() => {
@@ -110,6 +115,27 @@ export default function InsuranceClaimsPage() {
         status: newStatus,
       });
       toast.success("تم تحديث الحالة بنجاح.");
+      loadClaims();
+    } catch (err) {
+      toast.error("فشل التحديث.");
+    }
+  };
+
+  const handleRejectSubmit = async () => {
+    if (!rejectionReason.trim()) {
+      toast.warning("يرجى إدخال سبب الرفض");
+      return;
+    }
+    
+    try {
+      await apiClient.post("/insurance/claims/update-status", {
+        invoiceIds: selectedIds,
+        status: "REJECTED",
+        rejectionReason: rejectionReason,
+      });
+      toast.success("تم تسجيل الرفض بنجاح.");
+      setShowRejectModal(false);
+      setRejectionReason("");
       loadClaims();
     } catch (err) {
       toast.error("فشل التحديث.");
@@ -318,11 +344,28 @@ export default function InsuranceClaimsPage() {
               </button>
             )}
             {statusFilter === "SUBMITTED" && (
+              <>
+                <button
+                  onClick={() => handleUpdateStatus("PAID")}
+                  className="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs rounded-lg font-bold shadow-lg"
+                >
+                  💰 تم استلام السداد
+                </button>
+                <button
+                  onClick={() => setShowRejectModal(true)}
+                  className="px-4 py-1.5 bg-rose-600 hover:bg-rose-500 text-white text-xs rounded-lg font-bold shadow-lg"
+                >
+                  ❌ رفض المطالبات
+                </button>
+              </>
+            )}
+
+            {statusFilter === "REJECTED" && (
               <button
-                onClick={() => handleUpdateStatus("PAID")}
-                className="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs rounded-lg font-bold shadow-lg"
+                onClick={() => handleUpdateStatus("PENDING")}
+                className="px-4 py-1.5 bg-amber-600 hover:bg-amber-500 text-white text-xs rounded-lg font-bold shadow-lg"
               >
-                💰 تم استلام السداد
+                🔄 إعادة تقديم (Resubmit)
               </button>
             )}
 
@@ -416,17 +459,58 @@ export default function InsuranceClaimsPage() {
                         ? "bg-sky-900/30 text-sky-300"
                         : c.claimStatus === "PAID"
                           ? "bg-emerald-900/30 text-emerald-300"
-                          : "bg-amber-900/30 text-amber-300"
+                          : c.claimStatus === "REJECTED"
+                            ? "bg-rose-900/30 text-rose-300"
+                            : "bg-amber-900/30 text-amber-300"
                     }`}
                   >
                     {c.claimStatus || "PENDING"}
                   </span>
+                  {c.claimStatus === "REJECTED" && c.rejectionReason && (
+                    <div className="text-[10px] text-rose-400 mt-1 max-w-[150px] truncate" title={c.rejectionReason}>
+                      {c.rejectionReason}
+                    </div>
+                  )}
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+      {/* Reject Modal */}
+      {showRejectModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-slate-950 border border-slate-700 rounded-2xl p-6 w-full max-w-md shadow-2xl animate-in zoom-in-95">
+            <h3 className="text-xl font-bold text-rose-400 mb-2">رفض المطالبات</h3>
+            <p className="text-sm text-slate-400 mb-4">
+              سيتم تسجيل حالة المطالبات كـ (مرفوضة). يُرجى إدخال سبب الرفض المُقدَّم من شركة التأمين.
+            </p>
+            
+            <textarea
+              className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm focus:border-rose-500 outline-none text-slate-100 min-h-[100px]"
+              placeholder="مثال: الخدمة غير مشمولة بالوثيقة..."
+              value={rejectionReason}
+              onChange={(e) => setRejectionReason(e.target.value)}
+            />
+
+            <div className="flex justify-end gap-3 mt-6">
+              <button
+                onClick={() => setShowRejectModal(false)}
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm rounded-xl transition"
+              >
+                إلغاء
+              </button>
+              <button
+                onClick={handleRejectSubmit}
+                className="px-6 py-2 bg-rose-600 hover:bg-rose-500 text-white text-sm font-bold rounded-xl shadow-lg transition"
+              >
+                تأكيد الرفض
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

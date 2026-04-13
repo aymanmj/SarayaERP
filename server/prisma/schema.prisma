@@ -189,6 +189,7 @@ model Invoice {
   financialPeriodId   Int?
   financialYearId     Int?
   claimStatus         String?
+  rejectionReason     String?
   insuranceProviderId Int?
   insuranceShare      Decimal            @default(0) @db.Decimal(18, 3)
   patientShare        Decimal            @default(0) @db.Decimal(18, 3)

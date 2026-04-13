@@ -155,6 +155,19 @@ export class InsuranceService {
     });
   }
 
+  // 8.5 تحديث موافقة مسبقة
+  async updatePreAuth(id: number, data: any) {
+    return this.prisma.preAuthorization.update({
+      where: { id },
+      data: {
+        status: data.status,
+        authCode: data.authCode,
+        approvedAmount: data.approvedAmount,
+        expiresAt: data.expiresAt ? new Date(data.expiresAt) : undefined,
+      },
+    });
+  }
+
   // 9. تقرير المطالبات (استبدال النسخة الموجودة ربما)
   async getClaims(
     hospitalId: number,
@@ -200,6 +213,7 @@ export class InsuranceService {
     hospitalId: number,
     invoiceIds: number[],
     status: string,
+    rejectionReason?: string,
     userId?: number,
   ) {
     if (invoiceIds.length === 0) return { count: 0 };
@@ -300,7 +314,10 @@ export class InsuranceService {
       } else {
         await tx.invoice.updateMany({
           where: { id: { in: invoiceIds } },
-          data: { claimStatus: status },
+          data: { 
+            claimStatus: status,
+            rejectionReason: status === 'REJECTED' ? rejectionReason : null,
+          },
         });
       }
 

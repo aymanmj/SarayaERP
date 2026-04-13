@@ -79,6 +79,14 @@ export class InsuranceController {
     return this.insuranceService.getPreAuths(req.user.hospitalId, pId);
   }
 
+  @Patch('pre-auth/:id')
+  async updatePreAuth(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: any,
+  ) {
+    return this.insuranceService.updatePreAuth(id, body);
+  }
+
   // Claims
   @Get('claims')
   @Roles('ADMIN', 'ACCOUNTANT')
@@ -101,12 +109,13 @@ export class InsuranceController {
   @Roles('ADMIN', 'ACCOUNTANT')
   async updateClaimsStatus(
     @Req() req: any,
-    @Body() body: { invoiceIds: number[]; status: string },
+    @Body() body: { invoiceIds: number[]; status: string; rejectionReason?: string },
   ) {
     return this.insuranceService.updateClaimsStatus(
       req.user.hospitalId,
       body.invoiceIds,
       body.status,
+      body.rejectionReason,
       req.user.sub,
     );
   }

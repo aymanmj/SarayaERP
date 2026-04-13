@@ -14,6 +14,7 @@ export type CoverageResult = {
   preAuthCode?: string;
   reason?: string;
   ruleApplied?: string;
+  contractedPrice?: number;
 };
 
 @Injectable()
@@ -64,16 +65,30 @@ export class InsuranceCalculationService {
     const policy = patient.insurancePolicy;
     const plan = policy.plan;
 
+    let finalServicePrice = servicePrice;
+    if (policy.priceListId) {
+      const contractItem = await this.prisma.priceListItem.findFirst({
+        where: {
+          priceListId: policy.priceListId,
+          serviceItemId: serviceItemId,
+        },
+      });
+      if (contractItem) {
+        finalServicePrice = Number(contractItem.price);
+      }
+    }
+
     // --- الحالة 1: بوليصة بدون خطة (Legacy) ---
     if (!plan) {
       const copayRate = Money.fromPrisma(policy.patientCopayRate);
-      const patientShare = Money.rate(servicePrice, copayRate);
+      const patientShare = Money.rate(finalServicePrice, copayRate);
       return {
         covered: true,
         patientShare: Money.toDb(patientShare),
-        insuranceShare: Money.toDb(Money.sub(servicePrice, patientShare)),
+        insuranceShare: Money.toDb(Money.sub(finalServicePrice, patientShare)),
         requiresPreAuth: false,
         ruleApplied: 'LEGACY_POLICY_RATE',
+        contractedPrice: finalServicePrice !== servicePrice ? finalServicePrice : undefined,
       };
     }
 
@@ -97,11 +112,12 @@ export class InsuranceCalculationService {
     if (appliedRule && appliedRule.ruleType === CoverageRuleType.EXCLUSION) {
       return {
         covered: false,
-        patientShare: Money.toDb(servicePrice),
+        patientShare: Money.toDb(finalServicePrice),
         insuranceShare: 0,
         requiresPreAuth: false,
         reason: 'Service is excluded in the insurance plan',
         ruleApplied: `EXCLUSION_${appliedRule.id}`,
+        contractedPrice: finalServicePrice !== servicePrice ? finalServicePrice : undefined,
       };
     }
 
@@ -111,14 +127,14 @@ export class InsuranceCalculationService {
     if (appliedRule) {
       const val = Money.fromPrisma(appliedRule.copayValue);
       if (appliedRule.copayType === CopayType.PERCENTAGE) {
-        patientShare = Money.rate(servicePrice, val);
+        patientShare = Money.rate(finalServicePrice, val);
       } else {
         patientShare = val;
       }
     } else {
       // القاعدة الافتراضية
       const defaultRate = Money.fromPrisma(plan.defaultCopayRate);
-      patientShare = Money.rate(servicePrice, defaultRate);
+      patientShare = Money.rate(finalServicePrice, defaultRate);
     }
 
     // ج) سقف التحمل
@@ -130,11 +146,11 @@ export class InsuranceCalculationService {
     }
 
     // التأكد من عدم تجاوز سعر الخدمة
-    if (Money.gt(patientShare, servicePrice)) {
-      patientShare = servicePrice;
+    if (Money.gt(patientShare, finalServicePrice)) {
+      patientShare = finalServicePrice;
     }
 
-    const insuranceShare = Money.sub(servicePrice, patientShare);
+    const insuranceShare = Money.sub(finalServicePrice, patientShare);
 
     // د) الموافقة المسبقة
     let requiresPreAuth = appliedRule?.requiresApproval ?? false;
@@ -164,6 +180,7 @@ export class InsuranceCalculationService {
       requiresPreAuth,
       preAuthCode,
       ruleApplied: appliedRule ? `RULE_${appliedRule.id}` : 'PLAN_DEFAULT',
+      contractedPrice: finalServicePrice !== servicePrice ? finalServicePrice : undefined,
     };
   }
 }

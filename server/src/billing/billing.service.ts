@@ -140,7 +140,9 @@ export class BillingService {
         );
       }
 
-      totalAmount = Money.add(totalAmount, itemAmount);
+      const finalItemAmount = result.contractedPrice !== undefined ? result.contractedPrice : itemAmount;
+
+      totalAmount = Money.add(totalAmount, finalItemAmount);
       totalPatientShare = Money.add(totalPatientShare, result.patientShare);
       totalInsuranceShare = Money.add(totalInsuranceShare, result.insuranceShare);
 
@@ -190,10 +192,16 @@ export class BillingService {
         },
       });
 
-      await tx.encounterCharge.updateMany({
-        where: { id: { in: charges.map((c) => c.id) } },
-        data: { invoiceId: createdInvoice.id },
-      });
+      for (const req of calculationDetails) {
+        const chargeUpdateData: any = { invoiceId: createdInvoice.id };
+        if (req.contractedPrice !== undefined) {
+          chargeUpdateData.totalAmount = req.contractedPrice;
+        }
+        await tx.encounterCharge.update({
+          where: { id: req.chargeId },
+          data: chargeUpdateData,
+        });
+      }
 
       return createdInvoice;
     });
