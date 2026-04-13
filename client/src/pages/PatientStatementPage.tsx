@@ -460,6 +460,23 @@ export default function PatientStatementPage() {
               
               /* Print optimizations */
               @media print {
+                .statement-wrapper { display: block !important; overflow: visible !important; }
+                .summary-cards-container { page-break-inside: avoid; break-inside: avoid; }
+                .statement-section { 
+                  overflow: visible !important; 
+                  page-break-inside: auto; 
+                  break-inside: auto;
+                }
+                .statement-table {
+                  page-break-inside: auto;
+                  break-inside: auto;
+                }
+                .statement-table tr {
+                  page-break-inside: avoid;
+                  break-inside: avoid;
+                  page-break-after: auto;
+                  break-after: auto;
+                }
                 .summary-card.highlight { background: #f0fdf4 !important; border: 2px solid #10b981 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
                 .summary-card.danger { background: #fff1f2 !important; border: 2px solid #f43f5e !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
                 .statement-section-header { background: #f8fafc !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }

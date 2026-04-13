@@ -399,6 +399,7 @@ export default function PrintLayout({
             padding: 0 !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
+            overflow: visible !important;
           }
           .no-print {
             display: none !important;
@@ -407,6 +408,8 @@ export default function PrintLayout({
             min-height: auto !important;
             background: white !important;
             padding: 0 !important;
+            display: block !important;
+            overflow: visible !important;
           }
           #print-container {
             box-shadow: none !important;
@@ -414,22 +417,30 @@ export default function PrintLayout({
             width: 100% !important;
             min-height: auto !important;
             transform: none !important;
+            display: block !important;
+            overflow: visible !important;
           }
           .print-header {
             background: white !important;
             border-bottom: 2px solid #059669 !important;
             padding: 16px 20px !important;
+            page-break-inside: avoid;
+            break-inside: avoid;
           }
           .print-watermark {
             color: rgba(5, 150, 105, 0.04) !important;
           }
           .print-main {
             padding: 12px 20px !important;
+            display: block !important;
+            overflow: visible !important;
           }
           .print-footer {
             background: white !important;
             border-top: 1px solid #cbd5e1 !important;
             padding: 12px 20px !important;
+            page-break-inside: avoid;
+            break-inside: avoid;
           }
           .print-footer-notes {
             background: #f8fafc !important;
