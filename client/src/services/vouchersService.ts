@@ -34,35 +34,35 @@ export interface Voucher {
 export type CreateVoucherDto = Partial<Voucher>;
 
 export const getVouchers = async (params?: any): Promise<Voucher[]> => {
-  const response = await apiClient.get('/vouchers', { params });
+  const response = await apiClient.get('/accounting/vouchers', { params });
   return response.data;
 };
 
 export const getVoucher = async (id: number): Promise<Voucher> => {
-  const response = await apiClient.get(`/vouchers/${id}`);
+  const response = await apiClient.get(`/accounting/vouchers/${id}`);
   return response.data;
 };
 
 export const createVoucher = async (data: Partial<Voucher>): Promise<Voucher> => {
-  const response = await apiClient.post('/vouchers', data);
+  const response = await apiClient.post('/accounting/vouchers', data);
   return response.data;
 };
 
 export const updateVoucher = async (id: number, data: Partial<Voucher>): Promise<Voucher> => {
-  const response = await apiClient.put(`/vouchers/${id}`, data);
+  const response = await apiClient.put(`/accounting/vouchers/${id}`, data);
   return response.data;
 };
 
 export const deleteVoucher = async (id: number): Promise<void> => {
-  await apiClient.delete(`/vouchers/${id}`);
+  await apiClient.delete(`/accounting/vouchers/${id}`);
 };
 
 export const postVoucher = async (id: number): Promise<Voucher> => {
-  const response = await apiClient.post(`/vouchers/${id}/post`);
+  const response = await apiClient.post(`/accounting/vouchers/${id}/post`);
   return response.data;
 };
 
 export const cancelVoucher = async (id: number): Promise<Voucher> => {
-  const response = await apiClient.post(`/vouchers/${id}/cancel`);
+  const response = await apiClient.post(`/accounting/vouchers/${id}/cancel`);
   return response.data;
 };

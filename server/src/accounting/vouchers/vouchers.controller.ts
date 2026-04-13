@@ -4,7 +4,7 @@ import { CreateVoucherDto, UpdateVoucherDto } from './dto/voucher.dto';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 
 @UseGuards(JwtAuthGuard)
-@Controller('vouchers')
+@Controller('accounting/vouchers')
 export class VouchersController {
   constructor(private readonly vouchersService: VouchersService) {}
 

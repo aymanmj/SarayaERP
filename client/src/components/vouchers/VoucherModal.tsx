@@ -56,7 +56,7 @@ export default function VoucherModal({ isOpen, onClose, onSave, initialData }: V
     }
   }, [initialData, isOpen]);
 
-  const cashAccounts = accounts.filter(a => a.type === 'ASSET' && (a.name.includes('صندوق') || a.name.includes('خزينة') || a.name.includes('بنك') || a.code.startsWith('10')));
+  const cashAccounts = accounts.filter(a => a.name.includes('صندوق') || a.name.includes('خزينة') || a.name.includes('بنك') || a.code.startsWith('10'));
   const offsetAccounts = accounts.filter(a => a.id !== formData.cashAccountId);
 
   const handleSubmit = async (e: React.FormEvent) => {
