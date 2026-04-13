@@ -58,6 +58,8 @@ const ChartOfAccountsPage = lazy(() => import("../pages/ChartOfAccountsPage"));
 const CostCentersPage = lazy(
   () => import("../pages/accounting/CostCentersPage"),
 );
+const VouchersListPage = lazy(() => import("../pages/vouchers/VouchersListPage"));
+const PrintVoucherPage = lazy(() => import("../pages/vouchers/PrintVoucherPage"));
 const OpeningBalancesPage = lazy(() => import("../pages/OpeningBalancesPage"));
 const ManualEntryPage = lazy(() => import("../pages/ManualEntryPage"));
 const AccountingJournalPage = lazy(
@@ -167,6 +169,14 @@ export const FinanceRoutes = (
     <Route
       path="/accounting/cost-centers"
       element={<CostCentersPage />}
+    />
+    <Route
+      path="/accounting/vouchers"
+      element={<VouchersListPage />}
+    />
+    <Route
+      path="/accounting/vouchers/:id/print"
+      element={<PrintVoucherPage />}
     />
     <Route
       path="/accounting/opening-balances"

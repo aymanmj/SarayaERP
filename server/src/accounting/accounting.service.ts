@@ -5142,4 +5142,74 @@ export class AccountingService {
     );
     return reversalEntry;
   }
+
+  // ✅ [NEW] قيد أذونات الصرف والقبض
+  async recordVoucherEntry(params: {
+    voucherId: number;
+    hospitalId: number;
+    userId: number;
+    prisma?: any;
+  }) {
+    const { voucherId, hospitalId, userId, prisma } = params;
+    const db = prisma || this.prisma;
+
+    const voucher = await db.voucher.findUnique({
+      where: { id: voucherId },
+      include: { account: true, cashAccount: true },
+    });
+    if (!voucher) throw new Error('Voucher not found');
+
+    const entryDate = voucher.date;
+    const { fy, period } = await this.getOpenPeriodForDate(hospitalId, entryDate);
+
+    const val = Number(voucher.amount);
+
+    const linesTocreate: any[] = [];
+
+    if (voucher.type === 'PAYMENT') {
+      // إذن صرف (مدين للمصروف/الذمة، دائن للصندوق)
+      linesTocreate.push({
+        accountId: voucher.accountId,
+        debit: val,
+        credit: 0,
+        description: voucher.notes || `إذن صرف رقم ${voucher.code}`,
+      });
+      linesTocreate.push({
+        accountId: voucher.cashAccountId,
+        debit: 0,
+        credit: val,
+        description: voucher.notes || `إذن صرف رقم ${voucher.code}`,
+      });
+    } else {
+      // إذن قبض (مدين للصندوق، دائن للإيراد/الذمة)
+      linesTocreate.push({
+        accountId: voucher.cashAccountId,
+        debit: val,
+        credit: 0,
+        description: voucher.notes || `إذن قبض رقم ${voucher.code}`,
+      });
+      linesTocreate.push({
+        accountId: voucher.accountId,
+        debit: 0,
+        credit: val,
+        description: voucher.notes || `إذن قبض رقم ${voucher.code}`,
+      });
+    }
+
+    await db.accountingEntry.create({
+      data: {
+        hospitalId,
+        financialYearId: fy.id,
+        financialPeriodId: period.id,
+        entryDate,
+        sourceModule: 'VOUCHER',
+        sourceId: voucher.id,
+        description: voucher.type === 'PAYMENT' ? `إذن صرف رقم ${voucher.code}` : `إذن قبض رقم ${voucher.code}`,
+        createdById: userId,
+        lines: {
+          create: linesTocreate,
+        },
+      },
+    });
+  }
 }

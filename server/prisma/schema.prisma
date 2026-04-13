@@ -9,6 +9,7 @@ datasource db {
 
 model Hospital {
   id                        Int                        @id @default(autoincrement())
+  vouchers                  Voucher[]
   code                      String                     @unique
   name                      String
   isActive                  Boolean                    @default(true)
@@ -88,23 +89,23 @@ model Hospital {
   clinicalNoteTemplates     ClinicalNoteTemplate[]
   transferOrders            TransferOrder[]
   icuFlowsheets             ICUFlowsheet[]
-  
+
   // ICU Relations
   icuDailyAssessments ICUDailyAssessment[]
   icuMedicationDrips  ICUMedicationDrip[]
   icuEquipmentUsages  ICUEquipmentUsage[]
 
   // Clinical Profile (EMR)
-  patientProblems          PatientProblem[]
-  patientMedicalHistories  PatientMedicalHistory[]
-  homeMedications          HomeMedication[]
-  patientPMHEntries        PatientPMHEntry[]
-  patientSurgicalEntries   PatientSurgicalEntry[]
-  patientFamilyEntries     PatientFamilyHistoryEntry[]
+  patientProblems         PatientProblem[]
+  patientMedicalHistories PatientMedicalHistory[]
+  homeMedications         HomeMedication[]
+  patientPMHEntries       PatientPMHEntry[]
+  patientSurgicalEntries  PatientSurgicalEntry[]
+  patientFamilyEntries    PatientFamilyHistoryEntry[]
 
   // Order Sets & Clinical Pathways
-  orderSets                OrderSet[]
-  clinicalPathways         ClinicalPathway[]
+  orderSets        OrderSet[]
+  clinicalPathways ClinicalPathway[]
 }
 
 model Department {
@@ -222,6 +223,7 @@ model Payment {
 
 model User {
   id                        Int                        @id @default(autoincrement())
+  createdVouchers           Voucher[]                  @relation("VoucherCreator")
   hospitalId                Int
   departmentId              Int?
   fullName                  String
@@ -299,8 +301,8 @@ model User {
   admissionNotes             AdmissionNote[]
 
   // Discharge Planning Relations
-  dischargeCaseManaged      DischargePlanning[]        @relation("DischargeCaseManager")
-  dischargeSocialWorked     DischargePlanning[]        @relation("DischargeSocialWorker")
+  dischargeCaseManaged     DischargePlanning[] @relation("DischargeCaseManager")
+  dischargeSocialWorked    DischargePlanning[] @relation("DischargeSocialWorker")
   dischargeFollowUpDoctor  DischargePlanning[] @relation("DischargeFollowUpDoctor")
   createdDischargePlanning DischargePlanning[] @relation("DischargeCreator")
 
@@ -333,19 +335,19 @@ model User {
   icuFlowsheetEntries     ICUFlowsheetEntry[]
 
   // ICU Additions
-  icuDailyAssessments     ICUDailyAssessment[] @relation("ICUAssessedBy")
-  icuMedicationDripsOrdered ICUMedicationDrip[] @relation("ICUDripOrderedBy")
+  icuDailyAssessments       ICUDailyAssessment[] @relation("ICUAssessedBy")
+  icuMedicationDripsOrdered ICUMedicationDrip[]  @relation("ICUDripOrderedBy")
 
   // Clinical Profile (EMR)
-  createdPatientProblems     PatientProblem[]     @relation("ProblemCreatedBy")
-  createdHomeMedications     HomeMedication[]     @relation("HomeMedCreatedBy")
-  verifiedHomeMedications    HomeMedication[]     @relation("HomeMedVerifiedBy")
+  createdPatientProblems  PatientProblem[] @relation("ProblemCreatedBy")
+  createdHomeMedications  HomeMedication[] @relation("HomeMedCreatedBy")
+  verifiedHomeMedications HomeMedication[] @relation("HomeMedVerifiedBy")
 
   // Order Sets & Clinical Pathways
-  createdOrderSets           OrderSet[]           @relation("OrderSetCreator")
-  createdClinicalPathways    ClinicalPathway[]    @relation("PathwayCreator")
-  pathwayEnrollments         PathwayEnrollment[]  @relation("PathwayEnroller")
-  pathwayVariances           PathwayVariance[]    @relation("VarianceReporter")
+  createdOrderSets        OrderSet[]          @relation("OrderSetCreator")
+  createdClinicalPathways ClinicalPathway[]   @relation("PathwayCreator")
+  pathwayEnrollments      PathwayEnrollment[] @relation("PathwayEnroller")
+  pathwayVariances        PathwayVariance[]   @relation("VarianceReporter")
 }
 
 model RefreshToken {
@@ -466,12 +468,12 @@ model Patient {
   referrals Referral[]
 
   // Clinical Profile (EMR)
-  problems         PatientProblem[]
-  medicalHistory   PatientMedicalHistory?
-  homeMedications  HomeMedication[]
-  pmhEntries       PatientPMHEntry[]
-  surgicalEntries  PatientSurgicalEntry[]
-  familyEntries    PatientFamilyHistoryEntry[]
+  problems        PatientProblem[]
+  medicalHistory  PatientMedicalHistory?
+  homeMedications HomeMedication[]
+  pmhEntries      PatientPMHEntry[]
+  surgicalEntries PatientSurgicalEntry[]
+  familyEntries   PatientFamilyHistoryEntry[]
 
   @@index([hospitalId, phone])
   @@index([hospitalId, fullName])
@@ -535,11 +537,11 @@ model Encounter {
   referrals                 Referral[]
   transferOrders            TransferOrder[]
   icuFlowsheets             ICUFlowsheet[]
-  
+
   // ICU Extensions
-  icuDailyAssessments       ICUDailyAssessment[]
-  icuMedicationDrips        ICUMedicationDrip[]
-  icuEquipmentUsages        ICUEquipmentUsage[]
+  icuDailyAssessments ICUDailyAssessment[]
+  icuMedicationDrips  ICUMedicationDrip[]
+  icuEquipmentUsages  ICUEquipmentUsage[]
 
   @@index([hospitalId, type, status])
   @@index([patientId])
@@ -1545,6 +1547,8 @@ enum SystemSettingType {
 
 model Account {
   id                         Int                    @id @default(autoincrement())
+  vouchersAccount            Voucher[]              @relation("VoucherAccount")
+  vouchersCashAccount        Voucher[]              @relation("VoucherCashAccount")
   hospitalId                 Int
   code                       String
   name                       String
@@ -2234,39 +2238,39 @@ model MedicalDevice {
 }
 
 model ClinicalNote {
-  id          Int       @id @default(autoincrement())
+  id          Int      @id @default(autoincrement())
   encounterId Int
-  type        NoteType  @default(NURSING_ROUTINE)
-  
-  content     String?   @db.Text
+  type        NoteType @default(NURSING_ROUTINE)
+
+  content String? @db.Text
 
   // Structured SOAP fields
-  subjective  String?   @db.Text
-  objective   String?   @db.Text
-  assessment  String?   @db.Text
-  plan        String?   @db.Text
+  subjective String? @db.Text
+  objective  String? @db.Text
+  assessment String? @db.Text
+  plan       String? @db.Text
 
   // Metadata & Hierarchy
-  isAddendum  Boolean   @default(false)
+  isAddendum   Boolean @default(false)
   parentNoteId Int?
-  
+
   // Signature fields
-  signedById  Int?
-  signedAt    DateTime?
+  signedById   Int?
+  signedAt     DateTime?
   coSignedById Int?
-  coSignedAt  DateTime?
+  coSignedAt   DateTime?
 
   shiftId     Int?
   createdById Int
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  
-  createdBy   User      @relation("NoteCreator", fields: [createdById], references: [id])
-  encounter   Encounter @relation(fields: [encounterId], references: [id])
-  signedBy    User?     @relation("NoteSigner", fields: [signedById], references: [id])
-  coSignedBy  User?     @relation("NoteCoSigner", fields: [coSignedById], references: [id])
-  parentNote  ClinicalNote?  @relation("NoteAddendum", fields: [parentNoteId], references: [id])
-  appendages  ClinicalNote[] @relation("NoteAddendum")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  createdBy  User           @relation("NoteCreator", fields: [createdById], references: [id])
+  encounter  Encounter      @relation(fields: [encounterId], references: [id])
+  signedBy   User?          @relation("NoteSigner", fields: [signedById], references: [id])
+  coSignedBy User?          @relation("NoteCoSigner", fields: [coSignedById], references: [id])
+  parentNote ClinicalNote?  @relation("NoteAddendum", fields: [parentNoteId], references: [id])
+  appendages ClinicalNote[] @relation("NoteAddendum")
 
   @@index([encounterId])
   @@index([type])
@@ -2658,6 +2662,7 @@ enum AccountingSourceModule {
   PATIENT_REFUND
   INVENTORY_ADJUSTMENT
   JOURNAL_REVERSAL
+  VOUCHER
 }
 
 enum PurchaseReturnStatus {
@@ -3218,53 +3223,52 @@ model DischargePlanning {
 // Medical Discharge Summary Model
 // -------------------------------------------------------------
 model DischargeSummary {
-  id            Int       @id @default(autoincrement())
-  admissionId   Int       @unique
-  encounterId   Int       @unique
-  hospitalId    Int
+  id          Int @id @default(autoincrement())
+  admissionId Int @unique
+  encounterId Int @unique
+  hospitalId  Int
 
   // Administrative
-  admissionDate     DateTime
-  dischargeDate     DateTime
-  lengthOfStay      Int          // in days
-  
+  admissionDate DateTime
+  dischargeDate DateTime
+  lengthOfStay  Int // in days
+
   // Clinical Summary
-  admissionDiagnosis   String    @db.Text
-  dischargeDiagnosis   String    @db.Text
-  proceduresPerformed  Json?     // [{name, date, notes}]
-  consultations        Json?     // [{specialty, doctor, findings}]
-  
+  admissionDiagnosis  String @db.Text
+  dischargeDiagnosis  String @db.Text
+  proceduresPerformed Json? // [{name, date, notes}]
+  consultations       Json? // [{specialty, doctor, findings}]
+
   // Course of Treatment
-  hospitalCourse       String    @db.Text
-  significantFindings  String?   @db.Text  
-  
+  hospitalCourse      String  @db.Text
+  significantFindings String? @db.Text
+
   // Discharge Plan
-  dischargeMedications Json?     // [{name, dose, frequency, duration}]
+  dischargeMedications Json? // [{name, dose, frequency, duration}]
   followUpInstructions String?   @db.Text
   followUpDate         DateTime?
   followUpDoctor       String?
   activityRestrictions String?   @db.Text
   dietInstructions     String?   @db.Text
-  
-  // Warnings and Education
-  patientEducation     String?   @db.Text
-  warningSignsToWatch  String?   @db.Text
-  
-  // Sign-off
-  createdById          Int
-  completedAt          DateTime?
-  
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
 
-  admission  Admission @relation(fields: [admissionId], references: [id])
-  encounter  Encounter @relation(fields: [encounterId], references: [id])
-  hospital   Hospital  @relation(fields: [hospitalId], references: [id])
-  createdBy  User      @relation("DischargeSummaryCreator", fields: [createdById], references: [id])
+  // Warnings and Education
+  patientEducation    String? @db.Text
+  warningSignsToWatch String? @db.Text
+
+  // Sign-off
+  createdById Int
+  completedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  admission Admission @relation(fields: [admissionId], references: [id])
+  encounter Encounter @relation(fields: [encounterId], references: [id])
+  hospital  Hospital  @relation(fields: [hospitalId], references: [id])
+  createdBy User      @relation("DischargeSummaryCreator", fields: [createdById], references: [id])
 
   @@index([hospitalId])
 }
-
 
 // Bed Transfer Model
 model BedTransfer {
@@ -3552,80 +3556,80 @@ model VentilatorLog {
 }
 
 model ICUDailyAssessment {
-  id              Int      @id @default(autoincrement())
-  hospitalId      Int
-  encounterId     Int
-  assessmentDate  DateTime @db.Date
-  
+  id             Int      @id @default(autoincrement())
+  hospitalId     Int
+  encounterId    Int
+  assessmentDate DateTime @db.Date
+
   // Clinical Scores
-  gcsEye          Int?     // 1-4
-  gcsVerbal       Int?     // 1-5  
-  gcsMotor        Int?     // 1-6
-  gcsTotal        Int?     // 3-15
-  
-  apacheIIScore   Int?     // 0-71
-  sofaScore       Int?     // 0-24
-  rassScore       Int?     // -5 to +4
-  painScore       Int?     // 0-10 (NRS)
-  
+  gcsEye    Int? // 1-4
+  gcsVerbal Int? // 1-5  
+  gcsMotor  Int? // 1-6
+  gcsTotal  Int? // 3-15
+
+  apacheIIScore Int? // 0-71
+  sofaScore     Int? // 0-24
+  rassScore     Int? // -5 to +4
+  painScore     Int? // 0-10 (NRS)
+
   // Sedation & Neuro
-  pupilLeft       String?  // REACTIVE, FIXED, SLUGGISH
-  pupilRight      String?
-  sedationTarget  String?
-  
+  pupilLeft      String? // REACTIVE, FIXED, SLUGGISH
+  pupilRight     String?
+  sedationTarget String?
+
   // Respiratory
-  oxygenDevice    String?  // NASAL_CANNULA, FACE_MASK, VENTILATOR, BIPAP, CPAP, HIGH_FLOW
-  fio2            Decimal? @db.Decimal(5,2)
-  
+  oxygenDevice String? // NASAL_CANNULA, FACE_MASK, VENTILATOR, BIPAP, CPAP, HIGH_FLOW
+  fio2         Decimal? @db.Decimal(5, 2)
+
   // Lines & Drains
-  centralLine     String?  // PRESENT, ABSENT
-  arterialLine    String?
-  foleyPresent    Boolean  @default(false)
-  drains          Json?    // Array of drain descriptions
-  
+  centralLine  String? // PRESENT, ABSENT
+  arterialLine String?
+  foleyPresent Boolean @default(false)
+  drains       Json? // Array of drain descriptions
+
   // Skin & Wounds
-  skinIntegrity   String?
-  pressureUlcer   String?
-  woundNotes      String?
-  
+  skinIntegrity String?
+  pressureUlcer String?
+  woundNotes    String?
+
   // Plan
-  dailyGoals      String?  @db.Text
-  nutritionPlan   String?
-  mobilityPlan    String?
-  
-  assessedById    Int
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
-  hospital  Hospital  @relation(fields: [hospitalId], references: [id])
-  encounter Encounter @relation(fields: [encounterId], references: [id])
-  assessedBy User     @relation("ICUAssessedBy", fields: [assessedById], references: [id])
-  
+  dailyGoals    String? @db.Text
+  nutritionPlan String?
+  mobilityPlan  String?
+
+  assessedById Int
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  hospital   Hospital  @relation(fields: [hospitalId], references: [id])
+  encounter  Encounter @relation(fields: [encounterId], references: [id])
+  assessedBy User      @relation("ICUAssessedBy", fields: [assessedById], references: [id])
+
   @@unique([encounterId, assessmentDate])
   @@index([hospitalId])
 }
 
 model ICUMedicationDrip {
-  id              Int       @id @default(autoincrement())
-  hospitalId      Int
-  encounterId     Int
-  medicationName  String
-  concentration   String?   // e.g., "400mg/250ml"
-  currentRate     Decimal?  @db.Decimal(10,2) // ml/hr
-  doseUnit        String?   // mcg/kg/min, units/hr, ml/hr
-  startedAt       DateTime  @default(now())
-  stoppedAt       DateTime?
-  status          String    @default("RUNNING") // RUNNING, PAUSED, STOPPED, TITRATED
-  titrationLog    Json?     // Array of { time, rate, reason }
-  orderedById     Int
-  
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  
+  id             Int       @id @default(autoincrement())
+  hospitalId     Int
+  encounterId    Int
+  medicationName String
+  concentration  String? // e.g., "400mg/250ml"
+  currentRate    Decimal?  @db.Decimal(10, 2) // ml/hr
+  doseUnit       String? // mcg/kg/min, units/hr, ml/hr
+  startedAt      DateTime  @default(now())
+  stoppedAt      DateTime?
+  status         String    @default("RUNNING") // RUNNING, PAUSED, STOPPED, TITRATED
+  titrationLog   Json? // Array of { time, rate, reason }
+  orderedById    Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   hospital  Hospital  @relation(fields: [hospitalId], references: [id])
   encounter Encounter @relation(fields: [encounterId], references: [id])
   orderedBy User      @relation("ICUDripOrderedBy", fields: [orderedById], references: [id])
-  
+
   @@index([hospitalId, encounterId])
   @@index([encounterId, status])
 }
@@ -3634,19 +3638,19 @@ model ICUEquipmentUsage {
   id            Int       @id @default(autoincrement())
   hospitalId    Int
   encounterId   Int
-  equipmentType String    // VENTILATOR, CARDIAC_MONITOR, INFUSION_PUMP, FEEDING_PUMP, etc.
+  equipmentType String // VENTILATOR, CARDIAC_MONITOR, INFUSION_PUMP, FEEDING_PUMP, etc.
   equipmentName String?
   startedAt     DateTime  @default(now())
   stoppedAt     DateTime?
-  dailyRate     Decimal?  @db.Decimal(10,2) // Billing rate per day
+  dailyRate     Decimal?  @db.Decimal(10, 2) // Billing rate per day
   notes         String?
-  
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   hospital  Hospital  @relation(fields: [hospitalId], references: [id])
   encounter Encounter @relation(fields: [encounterId], references: [id])
-  
+
   @@index([hospitalId, encounterId])
 }
 
@@ -3661,11 +3665,11 @@ model PatientProblem {
   patientId       Int
   hospitalId      Int
   diagnosisCodeId Int?
-  description     String           // وصف المشكلة الصحية
+  description     String // وصف المشكلة الصحية
   type            ProblemType      @default(ACTIVE)
   severity        ProblemSeverity?
-  onsetDate       DateTime?        // تاريخ بداية المشكلة
-  resolvedDate    DateTime?        // تاريخ الحل (إن وجد)
+  onsetDate       DateTime? // تاريخ بداية المشكلة
+  resolvedDate    DateTime? // تاريخ الحل (إن وجد)
   notes           String?
   isChronic       Boolean          @default(false)
   createdById     Int
@@ -3698,24 +3702,24 @@ enum ProblemSeverity {
 // ---- التاريخ المرضي الشامل (Medical History) ----
 
 model PatientMedicalHistory {
-  id           Int      @id @default(autoincrement())
-  patientId    Int      @unique  // سجل واحد لكل مريض
-  hospitalId   Int
+  id         Int @id @default(autoincrement())
+  patientId  Int @unique // سجل واحد لكل مريض
+  hospitalId Int
 
   // Social History
-  smokingStatus   SmokingStatus?
-  alcoholUse      String?
-  occupation      String?
-  exerciseLevel   String?
-  dietNotes       String?
-  socialNotes     String?
+  smokingStatus SmokingStatus?
+  alcoholUse    String?
+  occupation    String?
+  exerciseLevel String?
+  dietNotes     String?
+  socialNotes   String?
 
   // Functional Status
-  mobilityStatus  String?
-  adlStatus       String?          // Activities of Daily Living
+  mobilityStatus String?
+  adlStatus      String? // Activities of Daily Living
 
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   patient  Patient  @relation(fields: [patientId], references: [id])
   hospital Hospital @relation(fields: [hospitalId], references: [id])
@@ -3736,8 +3740,8 @@ model PatientPMHEntry {
   id            Int      @id @default(autoincrement())
   patientId     Int
   hospitalId    Int
-  condition     String           // اسم المرض/الحالة
-  diagnosisYear Int?             // سنة التشخيص
+  condition     String // اسم المرض/الحالة
+  diagnosisYear Int? // سنة التشخيص
   isActive      Boolean  @default(true)
   notes         String?
   createdAt     DateTime @default(now())
@@ -3752,15 +3756,15 @@ model PatientPMHEntry {
 // ---- التاريخ الجراحي (Past Surgical History) ----
 
 model PatientSurgicalEntry {
-  id            Int      @id @default(autoincrement())
-  patientId     Int
-  hospitalId    Int
-  procedure     String           // اسم العملية
-  surgeryYear   Int?             // سنة العملية
-  hospitalName  String?          // المؤسسة (إن كانت خارجية)
-  notes         String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id           Int      @id @default(autoincrement())
+  patientId    Int
+  hospitalId   Int
+  procedure    String // اسم العملية
+  surgeryYear  Int? // سنة العملية
+  hospitalName String? // المؤسسة (إن كانت خارجية)
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   patient  Patient  @relation(fields: [patientId], references: [id])
   hospital Hospital @relation(fields: [hospitalId], references: [id])
@@ -3771,17 +3775,17 @@ model PatientSurgicalEntry {
 // ---- التاريخ العائلي (Family History) ----
 
 model PatientFamilyHistoryEntry {
-  id            Int            @id @default(autoincrement())
-  patientId     Int
-  hospitalId    Int
-  relation      FamilyRelation // صلة القرابة
-  condition     String         // المرض / الحالة
-  ageOfOnset    Int?           // عمر ظهور المرض
-  isDeceased    Boolean        @default(false)
-  causeOfDeath  String?
-  notes         String?
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  id           Int            @id @default(autoincrement())
+  patientId    Int
+  hospitalId   Int
+  relation     FamilyRelation // صلة القرابة
+  condition    String // المرض / الحالة
+  ageOfOnset   Int? // عمر ظهور المرض
+  isDeceased   Boolean        @default(false)
+  causeOfDeath String?
+  notes        String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
 
   patient  Patient  @relation(fields: [patientId], references: [id])
   hospital Hospital @relation(fields: [hospitalId], references: [id])
@@ -3809,16 +3813,16 @@ model HomeMedication {
   id             Int              @id @default(autoincrement())
   patientId      Int
   hospitalId     Int
-  medicationName String           // اسم الدواء (حر — لأدوية خارج النظام)
+  medicationName String // اسم الدواء (حر — لأدوية خارج النظام)
   dose           String?
   frequency      String?
   route          String?
-  prescribedBy   String?          // طبيب خارجي أو اسم المصدر
-  reason         String?          // السبب / التشخيص
+  prescribedBy   String? // طبيب خارجي أو اسم المصدر
+  reason         String? // السبب / التشخيص
   startDate      DateTime?
   isActive       Boolean          @default(true)
   source         MedicationSource @default(PATIENT_REPORTED)
-  verifiedById   Int?             // الطبيب الذي تحقق من الدواء
+  verifiedById   Int? // الطبيب الذي تحقق من الدواء
   verifiedAt     DateTime?
   notes          String?
   createdById    Int
@@ -3846,20 +3850,20 @@ enum MedicationSource {
 // =====================================================================
 
 model OrderSet {
-  id           Int             @id @default(autoincrement())
-  hospitalId   Int
-  name         String
-  nameAr       String?
-  description  String?
-  category     String?
-  specialty    String?
-  isActive     Boolean         @default(true)
-  createdById  Int
-  createdAt    DateTime        @default(now())
-  updatedAt    DateTime        @updatedAt
+  id          Int      @id @default(autoincrement())
+  hospitalId  Int
+  name        String
+  nameAr      String?
+  description String?
+  category    String?
+  specialty   String?
+  isActive    Boolean  @default(true)
+  createdById Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  hospital     Hospital        @relation(fields: [hospitalId], references: [id])
-  createdBy    User            @relation("OrderSetCreator", fields: [createdById], references: [id])
+  hospital     Hospital              @relation(fields: [hospitalId], references: [id])
+  createdBy    User                  @relation("OrderSetCreator", fields: [createdById], references: [id])
   items        OrderSetItem[]
   pathwaySteps ClinicalPathwayStep[]
 
@@ -3896,30 +3900,30 @@ model OrderSetItem {
 }
 
 model ClinicalPathway {
-  id              Int                    @id @default(autoincrement())
+  id              Int      @id @default(autoincrement())
   hospitalId      Int
   name            String
   nameAr          String?
   description     String?
   targetDiagnosis String?
   expectedLOS     Int?
-  isActive        Boolean                @default(true)
-  version         Int                    @default(1)
+  isActive        Boolean  @default(true)
+  version         Int      @default(1)
   createdById     Int
-  createdAt       DateTime               @default(now())
-  updatedAt       DateTime               @updatedAt
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  hospital        Hospital               @relation(fields: [hospitalId], references: [id])
-  createdBy       User                   @relation("PathwayCreator", fields: [createdById], references: [id])
-  steps           ClinicalPathwayStep[]
-  enrollments     PathwayEnrollment[]
+  hospital    Hospital              @relation(fields: [hospitalId], references: [id])
+  createdBy   User                  @relation("PathwayCreator", fields: [createdById], references: [id])
+  steps       ClinicalPathwayStep[]
+  enrollments PathwayEnrollment[]
 
   @@unique([hospitalId, name, version])
   @@index([hospitalId, targetDiagnosis])
 }
 
 model ClinicalPathwayStep {
-  id              Int                    @id @default(autoincrement())
+  id              Int     @id @default(autoincrement())
   pathwayId       Int
   dayNumber       Int
   phase           String?
@@ -3929,30 +3933,30 @@ model ClinicalPathwayStep {
   orderSetId      Int?
   expectedOutcome String?
   milestones      String?
-  sortOrder       Int                    @default(0)
+  sortOrder       Int     @default(0)
 
-  pathway         ClinicalPathway        @relation(fields: [pathwayId], references: [id], onDelete: Cascade)
-  orderSet        OrderSet?              @relation(fields: [orderSetId], references: [id])
-  variances       PathwayVariance[]
+  pathway   ClinicalPathway   @relation(fields: [pathwayId], references: [id], onDelete: Cascade)
+  orderSet  OrderSet?         @relation(fields: [orderSetId], references: [id])
+  variances PathwayVariance[]
 
   @@index([pathwayId, dayNumber])
 }
 
 model PathwayEnrollment {
-  id              Int                    @id @default(autoincrement())
-  pathwayId       Int
-  encounterId     Int
-  patientId       Int
-  enrolledById    Int
-  enrolledAt      DateTime               @default(now())
-  status          PathwayEnrollmentStatus @default(ACTIVE)
-  currentDay      Int                    @default(0)
-  completedAt     DateTime?
-  notes           String?
+  id           Int                     @id @default(autoincrement())
+  pathwayId    Int
+  encounterId  Int
+  patientId    Int
+  enrolledById Int
+  enrolledAt   DateTime                @default(now())
+  status       PathwayEnrollmentStatus @default(ACTIVE)
+  currentDay   Int                     @default(0)
+  completedAt  DateTime?
+  notes        String?
 
-  pathway         ClinicalPathway        @relation(fields: [pathwayId], references: [id])
-  enrolledBy      User                   @relation("PathwayEnroller", fields: [enrolledById], references: [id])
-  variances       PathwayVariance[]
+  pathway    ClinicalPathway   @relation(fields: [pathwayId], references: [id])
+  enrolledBy User              @relation("PathwayEnroller", fields: [enrolledById], references: [id])
+  variances  PathwayVariance[]
 
   @@unique([pathwayId, encounterId])
   @@index([encounterId])
@@ -3960,17 +3964,17 @@ model PathwayEnrollment {
 }
 
 model PathwayVariance {
-  id              Int                    @id @default(autoincrement())
-  enrollmentId    Int
-  stepId          Int
-  varianceType    VarianceType
-  reason          String
-  reportedById    Int
-  reportedAt      DateTime               @default(now())
+  id           Int          @id @default(autoincrement())
+  enrollmentId Int
+  stepId       Int
+  varianceType VarianceType
+  reason       String
+  reportedById Int
+  reportedAt   DateTime     @default(now())
 
-  enrollment      PathwayEnrollment      @relation(fields: [enrollmentId], references: [id])
-  step            ClinicalPathwayStep    @relation(fields: [stepId], references: [id])
-  reportedBy      User                   @relation("VarianceReporter", fields: [reportedById], references: [id])
+  enrollment PathwayEnrollment   @relation(fields: [enrollmentId], references: [id])
+  step       ClinicalPathwayStep @relation(fields: [stepId], references: [id])
+  reportedBy User                @relation("VarianceReporter", fields: [reportedById], references: [id])
 
   @@index([enrollmentId])
 }
@@ -3995,4 +3999,48 @@ enum VarianceType {
   OMISSION
   COMPLICATION
   OTHER
+}
+
+// ========================
+// Vouchers System
+// ========================
+
+enum VoucherType {
+  PAYMENT
+  RECEIPT
+}
+
+enum VoucherStatus {
+  DRAFT
+  POSTED
+  CANCELLED
+}
+
+model Voucher {
+  id            Int           @id @default(autoincrement())
+  hospitalId    Int
+  code          String?
+  type          VoucherType
+  status        VoucherStatus @default(DRAFT)
+  date          DateTime
+  amount        Decimal       @db.Decimal(12, 3)
+  accountId     Int // Offset account
+  cashAccountId Int // Cash or Bank account
+  notes         String?
+  payeeOrPayer  String?
+  reference     String?
+  createdById   Int
+
+  hospital    Hospital @relation(fields: [hospitalId], references: [id])
+  account     Account  @relation("VoucherAccount", fields: [accountId], references: [id])
+  cashAccount Account  @relation("VoucherCashAccount", fields: [cashAccountId], references: [id])
+  createdBy   User     @relation("VoucherCreator", fields: [createdById], references: [id])
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([hospitalId])
+  @@index([accountId])
+  @@index([cashAccountId])
 }

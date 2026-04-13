@@ -24,6 +24,7 @@ import { CashierModule } from './cashier/cashier.module';
 import { FinancialYearsModule } from './financial-years/financial-years.module';
 import { SettingsModule } from './settings/settings.module';
 import { AccountingModule } from './accounting/accounting.module';
+import { VouchersModule } from './accounting/vouchers/vouchers.module';
 import { SuppliersModule } from './suppliers/suppliers.module';
 import { PurchasesModule } from './purchases/purchases.module';
 import { InventoryModule } from './inventory/inventory.module';
@@ -158,6 +159,7 @@ import { ClinicalPathwaysModule } from './clinical-pathways/clinical-pathways.mo
     BillingModule,
     CashierModule,
     AccountingModule,
+    VouchersModule,
     FinancialYearsModule,
     PayrollModule,
     InsuranceModule,

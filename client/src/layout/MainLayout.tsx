@@ -629,6 +629,11 @@ export function MainLayout() {
           access: "acc:cost_centers:manage",
         },
         {
+          label: "أذونات الصرف والقبض",
+          path: "/accounting/vouchers",
+          access: "acc:entries:create",
+        },
+        {
           label: "الميزانية العمومية",
           path: "/accounting/balance-sheet",
           access: "acc:reports:view",
