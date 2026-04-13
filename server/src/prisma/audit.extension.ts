@@ -16,6 +16,7 @@ export const auditExtension = (cls: ClsService, rootPrisma: any) => {
 
           const userId = cls.isActive() ? cls.get('userId') : null;
           const hospitalId = cls.isActive() ? cls.get('hospitalId') : null;
+          const ipAddress = cls.isActive() ? cls.get('ipAddress') : null;
 
           if (userId) {
             // Save audit log asynchronously
@@ -26,6 +27,7 @@ export const auditExtension = (cls: ClsService, rootPrisma: any) => {
                 action: 'CREATE',
                 entity: model,
                 entityId: result.id || null,
+                ipAddress,
                 newValues: args.data as any,
               },
             }).catch(console.error);
@@ -51,6 +53,7 @@ export const auditExtension = (cls: ClsService, rootPrisma: any) => {
 
           const userId = cls.isActive() ? cls.get('userId') : null;
           const hospitalId = cls.isActive() ? cls.get('hospitalId') : null;
+          const ipAddress = cls.isActive() ? cls.get('ipAddress') : null;
 
           if (userId && originalRecord) {
             // Compute simple differences (you can use a deep diff algorithm if needed)
@@ -73,6 +76,7 @@ export const auditExtension = (cls: ClsService, rootPrisma: any) => {
                 action: 'UPDATE',
                 entity: model,
                 entityId: result.id || null,
+                ipAddress,
                 oldValues: oldValues,
                 newValues: changedValues, // Store exactly what changed
               },
@@ -94,6 +98,7 @@ export const auditExtension = (cls: ClsService, rootPrisma: any) => {
 
           const userId = cls.isActive() ? cls.get('userId') : null;
           const hospitalId = cls.isActive() ? cls.get('hospitalId') : null;
+          const ipAddress = cls.isActive() ? cls.get('ipAddress') : null;
 
           if (userId && originalRecord) {
             rootPrisma.auditLog.create({
@@ -103,6 +108,7 @@ export const auditExtension = (cls: ClsService, rootPrisma: any) => {
                 action: 'DELETE',
                 entity: model,
                 entityId: result.id || null,
+                ipAddress,
                 oldValues: originalRecord,
               },
             }).catch(console.error);

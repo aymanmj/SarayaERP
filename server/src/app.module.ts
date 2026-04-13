@@ -86,7 +86,13 @@ import { ClinicalPathwaysModule } from './clinical-pathways/clinical-pathways.mo
     ConfigModule.forRoot({ isGlobal: true }),
     ClsModule.forRoot({
       global: true,
-      middleware: { mount: true },
+      middleware: { 
+        mount: true,
+        setup: (cls, req: any) => {
+          const forwarded = req.headers['x-forwarded-for'];
+          cls.set('ipAddress', forwarded ? forwarded.split(',')[0].trim() : (req.ip || req.connection?.remoteAddress || req.socket?.remoteAddress || 'unknown'));
+        }
+      },
     }),
     PrismaModule,
     EventEmitterModule.forRoot(),
