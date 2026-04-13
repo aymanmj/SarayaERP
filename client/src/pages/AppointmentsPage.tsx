@@ -892,7 +892,8 @@ export default function AppointmentsPage() {
                     {patientsList
                       .filter((p) =>
                         p.fullName.toLowerCase().includes(patientSearch.toLowerCase()) ||
-                        p.mrn.includes(patientSearch)
+                        p.mrn.includes(patientSearch) ||
+                        (p.phone && p.phone.includes(patientSearch))
                       )
                       .slice(0, 10)
                       .map((p) => (
