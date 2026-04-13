@@ -127,7 +127,7 @@ export default function VouchersListPage() {
                     <td className="py-4 px-5 text-slate-300">{new Date(v.date).toLocaleDateString('ar-LY')}</td>
                     <td className="py-4 px-5 text-slate-200">{v.account?.name}</td>
                     <td className="py-4 px-5 text-slate-300">{v.payeeOrPayer || '-'}</td>
-                    <td className="py-4 px-5 font-bold text-amber-100">{Number(v.amount).toLocaleString()} ד.ל</td>
+                    <td className="py-4 px-5 font-bold text-amber-100">{Number(v.amount).toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 })} د.ل</td>
                     <td className="py-4 px-5">
                       {v.status === VoucherStatus.DRAFT && <span className="bg-slate-800 text-slate-300 px-2.5 py-1 rounded-md text-xs border border-slate-700">مسودة</span>}
                       {v.status === VoucherStatus.POSTED && <span className="bg-emerald-900/30 text-emerald-400 px-2.5 py-1 rounded-md text-xs border border-emerald-800/50">مُرَحّل</span>}
