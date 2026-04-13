@@ -498,6 +498,14 @@ export class BillingService {
       }
 
       this.logger.log(`Invoice #${invoiceId} cancelled by user ${userId}`);
+      if (invoice.encounterId) {
+        this.eventEmitter.emit('invoice.cancelled', {
+          invoiceId: invoice.id,
+          hospitalId,
+          encounterId: invoice.encounterId,
+          userId,
+        });
+      }
       return updatedInvoice;
     });
   }
@@ -623,6 +631,8 @@ export class BillingService {
       this.eventEmitter.emit('billing.credit_note_created', {
         creditNoteId: creditNote.id,
         originalInvoiceId: original.id,
+        encounterId: original.encounterId,
+        hospitalId,
       });
 
       return creditNote;

@@ -4,7 +4,9 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
+  Logger,
 } from '@nestjs/common';
+import { OnEvent } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   AppointmentStatus,
@@ -24,6 +26,8 @@ export class AppointmentsService {
     private priceService: PriceListsService,
     private accounting: AccountingService,
   ) {}
+
+  private readonly logger = new Logger(AppointmentsService.name);
 
   // ============================================
   // ✅ نظام الترقيم المتقدم (Queue Numbers)
@@ -1053,8 +1057,55 @@ export class AppointmentsService {
       price: price > 0 ? `${price.toFixed(3)}` : 'يحدد عند الوصول', // ✅ إضافة السعر
     };
   }
-}
 
+  // ============================================
+  // ✅ 5. Billing Event Listeners for Synchronization
+  // ============================================
+
+  @OnEvent('invoice.cancelled')
+  @OnEvent('billing.credit_note_created')
+  async handleInvoiceCancellation(payload: { encounterId?: number; hospitalId: number }) {
+    if (!payload.encounterId) return;
+
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        const encounter = await tx.encounter.findUnique({
+          where: { id: payload.encounterId },
+          include: { appointments: true, invoices: true },
+        });
+
+        if (!encounter || encounter.status !== EncounterStatus.OPEN) {
+          return; // Only care if it's OPEN (not closed/executed)
+        }
+
+        // Only cancel if NO other non-cancelled invoices remain
+        const activeRegularInvoices = encounter.invoices.filter(inv => inv.status !== 'CANCELLED' && inv.type !== 'CREDIT_NOTE');
+        
+        // Even if there are other invoices, if this event is triggered, it means the main ticket was refunded/cancelled
+        // For outpatient consultation, normally there's 1 invoice. 
+        // We will cancel the clinical session immediately to clear the queue.
+        
+        this.logger.log(`Syncing billing cancellation for Encounter #${encounter.id}... cancelling appointment.`);
+
+        // 1. Cancel the Encounter
+        await tx.encounter.update({
+          where: { id: encounter.id },
+          data: { status: EncounterStatus.CANCELLED },
+        });
+
+        // 2. Cancel all related appointments
+        if (encounter.appointments && encounter.appointments.length > 0) {
+          await tx.appointment.updateMany({
+             where: { id: { in: encounter.appointments.map(a => a.id) } },
+             data: { status: AppointmentStatus.CANCELLED },
+          });
+        }
+      });
+    } catch (err) {
+      this.logger.error(`Failed to cancel encounter/appointment after invoice cancellation: ${err.message}`);
+    }
+  }
+}
 
 // import {
 //   BadRequestException,
