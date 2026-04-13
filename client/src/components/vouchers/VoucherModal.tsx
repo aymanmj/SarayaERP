@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { X, Save, AlertCircle } from 'lucide-react';
 import { CreateVoucherDto, VoucherType } from '../../services/vouchersService';
 import { apiClient } from '../../api/apiClient';
 
@@ -74,139 +74,161 @@ export default function VoucherModal({ isOpen, onClose, onSave, initialData }: V
 
   return (
     <div className="relative z-50">
-      <div className="fixed inset-0 bg-black/30" aria-hidden="true" onClick={onClose} />
+      {/* Backdrop */}
+      <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm transition-opacity" aria-hidden="true" onClick={onClose} />
+      
+      {/* Modal Wrapping Box */}
       <div className="fixed inset-0 flex items-center justify-center p-4 pointer-events-none">
-        <div className="mx-auto w-full max-w-2xl rounded-lg bg-white p-6 shadow-xl pointer-events-auto overflow-y-auto max-h-[90vh]" dir="rtl">
-          <div className="flex justify-between items-center mb-6 border-b pb-4">
-            <h2 className="text-xl font-bold">
-              {initialData ? 'تعديل السند' : 'إنشاء سند جديد'}
+        <div className="mx-auto w-full max-w-2xl rounded-2xl bg-slate-900 border border-slate-700 shadow-2xl pointer-events-auto overflow-hidden flex flex-col max-h-[90vh]" dir="rtl">
+          
+          {/* Header */}
+          <div className="flex justify-between items-center bg-slate-900/80 px-6 py-4 border-b border-slate-800">
+            <h2 className="text-xl font-bold text-slate-100 flex items-center gap-2">
+              {initialData ? 'تعديل السند المالي' : 'إنشاء سند مالي جديد'}
             </h2>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-500">
+            <button onClick={onClose} className="text-slate-400 hover:text-white p-1 rounded-md hover:bg-slate-800 transition">
               <X className="h-6 w-6" />
             </button>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">نوع السند</label>
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-6 py-6 space-y-6 custom-scrollbar text-slate-300">
+            <div className="grid grid-cols-2 gap-5">
+              
+              {/* Type */}
+              <div className="space-y-1.5">
+                <label className="block text-sm font-medium text-slate-300">نوع السند</label>
                 <select
                   value={formData.type}
                   onChange={(e) => setFormData({ ...formData, type: e.target.value as VoucherType })}
-                  className="w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
+                  className="w-full bg-slate-800 border-slate-700 text-slate-100 rounded-lg shadow-sm focus:ring-sky-500 focus:border-sky-500 p-2.5 outline-none transition"
                   required
                   disabled={!!initialData}
                 >
-                  <option value={VoucherType.PAYMENT}>سند صرف (Payment)</option>
-                  <option value={VoucherType.RECEIPT}>سند قبض (Receipt)</option>
+                  <option value={VoucherType.PAYMENT}>سند صرف نقدية (Payment)</option>
+                  <option value={VoucherType.RECEIPT}>سند قبض نقدية (Receipt)</option>
                 </select>
               </div>
               
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">تاريخ السند</label>
+              {/* Date */}
+              <div className="space-y-1.5">
+                <label className="block text-sm font-medium text-slate-300">تاريخ السند</label>
                 <input
                   type="date"
                   value={formData.date}
                   onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                  className="w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
+                  className="w-full bg-slate-800 border-slate-700 text-slate-100 rounded-lg shadow-sm focus:ring-sky-500 focus:border-sky-500 p-2.5 outline-none transition"
                   required
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">المبلغ</label>
+              {/* Amount */}
+              <div className="space-y-1.5">
+                <label className="block text-sm font-medium text-slate-300">المبلغ (دينار ليبي)</label>
                 <input
                   type="number"
                   step="0.001"
                   min="0.001"
                   value={formData.amount}
                   onChange={(e) => setFormData({ ...formData, amount: Number(e.target.value) })}
-                  className="w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
+                  className="w-full bg-slate-800 border border-slate-700 text-slate-100 rounded-lg shadow-sm focus:ring-sky-500 focus:border-sky-500 p-2.5 outline-none transition"
                   required
+                  placeholder="0.000"
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  رقم المرجع (شيك/إيصال)
+              {/* Reference */}
+              <div className="space-y-1.5">
+                <label className="block text-sm font-medium text-slate-300">
+                  رقم المرجع <span className="text-slate-500 text-xs">(شيك / إيصال إيداع)</span>
                 </label>
                 <input
                   type="text"
                   value={formData.reference}
                   onChange={(e) => setFormData({ ...formData, reference: e.target.value })}
-                  className="w-full border-gray-300 rounded-md shadow-sm"
+                  className="w-full bg-slate-800 border-slate-700 text-slate-100 rounded-lg shadow-sm focus:ring-sky-500 focus:border-sky-500 p-2.5 outline-none transition"
+                  placeholder="رقم مرجعي اختياري..."
                 />
               </div>
 
-              <div className="col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  حساب الصندوق / البنك
+              {/* Cash Account */}
+              <div className="col-span-2 space-y-1.5">
+                <label className="block text-sm font-medium text-slate-300">
+                  حساب الصندوق أو البنك المرتبط
                 </label>
                 <select
                   value={formData.cashAccountId}
                   onChange={(e) => setFormData({ ...formData, cashAccountId: Number(e.target.value) })}
-                  className="w-full border-gray-300 rounded-md shadow-sm"
+                  className="w-full bg-slate-800 border-slate-700 text-slate-100 rounded-lg shadow-sm focus:ring-sky-500 focus:border-sky-500 p-2.5 outline-none transition"
                   required
                 >
-                  <option value={0}>-- الرجاء اختيار الصندوق/البنك --</option>
+                  <option value={0} disabled>-- الرجاء اختيار الصندوق / البنك --</option>
                   {cashAccounts.map(a => (
                     <option key={a.id} value={a.id}>{a.code} - {a.name}</option>
                   ))}
                 </select>
+                {formData.cashAccountId > 0 && <p className="text-xs text-sky-400 mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3"/> سيتم أخذ قيمة القيد من هذا الحساب.</p>}
               </div>
 
-              <div className="col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  الحساب المقابل (مصروف / إيراد / ذمة)
+              {/* Offset Account */}
+              <div className="col-span-2 space-y-1.5 mt-2">
+                <label className="block text-sm font-medium text-slate-300">
+                  حساب التسوية / الحساب المقابل <span className="text-slate-500 text-xs">(مصروف، إيراد، مورد، عميل)</span>
                 </label>
                 <select
                   value={formData.accountId}
                   onChange={(e) => setFormData({ ...formData, accountId: Number(e.target.value) })}
-                  className="w-full border-gray-300 rounded-md shadow-sm"
+                  className="w-full bg-slate-800 border-slate-700 text-slate-100 rounded-lg shadow-sm focus:ring-sky-500 focus:border-sky-500 p-2.5 outline-none transition"
                   required
                 >
-                  <option value={0}>-- الرجاء اختيار الحساب --</option>
+                  <option value={0} disabled>-- الرجاء البحث عن واختيار الحساب المقابل --</option>
                   {offsetAccounts.map(a => (
                     <option key={a.id} value={a.id}>{a.code} - {a.name}</option>
                   ))}
                 </select>
               </div>
 
-              <div className="col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  {formData.type === VoucherType.PAYMENT ? 'يصرف للسيد/ة' : 'استلمنا من السيد/ة'}
+              {/* Payee/Payer */}
+              <div className="col-span-2 space-y-1.5">
+                <label className="block text-sm font-medium text-slate-300">
+                  {formData.type === VoucherType.PAYMENT ? 'يصرف للسيـد/ة / الجهـة' : 'استلمنا من السيـد/ة / الجهـة'}
                 </label>
                 <input
                   type="text"
                   value={formData.payeeOrPayer}
                   onChange={(e) => setFormData({ ...formData, payeeOrPayer: e.target.value })}
-                  className="w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500"
+                  className="w-full bg-slate-800 border-slate-700 text-slate-100 rounded-lg shadow-sm focus:ring-sky-500 focus:border-sky-500 p-2.5 outline-none transition"
+                  placeholder="اسم الشخص أو الجهة المعنية في الإيصال..."
                 />
               </div>
 
-              <div className="col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">البيان (التفاصيل)</label>
+              {/* Notes */}
+              <div className="col-span-2 space-y-1.5">
+                <label className="block text-sm font-medium text-slate-300">البيان (تفاصيل العملية الماليـة)</label>
                 <textarea
                   value={formData.notes}
                   onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                   rows={3}
-                  className="w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
+                  className="w-full bg-slate-800 border-slate-700 text-slate-100 rounded-lg shadow-sm focus:ring-sky-500 focus:border-sky-500 p-2.5 outline-none transition resize-none leading-relaxed"
+                  placeholder="وذلك عن..."
                 />
               </div>
             </div>
 
-            <div className="mt-6 flex justify-end gap-3 border-t pt-4">
+            {/* Footer Buttons */}
+            <div className="mt-8 flex justify-end gap-3 pt-6 border-t border-slate-800">
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 bg-white cursor-pointer"
+                className="px-5 py-2.5 border border-slate-700 text-slate-300 rounded-xl hover:bg-slate-800 hover:text-white transition font-medium cursor-pointer"
               >
-                إلغاء
+                إلغاء الأمر
               </button>
               <button
                 type="submit"
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 cursor-pointer"
+                className="px-5 py-2.5 bg-sky-600 text-white rounded-xl shadow-lg shadow-sky-900/20 hover:bg-sky-500 transition flex items-center gap-2 font-medium cursor-pointer"
               >
+                <Save className="w-4 h-4" />
                 حفظ كمسودة
               </button>
             </div>
