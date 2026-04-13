@@ -278,13 +278,13 @@ export default function PreAuthPage() {
             
             <div className="space-y-4">
               <div>
-                <label className="block text-xs text-slate-400 mb-1">ابحث برقم الملف (MRN) <span className="text-rose-500">*</span></label>
+                <label className="block text-xs text-slate-400 mb-1">البحث عن مريض (الاسم، رقم الملف، الهاتف) <span className="text-rose-500">*</span></label>
                 <div className="flex gap-2">
                   <input
                     value={searchMrn}
                     onChange={(e) => setSearchMrn(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && searchPatient()}
-                    placeholder="مثال: MRN-0001"
+                    placeholder="مثال: أحمد، MRN-0001، 09..."
                     className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:border-sky-500 outline-none"
                   />
                   <button onClick={searchPatient} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-sm">بحث</button>

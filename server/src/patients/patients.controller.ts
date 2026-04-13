@@ -103,6 +103,24 @@ export class PatientsController {
     });
   }
 
+  @Get('search')
+  @Roles('ADMIN', 'RECEPTION', 'DOCTOR', 'NURSE', 'CASHIER')
+  async searchPatients(
+    @CurrentUser() user: JwtPayload,
+    @Query('query') query: string,
+  ) {
+    if (!query || query.trim() === '') return [];
+    
+    const result = await this.patientsService.findAll({
+      hospitalId: user.hospitalId,
+      page: 1,
+      limit: 10,
+      search: query,
+    });
+    
+    return result.items;
+  }
+
   @Get(':id')
   @Roles('ADMIN', 'DOCTOR', 'RECEPTION', 'NURSE')
   @Sensitive('VIEW_PATIENT_PROFILE')
