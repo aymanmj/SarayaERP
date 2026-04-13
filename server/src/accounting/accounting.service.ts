@@ -49,6 +49,7 @@ const ACCOUNT_CODES = {
   CURRENT_YEAR_PROFIT: '300300', // صافي الربح/الخسارة للسنة الحالية
   VAT_INPUT: '140100', // ضريبة مدخلات قابلة للاسترداد (Asset)
   AP_SUPPLIERS: '200100', // دائنون موردون (حالياً نستخدم 200100)
+  SALES_RETURNS: '400900', // مردودات مبيعات
 } as const;
 
 type SampleAccountDef = {
@@ -274,6 +275,12 @@ const SAMPLE_COA: SampleAccountDef[] = [
   {
     code: ACCOUNT_CODES.DISCOUNT_ALLOWED,
     name: 'خصومات مسموح بها',
+    type: 'CONTRA_REVENUE',
+    parentCode: '402000',
+  },
+  {
+    code: ACCOUNT_CODES.SALES_RETURNS,
+    name: 'مردودات المبيعات (مرتجعات)',
     type: 'CONTRA_REVENUE',
     parentCode: '402000',
   },
@@ -503,6 +510,10 @@ export class AccountingService {
         {
           key: SystemAccountKey.DISCOUNT_ALLOWED,
           code: ACCOUNT_CODES.DISCOUNT_ALLOWED,
+        },
+        {
+          key: SystemAccountKey.SALES_RETURNS,
+          code: ACCOUNT_CODES.SALES_RETURNS,
         },
       ];
 
@@ -4675,34 +4686,28 @@ export class AccountingService {
     );
 
     // ✅ بناء سطور الإيرادات بناءً على الـ Split أو الافتراضي
+    // ✅ بناء سطور مردودات المبيعات (بدلاً من خصم الإيرادات مباشرة)
     const linesTocreate: any[] = [];
-    let totalRevenueDebit = 0;
+    const val = Number(creditNote.totalAmount); 
+    const totalRevenueDebit = val;
 
-    if (revenueSplit && Object.keys(revenueSplit).length > 0) {
-      for (const [key, amount] of Object.entries(revenueSplit)) {
-        const val = Number(amount);
-        if (val <= 0) continue;
-
-        const revAcc = await this.getSystemAccountOrThrow(hospitalId, key as SystemAccountKey);
-        linesTocreate.push({
-          accountId: revAcc.id,
-          debit: val,
-          credit: 0,
-          description: `مرتجع مبيعات - ${revAcc.name}`,
-        });
-        totalRevenueDebit += val;
-      }
-    } else {
-      // Fallback: Use Outpatient Revenue for everything
+    try {
+      const salesReturnsAcc = await this.getSystemAccountOrThrow(hospitalId, SystemAccountKey.SALES_RETURNS);
+      linesTocreate.push({
+        accountId: salesReturnsAcc.id,
+        debit: val,
+        credit: 0,
+        description: 'مردودات مبيعات (مرتجعات عامة)',
+      });
+    } catch (err) {
+      // Fallback in case the user hasn't successfully initialized the SALES_RETURNS mapping yet
       const defRev = await this.getSystemAccountOrThrow(hospitalId, SystemAccountKey.REVENUE_OUTPATIENT);
-      const val = Number(creditNote.totalAmount); // Assuming NO VAT for now in this fallback
       linesTocreate.push({
         accountId: defRev.id,
         debit: val,
         credit: 0,
-        description: 'مرتجع مبيعات خدمات (عام)',
+        description: 'مردودات مبيعات (طوارئ)',
       });
-      totalRevenueDebit += val;
     }
 
     // ✅ إضافة سطر الذمم (الدائن)
