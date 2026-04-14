@@ -43,6 +43,15 @@ export class ServicesController {
     return this.servicesService.findAllCategories(req.user.hospitalId);
   }
 
+  @Post('categories')
+  @Roles('ADMIN', 'ACCOUNTANT')
+  async createCategory(@Req() req: any, @Body() body: any) {
+    return this.servicesService.createCategory(req.user.hospitalId, {
+      name: body.name,
+      description: body.description,
+    });
+  }
+
   @Patch(':id')
   @Roles('ADMIN', 'ACCOUNTANT')
   async update(

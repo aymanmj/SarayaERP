@@ -80,4 +80,14 @@ export class ServicesService {
       orderBy: { name: 'asc' },
     });
   }
+
+  async createCategory(hospitalId: number, data: { name: string; description?: string }) {
+    return this.prisma.serviceCategory.create({
+      data: {
+        hospitalId,
+        name: data.name,
+        isActive: true,
+      },
+    });
+  }
 }
