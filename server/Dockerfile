@@ -27,7 +27,7 @@ ENV DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy"
 RUN npx prisma generate
 
 # البناء
-RUN npm run build
+RUN npm run build:protected
 
 # تجميع سكربت الـ Seed
 RUN npx tsc prisma/seed.ts --outDir dist/prisma --module commonjs --target es2019 --esModuleInterop --skipLibCheck --moduleResolution node
