@@ -117,7 +117,10 @@ export default function PlanRulesPage() {
     const payload: any = {
       ruleType: form.ruleType,
       copayType: form.copayType,
-      copayValue: Number(form.copayValue),
+      copayValue:
+        form.copayType === "PERCENTAGE"
+          ? Number(form.copayValue) / 100
+          : Number(form.copayValue),
       requiresApproval: form.requiresApproval,
     };
 
@@ -340,6 +343,11 @@ export default function PlanRulesPage() {
                         {c.name}
                       </option>
                     ))}
+                    {categories.length === 0 && (
+                      <option value="" disabled>
+                        لا توجد فئات (يرجى إضافتها من إعدادات الخدمات)
+                      </option>
+                    )}
                   </select>
                 ) : (
                   <div className="space-y-2">
@@ -444,10 +452,13 @@ export default function PlanRulesPage() {
                     <div className="w-1/2">
                       <input
                         type="number"
+                        step={form.copayType === "PERCENTAGE" ? "1" : "0.001"}
+                        min="0"
+                        max={form.copayType === "PERCENTAGE" ? "100" : undefined}
                         className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs font-bold text-center"
                         placeholder={
                           form.copayType === "PERCENTAGE"
-                            ? "مثلاً 0.20 (20%)"
+                            ? "مثلاً 20 (تمثل 20%)"
                             : "مثلاً 10.000"
                         }
                         value={form.copayValue}
@@ -459,7 +470,7 @@ export default function PlanRulesPage() {
                   </div>
                   <p className="text-[10px] text-slate-500 mt-2">
                     {form.copayType === "PERCENTAGE"
-                      ? `سيدفع المريض نسبة ${(Number(form.copayValue) * 100).toFixed(0)}% من سعر الخدمة.`
+                      ? `سيدفع المريض نسبة ${form.copayValue}% من سعر الخدمة.`
                       : `سيدفع المريض مبلغ ثابت ${form.copayValue} دينار.`}
                   </p>
                 </div>
