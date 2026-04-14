@@ -63,6 +63,7 @@ export class ServicesController {
       name: body.name,
       defaultPrice:
         body.defaultPrice !== undefined ? Number(body.defaultPrice) : undefined,
+      categoryId: body.categoryId !== undefined ? (body.categoryId ? Number(body.categoryId) : null) : undefined,
       isActive: body.isActive,
     });
   }

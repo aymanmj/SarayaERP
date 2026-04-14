@@ -37,6 +37,7 @@ export default function ServicesMasterPage() {
   // حالة التعديل
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editPrice, setEditPrice] = useState<string>("");
+  const [editCategoryId, setEditCategoryId] = useState<string>("");
 
   // حالة الإنشاء
   const [showCreate, setShowCreate] = useState(false);
@@ -76,12 +77,13 @@ export default function ServicesMasterPage() {
     loadData();
   }, [filterType]);
 
-  const handleUpdatePrice = async (id: number) => {
+  const handleUpdateInline = async (id: number) => {
     try {
       await apiClient.patch(`/services/${id}`, {
         defaultPrice: editPrice,
+        categoryId: editCategoryId ? Number(editCategoryId) : null,
       });
-      toast.success("تم تحديث السعر");
+      toast.success("تم تحديث بيانات الخدمة");
       setEditingId(null);
       loadData();
     } catch (err) {
@@ -211,11 +213,26 @@ export default function ServicesMasterPage() {
                     {s.type}
                   </span>
                 </td>
-                <td className="py-3 px-2 text-purple-300 font-medium">
-                  {s.category?.name || <span className="text-slate-600">—</span>}
+                <td className="py-3 px-2 text-purple-300 font-medium border-l border-slate-800/50">
+                  {editingId === s.id ? (
+                    <select
+                      className="w-full bg-slate-950 border border-purple-500 rounded px-1 py-0.5 text-xs outline-none"
+                      value={editCategoryId}
+                      onChange={(e) => setEditCategoryId(e.target.value)}
+                    >
+                      <option value="">-- بدون فئة --</option>
+                      {categories.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    s.category?.name || <span className="text-slate-600">—</span>
+                  )}
                 </td>
 
-                <td className="py-3 px-2">
+                <td className="py-3 px-2 border-l border-slate-800/50">
                   {editingId === s.id ? (
                     <div className="flex items-center gap-2">
                       <input
@@ -224,18 +241,6 @@ export default function ServicesMasterPage() {
                         onChange={(e) => setEditPrice(e.target.value)}
                         className="w-20 bg-slate-950 border border-emerald-500 rounded px-1 py-0.5 text-center outline-none"
                       />
-                      <button
-                        onClick={() => handleUpdatePrice(s.id)}
-                        className="text-emerald-400 font-bold hover:scale-110 transition"
-                      >
-                        ✔
-                      </button>
-                      <button
-                        onClick={() => setEditingId(null)}
-                        className="text-rose-400 font-bold hover:scale-110 transition"
-                      >
-                        ✕
-                      </button>
                     </div>
                   ) : (
                     <span className="text-amber-300 font-bold">
@@ -256,15 +261,33 @@ export default function ServicesMasterPage() {
                   </span>
                 </td>
                 <td className="py-3 px-2">
-                  <button
-                    onClick={() => {
-                      setEditingId(s.id);
-                      setEditPrice(String(s.defaultPrice));
-                    }}
-                    className="text-sky-400 hover:text-sky-300 text-xs"
-                  >
-                    تعديل السعر
-                  </button>
+                  {editingId === s.id ? (
+                    <div className="flex gap-2 justify-center">
+                      <button
+                        onClick={() => handleUpdateInline(s.id)}
+                        className="text-emerald-400 font-bold bg-emerald-900/30 px-2 py-1 rounded hover:scale-105 transition"
+                      >
+                        حفظ ✔
+                      </button>
+                      <button
+                        onClick={() => setEditingId(null)}
+                        className="text-rose-400 font-bold bg-rose-900/30 px-2 py-1 rounded hover:scale-105 transition"
+                      >
+                        إلغاء ✕
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        setEditingId(s.id);
+                        setEditPrice(String(s.defaultPrice));
+                        setEditCategoryId(s.category?.id ? String(s.category.id) : "");
+                      }}
+                      className="text-sky-400 hover:text-sky-300 text-xs bg-slate-800 px-3 py-1.5 rounded-lg"
+                    >
+                      تعديل ⚙️
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}

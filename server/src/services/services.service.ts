@@ -58,6 +58,7 @@ export class ServicesService {
     data: {
       name?: string;
       defaultPrice?: number;
+      categoryId?: number | null;
       isActive?: boolean;
     },
   ) {
@@ -66,6 +67,7 @@ export class ServicesService {
       data: {
         name: data.name,
         defaultPrice: data.defaultPrice,
+        categoryId: data.categoryId,
         isActive: data.isActive,
       },
     });
