@@ -8,6 +8,12 @@ function compileFileToBytecode(filePath) {
     // Some files might be better left uncompiled, like scripts that need to be run natively or config
     // We will skip main.js in the root if we want it to be a plain loader, but compiling it is fine too.
     
+    const content = fs.readFileSync(filePath, 'utf8');
+    if (content.includes('import.meta')) {
+        console.warn(`⚠️ Skipping ${filePath} (contains import.meta which breaks Bytenode)`);
+        return;
+    }
+
     console.log(`🔒 Compiling to Bytecode: ${filePath}`);
     try {
         const jscPath = filePath + 'c'; // .jsc
@@ -46,7 +52,7 @@ function processDirectory(directory) {
     }
 }
 
-const distPath = path.join(__dirname, '../dist');
+const distPath = path.join(__dirname, '../dist/src');
 
 console.log("🛡️ Starting Code Protection (V8 Bytecode Compilation via Bytenode)...");
 if (fs.existsSync(distPath)) {
