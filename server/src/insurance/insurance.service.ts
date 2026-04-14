@@ -32,14 +32,33 @@ export class InsuranceService {
     return this.prisma.insuranceProvider.findMany({
       where: {
         hospitalId,
-        isActive: true, // فقط الشركات النشطة
       },
       include: {
         _count: {
-          select: { policies: true },
+          select: { policies: true, plans: true },
+        },
+      },
+      orderBy: { name: 'asc' },
+    });
+  }
+
+  // 1.5 جلب تفاصيل شركة معينة
+  async getProviderDetails(hospitalId: number, id: number) {
+    const provider = await this.prisma.insuranceProvider.findFirst({
+      where: { hospitalId, id },
+      include: {
+        plans: {
+          include: { _count: { select: { rules: true } } },
+        },
+        policies: {
+          include: { plan: true }, // Add _count or other nested data if needed
+          orderBy: { isActive: 'desc' },
         },
       },
     });
+
+    if (!provider) throw new NotFoundException('الشركة غير موجودة');
+    return provider;
   }
 
   // 2. إنشاء شركة تأمين جديدة

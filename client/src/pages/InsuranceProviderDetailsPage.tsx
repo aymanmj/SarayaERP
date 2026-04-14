@@ -51,16 +51,11 @@ export default function InsuranceProviderDetailsPage() {
   const loadData = async () => {
     setLoading(true);
     try {
-      // نحتاج لجلب بيانات الشركة بالتفصيل (خطط + بوالص)
-      // للأسف الـ endpoint العام findAllProviders يعيد مصفوفة
-      // سنستخدمه ونبحث فيه مؤقتاً، أو الأفضل عمل endpoint getOne
-      const res = await apiClient.get<any[]>("/insurance/providers");
-      const provider = res.data.find((p) => p.id === providerId);
-
-      if (provider) {
-        setProviderName(provider.name);
-        setPlans(provider.plans || []);
-        setPolicies(provider.policies || []); // ✅
+      const res = await apiClient.get<any>(`/insurance/providers/${providerId}`);
+      if (res.data) {
+        setProviderName(res.data.name);
+        setPlans(res.data.plans || []);
+        setPolicies(res.data.policies || []);
       }
     } catch (err) {
       toast.error("فشل تحميل البيانات");
@@ -79,7 +74,7 @@ export default function InsuranceProviderDetailsPage() {
     try {
       await apiClient.post(`/insurance/providers/${providerId}/plans`, {
         name: newPlan.name,
-        defaultCopayRate: Number(newPlan.defaultCopayRate),
+        defaultCopayRate: Number(newPlan.defaultCopayRate) / 100, // تحويل النسبة المئوية إلى كسر
         maxCopayAmount: newPlan.maxCopayAmount
           ? Number(newPlan.maxCopayAmount)
           : null,
@@ -280,18 +275,22 @@ export default function InsuranceProviderDetailsPage() {
               </div>
               <div>
                 <label className="block text-slate-400 mb-1">
-                  نسبة التحمل الافتراضية (0.0 - 1.0)
+                  نسبة التحمل الافتراضية (%)
                 </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  max="1"
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2"
-                  value={newPlan.defaultCopayRate}
-                  onChange={(e) =>
-                    setNewPlan({ ...newPlan, defaultCopayRate: e.target.value })
-                  }
-                />
+                <div className="flex gap-2 items-center">
+                  <input
+                    type="number"
+                    step="1"
+                    min="0"
+                    max="100"
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2"
+                    value={newPlan.defaultCopayRate}
+                    onChange={(e) =>
+                      setNewPlan({ ...newPlan, defaultCopayRate: e.target.value })
+                    }
+                  />
+                  <span className="text-slate-500 font-bold">%</span>
+                </div>
               </div>
             </div>
             <div className="flex justify-end gap-2 pt-2">

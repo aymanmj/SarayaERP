@@ -36,6 +36,11 @@ export class InsuranceController {
     return this.insuranceService.createProvider(req.user.hospitalId, body);
   }
 
+  @Get('providers/:id')
+  async getProvider(@Req() req: any, @Param('id', ParseIntPipe) id: number) {
+    return this.insuranceService.getProviderDetails(req.user.hospitalId, id);
+  }
+
   // Policies (Updated to support planId)
   @Post('providers/:id/policies')
   @Roles('ADMIN')
