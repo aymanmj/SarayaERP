@@ -26,8 +26,20 @@ function compileFileToBytecode(filePath) {
             electron: false
         });
         
-        // Write a wrapper for the original .js file to load the .jsc file
-        const wrapperContent = `"use strict";\nrequire('bytenode');\nmodule.exports = require('./${jscBasename}');\n`;
+        // Write a wrapper for the original .js file to load the .jsc file,
+        // carefully copying properties to preserve CommonJS circular dependency references.
+        const wrapperContent = `"use strict";
+require('bytenode');
+const _ext = require('./${jscBasename}');
+const keys = Object.getOwnPropertyNames(_ext);
+for (let i = 0; i < keys.length; i++) {
+    Object.defineProperty(module.exports, keys[i], Object.getOwnPropertyDescriptor(_ext, keys[i]));
+}
+const syms = Object.getOwnPropertySymbols(_ext);
+for (let i = 0; i < syms.length; i++) {
+    Object.defineProperty(module.exports, syms[i], Object.getOwnPropertyDescriptor(_ext, syms[i]));
+}
+`;
         fs.writeFileSync(filePath, wrapperContent);
         
     } catch (error) {
