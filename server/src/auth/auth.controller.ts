@@ -75,7 +75,7 @@ export class AuthController {
     res.cookie('Authentication', at, {
       httpOnly: true,
       secure: isSecure,
-      sameSite: 'strict',
+      sameSite: 'lax',
       path: '/',
       maxAge: 15 * 60 * 1000, // 15m
     });
@@ -83,7 +83,7 @@ export class AuthController {
     res.cookie('Refresh', rt, {
       httpOnly: true,
       secure: isSecure,
-      sameSite: 'strict',
+      sameSite: 'lax',
       path: '/',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7d
     });
