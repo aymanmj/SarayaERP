@@ -58,6 +58,9 @@ export default function AndrologyPage() {
 
   // Search
   const [searchMrn, setSearchMrn] = useState("");
+  const [searchResults, setSearchResults] = useState<PatientInfo[]>([]);
+  const [showResults, setShowResults] = useState(false);
+  const [searching, setSearching] = useState(false);
 
   // Semen Analysis Form
   const [showSemenForm, setShowSemenForm] = useState(false);
@@ -92,20 +95,37 @@ export default function AndrologyPage() {
 
   const searchPatient = async () => {
     if (!searchMrn.trim()) return;
+    setSearching(true);
     try {
-      const res = await apiClient.get(`/patients?search=${searchMrn.trim()}`);
-      const patients = res.data?.data || res.data;
-      if (patients?.length > 0) {
-        const p = patients[0];
-        setPatientId(p.id);
-        setPatient(p);
-        loadPatientData(p.id);
+      const res = await apiClient.get("/patients", {
+        params: { search: searchMrn.trim(), limit: 10 },
+      });
+      const items = res.data?.items || res.data?.data || [];
+      if (items.length === 0) {
+        toast.error("لم يتم العثور على أي مريض.");
+        setSearchResults([]);
+        setShowResults(false);
+      } else if (items.length === 1) {
+        // If only one result, select it directly
+        selectPatient(items[0]);
       } else {
-        toast.error("لم يتم العثور على المريض.");
+        setSearchResults(items);
+        setShowResults(true);
       }
     } catch {
       toast.error("خطأ في البحث.");
+    } finally {
+      setSearching(false);
     }
+  };
+
+  const selectPatient = (p: any) => {
+    setPatientId(p.id);
+    setPatient({ id: p.id, fullName: p.fullName, mrn: p.mrn });
+    setShowResults(false);
+    setSearchResults([]);
+    setSearchMrn("");
+    loadPatientData(p.id);
   };
 
   const submitSemenAnalysis = async () => {
@@ -154,17 +174,43 @@ export default function AndrologyPage() {
       {!patient ? (
         <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6">
           <h2 className="text-sm font-bold text-slate-300 mb-4">🔍 البحث عن المريض</h2>
-          <div className="flex gap-3">
-            <input
-              value={searchMrn}
-              onChange={e => setSearchMrn(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && searchPatient()}
-              placeholder="اسم المريض أو رقم الملف..."
-              className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:border-cyan-500 outline-none"
-            />
-            <button onClick={searchPatient} className="bg-cyan-600 hover:bg-cyan-500 text-white px-6 py-3 rounded-xl font-bold text-sm">
-              بحث
-            </button>
+          <div className="relative">
+            <div className="flex gap-3">
+              <input
+                value={searchMrn}
+                onChange={e => setSearchMrn(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && searchPatient()}
+                placeholder="اسم المريض، رقم الملف (MRN)، أو رقم الهاتف..."
+                className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:border-cyan-500 outline-none"
+              />
+              <button onClick={searchPatient} disabled={searching} className="bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white px-6 py-3 rounded-xl font-bold text-sm">
+                {searching ? "⏳" : "بحث"}
+              </button>
+            </div>
+            {/* Search Results Dropdown */}
+            {showResults && searchResults.length > 0 && (
+              <div className="absolute top-full left-0 right-0 mt-2 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-30 max-h-60 overflow-y-auto">
+                <div className="p-2 text-[10px] text-slate-500 border-b border-slate-800 px-3">
+                  تم العثور على {searchResults.length} نتيجة — اختر المريض:
+                </div>
+                {searchResults.map(p => (
+                  <button
+                    key={p.id}
+                    onClick={() => selectPatient(p)}
+                    className="w-full text-right px-4 py-3 hover:bg-cyan-900/20 border-b border-slate-800/50 last:border-0 flex items-center gap-3 transition-colors"
+                  >
+                    <div className="w-9 h-9 bg-cyan-900/30 border border-cyan-500/20 rounded-full flex items-center justify-center text-sm flex-shrink-0">🧑</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-bold text-white truncate">{(p as any).fullName}</div>
+                      <div className="text-[10px] text-slate-400">
+                        MRN: <span className="text-cyan-400 font-mono">{(p as any).mrn}</span>
+                        {(p as any).phone && <span className="mr-3">📞 {(p as any).phone}</span>}
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       ) : (

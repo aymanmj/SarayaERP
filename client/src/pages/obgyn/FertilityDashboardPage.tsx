@@ -118,6 +118,10 @@ export default function FertilityDashboardPage() {
 
   // Case Form
   const [malePatientId, setMalePatientId] = useState<number | ''>('');
+  const [malePatientInfo, setMalePatientInfo] = useState<{ fullName: string; mrn: string } | null>(null);
+  const [maleSearch, setMaleSearch] = useState('');
+  const [maleSearchResults, setMaleSearchResults] = useState<any[]>([]);
+  const [showMaleResults, setShowMaleResults] = useState(false);
   const [infertilityType, setInfertilityType] = useState('UNEXPLAINED');
   const [diagnosis, setDiagnosis] = useState('');
   const [durationYears, setDurationYears] = useState<number | ''>('');
@@ -151,6 +155,35 @@ export default function FertilityDashboardPage() {
     try { setLoading(true); const res = await apiClient.get('/obgyn/fertility/cases'); setCases(res.data); } 
     catch { toast.error('فشل تحميل الحالات'); } 
     finally { setLoading(false); }
+  };
+
+  const searchMalePatient = async (query: string) => {
+    setMaleSearch(query);
+    if (query.trim().length < 2) {
+      setMaleSearchResults([]);
+      setShowMaleResults(false);
+      return;
+    }
+    try {
+      const res = await apiClient.get('/patients', { params: { search: query.trim(), limit: 8 } });
+      const items = res.data?.items || [];
+      setMaleSearchResults(items);
+      setShowMaleResults(items.length > 0);
+    } catch { /* ignore */ }
+  };
+
+  const selectMalePatient = (p: any) => {
+    setMalePatientId(p.id);
+    setMalePatientInfo({ fullName: p.fullName, mrn: p.mrn });
+    setMaleSearch('');
+    setMaleSearchResults([]);
+    setShowMaleResults(false);
+  };
+
+  const clearMalePatient = () => {
+    setMalePatientId('');
+    setMalePatientInfo(null);
+    setMaleSearch('');
   };
 
   const handleCreateCase = async () => {
@@ -416,9 +449,42 @@ export default function FertilityDashboardPage() {
           <CardHeader><CardTitle className="text-violet-400">فتح ملف عقم جديد</CardTitle></CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="space-y-1">
-                <Label className="text-slate-400">رقم ملف الزوج (ID) - اختياري</Label>
-                <Input type="number" value={malePatientId} onChange={e => setMalePatientId(e.target.value ? Number(e.target.value) : '')} placeholder="رقم ملف الزوج..." className="bg-slate-900 border-slate-700 text-white" />
+              <div className="space-y-1 relative md:col-span-2">
+                <Label className="text-slate-400">ملف الزوج (اختياري) — ابحث بالاسم أو رقم الملف</Label>
+                {malePatientInfo ? (
+                  <div className="flex items-center gap-2 bg-slate-900 border border-emerald-500/30 rounded-lg px-3 py-2">
+                    <span className="text-emerald-400">👨</span>
+                    <span className="text-white font-bold text-sm flex-1">{malePatientInfo.fullName}</span>
+                    <span className="text-xs text-slate-400 font-mono">MRN: {malePatientInfo.mrn}</span>
+                    <button type="button" onClick={clearMalePatient} className="text-red-400 hover:text-red-300 text-xs bg-slate-800 px-2 py-1 rounded">✕ إزالة</button>
+                  </div>
+                ) : (
+                  <Input
+                    value={maleSearch}
+                    onChange={e => searchMalePatient(e.target.value)}
+                    placeholder="ابحث عن الزوج بالاسم أو رقم الملف أو الهاتف..."
+                    className="bg-slate-900 border-slate-700 text-white"
+                    autoComplete="off"
+                  />
+                )}
+                {showMaleResults && maleSearchResults.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-slate-900 border border-slate-600 rounded-xl shadow-2xl z-40 max-h-48 overflow-y-auto">
+                    {maleSearchResults.map((p: any) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => selectMalePatient(p)}
+                        className="w-full text-right px-3 py-2.5 hover:bg-violet-900/20 border-b border-slate-800/50 last:border-0 flex items-center gap-2 transition-colors text-sm"
+                      >
+                        <span className="text-lg">👨</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-white font-bold truncate">{p.fullName}</div>
+                          <div className="text-[10px] text-slate-400">MRN: <span className="text-violet-400 font-mono">{p.mrn}</span>{p.phone && <span className="mr-2">📞 {p.phone}</span>}</div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
               <div className="space-y-1">
                 <Label className="text-slate-400">نوع العقم</Label>
