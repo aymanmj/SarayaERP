@@ -23,13 +23,17 @@ export class Hl7Consumer extends WorkerHost {
         data: { status: 'PROCESSING' },
       });
 
-      // 2. تحليل الرسالة (نقلنا منطق handleORU إلى هنا)
+      // 2. تحليل الرسالة (Routing logic)
       const segments = rawMessage.split(/[\r\n]+/);
       const msh = segments[0].split('|');
-      const msgType = msh[8]; // e.g. ORU^R01
+      const msgType = msh[8]; // e.g. ORU^R01 or ADT^A01
 
       if (msgType && msgType.includes('ORU')) {
         await this.handleORU(segments);
+      } else if (msgType && msgType.includes('ADT')) {
+        await this.handleADT(segments);
+      } else {
+        this.logger.warn(`⚠️ Unhandled HL7 Message Type: ${msgType}`);
       }
 
       // 3. التحديث عند النجاح
@@ -183,6 +187,80 @@ export class Hl7Consumer extends WorkerHost {
       await this.prisma.order.update({
         where: { id: order.id },
         data: { status: 'COMPLETED', completedAt: new Date() },
+      });
+    }
+  }
+
+  // --- منطق معالجة المرضى (HL7 ADT) ---
+  private async handleADT(segments: string[]) {
+    // Basic Parsing of ADT^A01 (Admit), ADT^A04 (Register), ADT^A08 (Update)
+    let pidFields: string[] = [];
+    
+    for (const seg of segments) {
+      if (seg.startsWith('PID|')) {
+        pidFields = seg.split('|');
+        break;
+      }
+    }
+
+    if (pidFields.length === 0) {
+      this.logger.warn('Received ADT message without PID segment.');
+      return;
+    }
+
+    const mrnList = pidFields[3]; // e.g., MRN12345^^^Hospital^MR
+    const mrn = mrnList ? mrnList.split('^')[0] : null;
+    
+    const nameList = pidFields[5]; // e.g., Doe^John
+    const fullName = nameList ? nameList.split('^').filter(Boolean).reverse().join(' ') : 'Unknown Patient';
+    
+    const dobString = pidFields[7]; // YYYYMMDD
+    let dob: Date | undefined;
+    if (dobString && dobString.length >= 8) {
+      const year = parseInt(dobString.substring(0, 4));
+      const month = parseInt(dobString.substring(4, 6)) - 1;
+      const day = parseInt(dobString.substring(6, 8));
+      dob = new Date(year, month, day);
+    }
+    
+    const genderCode = pidFields[8]; // M or F
+    const gender = genderCode === 'M' ? 'MALE' : (genderCode === 'F' ? 'FEMALE' : 'UNKNOWN');
+    
+    const phone = pidFields[13] ? pidFields[13].split('^')[0] : null;
+
+    if (!mrn) {
+      throw new Error('ADT Message rejected: No MRN provided.');
+    }
+
+    // Try to find if patient exists
+    let patient = await this.prisma.patient.findFirst({
+      where: { mrn },
+    });
+
+    if (patient) {
+      this.logger.log(`🔄 ADT Sync: Updating existing patient MRN: ${mrn}`);
+      await this.prisma.patient.update({
+        where: { id: patient.id },
+        data: {
+          fullName: fullName !== 'Unknown Patient' ? fullName : undefined,
+          dateOfBirth: dob ?? undefined,
+          gender: gender as any,
+          phone: phone || undefined,
+        }
+      });
+    } else {
+      this.logger.log(`✨ ADT Sync: Creating new patient MRN: ${mrn}`);
+      await this.prisma.patient.create({
+        data: {
+          mrn,
+          fullName,
+          dateOfBirth: dob,
+          gender: gender as any,
+          phone: phone || null,
+          isActive: true,
+          // Assign to hospital 1 by default for HL7 syncing if no context
+          hospitalId: 1
+        }
       });
     }
   }
