@@ -48,24 +48,37 @@ export class AnalyticsService {
       return sum + qty * cost;
     }, 0);
 
-    // 4. الإيرادات (تقريبي بناء على الوصفات المصروفة اليوم)
-    // هذا مؤقت حتى نربط مع نظام الفواتير
-    const dispensesToday = await this.prisma.stockTransaction.aggregate({
-        _sum: { totalCost: true },
+    // 4. الإيرادات اليومية الفعلية (Actual Daily Revenue from Billing)
+    const invoicesToday = await this.prisma.invoice.aggregate({
+        _sum: { totalAmount: true },
         where: {
             hospitalId,
             createdAt: { gte: today },
-            type: 'OUT'
+            status: { in: ['ISSUED', 'PAID'] },
+            type: { not: 'CREDIT_NOTE' }
+        }
+    });
+
+    const creditNotesToday = await this.prisma.invoice.aggregate({
+        _sum: { totalAmount: true },
+        where: {
+            hospitalId,
+            createdAt: { gte: today },
+            status: 'PAID',
+            type: 'CREDIT_NOTE'
         }
     });
     
-    const revenueEstimate = Number(dispensesToday._sum.totalCost || 0) * 1.2; // هامش ربح 20% تقديري
+    // Revenue is Gross Billed amount minus Credit Notes
+    const grossRevenue = Number(invoicesToday._sum.totalAmount || 0);
+    const returnsValue = Number(creditNotesToday._sum.totalAmount || 0);
+    const actualRevenue = grossRevenue - returnsValue;
 
     return {
       dailyVisits,
       activeInpatients,
       inventoryValue: Math.round(inventoryValue),
-      dailyRevenue: Math.round(revenueEstimate),
+      dailyRevenue: Math.round(actualRevenue),
       lastUpdated: new Date(),
     };
   }
