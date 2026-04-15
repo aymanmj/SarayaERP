@@ -469,6 +469,7 @@ model Patient {
   hormoneTests         HormoneTest[]
   andrologySurgeries   AndrologySurgery[]
   andrologyMedications AndrologyMedication[]
+  andrologyInvestigations AndrologyInvestigation[]
   // Consent Forms
   consentForms ConsentForm[]
 
@@ -1312,6 +1313,30 @@ model AndrologyMedication {
   updatedAt   DateTime  @updatedAt
 
   patient     Patient   @relation(fields: [patientId], references: [id])
+}
+
+// ==========================================
+// 🔬 الفحوصات الطبية الذكورية (Andrology Investigations)
+// ==========================================
+
+model AndrologyInvestigation {
+  id              Int      @id @default(autoincrement())
+  patientId       Int
+  investigationDate DateTime @default(now())
+
+  type            String   // Scrotal US, TRUS, Doppler, Karyotype, Y-microdeletion, CFTR, Diagnostic Biopsy, etc.
+  facilityName    String?  // اسم المختبر أو المركز (خارجي أو داخلي)
+  
+  findings        String   @db.Text
+  interpretation  String?  @db.Text
+  normalRange     String?
+  attachmentUrl   String?
+  notes           String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  patient         Patient  @relation(fields: [patientId], references: [id])
 }
 
 // ==========================================

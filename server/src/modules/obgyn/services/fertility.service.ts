@@ -15,6 +15,7 @@ import {
   CreateHormoneTestDto,
   CreateAndrologySurgeryDto,
   CreateAndrologyMedicationDto,
+  CreateAndrologyInvestigationDto,
 } from '../dto/fertility.dto';
 
 @Injectable()
@@ -548,6 +549,39 @@ export class FertilityService {
     return this.prisma.andrologyMedication.findMany({
       where: { patientId },
       orderBy: { startDate: 'desc' },
+    });
+  }
+
+  // ===================== Andrology Investigations =====================
+
+  async createAndrologyInvestigation(hospitalId: number, dto: CreateAndrologyInvestigationDto) {
+    const patient = await this.prisma.patient.findUnique({ where: { id: dto.patientId } });
+    if (!patient || patient.hospitalId !== hospitalId) {
+      throw new NotFoundException('المريض غير موجود.');
+    }
+    return this.prisma.andrologyInvestigation.create({
+      data: {
+        patientId: dto.patientId,
+        investigationDate: dto.investigationDate ? new Date(dto.investigationDate) : new Date(),
+        type: dto.type,
+        facilityName: dto.facilityName,
+        findings: dto.findings,
+        interpretation: dto.interpretation,
+        normalRange: dto.normalRange,
+        attachmentUrl: dto.attachmentUrl,
+        notes: dto.notes,
+      },
+    });
+  }
+
+  async getAndrologyInvestigations(hospitalId: number, patientId: number) {
+    const patient = await this.prisma.patient.findUnique({ where: { id: patientId } });
+    if (!patient || patient.hospitalId !== hospitalId) {
+      throw new NotFoundException('المريض غير موجود.');
+    }
+    return this.prisma.andrologyInvestigation.findMany({
+      where: { patientId },
+      orderBy: { investigationDate: 'desc' },
     });
   }
 

@@ -127,4 +127,53 @@ export type AndrologyMedication = {
   createdAt: string;
 };
 
+export type AndrologyInvestigation = {
+  id: number;
+  patientId: number;
+  investigationDate: string;
+  type: string;
+  facilityName?: string;
+  findings: string;
+  interpretation?: string;
+  normalRange?: string;
+  attachmentUrl?: string;
+  notes?: string;
+  createdAt: string;
+};
+
+export type CryoTank = {
+  id: number;
+  hospitalId: number;
+  code: string;
+  name: string;
+  location?: string;
+  canisters: CryoCanister[];
+};
+
+export type CryoCanister = {
+  id: number;
+  tankId: number;
+  code: string;
+  _count?: { items: number };
+  items?: CryoItem[];
+};
+
+export type CryoItem = {
+  id: number;
+  canisterId: number;
+  patientId: number;
+  itemType: 'SPERM' | 'OOCYTES' | 'EMBRYO_D3' | 'EMBRYO_D5' | 'TESTICULAR_TISSUE';
+  freezeDate: string;
+  thawDate?: string;
+  status: 'FROZEN' | 'THAWED' | 'DISCARDED' | 'TRANSFERRED_OUT';
+  caneCode?: string;
+  gobletColor?: string;
+  visotubeColor?: string;
+  strawCount: number;
+  description?: string;
+  ivfCycleId?: number;
+  patient?: { id: number; fullName: string; mrn: string };
+  canister?: { tank: { code: string; name: string } };
+};
+
 export type PatientInfo = { id: number; fullName: string; mrn: string; phone?: string; };

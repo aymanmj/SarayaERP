@@ -790,3 +790,42 @@ export class CreateAndrologyMedicationDto {
   @IsOptional()
   notes?: string;
 }
+
+// ==========================================
+// Andrology Investigation
+// ==========================================
+
+export class CreateAndrologyInvestigationDto {
+  @IsInt()
+  patientId: number;
+
+  @IsDateString()
+  @IsOptional()
+  investigationDate?: string;
+
+  @IsString()
+  type: string;
+
+  @IsString()
+  @IsOptional()
+  facilityName?: string;
+
+  @IsString()
+  findings: string;
+
+  @IsString()
+  @IsOptional()
+  interpretation?: string;
+
+  @IsString()
+  @IsOptional()
+  normalRange?: string;
+
+  @IsString()
+  @IsOptional()
+  attachmentUrl?: string;
+
+  @IsString()
+  @IsOptional()
+  notes?: string;
+}

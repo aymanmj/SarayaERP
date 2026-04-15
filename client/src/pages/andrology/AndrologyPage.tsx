@@ -2,12 +2,15 @@ import { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { apiClient } from "../../api/apiClient";
 import { toast } from "sonner";
-import { PatientInfo, SemenAnalysis, AndrologyVisit, HormoneTest, AndrologySurgery, AndrologyMedication } from "./types";
+import { PatientInfo, SemenAnalysis, AndrologyVisit, HormoneTest, AndrologySurgery, AndrologyMedication, AndrologyInvestigation } from "./types";
 import SemenAnalysisForm from "./components/SemenAnalysisForm";
 import AndrologyVisitForm from "./components/AndrologyVisitForm";
 import HormoneTestForm from "./components/HormoneTestForm";
 import AndrologySurgeryForm from "./components/AndrologySurgeryForm";
 import AndrologyMedicationForm from "./components/AndrologyMedicationForm";
+import AndrologyInvestigationForm from "./components/AndrologyInvestigationForm";
+import AndrologyReportPrint from "./components/AndrologyReportPrint";
+import CryoBankPanel from "./components/CryoBankPanel";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from "recharts";
 
 export default function AndrologyPage() {
@@ -21,9 +24,10 @@ export default function AndrologyPage() {
   const [hormones, setHormones] = useState<HormoneTest[]>([]);
   const [surgeries, setSurgeries] = useState<AndrologySurgery[]>([]);
   const [medications, setMedications] = useState<AndrologyMedication[]>([]);
+  const [investigations, setInvestigations] = useState<AndrologyInvestigation[]>([]);
   
   const [loading, setLoading] = useState(false);
-  const [tab, setTab] = useState<"OVERVIEW" | "SEMEN" | "HORMONES" | "ANDROLOGY" | "SURGERY" | "MEDICATION">("OVERVIEW");
+  const [tab, setTab] = useState<"OVERVIEW" | "SEMEN" | "HORMONES" | "ANDROLOGY" | "SURGERY" | "MEDICATION" | "INVESTIGATION" | "CRYO">("OVERVIEW");
 
   // Search
   const [searchMrn, setSearchMrn] = useState("");
@@ -37,24 +41,28 @@ export default function AndrologyPage() {
   const [showHormoneForm, setShowHormoneForm] = useState(false);
   const [showSurgeryForm, setShowSurgeryForm] = useState(false);
   const [showMedicationForm, setShowMedicationForm] = useState(false);
+  const [showInvestigationForm, setShowInvestigationForm] = useState(false);
+  const [showReportPrint, setShowReportPrint] = useState(false);
 
   const loadPatientData = useCallback(async (pid: number) => {
     setLoading(true);
     try {
-      const [semenRes, visitRes, hormoneRes, surgeryRes, medRes] = await Promise.all([
+      const [semenRes, visitRes, hormoneRes, surgeryRes, medRes, invRes] = await Promise.all([
         apiClient.get(`/obgyn/fertility/semen-analysis/patient/${pid}`),
         apiClient.get(`/obgyn/fertility/andrology/patient/${pid}`),
         apiClient.get(`/obgyn/fertility/hormone-tests/patient/${pid}`),
         apiClient.get(`/obgyn/fertility/andrology/surgeries/patient/${pid}`),
         apiClient.get(`/obgyn/fertility/andrology/medications/patient/${pid}`),
+        apiClient.get(`/obgyn/fertility/andrology/investigations/patient/${pid}`),
       ]);
       setAnalyses(semenRes.data);
       setVisits(visitRes.data);
       setHormones(hormoneRes.data);
       setSurgeries(surgeryRes.data);
       setMedications(medRes.data);
+      setInvestigations(invRes.data);
     } catch {
-      // Data might not exist
+      // Data might not exist yet
     } finally {
       setLoading(false);
     }
@@ -161,6 +169,18 @@ export default function AndrologyPage() {
     }
   };
 
+  const submitInvestigation = async (data: Partial<AndrologyInvestigation>) => {
+    if (!patientId) return;
+    try {
+      await apiClient.post("/obgyn/fertility/andrology/investigations", { ...data, patientId });
+      toast.success("تم حفظ الفحص الطبي بنجاح.");
+      setShowInvestigationForm(false);
+      loadPatientData(patientId);
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || "فشل الحفظ.");
+    }
+  };
+
   const fmtDate = (d?: string) => d ? new Date(d).toLocaleDateString("ar-LY") : "—";
   const fmtNum = (n?: number | null) => n != null ? Number(n).toFixed(1) : "—";
 
@@ -181,6 +201,10 @@ export default function AndrologyPage() {
     FSH: h.fsh ? Number(h.fsh) : 0,
     Testosterone: h.totalTestosterone ? Number(h.totalTestosterone) : 0,
   }));
+
+  const clearPatient = () => {
+    setPatient(null); setPatientId(null); setAnalyses([]); setVisits([]); setHormones([]); setSurgeries([]); setMedications([]); setInvestigations([]);
+  };
 
   return (
     <div className="p-6 space-y-6 text-slate-100 max-w-7xl mx-auto" dir="rtl">
@@ -250,33 +274,44 @@ export default function AndrologyPage() {
               </div>
             </div>
           </div>
-          <button onClick={() => { setPatient(null); setPatientId(null); setAnalyses([]); setVisits([]); setHormones([]); setSurgeries([]); setMedications([]); }} className="text-xs font-medium text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-700 px-4 py-2 rounded-xl transition-colors border border-slate-700">
-            🔄 تغيير المريض
-          </button>
+          <div className="flex items-center gap-3">
+            <button onClick={() => setShowReportPrint(true)} className="bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-lg border-2 border-blue-400/20 flex items-center gap-2">
+              🖨️ التقرير الطبي
+            </button>
+            <button onClick={clearPatient} className="text-xs font-medium text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-700 px-4 py-2.5 rounded-xl transition-colors border border-slate-700 flex items-center gap-2">
+              🔄 مريض آخر
+            </button>
+          </div>
         </div>
       )}
 
       {/* Tabs */}
       {patient && (
         <div className="bg-slate-900/40 rounded-3xl p-6 border border-slate-800 shadow-2xl backdrop-blur-sm">
-          <div className="flex flex-wrap gap-2 border-b border-slate-800 mb-6">
-            <button onClick={() => setTab("OVERVIEW")} className={`px-5 py-3 rounded-t-2xl text-sm font-bold transition-all ${tab === "OVERVIEW" ? "bg-slate-800/80 text-white border-t border-x border-slate-700 shadow-[0_-4px_10px_-2px_rgba(0,0,0,0.3)]" : "text-slate-400 hover:bg-slate-800/30 hover:text-slate-200"}`}>
+          <div className="flex flex-wrap gap-2 border-b border-slate-800 mb-6 overflow-x-auto hide-scroll">
+            <button onClick={() => setTab("OVERVIEW")} className={`shrink-0 px-5 py-3 rounded-t-2xl text-sm font-bold transition-all ${tab === "OVERVIEW" ? "bg-slate-800/80 text-white border-t border-x border-slate-700 shadow-[0_-4px_10px_-2px_rgba(0,0,0,0.3)]" : "text-slate-400 hover:bg-slate-800/30 hover:text-slate-200"}`}>
               📊 لوحة التحكم
             </button>
-            <button onClick={() => setTab("SEMEN")} className={`px-5 py-3 rounded-t-2xl text-sm font-bold transition-all ${tab === "SEMEN" ? "bg-slate-800/80 text-emerald-400 border-t border-x border-slate-700 shadow-[0_-4px_10px_-2px_rgba(16,185,129,0.15)]" : "text-slate-400 hover:bg-slate-800/30 hover:text-slate-200"}`}>
+            <button onClick={() => setTab("SEMEN")} className={`shrink-0 px-5 py-3 rounded-t-2xl text-sm font-bold transition-all ${tab === "SEMEN" ? "bg-slate-800/80 text-emerald-400 border-t border-x border-slate-700 shadow-[0_-4px_10px_-2px_rgba(16,185,129,0.15)]" : "text-slate-400 hover:bg-slate-800/30 hover:text-slate-200"}`}>
               🔬 السائل المنوي
             </button>
-            <button onClick={() => setTab("HORMONES")} className={`px-5 py-3 rounded-t-2xl text-sm font-bold transition-all ${tab === "HORMONES" ? "bg-slate-800/80 text-pink-400 border-t border-x border-slate-700 shadow-[0_-4px_10px_-2px_rgba(236,72,153,0.15)]" : "text-slate-400 hover:bg-slate-800/30 hover:text-slate-200"}`}>
+            <button onClick={() => setTab("HORMONES")} className={`shrink-0 px-5 py-3 rounded-t-2xl text-sm font-bold transition-all ${tab === "HORMONES" ? "bg-slate-800/80 text-pink-400 border-t border-x border-slate-700 shadow-[0_-4px_10px_-2px_rgba(236,72,153,0.15)]" : "text-slate-400 hover:bg-slate-800/30 hover:text-slate-200"}`}>
               🩸 الهرمونات
             </button>
-            <button onClick={() => setTab("ANDROLOGY")} className={`px-5 py-3 rounded-t-2xl text-sm font-bold transition-all ${tab === "ANDROLOGY" ? "bg-slate-800/80 text-cyan-400 border-t border-x border-slate-700 shadow-[0_-4px_10px_-2px_rgba(6,182,212,0.15)]" : "text-slate-400 hover:bg-slate-800/30 hover:text-slate-200"}`}>
+            <button onClick={() => setTab("ANDROLOGY")} className={`shrink-0 px-5 py-3 rounded-t-2xl text-sm font-bold transition-all ${tab === "ANDROLOGY" ? "bg-slate-800/80 text-cyan-400 border-t border-x border-slate-700 shadow-[0_-4px_10px_-2px_rgba(6,182,212,0.15)]" : "text-slate-400 hover:bg-slate-800/30 hover:text-slate-200"}`}>
               🩺 الزيارات
             </button>
-            <button onClick={() => setTab("SURGERY")} className={`px-5 py-3 rounded-t-2xl text-sm font-bold transition-all ${tab === "SURGERY" ? "bg-slate-800/80 text-orange-400 border-t border-x border-slate-700 shadow-[0_-4px_10px_-2px_rgba(249,115,22,0.15)]" : "text-slate-400 hover:bg-slate-800/30 hover:text-slate-200"}`}>
+            <button onClick={() => setTab("SURGERY")} className={`shrink-0 px-5 py-3 rounded-t-2xl text-sm font-bold transition-all ${tab === "SURGERY" ? "bg-slate-800/80 text-orange-400 border-t border-x border-slate-700 shadow-[0_-4px_10px_-2px_rgba(249,115,22,0.15)]" : "text-slate-400 hover:bg-slate-800/30 hover:text-slate-200"}`}>
               🔪 الجراحات
             </button>
-            <button onClick={() => setTab("MEDICATION")} className={`px-5 py-3 rounded-t-2xl text-sm font-bold transition-all ${tab === "MEDICATION" ? "bg-slate-800/80 text-violet-400 border-t border-x border-slate-700 shadow-[0_-4px_10px_-2px_rgba(139,92,246,0.15)]" : "text-slate-400 hover:bg-slate-800/30 hover:text-slate-200"}`}>
+            <button onClick={() => setTab("MEDICATION")} className={`shrink-0 px-5 py-3 rounded-t-2xl text-sm font-bold transition-all ${tab === "MEDICATION" ? "bg-slate-800/80 text-violet-400 border-t border-x border-slate-700 shadow-[0_-4px_10px_-2px_rgba(139,92,246,0.15)]" : "text-slate-400 hover:bg-slate-800/30 hover:text-slate-200"}`}>
               💊 الأدوية
+            </button>
+            <button onClick={() => setTab("INVESTIGATION")} className={`shrink-0 px-5 py-3 rounded-t-2xl text-sm font-bold transition-all ${tab === "INVESTIGATION" ? "bg-slate-800/80 text-indigo-400 border-t border-x border-slate-700 shadow-[0_-4px_10px_-2px_rgba(99,102,241,0.15)]" : "text-slate-400 hover:bg-slate-800/30 hover:text-slate-200"}`}>
+              🔬 الفحوصات (Investigations)
+            </button>
+            <button onClick={() => setTab("CRYO")} className={`shrink-0 px-5 py-3 rounded-t-2xl text-sm font-bold transition-all ${tab === "CRYO" ? "bg-slate-800/80 text-cyan-300 border-t border-x border-slate-700 shadow-[0_-4px_10px_-2px_rgba(103,232,249,0.15)]" : "text-slate-400 hover:bg-slate-800/30 hover:text-slate-200"}`}>
+              ❄️ بنك التجميد
             </button>
           </div>
 
@@ -396,6 +431,12 @@ export default function AndrologyPage() {
                         <div className="min-w-[200px] shrink-0 bg-emerald-950/20 border border-emerald-900/50 p-4 rounded-xl flex items-center gap-3 snap-start">
                           <div className="text-2xl mt-1 opacity-80">🔬</div>
                           <div><div className="text-[10px] text-emerald-400 font-mono">{fmtDate(analyses[0].sampleDate)}</div><div className="text-sm font-bold text-white truncate max-w-[150px]">سائل منوي</div><div className="text-xs text-slate-400">{analyses[0].autoClassification?.substring(0,15) || "-"}</div></div>
+                        </div>
+                      )}
+                      {investigations[0] && (
+                        <div className="min-w-[200px] shrink-0 bg-indigo-950/20 border border-indigo-900/50 p-4 rounded-xl flex items-center gap-3 snap-start">
+                          <div className="text-2xl mt-1 opacity-80">🩻</div>
+                          <div><div className="text-[10px] text-indigo-400 font-mono">{fmtDate(investigations[0].investigationDate)}</div><div className="text-sm font-bold text-white truncate max-w-[150px]">{investigations[0].type}</div><div className="text-xs text-slate-400">فحص وتصوير</div></div>
                         </div>
                       )}
                     </div>
@@ -622,6 +663,55 @@ export default function AndrologyPage() {
                 )}
               </div>
             )}
+
+            {/* === INVESTIGATIONS TAB === */}
+            {tab === "INVESTIGATION" && (
+              <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <div className="flex justify-between items-center bg-slate-900/50 p-4 rounded-2xl border border-slate-800">
+                  <h3 className="text-base font-bold text-indigo-400 flex items-center gap-2">🔬<span className="mt-0.5">الفحوصات الطبية المتقدمة</span></h3>
+                  <button onClick={() => setShowInvestigationForm(true)} className="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 shadow-lg shadow-indigo-900/50 transition-all">
+                    ➕ إرفاق فحص جديد
+                  </button>
+                </div>
+                
+                {investigations.length === 0 ? (
+                  <div className="text-center text-slate-500 py-16 bg-slate-900/30 rounded-3xl border border-slate-800/50 border-dashed">
+                    <p className="text-5xl mb-4 opacity-50">🩻</p>
+                    <p className="font-medium">لا توجد فحوصات أو صور أشعة مسجلة.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {investigations.map(inv => (
+                      <div key={inv.id} className="bg-slate-900/60 border border-slate-700/60 hover:border-indigo-500/40 rounded-2xl p-6 transition-colors shadow-sm relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-2 h-full bg-indigo-500 rounded-r-2xl opacity-50"></div>
+                        <div className="flex justify-between items-center mb-4 pb-3 border-b border-slate-800/60">
+                          <div>
+                            <h4 className="text-lg font-bold text-white inline-flex items-center gap-2">
+                              {inv.type}
+                            </h4>
+                            <div className="text-xs text-indigo-200 mt-1">تاريخ الفحص: <span className="font-mono">{fmtDate(inv.investigationDate)}</span></div>
+                          </div>
+                          {inv.facilityName && <div className="text-xs text-slate-400 bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800">المختبر: {inv.facilityName}</div>}
+                        </div>
+                        <div className="space-y-3 text-sm mt-3">
+                          <div><span className="text-slate-500 text-xs block mb-1">النتائج الفنية (Findings):</span> <div className="text-slate-200 bg-slate-950/50 p-4 rounded-xl text-sm leading-relaxed border border-slate-800/50 whitespace-pre-wrap">{inv.findings}</div></div>
+                          {inv.interpretation && <div><span className="text-slate-500 text-xs block mb-1">التفسير والخلاصة (Interpretation):</span> <div className="text-indigo-100 font-medium mt-1 bg-indigo-950/20 border border-indigo-900/30 p-3 rounded-xl text-sm">{inv.interpretation}</div></div>}
+                          <div className="flex gap-4">
+                            {inv.normalRange && <div className="text-xs text-slate-400"><span className="text-slate-500">Normal Range:</span> {inv.normalRange}</div>}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* === CRYO BANK TAB === */}
+            {tab === "CRYO" && patient && (
+              <CryoBankPanel patientId={patientId!} patientName={patient.fullName} />
+            )}
+
           </div>
         </div>
       )}
@@ -632,6 +722,19 @@ export default function AndrologyPage() {
       {showHormoneForm && <HormoneTestForm onSave={submitHormoneTest} onCancel={() => setShowHormoneForm(false)} />}
       {showSurgeryForm && <AndrologySurgeryForm onSave={submitSurgery} onCancel={() => setShowSurgeryForm(false)} />}
       {showMedicationForm && <AndrologyMedicationForm onSave={submitMedication} onCancel={() => setShowMedicationForm(false)} />}
+      {showInvestigationForm && <AndrologyInvestigationForm onSave={submitInvestigation} onCancel={() => setShowInvestigationForm(false)} />}
+      
+      {showReportPrint && patient && (
+        <AndrologyReportPrint 
+          patient={patient} 
+          analyses={analyses} 
+          hormones={hormones} 
+          surgeries={surgeries} 
+          medications={medications} 
+          visits={visits} 
+          onClose={() => setShowReportPrint(false)} 
+        />
+      )}
     </div>
   );
 }
