@@ -48,25 +48,50 @@ export default function AndrologyReportPrint({ patient, analyses, hormones, surg
       <style>{`
         @media print {
           @page {
-            size: A4;
-            margin: 12mm 10mm;
+            size: A4 portrait;
+            margin: 10mm 8mm;
           }
-          body > *:not(.andrology-report-overlay) {
-            display: none !important;
+          /* Hide EVERYTHING in the app */
+          body * {
+            visibility: hidden !important;
           }
+          /* Show ONLY the report overlay and its children */
+          .andrology-report-overlay,
+          .andrology-report-overlay * {
+            visibility: visible !important;
+          }
+          /* Reset the overlay positioning for print */
           .andrology-report-overlay {
-            position: static !important;
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            width: 100% !important;
             background: white !important;
+            overflow: visible !important;
+            z-index: 99999 !important;
           }
+          /* Hide the action bar during print */
           .andrology-report-overlay .print-hidden {
             display: none !important;
+            visibility: hidden !important;
           }
+          /* Make the paper fill the print area cleanly */
           .andrology-report-overlay .report-paper {
             box-shadow: none !important;
             margin: 0 !important;
-            padding: 0 !important;
+            padding: 6mm 8mm !important;
             max-width: 100% !important;
+            width: 100% !important;
             min-height: auto !important;
+            border: none !important;
+          }
+          /* Ensure body & html don't add extra space */
+          html, body {
+            margin: 0 !important;
+            padding: 0 !important;
+            height: auto !important;
+            overflow: visible !important;
           }
         }
       `}</style>
