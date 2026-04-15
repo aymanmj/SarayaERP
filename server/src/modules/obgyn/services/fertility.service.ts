@@ -12,6 +12,7 @@ import {
   CreateCryoCanisterDto,
   CreateCryoItemDto,
   ThawCryoItemDto,
+  CreateHormoneTestDto,
 } from '../dto/fertility.dto';
 
 @Injectable()
@@ -279,6 +280,30 @@ export class FertilityService {
 
   // ===================== Semen Analysis (أمراض الذكورة) =====================
 
+  private calculateWHOClassification(dto: CreateSemenAnalysisDto): string | null {
+    if (!dto.countMilPerMl) return null;
+
+    const count = dto.countMilPerMl;
+    const motilityPR = dto.progressivePR ?? 0;
+    const morphologyNormal = dto.normalForms ?? 0;
+
+    if (count === 0) return 'AZOOSPERMIA';
+
+    const isOligo = count < 16;
+    const isAstheno = motilityPR < 30;
+    const isTerato = morphologyNormal < 4;
+
+    if (isOligo && isAstheno && isTerato) return 'OAT (Oligoasthenoteratozoospermia)';
+    if (isOligo && isAstheno) return 'Oligoasthenozoospermia';
+    if (isOligo && isTerato) return 'Oligoteratozoospermia';
+    if (isAstheno && isTerato) return 'Asthenoteratozoospermia';
+    if (isOligo) return 'Oligozoospermia';
+    if (isAstheno) return 'Asthenozoospermia';
+    if (isTerato) return 'Teratozoospermia';
+
+    return 'NORMOZOOSPERMIA';
+  }
+
   async createSemenAnalysis(hospitalId: number, dto: CreateSemenAnalysisDto) {
     const patient = await this.prisma.patient.findUnique({
       where: { id: dto.patientId },
@@ -287,27 +312,46 @@ export class FertilityService {
       throw new NotFoundException('المريض غير موجود.');
     }
 
+    const totalMotility = (dto.progressivePR || 0) + (dto.nonProgressiveNP || 0);
+    const autoClassification = this.calculateWHOClassification(dto);
+
     return this.prisma.semenAnalysis.create({
       data: {
         patientId: dto.patientId,
         fertilityCaseId: dto.fertilityCaseId,
         sampleDate: dto.sampleDate ? new Date(dto.sampleDate) : new Date(),
         abstinenceDays: dto.abstinenceDays,
+        collectionMethod: dto.collectionMethod,
+        collectionTime: dto.collectionTime ? new Date(dto.collectionTime) : null,
+        analysisTime: dto.analysisTime ? new Date(dto.analysisTime) : null,
         volumeMl: dto.volumeMl,
         ph: dto.ph,
+        appearance: dto.appearance,
+        color: dto.color,
         viscosity: dto.viscosity,
         liquefaction: dto.liquefaction,
+        liquefactionMinutes: dto.liquefactionMinutes,
         countMilPerMl: dto.countMilPerMl,
         totalCountMil: dto.totalCountMil,
         progressivePR: dto.progressivePR,
         nonProgressiveNP: dto.nonProgressiveNP,
         immotileIM: dto.immotileIM,
+        totalMotility: totalMotility > 0 ? totalMotility : undefined,
         normalForms: dto.normalForms,
+        headDefects: dto.headDefects,
+        midpieceDefects: dto.midpieceDefects,
+        tailDefects: dto.tailDefects,
         vitality: dto.vitality,
         wbcCount: dto.wbcCount,
+        roundCells: dto.roundCells,
         agglutination: dto.agglutination,
+        marTestIgG: dto.marTestIgG,
+        marTestIgA: dto.marTestIgA,
+        dnaFragmentation: dto.dnaFragmentation,
+        dfiMethod: dto.dfiMethod,
         conclusion: dto.conclusion,
         doctorNotes: dto.doctorNotes,
+        autoClassification,
       },
       include: {
         patient: { select: { id: true, fullName: true, mrn: true } },
@@ -341,16 +385,46 @@ export class FertilityService {
         patientId: dto.patientId,
         encounterId: dto.encounterId,
         fertilityCaseId: dto.fertilityCaseId,
+        chiefComplaint: dto.chiefComplaint,
+        infertilityMonths: dto.infertilityMonths,
+        previousPregnancies: dto.previousPregnancies,
+        coitalFrequency: dto.coitalFrequency,
         erectileDisfunc: dto.erectileDisfunc ?? false,
+        ejaculatoryDisfunc: dto.ejaculatoryDisfunc ?? false,
+        retrogradeEjac: dto.retrogradeEjac ?? false,
+        libidoLevel: dto.libidoLevel,
+        prematureEjac: dto.prematureEjac ?? false,
         smokingHabit: dto.smokingHabit,
+        alcoholUse: dto.alcoholUse,
+        occupationalExposure: dto.occupationalExposure,
+        bmi: dto.bmi,
+        cryptorchidismHistory: dto.cryptorchidismHistory ?? false,
+        orchitisHistory: dto.orchitisHistory ?? false,
+        inguinalSurgery: dto.inguinalSurgery ?? false,
+        chemotherapy: dto.chemotherapy ?? false,
+        radiationExposure: dto.radiationExposure ?? false,
+        currentMedications: dto.currentMedications,
+        surgicalHistory: dto.surgicalHistory,
+        medicalConditions: dto.medicalConditions,
         varicoceleGrade: dto.varicoceleGrade,
-        testicularVol: dto.testicularVol,
+        varicoceleRight: dto.varicoceleRight,
+        varicoceleLeft: dto.varicoceleLeft,
+        testicularVolR: dto.testicularVolR,
+        testicularVolL: dto.testicularVolL,
+        testisConsistency: dto.testisConsistency,
+        epididymalFindings: dto.epididymalFindings,
+        vasPresence: dto.vasPresence,
+        penileExam: dto.penileExam,
+        gynecomastia: dto.gynecomastia ?? false,
+        bodyHairPattern: dto.bodyHairPattern,
         fshLevel: dto.fshLevel,
         lhLevel: dto.lhLevel,
         testosterone: dto.testosterone,
         prolactin: dto.prolactin,
         diagnosis: dto.diagnosis,
         treatmentPlan: dto.treatmentPlan,
+        followUpDate: dto.followUpDate ? new Date(dto.followUpDate) : null,
+        referralNotes: dto.referralNotes,
       },
       include: {
         patient: { select: { id: true, fullName: true, mrn: true } },
@@ -366,6 +440,43 @@ export class FertilityService {
     return this.prisma.andrologyVisit.findMany({
       where: { patientId },
       orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  // ===================== Hormone Tests =====================
+
+  async createHormoneTest(hospitalId: number, dto: CreateHormoneTestDto) {
+    const patient = await this.prisma.patient.findUnique({ where: { id: dto.patientId } });
+    if (!patient || patient.hospitalId !== hospitalId) {
+      throw new NotFoundException('المريض غير موجود.');
+    }
+    return this.prisma.hormoneTest.create({
+      data: {
+        patientId: dto.patientId,
+        testDate: dto.testDate ? new Date(dto.testDate) : new Date(),
+        fsh: dto.fsh,
+        lh: dto.lh,
+        totalTestosterone: dto.totalTestosterone,
+        freeTestosterone: dto.freeTestosterone,
+        estradiol: dto.estradiol,
+        prolactin: dto.prolactin,
+        tsh: dto.tsh,
+        inhibinB: dto.inhibinB,
+        shbg: dto.shbg,
+        amhMale: dto.amhMale,
+        notes: dto.notes,
+      },
+    });
+  }
+
+  async getHormoneTests(hospitalId: number, patientId: number) {
+    const patient = await this.prisma.patient.findUnique({ where: { id: patientId } });
+    if (!patient || patient.hospitalId !== hospitalId) {
+      throw new NotFoundException('المريض غير موجود.');
+    }
+    return this.prisma.hormoneTest.findMany({
+      where: { patientId },
+      orderBy: { testDate: 'desc' },
     });
   }
 

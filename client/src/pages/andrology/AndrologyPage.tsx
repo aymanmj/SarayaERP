@@ -1,49 +1,11 @@
-// src/pages/andrology/AndrologyPage.tsx
-
 import { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { apiClient } from "../../api/apiClient";
 import { toast } from "sonner";
-
-type SemenAnalysis = {
-  id: number;
-  patientId: number;
-  sampleDate: string;
-  abstinenceDays?: number;
-  volumeMl?: number;
-  ph?: number;
-  countMilPerMl?: number;
-  totalCountMil?: number;
-  progressivePR?: number;
-  nonProgressiveNP?: number;
-  immotileIM?: number;
-  normalForms?: number;
-  vitality?: number;
-  wbcCount?: number;
-  agglutination?: string;
-  viscosity?: string;
-  liquefaction?: string;
-  conclusion?: string;
-  doctorNotes?: string;
-};
-
-type AndrologyVisit = {
-  id: number;
-  patientId: number;
-  erectileDisfunc: boolean;
-  smokingHabit?: string;
-  varicoceleGrade?: string;
-  testicularVol?: string;
-  fshLevel?: number;
-  lhLevel?: number;
-  testosterone?: number;
-  prolactin?: number;
-  diagnosis?: string;
-  treatmentPlan?: string;
-  createdAt: string;
-};
-
-type PatientInfo = { id: number; fullName: string; mrn: string };
+import { PatientInfo, SemenAnalysis, AndrologyVisit, HormoneTest } from "./types";
+import SemenAnalysisForm from "./components/SemenAnalysisForm";
+import AndrologyVisitForm from "./components/AndrologyVisitForm";
+import HormoneTestForm from "./components/HormoneTestForm";
 
 export default function AndrologyPage() {
   const [searchParams] = useSearchParams();
@@ -53,8 +15,10 @@ export default function AndrologyPage() {
   const [patient, setPatient] = useState<PatientInfo | null>(null);
   const [analyses, setAnalyses] = useState<SemenAnalysis[]>([]);
   const [visits, setVisits] = useState<AndrologyVisit[]>([]);
+  const [hormones, setHormones] = useState<HormoneTest[]>([]);
+  
   const [loading, setLoading] = useState(false);
-  const [tab, setTab] = useState<"SEMEN" | "ANDROLOGY">("SEMEN");
+  const [tab, setTab] = useState<"OVERVIEW" | "SEMEN" | "HORMONES" | "ANDROLOGY">("OVERVIEW");
 
   // Search
   const [searchMrn, setSearchMrn] = useState("");
@@ -62,23 +26,22 @@ export default function AndrologyPage() {
   const [showResults, setShowResults] = useState(false);
   const [searching, setSearching] = useState(false);
 
-  // Semen Analysis Form
+  // Forms Visibility
   const [showSemenForm, setShowSemenForm] = useState(false);
-  const [semenForm, setSemenForm] = useState<Partial<SemenAnalysis>>({});
-
-  // Andrology Visit Form
   const [showAndrologyForm, setShowAndrologyForm] = useState(false);
-  const [andrologyForm, setAndrologyForm] = useState<Partial<AndrologyVisit>>({});
+  const [showHormoneForm, setShowHormoneForm] = useState(false);
 
   const loadPatientData = useCallback(async (pid: number) => {
     setLoading(true);
     try {
-      const [semenRes, visitRes] = await Promise.all([
+      const [semenRes, visitRes, hormoneRes] = await Promise.all([
         apiClient.get(`/obgyn/fertility/semen-analysis/patient/${pid}`),
         apiClient.get(`/obgyn/fertility/andrology/patient/${pid}`),
+        apiClient.get(`/obgyn/fertility/hormone-tests/patient/${pid}`),
       ]);
       setAnalyses(semenRes.data);
       setVisits(visitRes.data);
+      setHormones(hormoneRes.data);
     } catch {
       // Patient may not have data yet
     } finally {
@@ -106,7 +69,6 @@ export default function AndrologyPage() {
         setSearchResults([]);
         setShowResults(false);
       } else if (items.length === 1) {
-        // If only one result, select it directly
         selectPatient(items[0]);
       } else {
         setSearchResults(items);
@@ -119,35 +81,45 @@ export default function AndrologyPage() {
     }
   };
 
-  const selectPatient = (p: any) => {
+  const selectPatient = (p: PatientInfo) => {
     setPatientId(p.id);
-    setPatient({ id: p.id, fullName: p.fullName, mrn: p.mrn });
+    setPatient(p);
     setShowResults(false);
     setSearchResults([]);
     setSearchMrn("");
     loadPatientData(p.id);
   };
 
-  const submitSemenAnalysis = async () => {
+  const submitSemenAnalysis = async (data: Partial<SemenAnalysis>) => {
     if (!patientId) return;
     try {
-      await apiClient.post("/obgyn/fertility/semen-analysis", { ...semenForm, patientId });
+      await apiClient.post("/obgyn/fertility/semen-analysis", { ...data, patientId });
       toast.success("تم حفظ تحليل السائل المنوي بنجاح.");
       setShowSemenForm(false);
-      setSemenForm({});
       loadPatientData(patientId);
     } catch (e: any) {
       toast.error(e?.response?.data?.message || "فشل الحفظ.");
     }
   };
 
-  const submitAndrologyVisit = async () => {
+  const submitAndrologyVisit = async (data: Partial<AndrologyVisit>) => {
     if (!patientId) return;
     try {
-      await apiClient.post("/obgyn/fertility/andrology", { ...andrologyForm, patientId });
+      await apiClient.post("/obgyn/fertility/andrology", { ...data, patientId });
       toast.success("تم حفظ زيارة أمراض الذكورة.");
       setShowAndrologyForm(false);
-      setAndrologyForm({});
+      loadPatientData(patientId);
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || "فشل الحفظ.");
+    }
+  };
+
+  const submitHormoneTest = async (data: Partial<HormoneTest>) => {
+    if (!patientId) return;
+    try {
+      await apiClient.post("/obgyn/fertility/hormone-tests", { ...data, patientId });
+      toast.success("تم حفظ البروفايل الهرموني بنجاح.");
+      setShowHormoneForm(false);
       loadPatientData(patientId);
     } catch (e: any) {
       toast.error(e?.response?.data?.message || "فشل الحفظ.");
@@ -158,53 +130,53 @@ export default function AndrologyPage() {
   const fmtNum = (n?: number | null) => n != null ? Number(n).toFixed(1) : "—";
 
   return (
-    <div className="p-6 space-y-6 text-slate-100 max-w-6xl mx-auto">
+    <div className="p-6 space-y-6 text-slate-100 max-w-7xl mx-auto" dir="rtl">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <div className="p-3 bg-cyan-500/10 rounded-2xl border border-cyan-500/20">
-          <span className="text-3xl">🧬</span>
+        <div className="p-4 bg-cyan-500/10 rounded-2xl border border-cyan-500/20">
+          <span className="text-4xl shadow-cyan-500/20 drop-shadow-xl">🧬</span>
         </div>
         <div>
-          <h1 className="text-2xl font-black text-white">عيادة أمراض الذكورة والعقم</h1>
-          <p className="text-slate-400 text-sm">تحاليل السائل المنوي • الفحوصات الهرمونية • التشخيص والعلاج</p>
+          <h1 className="text-3xl font-black text-white tracking-tight">عيادة أمراض الذكورة والعقم</h1>
+          <p className="text-slate-400 mt-1">وحدة المتابعة المتقدمة: تحاليلات متقدمة (WHO 6th Ed)، بروفايل هرموني، ومتابعة سريرية</p>
         </div>
       </div>
 
       {/* Patient Search / Info */}
       {!patient ? (
-        <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6">
-          <h2 className="text-sm font-bold text-slate-300 mb-4">🔍 البحث عن المريض</h2>
-          <div className="relative">
-            <div className="flex gap-3">
+        <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-8 shadow-xl">
+          <h2 className="text-base font-bold text-slate-300 mb-6 flex items-center gap-2">🔍<span className="text-lg">البحث عن المريض</span></h2>
+          <div className="relative max-w-2xl">
+            <div className="flex gap-4">
               <input
                 value={searchMrn}
                 onChange={e => setSearchMrn(e.target.value)}
                 onKeyDown={e => e.key === "Enter" && searchPatient()}
-                placeholder="اسم المريض، رقم الملف (MRN)، أو رقم الهاتف..."
-                className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:border-cyan-500 outline-none"
+                placeholder="ابحث بواسطة الاسم، رقم الملف (MRN)، أو رقم الهاتف..."
+                className="flex-1 bg-slate-950 border-2 border-slate-700/50 rounded-2xl px-5 py-4 text-sm focus:border-cyan-500 outline-none shadow-inner"
               />
-              <button onClick={searchPatient} disabled={searching} className="bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white px-6 py-3 rounded-xl font-bold text-sm">
-                {searching ? "⏳" : "بحث"}
+              <button onClick={searchPatient} disabled={searching} className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 disabled:opacity-50 text-white px-8 py-4 rounded-2xl font-bold text-sm shadow-lg shadow-cyan-500/20 transition-all">
+                {searching ? "جاري البحث..." : "بحث الآن"}
               </button>
             </div>
             {/* Search Results Dropdown */}
             {showResults && searchResults.length > 0 && (
-              <div className="absolute top-full left-0 right-0 mt-2 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-30 max-h-60 overflow-y-auto">
-                <div className="p-2 text-[10px] text-slate-500 border-b border-slate-800 px-3">
-                  تم العثور على {searchResults.length} نتيجة — اختر المريض:
+              <div className="absolute top-full left-0 right-0 mt-3 bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl z-30 max-h-72 overflow-y-auto">
+                <div className="p-3 text-[11px] text-slate-500 border-b border-slate-800 px-4 bg-slate-950/50">
+                  تم العثور على {searchResults.length} نتيجة — الرجاء الاختيار:
                 </div>
                 {searchResults.map(p => (
                   <button
                     key={p.id}
                     onClick={() => selectPatient(p)}
-                    className="w-full text-right px-4 py-3 hover:bg-cyan-900/20 border-b border-slate-800/50 last:border-0 flex items-center gap-3 transition-colors"
+                    className="w-full text-right px-5 py-4 hover:bg-cyan-900/20 border-b border-slate-800/50 last:border-0 flex items-center gap-4 transition-colors"
                   >
-                    <div className="w-9 h-9 bg-cyan-900/30 border border-cyan-500/20 rounded-full flex items-center justify-center text-sm flex-shrink-0">🧑</div>
+                    <div className="w-10 h-10 bg-cyan-900/40 border border-cyan-500/30 rounded-full flex items-center justify-center text-lg flex-shrink-0 shadow-inner">🧑</div>
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-bold text-white truncate">{(p as any).fullName}</div>
-                      <div className="text-[10px] text-slate-400">
-                        MRN: <span className="text-cyan-400 font-mono">{(p as any).mrn}</span>
-                        {(p as any).phone && <span className="mr-3">📞 {(p as any).phone}</span>}
+                      <div className="text-base font-bold text-white truncate">{p.fullName}</div>
+                      <div className="text-[11px] text-slate-400 mt-1">
+                        MRN: <span className="text-cyan-400 font-mono bg-cyan-900/20 px-1.5 py-0.5 rounded">{p.mrn}</span>
+                        {p.phone && <span className="mr-4">📞 {p.phone}</span>}
                       </div>
                     </div>
                   </button>
@@ -214,15 +186,18 @@ export default function AndrologyPage() {
           </div>
         </div>
       ) : (
-        <div className="bg-slate-900/80 border border-cyan-900/30 rounded-2xl p-5 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-cyan-900/30 border border-cyan-500/30 rounded-full flex items-center justify-center text-xl">🧑</div>
+        <div className="bg-gradient-to-r from-slate-900 to-cyan-950/30 border border-cyan-900/50 rounded-3xl p-6 flex items-center justify-between shadow-xl">
+          <div className="flex items-center gap-5">
+            <div className="w-14 h-14 bg-cyan-900/50 border-2 border-cyan-500/40 rounded-full flex items-center justify-center text-2xl shadow-inner shadow-black/50">🧑</div>
             <div>
-              <h2 className="text-lg font-bold text-white">{patient.fullName}</h2>
-              <p className="text-cyan-400 text-xs font-mono">MRN: {patient.mrn}</p>
+              <h2 className="text-xl font-bold text-white">{patient.fullName}</h2>
+              <div className="flex items-center gap-3 mt-1.5">
+                <p className="text-cyan-400 text-xs font-mono bg-cyan-950/50 px-2 py-0.5 rounded-md border border-cyan-900/50">MRN: {patient.mrn}</p>
+                {patient.phone && <p className="text-slate-400 text-xs">📞 {patient.phone}</p>}
+              </div>
             </div>
           </div>
-          <button onClick={() => { setPatient(null); setPatientId(null); setAnalyses([]); setVisits([]); }} className="text-xs text-slate-400 hover:text-white bg-slate-800 px-3 py-1.5 rounded-lg">
+          <button onClick={() => { setPatient(null); setPatientId(null); setAnalyses([]); setVisits([]); setHormones([]); }} className="text-xs font-medium text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-700 px-4 py-2 rounded-xl transition-colors border border-slate-700">
             🔄 تغيير المريض
           </button>
         </div>
@@ -230,252 +205,254 @@ export default function AndrologyPage() {
 
       {/* Tabs */}
       {patient && (
-        <>
-          <div className="flex gap-2 border-b border-slate-800 pb-1">
-            <button onClick={() => setTab("SEMEN")} className={`px-5 py-3 rounded-t-xl text-sm font-medium transition-all ${tab === "SEMEN" ? "bg-slate-800 text-cyan-400 border-t border-x border-slate-700" : "text-slate-400 hover:text-slate-200"}`}>
+        <div className="bg-slate-900/40 rounded-3xl p-6 border border-slate-800 shadow-2xl backdrop-blur-sm">
+          <div className="flex flex-wrap gap-2 border-b border-slate-800 mb-6">
+            <button onClick={() => setTab("OVERVIEW")} className={`px-6 py-3.5 rounded-t-2xl text-sm font-bold transition-all ${tab === "OVERVIEW" ? "bg-slate-800/80 text-white border-t border-x border-slate-700 shadow-[0_-4px_10px_-2px_rgba(0,0,0,0.3)]" : "text-slate-400 hover:bg-slate-800/30 hover:text-slate-200"}`}>
+              📊 نظرة عامة
+            </button>
+            <button onClick={() => setTab("SEMEN")} className={`px-6 py-3.5 rounded-t-2xl text-sm font-bold transition-all ${tab === "SEMEN" ? "bg-slate-800/80 text-emerald-400 border-t border-x border-slate-700 shadow-[0_-4px_10px_-2px_rgba(16,185,129,0.15)]" : "text-slate-400 hover:bg-slate-800/30 hover:text-slate-200"}`}>
               🔬 تحليل السائل المنوي
             </button>
-            <button onClick={() => setTab("ANDROLOGY")} className={`px-5 py-3 rounded-t-xl text-sm font-medium transition-all ${tab === "ANDROLOGY" ? "bg-slate-800 text-cyan-400 border-t border-x border-slate-700" : "text-slate-400 hover:text-slate-200"}`}>
-              🩺 زيارات أمراض الذكورة
+            <button onClick={() => setTab("HORMONES")} className={`px-6 py-3.5 rounded-t-2xl text-sm font-bold transition-all ${tab === "HORMONES" ? "bg-slate-800/80 text-pink-400 border-t border-x border-slate-700 shadow-[0_-4px_10px_-2px_rgba(236,72,153,0.15)]" : "text-slate-400 hover:bg-slate-800/30 hover:text-slate-200"}`}>
+              🩸 البروفايل الهرموني
+            </button>
+            <button onClick={() => setTab("ANDROLOGY")} className={`px-6 py-3.5 rounded-t-2xl text-sm font-bold transition-all ${tab === "ANDROLOGY" ? "bg-slate-800/80 text-cyan-400 border-t border-x border-slate-700 shadow-[0_-4px_10px_-2px_rgba(6,182,212,0.15)]" : "text-slate-400 hover:bg-slate-800/30 hover:text-slate-200"}`}>
+              🩺 الزيارات السريرية
             </button>
           </div>
 
-          {/* === SEMEN ANALYSIS TAB === */}
-          {tab === "SEMEN" && (
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <h3 className="text-sm font-bold text-cyan-400">📋 سجل التحاليل</h3>
-                <button onClick={() => setShowSemenForm(true)} className="bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2">
-                  ➕ تحليل جديد
-                </button>
-              </div>
+          <div className="min-h-[400px]">
+            {/* === OVERVIEW TAB === */}
+            {tab === "OVERVIEW" && (
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {/* Summary Card */}
+                  <div className="bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700/50 rounded-2xl p-6 shadow-lg relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-cyan-400"></div>
+                    <h3 className="text-lg font-bold text-white mb-4">الملخص السريري 💡</h3>
+                    <div className="space-y-4">
+                      <div>
+                        <p className="text-xs text-slate-400 mb-1">حالة السائل المنوي (آخر تحليل)</p>
+                        <p className="text-sm font-bold text-emerald-400 bg-emerald-950/30 p-2 rounded-lg border border-emerald-900/50">
+                          {analyses[0] ? (analyses[0].autoClassification || "لم يُصنف بعد") : "لا يوجد تحليل"}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-400 mb-1">الوضع الهرموني (آخر فحص)</p>
+                        <p className="text-sm font-bold text-pink-400 bg-pink-950/30 p-2 rounded-lg border border-pink-900/50">
+                          {hormones[0] ? `FSH: ${fmtNum(hormones[0].fsh)} • T: ${fmtNum(hormones[0].totalTestosterone)}` : "لا يوجد بروفايل"}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-400 mb-1">آخر تشخيص</p>
+                        <p className="text-sm font-bold text-cyan-400 bg-cyan-950/30 p-2 rounded-lg border border-cyan-900/50">
+                          {visits[0]?.diagnosis || "لم يحدد بعد"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
 
-              {loading ? (
-                <div className="text-center text-slate-400 py-12">جارِ التحميل...</div>
-              ) : analyses.length === 0 ? (
-                <div className="text-center text-slate-500 py-12 bg-slate-900/50 rounded-2xl border border-slate-800">
-                  <p className="text-4xl mb-3">🧪</p>
-                  <p>لا توجد تحاليل سائل منوي مسجلة لهذا المريض.</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {analyses.map(a => (
-                    <div key={a.id} className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 hover:border-cyan-500/30 transition-colors">
-                      <div className="flex justify-between items-start mb-4">
-                        <h4 className="text-sm font-bold text-white">تحليل بتاريخ {fmtDate(a.sampleDate)}</h4>
-                        {a.abstinenceDays && <span className="text-[10px] text-slate-400 bg-slate-800 px-2 py-1 rounded">فترة الامتناع: {a.abstinenceDays} أيام</span>}
-                      </div>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
-                        <div className="bg-slate-950 p-3 rounded-xl"><span className="text-slate-500">الحجم</span><div className="text-white font-bold mt-1">{fmtNum(a.volumeMl)} ml</div></div>
-                        <div className="bg-slate-950 p-3 rounded-xl"><span className="text-slate-500">التركيز</span><div className="text-white font-bold mt-1">{fmtNum(a.countMilPerMl)} مليون/مل</div></div>
-                        <div className="bg-slate-950 p-3 rounded-xl"><span className="text-slate-500">الحركة التقدمية (PR)</span><div className="text-emerald-400 font-bold mt-1">{fmtNum(a.progressivePR)}%</div></div>
-                        <div className="bg-slate-950 p-3 rounded-xl"><span className="text-slate-500">الشكل الطبيعي</span><div className="text-white font-bold mt-1">{fmtNum(a.normalForms)}%</div></div>
-                        <div className="bg-slate-950 p-3 rounded-xl"><span className="text-slate-500">الحيوية</span><div className="text-white font-bold mt-1">{fmtNum(a.vitality)}%</div></div>
-                        <div className="bg-slate-950 p-3 rounded-xl"><span className="text-slate-500">WBC</span><div className="text-white font-bold mt-1">{fmtNum(a.wbcCount)}</div></div>
-                        <div className="bg-slate-950 p-3 rounded-xl"><span className="text-slate-500">pH</span><div className="text-white font-bold mt-1">{fmtNum(a.ph)}</div></div>
-                        <div className="bg-slate-950 p-3 rounded-xl"><span className="text-slate-500">التراص</span><div className="text-white font-bold mt-1">{a.agglutination || "—"}</div></div>
-                      </div>
-                      {a.conclusion && <div className="mt-3 text-xs text-amber-300 bg-amber-900/20 border border-amber-500/20 p-3 rounded-xl">📌 {a.conclusion}</div>}
+                  {/* Highlights */}
+                  <div className="md:col-span-2 grid grid-cols-2 gap-4">
+                    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col justify-center items-center text-center hover:border-slate-700 transition-colors">
+                      <div className="text-3xl mb-2">🔬</div>
+                      <div className="text-2xl font-black text-white">{analyses.length}</div>
+                      <div className="text-xs text-slate-400 mt-1">تحاليل سائل منوي</div>
                     </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Semen Form Modal */}
-              {showSemenForm && (
-                <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                  <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-                    <h3 className="text-lg font-bold text-cyan-400 mb-6">🔬 تحليل سائل منوي جديد (WHO 6th Ed.)</h3>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
-                      <div>
-                        <label className="text-slate-400 text-xs mb-1 block">فترة الامتناع (أيام)</label>
-                        <input type="number" value={semenForm.abstinenceDays || ""} onChange={e => setSemenForm(p => ({ ...p, abstinenceDays: Number(e.target.value) }))} className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:border-cyan-500 outline-none" />
-                      </div>
-                      <div>
-                        <label className="text-slate-400 text-xs mb-1 block">الحجم (ml)</label>
-                        <input type="number" step="0.1" value={semenForm.volumeMl || ""} onChange={e => setSemenForm(p => ({ ...p, volumeMl: Number(e.target.value) }))} className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:border-cyan-500 outline-none" />
-                      </div>
-                      <div>
-                        <label className="text-slate-400 text-xs mb-1 block">pH</label>
-                        <input type="number" step="0.1" value={semenForm.ph || ""} onChange={e => setSemenForm(p => ({ ...p, ph: Number(e.target.value) }))} className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:border-cyan-500 outline-none" />
-                      </div>
-                      <div>
-                        <label className="text-slate-400 text-xs mb-1 block">التركيز (مليون/مل)</label>
-                        <input type="number" step="0.01" value={semenForm.countMilPerMl || ""} onChange={e => setSemenForm(p => ({ ...p, countMilPerMl: Number(e.target.value) }))} className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:border-cyan-500 outline-none" />
-                      </div>
-                      <div>
-                        <label className="text-slate-400 text-xs mb-1 block">العدد الكلي (مليون)</label>
-                        <input type="number" step="0.01" value={semenForm.totalCountMil || ""} onChange={e => setSemenForm(p => ({ ...p, totalCountMil: Number(e.target.value) }))} className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:border-cyan-500 outline-none" />
-                      </div>
-                      <div>
-                        <label className="text-slate-400 text-xs mb-1 block">الحركة التقدمية PR (%)</label>
-                        <input type="number" step="0.1" value={semenForm.progressivePR || ""} onChange={e => setSemenForm(p => ({ ...p, progressivePR: Number(e.target.value) }))} className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:border-cyan-500 outline-none" />
-                      </div>
-                      <div>
-                        <label className="text-slate-400 text-xs mb-1 block">غير تقدمية NP (%)</label>
-                        <input type="number" step="0.1" value={semenForm.nonProgressiveNP || ""} onChange={e => setSemenForm(p => ({ ...p, nonProgressiveNP: Number(e.target.value) }))} className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:border-cyan-500 outline-none" />
-                      </div>
-                      <div>
-                        <label className="text-slate-400 text-xs mb-1 block">الشكل الطبيعي (%)</label>
-                        <input type="number" step="0.1" value={semenForm.normalForms || ""} onChange={e => setSemenForm(p => ({ ...p, normalForms: Number(e.target.value) }))} className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:border-cyan-500 outline-none" />
-                      </div>
-                      <div>
-                        <label className="text-slate-400 text-xs mb-1 block">الحيوية (%)</label>
-                        <input type="number" step="0.1" value={semenForm.vitality || ""} onChange={e => setSemenForm(p => ({ ...p, vitality: Number(e.target.value) }))} className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:border-cyan-500 outline-none" />
-                      </div>
-                      <div>
-                        <label className="text-slate-400 text-xs mb-1 block">WBC (مليون/مل)</label>
-                        <input type="number" step="0.1" value={semenForm.wbcCount || ""} onChange={e => setSemenForm(p => ({ ...p, wbcCount: Number(e.target.value) }))} className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:border-cyan-500 outline-none" />
-                      </div>
-                      <div>
-                        <label className="text-slate-400 text-xs mb-1 block">التراص</label>
-                        <select value={semenForm.agglutination || ""} onChange={e => setSemenForm(p => ({ ...p, agglutination: e.target.value }))} className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:border-cyan-500 outline-none">
-                          <option value="">—</option>
-                          <option value="None">لا يوجد</option>
-                          <option value="Mild">خفيف</option>
-                          <option value="Moderate">متوسط</option>
-                          <option value="Severe">شديد</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="text-slate-400 text-xs mb-1 block">اللزوجة</label>
-                        <select value={semenForm.viscosity || ""} onChange={e => setSemenForm(p => ({ ...p, viscosity: e.target.value }))} className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:border-cyan-500 outline-none">
-                          <option value="">—</option>
-                          <option value="Normal">طبيعي</option>
-                          <option value="High">مرتفع</option>
-                        </select>
-                      </div>
+                    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col justify-center items-center text-center hover:border-slate-700 transition-colors">
+                      <div className="text-3xl mb-2">🩸</div>
+                      <div className="text-2xl font-black text-white">{hormones.length}</div>
+                      <div className="text-xs text-slate-400 mt-1">فحوصات هرمونية</div>
                     </div>
-                    <div className="mt-4">
-                      <label className="text-slate-400 text-xs mb-1 block">الحكم / الخلاصة</label>
-                      <textarea value={semenForm.conclusion || ""} onChange={e => setSemenForm(p => ({ ...p, conclusion: e.target.value }))} placeholder="مثلاً: Oligoasthenoteratozoospermia..." className="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm focus:border-cyan-500 outline-none min-h-[60px]" />
+                    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col justify-center items-center text-center hover:border-slate-700 transition-colors">
+                      <div className="text-3xl mb-2">🩺</div>
+                      <div className="text-2xl font-black text-white">{visits.length}</div>
+                      <div className="text-xs text-slate-400 mt-1">زيارات مسجلة</div>
                     </div>
-                    <div className="mt-4">
-                      <label className="text-slate-400 text-xs mb-1 block">ملاحظات الطبيب</label>
-                      <textarea value={semenForm.doctorNotes || ""} onChange={e => setSemenForm(p => ({ ...p, doctorNotes: e.target.value }))} className="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm focus:border-cyan-500 outline-none min-h-[60px]" />
-                    </div>
-                    <div className="flex justify-end gap-3 mt-6">
-                      <button onClick={() => setShowSemenForm(false)} className="px-5 py-2.5 text-slate-400 hover:text-white text-sm">إلغاء</button>
-                      <button onClick={submitSemenAnalysis} className="bg-cyan-600 hover:bg-cyan-500 text-white px-6 py-2.5 rounded-xl font-bold text-sm">💾 حفظ التحليل</button>
+                    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col justify-center items-center text-center hover:border-slate-700 transition-colors">
+                      <div className="text-3xl mb-2">❄️</div>
+                      <div className="text-2xl font-black text-white">0</div>
+                      <div className="text-xs text-slate-400 mt-1">عينات مجمدة (قريباً)</div>
                     </div>
                   </div>
                 </div>
-              )}
-            </div>
-          )}
-
-          {/* === ANDROLOGY VISITS TAB === */}
-          {tab === "ANDROLOGY" && (
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <h3 className="text-sm font-bold text-cyan-400">🩺 الزيارات السريرية</h3>
-                <button onClick={() => setShowAndrologyForm(true)} className="bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2">
-                  ➕ زيارة جديدة
-                </button>
               </div>
+            )}
 
-              {visits.length === 0 ? (
-                <div className="text-center text-slate-500 py-12 bg-slate-900/50 rounded-2xl border border-slate-800">
-                  <p className="text-4xl mb-3">🩺</p>
-                  <p>لا توجد زيارات مسجلة لعيادة أمراض الذكورة.</p>
+            {/* === SEMEN ANALYSIS TAB === */}
+            {tab === "SEMEN" && (
+              <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <div className="flex justify-between items-center bg-slate-900/50 p-4 rounded-2xl border border-slate-800">
+                  <h3 className="text-base font-bold text-emerald-400 flex items-center gap-2">📋<span className="mt-0.5">سجل السائل المنوي (WHO 6th Ed)</span></h3>
+                  <button onClick={() => setShowSemenForm(true)} className="bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 shadow-lg shadow-emerald-900/50 transition-all">
+                    ➕ إضافة تحليل جديد
+                  </button>
                 </div>
-              ) : (
-                <div className="space-y-3">
-                  {visits.map(v => (
-                    <div key={v.id} className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 hover:border-cyan-500/30 transition-colors">
-                      <div className="flex justify-between mb-3">
-                        <h4 className="text-sm font-bold text-white">زيارة بتاريخ {fmtDate(v.createdAt)}</h4>
-                      </div>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs mb-3">
-                        <div className="bg-slate-950 p-3 rounded-xl"><span className="text-slate-500">FSH</span><div className="text-white font-bold mt-1">{fmtNum(v.fshLevel)} mIU/mL</div></div>
-                        <div className="bg-slate-950 p-3 rounded-xl"><span className="text-slate-500">LH</span><div className="text-white font-bold mt-1">{fmtNum(v.lhLevel)} mIU/mL</div></div>
-                        <div className="bg-slate-950 p-3 rounded-xl"><span className="text-slate-500">Testosterone</span><div className="text-white font-bold mt-1">{fmtNum(v.testosterone)} ng/dL</div></div>
-                        <div className="bg-slate-950 p-3 rounded-xl"><span className="text-slate-500">Prolactin</span><div className="text-white font-bold mt-1">{fmtNum(v.prolactin)} ng/mL</div></div>
-                      </div>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-xs">
-                        {v.varicoceleGrade && <div className="bg-slate-950 p-3 rounded-xl"><span className="text-slate-500">الدوالي</span><div className="text-amber-400 font-bold mt-1">{v.varicoceleGrade}</div></div>}
-                        {v.testicularVol && <div className="bg-slate-950 p-3 rounded-xl"><span className="text-slate-500">حجم الخصية</span><div className="text-white font-bold mt-1">{v.testicularVol}</div></div>}
-                        <div className="bg-slate-950 p-3 rounded-xl"><span className="text-slate-500">ض. جنسي</span><div className={`font-bold mt-1 ${v.erectileDisfunc ? "text-red-400" : "text-emerald-400"}`}>{v.erectileDisfunc ? "نعم" : "لا"}</div></div>
-                      </div>
-                      {v.diagnosis && <div className="mt-3 text-xs text-amber-300 bg-amber-900/20 border border-amber-500/20 p-3 rounded-xl">📌 التشخيص: {v.diagnosis}</div>}
-                      {v.treatmentPlan && <div className="mt-2 text-xs text-emerald-300 bg-emerald-900/20 border border-emerald-500/20 p-3 rounded-xl">💊 خطة العلاج: {v.treatmentPlan}</div>}
-                    </div>
-                  ))}
-                </div>
-              )}
 
-              {/* Andrology Visit Form Modal */}
-              {showAndrologyForm && (
-                <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                  <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-                    <h3 className="text-lg font-bold text-cyan-400 mb-6">🩺 زيارة أمراض ذكورة جديدة</h3>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
-                      <div>
-                        <label className="text-slate-400 text-xs mb-1 block">درجة الدوالي</label>
-                        <select value={andrologyForm.varicoceleGrade || ""} onChange={e => setAndrologyForm(p => ({ ...p, varicoceleGrade: e.target.value }))} className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:border-cyan-500 outline-none">
-                          <option value="">لا يوجد</option>
-                          <option value="Grade I">Grade I</option>
-                          <option value="Grade II">Grade II</option>
-                          <option value="Grade III">Grade III</option>
-                          <option value="Bilateral">Bilateral</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="text-slate-400 text-xs mb-1 block">حجم الخصية</label>
-                        <input value={andrologyForm.testicularVol || ""} onChange={e => setAndrologyForm(p => ({ ...p, testicularVol: e.target.value }))} placeholder="مثلاً: R:15ml L:12ml" className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:border-cyan-500 outline-none" />
-                      </div>
-                      <div>
-                        <label className="text-slate-400 text-xs mb-1 block">ضعف جنسي</label>
-                        <select value={andrologyForm.erectileDisfunc ? "true" : "false"} onChange={e => setAndrologyForm(p => ({ ...p, erectileDisfunc: e.target.value === "true" }))} className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:border-cyan-500 outline-none">
-                          <option value="false">لا</option>
-                          <option value="true">نعم</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="text-slate-400 text-xs mb-1 block">التدخين</label>
-                        <select value={andrologyForm.smokingHabit || ""} onChange={e => setAndrologyForm(p => ({ ...p, smokingHabit: e.target.value }))} className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:border-cyan-500 outline-none">
-                          <option value="">غير محدد</option>
-                          <option value="Non-Smoker">غير مدخن</option>
-                          <option value="Smoker">مدخن</option>
-                          <option value="Ex-Smoker">مدخن سابق</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="text-slate-400 text-xs mb-1 block">FSH (mIU/mL)</label>
-                        <input type="number" step="0.01" value={andrologyForm.fshLevel || ""} onChange={e => setAndrologyForm(p => ({ ...p, fshLevel: Number(e.target.value) }))} className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:border-cyan-500 outline-none" />
-                      </div>
-                      <div>
-                        <label className="text-slate-400 text-xs mb-1 block">LH (mIU/mL)</label>
-                        <input type="number" step="0.01" value={andrologyForm.lhLevel || ""} onChange={e => setAndrologyForm(p => ({ ...p, lhLevel: Number(e.target.value) }))} className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:border-cyan-500 outline-none" />
-                      </div>
-                      <div>
-                        <label className="text-slate-400 text-xs mb-1 block">Testosterone (ng/dL)</label>
-                        <input type="number" step="0.01" value={andrologyForm.testosterone || ""} onChange={e => setAndrologyForm(p => ({ ...p, testosterone: Number(e.target.value) }))} className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:border-cyan-500 outline-none" />
-                      </div>
-                      <div>
-                        <label className="text-slate-400 text-xs mb-1 block">Prolactin (ng/mL)</label>
-                        <input type="number" step="0.01" value={andrologyForm.prolactin || ""} onChange={e => setAndrologyForm(p => ({ ...p, prolactin: Number(e.target.value) }))} className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:border-cyan-500 outline-none" />
-                      </div>
-                    </div>
-                    <div className="mt-4">
-                      <label className="text-slate-400 text-xs mb-1 block">التشخيص</label>
-                      <textarea value={andrologyForm.diagnosis || ""} onChange={e => setAndrologyForm(p => ({ ...p, diagnosis: e.target.value }))} placeholder="مثلاً: Azoospermia, Varicocele Grade III..." className="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm focus:border-cyan-500 outline-none min-h-[60px]" />
-                    </div>
-                    <div className="mt-4">
-                      <label className="text-slate-400 text-xs mb-1 block">خطة العلاج</label>
-                      <textarea value={andrologyForm.treatmentPlan || ""} onChange={e => setAndrologyForm(p => ({ ...p, treatmentPlan: e.target.value }))} placeholder="مثلاً: Varicocelectomy, Clomiphene Citrate..." className="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm focus:border-cyan-500 outline-none min-h-[60px]" />
-                    </div>
-                    <div className="flex justify-end gap-3 mt-6">
-                      <button onClick={() => setShowAndrologyForm(false)} className="px-5 py-2.5 text-slate-400 hover:text-white text-sm">إلغاء</button>
-                      <button onClick={submitAndrologyVisit} className="bg-cyan-600 hover:bg-cyan-500 text-white px-6 py-2.5 rounded-xl font-bold text-sm">💾 حفظ الزيارة</button>
-                    </div>
+                {loading ? (
+                  <div className="text-center text-slate-400 py-12">جارِ التحميل...</div>
+                ) : analyses.length === 0 ? (
+                  <div className="text-center text-slate-500 py-16 bg-slate-900/30 rounded-3xl border border-slate-800/50 border-dashed">
+                    <p className="text-5xl mb-4 opacity-50">🧪</p>
+                    <p className="font-medium">لا توجد تحاليل سائل منوي مسجلة.</p>
                   </div>
+                ) : (
+                  <div className="space-y-4">
+                    {analyses.map(a => (
+                      <div key={a.id} className="bg-slate-900/60 border border-slate-700/60 hover:border-emerald-500/40 rounded-2xl p-6 transition-colors shadow-sm">
+                        <div className="flex justify-between items-start mb-5 pb-4 border-b border-slate-800/60">
+                          <div>
+                            <div className="flex items-center gap-3">
+                              <h4 className="text-base font-bold text-white">تاريخ الفحص: {fmtDate(a.sampleDate)}</h4>
+                              {a.autoClassification && (
+                                <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2.5 py-0.5 rounded-full text-xs font-bold font-mono">
+                                  {a.autoClassification}
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-xs text-slate-400 mt-1.5 flex gap-3">
+                              {a.abstinenceDays && <span>فترة امتناع: {a.abstinenceDays} أيام</span>}
+                              {a.collectionMethod && <span>طريقة الجمع: {a.collectionMethod}</span>}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm mt-4">
+                          <div className="bg-slate-950/80 p-3.5 rounded-xl shadow-inner"><span className="text-slate-500 text-xs block mb-1">الحجم</span><div className="text-white font-bold">{fmtNum(a.volumeMl)} <span className="text-[10px] text-slate-500 font-normal">ml</span></div></div>
+                          <div className="bg-slate-950/80 p-3.5 rounded-xl shadow-inner"><span className="text-slate-500 text-xs block mb-1">التركيز</span><div className="text-white font-bold">{fmtNum(a.countMilPerMl)} <span className="text-[10px] text-slate-500 font-normal">M/ml</span></div></div>
+                          <div className="bg-slate-950/80 p-3.5 rounded-xl shadow-inner"><span className="text-slate-500 text-xs block mb-1">الحركة الكلية PR+NP</span><div className="text-white font-bold">{fmtNum(a.totalMotility)} <span className="text-[10px] text-slate-500 font-normal">%</span></div></div>
+                          <div className="bg-emerald-950/20 border border-emerald-900/30 p-3.5 rounded-xl shadow-inner"><span className="text-emerald-500 text-xs block mb-1">التقدمية PR</span><div className="text-emerald-400 font-bold">{fmtNum(a.progressivePR)} <span className="text-[10px] text-emerald-500/50 font-normal">%</span></div></div>
+                          <div className="bg-slate-950/80 p-3.5 rounded-xl shadow-inner"><span className="text-slate-500 text-xs block mb-1">شكل طبيعي (Kruger)</span><div className="text-white font-bold">{fmtNum(a.normalForms)} <span className="text-[10px] text-slate-500 font-normal">%</span></div></div>
+                          <div className="bg-slate-950/80 p-3.5 rounded-xl shadow-inner"><span className="text-slate-500 text-xs block mb-1">تشوه الرأس</span><div className="text-white font-bold">{fmtNum(a.headDefects)} <span className="text-[10px] text-slate-500 font-normal">%</span></div></div>
+                          <div className="bg-slate-950/80 p-3.5 rounded-xl shadow-inner"><span className="text-slate-500 text-xs block mb-1">تشوه الذيل</span><div className="text-white font-bold">{fmtNum(a.tailDefects)} <span className="text-[10px] text-slate-500 font-normal">%</span></div></div>
+                          <div className="bg-slate-950/80 p-3.5 rounded-xl shadow-inner"><span className="text-slate-500 text-xs block mb-1">الحيوية Vitality</span><div className="text-white font-bold">{fmtNum(a.vitality)} <span className="text-[10px] text-slate-500 font-normal">%</span></div></div>
+                          <div className="bg-slate-950/80 p-3.5 rounded-xl shadow-inner"><span className="text-slate-500 text-xs block mb-1">WBC</span><div className="text-white font-bold">{fmtNum(a.wbcCount)} <span className="text-[10px] text-slate-500 font-normal">M/ml</span></div></div>
+                          <div className="bg-slate-950/80 p-3.5 rounded-xl shadow-inner"><span className="text-slate-500 text-xs block mb-1">تكسير المادة الوراثية</span><div className="text-amber-400 font-bold">{fmtNum(a.dnaFragmentation)} <span className="text-[10px] text-amber-500/50 font-normal">% DFI</span></div></div>
+                        </div>
+                        {a.conclusion && <div className="mt-4 text-xs text-amber-200 bg-amber-950/30 border border-amber-500/20 p-3.5 rounded-xl">📌 <span className="font-bold">الحكم/الخلاصة: </span> {a.conclusion}</div>}
+                        {a.doctorNotes && <div className="mt-2 text-xs text-slate-300 bg-slate-950/50 border border-slate-800 p-3.5 rounded-xl text-justify leading-relaxed">📝 <span className="font-bold">ملاحظات:</span> {a.doctorNotes}</div>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* === HORMONES TAB === */}
+            {tab === "HORMONES" && (
+              <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <div className="flex justify-between items-center bg-slate-900/50 p-4 rounded-2xl border border-slate-800">
+                  <h3 className="text-base font-bold text-pink-400 flex items-center gap-2">🩸<span className="mt-0.5">التتبع الهرموني (Hormonal Profile)</span></h3>
+                  <button onClick={() => setShowHormoneForm(true)} className="bg-pink-600 hover:bg-pink-500 text-white px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 shadow-lg shadow-pink-900/50 transition-all">
+                    ➕ إضافة فحص هرموني
+                  </button>
                 </div>
-              )}
-            </div>
-          )}
-        </>
+
+                {loading ? (
+                  <div className="text-center text-slate-400 py-12">جارِ التحميل...</div>
+                ) : hormones.length === 0 ? (
+                  <div className="text-center text-slate-500 py-16 bg-slate-900/30 rounded-3xl border border-slate-800/50 border-dashed">
+                    <p className="text-5xl mb-4 opacity-50">🩸</p>
+                    <p className="font-medium">لا توجد فحوصات هرمونية مسجلة.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto bg-slate-900/60 rounded-2xl border border-slate-700/60 p-1">
+                    <table className="w-full text-right text-sm">
+                      <thead className="text-xs text-slate-400 bg-slate-950">
+                        <tr>
+                          <th className="p-4 rounded-tr-xl font-medium">التاريخ</th>
+                          <th className="p-4 font-medium text-center">FSH<br/><span className="text-[10px] font-normal text-slate-500">mIU/mL</span></th>
+                          <th className="p-4 font-medium text-center">LH<br/><span className="text-[10px] font-normal text-slate-500">mIU/mL</span></th>
+                          <th className="p-4 font-medium text-center">Total T<br/><span className="text-[10px] font-normal text-slate-500">ng/dL</span></th>
+                          <th className="p-4 font-medium text-center">Free T<br/><span className="text-[10px] font-normal text-slate-500">pg/mL</span></th>
+                          <th className="p-4 font-medium text-center">E2<br/><span className="text-[10px] font-normal text-slate-500">pg/mL</span></th>
+                          <th className="p-4 font-medium text-center">PRL<br/><span className="text-[10px] font-normal text-slate-500">ng/mL</span></th>
+                          <th className="p-4 font-medium text-center">Inhibin B<br/><span className="text-[10px] font-normal text-slate-500">pg/mL</span></th>
+                          <th className="p-4 rounded-tl-xl font-medium">ملاحظات</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800/50">
+                        {hormones.map(h => (
+                          <tr key={h.id} className="hover:bg-slate-800/30 transition-colors group">
+                            <td className="p-4 font-mono text-cyan-400">{fmtDate(h.testDate)}</td>
+                            <td className="p-4 text-center font-bold text-white">{fmtNum(h.fsh)}</td>
+                            <td className="p-4 text-center font-bold text-white">{fmtNum(h.lh)}</td>
+                            <td className="p-4 text-center font-bold text-emerald-400 bg-emerald-900/10 group-hover:bg-emerald-900/30 transition-colors">{fmtNum(h.totalTestosterone)}</td>
+                            <td className="p-4 text-center font-medium text-white">{fmtNum(h.freeTestosterone)}</td>
+                            <td className="p-4 text-center font-medium text-pink-300">{fmtNum(h.estradiol)}</td>
+                            <td className="p-4 text-center font-medium text-amber-300">{fmtNum(h.prolactin)}</td>
+                            <td className="p-4 text-center font-medium text-white">{fmtNum(h.inhibinB)}</td>
+                            <td className="p-4 text-slate-400 text-xs w-1/4">{h.notes || "—"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* === ANDROLOGY VISITS TAB === */}
+            {tab === "ANDROLOGY" && (
+              <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <div className="flex justify-between items-center bg-slate-900/50 p-4 rounded-2xl border border-slate-800">
+                  <h3 className="text-base font-bold text-cyan-400 flex items-center gap-2">🩺<span className="mt-0.5">زيارات أمراض الذكورة</span></h3>
+                  <button onClick={() => setShowAndrologyForm(true)} className="bg-cyan-600 hover:bg-cyan-500 text-white px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 shadow-lg shadow-cyan-900/50 transition-all">
+                    ➕ زيارة جديدة
+                  </button>
+                </div>
+
+                {visits.length === 0 ? (
+                  <div className="text-center text-slate-500 py-16 bg-slate-900/30 rounded-3xl border border-slate-800/50 border-dashed">
+                    <p className="text-5xl mb-4 opacity-50">🩺</p>
+                    <p className="font-medium">لا توجد زيارات مسجلة.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {visits.map(v => (
+                      <div key={v.id} className="bg-slate-900/60 border border-slate-700/60 hover:border-cyan-500/40 rounded-2xl p-6 transition-colors shadow-sm">
+                        <div className="flex justify-between mb-4 border-b border-slate-800 pb-3">
+                          <h4 className="text-base font-bold text-white flex items-center gap-2">📅 زيارة بتاريخ {fmtDate(v.createdAt)}</h4>
+                        </div>
+                        
+                        {v.chiefComplaint && (
+                          <div className="mb-4">
+                            <span className="text-slate-500 text-xs block mb-1">الشكوى الرئيسية (Chief Complaint)</span>
+                            <div className="text-slate-200 text-sm bg-slate-950/60 p-3 rounded-xl border border-slate-800/50">{v.chiefComplaint}</div>
+                          </div>
+                        )}
+
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mb-4">
+                          <div className="bg-slate-950/80 p-3.5 rounded-xl shadow-inner"><span className="text-slate-500 text-xs block mb-1">الدوالي العامة</span><div className="text-amber-400 font-bold">{v.varicoceleGrade || "—"}</div></div>
+                          <div className="bg-slate-950/80 p-3.5 rounded-xl shadow-inner"><span className="text-slate-500 text-xs block mb-1">الدوالي يمين/يسار</span><div className="text-slate-300 font-bold">R: {v.varicoceleRight || "—"} | L: {v.varicoceleLeft || "—"}</div></div>
+                          <div className="bg-slate-950/80 p-3.5 rounded-xl shadow-inner"><span className="text-slate-500 text-xs block mb-1">حجم الخصية (ml)</span><div className="text-white font-bold">R: {fmtNum(v.testicularVolR)} | L: {fmtNum(v.testicularVolL)}</div></div>
+                          <div className="bg-slate-950/80 p-3.5 rounded-xl shadow-inner"><span className="text-slate-500 text-xs block mb-1">الأسهر</span><div className="text-emerald-400 font-bold">{v.vasPresence || "—"}</div></div>
+                        </div>
+                        
+                        <div className="flex flex-wrap gap-2 mb-4">
+                          {v.erectileDisfunc && <span className="bg-red-950/30 text-red-400 border border-red-900/50 px-3 py-1 rounded-lg text-xs">ضعف انتصاب</span>}
+                          {v.ejaculatoryDisfunc && <span className="bg-orange-950/30 text-orange-400 border border-orange-900/50 px-3 py-1 rounded-lg text-xs">اضطراب قذف</span>}
+                          {v.smokingHabit && v.smokingHabit !== 'NON_SMOKER' && <span className="bg-slate-800 text-slate-300 border border-slate-700 px-3 py-1 rounded-lg text-xs">{v.smokingHabit}</span>}
+                          {v.bmi && <span className="bg-blue-950/30 text-blue-400 border border-blue-900/50 px-3 py-1 rounded-lg text-xs font-mono">BMI: {fmtNum(v.bmi)}</span>}
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {v.diagnosis && <div className="text-sm bg-cyan-950/20 border border-cyan-900/30 p-4 rounded-xl"><span className="text-cyan-500 text-xs block mb-1 font-bold">🎯 التشخيص</span><div className="text-cyan-100">{v.diagnosis}</div></div>}
+                          {v.treatmentPlan && <div className="text-sm bg-emerald-950/20 border border-emerald-900/30 p-4 rounded-xl"><span className="text-emerald-500 text-xs block mb-1 font-bold">💊 خطة العلاج</span><div className="text-emerald-100">{v.treatmentPlan}</div></div>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
       )}
+
+      {/* Render Modals */}
+      {showSemenForm && <SemenAnalysisForm onSave={submitSemenAnalysis} onCancel={() => setShowSemenForm(false)} />}
+      {showAndrologyForm && <AndrologyVisitForm onSave={submitAndrologyVisit} onCancel={() => setShowAndrologyForm(false)} />}
+      {showHormoneForm && <HormoneTestForm onSave={submitHormoneTest} onCancel={() => setShowHormoneForm(false)} />}
     </div>
   );
 }

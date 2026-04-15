@@ -7,6 +7,7 @@ import {
   CreateEmbryoDto, CreateFertilityMedicationDto,
   CreateSemenAnalysisDto, CreateAndrologyVisitDto,
   CreateCryoTankDto, CreateCryoCanisterDto, CreateCryoItemDto, ThawCryoItemDto,
+  CreateHormoneTestDto,
 } from '../dto/fertility.dto';
 import { JwtAuthGuard } from '../../../auth/jwt-auth.guard';
 import { RolesGuard } from '../../../auth/roles.guard';
@@ -147,6 +148,23 @@ export class FertilityController {
     @CurrentUser() user: JwtPayload,
   ) {
     return this.fertilityService.getAndrologyVisits(user.hospitalId, patientId);
+  }
+
+  // ===================== Hormone Tests =====================
+
+  @Post('hormone-tests')
+  @Roles('ADMIN', 'DOCTOR')
+  async createHormoneTest(@Body() dto: CreateHormoneTestDto, @CurrentUser() user: JwtPayload) {
+    return this.fertilityService.createHormoneTest(user.hospitalId, dto);
+  }
+
+  @Get('hormone-tests/patient/:patientId')
+  @Roles('ADMIN', 'DOCTOR', 'NURSE')
+  async getHormoneTests(
+    @Param('patientId', ParseIntPipe) patientId: number,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.fertilityService.getHormoneTests(user.hospitalId, patientId);
   }
 
   // ===================== Cryo Bank =====================

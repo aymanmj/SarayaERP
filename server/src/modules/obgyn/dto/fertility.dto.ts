@@ -277,6 +277,18 @@ export class CreateSemenAnalysisDto {
   @IsOptional()
   abstinenceDays?: number;
 
+  @IsString()
+  @IsOptional()
+  collectionMethod?: string;
+
+  @IsDateString()
+  @IsOptional()
+  collectionTime?: string;
+
+  @IsDateString()
+  @IsOptional()
+  analysisTime?: string;
+
   @IsNumber()
   @IsOptional()
   volumeMl?: number;
@@ -287,11 +299,23 @@ export class CreateSemenAnalysisDto {
 
   @IsString()
   @IsOptional()
+  appearance?: string;
+
+  @IsString()
+  @IsOptional()
+  color?: string;
+
+  @IsString()
+  @IsOptional()
   viscosity?: string;
 
   @IsString()
   @IsOptional()
   liquefaction?: string;
+
+  @IsInt()
+  @IsOptional()
+  liquefactionMinutes?: number;
 
   @IsNumber()
   @IsOptional()
@@ -319,15 +343,47 @@ export class CreateSemenAnalysisDto {
 
   @IsNumber()
   @IsOptional()
+  headDefects?: number;
+
+  @IsNumber()
+  @IsOptional()
+  midpieceDefects?: number;
+
+  @IsNumber()
+  @IsOptional()
+  tailDefects?: number;
+
+  @IsNumber()
+  @IsOptional()
   vitality?: number;
 
   @IsNumber()
   @IsOptional()
   wbcCount?: number;
 
+  @IsNumber()
+  @IsOptional()
+  roundCells?: number;
+
   @IsString()
   @IsOptional()
   agglutination?: string;
+
+  @IsString()
+  @IsOptional()
+  marTestIgG?: string;
+
+  @IsString()
+  @IsOptional()
+  marTestIgA?: string;
+
+  @IsNumber()
+  @IsOptional()
+  dnaFragmentation?: number;
+
+  @IsString()
+  @IsOptional()
+  dfiMethod?: string;
 
   @IsString()
   @IsOptional()
@@ -337,6 +393,7 @@ export class CreateSemenAnalysisDto {
   @IsOptional()
   doctorNotes?: string;
 }
+
 
 // ==========================================
 // Andrology Visit
@@ -354,9 +411,41 @@ export class CreateAndrologyVisitDto {
   @IsOptional()
   fertilityCaseId?: number;
 
+  @IsString()
+  @IsOptional()
+  chiefComplaint?: string;
+
+  @IsInt()
+  @IsOptional()
+  infertilityMonths?: number;
+
+  @IsInt()
+  @IsOptional()
+  previousPregnancies?: number;
+
+  @IsString()
+  @IsOptional()
+  coitalFrequency?: string;
+
   @IsBoolean()
   @IsOptional()
   erectileDisfunc?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  ejaculatoryDisfunc?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  retrogradeEjac?: boolean;
+
+  @IsString()
+  @IsOptional()
+  libidoLevel?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  prematureEjac?: boolean;
 
   @IsString()
   @IsOptional()
@@ -364,11 +453,91 @@ export class CreateAndrologyVisitDto {
 
   @IsString()
   @IsOptional()
+  alcoholUse?: string;
+
+  @IsString()
+  @IsOptional()
+  occupationalExposure?: string;
+
+  @IsNumber()
+  @IsOptional()
+  bmi?: number;
+
+  @IsBoolean()
+  @IsOptional()
+  cryptorchidismHistory?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  orchitisHistory?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  inguinalSurgery?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  chemotherapy?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  radiationExposure?: boolean;
+
+  @IsString()
+  @IsOptional()
+  currentMedications?: string;
+
+  @IsString()
+  @IsOptional()
+  surgicalHistory?: string;
+
+  @IsString()
+  @IsOptional()
+  medicalConditions?: string;
+
+  @IsString()
+  @IsOptional()
   varicoceleGrade?: string;
 
   @IsString()
   @IsOptional()
-  testicularVol?: string;
+  varicoceleRight?: string;
+
+  @IsString()
+  @IsOptional()
+  varicoceleLeft?: string;
+
+  @IsNumber()
+  @IsOptional()
+  testicularVolR?: number;
+
+  @IsNumber()
+  @IsOptional()
+  testicularVolL?: number;
+
+  @IsString()
+  @IsOptional()
+  testisConsistency?: string;
+
+  @IsString()
+  @IsOptional()
+  epididymalFindings?: string;
+
+  @IsString()
+  @IsOptional()
+  vasPresence?: string;
+
+  @IsString()
+  @IsOptional()
+  penileExam?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  gynecomastia?: boolean;
+
+  @IsString()
+  @IsOptional()
+  bodyHairPattern?: string;
 
   @IsNumber()
   @IsOptional()
@@ -393,7 +562,73 @@ export class CreateAndrologyVisitDto {
   @IsString()
   @IsOptional()
   treatmentPlan?: string;
+
+  @IsDateString()
+  @IsOptional()
+  followUpDate?: string;
+
+  @IsString()
+  @IsOptional()
+  referralNotes?: string;
 }
+
+// ==========================================
+// Hormone Test
+// ==========================================
+
+export class CreateHormoneTestDto {
+  @IsInt()
+  patientId: number;
+
+  @IsDateString()
+  @IsOptional()
+  testDate?: string;
+
+  @IsNumber()
+  @IsOptional()
+  fsh?: number;
+
+  @IsNumber()
+  @IsOptional()
+  lh?: number;
+
+  @IsNumber()
+  @IsOptional()
+  totalTestosterone?: number;
+
+  @IsNumber()
+  @IsOptional()
+  freeTestosterone?: number;
+
+  @IsNumber()
+  @IsOptional()
+  estradiol?: number;
+
+  @IsNumber()
+  @IsOptional()
+  prolactin?: number;
+
+  @IsNumber()
+  @IsOptional()
+  tsh?: number;
+
+  @IsNumber()
+  @IsOptional()
+  inhibinB?: number;
+
+  @IsNumber()
+  @IsOptional()
+  shbg?: number;
+
+  @IsNumber()
+  @IsOptional()
+  amhMale?: number;
+
+  @IsString()
+  @IsOptional()
+  notes?: string;
+}
+
 
 // ==========================================
 // Cryopreservation

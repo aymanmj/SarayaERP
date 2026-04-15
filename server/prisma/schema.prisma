@@ -466,6 +466,7 @@ model Patient {
   cryoItems            CryoItem[]
   semenAnalyses        SemenAnalysis[]
   andrologyVisits      AndrologyVisit[]
+  hormoneTests         HormoneTest[]
 
   // Consent Forms
   consentForms ConsentForm[]
@@ -1110,19 +1111,62 @@ model AndrologyVisit {
   encounterId     Int? @unique
   fertilityCaseId Int?
 
-  erectileDisfunc Boolean @default(false)
-  smokingHabit    String?
-  varicoceleGrade String?
-  testicularVol   String?
+  // --- Chief Complaint & History ---
+  chiefComplaint      String?
+  infertilityMonths   Int? // مدة العقم بالأشهر
+  previousPregnancies Int? // حمل سابق (مع أي شريكة)
+  coitalFrequency     String? // معدل الجماع أسبوعياً
 
+  // --- Sexual Function ---
+  erectileDisfunc    Boolean @default(false)
+  ejaculatoryDisfunc Boolean @default(false) // اضطرابات القذف
+  retrogradeEjac     Boolean @default(false) // قذف ارتجاعي
+  libidoLevel        String? // NORMAL / LOW / ABSENT
+  prematureEjac      Boolean @default(false)
+
+  // --- Lifestyle & Risk Factors ---
+  smokingHabit         String? // NON_SMOKER / SMOKER / EX_SMOKER
+  alcoholUse           String? // NONE / OCCASIONAL / REGULAR
+  occupationalExposure String? // حرارة، كيماويات، إشعاع
+  bmi                  Decimal? @db.Decimal(4, 1)
+
+  // --- Surgical / Medical History ---
+  cryptorchidismHistory Boolean @default(false) // خصية معلقة
+  orchitisHistory       Boolean @default(false) // التهاب خصية سابق
+  inguinalSurgery       Boolean @default(false) // جراحة إربية
+  chemotherapy          Boolean @default(false) // علاج كيميائي
+  radiationExposure     Boolean @default(false) // تعرض إشعاعي
+  currentMedications    String? // الأدوية الحالية
+  surgicalHistory       String? // تفاصيل جراحية أخرى
+  medicalConditions     String? // أمراض مزمنة
+
+  // --- Physical Exam ---
+  varicoceleGrade    String? // NONE / GRADE_I / GRADE_II / GRADE_III / BILATERAL
+  varicoceleRight    String?
+  varicoceleLeft     String?
+  testicularVolR     Decimal? @db.Decimal(4, 1) // ml — يمين
+  testicularVolL     Decimal? @db.Decimal(4, 1) // ml — يسار
+  testisConsistency  String? // NORMAL / SOFT / ATROPHIC
+  epididymalFindings String?
+  vasPresence        String? // PRESENT / ABSENT / PARTIAL
+  penileExam         String?
+  gynecomastia       Boolean  @default(false)
+  bodyHairPattern    String? // NORMAL / REDUCED / ABSENT
+
+  // --- Hormones (legacy quick-entry) ---
   fshLevel     Decimal? @db.Decimal(5, 2)
   lhLevel      Decimal? @db.Decimal(5, 2)
   testosterone Decimal? @db.Decimal(6, 2)
   prolactin    Decimal? @db.Decimal(5, 2)
 
-  diagnosis     String?
-  treatmentPlan String?
-  createdAt     DateTime @default(now())
+  // --- Assessment ---
+  diagnosis         String?
+  whoClassification String? // Auto: NORMOZOOSPERMIA, OLIGOZOOSPERMIA, etc.
+  treatmentPlan     String?
+  followUpDate      DateTime?
+  referralNotes     String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   patient       Patient        @relation(fields: [patientId], references: [id])
   encounter     Encounter?     @relation(fields: [encounterId], references: [id])
@@ -1136,28 +1180,82 @@ model SemenAnalysis {
   sampleDate      DateTime @default(now())
   abstinenceDays  Int?
 
-  volumeMl     Decimal? @db.Decimal(4, 1)
-  ph           Decimal? @db.Decimal(3, 1)
-  viscosity    String?
-  liquefaction String?
+  // --- Collection ---
+  collectionMethod String? // MASTURBATION / COITUS_INTERRUPTUS / SURGICAL
+  collectionTime   DateTime?
+  analysisTime     DateTime?
 
+  // --- Macroscopic ---
+  volumeMl            Decimal? @db.Decimal(4, 1)
+  ph                  Decimal? @db.Decimal(3, 1)
+  appearance          String? // TYPICAL / ABNORMAL
+  color               String? // GREY_OPALESCENT / YELLOW / RED_BROWN / CLEAR
+  viscosity           String? // NORMAL / HIGH
+  liquefaction        String? // COMPLETE / INCOMPLETE / DELAYED
+  liquefactionMinutes Int?
+
+  // --- Concentration ---
   countMilPerMl Decimal? @db.Decimal(8, 2)
   totalCountMil Decimal? @db.Decimal(8, 2)
 
+  // --- Motility ---
   progressivePR    Decimal? @db.Decimal(5, 2)
   nonProgressiveNP Decimal? @db.Decimal(5, 2)
   immotileIM       Decimal? @db.Decimal(5, 2)
+  totalMotility    Decimal? @db.Decimal(5, 2) // PR + NP — auto-calculated
 
-  normalForms   Decimal? @db.Decimal(5, 2)
+  // --- Morphology (Strict Kruger) ---
+  normalForms     Decimal? @db.Decimal(5, 2)
+  headDefects     Decimal? @db.Decimal(5, 2)
+  midpieceDefects Decimal? @db.Decimal(5, 2)
+  tailDefects     Decimal? @db.Decimal(5, 2)
+
+  // --- Vitality & Others ---
   vitality      Decimal? @db.Decimal(5, 2)
   wbcCount      Decimal? @db.Decimal(5, 2)
-  agglutination String?
+  roundCells    Decimal? @db.Decimal(5, 2)
+  agglutination String? // NONE / MILD / MODERATE / SEVERE
+
+  // --- Advanced Tests ---
+  marTestIgG       String? // NEGATIVE / POSITIVE (>50%)
+  marTestIgA       String?
+  dnaFragmentation Decimal? @db.Decimal(5, 2) // DFI %
+  dfiMethod        String? // TUNEL / SCD / SCSA / COMET
+
+  // --- Auto-Classification (WHO 6th Edition) ---
+  autoClassification String? // NORMOZOOSPERMIA, OLIGOZOOSPERMIA, OAT, AZOOSPERMIA, etc.
 
   conclusion  String?
   doctorNotes String?
 
   patient       Patient        @relation(fields: [patientId], references: [id])
   fertilityCase FertilityCase? @relation(fields: [fertilityCaseId], references: [id])
+}
+
+// ==========================================
+// 🔬 Hormone Tracking (تتبع الهرمونات عبر الزمن)
+// ==========================================
+
+model HormoneTest {
+  id        Int      @id @default(autoincrement())
+  patientId Int
+  testDate  DateTime @default(now())
+
+  fsh               Decimal? @db.Decimal(6, 2) // mIU/mL
+  lh                Decimal? @db.Decimal(6, 2) // mIU/mL
+  totalTestosterone Decimal? @db.Decimal(7, 2) // ng/dL
+  freeTestosterone  Decimal? @db.Decimal(6, 2) // pg/mL
+  estradiol         Decimal? @db.Decimal(6, 2) // pg/mL — E2
+  prolactin         Decimal? @db.Decimal(6, 2) // ng/mL
+  tsh               Decimal? @db.Decimal(5, 2) // mIU/L
+  inhibinB          Decimal? @db.Decimal(6, 2) // pg/mL
+  shbg              Decimal? @db.Decimal(6, 2) // nmol/L
+  amhMale           Decimal? @db.Decimal(6, 2) // ng/mL
+
+  notes     String?
+  createdAt DateTime @default(now())
+
+  patient Patient @relation(fields: [patientId], references: [id])
 }
 
 // ==========================================
