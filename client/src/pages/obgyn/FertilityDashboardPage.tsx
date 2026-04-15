@@ -12,9 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 
 interface FertilityCase {
   id: number;
-  patientId: number;
-  partnerName?: string;
-  partnerAge?: number;
+  femalePatientId: number;
+  malePatientId?: number;
   infertilityType: string;
   diagnosis?: string;
   durationYears?: number;
@@ -22,15 +21,15 @@ interface FertilityCase {
   amhLevel?: number;
   fshLevel?: number;
   lhLevel?: number;
-  spermCount?: number;
-  spermMotility?: number;
-  spermMorphology?: number;
   status: string;
   notes?: string;
   createdAt: string;
-  patient?: { fullName: string; mrn: string; dateOfBirth?: string };
+  femalePatient?: { id: number; fullName: string; mrn: string; dateOfBirth?: string };
+  malePatient?: { id: number; fullName: string; mrn: string; dateOfBirth?: string };
   cycles: IVFCycle[];
-  _count?: { cycles: number };
+  semenAnalyses?: any[];
+  andrologyVisits?: any[];
+  _count?: { cycles: number; semenAnalyses?: number };
 }
 
 interface IVFCycle {
@@ -64,7 +63,7 @@ interface IVFCycle {
 const infertilityLabels: Record<string, string> = {
   MALE_FACTOR: 'عامل ذكوري',
   FEMALE_FACTOR: 'عامل أنثوي',
-  BOTH: 'عامل مشترك',
+  COMBINED: 'عامل مشترك',
   UNEXPLAINED: 'غير مفسر',
 };
 
@@ -118,15 +117,12 @@ export default function FertilityDashboardPage() {
   const [selectedCycle, setSelectedCycle] = useState<IVFCycle | null>(null);
 
   // Case Form
-  const [partnerName, setPartnerName] = useState('');
-  const [partnerAge, setPartnerAge] = useState<number | ''>('');
+  const [malePatientId, setMalePatientId] = useState<number | ''>('');
   const [infertilityType, setInfertilityType] = useState('UNEXPLAINED');
   const [diagnosis, setDiagnosis] = useState('');
   const [durationYears, setDurationYears] = useState<number | ''>('');
   const [amhLevel, setAmhLevel] = useState<number | ''>('');
   const [fshLevel, setFshLevel] = useState<number | ''>('');
-  const [spermCount, setSpermCount] = useState<number | ''>('');
-  const [spermMotility, setSpermMotility] = useState<number | ''>('');
 
   // Cycle Form
   const [cycleType, setCycleType] = useState('ICSI');
@@ -161,10 +157,10 @@ export default function FertilityDashboardPage() {
     if (!patientId) return toast.error('يرجى تحديد المريضة');
     try {
       const res = await apiClient.post('/obgyn/fertility/cases', {
-        patientId: Number(patientId), partnerName, partnerAge: partnerAge || undefined,
+        femalePatientId: Number(patientId),
+        malePatientId: malePatientId || undefined,
         infertilityType, diagnosis, durationYears: durationYears || undefined,
         amhLevel: amhLevel || undefined, fshLevel: fshLevel || undefined,
-        spermCount: spermCount || undefined, spermMotility: spermMotility || undefined,
       });
       toast.success('تم فتح ملف العقم بنجاح');
       setShowNewCaseForm(false);
@@ -205,7 +201,10 @@ export default function FertilityDashboardPage() {
             <h1 className="text-2xl font-bold text-white flex items-center gap-2">
               🧬 ملف العقم والحقن المجهري
             </h1>
-            <p className="text-slate-400">{fertCase.patient?.fullName} — MRN: {fertCase.patient?.mrn}</p>
+            <p className="text-slate-400">
+              👩 {fertCase.femalePatient?.fullName || '—'} (MRN: {fertCase.femalePatient?.mrn})
+              {fertCase.malePatient && <> — 👨 {fertCase.malePatient.fullName} (MRN: {fertCase.malePatient.mrn})</>}
+            </p>
           </div>
           <Button variant="secondary" onClick={() => navigate(-1)} className="bg-slate-800 text-slate-200 hover:bg-slate-700">رجوع</Button>
         </div>
@@ -240,18 +239,18 @@ export default function FertilityDashboardPage() {
           </Card>
         </div>
 
-        {/* Partner & Lab Results */}
+        {/* Couple Info & Lab Results */}
         <Card className="bg-transparent border border-slate-700 text-slate-100">
           <CardHeader><CardTitle className="text-white">البيانات التشخيصية</CardTitle></CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-              <div><span className="text-slate-400">الزوج:</span> <span className="text-white font-bold">{fertCase.partnerName || '—'}</span></div>
-              <div><span className="text-slate-400">عمر الزوج:</span> <span className="text-white font-bold">{fertCase.partnerAge || '—'}</span></div>
+              <div><span className="text-slate-400">الزوجة:</span> <span className="text-white font-bold">{fertCase.femalePatient?.fullName || '—'}</span></div>
+              <div><span className="text-slate-400">الزوج:</span> <span className="text-white font-bold">{fertCase.malePatient?.fullName || 'غير مربوط'}</span></div>
               <div><span className="text-slate-400">AMH:</span> <span className="text-white font-bold">{fertCase.amhLevel || '—'} ng/mL</span></div>
               <div><span className="text-slate-400">FSH:</span> <span className="text-white font-bold">{fertCase.fshLevel || '—'} mIU/mL</span></div>
-              <div><span className="text-slate-400">عدد الحيوانات المنوية:</span> <span className="text-white font-bold">{fertCase.spermCount || '—'} مليون/مل</span></div>
-              <div><span className="text-slate-400">حركة الحيوانات المنوية:</span> <span className="text-white font-bold">{fertCase.spermMotility || '—'}%</span></div>
               <div className="col-span-2"><span className="text-slate-400">التشخيص:</span> <span className="text-white">{fertCase.diagnosis || '—'}</span></div>
+              <div><span className="text-slate-400">تحاليل سائل منوي:</span> <span className="text-cyan-400 font-bold">{fertCase.semenAnalyses?.length || 0}</span></div>
+              <div><span className="text-slate-400">زيارات ذكورة:</span> <span className="text-cyan-400 font-bold">{fertCase.andrologyVisits?.length || 0}</span></div>
             </div>
           </CardContent>
         </Card>
@@ -418,12 +417,8 @@ export default function FertilityDashboardPage() {
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="space-y-1">
-                <Label className="text-slate-400">اسم الزوج</Label>
-                <Input value={partnerName} onChange={e => setPartnerName(e.target.value)} className="bg-slate-900 border-slate-700 text-white" />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-slate-400">عمر الزوج</Label>
-                <Input type="number" value={partnerAge} onChange={e => setPartnerAge(e.target.value ? Number(e.target.value) : '')} className="bg-slate-900 border-slate-700 text-white" />
+                <Label className="text-slate-400">رقم ملف الزوج (ID) - اختياري</Label>
+                <Input type="number" value={malePatientId} onChange={e => setMalePatientId(e.target.value ? Number(e.target.value) : '')} placeholder="رقم ملف الزوج..." className="bg-slate-900 border-slate-700 text-white" />
               </div>
               <div className="space-y-1">
                 <Label className="text-slate-400">نوع العقم</Label>
@@ -448,14 +443,6 @@ export default function FertilityDashboardPage() {
                 <Label className="text-slate-400">FSH (mIU/mL)</Label>
                 <Input type="number" step="0.01" value={fshLevel} onChange={e => setFshLevel(e.target.value ? Number(e.target.value) : '')} className="bg-slate-900 border-slate-700 text-white" />
               </div>
-              <div className="space-y-1">
-                <Label className="text-slate-400">عدد الحيوانات المنوية (مليون)</Label>
-                <Input type="number" step="0.1" value={spermCount} onChange={e => setSpermCount(e.target.value ? Number(e.target.value) : '')} className="bg-slate-900 border-slate-700 text-white" />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-slate-400">حركة الحيوانات (%)</Label>
-                <Input type="number" step="0.1" value={spermMotility} onChange={e => setSpermMotility(e.target.value ? Number(e.target.value) : '')} className="bg-slate-900 border-slate-700 text-white" />
-              </div>
             </div>
             <div className="space-y-1">
               <Label className="text-slate-400">التشخيص</Label>
@@ -474,7 +461,7 @@ export default function FertilityDashboardPage() {
                 <div className="flex items-center gap-4">
                   <span className="text-2xl">🧬</span>
                   <div>
-                    <div className="text-white font-bold">{c.patient?.fullName || `ملف #${c.id}`}</div>
+                    <div className="text-white font-bold">👩 {c.femalePatient?.fullName || `ملف #${c.id}`} {c.malePatient && <span className="text-slate-400 font-normal">+ 👨 {c.malePatient.fullName}</span>}</div>
                     <div className="text-xs text-slate-400">
                       {infertilityLabels[c.infertilityType]} — {c.durationYears ? `${c.durationYears} سنة` : ''}
                     </div>

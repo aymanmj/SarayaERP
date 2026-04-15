@@ -452,290 +452,236 @@ export function PatientsPage() {
 
       {/* --- Patient Modal (Add/Edit) --- */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-          <div className="bg-slate-950 border border-slate-700 rounded-3xl p-8 w-full max-w-2xl shadow-2xl animate-in zoom-in-95 duration-200">
-            <h2 className="text-2xl font-bold mb-6 text-white">
-              {editingPatient ? "تعديل بيانات المريض" : "تسجيل مريض جديد"}
-            </h2>
+        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/80 backdrop-blur-sm" onClick={() => setModalOpen(false)}>
+          <div
+            className="bg-slate-950 border border-slate-700 w-full md:max-w-2xl md:rounded-3xl rounded-t-3xl shadow-2xl animate-in slide-in-from-bottom-4 md:zoom-in-95 duration-200 max-h-[95vh] md:max-h-[90vh] flex flex-col"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Modal Header - Fixed */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800 flex-shrink-0">
+              <h2 className="text-lg md:text-xl font-bold text-white">
+                {editingPatient ? "✏️ تعديل بيانات المريض" : "➕ تسجيل مريض جديد"}
+              </h2>
+              <button onClick={() => setModalOpen(false)} className="w-9 h-9 flex items-center justify-center rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors text-lg">✕</button>
+            </div>
 
-            <form
-              onSubmit={handleSave}
-              className="grid grid-cols-1 md:grid-cols-2 gap-5 text-sm"
-            >
-              <div className="space-y-1">
-                <label className="text-slate-400 text-xs">الاسم الكامل *</label>
-                <input
-                  name="fullName"
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 focus:border-sky-500 outline-none"
-                  value={formData.fullName}
-                  onChange={(e) =>
-                    setFormData({ ...formData, fullName: e.target.value })
-                  }
-                  required
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-slate-400 text-xs">
-                  الرقم الوطني / الهوية
-                </label>
-                <input
-                  name="nationalId"
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 focus:border-sky-500 outline-none"
-                  value={formData.nationalId}
-                  onChange={(e) =>
-                    setFormData({ ...formData, nationalId: e.target.value })
-                  }
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-slate-400 text-xs">تاريخ الميلاد</label>
-                <DatePicker
-                  date={
-                    formData.dateOfBirth
-                      ? new Date(formData.dateOfBirth)
-                      : undefined
-                  }
-                  onChange={(d) =>
-                    setFormData({
-                      ...formData,
-                      dateOfBirth: d ? d.toISOString().slice(0, 10) : "",
-                    })
-                  }
-                  className="bg-slate-900 border-slate-700 h-10 px-3 w-full"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-slate-400 text-xs">الجنس</label>
-                <select
-                  name="gender"
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 focus:border-sky-500 outline-none"
-                  value={formData.gender || ""}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      gender: e.target.value as Gender,
-                    })
-                  }
-                >
-                  <option value="MALE">ذكر</option>
-                  <option value="FEMALE">أنثى</option>
-                </select>
-              </div>
-              <div className="col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-slate-800 pt-4 mt-2">
-                <div className="space-y-1">
-                  <label className="text-slate-400 text-[10px] font-bold">
-                    إسم الأم
-                  </label>
-                  <input
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:border-sky-500 outline-none"
-                    value={formData.motherName}
-                    onChange={(e) =>
-                      setFormData({ ...formData, motherName: e.target.value })
-                    }
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-slate-400 text-[10px] font-bold">
-                    رقم كتيب العائلة
-                  </label>
-                  <input
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:border-sky-500 outline-none"
-                    value={formData.familyBooklet}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        familyBooklet: e.target.value,
-                      })
-                    }
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-slate-400 text-[10px] font-bold">
-                    رقم ورقة العائلة
-                  </label>
-                  <input
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:border-sky-500 outline-none"
-                    value={formData.familySheet}
-                    onChange={(e) =>
-                      setFormData({ ...formData, familySheet: e.target.value })
-                    }
-                  />
+            {/* Modal Body - Scrollable */}
+            <form onSubmit={handleSave} className="flex-1 overflow-y-auto custom-scrollbar px-5 py-5 space-y-5">
+
+              {/* === القسم 1: البيانات الأساسية === */}
+              <div className="space-y-1.5">
+                <h3 className="text-xs font-bold text-sky-400 flex items-center gap-1.5 pb-2 border-b border-slate-800/60">
+                  <span>👤</span> البيانات الأساسية
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <label className="text-slate-400 text-xs font-medium">الاسم الكامل *</label>
+                    <input
+                      name="fullName"
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:border-sky-500 outline-none transition-colors"
+                      value={formData.fullName}
+                      onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                      required
+                      autoFocus
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-slate-400 text-xs font-medium">الرقم الوطني</label>
+                    <input
+                      name="nationalId"
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:border-sky-500 outline-none transition-colors"
+                      value={formData.nationalId}
+                      onChange={(e) => setFormData({ ...formData, nationalId: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-slate-400 text-xs font-medium">تاريخ الميلاد</label>
+                    <DatePicker
+                      date={formData.dateOfBirth ? new Date(formData.dateOfBirth) : undefined}
+                      onChange={(d) => setFormData({ ...formData, dateOfBirth: d ? d.toISOString().slice(0, 10) : "" })}
+                      className="bg-slate-900 border-slate-700 h-[46px] px-3 w-full rounded-xl"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-slate-400 text-xs font-medium">الجنس</label>
+                    <select
+                      name="gender"
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:border-sky-500 outline-none transition-colors appearance-none"
+                      value={formData.gender || ""}
+                      onChange={(e) => setFormData({ ...formData, gender: e.target.value as Gender })}
+                    >
+                      <option value="MALE">ذكر</option>
+                      <option value="FEMALE">أنثى</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-slate-400 text-xs font-medium">الحالة الاجتماعية</label>
+                    <select
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:border-sky-500 outline-none transition-colors appearance-none"
+                      value={formData.maritalStatus}
+                      onChange={(e) => setFormData({ ...formData, maritalStatus: e.target.value })}
+                    >
+                      <option value="SINGLE">أعزب / عزباء</option>
+                      <option value="MARRIED">متزوج / ة</option>
+                      <option value="DIVORCED">مطلق / ة</option>
+                      <option value="WIDOWED">أرمل / ة</option>
+                    </select>
+                  </div>
                 </div>
               </div>
 
-              <div className="col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-1">
-                  <label className="text-slate-400 text-[10px] font-bold">
-                    رقم القيد
-                  </label>
-                  <input
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:border-sky-500 outline-none"
-                    value={formData.registryNumber}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        registryNumber: e.target.value,
-                      })
-                    }
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-slate-400 text-[10px] font-bold">
-                    نوع الهوية
-                  </label>
-                  <select
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:border-sky-500 outline-none"
-                    value={formData.identityType}
-                    onChange={(e) =>
-                      setFormData({ ...formData, identityType: e.target.value })
-                    }
-                  >
-                    <option value="PERSONAL_ID">بطاقة شخصية</option>
-                    <option value="PASSPORT">جواز سفر</option>
-                  </select>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-slate-400 text-[10px] font-bold">
-                    رقم الهوية المختارة
-                  </label>
-                  <input
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:border-sky-500 outline-none"
-                    placeholder="أدخل رقم البطاقة أو الجواز"
-                    value={formData.identityNumber}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        identityNumber: e.target.value,
-                      })
-                    }
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-slate-400 text-[10px] font-bold">
-                    الحالة الاجتماعية
-                  </label>
-                  <select
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:border-sky-500 outline-none"
-                    value={formData.maritalStatus}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        maritalStatus: e.target.value,
-                      })
-                    }
-                  >
-                    <option value="SINGLE">أعزب / عزباء</option>
-                    <option value="MARRIED">متزوج / ة</option>
-                    <option value="DIVORCED">مطلق / ة</option>
-                    <option value="WIDOWED">أرمل / ة</option>
-                  </select>
-                </div>
-              </div>
-              <div className="space-y-1">
-                <label className="text-slate-400 text-xs">رقم الهاتف</label>
-                <input
-                  name="phone"
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 focus:border-sky-500 outline-none"
-                  value={formData.phone}
-                  onChange={(e) =>
-                    setFormData({ ...formData, phone: e.target.value })
-                  }
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-slate-400 text-xs">العنوان</label>
-                <input
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 focus:border-sky-500 outline-none"
-                  value={formData.address}
-                  onChange={(e) =>
-                    setFormData({ ...formData, address: e.target.value })
-                  }
-                />
-              </div>
-
-              <div className="col-span-2 mt-2 pt-4 border-t border-slate-800 grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-1">
-                  <label className="text-emerald-500 text-xs font-bold">
-                    شركة التأمين
-                  </label>
-                  <select
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-xs"
-                    value={formData.insuranceProviderId}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        insuranceProviderId: e.target.value,
-                        insurancePolicyId: "",
-                      })
-                    }
-                  >
-                    <option value="">-- دفع نقدي --</option>
-                    {providers.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-emerald-500 text-xs font-bold">
-                    العقد / البوليصة
-                  </label>
-                  <select
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-xs disabled:opacity-50"
-                    disabled={!formData.insuranceProviderId}
-                    value={formData.insurancePolicyId}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        insurancePolicyId: e.target.value,
-                      })
-                    }
-                  >
-                    <option value="">-- اختر العقد --</option>
-                    {activePolicies.map((pol) => (
-                      <option key={pol.id} value={pol.id}>
-                        {pol.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-emerald-500 text-xs font-bold">
-                    رقم بطاقة التأمين
-                  </label>
-                  <input
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-xs disabled:opacity-50"
-                    disabled={!formData.insuranceProviderId}
-                    value={formData.insuranceMemberId}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        insuranceMemberId: e.target.value,
-                      })
-                    }
-                  />
+              {/* === القسم 2: بيانات التواصل === */}
+              <div className="space-y-1.5">
+                <h3 className="text-xs font-bold text-emerald-400 flex items-center gap-1.5 pb-2 border-b border-slate-800/60">
+                  <span>📞</span> بيانات التواصل
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                  <div className="space-y-1.5">
+                    <label className="text-slate-400 text-xs font-medium">رقم الهاتف</label>
+                    <input
+                      name="phone"
+                      type="tel"
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:border-sky-500 outline-none transition-colors"
+                      value={formData.phone}
+                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-slate-400 text-xs font-medium">العنوان</label>
+                    <input
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:border-sky-500 outline-none transition-colors"
+                      value={formData.address}
+                      onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                    />
+                  </div>
                 </div>
               </div>
 
-              <div className="col-span-2 mt-4 flex justify-end gap-3 border-t border-slate-800 pt-5">
-                <button
-                  type="button"
-                  onClick={() => setModalOpen(false)}
-                  className="px-6 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-bold"
-                >
-                  إلغاء
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="px-10 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-xl font-bold shadow-lg disabled:opacity-50"
-                >
-                  {saving ? "جارِ الحفظ..." : "حفظ البيانات"}
-                </button>
+              {/* === القسم 3: الوثائق والهوية === */}
+              <div className="space-y-1.5">
+                <h3 className="text-xs font-bold text-amber-400 flex items-center gap-1.5 pb-2 border-b border-slate-800/60">
+                  <span>🪪</span> الوثائق والهوية
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                  <div className="space-y-1.5">
+                    <label className="text-slate-400 text-xs font-medium">إسم الأم</label>
+                    <input
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:border-sky-500 outline-none transition-colors"
+                      value={formData.motherName}
+                      onChange={(e) => setFormData({ ...formData, motherName: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-slate-400 text-xs font-medium">رقم القيد</label>
+                    <input
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:border-sky-500 outline-none transition-colors"
+                      value={formData.registryNumber}
+                      onChange={(e) => setFormData({ ...formData, registryNumber: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-slate-400 text-xs font-medium">رقم كتيب العائلة</label>
+                    <input
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:border-sky-500 outline-none transition-colors"
+                      value={formData.familyBooklet}
+                      onChange={(e) => setFormData({ ...formData, familyBooklet: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-slate-400 text-xs font-medium">رقم ورقة العائلة</label>
+                    <input
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:border-sky-500 outline-none transition-colors"
+                      value={formData.familySheet}
+                      onChange={(e) => setFormData({ ...formData, familySheet: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-slate-400 text-xs font-medium">نوع الهوية</label>
+                    <select
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:border-sky-500 outline-none transition-colors appearance-none"
+                      value={formData.identityType}
+                      onChange={(e) => setFormData({ ...formData, identityType: e.target.value })}
+                    >
+                      <option value="PERSONAL_ID">بطاقة شخصية</option>
+                      <option value="PASSPORT">جواز سفر</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-slate-400 text-xs font-medium">رقم الهوية</label>
+                    <input
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:border-sky-500 outline-none transition-colors"
+                      placeholder="أدخل رقم البطاقة أو الجواز"
+                      value={formData.identityNumber}
+                      onChange={(e) => setFormData({ ...formData, identityNumber: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* === القسم 4: التأمين الصحي === */}
+              <div className="space-y-1.5">
+                <h3 className="text-xs font-bold text-violet-400 flex items-center gap-1.5 pb-2 border-b border-slate-800/60">
+                  <span>🏥</span> التأمين الصحي
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <label className="text-slate-400 text-xs font-medium">شركة التأمين</label>
+                    <select
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:border-sky-500 outline-none transition-colors appearance-none"
+                      value={formData.insuranceProviderId}
+                      onChange={(e) => setFormData({ ...formData, insuranceProviderId: e.target.value, insurancePolicyId: "" })}
+                    >
+                      <option value="">-- دفع نقدي --</option>
+                      {providers.map((p) => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-slate-400 text-xs font-medium">العقد / البوليصة</label>
+                    <select
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:border-sky-500 outline-none transition-colors appearance-none disabled:opacity-50"
+                      disabled={!formData.insuranceProviderId}
+                      value={formData.insurancePolicyId}
+                      onChange={(e) => setFormData({ ...formData, insurancePolicyId: e.target.value })}
+                    >
+                      <option value="">-- اختر العقد --</option>
+                      {activePolicies.map((pol) => (
+                        <option key={pol.id} value={pol.id}>{pol.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-slate-400 text-xs font-medium">رقم بطاقة التأمين</label>
+                    <input
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:border-sky-500 outline-none transition-colors disabled:opacity-50"
+                      disabled={!formData.insuranceProviderId}
+                      value={formData.insuranceMemberId}
+                      onChange={(e) => setFormData({ ...formData, insuranceMemberId: e.target.value })}
+                    />
+                  </div>
+                </div>
               </div>
             </form>
+
+            {/* Modal Footer - Fixed */}
+            <div className="px-5 py-4 border-t border-slate-800 flex flex-col-reverse sm:flex-row justify-end gap-3 flex-shrink-0 bg-slate-950">
+              <button
+                type="button"
+                onClick={() => setModalOpen(false)}
+                className="w-full sm:w-auto px-6 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-bold text-sm transition-colors"
+              >
+                إلغاء
+              </button>
+              <button
+                type="submit"
+                disabled={saving}
+                onClick={handleSave}
+                className="w-full sm:w-auto px-10 py-3 bg-sky-600 hover:bg-sky-500 text-white rounded-xl font-bold shadow-lg disabled:opacity-50 text-sm transition-colors"
+              >
+                {saving ? "جارِ الحفظ..." : "💾 حفظ البيانات"}
+              </button>
+            </div>
           </div>
         </div>
       )}

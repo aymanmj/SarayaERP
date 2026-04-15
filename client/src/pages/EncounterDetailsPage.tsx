@@ -70,13 +70,15 @@ type TabKey =
   | "PRESCRIPTIONS"
   | "BILLING"
   | "ALLERGIES"
-  | "OBGYN";
+  | "OBGYN"
+  | "ANDROLOGY";
 
 // ✅ إضافة التبويب للقائمة
 const tabs: { key: TabKey; label: string; icon: string; alert?: boolean; gender?: "MALE" | "FEMALE" }[] = [
   { key: "VISITS", label: "التشخيص والزيارة", icon: "🩺" },
-  { key: "ALLERGIES", label: "الحساسية والمخاطر", icon: "⚠️", alert: true }, // مميز
-  { key: "OBGYN", label: "النساء والولادة", icon: "🤰", gender: "FEMALE" },  // ✅ خاص بالنساء
+  { key: "ALLERGIES", label: "الحساسية والمخاطر", icon: "⚠️", alert: true },
+  { key: "OBGYN", label: "النساء والولادة", icon: "🤰", gender: "FEMALE" },
+  { key: "ANDROLOGY", label: "أمراض الذكورة", icon: "🧬", gender: "MALE" },
   { key: "LABS", label: "المختبر", icon: "🧪" },
   { key: "RADIOLOGY", label: "الأشعة", icon: "☢️" },
   { key: "PRESCRIPTIONS", label: "الأدوية", icon: "💊" },
@@ -702,6 +704,30 @@ export default function EncounterDetailsPage() {
                     >
                       <span>👶</span> تسجيل ولادة جديدة
                     </button>
+                 </div>
+               </div>
+            )}
+
+            {/* ✅ عرض تبويب أمراض الذكورة */}
+            {activeTab === "ANDROLOGY" && (
+               <div className="max-w-3xl space-y-6">
+                 <div className="bg-slate-900/80 border border-cyan-900/40 rounded-2xl p-6">
+                   <h3 className="text-lg font-bold text-cyan-400 mb-4 flex items-center gap-2">🧬 ملف أمراض الذكورة والعقم</h3>
+                   <p className="text-slate-400 text-sm mb-6">يمكنك من هنا الوصول لملف المريض في عيادة أمراض الذكورة وتحاليل السائل المنوي وملفات العقم المشتركة.</p>
+                   <div className="flex justify-end gap-3 flex-wrap">
+                     <button
+                       onClick={() => navigate(`/andrology?patientId=${encounter.patientId}`)}
+                       className="bg-cyan-600 hover:bg-cyan-500 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg"
+                     >
+                       <span>🔬</span> تحليل السائل المنوي
+                     </button>
+                     <button
+                       onClick={() => navigate(`/obgyn/fertility?patientId=${encounter.patientId}`)}
+                       className="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg"
+                     >
+                       <span>💑</span> ملف العقم المشترك (IVF)
+                     </button>
+                   </div>
                  </div>
                </div>
             )}

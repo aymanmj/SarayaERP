@@ -387,6 +387,11 @@ export function MainLayout() {
           path: "/obgyn/fertility",
           requiredModule: "OBGYN",
         },
+        {
+          label: "أمراض الذكورة والعقم",
+          path: "/andrology",
+          requiredModule: "OBGYN",
+        },
         { 
           label: "الصيدلية", 
           path: "/pharmacy", 

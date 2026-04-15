@@ -21,6 +21,7 @@ const PatientChartPage = lazy(() => import("../pages/PatientChartPage")); // �
 const DeliveryRegistrationPage = lazy(() => import("../pages/obgyn/DeliveryRegistrationPage")); // 🆕 OBGYN
 const AntenatalCarePage = lazy(() => import("../pages/obgyn/AntenatalCarePage")); // 🆕 ANC
 const FertilityDashboardPage = lazy(() => import("../pages/obgyn/FertilityDashboardPage")); // 🆕 IVF
+const AndrologyPage = lazy(() => import("../pages/andrology/AndrologyPage")); // 🆕 Andrology
 const OrderSetsPage = lazy(() => import("../pages/OrderSetsPage")); // 🆕 Phase 3
 const ClinicalPathwaysPage = lazy(() => import("../pages/ClinicalPathwaysPage")); // 🆕 Phase 3
 const TriageDashboardPage = lazy(() =>
@@ -88,6 +89,7 @@ export const ClinicalRoutes = (
     <Route path="/obgyn/deliveries/new" element={<DeliveryRegistrationPage />} /> {/* 🆕 OBGYN */}
     <Route path="/obgyn/anc" element={<AntenatalCarePage />} /> {/* 🆕 ANC */}
     <Route path="/obgyn/fertility" element={<FertilityDashboardPage />} /> {/* 🆕 IVF */}
+    <Route path="/andrology" element={<AndrologyPage />} /> {/* 🆕 Andrology */}
     <Route path="/triage" element={<TriageDashboardPage />} />
     <Route path="/clinical/icu" element={<IcuDashboardPage />} /> {/* 🆕 ICU */}
     <Route path="/clinical/icu/flowsheet/:encounterId" element={<IcuFlowsheetPage />} /> {/* 🆕 ICU */}
