@@ -624,4 +624,82 @@ export class FhirService {
       note: surgery.surgeonNotes ? [{ text: surgery.surgeonNotes }] : undefined
     };
   }
+
+  // ==========================================
+  // PHASE 4: CDS HOOKS & SUBSCRIPTIONS
+  // ==========================================
+
+  // In-memory subscription store for prototype
+  private subscriptions: Map<string, any> = new Map();
+
+  // --- SUBSCRIPTION ---
+  async createSubscription(payload: any) {
+    if (payload.resourceType !== 'Subscription') {
+      throw new BadRequestException('Invalid resourceType, expected Subscription');
+    }
+    const id = `sub_${Date.now()}`;
+    const subscription = {
+      ...payload,
+      id,
+      status: 'active',
+    };
+    this.subscriptions.set(id, subscription);
+    return subscription;
+  }
+
+  async getSubscription(id: string) {
+    const sub = this.subscriptions.get(id);
+    if (!sub) throw new NotFoundException('Subscription not found');
+    return sub;
+  }
+
+  // Example trigger to simulate a webhook firing when a clinical event happens
+  simulateWebhookTrigger(resourceName: string, id: number) {
+    console.log(`[FHIR Subscription Webhook] Change detected in ${resourceName}/${id}. Checking active subscriptions...`);
+    // In a real Epic/Cerner architecture, here we iterate over subscriptions,
+    // match criteria (e.g. Patient?gender=male), and send HTTP POST requests to the registered payload.channel.endpoint.
+  }
+
+  // --- CDS HOOKS ---
+  getCdsServices() {
+    return {
+      services: [
+        {
+          hook: 'order-select',
+          name: 'High-Risk Medication Advisor',
+          description: 'Checks for interactions when prescribing medications to high-risk patients.',
+          id: 'medication-advisor-1',
+          prefetch: {
+            patient: 'Patient/{{context.patientId}}',
+            allergies: 'AllergyIntolerance?patient={{context.patientId}}'
+          }
+        }
+      ]
+    };
+  }
+
+  handleCdsHook(serviceId: string, payload: any) {
+    if (serviceId !== 'medication-advisor-1') {
+      throw new NotFoundException('CDS service not found');
+    }
+    // E.g., Epic sends contextual UI data. We return "Cards".
+    return {
+      cards: [
+        {
+          summary: 'Potential Drug Alert detected',
+          detail: 'This medication may have moderate interactions with the patient\'s active allergies.',
+          indicator: 'warning',
+          source: {
+            label: 'Saraya CDS Rules Engine'
+          },
+          links: [
+            {
+              label: 'View interaction details',
+              url: 'https://saraya-erp.com/guidelines/drug-interactions'
+            }
+          ]
+        }
+      ]
+    };
+  }
 }

@@ -200,4 +200,35 @@ export class FhirController {
   getProcedure(@Param('id', ParseIntPipe) id: number) {
     return this.fhirService.getProcedure(id);
   }
+
+  // ==========================================
+  // PHASE 4: CDS HOOKS & SUBSCRIPTIONS
+  // ==========================================
+
+  // --- SUBSCRIPTIONS ---
+  @UseGuards(FhirAuthGuard)
+  @FhirScope('system/Subscription.read')
+  @Get('Subscription/:id')
+  getSubscription(@Param('id') id: string) {
+    return this.fhirService.getSubscription(id);
+  }
+
+  @UseGuards(FhirAuthGuard)
+  @FhirScope('system/Subscription.write')
+  @Post('Subscription')
+  createSubscription(@Body() body: any) {
+    return this.fhirService.createSubscription(body);
+  }
+
+  // --- CDS HOOKS ---
+  // Discovery endpoint does not require auth per CDS spec
+  @Get('cds-services')
+  getCdsServices() {
+    return this.fhirService.getCdsServices();
+  }
+
+  @Post('cds-services/:id')
+  handleCdsHook(@Param('id') id: string, @Body() body: any) {
+    return this.fhirService.handleCdsHook(id, body);
+  }
 }
