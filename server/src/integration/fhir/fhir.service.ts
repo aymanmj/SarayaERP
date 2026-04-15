@@ -1,5 +1,5 @@
 
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 
@@ -81,6 +81,26 @@ export class FhirService {
             {
               type: 'Organization',
               interaction: [{ code: 'read' }],
+            },
+            {
+              type: 'Condition',
+              interaction: [{ code: 'read' }, { code: 'search-type' }],
+              searchParam: [{ name: 'patient', type: 'reference' }],
+            },
+            {
+              type: 'AllergyIntolerance',
+              interaction: [{ code: 'read' }, { code: 'search-type' }],
+              searchParam: [{ name: 'patient', type: 'reference' }],
+            },
+            {
+              type: 'MedicationRequest',
+              interaction: [{ code: 'read' }, { code: 'search-type' }],
+              searchParam: [{ name: 'patient', type: 'reference' }],
+            },
+            {
+              type: 'Procedure',
+              interaction: [{ code: 'read' }, { code: 'search-type' }],
+              searchParam: [{ name: 'patient', type: 'reference' }],
             },
           ],
         },
@@ -365,6 +385,243 @@ export class FhirService {
       encounter: vital.encounterId ? { reference: `Encounter/${vital.encounterId}` } : undefined,
       effectiveDateTime: vital.createdAt.toISOString(),
       component: components.length > 0 ? components : undefined
+    };
+  }
+
+  // ==========================================
+  // PHASE 2: BIDIRECTIONAL WRITE (POST)
+  // ==========================================
+  
+  async createObservation(payload: any) {
+    if (payload.resourceType !== 'Observation') {
+      throw new BadRequestException('Invalid resourceType, expected Observation');
+    }
+    
+    // Extract Patient ID from reference "Patient/123"
+    const subjectRef = payload.subject?.reference;
+    if (!subjectRef || !subjectRef.startsWith('Patient/')) {
+      throw new BadRequestException('Observation requires a valid subject reference (Patient/id)');
+    }
+    const patientId = parseInt(subjectRef.split('/')[1]);
+
+    // Try to find the active encounter for this patient
+    const encounter = await this.prisma.encounter.findFirst({
+      where: { patientId, status: { in: ['OPEN'] } },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!encounter) {
+      throw new BadRequestException('Patient must have an active Encounter to post vitals via FHIR currently');
+    }
+
+    // Map FHIR components back to our DB schema
+    let pulse: number | undefined;
+    let respRate: number | undefined;
+    let temperature: number | undefined;
+    let bpSystolic: number | undefined;
+    let bpDiastolic: number | undefined;
+
+    if (payload.component && Array.isArray(payload.component)) {
+      for (const comp of payload.component) {
+        const code = comp.code?.coding?.[0]?.code;
+        if (code === '8867-4') pulse = comp.valueQuantity?.value;
+        if (code === '9279-1') respRate = comp.valueQuantity?.value;
+        if (code === '8310-5') temperature = comp.valueQuantity?.value;
+      }
+    }
+
+    // Direct mapping if they passed flat values (Non-Standard FHIR, but common in simple posts)
+    if (payload.valueQuantity?.system === 'beats/min') pulse = payload.valueQuantity.value;
+
+    const vital = await this.prisma.vitalSign.create({
+      data: {
+        encounterId: encounter.id,
+        pulse,
+        respRate,
+        temperature,
+        note: 'Imported via FHIR API',
+      }
+    });
+
+    return this.mapToFhirObservation({ ...vital, encounter });
+  }
+
+  // ==========================================
+  // PHASE 2: USCDI RESOURCES
+  // ==========================================
+
+  // --- CONDITION (Problems/Diagnoses) ---
+  async getCondition(id: number) {
+    const problem = await this.prisma.patientProblem.findUnique({ where: { id } });
+    if (!problem) throw new NotFoundException('Condition not found');
+    return this.mapToFhirCondition(problem);
+  }
+
+  async searchConditions(query: any, baseUrl: string) {
+    const where: Prisma.PatientProblemWhereInput = {};
+    if (query.patient) {
+      const patientId = query.patient.startsWith('Patient/') ? query.patient.split('/')[1] : query.patient;
+      where.patientId = Number(patientId);
+    }
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.patientProblem.findMany({ where, take: 50, orderBy: { createdAt: 'desc' } }),
+      this.prisma.patientProblem.count({ where }),
+    ]);
+    const resources = items.map(p => this.mapToFhirCondition(p));
+    return this.createBundle(resources, total, `${baseUrl}/Condition`);
+  }
+
+  private mapToFhirCondition(problem: any) {
+    const clinicalStatus = problem.resolvedDate ? 'resolved' : 'active';
+    return {
+      resourceType: 'Condition',
+      id: problem.id.toString(),
+      clinicalStatus: {
+        coding: [{ system: 'http://terminology.hl7.org/CodeSystem/condition-clinical', code: clinicalStatus }]
+      },
+      verificationStatus: {
+        coding: [{ system: 'http://terminology.hl7.org/CodeSystem/condition-ver-status', code: 'confirmed' }]
+      },
+      code: {
+        coding: [{ system: 'http://snomed.info/sct', display: problem.description }],
+        text: problem.description
+      },
+      subject: { reference: `Patient/${problem.patientId}` },
+      onsetDateTime: problem.onsetDate ? problem.onsetDate.toISOString() : problem.createdAt.toISOString(),
+      abatementDateTime: problem.resolvedDate ? problem.resolvedDate.toISOString() : undefined,
+    };
+  }
+
+  // --- ALLERGY INTOLERANCE ---
+  async getAllergy(id: number) {
+    const allergy = await this.prisma.patientAllergy.findUnique({ where: { id } });
+    if (!allergy) throw new NotFoundException('Allergy not found');
+    return this.mapToFhirAllergy(allergy);
+  }
+
+  async searchAllergies(query: any, baseUrl: string) {
+    const where: Prisma.PatientAllergyWhereInput = {};
+    if (query.patient) {
+      const patientId = query.patient.startsWith('Patient/') ? query.patient.split('/')[1] : query.patient;
+      where.patientId = Number(patientId);
+    }
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.patientAllergy.findMany({ where, take: 50, orderBy: { createdAt: 'desc' } }),
+      this.prisma.patientAllergy.count({ where }),
+    ]);
+    const resources = items.map(a => this.mapToFhirAllergy(a));
+    return this.createBundle(resources, total, `${baseUrl}/AllergyIntolerance`);
+  }
+
+  private mapToFhirAllergy(allergy: any) {
+    return {
+      resourceType: 'AllergyIntolerance',
+      id: allergy.id.toString(),
+      clinicalStatus: { coding: [{ system: 'http://terminology.hl7.org/CodeSystem/allergyintolerance-clinical', code: 'active' }] },
+      verificationStatus: { coding: [{ system: 'http://terminology.hl7.org/CodeSystem/allergyintolerance-verification', code: 'confirmed' }] },
+      code: {
+        coding: [{ display: allergy.allergen }],
+        text: allergy.allergen
+      },
+      reaction: allergy.reaction ? [{
+        manifestation: [{ text: allergy.reaction }],
+        severity: allergy.severity.toLowerCase()
+      }] : undefined,
+      subject: { reference: `Patient/${allergy.patientId}` },
+      recordedDate: allergy.createdAt.toISOString(),
+    };
+  }
+
+  // --- MEDICATION REQUEST ---
+  async getMedicationRequest(id: number) {
+    const prescription = await this.prisma.prescription.findUnique({ 
+      where: { id },
+      include: { items: { include: { product: true } } } 
+    });
+    if (!prescription) throw new NotFoundException('MedicationRequest not found');
+    return this.mapToFhirMedicationRequest(prescription);
+  }
+
+  async searchMedicationRequests(query: any, baseUrl: string) {
+    const where: Prisma.PrescriptionWhereInput = {};
+    if (query.patient) {
+      const patientId = query.patient.startsWith('Patient/') ? query.patient.split('/')[1] : query.patient;
+      where.patientId = Number(patientId);
+    }
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.prescription.findMany({ where, include: { items: { include: { product: true } } }, take: 50, orderBy: { createdAt: 'desc' } }),
+      this.prisma.prescription.count({ where }),
+    ]);
+    const resources = items.map(p => this.mapToFhirMedicationRequest(p));
+    return this.createBundle(resources, total, `${baseUrl}/MedicationRequest`);
+  }
+
+  private mapToFhirMedicationRequest(prescription: any) {
+    return {
+      resourceType: 'MedicationRequest',
+      id: prescription.id.toString(),
+      status: prescription.status === 'ACTIVE' ? 'active' : 'completed',
+      intent: 'order',
+      subject: { reference: `Patient/${prescription.patientId}` },
+      encounter: { reference: `Encounter/${prescription.encounterId}` },
+      requester: { reference: `Practitioner/${prescription.doctorId}` },
+      authoredOn: prescription.createdAt.toISOString(),
+      // Because one Prescription relates to many Items in our DB, we either map to a Bundle of MedicationRequests 
+      // or composite them. HL7 FHIR prefers one MedicationRequest per medication item. 
+      // For presentation/export, we map the first item or embed them in contained resources or text.
+      medicationCodeableConcept: {
+        text: prescription.items && prescription.items.length > 0 
+          ? prescription.items.map((i: any) => i.product.name).join(', ')
+          : 'Multiple Medications'
+      },
+      note: prescription.notes ? [{ text: prescription.notes }] : undefined,
+    };
+  }
+
+  // --- PROCEDURE (SurgeryCase) ---
+  async getProcedure(id: number) {
+    const surgery = await this.prisma.surgeryCase.findUnique({ where: { id } });
+    if (!surgery) throw new NotFoundException('Procedure not found');
+    return this.mapToFhirProcedure(surgery);
+  }
+
+  async searchProcedures(query: any, baseUrl: string) {
+    const where: Prisma.SurgeryCaseWhereInput = {};
+    if (query.patient) {
+      const patientId = query.patient.startsWith('Patient/') ? query.patient.split('/')[1] : query.patient;
+      where.encounter = { patientId: Number(patientId) };
+    }
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.surgeryCase.findMany({ where, include: { encounter: true }, take: 50, orderBy: { createdAt: 'desc' } }),
+      this.prisma.surgeryCase.count({ where }),
+    ]);
+    const resources = items.map(s => this.mapToFhirProcedure(s));
+    return this.createBundle(resources, total, `${baseUrl}/Procedure`);
+  }
+
+  private mapToFhirProcedure(surgery: any) {
+    let status = 'unknown';
+    if (surgery.status === 'COMPLETED') status = 'completed';
+    if (surgery.status === 'SCHEDULED') status = 'preparation';
+    if (surgery.status === 'IN_PROGRESS') status = 'in-progress';
+    if (surgery.status === 'CANCELLED') status = 'stopped';
+
+    const patientRef = surgery.encounter && surgery.encounter.patientId ? `Patient/${surgery.encounter.patientId}` : 'Patient/unknown';
+
+    return {
+      resourceType: 'Procedure',
+      id: surgery.id.toString(),
+      status: status,
+      code: {
+        text: surgery.surgeryName
+      },
+      subject: { reference: patientRef },
+      encounter: { reference: `Encounter/${surgery.encounterId}` },
+      performedPeriod: {
+        start: surgery.actualStart ? surgery.actualStart.toISOString() : surgery.scheduledStart.toISOString(),
+        end: surgery.actualEnd ? surgery.actualEnd.toISOString() : undefined
+      },
+      note: surgery.surgeonNotes ? [{ text: surgery.surgeonNotes }] : undefined
     };
   }
 }

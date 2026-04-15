@@ -129,4 +129,75 @@ export class FhirController {
   getObservation(@Param('id', ParseIntPipe) id: number) {
     return this.fhirService.getObservation(id);
   }
+
+  @UseGuards(FhirAuthGuard)
+  @FhirScope('patient/Observation.write')
+  @Post('Observation')
+  createObservation(@Body() body: any) {
+    return this.fhirService.createObservation(body);
+  }
+
+  // ==========================================
+  // PHASE 2: USCDI RESOURCES
+  // ==========================================
+
+  // --- CONDITION ---
+  @UseGuards(FhirAuthGuard)
+  @FhirScope('patient/Condition.read')
+  @Get('Condition')
+  searchConditions(@Query() query: any, @Req() req: Request) {
+    return this.fhirService.searchConditions(query, this.getBaseUrl(req));
+  }
+
+  @UseGuards(FhirAuthGuard)
+  @FhirScope('patient/Condition.read')
+  @Get('Condition/:id')
+  getCondition(@Param('id', ParseIntPipe) id: number) {
+    return this.fhirService.getCondition(id);
+  }
+
+  // --- ALLERGY INTOLERANCE ---
+  @UseGuards(FhirAuthGuard)
+  @FhirScope('patient/AllergyIntolerance.read')
+  @Get('AllergyIntolerance')
+  searchAllergies(@Query() query: any, @Req() req: Request) {
+    return this.fhirService.searchAllergies(query, this.getBaseUrl(req));
+  }
+
+  @UseGuards(FhirAuthGuard)
+  @FhirScope('patient/AllergyIntolerance.read')
+  @Get('AllergyIntolerance/:id')
+  getAllergy(@Param('id', ParseIntPipe) id: number) {
+    return this.fhirService.getAllergy(id);
+  }
+
+  // --- MEDICATION REQUEST ---
+  @UseGuards(FhirAuthGuard)
+  @FhirScope('patient/MedicationRequest.read')
+  @Get('MedicationRequest')
+  searchMedicationRequests(@Query() query: any, @Req() req: Request) {
+    return this.fhirService.searchMedicationRequests(query, this.getBaseUrl(req));
+  }
+
+  @UseGuards(FhirAuthGuard)
+  @FhirScope('patient/MedicationRequest.read')
+  @Get('MedicationRequest/:id')
+  getMedicationRequest(@Param('id', ParseIntPipe) id: number) {
+    return this.fhirService.getMedicationRequest(id);
+  }
+
+  // --- PROCEDURE ---
+  @UseGuards(FhirAuthGuard)
+  @FhirScope('patient/Procedure.read')
+  @Get('Procedure')
+  searchProcedures(@Query() query: any, @Req() req: Request) {
+    return this.fhirService.searchProcedures(query, this.getBaseUrl(req));
+  }
+
+  @UseGuards(FhirAuthGuard)
+  @FhirScope('patient/Procedure.read')
+  @Get('Procedure/:id')
+  getProcedure(@Param('id', ParseIntPipe) id: number) {
+    return this.fhirService.getProcedure(id);
+  }
 }
