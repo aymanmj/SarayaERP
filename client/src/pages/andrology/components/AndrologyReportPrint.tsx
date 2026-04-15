@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { apiClient } from "../../../api/apiClient";
 import { PatientInfo, SemenAnalysis, HormoneTest, AndrologySurgery, AndrologyMedication, AndrologyVisit } from "../types";
 
@@ -42,56 +43,52 @@ export default function AndrologyReportPrint({ patient, analyses, hormones, surg
   const hospitalEmail = org?.email || "";
   const hospitalLogo = org?.logo || "/sarayalogo.png";
 
-  return (
+  const content = (
     <>
       {/* Print-specific styles */}
       <style>{`
         @media print {
           @page {
             size: A4 portrait;
-            margin: 10mm 8mm;
+            margin: 10mm 10mm; /* Minimal margins for A4 */
           }
-          /* Hide EVERYTHING in the app */
-          body * {
-            visibility: hidden !important;
-          }
-          /* Show ONLY the report overlay and its children */
-          .andrology-report-overlay,
-          .andrology-report-overlay * {
-            visibility: visible !important;
-          }
-          /* Reset the overlay positioning for print */
-          .andrology-report-overlay {
-            position: absolute !important;
-            top: 0 !important;
-            left: 0 !important;
-            right: 0 !important;
-            width: 100% !important;
-            background: white !important;
-            overflow: visible !important;
-            z-index: 99999 !important;
-          }
-          /* Hide the action bar during print */
-          .andrology-report-overlay .print-hidden {
+          /* Completely hide the main Saraya application root */
+          body > #root {
             display: none !important;
-            visibility: hidden !important;
           }
-          /* Make the paper fill the print area cleanly */
-          .andrology-report-overlay .report-paper {
-            box-shadow: none !important;
-            margin: 0 !important;
-            padding: 6mm 8mm !important;
-            max-width: 100% !important;
-            width: 100% !important;
-            min-height: auto !important;
-            border: none !important;
-          }
-          /* Ensure body & html don't add extra space */
-          html, body {
+          /* Reset body background for printing */
+          body {
+            background: white !important;
             margin: 0 !important;
             padding: 0 !important;
-            height: auto !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+          /* Strip all unnecessary styling from the overlay wrapper */
+          .andrology-report-overlay {
+            position: static !important;
+            background: transparent !important;
             overflow: visible !important;
+            display: block !important;
+            height: auto !important;
+          }
+          /* Hide non-printable elements like buttons */
+          .print-hidden {
+            display: none !important;
+          }
+          /* Ensure the A4 paper fits exactly without margins pushing to next page */
+          .report-paper {
+            box-shadow: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            max-width: 100% !important;
+            width: 100% !important;
+            border: none !important;
+          }
+          html, body {
+            overflow: visible !important;
+            height: auto !important;
+            min-height: 0 !important;
           }
         }
       `}</style>
@@ -265,4 +262,6 @@ export default function AndrologyReportPrint({ patient, analyses, hormones, surg
       </div>
     </>
   );
+
+  return createPortal(content, document.body);
 }
