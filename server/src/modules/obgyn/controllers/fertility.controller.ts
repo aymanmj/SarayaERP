@@ -1,10 +1,12 @@
 import {
-  Controller, Post, Get, Patch, Body, Param, ParseIntPipe, UseGuards, Query,
+  Controller, Post, Get, Patch, Body, Param, ParseIntPipe, UseGuards,
 } from '@nestjs/common';
 import { FertilityService } from '../services/fertility.service';
 import {
   CreateFertilityCaseDto, CreateIVFCycleDto, UpdateIVFCycleDto,
   CreateEmbryoDto, CreateFertilityMedicationDto,
+  CreateSemenAnalysisDto, CreateAndrologyVisitDto,
+  CreateCryoTankDto, CreateCryoCanisterDto, CreateCryoItemDto, ThawCryoItemDto,
 } from '../dto/fertility.dto';
 import { JwtAuthGuard } from '../../../auth/jwt-auth.guard';
 import { RolesGuard } from '../../../auth/roles.guard';
@@ -17,7 +19,7 @@ import type { JwtPayload } from '../../../auth/jwt-payload.type';
 export class FertilityController {
   constructor(private readonly fertilityService: FertilityService) {}
 
-  // === Cases ===
+  // ===================== Fertility Cases (Couple-Centric) =====================
 
   @Post('cases')
   @Roles('ADMIN', 'DOCTOR')
@@ -53,7 +55,17 @@ export class FertilityController {
     return this.fertilityService.updateCaseStatus(user.hospitalId, id, status);
   }
 
-  // === Cycles ===
+  @Patch('cases/:id/link-male')
+  @Roles('ADMIN', 'DOCTOR')
+  async linkMalePatient(
+    @Param('id', ParseIntPipe) id: number,
+    @Body('malePatientId', ParseIntPipe) malePatientId: number,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.fertilityService.linkMalePatient(user.hospitalId, id, malePatientId);
+  }
+
+  // ===================== IVF Cycles =====================
 
   @Post('cycles')
   @Roles('ADMIN', 'DOCTOR')
@@ -77,7 +89,7 @@ export class FertilityController {
     return this.fertilityService.updateCycle(user.hospitalId, id, dto);
   }
 
-  // === Embryos ===
+  // ===================== Embryos =====================
 
   @Post('embryos')
   @Roles('ADMIN', 'DOCTOR')
@@ -95,11 +107,99 @@ export class FertilityController {
     return this.fertilityService.updateEmbryoStatus(user.hospitalId, id, status);
   }
 
-  // === Medications ===
+  // ===================== Medications =====================
 
   @Post('medications')
   @Roles('ADMIN', 'DOCTOR')
   async addMedication(@Body() dto: CreateFertilityMedicationDto, @CurrentUser() user: JwtPayload) {
     return this.fertilityService.addMedication(user.hospitalId, dto);
+  }
+
+  // ===================== Semen Analysis (أمراض الذكورة) =====================
+
+  @Post('semen-analysis')
+  @Roles('ADMIN', 'DOCTOR')
+  async createSemenAnalysis(@Body() dto: CreateSemenAnalysisDto, @CurrentUser() user: JwtPayload) {
+    return this.fertilityService.createSemenAnalysis(user.hospitalId, dto);
+  }
+
+  @Get('semen-analysis/patient/:patientId')
+  @Roles('ADMIN', 'DOCTOR', 'NURSE')
+  async getSemenAnalyses(
+    @Param('patientId', ParseIntPipe) patientId: number,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.fertilityService.getSemenAnalyses(user.hospitalId, patientId);
+  }
+
+  // ===================== Andrology Visits =====================
+
+  @Post('andrology')
+  @Roles('ADMIN', 'DOCTOR')
+  async createAndrologyVisit(@Body() dto: CreateAndrologyVisitDto, @CurrentUser() user: JwtPayload) {
+    return this.fertilityService.createAndrologyVisit(user.hospitalId, dto);
+  }
+
+  @Get('andrology/patient/:patientId')
+  @Roles('ADMIN', 'DOCTOR', 'NURSE')
+  async getAndrologyVisits(
+    @Param('patientId', ParseIntPipe) patientId: number,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.fertilityService.getAndrologyVisits(user.hospitalId, patientId);
+  }
+
+  // ===================== Cryo Bank =====================
+
+  @Post('cryo/tanks')
+  @Roles('ADMIN')
+  async createCryoTank(@Body() dto: CreateCryoTankDto, @CurrentUser() user: JwtPayload) {
+    return this.fertilityService.createCryoTank(user.hospitalId, dto);
+  }
+
+  @Get('cryo/tanks')
+  @Roles('ADMIN', 'DOCTOR', 'NURSE')
+  async getCryoTanks(@CurrentUser() user: JwtPayload) {
+    return this.fertilityService.getCryoTanks(user.hospitalId);
+  }
+
+  @Post('cryo/canisters')
+  @Roles('ADMIN')
+  async addCryoCanister(@Body() dto: CreateCryoCanisterDto, @CurrentUser() user: JwtPayload) {
+    return this.fertilityService.addCryoCanister(user.hospitalId, dto);
+  }
+
+  @Post('cryo/items')
+  @Roles('ADMIN', 'DOCTOR')
+  async addCryoItem(@Body() dto: CreateCryoItemDto, @CurrentUser() user: JwtPayload) {
+    return this.fertilityService.addCryoItem(user.hospitalId, dto);
+  }
+
+  @Patch('cryo/items/:id/thaw')
+  @Roles('ADMIN', 'DOCTOR')
+  async thawCryoItem(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: ThawCryoItemDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.fertilityService.thawCryoItem(user.hospitalId, id, dto);
+  }
+
+  @Patch('cryo/items/:id/discard')
+  @Roles('ADMIN', 'DOCTOR')
+  async discardCryoItem(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.fertilityService.discardCryoItem(user.hospitalId, id);
+  }
+
+  @Get('cryo/patient/:patientId')
+  @Roles('ADMIN', 'DOCTOR', 'NURSE')
+  async getCryoByPatient(
+    @Param('patientId', ParseIntPipe) patientId: number,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.fertilityService.getCryoItemsByPatient(user.hospitalId, patientId);
   }
 }

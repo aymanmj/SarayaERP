@@ -1,34 +1,51 @@
 import {
-  IsInt, IsOptional, IsString, IsEnum, IsDateString, IsNumber,
+  IsInt, IsOptional, IsString, IsEnum, IsDateString, IsNumber, IsBoolean,
 } from 'class-validator';
+
+// ==========================================
+// Enums
+// ==========================================
 
 export enum InfertilityType {
   MALE_FACTOR = 'MALE_FACTOR',
   FEMALE_FACTOR = 'FEMALE_FACTOR',
-  BOTH = 'BOTH',
+  COMBINED = 'COMBINED',
   UNEXPLAINED = 'UNEXPLAINED',
 }
 
 export enum CycleType {
-  IVF = 'IVF',
   ICSI = 'ICSI',
+  IVF = 'IVF',
   IUI = 'IUI',
   FET = 'FET',
   EGG_FREEZING = 'EGG_FREEZING',
-  NATURAL = 'NATURAL',
 }
+
+export enum SpermSource {
+  EJACULATE = 'EJACULATE',
+  TESE = 'TESE',
+  PESA = 'PESA',
+  FROZEN_SPERM = 'FROZEN_SPERM',
+}
+
+export enum FertilizationMethod {
+  CONVENTIONAL_IVF = 'CONVENTIONAL_IVF',
+  ICSI = 'ICSI',
+  IMSI = 'IMSI',
+  PICSI = 'PICSI',
+}
+
+// ==========================================
+// Fertility Case (Couple-Centric)
+// ==========================================
 
 export class CreateFertilityCaseDto {
   @IsInt()
-  patientId: number;
-
-  @IsString()
-  @IsOptional()
-  partnerName?: string;
+  femalePatientId: number;
 
   @IsInt()
   @IsOptional()
-  partnerAge?: number;
+  malePatientId?: number;
 
   @IsEnum(InfertilityType)
   @IsOptional()
@@ -58,22 +75,14 @@ export class CreateFertilityCaseDto {
   @IsOptional()
   lhLevel?: number;
 
-  @IsNumber()
-  @IsOptional()
-  spermCount?: number;
-
-  @IsNumber()
-  @IsOptional()
-  spermMotility?: number;
-
-  @IsNumber()
-  @IsOptional()
-  spermMorphology?: number;
-
   @IsString()
   @IsOptional()
   notes?: string;
 }
+
+// ==========================================
+// IVF Cycle
+// ==========================================
 
 export class CreateIVFCycleDto {
   @IsInt()
@@ -88,7 +97,8 @@ export class CreateIVFCycleDto {
   protocol?: string;
 
   @IsDateString()
-  startDate: string;
+  @IsOptional()
+  startDate?: string;
 
   @IsString()
   @IsOptional()
@@ -96,10 +106,7 @@ export class CreateIVFCycleDto {
 }
 
 export class UpdateIVFCycleDto {
-  @IsInt()
-  @IsOptional()
-  stimulationDays?: number;
-
+  // Egg Retrieval
   @IsDateString()
   @IsOptional()
   eggRetrievalDate?: string;
@@ -110,12 +117,34 @@ export class UpdateIVFCycleDto {
 
   @IsInt()
   @IsOptional()
-  eggsMature?: number;
+  eggsMatureMII?: number;
 
   @IsInt()
   @IsOptional()
-  eggsFertilized?: number;
+  eggsMI?: number;
 
+  @IsInt()
+  @IsOptional()
+  eggsGV?: number;
+
+  // Sperm & Fertilization
+  @IsEnum(SpermSource)
+  @IsOptional()
+  spermSource?: SpermSource;
+
+  @IsEnum(FertilizationMethod)
+  @IsOptional()
+  fertilizationMethod?: FertilizationMethod;
+
+  @IsInt()
+  @IsOptional()
+  eggsInjected?: number;
+
+  @IsInt()
+  @IsOptional()
+  eggsFertilized2PN?: number;
+
+  // Embryo Development
   @IsInt()
   @IsOptional()
   embryosDay3?: number;
@@ -124,6 +153,7 @@ export class UpdateIVFCycleDto {
   @IsOptional()
   embryosDay5?: number;
 
+  // Transfer
   @IsDateString()
   @IsOptional()
   transferDate?: string;
@@ -132,14 +162,15 @@ export class UpdateIVFCycleDto {
   @IsOptional()
   embryosTransferred?: number;
 
-  @IsInt()
-  @IsOptional()
-  embryosFrozen?: number;
-
   @IsNumber()
   @IsOptional()
   endometrialThickness?: number;
 
+  @IsInt()
+  @IsOptional()
+  embryosFrozen?: number;
+
+  // Pregnancy Test
   @IsDateString()
   @IsOptional()
   betaHCGDate?: string;
@@ -161,6 +192,10 @@ export class UpdateIVFCycleDto {
   notes?: string;
 }
 
+// ==========================================
+// Embryo Record
+// ==========================================
+
 export class CreateEmbryoDto {
   @IsInt()
   ivfCycleId: number;
@@ -175,10 +210,6 @@ export class CreateEmbryoDto {
   @IsOptional()
   grade?: string;
 
-  @IsInt()
-  @IsOptional()
-  cellCount?: number;
-
   @IsString()
   @IsOptional()
   fragmentation?: string;
@@ -191,6 +222,10 @@ export class CreateEmbryoDto {
   @IsOptional()
   notes?: string;
 }
+
+// ==========================================
+// Fertility Medication
+// ==========================================
 
 export class CreateFertilityMedicationDto {
   @IsInt()
@@ -220,4 +255,211 @@ export class CreateFertilityMedicationDto {
   @IsString()
   @IsOptional()
   notes?: string;
+}
+
+// ==========================================
+// Semen Analysis (WHO 6th Edition)
+// ==========================================
+
+export class CreateSemenAnalysisDto {
+  @IsInt()
+  patientId: number;
+
+  @IsInt()
+  @IsOptional()
+  fertilityCaseId?: number;
+
+  @IsDateString()
+  @IsOptional()
+  sampleDate?: string;
+
+  @IsInt()
+  @IsOptional()
+  abstinenceDays?: number;
+
+  @IsNumber()
+  @IsOptional()
+  volumeMl?: number;
+
+  @IsNumber()
+  @IsOptional()
+  ph?: number;
+
+  @IsString()
+  @IsOptional()
+  viscosity?: string;
+
+  @IsString()
+  @IsOptional()
+  liquefaction?: string;
+
+  @IsNumber()
+  @IsOptional()
+  countMilPerMl?: number;
+
+  @IsNumber()
+  @IsOptional()
+  totalCountMil?: number;
+
+  @IsNumber()
+  @IsOptional()
+  progressivePR?: number;
+
+  @IsNumber()
+  @IsOptional()
+  nonProgressiveNP?: number;
+
+  @IsNumber()
+  @IsOptional()
+  immotileIM?: number;
+
+  @IsNumber()
+  @IsOptional()
+  normalForms?: number;
+
+  @IsNumber()
+  @IsOptional()
+  vitality?: number;
+
+  @IsNumber()
+  @IsOptional()
+  wbcCount?: number;
+
+  @IsString()
+  @IsOptional()
+  agglutination?: string;
+
+  @IsString()
+  @IsOptional()
+  conclusion?: string;
+
+  @IsString()
+  @IsOptional()
+  doctorNotes?: string;
+}
+
+// ==========================================
+// Andrology Visit
+// ==========================================
+
+export class CreateAndrologyVisitDto {
+  @IsInt()
+  patientId: number;
+
+  @IsInt()
+  @IsOptional()
+  encounterId?: number;
+
+  @IsInt()
+  @IsOptional()
+  fertilityCaseId?: number;
+
+  @IsBoolean()
+  @IsOptional()
+  erectileDisfunc?: boolean;
+
+  @IsString()
+  @IsOptional()
+  smokingHabit?: string;
+
+  @IsString()
+  @IsOptional()
+  varicoceleGrade?: string;
+
+  @IsString()
+  @IsOptional()
+  testicularVol?: string;
+
+  @IsNumber()
+  @IsOptional()
+  fshLevel?: number;
+
+  @IsNumber()
+  @IsOptional()
+  lhLevel?: number;
+
+  @IsNumber()
+  @IsOptional()
+  testosterone?: number;
+
+  @IsNumber()
+  @IsOptional()
+  prolactin?: number;
+
+  @IsString()
+  @IsOptional()
+  diagnosis?: string;
+
+  @IsString()
+  @IsOptional()
+  treatmentPlan?: string;
+}
+
+// ==========================================
+// Cryopreservation
+// ==========================================
+
+export class CreateCryoTankDto {
+  @IsString()
+  code: string;
+
+  @IsString()
+  name: string;
+
+  @IsString()
+  @IsOptional()
+  location?: string;
+}
+
+export class CreateCryoCanisterDto {
+  @IsInt()
+  tankId: number;
+
+  @IsString()
+  code: string;
+}
+
+export class CreateCryoItemDto {
+  @IsInt()
+  canisterId: number;
+
+  @IsInt()
+  patientId: number;
+
+  @IsString()
+  itemType: string;
+
+  @IsDateString()
+  @IsOptional()
+  freezeDate?: string;
+
+  @IsString()
+  @IsOptional()
+  caneCode?: string;
+
+  @IsString()
+  @IsOptional()
+  gobletColor?: string;
+
+  @IsString()
+  @IsOptional()
+  visotubeColor?: string;
+
+  @IsInt()
+  @IsOptional()
+  strawCount?: number;
+
+  @IsString()
+  @IsOptional()
+  description?: string;
+
+  @IsInt()
+  @IsOptional()
+  ivfCycleId?: number;
+}
+
+export class ThawCryoItemDto {
+  @IsDateString()
+  @IsOptional()
+  thawDate?: string;
 }
