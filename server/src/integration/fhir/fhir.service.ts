@@ -29,6 +29,30 @@ export class FhirService {
       rest: [
         {
           mode: 'server',
+          security: {
+            cors: true,
+            service: [
+              {
+                coding: [
+                  {
+                    system: 'http://terminology.hl7.org/CodeSystem/restful-security-service',
+                    code: 'SMART-on-FHIR',
+                    display: 'SMART-on-FHIR',
+                  },
+                ],
+                text: 'OAuth2 using SMART-on-FHIR profile',
+              },
+            ],
+            extension: [
+              {
+                url: 'http://fhir-registry.smarthealthit.org/StructureDefinition/oauth-uris',
+                extension: [
+                  { url: 'authorize', valueUri: '/api/fhir/oauth/authorize' },
+                  { url: 'token', valueUri: '/api/fhir/oauth/token' },
+                ],
+              },
+            ],
+          },
           resource: [
             {
               type: 'Patient',
