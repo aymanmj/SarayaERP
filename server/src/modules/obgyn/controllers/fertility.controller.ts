@@ -7,7 +7,7 @@ import {
   CreateEmbryoDto, CreateFertilityMedicationDto,
   CreateSemenAnalysisDto, CreateAndrologyVisitDto,
   CreateCryoTankDto, CreateCryoCanisterDto, CreateCryoItemDto, ThawCryoItemDto,
-  CreateHormoneTestDto,
+  CreateHormoneTestDto, CreateAndrologySurgeryDto, CreateAndrologyMedicationDto
 } from '../dto/fertility.dto';
 import { JwtAuthGuard } from '../../../auth/jwt-auth.guard';
 import { RolesGuard } from '../../../auth/roles.guard';
@@ -165,6 +165,38 @@ export class FertilityController {
     @CurrentUser() user: JwtPayload,
   ) {
     return this.fertilityService.getHormoneTests(user.hospitalId, patientId);
+  }
+
+  // ===================== Andrology Surgeries =====================
+  @Post('andrology/surgeries')
+  @Roles('ADMIN', 'DOCTOR')
+  async createAndrologySurgery(@Body() dto: CreateAndrologySurgeryDto, @CurrentUser() user: JwtPayload) {
+    return this.fertilityService.createAndrologySurgery(user.hospitalId, dto);
+  }
+
+  @Get('andrology/surgeries/patient/:patientId')
+  @Roles('ADMIN', 'DOCTOR', 'NURSE')
+  async getAndrologySurgeries(
+    @Param('patientId', ParseIntPipe) patientId: number,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.fertilityService.getAndrologySurgeries(user.hospitalId, patientId);
+  }
+
+  // ===================== Andrology Medications =====================
+  @Post('andrology/medications')
+  @Roles('ADMIN', 'DOCTOR')
+  async createAndrologyMedication(@Body() dto: CreateAndrologyMedicationDto, @CurrentUser() user: JwtPayload) {
+    return this.fertilityService.createAndrologyMedication(user.hospitalId, dto);
+  }
+
+  @Get('andrology/medications/patient/:patientId')
+  @Roles('ADMIN', 'DOCTOR', 'NURSE')
+  async getAndrologyMedications(
+    @Param('patientId', ParseIntPipe) patientId: number,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.fertilityService.getAndrologyMedications(user.hospitalId, patientId);
   }
 
   // ===================== Cryo Bank =====================

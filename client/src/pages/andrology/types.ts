@@ -97,4 +97,34 @@ export type HormoneTest = {
   notes?: string;
 };
 
+export type AndrologySurgery = {
+  id: number;
+  patientId: number;
+  surgeryDate: string;
+  procedure: string;
+  technique?: string;
+  surgeonName?: string;
+  findings?: string;
+  outcome?: string;
+  complications?: string;
+  spermRetrieved: boolean;
+  notes?: string;
+  createdAt: string;
+};
+
+export type AndrologyMedication = {
+  id: number;
+  patientId: number;
+  medication: string;
+  category?: string;
+  dose?: string;
+  frequency?: string;
+  startDate: string;
+  endDate?: string;
+  response?: string;
+  sideEffects?: string;
+  notes?: string;
+  createdAt: string;
+};
+
 export type PatientInfo = { id: number; fullName: string; mrn: string; phone?: string; };

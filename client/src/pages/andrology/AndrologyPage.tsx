@@ -2,10 +2,13 @@ import { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { apiClient } from "../../api/apiClient";
 import { toast } from "sonner";
-import { PatientInfo, SemenAnalysis, AndrologyVisit, HormoneTest } from "./types";
+import { PatientInfo, SemenAnalysis, AndrologyVisit, HormoneTest, AndrologySurgery, AndrologyMedication } from "./types";
 import SemenAnalysisForm from "./components/SemenAnalysisForm";
 import AndrologyVisitForm from "./components/AndrologyVisitForm";
 import HormoneTestForm from "./components/HormoneTestForm";
+import AndrologySurgeryForm from "./components/AndrologySurgeryForm";
+import AndrologyMedicationForm from "./components/AndrologyMedicationForm";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from "recharts";
 
 export default function AndrologyPage() {
   const [searchParams] = useSearchParams();
@@ -16,9 +19,11 @@ export default function AndrologyPage() {
   const [analyses, setAnalyses] = useState<SemenAnalysis[]>([]);
   const [visits, setVisits] = useState<AndrologyVisit[]>([]);
   const [hormones, setHormones] = useState<HormoneTest[]>([]);
+  const [surgeries, setSurgeries] = useState<AndrologySurgery[]>([]);
+  const [medications, setMedications] = useState<AndrologyMedication[]>([]);
   
   const [loading, setLoading] = useState(false);
-  const [tab, setTab] = useState<"OVERVIEW" | "SEMEN" | "HORMONES" | "ANDROLOGY">("OVERVIEW");
+  const [tab, setTab] = useState<"OVERVIEW" | "SEMEN" | "HORMONES" | "ANDROLOGY" | "SURGERY" | "MEDICATION">("OVERVIEW");
 
   // Search
   const [searchMrn, setSearchMrn] = useState("");
@@ -30,20 +35,26 @@ export default function AndrologyPage() {
   const [showSemenForm, setShowSemenForm] = useState(false);
   const [showAndrologyForm, setShowAndrologyForm] = useState(false);
   const [showHormoneForm, setShowHormoneForm] = useState(false);
+  const [showSurgeryForm, setShowSurgeryForm] = useState(false);
+  const [showMedicationForm, setShowMedicationForm] = useState(false);
 
   const loadPatientData = useCallback(async (pid: number) => {
     setLoading(true);
     try {
-      const [semenRes, visitRes, hormoneRes] = await Promise.all([
+      const [semenRes, visitRes, hormoneRes, surgeryRes, medRes] = await Promise.all([
         apiClient.get(`/obgyn/fertility/semen-analysis/patient/${pid}`),
         apiClient.get(`/obgyn/fertility/andrology/patient/${pid}`),
         apiClient.get(`/obgyn/fertility/hormone-tests/patient/${pid}`),
+        apiClient.get(`/obgyn/fertility/andrology/surgeries/patient/${pid}`),
+        apiClient.get(`/obgyn/fertility/andrology/medications/patient/${pid}`),
       ]);
       setAnalyses(semenRes.data);
       setVisits(visitRes.data);
       setHormones(hormoneRes.data);
+      setSurgeries(surgeryRes.data);
+      setMedications(medRes.data);
     } catch {
-      // Patient may not have data yet
+      // Data might not exist
     } finally {
       setLoading(false);
     }
@@ -126,8 +137,50 @@ export default function AndrologyPage() {
     }
   };
 
+  const submitSurgery = async (data: Partial<AndrologySurgery>) => {
+    if (!patientId) return;
+    try {
+      await apiClient.post("/obgyn/fertility/andrology/surgeries", { ...data, patientId });
+      toast.success("تم حفظ العملية الجراحية بنجاح.");
+      setShowSurgeryForm(false);
+      loadPatientData(patientId);
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || "فشل الحفظ.");
+    }
+  };
+
+  const submitMedication = async (data: Partial<AndrologyMedication>) => {
+    if (!patientId) return;
+    try {
+      await apiClient.post("/obgyn/fertility/andrology/medications", { ...data, patientId });
+      toast.success("تم حفظ الدواء بنجاح.");
+      setShowMedicationForm(false);
+      loadPatientData(patientId);
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || "فشل الحفظ.");
+    }
+  };
+
   const fmtDate = (d?: string) => d ? new Date(d).toLocaleDateString("ar-LY") : "—";
   const fmtNum = (n?: number | null) => n != null ? Number(n).toFixed(1) : "—";
+
+  // --- Chart Data Formatting ---
+  const formatChartDate = (dateStr: string) => {
+    const d = new Date(dateStr);
+    return `${d.getMonth() + 1}/${d.getDate().toString().padStart(2, '0')}`;
+  };
+
+  const semenChartData = [...analyses].sort((a,b)=> new Date(a.sampleDate).getTime() - new Date(b.sampleDate).getTime()).map(a => ({
+    date: formatChartDate(a.sampleDate),
+    count: a.countMilPerMl ? Number(a.countMilPerMl) : 0,
+    motility: a.totalMotility ? Number(a.totalMotility) : 0,
+  }));
+
+  const hormoneChartData = [...hormones].sort((a,b)=> new Date(a.testDate).getTime() - new Date(b.testDate).getTime()).map(h => ({
+    date: formatChartDate(h.testDate),
+    FSH: h.fsh ? Number(h.fsh) : 0,
+    Testosterone: h.totalTestosterone ? Number(h.totalTestosterone) : 0,
+  }));
 
   return (
     <div className="p-6 space-y-6 text-slate-100 max-w-7xl mx-auto" dir="rtl">
@@ -138,7 +191,7 @@ export default function AndrologyPage() {
         </div>
         <div>
           <h1 className="text-3xl font-black text-white tracking-tight">عيادة أمراض الذكورة والعقم</h1>
-          <p className="text-slate-400 mt-1">وحدة المتابعة المتقدمة: تحاليلات متقدمة (WHO 6th Ed)، بروفايل هرموني، ومتابعة سريرية</p>
+          <p className="text-slate-400 mt-1">وحدة المتابعة المتقدمة: تحليل وتشخيص، بروفايل هرموني، وجراحات دقيقة</p>
         </div>
       </div>
 
@@ -197,7 +250,7 @@ export default function AndrologyPage() {
               </div>
             </div>
           </div>
-          <button onClick={() => { setPatient(null); setPatientId(null); setAnalyses([]); setVisits([]); setHormones([]); }} className="text-xs font-medium text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-700 px-4 py-2 rounded-xl transition-colors border border-slate-700">
+          <button onClick={() => { setPatient(null); setPatientId(null); setAnalyses([]); setVisits([]); setHormones([]); setSurgeries([]); setMedications([]); }} className="text-xs font-medium text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-700 px-4 py-2 rounded-xl transition-colors border border-slate-700">
             🔄 تغيير المريض
           </button>
         </div>
@@ -207,27 +260,33 @@ export default function AndrologyPage() {
       {patient && (
         <div className="bg-slate-900/40 rounded-3xl p-6 border border-slate-800 shadow-2xl backdrop-blur-sm">
           <div className="flex flex-wrap gap-2 border-b border-slate-800 mb-6">
-            <button onClick={() => setTab("OVERVIEW")} className={`px-6 py-3.5 rounded-t-2xl text-sm font-bold transition-all ${tab === "OVERVIEW" ? "bg-slate-800/80 text-white border-t border-x border-slate-700 shadow-[0_-4px_10px_-2px_rgba(0,0,0,0.3)]" : "text-slate-400 hover:bg-slate-800/30 hover:text-slate-200"}`}>
-              📊 نظرة عامة
+            <button onClick={() => setTab("OVERVIEW")} className={`px-5 py-3 rounded-t-2xl text-sm font-bold transition-all ${tab === "OVERVIEW" ? "bg-slate-800/80 text-white border-t border-x border-slate-700 shadow-[0_-4px_10px_-2px_rgba(0,0,0,0.3)]" : "text-slate-400 hover:bg-slate-800/30 hover:text-slate-200"}`}>
+              📊 لوحة التحكم
             </button>
-            <button onClick={() => setTab("SEMEN")} className={`px-6 py-3.5 rounded-t-2xl text-sm font-bold transition-all ${tab === "SEMEN" ? "bg-slate-800/80 text-emerald-400 border-t border-x border-slate-700 shadow-[0_-4px_10px_-2px_rgba(16,185,129,0.15)]" : "text-slate-400 hover:bg-slate-800/30 hover:text-slate-200"}`}>
-              🔬 تحليل السائل المنوي
+            <button onClick={() => setTab("SEMEN")} className={`px-5 py-3 rounded-t-2xl text-sm font-bold transition-all ${tab === "SEMEN" ? "bg-slate-800/80 text-emerald-400 border-t border-x border-slate-700 shadow-[0_-4px_10px_-2px_rgba(16,185,129,0.15)]" : "text-slate-400 hover:bg-slate-800/30 hover:text-slate-200"}`}>
+              🔬 السائل المنوي
             </button>
-            <button onClick={() => setTab("HORMONES")} className={`px-6 py-3.5 rounded-t-2xl text-sm font-bold transition-all ${tab === "HORMONES" ? "bg-slate-800/80 text-pink-400 border-t border-x border-slate-700 shadow-[0_-4px_10px_-2px_rgba(236,72,153,0.15)]" : "text-slate-400 hover:bg-slate-800/30 hover:text-slate-200"}`}>
-              🩸 البروفايل الهرموني
+            <button onClick={() => setTab("HORMONES")} className={`px-5 py-3 rounded-t-2xl text-sm font-bold transition-all ${tab === "HORMONES" ? "bg-slate-800/80 text-pink-400 border-t border-x border-slate-700 shadow-[0_-4px_10px_-2px_rgba(236,72,153,0.15)]" : "text-slate-400 hover:bg-slate-800/30 hover:text-slate-200"}`}>
+              🩸 الهرمونات
             </button>
-            <button onClick={() => setTab("ANDROLOGY")} className={`px-6 py-3.5 rounded-t-2xl text-sm font-bold transition-all ${tab === "ANDROLOGY" ? "bg-slate-800/80 text-cyan-400 border-t border-x border-slate-700 shadow-[0_-4px_10px_-2px_rgba(6,182,212,0.15)]" : "text-slate-400 hover:bg-slate-800/30 hover:text-slate-200"}`}>
-              🩺 الزيارات السريرية
+            <button onClick={() => setTab("ANDROLOGY")} className={`px-5 py-3 rounded-t-2xl text-sm font-bold transition-all ${tab === "ANDROLOGY" ? "bg-slate-800/80 text-cyan-400 border-t border-x border-slate-700 shadow-[0_-4px_10px_-2px_rgba(6,182,212,0.15)]" : "text-slate-400 hover:bg-slate-800/30 hover:text-slate-200"}`}>
+              🩺 الزيارات
+            </button>
+            <button onClick={() => setTab("SURGERY")} className={`px-5 py-3 rounded-t-2xl text-sm font-bold transition-all ${tab === "SURGERY" ? "bg-slate-800/80 text-orange-400 border-t border-x border-slate-700 shadow-[0_-4px_10px_-2px_rgba(249,115,22,0.15)]" : "text-slate-400 hover:bg-slate-800/30 hover:text-slate-200"}`}>
+              🔪 الجراحات
+            </button>
+            <button onClick={() => setTab("MEDICATION")} className={`px-5 py-3 rounded-t-2xl text-sm font-bold transition-all ${tab === "MEDICATION" ? "bg-slate-800/80 text-violet-400 border-t border-x border-slate-700 shadow-[0_-4px_10px_-2px_rgba(139,92,246,0.15)]" : "text-slate-400 hover:bg-slate-800/30 hover:text-slate-200"}`}>
+              💊 الأدوية
             </button>
           </div>
 
           <div className="min-h-[400px]">
-            {/* === OVERVIEW TAB === */}
+            {/* === OVERVIEW TAB (Dashboard) === */}
             {tab === "OVERVIEW" && (
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                   {/* Summary Card */}
-                  <div className="bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700/50 rounded-2xl p-6 shadow-lg relative overflow-hidden">
+                  <div className="bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700/50 rounded-2xl p-6 shadow-lg relative overflow-hidden md:col-span-1">
                     <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-cyan-400"></div>
                     <h3 className="text-lg font-bold text-white mb-4">الملخص السريري 💡</h3>
                     <div className="space-y-4">
@@ -244,38 +303,104 @@ export default function AndrologyPage() {
                         </p>
                       </div>
                       <div>
-                        <p className="text-xs text-slate-400 mb-1">آخر تشخيص</p>
+                        <p className="text-xs text-slate-400 mb-1">آخر تشخيص سريري</p>
                         <p className="text-sm font-bold text-cyan-400 bg-cyan-950/30 p-2 rounded-lg border border-cyan-900/50">
                           {visits[0]?.diagnosis || "لم يحدد بعد"}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-400 mb-1">الإجراءات الجراحية</p>
+                        <p className="text-sm font-bold text-orange-400 bg-orange-950/30 p-2 rounded-lg border border-orange-900/50">
+                          {surgeries.length > 0 ? `${surgeries.length} عملية (آخرها: ${surgeries[0].procedure})` : "لا يوجد تدخلات جراحية"}
                         </p>
                       </div>
                     </div>
                   </div>
 
-                  {/* Highlights */}
-                  <div className="md:col-span-2 grid grid-cols-2 gap-4">
-                    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col justify-center items-center text-center hover:border-slate-700 transition-colors">
-                      <div className="text-3xl mb-2">🔬</div>
-                      <div className="text-2xl font-black text-white">{analyses.length}</div>
-                      <div className="text-xs text-slate-400 mt-1">تحاليل سائل منوي</div>
+                  {/* Charts */}
+                  <div className="md:col-span-3 grid grid-cols-1 xl:grid-cols-2 gap-6">
+                    {/* Semen Trend Chart */}
+                    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg">
+                      <h3 className="text-sm font-bold text-emerald-400 mb-4 flex justify-between items-center">
+                        <span>📈 مسار السائل المنوي عبر الزمن</span>
+                        <span className="text-[10px] text-slate-500 bg-slate-950 px-2 py-1 rounded-md">Concentration vs Motility</span>
+                      </h3>
+                      {semenChartData.length > 1 ? (
+                        <div className="h-48" dir="ltr">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <LineChart data={semenChartData} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
+                              <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                              <XAxis dataKey="date" stroke="#64748b" fontSize={11} tickMargin={8} />
+                              <YAxis stroke="#64748b" fontSize={11} />
+                              <RechartsTooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px', fontSize: '12px', color: '#fff' }} />
+                              <Legend wrapperStyle={{ fontSize: '11px', marginTop: '10px' }} />
+                              <Line type="monotone" dataKey="count" name="Concentration (M/ml)" stroke="#34d399" strokeWidth={2} dot={{ r: 3, fill: '#34d399' }} />
+                              <Line type="monotone" dataKey="motility" name="Motility (%)" stroke="#38bdf8" strokeWidth={2} dot={{ r: 3, fill: '#38bdf8' }} />
+                            </LineChart>
+                          </ResponsiveContainer>
+                        </div>
+                      ) : (
+                        <div className="h-48 flex items-center justify-center text-xs text-slate-500 border border-dashed border-slate-800 rounded-xl">
+                          يتطلب التخطيط البياني تحليلين أو أكثر
+                        </div>
+                      )}
                     </div>
-                    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col justify-center items-center text-center hover:border-slate-700 transition-colors">
-                      <div className="text-3xl mb-2">🩸</div>
-                      <div className="text-2xl font-black text-white">{hormones.length}</div>
-                      <div className="text-xs text-slate-400 mt-1">فحوصات هرمونية</div>
-                    </div>
-                    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col justify-center items-center text-center hover:border-slate-700 transition-colors">
-                      <div className="text-3xl mb-2">🩺</div>
-                      <div className="text-2xl font-black text-white">{visits.length}</div>
-                      <div className="text-xs text-slate-400 mt-1">زيارات مسجلة</div>
-                    </div>
-                    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col justify-center items-center text-center hover:border-slate-700 transition-colors">
-                      <div className="text-3xl mb-2">❄️</div>
-                      <div className="text-2xl font-black text-white">0</div>
-                      <div className="text-xs text-slate-400 mt-1">عينات مجمدة (قريباً)</div>
+
+                    {/* Hormone Trend Chart */}
+                    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg">
+                      <h3 className="text-sm font-bold text-pink-400 mb-4 flex justify-between items-center">
+                        <span>📉 التغير الهرموني الكلي</span>
+                        <span className="text-[10px] text-slate-500 bg-slate-950 px-2 py-1 rounded-md">FSH vs Testosterone</span>
+                      </h3>
+                      {hormoneChartData.length > 1 ? (
+                        <div className="h-48" dir="ltr">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <LineChart data={hormoneChartData} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
+                              <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                              <XAxis dataKey="date" stroke="#64748b" fontSize={11} tickMargin={8} />
+                              <YAxis yAxisId="left" stroke="#64748b" fontSize={11} />
+                              <YAxis yAxisId="right" orientation="right" stroke="#64748b" fontSize={11} />
+                              <RechartsTooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px', fontSize: '12px', color: '#fff' }} />
+                              <Legend wrapperStyle={{ fontSize: '11px', marginTop: '10px' }} />
+                              <Line yAxisId="left" type="monotone" dataKey="Testosterone" name="Testosterone (ng/dL)" stroke="#f472b6" strokeWidth={2} dot={{ r: 3 }} />
+                              <Line yAxisId="right" type="monotone" dataKey="FSH" name="FSH (mIU/mL)" stroke="#a78bfa" strokeWidth={2} dot={{ r: 3 }} />
+                            </LineChart>
+                          </ResponsiveContainer>
+                        </div>
+                      ) : (
+                        <div className="h-48 flex items-center justify-center text-xs text-slate-500 border border-dashed border-slate-800 rounded-xl">
+                          يتطلب التخطيط البياني فحصين أو أكثر
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
+
+                {/* Patient Journey Timeline summary */}
+                <div>
+                    <h3 className="text-base font-bold text-slate-300 mb-3 flex items-center gap-2">⏱️ التسلسل الزمني السريع للمريض (Timeline)</h3>
+                    <div className="flex gap-4 overflow-x-auto pb-4 snap-x hide-scroll">
+                      {medications[0] && (
+                        <div className="min-w-[200px] shrink-0 bg-violet-950/20 border border-violet-900/50 p-4 rounded-xl flex items-center gap-3 snap-start">
+                          <div className="text-2xl mt-1 opacity-80">💊</div>
+                          <div><div className="text-[10px] text-violet-400 font-mono">{fmtDate(medications[0].startDate)}</div><div className="text-sm font-bold text-white truncate max-w-[150px]">{medications[0].medication}</div><div className="text-xs text-slate-400">بدء علاج</div></div>
+                        </div>
+                      )}
+                      {surgeries[0] && (
+                        <div className="min-w-[200px] shrink-0 bg-orange-950/20 border border-orange-900/50 p-4 rounded-xl flex items-center gap-3 snap-start">
+                          <div className="text-2xl mt-1 opacity-80">🔪</div>
+                          <div><div className="text-[10px] text-orange-400 font-mono">{fmtDate(surgeries[0].surgeryDate)}</div><div className="text-sm font-bold text-white truncate max-w-[150px]">{surgeries[0].procedure}</div><div className="text-xs text-slate-400">عملية جراحية</div></div>
+                        </div>
+                      )}
+                      {analyses[0] && (
+                        <div className="min-w-[200px] shrink-0 bg-emerald-950/20 border border-emerald-900/50 p-4 rounded-xl flex items-center gap-3 snap-start">
+                          <div className="text-2xl mt-1 opacity-80">🔬</div>
+                          <div><div className="text-[10px] text-emerald-400 font-mono">{fmtDate(analyses[0].sampleDate)}</div><div className="text-sm font-bold text-white truncate max-w-[150px]">سائل منوي</div><div className="text-xs text-slate-400">{analyses[0].autoClassification?.substring(0,15) || "-"}</div></div>
+                        </div>
+                      )}
+                    </div>
+                </div>
+
               </div>
             )}
 
@@ -322,14 +447,7 @@ export default function AndrologyPage() {
                           <div className="bg-slate-950/80 p-3.5 rounded-xl shadow-inner"><span className="text-slate-500 text-xs block mb-1">الحركة الكلية PR+NP</span><div className="text-white font-bold">{fmtNum(a.totalMotility)} <span className="text-[10px] text-slate-500 font-normal">%</span></div></div>
                           <div className="bg-emerald-950/20 border border-emerald-900/30 p-3.5 rounded-xl shadow-inner"><span className="text-emerald-500 text-xs block mb-1">التقدمية PR</span><div className="text-emerald-400 font-bold">{fmtNum(a.progressivePR)} <span className="text-[10px] text-emerald-500/50 font-normal">%</span></div></div>
                           <div className="bg-slate-950/80 p-3.5 rounded-xl shadow-inner"><span className="text-slate-500 text-xs block mb-1">شكل طبيعي (Kruger)</span><div className="text-white font-bold">{fmtNum(a.normalForms)} <span className="text-[10px] text-slate-500 font-normal">%</span></div></div>
-                          <div className="bg-slate-950/80 p-3.5 rounded-xl shadow-inner"><span className="text-slate-500 text-xs block mb-1">تشوه الرأس</span><div className="text-white font-bold">{fmtNum(a.headDefects)} <span className="text-[10px] text-slate-500 font-normal">%</span></div></div>
-                          <div className="bg-slate-950/80 p-3.5 rounded-xl shadow-inner"><span className="text-slate-500 text-xs block mb-1">تشوه الذيل</span><div className="text-white font-bold">{fmtNum(a.tailDefects)} <span className="text-[10px] text-slate-500 font-normal">%</span></div></div>
-                          <div className="bg-slate-950/80 p-3.5 rounded-xl shadow-inner"><span className="text-slate-500 text-xs block mb-1">الحيوية Vitality</span><div className="text-white font-bold">{fmtNum(a.vitality)} <span className="text-[10px] text-slate-500 font-normal">%</span></div></div>
-                          <div className="bg-slate-950/80 p-3.5 rounded-xl shadow-inner"><span className="text-slate-500 text-xs block mb-1">WBC</span><div className="text-white font-bold">{fmtNum(a.wbcCount)} <span className="text-[10px] text-slate-500 font-normal">M/ml</span></div></div>
-                          <div className="bg-slate-950/80 p-3.5 rounded-xl shadow-inner"><span className="text-slate-500 text-xs block mb-1">تكسير المادة الوراثية</span><div className="text-amber-400 font-bold">{fmtNum(a.dnaFragmentation)} <span className="text-[10px] text-amber-500/50 font-normal">% DFI</span></div></div>
                         </div>
-                        {a.conclusion && <div className="mt-4 text-xs text-amber-200 bg-amber-950/30 border border-amber-500/20 p-3.5 rounded-xl">📌 <span className="font-bold">الحكم/الخلاصة: </span> {a.conclusion}</div>}
-                        {a.doctorNotes && <div className="mt-2 text-xs text-slate-300 bg-slate-950/50 border border-slate-800 p-3.5 rounded-xl text-justify leading-relaxed">📝 <span className="font-bold">ملاحظات:</span> {a.doctorNotes}</div>}
                       </div>
                     ))}
                   </div>
@@ -346,7 +464,6 @@ export default function AndrologyPage() {
                     ➕ إضافة فحص هرموني
                   </button>
                 </div>
-
                 {loading ? (
                   <div className="text-center text-slate-400 py-12">جارِ التحميل...</div>
                 ) : hormones.length === 0 ? (
@@ -360,28 +477,24 @@ export default function AndrologyPage() {
                       <thead className="text-xs text-slate-400 bg-slate-950">
                         <tr>
                           <th className="p-4 rounded-tr-xl font-medium">التاريخ</th>
-                          <th className="p-4 font-medium text-center">FSH<br/><span className="text-[10px] font-normal text-slate-500">mIU/mL</span></th>
-                          <th className="p-4 font-medium text-center">LH<br/><span className="text-[10px] font-normal text-slate-500">mIU/mL</span></th>
-                          <th className="p-4 font-medium text-center">Total T<br/><span className="text-[10px] font-normal text-slate-500">ng/dL</span></th>
-                          <th className="p-4 font-medium text-center">Free T<br/><span className="text-[10px] font-normal text-slate-500">pg/mL</span></th>
-                          <th className="p-4 font-medium text-center">E2<br/><span className="text-[10px] font-normal text-slate-500">pg/mL</span></th>
-                          <th className="p-4 font-medium text-center">PRL<br/><span className="text-[10px] font-normal text-slate-500">ng/mL</span></th>
-                          <th className="p-4 font-medium text-center">Inhibin B<br/><span className="text-[10px] font-normal text-slate-500">pg/mL</span></th>
+                          <th className="p-4 font-medium text-center">FSH <span className="text-[10px] text-slate-500">mIU</span></th>
+                          <th className="p-4 font-medium text-center">LH <span className="text-[10px] text-slate-500">mIU</span></th>
+                          <th className="p-4 font-medium text-center">Total T <span className="text-[10px] text-slate-500">ng/dL</span></th>
+                          <th className="p-4 font-medium text-center">E2 <span className="text-[10px] text-slate-500">pg/mL</span></th>
+                          <th className="p-4 font-medium text-center">PRL <span className="text-[10px] text-slate-500">ng/mL</span></th>
                           <th className="p-4 rounded-tl-xl font-medium">ملاحظات</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-800/50">
                         {hormones.map(h => (
-                          <tr key={h.id} className="hover:bg-slate-800/30 transition-colors group">
+                          <tr key={h.id} className="hover:bg-slate-800/30 transition-colors">
                             <td className="p-4 font-mono text-cyan-400">{fmtDate(h.testDate)}</td>
-                            <td className="p-4 text-center font-bold text-white">{fmtNum(h.fsh)}</td>
-                            <td className="p-4 text-center font-bold text-white">{fmtNum(h.lh)}</td>
-                            <td className="p-4 text-center font-bold text-emerald-400 bg-emerald-900/10 group-hover:bg-emerald-900/30 transition-colors">{fmtNum(h.totalTestosterone)}</td>
-                            <td className="p-4 text-center font-medium text-white">{fmtNum(h.freeTestosterone)}</td>
-                            <td className="p-4 text-center font-medium text-pink-300">{fmtNum(h.estradiol)}</td>
-                            <td className="p-4 text-center font-medium text-amber-300">{fmtNum(h.prolactin)}</td>
-                            <td className="p-4 text-center font-medium text-white">{fmtNum(h.inhibinB)}</td>
-                            <td className="p-4 text-slate-400 text-xs w-1/4">{h.notes || "—"}</td>
+                            <td className="p-4 text-center text-white">{fmtNum(h.fsh)}</td>
+                            <td className="p-4 text-center text-white">{fmtNum(h.lh)}</td>
+                            <td className="p-4 text-center text-emerald-400 font-bold">{fmtNum(h.totalTestosterone)}</td>
+                            <td className="p-4 text-center text-pink-300">{fmtNum(h.estradiol)}</td>
+                            <td className="p-4 text-center text-amber-300">{fmtNum(h.prolactin)}</td>
+                            <td className="p-4 text-slate-400 text-xs w-1/4 truncate max-w-[150px]">{h.notes || "—"}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -400,45 +513,109 @@ export default function AndrologyPage() {
                     ➕ زيارة جديدة
                   </button>
                 </div>
-
                 {visits.length === 0 ? (
                   <div className="text-center text-slate-500 py-16 bg-slate-900/30 rounded-3xl border border-slate-800/50 border-dashed">
-                    <p className="text-5xl mb-4 opacity-50">🩺</p>
                     <p className="font-medium">لا توجد زيارات مسجلة.</p>
                   </div>
                 ) : (
                   <div className="space-y-4">
                     {visits.map(v => (
-                      <div key={v.id} className="bg-slate-900/60 border border-slate-700/60 hover:border-cyan-500/40 rounded-2xl p-6 transition-colors shadow-sm">
-                        <div className="flex justify-between mb-4 border-b border-slate-800 pb-3">
-                          <h4 className="text-base font-bold text-white flex items-center gap-2">📅 زيارة بتاريخ {fmtDate(v.createdAt)}</h4>
+                      <div key={v.id} className="bg-slate-900/60 border border-slate-700/60 rounded-2xl p-6">
+                        <div className="mb-4 pb-3 border-b border-slate-800">
+                          <h4 className="text-base font-bold text-white">📅 زيارة بتاريخ {fmtDate(v.createdAt)}</h4>
                         </div>
-                        
                         {v.chiefComplaint && (
                           <div className="mb-4">
-                            <span className="text-slate-500 text-xs block mb-1">الشكوى الرئيسية (Chief Complaint)</span>
+                            <span className="text-slate-500 text-xs block mb-1">الشكوى الرئيسية</span>
                             <div className="text-slate-200 text-sm bg-slate-950/60 p-3 rounded-xl border border-slate-800/50">{v.chiefComplaint}</div>
                           </div>
                         )}
-
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mb-4">
-                          <div className="bg-slate-950/80 p-3.5 rounded-xl shadow-inner"><span className="text-slate-500 text-xs block mb-1">الدوالي العامة</span><div className="text-amber-400 font-bold">{v.varicoceleGrade || "—"}</div></div>
-                          <div className="bg-slate-950/80 p-3.5 rounded-xl shadow-inner"><span className="text-slate-500 text-xs block mb-1">الدوالي يمين/يسار</span><div className="text-slate-300 font-bold">R: {v.varicoceleRight || "—"} | L: {v.varicoceleLeft || "—"}</div></div>
-                          <div className="bg-slate-950/80 p-3.5 rounded-xl shadow-inner"><span className="text-slate-500 text-xs block mb-1">حجم الخصية (ml)</span><div className="text-white font-bold">R: {fmtNum(v.testicularVolR)} | L: {fmtNum(v.testicularVolL)}</div></div>
-                          <div className="bg-slate-950/80 p-3.5 rounded-xl shadow-inner"><span className="text-slate-500 text-xs block mb-1">الأسهر</span><div className="text-emerald-400 font-bold">{v.vasPresence || "—"}</div></div>
+                          <div className="bg-slate-950/80 p-3.5 rounded-xl"><span className="text-slate-500 text-xs mb-1">الدوالي العامة</span><div className="text-amber-400 font-bold">{v.varicoceleGrade || "—"}</div></div>
+                          <div className="bg-slate-950/80 p-3.5 rounded-xl"><span className="text-slate-500 text-xs mb-1">الدوالي (يمين / يسار)</span><div className="text-slate-300 font-bold">R: {v.varicoceleRight || "—"} | L: {v.varicoceleLeft || "—"}</div></div>
                         </div>
-                        
-                        <div className="flex flex-wrap gap-2 mb-4">
-                          {v.erectileDisfunc && <span className="bg-red-950/30 text-red-400 border border-red-900/50 px-3 py-1 rounded-lg text-xs">ضعف انتصاب</span>}
-                          {v.ejaculatoryDisfunc && <span className="bg-orange-950/30 text-orange-400 border border-orange-900/50 px-3 py-1 rounded-lg text-xs">اضطراب قذف</span>}
-                          {v.smokingHabit && v.smokingHabit !== 'NON_SMOKER' && <span className="bg-slate-800 text-slate-300 border border-slate-700 px-3 py-1 rounded-lg text-xs">{v.smokingHabit}</span>}
-                          {v.bmi && <span className="bg-blue-950/30 text-blue-400 border border-blue-900/50 px-3 py-1 rounded-lg text-xs font-mono">BMI: {fmtNum(v.bmi)}</span>}
-                        </div>
+                        {v.treatmentPlan && <div className="text-sm bg-emerald-950/20 border border-emerald-900/30 p-4 rounded-xl"><span className="text-emerald-500 text-xs font-bold block mb-1">خطة العلاج</span><div>{v.treatmentPlan}</div></div>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          {v.diagnosis && <div className="text-sm bg-cyan-950/20 border border-cyan-900/30 p-4 rounded-xl"><span className="text-cyan-500 text-xs block mb-1 font-bold">🎯 التشخيص</span><div className="text-cyan-100">{v.diagnosis}</div></div>}
-                          {v.treatmentPlan && <div className="text-sm bg-emerald-950/20 border border-emerald-900/30 p-4 rounded-xl"><span className="text-emerald-500 text-xs block mb-1 font-bold">💊 خطة العلاج</span><div className="text-emerald-100">{v.treatmentPlan}</div></div>}
+            {/* === SURGERY TAB === */}
+            {tab === "SURGERY" && (
+              <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <div className="flex justify-between items-center bg-slate-900/50 p-4 rounded-2xl border border-slate-800">
+                  <h3 className="text-base font-bold text-orange-400 flex items-center gap-2">🔪<span className="mt-0.5">التدخلات الجراحية والميكروسكوبية</span></h3>
+                  <button onClick={() => setShowSurgeryForm(true)} className="bg-orange-600 hover:bg-orange-500 text-white px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 shadow-lg shadow-orange-900/50 transition-all">
+                    ➕ توثيق جراحة
+                  </button>
+                </div>
+                {surgeries.length === 0 ? (
+                  <div className="text-center text-slate-500 py-16 bg-slate-900/30 rounded-3xl border border-slate-800/50 border-dashed">
+                    <p className="text-5xl mb-4 opacity-50">🔪</p>
+                    <p className="font-medium">لم يتم إجراء عمليات جراحية للمريض.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {surgeries.map(s => (
+                      <div key={s.id} className="bg-slate-900/60 border-l-4 border-l-orange-500 border border-slate-700/60 hover:border-orange-500/40 rounded-r-2xl p-6 transition-colors shadow-sm">
+                        <div className="flex justify-between items-center mb-4 pb-3 border-b border-slate-800/60">
+                          <div>
+                            <h4 className="text-lg font-bold text-white inline-flex items-center gap-2">
+                              {s.procedure} 
+                              {s.spermRetrieved && <span className="bg-emerald-500/20 text-emerald-400 px-2 py-0.5 text-[10px] rounded border border-emerald-500/30">✅ نجاح الاستخراج</span>}
+                            </h4>
+                            <div className="text-xs text-orange-200 mt-1">تاريخ العملية: <span className="font-mono">{fmtDate(s.surgeryDate)}</span></div>
+                          </div>
+                          {s.surgeonName && <div className="text-xs text-slate-400 bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800">الجراح: {s.surgeonName}</div>}
                         </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm mt-3">
+                          {s.technique && <div><span className="text-slate-500 text-xs">التقنية الجراحية:</span> <span className="text-slate-200 block mt-1">{s.technique}</span></div>}
+                          {s.findings && <div><span className="text-slate-500 text-xs">نتائج العملية (Findings):</span> <div className="text-slate-300 mt-1 bg-slate-950/50 p-2 rounded-lg text-xs leading-relaxed">{s.findings}</div></div>}
+                          {s.outcome && <div className="md:col-span-2"><span className="text-slate-500 text-xs">النتيجة (Outcome):</span> <div className="text-orange-100 font-bold mt-1 bg-orange-950/20 border border-orange-900/30 p-2 rounded-lg text-sm">{s.outcome}</div></div>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* === MEDICATION TAB === */}
+            {tab === "MEDICATION" && (
+              <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <div className="flex justify-between items-center bg-slate-900/50 p-4 rounded-2xl border border-slate-800">
+                  <h3 className="text-base font-bold text-violet-400 flex items-center gap-2">💊<span className="mt-0.5">الخطة العلاجية الدوائية</span></h3>
+                  <button onClick={() => setShowMedicationForm(true)} className="bg-violet-600 hover:bg-violet-500 text-white px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 shadow-lg shadow-violet-900/50 transition-all">
+                    ➕ إضافة دواء
+                  </button>
+                </div>
+                {medications.length === 0 ? (
+                  <div className="text-center text-slate-500 py-16 bg-slate-900/30 rounded-3xl border border-slate-800/50 border-dashed">
+                    <p className="text-5xl mb-4 opacity-50">💊</p>
+                    <p className="font-medium">لم يتم وصف أدوية للمريض.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {medications.map(m => (
+                      <div key={m.id} className="bg-slate-900/60 border border-slate-700/60 hover:bg-slate-800/50 rounded-2xl p-5 transition-colors relative overflow-hidden group">
+                        <div className="absolute top-0 right-0 w-2 h-full bg-violet-600 rounded-r-2xl"></div>
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h4 className="text-base font-bold text-white">{m.medication}</h4>
+                            <div className="text-xs text-violet-300 mt-1">{m.category || "دواء عام"}</div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-xs text-slate-400">البدء: <span className="text-white font-mono">{fmtDate(m.startDate)}</span></div>
+                            {m.endDate && <div className="text-xs text-slate-400 mt-1">الانتهاء: <span className="text-white font-mono">{fmtDate(m.endDate)}</span></div>}
+                          </div>
+                        </div>
+                        <div className="mt-4 flex flex-wrap gap-2 text-xs">
+                          {m.dose && <span className="bg-slate-800 text-slate-200 px-2 py-1 rounded-md border border-slate-700">جرعة: {m.dose}</span>}
+                          {m.frequency && <span className="bg-slate-800 text-slate-200 px-2 py-1 rounded-md border border-slate-700">تكرار: {m.frequency}</span>}
+                        </div>
+                        {m.response && <div className="mt-4 text-xs bg-emerald-950/20 text-emerald-300 font-medium p-2.5 rounded-xl border border-emerald-900/30">✅ استجابة: {m.response}</div>}
                       </div>
                     ))}
                   </div>
@@ -453,6 +630,8 @@ export default function AndrologyPage() {
       {showSemenForm && <SemenAnalysisForm onSave={submitSemenAnalysis} onCancel={() => setShowSemenForm(false)} />}
       {showAndrologyForm && <AndrologyVisitForm onSave={submitAndrologyVisit} onCancel={() => setShowAndrologyForm(false)} />}
       {showHormoneForm && <HormoneTestForm onSave={submitHormoneTest} onCancel={() => setShowHormoneForm(false)} />}
+      {showSurgeryForm && <AndrologySurgeryForm onSave={submitSurgery} onCancel={() => setShowSurgeryForm(false)} />}
+      {showMedicationForm && <AndrologyMedicationForm onSave={submitMedication} onCancel={() => setShowMedicationForm(false)} />}
     </div>
   );
 }

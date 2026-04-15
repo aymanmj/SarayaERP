@@ -467,7 +467,8 @@ model Patient {
   semenAnalyses        SemenAnalysis[]
   andrologyVisits      AndrologyVisit[]
   hormoneTests         HormoneTest[]
-
+  andrologySurgeries   AndrologySurgery[]
+  andrologyMedications AndrologyMedication[]
   // Consent Forms
   consentForms ConsentForm[]
 
@@ -541,6 +542,7 @@ model Encounter {
   vitalSigns                VitalSign[]
   deliveryAdmission         DeliveryAdmission?
   andrologyVisit            AndrologyVisit?
+  andrologySurgeries        AndrologySurgery[]
   consentForms              ConsentForm[]
   referrals                 Referral[]
   transferOrders            TransferOrder[]
@@ -1256,6 +1258,60 @@ model HormoneTest {
   createdAt DateTime @default(now())
 
   patient Patient @relation(fields: [patientId], references: [id])
+}
+
+// ==========================================
+// 💉 الإجراءات الجراحية الذكورية (Andrology Surgeries)
+// ==========================================
+
+model AndrologySurgery {
+  id              Int      @id @default(autoincrement())
+  patientId       Int
+  encounterId     Int?
+  surgeryDate     DateTime @default(now())
+
+  procedure       String   // TESE, micro-TESE, Varicocelectomy, PESA, Sperm Retrieval, etc.
+  technique       String?  // Laparoscopic / Microscopic / Open
+  surgeonName     String?
+
+  // Post-Op & Findings
+  findings        String?  @db.Text
+  outcome         String?
+  complications   String?
+  spermRetrieved  Boolean  @default(false)
+  
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  patient         Patient    @relation(fields: [patientId], references: [id])
+  encounter       Encounter? @relation(fields: [encounterId], references: [id])
+}
+
+// ==========================================
+// 💊 العلاج الدوائي للذكورة (Andrology Medications)
+// ==========================================
+
+model AndrologyMedication {
+  id          Int       @id @default(autoincrement())
+  patientId   Int
+  
+  medication  String    // Clomiphene Citrate, L-Carnitine, HCG, FSH, etc.
+  category    String?   // Anti-estrogen / Gonadotropin / Antioxidant / Antibiotic
+  dose        String?
+  frequency   String?
+  
+  startDate   DateTime  @default(now())
+  endDate     DateTime?
+  
+  response    String?   // Clinical/Lab response after period
+  sideEffects String?
+  notes       String?
+  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  patient     Patient   @relation(fields: [patientId], references: [id])
 }
 
 // ==========================================

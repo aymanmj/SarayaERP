@@ -13,6 +13,8 @@ import {
   CreateCryoItemDto,
   ThawCryoItemDto,
   CreateHormoneTestDto,
+  CreateAndrologySurgeryDto,
+  CreateAndrologyMedicationDto,
 } from '../dto/fertility.dto';
 
 @Injectable()
@@ -477,6 +479,75 @@ export class FertilityService {
     return this.prisma.hormoneTest.findMany({
       where: { patientId },
       orderBy: { testDate: 'desc' },
+    });
+  }
+
+  // ===================== Andrology Surgery =====================
+
+  async createAndrologySurgery(hospitalId: number, dto: CreateAndrologySurgeryDto) {
+    const patient = await this.prisma.patient.findUnique({ where: { id: dto.patientId } });
+    if (!patient || patient.hospitalId !== hospitalId) {
+      throw new NotFoundException('المريض غير موجود.');
+    }
+    return this.prisma.andrologySurgery.create({
+      data: {
+        patientId: dto.patientId,
+        encounterId: dto.encounterId,
+        surgeryDate: dto.surgeryDate ? new Date(dto.surgeryDate) : new Date(),
+        procedure: dto.procedure,
+        technique: dto.technique,
+        surgeonName: dto.surgeonName,
+        findings: dto.findings,
+        outcome: dto.outcome,
+        complications: dto.complications,
+        spermRetrieved: dto.spermRetrieved ?? false,
+        notes: dto.notes,
+      },
+    });
+  }
+
+  async getAndrologySurgeries(hospitalId: number, patientId: number) {
+    const patient = await this.prisma.patient.findUnique({ where: { id: patientId } });
+    if (!patient || patient.hospitalId !== hospitalId) {
+      throw new NotFoundException('المريض غير موجود.');
+    }
+    return this.prisma.andrologySurgery.findMany({
+      where: { patientId },
+      orderBy: { surgeryDate: 'desc' },
+    });
+  }
+
+  // ===================== Andrology Medication =====================
+
+  async createAndrologyMedication(hospitalId: number, dto: CreateAndrologyMedicationDto) {
+    const patient = await this.prisma.patient.findUnique({ where: { id: dto.patientId } });
+    if (!patient || patient.hospitalId !== hospitalId) {
+      throw new NotFoundException('المريض غير موجود.');
+    }
+    return this.prisma.andrologyMedication.create({
+      data: {
+        patientId: dto.patientId,
+        medication: dto.medication,
+        category: dto.category,
+        dose: dto.dose,
+        frequency: dto.frequency,
+        startDate: dto.startDate ? new Date(dto.startDate) : new Date(),
+        endDate: dto.endDate ? new Date(dto.endDate) : null,
+        response: dto.response,
+        sideEffects: dto.sideEffects,
+        notes: dto.notes,
+      },
+    });
+  }
+
+  async getAndrologyMedications(hospitalId: number, patientId: number) {
+    const patient = await this.prisma.patient.findUnique({ where: { id: patientId } });
+    if (!patient || patient.hospitalId !== hospitalId) {
+      throw new NotFoundException('المريض غير موجود.');
+    }
+    return this.prisma.andrologyMedication.findMany({
+      where: { patientId },
+      orderBy: { startDate: 'desc' },
     });
   }
 

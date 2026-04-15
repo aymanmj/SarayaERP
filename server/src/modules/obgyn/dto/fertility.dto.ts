@@ -698,3 +698,95 @@ export class ThawCryoItemDto {
   @IsOptional()
   thawDate?: string;
 }
+
+// ==========================================
+// Andrology Surgery
+// ==========================================
+
+export class CreateAndrologySurgeryDto {
+  @IsInt()
+  patientId: number;
+
+  @IsInt()
+  @IsOptional()
+  encounterId?: number;
+
+  @IsDateString()
+  @IsOptional()
+  surgeryDate?: string;
+
+  @IsString()
+  procedure: string;
+
+  @IsString()
+  @IsOptional()
+  technique?: string;
+
+  @IsString()
+  @IsOptional()
+  surgeonName?: string;
+
+  @IsString()
+  @IsOptional()
+  findings?: string;
+
+  @IsString()
+  @IsOptional()
+  outcome?: string;
+
+  @IsString()
+  @IsOptional()
+  complications?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  spermRetrieved?: boolean;
+
+  @IsString()
+  @IsOptional()
+  notes?: string;
+}
+
+// ==========================================
+// Andrology Medication
+// ==========================================
+
+export class CreateAndrologyMedicationDto {
+  @IsInt()
+  patientId: number;
+
+  @IsString()
+  medication: string;
+
+  @IsString()
+  @IsOptional()
+  category?: string;
+
+  @IsString()
+  @IsOptional()
+  dose?: string;
+
+  @IsString()
+  @IsOptional()
+  frequency?: string;
+
+  @IsDateString()
+  @IsOptional()
+  startDate?: string;
+
+  @IsDateString()
+  @IsOptional()
+  endDate?: string;
+
+  @IsString()
+  @IsOptional()
+  response?: string;
+
+  @IsString()
+  @IsOptional()
+  sideEffects?: string;
+
+  @IsString()
+  @IsOptional()
+  notes?: string;
+}
