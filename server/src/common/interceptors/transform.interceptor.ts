@@ -22,9 +22,14 @@ export class TransformInterceptor<T>
     next: CallHandler,
   ): Observable<Response<T>> {
     const request = context.switchToHttp().getRequest();
+    const requestUrl = request.originalUrl || request.url || '';
     
     // 📊 Bypass transformation for Prometheus metrics
-    if (request.url.includes('/metrics')) {
+    if (requestUrl.includes('/metrics')) {
+      return next.handle();
+    }
+
+    if (requestUrl.startsWith('/api/fhir')) {
       return next.handle();
     }
 

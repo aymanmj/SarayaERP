@@ -25,7 +25,11 @@ export class FhirController {
   ) {}
 
   private getBaseUrl(req: Request) {
-    return `${req.protocol}://${req.get('host')}/api/fhir`;
+    const forwardedProto = req.get('x-forwarded-proto')?.split(',')[0].trim();
+    const forwardedHost = req.get('x-forwarded-host')?.split(',')[0].trim();
+    const protocol = forwardedProto || req.protocol;
+    const host = forwardedHost || req.get('host');
+    return `${protocol}://${host}/api/fhir`;
   }
 
   /**

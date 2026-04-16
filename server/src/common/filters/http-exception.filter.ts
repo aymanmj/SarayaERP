@@ -15,6 +15,28 @@ import { Request, Response } from 'express';
 export class AllExceptionsFilter implements ExceptionFilter {
   private readonly logger = new Logger('ExceptionsHandler');
 
+  private isFhirRequest(request: Request): boolean {
+    const requestUrl = request.originalUrl || request.url || '';
+    return requestUrl.startsWith('/api/fhir');
+  }
+
+  private mapFhirIssueCode(status: number): string {
+    switch (status) {
+      case HttpStatus.BAD_REQUEST:
+        return 'invalid';
+      case HttpStatus.UNAUTHORIZED:
+        return 'login';
+      case HttpStatus.FORBIDDEN:
+        return 'forbidden';
+      case HttpStatus.NOT_FOUND:
+        return 'not-found';
+      case HttpStatus.CONFLICT:
+        return 'conflict';
+      default:
+        return 'exception';
+    }
+  }
+
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
@@ -84,6 +106,23 @@ export class AllExceptionsFilter implements ExceptionFilter {
     }
 
     // الرد الموحد
+    if (this.isFhirRequest(request)) {
+      response
+        .status(status)
+        .type('application/fhir+json')
+        .json({
+          resourceType: 'OperationOutcome',
+          issue: [
+            {
+              severity: 'error',
+              code: this.mapFhirIssueCode(status),
+              diagnostics: message,
+            },
+          ],
+        });
+      return;
+    }
+
     response.status(status).json({
       success: false,
       statusCode: status,

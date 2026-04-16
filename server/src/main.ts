@@ -13,6 +13,8 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     logger: ['error', 'warn', 'log'], // Production logging levels
   });
+  const expressApp = app.getHttpAdapter().getInstance();
+  expressApp.set('trust proxy', 1);
 
   // ============================================
   // 🌍 GLOBAL PREFIX
