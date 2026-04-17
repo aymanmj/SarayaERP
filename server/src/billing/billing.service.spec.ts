@@ -70,6 +70,8 @@ describe('BillingService', () => {
     encounterCharge: {
       findMany: jest.fn(),
       updateMany: jest.fn(),
+      update: jest.fn(),
+      findFirst: jest.fn(),
     },
     invoice: {
       create: jest.fn(),

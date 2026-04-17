@@ -4,6 +4,8 @@ import { AppModule } from './app.module';
 import { ValidationPipe, Logger, BadRequestException } from '@nestjs/common';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
+import { RequestLifecycleInterceptor } from './common/interceptors/request-lifecycle.interceptor';
+import { CorrelationMiddleware } from './common/middleware/correlation.middleware';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
@@ -71,9 +73,18 @@ async function bootstrap() {
   );
 
   // ============================================
-  // 📤 RESPONSE FORMATTING
+  // 🔗 REQUEST CORRELATION (X-Request-Id)
   // ============================================
-  app.useGlobalInterceptors(new TransformInterceptor());
+  const correlationMiddleware = new CorrelationMiddleware();
+  app.use((req: any, res: any, next: any) => correlationMiddleware.use(req, res, next));
+
+  // ============================================
+  // 📤 RESPONSE FORMATTING & LIFECYCLE MONITORING
+  // ============================================
+  app.useGlobalInterceptors(
+    new RequestLifecycleInterceptor(),
+    new TransformInterceptor(),
+  );
   app.useGlobalFilters(new AllExceptionsFilter());
 
   // ============================================
@@ -155,6 +166,36 @@ async function bootstrap() {
   }
 
   // ============================================
+  // ⏹️ GRACEFUL SHUTDOWN
+  // ============================================
+  app.enableShutdownHooks();
+
+  const SHUTDOWN_TIMEOUT = 30_000; // 30 seconds max
+
+  const gracefulShutdown = async (signal: string) => {
+    logger.warn(`⏹️ Received ${signal}. Starting graceful shutdown...`);
+    
+    const shutdownTimer = setTimeout(() => {
+      logger.error('❌ Graceful shutdown timed out after 30s. Forcing exit.');
+      process.exit(1);
+    }, SHUTDOWN_TIMEOUT);
+
+    try {
+      await app.close();
+      clearTimeout(shutdownTimer);
+      logger.log('✅ Graceful shutdown complete. All connections closed.');
+      process.exit(0);
+    } catch (err) {
+      clearTimeout(shutdownTimer);
+      logger.error('❌ Error during shutdown:', err);
+      process.exit(1);
+    }
+  };
+
+  process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+  process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+  // ============================================
   // 🚀 START SERVER
   // ============================================
   const port = process.env.PORT || 3000;
@@ -163,6 +204,8 @@ async function bootstrap() {
   logger.log(`🚀 Saraya ERP Backend is running on: http://localhost:${port}`);
   logger.log(`🔒 Security: Helmet enabled, CORS configured`);
   logger.log(`📊 Rate Limiting: Active (ThrottlerModule)`);
+  logger.log(`🔗 Request Tracing: X-Request-Id correlation enabled`);
+  logger.log(`⏹️ Graceful Shutdown: SIGTERM/SIGINT handlers registered`);
 }
 
 bootstrap();
