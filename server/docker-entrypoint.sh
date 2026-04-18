@@ -108,7 +108,17 @@ else
 fi
 
 # --------------------------------------------
-# 3. تشغيل الخادم (Start Server)
+# 3. ترحيل البيانات السريّة لـ HashiCorp Vault بسلاسة للعملاء الحاليين
+# --------------------------------------------
+echo "🔐 Running Vault Auto-Migration for Legacy Deployments..."
+if [ -f "dist/src/scripts/vault-migration.js" ]; then
+    node dist/src/scripts/vault-migration.js
+elif [ -f "dist/scripts/vault-migration.js" ]; then
+    node dist/scripts/vault-migration.js
+fi
+
+# --------------------------------------------
+# 4. تشغيل الخادم (Start Server)
 # --------------------------------------------
 echo "🏁 Starting NestJS Application..."
 
