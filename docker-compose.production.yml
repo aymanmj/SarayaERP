@@ -221,7 +221,7 @@ services:
     ports:
       - "8200:8200"
     volumes:
-      - vault_data:/vault/file
+      - vault_data_v2:/vault/file
     networks:
       - saraya_net
     cap_add:
@@ -372,7 +372,7 @@ volumes:
   portainer_data:
   alertmanager_data:
   tailscale_data:
-  vault_data:
+  vault_data_v2:
 
 networks:
   saraya_net:
