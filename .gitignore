@@ -85,6 +85,12 @@ admin-tools/
 
 
 ############################
+# HashiCorp Vault (production bind mount; never commit keys)
+############################
+data/keys/*
+!data/keys/.gitkeep
+
+############################
 # Certificates
 ############################
 certs/

@@ -83,6 +83,7 @@ services:
     volumes:
       - ./uploads:/app/uploads
       - ./data/license:/app/data/license
+      # Bind mount so host can chown for user node (named volumes are often root-only)
       - ./data/keys:/app/data/keys
       - ${BACKUP_PATH:-./backups}:/backups
       - /mnt:/mnt:rw,rslave      # الأقراص الخارجية (تظهر تلقائياً بدون إعادة تشغيل)

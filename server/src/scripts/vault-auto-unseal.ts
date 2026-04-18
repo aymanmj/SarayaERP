@@ -59,8 +59,11 @@ async function autoUnsealVault() {
       if (fs.existsSync(keysPath)) {
         keys = JSON.parse(fs.readFileSync(keysPath, 'utf8'));
       } else {
-        console.log(`⚠️ Vault is initialized but keys file (${keysPath}) is missing! Cannot auto-unseal or fetch root token.`);
-        return;
+        console.error(
+          `❌ Vault is initialized but keys file (${keysPath}) is missing! Cannot auto-unseal or fetch root token. ` +
+            'Fix volume permissions (e.g. chown 1000:1000 on host ./data/keys) and reset Vault storage if needed — see docs/vault-production.md.',
+        );
+        process.exit(1);
       }
     }
 
