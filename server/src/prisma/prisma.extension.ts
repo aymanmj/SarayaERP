@@ -1,5 +1,5 @@
 import { PrismaClient, Prisma } from '@prisma/client';
-import { encrypt, decrypt } from '../common/utils/encryption.util';
+import { EncryptionService } from '../common/encryption/encryption.service';
 import { createHash } from 'crypto';
 
 const PATIENT_SENSITIVE_FIELDS = [
@@ -22,7 +22,7 @@ const generateSearchHash = (value: string) =>
 /**
  * دالة مساعدة لفك تشفير الكائنات (سواء كان كائن واحد أو مصفوفة)
  */
-function handleDecryption(data: any) {
+function handleDecryption(data: any, encryptionService: EncryptionService) {
   if (!data) return data;
 
   const decryptObject = (obj: any) => {
@@ -32,7 +32,7 @@ function handleDecryption(data: any) {
         typeof obj[field] === 'string' &&
         obj[field].includes(':')
       ) {
-        obj[field] = decrypt(obj[field]);
+        obj[field] = encryptionService.decrypt(obj[field]);
       }
     }
     return obj;
@@ -54,7 +54,7 @@ if (Prisma.dmmf && Prisma.dmmf.datamodel) {
   });
 }
 
-export const extendedPrisma = (prisma: PrismaClient) => {
+export const extendedPrisma = (prisma: PrismaClient, encryptionService: EncryptionService) => {
   return prisma.$extends({
     query: {
       patient: {
@@ -70,7 +70,7 @@ export const extendedPrisma = (prisma: PrismaClient) => {
             data.identityNumberHash = generateSearchHash(data.identityNumber);
 
           PATIENT_SENSITIVE_FIELDS.forEach((field) => {
-            if (data[field]) data[field] = encrypt(data[field]);
+            if (data[field]) data[field] = encryptionService.encrypt(data[field]);
           });
           return query(args);
         },
@@ -85,24 +85,24 @@ export const extendedPrisma = (prisma: PrismaClient) => {
             data.identityNumberHash = generateSearchHash(data.identityNumber);
 
           PATIENT_SENSITIVE_FIELDS.forEach((field) => {
-            if (data[field]) data[field] = encrypt(data[field]);
+            if (data[field]) data[field] = encryptionService.encrypt(data[field]);
           });
           return query(args);
         },
         // فك التشفير عند الاستعلام (findFirst)
         async findFirst({ args, query }) {
           const result = await query(args);
-          return handleDecryption(result);
+          return handleDecryption(result, encryptionService);
         },
         // فك التشفير عند الاستعلام (findMany)
         async findMany({ args, query }) {
           const result = await query(args);
-          return handleDecryption(result);
+          return handleDecryption(result, encryptionService);
         },
         // فك التشفير عند الاستعلام (findUnique)
         async findUnique({ args, query }) {
           const result = await query(args);
-          return handleDecryption(result);
+          return handleDecryption(result, encryptionService);
         },
       },
       // منطق الحذف الناعم لباقي الموديلات

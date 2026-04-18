@@ -18,3 +18,15 @@ services:
         VITE_API_URL: /api
     image: saraya-frontend:local
     pull_policy: build
+
+  vault:
+    image: hashicorp/vault:1.15
+    container_name: saraya_vault_local
+    restart: always
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: "saraya-root-token-dev"
+      VAULT_DEV_LISTEN_ADDRESS: "0.0.0.0:8200"
+    ports:
+      - "8200:8200"
+    cap_add:
+      - IPC_LOCK

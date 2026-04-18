@@ -61,6 +61,9 @@ import { CommissionModule } from './commission/commission.module'; // ✅ [NEW] 
 import { AuditInterceptor } from './audit/audit.interceptor';
 import { APP_INTERCEPTOR, APP_GUARD } from '@nestjs/core';
 import { ClsModule } from 'nestjs-cls';
+import { VaultModule } from './common/vault/vault.module';
+import { EncryptionModule } from './common/encryption/encryption.module';
+import vaultLoader from './common/vault/vault.loader';
 
 // Services & Controllers
 import { AppController } from './app.controller';
@@ -84,7 +87,10 @@ import { ClinicalPathwaysModule } from './clinical-pathways/clinical-pathways.mo
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      load: [vaultLoader],
+    }),
     ClsModule.forRoot({
       global: true,
       middleware: { 
@@ -99,6 +105,8 @@ import { ClinicalPathwaysModule } from './clinical-pathways/clinical-pathways.mo
     EventEmitterModule.forRoot(),
     ScheduleModule.forRoot(),
     PrometheusModule.register(), // ✅ Expose /metrics
+    VaultModule,
+    EncryptionModule,
 
     // ✅ Rate Limiting Configuration
     ThrottlerModule.forRoot({

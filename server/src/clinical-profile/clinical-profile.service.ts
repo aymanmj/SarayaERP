@@ -6,7 +6,7 @@
 
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { decrypt } from '../common/utils/encryption.util';
+import { EncryptionService } from '../common/encryption/encryption.service';
 import {
   CreateProblemDto,
   UpdateProblemDto,
@@ -22,7 +22,10 @@ import {
 export class ClinicalProfileService {
   private readonly logger = new Logger(ClinicalProfileService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private encryptionService: EncryptionService
+  ) {}
 
   // ======================== Problem List ========================
 
@@ -449,9 +452,9 @@ export class ClinicalProfileService {
     // فك تشفير الحقول الحساسة (احتياطي في حال لم تعالجها الـ extension)
     const decryptedPatient = {
       ...patient,
-      phone: decrypt(patient.phone) ?? patient.phone,
-      email: decrypt(patient.email) ?? patient.email,
-      address: decrypt(patient.address) ?? patient.address,
+      phone: this.encryptionService.decrypt(patient.phone) ?? patient.phone,
+      email: this.encryptionService.decrypt(patient.email) ?? patient.email,
+      address: this.encryptionService.decrypt(patient.address) ?? patient.address,
     };
 
     // إحصائيات سريعة

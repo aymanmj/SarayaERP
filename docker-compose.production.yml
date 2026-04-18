@@ -205,6 +205,23 @@ services:
     networks:
       - saraya_net
 
+  vault:
+    image: hashicorp/vault:1.15
+    container_name: saraya_vault
+    restart: always
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: ${VAULT_TOKEN:-saraya-root-token-dev}
+      VAULT_DEV_LISTEN_ADDRESS: "0.0.0.0:8200"
+    ports:
+      - "8200:8200"
+    volumes:
+      - vault_data:/vault/file
+    networks:
+      - saraya_net
+    cap_add:
+      - IPC_LOCK
+    logging: *default_logging
+
   # ==========================================
   # 5. المراقبة (Monitoring Stack)
   # ==========================================
@@ -349,6 +366,7 @@ volumes:
   portainer_data:
   alertmanager_data:
   tailscale_data:
+  vault_data:
 
 networks:
   saraya_net:

@@ -4,10 +4,16 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
 import { ClsService } from 'nestjs-cls';
 import type { Request } from 'express';
+import { VaultService } from '../common/vault/vault.service';
+import * as jwt from 'jsonwebtoken';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
-  constructor(config: ConfigService, private readonly cls: ClsService) {
+    constructor(
+      config: ConfigService, 
+      private readonly cls: ClsService,
+      private readonly vaultService: VaultService
+    ) {
     super({
       jwtFromRequest: ExtractJwt.fromExtractors([
         (req: Request) => {
@@ -19,7 +25,17 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
         ExtractJwt.fromAuthHeaderAsBearerToken(),
       ]),
       ignoreExpiration: false,
-      secretOrKey: config.get<string>('JWT_SECRET'),
+      issuer: 'saraya-staff', // Enforce Token Isolation
+      secretOrKeyProvider: async (request: any, rawJwtToken: string, done: any) => {
+        try {
+          const decoded = jwt.decode(rawJwtToken, { complete: true }) as any;
+          const kid = decoded?.header?.kid;
+          const secret = await this.vaultService.getKeyOrSecret(kid);
+          done(null, secret);
+        } catch (error) {
+          done(error);
+        }
+      },
     });
   }
 

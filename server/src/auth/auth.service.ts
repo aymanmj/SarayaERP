@@ -8,6 +8,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { ConfigService } from '@nestjs/config';
+import { VaultService } from '../common/vault/vault.service';
 
 @Injectable()
 export class AuthService {
@@ -15,6 +16,7 @@ export class AuthService {
     private prisma: PrismaService,
     private jwtService: JwtService,
     private configService: ConfigService,
+    private vaultService: VaultService,
   ) {}
 
   // التحقق من المستخدم (تسجيل الدخول)
@@ -63,17 +65,29 @@ export class AuthService {
       permissions: user.permissions,
     };
 
+    const kid = this.vaultService.getActiveKeyId();
+    const secret = await this.vaultService.getKeyOrSecret(kid);
+
     return this.jwtService.signAsync(payload, {
-      secret: this.configService.get<string>('JWT_SECRET'),
+      secret,
       expiresIn: '15m',
+      issuer: 'saraya-staff', // Enforce Token Isolation
+      header: { kid, alg: 'HS256' },
     });
   }
 
   // التحقق من التوكن
   async verifyToken(token: string) {
     try {
+      const decoded: any = this.jwtService.decode(token, { complete: true });
+      if (!decoded || !decoded.header) return null;
+
+      const kid = decoded.header.kid;
+      const secret = await this.vaultService.getKeyOrSecret(kid);
+
       return await this.jwtService.verifyAsync(token, {
-        secret: this.configService.get<string>('JWT_SECRET'),
+        secret,
+        issuer: 'saraya-staff', // Token Segregation Validation
       });
     } catch {
       return null;

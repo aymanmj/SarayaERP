@@ -24,6 +24,7 @@ import { ConfigService } from '@nestjs/config';
 import { PatientOtpService } from './auth/patient-otp.service';
 import { AppointmentsService } from '../appointments/appointments.service';
 import { PatientJwtPayload } from './interfaces/patient-context.interface';
+import { VaultService } from '../common/vault/vault.service';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 
@@ -43,6 +44,7 @@ export class PatientPortalService {
     private configService: ConfigService,
     private otpService: PatientOtpService,
     private appointmentsService: AppointmentsService,
+    private vaultService: VaultService,
   ) {}
 
   // ===========================================
@@ -781,9 +783,14 @@ export class PatientPortalService {
       aud: 'patient-portal',
     };
 
+    const kid = this.vaultService.getActiveKeyId();
+    const secret = await this.vaultService.getKeyOrSecret(kid);
+
     return this.jwtService.signAsync(payload, {
-      secret: this.configService.get<string>('JWT_SECRET'),
+      secret,
       expiresIn: this.ACCESS_TOKEN_TTL,
+      issuer: 'saraya-patient', // Enforce Patient Token Segregation
+      header: { kid, alg: 'HS256' },
     });
   }
 

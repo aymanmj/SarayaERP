@@ -18,8 +18,10 @@ import { RolesGuard } from '../auth/roles.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { JwtPayload } from '../auth/jwt-payload.type';
 import { Sensitive } from '../audit/audit.decorator';
+import { ClinicalABACGuard } from '../auth/guards/clinical-abac.guard';
+import { RequireClinicalRelation } from '../auth/decorators/abac.decorator';
 
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, ClinicalABACGuard)
 @Controller('patients')
 export class PatientsController {
   constructor(private readonly patientsService: PatientsService) {}
@@ -123,6 +125,7 @@ export class PatientsController {
 
   @Get(':id')
   @Roles('ADMIN', 'DOCTOR', 'RECEPTION', 'NURSE')
+  @RequireClinicalRelation({ paramName: 'id', allowBreakGlass: true })
   @Sensitive('VIEW_PATIENT_PROFILE')
   findOne(
     @Param('id', ParseIntPipe) id: number,

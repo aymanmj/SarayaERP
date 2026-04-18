@@ -26,6 +26,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { Request } from 'express';
 import { ConfigService } from '@nestjs/config';
+import { VaultService } from '../../common/vault/vault.service';
 
 @Injectable()
 export class PatientAuthGuard implements CanActivate {
@@ -34,6 +35,7 @@ export class PatientAuthGuard implements CanActivate {
   constructor(
     private jwtService: JwtService,
     private configService: ConfigService,
+    private vaultService: VaultService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -45,8 +47,17 @@ export class PatientAuthGuard implements CanActivate {
     }
 
     try {
+      const decoded: any = this.jwtService.decode(token, { complete: true });
+      if (!decoded || !decoded.header) {
+        throw new UnauthorizedException('رمز المصادقة غير صالح');
+      }
+
+      const kid = decoded.header.kid;
+      const secret = await this.vaultService.getKeyOrSecret(kid);
+
       const payload = await this.jwtService.verifyAsync(token, {
-        secret: this.configService.get<string>('JWT_SECRET'),
+        secret,
+        issuer: 'saraya-patient', // Prevent Staff Tokens from accessing Patient Portal
       });
 
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

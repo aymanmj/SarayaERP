@@ -10,6 +10,8 @@ import { PrismaClient } from '@prisma/client';
 import { extendedPrisma } from './prisma.extension';
 
 import { ClsService } from 'nestjs-cls';
+import { ConfigService } from '@nestjs/config';
+import { EncryptionService } from '../common/encryption/encryption.service';
 import { auditExtension } from './audit.extension';
 
 @Injectable()
@@ -19,11 +21,21 @@ export class PrismaService
 {
   private readonly logger = new Logger(PrismaService.name);
   
-  constructor(private readonly cls: ClsService) {
-    super();
+  constructor(
+    private readonly cls: ClsService,
+    private readonly config: ConfigService,
+    private readonly encryptionService: EncryptionService,
+  ) {
+    super({
+      datasources: {
+        db: {
+          url: config.get<string>('DATABASE_URL'),
+        },
+      },
+    });
     
     // Wrap the Prisma client with extensions
-    const client = extendedPrisma(this).$extends(auditExtension(this.cls, this));
+    const client = extendedPrisma(this, this.encryptionService).$extends(auditExtension(this.cls, this));
     
     // Attach lifecycle hooks to the proxy so NestJS can call them
     (client as any).onModuleInit = this.onModuleInit.bind(this);

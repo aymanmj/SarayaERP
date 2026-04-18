@@ -1,5 +1,6 @@
 import { Injectable, UnauthorizedException, BadRequestException, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
 
 /**
@@ -34,6 +35,7 @@ export class FhirAuthService {
   constructor(
     private jwtService: JwtService,
     private prisma: PrismaService,
+    private config: ConfigService,
   ) {}
 
   /**
@@ -45,8 +47,8 @@ export class FhirAuthService {
     const apps: RegisteredApp[] = [];
 
     // Primary enterprise client (configured via environment)
-    const envClientId = process.env.FHIR_CLIENT_ID || 'enterprise_fhir_client';
-    const envClientSecret = process.env.FHIR_CLIENT_SECRET;
+    const envClientId = this.config.get<string>('FHIR_CLIENT_ID') || 'enterprise_fhir_client';
+    const envClientSecret = this.config.get<string>('FHIR_CLIENT_SECRET');
     
     apps.push({
       clientId: envClientId,
@@ -58,7 +60,7 @@ export class FhirAuthService {
     });
 
     // Additional registered apps can be added here or loaded from DB
-    const extraAppsJson = process.env.FHIR_REGISTERED_APPS;
+    const extraAppsJson = this.config.get<string>('FHIR_REGISTERED_APPS');
     if (extraAppsJson) {
       try {
         const extra = JSON.parse(extraAppsJson) as RegisteredApp[];
@@ -84,7 +86,7 @@ export class FhirAuthService {
     }
 
     // In development mode (no FHIR_CLIENT_SECRET set), skip secret validation
-    const isDev = !process.env.FHIR_CLIENT_SECRET;
+    const isDev = !this.config.get<string>('FHIR_CLIENT_SECRET');
     
     if (!isDev) {
       if (!clientSecret) {
@@ -224,7 +226,7 @@ export class FhirAuthService {
     }
 
     // Build JWT payload
-    const jwtSecret = process.env.JWT_SECRET || 'fhir-super-secret-key-enterprise';
+    const jwtSecret = this.config.get<string>('JWT_SECRET') || 'fhir-super-secret-key-enterprise';
 
     const payload: Record<string, any> = {
       iss: 'https://saraya-erp.com/api/fhir',
@@ -273,7 +275,7 @@ export class FhirAuthService {
    * @returns Decoded JWT payload with scope and patient context
    */
   validateToken(token: string, requiredScope?: string) {
-    const jwtSecret = process.env.JWT_SECRET || 'fhir-super-secret-key-enterprise';
+    const jwtSecret = this.config.get<string>('JWT_SECRET') || 'fhir-super-secret-key-enterprise';
 
     try {
       const decoded = this.jwtService.verify(token, { secret: jwtSecret });
