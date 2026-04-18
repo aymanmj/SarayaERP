@@ -108,9 +108,26 @@ else
 fi
 
 # --------------------------------------------
-# 3. ترحيل البيانات السريّة لـ HashiCorp Vault بسلاسة للعملاء الحاليين
+# 3. تهيئة وفك تشفير الـ Vault تلقائياً (Auto-Unseal)
 # --------------------------------------------
-echo "🔐 Running Vault Auto-Migration for Legacy Deployments..."
+echo "🔐 Running Vault Auto-Unseal & Init..."
+export VAULT_KEYS_PATH="/app/data/keys/vault-cluster.json"
+
+if [ -f "dist/src/scripts/vault-auto-unseal.js" ]; then
+    node dist/src/scripts/vault-auto-unseal.js
+elif [ -f "dist/scripts/vault-auto-unseal.js" ]; then
+    node dist/scripts/vault-auto-unseal.js
+fi
+
+# Extract and export Vault Root Token safely so Nest and Migration use it
+if [ -f "$VAULT_KEYS_PATH" ]; then
+    export VAULT_TOKEN=$(node -e "console.log(require('$VAULT_KEYS_PATH').root_token)")
+fi
+
+# --------------------------------------------
+# 3.5 ترحيل البيانات السريّة لـ HashiCorp Vault بسلاسة للعملاء الحاليين
+# --------------------------------------------
+echo "🔄 Running Vault Auto-Migration for Legacy Deployments..."
 if [ -f "dist/src/scripts/vault-migration.js" ]; then
     node dist/src/scripts/vault-migration.js
 elif [ -f "dist/scripts/vault-migration.js" ]; then
