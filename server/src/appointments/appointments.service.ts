@@ -14,6 +14,7 @@ import {
   EncounterType,
   EncounterStatus,
   ChargeSource,
+  InvoiceStatus,
 } from '@prisma/client';
 import { PriceListsService } from '../price-lists/price-lists.service';
 import { AccountingService } from '../accounting/accounting.service';
@@ -575,6 +576,88 @@ export class AppointmentsService {
           encounter: true,
         },
       });
+    });
+  }
+
+  /**
+   * Patient-initiated cancellation with billing cleanup (OPEN encounter + unpaid invoices).
+   * Caller must enforce portal-only rules (time window, check-in, etc.).
+   *
+   * Rejects when a linked encounter exists but is not OPEN, or when any invoice
+   * on that encounter has paidAmount greater than zero.
+   */
+  async cancelPatientAppointmentWithBillingCleanup(
+    patientId: number,
+    appointmentId: number,
+  ) {
+    const appointment = await this.prisma.appointment.findUnique({
+      where: { id: appointmentId },
+    });
+
+    if (!appointment || appointment.patientId !== patientId) {
+      throw new NotFoundException('الموعد غير موجود');
+    }
+
+    if (appointment.encounterId) {
+      const encounter = await this.prisma.encounter.findUnique({
+        where: { id: appointment.encounterId },
+      });
+
+      if (encounter && encounter.status !== EncounterStatus.OPEN) {
+        throw new BadRequestException(
+          'لا يمكن إلغاء الموعد المرتبط بجلسة بدأت أو أُغلقت. يرجى التواصل مع الاستقبال.',
+        );
+      }
+
+      if (encounter) {
+        const paidInvoices = await this.prisma.invoice.count({
+          where: {
+            encounterId: encounter.id,
+            paidAmount: { gt: 0 },
+          },
+        });
+
+        if (paidInvoices > 0) {
+          throw new BadRequestException(
+            'لا يمكن إلغاء الموعد بعد تسجيل دفع على الفاتورة. يرجى التواصل مع الاستقبال أو المحاسبة.',
+          );
+        }
+      }
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const cancelled = await tx.appointment.update({
+        where: { id: appointmentId },
+        data: { status: AppointmentStatus.CANCELLED },
+      });
+
+      if (appointment.encounterId) {
+        const encounter = await tx.encounter.findUnique({
+          where: { id: appointment.encounterId },
+        });
+
+        if (encounter && encounter.status === EncounterStatus.OPEN) {
+          await tx.encounter.update({
+            where: { id: encounter.id },
+            data: { status: EncounterStatus.CANCELLED },
+          });
+
+          await tx.invoice.updateMany({
+            where: {
+              encounterId: encounter.id,
+              paidAmount: 0,
+              status: { in: [InvoiceStatus.DRAFT, InvoiceStatus.ISSUED] },
+            },
+            data: { status: InvoiceStatus.CANCELLED },
+          });
+
+          this.logger.log(
+            `Billing cleanup on patient cancel: Appointment/${appointmentId} Encounter/${encounter.id}`,
+          );
+        }
+      }
+
+      return cancelled;
     });
   }
 

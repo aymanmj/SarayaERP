@@ -6,6 +6,7 @@ import { AccountingModule } from '../accounting/accounting.module';
 @Module({
   imports: [AccountingModule],
   providers: [AppointmentsService],
-  controllers: [AppointmentsController]
+  controllers: [AppointmentsController],
+  exports: [AppointmentsService],
 })
 export class AppointmentsModule {}
