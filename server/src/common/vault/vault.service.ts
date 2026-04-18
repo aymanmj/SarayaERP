@@ -49,22 +49,21 @@ export class VaultService implements OnModuleInit {
   async refreshKeys() {
     if (!this.isVaultEnabled) return;
     try {
-      // In Vault KV v1 path usually is v1/secret/foo, KV v2 is v1/secret/data/foo
-      // For this implementation, we assume KV v1 at 'v1/secret/saraya/jwt'
+      // Use central KV-V2 path for Saraya Secrets
       const response = await lastValueFrom(
-        this.httpService.get(`${this.vaultUrl}/v1/secret/saraya/jwt`, {
+        this.httpService.get(`${this.vaultUrl}/v1/secret/data/saraya`, {
           headers: { 'X-Vault-Token': this.vaultToken },
         })
       );
 
-      const secrets = response.data?.data || {};
+      const secrets = response.data?.data?.data || {};
       for (const [kid, secret] of Object.entries(secrets)) {
         this.keysCache.set(kid, secret as string);
       }
-      this.logger.log(`Successfully fetched ${Object.keys(secrets).length} keys from Vault.`);
+      this.logger.log(`Successfully fetched ${Object.keys(secrets).length} enterprise secrets from Vault.`);
     } catch (error) {
       if (error.response && error.response.status === 404) {
-        this.logger.warn('Vault path "secret/saraya/jwt" not found. Need to initialize secrets.');
+        this.logger.warn('Vault path "secret/data/saraya" not found. Need to initialize secrets.');
       } else {
         throw error;
       }
@@ -76,8 +75,8 @@ export class VaultService implements OnModuleInit {
    * If 'kid' is not provided, returns the ACTIVE key for the system.
    */
   async getKeyOrSecret(kid?: string): Promise<string> {
-    if (!kid) {
-      return this.keysCache.get('active') || this.defaultSecret;
+    if (!kid || kid === 'active' || kid === 'default-kid-1') {
+      return this.keysCache.get('JWT_SECRET') || this.defaultSecret;
     }
     return this.keysCache.get(kid) || this.defaultSecret;
   }
