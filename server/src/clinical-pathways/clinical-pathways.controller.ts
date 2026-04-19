@@ -21,8 +21,20 @@ export class ClinicalPathwaysController {
 
   @Get()
   @Roles('ADMIN', 'DOCTOR', 'NURSE')
-  findAll(@CurrentUser() user: JwtPayload, @Query('search') search?: string) {
-    return this.service.findAll(user.hospitalId, { search });
+  findAll(
+    @CurrentUser() user: JwtPayload,
+    @Query('search') search?: string,
+    @Query('scope') scope?: 'published' | 'all',
+    @Query('status') status?: any,
+    @Query('contentKey') contentKey?: string,
+  ) {
+    return this.service.findAll(user.hospitalId, { search, scope, status, contentKey });
+  }
+
+  @Get(':id/history')
+  @Roles('ADMIN', 'DOCTOR', 'NURSE')
+  history(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
+    return this.service.findHistory(user.hospitalId, +id);
   }
 
   @Get(':id')
@@ -34,13 +46,63 @@ export class ClinicalPathwaysController {
   @Put(':id')
   @Roles('ADMIN', 'DOCTOR')
   update(@Param('id') id: string, @Body() body: any, @CurrentUser() user: JwtPayload) {
-    return this.service.update(user.hospitalId, +id, body);
+    return this.service.update(user.hospitalId, +id, user.sub, body);
   }
 
   @Delete(':id')
   @Roles('ADMIN')
   remove(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
-    return this.service.remove(user.hospitalId, +id);
+    return this.service.remove(user.hospitalId, +id, user.sub);
+  }
+
+  @Post(':id/submit-review')
+  @Roles('ADMIN', 'DOCTOR')
+  submitForReview(
+    @Param('id') id: string,
+    @Body() body: { notes?: string },
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.service.submitForReview(user.hospitalId, +id, user.sub, body?.notes);
+  }
+
+  @Post(':id/approve')
+  @Roles('ADMIN')
+  approve(
+    @Param('id') id: string,
+    @Body() body: { notes?: string },
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.service.approve(user.hospitalId, +id, user.sub, body?.notes);
+  }
+
+  @Post(':id/reject')
+  @Roles('ADMIN')
+  reject(
+    @Param('id') id: string,
+    @Body() body: { notes?: string },
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.service.reject(user.hospitalId, +id, user.sub, body?.notes);
+  }
+
+  @Post(':id/publish')
+  @Roles('ADMIN')
+  publish(
+    @Param('id') id: string,
+    @Body() body: { notes?: string },
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.service.publish(user.hospitalId, +id, user.sub, body?.notes);
+  }
+
+  @Post(':id/retire')
+  @Roles('ADMIN')
+  retire(
+    @Param('id') id: string,
+    @Body() body: { notes?: string },
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.service.retire(user.hospitalId, +id, user.sub, body?.notes);
   }
 
   // ==================== ENROLLMENT ====================

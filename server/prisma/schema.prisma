@@ -347,7 +347,17 @@ model User {
 
   // Order Sets & Clinical Pathways
   createdOrderSets        OrderSet[]          @relation("OrderSetCreator")
+  submittedOrderSets      OrderSet[]          @relation("OrderSetSubmitter")
+  approvedOrderSets       OrderSet[]          @relation("OrderSetApprover")
+  publishedOrderSets      OrderSet[]          @relation("OrderSetPublisher")
+  retiredOrderSets        OrderSet[]          @relation("OrderSetRetirer")
+  orderSetReviewEvents    OrderSetReviewEvent[] @relation("OrderSetReviewActor")
   createdClinicalPathways ClinicalPathway[]   @relation("PathwayCreator")
+  submittedClinicalPathways ClinicalPathway[] @relation("PathwaySubmitter")
+  approvedClinicalPathways ClinicalPathway[]  @relation("PathwayApprover")
+  publishedClinicalPathways ClinicalPathway[] @relation("PathwayPublisher")
+  retiredClinicalPathways ClinicalPathway[]   @relation("PathwayRetirer")
+  clinicalPathwayReviewEvents ClinicalPathwayReviewEvent[] @relation("PathwayReviewActor")
   pathwayEnrollments      PathwayEnrollment[] @relation("PathwayEnroller")
   pathwayVariances        PathwayVariance[]   @relation("VarianceReporter")
 }
@@ -4217,26 +4227,50 @@ enum MedicationSource {
 // =====================================================================
 
 model OrderSet {
-  id          Int      @id @default(autoincrement())
-  hospitalId  Int
-  name        String
-  nameAr      String?
-  description String?
-  category    String?
-  specialty   String?
-  isActive    Boolean  @default(true)
-  createdById Int
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                Int                   @id @default(autoincrement())
+  hospitalId        Int
+  contentKey        String                @default(cuid())
+  name              String
+  nameAr            String?
+  description       String?
+  category          String?
+  specialty         String?
+  isActive          Boolean               @default(true)
+  version           Int                   @default(1)
+  status            ClinicalContentStatus @default(DRAFT)
+  previousVersionId Int?
+  submittedById     Int?
+  submittedAt       DateTime?
+  approvedById      Int?
+  approvedAt        DateTime?
+  publishedById     Int?
+  publishedAt       DateTime?
+  retiredById       Int?
+  retiredAt         DateTime?
+  reviewNotes       String?
+  changeSummary     String?
+  releaseNotes      String?
+  createdById       Int
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
 
-  hospital     Hospital              @relation(fields: [hospitalId], references: [id])
-  createdBy    User                  @relation("OrderSetCreator", fields: [createdById], references: [id])
-  items        OrderSetItem[]
-  pathwaySteps ClinicalPathwayStep[]
+  hospital        Hospital               @relation(fields: [hospitalId], references: [id])
+  createdBy       User                   @relation("OrderSetCreator", fields: [createdById], references: [id])
+  submittedBy     User?                  @relation("OrderSetSubmitter", fields: [submittedById], references: [id])
+  approvedBy      User?                  @relation("OrderSetApprover", fields: [approvedById], references: [id])
+  publishedBy     User?                  @relation("OrderSetPublisher", fields: [publishedById], references: [id])
+  retiredBy       User?                  @relation("OrderSetRetirer", fields: [retiredById], references: [id])
+  previousVersion OrderSet?              @relation("OrderSetVersionHistory", fields: [previousVersionId], references: [id])
+  nextVersions    OrderSet[]             @relation("OrderSetVersionHistory")
+  items           OrderSetItem[]
+  pathwaySteps    ClinicalPathwayStep[]
+  reviewEvents    OrderSetReviewEvent[]
 
-  @@unique([hospitalId, name])
+  @@unique([hospitalId, contentKey, version])
   @@index([hospitalId, category])
   @@index([hospitalId, specialty])
+  @@index([hospitalId, status])
+  @@index([hospitalId, contentKey])
 }
 
 model OrderSetItem {
@@ -4267,26 +4301,49 @@ model OrderSetItem {
 }
 
 model ClinicalPathway {
-  id              Int      @id @default(autoincrement())
-  hospitalId      Int
-  name            String
-  nameAr          String?
-  description     String?
-  targetDiagnosis String?
-  expectedLOS     Int?
-  isActive        Boolean  @default(true)
-  version         Int      @default(1)
-  createdById     Int
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id                Int                   @id @default(autoincrement())
+  hospitalId        Int
+  contentKey        String                @default(cuid())
+  name              String
+  nameAr            String?
+  description       String?
+  targetDiagnosis   String?
+  expectedLOS       Int?
+  isActive          Boolean               @default(true)
+  version           Int                   @default(1)
+  status            ClinicalContentStatus @default(DRAFT)
+  previousVersionId Int?
+  submittedById     Int?
+  submittedAt       DateTime?
+  approvedById      Int?
+  approvedAt        DateTime?
+  publishedById     Int?
+  publishedAt       DateTime?
+  retiredById       Int?
+  retiredAt         DateTime?
+  reviewNotes       String?
+  changeSummary     String?
+  releaseNotes      String?
+  createdById       Int
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
 
-  hospital    Hospital              @relation(fields: [hospitalId], references: [id])
-  createdBy   User                  @relation("PathwayCreator", fields: [createdById], references: [id])
-  steps       ClinicalPathwayStep[]
-  enrollments PathwayEnrollment[]
+  hospital        Hospital                @relation(fields: [hospitalId], references: [id])
+  createdBy       User                    @relation("PathwayCreator", fields: [createdById], references: [id])
+  submittedBy     User?                   @relation("PathwaySubmitter", fields: [submittedById], references: [id])
+  approvedBy      User?                   @relation("PathwayApprover", fields: [approvedById], references: [id])
+  publishedBy     User?                   @relation("PathwayPublisher", fields: [publishedById], references: [id])
+  retiredBy       User?                   @relation("PathwayRetirer", fields: [retiredById], references: [id])
+  previousVersion ClinicalPathway?        @relation("ClinicalPathwayVersionHistory", fields: [previousVersionId], references: [id])
+  nextVersions    ClinicalPathway[]       @relation("ClinicalPathwayVersionHistory")
+  steps           ClinicalPathwayStep[]
+  enrollments     PathwayEnrollment[]
+  reviewEvents    ClinicalPathwayReviewEvent[]
 
-  @@unique([hospitalId, name, version])
+  @@unique([hospitalId, contentKey, version])
   @@index([hospitalId, targetDiagnosis])
+  @@index([hospitalId, status])
+  @@index([hospitalId, contentKey])
 }
 
 model ClinicalPathwayStep {
@@ -4346,6 +4403,34 @@ model PathwayVariance {
   @@index([enrollmentId])
 }
 
+model OrderSetReviewEvent {
+  id         Int                      @id @default(autoincrement())
+  orderSetId Int
+  eventType  ClinicalContentEventType
+  actorId    Int?
+  notes      String?
+  createdAt  DateTime                 @default(now())
+
+  orderSet OrderSet @relation(fields: [orderSetId], references: [id], onDelete: Cascade)
+  actor    User?    @relation("OrderSetReviewActor", fields: [actorId], references: [id])
+
+  @@index([orderSetId, createdAt])
+}
+
+model ClinicalPathwayReviewEvent {
+  id        Int                      @id @default(autoincrement())
+  pathwayId Int
+  eventType ClinicalContentEventType
+  actorId   Int?
+  notes     String?
+  createdAt DateTime                 @default(now())
+
+  pathway ClinicalPathway @relation(fields: [pathwayId], references: [id], onDelete: Cascade)
+  actor   User?           @relation("PathwayReviewActor", fields: [actorId], references: [id])
+
+  @@index([pathwayId, createdAt])
+}
+
 enum OrderSetItemType {
   LAB
   RADIOLOGY
@@ -4366,6 +4451,25 @@ enum VarianceType {
   OMISSION
   COMPLICATION
   OTHER
+}
+
+enum ClinicalContentStatus {
+  DRAFT
+  IN_REVIEW
+  APPROVED
+  PUBLISHED
+  RETIRED
+}
+
+enum ClinicalContentEventType {
+  CREATED
+  UPDATED
+  VERSION_CLONED
+  SUBMITTED_FOR_REVIEW
+  APPROVED
+  REJECTED
+  PUBLISHED
+  RETIRED
 }
 
 // ========================

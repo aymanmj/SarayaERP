@@ -78,8 +78,12 @@ async function main() {
 
   // 4. Create Order Set: Chest Pain Workup
   console.log('Creating Order Set: Chest Pain Workup...');
-  const existingOrderSet = await prisma.orderSet.findUnique({
-    where: { hospitalId_name: { hospitalId: hospital.id, name: 'Chest Pain Workup' } },
+  const existingOrderSet = await prisma.orderSet.findFirst({
+    where: {
+      hospitalId: hospital.id,
+      name: 'Chest Pain Workup',
+      version: 1,
+    },
   });
 
   let orderSetId;
@@ -112,8 +116,12 @@ async function main() {
 
   // 5. Create Clinical Pathway: Pneumonia
   console.log('Creating Clinical Pathway: Pneumonia...');
-  const existingPathway = await prisma.clinicalPathway.findUnique({
-    where: { hospitalId_name_version: { hospitalId: hospital.id, name: 'Community Acquired Pneumonia', version: 1 } },
+  const existingPathway = await prisma.clinicalPathway.findFirst({
+    where: {
+      hospitalId: hospital.id,
+      name: 'Community Acquired Pneumonia',
+      version: 1,
+    },
   });
 
   if (!existingPathway) {
