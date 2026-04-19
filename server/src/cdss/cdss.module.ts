@@ -7,6 +7,7 @@ import { Module, forwardRef } from '@nestjs/common';
 import { PrismaModule } from '../prisma/prisma.module';
 import { CDSSService } from './cdss.service';
 import { CDSSController } from './cdss.controller';
+import { CdsHooksController } from './cds-hooks.controller';
 import { CDSSListener } from './cdss.listener';
 import { PharmacyModule } from '../pharmacy/pharmacy.module';
 import { LabModule } from '../labs/labs.module';
@@ -19,7 +20,7 @@ import { VitalsModule } from '../vitals/vitals.module';
     LabModule,
     VitalsModule,
   ],
-  controllers: [CDSSController],
+  controllers: [CDSSController, CdsHooksController],
   providers: [CDSSService, CDSSListener],
   exports: [CDSSService],
 })

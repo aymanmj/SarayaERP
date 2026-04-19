@@ -32,9 +32,34 @@ export class AuditService {
         },
       });
     } catch (err) {
-      // مهم جدًا: لا نسمح للـ audit أنه يكسر الـ API
+      // مهم جدًا: لا نسمح للـ audit أنه يكسر الـ API للعمليات غير الحرجة
       // لذلك نبلع الخطأ هنا
       // console.error('Audit log error', err);
+    }
+  }
+
+  /**
+   * تسجيل مسار التدقيق للعمليات السريرية والمالية الحرجة.
+   * لا يتجاهل الأخطاء أبدًا. إذا فشل التسجيل، يجب أن تفشل العملية لحماية حوكمة النظام.
+   */
+  async logCritical(options: AuditLogOptions): Promise<void> {
+    try {
+      await this.prisma.auditLog.create({
+        data: {
+          hospitalId: options.hospitalId ?? null,
+          userId: options.userId ?? null,
+          action: options.action,
+          entity: options.entity ?? null,
+          entityId: options.entityId ?? null,
+          ipAddress: options.ipAddress ?? null,
+          clientName: options.clientName ?? null,
+          details: options.details ?? null,
+        },
+      });
+    } catch (err) {
+      console.error('CRITICAL AUDIT LOG FAILURE', err);
+      // Fail explicitly for clinical governance
+      throw new Error(`Critical Audit Failure: Cannot proceed with action [${options.action}] without recording audit trail.`);
     }
   }
 

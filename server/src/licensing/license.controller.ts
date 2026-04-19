@@ -41,6 +41,16 @@ export class LicenseController {
   }
 
   /**
+   * Get enabled features based on the current license edition (Unified Codebase Support).
+   * This endpoint is PUBLIC.
+   */
+  @Public()
+  @Get('features')
+  getFeatures() {
+    return this.licenseService.getActiveEditionAndFeatures();
+  }
+
+  /**
    * Activate a license using a license key (first time / new install).
    * This endpoint is PUBLIC.
    */

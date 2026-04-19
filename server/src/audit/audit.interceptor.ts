@@ -44,7 +44,7 @@ export class AuditInterceptor implements NestInterceptor {
         let actionName = this.getActionName(method, path, isSensitiveRead, sensitiveAnnotation, responseBody);
         
         try {
-          await this.audit.log({
+          await this.audit.logCritical({
             hospitalId: user?.hospitalId ?? null,
             userId: user?.sub ?? null,
             action: actionName,
@@ -62,8 +62,9 @@ export class AuditInterceptor implements NestInterceptor {
               query: req.query,
             },
           });
-        } catch (err) {
-          this.logger.error('Failed to log audit', err);
+        } catch (err: any) {
+          this.logger.error('Failed to log sensitive audit, aborting response', err);
+          throw new Error('Critical Audit Failure: ' + err.message);
         }
       }),
     );

@@ -229,11 +229,18 @@ const DURATION_OPTIONS = [
     console.log("");
 
     const planChoice = (await ask("  👉 اختر (1-3): ")).trim();
-    let plan = "أساسي";
-    if (planChoice === "2") plan = "احترافي";
-    if (planChoice === "3") plan = "مؤسسة (شامل)";
+    let plan = "STANDARD";
+    let planDisplay = "أساسي (Standard)";
+    if (planChoice === "2") {
+      plan = "PRO";
+      planDisplay = "احترافي (Pro)";
+    }
+    if (planChoice === "3") {
+      plan = "ENTERPRISE";
+      planDisplay = "مؤسسة شامل (Enterprise)";
+    }
 
-    printSuccess(`الباقة: ${plan}`);
+    printSuccess(`الباقة: ${planDisplay}`);
 
     // ─────────────────────────────────────────────
     // STEP 6: Modules Selection
@@ -311,7 +318,7 @@ const DURATION_OPTIONS = [
     printField("📅 المدة       ", durationLabel);
     printField("📅 تاريخ الانتهاء", expiryDate);
     printField("👥 المستخدمين  ", maxUsers === -1 ? "غير محدود ∞" : String(maxUsers));
-    printField("📦 الباقة      ", plan);
+    printField("📦 الباقة      ", planDisplay);
     printField("🧩 الوحدات     ", selectedModules.join(", ") || "لا يوجد");
     printField("🔑 نوع العملية ", isRenewal ? "تجديد اشتراك" : "تفعيل جديد");
     printField("🔏 البصمة      ", hwFingerprint.substring(0, 16) + "...");

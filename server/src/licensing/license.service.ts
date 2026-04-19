@@ -7,6 +7,8 @@ import * as jwt from 'jsonwebtoken';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
+import { SystemEdition } from './enums/system-editions.enum';
+import { SystemFeature } from './enums/system-features.enum';
 
 // ============================================================
 // TYPES
@@ -174,13 +176,46 @@ export class LicenseService implements OnModuleInit {
   }
 
   // ============================================================
-  // FEATURE CHECKS (GUARD SUPPORT)
+  // FEATURE CHECKS & EDITIONS (UNIFIED CODEBASE STRATEGY)
   // ============================================================
 
-  isModuleEnabled(module: string): boolean {
+  getActiveEditionAndFeatures(): { edition: SystemEdition; features: string[] } {
     const status = this.getStatus();
-    if (!status.isValid || !status.modules) return false;
-    return status.modules.includes(module);
+    if (!status.isValid) {
+      return { edition: SystemEdition.STANDARD, features: [] };
+    }
+
+    // Determine Edition based on legacy plan strings or new enum strings
+    const planStr = (status.plan || '').toLowerCase();
+    let edition = SystemEdition.STANDARD;
+    if (planStr.includes('مؤسسة') || planStr.includes('شامل') || planStr.includes('enterprise')) {
+      edition = SystemEdition.ENTERPRISE;
+    }
+
+    // Collect base features from license token
+    const features: Set<string> = new Set(status.modules || []);
+
+    // Always grant core standard features
+    features.add(SystemFeature.LAB);
+    features.add(SystemFeature.RADIOLOGY);
+    features.add(SystemFeature.PHARMACY);
+    features.add(SystemFeature.RECEPTION);
+    features.add(SystemFeature.BILLING);
+
+    // If Enterprise, unlock ALL advanced system features implicitly!
+    if (edition === SystemEdition.ENTERPRISE) {
+      Object.values(SystemFeature).forEach((f) => features.add(f));
+    }
+
+    return {
+      edition,
+      features: Array.from(features),
+    };
+  }
+
+  isModuleEnabled(module: string): boolean {
+    const { features } = this.getActiveEditionAndFeatures();
+    return features.includes(module);
   }
 
   checkUserLimit(activeUsers: number): boolean {

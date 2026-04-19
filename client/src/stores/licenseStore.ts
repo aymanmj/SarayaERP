@@ -27,6 +27,8 @@ interface LicenseStoreState {
   licenseState: LicenseState;
   machineId: string;
   details: LicenseDetails | null;
+  edition: string;
+  features: string[];
   errorMessage: string | null;
   hasFetched: boolean;
 
@@ -34,6 +36,7 @@ interface LicenseStoreState {
   fetchLicenseStatus: () => Promise<void>;
   refetchLicenseStatus: () => Promise<void>;
   isModuleEnabled: (moduleName: string) => boolean;
+  hasFeature: (featureName: string) => boolean;
   reset: () => void;
   startPeriodicCheck: () => void;
   stopPeriodicCheck: () => void;
@@ -54,7 +57,19 @@ async function doFetch(set: any, get: any) {
     });
 
     const fetchPromise = apiClient.get("/license/status");
+    const featurePromise = apiClient.get("/license/features");
+    
+    // We wait for status first, if it fails race handles, otherwise we await features
     const response = (await Promise.race([fetchPromise, timeoutPromise])) as any;
+    
+    // After getting status safely, fetch features (should be instantaneous and cacheable)
+    let featuresData = { edition: "STANDARD", features: [] };
+    try {
+       const fRes = await featurePromise;
+       featuresData = typeof fRes.data === 'object' && "data" in fRes.data ? fRes.data.data : (fRes.data || featuresData);
+    } catch(e) {
+       console.log("[LicenseStore] Failed to fetch features, defaulting to STANDARD.");
+    }
 
     let data = response.data;
 
@@ -85,6 +100,8 @@ async function doFetch(set: any, get: any) {
           daysRemaining: data.daysRemaining,
           graceDaysRemaining: data.graceDaysRemaining,
         },
+        edition: featuresData.edition || "STANDARD",
+        features: featuresData.features || [],
         errorMessage: null,
       });
 
@@ -96,6 +113,8 @@ async function doFetch(set: any, get: any) {
         licenseState: "inactive",
         machineId: data?.machineId || "",
         details: null,
+        edition: "STANDARD",
+        features: [],
         errorMessage: data?.error || "الترخيص غير صالح",
       });
 
@@ -108,6 +127,8 @@ async function doFetch(set: any, get: any) {
       licenseState: "error",
       machineId: "",
       details: null,
+      edition: "STANDARD",
+      features: [],
       errorMessage: err.message || "حدث خطأ أثناء التحقق من الترخيص.",
     });
   }
@@ -122,6 +143,8 @@ export const useLicenseStore = create<LicenseStoreState>((set, get) => ({
   licenseState: "idle",
   machineId: "",
   details: null,
+  edition: "STANDARD",
+  features: [],
   errorMessage: null,
   hasFetched: false,
 
@@ -175,12 +198,21 @@ export const useLicenseStore = create<LicenseStoreState>((set, get) => ({
   },
 
   /**
-   * Check if a specific module is enabled.
+   * Check if a specific module is enabled (Legacy Check).
    */
   isModuleEnabled: (moduleName: string): boolean => {
     const { licenseState, details } = get();
     if (licenseState !== "active" || !details?.modules) return false;
     return details.modules.includes(moduleName.toUpperCase());
+  },
+
+  /**
+   * Check if an advanced feature is enabled (Unified Engine).
+   */
+  hasFeature: (featureName: string): boolean => {
+    const { licenseState, features } = get();
+    if (licenseState !== "active") return false;
+    return features.includes(featureName.toUpperCase());
   },
 
   /**
@@ -192,6 +224,8 @@ export const useLicenseStore = create<LicenseStoreState>((set, get) => ({
       licenseState: "idle",
       machineId: "",
       details: null,
+      edition: "STANDARD",
+      features: [],
       errorMessage: null,
       hasFetched: false,
     });
