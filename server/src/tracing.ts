@@ -3,7 +3,7 @@ import { NodeSDK } from '@opentelemetry/sdk-node';
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { resourceFromAttributes } from '@opentelemetry/resources';
-import * as process from 'process';
+// import process is not needed due to global process
 
 // استخدم منفذ 4318 إذا كان لديك Jaeger أو OTLP Collector. حاليًا يقوم بالتصدير فقط إذا تم تحديده.
 const traceExporter = new OTLPTraceExporter({
