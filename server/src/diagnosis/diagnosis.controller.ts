@@ -12,7 +12,7 @@ import {
 } from '@nestjs/common';
 import { DiagnosisService } from './diagnosis.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { DiagnosisType } from '@prisma/client';
+import { DiagnosisType, TerminologySystem } from '@prisma/client';
 
 @UseGuards(JwtAuthGuard)
 @Controller('diagnosis')
@@ -33,7 +33,14 @@ export class DiagnosisController {
   async addDiagnosis(
     @Param('id', ParseIntPipe) encounterId: number,
     @Req() req: any,
-    @Body() body: { codeId: number; type: DiagnosisType; note?: string },
+    @Body()
+    body: {
+      codeId?: number;
+      type: DiagnosisType;
+      note?: string;
+      terminologySystem?: TerminologySystem;
+      terminologyCode?: string;
+    },
   ) {
     return this.diagnosisService.addDiagnosisToEncounter({
       encounterId,
@@ -41,6 +48,8 @@ export class DiagnosisController {
       codeId: body.codeId,
       type: body.type,
       note: body.note,
+      terminologySystem: body.terminologySystem,
+      terminologyCode: body.terminologyCode,
     });
   }
 

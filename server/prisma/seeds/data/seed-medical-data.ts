@@ -1,6 +1,6 @@
 // prisma/seed-medical-data.ts
 
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, TerminologySystem } from '@prisma/client';
 import { getDiagnoses } from '../data/diagnoses'; // تأكد من المسار
 import { getProducts } from '../data/products'; // تأكد من المسار
 
@@ -25,12 +25,23 @@ export async function seedMedicalData() {
 
   let diagCount = 0;
   for (const d of diagnoses) {
+    const diagnosisConcept = await prisma.terminologyConcept.findUnique({
+      where: {
+        system_code: {
+          system: TerminologySystem.ICD10,
+          code: d.code,
+        },
+      },
+      select: { id: true },
+    });
+
     await prisma.diagnosisCode.upsert({
       where: { code: d.code },
       update: {
         nameEn: d.nameEn,
         nameAr: d.nameAr,
         icd10Code: d.code, // ✅ Add Standard Code
+        terminologyConceptId: diagnosisConcept?.id,
       },
       create: {
         code: d.code,
@@ -38,6 +49,7 @@ export async function seedMedicalData() {
         nameAr: d.nameAr,
         isActive: true,
         icd10Code: d.code, // ✅ Add Standard Code
+        terminologyConceptId: diagnosisConcept?.id,
       },
     });
     diagCount++;
@@ -51,10 +63,43 @@ export async function seedMedicalData() {
 
   let prodCount = 0;
   for (const p of products) {
+    const productConcept = p.rxNormCode
+      ? await prisma.terminologyConcept.findFirst({
+          where: {
+            isActive: true,
+            OR: [
+              {
+                system: TerminologySystem.RXNORM,
+                code: p.rxNormCode,
+              },
+              {
+                system: TerminologySystem.ATC,
+                display: {
+                  equals: p.genericName,
+                  mode: 'insensitive',
+                },
+              },
+            ],
+          },
+          select: { id: true },
+        })
+      : await prisma.terminologyConcept.findFirst({
+          where: {
+            isActive: true,
+            system: TerminologySystem.ATC,
+            display: {
+              equals: p.genericName,
+              mode: 'insensitive',
+            },
+          },
+          select: { id: true },
+        });
+
     await prisma.product.upsert({
       where: { hospitalId_code: { hospitalId, code: p.code } },
       update: {
         stockOnHand: p.stockOnHand,
+        terminologyConceptId: productConcept?.id,
         // rxNormCode: p.rxNormCode, // Optional update
       },
       create: {
@@ -71,6 +116,7 @@ export async function seedMedicalData() {
         minStock: p.minStock,
         isActive: true,
         rxNormCode: p.rxNormCode, // ✅ Add Standard Code
+        terminologyConceptId: productConcept?.id,
       },
     });
     prodCount++;

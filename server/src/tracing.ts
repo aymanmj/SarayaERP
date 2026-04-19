@@ -2,8 +2,7 @@
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
-import { Resource } from '@opentelemetry/resources';
-import { SemanticResourceAttributes } from '@opentelemetry/semantic-conventions';
+import { resourceFromAttributes } from '@opentelemetry/resources';
 import * as process from 'process';
 
 // استخدم منفذ 4318 إذا كان لديك Jaeger أو OTLP Collector. حاليًا يقوم بالتصدير فقط إذا تم تحديده.
@@ -13,10 +12,10 @@ const traceExporter = new OTLPTraceExporter({
 });
 
 const sdk = new NodeSDK({
-  resource: new Resource({
-    [SemanticResourceAttributes.SERVICE_NAME]: 'saraya-erp-backend',
-    [SemanticResourceAttributes.SERVICE_VERSION]: '1.0.0',
-    environment: process.env.NODE_ENV || 'development',
+  resource: resourceFromAttributes({
+    'service.name': 'saraya-erp-backend',
+    'service.version': '1.0.0',
+    'environment': process.env.NODE_ENV || 'development',
   }),
   traceExporter,
   instrumentations: [

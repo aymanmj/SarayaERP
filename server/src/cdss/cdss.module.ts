@@ -12,6 +12,7 @@ import { CDSSListener } from './cdss.listener';
 import { PharmacyModule } from '../pharmacy/pharmacy.module';
 import { LabModule } from '../labs/labs.module';
 import { VitalsModule } from '../vitals/vitals.module';
+import { TerminologyModule } from '../terminology/terminology.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { VitalsModule } from '../vitals/vitals.module';
     forwardRef(() => PharmacyModule),
     LabModule,
     VitalsModule,
+    TerminologyModule,
   ],
   controllers: [CDSSController, CdsHooksController],
   providers: [CDSSService, CDSSListener],

@@ -13,7 +13,7 @@ import { SurgeryService } from './surgery.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
-import { SurgeryStatus, SurgeryRole } from '@prisma/client';
+import { SurgeryStatus, SurgeryRole, TerminologySystem } from '@prisma/client';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('surgery')
@@ -93,6 +93,15 @@ export class SurgeryController {
       anesthesiaNotes?: string;
       preOpDiagnosis?: string;
       postOpDiagnosis?: string;
+      procedureConceptId?: number;
+      preOpDiagnosisConceptId?: number;
+      postOpDiagnosisConceptId?: number;
+      procedureTerminologySystem?: TerminologySystem;
+      procedureTerminologyCode?: string;
+      preOpTerminologySystem?: TerminologySystem;
+      preOpTerminologyCode?: string;
+      postOpTerminologySystem?: TerminologySystem;
+      postOpTerminologyCode?: string;
     },
   ) {
     return this.surgeryService.updateNotes(req.user.hospitalId, id, body);

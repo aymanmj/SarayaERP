@@ -14,6 +14,7 @@ type OrderSetItemInput = {
   frequency?: string;
   durationDays?: number;
   serviceItemId?: number;
+  terminologyConceptId?: number;
   nursingAction?: string;
   priority?: string;
   instructions?: string;
@@ -58,6 +59,7 @@ export class OrderSetsService {
           radiologyStudy: { select: { id: true, name: true, code: true, arabicName: true, modality: true } },
           product: { select: { id: true, name: true, code: true, genericName: true, form: true } },
           serviceItem: { select: { id: true, name: true, code: true } },
+          terminologyConcept: { select: { id: true, system: true, code: true, display: true, displayAr: true } }
         },
         orderBy: { sortOrder: 'asc' as const },
       },
@@ -124,6 +126,7 @@ export class OrderSetsService {
       frequency: item.frequency,
       durationDays: item.durationDays,
       serviceItemId: item.serviceItemId,
+      terminologyConceptId: item.terminologyConceptId,
       nursingAction: item.nursingAction,
       priority: item.priority || 'ROUTINE',
       instructions: item.instructions,

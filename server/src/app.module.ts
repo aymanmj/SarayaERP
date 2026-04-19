@@ -84,6 +84,7 @@ import { ClinicalProfileModule } from './clinical-profile/clinical-profile.modul
 import { DischargeSummaryModule } from './discharge-summary/discharge-summary.module';
 import { OrderSetsModule } from './order-sets/order-sets.module'; // ✅ [NEW] Phase 3: Order Sets
 import { ClinicalPathwaysModule } from './clinical-pathways/clinical-pathways.module'; // ✅ [NEW] Phase 3: Clinical Pathways
+import { TerminologyModule } from './terminology/terminology.module'; // ✅ [NEW] Terminology Service
 
 @Module({
   imports: [
@@ -187,6 +188,7 @@ import { ClinicalPathwaysModule } from './clinical-pathways/clinical-pathways.mo
     ClinicalProfileModule, // ✅ [NEW] Patient Clinical Profile (EMR)
     OrderSetsModule, // ✅ [NEW] Phase 3: Order Sets
     ClinicalPathwaysModule, // ✅ [NEW] Phase 3: Clinical Pathways
+    TerminologyModule, // ✅ [NEW] Phase 2: Terminology Service
 
     // Departments & Specialties
     DepartmentsModule,

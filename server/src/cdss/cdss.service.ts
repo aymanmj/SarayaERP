@@ -6,12 +6,14 @@
 
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { TerminologyService } from '../terminology/terminology.service';
 import {
   CDSSAlertType,
   CDSSAlertSeverity,
   CDSSAlertStatus,
   DrugInteractionSeverity,
   Gender,
+  TerminologySystem,
 } from '@prisma/client';
 
 // ======================== Types ========================
@@ -67,7 +69,10 @@ export interface VitalValueCheck {
 export class CDSSService {
   private readonly logger = new Logger(CDSSService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private terminologyService: TerminologyService,
+  ) {}
 
   // ======================== 1. Drug-Drug Interactions ========================
 
@@ -174,11 +179,34 @@ export class CDSSService {
   async checkDuplicateTherapy(
     patientId: number,
     newDrugGenericNames: string[],
+    drugs: DrugCheckInput[] = [],
   ): Promise<CDSSAlertResult[]> {
     const alerts: CDSSAlertResult[] = [];
 
-    // TODO: ربط مع نظام تصنيف الأدوية (ATC)
-    // حالياً: فحص بسيط للتكرار في نفس الوصفة
+    const atcGroups = new Map<string, string[]>();
+    for (const drug of drugs) {
+      const concept = await this.resolveDrugTerminology(drug);
+      if (!concept || concept.system !== TerminologySystem.ATC) continue;
+      const group = concept.code.slice(0, 3).toUpperCase();
+      if (!group) continue;
+      const list = atcGroups.get(group) || [];
+      list.push(drug.genericName);
+      atcGroups.set(group, list);
+    }
+
+    for (const [group, drugNames] of atcGroups.entries()) {
+      if (drugNames.length < 2) continue;
+      alerts.push({
+        type: CDSSAlertType.DUPLICATE_THERAPY,
+        severity: CDSSAlertSeverity.HIGH,
+        message: `Potential duplicate therapy in ATC group ${group}: ${drugNames.join(', ')}`,
+        messageAr: `احتمال تكرار علاجي ضمن مجموعة ATC ${group}: ${drugNames.join('، ')}`,
+        context: { atcGroup: group, drugs: drugNames },
+        requiresOverride: false,
+      });
+    }
+
+    // fallback: فحص بسيط للتكرار في نفس الوصفة
     const duplicates = newDrugGenericNames.filter(
       (drug, index) => newDrugGenericNames.indexOf(drug) !== index,
     );
@@ -308,7 +336,91 @@ export class CDSSService {
     };
   }
 
-  // ======================== 6. Full Prescription Check ========================
+  // ======================== 6. Renal & Dose Range Checks ========================
+
+  /**
+   * حساب وظائف الكلى بناءً على معادلة Cockcroft-Gault
+   */
+  private calculateEGFR(creatinine: number, age: number, gender: Gender, weight: number = 70): number {
+    let crCl = ((140 - age) * weight) / (72 * creatinine);
+    if (gender === 'FEMALE') crCl *= 0.85;
+    return Math.round(crCl * 10) / 10;
+  }
+
+  async checkRenalAdjustment(patientId: number, drugs: DrugCheckInput[]): Promise<CDSSAlertResult[]> {
+    const alerts: CDSSAlertResult[] = [];
+    
+    const patient = await this.prisma.patient.findUnique({ where: { id: patientId } });
+    if (!patient || !patient.dateOfBirth) return alerts;
+    const age = new Date().getFullYear() - patient.dateOfBirth.getFullYear();
+    const gender = patient.gender || 'MALE';
+    
+    // جلب أحدث فحص للكرياتينين 
+    const latestCrea = await this.prisma.labOrderResult.findFirst({
+      where: {
+        labOrder: { order: { encounter: { patientId } } },
+        OR: [ { parameterName: { contains: 'Creatinine', mode: 'insensitive' } }, { parameter: { code: 'CREA' } } ]
+      },
+      orderBy: { labOrder: { resultDate: 'desc' } }
+    });
+    
+    if (!latestCrea) return alerts;
+    
+    const creaValue = parseFloat(latestCrea.value);
+    if (isNaN(creaValue) || creaValue === 0) return alerts;
+    
+    const egfr = this.calculateEGFR(creaValue, age, gender);
+    
+    for (const drug of drugs) {
+        const name = drug.genericName.toLowerCase();
+        const concept = await this.resolveDrugTerminology(drug);
+        const atcCode = concept?.system === TerminologySystem.ATC ? concept.code.toUpperCase() : null;
+        // أدوية تتطلب تعديل كلوي قياسياً (بالرمز أو بالاسم كـ fallback)
+        const requiresRenalReview =
+          (atcCode?.startsWith('J01') ?? false) ||
+          (atcCode?.startsWith('M01') ?? false) ||
+          name.includes('vancomycin') ||
+          name.includes('gentamicin') ||
+          name.includes('ibuprofen');
+        if (requiresRenalReview && egfr < 60) {
+            alerts.push({
+                type: CDSSAlertType.RENAL_DOSE_ADJUST,
+                severity: egfr < 30 ? CDSSAlertSeverity.CRITICAL : CDSSAlertSeverity.HIGH,
+                message: `Renal Adjustment Required: eGFR is ${egfr} mL/min. Adjust dose for ${drug.genericName}.`,
+                messageAr: `تعديل الجرعة مطلوب: وظائف الكلى eGFR = ${egfr}. يجب تقليل جرعة ${drug.genericName}.`,
+                context: { egfr, drug: drug.genericName, latestCreatinine: creaValue, atcCode },
+                requiresOverride: egfr < 30
+            });
+        }
+    }
+    return alerts;
+  }
+
+  async checkDoseRange(drugs: DrugCheckInput[]): Promise<CDSSAlertResult[]> {
+    const alerts: CDSSAlertResult[] = [];
+    for (const drug of drugs) {
+      if (!drug.dose) continue;
+      
+      const doseMatch = drug.dose.match(/(\d+(\.\d+)?)/);
+      if (!doseMatch) continue;
+      const numDose = parseFloat(doseMatch[0]);
+      
+      // أمثلة (Fake rules for simulation)
+      if (drug.genericName.toLowerCase().includes('paracetamol') && numDose > 1000) {
+         alerts.push({
+           type: CDSSAlertType.DOSAGE_WARNING,
+           severity: CDSSAlertSeverity.CRITICAL,
+           message: `Dose exceeds maximum limit! ${numDose}mg given, Max is 1000mg per dose.`,
+           messageAr: `الجرعة تتجاوز الحد الأقصى! الجرعة الموصوفة ${numDose} لدواء ${drug.genericName}`,
+           context: { drug: drug.genericName, inputDose: numDose, maxDose: 1000 },
+           requiresOverride: true
+         });
+      }
+    }
+    return alerts;
+  }
+
+  // ======================== 7. Full Prescription Check ========================
 
   /**
    * فحص شامل للوصفة الطبية
@@ -327,8 +439,16 @@ export class CDSSService {
     allAlerts.push(...allergies);
 
     // 3. فحص التكرار
-    const duplicates = await this.checkDuplicateTherapy(input.patientId, genericNames);
+    const duplicates = await this.checkDuplicateTherapy(input.patientId, genericNames, input.drugs);
     allAlerts.push(...duplicates);
+
+    // 4. الفحص الكلوي لملاءمة الجرعة
+    const renalAlerts = await this.checkRenalAdjustment(input.patientId, input.drugs);
+    allAlerts.push(...renalAlerts);
+
+    // 5. فحص نطاق الجرعات (Dose Range)
+    const doseAlerts = await this.checkDoseRange(input.drugs);
+    allAlerts.push(...doseAlerts);
 
     // تحديد إمكانية المتابعة
     const hasCritical = allAlerts.some(a => a.severity === CDSSAlertSeverity.CRITICAL);
@@ -709,5 +829,57 @@ export class CDSSService {
       default:
         return CDSSAlertSeverity.MODERATE;
     }
+  }
+
+  private async resolveDrugTerminology(drug: DrugCheckInput) {
+    if (drug.productId) {
+      const product = await this.prisma.product.findUnique({
+        where: { id: drug.productId },
+        select: {
+          rxNormCode: true,
+          terminologyConcept: {
+            select: { id: true, system: true, code: true, display: true },
+          },
+        },
+      });
+
+      if (product?.terminologyConcept) {
+        return product.terminologyConcept;
+      }
+
+      if (product?.rxNormCode) {
+        const byRxNorm = await this.prisma.terminologyConcept.findFirst({
+          where: {
+            isActive: true,
+            system: TerminologySystem.RXNORM,
+            code: product.rxNormCode,
+          },
+          select: { id: true, system: true, code: true, display: true },
+        });
+        if (byRxNorm) return byRxNorm;
+      }
+    }
+
+    if (!drug.genericName?.trim()) return null;
+    const atcCandidates = await this.terminologyService.searchConcepts(
+      TerminologySystem.ATC,
+      drug.genericName.trim(),
+      10,
+    );
+    const exactAtc = atcCandidates.find(
+      (entry) => entry.display.toLowerCase() === drug.genericName.trim().toLowerCase(),
+    );
+    if (exactAtc) return exactAtc;
+
+    const rxNormCandidates = await this.terminologyService.searchConcepts(
+      TerminologySystem.RXNORM,
+      drug.genericName.trim(),
+      10,
+    );
+    return (
+      rxNormCandidates.find(
+        (entry) => entry.display.toLowerCase() === drug.genericName.trim().toLowerCase(),
+      ) ?? null
+    );
   }
 }

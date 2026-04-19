@@ -902,6 +902,7 @@ model Product {
   expenseAccountId     Int?
   version              Int                   @default(1)
   rxNormCode           String? // Standard RxNorm Code
+  terminologyConceptId Int?
   assets               Asset[]
   dispenseItems        DispenseItem[]
   grnItems             GoodsReceiptItem[]
@@ -918,12 +919,14 @@ model Product {
   stockTransactions    StockTransaction[]
   surgeryConsumables   SurgeryConsumable[]
   orderSetItems        OrderSetItem[]        @relation("OrderSetProduct")
+  terminologyConcept   TerminologyConcept?   @relation("ProductTerminologyConcept", fields: [terminologyConceptId], references: [id])
 
   @@unique([hospitalId, code])
   @@index([hospitalId, name])
   @@index([hospitalId, code])
   @@index([hospitalId, type])
   @@index([rxNormCode])
+  @@index([terminologyConceptId])
 }
 
 model PurchaseRequest {
@@ -2198,13 +2201,16 @@ model DiagnosisCode {
   nameAr             String?
   isActive           Boolean              @default(true)
   icd10Code          String? // Standard ICD-10 Code
+  terminologyConceptId Int?
   encounterDiagnoses EncounterDiagnosis[]
   visitDiagnoses     VisitDiagnosis[]
   patientProblems    PatientProblem[]
+  terminologyConcept TerminologyConcept?  @relation("DiagnosisTerminologyConcept", fields: [terminologyConceptId], references: [id])
 
   @@index([code])
   @@index([nameEn])
   @@index([icd10Code])
+  @@index([terminologyConceptId])
 }
 
 model VisitDiagnosis {
@@ -2461,6 +2467,9 @@ model SurgeryCase {
   status          SurgeryStatus       @default(SCHEDULED)
   preOpDiagnosis  String?
   postOpDiagnosis String?
+  procedureConceptId      Int?
+  preOpDiagnosisConceptId Int?
+  postOpDiagnosisConceptId Int?
   surgeonNotes    String?
   anesthesiaNotes String?
   createdAt       DateTime            @default(now())
@@ -2471,6 +2480,13 @@ model SurgeryCase {
   theatre         OperatingTheatre    @relation(fields: [theatreId], references: [id])
   consumables     SurgeryConsumable[]
   team            SurgeryTeam[]
+  procedureConcept TerminologyConcept? @relation("SurgeryProcedureConcept", fields: [procedureConceptId], references: [id])
+  preOpDiagnosisConcept TerminologyConcept? @relation("SurgeryPreOpDiagnosisConcept", fields: [preOpDiagnosisConceptId], references: [id])
+  postOpDiagnosisConcept TerminologyConcept? @relation("SurgeryPostOpDiagnosisConcept", fields: [postOpDiagnosisConceptId], references: [id])
+
+  @@index([procedureConceptId])
+  @@index([preOpDiagnosisConceptId])
+  @@index([postOpDiagnosisConceptId])
 }
 
 model SurgeryTeam {
@@ -4285,6 +4301,7 @@ model OrderSetItem {
   frequency        String?
   durationDays     Int?
   serviceItemId    Int?
+  terminologyConceptId Int?
   nursingAction    String?
   priority         String           @default("ROUTINE")
   instructions     String?
@@ -4296,6 +4313,7 @@ model OrderSetItem {
   radiologyStudy RadiologyStudy? @relation("OrderSetStudy", fields: [radiologyStudyId], references: [id])
   product        Product?        @relation("OrderSetProduct", fields: [productId], references: [id])
   serviceItem    ServiceItem?    @relation("OrderSetService", fields: [serviceItemId], references: [id])
+  terminologyConcept TerminologyConcept? @relation(fields: [terminologyConceptId], references: [id])
 
   @@index([orderSetId])
 }
@@ -4514,4 +4532,42 @@ model Voucher {
   @@index([hospitalId])
   @@index([accountId])
   @@index([cashAccountId])
+}
+
+// ========================
+// Terminology Service
+// ========================
+
+enum TerminologySystem {
+  ICD10
+  SNOMED_CT
+  LOINC
+  ATC
+  RXNORM
+  LOCAL
+}
+
+model TerminologyConcept {
+  id          Int               @id @default(autoincrement())
+  system      TerminologySystem
+  code        String
+  display     String
+  displayAr   String?
+  description String?
+  isActive    Boolean           @default(true)
+  version     String?
+  
+  parentCode  String?
+  
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  diagnosisCodes DiagnosisCode[] @relation("DiagnosisTerminologyConcept")
+  products Product[] @relation("ProductTerminologyConcept")
+  surgeryProcedureCases SurgeryCase[] @relation("SurgeryProcedureConcept")
+  surgeryPreOpDiagnosisCases SurgeryCase[] @relation("SurgeryPreOpDiagnosisConcept")
+  surgeryPostOpDiagnosisCases SurgeryCase[] @relation("SurgeryPostOpDiagnosisConcept")
+
+  @@unique([system, code])
+  @@index([system])
+  @@index([code])
 }

@@ -48,15 +48,16 @@ export function DiagnosisPane({ encounterId }: { encounterId: number }) {
 
   // ✅ دالة البحث الجديدة المتوافقة مع SmartCombobox
   const searchDiagnosis = async (query: string) => {
-    const res = await apiClient.get<DiagnosisCode[]>(
-      `/diagnosis/search?q=${query}`,
+    // استخدم محرك الـ Terminology العالمي للبحث عن أمراض بناءً على نظام ICD10
+    const res = await apiClient.get<any[]>(
+      `/terminology/ICD10/search?q=${query}`,
     );
     return res.data.map((d) => ({
-      id: d.id,
-      label: d.nameEn,
-      subLabel: d.nameAr,
+      id: d.id, // terminologyConceptId
+      label: d.display,
+      subLabel: d.displayAr,
       code: d.code,
-      original: d, // الاحتفاظ بالكائن الأصلي لاستخدامه عند الاختيار
+      original: d, // الاحتفاظ بالكائن الأصلي
     }));
   };
 
@@ -69,7 +70,8 @@ export function DiagnosisPane({ encounterId }: { encounterId: number }) {
     if (!selectedCode) return;
     try {
       await apiClient.post(`/diagnosis/encounter/${encounterId}`, {
-        codeId: selectedCode.id,
+        terminologySystem: "ICD10",
+        terminologyCode: selectedCode.code,
         type,
         note: note || undefined,
       });
@@ -121,10 +123,10 @@ export function DiagnosisPane({ encounterId }: { encounterId: number }) {
                 <span className="font-mono font-bold text-emerald-400 mr-2 text-lg">
                   {selectedCode.code}
                 </span>
-                <span className="font-semibold">{selectedCode.nameEn}</span>
-                {selectedCode.nameAr && (
+                <span className="font-semibold">{selectedCode.display || selectedCode.nameEn}</span>
+                {(selectedCode.displayAr || selectedCode.nameAr) && (
                   <div className="text-slate-400 text-xs mt-1 mr-8">
-                    {selectedCode.nameAr}
+                    {selectedCode.displayAr || selectedCode.nameAr}
                   </div>
                 )}
               </div>

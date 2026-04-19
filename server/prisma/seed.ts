@@ -7,12 +7,14 @@ import {
   ServiceType,
   SystemAccountKey,
   ShiftType,
+  TerminologySystem,
 } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
 import { seedCDSS } from './seeds/seed-cdss';
 import { seedMedicalData } from './seeds/data/seed-medical-data';
 import { seedLabRadiology } from './seeds/seed-lab-radiology';
+import { seedTerminology } from './seed-terminology';
 
 const prisma = new PrismaClient();
 
@@ -36,6 +38,12 @@ async function main() {
   });
 
   console.log('🏥 Hospital Setup: Done.');
+
+  // ====================================================
+  // 1.1. Terminology Starter Pack (Unified coding base)
+  // ====================================================
+  await seedTerminology(prisma);
+  console.log('📚 Terminology Starter Pack: Done.');
 
   // الأقسام
   const depts = [
@@ -554,9 +562,38 @@ async function main() {
   ];
 
   for (const d of drugs) {
+    const terminologyConcept = (d as any).rxNormCode
+      ? await prisma.terminologyConcept.findFirst({
+          where: {
+            isActive: true,
+            OR: [
+              {
+                system: TerminologySystem.RXNORM,
+                code: (d as any).rxNormCode,
+              },
+              {
+                system: TerminologySystem.ATC,
+                display: { equals: d.generic, mode: 'insensitive' },
+              },
+            ],
+          },
+          select: { id: true },
+        })
+      : await prisma.terminologyConcept.findFirst({
+          where: {
+            isActive: true,
+            system: TerminologySystem.ATC,
+            display: { equals: d.generic, mode: 'insensitive' },
+          },
+          select: { id: true },
+        });
+
     const product = await prisma.product.upsert({
       where: { hospitalId_code: { hospitalId: hospital.id, code: d.code } },
-      update: { stockOnHand: d.stock },
+      update: {
+        stockOnHand: d.stock,
+        terminologyConceptId: terminologyConcept?.id,
+      },
       create: {
         hospitalId: hospital.id,
         code: d.code,
@@ -569,6 +606,7 @@ async function main() {
         stockOnHand: d.stock,
         minStock: 50,
         rxNormCode: (d as any).rxNormCode || null, // ✅ Add Standard Code
+        terminologyConceptId: terminologyConcept?.id,
       },
     });
 

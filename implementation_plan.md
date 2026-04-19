@@ -1,58 +1,48 @@
-# تنفيذ المرحلة الأولى: التأسيس المعماري السريري (Phase 1)
-بناءً على وثيقة الاستراتيجية المعتمدة (Architecture Blueprint)، سنبدأ بتنفيذ الحزمة الأولى المهتمة بتعزيز الاعتمادية السريرية وتوفير مراقبة عميقة للخدمات الحرجة.
+# تنفيذ الترقية السريرية العميقة والتشغيل البيني (Phase 2 & 2.1)
+
+بناءً على طلبك ومراجعتي للكود، لاحظت العمل **الرائع والاحترافي جداً** الذي قمت به في مجلدي `clinical-pathways` و `order-sets`! لقد قمت حرفياً ببرمجة نظام (Clinical Governance) كامل يعتمد على (Draft, In-Review, Approved, Published) مع نظام Versioning وأيضاً تتبع الانحرافات (Variance Tracking). هذا وفر علينا وقتاً طويلاً وأثبت أن النظام يقف على أساس معماري صلب.
+
+سننطلق الآن لاستكمال هذه اللوحة بربط محرك البحث بالمعاجم وإعطاء دعم القرار (CDSS) وعمليات العناية قدرات (Reference Workflows).
 
 ## الهدف (Goal)
-إرساء قواعد الحوكمة السريرية وتتبع الأداء العميق من خلال 3 تقنيات أساسية في السرايا: (OpenTelemetry, CDS Hooks, Audit Trails).
+تأسيس خدمة المصطلحات السريرية، توسيع قدرات محرك دعم القرار ليشمل التنبؤ الفسيولوجي (الجرعات والكلى)، والارتقاء بنماذج العناية المركزة والتمريض والعمليات لتضاهي المعايير المرجعية العالمية.
 
 ## User Review Required
 > [!IMPORTANT]
-> **مطلوب المراجعة والاعتماد:** نظرًا لأن إضافة الـ OpenTelemetry تتطلب تحديث حزم الـ `package.json` الخاصة بـ Node، وإعادة تفعيل الـ Audit Trails قد تؤثر على سرعة بعض العمليات، يرجى الاطلاع على الخطة أدناه قبل أن أبدأ بلمس الكود.
+> **مطلوب المراجعة:** بما أن إضافة قواميس مثل (ICD-10, SNOMED, LOINC, ATC) تتطلب تعديلات في قاعدة البيانات (Prisma Schema)، هل توافق على أن أقوم بدمجها ضمن جدول مركزي `TerminologyCode`، أم تفضل جدولاً مخصصاً لكل قاموس؟ (سأعتمد الجدول المركزي في الخطة الحالية لسهولة التوسع).
 
 ---
 
 ## 1. التغييرات المقترحة (Proposed Changes)
 
-### 🩺 الجزء الأول: معيار CDS Hooks (Clinical Decision Support)
-في الوقت الحالي، تعتمد وحدة `cdss` على مسارات (Endpoints) غير معيارية مخصصة للسرايا فقط (مثل `/cdss/check-prescription`). سنقوم بإحلال معيار عالمي.
+### 📚 الجزء الأول: خدمة المصطلحات الشاملة (Terminology Service)
+الفصل المعماري للتكويدات لتُغذي كافة أجزاء النظام:
+#### [NEW] `prisma/schema.prisma` (Concept)
+- إنشاء نموذج `TerminologyConcept` يستوعب الأنظمة (ICD-10, SNOMED CT, LOINC, ATC).
+#### [NEW] `server/src/terminology/terminology.module.ts` + `terminology.service.ts`
+- توفير دوال بحث سريعة `searchConcepts(system, query)` تُستخدم في اختيار التشخيص أو المختبر (LOINC) والأدوية (ATC).
 
-#### [NEW] `server/src/cdss/cds-hooks.controller.ts`
-سنبني واجهة متوافقة تماماً مع معيار CDS Hooks العالمي لدعم القرار السريري:
-- `GET /cds-services`: لاكتشاف نوعية الخدمات الداعمة للقرار المتاحة بالسرايا.
-- `POST /cds-services/{id}`: لاستدعاء خدمة معينة والرد بـ `Cards` (مثل Information, Suggestion, Smart App link).
-
+### 🧠 الجزء الثاني: تعميق دعم القرار السريري (Advanced CDSS)
+المحرك الحالي يفحص التفاعلات والحساسية والمكررات بشكل ممتاز، سنضيف له المقاييس الفسيولوجية:
 #### [MODIFY] `server/src/cdss/cdss.service.ts`
-تطوير المحرك الداخلي ليترجم استدعاءات المعيار (Hooks) إلى التحذيرات الموجودة حالياً (Allergies, Interactions).
+- **Dose Range Checks:** مقارنة الجرعة المدخلة مع الجرعة القياسية الصغرى والقصوى للمنتج (mg/kg).
+- **Renal Adjustment:** فحص دالة `eGFR` (عبر آخر تحليل Creatinine من المختبر + عمر ووزن المريض) للتنبيه إذا كان الدواء المستهدف يتطلب تعديل كلوي!
 
----
-
-### 📡 الجزء الثاني: التتبع الموزع (OpenTelemetry)
-لن نكتفي بـ Prometheus للمقاييس. حان الوقت لمراقبة كل (Request) بدقة.
-
-#### [MODIFY] `server/package.json`
-إضافة مكتبات أوبن تيليمتري:
-- `@opentelemetry/sdk-node`
-- `@opentelemetry/auto-instrumentations-node`
-- `@opentelemetry/exporter-trace-otlp-http` (لإرسال البيانات إلى Jaeger أو Tempo لاحقاً).
-
-#### [NEW] `server/src/tracing.ts`
-ملف يتم تشغيله قبل `main.ts` يقوم باعتراض وتسجيل كل شيء يحدث في (Express و Prisma و HTTP Requests).
-
----
-
-### 🕵️ الجزء الثالث: فرض التدقيق الإلزامي (Strict Audit Trails)
-حالياً `audit.service.ts` يلتهم الأخطاء (Swallows exceptions) حتى لا يعطل النظام (`catch (err) { }`). هذا آمن، ولكنه غير مقبول للحوكمة السريرية الحرجة!
-
-#### [MODIFY] `server/src/audit/audit.service.ts`
-- إضافة دالة `logCritical()` لا تتجاهل الأخطاء أبدًا (Fail-safe for clinical actions). إذا فشل تسجيل حفظ الـ (audit) لوصفة طبية أو تعديل جرعة، يجب أن يتم رفض الطلب الطارئ لضمان دقة السجل القانوني للمنظمة.
-
-#### [MODIFY] `server/src/audit/audit.interceptor.ts`
-- تعميمه لفرض رقابة صارمة على جميع وحدات: (`pharmacist`, `billing`, `encounters`).
+### 🛌 الجزء الثالث: مسارات العناية المرجعية (Reference Workflows: ICU, OR, Nursing)
+الترقية من نظام توثيق مبسط إلى سير عمل معتمد (Workflows):
+#### [MODIFY] `server/src/icu/icu.service.ts`
+- إضافة حاسبات مدمجة للـ Flowsheets (مثال: حساب توازن السوائل الآلي Fluid Balance، ربط مباشر بقراءات أجهزة التنفس الصناعي Ventilator Settings logs).
+#### [NEW] `server/src/surgery/` (OR Module)
+- تقسيم سجل العمليات المرجعي إلى: 
+  - `Pre-op Checklist` (موافقات، حساسية، آخر وجبة).
+  - `Intra-op Log` (زمن التخدير، الجراحة، فقدان الدم، السوائل الوريدية).
+  - `Post-op PACU Recovery` (مؤشر Aldrete للخروج من الإنعاش).
 
 ---
 
 ## خطة التحقق والقياس (Verification Plan)
-1. **CDS Hooks Testing:** سأطلب مسار الـ `/cds-services` للتأكد من أنه يفرز البيانات بصيغة JSON متوافقة مع Epic/Cerner JSON Schema.
-2. **OpenTelemetry Validation:** سنتحقق من أن السيرفر يظهر Console Traces (أو يستطيع التحدث مع منفذ 4318 OTEL Exporter).
-3. **Audit Trails Test:** سنحاكي تعديل وصفة طبية ونتأكد أن النظام يرفض العملية إذا كان الـ Database تلافاه لسبب التدقيق الطارئ.
+1. **Terminology Test:** إجراء بحث باستخدام محرك الـ Terminology عن مصطلح يتواجد في سياق LOINC والتأكد من إرجاع الكود والمعنى القياسي.
+2. **CDSS Renal Test:** إنشاء مريض وهمي بنتيجة كرياتينين مرتفعة (Creatinine = 2.5)، ومحاولة وصف دواء (Vancomycin) للتأكد من انطلاق تنبيه (Renal Adjustment Required).
+3. **ICU/OR Workflows:** التأكد من هيكلة تدفق البيانات للممرضين في غرف العمليات والعناية المركزة.
 
-هل نتوكل على الله وأبدأ بتنفيذ هذه المرحلة فوراً؟
+هل هذه الخطة متوافقة مع الصورة الإحترافية التي رسمناها معاً؟ هل أبدأ بتعديلات قاعدة البيانات أولاً؟

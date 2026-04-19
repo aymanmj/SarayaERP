@@ -12,6 +12,7 @@ import {
   StockTransactionType,
   ChargeSource,
   ServiceType,
+  TerminologySystem,
 } from '@prisma/client';
 
 @Injectable()
@@ -209,6 +210,9 @@ export class SurgeryService {
         team: { include: { user: true } },
         consumables: { include: { product: true } },
         serviceItem: true,
+        procedureConcept: true,
+        preOpDiagnosisConcept: true,
+        postOpDiagnosisConcept: true,
       },
     });
   }
@@ -335,11 +339,102 @@ export class SurgeryService {
       anesthesiaNotes?: string;
       preOpDiagnosis?: string;
       postOpDiagnosis?: string;
+      procedureConceptId?: number;
+      preOpDiagnosisConceptId?: number;
+      postOpDiagnosisConceptId?: number;
+      procedureTerminologySystem?: TerminologySystem;
+      procedureTerminologyCode?: string;
+      preOpTerminologySystem?: TerminologySystem;
+      preOpTerminologyCode?: string;
+      postOpTerminologySystem?: TerminologySystem;
+      postOpTerminologyCode?: string;
     },
   ) {
+    const updateData: any = {
+      surgeonNotes: data.surgeonNotes,
+      anesthesiaNotes: data.anesthesiaNotes,
+      preOpDiagnosis: data.preOpDiagnosis,
+      postOpDiagnosis: data.postOpDiagnosis,
+      procedureConceptId: data.procedureConceptId,
+      preOpDiagnosisConceptId: data.preOpDiagnosisConceptId,
+      postOpDiagnosisConceptId: data.postOpDiagnosisConceptId,
+    };
+
+    if (data.procedureTerminologySystem && data.procedureTerminologyCode) {
+      const concept = await this.prisma.terminologyConcept.findUnique({
+        where: {
+          system_code: {
+            system: data.procedureTerminologySystem,
+            code: data.procedureTerminologyCode.trim(),
+          },
+        },
+        select: { id: true },
+      });
+      updateData.procedureConceptId = concept?.id ?? null;
+    }
+
+    if (data.preOpTerminologySystem && data.preOpTerminologyCode) {
+      const concept = await this.prisma.terminologyConcept.findUnique({
+        where: {
+          system_code: {
+            system: data.preOpTerminologySystem,
+            code: data.preOpTerminologyCode.trim(),
+          },
+        },
+        select: { id: true },
+      });
+      updateData.preOpDiagnosisConceptId = concept?.id ?? null;
+    }
+
+    if (data.postOpTerminologySystem && data.postOpTerminologyCode) {
+      const concept = await this.prisma.terminologyConcept.findUnique({
+        where: {
+          system_code: {
+            system: data.postOpTerminologySystem,
+            code: data.postOpTerminologyCode.trim(),
+          },
+        },
+        select: { id: true },
+      });
+      updateData.postOpDiagnosisConceptId = concept?.id ?? null;
+    }
+
     return this.prisma.surgeryCase.update({
       where: { id: caseId, hospitalId },
-      data,
+      data: updateData,
+    });
+  }
+
+  // --------------------------------------------------------
+  // 4.1. Clinical Workflows (Pre/Intra/Post-Op)
+  // --------------------------------------------------------
+  async recordPreOpChecklist(hospitalId: number, caseId: number, checklist: any, userId: number) {
+    const formattedNote = `--- PRE-OP CHECKLIST (By User ${userId}) ---\n` + JSON.stringify(checklist, null, 2);
+    const existing = await this.prisma.surgeryCase.findUnique({ where: { id: caseId }, select: { anesthesiaNotes: true } });
+    
+    return this.prisma.surgeryCase.update({
+      where: { id: caseId, hospitalId },
+      data: { anesthesiaNotes: existing?.anesthesiaNotes ? existing.anesthesiaNotes + '\n\n' + formattedNote : formattedNote }
+    });
+  }
+
+  async recordIntraOpLog(hospitalId: number, caseId: number, log: any, userId: number) {
+    const formattedNote = `--- INTRA-OP LOG (By User ${userId}) ---\n` + JSON.stringify(log, null, 2);
+    const existing = await this.prisma.surgeryCase.findUnique({ where: { id: caseId }, select: { surgeonNotes: true } });
+    
+    return this.prisma.surgeryCase.update({
+      where: { id: caseId, hospitalId },
+      data: { surgeonNotes: existing?.surgeonNotes ? existing.surgeonNotes + '\n\n' + formattedNote : formattedNote }
+    });
+  }
+
+  async recordPostOpPACU(hospitalId: number, caseId: number, pacuLog: any, userId: number) {
+    const formattedNote = `--- PACU RECOVERY LOG (By User ${userId}) ---\n` + JSON.stringify(pacuLog, null, 2);
+    const existing = await this.prisma.surgeryCase.findUnique({ where: { id: caseId }, select: { postOpDiagnosis: true } });
+    
+    return this.prisma.surgeryCase.update({
+      where: { id: caseId, hospitalId },
+      data: { postOpDiagnosis: existing?.postOpDiagnosis ? existing.postOpDiagnosis + '\n\n' + formattedNote : formattedNote }
     });
   }
 

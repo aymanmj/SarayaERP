@@ -2,7 +2,7 @@
 
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { DiagnosisType } from '@prisma/client';
+import { DiagnosisType, TerminologySystem } from '@prisma/client';
 
 @Injectable()
 export class DiagnosisService {
@@ -39,22 +39,85 @@ export class DiagnosisService {
   // ➕ إضافة تشخيص لحالة (Encounter)
   async addDiagnosisToEncounter(params: {
     encounterId: number;
-    codeId: number;
+    codeId?: number;
     type: DiagnosisType;
     note?: string;
     userId: number;
+    terminologySystem?: TerminologySystem;
+    terminologyCode?: string;
   }) {
-    const { encounterId, codeId, type, note, userId } = params;
+    const {
+      encounterId,
+      codeId,
+      type,
+      note,
+      userId,
+      terminologySystem,
+      terminologyCode,
+    } = params;
+
+    let selectedCodeId = codeId;
+    if (!selectedCodeId && terminologySystem && terminologyCode) {
+      const concept = await this.prisma.terminologyConcept.findUnique({
+        where: {
+          system_code: {
+            system: terminologySystem,
+            code: terminologyCode.trim(),
+          },
+        },
+      });
+
+      if (!concept) {
+        throw new NotFoundException('الرمز المعياري غير موجود في القاموس الطبي');
+      }
+
+      let diagnosisCode = await this.prisma.diagnosisCode.findFirst({
+        where: {
+          OR: [
+            { terminologyConceptId: concept.id },
+            { icd10Code: concept.code },
+            { code: concept.code }
+          ],
+        },
+        select: { id: true },
+      });
+
+      if (!diagnosisCode) {
+        // Auto-create local DiagnosisCode linking to Universal Terminology concept
+        diagnosisCode = await this.prisma.diagnosisCode.create({
+          data: {
+            code: concept.code,
+            nameEn: concept.display,
+            nameAr: concept.displayAr,
+            icd10Code: concept.system === TerminologySystem.ICD10 ? concept.code : null,
+            terminologyConceptId: concept.id,
+            isActive: true,
+          },
+          select: { id: true }
+        });
+      }
+      
+      selectedCodeId = diagnosisCode.id;
+    }
+
+    if (!selectedCodeId) {
+      throw new NotFoundException('يجب توفير codeId أو terminologySystem/code');
+    }
+
     return this.prisma.encounterDiagnosis.create({
       data: {
         encounterId,
-        diagnosisCodeId: codeId,
+        diagnosisCodeId: selectedCodeId,
         type,
         note,
         createdById: userId,
       },
       include: {
-        diagnosisCode: true,
+        diagnosisCode: {
+          include: {
+            terminologyConcept: true,
+          },
+        },
       },
     });
   }
@@ -64,7 +127,11 @@ export class DiagnosisService {
     return this.prisma.encounterDiagnosis.findMany({
       where: { encounterId },
       include: {
-        diagnosisCode: true,
+        diagnosisCode: {
+          include: {
+            terminologyConcept: true,
+          },
+        },
         createdBy: { select: { id: true, fullName: true } },
       },
       orderBy: { createdAt: 'desc' },
