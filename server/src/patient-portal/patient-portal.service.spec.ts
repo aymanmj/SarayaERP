@@ -17,6 +17,7 @@ import { PatientPortalService } from './patient-portal.service';
 import { PatientOtpService } from './auth/patient-otp.service';
 import { AppointmentsService } from '../appointments/appointments.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { VaultService } from '../common/vault/vault.service';
 import * as bcrypt from 'bcrypt';
 
 describe('PatientPortalService', () => {
@@ -24,6 +25,7 @@ describe('PatientPortalService', () => {
   let prisma: any;
   let otpService: any;
   let appointmentsService: any;
+  let vaultService: any;
 
   const mockPrisma = {
     patient: { findUnique: jest.fn(), findFirst: jest.fn() },
@@ -71,6 +73,11 @@ describe('PatientPortalService', () => {
   };
 
   beforeEach(async () => {
+    vaultService = {
+      getActiveKeyId: jest.fn().mockReturnValue('patient-kid'),
+      getKeyOrSecret: jest.fn().mockResolvedValue('test-secret'),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PatientPortalService,
@@ -79,6 +86,7 @@ describe('PatientPortalService', () => {
         { provide: AppointmentsService, useValue: mockAppointmentsService },
         { provide: JwtService, useValue: mockJwtService },
         { provide: ConfigService, useValue: mockConfigService },
+        { provide: VaultService, useValue: vaultService },
       ],
     }).compile();
 
@@ -141,6 +149,83 @@ describe('PatientPortalService', () => {
     it('should reject malformed token', async () => {
       await expect(
         service.refreshTokens('invalidformat'),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should rotate a valid patient refresh token and issue new credentials', async () => {
+      const rawRefreshToken = 'portal-refresh-token';
+      mockPrisma.patientRefreshToken.findUnique.mockResolvedValue({
+        id: 2,
+        patientId: 1,
+        hashedToken: await bcrypt.hash(rawRefreshToken, 10),
+        revoked: false,
+        expiresAt: new Date(Date.now() + 60_000),
+        patient: {
+          id: 1,
+          fullName: 'أحمد',
+          mrn: 'MRN-0001',
+          hospitalId: 1,
+          isActive: true,
+        },
+      });
+      mockPrisma.patientRefreshToken.create.mockResolvedValue({ id: 8 });
+
+      const result = await service.refreshTokens(`2.${rawRefreshToken}`);
+
+      expect(result.accessToken).toBe('mock-jwt-token');
+      expect(result.refreshToken).toMatch(/^8\./);
+      expect(mockPrisma.patientRefreshToken.update).toHaveBeenCalledWith({
+        where: { id: 2 },
+        data: { revoked: true, replacedByToken: 'ROTATED' },
+      });
+    });
+
+    it('should revoke and reject expired patient refresh token', async () => {
+      const rawRefreshToken = 'expired-portal-token';
+      mockPrisma.patientRefreshToken.findUnique.mockResolvedValue({
+        id: 3,
+        patientId: 1,
+        hashedToken: await bcrypt.hash(rawRefreshToken, 10),
+        revoked: false,
+        expiresAt: new Date(Date.now() - 60_000),
+        patient: {
+          id: 1,
+          fullName: 'أحمد',
+          mrn: 'MRN-0001',
+          hospitalId: 1,
+          isActive: true,
+        },
+      });
+
+      await expect(
+        service.refreshTokens(`3.${rawRefreshToken}`),
+      ).rejects.toThrow(ForbiddenException);
+
+      expect(mockPrisma.patientRefreshToken.update).toHaveBeenCalledWith({
+        where: { id: 3 },
+        data: { revoked: true },
+      });
+    });
+
+    it('should reject refresh token for inactive patient account', async () => {
+      const rawRefreshToken = 'inactive-portal-token';
+      mockPrisma.patientRefreshToken.findUnique.mockResolvedValue({
+        id: 4,
+        patientId: 1,
+        hashedToken: await bcrypt.hash(rawRefreshToken, 10),
+        revoked: false,
+        expiresAt: new Date(Date.now() + 60_000),
+        patient: {
+          id: 1,
+          fullName: 'أحمد',
+          mrn: 'MRN-0001',
+          hospitalId: 1,
+          isActive: false,
+        },
+      });
+
+      await expect(
+        service.refreshTokens(`4.${rawRefreshToken}`),
       ).rejects.toThrow(ForbiddenException);
     });
   });
@@ -272,6 +357,26 @@ describe('PatientPortalService', () => {
         }),
       );
       expect(result!.queueNumber).toBe(4);
+    });
+
+    it('should send a 30-minute slot to AppointmentsService', async () => {
+      const futureDate = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000);
+      mockAppointmentsService.createAppointment.mockResolvedValue({
+        id: 2,
+        queueNumber: 8,
+      });
+
+      await service.bookAppointment(1, 1, {
+        doctorId: 7,
+        scheduledStart: futureDate.toISOString(),
+      });
+
+      expect(mockAppointmentsService.createAppointment).toHaveBeenCalledWith(
+        expect.objectContaining({
+          scheduledStart: futureDate,
+          scheduledEnd: new Date(futureDate.getTime() + 30 * 60 * 1000),
+        }),
+      );
     });
 
     it('should reject bookings less than 1 hour in the future', async () => {
@@ -464,6 +569,25 @@ describe('PatientPortalService', () => {
       expect(dashboard.financial.outstandingBalance).toBe(0);
       expect(dashboard.insurance).toBeNull();
     });
+
+    it('should reject dashboard access when JWT hospital does not match patient hospital', async () => {
+      mockPrisma.patient.findUnique.mockResolvedValue({
+        id: 1,
+        mrn: 'MRN-0001',
+        fullName: 'Cross Tenant',
+        dateOfBirth: null,
+        gender: 'MALE',
+        hospitalId: 2,
+        insurancePolicy: null,
+      });
+      mockPrisma.appointment.findFirst.mockResolvedValue(null);
+      mockPrisma.labOrder.findMany.mockResolvedValue([]);
+      mockPrisma.invoice.findMany.mockResolvedValue([]);
+      mockPrisma.patientAllergy.findMany.mockResolvedValue([]);
+      mockPrisma.prescription.findMany.mockResolvedValue([]);
+
+      await expect(service.getDashboard(1, 1)).rejects.toThrow(NotFoundException);
+    });
   });
 
   // ===========================================
@@ -516,6 +640,32 @@ describe('PatientPortalService', () => {
 
       const result = await service.getInsuranceInfo(1);
       expect(result.hasInsurance).toBe(false);
+    });
+  });
+
+  describe('getInvoiceById', () => {
+    it('should return invoice details for the owning patient', async () => {
+      mockPrisma.invoice.findUnique.mockResolvedValue({
+        id: 6,
+        patientId: 1,
+        payments: [],
+        charges: [],
+      });
+
+      const result = await service.getInvoiceById(1, 6);
+
+      expect(result.id).toBe(6);
+    });
+
+    it('should reject access to another patient invoice', async () => {
+      mockPrisma.invoice.findUnique.mockResolvedValue({
+        id: 7,
+        patientId: 999,
+        payments: [],
+        charges: [],
+      });
+
+      await expect(service.getInvoiceById(1, 7)).rejects.toThrow(NotFoundException);
     });
   });
 });

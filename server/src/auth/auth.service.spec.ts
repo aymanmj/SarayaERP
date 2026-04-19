@@ -10,11 +10,13 @@ import { ConfigService } from '@nestjs/config';
 import { UnauthorizedException, ForbiddenException } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { VaultService } from '../common/vault/vault.service';
 import * as bcrypt from 'bcrypt';
 
 describe('AuthService', () => {
   let service: AuthService;
   let prisma: any;
+  let vaultService: { getActiveKeyId: jest.Mock; getKeyOrSecret: jest.Mock };
 
   const TEST_SECRET = 'test-jwt-secret';
   const PASSWORD = 'securePass123';
@@ -58,6 +60,11 @@ describe('AuthService', () => {
       },
     };
 
+    vaultService = {
+      getActiveKeyId: jest.fn().mockReturnValue('test-kid'),
+      getKeyOrSecret: jest.fn().mockResolvedValue(TEST_SECRET),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
@@ -67,6 +74,7 @@ describe('AuthService', () => {
           provide: ConfigService, 
           useValue: { get: jest.fn().mockReturnValue(TEST_SECRET) } 
         },
+        { provide: VaultService, useValue: vaultService },
       ],
     }).compile();
 
@@ -130,11 +138,36 @@ describe('AuthService', () => {
   describe('verifyToken', () => {
     it('should verify a valid token', async () => {
       const jwtService = new JwtService({ secret: TEST_SECRET });
-      const token = jwtService.sign({ sub: 1, username: 'admin' }, { expiresIn: '15m' });
+      const token = jwtService.sign(
+        { sub: 1, username: 'admin' },
+        {
+          secret: TEST_SECRET,
+          expiresIn: '15m',
+          issuer: 'saraya-staff',
+          header: { kid: 'test-kid' },
+        },
+      );
 
       const result = await service.verifyToken(token);
       expect(result).toBeDefined();
       expect(result.sub).toBe(1);
+    });
+
+    it('should return null when key lookup fails for token verification', async () => {
+      const jwtService = new JwtService({ secret: TEST_SECRET });
+      const token = jwtService.sign(
+        { sub: 1, username: 'admin' },
+        {
+          secret: TEST_SECRET,
+          expiresIn: '15m',
+          issuer: 'saraya-staff',
+          header: { kid: 'missing-kid' },
+        },
+      );
+
+      vaultService.getKeyOrSecret.mockRejectedValueOnce(new Error('missing key'));
+
+      await expect(service.verifyToken(token)).resolves.toBeNull();
     });
 
     it('should return null for invalid token', async () => {
@@ -181,6 +214,77 @@ describe('AuthService', () => {
       // Should revoke ALL user tokens (security measure)
       expect(prisma.refreshToken.updateMany).toHaveBeenCalledWith({
         where: { userId: 1 },
+        data: { revoked: true },
+      });
+    });
+
+    it('should rotate a valid refresh token and issue new credentials', async () => {
+      const incomingToken = 'valid-refresh-token';
+      prisma.refreshToken.create.mockResolvedValue({ id: 7 });
+      prisma.refreshToken.findUnique.mockResolvedValue({
+        id: 3,
+        userId: 1,
+        hashedToken: await bcrypt.hash(incomingToken, 10),
+        revoked: false,
+        replacedByToken: null,
+        expiresAt: new Date(Date.now() + 60_000),
+        user: mockUser(),
+      });
+
+      const result = await service.refreshTokens(`3.${incomingToken}`);
+
+      expect(result.accessToken).toBeDefined();
+      expect(result.refreshToken).toMatch(/^7\./);
+      expect(prisma.refreshToken.update).toHaveBeenCalledWith({
+        where: { id: 3 },
+        data: { revoked: true, replacedByToken: 'ROTATED' },
+      });
+      expect(prisma.refreshToken.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            userId: 1,
+          }),
+        }),
+      );
+    });
+
+    it('should reject concurrent refresh reuse during grace period without revoking all sessions', async () => {
+      prisma.refreshToken.findUnique.mockResolvedValue({
+        id: 1,
+        userId: 1,
+        hashedToken: 'hash',
+        revoked: true,
+        replacedByToken: 'ROTATED',
+        updatedAt: new Date(),
+        expiresAt: new Date(Date.now() + 60_000),
+        user: mockUser(),
+      });
+
+      await expect(service.refreshTokens('1.sometoken')).rejects.toThrow(
+        ForbiddenException,
+      );
+
+      expect(prisma.refreshToken.updateMany).not.toHaveBeenCalled();
+    });
+
+    it('should revoke expired refresh token and reject access', async () => {
+      const expiredToken = 'expired-refresh-token';
+      prisma.refreshToken.findUnique.mockResolvedValue({
+        id: 12,
+        userId: 1,
+        hashedToken: await bcrypt.hash(expiredToken, 10),
+        revoked: false,
+        replacedByToken: null,
+        expiresAt: new Date(Date.now() - 60_000),
+        user: mockUser(),
+      });
+
+      await expect(service.refreshTokens(`12.${expiredToken}`)).rejects.toThrow(
+        ForbiddenException,
+      );
+
+      expect(prisma.refreshToken.update).toHaveBeenCalledWith({
+        where: { id: 12 },
         data: { revoked: true },
       });
     });

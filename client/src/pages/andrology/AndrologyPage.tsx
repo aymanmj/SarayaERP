@@ -1,17 +1,39 @@
-import { useState, useEffect, useCallback } from "react";
+import { Suspense, lazy, useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { apiClient } from "../../api/apiClient";
 import { toast } from "sonner";
 import { PatientInfo, SemenAnalysis, AndrologyVisit, HormoneTest, AndrologySurgery, AndrologyMedication, AndrologyInvestigation } from "./types";
-import SemenAnalysisForm from "./components/SemenAnalysisForm";
-import AndrologyVisitForm from "./components/AndrologyVisitForm";
-import HormoneTestForm from "./components/HormoneTestForm";
-import AndrologySurgeryForm from "./components/AndrologySurgeryForm";
-import AndrologyMedicationForm from "./components/AndrologyMedicationForm";
-import AndrologyInvestigationForm from "./components/AndrologyInvestigationForm";
-import AndrologyReportPrint from "./components/AndrologyReportPrint";
-import CryoBankPanel from "./components/CryoBankPanel";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from "recharts";
+
+const SemenAnalysisForm = lazy(() => import("./components/SemenAnalysisForm"));
+const AndrologyVisitForm = lazy(() => import("./components/AndrologyVisitForm"));
+const HormoneTestForm = lazy(() => import("./components/HormoneTestForm"));
+const AndrologySurgeryForm = lazy(() => import("./components/AndrologySurgeryForm"));
+const AndrologyMedicationForm = lazy(() => import("./components/AndrologyMedicationForm"));
+const AndrologyInvestigationForm = lazy(() => import("./components/AndrologyInvestigationForm"));
+const AndrologyReportPrint = lazy(() => import("./components/AndrologyReportPrint"));
+const CryoBankPanel = lazy(() => import("./components/CryoBankPanel"));
+
+type AndrologyTab =
+  | "OVERVIEW"
+  | "SEMEN"
+  | "HORMONES"
+  | "ANDROLOGY"
+  | "SURGERY"
+  | "MEDICATION"
+  | "INVESTIGATION"
+  | "CRYO";
+
+function AndrologyPanelFallback({ label = "جارِ تحميل القسم..." }: { label?: string }) {
+  return (
+    <div className="min-h-[280px] rounded-3xl border border-slate-800 bg-slate-950/40 flex items-center justify-center text-sm text-slate-500">
+      <div className="flex items-center gap-3">
+        <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-700 border-t-cyan-500" />
+        <span>{label}</span>
+      </div>
+    </div>
+  );
+}
 
 export default function AndrologyPage() {
   const [searchParams] = useSearchParams();
@@ -27,7 +49,7 @@ export default function AndrologyPage() {
   const [investigations, setInvestigations] = useState<AndrologyInvestigation[]>([]);
   
   const [loading, setLoading] = useState(false);
-  const [tab, setTab] = useState<"OVERVIEW" | "SEMEN" | "HORMONES" | "ANDROLOGY" | "SURGERY" | "MEDICATION" | "INVESTIGATION" | "CRYO">("OVERVIEW");
+  const [tab, setTab] = useState<AndrologyTab>("OVERVIEW");
 
   // Search
   const [searchMrn, setSearchMrn] = useState("");
@@ -709,7 +731,9 @@ export default function AndrologyPage() {
 
             {/* === CRYO BANK TAB === */}
             {tab === "CRYO" && patient && (
-              <CryoBankPanel patientId={patientId!} patientName={patient.fullName} />
+              <Suspense fallback={<AndrologyPanelFallback label="جارِ تحميل بنك التجميد..." />}>
+                <CryoBankPanel patientId={patientId!} patientName={patient.fullName} />
+              </Suspense>
             )}
 
           </div>
@@ -717,23 +741,49 @@ export default function AndrologyPage() {
       )}
 
       {/* Render Modals */}
-      {showSemenForm && <SemenAnalysisForm onSave={submitSemenAnalysis} onCancel={() => setShowSemenForm(false)} />}
-      {showAndrologyForm && <AndrologyVisitForm onSave={submitAndrologyVisit} onCancel={() => setShowAndrologyForm(false)} />}
-      {showHormoneForm && <HormoneTestForm onSave={submitHormoneTest} onCancel={() => setShowHormoneForm(false)} />}
-      {showSurgeryForm && <AndrologySurgeryForm onSave={submitSurgery} onCancel={() => setShowSurgeryForm(false)} />}
-      {showMedicationForm && <AndrologyMedicationForm onSave={submitMedication} onCancel={() => setShowMedicationForm(false)} />}
-      {showInvestigationForm && <AndrologyInvestigationForm onSave={submitInvestigation} onCancel={() => setShowInvestigationForm(false)} />}
+      {showSemenForm && (
+        <Suspense fallback={<AndrologyPanelFallback label="جارِ تحميل نموذج السائل المنوي..." />}>
+          <SemenAnalysisForm onSave={submitSemenAnalysis} onCancel={() => setShowSemenForm(false)} />
+        </Suspense>
+      )}
+      {showAndrologyForm && (
+        <Suspense fallback={<AndrologyPanelFallback label="جارِ تحميل نموذج الزيارة..." />}>
+          <AndrologyVisitForm onSave={submitAndrologyVisit} onCancel={() => setShowAndrologyForm(false)} />
+        </Suspense>
+      )}
+      {showHormoneForm && (
+        <Suspense fallback={<AndrologyPanelFallback label="جارِ تحميل نموذج الهرمونات..." />}>
+          <HormoneTestForm onSave={submitHormoneTest} onCancel={() => setShowHormoneForm(false)} />
+        </Suspense>
+      )}
+      {showSurgeryForm && (
+        <Suspense fallback={<AndrologyPanelFallback label="جارِ تحميل نموذج الجراحة..." />}>
+          <AndrologySurgeryForm onSave={submitSurgery} onCancel={() => setShowSurgeryForm(false)} />
+        </Suspense>
+      )}
+      {showMedicationForm && (
+        <Suspense fallback={<AndrologyPanelFallback label="جارِ تحميل نموذج الدواء..." />}>
+          <AndrologyMedicationForm onSave={submitMedication} onCancel={() => setShowMedicationForm(false)} />
+        </Suspense>
+      )}
+      {showInvestigationForm && (
+        <Suspense fallback={<AndrologyPanelFallback label="جارِ تحميل نموذج الفحوصات..." />}>
+          <AndrologyInvestigationForm onSave={submitInvestigation} onCancel={() => setShowInvestigationForm(false)} />
+        </Suspense>
+      )}
       
       {showReportPrint && patient && (
-        <AndrologyReportPrint 
-          patient={patient} 
-          analyses={analyses} 
-          hormones={hormones} 
-          surgeries={surgeries} 
-          medications={medications} 
-          visits={visits} 
-          onClose={() => setShowReportPrint(false)} 
-        />
+        <Suspense fallback={<AndrologyPanelFallback label="جارِ تحميل التقرير الطبي..." />}>
+          <AndrologyReportPrint 
+            patient={patient} 
+            analyses={analyses} 
+            hormones={hormones} 
+            surgeries={surgeries} 
+            medications={medications} 
+            visits={visits} 
+            onClose={() => setShowReportPrint(false)} 
+          />
+        </Suspense>
       )}
     </div>
   );

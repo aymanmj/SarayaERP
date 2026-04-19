@@ -15,10 +15,12 @@ import { UnauthorizedException } from '@nestjs/common';
 import { PatientAuthGuard } from './auth/patient-auth.guard';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { VaultService } from '../common/vault/vault.service';
 
 describe('PatientAuthGuard — Security Hardening', () => {
   let guard: PatientAuthGuard;
   let jwtService: JwtService;
+  let vaultService: { getKeyOrSecret: jest.Mock };
 
   const mockConfigService = {
     get: jest.fn().mockReturnValue('test-secret'),
@@ -35,11 +37,22 @@ describe('PatientAuthGuard — Security Hardening', () => {
   });
 
   beforeEach(async () => {
+    vaultService = {
+      getKeyOrSecret: jest.fn().mockResolvedValue('test-secret'),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PatientAuthGuard,
-        { provide: JwtService, useValue: { verifyAsync: jest.fn() } },
+        {
+          provide: JwtService,
+          useValue: {
+            decode: jest.fn().mockReturnValue({ header: { kid: 'test-kid' } }),
+            verifyAsync: jest.fn(),
+          },
+        },
         { provide: ConfigService, useValue: mockConfigService },
+        { provide: VaultService, useValue: vaultService },
       ],
     }).compile();
 
@@ -58,6 +71,17 @@ describe('PatientAuthGuard — Security Hardening', () => {
   });
 
   it('should ACCEPT valid patient access token', async () => {
+    const request = {
+      headers: {
+        authorization: 'Bearer valid-token',
+      },
+    };
+    const ctx = {
+      switchToHttp: () => ({
+        getRequest: () => request,
+      }),
+    };
+
     (jwtService.verifyAsync as jest.Mock).mockResolvedValue({
       sub: 1,
       mrn: 'MRN-001',
@@ -67,9 +91,11 @@ describe('PatientAuthGuard — Security Hardening', () => {
       aud: 'patient-portal',
     });
 
-    const ctx = createMockContext('Bearer valid-token');
     const result = await guard.canActivate(ctx as any);
     expect(result).toBe(true);
+    expect(request).toHaveProperty('patient');
+    expect((request as any).patient.sub).toBe(1);
+    expect(vaultService.getKeyOrSecret).toHaveBeenCalledWith('test-kid');
   });
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

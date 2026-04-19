@@ -193,6 +193,104 @@ describe('EncountersService', () => {
 
       expect(result).toBeDefined();
     });
+
+    it('should auto-create ER charge and invoice with insurance split', async () => {
+      prisma.patient.findUnique.mockResolvedValue({
+        id: 1,
+        hospitalId: 1,
+        insurancePolicy: {
+          id: 12,
+          isActive: true,
+          patientCopayRate: 20,
+          insuranceProviderId: 7,
+        },
+      });
+      prisma.encounter.create.mockResolvedValue({
+        id: 44,
+        hospitalId: 1,
+        patientId: 1,
+        type: 'ER',
+        status: 'OPEN',
+      });
+      prisma.serviceItem.findFirst.mockResolvedValue({
+        id: 88,
+        code: 'ER-VISIT',
+        isActive: true,
+      });
+      prisma.encounterCharge.create.mockResolvedValue({ id: 90 });
+      prisma.invoice.create.mockResolvedValue({ id: 91 });
+      prisma.encounter.findUnique.mockResolvedValue({
+        id: 44,
+        hospitalId: 1,
+        patient: { fullName: 'Test', mrn: 'MRN-0001' },
+        doctor: null,
+        department: null,
+      });
+
+      const result = await service.createEncounter(1, {
+        patientId: 1,
+        type: 'ER' as any,
+        doctorId: 5,
+      });
+
+      expect(mockPriceService.getServicePrice).toHaveBeenCalledWith(1, 88, 12);
+      expect(prisma.invoice.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          hospitalId: 1,
+          patientId: 1,
+          encounterId: 44,
+          totalAmount: 50,
+          patientShare: 10,
+          insuranceShare: 40,
+          insuranceProviderId: 7,
+        }),
+      });
+      expect(prisma.encounterCharge.update).toHaveBeenCalledWith({
+        where: { id: 90 },
+        data: { invoiceId: 91 },
+      });
+      expect(result.id).toBe(44);
+    });
+
+    it('should still create ER encounter if invoice creation fails', async () => {
+      prisma.patient.findUnique.mockResolvedValue({
+        id: 1,
+        hospitalId: 1,
+        insurancePolicy: null,
+      });
+      prisma.encounter.create.mockResolvedValue({
+        id: 55,
+        hospitalId: 1,
+        patientId: 1,
+        type: 'ER',
+        status: 'OPEN',
+      });
+      prisma.serviceItem.findFirst.mockResolvedValue({
+        id: 88,
+        code: 'ER-VISIT',
+        isActive: true,
+      });
+      prisma.encounterCharge.create.mockResolvedValue({ id: 90 });
+      mockAccountingService.validateDateInOpenPeriod.mockRejectedValueOnce(
+        new Error('period closed'),
+      );
+      prisma.encounter.findUnique.mockResolvedValue({
+        id: 55,
+        hospitalId: 1,
+        patient: { fullName: 'Test', mrn: 'MRN-0001' },
+        doctor: null,
+        department: null,
+      });
+
+      const result = await service.createEncounter(1, {
+        patientId: 1,
+        type: 'ER' as any,
+      });
+
+      expect(prisma.encounterCharge.create).toHaveBeenCalled();
+      expect(prisma.invoice.create).not.toHaveBeenCalled();
+      expect(result.id).toBe(55);
+    });
   });
 
   // ===========================================
@@ -327,6 +425,21 @@ describe('EncountersService', () => {
       const result = await service.dischargePatient(1, 10);
       expect(result.status).toBe('CLOSED');
     });
+
+    it('should reject discharge for IPD encounters pending discharge workflow', async () => {
+      prisma.encounter.findUnique.mockResolvedValue({
+        id: 10,
+        hospitalId: 1,
+        status: 'OPEN',
+        type: 'IPD',
+        invoices: [],
+        bedAssignments: [],
+      });
+
+      await expect(service.dischargePatient(1, 10)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
   });
 
   // ===========================================
@@ -352,6 +465,48 @@ describe('EncountersService', () => {
 
       await expect(service.assignDoctor(1, 999, 5)).rejects.toThrow(
         NotFoundException,
+      );
+    });
+  });
+
+  describe('admitPatientFromER', () => {
+    it('should convert open ER encounter into IPD', async () => {
+      prisma.encounter.findUnique.mockResolvedValue({
+        id: 10,
+        hospitalId: 1,
+        type: 'ER',
+        status: 'OPEN',
+        departmentId: 3,
+      });
+      prisma.encounter.update.mockResolvedValue({
+        id: 10,
+        type: 'IPD',
+        departmentId: 5,
+        status: 'OPEN',
+      });
+
+      const result = await service.admitPatientFromER(1, 10, 5);
+
+      expect(result.type).toBe('IPD');
+      expect(prisma.encounter.update).toHaveBeenCalledWith({
+        where: { id: 10 },
+        data: expect.objectContaining({
+          type: 'IPD',
+          departmentId: 5,
+        }),
+      });
+    });
+
+    it('should reject admitting a non-ER encounter', async () => {
+      prisma.encounter.findUnique.mockResolvedValue({
+        id: 10,
+        hospitalId: 1,
+        type: 'OPD',
+        status: 'OPEN',
+      });
+
+      await expect(service.admitPatientFromER(1, 10)).rejects.toThrow(
+        BadRequestException,
       );
     });
   });
@@ -399,6 +554,69 @@ describe('EncountersService', () => {
       expect(result.items).toHaveLength(2);
       expect(result.meta.totalCount).toBe(2);
       expect(result.meta.page).toBe(1);
+    });
+
+    it('should build patient search filters when search term is provided', async () => {
+      prisma.encounter.findMany.mockResolvedValue([]);
+      prisma.encounter.count.mockResolvedValue(0);
+
+      await service.findAll({ hospitalId: 1, search: 'Ahmed', page: 1, limit: 10 });
+
+      expect(prisma.encounter.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            hospitalId: 1,
+            OR: expect.arrayContaining([
+              expect.objectContaining({
+                patient: {
+                  fullName: { contains: 'Ahmed', mode: 'insensitive' },
+                },
+              }),
+              expect.objectContaining({
+                patient: {
+                  mrn: { contains: 'Ahmed', mode: 'insensitive' },
+                },
+              }),
+            ]),
+          }),
+        }),
+      );
+    });
+  });
+
+  describe('listActiveInpatients and softDelete', () => {
+    it('should list only active inpatients with related context', async () => {
+      prisma.encounter.findMany.mockResolvedValue([{ id: 77 }]);
+
+      const result = await service.listActiveInpatients(1);
+
+      expect(result).toEqual([{ id: 77 }]);
+      expect(prisma.encounter.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            hospitalId: 1,
+            type: 'IPD',
+            status: 'OPEN',
+          },
+        }),
+      );
+    });
+
+    it('should delegate soft delete to soft delete service with encounter scope', async () => {
+      const result = await service.softDelete(1, 55, 9);
+
+      expect(result).toEqual({ id: 1, isDeleted: true });
+      expect(mockSoftDeleteService.softDelete).toHaveBeenCalledWith(
+        prisma.encounter,
+        expect.objectContaining({
+          where: {
+            id: 55,
+            hospitalId: 1,
+            isDeleted: false,
+          },
+        }),
+        9,
+      );
     });
   });
 });

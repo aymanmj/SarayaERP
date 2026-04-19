@@ -172,7 +172,16 @@ describe('LabService', () => {
 
       await service.getWorklist(mockHospitalId);
 
-      expect(mockPrismaService.labOrder.findMany).toHaveBeenCalled();
+      expect(mockPrismaService.labOrder.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            order: expect.objectContaining({
+              hospitalId: mockHospitalId,
+              paymentStatus: { in: ['PAID', 'WAIVED'] },
+            }),
+          }),
+        }),
+      );
     });
   });
 
@@ -228,6 +237,116 @@ describe('LabService', () => {
         }),
       ).rejects.toThrow(BadRequestException);
     });
+
+    it('should create insured lab invoice with patient and insurance shares', async () => {
+      mockPrismaService.encounter.findUnique.mockResolvedValue({
+        id: mockEncounterId,
+        hospitalId: mockHospitalId,
+        patientId: 1,
+        patient: {
+          id: 1,
+          fullName: 'Insured Patient',
+          insurancePolicy: {
+            id: 50,
+            isActive: true,
+            patientCopayRate: 20,
+            insuranceProviderId: 8,
+          },
+        },
+      });
+      mockPrismaService.labTest.findMany.mockResolvedValue(mockLabTests);
+      mockPrismaService.order.create
+        .mockResolvedValueOnce({ id: 11, hospitalId: mockHospitalId, encounterId: mockEncounterId })
+        .mockResolvedValueOnce({ id: 12, hospitalId: mockHospitalId, encounterId: mockEncounterId });
+      mockPrismaService.labOrder.create
+        .mockResolvedValueOnce({ ...mockLabOrder, id: 21, orderId: 11, test: mockLabTests[0] })
+        .mockResolvedValueOnce({ ...mockLabOrder, id: 22, orderId: 12, test: mockLabTests[1] });
+      mockPriceListsService.getServicePrice
+        .mockResolvedValueOnce(50)
+        .mockResolvedValueOnce(150);
+      mockPrismaService.encounterCharge.create
+        .mockResolvedValueOnce({ id: 101 })
+        .mockResolvedValueOnce({ id: 102 });
+
+      await service.createOrdersForEncounter({
+        encounterId: mockEncounterId,
+        hospitalId: mockHospitalId,
+        doctorId: mockDoctorId,
+        testIds: [1, 2],
+        notes: 'insured tests',
+      });
+
+      expect(mockPrismaService.invoice.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          hospitalId: mockHospitalId,
+          patientId: 1,
+          encounterId: mockEncounterId,
+          totalAmount: 200,
+          patientShare: 40,
+          insuranceShare: 160,
+          insuranceProviderId: 8,
+        }),
+      });
+      expect(mockPrismaService.encounterCharge.updateMany).toHaveBeenCalledWith({
+        where: { id: { in: [101, 102] } },
+        data: { invoiceId: 1 },
+      });
+    });
+
+    it('should reject createOrders when no valid tests are selected', async () => {
+      mockPrismaService.encounter.findUnique.mockResolvedValue({
+        id: mockEncounterId,
+        hospitalId: mockHospitalId,
+        patientId: 1,
+        patient: { id: 1, fullName: 'Test Patient', insurancePolicy: null },
+      });
+      mockPrismaService.labTest.findMany.mockResolvedValue([]);
+
+      await expect(
+        service.createOrdersForEncounter({
+          encounterId: mockEncounterId,
+          hospitalId: mockHospitalId,
+          doctorId: mockDoctorId,
+          testIds: [99],
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('startProcessing', () => {
+    it('should mark lab order as in progress and emit processing event', async () => {
+      mockPrismaService.labOrder.findUnique.mockResolvedValue({
+        id: 1,
+        resultStatus: 'PENDING',
+        order: { hospitalId: mockHospitalId },
+      });
+      mockPrismaService.labOrder.update.mockResolvedValue({
+        id: 1,
+        resultStatus: 'IN_PROGRESS',
+      });
+
+      const result = await service.startProcessing(mockHospitalId, 1, mockDoctorId);
+
+      expect(result.resultStatus).toBe('IN_PROGRESS');
+      expect(mockEventEmitter.emit).toHaveBeenCalledWith(
+        'lab.order_started',
+        expect.any(Object),
+      );
+    });
+
+    it('should return completed orders unchanged without emitting a new event', async () => {
+      const completedOrder = {
+        id: 1,
+        resultStatus: 'COMPLETED',
+        order: { hospitalId: mockHospitalId },
+      };
+      mockPrismaService.labOrder.findUnique.mockResolvedValue(completedOrder);
+
+      const result = await service.startProcessing(mockHospitalId, 1, mockDoctorId);
+
+      expect(result).toEqual(completedOrder);
+      expect(mockPrismaService.labOrder.update).not.toHaveBeenCalled();
+    });
   });
 
   describe('completeOrder', () => {
@@ -255,6 +374,46 @@ describe('LabService', () => {
 
       expect(result).toBeDefined();
       expect(result.resultStatus).toBe('COMPLETED');
+    });
+
+    it('should reject completion when order belongs to another hospital', async () => {
+      mockPrismaService.labOrder.findUnique.mockResolvedValue({
+        ...mockLabOrder,
+        order: { hospitalId: 999, encounterId: mockEncounterId },
+      });
+
+      await expect(
+        service.completeOrder({
+          hospitalId: mockHospitalId,
+          labOrderId: 1,
+          performedById: mockDoctorId,
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should not emit CDSS event for non-numeric result values', async () => {
+      mockPrismaService.labOrder.findUnique.mockResolvedValue({
+        ...mockLabOrder,
+        order: { hospitalId: mockHospitalId, encounterId: mockEncounterId },
+      });
+      mockPrismaService.encounter.findUnique.mockResolvedValue({ patientId: 1 });
+      mockPrismaService.labOrder.update.mockResolvedValue({
+        ...mockLabOrder,
+        resultStatus: 'COMPLETED',
+        resultValue: 'positive',
+      });
+
+      await service.completeOrder({
+        hospitalId: mockHospitalId,
+        labOrderId: 1,
+        performedById: mockDoctorId,
+        resultValue: 'positive',
+      });
+
+      expect(mockEventEmitter.emit).not.toHaveBeenCalledWith(
+        'lab.result_verified',
+        expect.anything(),
+      );
     });
 
     it('should throw error if lab order not found', async () => {

@@ -2,8 +2,8 @@
 
 // src/pages/EncounterDetailsPage.tsx
 
-import { useState, useEffect } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { Suspense, lazy, useEffect, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { apiClient } from "../api/apiClient";
 import { toast } from "sonner";
 import { useAuthStore } from "../stores/authStore";
@@ -11,15 +11,54 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, Clock, CheckCircle2 } from "lucide-react";
 
 // Components
-import { VitalsPane } from "../components/encounter/VitalsPane";
-import { DiagnosisPane } from "../components/encounter/DiagnosisPane";
-import { RadiologyTab } from "../components/encounter/RadiologyTab";
-import { LabsTab } from "../components/encounter/LabsTab";
-import { PrescriptionsTab } from "../components/encounter/PrescriptionsTab";
-import { BillingTab } from "../components/encounter/BillingTab";
 import { AllergiesPane } from "../components/encounter/AllergiesPane";
-import { ObstetricHistoryCard } from "./obgyn/ObstetricHistoryCard";
-import { RequestTransferModal } from "./clinical/transfers/RequestTransferModal";
+
+const loadVitalsPane = () =>
+  import("../components/encounter/VitalsPane").then((module) => ({
+    default: module.VitalsPane,
+  }));
+const loadDiagnosisPane = () =>
+  import("../components/encounter/DiagnosisPane").then((module) => ({
+    default: module.DiagnosisPane,
+  }));
+const loadRadiologyTab = () =>
+  import("../components/encounter/RadiologyTab").then((module) => ({
+    default: module.RadiologyTab,
+  }));
+const loadLabsTab = () =>
+  import("../components/encounter/LabsTab").then((module) => ({
+    default: module.LabsTab,
+  }));
+const loadPrescriptionsTab = () =>
+  import("../components/encounter/PrescriptionsTab").then((module) => ({
+    default: module.PrescriptionsTab,
+  }));
+const loadBillingTab = () =>
+  import("../components/encounter/BillingTab").then((module) => ({
+    default: module.BillingTab,
+  }));
+const loadObstetricHistoryCard = () =>
+  import("./obgyn/ObstetricHistoryCard").then((module) => ({
+    default: module.ObstetricHistoryCard,
+  }));
+const loadRequestTransferModal = () =>
+  import("./clinical/transfers/RequestTransferModal").then((module) => ({
+    default: module.RequestTransferModal,
+  }));
+const loadQuickSummaryCard = () => import("../components/encounter/QuickSummaryCard");
+const loadQuickProtocolsWidget = () =>
+  import("../components/encounter/QuickProtocolsWidget");
+
+const VitalsPane = lazy(loadVitalsPane);
+const DiagnosisPane = lazy(loadDiagnosisPane);
+const RadiologyTab = lazy(loadRadiologyTab);
+const LabsTab = lazy(loadLabsTab);
+const PrescriptionsTab = lazy(loadPrescriptionsTab);
+const BillingTab = lazy(loadBillingTab);
+const ObstetricHistoryCard = lazy(loadObstetricHistoryCard);
+const RequestTransferModal = lazy(loadRequestTransferModal);
+const QuickSummaryCard = lazy(loadQuickSummaryCard);
+const QuickProtocolsWidget = lazy(loadQuickProtocolsWidget);
 
 // --- Types ---
 type EncounterStatus = "OPEN" | "CLOSED" | "CANCELLED";
@@ -85,6 +124,26 @@ const tabs: { key: TabKey; label: string; icon: string; alert?: boolean; gender?
   { key: "BILLING", label: "الفوترة", icon: "💰" },
 ];
 
+const tabPreloaders: Partial<Record<TabKey, () => Promise<unknown>>> = {
+  VISITS: () => Promise.all([loadVitalsPane(), loadDiagnosisPane()]),
+  LABS: loadLabsTab,
+  RADIOLOGY: loadRadiologyTab,
+  PRESCRIPTIONS: loadPrescriptionsTab,
+  BILLING: loadBillingTab,
+  OBGYN: loadObstetricHistoryCard,
+};
+
+function LazyPanelFallback({ label = "تحميل المحتوى..." }: { label?: string }) {
+  return (
+    <div className="min-h-[220px] rounded-2xl border border-slate-800 bg-slate-950/40 flex items-center justify-center text-sm text-slate-500">
+      <div className="flex items-center gap-3">
+        <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-700 border-t-sky-500" />
+        <span>{label}</span>
+      </div>
+    </div>
+  );
+}
+
 function formatDateTime(iso?: string | null) {
   if (!iso) return "—";
   const d = new Date(iso);
@@ -104,7 +163,7 @@ function calculateAge(dob: string | null | undefined) {
   return Math.abs(ageDate.getUTCFullYear() - 1970);
 }
 
-function QuickSummaryCard({ encounterId, status }: { encounterId: number; status: EncounterStatus }) {
+function LegacyQuickSummaryCard({ encounterId, status }: { encounterId: number; status: EncounterStatus }) {
   const [vitals, setVitals] = useState<any[]>([]);
   const [diagnoses, setDiagnoses] = useState<any[]>([]);
 
@@ -157,7 +216,7 @@ function QuickSummaryCard({ encounterId, status }: { encounterId: number; status
   );
 }
 
-function QuickProtocolsWidget({ encounterId }: { encounterId: number }) {
+function LegacyQuickProtocolsWidget({ encounterId }: { encounterId: number }) {
   const [orderSets, setOrderSets] = useState<any[]>([]);
   const [pathways, setPathways] = useState<any[]>([]);
   const [executingId, setExecutingId] = useState<number | null>(null);
@@ -582,6 +641,8 @@ export default function EncounterDetailsPage() {
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
+                onMouseEnter={() => tabPreloaders[tab.key]?.()}
+                onFocus={() => tabPreloaders[tab.key]?.()}
                 className={`px-4 py-2.5 rounded-t-xl text-xs font-medium transition-all flex items-center gap-2
                             ${
                               activeTab === tab.key
@@ -602,8 +663,12 @@ export default function EncounterDetailsPage() {
             {activeTab === "VISITS" && (
               <div className="grid grid-cols-1 gap-6">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <VitalsPane encounterId={encounter.id} />
-                  <DiagnosisPane encounterId={encounter.id} />
+                  <Suspense fallback={<LazyPanelFallback label="تحميل لوحة العلامات الحيوية..." />}>
+                    <VitalsPane encounterId={encounter.id} />
+                  </Suspense>
+                  <Suspense fallback={<LazyPanelFallback label="تحميل لوحة التشخيص..." />}>
+                    <DiagnosisPane encounterId={encounter.id} />
+                  </Suspense>
                 </div>
 
                 <div className="border-t border-slate-800 pt-6">
@@ -684,7 +749,9 @@ export default function EncounterDetailsPage() {
             {/* ✅ عرض تبويب النساء والولادة */}
             {activeTab === "OBGYN" && (
                <div className="max-w-3xl space-y-6">
-                 <ObstetricHistoryCard patientId={encounter.patientId} editable={true} />
+                 <Suspense fallback={<LazyPanelFallback label="تحميل ملف النساء والولادة..." />}>
+                   <ObstetricHistoryCard patientId={encounter.patientId} editable={true} />
+                 </Suspense>
                  <div className="flex justify-end gap-3 flex-wrap">
                     <button
                       onClick={() => navigate(`/obgyn/anc?patientId=${encounter.patientId}`)}
@@ -733,31 +800,39 @@ export default function EncounterDetailsPage() {
             )}
 
             {activeTab === "LABS" && (
-              <LabsTab
-                encounterId={encounter.id}
-                hospitalId={encounter.hospitalId}
-                doctorId={encounter.doctorId}
-              />
+              <Suspense fallback={<LazyPanelFallback label="تحميل تبويب المختبر..." />}>
+                <LabsTab
+                  encounterId={encounter.id}
+                  hospitalId={encounter.hospitalId}
+                  doctorId={encounter.doctorId}
+                />
+              </Suspense>
             )}
             {activeTab === "RADIOLOGY" && (
-              <RadiologyTab
-                encounterId={encounter.id}
-                hospitalId={encounter.hospitalId}
-                doctorId={encounter.doctorId}
-              />
+              <Suspense fallback={<LazyPanelFallback label="تحميل تبويب الأشعة..." />}>
+                <RadiologyTab
+                  encounterId={encounter.id}
+                  hospitalId={encounter.hospitalId}
+                  doctorId={encounter.doctorId}
+                />
+              </Suspense>
             )}
             {activeTab === "PRESCRIPTIONS" && (
-              <PrescriptionsTab
-                encounterId={encounter.id}
-                hospitalId={encounter.hospitalId}
-                doctorId={encounter.doctorId}
-              />
+              <Suspense fallback={<LazyPanelFallback label="تحميل تبويب الأدوية..." />}>
+                <PrescriptionsTab
+                  encounterId={encounter.id}
+                  hospitalId={encounter.hospitalId}
+                  doctorId={encounter.doctorId}
+                />
+              </Suspense>
             )}
             {activeTab === "BILLING" && (
-              <BillingTab
-                encounterId={encounter.id}
-                hospitalId={encounter.hospitalId}
-              />
+              <Suspense fallback={<LazyPanelFallback label="تحميل تبويب الفوترة..." />}>
+                <BillingTab
+                  encounterId={encounter.id}
+                  hospitalId={encounter.hospitalId}
+                />
+              </Suspense>
             )}
           </div>
         </div>
@@ -823,8 +898,12 @@ export default function EncounterDetailsPage() {
             </div>
           )}
 
-          <QuickSummaryCard encounterId={encId} status={encounter.status} />
-          <QuickProtocolsWidget encounterId={encId} />
+          <Suspense fallback={<LazyPanelFallback label="تحميل الملخص السريع..." />}>
+            <QuickSummaryCard encounterId={encId} status={encounter.status} />
+          </Suspense>
+          <Suspense fallback={<LazyPanelFallback label="تحميل البروتوكولات السريعة..." />}>
+            <QuickProtocolsWidget encounterId={encId} />
+          </Suspense>
         </div>
       </div>
 
@@ -930,16 +1009,18 @@ export default function EncounterDetailsPage() {
 
       {/* Transfer Request Modal */}
       {encounter.patient && (
-        <RequestTransferModal 
-          isOpen={showTransferModal}
-          onClose={() => setShowTransferModal(false)}
-          encounterId={encId}
-          patientName={encounter.patient.fullName}
-          fromBedId={null} // Can't easily grab bed from pure encounter query here, backend will figure it out if it exists
-          onSuccess={() => {
-            // Can show a toast or refresh
-          }}
-        />
+        <Suspense fallback={null}>
+          <RequestTransferModal 
+            isOpen={showTransferModal}
+            onClose={() => setShowTransferModal(false)}
+            encounterId={encId}
+            patientName={encounter.patient.fullName}
+            fromBedId={null} // Can't easily grab bed from pure encounter query here, backend will figure it out if it exists
+            onSuccess={() => {
+              // Can show a toast or refresh
+            }}
+          />
+        </Suspense>
       )}
     </div>
   );

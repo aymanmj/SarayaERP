@@ -254,7 +254,11 @@ export default function AdmissionsPage() {
   }
 
   return (
-    <div className="flex flex-col h-full text-slate-100 p-6 space-y-6" dir="rtl">
+    <div
+      className="flex flex-col h-full text-slate-100 p-6 space-y-6"
+      dir="rtl"
+      data-testid="admissions-page"
+    >
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
@@ -315,6 +319,7 @@ export default function AdmissionsPage() {
             <select
               value={selectedPatientId}
               onChange={(e) => setSelectedPatientId(e.target.value)}
+              data-testid="admission-patient-select"
               className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500"
             >
               <option value="">اختر المريض...</option>
@@ -332,6 +337,7 @@ export default function AdmissionsPage() {
             <select
               value={selectedDoctorId}
               onChange={(e) => setSelectedDoctorId(e.target.value)}
+              data-testid="admission-doctor-select"
               className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500"
             >
               <option value="">اختر الطبيب...</option>
@@ -346,7 +352,10 @@ export default function AdmissionsPage() {
             <label className="block text-sm font-medium text-slate-300 mb-2">
               السرير المحدد
             </label>
-            <div className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-slate-100">
+            <div
+              className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-slate-100"
+              data-testid="admission-selected-bed"
+            >
               {selectedBed ? (
                 <span>
                   {getBedIcon(selectedBed.status)} {selectedBed.number} - {selectedBed.wardName}
@@ -360,6 +369,7 @@ export default function AdmissionsPage() {
             <button
               onClick={handleAdmission}
               disabled={submitting || !selectedPatientId || !selectedBed || !selectedDoctorId}
+              data-testid="submit-admission"
               className="flex-1 px-4 py-2 bg-sky-600 hover:bg-sky-500 disabled:bg-slate-700 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-all"
             >
               {submitting ? "جاري التنويم..." : "🏥 تنويم المريض"}
@@ -367,6 +377,7 @@ export default function AdmissionsPage() {
             <button
               onClick={handleQuickEmergencyAdmission}
               disabled={submitting || !selectedPatientId || !selectedBed || !selectedDoctorId}
+              data-testid="submit-quick-admission"
               className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-500 disabled:bg-slate-700 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-all"
             >
               {submitting ? "جاري الإيواء..." : "🚨 إيواء طارئ"}
@@ -411,6 +422,7 @@ export default function AdmissionsPage() {
                           className={`p-3 rounded-lg text-center transition-all ${getBedColor(
                             bed.status
                           )}`}
+                          data-testid={`bed-card-${bed.id}`}
                           disabled={bed.status !== "AVAILABLE"}
                         >
                           <div className="text-lg mb-1">

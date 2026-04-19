@@ -267,6 +267,7 @@ export default function InsuranceClaimsPage() {
     <div
       className="flex flex-col h-full text-slate-100 p-6 space-y-6"
       dir="rtl"
+      data-testid="insurance-claims-page"
     >
       {/* Header */}
       <div className="flex justify-between items-center">
@@ -285,6 +286,7 @@ export default function InsuranceClaimsPage() {
           <select
             className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm w-48 focus:border-sky-500 outline-none"
             value={selectedProvider}
+            data-testid="insurance-provider-filter"
             onChange={(e) => setSelectedProvider(e.target.value)}
           >
             <option value="">كل الشركات</option>
@@ -301,6 +303,7 @@ export default function InsuranceClaimsPage() {
           <select
             className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm w-48 focus:border-sky-500 outline-none"
             value={statusFilter}
+            data-testid="insurance-status-filter"
             onChange={(e) => setStatusFilter(e.target.value)}
           >
             <option value="PENDING">معلقة (لم ترسل)</option>
@@ -338,6 +341,7 @@ export default function InsuranceClaimsPage() {
             {statusFilter === "PENDING" && (
               <button
                 onClick={() => handleUpdateStatus("SUBMITTED")}
+                data-testid="claims-submit-selected"
                 className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs rounded-lg font-bold shadow-lg"
               >
                 ✅ تم إرسال المطالبة للشركة
@@ -347,12 +351,14 @@ export default function InsuranceClaimsPage() {
               <>
                 <button
                   onClick={() => handleUpdateStatus("PAID")}
+                  data-testid="claims-mark-paid"
                   className="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs rounded-lg font-bold shadow-lg"
                 >
                   💰 تم استلام السداد
                 </button>
                 <button
                   onClick={() => setShowRejectModal(true)}
+                  data-testid="claims-reject-selected"
                   className="px-4 py-1.5 bg-rose-600 hover:bg-rose-500 text-white text-xs rounded-lg font-bold shadow-lg"
                 >
                   ❌ رفض المطالبات
@@ -372,6 +378,7 @@ export default function InsuranceClaimsPage() {
             {/* زر الطباعة الحقيقي */}
             <button
               onClick={handlePrintClaimSheet}
+              data-testid="claims-print-sheet"
               className="px-4 py-1.5 bg-slate-700 hover:bg-slate-600 text-white text-xs rounded-lg flex items-center gap-2"
             >
               <span>🖨️</span> طباعة كشف المطالبة
@@ -434,6 +441,7 @@ export default function InsuranceClaimsPage() {
                   <input
                     type="checkbox"
                     checked={selectedIds.includes(c.id)}
+                    data-testid={`claim-checkbox-${c.id}`}
                     onChange={() => toggleSelect(c.id)}
                   />
                 </td>
@@ -480,7 +488,10 @@ export default function InsuranceClaimsPage() {
 
       {/* Reject Modal */}
       {showRejectModal && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 backdrop-blur-sm animate-in fade-in">
+        <div
+          className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 backdrop-blur-sm animate-in fade-in"
+          data-testid="claims-reject-modal"
+        >
           <div className="bg-slate-950 border border-slate-700 rounded-2xl p-6 w-full max-w-md shadow-2xl animate-in zoom-in-95">
             <h3 className="text-xl font-bold text-rose-400 mb-2">رفض المطالبات</h3>
             <p className="text-sm text-slate-400 mb-4">
@@ -491,6 +502,7 @@ export default function InsuranceClaimsPage() {
               className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm focus:border-rose-500 outline-none text-slate-100 min-h-[100px]"
               placeholder="مثال: الخدمة غير مشمولة بالوثيقة..."
               value={rejectionReason}
+              data-testid="claims-reject-reason"
               onChange={(e) => setRejectionReason(e.target.value)}
             />
 
@@ -503,6 +515,7 @@ export default function InsuranceClaimsPage() {
               </button>
               <button
                 onClick={handleRejectSubmit}
+                data-testid="claims-confirm-reject"
                 className="px-6 py-2 bg-rose-600 hover:bg-rose-500 text-white text-sm font-bold rounded-xl shadow-lg transition"
               >
                 تأكيد الرفض

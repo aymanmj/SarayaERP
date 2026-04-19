@@ -7,6 +7,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { JwtService } from '@nestjs/jwt';
 import { UnauthorizedException, BadRequestException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { FhirAuthService } from './fhir.auth.service';
 import { PrismaService } from '../../prisma/prisma.service';
 
@@ -18,6 +19,10 @@ describe('FhirAuthService', () => {
     patient: {
       findUnique: jest.fn(),
     },
+  };
+
+  const mockConfigService = {
+    get: jest.fn((key: string) => process.env[key]),
   };
 
   const realJwtService = new JwtService({ secret: 'test-secret-key' });
@@ -32,6 +37,7 @@ describe('FhirAuthService', () => {
         FhirAuthService,
         { provide: JwtService, useValue: realJwtService },
         { provide: PrismaService, useValue: mockPrisma },
+        { provide: ConfigService, useValue: mockConfigService },
       ],
     }).compile();
 

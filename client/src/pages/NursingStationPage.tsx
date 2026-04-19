@@ -165,7 +165,11 @@ export default function NursingStationPage() {
   };
 
   return (
-    <div className="p-6 h-full flex flex-col text-slate-100" dir="rtl">
+    <div
+      className="p-6 h-full flex flex-col text-slate-100"
+      dir="rtl"
+      data-testid="nursing-page"
+    >
       {/* Header */}
       <div className="mb-6">
         <div className="flex justify-between items-center">
@@ -209,6 +213,7 @@ export default function NursingStationPage() {
                 <button
                   key={enc.id}
                   onClick={() => handleSelectPatient(enc)}
+                  data-testid={`nursing-encounter-${enc.id}`}
                   className={`w-full text-right p-3 rounded-xl border transition-all ${
                     selectedEncounter?.id === enc.id
                       ? "bg-sky-600 border-sky-500 text-white"
@@ -343,6 +348,7 @@ export default function NursingStationPage() {
                           {/* Execute Button */}
                           <button
                             onClick={() => openExecuteModal(item)}
+                            data-testid={`execute-care-plan-${item.id}`}
                             className="flex-shrink-0 bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-lg shadow-emerald-900/20 transition-all"
                           >
                             ✓ تنفيذ
@@ -359,7 +365,10 @@ export default function NursingStationPage() {
 
       {/* Execute Modal */}
       {showExecuteModal && selectedItem && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+        <div
+          className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm"
+          data-testid="nursing-execute-modal"
+        >
           <div className="bg-slate-950 border border-slate-700 rounded-3xl p-6 w-full max-w-lg space-y-6 shadow-2xl animate-in zoom-in-95 duration-200">
             <div className="flex justify-between items-center border-b border-slate-800 pb-4">
               <h3 className="text-xl font-bold text-white">تسجيل تنفيذ الأمر</h3>
@@ -396,6 +405,7 @@ export default function NursingStationPage() {
                   className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 outline-none focus:border-emerald-500 transition"
                   placeholder="مثال: 120/80 mmHg, تم الإعطاء, ..."
                   value={executeForm.resultValue}
+                  data-testid="nursing-execute-result"
                   onChange={(e) =>
                     setExecuteForm({ ...executeForm, resultValue: e.target.value })
                   }
@@ -411,6 +421,7 @@ export default function NursingStationPage() {
                   rows={3}
                   placeholder="أي ملاحظات إضافية..."
                   value={executeForm.note}
+                  data-testid="nursing-execute-note"
                   onChange={(e) =>
                     setExecuteForm({ ...executeForm, note: e.target.value })
                   }
@@ -428,6 +439,7 @@ export default function NursingStationPage() {
               <button
                 onClick={handleExecute}
                 disabled={saving}
+                data-testid="nursing-confirm-execution"
                 className="px-8 py-2.5 rounded-xl bg-emerald-600 text-white hover:bg-emerald-500 disabled:bg-slate-700 text-sm font-bold shadow-lg transition"
               >
                 {saving ? "جاري الحفظ..." : "✓ تأكيد التنفيذ"}

@@ -6,6 +6,10 @@ import path from "path";
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  build: {
+    sourcemap: false,
+    chunkSizeWarningLimit: 900,
+  },
   // ✅ هذا الجزء الجديد لحل مشاكل مكتبات الأشعة
   optimizeDeps: {
     include: [

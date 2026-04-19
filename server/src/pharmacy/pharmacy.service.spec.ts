@@ -56,8 +56,10 @@ describe('PharmacyService', () => {
         update: jest.fn(),
       },
       productStock: {
+        findUnique: jest.fn(),
         findMany: jest.fn(),
         updateMany: jest.fn(),
+        upsert: jest.fn(),
       },
       dispenseRecord: {
         findFirst: jest.fn(),
@@ -68,6 +70,7 @@ describe('PharmacyService', () => {
       },
       stockTransaction: {
         create: jest.fn(),
+        findMany: jest.fn(),
       },
       encounterCharge: {
         create: jest.fn(),
@@ -366,6 +369,136 @@ describe('PharmacyService', () => {
         }),
       );
     });
+
+    it('should fall back to any active warehouse when a named pharmacy warehouse is missing', async () => {
+      prisma.warehouse.findFirst
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ id: 9 });
+
+      await service.dispensePrescription(baseDispenseParams);
+
+      expect(prisma.stockTransaction.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            warehouseId: 9,
+          }),
+        }),
+      );
+    });
+  });
+
+  describe('dispenseAndPay', () => {
+    const basePosParams = {
+      hospitalId: 1,
+      prescriptionId: 1,
+      pharmacistId: 3,
+      paymentMethod: 'CASH' as any,
+      amountPaid: 7.5,
+    };
+
+    beforeEach(() => {
+      prisma.warehouse.findFirst.mockResolvedValue({ id: 1 });
+      prisma.prescription.findUnique.mockResolvedValue({
+        id: 1,
+        hospitalId: 1,
+        patientId: 1,
+        encounterId: 10,
+        status: 'ACTIVE',
+        patient: { id: 1, fullName: 'Patient' },
+        items: [
+          {
+            id: 101,
+            productId: 100,
+            quantity: 3,
+            product: {
+              id: 100,
+              name: 'Paracetamol 500mg',
+              sellPrice: 2.5,
+              costPrice: 1.0,
+            },
+          },
+        ],
+        encounter: { id: 10 },
+      });
+      prisma.dispenseRecord.create.mockResolvedValue({ id: 2 });
+      prisma.dispenseItem.create.mockResolvedValue({ id: 1 });
+      prisma.productStock.findMany.mockResolvedValue([
+        {
+          id: 1,
+          productId: 100,
+          quantity: 50,
+          batchNumber: 'BATCH-001',
+          expiryDate: new Date('2027-06-01'),
+          version: 1,
+        },
+      ]);
+      prisma.productStock.updateMany.mockResolvedValue({ count: 1 });
+      prisma.stockTransaction.create.mockResolvedValue({ id: 1 });
+      prisma.product.update.mockResolvedValue({ id: 100 });
+      prisma.invoice.create.mockResolvedValue({ id: 20, status: 'PAID' });
+      prisma.payment.create.mockResolvedValue({ id: 21, amount: 7.5 });
+      prisma.prescription.update.mockResolvedValue({ id: 1, status: 'COMPLETED' });
+      prisma.serviceItem.findFirst.mockResolvedValue({ id: 50, code: 'PHARMACY-DRUGS' });
+      prisma.encounterCharge.create.mockResolvedValue({ id: 99 });
+    });
+
+    it('should create POS invoice, payment, and accounting entries', async () => {
+      const result = await service.dispenseAndPay(basePosParams);
+
+      expect(result.invoice.id).toBe(20);
+      expect(result.payment.id).toBe(21);
+      expect(prisma.invoice.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            hospitalId: 1,
+            patientId: 1,
+            encounterId: 10,
+            status: 'PAID',
+            totalAmount: 7.5,
+            paidAmount: 7.5,
+          }),
+        }),
+      );
+      expect(mockAccountingService.recordInvoiceEntry).toHaveBeenCalledWith({
+        invoiceId: 20,
+        hospitalId: 1,
+        userId: 3,
+      });
+      expect(mockAccountingService.recordPaymentEntry).toHaveBeenCalledWith({
+        paymentId: 21,
+        hospitalId: 1,
+        userId: 3,
+      });
+    });
+
+    it('should reject POS dispense when nothing is actually dispensed', async () => {
+      prisma.prescription.findUnique.mockResolvedValue({
+        id: 1,
+        hospitalId: 1,
+        patientId: 1,
+        encounterId: 10,
+        status: 'ACTIVE',
+        patient: { id: 1 },
+        items: [
+          {
+            id: 101,
+            productId: 100,
+            quantity: 0,
+            product: {
+              id: 100,
+              name: 'Paracetamol 500mg',
+              sellPrice: 2.5,
+              costPrice: 1.0,
+            },
+          },
+        ],
+        encounter: { id: 10 },
+      });
+
+      await expect(
+        service.dispenseAndPay(basePosParams),
+      ).rejects.toThrow(BadRequestException);
+    });
   });
 
   // ===========================================
@@ -415,6 +548,83 @@ describe('PharmacyService', () => {
           pharmacistId: 3,
         }),
       ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('createManualStockTransaction', () => {
+    beforeEach(() => {
+      prisma.warehouse.findFirst.mockResolvedValue({ id: 4 });
+      prisma.product.findUnique.mockResolvedValue({
+        id: 100,
+        hospitalId: 1,
+        costPrice: 2.5,
+      });
+      prisma.productStock.findUnique.mockResolvedValue(null);
+      prisma.productStock.upsert.mockResolvedValue({ id: 301 });
+      prisma.product.update.mockResolvedValue({ id: 100 });
+      prisma.stockTransaction.create.mockResolvedValue({ id: 401, batchNumber: 'GENERAL' });
+    });
+
+    it('should create manual stock adjustment with default batch number', async () => {
+      const result = await service.createManualStockTransaction({
+        hospitalId: 1,
+        userId: 9,
+        drugItemId: 100,
+        type: 'IN',
+        quantity: 6,
+      });
+
+      expect(result.id).toBe(401);
+      expect(prisma.productStock.upsert).toHaveBeenCalledWith({
+        where: {
+          warehouseId_productId_batchNumber: {
+            warehouseId: 4,
+            productId: 100,
+            batchNumber: 'GENERAL',
+          },
+        },
+        update: {
+          quantity: { increment: 6 },
+        },
+        create: {
+          hospitalId: 1,
+          warehouseId: 4,
+          productId: 100,
+          batchNumber: 'GENERAL',
+          expiryDate: undefined,
+          quantity: 6,
+        },
+      });
+      expect(prisma.stockTransaction.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            hospitalId: 1,
+            warehouseId: 4,
+            productId: 100,
+            quantity: 6,
+            unitCost: 2.5,
+            totalCost: 15,
+            batchNumber: 'GENERAL',
+          }),
+        }),
+      );
+    });
+
+    it('should reject manual stock transaction for a product outside the hospital', async () => {
+      prisma.product.findUnique.mockResolvedValue({
+        id: 100,
+        hospitalId: 99,
+      });
+
+      await expect(
+        service.createManualStockTransaction({
+          hospitalId: 1,
+          userId: 9,
+          drugItemId: 100,
+          type: 'ADJUST',
+          quantity: 2,
+        }),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 });

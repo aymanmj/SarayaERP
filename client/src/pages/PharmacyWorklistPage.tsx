@@ -203,6 +203,7 @@ export default function PharmacyWorklistPage() {
     <div
       className="p-6 space-y-6 text-slate-100 h-full flex flex-col"
       dir="rtl"
+      data-testid="pharmacy-page"
     >
       {/* Header */}
       <div className="flex items-center justify-between gap-4">
@@ -247,6 +248,7 @@ export default function PharmacyWorklistPage() {
               return (
                 <tr
                   key={p.id}
+                  data-testid={`pharmacy-prescription-row-${p.id}`}
                   className="border-b border-slate-800/60 hover:bg-slate-800/40 align-top"
                 >
                   <td className="px-4 py-3 font-mono text-sky-400">#{p.id}</td>
@@ -277,6 +279,7 @@ export default function PharmacyWorklistPage() {
                   <td className="px-4 py-3">
                     <button
                       onClick={() => openDispenseModal(p)}
+                      data-testid={`dispense-prescription-${p.id}`}
                       className="px-4 py-1.5 bg-sky-600 hover:bg-sky-500 text-white rounded-lg text-xs font-bold shadow-lg"
                     >
                       عرض وصرف
@@ -298,7 +301,10 @@ export default function PharmacyWorklistPage() {
 
       {/* Dispense Modal */}
       {showDispenseModal && selectedPrescription && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+        <div
+          className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm"
+          data-testid="pharmacy-dispense-modal"
+        >
           <div className="bg-slate-950 border border-slate-700 rounded-2xl w-full max-w-4xl shadow-2xl flex flex-col max-h-[90vh]">
             {/* Header */}
             <div className="flex justify-between items-center p-4 border-b border-slate-800 bg-slate-900 rounded-t-2xl">
@@ -378,6 +384,7 @@ export default function PharmacyWorklistPage() {
                           <select
                             className="w-full bg-slate-900 border border-slate-700 rounded p-1 text-xs outline-none focus:border-sky-500"
                             value={selectedId ?? ""}
+                            data-testid={`dispense-product-${it.id}`}
                             onChange={(e) =>
                               setSubMap((prev) => ({
                                 ...prev,
@@ -431,6 +438,7 @@ export default function PharmacyWorklistPage() {
                             min={0}
                             className="w-full bg-slate-900 border border-slate-700 rounded p-1 text-center text-xs"
                             value={qty}
+                            data-testid={`dispense-qty-${it.id}`}
                             onChange={(e) =>
                               setQtyMap((prev) => ({
                                 ...prev,
@@ -480,6 +488,7 @@ export default function PharmacyWorklistPage() {
                         onChange={(e) =>
                           setPaymentMethod(e.target.value as PaymentMethod)
                         }
+                        data-testid="pharmacy-payment-method"
                         className="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs outline-none w-32"
                       >
                         <option value="CASH">نقداً</option>
@@ -495,6 +504,7 @@ export default function PharmacyWorklistPage() {
                         type="number"
                         value={amountPaid}
                         onChange={(e) => setAmountPaid(e.target.value)}
+                        data-testid="pharmacy-amount-paid"
                         className="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs outline-none w-24 text-center font-bold text-emerald-400"
                       />
                     </div>
@@ -523,6 +533,7 @@ export default function PharmacyWorklistPage() {
                 <button
                   onClick={handleDispenseAction}
                   disabled={processing || currentTotal <= 0}
+                  data-testid="pharmacy-confirm-dispense"
                   className={`px-8 py-2 rounded-xl text-white text-sm font-bold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed ${
                     isIPD
                       ? "bg-purple-600 hover:bg-purple-500 shadow-purple-500/20"

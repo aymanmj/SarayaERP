@@ -213,6 +213,7 @@ export default function CashierPage() {
     <div
       className="flex flex-col h-full text-slate-100 p-6 space-y-6"
       dir="rtl"
+      data-testid="cashier-page"
     >
       {/* الهيدر */}
       <div className="flex items-center justify-between">
@@ -281,6 +282,7 @@ export default function CashierPage() {
                     <tr
                       key={inv.id}
                       onClick={() => handleSelect(inv.id)}
+                      data-testid={`cashier-invoice-row-${inv.id}`}
                       className={`cursor-pointer transition-colors ${
                         selectedId === inv.id
                           ? "bg-slate-800/80"
@@ -403,6 +405,7 @@ export default function CashierPage() {
                     step="0.001"
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
+                    data-testid="cashier-payment-amount"
                     className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 outline-none focus:border-emerald-500 font-bold text-emerald-400 text-center text-lg"
                   />
                 </div>
@@ -411,6 +414,7 @@ export default function CashierPage() {
                   <select
                     value={method}
                     onChange={(e) => setMethod(e.target.value as PaymentMethod)}
+                    data-testid="cashier-payment-method"
                     className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 outline-none focus:border-emerald-500"
                   >
                     <option value="CASH">نقداً</option>
@@ -427,6 +431,7 @@ export default function CashierPage() {
                     type="text"
                     value={reference}
                     onChange={(e) => setReference(e.target.value)}
+                    data-testid="cashier-payment-reference"
                     className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 outline-none"
                   />
                 </div>
@@ -434,6 +439,7 @@ export default function CashierPage() {
 
               <button
                 onClick={handlePay}
+                data-testid="cashier-submit-payment"
                 className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm shadow-lg shadow-emerald-500/20 transition-all mt-2"
               >
                 {Number(amount) === 0
