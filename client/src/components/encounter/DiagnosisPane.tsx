@@ -10,6 +10,8 @@ type DiagnosisCode = {
   code: string;
   nameEn: string;
   nameAr?: string;
+  display?: string;
+  displayAr?: string;
 };
 
 type EncounterDiagnosis = {
