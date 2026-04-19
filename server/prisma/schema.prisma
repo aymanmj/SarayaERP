@@ -4566,6 +4566,7 @@ model TerminologyConcept {
   surgeryProcedureCases SurgeryCase[] @relation("SurgeryProcedureConcept")
   surgeryPreOpDiagnosisCases SurgeryCase[] @relation("SurgeryPreOpDiagnosisConcept")
   surgeryPostOpDiagnosisCases SurgeryCase[] @relation("SurgeryPostOpDiagnosisConcept")
+  orderSetItems OrderSetItem[]
 
   @@unique([system, code])
   @@index([system])
