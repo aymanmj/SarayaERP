@@ -348,6 +348,10 @@ model User {
   // Order Sets & Clinical Pathways
   createdOrderSets        OrderSet[]          @relation("OrderSetCreator")
   submittedOrderSets      OrderSet[]          @relation("OrderSetSubmitter")
+  
+  // Pharmacy
+  prescriptionVerifications Prescription[] @relation("PharmacyVerifier")
+  
   approvedOrderSets       OrderSet[]          @relation("OrderSetApprover")
   publishedOrderSets      OrderSet[]          @relation("OrderSetPublisher")
   retiredOrderSets        OrderSet[]          @relation("OrderSetRetirer")
@@ -671,12 +675,20 @@ model MedicationAdministration {
   prescriptionItemId Int
   administeredAt     DateTime             @default(now())
   status             AdministrationStatus @default(GIVEN)
-  notes              String?
-  infusionRate       Decimal?             @db.Decimal(10, 2)
-  titrationLog       Json?
-  performerId        Int
-  createdAt          DateTime             @default(now())
-  updatedAt          DateTime             @updatedAt
+  notes                 String?
+  infusionRate          Decimal?             @db.Decimal(10, 2)
+  titrationLog          Json?
+  
+  // CLMA Fields (Closed-Loop Medication Administration)
+  scannedPatientBarcode String?
+  scannedDrugBarcode    String?
+  isVerified5Rights     Boolean              @default(false)
+  isEmergencyOverride   Boolean              @default(false)
+  varianceReason        String?
+
+  performerId           Int
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
   encounter          Encounter            @relation(fields: [encounterId], references: [id])
   hospital           Hospital             @relation(fields: [hospitalId], references: [id])
   performer          User                 @relation(fields: [performerId], references: [id])
@@ -903,6 +915,7 @@ model Product {
   updatedAt            DateTime              @updatedAt
   expenseAccountId     Int?
   version              Int                   @default(1)
+  barcode              String?               @unique // CLMA bedside scanning
   rxNormCode           String? // Standard RxNorm Code
   terminologyConceptId Int?
   assets               Asset[]
@@ -1719,15 +1732,22 @@ model Prescription {
   patientId     Int
   doctorId      Int
   status        PrescriptionStatus @default(ACTIVE)
-  notes         String?
-  createdAt     DateTime           @default(now())
-  paymentStatus PaymentStatus      @default(PENDING)
-  dispenses     DispenseRecord[]
+  notes                        String?
+  createdAt                    DateTime                     @default(now())
+  paymentStatus                PaymentStatus                @default(PENDING)
+  
+  // CPOE Verification Fields
+  pharmacistVerificationStatus PharmacistVerificationStatus @default(PENDING)
+  verifiedById                 Int?
+  verifiedAt                   DateTime?
+
+  dispenses                    DispenseRecord[]
   doctor        User               @relation("PrescriptionDoctor", fields: [doctorId], references: [id])
-  encounter     Encounter          @relation(fields: [encounterId], references: [id])
-  hospital      Hospital           @relation(fields: [hospitalId], references: [id])
-  patient       Patient            @relation(fields: [patientId], references: [id])
-  items         PrescriptionItem[]
+  encounter                    Encounter                    @relation(fields: [encounterId], references: [id])
+  hospital                     Hospital                     @relation(fields: [hospitalId], references: [id])
+  patient                      Patient                      @relation(fields: [patientId], references: [id])
+  verifiedBy                   User?                        @relation("PharmacyVerifier", fields: [verifiedById], references: [id])
+  items                        PrescriptionItem[]
 
   @@index([hospitalId, status])
   @@index([patientId])
@@ -2988,6 +3008,13 @@ enum PrescriptionStatus {
   COMPLETED
   CANCELLED
   PARTIALLY_COMPLETED
+}
+
+enum PharmacistVerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+  MODIFIED
 }
 
 enum MedicationRoute {

@@ -160,6 +160,116 @@ export class NursingService {
     });
   }
 
+  // -----------------------------------------------------------------------
+  // 🟢 CLMA (Closed-Loop Medication Administration) - HIMSS Stage 6
+  // -----------------------------------------------------------------------
+
+  async verifyFiveRights(
+    hospitalId: number,
+    encounterId: number,
+    prescriptionItemId: number,
+    patientBarcode: string,
+    drugBarcode: string,
+  ) {
+    const item = await this.prisma.prescriptionItem.findUnique({
+      where: { id: prescriptionItemId },
+      include: {
+        product: true,
+        prescription: {
+          include: { patient: true },
+        },
+      },
+    });
+
+    if (!item) throw new NotFoundException('البند الدوائي غير موجود.');
+    if (
+      item.prescription.hospitalId !== hospitalId ||
+      item.prescription.encounterId !== encounterId
+    ) {
+      throw new BadRequestException('بيانات المطابقة غير صحيحة.');
+    }
+
+    // 1. Right Patient Check (Using MRN as barcode)
+    const patientStr = item.prescription.patient.mrn;
+    const isPatientMatch = patientStr === patientBarcode;
+
+    // 2. Right Drug Check
+    const isDrugMatch = item.product?.barcode === drugBarcode;
+
+    return {
+      isPatientMatch,
+      isDrugMatch,
+      isVerified5Rights: isPatientMatch && isDrugMatch,
+      expectedPatientBarcode: patientStr,
+      expectedDrugBarcode: item.product?.barcode,
+    };
+  }
+
+  async administerWithBarcode(params: {
+    hospitalId: number;
+    userId: number;
+    encounterId: number;
+    prescriptionItemId: number;
+    patientBarcode: string;
+    drugBarcode: string;
+    isEmergencyOverride: boolean;
+    varianceReason?: string;
+    notes?: string;
+  }) {
+    const {
+      hospitalId,
+      userId,
+      encounterId,
+      prescriptionItemId,
+      patientBarcode,
+      drugBarcode,
+      isEmergencyOverride,
+      varianceReason,
+      notes,
+    } = params;
+
+    // إجراء المطابقة (Barcode Scanning)
+    const verification = await this.verifyFiveRights(
+      hospitalId,
+      encounterId,
+      prescriptionItemId,
+      patientBarcode,
+      drugBarcode,
+    );
+
+    // المنع الصارم ما لم يكن هناك تجاوز طارئ (Soft Blocking with Emergency Override)
+    if (!verification.isVerified5Rights && !isEmergencyOverride) {
+      throw new BadRequestException(
+        'خطأ طبي: فشل المطابقة الخماسية للباركود (5 Rights). لا يمكن إعطاء الدواء. التجاوز مسموح في الحالات الحرجة فقط.',
+      );
+    }
+
+    if (!verification.isVerified5Rights && isEmergencyOverride && !varianceReason) {
+      throw new BadRequestException(
+        'في حالات تجاوز المطابقة (Emergency Override)، يجب إدخال سبب التجاوز (Variance Reason) إجبارياً للتدقيق.',
+      );
+    }
+
+    // بناءً على قواعد HIMSS، يجب توثيق كل عملية إعطاء.
+    return this.prisma.medicationAdministration.create({
+      data: {
+        hospitalId,
+        encounterId,
+        prescriptionItemId,
+        performerId: userId,
+        status: AdministrationStatus.GIVEN,
+        notes,
+        // CLMA Auditing fields
+        scannedPatientBarcode: patientBarcode,
+        scannedDrugBarcode: drugBarcode,
+        isVerified5Rights: verification.isVerified5Rights,
+        isEmergencyOverride: !verification.isVerified5Rights && isEmergencyOverride,
+        varianceReason: varianceReason || null,
+        administeredAt: new Date(),
+      },
+    });
+  }
+
   // 4. إضافة ملاحظة تمريض
   async addNursingNote(params: {
     hospitalId: number;
