@@ -144,6 +144,37 @@ services:
       retries: 3
     logging: *default_logging
 
+  # بوابة المطورين والمستشفيات للـ FHIR
+  kong:
+    image: kong:3.6-ubuntu
+    container_name: saraya_kong
+    restart: always
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: "/etc/kong/kong.yml"
+      KONG_PROXY_ACCESS_LOG: "/dev/stdout"
+      KONG_ADMIN_ACCESS_LOG: "/dev/stdout"
+      KONG_PROXY_ERROR_LOG: "/dev/stderr"
+      KONG_ADMIN_ERROR_LOG: "/dev/stderr"
+      # لا نفتح الـ Admin API لشبكة الإنترنت الخارجي لأسباب أمنية
+      KONG_ADMIN_LISTEN: "0.0.0.0:8001, 0.0.0.0:8444 ssl"
+    ports:
+      - "8000:8000"   # Proxy (Developer access)
+      - "8443:8443"   # Proxy SSL
+    volumes:
+      - ./production/kong/kong.yml:/etc/kong/kong.yml:ro
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - saraya_net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8001/status > /dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging: *default_logging
+
   # 🔒 Cloudflare Tunnel (Access from Internet without opening ports)
   # كل عميل يحتاج Tunnel Token خاص به مرتبط بـ Subdomain فريد
   # مثال: rehab.alsarayatech.ly, nokhba.alsarayatech.ly

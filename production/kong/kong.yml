@@ -1,0 +1,78 @@
+_format_version: "3.0"
+_transform: true
+
+services:
+  - name: saraya-backend-fhir
+    url: http://backend:3000/api/fhir
+    routes:
+      - name: fhir-external-route
+        paths:
+          - /api/fhir
+        strip_path: false
+    plugins:
+      # تفعيل الكاش (Caching) السريع لـ FHIR Capability Statement
+      - name: proxy-cache
+        route: fhir-external-route
+        config:
+          strategy: memory
+          content_type:
+            - "application/fhir+json"
+            - "application/json"
+          cache_ttl: 300 # Cache for 5 minutes
+          ignore_uri_case: true
+      
+      # تفعيل الحماية من هجمات الإغراق (Rate Limiting)
+      - name: rate-limiting
+        route: fhir-external-route
+        config:
+          second: 10
+          minute: 100
+          hour: 1000
+          policy: local
+          fault_tolerant: true
+          hide_client_headers: false
+
+      # تفعيل تقييد الحمولات (Request Size Limiting)
+      - name: request-size-limiting
+        route: fhir-external-route
+        config:
+          allowed_payload_size: 5 # Max 5 MB per request
+
+  - name: saraya-backend-terminology
+    url: http://backend:3000/api/terminology
+    routes:
+      - name: terminology-route
+        paths:
+          - /api/terminology
+        strip_path: false
+    plugins:
+      - name: rate-limiting
+        config:
+          second: 20
+          minute: 500
+
+# سياسات الحماية على مستوى الـ Gateway بالكامل (Global Plugins)
+plugins:
+  - name: cors
+    config:
+      origins: 
+        - "*"
+      methods:
+        - GET
+        - POST
+        - PUT
+        - PATCH
+        - DELETE
+        - OPTIONS
+      headers:
+        - Accept
+        - Accept-Version
+        - Content-Length
+        - Content-MD5
+        - Content-Type
+        - Date
+        - Authorization
+      exposed_headers:
+        - X-Auth-Token
+      credentials: true
+      max_age: 3600
