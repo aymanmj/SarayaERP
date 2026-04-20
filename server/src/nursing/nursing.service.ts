@@ -9,6 +9,7 @@ import {
   EncounterType,
   BedStatus,
   AdministrationStatus,
+  CareTaskStatus,
 } from '@prisma/client';
 
 @Injectable()
@@ -186,6 +187,41 @@ export class NursingService {
         createdBy: { select: { fullName: true } },
       },
       orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  // 6. المهام السريرية (Care Tasks)
+  async getCareTasks(encounterId: number) {
+    return this.prisma.careTask.findMany({
+      where: { enrollment: { encounterId } },
+      include: {
+        step: { select: { title: true, dayNumber: true } },
+        assignedTo: { select: { fullName: true } },
+        completedBy: { select: { fullName: true } },
+      },
+      orderBy: [
+        { step: { dayNumber: 'desc' } },
+        { createdAt: 'desc' },
+      ],
+    });
+  }
+
+  async updateCareTaskStatus(userId: number, taskId: number, status: CareTaskStatus, notes?: string) {
+    const data: any = { status, notes };
+    if (status === 'COMPLETED' || status === 'SKIPPED') {
+      data.completedById = userId;
+      data.completedAt = new Date();
+    } else {
+      data.completedById = null;
+      data.completedAt = null;
+    }
+    return this.prisma.careTask.update({
+      where: { id: taskId },
+      data,
+      include: {
+        step: { select: { title: true, dayNumber: true } },
+        completedBy: { select: { fullName: true } }
+      },
     });
   }
 }

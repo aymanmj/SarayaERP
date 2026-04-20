@@ -7,6 +7,7 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EncryptionService } from '../common/encryption/encryption.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
   CreateProblemDto,
   UpdateProblemDto,
@@ -24,7 +25,8 @@ export class ClinicalProfileService {
 
   constructor(
     private prisma: PrismaService,
-    private encryptionService: EncryptionService
+    private encryptionService: EncryptionService,
+    private eventEmitter: EventEmitter2,
   ) {}
 
   // ======================== Problem List ========================
@@ -78,6 +80,16 @@ export class ClinicalProfileService {
     });
 
     this.logger.log(`Problem created for patient ${patientId}: ${dto.description}`);
+
+    this.eventEmitter.emit('patient.problem_added', {
+      hospitalId,
+      patientId,
+      problemId: problem.id,
+      diagnosisCodeId: problem.diagnosisCodeId,
+      description: problem.description,
+      icd10Code: problem.diagnosisCode?.icd10Code,
+    });
+
     return problem;
   }
 

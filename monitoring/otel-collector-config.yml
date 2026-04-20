@@ -8,8 +8,6 @@ receivers:
 
 processors:
   batch:
-  resourcedetection:
-    detectors: [env, system]
 
 exporters:
   otlp/tempo:
@@ -18,7 +16,7 @@ exporters:
       insecure: true
   prometheus:
     endpoint: "0.0.0.0:8889"
-  logging:
+  debug:
     verbosity: detailed
 
 service:
@@ -26,8 +24,8 @@ service:
     traces:
       receivers: [otlp]
       processors: [batch]
-      exporters: [otlp/tempo, logging]
+      exporters: [otlp/tempo, debug]
     metrics:
       receivers: [otlp]
       processors: [batch]
-      exporters: [prometheus, logging]
+      exporters: [prometheus, debug]

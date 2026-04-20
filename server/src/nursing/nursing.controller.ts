@@ -80,4 +80,26 @@ export class NursingController {
       isShiftHandover: body.isShiftHandover || false,
     });
   }
+
+  // 5. المهام السريرية
+  @Get('encounters/:id/care-tasks')
+  @Roles('ADMIN', 'NURSE', 'DOCTOR')
+  async getCareTasks(@Param('id', ParseIntPipe) encounterId: number) {
+    return this.nursingService.getCareTasks(encounterId);
+  }
+
+  @Post('care-tasks/:id/status')
+  @Roles('ADMIN', 'NURSE')
+  async updateCareTaskStatus(
+    @Req() req: any,
+    @Param('id', ParseIntPipe) taskId: number,
+    @Body() body: { status: any; notes?: string },
+  ) {
+    return this.nursingService.updateCareTaskStatus(
+      req.user.sub,
+      taskId,
+      body.status,
+      body.notes,
+    );
+  }
 }

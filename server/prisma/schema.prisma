@@ -360,6 +360,8 @@ model User {
   clinicalPathwayReviewEvents ClinicalPathwayReviewEvent[] @relation("PathwayReviewActor")
   pathwayEnrollments      PathwayEnrollment[] @relation("PathwayEnroller")
   pathwayVariances        PathwayVariance[]   @relation("VarianceReporter")
+  assignedCareTasks       CareTask[]          @relation("TaskAssignedTo")
+  completedCareTasks      CareTask[]          @relation("TaskCompletedBy")
 }
 
 model RefreshToken {
@@ -3273,6 +3275,7 @@ enum CDSSAlertType {
   RENAL_DOSE_ADJUST
   PREGNANCY_RISK
   DRUG_DISEASE
+  PROTOCOL_RECOMMENDATION
 }
 
 enum CDSSAlertSeverity {
@@ -4380,6 +4383,7 @@ model ClinicalPathwayStep {
   pathway   ClinicalPathway   @relation(fields: [pathwayId], references: [id], onDelete: Cascade)
   orderSet  OrderSet?         @relation(fields: [orderSetId], references: [id])
   variances PathwayVariance[]
+  careTasks CareTask[]
 
   @@index([pathwayId, dayNumber])
 }
@@ -4399,6 +4403,7 @@ model PathwayEnrollment {
   pathway    ClinicalPathway   @relation(fields: [pathwayId], references: [id])
   enrolledBy User              @relation("PathwayEnroller", fields: [enrolledById], references: [id])
   variances  PathwayVariance[]
+  careTasks  CareTask[]
 
   @@unique([pathwayId, encounterId])
   @@index([encounterId])
@@ -4419,6 +4424,45 @@ model PathwayVariance {
   reportedBy User                @relation("VarianceReporter", fields: [reportedById], references: [id])
 
   @@index([enrollmentId])
+}
+
+model CareTask {
+  id              Int            @id @default(autoincrement())
+  enrollmentId    Int
+  stepId          Int
+  title           String
+  description     String?
+  type            CareTaskType   @default(OTHER)
+  status          CareTaskStatus @default(PENDING)
+  assignedToId    Int?           
+  completedById   Int?
+  completedAt     DateTime?
+  notes           String?
+  createdAt       DateTime       @default(now())
+
+  enrollment      PathwayEnrollment   @relation(fields: [enrollmentId], references: [id])
+  step            ClinicalPathwayStep @relation(fields: [stepId], references: [id])
+  assignedTo      User?               @relation("TaskAssignedTo", fields: [assignedToId], references: [id])
+  completedBy     User?               @relation("TaskCompletedBy", fields: [completedById], references: [id])
+
+  @@index([enrollmentId])
+  @@index([status])
+  @@index([assignedToId])
+}
+
+enum CareTaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  SKIPPED
+}
+
+enum CareTaskType {
+  ASSESSMENT
+  MEDICATION_CHECK
+  PATIENT_EDUCATION
+  MONITORING
+  OTHER
 }
 
 model OrderSetReviewEvent {

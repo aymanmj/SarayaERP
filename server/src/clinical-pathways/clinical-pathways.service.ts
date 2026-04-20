@@ -650,13 +650,27 @@ export class ClinicalPathwaysService {
 
     this.logger.log(`Patient ${encounter.patient.fullName} enrolled in pathway "${pathway.name}"`);
 
-    const day0Steps = pathway.steps.filter((step) => step.dayNumber === 0 && step.orderSetId);
+    const day0Steps = pathway.steps.filter((step) => step.dayNumber === 0);
     for (const step of day0Steps) {
-      try {
-        await this.orderSetsService.execute(hospitalId, userId, step.orderSetId!, encounterId);
-        this.logger.log(`Auto-executed order set for Day 0 step: ${step.title}`);
-      } catch (err: any) {
-        this.logger.warn(`Failed to auto-execute Day 0 order set: ${err.message}`);
+      if (step.orderSetId) {
+        try {
+          await this.orderSetsService.execute(hospitalId, userId, step.orderSetId, encounterId);
+          this.logger.log(`Auto-executed order set for Day 0 step: ${step.title}`);
+        } catch (err: any) {
+          this.logger.warn(`Failed to auto-execute Day 0 order set: ${err.message}`);
+        }
+      }
+
+      const tasksList = step.milestones ? step.milestones.split('\\n').map(t => t.trim()).filter(Boolean) : [step.title];
+      for (const t of tasksList) {
+        await this.prisma.careTask.create({
+          data: {
+            enrollmentId: enrollment.id,
+            stepId: step.id,
+            title: t,
+            type: t.toLowerCase().includes('med') ? 'MEDICATION_CHECK' : (t.toLowerCase().includes('assess') ? 'ASSESSMENT' : 'MONITORING'),
+          }
+        });
       }
     }
 
@@ -700,15 +714,43 @@ export class ClinicalPathwaysService {
     const enrollment = await this.getEnrollment(id);
     if (enrollment.status !== 'ACTIVE') throw new ForbiddenException('المسار غير نشط');
 
+    // 1. Variance Enforcement Check 
+    const pendingTasks = await this.prisma.careTask.count({
+      where: { 
+        enrollmentId: id,
+        status: { in: ['PENDING', 'IN_PROGRESS'] },
+        step: { dayNumber: enrollment.currentDay }
+      }
+    });
+
+    if (pendingTasks > 0) {
+      throw new ForbiddenException('لا يمكن الدفع لليوم التالي. توجد مهام رعاية سريرية لم تكتمل لهذا اليوم. يجب تقييد خرق بروتوكول (Variance) أو إكمال المهام أولاً.');
+    }
+
     const nextDay = enrollment.currentDay + 1;
     const maxDay = Math.max(...enrollment.pathway.steps.map((step) => step.dayNumber));
 
-    const nextDaySteps = enrollment.pathway.steps.filter((step) => step.dayNumber === nextDay && step.orderSetId);
+    const nextDaySteps = enrollment.pathway.steps.filter((step) => step.dayNumber === nextDay);
     for (const step of nextDaySteps) {
-      try {
-        await this.orderSetsService.execute(hospitalId, userId, step.orderSetId!, enrollment.encounterId);
-      } catch (err: any) {
-        this.logger.warn(`Failed to auto-execute order set for Day ${nextDay}: ${err.message}`);
+      if (step.orderSetId) {
+        try {
+          await this.orderSetsService.execute(hospitalId, userId, step.orderSetId, enrollment.encounterId);
+        } catch (err: any) {
+          this.logger.warn(`Failed to auto-execute order set for Day ${nextDay}: ${err.message}`);
+        }
+      }
+
+      // Generate Tasks for next day
+      const tasksList = step.milestones ? step.milestones.split('\\n').map(t => t.trim()).filter(Boolean) : [step.title];
+      for (const t of tasksList) {
+        await this.prisma.careTask.create({
+          data: {
+            enrollmentId: enrollment.id,
+            stepId: step.id,
+            title: t,
+            type: t.toLowerCase().includes('med') ? 'MEDICATION_CHECK' : (t.toLowerCase().includes('assess') ? 'ASSESSMENT' : 'MONITORING'),
+          }
+        });
       }
     }
 

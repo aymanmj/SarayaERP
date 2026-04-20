@@ -8,14 +8,7 @@ distributor:
         http:
         grpc:
 
-ingester:
-  max_block_duration: 5m
 
-compactor:
-  compaction:
-    compaction_window: 1h
-    max_block_bytes: 100_000_000
-    block_retention: 168h # 7 days retention
 
 metrics_generator:
   registry:
