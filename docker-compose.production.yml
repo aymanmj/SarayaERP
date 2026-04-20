@@ -61,6 +61,7 @@ services:
       DATABASE_URL: "postgresql://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-saraya_erp}?schema=public"
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-86400s}
+      OTLP_ENDPOINT: "http://saraya_otel_collector:4318/v1/traces"
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD}
@@ -169,8 +170,8 @@ services:
     networks:
       - saraya_net
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8001/status > /dev/null || exit 1"]
-      interval: 30s
+      test: ["CMD", "kong", "health"]
+      interval: 10s
       timeout: 10s
       retries: 3
     logging: *default_logging
@@ -360,6 +361,67 @@ services:
     networks:
       - saraya_net
 
+  # Loki - Centralized Logging
+  loki:
+    image: grafana/loki:latest
+    container_name: saraya_loki
+    restart: always
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./monitoring/loki-config.yml:/etc/loki/local-config.yaml:ro
+      - loki_data:/loki
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - saraya_net
+
+  # Promtail - Log Shipping from Docker
+  promtail:
+    image: grafana/promtail:latest
+    container_name: saraya_promtail
+    restart: always
+    volumes:
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./monitoring/promtail-config.yml:/etc/promtail/config.yml:ro
+    command: -config.file=/etc/promtail/config.yml
+    networks:
+      - saraya_net
+    depends_on:
+      - loki
+
+  # Tempo - Distributed Tracing
+  tempo:
+    image: grafana/tempo:latest
+    container_name: saraya_tempo
+    restart: always
+    command: -config.file=/etc/tempo.yaml
+    ports:
+      - "3200:3200"   # Tempo Server
+    volumes:
+      - ./monitoring/tempo-config.yml:/etc/tempo.yaml:ro
+      - tempo_data:/tmp/tempo
+    networks:
+      - saraya_net
+
+  # OpenTelemetry Collector - unified receiver
+  otel-collector:
+    image: otel/opentelemetry-collector:latest
+    container_name: saraya_otel_collector
+    restart: always
+    command: ["--config=/etc/otel-collector-config.yml"]
+    volumes:
+      - ./monitoring/otel-collector-config.yml:/etc/otel-collector-config.yml:ro
+    ports:
+      - "4317:4317"  # OTLP gRPC (Receiver)
+      - "4318:4318"  # OTLP HTTP (Receiver)
+      - "8889:8889"   # Prometheus metrics exporter
+    depends_on:
+      - tempo
+      - prometheus
+    networks:
+      - saraya_net
+
 
   # ==========================================
   # 6. أدوات الإدارة عن بعد
@@ -405,6 +467,8 @@ volumes:
   alertmanager_data:
   tailscale_data:
   vault_data_v2:
+  loki_data:
+  tempo_data:
 
 networks:
   saraya_net:
