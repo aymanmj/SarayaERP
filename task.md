@@ -13,3 +13,15 @@
 ## 🛌 مسارات العناية المرجعية (ICU/Nursing/OR Workflows)
 - `[x]` ترقية `icu.service.ts` ليتضمن (Fluid Balance Flowsheet) وحساب تفصيلي وتتبع الخطوط.
 - `[x]` هيكلة تدفق عمل غرفة العمليات (OR - Pre/Intra/Post-op) في `surgery.service.ts`.
+
+## 1. اختبارات الوحدة (Unit Tests - CDSS)
+- `[x]` إعداد ملف `server/src/cdss/cdss.service.spec.ts`.
+- `[x]` برمجة (Mocking) متقدم لـ `PrismaService` لعزل بيئة قاعدة البيانات عن الاختبار.
+- `[x]` إضافة سيناريوهات الدقة الحسابية لمعادلة (Cockcroft-Gault) و (Renal Adjustment).
+- `[x]` تشغيل `npm run test` والتأكد من نجاحها بالكامل.
+
+## 2. اختبارات التكامل (E2E Tests - FHIR)
+- `[x]` إعداد ملف `server/test/e2e/fhir.e2e-spec.ts`.
+- `[x]` اختبار مسار `SMART Configuration`.
+- `[x]` اختبار العزل السريري بإرسال (Patient Context) ومحاولة اختراقه.
+- `[x]` تشغيل `npm run test:e2e` وتأكيد النجاح (في بيئة CI/CD المحتوية على خوادم Redis).
