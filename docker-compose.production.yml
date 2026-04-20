@@ -314,11 +314,10 @@ services:
     container_name: saraya_prometheus
     restart: always
     volumes:
-      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - ./monitoring/alert.rules.yml:/etc/prometheus/alert.rules.yml:ro
+      - ./monitoring:/etc/prometheus_config:ro
       - prometheus_data:/prometheus
     command:
-      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--config.file=/etc/prometheus_config/prometheus.yml"
       - "--storage.tsdb.path=/prometheus"
       - "--storage.tsdb.retention.time=15d"
     networks:
@@ -353,10 +352,10 @@ services:
     ports:
       - "9093:9093"
     volumes:
-      - ./monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - ./monitoring:/etc/alertmanager_config:ro
       - alertmanager_data:/alertmanager
     command:
-      - "--config.file=/etc/alertmanager/alertmanager.yml"
+      - "--config.file=/etc/alertmanager_config/alertmanager.yml"
       - "--storage.path=/alertmanager"
     networks:
       - saraya_net
@@ -369,9 +368,9 @@ services:
     ports:
       - "3100:3100"
     volumes:
-      - ./monitoring/loki-config.yml:/etc/loki/local-config.yaml:ro
+      - ./monitoring:/etc/loki_config:ro
       - loki_data:/loki
-    command: -config.file=/etc/loki/local-config.yaml
+    command: -config.file=/etc/loki_config/loki-config.yml
     networks:
       - saraya_net
 
@@ -383,8 +382,8 @@ services:
     volumes:
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./monitoring/promtail-config.yml:/etc/promtail/config.yml:ro
-    command: -config.file=/etc/promtail/config.yml
+      - ./monitoring:/etc/promtail_config:ro
+    command: -config.file=/etc/promtail_config/promtail-config.yml
     networks:
       - saraya_net
     depends_on:
@@ -395,11 +394,11 @@ services:
     image: grafana/tempo:latest
     container_name: saraya_tempo
     restart: always
-    command: -config.file=/etc/tempo.yaml
+    command: -config.file=/etc/tempo_config/tempo-config.yml
     ports:
       - "3200:3200"   # Tempo Server
     volumes:
-      - ./monitoring/tempo-config.yml:/etc/tempo.yaml:ro
+      - ./monitoring:/etc/tempo_config:ro
       - tempo_data:/tmp/tempo
     networks:
       - saraya_net
@@ -409,9 +408,9 @@ services:
     image: otel/opentelemetry-collector:latest
     container_name: saraya_otel_collector
     restart: always
-    command: ["--config=/etc/otel-collector-config.yml"]
+    command: ["--config=/etc/otel_config/otel-collector-config.yml"]
     volumes:
-      - ./monitoring/otel-collector-config.yml:/etc/otel-collector-config.yml:ro
+      - ./monitoring:/etc/otel_config:ro
     ports:
       - "4317:4317"  # OTLP gRPC (Receiver)
       - "4318:4318"  # OTLP HTTP (Receiver)
