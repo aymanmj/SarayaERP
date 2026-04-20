@@ -15,6 +15,7 @@ import {
   Gender,
   TerminologySystem,
 } from '@prisma/client';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 // ======================== Types ========================
 
@@ -72,6 +73,7 @@ export class CDSSService {
   constructor(
     private prisma: PrismaService,
     private terminologyService: TerminologyService,
+    private eventEmitter: EventEmitter2,
   ) {}
 
   // ======================== 1. Drug-Drug Interactions ========================
@@ -525,7 +527,7 @@ export class CDSSService {
       throw new Error('يجب تقديم سبب واضح للتجاوز (10 أحرف على الأقل)');
     }
 
-    return this.prisma.cDSSAlert.update({
+    const updatedAlert = await this.prisma.cDSSAlert.update({
       where: { id: alertId },
       data: {
         status: CDSSAlertStatus.OVERRIDDEN,
@@ -534,6 +536,20 @@ export class CDSSService {
         overrideReason: reason,
       },
     });
+
+    if (updatedAlert.severity === CDSSAlertSeverity.CRITICAL || updatedAlert.severity === CDSSAlertSeverity.HIGH) {
+      this.eventEmitter.emit('clinical.variance.cdss', {
+        hospitalId: updatedAlert.hospitalId,
+        patientId: updatedAlert.patientId,
+        alertId: updatedAlert.id,
+        alertType: updatedAlert.alertType,
+        severity: updatedAlert.severity,
+        acknowledgedById: userId,
+        overrideReason: reason,
+      });
+    }
+
+    return updatedAlert;
   }
 
   // ======================== 8. Integration Methods ========================

@@ -11,10 +11,14 @@ import {
   AdministrationStatus,
   CareTaskStatus,
 } from '@prisma/client';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 @Injectable()
 export class NursingService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private eventEmitter: EventEmitter2
+  ) {}
 
   // 1. جلب قائمة المرضى في عنبر معين (أو كل العنابر) - Ward Dashboard
   async getInpatients(hospitalId: number, wardId?: number) {
@@ -251,7 +255,7 @@ export class NursingService {
     }
 
     // بناءً على قواعد HIMSS، يجب توثيق كل عملية إعطاء.
-    return this.prisma.medicationAdministration.create({
+    const record = await this.prisma.medicationAdministration.create({
       data: {
         hospitalId,
         encounterId,
@@ -268,6 +272,20 @@ export class NursingService {
         administeredAt: new Date(),
       },
     });
+
+    if (!verification.isVerified5Rights && isEmergencyOverride) {
+      this.eventEmitter.emit('clinical.variance.clma', {
+        hospitalId,
+        encounterId,
+        performerId: userId,
+        varianceReason,
+        prescribedBarcode: verification.expectedDrugBarcode,
+        scannedBarcode: drugBarcode,
+        administrationId: record.id,
+      });
+    }
+
+    return record;
   }
 
   // 4. إضافة ملاحظة تمريض

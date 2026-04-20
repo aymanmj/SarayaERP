@@ -9,6 +9,23 @@ export default defineConfig({
   build: {
     sourcemap: false,
     chunkSizeWarningLimit: 900,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom', 'zustand'],
+          'vendor-ui': [
+            '@radix-ui/react-label',
+            '@radix-ui/react-popover',
+            '@radix-ui/react-select',
+            '@radix-ui/react-slot',
+            'flowbite',
+            'lucide-react',
+            'recharts'
+          ],
+          'vendor-utils': ['axios', 'date-fns', '@tanstack/react-query', 'socket.io-client']
+        }
+      }
+    }
   },
   // ✅ هذا الجزء الجديد لحل مشاكل مكتبات الأشعة
   optimizeDeps: {

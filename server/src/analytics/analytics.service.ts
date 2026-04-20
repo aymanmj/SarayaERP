@@ -82,4 +82,109 @@ export class AnalyticsService {
       lastUpdated: new Date(),
     };
   }
+
+  // -----------------------------------------------------------------------
+  // 🟢 Clinical Variance Tracking & Analytics - HIMSS Stage 6/7 Target
+  // -----------------------------------------------------------------------
+  async getClinicalVarianceReport(hospitalId: number, startDate: Date, endDate: Date) {
+    // 1. CDSS Overrides (أطباء يتجاوزون تنبيهات النظام)
+    const cdssOverrides = await this.prisma.cDSSAlert.findMany({
+      where: {
+        hospitalId,
+        status: 'OVERRIDDEN',
+        acknowledgedAt: {
+          gte: startDate,
+          lte: endDate,
+        },
+      },
+      include: {
+        acknowledgedBy: { select: { fullName: true, department: { select: { name: true } } } },
+      },
+    });
+
+    const cpoeMetrics = {
+      totalOverrides: cdssOverrides.length,
+      bySeverity: {
+        CRITICAL: cdssOverrides.filter((a) => a.severity === 'CRITICAL').length,
+        HIGH: cdssOverrides.filter((a) => a.severity === 'HIGH').length,
+        MODERATE: cdssOverrides.filter((a) => a.severity === 'MODERATE').length,
+      },
+      byDepartment: cdssOverrides.reduce((acc, alert) => {
+        const dept = alert.acknowledgedBy?.department?.name || 'Unknown';
+        acc[dept] = (acc[dept] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>),
+      recentExamples: cdssOverrides.slice(0, 5).map((a) => ({
+        alertType: a.alertType,
+        doctor: a.acknowledgedBy?.fullName,
+        reason: a.overrideReason,
+        date: a.acknowledgedAt,
+      })),
+    };
+
+    // 2. CLMA Overrides (تمريض يتجاوزون باركود المرضى أو الأدوية)
+    const clmaOverrides = await this.prisma.medicationAdministration.findMany({
+      where: {
+        hospitalId,
+        isEmergencyOverride: true,
+        administeredAt: {
+          gte: startDate,
+          lte: endDate,
+        },
+      },
+      include: {
+        performer: { select: { fullName: true, department: { select: { name: true } } } },
+        prescriptionItem: { include: { product: { select: { name: true } } } },
+      },
+    });
+
+    const nursingMetrics = {
+      totalOverrides: clmaOverrides.length,
+      byDoctorOrNurse: clmaOverrides.reduce((acc, admin) => {
+        const name = admin.performer?.fullName || 'Unknown';
+        acc[name] = (acc[name] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>),
+      recentExamples: clmaOverrides.slice(0, 5).map((a) => ({
+        nurse: a.performer?.fullName,
+        drug: a.prescriptionItem?.product?.name,
+        reason: a.varianceReason,
+        date: a.administeredAt,
+      })),
+    };
+
+    // 3. Clinical Pathway Non-Compliance (مهام سريرية تم تخطيها)
+    const skippedTasks = await this.prisma.careTask.findMany({
+      where: {
+        enrollment: { pathway: { hospitalId } },
+        status: 'SKIPPED',
+        completedAt: {
+          gte: startDate,
+          lte: endDate,
+        },
+      },
+      include: {
+        completedBy: { select: { fullName: true } },
+        step: { select: { title: true } },
+      },
+    });
+
+    const pathwayMetrics = {
+      totalSkippedTasks: skippedTasks.length,
+      recentExamples: skippedTasks.slice(0, 5).map((t) => ({
+        task: t.step?.title,
+        skippedBy: t.completedBy?.fullName,
+        reason: t.notes,
+        date: t.completedAt,
+      })),
+    };
+
+    return {
+      period: { startDate, endDate },
+      cpoeAlertFatigue: cpoeMetrics,
+      clmaComplianceRisks: nursingMetrics,
+      pathwayDeviations: pathwayMetrics,
+      generationDate: new Date(),
+    };
+  }
 }

@@ -16,7 +16,7 @@
 
 * **رفع الجودة إلى مستوى مؤسسي:**
   * ⏳ اختبارات شاملة: E2E, Contract tests, Regression suites.
-  * ⬜ اختبارات تحمل وأداء (Performance/Load tests).
+  * ✅ اختبارات تحمل وأداء (Performance/Load tests).
 * **توحيد الهوية والصلاحيات:**
   * ✅ تطبيق أمن معماري قوي (RBAC + ABAC).
   * ✅ فصل تام في الـ Tokens (Staff / Patient / System).
@@ -27,10 +27,10 @@
 * **المراقبة والاستقرار التشغيلي (Observability):**
   * ✅ تطبيق معايير OpenTelemetry وتتبع العمليات الموزعة حياً عبر Tempo (LGTM Stack).
   * ✅ نظام مراقبة مركزي (Prometheus) لتجميع المقاييس وسجلات Loki.
-  * ⬜ نشر آمن بلا توقف (Blue/Green deployments, Zero-downtime migrations).
-  * ⬜ تدريبات التعافي من الكوارث (Disaster recovery drills).
+  * ✅ نشر آمن بلا توقف (Blue/Green deployments, Zero-downtime migrations).
+  * ✅ تدريبات التعافي من الكوارث (Disaster recovery drills).
 * **تحسين الأداء:**
-  * ⬜ تحسين استعلامات قواعد البيانات (Indexing) وتقطيع واجهة المستخدم (Chunking).
+  * ✅ تحسين استعلامات قواعد البيانات (Indexing) وتقطيع واجهة المستخدم (Chunking).
 
 ---
 
@@ -39,14 +39,14 @@
 
 * **تقوية مسارات العمل (Workflows) الحرجة:**
   * ✅ مسارات الرعاية والبروتوكولات (Clinical Pathways & Care Plans).
-  * ⬜ إدارة الأدوية ذات الحلقة المغلقة (Closed-Loop Medication Administration - CLMA / Barcode).
-  * ⬜ أوامر الطبيب الإلكترونية المحكمة (CPOE).
+  * ✅ إدارة الأدوية ذات الحلقة المغلقة (Closed-Loop Medication Administration - CLMA / Barcode).
+  * ✅ أوامر الطبيب الإلكترونية المحكمة (CPOE).
 * **بناء طبقة مصطلحات (Terminology Layer):**
   * ✅ دمج وصيانة الترميز العالمي (ICD-10, SNOMED CT, LOINC, ATC).
 * **نظام دعم القرار السريري (CDSS):**
   * ✅ التنبيهات المتقدمة: تداخل الأدوية، تضارب الحساسية، الجرعات المزدوجة، فحص وظائف الكلى.
 * **إدارة الجودة السريرية (Clinical Governance):**
-  * ⏳ تتبع الانحراف عن البروتوكولات (Variance tracking).
+  * ✅ تتبع الانحراف عن البروتوكولات (Variance tracking).
 
 ---
 

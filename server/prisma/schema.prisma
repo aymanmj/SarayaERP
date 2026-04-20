@@ -207,6 +207,10 @@ model Invoice {
   returns             Invoice[]          @relation("InvoiceReturns")
   patient             Patient            @relation(fields: [patientId], references: [id])
   payments            Payment[]
+
+  @@index([hospitalId, status])
+  @@index([patientId])
+  @@index([encounterId])
 }
 
 model Payment {
@@ -221,6 +225,8 @@ model Payment {
   cashier    User?         @relation("UserCashierPayments", fields: [cashierId], references: [id])
   hospital   Hospital      @relation(fields: [hospitalId], references: [id])
   invoice    Invoice       @relation(fields: [invoiceId], references: [id])
+
+  @@index([hospitalId, invoiceId])
 }
 
 model User {
@@ -1841,6 +1847,9 @@ model AuditLog {
   action     String
   hospital   Hospital? @relation(fields: [hospitalId], references: [id])
   user       User?     @relation(fields: [userId], references: [id])
+
+  @@index([hospitalId, userId, action])
+  @@index([entity, entityId])
 }
 
 model DoctorSchedule {
@@ -1970,6 +1979,7 @@ model Account {
 
   @@unique([hospitalId, code])
   @@index([hospitalId, type])
+  @@index([parentId])
 }
 
 model AccountingEntry {
@@ -2017,6 +2027,7 @@ model AccountingEntryLine {
 
   @@index([accountId])
   @@index([entryId])
+  @@index([costCenterId])
 }
 
 model CashierShiftClosing {
