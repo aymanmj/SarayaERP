@@ -1,5 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { ClsService } from 'nestjs-cls';
+import { siemLogger } from '../audit/siem.logger';
 
 // List of tables to skip auditing
 const SKIP_MODELS = ['AuditLog', 'Session', 'SystemSetting'];
@@ -19,17 +20,25 @@ export const auditExtension = (cls: ClsService, rootPrisma: any) => {
           const ipAddress = cls.isActive() ? cls.get('ipAddress') : null;
 
           if (userId) {
-            // Save audit log asynchronously
+            const auditPayload = {
+              userId,
+              hospitalId,
+              action: 'CREATE',
+              entity: model,
+              entityId: result.id || null,
+              ipAddress,
+              newValues: args.data as any,
+            };
+            
+            // 1- SIEM Logger (Stream to Console for Promtail)
+            siemLogger.info({
+              message: 'AUDIT_TRAIL',
+              ...auditPayload
+            });
+
+            // 2- Save audit log asynchronously
             rootPrisma.auditLog.create({
-              data: {
-                userId,
-                hospitalId,
-                action: 'CREATE',
-                entity: model,
-                entityId: result.id || null,
-                ipAddress,
-                newValues: args.data as any,
-              },
+              data: auditPayload,
             }).catch(console.error);
           }
 
@@ -69,17 +78,25 @@ export const auditExtension = (cls: ClsService, rootPrisma: any) => {
                }
             }
 
+            const auditPayload = {
+              userId,
+              hospitalId,
+              action: 'UPDATE',
+              entity: model,
+              entityId: result.id || null,
+              ipAddress,
+              oldValues: oldValues,
+              newValues: changedValues, // Store exactly what changed
+            };
+
+            // 1- SIEM Logger
+            siemLogger.info({
+              message: 'AUDIT_TRAIL',
+              ...auditPayload
+            });
+
             rootPrisma.auditLog.create({
-              data: {
-                userId,
-                hospitalId,
-                action: 'UPDATE',
-                entity: model,
-                entityId: result.id || null,
-                ipAddress,
-                oldValues: oldValues,
-                newValues: changedValues, // Store exactly what changed
-              },
+              data: auditPayload,
             }).catch(console.error);
           }
 
@@ -101,16 +118,24 @@ export const auditExtension = (cls: ClsService, rootPrisma: any) => {
           const ipAddress = cls.isActive() ? cls.get('ipAddress') : null;
 
           if (userId && originalRecord) {
+            const auditPayload = {
+              userId,
+              hospitalId,
+              action: 'DELETE',
+              entity: model,
+              entityId: result.id || null,
+              ipAddress,
+              oldValues: originalRecord,
+            };
+
+            // 1- SIEM Logger
+            siemLogger.warn({
+              message: 'AUDIT_TRAIL',
+              ...auditPayload
+            });
+
             rootPrisma.auditLog.create({
-              data: {
-                userId,
-                hospitalId,
-                action: 'DELETE',
-                entity: model,
-                entityId: result.id || null,
-                ipAddress,
-                oldValues: originalRecord,
-              },
+              data: auditPayload,
             }).catch(console.error);
           }
 

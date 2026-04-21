@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
+import { siemLogger } from './siem.logger';
 
 interface AuditLogOptions {
   hospitalId?: number | null;
@@ -19,6 +20,13 @@ export class AuditService {
 
   async log(options: AuditLogOptions): Promise<void> {
     try {
+      // 1- SIEM Logger (Stream to Console for Promtail)
+      siemLogger.info({
+        message: 'AUDIT_TRAIL',
+        ...options
+      });
+
+      // 2- DB Storage
       await this.prisma.auditLog.create({
         data: {
           hospitalId: options.hospitalId ?? null,
@@ -44,6 +52,13 @@ export class AuditService {
    */
   async logCritical(options: AuditLogOptions): Promise<void> {
     try {
+      // 1- SIEM Logger (Stream to Console for Promtail)
+      siemLogger.warn({
+        message: 'CRITICAL_AUDIT_TRAIL',
+        ...options
+      });
+
+      // 2- DB Storage
       await this.prisma.auditLog.create({
         data: {
           hospitalId: options.hospitalId ?? null,
