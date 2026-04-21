@@ -19,6 +19,15 @@ async function bootstrap() {
   const expressApp = app.getHttpAdapter().getInstance();
   expressApp.set('trust proxy', 1);
 
+  // Increase the default max listeners to prevent MaxListenersExceededWarning.
+  // Our middleware stack (OpenTelemetry, CLS, Helmet, CORS, Prometheus, ThrottlerGuard,
+  // AuditInterceptor, etc.) legitimately adds 11+ 'finish' listeners per response.
+  // This is expected behavior, not a memory leak.
+  const httpServer = app.getHttpServer();
+  httpServer.on('request', (_req: any, res: any) => {
+    res.setMaxListeners(20);
+  });
+
   // ============================================
   // 🌍 GLOBAL PREFIX
   // ============================================
