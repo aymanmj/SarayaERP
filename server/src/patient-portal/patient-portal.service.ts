@@ -533,6 +533,8 @@ export class PatientPortalService {
       outstandingBalance,
       activeAllergies,
       activeMedications,
+      unreadMessages,
+      pendingRefills,
     ] = await Promise.all([
       // Profile
       this.prisma.patient.findUnique({
@@ -606,6 +608,23 @@ export class PatientPortalService {
           },
         },
       }),
+
+      // Unread messages count
+      this.prisma.patientMessage.count({
+        where: {
+          patientId,
+          direction: 'DOCTOR_TO_PATIENT',
+          isRead: false,
+        },
+      }),
+
+      // Pending refill requests count
+      this.prisma.medicationRefillRequest.count({
+        where: {
+          patientId,
+          status: 'PENDING',
+        },
+      }),
     ]);
 
     // Calculate balance
@@ -631,6 +650,12 @@ export class PatientPortalService {
       },
       allergies: activeAllergies,
       activeMedications: activeMedications.length,
+      messaging: {
+        unreadCount: unreadMessages,
+      },
+      refills: {
+        pendingCount: pendingRefills,
+      },
       insurance: profile?.insurancePolicy
         ? {
             provider: profile.insurancePolicy.provider?.name,

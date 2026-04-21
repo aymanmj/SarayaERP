@@ -19,6 +19,8 @@ import { AppointmentsModule } from '../appointments/appointments.module';
 // Service Layer
 import { PatientPortalService } from './patient-portal.service';
 import { PatientOtpService } from './auth/patient-otp.service';
+import { PortalMessagingService } from './messaging/portal-messaging.service';
+import { PortalRefillService } from './refill/portal-refill.service';
 
 // Controllers
 import { PortalAuthController } from './controllers/portal-auth.controller';
@@ -26,6 +28,8 @@ import { PortalMedicalController } from './controllers/portal-medical.controller
 import { PortalAppointmentsController } from './controllers/portal-appointments.controller';
 import { PortalFinancialController } from './controllers/portal-financial.controller';
 import { PortalFhirExportController } from './controllers/portal-fhir-export.controller';
+import { PortalMessagingController } from './controllers/portal-messaging.controller';
+import { PortalRefillController } from './controllers/portal-refill.controller';
 
 // Auth infrastructure
 import { PatientAuthGuard } from './auth/patient-auth.guard';
@@ -51,11 +55,15 @@ import { PatientAuthGuard } from './auth/patient-auth.guard';
     PortalAppointmentsController,
     PortalFinancialController,
     PortalFhirExportController,
+    PortalMessagingController,
+    PortalRefillController,
   ],
   providers: [
     PatientPortalService,
     PatientOtpService,
     PatientAuthGuard,
+    PortalMessagingService,
+    PortalRefillService,
   ],
   exports: [PatientPortalService],
 })

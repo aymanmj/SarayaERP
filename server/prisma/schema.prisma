@@ -107,6 +107,10 @@ model Hospital {
   // Order Sets & Clinical Pathways
   orderSets        OrderSet[]
   clinicalPathways ClinicalPathway[]
+
+  // Patient Portal — Messaging & Refills
+  patientMessages        PatientMessage[]
+  medicationRefillRequests MedicationRefillRequest[]
 }
 
 model Department {
@@ -372,6 +376,10 @@ model User {
   pathwayVariances        PathwayVariance[]   @relation("VarianceReporter")
   assignedCareTasks       CareTask[]          @relation("TaskAssignedTo")
   completedCareTasks      CareTask[]          @relation("TaskCompletedBy")
+
+  // Patient Portal — Messaging & Refills
+  patientMessagesAsDoctor  PatientMessage[]          @relation("DoctorPatientMessages")
+  reviewedRefillRequests   MedicationRefillRequest[] @relation("RefillReviewer")
 }
 
 model RefreshToken {
@@ -509,6 +517,8 @@ model Patient {
   // Patient Portal
   portalOtps          PatientOtp[]
   portalRefreshTokens PatientRefreshToken[]
+  portalMessages      PatientMessage[]
+  refillRequests      MedicationRefillRequest[]
 
   @@index([hospitalId, phone])
   @@index([hospitalId, fullName])
@@ -1754,6 +1764,7 @@ model Prescription {
   patient                      Patient                      @relation(fields: [patientId], references: [id])
   verifiedBy                   User?                        @relation("PharmacyVerifier", fields: [verifiedById], references: [id])
   items                        PrescriptionItem[]
+  refillRequests               MedicationRefillRequest[]
 
   @@index([hospitalId, status])
   @@index([patientId])
@@ -4653,4 +4664,70 @@ model TerminologyConcept {
   @@unique([system, code])
   @@index([system])
   @@index([code])
+}
+
+// ============================================
+// Patient Portal — Secure Messaging
+// ============================================
+
+enum MessageDirection {
+  PATIENT_TO_DOCTOR
+  DOCTOR_TO_PATIENT
+  SYSTEM_NOTIFICATION
+}
+
+model PatientMessage {
+  id          Int              @id @default(autoincrement())
+  threadId    String           @default(uuid())
+  patientId   Int
+  doctorId    Int?
+  hospitalId  Int
+  direction   MessageDirection
+  subject     String?
+  body        String
+  isRead      Boolean          @default(false)
+  readAt      DateTime?
+  attachments Json?
+  createdAt   DateTime         @default(now())
+
+  patient  Patient  @relation(fields: [patientId], references: [id])
+  doctor   User?    @relation("DoctorPatientMessages", fields: [doctorId], references: [id])
+  hospital Hospital @relation(fields: [hospitalId], references: [id])
+
+  @@index([patientId, createdAt])
+  @@index([doctorId, isRead])
+  @@index([threadId])
+}
+
+// ============================================
+// Patient Portal — Medication Refill Requests
+// ============================================
+
+enum RefillStatus {
+  PENDING
+  APPROVED
+  DENIED
+  DISPENSED
+}
+
+model MedicationRefillRequest {
+  id             Int          @id @default(autoincrement())
+  patientId      Int
+  prescriptionId Int
+  hospitalId     Int
+  status         RefillStatus @default(PENDING)
+  notes          String?
+  reviewedById   Int?
+  reviewedAt     DateTime?
+  reviewNotes    String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  patient      Patient      @relation(fields: [patientId], references: [id])
+  prescription Prescription @relation(fields: [prescriptionId], references: [id])
+  hospital     Hospital     @relation(fields: [hospitalId], references: [id])
+  reviewedBy   User?        @relation("RefillReviewer", fields: [reviewedById], references: [id])
+
+  @@index([patientId, status])
+  @@index([hospitalId, status])
 }

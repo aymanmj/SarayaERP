@@ -18,6 +18,8 @@ import { ClinicalRoutes } from "./routes/ClinicalRoutes";
 import { FinanceRoutes } from "./routes/FinanceRoutes";
 import { AdminRoutes } from "./routes/AdminRoutes";
 import { InventoryRoutes } from "./routes/InventoryRoutes";
+import { PortalRoutes } from "./routes/PortalRoutes";
+import { usePortalAuthStore } from "./stores/portalAuthStore";
 
 // 3. Core Dashboard
 const DashboardPage = lazy(() =>
@@ -43,6 +45,7 @@ const PageLoader = () => (
 // Hydrate Session
 if (typeof window !== "undefined") {
   useAuthStore.getState().hydrateFromStorage();
+  usePortalAuthStore.getState().hydrateFromStorage();
 }
 
 // React Query
@@ -74,6 +77,9 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
             <Route path="/invoices/:id/print" element={<InvoicePrintCleanPage />} />
             <Route path="/invoices/:id/pdf" element={<InvoicePrintPDFPage />} />
             <Route path="/payments/:id/receipt/print" element={<PaymentReceiptPrintPage />} />
+
+            {/* Patient Portal Routes */}
+            {PortalRoutes}
 
             {/* Protected Routes */}
             <Route element={<ProtectedRoute />}>

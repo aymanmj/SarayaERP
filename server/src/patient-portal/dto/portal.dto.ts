@@ -84,3 +84,44 @@ export class PaginationQueryDto {
   @Max(100)
   limit?: number = 20;
 }
+
+// ===========================================
+// MESSAGING DTOs
+// ===========================================
+
+export class SendMessageDto {
+  @ApiProperty({ example: 5, description: 'ID الطبيب المستلم' })
+  @IsInt()
+  doctorId: number;
+
+  @ApiPropertyOptional({ example: 'استفسار عن نتائج التحاليل' })
+  @IsOptional()
+  @IsString()
+  subject?: string;
+
+  @ApiProperty({ example: 'أريد الاستفسار عن نتائج تحاليل الدم الأخيرة', description: 'نص الرسالة' })
+  @IsString()
+  @IsNotEmpty()
+  body: string;
+
+  @ApiPropertyOptional({ example: 'abc-123-def', description: 'ID المحادثة للرد على محادثة قائمة' })
+  @IsOptional()
+  @IsString()
+  threadId?: string;
+}
+
+// ===========================================
+// REFILL DTOs
+// ===========================================
+
+export class RequestRefillDto {
+  @ApiProperty({ example: 12, description: 'ID الوصفة الطبية' })
+  @IsInt()
+  prescriptionId: number;
+
+  @ApiPropertyOptional({ example: 'أحتاج تجديد دواء الضغط' })
+  @IsOptional()
+  @IsString()
+  notes?: string;
+}
+
