@@ -23,6 +23,7 @@
 
 import { Injectable, BadRequestException, Logger, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { EncryptionService } from '../../common/encryption/encryption.service';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 
@@ -97,7 +98,10 @@ export class PatientOtpService {
   private readonly MAX_ATTEMPTS = 3;
   private readonly MAX_OTPS_PER_HOUR = 5;
 
-  constructor(private prisma: PrismaService) {
+  constructor(
+    private prisma: PrismaService,
+    private encryptionService: EncryptionService
+  ) {
     // Select channel based on environment
     const channelName = process.env.OTP_CHANNEL || 'console';
     
@@ -130,11 +134,10 @@ export class PatientOtpService {
 
     this.logger.debug(`Searching for patient - MRN: '${cleanMrn}', Phone: '${cleanPhone}'`);
 
-    // 1. Find patient by MRN + phone (prevents enumeration)
+    // 1. Find patient by MRN (case-insensitive)
     const patient = await this.prisma.patient.findFirst({
       where: {
         mrn: { equals: cleanMrn, mode: 'insensitive' },
-        phone: { endsWith: cleanPhone }, // Handle cases where country code might be present or absent
         isActive: true,
         isDeleted: false,
       },
@@ -142,8 +145,17 @@ export class PatientOtpService {
     });
 
     if (!patient) {
-      this.logger.warn(`Failed login attempt - MRN: '${cleanMrn}', Phone: '${cleanPhone}' (Patient not found or inactive)`);
-      // Intentionally vague error to prevent user enumeration
+      this.logger.warn(`Failed login attempt - MRN: '${cleanMrn}' not found or inactive.`);
+      throw new UnauthorizedException('بيانات غير صحيحة. تأكد من رقم الملف ورقم الهاتف.');
+    }
+
+    // 2. Validate phone number (ignore spaces, dashes, and country code)
+    const decryptedDbPhone = this.encryptionService.decrypt(patient.phone) || '';
+    const dbPhone = decryptedDbPhone.replace(/\D/g, '');
+    const inputPhone = cleanPhone.replace(/\D/g, '');
+
+    if (!dbPhone.endsWith(inputPhone) || inputPhone.length < 6) {
+      this.logger.warn(`Failed login attempt - MRN: '${cleanMrn}' exists, but phone mismatch. DB Phone (digits only): '${dbPhone}', Input: '${inputPhone}'`);
       throw new UnauthorizedException('بيانات غير صحيحة. تأكد من رقم الملف ورقم الهاتف.');
     }
 

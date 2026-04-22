@@ -15,6 +15,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { PrismaModule } from '../prisma/prisma.module';
 import { IntegrationModule } from '../integration/integration.module';
 import { AppointmentsModule } from '../appointments/appointments.module';
+import { EncryptionModule } from '../common/encryption/encryption.module';
 
 // Service Layer
 import { PatientPortalService } from './patient-portal.service';
@@ -49,6 +50,7 @@ import { PatientAuthGuard } from './auth/patient-auth.guard';
     }),
     forwardRef(() => IntegrationModule),
     AppointmentsModule,
+    EncryptionModule,
   ],
   controllers: [
     PortalAuthController,
