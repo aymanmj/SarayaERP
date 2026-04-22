@@ -129,7 +129,7 @@ export default function PortalLogin() {
                   لضمان وصول رمز التحقق (OTP) بشكل فوري، يرجى تفعيل بوت السرايا الطبي قبل تسجيل الدخول.
                 </p>
                 <a
-                  href={import.meta.env.VITE_TELEGRAM_BOT_URL || 'https://t.me/SarayaMedical_Bot'}
+                  href={import.meta.env.VITE_TELEGRAM_BOT_URL || 'https://t.me/SarayaMedBot'}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center justify-center w-full gap-2 px-4 py-2.5 bg-[#0088cc] hover:bg-[#0077b3] text-white text-sm font-medium rounded-lg transition-colors"
