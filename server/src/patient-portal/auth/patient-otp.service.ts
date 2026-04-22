@@ -125,11 +125,16 @@ export class PatientOtpService {
    * 6. Delivers via configured channel
    */
   async requestOtp(mrn: string, phone: string) {
+    const cleanMrn = mrn?.trim() || '';
+    const cleanPhone = phone?.trim().replace(/\s+/g, '') || '';
+
+    this.logger.debug(`Searching for patient - MRN: '${cleanMrn}', Phone: '${cleanPhone}'`);
+
     // 1. Find patient by MRN + phone (prevents enumeration)
     const patient = await this.prisma.patient.findFirst({
       where: {
-        mrn,
-        phone,
+        mrn: { equals: cleanMrn, mode: 'insensitive' },
+        phone: { endsWith: cleanPhone }, // Handle cases where country code might be present or absent
         isActive: true,
         isDeleted: false,
       },
@@ -137,6 +142,7 @@ export class PatientOtpService {
     });
 
     if (!patient) {
+      this.logger.warn(`Failed login attempt - MRN: '${cleanMrn}', Phone: '${cleanPhone}' (Patient not found or inactive)`);
       // Intentionally vague error to prevent user enumeration
       throw new UnauthorizedException('بيانات غير صحيحة. تأكد من رقم الملف ورقم الهاتف.');
     }
@@ -212,9 +218,15 @@ export class PatientOtpService {
    * - bcrypt comparison (timing-safe)
    */
   async verifyOtp(mrn: string, code: string) {
+    const cleanMrn = mrn?.trim() || '';
+
     // Find the patient
     const patient = await this.prisma.patient.findFirst({
-      where: { mrn, isActive: true, isDeleted: false },
+      where: { 
+        mrn: { equals: cleanMrn, mode: 'insensitive' }, 
+        isActive: true, 
+        isDeleted: false 
+      },
       select: { id: true, fullName: true, mrn: true, hospitalId: true },
     });
 

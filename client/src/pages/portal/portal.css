@@ -56,12 +56,12 @@
 /* --- Form Elements --- */
 .portal-input-group { margin-bottom: 1.25rem; text-align: right; }
 .portal-input-group label { display: block; font-size: 0.85rem; font-weight: 500; color: #94a3b8; margin-bottom: 0.5rem; }
-.portal-input-wrapper { display: flex; align-items: center; gap: 0.75rem; background: rgba(15,23,42,0.6); border: 1px solid rgba(148,163,184,0.15); border-radius: 12px; padding: 0 1rem; transition: border-color 0.2s; }
-.portal-input-wrapper:focus-within { border-color: #0ea5e9; box-shadow: 0 0 0 3px rgba(14,165,233,0.15); }
-.portal-input-wrapper input { flex: 1; background: none; border: none; color: #e2e8f0; font-size: 1rem; padding: 0.85rem 0; outline: none; font-family: inherit; }
-.portal-input-wrapper svg { color: #64748b; flex-shrink: 0; }
 .portal-input-group input, .portal-input-group select, .portal-input-group textarea { width: 100%; background: rgba(15,23,42,0.6); border: 1px solid rgba(148,163,184,0.15); border-radius: 12px; padding: 0.85rem 1rem; color: #e2e8f0; font-size: 0.95rem; font-family: inherit; outline: none; transition: border-color 0.2s; }
 .portal-input-group input:focus, .portal-input-group select:focus, .portal-input-group textarea:focus { border-color: #0ea5e9; box-shadow: 0 0 0 3px rgba(14,165,233,0.15); }
+.portal-input-wrapper { display: flex; align-items: center; gap: 0.75rem; background: rgba(15,23,42,0.6); border: 1px solid rgba(148,163,184,0.15); border-radius: 12px; padding: 0 1rem; transition: border-color 0.2s; }
+.portal-input-wrapper:focus-within { border-color: #0ea5e9; box-shadow: 0 0 0 3px rgba(14,165,233,0.15); }
+.portal-input-wrapper input { flex: 1; background: transparent !important; border: none !important; box-shadow: none !important; color: #e2e8f0; font-size: 1rem; padding: 0.85rem 0 !important; outline: none; font-family: inherit; }
+.portal-input-wrapper svg { color: #64748b; flex-shrink: 0; }
 .portal-submit-btn { width: 100%; padding: 0.9rem; background: linear-gradient(135deg, #0ea5e9, #2563eb); color: white; font-weight: 700; font-size: 1rem; border: none; border-radius: 12px; cursor: pointer; font-family: inherit; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
 .portal-submit-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(14,165,233,0.3); }
 .portal-submit-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
