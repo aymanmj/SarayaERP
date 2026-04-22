@@ -51,6 +51,8 @@ describe('PatientPortalService', () => {
     },
     invoice: { findUnique: jest.fn(), findMany: jest.fn(), count: jest.fn() },
     payment: { findMany: jest.fn(), count: jest.fn() },
+    patientMessage: { count: jest.fn() },
+    medicationRefillRequest: { count: jest.fn() },
     $transaction: jest.fn((queries: any[]) => Promise.all(queries)),
   };
 
@@ -539,6 +541,8 @@ describe('PatientPortalService', () => {
         { allergen: 'Penicillin', severity: 'HIGH' },
       ]);
       mockPrisma.prescription.findMany.mockResolvedValue([]);
+      mockPrisma.patientMessage.count.mockResolvedValue(3);
+      mockPrisma.medicationRefillRequest.count.mockResolvedValue(1);
 
       const dashboard = await service.getDashboard(1);
 
@@ -561,6 +565,8 @@ describe('PatientPortalService', () => {
       mockPrisma.invoice.findMany.mockResolvedValue([]);
       mockPrisma.patientAllergy.findMany.mockResolvedValue([]);
       mockPrisma.prescription.findMany.mockResolvedValue([]);
+      mockPrisma.patientMessage.count.mockResolvedValue(0);
+      mockPrisma.medicationRefillRequest.count.mockResolvedValue(0);
 
       const dashboard = await service.getDashboard(1);
 
@@ -585,6 +591,8 @@ describe('PatientPortalService', () => {
       mockPrisma.invoice.findMany.mockResolvedValue([]);
       mockPrisma.patientAllergy.findMany.mockResolvedValue([]);
       mockPrisma.prescription.findMany.mockResolvedValue([]);
+      mockPrisma.patientMessage.count.mockResolvedValue(0);
+      mockPrisma.medicationRefillRequest.count.mockResolvedValue(0);
 
       await expect(service.getDashboard(1, 1)).rejects.toThrow(NotFoundException);
     });

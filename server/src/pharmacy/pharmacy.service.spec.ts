@@ -251,6 +251,7 @@ describe('PharmacyService', () => {
         hospitalId: 1,
         encounterId: 10,
         status: 'ACTIVE',
+        pharmacistVerificationStatus: 'VERIFIED',
         items: [
           {
             id: 101,
@@ -404,6 +405,7 @@ describe('PharmacyService', () => {
         patientId: 1,
         encounterId: 10,
         status: 'ACTIVE',
+        pharmacistVerificationStatus: 'VERIFIED',
         patient: { id: 1, fullName: 'Patient' },
         items: [
           {

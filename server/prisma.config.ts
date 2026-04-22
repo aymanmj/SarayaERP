@@ -17,8 +17,11 @@ export default defineConfig({
     path: path.join('prisma', 'migrations'),
   },
 
-  // إعداد الـ datasource (هنا مكان الـ DATABASE_URL في Prisma 7)
+  // إعداد الـ datasource
+  // دالة env() من Prisma ترمي خطأ مباشرة إذا المتغير غير موجود
+  // لذلك نستخدم process.env مع رابط وهمي للتطوير المحلي (prisma generate / migrate)
+  // في الإنتاج، القيمة الحقيقية تأتي من HashiCorp Vault عبر متغيرات البيئة
   datasource: {
-    url: env<Env>('DATABASE_URL'),
+    url: process.env.DATABASE_URL ?? 'postgresql://prisma:prisma@localhost:5433/saraya_dev?schema=public',
   },
 });

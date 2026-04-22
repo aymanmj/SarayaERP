@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { CDSSService, DrugCheckInput, PrescriptionCheckInput } from './cdss.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { TerminologyService } from '../terminology/terminology.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { CDSSAlertType, CDSSAlertSeverity, TerminologySystem } from '@prisma/client';
 
 describe('CDSSService', () => {
@@ -40,6 +41,10 @@ describe('CDSSService', () => {
             searchConcepts: jest.fn().mockResolvedValue([]),
             getConceptBySystemAndCode: jest.fn().mockResolvedValue(null),
           },
+        },
+        {
+          provide: EventEmitter2,
+          useValue: { emit: jest.fn() },
         },
       ],
     }).compile();
@@ -87,7 +92,7 @@ describe('CDSSService', () => {
       mockPrismaService.terminologyConcept.findUnique.mockResolvedValue(null);
 
       const drugs: DrugCheckInput[] = [
-        { genericName: 'Vancomycin hydrochloride', dose: '1000mg', route: 'IV', frequency: 'Q12H' },
+        { genericName: 'Vancomycin hydrochloride', dose: '1000mg', route: 'IV' },
       ];
 
       const alerts = await cdssService.checkRenalAdjustment(1, drugs);
@@ -113,7 +118,7 @@ describe('CDSSService', () => {
       mockPrismaService.terminologyConcept.findUnique.mockResolvedValue(null);
 
       const drugs: DrugCheckInput[] = [
-        { genericName: 'Gentamicin 80mg', dose: '80mg', route: 'IV', frequency: 'Q8H' },
+        { genericName: 'Gentamicin 80mg', dose: '80mg', route: 'IV' },
       ];
 
       const alerts = await cdssService.checkRenalAdjustment(1, drugs);
@@ -126,7 +131,7 @@ describe('CDSSService', () => {
   describe('checkDoseRange', () => {
     it('should generate a CRITICAL alert when Paracetamol dose exceeds 1000mg per dose', async () => {
       const drugs: DrugCheckInput[] = [
-        { genericName: 'Paracetamol IV', dose: '1500mg', route: 'IV', frequency: 'Q6H' }, // Exceeds limit
+        { genericName: 'Paracetamol IV', dose: '1500mg', route: 'IV' },
       ];
 
       const alerts = await cdssService.checkDoseRange(drugs);
@@ -141,7 +146,7 @@ describe('CDSSService', () => {
 
     it('should NOT generate an alert when Paracetamol dose is safe (1000mg)', async () => {
       const drugs: DrugCheckInput[] = [
-        { genericName: 'Paracetamol IV', dose: '1000mg', route: 'IV', frequency: 'Q6H' },
+        { genericName: 'Paracetamol IV', dose: '1000mg', route: 'IV' },
       ];
 
       const alerts = await cdssService.checkDoseRange(drugs);
