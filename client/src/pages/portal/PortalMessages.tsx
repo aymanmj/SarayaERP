@@ -15,6 +15,11 @@ export default function PortalMessages() {
   const [sending, setSending] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
+  const [departments, setDepartments] = useState<any[]>([]);
+  const [doctors, setDoctors] = useState<any[]>([]);
+  const [selectedDept, setSelectedDept] = useState<number | null>(null);
+  const [fetchingDir, setFetchingDir] = useState(false);
+
   const fetchThreads = () => {
     portalApi.get('/messages/threads')
       .then(res => setThreads(res.data?.items || res.data || []))
@@ -37,6 +42,42 @@ export default function PortalMessages() {
         setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
       })
       .finally(() => setMsgLoading(false));
+  };
+
+  const openCompose = async () => {
+    setShowCompose(true);
+    setNewMsg({ doctorId: '', subject: '', body: '' });
+    setSelectedDept(null);
+    setDoctors([]);
+    if (departments.length === 0) {
+      setFetchingDir(true);
+      try {
+        const res = await portalApi.get('/directory/departments');
+        setDepartments(res.data || []);
+      } catch {
+        toast.error('فشل تحميل الأقسام');
+      } finally {
+        setFetchingDir(false);
+      }
+    }
+  };
+
+  const handleDeptChange = async (deptId: number) => {
+    setSelectedDept(deptId);
+    setNewMsg({ ...newMsg, doctorId: '' });
+    if (!deptId) {
+      setDoctors([]);
+      return;
+    }
+    setFetchingDir(true);
+    try {
+      const res = await portalApi.get(`/directory/doctors?departmentId=${deptId}`);
+      setDoctors(res.data || []);
+    } catch {
+      toast.error('فشل تحميل الأطباء');
+    } finally {
+      setFetchingDir(false);
+    }
   };
 
   const handleSendNew = async (e: React.FormEvent) => {
@@ -71,14 +112,40 @@ export default function PortalMessages() {
     <div className="portal-page">
       <div className="portal-page-header">
         <h1><MessageSquare size={28} /> المراسلات</h1>
-        <button className="portal-primary-btn" onClick={() => setShowCompose(true)}><Plus size={18} /> رسالة جديدة</button>
+        <button className="portal-primary-btn" onClick={openCompose}><Plus size={18} /> رسالة جديدة</button>
       </div>
 
       {showCompose && (
         <div className="portal-modal-overlay"><div className="portal-modal">
           <div className="portal-modal-header"><h2>رسالة جديدة</h2><button onClick={() => setShowCompose(false)}>✕</button></div>
           <form onSubmit={handleSendNew} className="portal-form">
-            <div className="portal-input-group"><label>رقم الطبيب</label><input type="number" value={newMsg.doctorId} onChange={e => setNewMsg({...newMsg, doctorId: e.target.value})} required /></div>
+            <div className="portal-input-group">
+              <label>القسم</label>
+              <select 
+                value={selectedDept || ''} 
+                onChange={e => handleDeptChange(Number(e.target.value))}
+                required
+              >
+                <option value="">-- اختر القسم --</option>
+                {departments.map(d => (
+                  <option key={d.id} value={d.id}>{d.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="portal-input-group">
+              <label>الطبيب</label>
+              <select 
+                value={newMsg.doctorId} 
+                onChange={e => setNewMsg({...newMsg, doctorId: e.target.value})}
+                required
+                disabled={!selectedDept || fetchingDir}
+              >
+                <option value="">{fetchingDir ? 'جاري التحميل...' : '-- اختر الطبيب --'}</option>
+                {doctors.map(d => (
+                  <option key={d.id} value={d.id}>د. {d.fullName} ({d.specialty || 'عام'})</option>
+                ))}
+              </select>
+            </div>
             <div className="portal-input-group"><label>الموضوع</label><input type="text" value={newMsg.subject} onChange={e => setNewMsg({...newMsg, subject: e.target.value})} /></div>
             <div className="portal-input-group"><label>الرسالة</label><textarea value={newMsg.body} rows={4} onChange={e => setNewMsg({...newMsg, body: e.target.value})} required /></div>
             <button type="submit" className="portal-submit-btn" disabled={sending}>{sending ? <Loader2 className="animate-spin" size={18}/> : 'إرسال'}</button>

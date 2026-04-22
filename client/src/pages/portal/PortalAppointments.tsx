@@ -182,7 +182,13 @@ export default function PortalAppointments() {
                           <h3>{dept.name}</h3>
                         </div>
                       ))}
-                      {departments.length === 0 && <p className="text-muted">لا توجد أقسام متاحة</p>}
+                      {departments.length === 0 && (
+                        <div className="portal-empty small" style={{ gridColumn: '1 / -1', padding: '2rem' }}>
+                          <Building2 size={36} className="text-muted" style={{ marginBottom: '1rem' }} />
+                          <p style={{ fontWeight: 'bold' }}>لا توجد أقسام سريرية متاحة للحجز حالياً.</p>
+                          <p className="text-muted" style={{ fontSize: '0.85rem', marginTop: '0.5rem' }}>يرجى التأكد من تهيئة النظام السريري أو التواصل مع الاستقبال.</p>
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -200,7 +206,12 @@ export default function PortalAppointments() {
                           <p>{doc.specialty}</p>
                         </div>
                       ))}
-                      {doctors.length === 0 && <p className="text-muted">لا يوجد أطباء متاحين في هذا القسم</p>}
+                      {doctors.length === 0 && (
+                        <div className="portal-empty small" style={{ gridColumn: '1 / -1', padding: '2rem' }}>
+                          <User size={36} className="text-muted" style={{ marginBottom: '1rem' }} />
+                          <p style={{ fontWeight: 'bold' }}>لا يوجد أطباء متاحين في هذا القسم حالياً.</p>
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -232,7 +243,11 @@ export default function PortalAppointments() {
                               {new Date(slot.time).toLocaleTimeString('ar-LY', { hour: '2-digit', minute: '2-digit' })}
                             </button>
                           )) : (
-                            <p className="text-muted" style={{ gridColumn: '1 / -1' }}>لا توجد فترات متاحة في هذا اليوم</p>
+                            <div className="portal-empty small" style={{ gridColumn: '1 / -1', padding: '2rem' }}>
+                              <Clock size={36} className="text-muted" style={{ marginBottom: '1rem' }} />
+                              <p style={{ fontWeight: 'bold' }}>لا توجد فترات متاحة في هذا اليوم.</p>
+                              <p className="text-muted" style={{ fontSize: '0.85rem', marginTop: '0.5rem' }}>يرجى اختيار يوم آخر.</p>
+                            </div>
                           )}
                         </div>
                       )}

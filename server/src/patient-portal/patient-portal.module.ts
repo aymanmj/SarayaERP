@@ -32,6 +32,7 @@ import { PortalFhirExportController } from './controllers/portal-fhir-export.con
 import { PortalMessagingController } from './controllers/portal-messaging.controller';
 import { PortalRefillController } from './controllers/portal-refill.controller';
 import { PortalDirectoryController } from './controllers/portal-directory.controller';
+import { PortalTelegramController } from './controllers/portal-telegram.controller';
 
 // Auth infrastructure
 import { PatientAuthGuard } from './auth/patient-auth.guard';
@@ -61,6 +62,7 @@ import { PatientAuthGuard } from './auth/patient-auth.guard';
     PortalMessagingController,
     PortalRefillController,
     PortalDirectoryController,
+    PortalTelegramController,
   ],
   providers: [
     PatientPortalService,

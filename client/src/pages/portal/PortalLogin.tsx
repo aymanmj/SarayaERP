@@ -11,7 +11,7 @@ import { useNavigate } from 'react-router-dom';
 import { usePortalAuthStore } from '../../stores/portalAuthStore';
 import { portalAuthApi } from '../../api/portalApi';
 import { toast } from 'sonner';
-import { Phone, KeyRound, ArrowLeft, Loader2 } from 'lucide-react';
+import { Phone, KeyRound, ArrowLeft, Loader2, MessageCircle } from 'lucide-react';
 
 type Step = 'credentials' | 'otp';
 
@@ -119,6 +119,25 @@ export default function PortalLogin() {
               >
                 {loading ? <Loader2 className="animate-spin" size={20} /> : 'إرسال رمز التحقق'}
               </button>
+              
+              <div className="portal-telegram-promo mt-6 p-4 bg-blue-50/50 rounded-xl border border-blue-100/50 text-center">
+                <div className="flex items-center justify-center gap-2 text-blue-600 mb-2">
+                  <MessageCircle size={20} />
+                  <span className="font-semibold text-sm">استلم رموز التحقق عبر تيليجرام</span>
+                </div>
+                <p className="text-xs text-gray-500 mb-3">
+                  لضمان وصول رمز التحقق (OTP) بشكل فوري، يرجى تفعيل بوت السرايا الطبي قبل تسجيل الدخول.
+                </p>
+                <a
+                  href={import.meta.env.VITE_TELEGRAM_BOT_URL || 'https://t.me/SarayaMedical_Bot'}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center w-full gap-2 px-4 py-2.5 bg-[#0088cc] hover:bg-[#0077b3] text-white text-sm font-medium rounded-lg transition-colors"
+                >
+                  <MessageCircle size={18} />
+                  تشغيل بوت تيليجرام 
+                </a>
+              </div>
             </form>
           ) : (
             <form onSubmit={handleVerifyOtp}>

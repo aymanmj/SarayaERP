@@ -176,6 +176,7 @@ export class PatientPortalService {
         hospitalId: true,
         isActive: true,
         createdAt: true,
+        telegramChatId: true,
         hospital: { select: { id: true, name: true } },
         insurancePolicy: {
           select: {
@@ -198,7 +199,12 @@ export class PatientPortalService {
       throw new NotFoundException('المريض غير موجود');
     }
 
-    return patient;
+    const { telegramChatId, ...patientData } = patient;
+
+    return {
+      ...patientData,
+      hasTelegramLinked: !!telegramChatId,
+    };
   }
 
   // ===========================================

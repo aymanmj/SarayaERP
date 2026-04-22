@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { portalApi } from '../../api/portalApi';
-import { User, Loader2, Shield, AlertTriangle, Phone, Mail, MapPin, Calendar } from 'lucide-react';
+import { User, Loader2, Shield, AlertTriangle, Phone, Mail, MapPin, Calendar, MessageCircle, CheckCircle2 } from 'lucide-react';
 
 export default function PortalProfile() {
   const [profile, setProfile] = useState<any>(null);
@@ -44,6 +44,39 @@ export default function PortalProfile() {
               </div>
             </div>
           )}
+
+          <div className="portal-profile-section mt-6">
+            <h3><MessageCircle size={18} className="text-blue-500"/> إشعارات تيليجرام</h3>
+            <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-4 mt-3">
+              <div className="flex-1">
+                <p className="text-sm text-gray-700 font-medium mb-1">
+                  استلم رموز التحقق والإشعارات الطبية عبر تيليجرام لتجربة أسرع وأكثر أماناً.
+                </p>
+                {profile.hasTelegramLinked ? (
+                  <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+                    <CheckCircle2 size={14} />
+                    الحساب متصل بنجاح
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200">
+                    غير متصل
+                  </span>
+                )}
+              </div>
+              
+              {!profile.hasTelegramLinked && (
+                <a
+                  href={import.meta.env.VITE_TELEGRAM_BOT_URL || 'https://t.me/SarayaMedical_Bot'}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex shrink-0 items-center gap-2 px-4 py-2 bg-[#0088cc] hover:bg-[#0077b3] text-white text-sm font-medium rounded-lg transition-colors"
+                >
+                  <MessageCircle size={18} />
+                  ربط الحساب الآن
+                </a>
+              )}
+            </div>
+          </div>
         </div>
       )}
 

@@ -26,13 +26,22 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { EncryptionService } from '../../common/encryption/encryption.service';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
+import axios from 'axios';
+import * as nodemailer from 'nodemailer';
 
 // ===========================================
 // OTP Delivery Channel Interface
 // ===========================================
+export interface OtpRecipientInfo {
+  phone: string;
+  patientName: string;
+  email?: string | null;
+  telegramChatId?: string | null;
+}
+
 export interface OtpChannel {
   readonly name: string;
-  send(phone: string, code: string, patientName: string): Promise<boolean>;
+  send(recipient: OtpRecipientInfo, code: string): Promise<boolean>;
 }
 
 // ===========================================
@@ -42,14 +51,14 @@ class ConsoleOtpChannel implements OtpChannel {
   readonly name = 'console';
   private readonly logger = new Logger('OTP-Console');
 
-  async send(phone: string, code: string, patientName: string): Promise<boolean> {
+  async send(recipient: OtpRecipientInfo, code: string): Promise<boolean> {
     this.logger.warn(
       `\n` +
       `╔════════════════════════════════════════════╗\n` +
       `║  📱 OTP Code for Patient Portal            ║\n` +
       `╠════════════════════════════════════════════╣\n` +
-      `║  Patient: ${patientName.padEnd(30)}  ║\n` +
-      `║  Phone:   ${phone.padEnd(30)}  ║\n` +
+      `║  Patient: ${recipient.patientName.padEnd(30)}  ║\n` +
+      `║  Phone:   ${recipient.phone.padEnd(30)}  ║\n` +
       `║  Code:    ${code.padEnd(30)}  ║\n` +
       `║  Expires: 5 minutes                        ║\n` +
       `╚════════════════════════════════════════════╝`
@@ -59,28 +68,101 @@ class ConsoleOtpChannel implements OtpChannel {
 }
 
 // ===========================================
-// WhatsApp Channel (Production - Future)
+// Telegram Channel (Primary)
 // ===========================================
-class WhatsAppOtpChannel implements OtpChannel {
-  readonly name = 'whatsapp';
-  private readonly logger = new Logger('OTP-WhatsApp');
+class TelegramOtpChannel implements OtpChannel {
+  readonly name = 'telegram';
+  private readonly logger = new Logger('OTP-Telegram');
 
-  async send(phone: string, code: string, patientName: string): Promise<boolean> {
-    // TODO: Integrate with WhatsApp Business API
-    // Options:
-    //   1. Meta Cloud API (graph.facebook.com/v18.0)
-    //   2. Twilio WhatsApp Sandbox (free for dev)
-    //   3. WATI / Infobip / MessageBird
-    //
-    // Template message example:
-    // "مرحباً {patientName}، رمز التحقق الخاص بك لبوابة المريض في السرايا: {code}
-    //  صالح لمدة 5 دقائق. لا تشاركه مع أحد."
+  async send(recipient: OtpRecipientInfo, code: string): Promise<boolean> {
+    const botToken = process.env.TELEGRAM_BOT_TOKEN;
     
-    this.logger.log(`📨 WhatsApp OTP would be sent to ${phone} (not configured yet)`);
-    
-    // Fallback to console for now
-    const consoleFallback = new ConsoleOtpChannel();
-    return consoleFallback.send(phone, code, patientName);
+    if (!botToken || !recipient.telegramChatId) {
+      this.logger.warn(`Telegram is not configured or patient has no chat_id.`);
+      return false; // Will fallback
+    }
+
+    try {
+      this.logger.log(`📨 Sending Telegram OTP to Chat ID: ${recipient.telegramChatId}`);
+      
+      const message = `أهلاً ${recipient.patientName}،\n\nرمز التحقق الخاص بك هو: *${code}*\n\nالرمز صالح لمدة 5 دقائق.`;
+      
+      const response = await axios.post(
+        `https://api.telegram.org/bot${botToken}/sendMessage`,
+        {
+          chat_id: recipient.telegramChatId,
+          text: message,
+          parse_mode: 'Markdown'
+        },
+        { timeout: 5000 }
+      );
+
+      if (response.status === 200) {
+        this.logger.log(`✅ Telegram OTP successfully dispatched.`);
+        return true;
+      }
+      return false;
+    } catch (error: any) {
+      this.logger.error(`❌ Failed to send Telegram OTP. Error: ${error.message}`);
+      return false;
+    }
+  }
+}
+
+// ===========================================
+// Email Channel (Secondary / Fallback)
+// ===========================================
+class EmailOtpChannel implements OtpChannel {
+  readonly name = 'email';
+  private readonly logger = new Logger('OTP-Email');
+
+  async send(recipient: OtpRecipientInfo, code: string): Promise<boolean> {
+    if (!recipient.email) {
+      this.logger.warn(`Patient has no email address. Cannot send Email OTP.`);
+      return false;
+    }
+
+    const host = process.env.SMTP_HOST;
+    const port = parseInt(process.env.SMTP_PORT || '587', 10);
+    const user = process.env.SMTP_USER;
+    const pass = process.env.SMTP_PASS;
+    const from = process.env.SMTP_FROM || 'noreply@sarayaerp.com';
+
+    if (!host || !user || !pass) {
+      this.logger.warn(`SMTP is not configured properly. Missing SMTP credentials.`);
+      return false;
+    }
+
+    try {
+      this.logger.log(`📨 Sending Email OTP to: ${recipient.email}`);
+      
+      const transporter = nodemailer.createTransport({
+        host,
+        port,
+        secure: port === 465,
+        auth: { user, pass },
+      });
+
+      await transporter.sendMail({
+        from: `"Saraya Patient Portal" <${from}>`,
+        to: recipient.email,
+        subject: 'رمز الدخول الخاص بك (OTP) - Saraya',
+        html: `
+          <div dir="rtl" style="font-family: Arial, sans-serif; text-align: right; padding: 20px; color: #333;">
+            <h2>مرحباً ${recipient.patientName}،</h2>
+            <p>رمز الدخول الخاص بك إلى بوابة المريض هو:</p>
+            <h1 style="color: #2563eb; letter-spacing: 5px; font-size: 32px; background: #f3f4f6; padding: 15px; border-radius: 8px; display: inline-block;">${code}</h1>
+            <p>هذا الرمز صالح لمدة 5 دقائق. يرجى عدم مشاركته مع أي شخص.</p>
+          </div>
+        `
+      });
+
+      this.logger.log(`✅ Email OTP successfully dispatched.`);
+      return true;
+    } catch (error: any) {
+      this.logger.error(`❌ Failed to send Email OTP. Error: ${error.message}`);
+      return false;
+    }
   }
 }
 
@@ -90,7 +172,9 @@ class WhatsAppOtpChannel implements OtpChannel {
 @Injectable()
 export class PatientOtpService {
   private readonly logger = new Logger(PatientOtpService.name);
-  private readonly channel: OtpChannel;
+  private readonly telegramChannel = new TelegramOtpChannel();
+  private readonly emailChannel = new EmailOtpChannel();
+  private readonly consoleChannel = new ConsoleOtpChannel();
 
   // Configuration
   private readonly OTP_LENGTH = 6;
@@ -102,20 +186,7 @@ export class PatientOtpService {
     private prisma: PrismaService,
     private encryptionService: EncryptionService
   ) {
-    // Select channel based on environment
-    const channelName = process.env.OTP_CHANNEL || 'console';
-    
-    switch (channelName) {
-      case 'whatsapp':
-        this.channel = new WhatsAppOtpChannel();
-        break;
-      case 'console':
-      default:
-        this.channel = new ConsoleOtpChannel();
-        break;
-    }
-    
-    this.logger.log(`📱 OTP Channel: ${this.channel.name}`);
+    this.logger.log(`📱 OTP Channels configured: Telegram -> Email -> Console`);
   }
 
   /**
@@ -141,7 +212,7 @@ export class PatientOtpService {
         isActive: true,
         isDeleted: false,
       },
-      select: { id: true, fullName: true, hospitalId: true, mrn: true, phone: true },
+      select: { id: true, fullName: true, hospitalId: true, mrn: true, phone: true, telegramChatId: true, email: true },
     });
 
     if (!patient) {
@@ -190,33 +261,65 @@ export class PatientOtpService {
     const expiresAt = new Date(Date.now() + this.OTP_TTL_MINUTES * 60 * 1000);
 
     // 5. Store in DB
-    await this.prisma.patientOtp.create({
+    const otpRecord = await this.prisma.patientOtp.create({
       data: {
         patientId: patient.id,
         code: hashedCode,
         expiresAt,
-        channel: this.channel.name,
+        channel: 'pending',
       },
     });
 
-    // 6. Send via channel
-    const delivered = await this.channel.send(
-      patient.phone || phone,
-      code,
-      patient.fullName,
-    );
+    const recipient: OtpRecipientInfo = {
+      phone: patient.phone || phone,
+      patientName: patient.fullName,
+      email: patient.email,
+      telegramChatId: patient.telegramChatId,
+    };
+
+    // 6. Send via channel (Fallback Logic: Telegram -> Email -> Console)
+    let delivered = false;
+    let usedChannel = '';
+
+    // Attempt 1: Telegram
+    delivered = await this.telegramChannel.send(recipient, code);
+    if (delivered) {
+      usedChannel = this.telegramChannel.name;
+    }
+
+    // Attempt 2: Email (Fallback)
+    if (!delivered) {
+      delivered = await this.emailChannel.send(recipient, code);
+      if (delivered) {
+        usedChannel = this.emailChannel.name;
+      }
+    }
+
+    // Attempt 3: Console (Development Fallback)
+    if (!delivered) {
+      delivered = await this.consoleChannel.send(recipient, code);
+      if (delivered) {
+        usedChannel = this.consoleChannel.name;
+      }
+    }
 
     if (!delivered) {
-      this.logger.error(`Failed to deliver OTP to patient ${patient.id}`);
+      this.logger.error(`Failed to deliver OTP to patient ${patient.id} via any channel`);
       throw new BadRequestException('فشل إرسال رمز التحقق. يرجى المحاولة مرة أخرى.');
     }
 
-    this.logger.log(`🔑 OTP requested for Patient/${patient.id} via ${this.channel.name}`);
+    // Update the DB record with the actual channel used
+    await this.prisma.patientOtp.update({
+      where: { id: otpRecord.id },
+      data: { channel: usedChannel }
+    });
+
+    this.logger.log(`🔑 OTP requested for Patient/${patient.id} via ${usedChannel}`);
 
     return {
       message: 'تم إرسال رمز التحقق بنجاح',
       expiresIn: this.OTP_TTL_MINUTES * 60, // seconds
-      channel: this.channel.name,
+      channel: usedChannel,
     };
   }
 

@@ -448,6 +448,7 @@ model Patient {
   phone              String?
   address            String?
   email              String?
+  telegramChatId     String?
   notes              String?
   isActive           Boolean            @default(true)
   createdAt          DateTime           @default(now())
