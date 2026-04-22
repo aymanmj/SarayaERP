@@ -6,7 +6,8 @@
 
 import { useEffect, useState } from 'react';
 import { portalApi } from '../../api/portalApi';
-import { FileText, Activity, FlaskConical, Pill, AlertTriangle, Stethoscope, Loader2 } from 'lucide-react';
+import { FileText, Activity, FlaskConical, Pill, AlertTriangle, Stethoscope, Loader2, Download } from 'lucide-react';
+import { toast } from 'sonner';
 
 type Tab = 'vitals' | 'labs' | 'medications' | 'allergies' | 'diagnoses' | 'encounters';
 
@@ -40,6 +41,57 @@ export default function PortalMedicalRecords() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [activeTab]);
+
+  const handleDownloadPdf = (item: any) => {
+    // Simulated PDF Download using print window
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      toast.error('يرجى السماح بالنوافذ المنبثقة (Pop-ups)');
+      return;
+    }
+    
+    printWindow.document.write(`
+      <html dir="rtl" lang="ar">
+        <head>
+          <title>نتيجة تحليل - ${item.test?.name || 'تحليل'}</title>
+          <style>
+            body { font-family: 'Tajawal', system-ui, sans-serif; padding: 40px; color: #333; }
+            .header { text-align: center; border-bottom: 2px solid #2B5E7D; padding-bottom: 20px; margin-bottom: 30px; }
+            .header h1 { color: #2B5E7D; margin: 0; }
+            .info-table { width: 100%; margin-bottom: 30px; border-collapse: collapse; }
+            .info-table td { padding: 10px; border: 1px solid #ddd; }
+            .info-table td.label { font-weight: bold; background-color: #f9fafb; width: 30%; }
+            .result-box { padding: 20px; border: 1px solid #2B5E7D; border-radius: 8px; background-color: #f0f7fb; }
+            .footer { margin-top: 50px; text-align: center; font-size: 12px; color: #666; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>مستشفى السرايا التخصصي</h1>
+            <h2>تقرير نتيجة تحليل طبي</h2>
+          </div>
+          <table class="info-table">
+            <tr><td class="label">اسم التحليل</td><td>${item.test?.name || 'غير محدد'}</td></tr>
+            <tr><td class="label">تاريخ النتيجة</td><td>${new Date(item.createdAt).toLocaleDateString('ar-LY')}</td></tr>
+            <tr><td class="label">حالة النتيجة</td><td>${item.resultStatus === 'FINAL' ? 'نهائية' : 'مبدئية'}</td></tr>
+          </table>
+          <div class="result-box">
+            <h3 style="margin-top:0">النتيجة:</h3>
+            <p>${item.resultValue || 'تم إرفاق النتيجة في النظام.'}</p>
+            ${item.referenceRange ? `<p><small>المعدل الطبيعي: ${item.referenceRange}</small></p>` : ''}
+            ${item.notes ? `<p><strong>ملاحظات:</strong> ${item.notes}</p>` : ''}
+          </div>
+          <div class="footer">
+            <p>هذا التقرير صادر إلكترونياً من بوابة المريض - نظام السرايا الطبي</p>
+          </div>
+          <script>
+            window.onload = function() { window.print(); window.close(); }
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
 
   return (
     <div className="portal-page">
@@ -88,10 +140,21 @@ export default function PortalMedicalRecords() {
                   </>
                 )}
                 {activeTab === 'labs' && (
-                  <>
-                    <h4>{item.test?.name || 'تحليل'}</h4>
-                    <p className="portal-card-sub">{item.resultStatus}</p>
-                  </>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%' }}>
+                    <div>
+                      <h4>{item.test?.name || 'تحليل'}</h4>
+                      <p className="portal-card-sub">{item.resultStatus === 'FINAL' ? 'نتيجة نهائية' : 'مبدئية'}</p>
+                    </div>
+                    {item.resultStatus === 'FINAL' && (
+                      <button 
+                        className="portal-secondary-btn" 
+                        style={{ padding: '0.4rem 0.8rem', fontSize: '0.9rem' }}
+                        onClick={() => handleDownloadPdf(item)}
+                      >
+                        <Download size={16} /> تحميل PDF
+                      </button>
+                    )}
+                  </div>
                 )}
                 {activeTab === 'medications' && (
                   <>

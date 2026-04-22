@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { PermissionGuard } from './PermissionGuard';
 import { useAuthStore } from '../stores/authStore';
 
@@ -8,9 +8,24 @@ vi.mock('../stores/authStore', () => ({
   useAuthStore: vi.fn(),
 }));
 
+/**
+ * Helper to mock the store with selector support.
+ * PermissionGuard calls: useAuthStore((s) => s.user)
+ * So the mock must handle selector functions correctly.
+ */
+function mockAuthUser(user: any) {
+  (useAuthStore as unknown as ReturnType<typeof vi.fn>).mockImplementation(
+    (selector: any) => selector({ user })
+  );
+}
+
 describe('PermissionGuard', () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
   it('should not render if user is not logged in', () => {
-    (useAuthStore as unknown as ReturnType<typeof vi.fn>).mockReturnValue(null);
+    mockAuthUser(null);
 
     render(
       <PermissionGuard allowedRoles={['DOCTOR']}>
@@ -22,7 +37,7 @@ describe('PermissionGuard', () => {
   });
 
   it('should not render if user does not have permission', () => {
-    (useAuthStore as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+    mockAuthUser({
       roles: ['NURSE'],
     });
 
@@ -36,7 +51,7 @@ describe('PermissionGuard', () => {
   });
 
   it('should render if user has the required role', () => {
-    (useAuthStore as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+    mockAuthUser({
       roles: ['DOCTOR'],
     });
 
@@ -50,7 +65,7 @@ describe('PermissionGuard', () => {
   });
 
   it('should always render for ADMIN', () => {
-    (useAuthStore as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+    mockAuthUser({
       roles: ['ADMIN'],
     });
 
@@ -62,5 +77,47 @@ describe('PermissionGuard', () => {
     );
 
     expect(screen.getByText('Protected Content')).toBeInTheDocument();
+  });
+
+  it('should render if user has one of multiple allowed roles (OR logic)', () => {
+    mockAuthUser({
+      roles: ['PHARMACIST'],
+    });
+
+    render(
+      <PermissionGuard allowedRoles={['DOCTOR', 'PHARMACIST', 'LAB_TECH']}>
+        <div>Multi-role Content</div>
+      </PermissionGuard>
+    );
+
+    expect(screen.getByText('Multi-role Content')).toBeInTheDocument();
+  });
+
+  it('should not render for user with unrelated roles', () => {
+    mockAuthUser({
+      roles: ['RECEPTIONIST'],
+    });
+
+    render(
+      <PermissionGuard allowedRoles={['DOCTOR', 'NURSE']}>
+        <div>Clinical Content</div>
+      </PermissionGuard>
+    );
+
+    expect(screen.queryByText('Clinical Content')).not.toBeInTheDocument();
+  });
+
+  it('should not render when user has empty roles array', () => {
+    mockAuthUser({
+      roles: [],
+    });
+
+    render(
+      <PermissionGuard allowedRoles={['DOCTOR']}>
+        <div>Content</div>
+      </PermissionGuard>
+    );
+
+    expect(screen.queryByText('Content')).not.toBeInTheDocument();
   });
 });

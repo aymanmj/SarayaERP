@@ -1,20 +1,35 @@
 /**
- * Patient Portal — Appointments Page
+ * Patient Portal — Appointments Page & Booking Wizard
  * 
- * View upcoming & past appointments + Book new ones.
+ * View upcoming & past appointments + Book new ones via a step-by-step wizard.
  */
 
 import { useEffect, useState } from 'react';
 import { portalApi } from '../../api/portalApi';
 import { toast } from 'sonner';
-import { Calendar, Plus, X, Loader2, Clock, User, Building2 } from 'lucide-react';
+import { Calendar, Plus, X, Loader2, Clock, User, Building2, ChevronRight, ChevronLeft, CheckCircle2 } from 'lucide-react';
 
 export default function PortalAppointments() {
   const [appointments, setAppointments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showBooking, setShowBooking] = useState(false);
-  const [bookingData, setBookingData] = useState({ doctorId: '', scheduledStart: '', reason: '' });
+  
+  // Wizard State
+  const [showWizard, setShowWizard] = useState(false);
+  const [wizardStep, setWizardStep] = useState(1);
+  const [wizardLoading, setWizardLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  
+  // Directory Data
+  const [departments, setDepartments] = useState<any[]>([]);
+  const [doctors, setDoctors] = useState<any[]>([]);
+  const [availableSlots, setAvailableSlots] = useState<any[]>([]);
+  
+  // Selection State
+  const [selectedDept, setSelectedDept] = useState<number | null>(null);
+  const [selectedDoctor, setSelectedDoctor] = useState<number | null>(null);
+  const [selectedDate, setSelectedDate] = useState<string>('');
+  const [selectedSlot, setSelectedSlot] = useState<string>('');
+  const [bookingReason, setBookingReason] = useState('');
 
   const fetchAppointments = () => {
     setLoading(true);
@@ -26,18 +41,75 @@ export default function PortalAppointments() {
 
   useEffect(() => { fetchAppointments(); }, []);
 
-  const handleBook = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Wizard Data Fetchers
+  const fetchDepartments = async () => {
+    setWizardLoading(true);
+    try {
+      const res = await portalApi.get('/directory/departments');
+      setDepartments(res.data || []);
+    } catch {
+      toast.error('فشل تحميل الأقسام');
+    } finally {
+      setWizardLoading(false);
+    }
+  };
+
+  const fetchDoctors = async (deptId: number) => {
+    setWizardLoading(true);
+    try {
+      const res = await portalApi.get(`/directory/doctors?departmentId=${deptId}`);
+      setDoctors(res.data || []);
+    } catch {
+      toast.error('فشل تحميل الأطباء');
+    } finally {
+      setWizardLoading(false);
+    }
+  };
+
+  const fetchSlots = async (doctorId: number, date: string) => {
+    setWizardLoading(true);
+    try {
+      const res = await portalApi.get(`/directory/doctors/${doctorId}/slots?date=${date}`);
+      setAvailableSlots(res.data || []);
+    } catch {
+      toast.error('فشل تحميل المواعيد المتاحة');
+    } finally {
+      setWizardLoading(false);
+    }
+  };
+
+  const startWizard = () => {
+    setWizardStep(1);
+    setSelectedDept(null);
+    setSelectedDoctor(null);
+    setSelectedDate('');
+    setSelectedSlot('');
+    setBookingReason('');
+    setShowWizard(true);
+    fetchDepartments();
+  };
+
+  const handleNextStep = () => {
+    if (wizardStep === 1 && selectedDept) {
+      fetchDoctors(selectedDept);
+      setWizardStep(2);
+    } else if (wizardStep === 2 && selectedDoctor) {
+      setWizardStep(3);
+    } else if (wizardStep === 3 && selectedSlot) {
+      setWizardStep(4);
+    }
+  };
+
+  const handleBook = async () => {
     setSubmitting(true);
     try {
       await portalApi.post('/appointments/book', {
-        doctorId: Number(bookingData.doctorId),
-        scheduledStart: bookingData.scheduledStart,
-        reason: bookingData.reason || undefined,
+        doctorId: selectedDoctor,
+        scheduledStart: selectedSlot,
+        reason: bookingReason || undefined,
       });
       toast.success('تم حجز الموعد بنجاح');
-      setShowBooking(false);
-      setBookingData({ doctorId: '', scheduledStart: '', reason: '' });
+      setShowWizard(false);
       fetchAppointments();
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'فشل حجز الموعد');
@@ -71,42 +143,160 @@ export default function PortalAppointments() {
     <div className="portal-page">
       <div className="portal-page-header">
         <h1><Calendar size={28} /> المواعيد</h1>
-        <button className="portal-primary-btn" onClick={() => setShowBooking(true)}>
+        <button className="portal-primary-btn" onClick={startWizard}>
           <Plus size={18} /> حجز موعد جديد
         </button>
       </div>
 
-      {/* Booking Modal */}
-      {showBooking && (
+      {/* Booking Wizard Modal */}
+      {showWizard && (
         <div className="portal-modal-overlay">
-          <div className="portal-modal">
+          <div className="portal-modal" style={{ maxWidth: '600px' }}>
             <div className="portal-modal-header">
-              <h2>حجز موعد جديد</h2>
-              <button onClick={() => setShowBooking(false)}><X size={20} /></button>
+              <h2>معالج حجز موعد</h2>
+              <button onClick={() => setShowWizard(false)}><X size={20} /></button>
             </div>
-            <form onSubmit={handleBook} className="portal-form">
-              <div className="portal-input-group">
-                <label>رقم الطبيب (Doctor ID)</label>
-                <input type="number" value={bookingData.doctorId}
-                  onChange={e => setBookingData({ ...bookingData, doctorId: e.target.value })}
-                  required placeholder="أدخل رقم الطبيب" />
-              </div>
-              <div className="portal-input-group">
-                <label>تاريخ ووقت الموعد</label>
-                <input type="datetime-local" value={bookingData.scheduledStart}
-                  onChange={e => setBookingData({ ...bookingData, scheduledStart: e.target.value })}
-                  required />
-              </div>
-              <div className="portal-input-group">
-                <label>سبب الزيارة (اختياري)</label>
-                <textarea value={bookingData.reason}
-                  onChange={e => setBookingData({ ...bookingData, reason: e.target.value })}
-                  placeholder="مثال: متابعة حالة السكري" />
-              </div>
-              <button type="submit" className="portal-submit-btn" disabled={submitting}>
-                {submitting ? <Loader2 className="animate-spin" size={18} /> : 'تأكيد الحجز'}
-              </button>
-            </form>
+            
+            <div className="wizard-progress">
+              <div className={`wizard-step ${wizardStep >= 1 ? 'active' : ''}`}>1. القسم</div>
+              <div className={`wizard-step ${wizardStep >= 2 ? 'active' : ''}`}>2. الطبيب</div>
+              <div className={`wizard-step ${wizardStep >= 3 ? 'active' : ''}`}>3. الوقت</div>
+              <div className={`wizard-step ${wizardStep >= 4 ? 'active' : ''}`}>4. التأكيد</div>
+            </div>
+
+            <div className="portal-form" style={{ minHeight: '300px' }}>
+              {wizardLoading ? (
+                <div className="portal-page-loader"><Loader2 className="animate-spin" size={30} /></div>
+              ) : (
+                <>
+                  {/* STEP 1: Department */}
+                  {wizardStep === 1 && (
+                    <div className="wizard-grid">
+                      {departments.map(dept => (
+                        <div 
+                          key={dept.id} 
+                          className={`wizard-card ${selectedDept === dept.id ? 'selected' : ''}`}
+                          onClick={() => setSelectedDept(dept.id)}
+                        >
+                          <Building2 size={24} />
+                          <h3>{dept.name}</h3>
+                        </div>
+                      ))}
+                      {departments.length === 0 && <p className="text-muted">لا توجد أقسام متاحة</p>}
+                    </div>
+                  )}
+
+                  {/* STEP 2: Doctor */}
+                  {wizardStep === 2 && (
+                    <div className="wizard-grid">
+                      {doctors.map(doc => (
+                        <div 
+                          key={doc.id} 
+                          className={`wizard-card ${selectedDoctor === doc.id ? 'selected' : ''}`}
+                          onClick={() => setSelectedDoctor(doc.id)}
+                        >
+                          <User size={24} />
+                          <h3>د. {doc.fullName}</h3>
+                          <p>{doc.specialty}</p>
+                        </div>
+                      ))}
+                      {doctors.length === 0 && <p className="text-muted">لا يوجد أطباء متاحين في هذا القسم</p>}
+                    </div>
+                  )}
+
+                  {/* STEP 3: Date & Slot */}
+                  {wizardStep === 3 && (
+                    <div className="wizard-date-slot">
+                      <div className="portal-input-group">
+                        <label>اختر التاريخ</label>
+                        <input 
+                          type="date" 
+                          min={new Date().toISOString().split('T')[0]}
+                          value={selectedDate}
+                          onChange={(e) => {
+                            setSelectedDate(e.target.value);
+                            if (e.target.value) fetchSlots(selectedDoctor!, e.target.value);
+                          }}
+                        />
+                      </div>
+                      
+                      {selectedDate && (
+                        <div className="slots-grid">
+                          {availableSlots.length > 0 ? availableSlots.map(slot => (
+                            <button
+                              key={slot.time}
+                              className={`slot-btn ${selectedSlot === slot.time ? 'selected' : ''}`}
+                              onClick={() => setSelectedSlot(slot.time)}
+                            >
+                              <Clock size={16} />
+                              {new Date(slot.time).toLocaleTimeString('ar-LY', { hour: '2-digit', minute: '2-digit' })}
+                            </button>
+                          )) : (
+                            <p className="text-muted" style={{ gridColumn: '1 / -1' }}>لا توجد فترات متاحة في هذا اليوم</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* STEP 4: Confirm */}
+                  {wizardStep === 4 && (
+                    <div className="wizard-confirm">
+                      <div className="confirm-summary">
+                        <CheckCircle2 size={40} className="text-success mb-2" />
+                        <h3>ملخص الحجز</h3>
+                        <p><strong>الطبيب:</strong> {doctors.find(d => d.id === selectedDoctor)?.fullName}</p>
+                        <p><strong>التاريخ والوقت:</strong> {new Date(selectedSlot).toLocaleString('ar-LY')}</p>
+                      </div>
+                      <div className="portal-input-group mt-4">
+                        <label>سبب الزيارة (اختياري)</label>
+                        <textarea 
+                          value={bookingReason}
+                          onChange={e => setBookingReason(e.target.value)}
+                          placeholder="مثال: متابعة حالة السكري" 
+                          rows={3}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            <div className="portal-modal-footer wizard-footer">
+              {wizardStep > 1 ? (
+                <button 
+                  className="portal-secondary-btn" 
+                  onClick={() => setWizardStep(wizardStep - 1)}
+                  disabled={wizardLoading || submitting}
+                >
+                  <ChevronRight size={18} /> السابق
+                </button>
+              ) : <div></div>}
+
+              {wizardStep < 4 ? (
+                <button 
+                  className="portal-primary-btn" 
+                  onClick={handleNextStep}
+                  disabled={
+                    wizardLoading || 
+                    (wizardStep === 1 && !selectedDept) ||
+                    (wizardStep === 2 && !selectedDoctor) ||
+                    (wizardStep === 3 && !selectedSlot)
+                  }
+                >
+                  التالي <ChevronLeft size={18} />
+                </button>
+              ) : (
+                <button 
+                  className="portal-submit-btn" 
+                  onClick={handleBook}
+                  disabled={submitting || wizardLoading}
+                >
+                  {submitting ? <Loader2 className="animate-spin" size={18} /> : 'تأكيد الحجز النهائي'}
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}

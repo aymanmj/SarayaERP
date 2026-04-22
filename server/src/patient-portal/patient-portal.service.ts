@@ -795,6 +795,151 @@ export class PatientPortalService {
   }
 
   // ===========================================
+  //  DIRECTORY & SLOTS
+  // ===========================================
+
+  async getDepartments(hospitalId: number) {
+    return this.prisma.department.findMany({
+      where: {
+        hospitalId,
+        isActive: true,
+        type: 'CLINICAL', // Only clinical departments for booking
+      },
+      select: {
+        id: true,
+        name: true,
+      },
+      orderBy: { name: 'asc' },
+    });
+  }
+
+  async getDoctors(hospitalId: number, departmentId?: number) {
+    const where: any = {
+      hospitalId,
+      userRoles: { some: { role: { name: 'DOCTOR' } } },
+    };
+    if (departmentId) {
+      where.departmentId = departmentId;
+    }
+
+    return this.prisma.user.findMany({
+      where,
+      select: {
+        id: true,
+        fullName: true,
+        specialty: true,
+        department: { select: { id: true, name: true } },
+      },
+      orderBy: { fullName: 'asc' },
+    });
+  }
+
+  async getDoctorAvailableSlots(hospitalId: number, doctorId: number, dateStr: string) {
+    // Basic mock logic for available slots since appointments service may not have a simple 'getAvailableSlots' exposed yet.
+    // In a real enterprise system, this evaluates Doctor Schedules, Leaves, and existing appointments.
+    const startOfDay = new Date(`${dateStr}T00:00:00Z`);
+    const endOfDay = new Date(`${dateStr}T23:59:59Z`);
+
+    // Verify doctor exists
+    const doctor = await this.prisma.user.findFirst({
+      where: {
+        id: doctorId,
+        hospitalId,
+        userRoles: { some: { role: { name: 'DOCTOR' } } },
+      },
+    });
+    if (!doctor) throw new NotFoundException('الطبيب غير موجود');
+
+    // Get existing appointments for the date
+    const existingAppointments = await this.prisma.appointment.findMany({
+      where: {
+        doctorId,
+        scheduledStart: { gte: startOfDay, lte: endOfDay },
+        status: { in: ['REQUESTED', 'CONFIRMED', 'CHECKED_IN'] },
+      },
+      select: { scheduledStart: true },
+    });
+
+    const bookedTimes = existingAppointments.map(a => a.scheduledStart.getTime());
+
+    // Generate slots every 30 minutes from 09:00 to 17:00
+    const slots: { time: string; available: boolean }[] = [];
+    const baseDate = new Date(`${dateStr}T00:00:00Z`);
+    
+    // Convert baseDate to local offset or assume UTC (here we assume simple hours for demo)
+    for (let hour = 9; hour < 17; hour++) {
+      for (let min of [0, 30]) {
+        const slotTime = new Date(baseDate);
+        slotTime.setUTCHours(hour, min, 0, 0);
+        
+        // Skip past slots
+        if (slotTime.getTime() <= Date.now()) continue;
+
+        // Skip booked slots (exact match for simplicity)
+        if (!bookedTimes.includes(slotTime.getTime())) {
+          slots.push({
+            time: slotTime.toISOString(),
+            available: true,
+          });
+        }
+      }
+    }
+
+    return slots;
+  }
+
+  // ===========================================
+  //  PAYMENTS PROCESSING (SIMULATED)
+  // ===========================================
+
+  async processPayment(patientId: number, invoiceId: number, amount: number, paymentMethod: string) {
+    const invoice = await this.prisma.invoice.findUnique({
+      where: { id: invoiceId },
+    });
+
+    if (!invoice || invoice.patientId !== patientId) {
+      throw new NotFoundException('الفاتورة غير موجودة');
+    }
+
+    if (invoice.status === 'PAID') {
+      throw new BadRequestException('الفاتورة مدفوعة بالكامل');
+    }
+
+    const remaining = Number(invoice.totalAmount) - Number(invoice.paidAmount);
+    if (amount > remaining) {
+      throw new BadRequestException(`لا يمكن دفع أكثر من المبلغ المتبقي (${remaining})`);
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      // 1. Create Payment Record
+      const payment = await tx.payment.create({
+        data: {
+          hospitalId: invoice.hospitalId,
+          invoiceId,
+          amount,
+          method: paymentMethod as any, // e.g. 'CREDIT_CARD', 'PORTAL_SIMULATED'
+          reference: `PRTL-${Date.now()}`,
+          paidAt: new Date(),
+        },
+      });
+
+      // 2. Update Invoice
+      const newPaidAmount = Number(invoice.paidAmount) + amount;
+      const newStatus = newPaidAmount >= Number(invoice.totalAmount) ? 'PAID' : 'PARTIALLY_PAID';
+
+      await tx.invoice.update({
+        where: { id: invoiceId },
+        data: {
+          paidAmount: newPaidAmount,
+          status: newStatus,
+        },
+      });
+
+      return { success: true, payment, newStatus };
+    });
+  }
+
+  // ===========================================
   //  TOKEN HELPERS (Private)
   // ===========================================
 

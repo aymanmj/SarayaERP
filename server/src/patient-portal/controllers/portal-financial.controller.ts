@@ -8,6 +8,8 @@
 import {
   Controller,
   Get,
+  Post,
+  Body,
   Param,
   Query,
   UseGuards,
@@ -68,5 +70,20 @@ export class PortalFinancialController {
   @ApiOperation({ summary: 'بيانات التأمين' })
   async getInsurance(@CurrentPatient() patient: any) {
     return this.portalService.getInsuranceInfo(patient.sub);
+  }
+
+  @Post('pay/:id')
+  @ApiOperation({ summary: 'دفع فاتورة' })
+  async payInvoice(
+    @CurrentPatient() patient: any,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: { amount: number; paymentMethod: string },
+  ) {
+    return this.portalService.processPayment(
+      patient.sub,
+      id,
+      dto.amount,
+      dto.paymentMethod || 'PORTAL_SIMULATED',
+    );
   }
 }
