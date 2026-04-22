@@ -15,7 +15,6 @@ export const portalApi = axios.create({
 portalApi.interceptors.request.use((config) => {
   const token = localStorage.getItem('portal_access_token');
   if (token) {
-    config.headers = config.headers ?? {};
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
