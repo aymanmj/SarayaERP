@@ -198,17 +198,28 @@ export class PatientOtpService implements OnModuleInit {
   }
 
   async onModuleInit() {
-    // Load bot token from Vault and inject into the Telegram channel
+    // Load bot token: Vault first, then process.env fallback
     try {
-      const botToken = await this.vaultService.getOptionalSecret('TELEGRAM_BOT_TOKEN');
+      const botToken =
+        await this.vaultService.getOptionalSecret('TELEGRAM_BOT_TOKEN')
+        || process.env.TELEGRAM_BOT_TOKEN
+        || null;
+
       if (botToken) {
         this.telegramChannel.setBotToken(botToken);
-        this.logger.log(`✅ Telegram Bot Token loaded from Vault (${botToken.substring(0, 6)}...)`);
+        this.logger.log(`✅ Telegram Bot Token loaded (${botToken.substring(0, 6)}...)`);
       } else {
-        this.logger.warn(`⚠️ TELEGRAM_BOT_TOKEN not found in Vault — Telegram OTP channel disabled`);
+        this.logger.warn(`⚠️ TELEGRAM_BOT_TOKEN not configured — Telegram OTP channel disabled`);
       }
     } catch (err: any) {
-      this.logger.warn(`⚠️ Failed to load Telegram Bot Token from Vault: ${err.message}`);
+      // Vault failed — try process.env as last resort
+      const fallback = process.env.TELEGRAM_BOT_TOKEN;
+      if (fallback) {
+        this.telegramChannel.setBotToken(fallback);
+        this.logger.warn(`⚠️ Vault unreachable, using TELEGRAM_BOT_TOKEN from env (${fallback.substring(0, 6)}...)`);
+      } else {
+        this.logger.warn(`⚠️ Failed to load Telegram Bot Token: ${err.message}`);
+      }
     }
   }
 

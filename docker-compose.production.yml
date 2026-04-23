@@ -81,6 +81,9 @@ services:
       SMTP_PORT: ${SMTP_PORT}
       SMTP_USER: ${SMTP_USER}
       SMTP_PASSWORD: ${SMTP_PASSWORD}
+      # إعدادات تيليجرام (بوابة المريض)
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      TELEGRAM_BOT_URL: ${TELEGRAM_BOT_URL:-https://t.me/SarayaMedBot}
     volumes:
       - ./uploads:/app/uploads
       - ./data/license:/app/data/license

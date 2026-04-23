@@ -34,15 +34,25 @@ export class PortalTelegramController implements OnModuleInit {
 
   async onModuleInit() {
     try {
-      const token = await this.vaultService.getOptionalSecret('TELEGRAM_BOT_TOKEN');
+      const token =
+        await this.vaultService.getOptionalSecret('TELEGRAM_BOT_TOKEN')
+        || process.env.TELEGRAM_BOT_TOKEN
+        || null;
+
       if (token) {
         this.botToken = token;
-        this.logger.log(`✅ Telegram Bot Token loaded from Vault (${token.substring(0, 6)}...)`);
+        this.logger.log(`✅ Telegram Bot Token loaded (${token.substring(0, 6)}...)`);
       } else {
-        this.logger.warn('⚠️ TELEGRAM_BOT_TOKEN not found in Vault — webhook responses disabled');
+        this.logger.warn('⚠️ TELEGRAM_BOT_TOKEN not configured — webhook responses disabled');
       }
     } catch (err: any) {
-      this.logger.warn(`⚠️ Failed to load Telegram Bot Token: ${err.message}`);
+      const fallback = process.env.TELEGRAM_BOT_TOKEN;
+      if (fallback) {
+        this.botToken = fallback;
+        this.logger.warn(`⚠️ Vault unreachable, using TELEGRAM_BOT_TOKEN from env (${fallback.substring(0, 6)}...)`);
+      } else {
+        this.logger.warn(`⚠️ Failed to load Telegram Bot Token: ${err.message}`);
+      }
     }
   }
 
