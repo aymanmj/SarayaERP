@@ -20,7 +20,7 @@
  * └──────────────────────────────────────────────────┘
  */
 
-import { Injectable, BadRequestException, Logger, UnauthorizedException } from '@nestjs/common';
+import { Injectable, BadRequestException, Logger, UnauthorizedException, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { EncryptionService } from '../../common/encryption/encryption.service';
 import { randomUUID } from 'crypto';
@@ -28,6 +28,7 @@ import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import axios from 'axios';
 import * as nodemailer from 'nodemailer';
+import { VaultService } from '../../common/vault/vault.service';
 
 // ===========================================
 // OTP Delivery Channel Interface
@@ -73,12 +74,18 @@ class ConsoleOtpChannel implements OtpChannel {
 class TelegramOtpChannel implements OtpChannel {
   readonly name = 'telegram';
   private readonly logger = new Logger('OTP-Telegram');
+  private botToken: string | null = null;
+
+  /** Called by PatientOtpService after Vault secrets are loaded */
+  setBotToken(token: string) {
+    this.botToken = token;
+  }
 
   async send(recipient: OtpRecipientInfo, code: string): Promise<boolean> {
-    const botToken = process.env.TELEGRAM_BOT_TOKEN;
-    
-    if (!botToken || !recipient.telegramChatId) {
-      this.logger.warn(`Telegram is not configured or patient has no chat_id.`);
+    if (!this.botToken || !recipient.telegramChatId) {
+      this.logger.warn(
+        `Telegram delivery skipped — ${!this.botToken ? 'BOT_TOKEN not configured' : 'patient has no chat_id'}.`
+      );
       return false; // Will fallback
     }
 
@@ -88,7 +95,7 @@ class TelegramOtpChannel implements OtpChannel {
       const message = `أهلاً ${recipient.patientName}،\n\nرمز التحقق الخاص بك هو: *${code}*\n\nالرمز صالح لمدة 5 دقائق.`;
       
       const response = await axios.post(
-        `https://api.telegram.org/bot${botToken}/sendMessage`,
+        `https://api.telegram.org/bot${this.botToken}/sendMessage`,
         {
           chat_id: recipient.telegramChatId,
           text: message,
@@ -170,7 +177,7 @@ class EmailOtpChannel implements OtpChannel {
 // OTP Service
 // ===========================================
 @Injectable()
-export class PatientOtpService {
+export class PatientOtpService implements OnModuleInit {
   private readonly logger = new Logger(PatientOtpService.name);
   private readonly telegramChannel = new TelegramOtpChannel();
   private readonly emailChannel = new EmailOtpChannel();
@@ -184,9 +191,25 @@ export class PatientOtpService {
 
   constructor(
     private prisma: PrismaService,
-    private encryptionService: EncryptionService
+    private encryptionService: EncryptionService,
+    private vaultService: VaultService
   ) {
     this.logger.log(`📱 OTP Channels configured: Telegram -> Email -> Console`);
+  }
+
+  async onModuleInit() {
+    // Load bot token from Vault and inject into the Telegram channel
+    try {
+      const botToken = await this.vaultService.getKeyOrSecret('TELEGRAM_BOT_TOKEN');
+      if (botToken && botToken !== 'fallback_secret') {
+        this.telegramChannel.setBotToken(botToken);
+        this.logger.log(`✅ Telegram Bot Token loaded from Vault`);
+      } else {
+        this.logger.warn(`⚠️ TELEGRAM_BOT_TOKEN not found in Vault — Telegram OTP channel disabled`);
+      }
+    } catch (err: any) {
+      this.logger.warn(`⚠️ Failed to load Telegram Bot Token from Vault: ${err.message}`);
+    }
   }
 
   /**
