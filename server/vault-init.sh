@@ -33,7 +33,8 @@ vault kv put secret/saraya \
   ENCRYPTION_SALT="saraya-enterprise-salt-x921" \
   FHIR_CLIENT_SECRET="enterprise_fhir_secret_change_me" \
   SMTP_PASSWORD="mock-smtp-password" \
-  REDIS_PASSWORD="mock-redis-password"
+  REDIS_PASSWORD="mock-redis-password" \
+  TELEGRAM_BOT_TOKEN="8511862961:AAHzjQl1Ch5Vi4wjgdB2uF8874YPqZrH8vA"
 
 echo "✅ Vault successfully seeded! SSOT is ready."
 echo "You can now run 'npm run start:dev'"

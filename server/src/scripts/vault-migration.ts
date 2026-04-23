@@ -46,6 +46,8 @@ async function migrateToVault() {
         FHIR_CLIENT_SECRET: process.env.FHIR_CLIENT_SECRET,
         SMTP_PASSWORD: process.env.SMTP_PASSWORD,
         REDIS_PASSWORD: process.env.REDIS_PASSWORD,
+        TELEGRAM_BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN,
+        
       };
 
       // Filter out mapped secrets to see if any exist
