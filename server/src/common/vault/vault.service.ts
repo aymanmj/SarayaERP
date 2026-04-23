@@ -82,6 +82,16 @@ export class VaultService implements OnModuleInit {
   }
 
   /**
+   * Get a secret from Vault without fallback.
+   * Returns null if the key is not found — use this for non-JWT secrets
+   * (e.g., TELEGRAM_BOT_TOKEN, SMTP_PASSWORD) where falling back to
+   * JWT_SECRET would be incorrect and potentially dangerous.
+   */
+  async getOptionalSecret(key: string): Promise<string | null> {
+    return this.keysCache.get(key) || null;
+  }
+
+  /**
    * Gets the Active Key ID for issuing new JWTs
    */
   getActiveKeyId(): string {

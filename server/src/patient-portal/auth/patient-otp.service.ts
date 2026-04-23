@@ -200,10 +200,10 @@ export class PatientOtpService implements OnModuleInit {
   async onModuleInit() {
     // Load bot token from Vault and inject into the Telegram channel
     try {
-      const botToken = await this.vaultService.getKeyOrSecret('TELEGRAM_BOT_TOKEN');
-      if (botToken && botToken !== 'fallback_secret') {
+      const botToken = await this.vaultService.getOptionalSecret('TELEGRAM_BOT_TOKEN');
+      if (botToken) {
         this.telegramChannel.setBotToken(botToken);
-        this.logger.log(`✅ Telegram Bot Token loaded from Vault`);
+        this.logger.log(`✅ Telegram Bot Token loaded from Vault (${botToken.substring(0, 6)}...)`);
       } else {
         this.logger.warn(`⚠️ TELEGRAM_BOT_TOKEN not found in Vault — Telegram OTP channel disabled`);
       }
