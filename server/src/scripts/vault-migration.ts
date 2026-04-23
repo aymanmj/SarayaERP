@@ -47,6 +47,7 @@ async function migrateToVault() {
         SMTP_PASSWORD: process.env.SMTP_PASSWORD,
         REDIS_PASSWORD: process.env.REDIS_PASSWORD,
         TELEGRAM_BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN,
+        TELEGRAM_BOT_URL: process.env.TELEGRAM_BOT_URL,
         
       };
 

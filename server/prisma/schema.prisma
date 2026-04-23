@@ -449,6 +449,8 @@ model Patient {
   address            String?
   email              String?
   telegramChatId     String?
+  telegramLinkToken  String?
+  telegramLinkExpiresAt DateTime?
   notes              String?
   isActive           Boolean            @default(true)
   createdAt          DateTime           @default(now())
@@ -524,6 +526,7 @@ model Patient {
   @@index([hospitalId, phone])
   @@index([hospitalId, fullName])
   @@index([nationalId])
+  @@index([telegramLinkToken])
 }
 
 // ============================================

@@ -1,15 +1,17 @@
 import { Controller, Post, Body, Logger, HttpCode, HttpStatus } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { EncryptionService } from '../../common/encryption/encryption.service';
+import { PatientOtpService } from '../auth/patient-otp.service';
 import axios from 'axios';
 
-@Controller('patient-portal/telegram')
+@Controller('patient-portal/v1/telegram')
 export class PortalTelegramController {
   private readonly logger = new Logger(PortalTelegramController.name);
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly encryptionService: EncryptionService
+    private readonly encryptionService: EncryptionService,
+    private readonly otpService: PatientOtpService
   ) {}
 
   /**
@@ -77,11 +79,65 @@ export class PortalTelegramController {
             }).catch(e => this.logger.error(`Failed to send telegram failure message: ${e.message}`));
           }
         }
-      } else if (update.message && update.message.text === '/start') {
+      } else if (update.message && update.message.text && update.message.text.startsWith('/start')) {
           const chatId = update.message.chat.id.toString();
-          this.logger.log(`Received /start command from Chat ID: ${chatId}`);
-          
+          const text = update.message.text.trim();
+          const parts = text.split(' ');
           const botToken = process.env.TELEGRAM_BOT_TOKEN;
+
+          // Deep linking flow: /start <UUID>
+          if (parts.length === 2 && parts[1].length > 10) {
+            const linkToken = parts[1];
+            this.logger.log(`Received deep link /start from Chat ID: ${chatId} with token: ${linkToken}`);
+
+            const patient = await this.prisma.patient.findFirst({
+              where: {
+                telegramLinkToken: linkToken,
+                telegramLinkExpiresAt: { gt: new Date() },
+                isActive: true,
+                isDeleted: false
+              }
+            });
+
+            if (patient) {
+              // Valid token found! Link the account.
+              await this.prisma.patient.update({
+                where: { id: patient.id },
+                data: {
+                  telegramChatId: chatId,
+                  telegramLinkToken: null,
+                  telegramLinkExpiresAt: null
+                }
+              });
+
+              this.logger.log(`Successfully deep-linked Patient ${patient.mrn} to Chat ID ${chatId}`);
+
+              // Immediately generate and send OTP
+              if (botToken) {
+                await axios.post(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+                  chat_id: chatId,
+                  text: 'تم تفعيل حسابك بنجاح! يتم الآن إرسال رمز الدخول...',
+                }).catch(e => this.logger.error(`Failed to send telegram welcome message: ${e.message}`));
+              }
+
+              // Send actual OTP using the service
+              await this.otpService.generateAndSendOtpForPatient(patient.id, chatId);
+              return { ok: true };
+            } else {
+              this.logger.warn(`Invalid or expired link token received: ${linkToken}`);
+              if (botToken) {
+                await axios.post(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+                  chat_id: chatId,
+                  text: 'رابط التفعيل غير صالح أو منتهي الصلاحية. يرجى المحاولة مرة أخرى من بوابة المريض.',
+                }).catch(e => this.logger.error(`Failed to send telegram invalid token message: ${e.message}`));
+              }
+              return { ok: true };
+            }
+          }
+
+          // Normal /start flow (fallback)
+          this.logger.log(`Received normal /start command from Chat ID: ${chatId}`);
+          
           if (botToken) {
             await axios.post(`https://api.telegram.org/bot${botToken}/sendMessage`, {
               chat_id: chatId,

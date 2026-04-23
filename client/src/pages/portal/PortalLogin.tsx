@@ -13,7 +13,7 @@ import { portalAuthApi } from '../../api/portalApi';
 import { toast } from 'sonner';
 import { Phone, KeyRound, ArrowLeft, Loader2, MessageCircle } from 'lucide-react';
 
-type Step = 'credentials' | 'otp';
+type Step = 'credentials' | 'otp' | 'telegram_link';
 
 export default function PortalLogin() {
   const navigate = useNavigate();
@@ -24,6 +24,7 @@ export default function PortalLogin() {
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
+  const [linkUrl, setLinkUrl] = useState('');
 
   const handleRequestOtp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,9 +35,16 @@ export default function PortalLogin() {
 
     setLoading(true);
     try {
-      await portalAuthApi.post('/auth/request-otp', { mrn, phone });
-      toast.success('تم إرسال رمز التحقق');
-      setStep('otp');
+      const response = await portalAuthApi.post('/auth/request-otp', { mrn, phone });
+      
+      if (response.data?.requiresTelegramLinking) {
+        setLinkUrl(response.data.linkUrl);
+        setStep('telegram_link');
+        toast.info('يرجى ربط حسابك بتيليجرام لاستلام الرمز');
+      } else {
+        toast.success('تم إرسال رمز التحقق');
+        setStep('otp');
+      }
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'فشل إرسال رمز التحقق');
     } finally {
@@ -119,26 +127,39 @@ export default function PortalLogin() {
               >
                 {loading ? <Loader2 className="animate-spin" size={20} /> : 'إرسال رمز التحقق'}
               </button>
-              
-              <div className="portal-telegram-promo mt-6 p-4 bg-blue-50/50 rounded-xl border border-blue-100/50 text-center">
-                <div className="flex items-center justify-center gap-2 text-blue-600 mb-2">
-                  <MessageCircle size={20} />
-                  <span className="font-semibold text-sm">استلم رموز التحقق عبر تيليجرام</span>
-                </div>
-                <p className="text-xs text-gray-500 mb-3">
-                  لضمان وصول رمز التحقق (OTP) بشكل فوري، يرجى تفعيل بوت السرايا الطبي قبل تسجيل الدخول.
-                </p>
-                <a
-                  href={import.meta.env.VITE_TELEGRAM_BOT_URL || 'https://t.me/SarayaMedBot'}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center w-full gap-2 px-4 py-2.5 bg-[#0088cc] hover:bg-[#0077b3] text-white text-sm font-medium rounded-lg transition-colors"
-                >
-                  <MessageCircle size={18} />
-                  تشغيل بوت تيليجرام 
-                </a>
-              </div>
             </form>
+          ) : step === 'telegram_link' ? (
+            <div className="portal-login-telegram-link">
+              <h2 className="portal-login-title">تفعيل حساب تيليجرام</h2>
+              <p className="portal-login-desc" style={{ marginBottom: '1.5rem', lineHeight: '1.6', fontSize: '0.9rem', color: '#64748b' }}>
+                لضمان الأمان، يتم إرسال رموز التحقق عبر تطبيق تيليجرام.<br/>
+                يرجى الضغط على الزر أدناه لربط حسابك وتلقي الرمز فوراً.
+              </p>
+              
+              <a 
+                href={linkUrl} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="portal-submit-btn"
+                style={{ background: '#0088cc', textDecoration: 'none', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem' }}
+                onClick={() => {
+                  toast.success('تم فتح تيليجرام. بعد بدء البوت، ستتلقى رمز الدخول هنا.');
+                  setTimeout(() => setStep('otp'), 2000); // Auto move to OTP screen so they can paste it
+                }}
+              >
+                <MessageCircle size={20} />
+                تفعيل عبر تيليجرام
+              </a>
+
+              <button
+                className="portal-back-btn"
+                onClick={() => setStep('credentials')}
+                disabled={loading}
+                style={{ marginTop: '1rem', width: '100%', justifyContent: 'center' }}
+              >
+                <ArrowLeft size={18} /> رجوع
+              </button>
+            </div>
           ) : (
             <form onSubmit={handleVerifyOtp}>
               <button
