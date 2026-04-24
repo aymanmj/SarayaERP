@@ -41,16 +41,33 @@ cp "$PROJECT_DIR/docker-compose.production.yml" "$OUTPUT_DIR/$PACKAGE_NAME/"
 echo -e "  نسخ .env.example..."
 cp "$PROJECT_DIR/.env.example" "$OUTPUT_DIR/$PACKAGE_NAME/"
 
+echo -e "  نسخ .env.template..."
+cp "$PROJECT_DIR/.env.template" "$OUTPUT_DIR/$PACKAGE_NAME/" 2>/dev/null || true
+
 echo -e "  نسخ مجلد scripts..."
 mkdir -p "$OUTPUT_DIR/$PACKAGE_NAME/scripts"
 cp "$PROJECT_DIR/scripts/"*.sh "$OUTPUT_DIR/$PACKAGE_NAME/scripts/"
 chmod +x "$OUTPUT_DIR/$PACKAGE_NAME/scripts/"*.sh
 
-echo -e "  نسخ مجلد production..."
+echo -e "  نسخ مجلد production (nginx + kong)..."
 mkdir -p "$OUTPUT_DIR/$PACKAGE_NAME/production/nginx"
 if [ -f "$PROJECT_DIR/production/nginx/nginx.conf" ]; then
     cp "$PROJECT_DIR/production/nginx/nginx.conf" "$OUTPUT_DIR/$PACKAGE_NAME/production/nginx/"
 fi
+
+mkdir -p "$OUTPUT_DIR/$PACKAGE_NAME/production/kong"
+if [ -f "$PROJECT_DIR/production/kong/kong.yml" ]; then
+    cp "$PROJECT_DIR/production/kong/kong.yml" "$OUTPUT_DIR/$PACKAGE_NAME/production/kong/"
+fi
+
+echo -e "  نسخ المفتاح العام للترخيص..."
+if [ -f "$PROJECT_DIR/server/src/licensing/public.key" ]; then
+    cp "$PROJECT_DIR/server/src/licensing/public.key" "$OUTPUT_DIR/$PACKAGE_NAME/"
+fi
+
+echo -e "  نسخ إعدادات الواجهة الأمامية..."
+mkdir -p "$OUTPUT_DIR/$PACKAGE_NAME/client"
+cp "$PROJECT_DIR/client/.env.example" "$OUTPUT_DIR/$PACKAGE_NAME/client/" 2>/dev/null || true
 
 echo -e "  نسخ التوثيق..."
 mkdir -p "$OUTPUT_DIR/$PACKAGE_NAME/docs"

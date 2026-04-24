@@ -50,7 +50,7 @@ echo -e "${GREEN}✓ Docker ready${NC}"
 
 # Step 3: Create directories
 echo -e "${YELLOW}[3/7] Setting up directories...${NC}"
-mkdir -p "$INSTALL_DIR"/{backups,logs,production/nginx,scripts}
+mkdir -p "$INSTALL_DIR"/{backups,logs,production/nginx,production/kong,scripts,monitoring/grafana/provisioning/datasources,monitoring/grafana/provisioning/dashboards,monitoring/grafana/dashboards,data/license,data/keys,uploads}
 echo -e "${GREEN}✓ Directories created${NC}"
 
 # Step 4: Copy files from shared folder
@@ -59,26 +59,53 @@ echo -e "${YELLOW}[4/7] Copying files...${NC}"
 cp "$SOURCE_DIR/docker-compose.production.yml" "$INSTALL_DIR/"
 cp "$SOURCE_DIR/.env.production" "$INSTALL_DIR/"
 cp "$SOURCE_DIR/.env.example" "$INSTALL_DIR/" 2>/dev/null || true
+cp "$SOURCE_DIR/.env.template" "$INSTALL_DIR/" 2>/dev/null || true
+
+# Symlink .env -> .env.production
+ln -sf .env.production "$INSTALL_DIR/.env" 2>/dev/null || true
 
 if [ -d "$SOURCE_DIR/production/nginx" ]; then
     cp "$SOURCE_DIR/production/nginx/nginx.conf" "$INSTALL_DIR/production/nginx/" 2>/dev/null || true
 fi
 
-if [ -f "$SOURCE_DIR/saraya.lic" ]; then
-    cp "$SOURCE_DIR/saraya.lic" "$INSTALL_DIR/"
+if [ -d "$SOURCE_DIR/production/kong" ]; then
+    cp "$SOURCE_DIR/production/kong/kong.yml" "$INSTALL_DIR/production/kong/" 2>/dev/null || true
 fi
 
-# Copy scripts
-for script in update.sh backup.sh health-check.sh setup-ghcr.sh; do
-    [ -f "$SOURCE_DIR/scripts/$script" ] && cp "$SOURCE_DIR/scripts/$script" "$INSTALL_DIR/scripts/"
-done
+if [ -f "$SOURCE_DIR/saraya.lic" ]; then
+    cp "$SOURCE_DIR/saraya.lic" "$INSTALL_DIR/data/license/"
+    chown 1000:1000 "$INSTALL_DIR/data/license/saraya.lic" 2>/dev/null || true
+fi
+
+# Copy ALL scripts
+if [ -d "$SOURCE_DIR/scripts" ]; then
+    cp "$SOURCE_DIR/scripts/"*.sh "$INSTALL_DIR/scripts/" 2>/dev/null || true
+fi
+
+# Copy monitoring configs
+if [ -d "$SOURCE_DIR/monitoring" ]; then
+    cp -r "$SOURCE_DIR/monitoring/"* "$INSTALL_DIR/monitoring/" 2>/dev/null || true
+fi
+
+# Copy frontend env
+if [ -f "$SOURCE_DIR/client/.env.example" ]; then
+    mkdir -p "$INSTALL_DIR/client"
+    cp "$SOURCE_DIR/client/.env.example" "$INSTALL_DIR/client/" 2>/dev/null || true
+fi
 
 # Convert Windows line endings to Unix
 dos2unix "$INSTALL_DIR"/*.yml 2>/dev/null || true
 dos2unix "$INSTALL_DIR"/.env* 2>/dev/null || true
 dos2unix "$INSTALL_DIR/scripts/"*.sh 2>/dev/null || true
+dos2unix "$INSTALL_DIR/production/kong/"*.yml 2>/dev/null || true
+dos2unix "$INSTALL_DIR/monitoring/"*.yml 2>/dev/null || true
 
 chmod +x "$INSTALL_DIR/scripts/"*.sh 2>/dev/null || true
+
+# Set ownership for data directories
+chown -R 1000:1000 "$INSTALL_DIR/data/license" 2>/dev/null || true
+chown -R 1000:1000 "$INSTALL_DIR/uploads" 2>/dev/null || true
+chown -R 1000:1000 "$INSTALL_DIR/backups" 2>/dev/null || true
 
 echo -e "${GREEN}✓ Files copied${NC}"
 

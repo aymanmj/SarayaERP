@@ -255,7 +255,7 @@ services:
       VAULT_API_ADDR: "http://127.0.0.1:8200"
     command: server
     ports:
-      - "8200:8200"
+      - "127.0.0.1:8200:8200"
     volumes:
       - vault_data_v2:/vault/file
     networks:
@@ -466,8 +466,6 @@ services:
 volumes:
   postgres_data:
   redis_data:
-  app_uploads:
-  license_data:
   prometheus_data:
   grafana_data:
   portainer_data:

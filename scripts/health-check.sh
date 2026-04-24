@@ -9,6 +9,7 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
+CYAN='\033[0;36m'
 NC='\033[0m'
 
 INSTALL_DIR="/opt/saraya-erp"
@@ -25,6 +26,7 @@ print_header() {
 check_service() {
     local name=$1
     local container=$2
+    local optional=${3:-false}
     
     if docker ps --format '{{.Names}}' | grep -q "^${container}$"; then
         local status=$(docker inspect --format='{{.State.Health.Status}}' "$container" 2>/dev/null || echo "running")
@@ -36,8 +38,13 @@ check_service() {
             return 1
         fi
     else
-        echo -e "  ${RED}✗${NC} $name: ${RED}متوقف${NC}"
-        return 1
+        if [ "$optional" = "true" ]; then
+            echo -e "  ${CYAN}○${NC} $name: ${CYAN}غير مُفعّل${NC}"
+            return 0  # لا نحسبه كخطأ
+        else
+            echo -e "  ${RED}✗${NC} $name: ${RED}متوقف${NC}"
+            return 1
+        fi
     fi
 }
 
@@ -56,7 +63,10 @@ check_endpoint() {
 
 print_header
 
-echo -e "\n${BLUE}═══ حالة الخدمات ═══${NC}\n"
+# ═══════════════════════════════════════
+# 1. الخدمات الأساسية (Core Services)
+# ═══════════════════════════════════════
+echo -e "\n${BLUE}═══ الخدمات الأساسية ═══${NC}\n"
 
 ERRORS=0
 
@@ -65,17 +75,64 @@ check_service "Redis" "saraya_redis" || ((ERRORS++))
 check_service "Backend" "saraya_backend" || ((ERRORS++))
 check_service "Frontend" "saraya_frontend" || ((ERRORS++))
 check_service "Nginx" "saraya_nginx" || ((ERRORS++))
-check_service "Portainer" "saraya_portainer" || ((ERRORS++))
-check_service "Watchtower" "saraya_watchtower" || ((ERRORS++))
-check_service "Tailscale" "saraya_tailscale" || ((ERRORS++))
 
+# ═══════════════════════════════════════
+# 2. خدمات الأمان والبوابات
+# ═══════════════════════════════════════
+echo -e "\n${BLUE}═══ الأمان والبوابات ═══${NC}\n"
+
+check_service "Vault (الأسرار)" "saraya_vault" || ((ERRORS++))
+check_service "Kong (FHIR Gateway)" "saraya_kong" true
+
+# ═══════════════════════════════════════
+# 3. خدمات الوصول والشبكة
+# ═══════════════════════════════════════
+echo -e "\n${BLUE}═══ الوصول والشبكة ═══${NC}\n"
+
+check_service "Cloudflare Tunnel" "saraya_tunnel" true
+check_service "Tailscale VPN" "saraya_tailscale" true
+
+# ═══════════════════════════════════════
+# 4. المراقبة (Monitoring Stack)
+# ═══════════════════════════════════════
+echo -e "\n${BLUE}═══ المراقبة ═══${NC}\n"
+
+check_service "Prometheus" "saraya_prometheus" true
+check_service "Grafana" "saraya_grafana" true
+check_service "Alertmanager" "saraya_alertmanager" true
+check_service "Loki (Logs)" "saraya_loki" true
+check_service "Promtail" "saraya_promtail" true
+check_service "Tempo (Tracing)" "saraya_tempo" true
+check_service "OTel Collector" "saraya_otel_collector" true
+check_service "Node Exporter" "saraya_node_exporter" true
+check_service "Postgres Exporter" "saraya_postgres_exporter" true
+check_service "Redis Exporter" "saraya_redis_exporter" true
+
+# ═══════════════════════════════════════
+# 5. الإدارة والصيانة
+# ═══════════════════════════════════════
+echo -e "\n${BLUE}═══ الإدارة والصيانة ═══${NC}\n"
+
+check_service "Watchtower (تحديث)" "saraya_watchtower" || ((ERRORS++))
+check_service "Portainer (إدارة)" "saraya_portainer" || ((ERRORS++))
+check_service "Backup Worker" "saraya_backup" true
+
+# ═══════════════════════════════════════
+# 6. نقاط النهاية (Endpoints)
+# ═══════════════════════════════════════
 echo -e "\n${BLUE}═══ نقاط النهاية ═══${NC}\n"
 
 check_endpoint "Backend Health" "http://localhost:3000/api/health" || ((ERRORS++))
 check_endpoint "Frontend" "http://localhost" || ((ERRORS++))
-check_endpoint "Portainer" "http://localhost:9000" || ((ERRORS++))
-check_endpoint "Grafana" "http://localhost:3001" || ((ERRORS++))
+check_endpoint "Portainer" "http://localhost:9000" || true
+check_endpoint "Grafana" "http://localhost:3001" || true
+check_endpoint "Vault Health" "http://localhost:8200/v1/sys/health" || true
+check_endpoint "Kong Proxy" "http://localhost:8000" || true
+check_endpoint "Loki Ready" "http://localhost:3100/ready" || true
 
+# ═══════════════════════════════════════
+# 7. موارد النظام (System Resources)
+# ═══════════════════════════════════════
 echo -e "\n${BLUE}═══ موارد النظام ═══${NC}\n"
 
 # Disk
@@ -104,6 +161,14 @@ fi
 DOCKER_SIZE=$(docker system df --format '{{.Size}}' 2>/dev/null | head -1)
 echo -e "  ${BLUE}ℹ${NC} حجم Docker: $DOCKER_SIZE"
 
+# Container count
+RUNNING=$(docker ps --format '{{.Names}}' | grep -c saraya 2>/dev/null || echo "0")
+TOTAL=$(docker ps -a --format '{{.Names}}' | grep -c saraya 2>/dev/null || echo "0")
+echo -e "  ${BLUE}ℹ${NC} الحاويات: ${RUNNING} تعمل من أصل ${TOTAL}"
+
+# ═══════════════════════════════════════
+# 8. Tailscale
+# ═══════════════════════════════════════
 echo -e "\n${BLUE}═══ Tailscale ═══${NC}\n"
 
 TS_STATUS=$(docker exec saraya_tailscale tailscale status --json 2>/dev/null | jq -r '.Self.Online // false' 2>/dev/null)
@@ -112,9 +177,12 @@ if [ "$TS_STATUS" = "true" ]; then
     TS_NAME=$(docker exec saraya_tailscale tailscale status --json 2>/dev/null | jq -r '.Self.HostName' 2>/dev/null)
     echo -e "  ${GREEN}✓${NC} متصل: $TS_NAME ($TS_IP)"
 else
-    echo -e "  ${RED}✗${NC} غير متصل"
+    echo -e "  ${CYAN}○${NC} غير متصل أو غير مُفعّل"
 fi
 
+# ═══════════════════════════════════════
+# 9. آخر النسخ الاحتياطية
+# ═══════════════════════════════════════
 echo -e "\n${BLUE}═══ آخر النسخ الاحتياطية ═══${NC}\n"
 
 BACKUP_DIR="$INSTALL_DIR/backups"
@@ -131,13 +199,16 @@ else
     echo -e "  ${YELLOW}⚠${NC} مجلد النسخ الاحتياطي غير موجود"
 fi
 
+# ═══════════════════════════════════════
+# النتيجة النهائية
+# ═══════════════════════════════════════
 echo ""
 echo -e "${BLUE}════════════════════════════════════════════════════════════════${NC}"
 
 if [ $ERRORS -eq 0 ]; then
-    echo -e "${GREEN}  ✓ جميع الخدمات تعمل بشكل صحيح!${NC}"
+    echo -e "${GREEN}  ✓ جميع الخدمات الأساسية تعمل بشكل صحيح!${NC}"
 else
-    echo -e "${YELLOW}  ⚠ توجد $ERRORS مشكلة تحتاج مراجعة${NC}"
+    echo -e "${YELLOW}  ⚠ توجد $ERRORS مشكلة في الخدمات الأساسية تحتاج مراجعة${NC}"
 fi
 
 echo -e "${BLUE}════════════════════════════════════════════════════════════════${NC}"

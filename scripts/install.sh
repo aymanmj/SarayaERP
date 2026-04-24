@@ -219,7 +219,7 @@ install_dependencies() {
 setup_directories() {
     print_info "Setting up directories..."
 
-    mkdir -p "$INSTALL_DIR"/{backups,logs,certs,production/nginx,scripts,monitoring/grafana/provisioning/datasources,monitoring/grafana/provisioning/dashboards,monitoring/grafana/dashboards,data/license,uploads}
+    mkdir -p "$INSTALL_DIR"/{backups,logs,certs,production/nginx,production/kong,scripts,monitoring/grafana/provisioning/datasources,monitoring/grafana/provisioning/dashboards,monitoring/grafana/dashboards,data/license,data/keys,uploads}
     
     # Fix permissions - run as root
     chmod -R 755 "$INSTALL_DIR"
@@ -298,9 +298,17 @@ download_files() {
     gh_download "scripts/restore.sh" "scripts/restore.sh"
     gh_download "scripts/reset.sh" "scripts/reset.sh"
     gh_download "scripts/health-check.sh" "scripts/health-check.sh"
-
+    gh_download "scripts/uninstall.sh" "scripts/uninstall.sh"
 
     chmod +x scripts/*.sh
+
+    # ============================================================
+    # Download Kong API Gateway Config
+    # ============================================================
+    print_info "Downloading Kong API Gateway config..."
+    
+    mkdir -p production/kong
+    gh_download "production/kong/kong.yml" "production/kong/kong.yml"
 
     # ============================================================
     # Download Monitoring files
@@ -315,6 +323,18 @@ download_files() {
     
     # Alertmanager configuration
     gh_download "monitoring/alertmanager.yml" "monitoring/alertmanager.yml"
+    
+    # Loki (Centralized Logging)
+    gh_download "monitoring/loki-config.yml" "monitoring/loki-config.yml"
+    
+    # Promtail (Log Shipping)
+    gh_download "monitoring/promtail-config.yml" "monitoring/promtail-config.yml"
+    
+    # Tempo (Distributed Tracing)
+    gh_download "monitoring/tempo-config.yml" "monitoring/tempo-config.yml"
+    
+    # OpenTelemetry Collector
+    gh_download "monitoring/otel-collector-config.yml" "monitoring/otel-collector-config.yml"
     
     # Grafana datasources
     gh_download "monitoring/grafana/provisioning/datasources/prometheus.yml" \
@@ -348,15 +368,22 @@ download_files() {
 generate_env_file() {
     print_info "Creating environment file..."
 
-    # Generate random values
+    # ════════════════════════════════════════
+    # Auto-generate ALL cryptographic secrets
+    # This follows security best practices:
+    #   - Each installation gets unique keys
+    #   - No default/shared passwords
+    #   - Cryptographically random values
+    # ════════════════════════════════════════
     POSTGRES_PASSWORD=$(openssl rand -base64 32 | tr -dc 'a-zA-Z0-9' | head -c 32)
     JWT_SECRET=$(openssl rand -hex 32)
     WATCHTOWER_TOKEN=$(openssl rand -base64 24 | tr -dc 'a-zA-Z0-9' | head -c 24)
     REDIS_PASSWORD=$(openssl rand -base64 16 | tr -dc 'a-zA-Z0-9' | head -c 16)
     ENCRYPTION_KEY=$(openssl rand -base64 32)
     ENCRYPTION_SALT="saraya-${CLIENT_NAME}-salt-$(openssl rand -hex 4)"
+    GRAFANA_PASSWORD=$(openssl rand -base64 16 | tr -dc 'a-zA-Z0-9' | head -c 16)
 
-    # Determine CORS origins
+    # Determine CORS origins based on domain/IP
     SERVER_IP=$(hostname -I | awk '{print $1}')
     if [ -n "$CLIENT_DOMAIN" ]; then
         CORS_VALUE="https://${CLIENT_DOMAIN}"
@@ -367,63 +394,93 @@ generate_env_file() {
     cat > "$INSTALL_DIR/.env.production" << EOF
 # ════════════════════════════════════════════════════════════════════════════════
 # Saraya ERP - Production Environment (Auto-generated)
+# ════════════════════════════════════════════════════════════════════════════════
 # Generated on: $(date)
 # Client: $CLIENT_NAME
 # Domain: ${CLIENT_DOMAIN:-N/A}
+# Server IP: $SERVER_IP
+#
+# ⚠️ هذا الملف يحتوي أسرار حقيقية — لا تشاركه أبداً!
+# ⚠️ احتفظ بنسخة احتياطية في مكان آمن
 # ════════════════════════════════════════════════════════════════════════════════
 
-# Database
+# ═══════ قاعدة البيانات ═══════
 POSTGRES_USER=admin
 POSTGRES_PASSWORD=$POSTGRES_PASSWORD
 POSTGRES_DB=saraya_erp
 DATABASE_URL=postgresql://admin:$POSTGRES_PASSWORD@postgres:5432/saraya_erp?schema=public
 
-# Security
+# ═══════ المصادقة ═══════
 JWT_SECRET=$JWT_SECRET
-JWT_EXPIRES_IN=86400
+JWT_EXPIRES_IN=86400s
 
-# 🔒 Encryption (Patient PII - AES-256)
+# ═══════ التشفير (AES-256 — بيانات المرضى) ═══════
+# ⚠️ لا تُغيّر ENCRYPTION_KEY أبداً بعد بدء تخزين البيانات!
 ENCRYPTION_KEY=$ENCRYPTION_KEY
 ENCRYPTION_SALT=$ENCRYPTION_SALT
 
-# 🌐 CORS (Allowed Origins)
+# ═══════ CORS ═══════
 CORS_ORIGINS=$CORS_VALUE
 
-# SSL Certificates
+# ═══════ SSL ═══════
 SSL_CERT_PATH=./certs
 
-# Redis
+# ═══════ Redis ═══════
 REDIS_HOST=redis
 REDIS_PORT=6379
 REDIS_PASSWORD=$REDIS_PASSWORD
 
-# Application
+# ═══════ التطبيق ═══════
 NODE_ENV=production
 PORT=3000
-SERVER_PORT=3000
-BASELINE_MIGRATIONS="false"
+BCRYPT_ROUNDS=12
+RATE_LIMIT_TTL=1000
+RATE_LIMIT_LIMIT=100
 
-# License
-LICENSE_PATH=/app/data/saraya.lic
+# ═══════ الترخيص ═══════
+LICENSE_PATH=/app/data/license/saraya.lic
 
-# ☁️ Cloudflare Tunnel (unique per client)
+# ═══════ رفع الملفات ═══════
+MAX_FILE_SIZE=10485760
+UPLOAD_PATH=/app/uploads
+
+# ═══════ البريد الإلكتروني (SMTP) ═══════
+SMTP_HOST=
+SMTP_PORT=587
+SMTP_USER=
+SMTP_PASSWORD=
+SMTP_FROM=noreply@sarayaerp.com
+
+# ═══════ تيليجرام — بوابة المريض ═══════
+TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+TELEGRAM_BOT_URL=https://t.me/SarayaMedBot
+
+# ═══════ Cloudflare Tunnel ═══════
 TUNNEL_TOKEN=$CF_TUNNEL_TOKEN
 
-# Tailscale
+# ═══════ Tailscale ═══════
 TAILSCALE_AUTHKEY=$TAILSCALE_AUTHKEY
 TAILSCALE_HOSTNAME=$TAILSCALE_HOSTNAME
 
-# GHCR
+# ═══════ GHCR ═══════
 GITHUB_REPOSITORY_OWNER=$GITHUB_OWNER
 IMAGE_TAG=latest
 
-# Watchtower
+# ═══════ Watchtower ═══════
 WATCHTOWER_TOKEN=$WATCHTOWER_TOKEN
 
-# Monitoring
-GRAFANA_PASSWORD=admin123
+# ═══════ المراقبة ═══════
+GRAFANA_PASSWORD=$GRAFANA_PASSWORD
+ALERT_EMAIL_FROM=alerts@saraya-erp.com
+ALERT_EMAIL_TO=
+METRICS_ENABLED=true
+HEALTH_CHECK_INTERVAL=30000
 
-# Backup
+# ═══════ السجلات ═══════
+LOG_LEVEL=info
+LOG_FORMAT=json
+
+# ═══════ النسخ الاحتياطي ═══════
 BACKUP_SCHEDULE="0 2,14 * * *"
 BACKUP_RETENTION_DAYS=30
 EOF
@@ -431,11 +488,22 @@ EOF
     # Create symlink for default .env (important for docker-compose)
     ln -sf .env.production "$INSTALL_DIR/.env"
 
-    print_status ".env.production created"
-    print_status "🔒 ENCRYPTION_KEY generated (unique per client)"
-    print_status "🌐 CORS_ORIGINS set to: $CORS_VALUE"
-    print_warning "Passwords were auto-generated - keep a backup!"
-    print_warning "⚠️ ENCRYPTION_KEY must NEVER be changed after data is stored!"
+    print_status ".env.production created with auto-generated secrets"
+    echo ""
+    echo -e "  ${CYAN}╔══════════════════════════════════════════════════════════╗${NC}"
+    echo -e "  ${CYAN}║   🔐 Auto-Generated Secrets (Save these securely!)      ║${NC}"
+    echo -e "  ${CYAN}╠══════════════════════════════════════════════════════════╣${NC}"
+    echo -e "  ${CYAN}║${NC} POSTGRES_PASSWORD: ${YELLOW}${POSTGRES_PASSWORD:0:8}...${NC}                        ${CYAN}║${NC}"
+    echo -e "  ${CYAN}║${NC} REDIS_PASSWORD:    ${YELLOW}${REDIS_PASSWORD:0:8}...${NC}                        ${CYAN}║${NC}"
+    echo -e "  ${CYAN}║${NC} JWT_SECRET:        ${YELLOW}${JWT_SECRET:0:8}...${NC}                        ${CYAN}║${NC}"
+    echo -e "  ${CYAN}║${NC} ENCRYPTION_KEY:    ${YELLOW}${ENCRYPTION_KEY:0:8}...${NC}                        ${CYAN}║${NC}"
+    echo -e "  ${CYAN}║${NC} GRAFANA_PASSWORD:  ${YELLOW}${GRAFANA_PASSWORD}${NC}                   ${CYAN}║${NC}"
+    echo -e "  ${CYAN}╠══════════════════════════════════════════════════════════╣${NC}"
+    echo -e "  ${CYAN}║${NC} ${RED}⚠️  ENCRYPTION_KEY must NEVER be changed after data${NC}   ${CYAN}║${NC}"
+    echo -e "  ${CYAN}║${NC} ${RED}   is stored! Patient data will become unreadable!${NC}   ${CYAN}║${NC}"
+    echo -e "  ${CYAN}╚══════════════════════════════════════════════════════════╝${NC}"
+    echo ""
+    print_warning "Keep a secure backup of .env.production!"
 }
 
 # ════════════════════════════════════════════════════════════════════════════════
@@ -691,13 +759,21 @@ cleanup_containers() {
         "saraya_backend"
         "saraya_frontend"
         "saraya_nginx"
+        "saraya_kong"
         "saraya_tunnel"
+        "saraya_tailscale"
+        "saraya_vault"
         "saraya_backup"
         "saraya_node_exporter"
         "saraya_postgres_exporter"
         "saraya_redis_exporter"
         "saraya_prometheus"
         "saraya_grafana"
+        "saraya_alertmanager"
+        "saraya_loki"
+        "saraya_promtail"
+        "saraya_tempo"
+        "saraya_otel_collector"
         "saraya_watchtower"
         "saraya_portainer"
     )
@@ -768,8 +844,25 @@ pull_and_start() {
     print_info "Waiting for Frontend and Nginx..."
     sleep 10
     
-    # Start optional services (portainer, watchtower)
+    # Start Vault (needed by backend for secret management)
+    print_info "Starting Vault..."
+    docker compose -f docker-compose.production.yml --env-file .env.production up -d vault >> "$LOG_FILE" 2>&1 || true
+    sleep 5
+
+    # Start optional services (portainer, watchtower, kong)
     docker compose -f docker-compose.production.yml --env-file .env.production up -d portainer watchtower >> "$LOG_FILE" 2>&1 || true
+    docker compose -f docker-compose.production.yml --env-file .env.production up -d kong >> "$LOG_FILE" 2>&1 || true
+
+    # Start Monitoring Stack
+    print_info "Starting monitoring stack..."
+    docker compose -f docker-compose.production.yml --env-file .env.production up -d \
+        node-exporter postgres-exporter redis-exporter \
+        prometheus grafana alertmanager \
+        loki promtail tempo otel-collector >> "$LOG_FILE" 2>&1 || true
+    print_status "Monitoring stack started"
+
+    # Start Backup Worker
+    docker compose -f docker-compose.production.yml --env-file .env.production up -d backup >> "$LOG_FILE" 2>&1 || true
 
     # Start Cloudflare Tunnel ONLY if token was provided
     if [ -n "$CF_TUNNEL_TOKEN" ]; then
@@ -789,7 +882,7 @@ pull_and_start() {
         print_warning "Tailscale skipped (no auth key provided)"
     fi
     
-    print_status "All core services started"
+    print_status "All services started"
 
     # Health check
     print_info "Checking service status..."
