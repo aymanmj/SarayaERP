@@ -370,7 +370,7 @@ echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━�
 CLEAN=true
 
 # Check containers
-SARAYA_CONTAINERS=$(docker ps -a --filter "name=saraya" --format '{{.Names}}' 2>/dev/null | wc -l || echo "0")
+SARAYA_CONTAINERS=$(docker ps -a --filter "name=saraya" -q 2>/dev/null | wc -l | xargs)
 if [ "$SARAYA_CONTAINERS" -gt 0 ]; then
     warn "Still found $SARAYA_CONTAINERS Saraya container(s)"
     CLEAN=false
@@ -379,7 +379,7 @@ else
 fi
 
 # Check volumes
-SARAYA_VOLUMES=$(docker volume ls --filter "name=saraya" -q 2>/dev/null | wc -l || echo "0")
+SARAYA_VOLUMES=$(docker volume ls --filter "name=saraya" -q 2>/dev/null | wc -l | xargs)
 if [ "$SARAYA_VOLUMES" -gt 0 ]; then
     warn "Still found $SARAYA_VOLUMES Saraya volume(s)"
     CLEAN=false
