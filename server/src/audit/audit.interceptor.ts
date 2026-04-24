@@ -22,14 +22,12 @@ export class AuditInterceptor implements NestInterceptor {
     const method = req.method as string;
     const path: string = req.originalUrl ?? req.url;
 
-    // Determine if this operation should be audited
     const sensitiveAnnotation = this.reflector.getAllAndOverride<string | boolean>(
       IS_SENSITIVE_KEY,
       [context.getHandler(), context.getClass()]
     );
     const isSensitiveRead = method === 'GET' && !!sensitiveAnnotation;
 
-    // Skip if not a sensitive read. Mutations are logged by Prisma AuditExtension.
     if (!isSensitiveRead) {
       return next.handle();
     }
@@ -37,36 +35,37 @@ export class AuditInterceptor implements NestInterceptor {
     const start = Date.now();
 
     return next.handle().pipe(
-      tap(async (responseBody) => {
-        const duration = Date.now() - start;
-        const { entity, entityId } = this.inferEntityAndId(path, req);
-
-        let actionName = this.getActionName(method, path, isSensitiveRead, sensitiveAnnotation, responseBody);
-        
-        try {
-          await this.audit.logCritical({
-            hospitalId: user?.hospitalId ?? null,
-            userId: user?.sub ?? null,
-            action: actionName,
-            entity: entity,
-            entityId: entityId,
-            ipAddress: this.getClientIP(req),
-            clientName: req.headers['user-agent'],
-            details: {
-              method,
-              path,
-              statusCode: context.switchToHttp().getResponse().statusCode,
-              durationMs: duration,
-              accessType: 'READ_ACCESS',
-              params: req.params,
-              query: req.query,
-            },
-          });
-        } catch (err: any) {
-          this.logger.error('Failed to log sensitive audit, aborting response', err);
-          throw new Error('Critical Audit Failure: ' + err.message);
+      tap({
+        next: async (responseBody) => {
+          const duration = Date.now() - start;
+          const { entity, entityId } = this.inferEntityAndId(path, req);
+          const actionName = this.getActionName(method, path, isSensitiveRead, sensitiveAnnotation, responseBody);
+          
+          try {
+            await this.audit.logCritical({
+              hospitalId: user?.hospitalId ?? null,
+              userId: user?.sub ?? null,
+              action: actionName,
+              entity: entity,
+              entityId: entityId,
+              ipAddress: this.getClientIP(req),
+              clientName: req.headers['user-agent'],
+              details: {
+                method,
+                path,
+                statusCode: context.switchToHttp().getResponse().statusCode,
+                durationMs: duration,
+                accessType: 'READ_ACCESS',
+                params: req.params,
+                query: req.query,
+              },
+            });
+          } catch (err: any) {
+            this.logger.error('Failed to log sensitive audit', err);
+            throw new Error('Critical Audit Failure: ' + err.message);
+          }
         }
-      }),
+      })
     );
   }
 
