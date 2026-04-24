@@ -12,16 +12,67 @@ echo "🚀 Starting Saraya ERP Container..."
 # نحاول الاتصال وتشغيل المايجريشن 5 مرات قبل الاستسلام
 # هذا يحل مشكلة "Connection refused" عند بدء تشغيل Docker Compose
 echo "📦 Applying database migrations..."
+
+# ── Helper: run migrate deploy and capture output ──
+run_migrate() {
+  npx prisma migrate deploy 2>&1
+}
+
 RETRIES=5
+MIGRATE_SUCCESS=false
+
 until [ $RETRIES -eq 0 ]; do
-  npx prisma migrate deploy && break
+  OUTPUT=$(run_migrate)
+  EXIT_CODE=$?
+  echo "$OUTPUT"
+
+  if [ $EXIT_CODE -eq 0 ]; then
+    MIGRATE_SUCCESS=true
+    break
+  fi
+
+  # ── Detect P3009: stuck failed migration ──
+  if echo "$OUTPUT" | grep -q "P3009"; then
+    echo "⚠️  P3009 detected: previous migration failed. Checking if safe to auto-resolve..."
+
+    # Check if there are any real user tables (i.e., data exists)
+    TABLE_COUNT=$(node -e "
+      const { PrismaClient } = require('@prisma/client');
+      const p = new PrismaClient();
+      p.\$queryRaw\`SELECT count(*)::int AS c FROM information_schema.tables WHERE table_schema='public' AND table_name NOT LIKE '_prisma%'\`
+        .then(r => { console.log(r[0].c); p.\$disconnect(); })
+        .catch(() => { console.log('-1'); });
+    " 2>/dev/null || echo "-1")
+
+    if [ "$TABLE_COUNT" = "0" ] || [ "$TABLE_COUNT" = "-1" ]; then
+      echo "🗑️  Fresh database detected (no user tables). Clearing stuck migration state..."
+      node -e "
+        const { PrismaClient } = require('@prisma/client');
+        const p = new PrismaClient();
+        p.\$executeRawUnsafe('DROP TABLE IF EXISTS \"_prisma_migrations\" CASCADE')
+          .then(() => { console.log('✅ Migration state cleared.'); p.\$disconnect(); })
+          .catch(e => { console.error('Error:', e.message); p.\$disconnect(); process.exit(1); });
+      "
+      echo "🔄 Retrying migration deploy..."
+      sleep 2
+      RETRIES=$((RETRIES-1))
+      continue
+    else
+      echo "❌ P3009 detected but database has $TABLE_COUNT user tables."
+      echo "   Cannot auto-resolve on a populated database. Manual intervention required:"
+      echo "   Run: npx prisma migrate resolve --rolled-back <migration_name>"
+      exit 1
+    fi
+  fi
+
+  # ── Transient failure (DB not ready yet) ──
   RETRIES=$((RETRIES-1))
-  echo "⚠️  Migration failed. Waiting for Database... ($RETRIES attempts left)"
+  echo "⚠️  Migration failed (transient). Waiting for Database... ($RETRIES attempts left)"
   sleep 5
 done
 
-if [ $RETRIES -eq 0 ]; then
-  echo "❌ Error: Could not connect to Database after multiple attempts."
+if [ "$MIGRATE_SUCCESS" != "true" ]; then
+  echo "❌ Error: Could not apply migrations after multiple attempts."
   exit 1
 fi
 
