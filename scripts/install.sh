@@ -286,6 +286,9 @@ download_files() {
     # Download .env.example
     gh_download ".env.example" ".env.example"
 
+    # Download .env.template (documented reference for all variables)
+    gh_download ".env.template" ".env.template"
+
     # Download nginx.conf (SSL-enabled)
     gh_download "production/nginx/nginx.conf" "production/nginx/nginx.conf"
 

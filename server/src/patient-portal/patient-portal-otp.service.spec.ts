@@ -1,18 +1,9 @@
-/**
- * Patient Portal — OTP Service Unit Tests
- * 
- * Tests:
- * - OTP generation and delivery
- * - Rate limiting (max 5/hour)
- * - OTP verification with attempt tracking
- * - OTP expiry enforcement
- * - Old OTP invalidation on new request
- * - MRN+phone validation (prevents enumeration)
- */
 import { Test, TestingModule } from '@nestjs/testing';
 import { UnauthorizedException, BadRequestException } from '@nestjs/common';
 import { PatientOtpService } from './auth/patient-otp.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { EncryptionService } from '../common/encryption/encryption.service';
+import { VaultService } from '../common/vault/vault.service';
 import * as bcrypt from 'bcrypt';
 
 describe('PatientOtpService', () => {
@@ -22,6 +13,8 @@ describe('PatientOtpService', () => {
   const mockPrisma = {
     patient: {
       findFirst: jest.fn(),
+      findUnique: jest.fn(),
+      update: jest.fn(),
     },
     patientOtp: {
       count: jest.fn(),
@@ -32,11 +25,23 @@ describe('PatientOtpService', () => {
     },
   };
 
+  const mockEncryptionService = {
+    encrypt: jest.fn((val: string) => val),
+    decrypt: jest.fn((val: string) => val),
+  };
+
+  const mockVaultService = {
+    getOptionalSecret: jest.fn().mockResolvedValue(null),
+    getSecret: jest.fn().mockResolvedValue(null),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PatientOtpService,
         { provide: PrismaService, useValue: mockPrisma },
+        { provide: EncryptionService, useValue: mockEncryptionService },
+        { provide: VaultService, useValue: mockVaultService },
       ],
     }).compile();
 
@@ -59,19 +64,39 @@ describe('PatientOtpService', () => {
       hospitalId: 1,
       mrn: 'MRN-0001',
       phone: '0912345678',
+      telegramChatId: null, // No Telegram → deep link flow
+      email: null,
     };
 
-    it('should send OTP successfully for valid patient', async () => {
-      mockPrisma.patient.findFirst.mockResolvedValue(mockPatient);
+    const mockPatientLinked = {
+      ...mockPatient,
+      telegramChatId: '123456789', // Has Telegram → direct OTP send
+    };
+
+    it('should send OTP successfully for linked patient', async () => {
+      mockPrisma.patient.findFirst.mockResolvedValue(mockPatientLinked);
       mockPrisma.patientOtp.count.mockResolvedValue(0);
       mockPrisma.patientOtp.updateMany.mockResolvedValue({ count: 0 });
       mockPrisma.patientOtp.create.mockResolvedValue({ id: 1 });
+      mockPrisma.patientOtp.update.mockResolvedValue({ id: 1 });
 
       const result = await service.requestOtp('MRN-0001', '0912345678');
 
       expect(result.message).toContain('تم إرسال');
       expect(result.expiresIn).toBe(300); // 5 minutes
       expect(mockPrisma.patientOtp.create).toHaveBeenCalled();
+    });
+
+    it('should return deep link for unlinked patient', async () => {
+      mockPrisma.patient.findFirst.mockResolvedValue(mockPatient);
+      mockPrisma.patientOtp.count.mockResolvedValue(0);
+      mockPrisma.patientOtp.updateMany.mockResolvedValue({ count: 0 });
+      mockPrisma.patient.update.mockResolvedValue({ id: 1 });
+
+      const result = await service.requestOtp('MRN-0001', '0912345678');
+
+      expect(result.requiresTelegramLinking).toBe(true);
+      expect(result.linkUrl).toBeDefined();
     });
 
     it('should reject invalid MRN + phone combination', async () => {
@@ -83,7 +108,7 @@ describe('PatientOtpService', () => {
     });
 
     it('should rate limit after 5 OTPs per hour', async () => {
-      mockPrisma.patient.findFirst.mockResolvedValue(mockPatient);
+      mockPrisma.patient.findFirst.mockResolvedValue(mockPatientLinked);
       mockPrisma.patientOtp.count.mockResolvedValue(5); // Already 5 OTPs
 
       await expect(
@@ -92,10 +117,11 @@ describe('PatientOtpService', () => {
     });
 
     it('should invalidate previous unverified OTPs', async () => {
-      mockPrisma.patient.findFirst.mockResolvedValue(mockPatient);
+      mockPrisma.patient.findFirst.mockResolvedValue(mockPatientLinked);
       mockPrisma.patientOtp.count.mockResolvedValue(0);
       mockPrisma.patientOtp.updateMany.mockResolvedValue({ count: 2 });
       mockPrisma.patientOtp.create.mockResolvedValue({ id: 2 });
+      mockPrisma.patientOtp.update.mockResolvedValue({ id: 2 });
 
       await service.requestOtp('MRN-0001', '0912345678');
 
@@ -110,10 +136,11 @@ describe('PatientOtpService', () => {
     });
 
     it('should store hashed OTP (never plaintext)', async () => {
-      mockPrisma.patient.findFirst.mockResolvedValue(mockPatient);
+      mockPrisma.patient.findFirst.mockResolvedValue(mockPatientLinked);
       mockPrisma.patientOtp.count.mockResolvedValue(0);
       mockPrisma.patientOtp.updateMany.mockResolvedValue({ count: 0 });
       mockPrisma.patientOtp.create.mockResolvedValue({ id: 1 });
+      mockPrisma.patientOtp.update.mockResolvedValue({ id: 1 });
 
       await service.requestOtp('MRN-0001', '0912345678');
 
