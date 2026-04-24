@@ -225,11 +225,13 @@ setup_directories() {
     chmod -R 755 "$INSTALL_DIR"
 
     # Set ownership for data directories to node user (UID 1000)
-    # This fixes the EACCES error for license and uploads
+    # This fixes the EACCES error for license, uploads, backups, AND vault keys
     chown -R 1000:1000 "$INSTALL_DIR/data/license"
+    chown -R 1000:1000 "$INSTALL_DIR/data/keys"
     chown -R 1000:1000 "$INSTALL_DIR/uploads"
     chown -R 1000:1000 "$INSTALL_DIR/backups"
     chmod 775 "$INSTALL_DIR/data/license"
+    chmod 775 "$INSTALL_DIR/data/keys"
     chmod 775 "$INSTALL_DIR/uploads"
     chmod 775 "$INSTALL_DIR/backups"
     
