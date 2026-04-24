@@ -5074,14 +5074,3 @@ ALTER TABLE "MedicationRefillRequest" ADD CONSTRAINT "MedicationRefillRequest_ho
 
 -- AddForeignKey
 ALTER TABLE "MedicationRefillRequest" ADD CONSTRAINT "MedicationRefillRequest_reviewedById_fkey" FOREIGN KEY ("reviewedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
-ΓöîΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
-Γöé  Update available 5.22.0 -> 7.8.0                       Γöé
-Γöé                                                         Γöé
-Γöé  This is a major update - please follow the guide at    Γöé
-Γöé  https://pris.ly/d/major-version-upgrade                Γöé
-Γöé                                                         Γöé
-Γöé  Run the following to update                            Γöé
-Γöé    npm i --save-dev prisma@latest                       Γöé
-Γöé    npm i @prisma/client@latest                          Γöé
-ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
