@@ -11,9 +11,14 @@
  *    via the Telegram keyboard button → account is linked by phone match.
  * 
  * Webhook URL: POST /api/patient-portal/v1/telegram/webhook
+ * 
+ * Webhook Registration:
+ * - Automatic on startup when TELEGRAM_WEBHOOK_URL is set
+ * - Manual via POST /api/patient-portal/v1/telegram/register-webhook
+ * - Status check via GET /api/patient-portal/v1/telegram/status
  */
 
-import { Controller, Post, Body, Logger, HttpCode, HttpStatus, OnModuleInit } from '@nestjs/common';
+import { Controller, Post, Get, Body, Logger, HttpCode, HttpStatus, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { EncryptionService } from '../../common/encryption/encryption.service';
 import { VaultService } from '../../common/vault/vault.service';
@@ -33,6 +38,7 @@ export class PortalTelegramController implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
+    // ── Load Bot Token ──────────────────────────────────────
     try {
       const token =
         await this.vaultService.getOptionalSecret('TELEGRAM_BOT_TOKEN')
@@ -44,6 +50,7 @@ export class PortalTelegramController implements OnModuleInit {
         this.logger.log(`✅ Telegram Bot Token loaded (${token.substring(0, 6)}...)`);
       } else {
         this.logger.warn('⚠️ TELEGRAM_BOT_TOKEN not configured — webhook responses disabled');
+        return; // No point registering webhook without a token
       }
     } catch (err: any) {
       const fallback = process.env.TELEGRAM_BOT_TOKEN;
@@ -52,9 +59,140 @@ export class PortalTelegramController implements OnModuleInit {
         this.logger.warn(`⚠️ Vault unreachable, using TELEGRAM_BOT_TOKEN from env (${fallback.substring(0, 6)}...)`);
       } else {
         this.logger.warn(`⚠️ Failed to load Telegram Bot Token: ${err.message}`);
+        return;
       }
     }
+
+    // ── Auto-register Webhook ───────────────────────────────
+    const webhookBaseUrl = process.env.TELEGRAM_WEBHOOK_URL;
+    if (webhookBaseUrl) {
+      // Give the server a moment to finish booting
+      setTimeout(() => this.registerWebhookInternal(webhookBaseUrl), 3000);
+    } else {
+      this.logger.warn(
+        '⚠️ TELEGRAM_WEBHOOK_URL not set — skipping auto webhook registration. ' +
+        'Set it to your public URL (e.g. https://your-domain.com/api) to enable.'
+      );
+    }
   }
+
+  // ===========================================
+  //  Webhook Registration
+  // ===========================================
+
+  /**
+   * Internal helper to register the webhook with Telegram.
+   */
+  private async registerWebhookInternal(baseUrl: string): Promise<{ success: boolean; message: string }> {
+    if (!this.botToken) {
+      const msg = 'Cannot register webhook — BOT_TOKEN not configured';
+      this.logger.warn(msg);
+      return { success: false, message: msg };
+    }
+
+    // Build the full webhook URL
+    const cleanBase = baseUrl.replace(/\/+$/, ''); // Remove trailing slash
+    const webhookUrl = `${cleanBase}/patient-portal/v1/telegram/webhook`;
+
+    try {
+      this.logger.log(`📡 Registering Telegram webhook → ${webhookUrl}`);
+
+      const response = await axios.post(
+        `https://api.telegram.org/bot${this.botToken}/setWebhook`,
+        {
+          url: webhookUrl,
+          allowed_updates: ['message'], // Only message updates (not edits, etc.)
+          drop_pending_updates: false,
+        },
+        { timeout: 10000 }
+      );
+
+      if (response.data?.ok) {
+        this.logger.log(`✅ Telegram webhook registered successfully at: ${webhookUrl}`);
+        return { success: true, message: `Webhook registered: ${webhookUrl}` };
+      } else {
+        const errMsg = `Telegram API returned: ${JSON.stringify(response.data)}`;
+        this.logger.error(`❌ Webhook registration failed — ${errMsg}`);
+        return { success: false, message: errMsg };
+      }
+    } catch (error: any) {
+      const errMsg = `Webhook registration error: ${error.message}`;
+      this.logger.error(`❌ ${errMsg}`);
+      return { success: false, message: errMsg };
+    }
+  }
+
+  /**
+   * Manual webhook registration endpoint.
+   * POST /api/patient-portal/v1/telegram/register-webhook
+   * 
+   * Can be called manually to re-register the webhook if needed.
+   * Uses TELEGRAM_WEBHOOK_URL from environment.
+   */
+  @Post('register-webhook')
+  @HttpCode(HttpStatus.OK)
+  async registerWebhook() {
+    const baseUrl = process.env.TELEGRAM_WEBHOOK_URL;
+    if (!baseUrl) {
+      return {
+        success: false,
+        message: 'TELEGRAM_WEBHOOK_URL is not configured. Set it in your environment variables.',
+      };
+    }
+    return this.registerWebhookInternal(baseUrl);
+  }
+
+  /**
+   * Diagnostic endpoint to check bot status and webhook configuration.
+   * GET /api/patient-portal/v1/telegram/status
+   */
+  @Get('status')
+  async getStatus() {
+    const result: any = {
+      botTokenConfigured: !!this.botToken,
+      webhookUrlConfigured: !!process.env.TELEGRAM_WEBHOOK_URL,
+      webhookUrl: process.env.TELEGRAM_WEBHOOK_URL || null,
+      botUrl: process.env.TELEGRAM_BOT_URL || null,
+      timestamp: new Date().toISOString(),
+    };
+
+    // Check bot info from Telegram API
+    if (this.botToken) {
+      try {
+        const [meResponse, webhookResponse] = await Promise.all([
+          axios.get(`https://api.telegram.org/bot${this.botToken}/getMe`, { timeout: 5000 }),
+          axios.get(`https://api.telegram.org/bot${this.botToken}/getWebhookInfo`, { timeout: 5000 }),
+        ]);
+
+        result.bot = {
+          id: meResponse.data?.result?.id,
+          username: meResponse.data?.result?.username,
+          firstName: meResponse.data?.result?.first_name,
+          isBot: meResponse.data?.result?.is_bot,
+        };
+
+        const webhookInfo = webhookResponse.data?.result;
+        result.webhook = {
+          url: webhookInfo?.url || '(not set)',
+          hasCustomCertificate: webhookInfo?.has_custom_certificate,
+          pendingUpdateCount: webhookInfo?.pending_update_count,
+          lastErrorDate: webhookInfo?.last_error_date
+            ? new Date(webhookInfo.last_error_date * 1000).toISOString()
+            : null,
+          lastErrorMessage: webhookInfo?.last_error_message || null,
+          maxConnections: webhookInfo?.max_connections,
+        };
+      } catch (error: any) {
+        result.error = `Failed to query Telegram API: ${error.message}`;
+      }
+    }
+
+    return result;
+  }
+
+  // ===========================================
+  //  Webhook Handler
+  // ===========================================
 
   /**
    * Webhook endpoint to receive updates from Telegram Bot.

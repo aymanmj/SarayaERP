@@ -66,7 +66,7 @@ export default function PortalProfile() {
               
               {!profile.hasTelegramLinked && (
                 <a
-                  href={import.meta.env.VITE_TELEGRAM_BOT_URL || 'https://t.me/SarayaMedical_Bot'}
+                  href={import.meta.env.VITE_TELEGRAM_BOT_URL || 'https://t.me/SarayaMedBot'}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex shrink-0 items-center gap-2 px-4 py-2 bg-[#0088cc] hover:bg-[#0077b3] text-white text-sm font-medium rounded-lg transition-colors"
