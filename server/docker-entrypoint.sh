@@ -13,16 +13,17 @@ echo "🚀 Starting Saraya ERP Container..."
 # هذا يحل مشكلة "Connection refused" عند بدء تشغيل Docker Compose
 echo "📦 Applying database migrations..."
 
-# ── Helper: run migrate deploy and capture output ──
-run_migrate() {
-  npx prisma migrate deploy 2>&1
-}
+# ── IMPORTANT: disable set -e for the migration block ──
+# prisma migrate deploy returns non-zero on failure, which would
+# kill the script before we can inspect the error.
+set +e
 
 RETRIES=5
 MIGRATE_SUCCESS=false
 
-until [ $RETRIES -eq 0 ]; do
-  OUTPUT=$(run_migrate)
+while [ $RETRIES -gt 0 ]; do
+  echo "🔄 Running prisma migrate deploy (attempt $((6-RETRIES))/5)..."
+  OUTPUT=$(npx prisma migrate deploy 2>&1)
   EXIT_CODE=$?
   echo "$OUTPUT"
 
@@ -35,44 +36,49 @@ until [ $RETRIES -eq 0 ]; do
   if echo "$OUTPUT" | grep -q "P3009"; then
     echo "⚠️  P3009 detected: previous migration failed. Checking if safe to auto-resolve..."
 
-    # Check if there are any real user tables (i.e., data exists)
+    # Check if there are any real user tables (i.e. data exists)
     TABLE_COUNT=$(node -e "
       const { PrismaClient } = require('@prisma/client');
       const p = new PrismaClient();
       p.\$queryRaw\`SELECT count(*)::int AS c FROM information_schema.tables WHERE table_schema='public' AND table_name NOT LIKE '_prisma%'\`
         .then(r => { console.log(r[0].c); p.\$disconnect(); })
         .catch(() => { console.log('-1'); });
-    " 2>/dev/null || echo "-1")
+    " 2>/dev/null)
+    TABLE_COUNT=${TABLE_COUNT:-"-1"}
 
     if [ "$TABLE_COUNT" = "0" ] || [ "$TABLE_COUNT" = "-1" ]; then
-      echo "🗑️  Fresh database detected (no user tables). Clearing stuck migration state..."
+      echo "🗑️  Fresh database detected ($TABLE_COUNT user tables). Clearing stuck migration state..."
       node -e "
         const { PrismaClient } = require('@prisma/client');
         const p = new PrismaClient();
         p.\$executeRawUnsafe('DROP TABLE IF EXISTS \"_prisma_migrations\" CASCADE')
-          .then(() => { console.log('✅ Migration state cleared.'); p.\$disconnect(); })
-          .catch(e => { console.error('Error:', e.message); p.\$disconnect(); process.exit(1); });
-      "
-      echo "🔄 Retrying migration deploy..."
+          .then(() => { console.log('Done'); return p.\$disconnect(); })
+          .catch(e => { console.error(e.message); p.\$disconnect(); });
+      " 2>&1
+      echo "✅ Migration state cleared. Retrying..."
       sleep 2
       RETRIES=$((RETRIES-1))
       continue
     else
-      echo "❌ P3009 detected but database has $TABLE_COUNT user tables."
-      echo "   Cannot auto-resolve on a populated database. Manual intervention required:"
-      echo "   Run: npx prisma migrate resolve --rolled-back <migration_name>"
+      echo "❌ P3009 on populated database ($TABLE_COUNT user tables). Manual fix needed:"
+      echo "   docker exec saraya_backend npx prisma migrate resolve --rolled-back <migration_name>"
       exit 1
     fi
   fi
 
   # ── Transient failure (DB not ready yet) ──
   RETRIES=$((RETRIES-1))
-  echo "⚠️  Migration failed (transient). Waiting for Database... ($RETRIES attempts left)"
+  echo "⚠️  Migration failed (transient). Retrying in 5s... ($RETRIES attempts left)"
   sleep 5
 done
 
+# Re-enable strict mode
+set -e
+
 if [ "$MIGRATE_SUCCESS" != "true" ]; then
-  echo "❌ Error: Could not apply migrations after multiple attempts."
+  echo "❌ Error: Could not apply migrations after 5 attempts."
+  echo "Last output was:"
+  echo "$OUTPUT"
   exit 1
 fi
 
