@@ -5,8 +5,10 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler'; // ✅ Rate Limiting
 
-// Modules
 import { AiCodingModule } from './clinical/ai-coding/ai-coding.module';
+import { TelehealthModule } from './clinical/telehealth/telehealth.module';
+import { RegistriesModule } from './clinical/registries/registries.module';
+import { SchedulingModule } from './clinical/scheduling/scheduling.module';
 import { AuthModule } from './auth/auth.module';
 import { AdmissionModule } from './admission/admission.module';
 import { PatientsModule } from './patients/patients.module';
@@ -143,6 +145,9 @@ import { NphiesModule } from './integration/nphies/nphies.module'; // ✅ [NEW] 
 
     // Medical & Clinical
     AiCodingModule,
+    TelehealthModule,
+    RegistriesModule,
+    SchedulingModule,
     AdmissionModule,
     PatientsModule,
     EncountersModule,
