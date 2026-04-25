@@ -35,6 +35,17 @@ const IcuDashboardPage = lazy(() => import("../pages/clinical/icu/IcuDashboard")
 const IcuFlowsheetPage = lazy(() => import("../pages/clinical/icu/IcuFlowsheet").then(m => ({ default: m.IcuFlowsheet })));
 const IcuPatientDetailPage = lazy(() => import("../pages/clinical/icu/IcuPatientDetail").then(m => ({ default: m.IcuPatientDetail })));
 
+// Telehealth
+const DoctorTelehealthDashboardPage = lazy(() => import("../pages/telehealth/DoctorTelehealthDashboard"));
+const PatientTelehealthRoomPage = lazy(() => import("../pages/telehealth/PatientTelehealthRoom"));
+
+// Registries & Care Gaps
+const RegistriesDashboardPage = lazy(() => import("../pages/clinical/registries/RegistriesDashboard"));
+
+// Advanced Scheduling & Waitlist
+const ResourceSchedulerPage = lazy(() => import("../pages/clinical/scheduling/ResourceSchedulerPage"));
+const WaitlistManagerPage = lazy(() => import("../pages/clinical/scheduling/WaitlistManager"));
+
 const TriageAssessmentFormPage = lazy(() =>
   import("../pages/clinical/triage/TriageAssessmentForm").then((m) => ({
     default: m.TriageAssessmentForm,
@@ -137,5 +148,16 @@ export const ClinicalRoutes = (
     {/* EMR - Phase 3 (Order Sets & Clinical Pathways) */}
     <Route path="/clinical/order-sets" element={<OrderSetsPage />} />
     <Route path="/clinical/pathways" element={<ClinicalPathwaysPage />} />
+
+    {/* Telehealth */}
+    <Route path="/telehealth/doctor" element={<DoctorTelehealthDashboardPage />} />
+    <Route path="/telehealth/room/:id" element={<PatientTelehealthRoomPage />} />
+
+    {/* Registries */}
+    <Route path="/clinical/registries" element={<RegistriesDashboardPage />} />
+
+    {/* Advanced Scheduling */}
+    <Route path="/clinical/scheduling" element={<ResourceSchedulerPage />} />
+    <Route path="/clinical/waitlist" element={<WaitlistManagerPage />} />
   </>
 );

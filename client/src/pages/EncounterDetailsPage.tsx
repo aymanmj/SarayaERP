@@ -1,6 +1,7 @@
 // src/pages/EncounterDetailsPage.tsx
 
 // src/pages/EncounterDetailsPage.tsx
+// src/pages/EncounterDetailsPage.tsx
 
 import { Suspense, lazy, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -8,7 +9,7 @@ import { apiClient } from "../api/apiClient";
 import { toast } from "sonner";
 import { useAuthStore } from "../stores/authStore";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, Clock, CheckCircle2 } from "lucide-react";
+import { AlertCircle, Clock, CheckCircle2, Sparkles, X } from "lucide-react";
 
 // Components
 import { AllergiesPane } from "../components/encounter/AllergiesPane";
@@ -349,6 +350,10 @@ export default function EncounterDetailsPage() {
   // Transfer Modal
   const [showTransferModal, setShowTransferModal] = useState(false);
 
+  // AI Coding Modal
+  const [showAiModal, setShowAiModal] = useState(false);
+  const [aiSuggestions, setAiSuggestions] = useState<any>(null);
+
   // Load ward tree for bed selection
   useEffect(() => {
     apiClient.get("/beds/tree").then((res) => setWardTree(res.data)).catch(() => {});
@@ -437,20 +442,18 @@ export default function EncounterDetailsPage() {
 
   const admitMutation = useMutation({
       mutationFn: async ({ deptId, bedId }: { deptId: number; bedId?: number }) => {
-          // Changed from /encounters/:id/admit to /admissions to create an actual admission record
           await apiClient.post(`/admissions`, {
             patientId: encounter?.patientId,
             encounterId: encId,
             departmentId: deptId,
-            admissionType: "EMERGENCY", // From ER
+            admissionType: "EMERGENCY", 
             priority: "HIGH",
             admissionReason: "دخول من قسم الطوارئ",
             isEmergency: true,
-            admittingDoctorId: encounter?.doctorId || user?.id, // Fallback to current doctor
+            admittingDoctorId: encounter?.doctorId || user?.id, 
             primaryPhysicianId: encounter?.doctorId || user?.id,
             bedId: bedId || undefined,
           });
-          // If bed was selected but not in DTO, assign it separately
           if (bedId && encId) {
             try {
               await apiClient.post('/beds/assign', { encounterId: encId, bedId });
@@ -467,6 +470,17 @@ export default function EncounterDetailsPage() {
       onError: (err: any) => toast.error(err.response?.data?.message || "فشل الإيواء")
   });
 
+  const aiCodingMutation = useMutation({
+    mutationFn: async (note: string) => {
+      const { data } = await apiClient.post('/ai-coding/suggest', { clinicalNote: note });
+      return data;
+    },
+    onSuccess: (data) => {
+      setAiSuggestions(data);
+    },
+    onError: () => toast.error("فشل تحليل الملاحظة السريرية بواسطة الذكاء الاصطناعي")
+  });
+
 
   // --- Handlers ---
 
@@ -479,6 +493,15 @@ export default function EncounterDetailsPage() {
     e.preventDefault();
     if (!encounter || !visitNotes.trim()) return;
     addVisitNoteMutation.mutate(visitNotes);
+  };
+
+  const handleAiCoding = () => {
+    if (!visitNotes.trim()) {
+      toast.warning("يرجى كتابة ملاحظات سريرية أولاً ليتم تحليلها.");
+      return;
+    }
+    setShowAiModal(true);
+    aiCodingMutation.mutate(visitNotes);
   };
 
   const handleDischarge = () => {
@@ -670,79 +693,6 @@ export default function EncounterDetailsPage() {
                     <DiagnosisPane encounterId={encounter.id} />
                   </Suspense>
                 </div>
-
-                <div className="border-t border-slate-800 pt-6">
-                  <h3 className="text-sm font-bold text-amber-400 mb-3">
-                    ملاحظات الطبيب (Progress Notes)
-                  </h3>
-
-                  {!isClosed && (
-                    <div className="mb-6">
-                      {noteTemplates.length > 0 && (
-                        <div className="mb-2">
-                          <select
-                            className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-300 outline-none focus:border-sky-500"
-                            defaultValue=""
-                            onChange={(e) => {
-                              const tpl = noteTemplates.find((t) => t.id === Number(e.target.value));
-                              if (tpl) setVisitNotes(tpl.content);
-                              e.target.value = "";
-                            }}
-                          >
-                            <option value="" disabled>📋 تحميل من قالب...</option>
-                            {noteTemplates.map((t) => (
-                              <option key={t.id} value={t.id}>{t.name}</option>
-                            ))}
-                          </select>
-                        </div>
-                      )}
-                      <form
-                        onSubmit={handleAddVisitNote}
-                        className="flex gap-3 items-start"
-                      >
-                        <textarea
-                          className="flex-1 bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm focus:border-sky-500 outline-none min-h-[80px]"
-                          placeholder="اكتب ملاحظاتك وتوصياتك هنا..."
-                          value={visitNotes}
-                          onChange={(e) => setVisitNotes(e.target.value)}
-                        ></textarea>
-                        <button
-                          type="submit"
-                          disabled={!encounter.doctorId || savingVisit}
-                          className="h-[80px] px-6 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-sm font-bold shadow-lg disabled:opacity-50"
-                        >
-                          حفظ
-                        </button>
-                      </form>
-                    </div>
-                  )}
-
-                  <div className="space-y-4">
-                    {encounter.visits?.map((v) => (
-                      <div
-                        key={v.id}
-                        className="relative pl-4 border-l-2 border-slate-700 ml-2"
-                      >
-                        <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-slate-800 border-2 border-sky-500"></div>
-                        <div className="bg-slate-900 border border-slate-800 p-3 rounded-lg text-sm text-slate-200">
-                          <div className="text-[10px] text-slate-500 mb-1 font-mono">
-                            {formatDateTime(v.visitDate)}
-                          </div>
-                          <p className="whitespace-pre-wrap leading-relaxed">
-                            {v.notes}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* ✅ عرض تبويب الحساسية */}
-            {activeTab === "ALLERGIES" && (
-              <div className="max-w-3xl">
-                <AllergiesPane patientId={encounter.patientId} />
               </div>
             )}
 
