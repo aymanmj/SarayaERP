@@ -457,8 +457,9 @@ SMTP_PASSWORD=
 SMTP_FROM=noreply@sarayaerp.com
 
 # ═══════ تيليجرام — بوابة المريض ═══════
-TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
-TELEGRAM_BOT_URL=https://t.me/SarayaMedBot
+TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+TELEGRAM_BOT_URL=${TELEGRAM_BOT_URL}
+TELEGRAM_WEBHOOK_URL=${TELEGRAM_WEBHOOK_URL}
 
 # ═══════ Cloudflare Tunnel ═══════
 TUNNEL_TOKEN=$CF_TUNNEL_TOKEN
@@ -747,6 +748,50 @@ collect_client_info() {
         print_warning "Tailscale skipped - you can add it later"
     else
         print_status "Tailscale key added"
+    fi
+
+    # ─── Telegram Bot Setup (Patient Portal) ───
+    echo ""
+    echo -e "  ${BOLD}${CYAN}Telegram Bot Setup (Patient Portal OTP)${NC}"
+    echo -e "  ${CYAN}────────────────────────────────────────${NC}"
+    echo ""
+    echo -e "  ${YELLOW}Telegram Bot is used to send OTP codes to patients.${NC}"
+    echo "  To create a bot:"
+    echo "  1. Open Telegram and search for @BotFather"
+    echo "  2. Send /newbot and follow the instructions"
+    echo "  3. Copy the Bot Token (e.g. 123456:ABC-DEF...)"
+    echo ""
+    read -p "  Enter Telegram Bot Token (or press Enter to skip): " TELEGRAM_BOT_TOKEN < /dev/tty
+    
+    if [ -n "$TELEGRAM_BOT_TOKEN" ]; then
+        print_status "Telegram Bot Token saved"
+        
+        # Auto-calculate Webhook URL from domain
+        if [ -n "$CLIENT_DOMAIN" ]; then
+            TELEGRAM_WEBHOOK_URL="https://${CLIENT_DOMAIN}/api"
+            print_status "Telegram Webhook URL: $TELEGRAM_WEBHOOK_URL (auto-configured)"
+        else
+            echo ""
+            echo -e "  ${YELLOW}Webhook URL (required for receiving Telegram messages):${NC}"
+            echo "  Example: https://your-domain.com/api"
+            echo ""
+            read -p "  Enter Webhook URL (or press Enter to configure later): " TELEGRAM_WEBHOOK_URL < /dev/tty
+            if [ -n "$TELEGRAM_WEBHOOK_URL" ]; then
+                print_status "Telegram Webhook URL saved"
+            else
+                print_warning "Webhook URL not set — Telegram will only work for outgoing messages"
+            fi
+        fi
+
+        echo ""
+        read -p "  Telegram Bot URL (default: https://t.me/SarayaMedBot): " TELEGRAM_BOT_URL_INPUT < /dev/tty
+        TELEGRAM_BOT_URL=${TELEGRAM_BOT_URL_INPUT:-https://t.me/SarayaMedBot}
+    else
+        TELEGRAM_BOT_TOKEN=""
+        TELEGRAM_WEBHOOK_URL=""
+        TELEGRAM_BOT_URL="https://t.me/SarayaMedBot"
+        print_warning "Telegram Bot skipped — Patient Portal OTP via Telegram will be disabled"
+        print_info "To configure later: set TELEGRAM_BOT_TOKEN and TELEGRAM_WEBHOOK_URL in .env"
     fi
 }
 
