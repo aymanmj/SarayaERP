@@ -28,7 +28,10 @@ export class AuditInterceptor implements NestInterceptor {
     );
     const isSensitiveRead = method === 'GET' && !!sensitiveAnnotation;
 
-    if (!isSensitiveRead) {
+    const isModifyingAction = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method);
+    const shouldLog = isSensitiveRead || isModifyingAction;
+
+    if (!shouldLog) {
       return next.handle();
     }
 
@@ -42,6 +45,8 @@ export class AuditInterceptor implements NestInterceptor {
           const actionName = this.getActionName(method, path, isSensitiveRead, sensitiveAnnotation, responseBody);
           
           try {
+            // For general writes, we can use log() instead of logCritical() to avoid blocking if the SIEM is down, 
+            // but for ISO 27001, logCritical is preferred for all state changes.
             await this.audit.logCritical({
               hospitalId: user?.hospitalId ?? null,
               userId: user?.sub ?? null,
@@ -76,9 +81,16 @@ export class AuditInterceptor implements NestInterceptor {
     sensitiveAnnotation: string | boolean | undefined,
     responseBody: any
   ): string {
-    return typeof sensitiveAnnotation === 'string' 
-      ? sensitiveAnnotation 
-      : 'VIEW_SENSITIVE_DATA';
+    if (typeof sensitiveAnnotation === 'string') {
+      return sensitiveAnnotation;
+    }
+    switch (method) {
+      case 'POST': return 'CREATE_ENTITY';
+      case 'PUT':
+      case 'PATCH': return 'UPDATE_ENTITY';
+      case 'DELETE': return 'DELETE_ENTITY';
+      default: return 'VIEW_SENSITIVE_DATA';
+    }
   }
 
   private inferEntityAndId(path: string, req: any) {

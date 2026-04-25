@@ -85,6 +85,9 @@ import { DischargeSummaryModule } from './discharge-summary/discharge-summary.mo
 import { OrderSetsModule } from './order-sets/order-sets.module'; // ✅ [NEW] Phase 3: Order Sets
 import { ClinicalPathwaysModule } from './clinical-pathways/clinical-pathways.module'; // ✅ [NEW] Phase 3: Clinical Pathways
 import { TerminologyModule } from './terminology/terminology.module'; // ✅ [NEW] Terminology Service
+import { TenantModule } from './common/tenant/tenant.module'; // ✅ [NEW] Phase 1: Multi-Tenancy
+import { RcmModule } from './rcm/rcm.module'; // ✅ [NEW] Phase 1: Revenue Cycle Management
+import { NphiesModule } from './integration/nphies/nphies.module'; // ✅ [NEW] Phase 1: NPHIES (Saudi eClaims)
 
 @Module({
   imports: [
@@ -108,6 +111,7 @@ import { TerminologyModule } from './terminology/terminology.module'; // ✅ [NE
     PrometheusModule.register(), // ✅ Expose /metrics
     VaultModule,
     EncryptionModule,
+    TenantModule, // ✅ [NEW] Phase 1: Multi-Tenancy & Organization Management
 
     // ✅ Rate Limiting Configuration
     ThrottlerModule.forRoot({
@@ -174,6 +178,7 @@ import { TerminologyModule } from './terminology/terminology.module'; // ✅ [NE
     InsuranceModule,
     AssetsModule,
     PriceListsModule,
+    RcmModule, // ✅ [NEW] Phase 1: Revenue Cycle Management
 
     // HR
     AttendanceModule,
@@ -208,6 +213,7 @@ import { TerminologyModule } from './terminology/terminology.module'; // ✅ [NE
     DashboardModule,
     NotificationsModule,
     IntegrationModule,
+    NphiesModule, // ✅ [NEW] Phase 1: NPHIES Saudi eClaims Integration
     AnalyticsModule,
     BackupModule, // ✅ [NEW] Backup & Restore
     PatientPortalModule,

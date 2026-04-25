@@ -1,5 +1,6 @@
 import { PrismaClient, Prisma } from '@prisma/client';
 import { EncryptionService } from '../common/encryption/encryption.service';
+import { ClsServiceManager } from 'nestjs-cls';
 import { createHash } from 'crypto';
 
 const PATIENT_SENSITIVE_FIELDS = [
@@ -44,14 +45,84 @@ function handleDecryption(data: any, encryptionService: EncryptionService) {
   return decryptObject(data);
 }
 
+// ============================================
+// RLS: تحديد النماذج التي تملك hospitalId (للعزل التلقائي)
+// ============================================
+const TENANT_SCOPED_MODELS = new Set<string>();
+
 // Prepare a cached Set of models that actually support soft deletes (have 'isDeleted' field)
 const SOFT_DELETABLE_MODELS = new Set<string>();
+
 if (Prisma.dmmf && Prisma.dmmf.datamodel) {
   Prisma.dmmf.datamodel.models.forEach((model) => {
     if (model.fields.some((field) => field.name === 'isDeleted')) {
       SOFT_DELETABLE_MODELS.add(model.name);
     }
+    // RLS: أي نموذج يملك hospitalId يخضع للعزل التلقائي
+    if (model.fields.some((field) => field.name === 'hospitalId')) {
+      TENANT_SCOPED_MODELS.add(model.name);
+    }
   });
+}
+
+/**
+ * النماذج المستثناة من RLS (لا تحتاج عزل بـ hospitalId)
+ * مثلاً: Organization نفسها، OrgSetting، وغيرها من النماذج العامة
+ */
+const RLS_EXEMPT_MODELS = new Set([
+  'Organization',
+  'OrgSetting',
+  'Hospital',
+  'RefreshToken',
+  'Role',
+  'Permission',
+  'RolePermission',
+]);
+
+/**
+ * فحص: هل النموذج يحتاج RLS (عزل بـ hospitalId)؟
+ */
+function needsRLS(model: string): boolean {
+  return TENANT_SCOPED_MODELS.has(model) && !RLS_EXEMPT_MODELS.has(model);
+}
+
+/**
+ * استخراج سياق المستأجر من CLS (AsyncLocalStorage)
+ * يُستخدم من قبل Prisma Extension لحقن hospitalId تلقائياً
+ * 
+ * يعيد null عندما لا يوجد سياق (مثل: أثناء الهجرات، الـ seeding، أو الـ CRON)
+ */
+function getTenantHospitalId(): number | null {
+  try {
+    const cls = ClsServiceManager.getClsService();
+    if (!cls) return null;
+    const hospitalId = cls.get('hospitalId');
+    return hospitalId ? Number(hospitalId) : null;
+  } catch {
+    // خارج سياق HTTP (migrations, tests, cron) — لا يوجد CLS
+    return null;
+  }
+}
+
+/**
+ * حقن فلتر hospitalId في شرط WHERE إذا كان النموذج يخضع لـ RLS
+ * 
+ * القواعد:
+ * 1. إذا كان الكود قد حدد hospitalId صراحةً → لا نتدخل (يحترم اختيار المطور)
+ * 2. إذا لم يحدد hospitalId وكان هناك سياق مستأجر → نحقنه تلقائياً
+ * 3. إذا لم يوجد سياق (migrations/cron/tests) → لا نتدخل
+ */
+function injectRLS(model: string, args: any): void {
+  if (!needsRLS(model)) return;
+
+  const hospitalId = getTenantHospitalId();
+  if (!hospitalId) return; // لا يوجد سياق — لا تتدخل
+
+  args.where = args.where || {};
+  // لا تكتب فوق hospitalId إذا حدده المطور صراحةً
+  if (args.where.hospitalId === undefined) {
+    args.where.hospitalId = hospitalId;
+  }
 }
 
 export const extendedPrisma = (prisma: PrismaClient, encryptionService: EncryptionService) => {
@@ -105,7 +176,9 @@ export const extendedPrisma = (prisma: PrismaClient, encryptionService: Encrypti
           return handleDecryption(result, encryptionService);
         },
       },
-      // منطق الحذف الناعم لباقي الموديلات
+      // ============================================
+      // RLS + Soft Delete — منطق موحد لكل النماذج
+      // ============================================
       $allModels: {
         async delete({ model, args, query }) {
           if (SOFT_DELETABLE_MODELS.has(model)) {
@@ -128,22 +201,39 @@ export const extendedPrisma = (prisma: PrismaClient, encryptionService: Encrypti
         async findMany({ model, args, query }) {
           if (model === 'Patient') return query(args); // المريض معالج بالأعلى
           const a = args as any;
+
+          // ✅ RLS: حقن hospitalId تلقائياً
+          injectRLS(model, a);
+
+          // Soft Delete filter
           if (SOFT_DELETABLE_MODELS.has(model)) {
             a.where = a.where || {};
             if (a.where.isDeleted === undefined) a.where.isDeleted = false;
           }
+
           return query(a);
         },
         async findFirst({ model, args, query }) {
           if (model === 'Patient') return query(args); // المريض معالج بالأعلى
           const a = args as any;
+
+          // ✅ RLS: حقن hospitalId تلقائياً
+          injectRLS(model, a);
+
+          // Soft Delete filter
           if (SOFT_DELETABLE_MODELS.has(model)) {
             a.where = a.where || {};
             if (a.where.isDeleted === undefined) a.where.isDeleted = false;
           }
+
           return query(a);
         },
       },
     },
   });
 };
+
+/**
+ * ✅ تصدير المعلومات للاستخدام في الاختبارات والتشخيص
+ */
+export { TENANT_SCOPED_MODELS, RLS_EXEMPT_MODELS, SOFT_DELETABLE_MODELS, needsRLS, getTenantHospitalId, injectRLS };

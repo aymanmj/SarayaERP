@@ -7,8 +7,56 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ============================================
+// Multi-Tenancy: Organization Hierarchy
+// ============================================
+
+enum OrgType {
+  HOSPITAL
+  CLINIC
+  POLYCLINIC
+  NETWORK       // شبكة مستشفيات (مؤسسة أم)
+  MEDICAL_CITY  // مدينة طبية
+}
+
+model Organization {
+  id          Int            @id @default(autoincrement())
+  code        String         @unique
+  name        String
+  type        OrgType        @default(HOSPITAL)
+  parentId    Int?
+  parent      Organization?  @relation("OrgHierarchy", fields: [parentId], references: [id])
+  children    Organization[] @relation("OrgHierarchy")
+  hospitals   Hospital[]
+  settings    OrgSetting[]
+  currency    String         @default("LYD")
+  timezone    String         @default("Africa/Tripoli")
+  country     String         @default("LY")
+  taxConfig   Json?          // إعدادات الضرائب والتشريعات المحلية
+  locale      String         @default("ar")
+  isActive    Boolean        @default(true)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+}
+
+model OrgSetting {
+  id             Int          @id @default(autoincrement())
+  organizationId Int
+  key            String
+  value          String
+  description    String?
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  @@unique([organizationId, key])
+}
+
+// ============================================
+// Hospital (linked to Organization for Multi-Tenancy)
+// ============================================
+
 model Hospital {
   id                        Int                        @id @default(autoincrement())
+  organizationId            Int?
   vouchers                  Voucher[]
   code                      String                     @unique
   name                      String
@@ -25,6 +73,7 @@ model Hospital {
   phone                     String?
   website                   String?
   printHeaderFooter         Boolean                    @default(true)
+  organization              Organization?              @relation(fields: [organizationId], references: [id])
   accounts                  Account[]
   accountingEntries         AccountingEntry[]
   appointments              Appointment[]
@@ -111,6 +160,12 @@ model Hospital {
   // Patient Portal — Messaging & Refills
   patientMessages        PatientMessage[]
   medicationRefillRequests MedicationRefillRequest[]
+
+  // RCM: Revenue Cycle Management
+  claims             Claim[]
+  claimBatches       ClaimBatch[]
+  insuranceContracts InsuranceContract[]
+  eraTransactions    ERATransaction[]
 }
 
 model Department {
@@ -211,6 +266,7 @@ model Invoice {
   returns             Invoice[]          @relation("InvoiceReturns")
   patient             Patient            @relation(fields: [patientId], references: [id])
   payments            Payment[]
+  claims              Claim[]
 
   @@index([hospitalId, status])
   @@index([patientId])
@@ -2379,6 +2435,9 @@ model InsuranceProvider {
   account    Account?          @relation(fields: [accountId], references: [id])
   hospital   Hospital          @relation(fields: [hospitalId], references: [id])
   invoices   Invoice[]
+  claimBatches ClaimBatch[]
+  contracts    InsuranceContract[]
+  eraTransactions ERATransaction[]
 }
 
 model InsurancePolicy {
@@ -4735,3 +4794,216 @@ model MedicationRefillRequest {
   @@index([patientId, status])
   @@index([hospitalId, status])
 }
+
+// ============================================
+// RCM: Claims Management (Revenue Cycle)
+// ============================================
+
+enum ClaimStatus {
+  DRAFT
+  SCRUBBED
+  SCRUB_FAILED
+  SUBMITTED
+  ACCEPTED
+  PARTIALLY_PAID
+  PAID
+  REJECTED
+  APPEALED
+  APPEAL_ACCEPTED
+  APPEAL_DENIED
+  VOID
+}
+
+model Claim {
+  id                Int              @id @default(autoincrement())
+  hospitalId        Int
+  invoiceId         Int
+  batchId           Int?
+  claimNumber       String           @unique
+  status            ClaimStatus      @default(DRAFT)
+  submittedAt       DateTime?
+  paidAt            DateTime?
+  claimedAmount     Decimal          @db.Decimal(18, 3)
+  paidAmount        Decimal?         @db.Decimal(18, 3)
+  adjustmentAmount  Decimal?         @db.Decimal(18, 3)
+  adjustmentReason  String?
+  denialCode        String?
+  denialReason      String?
+  appealDeadline    DateTime?
+  appealNotes       String?
+  externalClaimId   String?          // رقم المطالبة في نظام التأمين الخارجي
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  hospital          Hospital         @relation(fields: [hospitalId], references: [id])
+  invoice           Invoice          @relation(fields: [invoiceId], references: [id])
+  batch             ClaimBatch?      @relation(fields: [batchId], references: [id])
+  scrubResults      ClaimScrubResult[]
+  history           ClaimHistory[]
+
+  @@index([hospitalId, status])
+  @@index([invoiceId])
+}
+
+model ClaimBatch {
+  id            Int         @id @default(autoincrement())
+  hospitalId    Int
+  providerId    Int
+  batchNumber   String      @unique
+  totalClaims   Int         @default(0)
+  totalAmount   Decimal     @default(0) @db.Decimal(18, 3)
+  status        String      @default("OPEN") // OPEN, SUBMITTED, CLOSED
+  submittedAt   DateTime?
+  closedAt      DateTime?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  hospital      Hospital    @relation(fields: [hospitalId], references: [id])
+  provider      InsuranceProvider @relation(fields: [providerId], references: [id])
+  claims        Claim[]
+
+  @@index([hospitalId, status])
+}
+
+model ClaimScrubResult {
+  id          Int     @id @default(autoincrement())
+  claimId     Int
+  ruleCode    String  // COMPLETENESS, ELIGIBILITY, CODING, DUPLICATE, AUTH
+  severity    String  // ERROR, WARNING, INFO
+  message     String
+  field       String? // الحقل المتأثر
+  autoFixed   Boolean @default(false)
+  createdAt   DateTime @default(now())
+
+  claim       Claim   @relation(fields: [claimId], references: [id])
+
+  @@index([claimId])
+}
+
+model ClaimHistory {
+  id          Int      @id @default(autoincrement())
+  claimId     Int
+  fromStatus  String
+  toStatus    String
+  changedById Int?
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  claim       Claim    @relation(fields: [claimId], references: [id])
+
+  @@index([claimId])
+}
+
+// ============================================
+// RCM: Insurance Contracts (عقود التأمين)
+// ============================================
+
+model InsuranceContract {
+  id                  Int              @id @default(autoincrement())
+  hospitalId          Int
+  insuranceProviderId Int
+  contractNumber      String           @unique
+  name                String           // اسم العقد (مثلاً: "عقد بوبا 2026")
+  effectiveFrom       DateTime         // تاريخ بدء السريان
+  effectiveTo         DateTime         // تاريخ الانتهاء
+  discountPercentage  Decimal?         @db.Decimal(5, 2) // خصم عام %
+  copayPercentage     Decimal?         @db.Decimal(5, 2) // نسبة تحمّل المريض %
+  deductible          Decimal?         @db.Decimal(18, 3) // المبلغ المقتطع
+  maxCoverage         Decimal?         @db.Decimal(18, 3) // سقف التغطية السنوي
+  preAuthRequired     Boolean          @default(false) // هل الموافقة المسبقة مطلوبة؟
+  networkType         String           @default("IN_NETWORK") // IN_NETWORK, OUT_NETWORK
+  paymentTermDays     Int              @default(30) // مهلة الدفع بالأيام
+  status              String           @default("ACTIVE") // ACTIVE, EXPIRED, SUSPENDED
+  notes               String?
+  isDeleted           Boolean          @default(false)
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+
+  hospital            Hospital         @relation(fields: [hospitalId], references: [id])
+  insuranceProvider   InsuranceProvider @relation(fields: [insuranceProviderId], references: [id])
+  benefits            ContractBenefit[]
+
+  @@index([hospitalId, insuranceProviderId])
+  @@index([hospitalId, status])
+  @@index([effectiveFrom, effectiveTo])
+}
+
+model ContractBenefit {
+  id              Int               @id @default(autoincrement())
+  contractId      Int
+  serviceType     String            // CONSULTATION, LAB, RADIOLOGY, PHARMACY, SURGERY, etc.
+  serviceCode     String?           // كود خدمة محددة (اختياري)
+  agreedPrice     Decimal?          @db.Decimal(18, 3) // السعر المتفق عليه
+  discountPercent Decimal?          @db.Decimal(5, 2) // خصم خاص بالخدمة
+  copayAmount     Decimal?          @db.Decimal(18, 3) // تحمّل المريض (مبلغ ثابت)
+  copayPercent    Decimal?          @db.Decimal(5, 2) // تحمّل المريض (نسبة)
+  maxQuantity     Int?              // حد أقصى للكمية (مثل: 2 أشعة/شهر)
+  requiresPreAuth Boolean           @default(false)
+  isActive        Boolean           @default(true)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  contract        InsuranceContract @relation(fields: [contractId], references: [id])
+
+  @@index([contractId, serviceType])
+  @@unique([contractId, serviceType, serviceCode])
+}
+
+// ============================================
+// RCM: ERA Transactions (إشعارات التحويل الإلكتروني)
+// ============================================
+
+model ERATransaction {
+  id                  Int          @id @default(autoincrement())
+  hospitalId          Int
+  insuranceProviderId Int
+  eraNumber           String       @unique // رقم ERA المُستلم
+  receivedAt          DateTime     @default(now())
+  paymentDate         DateTime?    // تاريخ الدفع الفعلي
+  totalPaid           Decimal      @db.Decimal(18, 3)
+  totalClaims         Int          @default(0) // عدد المطالبات في هذا ERA
+  totalAdjustments    Decimal?     @db.Decimal(18, 3)
+  checkNumber         String?      // رقم الشيك/التحويل
+  bankReference       String?      // مرجع البنك
+  status              String       @default("RECEIVED") // RECEIVED, PROCESSING, RECONCILED, DISCREPANCY
+  reconciledAt        DateTime?
+  reconciledById      Int?
+  rawPayload          Json?        // البيانات الخام من NPHIES/التأمين
+  notes               String?
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+
+  hospital            Hospital     @relation(fields: [hospitalId], references: [id])
+  insuranceProvider   InsuranceProvider @relation(fields: [insuranceProviderId], references: [id])
+  lineItems           ERALineItem[]
+
+  @@index([hospitalId, status])
+  @@index([insuranceProviderId])
+  @@index([receivedAt])
+}
+
+model ERALineItem {
+  id               Int            @id @default(autoincrement())
+  eraId            Int
+  claimId          Int?           // ربط بالمطالبة الداخلية
+  claimNumber      String         // رقم المطالبة كما ورد من التأمين
+  patientName      String?
+  serviceDate      DateTime?
+  billedAmount     Decimal        @db.Decimal(18, 3) // المبلغ المُطالب به
+  allowedAmount    Decimal?       @db.Decimal(18, 3) // المبلغ المعتمد
+  paidAmount       Decimal        @db.Decimal(18, 3) // المبلغ المدفوع فعلاً
+  adjustmentAmount Decimal?       @db.Decimal(18, 3) // مبلغ التعديل
+  adjustmentCode   String?        // كود سبب التعديل (CO-4, PR-1, etc.)
+  adjustmentReason String?
+  denialCode       String?        // كود الرفض إن وُجد
+  denialReason     String?
+  status           String         @default("MATCHED") // MATCHED, UNMATCHED, UNDERPAID, DENIED
+  createdAt        DateTime       @default(now())
+
+  era              ERATransaction @relation(fields: [eraId], references: [id])
+
+  @@index([eraId])
+  @@index([claimNumber])
+  @@index([claimId])
+}
+

@@ -43,6 +43,8 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     if (this.cls.isActive()) {
       this.cls.set('userId', payload.sub);
       this.cls.set('hospitalId', payload.hospitalId);
+      this.cls.set('organizationId', payload.organizationId || null);
+      this.cls.set('isSuperAdmin', payload.isSuperAdmin || false);
       this.cls.set('user', payload);
     }
     return payload;

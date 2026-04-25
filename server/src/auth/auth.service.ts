@@ -24,7 +24,9 @@ export class AuthService {
     const user = await this.prisma.user.findUnique({
       where: { username },
       include: {
-        hospital: true,
+        hospital: {
+          include: { organization: { select: { id: true, code: true, name: true } } },
+        },
         userRoles: {
           include: {
             role: {
@@ -52,7 +54,11 @@ export class AuthService {
       ),
     );
 
-    return { ...user, roles, permissions };
+    // ✅ Multi-Tenancy: استخراج organizationId من المستشفى
+    const organizationId = user.hospital?.organizationId || null;
+    const isSuperAdmin = roles.includes('SUPER_ADMIN');
+
+    return { ...user, roles, permissions, organizationId, isSuperAdmin };
   }
 
   // توليد Access Token
@@ -62,6 +68,8 @@ export class AuthService {
       username: user.username,
       roles: user.roles,
       hospitalId: user.hospitalId,
+      organizationId: user.organizationId || null,  // ✅ Multi-Tenancy
+      isSuperAdmin: user.isSuperAdmin || false,      // ✅ Multi-Tenancy
       permissions: user.permissions,
     };
 
@@ -121,6 +129,8 @@ export class AuthService {
       username: user.username,
       roles: user.roles,
       hospitalId: user.hospitalId,
+      organizationId: user.organizationId,  // ✅ Multi-Tenancy
+      isSuperAdmin: user.isSuperAdmin,      // ✅ Multi-Tenancy
       permissions: user.permissions,
     });
     const refreshToken = await this.generateRefreshToken(user.id);
@@ -233,11 +243,19 @@ export class AuthService {
       ),
     );
 
+    // ✅ Multi-Tenancy: جلب organizationId عند تجديد التوكن
+    const hospital = await this.prisma.hospital.findUnique({
+      where: { id: user.hospitalId },
+      select: { organizationId: true },
+    });
+
     const newAccessToken = await this.generateAccessToken({
       id: user.id,
       username: user.username,
       roles,
       hospitalId: user.hospitalId,
+      organizationId: hospital?.organizationId || null,
+      isSuperAdmin: roles.includes('SUPER_ADMIN'),
       permissions,
     });
 
