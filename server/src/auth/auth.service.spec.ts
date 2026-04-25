@@ -52,6 +52,9 @@ describe('AuthService', () => {
       user: {
         findUnique: jest.fn(),
       },
+      hospital: {
+        findUnique: jest.fn(),
+      },
       refreshToken: {
         create: jest.fn().mockResolvedValue({ id: 1 }),
         findUnique: jest.fn(),
@@ -144,7 +147,7 @@ describe('AuthService', () => {
           secret: TEST_SECRET,
           expiresIn: '15m',
           issuer: 'saraya-staff',
-          header: { kid: 'test-kid' },
+          header: { kid: 'test-kid', alg: 'HS256' },
         },
       );
 
@@ -161,7 +164,7 @@ describe('AuthService', () => {
           secret: TEST_SECRET,
           expiresIn: '15m',
           issuer: 'saraya-staff',
-          header: { kid: 'missing-kid' },
+          header: { kid: 'missing-kid', alg: 'HS256' },
         },
       );
 
