@@ -27,7 +27,45 @@ async function migrateToVault() {
     });
 
     if (response.status === 200 && response.data?.data?.data) {
-      console.log('✅ HashiCorp Vault is already seeded. Migration skipped.');
+      const existingSecrets = response.data.data.data;
+      const legacySecrets = {
+        DATABASE_URL: process.env.DATABASE_URL,
+        JWT_SECRET: process.env.JWT_SECRET,
+        JWT_REFRESH_SECRET: process.env.JWT_REFRESH_SECRET,
+        JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN,
+        JWT_REFRESH_EXPIRES_IN: process.env.JWT_REFRESH_EXPIRES_IN,
+        ENCRYPTION_KEY: process.env.ENCRYPTION_KEY,
+        ENCRYPTION_SALT: process.env.ENCRYPTION_SALT,
+        FHIR_CLIENT_SECRET: process.env.FHIR_CLIENT_SECRET,
+        SMTP_PASSWORD: process.env.SMTP_PASSWORD,
+        REDIS_PASSWORD: process.env.REDIS_PASSWORD,
+        TELEGRAM_BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN,
+        TELEGRAM_BOT_URL: process.env.TELEGRAM_BOT_URL,
+        GEMINI_API_KEY: process.env.GEMINI_API_KEY,
+      };
+
+      let needsUpdate = false;
+      const updatedSecrets = { ...existingSecrets };
+
+      for (const [key, value] of Object.entries(legacySecrets)) {
+        if (value && existingSecrets[key] === undefined) {
+          updatedSecrets[key] = value;
+          needsUpdate = true;
+          console.log(`➕ Added missing key to Vault: ${key}`);
+        }
+      }
+
+      if (needsUpdate) {
+        console.log('🔄 Syncing missing keys to Vault...');
+        await axios.post(`${vaultUrl}/v1/secret/data/saraya`, {
+          data: updatedSecrets
+        }, {
+          headers: { 'X-Vault-Token': vaultToken }
+        });
+        console.log('✅ Vault successfully updated with new keys.');
+      } else {
+        console.log('✅ HashiCorp Vault is already fully seeded. Migration skipped.');
+      }
       return;
     }
 
@@ -48,6 +86,7 @@ async function migrateToVault() {
         REDIS_PASSWORD: process.env.REDIS_PASSWORD,
         TELEGRAM_BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN,
         TELEGRAM_BOT_URL: process.env.TELEGRAM_BOT_URL,
+        GEMINI_API_KEY: process.env.GEMINI_API_KEY,
         
       };
 

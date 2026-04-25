@@ -6,6 +6,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler'; // ✅ Rate Limiting
 
 // Modules
+import { AiCodingModule } from './clinical/ai-coding/ai-coding.module';
 import { AuthModule } from './auth/auth.module';
 import { AdmissionModule } from './admission/admission.module';
 import { PatientsModule } from './patients/patients.module';
@@ -141,6 +142,7 @@ import { NphiesModule } from './integration/nphies/nphies.module'; // ✅ [NEW] 
     AuditModule,
 
     // Medical & Clinical
+    AiCodingModule,
     AdmissionModule,
     PatientsModule,
     EncountersModule,
