@@ -21,10 +21,9 @@ export class AiCodingService implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
-    // Attempt to get API key from Vault, fallback to ENV
     let apiKey = await this.vaultService.getOptionalSecret('GEMINI_API_KEY');
     if (!apiKey) {
-      apiKey = this.configService.get<string>('GEMINI_API_KEY') || null;
+      apiKey = process.env.GEMINI_API_KEY || this.configService.get<string>('GEMINI_API_KEY') || null;
     }
 
     if (!apiKey) {

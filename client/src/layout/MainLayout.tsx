@@ -415,6 +415,9 @@ export function MainLayout() {
         { label: "العناية المركزة (ICU)", path: "/clinical/icu", access: "adt:bed:view" },
         { label: "مجموعات الطلبات (Order Sets)", path: "/clinical/order-sets" },
         { label: "المسارات العلاجية (Pathways)", path: "/clinical/pathways" },
+        { label: "لوحة السجلات وفجوات الرعاية", path: "/clinical/registries" },
+        { label: "الجدولة المتقدمة للموارد", path: "/clinical/scheduling" },
+        { label: "قوائم الانتظار الذكية", path: "/clinical/waitlist" },
       ],
     },
     {

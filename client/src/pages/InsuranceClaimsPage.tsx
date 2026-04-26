@@ -1,9 +1,8 @@
-// src/pages/InsuranceClaimsPage.tsx
-
-import { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { apiClient } from "../api/apiClient";
 import { toast } from "sonner";
 import { formatDate } from "@/lib/utils";
+import { ShieldCheck, FileText, CheckCircle2, XCircle, Printer, RefreshCw, AlertCircle, Building2 } from "lucide-react";
 
 type InsuranceProvider = {
   id: number;
@@ -32,8 +31,6 @@ type ClaimInvoice = {
 function formatMoney(v: number) {
   return v.toFixed(3);
 }
-
-// Local formatDate removed
 
 export default function InsuranceClaimsPage() {
   const [providers, setProviders] = useState<InsuranceProvider[]>([]);
@@ -65,9 +62,7 @@ export default function InsuranceClaimsPage() {
       const params: any = { status: statusFilter };
       if (selectedProvider) params.providerId = selectedProvider;
 
-      const res = await apiClient.get<ClaimInvoice[]>("/insurance/claims", {
-        params,
-      });
+      const res = await apiClient.get<ClaimInvoice[]>("/insurance/claims", { params });
       setClaims(res.data);
       setSelectedIds([]); // Reset selection
     } catch (err) {
@@ -100,14 +95,8 @@ export default function InsuranceClaimsPage() {
   // Actions
   const handleUpdateStatus = async (newStatus: string) => {
     if (selectedIds.length === 0) return;
-    const actionName =
-      newStatus === "SUBMITTED" ? "إرسال المطالبة" : "تسجيل السداد";
-    if (
-      !confirm(
-        `هل أنت متأكد من ${actionName} لعدد ${selectedIds.length} فاتورة؟`,
-      )
-    )
-      return;
+    const actionName = newStatus === "SUBMITTED" ? "إرسال المطالبة" : "تسجيل السداد";
+    if (!confirm(`هل أنت متأكد من ${actionName} لعدد ${selectedIds.length} فاتورة؟`)) return;
 
     try {
       await apiClient.post("/insurance/claims/update-status", {
@@ -142,24 +131,19 @@ export default function InsuranceClaimsPage() {
     }
   };
 
-  // ✅ دالة الطباعة الجديدة (تفتح نافذة نظيفة للطباعة)
+  // Print Logic
   const handlePrintClaimSheet = () => {
-    const itemsToPrint =
-      selectedIds.length > 0
-        ? claims.filter((c) => selectedIds.includes(c.id))
-        : claims; // لو ما اخترش حاجة، اطبع كل القائمة الظاهرة
+    const itemsToPrint = selectedIds.length > 0
+      ? claims.filter((c) => selectedIds.includes(c.id))
+      : claims;
 
     if (itemsToPrint.length === 0) {
       toast.warning("لا توجد فواتير للطباعة.");
       return;
     }
 
-    const providerName =
-      itemsToPrint[0]?.insuranceProvider?.name || "شركة التأمين";
-    const totalClaim = itemsToPrint.reduce(
-      (sum, c) => sum + Number(c.insuranceShare),
-      0,
-    );
+    const providerName = itemsToPrint[0]?.insuranceProvider?.name || "شركة التأمين";
+    const totalClaim = itemsToPrint.reduce((sum, c) => sum + Number(c.insuranceShare), 0);
 
     const printWindow = window.open("", "_blank");
     if (!printWindow) {
@@ -190,7 +174,7 @@ export default function InsuranceClaimsPage() {
           <div class="header">
             <h1>كشف مطالبة مالية</h1>
             <h2>${providerName}</h2>
-            <p>تاريخ الطباعة: ${formatDate(new Date())}</p>
+            <p>تاريخ الطباعة: ${formatDate(new Date().toISOString())}</p>
           </div>
 
           <table>
@@ -207,9 +191,7 @@ export default function InsuranceClaimsPage() {
               </tr>
             </thead>
             <tbody>
-              ${itemsToPrint
-                .map(
-                  (item, idx) => `
+              ${itemsToPrint.map((item, idx) => `
                 <tr>
                   <td>${idx + 1}</td>
                   <td>#${item.id}</td>
@@ -218,20 +200,14 @@ export default function InsuranceClaimsPage() {
                   <td>${item.patient.insuranceMemberId || "-"}</td>
                   <td>${formatMoney(Number(item.totalAmount))}</td>
                   <td>${formatMoney(Number(item.patientShare))}</td>
-                  <td style="font-weight: bold">${formatMoney(
-                    Number(item.insuranceShare),
-                  )}</td>
+                  <td style="font-weight: bold">${formatMoney(Number(item.insuranceShare))}</td>
                 </tr>
-              `,
-                )
-                .join("")}
+              `).join("")}
             </tbody>
             <tfoot>
                <tr>
                  <td colspan="7" style="text-align: left; font-weight: bold;">الإجمالي الكلي للمطالبة</td>
-                 <td style="font-weight: bold; font-size: 14px;">${formatMoney(
-                   totalClaim,
-                 )} LYD</td>
+                 <td style="font-weight: bold; font-size: 14px;">${formatMoney(totalClaim)} LYD</td>
                </tr>
             </tfoot>
           </table>
@@ -264,32 +240,36 @@ export default function InsuranceClaimsPage() {
   }, [claims, selectedIds]);
 
   return (
-    <div
-      className="flex flex-col h-full text-slate-100 p-6 space-y-6"
-      dir="rtl"
-      data-testid="insurance-claims-page"
-    >
+    <div className="flex flex-col h-full text-slate-100 p-4 md:p-6 space-y-6 overflow-hidden" dir="rtl" data-testid="insurance-claims-page">
+      
       {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold mb-1">إدارة مطالبات التأمين</h1>
-          <p className="text-sm text-slate-400">
-            متابعة الفواتير المستحقة على شركات التأمين وإصدار المطالبة المالية.
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-sm relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-sky-500/10 rounded-full blur-3xl -mx-20 -my-20 pointer-events-none" />
+        <div className="relative z-10">
+          <h1 className="text-2xl font-bold text-white flex items-center gap-3">
+            <div className="p-2 bg-sky-500/20 text-sky-400 rounded-xl">
+              <ShieldCheck className="w-6 h-6" />
+            </div>
+            إدارة مطالبات التأمين (RCM)
+          </h1>
+          <p className="text-sm text-slate-400 mt-1">
+            متابعة الفواتير المستحقة، إدارة المطالبات المرفوضة، وتجهيز ملفات NPHIES.
           </p>
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="bg-slate-900/60 border border-slate-800 p-4 rounded-2xl flex flex-wrap gap-4 items-end">
-        <div className="flex flex-col gap-1">
-          <label className="text-xs text-slate-400">الشركة</label>
+      {/* Filters & Stats */}
+      <div className="bg-slate-900/60 border border-slate-800 p-5 rounded-2xl flex flex-wrap gap-6 items-end relative overflow-hidden">
+        <div className="flex flex-col gap-2">
+          <label className="text-xs font-bold text-slate-400 flex items-center gap-1">
+            <Building2 className="w-4 h-4" /> شركة التأمين
+          </label>
           <select
-            className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm w-48 focus:border-sky-500 outline-none"
+            className="bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-sm w-56 focus:border-sky-500 outline-none transition-colors"
             value={selectedProvider}
-            data-testid="insurance-provider-filter"
             onChange={(e) => setSelectedProvider(e.target.value)}
           >
-            <option value="">كل الشركات</option>
+            <option value="">-- عرض كل الشركات --</option>
             {providers.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}
@@ -298,70 +278,66 @@ export default function InsuranceClaimsPage() {
           </select>
         </div>
 
-        <div className="flex flex-col gap-1">
-          <label className="text-xs text-slate-400">حالة المطالبة</label>
+        <div className="flex flex-col gap-2">
+          <label className="text-xs font-bold text-slate-400 flex items-center gap-1">
+            <FileText className="w-4 h-4" /> حالة المطالبة
+          </label>
           <select
-            className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm w-48 focus:border-sky-500 outline-none"
+            className="bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-sm w-56 focus:border-sky-500 outline-none transition-colors"
             value={statusFilter}
-            data-testid="insurance-status-filter"
             onChange={(e) => setStatusFilter(e.target.value)}
           >
-            <option value="PENDING">معلقة (لم ترسل)</option>
-            <option value="SUBMITTED">تم الإرسال (Submitted)</option>
-            <option value="PAID">تم السداد (Paid)</option>
-            <option value="REJECTED">مرفوضة (Rejected)</option>
+            <option value="PENDING">⏳ معلقة (لم ترسل)</option>
+            <option value="SUBMITTED">📤 تم الإرسال (Submitted)</option>
+            <option value="PAID">💰 تم السداد (Paid)</option>
+            <option value="REJECTED">❌ مرفوضة (Rejected)</option>
           </select>
         </div>
 
-        <div className="mr-auto flex gap-3 items-center">
-          <div className="text-left">
-            <div className="text-xs text-slate-400">
-              إجمالي المطالبات في القائمة
+        <div className="mr-auto flex gap-4 items-center bg-slate-950 p-3 rounded-xl border border-slate-800 shadow-inner">
+          <div className="p-2 bg-sky-900/20 text-sky-400 rounded-lg">
+            <AlertCircle className="w-6 h-6" />
+          </div>
+          <div>
+            <div className="text-xs font-bold text-slate-400">
+              إجمالي المطالبات الظاهرة
             </div>
-            <div className="text-lg font-bold text-sky-400">
-              {formatMoney(totalClaimAmount)} LYD
+            <div className="text-xl font-black text-sky-400 tracking-tight">
+              {formatMoney(totalClaimAmount)} <span className="text-sm font-bold text-slate-500">LYD</span>
             </div>
           </div>
         </div>
       </div>
 
       {/* Actions Bar (When items selected) */}
-      {selectedIds.length > 0 && (
-        <div className="bg-sky-900/20 border border-sky-500/30 p-3 rounded-xl flex justify-between items-center animate-in fade-in slide-in-from-top-2">
-          <div className="text-sm">
-            تم تحديد{" "}
-            <span className="font-bold text-white">{selectedIds.length}</span>{" "}
-            فاتورة (بقيمة:{" "}
-            <span className="font-bold text-emerald-400">
-              {formatMoney(selectedTotal)}
-            </span>
-            )
+      <div className={`transition-all duration-300 ease-in-out origin-top overflow-hidden ${selectedIds.length > 0 ? 'opacity-100 max-h-24' : 'opacity-0 max-h-0'}`}>
+        <div className="bg-sky-900/20 border border-sky-500/30 p-4 rounded-2xl flex justify-between items-center shadow-[0_0_20px_-5px_rgba(14,165,233,0.15)]">
+          <div className="text-sm text-slate-300">
+            تم تحديد <span className="font-black text-white text-lg bg-sky-500/20 px-2 py-0.5 rounded-lg mx-1">{selectedIds.length}</span> مطالبة 
+            بقيمة إجمالية <span className="font-black text-emerald-400 text-lg mx-1">{formatMoney(selectedTotal)}</span> LYD
           </div>
           <div className="flex gap-2">
             {statusFilter === "PENDING" && (
               <button
                 onClick={() => handleUpdateStatus("SUBMITTED")}
-                data-testid="claims-submit-selected"
-                className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs rounded-lg font-bold shadow-lg"
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm rounded-xl font-bold shadow-lg transition-colors flex items-center gap-2"
               >
-                ✅ تم إرسال المطالبة للشركة
+                <CheckCircle2 className="w-4 h-4" /> إرسال المطالبة للشركة
               </button>
             )}
             {statusFilter === "SUBMITTED" && (
               <>
                 <button
                   onClick={() => handleUpdateStatus("PAID")}
-                  data-testid="claims-mark-paid"
-                  className="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs rounded-lg font-bold shadow-lg"
+                  className="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white text-sm rounded-xl font-bold shadow-lg transition-colors flex items-center gap-2"
                 >
-                  💰 تم استلام السداد
+                  <CheckCircle2 className="w-4 h-4" /> تسجيل كسداد
                 </button>
                 <button
                   onClick={() => setShowRejectModal(true)}
-                  data-testid="claims-reject-selected"
-                  className="px-4 py-1.5 bg-rose-600 hover:bg-rose-500 text-white text-xs rounded-lg font-bold shadow-lg"
+                  className="px-4 py-2 bg-rose-900/50 hover:bg-rose-900/80 border border-rose-500/30 text-rose-300 hover:text-white text-sm rounded-xl font-bold transition-colors flex items-center gap-2"
                 >
-                  ❌ رفض المطالبات
+                  <XCircle className="w-4 h-4" /> رفض المطالبات
                 </button>
               </>
             )}
@@ -369,156 +345,166 @@ export default function InsuranceClaimsPage() {
             {statusFilter === "REJECTED" && (
               <button
                 onClick={() => handleUpdateStatus("PENDING")}
-                className="px-4 py-1.5 bg-amber-600 hover:bg-amber-500 text-white text-xs rounded-lg font-bold shadow-lg"
+                className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white text-sm rounded-xl font-bold shadow-lg transition-colors flex items-center gap-2"
               >
-                🔄 إعادة تقديم (Resubmit)
+                <RefreshCw className="w-4 h-4" /> إعادة تقديم المطالبة
               </button>
             )}
 
-            {/* زر الطباعة الحقيقي */}
             <button
               onClick={handlePrintClaimSheet}
-              data-testid="claims-print-sheet"
-              className="px-4 py-1.5 bg-slate-700 hover:bg-slate-600 text-white text-xs rounded-lg flex items-center gap-2"
+              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 hover:border-slate-500 text-sm rounded-xl font-bold transition-colors flex items-center gap-2"
             >
-              <span>🖨️</span> طباعة كشف المطالبة
+              <Printer className="w-4 h-4 text-slate-400" /> طباعة كشف التجميع
             </button>
           </div>
         </div>
-      )}
+      </div>
 
       {/* Table */}
-      <div className="flex-1 bg-slate-900/50 border border-slate-800 rounded-2xl overflow-auto p-4">
-        <table className="w-full text-sm text-right">
-          <thead className="text-slate-400 border-b border-slate-800">
-            <tr>
-              <th className="w-10 px-3 py-2 text-center">
-                <input
-                  type="checkbox"
-                  onChange={toggleSelectAll}
-                  checked={
-                    selectedIds.length > 0 &&
-                    selectedIds.length === claims.length
-                  }
-                />
-              </th>
-              <th className="px-3 py-2">رقم الفاتورة</th>
-              <th className="px-3 py-2">التاريخ</th>
-              <th className="px-3 py-2">المريض</th>
-              <th className="px-3 py-2">رقم العضوية</th>
-              <th className="px-3 py-2">الشركة</th>
-              <th className="px-3 py-2 text-emerald-400">
-                حصة الشركة (المطالبة)
-              </th>
-              <th className="px-3 py-2 text-slate-500">حصة المريض</th>
-              <th className="px-3 py-2">الحالة</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-800">
-            {loading && (
+      <div className="flex-1 bg-slate-900/50 border border-slate-800 rounded-2xl overflow-hidden flex flex-col relative">
+        <div className="overflow-auto custom-scrollbar flex-1">
+          <table className="w-full text-sm text-right">
+            <thead className="text-slate-400 bg-slate-900/80 sticky top-0 z-10 backdrop-blur-md border-b border-slate-800">
               <tr>
-                <td colSpan={9} className="text-center py-8 text-slate-500">
-                  جارِ التحميل...
-                </td>
-              </tr>
-            )}
-            {!loading && claims.length === 0 && (
-              <tr>
-                <td colSpan={9} className="text-center py-8 text-slate-500">
-                  لا توجد مطالبات في هذه القائمة.
-                </td>
-              </tr>
-            )}
-
-            {claims.map((c) => (
-              <tr
-                key={c.id}
-                className={`hover:bg-slate-800/40 ${
-                  selectedIds.includes(c.id) ? "bg-sky-900/10" : ""
-                }`}
-              >
-                <td className="px-3 py-2 text-center">
+                <th className="w-12 px-4 py-4 text-center">
                   <input
                     type="checkbox"
-                    checked={selectedIds.includes(c.id)}
-                    data-testid={`claim-checkbox-${c.id}`}
-                    onChange={() => toggleSelect(c.id)}
+                    className="rounded border-slate-700 bg-slate-950 text-sky-500 focus:ring-sky-500/20"
+                    onChange={toggleSelectAll}
+                    checked={selectedIds.length > 0 && selectedIds.length === claims.length}
                   />
-                </td>
-                <td className="px-3 py-2 font-mono text-slate-300">#{c.id}</td>
-                <td className="px-3 py-2">{formatDate(c.createdAt)}</td>
-                <td className="px-3 py-2 font-medium text-slate-200">
-                  {c.patient.fullName}
-                </td>
-                <td className="px-3 py-2 text-slate-400 font-mono text-xs">
-                  {c.patient.insuranceMemberId || "-"}
-                </td>
-                <td className="px-3 py-2">{c.insuranceProvider?.name}</td>
-                <td className="px-3 py-2 font-bold text-emerald-400">
-                  {formatMoney(Number(c.insuranceShare))}
-                </td>
-                <td className="px-3 py-2 text-slate-500">
-                  {formatMoney(Number(c.patientShare))}
-                </td>
-                <td className="px-3 py-2">
-                  <span
-                    className={`px-2 py-0.5 rounded text-[10px] ${
-                      c.claimStatus === "SUBMITTED"
-                        ? "bg-sky-900/30 text-sky-300"
-                        : c.claimStatus === "PAID"
-                          ? "bg-emerald-900/30 text-emerald-300"
-                          : c.claimStatus === "REJECTED"
-                            ? "bg-rose-900/30 text-rose-300"
-                            : "bg-amber-900/30 text-amber-300"
-                    }`}
-                  >
-                    {c.claimStatus || "PENDING"}
-                  </span>
-                  {c.claimStatus === "REJECTED" && c.rejectionReason && (
-                    <div className="text-[10px] text-rose-400 mt-1 max-w-[150px] truncate" title={c.rejectionReason}>
-                      {c.rejectionReason}
-                    </div>
-                  )}
-                </td>
+                </th>
+                <th className="px-4 py-4 font-bold">رقم الفاتورة</th>
+                <th className="px-4 py-4 font-bold">التاريخ</th>
+                <th className="px-4 py-4 font-bold">المريض</th>
+                <th className="px-4 py-4 font-bold">رقم العضوية</th>
+                <th className="px-4 py-4 font-bold">شركة التأمين</th>
+                <th className="px-4 py-4 font-bold text-sky-400">المطالبة (حصة الشركة)</th>
+                <th className="px-4 py-4 font-bold text-slate-500">حصة المريض</th>
+                <th className="px-4 py-4 font-bold">حالة RCM</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-slate-800/50">
+              {loading && (
+                <tr>
+                  <td colSpan={9} className="text-center py-20 text-slate-500">
+                    <div className="flex flex-col items-center justify-center">
+                      <div className="w-10 h-10 rounded-full border-4 border-sky-500/30 border-t-sky-500 animate-spin mb-3"></div>
+                      <span className="animate-pulse">جاري سحب بيانات المطالبات...</span>
+                    </div>
+                  </td>
+                </tr>
+              )}
+              {!loading && claims.length === 0 && (
+                <tr>
+                  <td colSpan={9} className="text-center py-20 text-slate-500">
+                    <div className="flex flex-col items-center justify-center bg-slate-900/50 w-full rounded-xl border border-dashed border-slate-700 max-w-md mx-auto p-10">
+                      <ShieldCheck className="w-16 h-16 text-slate-600 mb-4 opacity-30" />
+                      <p>لا توجد مطالبات تأمينية تطابق معايير البحث.</p>
+                    </div>
+                  </td>
+                </tr>
+              )}
+
+              {claims.map((c) => (
+                <tr
+                  key={c.id}
+                  className={`hover:bg-slate-800/60 transition-colors ${
+                    selectedIds.includes(c.id) ? "bg-sky-900/10" : ""
+                  }`}
+                >
+                  <td className="px-4 py-3 text-center">
+                    <input
+                      type="checkbox"
+                      className="rounded border-slate-700 bg-slate-950 text-sky-500 focus:ring-sky-500/20"
+                      checked={selectedIds.includes(c.id)}
+                      onChange={() => toggleSelect(c.id)}
+                    />
+                  </td>
+                  <td className="px-4 py-3 font-mono text-slate-300">#{c.id}</td>
+                  <td className="px-4 py-3 text-slate-400">{formatDate(c.createdAt)}</td>
+                  <td className="px-4 py-3 font-bold text-slate-200">
+                    {c.patient.fullName}
+                  </td>
+                  <td className="px-4 py-3 text-slate-400 font-mono text-xs bg-slate-950 rounded-lg inline-block mt-2 mb-2 ml-4">
+                    {c.patient.insuranceMemberId || "غير مسجل"}
+                  </td>
+                  <td className="px-4 py-3">{c.insuranceProvider?.name}</td>
+                  <td className="px-4 py-3 font-black text-sky-400 text-base tracking-tight">
+                    {formatMoney(Number(c.insuranceShare))}
+                  </td>
+                  <td className="px-4 py-3 font-medium text-slate-500">
+                    {formatMoney(Number(c.patientShare))}
+                  </td>
+                  <td className="px-4 py-3">
+                    <span
+                      className={`px-3 py-1 rounded-full text-[10px] font-bold border ${
+                        c.claimStatus === "SUBMITTED"
+                          ? "bg-sky-900/20 text-sky-400 border-sky-500/30"
+                          : c.claimStatus === "PAID"
+                            ? "bg-emerald-900/20 text-emerald-400 border-emerald-500/30"
+                            : c.claimStatus === "REJECTED"
+                              ? "bg-rose-900/20 text-rose-400 border-rose-500/30"
+                              : "bg-slate-800 text-slate-400 border-slate-700"
+                      }`}
+                    >
+                      {c.claimStatus === "SUBMITTED" ? "تم الإرسال" :
+                       c.claimStatus === "PAID" ? "تم السداد" :
+                       c.claimStatus === "REJECTED" ? "مرفوضة" : "معلقة"}
+                    </span>
+                    {c.claimStatus === "REJECTED" && c.rejectionReason && (
+                      <div className="text-[10px] text-rose-400/80 mt-1 max-w-[150px] truncate" title={c.rejectionReason}>
+                        السبب: {c.rejectionReason}
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Reject Modal */}
       {showRejectModal && (
-        <div
-          className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 backdrop-blur-sm animate-in fade-in"
-          data-testid="claims-reject-modal"
-        >
-          <div className="bg-slate-950 border border-slate-700 rounded-2xl p-6 w-full max-w-md shadow-2xl animate-in zoom-in-95">
-            <h3 className="text-xl font-bold text-rose-400 mb-2">رفض المطالبات</h3>
-            <p className="text-sm text-slate-400 mb-4">
-              سيتم تسجيل حالة المطالبات كـ (مرفوضة). يُرجى إدخال سبب الرفض المُقدَّم من شركة التأمين.
-            </p>
+        <div className="fixed inset-0 bg-slate-950/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-slate-900 border border-rose-500/30 rounded-2xl p-0 w-full max-w-md shadow-[0_0_40px_-10px_rgba(225,29,72,0.3)] animate-in zoom-in-95 overflow-hidden">
+            <div className="p-5 border-b border-slate-800 bg-slate-900/50 flex items-center gap-3">
+              <div className="p-2 bg-rose-500/20 text-rose-400 rounded-xl">
+                <XCircle className="w-6 h-6" />
+              </div>
+              <h3 className="text-lg font-bold text-rose-400">رفض المطالبات التأمينية</h3>
+            </div>
             
-            <textarea
-              className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm focus:border-rose-500 outline-none text-slate-100 min-h-[100px]"
-              placeholder="مثال: الخدمة غير مشمولة بالوثيقة..."
-              value={rejectionReason}
-              data-testid="claims-reject-reason"
-              onChange={(e) => setRejectionReason(e.target.value)}
-            />
+            <div className="p-6">
+              <p className="text-sm text-slate-400 mb-4 leading-relaxed">
+                سيتم تغيير حالة <span className="font-bold text-white">{selectedIds.length}</span> مطالبات إلى <span className="text-rose-400 font-bold">"مرفوضة"</span>. 
+                يرجى تدوين سبب الرفض الوارد من شركة التأمين ليتم مراجعته في قسم دورة الإيرادات (RCM).
+              </p>
+              
+              <label className="block text-xs font-bold text-slate-400 mb-2">سبب الرفض (إلزامي)</label>
+              <textarea
+                className="w-full bg-slate-950 border border-slate-700 rounded-xl p-4 text-sm focus:border-rose-500 focus:ring-1 focus:ring-rose-500 outline-none text-slate-100 min-h-[120px] resize-none"
+                placeholder="أدخل الرمز أو التبرير (مثال: الخدمة غير مشمولة بالوثيقة)..."
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+              />
+            </div>
 
-            <div className="flex justify-end gap-3 mt-6">
+            <div className="p-4 border-t border-slate-800 bg-slate-900/50 flex justify-end gap-3">
               <button
                 onClick={() => setShowRejectModal(false)}
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm rounded-xl transition"
+                className="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-bold rounded-xl transition-colors border border-slate-700 hover:border-slate-600"
               >
-                إلغاء
+                إلغاء التراجع
               </button>
               <button
                 onClick={handleRejectSubmit}
-                data-testid="claims-confirm-reject"
-                className="px-6 py-2 bg-rose-600 hover:bg-rose-500 text-white text-sm font-bold rounded-xl shadow-lg transition"
+                disabled={!rejectionReason.trim()}
+                className="px-6 py-2.5 bg-rose-600 hover:bg-rose-500 text-white text-sm font-bold rounded-xl shadow-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
-                تأكيد الرفض
+                <XCircle className="w-4 h-4" /> تأكيد الرفض
               </button>
             </div>
           </div>
