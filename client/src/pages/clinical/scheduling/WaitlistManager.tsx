@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { clinicalServices } from "../../../api/clinicalServices";
+import { apiClient } from "../../../api/apiClient";
 import { toast } from "sonner";
 import { Clock, Plus, UserPlus, Server, ArrowUpCircle } from "lucide-react";
 import { useAuthStore } from "../../../stores/authStore";
@@ -13,7 +14,9 @@ export default function WaitlistManager() {
   const [showAddModal, setShowAddModal] = useState(false);
   
   // Add Waitlist State
-  const [patientId, setPatientId] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [foundPatient, setFoundPatient] = useState<any>(null);
+  const [isSearching, setIsSearching] = useState(false);
   const [resourceId, setResourceId] = useState("");
   const [priority, setPriority] = useState("NORMAL");
   const [notes, setNotes] = useState("");
@@ -31,7 +34,7 @@ export default function WaitlistManager() {
   const addMutation = useMutation({
     mutationFn: async () => {
       await clinicalServices.joinWaitlist({
-        patientId: Number(patientId),
+        patientId: foundPatient.id,
         resourceId: Number(resourceId),
         priority,
         notes,
@@ -40,10 +43,34 @@ export default function WaitlistManager() {
     onSuccess: () => {
       toast.success("تمت إضافة المريض لقائمة الانتظار.");
       setShowAddModal(false);
+      setFoundPatient(null);
+      setSearchQuery("");
+      setResourceId("");
+      setNotes("");
       refetch();
     },
     onError: () => toast.error("فشل إضافة المريض לקائمة الانتظار."),
   });
+
+  const searchPatient = async () => {
+    if (!searchQuery) return;
+    setIsSearching(true);
+    try {
+      const res = await apiClient.get(`/patients/search?query=${encodeURIComponent(searchQuery)}`);
+      if (res.data.length > 0) {
+        setFoundPatient(res.data[0]);
+        toast.success("تم العثور على المريض");
+      } else {
+        toast.error("لم يتم العثور على المريض");
+        setFoundPatient(null);
+      }
+    } catch {
+      toast.error("خطأ في البحث");
+      setFoundPatient(null);
+    } finally {
+      setIsSearching(false);
+    }
+  };
 
   return (
     <div className="flex flex-col h-full text-slate-100 p-4 md:p-6 space-y-6 overflow-hidden">
@@ -154,13 +181,32 @@ export default function WaitlistManager() {
             </div>
             <div className="p-6 space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-400 mb-1">رقم المريض (Patient ID)</label>
-                <input
-                  type="number"
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm focus:border-amber-500 outline-none"
-                  value={patientId}
-                  onChange={(e) => setPatientId(e.target.value)}
-                />
+                <label className="block text-xs font-bold text-slate-400 mb-1">البحث عن مريض (الاسم، رقم الملف، الهاتف)</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    className="flex-1 bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm focus:border-amber-500 outline-none"
+                    placeholder="ابحث بالاسم، رقم الملف، أو الهاتف..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && searchPatient()}
+                  />
+                  <button
+                    onClick={searchPatient}
+                    disabled={isSearching}
+                    className="bg-amber-600 hover:bg-amber-500 text-white px-4 py-2 rounded-xl text-sm font-bold transition-colors disabled:opacity-50"
+                  >
+                    {isSearching ? "بحث..." : "بحث"}
+                  </button>
+                </div>
+                {foundPatient && (
+                  <div className="mt-3 bg-amber-900/20 border border-amber-500/30 rounded-xl p-3 text-sm flex justify-between items-center">
+                    <div>
+                      <div className="font-bold text-white">{foundPatient.fullName}</div>
+                      <div className="text-xs text-amber-300 mt-1">MRN: {foundPatient.mrn}</div>
+                    </div>
+                  </div>
+                )}
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-400 mb-1">المورد المطلوب</label>
@@ -205,7 +251,7 @@ export default function WaitlistManager() {
               </button>
               <button
                 onClick={() => addMutation.mutate()}
-                disabled={!patientId || !resourceId || addMutation.isPending}
+                disabled={!foundPatient || !resourceId || addMutation.isPending}
                 className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-lg text-sm shadow-lg transition-colors disabled:opacity-50"
               >
                 إضافة للقائمة

@@ -4,7 +4,7 @@ import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../auth/permissions.guard';
 import { Permissions } from '../../auth/permissions.decorator';
 
-@Controller('api/clinical/registries')
+@Controller('clinical/registries')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class RegistriesController {
   constructor(private readonly registriesService: RegistriesService) {}

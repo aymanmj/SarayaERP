@@ -1,14 +1,17 @@
 import React, { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { clinicalServices } from "../../../api/clinicalServices";
+import { apiClient } from "../../../api/apiClient";
 import { toast } from "sonner";
 import { ShieldAlert, CheckCircle2, Activity, Users, Search, RefreshCw, XCircle } from "lucide-react";
 
 export default function RegistriesDashboard() {
-  const [patientIdInput, setPatientIdInput] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [activePatientId, setActivePatientId] = useState<number | null>(null);
+  const [foundPatient, setFoundPatient] = useState<any>(null);
   const [selectedGap, setSelectedGap] = useState<any>(null);
   const [closeNotes, setCloseNotes] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
 
   const triggerMembershipMutation = useMutation({
     mutationFn: clinicalServices.triggerMembershipEval,
@@ -21,6 +24,30 @@ export default function RegistriesDashboard() {
     onSuccess: (data) => toast.success(`تم تقييم ${data.evaluated} فجوة واكتشاف ${data.opened} فجوة رعاية جديدة`),
     onError: () => toast.error("فشل تشغيل تقييم الفجوات"),
   });
+
+  const searchPatient = async () => {
+    if (!searchQuery) return;
+    setIsSearching(true);
+    try {
+      const res = await apiClient.get(`/patients/search?query=${encodeURIComponent(searchQuery)}`);
+      if (res.data.length > 0) {
+        const patient = res.data[0];
+        setFoundPatient(patient);
+        setActivePatientId(patient.id);
+        toast.success("تم العثور على المريض");
+      } else {
+        toast.error("لم يتم العثور على المريض");
+        setFoundPatient(null);
+        setActivePatientId(null);
+      }
+    } catch {
+      toast.error("خطأ في البحث");
+      setFoundPatient(null);
+      setActivePatientId(null);
+    } finally {
+      setIsSearching(false);
+    }
+  };
 
   const { data: careGaps = [], isLoading: loadingGaps, refetch: refetchGaps } = useQuery({
     queryKey: ["patient-care-gaps", activePatientId],
@@ -85,23 +112,32 @@ export default function RegistriesDashboard() {
             <h3 className="text-lg font-bold text-slate-200 mb-4 flex items-center gap-2">
               <Search className="w-5 h-5 text-slate-400" /> بحث عن مريض
             </h3>
-            <div className="flex gap-2">
+            <div className="flex gap-2 mb-4">
               <input
-                type="number"
-                placeholder="رقم المريض (ID)..."
+                type="text"
+                placeholder="ابحث بالاسم، رقم الملف، أو الهاتف..."
                 className="flex-1 bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm focus:border-emerald-500 outline-none"
-                value={patientIdInput}
-                onChange={(e) => setPatientIdInput(e.target.value)}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && searchPatient()}
               />
               <button
-                onClick={() => {
-                  if (patientIdInput) setActivePatientId(Number(patientIdInput));
-                }}
-                className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl font-bold transition-colors"
+                onClick={searchPatient}
+                disabled={isSearching}
+                className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl font-bold transition-colors disabled:opacity-50"
               >
-                بحث
+                {isSearching ? "جاري البحث..." : "بحث"}
               </button>
             </div>
+            {foundPatient && (
+              <div className="bg-sky-900/10 border border-sky-500/30 rounded-xl p-3 text-sm flex justify-between items-center">
+                <div>
+                  <div className="font-bold text-white">{foundPatient.fullName}</div>
+                  <div className="text-xs text-sky-300 mt-1">MRN: {foundPatient.mrn}</div>
+                </div>
+                <div className="text-xs bg-slate-800 px-2 py-1 rounded">المريض محدد</div>
+              </div>
+            )}
           </div>
 
           <div className="bg-slate-900/60 border border-slate-800 p-5 rounded-2xl flex-1">

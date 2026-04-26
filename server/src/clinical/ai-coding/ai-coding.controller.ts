@@ -4,7 +4,7 @@ import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../auth/permissions.guard';
 import { Permissions } from '../../auth/permissions.decorator';
 
-@Controller('api/clinical/ai-coding')
+@Controller('clinical/ai-coding')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class AiCodingController {
   constructor(private readonly aiCodingService: AiCodingService) {}

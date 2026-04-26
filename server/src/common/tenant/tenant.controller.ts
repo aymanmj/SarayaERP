@@ -19,7 +19,7 @@ import { OrgType } from '@prisma/client';
  * وحدة تحكم إدارة المؤسسات (SuperAdmin)
  * تتيح إدارة الهرم التنظيمي: شبكات > مستشفيات > عيادات
  */
-@Controller('api/organizations')
+@Controller('organizations')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class TenantController {
   private readonly logger = new Logger(TenantController.name);

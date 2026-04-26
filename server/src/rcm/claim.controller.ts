@@ -27,7 +27,7 @@ import { ClaimStatus } from '@prisma/client';
  * - تتبع المدفوعات والمرفوضات
  * - لوحة تحكم وتحليلات
  */
-@Controller('api/rcm')
+@Controller('rcm/claims')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class ClaimController {
   private readonly logger = new Logger(ClaimController.name);

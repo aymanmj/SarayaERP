@@ -6,7 +6,7 @@ import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../auth/permissions.guard';
 import { Permissions } from '../../auth/permissions.decorator';
 
-@Controller('api/clinical/scheduling')
+@Controller('clinical/scheduling')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class SchedulingController {
   constructor(

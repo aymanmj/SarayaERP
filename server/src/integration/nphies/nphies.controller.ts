@@ -24,7 +24,7 @@ import { PermissionsGuard } from '../../auth/permissions.guard';
  * - إرسال المطالبات الإلكترونية (eClaims)
  * - الاستعلام عن حالة المطالبات
  */
-@Controller('api/nphies')
+@Controller('integration/nphies')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class NphiesController {
   private readonly logger = new Logger(NphiesController.name);
