@@ -469,7 +469,7 @@ export default function EncounterDetailsPage() {
 
   const aiCodingMutation = useMutation({
     mutationFn: async (note: string) => {
-      const { data } = await apiClient.post('/ai-coding/suggest', { clinicalNote: note });
+      const { data } = await apiClient.post('/clinical/ai-coding/suggest', { clinicalNote: note });
       return data;
     },
     onSuccess: (data) => {

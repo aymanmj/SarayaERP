@@ -8,7 +8,7 @@ const api = {
 export const clinicalServices = {
   // --- AI Coding ---
   suggestCodes: async (clinicalNote: string) => {
-    const response = await api.post('/ai-coding/suggest', { clinicalNote });
+    const response = await api.post('/clinical/ai-coding/suggest', { clinicalNote });
     return response.data;
   },
 
