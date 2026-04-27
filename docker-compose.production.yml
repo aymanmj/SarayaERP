@@ -85,6 +85,7 @@ services:
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
       TELEGRAM_BOT_URL: ${TELEGRAM_BOT_URL:-https://t.me/SarayaMedBot}
       TELEGRAM_WEBHOOK_URL: ${TELEGRAM_WEBHOOK_URL:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
     volumes:
       - ./uploads:/app/uploads
       - ./data/license:/app/data/license

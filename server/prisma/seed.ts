@@ -60,10 +60,15 @@ async function main() {
   ];
 
   for (const d of depts) {
+    const isClinical = !['الموارد البشرية', 'الحسابات'].includes(d);
     await prisma.department.upsert({
       where: { id: depts.indexOf(d) + 1 }, // تبسيط للـ ID
-      update: {},
-      create: { hospitalId: hospital.id, name: d },
+      update: { type: isClinical ? 'CLINICAL' : 'ADMINISTRATIVE' },
+      create: { 
+        hospitalId: hospital.id, 
+        name: d,
+        type: isClinical ? 'CLINICAL' : 'ADMINISTRATIVE'
+      },
     });
   }
 

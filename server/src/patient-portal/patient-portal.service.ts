@@ -809,7 +809,9 @@ export class PatientPortalService {
       where: {
         hospitalId,
         isActive: true,
-        type: 'CLINICAL', // Only clinical departments for booking
+        name: {
+          notIn: ['الموارد البشرية', 'الحسابات', 'الاستقبال العام'],
+        },
       },
       select: {
         id: true,
