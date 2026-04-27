@@ -55,8 +55,8 @@ export class AiCodingService implements OnModuleInit {
 
     this.currentApiKey = apiKey;
     this.genAI = new GoogleGenerativeAI(apiKey);
-    // Using gemini-1.5-flash for fast reasoning and JSON responses
-    this.model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    // Using gemini-3.0-flash for fast reasoning and JSON responses
+    this.model = this.genAI.getGenerativeModel({ model: 'gemini-3.0-flash' });
     return true;
   }
 
