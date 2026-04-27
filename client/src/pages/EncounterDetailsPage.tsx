@@ -728,7 +728,7 @@ export default function EncounterDetailsPage() {
             {/* ✅ عرض تبويب الحساسية والمخاطر */}
             {activeTab === "ALLERGIES" && (
               <Suspense fallback={<LazyPanelFallback label="تحميل لوحة الحساسية والمخاطر..." />}>
-                <AllergiesPane encounterId={encounter.id} />
+                <AllergiesPane patientId={encounter.patientId} />
               </Suspense>
             )}
 
