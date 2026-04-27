@@ -10,7 +10,7 @@ export class AiCodingController {
   constructor(private readonly aiCodingService: AiCodingService) {}
 
   @Post('suggest')
-  @Permissions('ai-coding:use')
+  @Permissions('clinical:encounters:create')
   async suggestCodes(
     @Body() data: { clinicalNote: string; patientDemographics?: string }
   ) {
