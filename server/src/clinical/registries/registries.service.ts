@@ -1,12 +1,164 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { UpsertRegistryDto } from './dto/upsert-registry.dto';
 
 @Injectable()
 export class RegistriesService {
   private readonly logger = new Logger(RegistriesService.name);
 
   constructor(private prisma: PrismaService) {}
+
+  async listRegistries(hospitalId: number) {
+    return this.prisma.patientRegistry.findMany({
+      where: { hospitalId },
+      include: {
+        criteria: true,
+        careGapRules: {
+          orderBy: [{ isActive: 'desc' }, { createdAt: 'asc' }],
+        },
+        _count: {
+          select: {
+            members: true,
+            careGapRules: true,
+          },
+        },
+      },
+      orderBy: { name: 'asc' },
+    });
+  }
+
+  async getRegistry(hospitalId: number, registryId: number) {
+    const registry = await this.prisma.patientRegistry.findFirst({
+      where: { id: registryId, hospitalId },
+      include: {
+        criteria: true,
+        careGapRules: {
+          orderBy: [{ isActive: 'desc' }, { createdAt: 'asc' }],
+        },
+      },
+    });
+
+    if (!registry) {
+      throw new NotFoundException('السجل المطلوب غير موجود');
+    }
+
+    return registry;
+  }
+
+  async createRegistry(hospitalId: number, dto: UpsertRegistryDto) {
+    return this.prisma.patientRegistry.create({
+      data: {
+        hospitalId,
+        name: dto.name,
+        description: dto.description,
+        isActive: dto.isActive ?? true,
+        criteria: {
+          create: dto.criteria.map((criteria) => ({
+            type: criteria.type,
+            operator: criteria.operator,
+            value: criteria.value,
+          })),
+        },
+        careGapRules: {
+          create: dto.careGapRules.map((rule) => ({
+            name: rule.name,
+            description: rule.description,
+            targetType: rule.targetType,
+            targetValue: rule.targetValue,
+            frequencyDays: rule.frequencyDays,
+            isActive: rule.isActive ?? true,
+          })),
+        },
+      },
+      include: {
+        criteria: true,
+        careGapRules: true,
+      },
+    });
+  }
+
+  async updateRegistry(hospitalId: number, registryId: number, dto: UpsertRegistryDto) {
+    const existing = await this.getRegistry(hospitalId, registryId);
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.patientRegistry.update({
+        where: { id: registryId },
+        data: {
+          name: dto.name,
+          description: dto.description,
+          isActive: dto.isActive ?? existing.isActive,
+        },
+      });
+
+      await tx.registryCriteria.deleteMany({
+        where: { registryId },
+      });
+
+      if (dto.criteria.length > 0) {
+        await tx.registryCriteria.createMany({
+          data: dto.criteria.map((criteria) => ({
+            registryId,
+            type: criteria.type,
+            operator: criteria.operator,
+            value: criteria.value,
+          })),
+        });
+      }
+
+      const incomingRuleIds = dto.careGapRules
+        .map((rule) => rule.id)
+        .filter((id): id is number => typeof id === 'number');
+
+      const existingRuleIds = existing.careGapRules.map((rule) => rule.id);
+      const missingRuleIds = existingRuleIds.filter((id) => !incomingRuleIds.includes(id));
+
+      if (missingRuleIds.length > 0) {
+        await tx.careGapRule.updateMany({
+          where: { id: { in: missingRuleIds } },
+          data: { isActive: false },
+        });
+      }
+
+      for (const rule of dto.careGapRules) {
+        if (rule.id && existingRuleIds.includes(rule.id)) {
+          await tx.careGapRule.update({
+            where: { id: rule.id },
+            data: {
+              name: rule.name,
+              description: rule.description,
+              targetType: rule.targetType,
+              targetValue: rule.targetValue,
+              frequencyDays: rule.frequencyDays,
+              isActive: rule.isActive ?? true,
+            },
+          });
+        } else {
+          await tx.careGapRule.create({
+            data: {
+              registryId,
+              name: rule.name,
+              description: rule.description,
+              targetType: rule.targetType,
+              targetValue: rule.targetValue,
+              frequencyDays: rule.frequencyDays,
+              isActive: rule.isActive ?? true,
+            },
+          });
+        }
+      }
+
+      return tx.patientRegistry.findUnique({
+        where: { id: registryId },
+        include: {
+          criteria: true,
+          careGapRules: {
+            orderBy: [{ isActive: 'desc' }, { createdAt: 'asc' }],
+          },
+        },
+      });
+    });
+  }
 
   /**
    * Evaluates all patients against Registry Criteria and automatically enrolls them.

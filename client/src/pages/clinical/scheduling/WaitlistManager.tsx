@@ -56,6 +56,7 @@ export default function WaitlistManager() {
       await clinicalServices.joinWaitlist({
         hospitalId,
         patientId: foundPatient.id,
+        resourceId: selectedResource?.id || undefined,
         departmentId: selectedResource?.departmentId || undefined,
         priority: PRIORITY_MAP[priority] ?? 3,
         notes: noteParts.join("\n"),
@@ -174,7 +175,7 @@ export default function WaitlistManager() {
                     </h3>
                     <div className="text-xs text-slate-500 flex items-center gap-1 mt-1">
                       <Server className="w-3 h-3" />
-                      {entry.department?.name || "بدون قسم محدد"}
+                      {entry.resource?.name || entry.department?.name || "بدون قسم محدد"}
                     </div>
                   </div>
                   <div className="text-right">

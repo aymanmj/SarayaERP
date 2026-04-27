@@ -23,12 +23,11 @@ export class WaitlistListener {
   }) {
     this.logger.log(`Booking cancelled for resource ${payload.resourceId}. Checking waitlist...`);
 
-    // Find the highest priority waitlist entry for this hospital and department
-    const waitlistCandidates = await this.prisma.waitlist.findMany({
+    const exactResourceCandidates = await this.prisma.waitlist.findMany({
       where: {
         hospitalId: payload.hospitalId,
         status: 'WAITING',
-        ...(payload.departmentId ? { departmentId: payload.departmentId } : {}),
+        resourceId: payload.resourceId,
       },
       orderBy: [
         { priority: 'asc' }, // 1 is highest priority
@@ -37,8 +36,26 @@ export class WaitlistListener {
       take: 1,
     });
 
-    if (waitlistCandidates.length > 0) {
-      const candidate = waitlistCandidates[0];
+    const fallbackDepartmentCandidates =
+      exactResourceCandidates.length === 0 && payload.departmentId
+        ? await this.prisma.waitlist.findMany({
+            where: {
+              hospitalId: payload.hospitalId,
+              status: 'WAITING',
+              resourceId: null,
+              departmentId: payload.departmentId,
+            },
+            orderBy: [
+              { priority: 'asc' },
+              { requestedDate: 'asc' },
+            ],
+            take: 1,
+          })
+        : [];
+
+    const candidate = exactResourceCandidates[0] ?? fallbackDepartmentCandidates[0];
+
+    if (candidate) {
       this.logger.log(`Found candidate on waitlist: Patient ${candidate.patientId}. Promoting to NOTIFIED.`);
 
       // Update the waitlist status to NOTIFIED

@@ -53,13 +53,42 @@ describe('WaitlistListener', () => {
         where: {
           hospitalId: 100,
           status: 'WAITING',
-          departmentId: 10,
+          resourceId: 2,
         },
         orderBy: [{ priority: 'asc' }, { requestedDate: 'asc' }],
         take: 1,
       });
 
       expect(waitlistService.updateWaitlistStatus).toHaveBeenCalledWith(50, 'NOTIFIED');
+    });
+
+    it('falls back to department candidates when no resource-specific entry exists', async () => {
+      const payload = {
+        bookingId: 1,
+        resourceId: 2,
+        departmentId: 10,
+        hospitalId: 100,
+        freedSlotStart: new Date(),
+        freedSlotEnd: new Date(),
+      };
+
+      prismaService.waitlist.findMany
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([{ id: 51, patientId: 1001 }]);
+
+      await listener.handleBookingCancelled(payload);
+
+      expect(prismaService.waitlist.findMany).toHaveBeenNthCalledWith(2, {
+        where: {
+          hospitalId: 100,
+          status: 'WAITING',
+          resourceId: null,
+          departmentId: 10,
+        },
+        orderBy: [{ priority: 'asc' }, { requestedDate: 'asc' }],
+        take: 1,
+      });
+      expect(waitlistService.updateWaitlistStatus).toHaveBeenCalledWith(51, 'NOTIFIED');
     });
 
     it('should do nothing if no candidate is found', async () => {

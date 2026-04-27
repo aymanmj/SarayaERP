@@ -5137,6 +5137,7 @@ model Resource {
   hospital   Hospital          @relation(fields: [hospitalId], references: [id])
   department Department?       @relation(fields: [departmentId], references: [id])
   bookings   ResourceBooking[]
+  waitlists  Waitlist[]
 
   @@index([hospitalId, type])
 }
@@ -5162,6 +5163,7 @@ model Waitlist {
   id            Int       @id @default(autoincrement())
   hospitalId    Int
   patientId     Int
+  resourceId    Int?
   departmentId  Int?
   doctorId      Int?
   priority      Int       @default(3) // 1: High, 3: Normal
@@ -5173,8 +5175,10 @@ model Waitlist {
 
   hospital   Hospital    @relation(fields: [hospitalId], references: [id])
   patient    Patient     @relation(fields: [patientId], references: [id])
+  resource   Resource?   @relation(fields: [resourceId], references: [id])
   department Department? @relation(fields: [departmentId], references: [id])
   doctor     User?       @relation(fields: [doctorId], references: [id])
 
   @@index([hospitalId, status, priority])
+  @@index([resourceId, status])
 }

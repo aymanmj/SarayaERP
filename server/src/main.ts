@@ -14,6 +14,7 @@ import helmet from 'helmet';
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
   const isProduction = process.env.NODE_ENV === 'production';
+  const enableStrictCsp = process.env.ENABLE_STRICT_CSP === 'true';
   const app = await NestFactory.create(AppModule, {
     logger: ['error', 'warn', 'log'], // Production logging levels
   });
@@ -40,28 +41,45 @@ async function bootstrap() {
   
   app.use(cookieParser());
 
+  const compatibilityCspDirectives = {
+    defaultSrc: ["'self'"],
+    baseUri: ["'self'"],
+    objectSrc: ["'none'"],
+    frameAncestors: ["'self'"],
+    styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+    fontSrc: ["'self'", 'data:', 'https://fonts.gstatic.com'],
+    scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+    imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
+    mediaSrc: ["'self'", 'data:', 'blob:'],
+    connectSrc: [
+      "'self'",
+      'http://localhost:*',
+      'ws://localhost:*',
+      'https://erp.alsarayatech.ly',
+      'wss://erp.alsarayatech.ly',
+    ],
+    workerSrc: ["'self'", 'blob:'],
+  };
+
+  const strictCspDirectives = {
+    ...compatibilityCspDirectives,
+    scriptSrc: ["'self'"],
+  };
+
   // Helmet: Security headers (XSS, clickjacking, etc.)
   app.use(helmet({
     contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
-        styleSrc: ["'self'", "'unsafe-inline'"],
-        scriptSrc: isProduction
-          ? ["'self'"]
-          : ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
-        imgSrc: ["'self'", 'data:', 'blob:'],
-        connectSrc: [
-          "'self'",
-          'http://localhost:*',
-          'ws://localhost:*',
-          'https://erp.alsarayatech.ly',
-          'wss://erp.alsarayatech.ly',
-        ],
-      },
+      directives: isProduction && enableStrictCsp
+        ? strictCspDirectives
+        : compatibilityCspDirectives,
     },
     crossOriginEmbedderPolicy: false, // For WebSocket compatibility
     crossOriginResourcePolicy: { policy: 'cross-origin' },
   }));
+
+  if (isProduction && !enableStrictCsp) {
+    logger.warn('⚠️ Running with compatibility CSP. Set ENABLE_STRICT_CSP=true after frontend CSP hardening is complete.');
+  }
 
   // ============================================
   // 🛡️ INPUT VALIDATION

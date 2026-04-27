@@ -31,6 +31,22 @@ export const clinicalServices = {
   },
 
   // --- Registries & Care Gaps ---
+  getRegistries: async () => {
+    const response = await api.get(`/registries`);
+    return response.data;
+  },
+  getRegistry: async (registryId: number) => {
+    const response = await api.get(`/registries/${registryId}`);
+    return response.data;
+  },
+  createRegistry: async (data: any) => {
+    const response = await api.post(`/registries`, data);
+    return response.data;
+  },
+  updateRegistry: async (registryId: number, data: any) => {
+    const response = await apiClient.patch(`/clinical/registries/${registryId}`, data);
+    return response.data;
+  },
   getPatientCareGaps: async (patientId: number) => {
     const response = await api.get(`/registries/patient/${patientId}/gaps`);
     return response.data;
