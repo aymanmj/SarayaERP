@@ -13,6 +13,7 @@ import helmet from 'helmet';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
+  const isProduction = process.env.NODE_ENV === 'production';
   const app = await NestFactory.create(AppModule, {
     logger: ['error', 'warn', 'log'], // Production logging levels
   });
@@ -45,7 +46,9 @@ async function bootstrap() {
       directives: {
         defaultSrc: ["'self'"],
         styleSrc: ["'self'", "'unsafe-inline'"],
-        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+        scriptSrc: isProduction
+          ? ["'self'"]
+          : ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
         imgSrc: ["'self'", 'data:', 'blob:'],
         connectSrc: [
           "'self'",
@@ -67,7 +70,7 @@ async function bootstrap() {
     new ValidationPipe({
       whitelist: true,           // Strip unknown properties
       transform: true,           // Auto-transform types
-      forbidNonWhitelisted: false, // Allow unknown properties (strip them instead of throwing)
+      forbidNonWhitelisted: isProduction,
       transformOptions: {
         enableImplicitConversion: true,
       },
@@ -104,8 +107,6 @@ async function bootstrap() {
     .split(',')
     .map(s => s.trim())
     .filter(Boolean);
-  
-  const isProduction = process.env.NODE_ENV === 'production';
   
   // In production: require explicit CORS_ORIGINS. In dev: allow all for convenience.
   const allowAllOrigins = !isProduction && (configuredOrigins.includes('*') || configuredOrigins.length === 0);

@@ -23,6 +23,21 @@ export class Hl7Consumer extends WorkerHost {
         data: { status: 'PROCESSING' },
       });
 
+      const integrationLog = await this.prisma.integrationLog.findUnique({
+        where: { id: logId },
+        include: {
+          device: {
+            select: {
+              hospitalId: true,
+            },
+          },
+        },
+      });
+
+      if (!integrationLog) {
+        throw new Error(`Integration log #${logId} not found.`);
+      }
+
       // 2. تحليل الرسالة (Routing logic)
       const segments = rawMessage.split(/[\r\n]+/);
       const msh = segments[0].split('|');
@@ -31,7 +46,7 @@ export class Hl7Consumer extends WorkerHost {
       if (msgType && msgType.includes('ORU')) {
         await this.handleORU(segments);
       } else if (msgType && msgType.includes('ADT')) {
-        await this.handleADT(segments);
+        await this.handleADT(segments, integrationLog.device.hospitalId);
       } else {
         this.logger.warn(`⚠️ Unhandled HL7 Message Type: ${msgType}`);
       }
@@ -192,7 +207,7 @@ export class Hl7Consumer extends WorkerHost {
   }
 
   // --- منطق معالجة المرضى (HL7 ADT) ---
-  private async handleADT(segments: string[]) {
+  private async handleADT(segments: string[], hospitalId: number) {
     // Basic Parsing of ADT^A01 (Admit), ADT^A04 (Register), ADT^A08 (Update)
     let pidFields: string[] = [];
     
@@ -234,7 +249,7 @@ export class Hl7Consumer extends WorkerHost {
 
     // Try to find if patient exists
     let patient = await this.prisma.patient.findFirst({
-      where: { mrn },
+      where: { mrn, hospitalId },
     });
 
     if (patient) {
@@ -258,8 +273,7 @@ export class Hl7Consumer extends WorkerHost {
           gender: gender as any,
           phone: phone || null,
           isActive: true,
-          // Assign to hospital 1 by default for HL7 syncing if no context
-          hospitalId: 1
+          hospitalId,
         }
       });
     }

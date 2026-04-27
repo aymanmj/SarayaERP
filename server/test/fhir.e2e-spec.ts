@@ -60,21 +60,27 @@ describe('FHIR & SMART App Launch (e2e)', () => {
 
     it('should block access if patient context does not match requested resource', async () => {
       // 1. Create two test patients
-      const hospital = await prisma.hospital.create({ data: { name: 'Test Hospital' } });
-      const org = await prisma.organization.create({ data: { name: 'Test Org', type: 'HOSPITAL' } });
+      const org = await prisma.organization.create({
+        data: { code: 'TEST-ORG', name: 'Test Org', type: 'HOSPITAL' },
+      });
+      const hospital = await prisma.hospital.create({
+        data: {
+          code: 'TEST-HOSP',
+          name: 'Test Hospital',
+          organizationId: org.id,
+        },
+      });
       const patientA = await prisma.patient.create({
         data: {
           hospitalId: hospital.id,
-          firstName: 'John',
-          lastName: 'Doe',
+          fullName: 'John Doe',
           mrn: 'MRN00A',
         },
       });
       const patientB = await prisma.patient.create({
         data: {
           hospitalId: hospital.id,
-          firstName: 'Jane',
-          lastName: 'Smith',
+          fullName: 'Jane Smith',
           mrn: 'MRN00B',
         },
       });

@@ -9,7 +9,7 @@ export default function PortalProfile() {
 
   useEffect(() => {
     Promise.all([
-      portalApi.get('/profile').then(r => setProfile(r.data)),
+      portalApi.get('/medical/profile').then(r => setProfile(r.data)),
       portalApi.get('/financial/insurance').then(r => setInsurance(r.data)),
     ]).catch(() => {}).finally(() => setLoading(false));
   }, []);

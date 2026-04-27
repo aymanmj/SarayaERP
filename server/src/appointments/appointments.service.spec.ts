@@ -356,7 +356,8 @@ describe('AppointmentsService', () => {
         where: { id: 100 },
         data: { invoiceId: 200 },
       });
-      expect(result.id).toBe(50);
+      expect(result).not.toBeNull();
+      expect(result?.id).toBe(50);
     });
 
     it('rejects manually assigned queue number when already reserved for the day', async () => {

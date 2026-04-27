@@ -22,7 +22,7 @@ export default function PortalDashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    portalApi.get('/dashboard')
+    portalApi.get('/medical/dashboard')
       .then(res => setDashboard(res.data))
       .catch(() => {})
       .finally(() => setLoading(false));

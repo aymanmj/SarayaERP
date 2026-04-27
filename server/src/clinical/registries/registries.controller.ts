@@ -19,9 +19,9 @@ export class RegistriesController {
   @Permissions('clinical:manage')
   async closeGap(
     @Param('gapId', ParseIntPipe) gapId: number,
-    @Body('reason') reason: string,
+    @Body() body: { reason?: string; notes?: string },
   ) {
-    return this.registriesService.closeGap(gapId, reason);
+    return this.registriesService.closeGap(gapId, body.reason ?? body.notes ?? '');
   }
 
   @Get(':registryId/analytics')
@@ -34,14 +34,14 @@ export class RegistriesController {
   @Post('trigger-membership-eval')
   @Permissions('admin:all')
   async triggerMembershipEval() {
-    await this.registriesService.evaluateRegistryMemberships();
-    return { success: true, message: 'Registry membership evaluation triggered' };
+    const result = await this.registriesService.evaluateRegistryMemberships();
+    return { success: true, message: 'Registry membership evaluation triggered', ...result };
   }
 
   @Post('trigger-gaps-eval')
   @Permissions('admin:all')
   async triggerGapsEval() {
-    await this.registriesService.evaluateCareGaps();
-    return { success: true, message: 'Care Gaps evaluation triggered' };
+    const result = await this.registriesService.evaluateCareGaps();
+    return { success: true, message: 'Care Gaps evaluation triggered', ...result };
   }
 }

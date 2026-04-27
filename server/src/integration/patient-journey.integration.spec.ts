@@ -151,6 +151,10 @@ describe('Patient Journey Integration Tests', () => {
       doctorId: 5,
       chiefComplaint: 'Chest pain',
     });
+    expect(encounter).not.toBeNull();
+    if (!encounter) {
+      throw new Error('Encounter was not created');
+    }
     const visit = await visitsService.createVisit({
       encounterId: encounter.id,
       doctorId: 5,

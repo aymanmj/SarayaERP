@@ -11,6 +11,7 @@ describe('RegistriesService', () => {
       patientRegistry: { findMany: jest.fn() },
       patientRegistryMembership: {
         findMany: jest.fn(),
+        findUnique: jest.fn(),
         upsert: jest.fn(),
         count: jest.fn(),
       },
@@ -53,14 +54,16 @@ describe('RegistriesService', () => {
         { encounter: { patientId: 100 } },
         { encounter: { patientId: 101 } },
       ]);
+      prismaService.patientRegistryMembership.findUnique.mockResolvedValue(null);
 
-      await service.evaluateRegistryMemberships();
+      const result = await service.evaluateRegistryMemberships();
 
       expect(prismaService.encounterDiagnosis.findMany).toHaveBeenCalledWith({
         where: { diagnosisCode: { code: 'E11.9' } },
         select: { encounter: { select: { patientId: true } } },
       });
       expect(prismaService.patientRegistryMembership.upsert).toHaveBeenCalledTimes(2);
+      expect(result).toEqual({ evaluated: 2, added: 2 });
     });
   });
 
@@ -82,7 +85,7 @@ describe('RegistriesService', () => {
       prismaService.labOrder.findFirst.mockResolvedValue(null); // No recent test
       prismaService.careGap.findFirst.mockResolvedValue(null); // No existing open gap
 
-      await service.evaluateCareGaps();
+      const result = await service.evaluateCareGaps();
 
       expect(prismaService.careGap.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -93,6 +96,7 @@ describe('RegistriesService', () => {
           }),
         }),
       );
+      expect(result).toEqual({ evaluated: 1, opened: 1, closed: 0 });
     });
 
     it('should close existing gap if recent lab test is found', async () => {
@@ -111,8 +115,9 @@ describe('RegistriesService', () => {
       ]);
       // Recent test exists
       prismaService.labOrder.findFirst.mockResolvedValue({ id: 999, status: 'COMPLETED' }); 
+      prismaService.careGap.updateMany.mockResolvedValue({ count: 1 });
 
-      await service.evaluateCareGaps();
+      const result = await service.evaluateCareGaps();
 
       expect(prismaService.careGap.updateMany).toHaveBeenCalledWith({
         where: { ruleId: 10, patientId: 100, status: 'OPEN' },
@@ -122,6 +127,7 @@ describe('RegistriesService', () => {
         }),
       });
       expect(prismaService.careGap.create).not.toHaveBeenCalled();
+      expect(result).toEqual({ evaluated: 1, opened: 0, closed: 1 });
     });
   });
 });

@@ -11,21 +11,63 @@ export default defineConfig({
     chunkSizeWarningLimit: 900,
     rollupOptions: {
       output: {
-        manualChunks: {
-          'vendor-react': ['react', 'react-dom', 'react-router-dom', 'zustand'],
-          'vendor-ui': [
-            '@radix-ui/react-label',
-            '@radix-ui/react-popover',
-            '@radix-ui/react-select',
-            '@radix-ui/react-slot',
-            'flowbite',
-            'lucide-react',
-            'recharts'
-          ],
-          'vendor-utils': ['axios', 'date-fns', '@tanstack/react-query', 'socket.io-client']
-        }
-      }
-    }
+        manualChunks(id) {
+          if (!id.includes("node_modules")) {
+            return undefined;
+          }
+
+          if (
+            id.includes("cornerstone-tools")
+          ) {
+            return "vendor-dicom-tools";
+          }
+
+          if (
+            id.includes("cornerstone-wado-image-loader") ||
+            id.includes("dicom-parser")
+          ) {
+            return "vendor-dicom-loader";
+          }
+
+          if (
+            id.includes("cornerstone-core") ||
+            id.includes("cornerstone-math") ||
+            id.includes("hammerjs")
+          ) {
+            return "vendor-dicom-core";
+          }
+
+          if (
+            id.includes("react") ||
+            id.includes("react-dom") ||
+            id.includes("react-router-dom") ||
+            id.includes("zustand")
+          ) {
+            return "vendor-react";
+          }
+
+          if (
+            id.includes("@radix-ui") ||
+            id.includes("flowbite") ||
+            id.includes("lucide-react") ||
+            id.includes("recharts")
+          ) {
+            return "vendor-ui";
+          }
+
+          if (
+            id.includes("axios") ||
+            id.includes("date-fns") ||
+            id.includes("@tanstack/react-query") ||
+            id.includes("socket.io-client")
+          ) {
+            return "vendor-utils";
+          }
+
+          return undefined;
+        },
+      },
+    },
   },
   // ✅ هذا الجزء الجديد لحل مشاكل مكتبات الأشعة
   optimizeDeps: {

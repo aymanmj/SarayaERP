@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  ForbiddenException,
   Get,
   Param,
   ParseIntPipe,
@@ -90,13 +91,25 @@ export class UsersController {
   // ✅ [Diagnostic] Fix Doctor Permissions
   // Allow simplified access for debugging
   @Post('fix-permissions')
+  @Roles('ADMIN')
+  @Permissions('ROLE_MANAGE')
   async fixPermissions() {
-      return this.usersService.fixDoctorPermissions();
+    if (process.env.ENABLE_DIAGNOSTIC_ENDPOINTS !== 'true') {
+      throw new ForbiddenException('Diagnostic endpoints are disabled');
+    }
+
+    return this.usersService.fixDoctorPermissions();
   }
 
   // ✅ [Diagnostic] Fix Nurse Permissions
   @Post('fix-nurse-permissions')
+  @Roles('ADMIN')
+  @Permissions('ROLE_MANAGE')
   async fixNursePermissions() {
-      return this.usersService.fixNursePermissions();
+    if (process.env.ENABLE_DIAGNOSTIC_ENDPOINTS !== 'true') {
+      throw new ForbiddenException('Diagnostic endpoints are disabled');
+    }
+
+    return this.usersService.fixNursePermissions();
   }
 }

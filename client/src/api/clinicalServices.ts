@@ -36,7 +36,7 @@ export const clinicalServices = {
     return response.data;
   },
   closeCareGap: async (gapId: number, notes: string) => {
-    const response = await api.post(`/registries/gaps/${gapId}/close`, { notes });
+    const response = await api.post(`/registries/gaps/${gapId}/close`, { reason: notes });
     return response.data;
   },
   getRegistryAnalytics: async (registryId: number) => {
@@ -55,6 +55,10 @@ export const clinicalServices = {
   // --- Advanced Scheduling ---
   getResources: async (hospitalId: number) => {
     const response = await api.get(`/scheduling/hospitals/${hospitalId}/resources`);
+    return response.data;
+  },
+  createResource: async (data: any) => {
+    const response = await api.post(`/scheduling/resources`, data);
     return response.data;
   },
   getResourceBookings: async (resourceId: number, from: string, to: string) => {

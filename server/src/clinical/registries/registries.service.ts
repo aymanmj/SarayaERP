@@ -18,6 +18,8 @@ export class RegistriesService {
     const registries = await this.prisma.patientRegistry.findMany({
       include: { criteria: true },
     });
+    const evaluatedPatients = new Set<number>();
+    let added = 0;
 
     for (const registry of registries) {
       // Find patients matching the criteria
@@ -26,6 +28,18 @@ export class RegistriesService {
       const enrolledPatients = await this.evaluateCriteria(registry.criteria);
 
       for (const patientId of enrolledPatients) {
+        evaluatedPatients.add(patientId);
+        const existingMembership =
+          await this.prisma.patientRegistryMembership.findUnique({
+            where: {
+              registryId_patientId: { registryId: registry.id, patientId },
+            },
+          });
+
+        if (!existingMembership || existingMembership.status !== 'ACTIVE') {
+          added += 1;
+        }
+
         await this.prisma.patientRegistryMembership.upsert({
           where: {
             registryId_patientId: { registryId: registry.id, patientId },
@@ -40,6 +54,7 @@ export class RegistriesService {
       }
     }
     this.logger.log('Registry Membership evaluation completed.');
+    return { evaluated: evaluatedPatients.size, added };
   }
 
   /**
@@ -53,6 +68,9 @@ export class RegistriesService {
       where: { isActive: true },
       include: { registry: true },
     });
+    let evaluated = 0;
+    let opened = 0;
+    let closed = 0;
 
     for (const rule of activeRules) {
       const memberships = await this.prisma.patientRegistryMembership.findMany({
@@ -60,6 +78,7 @@ export class RegistriesService {
       });
 
       for (const member of memberships) {
+        evaluated += 1;
         const hasGap = await this.checkPatientGap(member.patientId, rule);
 
         if (hasGap) {
@@ -81,11 +100,12 @@ export class RegistriesService {
                 dueDate: new Date(), // Immediate due date
               },
             });
+            opened += 1;
             this.logger.log(`Created Care Gap for Patient ${member.patientId} - Rule: ${rule.name}`);
           }
         } else {
           // If the patient fulfilled the requirement, close any OPEN gaps
-          await this.prisma.careGap.updateMany({
+          const closedResult = await this.prisma.careGap.updateMany({
             where: {
               ruleId: rule.id,
               patientId: member.patientId,
@@ -97,10 +117,12 @@ export class RegistriesService {
               closureReason: 'System auto-closure: Requirement met',
             },
           });
+          closed += closedResult.count;
         }
       }
     }
     this.logger.log('Care Gaps evaluation completed.');
+    return { evaluated, opened, closed };
   }
 
   // --- Helper Methods ---

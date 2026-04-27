@@ -1,9 +1,13 @@
 // src/components/encounter/RadiologyTab.tsx
 
-import { useEffect, useState, useMemo } from "react";
+import { Suspense, lazy, useEffect, useMemo, useState } from "react";
 import { apiClient } from "../../api/apiClient";
 import { toast } from "sonner";
-import { DicomViewer } from "../clinical/DicomViewer";
+const DicomViewer = lazy(() =>
+  import("../clinical/DicomViewer").then((module) => ({
+    default: module.DicomViewer,
+  })),
+);
 
 // Types
 type RadiologyStudy = {
@@ -145,7 +149,18 @@ export function RadiologyTab({ encounterId, hospitalId, doctorId }: RadiologyTab
     <div className="space-y-6">
       {/* DICOM Viewer */}
       {viewImageUrl && (
-        <DicomViewer imageId={viewImageUrl} onClose={() => setViewImageUrl(null)} />
+        <Suspense
+          fallback={
+            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black text-sky-400">
+              يجري تحميل عارض الأشعة...
+            </div>
+          }
+        >
+          <DicomViewer
+            imageId={viewImageUrl}
+            onClose={() => setViewImageUrl(null)}
+          />
+        </Suspense>
       )}
 
       {/* 1. Order Section */}

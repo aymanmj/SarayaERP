@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AccountingService } from '../accounting/accounting.service'; // Assuming existing service
 import { InventoryCountStatus, InventoryCountType, StockTransactionType, AccountingSourceModule } from '@prisma/client';
@@ -96,11 +100,19 @@ export class InventoryCountService {
   }
 
   // 3. Update Line Quantities
-  async updateLine(lineId: number, physicalQty: number) {
+  async updateLine(lineId: number, physicalQty: number, hospitalId: number) {
     const line = await this.prisma.inventoryCountLine.findUnique({
       where: { id: lineId },
+      include: {
+        inventoryCount: {
+          select: { hospitalId: true },
+        },
+      },
     });
     if (!line) throw new NotFoundException('Line not found');
+    if (line.inventoryCount.hospitalId !== hospitalId) {
+      throw new NotFoundException('Line not found');
+    }
 
     const variance = Number(physicalQty) - Number(line.systemQty);
 
@@ -114,7 +126,20 @@ export class InventoryCountService {
   }
 
   // 4. Update Status (e.g. DRAFT -> IN_PROGRESS -> REVIEW)
-  async updateStatus(id: number, status: InventoryCountStatus) {
+  async updateStatus(
+    id: number,
+    status: InventoryCountStatus,
+    hospitalId: number,
+  ) {
+    const count = await this.prisma.inventoryCount.findUnique({
+      where: { id },
+      select: { hospitalId: true },
+    });
+
+    if (!count || count.hospitalId !== hospitalId) {
+      throw new NotFoundException('Inventory count not found');
+    }
+
     return this.prisma.inventoryCount.update({
       where: { id },
       data: { status },
@@ -122,13 +147,16 @@ export class InventoryCountService {
   }
 
   // 5. Post Count (Finalize & Accounting)
-  async postCount(id: number, userId: number) {
+  async postCount(id: number, userId: number, hospitalId: number) {
     const count = await this.prisma.inventoryCount.findUnique({
       where: { id },
       include: { lines: true, warehouse: true },
     });
 
     if (!count) throw new NotFoundException('Count not found');
+    if (count.hospitalId !== hospitalId) {
+      throw new NotFoundException('Count not found');
+    }
     if (count.status === InventoryCountStatus.POSTED) {
       throw new BadRequestException('Already posted');
     }

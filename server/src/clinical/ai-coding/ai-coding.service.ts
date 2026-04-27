@@ -14,6 +14,7 @@ export class AiCodingService implements OnModuleInit {
   private readonly logger = new Logger(AiCodingService.name);
   private genAI: GoogleGenerativeAI;
   private model: any;
+  private currentApiKey: string | null = null;
 
   constructor(
     private configService: ConfigService,
@@ -21,25 +22,50 @@ export class AiCodingService implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
+    await this.ensureModelLoaded();
+  }
+
+  private async ensureModelLoaded() {
     let apiKey = await this.vaultService.getOptionalSecret('GEMINI_API_KEY');
+
     if (!apiKey) {
-      apiKey = process.env.GEMINI_API_KEY || this.configService.get<string>('GEMINI_API_KEY') || null;
+      try {
+        await this.vaultService.refreshKeys();
+        apiKey = await this.vaultService.getOptionalSecret('GEMINI_API_KEY');
+      } catch (error: any) {
+        this.logger.warn(`Unable to refresh Vault secrets for Gemini key: ${error.message}`);
+      }
+    }
+
+    if (!apiKey) {
+      apiKey =
+        process.env.GEMINI_API_KEY ||
+        this.configService.get<string>('GEMINI_API_KEY') ||
+        null;
     }
 
     if (!apiKey) {
       this.logger.warn('GEMINI_API_KEY is not configured in Vault or ENV. AI Coding Assist will not function properly.');
-    } else {
-      this.genAI = new GoogleGenerativeAI(apiKey);
-      // Using gemini-1.5-flash for fast reasoning and JSON responses
-      this.model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+      return false;
     }
+
+    if (this.model && this.currentApiKey === apiKey) {
+      return true;
+    }
+
+    this.currentApiKey = apiKey;
+    this.genAI = new GoogleGenerativeAI(apiKey);
+    // Using gemini-1.5-flash for fast reasoning and JSON responses
+    this.model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    return true;
   }
 
   /**
    * Analyze clinical notes and suggest ICD-10 and CPT codes
    */
   async suggestCodes(clinicalNote: string, patientDemographics?: string): Promise<AiCodingSuggestion> {
-    if (!this.model) {
+    const ready = await this.ensureModelLoaded();
+    if (!ready || !this.model) {
       throw new InternalServerErrorException('AI Model is not configured (Missing GEMINI_API_KEY)');
     }
 

@@ -249,7 +249,8 @@ describe('EncountersService', () => {
         where: { id: 90 },
         data: { invoiceId: 91 },
       });
-      expect(result.id).toBe(44);
+      expect(result).not.toBeNull();
+      expect(result?.id).toBe(44);
     });
 
     it('should still create ER encounter if invoice creation fails', async () => {
@@ -289,7 +290,8 @@ describe('EncountersService', () => {
 
       expect(prisma.encounterCharge.create).toHaveBeenCalled();
       expect(prisma.invoice.create).not.toHaveBeenCalled();
-      expect(result.id).toBe(55);
+      expect(result).not.toBeNull();
+      expect(result?.id).toBe(55);
     });
   });
 
