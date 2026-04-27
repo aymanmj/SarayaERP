@@ -344,6 +344,8 @@ download_files() {
     # Grafana datasources
     gh_download "monitoring/grafana/provisioning/datasources/prometheus.yml" \
         "monitoring/grafana/provisioning/datasources/prometheus.yml"
+    gh_download "monitoring/grafana/provisioning/datasources/loki_tempo.yml" \
+        "monitoring/grafana/provisioning/datasources/loki_tempo.yml"
     
     # Grafana dashboard provisioning
     gh_download "monitoring/grafana/provisioning/dashboards/dashboard.yml" \

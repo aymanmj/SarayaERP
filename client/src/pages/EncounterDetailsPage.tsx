@@ -1,8 +1,5 @@
 // src/pages/EncounterDetailsPage.tsx
 
-// src/pages/EncounterDetailsPage.tsx
-// src/pages/EncounterDetailsPage.tsx
-
 import { Suspense, lazy, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { apiClient } from "../api/apiClient";
@@ -971,6 +968,94 @@ export default function EncounterDetailsPage() {
             }}
           />
         </Suspense>
+      )}
+
+      {/* AI Coding Suggestions Modal */}
+      {showAiModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+          <div className="bg-slate-900 border border-slate-700 w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="bg-slate-800/50 p-4 border-b border-slate-700 flex justify-between items-center">
+              <h2 className="text-lg font-bold text-sky-400 flex items-center gap-2">
+                <Sparkles className="w-5 h-5" />
+                تحليل الملاحظات بالأكواد الطبية
+              </h2>
+              <button
+                onClick={() => setShowAiModal(false)}
+                className="text-slate-400 hover:text-white transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-5 flex-1 overflow-y-auto max-h-[70vh] custom-scrollbar">
+              {aiCodingMutation.isPending ? (
+                <div className="flex flex-col items-center justify-center py-10 space-y-4">
+                  <span className="h-10 w-10 animate-spin rounded-full border-4 border-slate-700 border-t-sky-500" />
+                  <p className="text-sm text-slate-400">يقوم الذكاء الاصطناعي الآن بقراءة الملاحظات واستخراج الأكواد...</p>
+                </div>
+              ) : aiSuggestions ? (
+                <div className="space-y-6">
+                  {/* ICD-10 Diagnoses */}
+                  {aiSuggestions.diagnoses && aiSuggestions.diagnoses.length > 0 && (
+                    <div>
+                      <h3 className="text-sm font-bold text-emerald-400 mb-3 border-b border-slate-800 pb-2">تشخيصات ICD-10 المقترحة:</h3>
+                      <div className="space-y-2">
+                        {aiSuggestions.diagnoses.map((dx: any, i: number) => (
+                          <div key={i} className="bg-slate-950 border border-emerald-900/50 rounded-xl p-3 flex justify-between items-start">
+                            <div>
+                              <span className="font-mono text-emerald-300 font-bold bg-emerald-900/30 px-2 py-0.5 rounded text-sm mr-2">{dx.code}</span>
+                              <span className="text-sm text-slate-200">{dx.nameEn || dx.nameAr}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* CPT Procedures */}
+                  {aiSuggestions.procedures && aiSuggestions.procedures.length > 0 && (
+                    <div>
+                      <h3 className="text-sm font-bold text-amber-400 mb-3 border-b border-slate-800 pb-2">إجراءات CPT المقترحة:</h3>
+                      <div className="space-y-2">
+                        {aiSuggestions.procedures.map((px: any, i: number) => (
+                          <div key={i} className="bg-slate-950 border border-amber-900/50 rounded-xl p-3 flex justify-between items-start">
+                            <div>
+                              <span className="font-mono text-amber-300 font-bold bg-amber-900/30 px-2 py-0.5 rounded text-sm mr-2">{px.code}</span>
+                              <span className="text-sm text-slate-200">{px.nameEn || px.nameAr}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {(!aiSuggestions.diagnoses?.length && !aiSuggestions.procedures?.length) && (
+                    <div className="text-center text-slate-500 py-8">
+                      لم يتعرف الذكاء الاصطناعي على أية أكواد طبية دقيقة من الملاحظات المكتوبة.
+                    </div>
+                  )}
+
+                  <div className="bg-sky-950/30 border border-sky-900/50 rounded-xl p-4 text-xs text-sky-200/70 leading-relaxed mt-6">
+                    <strong className="text-sky-400">ملاحظة هامة:</strong> هذه الأكواد هي مجرد اقتراحات مبنية على نماذج الذكاء الاصطناعي. يرجى مراجعتها طبياً وإضافتها بشكل رسمي في خانة "التشخيص" لضمان الاعتماد والفوترة الدقيقة.
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center text-slate-500 py-8">
+                  حدث خطأ أثناء تحميل الاقتراحات.
+                </div>
+              )}
+            </div>
+
+            <div className="bg-slate-800/50 p-4 border-t border-slate-700 flex justify-end">
+              <button
+                onClick={() => setShowAiModal(false)}
+                className="bg-slate-700 hover:bg-slate-600 text-white px-5 py-2 rounded-xl text-sm font-bold transition-colors"
+              >
+                إغلاق
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
