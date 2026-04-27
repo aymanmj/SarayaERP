@@ -16,9 +16,7 @@ export default defineConfig({
             return undefined;
           }
 
-          if (
-            id.includes("cornerstone-tools")
-          ) {
+          if (id.includes("cornerstone-tools")) {
             return "vendor-dicom-tools";
           }
 
@@ -35,33 +33,6 @@ export default defineConfig({
             id.includes("hammerjs")
           ) {
             return "vendor-dicom-core";
-          }
-
-          if (
-            id.includes("react") ||
-            id.includes("react-dom") ||
-            id.includes("react-router-dom") ||
-            id.includes("zustand")
-          ) {
-            return "vendor-react";
-          }
-
-          if (
-            id.includes("@radix-ui") ||
-            id.includes("flowbite") ||
-            id.includes("lucide-react") ||
-            id.includes("recharts")
-          ) {
-            return "vendor-ui";
-          }
-
-          if (
-            id.includes("axios") ||
-            id.includes("date-fns") ||
-            id.includes("@tanstack/react-query") ||
-            id.includes("socket.io-client")
-          ) {
-            return "vendor-utils";
           }
 
           return undefined;
