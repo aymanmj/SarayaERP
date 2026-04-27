@@ -55,6 +55,8 @@ services:
   backend:
     image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-aymanmj}/saraya-backend:${IMAGE_TAG:-latest}
     container_name: saraya_backend
+    env_file:
+      - ./server/.env
     restart: always
     user: "node" # تشغيل بمستخدم غير الروت للأمان
     environment:

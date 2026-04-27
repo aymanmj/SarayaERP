@@ -158,10 +158,10 @@ export default function PortalAppointments() {
             </div>
             
             <div className="wizard-progress">
-              <div className={`wizard-step ${wizardStep >= 1 ? 'active' : ''}`}>1. القسم</div>
-              <div className={`wizard-step ${wizardStep >= 2 ? 'active' : ''}`}>2. الطبيب</div>
-              <div className={`wizard-step ${wizardStep >= 3 ? 'active' : ''}`}>3. الوقت</div>
-              <div className={`wizard-step ${wizardStep >= 4 ? 'active' : ''}`}>4. التأكيد</div>
+              <div className={`wizard-step ${wizardStep >= 1 ? 'active' : ''}`}>القسم</div>
+              <div className={`wizard-step ${wizardStep >= 2 ? 'active' : ''}`}>الطبيب</div>
+              <div className={`wizard-step ${wizardStep >= 3 ? 'active' : ''}`}>الوقت</div>
+              <div className={`wizard-step ${wizardStep >= 4 ? 'active' : ''}`}>التأكيد</div>
             </div>
 
             <div className="portal-form" style={{ minHeight: '300px' }}>
