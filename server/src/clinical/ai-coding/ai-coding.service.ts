@@ -55,8 +55,15 @@ export class AiCodingService implements OnModuleInit {
 
     this.currentApiKey = apiKey;
     this.genAI = new GoogleGenerativeAI(apiKey);
-    // Using gemini-3-flash-preview for fast reasoning and JSON responses
-    this.model = this.genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' });
+    // Using gemini-3.1-pro-preview for maximum clinical accuracy over speed
+    this.model = this.genAI.getGenerativeModel({ 
+      model: 'gemini-3.1-pro-preview',
+      generationConfig: { 
+        responseMimeType: 'application/json',
+        temperature: 0.0, // Force deterministic and factual responses
+        topP: 0.8
+      }
+    });
     return true;
   }
 
@@ -70,7 +77,11 @@ export class AiCodingService implements OnModuleInit {
     }
 
     const prompt = `
-You are an expert medical coder (HIM / AAPC certified). Your task is to analyze the following clinical note and suggest the most appropriate ICD-10-CM and CPT-4 codes.
+You are an expert medical coder (HIM / AAPC certified) and a senior physician. 
+Your primary goal is MAXIMUM CLINICAL ACCURACY. 
+Analyze the following clinical note and suggest the most appropriate and highly specific ICD-10-CM and CPT-4 codes.
+Strictly adhere to the official WHO ICD-10 guidelines and AMA CPT coding standards. Do not hallucinate codes.
+
 Provide your response strictly in the following JSON format:
 {
   "diagnoses": [ { "code": "...", "nameEn": "...", "nameAr": "...", "confidence": 0.0 - 1.0 } ],
