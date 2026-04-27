@@ -4,8 +4,8 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { VaultService } from '../../common/vault/vault.service';
 
 export interface AiCodingSuggestion {
-  icd10Codes: Array<{ code: string; description: string; confidence: number }>;
-  cptCodes: Array<{ code: string; description: string; confidence: number }>;
+  diagnoses: Array<{ code: string; nameEn: string; nameAr: string; confidence: number }>;
+  procedures: Array<{ code: string; nameEn: string; nameAr: string; confidence: number }>;
   reasoning: string;
 }
 
@@ -73,8 +73,8 @@ export class AiCodingService implements OnModuleInit {
 You are an expert medical coder (HIM / AAPC certified). Your task is to analyze the following clinical note and suggest the most appropriate ICD-10-CM and CPT-4 codes.
 Provide your response strictly in the following JSON format:
 {
-  "icd10Codes": [ { "code": "...", "description": "...", "confidence": 0.0 - 1.0 } ],
-  "cptCodes": [ { "code": "...", "description": "...", "confidence": 0.0 - 1.0 } ],
+  "diagnoses": [ { "code": "...", "nameEn": "...", "nameAr": "...", "confidence": 0.0 - 1.0 } ],
+  "procedures": [ { "code": "...", "nameEn": "...", "nameAr": "...", "confidence": 0.0 - 1.0 } ],
   "reasoning": "Brief explanation of how the codes were derived from the clinical text."
 }
 

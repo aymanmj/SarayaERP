@@ -104,3 +104,4 @@ secrets/
 
 /.gemini
 /.agent
+server/test-gemini.js
