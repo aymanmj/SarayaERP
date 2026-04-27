@@ -682,6 +682,38 @@ export default function EncounterDetailsPage() {
           <div className="flex-1 bg-slate-900/40 border border-slate-800 rounded-b-xl rounded-tr-xl p-5 overflow-y-auto custom-scrollbar">
             {activeTab === "VISITS" && (
               <div className="grid grid-cols-1 gap-6">
+                {/* Clinical Notes Section */}
+                <div className="bg-slate-900/80 border border-slate-700 p-4 rounded-2xl shadow-sm relative overflow-hidden">
+                  <div className="flex justify-between items-center mb-3">
+                    <h3 className="text-sm font-bold text-sky-400 flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-sky-400" />
+                      الملاحظات السريرية (Clinical Notes)
+                    </h3>
+                    <button
+                      onClick={handleAiCoding}
+                      disabled={aiCodingMutation.isPending}
+                      className="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-lg flex items-center gap-1.5 disabled:opacity-50"
+                    >
+                      {aiCodingMutation.isPending ? "جاري التحليل..." : "تحليل بواسطة الذكاء الاصطناعي 🧠"}
+                    </button>
+                  </div>
+                  <textarea
+                    value={visitNotes}
+                    onChange={(e) => setVisitNotes(e.target.value)}
+                    placeholder="اكتب ملاحظاتك السريرية هنا... (مثال: يشتكي المريض من ألم حاد في الصدر مع ضيق في التنفس...)"
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm text-slate-200 outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 min-h-[120px] resize-y custom-scrollbar"
+                  />
+                  <div className="flex justify-end mt-3">
+                    <button
+                      onClick={handleAddVisitNote}
+                      disabled={savingVisit || !visitNotes.trim()}
+                      className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl text-xs font-bold transition-colors disabled:opacity-50"
+                    >
+                      {savingVisit ? "جاري الحفظ..." : "حفظ الملاحظة"}
+                    </button>
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   <Suspense fallback={<LazyPanelFallback label="تحميل لوحة العلامات الحيوية..." />}>
                     <VitalsPane encounterId={encounter.id} />
@@ -691,6 +723,13 @@ export default function EncounterDetailsPage() {
                   </Suspense>
                 </div>
               </div>
+            )}
+
+            {/* ✅ عرض تبويب الحساسية والمخاطر */}
+            {activeTab === "ALLERGIES" && (
+              <Suspense fallback={<LazyPanelFallback label="تحميل لوحة الحساسية والمخاطر..." />}>
+                <AllergiesPane encounterId={encounter.id} />
+              </Suspense>
             )}
 
             {/* ✅ عرض تبويب النساء والولادة */}
