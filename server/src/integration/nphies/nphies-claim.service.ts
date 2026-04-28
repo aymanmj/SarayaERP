@@ -287,6 +287,7 @@ export class NphiesClaimService {
     insuranceData: { memberId: string; payerIdentifier: string; payerName: string },
     serviceItems: Array<{ code: string; name: string; quantity: number; unitPrice: number }>,
     diagnosisCodes: Array<{ code: string; display: string; isPrimary: boolean }>,
+    attachments?: Array<{ localFilePath: string; title: string; contentType?: string }>
   ): Promise<NphiesClaimSubmissionResult> {
     const patientId = uuidv4();
     const coverageId = uuidv4();
@@ -336,6 +337,17 @@ export class NphiesClaimService {
         unitPrice: { value: svc.unitPrice, currency: 'SAR' },
         net: { value: svc.unitPrice * svc.quantity, currency: 'SAR' },
       })),
+      supportingInfo: attachments ? attachments.map((att, idx) => {
+        const attachmentData = this.nphiesService.buildAttachment(att.localFilePath, att.title, att.contentType);
+        if (!attachmentData) return null;
+        return {
+          sequence: idx + 1,
+          category: {
+            coding: [{ system: 'http://terminology.hl7.org/CodeSystem/claiminformationcategory', code: 'attachment' }]
+          },
+          valueAttachment: attachmentData
+        };
+      }).filter(info => info !== null) : undefined,
     };
 
     const messageHeader = this.nphiesService.buildMessageHeader('preauthorization-request', `Claim/${claimId}`);
@@ -413,11 +425,11 @@ export class NphiesClaimService {
         return {
           accepted: false,
           status: 'error',
-          errorMessage: issues.map((i: any) => i.diagnostics || i.details?.text).join('; '),
+          errorMessage: issues.map((i: any) => this.translateNphiesError(i.code, i.diagnostics || i.details?.text)).join(' | '),
           errors: issues.map((i: any) => ({
             severity: i.severity,
             code: i.code,
-            message: i.diagnostics || i.details?.text || '',
+            message: this.translateNphiesError(i.code, i.diagnostics || i.details?.text),
           })),
         };
       }
@@ -434,6 +446,23 @@ export class NphiesClaimService {
         errorMessage: `فشل تحليل الاستجابة: ${error.message}`,
       };
     }
+  }
+
+  /**
+   * ترجمة رموز أخطاء NPHIES الشائعة لتجربة مستخدم أفضل
+   */
+  private translateNphiesError(code: string, originalMessage: string): string {
+    const arabicMessages: Record<string, string> = {
+      'security': 'مشكلة أمنية أو عدم صلاحية الشهادات (mTLS/JWS).',
+      'invalid': 'البيانات المرسلة غير صحيحة أو غير مكتملة.',
+      'not-found': 'لم يتم العثور على المريض أو البوليصة في سجلات التأمين.',
+      'expired': 'بوليصة التأمين منتهية الصلاحية.',
+      'business-rule': 'تم رفض الطلب بناءً على قواعد التأمين (Business Rule).',
+      'timeout': 'انتهى وقت الاتصال بمنصة نفيس.',
+    };
+
+    const translated = arabicMessages[code];
+    return translated ? `${translated} (${originalMessage || code})` : (originalMessage || code);
   }
 
   /**

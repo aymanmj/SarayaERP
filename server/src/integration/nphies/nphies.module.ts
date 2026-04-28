@@ -5,6 +5,7 @@ import { NphiesAuthService } from './nphies-auth.service';
 import { NphiesEligibilityService } from './nphies-eligibility.service';
 import { NphiesClaimService } from './nphies-claim.service';
 import { NphiesController } from './nphies.controller';
+import { NphiesCryptoService } from './nphies-crypto.service';
 
 /**
  * وحدة تكامل NPHIES (منصة المطالبات الوطنية السعودية)
@@ -27,10 +28,11 @@ import { NphiesController } from './nphies.controller';
   controllers: [NphiesController],
   providers: [
     NphiesService,
+    NphiesCryptoService,
     NphiesAuthService,
     NphiesEligibilityService,
     NphiesClaimService,
   ],
-  exports: [NphiesService, NphiesEligibilityService, NphiesClaimService],
+  exports: [NphiesService, NphiesCryptoService, NphiesEligibilityService, NphiesClaimService],
 })
 export class NphiesModule {}

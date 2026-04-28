@@ -1,6 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { v4 as uuidv4 } from 'uuid';
+import * as fs from 'fs';
+import * as path from 'path';
+import { NphiesCryptoService } from './nphies-crypto.service';
 
 /**
  * خدمة بناء رسائل FHIR المتوافقة مع NPHIES
@@ -27,7 +30,10 @@ export class NphiesService {
   /** Base URL لملفات التعريف (profiles) */
   private readonly profileBase: string;
 
-  constructor(private configService: ConfigService) {
+  constructor(
+    private configService: ConfigService,
+    private cryptoService: NphiesCryptoService,
+  ) {
     this.senderId = this.configService.get<string>('NPHIES_SENDER_ID', 'provider-org-001');
     this.receiverId = this.configService.get<string>('NPHIES_RECEIVER_ID', 'payer-org-001');
     this.profileBase = 'http://nphies.sa/fhir/ksa/nphies-fs/StructureDefinition';
@@ -40,7 +46,7 @@ export class NphiesService {
    * @param focusRef مرجع المورد الأساسي في الـ Bundle
    */
   buildMessageHeader(eventType: string, focusRef: string): any {
-    return {
+    const messageHeader: any = {
       resourceType: 'MessageHeader',
       id: uuidv4(),
       meta: {
@@ -74,6 +80,38 @@ export class NphiesService {
       },
       focus: [{ reference: focusRef }],
     };
+
+    // NPHIES Requires MessageHeader to be digitally signed (JWS)
+    // We sign the header fields required by the spec.
+    const signaturePayload = {
+      id: messageHeader.id,
+      eventCoding: messageHeader.eventCoding,
+      focus: messageHeader.focus
+    };
+
+    const signature = this.cryptoService.signPayload(signaturePayload);
+
+    // Attach signature extension
+    messageHeader.extension = [
+      {
+        url: 'http://nphies.sa/fhir/ksa/nphies-fs/StructureDefinition/signature',
+        valueSignature: {
+          type: [
+            {
+              system: 'urn:iso-astm:E1762-95:2013',
+              code: '1.2.840.10065.1.12.1.1',
+              display: 'Author\'s Signature'
+            }
+          ],
+          when: new Date().toISOString(),
+          who: { reference: `http://nphies.sa/license/provider-license/${this.senderId}` },
+          sigFormat: 'application/jose',
+          data: Buffer.from(signature).toString('base64')
+        }
+      }
+    ];
+
+    return messageHeader;
   }
 
   /**
@@ -227,6 +265,35 @@ export class NphiesService {
         return 'female';
       default:
         return 'unknown';
+    }
+  }
+
+  /**
+   * بناء FHIR Attachment (مرفقات المطالبة أو الموافقة المسبقة)
+   * 
+   * @param localFilePath مسار الملف على القرص المحلي
+   * @param title عنوان المرفق (مثال: تقرير مختبر، أشعة)
+   * @param contentType نوع الملف (مثال: application/pdf, image/jpeg)
+   */
+  buildAttachment(localFilePath: string, title: string, contentType: string = 'application/pdf'): any {
+    if (!fs.existsSync(localFilePath)) {
+      this.logger.warn(`⚠️ المرفق غير موجود في المسار: ${localFilePath}`);
+      return null;
+    }
+
+    try {
+      const fileBuffer = fs.readFileSync(localFilePath);
+      const base64Data = fileBuffer.toString('base64');
+
+      return {
+        contentType,
+        data: base64Data,
+        title,
+        creation: new Date().toISOString(),
+      };
+    } catch (error: any) {
+      this.logger.error(`❌ فشل قراءة المرفق: ${error.message}`);
+      return null;
     }
   }
 }

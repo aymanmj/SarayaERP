@@ -2,6 +2,8 @@ import { Injectable, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
+import * as https from 'https';
+import * as fs from 'fs';
 
 /**
  * خدمة المصادقة مع منصة NPHIES السعودية
@@ -23,6 +25,9 @@ export class NphiesAuthService {
   private readonly baseUrl: string;
   private readonly clientId: string;
   private readonly clientSecret: string;
+  
+  // mTLS Agent
+  private httpsAgent: https.Agent;
 
   constructor(
     private httpService: HttpService,
@@ -34,6 +39,37 @@ export class NphiesAuthService {
     );
     this.clientId = this.configService.get<string>('NPHIES_CLIENT_ID', '');
     this.clientSecret = this.configService.get<string>('NPHIES_CLIENT_SECRET', '');
+    
+    this.initializeHttpsAgent();
+  }
+
+  /**
+   * Initializes the HTTPS Agent with mTLS certificates.
+   * If certificates are missing, falls back to a default agent (which will fail at NPHIES gateway,
+   * but allows local tests to boot without crashing).
+   */
+  private initializeHttpsAgent() {
+    try {
+      const certPath = this.configService.get<string>('NPHIES_CERT_PATH');
+      const keyPath = this.configService.get<string>('NPHIES_KEY_PATH');
+
+      if (certPath && keyPath && fs.existsSync(certPath) && fs.existsSync(keyPath)) {
+        this.httpsAgent = new https.Agent({
+          cert: fs.readFileSync(certPath),
+          key: fs.readFileSync(keyPath),
+          rejectUnauthorized: true, // Should be true for production
+        });
+        this.logger.log('🛡️ NPHIES mTLS Agent initialized successfully.');
+      } else {
+        this.logger.warn('⚠️ NPHIES mTLS Certificates NOT found. Requests will fail at the NPHIES Gateway! Running without mTLS for local testing only.');
+        this.httpsAgent = new https.Agent({
+          rejectUnauthorized: false,
+        });
+      }
+    } catch (error: any) {
+      this.logger.error(`❌ Failed to initialize NPHIES mTLS Agent: ${error.message}`);
+      this.httpsAgent = new https.Agent({ rejectUnauthorized: false });
+    }
   }
 
   /**
@@ -63,6 +99,7 @@ export class NphiesAuthService {
       const response = await firstValueFrom(
         this.httpService.post(tokenUrl, params.toString(), {
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          httpsAgent: this.httpsAgent,
         }),
       );
 
@@ -115,8 +152,8 @@ export class NphiesAuthService {
 
     try {
       const response = method === 'POST'
-        ? await firstValueFrom(this.httpService.post<T>(url, bundle, { headers }))
-        : await firstValueFrom(this.httpService.get<T>(url, { headers }));
+        ? await firstValueFrom(this.httpService.post<T>(url, bundle, { headers, httpsAgent: this.httpsAgent }))
+        : await firstValueFrom(this.httpService.get<T>(url, { headers, httpsAgent: this.httpsAgent }));
 
       return response.data;
     } catch (error: any) {
@@ -134,8 +171,8 @@ export class NphiesAuthService {
         headers.Authorization = `Bearer ${newToken}`;
 
         const retry = method === 'POST'
-          ? await firstValueFrom(this.httpService.post<T>(url, bundle, { headers }))
-          : await firstValueFrom(this.httpService.get<T>(url, { headers }));
+          ? await firstValueFrom(this.httpService.post<T>(url, bundle, { headers, httpsAgent: this.httpsAgent }))
+          : await firstValueFrom(this.httpService.get<T>(url, { headers, httpsAgent: this.httpsAgent }));
 
         return retry.data;
       }
