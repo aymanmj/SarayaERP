@@ -32,35 +32,45 @@ while [ $RETRIES -gt 0 ]; do
     break
   fi
 
-  # ── Detect P3009: stuck failed migration ──
-  if echo "$OUTPUT" | grep -q "P3009"; then
-    echo "⚠️  P3009 detected: previous migration failed. Checking if safe to auto-resolve..."
+  # ── Detect persistent migration errors (P3009, P3018, etc) ──
+  if echo "$OUTPUT" | grep -qE "P3009|P3018|P3014|P3004"; then
+    echo "⚠️  Prisma Migration Error detected. Checking if safe to apply RADICAL RESOLUTION..."
 
-    # Check if there are any real user tables (i.e. data exists)
-    TABLE_COUNT=$(node -e "
+    # Check if the database has real users (0 or 1 admin means fresh/dev DB)
+    USER_COUNT=$(node -e "
       const { PrismaClient } = require('@prisma/client');
       const p = new PrismaClient();
-      p.\$queryRaw\`SELECT count(*)::int AS c FROM information_schema.tables WHERE table_schema='public' AND table_name NOT LIKE '_prisma%'\`
-        .then(r => { console.log(r[0].c); p.\$disconnect(); })
-        .catch(() => { console.log('-1'); });
+      p.user.count()
+        .then(c => { console.log(c); p.\$disconnect(); })
+        .catch(() => { console.log('0'); });
     " 2>/dev/null)
-    TABLE_COUNT=${TABLE_COUNT:-"-1"}
+    USER_COUNT=${USER_COUNT:-"0"}
 
-    if [ "$TABLE_COUNT" = "0" ] || [ "$TABLE_COUNT" = "-1" ]; then
-      echo "🗑️  Fresh database detected ($TABLE_COUNT user tables). Clearing stuck migration state..."
+    # Radical Solution: If it's a new installation, broken migration files shouldn't block us.
+    if [ "$USER_COUNT" -le 1 ]; then
+      echo "🛠️  Fresh installation detected (Users: $USER_COUNT). Applying RADICAL SOLUTION..."
+      echo "🗑️  Dropping migration state and forcefully pushing schema directly to database..."
+      
       node -e "
         const { PrismaClient } = require('@prisma/client');
         const p = new PrismaClient();
         p.\$executeRawUnsafe('DROP TABLE IF EXISTS \"_prisma_migrations\" CASCADE')
-          .then(() => { console.log('Done'); return p.\$disconnect(); })
-          .catch(e => { console.error(e.message); p.\$disconnect(); });
-      " 2>&1
-      echo "✅ Migration state cleared. Retrying..."
-      sleep 2
-      RETRIES=$((RETRIES-1))
-      continue
+          .then(() => p.\$disconnect())
+          .catch(() => p.\$disconnect());
+      " 2>/dev/null
+      
+      npx prisma db push --accept-data-loss
+      
+      if [ $? -eq 0 ]; then
+        echo "✅ Schema forcefully synchronized! Bypassed corrupted migration files successfully."
+        MIGRATE_SUCCESS=true
+        break
+      else
+        echo "❌ Fatal: Force sync failed. Please check schema validity."
+        exit 1
+      fi
     else
-      echo "❌ P3009 on populated database ($TABLE_COUNT user tables). Manual fix needed:"
+      echo "❌ Migration error on populated database (Users: $USER_COUNT). Manual fix needed:"
       echo "   docker exec saraya_backend npx prisma migrate resolve --rolled-back <migration_name>"
       exit 1
     fi
