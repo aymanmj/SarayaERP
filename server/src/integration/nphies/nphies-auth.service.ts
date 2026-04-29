@@ -49,6 +49,9 @@ export class NphiesAuthService {
    * but allows local tests to boot without crashing).
    */
   private initializeHttpsAgent() {
+    const env = this.configService.get<string>('NODE_ENV', 'development');
+    const isProduction = env === 'production';
+
     try {
       const certPath = this.configService.get<string>('NPHIES_CERT_PATH');
       const keyPath = this.configService.get<string>('NPHIES_KEY_PATH');
@@ -57,18 +60,27 @@ export class NphiesAuthService {
         this.httpsAgent = new https.Agent({
           cert: fs.readFileSync(certPath),
           key: fs.readFileSync(keyPath),
-          rejectUnauthorized: true, // Should be true for production
+          rejectUnauthorized: true,
         });
         this.logger.log('🛡️ NPHIES mTLS Agent initialized successfully.');
+      } else if (isProduction) {
+        // In production, create agent with TLS verification enabled
+        // NPHIES requests will fail, but we don't silently disable security
+        this.logger.error(
+          '🚨 NPHIES mTLS Certificates NOT found in PRODUCTION! ' +
+          'Set NPHIES_CERT_PATH and NPHIES_KEY_PATH. NPHIES integration will NOT work.'
+        );
+        this.httpsAgent = new https.Agent({ rejectUnauthorized: true });
       } else {
-        this.logger.warn('⚠️ NPHIES mTLS Certificates NOT found. Requests will fail at the NPHIES Gateway! Running without mTLS for local testing only.');
-        this.httpsAgent = new https.Agent({
-          rejectUnauthorized: false,
-        });
+        this.logger.warn(
+          '⚠️ NPHIES mTLS Certificates NOT found. ' +
+          'Running without mTLS for local testing only (dev mode).'
+        );
+        this.httpsAgent = new https.Agent({ rejectUnauthorized: false });
       }
     } catch (error: any) {
       this.logger.error(`❌ Failed to initialize NPHIES mTLS Agent: ${error.message}`);
-      this.httpsAgent = new https.Agent({ rejectUnauthorized: false });
+      this.httpsAgent = new https.Agent({ rejectUnauthorized: isProduction });
     }
   }
 

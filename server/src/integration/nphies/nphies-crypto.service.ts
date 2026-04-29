@@ -26,6 +26,9 @@ export class NphiesCryptoService {
    * If missing, sets up a dummy mode so testing doesn't crash.
    */
   private loadPrivateKey() {
+    const env = this.configService.get<string>('NODE_ENV', 'development');
+    const isProduction = env === 'production';
+
     try {
       const keyPath = this.configService.get<string>('NPHIES_PRIVATE_KEY_PATH');
       const rawKey = this.configService.get<string>('NPHIES_PRIVATE_KEY');
@@ -37,12 +40,24 @@ export class NphiesCryptoService {
         this.privateKey = fs.readFileSync(keyPath, 'utf8');
         this.logger.log(`🔐 Loaded NPHIES Private Key from path: ${keyPath}`);
       } else {
-        this.logger.warn('⚠️ No NPHIES Private Key found! Running in DUMMY mode for signatures.');
         this.isDummyMode = true;
+        if (isProduction) {
+          this.logger.error(
+            '🚨 CRITICAL: NPHIES Private Key NOT found in PRODUCTION! ' +
+            'All JWS signatures will use DUMMY values and NPHIES will REJECT all submissions. ' +
+            'Set NPHIES_PRIVATE_KEY or NPHIES_PRIVATE_KEY_PATH via Vault or env vars.'
+          );
+        } else {
+          this.logger.warn('⚠️ No NPHIES Private Key found. Running in DUMMY mode for local testing.');
+        }
       }
     } catch (error: any) {
-      this.logger.warn(`⚠️ Failed to load NPHIES Private Key: ${error.message}. Running in DUMMY mode.`);
       this.isDummyMode = true;
+      if (isProduction) {
+        this.logger.error(`🚨 CRITICAL: Failed to load NPHIES Private Key in PRODUCTION: ${error.message}`);
+      } else {
+        this.logger.warn(`⚠️ Failed to load NPHIES Private Key: ${error.message}. Running in DUMMY mode.`);
+      }
     }
   }
 

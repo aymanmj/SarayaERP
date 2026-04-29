@@ -163,12 +163,79 @@ export const useLicenseStore = create<LicenseStoreState>((set, get) => ({
   /**
    * Force re-fetch license status (bypasses hasFetched guard).
    * Used for periodic checks and manual refresh.
+   * 
+   * IMPORTANT: Does NOT set licenseState to "loading" to avoid
+   * unmounting the current page (which destroys unsaved form data).
+   * The UI continues to work normally while the check runs silently.
    */
   refetchLicenseStatus: async () => {
     const { licenseState } = get();
     if (licenseState === "loading") return;
-    set({ licenseState: "loading", errorMessage: null });
-    await doFetch(set, get);
+
+    // Silent re-check: don't change licenseState to "loading"
+    // so ProtectedRoute doesn't unmount children (which would
+    // destroy any unsaved doctor notes, form data, etc.)
+    try {
+      const response = await apiClient.get("/license/status");
+      let data = response.data;
+      if (data && typeof data === "object" && "success" in data && "data" in data) {
+        data = data.data;
+      }
+
+      // Fetch features silently too
+      let featuresData = { edition: get().edition, features: get().features };
+      try {
+        const fRes = await apiClient.get("/license/features");
+        const fData = typeof fRes.data === 'object' && "data" in fRes.data ? fRes.data.data : fRes.data;
+        if (fData) featuresData = fData;
+      } catch {
+        // Keep existing features on failure
+      }
+
+      if (data?.isValid === true) {
+        // Only update if something actually changed
+        const currentState = get();
+        if (currentState.licenseState !== "active" || 
+            currentState.edition !== (featuresData.edition || "STANDARD")) {
+          console.log("[LicenseStore] 🔄 Silent re-check: license still valid");
+          set({
+            licenseState: "active",
+            machineId: data.machineId || currentState.machineId,
+            details: {
+              plan: data.plan,
+              hospitalName: data.hospitalName,
+              expiryDate: data.expiryDate,
+              maxUsers: data.maxUsers,
+              modules: data.modules,
+              isGracePeriod: data.isGracePeriod,
+              isExpired: data.isExpired,
+              daysRemaining: data.daysRemaining,
+              graceDaysRemaining: data.graceDaysRemaining,
+            },
+            edition: featuresData.edition || "STANDARD",
+            features: featuresData.features || [],
+            errorMessage: null,
+          });
+        }
+      } else {
+        // License became invalid — this is the only case where we
+        // interrupt the user, because continuing is not allowed
+        console.log("[LicenseStore] ❌ Silent re-check: license became INVALID");
+        set({
+          licenseState: "inactive",
+          machineId: data?.machineId || "",
+          details: null,
+          edition: "STANDARD",
+          features: [],
+          errorMessage: data?.error || "الترخيص غير صالح",
+        });
+        get().stopPeriodicCheck();
+      }
+    } catch (err: any) {
+      // Network error during periodic check — DON'T interrupt the user
+      // Just log and retry next cycle
+      console.warn("[LicenseStore] ⚠️ Silent re-check failed (will retry):", err.message);
+    }
   },
 
   /**

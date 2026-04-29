@@ -91,6 +91,7 @@ import { TerminologyModule } from './terminology/terminology.module'; // ✅ [NE
 import { TenantModule } from './common/tenant/tenant.module'; // ✅ [NEW] Phase 1: Multi-Tenancy
 import { RcmModule } from './rcm/rcm.module'; // ✅ [NEW] Phase 1: Revenue Cycle Management
 import { NphiesModule } from './integration/nphies/nphies.module'; // ✅ [NEW] Phase 1: NPHIES (Saudi eClaims)
+import { StartupSecurityValidator } from './common/security/startup-security.validator'; // ✅ [NEW] Security Guard
 
 @Module({
   imports: [
@@ -244,6 +245,7 @@ import { NphiesModule } from './integration/nphies/nphies.module'; // ✅ [NEW] 
     },
     EventsGateway,
     JwtService,
+    StartupSecurityValidator, // ✅ Validates secrets on startup
   ],
 })
 export class AppModule {}
