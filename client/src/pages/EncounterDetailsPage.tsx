@@ -522,7 +522,7 @@ export default function EncounterDetailsPage() {
       if (result.proceduresSaved > 0) msgs.push(`${result.proceduresSaved} إجراء`);
       toast.success(`✅ تم اعتماد ${msgs.join(' و ')} بنجاح`);
       if (result.warnings?.length) {
-        result.warnings.forEach((w: string) => toast.warning(w, { autoClose: 6000 }));
+        result.warnings.forEach((w: string) => toast.warning(w, { duration: 6000 }));
       }
       // Refresh diagnosis and billing data
       queryClient.invalidateQueries({ queryKey: ['encounter', encId] });
