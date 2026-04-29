@@ -1,7 +1,8 @@
-import { PrismaClient, Prisma } from '@prisma/client';
-import { EncryptionService } from '../common/encryption/encryption.service';
-import { ClsServiceManager } from 'nestjs-cls';
+import { ForbiddenException } from '@nestjs/common';
+import { Prisma, PrismaClient } from '@prisma/client';
 import { createHash } from 'crypto';
+import { ClsServiceManager } from 'nestjs-cls';
+import { EncryptionService } from '../common/encryption/encryption.service';
 
 const PATIENT_SENSITIVE_FIELDS = [
   'nationalId',
@@ -20,9 +21,6 @@ const generateSearchHash = (value: string) =>
     ? createHash('sha256').update(value.trim().toLowerCase()).digest('hex')
     : null;
 
-/**
- * دالة مساعدة لفك تشفير الكائنات (سواء كان كائن واحد أو مصفوفة)
- */
 function handleDecryption(data: any, encryptionService: EncryptionService) {
   if (!data) return data;
 
@@ -42,15 +40,11 @@ function handleDecryption(data: any, encryptionService: EncryptionService) {
   if (Array.isArray(data)) {
     return data.map((item) => decryptObject(item));
   }
+
   return decryptObject(data);
 }
 
-// ============================================
-// RLS: تحديد النماذج التي تملك hospitalId (للعزل التلقائي)
-// ============================================
 const TENANT_SCOPED_MODELS = new Set<string>();
-
-// Prepare a cached Set of models that actually support soft deletes (have 'isDeleted' field)
 const SOFT_DELETABLE_MODELS = new Set<string>();
 
 if (Prisma.dmmf && Prisma.dmmf.datamodel) {
@@ -58,17 +52,13 @@ if (Prisma.dmmf && Prisma.dmmf.datamodel) {
     if (model.fields.some((field) => field.name === 'isDeleted')) {
       SOFT_DELETABLE_MODELS.add(model.name);
     }
-    // RLS: أي نموذج يملك hospitalId يخضع للعزل التلقائي
+
     if (model.fields.some((field) => field.name === 'hospitalId')) {
       TENANT_SCOPED_MODELS.add(model.name);
     }
   });
 }
 
-/**
- * النماذج المستثناة من RLS (لا تحتاج عزل بـ hospitalId)
- * مثلاً: Organization نفسها، OrgSetting، وغيرها من النماذج العامة
- */
 const RLS_EXEMPT_MODELS = new Set([
   'Organization',
   'OrgSetting',
@@ -79,161 +69,387 @@ const RLS_EXEMPT_MODELS = new Set([
   'RolePermission',
 ]);
 
-/**
- * فحص: هل النموذج يحتاج RLS (عزل بـ hospitalId)؟
- */
+type TenantContext = {
+  hospitalId: number | null;
+  isSuperAdmin: boolean;
+};
+
+type TenantOperation =
+  | 'findMany'
+  | 'findFirst'
+  | 'findFirstOrThrow'
+  | 'findUnique'
+  | 'findUniqueOrThrow'
+  | 'count'
+  | 'aggregate'
+  | 'groupBy'
+  | 'create'
+  | 'createMany'
+  | 'update'
+  | 'updateMany'
+  | 'upsert'
+  | 'delete'
+  | 'deleteMany';
+
 function needsRLS(model: string): boolean {
   return TENANT_SCOPED_MODELS.has(model) && !RLS_EXEMPT_MODELS.has(model);
 }
 
-/**
- * استخراج سياق المستأجر من CLS (AsyncLocalStorage)
- * يُستخدم من قبل Prisma Extension لحقن hospitalId تلقائياً
- * 
- * يعيد null عندما لا يوجد سياق (مثل: أثناء الهجرات، الـ seeding، أو الـ CRON)
- */
 function getTenantHospitalId(): number | null {
   try {
     const cls = ClsServiceManager.getClsService();
     if (!cls) return null;
+
     const hospitalId = cls.get('hospitalId');
     return hospitalId ? Number(hospitalId) : null;
   } catch {
-    // خارج سياق HTTP (migrations, tests, cron) — لا يوجد CLS
     return null;
   }
 }
 
-/**
- * حقن فلتر hospitalId في شرط WHERE إذا كان النموذج يخضع لـ RLS
- * 
- * القواعد:
- * 1. إذا كان الكود قد حدد hospitalId صراحةً → لا نتدخل (يحترم اختيار المطور)
- * 2. إذا لم يحدد hospitalId وكان هناك سياق مستأجر → نحقنه تلقائياً
- * 3. إذا لم يوجد سياق (migrations/cron/tests) → لا نتدخل
- */
-function injectRLS(model: string, args: any): void {
-  if (!needsRLS(model)) return;
+function isSuperAdminContext(): boolean {
+  try {
+    const cls = ClsServiceManager.getClsService();
+    if (!cls) return false;
 
-  const hospitalId = getTenantHospitalId();
-  if (!hospitalId) return; // لا يوجد سياق — لا تتدخل
-
-  args.where = args.where || {};
-  // لا تكتب فوق hospitalId إذا حدده المطور صراحةً
-  if (args.where.hospitalId === undefined) {
-    args.where.hospitalId = hospitalId;
+    return Boolean(cls.get('isSuperAdmin'));
+  } catch {
+    return false;
   }
 }
 
-export const extendedPrisma = (prisma: PrismaClient, encryptionService: EncryptionService) => {
+function getTenantContext(): TenantContext {
+  return {
+    hospitalId: getTenantHospitalId(),
+    isSuperAdmin: isSuperAdminContext(),
+  };
+}
+
+function assertTenantMatch(
+  candidateHospitalId: unknown,
+  context: TenantContext,
+  model: string,
+  source: string,
+): void {
+  if (
+    context.isSuperAdmin ||
+    !context.hospitalId ||
+    candidateHospitalId === undefined
+  ) {
+    return;
+  }
+
+  const normalizedHospitalId = Number(candidateHospitalId);
+  if (
+    !Number.isFinite(normalizedHospitalId) ||
+    normalizedHospitalId !== context.hospitalId
+  ) {
+    throw new ForbiddenException(
+      `Cross-tenant access denied for ${model}.${source}`,
+    );
+  }
+}
+
+function enforceTenantOnWhere(
+  model: string,
+  args: any,
+  context: TenantContext = getTenantContext(),
+): void {
+  if (!needsRLS(model) || context.isSuperAdmin || !context.hospitalId) return;
+
+  args.where = args.where || {};
+  assertTenantMatch(args.where.hospitalId, context, model, 'where');
+
+  if (args.where.hospitalId === undefined) {
+    args.where.hospitalId = context.hospitalId;
+  }
+}
+
+function enforceTenantOnData(
+  model: string,
+  data: any,
+  context: TenantContext = getTenantContext(),
+  source = 'data',
+): void {
+  if (!needsRLS(model) || context.isSuperAdmin || !context.hospitalId || !data) {
+    return;
+  }
+
+  const records = Array.isArray(data) ? data : [data];
+
+  records.forEach((record, index) => {
+    if (!record || typeof record !== 'object') return;
+
+    const sourceLabel = Array.isArray(data) ? `${source}[${index}]` : source;
+    assertTenantMatch(record.hospitalId, context, model, sourceLabel);
+
+    if (record.hospitalId === undefined) {
+      record.hospitalId = context.hospitalId;
+    }
+  });
+}
+
+function applySoftDeleteFilter(model: string, args: any): void {
+  if (!SOFT_DELETABLE_MODELS.has(model)) return;
+
+  args.where = args.where || {};
+  if (args.where.isDeleted === undefined) {
+    args.where.isDeleted = false;
+  }
+}
+
+function applyTenantPolicy(
+  model: string,
+  operation: TenantOperation,
+  args: any,
+  options?: {
+    includeSoftDeleteFilter?: boolean;
+    context?: TenantContext;
+  },
+): any {
+  const context = options?.context ?? getTenantContext();
+
+  switch (operation) {
+    case 'findMany':
+    case 'findFirst':
+    case 'findFirstOrThrow':
+    case 'findUnique':
+    case 'findUniqueOrThrow':
+    case 'count':
+    case 'aggregate':
+    case 'groupBy':
+    case 'delete':
+    case 'deleteMany':
+      enforceTenantOnWhere(model, args, context);
+      break;
+    case 'create':
+      enforceTenantOnData(model, args.data, context);
+      break;
+    case 'createMany':
+      enforceTenantOnData(model, args.data, context);
+      break;
+    case 'update':
+    case 'updateMany':
+      enforceTenantOnWhere(model, args, context);
+      enforceTenantOnData(model, args.data, context);
+      break;
+    case 'upsert':
+      enforceTenantOnWhere(model, args, context);
+      enforceTenantOnData(model, args.create, context, 'create');
+      enforceTenantOnData(model, args.update, context, 'update');
+      break;
+  }
+
+  if (options?.includeSoftDeleteFilter) {
+    applySoftDeleteFilter(model, args);
+  }
+
+  return args;
+}
+
+function injectRLS(model: string, args: any): void {
+  applyTenantPolicy(model, 'findMany', args);
+}
+
+function encryptPatientPayload(
+  data: any,
+  encryptionService: EncryptionService,
+  includeMrnHash = false,
+): void {
+  if (data.phone) data.phoneHash = generateSearchHash(data.phone);
+  if (data.email) data.emailHash = generateSearchHash(data.email);
+  if (includeMrnHash && data.mrn) data.mrnHash = generateSearchHash(data.mrn);
+  if (data.nationalId) {
+    data.nationalIdHash = generateSearchHash(data.nationalId);
+  }
+  if (data.identityNumber) {
+    data.identityNumberHash = generateSearchHash(data.identityNumber);
+  }
+
+  PATIENT_SENSITIVE_FIELDS.forEach((field) => {
+    if (data[field]) {
+      data[field] = encryptionService.encrypt(data[field]);
+    }
+  });
+}
+
+export const extendedPrisma = (
+  prisma: PrismaClient,
+  encryptionService: EncryptionService,
+) => {
   return prisma.$extends({
     query: {
       patient: {
-        // تشفير البيانات عند الحفظ
         async create({ args, query }) {
-          const data = args.data as any;
-          if (data.phone) data.phoneHash = generateSearchHash(data.phone);
-          if (data.email) data.emailHash = generateSearchHash(data.email);
-          if (data.mrn) data.mrnHash = generateSearchHash(data.mrn);
-          if (data.nationalId)
-            data.nationalIdHash = generateSearchHash(data.nationalId);
-          if (data.identityNumber)
-            data.identityNumberHash = generateSearchHash(data.identityNumber);
-
-          PATIENT_SENSITIVE_FIELDS.forEach((field) => {
-            if (data[field]) data[field] = encryptionService.encrypt(data[field]);
-          });
+          applyTenantPolicy('Patient', 'create', args as any);
+          encryptPatientPayload(args.data as any, encryptionService, true);
           return query(args);
         },
-        // تشفير البيانات عند التحديث
         async update({ args, query }) {
-          const data = args.data as any;
-          if (data.phone) data.phoneHash = generateSearchHash(data.phone);
-          if (data.email) data.emailHash = generateSearchHash(data.email);
-          if (data.nationalId)
-            data.nationalIdHash = generateSearchHash(data.nationalId);
-          if (data.identityNumber)
-            data.identityNumberHash = generateSearchHash(data.identityNumber);
-
-          PATIENT_SENSITIVE_FIELDS.forEach((field) => {
-            if (data[field]) data[field] = encryptionService.encrypt(data[field]);
-          });
+          applyTenantPolicy('Patient', 'update', args as any);
+          encryptPatientPayload(args.data as any, encryptionService);
           return query(args);
         },
-        // فك التشفير عند الاستعلام (findFirst)
         async findFirst({ args, query }) {
+          applyTenantPolicy('Patient', 'findFirst', args as any, {
+            includeSoftDeleteFilter: true,
+          });
           const result = await query(args);
           return handleDecryption(result, encryptionService);
         },
-        // فك التشفير عند الاستعلام (findMany)
         async findMany({ args, query }) {
+          applyTenantPolicy('Patient', 'findMany', args as any, {
+            includeSoftDeleteFilter: true,
+          });
           const result = await query(args);
           return handleDecryption(result, encryptionService);
         },
-        // فك التشفير عند الاستعلام (findUnique)
         async findUnique({ args, query }) {
+          applyTenantPolicy('Patient', 'findUnique', args as any);
+          const result = await query(args);
+          return handleDecryption(result, encryptionService);
+        },
+        async findUniqueOrThrow({ args, query }) {
+          applyTenantPolicy('Patient', 'findUniqueOrThrow', args as any);
           const result = await query(args);
           return handleDecryption(result, encryptionService);
         },
       },
-      // ============================================
-      // RLS + Soft Delete — منطق موحد لكل النماذج
-      // ============================================
       $allModels: {
         async delete({ model, args, query }) {
+          const scopedArgs = applyTenantPolicy(model, 'delete', args as any);
+
           if (SOFT_DELETABLE_MODELS.has(model)) {
             return (prisma as any)[model].update({
-              ...args,
-              data: { isDeleted: true, ...((args as any).data || {}) },
+              ...scopedArgs,
+              data: { isDeleted: true, ...(scopedArgs.data || {}) },
             });
           }
-          return query(args);
+
+          return query(scopedArgs);
         },
         async deleteMany({ model, args, query }) {
+          const scopedArgs = applyTenantPolicy(
+            model,
+            'deleteMany',
+            args as any,
+          );
+
           if (SOFT_DELETABLE_MODELS.has(model)) {
             return (prisma as any)[model].updateMany({
-              ...args,
-              data: { isDeleted: true, ...((args as any).data || {}) },
+              ...scopedArgs,
+              data: { isDeleted: true, ...(scopedArgs.data || {}) },
             });
           }
-          return query(args);
+
+          return query(scopedArgs);
         },
         async findMany({ model, args, query }) {
-          if (model === 'Patient') return query(args); // المريض معالج بالأعلى
-          const a = args as any;
-
-          // ✅ RLS: حقن hospitalId تلقائياً
-          injectRLS(model, a);
-
-          // Soft Delete filter
-          if (SOFT_DELETABLE_MODELS.has(model)) {
-            a.where = a.where || {};
-            if (a.where.isDeleted === undefined) a.where.isDeleted = false;
-          }
-
-          return query(a);
+          const scopedArgs = applyTenantPolicy(model, 'findMany', args as any, {
+            includeSoftDeleteFilter: model !== 'Patient',
+          });
+          return query(scopedArgs);
         },
         async findFirst({ model, args, query }) {
-          if (model === 'Patient') return query(args); // المريض معالج بالأعلى
-          const a = args as any;
-
-          // ✅ RLS: حقن hospitalId تلقائياً
-          injectRLS(model, a);
-
-          // Soft Delete filter
-          if (SOFT_DELETABLE_MODELS.has(model)) {
-            a.where = a.where || {};
-            if (a.where.isDeleted === undefined) a.where.isDeleted = false;
-          }
-
-          return query(a);
+          const scopedArgs = applyTenantPolicy(model, 'findFirst', args as any, {
+            includeSoftDeleteFilter: model !== 'Patient',
+          });
+          return query(scopedArgs);
+        },
+        async findFirstOrThrow({ model, args, query }) {
+          const scopedArgs = applyTenantPolicy(
+            model,
+            'findFirstOrThrow',
+            args as any,
+            {
+              includeSoftDeleteFilter: model !== 'Patient',
+            },
+          );
+          return query(scopedArgs);
+        },
+        async findUnique({ model, args, query }) {
+          const scopedArgs = applyTenantPolicy(model, 'findUnique', args as any);
+          return query(scopedArgs);
+        },
+        async findUniqueOrThrow({ model, args, query }) {
+          const scopedArgs = applyTenantPolicy(
+            model,
+            'findUniqueOrThrow',
+            args as any,
+          );
+          return query(scopedArgs);
+        },
+        async count({ model, args, query }) {
+          const scopedArgs = applyTenantPolicy(
+            model,
+            'count',
+            (args ?? {}) as any,
+            {
+              includeSoftDeleteFilter: true,
+            },
+          );
+          return query(scopedArgs);
+        },
+        async aggregate({ model, args, query }) {
+          const scopedArgs = applyTenantPolicy(
+            model,
+            'aggregate',
+            (args ?? {}) as any,
+            {
+              includeSoftDeleteFilter: true,
+            },
+          );
+          return query(scopedArgs);
+        },
+        async groupBy({ model, args, query }) {
+          const scopedArgs = applyTenantPolicy(model, 'groupBy', args as any, {
+            includeSoftDeleteFilter: true,
+          });
+          return query(scopedArgs);
+        },
+        async create({ model, args, query }) {
+          const scopedArgs = applyTenantPolicy(model, 'create', args as any);
+          return query(scopedArgs);
+        },
+        async createMany({ model, args, query }) {
+          const scopedArgs = applyTenantPolicy(
+            model,
+            'createMany',
+            args as any,
+          );
+          return query(scopedArgs);
+        },
+        async update({ model, args, query }) {
+          const scopedArgs = applyTenantPolicy(model, 'update', args as any);
+          return query(scopedArgs);
+        },
+        async updateMany({ model, args, query }) {
+          const scopedArgs = applyTenantPolicy(
+            model,
+            'updateMany',
+            args as any,
+          );
+          return query(scopedArgs);
+        },
+        async upsert({ model, args, query }) {
+          const scopedArgs = applyTenantPolicy(model, 'upsert', args as any);
+          return query(scopedArgs);
         },
       },
     },
   });
 };
 
-/**
- * ✅ تصدير المعلومات للاستخدام في الاختبارات والتشخيص
- */
-export { TENANT_SCOPED_MODELS, RLS_EXEMPT_MODELS, SOFT_DELETABLE_MODELS, needsRLS, getTenantHospitalId, injectRLS };
+export {
+  TENANT_SCOPED_MODELS,
+  SOFT_DELETABLE_MODELS,
+  needsRLS,
+  getTenantHospitalId,
+  injectRLS,
+  isSuperAdminContext,
+  getTenantContext,
+  enforceTenantOnWhere,
+  enforceTenantOnData,
+  applySoftDeleteFilter,
+  applyTenantPolicy,
+};

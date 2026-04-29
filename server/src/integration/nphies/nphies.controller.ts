@@ -129,6 +129,11 @@ export class NphiesController {
         display: string;
         isPrimary: boolean;
       }>;
+      attachments?: Array<{
+        localFilePath: string;
+        title: string;
+        contentType?: string;
+      }>;
     },
   ) {
     return this.claimService.submitPreAuthorization(
@@ -141,6 +146,7 @@ export class NphiesController {
       data.insurance,
       data.services,
       data.diagnoses,
+      data.attachments,
     );
   }
 }

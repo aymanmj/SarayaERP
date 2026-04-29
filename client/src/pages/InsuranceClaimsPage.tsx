@@ -2,7 +2,8 @@ import React, { useEffect, useState, useMemo } from "react";
 import { apiClient } from "../api/apiClient";
 import { toast } from "sonner";
 import { formatDate } from "@/lib/utils";
-import { ShieldCheck, FileText, CheckCircle2, XCircle, Printer, RefreshCw, AlertCircle, Building2 } from "lucide-react";
+import { ShieldCheck, FileText, CheckCircle2, XCircle, Printer, RefreshCw, AlertCircle, Building2, Upload, Loader2 } from "lucide-react";
+import { FeatureGuard } from "@/components/FeatureGuard";
 
 type InsuranceProvider = {
   id: number;
@@ -47,6 +48,9 @@ export default function InsuranceClaimsPage() {
   // Rejection Modal State
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
+
+  // NPHIES State
+  const [nphiesLoading, setNphiesLoading] = useState(false);
 
   // Load Providers
   useEffect(() => {
@@ -129,6 +133,41 @@ export default function InsuranceClaimsPage() {
     } catch (err) {
       toast.error("فشل التحديث.");
     }
+  };
+
+  // === NPHIES: Submit eClaims ===
+  const handleNphiesSubmit = async () => {
+    if (selectedIds.length === 0) return;
+    if (!confirm(`هل تريد رفع ${selectedIds.length} مطالبة إلى منصة نفيس (NPHIES)؟`)) return;
+
+    setNphiesLoading(true);
+    let accepted = 0;
+    let rejected = 0;
+
+    for (const id of selectedIds) {
+      try {
+        const res = await apiClient.post(`/integration/nphies/claims/${id}/submit`);
+        if (res.data?.accepted) {
+          accepted++;
+        } else {
+          rejected++;
+        }
+      } catch {
+        rejected++;
+      }
+    }
+
+    setNphiesLoading(false);
+
+    if (accepted > 0 && rejected === 0) {
+      toast.success(`✅ تم رفع ${accepted} مطالبة بنجاح إلى NPHIES`);
+    } else if (accepted > 0 && rejected > 0) {
+      toast.warning(`⚠️ تم قبول ${accepted} ورفض ${rejected} مطالبة`);
+    } else {
+      toast.error(`❌ فشل رفع جميع المطالبات (${rejected})`);
+    }
+
+    loadClaims();
   };
 
   // Print Logic
@@ -324,6 +363,18 @@ export default function InsuranceClaimsPage() {
               >
                 <CheckCircle2 className="w-4 h-4" /> إرسال المطالبة للشركة
               </button>
+            )}
+            {statusFilter === "PENDING" && (
+              <FeatureGuard feature="INSURANCE_INTEGRATION">
+                <button
+                  onClick={handleNphiesSubmit}
+                  disabled={nphiesLoading}
+                  className="px-4 py-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-sm rounded-xl font-bold shadow-lg transition-colors flex items-center gap-2"
+                >
+                  {nphiesLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                  رفع إلى نفيس (NPHIES)
+                </button>
+              </FeatureGuard>
             )}
             {statusFilter === "SUBMITTED" && (
               <>

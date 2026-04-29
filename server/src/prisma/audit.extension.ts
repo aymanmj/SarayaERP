@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { ClsService } from 'nestjs-cls';
 import { siemLogger } from '../audit/siem.logger';
+import { applyTenantPolicy } from './prisma.extension';
 
 // List of tables to skip auditing
 const SKIP_MODELS = ['AuditLog', 'Session', 'SystemSetting'];
@@ -52,7 +53,10 @@ export const auditExtension = (cls: ClsService, rootPrisma: any) => {
           let originalRecord = null;
           try {
             if (args.where?.id) {
-              originalRecord = await rootPrisma[model].findUnique({ where: args.where });
+              const lookupArgs = applyTenantPolicy(model, 'findUnique', {
+                where: { ...args.where },
+              });
+              originalRecord = await rootPrisma[model].findUnique(lookupArgs);
             }
           } catch (e) {
             // Safe fallback
@@ -108,7 +112,10 @@ export const auditExtension = (cls: ClsService, rootPrisma: any) => {
 
           let originalRecord = null;
           try {
-             originalRecord = await rootPrisma[model].findUnique({ where: args.where });
+             const lookupArgs = applyTenantPolicy(model, 'findUnique', {
+               where: { ...args.where },
+             });
+             originalRecord = await rootPrisma[model].findUnique(lookupArgs);
           } catch (e) {}
 
           const result = await query(args);

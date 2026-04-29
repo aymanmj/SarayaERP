@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { apiClient } from "../api/apiClient";
 import { toast } from "sonner";
 import { formatDate } from "@/lib/utils";
+import { FeatureGuard } from "@/components/FeatureGuard";
+import { ShieldCheck, Upload, FileCheck, Loader2 } from "lucide-react";
 
 type PreAuthorization = {
   id: number;
@@ -59,6 +61,15 @@ export default function PreAuthPage() {
   const [authCode, setAuthCode] = useState("");
   const [approvedAmount, setApprovedAmount] = useState("");
   const [expiresAt, setExpiresAt] = useState("");
+
+  // NPHIES State
+  const [showNphiesModal, setShowNphiesModal] = useState(false);
+  const [nphiesAuth, setNphiesAuth] = useState<PreAuthorization | null>(null);
+  const [nphiesServices, setNphiesServices] = useState([{ code: "", name: "", quantity: 1, unitPrice: 0 }]);
+  const [nphiesDiagnoses, setNphiesDiagnoses] = useState([{ code: "", display: "", isPrimary: true }]);
+  const [nphiesFiles, setNphiesFiles] = useState<File[]>([]);
+  const [nphiesLoading, setNphiesLoading] = useState(false);
+  const [eligibilityLoading, setEligibilityLoading] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -130,6 +141,96 @@ export default function PreAuthPage() {
     defaultExpiry.setDate(defaultExpiry.getDate() + 30);
     setExpiresAt(auth.expiresAt ? auth.expiresAt.substring(0, 10) : defaultExpiry.toISOString().substring(0, 10));
     setShowActionModal(true);
+  };
+
+  // === NPHIES: Eligibility Check ===
+  const checkEligibility = async () => {
+    if (!foundPatient || !foundPatient.insurancePolicy) return;
+    setEligibilityLoading(true);
+    try {
+      const res = await apiClient.post("/integration/nphies/eligibility/check", {
+        patient: {
+          id: String(foundPatient.id),
+          fullName: foundPatient.fullName,
+          nationalId: foundPatient.nationalId,
+          dateOfBirth: foundPatient.dateOfBirth,
+          gender: foundPatient.gender,
+          phone: foundPatient.phone,
+        },
+        insurance: {
+          memberId: foundPatient.insuranceMemberId || "",
+          payerIdentifier: foundPatient.insurancePolicy.provider?.code || "",
+          payerName: foundPatient.insurancePolicy.provider?.name || "",
+        },
+      });
+      if (res.data?.eligible) {
+        toast.success("✅ المريض مؤهل تأمينياً عبر NPHIES");
+      } else {
+        toast.error(`❌ غير مؤهل: ${res.data?.errorMessage || res.data?.status || "سبب غير محدد"}`);
+      }
+    } catch {
+      toast.error("فشل التحقق من الأهلية عبر NPHIES");
+    } finally {
+      setEligibilityLoading(false);
+    }
+  };
+
+  // === NPHIES: Open Pre-Auth Submission Modal ===
+  const openNphiesModal = (auth: PreAuthorization) => {
+    setNphiesAuth(auth);
+    setNphiesServices([{ code: "", name: "", quantity: 1, unitPrice: Number(auth.requestedAmount || 0) }]);
+    setNphiesDiagnoses([{ code: "", display: "", isPrimary: true }]);
+    setNphiesFiles([]);
+    setShowNphiesModal(true);
+  };
+
+  // === NPHIES: Submit Pre-Auth ===
+  const handleNphiesSubmit = async () => {
+    if (!nphiesAuth) return;
+    if (nphiesServices.some(s => !s.code)) {
+      toast.warning("يرجى إدخال رمز الخدمة (CPT Code) لكل خدمة");
+      return;
+    }
+    if (nphiesDiagnoses.some(d => !d.code)) {
+      toast.warning("يرجى إدخال رمز التشخيص (ICD-10) لكل تشخيص");
+      return;
+    }
+    setNphiesLoading(true);
+    try {
+      const res = await apiClient.post("/integration/nphies/preauth/submit", {
+        patient: {
+          id: String(nphiesAuth.patient.id),
+          fullName: nphiesAuth.patient.fullName,
+          nationalId: undefined,
+          gender: undefined,
+        },
+        insurance: {
+          memberId: nphiesAuth.patient.insuranceMemberId || "",
+          payerIdentifier: nphiesAuth.policy.provider?.name || "",
+          payerName: nphiesAuth.policy.provider?.name || "",
+        },
+        services: nphiesServices,
+        diagnoses: nphiesDiagnoses,
+      });
+      if (res.data?.accepted) {
+        toast.success(`✅ تم قبول الموافقة المسبقة — رقم NPHIES: ${res.data.nphiesClaimId || "—"}`);
+        // Auto-update local record if auth code returned
+        if (res.data.nphiesClaimId) {
+          await apiClient.patch(`/insurance/pre-auth/${nphiesAuth.id}`, {
+            status: "APPROVED",
+            authCode: res.data.nphiesClaimId,
+          }).catch(() => {});
+        }
+        setShowNphiesModal(false);
+        loadData();
+      } else {
+        toast.error(`❌ رفض NPHIES: ${res.data?.errorMessage || "سبب غير محدد"}`);
+      }
+    } catch {
+      toast.error("فشل الإرسال إلى منصة نفيس (NPHIES)");
+    } finally {
+      setNphiesLoading(false);
+    }
   };
 
   const handleActionSubmit = async () => {
@@ -248,7 +349,7 @@ export default function PreAuthPage() {
                   </td>
                   <td className="px-4 py-3 text-center">
                     {auth.status === "PENDING" && (
-                      <div className="flex items-center justify-center gap-2">
+                      <div className="flex items-center justify-center gap-2 flex-wrap">
                         <button
                           onClick={() => openActionModal(auth, "APPROVED")}
                           className="px-3 py-1 bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-400 border border-emerald-500/30 rounded text-xs transition"
@@ -261,6 +362,14 @@ export default function PreAuthPage() {
                         >
                           رفض
                         </button>
+                        <FeatureGuard feature="INSURANCE_INTEGRATION">
+                          <button
+                            onClick={() => openNphiesModal(auth)}
+                            className="px-3 py-1 bg-violet-600/20 hover:bg-violet-600/40 text-violet-400 border border-violet-500/30 rounded text-xs transition flex items-center gap-1"
+                          >
+                            <Upload className="w-3 h-3" /> نفيس
+                          </button>
+                        </FeatureGuard>
                       </div>
                     )}
                   </td>
@@ -288,6 +397,16 @@ export default function PreAuthPage() {
                     className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:border-sky-500 outline-none"
                   />
                   <button onClick={searchPatient} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-sm">بحث</button>
+                  <FeatureGuard feature="INSURANCE_INTEGRATION">
+                    <button
+                      onClick={checkEligibility}
+                      disabled={!foundPatient || eligibilityLoading}
+                      className="px-4 py-2 bg-violet-700 hover:bg-violet-600 disabled:opacity-40 rounded-xl text-sm flex items-center gap-1 whitespace-nowrap transition"
+                    >
+                      {eligibilityLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <ShieldCheck className="w-3 h-3" />}
+                      أهلية NPHIES
+                    </button>
+                  </FeatureGuard>
                 </div>
               </div>
 
@@ -395,6 +514,87 @@ export default function PreAuthPage() {
                 }`}
               >
                 {actionType === "APPROVED" ? "تأكيد الموافقة" : "تأكيد الرفض"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* NPHIES Submission Modal */}
+      {showNphiesModal && nphiesAuth && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-slate-950 border border-violet-500/30 rounded-2xl p-6 w-full max-w-2xl shadow-2xl animate-in zoom-in-95 max-h-[90vh] overflow-y-auto">
+            <h3 className="text-xl font-bold text-violet-400 mb-1 flex items-center gap-2">
+              <Upload className="w-5 h-5" /> إرسال إلى منصة نفيس (NPHIES)
+            </h3>
+            <p className="text-xs text-slate-500 mb-4">موافقة مسبقة — {nphiesAuth.patient.fullName} — {nphiesAuth.policy.provider.name}</p>
+
+            {/* Services */}
+            <div className="mb-4">
+              <label className="block text-xs font-bold text-slate-400 mb-2">الخدمات المطلوبة (CPT Codes)</label>
+              {nphiesServices.map((svc, idx) => (
+                <div key={idx} className="grid grid-cols-4 gap-2 mb-2">
+                  <input value={svc.code} onChange={e => { const n = [...nphiesServices]; n[idx].code = e.target.value; setNphiesServices(n); }}
+                    placeholder="رمز CPT" className="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs focus:border-violet-500 outline-none" />
+                  <input value={svc.name} onChange={e => { const n = [...nphiesServices]; n[idx].name = e.target.value; setNphiesServices(n); }}
+                    placeholder="اسم الخدمة" className="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs focus:border-violet-500 outline-none" />
+                  <input type="number" value={svc.quantity} onChange={e => { const n = [...nphiesServices]; n[idx].quantity = Number(e.target.value); setNphiesServices(n); }}
+                    placeholder="الكمية" className="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs focus:border-violet-500 outline-none" />
+                  <input type="number" value={svc.unitPrice} onChange={e => { const n = [...nphiesServices]; n[idx].unitPrice = Number(e.target.value); setNphiesServices(n); }}
+                    placeholder="السعر" className="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs focus:border-violet-500 outline-none" />
+                </div>
+              ))}
+              <button onClick={() => setNphiesServices([...nphiesServices, { code: "", name: "", quantity: 1, unitPrice: 0 }])}
+                className="text-xs text-violet-400 hover:text-violet-300 transition">+ إضافة خدمة</button>
+            </div>
+
+            {/* Diagnoses */}
+            <div className="mb-4">
+              <label className="block text-xs font-bold text-slate-400 mb-2">التشخيصات (ICD-10)</label>
+              {nphiesDiagnoses.map((diag, idx) => (
+                <div key={idx} className="grid grid-cols-3 gap-2 mb-2">
+                  <input value={diag.code} onChange={e => { const n = [...nphiesDiagnoses]; n[idx].code = e.target.value; setNphiesDiagnoses(n); }}
+                    placeholder="رمز ICD-10" className="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs focus:border-violet-500 outline-none" />
+                  <input value={diag.display} onChange={e => { const n = [...nphiesDiagnoses]; n[idx].display = e.target.value; setNphiesDiagnoses(n); }}
+                    placeholder="وصف التشخيص" className="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs focus:border-violet-500 outline-none" />
+                  <label className="flex items-center gap-1 text-xs text-slate-400">
+                    <input type="checkbox" checked={diag.isPrimary} onChange={e => { const n = [...nphiesDiagnoses]; n[idx].isPrimary = e.target.checked; setNphiesDiagnoses(n); }}
+                      className="rounded border-slate-700" /> رئيسي
+                  </label>
+                </div>
+              ))}
+              <button onClick={() => setNphiesDiagnoses([...nphiesDiagnoses, { code: "", display: "", isPrimary: false }])}
+                className="text-xs text-violet-400 hover:text-violet-300 transition">+ إضافة تشخيص</button>
+            </div>
+
+            {/* Attachments */}
+            <div className="mb-5">
+              <label className="block text-xs font-bold text-slate-400 mb-2">المرفقات السريرية (اختياري)</label>
+              <div className="border-2 border-dashed border-slate-700 hover:border-violet-500/50 rounded-xl p-4 text-center transition cursor-pointer"
+                onClick={() => document.getElementById('nphies-file-input')?.click()}>
+                <FileCheck className="w-8 h-8 mx-auto text-slate-600 mb-2" />
+                <p className="text-xs text-slate-500">اضغط لرفع تقارير طبية أو صور أشعة (PDF, JPG, PNG)</p>
+                <input id="nphies-file-input" type="file" multiple accept=".pdf,.jpg,.jpeg,.png" className="hidden"
+                  onChange={e => setNphiesFiles(Array.from(e.target.files || []))} />
+              </div>
+              {nphiesFiles.length > 0 && (
+                <div className="mt-2 space-y-1">
+                  {nphiesFiles.map((f, i) => (
+                    <div key={i} className="text-xs text-slate-400 bg-slate-900 rounded-lg px-3 py-1.5 flex justify-between">
+                      <span>{f.name}</span>
+                      <span className="text-slate-600">{(f.size / 1024).toFixed(0)} KB</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setShowNphiesModal(false)} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm rounded-xl">إلغاء</button>
+              <button onClick={handleNphiesSubmit} disabled={nphiesLoading}
+                className="px-6 py-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-sm font-bold rounded-xl shadow-lg transition flex items-center gap-2">
+                {nphiesLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                إرسال إلى نفيس
               </button>
             </div>
           </div>
