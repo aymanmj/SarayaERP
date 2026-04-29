@@ -4,7 +4,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { VaultService } from '../../common/vault/vault.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PriceListsService } from '../../price-lists/price-lists.service';
-import { DiagnosisType, ChargeSource } from '@prisma/client';
+import { DiagnosisType, ChargeSource, ServiceType, TerminologySystem } from '@prisma/client';
 
 // ─── Interfaces ────────────────────────────────────────────────────
 
@@ -208,6 +208,27 @@ ${clinicalNote}
       // ─── 1. Save ICD-10 Diagnoses ───────────────────────────────
       for (const dx of selectedDiagnoses) {
         try {
+          // Find or create TerminologyConcept for this ICD-10
+          let termConcept = await tx.terminologyConcept.findFirst({
+            where: {
+              system: TerminologySystem.ICD10,
+              code: dx.code,
+            },
+          });
+
+          if (!termConcept) {
+            termConcept = await tx.terminologyConcept.create({
+              data: {
+                system: TerminologySystem.ICD10,
+                code: dx.code,
+                display: dx.nameEn,
+                displayAr: dx.nameAr || null,
+                isActive: true,
+              },
+            });
+            this.logger.log(`📚 Auto-created TerminologyConcept (ICD10): ${dx.code}`);
+          }
+
           // Find or create the DiagnosisCode record
           let diagCode = await tx.diagnosisCode.findFirst({
             where: {
@@ -226,10 +247,17 @@ ${clinicalNote}
                 nameEn: dx.nameEn,
                 nameAr: dx.nameAr || null,
                 icd10Code: dx.code,
+                terminologyConceptId: termConcept.id,
                 isActive: true,
               },
             });
             this.logger.log(`📝 Auto-created DiagnosisCode: ${dx.code} — ${dx.nameEn}`);
+          } else if (!diagCode.terminologyConceptId) {
+            // Link existing DiagnosisCode to the TerminologyConcept if not linked
+            await tx.diagnosisCode.update({
+              where: { id: diagCode.id },
+              data: { terminologyConceptId: termConcept.id },
+            });
           }
 
           // Check for duplicates before inserting
@@ -267,7 +295,7 @@ ${clinicalNote}
       for (const px of selectedProcedures) {
         try {
           // Look up ServiceItem by CPT code
-          const serviceItem = await tx.serviceItem.findFirst({
+          let serviceItem = await tx.serviceItem.findFirst({
             where: {
               hospitalId,
               isActive: true,
@@ -279,13 +307,19 @@ ${clinicalNote}
           });
 
           if (!serviceItem) {
-            // CPT code not mapped to a ServiceItem — common for E&M codes
-            // We can still log it as a billing recommendation
-            warnings.push(
-              `الكود ${px.code} (${px.nameEn}) غير مرتبط بخدمة في النظام. ` +
-              `يرجى إضافته في إدارة الخدمات لربطه بالفوترة التلقائية.`
-            );
-            continue;
+            // Auto-create ServiceItem for this CPT code
+            serviceItem = await tx.serviceItem.create({
+              data: {
+                hospitalId,
+                code: px.code,
+                name: px.nameEn,
+                type: ServiceType.PROCEDURE,
+                defaultPrice: 0,
+                isActive: true,
+                isBillable: true,
+              },
+            });
+            this.logger.log(`📝 Auto-created ServiceItem: ${px.code} — ${px.nameEn}`);
           }
 
           // Check for duplicate charges
