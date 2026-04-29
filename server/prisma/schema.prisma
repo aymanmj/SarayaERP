@@ -218,6 +218,7 @@ model ServiceItem {
   hospitalId        Int
   categoryId        Int?
   code              String?            @unique
+  cptCode           String?            // Standard CPT code for mapping
   name              String
   type              ServiceType
   defaultPrice      Decimal            @db.Decimal(18, 3)
@@ -237,6 +238,8 @@ model ServiceItem {
   surgeryCases      SurgeryCase[]
   wards             Ward[]
   orderSetItems     OrderSetItem[]     @relation("OrderSetService")
+
+  @@index([cptCode])
 }
 
 model Invoice {

@@ -167,6 +167,36 @@ ${clinicalNote}
   }
 
   /**
+   * Automatically determine the appropriate ServiceType from a CPT/HCPCS code
+   */
+  private determineServiceTypeFromCpt(cptCode: string): ServiceType {
+    const codeStr = cptCode.trim().toUpperCase();
+    const numericCode = parseInt(codeStr, 10);
+
+    if (!isNaN(numericCode)) {
+      // Pathology and Laboratory (80000–89398)
+      if (numericCode >= 80000 && numericCode <= 89398) return ServiceType.LAB;
+      // Radiology (70000–79999)
+      if (numericCode >= 70000 && numericCode <= 79999) return ServiceType.RADIOLOGY;
+      // Evaluation and Management (99202–99499)
+      if (numericCode >= 99202 && numericCode <= 99499) return ServiceType.CONSULTATION;
+      // Surgery (10000–69990)
+      if (numericCode >= 10000 && numericCode <= 69990) return ServiceType.SURGERY;
+      // Medicine / General Procedures (90000–99199)
+      if (numericCode >= 90000 && numericCode <= 99199) return ServiceType.PROCEDURE;
+      // Anesthesia (00100–01999)
+      if (numericCode >= 100 && numericCode <= 1999) return ServiceType.OTHER;
+    } else {
+      // HCPCS Level II Alphanumeric codes
+      if (codeStr.startsWith('J')) return ServiceType.PHARMACY; // Injectable Drugs
+      if (codeStr.startsWith('P')) return ServiceType.LAB; // Pathology/Lab
+      if (codeStr.startsWith('R')) return ServiceType.RADIOLOGY; // Radiology
+    }
+    
+    return ServiceType.PROCEDURE; // Fallback
+  }
+
+  /**
    * Apply AI-suggested codes to the encounter:
    * - ICD-10 codes → EncounterDiagnosis records
    * - CPT codes → EncounterCharge records (with price lookup)
@@ -300,6 +330,7 @@ ${clinicalNote}
               hospitalId,
               isActive: true,
               OR: [
+                { cptCode: px.code },
                 { code: px.code },
                 { code: `CPT-${px.code}` },
               ],
@@ -312,8 +343,9 @@ ${clinicalNote}
               data: {
                 hospitalId,
                 code: px.code,
+                cptCode: px.code,
                 name: px.nameEn,
-                type: ServiceType.PROCEDURE,
+                type: this.determineServiceTypeFromCpt(px.code),
                 defaultPrice: 0,
                 isActive: true,
                 isBillable: true,

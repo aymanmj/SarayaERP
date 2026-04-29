@@ -33,7 +33,7 @@ const radPriceOverrides: Record<string, number> = {
 
 const labTests = [
   // ── Hematology ──
-  { code: 'CBC', name: 'Complete Blood Count', arabicName: 'صورة دم كاملة', category: 'Hematology', params: [
+  { code: 'CBC', name: 'Complete Blood Count', arabicName: 'صورة دم كاملة', category: 'Hematology', cptCode: '85025', params: [
     { code: 'WBC', name: 'White Blood Cells', unit: '10^3/uL', ref: '4.0-10.0' },
     { code: 'RBC', name: 'Red Blood Cells', unit: '10^6/uL', ref: '4.5-5.5' },
     { code: 'HGB', name: 'Hemoglobin', unit: 'g/dL', ref: '13.0-17.0' },
@@ -216,7 +216,7 @@ const labTests = [
   { code: 'STL-CX', name: 'Stool Culture', arabicName: 'مزرعة براز', category: 'Microbiology', params: [] },
   { code: 'STL-OVA', name: 'Stool Ova & Parasites', arabicName: 'فحص براز للطفيليات', category: 'Microbiology', params: [] },
   { code: 'STL-OB', name: 'Stool Occult Blood', arabicName: 'دم خفي في البراز', category: 'Microbiology', params: [] },
-  { code: 'H-PYLORI', name: 'H. pylori Test', arabicName: 'جرثومة المعدة', category: 'Microbiology', params: [] },
+  { code: 'H-PYLORI', name: 'H. pylori Test', arabicName: 'جرثومة المعدة', category: 'Microbiology', cptCode: '83013', params: [] },
   // ── Tumor Markers ──
   { code: 'AFP', name: 'Alpha-Fetoprotein', arabicName: 'دلالة أورام الكبد AFP', category: 'Tumor Markers', params: [] },
   { code: 'CEA', name: 'CEA', arabicName: 'دلالة أورام القولون CEA', category: 'Tumor Markers', params: [] },
@@ -230,7 +230,7 @@ const labTests = [
 
 const radiologyStudies = [
   // ── X-Ray ──
-  { code: 'XR-CHEST-PA', name: 'Chest X-Ray (PA)', arabicName: 'أشعة صدر أمامية', modality: 'X-RAY', bodyPart: 'Chest' },
+  { code: 'XR-CHEST-PA', name: 'Chest X-Ray (PA)', arabicName: 'أشعة صدر أمامية', modality: 'X-RAY', bodyPart: 'Chest', cptCode: '71045' },
   { code: 'XR-CHEST-LAT', name: 'Chest X-Ray (Lateral)', arabicName: 'أشعة صدر جانبية', modality: 'X-RAY', bodyPart: 'Chest' },
   { code: 'XR-ABD', name: 'Abdominal X-Ray', arabicName: 'أشعة بطن', modality: 'X-RAY', bodyPart: 'Abdomen' },
   { code: 'XR-PELVIS', name: 'Pelvic X-Ray', arabicName: 'أشعة حوض', modality: 'X-RAY', bodyPart: 'Pelvis' },
@@ -327,9 +327,9 @@ export async function seedLabRadiology() {
     const serviceCode = `LAB-${t.code}`;
     const serviceItem = await prisma.serviceItem.upsert({
       where: { code: serviceCode },
-      update: { name: t.arabicName || t.name, defaultPrice: price },
+      update: { name: t.arabicName || t.name, defaultPrice: price, cptCode: (t as any).cptCode || null },
       create: {
-        hospitalId, code: serviceCode, name: t.arabicName || t.name,
+        hospitalId, code: serviceCode, name: t.arabicName || t.name, cptCode: (t as any).cptCode || null,
         type: ServiceType.LAB, defaultPrice: price, isActive: true, isBillable: true,
       },
     });
@@ -367,9 +367,9 @@ export async function seedLabRadiology() {
     const serviceCode = `RAD-${s.code}`;
     const serviceItem = await prisma.serviceItem.upsert({
       where: { code: serviceCode },
-      update: { name: s.arabicName || s.name, defaultPrice: price },
+      update: { name: s.arabicName || s.name, defaultPrice: price, cptCode: (s as any).cptCode || null },
       create: {
-        hospitalId, code: serviceCode, name: s.arabicName || s.name,
+        hospitalId, code: serviceCode, name: s.arabicName || s.name, cptCode: (s as any).cptCode || null,
         type: ServiceType.RADIOLOGY, defaultPrice: price, isActive: true, isBillable: true,
       },
     });
