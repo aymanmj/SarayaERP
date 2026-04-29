@@ -113,10 +113,10 @@ Analyze the following clinical note and suggest the most appropriate and highly 
 Strictly adhere to the official WHO ICD-10 guidelines and AMA CPT coding standards. Do not hallucinate codes.
 
 CRITICAL INSTRUCTIONS:
-1. EXTRACT NUANCES: Pay strict attention to laterality (left/right), specific anatomic sites (e.g., midshaft vs. distal), encounter type (initial vs. subsequent), and patient role in accidents (e.g., driver vs. passenger).
+1. EXTRACT NUANCES: Pay strict attention to laterality, specific anatomic sites, encounter type, and EXACT patient role (e.g., driver code V47.5- vs. passenger code V47.6-).
 2. COMBINATION CODES: Prioritize combination codes for conditions with common symptoms/manifestations (e.g., Diabetes with Neuropathy) over individual codes.
 3. CPT & E/M CODES: Every clinical encounter involves at least one procedure. Include the appropriate E&M CPT code matching the Medical Decision Making (MDM) complexity. NEVER return an empty "procedures" array.
-4. BUNDLING & MODIFIERS: Do not unbundle procedures (adhere strictly to NCCI edits). If appropriate, suggest standard CPT modifiers in a separate field (e.g., -RT, -LT, -25, -57).
+4. BUNDLING, IMAGING & MODIFIERS: Do not unbundle surgical procedures.HOWEVER, diagnostic imaging (X-rays, CT scans) and laboratory tests are NEVER bundled with E&M visits; they MUST be explicitly extracted as separate CPT codes. Suggest standard CPT modifiers (-RT, -LT, etc.) when clinically appropriate.
 5. LOCALIZATION & TERMINOLOGY: Accurately interpret local medical terms if present. For example, treat the Arabic term "إيواء" as Hospital Admission (Inpatient Care), not merely an outpatient observation.
 
 Provide your response strictly in the following JSON format.
