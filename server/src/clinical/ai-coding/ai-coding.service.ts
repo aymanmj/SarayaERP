@@ -1,13 +1,42 @@
-import { Injectable, Logger, InternalServerErrorException, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, InternalServerErrorException, BadRequestException, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { VaultService } from '../../common/vault/vault.service';
+import { PrismaService } from '../../prisma/prisma.service';
+import { PriceListsService } from '../../price-lists/price-lists.service';
+import { DiagnosisType, ChargeSource } from '@prisma/client';
+
+// ─── Interfaces ────────────────────────────────────────────────────
 
 export interface AiCodingSuggestion {
   diagnoses: Array<{ code: string; nameEn: string; nameAr: string; confidence: number }>;
-  procedures: Array<{ code: string; nameEn: string; nameAr: string; confidence: number }>;
+  procedures: Array<{ code: string; modifier?: string; nameEn: string; nameAr: string; confidence: number }>;
   reasoning: string;
 }
+
+export interface ApplyCodesDto {
+  encounterId: number;
+  selectedDiagnoses: Array<{
+    code: string;
+    nameEn: string;
+    nameAr: string;
+    type: 'PRIMARY' | 'SECONDARY';
+  }>;
+  selectedProcedures: Array<{
+    code: string;
+    nameEn: string;
+    nameAr: string;
+    modifier?: string;
+  }>;
+}
+
+export interface ApplyCodesResult {
+  diagnosesSaved: number;
+  proceduresSaved: number;
+  warnings: string[];
+}
+
+// ─── Service ───────────────────────────────────────────────────────
 
 @Injectable()
 export class AiCodingService implements OnModuleInit {
@@ -19,6 +48,8 @@ export class AiCodingService implements OnModuleInit {
   constructor(
     private configService: ConfigService,
     private vaultService: VaultService,
+    private prisma: PrismaService,
+    private priceService: PriceListsService,
   ) {}
 
   async onModuleInit() {
@@ -64,7 +95,7 @@ export class AiCodingService implements OnModuleInit {
       model: modelName,
       generationConfig: { 
         responseMimeType: 'application/json',
-        temperature: 0.0, // Force deterministic and factual responses
+        temperature: 0.0,
         topP: 0.8
       }
     });
@@ -80,33 +111,7 @@ export class AiCodingService implements OnModuleInit {
       throw new InternalServerErrorException('AI Model is not configured (Missing GEMINI_API_KEY)');
     }
 
-//     const prompt = `
-// You are an expert medical coder (HIM / AAPC certified) and a senior physician. 
-// Your primary goal is MAXIMUM CLINICAL ACCURACY. 
-// Analyze the following clinical note and suggest the most appropriate and highly specific ICD-10-CM and CPT-4 codes.
-// Strictly adhere to the official WHO ICD-10 guidelines and AMA CPT coding standards. Do not hallucinate codes.
-
-// CRITICAL INSTRUCTIONS:
-// 1. You MUST provide BOTH ICD-10 diagnosis codes AND CPT procedure codes.
-// 2. For CPT codes: Every clinical encounter involves at least one procedure (e.g., office visit 99213-99215, consultation 99241-99245, ED visit 99281-99285, hospital care 99221-99223). Include the appropriate E&M (Evaluation & Management) CPT code at minimum.
-// 3. If the note mentions any examination, test, imaging, or treatment, include the corresponding CPT code.
-// 4. NEVER return an empty "procedures" array — at minimum, include the E&M visit code that matches the complexity of the documented encounter.
-
-// Provide your response strictly in the following JSON format:
-// {
-//   "diagnoses": [ { "code": "ICD-10 code", "nameEn": "English name", "nameAr": "Arabic name", "confidence": 0.0 - 1.0 } ],
-//   "procedures": [ { "code": "CPT code", "nameEn": "English name", "nameAr": "Arabic name", "confidence": 0.0 - 1.0 } ],
-//   "reasoning": "Brief explanation of how the codes were derived from the clinical text."
-// }
-
-// Ensure the output is ONLY valid JSON, without markdown formatting like \`\`\`json.
-
-// Patient Context: ${patientDemographics || 'Not Provided'}
-// Clinical Note:
-// ${clinicalNote}
-// `;
-
-const prompt = `
+    const prompt = `
 You are an expert medical coder (HIM / AAPC certified) and a senior physician. 
 Your primary goal is MAXIMUM CLINICAL ACCURACY. 
 Analyze the following clinical note and suggest the most appropriate and highly specific ICD-10-CM and CPT-4 codes.
@@ -116,7 +121,7 @@ CRITICAL INSTRUCTIONS:
 1. EXTRACT NUANCES: Pay strict attention to laterality, specific anatomic sites, encounter type, and EXACT patient role (e.g., driver code V47.5- vs. passenger code V47.6-).
 2. COMBINATION CODES: Prioritize combination codes for conditions with common symptoms/manifestations (e.g., Diabetes with Neuropathy) over individual codes.
 3. CPT & E/M CODES: Every clinical encounter involves at least one procedure. Include the appropriate E&M CPT code matching the Medical Decision Making (MDM) complexity. NEVER return an empty "procedures" array.
-4. BUNDLING, IMAGING & MODIFIERS: Do not unbundle surgical procedures.HOWEVER, diagnostic imaging (X-rays, CT scans) and laboratory tests are NEVER bundled with E&M visits; they MUST be explicitly extracted as separate CPT codes. Suggest standard CPT modifiers (-RT, -LT, etc.) when clinically appropriate.
+4. BUNDLING, IMAGING & MODIFIERS: Do not unbundle surgical procedures. HOWEVER, diagnostic imaging (X-rays, CT scans) and laboratory tests are NEVER bundled with E&M visits; they MUST be explicitly extracted as separate CPT codes. Suggest standard CPT modifiers (-RT, -LT, etc.) when clinically appropriate.
 5. LOCALIZATION & TERMINOLOGY: Accurately interpret local medical terms if present. For example, treat the Arabic term "إيواء" as Hospital Admission (Inpatient Care), not merely an outpatient observation.
 
 Provide your response strictly in the following JSON format.
@@ -128,7 +133,7 @@ IMPORTANT: You MUST write the "reasoning" key BEFORE the "diagnoses" and "proced
   "procedures": [ { "code": "CPT code", "modifier": "Modifier code (e.g., RT, 57) or null", "nameEn": "English name", "nameAr": "Arabic name", "confidence": 0.0 - 1.0 } ]
 }
 
-Ensure the output is ONLY valid JSON, without markdown formatting like \\\`json.
+Ensure the output is ONLY valid JSON, without markdown formatting like \`\`\`json.
 
 Patient Context: ${patientDemographics || 'Not Provided'}
 Clinical Note:
@@ -145,13 +150,13 @@ ${clinicalNote}
       
       const parsed: AiCodingSuggestion = JSON.parse(text);
 
-      // Validate response structure — ensure both arrays exist
+      // Validate response structure
       if (!Array.isArray(parsed.diagnoses)) {
         parsed.diagnoses = [];
       }
       if (!Array.isArray(parsed.procedures)) {
         parsed.procedures = [];
-        this.logger.warn('⚠️ AI model returned empty procedures array — prompt may need adjustment or model may have filtered CPT codes.');
+        this.logger.warn('⚠️ AI model returned empty procedures array.');
       }
 
       return parsed;
@@ -159,5 +164,188 @@ ${clinicalNote}
       this.logger.error(`Failed to generate AI coding suggestions: ${error.message}`, error.stack);
       throw new InternalServerErrorException('Failed to process AI Coding request');
     }
+  }
+
+  /**
+   * Apply AI-suggested codes to the encounter:
+   * - ICD-10 codes → EncounterDiagnosis records
+   * - CPT codes → EncounterCharge records (with price lookup)
+   * 
+   * Uses a transaction to ensure all-or-nothing consistency.
+   */
+  async applySuggestedCodes(
+    dto: ApplyCodesDto,
+    userId: number,
+    hospitalId: number,
+  ): Promise<ApplyCodesResult> {
+    const { encounterId, selectedDiagnoses, selectedProcedures } = dto;
+
+    if (!selectedDiagnoses?.length && !selectedProcedures?.length) {
+      throw new BadRequestException('يرجى اختيار كود واحد على الأقل للاعتماد.');
+    }
+
+    // Verify encounter exists and belongs to this hospital
+    const encounter = await this.prisma.encounter.findFirst({
+      where: { id: encounterId, hospitalId },
+      include: {
+        patient: { select: { id: true, insurancePolicy: true } },
+      },
+    });
+
+    if (!encounter) {
+      throw new BadRequestException('الحالة الطبية غير موجودة.');
+    }
+
+    if (encounter.status !== 'OPEN') {
+      throw new BadRequestException('لا يمكن إضافة أكواد لحالة مغلقة.');
+    }
+
+    const warnings: string[] = [];
+    let diagnosesSaved = 0;
+    let proceduresSaved = 0;
+
+    await this.prisma.$transaction(async (tx) => {
+      // ─── 1. Save ICD-10 Diagnoses ───────────────────────────────
+      for (const dx of selectedDiagnoses) {
+        try {
+          // Find or create the DiagnosisCode record
+          let diagCode = await tx.diagnosisCode.findFirst({
+            where: {
+              OR: [
+                { code: dx.code },
+                { icd10Code: dx.code },
+              ],
+            },
+          });
+
+          if (!diagCode) {
+            // Auto-create DiagnosisCode for this ICD-10 code
+            diagCode = await tx.diagnosisCode.create({
+              data: {
+                code: dx.code,
+                nameEn: dx.nameEn,
+                nameAr: dx.nameAr || null,
+                icd10Code: dx.code,
+                isActive: true,
+              },
+            });
+            this.logger.log(`📝 Auto-created DiagnosisCode: ${dx.code} — ${dx.nameEn}`);
+          }
+
+          // Check for duplicates before inserting
+          const existing = await tx.encounterDiagnosis.findFirst({
+            where: {
+              encounterId,
+              diagnosisCodeId: diagCode.id,
+            },
+          });
+
+          if (existing) {
+            warnings.push(`التشخيص ${dx.code} موجود مسبقاً في هذه الحالة`);
+            continue;
+          }
+
+          // Create EncounterDiagnosis
+          await tx.encounterDiagnosis.create({
+            data: {
+              encounterId,
+              diagnosisCodeId: diagCode.id,
+              type: dx.type === 'PRIMARY' ? DiagnosisType.PRIMARY : DiagnosisType.SECONDARY,
+              note: `[AI-Assisted] ${dx.nameEn}`,
+              createdById: userId,
+            },
+          });
+
+          diagnosesSaved++;
+        } catch (err: any) {
+          this.logger.warn(`⚠️ Failed to save diagnosis ${dx.code}: ${err.message}`);
+          warnings.push(`تعذر حفظ التشخيص ${dx.code}: ${err.message}`);
+        }
+      }
+
+      // ─── 2. Save CPT Procedures as Encounter Charges ────────────
+      for (const px of selectedProcedures) {
+        try {
+          // Look up ServiceItem by CPT code
+          const serviceItem = await tx.serviceItem.findFirst({
+            where: {
+              hospitalId,
+              isActive: true,
+              OR: [
+                { code: px.code },
+                { code: `CPT-${px.code}` },
+              ],
+            },
+          });
+
+          if (!serviceItem) {
+            // CPT code not mapped to a ServiceItem — common for E&M codes
+            // We can still log it as a billing recommendation
+            warnings.push(
+              `الكود ${px.code} (${px.nameEn}) غير مرتبط بخدمة في النظام. ` +
+              `يرجى إضافته في إدارة الخدمات لربطه بالفوترة التلقائية.`
+            );
+            continue;
+          }
+
+          // Check for duplicate charges
+          const existingCharge = await tx.encounterCharge.findFirst({
+            where: {
+              encounterId,
+              serviceItemId: serviceItem.id,
+            },
+          });
+
+          if (existingCharge) {
+            warnings.push(`الخدمة ${px.code} مُضافة مسبقاً للفوترة`);
+            continue;
+          }
+
+          // Get price from the price list (considers insurance if applicable)
+          const insurancePolicyId = encounter.patient?.insurancePolicy?.isActive
+            ? (encounter.patient.insurancePolicy as any).id
+            : null;
+
+          let price = 0;
+          try {
+            price = await this.priceService.getServicePrice(
+              hospitalId,
+              serviceItem.id,
+              insurancePolicyId,
+            );
+          } catch {
+            // Use the service item's base price if price list lookup fails
+            price = Number(serviceItem.defaultPrice || 0);
+          }
+
+          // Create EncounterCharge
+          await tx.encounterCharge.create({
+            data: {
+              hospitalId,
+              encounterId,
+              serviceItemId: serviceItem.id,
+              sourceType: ChargeSource.MANUAL,
+              quantity: 1,
+              unitPrice: price,
+              totalAmount: price,
+              performerId: encounter.doctorId ?? userId,
+            },
+          });
+
+          proceduresSaved++;
+          this.logger.log(`💰 Auto-billed CPT ${px.code}: ${price} (encounter #${encounterId})`);
+        } catch (err: any) {
+          this.logger.warn(`⚠️ Failed to save procedure ${px.code}: ${err.message}`);
+          warnings.push(`تعذر إضافة الإجراء ${px.code}: ${err.message}`);
+        }
+      }
+    });
+
+    this.logger.log(
+      `✅ AI Coding Applied: ${diagnosesSaved} diagnoses, ${proceduresSaved} procedures ` +
+      `for encounter #${encounterId} by user #${userId}`
+    );
+
+    return { diagnosesSaved, proceduresSaved, warnings };
   }
 }

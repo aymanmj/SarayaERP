@@ -350,6 +350,9 @@ export default function EncounterDetailsPage() {
   // AI Coding Modal
   const [showAiModal, setShowAiModal] = useState(false);
   const [aiSuggestions, setAiSuggestions] = useState<any>(null);
+  const [selectedDxCodes, setSelectedDxCodes] = useState<Set<number>>(new Set());
+  const [selectedPxCodes, setSelectedPxCodes] = useState<Set<number>>(new Set());
+  const [dxTypes, setDxTypes] = useState<Record<number, 'PRIMARY' | 'SECONDARY'>>({});
 
   // Load ward tree for bed selection
   useEffect(() => {
@@ -474,8 +477,59 @@ export default function EncounterDetailsPage() {
     },
     onSuccess: (data) => {
       setAiSuggestions(data);
+      // Auto-select all codes by default
+      if (data?.diagnoses) {
+        setSelectedDxCodes(new Set(data.diagnoses.map((_: any, i: number) => i)));
+        const types: Record<number, 'PRIMARY' | 'SECONDARY'> = {};
+        data.diagnoses.forEach((_: any, i: number) => { types[i] = i === 0 ? 'PRIMARY' : 'SECONDARY'; });
+        setDxTypes(types);
+      }
+      if (data?.procedures) {
+        setSelectedPxCodes(new Set(data.procedures.map((_: any, i: number) => i)));
+      }
     },
     onError: () => toast.error("فشل تحليل الملاحظة السريرية بواسطة الذكاء الاصطناعي")
+  });
+
+  const applyCodesMutation = useMutation({
+    mutationFn: async () => {
+      const selectedDiagnoses = aiSuggestions.diagnoses
+        .filter((_: any, i: number) => selectedDxCodes.has(i))
+        .map((dx: any, i: number) => ({
+          code: dx.code,
+          nameEn: dx.nameEn,
+          nameAr: dx.nameAr || '',
+          type: dxTypes[aiSuggestions.diagnoses.indexOf(dx)] || (i === 0 ? 'PRIMARY' : 'SECONDARY'),
+        }));
+      const selectedProcedures = aiSuggestions.procedures
+        .filter((_: any, i: number) => selectedPxCodes.has(i))
+        .map((px: any) => ({
+          code: px.code,
+          nameEn: px.nameEn,
+          nameAr: px.nameAr || '',
+          modifier: px.modifier || undefined,
+        }));
+      const { data } = await apiClient.post('/clinical/ai-coding/apply', {
+        encounterId: encId,
+        selectedDiagnoses,
+        selectedProcedures,
+      });
+      return data;
+    },
+    onSuccess: (result) => {
+      const msgs: string[] = [];
+      if (result.diagnosesSaved > 0) msgs.push(`${result.diagnosesSaved} تشخيص`);
+      if (result.proceduresSaved > 0) msgs.push(`${result.proceduresSaved} إجراء`);
+      toast.success(`✅ تم اعتماد ${msgs.join(' و ')} بنجاح`);
+      if (result.warnings?.length) {
+        result.warnings.forEach((w: string) => toast.warning(w, { autoClose: 6000 }));
+      }
+      // Refresh diagnosis and billing data
+      queryClient.invalidateQueries({ queryKey: ['encounter', encId] });
+      setShowAiModal(false);
+      setAiSuggestions(null);
+    },
+    onError: () => toast.error("فشل اعتماد الأكواد الطبية")
   });
 
 
@@ -1012,14 +1066,14 @@ export default function EncounterDetailsPage() {
       {/* AI Coding Suggestions Modal */}
       {showAiModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-          <div className="bg-slate-900 border border-slate-700 w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="bg-slate-800/50 p-4 border-b border-slate-700 flex justify-between items-center">
+          <div className="bg-slate-900 border border-slate-700 w-full max-w-3xl rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="bg-gradient-to-r from-slate-800/80 to-indigo-900/30 p-4 border-b border-slate-700 flex justify-between items-center">
               <h2 className="text-lg font-bold text-sky-400 flex items-center gap-2">
                 <Sparkles className="w-5 h-5" />
-                تحليل الملاحظات بالأكواد الطبية
+                المساعد الذكي — تحليل واعتماد الأكواد الطبية
               </h2>
               <button
-                onClick={() => setShowAiModal(false)}
+                onClick={() => { setShowAiModal(false); setAiSuggestions(null); }}
                 className="text-slate-400 hover:text-white transition-colors"
               >
                 <X className="w-5 h-5" />
@@ -1028,24 +1082,83 @@ export default function EncounterDetailsPage() {
             
             <div className="p-5 flex-1 overflow-y-auto max-h-[70vh] custom-scrollbar">
               {aiCodingMutation.isPending ? (
-                <div className="flex flex-col items-center justify-center py-10 space-y-4">
-                  <span className="h-10 w-10 animate-spin rounded-full border-4 border-slate-700 border-t-sky-500" />
-                  <p className="text-sm text-slate-400">يقوم الذكاء الاصطناعي الآن بقراءة الملاحظات واستخراج الأكواد...</p>
+                <div className="flex flex-col items-center justify-center py-16 space-y-4">
+                  <div className="relative">
+                    <span className="h-14 w-14 animate-spin rounded-full border-4 border-slate-700 border-t-sky-500 block" />
+                    <span className="absolute inset-0 flex items-center justify-center text-xl">🧠</span>
+                  </div>
+                  <p className="text-sm text-slate-400">يقوم الذكاء الاصطناعي بتحليل الملاحظات واستخراج الأكواد...</p>
+                  <p className="text-[10px] text-slate-600">ICD-10 + CPT + E&M Evaluation</p>
                 </div>
               ) : aiSuggestions ? (
                 <div className="space-y-6">
+
+                  {/* AI Reasoning (collapsible) */}
+                  {aiSuggestions.reasoning && (
+                    <details className="bg-indigo-950/30 border border-indigo-900/40 rounded-xl overflow-hidden">
+                      <summary className="px-4 py-3 text-xs font-bold text-indigo-300 cursor-pointer hover:bg-indigo-900/20 transition-colors flex items-center gap-2">
+                        🧠 التحليل المنطقي للذكاء الاصطناعي (Reasoning)
+                      </summary>
+                      <div className="px-4 pb-3 text-xs text-indigo-200/70 leading-relaxed whitespace-pre-wrap border-t border-indigo-900/30 pt-3">
+                        {aiSuggestions.reasoning}
+                      </div>
+                    </details>
+                  )}
+
                   {/* ICD-10 Diagnoses */}
                   {aiSuggestions.diagnoses && aiSuggestions.diagnoses.length > 0 && (
                     <div>
-                      <h3 className="text-sm font-bold text-emerald-400 mb-3 border-b border-slate-800 pb-2">تشخيصات ICD-10 المقترحة:</h3>
+                      <div className="flex justify-between items-center mb-3 border-b border-slate-800 pb-2">
+                        <h3 className="text-sm font-bold text-emerald-400">تشخيصات ICD-10 المقترحة</h3>
+                        <button
+                          onClick={() => {
+                            if (selectedDxCodes.size === aiSuggestions.diagnoses.length) setSelectedDxCodes(new Set());
+                            else setSelectedDxCodes(new Set(aiSuggestions.diagnoses.map((_: any, i: number) => i)));
+                          }}
+                          className="text-[10px] text-emerald-500 hover:text-emerald-300 font-bold transition-colors"
+                        >
+                          {selectedDxCodes.size === aiSuggestions.diagnoses.length ? 'إلغاء الكل' : 'تحديد الكل'}
+                        </button>
+                      </div>
                       <div className="space-y-2">
                         {aiSuggestions.diagnoses.map((dx: any, i: number) => (
-                          <div key={i} className="bg-slate-950 border border-emerald-900/50 rounded-xl p-3 flex justify-between items-start">
-                            <div>
-                              <span className="font-mono text-emerald-300 font-bold bg-emerald-900/30 px-2 py-0.5 rounded text-sm mr-2">{dx.code}</span>
-                              <span className="text-sm text-slate-200">{dx.nameEn || dx.nameAr}</span>
+                          <label key={i} className={`flex items-start gap-3 bg-slate-950 border rounded-xl p-3 cursor-pointer transition-all ${
+                            selectedDxCodes.has(i) ? 'border-emerald-500/60 ring-1 ring-emerald-500/20' : 'border-slate-800 hover:border-slate-700'
+                          }`}>
+                            <input
+                              type="checkbox"
+                              checked={selectedDxCodes.has(i)}
+                              onChange={() => {
+                                const next = new Set(selectedDxCodes);
+                                next.has(i) ? next.delete(i) : next.add(i);
+                                setSelectedDxCodes(next);
+                              }}
+                              className="mt-1 accent-emerald-500 w-4 h-4 shrink-0"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-mono text-emerald-300 font-bold bg-emerald-900/30 px-2 py-0.5 rounded text-sm">{dx.code}</span>
+                                <span className="text-sm text-slate-200 truncate">{dx.nameEn}</span>
+                                {dx.nameAr && <span className="text-xs text-slate-500">({dx.nameAr})</span>}
+                              </div>
+                              <div className="flex items-center gap-3 mt-2">
+                                <div className="flex-1 max-w-[120px]">
+                                  <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                                    <div className={`h-full rounded-full transition-all ${dx.confidence >= 0.8 ? 'bg-emerald-500' : dx.confidence >= 0.5 ? 'bg-amber-500' : 'bg-red-500'}`} style={{ width: `${(dx.confidence * 100)}%` }} />
+                                  </div>
+                                  <span className="text-[9px] text-slate-600 mt-0.5 block">{Math.round(dx.confidence * 100)}% ثقة</span>
+                                </div>
+                                <select
+                                  value={dxTypes[i] || 'SECONDARY'}
+                                  onChange={(e) => setDxTypes({ ...dxTypes, [i]: e.target.value as 'PRIMARY' | 'SECONDARY' })}
+                                  className="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-[10px] text-slate-300 outline-none focus:border-emerald-500"
+                                >
+                                  <option value="PRIMARY">رئيسي (Primary)</option>
+                                  <option value="SECONDARY">ثانوي (Secondary)</option>
+                                </select>
+                              </div>
                             </div>
-                          </div>
+                          </label>
                         ))}
                       </div>
                     </div>
@@ -1054,15 +1167,48 @@ export default function EncounterDetailsPage() {
                   {/* CPT Procedures */}
                   {aiSuggestions.procedures && aiSuggestions.procedures.length > 0 && (
                     <div>
-                      <h3 className="text-sm font-bold text-amber-400 mb-3 border-b border-slate-800 pb-2">إجراءات CPT المقترحة:</h3>
+                      <div className="flex justify-between items-center mb-3 border-b border-slate-800 pb-2">
+                        <h3 className="text-sm font-bold text-amber-400">إجراءات CPT المقترحة</h3>
+                        <button
+                          onClick={() => {
+                            if (selectedPxCodes.size === aiSuggestions.procedures.length) setSelectedPxCodes(new Set());
+                            else setSelectedPxCodes(new Set(aiSuggestions.procedures.map((_: any, i: number) => i)));
+                          }}
+                          className="text-[10px] text-amber-500 hover:text-amber-300 font-bold transition-colors"
+                        >
+                          {selectedPxCodes.size === aiSuggestions.procedures.length ? 'إلغاء الكل' : 'تحديد الكل'}
+                        </button>
+                      </div>
                       <div className="space-y-2">
                         {aiSuggestions.procedures.map((px: any, i: number) => (
-                          <div key={i} className="bg-slate-950 border border-amber-900/50 rounded-xl p-3 flex justify-between items-start">
-                            <div>
-                              <span className="font-mono text-amber-300 font-bold bg-amber-900/30 px-2 py-0.5 rounded text-sm mr-2">{px.code}</span>
-                              <span className="text-sm text-slate-200">{px.nameEn || px.nameAr}</span>
+                          <label key={i} className={`flex items-start gap-3 bg-slate-950 border rounded-xl p-3 cursor-pointer transition-all ${
+                            selectedPxCodes.has(i) ? 'border-amber-500/60 ring-1 ring-amber-500/20' : 'border-slate-800 hover:border-slate-700'
+                          }`}>
+                            <input
+                              type="checkbox"
+                              checked={selectedPxCodes.has(i)}
+                              onChange={() => {
+                                const next = new Set(selectedPxCodes);
+                                next.has(i) ? next.delete(i) : next.add(i);
+                                setSelectedPxCodes(next);
+                              }}
+                              className="mt-1 accent-amber-500 w-4 h-4 shrink-0"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-mono text-amber-300 font-bold bg-amber-900/30 px-2 py-0.5 rounded text-sm">{px.code}</span>
+                                {px.modifier && <span className="text-[10px] text-amber-500 bg-amber-950/50 px-1.5 py-0.5 rounded font-mono">-{px.modifier}</span>}
+                                <span className="text-sm text-slate-200 truncate">{px.nameEn}</span>
+                              </div>
+                              {px.nameAr && <div className="text-xs text-slate-500 mt-1">{px.nameAr}</div>}
+                              <div className="mt-2 max-w-[120px]">
+                                <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                                  <div className={`h-full rounded-full transition-all ${px.confidence >= 0.8 ? 'bg-amber-500' : px.confidence >= 0.5 ? 'bg-yellow-500' : 'bg-red-500'}`} style={{ width: `${(px.confidence * 100)}%` }} />
+                                </div>
+                                <span className="text-[9px] text-slate-600 mt-0.5 block">{Math.round(px.confidence * 100)}% ثقة</span>
+                              </div>
                             </div>
-                          </div>
+                          </label>
                         ))}
                       </div>
                     </div>
@@ -1074,8 +1220,8 @@ export default function EncounterDetailsPage() {
                     </div>
                   )}
 
-                  <div className="bg-sky-950/30 border border-sky-900/50 rounded-xl p-4 text-xs text-sky-200/70 leading-relaxed mt-6">
-                    <strong className="text-sky-400">ملاحظة هامة:</strong> هذه الأكواد هي مجرد اقتراحات مبنية على نماذج الذكاء الاصطناعي. يرجى مراجعتها طبياً وإضافتها بشكل رسمي في خانة "التشخيص" لضمان الاعتماد والفوترة الدقيقة.
+                  <div className="bg-sky-950/30 border border-sky-900/50 rounded-xl p-4 text-xs text-sky-200/70 leading-relaxed">
+                    <strong className="text-sky-400">ملاحظة:</strong> اختر الأكواد المناسبة واضغط "اعتماد" لحفظها تلقائياً في التشخيص والفوترة. الأكواد غير المرتبطة بخدمات في النظام ستظهر كتنبيهات.
                   </div>
                 </div>
               ) : (
@@ -1085,13 +1231,33 @@ export default function EncounterDetailsPage() {
               )}
             </div>
 
-            <div className="bg-slate-800/50 p-4 border-t border-slate-700 flex justify-end">
-              <button
-                onClick={() => setShowAiModal(false)}
-                className="bg-slate-700 hover:bg-slate-600 text-white px-5 py-2 rounded-xl text-sm font-bold transition-colors"
-              >
-                إغلاق
-              </button>
+            <div className="bg-slate-800/50 p-4 border-t border-slate-700 flex justify-between items-center">
+              <div className="text-[10px] text-slate-500">
+                {aiSuggestions && (
+                  <span>{selectedDxCodes.size + selectedPxCodes.size} كود مُختار</span>
+                )}
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => { setShowAiModal(false); setAiSuggestions(null); }}
+                  className="bg-slate-700 hover:bg-slate-600 text-white px-5 py-2 rounded-xl text-sm font-bold transition-colors"
+                >
+                  إغلاق
+                </button>
+                {aiSuggestions && (selectedDxCodes.size > 0 || selectedPxCodes.size > 0) && (
+                  <button
+                    onClick={() => applyCodesMutation.mutate()}
+                    disabled={applyCodesMutation.isPending}
+                    className="bg-gradient-to-r from-emerald-600 to-sky-600 hover:from-emerald-500 hover:to-sky-500 text-white px-6 py-2 rounded-xl text-sm font-bold transition-all shadow-lg shadow-emerald-500/20 disabled:opacity-50 flex items-center gap-2"
+                  >
+                    {applyCodesMutation.isPending ? (
+                      <><span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" /> جاري الاعتماد...</>
+                    ) : (
+                      <>✅ اعتماد المختار ({selectedDxCodes.size + selectedPxCodes.size})</>
+                    )}
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
