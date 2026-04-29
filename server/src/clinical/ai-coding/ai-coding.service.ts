@@ -55,9 +55,13 @@ export class AiCodingService implements OnModuleInit {
 
     this.currentApiKey = apiKey;
     this.genAI = new GoogleGenerativeAI(apiKey);
-    // Using gemini-3.1-pro-preview for maximum clinical accuracy over speed
+
+    // Model selection: configurable via env, with stable fallback
+    const modelName = this.configService.get<string>('GEMINI_MODEL') || 'gemini-2.5-flash';
+    this.logger.log(`🤖 Initializing AI Coding with model: ${modelName}`);
+
     this.model = this.genAI.getGenerativeModel({ 
-      model: 'gemini-3.1-pro-preview',
+      model: modelName,
       generationConfig: { 
         responseMimeType: 'application/json',
         temperature: 0.0, // Force deterministic and factual responses
@@ -82,10 +86,16 @@ Your primary goal is MAXIMUM CLINICAL ACCURACY.
 Analyze the following clinical note and suggest the most appropriate and highly specific ICD-10-CM and CPT-4 codes.
 Strictly adhere to the official WHO ICD-10 guidelines and AMA CPT coding standards. Do not hallucinate codes.
 
+CRITICAL INSTRUCTIONS:
+1. You MUST provide BOTH ICD-10 diagnosis codes AND CPT procedure codes.
+2. For CPT codes: Every clinical encounter involves at least one procedure (e.g., office visit 99213-99215, consultation 99241-99245, ED visit 99281-99285, hospital care 99221-99223). Include the appropriate E&M (Evaluation & Management) CPT code at minimum.
+3. If the note mentions any examination, test, imaging, or treatment, include the corresponding CPT code.
+4. NEVER return an empty "procedures" array — at minimum, include the E&M visit code that matches the complexity of the documented encounter.
+
 Provide your response strictly in the following JSON format:
 {
-  "diagnoses": [ { "code": "...", "nameEn": "...", "nameAr": "...", "confidence": 0.0 - 1.0 } ],
-  "procedures": [ { "code": "...", "nameEn": "...", "nameAr": "...", "confidence": 0.0 - 1.0 } ],
+  "diagnoses": [ { "code": "ICD-10 code", "nameEn": "English name", "nameAr": "Arabic name", "confidence": 0.0 - 1.0 } ],
+  "procedures": [ { "code": "CPT code", "nameEn": "English name", "nameAr": "Arabic name", "confidence": 0.0 - 1.0 } ],
   "reasoning": "Brief explanation of how the codes were derived from the clinical text."
 }
 
@@ -105,6 +115,16 @@ ${clinicalNote}
       text = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
       
       const parsed: AiCodingSuggestion = JSON.parse(text);
+
+      // Validate response structure — ensure both arrays exist
+      if (!Array.isArray(parsed.diagnoses)) {
+        parsed.diagnoses = [];
+      }
+      if (!Array.isArray(parsed.procedures)) {
+        parsed.procedures = [];
+        this.logger.warn('⚠️ AI model returned empty procedures array — prompt may need adjustment or model may have filtered CPT codes.');
+      }
+
       return parsed;
     } catch (error) {
       this.logger.error(`Failed to generate AI coding suggestions: ${error.message}`, error.stack);

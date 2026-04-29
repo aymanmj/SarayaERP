@@ -442,6 +442,7 @@ export const extendedPrisma = (
 
 export {
   TENANT_SCOPED_MODELS,
+  RLS_EXEMPT_MODELS,
   SOFT_DELETABLE_MODELS,
   needsRLS,
   getTenantHospitalId,
