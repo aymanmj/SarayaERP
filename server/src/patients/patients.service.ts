@@ -141,7 +141,6 @@ export class PatientsService {
       data: {
         ...patientDataToSave,
         mrn,
-        hospital: { connect: { id: hospitalId } },
         globalPatient: { connect: { id: globalPatientId } }
       },
     });
