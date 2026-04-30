@@ -134,10 +134,12 @@ export class PatientsService {
 
     const mrn = await this.generateNextMrn(hospitalId);
 
+    const { hospitalId: _ignoredHospitalId, ...patientDataToSave } = cleanData as any;
+
     // Create the Local Patient File
     return this.prisma.patient.create({
       data: {
-        ...cleanData,
+        ...patientDataToSave,
         mrn,
         hospital: { connect: { id: hospitalId } },
         globalPatient: { connect: { id: globalPatientId } }
