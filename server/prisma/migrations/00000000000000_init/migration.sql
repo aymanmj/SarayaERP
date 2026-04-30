@@ -1,3 +1,6 @@
+﻿-- CreateEnum
+CREATE TYPE "OrgType" AS ENUM ('HOSPITAL', 'CLINIC', 'POLYCLINIC', 'NETWORK', 'MEDICAL_CITY');
+
 -- CreateEnum
 CREATE TYPE "BabyStatus" AS ENUM ('ALIVE', 'STILLBORN', 'NICU');
 
@@ -310,9 +313,43 @@ CREATE TYPE "MessageDirection" AS ENUM ('PATIENT_TO_DOCTOR', 'DOCTOR_TO_PATIENT'
 -- CreateEnum
 CREATE TYPE "RefillStatus" AS ENUM ('PENDING', 'APPROVED', 'DENIED', 'DISPENSED');
 
+-- CreateEnum
+CREATE TYPE "ClaimStatus" AS ENUM ('DRAFT', 'SCRUBBED', 'SCRUB_FAILED', 'SUBMITTED', 'ACCEPTED', 'PARTIALLY_PAID', 'PAID', 'REJECTED', 'APPEALED', 'APPEAL_ACCEPTED', 'APPEAL_DENIED', 'VOID');
+
+-- CreateTable
+CREATE TABLE "Organization" (
+    "id" SERIAL NOT NULL,
+    "code" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "type" "OrgType" NOT NULL DEFAULT 'HOSPITAL',
+    "parentId" INTEGER,
+    "currency" TEXT NOT NULL DEFAULT 'LYD',
+    "timezone" TEXT NOT NULL DEFAULT 'Africa/Tripoli',
+    "country" TEXT NOT NULL DEFAULT 'LY',
+    "taxConfig" JSONB,
+    "locale" TEXT NOT NULL DEFAULT 'ar',
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Organization_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "OrgSetting" (
+    "id" SERIAL NOT NULL,
+    "organizationId" INTEGER NOT NULL,
+    "key" TEXT NOT NULL,
+    "value" TEXT NOT NULL,
+    "description" TEXT,
+
+    CONSTRAINT "OrgSetting_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateTable
 CREATE TABLE "Hospital" (
     "id" SERIAL NOT NULL,
+    "organizationId" INTEGER,
     "code" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
@@ -374,6 +411,7 @@ CREATE TABLE "ServiceItem" (
     "hospitalId" INTEGER NOT NULL,
     "categoryId" INTEGER,
     "code" TEXT,
+    "cptCode" TEXT,
     "name" TEXT NOT NULL,
     "type" "ServiceType" NOT NULL,
     "defaultPrice" DECIMAL(18,3) NOT NULL,
@@ -3218,6 +3256,301 @@ CREATE TABLE "MedicationRefillRequest" (
     CONSTRAINT "MedicationRefillRequest_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "Claim" (
+    "id" SERIAL NOT NULL,
+    "hospitalId" INTEGER NOT NULL,
+    "invoiceId" INTEGER NOT NULL,
+    "batchId" INTEGER,
+    "claimNumber" TEXT NOT NULL,
+    "status" "ClaimStatus" NOT NULL DEFAULT 'DRAFT',
+    "submittedAt" TIMESTAMP(3),
+    "paidAt" TIMESTAMP(3),
+    "claimedAmount" DECIMAL(18,3) NOT NULL,
+    "paidAmount" DECIMAL(18,3),
+    "adjustmentAmount" DECIMAL(18,3),
+    "adjustmentReason" TEXT,
+    "denialCode" TEXT,
+    "denialReason" TEXT,
+    "appealDeadline" TIMESTAMP(3),
+    "appealNotes" TEXT,
+    "externalClaimId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Claim_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ClaimBatch" (
+    "id" SERIAL NOT NULL,
+    "hospitalId" INTEGER NOT NULL,
+    "providerId" INTEGER NOT NULL,
+    "batchNumber" TEXT NOT NULL,
+    "totalClaims" INTEGER NOT NULL DEFAULT 0,
+    "totalAmount" DECIMAL(18,3) NOT NULL DEFAULT 0,
+    "status" TEXT NOT NULL DEFAULT 'OPEN',
+    "submittedAt" TIMESTAMP(3),
+    "closedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ClaimBatch_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ClaimScrubResult" (
+    "id" SERIAL NOT NULL,
+    "claimId" INTEGER NOT NULL,
+    "ruleCode" TEXT NOT NULL,
+    "severity" TEXT NOT NULL,
+    "message" TEXT NOT NULL,
+    "field" TEXT,
+    "autoFixed" BOOLEAN NOT NULL DEFAULT false,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ClaimScrubResult_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ClaimHistory" (
+    "id" SERIAL NOT NULL,
+    "claimId" INTEGER NOT NULL,
+    "fromStatus" TEXT NOT NULL,
+    "toStatus" TEXT NOT NULL,
+    "changedById" INTEGER,
+    "notes" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ClaimHistory_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "InsuranceContract" (
+    "id" SERIAL NOT NULL,
+    "hospitalId" INTEGER NOT NULL,
+    "insuranceProviderId" INTEGER NOT NULL,
+    "contractNumber" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "effectiveFrom" TIMESTAMP(3) NOT NULL,
+    "effectiveTo" TIMESTAMP(3) NOT NULL,
+    "discountPercentage" DECIMAL(5,2),
+    "copayPercentage" DECIMAL(5,2),
+    "deductible" DECIMAL(18,3),
+    "maxCoverage" DECIMAL(18,3),
+    "preAuthRequired" BOOLEAN NOT NULL DEFAULT false,
+    "networkType" TEXT NOT NULL DEFAULT 'IN_NETWORK',
+    "paymentTermDays" INTEGER NOT NULL DEFAULT 30,
+    "status" TEXT NOT NULL DEFAULT 'ACTIVE',
+    "notes" TEXT,
+    "isDeleted" BOOLEAN NOT NULL DEFAULT false,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "InsuranceContract_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ContractBenefit" (
+    "id" SERIAL NOT NULL,
+    "contractId" INTEGER NOT NULL,
+    "serviceType" TEXT NOT NULL,
+    "serviceCode" TEXT,
+    "agreedPrice" DECIMAL(18,3),
+    "discountPercent" DECIMAL(5,2),
+    "copayAmount" DECIMAL(18,3),
+    "copayPercent" DECIMAL(5,2),
+    "maxQuantity" INTEGER,
+    "requiresPreAuth" BOOLEAN NOT NULL DEFAULT false,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ContractBenefit_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ERATransaction" (
+    "id" SERIAL NOT NULL,
+    "hospitalId" INTEGER NOT NULL,
+    "insuranceProviderId" INTEGER NOT NULL,
+    "eraNumber" TEXT NOT NULL,
+    "receivedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "paymentDate" TIMESTAMP(3),
+    "totalPaid" DECIMAL(18,3) NOT NULL,
+    "totalClaims" INTEGER NOT NULL DEFAULT 0,
+    "totalAdjustments" DECIMAL(18,3),
+    "checkNumber" TEXT,
+    "bankReference" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'RECEIVED',
+    "reconciledAt" TIMESTAMP(3),
+    "reconciledById" INTEGER,
+    "rawPayload" JSONB,
+    "notes" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ERATransaction_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ERALineItem" (
+    "id" SERIAL NOT NULL,
+    "eraId" INTEGER NOT NULL,
+    "claimId" INTEGER,
+    "claimNumber" TEXT NOT NULL,
+    "patientName" TEXT,
+    "serviceDate" TIMESTAMP(3),
+    "billedAmount" DECIMAL(18,3) NOT NULL,
+    "allowedAmount" DECIMAL(18,3),
+    "paidAmount" DECIMAL(18,3) NOT NULL,
+    "adjustmentAmount" DECIMAL(18,3),
+    "adjustmentCode" TEXT,
+    "adjustmentReason" TEXT,
+    "denialCode" TEXT,
+    "denialReason" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'MATCHED',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ERALineItem_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "PatientRegistry" (
+    "id" SERIAL NOT NULL,
+    "hospitalId" INTEGER NOT NULL,
+    "name" TEXT NOT NULL,
+    "description" TEXT,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "PatientRegistry_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "RegistryCriteria" (
+    "id" SERIAL NOT NULL,
+    "registryId" INTEGER NOT NULL,
+    "type" TEXT NOT NULL,
+    "operator" TEXT NOT NULL,
+    "value" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "RegistryCriteria_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "PatientRegistryMembership" (
+    "id" SERIAL NOT NULL,
+    "registryId" INTEGER NOT NULL,
+    "patientId" INTEGER NOT NULL,
+    "joinedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "status" TEXT NOT NULL DEFAULT 'ACTIVE',
+
+    CONSTRAINT "PatientRegistryMembership_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "CareGapRule" (
+    "id" SERIAL NOT NULL,
+    "registryId" INTEGER NOT NULL,
+    "name" TEXT NOT NULL,
+    "description" TEXT,
+    "targetType" TEXT NOT NULL,
+    "targetValue" TEXT NOT NULL,
+    "frequencyDays" INTEGER NOT NULL,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "CareGapRule_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "CareGap" (
+    "id" SERIAL NOT NULL,
+    "ruleId" INTEGER NOT NULL,
+    "patientId" INTEGER NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'OPEN',
+    "dueDate" TIMESTAMP(3) NOT NULL,
+    "closedAt" TIMESTAMP(3),
+    "closureReason" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "CareGap_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "TelehealthSession" (
+    "id" SERIAL NOT NULL,
+    "appointmentId" INTEGER NOT NULL,
+    "hostToken" TEXT NOT NULL,
+    "guestToken" TEXT NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'SCHEDULED',
+    "startedAt" TIMESTAMP(3),
+    "endedAt" TIMESTAMP(3),
+    "roomUrl" TEXT,
+    "recordingUrl" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "TelehealthSession_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Resource" (
+    "id" SERIAL NOT NULL,
+    "hospitalId" INTEGER NOT NULL,
+    "departmentId" INTEGER,
+    "name" TEXT NOT NULL,
+    "type" TEXT NOT NULL,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Resource_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ResourceBooking" (
+    "id" SERIAL NOT NULL,
+    "resourceId" INTEGER NOT NULL,
+    "encounterId" INTEGER,
+    "title" TEXT,
+    "scheduledStart" TIMESTAMP(3) NOT NULL,
+    "scheduledEnd" TIMESTAMP(3) NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'CONFIRMED',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ResourceBooking_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Waitlist" (
+    "id" SERIAL NOT NULL,
+    "hospitalId" INTEGER NOT NULL,
+    "patientId" INTEGER NOT NULL,
+    "resourceId" INTEGER,
+    "departmentId" INTEGER,
+    "doctorId" INTEGER,
+    "priority" INTEGER NOT NULL DEFAULT 3,
+    "requestedDate" TIMESTAMP(3),
+    "status" TEXT NOT NULL DEFAULT 'WAITING',
+    "notes" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Waitlist_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Organization_code_key" ON "Organization"("code");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "OrgSetting_organizationId_key_key" ON "OrgSetting"("organizationId", "key");
+
 -- CreateIndex
 CREATE UNIQUE INDEX "Hospital_code_key" ON "Hospital"("code");
 
@@ -3226,6 +3559,9 @@ CREATE UNIQUE INDEX "Specialty_code_key" ON "Specialty"("code");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "ServiceItem_code_key" ON "ServiceItem"("code");
+
+-- CreateIndex
+CREATE INDEX "ServiceItem_cptCode_idx" ON "ServiceItem"("cptCode");
 
 -- CreateIndex
 CREATE INDEX "Invoice_hospitalId_status_idx" ON "Invoice"("hospitalId", "status");
@@ -3859,6 +4195,111 @@ CREATE INDEX "MedicationRefillRequest_patientId_status_idx" ON "MedicationRefill
 
 -- CreateIndex
 CREATE INDEX "MedicationRefillRequest_hospitalId_status_idx" ON "MedicationRefillRequest"("hospitalId", "status");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Claim_claimNumber_key" ON "Claim"("claimNumber");
+
+-- CreateIndex
+CREATE INDEX "Claim_hospitalId_status_idx" ON "Claim"("hospitalId", "status");
+
+-- CreateIndex
+CREATE INDEX "Claim_invoiceId_idx" ON "Claim"("invoiceId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ClaimBatch_batchNumber_key" ON "ClaimBatch"("batchNumber");
+
+-- CreateIndex
+CREATE INDEX "ClaimBatch_hospitalId_status_idx" ON "ClaimBatch"("hospitalId", "status");
+
+-- CreateIndex
+CREATE INDEX "ClaimScrubResult_claimId_idx" ON "ClaimScrubResult"("claimId");
+
+-- CreateIndex
+CREATE INDEX "ClaimHistory_claimId_idx" ON "ClaimHistory"("claimId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "InsuranceContract_contractNumber_key" ON "InsuranceContract"("contractNumber");
+
+-- CreateIndex
+CREATE INDEX "InsuranceContract_hospitalId_insuranceProviderId_idx" ON "InsuranceContract"("hospitalId", "insuranceProviderId");
+
+-- CreateIndex
+CREATE INDEX "InsuranceContract_hospitalId_status_idx" ON "InsuranceContract"("hospitalId", "status");
+
+-- CreateIndex
+CREATE INDEX "InsuranceContract_effectiveFrom_effectiveTo_idx" ON "InsuranceContract"("effectiveFrom", "effectiveTo");
+
+-- CreateIndex
+CREATE INDEX "ContractBenefit_contractId_serviceType_idx" ON "ContractBenefit"("contractId", "serviceType");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ContractBenefit_contractId_serviceType_serviceCode_key" ON "ContractBenefit"("contractId", "serviceType", "serviceCode");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ERATransaction_eraNumber_key" ON "ERATransaction"("eraNumber");
+
+-- CreateIndex
+CREATE INDEX "ERATransaction_hospitalId_status_idx" ON "ERATransaction"("hospitalId", "status");
+
+-- CreateIndex
+CREATE INDEX "ERATransaction_insuranceProviderId_idx" ON "ERATransaction"("insuranceProviderId");
+
+-- CreateIndex
+CREATE INDEX "ERATransaction_receivedAt_idx" ON "ERATransaction"("receivedAt");
+
+-- CreateIndex
+CREATE INDEX "ERALineItem_eraId_idx" ON "ERALineItem"("eraId");
+
+-- CreateIndex
+CREATE INDEX "ERALineItem_claimNumber_idx" ON "ERALineItem"("claimNumber");
+
+-- CreateIndex
+CREATE INDEX "ERALineItem_claimId_idx" ON "ERALineItem"("claimId");
+
+-- CreateIndex
+CREATE INDEX "PatientRegistry_hospitalId_idx" ON "PatientRegistry"("hospitalId");
+
+-- CreateIndex
+CREATE INDEX "RegistryCriteria_registryId_idx" ON "RegistryCriteria"("registryId");
+
+-- CreateIndex
+CREATE INDEX "PatientRegistryMembership_patientId_idx" ON "PatientRegistryMembership"("patientId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "PatientRegistryMembership_registryId_patientId_key" ON "PatientRegistryMembership"("registryId", "patientId");
+
+-- CreateIndex
+CREATE INDEX "CareGapRule_registryId_idx" ON "CareGapRule"("registryId");
+
+-- CreateIndex
+CREATE INDEX "CareGap_patientId_status_idx" ON "CareGap"("patientId", "status");
+
+-- CreateIndex
+CREATE INDEX "CareGap_ruleId_status_idx" ON "CareGap"("ruleId", "status");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "TelehealthSession_appointmentId_key" ON "TelehealthSession"("appointmentId");
+
+-- CreateIndex
+CREATE INDEX "Resource_hospitalId_type_idx" ON "Resource"("hospitalId", "type");
+
+-- CreateIndex
+CREATE INDEX "ResourceBooking_resourceId_scheduledStart_idx" ON "ResourceBooking"("resourceId", "scheduledStart");
+
+-- CreateIndex
+CREATE INDEX "Waitlist_hospitalId_status_priority_idx" ON "Waitlist"("hospitalId", "status", "priority");
+
+-- CreateIndex
+CREATE INDEX "Waitlist_resourceId_status_idx" ON "Waitlist"("resourceId", "status");
+
+-- AddForeignKey
+ALTER TABLE "Organization" ADD CONSTRAINT "Organization_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "Organization"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "OrgSetting" ADD CONSTRAINT "OrgSetting_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Hospital" ADD CONSTRAINT "Hospital_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Department" ADD CONSTRAINT "Department_costCenterId_fkey" FOREIGN KEY ("costCenterId") REFERENCES "CostCenter"("id") ON DELETE SET NULL ON UPDATE CASCADE;
@@ -5074,3 +5515,94 @@ ALTER TABLE "MedicationRefillRequest" ADD CONSTRAINT "MedicationRefillRequest_ho
 
 -- AddForeignKey
 ALTER TABLE "MedicationRefillRequest" ADD CONSTRAINT "MedicationRefillRequest_reviewedById_fkey" FOREIGN KEY ("reviewedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Claim" ADD CONSTRAINT "Claim_hospitalId_fkey" FOREIGN KEY ("hospitalId") REFERENCES "Hospital"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Claim" ADD CONSTRAINT "Claim_invoiceId_fkey" FOREIGN KEY ("invoiceId") REFERENCES "Invoice"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Claim" ADD CONSTRAINT "Claim_batchId_fkey" FOREIGN KEY ("batchId") REFERENCES "ClaimBatch"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ClaimBatch" ADD CONSTRAINT "ClaimBatch_hospitalId_fkey" FOREIGN KEY ("hospitalId") REFERENCES "Hospital"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ClaimBatch" ADD CONSTRAINT "ClaimBatch_providerId_fkey" FOREIGN KEY ("providerId") REFERENCES "InsuranceProvider"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ClaimScrubResult" ADD CONSTRAINT "ClaimScrubResult_claimId_fkey" FOREIGN KEY ("claimId") REFERENCES "Claim"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ClaimHistory" ADD CONSTRAINT "ClaimHistory_claimId_fkey" FOREIGN KEY ("claimId") REFERENCES "Claim"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "InsuranceContract" ADD CONSTRAINT "InsuranceContract_hospitalId_fkey" FOREIGN KEY ("hospitalId") REFERENCES "Hospital"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "InsuranceContract" ADD CONSTRAINT "InsuranceContract_insuranceProviderId_fkey" FOREIGN KEY ("insuranceProviderId") REFERENCES "InsuranceProvider"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ContractBenefit" ADD CONSTRAINT "ContractBenefit_contractId_fkey" FOREIGN KEY ("contractId") REFERENCES "InsuranceContract"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ERATransaction" ADD CONSTRAINT "ERATransaction_hospitalId_fkey" FOREIGN KEY ("hospitalId") REFERENCES "Hospital"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ERATransaction" ADD CONSTRAINT "ERATransaction_insuranceProviderId_fkey" FOREIGN KEY ("insuranceProviderId") REFERENCES "InsuranceProvider"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ERALineItem" ADD CONSTRAINT "ERALineItem_eraId_fkey" FOREIGN KEY ("eraId") REFERENCES "ERATransaction"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PatientRegistry" ADD CONSTRAINT "PatientRegistry_hospitalId_fkey" FOREIGN KEY ("hospitalId") REFERENCES "Hospital"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "RegistryCriteria" ADD CONSTRAINT "RegistryCriteria_registryId_fkey" FOREIGN KEY ("registryId") REFERENCES "PatientRegistry"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PatientRegistryMembership" ADD CONSTRAINT "PatientRegistryMembership_registryId_fkey" FOREIGN KEY ("registryId") REFERENCES "PatientRegistry"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PatientRegistryMembership" ADD CONSTRAINT "PatientRegistryMembership_patientId_fkey" FOREIGN KEY ("patientId") REFERENCES "Patient"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CareGapRule" ADD CONSTRAINT "CareGapRule_registryId_fkey" FOREIGN KEY ("registryId") REFERENCES "PatientRegistry"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CareGap" ADD CONSTRAINT "CareGap_ruleId_fkey" FOREIGN KEY ("ruleId") REFERENCES "CareGapRule"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CareGap" ADD CONSTRAINT "CareGap_patientId_fkey" FOREIGN KEY ("patientId") REFERENCES "Patient"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "TelehealthSession" ADD CONSTRAINT "TelehealthSession_appointmentId_fkey" FOREIGN KEY ("appointmentId") REFERENCES "Appointment"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Resource" ADD CONSTRAINT "Resource_hospitalId_fkey" FOREIGN KEY ("hospitalId") REFERENCES "Hospital"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Resource" ADD CONSTRAINT "Resource_departmentId_fkey" FOREIGN KEY ("departmentId") REFERENCES "Department"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ResourceBooking" ADD CONSTRAINT "ResourceBooking_resourceId_fkey" FOREIGN KEY ("resourceId") REFERENCES "Resource"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ResourceBooking" ADD CONSTRAINT "ResourceBooking_encounterId_fkey" FOREIGN KEY ("encounterId") REFERENCES "Encounter"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Waitlist" ADD CONSTRAINT "Waitlist_hospitalId_fkey" FOREIGN KEY ("hospitalId") REFERENCES "Hospital"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Waitlist" ADD CONSTRAINT "Waitlist_patientId_fkey" FOREIGN KEY ("patientId") REFERENCES "Patient"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Waitlist" ADD CONSTRAINT "Waitlist_resourceId_fkey" FOREIGN KEY ("resourceId") REFERENCES "Resource"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Waitlist" ADD CONSTRAINT "Waitlist_departmentId_fkey" FOREIGN KEY ("departmentId") REFERENCES "Department"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Waitlist" ADD CONSTRAINT "Waitlist_doctorId_fkey" FOREIGN KEY ("doctorId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
