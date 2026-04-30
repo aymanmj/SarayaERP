@@ -34,6 +34,11 @@ describe('PatientsService', () => {
         create: jest.fn(),
         delete: jest.fn(),
       },
+      globalPatient: {
+        findUnique: jest.fn(),
+        create: jest.fn().mockResolvedValue({ id: 100 }),
+        update: jest.fn().mockResolvedValue({ id: 100 }),
+      },
       $transaction: jest.fn((arg: any) => {
         if (Array.isArray(arg)) {
           return Promise.all(arg);
@@ -78,7 +83,7 @@ describe('PatientsService', () => {
       expect(prisma.patient.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
-            mrn: expect.stringMatching(/^MRN-\d{4}$/),
+            mrn: expect.stringMatching(/^H\d+-MRN-\d{4}$/),
             fullName: 'أحمد محمد',
           }),
         }),
@@ -88,7 +93,7 @@ describe('PatientsService', () => {
     it('should increment MRN based on last patient', async () => {
       // Last patient has MRN-0005
       prisma.patient.findFirst
-        .mockResolvedValueOnce({ mrn: 'MRN-0005' })  // generateNextMrn: findFirst for last patient
+        .mockResolvedValueOnce({ mrn: 'H1-MRN-0005' })  // generateNextMrn: findFirst for last patient
         .mockResolvedValueOnce(null);                   // generateNextMrn: collision check (MRN-0006 available)
 
       prisma.patient.create.mockImplementation((args: any) => ({
@@ -101,7 +106,7 @@ describe('PatientsService', () => {
       expect(prisma.patient.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
-            mrn: 'MRN-0006',
+            mrn: 'H1-MRN-0006',
           }),
         }),
       );

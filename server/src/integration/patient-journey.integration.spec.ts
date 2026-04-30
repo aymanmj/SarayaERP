@@ -61,6 +61,11 @@ describe('Patient Journey Integration Tests', () => {
         create: jest.fn(),
         findMany: jest.fn(),
       },
+      globalPatient: {
+        findUnique: jest.fn(),
+        create: jest.fn().mockResolvedValue({ id: 100 }),
+        update: jest.fn().mockResolvedValue({ id: 100 }),
+      },
       $transaction: jest.fn(async (fn: any) => fn(prisma)),
     };
 
@@ -91,11 +96,11 @@ describe('Patient Journey Integration Tests', () => {
 
   it('creates a patient, opens an ER encounter with billing, then records a visit', async () => {
     prisma.patient.findFirst
-      .mockResolvedValueOnce({ mrn: 'MRN-0007' })
+      .mockResolvedValueOnce({ mrn: 'H1-MRN-0007' })
       .mockResolvedValueOnce(null);
     prisma.patient.create.mockResolvedValue({
       id: 15,
-      mrn: 'MRN-0008',
+      mrn: 'H1-MRN-0008',
       fullName: 'Ahmed Ali',
       hospitalId: 1,
     });
@@ -126,7 +131,7 @@ describe('Patient Journey Integration Tests', () => {
         hospitalId: 1,
         type: 'ER',
         status: 'OPEN',
-        patient: { fullName: 'Ahmed Ali', mrn: 'MRN-0008' },
+        patient: { fullName: 'Ahmed Ali', mrn: 'H1-MRN-0008' },
         doctor: null,
         department: null,
       })
@@ -161,7 +166,7 @@ describe('Patient Journey Integration Tests', () => {
       notes: 'Initial ER assessment',
     });
 
-    expect(patient.mrn).toBe('MRN-0008');
+    expect(patient.mrn).toBe('H1-MRN-0008');
     expect(prisma.invoice.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         hospitalId: 1,
