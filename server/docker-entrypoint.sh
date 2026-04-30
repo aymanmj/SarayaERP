@@ -32,7 +32,25 @@ while [ $RETRIES -gt 0 ]; do
     break
   fi
 
-  # ── Detect persistent migration errors (P3009, P3018, etc) ──
+  # ── Detect P3005: Database not empty (Baselining required) ──
+  if echo "$OUTPUT" | grep -q "P3005"; then
+    echo "⚠️  P3005 detected: Database has tables but no migration history."
+    echo "🛠️  Auto-baselining database with initial migration..."
+    
+    # Resolve the init migration to mark it as applied
+    npx prisma migrate resolve --applied 00000000000000_init
+    
+    if [ $? -eq 0 ]; then
+      echo "✅ Database successfully baselined! Retrying deploy..."
+      RETRIES=$((RETRIES-1))
+      continue
+    else
+      echo "❌ Fatal: Failed to baseline database."
+      exit 1
+    fi
+  fi
+
+  # ── Detect persistent migration errors (P3009, P3018, P3014, P3004) ──
   if echo "$OUTPUT" | grep -qE "P3009|P3018|P3014|P3004"; then
     echo "⚠️  Prisma Migration Error detected. Checking if safe to apply RADICAL RESOLUTION..."
 
@@ -63,6 +81,10 @@ while [ $RETRIES -gt 0 ]; do
       
       if [ $? -eq 0 ]; then
         echo "✅ Schema forcefully synchronized! Bypassed corrupted migration files successfully."
+        
+        # Now baseline it so it doesn't throw P3005 on next restart
+        npx prisma migrate resolve --applied 00000000000000_init >/dev/null 2>&1
+        
         MIGRATE_SUCCESS=true
         break
       else
