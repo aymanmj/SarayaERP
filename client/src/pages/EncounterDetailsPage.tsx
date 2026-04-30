@@ -68,6 +68,7 @@ type Patient = {
   mrn: string;
   gender?: "MALE" | "FEMALE" | "OTHER" | null;
   dateOfBirth?: string | null;
+  globalPatient?: { id: number } | null;
 };
 
 type Visit = {
@@ -632,6 +633,11 @@ export default function EncounterDetailsPage() {
             <span className="bg-sky-900/30 text-sky-300 border border-sky-500/30 px-2 py-0.5 rounded text-xs font-mono">
               {encounter.patient?.mrn}
             </span>
+            {encounter.patient?.globalPatient && (
+              <span className="bg-violet-900/30 text-violet-300 border border-violet-500/30 px-2 py-0.5 rounded text-[10px] font-bold">
+                🌐 MPI
+              </span>
+            )}
             <Link
               to={`/patients/${encounter.patientId}/chart`}
               className="bg-emerald-900/30 text-emerald-300 border border-emerald-500/30 px-2.5 py-0.5 rounded text-xs font-bold hover:bg-emerald-800/40 transition-colors flex items-center gap-1"

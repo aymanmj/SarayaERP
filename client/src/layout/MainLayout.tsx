@@ -658,7 +658,10 @@ export function MainLayout() {
       title: "الربط والتكامل",
       icon: <Icons.Network />,
       allowedRoles: [],
-      items: [{ label: "إدارة الأجهزة (LIS/PACS)", path: "/integration", access: "integration:manage" }],
+      items: [
+        { label: "🌐 السجل الوطني (MPI)", path: "/settings", access: "admin:settings:manage" },
+        { label: "إدارة الأجهزة (LIS/PACS)", path: "/integration", access: "integration:manage" },
+      ],
     },
     {
       key: "settings",
@@ -666,7 +669,7 @@ export function MainLayout() {
       icon: <Icons.Settings />,
       allowedRoles: [],
       items: [
-        { label: "الإعدادات العامة", path: "/settings", access: "admin:settings:manage" },
+        { label: "🏛️ المؤسسة والفروع", path: "/settings", access: "admin:settings:manage" },
         { label: "إعدادات النظام", path: "/settings/system", access: "admin:settings:manage" },
         { label: "الأقسام (Departments)", path: "/settings/departments", access: "admin:settings:manage" },
         { label: "التخصصات (Specialties)", path: "/settings/specialties", access: "admin:settings:manage" },

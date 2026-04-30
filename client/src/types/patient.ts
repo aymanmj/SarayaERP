@@ -8,6 +8,22 @@ export interface PatientInsurancePolicy {
   provider: { id: number; name: string };
 }
 
+export interface GlobalPatientRef {
+  id: number;
+  fullName: string;
+}
+
+export interface GlobalPatientSearchResult {
+  found: boolean;
+  patient: {
+    id: number;
+    fullName: string;
+    dateOfBirth: string | null;
+    gender: Gender;
+    identityType: string | null;
+  } | null;
+}
+
 export interface Patient {
   id: number;
   mrn: string;
@@ -22,6 +38,7 @@ export interface Patient {
   insurancePolicyId: number | null;
   insuranceMemberId: string | null;
   insurancePolicy?: PatientInsurancePolicy | null;
+  globalPatient?: GlobalPatientRef | null;
   // Additional fields for extended patient info
   motherName?: string | null;
   familyBooklet?: string | null;

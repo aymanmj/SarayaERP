@@ -1493,6 +1493,57 @@ async function main() {
       group: 'MEDICAL',
       description: 'اللغة الافتراضية للتقارير الطبية',
     },
+    // MPI (Master Patient Index) Settings
+    {
+      key: 'mpi.autoLinkEnabled',
+      value: 'true',
+      type: 'BOOLEAN',
+      group: 'MPI',
+      description: 'تفعيل الربط التلقائي مع السجل الوطني الموحد للمرضى',
+    },
+    {
+      key: 'mpi.searchOnRegister',
+      value: 'true',
+      type: 'BOOLEAN',
+      group: 'MPI',
+      description: 'البحث التلقائي في الشبكة الوطنية عند تسجيل مريض جديد',
+    },
+    {
+      key: 'mpi.shareDataConsent',
+      value: 'true',
+      type: 'BOOLEAN',
+      group: 'MPI',
+      description: 'مشاركة البيانات الديموغرافية مع الشبكة الوطنية (يتطلب موافقة المريض)',
+    },
+    // OTP Settings (Disabled by default)
+    {
+      key: 'otp.enabled',
+      value: 'false',
+      type: 'BOOLEAN',
+      group: 'OTP',
+      description: 'تفعيل رسائل التحقق OTP عند تسجيل/ربط المريض بالسجل الوطني',
+    },
+    {
+      key: 'otp.channel',
+      value: 'console',
+      type: 'STRING',
+      group: 'OTP',
+      description: 'قناة إرسال OTP (console / telegram / sms)',
+    },
+    {
+      key: 'otp.expiryMinutes',
+      value: '5',
+      type: 'NUMBER',
+      group: 'OTP',
+      description: 'مدة صلاحية رمز التحقق بالدقائق',
+    },
+    {
+      key: 'otp.maxAttempts',
+      value: '3',
+      type: 'NUMBER',
+      group: 'OTP',
+      description: 'الحد الأقصى لمحاولات إدخال رمز التحقق',
+    },
   ];
 
   for (const s of defaultSettings) {

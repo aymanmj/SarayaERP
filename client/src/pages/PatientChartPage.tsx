@@ -27,6 +27,7 @@ type ClinicalSummary = {
     maritalStatus: string | null;
     notes: string | null;
     createdAt: string;
+    globalPatient?: { id: number; fullName: string } | null;
   };
   problems: any[];
   medicalHistory: {
@@ -172,6 +173,11 @@ export default function PatientChartPage() {
                 <span className="bg-sky-900/40 text-sky-300 border border-sky-600/30 px-2.5 py-0.5 rounded-lg text-xs font-mono">
                   {patient.mrn}
                 </span>
+                {patient.globalPatient && (
+                  <span className="bg-violet-900/40 text-violet-300 border border-violet-600/30 px-2.5 py-0.5 rounded-lg text-[10px] font-bold flex items-center gap-1">
+                    🌐 MPI #{patient.globalPatient.id}
+                  </span>
+                )}
               </div>
               <div className="flex items-center gap-3 text-xs text-slate-400 flex-wrap">
                 {age !== null && <span>{age} سنة</span>}

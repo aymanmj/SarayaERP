@@ -105,6 +105,28 @@ export class PatientsController {
     });
   }
 
+  // MPI: Search the National Patient Network
+  @Get('search-global')
+  @Roles('ADMIN', 'RECEPTION')
+  async searchGlobalPatient(
+    @Query('query') query: string,
+  ) {
+    if (!query || query.trim() === '') return { found: false, patient: null };
+    const globalPatient = await this.patientsService.searchGlobal(query.trim());
+    return {
+      found: !!globalPatient,
+      patient: globalPatient
+        ? {
+            id: globalPatient.id,
+            fullName: globalPatient.fullName,
+            dateOfBirth: globalPatient.dateOfBirth,
+            gender: globalPatient.gender,
+            identityType: globalPatient.identityType,
+          }
+        : null,
+    };
+  }
+
   @Get('search')
   @Roles('ADMIN', 'RECEPTION', 'DOCTOR', 'NURSE', 'CASHIER')
   async searchPatients(
@@ -239,124 +261,3 @@ export class PatientsController {
     return this.patientsService.removeAllergy(user.hospitalId, id);
   }
 }
-
-// import {
-//   Body,
-//   Controller,
-//   Delete,
-//   Get,
-//   Param,
-//   Patch,
-//   Post,
-//   UseGuards,
-//   BadRequestException,
-// } from '@nestjs/common';
-// import { PatientsService } from './patients.service';
-// import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-// import { Roles } from '../auth/roles.decorator';
-// import { RolesGuard } from '../auth/roles.guard';
-// import { CurrentUser } from '../auth/current-user.decorator';
-// import type { JwtPayload } from '../auth/jwt-payload.type';
-
-// @UseGuards(JwtAuthGuard, RolesGuard)
-// @Controller('patients')
-// export class PatientsController {
-//   constructor(private readonly patientsService: PatientsService) {}
-
-//   @Post()
-//   @Roles('ADMIN', 'RECEPTION')
-//   create(@Body() body: any, @CurrentUser() user: JwtPayload) {
-//     // تحويل تاريخ الميلاد لو أرسلناه كسلسلة
-//     let dob: Date | undefined;
-//     if (body.dateOfBirth) {
-//       const d = new Date(body.dateOfBirth);
-//       if (Number.isNaN(d.getTime())) {
-//         throw new BadRequestException('تاريخ الميلاد غير صالح');
-//       }
-//       dob = d;
-//     }
-
-//     return this.patientsService.create(user.hospitalId, {
-//       fullName: body.fullName,
-//       nationalId: body.nationalId || undefined,
-//       dateOfBirth: dob,
-//       gender: body.gender || undefined,
-//       phone: body.phone || undefined,
-//       address: body.address || undefined,
-//       email: body.email || undefined,
-//       notes: body.notes || undefined,
-//       // لا نرسل mrn ولا hospital هنا، الخدمة تضيفهما
-//     });
-//   }
-
-//   @Get()
-//   @Roles('ADMIN', 'RECEPTION', 'DOCTOR', 'NURSE')
-//   findAll(@CurrentUser() user: JwtPayload) {
-//     return this.patientsService.findAll(user.hospitalId);
-//   }
-
-//   // @Get(':id')
-//   // @Roles('ADMIN', 'RECEPTION', 'DOCTOR', 'NURSE')
-//   // findOne(@Param('id') id: string) {
-//   //   return this.patientsService.findOne(Number(id));
-//   // }
-
-//   @Get(':id')
-//   @Roles('ADMIN', 'DOCTOR', 'RECEPTION', 'NURSE') // أو أي صلاحيات تحبها
-//   findOne(
-//     @Param('id') id: string,
-//     @CurrentUser() user: JwtPayload,
-//   ) {
-//     const pid = Number(id);
-//     if (!pid || Number.isNaN(pid)) {
-//       throw new BadRequestException('رقم المريض غير صحيح');
-//     }
-
-//     return this.patientsService.findOne(user.hospitalId, pid);
-//   }
-
-//   // @Patch(':id')
-//   // @Roles('ADMIN', 'RECEPTION')
-//   // update(@Param('id') id: string, @Body() body: any) {
-//   //   return this.patientsService.update(Number(id), body);
-//   // }
-
-//   @Patch(':id')
-//   @Roles('ADMIN', 'RECEPTION')
-//   update(
-//     @Param('id') id: string,
-//     @Body() body: any,
-//     @CurrentUser() user: JwtPayload,
-//   ) {
-//     const pid = Number(id);
-//     if (!pid || Number.isNaN(pid)) {
-//       throw new BadRequestException('رقم المريض غير صحيح');
-//     }
-
-//     return this.patientsService.update(user.hospitalId, pid, body);
-//   }
-
-//   // @Delete(':id')
-//   // @Roles('ADMIN')
-//   // delete(@Param('id') id: string) {
-//   //   return this.patientsService.softDelete(Number(id));
-//   // }
-
-//   @Delete(':id')
-//   @Roles('ADMIN')
-//   async softDelete(
-//     @Param('id') id: string,
-//     @CurrentUser() user: JwtPayload,
-//   ) {
-//     const pid = Number(id);
-//     if (!pid || Number.isNaN(pid)) {
-//       throw new BadRequestException('رقم المريض غير صحيح');
-//     }
-
-//     return this.patientsService.softDelete(
-//       user.hospitalId,
-//       pid,
-//       user.sub,
-//     );
-//   }
-// }

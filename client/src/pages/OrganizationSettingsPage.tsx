@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { apiClient } from "../api/apiClient";
 import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
 import { Building2, Globe, Mail, Phone, MapPin, CheckCircle2, Save, RefreshCw, Printer, FileCheck } from "lucide-react";
 import type { OrganizationSettings } from "../types/organization";
 
@@ -20,6 +21,16 @@ export default function OrganizationSettingsPage() {
   const [settings, setSettings] = useState<OrganizationSettings>(emptySettings);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  // MPI Network Data
+  const { data: networkData } = useQuery({
+    queryKey: ["organization-network"],
+    queryFn: async () => {
+      const res = await apiClient.get("/settings/organization/network");
+      return res.data;
+    },
+    staleTime: 1000 * 60 * 2,
+  });
 
   const loadSettings = async () => {
     setLoading(true);
@@ -299,6 +310,106 @@ export default function OrganizationSettingsPage() {
           </div>
         </div>
       </div>
+
+      {/* === MPI Network Dashboard === */}
+      {networkData && (
+        <div className="space-y-5 mt-2">
+          {/* MPI Stats Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-slate-900/60 border border-violet-800/30 rounded-2xl p-4 text-center">
+              <div className="text-3xl font-black text-violet-400">{networkData.mpiStats?.globalPatientCount ?? 0}</div>
+              <div className="text-[10px] text-slate-500 mt-1 font-bold">🌐 سجل وطني (MPI)</div>
+            </div>
+            <div className="bg-slate-900/60 border border-sky-800/30 rounded-2xl p-4 text-center">
+              <div className="text-3xl font-black text-sky-400">{networkData.mpiStats?.localPatientCount ?? 0}</div>
+              <div className="text-[10px] text-slate-500 mt-1 font-bold">📋 مرضى الفرع الحالي</div>
+            </div>
+            <div className="bg-slate-900/60 border border-emerald-800/30 rounded-2xl p-4 text-center">
+              <div className="text-3xl font-black text-emerald-400">{networkData.mpiStats?.linkedPatientCount ?? 0}</div>
+              <div className="text-[10px] text-slate-500 mt-1 font-bold">🔗 مرتبطين بالشبكة</div>
+            </div>
+            <div className="bg-slate-900/60 border border-amber-800/30 rounded-2xl p-4 text-center">
+              <div className="text-3xl font-black text-amber-400">{networkData.mpiStats?.linkPercentage ?? 0}%</div>
+              <div className="text-[10px] text-slate-500 mt-1 font-bold">📊 نسبة الربط</div>
+            </div>
+          </div>
+
+          {/* Organization & Branches */}
+          <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-48 h-48 bg-violet-500/5 rounded-full blur-3xl pointer-events-none" />
+            <h2 className="text-base font-bold text-slate-200 mb-5 flex items-center gap-2 relative z-10">
+              <div className="p-1.5 bg-violet-500/20 text-violet-400 rounded-lg">
+                <Globe className="w-4 h-4" />
+              </div>
+              الشبكة الوطنية والفروع
+            </h2>
+
+            {networkData.organization ? (
+              <div className="space-y-4 relative z-10">
+                {/* Parent Organization */}
+                <div className="flex items-center gap-3 bg-slate-950/50 border border-slate-800 rounded-xl p-4">
+                  <div className="w-10 h-10 bg-violet-500/20 text-violet-400 rounded-xl flex items-center justify-center text-lg font-black">
+                    🏛️
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-sm font-bold text-white">{networkData.organization.name}</div>
+                    <div className="text-[10px] text-slate-500 flex items-center gap-2 mt-0.5">
+                      <span>كود: {networkData.organization.code}</span>
+                      <span>•</span>
+                      <span>النوع: {networkData.organization.type === 'NETWORK' ? 'شبكة مستشفيات' : networkData.organization.type === 'MEDICAL_CITY' ? 'مدينة طبية' : 'مستشفى'}</span>
+                      <span>•</span>
+                      <span>{networkData.organization.country} / {networkData.organization.currency}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Branches Table */}
+                {networkData.branches?.length > 0 && (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm text-right">
+                      <thead className="text-[10px] uppercase text-slate-500 bg-slate-950/50 border-b border-slate-800">
+                        <tr>
+                          <th className="px-4 py-3 font-bold">الكود</th>
+                          <th className="px-4 py-3 font-bold">اسم الفرع</th>
+                          <th className="px-4 py-3 font-bold">المدينة</th>
+                          <th className="px-4 py-3 font-bold text-center">المرضى</th>
+                          <th className="px-4 py-3 font-bold text-center">الحالة</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800/50">
+                        {networkData.branches.map((branch: any) => (
+                          <tr key={branch.id} className={`transition-colors ${branch.isCurrent ? 'bg-violet-500/5' : 'hover:bg-white/[0.02]'}`}>
+                            <td className="px-4 py-3 font-mono text-sky-400 text-xs">{branch.code}</td>
+                            <td className="px-4 py-3">
+                              <span className="font-bold text-slate-200">{branch.name}</span>
+                              {branch.isCurrent && (
+                                <span className="mr-2 text-[9px] px-1.5 py-0.5 rounded-full bg-violet-900/30 text-violet-400 font-bold border border-violet-800/40">الفرع الحالي</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-slate-400">{branch.city || '—'}</td>
+                            <td className="px-4 py-3 text-center font-bold text-slate-300">{branch.patientCount}</td>
+                            <td className="px-4 py-3 text-center">
+                              <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${branch.isActive ? 'bg-emerald-900/30 text-emerald-400' : 'bg-slate-800 text-slate-500'}`}>
+                                {branch.isActive ? 'نشط' : 'متوقف'}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-slate-600">
+                <div className="text-3xl mb-2">🏥</div>
+                <p className="text-sm">هذا الفرع غير مرتبط بمؤسسة أم — يعمل كمنشأة مستقلة</p>
+                <p className="text-[10px] text-slate-700 mt-1">يمكن ربطه بمؤسسة لاحقاً من خلال إعدادات النظام</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -218,7 +218,7 @@ model ServiceItem {
   hospitalId        Int
   categoryId        Int?
   code              String?            @unique
-  cptCode           String?            // Standard CPT code for mapping
+  cptCode           String? // Standard CPT code for mapping
   name              String
   type              ServiceType
   defaultPrice      Decimal            @db.Decimal(18, 3)
@@ -498,7 +498,8 @@ model RolePermission {
 model Patient {
   id                    Int                @id @default(autoincrement())
   hospitalId            Int
-  mrn                   String             @unique
+  globalPatientId       Int?
+  mrn                   String
   fullName              String
   nationalId            String?
   dateOfBirth           DateTime?
@@ -539,11 +540,13 @@ model Patient {
   preAuthorizations     PreAuthorization[]
   prescriptions         Prescription[]
 
-  nationalIdHash     String? @unique
-  identityNumberHash String? @unique
-  phoneHash          String? @unique
-  emailHash          String? @unique
-  mrnHash            String? @unique
+  nationalIdHash     String?
+  identityNumberHash String?
+  phoneHash          String?
+  emailHash          String?
+  mrnHash            String?
+
+  globalPatient GlobalPatient? @relation(fields: [globalPatientId], references: [id])
 
   // Relations
   admissions       Admission[]
@@ -592,10 +595,34 @@ model Patient {
   careGaps          CareGap[]
   waitlists         Waitlist[]
 
+  @@unique([hospitalId, mrn])
   @@index([hospitalId, phone])
   @@index([hospitalId, fullName])
   @@index([nationalId])
   @@index([telegramLinkToken])
+}
+
+model GlobalPatient {
+  id             Int           @id @default(autoincrement())
+  fullName       String
+  nationalId     String?
+  dateOfBirth    DateTime?
+  gender         Gender?
+  identityType   IdentityType?
+  identityNumber String?
+
+  nationalIdHash     String? @unique
+  identityNumberHash String? @unique
+  phoneHash          String? @unique
+  emailHash          String? @unique
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  isDeleted     Boolean   @default(false)
+  localPatients Patient[]
+
+  @@index([nationalIdHash])
+  @@index([phoneHash])
 }
 
 // ============================================

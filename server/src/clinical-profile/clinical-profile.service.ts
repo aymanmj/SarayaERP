@@ -408,6 +408,9 @@ export class ClinicalProfileService {
           maritalStatus: true,
           notes: true,
           createdAt: true,
+          globalPatient: {
+            select: { id: true, fullName: true },
+          },
         },
       }),
 

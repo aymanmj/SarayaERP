@@ -1,4 +1,4 @@
-﻿-- CreateEnum
+-- CreateEnum
 CREATE TYPE "OrgType" AS ENUM ('HOSPITAL', 'CLINIC', 'POLYCLINIC', 'NETWORK', 'MEDICAL_CITY');
 
 -- CreateEnum
@@ -544,9 +544,30 @@ CREATE TABLE "RolePermission" (
 );
 
 -- CreateTable
+CREATE TABLE "GlobalPatient" (
+    "id" SERIAL NOT NULL,
+    "fullName" TEXT NOT NULL,
+    "nationalId" TEXT,
+    "dateOfBirth" TIMESTAMP(3),
+    "gender" "Gender",
+    "identityType" "IdentityType",
+    "identityNumber" TEXT,
+    "nationalIdHash" TEXT,
+    "identityNumberHash" TEXT,
+    "phoneHash" TEXT,
+    "emailHash" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "isDeleted" BOOLEAN NOT NULL DEFAULT false,
+
+    CONSTRAINT "GlobalPatient_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "Patient" (
     "id" SERIAL NOT NULL,
     "hospitalId" INTEGER NOT NULL,
+    "globalPatientId" INTEGER,
     "mrn" TEXT NOT NULL,
     "fullName" TEXT NOT NULL,
     "nationalId" TEXT,
@@ -3596,23 +3617,26 @@ CREATE UNIQUE INDEX "UserRole_userId_roleId_key" ON "UserRole"("userId", "roleId
 -- CreateIndex
 CREATE UNIQUE INDEX "RolePermission_roleId_permissionId_key" ON "RolePermission"("roleId", "permissionId");
 
--- CreateIndex
-CREATE UNIQUE INDEX "Patient_mrn_key" ON "Patient"("mrn");
+-- CreateIndex (GlobalPatient - MPI)
+CREATE UNIQUE INDEX "GlobalPatient_nationalIdHash_key" ON "GlobalPatient"("nationalIdHash");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Patient_nationalIdHash_key" ON "Patient"("nationalIdHash");
+CREATE UNIQUE INDEX "GlobalPatient_identityNumberHash_key" ON "GlobalPatient"("identityNumberHash");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Patient_identityNumberHash_key" ON "Patient"("identityNumberHash");
+CREATE UNIQUE INDEX "GlobalPatient_phoneHash_key" ON "GlobalPatient"("phoneHash");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Patient_phoneHash_key" ON "Patient"("phoneHash");
+CREATE UNIQUE INDEX "GlobalPatient_emailHash_key" ON "GlobalPatient"("emailHash");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Patient_emailHash_key" ON "Patient"("emailHash");
+CREATE INDEX "GlobalPatient_nationalIdHash_idx" ON "GlobalPatient"("nationalIdHash");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Patient_mrnHash_key" ON "Patient"("mrnHash");
+CREATE INDEX "GlobalPatient_phoneHash_idx" ON "GlobalPatient"("phoneHash");
+
+-- CreateIndex (Patient - Local per Hospital)
+CREATE UNIQUE INDEX "Patient_hospitalId_mrn_key" ON "Patient"("hospitalId", "mrn");
 
 -- CreateIndex
 CREATE INDEX "Patient_hospitalId_phone_idx" ON "Patient"("hospitalId", "phone");
@@ -5606,3 +5630,5 @@ ALTER TABLE "Waitlist" ADD CONSTRAINT "Waitlist_departmentId_fkey" FOREIGN KEY (
 -- AddForeignKey
 ALTER TABLE "Waitlist" ADD CONSTRAINT "Waitlist_doctorId_fkey" FOREIGN KEY ("doctorId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
+-- AddForeignKey (MPI)
+ALTER TABLE "Patient" ADD CONSTRAINT "Patient_globalPatientId_fkey" FOREIGN KEY ("globalPatientId") REFERENCES "GlobalPatient"("id") ON DELETE SET NULL ON UPDATE CASCADE;

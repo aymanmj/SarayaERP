@@ -205,7 +205,11 @@ export class EncountersService {
     const encounter = await this.prisma.encounter.findUnique({
       where: { id },
       include: {
-        patient: true,
+        patient: {
+          include: {
+            globalPatient: { select: { id: true, fullName: true } },
+          },
+        },
         doctor: true,
         department: true,
         bedAssignments: {

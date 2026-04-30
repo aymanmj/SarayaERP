@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { apiClient } from "../api/apiClient";
 import { useNavigate } from "react-router-dom";
-import { Patient, PatientLite } from "@/types";
+import { Patient, PatientLite, GlobalPatientSearchResult } from "@/types";
 import { toast } from "sonner";
 import {
   useQuery,
@@ -81,6 +81,10 @@ export function PatientsPage() {
     insurancePolicyId: "",
     insuranceMemberId: "",
   });
+
+  // MPI: Global Patient Search State
+  const [globalMatch, setGlobalMatch] = useState<GlobalPatientSearchResult | null>(null);
+  const [searchingGlobal, setSearchingGlobal] = useState(false);
 
   // 1. Fetch Patients
   const { data: patientsData, isLoading: loadingOptions } = useQuery({
@@ -199,6 +203,34 @@ export function PatientsPage() {
       });
     }
     setModalOpen(true);
+    setGlobalMatch(null);
+  };
+
+  // MPI: Search National Network when nationalId loses focus
+  const handleNationalIdBlur = async () => {
+    const nid = formData.nationalId.trim();
+    if (!nid || nid.length < 5 || editingPatient) return;
+    setSearchingGlobal(true);
+    try {
+      const res = await apiClient.get<GlobalPatientSearchResult>("/patients/search-global", { params: { query: nid } });
+      setGlobalMatch(res.data);
+      if (res.data.found && res.data.patient) {
+        // Auto-fill from national record
+        const gp = res.data.patient;
+        setFormData(prev => ({
+          ...prev,
+          fullName: prev.fullName || gp.fullName,
+          dateOfBirth: prev.dateOfBirth || (gp.dateOfBirth ? gp.dateOfBirth.split("T")[0] : ""),
+          gender: prev.gender || gp.gender,
+          identityType: prev.identityType || gp.identityType || "PERSONAL_ID",
+        }));
+        toast.info(`✨ تم العثور على المريض في الشبكة الوطنية: ${gp.fullName}`);
+      }
+    } catch {
+      // Silent fail - network search is optional
+    } finally {
+      setSearchingGlobal(false);
+    }
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -318,8 +350,15 @@ export function PatientsPage() {
                       <div className="font-bold text-slate-100 text-base">
                         {p.fullName}
                       </div>
-                      <div className="text-[10px] text-slate-500">
-                        هاتف: {p.phone || "—"}
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-[10px] text-slate-500">
+                          هاتف: {p.phone || "—"}
+                        </span>
+                        {p.globalPatient && (
+                          <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-violet-900/30 text-violet-400 font-bold border border-violet-800/40">
+                            🌐 MPI
+                          </span>
+                        )}
                       </div>
                     </td>
                     <td className="px-6 py-4 text-center">
@@ -492,7 +531,18 @@ export function PatientsPage() {
                       className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:border-sky-500 outline-none transition-colors"
                       value={formData.nationalId}
                       onChange={(e) => setFormData({ ...formData, nationalId: e.target.value })}
+                      onBlur={handleNationalIdBlur}
+                      placeholder="أدخل الرقم الوطني للبحث في الشبكة الوطنية..."
                     />
+                    {searchingGlobal && (
+                      <p className="text-[10px] text-sky-400 mt-1 animate-pulse">🔄 جارِ البحث في الشبكة الوطنية...</p>
+                    )}
+                    {globalMatch?.found && (
+                      <p className="text-[10px] text-violet-400 mt-1 font-bold">✨ تم العثور على سجل وطني: {globalMatch.patient?.fullName}</p>
+                    )}
+                    {globalMatch && !globalMatch.found && (
+                      <p className="text-[10px] text-slate-500 mt-1">لا يوجد سجل وطني سابق — سيتم إنشاء سجل جديد</p>
+                    )}
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-slate-400 text-xs font-medium">تاريخ الميلاد</label>

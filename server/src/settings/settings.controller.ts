@@ -56,6 +56,76 @@ export class SettingsController {
     };
   }
 
+  // MPI Network Dashboard: Organization hierarchy + branches + stats
+  @Get('organization/network')
+  async getOrganizationNetwork(@CurrentUser() user: JwtPayload) {
+    const hospital = await this.prisma.hospital.findUnique({
+      where: { id: user.hospitalId },
+      include: {
+        organization: {
+          include: {
+            children: { select: { id: true, name: true, type: true } },
+            hospitals: {
+              select: {
+                id: true,
+                code: true,
+                name: true,
+                displayName: true,
+                city: true,
+                isActive: true,
+                _count: { select: { patients: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!hospital) throw new NotFoundException('المؤسسة غير موجودة.');
+
+    // MPI Stats
+    const [globalPatientCount, localPatientCount, linkedPatientCount] = await Promise.all([
+      this.prisma.globalPatient.count({ where: { isDeleted: false } }),
+      this.prisma.patient.count({ where: { hospitalId: user.hospitalId, isDeleted: false } }),
+      this.prisma.patient.count({ where: { hospitalId: user.hospitalId, isDeleted: false, globalPatientId: { not: null } } }),
+    ]);
+
+    return {
+      currentHospital: {
+        id: hospital.id,
+        code: hospital.code,
+        name: hospital.displayName || hospital.name,
+      },
+      organization: hospital.organization
+        ? {
+            id: hospital.organization.id,
+            code: hospital.organization.code,
+            name: hospital.organization.name,
+            type: hospital.organization.type,
+            country: hospital.organization.country,
+            currency: hospital.organization.currency,
+          }
+        : null,
+      branches: hospital.organization?.hospitals.map((h) => ({
+        id: h.id,
+        code: h.code,
+        name: h.displayName || h.name,
+        city: h.city,
+        isActive: h.isActive,
+        patientCount: h._count.patients,
+        isCurrent: h.id === user.hospitalId,
+      })) || [],
+      mpiStats: {
+        globalPatientCount,
+        localPatientCount,
+        linkedPatientCount,
+        linkPercentage: localPatientCount > 0
+          ? Math.round((linkedPatientCount / localPatientCount) * 100)
+          : 0,
+      },
+    };
+  }
+
   @Put('organization')
   async updateOrganization(
     @CurrentUser() user: JwtPayload,
