@@ -141,7 +141,7 @@ export class PatientsService {
       data: {
         ...patientDataToSave,
         mrn,
-        globalPatient: { connect: { id: globalPatientId } }
+        globalPatientId
       },
     });
   }
