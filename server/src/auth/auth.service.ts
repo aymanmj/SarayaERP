@@ -67,7 +67,7 @@ export class AuthService {
 
     // ✅ Multi-Branch: بناء قائمة الفروع المتاحة
     // نضيف الفرع الافتراضي (hospitalId) تلقائياً إن لم يكن موجوداً في القائمة
-    const accessibleBranches = user.accessibleHospitals
+    const accessibleBranches = (user.accessibleHospitals || [])
       .filter((a) => a.hospital.isActive)
       .map((a) => ({
         id: a.hospital.id,

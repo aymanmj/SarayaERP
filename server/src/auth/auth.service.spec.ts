@@ -28,7 +28,7 @@ describe('AuthService', () => {
     passwordHash,
     isActive: true,
     hospitalId: 1,
-    hospital: { id: 1, isActive: true, name: 'Saraya Hospital' },
+    hospital: { id: 1, isActive: true, name: 'Saraya Hospital', code: 'SH001' },
     userRoles: [
       {
         role: {
@@ -38,6 +38,12 @@ describe('AuthService', () => {
             { permission: { code: 'EDIT_PATIENTS' } },
           ],
         },
+      },
+    ],
+    accessibleHospitals: [
+      {
+        hospital: { id: 1, code: 'SH001', name: 'Saraya Hospital', isActive: true },
+        isDefault: true,
       },
     ],
     ...overrides,
