@@ -251,9 +251,22 @@ type MenuSection = {
 export function MainLayout() {
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
+  // ✅ Multi-Branch
+  const accessibleBranches = useAuthStore((s) => s.accessibleBranches);
+  const currentBranchId = useAuthStore((s) => s.currentBranchId);
+  const switchBranch = useAuthStore((s) => s.switchBranch);
+  const isSwitchingBranch = useAuthStore((s) => s.isSwitchingBranch);
+
   const location = useLocation();
   const [openSection, setOpenSection] = useState<string | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [branchMenuOpen, setBranchMenuOpen] = useState(false);
+
+  // ✅ Multi-Branch: اسم الفرع الحالي
+  const currentBranchName = useMemo(() => {
+    const branch = accessibleBranches.find((b) => b.id === currentBranchId);
+    return branch?.name || "الفرع الرئيسي";
+  }, [accessibleBranches, currentBranchId]);
 
   // License Store
   const fetchLicenseStatus = useLicenseStore((s) => s.fetchLicenseStatus);
@@ -670,6 +683,8 @@ export function MainLayout() {
       allowedRoles: [],
       items: [
         { label: "🏛️ المؤسسة والفروع", path: "/settings", access: "admin:settings:manage" },
+        { label: "🌳 الشبكة والمؤسسات", path: "/settings/organizations", access: "admin:settings:manage" },
+        { label: "🔀 وصول الفروع", path: "/settings/branch-access", access: "admin:users:manage" },
         { label: "إعدادات النظام", path: "/settings/system", access: "admin:settings:manage" },
         { label: "الأقسام (Departments)", path: "/settings/departments", access: "admin:settings:manage" },
         { label: "التخصصات (Specialties)", path: "/settings/specialties", access: "admin:settings:manage" },
@@ -869,6 +884,60 @@ export function MainLayout() {
           </div>
           <div className="flex items-center gap-4">
             <NotificationBell />
+            {/* ✅ Multi-Branch: زر تبديل الفرع */}
+            {accessibleBranches.length > 1 && (
+              <div className="relative">
+                <button
+                  onClick={() => setBranchMenuOpen(!branchMenuOpen)}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-sky-900/30 hover:bg-sky-900/50 border border-sky-700/30 text-sky-300 text-xs font-medium transition-all duration-200"
+                  title="تبديل الفرع"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M6 3v12" /><circle cx="18" cy="6" r="3" /><circle cx="6" cy="18" r="3" /><path d="M18 9a9 9 0 0 1-9 9" />
+                  </svg>
+                  <span className="hidden sm:inline max-w-[120px] truncate">
+                    {currentBranchName}
+                  </span>
+                  {isSwitchingBranch ? (
+                    <svg className="animate-spin h-3 w-3 text-sky-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                  )}
+                </button>
+                {branchMenuOpen && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setBranchMenuOpen(false)} />
+                    <div className="absolute left-0 top-full mt-2 w-56 bg-slate-900 border border-slate-700/50 rounded-xl shadow-2xl shadow-black/50 z-50 overflow-hidden backdrop-blur-xl">
+                      <div className="px-3 py-2 border-b border-slate-700/50">
+                        <div className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">تبديل الفرع</div>
+                      </div>
+                      <div className="py-1 max-h-60 overflow-y-auto custom-scrollbar">
+                        {accessibleBranches.map((branch) => (
+                          <button
+                            key={branch.id}
+                            onClick={() => {
+                              setBranchMenuOpen(false);
+                              switchBranch(branch.id);
+                            }}
+                            disabled={isSwitchingBranch || branch.id === currentBranchId}
+                            className={`w-full text-right px-4 py-2.5 text-sm transition-all duration-150 flex items-center justify-between gap-2 ${
+                              branch.id === currentBranchId
+                                ? "bg-sky-900/40 text-sky-300 font-medium"
+                                : "text-slate-300 hover:bg-slate-800/80 hover:text-white"
+                            }`}
+                          >
+                            <span className="truncate">{branch.name}</span>
+                            {branch.id === currentBranchId && (
+                              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-sky-400 flex-shrink-0"><polyline points="20 6 9 17 4 12"/></svg>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
             {user && (
               <div className="text-left text-[11px] hidden md:block">
                 <div className="text-white font-medium">{user.fullName}</div>

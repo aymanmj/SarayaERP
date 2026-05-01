@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Put,
+  Delete,
   Param,
   Body,
   UseGuards,
@@ -18,6 +19,7 @@ import { OrgType } from '@prisma/client';
 /**
  * وحدة تحكم إدارة المؤسسات (SuperAdmin)
  * تتيح إدارة الهرم التنظيمي: شبكات > مستشفيات > عيادات
+ * وإدارة وصول المستخدمين للفروع المختلفة
  */
 @Controller('organizations')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -125,5 +127,66 @@ export class TenantController {
     @Body() data: { key: string; value: string; description?: string },
   ) {
     return this.tenantService.setOrgSetting(id, data.key, data.value, data.description);
+  }
+
+  // ============================================
+  // ✅ Multi-Branch: إدارة وصول المستخدمين للفروع
+  // ============================================
+
+  /**
+   * تعيين مستخدم في فرع
+   */
+  @Post('branches/users')
+  @Permissions('organizations:update')
+  async assignUserToBranch(
+    @Body() data: { userId: number; hospitalId: number; isDefault?: boolean },
+  ) {
+    return this.tenantService.assignUserToBranch(
+      data.userId,
+      data.hospitalId,
+      data.isDefault,
+    );
+  }
+
+  /**
+   * إلغاء وصول مستخدم من فرع
+   */
+  @Delete('branches/users/:userId/:hospitalId')
+  @Permissions('organizations:update')
+  async removeUserFromBranch(
+    @Param('userId', ParseIntPipe) userId: number,
+    @Param('hospitalId', ParseIntPipe) hospitalId: number,
+  ) {
+    return this.tenantService.removeUserFromBranch(userId, hospitalId);
+  }
+
+  /**
+   * جلب كل الفروع المتاحة لمستخدم
+   */
+  @Get('branches/users/:userId')
+  @Permissions('organizations:read')
+  async getUserBranches(@Param('userId', ParseIntPipe) userId: number) {
+    return this.tenantService.getUserBranches(userId);
+  }
+
+  /**
+   * جلب كل المستخدمين المعينين في فرع
+   */
+  @Get('branches/:hospitalId/users')
+  @Permissions('organizations:read')
+  async getBranchUsers(@Param('hospitalId', ParseIntPipe) hospitalId: number) {
+    return this.tenantService.getBranchUsers(hospitalId);
+  }
+
+  /**
+   * تعيين مجموعة فروع لمستخدم (Bulk)
+   */
+  @Put('branches/users/:userId')
+  @Permissions('organizations:update')
+  async setUserBranches(
+    @Param('userId', ParseIntPipe) userId: number,
+    @Body() data: { branches: { hospitalId: number; isDefault?: boolean }[] },
+  ) {
+    return this.tenantService.setUserBranches(userId, data.branches);
   }
 }

@@ -172,4 +172,151 @@ export class TenantService {
       orderBy: { key: 'asc' },
     });
   }
+
+  // ============================================
+  // ✅ Multi-Branch: إدارة وصول المستخدمين للفروع
+  // ============================================
+
+  /**
+   * تعيين مستخدم في فرع (منحه صلاحية الوصول)
+   */
+  async assignUserToBranch(userId: number, hospitalId: number, isDefault = false) {
+    // التحقق من وجود المستخدم والفرع
+    const [user, hospital] = await Promise.all([
+      this.prisma.user.findUnique({ where: { id: userId } }),
+      this.prisma.hospital.findUnique({ where: { id: hospitalId } }),
+    ]);
+
+    if (!user) throw new NotFoundException('المستخدم غير موجود');
+    if (!hospital) throw new NotFoundException('الفرع غير موجود');
+
+    // إذا كان isDefault = true، أزل الافتراضي من باقي الفروع
+    if (isDefault) {
+      await this.prisma.userHospitalAccess.updateMany({
+        where: { userId, isDefault: true },
+        data: { isDefault: false },
+      });
+    }
+
+    return this.prisma.userHospitalAccess.upsert({
+      where: {
+        userId_hospitalId: { userId, hospitalId },
+      },
+      update: { isDefault },
+      create: { userId, hospitalId, isDefault },
+      include: {
+        hospital: { select: { id: true, code: true, name: true, displayName: true } },
+      },
+    });
+  }
+
+  /**
+   * إلغاء وصول مستخدم من فرع
+   */
+  async removeUserFromBranch(userId: number, hospitalId: number) {
+    // لا تسمح بإزالة الفرع الافتراضي (hospitalId في User)
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (user && user.hospitalId === hospitalId) {
+      this.logger.warn(
+        `Cannot remove default branch (hospitalId=${hospitalId}) for user ${userId}`,
+      );
+      // نحذف السجل لكن الفرع يبقى كفرع أساسي عبر user.hospitalId
+    }
+
+    return this.prisma.userHospitalAccess.deleteMany({
+      where: { userId, hospitalId },
+    });
+  }
+
+  /**
+   * جلب كل الفروع المتاحة لمستخدم معين
+   */
+  async getUserBranches(userId: number) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { hospitalId: true },
+    });
+
+    const accessRecords = await this.prisma.userHospitalAccess.findMany({
+      where: { userId },
+      include: {
+        hospital: {
+          select: { id: true, code: true, name: true, displayName: true, isActive: true },
+        },
+      },
+      orderBy: { isDefault: 'desc' },
+    });
+
+    const branches = accessRecords
+      .filter((a) => a.hospital.isActive)
+      .map((a) => ({
+        id: a.hospital.id,
+        code: a.hospital.code,
+        name: a.hospital.displayName || a.hospital.name,
+        isDefault: a.isDefault,
+      }));
+
+    // Fallback: إذا لم يكن هناك سجلات، أضف الفرع الافتراضي
+    if (branches.length === 0 && user) {
+      const defaultHospital = await this.prisma.hospital.findUnique({
+        where: { id: user.hospitalId },
+        select: { id: true, code: true, name: true, displayName: true },
+      });
+      if (defaultHospital) {
+        branches.push({
+          id: defaultHospital.id,
+          code: defaultHospital.code,
+          name: defaultHospital.displayName || defaultHospital.name,
+          isDefault: true,
+        });
+      }
+    }
+
+    return branches;
+  }
+
+  /**
+   * جلب كل المستخدمين الذين لديهم وصول لفرع معين
+   */
+  async getBranchUsers(hospitalId: number) {
+    return this.prisma.userHospitalAccess.findMany({
+      where: { hospitalId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            fullName: true,
+            username: true,
+            isActive: true,
+            isDoctor: true,
+            hospitalId: true,
+          },
+        },
+      },
+    });
+  }
+
+  /**
+   * تعيين مجموعة فروع لمستخدم (Bulk) - تستبدل كل السجلات القديمة
+   */
+  async setUserBranches(
+    userId: number,
+    branches: { hospitalId: number; isDefault?: boolean }[],
+  ) {
+    // حذف كل السجلات القديمة
+    await this.prisma.userHospitalAccess.deleteMany({ where: { userId } });
+
+    // إنشاء سجلات جديدة
+    if (branches.length > 0) {
+      await this.prisma.userHospitalAccess.createMany({
+        data: branches.map((b) => ({
+          userId,
+          hospitalId: b.hospitalId,
+          isDefault: b.isDefault || false,
+        })),
+      });
+    }
+
+    return this.getUserBranches(userId);
+  }
 }

@@ -13,7 +13,9 @@ import type { Response, Request } from 'express';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { AuthGuard } from '@nestjs/passport';
+import { JwtAuthGuard } from './jwt-auth.guard';
 import { CurrentUser } from './current-user.decorator';
+import type { JwtPayload } from './jwt-payload.type';
 
 @Controller('auth')
 export class AuthController {
@@ -25,13 +27,40 @@ export class AuthController {
     @Body() dto: LoginDto,
     @Res({ passthrough: true }) response: Response,
   ) {
-    const { accessToken, refreshToken, user } = await this.authService.login(
-      dto.username,
-      dto.password,
-    );
+    const { accessToken, refreshToken, user, accessibleBranches } =
+      await this.authService.login(dto.username, dto.password);
 
     this.setCookies(response, accessToken, refreshToken);
-    return { user, success: true, accessToken }; // Added accessToken for mobile support
+    return {
+      user,
+      success: true,
+      accessToken, // for mobile support
+      accessibleBranches, // ✅ Multi-Branch
+    };
+  }
+
+  /**
+   * ✅ Multi-Branch: تبديل الفرع النشط
+   * يُصدر JWT و Refresh Token جديدين مرتبطين بالفرع المستهدف
+   */
+  @UseGuards(JwtAuthGuard)
+  @Post('switch-branch')
+  @HttpCode(HttpStatus.OK)
+  async switchBranch(
+    @Body() body: { targetHospitalId: number },
+    @CurrentUser() user: JwtPayload,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const result = await this.authService.switchBranch(
+      user.sub,
+      body.targetHospitalId,
+    );
+
+    this.setCookies(response, result.accessToken, result.refreshToken);
+    return {
+      success: true,
+      currentBranch: result.currentBranch,
+    };
   }
 
   @UseGuards(AuthGuard('jwt'))

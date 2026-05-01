@@ -34,6 +34,13 @@ export class AuthService {
             },
           },
         },
+        // ✅ Multi-Branch: جلب كل الفروع التي يملك المستخدم وصولاً إليها
+        accessibleHospitals: {
+          include: {
+            hospital: { select: { id: true, code: true, name: true, displayName: true, isActive: true } },
+          },
+          orderBy: { isDefault: 'desc' },
+        },
       },
     });
 
@@ -58,7 +65,28 @@ export class AuthService {
     const organizationId = user.hospital?.organizationId || null;
     const isSuperAdmin = roles.includes('SUPER_ADMIN');
 
-    return { ...user, roles, permissions, organizationId, isSuperAdmin };
+    // ✅ Multi-Branch: بناء قائمة الفروع المتاحة
+    // نضيف الفرع الافتراضي (hospitalId) تلقائياً إن لم يكن موجوداً في القائمة
+    const accessibleBranches = user.accessibleHospitals
+      .filter((a) => a.hospital.isActive)
+      .map((a) => ({
+        id: a.hospital.id,
+        code: a.hospital.code,
+        name: a.hospital.displayName || a.hospital.name,
+        isDefault: a.isDefault,
+      }));
+
+    // إذا لم تكن هناك سجلات في UserHospitalAccess بعد، أضف الفرع الحالي كفرع وحيد
+    if (accessibleBranches.length === 0) {
+      accessibleBranches.push({
+        id: user.hospital.id,
+        code: user.hospital.code,
+        name: (user.hospital as any).displayName || user.hospital.name,
+        isDefault: true,
+      });
+    }
+
+    return { ...user, roles, permissions, organizationId, isSuperAdmin, accessibleBranches };
   }
 
   // توليد Access Token
@@ -135,7 +163,97 @@ export class AuthService {
     });
     const refreshToken = await this.generateRefreshToken(user.id);
 
-    return { accessToken, refreshToken, user };
+    return {
+      accessToken,
+      refreshToken,
+      user,
+      // ✅ Multi-Branch: إرسال قائمة الفروع المتاحة للواجهة الأمامية
+      accessibleBranches: user.accessibleBranches,
+    };
+  }
+
+  /**
+   * ✅ Multi-Branch: تبديل الفرع النشط
+   * يتحقق من صلاحية المستخدم للوصول للفرع المستهدف
+   * ثم يُصدر JWT Token جديد يحمل hospitalId الفرع الجديد
+   */
+  async switchBranch(userId: number, targetHospitalId: number) {
+    // 1. التحقق من أن المستخدم يملك وصولاً لهذا الفرع
+    const access = await this.prisma.userHospitalAccess.findUnique({
+      where: {
+        userId_hospitalId: { userId, hospitalId: targetHospitalId },
+      },
+      include: {
+        hospital: {
+          include: { organization: { select: { id: true } } },
+        },
+      },
+    });
+
+    // إذا لم يكن هناك سجل وصول، تحقق إذا كان هذا هو الفرع الافتراضي
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        userRoles: {
+          include: {
+            role: {
+              include: { rolePermissions: { include: { permission: true } } },
+            },
+          },
+        },
+      },
+    });
+
+    if (!user || !user.isActive) {
+      throw new ForbiddenException('المستخدم غير نشط');
+    }
+
+    // السماح بالتبديل إذا كان الفرع الافتراضي أو لديه سجل وصول
+    if (!access && user.hospitalId !== targetHospitalId) {
+      throw new ForbiddenException('ليس لديك صلاحية الوصول لهذا الفرع');
+    }
+
+    const hospital = access?.hospital || await this.prisma.hospital.findUnique({
+      where: { id: targetHospitalId },
+      include: { organization: { select: { id: true } } },
+    });
+
+    if (!hospital || !hospital.isActive) {
+      throw new ForbiddenException('الفرع غير مفعل');
+    }
+
+    const roles = user.userRoles.map((r) => r.role.name);
+    const permissions = Array.from(
+      new Set(
+        user.userRoles.flatMap((ur) =>
+          ur.role.rolePermissions.map((rp) => rp.permission.code),
+        ),
+      ),
+    );
+
+    // 2. إصدار Access Token جديد بالفرع الجديد
+    const newAccessToken = await this.generateAccessToken({
+      id: user.id,
+      username: user.username,
+      roles,
+      hospitalId: targetHospitalId,  // ← الفرع الجديد!
+      organizationId: hospital.organization?.id || null,
+      isSuperAdmin: roles.includes('SUPER_ADMIN'),
+      permissions,
+    });
+
+    // 3. إصدار Refresh Token جديد
+    const newRefreshToken = await this.generateRefreshToken(user.id);
+
+    return {
+      accessToken: newAccessToken,
+      refreshToken: newRefreshToken,
+      currentBranch: {
+        id: hospital.id,
+        code: hospital.code,
+        name: (hospital as any).displayName || hospital.name,
+      },
+    };
   }
 
   // تسجيل الخروج (Revoke specific token)

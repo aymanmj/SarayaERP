@@ -79,17 +79,27 @@ export class PatientsService {
 
     let globalPatientId: number | undefined = undefined;
 
+    // ✅ PRE-COMPUTE search hashes from raw values.
+    // The Prisma extension generates hashes at `patient.create()` time,
+    // but we need them NOW to look up GlobalPatient BEFORE create().
+    const nationalIdHash = cleanData.nationalId
+      ? createHash('sha256').update(String(cleanData.nationalId).trim().toLowerCase()).digest('hex')
+      : null;
+    const phoneHash = cleanData.phone
+      ? createHash('sha256').update(String(cleanData.phone).trim().toLowerCase()).digest('hex')
+      : null;
+
     // 1. Federated Auto-Link Strategy (MPI)
     // Attempt to find existing GlobalPatient by National ID or Phone Hash
     let globalPatient: Awaited<ReturnType<typeof this.prisma.globalPatient.findUnique>> = null;
-    if (cleanData.nationalIdHash) {
+    if (nationalIdHash) {
       globalPatient = await this.prisma.globalPatient.findUnique({
-        where: { nationalIdHash: cleanData.nationalIdHash }
+        where: { nationalIdHash }
       });
     }
-    if (!globalPatient && cleanData.phoneHash) {
+    if (!globalPatient && phoneHash) {
        globalPatient = await this.prisma.globalPatient.findUnique({
-         where: { phoneHash: cleanData.phoneHash }
+         where: { phoneHash }
        });
     }
 
@@ -114,7 +124,14 @@ export class PatientsService {
       cleanData.identityType = cleanData.identityType || globalPatient.identityType;
       cleanData.identityNumber = cleanData.identityNumber || globalPatient.identityNumber;
     } else {
-      // Create a NEW GlobalPatient
+      // Create a NEW GlobalPatient — use pre-computed hashes
+      const identityNumberHash = cleanData.identityNumber
+        ? createHash('sha256').update(String(cleanData.identityNumber).trim().toLowerCase()).digest('hex')
+        : null;
+      const emailHash = cleanData.email
+        ? createHash('sha256').update(String(cleanData.email).trim().toLowerCase()).digest('hex')
+        : null;
+
       const newGlobalPatient = await this.prisma.globalPatient.create({
         data: {
           fullName: cleanData.fullName,
@@ -123,10 +140,10 @@ export class PatientsService {
           gender: cleanData.gender,
           identityType: cleanData.identityType,
           identityNumber: cleanData.identityNumber,
-          nationalIdHash: cleanData.nationalIdHash,
-          identityNumberHash: cleanData.identityNumberHash,
-          phoneHash: cleanData.phoneHash,
-          emailHash: cleanData.emailHash,
+          nationalIdHash,
+          identityNumberHash,
+          phoneHash,
+          emailHash,
         }
       });
       globalPatientId = newGlobalPatient.id;
@@ -270,10 +287,12 @@ export class PatientsService {
     return patient;
   }
 
-  // ✅ [FIXED] تم إصلاح منطق التحديث لتجنب خطأ TypeScript
+  // ✅ [ENHANCED] تحديث المريض المحلي + تزامن البيانات الديموغرافية مع GlobalPatient
+  // عند تحديث بيانات المريض في أي فرع، يتم تحديث السجل الوطني الموحد (MPI)
+  // تلقائياً لتنعكس التعديلات عند زيارة فروع أخرى.
   async update(hospitalId: number, id: number, data: any) {
     // التأكد من وجود المريض
-    await this.findOne(hospitalId, id);
+    const existingPatient = await this.findOne(hospitalId, id);
 
     // فصل حقل insurancePolicyId و hospitalId عن باقي البيانات
     const { insurancePolicyId, hospitalId: _, ...restData } = data;
@@ -294,10 +313,70 @@ export class PatientsService {
       }
     }
 
-    return this.prisma.patient.update({
+    const updatedPatient = await this.prisma.patient.update({
       where: { id },
       data: updateInput,
     });
+
+    // ═══════════════════════════════════════════════════════
+    // MPI SYNC: Propagate demographic changes to GlobalPatient
+    // This ensures that when Hospital (A) updates the patient's
+    // phone number, Hospital (B) sees the updated data.
+    // ═══════════════════════════════════════════════════════
+    const globalPatientId = (existingPatient as any).globalPatientId;
+    if (globalPatientId) {
+      const SYNCED_FIELDS = [
+        'fullName', 'nationalId', 'dateOfBirth', 'gender',
+        'identityType', 'identityNumber',
+      ] as const;
+
+      const globalUpdate: Record<string, any> = {};
+
+      for (const field of SYNCED_FIELDS) {
+        if (restData[field] !== undefined) {
+          globalUpdate[field] = restData[field];
+        }
+      }
+
+      // Recompute search hashes if PII fields changed
+      if (restData.nationalId) {
+        globalUpdate.nationalIdHash = createHash('sha256')
+          .update(String(restData.nationalId).trim().toLowerCase())
+          .digest('hex');
+      }
+      if (restData.identityNumber) {
+        globalUpdate.identityNumberHash = createHash('sha256')
+          .update(String(restData.identityNumber).trim().toLowerCase())
+          .digest('hex');
+      }
+
+      // phone/email hashes are computed by Prisma Extension on Patient
+      // but GlobalPatient needs them too — read from the updated local record
+      if (restData.phone) {
+        globalUpdate.phoneHash = createHash('sha256')
+          .update(String(restData.phone).trim().toLowerCase())
+          .digest('hex');
+      }
+      if (restData.email) {
+        globalUpdate.emailHash = createHash('sha256')
+          .update(String(restData.email).trim().toLowerCase())
+          .digest('hex');
+      }
+
+      if (Object.keys(globalUpdate).length > 0) {
+        try {
+          await this.prisma.globalPatient.update({
+            where: { id: globalPatientId },
+            data: globalUpdate,
+          });
+        } catch (err) {
+          // Non-critical: log but don't fail the local update
+          console.error(`[MPI SYNC] Failed to sync GlobalPatient #${globalPatientId}:`, err);
+        }
+      }
+    }
+
+    return updatedPatient;
   }
 
   async softDelete(hospitalId: number, id: number, userId: number) {

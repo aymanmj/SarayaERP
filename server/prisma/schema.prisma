@@ -169,6 +169,7 @@ model Hospital {
   patientRegistries  PatientRegistry[]
   resources          Resource[]
   waitlists          Waitlist[]
+  userAccesses       UserHospitalAccess[]
 }
 
 model Department {
@@ -445,6 +446,7 @@ model User {
   patientMessagesAsDoctor PatientMessage[]          @relation("DoctorPatientMessages")
   reviewedRefillRequests  MedicationRefillRequest[] @relation("RefillReviewer")
   waitlists               Waitlist[]
+  accessibleHospitals     UserHospitalAccess[]
 }
 
 model RefreshToken {
@@ -483,6 +485,21 @@ model UserRole {
   user   User @relation(fields: [userId], references: [id])
 
   @@unique([userId, roleId])
+}
+
+model UserHospitalAccess {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  hospitalId Int
+  isDefault  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  hospital   Hospital @relation(fields: [hospitalId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, hospitalId])
+  @@index([userId])
+  @@index([hospitalId])
 }
 
 model RolePermission {
