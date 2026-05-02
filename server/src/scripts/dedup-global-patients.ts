@@ -81,12 +81,14 @@ async function main() {
   const key = buildEncryptionKey();
 
   console.log('╔══════════════════════════════════════════════════════════╗');
-  console.log('║   GlobalPatient Deduplication Script                    ║');
+  console.log('║   GlobalPatient Deduplication Script  v2                ║');
   console.log('║   Merges duplicate MPI records into a single entry     ║');
   console.log(`║   Mode: ${DRY_RUN ? '🔍 DRY RUN (no writes)' : '⚡ LIVE — changes will be written'}                       ║`);
   console.log('╚══════════════════════════════════════════════════════════╝\n');
 
-  // Step 1: Load ALL GlobalPatient records
+  // ──────────────────────────────────────────────────
+  // PHASE 0: Clear ALL unique hashes to prevent conflicts
+  // ──────────────────────────────────────────────────
   const allGPs = await prisma.globalPatient.findMany({
     where: { isDeleted: false },
     include: {
@@ -99,64 +101,78 @@ async function main() {
 
   console.log(`📊 Total GlobalPatient records: ${allGPs.length}\n`);
 
-  // Step 2: Group by decrypted nationalId
+  if (!DRY_RUN) {
+    console.log('🧹 Phase 0: Clearing all hashes to prevent UNIQUE conflicts...');
+    await prisma.globalPatient.updateMany({
+      where: { isDeleted: false },
+      data: {
+        nationalIdHash: null,
+        identityNumberHash: null,
+        phoneHash: null,
+        emailHash: null,
+      },
+    });
+    console.log(`   ✅ Cleared hashes from ${allGPs.length} records\n`);
+  }
+
+  // ──────────────────────────────────────────────────
+  // PHASE 1: Group by decrypted nationalId → merge duplicates
+  // ──────────────────────────────────────────────────
+  console.log('🔗 Phase 1: Grouping and merging duplicates...\n');
+
   const groups = new Map<string, typeof allGPs>();
 
   for (const gp of allGPs) {
     const rawNationalId = decrypt(gp.nationalId, key);
     if (!rawNationalId) {
-      // Try grouping by fullName as fallback
       const groupKey = `name:${gp.fullName.trim().toLowerCase()}`;
       if (!groups.has(groupKey)) groups.set(groupKey, []);
       groups.get(groupKey)!.push(gp);
       continue;
     }
-
     const normalizedId = rawNationalId.trim().toLowerCase();
     if (!groups.has(normalizedId)) groups.set(normalizedId, []);
     groups.get(normalizedId)!.push(gp);
   }
 
-  // Step 3: Process groups with duplicates
   const duplicateGroups = Array.from(groups.entries()).filter(([, gps]) => gps.length > 1);
+  const singleGroups = Array.from(groups.entries()).filter(([, gps]) => gps.length === 1);
 
   if (duplicateGroups.length === 0) {
-    console.log('✅ No duplicate GlobalPatient records found. Database is clean!');
-    return;
+    console.log('✅ No duplicate GlobalPatient records found!');
+  } else {
+    console.log(`🔍 Found ${duplicateGroups.length} duplicate group(s):\n`);
   }
-
-  console.log(`🔍 Found ${duplicateGroups.length} duplicate group(s):\n`);
 
   let totalMerged = 0;
   let totalRelinked = 0;
   let totalDeleted = 0;
   let errors = 0;
+  const survivorIds: number[] = [];
 
+  // Process duplicate groups
   for (const [groupKey, gps] of duplicateGroups) {
     try {
-      // Sort by ID ascending — keep the OLDEST (first created)
       gps.sort((a, b) => a.id - b.id);
       const survivor = gps[0];
       const duplicates = gps.slice(1);
-
       const dupIds = duplicates.map(d => d.id);
-      const totalLinkedPatients = gps.reduce((sum, gp) => sum + gp.localPatients.length, 0);
 
       console.log(`─── Group: "${survivor.fullName}" (key: ${groupKey}) ───`);
       console.log(`    Survivor:   GP #${survivor.id} (${survivor.localPatients.length} patient files)`);
       console.log(`    Duplicates: ${dupIds.map(id => `GP #${id}`).join(', ')} (${duplicates.reduce((s, d) => s + d.localPatients.length, 0)} patient files)`);
-      console.log(`    Action:     Re-link ${totalLinkedPatients} patients → GP #${survivor.id}, then delete ${dupIds.length} duplicates`);
+
+      survivorIds.push(survivor.id);
 
       if (DRY_RUN) {
         console.log(`    [DRY] Would merge ${gps.length} records into GP #${survivor.id}\n`);
-        totalMerged += gps.length - 1;
+        totalMerged += duplicates.length;
         totalRelinked += duplicates.reduce((s, d) => s + d.localPatients.length, 0);
         totalDeleted += dupIds.length;
         continue;
       }
 
-      // === LIVE EXECUTION ===
-      // Step A: Re-link all Patient records from duplicates to survivor
+      // Re-link patients from duplicates → survivor
       for (const dup of duplicates) {
         if (dup.localPatients.length > 0) {
           const patientIds = dup.localPatients.map(p => p.id);
@@ -169,72 +185,109 @@ async function main() {
         }
       }
 
-      // Step B: Recompute hashes for the survivor from its decrypted data
-      const rawNationalId = decrypt(survivor.nationalId, key);
-      const rawIdentityNumber = decrypt(survivor.identityNumber, key);
-      const survivalUpdate: Record<string, any> = {};
-
-      const nationalIdHash = computeHash(rawNationalId);
-      const identityNumberHash = computeHash(rawIdentityNumber);
-
-      if (nationalIdHash) survivalUpdate.nationalIdHash = nationalIdHash;
-      if (identityNumberHash) survivalUpdate.identityNumberHash = identityNumberHash;
-
-      // Get phone/email hash from linked patients
-      const linkedPatient = await prisma.patient.findFirst({
-        where: { globalPatientId: survivor.id },
-        select: { phoneHash: true, emailHash: true },
-      });
-      if (linkedPatient?.phoneHash) survivalUpdate.phoneHash = linkedPatient.phoneHash;
-      if (linkedPatient?.emailHash) survivalUpdate.emailHash = linkedPatient.emailHash;
-
-      if (Object.keys(survivalUpdate).length > 0) {
-        await prisma.globalPatient.update({
-          where: { id: survivor.id },
-          data: survivalUpdate,
-        });
-        console.log(`    ✅ Updated GP #${survivor.id} hashes: ${Object.keys(survivalUpdate).join(', ')}`);
-      }
-
-      // Step C: Delete duplicates (set NULL hashes first to avoid unique constraint errors)
-      for (const dupId of dupIds) {
-        // Clear unique hashes to avoid constraint violations
-        await prisma.globalPatient.update({
-          where: { id: dupId },
-          data: {
-            nationalIdHash: null,
-            identityNumberHash: null,
-            phoneHash: null,
-            emailHash: null,
-          },
-        });
-      }
-
-      // Now soft-delete duplicates
+      // Soft-delete duplicates
       await prisma.globalPatient.updateMany({
         where: { id: { in: dupIds } },
         data: { isDeleted: true },
       });
-      console.log(`    🗑️ Soft-deleted ${dupIds.length} duplicate(s): ${dupIds.map(id => `GP #${id}`).join(', ')}`);
+      console.log(`    🗑️ Soft-deleted ${dupIds.length} duplicate(s): ${dupIds.map(id => `GP #${id}`).join(', ')}\n`);
 
-      totalMerged += gps.length - 1;
+      totalMerged += duplicates.length;
       totalDeleted += dupIds.length;
-
-      console.log('');
 
     } catch (error: any) {
       errors++;
-      console.error(`    ❌ Error processing group "${groupKey}": ${error.message}\n`);
+      console.error(`    ❌ Error: ${error.message}\n`);
+    }
+  }
+
+  // Collect single-group survivors too
+  for (const [, gps] of singleGroups) {
+    survivorIds.push(gps[0].id);
+  }
+
+  // ──────────────────────────────────────────────────
+  // PHASE 2: Recompute hashes ONLY on surviving records
+  // ──────────────────────────────────────────────────
+  console.log('🔑 Phase 2: Recomputing hashes for surviving records...\n');
+
+  let hashesFixed = 0;
+  const usedHashes = {
+    nationalIdHash: new Set<string>(),
+    identityNumberHash: new Set<string>(),
+    phoneHash: new Set<string>(),
+    emailHash: new Set<string>(),
+  };
+
+  for (const gpId of survivorIds) {
+    try {
+      const gp = await prisma.globalPatient.findUnique({
+        where: { id: gpId },
+        include: {
+          localPatients: {
+            select: { phoneHash: true, emailHash: true },
+            take: 1,
+          },
+        },
+      });
+      if (!gp || gp.isDeleted) continue;
+
+      const rawNationalId = decrypt(gp.nationalId, key);
+      const rawIdentityNumber = decrypt(gp.identityNumber, key);
+
+      const hashData: Record<string, any> = {};
+
+      // Compute each hash — skip if already used by another survivor
+      const nidHash = computeHash(rawNationalId);
+      if (nidHash && !usedHashes.nationalIdHash.has(nidHash)) {
+        hashData.nationalIdHash = nidHash;
+        usedHashes.nationalIdHash.add(nidHash);
+      }
+
+      const idnHash = computeHash(rawIdentityNumber);
+      if (idnHash && !usedHashes.identityNumberHash.has(idnHash)) {
+        hashData.identityNumberHash = idnHash;
+        usedHashes.identityNumberHash.add(idnHash);
+      }
+
+      // Phone/email from linked patients
+      const lp = gp.localPatients[0];
+      if (lp?.phoneHash && !usedHashes.phoneHash.has(lp.phoneHash)) {
+        hashData.phoneHash = lp.phoneHash;
+        usedHashes.phoneHash.add(lp.phoneHash);
+      }
+      if (lp?.emailHash && !usedHashes.emailHash.has(lp.emailHash)) {
+        hashData.emailHash = lp.emailHash;
+        usedHashes.emailHash.add(lp.emailHash);
+      }
+
+      if (Object.keys(hashData).length === 0) continue;
+
+      if (DRY_RUN) {
+        console.log(`    [DRY] GP #${gpId} "${gp.fullName}" → would set: ${Object.keys(hashData).join(', ')}`);
+      } else {
+        await prisma.globalPatient.update({
+          where: { id: gpId },
+          data: hashData,
+        });
+        console.log(`    ✅ GP #${gpId} "${gp.fullName}" → ${Object.keys(hashData).join(', ')}`);
+      }
+      hashesFixed++;
+
+    } catch (error: any) {
+      errors++;
+      console.error(`    ❌ GP #${gpId}: ${error.message}`);
     }
   }
 
   // Summary
-  console.log('════════════════════════════════════════════════');
+  console.log('\n════════════════════════════════════════════════');
   console.log('📊 Deduplication Results:');
-  console.log(`   Groups processed: ${duplicateGroups.length}`);
+  console.log(`   Duplicate groups: ${duplicateGroups.length}`);
   console.log(`   Records merged:   ${totalMerged}`);
   console.log(`   Patients re-linked: ${totalRelinked}`);
   console.log(`   Duplicates deleted: ${totalDeleted}`);
+  console.log(`   Hashes recomputed: ${hashesFixed}`);
   console.log(`   Errors:           ${errors}`);
   console.log('════════════════════════════════════════════════');
 }
