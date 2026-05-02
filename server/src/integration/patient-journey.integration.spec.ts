@@ -66,6 +66,9 @@ describe('Patient Journey Integration Tests', () => {
         create: jest.fn().mockResolvedValue({ id: 100 }),
         update: jest.fn().mockResolvedValue({ id: 100 }),
       },
+      systemSetting: {
+        findUnique: jest.fn(),
+      },
       $transaction: jest.fn(async (fn: any) => fn(prisma)),
     };
 

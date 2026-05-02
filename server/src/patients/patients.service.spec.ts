@@ -45,6 +45,9 @@ describe('PatientsService', () => {
         }
         return arg(mockPrismaService);
       }),
+      systemSetting: {
+        findUnique: jest.fn(),
+      },
     };
 
     const module: TestingModule = await Test.createTestingModule({

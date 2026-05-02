@@ -25,6 +25,12 @@ describe('FhirAuthService', () => {
     get: jest.fn((key: string) => process.env[key]),
   };
 
+  const mockRedisClient = {
+    set: jest.fn(),
+    get: jest.fn(),
+    del: jest.fn(),
+  };
+
   const realJwtService = new JwtService({ secret: 'test-secret-key' });
 
   beforeEach(async () => {
@@ -42,6 +48,9 @@ describe('FhirAuthService', () => {
     }).compile();
 
     service = module.get<FhirAuthService>(FhirAuthService);
+    // Inject mock Redis directly — FhirAuthService creates its own Redis in onModuleInit(),
+    // which would fail in test env. Override with our mock.
+    (service as any).redisClient = mockRedisClient;
     jwtService = module.get<JwtService>(JwtService);
     jest.clearAllMocks();
   });
@@ -207,6 +216,12 @@ describe('FhirAuthService', () => {
       );
 
       // Step 2: Exchange code for token
+      mockRedisClient.get.mockResolvedValue(JSON.stringify({
+        clientId: 'enterprise_fhir_client',
+        scope: 'patient/*.read',
+        patient: '1'
+      }));
+
       const tokenResult = await service.generateToken(
         'authorization_code',
         'enterprise_fhir_client',
@@ -231,9 +246,15 @@ describe('FhirAuthService', () => {
       );
 
       // First exchange: success
+      mockRedisClient.get.mockResolvedValueOnce(JSON.stringify({
+        clientId: 'enterprise_fhir_client',
+        scope: 'patient/*.read',
+        patient: '1'
+      }));
       await service.generateToken('authorization_code', 'enterprise_fhir_client', undefined, undefined, authResult.code);
 
       // Second exchange: MUST fail
+      mockRedisClient.get.mockResolvedValueOnce(null);
       await expect(
         service.generateToken('authorization_code', 'enterprise_fhir_client', undefined, undefined, authResult.code),
       ).rejects.toThrow(UnauthorizedException);
@@ -247,6 +268,10 @@ describe('FhirAuthService', () => {
       );
 
       // Try to exchange with different client
+      mockRedisClient.get.mockResolvedValue(JSON.stringify({
+        clientId: 'enterprise_fhir_client',
+        scope: 'patient/*.read'
+      }));
       await expect(
         service.generateToken('authorization_code', 'suspicious_client', undefined, undefined, authResult.code),
       ).rejects.toThrow(UnauthorizedException);
