@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 import { siemLogger } from './siem.logger';
+import * as crypto from 'crypto';
 
 interface AuditLogOptions {
   hospitalId?: number | null;
@@ -26,19 +27,8 @@ export class AuditService {
         ...options
       });
 
-      // 2- DB Storage
-      await this.prisma.auditLog.create({
-        data: {
-          hospitalId: options.hospitalId ?? null,
-          userId: options.userId ?? null,
-          action: options.action,
-          entity: options.entity ?? null,
-          entityId: options.entityId ?? null,
-          ipAddress: options.ipAddress ?? null,
-          clientName: options.clientName ?? null,
-          details: options.details ?? null,
-        },
-      });
+      // 2- DB Storage with ISO 27001 Hash Chain
+      await this.createSecureLog(options);
     } catch (err) {
       // مهم جدًا: لا نسمح للـ audit أنه يكسر الـ API للعمليات غير الحرجة
       // لذلك نبلع الخطأ هنا
@@ -58,19 +48,8 @@ export class AuditService {
         ...options
       });
 
-      // 2- DB Storage
-      await this.prisma.auditLog.create({
-        data: {
-          hospitalId: options.hospitalId ?? null,
-          userId: options.userId ?? null,
-          action: options.action,
-          entity: options.entity ?? null,
-          entityId: options.entityId ?? null,
-          ipAddress: options.ipAddress ?? null,
-          clientName: options.clientName ?? null,
-          details: options.details ?? null,
-        },
-      });
+      // 2- DB Storage with ISO 27001 Hash Chain
+      await this.createSecureLog(options);
     } catch (err) {
       console.error('CRITICAL AUDIT LOG FAILURE', err);
       // Fail explicitly for clinical governance
@@ -193,4 +172,71 @@ export class AuditService {
   //     take: 100, // آخر 100 سجل
   //   });
   // }
+
+  /**
+   * Secure insertion with ISO 27001 Hash Chaining.
+   */
+  private async createSecureLog(options: AuditLogOptions) {
+    return this.prisma.$transaction(async (tx) => {
+      // Get the most recent log to continue the chain
+      const lastLog = await tx.auditLog.findFirst({
+        orderBy: { id: 'desc' },
+        select: { hash: true }
+      });
+      
+      const previousHash = lastLog?.hash || 'GENESIS';
+      const timestamp = new Date();
+      
+      // Compute hash: SHA256(previousHash + action + entity + entityId + userId + timestamp)
+      const dataToHash = `${previousHash}|${options.action}|${options.entity || ''}|${options.entityId || ''}|${options.userId || ''}|${timestamp.toISOString()}`;
+      const hash = crypto.createHash('sha256').update(dataToHash).digest('hex');
+
+      return tx.auditLog.create({
+        data: {
+          hospitalId: options.hospitalId ?? null,
+          userId: options.userId ?? null,
+          action: options.action,
+          entity: options.entity ?? null,
+          entityId: options.entityId ?? null,
+          ipAddress: options.ipAddress ?? null,
+          clientName: options.clientName ?? null,
+          details: options.details ?? null,
+          createdAt: timestamp,
+          previousHash,
+          hash
+        },
+      });
+    });
+  }
+
+  /**
+   * Verify the integrity of the audit log chain.
+   */
+  async verifyChain(): Promise<{ valid: boolean; brokenAtId?: number; message: string }> {
+    const logs = await this.prisma.auditLog.findMany({
+      orderBy: { id: 'asc' },
+      select: { id: true, action: true, entity: true, entityId: true, userId: true, createdAt: true, previousHash: true, hash: true }
+    });
+
+    if (logs.length === 0) return { valid: true, message: 'No logs to verify' };
+
+    let expectedPrevious = 'GENESIS';
+
+    for (const log of logs) {
+      if (log.previousHash !== expectedPrevious) {
+        return { valid: false, brokenAtId: log.id, message: `Chain broken at ID ${log.id}: previousHash mismatch` };
+      }
+
+      const dataToHash = `${log.previousHash}|${log.action}|${log.entity || ''}|${log.entityId || ''}|${log.userId || ''}|${log.createdAt.toISOString()}`;
+      const computedHash = crypto.createHash('sha256').update(dataToHash).digest('hex');
+
+      if (log.hash !== computedHash) {
+        return { valid: false, brokenAtId: log.id, message: `Chain broken at ID ${log.id}: hash mismatch (data altered)` };
+      }
+
+      expectedPrevious = log.hash;
+    }
+
+    return { valid: true, message: `Successfully verified ${logs.length} records in the audit chain` };
+  }
 }

@@ -969,9 +969,6 @@ export class FhirService {
   // SUBSCRIPTIONS — Real Webhook Dispatch
   // ==========================================
 
-  // In-memory subscription store (production: Redis/DB backed)
-  private subscriptions: Map<string, any> = new Map();
-
   async createSubscription(payload: any) {
     if (payload.resourceType !== 'Subscription') {
       throw new BadRequestException('Invalid resourceType, expected Subscription');
@@ -989,39 +986,59 @@ export class FhirService {
     }
 
     const id = `sub_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
-    const subscription = {
-      resourceType: 'Subscription',
-      id,
-      status: 'active',
-      reason: payload.reason || 'FHIR event notification',
-      criteria: payload.criteria,
-      channel: {
-        type: 'rest-hook',
+    
+    await this.prisma.fhirSubscription.create({
+      data: {
+        id,
+        status: 'active',
+        reason: payload.reason || 'FHIR event notification',
+        criteria: payload.criteria,
         endpoint: payload.channel.endpoint,
         payload: payload.channel.payload || 'application/fhir+json',
-        header: payload.channel.header || [],
-      },
-      end: payload.end, // Optional expiration
-    };
+        headers: payload.channel.header || [],
+        end: payload.end ? new Date(payload.end) : null,
+      }
+    });
 
-    this.subscriptions.set(id, subscription);
     this.logger.log(`📡 FHIR Subscription created: ${id} | criteria: ${payload.criteria} | endpoint: ${payload.channel.endpoint}`);
 
-    return subscription;
+    return this.mapToFhirSubscription(
+      id, 'active', payload.reason || 'FHIR event notification',
+      payload.criteria, payload.channel.endpoint, payload.channel.payload || 'application/fhir+json',
+      payload.channel.header || [], payload.end ? new Date(payload.end) : undefined
+    );
+  }
+
+  private mapToFhirSubscription(id: string, status: string, reason: string, criteria: string, endpoint: string, payloadStr: string, headers: any, end?: Date) {
+    return {
+      resourceType: 'Subscription',
+      id,
+      status,
+      reason,
+      criteria,
+      channel: {
+        type: 'rest-hook',
+        endpoint,
+        payload: payloadStr,
+        header: headers || [],
+      },
+      end: end ? end.toISOString() : undefined,
+    };
   }
 
   async getSubscription(id: string) {
-    const sub = this.subscriptions.get(id);
+    const sub = await this.prisma.fhirSubscription.findUnique({ where: { id } });
     if (!sub) throw new NotFoundException('Subscription not found');
-    return sub;
+    return this.mapToFhirSubscription(sub.id, sub.status, sub.reason, sub.criteria, sub.endpoint, sub.payload, sub.headers, sub.end || undefined);
   }
 
   /**
    * List all active subscriptions.
    */
-  listSubscriptions(baseUrl: string) {
-    const subs = Array.from(this.subscriptions.values()).filter(s => s.status === 'active');
-    return this.createBundle(subs, subs.length, `${baseUrl}/Subscription`);
+  async listSubscriptions(baseUrl: string) {
+    const subs = await this.prisma.fhirSubscription.findMany({ where: { status: 'active' } });
+    const resources = subs.map(sub => this.mapToFhirSubscription(sub.id, sub.status, sub.reason, sub.criteria, sub.endpoint, sub.payload, sub.headers, sub.end || undefined));
+    return this.createBundle(resources, resources.length, `${baseUrl}/Subscription`);
   }
 
   /**
@@ -1034,17 +1051,16 @@ export class FhirService {
    * This replaces the previous stub (console.log-only) implementation.
    */
   async emitFhirEvent(resourceType: string, resourceId: number, patientId?: number) {
-    if (this.subscriptions.size === 0) return;
+    const subscriptions = await this.prisma.fhirSubscription.findMany({ where: { status: 'active' } });
+    if (subscriptions.length === 0) return;
 
-    this.logger.log(`🔔 FHIR Event: ${resourceType}/${resourceId} — checking ${this.subscriptions.size} active subscriptions`);
+    this.logger.log(`🔔 FHIR Event: ${resourceType}/${resourceId} — checking ${subscriptions.length} active subscriptions`);
 
-    for (const [subId, sub] of this.subscriptions.entries()) {
-      if (sub.status !== 'active') continue;
-
+    for (const sub of subscriptions) {
       // Check if subscription has expired
       if (sub.end && new Date(sub.end) < new Date()) {
-        sub.status = 'off';
-        this.logger.log(`⏰ Subscription ${subId} expired, deactivating`);
+        await this.prisma.fhirSubscription.update({ where: { id: sub.id }, data: { status: 'off' } });
+        this.logger.log(`⏰ Subscription ${sub.id} expired, deactivating`);
         continue;
       }
 
@@ -1053,7 +1069,7 @@ export class FhirService {
       if (!criteriaMatch) continue;
 
       // Dispatch the webhook
-      const endpoint = sub.channel.endpoint;
+      const endpoint = sub.endpoint;
       const notificationPayload = {
         resourceType: 'Bundle',
         type: 'history',
@@ -1072,7 +1088,7 @@ export class FhirService {
       };
 
       // Non-blocking HTTP dispatch using native fetch
-      this.dispatchWebhook(subId, endpoint, notificationPayload, sub.channel.header);
+      this.dispatchWebhook(sub.id, endpoint, notificationPayload, sub.headers as string[]);
     }
   }
 

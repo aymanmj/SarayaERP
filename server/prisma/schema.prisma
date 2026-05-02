@@ -494,8 +494,8 @@ model UserHospitalAccess {
   isDefault  Boolean  @default(false)
   createdAt  DateTime @default(now())
 
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  hospital   Hospital @relation(fields: [hospitalId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  hospital Hospital @relation(fields: [hospitalId], references: [id], onDelete: Cascade)
 
   @@unique([userId, hospitalId])
   @@index([userId])
@@ -1963,20 +1963,25 @@ model Appointment {
 }
 
 model AuditLog {
-  id         Int       @id @default(autoincrement())
+  id         Int      @id @default(autoincrement())
   hospitalId Int?
   userId     Int?
   entityId   Int?
   ipAddress  String?
-  createdAt  DateTime  @default(now())
+  createdAt  DateTime @default(now())
   clientName String?
   details    Json?
   oldValues  Json?
   newValues  Json?
   entity     String?
   action     String
-  hospital   Hospital? @relation(fields: [hospitalId], references: [id])
-  user       User?     @relation(fields: [userId], references: [id])
+
+  // Security fields for ISO 27001 integrity
+  previousHash String?
+  hash         String?
+
+  hospital Hospital? @relation(fields: [hospitalId], references: [id])
+  user     User?     @relation(fields: [userId], references: [id])
 
   @@index([hospitalId, userId, action])
   @@index([entity, entityId])
@@ -3937,6 +3942,7 @@ enum ConsentFormType {
   SURGERY
   ANESTHESIA
   PROCEDURE
+  DATA_SHARING
   OTHER
 }
 
@@ -5228,4 +5234,50 @@ model Waitlist {
 
   @@index([hospitalId, status, priority])
   @@index([resourceId, status])
+}
+
+// ================================================
+// Foundation Hardening & Clinical Depth Models
+// ================================================
+
+model FhirSubscription {
+  id        String    @id // e.g. "sub_..."
+  status    String // active, off, error
+  reason    String
+  criteria  String
+  endpoint  String
+  payload   String    @default("application/fhir+json")
+  headers   Json? // Optional HTTP headers array
+  end       DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model DrugDoseRange {
+  id           Int      @id @default(autoincrement())
+  drugName     String // E.g., "Paracetamol"
+  form         String? // E.g., "Tablet", "Syrup"
+  route        String? // E.g., "PO", "IV"
+  ageMin       Int? // Min age in days
+  ageMax       Int? // Max age in days
+  weightMin    Float? // Min weight in kg
+  weightMax    Float? // Max weight in kg
+  minDoseValue Float
+  maxDoseValue Float
+  doseUnit     String // E.g., "mg"
+  frequencyMax Int? // Max times per day
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([drugName])
+}
+
+model TerminologyRelationship {
+  id           Int      @id @default(autoincrement())
+  sourceCode   String
+  sourceSystem String // E.g., "ICD-10"
+  targetCode   String
+  targetSystem String // E.g., "SNOMED"
+  relationship String // E.g., "maps_to", "is_a"
+  createdAt    DateTime @default(now())
 }

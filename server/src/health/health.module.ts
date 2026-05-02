@@ -4,7 +4,10 @@ import { HealthService } from './health.service';
 import { HealthController } from './health.controller';
 import { PrismaService } from '../prisma/prisma.service';
 
+import { ConfigModule } from '@nestjs/config';
+
 @Module({
+  imports: [ConfigModule],
   controllers: [HealthController],
   providers: [HealthService, PrismaService],
 })

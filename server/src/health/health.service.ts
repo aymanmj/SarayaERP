@@ -12,6 +12,12 @@ export interface HealthStatus {
   version: string;
   services: {
     database: ServiceStatus;
+    redis: ServiceStatus;
+    fhirSubscriptions: {
+      status: 'up' | 'down';
+      activeCount: number;
+      error?: string;
+    };
     memory: MemoryStatus;
     cpu: CpuStatus;
   };
@@ -36,11 +42,24 @@ interface CpuStatus {
   loadAverage: number[];
 }
 
+import { ConfigService } from '@nestjs/config';
+import Redis from 'ioredis';
+
 @Injectable()
 export class HealthService {
   private startTime = Date.now();
+  private redisClient: Redis;
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private config: ConfigService
+  ) {
+    const host = this.config.get<string>('REDIS_HOST') || 'localhost';
+    const port = this.config.get<number>('REDIS_PORT') || 6379;
+    const password = this.config.get<string>('REDIS_PASSWORD');
+    this.redisClient = new Redis({ host, port, password, maxRetriesPerRequest: 1 });
+    this.redisClient.on('error', () => {}); // Prevent unhandled error crashes
+  }
 
   /**
    * Basic health check (for load balancers)
@@ -55,14 +74,16 @@ export class HealthService {
    */
   async detailed(): Promise<HealthStatus> {
     const dbStatus = await this.checkDatabase();
+    const redisStatus = await this.checkRedis();
+    const fhirStatus = await this.checkFhirSubscriptions();
     const memoryStatus = this.getMemoryStatus();
     const cpuStatus = this.getCpuStatus();
 
     // Determine overall status
     let status: 'healthy' | 'degraded' | 'unhealthy' = 'healthy';
-    if (dbStatus.status === 'down') {
+    if (dbStatus.status === 'down' || redisStatus.status === 'down') {
       status = 'unhealthy';
-    } else if (memoryStatus.usagePercent > 90 || dbStatus.latency! > 1000) {
+    } else if (memoryStatus.usagePercent > 90 || dbStatus.latency! > 1000 || fhirStatus.status === 'down') {
       status = 'degraded';
     }
 
@@ -73,6 +94,8 @@ export class HealthService {
       version: process.env.npm_package_version || '1.0.0',
       services: {
         database: dbStatus,
+        redis: redisStatus,
+        fhirSubscriptions: fhirStatus,
         memory: memoryStatus,
         cpu: cpuStatus,
       },
@@ -156,6 +179,25 @@ saraya_health_status ${health.status === 'healthy' ? 1 : health.status === 'degr
         status: 'down',
         error: error instanceof Error ? error.message : 'Unknown error',
       };
+    }
+  }
+
+  private async checkRedis(): Promise<ServiceStatus> {
+    const start = Date.now();
+    try {
+      await this.redisClient.ping();
+      return { status: 'up', latency: Date.now() - start };
+    } catch (error) {
+      return { status: 'down', error: error instanceof Error ? error.message : 'Redis ping failed' };
+    }
+  }
+
+  private async checkFhirSubscriptions() {
+    try {
+      const activeCount = await this.prisma.fhirSubscription.count({ where: { status: 'active' } });
+      return { status: 'up' as const, activeCount };
+    } catch (error) {
+      return { status: 'down' as const, activeCount: 0, error: error instanceof Error ? error.message : 'Database error' };
     }
   }
 

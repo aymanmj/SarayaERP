@@ -79,6 +79,14 @@ export class PatientsService {
 
     let globalPatientId: number | undefined = undefined;
 
+    // ✅ MPI Consent Check
+    const mpiConsentSetting = await this.prisma.systemSetting.findUnique({
+      where: { hospitalId_key: { hospitalId, key: 'mpi.shareDataConsent' } }
+    });
+    
+    const requireConsent = mpiConsentSetting?.value === 'true';
+    const hasConsent = cleanData.hasDataSharingConsent === true;
+
     // ✅ PRE-COMPUTE search hashes from raw values.
     // The Prisma extension generates hashes at `patient.create()` time,
     // but we need them NOW to look up GlobalPatient BEFORE create().
@@ -86,8 +94,9 @@ export class PatientsService {
     const phoneHash = this.generateSearchHash(cleanData.phone);
 
     // 1. Federated Auto-Link Strategy (MPI)
-    // Attempt to find existing GlobalPatient by National ID or Phone Hash
-    let globalPatient: Awaited<ReturnType<typeof this.prisma.globalPatient.findUnique>> = null;
+    // Only proceed with GlobalPatient if consent is not required, or if consent is explicitly given
+    if (!requireConsent || hasConsent) {
+      let globalPatient: Awaited<ReturnType<typeof this.prisma.globalPatient.findUnique>> = null;
     if (nationalIdHash) {
       globalPatient = await this.prisma.globalPatient.findUnique({
         where: { nationalIdHash }
@@ -119,40 +128,59 @@ export class PatientsService {
       cleanData.gender = cleanData.gender || globalPatient.gender;
       cleanData.identityType = cleanData.identityType || globalPatient.identityType;
       cleanData.identityNumber = cleanData.identityNumber || globalPatient.identityNumber;
-    } else {
-      // Create a NEW GlobalPatient — use pre-computed hashes
-      const identityNumberHash = this.generateSearchHash(cleanData.identityNumber);
-      const emailHash = this.generateSearchHash(cleanData.email);
+      } else {
+        // Create a NEW GlobalPatient — use pre-computed hashes
+        const identityNumberHash = this.generateSearchHash(cleanData.identityNumber);
+        const emailHash = this.generateSearchHash(cleanData.email);
 
-      const newGlobalPatient = await this.prisma.globalPatient.create({
-        data: {
-          fullName: cleanData.fullName,
-          nationalId: cleanData.nationalId,
-          dateOfBirth: cleanData.dateOfBirth,
-          gender: cleanData.gender,
-          identityType: cleanData.identityType,
-          identityNumber: cleanData.identityNumber,
-          nationalIdHash,
-          identityNumberHash,
-          phoneHash,
-          emailHash,
-        }
-      });
-      globalPatientId = newGlobalPatient.id;
+        const newGlobalPatient = await this.prisma.globalPatient.create({
+          data: {
+            fullName: cleanData.fullName,
+            nationalId: cleanData.nationalId,
+            dateOfBirth: cleanData.dateOfBirth,
+            gender: cleanData.gender,
+            identityType: cleanData.identityType,
+            identityNumber: cleanData.identityNumber,
+            nationalIdHash,
+            identityNumberHash,
+            phoneHash,
+            emailHash,
+          }
+        });
+        globalPatientId = newGlobalPatient.id;
+      }
     }
 
     const mrn = await this.generateNextMrn(hospitalId);
 
-    const { hospitalId: _ignoredHospitalId, ...patientDataToSave } = cleanData as any;
+    // Remove hasDataSharingConsent from cleanData before saving
+    const { hasDataSharingConsent, ...patientDataToSave } = cleanData as any;
 
     // Create the Local Patient File
-    return this.prisma.patient.create({
+    const newPatient = await this.prisma.patient.create({
       data: {
         ...patientDataToSave,
         mrn,
         globalPatientId
       },
     });
+
+    // If consent was given, record the consent form automatically
+    if (requireConsent && hasConsent) {
+      await this.prisma.consentForm.create({
+        data: {
+          hospitalId,
+          patientId: newPatient.id,
+          formType: 'DATA_SHARING',
+          status: 'SIGNED',
+          title: 'MPI Data Sharing Consent',
+          content: 'Patient consented to share demographic data with the Master Patient Index.',
+          signedByRef: 'Patient',
+        }
+      });
+    }
+
+    return newPatient;
   }
 
   private generateSearchHash(value: string | null | undefined): string | null {

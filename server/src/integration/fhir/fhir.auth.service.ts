@@ -1,7 +1,8 @@
-import { Injectable, UnauthorizedException, BadRequestException, Logger } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
+import Redis from 'ioredis';
 
 /**
  * Enterprise SMART on FHIR Authorization Service
@@ -26,17 +27,29 @@ interface RegisteredApp {
 }
 
 @Injectable()
-export class FhirAuthService {
+export class FhirAuthService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(FhirAuthService.name);
   
-  // In-memory auth codes (in production: Redis with TTL)
-  private authCodes: Map<string, { clientId: string; patient?: string; scope: string; expiresAt: number }> = new Map();
+  // Redis client for auth codes with TTL
+  private redisClient: Redis;
 
   constructor(
     private jwtService: JwtService,
     private prisma: PrismaService,
     private config: ConfigService,
   ) {}
+
+  onModuleInit() {
+    const host = this.config.get<string>('REDIS_HOST') || 'localhost';
+    const port = this.config.get<number>('REDIS_PORT') || 6379;
+    const password = this.config.get<string>('REDIS_PASSWORD');
+    this.redisClient = new Redis({ host, port, password });
+    this.redisClient.on('error', (err) => this.logger.error('Redis connection error in FhirAuthService:', err));
+  }
+
+  onModuleDestroy() {
+    this.redisClient.disconnect();
+  }
 
   /**
    * Returns the list of registered FHIR apps.
@@ -133,15 +146,14 @@ export class FhirAuthService {
     // Generate authorization code (valid for 60 seconds per SMART spec)
     const code = `auth_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
     
-    this.authCodes.set(code, {
+    const payload = JSON.stringify({
       clientId,
       patient: launchPatient, // Can be undefined for system-level access
       scope: scope || app.defaultScopes,
-      expiresAt: Date.now() + 60_000, // 60 second TTL
     });
 
-    // Clean up expired codes periodically
-    this.cleanExpiredCodes();
+    // Store in Redis with 60s expiration
+    await this.redisClient.set(`fhir_auth:${code}`, payload, 'EX', 60);
 
     return { code, state: 'smart_state' };
   }
@@ -185,24 +197,26 @@ export class FhirAuthService {
         throw new BadRequestException('authorization_code grant requires a valid code');
       }
 
-      const authData = this.authCodes.get(code);
-      if (!authData) {
+      const redisKey = `fhir_auth:${code}`;
+      const authDataStr = await this.redisClient.get(redisKey);
+      
+      if (!authDataStr) {
         throw new UnauthorizedException('Invalid or expired authorization code');
       }
+
+      const authData = JSON.parse(authDataStr);
       if (authData.clientId !== clientId) {
         throw new UnauthorizedException('Authorization code was issued to a different client');
       }
-      if (Date.now() > authData.expiresAt) {
-        this.authCodes.delete(code);
-        throw new UnauthorizedException('Authorization code has expired');
-      }
+
+      // One-time use: delete code immediately
+      await this.redisClient.del(redisKey);
 
       // Use the scope and patient from the auth code
       finalScope = authData.scope;
       patientContext = authData.patient || patient;
 
-      // Consume the code (one-time use)
-      this.authCodes.delete(code);
+      // Already consumed code above via redisClient.del(redisKey)
     }
 
     // ---------------------
@@ -354,17 +368,5 @@ export class FhirAuthService {
     }
 
     return false;
-  }
-
-  /**
-   * Clean up expired authorization codes.
-   */
-  private cleanExpiredCodes() {
-    const now = Date.now();
-    for (const [code, data] of this.authCodes.entries()) {
-      if (now > data.expiresAt) {
-        this.authCodes.delete(code);
-      }
-    }
   }
 }

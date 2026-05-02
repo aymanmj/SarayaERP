@@ -141,7 +141,7 @@ export function ConsentFormDialog({
   // --- Print ---
   const handlePrint = () => {
     const formData = existingForm || { formType, title, content, status: "DRAFT", signedAt: null, signature: null, signedByRef: null };
-    const typeLabel = formData.formType === "SURGERY" ? "عملية جراحية" : formData.formType === "ANESTHESIA" ? "تخدير" : formData.formType === "PROCEDURE" ? "إجراء طبي" : "موافقة عامة";
+    const typeLabel = formData.formType === "SURGERY" ? "عملية جراحية" : formData.formType === "ANESTHESIA" ? "تخدير" : formData.formType === "PROCEDURE" ? "إجراء طبي" : formData.formType === "DATA_SHARING" ? "مشاركة بيانات (MPI)" : "موافقة عامة";
     const statusLabel = formData.status === "SIGNED" ? "موقّع" : formData.status === "REVOKED" ? "ملغى" : "مسودة - بانتظار التوقيع";
     const createdDate = formData.createdAt ? new Date(formData.createdAt).toLocaleDateString("ar-LY", { year: "numeric", month: "long", day: "numeric" }) : new Date().toLocaleDateString("ar-LY", { year: "numeric", month: "long", day: "numeric" });
     const signedDate = formData.signedAt ? new Date(formData.signedAt).toLocaleDateString("ar-LY", { year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" }) : null;
@@ -251,6 +251,7 @@ export function ConsentFormDialog({
                 <option value="SURGERY">عملية جراحية</option>
                 <option value="ANESTHESIA">تخدير</option>
                 <option value="PROCEDURE">إجراء طبي</option>
+                <option value="DATA_SHARING">مشاركة بيانات (MPI)</option>
                 <option value="OTHER">أخرى</option>
               </select>
             </div>

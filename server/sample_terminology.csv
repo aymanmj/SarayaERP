@@ -1,0 +1,8 @@
+system,code,display,displayAr,parentCode,version
+ICD-10,A00,Cholera,كوليرا,,2023
+ICD-10,A00.0,Cholera due to Vibrio cholerae 01, biovar cholerae,كوليرا بسبب الضمة الكوليرية,A00,2023
+ICD-10,A00.1,Cholera due to Vibrio cholerae 01, biovar eltor,كوليرا بسبب ضمة كوليرا الطور,A00,2023
+SNOMED,22298006,Myocardial infarction,احتشاء عضلة القلب,,2023
+SNOMED,194828000,Angina,ذبحة صدرية,,2023
+ATC,N02BE01,paracetamol,باراسيتامول,,2023
+ATC,J01CA04,amoxicillin,أموكسيسيلين,,2023

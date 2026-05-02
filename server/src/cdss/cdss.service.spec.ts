@@ -25,6 +25,9 @@ describe('CDSSService', () => {
       findFirst: jest.fn(),
       findMany: jest.fn(),
     },
+    drugDoseRange: {
+      findMany: jest.fn(),
+    },
   };
 
   beforeEach(async () => {
@@ -130,6 +133,10 @@ describe('CDSSService', () => {
 
   describe('checkDoseRange', () => {
     it('should generate a CRITICAL alert when Paracetamol dose exceeds 1000mg per dose', async () => {
+      mockPrismaService.drugDoseRange.findMany.mockResolvedValue([
+        { drugName: 'paracetamol iv', maxDoseValue: 1000, minDoseValue: 500, doseUnit: 'mg' }
+      ]);
+      
       const drugs: DrugCheckInput[] = [
         { genericName: 'Paracetamol IV', dose: '1500mg', route: 'IV' },
       ];
@@ -145,6 +152,10 @@ describe('CDSSService', () => {
     });
 
     it('should NOT generate an alert when Paracetamol dose is safe (1000mg)', async () => {
+      mockPrismaService.drugDoseRange.findMany.mockResolvedValue([
+        { drugName: 'paracetamol iv', maxDoseValue: 1000, minDoseValue: 500, doseUnit: 'mg' }
+      ]);
+      
       const drugs: DrugCheckInput[] = [
         { genericName: 'Paracetamol IV', dose: '1000mg', route: 'IV' },
       ];

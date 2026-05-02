@@ -21,4 +21,10 @@ export class AuditController {
   async getLogs(@Req() req: any, @Query() query: any) {
     return this.auditService.findAll(req.user.hospitalId, query);
   }
+
+  @Get('integrity-check')
+  @Roles('ADMIN', 'IT_ADMIN')
+  async verifyIntegrity() {
+    return this.auditService.verifyChain();
+  }
 }

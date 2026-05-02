@@ -295,22 +295,22 @@ export class FhirController {
   @UseGuards(FhirAuthGuard)
   @FhirScope('system/Subscription.read')
   @Get('Subscription')
-  listSubscriptions(@Req() req: Request) {
-    return this.fhirService.listSubscriptions(this.getBaseUrl(req));
+  async listSubscriptions(@Req() req: Request) {
+    return await this.fhirService.listSubscriptions(this.getBaseUrl(req));
   }
 
   @UseGuards(FhirAuthGuard)
   @FhirScope('system/Subscription.read')
   @Get('Subscription/:id')
-  getSubscription(@Param('id') id: string) {
-    return this.fhirService.getSubscription(id);
+  async getSubscription(@Param('id') id: string) {
+    return await this.fhirService.getSubscription(id);
   }
 
   @UseGuards(FhirAuthGuard)
   @FhirScope('system/Subscription.write')
   @Post('Subscription')
-  createSubscription(@Body() body: any) {
-    return this.fhirService.createSubscription(body);
+  async createSubscription(@Body() body: any) {
+    return await this.fhirService.createSubscription(body);
   }
 
   // ==========================================

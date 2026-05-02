@@ -400,6 +400,16 @@ export class CDSSService {
 
   async checkDoseRange(drugs: DrugCheckInput[]): Promise<CDSSAlertResult[]> {
     const alerts: CDSSAlertResult[] = [];
+    
+    // Fetch dose rules for these drugs from DB
+    const genericNames = drugs.map(d => d.genericName.toLowerCase());
+    
+    const doseRules = await this.prisma.drugDoseRange.findMany({
+      where: {
+        drugName: { in: genericNames, mode: 'insensitive' }
+      }
+    });
+
     for (const drug of drugs) {
       if (!drug.dose) continue;
       
@@ -407,16 +417,28 @@ export class CDSSService {
       if (!doseMatch) continue;
       const numDose = parseFloat(doseMatch[0]);
       
-      // أمثلة (Fake rules for simulation)
-      if (drug.genericName.toLowerCase().includes('paracetamol') && numDose > 1000) {
-         alerts.push({
-           type: CDSSAlertType.DOSAGE_WARNING,
-           severity: CDSSAlertSeverity.CRITICAL,
-           message: `Dose exceeds maximum limit! ${numDose}mg given, Max is 1000mg per dose.`,
-           messageAr: `الجرعة تتجاوز الحد الأقصى! الجرعة الموصوفة ${numDose} لدواء ${drug.genericName}`,
-           context: { drug: drug.genericName, inputDose: numDose, maxDose: 1000 },
-           requiresOverride: true
-         });
+      const rule = doseRules.find(r => r.drugName.toLowerCase() === drug.genericName.toLowerCase());
+      
+      if (rule) {
+        if (rule.maxDoseValue && numDose > Number(rule.maxDoseValue)) {
+          alerts.push({
+            type: CDSSAlertType.DOSAGE_WARNING,
+            severity: CDSSAlertSeverity.CRITICAL,
+            message: `Dose exceeds maximum limit! ${numDose}mg given, Max is ${rule.maxDoseValue}mg per dose.`,
+            messageAr: `الجرعة تتجاوز الحد الأقصى! الجرعة الموصوفة ${numDose} لدواء ${drug.genericName}. الحد الأقصى: ${rule.maxDoseValue}mg`,
+            context: { drug: drug.genericName, inputDose: numDose, maxDose: Number(rule.maxDoseValue) },
+            requiresOverride: true
+          });
+        } else if (rule.minDoseValue && numDose < Number(rule.minDoseValue)) {
+          alerts.push({
+            type: CDSSAlertType.DOSAGE_WARNING,
+            severity: CDSSAlertSeverity.MODERATE,
+            message: `Dose is below minimum recommended limit! ${numDose}mg given, Min is ${rule.minDoseValue}mg per dose.`,
+            messageAr: `الجرعة أقل من الحد الأدنى الموصى به! الجرعة الموصوفة ${numDose} لدواء ${drug.genericName}. الحد الأدنى: ${rule.minDoseValue}mg`,
+            context: { drug: drug.genericName, inputDose: numDose, minDose: Number(rule.minDoseValue) },
+            requiresOverride: false
+          });
+        }
       }
     }
     return alerts;
