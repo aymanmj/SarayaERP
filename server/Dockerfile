@@ -35,6 +35,8 @@ RUN npx tsc prisma/seed.ts --outDir dist/prisma --module commonjs --target es201
 # تجميع سكربتات الصيانة (Migration Scripts)
 RUN npx tsc src/scripts/backfill-global-hashes.ts --outDir dist/scripts --module commonjs --target es2019 --esModuleInterop --skipLibCheck --moduleResolution node
 RUN npx tsc src/scripts/dedup-global-patients.ts --outDir dist/scripts --module commonjs --target es2019 --esModuleInterop --skipLibCheck --moduleResolution node
+RUN npx tsc src/scripts/seed-drug-dose.ts --outDir dist/scripts --module commonjs --target es2019 --esModuleInterop --skipLibCheck --moduleResolution node
+RUN npx tsc src/scripts/import-terminology.ts --outDir dist/scripts --module commonjs --target es2019 --esModuleInterop --skipLibCheck --moduleResolution node
 
 # ------------------------------------------
 # Stage 2: Production
