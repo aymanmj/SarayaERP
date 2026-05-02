@@ -34,6 +34,14 @@ type Prescription = {
 type MarResponse = {
   prescriptions: Prescription[];
   administrations: (AdministrationRecord & { prescriptionItemId: number })[];
+  schedule?: {
+    scheduledTime: string;
+    status: 'PENDING' | 'OVERDUE' | 'ADMINISTERED' | 'MISSED';
+    medicationName: string;
+    dose: string;
+    route: string;
+    prescriptionItemId: number;
+  }[];
 };
 
 function formatTime(iso: string) {
@@ -57,10 +65,15 @@ export function MedicationAdministrationPane({
   const loadMAR = async () => {
     setLoading(true);
     try {
-      const res = await apiClient.get<MarResponse>(
-        `/nursing/encounters/${encounterId}/mar`
-      );
-      setData(res.data);
+      const [marRes, scheduleRes] = await Promise.all([
+        apiClient.get<MarResponse>(`/nursing/encounters/${encounterId}/mar`),
+        apiClient.get(`/nursing/encounters/${encounterId}/mar-schedule`).catch(() => ({ data: [] }))
+      ]);
+      
+      setData({
+        ...marRes.data,
+        schedule: scheduleRes.data
+      });
     } catch (err) {
       console.error(err);
       toast.error("فشل تحميل سجل الأدوية.");
@@ -104,10 +117,49 @@ export function MedicationAdministrationPane({
   };
 
   if (loading && !data)
-    return <div className="text-slate-400 text-sm">جارِ التحميل...</div>;
+    return <div className="text-slate-400 text-sm p-4 animate-pulse">جارِ تحميل جدول الأدوية (MAR)...</div>;
 
   return (
     <div className="space-y-6">
+      {/* MAR Schedule Timeline */}
+      {data?.schedule && data.schedule.length > 0 && (
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+          <h3 className="text-sm font-bold text-sky-400 mb-4 flex items-center gap-2">
+            <span>🕒</span> جدول إعطاء الأدوية (MAR Schedule)
+          </h3>
+          <div className="flex gap-3 overflow-x-auto pb-2 custom-scrollbar">
+            {data.schedule.map((slot, idx) => (
+              <div 
+                key={idx} 
+                className={`flex-shrink-0 w-48 p-3 rounded-xl border ${
+                  slot.status === 'OVERDUE' ? 'bg-rose-500/10 border-rose-500/30' :
+                  slot.status === 'ADMINISTERED' ? 'bg-emerald-500/10 border-emerald-500/30' :
+                  'bg-slate-950 border-slate-700'
+                }`}
+              >
+                <div className="flex justify-between items-start mb-2">
+                  <div className="font-bold text-slate-200">
+                    {new Date(slot.scheduledTime).toLocaleTimeString('ar-LY', { hour: '2-digit', minute: '2-digit' })}
+                  </div>
+                  <div className={`text-[10px] px-2 py-0.5 rounded font-bold ${
+                    slot.status === 'OVERDUE' ? 'bg-rose-500 text-white' :
+                    slot.status === 'ADMINISTERED' ? 'bg-emerald-500 text-white' :
+                    'bg-slate-700 text-slate-300'
+                  }`}>
+                    {slot.status === 'OVERDUE' ? 'متأخر' : slot.status === 'ADMINISTERED' ? 'أُعطي' : 'مجدول'}
+                  </div>
+                </div>
+                <div className="text-xs font-bold text-sky-300 truncate">{slot.medicationName}</div>
+                <div className="text-[10px] text-slate-400 mt-1">
+                  {slot.dose} - {slot.route}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Existing Prescriptions List */}
       {!data || data.prescriptions.length === 0 ? (
         <div className="text-center py-8 text-slate-500 border border-slate-800 rounded-2xl bg-slate-900/50">
           لا توجد وصفات طبية فعالة لهذا المريض.

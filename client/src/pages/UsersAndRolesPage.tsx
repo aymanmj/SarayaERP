@@ -100,6 +100,7 @@ const roleColors: Record<string, string> = {
   PHARMACIST: "bg-teal-500/10 text-teal-400 border-teal-500/30",
   LAB_TECH: "bg-indigo-500/10 text-indigo-400 border-indigo-500/30",
   RADIOLOGY_TECH: "bg-cyan-500/10 text-cyan-400 border-cyan-500/30",
+  QUALITY_MANAGER: "bg-fuchsia-500/10 text-fuchsia-400 border-fuchsia-500/30",
 };
 
 // ===== PERMISSION GROUP LABELS =====

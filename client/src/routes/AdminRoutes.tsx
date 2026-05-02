@@ -23,6 +23,7 @@ const ExecutiveDashboardPage = lazy(() =>
     default: m.ExecutiveDashboard,
   })),
 );
+const ClinicalKpisPage = lazy(() => import("../pages/ClinicalKpisPage"));
 const DoctorPerformancePage = lazy(() => import("../pages/DoctorPerformancePage"));
 const CommissionSettingsPage = lazy(() => import("../pages/settings/CommissionSettingsPage"));
 const RevenueDepartmentPage = lazy(() => import("../pages/RevenueDepartmentPage"));
@@ -80,6 +81,7 @@ export const AdminRoutes = (
     <Route path="/audit/logs" element={<AuditLogsPage />} />
     <Route path="/integration" element={<IntegrationPage />} />
     <Route path="/analytics/executive" element={<ExecutiveDashboardPage />} />
+    <Route path="/analytics/clinical-kpis" element={<ClinicalKpisPage />} />
     <Route path="/reports/doctor-performance" element={<DoctorPerformancePage />} />
     <Route path="/reports/revenue-department" element={<RevenueDepartmentPage />} />
     <Route path="/referrals" element={<ReferralsPage />} />

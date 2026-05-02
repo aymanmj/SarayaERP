@@ -356,9 +356,18 @@ describe('ClaimService', () => {
 describe('ClaimScrubberService', () => {
   let scrubber: ClaimScrubberService;
 
+  const mockPrisma = {
+    claim: {
+      findFirst: jest.fn(),
+    },
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [ClaimScrubberService],
+      providers: [
+        ClaimScrubberService,
+        { provide: PrismaService, useValue: mockPrisma },
+      ],
     }).compile();
 
     scrubber = module.get<ClaimScrubberService>(ClaimScrubberService);
@@ -371,7 +380,7 @@ describe('ClaimScrubberService', () => {
       invoice: { patient: null, insuranceProvider: { isActive: true }, encounter: { diagnoses: [] }, items: [] },
     };
 
-    const results = await scrubber.scrub(claim);
+    const results = await scrubber.scrub(claim as any);
     const errors = results.filter((r) => r.severity === 'ERROR');
 
     expect(errors.length).toBeGreaterThan(0);
@@ -390,7 +399,7 @@ describe('ClaimScrubberService', () => {
       },
     };
 
-    const results = await scrubber.scrub(claim);
+    const results = await scrubber.scrub(claim as any);
 
     expect(results.some((r) => r.field === 'patient.dateOfBirth' && r.severity === 'ERROR')).toBe(true);
   });
@@ -407,7 +416,7 @@ describe('ClaimScrubberService', () => {
       },
     };
 
-    const results = await scrubber.scrub(claim);
+    const results = await scrubber.scrub(claim as any);
 
     expect(results.some((r) => r.ruleCode === 'ELIGIBILITY' && r.severity === 'ERROR')).toBe(true);
   });
@@ -424,7 +433,7 @@ describe('ClaimScrubberService', () => {
       },
     };
 
-    const results = await scrubber.scrub(claim);
+    const results = await scrubber.scrub(claim as any);
 
     expect(results.some((r) => r.ruleCode === 'CODING' && r.severity === 'ERROR')).toBe(true);
   });
@@ -441,7 +450,7 @@ describe('ClaimScrubberService', () => {
       },
     };
 
-    const results = await scrubber.scrub(claim);
+    const results = await scrubber.scrub(claim as any);
 
     expect(results.some((r) => r.ruleCode === 'AUTHORIZATION' && r.severity === 'WARNING')).toBe(true);
   });
@@ -458,7 +467,7 @@ describe('ClaimScrubberService', () => {
       },
     };
 
-    const results = await scrubber.scrub(claim);
+    const results = await scrubber.scrub(claim as any);
     const errors = results.filter((r) => r.severity === 'ERROR');
 
     expect(errors).toHaveLength(0);

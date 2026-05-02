@@ -1,6 +1,7 @@
 // src/components/nursing/NursingNotificationCenter.tsx
 import { useState, useEffect } from 'react';
 import { useNursingWebSocket } from '../../hooks/useNursingWebSocket';
+import { apiClient } from '../../api/apiClient';
 import { format } from 'date-fns';
 import { ar } from 'date-fns/locale';
 import {
@@ -31,6 +32,15 @@ export function NursingNotificationCenter({ className = '' }: NotificationCenter
     clearVitalsUpdates,
   } = useNursingWebSocket();
 
+  const [fetchedOverdue, setFetchedOverdue] = useState<any[]>([]);
+
+  useEffect(() => {
+    // Fetch initial overdue medications
+    apiClient.get('/nursing/overdue-medications')
+      .then(res => setFetchedOverdue(res.data))
+      .catch(err => console.error('Failed to fetch overdue meds:', err));
+  }, []);
+
   const allNotifications = [
     ...alerts.map(alert => ({
       id: `alert-${alert.encounterId}-${alert.timestamp}`,
@@ -60,6 +70,15 @@ export function NursingNotificationCenter({ className = '' }: NotificationCenter
       message: `تم تحديث العلامات الحيوية بواسطة: ${update.nurseName}`,
       timestamp: update.timestamp,
       encounterId: update.encounterId,
+    })),
+    ...fetchedOverdue.map(med => ({
+      id: `fetched-overdue-${med.prescriptionItemId}-${med.scheduledTime}`,
+      type: 'medication' as const,
+      priority: 'CRITICAL' as const,
+      title: `تأخير دواء: ${med.medicationName}`,
+      message: `كان مجدولاً في: ${format(new Date(med.scheduledTime), 'HH:mm', { locale: ar })} - ${med.dose} ${med.route}`,
+      timestamp: med.scheduledTime,
+      encounterId: med.encounterId || 0,
     })),
   ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
