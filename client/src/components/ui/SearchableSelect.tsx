@@ -42,7 +42,7 @@ export default function SearchableSelect({
   const [selectedLabel, setSelectedLabel] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   // Close on outside click
   useEffect(() => {
