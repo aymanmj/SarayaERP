@@ -352,4 +352,151 @@ export class NursingService {
       },
     });
   }
+
+  // -----------------------------------------------------------------------
+  // 🟢 MAR Schedule & Overdue Alerts - HIMSS Stage 6/7 Target (Sprint 2C)
+  // -----------------------------------------------------------------------
+
+  /**
+   * توليد جدول مواعيد إعطاء الأدوية (MAR) ليوم محدد
+   */
+  async generateMARSchedule(hospitalId: number, encounterId: number, targetDate: Date = new Date()) {
+    // 1. Get active prescription items
+    const prescriptions = await this.prisma.prescription.findMany({
+      where: {
+        hospitalId,
+        encounterId,
+        status: { in: ['ACTIVE', 'PARTIALLY_COMPLETED'] },
+      },
+      include: {
+        items: { include: { product: true } },
+      },
+    });
+
+    const schedule: any[] = [];
+    
+    // Normalize targetDate to start of day
+    const startOfDay = new Date(targetDate);
+    startOfDay.setHours(0, 0, 0, 0);
+
+    // 2. Get today's administrations to map to slots
+    const todayAdmins = await this.prisma.medicationAdministration.findMany({
+      where: {
+        hospitalId,
+        encounterId,
+        administeredAt: {
+          gte: startOfDay,
+          lt: new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000),
+        },
+      },
+    });
+
+    // 3. Generate slots based on frequency
+    for (const rx of prescriptions) {
+      for (const item of rx.items) {
+        const slots: Date[] = [];
+        
+        switch (item.frequency) {
+          case 'DAILY':
+            slots.push(new Date(startOfDay.getTime() + 8 * 60 * 60 * 1000)); // 08:00
+            break;
+          case 'BID':
+            slots.push(new Date(startOfDay.getTime() + 8 * 60 * 60 * 1000)); // 08:00
+            slots.push(new Date(startOfDay.getTime() + 20 * 60 * 60 * 1000)); // 20:00
+            break;
+          case 'TID':
+            slots.push(new Date(startOfDay.getTime() + 8 * 60 * 60 * 1000)); // 08:00
+            slots.push(new Date(startOfDay.getTime() + 14 * 60 * 60 * 1000)); // 14:00
+            slots.push(new Date(startOfDay.getTime() + 20 * 60 * 60 * 1000)); // 20:00
+            break;
+          case 'QID':
+            slots.push(new Date(startOfDay.getTime() + 6 * 60 * 60 * 1000)); // 06:00
+            slots.push(new Date(startOfDay.getTime() + 12 * 60 * 60 * 1000)); // 12:00
+            slots.push(new Date(startOfDay.getTime() + 18 * 60 * 60 * 1000)); // 18:00
+            slots.push(new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000)); // 24:00 (midnight next day)
+            break;
+          case 'QHS':
+            slots.push(new Date(startOfDay.getTime() + 22 * 60 * 60 * 1000)); // 22:00
+            break;
+          // PRN, ONCE, OTHER can be handled dynamically or omitted from rigid scheduling
+        }
+
+        // 4. Map slots to administration records
+        for (const slotTime of slots) {
+          // Find if there's an administration record within +/- 2 hours of this slot
+          const slotStart = new Date(slotTime.getTime() - 2 * 60 * 60 * 1000);
+          const slotEnd = new Date(slotTime.getTime() + 2 * 60 * 60 * 1000);
+          
+          const adminRecord = todayAdmins.find(
+            a => a.prescriptionItemId === item.id && 
+                 a.administeredAt >= slotStart && 
+                 a.administeredAt <= slotEnd
+          );
+
+          let status = 'PENDING';
+          let isOverdue = false;
+          
+          if (adminRecord) {
+            status = adminRecord.status; // GIVEN, REFUSED, etc.
+          } else {
+            // Check if overdue (more than 1 hour past the slot time)
+            if (new Date().getTime() > slotTime.getTime() + 60 * 60 * 1000) {
+              status = 'OVERDUE';
+              isOverdue = true;
+            }
+          }
+
+          schedule.push({
+            prescriptionItemId: item.id,
+            drugName: item.product.name,
+            dose: item.dose,
+            route: item.route,
+            scheduledTime: slotTime,
+            status,
+            isOverdue,
+            administrationRecord: adminRecord || null,
+          });
+        }
+      }
+    }
+
+    // Sort by scheduled time
+    return schedule.sort((a, b) => a.scheduledTime.getTime() - b.scheduledTime.getTime());
+  }
+
+  /**
+   * الكشف عن الأدوية المتأخرة وإطلاق تنبيهات
+   */
+  async getOverdueMedications(hospitalId: number, encounterId?: number) {
+    const activeEncounters = encounterId 
+      ? [{ id: encounterId }] 
+      : await this.prisma.encounter.findMany({
+          where: { hospitalId, type: 'IPD', status: 'OPEN' },
+          select: { id: true }
+        });
+
+    const allOverdue: any[] = [];
+    
+    for (const enc of activeEncounters) {
+      const schedule = await this.generateMARSchedule(hospitalId, enc.id, new Date());
+      const overdueItems = schedule.filter(s => s.isOverdue);
+      
+      if (overdueItems.length > 0) {
+        allOverdue.push({
+          encounterId: enc.id,
+          overdueItems,
+        });
+        
+        // Emit event for alerting system
+        this.eventEmitter.emit('nursing.medication.overdue', {
+          hospitalId,
+          encounterId: enc.id,
+          overdueCount: overdueItems.length,
+          items: overdueItems.map(i => ({ drug: i.drugName, scheduled: i.scheduledTime }))
+        });
+      }
+    }
+
+    return allOverdue;
+  }
 }

@@ -102,4 +102,27 @@ export class NursingController {
       body.notes,
     );
   }
+
+  // 6. MAR Schedule
+  @Get('encounters/:id/mar-schedule')
+  @Roles('ADMIN', 'NURSE', 'DOCTOR')
+  async getMARSchedule(
+    @Req() req: any,
+    @Param('id', ParseIntPipe) encounterId: number,
+    @Query('targetDate') targetDate?: string,
+  ) {
+    const date = targetDate ? new Date(targetDate) : new Date();
+    return this.nursingService.generateMARSchedule(req.user.hospitalId, encounterId, date);
+  }
+
+  // 7. Overdue Medications Alerts
+  @Get('overdue-medications')
+  @Roles('ADMIN', 'NURSE', 'QUALITY_MANAGER')
+  async getOverdueMedications(
+    @Req() req: any,
+    @Query('encounterId') encounterId?: string,
+  ) {
+    const encId = encounterId ? Number(encounterId) : undefined;
+    return this.nursingService.getOverdueMedications(req.user.hospitalId, encId);
+  }
 }

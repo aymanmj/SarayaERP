@@ -126,10 +126,12 @@ export class CDSSService {
     return alerts;
   }
 
-  // ======================== 2. Drug-Allergy Check ========================
+  // ======================== 2. Drug-Allergy Check (with Cross-Reactivity) ========================
 
   /**
    * فحص تعارض الأدوية مع حساسيات المريض
+   * يستخدم محرك Cross-Reactivity للكشف عن التحسس المتبادل بين أدوية نفس المجموعة
+   * مثال: حساسية من Aspirin → تنبيه عند وصف Ibuprofen (كلاهما NSAIDs)
    */
   async checkDrugAllergies(
     patientId: number,
@@ -146,12 +148,72 @@ export class CDSSService {
 
     const normalizedDrugs = drugGenericNames.map(d => d.toLowerCase().trim());
 
+    // ─── Phase 1: Cross-Reactivity Engine (DB-driven) ───
+    // لكل حساسية، نبحث عن مجموعتها (AllergyGroup) ثم نفحص كل أعضاء المجموعة
+    const crossReactivityMatched = new Set<string>(); // لتجنب التنبيهات المكررة
+
     for (const allergy of allergies) {
       const allergen = allergy.allergen.toLowerCase().trim();
 
+      // البحث عن مجموعات الحساسية التي ينتمي إليها المادة المسببة للتحسس
+      const allergenGroups = await this.prisma.allergyGroupDrug.findMany({
+        where: { drugGeneric: { equals: allergen, mode: 'insensitive' } },
+        include: {
+          allergyGroup: {
+            include: { members: true }
+          }
+        }
+      });
+
+      if (allergenGroups.length > 0) {
+        // وجدنا مجموعة — نفحص كل أعضائها ضد الأدوية الموصوفة
+        for (const entry of allergenGroups) {
+          const groupMembers = entry.allergyGroup.members.map(m => m.drugGeneric.toLowerCase());
+          const groupName = entry.allergyGroup.name;
+
+          for (const drug of normalizedDrugs) {
+            // هل الدواء الموصوف ينتمي لنفس مجموعة الحساسية؟
+            const memberMatch = groupMembers.find(m => drug.includes(m) || m.includes(drug));
+            if (memberMatch) {
+              const key = `${drug}|${allergen}`;
+              if (crossReactivityMatched.has(key)) continue;
+              crossReactivityMatched.add(key);
+
+              const isDirect = drug.includes(allergen) || allergen.includes(drug);
+              alerts.push({
+                type: CDSSAlertType.DRUG_ALLERGY,
+                severity: isDirect ? this.mapAllergySeverity(allergy.severity) : CDSSAlertSeverity.HIGH,
+                message: isDirect
+                  ? `Direct allergy match: "${drug}" — patient is allergic to "${allergy.allergen}"`
+                  : `Cross-reactivity risk: "${drug}" belongs to ${groupName} group — patient is allergic to "${allergy.allergen}" (same group)`,
+                messageAr: isDirect
+                  ? `تطابق مباشر: الدواء "${drug}" — المريض لديه حساسية من "${allergy.allergen}"`
+                  : `خطر تفاعل متبادل: الدواء "${drug}" ينتمي لمجموعة ${groupName} — المريض لديه حساسية من "${allergy.allergen}" (نفس المجموعة)`,
+                context: {
+                  drug,
+                  allergen: allergy.allergen,
+                  severity: allergy.severity,
+                  reaction: allergy.reaction,
+                  crossReactivityGroup: groupName,
+                  isDirect,
+                },
+                requiresOverride: isDirect && allergy.severity === 'SEVERE',
+              });
+            }
+          }
+        }
+      }
+    }
+
+    // ─── Phase 2: Fallback — Text matching للمواد غير المصنفة بعد ───
+    for (const allergy of allergies) {
+      const allergen = allergy.allergen.toLowerCase().trim();
       for (const drug of normalizedDrugs) {
-        // بحث نصي بسيط (يمكن تحسينه بقاعدة معرفة)
+        const key = `${drug}|${allergen}`;
+        if (crossReactivityMatched.has(key)) continue; // تم التنبيه بالفعل
+
         if (drug.includes(allergen) || allergen.includes(drug)) {
+          crossReactivityMatched.add(key);
           alerts.push({
             type: CDSSAlertType.DRUG_ALLERGY,
             severity: this.mapAllergySeverity(allergy.severity),
@@ -162,6 +224,7 @@ export class CDSSService {
               allergen: allergy.allergen,
               severity: allergy.severity,
               reaction: allergy.reaction,
+              isDirect: true,
             },
             requiresOverride: allergy.severity === 'SEVERE',
           });

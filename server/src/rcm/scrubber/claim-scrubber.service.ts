@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { PrismaService } from '../../prisma/prisma.service';
 
 /**
  * نتيجة فحص واحدة
@@ -25,6 +26,8 @@ export interface ScrubResult {
 export class ClaimScrubberService {
   private readonly logger = new Logger(ClaimScrubberService.name);
 
+  constructor(private readonly prisma: PrismaService) {}
+
   /**
    * تنفيذ كل قواعد الفحص على المطالبة
    */
@@ -34,7 +37,7 @@ export class ClaimScrubberService {
     results.push(...this.checkCompleteness(claim));
     results.push(...this.checkEligibility(claim));
     results.push(...this.checkCodingAccuracy(claim));
-    results.push(...this.checkDuplicates(claim));
+    results.push(...(await this.checkDuplicates(claim)));
     results.push(...this.checkAuthorization(claim));
 
     this.logger.log(
@@ -178,11 +181,62 @@ export class ClaimScrubberService {
   /**
    * فحص التكرار — هل هذه مطالبة مكررة؟
    */
-  private checkDuplicates(claim: any): ScrubResult[] {
+  private async checkDuplicates(claim: any): Promise<ScrubResult[]> {
     const results: ScrubResult[] = [];
 
-    // الفحص الأساسي: هل يوجد مطالبة أخرى لنفس الفاتورة؟
-    // (يتم التحقق في ClaimService.createClaim أيضاً)
+    // 1. الفحص الأساسي: هل يوجد مطالبة أخرى لنفس الفاتورة؟
+    if (claim.invoiceId) {
+      const existingClaims = await this.prisma.claim.findMany({
+        where: {
+          invoiceId: claim.invoiceId,
+          id: { not: claim.id },
+          status: { notIn: ['REJECTED', 'VOID'] },
+        },
+      });
+
+      if (existingClaims.length > 0) {
+        results.push({
+          ruleCode: 'DUPLICATE_INVOICE',
+          severity: 'ERROR',
+          message: 'يوجد مطالبة سابقة لنفس الفاتورة لم يتم رفضها أو إلغاؤها',
+          field: 'invoiceId',
+        });
+      }
+    }
+
+    // 2. الفحص المتقدم (Clinical Exact Match):
+    // هل هناك مطالبة أخرى لنفس المريض في نفس اليوم، لنفس الخدمة/الطبيب؟
+    if (claim.invoice?.patientId && claim.invoice?.encounter) {
+      const encounterDate = claim.invoice.encounter.createdAt;
+      const startOfDay = new Date(encounterDate);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
+
+      const sameDayClaims = await this.prisma.claim.findMany({
+        where: {
+          id: { not: claim.id },
+          status: { notIn: ['REJECTED', 'VOID'] },
+          invoice: {
+            patientId: claim.invoice.patientId,
+            encounter: {
+              createdAt: { gte: startOfDay, lt: endOfDay },
+              doctorId: claim.invoice.encounter.doctorId,
+              departmentId: claim.invoice.encounter.departmentId,
+            },
+          },
+        },
+        include: { invoice: { include: { encounter: true } } },
+      });
+
+      if (sameDayClaims.length > 0) {
+        results.push({
+          ruleCode: 'DUPLICATE_ENCOUNTER',
+          severity: 'WARNING',
+          message: 'تحذير: تم العثور على مطالبة لنفس المريض مع نفس الطبيب/القسم في نفس اليوم. قد تعتبر شركة التأمين هذه الزيارة مكررة',
+          field: 'encounter',
+        });
+      }
+    }
 
     return results;
   }

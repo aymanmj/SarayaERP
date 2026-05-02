@@ -5281,3 +5281,26 @@ model TerminologyRelationship {
   relationship String // E.g., "maps_to", "is_a"
   createdAt    DateTime @default(now())
 }
+
+// ================================================
+// Cross-Reactivity Engine (CDSS Phase 2)
+// ================================================
+
+model AllergyGroup {
+  id          Int                @id @default(autoincrement())
+  name        String             @unique // "NSAIDs", "Penicillins", "Sulfonamides"
+  nameAr      String? // "مضادات الالتهاب غير الستيرويدية"
+  description String?
+  members     AllergyGroupDrug[]
+  createdAt   DateTime           @default(now())
+}
+
+model AllergyGroupDrug {
+  id             Int          @id @default(autoincrement())
+  allergyGroupId Int
+  drugGeneric    String // "aspirin", "ibuprofen", "naproxen"
+  allergyGroup   AllergyGroup @relation(fields: [allergyGroupId], references: [id], onDelete: Cascade)
+
+  @@unique([allergyGroupId, drugGeneric])
+  @@index([drugGeneric])
+}

@@ -187,4 +187,95 @@ export class AnalyticsService {
       generationDate: new Date(),
     };
   }
+
+  // -----------------------------------------------------------------------
+  // 🟢 Clinical Quality KPIs - HIMSS Stage 6/7 Target (Sprint 2B)
+  // -----------------------------------------------------------------------
+  async getClinicalKPIs(hospitalId: number, startDate: Date, endDate: Date) {
+    // 1. Readmission Rate (30-day IPD readmissions)
+    const ipdAdmissions = await this.prisma.encounter.findMany({
+      where: {
+        hospitalId,
+        type: 'IPD',
+        createdAt: { gte: startDate, lte: endDate },
+      },
+      select: { patientId: true, createdAt: true },
+    });
+
+    let readmissionCount = 0;
+    for (const adm of ipdAdmissions) {
+      // Find previous IPD discharge within 30 days
+      const thirtyDaysBefore = new Date(adm.createdAt.getTime() - 30 * 24 * 60 * 60 * 1000);
+      const previousDischarge = await this.prisma.encounter.findFirst({
+        where: {
+          patientId: adm.patientId,
+          hospitalId,
+          type: 'IPD',
+          status: 'CLOSED',
+          dischargeDate: { gte: thirtyDaysBefore, lt: adm.createdAt },
+        },
+      });
+      if (previousDischarge) readmissionCount++;
+    }
+    const readmissionRate = ipdAdmissions.length > 0 ? (readmissionCount / ipdAdmissions.length) * 100 : 0;
+
+    // 2. Average Length of Stay (ALOS)
+    const dischargedEncounters = await this.prisma.encounter.findMany({
+      where: {
+        hospitalId,
+        type: 'IPD',
+        status: 'CLOSED',
+        dischargeDate: { gte: startDate, lte: endDate },
+      },
+      select: { createdAt: true, dischargeDate: true },
+    });
+
+    let totalStayHours = 0;
+    dischargedEncounters.forEach(enc => {
+      if (enc.dischargeDate && enc.createdAt) {
+        totalStayHours += (enc.dischargeDate.getTime() - enc.createdAt.getTime()) / (1000 * 60 * 60);
+      }
+    });
+    const averageLOSDays = dischargedEncounters.length > 0 ? (totalStayHours / dischargedEncounters.length) / 24 : 0;
+
+    // 3. Medication Error / Override Rate
+    const totalMeds = await this.prisma.medicationAdministration.count({
+      where: { hospitalId, administeredAt: { gte: startDate, lte: endDate } },
+    });
+    const overrideMeds = await this.prisma.medicationAdministration.count({
+      where: { hospitalId, isEmergencyOverride: true, administeredAt: { gte: startDate, lte: endDate } },
+    });
+    const medicationOverrideRate = totalMeds > 0 ? (overrideMeds / totalMeds) * 100 : 0;
+
+    // 4. Care Gap Closure Rate
+    const totalGaps = await this.prisma.careGap.count({
+      where: { patient: { hospitalId }, createdAt: { lte: endDate }, OR: [{ closedAt: null }, { closedAt: { gte: startDate } }] },
+    });
+    const closedGaps = await this.prisma.careGap.count({
+      where: { patient: { hospitalId }, status: 'CLOSED', closedAt: { gte: startDate, lte: endDate } },
+    });
+    const careGapClosureRate = totalGaps > 0 ? (closedGaps / totalGaps) * 100 : 0;
+
+    // 5. CDSS Alert Fatigue (Override Rate)
+    const totalAlerts = await this.prisma.cDSSAlert.count({
+      where: { hospitalId, createdAt: { gte: startDate, lte: endDate } },
+    });
+    const overriddenAlerts = await this.prisma.cDSSAlert.count({
+      where: { hospitalId, status: 'OVERRIDDEN', createdAt: { gte: startDate, lte: endDate } },
+    });
+    const cdssOverrideRate = totalAlerts > 0 ? (overriddenAlerts / totalAlerts) * 100 : 0;
+
+    return {
+      period: { startDate, endDate },
+      readmissionRate: Number(readmissionRate.toFixed(2)),
+      readmissionCount,
+      totalIPDAdmissions: ipdAdmissions.length,
+      averageLOSDays: Number(averageLOSDays.toFixed(2)),
+      dischargedCount: dischargedEncounters.length,
+      medicationOverrideRate: Number(medicationOverrideRate.toFixed(2)),
+      careGapClosureRate: Number(careGapClosureRate.toFixed(2)),
+      cdssOverrideRate: Number(cdssOverrideRate.toFixed(2)),
+      generationDate: new Date(),
+    };
+  }
 }

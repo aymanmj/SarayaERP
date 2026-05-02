@@ -28,4 +28,17 @@ export class AnalyticsController {
 
     return this.analyticsService.getClinicalVarianceReport(user.hospitalId, startDate, endDate);
   }
+
+  @Get('clinical-kpis')
+  @Roles('ADMIN', 'CEO', 'CMO', 'QUALITY_MANAGER')
+  async getClinicalKPIs(
+    @CurrentUser() user: any,
+    @Req() req: any,
+  ) {
+    // Default to last 30 days if not provided
+    const endDate = req.query.endDate ? new Date(req.query.endDate) : new Date();
+    const startDate = req.query.startDate ? new Date(req.query.startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+    return this.analyticsService.getClinicalKPIs(user.hospitalId, startDate, endDate);
+  }
 }

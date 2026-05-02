@@ -28,6 +28,12 @@ describe('CDSSService', () => {
     drugDoseRange: {
       findMany: jest.fn(),
     },
+    patientAllergy: {
+      findMany: jest.fn(),
+    },
+    allergyGroupDrug: {
+      findMany: jest.fn(),
+    },
   };
 
   beforeEach(async () => {
@@ -62,6 +68,75 @@ describe('CDSSService', () => {
 
   it('should be defined', () => {
     expect(cdssService).toBeDefined();
+  });
+
+  describe('checkDrugAllergies', () => {
+    it('should generate a SEVERE alert for a direct allergy match', async () => {
+      mockPrismaService.patientAllergy.findMany.mockResolvedValue([
+        { allergen: 'Aspirin', severity: 'SEVERE', reaction: 'Anaphylaxis' },
+      ]);
+      mockPrismaService.allergyGroupDrug.findMany.mockResolvedValue([]);
+
+      const alerts = await cdssService.checkDrugAllergies(1, ['Aspirin']);
+
+      expect(alerts).toBeDefined();
+      expect(alerts.length).toBe(1);
+      expect(alerts[0].type).toEqual(CDSSAlertType.DRUG_ALLERGY);
+      expect(alerts[0].severity).toEqual(CDSSAlertSeverity.CRITICAL); // mapped from SEVERE
+      expect(alerts[0].message).toContain('may trigger allergy to');
+      expect(alerts[0].requiresOverride).toBe(true);
+    });
+
+    it('should generate a HIGH alert for cross-reactivity (e.g., Aspirin -> Ibuprofen)', async () => {
+      // Patient is allergic to Aspirin
+      mockPrismaService.patientAllergy.findMany.mockResolvedValue([
+        { allergen: 'Aspirin', severity: 'SEVERE', reaction: 'Anaphylaxis' },
+      ]);
+      // AllergyGroup members setup
+      mockPrismaService.allergyGroupDrug.findMany.mockResolvedValue([
+        {
+          drugGeneric: 'aspirin',
+          allergyGroup: {
+            name: 'NSAIDs',
+            members: [
+              { drugGeneric: 'aspirin' },
+              { drugGeneric: 'ibuprofen' },
+            ]
+          }
+        }
+      ]);
+
+      const alerts = await cdssService.checkDrugAllergies(1, ['Ibuprofen 400mg']);
+
+      expect(alerts).toBeDefined();
+      expect(alerts.length).toBe(1);
+      expect(alerts[0].type).toEqual(CDSSAlertType.DRUG_ALLERGY);
+      expect(alerts[0].severity).toEqual(CDSSAlertSeverity.HIGH); // Cross-reactivity is HIGH
+      expect(alerts[0].message).toContain('Cross-reactivity risk');
+      expect(alerts[0].context!.crossReactivityGroup).toEqual('NSAIDs');
+      expect(alerts[0].requiresOverride).toBe(false); // Only direct severe requires override in current mapping
+    });
+
+    it('should not generate an alert if there is no cross-reactivity or direct match', async () => {
+      mockPrismaService.patientAllergy.findMany.mockResolvedValue([
+        { allergen: 'Aspirin', severity: 'SEVERE', reaction: 'Anaphylaxis' },
+      ]);
+      mockPrismaService.allergyGroupDrug.findMany.mockResolvedValue([
+        {
+          drugGeneric: 'aspirin',
+          allergyGroup: {
+            name: 'NSAIDs',
+            members: [
+              { drugGeneric: 'aspirin' },
+            ]
+          }
+        }
+      ]);
+
+      const alerts = await cdssService.checkDrugAllergies(1, ['Amoxicillin 500mg']);
+
+      expect(alerts.length).toBe(0);
+    });
   });
 
   describe('calculateEGFR & checkRenalAdjustment', () => {

@@ -37,6 +37,7 @@ RUN npx tsc src/scripts/backfill-global-hashes.ts --outDir dist/scripts --module
 RUN npx tsc src/scripts/dedup-global-patients.ts --outDir dist/scripts --module commonjs --target es2019 --esModuleInterop --skipLibCheck --moduleResolution node
 RUN npx tsc src/scripts/seed-drug-dose.ts --outDir dist/scripts --module commonjs --target es2019 --esModuleInterop --skipLibCheck --moduleResolution node
 RUN npx tsc src/scripts/import-terminology.ts --outDir dist/scripts --module commonjs --target es2019 --esModuleInterop --skipLibCheck --moduleResolution node
+RUN npx tsc src/scripts/seed-allergy-groups.ts --outDir dist/scripts --module commonjs --target es2019 --esModuleInterop --skipLibCheck --moduleResolution node
 
 # ------------------------------------------
 # Stage 2: Production
