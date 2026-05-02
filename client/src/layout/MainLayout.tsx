@@ -513,11 +513,15 @@ export function MainLayout() {
       key: "analytics",
       title: "التحليلات والتقارير",
       icon: <Icons.ChartBar />,
-      allowedRoles: ["ADMIN", "CEO"],
+      allowedRoles: ["ADMIN", "CEO", "QUALITY_MANAGER"],
       items: [
         {
           label: "اللوحة التنفيذية (KPIs)",
           path: "/analytics/executive",
+        },
+        {
+          label: "مؤشرات الجودة (HIMSS)",
+          path: "/analytics/clinical-kpis",
         },
         {
           label: "لوحة التقارير والتحليلات",
