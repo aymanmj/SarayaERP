@@ -128,6 +128,35 @@ export class TenantService {
   }
 
   /**
+   * جلب كل المستشفيات/الفروع في النظام (للبحث الإداري)
+   */
+  async getAllHospitals(search?: string) {
+    const where: any = {};
+    if (search && search.trim()) {
+      const q = search.trim();
+      where.OR = [
+        { name: { contains: q, mode: 'insensitive' } },
+        { code: { contains: q, mode: 'insensitive' } },
+        { displayName: { contains: q, mode: 'insensitive' } },
+        { city: { contains: q, mode: 'insensitive' } },
+      ];
+    }
+    return this.prisma.hospital.findMany({
+      where,
+      select: {
+        id: true,
+        code: true,
+        name: true,
+        displayName: true,
+        city: true,
+        isActive: true,
+      },
+      orderBy: { name: 'asc' },
+      take: 50,
+    });
+  }
+
+  /**
    * تحديث إعدادات المؤسسة
    */
   async updateOrganization(

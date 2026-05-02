@@ -32,6 +32,9 @@ RUN npm run build:protected
 # تجميع سكربت الـ Seed
 RUN npx tsc prisma/seed.ts --outDir dist/prisma --module commonjs --target es2019 --esModuleInterop --skipLibCheck --moduleResolution node
 
+# تجميع سكربتات الصيانة (Migration Scripts)
+RUN npx tsc src/scripts/backfill-global-hashes.ts --outDir dist/scripts --module commonjs --target es2019 --esModuleInterop --skipLibCheck --moduleResolution node
+
 # ------------------------------------------
 # Stage 2: Production
 # ------------------------------------------
@@ -84,6 +87,9 @@ COPY --from=builder /app/scripts ./scripts
 
 # ========= طبقة كثيرة التغيير (كود التطبيق) — الأخيرة دائماً! =========
 COPY --from=builder /app/dist ./dist
+
+# سكربتات الصيانة (backfill, migration, etc.)
+COPY --from=builder /app/dist/scripts ./dist/scripts
 
 # ✅ ضبط الصلاحيات للمستخدم node (غير الروت)
 RUN chmod +x /app/docker-entrypoint.sh && \

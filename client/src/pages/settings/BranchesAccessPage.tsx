@@ -2,6 +2,7 @@ import React, { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "../../api/apiClient";
 import { toast } from "sonner";
+import SearchableSelect from "../../components/ui/SearchableSelect";
 import {
   Users,
   Building2,
@@ -55,7 +56,7 @@ export default function BranchesAccessPage() {
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [assignForm, setAssignForm] = useState({ userId: "", hospitalId: "", isDefault: false });
+  const [assignForm, setAssignForm] = useState({ userId: null as number | null, hospitalId: null as number | null, isDefault: false });
 
   // ============================================
   // Queries
@@ -104,7 +105,7 @@ export default function BranchesAccessPage() {
       queryClient.invalidateQueries({ queryKey: ["user-branches", selectedUserId] });
       toast.success("تم تعيين المستخدم في الفرع بنجاح");
       setShowAssignModal(false);
-      setAssignForm({ userId: "", hospitalId: "", isDefault: false });
+      setAssignForm({ userId: null, hospitalId: null, isDefault: false });
     },
     onError: () => toast.error("حدث خطأ أثناء تعيين المستخدم"),
   });
@@ -160,8 +161,8 @@ export default function BranchesAccessPage() {
         <button
           onClick={() => {
             setAssignForm({
-              userId: selectedUserId ? String(selectedUserId) : "",
-              hospitalId: "",
+              userId: selectedUserId || null,
+              hospitalId: null,
               isDefault: false,
             });
             setShowAssignModal(true);
@@ -270,8 +271,8 @@ export default function BranchesAccessPage() {
               <button
                 onClick={() => {
                   setAssignForm({
-                    userId: String(selectedUser.id),
-                    hospitalId: "",
+                    userId: selectedUser.id,
+                    hospitalId: null,
                     isDefault: false,
                   });
                   setShowAssignModal(true);
@@ -313,8 +314,8 @@ export default function BranchesAccessPage() {
                 <button
                   onClick={() => {
                     setAssignForm({
-                      userId: String(selectedUserId),
-                      hospitalId: "",
+                      userId: selectedUserId || null,
+                      hospitalId: null,
                       isDefault: false,
                     });
                     setShowAssignModal(true);
@@ -426,42 +427,54 @@ export default function BranchesAccessPage() {
             </div>
 
             <div className="space-y-4">
-              {/* User ID */}
-              <div className="flex flex-col gap-2">
-                <label className="text-xs font-bold text-slate-400">
-                  معرّف المستخدم (User ID) <span className="text-rose-400">*</span>
-                </label>
-                <input
-                  type="number"
-                  value={assignForm.userId}
-                  onChange={(e) =>
-                    setAssignForm((p) => ({ ...p, userId: e.target.value }))
-                  }
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl py-2.5 px-3 text-sm focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition-all"
-                  placeholder="رقم المستخدم"
-                />
-                {assignForm.userId && (
-                  <p className="text-[10px] text-slate-500">
-                    {usersData.find((u) => u.id === Number(assignForm.userId))?.fullName || "— مستخدم غير معروف —"}
-                  </p>
-                )}
-              </div>
+              {/* User Search */}
+              <SearchableSelect
+                value={assignForm.userId}
+                onChange={(id) => setAssignForm((p) => ({ ...p, userId: id }))}
+                onSearch={async (q) => {
+                  // Search from already-loaded users list (client-side filter)
+                  const filtered = q
+                    ? usersData.filter(
+                        (u) =>
+                          u.fullName.toLowerCase().includes(q.toLowerCase()) ||
+                          u.username.toLowerCase().includes(q.toLowerCase()),
+                      )
+                    : usersData;
+                  return filtered.slice(0, 30).map((u) => ({
+                    id: u.id,
+                    label: u.fullName,
+                    sublabel: `@${u.username}`,
+                    badge: u.isActive ? "\u0646\u0634\u0637" : "\u0645\u0648\u0642\u0641",
+                    badgeColor: u.isActive ? "green" : "red",
+                  }));
+                }}
+                label="\u0627\u062e\u062a\u0631 \u0627\u0644\u0645\u0633\u062a\u062e\u062f\u0645"
+                placeholder="\u0627\u0628\u062d\u062b \u0628\u0627\u0644\u0627\u0633\u0645 \u0623\u0648 \u0627\u0633\u0645 \u0627\u0644\u0645\u0633\u062a\u062e\u062f\u0645..."
+                icon={<Users className="w-4 h-4" />}
+                required
+              />
 
-              {/* Hospital ID */}
-              <div className="flex flex-col gap-2">
-                <label className="text-xs font-bold text-slate-400">
-                  معرّف الفرع (Hospital ID) <span className="text-rose-400">*</span>
-                </label>
-                <input
-                  type="number"
-                  value={assignForm.hospitalId}
-                  onChange={(e) =>
-                    setAssignForm((p) => ({ ...p, hospitalId: e.target.value }))
-                  }
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl py-2.5 px-3 text-sm focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition-all"
-                  placeholder="رقم معرّف الفرع / المستشفى"
-                />
-              </div>
+              {/* Hospital/Branch Search */}
+              <SearchableSelect
+                value={assignForm.hospitalId}
+                onChange={(id) => setAssignForm((p) => ({ ...p, hospitalId: id }))}
+                onSearch={async (q) => {
+                  const res = await apiClient.get("/organizations/hospitals", {
+                    params: { search: q || undefined },
+                  });
+                  return (res.data as any[]).map((h) => ({
+                    id: h.id,
+                    label: h.displayName || h.name,
+                    sublabel: `${h.code}${h.city ? ` \u2014 ${h.city}` : ""}`,
+                    badge: h.isActive ? "\u0646\u0634\u0637" : "\u0645\u062a\u0648\u0642\u0641",
+                    badgeColor: h.isActive ? "green" : "red",
+                  }));
+                }}
+                label="\u0627\u062e\u062a\u0631 \u0627\u0644\u0641\u0631\u0639 / \u0627\u0644\u0645\u0633\u062a\u0634\u0641\u0649"
+                placeholder="\u0627\u0628\u062d\u062b \u0628\u0627\u0644\u0627\u0633\u0645 \u0623\u0648 \u0627\u0644\u0643\u0648\u062f \u0623\u0648 \u0627\u0644\u0645\u062f\u064a\u0646\u0629..."
+                icon={<Building2 className="w-4 h-4" />}
+                required
+              />
 
               {/* Is Default */}
               <label className="flex items-center gap-3 cursor-pointer group bg-slate-950 p-4 rounded-xl border border-slate-800 hover:border-sky-500/50 transition-all">
@@ -501,8 +514,8 @@ export default function BranchesAccessPage() {
                       return;
                     }
                     assignMutation.mutate({
-                      userId: Number(assignForm.userId),
-                      hospitalId: Number(assignForm.hospitalId),
+                      userId: assignForm.userId,
+                      hospitalId: assignForm.hospitalId,
                       isDefault: assignForm.isDefault,
                     });
                   }}

@@ -2,6 +2,7 @@ import React, { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "../../api/apiClient";
 import { toast } from "sonner";
+import SearchableSelect, { SearchableOption } from "../../components/ui/SearchableSelect";
 import {
   Building2,
   Plus,
@@ -63,7 +64,7 @@ export default function OrganizationsPage() {
   const [expandedNodes, setExpandedNodes] = useState<Set<number>>(new Set());
   const [selectedOrg, setSelectedOrg] = useState<Organization | null>(null);
   const [showLinkModal, setShowLinkModal] = useState(false);
-  const [linkHospitalId, setLinkHospitalId] = useState("");
+  const [linkHospitalId, setLinkHospitalId] = useState<number | null>(null);
 
   // ============================================
   // Queries
@@ -135,7 +136,7 @@ export default function OrganizationsPage() {
       queryClient.invalidateQueries({ queryKey: ["organizations"] });
       toast.success("تم ربط المستشفى بالمؤسسة بنجاح");
       setShowLinkModal(false);
-      setLinkHospitalId("");
+      setLinkHospitalId(null);
     },
     onError: () => toast.error("حدث خطأ أثناء ربط المستشفى"),
   });
@@ -457,18 +458,26 @@ export default function OrganizationsPage() {
             </div>
 
             <div className="space-y-4">
-              <div className="flex flex-col gap-2">
-                <label className="text-xs font-bold text-slate-400">
-                  معرّف المستشفى (Hospital ID)
-                </label>
-                <input
-                  type="number"
-                  value={linkHospitalId}
-                  onChange={(e) => setLinkHospitalId(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl py-2.5 px-3 text-sm focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition-all"
-                  placeholder="أدخل رقم معرّف المستشفى"
-                />
-              </div>
+              <SearchableSelect
+                value={linkHospitalId}
+                onChange={(id) => setLinkHospitalId(id)}
+                onSearch={async (q) => {
+                  const res = await apiClient.get("/organizations/hospitals", {
+                    params: { search: q || undefined },
+                  });
+                  return (res.data as any[]).map((h) => ({
+                    id: h.id,
+                    label: h.displayName || h.name,
+                    sublabel: `${h.code}${h.city ? ` — ${h.city}` : ""}`,
+                    badge: h.isActive ? "نشط" : "متوقف",
+                    badgeColor: h.isActive ? "green" : "red",
+                  }));
+                }}
+                label="اختر المستشفى أو الفرع"
+                placeholder="ابحث بالاسم أو الكود أو المدينة..."
+                icon={<Building2 className="w-4 h-4" />}
+                required
+              />
 
               <div className="flex gap-3 pt-2">
                 <button
@@ -479,9 +488,9 @@ export default function OrganizationsPage() {
                 </button>
                 <button
                   onClick={() =>
-                    linkHospitalMutation.mutate({
+                    linkHospitalId && linkHospitalMutation.mutate({
                       orgId: selectedOrg.id,
-                      hospitalId: Number(linkHospitalId),
+                      hospitalId: linkHospitalId,
                     })
                   }
                   disabled={

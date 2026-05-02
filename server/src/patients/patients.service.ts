@@ -82,12 +82,8 @@ export class PatientsService {
     // ✅ PRE-COMPUTE search hashes from raw values.
     // The Prisma extension generates hashes at `patient.create()` time,
     // but we need them NOW to look up GlobalPatient BEFORE create().
-    const nationalIdHash = cleanData.nationalId
-      ? createHash('sha256').update(String(cleanData.nationalId).trim().toLowerCase()).digest('hex')
-      : null;
-    const phoneHash = cleanData.phone
-      ? createHash('sha256').update(String(cleanData.phone).trim().toLowerCase()).digest('hex')
-      : null;
+    const nationalIdHash = this.generateSearchHash(cleanData.nationalId);
+    const phoneHash = this.generateSearchHash(cleanData.phone);
 
     // 1. Federated Auto-Link Strategy (MPI)
     // Attempt to find existing GlobalPatient by National ID or Phone Hash
@@ -125,12 +121,8 @@ export class PatientsService {
       cleanData.identityNumber = cleanData.identityNumber || globalPatient.identityNumber;
     } else {
       // Create a NEW GlobalPatient — use pre-computed hashes
-      const identityNumberHash = cleanData.identityNumber
-        ? createHash('sha256').update(String(cleanData.identityNumber).trim().toLowerCase()).digest('hex')
-        : null;
-      const emailHash = cleanData.email
-        ? createHash('sha256').update(String(cleanData.email).trim().toLowerCase()).digest('hex')
-        : null;
+      const identityNumberHash = this.generateSearchHash(cleanData.identityNumber);
+      const emailHash = this.generateSearchHash(cleanData.email);
 
       const newGlobalPatient = await this.prisma.globalPatient.create({
         data: {
@@ -163,10 +155,10 @@ export class PatientsService {
     });
   }
 
-  private generateSearchHash(value: string): string | null {
+  private generateSearchHash(value: string | null | undefined): string | null {
     if (!value) return null;
     return createHash('sha256')
-      .update(value.trim().toLowerCase()) // توحيد النص (lowercase) ضروري جداً
+      .update(String(value).trim().toLowerCase()) // توحيد النص (lowercase) ضروري جداً
       .digest('hex');
   }
 
@@ -340,27 +332,19 @@ export class PatientsService {
 
       // Recompute search hashes if PII fields changed
       if (restData.nationalId) {
-        globalUpdate.nationalIdHash = createHash('sha256')
-          .update(String(restData.nationalId).trim().toLowerCase())
-          .digest('hex');
+        globalUpdate.nationalIdHash = this.generateSearchHash(restData.nationalId);
       }
       if (restData.identityNumber) {
-        globalUpdate.identityNumberHash = createHash('sha256')
-          .update(String(restData.identityNumber).trim().toLowerCase())
-          .digest('hex');
+        globalUpdate.identityNumberHash = this.generateSearchHash(restData.identityNumber);
       }
 
       // phone/email hashes are computed by Prisma Extension on Patient
-      // but GlobalPatient needs them too — read from the updated local record
+      // but GlobalPatient needs them too
       if (restData.phone) {
-        globalUpdate.phoneHash = createHash('sha256')
-          .update(String(restData.phone).trim().toLowerCase())
-          .digest('hex');
+        globalUpdate.phoneHash = this.generateSearchHash(restData.phone);
       }
       if (restData.email) {
-        globalUpdate.emailHash = createHash('sha256')
-          .update(String(restData.email).trim().toLowerCase())
-          .digest('hex');
+        globalUpdate.emailHash = this.generateSearchHash(restData.email);
       }
 
       if (Object.keys(globalUpdate).length > 0) {

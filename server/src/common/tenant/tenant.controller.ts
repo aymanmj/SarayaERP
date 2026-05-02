@@ -6,6 +6,7 @@ import {
   Delete,
   Param,
   Body,
+  Query,
   UseGuards,
   ParseIntPipe,
   Logger,
@@ -35,6 +36,15 @@ export class TenantController {
   @Permissions('organizations:read')
   async findAll() {
     return this.tenantService.findAllOrganizations();
+  }
+
+  /**
+   * جلب كل المستشفيات/الفروع (بحث اختياري للـ Admin Dropdowns)
+   */
+  @Get('hospitals')
+  @Permissions('organizations:read')
+  async getAllHospitals(@Query('search') search?: string) {
+    return this.tenantService.getAllHospitals(search);
   }
 
   /**
