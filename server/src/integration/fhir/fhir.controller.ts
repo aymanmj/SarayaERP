@@ -141,6 +141,21 @@ export class FhirController {
   }
 
   // ==========================================
+  // BULK DATA EXPORT (Patient-Level)
+  // ==========================================
+  @UseGuards(FhirAuthGuard)
+  @FhirScope('patient/Patient.read')
+  @Get('Patient/:id/\\$export')
+  async patientExport(@Param('id', ParseIntPipe) id: number, @Req() req: Request, @Res() res: Response) {
+    this.enforcePatientAccess(req, id);
+    // As per FHIR Bulk Data Access specification, we return a 200 OK with NDJSON stream 
+    // for synchronous patient-level export in Phase 4 (Async 202 is mandatory for System-level).
+    const ndjsonStream = await this.fhirService.exportPatientData(id);
+    res.setHeader('Content-Type', 'application/fhir+ndjson');
+    res.send(ndjsonStream);
+  }
+
+  // ==========================================
   // PRACTITIONER
   // ==========================================
   @UseGuards(FhirAuthGuard)
@@ -287,6 +302,25 @@ export class FhirController {
   async getProcedure(@Param('id', ParseIntPipe) id: number, @Req() req: Request) {
     const patientContext = this.getPatientContext(req);
     return this.fhirService.getProcedure(id, patientContext);
+  }
+
+  // ==========================================
+  // DOCUMENT REFERENCE
+  // ==========================================
+  @UseGuards(FhirAuthGuard)
+  @FhirScope('patient/DocumentReference.read')
+  @Get('DocumentReference')
+  searchDocumentReferences(@Query() query: any, @Req() req: Request) {
+    const patientContext = this.getPatientContext(req);
+    return this.fhirService.searchDocumentReferences(query, this.getBaseUrl(req), patientContext);
+  }
+
+  @UseGuards(FhirAuthGuard)
+  @FhirScope('patient/DocumentReference.read')
+  @Get('DocumentReference/:id')
+  async getDocumentReference(@Param('id') id: string, @Req() req: Request) {
+    const patientContext = this.getPatientContext(req);
+    return this.fhirService.getDocumentReference(id, patientContext);
   }
 
   // ==========================================

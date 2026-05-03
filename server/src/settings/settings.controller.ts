@@ -36,10 +36,43 @@ export class SettingsController {
         website: true,
         logoUrl: true,
         printHeaderFooter: true,
+        organizationId: true,
+        organization: {
+          include: {
+            hospitals: {
+              select: {
+                id: true,
+                code: true,
+                name: true,
+                displayName: true,
+                city: true,
+                isActive: true,
+                _count: { select: { patients: true } },
+              },
+            },
+          },
+        },
       },
     });
 
     if (!hospital) throw new NotFoundException('المؤسسة غير موجودة.');
+
+    let mpiEnableFederation = false;
+    let mpiRequirePatientOTP = true; // default to true
+
+    if (hospital.organizationId) {
+      const settings = await this.prisma.orgSetting.findMany({
+        where: {
+          organizationId: hospital.organizationId,
+          key: { in: ['mpi.enableFederation', 'mpi.requirePatientOTP'] }
+        }
+      });
+      const enableSetting = settings.find(s => s.key === 'mpi.enableFederation');
+      if (enableSetting) mpiEnableFederation = enableSetting.value === 'true';
+
+      const otpSetting = settings.find(s => s.key === 'mpi.requirePatientOTP');
+      if (otpSetting) mpiRequirePatientOTP = otpSetting.value === 'true';
+    }
 
     return {
       id: hospital.id,
@@ -53,6 +86,8 @@ export class SettingsController {
       website: hospital.website ?? '',
       logoUrl: hospital.logoUrl ?? null,
       printHeaderFooter: hospital.printHeaderFooter,
+      mpiEnableFederation,
+      mpiRequirePatientOTP,
     };
   }
 
@@ -162,21 +197,27 @@ export class SettingsController {
         website: true,
         logoUrl: true,
         printHeaderFooter: true,
+        organizationId: true,
       },
     });
 
-    return {
-      id: hospital.id,
-      displayName: hospital.displayName ?? hospital.name,
-      legalName: hospital.legalName ?? hospital.name,
-      address: [hospital.addressLine1, hospital.addressLine2, hospital.city]
-        .filter(Boolean)
-        .join(' - '),
-      phone: hospital.phone ?? '',
-      email: hospital.email ?? '',
-      website: hospital.website ?? '',
-      logoUrl: hospital.logoUrl ?? null,
-      printHeaderFooter: hospital.printHeaderFooter,
-    };
+    if (hospital.organizationId) {
+      if (dto.mpiEnableFederation !== undefined) {
+        await this.prisma.orgSetting.upsert({
+          where: { organizationId_key: { organizationId: hospital.organizationId, key: 'mpi.enableFederation' } },
+          update: { value: dto.mpiEnableFederation ? 'true' : 'false' },
+          create: { organizationId: hospital.organizationId, key: 'mpi.enableFederation', value: dto.mpiEnableFederation ? 'true' : 'false', description: 'Enable MPI Federation' },
+        });
+      }
+      if (dto.mpiRequirePatientOTP !== undefined) {
+        await this.prisma.orgSetting.upsert({
+          where: { organizationId_key: { organizationId: hospital.organizationId, key: 'mpi.requirePatientOTP' } },
+          update: { value: dto.mpiRequirePatientOTP ? 'true' : 'false' },
+          create: { organizationId: hospital.organizationId, key: 'mpi.requirePatientOTP', value: dto.mpiRequirePatientOTP ? 'true' : 'false', description: 'Require OTP for Federation' },
+        });
+      }
+    }
+
+    return this.getOrganization(user);
   }
 }

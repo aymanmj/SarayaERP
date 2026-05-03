@@ -10,4 +10,6 @@ export type OrganizationSettings = {
   website: string;
   logoUrl: string | null;
   printHeaderFooter?: boolean;
+  mpiEnableFederation?: boolean;
+  mpiRequirePatientOTP?: boolean;
 };

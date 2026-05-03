@@ -462,4 +462,95 @@ export class PatientsService {
 
     return this.prisma.patientAllergy.delete({ where: { id } });
   }
+
+  // FHIR Export Generation
+  async generateFhirExport(hospitalId: number, patientId: number) {
+    const patient = await this.prisma.patient.findFirst({
+      where: { id: patientId, hospitalId, isDeleted: false },
+      include: {
+        allergies: true,
+        insurancePolicy: { include: { provider: true, plan: true } },
+      },
+    });
+
+    if (!patient) {
+      throw new NotFoundException('المريض غير موجود.');
+    }
+
+    // A simplified FHIR Bundle representation of the patient
+    const fhirBundle = {
+      resourceType: 'Bundle',
+      id: `bundle-${patient.mrn}`,
+      type: 'collection',
+      timestamp: new Date().toISOString(),
+      entry: [
+        {
+          fullUrl: `urn:uuid:${patient.id}`,
+          resource: {
+            resourceType: 'Patient',
+            id: patient.id.toString(),
+            identifier: [
+              {
+                use: 'official',
+                system: 'http://saraya-erp.com/mrn',
+                value: patient.mrn,
+              },
+              patient.nationalId ? {
+                use: 'usual',
+                system: 'http://saraya-erp.com/national-id',
+                value: patient.nationalId,
+              } : undefined,
+            ].filter(Boolean),
+            name: [
+              {
+                use: 'official',
+                text: patient.fullName,
+              },
+            ],
+            telecom: patient.phone ? [
+              {
+                system: 'phone',
+                value: patient.phone,
+                use: 'mobile',
+              },
+            ] : undefined,
+            gender: patient.gender === 'MALE' ? 'male' : patient.gender === 'FEMALE' ? 'female' : 'unknown',
+            birthDate: patient.dateOfBirth ? patient.dateOfBirth.toISOString().split('T')[0] : undefined,
+            address: patient.address ? [
+              {
+                text: patient.address,
+              },
+            ] : undefined,
+            active: patient.isActive,
+          },
+        },
+        // Include allergies in FHIR format
+        ...patient.allergies.map(allergy => ({
+          fullUrl: `urn:uuid:allergy-${allergy.id}`,
+          resource: {
+            resourceType: 'AllergyIntolerance',
+            id: allergy.id.toString(),
+            clinicalStatus: {
+              coding: [
+                {
+                  system: 'http://terminology.hl7.org/CodeSystem/allergyintolerance-clinical',
+                  code: 'active',
+                },
+              ],
+            },
+            patient: {
+              reference: `Patient/${patient.id}`,
+            },
+            code: {
+              text: allergy.allergen,
+            },
+            criticality: allergy.severity === 'SEVERE' ? 'high' : allergy.severity === 'MODERATE' ? 'low' : 'unable-to-assess',
+            note: allergy.reaction ? [{ text: allergy.reaction }] : undefined,
+          },
+        })),
+      ],
+    };
+
+    return fhirBundle;
+  }
 }

@@ -4,13 +4,17 @@ import { PatientsController } from './patients.controller';
 import { PrismaModule } from '../prisma/prisma.module';
 import { SoftDeleteService } from '../common/soft-delete.service';
 
+import { MpiController } from './mpi.controller';
+import { MpiService } from './mpi.service';
+
 @Module({
   imports: [PrismaModule],
-  controllers: [PatientsController],
+  controllers: [PatientsController, MpiController],
   providers: [
     PatientsService,
-    SoftDeleteService,  
+    SoftDeleteService,
+    MpiService,
   ],
-  exports: [PatientsService],
+  exports: [PatientsService, MpiService],
 })
 export class PatientsModule {}

@@ -260,4 +260,15 @@ export class PatientsController {
   ) {
     return this.patientsService.removeAllergy(user.hospitalId, id);
   }
+
+  @Get(':id/fhir/export')
+  @Roles('ADMIN', 'DOCTOR', 'HIM')
+  @RequireClinicalRelation({ paramName: 'id', allowBreakGlass: true })
+  @Sensitive('EXPORT_FHIR_RECORD')
+  async exportFhirRecord(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.patientsService.generateFhirExport(user.hospitalId, id);
+  }
 }

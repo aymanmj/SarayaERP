@@ -32,4 +32,10 @@ export class UpdateOrganizationSettingsDto {
 
   @IsOptional()
   printHeaderFooter?: boolean;
+
+  @IsOptional()
+  mpiEnableFederation?: boolean;
+
+  @IsOptional()
+  mpiRequirePatientOTP?: boolean;
 }

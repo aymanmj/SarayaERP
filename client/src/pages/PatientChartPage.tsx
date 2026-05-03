@@ -238,6 +238,26 @@ export default function PatientChartPage() {
                 🟢 حالة نشطة — انتقل
               </Link>
             )}
+            <button
+              onClick={async () => {
+                try {
+                  const res = await apiClient.get(`/patients/${patientId}/fhir/export`);
+                  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(res.data, null, 2));
+                  const downloadAnchorNode = document.createElement('a');
+                  downloadAnchorNode.setAttribute("href",     dataStr);
+                  downloadAnchorNode.setAttribute("download", `fhir_patient_${patientId}.json`);
+                  document.body.appendChild(downloadAnchorNode); // required for firefox
+                  downloadAnchorNode.click();
+                  downloadAnchorNode.remove();
+                } catch (error) {
+                  console.error("Failed to export FHIR", error);
+                  alert("فشل تصدير سجل FHIR. الرجاء المحاولة لاحقاً.");
+                }
+              }}
+              className="bg-sky-600 hover:bg-sky-500 text-white px-3 py-1.5 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 shadow-lg"
+            >
+              📥 تصدير سجل FHIR
+            </button>
           </div>
         </div>
       </div>

@@ -12,6 +12,7 @@ import {
   keepPreviousData,
 } from "@tanstack/react-query";
 import { DatePicker } from "@/components/ui/date-picker";
+import { MpiSearchModal } from "@/components/patients/MpiSearchModal";
 
 // --- Types ---
 type Gender = "MALE" | "FEMALE" | "OTHER" | null;
@@ -60,6 +61,7 @@ export function PatientsPage() {
 
   // --- Modal & Form State ---
   const [modalOpen, setModalOpen] = useState(false);
+  const [mpiModalOpen, setMpiModalOpen] = useState(false);
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
 
   const [formData, setFormData] = useState({
@@ -277,12 +279,20 @@ export function PatientsPage() {
             إدارة الملفات الطبية الإلكترونية وتتبع حالات التأمين.
           </p>
         </div>
-        <button
-          onClick={() => openModal()}
-          className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl text-sm font-bold shadow-lg shadow-emerald-900/20 transition-all active:scale-95"
-        >
-          + تسجيل مريض جديد
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={() => setMpiModalOpen(true)}
+            className="px-6 py-2.5 bg-violet-600/20 border border-violet-500/50 hover:bg-violet-600/40 text-violet-300 rounded-2xl text-sm font-bold transition-all active:scale-95 flex items-center gap-2"
+          >
+            🔍 البحث الإقليمي (MPI)
+          </button>
+          <button
+            onClick={() => openModal()}
+            className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl text-sm font-bold shadow-lg shadow-emerald-900/20 transition-all active:scale-95"
+          >
+            + تسجيل مريض جديد
+          </button>
+        </div>
       </div>
 
       {/* Search & Stats */}
@@ -735,6 +745,9 @@ export function PatientsPage() {
           </div>
         </div>
       )}
+
+      {/* --- MPI Search Modal --- */}
+      {mpiModalOpen && <MpiSearchModal onClose={() => setMpiModalOpen(false)} />}
     </div>
   );
 }

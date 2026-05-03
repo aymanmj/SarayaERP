@@ -696,6 +696,7 @@ export function MainLayout() {
         { label: "الخدمات والأسعار", path: "/services", access: "admin:settings:manage" },
         { label: "المستخدمون والصلاحيات", path: "/users", access: "admin:users:manage" },
         { label: "إدارة الأسرة", path: "/settings/bed-management", access: "adt:bed:manage" },
+        { label: "لوحة تدقيق الامتثال (ISO/SOC2)", path: "/settings/compliance", access: "admin:audit:view" },
         { label: "سجل التدقيق (Audit Logs)", path: "/audit/logs", access: "admin:audit:view" },
         { label: "جداول الأطباء", path: "/settings/doctor-schedules", access: "admin:settings:manage" },
         { label: "النسخ الاحتياطي والاستعادة", path: "/settings/backup", access: "admin:settings:manage" }, 

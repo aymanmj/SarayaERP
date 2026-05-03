@@ -1166,6 +1166,134 @@ export class FhirService {
   }
 
   // ==========================================
+  // BULK DATA EXPORT (Patient-Level)
+  // ==========================================
+  
+  /**
+   * Generates a synchronous NDJSON stream of all patient clinical data.
+   * Format: One JSON FHIR resource per line.
+   * This is part of the FHIR Bulk Data Access specification.
+   */
+  async exportPatientData(patientId: number): Promise<string> {
+    const ndjsonLines: string[] = [];
+    const baseUrl = 'https://saraya-erp.com/api/fhir';
+
+    // 1. Patient Resource
+    const patientResponse = await this.getPatient(patientId);
+    ndjsonLines.push(JSON.stringify(patientResponse));
+
+    // 2. Encounters
+    const encounters = await this.prisma.encounter.findMany({ where: { patientId } });
+    encounters.forEach(e => ndjsonLines.push(JSON.stringify(this.mapToFhirEncounter(e))));
+
+    // 3. Observations (Vitals)
+    const vitals = await this.prisma.vitalSign.findMany({ 
+      where: { encounter: { patientId } },
+      include: { encounter: true }
+    });
+    vitals.forEach(v => ndjsonLines.push(JSON.stringify(this.mapToFhirObservation(v))));
+
+    // 4. Conditions (Problems)
+    const problems = await this.prisma.patientProblem.findMany({ where: { patientId } });
+    problems.forEach(p => ndjsonLines.push(JSON.stringify(this.mapToFhirCondition(p))));
+
+    // 5. Allergies
+    const allergies = await this.prisma.patientAllergy.findMany({ where: { patientId } });
+    allergies.forEach(a => ndjsonLines.push(JSON.stringify(this.mapToFhirAllergy(a))));
+
+    // 6. MedicationRequests (Prescriptions)
+    const prescriptions = await this.prisma.prescription.findMany({ 
+      where: { patientId },
+      include: { items: { include: { product: true } } } 
+    });
+    prescriptions.forEach(p => {
+      const mappedItems = this.mapPrescriptionToMedicationRequests(p);
+      mappedItems.forEach((reqItem: any) => ndjsonLines.push(JSON.stringify(reqItem)));
+    });
+
+    this.logger.log(`📦 Bulk Data Export generated for Patient/${patientId}: ${ndjsonLines.length} resources`);
+    return ndjsonLines.join('\n') + '\n';
+  }
+
+  // ==========================================
+  // DOCUMENT REFERENCE (IHE XDS.b Profile)
+  // ==========================================
+  
+  async getDocumentReference(id: string, patientContext?: number) {
+    const docId = parseInt(id);
+    if (isNaN(docId)) throw new BadRequestException('Invalid Document ID');
+
+    const clinicalNote = await this.prisma.clinicalNote.findUnique({ 
+      where: { id: docId },
+      include: { encounter: true }
+    });
+
+    if (!clinicalNote) throw new NotFoundException('DocumentReference not found');
+
+    if (patientContext !== undefined && clinicalNote.encounter?.patientId !== patientContext) {
+      throw new ForbiddenException(`Access denied. DocumentReference belongs to Patient/${clinicalNote.encounter?.patientId}.`);
+    }
+
+    return this.mapToFhirDocumentReference(clinicalNote);
+  }
+
+  async searchDocumentReferences(query: any, baseUrl: string, patientContext?: number) {
+    const where: Prisma.ClinicalNoteWhereInput = {};
+    
+    if (patientContext !== undefined) {
+      where.encounter = { patientId: patientContext };
+    } else if (query.patient) {
+      const patientId = query.patient.startsWith('Patient/') ? query.patient.split('/')[1] : query.patient;
+      where.encounter = { patientId: Number(patientId) };
+    }
+
+    if (query.type) {
+      // E.g., type=http://loinc.org|11488-4 (Consultation Note)
+      const code = query.type.split('|')[1] || query.type;
+      // In a real system, we'd map LOINC codes to our internal types.
+      // For now, simple text match if requested
+    }
+
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.clinicalNote.findMany({ 
+        where, 
+        take: 50, 
+        orderBy: { createdAt: 'desc' },
+        include: { encounter: true }
+      }),
+      this.prisma.clinicalNote.count({ where }),
+    ]);
+
+    const resources = items.map(n => this.mapToFhirDocumentReference(n));
+    return this.createBundle(resources, total, `${baseUrl}/DocumentReference`);
+  }
+
+  private mapToFhirDocumentReference(note: any) {
+    const patientRef = note.encounter?.patientId ? `Patient/${note.encounter.patientId}` : 'Patient/unknown';
+    
+    return {
+      resourceType: 'DocumentReference',
+      id: note.id.toString(),
+      status: 'current',
+      type: {
+        coding: [{ system: 'http://loinc.org', code: '11488-4', display: 'Consultation note' }],
+        text: 'Clinical Note'
+      },
+      subject: { reference: patientRef },
+      context: note.encounterId ? { encounter: [{ reference: `Encounter/${note.encounterId}` }] } : undefined,
+      author: note.authorId ? [{ reference: `Practitioner/${note.authorId}` }] : undefined,
+      date: note.createdAt.toISOString(),
+      content: [{
+        attachment: {
+          contentType: 'text/plain',
+          data: Buffer.from(note.content).toString('base64'),
+          title: 'Clinical Note Details'
+        }
+      }]
+    };
+  }
+
+  // ==========================================
   // CDS HOOKS — Context-Aware Decision Support
   // ==========================================
   getCdsServices() {

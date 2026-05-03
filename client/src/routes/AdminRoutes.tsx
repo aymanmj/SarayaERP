@@ -31,6 +31,7 @@ const ReferralsPage = lazy(() => import("../pages/ReferralsPage"));
 const NoteTemplatesPage = lazy(() => import("../pages/settings/NoteTemplatesPage"));
 const OrganizationsPage = lazy(() => import("../pages/settings/OrganizationsPage"));
 const BranchesAccessPage = lazy(() => import("../pages/settings/BranchesAccessPage"));
+const ComplianceDashboardPage = lazy(() => import("../pages/settings/ComplianceDashboardPage"));
 
 // --- HR ---
 const PayrollPage = lazy(() => import("../pages/PayrollPage"));
@@ -48,6 +49,7 @@ export const AdminRoutes = (
     <Route path="/settings" element={<OrganizationSettingsPage />} />
     <Route path="/settings/organizations" element={<OrganizationsPage />} />
     <Route path="/settings/branch-access" element={<BranchesAccessPage />} />
+    <Route path="/settings/compliance" element={<ComplianceDashboardPage />} />
     <Route
       path="/settings/departments"
       element={<DepartmentsPage />}

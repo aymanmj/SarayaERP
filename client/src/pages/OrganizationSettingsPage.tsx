@@ -62,6 +62,8 @@ export default function OrganizationSettingsPage() {
         website: settings.website || null,
         logoUrl: settings.logoUrl || null,
         printHeaderFooter: settings.printHeaderFooter,
+        mpiEnableFederation: settings.mpiEnableFederation,
+        mpiRequirePatientOTP: settings.mpiRequirePatientOTP,
       });
 
       toast.success("تم حفظ بيانات المستشفى بنجاح.");
@@ -306,7 +308,59 @@ export default function OrganizationSettingsPage() {
                 </div>
               </div>
             </div>
-            
+          </div>
+
+          {/* HIE & Federation Settings */}
+          <div className="bg-slate-900/60 border border-violet-800/30 rounded-2xl p-6 relative overflow-hidden mt-6">
+            <h2 className="text-base font-bold text-violet-300 mb-6 flex items-center gap-2">
+              <Globe className="w-5 h-5 text-violet-400" />
+              الربط الإقليمي (HIE Federation)
+            </h2>
+
+            <label className="flex items-start gap-3 cursor-pointer group bg-slate-950 p-4 rounded-xl border border-slate-800 hover:border-violet-500/50 transition-all mb-4">
+              <div className="relative flex items-center pt-0.5">
+                <input
+                  type="checkbox"
+                  checked={settings.mpiEnableFederation || false}
+                  onChange={(e) =>
+                    setSettings((prev) => ({ ...prev, mpiEnableFederation: e.target.checked }))
+                  }
+                  className="peer sr-only"
+                />
+                <div className="w-10 h-6 bg-slate-800 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-violet-500/50 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-400 peer-checked:after:bg-white after:border-slate-300 after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-violet-500"></div>
+              </div>
+              <div className="flex-1">
+                <span className="text-sm font-bold text-slate-200 group-hover:text-white transition-colors">
+                  تفعيل مشاركة البيانات الإقليمية (MPI Federation)
+                </span>
+                <p className="text-[10px] text-slate-500 mt-1 leading-relaxed">
+                  يسمح للمستشفيات الأخرى في نفس الشبكة بالبحث عن المرضى التابعين لكم وتبادل ملفاتهم عبر FHIR.
+                </p>
+              </div>
+            </label>
+
+            <label className="flex items-start gap-3 cursor-pointer group bg-slate-950 p-4 rounded-xl border border-slate-800 hover:border-rose-500/50 transition-all">
+              <div className="relative flex items-center pt-0.5">
+                <input
+                  type="checkbox"
+                  checked={settings.mpiRequirePatientOTP !== false} // defaults to true visually if undefined
+                  onChange={(e) =>
+                    setSettings((prev) => ({ ...prev, mpiRequirePatientOTP: e.target.checked }))
+                  }
+                  disabled={!settings.mpiEnableFederation}
+                  className="peer sr-only"
+                />
+                <div className={`w-10 h-6 bg-slate-800 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-rose-500/50 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-400 peer-checked:after:bg-white after:border-slate-300 after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-rose-500 ${!settings.mpiEnableFederation ? 'opacity-50' : ''}`}></div>
+              </div>
+              <div className="flex-1">
+                <span className={`text-sm font-bold transition-colors ${!settings.mpiEnableFederation ? 'text-slate-500' : 'text-slate-200 group-hover:text-white'}`}>
+                  إلزامية الموافقة عبر رمز التحقق (Patient OTP)
+                </span>
+                <p className="text-[10px] text-slate-500 mt-1 leading-relaxed">
+                  عند التفعيل، لن يُسمح لأي مستشفى آخر بفتح ملف المريض إلا بعد إدخال رمز التحقق (OTP) المُرسل لهاتف المريض (الموافقة الديناميكية).
+                </p>
+              </div>
+            </label>
           </div>
         </div>
       </div>
