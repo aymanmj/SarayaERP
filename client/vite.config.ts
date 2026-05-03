@@ -16,6 +16,19 @@ export default defineConfig({
             return undefined;
           }
 
+          if (
+            id.includes("react/") || 
+            id.includes("react-dom/") || 
+            id.includes("react-router-dom") ||
+            id.includes("zustand")
+          ) {
+            return "vendor-react";
+          }
+
+          if (id.includes("lucide-react") || id.includes("date-fns")) {
+            return "vendor-ui";
+          }
+
           if (id.includes("cornerstone-tools")) {
             return "vendor-dicom-tools";
           }

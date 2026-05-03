@@ -9,18 +9,24 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery, ApiParam } from '@nestjs/swagger';
 import { NursingService } from './nursing.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { AdministrationStatus } from '@prisma/client';
 
+@ApiTags('nursing')
+@ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('nursing')
 export class NursingController {
   constructor(private readonly nursingService: NursingService) {}
 
   // 1. لوحة قيادة العنبر
+  @ApiOperation({ summary: 'Get inpatients for nursing ward board' })
+  @ApiQuery({ name: 'wardId', required: false, type: String })
+  @ApiResponse({ status: 200, description: 'Inpatients retrieved successfully.' })
   @Get('inpatients')
   @Roles('ADMIN', 'NURSE', 'DOCTOR')
   async getInpatients(@Req() req: any, @Query('wardId') wardId?: string) {
@@ -29,6 +35,9 @@ export class NursingController {
   }
 
   // 2. سجل الأدوية للمريض (MAR)
+  @ApiOperation({ summary: 'Get Medication Administration Record (MAR) for an encounter' })
+  @ApiParam({ name: 'id', description: 'Encounter ID' })
+  @ApiResponse({ status: 200, description: 'MAR retrieved successfully.' })
   @Get('encounters/:id/mar')
   @Roles('ADMIN', 'NURSE', 'DOCTOR')
   async getMAR(@Req() req: any, @Param('id', ParseIntPipe) id: number) {
@@ -36,6 +45,9 @@ export class NursingController {
   }
 
   // 3. تسجيل إعطاء دواء
+  @ApiOperation({ summary: 'Administer medication for a prescription item' })
+  @ApiParam({ name: 'id', description: 'Encounter ID' })
+  @ApiResponse({ status: 201, description: 'Medication administered successfully.' })
   @Post('encounters/:id/administer-med')
   @Roles('ADMIN', 'NURSE', 'DOCTOR')
   async administerMed(
@@ -59,12 +71,18 @@ export class NursingController {
   }
 
   // 4. ملاحظات التمريض
+  @ApiOperation({ summary: 'Get nursing notes for an encounter' })
+  @ApiParam({ name: 'id', description: 'Encounter ID' })
+  @ApiResponse({ status: 200, description: 'Nursing notes retrieved successfully.' })
   @Get('encounters/:id/notes')
   @Roles('ADMIN', 'NURSE', 'DOCTOR')
   async getNotes(@Req() req: any, @Param('id', ParseIntPipe) id: number) {
     return this.nursingService.getNursingNotes(req.user.hospitalId, id);
   }
 
+  @ApiOperation({ summary: 'Add a new nursing note to an encounter' })
+  @ApiParam({ name: 'id', description: 'Encounter ID' })
+  @ApiResponse({ status: 201, description: 'Nursing note added successfully.' })
   @Post('encounters/:id/notes')
   @Roles('ADMIN', 'NURSE')
   async addNote(

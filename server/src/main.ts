@@ -10,6 +10,7 @@ import { CorrelationMiddleware } from './common/middleware/correlation.middlewar
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
+import compression from 'compression';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
@@ -40,6 +41,7 @@ async function bootstrap() {
   // ============================================
   
   app.use(cookieParser());
+  app.use(compression());
 
   const compatibilityCspDirectives = {
     defaultSrc: ["'self'"],

@@ -17,6 +17,7 @@ import { Permissions } from '../auth/permissions.decorator';
 import { PermissionsGuard } from '../auth/permissions.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { ClaimStatus } from '@prisma/client';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiQuery } from '@nestjs/swagger';
 
 /**
  * واجهة تحكم دورة الإيرادات (Revenue Cycle Management)
@@ -27,6 +28,8 @@ import { ClaimStatus } from '@prisma/client';
  * - تتبع المدفوعات والمرفوضات
  * - لوحة تحكم وتحليلات
  */
+@ApiTags('rcm-claims')
+@ApiBearerAuth()
 @Controller('rcm/claims')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class ClaimController {
@@ -44,6 +47,8 @@ export class ClaimController {
   /**
    * إنشاء مطالبة من فاتورة
    */
+  @ApiOperation({ summary: 'Create an insurance claim from an invoice' })
+  @ApiResponse({ status: 201, description: 'Claim created successfully.' })
   @Post('claims')
   @Permissions('claims:create')
   async createClaim(
@@ -56,6 +61,8 @@ export class ClaimController {
   /**
    * إنشاء مطالبات جماعية
    */
+  @ApiOperation({ summary: 'Create multiple claims from multiple invoices' })
+  @ApiResponse({ status: 201, description: 'Batch claims created successfully.' })
   @Post('claims/batch')
   @Permissions('claims:create')
   async createBatchClaims(
@@ -68,6 +75,8 @@ export class ClaimController {
   /**
    * قائمة المطالبات مع الفلترة
    */
+  @ApiOperation({ summary: 'Get a paginated list of claims with optional filters' })
+  @ApiResponse({ status: 200, description: 'List of claims retrieved successfully.' })
   @Get('claims')
   @Permissions('claims:read')
   async findClaims(
@@ -90,6 +99,9 @@ export class ClaimController {
   /**
    * تفاصيل مطالبة
    */
+  @ApiOperation({ summary: 'Get claim details by ID' })
+  @ApiParam({ name: 'id', description: 'Claim ID' })
+  @ApiResponse({ status: 200, description: 'Claim details retrieved successfully.' })
   @Get('claims/:id')
   @Permissions('claims:read')
   async getClaimById(@Param('id', ParseIntPipe) id: number) {
@@ -103,6 +115,9 @@ export class ClaimController {
   /**
    * فحص مطالبة (Scrub)
    */
+  @ApiOperation({ summary: 'Scrub a claim for coding and clinical errors' })
+  @ApiParam({ name: 'id', description: 'Claim ID' })
+  @ApiResponse({ status: 200, description: 'Claim scrubbed successfully and results returned.' })
   @Post('claims/:id/scrub')
   @Permissions('claims:update')
   async scrubClaim(@Param('id', ParseIntPipe) id: number) {
@@ -116,6 +131,9 @@ export class ClaimController {
   /**
    * تحديث حالة المطالبة (إرسال، قبول، إلخ)
    */
+  @ApiOperation({ summary: 'Update claim status' })
+  @ApiParam({ name: 'id', description: 'Claim ID' })
+  @ApiResponse({ status: 200, description: 'Claim status updated successfully.' })
   @Put('claims/:id/status')
   @Permissions('claims:update')
   async updateStatus(
@@ -134,6 +152,9 @@ export class ClaimController {
   /**
    * ترحيل دفعة على مطالبة
    */
+  @ApiOperation({ summary: 'Post a payment to a claim' })
+  @ApiParam({ name: 'id', description: 'Claim ID' })
+  @ApiResponse({ status: 201, description: 'Payment posted successfully.' })
   @Post('claims/:id/payment')
   @Permissions('claims:update')
   async postPayment(
@@ -151,6 +172,9 @@ export class ClaimController {
   /**
    * رفض مطالبة
    */
+  @ApiOperation({ summary: 'Deny a claim with denial code and reason' })
+  @ApiParam({ name: 'id', description: 'Claim ID' })
+  @ApiResponse({ status: 201, description: 'Claim denied successfully.' })
   @Post('claims/:id/deny')
   @Permissions('claims:update')
   async denyClaim(
@@ -173,6 +197,9 @@ export class ClaimController {
   /**
    * تقديم استئناف
    */
+  @ApiOperation({ summary: 'Submit an appeal for a denied claim' })
+  @ApiParam({ name: 'id', description: 'Claim ID' })
+  @ApiResponse({ status: 201, description: 'Appeal submitted successfully.' })
   @Post('claims/:id/appeal')
   @Permissions('claims:update')
   async appealClaim(
@@ -190,6 +217,8 @@ export class ClaimController {
   /**
    * لوحة تحكم المطالبات
    */
+  @ApiOperation({ summary: 'Get RCM dashboard statistics' })
+  @ApiResponse({ status: 200, description: 'RCM dashboard statistics retrieved successfully.' })
   @Get('dashboard')
   @Permissions('claims:read')
   async getDashboard(@CurrentUser() user: any) {
@@ -199,6 +228,8 @@ export class ClaimController {
   /**
    * تحليلات المرفوضات
    */
+  @ApiOperation({ summary: 'Get analytics for claim denials' })
+  @ApiResponse({ status: 200, description: 'Denials analytics retrieved successfully.' })
   @Get('denials/analytics')
   @Permissions('claims:read')
   async getDenialAnalytics(
@@ -216,6 +247,9 @@ export class ClaimController {
   /**
    * مواعيد الاستئناف القادمة
    */
+  @ApiOperation({ summary: 'Get upcoming appeal deadlines' })
+  @ApiQuery({ name: 'days', required: false, type: String })
+  @ApiResponse({ status: 200, description: 'Upcoming appeal deadlines retrieved successfully.' })
   @Get('denials/deadlines')
   @Permissions('claims:read')
   async getUpcomingDeadlines(
@@ -231,6 +265,8 @@ export class ClaimController {
   /**
    * معدل القبول من أول مرة
    */
+  @ApiOperation({ summary: 'Get First Pass Rate KPI' })
+  @ApiResponse({ status: 200, description: 'First Pass Rate retrieved successfully.' })
   @Get('kpi/first-pass-rate')
   @Permissions('claims:read')
   async getFirstPassRate(
