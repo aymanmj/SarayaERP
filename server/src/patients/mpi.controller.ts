@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Query, UseGuards, Req, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Query, UseGuards, Req, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { MpiService } from './mpi.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -29,9 +29,12 @@ export class MpiController {
       throw new BadRequestException('You must provide at least one search criteria (nationalId or phone).');
     }
 
-    // Assuming the user's organizationId is stored in the JWT payload
+    // Require the user's organizationId to be present in the JWT payload for proper Tenant Isolation
     const user = (req as any).user;
-    const organizationId = user?.organizationId || 1; // Defaulting to 1 if not strictly isolated
+    if (!user || !user.organizationId) {
+      throw new ForbiddenException('Invalid tenant scope. Cannot determine your organization context.');
+    }
+    const organizationId = user.organizationId;
 
     return this.mpiService.searchMpi(organizationId, { nationalId, phone });
   }

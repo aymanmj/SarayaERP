@@ -413,7 +413,7 @@ export class NursingService {
             slots.push(new Date(startOfDay.getTime() + 6 * 60 * 60 * 1000)); // 06:00
             slots.push(new Date(startOfDay.getTime() + 12 * 60 * 60 * 1000)); // 12:00
             slots.push(new Date(startOfDay.getTime() + 18 * 60 * 60 * 1000)); // 18:00
-            slots.push(new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000)); // 24:00 (midnight next day)
+            slots.push(new Date(startOfDay.getTime() + 23 * 60 * 60 * 1000 + 59 * 60 * 1000)); // 23:59 (stay within today)
             break;
           case 'QHS':
             slots.push(new Date(startOfDay.getTime() + 22 * 60 * 60 * 1000)); // 22:00

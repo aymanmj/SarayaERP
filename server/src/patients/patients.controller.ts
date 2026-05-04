@@ -20,7 +20,9 @@ import type { JwtPayload } from '../auth/jwt-payload.type';
 import { Sensitive } from '../audit/audit.decorator';
 import { ClinicalABACGuard } from '../auth/guards/clinical-abac.guard';
 import { RequireClinicalRelation } from '../auth/decorators/abac.decorator';
+import { ApiTags } from '@nestjs/swagger';
 
+@ApiTags('patients')
 @UseGuards(JwtAuthGuard, RolesGuard, ClinicalABACGuard)
 @Controller('patients')
 export class PatientsController {

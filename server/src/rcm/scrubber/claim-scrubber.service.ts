@@ -250,7 +250,7 @@ export class ClaimScrubberService {
     // تحذير إذا كانت الزيارة تتطلب موافقة مسبقة (Inpatient/Surgery)
     const encounter = claim.invoice?.encounter;
     if (encounter) {
-      const requiresAuth = ['INPATIENT', 'SURGERY', 'DAY_CASE'].includes(
+      const requiresAuth = ['IPD', 'ICU', 'NICU', 'PICU'].includes(
         encounter.type,
       );
       if (requiresAuth) {

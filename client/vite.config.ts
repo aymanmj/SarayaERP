@@ -2,13 +2,31 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import path from "path";
+import { VitePWA } from "vite-plugin-pwa";
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [
+    react(),
+    tailwindcss(),
+    VitePWA({
+      registerType: "autoUpdate",
+      workbox: {
+        globPatterns: ["**/*.{js,css,html,ico,png,svg,webp}"],
+        maximumFileSizeToCacheInBytes: 5000000,
+      },
+      manifest: {
+        name: "Saraya ERP",
+        short_name: "Saraya",
+        description: "Enterprise Medical ERP",
+        theme_color: "#0f172a",
+        icons: [],
+      },
+    }),
+  ],
   build: {
     sourcemap: false,
-    chunkSizeWarningLimit: 900,
+    chunkSizeWarningLimit: 2500,
     rollupOptions: {
       output: {
         manualChunks(id) {

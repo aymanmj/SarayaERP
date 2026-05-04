@@ -445,7 +445,7 @@ describe('ClaimScrubberService', () => {
       invoice: {
         patient: { fullName: 'أحمد', dateOfBirth: new Date(), gender: 'MALE' },
         insuranceProvider: { name: 'تأمين سارية', isActive: true },
-        encounter: { type: 'INPATIENT', diagnoses: [{ type: 'PRIMARY', code: 'I21.0' }] },
+        encounter: { type: 'IPD', diagnoses: [{ type: 'PRIMARY', code: 'I21.0' }] },
         items: [{ id: 1 }],
       },
     };
