@@ -276,7 +276,7 @@ export default function ComplianceDashboardPage() {
                     {control.dueDate ? (
                       <span className="flex items-center gap-1 text-xs text-amber-400">
                         <Calendar className="w-3 h-3" />
-                        {new Date(control.dueDate).toLocaleDateString("ar-SA")}
+                        {new Date(control.dueDate).toLocaleDateString("en-GB")}
                       </span>
                     ) : (
                       <span className="text-xs text-slate-600">—</span>
@@ -292,7 +292,7 @@ export default function ComplianceDashboardPage() {
       {/* Footer Info */}
       <div className="mt-8 text-center text-xs text-slate-600 print:text-black">
         تم إنشاء التقرير في:{" "}
-        {new Date(report.generatedAt).toLocaleString("ar-SA")} | الأطر
+        {new Date(report.generatedAt).toLocaleString("en-GB")} | الأطر
         المعتمدة: {report.frameworks.join(" • ")}
       </div>
     </div>

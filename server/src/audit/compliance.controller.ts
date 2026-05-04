@@ -19,4 +19,10 @@ export class ComplianceController {
   async getComplianceReport() {
     return this.complianceService.generateComplianceReport();
   }
+
+  // Temporary endpoint to repair the audit log hash chain
+  @Get('repair-chain')
+  async repairAuditChain() {
+    return this.complianceService.repairAuditChain();
+  }
 }

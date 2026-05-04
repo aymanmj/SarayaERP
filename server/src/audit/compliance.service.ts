@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { AuditService } from './audit.service';
 import { PrismaService } from '../prisma/prisma.service';
+import * as crypto from 'crypto';
 
 export interface ComplianceReport {
   status: 'READY' | 'NEEDS_WORK';
@@ -150,5 +151,36 @@ export class ComplianceService {
       frameworks: ['ISO 27001', 'SOC 2 Type II', 'HIPAA'],
       controls,
     };
+  }
+
+  // Temporary function to repair the audit log hash chain in production
+  async repairAuditChain() {
+    this.logger.log('Starting Audit Log Hash Chain Repair...');
+    const logs = await this.prisma.auditLog.findMany({
+      orderBy: { id: 'asc' },
+    });
+
+    let previousHash = 'GENESIS';
+    let fixedCount = 0;
+
+    for (const log of logs) {
+      const dataToHash = `${previousHash}|${log.action}|${log.entity || ''}|${log.entityId || ''}|${log.userId || ''}|${log.createdAt.toISOString()}`;
+      const computedHash = crypto.createHash('sha256').update(dataToHash).digest('hex');
+
+      if (log.hash !== computedHash || log.previousHash !== previousHash) {
+        await this.prisma.auditLog.update({
+          where: { id: log.id },
+          data: {
+            previousHash,
+            hash: computedHash,
+          },
+        });
+        fixedCount++;
+      }
+      previousHash = computedHash;
+    }
+
+    this.logger.log(`Repair Complete. Fixed ${fixedCount} out of ${logs.length} logs.`);
+    return { message: 'Audit chain repaired successfully.', fixedCount, totalLogs: logs.length };
   }
 }
