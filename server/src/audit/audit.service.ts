@@ -175,9 +175,16 @@ export class AuditService {
 
   /**
    * Secure insertion with ISO 27001 Hash Chaining.
+   * Uses PostgreSQL advisory locks to prevent race conditions during high-concurrency logging,
+   * which causes broken chains due to simultaneous hash calculations.
    */
   private async createSecureLog(options: AuditLogOptions) {
     return this.prisma.$transaction(async (tx) => {
+      // Acquire a transaction-level advisory lock specifically for the audit log chain.
+      // The lock ID 27001 is used as a symbolic reference to ISO 27001.
+      // This forces concurrent audit logs to execute sequentially, preventing chain forks.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(27001)`;
+
       // Get the most recent log to continue the chain
       const lastLog = await tx.auditLog.findFirst({
         orderBy: { id: 'desc' },

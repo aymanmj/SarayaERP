@@ -20,9 +20,21 @@ export class ComplianceController {
     return this.complianceService.generateComplianceReport();
   }
 
+  // Legacy route for backward compatibility with cached frontend clients
+  @Get('/../compliance-report')
+  @Roles('SYSTEM_ADMIN', 'SECURITY_OFFICER')
+  async getComplianceReportLegacy() {
+    return this.complianceService.generateComplianceReport();
+  }
+
   // Temporary endpoint to repair the audit log hash chain
   @Get('repair-chain')
   async repairAuditChain() {
     return this.complianceService.repairAuditChain();
+  }
+
+  @Get('debug-org')
+  async debugOrg() {
+    return this.prisma.orgSetting.findMany();
   }
 }
