@@ -103,10 +103,18 @@ export class VouchersService {
       const count = await tx.voucher.count({ where: { hospitalId, type: voucher.type as any } });
       const code = `${prefix}-${String(count + 1).padStart(5, '0')}`;
 
-      const updated = await tx.voucher.update({
-        where: { id },
+      // Optimistic Concurrency Control (OCC)
+      // Ensures that if another concurrent request already posted this voucher, it will affect 0 rows
+      const updateResult = await tx.voucher.updateMany({
+        where: { id, hospitalId, status: VoucherStatus.DRAFT },
         data: { status: VoucherStatus.POSTED, code },
       });
+
+      if (updateResult.count === 0) {
+        throw new BadRequestException('Voucher was modified by another transaction and is no longer in DRAFT status');
+      }
+
+      const updated = await tx.voucher.findUnique({ where: { id } });
 
       // Record Accounting Entry
       await this.accounting.recordVoucherEntry({
@@ -127,9 +135,16 @@ export class VouchersService {
     }
     
     // For now we just mark cancelled. Real ERPs generate a JOURNAL_REVERSAL entry.
-    return this.prisma.voucher.update({
-      where: { id },
+    // OCC check to prevent concurrent cancellations
+    const updateResult = await this.prisma.voucher.updateMany({
+      where: { id, hospitalId, status: VoucherStatus.POSTED },
       data: { status: VoucherStatus.CANCELLED },
     });
+
+    if (updateResult.count === 0) {
+      throw new BadRequestException('Voucher was modified by another transaction and is no longer in POSTED status');
+    }
+
+    return this.prisma.voucher.findUnique({ where: { id } });
   }
 }

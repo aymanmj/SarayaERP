@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { NphiesAuthService } from './nphies-auth.service';
 import { NphiesService } from './nphies.service';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -20,6 +20,7 @@ import { v4 as uuidv4 } from 'uuid';
 @Injectable()
 export class NphiesClaimService {
   private readonly logger = new Logger(NphiesClaimService.name);
+  private activeSubmissions = new Set<number>();
 
   constructor(
     private authService: NphiesAuthService,
@@ -34,6 +35,18 @@ export class NphiesClaimService {
    * @returns نتيجة الإرسال مع رقم المطالبة في NPHIES
    */
   async submitClaim(claimId: number): Promise<NphiesClaimSubmissionResult> {
+    if (this.activeSubmissions.has(claimId)) {
+      throw new BadRequestException('يتم إرسال هذه المطالبة حالياً، الرجاء الانتظار...');
+    }
+    this.activeSubmissions.add(claimId);
+    try {
+      return await this._submitClaimInternal(claimId);
+    } finally {
+      this.activeSubmissions.delete(claimId);
+    }
+  }
+
+  private async _submitClaimInternal(claimId: number): Promise<NphiesClaimSubmissionResult> {
     // جلب بيانات المطالبة كاملة
     const claim = await this.prisma.claim.findUnique({
       where: { id: claimId },
@@ -60,6 +73,15 @@ export class NphiesClaimService {
     });
 
     if (!claim) throw new NotFoundException('المطالبة غير موجودة');
+
+    // Prevent double submissions via DB status check
+    const completedStatuses = [
+      ClaimStatus.SUBMITTED, ClaimStatus.ACCEPTED, ClaimStatus.PAID, 
+      ClaimStatus.PARTIALLY_PAID, ClaimStatus.REJECTED, ClaimStatus.APPEAL_ACCEPTED
+    ];
+    if (completedStatuses.includes(claim.status)) {
+      throw new BadRequestException('لا يمكن إرسال مطالبة تمت معالجتها مسبقاً');
+    }
 
     const invoice = claim.invoice;
     const patient = invoice.patient;
