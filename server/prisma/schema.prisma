@@ -652,9 +652,16 @@ model PatientOtp {
   expiresAt DateTime
   attempts  Int      @default(0)
   verified  Boolean  @default(false)
-  channel   String   @default("console") // console | sms | whatsapp
-  createdAt DateTime @default(now())
-  patient   Patient  @relation(fields: [patientId], references: [id])
+  channel                  String   @default("console") // console | sms | whatsapp
+  createdAt                DateTime @default(now())
+  
+  // MPI Consent Tracking Fields
+  requestingOrganizationId Int?
+  requestingHospitalId     Int?
+  requestingUserId         Int?
+  purpose                  String?
+
+  patient                  Patient  @relation(fields: [patientId], references: [id])
 
   @@index([patientId, createdAt])
 }

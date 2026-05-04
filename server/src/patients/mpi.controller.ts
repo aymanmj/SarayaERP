@@ -42,18 +42,35 @@ export class MpiController {
   @Post('consent/trigger')
   @Roles('SYSTEM_ADMIN', 'HIE_ADMIN', 'DOCTOR')
   @ApiOperation({ summary: 'Trigger OTP for Dynamic Patient Consent' })
+  @ApiQuery({ name: 'patientId', required: true, type: Number })
+  @ApiQuery({ name: 'purpose', required: false, type: String })
   @ApiResponse({ status: 201, description: 'OTP sent successfully' })
   async triggerConsentOtp(
     @Query('patientId') patientId: number,
+    @Query('purpose') purpose: string,
     @Req() req: Request
   ) {
     if (!patientId) throw new BadRequestException('patientId is required');
 
     const user = (req as any).user;
+    if (!user || !user.organizationId) {
+      throw new ForbiddenException('Invalid tenant scope. Cannot determine your organization context.');
+    }
     const doctorName = user?.fullName || 'Doctor';
     const hospitalName = 'Saraya General Hospital'; // Could be derived from hospitalId
+    const requestingOrganizationId = user.organizationId;
+    const requestingHospitalId = user.hospitalId || null;
+    const requestingUserId = user.id;
 
-    return this.mpiService.triggerConsentOtp(Number(patientId), doctorName, hospitalName);
+    return this.mpiService.triggerConsentOtp(
+      Number(patientId), 
+      doctorName, 
+      hospitalName,
+      requestingOrganizationId,
+      requestingHospitalId,
+      requestingUserId,
+      purpose || 'Emergency Medical Treatment'
+    );
   }
 
   @Post('consent/verify')
@@ -62,10 +79,14 @@ export class MpiController {
   @ApiResponse({ status: 201, description: 'Consent token issued' })
   async verifyConsentOtp(
     @Query('patientId') patientId: number,
-    @Query('otp') otp: string
+    @Query('otp') otp: string,
+    @Req() req: Request
   ) {
     if (!patientId || !otp) throw new BadRequestException('patientId and otp are required');
 
-    return this.mpiService.verifyConsentOtp(Number(patientId), otp);
+    const user = (req as any).user;
+    const requestingOrganizationId = user?.organizationId;
+
+    return this.mpiService.verifyConsentOtp(Number(patientId), otp, requestingOrganizationId);
   }
 }
