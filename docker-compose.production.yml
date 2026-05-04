@@ -338,7 +338,7 @@ services:
     user: root
     restart: always
     ports:
-      - "3001:3000" # يمكن الوصول لـ Grafana عبر المنفذ 3001
+      - "127.0.0.1:3001:3000" # يمكن الوصول لـ Grafana عبر المنفذ 3001 محلياً فقط
     environment:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin123}
@@ -358,7 +358,7 @@ services:
     container_name: saraya_alertmanager
     restart: always
     ports:
-      - "9093:9093"
+      - "127.0.0.1:9093:9093"
     volumes:
       - ./monitoring:/etc/alertmanager_config:ro
       - alertmanager_data:/alertmanager
@@ -375,7 +375,7 @@ services:
     restart: always
     user: "0:0"
     ports:
-      - "3100:3100"
+      - "127.0.0.1:3100:3100"
     volumes:
       - ./monitoring:/etc/loki_config:ro
       - loki_data:/loki
@@ -407,7 +407,7 @@ services:
     user: "0:0"
     command: -config.file=/etc/tempo_config/tempo-config.yml
     ports:
-      - "3200:3200"   # Tempo Server
+      - "127.0.0.1:3200:3200"   # Tempo Server
     volumes:
       - ./monitoring:/etc/tempo_config:ro
       - tempo_data:/var/tempo
@@ -424,9 +424,9 @@ services:
     volumes:
       - ./monitoring:/etc/otel_config:ro
     ports:
-      - "4317:4317"  # OTLP gRPC (Receiver)
-      - "4318:4318"  # OTLP HTTP (Receiver)
-      - "8889:8889"   # Prometheus metrics exporter
+      - "127.0.0.1:4317:4317"  # OTLP gRPC (Receiver)
+      - "127.0.0.1:4318:4318"  # OTLP HTTP (Receiver)
+      - "127.0.0.1:8889:8889"   # Prometheus metrics exporter
     depends_on:
       - tempo
       - prometheus
