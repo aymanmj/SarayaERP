@@ -1,5 +1,5 @@
 // src/settings/dto/update-organization-settings.dto.ts
-import { IsOptional, IsString } from 'class-validator';
+import { IsOptional, IsString, IsBoolean } from 'class-validator';
 
 export class UpdateOrganizationSettingsDto {
   @IsOptional()
@@ -31,11 +31,14 @@ export class UpdateOrganizationSettingsDto {
   logoUrl?: string | null;
 
   @IsOptional()
+  @IsBoolean()
   printHeaderFooter?: boolean;
 
   @IsOptional()
+  @IsBoolean()
   mpiEnableFederation?: boolean;
 
   @IsOptional()
+  @IsBoolean()
   mpiRequirePatientOTP?: boolean;
 }

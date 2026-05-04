@@ -67,7 +67,7 @@ export default function ComplianceDashboardPage() {
     setLoading(true);
     try {
       const res = await apiClient.get<ComplianceReport>(
-        "/audit/compliance-report"
+        "/audit/compliance/report"
       );
       setReport(res.data);
     } catch (err: any) {
