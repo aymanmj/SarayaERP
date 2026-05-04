@@ -32,9 +32,4 @@ export class ComplianceController {
   async repairAuditChain() {
     return this.complianceService.repairAuditChain();
   }
-
-  @Get('debug-org')
-  async debugOrg() {
-    return this.prisma.orgSetting.findMany();
-  }
 }
