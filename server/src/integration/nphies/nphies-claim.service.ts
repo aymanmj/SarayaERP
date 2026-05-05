@@ -75,7 +75,7 @@ export class NphiesClaimService {
     if (!claim) throw new NotFoundException('المطالبة غير موجودة');
 
     // Prevent double submissions via DB status check
-    const completedStatuses = [
+    const completedStatuses: ClaimStatus[] = [
       ClaimStatus.SUBMITTED, ClaimStatus.ACCEPTED, ClaimStatus.PAID, 
       ClaimStatus.PARTIALLY_PAID, ClaimStatus.REJECTED, ClaimStatus.APPEAL_ACCEPTED
     ];
