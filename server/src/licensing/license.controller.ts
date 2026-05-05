@@ -9,9 +9,11 @@ import {
   BadRequestException,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
 import { LicenseService } from './license.service';
 import { Public } from './license.decorator';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller('license')
 export class LicenseController {
@@ -30,9 +32,10 @@ export class LicenseController {
 
   /**
    * Get machine ID for activation purposes.
-   * This endpoint is PUBLIC.
+   * [SECURITY FIX F-012] Restricted to authenticated users only.
+   * Machine fingerprint must not be publicly accessible.
    */
-  @Public()
+  @UseGuards(JwtAuthGuard)
   @Get('machine-id')
   getMachineId() {
     return {

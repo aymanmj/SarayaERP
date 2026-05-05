@@ -4,6 +4,7 @@ import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { CDSSService } from './cdss.service';
 import { Public } from '../licensing/license.decorator';
 import { RequireFeature } from '../licensing/license.decorator';
+import { CdsHookRequestDto } from './dto/cds-hook-request.dto';
 
 @ApiTags('CDS-Hooks')
 @Controller('cds-services')
@@ -36,7 +37,7 @@ export class CdsHooksController {
   @Post(':id')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Invoke a CDS service' })
-  async invokeService(@Param('id') id: string, @Body() body: any) {
+  async invokeService(@Param('id') id: string, @Body() body: CdsHookRequestDto) {
     if (id !== 'medication-safety') {
       return { cards: [] };
     }
