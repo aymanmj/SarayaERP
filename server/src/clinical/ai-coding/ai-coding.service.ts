@@ -88,7 +88,7 @@ export class AiCodingService implements OnModuleInit {
     this.genAI = new GoogleGenerativeAI(apiKey);
 
     // Model selection: configurable via env, with stable fallback
-    const modelName = this.configService.get<string>('GEMINI_MODEL') || 'gemini-2.5-flash';
+    const modelName = this.configService.get<string>('GEMINI_MODEL') || 'gemini-3.1-flash-lite-preview';
     this.logger.log(`🤖 Initializing AI Coding with model: ${modelName}`);
 
     this.model = this.genAI.getGenerativeModel({ 
