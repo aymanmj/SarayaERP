@@ -461,10 +461,12 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - portainer_data:/data
-    # Port 9000 removed — Portainer is now accessible ONLY via Nginx reverse proxy
-    # with IP whitelisting (Tailscale + LAN). No direct host exposure.
-    expose:
-      - "9000"
+    # [SECURITY] Portainer bound to localhost ONLY.
+    # Remote access via Tailscale SSH tunnel:
+    #   ssh -L 9000:127.0.0.1:9000 ubuntu@100.90.214.119
+    #   Then open: http://localhost:9000
+    ports:
+      - "127.0.0.1:9000:9000"
     networks:
       - saraya_net
 
