@@ -31,32 +31,15 @@ sed -i "s/SARAYA_SERVER_IP/${SERVER_IP}/g" "${DNSMASQ_CONF}"
 
 echo "✅ تم تحديث إعدادات DNS المحلي"
 
-# ضبط السيرفر ليستخدم DNS محلي
-echo "📝 جاري ضبط DNS المحلي على السيرفر..."
+# ضبط السيرفر نفسه للوصول للنطاق محلياً بأمان (بدون فصل الشبكة)
+echo "📝 جاري ضبط اسم النطاق محلياً على السيرفر..."
 
-# إنشاء ملف netplan إضافي للـ DNS (Ubuntu 24.04)
-NETPLAN_FILE="/etc/netplan/99-saraya-dns.yaml"
-if [ ! -f "${NETPLAN_FILE}" ]; then
-    cat <<EOF | sudo tee "${NETPLAN_FILE}" > /dev/null
-# Saraya Local DNS Configuration
-# يضمن أن السيرفر يستخدم DNS المحلي أولاً
-network:
-  version: 2
-  ethernets:
-    all:
-      match:
-        name: "e*"
-      nameservers:
-        addresses:
-          - 127.0.0.1
-          - 1.1.1.1
-          - 8.8.8.8
-EOF
-    sudo netplan apply 2>/dev/null || true
-    echo "✅ تم ضبط Netplan"
+if grep -q "${DOMAIN}" /etc/hosts; then
+    sudo sed -i "s/.*${DOMAIN}.*/${SERVER_IP} ${DOMAIN}/" /etc/hosts
 else
-    echo "ℹ️ ملف Netplan موجود مسبقاً"
+    echo "${SERVER_IP} ${DOMAIN}" | sudo tee -a /etc/hosts > /dev/null
 fi
+echo "✅ تم تحديث ملف /etc/hosts"
 
 echo ""
 echo "==========================================="

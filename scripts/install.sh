@@ -717,9 +717,9 @@ setup_ghcr() {
     echo "  4. Copy the Token"
     echo ""
 
-    read -p "  Enter GitHub Username: " GITHUB_USER < /dev/tty
-    echo -e "  (Input is hidden - paste and press Enter even if you see nothing)"
-    read -sp "  Enter GitHub PAT: " GITHUB_PAT < /dev/tty
+    read -p "  Enter GitHub Username: " GITHUB_USER < /dev/tty || true
+    echo -e "  (You can paste your PAT securely below)"
+    read -p "  Enter GitHub PAT: " GITHUB_PAT < /dev/tty || true
     echo ""
 
     if [ -z "$GITHUB_USER" ] || [ -z "$GITHUB_PAT" ]; then
