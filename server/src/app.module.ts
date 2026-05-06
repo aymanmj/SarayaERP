@@ -92,6 +92,7 @@ import { TenantModule } from './common/tenant/tenant.module'; // ✅ [NEW] Phase
 import { RcmModule } from './rcm/rcm.module'; // ✅ [NEW] Phase 1: Revenue Cycle Management
 import { NphiesModule } from './integration/nphies/nphies.module'; // ✅ [NEW] Phase 1: NPHIES (Saudi eClaims)
 import { StartupSecurityValidator } from './common/security/startup-security.validator'; // ✅ [NEW] Security Guard
+import { ConnectivityModule } from './common/services/connectivity.module'; // ✅ [NEW] Offline-First: Internet Connectivity Monitor
 
 @Module({
   imports: [
@@ -111,6 +112,7 @@ import { StartupSecurityValidator } from './common/security/startup-security.val
     }),
     PrismaModule,
     EventEmitterModule.forRoot(),
+    ConnectivityModule, // ✅ [NEW] Offline-First: Internet status monitoring
     ScheduleModule.forRoot(),
     PrometheusModule.register(), // ✅ Expose /metrics
     VaultModule,

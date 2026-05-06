@@ -127,7 +127,7 @@ describe('MpiService', () => {
       mockPrisma.patient.findUnique.mockResolvedValue(null);
 
       await expect(
-        service.triggerConsentOtp(999, 'Dr. Ahmad', 'مستشفى جدة'),
+        service.triggerConsentOtp(999, 'Dr. Ahmad', 'مستشفى جدة', 1, null, 10, 'treatment'),
       ).rejects.toThrow(NotFoundException);
     });
 
@@ -141,7 +141,7 @@ describe('MpiService', () => {
       });
 
       await expect(
-        service.triggerConsentOtp(1, 'Dr. Ahmad', 'مستشفى جدة'),
+        service.triggerConsentOtp(1, 'Dr. Ahmad', 'مستشفى جدة', 1, null, 10, 'treatment'),
       ).rejects.toThrow(BadRequestException);
     });
 
@@ -152,7 +152,7 @@ describe('MpiService', () => {
       mockPrisma.patientOtp.findFirst.mockResolvedValue(null); // No recent OTP
       mockPrisma.patientOtp.create.mockResolvedValue({ id: 1 });
 
-      const result = await service.triggerConsentOtp(1, 'Dr. Ahmad', 'مستشفى جدة');
+      const result = await service.triggerConsentOtp(1, 'Dr. Ahmad', 'مستشفى جدة', 1, null, 10, 'treatment');
 
       expect(result.message).toContain('OTP sent');
       expect(result.expiresAt).toBeInstanceOf(Date);
@@ -172,7 +172,7 @@ describe('MpiService', () => {
       mockPrisma.patientOtp.create.mockResolvedValue({ id: 1 });
 
       const before = Date.now();
-      const result = await service.triggerConsentOtp(1, 'Dr. Test', 'Hospital');
+      const result = await service.triggerConsentOtp(1, 'Dr. Test', 'Hospital', 1, null, 10, 'treatment');
       const after = Date.now();
 
       const expectedMin = before + 14 * 60 * 1000; // At least 14 min from before

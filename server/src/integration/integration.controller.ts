@@ -18,12 +18,16 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { IntegrationDirection, IntegrationProtocol } from '@prisma/client';
+import { OutboundQueueService } from './outbound-queue.service';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('ADMIN', 'IT_ADMIN') // صلاحية للأدمن أو مسؤول الـ IT
 @Controller('integration')
 export class IntegrationController {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private outboundQueue: OutboundQueueService,
+  ) {}
 
   // 1. إدارة الأجهزة (Devices)
   @Get('devices')
@@ -128,5 +132,18 @@ export class IntegrationController {
       orderBy: { createdAt: 'desc' },
       take: 100, // آخر 100 سجل
     });
+  }
+
+  // ============================================
+  // 4. حالة الطابور الخارجي (Outbound Queue)
+  // ============================================
+
+  /**
+   * GET /api/integration/queue/status
+   * عرض حالة الطابور والاتصال — للوحة تحكم المسؤول
+   */
+  @Get('queue/status')
+  async getQueueStatus() {
+    return this.outboundQueue.getQueueStatus();
   }
 }

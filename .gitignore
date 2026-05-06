@@ -57,7 +57,6 @@ Thumbs.db
 # Testing
 ############################
 .nyc_output/
-coverage/
 
 ############################
 # Docker
@@ -84,8 +83,6 @@ tmp/
 temp/
 admin-tools/
 
-
-
 ############################
 # HashiCorp Vault (production bind mount; never commit keys)
 ############################
@@ -93,15 +90,19 @@ data/keys/*
 !data/keys/.gitkeep
 
 ############################
-# Certificates
+# Certificates & SSL
 ############################
 certs/
+certbot/
 *.pem
 *.key
 !server/src/licensing/public.key
 *.crt
 secrets/
 
+############################
+# AI / Agent Tools
+############################
 /.gemini
 /.agent
 server/test-gemini.js

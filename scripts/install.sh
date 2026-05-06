@@ -305,6 +305,16 @@ download_files() {
     gh_download "scripts/health-check.sh" "scripts/health-check.sh"
     gh_download "scripts/uninstall.sh" "scripts/uninstall.sh"
 
+    # ✅ [NEW] Offline-First & SSL Scripts
+    gh_download "scripts/tunnel-watchdog.sh" "scripts/tunnel-watchdog.sh"
+    gh_download "scripts/setup-local-dns.sh" "scripts/setup-local-dns.sh"
+    gh_download "scripts/ssl-certbot-setup.sh" "scripts/ssl-certbot-setup.sh"
+    gh_download "scripts/create-desktop-shortcut.ps1" "scripts/create-desktop-shortcut.ps1"
+
+    # ✅ [NEW] dnsmasq config for offline DNS
+    mkdir -p production/dnsmasq
+    gh_download "production/dnsmasq/dnsmasq.conf" "production/dnsmasq/dnsmasq.conf"
+
     chmod +x scripts/*.sh
 
     # ============================================================
@@ -583,9 +593,10 @@ setup_ssl_certificates() {
     echo ""
     echo -e "  ${YELLOW}1)${NC} Import existing certificates (Cloudflare Origin, Let's Encrypt, etc.)"
     echo -e "  ${YELLOW}2)${NC} Generate self-signed certificate (for internal/LAN use)"
-    echo -e "  ${YELLOW}3)${NC} Skip (configure later)"
+    echo -e "  ${YELLOW}3)${NC} Issue Let's Encrypt certificate via Cloudflare DNS (recommended)"
+    echo -e "  ${YELLOW}4)${NC} Skip (configure later)"
     echo ""
-    read -p "  Choose option [1-3]: " SSL_OPTION < /dev/tty
+    read -p "  Choose option [1-4]: " SSL_OPTION < /dev/tty
 
     case $SSL_OPTION in
         1)
@@ -609,6 +620,9 @@ setup_ssl_certificates() {
             generate_self_signed_cert
             ;;
         3)
+            setup_letsencrypt_ssl
+            ;;
+        4)
             print_warning "SSL skipped - HTTPS will not work until certificates are added"
             print_info "To add later: place fullchain.pem and privkey.pem in $CERTS_DIR"
             ;;
@@ -637,6 +651,55 @@ generate_self_signed_cert() {
 
     print_status "Self-signed SSL certificate generated (valid for 10 years)"
     print_warning "Browsers will show a security warning - this is normal for self-signed certs"
+}
+
+setup_letsencrypt_ssl() {
+    echo ""
+    echo -e "  ${BOLD}${CYAN}Let's Encrypt via Cloudflare DNS-01 Challenge${NC}"
+    echo -e "  ${CYAN}──────────────────────────────────────────────${NC}"
+    echo ""
+    echo -e "  ${YELLOW}You need a Cloudflare API Token with Zone:DNS:Edit permission.${NC}"
+    echo "  Create one at: https://dash.cloudflare.com/profile/api-tokens"
+    echo ""
+    read -p "  Enter Cloudflare API Token: " CF_API_TOKEN < /dev/tty
+
+    if [ -z "$CF_API_TOKEN" ]; then
+        print_warning "No token provided — falling back to self-signed certificate"
+        generate_self_signed_cert
+        return
+    fi
+
+    DOMAIN="${CLIENT_DOMAIN:-saraya-erp.local}"
+    export CLOUDFLARE_API_TOKEN="$CF_API_TOKEN"
+
+    print_info "Issuing Let's Encrypt certificate for: $DOMAIN"
+    cd "$INSTALL_DIR"
+    bash scripts/ssl-certbot-setup.sh issue "$DOMAIN"
+
+    if [ $? -eq 0 ]; then
+        USE_LETSENCRYPT=true
+        print_status "Let's Encrypt certificate issued successfully!"
+    else
+        print_error "Let's Encrypt failed — falling back to self-signed certificate"
+        generate_self_signed_cert
+    fi
+}
+
+# ════════════════════════════════════════════════════════════════════════════════
+# إعداد DNS المحلي (Offline-First)
+# ════════════════════════════════════════════════════════════════════════════════
+
+setup_local_dns() {
+    if [ -z "$CLIENT_DOMAIN" ]; then
+        print_info "No domain configured — skipping local DNS setup"
+        return
+    fi
+
+    print_info "Configuring local DNS for offline access..."
+    cd "$INSTALL_DIR"
+    bash scripts/setup-local-dns.sh "$CLIENT_DOMAIN"
+    print_status "Local DNS configured for: $CLIENT_DOMAIN"
+    print_info "Add server IP as primary DNS in your router's DHCP settings"
 }
 
 # ════════════════════════════════════════════════════════════════════════════════
@@ -828,6 +891,7 @@ cleanup_containers() {
         "saraya_otel_collector"
         "saraya_watchtower"
         "saraya_portainer"
+        "saraya_dns"
     )
 
     for container in "${CONTAINERS[@]}"; do
@@ -900,6 +964,13 @@ pull_and_start() {
     print_info "Starting Vault..."
     docker compose -f docker-compose.production.yml --env-file .env.production up -d vault >> "$LOG_FILE" 2>&1 || true
     sleep 5
+
+    # Start Local DNS (Offline-First)
+    if [ -n "$CLIENT_DOMAIN" ]; then
+        print_info "Starting local DNS..."
+        docker compose -f docker-compose.production.yml --env-file .env.production up -d local-dns >> "$LOG_FILE" 2>&1 || true
+        print_status "Local DNS started (offline domain resolution)"
+    fi
 
     # Start optional services (portainer, watchtower, kong)
     docker compose -f docker-compose.production.yml --env-file .env.production up -d portainer watchtower >> "$LOG_FILE" 2>&1 || true
@@ -1011,9 +1082,33 @@ PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 EOF
 
     chmod 644 /etc/cron.d/saraya-backup
+
+    # ✅ [NEW] Tunnel Watchdog — every 5 minutes
+    cat > /etc/cron.d/saraya-tunnel-watchdog << EOF
+# Saraya ERP - Tunnel Watchdog (auto-restart zombie tunnels)
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+
+*/5 * * * * root $INSTALL_DIR/scripts/tunnel-watchdog.sh >> /var/log/saraya-tunnel-watchdog.log 2>&1
+EOF
+    chmod 644 /etc/cron.d/saraya-tunnel-watchdog
+
+    # ✅ [NEW] SSL Certificate Renewal — every 12 hours
+    if [ -d "$INSTALL_DIR/certbot" ] || [ "${USE_LETSENCRYPT:-false}" = true ]; then
+        cat > /etc/cron.d/saraya-ssl-renew << EOF
+# Saraya ERP - SSL Certificate Auto-Renewal
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+
+0 */12 * * * root cd $INSTALL_DIR && ./scripts/ssl-certbot-setup.sh renew >> /var/log/saraya-ssl-renew.log 2>&1
+EOF
+        chmod 644 /etc/cron.d/saraya-ssl-renew
+        print_status "SSL auto-renewal configured (every 12 hours)"
+    fi
     
     print_status "Auto-update configured (daily at 3:00 AM)"
     print_status "Auto-backup configured (daily at 2:00 AM)"
+    print_status "Tunnel watchdog configured (every 5 minutes)"
 }
 
 # ════════════════════════════════════════════════════════════════════════════════
@@ -1064,6 +1159,20 @@ show_summary() {
     echo -e "  Config File:        $INSTALL_DIR/.env.production"
     echo -e "  SSL Certificates:   $INSTALL_DIR/certs/"
     echo -e "  Install Log:        $LOG_FILE"
+    echo ""
+    echo -e "  ${BOLD}Offline-First Features:${NC}"
+    echo -e "  -----------------------------------------------------------------"
+    if [ -n "$CLIENT_DOMAIN" ]; then
+        echo -e "  Local DNS:          ✅ Enabled (${CLIENT_DOMAIN} → Server IP)"
+    else
+        echo -e "  Local DNS:          ⚠️  Not configured (no domain)"
+    fi
+    echo -e "  Tunnel Watchdog:    ✅ Cron every 5 min"
+    if [ "${USE_LETSENCRYPT:-false}" = true ]; then
+        echo -e "  SSL Renewal:        ✅ Auto-renew every 12 hours"
+    fi
+    echo -e "  PWA:                ✅ Offline caching enabled"
+    echo -e "  Outbound Queue:     ✅ BullMQ (auto-retry on reconnect)"
     echo ""
 
     if [ -n "$TAILSCALE_HOSTNAME" ] && [ -n "$TAILSCALE_AUTHKEY" ]; then
@@ -1123,6 +1232,10 @@ main() {
     # Step 6.5: Setup SSL Certificates
     print_step "6.5" "SSL Certificate Setup"
     setup_ssl_certificates
+
+    # Step 6.6: Setup Local DNS (Offline-First)
+    print_step "6.6" "Local DNS Setup (Offline-First)"
+    setup_local_dns
 
     # Step 7: License file
     print_step "7" "License File"

@@ -8,6 +8,7 @@ import { Toaster } from "sonner";
 import { useAuthStore } from "./stores/authStore";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { MainLayout } from "./layout/MainLayout";
+import { NetworkStatusBanner } from "./components/NetworkStatusBanner";
 
 // 1. Static Imports
 import { LoginPage } from "./pages/LoginPage";
@@ -64,6 +65,7 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
+        <NetworkStatusBanner />
         <Toaster richColors position="top-center" closeButton />
 
         {/* Suspense Wraps the App for Lazy Loading */}

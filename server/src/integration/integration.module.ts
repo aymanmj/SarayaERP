@@ -16,6 +16,10 @@ import { JwtModule } from '@nestjs/jwt';
 import { FhirAuthService } from './fhir/fhir.auth.service';
 import { FhirAuthGuard } from './fhir/fhir.auth.guard';
 
+// ✅ [NEW] Offline-First Outbound Queue
+import { OutboundQueueService } from './outbound-queue.service';
+import { OutboundConsumer } from './outbound.consumer';
+
 @Module({
   imports: [
     PrismaModule,
@@ -33,12 +37,22 @@ import { FhirAuthGuard } from './fhir/fhir.auth.guard';
       }),
       inject: [ConfigService],
     }),
-    BullModule.registerQueue({
-      name: 'hl7-queue',
-    }),
+    BullModule.registerQueue(
+      { name: 'hl7-queue' },
+      { name: 'outbound-queue' }, // ✅ [NEW] Offline-First Outbound Queue
+    ),
   ],
   controllers: [IntegrationController, FhirController],
-  providers: [IntegrationService, Hl7Consumer, IntegrationListener, FhirService, FhirAuthService, FhirAuthGuard],
-  exports: [IntegrationService, FhirService, FhirAuthService],
+  providers: [
+    IntegrationService,
+    Hl7Consumer,
+    IntegrationListener,
+    FhirService,
+    FhirAuthService,
+    FhirAuthGuard,
+    OutboundQueueService, // ✅ [NEW] Outbound queue management
+    OutboundConsumer,     // ✅ [NEW] Outbound queue processor
+  ],
+  exports: [IntegrationService, FhirService, FhirAuthService, OutboundQueueService],
 })
 export class IntegrationModule {}

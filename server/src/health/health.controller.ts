@@ -4,10 +4,14 @@
 import { Controller, Get, Header } from '@nestjs/common';
 import { HealthService } from './health.service';
 import { Public } from '../auth/public.decorator';
+import { ConnectivityService } from '../common/services/connectivity.service';
 
 @Controller('health')
 export class HealthController {
-  constructor(private healthService: HealthService) {}
+  constructor(
+    private healthService: HealthService,
+    private connectivityService: ConnectivityService,
+  ) {}
 
   /**
    * Basic health check (for load balancers)
@@ -58,6 +62,18 @@ export class HealthController {
   @Header('Content-Type', 'text/plain')
   async getMetrics(): Promise<string> {
     return this.healthService.metrics();
+  }
+
+  /**
+   * Internet connectivity status
+   * GET /health/connectivity
+   * Used by frontend NetworkStatusBanner to distinguish
+   * between server-only (no internet) and full online status
+   */
+  @Public()
+  @Get('connectivity')
+  getConnectivity() {
+    return this.connectivityService.getState();
   }
 }
 

@@ -11,16 +11,111 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: "autoUpdate",
+
+      // ============================================
+      // Workbox Configuration (Offline-First)
+      // ============================================
       workbox: {
-        globPatterns: ["**/*.{js,css,html,ico,png,svg,webp}"],
+        // Cache all static assets during install
+        globPatterns: ["**/*.{js,css,html,ico,png,svg,webp,woff,woff2,ttf}"],
         maximumFileSizeToCacheInBytes: 5000000,
+
+        // Offline navigation fallback — عند محاولة فتح صفحة بدون شبكة
+        navigateFallback: "/index.html",
+        navigateFallbackDenylist: [/^\/api\//],
+
+        // Runtime Caching Strategies for API and external resources
+        runtimeCaching: [
+          {
+            // 🔄 API calls: Network-first — يحاول الشبكة أولاً، يرجع للـ cache عند الفشل
+            urlPattern: /^https?:\/\/[^/]+\/api\/.*/i,
+            handler: "NetworkFirst",
+            options: {
+              cacheName: "saraya-api-cache",
+              expiration: {
+                maxEntries: 200,
+                maxAgeSeconds: 60 * 60 * 24, // 24 ساعة
+              },
+              cacheableResponse: {
+                statuses: [0, 200],
+              },
+              networkTimeoutSeconds: 10,
+            },
+          },
+          {
+            // 📸 Static assets (images, fonts): Cache-first — سريع ودائم
+            urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp|ico|woff|woff2|ttf|eot)$/i,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "saraya-static-cache",
+              expiration: {
+                maxEntries: 100,
+                maxAgeSeconds: 60 * 60 * 24 * 30, // 30 يوم
+              },
+              cacheableResponse: {
+                statuses: [0, 200],
+              },
+            },
+          },
+          {
+            // 🔤 Google Fonts — Cache-first
+            urlPattern: /^https:\/\/fonts\.(googleapis|gstatic)\.com\/.*/i,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "saraya-fonts-cache",
+              expiration: {
+                maxEntries: 20,
+                maxAgeSeconds: 60 * 60 * 24 * 365, // سنة
+              },
+              cacheableResponse: {
+                statuses: [0, 200],
+              },
+            },
+          },
+        ],
       },
+
+      // ============================================
+      // PWA Manifest (Desktop App Experience)
+      // ============================================
       manifest: {
-        name: "Saraya ERP",
-        short_name: "Saraya",
-        description: "Enterprise Medical ERP",
+        name: "نظام السرايا الطبي — Saraya Medical ERP",
+        short_name: "السرايا الطبي",
+        description: "نظام إدارة المستشفيات والمنشآت الصحية — Enterprise Medical ERP",
         theme_color: "#0f172a",
-        icons: [],
+        background_color: "#0f172a",
+        display: "standalone",
+        orientation: "any",
+        start_url: "/",
+        scope: "/",
+        dir: "rtl",
+        lang: "ar",
+        categories: ["medical", "business", "productivity"],
+        icons: [
+          {
+            src: "/icon-192x192.png",
+            sizes: "192x192",
+            type: "image/png",
+          },
+          {
+            src: "/icon-512x512.png",
+            sizes: "512x512",
+            type: "image/png",
+          },
+          {
+            src: "/icon-maskable-512x512.png",
+            sizes: "512x512",
+            type: "image/png",
+            purpose: "maskable",
+          },
+        ],
+      },
+
+      // ============================================
+      // Development Options
+      // ============================================
+      devOptions: {
+        enabled: false, // يُفعّل فقط عند الاختبار: enabled: true
       },
     }),
   ],
@@ -99,6 +194,7 @@ export default defineConfig({
     },
   },
 });
+
 
 // import { defineConfig } from 'vite'
 // import react from '@vitejs/plugin-react'   // لو مشروعك React

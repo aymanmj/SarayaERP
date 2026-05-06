@@ -192,11 +192,21 @@ services:
     image: cloudflare/cloudflared:latest
     container_name: saraya_tunnel
     restart: always
-    command: tunnel run --protocol http2
+    command: tunnel run --protocol http2 --grace-period 60s
     environment:
       TUNNEL_TOKEN: ${TUNNEL_TOKEN}
+      # Auto-reconnect settings for reliable recovery after internet loss
+      TUNNEL_RETRIES: "10"
+      TUNNEL_EDGE_BIND_ADDRESS: "0.0.0.0"
     networks:
       - saraya_net
+    # 🔄 OFFLINE-FIX: healthcheck يكتشف حالة zombie ويعيد تشغيل الحاوية
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep cloudflared || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
     logging: *default_logging
 
   # 🌐 Tailscale (Secure VPN access)
@@ -448,9 +458,12 @@ services:
       - WATCHTOWER_CLEANUP=true
       - WATCHTOWER_INCLUDE_RESTARTING=true
       - DOCKER_API_VERSION=1.44 # Fix old client error
+      # 🔄 OFFLINE-FIX: لا تتوقف أو تعيد تشغيل حاويات عند فشل السحب
+      - WATCHTOWER_NO_RESTART=false
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-    command: --interval 3600 --cleanup
+    # تحقق كل 6 ساعات بدل كل ساعة لتقليل المحاولات الفاشلة عند انقطاع الإنترنت
+    command: --interval 21600 --cleanup
     networks:
       - saraya_net
 
@@ -469,6 +482,27 @@ services:
       - "127.0.0.1:9000:9000"
     networks:
       - saraya_net
+
+  # ==========================================
+  # 7. DNS المحلي (Offline-First)
+  # ==========================================
+
+  # 🌐 DNS محلي يضمن عمل النطاق بدون إنترنت
+  # عند انقطاع الإنترنت، أجهزة المستشفى تترجم النطاق عبر هذا السيرفر
+  local-dns:
+    image: 4km3/dnsmasq:latest
+    container_name: saraya_dns
+    restart: always
+    ports:
+      - "53:53/udp"
+      - "53:53/tcp"
+    volumes:
+      - ./production/dnsmasq/dnsmasq.conf:/etc/dnsmasq.conf:ro
+    cap_add:
+      - NET_ADMIN
+    networks:
+      - saraya_net
+    logging: *default_logging
 
 # ==========================================
 # وحدات التخزين والشبكات
