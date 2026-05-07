@@ -106,3 +106,9 @@ secrets/
 /.gemini
 /.agent
 server/test-gemini.js
+
+############################
+# Scripts
+############################
+*.ps1
+server/test_db.js

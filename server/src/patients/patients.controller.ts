@@ -88,6 +88,7 @@ export class PatientsController {
         ? { connect: { id: Number(body.insurancePolicyId) } }
         : undefined,
       insuranceMemberId: body.insuranceMemberId || undefined,
+      hasDataSharingConsent: body.hasDataSharingConsent === true,
     });
   }
 

@@ -89,7 +89,7 @@ describe('prisma tenant isolation helpers', () => {
 
     expect(args.where.hospitalId).toBe(15);
     expect(args.create.hospitalId).toBe(15);
-    expect(args.update.hospitalId).toBe(15);
+    expect(args.update.hospitalId).toBeUndefined();
   });
 
   it('bypasses tenant enforcement for super admins', () => {

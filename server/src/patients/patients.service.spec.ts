@@ -48,6 +48,12 @@ describe('PatientsService', () => {
       systemSetting: {
         findUnique: jest.fn(),
       },
+      hospital: {
+        findUnique: jest.fn(),
+      },
+      orgSetting: {
+        findUnique: jest.fn(),
+      },
     };
 
     const module: TestingModule = await Test.createTestingModule({

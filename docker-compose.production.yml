@@ -192,9 +192,10 @@ services:
     image: cloudflare/cloudflared:latest
     container_name: saraya_tunnel
     restart: always
-    command: tunnel run --protocol http2 --grace-period 60s
+    command: tunnel --no-autoupdate run
     environment:
       TUNNEL_TOKEN: ${TUNNEL_TOKEN}
+      TUNNEL_TRANSPORT_PROTOCOL: http2
       # Auto-reconnect settings for reliable recovery after internet loss
       TUNNEL_RETRIES: "10"
       TUNNEL_EDGE_BIND_ADDRESS: "0.0.0.0"

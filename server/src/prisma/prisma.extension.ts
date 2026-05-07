@@ -170,6 +170,7 @@ function enforceTenantOnData(
   data: any,
   context: TenantContext = getTenantContext(),
   source = 'data',
+  injectMissing = true,
 ): void {
   if (!needsRLS(model) || context.isSuperAdmin || !context.hospitalId || !data) {
     return;
@@ -183,7 +184,7 @@ function enforceTenantOnData(
     const sourceLabel = Array.isArray(data) ? `${source}[${index}]` : source;
     assertTenantMatch(record.hospitalId, context, model, sourceLabel);
 
-    if (record.hospitalId === undefined) {
+    if (injectMissing && record.hospitalId === undefined) {
       record.hospitalId = context.hospitalId;
     }
   });
@@ -231,12 +232,12 @@ function applyTenantPolicy(
     case 'update':
     case 'updateMany':
       enforceTenantOnWhere(model, args, context);
-      enforceTenantOnData(model, args.data, context);
+      enforceTenantOnData(model, args.data, context, 'data', false);
       break;
     case 'upsert':
       enforceTenantOnWhere(model, args, context);
-      enforceTenantOnData(model, args.create, context, 'create');
-      enforceTenantOnData(model, args.update, context, 'update');
+      enforceTenantOnData(model, args.create, context, 'create', true);
+      enforceTenantOnData(model, args.update, context, 'update', false);
       break;
   }
 

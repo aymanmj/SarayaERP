@@ -2,7 +2,7 @@
 
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { Prisma } from '@prisma/client';
+import { Prisma, GlobalPatient } from '@prisma/client';
 import { SoftDeleteService } from '../common/soft-delete.service';
 import { createHash } from 'crypto';
 
@@ -72,7 +72,7 @@ export class PatientsService {
       | 'deletedAt'
       | 'deletedById'
       | 'globalPatient'
-    >,
+    > & { hasDataSharingConsent?: boolean },
   ) {
     // Remove hospitalId from data if it was accidentally passed in the DTO
     const { hospitalId: _, ...cleanData } = data as any;
@@ -83,8 +83,24 @@ export class PatientsService {
     const mpiConsentSetting = await this.prisma.systemSetting.findUnique({
       where: { hospitalId_key: { hospitalId, key: 'mpi.shareDataConsent' } }
     });
-    
-    const requireConsent = mpiConsentSetting?.value === 'true';
+
+    let requireConsent = mpiConsentSetting?.value === 'true';
+
+    // If not explicitly set for hospital, check if parent organization has federation enabled
+    if (!mpiConsentSetting) {
+      const hospital = await this.prisma.hospital.findUnique({ where: { id: hospitalId } });
+      if (hospital?.organizationId) {
+        const orgSetting = await this.prisma.orgSetting.findUnique({
+          where: { organizationId_key: { organizationId: hospital.organizationId, key: 'mpi.enableFederation' } }
+        });
+        // If federation is explicitly enabled for the organization, we do NOT require explicit consent by default
+        // because the organization policy implies data sharing among its branches.
+        if (orgSetting?.value === 'true') {
+          requireConsent = false;
+        }
+      }
+    }
+
     const hasConsent = cleanData.hasDataSharingConsent === true;
 
     // ✅ PRE-COMPUTE search hashes from raw values.
@@ -96,7 +112,7 @@ export class PatientsService {
     // 1. Federated Auto-Link Strategy (MPI)
     // Only proceed with GlobalPatient if consent is not required, or if consent is explicitly given
     if (!requireConsent || hasConsent) {
-      let globalPatient: Awaited<ReturnType<typeof this.prisma.globalPatient.findUnique>> = null;
+      let globalPatient: GlobalPatient | null = null;
     if (nationalIdHash) {
       globalPatient = await this.prisma.globalPatient.findUnique({
         where: { nationalIdHash }

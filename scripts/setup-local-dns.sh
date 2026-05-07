@@ -25,6 +25,27 @@ if [ ! -f "${DNSMASQ_CONF}" ]; then
     exit 1
 fi
 
+# ==============================================================
+# تحرير المنفذ 53 ليعمل dnsmasq بسلام (حل تعارض systemd-resolved)
+# ==============================================================
+echo "🔧 جاري تحرير المنفذ 53 من systemd-resolved..."
+if grep -q "DNSStubListener=no" /etc/systemd/resolved.conf; then
+    echo "ℹ️ المنفذ 53 محرر مسبقاً."
+else
+    sudo sed -i 's/#DNSStubListener=yes/DNSStubListener=no/' /etc/systemd/resolved.conf
+    sudo sed -i 's/DNSStubListener=yes/DNSStubListener=no/' /etc/systemd/resolved.conf
+    # إضافة السطر في حال لم يكن موجوداً
+    if ! grep -q "DNSStubListener=no" /etc/systemd/resolved.conf; then
+        echo "DNSStubListener=no" | sudo tee -a /etc/systemd/resolved.conf > /dev/null
+    fi
+    sudo systemctl restart systemd-resolved
+    
+    # توجيه ملف resolv.conf ليستخدم السيرفرات الحقيقية بدل الـ stub
+    sudo rm -f /etc/resolv.conf
+    sudo ln -s /run/systemd/resolve/resolv.conf /etc/resolv.conf
+    echo "✅ تم تحرير المنفذ 53 بنجاح."
+fi
+
 # استبدال القيم الافتراضية
 sed -i "s/SARAYA_DOMAIN/${DOMAIN}/g" "${DNSMASQ_CONF}"
 sed -i "s/SARAYA_SERVER_IP/${SERVER_IP}/g" "${DNSMASQ_CONF}"
