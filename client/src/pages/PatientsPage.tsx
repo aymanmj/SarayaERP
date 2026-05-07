@@ -180,7 +180,6 @@ export function PatientsPage() {
           patient.insurancePolicy?.provider.id.toString() || "",
         insurancePolicyId: patient.insurancePolicyId?.toString() || "",
         insuranceMemberId: patient.insuranceMemberId || "",
-        hasDataSharingConsent: false, // Default false when editing, as consent might need renewal or isn't editable like this
       });
     } else {
       // وضع الإضافة: تصفير الحقول
@@ -203,7 +202,6 @@ export function PatientsPage() {
         insuranceProviderId: "",
         insurancePolicyId: "",
         insuranceMemberId: "",
-        hasDataSharingConsent: false,
       });
     }
     setModalOpen(true);
@@ -246,7 +244,6 @@ export function PatientsPage() {
       insurancePolicyId: formData.insurancePolicyId
         ? Number(formData.insurancePolicyId)
         : null,
-      hasDataSharingConsent: formData.hasDataSharingConsent,
     };
 
     saveMutation.mutate(payload);
