@@ -6,10 +6,6 @@
 
 import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import * as dns from 'dns';
-import { promisify } from 'util';
-
-const dnsResolve = promisify(dns.resolve);
 
 export interface ConnectivityState {
   /** هل الإنترنت متاح الآن؟ */
@@ -39,8 +35,11 @@ export class ConnectivityService implements OnModuleInit, OnModuleDestroy {
   private readonly CHECK_INTERVAL_MS = 30_000;
   // عدد المحاولات الفاشلة قبل إعلان الانقطاع
   private readonly FAILURE_THRESHOLD = 2;
-  // DNS targets للفحص — نستخدم DNS لأنه أخف من HTTP
-  private readonly DNS_TARGETS = ['cloudflare.com', 'google.com', '1.1.1.1'];
+  // HTTP targets للفحص — أدق من DNS في بيئات المستشفيات
+  private readonly HTTP_TARGETS = [
+    'http://connectivitycheck.gstatic.com/generate_204',
+    'https://cloudflare.com'
+  ];
 
   constructor(private readonly eventEmitter: EventEmitter2) {}
 
@@ -74,15 +73,25 @@ export class ConnectivityService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * فحص الاتصال بالإنترنت عبر DNS resolution
-   * أخف وأسرع من HTTP request
+   * فحص الاتصال بالإنترنت عبر HTTP request
+   * أثبت كفاءة أعلى من DNS في بيئات المستشفيات المغلقة التي تعترض UDP
    */
   private async checkConnectivity(): Promise<void> {
     let reachable = false;
 
-    for (const target of this.DNS_TARGETS) {
+    for (const target of this.HTTP_TARGETS) {
       try {
-        await dnsResolve(target);
+        const controller = new AbortController();
+        // مهلة 3 ثواني للطلب
+        const timeout = setTimeout(() => controller.abort(), 3000);
+        
+        await fetch(target, { 
+          method: 'HEAD', 
+          signal: controller.signal, 
+          cache: 'no-store' 
+        });
+        
+        clearTimeout(timeout);
         reachable = true;
         break; // واحد يكفي
       } catch {

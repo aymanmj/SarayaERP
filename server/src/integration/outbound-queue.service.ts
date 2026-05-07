@@ -15,6 +15,7 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { OnEvent } from '@nestjs/event-emitter';
+import { Prisma } from '@prisma/client';
 import { ConnectivityService } from '../common/services/connectivity.service';
 
 export type OutboundJobType = 
@@ -99,6 +100,26 @@ export class OutboundQueueService implements OnModuleInit {
     }
 
     return jobId;
+  }
+
+  /**
+   * إضافة عملية خارجية لصندوق الصادر (Outbox) كجزء من عملية قاعدة بيانات واحدة (Transaction).
+   * هذا النمط يضمن 100% أن الطلب لن يضيع إذا تعطل النظام قبل وصوله لـ Redis.
+   */
+  async enqueueTransactional(
+    tx: Prisma.TransactionClient,
+    data: OutboundJobData,
+  ): Promise<void> {
+    await tx.outboxEvent.create({
+      data: {
+        type: data.type,
+        payload: data.payload as any,
+        hospitalId: data.hospitalId,
+        status: 'PENDING',
+      },
+    });
+    
+    this.logger.debug(`📤 OUTBOX (Transactional): ${data.type} saved to DB Outbox`);
   }
 
   // ============================================

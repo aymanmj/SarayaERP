@@ -19,6 +19,7 @@ import { FhirAuthGuard } from './fhir/fhir.auth.guard';
 // ✅ [NEW] Offline-First Outbound Queue
 import { OutboundQueueService } from './outbound-queue.service';
 import { OutboundConsumer } from './outbound.consumer';
+import { OutboxRelayService } from './outbox-relay.service';
 
 @Module({
   imports: [
@@ -52,6 +53,7 @@ import { OutboundConsumer } from './outbound.consumer';
     FhirAuthGuard,
     OutboundQueueService, // ✅ [NEW] Outbound queue management
     OutboundConsumer,     // ✅ [NEW] Outbound queue processor
+    OutboxRelayService,   // ✅ [NEW] Transactional Outbox Relay
   ],
   exports: [IntegrationService, FhirService, FhirAuthService, OutboundQueueService],
 })

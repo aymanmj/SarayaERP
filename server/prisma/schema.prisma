@@ -5311,3 +5311,21 @@ model AllergyGroupDrug {
   @@unique([allergyGroupId, drugGeneric])
   @@index([drugGeneric])
 }
+
+// ================================================
+// Transactional Outbox (Offline-First Reliability)
+// ================================================
+
+model OutboxEvent {
+  id          Int       @id @default(autoincrement())
+  type        String    // e.g., 'nphies-claim', 'push-notification', etc.
+  payload     Json      // The job payload
+  hospitalId  Int?
+  status      String    @default("PENDING") // PENDING, PROCESSED, FAILED
+  error       String?
+  attempts    Int       @default(0)
+  createdAt   DateTime  @default(now())
+  processedAt DateTime?
+
+  @@index([status, createdAt])
+}

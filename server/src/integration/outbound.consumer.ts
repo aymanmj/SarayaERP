@@ -6,7 +6,8 @@
 
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Job } from 'bullmq';
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { OnEvent } from '@nestjs/event-emitter';
 import { ConnectivityService } from '../common/services/connectivity.service';
 import { Expo, ExpoPushMessage } from 'expo-server-sdk';
 import { PrismaService } from '../prisma/prisma.service';
@@ -14,7 +15,7 @@ import type { OutboundJobData } from './outbound-queue.service';
 
 @Processor('outbound-queue')
 @Injectable()
-export class OutboundConsumer extends WorkerHost {
+export class OutboundConsumer extends WorkerHost implements OnModuleInit {
   private readonly logger = new Logger(OutboundConsumer.name);
   private expo: Expo;
 
@@ -26,15 +27,43 @@ export class OutboundConsumer extends WorkerHost {
     this.expo = new Expo();
   }
 
+  async onModuleInit() {
+    if (!this.connectivityService.isOnline()) {
+      this.logger.warn('⏸️ Worker initialized offline. Pausing processing.');
+      // قد يستغرق Worker بضعة أجزاء من الثانية للبدء، نعطيه وقتًا صغيرًا
+      setTimeout(async () => {
+        if (this.worker && !this.connectivityService.isOnline()) {
+          await this.worker.pause();
+        }
+      }, 1000);
+    }
+  }
+
+  @OnEvent('connectivity.offline')
+  async handleOffline() {
+    this.logger.warn('⏸️ Pausing outbound worker due to internet loss (prevent retry exhaustion)');
+    if (this.worker) {
+      await this.worker.pause();
+    }
+  }
+
+  @OnEvent('connectivity.online')
+  async handleOnline() {
+    this.logger.log('▶️ Resuming outbound worker (Internet restored)');
+    if (this.worker) {
+      await this.worker.resume();
+    }
+  }
+
   async process(job: Job<OutboundJobData>): Promise<any> {
     const { type, payload } = job.data;
 
-    // ⚡ تحقق من الاتصال قبل التنفيذ
+    // ⚡ تحقق من الاتصال قبل التنفيذ كإجراء احترازي لعملية سُحبت للتو
     if (!this.connectivityService.isOnline()) {
       this.logger.warn(
         `🔴 Cannot process ${type} (job ${job.id}) — Internet is offline. Will retry later.`,
       );
-      // إعادة المحاولة بعد 60 ثانية
+      // إطلاق الخطأ سيؤدي لاستهلاك محاولة واحدة فقط، لأن العامل سيتم إيقافه فوراً
       throw new Error('OFFLINE: Internet connectivity unavailable — will retry');
     }
 
