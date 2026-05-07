@@ -144,7 +144,12 @@ services:
       frontend:
         condition: service_started
     networks:
-      - saraya_net
+      saraya_net:
+        aliases:
+          # Keep the service name as the primary origin, while allowing
+          # existing Cloudflare hostnames that were configured with the
+          # container name to keep resolving inside Docker.
+          - saraya_nginx
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:80/api/health > /dev/null || exit 1"]
       interval: 30s
@@ -199,6 +204,9 @@ services:
       # Auto-reconnect settings for reliable recovery after internet loss
       TUNNEL_RETRIES: "10"
       TUNNEL_EDGE_BIND_ADDRESS: "0.0.0.0"
+    depends_on:
+      nginx:
+        condition: service_healthy
     networks:
       - saraya_net
     # 🔄 OFFLINE-FIX: healthcheck يكتشف حالة zombie ويعيد تشغيل الحاوية

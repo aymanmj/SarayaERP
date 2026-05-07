@@ -792,7 +792,8 @@ collect_client_info() {
     else
         echo -e "     Subdomain: ${GREEN}${CLIENT_NAME}.alsarayatech.ly${NC}"
     fi
-    echo "     Service: http://nginx:80"
+    echo "     Service: https://nginx:443"
+    echo "     TLS setting: enable 'No TLS Verify' if the origin certificate is self-signed"
     echo ""
     read -p "  Paste the Tunnel Token (or press Enter to skip): " CF_TUNNEL_TOKEN < /dev/tty
     

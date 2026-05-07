@@ -369,7 +369,8 @@ sudo systemctl enable saraya-erp.service
    - اضغط **Add a public hostname**.
    - **Subdomain**: `rehab` (اسم العميل).
    - **Domain**: `alsarayatech.ly`.
-   - **Service**: `http://nginx:80`.
+   - **Service**: `https://nginx:443`.
+   - إذا كانت شهادة Nginx داخلية أو self-signed، فعّل خيار **TLS > No TLS Verify** في إعدادات الـ Public Hostname.
 7. اضغط **Save**.
 
 ### 5.2 إضافة Token في ملف البيئة

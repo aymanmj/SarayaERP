@@ -17,6 +17,10 @@ DOMAIN="${1:-erp.alsarayatech.ly}"
 echo "📍 عنوان السيرفر المحلي: ${SERVER_IP}"
 echo "🌐 النطاق: ${DOMAIN}"
 
+# استخراج النطاق الأساسي (مثل alsarayatech.ly من rehab.alsarayatech.ly)
+BASE_DOMAIN=$(echo "${DOMAIN}" | awk -F. '{if(NF>2) print $(NF-1)"."$NF; else print $0}')
+echo "🏷️  النطاق الأساسي: ${BASE_DOMAIN}"
+
 # تحديث dnsmasq.conf بالقيم الفعلية
 DNSMASQ_CONF="production/dnsmasq/dnsmasq.conf"
 
@@ -49,6 +53,7 @@ fi
 # استبدال القيم الافتراضية
 sed -i "s/SARAYA_DOMAIN/${DOMAIN}/g" "${DNSMASQ_CONF}"
 sed -i "s/SARAYA_SERVER_IP/${SERVER_IP}/g" "${DNSMASQ_CONF}"
+sed -i "s/SARAYA_BASE_DOMAIN/${BASE_DOMAIN}/g" "${DNSMASQ_CONF}"
 
 echo "✅ تم تحديث إعدادات DNS المحلي"
 

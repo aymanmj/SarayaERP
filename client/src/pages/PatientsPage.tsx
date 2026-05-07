@@ -82,6 +82,7 @@ export function PatientsPage() {
     insuranceProviderId: "",
     insurancePolicyId: "",
     insuranceMemberId: "",
+    hasDataSharingConsent: false,
   });
 
   // MPI: Global Patient Search State

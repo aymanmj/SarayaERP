@@ -43,6 +43,17 @@ async function bootstrap() {
   app.use(cookieParser());
   app.use(compression());
 
+  // Dynamic domain for multi-tenant deployments
+  const sarayaDomain = process.env.SARAYA_DOMAIN || '';
+  const cspConnectSrc: string[] = [
+    "'self'",
+    'http://localhost:*',
+    'ws://localhost:*',
+  ];
+  if (sarayaDomain) {
+    cspConnectSrc.push(`https://${sarayaDomain}`, `wss://${sarayaDomain}`);
+  }
+
   const compatibilityCspDirectives = {
     defaultSrc: ["'self'"],
     baseUri: ["'self'"],
@@ -53,13 +64,7 @@ async function bootstrap() {
     scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
     imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
     mediaSrc: ["'self'", 'data:', 'blob:'],
-    connectSrc: [
-      "'self'",
-      'http://localhost:*',
-      'ws://localhost:*',
-      'https://erp.alsarayatech.ly',
-      'wss://erp.alsarayatech.ly',
-    ],
+    connectSrc: cspConnectSrc,
     workerSrc: ["'self'", 'blob:'],
   };
 

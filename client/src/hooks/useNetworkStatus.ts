@@ -1,27 +1,20 @@
-// ============================================
-// useNetworkStatus — Offline-First Network Monitor
-// ============================================
-// يراقب حالة الاتصال بالسيرفر المحلي وبالإنترنت
-// يميّز بين: متصل بالكامل | سيرفر فقط (بدون إنترنت) | غير متصل
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 
 export type NetworkStatus = 'online' | 'server-only' | 'offline';
 
 interface NetworkState {
-  /** الحالة الحالية للاتصال */
   status: NetworkStatus;
-  /** هل السيرفر المحلي يستجيب؟ */
   serverReachable: boolean;
-  /** هل الإنترنت الخارجي متاح؟ */
   internetAvailable: boolean;
-  /** آخر وقت تم فيه فحص الاتصال */
   lastChecked: Date | null;
 }
 
-const CHECK_INTERVAL = 15_000; // فحص كل 15 ثانية
-const SERVER_HEALTH_URL = '/api/health';
+// Basic health (is the server alive?)
+const HEALTH_URL = '/api/health';
+// Server-side connectivity (does the server have internet?)
 const CONNECTIVITY_URL = '/api/health/connectivity';
+
+const CHECK_INTERVAL = 30_000; // 30s — matches backend ConnectivityService interval
 const TIMEOUT_MS = 5_000;
 
 export function useNetworkStatus(): NetworkState {
@@ -36,14 +29,14 @@ export function useNetworkStatus(): NetworkState {
 
   const checkStatus = useCallback(async () => {
     let serverReachable = false;
-    let internetAvailable = navigator.onLine;
+    let internetAvailable = true;
 
-    // فحص السيرفر المحلي
+    // Step 1: Can we reach the server at all?
     try {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
-      const response = await fetch(SERVER_HEALTH_URL, {
+      const response = await fetch(HEALTH_URL, {
         method: 'GET',
         signal: controller.signal,
         cache: 'no-store',
@@ -51,34 +44,43 @@ export function useNetworkStatus(): NetworkState {
 
       clearTimeout(timeout);
       serverReachable = response.ok;
-
-      // إذا السيرفر يعمل، اسأله عن حالة الإنترنت (أدق من navigator.onLine)
-      if (serverReachable) {
-        try {
-          const connectivityResponse = await fetch(CONNECTIVITY_URL, {
-            method: 'GET',
-            cache: 'no-store',
-          });
-          if (connectivityResponse.ok) {
-            const data = await connectivityResponse.json();
-            internetAvailable = data.isOnline === true;
-          }
-        } catch {
-          // لا نستطيع فحص الـ connectivity — نعتمد على navigator.onLine
-        }
-      }
     } catch {
       serverReachable = false;
     }
 
-    // تحديد الحالة
+    // Step 2: If server is reachable, ask it about its own internet status
+    if (serverReachable) {
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+        const response = await fetch(CONNECTIVITY_URL, {
+          method: 'GET',
+          signal: controller.signal,
+          cache: 'no-store',
+        });
+
+        clearTimeout(timeout);
+
+        if (response.ok) {
+          const data = await response.json();
+          internetAvailable = data.isOnline === true;
+        }
+      } catch {
+        // If connectivity endpoint fails, assume internet is available
+        // (don't penalize for endpoint errors)
+        internetAvailable = true;
+      }
+    }
+
+    // Step 3: Determine status
     let status: NetworkStatus;
-    if (serverReachable && internetAvailable) {
-      status = 'online';
-    } else if (serverReachable && !internetAvailable) {
-      status = 'server-only';
+    if (!serverReachable) {
+      status = 'offline';          // 🔴 Server unreachable
+    } else if (!internetAvailable) {
+      status = 'server-only';      // 🟡 Server up, no internet
     } else {
-      status = 'offline';
+      status = 'online';           // 🟢 Fully connected
     }
 
     setState({
@@ -90,18 +92,17 @@ export function useNetworkStatus(): NetworkState {
   }, []);
 
   useEffect(() => {
-    // فحص فوري عند التحميل
-    checkStatus();
+    // Initial check with a small delay to avoid flash on page load
+    const initTimer = setTimeout(checkStatus, 1_500);
 
-    // فحص دوري
     intervalRef.current = setInterval(checkStatus, CHECK_INTERVAL);
 
-    // استمع لأحداث المتصفح
     const handleOnline = () => checkStatus();
     const handleOffline = () => {
       setState(prev => ({
         ...prev,
-        status: prev.serverReachable ? 'server-only' : 'offline',
+        status: 'offline',
+        serverReachable: false,
         internetAvailable: false,
       }));
     };
@@ -110,6 +111,7 @@ export function useNetworkStatus(): NetworkState {
     window.addEventListener('offline', handleOffline);
 
     return () => {
+      clearTimeout(initTimer);
       if (intervalRef.current) clearInterval(intervalRef.current);
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
@@ -118,4 +120,3 @@ export function useNetworkStatus(): NetworkState {
 
   return state;
 }
-
