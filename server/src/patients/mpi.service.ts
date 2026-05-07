@@ -57,6 +57,7 @@ export class MpiService {
             hospital: {
               select: {
                 name: true,
+                displayName: true,
               }
             }
           }
@@ -76,17 +77,17 @@ export class MpiService {
         if (requireOtp) {
           return {
             hospitalId: lp.hospitalId,
-            hospitalName: lp.hospital.name,
+            hospitalName: lp.hospital.displayName || lp.hospital.name,
             status: 'REQUIRES_OTP',
             patientId: lp.id, // For triggering the OTP
           };
         } else {
           return {
             hospitalId: lp.hospitalId,
-            hospitalName: lp.hospital.name,
+            hospitalName: lp.hospital.displayName || lp.hospital.name,
             localMrn: lp.mrn,
             status: 'ACCESSIBLE',
-            fhirReference: `https://saraya-erp.com/api/fhir/Patient/${lp.id}`,
+            fhirReference: `https://${process.env.SARAYA_DOMAIN || 'saraya-erp.com'}/api/fhir/Patient/${lp.id}`,
           };
         }
       })
@@ -221,7 +222,7 @@ export class MpiService {
     return {
       message: 'OTP Verified Successfully',
       status: 'ACCESSIBLE',
-      fhirReference: `https://saraya-erp.com/api/fhir/Patient/${patientId}`,
+      fhirReference: `https://${process.env.SARAYA_DOMAIN || 'saraya-erp.com'}/api/fhir/Patient/${patientId}`,
       consentToken,
     };
   }

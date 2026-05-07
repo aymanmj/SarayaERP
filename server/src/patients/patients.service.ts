@@ -79,30 +79,6 @@ export class PatientsService {
 
     let globalPatientId: number | undefined = undefined;
 
-    // ✅ MPI Consent Check
-    const mpiConsentSetting = await this.prisma.systemSetting.findUnique({
-      where: { hospitalId_key: { hospitalId, key: 'mpi.shareDataConsent' } }
-    });
-
-    let requireConsent = mpiConsentSetting?.value === 'true';
-
-    // If not explicitly set for hospital, check if parent organization has federation enabled
-    if (!mpiConsentSetting) {
-      const hospital = await this.prisma.hospital.findUnique({ where: { id: hospitalId } });
-      if (hospital?.organizationId) {
-        const orgSetting = await this.prisma.orgSetting.findUnique({
-          where: { organizationId_key: { organizationId: hospital.organizationId, key: 'mpi.enableFederation' } }
-        });
-        // If federation is explicitly enabled for the organization, we do NOT require explicit consent by default
-        // because the organization policy implies data sharing among its branches.
-        if (orgSetting?.value === 'true') {
-          requireConsent = false;
-        }
-      }
-    }
-
-    const hasConsent = cleanData.hasDataSharingConsent === true;
-
     // ✅ PRE-COMPUTE search hashes from raw values.
     // The Prisma extension generates hashes at `patient.create()` time,
     // but we need them NOW to look up GlobalPatient BEFORE create().
@@ -110,9 +86,8 @@ export class PatientsService {
     const phoneHash = this.generateSearchHash(cleanData.phone);
 
     // 1. Federated Auto-Link Strategy (MPI)
-    // Only proceed with GlobalPatient if consent is not required, or if consent is explicitly given
-    if (!requireConsent || hasConsent) {
-      let globalPatient: GlobalPatient | null = null;
+    // Mandatory National Registry integration - always lookup and create/link GlobalPatient
+    let globalPatient: GlobalPatient | null = null;
     if (nationalIdHash) {
       globalPatient = await this.prisma.globalPatient.findUnique({
         where: { nationalIdHash }
@@ -165,36 +140,16 @@ export class PatientsService {
         });
         globalPatientId = newGlobalPatient.id;
       }
-    }
-
     const mrn = await this.generateNextMrn(hospitalId);
-
-    // Remove hasDataSharingConsent from cleanData before saving
-    const { hasDataSharingConsent, ...patientDataToSave } = cleanData as any;
 
     // Create the Local Patient File
     const newPatient = await this.prisma.patient.create({
       data: {
-        ...patientDataToSave,
+        ...cleanData,
         mrn,
         globalPatientId
       },
     });
-
-    // If consent was given, record the consent form automatically
-    if (requireConsent && hasConsent) {
-      await this.prisma.consentForm.create({
-        data: {
-          hospitalId,
-          patientId: newPatient.id,
-          formType: 'DATA_SHARING',
-          status: 'SIGNED',
-          title: 'MPI Data Sharing Consent',
-          content: 'Patient consented to share demographic data with the Master Patient Index.',
-          signedByRef: 'Patient',
-        }
-      });
-    }
 
     return newPatient;
   }

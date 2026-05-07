@@ -82,7 +82,6 @@ export function PatientsPage() {
     insuranceProviderId: "",
     insurancePolicyId: "",
     insuranceMemberId: "",
-    hasDataSharingConsent: false,
   });
 
   // MPI: Global Patient Search State
@@ -727,26 +726,7 @@ export function PatientsPage() {
                 </div>
               </div>
 
-              {/* === القسم 5: سياسات الشبكة === */}
-              <div className="space-y-1.5">
-                <h3 className="text-xs font-bold text-sky-500 flex items-center gap-1.5 pb-2 border-b border-slate-800/60">
-                  <span>🌐</span> الشبكة الموحدة (MPI)
-                </h3>
-                <div className="grid grid-cols-1 gap-4 pt-2">
-                  <div className="flex items-center gap-3 bg-sky-950/20 p-4 rounded-xl border border-sky-900/30">
-                    <input
-                      type="checkbox"
-                      id="hasDataSharingConsent"
-                      checked={formData.hasDataSharingConsent}
-                      onChange={(e) => setFormData({ ...formData, hasDataSharingConsent: e.target.checked })}
-                      className="w-5 h-5 rounded border-slate-700 text-sky-500 focus:ring-sky-500 bg-slate-900"
-                    />
-                    <label htmlFor="hasDataSharingConsent" className="text-sm font-medium text-slate-300">
-                      أقر بموافقة المريض على إدراج بياناته الديموغرافية في شبكة المرضى الموحدة (MPI) لتسهيل الوصول إليها في المنشآت الطبية الأخرى.
-                    </label>
-                  </div>
-                </div>
-              </div>
+
             </form>
 
             {/* Modal Footer - Fixed */}
