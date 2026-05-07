@@ -69,6 +69,12 @@ describe('Patient Journey Integration Tests', () => {
       systemSetting: {
         findUnique: jest.fn(),
       },
+      hospital: {
+        findUnique: jest.fn(),
+      },
+      orgSetting: {
+        findUnique: jest.fn(),
+      },
       $transaction: jest.fn(async (fn: any) => fn(prisma)),
     };
 
