@@ -32,9 +32,15 @@ export class MpiService {
 
     // 2. Perform MPI Search
     const whereClause: any = {};
-    if (query.nationalId) whereClause.nationalId = query.nationalId;
-    if (query.phone) whereClause.localPatients = { some: { phone: { contains: query.phone } } };
-    if (query.identityNumber) whereClause.identityNumber = query.identityNumber;
+    if (query.nationalId) {
+      whereClause.nationalIdHash = crypto.createHash('sha256').update(query.nationalId.trim().toLowerCase()).digest('hex');
+    }
+    if (query.phone) {
+      whereClause.phoneHash = crypto.createHash('sha256').update(query.phone.trim().toLowerCase()).digest('hex');
+    }
+    if (query.identityNumber) {
+      whereClause.identityNumberHash = crypto.createHash('sha256').update(query.identityNumber.trim().toLowerCase()).digest('hex');
+    }
 
     if (Object.keys(whereClause).length === 0) {
       return []; // Return empty if no search criteria provided

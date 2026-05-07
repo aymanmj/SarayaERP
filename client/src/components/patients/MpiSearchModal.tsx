@@ -53,6 +53,7 @@ export function MpiSearchModal({ onClose }: MpiSearchModalProps) {
   const [verifiedFacilities, setVerifiedFacilities] = useState<Set<string>>(
     new Set()
   );
+  const [fhirReferences, setFhirReferences] = useState<Record<string, string>>({});
 
   const handleSearch = async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -131,6 +132,12 @@ export function MpiSearchModal({ onClose }: MpiSearchModalProps) {
         next.add(otpTarget.facilityIndex);
         return next;
       });
+      if (res.data?.fhirReference) {
+        setFhirReferences((prev) => ({
+          ...prev,
+          [otpTarget.facilityIndex]: res.data.fhirReference,
+        }));
+      }
 
       setOtpTarget(null);
       setOtpSent(false);
@@ -289,7 +296,14 @@ export function MpiSearchModal({ onClose }: MpiSearchModalProps) {
 
                       <div className="flex items-center gap-2">
                         {isAccessible ? (
-                          <button className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-emerald-900/20 transition-all">
+                          <button 
+                            onClick={() => {
+                              const refUrl = fhirReferences[fKey] || facility.fhirReference;
+                              if (refUrl) window.open(refUrl, '_blank');
+                              else toast.error("رابط السجل غير متاح");
+                            }}
+                            className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-emerald-900/20 transition-all"
+                          >
                             <Unlock className="w-3.5 h-3.5" />
                             عرض السجل
                           </button>

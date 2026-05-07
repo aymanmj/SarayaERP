@@ -112,3 +112,4 @@ server/test-gemini.js
 ############################
 *.ps1
 server/test_db.js
+server/test-mpi.js
