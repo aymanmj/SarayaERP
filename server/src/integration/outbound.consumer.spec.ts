@@ -26,11 +26,16 @@ describe('OutboundConsumer', () => {
 
     consumer = module.get<OutboundConsumer>(OutboundConsumer);
     
-    // Mock the bullmq worker
-    (consumer as any).worker = {
+    const mockWorker = {
       pause: jest.fn().mockResolvedValue(undefined),
       resume: jest.fn().mockResolvedValue(undefined),
     };
+
+    // Mock the bullmq worker
+    Object.defineProperty(consumer, 'worker', {
+      get: () => mockWorker,
+      configurable: true,
+    });
   });
 
   afterEach(() => {
