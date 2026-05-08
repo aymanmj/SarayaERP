@@ -63,8 +63,10 @@ export function useNetworkStatus(): NetworkState {
         clearTimeout(timeout);
 
         if (response.ok) {
-          const data = await response.json();
-          internetAvailable = data.isOnline === true;
+          const responseBody = await response.json();
+          // Backend uses TransformInterceptor, so the actual payload is inside `data`
+          const payload = responseBody.data ? responseBody.data : responseBody;
+          internetAvailable = payload.isOnline === true;
         }
       } catch {
         // If connectivity endpoint fails, assume internet is available
