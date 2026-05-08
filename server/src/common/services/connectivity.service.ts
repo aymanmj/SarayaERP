@@ -36,9 +36,11 @@ export class ConnectivityService implements OnModuleInit, OnModuleDestroy {
   // عدد المحاولات الفاشلة قبل إعلان الانقطاع
   private readonly FAILURE_THRESHOLD = 2;
   // HTTP targets للفحص — أدق من DNS في بيئات المستشفيات
+  // HTTP targets للفحص — استخدام IPs مباشرة لتجاوز مشاكل DNS و IPv6 (التي تسبب Timeout)
   private readonly HTTP_TARGETS = [
-    'http://connectivitycheck.gstatic.com/generate_204',
-    'https://cloudflare.com'
+    'http://1.1.1.1/cdn-cgi/trace',
+    'http://8.8.8.8/',
+    'http://connectivitycheck.gstatic.com/generate_204'
   ];
 
   constructor(private readonly eventEmitter: EventEmitter2) {}
@@ -85,16 +87,22 @@ export class ConnectivityService implements OnModuleInit, OnModuleDestroy {
         // مهلة 3 ثواني للطلب
         const timeout = setTimeout(() => controller.abort(), 3000);
         
-        await fetch(target, { 
+        const response = await fetch(target, { 
           method: 'HEAD', 
           signal: controller.signal, 
-          cache: 'no-store' 
+          cache: 'no-store',
+          redirect: 'manual' // لا تتبع الـ Redirect حتى لا نفشل في SSL، الـ 301 يكفي لإثبات الاتصال
         });
         
         clearTimeout(timeout);
-        reachable = true;
-        break; // واحد يكفي
-      } catch {
+        
+        // إذا استلمنا أي كود استجابة (حتى 301 أو 404)، فهذا يعني أننا وصلنا للإنترنت
+        if (response.status > 0) {
+          reachable = true;
+          break; // واحد يكفي
+        }
+      } catch (err: any) {
+        this.logger.debug(`Connectivity check failed for ${target}: ${err.message}`);
         // جرّب التالي
       }
     }
