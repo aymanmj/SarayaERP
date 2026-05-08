@@ -6,6 +6,8 @@
 
 import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import * as https from 'https';
+import * as http from 'http';
 
 export interface ConnectivityState {
   /** هل الإنترنت متاح الآن؟ */
@@ -37,9 +39,10 @@ export class ConnectivityService implements OnModuleInit, OnModuleDestroy {
   private readonly FAILURE_THRESHOLD = 2;
   // HTTP targets للفحص — أدق من DNS في بيئات المستشفيات
   // HTTP targets للفحص — استخدام IPs مباشرة لتجاوز مشاكل DNS و IPv6 (التي تسبب Timeout)
+  // تم تحويلها إلى مسارات HTTPS لأن بعض المستشفيات تغلق المنفذ 80 بالكامل
   private readonly HTTP_TARGETS = [
-    'http://1.1.1.1/cdn-cgi/trace',
-    'http://8.8.8.8/',
+    'https://1.1.1.1/',
+    'https://8.8.8.8/',
     'http://connectivitycheck.gstatic.com/generate_204'
   ];
 
@@ -83,27 +86,38 @@ export class ConnectivityService implements OnModuleInit, OnModuleDestroy {
 
     for (const target of this.HTTP_TARGETS) {
       try {
-        const controller = new AbortController();
-        // مهلة 3 ثواني للطلب
-        const timeout = setTimeout(() => controller.abort(), 3000);
-        
-        const response = await fetch(target, { 
-          method: 'HEAD', 
-          signal: controller.signal, 
-          cache: 'no-store',
-          redirect: 'manual' // لا تتبع الـ Redirect حتى لا نفشل في SSL، الـ 301 يكفي لإثبات الاتصال
+        reachable = await new Promise<boolean>((resolve) => {
+          const isHttps = target.startsWith('https');
+          const client = isHttps ? https : http;
+          
+          const req = client.request(target, {
+            method: 'HEAD',
+            timeout: 3000,
+            family: 4, // إجبار IPv4 لتجاوز مشاكل تجمد IPv6
+            rejectUnauthorized: false, // لا نهتم بصلاحية الشهادة، نريد فقط إثبات الاتصال
+          }, (res) => {
+            // أي استجابة تعني أننا وصلنا للانترنت
+            resolve(true);
+          });
+
+          req.on('timeout', () => {
+            req.destroy();
+            resolve(false);
+          });
+
+          req.on('error', (err) => {
+            this.logger.warn(`Connectivity check failed for ${target}: ${err.message}`);
+            resolve(false);
+          });
+
+          req.end();
         });
-        
-        clearTimeout(timeout);
-        
-        // إذا استلمنا أي كود استجابة (حتى 301 أو 404)، فهذا يعني أننا وصلنا للإنترنت
-        if (response.status > 0) {
-          reachable = true;
+
+        if (reachable) {
           break; // واحد يكفي
         }
       } catch (err: any) {
-        this.logger.debug(`Connectivity check failed for ${target}: ${err.message}`);
-        // جرّب التالي
+        this.logger.warn(`Unexpected error during check for ${target}: ${err.message}`);
       }
     }
 
