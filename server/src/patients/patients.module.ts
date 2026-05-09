@@ -6,9 +6,10 @@ import { SoftDeleteService } from '../common/soft-delete.service';
 
 import { MpiController } from './mpi.controller';
 import { MpiService } from './mpi.service';
+import { IntegrationModule } from '../integration/integration.module';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, IntegrationModule],
   controllers: [PatientsController, MpiController],
   providers: [
     PatientsService,
