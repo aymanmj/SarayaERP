@@ -701,6 +701,43 @@ setup_local_dns() {
     bash scripts/setup-local-dns.sh "$CLIENT_DOMAIN"
     print_status "Local DNS configured for: $CLIENT_DOMAIN"
     print_info "Add server IP as primary DNS in your router's DHCP settings"
+
+    # ────────────────────────────────────────────
+    # 🌐 OFFLINE-FIX: Docker Daemon DNS Configuration
+    # ────────────────────────────────────────────
+    # يجعل Docker يستخدم DNS المحلي بدلاً من DNS الخارجي
+    # هذا يمنع تعليق حل أسماء الحاويات عند انقطاع الإنترنت
+    print_info "Configuring Docker daemon DNS..."
+    SERVER_IP=$(hostname -I | awk '{print $1}')
+    
+    DAEMON_JSON="/etc/docker/daemon.json"
+    if [ -f "$DAEMON_JSON" ]; then
+        # إذا الملف موجود، أضف DNS بدون مسح الإعدادات الأخرى
+        if command -v jq &>/dev/null; then
+            cp "$DAEMON_JSON" "${DAEMON_JSON}.bak"
+            jq --arg ip "$SERVER_IP" '. + {"dns": [$ip, "1.1.1.1"], "dns-opts": ["timeout:2", "attempts:1"]}' "$DAEMON_JSON" > "${DAEMON_JSON}.tmp"
+            mv "${DAEMON_JSON}.tmp" "$DAEMON_JSON"
+        else
+            # بدون jq، أعد كتابة الملف
+            cat > "$DAEMON_JSON" <<DEOF
+{
+    "dns": ["${SERVER_IP}", "1.1.1.1"],
+    "dns-opts": ["timeout:2", "attempts:1"]
+}
+DEOF
+        fi
+    else
+        cat > "$DAEMON_JSON" <<DEOF
+{
+    "dns": ["${SERVER_IP}", "1.1.1.1"],
+    "dns-opts": ["timeout:2", "attempts:1"]
+}
+DEOF
+    fi
+
+    # إعادة تشغيل Docker لتطبيق إعدادات DNS
+    systemctl restart docker >> "$LOG_FILE" 2>&1 || print_warning "Could not restart Docker daemon"
+    print_status "Docker daemon DNS configured (primary: ${SERVER_IP}, fallback: 1.1.1.1)"
 }
 
 # ════════════════════════════════════════════════════════════════════════════════

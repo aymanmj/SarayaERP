@@ -215,10 +215,10 @@ services:
     depends_on:
       nginx:
         condition: service_healthy
-    # 🌐 OFFLINE-FIX: استخدم DNS المحلي بدلاً من DNS خارجي
-    # هذا يمنع إغراق Docker DNS باستعلامات خارجية فاشلة
+    # 🌐 OFFLINE-FIX: استخدم Docker DNS الداخلي مع timeout قصير
+    # يحل أسماء الحاويات داخلياً ويفشل بسرعة للاستعلامات الخارجية
     dns:
-      - 192.168.205.128
+      - 127.0.0.11
     dns_opt:
       - timeout:2
       - attempts:1
