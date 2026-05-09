@@ -308,6 +308,7 @@ download_files() {
     # ✅ [NEW] Offline-First & SSL Scripts
     gh_download "scripts/tunnel-watchdog.sh" "scripts/tunnel-watchdog.sh"
     gh_download "scripts/setup-local-dns.sh" "scripts/setup-local-dns.sh"
+    gh_download "scripts/verify-offline.sh" "scripts/verify-offline.sh"
     gh_download "scripts/ssl-certbot-setup.sh" "scripts/ssl-certbot-setup.sh"
     gh_download "scripts/create-desktop-shortcut.ps1" "scripts/create-desktop-shortcut.ps1"
 

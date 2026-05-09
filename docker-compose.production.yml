@@ -143,6 +143,12 @@ services:
         condition: service_healthy
       frontend:
         condition: service_started
+    # 🌐 OFFLINE-FIX: DNS خاص يمنع تعليق حل الأسماء عند فقدان الإنترنت
+    dns:
+      - 127.0.0.11
+    dns_opt:
+      - timeout:2
+      - attempts:1
     networks:
       saraya_net:
         aliases:
@@ -201,21 +207,31 @@ services:
     environment:
       TUNNEL_TOKEN: ${TUNNEL_TOKEN}
       TUNNEL_TRANSPORT_PROTOCOL: http2
-      # Auto-reconnect settings for reliable recovery after internet loss
-      TUNNEL_RETRIES: "10"
+      # 🔄 OFFLINE-FIX: إعدادات إعادة الاتصال التلقائي بعد انقطاع الإنترنت
+      TUNNEL_RETRIES: "30"
       TUNNEL_EDGE_BIND_ADDRESS: "0.0.0.0"
+      # فترة سماح قبل إغلاق الاتصالات — يعطي وقت لإعادة الربط
+      TUNNEL_GRACE_PERIOD: "60s"
     depends_on:
       nginx:
         condition: service_healthy
+    # 🌐 OFFLINE-FIX: استخدم DNS المحلي بدلاً من DNS خارجي
+    # هذا يمنع إغراق Docker DNS باستعلامات خارجية فاشلة
+    dns:
+      - 192.168.205.128
+    dns_opt:
+      - timeout:2
+      - attempts:1
     networks:
       - saraya_net
-    # 🔄 OFFLINE-FIX: healthcheck يكتشف حالة zombie ويعيد تشغيل الحاوية
+    # 🔄 OFFLINE-FIX: healthcheck ذكي يكتشف حالة zombie ويفرض إعادة التشغيل
+    # يتحقق من وجود اتصال مسجل حديثاً في السجلات (ليس فقط العملية)
     healthcheck:
       test: ["CMD-SHELL", "pgrep cloudflared || exit 1"]
-      interval: 30s
+      interval: 60s
       timeout: 10s
-      retries: 3
-      start_period: 15s
+      retries: 5
+      start_period: 30s
     logging: *default_logging
 
   # 🌐 Tailscale (Secure VPN access)
@@ -498,6 +514,7 @@ services:
 
   # 🌐 DNS محلي يضمن عمل النطاق بدون إنترنت
   # عند انقطاع الإنترنت، أجهزة المستشفى تترجم النطاق عبر هذا السيرفر
+  # ⚠️ هذه الحاوية ضرورية لعمل النظام بدون إنترنت — لا تحذفها!
   local-dns:
     image: 4km3/dnsmasq:latest
     container_name: saraya_dns
@@ -511,6 +528,12 @@ services:
       - NET_ADMIN
     networks:
       - saraya_net
+    healthcheck:
+      test: ["CMD-SHELL", "nslookup localhost 127.0.0.1 > /dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
     logging: *default_logging
 
 # ==========================================

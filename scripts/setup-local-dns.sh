@@ -55,6 +55,14 @@ sed -i "s/SARAYA_DOMAIN/${DOMAIN}/g" "${DNSMASQ_CONF}"
 sed -i "s/SARAYA_SERVER_IP/${SERVER_IP}/g" "${DNSMASQ_CONF}"
 sed -i "s/SARAYA_BASE_DOMAIN/${BASE_DOMAIN}/g" "${DNSMASQ_CONF}"
 
+# ────────────────────────────────────────────
+# 🔍 تحقق من نجاح الاستبدال
+# ────────────────────────────────────────────
+if grep -q "SARAYA_DOMAIN\|SARAYA_SERVER_IP\|SARAYA_BASE_DOMAIN" "${DNSMASQ_CONF}"; then
+    echo "❌ فشل استبدال بعض القيم في dnsmasq.conf!"
+    echo "   تحقق يدوياً من الملف: ${DNSMASQ_CONF}"
+    exit 1
+fi
 echo "✅ تم تحديث إعدادات DNS المحلي"
 
 # ضبط السيرفر نفسه للوصول للنطاق محلياً بأمان (بدون فصل الشبكة)
@@ -66,6 +74,58 @@ else
     echo "${SERVER_IP} ${DOMAIN}" | sudo tee -a /etc/hosts > /dev/null
 fi
 echo "✅ تم تحديث ملف /etc/hosts"
+
+# ────────────────────────────────────────────
+# 🔄 إعادة تشغيل حاوية DNS إذا كانت تعمل
+# ────────────────────────────────────────────
+if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^saraya_dns$"; then
+    echo "🔄 جاري إعادة تشغيل حاوية DNS..."
+    docker restart saraya_dns
+    sleep 3
+    echo "✅ تم إعادة تشغيل saraya_dns"
+fi
+
+# ────────────────────────────────────────────
+# 🧪 اختبار DNS المحلي
+# ────────────────────────────────────────────
+echo ""
+echo "🧪 جاري اختبار DNS المحلي..."
+sleep 2
+
+if command -v nslookup &>/dev/null; then
+    DNS_RESULT=$(nslookup "${DOMAIN}" "${SERVER_IP}" 2>/dev/null | grep "Address:" | tail -1 | awk '{print $2}')
+    if [ "${DNS_RESULT}" = "${SERVER_IP}" ]; then
+        echo "✅ DNS يعمل بشكل ممتاز: ${DOMAIN} → ${SERVER_IP}"
+    else
+        echo "⚠️ DNS لم يرد بالنتيجة المتوقعة (${DNS_RESULT})"
+        echo "   تحقق من أن حاوية saraya_dns تعمل"
+    fi
+elif command -v dig &>/dev/null; then
+    DIG_RESULT=$(dig +short "${DOMAIN}" @"${SERVER_IP}" 2>/dev/null)
+    if [ "${DIG_RESULT}" = "${SERVER_IP}" ]; then
+        echo "✅ DNS يعمل بشكل ممتاز: ${DOMAIN} → ${SERVER_IP}"
+    else
+        echo "⚠️ DNS لم يرد بالنتيجة المتوقعة"
+    fi
+else
+    echo "ℹ️ nslookup/dig غير متاح — تخطي اختبار DNS"
+fi
+
+# ────────────────────────────────────────────
+# ⏰ تثبيت Tunnel Watchdog في cron
+# ────────────────────────────────────────────
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+WATCHDOG_SCRIPT="${SCRIPT_DIR}/tunnel-watchdog.sh"
+
+if [ -f "${WATCHDOG_SCRIPT}" ]; then
+    if ! crontab -l 2>/dev/null | grep -q "tunnel-watchdog"; then
+        echo "⏰ جاري تثبيت Tunnel Watchdog في cron..."
+        (crontab -l 2>/dev/null; echo "*/3 * * * * ${WATCHDOG_SCRIPT} >> /var/log/saraya-tunnel-watchdog.log 2>&1") | crontab -
+        echo "✅ Tunnel Watchdog مثبت (يعمل كل 3 دقائق)"
+    else
+        echo "ℹ️ Tunnel Watchdog مثبت مسبقاً في cron"
+    fi
+fi
 
 echo ""
 echo "==========================================="
@@ -81,4 +141,8 @@ echo "   Windows: إعدادات الشبكة → DNS → ${SERVER_IP}"
 echo ""
 echo "   بعد ذلك، شغّل Docker:"
 echo "   docker compose -f docker-compose.production.yml up -d local-dns"
+echo ""
+echo "   للتحقق من جاهزية النظام للعمل offline:"
+echo "   ./scripts/verify-offline.sh"
 echo "==========================================="
+
