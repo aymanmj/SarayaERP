@@ -35,6 +35,8 @@ export interface OutboundJobData {
   maxRetries?: number;
   /** وقت إنشاء الطلب الأصلي */
   createdAt: string;
+  sourceOutboxEventId?: number;
+  jobId?: string;
 }
 
 @Injectable()
@@ -71,7 +73,11 @@ export class OutboundQueueService implements OnModuleInit {
    * إذا مقطوع: تُخزّن وتُنفّذ لاحقاً
    */
   async enqueue(data: OutboundJobData): Promise<string> {
-    const jobId = `${data.type}-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    const jobId =
+      data.jobId ??
+      (data.sourceOutboxEventId
+        ? `outbox-event-${data.sourceOutboxEventId}`
+        : `${data.type}-${Date.now()}-${Math.random().toString(36).substring(7)}`);
 
     const isOnline = this.connectivityService.isOnline();
 

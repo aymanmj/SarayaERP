@@ -32,6 +32,7 @@ export class ConnectivityService implements OnModuleInit, OnModuleDestroy {
   };
 
   private checkInterval: ReturnType<typeof setInterval> | null = null;
+  private hasCompletedInitialCheck = false;
 
   // فحص كل 30 ثانية
   private readonly CHECK_INTERVAL_MS = 30_000;
@@ -141,7 +142,10 @@ export class ConnectivityService implements OnModuleInit, OnModuleDestroy {
     } else {
       this.state.consecutiveFailures++;
 
-      if (wasOnline && this.state.consecutiveFailures >= this.FAILURE_THRESHOLD) {
+      if (
+        (wasOnline && this.state.consecutiveFailures >= this.FAILURE_THRESHOLD) ||
+        (!this.hasCompletedInitialCheck && this.state.consecutiveFailures >= 1)
+      ) {
         // 🔴 انقطاع مؤكد
         this.state.isOnline = false;
         this.state.lastOfflineAt = new Date();
@@ -151,5 +155,7 @@ export class ConnectivityService implements OnModuleInit, OnModuleDestroy {
         });
       }
     }
+
+    this.hasCompletedInitialCheck = true;
   }
 }

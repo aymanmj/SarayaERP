@@ -27,20 +27,9 @@ export default defineConfig({
         // Runtime Caching Strategies for API and external resources
         runtimeCaching: [
           {
-            // 🔄 API calls: Network-first — يحاول الشبكة أولاً، يرجع للـ cache عند الفشل
+            // API calls are never cached; stale clinical data is worse than a clear failure.
             urlPattern: /^https?:\/\/[^/]+\/api\/.*/i,
-            handler: "NetworkFirst",
-            options: {
-              cacheName: "saraya-api-cache",
-              expiration: {
-                maxEntries: 200,
-                maxAgeSeconds: 60 * 60 * 24, // 24 ساعة
-              },
-              cacheableResponse: {
-                statuses: [0, 200],
-              },
-              networkTimeoutSeconds: 10,
-            },
+            handler: "NetworkOnly",
           },
           {
             // 📸 Static assets (images, fonts): Cache-first — سريع ودائم

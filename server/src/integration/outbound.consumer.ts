@@ -58,39 +58,80 @@ export class OutboundConsumer extends WorkerHost implements OnModuleInit {
   async process(job: Job<OutboundJobData>): Promise<any> {
     const { type, payload } = job.data;
 
-    // ⚡ تحقق من الاتصال قبل التنفيذ كإجراء احترازي لعملية سُحبت للتو
     if (!this.connectivityService.isOnline()) {
       this.logger.warn(
-        `🔴 Cannot process ${type} (job ${job.id}) — Internet is offline. Will retry later.`,
+        `Cannot process ${type} (job ${job.id}) because internet is offline. Will retry later.`,
       );
-      // إطلاق الخطأ سيؤدي لاستهلاك محاولة واحدة فقط، لأن العامل سيتم إيقافه فوراً
-      throw new Error('OFFLINE: Internet connectivity unavailable — will retry');
+      throw new Error('OFFLINE: Internet connectivity unavailable');
     }
 
-    this.logger.log(`📤 Processing outbound: ${type} (job ${job.id})`);
+    this.logger.log(`Processing outbound: ${type} (job ${job.id})`);
 
     try {
+      let result: any;
+
       switch (type) {
         case 'push-notification':
-          return await this.handlePushNotification(payload);
+          result = await this.handlePushNotification(payload);
+          break;
 
         case 'nphies-claim':
         case 'nphies-preauth':
-          return await this.handleNphiesOperation(type, payload);
+          result = await this.handleNphiesOperation(type, payload);
+          break;
 
         case 'external-api':
-          return await this.handleExternalApi(payload);
+          result = await this.handleExternalApi(payload);
+          break;
 
         default:
-          this.logger.warn(`⚠️ Unknown outbound job type: ${type}`);
-          return { status: 'skipped', reason: 'unknown type' };
+          this.logger.warn(`Unknown outbound job type: ${type}`);
+          result = { status: 'skipped', reason: 'unknown type' };
       }
+
+      await this.markOutboxProcessed(job);
+      return result;
     } catch (error: any) {
       this.logger.error(
-        `❌ Failed to process ${type} (job ${job.id}): ${error.message}`,
+        `Failed to process ${type} (job ${job.id}): ${error.message}`,
       );
-      throw error; // BullMQ سيعيد المحاولة تلقائياً
+      await this.recordOutboxFailure(job, error);
+      throw error;
     }
+  }
+
+  private async markOutboxProcessed(job: Job<OutboundJobData>) {
+    const outboxEventId = job.data.sourceOutboxEventId;
+    if (!outboxEventId) return;
+
+    await this.prisma.outboxEvent.update({
+      where: { id: outboxEventId },
+      data: {
+        status: 'PROCESSED',
+        processedAt: new Date(),
+        error: null,
+      },
+    });
+  }
+
+  private async recordOutboxFailure(job: Job<OutboundJobData>, error: Error) {
+    const outboxEventId = job.data.sourceOutboxEventId;
+    if (!outboxEventId) return;
+
+    const attemptsMade = job.attemptsMade + 1;
+    const maxAttempts =
+      typeof job.opts.attempts === 'number' && job.opts.attempts > 0
+        ? job.opts.attempts
+        : 1;
+
+    await this.prisma.outboxEvent.update({
+      where: { id: outboxEventId },
+      data: {
+        attempts: { increment: 1 },
+        error: error.message,
+        status: attemptsMade >= maxAttempts ? 'FAILED' : 'QUEUED',
+      },
+    });
   }
 
   // ============================================

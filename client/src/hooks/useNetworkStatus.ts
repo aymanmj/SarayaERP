@@ -69,9 +69,7 @@ export function useNetworkStatus(): NetworkState {
           internetAvailable = payload.isOnline === true;
         }
       } catch {
-        // If connectivity endpoint fails, assume internet is available
-        // (don't penalize for endpoint errors)
-        internetAvailable = true;
+        internetAvailable = false;
       }
     }
 

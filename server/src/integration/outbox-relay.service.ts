@@ -25,7 +25,7 @@ export class OutboxRelayService {
     try {
       // Find up to 50 pending events
       const pendingEvents = await this.prisma.outboxEvent.findMany({
-        where: { status: 'PENDING' },
+        where: { status: { in: ['PENDING', 'QUEUED'] } },
         orderBy: { createdAt: 'asc' },
         take: 50,
       });
@@ -39,20 +39,24 @@ export class OutboxRelayService {
 
       for (const event of pendingEvents) {
         try {
-          // Forward to BullMQ
+          // Forward to BullMQ with a stable job id so repeated relay runs do not
+          // create duplicate external submissions.
           await this.outboundQueueService.enqueue({
             type: event.type as OutboundJobType,
             payload: event.payload as Record<string, any>,
             hospitalId: event.hospitalId ?? undefined,
             createdAt: event.createdAt.toISOString(),
+            sourceOutboxEventId: event.id,
+            jobId: `outbox-event-${event.id}`,
           });
 
-          // Mark as PROCESSED
+          // The event is only queued here. OutboundConsumer marks it PROCESSED
+          // after the external operation succeeds.
           await this.prisma.outboxEvent.update({
             where: { id: event.id },
             data: {
-              status: 'PROCESSED',
-              processedAt: new Date(),
+              status: 'QUEUED',
+              error: null,
             },
           });
         } catch (error: any) {

@@ -48,14 +48,14 @@ describe('OutboxRelayService', () => {
 
       expect(prisma.outboxEvent.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { status: 'PENDING' },
+          where: { status: { in: ['PENDING', 'QUEUED'] } },
           take: 50,
         }),
       );
       expect(outboundQueueService.enqueue).not.toHaveBeenCalled();
     });
 
-    it('should process pending events and mark them as PROCESSED', async () => {
+    it('should queue pending events and keep them unprocessed until the consumer succeeds', async () => {
       const mockEvents = [
         {
           id: 1,
@@ -77,11 +77,13 @@ describe('OutboxRelayService', () => {
         payload: { foo: 'bar' },
         hospitalId: 10,
         createdAt: '2026-01-01T00:00:00.000Z',
+        sourceOutboxEventId: 1,
+        jobId: 'outbox-event-1',
       });
 
       expect(prisma.outboxEvent.update).toHaveBeenCalledWith({
         where: { id: 1 },
-        data: expect.objectContaining({ status: 'PROCESSED' }),
+        data: expect.objectContaining({ status: 'QUEUED' }),
       });
     });
 
