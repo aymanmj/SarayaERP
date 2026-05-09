@@ -159,7 +159,7 @@ export class MpiService {
       type: 'sms',
       payload: {
         patientId,
-        message: `Your Saraya Medical security code is ${rawOtp}. It expires in 10 minutes.`,
+        message: `Your Saraya Medical security code is ${otpCode}. It expires in 10 minutes.`,
       },
       createdAt: new Date().toISOString(),
       maxRetries: 3,

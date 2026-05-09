@@ -4,10 +4,13 @@ import { ConnectivityService } from '../common/services/connectivity.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { Job } from 'bullmq';
 
+import { ModuleRef } from '@nestjs/core';
+
 describe('OutboundConsumer', () => {
   let consumer: OutboundConsumer;
   let connectivityService: any;
   let prismaService: any;
+  let moduleRef: any;
 
   beforeEach(async () => {
     connectivityService = {
@@ -15,12 +18,16 @@ describe('OutboundConsumer', () => {
     };
 
     prismaService = {};
+    moduleRef = {
+      get: jest.fn(),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         OutboundConsumer,
         { provide: ConnectivityService, useValue: connectivityService },
         { provide: PrismaService, useValue: prismaService },
+        { provide: ModuleRef, useValue: moduleRef },
       ],
     }).compile();
 
@@ -82,6 +89,25 @@ describe('OutboundConsumer', () => {
       await expect(consumer.process(mockJob)).rejects.toThrow(
         'OFFLINE: Internet connectivity unavailable — will retry',
       );
+    });
+
+    it('should dynamically resolve NphiesClaimService and process nphies-claim', async () => {
+      connectivityService.isOnline.mockReturnValue(true);
+      const mockProcessQueuedClaim = jest.fn().mockResolvedValue({ success: true });
+      moduleRef.get.mockReturnValue({
+        processQueuedClaim: mockProcessQueuedClaim,
+      });
+
+      const mockJob = {
+        id: 'job-124',
+        data: { type: 'nphies-claim', payload: { claimId: 999 } },
+      } as unknown as Job;
+
+      const result = await consumer.process(mockJob);
+      expect(moduleRef.get).toHaveBeenCalled();
+      expect(mockProcessQueuedClaim).toHaveBeenCalledWith(999);
+      expect(result.status).toBe('processed');
+      expect(result.result).toEqual({ success: true });
     });
   });
 });

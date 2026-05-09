@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ForbiddenException, NotFoundException, BadRequestException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import * as jwt from 'jsonwebtoken';
+import { OutboundQueueService } from '../integration/outbound-queue.service';
 
 describe('MpiService', () => {
   let service: MpiService;
@@ -20,11 +21,16 @@ describe('MpiService', () => {
     },
   };
 
+  const mockOutboundQueueService = {
+    enqueue: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         MpiService,
         { provide: PrismaService, useValue: mockPrisma },
+        { provide: OutboundQueueService, useValue: mockOutboundQueueService },
       ],
     }).compile();
 
@@ -162,6 +168,15 @@ describe('MpiService', () => {
       const storedCode = createCall.data.code;
       expect(storedCode).not.toMatch(/^\d{6}$/); // Must NOT be a 6-digit plaintext
       expect(storedCode.startsWith('$2b$') || storedCode.startsWith('$2a$')).toBe(true); // bcrypt hash
+
+      // Verify OTP was enqueued for SMS delivery
+      expect(mockOutboundQueueService.enqueue).toHaveBeenCalledTimes(1);
+      expect(mockOutboundQueueService.enqueue).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'sms',
+          payload: expect.objectContaining({ patientId: 1 }),
+        })
+      );
     });
 
     it('should set 15-minute expiry on OTP', async () => {
