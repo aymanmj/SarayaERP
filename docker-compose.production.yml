@@ -143,9 +143,8 @@ services:
         condition: service_healthy
       frontend:
         condition: service_started
-    # 🌐 OFFLINE-FIX: DNS خاص يمنع تعليق حل الأسماء عند فقدان الإنترنت
-    dns:
-      - 127.0.0.11
+    # 🌐 OFFLINE-FIX: timeout قصير يمنع تعليق حل الأسماء عند فقدان الإنترنت
+    # Docker DNS (127.0.0.11) يعمل تلقائياً — لا تحدده في dns: لتجنب حلقة DNS!
     dns_opt:
       - timeout:2
       - attempts:1
@@ -215,13 +214,15 @@ services:
     depends_on:
       nginx:
         condition: service_healthy
-    # 🌐 OFFLINE-FIX: استخدم Docker DNS الداخلي مع timeout قصير
-    # يحل أسماء الحاويات داخلياً ويفشل بسرعة للاستعلامات الخارجية
+    # 🌐 OFFLINE-FIX: DNS خارجي لـ Cloudflare + timeout قصير
+    # التونل يحتاج DNS خارجي لحل argotunnel.com
+    # أسماء الحاويات (saraya_nginx) تُحل تلقائياً عبر Docker DNS قبل الإحالة
     dns:
-      - 127.0.0.11
+      - 1.1.1.1
+      - 8.8.8.8
     dns_opt:
-      - timeout:2
-      - attempts:1
+      - timeout:3
+      - attempts:2
     networks:
       - saraya_net
     # 🔄 OFFLINE-FIX: healthcheck ذكي يكتشف حالة zombie ويفرض إعادة التشغيل
