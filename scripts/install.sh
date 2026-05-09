@@ -485,6 +485,9 @@ TAILSCALE_HOSTNAME=$TAILSCALE_HOSTNAME
 GITHUB_REPOSITORY_OWNER=$GITHUB_OWNER
 IMAGE_TAG=latest
 
+# ═══════ Gemini AI ═══════
+GEMINI_API_KEY=$GEMINI_API_KEY
+
 # ═══════ Watchtower ═══════
 WATCHTOWER_TOKEN=$WATCHTOWER_TOKEN
 
@@ -722,7 +725,9 @@ setup_local_dns() {
             cat > "$DAEMON_JSON" <<DEOF
 {
     "dns": ["${SERVER_IP}", "1.1.1.1"],
-    "dns-opts": ["timeout:2", "attempts:1"]
+    "dns-opts": ["timeout:2", "attempts:1"],
+    "ip6tables": false,
+    "ipv6": false
 }
 DEOF
         fi
@@ -730,7 +735,9 @@ DEOF
         cat > "$DAEMON_JSON" <<DEOF
 {
     "dns": ["${SERVER_IP}", "1.1.1.1"],
-    "dns-opts": ["timeout:2", "attempts:1"]
+    "dns-opts": ["timeout:2", "attempts:1"],
+    "ip6tables": false,
+    "ipv6": false
 }
 DEOF
     fi
@@ -854,6 +861,22 @@ collect_client_info() {
         print_status "Tailscale key added"
     fi
 
+    # ─── Gemini AI Setup ───
+    echo ""
+    echo -e "  ${BOLD}${CYAN}Gemini AI Setup (Clinical AI Assistant)${NC}"
+    echo -e "  ${CYAN}────────────────────────────────────────${NC}"
+    echo ""
+    echo -e "  ${YELLOW}Gemini API Key is used for the AI Clinical Coding Assistant.${NC}"
+    echo "  Get it from: https://aistudio.google.com/apikey"
+    echo ""
+    read -p "  Enter Gemini API Key (or press Enter to skip): " GEMINI_API_KEY < /dev/tty
+    
+    if [ -n "$GEMINI_API_KEY" ]; then
+        print_status "Gemini API Key saved"
+    else
+        print_warning "Gemini AI skipped - add GEMINI_API_KEY to .env.production later"
+    fi
+
     # ─── Telegram Bot Setup (Patient Portal) ───
     echo ""
     echo -e "  ${BOLD}${CYAN}Telegram Bot Setup (Patient Portal OTP)${NC}"
@@ -960,8 +983,26 @@ pull_and_start() {
     # Clean up old containers first
     cleanup_containers
 
-    print_info "Pulling Docker images..."
-    docker compose -f docker-compose.production.yml --env-file .env.production pull >> "$LOG_FILE" 2>&1 || true
+    # 🌐 OFFLINE-FIX: إجبار Docker على استخدام IPv4 فقط
+    # بعض الشبكات لا تدعم IPv6 مما يسبب فشل سحب الصور
+    export DOCKER_OPTS="--ipv6=false"
+    
+    print_info "Pulling Docker images (with retry)..."
+    local PULL_SUCCESS=false
+    for attempt in 1 2 3; do
+        if docker compose -f docker-compose.production.yml --env-file .env.production pull >> "$LOG_FILE" 2>&1; then
+            PULL_SUCCESS=true
+            break
+        fi
+        if [ $attempt -lt 3 ]; then
+            print_warning "Pull attempt $attempt failed — retrying in 10s..."
+            sleep 10
+        fi
+    done
+    
+    if [ "$PULL_SUCCESS" = false ]; then
+        print_warning "Some images may not have pulled. Continuing with cached images..."
+    fi
     print_status "Images pulled"
 
     print_info "Starting core services..."
@@ -1302,7 +1343,6 @@ main() {
     print_step "8" "Starting System"
     pull_and_start
 
-    # Inject license if provided
     # Inject license if provided
     if [ "$HAS_LICENSE" = true ]; then
         print_info "Injecting license into backend container..."
