@@ -18,12 +18,17 @@ import { NphiesCryptoService } from './nphies-crypto.service';
  * 
  * تعتمد على معيار HL7 FHIR R4
  */
+import { IntegrationModule } from '../integration.module';
+import { PrismaModule } from '../../prisma/prisma.module';
+
 @Module({
   imports: [
     HttpModule.register({
       timeout: 30000, // NPHIES قد يستغرق وقتاً
       maxRedirects: 3,
     }),
+    IntegrationModule,
+    PrismaModule,
   ],
   controllers: [NphiesController],
   providers: [
