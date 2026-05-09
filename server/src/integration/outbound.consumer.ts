@@ -62,7 +62,7 @@ export class OutboundConsumer extends WorkerHost implements OnModuleInit {
       this.logger.warn(
         `Cannot process ${type} (job ${job.id}) because internet is offline. Will retry later.`,
       );
-      throw new Error('OFFLINE: Internet connectivity unavailable');
+      throw new Error('OFFLINE: Internet connectivity unavailable — will retry');
     }
 
     this.logger.log(`Processing outbound: ${type} (job ${job.id})`);
