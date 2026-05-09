@@ -4,10 +4,15 @@ import * as crypto from 'crypto';
 import * as bcrypt from 'bcrypt';
 import * as jwt from 'jsonwebtoken';
 
+import { OutboundQueueService } from '../integration/outbound-queue.service';
+
 @Injectable()
 export class MpiService {
   private readonly logger = new Logger(MpiService.name);
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private outboundQueueService: OutboundQueueService,
+  ) {}
 
   /**
    * Search the Master Patient Index (GlobalPatient)
@@ -148,7 +153,18 @@ export class MpiService {
       timestamp: new Date().toISOString()
     };
     
-    // In production, this would dispatch to an SQS queue or direct SMS/Telegram API
+    // Send the OTP via the Offline-First Outbound Queue
+    // This ensures delivery even if the external SMS/Telegram gateway is temporarily unreachable
+    await this.outboundQueueService.enqueue({
+      type: 'sms',
+      payload: {
+        patientId,
+        message: `Your Saraya Medical security code is ${rawOtp}. It expires in 10 minutes.`,
+      },
+      createdAt: new Date().toISOString(),
+      maxRetries: 3,
+    });
+
     this.logger.log(`[DISPATCH-QUEUE] Added OTP message for patient ${patientId} to transmission queue.`);
 
     return { message: 'OTP sent to patient via secure channel', expiresAt };

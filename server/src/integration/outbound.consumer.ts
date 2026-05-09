@@ -7,21 +7,25 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Job } from 'bullmq';
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { ModuleRef } from '@nestjs/core';
 import { OnEvent } from '@nestjs/event-emitter';
 import { ConnectivityService } from '../common/services/connectivity.service';
 import { Expo, ExpoPushMessage } from 'expo-server-sdk';
 import { PrismaService } from '../prisma/prisma.service';
 import type { OutboundJobData } from './outbound-queue.service';
+import { NphiesClaimService } from './nphies/nphies-claim.service';
 
 @Processor('outbound-queue')
 @Injectable()
 export class OutboundConsumer extends WorkerHost implements OnModuleInit {
   private readonly logger = new Logger(OutboundConsumer.name);
   private expo: Expo;
+  private nphiesClaimService?: NphiesClaimService;
 
   constructor(
     private connectivityService: ConnectivityService,
     private prisma: PrismaService,
+    private moduleRef: ModuleRef,
   ) {
     super();
     this.expo = new Expo();
@@ -183,13 +187,26 @@ export class OutboundConsumer extends WorkerHost implements OnModuleInit {
     type: string,
     payload: Record<string, any>,
   ) {
-    // TODO: ربط مع NphiesService.submitClaim / submitPreauth
-    this.logger.log(`📋 NPHIES ${type}: Would process claim for hospital #${payload.hospitalId}`);
+    if (!this.nphiesClaimService) {
+      this.nphiesClaimService = this.moduleRef.get(NphiesClaimService, { strict: false });
+    }
+
+    if (type === 'nphies-claim' && payload.claimId) {
+      this.logger.log(`📋 NPHIES: Processing queued claim #${payload.claimId}`);
+      const result = await this.nphiesClaimService.processQueuedClaim(payload.claimId);
+      
+      return {
+        status: 'processed',
+        type,
+        result,
+      };
+    }
     
+    this.logger.warn(`📋 NPHIES ${type}: Unhandled operation or missing claimId. payload: ${JSON.stringify(payload)}`);
     return {
-      status: 'processed',
+      status: 'skipped',
       type,
-      note: 'NPHIES integration pending full implementation',
+      note: 'Unhandled NPHIES operation type or missing claimId',
     };
   }
 

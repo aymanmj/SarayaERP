@@ -156,7 +156,7 @@ export function ConsentFormDialog({
   <meta charset="UTF-8">
   <title>نموذج موافقة - ${formData.title}</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap');
+
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Cairo', sans-serif; direction: rtl; color: #1a1a2e; padding: 30px 40px; max-width: 800px; margin: 0 auto; }
     .header { text-align: center; border-bottom: 3px double #1a1a2e; padding-bottom: 16px; margin-bottom: 20px; }

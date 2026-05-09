@@ -4,6 +4,8 @@ import { NphiesService } from './nphies.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ClaimStatus } from '@prisma/client';
 import { v4 as uuidv4 } from 'uuid';
+import { ConnectivityService } from '../../common/services/connectivity.service';
+import { OutboundQueueService } from '../outbound-queue.service';
 
 /**
  * خدمة إرسال المطالبات الإلكترونية عبر NPHIES
@@ -26,6 +28,8 @@ export class NphiesClaimService {
     private authService: NphiesAuthService,
     private nphiesService: NphiesService,
     private prisma: PrismaService,
+    private connectivityService: ConnectivityService,
+    private outboundQueueService: OutboundQueueService,
   ) {}
 
   /**
@@ -46,7 +50,11 @@ export class NphiesClaimService {
     }
   }
 
-  private async _submitClaimInternal(claimId: number): Promise<NphiesClaimSubmissionResult> {
+  async processQueuedClaim(claimId: number): Promise<NphiesClaimSubmissionResult> {
+    return this._submitClaimInternal(claimId, true);
+  }
+
+  private async _submitClaimInternal(claimId: number, fromQueue = false): Promise<NphiesClaimSubmissionResult> {
     // جلب بيانات المطالبة كاملة
     const claim = await this.prisma.claim.findUnique({
       where: { id: claimId },
@@ -246,6 +254,42 @@ export class NphiesClaimService {
       coverageResource,
       providerOrg,
     ]);
+
+    if (!this.connectivityService.isOnline()) {
+      if (fromQueue) {
+        throw new Error('System is offline. Retrying queued NPHIES claim later.');
+      }
+      // Offline mode: Queue for later
+      await this.outboundQueueService.enqueue({
+        type: 'nphies-claim',
+        hospitalId: claim.hospitalId,
+        payload: { claimId: claim.id },
+        createdAt: new Date().toISOString(),
+      });
+
+      await this.prisma.claim.update({
+        where: { id: claimId },
+        data: { status: ClaimStatus.QUEUED },
+      });
+
+      await this.prisma.claimHistory.create({
+        data: {
+          claimId,
+          fromStatus: claim.status,
+          toStatus: ClaimStatus.QUEUED,
+          notes: 'System offline. Claim queued for background sync.',
+        },
+      });
+
+      this.logger.warn(`🔴 System offline. Claim ${claim.claimNumber} queued for NPHIES synchronization.`);
+
+      return {
+        accepted: true,
+        status: 'queued',
+        nphiesClaimId: 'PENDING_SYNC',
+        dispositionMessage: 'System offline. Claim queued for background sync.',
+      };
+    }
 
     try {
       // إرسال المطالبة
