@@ -146,17 +146,33 @@ async function bootstrap() {
       if (!origin) {
         return callback(null, true);
       }
-      
+
       // In dev mode with no config: reflect requesting origin
       if (allowAllOrigins) {
         return callback(null, origin);
       }
-      
+
+      // 🏥 OFFLINE-FIX: Auto-allow requests from LAN (private network IPs)
+      // This ensures the system works locally without listing every possible local origin
+      try {
+        const originUrl = new URL(origin);
+        const host = originUrl.hostname;
+        if (
+          host === 'localhost' ||
+          host.startsWith('127.') ||
+          host.startsWith('10.') ||
+          host.startsWith('192.168.') ||
+          /^172\.(1[6-9]|2\d|3[01])\./.test(host)
+        ) {
+          return callback(null, origin);
+        }
+      } catch { /* invalid origin URL — fall through to whitelist check */ }
+
       // Check if origin is in whitelist
       if (configuredOrigins.includes(origin)) {
         return callback(null, origin);
       }
-      
+
       // Origin not allowed
       logger.warn(`Blocked CORS request from: ${origin}`);
       return callback(new Error('Not allowed by CORS'), false);
