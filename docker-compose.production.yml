@@ -228,10 +228,11 @@ services:
     # 🔄 OFFLINE-FIX: healthcheck ذكي يكتشف حالة zombie ويفرض إعادة التشغيل
     # يتحقق من وجود اتصال مسجل حديثاً في السجلات (ليس فقط العملية)
     healthcheck:
-      test: ["CMD-SHELL", "pgrep cloudflared || exit 1"]
-      interval: 60s
+      # 🔄 OFFLINE-FIX: If ready endpoint fails (disconnected), kill PID 1 to trigger Docker auto-restart
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:20241/ready || kill 1"]
+      interval: 45s
       timeout: 10s
-      retries: 5
+      retries: 3
       start_period: 30s
     logging: *default_logging
 
@@ -530,7 +531,7 @@ services:
     networks:
       - saraya_net
     healthcheck:
-      test: ["CMD-SHELL", "nslookup localhost 127.0.0.1 > /dev/null 2>&1 || exit 1"]
+      test: ["CMD-SHELL", "dnsmasq --test || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
