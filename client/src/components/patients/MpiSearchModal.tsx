@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { apiClient } from "../../api/apiClient";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import {
   Search,
@@ -36,6 +37,7 @@ interface MpiSearchModalProps {
 }
 
 export function MpiSearchModal({ onClose }: MpiSearchModalProps) {
+  const navigate = useNavigate();
   const [nationalId, setNationalId] = useState("");
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
@@ -298,9 +300,15 @@ export function MpiSearchModal({ onClose }: MpiSearchModalProps) {
                         {isAccessible ? (
                           <button 
                             onClick={() => {
-                              const refUrl = fhirReferences[fKey] || facility.fhirReference;
-                              if (refUrl) window.open(refUrl, '_blank');
-                              else toast.error("رابط السجل غير متاح");
+                              const targetPatientId = facility.patientId || otpTarget?.patientId;
+                              if (targetPatientId) {
+                                onClose();
+                                navigate(`/patients/${targetPatientId}/chart`);
+                              } else {
+                                const refUrl = fhirReferences[fKey] || facility.fhirReference;
+                                if (refUrl) window.open(refUrl, '_blank');
+                                else toast.error("رابط السجل غير متاح");
+                              }
                             }}
                             className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-emerald-900/20 transition-all"
                           >

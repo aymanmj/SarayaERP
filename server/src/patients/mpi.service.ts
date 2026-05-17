@@ -92,6 +92,7 @@ export class MpiService {
             hospitalName: lp.hospital.displayName || lp.hospital.name,
             localMrn: lp.mrn,
             status: 'ACCESSIBLE',
+            patientId: lp.id,
             fhirReference: `https://${process.env.SARAYA_DOMAIN || 'saraya-erp.com'}/api/fhir/Patient/${lp.id}`,
           };
         }
@@ -238,6 +239,7 @@ export class MpiService {
     return {
       message: 'OTP Verified Successfully',
       status: 'ACCESSIBLE',
+      patientId,
       fhirReference: `https://${process.env.SARAYA_DOMAIN || 'saraya-erp.com'}/api/fhir/Patient/${patientId}`,
       consentToken,
     };
