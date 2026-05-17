@@ -273,7 +273,7 @@ export default function GeneralLedgerPage() {
 
   useEffect(() => {
     loadAccounts();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
 
   const accountInfo = useMemo(

@@ -151,8 +151,57 @@ export class PatientsService {
       },
     });
 
+    // ─── MPI Consent Record ────────────────────────────────────────────────────
+    // الربط الوطني يحدث تلقائياً دائماً (لا يتحكم فيه أحد).
+    // لكن مشاركة البيانات قد تستلزم موافقة المريض عبر OTP — حسب إعداد المنشأة.
+    if (globalPatientId) {
+      try {
+        const requireOtp = await this.getRequireOtpSetting(hospitalId);
+
+        await this.prisma.mpiConsentRecord.create({
+          data: {
+            globalPatientId,
+            hospitalId,
+            // إذا لم تطلب المنشأة OTP → مشاركة مباشرة (ACTIVE)
+            // إذا طلبت OTP → الاشتراط معلّق حتى التحقق (PENDING_OTP)
+            status: requireOtp ? 'PENDING_OTP' : 'ACTIVE',
+            consentType: 'FULL',
+            consentMethod: requireOtp ? 'OTP' : 'IMPLICIT',
+            consentDetails: requireOtp
+              ? 'OTP required by facility policy — data sharing pending patient verification'
+              : 'Automatic consent per facility policy (OTP not required)',
+          },
+        });
+      } catch {
+        // لا نوقف تسجيل المريض إذا فشل إنشاء سجل الموافقة — نسجّل الخطأ فقط
+        console.error(`[MPI] Failed to create MpiConsentRecord for patient ${newPatient.id}`);
+      }
+    }
+
     return newPatient;
   }
+
+  /** يقرأ إعداد requirePatientOTP من المنشأة أو المستشفى */
+  private async getRequireOtpSetting(hospitalId: number): Promise<boolean> {
+    // أولاً: هل للمستشفى منظومة أم مستقل؟
+    const hospital = await this.prisma.hospital.findUnique({
+      where: { id: hospitalId },
+      select: { organizationId: true },
+    });
+
+    if (hospital?.organizationId) {
+      const orgSetting = await this.prisma.orgSetting.findFirst({
+        where: { organizationId: hospital.organizationId, key: 'mpi.requirePatientOTP' },
+      });
+      if (orgSetting) return orgSetting.value === 'true';
+    }
+
+    const sysSetting = await this.prisma.systemSetting.findFirst({
+      where: { hospitalId, key: 'mpi.requirePatientOTP' },
+    });
+    return sysSetting?.value === 'true';
+  }
+
 
   private generateSearchHash(value: string | null | undefined): string | null {
     if (!value) return null;

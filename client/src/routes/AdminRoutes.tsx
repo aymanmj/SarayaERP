@@ -42,6 +42,9 @@ const LeavesPage = lazy(() => import("../pages/LeavesPage"));
 
 const DoctorSchedulesPage = lazy(() => import("../pages/settings/DoctorSchedulesPage"));
 
+// --- Quality & Patient Safety ---
+const QualityAndSafetyPage = lazy(() => import("../pages/QualityAndSafetyPage"));
+
 export const AdminRoutes = (
   <>
     {/* Admin & Settings */}
@@ -89,6 +92,9 @@ export const AdminRoutes = (
     <Route path="/referrals" element={<ReferralsPage />} />
     <Route path="/settings/commissions" element={<CommissionSettingsPage />} />
     <Route path="/settings/note-templates" element={<NoteTemplatesPage />} />
+
+    {/* ✅ Quality & Patient Safety */}
+    <Route path="/quality" element={<QualityAndSafetyPage />} />
 
     {/* HR */}
     <Route path="/hr/shifts" element={<ShiftsPage />} />

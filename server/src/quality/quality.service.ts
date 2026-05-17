@@ -1,0 +1,410 @@
+// src/quality/quality.service.ts
+// =====================================================================
+// وحدة الجودة والسلامة المريض — Clinical Incident / Near Miss / CAPA
+// =====================================================================
+
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+import {
+  IncidentStatus,
+  CapaStatus,
+  IncidentSeverity,
+} from '@prisma/client';
+import { CreateIncidentDto, UpdateIncidentDto } from './dto/create-incident.dto';
+import { CreateCapaDto, UpdateCapaDto, VerifyCapaDto } from './dto/create-capa.dto';
+
+@Injectable()
+export class QualityService {
+  private readonly logger = new Logger(QualityService.name);
+
+  constructor(private prisma: PrismaService) {}
+
+  // ======================== Incident Number Generator ========================
+
+  private async generateIncidentNumber(hospitalId: number): Promise<string> {
+    const year = new Date().getFullYear();
+    const count = await this.prisma.clinicalIncident.count({
+      where: { hospitalId },
+    });
+    const seq = String(count + 1).padStart(4, '0');
+    return `INC-${year}-${seq}`;
+  }
+
+  // ======================== 1. Report Incident ========================
+
+  async reportIncident(
+    hospitalId: number,
+    reportedById: number,
+    dto: CreateIncidentDto,
+  ) {
+    const incidentNumber = await this.generateIncidentNumber(hospitalId);
+
+    // حساب تاريخ المراجعة بناءً على الخطورة
+    const reviewDays: Record<IncidentSeverity, number> = {
+      NEAR_MISS: 14,
+      MINOR: 7,
+      MODERATE: 3,
+      MAJOR: 1,
+      SENTINEL: 0, // فوري
+    };
+    const reviewDueDate = new Date();
+    reviewDueDate.setDate(reviewDueDate.getDate() + reviewDays[dto.severity]);
+
+    const incident = await this.prisma.clinicalIncident.create({
+      data: {
+        hospitalId,
+        incidentNumber,
+        reportedById,
+        incidentDate: new Date(dto.incidentDate),
+        incidentType: dto.incidentType,
+        severity: dto.severity,
+        description: dto.description,
+        descriptionAr: dto.descriptionAr,
+        location: dto.location,
+        patientId: dto.patientId,
+        isAnonymous: dto.isAnonymous ?? false,
+        immediateAction: dto.immediateAction,
+        reviewDueDate,
+        status: IncidentStatus.REPORTED,
+      },
+      include: {
+        reporter: { select: { id: true, fullName: true } },
+        patient: { select: { id: true, mrn: true, fullName: true } },
+      },
+    });
+
+    this.logger.log(
+      `Incident reported: ${incidentNumber} | Severity: ${dto.severity} | Hospital: ${hospitalId}`,
+    );
+
+    // TODO: emit event → notification to Quality Manager
+    return incident;
+  }
+
+  // ======================== 2. List Incidents ========================
+
+  async findAll(params: {
+    hospitalId: number;
+    status?: IncidentStatus;
+    severity?: IncidentSeverity;
+    page?: number;
+    limit?: number;
+  }) {
+    const { hospitalId, status, severity, page = 1, limit = 20 } = params;
+    const skip = (page - 1) * limit;
+
+    const where: Record<string, unknown> = { hospitalId };
+    if (status) where.status = status;
+    if (severity) where.severity = severity;
+
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.clinicalIncident.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { reportedAt: 'desc' },
+        include: {
+          reporter: { select: { id: true, fullName: true } },
+          patient: { select: { id: true, mrn: true, fullName: true } },
+          _count: { select: { capaActions: true } },
+        },
+      }),
+      this.prisma.clinicalIncident.count({ where }),
+    ]);
+
+    return {
+      items,
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    };
+  }
+
+  // ======================== 3. Get Incident Detail ========================
+
+  async findOne(hospitalId: number, id: number) {
+    const incident = await this.prisma.clinicalIncident.findFirst({
+      where: { id, hospitalId },
+      include: {
+        reporter: { select: { id: true, fullName: true } },
+        investigator: { select: { id: true, fullName: true } },
+        patient: { select: { id: true, mrn: true, fullName: true } },
+        capaActions: {
+          include: {
+            assignedTo: { select: { id: true, fullName: true } },
+            verifiedBy: { select: { id: true, fullName: true } },
+          },
+          orderBy: { createdAt: 'asc' },
+        },
+      },
+    });
+
+    if (!incident) throw new NotFoundException('الحادثة غير موجودة');
+    return incident;
+  }
+
+  // ======================== 4. Update Incident (Investigation) ========================
+
+  async updateIncident(
+    hospitalId: number,
+    id: number,
+    dto: UpdateIncidentDto,
+    userId: number,
+  ) {
+    await this.findOne(hospitalId, id);
+
+    return this.prisma.clinicalIncident.update({
+      where: { id },
+      data: {
+        ...dto,
+        investigatedById: dto.investigatedById ?? userId,
+      },
+    });
+  }
+
+  // ======================== 5. Close Incident ========================
+
+  async closeIncident(hospitalId: number, id: number, userId: number) {
+    const incident = await this.findOne(hospitalId, id);
+
+    // التحقق: يجب أن تكون جميع CAPA مكتملة ومتحققة
+    const openCapas = await this.prisma.capaAction.count({
+      where: {
+        incidentId: id,
+        status: { notIn: [CapaStatus.COMPLETED, CapaStatus.VERIFIED] },
+      },
+    });
+
+    if (openCapas > 0) {
+      throw new BadRequestException(
+        `لا يمكن إغلاق الحادثة — يوجد ${openCapas} إجراء CAPA لم يُكتمل بعد`,
+      );
+    }
+
+    return this.prisma.clinicalIncident.update({
+      where: { id },
+      data: {
+        status: IncidentStatus.CLOSED,
+        closedAt: new Date(),
+        closedById: userId,
+      },
+    });
+  }
+
+  // ======================== 6. Dashboard Stats ========================
+
+  async getDashboardStats(hospitalId: number) {
+    const [
+      totalByStatus,
+      totalBySeverity,
+      openCapas,
+      overdueCapas,
+      recentIncidents,
+    ] = await this.prisma.$transaction([
+      // توزيع حسب الحالة
+      this.prisma.clinicalIncident.groupBy({
+        by: ['status'],
+        where: { hospitalId },
+        _count: true,
+        orderBy: { status: 'asc' },
+      }),
+      // توزيع حسب الخطورة
+      this.prisma.clinicalIncident.groupBy({
+        by: ['severity'],
+        where: { hospitalId },
+        _count: true,
+        orderBy: { severity: 'asc' },
+      }),
+      // CAPA مفتوحة
+      this.prisma.capaAction.count({
+        where: {
+          incident: { hospitalId },
+          status: { in: [CapaStatus.OPEN, CapaStatus.IN_PROGRESS] },
+        },
+      }),
+      // CAPA متأخرة
+      this.prisma.capaAction.count({
+        where: {
+          incident: { hospitalId },
+          status: { notIn: [CapaStatus.COMPLETED, CapaStatus.VERIFIED] },
+          dueDate: { lt: new Date() },
+        },
+      }),
+      // آخر 5 حوادث
+      this.prisma.clinicalIncident.findMany({
+        where: { hospitalId },
+        orderBy: { reportedAt: 'desc' },
+        take: 5,
+        select: {
+          id: true,
+          incidentNumber: true,
+          incidentType: true,
+          severity: true,
+          status: true,
+          reportedAt: true,
+        },
+      }),
+    ]);
+
+    return {
+      byStatus: totalByStatus.reduce(
+        (acc, r) => ({ ...acc, [r.status]: r._count }),
+        {} as Record<string, number>,
+      ),
+      bySeverity: totalBySeverity.reduce(
+        (acc, r) => ({ ...acc, [r.severity]: r._count }),
+        {} as Record<string, number>,
+      ),
+      openCapas,
+      overdueCapas,
+      recentIncidents,
+    };
+  }
+
+  // ======================== 7. CAPA Management ========================
+
+  async addCapaAction(
+    hospitalId: number,
+    dto: CreateCapaDto,
+  ) {
+    // التحقق من وجود الحادثة
+    const incident = await this.findOne(hospitalId, dto.incidentId);
+
+    if (incident.status === IncidentStatus.CLOSED) {
+      throw new BadRequestException('لا يمكن إضافة CAPA لحادثة مغلقة');
+    }
+
+    const action = await this.prisma.capaAction.create({
+      data: {
+        incidentId: dto.incidentId,
+        actionType: dto.actionType,
+        description: dto.description,
+        descriptionAr: dto.descriptionAr,
+        assignedToId: dto.assignedToId,
+        dueDate: new Date(dto.dueDate),
+        status: CapaStatus.OPEN,
+      },
+      include: {
+        assignedTo: { select: { id: true, fullName: true } },
+      },
+    });
+
+    // تحديث حالة الحادثة إلى CAPA_OPEN
+    if (incident.status === IncidentStatus.INVESTIGATED) {
+      await this.prisma.clinicalIncident.update({
+        where: { id: dto.incidentId },
+        data: { status: IncidentStatus.CAPA_OPEN },
+      });
+    }
+
+    return action;
+  }
+
+  async updateCapaAction(
+    hospitalId: number,
+    capaId: number,
+    dto: UpdateCapaDto,
+    userId: number,
+  ) {
+    const capa = await this.prisma.capaAction.findFirst({
+      where: {
+        id: capaId,
+        incident: { hospitalId },
+      },
+    });
+
+    if (!capa) throw new NotFoundException('إجراء CAPA غير موجود');
+
+    const updateData: Record<string, unknown> = { ...dto };
+    if (dto.status === CapaStatus.COMPLETED) {
+      updateData.completedAt = new Date();
+    }
+
+    return this.prisma.capaAction.update({
+      where: { id: capaId },
+      data: updateData,
+    });
+  }
+
+  async verifyCapaAction(
+    hospitalId: number,
+    capaId: number,
+    dto: VerifyCapaDto,
+    verifiedById: number,
+  ) {
+    const capa = await this.prisma.capaAction.findFirst({
+      where: {
+        id: capaId,
+        incident: { hospitalId },
+      },
+    });
+
+    if (!capa) throw new NotFoundException('إجراء CAPA غير موجود');
+    if (capa.status !== CapaStatus.COMPLETED) {
+      throw new BadRequestException(
+        'لا يمكن التحقق من CAPA قبل اكتمالها — الحالة يجب أن تكون COMPLETED',
+      );
+    }
+
+    const verified = await this.prisma.capaAction.update({
+      where: { id: capaId },
+      data: {
+        status: CapaStatus.VERIFIED,
+        verifiedById,
+        verificationNotes: dto.verificationNotes,
+        isEffective: dto.isEffective,
+        verifiedAt: new Date(),
+      },
+    });
+
+    // تحديث حالة الحادثة الأم إذا كل CAPA متحققة
+    const remainingOpen = await this.prisma.capaAction.count({
+      where: {
+        incidentId: capa.incidentId,
+        status: { notIn: [CapaStatus.VERIFIED] },
+      },
+    });
+
+    if (remainingOpen === 0) {
+      await this.prisma.clinicalIncident.update({
+        where: { id: capa.incidentId },
+        data: { status: IncidentStatus.CAPA_VERIFIED },
+      });
+    }
+
+    return verified;
+  }
+
+  // ======================== 8. My CAPA Tasks ========================
+
+  async getMyCapaTasks(userId: number) {
+    const now = new Date();
+
+    const tasks = await this.prisma.capaAction.findMany({
+      where: {
+        assignedToId: userId,
+        status: { notIn: [CapaStatus.VERIFIED] },
+      },
+      include: {
+        incident: {
+          select: {
+            id: true,
+            incidentNumber: true,
+            incidentType: true,
+            severity: true,
+          },
+        },
+      },
+      orderBy: { dueDate: 'asc' },
+    });
+
+    return tasks.map((t) => ({
+      ...t,
+      isOverdue: t.dueDate < now && t.status !== CapaStatus.COMPLETED,
+    }));
+  }
+}

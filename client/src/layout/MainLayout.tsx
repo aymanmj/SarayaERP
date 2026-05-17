@@ -228,6 +228,21 @@ const Icons = {
       <path d="M12 12V8" />
     </svg>
   ),
+  Shield: () => (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+    </svg>
+  ),
 };
 
 import { useLicenseStore } from "../stores/licenseStore"; // Import store
@@ -667,6 +682,28 @@ export function MainLayout() {
           label: "إقفال السنة",
           path: "/accounting/year-closing",
           access: "acc:year:close",
+        },
+      ],
+    },
+    {
+      key: "quality",
+      title: "الجودة وسلامة المريض",
+      icon: <Icons.Shield />,
+      allowedRoles: ["ADMIN", "QUALITY_MANAGER", "MEDICAL_DIRECTOR"],
+      items: [
+        {
+          label: "🛡️ لوحة الجودة والحوادث",
+          path: "/quality",
+          access: "quality:incidents:view",
+        },
+        {
+          label: "📋 الإبلاغ عن حادثة / Near Miss",
+          path: "/quality?tab=report",
+          access: "quality:incidents:report",
+        },
+        {
+          label: "✅ مهام CAPA المسندة إليّ",
+          path: "/quality?tab=my-capa",
         },
       ],
     },

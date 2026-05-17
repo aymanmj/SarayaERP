@@ -93,6 +93,7 @@ import { RcmModule } from './rcm/rcm.module'; // ✅ [NEW] Phase 1: Revenue Cycl
 import { NphiesModule } from './integration/nphies/nphies.module'; // ✅ [NEW] Phase 1: NPHIES (Saudi eClaims)
 import { StartupSecurityValidator } from './common/security/startup-security.validator'; // ✅ [NEW] Security Guard
 import { ConnectivityModule } from './common/services/connectivity.module'; // ✅ [NEW] Offline-First: Internet Connectivity Monitor
+import { QualityModule } from './quality/quality.module'; // ✅ [NEW] Quality & Patient Safety — Incident/CAPA
 
 @Module({
   imports: [
@@ -231,6 +232,7 @@ import { ConnectivityModule } from './common/services/connectivity.module'; // �
     TransfersModule,
     IcuModule,
     DischargeSummaryModule, // 👈 Phase 5: Patient Access
+    QualityModule, // ✅ [NEW] Quality & Patient Safety — Clinical Incident / CAPA
   ],
   controllers: [AppController],
   providers: [

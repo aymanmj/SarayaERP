@@ -79,7 +79,7 @@ export const DischargeSummaryBuilderPage = () => {
 
   const calculateCDIScore = () => {
       let score = 0;
-      let total = 6;
+      const total = 6;
       if (formData.admissionDiagnosis?.trim().length > 5) score++;
       if (formData.dischargeDiagnosis?.trim().length > 5) score++;
       if (formData.hospitalCourse?.trim().length > 20) score++;

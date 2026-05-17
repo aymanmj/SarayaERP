@@ -437,29 +437,66 @@ export class CDSSService {
     const egfr = this.calculateEGFR(creaValue, age, gender);
     
     for (const drug of drugs) {
-        const name = drug.genericName.toLowerCase();
-        const concept = await this.resolveDrugTerminology(drug);
-        const atcCode = concept?.system === TerminologySystem.ATC ? concept.code.toUpperCase() : null;
-        // أدوية تتطلب تعديل كلوي قياسياً (بالرمز أو بالاسم كـ fallback)
-        const requiresRenalReview =
-          (atcCode?.startsWith('J01') ?? false) ||
-          (atcCode?.startsWith('M01') ?? false) ||
-          name.includes('vancomycin') ||
-          name.includes('gentamicin') ||
-          name.includes('ibuprofen');
-        if (requiresRenalReview && egfr < 60) {
-            alerts.push({
-                type: CDSSAlertType.RENAL_DOSE_ADJUST,
-                severity: egfr < 30 ? CDSSAlertSeverity.CRITICAL : CDSSAlertSeverity.HIGH,
-                message: `Renal Adjustment Required: eGFR is ${egfr} mL/min. Adjust dose for ${drug.genericName}.`,
-                messageAr: `تعديل الجرعة مطلوب: وظائف الكلى eGFR = ${egfr}. يجب تقليل جرعة ${drug.genericName}.`,
-                context: { egfr, drug: drug.genericName, latestCreatinine: creaValue, atcCode },
-                requiresOverride: egfr < 30
-            });
+      const name = drug.genericName.toLowerCase();
+      const concept = await this.resolveDrugTerminology(drug);
+      const atcCode = concept?.system === TerminologySystem.ATC ? concept.code.toUpperCase() : null;
+
+      // ─── DB-Driven Renal Rules (KDIGO / FDA guidelines) ───
+      // يبحث في قاعدة البيانات أولاً بالـ ATC prefix ثم بالاسم العام
+      const renalRule = await this.prisma.renalDoseRequirement.findFirst({
+        where: {
+          isActive: true,
+          OR: [
+            ...(atcCode ? [
+              { atcPrefix: { not: null }, AND: [{ isActive: true }] },
+            ] : []),
+            { drugGeneric: { equals: name, mode: 'insensitive' } },
+          ],
+        },
+        orderBy: { renalClass: 'asc' }, // HIGH قبل MODERATE
+      });
+
+      // التحقق من ATC prefix يدوياً بعد الجلب (Prisma لا يدعم startsWith في OR مع حقل nullable بشكل مثالي)
+      let matchedRule: import('@prisma/client').RenalDoseRequirement | null = null;
+      if (renalRule) {
+        if (renalRule.atcPrefix && atcCode && atcCode.startsWith(renalRule.atcPrefix)) {
+          matchedRule = renalRule as import('@prisma/client').RenalDoseRequirement;
+        } else if (renalRule.drugGeneric) {
+          matchedRule = renalRule as import('@prisma/client').RenalDoseRequirement;
         }
+      }
+
+      // ─── Fallback: hardcoded لأدوية معروفة (safety net) ───
+      const hardcodedRenalDrugs = [
+        { match: (n: string, c: string | null) => c?.startsWith('J01') || c?.startsWith('J02'), class: 'HIGH' },
+        { match: (n: string, c: string | null) => c?.startsWith('M01'), class: 'MODERATE' },
+        { match: (n: string) => ['vancomycin', 'gentamicin', 'tobramycin', 'amikacin', 'colistin',
+                                  'cisplatin', 'methotrexate', 'ibuprofen', 'naproxen'].some(d => n.includes(d)), class: 'HIGH' },
+        { match: (n: string) => ['metformin', 'digoxin', 'lithium', 'atenolol'].some(d => n.includes(d)), class: 'MODERATE' },
+      ];
+
+      const requiresRenalReview = matchedRule
+        ? egfr < matchedRule.minSafeEgfr
+        : hardcodedRenalDrugs.some(r => r.match(name, atcCode));
+
+      if (requiresRenalReview && egfr < 60) {
+        const actionText = matchedRule?.action ?? 'MONITOR';
+        const actionAr = matchedRule?.actionAr ?? 'مراجعة الجرعة مطلوبة';
+        const evidenceSource = matchedRule?.evidenceSource ?? 'Clinical Guidelines';
+
+        alerts.push({
+          type: CDSSAlertType.RENAL_DOSE_ADJUST,
+          severity: egfr < 30 ? CDSSAlertSeverity.CRITICAL : CDSSAlertSeverity.HIGH,
+          message: `Renal Adjustment Required: eGFR is ${egfr} mL/min/1.73m². Action: ${actionText} for ${drug.genericName}. Evidence: ${evidenceSource}`,
+          messageAr: `تعديل الجرعة الكلوي مطلوب: وظائف الكلى eGFR = ${egfr}. ${actionAr} لدواء ${drug.genericName}. المصدر: ${evidenceSource}`,
+          context: { egfr, drug: drug.genericName, latestCreatinine: creaValue, atcCode, action: actionText, evidenceSource },
+          requiresOverride: egfr < 30
+        });
+      }
     }
     return alerts;
   }
+
 
   async checkDoseRange(drugs: DrugCheckInput[]): Promise<CDSSAlertResult[]> {
     const alerts: CDSSAlertResult[] = [];

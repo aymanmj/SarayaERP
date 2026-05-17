@@ -145,6 +145,9 @@ model Hospital {
   icuMedicationDrips  ICUMedicationDrip[]
   icuEquipmentUsages  ICUEquipmentUsage[]
 
+  // Quality & Patient Safety
+  clinicalIncidents   ClinicalIncident[]
+
   // Clinical Profile (EMR)
   patientProblems         PatientProblem[]
   patientMedicalHistories PatientMedicalHistory[]
@@ -447,6 +450,12 @@ model User {
   reviewedRefillRequests  MedicationRefillRequest[] @relation("RefillReviewer")
   waitlists               Waitlist[]
   accessibleHospitals     UserHospitalAccess[]
+
+  // Quality & Patient Safety
+  reportedIncidents       ClinicalIncident[]   @relation("IncidentReporter")
+  investigatedIncidents   ClinicalIncident[]   @relation("IncidentInvestigator")
+  assignedCapaActions     CapaAction[]         @relation("CapaAssignee")
+  verifiedCapaActions     CapaAction[]         @relation("CapaVerifier")
 }
 
 model RefreshToken {
@@ -612,6 +621,9 @@ model Patient {
   careGaps          CareGap[]
   waitlists         Waitlist[]
 
+  // Quality & Patient Safety
+  clinicalIncidents ClinicalIncident[]
+
   @@unique([hospitalId, mrn])
   @@index([hospitalId, phone])
   @@index([hospitalId, fullName])
@@ -633,10 +645,11 @@ model GlobalPatient {
   phoneHash          String? @unique
   emailHash          String? @unique
 
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  isDeleted     Boolean   @default(false)
-  localPatients Patient[]
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  isDeleted       Boolean           @default(false)
+  localPatients   Patient[]
+  consentRecords  MpiConsentRecord[]
 
   @@index([nationalIdHash])
   @@index([phoneHash])
@@ -5329,4 +5342,265 @@ model OutboxEvent {
   processedAt DateTime?
 
   @@index([status, createdAt])
+}
+
+// ================================================
+// Quality & Patient Safety — Clinical Incident / Near Miss / CAPA
+// Epic 2 من برنامج الحوكمة السريرية
+// ================================================
+
+enum IncidentType {
+  PATIENT_FALL
+  MEDICATION_ERROR
+  PROCEDURE_COMPLICATION
+  NEAR_MISS
+  HEALTHCARE_ASSOCIATED_INFECTION
+  DIAGNOSTIC_ERROR
+  EQUIPMENT_FAILURE
+  BLOOD_TRANSFUSION_REACTION
+  PRESSURE_INJURY
+  OTHER
+}
+
+enum IncidentSeverity {
+  NEAR_MISS       // حادثة وشيكة — لم تصل للمريض
+  MINOR           // طفيف — لا ضرر دائم
+  MODERATE        // متوسط — إصابة مؤقتة
+  MAJOR           // خطير — إصابة دائمة أو دخول ICU
+  SENTINEL        // كارثي — وفاة أو إعاقة دائمة غير متوقعة
+}
+
+enum IncidentStatus {
+  REPORTED        // مُبلَّغ عنه
+  UNDER_REVIEW    // قيد المراجعة
+  INVESTIGATED    // تحت التحقيق
+  CAPA_OPEN       // CAPA مفتوح
+  CAPA_VERIFIED   // CAPA مُتحقَّق منه
+  CLOSED          // مغلق
+}
+
+enum RootCauseCategory {
+  HUMAN_FACTOR
+  SYSTEM_PROCESS
+  ENVIRONMENT
+  EQUIPMENT
+  COMMUNICATION
+  KNOWLEDGE_TRAINING
+  MEDICATION_RELATED
+}
+
+enum CapaActionType {
+  CORRECTIVE   // إجراء تصحيحي
+  PREVENTIVE   // إجراء وقائي
+}
+
+enum CapaStatus {
+  OPEN
+  IN_PROGRESS
+  COMPLETED
+  VERIFIED
+  OVERDUE
+}
+
+model ClinicalIncident {
+  id             Int              @id @default(autoincrement())
+  hospitalId     Int
+  incidentNumber String           @unique // AUTO: INC-2026-0001
+  incidentDate   DateTime
+  reportedById   Int
+
+  // تصنيف الحادثة
+  incidentType   IncidentType
+  severity       IncidentSeverity
+
+  // وصف الحادثة
+  description    String
+  descriptionAr  String?
+  location       String? // ward, OR, pharmacy, etc.
+  patientId      Int?
+  isAnonymous    Boolean          @default(false) // إبلاغ مجهول الهوية
+
+  // التحقيق
+  status               IncidentStatus @default(REPORTED)
+  investigatedById     Int?
+  investigationNotes   String?
+  rootCause            String?
+  rootCauseCategory    RootCauseCategory?
+  contributingFactors  String?       // عوامل مساهمة إضافية
+  immediateAction      String?       // الإجراء الفوري المتخذ
+
+  // مواعيد مهمة
+  reportedAt           DateTime      @default(now())
+  reviewDueDate        DateTime?
+  investigationDueDate DateTime?
+  closedAt             DateTime?
+  closedById           Int?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  hospital     Hospital         @relation(fields: [hospitalId], references: [id])
+  reporter     User             @relation("IncidentReporter", fields: [reportedById], references: [id])
+  patient      Patient?         @relation(fields: [patientId], references: [id])
+  investigator User?            @relation("IncidentInvestigator", fields: [investigatedById], references: [id])
+  capaActions  CapaAction[]
+
+  @@index([hospitalId, status])
+  @@index([hospitalId, incidentDate])
+  @@index([hospitalId, severity])
+}
+
+model CapaAction {
+  id          Int            @id @default(autoincrement())
+  incidentId  Int
+  actionType  CapaActionType
+  description String
+  descriptionAr String?
+
+  assignedToId      Int
+  dueDate           DateTime
+  completedAt       DateTime?
+  completedNotes    String?
+  status            CapaStatus  @default(OPEN)
+
+  // التحقق من الفعالية
+  verifiedById      Int?
+  verificationNotes String?
+  verifiedAt        DateTime?
+  isEffective       Boolean?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  incident    ClinicalIncident @relation(fields: [incidentId], references: [id])
+  assignedTo  User             @relation("CapaAssignee", fields: [assignedToId], references: [id])
+  verifiedBy  User?            @relation("CapaVerifier", fields: [verifiedById], references: [id])
+
+  @@index([incidentId])
+  @@index([assignedToId, status])
+  @@index([dueDate, status])
+}
+
+// ================================================
+// CDSS — DB-Driven Renal & Hepatic Dose Rules
+// بديل لـ hardcoded list في cdss.service.ts
+// ================================================
+
+enum RenalRiskClass {
+  HIGH           // تجنب أو جرعة محدودة جداً
+  MODERATE       // تعديل مطلوب
+  LOW            // مراقبة فقط
+}
+
+enum HepaticRiskClass {
+  HIGH
+  MODERATE
+  LOW
+}
+
+model RenalDoseRequirement {
+  id             Int            @id @default(autoincrement())
+  atcPrefix      String?        // e.g. "J01" (Antibiotics), "M01" (NSAIDs), "J02" (Antifungals)
+  drugGeneric    String?        // Fallback: اسم الدواء العام (vancomycin, gentamicin...)
+  renalClass     RenalRiskClass
+  minSafeEgfr   Float          // أدنى eGFR مقبول (ml/min/1.73m²)
+  action         String         // "AVOID" | "REDUCE_DOSE_50%" | "INCREASE_INTERVAL" | "MONITOR"
+  actionAr       String?
+  evidenceSource String         // "KDIGO 2023" | "FDA Label" | "UpToDate" | "BNF"
+  notes          String?
+  isActive       Boolean        @default(true)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@index([atcPrefix])
+  @@index([drugGeneric])
+}
+
+model HepaticDoseRequirement {
+  id              Int              @id @default(autoincrement())
+  atcPrefix       String?
+  drugGeneric     String?
+  hepaticClass    HepaticRiskClass
+  childPughClass  String           // "A" | "B" | "C" — Child-Pugh Score
+  action          String           // "AVOID" | "REDUCE_DOSE_50%" | "USE_WITH_CAUTION"
+  actionAr        String?
+  evidenceSource  String
+  notes           String?
+  isActive        Boolean          @default(true)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([atcPrefix])
+  @@index([drugGeneric])
+}
+
+// ================================================
+// MPI — Consent Registry & Data Retention
+// يكمل الـ toggle الموجود في OrgSetting/SystemSetting
+// ================================================
+
+enum MpiConsentType {
+  FULL              // مشاركة كاملة للسجلات عبر الشبكة
+  LIMITED           // مشاركة ديموغرافية فقط
+  EMERGENCY_ONLY    // لحالات الطوارئ فقط
+}
+
+enum MpiConsentStatus {
+  PENDING_OTP       // الربط تم — بانتظار OTP المريض لتفعيل مشاركة البيانات
+  ACTIVE            // الربط والمشاركة فعّالان
+  REVOKED           // سحب الموافقة
+  EXPIRED           // انتهت الصلاحية
+}
+
+model MpiConsentRecord {
+  id              Int              @id @default(autoincrement())
+  globalPatientId Int
+  hospitalId      Int              // المنشأة التي أخذت الموافقة
+  consentType     MpiConsentType   @default(FULL)
+  // PENDING_OTP: الربط تم تلقائياً، لكن مشاركة البيانات معلّقة حتى تأكيد المريض
+  // ACTIVE: مشاركة البيانات فعّالة (إما بعد OTP أو تلقائياً إن لم يُطلب OTP)
+  status          MpiConsentStatus @default(ACTIVE)
+
+  consentedAt     DateTime         @default(now())
+  expiresAt       DateTime?        // null = لا تنتهي
+  revokedAt       DateTime?
+  revokedReason   String?
+  revokedById     Int?
+
+  // طريقة الموافقة
+  // "OTP" | "IMPLICIT" (تلقائي بدون OTP) | "WRITTEN" | "VERBAL_EMERGENCY"
+  consentMethod   String
+  consentDetails  String?          // سبب أو وصف الموافقة
+  witnessedById   Int?             // موظف النظام شاهد الموافقة
+  otpVerified     Boolean          @default(false)
+  otpVerifiedAt   DateTime?        // وقت التحقق من OTP
+
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  globalPatient   GlobalPatient    @relation(fields: [globalPatientId], references: [id])
+
+  @@index([globalPatientId, status])
+  @@index([hospitalId])
+  @@index([status, consentedAt])
+}
+
+model DataRetentionPolicy {
+  id                       Int      @id @default(autoincrement())
+  hospitalId               Int      @unique
+  activePatientRetentionYrs  Int    @default(10)  // سجلات المرضى النشطة
+  inactivePatientRetentionYrs Int   @default(7)   // سجلات المرضى غير النشطين
+  globalMpiRetentionYrs    Int      @default(25)  // السجل الوطني (وفق اشتراطات MOH)
+  auditLogRetentionYrs     Int      @default(10)  // سجلات المراجعة
+
+  lastReviewDate           DateTime
+  nextReviewDate           DateTime
+  approvedById             Int
+
+  notes                    String?
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  @@index([hospitalId])
 }

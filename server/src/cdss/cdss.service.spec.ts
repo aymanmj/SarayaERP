@@ -34,6 +34,9 @@ describe('CDSSService', () => {
     allergyGroupDrug: {
       findMany: jest.fn(),
     },
+    renalDoseRequirement: {
+      findFirst: jest.fn(),
+    },
   };
 
   beforeEach(async () => {

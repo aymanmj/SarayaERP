@@ -1,21 +1,23 @@
 # ============================================
 # Saraya Medical ERP — Desktop Shortcut Creator
 # ============================================
-# ينشئ اختصار Desktop يفتح النظام في وضع App Mode (بدون شريط المتصفح)
-# الاستخدام: .\create-desktop-shortcut.ps1 -Url "https://erp.alsarayatech.ly" -Name "السرايا الطبي"
-# أو بدون معاملات يستخدم القيم الافتراضية
+# Creates a Desktop shortcut that opens the system in App Mode
+# Usage: .\create-desktop-shortcut.ps1 -Url "https://erp.alsarayatech.ly" -Name "Saraya Medical"
+# Or run without parameters to use default values
+
 
 param(
     [string]$Url = "https://erp.alsarayatech.ly",
     [string]$Name = "Saraya Medical ERP",
-    [string]$IconPath = ""
+    [string]$IconPath = "",
+    [switch]$StandardAppMode
 )
 
 $ErrorActionPreference = "Stop"
 
-Write-Host "=== إنشاء اختصار نظام السرايا الطبي ===" -ForegroundColor Cyan
+Write-Host "=== Creating Saraya Medical ERP Shortcut ===" -ForegroundColor Cyan
 
-# البحث عن المتصفح المناسب
+# Find suitable browser
 $chromePath = ""
 $edgePath = ""
 
@@ -46,58 +48,77 @@ foreach ($p in $edgePaths) {
     }
 }
 
-# اختيار المتصفح (Chrome أولاً، ثم Edge)
+# Select browser (Chrome first, then Edge)
 $browserPath = if ($chromePath) { $chromePath } elseif ($edgePath) { $edgePath } else { "" }
 $browserName = if ($chromePath) { "Chrome" } elseif ($edgePath) { "Edge" } else { "" }
 
 if (-not $browserPath) {
-    Write-Host "❌ لم يتم العثور على Chrome أو Edge!" -ForegroundColor Red
-    Write-Host "   يرجى تثبيت أحد المتصفحات التالية: Google Chrome, Microsoft Edge" -ForegroundColor Yellow
+    Write-Host "[X] Could not find Chrome or Edge!" -ForegroundColor Red
+    Write-Host "   Please install Google Chrome or Microsoft Edge" -ForegroundColor Yellow
     exit 1
 }
 
-Write-Host "✅ تم العثور على $browserName" -ForegroundColor Green
+Write-Host "[OK] Found $browserName" -ForegroundColor Green
 
-# إنشاء الاختصار
+# Create shortcut
 $desktopPath = [Environment]::GetFolderPath("Desktop")
 $shortcutPath = Join-Path $desktopPath "$Name.lnk"
 
-# معاملات App Mode — يفتح بدون شريط العنوان أو أزرار المتصفح
-$arguments = "--app=$Url --start-maximized --disable-infobars --no-first-run"
+# App Mode or Kiosk Mode arguments
+if ($StandardAppMode) {
+    $arguments = "--app=$Url --start-maximized --disable-infobars --no-first-run"
+} else {
+    $arguments = "--kiosk $Url --disable-infobars --no-first-run"
+}
 
-# إنشاء الاختصار عبر WScript.Shell
+# Create shortcut via WScript.Shell
 $shell = New-Object -ComObject WScript.Shell
 $shortcut = $shell.CreateShortcut($shortcutPath)
 $shortcut.TargetPath = $browserPath
 $shortcut.Arguments = $arguments
 $shortcut.WorkingDirectory = Split-Path $browserPath
-$shortcut.Description = "نظام السرايا الطبي — Saraya Medical ERP"
+$shortcut.Description = "Saraya Medical ERP"
 $shortcut.WindowStyle = 3  # Maximized
 
-# أيقونة مخصصة (إذا وُجدت)
+# Custom icon logic
+$localIconDir = Join-Path ([Environment]::GetFolderPath("LocalApplicationData")) "SarayaMedical"
+if (-not (Test-Path $localIconDir)) {
+    New-Item -ItemType Directory -Force -Path $localIconDir | Out-Null
+}
+$downloadedIconPath = Join-Path $localIconDir "icon.ico"
+
 if ($IconPath -and (Test-Path $IconPath)) {
     $shortcut.IconLocation = $IconPath
+    $finalIconPath = $IconPath
 } else {
-    # استخدام أيقونة المتصفح كبديل
-    $shortcut.IconLocation = "$browserPath, 0"
+    try {
+        Write-Host "[INFO] Downloading icon from $Url/favicon.ico..." -ForegroundColor Cyan
+        Invoke-WebRequest -Uri "$Url/favicon.ico" -OutFile $downloadedIconPath -UseBasicParsing
+        $shortcut.IconLocation = $downloadedIconPath
+        $finalIconPath = $downloadedIconPath
+    } catch {
+        Write-Host "[WARN] Could not download icon, using browser default." -ForegroundColor Yellow
+        $shortcut.IconLocation = "$browserPath, 0"
+        $finalIconPath = "$browserPath, 0"
+    }
 }
 
 $shortcut.Save()
 
 Write-Host ""
 Write-Host "==========================================" -ForegroundColor Green
-Write-Host "✅ تم إنشاء الاختصار بنجاح!" -ForegroundColor Green
+Write-Host "[OK] Shortcut created successfully!" -ForegroundColor Green
 Write-Host "==========================================" -ForegroundColor Green
 Write-Host ""
-Write-Host "📍 المسار: $shortcutPath"
-Write-Host "🌐 الرابط: $Url"
-Write-Host "🖥️ المتصفح: $browserName (App Mode)"
+Write-Host "[-] Path: $shortcutPath"
+Write-Host "[-] URL: $Url"
+Write-Host "[-] Browser: $browserName (App Mode)"
 Write-Host ""
-Write-Host "💡 ملاحظة: عند فتح الاختصار، سيظهر النظام كتطبيق Desktop" -ForegroundColor Yellow
-Write-Host "   بدون شريط العنوان أو أزرار المتصفح — تجربة احترافية!" -ForegroundColor Yellow
+Write-Host "[INFO] Note: The shortcut will open as a Desktop App" -ForegroundColor Yellow
+Write-Host "   without address bar or browser buttons for a professional experience!" -ForegroundColor Yellow
 Write-Host ""
 
-# إنشاء اختصار إضافي في قائمة Start (اختياري)
+# Create additional shortcut in Start Menu (optional)
 $startMenuPath = [Environment]::GetFolderPath("Programs")
 $startShortcutPath = Join-Path $startMenuPath "$Name.lnk"
 
@@ -106,15 +127,11 @@ try {
     $startShortcut.TargetPath = $browserPath
     $startShortcut.Arguments = $arguments
     $startShortcut.WorkingDirectory = Split-Path $browserPath
-    $startShortcut.Description = "نظام السرايا الطبي — Saraya Medical ERP"
+    $startShortcut.Description = "Saraya Medical ERP"
     $startShortcut.WindowStyle = 3
-    if ($IconPath -and (Test-Path $IconPath)) {
-        $startShortcut.IconLocation = $IconPath
-    } else {
-        $startShortcut.IconLocation = "$browserPath, 0"
-    }
+    $startShortcut.IconLocation = $finalIconPath
     $startShortcut.Save()
-    Write-Host "✅ تم إضافة الاختصار في قائمة Start أيضاً" -ForegroundColor Green
+    Write-Host "[OK] Shortcut added to Start Menu as well" -ForegroundColor Green
 } catch {
-    Write-Host "⚠️ لم يتم إنشاء اختصار في قائمة Start (غير حرج)" -ForegroundColor Yellow
+    Write-Host "[WARN] Could not create shortcut in Start Menu (non-critical)" -ForegroundColor Yellow
 }
