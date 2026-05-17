@@ -188,9 +188,17 @@ export class SettingsController {
     const rawMpiEnable = req?.body?.mpiEnableFederation;
     const rawMpiRequireOTP = req?.body?.mpiRequirePatientOTP;
 
-    const printHeaderFooter = rawPrintHeaderFooter !== undefined ? rawPrintHeaderFooter : dto.printHeaderFooter;
-    const mpiEnableFederation = rawMpiEnable !== undefined ? rawMpiEnable : dto.mpiEnableFederation;
-    const mpiRequirePatientOTP = rawMpiRequireOTP !== undefined ? rawMpiRequireOTP : dto.mpiRequirePatientOTP;
+    const printHeaderFooter = rawPrintHeaderFooter !== undefined ? String(rawPrintHeaderFooter) === 'true' : (dto.printHeaderFooter ?? true);
+    
+    // Parse booleans strictly, supporting both boolean and string "true" / "false"
+    const parseBool = (val: any, defaultVal?: boolean) => {
+      if (val === undefined || val === null) return defaultVal;
+      if (typeof val === 'boolean') return val;
+      return String(val).toLowerCase() === 'true';
+    };
+
+    const mpiEnableFederation = parseBool(rawMpiEnable !== undefined ? rawMpiEnable : dto.mpiEnableFederation);
+    const mpiRequirePatientOTP = parseBool(rawMpiRequireOTP !== undefined ? rawMpiRequireOTP : dto.mpiRequirePatientOTP);
 
     const hospital = await this.prisma.hospital.update({
       where: { id: user.hospitalId },
@@ -198,9 +206,6 @@ export class SettingsController {
         displayName: dto.displayName?.trim() || null,
         legalName: dto.legalName?.trim() || null,
         addressLine1,
-        // ممكن لاحقًا نجزئ العنوان لخطين/مدينة
-        addressLine2: null,
-        city: null,
         phone: dto.phone?.trim() || null,
         email: dto.email?.trim() || null,
         website: dto.website?.trim() || null,
