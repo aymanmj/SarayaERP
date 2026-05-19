@@ -86,6 +86,8 @@ async function main() {
     { name: 'LAB_TECH', description: 'Lab Technician' },
     { name: 'RAD_TECH', description: 'Radiology Technician' },
     { name: 'IT_ADMIN', description: 'IT & Integration Admin' },
+    { name: 'QUALITY_OFFICER', description: 'Quality & Safety Officer' },
+    { name: 'RCM_MANAGER', description: 'Revenue Cycle Manager' },
   ];
 
   for (const r of rolesData) {
@@ -195,6 +197,35 @@ async function main() {
     
     // --- التكامل (Integration) ---
     { code: 'integration:manage', description: 'إدارة الربط مع الأجهزة والأنظمة' },
+
+    // --- الجودة والسلامة والحوكمة (Quality & Governance) ---
+    { code: 'quality:view', description: 'عرض بيانات الجودة والسلامة' },
+    { code: 'quality:manage', description: 'إدارة الجودة والسلامة' },
+    { code: 'clinical-pathways:view', description: 'عرض المسارات السريرية' },
+    { code: 'clinical-pathways:manage', description: 'إدارة المسارات السريرية' },
+    { code: 'order-sets:view', description: 'عرض مجموعات الأوامر الطبية' },
+    { code: 'order-sets:manage', description: 'إدارة مجموعات الأوامر الطبية' },
+    { code: 'note-templates:view', description: 'عرض قوالب الملاحظات' },
+    { code: 'note-templates:manage', description: 'إدارة قوالب الملاحظات' },
+    { code: 'terminology:view', description: 'عرض التصنيفات الطبية' },
+    { code: 'cdss:view', description: 'استعراض التنبيهات السريرية (CDSS)' },
+    { code: 'cdss:manage', description: 'إدارة وتجاوز التنبيهات السريرية' },
+
+    // --- العناية المركزة والتحويلات (ICU & Transfers) ---
+    { code: 'icu:view', description: 'عرض العناية المركزة' },
+    { code: 'icu:manage', description: 'إدارة العناية المركزة' },
+    { code: 'transfers:view', description: 'عرض التحويلات الطبية' },
+    { code: 'transfers:manage', description: 'إدارة التحويلات الطبية' },
+    { code: 'clinical-profile:view', description: 'عرض السجل السريري' },
+    { code: 'clinical-profile:manage', description: 'إدارة السجل السريري' },
+    { code: 'discharge:view', description: 'عرض ملخص الخروج' },
+    { code: 'discharge:manage', description: 'إدارة ملخص الخروج' },
+    { code: 'patients:manage', description: 'إدارة السجل الوطني للمرضى (MPI)' },
+
+    // --- المطالبات المالية (RCM) ---
+    { code: 'claims:read', description: 'عرض المطالبات المالية' },
+    { code: 'claims:create', description: 'إنشاء المطالبات المالية' },
+    { code: 'claims:update', description: 'تعديل المطالبات المالية' },
   ];
 
   /* 
@@ -237,6 +268,19 @@ async function main() {
       'adt:bed:view',              // رؤية الأسرة
       'surgery:dashboard:view',    // جدول العمليات
       'surgery:report:create',     // تقارير العمليات
+      'cdss:view',                 // التنبيهات السريرية
+      'cdss:manage',               // تجاوز التنبيهات
+      'icu:view',
+      'icu:manage',
+      'transfers:view',
+      'transfers:manage',
+      'clinical-profile:view',
+      'clinical-profile:manage',
+      'discharge:view',
+      'discharge:manage',
+      'order-sets:view',
+      'clinical-pathways:view',
+      'terminology:view',
     ],
 
     // 3. التمريض (Nurse)
@@ -253,6 +297,10 @@ async function main() {
       'lab:requests:view',     // متابعة الطلبات
       'rad:requests:view',     // متابعة الطلبات
       'pharmacy:prescriptions:view',
+      'icu:view',
+      'icu:manage',
+      'clinical-profile:view',
+      'transfers:view',
     ],
 
     // 4. موظف الاستقبال (Reception)
@@ -264,6 +312,7 @@ async function main() {
       'clinical:patients:manage',
       'billing:invoices:create',   // إنشاء فاتورة مبدئية
       'billing:payments:collect',  // استلام نقدية (إذا كان يقوم دور الكاشير أيضاً)
+      'patients:manage',           // إدارة السجل الوطني MPI
     ],
 
     // 5. الصيدلي (Pharmacist)
@@ -312,6 +361,9 @@ async function main() {
       'purchases:dashboard:view',
       'assets:dashboard:view',
       'inventory:stock:view',      // للمراجعة
+      'claims:read',
+      'claims:create',
+      'claims:update',
     ],
 
     // 9. الكاشير (Cashier)
@@ -319,9 +371,36 @@ async function main() {
       'billing:dashboard:view',
       'billing:payments:collect',
       'billing:invoices:view',
+      'claims:read',
+      'claims:create',
+      'claims:update',
     ],
 
-    // 10. أمين المخزن (Store Keeper)
+    // 10. مسؤول الجودة والسلامة (Quality & Safety Officer)
+    QUALITY_OFFICER: [
+      'quality:view',
+      'quality:manage',
+      'cdss:view',
+      'clinical-pathways:view',
+      'order-sets:view',
+      'terminology:view',
+      'clinical:dashboard:view',
+      'clinical:patients:view',
+      'admin:audit:view',
+    ],
+
+    // 11. مدير المطالبات ودورة الإيرادات (RCM Manager)
+    RCM_MANAGER: [
+      'claims:read',
+      'claims:create',
+      'claims:update',
+      'billing:dashboard:view',
+      'billing:invoices:view',
+      'billing:insurance:manage',
+      'clinical:patients:view',
+    ],
+
+    // 12. أمين المخزن (Store Keeper)
     STORE_KEEPER: [
       'inventory:dashboard:view',
       'inventory:stock:view',

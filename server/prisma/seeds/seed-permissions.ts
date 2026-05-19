@@ -72,6 +72,31 @@ const defaultPermissions = [
   { code: 'ADMIN_FULL_ACCESS', description: 'صلاحيات كاملة' },
   { code: 'ADMIN_VIEW_AUDIT', description: 'عرض سجل المراجعة' },
   { code: 'ADMIN_SETTINGS', description: 'إعدادات النظام' },
+
+  // ============ NEW ABAC MODULES ============
+  { code: 'quality:view', description: 'عرض بيانات الجودة والسلامة' },
+  { code: 'quality:manage', description: 'إدارة الجودة والسلامة' },
+  { code: 'cdss:view', description: 'استعراض التنبيهات السريرية (CDSS)' },
+  { code: 'cdss:manage', description: 'إدارة وتجاوز التنبيهات السريرية' },
+  { code: 'icu:view', description: 'عرض العناية المركزة' },
+  { code: 'icu:manage', description: 'إدارة العناية المركزة' },
+  { code: 'transfers:view', description: 'عرض التحويلات الطبية' },
+  { code: 'transfers:manage', description: 'إدارة التحويلات الطبية' },
+  { code: 'clinical-profile:view', description: 'عرض السجل السريري' },
+  { code: 'clinical-profile:manage', description: 'إدارة السجل السريري' },
+  { code: 'discharge:view', description: 'عرض ملخص الخروج' },
+  { code: 'discharge:manage', description: 'إدارة ملخص الخروج' },
+  { code: 'patients:manage', description: 'إدارة المرضى والسجل الوطني (MPI)' },
+  { code: 'note-templates:view', description: 'عرض قوالب الملاحظات' },
+  { code: 'note-templates:manage', description: 'إدارة قوالب الملاحظات' },
+  { code: 'order-sets:view', description: 'عرض مجموعات الأوامر الطبية' },
+  { code: 'order-sets:manage', description: 'إدارة مجموعات الأوامر الطبية' },
+  { code: 'clinical-pathways:view', description: 'عرض المسارات السريرية' },
+  { code: 'clinical-pathways:manage', description: 'إدارة المسارات السريرية' },
+  { code: 'terminology:view', description: 'عرض التصنيفات الطبية' },
+  { code: 'claims:read', description: 'عرض المطالبات المالية (RCM)' },
+  { code: 'claims:create', description: 'إنشاء المطالبات المالية' },
+  { code: 'claims:update', description: 'تعديل المطالبات المالية' },
 ];
 
 const defaultRoles = [
@@ -83,27 +108,34 @@ const defaultRoles = [
   { name: 'PHARMACIST', description: 'صيدلي', isSystem: true },
   { name: 'LAB_TECH', description: 'فني مختبر', isSystem: true },
   { name: 'RADIOLOGY_TECH', description: 'فني أشعة', isSystem: true },
+  { name: 'QUALITY_OFFICER', description: 'مسؤول الجودة والسلامة', isSystem: true },
+  { name: 'RCM_MANAGER', description: 'مدير دورة الإيرادات والمطالبات', isSystem: true },
 ];
 
 // Role -> Permissions mapping
 const rolePermissionsMap: Record<string, string[]> = {
-  ADMIN: ['ADMIN_FULL_ACCESS', 'ADMIN_VIEW_AUDIT', 'ADMIN_SETTINGS', 'USER_VIEW', 'USER_CREATE', 'USER_EDIT', 'USER_DELETE', 'ROLE_VIEW', 'ROLE_MANAGE', 'VIEW_DOCTORS_LIST'],
+  ADMIN: [
+    'ADMIN_FULL_ACCESS', 'ADMIN_VIEW_AUDIT', 'ADMIN_SETTINGS', 'USER_VIEW', 'USER_CREATE', 'USER_EDIT', 'USER_DELETE', 'ROLE_VIEW', 'ROLE_MANAGE', 'VIEW_DOCTORS_LIST',
+    'quality:manage', 'cdss:manage', 'icu:manage', 'transfers:manage', 'clinical-profile:manage', 'discharge:manage', 'patients:manage', 'note-templates:manage', 'order-sets:manage', 'clinical-pathways:manage', 'claims:update'
+  ],
   DOCTOR: [
     'PATIENT_VIEW', 'PATIENT_EDIT', 'ENCOUNTER_VIEW', 'ENCOUNTER_CREATE', 'ENCOUNTER_CLOSE',
     'INPATIENT_VIEW_MY_PATIENTS', 'INPATIENT_VIEW_NOTES', 'INPATIENT_ADD_NOTE', 'INPATIENT_VIEW_CARE_PLAN',
     'INPATIENT_ADD_ORDER', 'INPATIENT_COMPLETE_ORDER', 'INPATIENT_VIEW_EXECUTIONS', 'INPATIENT_ADMIT', 'INPATIENT_DISCHARGE',
-    'APPOINTMENT_VIEW', 'VIEW_DOCTORS_LIST',
+    'APPOINTMENT_VIEW', 'VIEW_DOCTORS_LIST', 'cdss:view', 'cdss:manage', 'icu:view', 'icu:manage', 'transfers:view', 'transfers:manage', 'clinical-profile:view', 'clinical-profile:manage', 'discharge:view', 'discharge:manage', 'order-sets:view', 'clinical-pathways:view', 'terminology:view'
   ],
   NURSE: [
     'PATIENT_VIEW', 'INPATIENT_VIEW_ALL_PATIENTS', 'INPATIENT_VIEW_NOTES', 'INPATIENT_VIEW_CARE_PLAN',
     'INPATIENT_EXECUTE_ORDER', 'INPATIENT_VIEW_EXECUTIONS',
-    'NURSING_VIEW_STATION', 'NURSING_ADD_VITALS', 'NURSING_ADD_NOTE', 'NURSING_ADMINISTER_MED',
+    'NURSING_VIEW_STATION', 'NURSING_ADD_VITALS', 'NURSING_ADD_NOTE', 'NURSING_ADMINISTER_MED', 'icu:view', 'icu:manage', 'clinical-profile:view', 'transfers:view'
   ],
-  RECEPTION: ['PATIENT_VIEW', 'PATIENT_CREATE', 'PATIENT_EDIT', 'ENCOUNTER_CREATE', 'APPOINTMENT_VIEW', 'APPOINTMENT_CREATE', 'APPOINTMENT_CANCEL', 'APPOINTMENT_CHECKIN', 'VIEW_DOCTORS_LIST'],
-  CASHIER: ['PATIENT_VIEW', 'BILLING_VIEW', 'BILLING_CREATE', 'BILLING_DISCOUNT', 'PAYMENT_RECEIVE', 'VIEW_DOCTORS_LIST'],
-  PHARMACIST: ['PATIENT_VIEW', 'PHARMACY_VIEW', 'PHARMACY_DISPENSE', 'PHARMACY_STOCK'],
+  RECEPTION: ['PATIENT_VIEW', 'PATIENT_CREATE', 'PATIENT_EDIT', 'ENCOUNTER_CREATE', 'APPOINTMENT_VIEW', 'APPOINTMENT_CREATE', 'APPOINTMENT_CANCEL', 'APPOINTMENT_CHECKIN', 'VIEW_DOCTORS_LIST', 'patients:manage'],
+  CASHIER: ['PATIENT_VIEW', 'BILLING_VIEW', 'BILLING_CREATE', 'BILLING_DISCOUNT', 'PAYMENT_RECEIVE', 'VIEW_DOCTORS_LIST', 'claims:read', 'claims:create', 'claims:update'],
+  PHARMACIST: ['PATIENT_VIEW', 'PHARMACY_VIEW', 'PHARMACY_DISPENSE', 'PHARMACY_STOCK', 'cdss:view'],
   LAB_TECH: ['PATIENT_VIEW', 'LAB_VIEW', 'LAB_RESULT_ENTRY'],
   RADIOLOGY_TECH: ['PATIENT_VIEW', 'RADIOLOGY_VIEW', 'RADIOLOGY_REPORT'],
+  QUALITY_OFFICER: ['quality:view', 'quality:manage', 'cdss:view', 'clinical-pathways:view', 'order-sets:view', 'terminology:view'],
+  RCM_MANAGER: ['claims:read', 'claims:create', 'claims:update', 'BILLING_VIEW', 'PATIENT_VIEW'],
 };
 
 async function main() {
