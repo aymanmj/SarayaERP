@@ -19,7 +19,10 @@ describe('VisitsController', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [VisitsController],
       providers: [{ provide: VisitsService, useValue: visitsService }],
-    }).overrideGuard(PermissionsGuard).useValue({ canActivate: () => true }).compile();
+    })
+      .overrideGuard(PermissionsGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<VisitsController>(VisitsController);
   });

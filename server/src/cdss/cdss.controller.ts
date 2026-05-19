@@ -201,4 +201,3 @@ export class CDSSController {
     return this.cdssService.computePatientEGFR(user.hospitalId, patientId);
   }
 }
-

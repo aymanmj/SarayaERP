@@ -286,7 +286,9 @@ describe('CDSSService', () => {
       expect(result).toBeDefined();
       expect(result.egfr!.value).toBe(58.3); // Cockcroft-Gault
       expect(result.ckd!.stage).toBe('G3a'); // 45-59 = G3a
-      expect(result.ckd!.description).toContain('Mildly to moderately decreased');
+      expect(result.ckd!.description).toContain(
+        'Mildly to moderately decreased',
+      );
     });
 
     it('should compute eGFR for a female patient (0.85 multiplier)', async () => {

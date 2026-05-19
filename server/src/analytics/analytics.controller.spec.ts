@@ -17,7 +17,10 @@ describe('AnalyticsController', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AnalyticsController],
       providers: [{ provide: AnalyticsService, useValue: mockService }],
-    }).overrideGuard(PermissionsGuard).useValue({ canActivate: () => true }).compile();
+    })
+      .overrideGuard(PermissionsGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<AnalyticsController>(AnalyticsController);
     service = module.get<AnalyticsService>(AnalyticsService);

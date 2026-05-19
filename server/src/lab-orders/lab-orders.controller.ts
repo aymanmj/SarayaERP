@@ -62,4 +62,3 @@ export class LabOrdersGeneralController {
     return this.labOrdersService.getWorklist(user.hospitalId);
   }
 }
-

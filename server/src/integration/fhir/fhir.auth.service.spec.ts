@@ -19,6 +19,9 @@ describe('FhirAuthService', () => {
     patient: {
       findUnique: jest.fn(),
     },
+    patientOtp: {
+      count: jest.fn(),
+    },
   };
 
   const mockConfigService = {
@@ -72,90 +75,70 @@ describe('FhirAuthService', () => {
       );
     }
 
-    it('should allow exact scope match', () => {
+    it('should allow exact scope match', async () => {
       const token = tokenWith('patient/Patient.read');
-      const result = service.validateToken(token, 'patient/Patient.read');
+      const result = await service.validateToken(token, 'patient/Patient.read');
       expect(result.scope).toBe('patient/Patient.read');
     });
 
-    it('should allow wildcard resource read: patient/*.read → patient/Patient.read', () => {
+    it('should allow wildcard resource read: patient/*.read → patient/Patient.read', async () => {
       const token = tokenWith('patient/*.read');
-      expect(() =>
-        service.validateToken(token, 'patient/Patient.read'),
-      ).not.toThrow();
+      await service.validateToken(token, 'patient/Patient.read');
     });
 
-    it('should allow wildcard resource write: patient/*.write → patient/Observation.write', () => {
+    it('should allow wildcard resource write: patient/*.write → patient/Observation.write', async () => {
       const token = tokenWith('patient/*.write');
-      expect(() =>
-        service.validateToken(token, 'patient/Observation.write'),
-      ).not.toThrow();
+      await service.validateToken(token, 'patient/Observation.write');
     });
 
-    it('should allow wildcard all: patient/*.* → patient/Condition.read', () => {
+    it('should allow wildcard all: patient/*.* → patient/Condition.read', async () => {
       const token = tokenWith('patient/*.*');
-      expect(() =>
-        service.validateToken(token, 'patient/Condition.read'),
-      ).not.toThrow();
-      expect(() =>
-        service.validateToken(token, 'patient/Observation.write'),
-      ).not.toThrow();
+      await service.validateToken(token, 'patient/Condition.read');
+      await service.validateToken(token, 'patient/Observation.write');
     });
 
-    it('should allow user/*.read to satisfy patient/*.read (user covers patient)', () => {
+    it('should allow user/*.read to satisfy patient/*.read (user covers patient)', async () => {
       const token = tokenWith('user/*.read');
-      expect(() =>
-        service.validateToken(token, 'patient/Patient.read'),
-      ).not.toThrow();
+      await service.validateToken(token, 'patient/Patient.read');
     });
 
-    it('should allow system/*.* to satisfy any scope', () => {
+    it('should allow system/*.* to satisfy any scope', async () => {
       const token = tokenWith('system/*.*');
-      expect(() =>
-        service.validateToken(token, 'patient/Patient.read'),
-      ).not.toThrow();
-      expect(() =>
-        service.validateToken(token, 'system/Subscription.write'),
-      ).not.toThrow();
+      await service.validateToken(token, 'patient/Patient.read');
+      await service.validateToken(token, 'system/Subscription.write');
     });
 
-    it('should REJECT: patient/*.read does NOT grant write access', () => {
+    it('should REJECT: patient/*.read does NOT grant write access', async () => {
       const token = tokenWith('patient/*.read');
-      expect(() =>
+      await expect(
         service.validateToken(token, 'patient/Observation.write'),
-      ).toThrow(UnauthorizedException);
+      ).rejects.toThrow(UnauthorizedException);
     });
 
-    it('should REJECT: patient/Patient.read does NOT grant Observation.read', () => {
+    it('should REJECT: patient/Patient.read does NOT grant Observation.read', async () => {
       const token = tokenWith('patient/Patient.read');
-      expect(() =>
+      await expect(
         service.validateToken(token, 'patient/Observation.read'),
-      ).toThrow(UnauthorizedException);
+      ).rejects.toThrow(UnauthorizedException);
     });
 
-    it('should REJECT: patient/ prefix cannot satisfy system/ requests', () => {
+    it('should REJECT: patient/ prefix cannot satisfy system/ requests', async () => {
       const token = tokenWith('patient/*.read');
-      expect(() =>
+      await expect(
         service.validateToken(token, 'system/Subscription.read'),
-      ).toThrow(UnauthorizedException);
+      ).rejects.toThrow(UnauthorizedException);
     });
 
-    it('should handle multiple scopes in a single token', () => {
+    it('should handle multiple scopes in a single token', async () => {
       const token = tokenWith(
         'patient/Patient.read patient/Observation.write system/Subscription.read',
       );
-      expect(() =>
-        service.validateToken(token, 'patient/Patient.read'),
-      ).not.toThrow();
-      expect(() =>
-        service.validateToken(token, 'patient/Observation.write'),
-      ).not.toThrow();
-      expect(() =>
-        service.validateToken(token, 'system/Subscription.read'),
-      ).not.toThrow();
-      expect(() =>
+      await service.validateToken(token, 'patient/Patient.read');
+      await service.validateToken(token, 'patient/Observation.write');
+      await service.validateToken(token, 'system/Subscription.read');
+      await expect(
         service.validateToken(token, 'patient/Condition.read'),
-      ).toThrow(UnauthorizedException);
+      ).rejects.toThrow(UnauthorizedException);
     });
   });
 
@@ -386,37 +369,101 @@ describe('FhirAuthService', () => {
   // TOKEN VALIDATION
   // ===========================================
   describe('Token Validation', () => {
-    it('should reject expired tokens', () => {
+    it('should reject expired tokens', async () => {
       const token = realJwtService.sign(
         { sub: 'test', scope: 'patient/*.read' },
         { secret: 'test-secret-key', expiresIn: '0s' },
       );
 
-      // Small delay to ensure token expires
-      expect(() => service.validateToken(token, 'patient/*.read')).toThrow(
-        UnauthorizedException,
-      );
+      await expect(
+        service.validateToken(token, 'patient/*.read'),
+      ).rejects.toThrow(UnauthorizedException);
     });
 
-    it('should reject tokens with wrong secret', () => {
+    it('should reject tokens with wrong secret', async () => {
       const token = new JwtService({ secret: 'wrong-secret' }).sign(
         { sub: 'test', scope: 'patient/*.read' },
         { expiresIn: '1h' },
       );
 
-      expect(() => service.validateToken(token, 'patient/*.read')).toThrow(
-        UnauthorizedException,
-      );
+      await expect(
+        service.validateToken(token, 'patient/*.read'),
+      ).rejects.toThrow(UnauthorizedException);
     });
 
-    it('should pass validation without requiredScope (token is valid)', () => {
+    it('should pass validation without requiredScope (token is valid)', async () => {
       const token = realJwtService.sign(
         { sub: 'test', scope: 'patient/*.read' },
         { secret: 'test-secret-key', expiresIn: '1h' },
       );
 
-      const result = service.validateToken(token);
+      const result = await service.validateToken(token);
       expect(result.sub).toBe('test');
+    });
+
+    it('should REJECT mpi_consent token if blacklisted in Redis', async () => {
+      const token = realJwtService.sign(
+        {
+          sub: '123',
+          type: 'mpi_consent',
+          patient: '123',
+          scope: 'patient/*.read',
+          client_id: 'org_456',
+        },
+        { secret: 'test-secret-key', expiresIn: '1h' },
+      );
+
+      mockRedisClient.get.mockImplementation(async (key: string) => {
+        if (key.includes('blacklist:patient:consent:123')) return 'true';
+        return null;
+      });
+
+      await expect(service.validateToken(token)).rejects.toThrow(
+        UnauthorizedException,
+      );
+    });
+
+    it('should REJECT mpi_consent token if database fallback has no verified OTP', async () => {
+      const token = realJwtService.sign(
+        {
+          sub: '123',
+          type: 'mpi_consent',
+          patient: '123',
+          scope: 'patient/*.read',
+          client_id: 'org_456',
+        },
+        { secret: 'test-secret-key', expiresIn: '1h' },
+      );
+
+      mockRedisClient.get.mockRejectedValue(
+        new Error('Redis connection error'),
+      );
+      mockPrisma.patientOtp.count.mockResolvedValue(0);
+
+      await expect(service.validateToken(token)).rejects.toThrow(
+        UnauthorizedException,
+      );
+    });
+
+    it('should ACCEPT mpi_consent token if database fallback has a verified OTP', async () => {
+      const token = realJwtService.sign(
+        {
+          sub: '123',
+          type: 'mpi_consent',
+          patient: '123',
+          scope: 'patient/*.read',
+          client_id: 'org_456',
+        },
+        { secret: 'test-secret-key', expiresIn: '1h' },
+      );
+
+      mockRedisClient.get.mockRejectedValue(
+        new Error('Redis connection error'),
+      );
+      mockPrisma.patientOtp.count.mockResolvedValue(1);
+
+      const result = await service.validateToken(token);
+      expect(result.patient).toBe('123');
     });
   });
 });

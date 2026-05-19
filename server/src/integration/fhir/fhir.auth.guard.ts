@@ -54,7 +54,7 @@ export class FhirAuthGuard implements CanActivate {
     private reflector: Reflector,
   ) {}
 
-  canActivate(context: ExecutionContext): boolean {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<Request>();
     const requiredScope = this.reflector.get<string>(
       'fhir_scope',
@@ -81,15 +81,18 @@ export class FhirAuthGuard implements CanActivate {
     const token = authHeader.split(' ')[1];
 
     // Validate token and scopes — throws if invalid
-    const decoded = this.fhirAuthService.validateToken(token, requiredScope);
+    const decoded = (await this.fhirAuthService.validateToken(
+      token,
+      requiredScope,
+    )) as Record<string, any>;
 
     // Inject the full SMART context into the request
     // Controllers MUST use this to enforce patient-level data isolation
     (request as FhirRequest).smartContext = {
-      patient: decoded.patient, // undefined means system-level (no patient restriction)
-      scope: decoded.scope || '',
-      client_id: decoded.client_id || decoded.sub,
-      sub: decoded.sub,
+      patient: decoded.patient as string | undefined, // undefined means system-level (no patient restriction)
+      scope: (decoded.scope as string) || '',
+      client_id: (decoded.client_id as string) || (decoded.sub as string),
+      sub: decoded.sub as string,
     };
 
     return true;

@@ -24,7 +24,10 @@ describe('QualityController', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [QualityController],
       providers: [{ provide: QualityService, useValue: mockService }],
-    }).overrideGuard(PermissionsGuard).useValue({ canActivate: () => true }).compile();
+    })
+      .overrideGuard(PermissionsGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<QualityController>(QualityController);
     service = module.get<QualityService>(QualityService);

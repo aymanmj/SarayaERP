@@ -4,7 +4,6 @@ import {
   Post,
   Param,
   Body,
-  Query,
   UseGuards,
   ParseIntPipe,
   Logger,
@@ -14,6 +13,8 @@ import { NphiesClaimService } from './nphies-claim.service';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { Permissions } from '../../auth/permissions.decorator';
 import { PermissionsGuard } from '../../auth/permissions.guard';
+import { CurrentUser } from '../../auth/current-user.decorator';
+import type { JwtPayload } from '../../auth/jwt-payload.type';
 
 /**
  * واجهة تحكم تكامل NPHIES
@@ -44,6 +45,7 @@ export class NphiesController {
   @Post('eligibility/check')
   @Permissions('NPHIES_SUBMIT_CLAIM')
   async checkEligibility(
+    @CurrentUser() user: JwtPayload,
     @Body()
     data: {
       patient: {
@@ -62,6 +64,7 @@ export class NphiesController {
     },
   ) {
     return this.eligibilityService.checkEligibility(
+      user.hospitalId,
       {
         ...data.patient,
         dateOfBirth: data.patient.dateOfBirth
@@ -81,8 +84,11 @@ export class NphiesController {
    */
   @Post('claims/:claimId/submit')
   @Permissions('claims:update')
-  async submitClaim(@Param('claimId', ParseIntPipe) claimId: number) {
-    return this.claimService.submitClaim(claimId);
+  async submitClaim(
+    @Param('claimId', ParseIntPipe) claimId: number,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.claimService.submitClaim(user.hospitalId, claimId);
   }
 
   /**
@@ -90,8 +96,11 @@ export class NphiesController {
    */
   @Get('claims/:externalId/status')
   @Permissions('claims:read')
-  async checkClaimStatus(@Param('externalId') externalId: string) {
-    return this.claimService.checkClaimStatus(externalId);
+  async checkClaimStatus(
+    @Param('externalId') externalId: string,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.claimService.checkClaimStatus(user.hospitalId, externalId);
   }
 
   // ============================================
@@ -104,6 +113,7 @@ export class NphiesController {
   @Post('preauth/submit')
   @Permissions('claims:create')
   async submitPreAuthorization(
+    @CurrentUser() user: JwtPayload,
     @Body()
     data: {
       patient: {
@@ -137,6 +147,7 @@ export class NphiesController {
     },
   ) {
     return this.claimService.submitPreAuthorization(
+      user.hospitalId,
       {
         ...data.patient,
         dateOfBirth: data.patient.dateOfBirth

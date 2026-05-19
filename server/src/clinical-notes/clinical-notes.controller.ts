@@ -26,12 +26,19 @@ export class ClinicalNotesController {
     @CurrentUser() user: any,
     @Body() createClinicalNoteDto: CreateClinicalNoteDto,
   ) {
-    return this.clinicalNotesService.create(user.sub, user.hospitalId, createClinicalNoteDto);
+    return this.clinicalNotesService.create(
+      user.sub,
+      user.hospitalId,
+      createClinicalNoteDto,
+    );
   }
 
   @Permissions('clinical-notes:view')
   @Get('encounter/:id')
-  findAllByEncounter(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: any) {
+  findAllByEncounter(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: any,
+  ) {
     return this.clinicalNotesService.findAllByEncounter(id, user.hospitalId);
   }
 

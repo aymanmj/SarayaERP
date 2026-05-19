@@ -55,4 +55,3 @@ export class VisitsController {
     return this.visitsService.listForEncounter(encId);
   }
 }
-

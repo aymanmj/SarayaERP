@@ -21,10 +21,7 @@ export class DeliveryController {
 
   @Permissions('obgyn:manage')
   @Post()
-  async create(
-    @Body() dto: CreateDeliveryDto,
-    @CurrentUser() user: any,
-  ) {
+  async create(@Body() dto: CreateDeliveryDto, @CurrentUser() user: any) {
     return this.deliveryService.create(dto, user.sub);
   }
 
@@ -37,4 +34,3 @@ export class DeliveryController {
     return this.deliveryService.findAllByPatient(patientId);
   }
 }
-

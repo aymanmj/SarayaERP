@@ -64,4 +64,3 @@ export class DiagnosisController {
     return this.diagnosisService.removeEncounterDiagnosis(id);
   }
 }
-

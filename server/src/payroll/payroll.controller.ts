@@ -16,7 +16,8 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/permissions.guard';
 import { Permissions } from '../auth/permissions.decorator';
 @UseGuards(JwtAuthGuard, PermissionsGuard)
-@Controller('payroll')export class PayrollController {
+@Controller('payroll')
+export class PayrollController {
   constructor(private readonly payrollService: PayrollService) {}
 
   @Post('generate')

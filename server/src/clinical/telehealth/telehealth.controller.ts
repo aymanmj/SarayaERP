@@ -5,12 +5,14 @@ import {
   Param,
   UseGuards,
   ParseIntPipe,
-  Req,
+  ForbiddenException,
 } from '@nestjs/common';
 import { TelehealthService } from './telehealth.service';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../auth/permissions.guard';
 import { Permissions } from '../../auth/permissions.decorator';
+import { CurrentUser } from '../../auth/current-user.decorator';
+import type { JwtPayload } from '../../auth/jwt-payload.type';
 
 @Controller('clinical/telehealth')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -21,28 +23,44 @@ export class TelehealthController {
   @Permissions('telehealth:manage')
   async createSession(
     @Param('appointmentId', ParseIntPipe) appointmentId: number,
+    @CurrentUser() user: JwtPayload,
   ) {
-    return this.telehealthService.createSession(appointmentId);
+    return this.telehealthService.createSession(user.hospitalId, appointmentId);
   }
 
   @Post('session/:appointmentId/waiting-room')
   @Permissions('appointments:view') // Patient permission
   async enterWaitingRoom(
     @Param('appointmentId', ParseIntPipe) appointmentId: number,
-    @Req() req: any,
+    @CurrentUser() user: JwtPayload,
   ) {
-    const patientId = req.user.patientId; // Assuming user has a linked patient profile
-    return this.telehealthService.enterWaitingRoom(appointmentId, patientId);
+    const patientId = user.patientId;
+    if (!patientId) {
+      throw new ForbiddenException(
+        'User is not associated with a patient profile',
+      );
+    }
+    return this.telehealthService.enterWaitingRoom(
+      user.hospitalId,
+      appointmentId,
+      patientId,
+    );
   }
 
   @Get('session/:appointmentId/patient-access')
   @Permissions('appointments:view') // Patient permission
   async getPatientAccess(
     @Param('appointmentId', ParseIntPipe) appointmentId: number,
-    @Req() req: any,
+    @CurrentUser() user: JwtPayload,
   ) {
-    const patientId = req.user.patientId;
+    const patientId = user.patientId;
+    if (!patientId) {
+      throw new ForbiddenException(
+        'User is not associated with a patient profile',
+      );
+    }
     return this.telehealthService.getPatientRoomAccess(
+      user.hospitalId,
       appointmentId,
       patientId,
     );
@@ -52,9 +70,13 @@ export class TelehealthController {
   @Permissions('telehealth:start') // Doctor permission
   async startSession(
     @Param('appointmentId', ParseIntPipe) appointmentId: number,
-    @Req() req: any,
+    @CurrentUser() user: JwtPayload,
   ) {
-    const doctorId = req.user.id;
-    return this.telehealthService.startSession(appointmentId, doctorId);
+    const doctorId = user.sub;
+    return this.telehealthService.startSession(
+      user.hospitalId,
+      appointmentId,
+      doctorId,
+    );
   }
 }

@@ -9,8 +9,9 @@ import {
   Logger,
   NotFoundException,
   BadRequestException,
-  ForbiddenException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import Redis from 'ioredis';
 import { PrismaService } from '../prisma/prisma.service';
 import { IncidentStatus, CapaStatus, IncidentSeverity } from '@prisma/client';
 import {
@@ -26,20 +27,63 @@ import {
 @Injectable()
 export class QualityService {
   private readonly logger = new Logger(QualityService.name);
+  private redisClient: Redis;
 
   constructor(
     private prisma: PrismaService,
     private eventEmitter: EventEmitter2,
-  ) {}
+    private configService: ConfigService,
+  ) {
+    const host = this.configService.get<string>('REDIS_HOST') || 'localhost';
+    const port = this.configService.get<number>('REDIS_PORT') || 6379;
+    const password = this.configService.get<string>('REDIS_PASSWORD');
+    this.redisClient = new Redis({
+      host,
+      port,
+      password,
+      maxRetriesPerRequest: 1,
+    });
+    this.redisClient.on('error', (err) => {
+      this.logger.error('Redis connection error in QualityService:', err);
+    });
+  }
 
   // ======================== Incident Number Generator ========================
 
   private async generateIncidentNumber(hospitalId: number): Promise<string> {
     const year = new Date().getFullYear();
-    const count = await this.prisma.clinicalIncident.count({
-      where: { hospitalId },
-    });
-    const seq = String(count + 1).padStart(4, '0');
+    const key = `quality:incident_counter:${hospitalId}`;
+    let nextSeq: number;
+
+    try {
+      const dbCount = await this.prisma.clinicalIncident.count({
+        where: { hospitalId },
+      });
+
+      const luaScript = `
+        local key = KEYS[1]
+        local dbCount = tonumber(ARGV[1])
+        local exists = redis.call('EXISTS', key)
+        if exists == 0 then
+          redis.call('SET', key, dbCount)
+        end
+        return redis.call('INCR', key)
+      `;
+
+      const result = await this.redisClient.eval(luaScript, 1, key, dbCount);
+      nextSeq = Number(result);
+    } catch (err) {
+      this.logger.error(
+        `Redis incident counter error, falling back to database:`,
+        err,
+      );
+      const count = await this.prisma.clinicalIncident.count({
+        where: { hospitalId },
+      });
+      nextSeq = count + 1;
+    }
+
+    const seq = String(nextSeq).padStart(4, '0');
     return `INC-${year}-${seq}`;
   }
 
@@ -183,7 +227,7 @@ export class QualityService {
   // ======================== 5. Close Incident ========================
 
   async closeIncident(hospitalId: number, id: number, userId: number) {
-    const incident = await this.findOne(hospitalId, id);
+    await this.findOne(hospitalId, id);
 
     // التحقق: يجب أن تكون جميع CAPA مكتملة ومتحققة
     const openCapas = await this.prisma.capaAction.count({
@@ -327,7 +371,6 @@ export class QualityService {
     hospitalId: number,
     capaId: number,
     dto: UpdateCapaDto,
-    userId: number,
   ) {
     const capa = await this.prisma.capaAction.findFirst({
       where: {

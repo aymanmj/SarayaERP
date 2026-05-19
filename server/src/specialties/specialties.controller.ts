@@ -38,4 +38,3 @@ export class SpecialtiesController {
     return this.specialtiesService.update(id, body);
   }
 }
-

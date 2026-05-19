@@ -9,9 +9,30 @@ import {
 import * as bcrypt from 'bcrypt';
 import * as jwt from 'jsonwebtoken';
 import { OutboundQueueService } from '../integration/outbound-queue.service';
+import { ConfigService } from '@nestjs/config';
+
+jest.mock('ioredis', () => {
+  return jest.fn().mockImplementation(() => {
+    return {
+      on: jest.fn(),
+      set: jest.fn().mockResolvedValue('OK'),
+      setex: jest.fn().mockResolvedValue('OK'),
+      get: jest.fn().mockResolvedValue(null),
+      del: jest.fn().mockResolvedValue(1),
+    };
+  });
+});
 
 describe('MpiService', () => {
   let service: MpiService;
+
+  const mockConfigService = {
+    get: jest.fn().mockImplementation((key: string) => {
+      if (key === 'REDIS_HOST') return 'localhost';
+      if (key === 'REDIS_PORT') return 6379;
+      return null;
+    }),
+  };
 
   const mockPrisma = {
     orgSetting: { findUnique: jest.fn() },
@@ -35,6 +56,7 @@ describe('MpiService', () => {
         MpiService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: OutboundQueueService, useValue: mockOutboundQueueService },
+        { provide: ConfigService, useValue: mockConfigService },
       ],
     }).compile();
 
@@ -339,7 +361,9 @@ describe('MpiService', () => {
       // Add missing mock methods for revocation
       (mockPrisma as any).patientOtp.updateMany = jest.fn();
       (mockPrisma as any).auditLog = { create: jest.fn(), findMany: jest.fn() };
-      (mockPrisma as any).$transaction = jest.fn(async (fn: any) => fn(mockPrisma));
+      (mockPrisma as any).$transaction = jest.fn(async (fn: any) =>
+        fn(mockPrisma),
+      );
     });
 
     it('should throw NotFoundException when patient does not exist', async () => {
@@ -409,7 +433,8 @@ describe('MpiService', () => {
       expect(result).toBeDefined();
 
       // Verify OTP filter included requestingOrganizationId
-      const updateCall = (mockPrisma as any).patientOtp.updateMany.mock.calls[0][0];
+      const updateCall = (mockPrisma as any).patientOtp.updateMany.mock
+        .calls[0][0];
       expect(updateCall.where.requestingOrganizationId).toBe(5);
     });
   });
@@ -420,7 +445,9 @@ describe('MpiService', () => {
   describe('getConsentAuditTrail', () => {
     beforeEach(() => {
       (mockPrisma as any).auditLog = { create: jest.fn(), findMany: jest.fn() };
-      (mockPrisma as any).patient.findFirst = jest.fn().mockResolvedValue({ id: 1, hospitalId: 1 });
+      (mockPrisma as any).patient.findFirst = jest
+        .fn()
+        .mockResolvedValue({ id: 1, hospitalId: 1 });
     });
 
     it('should return combined consent requests and revocations', async () => {
@@ -454,7 +481,9 @@ describe('MpiService', () => {
       expect(result.consentRequests).toHaveLength(1);
       expect(result.consentRequests[0].status).toBe('GRANTED');
       expect(result.revocations).toHaveLength(1);
-      expect((result.revocations[0].details as any)?.reason).toBe('Patient withdrawal');
+      expect((result.revocations[0].details as any)?.reason).toBe(
+        'Patient withdrawal',
+      );
     });
 
     it('should classify expired OTP as EXPIRED status', async () => {

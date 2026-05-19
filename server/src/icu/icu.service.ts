@@ -269,11 +269,19 @@ export class IcuService {
     const intakeByType: Record<string, number> = {};
     const outputByType: Record<string, number> = {};
     // Hourly trend data
-    const hourlyTrend: { hour: number; intake: number; output: number; balance: number }[] = [];
+    const hourlyTrend: {
+      hour: number;
+      intake: number;
+      output: number;
+      balance: number;
+    }[] = [];
     const hourlyMap = new Map<number, { intake: number; output: number }>();
 
     // Per-shift breakdown
-    const shiftSummary: Record<string, { intake: number; output: number; balance: number }> = {};
+    const shiftSummary: Record<
+      string,
+      { intake: number; output: number; balance: number }
+    > = {};
 
     flowsheets.forEach((f) => {
       const shiftKey = f.shiftName || 'UNKNOWN';
@@ -331,11 +339,16 @@ export class IcuService {
       totalIntake,
       totalOutput,
       balance,
-      status: balance > 1000 ? 'POSITIVE_OVERLOAD' :
-              balance > 500 ? 'POSITIVE_HIGH' :
-              balance > 0 ? 'POSITIVE' :
-              balance > -500 ? 'NEGATIVE' :
-              'NEGATIVE_DEHYDRATION',
+      status:
+        balance > 1000
+          ? 'POSITIVE_OVERLOAD'
+          : balance > 500
+            ? 'POSITIVE_HIGH'
+            : balance > 0
+              ? 'POSITIVE'
+              : balance > -500
+                ? 'NEGATIVE'
+                : 'NEGATIVE_DEHYDRATION',
       intakeByType,
       outputByType,
       shiftSummary,
@@ -351,7 +364,13 @@ export class IcuService {
     encounterId: number,
     days: number = 7,
   ) {
-    const results: { date: string; intake: number; output: number; balance: number; status: string }[] = [];
+    const results: {
+      date: string;
+      intake: number;
+      output: number;
+      balance: number;
+      status: string;
+    }[] = [];
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -379,9 +398,12 @@ export class IcuService {
       days: results,
       cumulativeBalance,
       avgDailyBalance: Math.round(cumulativeBalance / days),
-      trend: cumulativeBalance > 2000 ? 'FLUID_OVERLOAD_RISK' :
-             cumulativeBalance < -2000 ? 'DEHYDRATION_RISK' :
-             'STABLE',
+      trend:
+        cumulativeBalance > 2000
+          ? 'FLUID_OVERLOAD_RISK'
+          : cumulativeBalance < -2000
+            ? 'DEHYDRATION_RISK'
+            : 'STABLE',
     };
   }
 
@@ -397,20 +419,20 @@ export class IcuService {
     userId: number,
     dto: {
       encounterId: number;
-      mode: string;          // AC, SIMV, PSV, CPAP, BiPAP, PRVC, HFOV
-      fio2: number;          // 0.21 - 1.0
-      peep: number;          // cmH2O (typically 5-20)
-      tidalVolume?: number;  // mL (typically 300-600)
-      respiratoryRate?: number;  // breaths/min
-      inspiratoryPressure?: number;  // cmH2O
-      pressureSupport?: number;      // cmH2O
-      ieRatio?: string;              // e.g., "1:2", "1:3"
-      plateauPressure?: number;      // cmH2O (target < 30)
-      drivingPressure?: number;      // cmH2O (target < 15)
-      peakPressure?: number;         // cmH2O
-      compliance?: number;           // mL/cmH2O
-      etco2?: number;                // mmHg
-      spo2?: number;                 // %
+      mode: string; // AC, SIMV, PSV, CPAP, BiPAP, PRVC, HFOV
+      fio2: number; // 0.21 - 1.0
+      peep: number; // cmH2O (typically 5-20)
+      tidalVolume?: number; // mL (typically 300-600)
+      respiratoryRate?: number; // breaths/min
+      inspiratoryPressure?: number; // cmH2O
+      pressureSupport?: number; // cmH2O
+      ieRatio?: string; // e.g., "1:2", "1:3"
+      plateauPressure?: number; // cmH2O (target < 30)
+      drivingPressure?: number; // cmH2O (target < 15)
+      peakPressure?: number; // cmH2O
+      compliance?: number; // mL/cmH2O
+      etco2?: number; // mmHg
+      spo2?: number; // %
       notes?: string;
     },
   ) {
@@ -450,7 +472,8 @@ export class IcuService {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const currentHour = new Date().getHours();
-    const shiftName = currentHour < 8 ? 'NIGHT' : currentHour < 16 ? 'MORNING' : 'EVENING';
+    const shiftName =
+      currentHour < 8 ? 'NIGHT' : currentHour < 16 ? 'MORNING' : 'EVENING';
 
     const flowsheet = await this.prisma.iCUFlowsheet.upsert({
       where: {
@@ -492,13 +515,17 @@ export class IcuService {
     // Safety alerts
     const alerts: string[] = [];
     if (dto.plateauPressure && dto.plateauPressure > 30) {
-      alerts.push(`⚠️ Plateau Pressure ${dto.plateauPressure} cmH2O exceeds safe limit (>30)`);
+      alerts.push(
+        `⚠️ Plateau Pressure ${dto.plateauPressure} cmH2O exceeds safe limit (>30)`,
+      );
     }
     if (dto.fio2 > 0.6) {
       alerts.push(`⚠️ FiO2 ${dto.fio2 * 100}% - consider oxygen toxicity risk`);
     }
     if (dto.tidalVolume && dto.tidalVolume > 8) {
-      alerts.push(`⚠️ Tidal Volume ${dto.tidalVolume} mL/kg - lung-protective target is ≤6-8 mL/kg IBW`);
+      alerts.push(
+        `⚠️ Tidal Volume ${dto.tidalVolume} mL/kg - lung-protective target is ≤6-8 mL/kg IBW`,
+      );
     }
 
     return { entry, ventUsage, alerts };
@@ -529,9 +556,7 @@ export class IcuService {
       const criteria = {
         fio2Below40: latest.fio2 ? Number(latest.fio2) <= 0.4 : false,
         peepBelow8: latest.peep ? Number(latest.peep) <= 8 : false,
-        pipBelow20: latest.pip
-          ? Number(latest.pip) <= 20
-          : true,
+        pipBelow20: latest.pip ? Number(latest.pip) <= 20 : true,
         adequateOxygenation: true, // Would check SpO2 > 92%
       };
 
@@ -542,9 +567,10 @@ export class IcuService {
         score: criteriaMetCount,
         total: Object.keys(criteria).length,
         eligible: criteriaMetCount === Object.keys(criteria).length,
-        recommendation: criteriaMetCount === Object.keys(criteria).length
-          ? 'مؤهل لتجربة التنفس التلقائي (SBT)'
-          : 'غير مستعد للفطام - يجب تحسين المعايير أولاً',
+        recommendation:
+          criteriaMetCount === Object.keys(criteria).length
+            ? 'مؤهل لتجربة التنفس التلقائي (SBT)'
+            : 'غير مستعد للفطام - يجب تحسين المعايير أولاً',
       };
     }
 

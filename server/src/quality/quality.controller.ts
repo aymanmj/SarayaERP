@@ -120,12 +120,7 @@ export class QualityController {
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateCapaDto,
   ) {
-    return this.qualityService.updateCapaAction(
-      user.hospitalId,
-      id,
-      dto,
-      user.sub,
-    );
+    return this.qualityService.updateCapaAction(user.hospitalId, id, dto);
   }
 
   @Patch('capa/:id/verify')

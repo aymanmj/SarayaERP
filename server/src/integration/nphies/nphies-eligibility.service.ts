@@ -1,6 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { NphiesAuthService } from './nphies-auth.service';
 import { NphiesService } from './nphies.service';
+import { PrismaService } from '../../prisma/prisma.service';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
@@ -21,6 +22,7 @@ export class NphiesEligibilityService {
   constructor(
     private authService: NphiesAuthService,
     private nphiesService: NphiesService,
+    private prisma: PrismaService,
   ) {}
 
   /**
@@ -31,6 +33,7 @@ export class NphiesEligibilityService {
    * @returns نتيجة التحقق مع التغطيات المتاحة
    */
   async checkEligibility(
+    hospitalId: number,
     patient: {
       id: string;
       fullName: string;
@@ -45,6 +48,18 @@ export class NphiesEligibilityService {
       payerName: string;
     },
   ): Promise<NphiesEligibilityResponse> {
+    if (patient.id) {
+      const patientIdInt = parseInt(patient.id, 10);
+      if (!isNaN(patientIdInt)) {
+        const localPatient = await this.prisma.patient.findFirst({
+          where: { id: patientIdInt, hospitalId },
+        });
+        if (!localPatient) {
+          throw new NotFoundException('المريض غير موجود في هذه المنشأة');
+        }
+      }
+    }
+
     const patientId = uuidv4();
     const coverageId = uuidv4();
     const requestId = uuidv4();

@@ -36,7 +36,10 @@ describe('BillingController', () => {
           useValue: createPrismaMock(),
         },
       ],
-    }).overrideGuard(PermissionsGuard).useValue({ canActivate: () => true }).compile();
+    })
+      .overrideGuard(PermissionsGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<BillingController>(BillingController);
   });

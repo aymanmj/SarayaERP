@@ -24,7 +24,10 @@ describe('FinancialYearsController', () => {
           },
         },
       ],
-    }).overrideGuard(PermissionsGuard).useValue({ canActivate: () => true }).compile();
+    })
+      .overrideGuard(PermissionsGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<FinancialYearsController>(FinancialYearsController);
   });

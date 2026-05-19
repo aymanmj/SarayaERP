@@ -325,13 +325,29 @@ export class FhirAuthService implements OnModuleInit, OnModuleDestroy {
    *
    * @returns Decoded JWT payload with scope and patient context
    */
-  validateToken(token: string, requiredScope?: string) {
+  async validateToken(token: string, requiredScope?: string) {
     const jwtSecret =
       this.config.get<string>('JWT_SECRET') ||
       'fhir-super-secret-key-enterprise';
 
     try {
       const decoded = this.jwtService.verify(token, { secret: jwtSecret });
+
+      // Check if it is an MPI consent token and verify it against the blacklist
+      if (decoded && decoded.type === 'mpi_consent' && decoded.patient) {
+        const patientId = parseInt(decoded.patient);
+        const orgId = decoded.client_id?.startsWith('org_')
+          ? parseInt(decoded.client_id.replace('org_', ''))
+          : undefined;
+
+        const isBlacklisted = await this.isPatientConsentBlacklisted(
+          patientId,
+          orgId,
+        );
+        if (isBlacklisted) {
+          throw new UnauthorizedException('Patient consent has been revoked');
+        }
+      }
 
       if (requiredScope) {
         const grantedScopes: string[] = (decoded.scope || '')
@@ -350,6 +366,45 @@ export class FhirAuthService implements OnModuleInit, OnModuleDestroy {
       if (e instanceof UnauthorizedException) throw e;
       throw new UnauthorizedException(e.message || 'Invalid FHIR JWT Token');
     }
+  }
+
+  /**
+   * Checks if a patient's consent token has been blacklisted in Redis (instant revocation)
+   * or falls back to verifying active consent records in the database.
+   */
+  async isPatientConsentBlacklisted(
+    patientId: number,
+    orgId?: number,
+  ): Promise<boolean> {
+    try {
+      const globalBlacklist = await this.redisClient.get(
+        `blacklist:patient:consent:${patientId}`,
+      );
+      if (globalBlacklist === 'true') return true;
+
+      if (orgId) {
+        const orgBlacklist = await this.redisClient.get(
+          `blacklist:patient:consent:${patientId}:org:${orgId}`,
+        );
+        if (orgBlacklist === 'true') return true;
+      }
+    } catch (redisErr) {
+      this.logger.error(
+        'Redis blacklist check failed, falling back to database verification:',
+        redisErr,
+      );
+
+      // Fallback: Check if there is any active verified OTP for this patient (and org)
+      const validConsentCount = await this.prisma.patientOtp.count({
+        where: {
+          patientId,
+          verified: true,
+          ...(orgId ? { requestingOrganizationId: orgId } : {}),
+        },
+      });
+      return validConsentCount === 0;
+    }
+    return false;
   }
 
   /**

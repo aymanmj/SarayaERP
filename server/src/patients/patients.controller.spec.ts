@@ -47,7 +47,10 @@ describe('PatientsController', () => {
           useValue: { canActivate: jest.fn().mockResolvedValue(true) },
         },
       ],
-    }).overrideGuard(PermissionsGuard).useValue({ canActivate: () => true }).compile();
+    })
+      .overrideGuard(PermissionsGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<PatientsController>(PatientsController);
   });

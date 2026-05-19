@@ -22,7 +22,10 @@ describe('DischargeSummaryController', () => {
           useValue: mockDischargeSummaryService,
         },
       ],
-    }).overrideGuard(PermissionsGuard).useValue({ canActivate: () => true }).compile();
+    })
+      .overrideGuard(PermissionsGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<DischargeSummaryController>(
       DischargeSummaryController,

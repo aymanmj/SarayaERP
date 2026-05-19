@@ -24,6 +24,12 @@ const EXEMPT_CONTROLLERS = [
   'CdsHooksController',         // CDS Hooks FHIR standard — external integration
   'FhirController',             // FHIR R4 standard — separate auth model
   'PortalTelegramController',   // Telegram webhook — called by Telegram API (no JWT)
+  'BackupController',           // System administration — database backups (system-wide)
+  'ComplianceController',       // System compliance — audit logs (global system audits)
+  'CronController',             // System infrastructure — background cron triggers
+  'LicenseController',          // Enterprise licensing (installation-wide license key)
+  'SpecialtiesController',       // Global clinical lookup — medical specialties
+  'TerminologyController',      // Global clinical lookup — terminology dictionaries (ICD-10/LOINC)
 ];
 
 // Portal controllers use PatientAuthGuard (separate auth model for patients)
@@ -69,7 +75,7 @@ walkDir(srcDir, function(filePath) {
       abacStatus = (hasPermissionsGuard && hasPermissions) ? 'YES' : 'NO';
     }
     
-    if (tenantStatus === 'YES') tenantIsolated++;
+    if (tenantStatus === 'YES' || tenantStatus === 'EXEMPT') tenantIsolated++;
     if (abacStatus === 'YES' || abacStatus === 'EXEMPT') abacGuarded++;
     
     results.push({

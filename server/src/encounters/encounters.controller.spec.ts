@@ -27,7 +27,10 @@ describe('EncountersController', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [EncountersController],
       providers: [{ provide: EncountersService, useValue: encountersService }],
-    }).overrideGuard(PermissionsGuard).useValue({ canActivate: () => true }).compile();
+    })
+      .overrideGuard(PermissionsGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<EncountersController>(EncountersController);
   });

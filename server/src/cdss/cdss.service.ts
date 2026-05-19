@@ -1180,7 +1180,8 @@ export class CDSSService {
     }
 
     const age = Math.floor(
-      (Date.now() - patient.dateOfBirth.getTime()) / (365.25 * 24 * 60 * 60 * 1000),
+      (Date.now() - patient.dateOfBirth.getTime()) /
+        (365.25 * 24 * 60 * 60 * 1000),
     );
     const gender = patient.gender || 'MALE';
 
@@ -1286,4 +1287,3 @@ export class CDSSService {
     };
   }
 }
-

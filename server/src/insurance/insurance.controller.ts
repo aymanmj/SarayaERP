@@ -18,7 +18,8 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/permissions.guard';
 import { Permissions } from '../auth/permissions.decorator';
 @UseGuards(JwtAuthGuard, PermissionsGuard)
-@Controller('insurance')export class InsuranceController {
+@Controller('insurance')
+export class InsuranceController {
   constructor(private readonly insuranceService: InsuranceService) {}
 
   // Providers

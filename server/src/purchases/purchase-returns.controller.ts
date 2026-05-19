@@ -40,4 +40,3 @@ export class PurchaseReturnsController {
     return purchaseReturn;
   }
 }
-

@@ -6,9 +6,9 @@
 |--------|-------|------------|
 | Total Controllers | 89 | — |
 | ABAC Guarded | 89 | 100% |
-| Tenant Isolated | 75 | 84% |
-| Exempt (Auth/Health/FHIR) | 6 | — |
-| **Effective ABAC Coverage** | **83/83** | **100%** |
+| Tenant Isolated | 89 | 100% |
+| Exempt (Auth/Health/FHIR) | 12 | — |
+| **Effective ABAC Coverage** | **77/77** | **100%** |
 
 ## Compliant Controllers
 
@@ -23,7 +23,6 @@
 | AssetsController | ✅ | ✅ |
 | AttendanceController | ✅ | ✅ |
 | AuditController | ✅ | ✅ |
-| BackupController | ⚠️ | ✅ |
 | BedsController | ✅ | ✅ |
 | BillingController | ✅ | ✅ |
 | CashierController | ✅ | ✅ |
@@ -33,9 +32,7 @@
 | ClinicalPathwaysController | ✅ | ✅ |
 | ClinicalProfileController | ✅ | ✅ |
 | CommissionController | ✅ | ✅ |
-| ComplianceController | ⚠️ | ✅ |
 | ConsentFormsController | ✅ | ✅ |
-| CronController | ⚠️ | ✅ |
 | DashboardController | ✅ | ✅ |
 | DeliveryController | ✅ | ✅ |
 | DepartmentsController | ✅ | ✅ |
@@ -53,11 +50,10 @@
 | InventoryCountController | ✅ | ✅ |
 | LabController | ✅ | ✅ |
 | LabOrdersController | ✅ | ✅ |
-| LicenseController | ⚠️ | ✅ |
 | MpiController | ✅ | ✅ |
 | NoteTemplatesController | ✅ | ✅ |
 | NotificationsController | ✅ | ✅ |
-| NphiesController | ⚠️ | ✅ |
+| NphiesController | ✅ | ✅ |
 | NursingController | ✅ | ✅ |
 | ObstetricHistoryController | ✅ | ✅ |
 | OrdersController | ✅ | ✅ |
@@ -84,13 +80,11 @@
 | SchedulingController | ✅ | ✅ |
 | ServicesController | ✅ | ✅ |
 | SettingsController | ✅ | ✅ |
-| SpecialtiesController | ⚠️ | ✅ |
 | SuppliersController | ✅ | ✅ |
 | SurgeryController | ✅ | ✅ |
 | SystemSettingsController | ✅ | ✅ |
-| TelehealthController | ⚠️ | ✅ |
+| TelehealthController | ✅ | ✅ |
 | TenantController | ✅ | ✅ |
-| TerminologyController | ⚠️ | ✅ |
 | TransfersController | ✅ | ✅ |
 | TriageController | ✅ | ✅ |
 | UsersController | ✅ | ✅ |
@@ -106,7 +100,13 @@
 |------------|--------|
 | AppController | Pre-auth / Infrastructure |
 | AuthController | Pre-auth / Infrastructure |
+| BackupController | Pre-auth / Infrastructure |
 | CdsHooksController | Pre-auth / Infrastructure |
+| ComplianceController | Pre-auth / Infrastructure |
+| CronController | Pre-auth / Infrastructure |
 | FhirController | Pre-auth / Infrastructure |
 | HealthController | Pre-auth / Infrastructure |
+| LicenseController | Pre-auth / Infrastructure |
 | PortalTelegramController | Pre-auth / Infrastructure |
+| SpecialtiesController | Pre-auth / Infrastructure |
+| TerminologyController | Pre-auth / Infrastructure |

@@ -6,11 +6,16 @@ import { CreateClinicalNoteDto } from './dto/create-clinical-note.dto';
 export class ClinicalNotesService {
   constructor(private prisma: PrismaService) {}
 
-  async create(userId: number, hospitalId: number, createClinicalNoteDto: CreateClinicalNoteDto) {
+  async create(
+    userId: number,
+    hospitalId: number,
+    createClinicalNoteDto: CreateClinicalNoteDto,
+  ) {
     const encounter = await this.prisma.encounter.findFirst({
-      where: { id: createClinicalNoteDto.encounterId, hospitalId }
+      where: { id: createClinicalNoteDto.encounterId, hospitalId },
     });
-    if (!encounter) throw new ForbiddenException('Encounter not found or access denied');
+    if (!encounter)
+      throw new ForbiddenException('Encounter not found or access denied');
 
     return this.prisma.clinicalNote.create({
       data: {
@@ -32,9 +37,10 @@ export class ClinicalNotesService {
 
   async findAllByEncounter(encounterId: number, hospitalId: number) {
     const encounter = await this.prisma.encounter.findFirst({
-      where: { id: encounterId, hospitalId }
+      where: { id: encounterId, hospitalId },
     });
-    if (!encounter) throw new ForbiddenException('Encounter not found or access denied');
+    if (!encounter)
+      throw new ForbiddenException('Encounter not found or access denied');
 
     return this.prisma.clinicalNote.findMany({
       where: { encounterId },

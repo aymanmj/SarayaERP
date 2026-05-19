@@ -4,6 +4,16 @@ import { PrismaService } from '../prisma/prisma.service';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { IncidentStatus, IncidentSeverity, CapaStatus } from '@prisma/client';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { ConfigService } from '@nestjs/config';
+
+jest.mock('ioredis', () => {
+  return jest.fn().mockImplementation(() => {
+    return {
+      on: jest.fn(),
+      eval: jest.fn(),
+    };
+  });
+});
 
 describe('QualityService', () => {
   let service: QualityService;
@@ -28,12 +38,21 @@ describe('QualityService', () => {
     $transaction: jest.fn(),
   };
 
+  const mockConfigService = {
+    get: jest.fn((key: string) => {
+      if (key === 'REDIS_HOST') return 'localhost';
+      if (key === 'REDIS_PORT') return 6379;
+      return null;
+    }),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         QualityService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: EventEmitter2, useValue: { emit: jest.fn() } },
+        { provide: ConfigService, useValue: mockConfigService },
       ],
     }).compile();
 
@@ -54,6 +73,12 @@ describe('QualityService', () => {
         incidentNumber: 'INC-2026-0006',
       });
 
+      const mockEval = jest.fn().mockResolvedValue(6);
+      (service as any).redisClient = {
+        on: jest.fn(),
+        eval: mockEval,
+      };
+
       const dto = {
         incidentDate: '2026-05-17',
         incidentType: 'MEDICATION_ERROR' as any,
@@ -64,6 +89,7 @@ describe('QualityService', () => {
 
       await service.reportIncident(1, 2, dto);
 
+      expect(mockEval).toHaveBeenCalled();
       expect(mockPrisma.clinicalIncident.count).toHaveBeenCalledWith({
         where: { hospitalId: 1 },
       });
@@ -75,10 +101,39 @@ describe('QualityService', () => {
       const expectedDueDate = new Date();
       expectedDueDate.setDate(expectedDueDate.getDate() + 1);
 
-      // Allow slight difference in milliseconds
       expect(
         createCall.data.reviewDueDate.toISOString().substring(0, 10),
       ).toEqual(expectedDueDate.toISOString().substring(0, 10));
+    });
+
+    it('should fallback to DB count if Redis eval throws an error', async () => {
+      mockPrisma.clinicalIncident.count.mockResolvedValue(10);
+      mockPrisma.clinicalIncident.create.mockResolvedValue({
+        id: 1,
+        incidentNumber: 'INC-2026-0011',
+      });
+
+      const mockEval = jest.fn().mockRejectedValue(new Error('Redis Down'));
+      (service as any).redisClient = {
+        on: jest.fn(),
+        eval: mockEval,
+      };
+
+      const dto = {
+        incidentDate: '2026-05-17',
+        incidentType: 'MEDICATION_ERROR' as any,
+        severity: IncidentSeverity.MAJOR,
+        description: 'Test fallback',
+        location: 'ER',
+      };
+
+      await service.reportIncident(1, 2, dto);
+
+      expect(mockEval).toHaveBeenCalled();
+      // Should query DB count in try block and catch block
+      expect(mockPrisma.clinicalIncident.count).toHaveBeenCalledTimes(2);
+      const createCall = mockPrisma.clinicalIncident.create.mock.calls[0][0];
+      expect(createCall.data.incidentNumber).toMatch(/INC-\d{4}-0011/);
     });
   });
 

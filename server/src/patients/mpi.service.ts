@@ -9,16 +9,34 @@ import { PrismaService } from '../prisma/prisma.service';
 import * as crypto from 'crypto';
 import * as bcrypt from 'bcrypt';
 import * as jwt from 'jsonwebtoken';
+import { ConfigService } from '@nestjs/config';
+import Redis from 'ioredis';
 
 import { OutboundQueueService } from '../integration/outbound-queue.service';
 
 @Injectable()
 export class MpiService {
   private readonly logger = new Logger(MpiService.name);
+  private redisClient: Redis;
+
   constructor(
     private prisma: PrismaService,
     private outboundQueueService: OutboundQueueService,
-  ) {}
+    private configService: ConfigService,
+  ) {
+    const host = this.configService.get<string>('REDIS_HOST') || 'localhost';
+    const port = this.configService.get<number>('REDIS_PORT') || 6379;
+    const password = this.configService.get<string>('REDIS_PASSWORD');
+    this.redisClient = new Redis({
+      host,
+      port,
+      password,
+      maxRetriesPerRequest: 1,
+    });
+    this.redisClient.on('error', (err) => {
+      this.logger.error('Redis connection error in MpiService:', err);
+    });
+  }
 
   /**
    * Search the Master Patient Index (GlobalPatient)
@@ -171,7 +189,7 @@ export class MpiService {
     });
 
     // Simulated Telegram Dispatch (Now marked as structured payload for provider integration)
-    const notificationPayload = {
+    const _notificationPayload = {
       channel: 'telegram',
       target: patient.phone,
       patientName: patient.fullName,
@@ -356,6 +374,31 @@ export class MpiService {
           },
         },
       });
+
+      // 4. Blacklist patient consent in Redis for instantaneous revocation across distributed systems
+      const ttl = 3600; // 1 hour (same as consent token expiration)
+      try {
+        if (organizationId) {
+          // Revoke consent specifically for this organization
+          await this.redisClient.setex(
+            `blacklist:patient:consent:${patientId}:org:${organizationId}`,
+            ttl,
+            'true',
+          );
+        } else {
+          // Revoke consent globally (all organizations)
+          await this.redisClient.setex(
+            `blacklist:patient:consent:${patientId}`,
+            ttl,
+            'true',
+          );
+        }
+      } catch (redisErr) {
+        this.logger.error(
+          `Failed to set Redis blacklist for patient ${patientId}:`,
+          redisErr,
+        );
+      }
 
       this.logger.warn(
         `🔒 Consent REVOKED for patient ${patientId}. ` +

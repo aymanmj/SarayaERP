@@ -26,7 +26,10 @@ describe('PharmacyController', () => {
           },
         },
       ],
-    }).overrideGuard(PermissionsGuard).useValue({ canActivate: () => true }).compile();
+    })
+      .overrideGuard(PermissionsGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<PharmacyController>(PharmacyController);
   });

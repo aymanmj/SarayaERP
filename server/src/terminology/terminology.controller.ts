@@ -52,4 +52,3 @@ export class TerminologyController {
     return this.terminologyService.getConceptByCode(system, code);
   }
 }
-

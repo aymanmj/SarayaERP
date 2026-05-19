@@ -24,7 +24,10 @@ describe('RadiologyController', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [RadiologyController],
       providers: [{ provide: RadiologyService, useValue: radiologyService }],
-    }).overrideGuard(PermissionsGuard).useValue({ canActivate: () => true }).compile();
+    })
+      .overrideGuard(PermissionsGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<RadiologyController>(RadiologyController);
   });

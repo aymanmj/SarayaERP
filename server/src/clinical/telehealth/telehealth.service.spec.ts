@@ -15,11 +15,11 @@ describe('TelehealthService', () => {
   beforeEach(async () => {
     prismaService = {
       appointment: {
-        findUnique: jest.fn(),
+        findFirst: jest.fn(),
       },
       telehealthSession: {
         create: jest.fn(),
-        findUnique: jest.fn(),
+        findFirst: jest.fn(),
         update: jest.fn(),
       },
     };
@@ -50,32 +50,34 @@ describe('TelehealthService', () => {
 
   describe('createSession', () => {
     it('should throw NotFoundException if appointment is missing', async () => {
-      prismaService.appointment.findUnique.mockResolvedValue(null);
-      await expect(service.createSession(1)).rejects.toThrow(NotFoundException);
+      prismaService.appointment.findFirst.mockResolvedValue(null);
+      await expect(service.createSession(1, 1)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('should throw BadRequestException if appointment is not ONLINE', async () => {
-      prismaService.appointment.findUnique.mockResolvedValue({
+      prismaService.appointment.findFirst.mockResolvedValue({
         type: 'IN_PERSON',
       });
-      await expect(service.createSession(1)).rejects.toThrow(
+      await expect(service.createSession(1, 1)).rejects.toThrow(
         BadRequestException,
       );
     });
 
     it('should return existing session if already created', async () => {
       const existingSession = { id: 10, roomUrl: 'test' };
-      prismaService.appointment.findUnique.mockResolvedValue({
+      prismaService.appointment.findFirst.mockResolvedValue({
         type: 'ONLINE',
         telehealthSession: existingSession,
       });
 
-      const result = await service.createSession(1);
+      const result = await service.createSession(1, 1);
       expect(result).toEqual(existingSession);
     });
 
     it('should create a new session if valid', async () => {
-      prismaService.appointment.findUnique.mockResolvedValue({
+      prismaService.appointment.findFirst.mockResolvedValue({
         type: 'ONLINE',
       });
       const newSession = {
@@ -84,7 +86,7 @@ describe('TelehealthService', () => {
       };
       prismaService.telehealthSession.create.mockResolvedValue(newSession);
 
-      const result = await service.createSession(1);
+      const result = await service.createSession(1, 1);
       expect(result).toEqual(newSession);
       expect(prismaService.telehealthSession.create).toHaveBeenCalled();
     });
@@ -92,14 +94,14 @@ describe('TelehealthService', () => {
 
   describe('enterWaitingRoom', () => {
     it('should throw NotFoundException if session not found', async () => {
-      prismaService.telehealthSession.findUnique.mockResolvedValue(null);
-      await expect(service.enterWaitingRoom(1, 100)).rejects.toThrow(
+      prismaService.telehealthSession.findFirst.mockResolvedValue(null);
+      await expect(service.enterWaitingRoom(1, 1, 100)).rejects.toThrow(
         NotFoundException,
       );
     });
 
     it('should set status to WAITING and return message without roomUrl', async () => {
-      prismaService.telehealthSession.findUnique.mockResolvedValue({
+      prismaService.telehealthSession.findFirst.mockResolvedValue({
         id: 5,
         appointment: { patientId: 100 },
       });
@@ -107,7 +109,7 @@ describe('TelehealthService', () => {
         status: 'WAITING',
       });
 
-      const result = await service.enterWaitingRoom(1, 100);
+      const result = await service.enterWaitingRoom(1, 1, 100);
       expect(result.status).toBe('WAITING');
       expect(result.roomUrl).toBeNull();
     });
@@ -115,7 +117,7 @@ describe('TelehealthService', () => {
 
   describe('startSession (Doctor)', () => {
     it('should update status to IN_PROGRESS and return roomUrl with JWT', async () => {
-      prismaService.telehealthSession.findUnique.mockResolvedValue({
+      prismaService.telehealthSession.findFirst.mockResolvedValue({
         id: 5,
         roomUrl: 'https://meet.test.com/room-123',
         appointment: { doctorId: 200, doctor: { username: 'dr.test' } },
@@ -125,7 +127,7 @@ describe('TelehealthService', () => {
         roomUrl: 'https://meet.test.com/room-123',
       });
 
-      const result = await service.startSession(1, 200);
+      const result = await service.startSession(1, 1, 200);
       expect(result.status).toBe('IN_PROGRESS');
       expect(result.roomUrl).toContain('?jwt=');
 
@@ -139,18 +141,18 @@ describe('TelehealthService', () => {
 
   describe('getPatientRoomAccess', () => {
     it('should return null roomUrl if session is not IN_PROGRESS', async () => {
-      prismaService.telehealthSession.findUnique.mockResolvedValue({
+      prismaService.telehealthSession.findFirst.mockResolvedValue({
         status: 'WAITING',
         appointment: { patientId: 100 },
       });
 
-      const result = await service.getPatientRoomAccess(1, 100);
+      const result = await service.getPatientRoomAccess(1, 1, 100);
       expect(result.status).toBe('WAITING');
       expect(result.roomUrl).toBeNull();
     });
 
     it('should return roomUrl with Guest JWT if IN_PROGRESS', async () => {
-      prismaService.telehealthSession.findUnique.mockResolvedValue({
+      prismaService.telehealthSession.findFirst.mockResolvedValue({
         status: 'IN_PROGRESS',
         roomUrl: 'https://meet.test.com/room-123',
         appointment: {
@@ -159,7 +161,7 @@ describe('TelehealthService', () => {
         },
       });
 
-      const result = await service.getPatientRoomAccess(1, 100);
+      const result = await service.getPatientRoomAccess(1, 1, 100);
       expect(result.status).toBe('IN_PROGRESS');
       expect(result.roomUrl).toContain('?jwt=');
 

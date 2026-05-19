@@ -19,7 +19,10 @@ describe('BedsController', () => {
           },
         },
       ],
-    }).overrideGuard(PermissionsGuard).useValue({ canActivate: () => true }).compile();
+    })
+      .overrideGuard(PermissionsGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<BedsController>(BedsController);
   });

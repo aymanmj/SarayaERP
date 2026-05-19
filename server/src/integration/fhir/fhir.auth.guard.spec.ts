@@ -51,54 +51,56 @@ describe('FhirAuthGuard', () => {
         getRequest: () => req,
       }),
       getHandler: () => ({}),
-    } as any;
+    } as unknown as ExecutionContext;
   };
 
-  it('should allow public access to /fhir/metadata', () => {
+  it('should allow public access to /fhir/metadata', async () => {
     const context = createMockContext({}, '/api/fhir/metadata');
-    expect(guard.canActivate(context)).toBe(true);
+    expect(await guard.canActivate(context)).toBe(true);
   });
 
-  it('should throw UnauthorizedException if no auth header', () => {
+  it('should throw UnauthorizedException if no auth header', async () => {
     const context = createMockContext({});
-    expect(() => guard.canActivate(context)).toThrow(UnauthorizedException);
+    await expect(guard.canActivate(context)).rejects.toThrow(
+      UnauthorizedException,
+    );
   });
 
-  it('should inject patient-scoped SMART context successfully', () => {
+  it('should inject patient-scoped SMART context successfully', async () => {
     const context = createMockContext({ authorization: 'Bearer valid_token' });
     reflector.get.mockReturnValue('patient/*.read');
 
-    authService.validateToken.mockReturnValue({
+    authService.validateToken.mockResolvedValue({
       patient: '123',
       scope: 'patient/*.read',
       client_id: 'mpi_federation',
       sub: '123',
     });
 
-    const result = guard.canActivate(context);
+    const result = await guard.canActivate(context);
     expect(result).toBe(true);
 
-    const req = context.switchToHttp().getRequest<any>();
+    const req = context.switchToHttp().getRequest();
     expect(req.smartContext).toBeDefined();
-    expect(req.smartContext.patient).toBe('123'); // Patient isolation context is set
-    expect(req.smartContext.scope).toBe('patient/*.read');
+    expect(req.smartContext?.patient).toBe('123'); // Patient isolation context is set
+    expect(req.smartContext?.scope).toBe('patient/*.read');
   });
 
-  it('should treat token as system-level if patient is not in payload', () => {
+  it('should treat token as system-level if patient is not in payload', async () => {
     const context = createMockContext({ authorization: 'Bearer valid_token' });
     reflector.get.mockReturnValue('patient/*.read');
 
-    authService.validateToken.mockReturnValue({
+    authService.validateToken.mockResolvedValue({
       scope: 'patient/*.read',
       client_id: 'enterprise_app',
       sub: 'sys_admin',
     });
 
-    const result = guard.canActivate(context);
+    const result = await guard.canActivate(context);
     expect(result).toBe(true);
 
-    const req = context.switchToHttp().getRequest<any>();
+    const req = context.switchToHttp().getRequest();
     expect(req.smartContext).toBeDefined();
-    expect(req.smartContext.patient).toBeUndefined(); // Represents system level
+    expect(req.smartContext?.patient).toBeUndefined(); // Represents system level
   });
 });

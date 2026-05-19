@@ -50,11 +50,7 @@ export class VouchersController {
     @Param('id') id: string,
     @Body() updateVoucherDto: UpdateVoucherDto,
   ) {
-    return this.vouchersService.update(
-      user.hospitalId,
-      +id,
-      updateVoucherDto,
-    );
+    return this.vouchersService.update(user.hospitalId, +id, updateVoucherDto);
   }
 
   @Permissions('accounting:manage')
@@ -75,4 +71,3 @@ export class VouchersController {
     return this.vouchersService.cancel(user.hospitalId, +id, user.sub);
   }
 }
-

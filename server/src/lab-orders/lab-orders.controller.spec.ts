@@ -21,7 +21,10 @@ describe('LabOrdersController', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [LabOrdersController, LabOrdersGeneralController],
       providers: [{ provide: LabOrdersService, useValue: labOrdersService }],
-    }).overrideGuard(PermissionsGuard).useValue({ canActivate: () => true }).compile();
+    })
+      .overrideGuard(PermissionsGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     encounterController = module.get<LabOrdersController>(LabOrdersController);
     generalController = module.get<LabOrdersGeneralController>(
@@ -47,11 +50,10 @@ describe('LabOrdersController', () => {
     labOrdersService.createForEncounter.mockResolvedValue({ count: 2 });
 
     const mockUser = { sub: 8, hospitalId: 4 };
-    const result = await encounterController.createForEncounter(
-      12,
-      mockUser,
-      { testIds: [1, 2], notes: 'Fasting' },
-    );
+    const result = await encounterController.createForEncounter(12, mockUser, {
+      testIds: [1, 2],
+      notes: 'Fasting',
+    });
 
     expect(result).toEqual({ count: 2 });
     expect(labOrdersService.createForEncounter).toHaveBeenCalledWith({

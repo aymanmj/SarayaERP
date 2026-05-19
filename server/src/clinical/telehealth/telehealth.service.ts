@@ -24,9 +24,9 @@ export class TelehealthService {
    * Initializes a telehealth session for a given appointment.
    * Called automatically when the patient checks in, or manually by the doctor.
    */
-  async createSession(appointmentId: number) {
-    const appointment = await this.prisma.appointment.findUnique({
-      where: { id: appointmentId },
+  async createSession(hospitalId: number, appointmentId: number) {
+    const appointment = await this.prisma.appointment.findFirst({
+      where: { id: appointmentId, hospitalId },
       include: { telehealthSession: true, doctor: true, patient: true },
     });
 
@@ -107,9 +107,16 @@ export class TelehealthService {
   /**
    * Patient enters the waiting room
    */
-  async enterWaitingRoom(appointmentId: number, patientId: number) {
-    const session = await this.prisma.telehealthSession.findUnique({
-      where: { appointmentId },
+  async enterWaitingRoom(
+    hospitalId: number,
+    appointmentId: number,
+    patientId: number,
+  ) {
+    const session = await this.prisma.telehealthSession.findFirst({
+      where: {
+        appointmentId,
+        appointment: { hospitalId },
+      },
       include: { appointment: { include: { patient: true } } },
     });
 
@@ -138,9 +145,16 @@ export class TelehealthService {
   /**
    * Doctor starts the session, allowing the patient to enter the actual room
    */
-  async startSession(appointmentId: number, doctorId: number) {
-    const session = await this.prisma.telehealthSession.findUnique({
-      where: { appointmentId },
+  async startSession(
+    hospitalId: number,
+    appointmentId: number,
+    doctorId: number,
+  ) {
+    const session = await this.prisma.telehealthSession.findFirst({
+      where: {
+        appointmentId,
+        appointment: { hospitalId },
+      },
       include: { appointment: { include: { doctor: true } } },
     });
 
@@ -173,9 +187,16 @@ export class TelehealthService {
   /**
    * Patient polls to get the actual room URL once the doctor starts the session
    */
-  async getPatientRoomAccess(appointmentId: number, patientId: number) {
-    const session = await this.prisma.telehealthSession.findUnique({
-      where: { appointmentId },
+  async getPatientRoomAccess(
+    hospitalId: number,
+    appointmentId: number,
+    patientId: number,
+  ) {
+    const session = await this.prisma.telehealthSession.findFirst({
+      where: {
+        appointmentId,
+        appointment: { hospitalId },
+      },
       include: { appointment: { include: { patient: true } } },
     });
 

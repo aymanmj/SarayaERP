@@ -42,4 +42,3 @@ export class ObstetricHistoryController {
     return this.historyService.updateByPatientId(patientId, dto);
   }
 }
-

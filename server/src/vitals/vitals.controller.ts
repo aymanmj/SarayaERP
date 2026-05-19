@@ -20,10 +20,7 @@ export class VitalsController {
 
   @Permissions('vitals:view')
   @Get('encounter/:id')
-  async list(
-    @Param('id', ParseIntPipe) id: number,
-    @CurrentUser() user: any,
-  ) {
+  async list(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: any) {
     return this.vitalsService.getForEncounter(id);
   }
 
@@ -59,4 +56,3 @@ export class VitalsController {
     });
   }
 }
-

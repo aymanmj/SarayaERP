@@ -23,7 +23,10 @@ describe('LabController', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [LabController],
       providers: [{ provide: LabService, useValue: labService }],
-    }).overrideGuard(PermissionsGuard).useValue({ canActivate: () => true }).compile();
+    })
+      .overrideGuard(PermissionsGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<LabController>(LabController);
   });

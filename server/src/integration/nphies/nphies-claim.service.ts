@@ -43,7 +43,10 @@ export class NphiesClaimService {
    * @param claimId معرّف المطالبة في قاعدة بيانات السرايا
    * @returns نتيجة الإرسال مع رقم المطالبة في NPHIES
    */
-  async submitClaim(claimId: number): Promise<NphiesClaimSubmissionResult> {
+  async submitClaim(
+    hospitalId: number,
+    claimId: number,
+  ): Promise<NphiesClaimSubmissionResult> {
     if (this.activeSubmissions.has(claimId)) {
       throw new BadRequestException(
         'يتم إرسال هذه المطالبة حالياً، الرجاء الانتظار...',
@@ -51,7 +54,7 @@ export class NphiesClaimService {
     }
     this.activeSubmissions.add(claimId);
     try {
-      return await this._submitClaimInternal(claimId);
+      return await this._submitClaimInternal(hospitalId, claimId);
     } finally {
       this.activeSubmissions.delete(claimId);
     }
@@ -60,16 +63,21 @@ export class NphiesClaimService {
   async processQueuedClaim(
     claimId: number,
   ): Promise<NphiesClaimSubmissionResult> {
-    return this._submitClaimInternal(claimId, true);
+    const claim = await this.prisma.claim.findUnique({
+      where: { id: claimId },
+    });
+    if (!claim) throw new NotFoundException('المطالبة غير موجودة');
+    return this._submitClaimInternal(claim.hospitalId, claimId, true);
   }
 
   private async _submitClaimInternal(
+    hospitalId: number,
     claimId: number,
     fromQueue = false,
   ): Promise<NphiesClaimSubmissionResult> {
     // جلب بيانات المطالبة كاملة
-    const claim = await this.prisma.claim.findUnique({
-      where: { id: claimId },
+    const claim = await this.prisma.claim.findFirst({
+      where: { id: claimId, hospitalId },
       include: {
         invoice: {
           include: {
@@ -407,6 +415,7 @@ export class NphiesClaimService {
    * إرسال طلب موافقة مسبقة (Pre-Authorization)
    */
   async submitPreAuthorization(
+    hospitalId: number,
     patientData: {
       id: string;
       fullName: string;
@@ -436,6 +445,18 @@ export class NphiesClaimService {
       contentType?: string;
     }>,
   ): Promise<NphiesClaimSubmissionResult> {
+    if (patientData.id) {
+      const patientIdInt = parseInt(patientData.id, 10);
+      if (!isNaN(patientIdInt)) {
+        const localPatient = await this.prisma.patient.findFirst({
+          where: { id: patientIdInt, hospitalId },
+        });
+        if (!localPatient) {
+          throw new NotFoundException('المريض غير موجود في هذه المنشأة');
+        }
+      }
+    }
+
     const patientId = uuidv4();
     const coverageId = uuidv4();
     const claimId = uuidv4();
@@ -579,8 +600,22 @@ export class NphiesClaimService {
    * الاستعلام عن حالة مطالبة في NPHIES
    */
   async checkClaimStatus(
+    hospitalId: number,
     externalClaimId: string,
   ): Promise<NphiesClaimStatusResult> {
+    const claim = await this.prisma.claim.findFirst({
+      where: {
+        externalClaimId,
+        hospitalId,
+      },
+    });
+
+    if (!claim) {
+      throw new NotFoundException(
+        'المطالبة غير موجودة أو لا تنتمي لهذه المنشأة',
+      );
+    }
+
     try {
       const response = await this.authService.sendFhirRequest<any>(
         `/nphies-fs/Claim/${externalClaimId}`,

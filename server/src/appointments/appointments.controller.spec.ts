@@ -45,7 +45,10 @@ describe('AppointmentsController', () => {
         { provide: PdfService, useValue: pdfService },
         { provide: PrismaService, useValue: prisma },
       ],
-    }).overrideGuard(PermissionsGuard).useValue({ canActivate: () => true }).compile();
+    })
+      .overrideGuard(PermissionsGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<AppointmentsController>(AppointmentsController);
   });
