@@ -4140,10 +4140,20 @@ model VentilatorLog {
   mode           String
   fio2           Decimal? @db.Decimal(5, 2) // Fraction of Inspired Oxygen %
   peep           Decimal? @db.Decimal(5, 2) // Positive End-Expiratory Pressure
-  pip            Decimal? @db.Decimal(5, 2) // Peak Inspiratory Pressure
+  pip            Decimal? @db.Decimal(5, 2) // Peak Inspiratory Pressure (legacy alias)
   tidalVolume    Int? // ml
   respRateSet    Int? // Set Respiratory Rate
   respRateActual Int? // Actual Respiratory Rate
+
+  // Extended ventilator parameters
+  inspiratoryPressure  Decimal? @db.Decimal(5, 2) // cmH2O
+  pressureSupport      Decimal? @db.Decimal(5, 2) // cmH2O (PSV/PS above PEEP)
+  ieRatio              String?                     // e.g. "1:2", "1:3"
+  plateauPressure      Decimal? @db.Decimal(5, 2) // cmH2O (target < 30)
+  peakPressure         Decimal? @db.Decimal(5, 2) // cmH2O
+  compliance           Decimal? @db.Decimal(6, 2) // mL/cmH2O (lung compliance)
+  etco2                Decimal? @db.Decimal(5, 2) // mmHg (end-tidal CO2)
+  respiratoryRate      Int?                        // Set/target RR (alias for respRateSet)
 
   entry ICUFlowsheetEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
 }
@@ -5604,3 +5614,4 @@ model DataRetentionPolicy {
 
   @@index([hospitalId])
 }
+

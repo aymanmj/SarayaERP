@@ -102,8 +102,8 @@ describe('PatientsService', () => {
     it('should increment MRN based on last patient', async () => {
       // Last patient has MRN-0005
       prisma.patient.findFirst
-        .mockResolvedValueOnce({ mrn: 'H1-MRN-0005' })  // generateNextMrn: findFirst for last patient
-        .mockResolvedValueOnce(null);                   // generateNextMrn: collision check (MRN-0006 available)
+        .mockResolvedValueOnce({ mrn: 'H1-MRN-0005' }) // generateNextMrn: findFirst for last patient
+        .mockResolvedValueOnce(null); // generateNextMrn: collision check (MRN-0006 available)
 
       prisma.patient.create.mockImplementation((args: any) => ({
         id: 6,
@@ -127,7 +127,12 @@ describe('PatientsService', () => {
   // ===========================================
   describe('findOne', () => {
     it('should return patient when found', async () => {
-      const patient = { id: 1, hospitalId: 1, fullName: 'Test', isDeleted: false };
+      const patient = {
+        id: 1,
+        hospitalId: 1,
+        fullName: 'Test',
+        isDeleted: false,
+      };
       prisma.patient.findFirst.mockResolvedValue(patient);
 
       const result = await service.findOne(1, 1);
@@ -150,7 +155,11 @@ describe('PatientsService', () => {
       prisma.patient.findMany.mockResolvedValue(patients);
       prisma.patient.count.mockResolvedValue(2);
 
-      const result = await service.findAll({ hospitalId: 1, page: 1, limit: 10 });
+      const result = await service.findAll({
+        hospitalId: 1,
+        page: 1,
+        limit: 10,
+      });
 
       expect(result.items).toEqual(patients);
       expect(result.meta.totalCount).toBe(2);
@@ -203,7 +212,10 @@ describe('PatientsService', () => {
     it('should add allergy for valid patient', async () => {
       prisma.patient.findFirst.mockResolvedValue({ id: 1, hospitalId: 1 });
       prisma.patientAllergy.create.mockResolvedValue({
-        id: 1, patientId: 1, allergen: 'Penicillin', severity: 'SEVERE',
+        id: 1,
+        patientId: 1,
+        allergen: 'Penicillin',
+        severity: 'SEVERE',
       });
 
       const result = await service.addAllergy(1, 99, {
@@ -220,7 +232,11 @@ describe('PatientsService', () => {
       prisma.patient.findFirst.mockResolvedValue(null);
 
       await expect(
-        service.addAllergy(1, 99, { patientId: 999, allergen: 'X', severity: 'MILD' }),
+        service.addAllergy(1, 99, {
+          patientId: 999,
+          allergen: 'X',
+          severity: 'MILD',
+        }),
       ).rejects.toThrow(NotFoundException);
     });
 
@@ -241,7 +257,9 @@ describe('PatientsService', () => {
         patient: { hospitalId: 2 }, // Different hospital
       });
 
-      await expect(service.removeAllergy(1, 1)).rejects.toThrow(NotFoundException);
+      await expect(service.removeAllergy(1, 1)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });

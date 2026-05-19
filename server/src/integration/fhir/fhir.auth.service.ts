@@ -1,4 +1,11 @@
-import { Injectable, UnauthorizedException, BadRequestException, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  BadRequestException,
+  Logger,
+  OnModuleInit,
+  OnModuleDestroy,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -6,13 +13,13 @@ import Redis from 'ioredis';
 
 /**
  * Enterprise SMART on FHIR Authorization Service
- * 
+ *
  * Implements the SMART App Launch Framework (v2) with:
  * - Registered app validation (client_id + client_secret)
  * - Dynamic patient context binding (no hardcoded IDs)
  * - Full scope parsing including wildcard read/write
  * - Authorization code + client_credentials grant types
- * 
+ *
  * @see https://hl7.org/fhir/smart-app-launch/
  */
 
@@ -29,7 +36,7 @@ interface RegisteredApp {
 @Injectable()
 export class FhirAuthService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(FhirAuthService.name);
-  
+
   // Redis client for auth codes with TTL
   private redisClient: Redis;
 
@@ -44,7 +51,9 @@ export class FhirAuthService implements OnModuleInit, OnModuleDestroy {
     const port = this.config.get<number>('REDIS_PORT') || 6379;
     const password = this.config.get<string>('REDIS_PASSWORD');
     this.redisClient = new Redis({ host, port, password });
-    this.redisClient.on('error', (err) => this.logger.error('Redis connection error in FhirAuthService:', err));
+    this.redisClient.on('error', (err) =>
+      this.logger.error('Redis connection error in FhirAuthService:', err),
+    );
   }
 
   onModuleDestroy() {
@@ -60,14 +69,18 @@ export class FhirAuthService implements OnModuleInit, OnModuleDestroy {
     const apps: RegisteredApp[] = [];
 
     // Primary enterprise client (configured via environment)
-    const envClientId = this.config.get<string>('FHIR_CLIENT_ID') || 'enterprise_fhir_client';
+    const envClientId =
+      this.config.get<string>('FHIR_CLIENT_ID') || 'enterprise_fhir_client';
     const envClientSecret = this.config.get<string>('FHIR_CLIENT_SECRET');
-    
+
     apps.push({
       clientId: envClientId,
       clientSecret: envClientSecret || '__dev_secret_must_be_configured__',
       name: 'Enterprise FHIR Client',
-      redirectUris: ['http://localhost:3000/callback', 'https://saraya-erp.com/callback'],
+      redirectUris: [
+        'http://localhost:3000/callback',
+        'https://saraya-erp.com/callback',
+      ],
       grantTypes: ['client_credentials', 'authorization_code'],
       defaultScopes: 'user/*.read launch/patient',
     });
@@ -90,20 +103,27 @@ export class FhirAuthService implements OnModuleInit, OnModuleDestroy {
    * Validates client credentials against registered apps.
    * Returns the matched app or throws UnauthorizedException.
    */
-  private validateClient(clientId: string, clientSecret?: string): RegisteredApp {
+  private validateClient(
+    clientId: string,
+    clientSecret?: string,
+  ): RegisteredApp {
     const apps = this.getRegisteredApps();
-    const app = apps.find(a => a.clientId === clientId);
+    const app = apps.find((a) => a.clientId === clientId);
 
     if (!app) {
-      throw new UnauthorizedException(`Unknown client_id: ${clientId}. Application must be registered.`);
+      throw new UnauthorizedException(
+        `Unknown client_id: ${clientId}. Application must be registered.`,
+      );
     }
 
     // In development mode (no FHIR_CLIENT_SECRET set), skip secret validation
     const isDev = !this.config.get<string>('FHIR_CLIENT_SECRET');
-    
+
     if (!isDev) {
       if (!clientSecret) {
-        throw new UnauthorizedException('client_secret is required for registered applications');
+        throw new UnauthorizedException(
+          'client_secret is required for registered applications',
+        );
       }
       if (clientSecret !== app.clientSecret) {
         throw new UnauthorizedException('Invalid client_secret');
@@ -115,19 +135,19 @@ export class FhirAuthService implements OnModuleInit, OnModuleDestroy {
 
   /**
    * SMART on FHIR Authorize Endpoint
-   * 
+   *
    * In a full EHR launch:
    * 1. Validates the client_id against registered apps
    * 2. Authenticates the user (doctor/nurse) via session
    * 3. Shows consent screen for requested scopes
    * 4. Issues an authorization code bound to the user + patient context
-   * 
+   *
    * Current implementation: validates app registration and issues
    * an auth code with the requested scope and patient context.
    */
   async authorize(
-    clientId: string, 
-    scope: string, 
+    clientId: string,
+    scope: string,
     redirectUri: string,
     launchPatient?: string,
   ) {
@@ -139,13 +159,18 @@ export class FhirAuthService implements OnModuleInit, OnModuleDestroy {
     const app = this.validateClient(clientId);
 
     // Verify redirect_uri matches registered URIs
-    if (!app.redirectUris.includes(redirectUri) && !redirectUri.startsWith('http://localhost')) {
-      throw new BadRequestException(`redirect_uri not registered for this application`);
+    if (
+      !app.redirectUris.includes(redirectUri) &&
+      !redirectUri.startsWith('http://localhost')
+    ) {
+      throw new BadRequestException(
+        `redirect_uri not registered for this application`,
+      );
     }
 
     // Generate authorization code (valid for 60 seconds per SMART spec)
     const code = `auth_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
-    
+
     const payload = JSON.stringify({
       clientId,
       patient: launchPatient, // Can be undefined for system-level access
@@ -160,11 +185,11 @@ export class FhirAuthService implements OnModuleInit, OnModuleDestroy {
 
   /**
    * SMART Token Endpoint
-   * 
+   *
    * Supports two grant types:
    * - client_credentials: Backend service applications (no user context)
    * - authorization_code: SMART App Launch with user + patient context
-   * 
+   *
    * Dynamic patient context: The patient ID is NOT hardcoded.
    * It must be provided explicitly via the `patient` parameter or
    * inherited from the authorization code's launch context.
@@ -182,7 +207,7 @@ export class FhirAuthService implements OnModuleInit, OnModuleDestroy {
 
     if (!app.grantTypes.includes(grantType as any)) {
       throw new BadRequestException(
-        `Grant type '${grantType}' not allowed for this application. Allowed: ${app.grantTypes.join(', ')}`
+        `Grant type '${grantType}' not allowed for this application. Allowed: ${app.grantTypes.join(', ')}`,
       );
     }
 
@@ -194,19 +219,25 @@ export class FhirAuthService implements OnModuleInit, OnModuleDestroy {
     // ---------------------
     if (grantType === 'authorization_code') {
       if (!code) {
-        throw new BadRequestException('authorization_code grant requires a valid code');
+        throw new BadRequestException(
+          'authorization_code grant requires a valid code',
+        );
       }
 
       const redisKey = `fhir_auth:${code}`;
       const authDataStr = await this.redisClient.get(redisKey);
-      
+
       if (!authDataStr) {
-        throw new UnauthorizedException('Invalid or expired authorization code');
+        throw new UnauthorizedException(
+          'Invalid or expired authorization code',
+        );
       }
 
       const authData = JSON.parse(authDataStr);
       if (authData.clientId !== clientId) {
-        throw new UnauthorizedException('Authorization code was issued to a different client');
+        throw new UnauthorizedException(
+          'Authorization code was issued to a different client',
+        );
       }
 
       // One-time use: delete code immediately
@@ -231,16 +262,22 @@ export class FhirAuthService implements OnModuleInit, OnModuleDestroy {
     if (patientContext) {
       const patientId = parseInt(patientContext);
       if (isNaN(patientId)) {
-        throw new BadRequestException('patient parameter must be a valid numeric ID');
+        throw new BadRequestException(
+          'patient parameter must be a valid numeric ID',
+        );
       }
-      const exists = await this.prisma.patient.findUnique({ where: { id: patientId } });
+      const exists = await this.prisma.patient.findUnique({
+        where: { id: patientId },
+      });
       if (!exists) {
         throw new BadRequestException(`Patient with ID ${patientId} not found`);
       }
     }
 
     // Build JWT payload
-    const jwtSecret = this.config.get<string>('JWT_SECRET') || 'fhir-super-secret-key-enterprise';
+    const jwtSecret =
+      this.config.get<string>('JWT_SECRET') ||
+      'fhir-super-secret-key-enterprise';
 
     const payload: Record<string, any> = {
       iss: 'https://saraya-erp.com/api/fhir',
@@ -261,7 +298,7 @@ export class FhirAuthService implements OnModuleInit, OnModuleDestroy {
     });
 
     this.logger.log(
-      `🔑 FHIR Token issued for ${clientId} | scope: ${finalScope} | patient: ${patientContext || 'NONE (system-level)'}`
+      `🔑 FHIR Token issued for ${clientId} | scope: ${finalScope} | patient: ${patientContext || 'NONE (system-level)'}`,
     );
 
     return {
@@ -275,31 +312,35 @@ export class FhirAuthService implements OnModuleInit, OnModuleDestroy {
 
   /**
    * Enterprise-grade FHIR Scope Validation.
-   * 
+   *
    * Supports the full SMART v2 scope syntax:
    * - Explicit: patient/Patient.read, patient/Observation.write
    * - Wildcard: patient/*.read, patient/*.write, user/*.read, system/*.write
    * - Combined: user/*.* (full access)
-   * 
+   *
    * Scope prefixes:
    * - patient/ : Access restricted to a specific patient context
    * - user/    : Access based on the authenticated user's permissions
    * - system/  : Backend service access (no user/patient context)
-   * 
+   *
    * @returns Decoded JWT payload with scope and patient context
    */
   validateToken(token: string, requiredScope?: string) {
-    const jwtSecret = this.config.get<string>('JWT_SECRET') || 'fhir-super-secret-key-enterprise';
+    const jwtSecret =
+      this.config.get<string>('JWT_SECRET') ||
+      'fhir-super-secret-key-enterprise';
 
     try {
       const decoded = this.jwtService.verify(token, { secret: jwtSecret });
 
       if (requiredScope) {
-        const grantedScopes: string[] = (decoded.scope || '').split(' ').filter(Boolean);
+        const grantedScopes: string[] = (decoded.scope || '')
+          .split(' ')
+          .filter(Boolean);
 
         if (!this.scopeSatisfies(grantedScopes, requiredScope)) {
           throw new UnauthorizedException(
-            `Insufficient scope. Required: "${requiredScope}". Granted: "${decoded.scope}"`
+            `Insufficient scope. Required: "${requiredScope}". Granted: "${decoded.scope}"`,
           );
         }
       }
@@ -313,10 +354,10 @@ export class FhirAuthService implements OnModuleInit, OnModuleDestroy {
 
   /**
    * Determines if any of the granted scopes satisfy the required scope.
-   * 
+   *
    * Required scope format: "prefix/Resource.action"
    * Examples: "patient/Observation.write", "system/Subscription.read"
-   * 
+   *
    * Matching rules:
    *   patient/Observation.write  satisfies  patient/Observation.write  (exact)
    *   patient/*.write            satisfies  patient/Observation.write  (wildcard resource)
@@ -324,9 +365,14 @@ export class FhirAuthService implements OnModuleInit, OnModuleDestroy {
    *   user/*.read                satisfies  patient/Patient.read       (user covers patient reads)
    *   system/*.write             satisfies  system/Subscription.write  (system wildcard)
    */
-  private scopeSatisfies(grantedScopes: string[], requiredScope: string): boolean {
+  private scopeSatisfies(
+    grantedScopes: string[],
+    requiredScope: string,
+  ): boolean {
     // Parse the required scope: "prefix/Resource.action"
-    const reqMatch = requiredScope.match(/^(patient|user|system)\/(\w+|\*)\.(\w+|\*)$/);
+    const reqMatch = requiredScope.match(
+      /^(patient|user|system)\/(\w+|\*)\.(\w+|\*)$/,
+    );
     if (!reqMatch) {
       // If required scope doesn't match expected format, do exact string match
       return grantedScopes.includes(requiredScope);
@@ -339,7 +385,9 @@ export class FhirAuthService implements OnModuleInit, OnModuleDestroy {
       if (granted === requiredScope) return true;
 
       // Parse granted scope
-      const grantMatch = granted.match(/^(patient|user|system)\/(\w+|\*)\.(\w+|\*)$/);
+      const grantMatch = granted.match(
+        /^(patient|user|system)\/(\w+|\*)\.(\w+|\*)$/,
+      );
       if (!grantMatch) continue;
 
       const [, grantPrefix, grantResource, grantAction] = grantMatch;

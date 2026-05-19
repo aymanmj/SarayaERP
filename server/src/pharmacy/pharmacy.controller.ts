@@ -14,13 +14,13 @@ import { PharmacyService } from './pharmacy.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import type { JwtPayload } from '../auth/jwt-payload.type';
 import { CurrentUser } from '../auth/current-user.decorator';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { Permissions } from '../auth/permissions.decorator';
 import { StockTransactionType, PaymentMethod } from '@prisma/client';
 import { Sensitive } from '../audit/audit.decorator';
 import { RequireFeature } from '../licensing/license.decorator';
 
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('pharmacy')
 @RequireFeature('PHARMACY')
 export class PharmacyController {
@@ -46,7 +46,7 @@ export class PharmacyController {
 
   // ✅ إنشاء وصفة جديدة
   @Post('encounters/:encounterId/prescriptions')
-  @Roles('ADMIN', 'DOCTOR')
+  @Permissions('pharmacy:manage')
   async createForEncounter(
     @Param('encounterId', ParseIntPipe) encounterId: number,
     @Body() body: any,
@@ -88,7 +88,7 @@ export class PharmacyController {
 
   // ✅ Worklist الصيدلية
   @Get('worklist')
-  @Roles('ADMIN', 'PHARMACIST')
+  @Permissions('pharmacy:view')
   async getWorklist(
     @Req() req: any,
     @Query('page') page?: string,
@@ -102,7 +102,7 @@ export class PharmacyController {
 
   // ✅ صرف وصفة (Dispense) - يدعم الآن الصرف التلقائي حسب FEFO
   @Post('prescriptions/:id/dispense')
-  @Roles('ADMIN', 'PHARMACIST')
+  @Permissions('pharmacy:view')
   async dispensePrescription(
     @Req() req: any,
     @Param('id', ParseIntPipe) prescriptionId: number,
@@ -135,7 +135,7 @@ export class PharmacyController {
 
   // ✅ قائمة المخزون
   @Get('stock')
-  @Roles('ADMIN', 'PHARMACIST')
+  @Permissions('pharmacy:view')
   async getDrugStock(@Req() req: any, @Query('q') q?: string) {
     const hospitalId = req.user.hospitalId;
     return this.pharmacy.getDrugStockList(hospitalId, q);
@@ -144,7 +144,7 @@ export class PharmacyController {
   // ✅ إنشاء حركة مخزون يدويّة (توريد / تسوية)
   // تم التحديث لدعم batchNumber و expiryDate
   @Post('stock/transactions')
-  @Roles('ADMIN', 'PHARMACIST')
+  @Permissions('pharmacy:view')
   async createStockTransaction(
     @Req() req: any,
     @Body()
@@ -186,7 +186,7 @@ export class PharmacyController {
 
   // ✅ تقرير حركات مخزون الصيدلية
   @Get('stock/transactions')
-  @Roles('ADMIN', 'PHARMACIST')
+  @Permissions('pharmacy:view')
   async getStockTransactionsReport(
     @Req() req: any,
     @Query('from') from?: string,
@@ -240,7 +240,7 @@ export class PharmacyController {
   }
 
   @Get('encounters/:encounterId/dispenses-summary')
-  @Roles('ADMIN', 'DOCTOR', 'PHARMACIST', 'CASHIER')
+  @Permissions('pharmacy:view')
   async getEncounterDispensesSummary(
     @Req() req: any,
     @Param('encounterId', ParseIntPipe) encounterId: number,
@@ -251,7 +251,7 @@ export class PharmacyController {
 
   //  صرف ودفع فوري (POS) - يدعم FEFO الآن
   @Post('prescriptions/:id/dispense-pay')
-  @Roles('ADMIN', 'PHARMACIST')
+  @Permissions('pharmacy:view')
   async dispenseAndPay(
     @Req() req: any,
     @Param('id', ParseIntPipe) prescriptionId: number,
@@ -302,8 +302,8 @@ export class PharmacyController {
 // import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 // import type { JwtPayload } from '../auth/jwt-payload.type';
 // import { CurrentUser } from '../auth/current-user.decorator';
-// import { RolesGuard } from '../auth/roles.guard';
-// import { Roles } from '../auth/roles.decorator';
+// import { PermissionsGuard } from '../auth/permissions.guard';
+// import { Permissions } from '../auth/permissions.decorator';
 // // ✅ [FIX] استيراد الاسم الجديد من Prisma
 // import { StockTransactionType } from '@prisma/client';
 // import { PaymentMethod } from '@prisma/client';
@@ -324,7 +324,7 @@ export class PharmacyController {
 //   doctorId?: number;
 // }
 
-// @UseGuards(JwtAuthGuard, RolesGuard)
+// @UseGuards(JwtAuthGuard, PermissionsGuard)
 // @Controller('pharmacy')
 // export class PharmacyController {
 //   constructor(private readonly pharmacy: PharmacyService) {}
@@ -348,7 +348,7 @@ export class PharmacyController {
 
 //   // ✅ إنشاء وصفة جديدة
 //   @Post('encounters/:encounterId/prescriptions')
-//   @Roles('ADMIN', 'DOCTOR')
+//   @Permissions('pharmacy:manage')
 //   async createForEncounter(
 //     @Param('encounterId', ParseIntPipe) encounterId: number,
 //     @Body() body: any,
@@ -389,7 +389,7 @@ export class PharmacyController {
 
 //   // ✅ Worklist الصيدلية
 //   @Get('worklist')
-//   @Roles('ADMIN', 'PHARMACIST')
+//   @Permissions('pharmacy:view')
 //   async getWorklist(@Req() req: any) {
 //     const hospitalId = req.user.hospitalId;
 //     return this.pharmacy.getWorklist(hospitalId);
@@ -397,7 +397,7 @@ export class PharmacyController {
 
 //   // ✅ صرف وصفة
 //   @Post('prescriptions/:id/dispense')
-//   @Roles('ADMIN', 'PHARMACIST')
+//   @Permissions('pharmacy:view')
 //   async dispensePrescription(
 //     @Req() req: any,
 //     @Param('id', ParseIntPipe) prescriptionId: number,
@@ -430,7 +430,7 @@ export class PharmacyController {
 
 //   // ✅ قائمة المخزون
 //   @Get('stock')
-//   @Roles('ADMIN', 'PHARMACIST')
+//   @Permissions('pharmacy:view')
 //   async getDrugStock(@Req() req: any, @Query('q') q?: string) {
 //     const hospitalId = req.user.hospitalId;
 //     return this.pharmacy.getDrugStockList(hospitalId, q);
@@ -438,7 +438,7 @@ export class PharmacyController {
 
 //   // ✅ إنشاء حركة مخزون يدويّة (توريد / تسوية)
 //   @Post('stock/transactions')
-//   @Roles('ADMIN', 'PHARMACIST')
+//   @Permissions('pharmacy:view')
 //   async createStockTransaction(
 //     @Req() req: any,
 //     @Body()
@@ -468,7 +468,7 @@ export class PharmacyController {
 
 //   // ✅ تقرير حركات مخزون الصيدلية
 //   @Get('stock/transactions')
-//   @Roles('ADMIN', 'PHARMACIST')
+//   @Permissions('pharmacy:view')
 //   async getStockTransactionsReport(
 //     @Req() req: any,
 //     @Query('from') from?: string,
@@ -524,7 +524,7 @@ export class PharmacyController {
 //   }
 
 //   @Get('encounters/:encounterId/dispenses-summary')
-//   @Roles('ADMIN', 'DOCTOR', 'PHARMACIST', 'CASHIER')
+//   @Permissions('pharmacy:view')
 //   async getEncounterDispensesSummary(
 //     @Req() req: any,
 //     @Param('encounterId', ParseIntPipe) encounterId: number,
@@ -535,7 +535,7 @@ export class PharmacyController {
 
 //   //  صرف ودفع فوري (POS)
 //   @Post('prescriptions/:id/dispense-pay')
-//   @Roles('ADMIN', 'PHARMACIST')
+//   @Permissions('pharmacy:view')
 //   async dispenseAndPay(
 //     @Req() req: any,
 //     @Param('id', ParseIntPipe) prescriptionId: number,

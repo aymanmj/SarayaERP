@@ -1,4 +1,12 @@
-import { IsNumber, IsOptional, IsString, IsDecimal, IsBoolean, IsArray, ValidateNested } from 'class-validator';
+import {
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsDecimal,
+  IsBoolean,
+  IsArray,
+  ValidateNested,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class DailyAssessmentDto {

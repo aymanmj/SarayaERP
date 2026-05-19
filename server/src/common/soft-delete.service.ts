@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 
 interface SoftDeleteOptions {
   notFoundMessage: string;
-  where: any;            // شروط البحث عن السجل (مثلاً { id, hospitalId, isDeleted: false })
+  where: any; // شروط البحث عن السجل (مثلاً { id, hospitalId, isDeleted: false })
   extraUpdateData?: any; // حقول إضافية نريد تعديلها (مثلاً isActive: false)
 }
 

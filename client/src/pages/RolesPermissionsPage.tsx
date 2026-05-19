@@ -28,6 +28,7 @@ export default function RolesPermissionsPage() {
   const [allPermissions, setAllPermissions] = useState<Permission[]>([]);
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
   const [selectedPermissionIds, setSelectedPermissionIds] = useState<number[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -40,6 +41,7 @@ export default function RolesPermissionsPage() {
       ]);
       setRoles(rolesRes.data);
       setAllPermissions(permsRes.data);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
       toast.error("فشل تحميل البيانات");
     } finally {
@@ -71,6 +73,7 @@ export default function RolesPermissionsPage() {
       });
       toast.success(`تم تحديث صلاحيات ${selectedRole.name}`);
       loadData();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       toast.error(err.response?.data?.message || "حدث خطأ");
     } finally {

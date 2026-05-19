@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Param, ParseIntPipe, Body, UseGuards, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Param,
+  ParseIntPipe,
+  Body,
+  UseGuards,
+  Query,
+} from '@nestjs/common';
 import { ResourcesService } from './resources.service';
 import { BookingsService } from './bookings.service';
 import { WaitlistService } from './waitlist.service';
@@ -32,7 +41,8 @@ export class SchedulingController {
   @Post('bookings')
   @Permissions('scheduling:manage')
   async createBooking(
-    @Body() data: {
+    @Body()
+    data: {
       resourceId: number;
       encounterId?: number;
       title: string;

@@ -14,7 +14,7 @@ export interface ScrubResult {
 
 /**
  * محرك فحص المطالبات التأمينية (Claims Scrubbing Engine)
- * 
+ *
  * يفحص المطالبة عبر مجموعة قواعد قبل إرسالها لشركة التأمين:
  * 1. COMPLETENESS — اكتمال البيانات المطلوبة
  * 2. ELIGIBILITY — صلاحية التغطية التأمينية
@@ -158,7 +158,8 @@ export class ClaimScrubberService {
         results.push({
           ruleCode: 'CODING',
           severity: 'ERROR',
-          message: 'الزيارة لا تحتوي على تشخيص — مطلوب رمز ICD-10 واحد على الأقل',
+          message:
+            'الزيارة لا تحتوي على تشخيص — مطلوب رمز ICD-10 واحد على الأقل',
           field: 'encounter.diagnoses',
         });
       } else {
@@ -232,7 +233,8 @@ export class ClaimScrubberService {
         results.push({
           ruleCode: 'DUPLICATE_ENCOUNTER',
           severity: 'WARNING',
-          message: 'تحذير: تم العثور على مطالبة لنفس المريض مع نفس الطبيب/القسم في نفس اليوم. قد تعتبر شركة التأمين هذه الزيارة مكررة',
+          message:
+            'تحذير: تم العثور على مطالبة لنفس المريض مع نفس الطبيب/القسم في نفس اليوم. قد تعتبر شركة التأمين هذه الزيارة مكررة',
           field: 'encounter',
         });
       }

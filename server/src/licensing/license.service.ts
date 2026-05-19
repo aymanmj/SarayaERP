@@ -127,7 +127,10 @@ export class LicenseService implements OnModuleInit {
   // CRYPTO
   // ============================================================
 
-  private _generateFingerprint(machineId: string, hospitalName: string): string {
+  private _generateFingerprint(
+    machineId: string,
+    hospitalName: string,
+  ): string {
     return crypto
       .createHash('sha256')
       .update(`${machineId}::${hospitalName}`)
@@ -179,7 +182,10 @@ export class LicenseService implements OnModuleInit {
   // FEATURE CHECKS & EDITIONS (UNIFIED CODEBASE STRATEGY)
   // ============================================================
 
-  getActiveEditionAndFeatures(): { edition: SystemEdition; features: string[] } {
+  getActiveEditionAndFeatures(): {
+    edition: SystemEdition;
+    features: string[];
+  } {
     const status = this.getStatus();
     if (!status.isValid) {
       return { edition: SystemEdition.STANDARD, features: [] };
@@ -188,7 +194,11 @@ export class LicenseService implements OnModuleInit {
     // Determine Edition based on legacy plan strings or new enum strings
     const planStr = (status.plan || '').toLowerCase();
     let edition = SystemEdition.STANDARD;
-    if (planStr.includes('مؤسسة') || planStr.includes('شامل') || planStr.includes('enterprise')) {
+    if (
+      planStr.includes('مؤسسة') ||
+      planStr.includes('شامل') ||
+      planStr.includes('enterprise')
+    ) {
       edition = SystemEdition.ENTERPRISE;
     }
 
@@ -260,7 +270,9 @@ export class LicenseService implements OnModuleInit {
       this._cachedStatus = null;
       this._lastValidationTime = 0;
 
-      this.logger.log(`✅ License activated for ${decoded.hospitalName}, expires ${decoded.expiryDate}`);
+      this.logger.log(
+        `✅ License activated for ${decoded.hospitalName}, expires ${decoded.expiryDate}`,
+      );
 
       return { success: true, message: 'تم تفعيل الترخيص بنجاح' };
     } catch (e: any) {
@@ -285,7 +297,10 @@ export class LicenseService implements OnModuleInit {
 
       // 2. Validate machine ID
       if (newLicense.hwId !== this._machineId) {
-        return { success: false, message: 'كود الجهاز غير مطابق. هذا المفتاح خاص بجهاز آخر.' };
+        return {
+          success: false,
+          message: 'كود الجهاز غير مطابق. هذا المفتاح خاص بجهاز آخر.',
+        };
       }
 
       // 3. Validate fingerprint
@@ -301,7 +316,11 @@ export class LicenseService implements OnModuleInit {
       let bonusDays = 0;
       const currentStatus = this.getStatus(true);
 
-      if (currentStatus.isValid && !currentStatus.isGracePeriod && !currentStatus.isExpired) {
+      if (
+        currentStatus.isValid &&
+        !currentStatus.isGracePeriod &&
+        !currentStatus.isExpired
+      ) {
         // License is still active and not in grace period → add remaining days
         const currentExpiry = new Date(currentStatus.expiryDate!);
         currentExpiry.setHours(23, 59, 59, 999);
@@ -310,7 +329,9 @@ export class LicenseService implements OnModuleInit {
 
         if (remainingMs > 0) {
           bonusDays = Math.floor(remainingMs / 86400000);
-          this.logger.log(`📅 Remaining days from current license: ${bonusDays}`);
+          this.logger.log(
+            `📅 Remaining days from current license: ${bonusDays}`,
+          );
         }
       }
 
@@ -343,14 +364,15 @@ export class LicenseService implements OnModuleInit {
 
       this.logger.log(
         `🔄 License renewed for ${newLicense.hospitalName}. ` +
-        `New expiry: ${finalExpiryDate} (bonus: +${bonusDays} days)`,
+          `New expiry: ${finalExpiryDate} (bonus: +${bonusDays} days)`,
       );
 
       return {
         success: true,
-        message: bonusDays > 0
-          ? `تم تجديد الاشتراك بنجاح! تمت إضافة ${bonusDays} يوم متبقي من الاشتراك السابق. ينتهي في ${finalExpiryDate}`
-          : `تم تجديد الاشتراك بنجاح! ينتهي في ${finalExpiryDate}`,
+        message:
+          bonusDays > 0
+            ? `تم تجديد الاشتراك بنجاح! تمت إضافة ${bonusDays} يوم متبقي من الاشتراك السابق. ينتهي في ${finalExpiryDate}`
+            : `تم تجديد الاشتراك بنجاح! ينتهي في ${finalExpiryDate}`,
         newExpiryDate: finalExpiryDate,
         bonusDays,
       };
@@ -368,7 +390,11 @@ export class LicenseService implements OnModuleInit {
     return path.join(path.dirname(this.licenseFilePath), 'renewal.meta.json');
   }
 
-  private _storeLicenseWithBonus(licenseKey: string, bonusDays: number, adjustedExpiry: string) {
+  private _storeLicenseWithBonus(
+    licenseKey: string,
+    bonusDays: number,
+    adjustedExpiry: string,
+  ) {
     const dir = path.dirname(this.licenseFilePath);
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 
@@ -381,10 +407,17 @@ export class LicenseService implements OnModuleInit {
       adjustedExpiryDate: adjustedExpiry,
       renewedAt: new Date().toISOString(),
     };
-    fs.writeFileSync(this._bonusMetadataPath, JSON.stringify(metadata, null, 2), 'utf8');
+    fs.writeFileSync(
+      this._bonusMetadataPath,
+      JSON.stringify(metadata, null, 2),
+      'utf8',
+    );
   }
 
-  private _loadBonusMetadata(): { bonusDays: number; adjustedExpiryDate: string } | null {
+  private _loadBonusMetadata(): {
+    bonusDays: number;
+    adjustedExpiryDate: string;
+  } | null {
     try {
       if (fs.existsSync(this._bonusMetadataPath)) {
         const raw = fs.readFileSync(this._bonusMetadataPath, 'utf8');
@@ -486,7 +519,7 @@ export class LicenseService implements OnModuleInit {
 
         this.logger.warn(
           `⏳ Grace period: day ${daysPastExpiry + 1}/${this.GRACE_PERIOD_DAYS}, ` +
-          `${graceDaysLeft} days left`,
+            `${graceDaysLeft} days left`,
         );
 
         return this._cache({

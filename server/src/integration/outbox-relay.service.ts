@@ -1,7 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
-import { OutboundQueueService, OutboundJobType } from './outbound-queue.service';
+import {
+  OutboundQueueService,
+  OutboundJobType,
+} from './outbound-queue.service';
 
 @Injectable()
 export class OutboxRelayService {
@@ -35,7 +38,9 @@ export class OutboxRelayService {
         return;
       }
 
-      this.logger.log(`🔄 Outbox Relay: Processing ${pendingEvents.length} pending outbound events...`);
+      this.logger.log(
+        `🔄 Outbox Relay: Processing ${pendingEvents.length} pending outbound events...`,
+      );
 
       for (const event of pendingEvents) {
         try {
@@ -60,8 +65,10 @@ export class OutboxRelayService {
             },
           });
         } catch (error: any) {
-          this.logger.error(`❌ Outbox Relay failed for event #${event.id}: ${error.message}`);
-          
+          this.logger.error(
+            `❌ Outbox Relay failed for event #${event.id}: ${error.message}`,
+          );
+
           // Mark as FAILED or increment attempts
           await this.prisma.outboxEvent.update({
             where: { id: event.id },
@@ -85,7 +92,9 @@ export class OutboxRelayService {
    */
   @Cron(CronExpression.EVERY_DAY_AT_3AM)
   async cleanupOldOutboxEvents() {
-    this.logger.log('🧹 Cleaning up processed Outbox events older than 30 days...');
+    this.logger.log(
+      '🧹 Cleaning up processed Outbox events older than 30 days...',
+    );
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 

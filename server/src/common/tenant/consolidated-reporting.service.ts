@@ -146,11 +146,16 @@ export class ConsolidatedReportingService {
       select: { id: true, name: true, code: true },
     });
 
-    const encounterMap = new Map(encounters.map((e) => [e.hospitalId, e._count]));
+    const encounterMap = new Map(
+      encounters.map((e) => [e.hospitalId, e._count]),
+    );
     const revenueMap = new Map(
       revenue.map((r) => [
         r.hospitalId,
-        { total: Number(r._sum.totalAmount || 0), paid: Number(r._sum.paidAmount || 0) },
+        {
+          total: Number(r._sum.totalAmount || 0),
+          paid: Number(r._sum.paidAmount || 0),
+        },
       ]),
     );
 

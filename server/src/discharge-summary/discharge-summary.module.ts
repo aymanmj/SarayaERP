@@ -4,6 +4,6 @@ import { DischargeSummaryService } from './discharge-summary.service';
 
 @Module({
   controllers: [DischargeSummaryController],
-  providers: [DischargeSummaryService]
+  providers: [DischargeSummaryService],
 })
 export class DischargeSummaryModule {}

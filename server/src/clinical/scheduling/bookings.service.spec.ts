@@ -54,7 +54,9 @@ describe('BookingsService', () => {
         scheduledEnd: new Date('2026-05-01T10:30:00Z'),
       });
 
-      await expect(service.createBooking(validBooking)).rejects.toThrow(ConflictException);
+      await expect(service.createBooking(validBooking)).rejects.toThrow(
+        ConflictException,
+      );
     });
 
     it('should create booking if time slot is free', async () => {
@@ -89,7 +91,10 @@ describe('BookingsService', () => {
 
       await service.cancelBooking(100);
 
-      expect(eventEmitter.emit).toHaveBeenCalledWith('booking.cancelled', expect.any(Object));
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        'booking.cancelled',
+        expect.any(Object),
+      );
       expect(prismaService.resourceBooking.update).toHaveBeenCalledWith({
         where: { id: 100 },
         data: { status: 'CANCELLED' },

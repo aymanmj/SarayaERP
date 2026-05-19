@@ -51,7 +51,9 @@ export class PurchaseReturnsService {
       }[] = [];
 
       for (const item of items) {
-        const invLine = invoice.lines.find((l) => l.productId === item.productId);
+        const invLine = invoice.lines.find(
+          (l) => l.productId === item.productId,
+        );
         if (!invLine) {
           throw new BadRequestException(
             `Product #${item.productId} not found in original invoice`,
@@ -99,7 +101,7 @@ export class PurchaseReturnsService {
       // Rate = InvoiceVAT / InvoiceNet
       const invNet = Number(invoice.netAmount); // Usually Net is before VAT
       // If invoice has lines, we can sum them up to be sure.
-      
+
       // Let's use simple logic: ReturnAmount / InvoiceTotalAmount * InvoiceVAT
       // Wait, accurate way is per line if some items are taxable and others not.
       // For now, proportional split of total VAT.
@@ -107,17 +109,17 @@ export class PurchaseReturnsService {
       const invTotalBeforeVat = Number(invoice.totalAmount) - invVat; // Assuming Total includes VAT?
       // Wait, check schema: totalAmount, vatAmount, netAmount.
       // Usually Net + VAT = Total.
-      
+
       let returnVat = 0;
       if (invNet > 0) {
-        returnVat = (totalAmount / invNet) * invVat; 
+        returnVat = (totalAmount / invNet) * invVat;
       }
-      
+
       const returnNet = totalAmount;
-      const returnTotal = returnNet + returnVat; // Is this how schema expects? 
+      const returnTotal = returnNet + returnVat; // Is this how schema expects?
       // Schema: totalAmount, vatAmount, netAmount.
       // Usually: Net (Goods) + VAT = Total (Payable).
-      
+
       // Create Return Record
       const purchaseReturn = await tx.purchaseReturn.create({
         data: {
@@ -127,7 +129,7 @@ export class PurchaseReturnsService {
           reason,
           status: PurchaseReturnStatus.COMPLETED, // Mark as completed
           createdById: userId,
-          
+
           netAmount: returnNet,
           vatAmount: returnVat,
           totalAmount: returnTotal,
@@ -143,10 +145,10 @@ export class PurchaseReturnsService {
       // AccountingService usually manages its own TX or should accept TX.
       // My update to recordPurchaseReturnEntry does NOT accept TX yet.
       // But it finds records by ID from DB. So we must commit this first OR use event.
-      // OR, since recordPurchaseReturnEntry STARTS by finding the record, 
+      // OR, since recordPurchaseReturnEntry STARTS by finding the record,
       // if I call it HERE inside a TX, it won't find it until main TX commits.
       // Solution: Call it AFTER transaction or update AccountingService to use PrismaClient/TX.
-      
+
       // For now, I will return the ID and call accounting outside.
       return purchaseReturn;
     });

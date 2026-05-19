@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  Logger,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { RecordVitalsDto } from './dto/icu.dto';
 import { DailyAssessmentDto } from './dto/icu-assessment.dto';
@@ -35,7 +40,9 @@ export class IcuService {
       });
 
       if (!serviceItem) {
-        this.logger.warn(`ServiceItem '${opts.serviceCode}' not found for hospital ${opts.hospitalId}. Skipping ICU charge.`);
+        this.logger.warn(
+          `ServiceItem '${opts.serviceCode}' not found for hospital ${opts.hospitalId}. Skipping ICU charge.`,
+        );
         return null;
       }
 
@@ -56,10 +63,15 @@ export class IcuService {
         },
       });
 
-      this.logger.log(`ICU Charge created: ${opts.serviceCode} x${opts.quantity} = ${totalAmount} for encounter #${opts.encounterId}`);
+      this.logger.log(
+        `ICU Charge created: ${opts.serviceCode} x${opts.quantity} = ${totalAmount} for encounter #${opts.encounterId}`,
+      );
       return charge;
     } catch (err) {
-      this.logger.error(`Failed to create ICU charge for ${opts.serviceCode}`, err);
+      this.logger.error(
+        `Failed to create ICU charge for ${opts.serviceCode}`,
+        err,
+      );
       return null;
     }
   }
@@ -87,28 +99,34 @@ export class IcuService {
       OR: [
         { type: 'ICU' },
         { name: { contains: 'عناية' } },
-        { name: { contains: 'ICU' } } // PostgreSQL in Prisma usually supports mode: 'insensitive' but let's stick to standard if it's strict
-      ]
+        { name: { contains: 'ICU' } }, // PostgreSQL in Prisma usually supports mode: 'insensitive' but let's stick to standard if it's strict
+      ],
     };
 
     const activeTransfers = await this.prisma.transferOrder.count({
-      where: { hospitalId, status: { in: ['REQUESTED', 'BED_ALLOCATED', 'HANDOVER_SIGNED'] }, encounter: { status: 'OPEN' } } // ensure open encounters only
+      where: {
+        hospitalId,
+        status: { in: ['REQUESTED', 'BED_ALLOCATED', 'HANDOVER_SIGNED'] },
+        encounter: { status: 'OPEN' },
+      }, // ensure open encounters only
     });
 
     const beds = await this.prisma.bed.findMany({
-      where: { 
-        hospitalId, 
-        ward: icuWardCondition 
+      where: {
+        hospitalId,
+        ward: icuWardCondition,
       },
-      include: { ward: true }
+      include: { ward: true },
     });
 
     const totalBeds = beds.length;
-    const occupiedBeds = beds.filter(b => b.status === 'OCCUPIED').length;
-    const cleaningBeds = beds.filter(b => b.status === 'NEEDS_CLEANING').length;
+    const occupiedBeds = beds.filter((b) => b.status === 'OCCUPIED').length;
+    const cleaningBeds = beds.filter(
+      (b) => b.status === 'NEEDS_CLEANING',
+    ).length;
 
     const activeVentilators = await this.prisma.iCUEquipmentUsage.count({
-      where: { hospitalId, equipmentType: 'VENTILATOR', stoppedAt: null }
+      where: { hospitalId, equipmentType: 'VENTILATOR', stoppedAt: null },
     });
 
     return {
@@ -117,9 +135,9 @@ export class IcuService {
         total: totalBeds,
         occupied: occupiedBeds,
         available: totalBeds - occupiedBeds - cleaningBeds,
-        cleaning: cleaningBeds
+        cleaning: cleaningBeds,
       },
-      activeVentilators
+      activeVentilators,
     };
   }
 
@@ -129,21 +147,28 @@ export class IcuService {
       OR: [
         { type: 'ICU' },
         { name: { contains: 'عناية' } },
-        { name: { contains: 'ICU' } }
-      ]
+        { name: { contains: 'ICU' } },
+      ],
     };
 
     return this.prisma.admission.findMany({
-      where: { 
-        hospitalId, 
+      where: {
+        hospitalId,
         admissionStatus: { in: ['ADMITTED', 'IN_PROGRESS'] },
-        bed: { ward: icuWardCondition }
+        bed: { ward: icuWardCondition },
       },
       include: {
-        patient: { select: { fullName: true, mrn: true, dateOfBirth: true, gender: true } },
+        patient: {
+          select: {
+            fullName: true,
+            mrn: true,
+            dateOfBirth: true,
+            gender: true,
+          },
+        },
         bed: { include: { room: true, ward: true } },
-        admittingDoctor: { select: { fullName: true } }
-      }
+        admittingDoctor: { select: { fullName: true } },
+      },
     });
   }
 
@@ -151,7 +176,11 @@ export class IcuService {
   // FLOWSHEET
   // ==========================================
 
-  async recordFlowsheetEntry(hospitalId: number, userId: number, dto: RecordVitalsDto) {
+  async recordFlowsheetEntry(
+    hospitalId: number,
+    userId: number,
+    dto: RecordVitalsDto,
+  ) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -161,16 +190,16 @@ export class IcuService {
         encounterId_shiftDate_shiftName: {
           encounterId: dto.encounterId,
           shiftDate: today,
-          shiftName: dto.shiftName
-        }
+          shiftName: dto.shiftName,
+        },
       },
       create: {
         hospitalId,
         encounterId: dto.encounterId,
         shiftDate: today,
-        shiftName: dto.shiftName
+        shiftName: dto.shiftName,
       },
-      update: {}
+      update: {},
     });
 
     const entry = await this.prisma.iCUFlowsheetEntry.create({
@@ -191,14 +220,16 @@ export class IcuService {
         gcsScore: dto.gcsScore,
         apgarScore: dto.apgarScore,
         notes: dto.notes,
-        ventilatorLog: dto.ventMode ? {
-          create: {
-            mode: dto.ventMode,
-            fio2: dto.ventFio2,
-            peep: dto.ventPeep
-          }
-        } : undefined
-      }
+        ventilatorLog: dto.ventMode
+          ? {
+              create: {
+                mode: dto.ventMode,
+                fio2: dto.ventFio2,
+                peep: dto.ventPeep,
+              },
+            }
+          : undefined,
+      },
     });
 
     return entry;
@@ -214,11 +245,11 @@ export class IcuService {
         entries: {
           include: {
             recordedBy: { select: { fullName: true } },
-            ventilatorLog: true
+            ventilatorLog: true,
           },
-          orderBy: { recordedAt: 'asc' }
-        }
-      }
+          orderBy: { recordedAt: 'asc' },
+        },
+      },
     });
   }
 
@@ -228,27 +259,307 @@ export class IcuService {
 
     const flowsheets = await this.prisma.iCUFlowsheet.findMany({
       where: { hospitalId, encounterId, shiftDate },
-      include: { entries: true }
+      include: { entries: { orderBy: { recordedAt: 'asc' } } },
     });
 
     let totalIntake = 0;
     let totalOutput = 0;
 
-    flowsheets.forEach(f => {
-      f.entries.forEach(e => {
-        if (e.intakeAmount) totalIntake += Number(e.intakeAmount);
-        if (e.outputAmount) totalOutput += Number(e.outputAmount);
+    // Detailed breakdown by type
+    const intakeByType: Record<string, number> = {};
+    const outputByType: Record<string, number> = {};
+    // Hourly trend data
+    const hourlyTrend: { hour: number; intake: number; output: number; balance: number }[] = [];
+    const hourlyMap = new Map<number, { intake: number; output: number }>();
+
+    // Per-shift breakdown
+    const shiftSummary: Record<string, { intake: number; output: number; balance: number }> = {};
+
+    flowsheets.forEach((f) => {
+      const shiftKey = f.shiftName || 'UNKNOWN';
+      if (!shiftSummary[shiftKey]) {
+        shiftSummary[shiftKey] = { intake: 0, output: 0, balance: 0 };
+      }
+
+      f.entries.forEach((e) => {
+        const intakeAmt = Number(e.intakeAmount || 0);
+        const outputAmt = Number(e.outputAmount || 0);
+
+        if (intakeAmt > 0) {
+          totalIntake += intakeAmt;
+          shiftSummary[shiftKey].intake += intakeAmt;
+          const iType = e.intakeType || 'OTHER';
+          intakeByType[iType] = (intakeByType[iType] || 0) + intakeAmt;
+        }
+
+        if (outputAmt > 0) {
+          totalOutput += outputAmt;
+          shiftSummary[shiftKey].output += outputAmt;
+          const oType = e.outputType || 'OTHER';
+          outputByType[oType] = (outputByType[oType] || 0) + outputAmt;
+        }
+
+        // Hourly tracking
+        const hour = e.recordedAt.getHours();
+        const existing = hourlyMap.get(hour) || { intake: 0, output: 0 };
+        existing.intake += intakeAmt;
+        existing.output += outputAmt;
+        hourlyMap.set(hour, existing);
       });
+
+      shiftSummary[shiftKey].balance =
+        shiftSummary[shiftKey].intake - shiftSummary[shiftKey].output;
     });
 
-    return { totalIntake, totalOutput, balance: totalIntake - totalOutput };
+    // Build hourly trend array
+    let runningBalance = 0;
+    for (let h = 0; h < 24; h++) {
+      const data = hourlyMap.get(h) || { intake: 0, output: 0 };
+      runningBalance += data.intake - data.output;
+      hourlyTrend.push({
+        hour: h,
+        intake: data.intake,
+        output: data.output,
+        balance: runningBalance,
+      });
+    }
+
+    const balance = totalIntake - totalOutput;
+
+    return {
+      date: shiftDate,
+      totalIntake,
+      totalOutput,
+      balance,
+      status: balance > 1000 ? 'POSITIVE_OVERLOAD' :
+              balance > 500 ? 'POSITIVE_HIGH' :
+              balance > 0 ? 'POSITIVE' :
+              balance > -500 ? 'NEGATIVE' :
+              'NEGATIVE_DEHYDRATION',
+      intakeByType,
+      outputByType,
+      shiftSummary,
+      hourlyTrend,
+    };
+  }
+
+  /**
+   * Multi-day fluid balance trend for clinical assessment
+   */
+  async getFluidBalanceTrend(
+    hospitalId: number,
+    encounterId: number,
+    days: number = 7,
+  ) {
+    const results: { date: string; intake: number; output: number; balance: number; status: string }[] = [];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    for (let i = days - 1; i >= 0; i--) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      const dayBalance = await this.getCumulativeIO(
+        hospitalId,
+        encounterId,
+        date.toISOString(),
+      );
+      results.push({
+        date: date.toISOString().split('T')[0],
+        intake: dayBalance.totalIntake,
+        output: dayBalance.totalOutput,
+        balance: dayBalance.balance,
+        status: dayBalance.status,
+      });
+    }
+
+    // Calculate cumulative balance across all days
+    const cumulativeBalance = results.reduce((sum, d) => sum + d.balance, 0);
+
+    return {
+      days: results,
+      cumulativeBalance,
+      avgDailyBalance: Math.round(cumulativeBalance / days),
+      trend: cumulativeBalance > 2000 ? 'FLUID_OVERLOAD_RISK' :
+             cumulativeBalance < -2000 ? 'DEHYDRATION_RISK' :
+             'STABLE',
+    };
+  }
+
+  // ==========================================
+  // VENTILATOR SETTINGS MANAGEMENT
+  // ==========================================
+
+  /**
+   * Record comprehensive ventilator settings change
+   */
+  async recordVentilatorSettings(
+    hospitalId: number,
+    userId: number,
+    dto: {
+      encounterId: number;
+      mode: string;          // AC, SIMV, PSV, CPAP, BiPAP, PRVC, HFOV
+      fio2: number;          // 0.21 - 1.0
+      peep: number;          // cmH2O (typically 5-20)
+      tidalVolume?: number;  // mL (typically 300-600)
+      respiratoryRate?: number;  // breaths/min
+      inspiratoryPressure?: number;  // cmH2O
+      pressureSupport?: number;      // cmH2O
+      ieRatio?: string;              // e.g., "1:2", "1:3"
+      plateauPressure?: number;      // cmH2O (target < 30)
+      drivingPressure?: number;      // cmH2O (target < 15)
+      peakPressure?: number;         // cmH2O
+      compliance?: number;           // mL/cmH2O
+      etco2?: number;                // mmHg
+      spo2?: number;                 // %
+      notes?: string;
+    },
+  ) {
+    // Get or create equipment usage for ventilator
+    let ventUsage = await this.prisma.iCUEquipmentUsage.findFirst({
+      where: {
+        hospitalId,
+        encounterId: dto.encounterId,
+        equipmentType: 'VENTILATOR',
+        stoppedAt: null,
+      },
+    });
+
+    if (!ventUsage) {
+      ventUsage = await this.prisma.iCUEquipmentUsage.create({
+        data: {
+          hospitalId,
+          encounterId: dto.encounterId,
+          equipmentType: 'VENTILATOR',
+          equipmentName: 'Mechanical Ventilator',
+          notes: `Started by user ${userId}`,
+        },
+      });
+
+      // BILLING: Create ventilator charge
+      await this.createIcuCharge({
+        hospitalId,
+        encounterId: dto.encounterId,
+        serviceCode: 'ICU_VENTILATOR_DAILY',
+        quantity: 1,
+        sourceId: ventUsage.id,
+        performerId: userId,
+      });
+    }
+
+    // Record ventilator settings in flowsheet entry
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const currentHour = new Date().getHours();
+    const shiftName = currentHour < 8 ? 'NIGHT' : currentHour < 16 ? 'MORNING' : 'EVENING';
+
+    const flowsheet = await this.prisma.iCUFlowsheet.upsert({
+      where: {
+        encounterId_shiftDate_shiftName: {
+          encounterId: dto.encounterId,
+          shiftDate: today,
+          shiftName,
+        },
+      },
+      create: {
+        hospitalId,
+        encounterId: dto.encounterId,
+        shiftDate: today,
+        shiftName,
+      },
+      update: {},
+    });
+
+    const entry = await this.prisma.iCUFlowsheetEntry.create({
+      data: {
+        flowsheetId: flowsheet.id,
+        recordedById: userId,
+        o2Sat: dto.spo2,
+        notes: dto.notes || `Ventilator settings change: ${dto.mode}`,
+        ventilatorLog: {
+          create: {
+            mode: dto.mode,
+            fio2: dto.fio2,
+            peep: dto.peep,
+            tidalVolume: dto.tidalVolume,
+            respRateSet: dto.respiratoryRate,
+            pip: dto.peakPressure || dto.inspiratoryPressure,
+          },
+        },
+      },
+      include: { ventilatorLog: true },
+    });
+
+    // Safety alerts
+    const alerts: string[] = [];
+    if (dto.plateauPressure && dto.plateauPressure > 30) {
+      alerts.push(`⚠️ Plateau Pressure ${dto.plateauPressure} cmH2O exceeds safe limit (>30)`);
+    }
+    if (dto.fio2 > 0.6) {
+      alerts.push(`⚠️ FiO2 ${dto.fio2 * 100}% - consider oxygen toxicity risk`);
+    }
+    if (dto.tidalVolume && dto.tidalVolume > 8) {
+      alerts.push(`⚠️ Tidal Volume ${dto.tidalVolume} mL/kg - lung-protective target is ≤6-8 mL/kg IBW`);
+    }
+
+    return { entry, ventUsage, alerts };
+  }
+
+  /**
+   * Get ventilator settings history (trending)
+   */
+  async getVentilatorHistory(hospitalId: number, encounterId: number) {
+    const entries = await this.prisma.iCUFlowsheetEntry.findMany({
+      where: {
+        flowsheet: { hospitalId, encounterId },
+        ventilatorLog: { isNot: null },
+      },
+      include: {
+        ventilatorLog: true,
+        recordedBy: { select: { fullName: true } },
+      },
+      orderBy: { recordedAt: 'desc' },
+      take: 50,
+    });
+
+    // Check weaning readiness (simplified SBT criteria)
+    const latest = entries[0]?.ventilatorLog;
+    let weaningReadiness: any = null;
+
+    if (latest) {
+      const criteria = {
+        fio2Below40: latest.fio2 ? Number(latest.fio2) <= 0.4 : false,
+        peepBelow8: latest.peep ? Number(latest.peep) <= 8 : false,
+        pipBelow20: latest.pip
+          ? Number(latest.pip) <= 20
+          : true,
+        adequateOxygenation: true, // Would check SpO2 > 92%
+      };
+
+      const criteriaMetCount = Object.values(criteria).filter(Boolean).length;
+
+      weaningReadiness = {
+        criteria,
+        score: criteriaMetCount,
+        total: Object.keys(criteria).length,
+        eligible: criteriaMetCount === Object.keys(criteria).length,
+        recommendation: criteriaMetCount === Object.keys(criteria).length
+          ? 'مؤهل لتجربة التنفس التلقائي (SBT)'
+          : 'غير مستعد للفطام - يجب تحسين المعايير أولاً',
+      };
+    }
+
+    return { entries, weaningReadiness };
   }
 
   // ==========================================
   // DAILY CLINICAL ASSESSMENTS (GCS, SOFA, APACHE)
   // ==========================================
 
-  async createDailyAssessment(hospitalId: number, userId: number, dto: DailyAssessmentDto) {
+  async createDailyAssessment(
+    hospitalId: number,
+    userId: number,
+    dto: DailyAssessmentDto,
+  ) {
     const assessmentDate = new Date(dto.assessmentDate);
     assessmentDate.setHours(0, 0, 0, 0);
 
@@ -256,8 +567,8 @@ export class IcuService {
       where: {
         encounterId_assessmentDate: {
           encounterId: dto.encounterId,
-          assessmentDate
-        }
+          assessmentDate,
+        },
       },
       create: {
         hospitalId,
@@ -269,7 +580,7 @@ export class IcuService {
         assessedById: userId,
         ...dto,
         assessmentDate, // explicitly set overridden value
-      }
+      },
     });
   }
 
@@ -277,7 +588,7 @@ export class IcuService {
     return this.prisma.iCUDailyAssessment.findMany({
       where: { hospitalId, encounterId },
       orderBy: { assessmentDate: 'desc' },
-      include: { assessedBy: { select: { fullName: true } } }
+      include: { assessedBy: { select: { fullName: true } } },
     });
   }
 
@@ -285,7 +596,11 @@ export class IcuService {
   // DRIP & INFUSION MANAGEMENT
   // ==========================================
 
-  async createMedicationDrip(hospitalId: number, userId: number, dto: CreateMedicationDripDto) {
+  async createMedicationDrip(
+    hospitalId: number,
+    userId: number,
+    dto: CreateMedicationDripDto,
+  ) {
     const drip = await this.prisma.iCUMedicationDrip.create({
       data: {
         hospitalId,
@@ -295,12 +610,14 @@ export class IcuService {
         currentRate: dto.currentRate,
         doseUnit: dto.doseUnit,
         orderedById: userId,
-        titrationLog: [{ 
-          rate: dto.currentRate, 
-          action: 'STARTED', 
-          time: new Date().toISOString() 
-        }]
-      }
+        titrationLog: [
+          {
+            rate: dto.currentRate,
+            action: 'STARTED',
+            time: new Date().toISOString(),
+          },
+        ],
+      },
     });
 
     // ── BILLING: Charge for IV drip administration ──
@@ -316,18 +633,28 @@ export class IcuService {
     return drip;
   }
 
-  async titrateDrip(hospitalId: number, dripId: number, userId: number, dto: TitrateDripDto) {
-    const drip = await this.prisma.iCUMedicationDrip.findUnique({ where: { id: dripId, hospitalId } });
+  async titrateDrip(
+    hospitalId: number,
+    dripId: number,
+    userId: number,
+    dto: TitrateDripDto,
+  ) {
+    const drip = await this.prisma.iCUMedicationDrip.findUnique({
+      where: { id: dripId, hospitalId },
+    });
     if (!drip) throw new NotFoundException('Drip not found');
-    if (drip.status !== 'RUNNING') throw new BadRequestException(`Cannot titrate a ${drip.status} drip`);
+    if (drip.status !== 'RUNNING')
+      throw new BadRequestException(`Cannot titrate a ${drip.status} drip`);
 
-    const log: any[] = Array.isArray(drip.titrationLog) ? drip.titrationLog : [];
+    const log: any[] = Array.isArray(drip.titrationLog)
+      ? drip.titrationLog
+      : [];
     log.push({
       rate: dto.newRate,
       action: 'TITRATED',
       reason: dto.reason,
       userId,
-      time: new Date().toISOString()
+      time: new Date().toISOString(),
     });
 
     return this.prisma.iCUMedicationDrip.update({
@@ -335,22 +662,31 @@ export class IcuService {
       data: {
         currentRate: dto.newRate,
         titrationLog: log,
-        updatedAt: new Date()
-      }
+        updatedAt: new Date(),
+      },
     });
   }
 
-  async stopDrip(hospitalId: number, dripId: number, userId: number, reason?: string) {
-    const drip = await this.prisma.iCUMedicationDrip.findUnique({ where: { id: dripId, hospitalId } });
+  async stopDrip(
+    hospitalId: number,
+    dripId: number,
+    userId: number,
+    reason?: string,
+  ) {
+    const drip = await this.prisma.iCUMedicationDrip.findUnique({
+      where: { id: dripId, hospitalId },
+    });
     if (!drip) throw new NotFoundException('Drip not found');
 
-    const log: any[] = Array.isArray(drip.titrationLog) ? drip.titrationLog : [];
+    const log: any[] = Array.isArray(drip.titrationLog)
+      ? drip.titrationLog
+      : [];
     log.push({
       rate: 0,
       action: 'STOPPED',
       reason,
       userId,
-      time: new Date().toISOString()
+      time: new Date().toISOString(),
     });
 
     return this.prisma.iCUMedicationDrip.update({
@@ -359,8 +695,8 @@ export class IcuService {
         status: 'STOPPED',
         stoppedAt: new Date(),
         currentRate: 0,
-        titrationLog: log
-      }
+        titrationLog: log,
+      },
     });
   }
 
@@ -368,7 +704,7 @@ export class IcuService {
     return this.prisma.iCUMedicationDrip.findMany({
       where: { hospitalId, encounterId, status: 'RUNNING' },
       orderBy: { startedAt: 'desc' },
-      include: { orderedBy: { select: { fullName: true } } }
+      include: { orderedBy: { select: { fullName: true } } },
     });
   }
 
@@ -384,8 +720,8 @@ export class IcuService {
         equipmentType: dto.equipmentType,
         equipmentName: dto.equipmentName,
         dailyRate: dto.dailyRate,
-        notes: dto.notes
-      }
+        notes: dto.notes,
+      },
     });
 
     // ── BILLING: Create initial 1-day charge ──
@@ -403,19 +739,32 @@ export class IcuService {
   }
 
   async stopEquipmentUsage(hospitalId: number, usageId: number) {
-    const usage = await this.prisma.iCUEquipmentUsage.findUnique({ where: { id: usageId, hospitalId } });
+    const usage = await this.prisma.iCUEquipmentUsage.findUnique({
+      where: { id: usageId, hospitalId },
+    });
     if (!usage) throw new NotFoundException('Equipment usage not found');
 
     const now = new Date();
     const result = await this.prisma.iCUEquipmentUsage.update({
       where: { id: usageId },
-      data: { stoppedAt: now }
+      data: { stoppedAt: now },
     });
 
     // ── BILLING: Update charge with actual days used ──
-    const totalDays = Math.max(1, Math.ceil((now.getTime() - usage.startedAt.getTime()) / (1000 * 60 * 60 * 24)));
+    const totalDays = Math.max(
+      1,
+      Math.ceil(
+        (now.getTime() - usage.startedAt.getTime()) / (1000 * 60 * 60 * 24),
+      ),
+    );
     const existingCharge = await this.prisma.encounterCharge.findFirst({
-      where: { hospitalId, encounterId: usage.encounterId, sourceType: ChargeSource.ICU, sourceId: usageId, invoiceId: null },
+      where: {
+        hospitalId,
+        encounterId: usage.encounterId,
+        sourceType: ChargeSource.ICU,
+        sourceId: usageId,
+        invoiceId: null,
+      },
     });
 
     if (existingCharge && totalDays > 1) {
@@ -424,7 +773,9 @@ export class IcuService {
         where: { id: existingCharge.id },
         data: { quantity: totalDays, totalAmount: unitPrice * totalDays },
       });
-      this.logger.log(`Updated equipment charge #${existingCharge.id}: ${totalDays} days × ${unitPrice} = ${unitPrice * totalDays}`);
+      this.logger.log(
+        `Updated equipment charge #${existingCharge.id}: ${totalDays} days × ${unitPrice} = ${unitPrice * totalDays}`,
+      );
     }
 
     return result;
@@ -433,15 +784,22 @@ export class IcuService {
   async getEquipmentUsage(hospitalId: number, encounterId: number) {
     return this.prisma.iCUEquipmentUsage.findMany({
       where: { hospitalId, encounterId },
-      orderBy: { startedAt: 'desc' }
+      orderBy: { startedAt: 'desc' },
     });
   }
 
   // ==========================================
   // NICU SEPARATION
   // ==========================================
-  async separateNewbornPatient(hospitalId: number, userId: number, motherPatientId: number, newbornArgs: any) {
-    const mother = await this.prisma.patient.findUnique({ where: { id: motherPatientId, hospitalId } });
+  async separateNewbornPatient(
+    hospitalId: number,
+    userId: number,
+    motherPatientId: number,
+    newbornArgs: any,
+  ) {
+    const mother = await this.prisma.patient.findUnique({
+      where: { id: motherPatientId, hospitalId },
+    });
     if (!mother) throw new NotFoundException('Mother patient record not found');
 
     const newborn = await this.prisma.patient.create({
@@ -453,8 +811,8 @@ export class IcuService {
         motherId: mother.id,
         // Fallback to mother's insurance policy, OR fallback to parent as Guarantor
         insurancePolicyId: mother.insurancePolicyId,
-        guarantorId: mother.insurancePolicyId ? null : mother.id
-      }
+        guarantorId: mother.insurancePolicyId ? null : mother.id,
+      },
     });
 
     return newborn;

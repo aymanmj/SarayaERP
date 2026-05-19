@@ -37,7 +37,10 @@ describe('FhirAuthGuard', () => {
     expect(guard).toBeDefined();
   });
 
-  const createMockContext = (headers: Record<string, string>, path: string = '/api/fhir/Patient/123'): ExecutionContext => {
+  const createMockContext = (
+    headers: Record<string, string>,
+    path: string = '/api/fhir/Patient/123',
+  ): ExecutionContext => {
     const req = {
       headers,
       path,

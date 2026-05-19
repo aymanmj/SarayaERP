@@ -2,21 +2,37 @@
 
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { BedStatus, EncounterStatus, EncounterType, AdmissionStatus } from '@prisma/client';
+import {
+  BedStatus,
+  EncounterStatus,
+  EncounterType,
+  AdmissionStatus,
+} from '@prisma/client';
 
 @Injectable()
 export class DashboardService {
   constructor(private prisma: PrismaService) {}
 
   // ✅ نستقبل الآن الـ User بالكامل لتحديد الصلاحيات
-  async getStats(hospitalId: number, userId: number, roles: string[], period: string = 'today') {
+  async getStats(
+    hospitalId: number,
+    userId: number,
+    roles: string[],
+    period: string = 'today',
+  ) {
     // ✅ تعويض فرق التوقيت — السيرفر UTC والبيانات بتوقيت ليبيا UTC+2
     const LIBYA_OFFSET_MS = 2 * 60 * 60 * 1000; // +2 ساعة
     const nowUTC = new Date();
     const nowLibya = new Date(nowUTC.getTime() + LIBYA_OFFSET_MS);
 
     // بداية ونهاية "اليوم" بتوقيت ليبيا (ثم نعيده لـ UTC للاستعلام)
-    const todayStart = new Date(Date.UTC(nowLibya.getUTCFullYear(), nowLibya.getUTCMonth(), nowLibya.getUTCDate()) - LIBYA_OFFSET_MS);
+    const todayStart = new Date(
+      Date.UTC(
+        nowLibya.getUTCFullYear(),
+        nowLibya.getUTCMonth(),
+        nowLibya.getUTCDate(),
+      ) - LIBYA_OFFSET_MS,
+    );
     const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000 - 1);
 
     // ✅ حساب بداية ونهاية الفترة المحددة
@@ -25,20 +41,34 @@ export class DashboardService {
 
     if (period === 'week') {
       const dayOfWeek = nowLibya.getUTCDay();
-      periodStart = new Date(todayStart.getTime() - dayOfWeek * 24 * 60 * 60 * 1000);
+      periodStart = new Date(
+        todayStart.getTime() - dayOfWeek * 24 * 60 * 60 * 1000,
+      );
     } else if (period === 'month') {
-      periodStart = new Date(Date.UTC(nowLibya.getUTCFullYear(), nowLibya.getUTCMonth(), 1) - LIBYA_OFFSET_MS);
+      periodStart = new Date(
+        Date.UTC(nowLibya.getUTCFullYear(), nowLibya.getUTCMonth(), 1) -
+          LIBYA_OFFSET_MS,
+      );
     } else {
       periodStart = todayStart;
     }
 
     // تحديد بداية ونهاية الشهر الماضي
-    const lastMonthStart = new Date(Date.UTC(nowLibya.getUTCFullYear(), nowLibya.getUTCMonth() - 1, 1) - LIBYA_OFFSET_MS);
-    const lastMonthEnd = new Date(Date.UTC(nowLibya.getUTCFullYear(), nowLibya.getUTCMonth(), 1) - LIBYA_OFFSET_MS - 1);
+    const lastMonthStart = new Date(
+      Date.UTC(nowLibya.getUTCFullYear(), nowLibya.getUTCMonth() - 1, 1) -
+        LIBYA_OFFSET_MS,
+    );
+    const lastMonthEnd = new Date(
+      Date.UTC(nowLibya.getUTCFullYear(), nowLibya.getUTCMonth(), 1) -
+        LIBYA_OFFSET_MS -
+        1,
+    );
 
     // تحديد بداية الأسبوع
     const dayOfWeek = nowLibya.getUTCDay();
-    const weekStart = new Date(todayStart.getTime() - dayOfWeek * 24 * 60 * 60 * 1000);
+    const weekStart = new Date(
+      todayStart.getTime() - dayOfWeek * 24 * 60 * 60 * 1000,
+    );
 
     // 1. الإحصائيات العامة
     const [
@@ -110,7 +140,7 @@ export class DashboardService {
           hospitalId,
           isActive: true,
         },
-        _sum: { 
+        _sum: {
           costPrice: true,
           stockOnHand: true,
         },
@@ -118,7 +148,7 @@ export class DashboardService {
     ]);
 
     // 2. ✅ حساب الإيرادات
-    let revenueQuery: any = {
+    const revenueQuery: any = {
       hospitalId,
       paidAt: { gte: periodStart, lte: periodEnd },
     };
@@ -161,16 +191,19 @@ export class DashboardService {
       lastMonthRevenue = Number(lastMonthRevenueAgg._sum.amount ?? 0);
     }
 
-    const occupancyRate = totalBeds > 0 ? Math.round((occupiedBeds / totalBeds) * 100) : 0;
+    const occupancyRate =
+      totalBeds > 0 ? Math.round((occupiedBeds / totalBeds) * 100) : 0;
 
     // حساب قيمة المخزون (الكمية × التكلفة)
-    const inventoryValueCalc = Number(inventoryValue._sum.costPrice || 0) * Number(inventoryValue._sum.stockOnHand || 0);
+    const inventoryValueCalc =
+      Number(inventoryValue._sum.costPrice || 0) *
+      Number(inventoryValue._sum.stockOnHand || 0);
 
     // 3. بيانات الأسبوعي للمخططات
     const weeklyTrend = await this.getWeeklyTrend(hospitalId, weekStart);
 
     // 4. توزيع الإيرادات حسب القسم (إخفاء التفاصيل المالية إذا لم يكن لديه صلاحية)
-    const departmentDistribution = hasRevenueAccess 
+    const departmentDistribution = hasRevenueAccess
       ? await this.getDepartmentDistribution(hospitalId, periodStart, periodEnd)
       : [];
 
@@ -178,7 +211,11 @@ export class DashboardService {
     const bedStatus = await this.getBedStatus(hospitalId);
 
     // 6. النشاط الساعي
-    const hourlyActivity = await this.getHourlyActivity(hospitalId, periodStart, periodEnd);
+    const hourlyActivity = await this.getHourlyActivity(
+      hospitalId,
+      periodStart,
+      periodEnd,
+    );
 
     // 7. ✅ [NEW] متوسط مدة الإقامة (Average Length of Stay)
     const dischargedAdmissions = await this.prisma.admission.findMany({
@@ -195,15 +232,19 @@ export class DashboardService {
     let avgLengthOfStay = 0;
     if (dischargedAdmissions.length > 0) {
       const totalDays = dischargedAdmissions.reduce((sum, adm) => {
-        const admDate = adm.actualAdmissionDate!.getTime();
+        const admDate = adm.actualAdmissionDate.getTime();
         const disDate = adm.dischargeDate!.getTime();
         return sum + (disDate - admDate) / (1000 * 60 * 60 * 24);
       }, 0);
-      avgLengthOfStay = Math.round((totalDays / dischargedAdmissions.length) * 10) / 10;
+      avgLengthOfStay =
+        Math.round((totalDays / dischargedAdmissions.length) * 10) / 10;
     }
 
     // 8. ✅ [NEW] أعلى 5 تشخيصات (Top 5 Diagnoses)
-    const monthStart = new Date(Date.UTC(nowLibya.getUTCFullYear(), nowLibya.getUTCMonth(), 1) - LIBYA_OFFSET_MS);
+    const monthStart = new Date(
+      Date.UTC(nowLibya.getUTCFullYear(), nowLibya.getUTCMonth(), 1) -
+        LIBYA_OFFSET_MS,
+    );
     const topDiagnoses = await this.prisma.encounterDiagnosis.groupBy({
       by: ['diagnosisCodeId'],
       where: {
@@ -249,7 +290,11 @@ export class DashboardService {
 
     const revenueGrowthRate =
       lastMonthRevenue > 0
-        ? Math.round(((currentMonthRevenue - lastMonthRevenue) / lastMonthRevenue) * 100 * 10) / 10
+        ? Math.round(
+            ((currentMonthRevenue - lastMonthRevenue) / lastMonthRevenue) *
+              100 *
+              10,
+          ) / 10
         : 0;
 
     return {
@@ -290,7 +335,15 @@ export class DashboardService {
   // دالة للحصول على بيانات الأسبوعي
   private async getWeeklyTrend(hospitalId: number, weekStart: Date) {
     const days: any[] = [];
-    const dayNames = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+    const dayNames = [
+      'الأحد',
+      'الإثنين',
+      'الثلاثاء',
+      'الأربعاء',
+      'الخميس',
+      'الجمعة',
+      'السبت',
+    ];
 
     for (let i = 0; i < 7; i++) {
       const dayStart = new Date(weekStart);
@@ -334,7 +387,11 @@ export class DashboardService {
   }
 
   // دالة للحصول على توزيع الإيرادات حسب القسم
-  private async getDepartmentDistribution(hospitalId: number, startDate: Date, endDate: Date) {
+  private async getDepartmentDistribution(
+    hospitalId: number,
+    startDate: Date,
+    endDate: Date,
+  ) {
     // جلب الأقسام الحقيقية
     const departments = await this.prisma.department.findMany({
       where: {
@@ -348,8 +405,16 @@ export class DashboardService {
     });
 
     const colors = [
-      '#818cf8', '#38bdf8', '#10b981', '#f59e0b', '#ef4444', 
-      '#a855f7', '#06b6d4', '#84cc16', '#f97316', '#ec4899'
+      '#818cf8',
+      '#38bdf8',
+      '#10b981',
+      '#f59e0b',
+      '#ef4444',
+      '#a855f7',
+      '#06b6d4',
+      '#84cc16',
+      '#f97316',
+      '#ec4899',
     ];
 
     // حساب الإيرادات لكل قسم من خلال encounters
@@ -382,11 +447,11 @@ export class DashboardService {
           color: colors[departments.indexOf(dept) % colors.length],
           patients: patientCount,
         };
-      })
+      }),
     );
 
     // فلترة الأقسام التي لديها إيرادات
-    return departmentRevenues.filter(dept => dept.value > 0);
+    return departmentRevenues.filter((dept) => dept.value > 0);
   }
 
   // دالة للحصول على حالة الأسرة
@@ -418,7 +483,7 @@ export class DashboardService {
       BLOCKED: '#818cf8',
     };
 
-    return bedStatuses.map(status => ({
+    return bedStatuses.map((status) => ({
       status: statusNames[status.status] || status.status,
       count: status._count.status,
       color: colors[status.status] || '#6b7280',
@@ -426,9 +491,13 @@ export class DashboardService {
   }
 
   // دالة للحصول على النشاط الساعي
-  private async getHourlyActivity(hospitalId: number, startDate: Date, endDate: Date) {
+  private async getHourlyActivity(
+    hospitalId: number,
+    startDate: Date,
+    endDate: Date,
+  ) {
     const hourlyData: any[] = [];
-    
+
     for (let hour = 8; hour <= 17; hour++) {
       const hourStart = new Date(startDate);
       hourStart.setHours(hour, 0, 0, 0);
@@ -467,7 +536,12 @@ export class DashboardService {
     const now = new Date();
     const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
-    const [recentAdmissions, recentDischarges, recentAppointments, recentEmergencies] = await Promise.all([
+    const [
+      recentAdmissions,
+      recentDischarges,
+      recentAppointments,
+      recentEmergencies,
+    ] = await Promise.all([
       // الإدخالات الحديثة
       this.prisma.admission.findMany({
         where: {
@@ -528,8 +602,13 @@ export class DashboardService {
         type: 'admission',
         patientName: admission.patient.fullName,
         description: `تم إدخال المريض (${admission.admissionType})`,
-        timestamp: admission.actualAdmissionDate?.toISOString() || admission.createdAt.toISOString(),
-        priority: admission.priority === 'CRITICAL' || admission.priority === 'URGENT' ? 'high' : 'medium',
+        timestamp:
+          admission.actualAdmissionDate?.toISOString() ||
+          admission.createdAt.toISOString(),
+        priority:
+          admission.priority === 'CRITICAL' || admission.priority === 'URGENT'
+            ? 'high'
+            : 'medium',
       });
     });
 
@@ -540,7 +619,9 @@ export class DashboardService {
         type: 'discharge',
         patientName: discharge.patient.fullName,
         description: `تم خروج المريض (${discharge.dischargeDisposition})`,
-        timestamp: discharge.dischargeDate?.toISOString() || discharge.updatedAt.toISOString(),
+        timestamp:
+          discharge.dischargeDate?.toISOString() ||
+          discharge.updatedAt.toISOString(),
         priority: 'low',
       });
     });
@@ -571,7 +652,10 @@ export class DashboardService {
 
     // ترتيب الأنشطة حسب الوقت
     return activities
-      .sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+      .sort(
+        (a: any, b: any) =>
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+      )
       .slice(0, 20); // أقصى 20 نشاط
   }
 }

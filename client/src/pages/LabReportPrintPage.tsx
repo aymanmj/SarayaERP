@@ -195,6 +195,7 @@ export default function LabReportPrintPage() {
                             </td>
                           </tr>
                           {/* الأسطر الفرعية */}
+                          // eslint-disable-next-line @typescript-eslint/no-explicit-any
                           {order.results.map((res: any) => (
                             <tr
                               key={res.id}

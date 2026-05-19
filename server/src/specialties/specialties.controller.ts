@@ -12,28 +12,30 @@ import {
 } from '@nestjs/common';
 import { SpecialtiesService } from './specialties.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { Permissions } from '../auth/permissions.decorator';
 
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('specialties')
 export class SpecialtiesController {
   constructor(private readonly specialtiesService: SpecialtiesService) {}
 
+  @Permissions('specialties:view')
   @Get()
   async findAll() {
     return this.specialtiesService.findAll();
   }
 
+  @Permissions('specialties:manage')
   @Post()
-  @Roles('ADMIN')
   async create(@Body() body: any) {
     return this.specialtiesService.create(body);
   }
 
+  @Permissions('specialties:manage')
   @Patch(':id')
-  @Roles('ADMIN')
   async update(@Param('id', ParseIntPipe) id: number, @Body() body: any) {
     return this.specialtiesService.update(id, body);
   }
 }
+

@@ -1,4 +1,9 @@
-import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ClaimScrubberService } from './scrubber/claim-scrubber.service';
 import { ClaimStatus } from '@prisma/client';
@@ -40,7 +45,9 @@ export class ClaimService {
       where: { invoiceId, status: { notIn: ['VOID'] } },
     });
     if (existing) {
-      throw new BadRequestException(`يوجد مطالبة مفتوحة بالفعل: ${existing.claimNumber}`);
+      throw new BadRequestException(
+        `يوجد مطالبة مفتوحة بالفعل: ${existing.claimNumber}`,
+      );
     }
 
     // توليد رقم المطالبة
@@ -127,7 +134,9 @@ export class ClaimService {
 
     // تحديد الحالة بناءً على النتائج
     const hasErrors = scrubResults.some((r) => r.severity === 'ERROR');
-    const newStatus = hasErrors ? ClaimStatus.SCRUB_FAILED : ClaimStatus.SCRUBBED;
+    const newStatus = hasErrors
+      ? ClaimStatus.SCRUB_FAILED
+      : ClaimStatus.SCRUBBED;
 
     await this.updateClaimStatus(claim.id, newStatus, 'نتيجة الفحص التلقائي');
 
@@ -159,7 +168,9 @@ export class ClaimService {
         where: { id: claimId },
         data: {
           status: newStatus,
-          ...(newStatus === ClaimStatus.SUBMITTED && { submittedAt: new Date() }),
+          ...(newStatus === ClaimStatus.SUBMITTED && {
+            submittedAt: new Date(),
+          }),
           ...(newStatus === ClaimStatus.PAID && { paidAt: new Date() }),
         },
       }),
@@ -268,25 +279,31 @@ export class ClaimService {
   /**
    * تقديم استئناف
    */
-  async appealClaim(claimId: number, appealNotes: string, changedById?: number) {
-    return this.prisma.claim.update({
-      where: { id: claimId },
-      data: {
-        status: ClaimStatus.APPEALED,
-        appealNotes,
-      },
-    }).then(async (updated) => {
-      await this.prisma.claimHistory.create({
+  async appealClaim(
+    claimId: number,
+    appealNotes: string,
+    changedById?: number,
+  ) {
+    return this.prisma.claim
+      .update({
+        where: { id: claimId },
         data: {
-          claimId,
-          fromStatus: ClaimStatus.REJECTED,
-          toStatus: ClaimStatus.APPEALED,
-          changedById,
-          notes: appealNotes,
+          status: ClaimStatus.APPEALED,
+          appealNotes,
         },
+      })
+      .then(async (updated) => {
+        await this.prisma.claimHistory.create({
+          data: {
+            claimId,
+            fromStatus: ClaimStatus.REJECTED,
+            toStatus: ClaimStatus.APPEALED,
+            changedById,
+            notes: appealNotes,
+          },
+        });
+        return updated;
       });
-      return updated;
-    });
   }
 
   /**

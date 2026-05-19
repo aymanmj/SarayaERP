@@ -699,7 +699,7 @@ export class AccountingService {
     const prevCredit = Number(prevAgg._sum?.credit ?? 0);
 
     // رصيد موجه حسب الطبيعة (مدين/دائن)
-    let openingBalance =
+    const openingBalance =
       normalSide === 'DEBIT' ? prevDebit - prevCredit : prevCredit - prevDebit;
 
     // 3) جلب القيود داخل الفترة
@@ -887,9 +887,7 @@ export class AccountingService {
         let key: SystemAccountKey = SystemAccountKey.REVENUE_OUTPATIENT;
 
         if (ch.serviceItem) {
-          key = this.mapServiceTypeToRevenueKey(
-            (ch.serviceItem.type as ServiceType) ?? null,
-          );
+          key = this.mapServiceTypeToRevenueKey(ch.serviceItem.type ?? null);
         }
         revenueMap.set(key, (revenueMap.get(key) ?? 0) + lineAmount);
       }
@@ -985,8 +983,8 @@ export class AccountingService {
         const created = await tx.accountingEntry.create({
           data: {
             hospitalId,
-            financialYearId: fyId!,
-            financialPeriodId: fpId!,
+            financialYearId: fyId,
+            financialPeriodId: fpId,
             entryDate,
             description: `قيد فاتورة رقم ${invoice.id} ${iShare > 0 ? '(تأمين)' : ''}`,
             sourceModule: AccountingSourceModule.BILLING,
@@ -1234,7 +1232,7 @@ export class AccountingService {
     costCenterId?: number;
   }) {
     const { hospitalId, costCenterId } = params;
-    let { fromDate, toDate } = params;
+    const { fromDate, toDate } = params;
 
     await this.ensureDefaultAccounts(hospitalId);
 
@@ -2481,45 +2479,48 @@ export class AccountingService {
    *   ويحوّل صافي الربح/الخسارة إلى حساب الأرباح المحتجزة (P&L).
    * - تغيير حالة السنة إلى CLOSED.
    */
-  async validateYearClosingPrerequisites(hospitalId: number, financialYearId: number) {
+  async validateYearClosingPrerequisites(
+    hospitalId: number,
+    financialYearId: number,
+  ) {
     const year = await this.prisma.financialYear.findFirst({
-        where: { id: financialYearId, hospitalId }
+      where: { id: financialYearId, hospitalId },
     });
     if (!year) throw new NotFoundException('السنة المالية غير موجودة.');
 
     // البحث عن فواتير مسودة في الفترة
     const draftInvoices = await this.prisma.invoice.count({
-        where: {
-            hospitalId,
-            status: InvoiceStatus.DRAFT,
-            createdAt: {
-                gte: year.startDate,
-                lte: year.endDate
-            }
-        }
+      where: {
+        hospitalId,
+        status: InvoiceStatus.DRAFT,
+        createdAt: {
+          gte: year.startDate,
+          lte: year.endDate,
+        },
+      },
     });
 
     // البحث عن فواتير شراء مسودة
     const draftPurchaseInvoices = await this.prisma.purchaseInvoice.count({
-        where: {
-            hospitalId,
-            status: 'DRAFT', // Assuming InvoiceStatus enum or string matches
-            createdAt: {
-                gte: year.startDate,
-                lte: year.endDate
-            }
-        }
+      where: {
+        hospitalId,
+        status: 'DRAFT', // Assuming InvoiceStatus enum or string matches
+        createdAt: {
+          gte: year.startDate,
+          lte: year.endDate,
+        },
+      },
     });
 
     // البحث عن مدفوعات لم ترحل (بافتراض أن الدفعات تؤثر في النقدية فوراً ولكن قد يكون هناك سيناريو Draft)
     // حالياً نكتفي بالفواتير
 
     if (draftInvoices > 0 || draftPurchaseInvoices > 0) {
-        throw new BadRequestException(
-            `لا يمكن إقفال السنة المالية لوجود مستندات معلقة (Draft): ` +
-            `فواتير مبيعات (${draftInvoices})، فواتير مشتريات (${draftPurchaseInvoices}). ` +
-            `يرجى ترحيلها أو إلغاؤها أولاً.`
-        );
+      throw new BadRequestException(
+        `لا يمكن إقفال السنة المالية لوجود مستندات معلقة (Draft): ` +
+          `فواتير مبيعات (${draftInvoices})، فواتير مشتريات (${draftPurchaseInvoices}). ` +
+          `يرجى ترحيلها أو إلغاؤها أولاً.`,
+      );
     }
   }
 
@@ -2720,7 +2721,7 @@ export class AccountingService {
       };
 
       const closingLines: LineInput[] = [];
-      
+
       // التجميع لحساب الأرباح المحتجزة حسب مركز التكلفة
       // المفتاح: costCenterId (أو 'null') -> القيمة: صافي الربح (موجب) أو الخسارة (سالب)
       const reByCostCenter = new Map<number | 'null', number>();
@@ -2776,9 +2777,9 @@ export class AccountingService {
           const balance = debit - credit;
           if (Math.abs(balance) < 0.0005) continue;
 
-           // المصروف يقلل الربح
-           const currentNet = reByCostCenter.get(ccKey) ?? 0;
-           reByCostCenter.set(ccKey, currentNet - balance);
+          // المصروف يقلل الربح
+          const currentNet = reByCostCenter.get(ccKey) ?? 0;
+          reByCostCenter.set(ccKey, currentNet - balance);
 
           if (balance > 0) {
             totalExpense += balance;
@@ -2813,8 +2814,8 @@ export class AccountingService {
 
       // 6) إضافة سطور الأرباح المحتجزة لكل مركز تكلفة
       for (const [key, netProfit] of reByCostCenter.entries()) {
-        const costCenterId = key === 'null' ? null : (key as number);
-        
+        const costCenterId = key === 'null' ? null : key;
+
         if (Math.abs(netProfit) > 0.0005) {
           if (netProfit > 0) {
             // ربح -> دائن في حقوق الملكية
@@ -3969,7 +3970,7 @@ export class AccountingService {
 
     await db.accountingEntryLine.createMany({
       data: linesCreate.map((l) => ({
-        entryId: entryId!,
+        entryId: entryId,
         accountId: l.accountId,
         debit: l.debit,
         credit: l.credit,
@@ -4120,14 +4121,14 @@ export class AccountingService {
     await db.accountingEntryLine.createMany({
       data: [
         {
-          entryId: entryId!,
+          entryId: entryId,
           accountId: apAccount.id,
           debit: amount,
           credit: 0,
           description: 'تسوية دائنون الموردين',
         },
         {
-          entryId: entryId!,
+          entryId: entryId,
           accountId: cashOrBankAccount.id,
           debit: 0,
           credit: amount,
@@ -4660,7 +4661,14 @@ export class AccountingService {
     revenueSplit?: Record<SystemAccountKey, number>;
     prisma?: any; // Allow passing transaction client
   }) {
-    const { creditNoteId, originalInvoiceId, hospitalId, userId, revenueSplit, prisma } = params;
+    const {
+      creditNoteId,
+      originalInvoiceId,
+      hospitalId,
+      userId,
+      revenueSplit,
+      prisma,
+    } = params;
     const db = prisma || this.prisma;
 
     // 1. جلب الفاتورة الأصلية والمرتجع
@@ -4688,11 +4696,14 @@ export class AccountingService {
     // ✅ بناء سطور الإيرادات بناءً على الـ Split أو الافتراضي
     // ✅ بناء سطور مردودات المبيعات (بدلاً من خصم الإيرادات مباشرة)
     const linesTocreate: any[] = [];
-    const val = Number(creditNote.totalAmount); 
+    const val = Number(creditNote.totalAmount);
     const totalRevenueDebit = val;
 
     try {
-      const salesReturnsAcc = await this.getSystemAccountOrThrow(hospitalId, SystemAccountKey.SALES_RETURNS);
+      const salesReturnsAcc = await this.getSystemAccountOrThrow(
+        hospitalId,
+        SystemAccountKey.SALES_RETURNS,
+      );
       linesTocreate.push({
         accountId: salesReturnsAcc.id,
         debit: val,
@@ -4701,7 +4712,10 @@ export class AccountingService {
       });
     } catch (err) {
       // Fallback in case the user hasn't successfully initialized the SALES_RETURNS mapping yet
-      const defRev = await this.getSystemAccountOrThrow(hospitalId, SystemAccountKey.REVENUE_OUTPATIENT);
+      const defRev = await this.getSystemAccountOrThrow(
+        hospitalId,
+        SystemAccountKey.REVENUE_OUTPATIENT,
+      );
       linesTocreate.push({
         accountId: defRev.id,
         debit: val,
@@ -4749,10 +4763,14 @@ export class AccountingService {
     });
     if (!ret) throw new NotFoundException('Purchase Return not found');
 
-    if (ret.hospitalId !== hospitalId) throw new BadRequestException('Hospital Mismatch');
+    if (ret.hospitalId !== hospitalId)
+      throw new BadRequestException('Hospital Mismatch');
 
     const entryDate = ret.returnDate;
-    const { fy, period } = await this.getOpenPeriodForDate(hospitalId, entryDate);
+    const { fy, period } = await this.getOpenPeriodForDate(
+      hospitalId,
+      entryDate,
+    );
 
     // 1. تحديد الحسابات
     // AP Suppliers
@@ -4764,11 +4782,17 @@ export class AccountingService {
     // Inventory (General or default to Supplies/Drugs - simplification: defaulting to Supplies if mixed, or could split if needed)
     // For now, let's assume Supplies/Drugs based on a generic check or default to INVENTORY_SUPPLIES
     // Ideally we should check the lines.
-    const inventoryKey = SystemAccountKey.INVENTORY_SUPPLIES; 
-    const inventoryAccount = await this.getSystemAccountOrThrow(hospitalId, inventoryKey);
-    
+    const inventoryKey = SystemAccountKey.INVENTORY_SUPPLIES;
+    const inventoryAccount = await this.getSystemAccountOrThrow(
+      hospitalId,
+      inventoryKey,
+    );
+
     // VAT Recoverable
-    const vatAccount = await this.getSystemAccountOrThrow(hospitalId, SystemAccountKey.VAT_RECOVERABLE);
+    const vatAccount = await this.getSystemAccountOrThrow(
+      hospitalId,
+      SystemAccountKey.VAT_RECOVERABLE,
+    );
 
     const netAmount = Number(ret.netAmount);
     const vatAmount = Number(ret.vatAmount);
@@ -4803,15 +4827,19 @@ export class AccountingService {
               credit: netAmount,
               description: 'إخراج بضاعة من المخزون (مرتجع)',
             },
-            ...(vatAmount > 0 ? [{
-              accountId: vatAccount.id,
-              debit: 0,
-              credit: vatAmount, // دائن لأننا بنقلل اللي "لينا" عند الحكومة
-              description: 'عكس ضريبة مدخلات',
-            }] : [])
-          ]
-        }
-      }
+            ...(vatAmount > 0
+              ? [
+                  {
+                    accountId: vatAccount.id,
+                    debit: 0,
+                    credit: vatAmount, // دائن لأننا بنقلل اللي "لينا" عند الحكومة
+                    description: 'عكس ضريبة مدخلات',
+                  },
+                ]
+              : []),
+          ],
+        },
+      },
     });
 
     this.logger.log(`Purchase Return Entry created for #${ret.id}`);
@@ -4826,18 +4854,37 @@ export class AccountingService {
     userId: number;
     referenceId?: string; // Refund ID or Payment ID
   }) {
-    const { refundAmount, method, patientName, hospitalId, userId, referenceId } = params;
+    const {
+      refundAmount,
+      method,
+      patientName,
+      hospitalId,
+      userId,
+      referenceId,
+    } = params;
 
     const entryDate = new Date();
-    const { fy, period } = await this.getOpenPeriodForDate(hospitalId, entryDate);
+    const { fy, period } = await this.getOpenPeriodForDate(
+      hospitalId,
+      entryDate,
+    );
 
     // Debit: AR (Receivable Patients) - because creation of CN made AR Credit (negative asset). We debit it to zero it out.
     // Credit: Cash/Bank (Asset decreases)
 
-    const arAccount = await this.getSystemAccountOrThrow(hospitalId, SystemAccountKey.RECEIVABLE_PATIENTS);
-    
-    const cashOrBankKey = method === 'CASH' ? SystemAccountKey.CASH_MAIN : SystemAccountKey.BANK_MAIN;
-    const paymentAccount = await this.getSystemAccountOrThrow(hospitalId, cashOrBankKey);
+    const arAccount = await this.getSystemAccountOrThrow(
+      hospitalId,
+      SystemAccountKey.RECEIVABLE_PATIENTS,
+    );
+
+    const cashOrBankKey =
+      method === 'CASH'
+        ? SystemAccountKey.CASH_MAIN
+        : SystemAccountKey.BANK_MAIN;
+    const paymentAccount = await this.getSystemAccountOrThrow(
+      hospitalId,
+      cashOrBankKey,
+    );
 
     await this.prisma.accountingEntry.create({
       data: {
@@ -4862,10 +4909,10 @@ export class AccountingService {
               debit: 0,
               credit: refundAmount,
               description: 'صرف نقدية/بنك (استرداد)',
-            }
-          ]
-        }
-      }
+            },
+          ],
+        },
+      },
     });
   }
 
@@ -4873,7 +4920,7 @@ export class AccountingService {
   // يستخدم عندما يرجع المريض الدواء للصيدلية ويعود للمخزون
   async recordPharmacyReturnEntry(params: {
     dispenseId?: number; // Optional link to dispense
-    returnId?: number;   // Optional link to return transaction
+    returnId?: number; // Optional link to return transaction
     items: { productId: number; cost: number; quantity: number }[];
     storeId?: number; // Warehouse ID
     hospitalId: number;
@@ -4884,13 +4931,25 @@ export class AccountingService {
     if (!items.length) return;
 
     const entryDate = new Date();
-    const { fy, period } = await this.getOpenPeriodForDate(hospitalId, entryDate);
+    const { fy, period } = await this.getOpenPeriodForDate(
+      hospitalId,
+      entryDate,
+    );
 
     // Accounts
-    const inventoryAccount = await this.getSystemAccountOrThrow(hospitalId, SystemAccountKey.INVENTORY_DRUGS);
-    const cogsAccount = await this.getSystemAccountOrThrow(hospitalId, SystemAccountKey.COGS_DRUGS);
+    const inventoryAccount = await this.getSystemAccountOrThrow(
+      hospitalId,
+      SystemAccountKey.INVENTORY_DRUGS,
+    );
+    const cogsAccount = await this.getSystemAccountOrThrow(
+      hospitalId,
+      SystemAccountKey.COGS_DRUGS,
+    );
 
-    const totalCost = items.reduce((sum, item) => sum + (item.cost * item.quantity), 0);
+    const totalCost = items.reduce(
+      (sum, item) => sum + item.cost * item.quantity,
+      0,
+    );
 
     // Debit: Inventory (Increase Asset)
     // Credit: COGS (Decrease Expense)
@@ -4918,10 +4977,10 @@ export class AccountingService {
               debit: 0,
               credit: totalCost,
               description: 'عكس تكلفة بضاعة مباعة',
-            }
-          ]
-        }
-      }
+            },
+          ],
+        },
+      },
     });
   }
 
@@ -4930,7 +4989,11 @@ export class AccountingService {
     inventoryCountId: number;
     hospitalId: number;
     userId: number;
-    varianceLines: { productId: number; varianceQty: number; costPrice: number }[];
+    varianceLines: {
+      productId: number;
+      varianceQty: number;
+      costPrice: number;
+    }[];
     tx?: any;
   }) {
     const { inventoryCountId, hospitalId, userId, varianceLines, tx } = params;
@@ -4944,27 +5007,33 @@ export class AccountingService {
       where: { id: { in: productIds } },
       select: { id: true, type: true },
     });
-    
+
     // Helper to get Account Key by Product Type
     const getInventoryKey = (type: any): SystemAccountKey => {
       switch (type) {
-        case 'DRUG': return SystemAccountKey.INVENTORY_DRUGS;
-        case 'LAB_REAGENT': return SystemAccountKey.INVENTORY_LAB;
+        case 'DRUG':
+          return SystemAccountKey.INVENTORY_DRUGS;
+        case 'LAB_REAGENT':
+          return SystemAccountKey.INVENTORY_LAB;
         /* case 'RADIOLOGY': return SystemAccountKey.INVENTORY_RADIOLOGY; */ // If exists
-        default: return SystemAccountKey.INVENTORY_SUPPLIES;
+        default:
+          return SystemAccountKey.INVENTORY_SUPPLIES;
       }
     };
 
     // 2. Prepare Totals per Inventory Account
     // We also need separate totals for LOSS (Expense) vs GAIN (Income)
     // Structure: Map<AccountKey, { gain: number, loss: number }>
-    
-    const accountTotals = new Map<SystemAccountKey, { gain: number; loss: number }>();
+
+    const accountTotals = new Map<
+      SystemAccountKey,
+      { gain: number; loss: number }
+    >();
 
     for (const item of varianceLines) {
       const product = products.find((p: any) => p.id === item.productId);
       const key = getInventoryKey(product?.type);
-      
+
       const value = item.varianceQty * item.costPrice;
 
       const current = accountTotals.get(key) || { gain: 0, loss: 0 };
@@ -4978,11 +5047,20 @@ export class AccountingService {
 
     // 3. Get Financial Period
     const entryDate = new Date();
-    const { fy, period } = await this.getOpenPeriodForDate(hospitalId, entryDate);
+    const { fy, period } = await this.getOpenPeriodForDate(
+      hospitalId,
+      entryDate,
+    );
 
     // 4. Get Account IDs
-    const gainAccount = await this.getSystemAccountOrThrow(hospitalId, SystemAccountKey.INVENTORY_GAIN);
-    const lossAccount = await this.getSystemAccountOrThrow(hospitalId, SystemAccountKey.INVENTORY_LOSS);
+    const gainAccount = await this.getSystemAccountOrThrow(
+      hospitalId,
+      SystemAccountKey.INVENTORY_GAIN,
+    );
+    const lossAccount = await this.getSystemAccountOrThrow(
+      hospitalId,
+      SystemAccountKey.INVENTORY_LOSS,
+    );
 
     const linesToIsert: any[] = [];
 
@@ -5044,8 +5122,8 @@ export class AccountingService {
           create: linesToIsert,
         },
         inventoryCount: {
-           connect: { id: inventoryCountId }
-        }
+          connect: { id: inventoryCountId },
+        },
       },
     });
   }
@@ -5087,29 +5165,31 @@ export class AccountingService {
 
     // سنستخدم تاريخ اليوم
     const entryDate = new Date();
-    
+
     // محاولة جلب السنة والفترة المفتوحة
     const fy = await db.financialYear.findFirst({
-        where: {
-            hospitalId,
-            status: FinancialYearStatus.OPEN,
-            startDate: { lte: entryDate },
-            endDate: { gte: entryDate }
-        }
+      where: {
+        hospitalId,
+        status: FinancialYearStatus.OPEN,
+        startDate: { lte: entryDate },
+        endDate: { gte: entryDate },
+      },
     });
 
-    if (!fy) throw new BadRequestException('لا توجد سنة مالية مفتوحة لهذا التاريخ.');
+    if (!fy)
+      throw new BadRequestException('لا توجد سنة مالية مفتوحة لهذا التاريخ.');
 
     const period = await db.financialPeriod.findFirst({
-        where: {
-            financialYearId: fy.id,
-            isOpen: true,
-            monthStartDate: { lte: entryDate },
-            monthEndDate: { gte: entryDate }
-        }
+      where: {
+        financialYearId: fy.id,
+        isOpen: true,
+        monthStartDate: { lte: entryDate },
+        monthEndDate: { gte: entryDate },
+      },
     });
 
-    if (!period) throw new BadRequestException('الفترة المالية مغلقة أو غير موجودة.');
+    if (!period)
+      throw new BadRequestException('الفترة المالية مغلقة أو غير موجودة.');
 
     // 3. إنشاء قيد العكس
     // نعكس المدين والدائن: Debit -> Credit, Credit -> Debit
@@ -5160,7 +5240,10 @@ export class AccountingService {
     if (!voucher) throw new Error('Voucher not found');
 
     const entryDate = voucher.date;
-    const { fy, period } = await this.getOpenPeriodForDate(hospitalId, entryDate);
+    const { fy, period } = await this.getOpenPeriodForDate(
+      hospitalId,
+      entryDate,
+    );
 
     const val = Number(voucher.amount);
 
@@ -5204,7 +5287,10 @@ export class AccountingService {
         entryDate,
         sourceModule: 'VOUCHER',
         sourceId: voucher.id,
-        description: voucher.type === 'PAYMENT' ? `إذن صرف رقم ${voucher.code}` : `إذن قبض رقم ${voucher.code}`,
+        description:
+          voucher.type === 'PAYMENT'
+            ? `إذن صرف رقم ${voucher.code}`
+            : `إذن قبض رقم ${voucher.code}`,
         createdById: userId,
         lines: {
           create: linesTocreate,

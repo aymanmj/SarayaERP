@@ -9,10 +9,7 @@
  * - Soft delete
  */
 import { Test, TestingModule } from '@nestjs/testing';
-import {
-  BadRequestException,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { EncountersService } from './encounters.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { SoftDeleteService } from '../common/soft-delete.service';
@@ -520,7 +517,9 @@ describe('EncountersService', () => {
     it('should delete charge without invoice', async () => {
       prisma.encounterCharge = {
         ...(prisma.encounterCharge || {}),
-        findFirst: jest.fn().mockResolvedValue({ id: 1, invoiceId: null, hospitalId: 1 }),
+        findFirst: jest
+          .fn()
+          .mockResolvedValue({ id: 1, invoiceId: null, hospitalId: 1 }),
         delete: jest.fn().mockResolvedValue({ id: 1 }),
       };
 
@@ -531,7 +530,9 @@ describe('EncountersService', () => {
     it('should BLOCK deletion of charge linked to invoice', async () => {
       prisma.encounterCharge = {
         ...(prisma.encounterCharge || {}),
-        findFirst: jest.fn().mockResolvedValue({ id: 1, invoiceId: 5, hospitalId: 1 }),
+        findFirst: jest
+          .fn()
+          .mockResolvedValue({ id: 1, invoiceId: 5, hospitalId: 1 }),
       };
 
       await expect(service.deleteEncounterCharge(1, 1)).rejects.toThrow(
@@ -545,13 +546,14 @@ describe('EncountersService', () => {
   // ===========================================
   describe('findAll', () => {
     it('should return paginated encounters', async () => {
-      prisma.encounter.findMany.mockResolvedValue([
-        { id: 1 },
-        { id: 2 },
-      ]);
+      prisma.encounter.findMany.mockResolvedValue([{ id: 1 }, { id: 2 }]);
       prisma.encounter.count.mockResolvedValue(2);
 
-      const result = await service.findAll({ hospitalId: 1, page: 1, limit: 10 });
+      const result = await service.findAll({
+        hospitalId: 1,
+        page: 1,
+        limit: 10,
+      });
 
       expect(result.items).toHaveLength(2);
       expect(result.meta.totalCount).toBe(2);
@@ -562,7 +564,12 @@ describe('EncountersService', () => {
       prisma.encounter.findMany.mockResolvedValue([]);
       prisma.encounter.count.mockResolvedValue(0);
 
-      await service.findAll({ hospitalId: 1, search: 'Ahmed', page: 1, limit: 10 });
+      await service.findAll({
+        hospitalId: 1,
+        search: 'Ahmed',
+        page: 1,
+        limit: 10,
+      });
 
       expect(prisma.encounter.findMany).toHaveBeenCalledWith(
         expect.objectContaining({

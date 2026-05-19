@@ -117,6 +117,7 @@ export default function ActiveInpatientsPage() {
       await apiClient.post(`/admissions/${admissionId}/discharge`, {});
       toast.success("تم إجراء الخروج بنجاح. السرير الآن في حالة 'تنظيف'.");
       loadData();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       console.error(err);
       const msg = err?.response?.data?.message || "فشل إجراء الخروج.";
@@ -148,6 +149,7 @@ export default function ActiveInpatientsPage() {
       setShowBedModal(false);
       loadData();
       loadWardTree(); // Refresh availability
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       toast.error(err?.response?.data?.message || "فشل تعيين السرير");
     } finally {

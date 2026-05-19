@@ -10,7 +10,11 @@
  * - Gender mapping
  */
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import {
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException,
+} from '@nestjs/common';
 import { FhirService } from './fhir.service';
 import { PrismaService } from '../../prisma/prisma.service';
 
@@ -157,17 +161,26 @@ describe('FhirService', () => {
 
     it('should map gender correctly', async () => {
       // MALE → male
-      prisma.patient.findUnique.mockResolvedValue({ ...mockPatient, gender: 'MALE' });
+      prisma.patient.findUnique.mockResolvedValue({
+        ...mockPatient,
+        gender: 'MALE',
+      });
       let result = await service.getPatient(1);
       expect(result.gender).toBe('male');
 
       // FEMALE → female
-      prisma.patient.findUnique.mockResolvedValue({ ...mockPatient, gender: 'FEMALE' });
+      prisma.patient.findUnique.mockResolvedValue({
+        ...mockPatient,
+        gender: 'FEMALE',
+      });
       result = await service.getPatient(1);
       expect(result.gender).toBe('female');
 
       // null → unknown
-      prisma.patient.findUnique.mockResolvedValue({ ...mockPatient, gender: null });
+      prisma.patient.findUnique.mockResolvedValue({
+        ...mockPatient,
+        gender: null,
+      });
       result = await service.getPatient(1);
       expect(result.gender).toBe('unknown');
     });
@@ -224,9 +237,9 @@ describe('FhirService', () => {
         createdAt: new Date(),
       });
 
-      await expect(
-        service.getCondition(1, 999),
-      ).rejects.toThrow(ForbiddenException);
+      await expect(service.getCondition(1, 999)).rejects.toThrow(
+        ForbiddenException,
+      );
     });
 
     it('should DENY allergy access for wrong patient', async () => {
@@ -237,9 +250,9 @@ describe('FhirService', () => {
         severity: 'SEVERE',
       });
 
-      await expect(
-        service.getAllergy(1, 999),
-      ).rejects.toThrow(ForbiddenException);
+      await expect(service.getAllergy(1, 999)).rejects.toThrow(
+        ForbiddenException,
+      );
     });
   });
 
@@ -312,14 +325,17 @@ describe('FhirService', () => {
     it('should reject Observation without active encounter', async () => {
       prisma.encounter.findFirst.mockResolvedValue(null);
 
-      await expect(
-        service.createObservation(bpObservation),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.createObservation(bpObservation)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should reject invalid resourceType', async () => {
       await expect(
-        service.createObservation({ ...bpObservation, resourceType: 'Patient' }),
+        service.createObservation({
+          ...bpObservation,
+          resourceType: 'Patient',
+        }),
       ).rejects.toThrow(BadRequestException);
     });
 
@@ -358,12 +374,12 @@ describe('FhirService', () => {
 
       // Verify LOINC codes
       const codes = result.component!.map((c: any) => c.code.coding[0].code);
-      expect(codes).toContain('8867-4');  // Heart rate
-      expect(codes).toContain('9279-1');  // Respiratory rate
-      expect(codes).toContain('8310-5');  // Body temperature
-      expect(codes).toContain('2708-6');  // SpO2
-      expect(codes).toContain('8480-6');  // Systolic BP
-      expect(codes).toContain('8462-4');  // Diastolic BP
+      expect(codes).toContain('8867-4'); // Heart rate
+      expect(codes).toContain('9279-1'); // Respiratory rate
+      expect(codes).toContain('8310-5'); // Body temperature
+      expect(codes).toContain('2708-6'); // SpO2
+      expect(codes).toContain('8480-6'); // Systolic BP
+      expect(codes).toContain('8462-4'); // Diastolic BP
     });
   });
 

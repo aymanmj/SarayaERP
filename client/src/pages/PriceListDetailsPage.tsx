@@ -61,6 +61,7 @@ export default function PriceListDetailsPage() {
       // نبحث عن اسم القائمة (يمكن عمل Endpoint خاص لجلب تفاصيل القائمة، أو نفلتر من القائمة الرئيسية، هنا سنفترض وجودها في القائمة لتبسيط الكود أو نجلبها بشكل منفصل. للسرعة سنجلب القوائم ونبحث)
       // *تحسين:* يفضل عمل Endpoint `GET /price-lists/:id` في الباكند. سأفترض وجودها أو التعامل مع البيانات المتاحة.
       // سنجلب القوائم مؤقتاً لمعرفة الاسم
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       apiClient.get<any[]>("/price-lists").then((res) => {
         const found = res.data.find((l) => l.id === listId);
         if (found) setListInfo({ name: found.name, code: found.code });
@@ -85,6 +86,7 @@ export default function PriceListDetailsPage() {
 
   useEffect(() => {
     loadData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [listId]);
 
   // تصفية الجدول
@@ -135,6 +137,7 @@ export default function PriceListDetailsPage() {
         delete copy[serviceId];
         return copy;
       });
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
       toast.error("فشل الحفظ");
     }

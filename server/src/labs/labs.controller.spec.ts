@@ -63,7 +63,10 @@ describe('LabController', () => {
   });
 
   it('starts processing with hospital and performer context', async () => {
-    labService.startProcessing.mockResolvedValue({ id: 9, status: 'IN_PROGRESS' });
+    labService.startProcessing.mockResolvedValue({
+      id: 9,
+      status: 'IN_PROGRESS',
+    });
 
     await controller.startOrder(9, { user } as any);
 

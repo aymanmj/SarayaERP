@@ -23,7 +23,7 @@ export class TransformInterceptor<T>
   ): Observable<Response<T>> {
     const request = context.switchToHttp().getRequest();
     const requestUrl = request.originalUrl || request.url || '';
-    
+
     // 📊 Bypass transformation for Prometheus metrics
     if (requestUrl.includes('/metrics')) {
       return next.handle();

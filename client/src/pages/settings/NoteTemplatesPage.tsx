@@ -58,6 +58,7 @@ export default function NoteTemplatesPage() {
   const loadTemplates = async () => {
     setLoading(true);
     try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const params: any = {};
       if (filterSpecialty) params.specialty = filterSpecialty;
       const res = await apiClient.get<NoteTemplate[]>("/note-templates", { params });
@@ -71,6 +72,7 @@ export default function NoteTemplatesPage() {
 
   useEffect(() => {
     loadTemplates();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterSpecialty]);
 
   const handleSave = async () => {

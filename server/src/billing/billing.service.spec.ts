@@ -63,7 +63,7 @@ describe('BillingService', () => {
     invoices: [],
   };
 
-  const mockPrismaService = ({
+  const mockPrismaService = {
     encounter: {
       findFirst: jest.fn(),
       findUnique: jest.fn(),
@@ -98,7 +98,7 @@ describe('BillingService', () => {
       }
       return arg(mockPrismaService);
     }),
-  });
+  };
 
   const mockEventEmitter = {
     emit: jest.fn(),
@@ -142,7 +142,10 @@ describe('BillingService', () => {
         { provide: PrismaService, useValue: mockPrismaService },
         { provide: EventEmitter2, useValue: mockEventEmitter },
         { provide: FinancialYearsService, useValue: mockFinancialYearsService },
-        { provide: InsuranceCalculationService, useValue: mockInsuranceCalcService },
+        {
+          provide: InsuranceCalculationService,
+          useValue: mockInsuranceCalcService,
+        },
         { provide: AccountingService, useValue: mockAccountingService },
       ],
     }).compile();
@@ -164,7 +167,10 @@ describe('BillingService', () => {
       mockPrismaService.encounterCharge.findMany.mockResolvedValue(mockCharges);
       mockPrismaService.invoice.findMany.mockResolvedValue([]);
 
-      const result = await service.getEncounterBilling(mockEncounterId, mockHospitalId);
+      const result = await service.getEncounterBilling(
+        mockEncounterId,
+        mockHospitalId,
+      );
 
       expect(result).toBeDefined();
       expect(result.encounter.id).toBe(mockEncounterId);
@@ -195,7 +201,9 @@ describe('BillingService', () => {
       mockPrismaService.encounter.findFirst.mockResolvedValue(mockEncounter);
       mockPrismaService.encounterCharge.findMany.mockResolvedValue(mockCharges);
       mockPrismaService.invoice.create.mockResolvedValue(mockInvoice);
-      mockPrismaService.encounterCharge.updateMany.mockResolvedValue({ count: 2 });
+      mockPrismaService.encounterCharge.updateMany.mockResolvedValue({
+        count: 2,
+      });
       mockPrismaService.invoice.findUnique.mockResolvedValue({
         ...mockInvoice,
         charges: mockCharges,
@@ -219,7 +227,11 @@ describe('BillingService', () => {
       mockPrismaService.encounterCharge.findMany.mockResolvedValue([]);
 
       await expect(
-        service.createInvoiceForEncounter(mockEncounterId, mockHospitalId, mockUserId),
+        service.createInvoiceForEncounter(
+          mockEncounterId,
+          mockHospitalId,
+          mockUserId,
+        ),
       ).rejects.toThrow(BadRequestException);
     });
 
@@ -237,7 +249,9 @@ describe('BillingService', () => {
       mockPrismaService.encounter.findFirst.mockResolvedValue(mockEncounter);
       mockPrismaService.encounterCharge.findMany.mockResolvedValue(mockCharges);
       mockPrismaService.invoice.create.mockResolvedValue(mockInvoice);
-      mockPrismaService.encounterCharge.updateMany.mockResolvedValue({ count: 2 });
+      mockPrismaService.encounterCharge.updateMany.mockResolvedValue({
+        count: 2,
+      });
       mockPrismaService.invoice.findUnique.mockResolvedValue({
         ...mockInvoice,
         charges: mockCharges,
@@ -245,7 +259,11 @@ describe('BillingService', () => {
         payments: [],
       });
 
-      await service.createInvoiceForEncounter(mockEncounterId, mockHospitalId, mockUserId);
+      await service.createInvoiceForEncounter(
+        mockEncounterId,
+        mockHospitalId,
+        mockUserId,
+      );
 
       expect(mockPrismaService.invoice.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -278,8 +296,12 @@ describe('BillingService', () => {
         status: 'ISSUED',
       };
 
-      mockPrismaService.encounter.findFirst.mockResolvedValue(encounterWithInsurance);
-      mockPrismaService.encounterCharge.findMany.mockResolvedValue(singleCharge);
+      mockPrismaService.encounter.findFirst.mockResolvedValue(
+        encounterWithInsurance,
+      );
+      mockPrismaService.encounterCharge.findMany.mockResolvedValue(
+        singleCharge,
+      );
       mockInsuranceCalcService.calculateCoverage.mockResolvedValueOnce({
         patientShare: 20,
         insuranceShare: 30,
@@ -404,25 +426,33 @@ describe('BillingService', () => {
     it('should allow editing DRAFT invoices', () => {
       const invoice = { status: 'DRAFT' };
       // @ts-ignore - accessing private method for testing
-      expect(() => (service as any).validateInvoiceIsEditable(invoice)).not.toThrow();
+      expect(() =>
+        (service as any).validateInvoiceIsEditable(invoice),
+      ).not.toThrow();
     });
 
     it('should throw error for PAID invoices', () => {
       const invoice = { status: 'PAID' };
       // @ts-ignore - accessing private method for testing
-      expect(() => (service as any).validateInvoiceIsEditable(invoice)).toThrow(BadRequestException);
+      expect(() => (service as any).validateInvoiceIsEditable(invoice)).toThrow(
+        BadRequestException,
+      );
     });
 
     it('should throw error for CANCELLED invoices', () => {
       const invoice = { status: 'CANCELLED' };
       // @ts-ignore - accessing private method for testing
-      expect(() => (service as any).validateInvoiceIsEditable(invoice)).toThrow(BadRequestException);
+      expect(() => (service as any).validateInvoiceIsEditable(invoice)).toThrow(
+        BadRequestException,
+      );
     });
 
     it('should throw error for ISSUED invoices', () => {
       const invoice = { status: 'ISSUED' };
       // @ts-ignore - accessing private method for testing
-      expect(() => (service as any).validateInvoiceIsEditable(invoice)).toThrow(BadRequestException);
+      expect(() => (service as any).validateInvoiceIsEditable(invoice)).toThrow(
+        BadRequestException,
+      );
     });
   });
 
@@ -437,8 +467,13 @@ describe('BillingService', () => {
       };
 
       mockPrismaService.invoice.findUnique.mockResolvedValue(mockInvoice);
-      mockPrismaService.invoice.update.mockResolvedValue({ ...mockInvoice, status: 'CANCELLED' });
-      mockPrismaService.encounterCharge.updateMany.mockResolvedValue({ count: 2 });
+      mockPrismaService.invoice.update.mockResolvedValue({
+        ...mockInvoice,
+        status: 'CANCELLED',
+      });
+      mockPrismaService.encounterCharge.updateMany.mockResolvedValue({
+        count: 2,
+      });
       mockPrismaService.accountingEntry.findFirst.mockResolvedValue(null);
 
       const result = await service.cancelInvoice(mockHospitalId, 1, mockUserId);
@@ -458,7 +493,9 @@ describe('BillingService', () => {
         service.cancelInvoice(mockHospitalId, 2, mockUserId),
       ).rejects.toThrow(BadRequestException);
 
-      expect(mockPrismaService.encounterCharge.updateMany).not.toHaveBeenCalled();
+      expect(
+        mockPrismaService.encounterCharge.updateMany,
+      ).not.toHaveBeenCalled();
       expect(mockPrismaService.invoice.update).not.toHaveBeenCalled();
     });
 
@@ -470,7 +507,9 @@ describe('BillingService', () => {
         encounterId: mockEncounterId,
         payments: [],
       });
-      mockPrismaService.encounterCharge.updateMany.mockResolvedValue({ count: 2 });
+      mockPrismaService.encounterCharge.updateMany.mockResolvedValue({
+        count: 2,
+      });
       mockPrismaService.invoice.update.mockResolvedValue({
         id: 5,
         hospitalId: mockHospitalId,

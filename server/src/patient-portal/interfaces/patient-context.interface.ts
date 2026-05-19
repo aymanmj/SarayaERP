@@ -1,6 +1,6 @@
 /**
  * Patient Portal — Type-safe JWT Payload Interface
- * 
+ *
  * This interface defines the claims embedded in patient portal tokens.
  * The 'aud' claim ensures portal tokens are logically separated from staff tokens.
  */

@@ -27,7 +27,11 @@ export class SystemSettingsService {
     return setting;
   }
 
-  async update(hospitalId: number, key: string, updateDto: UpdateSystemSettingDto) {
+  async update(
+    hospitalId: number,
+    key: string,
+    updateDto: UpdateSystemSettingDto,
+  ) {
     // Check if exists
     await this.findOne(hospitalId, key);
 
@@ -49,17 +53,29 @@ export class SystemSettingsService {
     return setting?.value ?? null;
   }
 
-  async getString(hospitalId: number, key: string, defaultValue: string): Promise<string> {
+  async getString(
+    hospitalId: number,
+    key: string,
+    defaultValue: string,
+  ): Promise<string> {
     const val = await this.getValue(hospitalId, key);
     return val ?? defaultValue;
   }
 
-  async getNumber(hospitalId: number, key: string, defaultValue: number): Promise<number> {
+  async getNumber(
+    hospitalId: number,
+    key: string,
+    defaultValue: number,
+  ): Promise<number> {
     const val = await this.getValue(hospitalId, key);
     return val ? parseFloat(val) : defaultValue;
   }
 
-  async getBoolean(hospitalId: number, key: string, defaultValue: boolean): Promise<boolean> {
+  async getBoolean(
+    hospitalId: number,
+    key: string,
+    defaultValue: boolean,
+  ): Promise<boolean> {
     const val = await this.getValue(hospitalId, key);
     if (!val) return defaultValue;
     return val.toLowerCase() === 'true';

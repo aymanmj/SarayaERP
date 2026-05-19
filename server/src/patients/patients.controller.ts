@@ -13,8 +13,8 @@ import {
 } from '@nestjs/common';
 import { PatientsService } from './patients.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { Roles } from '../auth/roles.decorator';
-import { RolesGuard } from '../auth/roles.guard';
+import { Permissions } from '../auth/permissions.decorator';
+import { PermissionsGuard } from '../auth/permissions.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { JwtPayload } from '../auth/jwt-payload.type';
 import { Sensitive } from '../audit/audit.decorator';
@@ -23,13 +23,13 @@ import { RequireClinicalRelation } from '../auth/decorators/abac.decorator';
 import { ApiTags } from '@nestjs/swagger';
 
 @ApiTags('patients')
-@UseGuards(JwtAuthGuard, RolesGuard, ClinicalABACGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard, ClinicalABACGuard)
 @Controller('patients')
 export class PatientsController {
   constructor(private readonly patientsService: PatientsService) {}
 
   // @Post()
-  // @Roles('ADMIN', 'RECEPTION')
+  // @Permissions('patients:view')
   // create(@Body() body: any, @CurrentUser() user: JwtPayload) {
   //   let dob: Date | undefined;
   //   if (body.dateOfBirth) {
@@ -58,7 +58,7 @@ export class PatientsController {
   // }
 
   @Post()
-  @Roles('ADMIN', 'RECEPTION')
+  @Permissions('patients:view')
   create(@Body() body: any, @CurrentUser() user: JwtPayload) {
     let dob: Date | undefined;
     if (body.dateOfBirth) {
@@ -92,7 +92,7 @@ export class PatientsController {
   }
 
   @Get()
-  @Roles('ADMIN', 'RECEPTION', 'DOCTOR', 'NURSE', 'CASHIER')
+  @Permissions('patients:view')
   async findAll(
     @CurrentUser() user: JwtPayload,
     @Query('page') page?: string,
@@ -109,10 +109,8 @@ export class PatientsController {
 
   // MPI: Search the National Patient Network
   @Get('search-global')
-  @Roles('ADMIN', 'RECEPTION')
-  async searchGlobalPatient(
-    @Query('query') query: string,
-  ) {
+  @Permissions('patients:view')
+  async searchGlobalPatient(@Query('query') query: string) {
     if (!query || query.trim() === '') return { found: false, patient: null };
     const globalPatient = await this.patientsService.searchGlobal(query.trim());
     return {
@@ -130,25 +128,25 @@ export class PatientsController {
   }
 
   @Get('search')
-  @Roles('ADMIN', 'RECEPTION', 'DOCTOR', 'NURSE', 'CASHIER')
+  @Permissions('patients:view')
   async searchPatients(
     @CurrentUser() user: JwtPayload,
     @Query('query') query: string,
   ) {
     if (!query || query.trim() === '') return [];
-    
+
     const result = await this.patientsService.findAll({
       hospitalId: user.hospitalId,
       page: 1,
       limit: 10,
       search: query,
     });
-    
+
     return result.items;
   }
 
   @Get(':id')
-  @Roles('ADMIN', 'DOCTOR', 'RECEPTION', 'NURSE')
+  @Permissions('patients:view')
   @RequireClinicalRelation({ paramName: 'id', allowBreakGlass: true })
   @Sensitive('VIEW_PATIENT_PROFILE')
   findOne(
@@ -159,7 +157,7 @@ export class PatientsController {
   }
 
   // @Patch(':id')
-  // @Roles('ADMIN', 'RECEPTION')
+  // @Permissions('patients:view')
   // update(
   //   @Param('id', ParseIntPipe) id: number,
   //   @Body() body: any,
@@ -188,7 +186,7 @@ export class PatientsController {
   // }
 
   @Patch(':id')
-  @Roles('ADMIN', 'RECEPTION')
+  @Permissions('patients:view')
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() body: any,
@@ -222,7 +220,7 @@ export class PatientsController {
   }
 
   @Delete(':id')
-  @Roles('ADMIN')
+  @Permissions('patients:manage')
   async softDelete(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: JwtPayload,
@@ -231,7 +229,7 @@ export class PatientsController {
   }
 
   @Get(':id/allergies')
-  @Roles('ADMIN', 'DOCTOR', 'NURSE', 'PHARMACIST')
+  @Permissions('patients:view')
   async getAllergies(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: JwtPayload,
@@ -240,7 +238,7 @@ export class PatientsController {
   }
 
   @Post(':id/allergies')
-  @Roles('ADMIN', 'DOCTOR', 'NURSE')
+  @Permissions('patients:view')
   async addAllergy(
     @Param('id', ParseIntPipe) id: number,
     @Body() body: { allergen: string; severity: string; reaction?: string },
@@ -255,7 +253,7 @@ export class PatientsController {
   }
 
   @Delete('allergies/:id')
-  @Roles('ADMIN', 'DOCTOR')
+  @Permissions('patients:manage')
   async removeAllergy(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: JwtPayload,
@@ -264,7 +262,7 @@ export class PatientsController {
   }
 
   @Get(':id/fhir/export')
-  @Roles('ADMIN', 'DOCTOR', 'HIM')
+  @Permissions('patients:manage')
   @RequireClinicalRelation({ paramName: 'id', allowBreakGlass: true })
   @Sensitive('EXPORT_FHIR_RECORD')
   async exportFhirRecord(

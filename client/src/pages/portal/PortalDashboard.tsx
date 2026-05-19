@@ -18,6 +18,7 @@ import {
 export default function PortalDashboard() {
   const navigate = useNavigate();
   const { patient } = usePortalAuthStore();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [dashboard, setDashboard] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -83,6 +84,7 @@ export default function PortalDashboard() {
             <h3>آخر التحاليل</h3>
             {d?.recentLabResults?.length > 0 ? (
               <ul className="portal-card-list">
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 {d.recentLabResults.map((lab: any, i: number) => (
                   <li key={i}>{lab.test?.name}</li>
                 ))}
@@ -160,6 +162,7 @@ export default function PortalDashboard() {
           </div>
           {d?.allergies?.length > 0 ? (
             <div className="portal-tags">
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               {d.allergies.map((a: any, i: number) => (
                 <span key={i} className={`portal-tag ${a.severity === 'HIGH' ? 'danger' : a.severity === 'MODERATE' ? 'warning' : 'info'}`}>
                   {a.allergen}

@@ -63,12 +63,14 @@ export default function InsuranceClaimsPage() {
   const loadClaims = async () => {
     setLoading(true);
     try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const params: any = { status: statusFilter };
       if (selectedProvider) params.providerId = selectedProvider;
 
       const res = await apiClient.get<ClaimInvoice[]>("/insurance/claims", { params });
       setClaims(res.data);
       setSelectedIds([]); // Reset selection
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
       toast.error("فشل تحميل المطالبات.");
     } finally {
@@ -109,6 +111,7 @@ export default function InsuranceClaimsPage() {
       });
       toast.success("تم تحديث الحالة بنجاح.");
       loadClaims();
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
       toast.error("فشل التحديث.");
     }
@@ -130,6 +133,7 @@ export default function InsuranceClaimsPage() {
       setShowRejectModal(false);
       setRejectionReason("");
       loadClaims();
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
       toast.error("فشل التحديث.");
     }

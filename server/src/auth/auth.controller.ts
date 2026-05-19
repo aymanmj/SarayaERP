@@ -74,7 +74,7 @@ export class AuthController {
   ) {
     const refreshToken = request.cookies['Refresh'];
     const userId = (request as any).user?.sub || 0;
-    
+
     await this.authService.logout(userId, refreshToken);
 
     response.clearCookie('Authentication');

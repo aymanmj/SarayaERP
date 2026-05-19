@@ -1,5 +1,14 @@
-
-import { Body, Controller, Get, Param, Post, Put, Query, UseGuards, ParseIntPipe } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Put,
+  Query,
+  UseGuards,
+  ParseIntPipe,
+} from '@nestjs/common';
 import { InpatientRoundsService } from './inpatient-rounds.service';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { CurrentUser } from '../../auth/current-user.decorator';
@@ -16,7 +25,11 @@ export class InpatientRoundsController {
   // ======================== DOCTOR ENDPOINTS ========================
 
   @Get('my-rotation')
-  @Permissions('INPATIENT_VIEW_MY_PATIENTS', 'nursing:station:view', 'clinical:patients:view')
+  @Permissions(
+    'INPATIENT_VIEW_MY_PATIENTS',
+    'nursing:station:view',
+    'clinical:patients:view',
+  )
   async getMyRotation(
     @CurrentUser() user: JwtPayload,
     @Query('page') page?: string,
@@ -74,9 +87,16 @@ export class InpatientRoundsController {
   async addItem(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: JwtPayload,
-    @Body() body: { instruction: string; type?: CarePlanType; frequency?: string },
+    @Body()
+    body: { instruction: string; type?: CarePlanType; frequency?: string },
   ) {
-    return this.service.addCarePlanItem(id, user.sub, body.instruction, body.type, body.frequency);
+    return this.service.addCarePlanItem(
+      id,
+      user.sub,
+      body.instruction,
+      body.type,
+      body.frequency,
+    );
   }
 
   @Put('care-plan/:itemId/complete')
@@ -94,7 +114,12 @@ export class InpatientRoundsController {
     @CurrentUser() user: JwtPayload,
     @Body() body: { resultValue?: string; note?: string },
   ) {
-    return this.service.executeCarePlanItem(itemId, user.sub, body.resultValue, body.note);
+    return this.service.executeCarePlanItem(
+      itemId,
+      user.sub,
+      body.resultValue,
+      body.note,
+    );
   }
 
   @Get('care-plan/:itemId/executions')
@@ -104,10 +129,10 @@ export class InpatientRoundsController {
   }
 
   // --- Utility / Data Fixes ---
-  
+
   @Post('fix-data/update-departments')
   @Permissions('INPATIENT_VIEW_ALL_PATIENTS') // Reusing admin/nurse permission basically
   async fixEncounterDepartments() {
-      return this.service.fixDepartmentIds();
+    return this.service.fixDepartmentIds();
   }
 }

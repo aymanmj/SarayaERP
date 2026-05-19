@@ -1,4 +1,9 @@
-import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
 import { VaultService } from '../../common/vault/vault.service';
@@ -34,14 +39,19 @@ export class TelehealthService {
     }
 
     if (appointment.type !== 'ONLINE') {
-      throw new BadRequestException('Appointment is not a virtual consultation');
+      throw new BadRequestException(
+        'Appointment is not a virtual consultation',
+      );
     }
 
     // Generate secure randomized tokens for host and guest
     const hostToken = crypto.randomBytes(32).toString('hex');
     const guestToken = crypto.randomBytes(32).toString('hex');
     const roomName = `saraya-room-${appointmentId}-${crypto.randomBytes(4).toString('hex')}`;
-    const baseUrl = this.configService.get<string>('TELEHEALTH_DOMAIN', 'https://meet.sarayamed.com');
+    const baseUrl = this.configService.get<string>(
+      'TELEHEALTH_DOMAIN',
+      'https://meet.sarayamed.com',
+    );
     const roomUrl = `${baseUrl}/${roomName}`;
 
     const session = await this.prisma.telehealthSession.create({
@@ -54,16 +64,25 @@ export class TelehealthService {
       },
     });
 
-    this.logger.log(`Telehealth session initialized for Appointment ${appointmentId}`);
+    this.logger.log(
+      `Telehealth session initialized for Appointment ${appointmentId}`,
+    );
     return session;
   }
 
   /**
    * Generate a JWT for Jitsi Meet authentication
    */
-  private async generateJitsiToken(roomName: string, user: { name: string, email: string, isModerator: boolean }) {
-    const jitsiAppId = await this.vaultService.getOptionalSecret('JITSI_APP_ID') || 'saraya-jitsi-app';
-    const jitsiSecret = await this.vaultService.getOptionalSecret('JITSI_APP_SECRET') || 'default-jitsi-secret-override-in-vault';
+  private async generateJitsiToken(
+    roomName: string,
+    user: { name: string; email: string; isModerator: boolean },
+  ) {
+    const jitsiAppId =
+      (await this.vaultService.getOptionalSecret('JITSI_APP_ID')) ||
+      'saraya-jitsi-app';
+    const jitsiSecret =
+      (await this.vaultService.getOptionalSecret('JITSI_APP_SECRET')) ||
+      'default-jitsi-secret-override-in-vault';
 
     const payload = {
       context: {
@@ -79,7 +98,10 @@ export class TelehealthService {
       room: roomName,
     };
 
-    return jwt.sign(payload, jitsiSecret, { expiresIn: '2h', algorithm: 'HS256' });
+    return jwt.sign(payload, jitsiSecret, {
+      expiresIn: '2h',
+      algorithm: 'HS256',
+    });
   }
 
   /**
@@ -101,11 +123,14 @@ export class TelehealthService {
     });
 
     // Notify doctor (via websockets in future)
-    this.logger.log(`Patient ${patientId} entered virtual waiting room for Appointment ${appointmentId}`);
+    this.logger.log(
+      `Patient ${patientId} entered virtual waiting room for Appointment ${appointmentId}`,
+    );
 
     return {
       status: updatedSession.status,
-      message: 'You are now in the virtual waiting room. Please wait for the doctor.',
+      message:
+        'You are now in the virtual waiting room. Please wait for the doctor.',
       roomUrl: null, // Room URL is hidden until doctor starts the session
     };
   }
@@ -125,7 +150,7 @@ export class TelehealthService {
 
     const updatedSession = await this.prisma.telehealthSession.update({
       where: { id: session.id },
-      data: { 
+      data: {
         status: 'IN_PROGRESS',
         startedAt: new Date(),
       },
@@ -165,8 +190,9 @@ export class TelehealthService {
     // Generate JWT for the Patient (Guest)
     const roomName = session.roomUrl!.split('/').pop()!;
     const token = await this.generateJitsiToken(roomName, {
-      name: session.appointment.patient!.fullName,
-      email: session.appointment.patient!.email || `patient${patientId}@saraya.local`,
+      name: session.appointment.patient.fullName,
+      email:
+        session.appointment.patient.email || `patient${patientId}@saraya.local`,
       isModerator: false,
     });
 

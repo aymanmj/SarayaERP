@@ -36,7 +36,13 @@ export class ClinicalProfileService {
       where: { patientId, hospitalId },
       include: {
         diagnosisCode: {
-          select: { id: true, code: true, nameEn: true, nameAr: true, icd10Code: true },
+          select: {
+            id: true,
+            code: true,
+            nameEn: true,
+            nameAr: true,
+            icd10Code: true,
+          },
         },
         createdBy: {
           select: { id: true, fullName: true },
@@ -62,7 +68,7 @@ export class ClinicalProfileService {
         createdById: userId,
         description: dto.description,
         diagnosisCodeId: dto.diagnosisCodeId,
-        type: dto.type as any ?? 'ACTIVE',
+        type: (dto.type as any) ?? 'ACTIVE',
         severity: dto.severity as any,
         onsetDate: dto.onsetDate ? new Date(dto.onsetDate) : undefined,
         resolvedDate: dto.resolvedDate ? new Date(dto.resolvedDate) : undefined,
@@ -71,7 +77,13 @@ export class ClinicalProfileService {
       },
       include: {
         diagnosisCode: {
-          select: { id: true, code: true, nameEn: true, nameAr: true, icd10Code: true },
+          select: {
+            id: true,
+            code: true,
+            nameEn: true,
+            nameAr: true,
+            icd10Code: true,
+          },
         },
         createdBy: {
           select: { id: true, fullName: true },
@@ -79,7 +91,9 @@ export class ClinicalProfileService {
       },
     });
 
-    this.logger.log(`Problem created for patient ${patientId}: ${dto.description}`);
+    this.logger.log(
+      `Problem created for patient ${patientId}: ${dto.description}`,
+    );
 
     this.eventEmitter.emit('patient.problem_added', {
       hospitalId,
@@ -115,7 +129,13 @@ export class ClinicalProfileService {
       },
       include: {
         diagnosisCode: {
-          select: { id: true, code: true, nameEn: true, nameAr: true, icd10Code: true },
+          select: {
+            id: true,
+            code: true,
+            nameEn: true,
+            nameAr: true,
+            icd10Code: true,
+          },
         },
         createdBy: {
           select: { id: true, fullName: true },
@@ -200,7 +220,11 @@ export class ClinicalProfileService {
 
   // ======================== PMH Entries ========================
 
-  async createPMHEntry(patientId: number, hospitalId: number, dto: CreatePMHEntryDto) {
+  async createPMHEntry(
+    patientId: number,
+    hospitalId: number,
+    dto: CreatePMHEntryDto,
+  ) {
     return this.prisma.patientPMHEntry.create({
       data: {
         patientId,
@@ -224,7 +248,11 @@ export class ClinicalProfileService {
 
   // ======================== Surgical Entries ========================
 
-  async createSurgicalEntry(patientId: number, hospitalId: number, dto: CreateSurgicalEntryDto) {
+  async createSurgicalEntry(
+    patientId: number,
+    hospitalId: number,
+    dto: CreateSurgicalEntryDto,
+  ) {
     return this.prisma.patientSurgicalEntry.create({
       data: {
         patientId,
@@ -272,7 +300,9 @@ export class ClinicalProfileService {
       where: { id: entryId, hospitalId },
     });
     if (!existing) throw new NotFoundException('السجل غير موجود');
-    await this.prisma.patientFamilyHistoryEntry.delete({ where: { id: entryId } });
+    await this.prisma.patientFamilyHistoryEntry.delete({
+      where: { id: entryId },
+    });
     return { success: true };
   }
 
@@ -285,10 +315,7 @@ export class ClinicalProfileService {
         createdBy: { select: { id: true, fullName: true } },
         verifiedBy: { select: { id: true, fullName: true } },
       },
-      orderBy: [
-        { isActive: 'desc' },
-        { createdAt: 'desc' },
-      ],
+      orderBy: [{ isActive: 'desc' }, { createdAt: 'desc' }],
     });
   }
 
@@ -311,7 +338,7 @@ export class ClinicalProfileService {
         reason: dto.reason,
         startDate: dto.startDate ? new Date(dto.startDate) : undefined,
         isActive: dto.isActive ?? true,
-        source: dto.source as any ?? 'PATIENT_REPORTED',
+        source: (dto.source as any) ?? 'PATIENT_REPORTED',
         notes: dto.notes,
       },
       include: {
@@ -348,7 +375,11 @@ export class ClinicalProfileService {
     });
   }
 
-  async verifyHomeMedication(medicationId: number, hospitalId: number, userId: number) {
+  async verifyHomeMedication(
+    medicationId: number,
+    hospitalId: number,
+    userId: number,
+  ) {
     const existing = await this.prisma.homeMedication.findFirst({
       where: { id: medicationId, hospitalId },
     });
@@ -469,7 +500,8 @@ export class ClinicalProfileService {
       ...patient,
       phone: this.encryptionService.decrypt(patient.phone) ?? patient.phone,
       email: this.encryptionService.decrypt(patient.email) ?? patient.email,
-      address: this.encryptionService.decrypt(patient.address) ?? patient.address,
+      address:
+        this.encryptionService.decrypt(patient.address) ?? patient.address,
     };
 
     // إحصائيات سريعة
@@ -492,9 +524,12 @@ export class ClinicalProfileService {
       stats: {
         totalEncounters,
         totalAdmissions,
-        activeProblems: problems.filter((p) => p.type === 'ACTIVE' || p.type === 'CHRONIC').length,
+        activeProblems: problems.filter(
+          (p) => p.type === 'ACTIVE' || p.type === 'CHRONIC',
+        ).length,
         allergiesCount: allergies.length,
-        unverifiedMedications: homeMedications.filter((m) => !m.verifiedById).length,
+        unverifiedMedications: homeMedications.filter((m) => !m.verifiedById)
+          .length,
       },
     };
   }

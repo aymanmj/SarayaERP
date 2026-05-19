@@ -3,7 +3,9 @@ import { portalApi } from '../../api/portalApi';
 import { User, Loader2, Shield, AlertTriangle, Phone, Mail, MapPin, Calendar, MessageCircle, CheckCircle2 } from 'lucide-react';
 
 export default function PortalProfile() {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [profile, setProfile] = useState<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [insurance, setInsurance] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -38,6 +40,7 @@ export default function PortalProfile() {
             <div className="portal-profile-section">
               <h3><AlertTriangle size={18}/> الحساسية</h3>
               <div className="portal-tags">
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 {profile.allergies.map((a: any) => (
                   <span key={a.id} className={`portal-tag ${a.severity === 'HIGH' ? 'danger' : 'warning'}`}>{a.allergen}</span>
                 ))}

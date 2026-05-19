@@ -15,28 +15,27 @@ import {
 } from '@nestjs/common';
 import { NoteTemplatesService } from './note-templates.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
-
-@UseGuards(JwtAuthGuard, RolesGuard)
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { Permissions } from '../auth/permissions.decorator';
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('note-templates')
 export class NoteTemplatesController {
   constructor(private readonly service: NoteTemplatesService) {}
 
   @Get()
-  @Roles('ADMIN', 'DOCTOR', 'NURSE')
+  @Permissions('note-templates:view')
   async findAll(@Req() req: any, @Query('specialty') specialty?: string) {
     return this.service.findAll(req.user.hospitalId, specialty);
   }
 
   @Post()
-  @Roles('ADMIN', 'DOCTOR')
+  @Permissions('note-templates:manage')
   async create(@Req() req: any, @Body() body: any) {
     return this.service.create(req.user.hospitalId, req.user.sub, body);
   }
 
   @Patch(':id')
-  @Roles('ADMIN', 'DOCTOR')
+  @Permissions('note-templates:manage')
   async update(
     @Req() req: any,
     @Param('id', ParseIntPipe) id: number,
@@ -46,7 +45,7 @@ export class NoteTemplatesController {
   }
 
   @Delete(':id')
-  @Roles('ADMIN')
+  @Permissions('note-templates:manage')
   async remove(@Req() req: any, @Param('id', ParseIntPipe) id: number) {
     return this.service.remove(req.user.hospitalId, id);
   }

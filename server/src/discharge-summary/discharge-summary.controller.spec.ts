@@ -16,11 +16,16 @@ describe('DischargeSummaryController', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [DischargeSummaryController],
       providers: [
-        { provide: DischargeSummaryService, useValue: mockDischargeSummaryService },
+        {
+          provide: DischargeSummaryService,
+          useValue: mockDischargeSummaryService,
+        },
       ],
     }).compile();
 
-    controller = module.get<DischargeSummaryController>(DischargeSummaryController);
+    controller = module.get<DischargeSummaryController>(
+      DischargeSummaryController,
+    );
   });
 
   it('should be defined', () => {

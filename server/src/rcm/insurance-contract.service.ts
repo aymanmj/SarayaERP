@@ -1,10 +1,15 @@
-import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ClsService } from 'nestjs-cls';
 
 /**
  * خدمة إدارة عقود التأمين (Insurance Contracts)
- * 
+ *
  * الميزات:
  * 1. إنشاء وإدارة العقود والمنافع التأمينية
  * 2. تطبيق RLS تلقائياً لكل مؤسسة طبية (Multi-Tenancy)

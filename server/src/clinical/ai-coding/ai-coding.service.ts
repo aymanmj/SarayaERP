@@ -1,16 +1,38 @@
-import { Injectable, Logger, InternalServerErrorException, BadRequestException, OnModuleInit } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  InternalServerErrorException,
+  BadRequestException,
+  OnModuleInit,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { VaultService } from '../../common/vault/vault.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PriceListsService } from '../../price-lists/price-lists.service';
-import { DiagnosisType, ChargeSource, ServiceType, TerminologySystem } from '@prisma/client';
+import {
+  DiagnosisType,
+  ChargeSource,
+  ServiceType,
+  TerminologySystem,
+} from '@prisma/client';
 
 // ─── Interfaces ────────────────────────────────────────────────────
 
 export interface AiCodingSuggestion {
-  diagnoses: Array<{ code: string; nameEn: string; nameAr: string; confidence: number }>;
-  procedures: Array<{ code: string; modifier?: string; nameEn: string; nameAr: string; confidence: number }>;
+  diagnoses: Array<{
+    code: string;
+    nameEn: string;
+    nameAr: string;
+    confidence: number;
+  }>;
+  procedures: Array<{
+    code: string;
+    modifier?: string;
+    nameEn: string;
+    nameAr: string;
+    confidence: number;
+  }>;
   reasoning: string;
 }
 
@@ -64,7 +86,9 @@ export class AiCodingService implements OnModuleInit {
         await this.vaultService.refreshKeys();
         apiKey = await this.vaultService.getOptionalSecret('GEMINI_API_KEY');
       } catch (error: any) {
-        this.logger.warn(`Unable to refresh Vault secrets for Gemini key: ${error.message}`);
+        this.logger.warn(
+          `Unable to refresh Vault secrets for Gemini key: ${error.message}`,
+        );
       }
     }
 
@@ -76,7 +100,9 @@ export class AiCodingService implements OnModuleInit {
     }
 
     if (!apiKey) {
-      this.logger.warn('GEMINI_API_KEY is not configured in Vault or ENV. AI Coding Assist will not function properly.');
+      this.logger.warn(
+        'GEMINI_API_KEY is not configured in Vault or ENV. AI Coding Assist will not function properly.',
+      );
       return false;
     }
 
@@ -88,16 +114,18 @@ export class AiCodingService implements OnModuleInit {
     this.genAI = new GoogleGenerativeAI(apiKey);
 
     // Model selection: configurable via env, with stable fallback
-    const modelName = this.configService.get<string>('GEMINI_MODEL') || 'gemini-3.1-flash-lite-preview';
+    const modelName =
+      this.configService.get<string>('GEMINI_MODEL') ||
+      'gemini-3.1-flash-lite-preview';
     this.logger.log(`🤖 Initializing AI Coding with model: ${modelName}`);
 
-    this.model = this.genAI.getGenerativeModel({ 
+    this.model = this.genAI.getGenerativeModel({
       model: modelName,
-      generationConfig: { 
+      generationConfig: {
         responseMimeType: 'application/json',
         temperature: 0.0,
-        topP: 0.8
-      }
+        topP: 0.8,
+      },
     });
     return true;
   }
@@ -105,10 +133,15 @@ export class AiCodingService implements OnModuleInit {
   /**
    * Analyze clinical notes and suggest ICD-10 and CPT codes
    */
-  async suggestCodes(clinicalNote: string, patientDemographics?: string): Promise<AiCodingSuggestion> {
+  async suggestCodes(
+    clinicalNote: string,
+    patientDemographics?: string,
+  ): Promise<AiCodingSuggestion> {
     const ready = await this.ensureModelLoaded();
     if (!ready || !this.model) {
-      throw new InternalServerErrorException('AI Model is not configured (Missing GEMINI_API_KEY)');
+      throw new InternalServerErrorException(
+        'AI Model is not configured (Missing GEMINI_API_KEY)',
+      );
     }
 
     const prompt = `
@@ -144,10 +177,13 @@ ${clinicalNote}
       const result = await this.model.generateContent(prompt);
       const response = await result.response;
       let text = response.text();
-      
+
       // Clean up markdown if model decides to output it anyway
-      text = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-      
+      text = text
+        .replace(/```json\n?/g, '')
+        .replace(/```\n?/g, '')
+        .trim();
+
       const parsed: AiCodingSuggestion = JSON.parse(text);
 
       // Validate response structure
@@ -161,8 +197,13 @@ ${clinicalNote}
 
       return parsed;
     } catch (error) {
-      this.logger.error(`Failed to generate AI coding suggestions: ${error.message}`, error.stack);
-      throw new InternalServerErrorException('Failed to process AI Coding request');
+      this.logger.error(
+        `Failed to generate AI coding suggestions: ${error.message}`,
+        error.stack,
+      );
+      throw new InternalServerErrorException(
+        'Failed to process AI Coding request',
+      );
     }
   }
 
@@ -177,13 +218,17 @@ ${clinicalNote}
       // Pathology and Laboratory (80000–89398)
       if (numericCode >= 80000 && numericCode <= 89398) return ServiceType.LAB;
       // Radiology (70000–79999)
-      if (numericCode >= 70000 && numericCode <= 79999) return ServiceType.RADIOLOGY;
+      if (numericCode >= 70000 && numericCode <= 79999)
+        return ServiceType.RADIOLOGY;
       // Evaluation and Management (99202–99499)
-      if (numericCode >= 99202 && numericCode <= 99499) return ServiceType.CONSULTATION;
+      if (numericCode >= 99202 && numericCode <= 99499)
+        return ServiceType.CONSULTATION;
       // Surgery (10000–69990)
-      if (numericCode >= 10000 && numericCode <= 69990) return ServiceType.SURGERY;
+      if (numericCode >= 10000 && numericCode <= 69990)
+        return ServiceType.SURGERY;
       // Medicine / General Procedures (90000–99199)
-      if (numericCode >= 90000 && numericCode <= 99199) return ServiceType.PROCEDURE;
+      if (numericCode >= 90000 && numericCode <= 99199)
+        return ServiceType.PROCEDURE;
       // Anesthesia (00100–01999)
       if (numericCode >= 100 && numericCode <= 1999) return ServiceType.OTHER;
     } else {
@@ -192,7 +237,7 @@ ${clinicalNote}
       if (codeStr.startsWith('P')) return ServiceType.LAB; // Pathology/Lab
       if (codeStr.startsWith('R')) return ServiceType.RADIOLOGY; // Radiology
     }
-    
+
     return ServiceType.PROCEDURE; // Fallback
   }
 
@@ -200,7 +245,7 @@ ${clinicalNote}
    * Apply AI-suggested codes to the encounter:
    * - ICD-10 codes → EncounterDiagnosis records
    * - CPT codes → EncounterCharge records (with price lookup)
-   * 
+   *
    * Uses a transaction to ensure all-or-nothing consistency.
    */
   async applySuggestedCodes(
@@ -256,16 +301,15 @@ ${clinicalNote}
                 isActive: true,
               },
             });
-            this.logger.log(`📚 Auto-created TerminologyConcept (ICD10): ${dx.code}`);
+            this.logger.log(
+              `📚 Auto-created TerminologyConcept (ICD10): ${dx.code}`,
+            );
           }
 
           // Find or create the DiagnosisCode record
           let diagCode = await tx.diagnosisCode.findFirst({
             where: {
-              OR: [
-                { code: dx.code },
-                { icd10Code: dx.code },
-              ],
+              OR: [{ code: dx.code }, { icd10Code: dx.code }],
             },
           });
 
@@ -281,7 +325,9 @@ ${clinicalNote}
                 isActive: true,
               },
             });
-            this.logger.log(`📝 Auto-created DiagnosisCode: ${dx.code} — ${dx.nameEn}`);
+            this.logger.log(
+              `📝 Auto-created DiagnosisCode: ${dx.code} — ${dx.nameEn}`,
+            );
           } else if (!diagCode.terminologyConceptId) {
             // Link existing DiagnosisCode to the TerminologyConcept if not linked
             await tx.diagnosisCode.update({
@@ -308,7 +354,10 @@ ${clinicalNote}
             data: {
               encounterId,
               diagnosisCodeId: diagCode.id,
-              type: dx.type === 'PRIMARY' ? DiagnosisType.PRIMARY : DiagnosisType.SECONDARY,
+              type:
+                dx.type === 'PRIMARY'
+                  ? DiagnosisType.PRIMARY
+                  : DiagnosisType.SECONDARY,
               note: `[AI-Assisted] ${dx.nameEn}`,
               createdById: userId,
             },
@@ -316,7 +365,9 @@ ${clinicalNote}
 
           diagnosesSaved++;
         } catch (err: any) {
-          this.logger.warn(`⚠️ Failed to save diagnosis ${dx.code}: ${err.message}`);
+          this.logger.warn(
+            `⚠️ Failed to save diagnosis ${dx.code}: ${err.message}`,
+          );
           warnings.push(`تعذر حفظ التشخيص ${dx.code}: ${err.message}`);
         }
       }
@@ -351,7 +402,9 @@ ${clinicalNote}
                 isBillable: true,
               },
             });
-            this.logger.log(`📝 Auto-created ServiceItem: ${px.code} — ${px.nameEn}`);
+            this.logger.log(
+              `📝 Auto-created ServiceItem: ${px.code} — ${px.nameEn}`,
+            );
           }
 
           // Check for duplicate charges
@@ -399,9 +452,13 @@ ${clinicalNote}
           });
 
           proceduresSaved++;
-          this.logger.log(`💰 Auto-billed CPT ${px.code}: ${price} (encounter #${encounterId})`);
+          this.logger.log(
+            `💰 Auto-billed CPT ${px.code}: ${price} (encounter #${encounterId})`,
+          );
         } catch (err: any) {
-          this.logger.warn(`⚠️ Failed to save procedure ${px.code}: ${err.message}`);
+          this.logger.warn(
+            `⚠️ Failed to save procedure ${px.code}: ${err.message}`,
+          );
           warnings.push(`تعذر إضافة الإجراء ${px.code}: ${err.message}`);
         }
       }
@@ -409,7 +466,7 @@ ${clinicalNote}
 
     this.logger.log(
       `✅ AI Coding Applied: ${diagnosesSaved} diagnoses, ${proceduresSaved} procedures ` +
-      `for encounter #${encounterId} by user #${userId}`
+        `for encounter #${encounterId} by user #${userId}`,
     );
 
     return { diagnosesSaved, proceduresSaved, warnings };

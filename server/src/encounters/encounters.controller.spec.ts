@@ -66,7 +66,10 @@ describe('EncountersController', () => {
   });
 
   it('prevents a doctor from opening another doctor encounter', async () => {
-    encountersService.getEncounterById.mockResolvedValue({ id: 8, doctorId: 99 });
+    encountersService.getEncounterById.mockResolvedValue({
+      id: 8,
+      doctorId: 99,
+    });
 
     await expect(controller.getOne('8', doctorUser as any)).rejects.toThrow(
       BadRequestException,
@@ -96,7 +99,10 @@ describe('EncountersController', () => {
   });
 
   it('routes admission from ER with department payload', async () => {
-    encountersService.admitPatientFromER.mockResolvedValue({ id: 8, type: 'IPD' });
+    encountersService.admitPatientFromER.mockResolvedValue({
+      id: 8,
+      type: 'IPD',
+    });
 
     const result = await controller.admitFromER(
       8,

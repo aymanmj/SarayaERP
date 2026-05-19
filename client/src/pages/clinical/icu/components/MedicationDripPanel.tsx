@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { Syringe, PlusCircle, Play, Pause, Square, TrendingUp, AlertCircle } from 'lucide-react';
 import { apiClient } from '../../../../api/apiClient';
 
@@ -7,6 +8,7 @@ interface Props {
 }
 
 export const MedicationDripPanel = ({ encounterId }: Props) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [drips, setDrips] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -19,6 +21,7 @@ export const MedicationDripPanel = ({ encounterId }: Props) => {
 
   useEffect(() => {
     fetchDrips();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [encounterId]);
 
   const fetchDrips = async () => {

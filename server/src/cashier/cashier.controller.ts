@@ -16,8 +16,8 @@ import {
 } from '@nestjs/common';
 import { CashierService } from './cashier.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { Permissions } from '../auth/permissions.decorator';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { JwtPayload } from '../auth/jwt-payload.type';
 import { IsNumber, IsOptional, IsString } from 'class-validator';
@@ -57,7 +57,7 @@ class CloseShiftDto {
   note?: string;
 }
 
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('cashier')
 export class CashierController {
   constructor(
@@ -68,14 +68,14 @@ export class CashierController {
 
   // 1) Worklist للكاشير
   @Get('worklist')
-  @Roles('ADMIN', 'CASHIER', 'RECEPTION')
+  @Permissions('cashier:view')
   async getWorklist(@CurrentUser() user: JwtPayload) {
     return this.cashierService.getWorklist(user.hospitalId);
   }
 
   // 2) تسجيل دفعة على فاتورة
   @Post('invoices/:id/payments')
-  @Roles('ADMIN', 'CASHIER')
+  @Permissions('cashier:manage')
   async recordPayment(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: RecordPaymentDto,
@@ -93,7 +93,7 @@ export class CashierController {
 
   // 3) كشف حساب مريض
   @Get('patients/:patientId/statement')
-  @Roles('ADMIN', 'CASHIER', 'RECEPTION')
+  @Permissions('cashier:view')
   async getPatientStatement(
     @Param('patientId', ParseIntPipe) patientId: number,
     @CurrentUser() user: JwtPayload,
@@ -103,7 +103,7 @@ export class CashierController {
 
   // ✅ تفاصيل فاتورة معيّنة
   @Get('invoices/:invoiceId/details')
-  @Roles('ADMIN', 'CASHIER')
+  @Permissions('cashier:manage')
   async getInvoiceDetails(
     @Req() req: any,
     @Param('invoiceId', ParseIntPipe) invoiceId: number,
@@ -123,14 +123,17 @@ export class CashierController {
   }
 
   @Get('payments/:id/receipt/pdf')
-  @Roles('ADMIN', 'CASHIER', 'ACCOUNTANT')
+  @Permissions('cashier:manage')
   async downloadPaymentReceiptPdf(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: JwtPayload,
     @Res() res: Response,
   ) {
     // 1. Get Payment Receipt Data
-    const receiptData = await this.cashierService.getPaymentReceipt(user.hospitalId, id);
+    const receiptData = await this.cashierService.getPaymentReceipt(
+      user.hospitalId,
+      id,
+    );
 
     // 2. Get Hospital Settings from DB
     const hospital = await this.prisma.hospital.findUnique({
@@ -139,7 +142,9 @@ export class CashierController {
 
     const organization = {
       displayName: hospital?.displayName || hospital?.name || 'Saraya Hospital',
-      address: [hospital?.addressLine1, hospital?.addressLine2, hospital?.city].filter(Boolean).join(' - '),
+      address: [hospital?.addressLine1, hospital?.addressLine2, hospital?.city]
+        .filter(Boolean)
+        .join(' - '),
       phone: hospital?.phone || '',
       email: hospital?.email || '',
     };
@@ -152,31 +157,36 @@ export class CashierController {
       paymentMethod: receiptData.payment.method,
       paymentDate: receiptData.payment.paidAt,
       reference: receiptData.payment.reference,
-      
+
       patient: {
         fullName: receiptData.patient.fullName,
         mrn: receiptData.patient.mrn,
       },
-      
+
       encounter: {
         type: receiptData.encounter?.type || '',
       },
-      
+
       invoiceId: receiptData.invoice.id,
       invoiceDate: receiptData.invoice.createdAt,
       invoiceStatus: receiptData.invoice.status,
       totalAmount: receiptData.invoice.totalAmount,
       discountAmount: receiptData.invoice.discountAmount,
-      netAmount: Number(receiptData.invoice.totalAmount) - Number(receiptData.invoice.discountAmount || 0),
+      netAmount:
+        Number(receiptData.invoice.totalAmount) -
+        Number(receiptData.invoice.discountAmount || 0),
       paidAmount: receiptData.invoice.paidAmount,
       remainingAmount: receiptData.invoice.remainingAmount,
-      
+
       organization,
       currentDateTime: new Date(),
     };
 
     // 4. Generate PDF
-    const buffer = await this.pdfService.generatePdf('booking-receipt-modern', pdfData);
+    const buffer = await this.pdfService.generatePdf(
+      'booking-receipt-modern',
+      pdfData,
+    );
 
     // 5. Send Response
     res.set({
@@ -211,7 +221,7 @@ export class CashierController {
 
   // 🔹 قائمة المستخدمين (للاختيار في تقرير الكاشير) - للـ ADMIN فقط
   @Get('users')
-  @Roles('ADMIN', 'CASHIER', 'RECEPTION', 'HR')
+  @Permissions('cashier:view')
   async listCashierUsers(@Req() req: any) {
     const hospitalId = req.user.hospitalId as number;
     return this.cashierService.listCashierUsers(hospitalId);
@@ -219,7 +229,7 @@ export class CashierController {
 
   // 🔹 تقرير الكاشير حسب المستخدم والفترة (يدعم اختيار كاشير + شفت من/إلى)
   @Get('reports/by-cashier')
-  @Roles('ADMIN', 'CASHIER')
+  @Permissions('cashier:manage')
   async getCashierUserReport(
     @Req() req: any,
     @Query('date') dateStr?: string,
@@ -277,7 +287,7 @@ export class CashierController {
   async closeShift(@Req() req: any, @Body() body: CloseShiftDto) {
     const hospitalId = req.user.hospitalId as number;
 
-    const rawId = (req.user as any)?.id ?? (req.user as any)?.sub;
+    const rawId = req.user?.id ?? req.user?.sub;
     const cashierId = Number(rawId);
 
     if (!cashierId || Number.isNaN(cashierId)) {
@@ -342,7 +352,7 @@ export class CashierController {
 
   // 🔹 قائمة الشفتات المقفولة (مع فلترة بالتاريخ والكاشير)
   @Get('shifts')
-  @Roles('ADMIN', 'CASHIER')
+  @Permissions('cashier:manage')
   async listShifts(
     @Req() req: any,
     @Query('fromDate') fromDateStr?: string,

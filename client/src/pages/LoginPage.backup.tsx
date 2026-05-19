@@ -8,6 +8,7 @@ export function LoginPage() {
   const login = useAuthStore((s) => s.login);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const navigate = useNavigate();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const location = useLocation() as any;
 
   const [username, setUsername] = useState("");
@@ -29,6 +30,7 @@ export function LoginPage() {
 
     try {
       await login(username.trim(), password);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       console.error(err);
 

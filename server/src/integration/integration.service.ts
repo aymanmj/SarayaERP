@@ -80,7 +80,9 @@ export class IntegrationService implements OnModuleInit, OnModuleDestroy {
     // Add Error Handler for Server Binding
     this.server.on('error', (err: any) => {
       if (err.code === 'EACCES') {
-        this.logger.error(`❌ Permission Denied on port ${port}. Try running as Admin or change port.`);
+        this.logger.error(
+          `❌ Permission Denied on port ${port}. Try running as Admin or change port.`,
+        );
       } else if (err.code === 'EADDRINUSE') {
         this.logger.error(`❌ Port ${port} is already in use.`);
       } else {

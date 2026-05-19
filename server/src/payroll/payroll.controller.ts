@@ -13,13 +13,10 @@ import {
 } from '@nestjs/common';
 import { PayrollService } from './payroll.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
-
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Controller('payroll')
-@Roles('ADMIN', 'ACCOUNTANT')
-export class PayrollController {
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { Permissions } from '../auth/permissions.decorator';
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@Controller('payroll')export class PayrollController {
   constructor(private readonly payrollService: PayrollService) {}
 
   @Post('generate')
@@ -56,7 +53,7 @@ export class PayrollController {
 
   // ✅ أضف هذا المسار الجديد هنا
   @Delete(':id')
-  @Roles('ADMIN') // للحماية، نجعل الحذف للأدمن فقط
+  @Permissions('payroll:manage') // للحماية، نجعل الحذف للأدمن فقط
   async remove(@Req() req: any, @Param('id', ParseIntPipe) id: number) {
     return this.payrollService.deletePayroll(req.user.hospitalId, id);
   }
@@ -74,12 +71,11 @@ export class PayrollController {
 // } from '@nestjs/common';
 // import { PayrollService } from './payroll.service';
 // import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-// import { RolesGuard } from '../auth/roles.guard';
-// import { Roles } from '../auth/roles.decorator';
-
-// @UseGuards(JwtAuthGuard, RolesGuard)
+// import { PermissionsGuard } from '../auth/permissions.guard';
+// import { Permissions } from '../auth/permissions.decorator';
+// @UseGuards(JwtAuthGuard, PermissionsGuard)
 // @Controller('payroll')
-// @Roles('ADMIN', 'ACCOUNTANT')
+// @Permissions('payroll:manage')
 // export class PayrollController {
 //   constructor(private readonly payrollService: PayrollService) {}
 

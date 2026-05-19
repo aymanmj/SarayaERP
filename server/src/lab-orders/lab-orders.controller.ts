@@ -1,6 +1,5 @@
 // src/lab-orders/lab-orders.controller.ts
 
-
 import {
   Body,
   Controller,
@@ -8,20 +7,20 @@ import {
   Param,
   ParseIntPipe,
   Post,
-
   UseGuards,
-  Req,
 } from '@nestjs/common';
 import { LabOrdersService } from './lab-orders.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { Permissions } from '../auth/permissions.decorator';
+import { CurrentUser } from '../auth/current-user.decorator';
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('encounters/:encounterId/lab-orders')
 export class LabOrdersController {
   constructor(private readonly labOrdersService: LabOrdersService) {}
 
-  // GET /encounters/:encounterId/lab-orders
-  // يرجع مصفوفة LabOrderDto (بدون success wrapper)
+  @Permissions('lab-orders:view')
   @Get()
   async listForEncounter(
     @Param('encounterId', ParseIntPipe) encounterId: number,
@@ -29,43 +28,38 @@ export class LabOrdersController {
     return this.labOrdersService.listForEncounter(encounterId);
   }
 
-  // POST /encounters/:encounterId/lab-orders
-  // body: { hospitalId, doctorId, testIds, notes? }
+  @Permissions('lab-orders:manage')
   @Post()
   async createForEncounter(
     @Param('encounterId', ParseIntPipe) encounterId: number,
+    @CurrentUser() user: any,
     @Body()
     body: {
-      hospitalId: number;
-      doctorId: number;
       testIds: number[];
       notes?: string;
     },
   ) {
-    const { hospitalId, doctorId, testIds, notes } = body;
-
-    // نمرر encounterId من الـ params مع باقي البيانات
     const created = await this.labOrdersService.createForEncounter({
       encounterId,
-      hospitalId,
-      doctorId,
-      testIds,
-      notes,
+      hospitalId: user.hospitalId,
+      doctorId: user.sub,
+      testIds: body.testIds,
+      notes: body.notes,
     });
 
-    // الفرونت حالياً لا يعتمد على الـ response body، لكن نرجّعها كمرجع
     return created;
   }
-  // ✅ [PAYWALL] Worklist Endpoint moved to global controller
 }
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('lab-orders')
 export class LabOrdersGeneralController {
   constructor(private readonly labOrdersService: LabOrdersService) {}
 
+  @Permissions('lab-orders:view')
   @Get('worklist')
-  async worklist(@Req() req: any) {
-    return this.labOrdersService.getWorklist(req.user.hospitalId);
+  async worklist(@CurrentUser() user: any) {
+    return this.labOrdersService.getWorklist(user.hospitalId);
   }
 }
+

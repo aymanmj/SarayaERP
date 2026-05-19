@@ -60,12 +60,18 @@ describe('PortalRefillService', () => {
       patientId: 1,
       hospitalId: 1,
       status: 'ACTIVE',
-      items: [{ product: { id: 100, name: 'Amoxicillin', genericName: 'amoxicillin' } }],
+      items: [
+        {
+          product: { id: 100, name: 'Amoxicillin', genericName: 'amoxicillin' },
+        },
+      ],
       doctor: { id: 5, fullName: 'د. أحمد' },
     };
 
     it('should create refill for an ACTIVE prescription owned by patient', async () => {
-      mockPrisma.prescription.findUnique.mockResolvedValue(mockActivePrescription);
+      mockPrisma.prescription.findUnique.mockResolvedValue(
+        mockActivePrescription,
+      );
       mockPrisma.medicationRefillRequest.findFirst.mockResolvedValue(null); // No existing PENDING
       mockPrisma.medicationRefillRequest.create.mockResolvedValue({
         id: 1,
@@ -137,9 +143,14 @@ describe('PortalRefillService', () => {
     });
 
     it('should REJECT duplicate PENDING refill on same prescription', async () => {
-      mockPrisma.prescription.findUnique.mockResolvedValue(mockActivePrescription);
+      mockPrisma.prescription.findUnique.mockResolvedValue(
+        mockActivePrescription,
+      );
       mockPrisma.medicationRefillRequest.findFirst.mockResolvedValue({
-        id: 5, status: 'PENDING', prescriptionId: 1, patientId: 1,
+        id: 5,
+        status: 'PENDING',
+        prescriptionId: 1,
+        patientId: 1,
       });
 
       await expect(
@@ -172,13 +183,17 @@ describe('PortalRefillService', () => {
         status: 'PENDING',
       });
 
-      await expect(service.getRefillById(1, 1)).rejects.toThrow(NotFoundException);
+      await expect(service.getRefillById(1, 1)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('should REJECT non-existent refill', async () => {
       mockPrisma.medicationRefillRequest.findUnique.mockResolvedValue(null);
 
-      await expect(service.getRefillById(1, 999)).rejects.toThrow(NotFoundException);
+      await expect(service.getRefillById(1, 999)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -188,7 +203,9 @@ describe('PortalRefillService', () => {
   describe('cancelRefill', () => {
     it('should cancel a PENDING refill owned by patient', async () => {
       mockPrisma.medicationRefillRequest.findUnique.mockResolvedValue({
-        id: 1, patientId: 1, status: 'PENDING',
+        id: 1,
+        patientId: 1,
+        status: 'PENDING',
       });
       mockPrisma.medicationRefillRequest.delete.mockResolvedValue({ id: 1 });
 
@@ -202,32 +219,46 @@ describe('PortalRefillService', () => {
 
     it('should REJECT cancelling an APPROVED refill', async () => {
       mockPrisma.medicationRefillRequest.findUnique.mockResolvedValue({
-        id: 1, patientId: 1, status: 'APPROVED',
+        id: 1,
+        patientId: 1,
+        status: 'APPROVED',
       });
 
-      await expect(service.cancelRefill(1, 1)).rejects.toThrow(BadRequestException);
+      await expect(service.cancelRefill(1, 1)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should REJECT cancelling a DENIED refill', async () => {
       mockPrisma.medicationRefillRequest.findUnique.mockResolvedValue({
-        id: 1, patientId: 1, status: 'DENIED',
+        id: 1,
+        patientId: 1,
+        status: 'DENIED',
       });
 
-      await expect(service.cancelRefill(1, 1)).rejects.toThrow(BadRequestException);
+      await expect(service.cancelRefill(1, 1)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should REJECT cancelling another patients refill (data isolation)', async () => {
       mockPrisma.medicationRefillRequest.findUnique.mockResolvedValue({
-        id: 1, patientId: 999, status: 'PENDING',
+        id: 1,
+        patientId: 999,
+        status: 'PENDING',
       });
 
-      await expect(service.cancelRefill(1, 1)).rejects.toThrow(NotFoundException);
+      await expect(service.cancelRefill(1, 1)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('should REJECT cancelling non-existent refill', async () => {
       mockPrisma.medicationRefillRequest.findUnique.mockResolvedValue(null);
 
-      await expect(service.cancelRefill(1, 999)).rejects.toThrow(NotFoundException);
+      await expect(service.cancelRefill(1, 999)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });

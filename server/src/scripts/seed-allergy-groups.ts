@@ -5,7 +5,7 @@ const prisma = new PrismaClient();
 /**
  * Allergy Cross-Reactivity Groups
  * Based on WHO/FDA clinical pharmacology references
- * 
+ *
  * When a patient has an allergy to one drug in a group,
  * the CDSS will alert for ALL drugs in that group.
  */
@@ -13,29 +13,55 @@ const ALLERGY_GROUPS = [
   {
     name: 'NSAIDs',
     nameAr: 'مضادات الالتهاب غير الستيرويدية',
-    description: 'Non-Steroidal Anti-Inflammatory Drugs — cross-reactivity risk ~20-30%',
+    description:
+      'Non-Steroidal Anti-Inflammatory Drugs — cross-reactivity risk ~20-30%',
     members: [
-      'aspirin', 'ibuprofen', 'naproxen', 'diclofenac', 'meloxicam',
-      'celecoxib', 'indomethacin', 'piroxicam', 'ketorolac', 'mefenamic acid',
+      'aspirin',
+      'ibuprofen',
+      'naproxen',
+      'diclofenac',
+      'meloxicam',
+      'celecoxib',
+      'indomethacin',
+      'piroxicam',
+      'ketorolac',
+      'mefenamic acid',
     ],
   },
   {
     name: 'Penicillins',
     nameAr: 'البنسلينات',
-    description: 'Beta-lactam antibiotics — penicillin class. ~10% cross-reactivity with Cephalosporins.',
+    description:
+      'Beta-lactam antibiotics — penicillin class. ~10% cross-reactivity with Cephalosporins.',
     members: [
-      'amoxicillin', 'ampicillin', 'penicillin', 'piperacillin',
-      'flucloxacillin', 'cloxacillin', 'nafcillin', 'oxacillin',
-      'amoxicillin/clavulanate', 'ampicillin/sulbactam', 'piperacillin/tazobactam',
+      'amoxicillin',
+      'ampicillin',
+      'penicillin',
+      'piperacillin',
+      'flucloxacillin',
+      'cloxacillin',
+      'nafcillin',
+      'oxacillin',
+      'amoxicillin/clavulanate',
+      'ampicillin/sulbactam',
+      'piperacillin/tazobactam',
     ],
   },
   {
     name: 'Cephalosporins',
     nameAr: 'السيفالوسبورينات',
-    description: 'Beta-lactam antibiotics — cephalosporin class. ~2-5% cross-reactivity with Penicillins.',
+    description:
+      'Beta-lactam antibiotics — cephalosporin class. ~2-5% cross-reactivity with Penicillins.',
     members: [
-      'ceftriaxone', 'cefuroxime', 'cephalexin', 'cefazolin',
-      'cefotaxime', 'ceftazidime', 'cefepime', 'cefixime', 'cefaclor',
+      'ceftriaxone',
+      'cefuroxime',
+      'cephalexin',
+      'cefazolin',
+      'cefotaxime',
+      'ceftazidime',
+      'cefepime',
+      'cefixime',
+      'cefaclor',
     ],
   },
   {
@@ -43,53 +69,87 @@ const ALLERGY_GROUPS = [
     nameAr: 'السلفوناميدات',
     description: 'Sulfonamide antibiotics and related drugs',
     members: [
-      'sulfamethoxazole', 'sulfasalazine', 'sulfadiazine',
-      'trimethoprim/sulfamethoxazole', 'dapsone',
+      'sulfamethoxazole',
+      'sulfasalazine',
+      'sulfadiazine',
+      'trimethoprim/sulfamethoxazole',
+      'dapsone',
     ],
   },
   {
     name: 'ACE Inhibitors',
     nameAr: 'مثبطات الإنزيم المحول للأنجيوتنسين',
-    description: 'Angiotensin-Converting Enzyme Inhibitors — angioedema risk is class-wide',
+    description:
+      'Angiotensin-Converting Enzyme Inhibitors — angioedema risk is class-wide',
     members: [
-      'captopril', 'enalapril', 'lisinopril', 'ramipril',
-      'perindopril', 'quinapril', 'fosinopril', 'benazepril',
+      'captopril',
+      'enalapril',
+      'lisinopril',
+      'ramipril',
+      'perindopril',
+      'quinapril',
+      'fosinopril',
+      'benazepril',
     ],
   },
   {
     name: 'Statins',
     nameAr: 'الستاتينات',
-    description: 'HMG-CoA reductase inhibitors — myopathy/rhabdomyolysis risk is class-wide',
+    description:
+      'HMG-CoA reductase inhibitors — myopathy/rhabdomyolysis risk is class-wide',
     members: [
-      'atorvastatin', 'rosuvastatin', 'simvastatin', 'pravastatin',
-      'lovastatin', 'fluvastatin', 'pitavastatin',
+      'atorvastatin',
+      'rosuvastatin',
+      'simvastatin',
+      'pravastatin',
+      'lovastatin',
+      'fluvastatin',
+      'pitavastatin',
     ],
   },
   {
     name: 'Opioids',
     nameAr: 'المواد الأفيونية',
-    description: 'Opioid analgesics — cross-reactivity variable but clinically significant',
+    description:
+      'Opioid analgesics — cross-reactivity variable but clinically significant',
     members: [
-      'morphine', 'codeine', 'tramadol', 'fentanyl',
-      'oxycodone', 'hydromorphone', 'methadone', 'pethidine', 'meperidine',
+      'morphine',
+      'codeine',
+      'tramadol',
+      'fentanyl',
+      'oxycodone',
+      'hydromorphone',
+      'methadone',
+      'pethidine',
+      'meperidine',
     ],
   },
   {
     name: 'Fluoroquinolones',
     nameAr: 'الفلوروكينولونات',
-    description: 'Fluoroquinolone antibiotics — class-wide tendon and CNS adverse effects',
+    description:
+      'Fluoroquinolone antibiotics — class-wide tendon and CNS adverse effects',
     members: [
-      'ciprofloxacin', 'levofloxacin', 'moxifloxacin',
-      'norfloxacin', 'ofloxacin', 'gatifloxacin',
+      'ciprofloxacin',
+      'levofloxacin',
+      'moxifloxacin',
+      'norfloxacin',
+      'ofloxacin',
+      'gatifloxacin',
     ],
   },
   {
     name: 'Local Anesthetics (Amide)',
     nameAr: 'المخدرات الموضعية (أميد)',
-    description: 'Amide-type local anesthetics — cross-reactivity within amide class',
+    description:
+      'Amide-type local anesthetics — cross-reactivity within amide class',
     members: [
-      'lidocaine', 'bupivacaine', 'ropivacaine',
-      'mepivacaine', 'prilocaine', 'articaine',
+      'lidocaine',
+      'bupivacaine',
+      'ropivacaine',
+      'mepivacaine',
+      'prilocaine',
+      'articaine',
     ],
   },
 ];
@@ -138,9 +198,14 @@ async function seedAllergyGroups() {
         memberCount++;
       }
 
-      console.log(`✅ ${group.name} (${group.nameAr}) — ${group.members.length} drugs`);
+      console.log(
+        `✅ ${group.name} (${group.nameAr}) — ${group.members.length} drugs`,
+      );
     } catch (err) {
-      console.error(`❌ Failed to seed group "${group.name}":`, (err as Error).message);
+      console.error(
+        `❌ Failed to seed group "${group.name}":`,
+        (err as Error).message,
+      );
     }
   }
 

@@ -1,6 +1,10 @@
 // src/patients/patients.service.ts
 
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma, GlobalPatient } from '@prisma/client';
 import { SoftDeleteService } from '../common/soft-delete.service';
@@ -90,13 +94,13 @@ export class PatientsService {
     let globalPatient: GlobalPatient | null = null;
     if (nationalIdHash) {
       globalPatient = await this.prisma.globalPatient.findUnique({
-        where: { nationalIdHash }
+        where: { nationalIdHash },
       });
     }
     if (!globalPatient && phoneHash) {
-       globalPatient = await this.prisma.globalPatient.findUnique({
-         where: { phoneHash }
-       });
+      globalPatient = await this.prisma.globalPatient.findUnique({
+        where: { phoneHash },
+      });
     }
 
     if (globalPatient) {
@@ -105,41 +109,48 @@ export class PatientsService {
 
       // Check if this patient already has a file in THIS hospital
       const existingLocalFile = await this.prisma.patient.findFirst({
-        where: { hospitalId, globalPatientId }
+        where: { hospitalId, globalPatientId },
       });
 
       if (existingLocalFile) {
-        throw new ConflictException('Patient is already registered at this hospital.');
+        throw new ConflictException(
+          'Patient is already registered at this hospital.',
+        );
       }
 
       // Merge existing GlobalPatient data into cleanData to "auto-complete" missing fields
       cleanData.fullName = cleanData.fullName || globalPatient.fullName;
       cleanData.nationalId = cleanData.nationalId || globalPatient.nationalId;
-      cleanData.dateOfBirth = cleanData.dateOfBirth || globalPatient.dateOfBirth;
+      cleanData.dateOfBirth =
+        cleanData.dateOfBirth || globalPatient.dateOfBirth;
       cleanData.gender = cleanData.gender || globalPatient.gender;
-      cleanData.identityType = cleanData.identityType || globalPatient.identityType;
-      cleanData.identityNumber = cleanData.identityNumber || globalPatient.identityNumber;
-      } else {
-        // Create a NEW GlobalPatient — use pre-computed hashes
-        const identityNumberHash = this.generateSearchHash(cleanData.identityNumber);
-        const emailHash = this.generateSearchHash(cleanData.email);
+      cleanData.identityType =
+        cleanData.identityType || globalPatient.identityType;
+      cleanData.identityNumber =
+        cleanData.identityNumber || globalPatient.identityNumber;
+    } else {
+      // Create a NEW GlobalPatient — use pre-computed hashes
+      const identityNumberHash = this.generateSearchHash(
+        cleanData.identityNumber,
+      );
+      const emailHash = this.generateSearchHash(cleanData.email);
 
-        const newGlobalPatient = await this.prisma.globalPatient.create({
-          data: {
-            fullName: cleanData.fullName,
-            nationalId: cleanData.nationalId,
-            dateOfBirth: cleanData.dateOfBirth,
-            gender: cleanData.gender,
-            identityType: cleanData.identityType,
-            identityNumber: cleanData.identityNumber,
-            nationalIdHash,
-            identityNumberHash,
-            phoneHash,
-            emailHash,
-          }
-        });
-        globalPatientId = newGlobalPatient.id;
-      }
+      const newGlobalPatient = await this.prisma.globalPatient.create({
+        data: {
+          fullName: cleanData.fullName,
+          nationalId: cleanData.nationalId,
+          dateOfBirth: cleanData.dateOfBirth,
+          gender: cleanData.gender,
+          identityType: cleanData.identityType,
+          identityNumber: cleanData.identityNumber,
+          nationalIdHash,
+          identityNumberHash,
+          phoneHash,
+          emailHash,
+        },
+      });
+      globalPatientId = newGlobalPatient.id;
+    }
     const mrn = await this.generateNextMrn(hospitalId);
 
     // Create the Local Patient File
@@ -147,7 +158,7 @@ export class PatientsService {
       data: {
         ...cleanData,
         mrn,
-        globalPatientId
+        globalPatientId,
       },
     });
 
@@ -174,7 +185,9 @@ export class PatientsService {
         });
       } catch {
         // لا نوقف تسجيل المريض إذا فشل إنشاء سجل الموافقة — نسجّل الخطأ فقط
-        console.error(`[MPI] Failed to create MpiConsentRecord for patient ${newPatient.id}`);
+        console.error(
+          `[MPI] Failed to create MpiConsentRecord for patient ${newPatient.id}`,
+        );
       }
     }
 
@@ -191,7 +204,10 @@ export class PatientsService {
 
     if (hospital?.organizationId) {
       const orgSetting = await this.prisma.orgSetting.findFirst({
-        where: { organizationId: hospital.organizationId, key: 'mpi.requirePatientOTP' },
+        where: {
+          organizationId: hospital.organizationId,
+          key: 'mpi.requirePatientOTP',
+        },
       });
       if (orgSetting) return orgSetting.value === 'true';
     }
@@ -201,7 +217,6 @@ export class PatientsService {
     });
     return sysSetting?.value === 'true';
   }
-
 
   private generateSearchHash(value: string | null | undefined): string | null {
     if (!value) return null;
@@ -366,8 +381,12 @@ export class PatientsService {
     const globalPatientId = (existingPatient as any).globalPatientId;
     if (globalPatientId) {
       const SYNCED_FIELDS = [
-        'fullName', 'nationalId', 'dateOfBirth', 'gender',
-        'identityType', 'identityNumber',
+        'fullName',
+        'nationalId',
+        'dateOfBirth',
+        'gender',
+        'identityType',
+        'identityNumber',
       ] as const;
 
       const globalUpdate: Record<string, any> = {};
@@ -380,10 +399,14 @@ export class PatientsService {
 
       // Recompute search hashes if PII fields changed
       if (restData.nationalId) {
-        globalUpdate.nationalIdHash = this.generateSearchHash(restData.nationalId);
+        globalUpdate.nationalIdHash = this.generateSearchHash(
+          restData.nationalId,
+        );
       }
       if (restData.identityNumber) {
-        globalUpdate.identityNumberHash = this.generateSearchHash(restData.identityNumber);
+        globalUpdate.identityNumberHash = this.generateSearchHash(
+          restData.identityNumber,
+        );
       }
 
       // phone/email hashes are computed by Prisma Extension on Patient
@@ -403,7 +426,10 @@ export class PatientsService {
           });
         } catch (err) {
           // Non-critical: log but don't fail the local update
-          console.error(`[MPI SYNC] Failed to sync GlobalPatient #${globalPatientId}:`, err);
+          console.error(
+            `[MPI SYNC] Failed to sync GlobalPatient #${globalPatientId}:`,
+            err,
+          );
         }
       }
     }
@@ -515,11 +541,13 @@ export class PatientsService {
                 system: 'http://saraya-erp.com/mrn',
                 value: patient.mrn,
               },
-              patient.nationalId ? {
-                use: 'usual',
-                system: 'http://saraya-erp.com/national-id',
-                value: patient.nationalId,
-              } : undefined,
+              patient.nationalId
+                ? {
+                    use: 'usual',
+                    system: 'http://saraya-erp.com/national-id',
+                    value: patient.nationalId,
+                  }
+                : undefined,
             ].filter(Boolean),
             name: [
               {
@@ -527,25 +555,36 @@ export class PatientsService {
                 text: patient.fullName,
               },
             ],
-            telecom: patient.phone ? [
-              {
-                system: 'phone',
-                value: patient.phone,
-                use: 'mobile',
-              },
-            ] : undefined,
-            gender: patient.gender === 'MALE' ? 'male' : patient.gender === 'FEMALE' ? 'female' : 'unknown',
-            birthDate: patient.dateOfBirth ? patient.dateOfBirth.toISOString().split('T')[0] : undefined,
-            address: patient.address ? [
-              {
-                text: patient.address,
-              },
-            ] : undefined,
+            telecom: patient.phone
+              ? [
+                  {
+                    system: 'phone',
+                    value: patient.phone,
+                    use: 'mobile',
+                  },
+                ]
+              : undefined,
+            gender:
+              patient.gender === 'MALE'
+                ? 'male'
+                : patient.gender === 'FEMALE'
+                  ? 'female'
+                  : 'unknown',
+            birthDate: patient.dateOfBirth
+              ? patient.dateOfBirth.toISOString().split('T')[0]
+              : undefined,
+            address: patient.address
+              ? [
+                  {
+                    text: patient.address,
+                  },
+                ]
+              : undefined,
             active: patient.isActive,
           },
         },
         // Include allergies in FHIR format
-        ...patient.allergies.map(allergy => ({
+        ...patient.allergies.map((allergy) => ({
           fullUrl: `urn:uuid:allergy-${allergy.id}`,
           resource: {
             resourceType: 'AllergyIntolerance',
@@ -553,7 +592,8 @@ export class PatientsService {
             clinicalStatus: {
               coding: [
                 {
-                  system: 'http://terminology.hl7.org/CodeSystem/allergyintolerance-clinical',
+                  system:
+                    'http://terminology.hl7.org/CodeSystem/allergyintolerance-clinical',
                   code: 'active',
                 },
               ],
@@ -564,7 +604,12 @@ export class PatientsService {
             code: {
               text: allergy.allergen,
             },
-            criticality: allergy.severity === 'SEVERE' ? 'high' : allergy.severity === 'MODERATE' ? 'low' : 'unable-to-assess',
+            criticality:
+              allergy.severity === 'SEVERE'
+                ? 'high'
+                : allergy.severity === 'MODERATE'
+                  ? 'low'
+                  : 'unable-to-assess',
             note: allergy.reaction ? [{ text: allergy.reaction }] : undefined,
           },
         })),

@@ -1,6 +1,6 @@
 /**
  * Patient OTP Service — Enterprise Implementation
- * 
+ *
  * Features:
  * - 6-digit OTP with bcrypt hashing (never stored in plaintext)
  * - 5-minute TTL with automatic expiry
@@ -9,7 +9,7 @@
  * - Telegram Deep Linking for zero-friction account binding
  * - Channel Strategy: Telegram → Email → Console (fallback)
  * - Old unverified OTPs are auto-invalidated on new request
- * 
+ *
  * Authentication Flow:
  * ┌──────────────────────────────────────────────────┐
  * │  1. Patient enters MRN + Phone                   │
@@ -20,7 +20,13 @@
  * └──────────────────────────────────────────────────┘
  */
 
-import { Injectable, BadRequestException, Logger, UnauthorizedException, OnModuleInit } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  Logger,
+  UnauthorizedException,
+  OnModuleInit,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { EncryptionService } from '../../common/encryption/encryption.service';
 import { randomUUID } from 'crypto';
@@ -55,14 +61,14 @@ class ConsoleOtpChannel implements OtpChannel {
   async send(recipient: OtpRecipientInfo, code: string): Promise<boolean> {
     this.logger.warn(
       `\n` +
-      `╔════════════════════════════════════════════╗\n` +
-      `║  📱 OTP Code for Patient Portal            ║\n` +
-      `╠════════════════════════════════════════════╣\n` +
-      `║  Patient: ${recipient.patientName.padEnd(30)}  ║\n` +
-      `║  Phone:   ${recipient.phone.padEnd(30)}  ║\n` +
-      `║  Code:    ${code.padEnd(30)}  ║\n` +
-      `║  Expires: 5 minutes                        ║\n` +
-      `╚════════════════════════════════════════════╝`
+        `╔════════════════════════════════════════════╗\n` +
+        `║  📱 OTP Code for Patient Portal            ║\n` +
+        `╠════════════════════════════════════════════╣\n` +
+        `║  Patient: ${recipient.patientName.padEnd(30)}  ║\n` +
+        `║  Phone:   ${recipient.phone.padEnd(30)}  ║\n` +
+        `║  Code:    ${code.padEnd(30)}  ║\n` +
+        `║  Expires: 5 minutes                        ║\n` +
+        `╚════════════════════════════════════════════╝`,
     );
     return true;
   }
@@ -84,24 +90,26 @@ class TelegramOtpChannel implements OtpChannel {
   async send(recipient: OtpRecipientInfo, code: string): Promise<boolean> {
     if (!this.botToken || !recipient.telegramChatId) {
       this.logger.warn(
-        `Telegram delivery skipped — ${!this.botToken ? 'BOT_TOKEN not configured' : 'patient has no chat_id'}.`
+        `Telegram delivery skipped — ${!this.botToken ? 'BOT_TOKEN not configured' : 'patient has no chat_id'}.`,
       );
       return false; // Will fallback
     }
 
     try {
-      this.logger.log(`📨 Sending Telegram OTP to Chat ID: ${recipient.telegramChatId}`);
-      
+      this.logger.log(
+        `📨 Sending Telegram OTP to Chat ID: ${recipient.telegramChatId}`,
+      );
+
       const message = `أهلاً ${recipient.patientName}،\n\nرمز التحقق الخاص بك هو: *${code}*\n\nالرمز صالح لمدة 5 دقائق.`;
-      
+
       const response = await axios.post(
         `https://api.telegram.org/bot${this.botToken}/sendMessage`,
         {
           chat_id: recipient.telegramChatId,
           text: message,
-          parse_mode: 'Markdown'
+          parse_mode: 'Markdown',
         },
-        { timeout: 5000 }
+        { timeout: 5000 },
       );
 
       if (response.status === 200) {
@@ -110,7 +118,9 @@ class TelegramOtpChannel implements OtpChannel {
       }
       return false;
     } catch (error: any) {
-      this.logger.error(`❌ Failed to send Telegram OTP. Error: ${error.message}`);
+      this.logger.error(
+        `❌ Failed to send Telegram OTP. Error: ${error.message}`,
+      );
       return false;
     }
   }
@@ -136,13 +146,15 @@ class EmailOtpChannel implements OtpChannel {
     const from = process.env.SMTP_FROM || 'noreply@sarayaerp.com';
 
     if (!host || !user || !pass) {
-      this.logger.warn(`SMTP is not configured properly. Missing SMTP credentials.`);
+      this.logger.warn(
+        `SMTP is not configured properly. Missing SMTP credentials.`,
+      );
       return false;
     }
 
     try {
       this.logger.log(`📨 Sending Email OTP to: ${recipient.email}`);
-      
+
       const transporter = nodemailer.createTransport({
         host,
         port,
@@ -161,7 +173,7 @@ class EmailOtpChannel implements OtpChannel {
             <h1 style="color: #2563eb; letter-spacing: 5px; font-size: 32px; background: #f3f4f6; padding: 15px; border-radius: 8px; display: inline-block;">${code}</h1>
             <p>هذا الرمز صالح لمدة 5 دقائق. يرجى عدم مشاركته مع أي شخص.</p>
           </div>
-        `
+        `,
       });
 
       this.logger.log(`✅ Email OTP successfully dispatched.`);
@@ -192,7 +204,7 @@ export class PatientOtpService implements OnModuleInit {
   constructor(
     private prisma: PrismaService,
     private encryptionService: EncryptionService,
-    private vaultService: VaultService
+    private vaultService: VaultService,
   ) {
     this.logger.log(`📱 OTP Channels configured: Telegram -> Email -> Console`);
   }
@@ -201,31 +213,39 @@ export class PatientOtpService implements OnModuleInit {
     // Load bot token: Vault first, then process.env fallback
     try {
       const botToken =
-        await this.vaultService.getOptionalSecret('TELEGRAM_BOT_TOKEN')
-        || process.env.TELEGRAM_BOT_TOKEN
-        || null;
+        (await this.vaultService.getOptionalSecret('TELEGRAM_BOT_TOKEN')) ||
+        process.env.TELEGRAM_BOT_TOKEN ||
+        null;
 
       if (botToken) {
         this.telegramChannel.setBotToken(botToken);
-        this.logger.log(`✅ Telegram Bot Token loaded (${botToken.substring(0, 6)}...)`);
+        this.logger.log(
+          `✅ Telegram Bot Token loaded (${botToken.substring(0, 6)}...)`,
+        );
       } else {
-        this.logger.warn(`⚠️ TELEGRAM_BOT_TOKEN not configured — Telegram OTP channel disabled`);
+        this.logger.warn(
+          `⚠️ TELEGRAM_BOT_TOKEN not configured — Telegram OTP channel disabled`,
+        );
       }
     } catch (err: any) {
       // Vault failed — try process.env as last resort
       const fallback = process.env.TELEGRAM_BOT_TOKEN;
       if (fallback) {
         this.telegramChannel.setBotToken(fallback);
-        this.logger.warn(`⚠️ Vault unreachable, using TELEGRAM_BOT_TOKEN from env (${fallback.substring(0, 6)}...)`);
+        this.logger.warn(
+          `⚠️ Vault unreachable, using TELEGRAM_BOT_TOKEN from env (${fallback.substring(0, 6)}...)`,
+        );
       } else {
-        this.logger.warn(`⚠️ Failed to load Telegram Bot Token: ${err.message}`);
+        this.logger.warn(
+          `⚠️ Failed to load Telegram Bot Token: ${err.message}`,
+        );
       }
     }
   }
 
   /**
    * Generate and send OTP to the patient.
-   * 
+   *
    * 1. Validates the patient exists with matching phone
    * 2. Rate-limits OTP requests (5/hour)
    * 3. Invalidates previous unverified OTPs
@@ -237,7 +257,9 @@ export class PatientOtpService implements OnModuleInit {
     const cleanMrn = mrn?.trim() || '';
     const cleanPhone = phone?.trim().replace(/\s+/g, '') || '';
 
-    this.logger.debug(`Searching for patient - MRN: '${cleanMrn}', Phone: '${cleanPhone}'`);
+    this.logger.debug(
+      `Searching for patient - MRN: '${cleanMrn}', Phone: '${cleanPhone}'`,
+    );
 
     // 1. Find patient by MRN (case-insensitive)
     const patient = await this.prisma.patient.findFirst({
@@ -246,22 +268,39 @@ export class PatientOtpService implements OnModuleInit {
         isActive: true,
         isDeleted: false,
       },
-      select: { id: true, fullName: true, hospitalId: true, mrn: true, phone: true, telegramChatId: true, email: true },
+      select: {
+        id: true,
+        fullName: true,
+        hospitalId: true,
+        mrn: true,
+        phone: true,
+        telegramChatId: true,
+        email: true,
+      },
     });
 
     if (!patient) {
-      this.logger.warn(`Failed login attempt - MRN: '${cleanMrn}' not found or inactive.`);
-      throw new UnauthorizedException('بيانات غير صحيحة. تأكد من رقم الملف ورقم الهاتف.');
+      this.logger.warn(
+        `Failed login attempt - MRN: '${cleanMrn}' not found or inactive.`,
+      );
+      throw new UnauthorizedException(
+        'بيانات غير صحيحة. تأكد من رقم الملف ورقم الهاتف.',
+      );
     }
 
     // 2. Validate phone number (ignore spaces, dashes, and country code)
-    const decryptedDbPhone = this.encryptionService.decrypt(patient.phone) || '';
+    const decryptedDbPhone =
+      this.encryptionService.decrypt(patient.phone) || '';
     const dbPhone = decryptedDbPhone.replace(/\D/g, '');
     const inputPhone = cleanPhone.replace(/\D/g, '');
 
     if (!dbPhone.endsWith(inputPhone) || inputPhone.length < 6) {
-      this.logger.warn(`Failed login attempt - MRN: '${cleanMrn}' exists, but phone mismatch. DB Phone (digits only): '${dbPhone}', Input: '${inputPhone}'`);
-      throw new UnauthorizedException('بيانات غير صحيحة. تأكد من رقم الملف ورقم الهاتف.');
+      this.logger.warn(
+        `Failed login attempt - MRN: '${cleanMrn}' exists, but phone mismatch. DB Phone (digits only): '${dbPhone}', Input: '${inputPhone}'`,
+      );
+      throw new UnauthorizedException(
+        'بيانات غير صحيحة. تأكد من رقم الملف ورقم الهاتف.',
+      );
     }
 
     // 2. Rate limit: max 5 OTPs per hour
@@ -275,7 +314,7 @@ export class PatientOtpService implements OnModuleInit {
 
     if (recentOtps >= this.MAX_OTPS_PER_HOUR) {
       throw new BadRequestException(
-        'تم تجاوز الحد الأقصى لطلبات رمز التحقق. يرجى المحاولة بعد ساعة.'
+        'تم تجاوز الحد الأقصى لطلبات رمز التحقق. يرجى المحاولة بعد ساعة.',
       );
     }
 
@@ -294,25 +333,28 @@ export class PatientOtpService implements OnModuleInit {
     if (!patient.telegramChatId) {
       const linkToken = randomUUID();
       const linkExpiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 mins
-      
+
       await this.prisma.patient.update({
         where: { id: patient.id },
         data: {
           telegramLinkToken: linkToken,
-          telegramLinkExpiresAt: linkExpiresAt
-        }
+          telegramLinkExpiresAt: linkExpiresAt,
+        },
       });
 
-      const botUrl = process.env.TELEGRAM_BOT_URL || 'https://t.me/SarayaMedBot';
+      const botUrl =
+        process.env.TELEGRAM_BOT_URL || 'https://t.me/SarayaMedBot';
       const linkUrl = `${botUrl}?start=${linkToken}`;
 
-      this.logger.log(`🔗 Deep link generated for Patient/${patient.id} — awaiting Telegram binding`);
+      this.logger.log(
+        `🔗 Deep link generated for Patient/${patient.id} — awaiting Telegram binding`,
+      );
 
       return {
         requiresTelegramLinking: true,
         linkUrl,
         message: 'يرجى ربط حسابك عبر تيليجرام لاستلام رمز الدخول.',
-        expiresAt: linkExpiresAt
+        expiresAt: linkExpiresAt,
       };
     }
 
@@ -366,17 +408,23 @@ export class PatientOtpService implements OnModuleInit {
     }
 
     if (!delivered) {
-      this.logger.error(`Failed to deliver OTP to patient ${patient.id} via any channel`);
-      throw new BadRequestException('فشل إرسال رمز التحقق. يرجى المحاولة مرة أخرى.');
+      this.logger.error(
+        `Failed to deliver OTP to patient ${patient.id} via any channel`,
+      );
+      throw new BadRequestException(
+        'فشل إرسال رمز التحقق. يرجى المحاولة مرة أخرى.',
+      );
     }
 
     // Update the DB record with the actual channel used
     await this.prisma.patientOtp.update({
       where: { id: otpRecord.id },
-      data: { channel: usedChannel }
+      data: { channel: usedChannel },
     });
 
-    this.logger.log(`🔑 OTP requested for Patient/${patient.id} via ${usedChannel}`);
+    this.logger.log(
+      `🔑 OTP requested for Patient/${patient.id} via ${usedChannel}`,
+    );
 
     return {
       message: 'تم إرسال رمز التحقق بنجاح',
@@ -388,11 +436,14 @@ export class PatientOtpService implements OnModuleInit {
   /**
    * Used by Webhook to immediately send OTP after linking.
    */
-  async generateAndSendOtpForPatient(patientId: number, chatId: string): Promise<boolean> {
+  async generateAndSendOtpForPatient(
+    patientId: number,
+    chatId: string,
+  ): Promise<boolean> {
     const patient = await this.prisma.patient.findUnique({
-      where: { id: patientId }
+      where: { id: patientId },
     });
-    
+
     if (!patient) return false;
 
     // Invalidate previous unverified OTPs
@@ -425,7 +476,7 @@ export class PatientOtpService implements OnModuleInit {
 
   /**
    * Verify OTP and return patient data if valid.
-   * 
+   *
    * Security:
    * - Max 3 attempts per OTP
    * - OTP expires after 5 minutes
@@ -437,10 +488,10 @@ export class PatientOtpService implements OnModuleInit {
 
     // Find the patient
     const patient = await this.prisma.patient.findFirst({
-      where: { 
-        mrn: { equals: cleanMrn, mode: 'insensitive' }, 
-        isActive: true, 
-        isDeleted: false 
+      where: {
+        mrn: { equals: cleanMrn, mode: 'insensitive' },
+        isActive: true,
+        isDeleted: false,
       },
       select: { id: true, fullName: true, mrn: true, hospitalId: true },
     });
@@ -460,7 +511,9 @@ export class PatientOtpService implements OnModuleInit {
     });
 
     if (!otp) {
-      throw new UnauthorizedException('رمز التحقق منتهي الصلاحية أو غير موجود. اطلب رمزاً جديداً.');
+      throw new UnauthorizedException(
+        'رمز التحقق منتهي الصلاحية أو غير موجود. اطلب رمزاً جديداً.',
+      );
     }
 
     // Check attempts
@@ -470,7 +523,9 @@ export class PatientOtpService implements OnModuleInit {
         where: { id: otp.id },
         data: { verified: true },
       });
-      throw new UnauthorizedException('تم تجاوز عدد المحاولات المسموحة. اطلب رمزاً جديداً.');
+      throw new UnauthorizedException(
+        'تم تجاوز عدد المحاولات المسموحة. اطلب رمزاً جديداً.',
+      );
     }
 
     // Increment attempts
@@ -485,7 +540,7 @@ export class PatientOtpService implements OnModuleInit {
     if (!isValid) {
       const remaining = this.MAX_ATTEMPTS - otp.attempts - 1;
       throw new UnauthorizedException(
-        `رمز التحقق غير صحيح. ${remaining > 0 ? `لديك ${remaining} محاولة متبقية.` : 'اطلب رمزاً جديداً.'}`
+        `رمز التحقق غير صحيح. ${remaining > 0 ? `لديك ${remaining} محاولة متبقية.` : 'اطلب رمزاً جديداً.'}`,
       );
     }
 
@@ -506,7 +561,7 @@ export class PatientOtpService implements OnModuleInit {
    */
   private generateSecureCode(): string {
     const min = Math.pow(10, this.OTP_LENGTH - 1); // 100000
-    const max = Math.pow(10, this.OTP_LENGTH) - 1;  // 999999
+    const max = Math.pow(10, this.OTP_LENGTH) - 1; // 999999
     const code = crypto.randomInt(min, max + 1);
     return code.toString();
   }

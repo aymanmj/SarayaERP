@@ -352,7 +352,7 @@ export class CashierService {
       )
       .map((c) => c.sourceId as number);
 
-    let itemsByDispense = new Map<number, any[]>();
+    const itemsByDispense = new Map<number, any[]>();
 
     if (dispenseIds.length > 0) {
       const dispenseItems = await this.prisma.dispenseItem.findMany({
@@ -669,7 +669,7 @@ export class CashierService {
   ) {
     const { start, end, actualCash, note } = params;
 
-    let rangeStart = start;
+    const rangeStart = start;
     let rangeEnd = end;
     if (rangeEnd <= rangeStart) {
       rangeEnd = new Date(rangeEnd.getTime() + 24 * 60 * 60 * 1000);

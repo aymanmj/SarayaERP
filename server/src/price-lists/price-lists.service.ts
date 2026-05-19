@@ -83,7 +83,7 @@ export class PriceListsService {
     });
 
     if (!service) return 0;
-    let finalPrice = Number(service.defaultPrice);
+    const finalPrice = Number(service.defaultPrice);
 
     // 2. إذا كان هناك بوليصة تأمين، نبحث عن قائمة الأسعار المرتبطة بها
     if (insurancePolicyId) {

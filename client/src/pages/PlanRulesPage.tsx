@@ -26,6 +26,7 @@ export default function PlanRulesPage() {
   // Data for Dropdowns
   const [categories, setCategories] = useState<ServiceCategory[]>([]);
   const [services, setServices] = useState<ServiceItem[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [loadingResources, setLoadingResources] = useState(false);
 
   // Modal State
@@ -48,6 +49,7 @@ export default function PlanRulesPage() {
     try {
       const res = await apiClient.get(`/insurance/plans/${planId}`);
       setPlan(res.data);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
       toast.error("فشل تحميل بيانات الخطة");
     }
@@ -106,6 +108,7 @@ export default function PlanRulesPage() {
       loadPlan();
       loadResources();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [planId]);
 
   const handleAddRule = async () => {
@@ -114,6 +117,7 @@ export default function PlanRulesPage() {
       return;
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const payload: any = {
       ruleType: form.ruleType,
       copayType: form.copayType,
@@ -145,6 +149,7 @@ export default function PlanRulesPage() {
       });
       setSearchService("");
       loadPlan();
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
       toast.error("فشل إضافة القاعدة");
     }

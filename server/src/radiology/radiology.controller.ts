@@ -14,8 +14,8 @@ import {
 } from '@nestjs/common';
 import { RadiologyService } from './radiology.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { Permissions } from '../auth/permissions.decorator';
 import { RequireFeature } from '../licensing/license.decorator';
 import {
   IsOptional,
@@ -46,7 +46,7 @@ class CompleteRadiologyOrderDto {
   reportText?: string;
 }
 
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('radiology')
 @RequireFeature('RADIOLOGY')
 export class RadiologyController {
@@ -69,7 +69,7 @@ export class RadiologyController {
   }
 
   @Post('encounters/:encounterId/orders')
-  @Roles('ADMIN', 'DOCTOR')
+  @Permissions('radiology:manage')
   async createOrdersForEncounter(
     @Req() req: any,
     @Param('encounterId', ParseIntPipe) encounterId: number,
@@ -90,18 +90,15 @@ export class RadiologyController {
   }
 
   @Get('worklist')
-  @Roles('ADMIN', 'RAD_TECH', 'DOCTOR')
+  @Permissions('radiology:manage')
   async worklist(@Req() req: any) {
     return this.radiologyService.getWorklist(req.user.hospitalId);
   }
 
   // ✅ [NEW] زر بدء فحص الأشعة (يرسل HL7)
   @Post('orders/:id/start')
-  @Roles('ADMIN', 'RAD_TECH', 'DOCTOR')
-  async startOrder(
-    @Req() req: any,
-    @Param('id', ParseIntPipe) id: number,
-  ) {
+  @Permissions('radiology:manage')
+  async startOrder(@Req() req: any, @Param('id', ParseIntPipe) id: number) {
     return this.radiologyService.startProcessing(
       req.user.hospitalId,
       id,
@@ -111,14 +108,14 @@ export class RadiologyController {
 
   // ✅ جلب تفاصيل طلب للطباعة
   @Get('orders/:id')
-  @Roles('ADMIN', 'DOCTOR', 'RAD_TECH', 'RECEPTION')
+  @Permissions('radiology:view')
   async getOrder(@Req() req: any, @Param('id', ParseIntPipe) id: number) {
     return this.radiologyService.getOrderById(req.user.hospitalId, id);
   }
 
   // ✅ حفظ التقرير وإكمال الطلب
   @Patch('orders/:id/report')
-  @Roles('ADMIN', 'RAD_TECH', 'DOCTOR')
+  @Permissions('radiology:manage')
   async reportOrder(
     @Req() req: any,
     @Param('id', ParseIntPipe) id: number,
@@ -148,8 +145,8 @@ export class RadiologyController {
 // } from '@nestjs/common';
 // import { RadiologyService } from './radiology.service';
 // import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-// import { RolesGuard } from '../auth/roles.guard';
-// import { Roles } from '../auth/roles.decorator';
+// import { PermissionsGuard } from '../auth/permissions.guard';
+// import { Permissions } from '../auth/permissions.decorator';
 // import { CurrentUser } from '../auth/current-user.decorator';
 // import type { JwtPayload } from '../auth/jwt-payload.type';
 // import {
@@ -181,7 +178,7 @@ export class RadiologyController {
 //   reportText?: string;
 // }
 
-// @UseGuards(JwtAuthGuard, RolesGuard)
+// @UseGuards(JwtAuthGuard, PermissionsGuard)
 // @Controller('radiology')
 // export class RadiologyController {
 //   constructor(private readonly radiologyService: RadiologyService) {}
@@ -205,7 +202,7 @@ export class RadiologyController {
 //   }
 
 //   @Post('encounters/:encounterId/orders')
-//   @Roles('ADMIN', 'DOCTOR')
+//   @Permissions('radiology:manage')
 //   async createOrdersForEncounter(
 //     @Param('encounterId', ParseIntPipe) encounterId: number,
 //     @Body() dto: CreateRadiologyOrdersDto,
@@ -240,14 +237,14 @@ export class RadiologyController {
 //   // ===== Radiology Worklist =====
 //   // عرض كل طلبات الأشعة PENDING / SCHEDULED في المنشأة
 //   @Get('worklist')
-//   @Roles('ADMIN', 'RAD_TECH')
+//   @Permissions('radiology:manage')
 //   async worklist(@CurrentUser() user: JwtPayload) {
 //     return this.radiologyService.getWorklist(user.hospitalId);
 //   }
 
 //   // ===== إكمال الطلب + تقرير (المسار القديم للتوافق) =====
 //   @Patch('orders/:id/complete')
-//   @Roles('ADMIN', 'DOCTOR', 'RAD_TECH') // تقدر تعدّل الأدوار كما تحب
+//   @Permissions('radiology:manage') // تقدر تعدّل الأدوار كما تحب
 //   async completeOrder(
 //     @Param('id', ParseIntPipe) id: number,
 //     @Body() dto: CompleteRadiologyOrderDto,
@@ -263,7 +260,7 @@ export class RadiologyController {
 
 //   // ===== إكمال الطلب + تقرير (المسار الجديد المستخدم في RadiologyWorklistPage) =====
 //   @Patch('orders/:id/report')
-//   @Roles('ADMIN', 'RAD_TECH', 'DOCTOR')
+//   @Permissions('radiology:manage')
 //   async reportOrder(
 //     @Param('id', ParseIntPipe) id: number,
 //     @Body() dto: CompleteRadiologyOrderDto,

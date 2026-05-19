@@ -8,6 +8,6 @@ import { BillingModule } from '../billing/billing.module';
   imports: [PrismaModule, BillingModule],
   controllers: [IcuController],
   providers: [IcuService],
-  exports: [IcuService]
+  exports: [IcuService],
 })
 export class IcuModule {}

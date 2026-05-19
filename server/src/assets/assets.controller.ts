@@ -12,12 +12,12 @@ import {
 } from '@nestjs/common';
 import { AssetsService } from './assets.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { Permissions } from '../auth/permissions.decorator';
 import { TicketStatus, MaintenanceType } from '@prisma/client';
 import { RequireFeature } from '../licensing/license.decorator';
 
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('assets')
 @RequireFeature('ASSETS')
 export class AssetsController {
@@ -25,7 +25,7 @@ export class AssetsController {
 
   // --- Assets CRUD ---
   @Post()
-  @Roles('ADMIN', 'ACCOUNTANT', 'STORE_KEEPER')
+  @Permissions('assets:manage')
   async createAsset(@Req() req: any, @Body() body: any) {
     return this.assetsService.registerAsset({
       hospitalId: req.user.hospitalId,
@@ -41,14 +41,14 @@ export class AssetsController {
   }
 
   @Get()
-  @Roles('ADMIN', 'ACCOUNTANT', 'STORE_KEEPER')
+  @Permissions('assets:manage')
   async listAssets(@Req() req: any, @Query('q') q?: string) {
     return this.assetsService.getAssets(req.user.hospitalId, q);
   }
 
   // --- Depreciation ---
   @Post('depreciation/run')
-  @Roles('ADMIN', 'ACCOUNTANT')
+  @Permissions('assets:manage')
   async runDepreciation(@Req() req: any, @Body() body: { date: string }) {
     // تشغيل الإهلاك لتاريخ معين (عادة نهاية الشهر)
     return this.assetsService.runDepreciationForPeriod(
@@ -60,7 +60,7 @@ export class AssetsController {
 
   // --- Maintenance ---
   @Post('maintenance')
-  @Roles('ADMIN', 'NURSE', 'DOCTOR', 'STORE_KEEPER') // أي شخص يمكنه الإبلاغ عن عطل
+  @Permissions('assets:view') // أي شخص يمكنه الإبلاغ عن عطل
   async createTicket(@Req() req: any, @Body() body: any) {
     return this.assetsService.createMaintenanceTicket({
       hospitalId: req.user.hospitalId,
@@ -73,7 +73,7 @@ export class AssetsController {
   }
 
   @Get('maintenance')
-  @Roles('ADMIN', 'STORE_KEEPER')
+  @Permissions('assets:manage')
   async getTickets(@Req() req: any, @Query('status') status?: string) {
     return this.assetsService.getTickets(
       req.user.hospitalId,
@@ -82,7 +82,7 @@ export class AssetsController {
   }
 
   @Patch('maintenance/:id/resolve')
-  @Roles('ADMIN', 'STORE_KEEPER')
+  @Permissions('assets:manage')
   async resolveTicket(
     @Req() req: any,
     @Param('id', ParseIntPipe) id: number,

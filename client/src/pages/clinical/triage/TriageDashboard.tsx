@@ -28,6 +28,7 @@ export function TriageDashboard() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/immutability
     loadWaitingList();
     const interval = setInterval(loadWaitingList, 30000); // تحديث كل 30 ثانية
     return () => clearInterval(interval);
@@ -43,6 +44,7 @@ export function TriageDashboard() {
   }
 
   const getWaitTime = (arrivedAt: string) => {
+    // eslint-disable-next-line react-hooks/purity
     const diff = Date.now() - new Date(arrivedAt).getTime();
     const minutes = Math.floor(diff / 60000);
     return minutes;

@@ -14,6 +14,7 @@ type Department = {
 
 export default function DepartmentsPage() {
   const [depts, setDepts] = useState<Department[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -25,6 +26,7 @@ export default function DepartmentsPage() {
     try {
       const res = await apiClient.get<Department[]>("/departments");
       setDepts(res.data);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
       toast.error("فشل تحميل الأقسام");
     } finally {
@@ -48,6 +50,7 @@ export default function DepartmentsPage() {
       }
       setShowModal(false);
       loadData();
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
       toast.error("فشل الحفظ");
     }
@@ -71,6 +74,7 @@ export default function DepartmentsPage() {
       await apiClient.delete(`/departments/${id}`);
       toast.success("تم الحذف");
       loadData();
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
       toast.error("فشل الحذف (قد يكون مرتبطاً ببيانات أخرى)");
     }

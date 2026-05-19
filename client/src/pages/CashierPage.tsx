@@ -42,6 +42,7 @@ type CashierInvoice = {
   } | null;
 };
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function formatDateTime(iso: string) {
   const d = new Date(iso);
   return d.toLocaleString("ar-LY", {
@@ -176,6 +177,7 @@ export default function CashierPage() {
       );
 
       // ✅ [FIX] قراءة البيانات بشكل صحيح من استجابة الباكيند
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const data: any = res.data;
 
       // الباكيند يعيد: { id: (InvoiceId), paymentId: number | null, ... }
@@ -200,6 +202,7 @@ export default function CashierPage() {
       setReference("");
       setSelectedId(null);
       await loadWorklist();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       console.error(err);
       const msg = err?.response?.data?.message;

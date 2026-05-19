@@ -12,8 +12,8 @@ import {
 } from '@nestjs/common';
 import { FinancialYearsService } from './financial-years.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { Permissions } from '../auth/permissions.decorator';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { JwtPayload } from '../auth/jwt-payload.type';
 import { CreateFinancialYearDto } from './dto/create-financial-year.dto';
@@ -23,8 +23,8 @@ type ApiOk<T> = { success: true; data: T };
 type ApiErr = { success: false; error: { code: string; message: string } };
 type ApiResponse<T> = ApiOk<T> | ApiErr;
 
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('ADMIN') // ممكن تضيف ACCOUNTANT لاحقًا
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@Permissions('financial-years:manage') // ممكن تضيف ACCOUNTANT لاحقًا
 @Controller('financial-years')
 export class FinancialYearsController {
   constructor(private readonly service: FinancialYearsService) {}

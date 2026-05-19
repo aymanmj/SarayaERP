@@ -13,8 +13,8 @@ import {
 } from '@nestjs/common';
 import { SuppliersService } from './suppliers.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { Permissions } from '../auth/permissions.decorator';
 import { IsBoolean, IsOptional, IsString } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -82,8 +82,8 @@ class UpdateSupplierDto {
   isActive?: boolean;
 }
 
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('ADMIN', 'ACCOUNTANT')
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@Permissions('suppliers:manage')
 @Controller('suppliers')
 export class SuppliersController {
   constructor(private suppliers: SuppliersService) {}

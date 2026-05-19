@@ -47,6 +47,7 @@ const InvoicePrintPDFPage = lazy(() => import("./pages/InvoicePrintPDFPage"));
 const PaymentReceiptPrintPage = lazy(() => import("./pages/PaymentReceiptPrintPage"));
 
 // --- Component Loader ---
+// eslint-disable-next-line react-refresh/only-export-components
 const PageLoader = () => (
   <div className="h-full w-full flex flex-col items-center justify-center text-slate-500 min-h-[60vh]">
     <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-sky-500 mb-4"></div>

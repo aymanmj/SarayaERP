@@ -229,10 +229,9 @@ describe('CashierService', () => {
           cashierId: 7,
         },
       });
-      expect((service as any).updateRelatedOrdersPaymentStatus).toHaveBeenCalledWith(
-        prisma,
-        3,
-      );
+      expect(
+        (service as any).updateRelatedOrdersPaymentStatus,
+      ).toHaveBeenCalledWith(prisma, 3);
       expect(accounting.recordPaymentEntry).toHaveBeenCalledWith({
         paymentId: 40,
         hospitalId: 1,
@@ -279,10 +278,22 @@ describe('CashierService', () => {
           quantity: 3,
           unitPrice: 25,
           totalAmount: 75,
-          product: { id: 2, code: 'ALT', name: 'Alt Drug', strength: '10mg', form: 'TAB' },
+          product: {
+            id: 2,
+            code: 'ALT',
+            name: 'Alt Drug',
+            strength: '10mg',
+            form: 'TAB',
+          },
           prescriptionItem: {
             productId: 1,
-            product: { id: 1, code: 'ORG', name: 'Original Drug', strength: '10mg', form: 'TAB' },
+            product: {
+              id: 1,
+              code: 'ORG',
+              name: 'Original Drug',
+              strength: '10mg',
+              form: 'TAB',
+            },
           },
         },
       ]);
@@ -291,13 +302,17 @@ describe('CashierService', () => {
 
       expect(result.lines).toHaveLength(1);
       expect(result.lines[0].pharmacyItems?.[0].isSubstitute).toBe(true);
-      expect(result.lines[0].pharmacyItems?.[0].dispensedDrug?.name).toBe('Alt Drug');
+      expect(result.lines[0].pharmacyItems?.[0].dispensedDrug?.name).toBe(
+        'Alt Drug',
+      );
     });
 
     it('throws when invoice details are requested for unknown invoice', async () => {
       prisma.invoice.findFirst.mockResolvedValue(null);
 
-      await expect(service.getInvoiceDetails(1, 404)).rejects.toThrow(NotFoundException);
+      await expect(service.getInvoiceDetails(1, 404)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 

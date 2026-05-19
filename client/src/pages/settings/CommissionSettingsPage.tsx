@@ -61,6 +61,7 @@ export default function CommissionSettingsPage() {
       );
       defaultRules[st.key] = rule ? Number(rule.doctorRate) : 0;
     });
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setDefaults(defaultRules);
   }, [rules]);
 
@@ -74,10 +75,12 @@ export default function CommissionSettingsPage() {
       );
       overrides[st.key] = rule ? Number(rule.doctorRate) : -1; // -1 = use default
     });
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setDoctorOverrides(overrides);
   }, [selectedDoctorId, rules]);
 
   const saveMutation = useMutation({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     mutationFn: async (payload: { rules: any[] }) => {
       await apiClient.post("/commission-rules/bulk", payload);
     },

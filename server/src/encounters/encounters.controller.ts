@@ -15,8 +15,8 @@ import { Sensitive } from '../audit/audit.decorator';
 
 import { EncountersService } from './encounters.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { Roles } from '../auth/roles.decorator';
-import { RolesGuard } from '../auth/roles.guard';
+import { Permissions } from '../auth/permissions.decorator';
+import { PermissionsGuard } from '../auth/permissions.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { JwtPayload } from '../auth/jwt-payload.type';
 import { Type } from 'class-transformer';
@@ -29,7 +29,7 @@ class CreateEncounterDto {
   patientId: number;
 
   @IsEnum(['OPD', 'ER', 'IPD', 'VIRTUAL', 'HOME'])
-  type: EncounterType; 
+  type: EncounterType;
 
   @IsOptional()
   @IsInt()
@@ -53,14 +53,14 @@ class ListEncountersQueryDto {
   patientId: number;
 }
 
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('encounters')
 export class EncountersController {
   constructor(private readonly encountersService: EncountersService) {}
 
   // الاستقبال أو الادمن يفتح Encounter
   @Post()
-  @Roles('ADMIN', 'RECEPTION')
+  @Permissions('encounters:view')
   create(@Body() dto: CreateEncounterDto, @CurrentUser() user: JwtPayload) {
     return this.encountersService.createEncounter(user.hospitalId, {
       patientId: dto.patientId,
@@ -71,9 +71,8 @@ export class EncountersController {
     });
   }
 
- 
   @Get(':id')
-  @Roles('ADMIN', 'RECEPTION', 'DOCTOR', 'NURSE')
+  @Permissions('encounters:view')
   @Sensitive('VIEW_ENCOUNTER_DETAILS')
   async getOne(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
     const encId = Number(id);
@@ -105,7 +104,7 @@ export class EncountersController {
 
   // إغلاق Encounter
   @Patch(':id/close')
-  @Roles('ADMIN', 'RECEPTION')
+  @Permissions('encounters:view')
   close(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
     const encId = Number(id);
     if (!encId || Number.isNaN(encId)) {
@@ -116,7 +115,7 @@ export class EncountersController {
   }
 
   @Delete(':id')
-  @Roles('ADMIN')
+  @Permissions('encounters:manage')
   async softDelete(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
     const encId = Number(id);
     if (!encId || Number.isNaN(encId)) {
@@ -127,13 +126,13 @@ export class EncountersController {
   }
 
   @Get('list/active-inpatients')
-  @Roles('ADMIN', 'RECEPTION', 'NURSE', 'DOCTOR')
+  @Permissions('encounters:view')
   async listActiveInpatients(@CurrentUser() user: JwtPayload) {
     return this.encountersService.listActiveInpatients(user.hospitalId);
   }
 
   @Patch(':id/discharge')
-  @Roles('ADMIN', 'RECEPTION', 'NURSE', 'DOCTOR')
+  @Permissions('encounters:view')
   async discharge(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
     const encId = Number(id);
     if (!encId || Number.isNaN(encId)) {
@@ -144,7 +143,7 @@ export class EncountersController {
   }
 
   @Patch(':id/assign-doctor')
-  @Roles('ADMIN', 'RECEPTION', 'DOCTOR')
+  @Permissions('encounters:view')
   async assignDoctor(
     @Param('id', ParseIntPipe) id: number,
     @Body() body: { doctorId: number },
@@ -158,7 +157,7 @@ export class EncountersController {
   }
 
   @Patch(':id/admit')
-  @Roles('ADMIN', 'DOCTOR')
+  @Permissions('encounters:manage')
   async admitFromER(
     @Param('id', ParseIntPipe) id: number,
     @Body() body: { departmentId?: number },
@@ -172,7 +171,7 @@ export class EncountersController {
   }
 
   @Get()
-  @Roles('ADMIN', 'RECEPTION', 'DOCTOR', 'NURSE')
+  @Permissions('encounters:view')
   async list(
     @CurrentUser() user: JwtPayload,
     @Query('patientId') patientId?: string,

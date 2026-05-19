@@ -1,9 +1,19 @@
 /**
  * Patient Portal — DTOs with class-validator
- * 
+ *
  * All portal inputs are validated strictly to prevent injection and abuse.
  */
-import { IsString, IsNotEmpty, Length, IsOptional, IsInt, IsDateString, Min, Max, Matches } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  Length,
+  IsOptional,
+  IsInt,
+  IsDateString,
+  Min,
+  Max,
+  Matches,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 // ===========================================
@@ -99,12 +109,18 @@ export class SendMessageDto {
   @IsString()
   subject?: string;
 
-  @ApiProperty({ example: 'أريد الاستفسار عن نتائج تحاليل الدم الأخيرة', description: 'نص الرسالة' })
+  @ApiProperty({
+    example: 'أريد الاستفسار عن نتائج تحاليل الدم الأخيرة',
+    description: 'نص الرسالة',
+  })
   @IsString()
   @IsNotEmpty()
   body: string;
 
-  @ApiPropertyOptional({ example: 'abc-123-def', description: 'ID المحادثة للرد على محادثة قائمة' })
+  @ApiPropertyOptional({
+    example: 'abc-123-def',
+    description: 'ID المحادثة للرد على محادثة قائمة',
+  })
   @IsOptional()
   @IsString()
   threadId?: string;
@@ -124,4 +140,3 @@ export class RequestRefillDto {
   @IsString()
   notes?: string;
 }
-

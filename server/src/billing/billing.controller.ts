@@ -16,15 +16,13 @@ import { Permissions } from '../auth/permissions.decorator';
 import { PermissionsGuard } from '../auth/permissions.guard';
 import { BillingService } from './billing.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { JwtPayload } from '../auth/jwt-payload.type';
 import { InvoiceStatus } from '@prisma/client';
 import { PdfService } from '../pdf/pdf.service';
 import { PrismaService } from '../prisma/prisma.service';
 
-@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('billing')
 export class BillingController {
   constructor(
@@ -45,8 +43,7 @@ export class BillingController {
   }
 
   @Post('encounters/:encounterId/invoices')
-  @Permissions('billing:invoice:create')
-  @Roles('ADMIN')
+  @Permissions('billing:manage')
   async createInvoice(
     @Param('encounterId', ParseIntPipe) encounterId: number,
     @CurrentUser() user: JwtPayload,
@@ -59,8 +56,7 @@ export class BillingController {
   }
 
   @Post('invoices/:id/return')
-  @Permissions('billing:invoice:create') // Or specific permission
-  @Roles('ADMIN', 'ACCOUNTANT')
+  @Permissions('billing:manage')
   async createReturn(
     @Param('id', ParseIntPipe) id: number,
     @Body('reason') reason: string,
@@ -116,8 +112,7 @@ export class BillingController {
   }
 
   @Post('invoices/:id/cancel')
-  @Permissions('billing:invoice:cancel')
-  @Roles('ADMIN', 'ACCOUNTANT')
+  @Permissions('billing:manage')
   async cancel(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: JwtPayload,
@@ -126,7 +121,7 @@ export class BillingController {
   }
 
   @Get('invoices/:id/pdf')
-  @Roles('ADMIN', 'CASHIER', 'ACCOUNTANT')
+  @Permissions('billing:manage')
   async downloadInvoicePdf(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: JwtPayload,
@@ -145,7 +140,9 @@ export class BillingController {
 
     const hospitalInfo = {
       name: hospital?.displayName || hospital?.name || 'Saraya Hospital',
-      address: [hospital?.addressLine1, hospital?.addressLine2, hospital?.city].filter(Boolean).join(' - '),
+      address: [hospital?.addressLine1, hospital?.addressLine2, hospital?.city]
+        .filter(Boolean)
+        .join(' - '),
       phone: hospital?.phone || '',
       email: hospital?.email || '',
       printHeaderFooter: hospital?.printHeaderFooter ?? true, // ✅
@@ -163,7 +160,9 @@ export class BillingController {
 
       invoiceId: Number(invoiceData.invoice.id),
       invoiceType: String(invoiceData.invoice.type || ''),
-      originalInvoiceId: invoiceData.invoice.originalInvoiceId ? Number(invoiceData.invoice.originalInvoiceId) : null,
+      originalInvoiceId: invoiceData.invoice.originalInvoiceId
+        ? Number(invoiceData.invoice.originalInvoiceId)
+        : null,
       invoiceDate: new Date(invoiceData.invoice.createdAt),
       status: String(invoiceData.invoice.status || ''),
 
@@ -184,10 +183,15 @@ export class BillingController {
       // Totals
       totalAmount: Number(invoiceData.invoice.totalAmount || 0),
       discountAmount: Number(invoiceData.invoice.discountAmount || 0),
-      netAmount: Number(invoiceData.invoice.totalAmount || 0) - Number(invoiceData.invoice.discountAmount || 0),
+      netAmount:
+        Number(invoiceData.invoice.totalAmount || 0) -
+        Number(invoiceData.invoice.discountAmount || 0),
       paidAmount: Number(invoiceData.invoice.paidAmount || 0),
-      remainingAmount: (Number(invoiceData.invoice.totalAmount || 0) - Number(invoiceData.invoice.discountAmount || 0)) - Number(invoiceData.invoice.paidAmount || 0),
-      
+      remainingAmount:
+        Number(invoiceData.invoice.totalAmount || 0) -
+        Number(invoiceData.invoice.discountAmount || 0) -
+        Number(invoiceData.invoice.paidAmount || 0),
+
       currentDateTime: new Date(),
     };
 

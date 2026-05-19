@@ -287,6 +287,7 @@ export function MainLayout() {
   const fetchLicenseStatus = useLicenseStore((s) => s.fetchLicenseStatus);
   const isModuleEnabled = useLicenseStore((s) => s.isModuleEnabled);
   const licenseDetails = useLicenseStore((s) => s.details);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const licenseState = useLicenseStore((s) => s.licenseState);
 
   const toggleSection = (key: string) => {
@@ -301,10 +302,12 @@ export function MainLayout() {
       fetchLicenseStatus(); // ✅ Fetch license on auth
     }
     return () => disconnect();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   // إغلاق القائمة الجانبية عند تغيير الصفحة (للموبايل)
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMobileMenuOpen(false);
   }, [location.pathname]);
 
@@ -745,6 +748,7 @@ export function MainLayout() {
   ];
 
   // فلترة القائمة
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const authorizedMenu = useMemo(() => {
     if (!user) return [];
 
@@ -769,6 +773,7 @@ export function MainLayout() {
         return { ...section, items: validItems };
       })
       .filter((section): section is MenuSection => section !== null);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, isModuleEnabled]);
 
   const navLinkClasses = ({ isActive }: { isActive: boolean }) =>

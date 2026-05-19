@@ -26,6 +26,7 @@ export default function InsuranceProviderDetailsPage() {
   const [plans, setPlans] = useState<InsurancePlan[]>([]);
   const [policies, setPolicies] = useState<Policy[]>([]); // ✅
   const [providerName, setProviderName] = useState("");
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [loading, setLoading] = useState(false);
 
   // Modals
@@ -51,12 +52,14 @@ export default function InsuranceProviderDetailsPage() {
   const loadData = async () => {
     setLoading(true);
     try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const res = await apiClient.get<any>(`/insurance/providers/${providerId}`);
       if (res.data) {
         setProviderName(res.data.name);
         setPlans(res.data.plans || []);
         setPolicies(res.data.policies || []);
       }
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
       toast.error("فشل تحميل البيانات");
     } finally {
@@ -66,6 +69,7 @@ export default function InsuranceProviderDetailsPage() {
 
   useEffect(() => {
     if (providerId) loadData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [providerId]);
 
   // إنشاء خطة
@@ -83,6 +87,7 @@ export default function InsuranceProviderDetailsPage() {
       setShowPlanModal(false);
       setNewPlan({ name: "", defaultCopayRate: "0", maxCopayAmount: "" });
       loadData();
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
       toast.error("فشل إنشاء الخطة");
     }

@@ -50,9 +50,7 @@ export class TenantGuard implements CanActivate {
       `⚠️ محاولة وصول غير مصرح بها: المستخدم ${user.userId} حاول الوصول لمستشفى ${requestedHospitalId}`,
     );
 
-    throw new ForbiddenException(
-      'ليس لديك صلاحية الوصول لهذا المستشفى',
-    );
+    throw new ForbiddenException('ليس لديك صلاحية الوصول لهذا المستشفى');
   }
 
   /**

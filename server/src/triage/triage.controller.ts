@@ -12,23 +12,23 @@ import {
 } from '@nestjs/common';
 import { TriageService } from './triage.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { Permissions } from '../auth/permissions.decorator';
 import { TriageLevel } from '@prisma/client';
 
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('triage')
 export class TriageController {
   constructor(private readonly triageService: TriageService) {}
 
   @Get('waiting')
-  @Roles('ADMIN', 'NURSE', 'DOCTOR')
+  @Permissions('triage:view')
   async getWaiting(@Req() req: any) {
     return this.triageService.getWaitingList(req.user.hospitalId);
   }
 
   @Post('assess')
-  @Roles('ADMIN', 'NURSE', 'DOCTOR')
+  @Permissions('triage:view')
   async createAssessment(@Req() req: any, @Body() body: any) {
     return this.triageService.createAssessment({
       hospitalId: req.user.hospitalId,
@@ -41,7 +41,7 @@ export class TriageController {
     });
   }
   @Post('suggest')
-  @Roles('ADMIN', 'NURSE', 'DOCTOR')
+  @Permissions('triage:view')
   suggestLevel(@Body() body: any) {
     return {
       suggestedLevel: this.triageService.suggestTriageLevel(body.vitals),

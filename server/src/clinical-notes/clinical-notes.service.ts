@@ -1,5 +1,4 @@
-
-import { Injectable } from '@nestjs/common';
+import { Injectable, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateClinicalNoteDto } from './dto/create-clinical-note.dto';
 
@@ -7,11 +6,19 @@ import { CreateClinicalNoteDto } from './dto/create-clinical-note.dto';
 export class ClinicalNotesService {
   constructor(private prisma: PrismaService) {}
 
-  async create(userId: number, createClinicalNoteDto: CreateClinicalNoteDto) {
+  async create(userId: number, hospitalId: number, createClinicalNoteDto: CreateClinicalNoteDto) {
+    const encounter = await this.prisma.encounter.findFirst({
+      where: { id: createClinicalNoteDto.encounterId, hospitalId }
+    });
+    if (!encounter) throw new ForbiddenException('Encounter not found or access denied');
+
     return this.prisma.clinicalNote.create({
       data: {
         ...createClinicalNoteDto,
-        content: createClinicalNoteDto.content !== undefined ? createClinicalNoteDto.content : null,
+        content:
+          createClinicalNoteDto.content !== undefined
+            ? createClinicalNoteDto.content
+            : null,
         createdById: userId,
       },
       include: {
@@ -19,11 +26,16 @@ export class ClinicalNotesService {
         signedBy: { select: { fullName: true } },
         coSignedBy: { select: { fullName: true } },
         appendages: true,
-      }
+      },
     });
   }
 
-  async findAllByEncounter(encounterId: number) {
+  async findAllByEncounter(encounterId: number, hospitalId: number) {
+    const encounter = await this.prisma.encounter.findFirst({
+      where: { id: encounterId, hospitalId }
+    });
+    if (!encounter) throw new ForbiddenException('Encounter not found or access denied');
+
     return this.prisma.clinicalNote.findMany({
       where: { encounterId },
       include: {
@@ -34,8 +46,8 @@ export class ClinicalNotesService {
           include: {
             createdBy: { select: { id: true, fullName: true } },
             signedBy: { select: { id: true, fullName: true } },
-          }
-        }
+          },
+        },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -52,7 +64,7 @@ export class ClinicalNotesService {
         createdBy: { select: { id: true, fullName: true } },
         signedBy: { select: { id: true, fullName: true } },
         coSignedBy: { select: { id: true, fullName: true } },
-      }
+      },
     });
   }
 
@@ -67,7 +79,7 @@ export class ClinicalNotesService {
         createdBy: { select: { id: true, fullName: true } },
         signedBy: { select: { id: true, fullName: true } },
         coSignedBy: { select: { id: true, fullName: true } },
-      }
+      },
     });
   }
 }

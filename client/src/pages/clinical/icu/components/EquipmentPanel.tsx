@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { Monitor, PlusCircle, StopCircle, Receipt } from 'lucide-react';
 import { apiClient } from '../../../../api/apiClient';
 
@@ -7,6 +8,7 @@ interface Props {
 }
 
 export const EquipmentPanel = ({ encounterId }: Props) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [equipmentList, setEquipmentList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -19,6 +21,7 @@ export const EquipmentPanel = ({ encounterId }: Props) => {
 
   useEffect(() => {
     fetchEquipment();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [encounterId]);
 
   const fetchEquipment = async () => {

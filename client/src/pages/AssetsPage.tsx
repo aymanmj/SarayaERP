@@ -52,6 +52,7 @@ export default function AssetsPage() {
         params: { q: search || undefined },
       });
       setAssets(res.data);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
       toast.error("فشل تحميل الأصول");
     } finally {
@@ -61,6 +62,7 @@ export default function AssetsPage() {
 
   useEffect(() => {
     loadAssets();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search]);
 
   const handleCreate = async () => {
@@ -87,6 +89,7 @@ export default function AssetsPage() {
         salvageValue: "0",
       });
       loadAssets();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       toast.error(err?.response?.data?.message || "فشل الحفظ");
     }

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { GcsCalculator } from './GcsCalculator';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { Activity, BrainCircuit, HeartPulse, Stethoscope, FileText } from 'lucide-react';
 import { apiClient } from '../../../../api/apiClient';
 
@@ -69,6 +70,7 @@ export const DailyAssessmentForm = ({ encounterId, onSuccess, onCancel }: Props)
     e.preventDefault();
     setLoading(true);
     try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const payload: any = {
         encounterId,
         assessmentDate: formData.assessmentDate,

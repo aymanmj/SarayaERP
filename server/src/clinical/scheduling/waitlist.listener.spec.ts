@@ -59,7 +59,10 @@ describe('WaitlistListener', () => {
         take: 1,
       });
 
-      expect(waitlistService.updateWaitlistStatus).toHaveBeenCalledWith(50, 'NOTIFIED');
+      expect(waitlistService.updateWaitlistStatus).toHaveBeenCalledWith(
+        50,
+        'NOTIFIED',
+      );
     });
 
     it('falls back to department candidates when no resource-specific entry exists', async () => {
@@ -88,7 +91,10 @@ describe('WaitlistListener', () => {
         orderBy: [{ priority: 'asc' }, { requestedDate: 'asc' }],
         take: 1,
       });
-      expect(waitlistService.updateWaitlistStatus).toHaveBeenCalledWith(51, 'NOTIFIED');
+      expect(waitlistService.updateWaitlistStatus).toHaveBeenCalledWith(
+        51,
+        'NOTIFIED',
+      );
     });
 
     it('should do nothing if no candidate is found', async () => {

@@ -14,7 +14,8 @@ import {
 import { LicenseService } from './license.service';
 import { Public } from './license.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { Permissions } from '../auth/permissions.decorator';
 @Controller('license')
 export class LicenseController {
   constructor(private readonly licenseService: LicenseService) {}
@@ -35,7 +36,8 @@ export class LicenseController {
    * [SECURITY FIX F-012] Restricted to authenticated users only.
    * Machine fingerprint must not be publicly accessible.
    */
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('admin:view')
   @Get('machine-id')
   getMachineId() {
     return {

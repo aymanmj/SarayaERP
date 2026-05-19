@@ -1,6 +1,6 @@
 /**
  * Patient Portal — Medication Refill Service
- * 
+ *
  * Enables patients to request prescription refills through the portal.
  * Enforces eligibility checks (active prescription, not cancelled).
  */
@@ -21,7 +21,7 @@ export class PortalRefillService {
 
   /**
    * Request a medication refill for an active prescription.
-   * 
+   *
    * Business Rules:
    * - Only ACTIVE prescriptions can be refilled
    * - Only one PENDING refill per prescription at a time
@@ -54,13 +54,15 @@ export class PortalRefillService {
     }
 
     // Check for existing PENDING refill on same prescription
-    const existingPending = await this.prisma.medicationRefillRequest.findFirst({
-      where: {
-        prescriptionId: dto.prescriptionId,
-        patientId,
-        status: 'PENDING',
+    const existingPending = await this.prisma.medicationRefillRequest.findFirst(
+      {
+        where: {
+          prescriptionId: dto.prescriptionId,
+          patientId,
+          status: 'PENDING',
+        },
       },
-    });
+    );
 
     if (existingPending) {
       throw new BadRequestException('يوجد طلب تجديد معلق لهذه الوصفة بالفعل');
@@ -112,7 +114,9 @@ export class PortalRefillService {
             include: {
               items: {
                 include: {
-                  product: { select: { name: true, genericName: true, strength: true } },
+                  product: {
+                    select: { name: true, genericName: true, strength: true },
+                  },
                 },
               },
               doctor: { select: { id: true, fullName: true } },
@@ -125,7 +129,12 @@ export class PortalRefillService {
 
     return {
       items,
-      meta: { totalCount, page, limit, totalPages: Math.ceil(totalCount / limit) },
+      meta: {
+        totalCount,
+        page,
+        limit,
+        totalPages: Math.ceil(totalCount / limit),
+      },
     };
   }
 
@@ -140,7 +149,14 @@ export class PortalRefillService {
           include: {
             items: {
               include: {
-                product: { select: { name: true, genericName: true, strength: true, form: true } },
+                product: {
+                  select: {
+                    name: true,
+                    genericName: true,
+                    strength: true,
+                    form: true,
+                  },
+                },
               },
             },
             doctor: { select: { id: true, fullName: true } },
@@ -178,7 +194,9 @@ export class PortalRefillService {
       where: { id: refillId },
     });
 
-    this.logger.log(`💊 Refill cancelled: Patient/${patientId} → Refill/${refillId}`);
+    this.logger.log(
+      `💊 Refill cancelled: Patient/${patientId} → Refill/${refillId}`,
+    );
 
     return { message: 'تم إلغاء طلب التجديد بنجاح' };
   }

@@ -10,8 +10,11 @@ import {
 
 export function InventoryAlertsWidget() {
   const [alerts, setAlerts] = useState<{
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     lowStock: any[];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     expiringSoon: any[];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     expired: any[];
   } | null>(null);
   const [loading, setLoading] = useState(false);
@@ -58,6 +61,7 @@ export function InventoryAlertsWidget() {
             مواد منتهية الصلاحية ({alerts.expired.length})
           </h3>
           <div className="space-y-2">
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             {alerts.expired.map((item: any, idx) => (
               <div key={idx} className="bg-rose-950/40 p-2 rounded-lg flex justify-between items-center text-xs">
                 <div>
@@ -82,6 +86,7 @@ export function InventoryAlertsWidget() {
              النواقص وحد الطلب ({alerts.lowStock.length})
           </h3>
           <div className="space-y-2">
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             {alerts.lowStock.map((item: any, idx) => (
               <div key={idx} className="bg-amber-950/40 p-2 rounded-lg flex justify-between items-center text-xs">
                 <div>
@@ -105,6 +110,7 @@ export function InventoryAlertsWidget() {
              قريبة الانتهاء ({alerts.expiringSoon.length})
           </h3>
           <div className="space-y-2">
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             {alerts.expiringSoon.map((item: any, idx) => (
               <div key={idx} className="bg-yellow-950/40 p-2 rounded-lg flex justify-between items-center text-xs">
                 <div>

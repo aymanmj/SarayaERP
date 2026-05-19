@@ -14,8 +14,8 @@ import {
 import { InventoryService } from './inventory.service';
 import { CurrentUser } from '../auth/current-user.decorator'; // 👈
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { Permissions } from '../auth/permissions.decorator';
 import { Type } from 'class-transformer';
 import {
   IsArray,
@@ -58,21 +58,21 @@ class TransferStockDto {
   notes?: string;
 }
 
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('inventory')
 export class InventoryController {
   constructor(private readonly inventoryService: InventoryService) {}
 
   // 🔔 لوحة تنبيهات المخزون
   @Get('alerts')
-  @Roles('ADMIN', 'PHARMACIST', 'STORE_MANAGER')
+  @Permissions('inventory:view')
   async getStockAlerts(@CurrentUser() user: any) {
     return this.inventoryService.monitorStockLevels(user.hospitalId);
   }
 
   // عرض رصيد مخزن معين
   @Get('warehouses/:id/stock')
-  @Roles('ADMIN', 'PHARMACIST', 'STORE_KEEPER', 'DOCTOR') // أضفنا DOCTOR للمعاينة
+  @Permissions('inventory:view') // أضفنا DOCTOR للمعاينة
   async getWarehouseStock(
     @Req() req: any,
     @Param('id', ParseIntPipe) warehouseId: number,
@@ -93,7 +93,7 @@ export class InventoryController {
 
   // إجراء تحويل مخزني
   @Post('transfer')
-  @Roles('ADMIN', 'STORE_KEEPER')
+  @Permissions('inventory:manage')
   async transferStock(@Req() req: any, @Body() dto: TransferStockDto) {
     return this.inventoryService.transferStock({
       hospitalId: req.user.hospitalId,

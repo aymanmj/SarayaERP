@@ -119,7 +119,7 @@ export const createPrismaMock = () => ({
   },
   accountingEntry: {
     create: jest.fn(),
-  }
+  },
 });
 
 export const mockEventEmitter = {
@@ -159,7 +159,7 @@ export const mockFinancialYearsService = {
   getCurrentYear: jest.fn().mockResolvedValue({
     id: 1,
     code: '2025',
-  })
+  }),
 };
 
 export const mockCDSSService = {
@@ -175,7 +175,10 @@ export const mockSoftDeleteService = {
 };
 
 // Generic test module factory
-export const createTestModule = async (providers: any[], controllers: any[] = []) => {
+export const createTestModule = async (
+  providers: any[],
+  controllers: any[] = [],
+) => {
   return Test.createTestingModule({
     providers: [
       ...providers,

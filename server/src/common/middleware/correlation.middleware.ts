@@ -1,18 +1,18 @@
 /**
  * Request Correlation Middleware
- * 
+ *
  * Assigns a unique X-Request-Id (UUID v4) to every incoming HTTP request.
  * This ID is propagated through:
  *  - Request headers (for downstream use)
  *  - Response headers (for client-side tracing)
  *  - AsyncLocalStorage (for access from any module without DI)
- * 
+ *
  * Enterprise healthcare systems MUST support request tracing for:
  *  - Audit trails (Who accessed what, when?)
  *  - Debugging production issues (correlate logs across microservices)
  *  - Compliance reporting (HIPAA audit requirements)
  *  - Incident investigation (track the full lifecycle of any request)
- * 
+ *
  * @example
  * // Access the correlation ID from anywhere:
  * import { getRequestId } from './correlation.middleware';

@@ -7,6 +7,6 @@ import { PrismaModule } from '../prisma/prisma.module';
   imports: [PrismaModule],
   controllers: [TransfersController],
   providers: [TransfersService],
-  exports: [TransfersService]
+  exports: [TransfersService],
 })
 export class TransfersModule {}

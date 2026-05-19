@@ -39,9 +39,11 @@ export interface TenantContext {
  * دالة مساعدة لاستخراج سياق المستأجر من الطلب
  */
 export function getTenantContext(req: Request): TenantContext {
-  return (req as any).tenantContext || {
-    hospitalId: 0,
-    organizationId: null,
-    isSuperAdmin: false,
-  };
+  return (
+    (req as any).tenantContext || {
+      hospitalId: 0,
+      organizationId: null,
+      isSuperAdmin: false,
+    }
+  );
 }

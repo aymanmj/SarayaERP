@@ -11,6 +11,7 @@ type CostCenter = {
 
 export default function CostCentersPage() {
   const [centers, setCenters] = useState<CostCenter[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState({ name: "", code: "", type: "BOTH" });

@@ -26,7 +26,6 @@ export class InsuranceService {
     private systemSettings: SystemSettingsService,
   ) {}
 
-
   // 1. القائمة الكاملة لشركات التأمين
   async findAllProviders(hospitalId: number) {
     return this.prisma.insuranceProvider.findMany({
@@ -226,7 +225,6 @@ export class InsuranceService {
     });
   }
 
-
   // ✅ 11. تحديث حالة المطالبة (الذكي)
   async updateClaimsStatus(
     hospitalId: number,
@@ -314,7 +312,7 @@ export class InsuranceService {
           const patientPaid = Number(inv.paidAmount ?? 0);
           const patientShare = Number(inv.patientShare ?? 0);
           let newStatus = inv.status;
-          
+
           // استخدام السماحية الديناميكية
           if (patientPaid >= patientShare - tolerance) {
             newStatus = InvoiceStatus.PAID;
@@ -333,7 +331,7 @@ export class InsuranceService {
       } else {
         await tx.invoice.updateMany({
           where: { id: { in: invoiceIds } },
-          data: { 
+          data: {
             claimStatus: status,
             rejectionReason: status === 'REJECTED' ? rejectionReason : null,
           },

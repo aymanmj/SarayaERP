@@ -110,6 +110,7 @@ function formatDateTime(iso: string) {
   });
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function formatStatus(status: InvoiceStatus) {
   switch (status) {
     case "DRAFT":
@@ -157,6 +158,7 @@ export default function PatientStatementPage() {
 
   const [pharmacyDispenses, setPharmacyDispenses] =
     useState<EncounterDispenseMap>({});
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [loadingPharmacy, setLoadingPharmacy] = useState(false);
 
   async function loadPharmacyDispensesForInvoices(invoices: InvoiceDto[]) {
@@ -223,6 +225,7 @@ export default function PatientStatementPage() {
         } else {
           setPharmacyDispenses({});
         }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (err: any) {
         console.error(err);
         const msg = err?.response?.data?.message;

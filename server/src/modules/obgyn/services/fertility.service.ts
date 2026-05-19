@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  Logger,
+} from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import {
   CreateFertilityCaseDto,
@@ -69,10 +74,7 @@ export class FertilityService {
   async findCasesByPatient(patientId: number) {
     return this.prisma.fertilityCase.findMany({
       where: {
-        OR: [
-          { femalePatientId: patientId },
-          { malePatientId: patientId },
-        ],
+        OR: [{ femalePatientId: patientId }, { malePatientId: patientId }],
       },
       include: {
         femalePatient: { select: { id: true, fullName: true, mrn: true } },
@@ -87,8 +89,24 @@ export class FertilityService {
     const fc = await this.prisma.fertilityCase.findUnique({
       where: { id },
       include: {
-        femalePatient: { select: { id: true, fullName: true, mrn: true, dateOfBirth: true, gender: true } },
-        malePatient: { select: { id: true, fullName: true, mrn: true, dateOfBirth: true, gender: true } },
+        femalePatient: {
+          select: {
+            id: true,
+            fullName: true,
+            mrn: true,
+            dateOfBirth: true,
+            gender: true,
+          },
+        },
+        malePatient: {
+          select: {
+            id: true,
+            fullName: true,
+            mrn: true,
+            dateOfBirth: true,
+            gender: true,
+          },
+        },
         cycles: {
           include: {
             embryos: true,
@@ -129,12 +147,20 @@ export class FertilityService {
     });
   }
 
-  async linkMalePatient(hospitalId: number, caseId: number, malePatientId: number) {
-    const fc = await this.prisma.fertilityCase.findUnique({ where: { id: caseId } });
+  async linkMalePatient(
+    hospitalId: number,
+    caseId: number,
+    malePatientId: number,
+  ) {
+    const fc = await this.prisma.fertilityCase.findUnique({
+      where: { id: caseId },
+    });
     if (!fc || fc.hospitalId !== hospitalId) {
       throw new NotFoundException('ملف العقم غير موجود.');
     }
-    const patient = await this.prisma.patient.findUnique({ where: { id: malePatientId } });
+    const patient = await this.prisma.patient.findUnique({
+      where: { id: malePatientId },
+    });
     if (!patient || patient.hospitalId !== hospitalId) {
       throw new NotFoundException('المريض (الزوج) غير موجود.');
     }
@@ -175,7 +201,11 @@ export class FertilityService {
     });
   }
 
-  async updateCycle(hospitalId: number, cycleId: number, dto: UpdateIVFCycleDto) {
+  async updateCycle(
+    hospitalId: number,
+    cycleId: number,
+    dto: UpdateIVFCycleDto,
+  ) {
     const cycle = await this.prisma.iVFCycle.findUnique({
       where: { id: cycleId },
       include: { fertilityCase: true },
@@ -185,7 +215,8 @@ export class FertilityService {
     }
 
     const data: any = { ...dto };
-    if (dto.eggRetrievalDate) data.eggRetrievalDate = new Date(dto.eggRetrievalDate);
+    if (dto.eggRetrievalDate)
+      data.eggRetrievalDate = new Date(dto.eggRetrievalDate);
     if (dto.transferDate) data.transferDate = new Date(dto.transferDate);
     if (dto.betaHCGDate) data.betaHCGDate = new Date(dto.betaHCGDate);
 
@@ -241,7 +272,11 @@ export class FertilityService {
     });
   }
 
-  async updateEmbryoStatus(hospitalId: number, embryoId: number, status: string) {
+  async updateEmbryoStatus(
+    hospitalId: number,
+    embryoId: number,
+    status: string,
+  ) {
     const embryo = await this.prisma.embryoRecord.findUnique({
       where: { id: embryoId },
       include: { ivfCycle: { include: { fertilityCase: true } } },
@@ -283,7 +318,9 @@ export class FertilityService {
 
   // ===================== Semen Analysis (أمراض الذكورة) =====================
 
-  private calculateWHOClassification(dto: CreateSemenAnalysisDto): string | null {
+  private calculateWHOClassification(
+    dto: CreateSemenAnalysisDto,
+  ): string | null {
     if (!dto.countMilPerMl) return null;
 
     const count = dto.countMilPerMl;
@@ -296,7 +333,8 @@ export class FertilityService {
     const isAstheno = motilityPR < 30;
     const isTerato = morphologyNormal < 4;
 
-    if (isOligo && isAstheno && isTerato) return 'OAT (Oligoasthenoteratozoospermia)';
+    if (isOligo && isAstheno && isTerato)
+      return 'OAT (Oligoasthenoteratozoospermia)';
     if (isOligo && isAstheno) return 'Oligoasthenozoospermia';
     if (isOligo && isTerato) return 'Oligoteratozoospermia';
     if (isAstheno && isTerato) return 'Asthenoteratozoospermia';
@@ -315,7 +353,8 @@ export class FertilityService {
       throw new NotFoundException('المريض غير موجود.');
     }
 
-    const totalMotility = (dto.progressivePR || 0) + (dto.nonProgressiveNP || 0);
+    const totalMotility =
+      (dto.progressivePR || 0) + (dto.nonProgressiveNP || 0);
     const autoClassification = this.calculateWHOClassification(dto);
 
     return this.prisma.semenAnalysis.create({
@@ -325,7 +364,9 @@ export class FertilityService {
         sampleDate: dto.sampleDate ? new Date(dto.sampleDate) : new Date(),
         abstinenceDays: dto.abstinenceDays,
         collectionMethod: dto.collectionMethod,
-        collectionTime: dto.collectionTime ? new Date(dto.collectionTime) : null,
+        collectionTime: dto.collectionTime
+          ? new Date(dto.collectionTime)
+          : null,
         analysisTime: dto.analysisTime ? new Date(dto.analysisTime) : null,
         volumeMl: dto.volumeMl,
         ph: dto.ph,
@@ -363,7 +404,9 @@ export class FertilityService {
   }
 
   async getSemenAnalyses(hospitalId: number, patientId: number) {
-    const patient = await this.prisma.patient.findUnique({ where: { id: patientId } });
+    const patient = await this.prisma.patient.findUnique({
+      where: { id: patientId },
+    });
     if (!patient || patient.hospitalId !== hospitalId) {
       throw new NotFoundException('المريض غير موجود.');
     }
@@ -436,7 +479,9 @@ export class FertilityService {
   }
 
   async getAndrologyVisits(hospitalId: number, patientId: number) {
-    const patient = await this.prisma.patient.findUnique({ where: { id: patientId } });
+    const patient = await this.prisma.patient.findUnique({
+      where: { id: patientId },
+    });
     if (!patient || patient.hospitalId !== hospitalId) {
       throw new NotFoundException('المريض غير موجود.');
     }
@@ -449,7 +494,9 @@ export class FertilityService {
   // ===================== Hormone Tests =====================
 
   async createHormoneTest(hospitalId: number, dto: CreateHormoneTestDto) {
-    const patient = await this.prisma.patient.findUnique({ where: { id: dto.patientId } });
+    const patient = await this.prisma.patient.findUnique({
+      where: { id: dto.patientId },
+    });
     if (!patient || patient.hospitalId !== hospitalId) {
       throw new NotFoundException('المريض غير موجود.');
     }
@@ -473,7 +520,9 @@ export class FertilityService {
   }
 
   async getHormoneTests(hospitalId: number, patientId: number) {
-    const patient = await this.prisma.patient.findUnique({ where: { id: patientId } });
+    const patient = await this.prisma.patient.findUnique({
+      where: { id: patientId },
+    });
     if (!patient || patient.hospitalId !== hospitalId) {
       throw new NotFoundException('المريض غير موجود.');
     }
@@ -485,8 +534,13 @@ export class FertilityService {
 
   // ===================== Andrology Surgery =====================
 
-  async createAndrologySurgery(hospitalId: number, dto: CreateAndrologySurgeryDto) {
-    const patient = await this.prisma.patient.findUnique({ where: { id: dto.patientId } });
+  async createAndrologySurgery(
+    hospitalId: number,
+    dto: CreateAndrologySurgeryDto,
+  ) {
+    const patient = await this.prisma.patient.findUnique({
+      where: { id: dto.patientId },
+    });
     if (!patient || patient.hospitalId !== hospitalId) {
       throw new NotFoundException('المريض غير موجود.');
     }
@@ -508,7 +562,9 @@ export class FertilityService {
   }
 
   async getAndrologySurgeries(hospitalId: number, patientId: number) {
-    const patient = await this.prisma.patient.findUnique({ where: { id: patientId } });
+    const patient = await this.prisma.patient.findUnique({
+      where: { id: patientId },
+    });
     if (!patient || patient.hospitalId !== hospitalId) {
       throw new NotFoundException('المريض غير موجود.');
     }
@@ -520,8 +576,13 @@ export class FertilityService {
 
   // ===================== Andrology Medication =====================
 
-  async createAndrologyMedication(hospitalId: number, dto: CreateAndrologyMedicationDto) {
-    const patient = await this.prisma.patient.findUnique({ where: { id: dto.patientId } });
+  async createAndrologyMedication(
+    hospitalId: number,
+    dto: CreateAndrologyMedicationDto,
+  ) {
+    const patient = await this.prisma.patient.findUnique({
+      where: { id: dto.patientId },
+    });
     if (!patient || patient.hospitalId !== hospitalId) {
       throw new NotFoundException('المريض غير موجود.');
     }
@@ -542,7 +603,9 @@ export class FertilityService {
   }
 
   async getAndrologyMedications(hospitalId: number, patientId: number) {
-    const patient = await this.prisma.patient.findUnique({ where: { id: patientId } });
+    const patient = await this.prisma.patient.findUnique({
+      where: { id: patientId },
+    });
     if (!patient || patient.hospitalId !== hospitalId) {
       throw new NotFoundException('المريض غير موجود.');
     }
@@ -554,15 +617,22 @@ export class FertilityService {
 
   // ===================== Andrology Investigations =====================
 
-  async createAndrologyInvestigation(hospitalId: number, dto: CreateAndrologyInvestigationDto) {
-    const patient = await this.prisma.patient.findUnique({ where: { id: dto.patientId } });
+  async createAndrologyInvestigation(
+    hospitalId: number,
+    dto: CreateAndrologyInvestigationDto,
+  ) {
+    const patient = await this.prisma.patient.findUnique({
+      where: { id: dto.patientId },
+    });
     if (!patient || patient.hospitalId !== hospitalId) {
       throw new NotFoundException('المريض غير موجود.');
     }
     return this.prisma.andrologyInvestigation.create({
       data: {
         patientId: dto.patientId,
-        investigationDate: dto.investigationDate ? new Date(dto.investigationDate) : new Date(),
+        investigationDate: dto.investigationDate
+          ? new Date(dto.investigationDate)
+          : new Date(),
         type: dto.type,
         facilityName: dto.facilityName,
         findings: dto.findings,
@@ -575,7 +645,9 @@ export class FertilityService {
   }
 
   async getAndrologyInvestigations(hospitalId: number, patientId: number) {
-    const patient = await this.prisma.patient.findUnique({ where: { id: patientId } });
+    const patient = await this.prisma.patient.findUnique({
+      where: { id: patientId },
+    });
     if (!patient || patient.hospitalId !== hospitalId) {
       throw new NotFoundException('المريض غير موجود.');
     }
@@ -610,7 +682,9 @@ export class FertilityService {
   }
 
   async addCryoCanister(hospitalId: number, dto: CreateCryoCanisterDto) {
-    const tank = await this.prisma.cryoTank.findUnique({ where: { id: dto.tankId } });
+    const tank = await this.prisma.cryoTank.findUnique({
+      where: { id: dto.tankId },
+    });
     if (!tank || tank.hospitalId !== hospitalId) {
       throw new NotFoundException('التانك غير موجود.');
     }

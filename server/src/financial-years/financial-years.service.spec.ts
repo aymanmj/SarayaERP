@@ -6,7 +6,7 @@ import { PrismaService } from '../prisma/prisma.service';
 describe('FinancialYearsService', () => {
   let service: FinancialYearsService;
 
-  const mockPrismaService = ({
+  const mockPrismaService = {
     financialYear: {
       findMany: jest.fn(),
       findFirst: jest.fn(),
@@ -19,7 +19,7 @@ describe('FinancialYearsService', () => {
       update: jest.fn(),
     },
     $transaction: jest.fn((fn) => fn(mockPrismaService)),
-  });
+  };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({

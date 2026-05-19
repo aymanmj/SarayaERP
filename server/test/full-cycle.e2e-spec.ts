@@ -1,4 +1,3 @@
-
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
@@ -34,7 +33,9 @@ describe('Full Cycle E2E Simulation', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+    app.useGlobalPipes(
+      new ValidationPipe({ whitelist: true, transform: true }),
+    );
     await app.init();
 
     prisma = app.get<PrismaService>(PrismaService);
@@ -42,128 +43,141 @@ describe('Full Cycle E2E Simulation', () => {
     authHelper = new AuthHelper(prisma, jwt);
 
     try {
-        // 1. Reset Database
-        await resetDatabase(prisma);
+      // 1. Reset Database
+      await resetDatabase(prisma);
 
-        // 2. Seed Environment for Test (Simulating seed.ts + medical seed)
-        // Create Hospital
-        const hospital = await prisma.hospital.create({
-          data: { code: 'E2E_HOSP', name: 'Saraya E2E Hospital', isActive: true },
+      // 2. Seed Environment for Test (Simulating seed.ts + medical seed)
+      // Create Hospital
+      const hospital = await prisma.hospital.create({
+        data: { code: 'E2E_HOSP', name: 'Saraya E2E Hospital', isActive: true },
+      });
+      hospitalId = hospital.id;
+
+      // Create ServiceItem & LabTest (CPT)
+      // ... (previous code)
+
+      // Seed Financial Year & Period (Critical for Billing)
+      // Seed Financial Year & Period (Critical for Billing)
+      const currentYear = new Date().getFullYear();
+      const financialYear = await prisma.financialYear.create({
+        data: {
+          name: `${currentYear}`,
+          code: `FY${currentYear}`,
+          startDate: new Date(`${currentYear}-01-01`),
+          endDate: new Date(`${currentYear}-12-31`),
+          status: 'OPEN', // FinancialYearStatus.OPEN
+          hospitalId,
+          isCurrent: true,
+        },
+      });
+
+      // Create Period for current month
+      const now = new Date();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      const daysInMonth = endOfMonth.getDate();
+
+      await prisma.financialPeriod.create({
+        data: {
+          periodCode: `${now.getMonth() + 1}/${currentYear}`,
+          periodIndex: now.getMonth() + 1,
+          monthStartDate: startOfMonth,
+          monthEndDate: endOfMonth,
+          numberOfDays: daysInMonth,
+          financialYearId: financialYear.id,
+          isOpen: true,
+        },
+      });
+
+      const serviceItem = await prisma.serviceItem.create({
+        data: {
+          hospitalId,
+          code: '85025',
+          name: 'CBC',
+          type: 'LAB', // ServiceType.LAB
+          defaultPrice: 50.0,
+          isActive: true, // Boolean
+          isBillable: true,
+        },
+      });
+
+      const labTest = await prisma.labTest.create({
+        data: {
+          hospitalId,
+          code: '85025',
+          name: 'CBC',
+          category: 'Hematology',
+          isActive: true,
+          serviceItemId: serviceItem.id,
+        },
+      });
+      labTestId = labTest.id;
+
+      // Create Users with Roles
+      // We need to create Roles first (Global, no hospitalId)
+      const roleDoctor = await prisma.role.upsert({
+        where: { name: 'DOCTOR' },
+        update: {},
+        create: { name: 'DOCTOR', description: 'Doctor' },
+      });
+      const roleLab = await prisma.role.upsert({
+        where: { name: 'LAB_TECH' },
+        update: {},
+        create: { name: 'LAB_TECH', description: 'Lab Tech' },
+      });
+      const roleRecep = await prisma.role.upsert({
+        where: { name: 'RECEPTION' },
+        update: {},
+        create: { name: 'RECEPTION', description: 'Reception' },
+      });
+      const roleAccountant = await prisma.role.upsert({
+        where: { name: 'ACCOUNTANT' },
+        update: {},
+        create: { name: 'ACCOUNTANT', description: 'Accountant' },
+      });
+
+      // Helper to create user and assign role
+      const createUser = async (username: string, roleName: string) => {
+        const { user, accessToken } = await authHelper.createTestUser(
+          username,
+          'pass123',
+        );
+        // Update user to use our new hospitalId
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { hospitalId },
         });
-        hospitalId = hospital.id;
 
-        // Create ServiceItem & LabTest (CPT)
-        // ... (previous code)
+        const role = await prisma.role.findUnique({
+          where: { name: roleName },
+        });
+        if (!role) throw new Error(`Role ${roleName} not found`);
 
-        // Seed Financial Year & Period (Critical for Billing)
-        // Seed Financial Year & Period (Critical for Billing)
-        const currentYear = new Date().getFullYear();
-        const financialYear = await prisma.financialYear.create({
-            data: {
-                name: `${currentYear}`,
-                code: `FY${currentYear}`,
-                startDate: new Date(`${currentYear}-01-01`),
-                endDate: new Date(`${currentYear}-12-31`),
-                status: 'OPEN', // FinancialYearStatus.OPEN
-                hospitalId,
-                isCurrent: true
-            }
+        // Assign Role
+        await prisma.userRole.create({
+          data: { userId: user.id, roleId: role.id },
         });
 
-        // Create Period for current month
-        const now = new Date();
-        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-        const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-        const daysInMonth = endOfMonth.getDate();
-        
-        await prisma.financialPeriod.create({
-            data: {
-                periodCode: `${now.getMonth() + 1}/${currentYear}`,
-                periodIndex: now.getMonth() + 1,
-                monthStartDate: startOfMonth,
-                monthEndDate: endOfMonth,
-                numberOfDays: daysInMonth,
-                financialYearId: financialYear.id,
-                isOpen: true,
-            }
-        });
-
-        const serviceItem = await prisma.serviceItem.create({
-          data: {
-            hospitalId,
-            code: '85025',
-            name: 'CBC',
-            type: 'LAB', // ServiceType.LAB
-            defaultPrice: 50.0,
-            isActive: true, // Boolean
-            isBillable: true,
-          },
-        });
-
-        const labTest = await prisma.labTest.create({
-          data: {
-            hospitalId,
-            code: '85025',
-            name: 'CBC',
-            category: 'Hematology',
-            isActive: true,
-            serviceItemId: serviceItem.id,
-          },
-        });
-        labTestId = labTest.id;
-
-        // Create Users with Roles
-        // We need to create Roles first (Global, no hospitalId)
-        const roleDoctor = await prisma.role.upsert({ 
-            where: { name: 'DOCTOR' }, 
-            update: {}, 
-            create: { name: 'DOCTOR', description: 'Doctor' } 
-        });
-        const roleLab = await prisma.role.upsert({ 
-            where: { name: 'LAB_TECH' },
-            update: {}, 
-            create: { name: 'LAB_TECH', description: 'Lab Tech' } 
-        });
-        const roleRecep = await prisma.role.upsert({ 
-            where: { name: 'RECEPTION' },
-            update: {}, 
-            create: { name: 'RECEPTION', description: 'Reception' } 
-        });
-        const roleAccountant = await prisma.role.upsert({ 
-            where: { name: 'ACCOUNTANT' },
-            update: {}, 
-            create: { name: 'ACCOUNTANT', description: 'Accountant' } 
-        });
-
-        // Helper to create user and assign role
-        const createUser = async (username: string, roleName: string) => {
-          const { user, accessToken } = await authHelper.createTestUser(username, 'pass123');
-          // Update user to use our new hospitalId
-          await prisma.user.update({
-            where: { id: user.id },
-            data: { hospitalId },
-          });
-          
-          const role = await prisma.role.findUnique({ where: { name: roleName } });
-          if (!role) throw new Error(`Role ${roleName} not found`);
-
-          // Assign Role
-          await prisma.userRole.create({
-            data: { userId: user.id, roleId: role.id },
-          });
-
-          // Re-issue token with role NAME (Array of strings)
-            const payload = { sub: user.id, username: user.username, roles: [roleName], hospitalId, permissions: [] };
-            return jwt.sign(payload, { secret: process.env.JWT_SECRET || 'PRODUCTION_SECRET_KEY_CHANGE_ME' });
+        // Re-issue token with role NAME (Array of strings)
+        const payload = {
+          sub: user.id,
+          username: user.username,
+          roles: [roleName],
+          hospitalId,
+          permissions: [],
         };
+        return jwt.sign(payload, {
+          secret: process.env.JWT_SECRET || 'PRODUCTION_SECRET_KEY_CHANGE_ME',
+        });
+      };
 
-        doctorToken = await createUser('dr_house', 'DOCTOR');
-        labTechToken = await createUser('lab_guy', 'LAB_TECH');
-        receptionistToken = await createUser('recep_lady', 'RECEPTION');
-        accountantToken = await createUser('money_man', 'ACCOUNTANT');
+      doctorToken = await createUser('dr_house', 'DOCTOR');
+      labTechToken = await createUser('lab_guy', 'LAB_TECH');
+      receptionistToken = await createUser('recep_lady', 'RECEPTION');
+      accountantToken = await createUser('money_man', 'ACCOUNTANT');
     } catch (e) {
-        console.error('SETUP FAILED:', e);
-        throw e;
+      console.error('SETUP FAILED:', e);
+      throw e;
     }
   });
 
@@ -211,7 +225,7 @@ describe('Full Cycle E2E Simulation', () => {
   it('3. Doctor adds a diagnosis', async () => {
     // First, seed a Diagnosis Code since we reset DB
     const diagCode = await prisma.diagnosisCode.create({
-        data: { code: 'J00', nameEn: 'Cold', isActive: true },
+      data: { code: 'J00', nameEn: 'Cold', isActive: true },
     });
 
     const res = await request(app.getHttpServer())
@@ -261,24 +275,25 @@ describe('Full Cycle E2E Simulation', () => {
         referenceRange: '12-16',
       })
       .expect(200);
-      
-      expect(res.body.resultStatus).toBe('COMPLETED');
+
+    expect(res.body.resultStatus).toBe('COMPLETED');
   });
 
   // --- Step 6: Accountant Views Invoice ---
   it('6. Accountant checks billing', async () => {
-      // Since we created an order with a billable service, a charge should exist.
-      // And in my LabService logic, it might have auto-created an invoice or just charges.
-      // Let's check listing invoices for encounter.
-      
-      // First, get the invoice. If auto-created, it should be there.
-      // Or we need to create one.
-      // Assuming BillingService allows creation or listing.
-      
-      // Let's query charges directly via Prisma to verify they exist
-      const charges = await prisma.encounterCharge.findMany({ where: { encounterId } });
-      expect(charges.length).toBeGreaterThan(0);
-      expect(Number(charges[0].totalAmount)).toBe(50.0);
-  });
+    // Since we created an order with a billable service, a charge should exist.
+    // And in my LabService logic, it might have auto-created an invoice or just charges.
+    // Let's check listing invoices for encounter.
 
+    // First, get the invoice. If auto-created, it should be there.
+    // Or we need to create one.
+    // Assuming BillingService allows creation or listing.
+
+    // Let's query charges directly via Prisma to verify they exist
+    const charges = await prisma.encounterCharge.findMany({
+      where: { encounterId },
+    });
+    expect(charges.length).toBeGreaterThan(0);
+    expect(Number(charges[0].totalAmount)).toBe(50.0);
+  });
 });

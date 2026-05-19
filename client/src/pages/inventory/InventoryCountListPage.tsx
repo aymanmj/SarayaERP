@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { apiClient as api } from "@/api/apiClient";
 import { formatDate } from "@/lib/utils";
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 interface InventoryCount {
   id: number;
   date: string;

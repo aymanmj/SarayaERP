@@ -8,6 +8,7 @@ import { DatePicker } from "@/components/ui/date-picker";
 export default function DepreciationPage() {
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [processing, setProcessing] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [result, setResult] = useState<any>(null);
 
   const handleRun = async () => {
@@ -24,6 +25,7 @@ export default function DepreciationPage() {
       const res = await apiClient.post("/assets/depreciation/run", { date });
       setResult(res.data);
       toast.success("تم تشغيل الإهلاك بنجاح.");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       toast.error(err?.response?.data?.message || "فشل العملية");
     } finally {

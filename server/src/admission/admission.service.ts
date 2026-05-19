@@ -29,7 +29,11 @@ export class AdmissionService {
   /**
    * Create a new admission with comprehensive validation
    */
-  async createAdmission(hospitalId: number, dto: CreateAdmissionDto, userId: number) {
+  async createAdmission(
+    hospitalId: number,
+    dto: CreateAdmissionDto,
+    userId: number,
+  ) {
     // 1. Validate patient exists
     const patient = await this.prisma.patient.findFirst({
       where: { id: dto.patientId, hospitalId },
@@ -50,9 +54,11 @@ export class AdmissionService {
     });
 
     if (activeAdmission) {
-      console.warn(`[CREATE_ADMISSION] Active admission found for patient ${dto.patientId}: ID=${activeAdmission.id}, Status=${activeAdmission.admissionStatus}`);
+      console.warn(
+        `[CREATE_ADMISSION] Active admission found for patient ${dto.patientId}: ID=${activeAdmission.id}, Status=${activeAdmission.admissionStatus}`,
+      );
       throw new BadRequestException(
-        `المريض يمتلك حالياً دخول نشط! (ID: ${activeAdmission.id}, Status: ${activeAdmission.admissionStatus})`
+        `المريض يمتلك حالياً دخول نشط! (ID: ${activeAdmission.id}, Status: ${activeAdmission.admissionStatus})`,
       );
     }
 
@@ -67,7 +73,9 @@ export class AdmissionService {
     ]);
 
     if (!admittingDoctor || !primaryPhysician) {
-      throw new NotFoundException('One or more medical staff members not found');
+      throw new NotFoundException(
+        'One or more medical staff members not found',
+      );
     }
 
     // 4. Create or validate encounter
@@ -79,17 +87,17 @@ export class AdmissionService {
       if (!encounter) {
         throw new NotFoundException('Encounter not found');
       }
-      
+
       // Ensure encounter is IPD
       if (encounter.type !== EncounterType.IPD) {
-          await this.prisma.encounter.update({
-              where: { id: encounterId },
-              data: { 
-                  type: EncounterType.IPD,
-                  // Ensure department is set if provided in DTO update
-                  ...(dto.departmentId ? { departmentId: dto.departmentId } : {})
-              }
-          });
+        await this.prisma.encounter.update({
+          where: { id: encounterId },
+          data: {
+            type: EncounterType.IPD,
+            // Ensure department is set if provided in DTO update
+            ...(dto.departmentId ? { departmentId: dto.departmentId } : {}),
+          },
+        });
       }
     } else {
       // Create new encounter
@@ -142,7 +150,7 @@ export class AdmissionService {
       data: {
         hospitalId,
         patientId: dto.patientId,
-        encounterId: encounterId!,
+        encounterId: encounterId,
         admissionType: dto.admissionType,
         admissionStatus: AdmissionStatus.ADMITTED,
         priority: dto.priority,
@@ -211,7 +219,7 @@ export class AdmissionService {
       await this.prisma.bedAssignment.create({
         data: {
           hospitalId,
-          encounterId: encounterId!,
+          encounterId: encounterId,
           bedId: dto.bedId,
         },
       });
@@ -459,10 +467,10 @@ export class AdmissionService {
   ) {
     const admission = await this.prisma.admission.findFirst({
       where: { id: admissionId, hospitalId },
-      include: { 
-        bed: { include: { ward: true } }, 
+      include: {
+        bed: { include: { ward: true } },
         encounter: { include: { invoices: true } },
-        dischargePlanning: true
+        dischargePlanning: true,
       },
     });
 
@@ -475,16 +483,20 @@ export class AdmissionService {
     }
 
     if (!admission.dischargePlanning) {
-      throw new BadRequestException('لا يمكن إجراء الخروج: خطة التخريج (Discharge Plan) التشغيلية غير موجودة.');
+      throw new BadRequestException(
+        'لا يمكن إجراء الخروج: خطة التخريج (Discharge Plan) التشغيلية غير موجودة.',
+      );
     }
 
     // 1.5 Medical Summary Clearance (Phase 2 Requirement)
     const dischargeSummary = await this.prisma.dischargeSummary.findFirst({
-      where: { admissionId: admissionId, completedAt: { not: null } }
+      where: { admissionId: admissionId, completedAt: { not: null } },
     });
 
     if (!dischargeSummary) {
-      throw new BadRequestException("لا يمكن إجراء الخروج: 'ملخص الخروج' الطبي (Discharge Summary) لم يُعتمد أو لم يُوقع بعد من الطبيب المعالج.");
+      throw new BadRequestException(
+        "لا يمكن إجراء الخروج: 'ملخص الخروج' الطبي (Discharge Summary) لم يُعتمد أو لم يُوقع بعد من الطبيب المعالج.",
+      );
     }
 
     // Calculate length of stay
@@ -498,14 +510,20 @@ export class AdmissionService {
     if (admission.bed?.ward?.serviceItemId) {
       const wardServiceId = admission.bed.ward.serviceItemId;
       const existingCharges = await this.prisma.encounterCharge.findMany({
-        where: { encounterId: admission.encounterId, serviceItemId: wardServiceId }
+        where: {
+          encounterId: admission.encounterId,
+          serviceItemId: wardServiceId,
+        },
       });
-      const billedDays = existingCharges.reduce((sum, c) => sum + Number(c.quantity), 0);
+      const billedDays = existingCharges.reduce(
+        (sum, c) => sum + Number(c.quantity),
+        0,
+      );
       const remainingDays = daysToCharge - billedDays;
-      
+
       if (remainingDays > 0) {
         const wardService = await this.prisma.serviceItem.findUnique({
-          where: { id: wardServiceId }
+          where: { id: wardServiceId },
         });
         if (wardService) {
           await this.prisma.encounterCharge.create({
@@ -518,15 +536,19 @@ export class AdmissionService {
               unitPrice: wardService.defaultPrice,
               totalAmount: Number(wardService.defaultPrice) * remainingDays,
               createdAt: new Date(),
-            }
+            },
           });
         }
       }
     }
 
     // 3. Financial Clearance
-    const debtLimit = await this.systemSettings.getNumber(hospitalId, 'billing.debtLimit', 0.01);
-    
+    const debtLimit = await this.systemSettings.getNumber(
+      hospitalId,
+      'billing.debtLimit',
+      0.01,
+    );
+
     let totalPatientDebt = 0;
     for (const inv of admission.encounter.invoices) {
       if (inv.status === 'CANCELLED') continue;
@@ -538,7 +560,7 @@ export class AdmissionService {
 
     if (totalPatientDebt > debtLimit) {
       throw new BadRequestException(
-        `لا يمكن إجراء الخروج. يوجد مستحقات مالية على المريض بقيمة ${totalPatientDebt.toFixed(3)} د.ل. الحد المسموح به هو ${debtLimit} د.ل. يرجى تسوية الفواتير أولاً.`
+        `لا يمكن إجراء الخروج. يوجد مستحقات مالية على المريض بقيمة ${totalPatientDebt.toFixed(3)} د.ل. الحد المسموح به هو ${debtLimit} د.ل. يرجى تسوية الفواتير أولاً.`,
       );
     }
 
@@ -548,7 +570,7 @@ export class AdmissionService {
 
     if (uninvoicedCharges > 0) {
       throw new BadRequestException(
-        `لا يمكن الخروج وجود مستحقات ومطالبات غير مسددة (${uninvoicedCharges} بند). يرجى مراجعة الاستقبال أو الحسابات لإصدار التسوية المالية أولاً.`
+        `لا يمكن الخروج وجود مستحقات ومطالبات غير مسددة (${uninvoicedCharges} بند). يرجى مراجعة الاستقبال أو الحسابات لإصدار التسوية المالية أولاً.`,
       );
     }
 
@@ -558,10 +580,20 @@ export class AdmissionService {
       data: {
         admissionStatus: AdmissionStatus.DISCHARGED,
         dischargeDate: new Date(),
-        dischargeDisposition: dischargeData?.dischargeDisposition || admission.dischargePlanning?.dischargeDisposition || 'HOME',
-        dischargeInstructions: dischargeData?.dischargeInstructions || admission.dischargePlanning?.followUpInstructions,
-        followUpRequired: dischargeData?.followUpRequired ?? admission.followUpRequired ?? false,
-        followUpInstructions: dischargeData?.followUpInstructions ?? admission.dischargePlanning?.followUpInstructions,
+        dischargeDisposition:
+          dischargeData?.dischargeDisposition ||
+          admission.dischargePlanning?.dischargeDisposition ||
+          'HOME',
+        dischargeInstructions:
+          dischargeData?.dischargeInstructions ||
+          admission.dischargePlanning?.followUpInstructions,
+        followUpRequired:
+          dischargeData?.followUpRequired ??
+          admission.followUpRequired ??
+          false,
+        followUpInstructions:
+          dischargeData?.followUpInstructions ??
+          admission.dischargePlanning?.followUpInstructions,
         actualCost: dischargeData.actualCost,
         lengthOfStay,
       },
@@ -691,17 +723,13 @@ export class AdmissionService {
       });
     }
 
-
     return dischargePlanning;
   }
 
   /**
    * Delete a discharge planning (only PENDING/PLANNING)
    */
-  async deleteDischargePlanning(
-    hospitalId: number,
-    admissionId: number,
-  ) {
+  async deleteDischargePlanning(hospitalId: number, admissionId: number) {
     const plan = await this.prisma.dischargePlanning.findFirst({
       where: { admissionId, admission: { hospitalId } },
     });
@@ -711,7 +739,9 @@ export class AdmissionService {
     }
 
     if (plan.status !== 'PLANNING' && plan.status !== 'PENDING') {
-      throw new BadRequestException('لا يمكن حذف خطة خروج قيد التنفيذ أو مكتملة.');
+      throw new BadRequestException(
+        'لا يمكن حذف خطة خروج قيد التنفيذ أو مكتملة.',
+      );
     }
 
     await this.prisma.dischargePlanning.delete({
@@ -726,7 +756,12 @@ export class AdmissionService {
    */
   async listDischargePlans(
     hospitalId: number,
-    query: { page?: number; limit?: number; status?: string; departmentId?: number }
+    query: {
+      page?: number;
+      limit?: number;
+      status?: string;
+      departmentId?: number;
+    },
   ) {
     const page = Number(query.page) || 1;
     const limit = Number(query.limit) || 50;
@@ -821,7 +856,9 @@ export class AdmissionService {
     }
 
     if (!admission.bedId) {
-      throw new BadRequestException('Patient is not currently assigned to a bed');
+      throw new BadRequestException(
+        'Patient is not currently assigned to a bed',
+      );
     }
 
     // Validate destination bed
@@ -876,7 +913,9 @@ export class AdmissionService {
     }
 
     if (transfer.status !== 'APPROVED') {
-      throw new BadRequestException('Transfer must be approved before completion');
+      throw new BadRequestException(
+        'Transfer must be approved before completion',
+      );
     }
 
     // Release old bed
@@ -1032,23 +1071,23 @@ export class AdmissionService {
         rooms: {
           include: {
             beds: {
-               include: {
-                  assignments: {
-                     where: { to: null },
-                     include: {
-                        encounter: {
-                           include: {
-                              patient: true,
-                              admission: true
-                           }
-                        }
-                     }
-                  }
-               }
-            }
-          }
-        }
-      }
+              include: {
+                assignments: {
+                  where: { to: null },
+                  include: {
+                    encounter: {
+                      include: {
+                        patient: true,
+                        admission: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
     });
 
     return wards.map((ward) => {
@@ -1079,14 +1118,23 @@ export class AdmissionService {
             maintenanceBeds++;
           }
 
-          const activeAssignment = bed.assignments && bed.assignments.length > 0 ? bed.assignments[0] : null;
-          let patientInfo: { admissionId: number; patientName: string; patientMrn: string } | undefined = undefined;
+          const activeAssignment =
+            bed.assignments && bed.assignments.length > 0
+              ? bed.assignments[0]
+              : null;
+          let patientInfo:
+            | { admissionId: number; patientName: string; patientMrn: string }
+            | undefined = undefined;
 
-          if (activeAssignment && activeAssignment.encounter && activeAssignment.encounter.patient) {
+          if (
+            activeAssignment &&
+            activeAssignment.encounter &&
+            activeAssignment.encounter.patient
+          ) {
             patientInfo = {
-                admissionId: activeAssignment.encounter.admission?.[0]?.id || 0,
-                patientName: activeAssignment.encounter.patient.fullName,
-                patientMrn: activeAssignment.encounter.patient.mrn
+              admissionId: activeAssignment.encounter.admission?.[0]?.id || 0,
+              patientName: activeAssignment.encounter.patient.fullName,
+              patientMrn: activeAssignment.encounter.patient.mrn,
             };
           }
 
@@ -1094,7 +1142,7 @@ export class AdmissionService {
             bedId: bed.id,
             bedNumber: bed.bedNumber,
             status: bed.status,
-            patient: patientInfo
+            patient: patientInfo,
           };
         });
 
@@ -1104,11 +1152,12 @@ export class AdmissionService {
           totalBeds: roomTotal,
           occupiedBeds: roomOccupied,
           availableBeds: roomAvailable,
-          beds: bedsResult
+          beds: bedsResult,
         };
       });
 
-      const occupancyRate = totalBeds > 0 ? (occupiedBeds / totalBeds) * 100 : 0;
+      const occupancyRate =
+        totalBeds > 0 ? (occupiedBeds / totalBeds) * 100 : 0;
 
       return {
         wardId: ward.id,
@@ -1120,7 +1169,7 @@ export class AdmissionService {
         cleaningBeds,
         maintenanceBeds,
         occupancyRate,
-        rooms: roomsResult
+        rooms: roomsResult,
       };
     });
   }

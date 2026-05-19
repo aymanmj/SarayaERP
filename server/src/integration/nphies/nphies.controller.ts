@@ -17,7 +17,7 @@ import { PermissionsGuard } from '../../auth/permissions.guard';
 
 /**
  * واجهة تحكم تكامل NPHIES
- * 
+ *
  * توفر REST endpoints لعمليات:
  * - التحقق من أهلية التأمين (Eligibility)
  * - إرسال الموافقات المسبقة (Pre-Authorization)

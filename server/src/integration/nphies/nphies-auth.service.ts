@@ -7,11 +7,11 @@ import * as fs from 'fs';
 
 /**
  * خدمة المصادقة مع منصة NPHIES السعودية
- * 
+ *
  * تستخدم OAuth 2.0 Client Credentials Grant
  * كل طلب يتطلب Access Token صالح
  * يتم تجديد التوكن تلقائياً قبل انتهاء صلاحيته
- * 
+ *
  * @see https://www.nphies.sa/en/developers
  */
 @Injectable()
@@ -25,7 +25,7 @@ export class NphiesAuthService {
   private readonly baseUrl: string;
   private readonly clientId: string;
   private readonly clientSecret: string;
-  
+
   // mTLS Agent
   private httpsAgent: https.Agent;
 
@@ -38,8 +38,11 @@ export class NphiesAuthService {
       'https://HSB.nphies.sa',
     );
     this.clientId = this.configService.get<string>('NPHIES_CLIENT_ID', '');
-    this.clientSecret = this.configService.get<string>('NPHIES_CLIENT_SECRET', '');
-    
+    this.clientSecret = this.configService.get<string>(
+      'NPHIES_CLIENT_SECRET',
+      '',
+    );
+
     this.initializeHttpsAgent();
   }
 
@@ -56,7 +59,12 @@ export class NphiesAuthService {
       const certPath = this.configService.get<string>('NPHIES_CERT_PATH');
       const keyPath = this.configService.get<string>('NPHIES_KEY_PATH');
 
-      if (certPath && keyPath && fs.existsSync(certPath) && fs.existsSync(keyPath)) {
+      if (
+        certPath &&
+        keyPath &&
+        fs.existsSync(certPath) &&
+        fs.existsSync(keyPath)
+      ) {
         this.httpsAgent = new https.Agent({
           cert: fs.readFileSync(certPath),
           key: fs.readFileSync(keyPath),
@@ -68,18 +76,20 @@ export class NphiesAuthService {
         // NPHIES requests will fail, but we don't silently disable security
         this.logger.error(
           '🚨 NPHIES mTLS Certificates NOT found in PRODUCTION! ' +
-          'Set NPHIES_CERT_PATH and NPHIES_KEY_PATH. NPHIES integration will NOT work.'
+            'Set NPHIES_CERT_PATH and NPHIES_KEY_PATH. NPHIES integration will NOT work.',
         );
         this.httpsAgent = new https.Agent({ rejectUnauthorized: true });
       } else {
         this.logger.warn(
           '⚠️ NPHIES mTLS Certificates NOT found. ' +
-          'Running without mTLS for local testing only (dev mode).'
+            'Running without mTLS for local testing only (dev mode).',
         );
         this.httpsAgent = new https.Agent({ rejectUnauthorized: false });
       }
     } catch (error: any) {
-      this.logger.error(`❌ Failed to initialize NPHIES mTLS Agent: ${error.message}`);
+      this.logger.error(
+        `❌ Failed to initialize NPHIES mTLS Agent: ${error.message}`,
+      );
       this.httpsAgent = new https.Agent({ rejectUnauthorized: isProduction });
     }
   }
@@ -163,9 +173,20 @@ export class NphiesAuthService {
     };
 
     try {
-      const response = method === 'POST'
-        ? await firstValueFrom(this.httpService.post<T>(url, bundle, { headers, httpsAgent: this.httpsAgent }))
-        : await firstValueFrom(this.httpService.get<T>(url, { headers, httpsAgent: this.httpsAgent }));
+      const response =
+        method === 'POST'
+          ? await firstValueFrom(
+              this.httpService.post<T>(url, bundle, {
+                headers,
+                httpsAgent: this.httpsAgent,
+              }),
+            )
+          : await firstValueFrom(
+              this.httpService.get<T>(url, {
+                headers,
+                httpsAgent: this.httpsAgent,
+              }),
+            );
 
       return response.data;
     } catch (error: any) {
@@ -182,9 +203,20 @@ export class NphiesAuthService {
         const newToken = await this.refreshToken();
         headers.Authorization = `Bearer ${newToken}`;
 
-        const retry = method === 'POST'
-          ? await firstValueFrom(this.httpService.post<T>(url, bundle, { headers, httpsAgent: this.httpsAgent }))
-          : await firstValueFrom(this.httpService.get<T>(url, { headers, httpsAgent: this.httpsAgent }));
+        const retry =
+          method === 'POST'
+            ? await firstValueFrom(
+                this.httpService.post<T>(url, bundle, {
+                  headers,
+                  httpsAgent: this.httpsAgent,
+                }),
+              )
+            : await firstValueFrom(
+                this.httpService.get<T>(url, {
+                  headers,
+                  httpsAgent: this.httpsAgent,
+                }),
+              );
 
         return retry.data;
       }

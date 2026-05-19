@@ -210,7 +210,7 @@ export class Hl7Consumer extends WorkerHost {
   private async handleADT(segments: string[], hospitalId: number) {
     // Basic Parsing of ADT^A01 (Admit), ADT^A04 (Register), ADT^A08 (Update)
     let pidFields: string[] = [];
-    
+
     for (const seg of segments) {
       if (seg.startsWith('PID|')) {
         pidFields = seg.split('|');
@@ -225,10 +225,12 @@ export class Hl7Consumer extends WorkerHost {
 
     const mrnList = pidFields[3]; // e.g., MRN12345^^^Hospital^MR
     const mrn = mrnList ? mrnList.split('^')[0] : null;
-    
+
     const nameList = pidFields[5]; // e.g., Doe^John
-    const fullName = nameList ? nameList.split('^').filter(Boolean).reverse().join(' ') : 'Unknown Patient';
-    
+    const fullName = nameList
+      ? nameList.split('^').filter(Boolean).reverse().join(' ')
+      : 'Unknown Patient';
+
     const dobString = pidFields[7]; // YYYYMMDD
     let dob: Date | undefined;
     if (dobString && dobString.length >= 8) {
@@ -237,10 +239,11 @@ export class Hl7Consumer extends WorkerHost {
       const day = parseInt(dobString.substring(6, 8));
       dob = new Date(year, month, day);
     }
-    
+
     const genderCode = pidFields[8]; // M or F
-    const gender = genderCode === 'M' ? 'MALE' : (genderCode === 'F' ? 'FEMALE' : 'UNKNOWN');
-    
+    const gender =
+      genderCode === 'M' ? 'MALE' : genderCode === 'F' ? 'FEMALE' : 'UNKNOWN';
+
     const phone = pidFields[13] ? pidFields[13].split('^')[0] : null;
 
     if (!mrn) {
@@ -248,7 +251,7 @@ export class Hl7Consumer extends WorkerHost {
     }
 
     // Try to find if patient exists
-    let patient = await this.prisma.patient.findFirst({
+    const patient = await this.prisma.patient.findFirst({
       where: { mrn, hospitalId },
     });
 
@@ -261,7 +264,7 @@ export class Hl7Consumer extends WorkerHost {
           dateOfBirth: dob ?? undefined,
           gender: gender as any,
           phone: phone || undefined,
-        }
+        },
       });
     } else {
       this.logger.log(`✨ ADT Sync: Creating new patient MRN: ${mrn}`);
@@ -274,7 +277,7 @@ export class Hl7Consumer extends WorkerHost {
           phone: phone || null,
           isActive: true,
           hospitalId,
-        }
+        },
       });
     }
   }

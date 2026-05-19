@@ -137,7 +137,14 @@ describe('PharmacyService', () => {
       encounterId: 10,
       doctorId: 5,
       items: [
-        { drugItemId: 100, dose: '500mg', route: 'ORAL', frequency: 'TID', durationDays: 5, quantity: 15 },
+        {
+          drugItemId: 100,
+          dose: '500mg',
+          route: 'ORAL',
+          frequency: 'TID',
+          durationDays: 5,
+          quantity: 15,
+        },
       ],
     };
 
@@ -197,9 +204,7 @@ describe('PharmacyService', () => {
         patientId: 1,
         patient: {
           id: 1,
-          allergies: [
-            { id: 1, allergen: 'amoxicillin', severity: 'SEVERE' },
-          ],
+          allergies: [{ id: 1, allergen: 'amoxicillin', severity: 'SEVERE' }],
         },
       });
 
@@ -210,7 +215,12 @@ describe('PharmacyService', () => {
 
     it('should BLOCK prescription when CDSS detects drug interactions (without override)', async () => {
       cdss.checkDrugInteractions.mockResolvedValue([
-        { drug1: 'Amoxicillin', drug2: 'Methotrexate', severity: 'high', description: 'Increased toxicity' },
+        {
+          drug1: 'Amoxicillin',
+          drug2: 'Methotrexate',
+          severity: 'high',
+          description: 'Increased toxicity',
+        },
       ]);
 
       await expect(
@@ -220,7 +230,12 @@ describe('PharmacyService', () => {
 
     it('should ALLOW prescription when overrideSafety is true (doctor acknowledges risk)', async () => {
       cdss.checkDrugInteractions.mockResolvedValue([
-        { drug1: 'X', drug2: 'Y', severity: 'moderate', description: 'Interaction' },
+        {
+          drug1: 'X',
+          drug2: 'Y',
+          severity: 'moderate',
+          description: 'Interaction',
+        },
       ]);
 
       const result = await service.createPrescriptionForEncounter({
@@ -275,14 +290,24 @@ describe('PharmacyService', () => {
 
       // Stock available (FEFO)
       prisma.productStock.findMany.mockResolvedValue([
-        { id: 1, productId: 100, quantity: 50, batchNumber: 'BATCH-001', expiryDate: new Date('2027-06-01'), version: 1 },
+        {
+          id: 1,
+          productId: 100,
+          quantity: 50,
+          batchNumber: 'BATCH-001',
+          expiryDate: new Date('2027-06-01'),
+          version: 1,
+        },
       ]);
 
       // Successful stock update (optimistic lock passes)
       prisma.productStock.updateMany.mockResolvedValue({ count: 1 });
       prisma.stockTransaction.create.mockResolvedValue({ id: 1 });
       prisma.product.update.mockResolvedValue({ id: 100 });
-      prisma.prescription.update.mockResolvedValue({ id: 1, status: 'COMPLETED' });
+      prisma.prescription.update.mockResolvedValue({
+        id: 1,
+        status: 'COMPLETED',
+      });
       prisma.serviceItem.findFirst.mockResolvedValue(null);
     });
 
@@ -323,7 +348,14 @@ describe('PharmacyService', () => {
 
     it('should reject when stock is insufficient', async () => {
       prisma.productStock.findMany.mockResolvedValue([
-        { id: 1, productId: 100, quantity: 1, batchNumber: 'B1', expiryDate: new Date('2027-06-01'), version: 1 },
+        {
+          id: 1,
+          productId: 100,
+          quantity: 1,
+          batchNumber: 'B1',
+          expiryDate: new Date('2027-06-01'),
+          version: 1,
+        },
       ]);
 
       // Prescription needs 3, only 1 available
@@ -344,8 +376,22 @@ describe('PharmacyService', () => {
     it('should use FEFO: allocate from earliest expiry first', async () => {
       // Two batches: B2 expires sooner, B1 expires later
       prisma.productStock.findMany.mockResolvedValue([
-        { id: 2, productId: 100, quantity: 10, batchNumber: 'B2-SOON', expiryDate: new Date('2026-06-01'), version: 1 },
-        { id: 3, productId: 100, quantity: 10, batchNumber: 'B3-LATER', expiryDate: new Date('2028-01-01'), version: 1 },
+        {
+          id: 2,
+          productId: 100,
+          quantity: 10,
+          batchNumber: 'B2-SOON',
+          expiryDate: new Date('2026-06-01'),
+          version: 1,
+        },
+        {
+          id: 3,
+          productId: 100,
+          quantity: 10,
+          batchNumber: 'B3-LATER',
+          expiryDate: new Date('2028-01-01'),
+          version: 1,
+        },
       ]);
 
       await service.dispensePrescription(baseDispenseParams);
@@ -357,7 +403,10 @@ describe('PharmacyService', () => {
     });
 
     it('should create encounter charge when PHARMACY-DRUGS service item exists', async () => {
-      prisma.serviceItem.findFirst.mockResolvedValue({ id: 50, code: 'PHARMACY-DRUGS' });
+      prisma.serviceItem.findFirst.mockResolvedValue({
+        id: 50,
+        code: 'PHARMACY-DRUGS',
+      });
 
       await service.dispensePrescription(baseDispenseParams);
 
@@ -439,8 +488,14 @@ describe('PharmacyService', () => {
       prisma.product.update.mockResolvedValue({ id: 100 });
       prisma.invoice.create.mockResolvedValue({ id: 20, status: 'PAID' });
       prisma.payment.create.mockResolvedValue({ id: 21, amount: 7.5 });
-      prisma.prescription.update.mockResolvedValue({ id: 1, status: 'COMPLETED' });
-      prisma.serviceItem.findFirst.mockResolvedValue({ id: 50, code: 'PHARMACY-DRUGS' });
+      prisma.prescription.update.mockResolvedValue({
+        id: 1,
+        status: 'COMPLETED',
+      });
+      prisma.serviceItem.findFirst.mockResolvedValue({
+        id: 50,
+        code: 'PHARMACY-DRUGS',
+      });
       prisma.encounterCharge.create.mockResolvedValue({ id: 99 });
     });
 
@@ -497,9 +552,9 @@ describe('PharmacyService', () => {
         encounter: { id: 10 },
       });
 
-      await expect(
-        service.dispenseAndPay(basePosParams),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.dispenseAndPay(basePosParams)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
@@ -538,7 +593,13 @@ describe('PharmacyService', () => {
       prisma.prescription.findUnique.mockResolvedValue({
         id: 1,
         status: 'ACTIVE',
-        items: [{ id: 1, product: { id: 1, name: 'X', sellPrice: 1, costPrice: 0.5 }, quantity: 1 }],
+        items: [
+          {
+            id: 1,
+            product: { id: 1, name: 'X', sellPrice: 1, costPrice: 0.5 },
+            quantity: 1,
+          },
+        ],
         encounter: { id: 10 },
       });
       prisma.dispenseRecord.findFirst.mockResolvedValue(null);
@@ -564,7 +625,10 @@ describe('PharmacyService', () => {
       prisma.productStock.findUnique.mockResolvedValue(null);
       prisma.productStock.upsert.mockResolvedValue({ id: 301 });
       prisma.product.update.mockResolvedValue({ id: 100 });
-      prisma.stockTransaction.create.mockResolvedValue({ id: 401, batchNumber: 'GENERAL' });
+      prisma.stockTransaction.create.mockResolvedValue({
+        id: 401,
+        batchNumber: 'GENERAL',
+      });
     });
 
     it('should create manual stock adjustment with default batch number', async () => {

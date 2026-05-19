@@ -1,6 +1,10 @@
 // src/referral/referral.service.ts
 
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ReferralStatus } from '@prisma/client';
 
@@ -8,14 +12,18 @@ import { ReferralStatus } from '@prisma/client';
 export class ReferralService {
   constructor(private prisma: PrismaService) {}
 
-  async create(hospitalId: number, userId: number, data: {
-    patientId: number;
-    receivingDoctorId: number;
-    encounterId?: number;
-    reason: string;
-    clinicalSummary?: string;
-    priority?: string;
-  }) {
+  async create(
+    hospitalId: number,
+    userId: number,
+    data: {
+      patientId: number;
+      receivingDoctorId: number;
+      encounterId?: number;
+      reason: string;
+      clinicalSummary?: string;
+      priority?: string;
+    },
+  ) {
     return this.prisma.referral.create({
       data: {
         hospitalId,
@@ -86,7 +94,12 @@ export class ReferralService {
     });
   }
 
-  async complete(hospitalId: number, id: number, userId: number, notes?: string) {
+  async complete(
+    hospitalId: number,
+    id: number,
+    userId: number,
+    notes?: string,
+  ) {
     const referral = await this.prisma.referral.findFirst({
       where: { id, hospitalId },
     });

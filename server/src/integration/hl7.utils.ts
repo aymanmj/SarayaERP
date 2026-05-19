@@ -71,4 +71,3 @@ export function createACK(
 
   return `${ackMsh}\r${msa}\r`;
 }
-

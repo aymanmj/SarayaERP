@@ -33,9 +33,18 @@ describe('PatientsController', () => {
           },
         },
         { provide: AuditService, useValue: { log: jest.fn() } },
-        { provide: JwtAuthGuard, useValue: { canActivate: jest.fn().mockReturnValue(true) } },
-        { provide: RolesGuard, useValue: { canActivate: jest.fn().mockReturnValue(true) } },
-        { provide: ClinicalABACGuard, useValue: { canActivate: jest.fn().mockResolvedValue(true) } },
+        {
+          provide: JwtAuthGuard,
+          useValue: { canActivate: jest.fn().mockReturnValue(true) },
+        },
+        {
+          provide: RolesGuard,
+          useValue: { canActivate: jest.fn().mockReturnValue(true) },
+        },
+        {
+          provide: ClinicalABACGuard,
+          useValue: { canActivate: jest.fn().mockResolvedValue(true) },
+        },
       ],
     }).compile();
 

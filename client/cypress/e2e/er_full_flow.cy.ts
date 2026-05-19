@@ -32,6 +32,7 @@ describe('Full ER Patient Journey', () => {
     cy.contains('أهلاً', { timeout: 10000 }).should('be.visible');
 
     // 2. Create Patient via API (to ensure they exist)
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const patientData = {
       fullName: patientName,
       mrn: mrn,

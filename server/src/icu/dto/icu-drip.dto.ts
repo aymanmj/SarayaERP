@@ -1,4 +1,11 @@
-import { IsNumber, IsOptional, IsString, IsDecimal, IsBoolean, IsArray } from 'class-validator';
+import {
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsDecimal,
+  IsBoolean,
+  IsArray,
+} from 'class-validator';
 
 export class CreateMedicationDripDto {
   @IsNumber()

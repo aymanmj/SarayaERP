@@ -33,6 +33,7 @@ export const RequestTransferModal: React.FC<RequestTransferModalProps> = ({
 
     setSubmitting(true);
     try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const payload: any = {
         encounterId,
         reason,
@@ -44,6 +45,7 @@ export const RequestTransferModal: React.FC<RequestTransferModalProps> = ({
       toast.success('تم إرسال طلب النقل إلى العناية/القسم بنجاح');
       onSuccess();
       onClose();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       console.error(err);
       toast.error(err?.response?.data?.message || 'فشل إرسال طلب النقل');

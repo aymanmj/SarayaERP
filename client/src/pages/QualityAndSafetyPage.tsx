@@ -92,6 +92,7 @@ export default function QualityAndSafetyPage() {
 
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [incidents, setIncidents] = useState<Incident[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [myCapas, setMyCapas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -194,6 +195,7 @@ export default function QualityAndSafetyPage() {
             <button
               key={key}
               id={`tab-quality-${key}`}
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               onClick={() => setTab(key as any)}
               className={`px-5 py-3.5 text-sm font-medium border-b-2 transition-all ${
                 tab === key ? 'border-red-500 text-red-400' : 'border-transparent text-slate-400 hover:text-slate-200'

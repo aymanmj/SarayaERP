@@ -1,6 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from 'crypto';
+import {
+  createCipheriv,
+  createDecipheriv,
+  randomBytes,
+  scryptSync,
+} from 'crypto';
 
 const ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 16;
@@ -10,8 +15,11 @@ export class EncryptionService {
   private key: Buffer;
 
   constructor(private readonly config: ConfigService) {
-    const encryptionKey = this.config.get<string>('ENCRYPTION_KEY') || 'your-secret-key-32-chars-long-!!!';
-    const encryptionSalt = this.config.get<string>('ENCRYPTION_SALT') || 'saraya-default-salt-123';
+    const encryptionKey =
+      this.config.get<string>('ENCRYPTION_KEY') ||
+      'your-secret-key-32-chars-long-!!!';
+    const encryptionSalt =
+      this.config.get<string>('ENCRYPTION_SALT') || 'saraya-default-salt-123';
     this.key = scryptSync(encryptionKey, encryptionSalt, 32);
   }
 

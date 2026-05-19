@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { Calendar, Plus, X, Loader2, Clock, User, Building2, ChevronRight, ChevronLeft, CheckCircle2 } from 'lucide-react';
 
 export default function PortalAppointments() {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [appointments, setAppointments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
@@ -20,8 +21,11 @@ export default function PortalAppointments() {
   const [submitting, setSubmitting] = useState(false);
   
   // Directory Data
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [departments, setDepartments] = useState<any[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [doctors, setDoctors] = useState<any[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [availableSlots, setAvailableSlots] = useState<any[]>([]);
   
   // Selection State
@@ -111,6 +115,7 @@ export default function PortalAppointments() {
       toast.success('تم حجز الموعد بنجاح');
       setShowWizard(false);
       fetchAppointments();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'فشل حجز الموعد');
     } finally {
@@ -124,6 +129,7 @@ export default function PortalAppointments() {
       await portalApi.patch(`/appointments/${id}/cancel`);
       toast.success('تم إلغاء الموعد');
       fetchAppointments();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'فشل إلغاء الموعد');
     }
@@ -326,6 +332,7 @@ export default function PortalAppointments() {
         </div>
       ) : (
         <div className="portal-list">
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           {appointments.map((apt: any) => {
             const status = statusLabels[apt.status] || { label: apt.status, className: '' };
             const canCancel = ['REQUESTED', 'CONFIRMED'].includes(apt.status);

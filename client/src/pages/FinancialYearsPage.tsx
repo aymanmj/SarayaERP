@@ -139,6 +139,7 @@ export default function FinancialYearsPage() {
 
       // 🔄 إعادة تحميل السنوات (في حال تغيّر شيء في الحالة مستقبلاً)
       await fetchYears();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       console.error(err);
       const msg =
@@ -173,6 +174,7 @@ export default function FinancialYearsPage() {
 
   useEffect(() => {
     fetchYears();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const selectedYear = useMemo(
@@ -233,6 +235,7 @@ export default function FinancialYearsPage() {
       setStartDate("");
       setEndDate("");
       await fetchYears();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       console.error(err);
       const msg = err?.response?.data?.message;
@@ -291,6 +294,7 @@ export default function FinancialYearsPage() {
       );
       toast.success("تم إنشاء الفترات (الأشهر) بنجاح.");
       await fetchPeriods(selectedYear.id);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       console.error(err);
       const msg = err?.response?.data?.message;

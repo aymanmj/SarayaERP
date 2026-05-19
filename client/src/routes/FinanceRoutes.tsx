@@ -13,10 +13,12 @@ const CashierClosedShiftsPage = lazy(
   () => import("../pages/CashierClosedShiftsPage"),
 );
 const PaymentReceiptPage = lazy(() => import("../pages/PaymentReceiptPage"));
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const PaymentReceiptPrintPage = lazy(() => import("../pages/PaymentReceiptPrintPage"));
 const TestPrintPage = lazy(() => import("../pages/TestPrintPage"));
 const PatientStatementPage = lazy(() => import("../pages/PatientStatementPage"));
 const InvoicePrintPage = lazy(() => import("../pages/InvoicePrintPage"));
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const InvoicePrintCleanPage = lazy(() => import("../pages/InvoicePrintCleanPage"));
 const InvoicesListPage = lazy(() => import("../pages/InvoicesListPage"));
 const InvoiceDetailsPage = lazy(() => import("../pages/InvoiceDetailsPage"));

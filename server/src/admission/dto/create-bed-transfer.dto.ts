@@ -1,10 +1,4 @@
-import {
-  IsString,
-  IsInt,
-  Min,
-  MaxLength,
-  IsEnum,
-} from 'class-validator';
+import { IsString, IsInt, Min, MaxLength, IsEnum } from 'class-validator';
 
 export class CreateBedTransferDto {
   @IsInt()

@@ -15,7 +15,7 @@ const sdk = new NodeSDK({
   resource: resourceFromAttributes({
     'service.name': 'saraya-erp-backend',
     'service.version': '1.0.0',
-    'environment': process.env.NODE_ENV || 'development',
+    environment: process.env.NODE_ENV || 'development',
   }),
   traceExporter,
   instrumentations: [

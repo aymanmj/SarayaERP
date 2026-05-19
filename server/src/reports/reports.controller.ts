@@ -3,12 +3,11 @@
 import { Controller, Get, Query, Req, UseGuards } from '@nestjs/common';
 import { ReportsService } from './reports.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
-
-@UseGuards(JwtAuthGuard, RolesGuard)
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { Permissions } from '../auth/permissions.decorator';
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('reports')
-@Roles('ADMIN', 'ACCOUNTANT', 'CEO') // حماية المسارات للصلاحيات العليا فقط
+@Permissions('reports:manage') // حماية المسارات للصلاحيات العليا فقط
 export class ReportsController {
   constructor(private readonly reportsService: ReportsService) {}
 
@@ -62,7 +61,11 @@ export class ReportsController {
   ) {
     const dateFrom = from ? new Date(from) : undefined;
     const dateTo = to ? new Date(to) : undefined;
-    return this.reportsService.getDoctorPerformance(req.user.hospitalId, dateFrom, dateTo);
+    return this.reportsService.getDoctorPerformance(
+      req.user.hospitalId,
+      dateFrom,
+      dateTo,
+    );
   }
 
   /**
@@ -77,19 +80,22 @@ export class ReportsController {
   ) {
     const dateFrom = from ? new Date(from) : undefined;
     const dateTo = to ? new Date(to) : undefined;
-    return this.reportsService.getRevenueByDepartment(req.user.hospitalId, dateFrom, dateTo);
+    return this.reportsService.getRevenueByDepartment(
+      req.user.hospitalId,
+      dateFrom,
+      dateTo,
+    );
   }
 }
 
 // import { Controller, Get, Query, Req, UseGuards } from '@nestjs/common';
 // import { ReportsService } from './reports.service';
 // import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-// import { RolesGuard } from '../auth/roles.guard';
-// import { Roles } from '../auth/roles.decorator';
-
-// @UseGuards(JwtAuthGuard, RolesGuard)
+// import { PermissionsGuard } from '../auth/permissions.guard';
+// import { Permissions } from '../auth/permissions.decorator';
+// @UseGuards(JwtAuthGuard, PermissionsGuard)
 // @Controller('reports')
-// @Roles('ADMIN', 'ACCOUNTANT', 'CEO') // صلاحيات عليا
+// @Permissions('reports:manage') // صلاحيات عليا
 // export class ReportsController {
 //   constructor(private readonly reportsService: ReportsService) {}
 

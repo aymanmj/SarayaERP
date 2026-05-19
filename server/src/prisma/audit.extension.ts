@@ -30,17 +30,19 @@ export const auditExtension = (cls: ClsService, rootPrisma: any) => {
               ipAddress,
               newValues: args.data as any,
             };
-            
+
             // 1- SIEM Logger (Stream to Console for Promtail)
             siemLogger.info({
               message: 'AUDIT_TRAIL',
-              ...auditPayload
+              ...auditPayload,
             });
 
             // 2- Save audit log asynchronously
-            rootPrisma.auditLog.create({
-              data: auditPayload,
-            }).catch(console.error);
+            rootPrisma.auditLog
+              .create({
+                data: auditPayload,
+              })
+              .catch(console.error);
           }
 
           return result;
@@ -75,11 +77,11 @@ export const auditExtension = (cls: ClsService, rootPrisma: any) => {
             const newData: any = args.data;
 
             for (const key in newData) {
-               // Basic shallow diff or just store the incoming payload
-               if (newData[key] !== originalRecord[key]) {
-                  changedValues[key] = newData[key];
-                  oldValues[key] = originalRecord[key];
-               }
+              // Basic shallow diff or just store the incoming payload
+              if (newData[key] !== originalRecord[key]) {
+                changedValues[key] = newData[key];
+                oldValues[key] = originalRecord[key];
+              }
             }
 
             const auditPayload = {
@@ -96,12 +98,14 @@ export const auditExtension = (cls: ClsService, rootPrisma: any) => {
             // 1- SIEM Logger
             siemLogger.info({
               message: 'AUDIT_TRAIL',
-              ...auditPayload
+              ...auditPayload,
             });
 
-            rootPrisma.auditLog.create({
-              data: auditPayload,
-            }).catch(console.error);
+            rootPrisma.auditLog
+              .create({
+                data: auditPayload,
+              })
+              .catch(console.error);
           }
 
           return result;
@@ -112,10 +116,10 @@ export const auditExtension = (cls: ClsService, rootPrisma: any) => {
 
           let originalRecord = null;
           try {
-             const lookupArgs = applyTenantPolicy(model, 'findUnique', {
-               where: { ...args.where },
-             });
-             originalRecord = await rootPrisma[model].findUnique(lookupArgs);
+            const lookupArgs = applyTenantPolicy(model, 'findUnique', {
+              where: { ...args.where },
+            });
+            originalRecord = await rootPrisma[model].findUnique(lookupArgs);
           } catch (e) {}
 
           const result = await query(args);
@@ -138,12 +142,14 @@ export const auditExtension = (cls: ClsService, rootPrisma: any) => {
             // 1- SIEM Logger
             siemLogger.warn({
               message: 'AUDIT_TRAIL',
-              ...auditPayload
+              ...auditPayload,
             });
 
-            rootPrisma.auditLog.create({
-              data: auditPayload,
-            }).catch(console.error);
+            rootPrisma.auditLog
+              .create({
+                data: auditPayload,
+              })
+              .catch(console.error);
           }
 
           return result;

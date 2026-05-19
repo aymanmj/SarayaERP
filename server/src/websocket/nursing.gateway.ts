@@ -19,7 +19,9 @@ import { PrismaService } from '../prisma/prisma.service';
     credentials: true, // Important for cookies
   },
 })
-export class NursingGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class NursingGateway
+  implements OnGatewayConnection, OnGatewayDisconnect
+{
   @WebSocketServer()
   server: Server;
 
@@ -33,7 +35,7 @@ export class NursingGateway implements OnGatewayConnection, OnGatewayDisconnect 
   async handleConnection(client: Socket) {
     try {
       console.log('🔌 WebSocket connection attempt...');
-      
+
       const cookie = client.handshake.headers.cookie;
       const token = this.extractToken(cookie);
 
@@ -63,7 +65,9 @@ export class NursingGateway implements OnGatewayConnection, OnGatewayDisconnect 
       client.data.userId = user.id;
       client.data.hospitalId = user.hospitalId;
 
-      console.log(`✅ User ${user.username} (ID: ${user.id}) connected to nursing station`);
+      console.log(
+        `✅ User ${user.username} (ID: ${user.id}) connected to nursing station`,
+      );
 
       // Join hospital room
       await client.join(`hospital-${user.hospitalId}`);
@@ -94,7 +98,7 @@ export class NursingGateway implements OnGatewayConnection, OnGatewayDisconnect 
 
     if (userId && hospitalId) {
       this.connectedNurses.delete(userId);
-      
+
       // Notify others
       client.to(`hospital-${hospitalId}`).emit('nurse_disconnected', {
         nurseId: userId,
@@ -111,7 +115,7 @@ export class NursingGateway implements OnGatewayConnection, OnGatewayDisconnect 
   ) {
     const hospitalId = client.data.hospitalId;
     await client.join(`hospital-${hospitalId}-ward-${data.wardId}`);
-    
+
     // Send ward-specific data
     await this.sendWardData(client, hospitalId, data.wardId);
   }
@@ -119,7 +123,8 @@ export class NursingGateway implements OnGatewayConnection, OnGatewayDisconnect 
   @SubscribeMessage('medication_administered')
   async handleMedicationAdministered(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: {
+    @MessageBody()
+    data: {
       encounterId: number;
       medicationName: string;
       administeredBy: string;
@@ -127,7 +132,7 @@ export class NursingGateway implements OnGatewayConnection, OnGatewayDisconnect 
     },
   ) {
     const hospitalId = client.data.hospitalId;
-    
+
     // Broadcast to all nurses in hospital
     this.server.to(`hospital-${hospitalId}`).emit('medication_update', {
       type: 'administered',
@@ -145,14 +150,15 @@ export class NursingGateway implements OnGatewayConnection, OnGatewayDisconnect 
   @SubscribeMessage('vitals_updated')
   async handleVitalsUpdated(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: {
+    @MessageBody()
+    data: {
       encounterId: number;
       vitals: any;
       nurseName: string;
     },
   ) {
     const hospitalId = client.data.hospitalId;
-    
+
     // Broadcast vitals update
     this.server.to(`hospital-${hospitalId}`).emit('vitals_update', {
       type: 'vitals_updated',
@@ -169,7 +175,8 @@ export class NursingGateway implements OnGatewayConnection, OnGatewayDisconnect 
   @SubscribeMessage('patient_alert')
   async handlePatientAlert(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: {
+    @MessageBody()
+    data: {
       encounterId: number;
       alertType: 'CRITICAL' | 'WARNING' | 'INFO';
       message: string;
@@ -177,7 +184,7 @@ export class NursingGateway implements OnGatewayConnection, OnGatewayDisconnect 
     },
   ) {
     const hospitalId = client.data.hospitalId;
-    
+
     // Broadcast alert to all nurses
     this.server.to(`hospital-${hospitalId}`).emit('patient_alert', {
       type: data.alertType,
@@ -249,7 +256,11 @@ export class NursingGateway implements OnGatewayConnection, OnGatewayDisconnect 
     }
   }
 
-  private async sendWardData(client: Socket, hospitalId: number, wardId: number) {
+  private async sendWardData(
+    client: Socket,
+    hospitalId: number,
+    wardId: number,
+  ) {
     try {
       const wardPatients = await this.prisma.encounter.findMany({
         where: {
@@ -316,34 +327,49 @@ export class NursingGateway implements OnGatewayConnection, OnGatewayDisconnect 
     const now = Date.now();
 
     for (const item of activePrescriptions) {
-      const lastAdmin = item.administrations[0]?.administeredAt 
-        ? new Date(item.administrations[0].administeredAt).getTime() 
+      const lastAdmin = item.administrations[0]?.administeredAt
+        ? new Date(item.administrations[0].administeredAt).getTime()
         : 0;
 
       let isDue = false;
       let reason = '';
-      
+
       // Basic frequency logic
       switch (item.frequency) {
         case 'DAILY':
           // Due if last admin was > 20 hours ago (buffer allowed)
-          if (now - lastAdmin > 20 * 60 * 60 * 1000) { isDue = true; reason = 'Daily dose due'; }
+          if (now - lastAdmin > 20 * 60 * 60 * 1000) {
+            isDue = true;
+            reason = 'Daily dose due';
+          }
           break;
         case 'BID':
           // Due if last admin > 10 hours
-          if (now - lastAdmin > 10 * 60 * 60 * 1000) { isDue = true; reason = 'BID dose due'; }
+          if (now - lastAdmin > 10 * 60 * 60 * 1000) {
+            isDue = true;
+            reason = 'BID dose due';
+          }
           break;
         case 'TID':
-           // Due if last admin > 6 hours
-           if (now - lastAdmin > 6 * 60 * 60 * 1000) { isDue = true; reason = 'TID dose due'; }
-           break;
+          // Due if last admin > 6 hours
+          if (now - lastAdmin > 6 * 60 * 60 * 1000) {
+            isDue = true;
+            reason = 'TID dose due';
+          }
+          break;
         case 'QID':
-           // Due if last admin > 4 hours
-           if (now - lastAdmin > 4 * 60 * 60 * 1000) { isDue = true; reason = 'QID dose due'; }
-           break;
+          // Due if last admin > 4 hours
+          if (now - lastAdmin > 4 * 60 * 60 * 1000) {
+            isDue = true;
+            reason = 'QID dose due';
+          }
+          break;
         case 'ONCE':
-           if (lastAdmin === 0) { isDue = true; reason = 'One-time dose not given'; }
-           break;
+          if (lastAdmin === 0) {
+            isDue = true;
+            reason = 'One-time dose not given';
+          }
+          break;
       }
 
       if (isDue) {
@@ -356,17 +382,17 @@ export class NursingGateway implements OnGatewayConnection, OnGatewayDisconnect 
 
   private async getCriticalAlerts(hospitalId: number) {
     const criticalAlerts: any[] = [];
-    
+
     try {
       // 1. Check Vital Signs from the last 4 hours
       const fourHoursAgo = new Date(Date.now() - 4 * 60 * 60 * 1000);
-      
+
       const recentVitals = await this.prisma.vitalSign.findMany({
         where: {
           encounter: {
             hospitalId,
             status: 'OPEN', // Only open encounters
-            type: 'IPD',    // Only inpatients
+            type: 'IPD', // Only inpatients
           },
           createdAt: {
             gte: fourHoursAgo,
@@ -377,9 +403,16 @@ export class NursingGateway implements OnGatewayConnection, OnGatewayDisconnect 
             include: {
               patient: { select: { fullName: true, mrn: true } },
               bedAssignments: {
-                 where: { to: null },
-                 include: { bed: { select: { bedNumber: true, ward: { select: { name: true } } } } }
-              }
+                where: { to: null },
+                include: {
+                  bed: {
+                    select: {
+                      bedNumber: true,
+                      ward: { select: { name: true } },
+                    },
+                  },
+                },
+              },
             },
           },
         },
@@ -388,25 +421,31 @@ export class NursingGateway implements OnGatewayConnection, OnGatewayDisconnect 
 
       for (const vital of recentVitals) {
         const issues: string[] = [];
-        
+
         // Temperature > 38.5 or < 35
-        if (vital.temperature && (Number(vital.temperature) > 38.5 || Number(vital.temperature) < 35.0)) {
+        if (
+          vital.temperature &&
+          (Number(vital.temperature) > 38.5 || Number(vital.temperature) < 35.0)
+        ) {
           issues.push(`Temp: ${vital.temperature}°C`);
         }
-        
+
         // O2 Sat < 92%
         if (vital.o2Sat && vital.o2Sat < 92) {
           issues.push(`SpO2: ${vital.o2Sat}%`);
         }
-        
+
         // Heart Rate > 120 or < 50
         if (vital.pulse && (vital.pulse > 120 || vital.pulse < 50)) {
-           issues.push(`HR: ${vital.pulse} bpm`);
+          issues.push(`HR: ${vital.pulse} bpm`);
         }
-        
+
         // Systolic BP > 180 or < 90
-        if (vital.bpSystolic && (vital.bpSystolic > 180 || vital.bpSystolic < 90)) {
-           issues.push(`BP: ${vital.bpSystolic}/${vital.bpDiastolic}`);
+        if (
+          vital.bpSystolic &&
+          (vital.bpSystolic > 180 || vital.bpSystolic < 90)
+        ) {
+          issues.push(`BP: ${vital.bpSystolic}/${vital.bpDiastolic}`);
         }
 
         if (issues.length > 0) {
@@ -414,14 +453,15 @@ export class NursingGateway implements OnGatewayConnection, OnGatewayDisconnect 
             type: 'CRITICAL',
             patientName: vital.encounter.patient.fullName,
             mrn: vital.encounter.patient.mrn,
-            location: vital.encounter.bedAssignments[0]?.bed?.bedNumber || 'Unknown Bed',
+            location:
+              vital.encounter.bedAssignments[0]?.bed?.bedNumber ||
+              'Unknown Bed',
             message: `Abnormal Vitals: ${issues.join(', ')}`,
             timestamp: vital.createdAt.toISOString(),
             encounterId: vital.encounterId,
           });
         }
       }
-
     } catch (error) {
       console.error('Error getting critical alerts:', error);
     }
@@ -429,22 +469,35 @@ export class NursingGateway implements OnGatewayConnection, OnGatewayDisconnect 
     return criticalAlerts;
   }
 
-  private async checkMedicationReminders(hospitalId: number, encounterId: number) {
-     // Triggered after specific med updates or scheduled checks
-     // Implementation can reuse getPendingMedications logic
+  private async checkMedicationReminders(
+    hospitalId: number,
+    encounterId: number,
+  ) {
+    // Triggered after specific med updates or scheduled checks
+    // Implementation can reuse getPendingMedications logic
   }
 
-  private async checkCriticalVitals(hospitalId: number, encounterId: number, vitals: any) {
+  private async checkCriticalVitals(
+    hospitalId: number,
+    encounterId: number,
+    vitals: any,
+  ) {
     // Check for critical values immediately upon update
     const criticalValues: string[] = [];
 
-    if (vitals.bpSystolic && (vitals.bpSystolic > 180 || vitals.bpSystolic < 90)) {
+    if (
+      vitals.bpSystolic &&
+      (vitals.bpSystolic > 180 || vitals.bpSystolic < 90)
+    ) {
       criticalValues.push(`BP ${vitals.bpSystolic}/${vitals.bpDiastolic}`);
     }
     if (vitals.pulse && (vitals.pulse > 120 || vitals.pulse < 50)) {
       criticalValues.push(`HR ${vitals.pulse}`);
     }
-    if (vitals.temperature && (vitals.temperature > 39 || vitals.temperature < 35)) {
+    if (
+      vitals.temperature &&
+      (vitals.temperature > 39 || vitals.temperature < 35)
+    ) {
       criticalValues.push(`Temp ${vitals.temperature}`);
     }
     if (vitals.o2Sat && vitals.o2Sat < 90) {
@@ -475,7 +528,12 @@ export class NursingGateway implements OnGatewayConnection, OnGatewayDisconnect 
     this.server.to(`hospital-${hospitalId}`).emit(event, data);
   }
 
-  public broadcastToWard(hospitalId: number, wardId: number, event: string, data: any) {
+  public broadcastToWard(
+    hospitalId: number,
+    wardId: number,
+    event: string,
+    data: any,
+  ) {
     this.server.to(`hospital-${hospitalId}-ward-${wardId}`).emit(event, data);
   }
 }

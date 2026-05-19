@@ -126,7 +126,11 @@ describe('AppointmentsController', () => {
     appointmentsService.getOne.mockResolvedValue({ id: 5, doctorId: 99 });
 
     await expect(
-      controller.updateStatus('5', { status: 'CHECKED_IN' } as any, doctorUser as any),
+      controller.updateStatus(
+        '5',
+        { status: 'CHECKED_IN' } as any,
+        doctorUser as any,
+      ),
     ).rejects.toThrow(BadRequestException);
   });
 

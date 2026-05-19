@@ -69,9 +69,14 @@ describe('prisma tenant isolation helpers', () => {
   it('scopes counts when CLS context is active', () => {
     mockCls({ hospitalId: 11, isSuperAdmin: false });
 
-    const args = applyTenantPolicy('Appointment', 'count', {}, {
-      includeSoftDeleteFilter: true,
-    });
+    const args = applyTenantPolicy(
+      'Appointment',
+      'count',
+      {},
+      {
+        includeSoftDeleteFilter: true,
+      },
+    );
 
     expect(args.where).toEqual({ hospitalId: 11 });
   });

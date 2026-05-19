@@ -46,6 +46,7 @@ export default function InsuranceProvidersPage() {
         "/insurance/providers",
       );
       setProviders(res.data);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
       toast.error("فشل تحميل شركات التأمين");
     } finally {
@@ -106,6 +107,7 @@ export default function InsuranceProvidersPage() {
       }
       setShowModal(false);
       loadProviders();
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
       toast.error("فشل الحفظ");
     }
@@ -119,6 +121,7 @@ export default function InsuranceProvidersPage() {
       await apiClient.delete(`/insurance/providers/${id}`);
       toast.success("تم أرشفة الشركة بنجاح");
       loadProviders();
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
       toast.error("فشل الأرشفة");
     }

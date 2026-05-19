@@ -14,8 +14,8 @@ import {
 } from '@nestjs/common';
 import { AdmissionService } from './admission.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { Permissions } from '../auth/permissions.decorator';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { Sensitive } from '../audit/audit.decorator';
 import type { JwtPayload } from '../auth/jwt-payload.type';
@@ -36,10 +36,13 @@ export class AdmissionController {
   }
 
   @Get()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN', 'NURSE', 'DOCTOR')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('admission:view')
   @ApiOperation({ summary: 'List admissions' })
-  @ApiResponse({ status: 200, description: 'Admissions retrieved successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Admissions retrieved successfully',
+  })
   async listAdmissions(
     @Query('page') page: number,
     @Query('limit') limit: number,
@@ -60,8 +63,8 @@ export class AdmissionController {
   }
 
   @Get(':id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN', 'NURSE', 'DOCTOR')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('admission:view')
   @ApiOperation({ summary: 'Get admission by ID' })
   @ApiResponse({ status: 200, description: 'Admission retrieved successfully' })
   async getAdmissionById(
@@ -72,8 +75,8 @@ export class AdmissionController {
   }
 
   @Post()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN', 'NURSE', 'DOCTOR')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('admission:view')
   @Sensitive('CREATE_ADMISSION')
   @ApiOperation({ summary: 'Create a new admission' })
   @ApiResponse({ status: 201, description: 'Admission created successfully' })
@@ -81,12 +84,16 @@ export class AdmissionController {
     @Body() dto: CreateAdmissionDto,
     @CurrentUser() user: JwtPayload,
   ) {
-    return this.admissionService.createAdmission(user.hospitalId, dto, user.sub);
+    return this.admissionService.createAdmission(
+      user.hospitalId,
+      dto,
+      user.sub,
+    );
   }
 
   @Put(':id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN', 'NURSE', 'DOCTOR')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('admission:view')
   @Sensitive('UPDATE_ADMISSION')
   @ApiOperation({ summary: 'Update admission' })
   @ApiResponse({ status: 200, description: 'Admission updated successfully' })
@@ -95,12 +102,17 @@ export class AdmissionController {
     @Body() dto: UpdateAdmissionDto,
     @CurrentUser() user: JwtPayload,
   ) {
-    return this.admissionService.updateAdmission(user.hospitalId, id, dto, user.sub);
+    return this.admissionService.updateAdmission(
+      user.hospitalId,
+      id,
+      dto,
+      user.sub,
+    );
   }
 
   @Post(':id/discharge')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN', 'NURSE', 'DOCTOR')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('admission:view')
   @Sensitive('DISCHARGE_PATIENT')
   @ApiOperation({ summary: 'Discharge patient' })
   @ApiResponse({ status: 200, description: 'Patient discharged successfully' })
@@ -109,29 +121,45 @@ export class AdmissionController {
     @Body() dischargeData: any,
     @CurrentUser() user: JwtPayload,
   ) {
-    return this.admissionService.dischargePatient(user.hospitalId, id, dischargeData, user.sub);
+    return this.admissionService.dischargePatient(
+      user.hospitalId,
+      id,
+      dischargeData,
+      user.sub,
+    );
   }
 
   @Post(':id/discharge-planning')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN', 'NURSE', 'DOCTOR', 'CASE_MANAGER')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('admission:view')
   @Sensitive('CREATE_DISCHARGE_PLANNING')
   @ApiOperation({ summary: 'Create discharge planning' })
-  @ApiResponse({ status: 201, description: 'Discharge planning created successfully' })
+  @ApiResponse({
+    status: 201,
+    description: 'Discharge planning created successfully',
+  })
   async createDischargePlanning(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: CreateDischargePlanningDto,
     @CurrentUser() user: JwtPayload,
   ) {
-    return this.admissionService.createDischargePlanning(user.hospitalId, id, dto, user.sub);
+    return this.admissionService.createDischargePlanning(
+      user.hospitalId,
+      id,
+      dto,
+      user.sub,
+    );
   }
 
   @Delete(':id/discharge-planning')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN', 'NURSE', 'DOCTOR', 'CASE_MANAGER')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('admission:view')
   @Sensitive('DELETE_DISCHARGE_PLANNING')
   @ApiOperation({ summary: 'Delete discharge planning (PENDING only)' })
-  @ApiResponse({ status: 200, description: 'Discharge planning deleted successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Discharge planning deleted successfully',
+  })
   async deleteDischargePlanning(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: JwtPayload,
@@ -140,8 +168,8 @@ export class AdmissionController {
   }
 
   @Get('discharge-planning/list')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN', 'NURSE', 'DOCTOR', 'CASE_MANAGER')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('admission:view')
   @ApiOperation({ summary: 'List discharge plans' })
   async listDischargePlans(
     @Query('page') page: number,
@@ -159,8 +187,8 @@ export class AdmissionController {
   }
 
   @Patch('discharge-planning/:planId/status')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN', 'NURSE', 'DOCTOR', 'CASE_MANAGER')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('admission:view')
   @Sensitive('UPDATE_DISCHARGE_PLANNING')
   @ApiOperation({ summary: 'Update discharge plan status' })
   async updateDischargePlanStatus(
@@ -179,61 +207,89 @@ export class AdmissionController {
   }
 
   @Post(':id/bed-transfer/request')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN', 'NURSE', 'DOCTOR')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('admission:view')
   @Sensitive('REQUEST_BED_TRANSFER')
   @ApiOperation({ summary: 'Request bed transfer' })
-  @ApiResponse({ status: 201, description: 'Bed transfer requested successfully' })
+  @ApiResponse({
+    status: 201,
+    description: 'Bed transfer requested successfully',
+  })
   async requestBedTransfer(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: CreateBedTransferDto,
     @CurrentUser() user: JwtPayload,
   ) {
-    return this.admissionService.requestBedTransfer(user.hospitalId, id, dto, user.sub);
+    return this.admissionService.requestBedTransfer(
+      user.hospitalId,
+      id,
+      dto,
+      user.sub,
+    );
   }
 
   @Post('bed-transfer/:transferId/complete')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN', 'NURSE', 'DOCTOR')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('admission:view')
   @Sensitive('COMPLETE_BED_TRANSFER')
   @ApiOperation({ summary: 'Complete bed transfer' })
-  @ApiResponse({ status: 200, description: 'Bed transfer completed successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Bed transfer completed successfully',
+  })
   async completeBedTransfer(
     @Param('transferId', ParseIntPipe) transferId: number,
     @CurrentUser() user: JwtPayload,
   ) {
-    return this.admissionService.completeBedTransfer(user.hospitalId, transferId, user.sub);
+    return this.admissionService.completeBedTransfer(
+      user.hospitalId,
+      transferId,
+      user.sub,
+    );
   }
 
   @Get('statistics/overview')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN', 'NURSE', 'DOCTOR')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('admission:view')
   @ApiOperation({ summary: 'Get admission statistics' })
-  @ApiResponse({ status: 200, description: 'Statistics retrieved successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Statistics retrieved successfully',
+  })
   async getAdmissionStatistics(
     @Query('period') period: string = 'today',
     @CurrentUser() user: JwtPayload,
   ) {
-    return this.admissionService.getAdmissionStatistics(user.hospitalId, period);
+    return this.admissionService.getAdmissionStatistics(
+      user.hospitalId,
+      period,
+    );
   }
 
   @Get('reports/bed-occupancy')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN', 'NURSE', 'DOCTOR')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('admission:view')
   @ApiOperation({ summary: 'Get bed occupancy report' })
-  @ApiResponse({ status: 200, description: 'Bed occupancy report retrieved successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Bed occupancy report retrieved successfully',
+  })
   async getBedOccupancyReport(@CurrentUser() user: JwtPayload) {
     return this.admissionService.getBedOccupancyReport(user.hospitalId);
   }
 
   @Post('quick-admission')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN', 'NURSE', 'DOCTOR')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('admission:view')
   @Sensitive('QUICK_ADMISSION')
   @ApiOperation({ summary: 'Quick admission for emergency cases' })
-  @ApiResponse({ status: 201, description: 'Quick admission completed successfully' })
+  @ApiResponse({
+    status: 201,
+    description: 'Quick admission completed successfully',
+  })
   async quickAdmission(
-    @Body() dto: {
+    @Body()
+    dto: {
       patientId: number;
       bedId: number;
       admittingDoctorId: number;
@@ -252,6 +308,10 @@ export class AdmissionController {
       isolationRequired: false,
     };
 
-    return this.admissionService.createAdmission(user.hospitalId, admissionData, user.sub);
+    return this.admissionService.createAdmission(
+      user.hospitalId,
+      admissionData,
+      user.sub,
+    );
   }
 }

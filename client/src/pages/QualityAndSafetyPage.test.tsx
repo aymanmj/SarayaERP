@@ -27,12 +27,15 @@ describe('QualityAndSafetyPage', () => {
   });
 
   it('renders the dashboard tab by default and loads stats', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (apiClient.get as any).mockResolvedValueOnce({
-      byStatus: { REPORTED: 5, CLOSED: 10 },
-      bySeverity: { MINOR: 8, MAJOR: 2 },
-      openCapas: 3,
-      overdueCapas: 1,
-      recentIncidents: [],
+      data: {
+        byStatus: { REPORTED: 5, CLOSED: 10 },
+        bySeverity: { MINOR: 8, MAJOR: 2 },
+        openCapas: 3,
+        overdueCapas: 1,
+        recentIncidents: [],
+      }
     });
 
     renderComponent();
@@ -52,33 +55,38 @@ describe('QualityAndSafetyPage', () => {
   });
 
   it('switches to the incidents tab when clicked and fetches data', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (apiClient.get as any).mockImplementation((url: string) => {
       if (url.includes('/quality/dashboard')) return Promise.resolve({
-        byStatus: {},
-        bySeverity: {},
-        openCapas: 0,
-        overdueCapas: 0,
-        recentIncidents: [],
+        data: {
+          byStatus: {},
+          bySeverity: {},
+          openCapas: 0,
+          overdueCapas: 0,
+          recentIncidents: [],
+        }
       });
       if (url.includes('/quality/incidents')) {
         return Promise.resolve({
-          items: [
-            {
-              id: 1,
-              incidentNumber: 'INC-2026-0001',
-              incidentType: 'OTHER',
-              severity: 'MINOR',
-              status: 'REPORTED',
-              description: 'Patient slipped but did not fall.',
-              location: 'Ward A',
-              isAnonymous: false,
-              reportedAt: '2026-05-17T10:00:00Z',
-              incidentDate: '2026-05-17T10:00:00Z',
-              reporter: { id: 1, fullName: 'John Doe' },
-              patient: null,
-              _count: { capaActions: 0 },
-            },
-          ],
+          data: {
+            items: [
+              {
+                id: 1,
+                incidentNumber: 'INC-2026-0001',
+                incidentType: 'OTHER',
+                severity: 'MINOR',
+                status: 'REPORTED',
+                description: 'Patient slipped but did not fall.',
+                location: 'Ward A',
+                isAnonymous: false,
+                reportedAt: '2026-05-17T10:00:00Z',
+                incidentDate: '2026-05-17T10:00:00Z',
+                reporter: { id: 1, fullName: 'John Doe' },
+                patient: null,
+                _count: { capaActions: 0 },
+              },
+            ],
+          }
         });
       }
       return Promise.resolve({});
@@ -98,14 +106,18 @@ describe('QualityAndSafetyPage', () => {
   });
 
   it('can submit a new incident report', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (apiClient.get as any).mockResolvedValue({
-      byStatus: {},
-      bySeverity: {},
-      openCapas: 0,
-      overdueCapas: 0,
-      recentIncidents: [],
+      data: {
+        byStatus: {},
+        bySeverity: {},
+        openCapas: 0,
+        overdueCapas: 0,
+        recentIncidents: [],
+      }
     });
-    (apiClient.post as any).mockResolvedValue({ id: 2, incidentNumber: 'INC-2026-0002' });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (apiClient.post as any).mockResolvedValue({ data: { id: 2, incidentNumber: 'INC-2026-0002' } });
 
     renderComponent(['/quality?tab=report']);
 

@@ -1,26 +1,32 @@
 // src/dashboard/dashboard.controller.ts
 
-import { Controller, Get, UseGuards, Req, Query } from '@nestjs/common';
+import { Controller, Get, UseGuards, Query } from '@nestjs/common';
 import { DashboardService } from './dashboard.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { Permissions } from '../auth/permissions.decorator';
+import { CurrentUser } from '../auth/current-user.decorator';
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('dashboard')
 export class DashboardController {
   constructor(private readonly dashboardService: DashboardService) {}
 
+  @Permissions('dashboard:view')
   @Get('stats')
-  async getStats(@Req() req: any, @Query('period') period?: string) {
+  async getStats(@CurrentUser() user: any, @Query('period') period?: string) {
     return this.dashboardService.getStats(
-      req.user.hospitalId,
-      req.user.sub,
-      req.user.roles,
+      user.hospitalId,
+      user.sub,
+      user.roles,
       period || 'today',
     );
   }
 
+  @Permissions('dashboard:view')
   @Get('recent-activities')
-  async getRecentActivities(@Req() req: any) {
-    return this.dashboardService.getRecentActivities(req.user.hospitalId);
+  async getRecentActivities(@CurrentUser() user: any) {
+    return this.dashboardService.getRecentActivities(user.hospitalId);
   }
 }
+

@@ -1,5 +1,10 @@
-
-import { Injectable, Logger, InternalServerErrorException, BadRequestException, OnModuleInit } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  InternalServerErrorException,
+  BadRequestException,
+  OnModuleInit,
+} from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -23,27 +28,52 @@ export interface StoragePath {
   path: string;
   label: string;
   type: 'default' | 'usb' | 'disk' | 'network' | 'custom';
-  totalSpace: number;    // بالبايت
-  freeSpace: number;     // بالبايت
-  usedPercent: number;   // نسبة الاستخدام
+  totalSpace: number; // بالبايت
+  freeSpace: number; // بالبايت
+  usedPercent: number; // نسبة الاستخدام
   isWritable: boolean;
-  backupCount: number;   // عدد النسخ الموجودة في هذا المسار
+  backupCount: number; // عدد النسخ الموجودة في هذا المسار
 }
 
 @Injectable()
 export class BackupService implements OnModuleInit {
   private readonly logger = new Logger(BackupService.name);
   private readonly defaultBackupDir = '/backups';
-  private readonly triggerBackupFile = path.join(this.defaultBackupDir, 'trigger_backup');
-  private readonly triggerRestoreFile = path.join(this.defaultBackupDir, 'trigger_restore');
-  private readonly statusFile = path.join(this.defaultBackupDir, 'worker_status.json');
-  private readonly configFile = path.join(this.defaultBackupDir, 'backup_config.json');
+  private readonly triggerBackupFile = path.join(
+    this.defaultBackupDir,
+    'trigger_backup',
+  );
+  private readonly triggerRestoreFile = path.join(
+    this.defaultBackupDir,
+    'trigger_restore',
+  );
+  private readonly statusFile = path.join(
+    this.defaultBackupDir,
+    'worker_status.json',
+  );
+  private readonly configFile = path.join(
+    this.defaultBackupDir,
+    'backup_config.json',
+  );
 
   /** المسارات المسموح بها للنسخ الاحتياطي */
   private readonly ALLOWED_BASE_PATHS = ['/backups', '/mnt', '/media'];
 
   /** مسارات النظام المحظورة */
-  private readonly BLOCKED_PATHS = ['/', '/etc', '/var', '/usr', '/bin', '/sbin', '/proc', '/sys', '/dev', '/root', '/boot', '/tmp'];
+  private readonly BLOCKED_PATHS = [
+    '/',
+    '/etc',
+    '/var',
+    '/usr',
+    '/bin',
+    '/sbin',
+    '/proc',
+    '/sys',
+    '/dev',
+    '/root',
+    '/boot',
+    '/tmp',
+  ];
 
   onModuleInit() {
     this.ensureDir(this.defaultBackupDir);
@@ -72,13 +102,19 @@ export class BackupService implements OnModuleInit {
 
     // منع مسارات النظام
     if (this.BLOCKED_PATHS.includes(resolved)) {
-      throw new BadRequestException(`المسار "${resolved}" محظور — لا يمكن النسخ إلى مسارات النظام`);
+      throw new BadRequestException(
+        `المسار "${resolved}" محظور — لا يمكن النسخ إلى مسارات النظام`,
+      );
     }
 
     // التأكد أن المسار يبدأ بأحد المسارات المسموحة
-    const isAllowed = this.ALLOWED_BASE_PATHS.some(base => resolved.startsWith(base));
+    const isAllowed = this.ALLOWED_BASE_PATHS.some((base) =>
+      resolved.startsWith(base),
+    );
     if (!isAllowed) {
-      throw new BadRequestException(`المسار "${resolved}" غير مسموح. المسارات المسموحة: ${this.ALLOWED_BASE_PATHS.join(', ')}`);
+      throw new BadRequestException(
+        `المسار "${resolved}" غير مسموح. المسارات المسموحة: ${this.ALLOWED_BASE_PATHS.join(', ')}`,
+      );
     }
 
     return resolved;
@@ -95,13 +131,19 @@ export class BackupService implements OnModuleInit {
     const paths: StoragePath[] = [];
 
     // 1. المسار الافتراضي دائماً
-    paths.push(await this.getStorageInfo(this.defaultBackupDir, 'المسار الافتراضي', 'default'));
+    paths.push(
+      await this.getStorageInfo(
+        this.defaultBackupDir,
+        'المسار الافتراضي',
+        'default',
+      ),
+    );
 
     // 2. اكتشاف الأقراص المركبة تحت /mnt و /media
     for (const baseDir of ['/mnt', '/media']) {
       try {
         if (!fs.existsSync(baseDir)) continue;
-        
+
         const entries = await readdir(baseDir);
         for (const entry of entries) {
           const fullPath = path.join(baseDir, entry);
@@ -128,7 +170,11 @@ export class BackupService implements OnModuleInit {
   /**
    * يجمع معلومات التخزين لمسار معين (المساحة، قابلية الكتابة، عدد النسخ)
    */
-  private async getStorageInfo(dirPath: string, label: string, type: StoragePath['type']): Promise<StoragePath> {
+  private async getStorageInfo(
+    dirPath: string,
+    label: string,
+    type: StoragePath['type'],
+  ): Promise<StoragePath> {
     let totalSpace = 0;
     let freeSpace = 0;
     let usedPercent = 0;
@@ -137,7 +183,9 @@ export class BackupService implements OnModuleInit {
 
     try {
       // الحصول على معلومات المساحة عبر df
-      const dfOutput = execSync(`df -B1 "${dirPath}" 2>/dev/null | tail -1`, { encoding: 'utf8' }).trim();
+      const dfOutput = execSync(`df -B1 "${dirPath}" 2>/dev/null | tail -1`, {
+        encoding: 'utf8',
+      }).trim();
       const parts = dfOutput.split(/\s+/);
       if (parts.length >= 5) {
         totalSpace = parseInt(parts[1]) || 0;
@@ -162,7 +210,7 @@ export class BackupService implements OnModuleInit {
     try {
       if (fs.existsSync(dirPath)) {
         const files = await readdir(dirPath);
-        backupCount = files.filter(f => f.endsWith('.sql.gz')).length;
+        backupCount = files.filter((f) => f.endsWith('.sql.gz')).length;
       }
     } catch {
       backupCount = 0;
@@ -187,7 +235,7 @@ export class BackupService implements OnModuleInit {
     try {
       // محاولة قراءة /proc/mounts لتحديد نوع نظام الملفات
       const mounts = fs.readFileSync('/proc/mounts', 'utf8');
-      const line = mounts.split('\n').find(l => l.includes(mountPath));
+      const line = mounts.split('\n').find((l) => l.includes(mountPath));
       if (line) {
         const fsType = line.split(/\s+/)[2] || '';
         if (['vfat', 'exfat', 'ntfs', 'fuseblk'].includes(fsType)) return 'usb';
@@ -289,7 +337,9 @@ export class BackupService implements OnModuleInit {
     };
 
     await writeFile(this.configFile, JSON.stringify(config, null, 2));
-    this.logger.log(`تم تحديث إعدادات النسخ الاحتياطي: ${JSON.stringify(config)}`);
+    this.logger.log(
+      `تم تحديث إعدادات النسخ الاحتياطي: ${JSON.stringify(config)}`,
+    );
     return config;
   }
 
@@ -349,7 +399,9 @@ export class BackupService implements OnModuleInit {
     }
 
     // ترتيب بتاريخ الإنشاء تنازلياً
-    return allBackups.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    return allBackups.sort(
+      (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
+    );
   }
 
   /**
@@ -359,9 +411,9 @@ export class BackupService implements OnModuleInit {
     const backups: BackupFile[] = [];
     try {
       if (!fs.existsSync(dir)) return [];
-      
+
       const files = await readdir(dir);
-      const backupFiles = files.filter(f => f.endsWith('.sql.gz'));
+      const backupFiles = files.filter((f) => f.endsWith('.sql.gz'));
 
       for (const file of backupFiles) {
         try {
@@ -390,7 +442,7 @@ export class BackupService implements OnModuleInit {
     const allBackups: BackupFile[] = [];
 
     // المسار الافتراضي
-    allBackups.push(...await this.scanDirForBackups(this.defaultBackupDir));
+    allBackups.push(...(await this.scanDirForBackups(this.defaultBackupDir)));
 
     // جميع المسارات تحت /mnt و /media
     for (const baseDir of ['/mnt', '/media']) {
@@ -402,14 +454,20 @@ export class BackupService implements OnModuleInit {
           try {
             const stats = await stat(fullPath);
             if (stats.isDirectory()) {
-              allBackups.push(...await this.scanDirForBackups(fullPath));
+              allBackups.push(...(await this.scanDirForBackups(fullPath)));
             }
-          } catch { /* تجاهل */ }
+          } catch {
+            /* تجاهل */
+          }
         }
-      } catch { /* تجاهل */ }
+      } catch {
+        /* تجاهل */
+      }
     }
 
-    return allBackups.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    return allBackups.sort(
+      (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
+    );
   }
 
   // ==========================================
@@ -420,7 +478,10 @@ export class BackupService implements OnModuleInit {
    * يُنشئ نسخة احتياطية (يدوية أو تلقائية)
    * يدعم النسخ المزدوج: أساسي + ثانوي
    */
-  async createBackup(targetPath?: string, secondaryPath?: string): Promise<{ message: string }> {
+  async createBackup(
+    targetPath?: string,
+    secondaryPath?: string,
+  ): Promise<{ message: string }> {
     try {
       if (fs.existsSync(this.triggerBackupFile)) {
         return { message: 'هناك عملية نسخ احتياطي في قائمة الانتظار بالفعل' };
@@ -467,13 +528,20 @@ export class BackupService implements OnModuleInit {
   /**
    * يستعيد نسخة احتياطية من أي مسار
    */
-  async restoreBackup(filename: string, storagePath?: string): Promise<{ message: string }> {
+  async restoreBackup(
+    filename: string,
+    storagePath?: string,
+  ): Promise<{ message: string }> {
     // تحديد مسار الملف الكامل
-    const dir = storagePath ? this.validatePath(storagePath) : this.defaultBackupDir;
+    const dir = storagePath
+      ? this.validatePath(storagePath)
+      : this.defaultBackupDir;
     const filePath = path.join(dir, path.basename(filename)); // basename للحماية من traversal
 
     if (!fs.existsSync(filePath)) {
-      throw new InternalServerErrorException(`ملف النسخة غير موجود: ${filePath}`);
+      throw new InternalServerErrorException(
+        `ملف النسخة غير موجود: ${filePath}`,
+      );
     }
 
     try {
@@ -492,7 +560,9 @@ export class BackupService implements OnModuleInit {
   // ==========================================
 
   async deleteBackup(filename: string, storagePath?: string): Promise<void> {
-    const dir = storagePath ? this.validatePath(storagePath) : this.defaultBackupDir;
+    const dir = storagePath
+      ? this.validatePath(storagePath)
+      : this.defaultBackupDir;
     const safeFilename = path.basename(filename);
     const filePath = path.join(dir, safeFilename);
 
@@ -533,9 +603,13 @@ export class BackupService implements OnModuleInit {
 
     const config = await this.getConfig();
     const primaryPath = config.autoBackupPath || this.defaultBackupDir;
-    const secondaryPath = config.dualBackupEnabled ? config.secondaryPath : null;
+    const secondaryPath = config.dualBackupEnabled
+      ? config.secondaryPath
+      : null;
 
-    this.logger.log(`مسار النسخ التلقائي — أساسي: ${primaryPath}${secondaryPath ? ` | ثانوي: ${secondaryPath}` : ''}`);
+    this.logger.log(
+      `مسار النسخ التلقائي — أساسي: ${primaryPath}${secondaryPath ? ` | ثانوي: ${secondaryPath}` : ''}`,
+    );
     await this.createBackup(primaryPath, secondaryPath || undefined);
   }
 }

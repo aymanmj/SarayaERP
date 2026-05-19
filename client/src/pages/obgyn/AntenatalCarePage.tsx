@@ -134,6 +134,7 @@ export default function AntenatalCarePage() {
       toast.success('تم تسجيل الحمل بنجاح');
       setShowNewCareForm(false);
       navigate(`/obgyn/anc?careId=${res.data.id}`, { replace: true });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'فشل تسجيل الحمل');
     }
@@ -165,6 +166,7 @@ export default function AntenatalCarePage() {
       setFhr(''); setFetalMovement(true); setPresentation(''); setEdema(false);
       setUrineProtein('Nil'); setUrineGlucose('Nil'); setHemoglobin('');
       setComplaints(''); setVisitNotes(''); setNextVisitDate('');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'فشل إضافة الزيارة');
     }

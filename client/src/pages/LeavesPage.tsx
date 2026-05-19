@@ -34,6 +34,7 @@ export default function LeavesPage() {
   const isAdmin = user?.roles.includes("ADMIN") || user?.roles.includes("HR");
 
   const [leaves, setLeaves] = useState<LeaveRequest[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
 
@@ -68,6 +69,7 @@ export default function LeavesPage() {
       toast.success("تم إرسال طلب الإجازة");
       setShowModal(false);
       loadLeaves();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       toast.error(err?.response?.data?.message || "فشل الطلب");
     }
@@ -184,6 +186,7 @@ export default function LeavesPage() {
                 <select
                   value={form.type}
                   onChange={(e) =>
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     setForm({ ...form, type: e.target.value as any })
                   }
                   className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm"

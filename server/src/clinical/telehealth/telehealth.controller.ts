@@ -1,4 +1,12 @@
-import { Controller, Post, Get, Param, UseGuards, ParseIntPipe, Req } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Param,
+  UseGuards,
+  ParseIntPipe,
+  Req,
+} from '@nestjs/common';
 import { TelehealthService } from './telehealth.service';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../auth/permissions.guard';
@@ -11,7 +19,9 @@ export class TelehealthController {
 
   @Post('session/:appointmentId/init')
   @Permissions('telehealth:manage')
-  async createSession(@Param('appointmentId', ParseIntPipe) appointmentId: number) {
+  async createSession(
+    @Param('appointmentId', ParseIntPipe) appointmentId: number,
+  ) {
     return this.telehealthService.createSession(appointmentId);
   }
 
@@ -32,7 +42,10 @@ export class TelehealthController {
     @Req() req: any,
   ) {
     const patientId = req.user.patientId;
-    return this.telehealthService.getPatientRoomAccess(appointmentId, patientId);
+    return this.telehealthService.getPatientRoomAccess(
+      appointmentId,
+      patientId,
+    );
   }
 
   @Post('session/:appointmentId/start')

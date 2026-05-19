@@ -15,6 +15,8 @@ import { InventoryCountStatus, InventoryCountType } from '@prisma/client';
 import { IsInt, IsEnum, IsOptional, IsString } from 'class-validator';
 import { Type } from 'class-transformer';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { Permissions } from '../auth/permissions.decorator';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { JwtPayload } from '../auth/jwt-payload.type';
 
@@ -37,7 +39,7 @@ class CreateInventoryCountDto {
 }
 
 @Controller('inventory/counts')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 export class InventoryCountController {
   constructor(private readonly service: InventoryCountService) {}
 
@@ -57,6 +59,7 @@ export class InventoryCountController {
     return user.hospitalId;
   }
 
+  @Permissions('inventory:manage')
   @Post()
   create(
     @Body() dto: CreateInventoryCountDto,
@@ -71,6 +74,7 @@ export class InventoryCountController {
     });
   }
 
+  @Permissions('inventory:view')
   @Get()
   findAll(
     @CurrentUser() user: JwtPayload,
@@ -81,6 +85,7 @@ export class InventoryCountController {
     );
   }
 
+  @Permissions('inventory:view')
   @Get(':id')
   findOne(
     @CurrentUser() user: JwtPayload,
@@ -93,6 +98,7 @@ export class InventoryCountController {
     );
   }
 
+  @Permissions('inventory:manage')
   @Put(':id/lines/:lineId')
   updateLine(
     @CurrentUser() user: JwtPayload,
@@ -102,6 +108,7 @@ export class InventoryCountController {
     return this.service.updateLine(lineId, physicalQty, user.hospitalId);
   }
 
+  @Permissions('inventory:manage')
   @Put(':id/status')
   updateStatus(
     @CurrentUser() user: JwtPayload,
@@ -111,6 +118,7 @@ export class InventoryCountController {
     return this.service.updateStatus(id, status, user.hospitalId);
   }
 
+  @Permissions('inventory:manage')
   @Post(':id/post')
   postCount(
     @CurrentUser() user: JwtPayload,
@@ -119,6 +127,7 @@ export class InventoryCountController {
     return this.service.postCount(id, user.sub, user.hospitalId);
   }
 
+  @Permissions('inventory:view')
   @Get('dashboard/stats')
   getDashboardStats(
     @CurrentUser() user: JwtPayload,

@@ -53,7 +53,12 @@ export class WaitlistService {
         { priority: 'asc' }, // Priority 1 is highest
         { requestedDate: 'asc' }, // Then by oldest request
       ],
-      include: { patient: true, department: true, doctor: true, resource: true },
+      include: {
+        patient: true,
+        department: true,
+        doctor: true,
+        resource: true,
+      },
     });
   }
 

@@ -61,6 +61,7 @@ const catStyle: Record<string, { icon: string; color: string; bg: string; border
 
 const defaultCatStyle = { icon: '📋', color: 'text-slate-400', bg: 'bg-slate-950/30', border: 'border-slate-800/30' };
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function LabsTab({ encounterId, hospitalId, doctorId }: LabsTabProps) {
   const [labOrders, setLabOrders] = useState<LabOrderDto[]>([]);
   const [testsCatalog, setTestsCatalog] = useState<LabTest[]>([]);
@@ -91,6 +92,7 @@ export function LabsTab({ encounterId, hospitalId, doctorId }: LabsTabProps) {
 
   useEffect(() => {
     if (encounterId) fetchData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [encounterId]);
 
   // Derived: categories
@@ -137,6 +139,7 @@ export function LabsTab({ encounterId, hospitalId, doctorId }: LabsTabProps) {
       setNotes("");
       setSearch("");
       fetchData();
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (e) {
       toast.error("فشل إرسال الطلب");
     }

@@ -1,13 +1,13 @@
 /**
  * Patient Portal — Auth Guard (Enterprise Hardened)
- * 
+ *
  * Security layers enforced:
  * 1. JWT signature verification
  * 2. Token audience check (aud === 'patient-portal')
  * 3. Role validation (role === 'PATIENT')
  * 4. Token type validation (type === 'access')
  * 5. Required claims check (sub, hospitalId)
- * 
+ *
  * This guard REJECTS:
  * - Staff/admin JWT tokens (different role)
  * - Refresh tokens (wrong type)
@@ -65,7 +65,9 @@ export class PatientAuthGuard implements CanActivate {
       //  Reject any token that is NOT PATIENT-scoped
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       if (payload.role !== 'PATIENT') {
-        this.logger.warn(`🚫 Non-patient token attempted portal access: role=${payload.role}, sub=${payload.sub}`);
+        this.logger.warn(
+          `🚫 Non-patient token attempted portal access: role=${payload.role}, sub=${payload.sub}`,
+        );
         throw new UnauthorizedException('رمز غير صالح لبوابة المريض');
       }
 
@@ -74,7 +76,9 @@ export class PatientAuthGuard implements CanActivate {
       //  Only accept 'access' tokens (reject 'refresh')
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       if (payload.type !== 'access') {
-        this.logger.warn(`🚫 Non-access token used: type=${payload.type}, sub=${payload.sub}`);
+        this.logger.warn(
+          `🚫 Non-access token used: type=${payload.type}, sub=${payload.sub}`,
+        );
         throw new UnauthorizedException('نوع الرمز غير صالح');
       }
 
@@ -83,7 +87,9 @@ export class PatientAuthGuard implements CanActivate {
       //  Token MUST carry aud === 'patient-portal'
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       if (payload.aud !== 'patient-portal') {
-        this.logger.warn(`🚫 Missing or wrong audience: aud=${payload.aud}, sub=${payload.sub}`);
+        this.logger.warn(
+          `🚫 Missing or wrong audience: aud=${payload.aud}, sub=${payload.sub}`,
+        );
         throw new UnauthorizedException('رمز غير مصرّح لهذه الخدمة');
       }
 
@@ -92,7 +98,9 @@ export class PatientAuthGuard implements CanActivate {
       //  Ensure sub (patientId) and hospitalId exist
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       if (!payload.sub || !payload.hospitalId) {
-        this.logger.warn(`🚫 Missing claims: sub=${payload.sub}, hospitalId=${payload.hospitalId}`);
+        this.logger.warn(
+          `🚫 Missing claims: sub=${payload.sub}, hospitalId=${payload.hospitalId}`,
+        );
         throw new UnauthorizedException('رمز ناقص البيانات');
       }
 

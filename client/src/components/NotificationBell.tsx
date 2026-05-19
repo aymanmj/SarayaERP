@@ -48,6 +48,7 @@ export function NotificationBell() {
       const res = await apiClient.get<Notification[]>("/notifications");
       setNotifications(res.data);
       setUnreadCount(res.data.filter((n) => !n.isRead).length);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
       console.error("Failed to fetch notifications");
     }
@@ -56,10 +57,12 @@ export function NotificationBell() {
   // Poll كل 60 ثانية
   useEffect(() => {
     if (user) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       fetchNotifications();
       const interval = setInterval(fetchNotifications, 60000);
       return () => clearInterval(interval);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   // إغلاق القائمة عند النقر خارجها

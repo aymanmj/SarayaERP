@@ -14,17 +14,16 @@ import {
 } from '@nestjs/common';
 import { DepartmentsService } from './departments.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
-
-@UseGuards(JwtAuthGuard, RolesGuard)
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { Permissions } from '../auth/permissions.decorator';
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('departments')
-@Roles('ADMIN') // إدارة الأقسام للأدمن فقط
+@Permissions('departments:manage') // إدارة الأقسام للأدمن فقط
 export class DepartmentsController {
   constructor(private readonly departmentsService: DepartmentsService) {}
 
   @Get()
-  @Roles('ADMIN', 'CASHIER', 'RECEPTION', 'DOCTOR', 'NURSE')
+  @Permissions('departments:view')
   async findAll(@Req() req: any) {
     return this.departmentsService.findAll(req.user.hospitalId);
   }

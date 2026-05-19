@@ -103,12 +103,20 @@ import { QualityModule } from './quality/quality.module'; // ✅ [NEW] Quality &
     }),
     ClsModule.forRoot({
       global: true,
-      middleware: { 
+      middleware: {
         mount: true,
         setup: (cls, req: any) => {
           const forwarded = req.headers['x-forwarded-for'];
-          cls.set('ipAddress', forwarded ? forwarded.split(',')[0].trim() : (req.ip || req.connection?.remoteAddress || req.socket?.remoteAddress || 'unknown'));
-        }
+          cls.set(
+            'ipAddress',
+            forwarded
+              ? forwarded.split(',')[0].trim()
+              : req.ip ||
+                  req.connection?.remoteAddress ||
+                  req.socket?.remoteAddress ||
+                  'unknown',
+          );
+        },
       },
     }),
     PrismaModule,

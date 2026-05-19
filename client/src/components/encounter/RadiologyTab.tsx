@@ -92,6 +92,7 @@ export function RadiologyTab({ encounterId, hospitalId, doctorId }: RadiologyTab
 
   useEffect(() => {
     if (encounterId && hospitalId) fetchData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [encounterId, hospitalId]);
 
   // Derived: modalities

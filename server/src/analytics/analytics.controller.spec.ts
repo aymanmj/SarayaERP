@@ -15,9 +15,7 @@ describe('AnalyticsController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AnalyticsController],
-      providers: [
-        { provide: AnalyticsService, useValue: mockService },
-      ],
+      providers: [{ provide: AnalyticsService, useValue: mockService }],
     }).compile();
 
     controller = module.get<AnalyticsController>(AnalyticsController);
@@ -38,7 +36,11 @@ describe('AnalyticsController', () => {
     const res = await controller.getClinicalKPIs(user, req);
 
     expect(res).toEqual(mockRes);
-    expect(mockService.getClinicalKPIs).toHaveBeenCalledWith(1, expect.any(Date), expect.any(Date));
+    expect(mockService.getClinicalKPIs).toHaveBeenCalledWith(
+      1,
+      expect.any(Date),
+      expect.any(Date),
+    );
   });
 
   it('should get variance report', async () => {

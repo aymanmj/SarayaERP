@@ -138,6 +138,7 @@ export default function AndrologyPage() {
       toast.success("تم حفظ تحليل السائل المنوي بنجاح.");
       setShowSemenForm(false);
       loadPatientData(patientId);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
       toast.error(e?.response?.data?.message || "فشل الحفظ.");
     }
@@ -150,6 +151,7 @@ export default function AndrologyPage() {
       toast.success("تم حفظ زيارة أمراض الذكورة.");
       setShowAndrologyForm(false);
       loadPatientData(patientId);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
       toast.error(e?.response?.data?.message || "فشل الحفظ.");
     }
@@ -162,6 +164,7 @@ export default function AndrologyPage() {
       toast.success("تم حفظ البروفايل الهرموني بنجاح.");
       setShowHormoneForm(false);
       loadPatientData(patientId);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
       toast.error(e?.response?.data?.message || "فشل الحفظ.");
     }
@@ -174,6 +177,7 @@ export default function AndrologyPage() {
       toast.success("تم حفظ العملية الجراحية بنجاح.");
       setShowSurgeryForm(false);
       loadPatientData(patientId);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
       toast.error(e?.response?.data?.message || "فشل الحفظ.");
     }
@@ -186,6 +190,7 @@ export default function AndrologyPage() {
       toast.success("تم حفظ الدواء بنجاح.");
       setShowMedicationForm(false);
       loadPatientData(patientId);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
       toast.error(e?.response?.data?.message || "فشل الحفظ.");
     }
@@ -198,6 +203,7 @@ export default function AndrologyPage() {
       toast.success("تم حفظ الفحص الطبي بنجاح.");
       setShowInvestigationForm(false);
       loadPatientData(patientId);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
       toast.error(e?.response?.data?.message || "فشل الحفظ.");
     }

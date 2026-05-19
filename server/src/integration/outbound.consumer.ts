@@ -45,7 +45,9 @@ export class OutboundConsumer extends WorkerHost implements OnModuleInit {
 
   @OnEvent('connectivity.offline')
   async handleOffline() {
-    this.logger.warn('⏸️ Pausing outbound worker due to internet loss (prevent retry exhaustion)');
+    this.logger.warn(
+      '⏸️ Pausing outbound worker due to internet loss (prevent retry exhaustion)',
+    );
     if (this.worker) {
       await this.worker.pause();
     }
@@ -66,7 +68,9 @@ export class OutboundConsumer extends WorkerHost implements OnModuleInit {
       this.logger.warn(
         `Cannot process ${type} (job ${job.id}) because internet is offline. Will retry later.`,
       );
-      throw new Error('OFFLINE: Internet connectivity unavailable — will retry');
+      throw new Error(
+        'OFFLINE: Internet connectivity unavailable — will retry',
+      );
     }
 
     this.logger.log(`Processing outbound: ${type} (job ${job.id})`);
@@ -176,7 +180,9 @@ export class OutboundConsumer extends WorkerHost implements OnModuleInit {
       sentCount += tickets.length;
     }
 
-    this.logger.log(`✅ Push sent to ${sentCount} device(s) for user #${userId}`);
+    this.logger.log(
+      `✅ Push sent to ${sentCount} device(s) for user #${userId}`,
+    );
     return { status: 'sent', devicesReached: sentCount };
   }
 
@@ -188,21 +194,27 @@ export class OutboundConsumer extends WorkerHost implements OnModuleInit {
     payload: Record<string, any>,
   ) {
     if (!this.nphiesClaimService) {
-      this.nphiesClaimService = this.moduleRef.get(NphiesClaimService, { strict: false });
+      this.nphiesClaimService = this.moduleRef.get(NphiesClaimService, {
+        strict: false,
+      });
     }
 
     if (type === 'nphies-claim' && payload.claimId) {
       this.logger.log(`📋 NPHIES: Processing queued claim #${payload.claimId}`);
-      const result = await this.nphiesClaimService.processQueuedClaim(payload.claimId);
-      
+      const result = await this.nphiesClaimService.processQueuedClaim(
+        payload.claimId,
+      );
+
       return {
         status: 'processed',
         type,
         result,
       };
     }
-    
-    this.logger.warn(`📋 NPHIES ${type}: Unhandled operation or missing claimId. payload: ${JSON.stringify(payload)}`);
+
+    this.logger.warn(
+      `📋 NPHIES ${type}: Unhandled operation or missing claimId. payload: ${JSON.stringify(payload)}`,
+    );
     return {
       status: 'skipped',
       type,
@@ -226,7 +238,9 @@ export class OutboundConsumer extends WorkerHost implements OnModuleInit {
     });
 
     if (!response.ok) {
-      throw new Error(`External API failed: ${response.status} ${response.statusText}`);
+      throw new Error(
+        `External API failed: ${response.status} ${response.statusText}`,
+      );
     }
 
     return {

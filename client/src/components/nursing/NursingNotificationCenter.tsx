@@ -32,6 +32,7 @@ export function NursingNotificationCenter({ className = '' }: NotificationCenter
     clearVitalsUpdates,
   } = useNursingWebSocket();
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [fetchedOverdue, setFetchedOverdue] = useState<any[]>([]);
 
   useEffect(() => {

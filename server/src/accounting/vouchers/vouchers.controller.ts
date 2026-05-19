@@ -1,45 +1,78 @@
-import { Controller, Get, Post, Put, Delete, Param, Body, Query, UseGuards, Request } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Param,
+  Body,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { VouchersService } from './vouchers.service';
 import { CreateVoucherDto, UpdateVoucherDto } from './dto/voucher.dto';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
+import { PermissionsGuard } from '../../auth/permissions.guard';
+import { Permissions } from '../../auth/permissions.decorator';
+import { CurrentUser } from '../../auth/current-user.decorator';
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('accounting/vouchers')
 export class VouchersController {
   constructor(private readonly vouchersService: VouchersService) {}
 
+  @Permissions('accounting:manage')
   @Post()
-  create(@Request() req, @Body() createVoucherDto: CreateVoucherDto) {
-    return this.vouchersService.create(req.user.hospitalId, req.user.sub, createVoucherDto);
+  create(@CurrentUser() user: any, @Body() createVoucherDto: CreateVoucherDto) {
+    return this.vouchersService.create(
+      user.hospitalId,
+      user.sub,
+      createVoucherDto,
+    );
   }
 
+  @Permissions('accounting:view')
   @Get()
-  findAll(@Request() req, @Query() query: any) {
-    return this.vouchersService.findAll(req.user.hospitalId, query);
+  findAll(@CurrentUser() user: any, @Query() query: any) {
+    return this.vouchersService.findAll(user.hospitalId, query);
   }
 
+  @Permissions('accounting:view')
   @Get(':id')
-  findOne(@Request() req, @Param('id') id: string) {
-    return this.vouchersService.findOne(req.user.hospitalId, +id);
+  findOne(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.vouchersService.findOne(user.hospitalId, +id);
   }
 
+  @Permissions('accounting:manage')
   @Put(':id')
-  update(@Request() req, @Param('id') id: string, @Body() updateVoucherDto: UpdateVoucherDto) {
-    return this.vouchersService.update(req.user.hospitalId, +id, updateVoucherDto);
+  update(
+    @CurrentUser() user: any,
+    @Param('id') id: string,
+    @Body() updateVoucherDto: UpdateVoucherDto,
+  ) {
+    return this.vouchersService.update(
+      user.hospitalId,
+      +id,
+      updateVoucherDto,
+    );
   }
 
+  @Permissions('accounting:manage')
   @Delete(':id')
-  remove(@Request() req, @Param('id') id: string) {
-    return this.vouchersService.remove(req.user.hospitalId, +id);
+  remove(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.vouchersService.remove(user.hospitalId, +id);
   }
 
+  @Permissions('accounting:manage')
   @Post(':id/post')
-  postVoucher(@Request() req, @Param('id') id: string) {
-    return this.vouchersService.post(req.user.hospitalId, +id, req.user.sub);
+  postVoucher(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.vouchersService.post(user.hospitalId, +id, user.sub);
   }
 
+  @Permissions('accounting:manage')
   @Post(':id/cancel')
-  cancelVoucher(@Request() req, @Param('id') id: string) {
-    return this.vouchersService.cancel(req.user.hospitalId, +id, req.user.sub);
+  cancelVoucher(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.vouchersService.cancel(user.hospitalId, +id, user.sub);
   }
 }
+

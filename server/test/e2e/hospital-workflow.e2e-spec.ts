@@ -14,7 +14,7 @@ describe('E2E Tests - Complete Hospital Workflow', () => {
 
     app = moduleFixture.createNestApplication();
     await app.init();
-    
+
     prismaService = moduleFixture.get('PrismaService');
   });
 
@@ -232,7 +232,9 @@ describe('E2E Tests - Complete Hospital Workflow', () => {
           encounterId: encounter.id,
           serviceItemId: 10, // Room charge
           quantity: 1,
-          serviceDate: new Date(Date.now() + day * 24 * 60 * 60 * 1000).toISOString(),
+          serviceDate: new Date(
+            Date.now() + day * 24 * 60 * 60 * 1000,
+          ).toISOString(),
         };
 
         await request(app.getHttpServer())
@@ -289,15 +291,15 @@ describe('E2E Tests - Complete Hospital Workflow', () => {
   describe('API Performance and Security', () => {
     it('should handle concurrent requests properly', async () => {
       // Create multiple concurrent requests
-      const promises = Array.from({ length: 10 }, (_, i) => 
+      const promises = Array.from({ length: 10 }, (_, i) =>
         request(app.getHttpServer())
           .get('/patients')
-          .query({ page: i + 1, limit: 10 })
+          .query({ page: i + 1, limit: 10 }),
       );
 
       const responses = await Promise.all(promises);
-      
-      responses.forEach(response => {
+
+      responses.forEach((response) => {
         expect(response.status).toBe(200);
         expect(response.body.items).toBeDefined();
       });
@@ -330,9 +332,7 @@ describe('E2E Tests - Complete Hospital Workflow', () => {
 
     it('should handle authentication and authorization', async () => {
       // Test without authentication
-      await request(app.getHttpServer())
-        .get('/admin/users')
-        .expect(401);
+      await request(app.getHttpServer()).get('/admin/users').expect(401);
 
       // Test with invalid token
       await request(app.getHttpServer())

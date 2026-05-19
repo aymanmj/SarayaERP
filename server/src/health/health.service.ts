@@ -52,12 +52,17 @@ export class HealthService {
 
   constructor(
     private prisma: PrismaService,
-    private config: ConfigService
+    private config: ConfigService,
   ) {
     const host = this.config.get<string>('REDIS_HOST') || 'localhost';
     const port = this.config.get<number>('REDIS_PORT') || 6379;
     const password = this.config.get<string>('REDIS_PASSWORD');
-    this.redisClient = new Redis({ host, port, password, maxRetriesPerRequest: 1 });
+    this.redisClient = new Redis({
+      host,
+      port,
+      password,
+      maxRetriesPerRequest: 1,
+    });
     this.redisClient.on('error', () => {}); // Prevent unhandled error crashes
   }
 
@@ -83,7 +88,11 @@ export class HealthService {
     let status: 'healthy' | 'degraded' | 'unhealthy' = 'healthy';
     if (dbStatus.status === 'down' || redisStatus.status === 'down') {
       status = 'unhealthy';
-    } else if (memoryStatus.usagePercent > 90 || dbStatus.latency! > 1000 || fhirStatus.status === 'down') {
+    } else if (
+      memoryStatus.usagePercent > 90 ||
+      dbStatus.latency! > 1000 ||
+      fhirStatus.status === 'down'
+    ) {
       status = 'degraded';
     }
 
@@ -106,8 +115,10 @@ export class HealthService {
    * Readiness probe (for Kubernetes)
    */
   async ready(): Promise<{ ready: boolean; checks: Record<string, boolean> }> {
-    const dbUp = await this.checkDatabase().then(d => d.status === 'up').catch(() => false);
-    
+    const dbUp = await this.checkDatabase()
+      .then((d) => d.status === 'up')
+      .catch(() => false);
+
     return {
       ready: dbUp,
       checks: {
@@ -130,7 +141,7 @@ export class HealthService {
     const health = await this.detailed();
     const memTotal = os.totalmem();
     const memUsed = memTotal - os.freemem();
-    
+
     return `
 # HELP saraya_uptime_seconds Application uptime in seconds
 # TYPE saraya_uptime_seconds gauge
@@ -188,16 +199,25 @@ saraya_health_status ${health.status === 'healthy' ? 1 : health.status === 'degr
       await this.redisClient.ping();
       return { status: 'up', latency: Date.now() - start };
     } catch (error) {
-      return { status: 'down', error: error instanceof Error ? error.message : 'Redis ping failed' };
+      return {
+        status: 'down',
+        error: error instanceof Error ? error.message : 'Redis ping failed',
+      };
     }
   }
 
   private async checkFhirSubscriptions() {
     try {
-      const activeCount = await this.prisma.fhirSubscription.count({ where: { status: 'active' } });
+      const activeCount = await this.prisma.fhirSubscription.count({
+        where: { status: 'active' },
+      });
       return { status: 'up' as const, activeCount };
     } catch (error) {
-      return { status: 'down' as const, activeCount: 0, error: error instanceof Error ? error.message : 'Database error' };
+      return {
+        status: 'down' as const,
+        activeCount: 0,
+        error: error instanceof Error ? error.message : 'Database error',
+      };
     }
   }
 
@@ -205,7 +225,7 @@ saraya_health_status ${health.status === 'healthy' ? 1 : health.status === 'degr
     const total = os.totalmem();
     const free = os.freemem();
     const used = total - free;
-    
+
     return {
       total: this.formatBytes(total),
       used: this.formatBytes(used),
@@ -227,12 +247,12 @@ saraya_health_status ${health.status === 'healthy' ? 1 : health.status === 'degr
     const units = ['B', 'KB', 'MB', 'GB', 'TB'];
     let unitIndex = 0;
     let value = bytes;
-    
+
     while (value >= 1024 && unitIndex < units.length - 1) {
       value /= 1024;
       unitIndex++;
     }
-    
+
     return `${value.toFixed(2)} ${units[unitIndex]}`;
   }
 }

@@ -12,20 +12,30 @@ import {
   Query,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { Permissions } from '../auth/permissions.decorator';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { JwtPayload } from '../auth/jwt-payload.type';
 import { QualityService } from './quality.service';
-import { CreateIncidentDto, UpdateIncidentDto } from './dto/create-incident.dto';
-import { CreateCapaDto, UpdateCapaDto, VerifyCapaDto } from './dto/create-capa.dto';
+import {
+  CreateIncidentDto,
+  UpdateIncidentDto,
+} from './dto/create-incident.dto';
+import {
+  CreateCapaDto,
+  UpdateCapaDto,
+  VerifyCapaDto,
+} from './dto/create-capa.dto';
 import { IncidentStatus, IncidentSeverity } from '@prisma/client';
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('quality')
 export class QualityController {
   constructor(private readonly qualityService: QualityService) {}
 
   // ─── Dashboard ────────────────────────────────────────
   @Get('dashboard')
+  @Permissions('quality:view', 'quality:manage')
   getDashboard(@CurrentUser() user: JwtPayload) {
     return this.qualityService.getDashboardStats(user.hospitalId);
   }
@@ -38,6 +48,7 @@ export class QualityController {
 
   // ─── Incidents ────────────────────────────────────────
   @Get('incidents')
+  @Permissions('quality:view', 'quality:manage')
   findAllIncidents(
     @CurrentUser() user: JwtPayload,
     @Query('status') status?: IncidentStatus,
@@ -63,6 +74,7 @@ export class QualityController {
   }
 
   @Get('incidents/:id')
+  @Permissions('quality:view', 'quality:manage')
   findOneIncident(
     @CurrentUser() user: JwtPayload,
     @Param('id', ParseIntPipe) id: number,
@@ -71,15 +83,22 @@ export class QualityController {
   }
 
   @Patch('incidents/:id')
+  @Permissions('quality:manage')
   updateIncident(
     @CurrentUser() user: JwtPayload,
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateIncidentDto,
   ) {
-    return this.qualityService.updateIncident(user.hospitalId, id, dto, user.sub);
+    return this.qualityService.updateIncident(
+      user.hospitalId,
+      id,
+      dto,
+      user.sub,
+    );
   }
 
   @Patch('incidents/:id/close')
+  @Permissions('quality:manage')
   closeIncident(
     @CurrentUser() user: JwtPayload,
     @Param('id', ParseIntPipe) id: number,
@@ -89,28 +108,38 @@ export class QualityController {
 
   // ─── CAPA ─────────────────────────────────────────────
   @Post('capa')
-  addCapa(
-    @CurrentUser() user: JwtPayload,
-    @Body() dto: CreateCapaDto,
-  ) {
+  @Permissions('quality:manage')
+  addCapa(@CurrentUser() user: JwtPayload, @Body() dto: CreateCapaDto) {
     return this.qualityService.addCapaAction(user.hospitalId, dto);
   }
 
   @Patch('capa/:id')
+  @Permissions('quality:manage')
   updateCapa(
     @CurrentUser() user: JwtPayload,
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateCapaDto,
   ) {
-    return this.qualityService.updateCapaAction(user.hospitalId, id, dto, user.sub);
+    return this.qualityService.updateCapaAction(
+      user.hospitalId,
+      id,
+      dto,
+      user.sub,
+    );
   }
 
   @Patch('capa/:id/verify')
+  @Permissions('quality:manage')
   verifyCapa(
     @CurrentUser() user: JwtPayload,
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: VerifyCapaDto,
   ) {
-    return this.qualityService.verifyCapaAction(user.hospitalId, id, dto, user.sub);
+    return this.qualityService.verifyCapaAction(
+      user.hospitalId,
+      id,
+      dto,
+      user.sub,
+    );
   }
 }

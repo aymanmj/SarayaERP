@@ -1,3 +1,4 @@
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { HasPermission } from './HasPermission';
@@ -9,8 +10,10 @@ vi.mock('../stores/authStore', () => ({
 }));
 
 // Helper to mock the selector-based store
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mockAuthUser(user: any) {
   (useAuthStore as unknown as ReturnType<typeof vi.fn>).mockImplementation(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (selector: any) => selector({ user })
   );
 }

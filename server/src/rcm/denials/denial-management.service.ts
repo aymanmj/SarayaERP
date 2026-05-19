@@ -4,7 +4,7 @@ import { ClaimStatus } from '@prisma/client';
 
 /**
  * خدمة إدارة المطالبات المرفوضة والاستئناف
- * 
+ *
  * تتبع وتحلل أسباب رفض المطالبات وتدير عملية الاستئناف
  */
 @Injectable()
@@ -19,7 +19,13 @@ export class DenialManagementService {
   async getDenialAnalytics(hospitalId: number, fromDate?: Date, toDate?: Date) {
     const where: any = {
       hospitalId,
-      status: { in: [ClaimStatus.REJECTED, ClaimStatus.APPEALED, ClaimStatus.APPEAL_DENIED] },
+      status: {
+        in: [
+          ClaimStatus.REJECTED,
+          ClaimStatus.APPEALED,
+          ClaimStatus.APPEAL_DENIED,
+        ],
+      },
     };
 
     if (fromDate || toDate) {
@@ -49,7 +55,13 @@ export class DenialManagementService {
       by: ['status'],
       where: {
         hospitalId,
-        status: { in: [ClaimStatus.APPEALED, ClaimStatus.APPEAL_ACCEPTED, ClaimStatus.APPEAL_DENIED] },
+        status: {
+          in: [
+            ClaimStatus.APPEALED,
+            ClaimStatus.APPEAL_ACCEPTED,
+            ClaimStatus.APPEAL_DENIED,
+          ],
+        },
       },
       _count: true,
     });
@@ -127,7 +139,13 @@ export class DenialManagementService {
     const accepted = await this.prisma.claim.count({
       where: {
         ...where,
-        status: { in: [ClaimStatus.ACCEPTED, ClaimStatus.PAID, ClaimStatus.PARTIALLY_PAID] },
+        status: {
+          in: [
+            ClaimStatus.ACCEPTED,
+            ClaimStatus.PAID,
+            ClaimStatus.PARTIALLY_PAID,
+          ],
+        },
       },
     });
 

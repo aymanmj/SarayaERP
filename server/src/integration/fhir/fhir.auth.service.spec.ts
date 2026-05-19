@@ -1,6 +1,6 @@
 /**
  * Enterprise FHIR Auth Service — Unit Tests
- * 
+ *
  * Tests SMART on FHIR scope matching, OAuth2 flows, client validation,
  * and authorization code lifecycle.
  */
@@ -68,7 +68,7 @@ describe('FhirAuthService', () => {
     function tokenWith(scope: string) {
       return realJwtService.sign(
         { sub: 'test', scope, client_id: 'test' },
-        { secret: 'test-secret-key', expiresIn: '1h' }
+        { secret: 'test-secret-key', expiresIn: '1h' },
       );
     }
 
@@ -80,56 +80,82 @@ describe('FhirAuthService', () => {
 
     it('should allow wildcard resource read: patient/*.read → patient/Patient.read', () => {
       const token = tokenWith('patient/*.read');
-      expect(() => service.validateToken(token, 'patient/Patient.read')).not.toThrow();
+      expect(() =>
+        service.validateToken(token, 'patient/Patient.read'),
+      ).not.toThrow();
     });
 
     it('should allow wildcard resource write: patient/*.write → patient/Observation.write', () => {
       const token = tokenWith('patient/*.write');
-      expect(() => service.validateToken(token, 'patient/Observation.write')).not.toThrow();
+      expect(() =>
+        service.validateToken(token, 'patient/Observation.write'),
+      ).not.toThrow();
     });
 
     it('should allow wildcard all: patient/*.* → patient/Condition.read', () => {
       const token = tokenWith('patient/*.*');
-      expect(() => service.validateToken(token, 'patient/Condition.read')).not.toThrow();
-      expect(() => service.validateToken(token, 'patient/Observation.write')).not.toThrow();
+      expect(() =>
+        service.validateToken(token, 'patient/Condition.read'),
+      ).not.toThrow();
+      expect(() =>
+        service.validateToken(token, 'patient/Observation.write'),
+      ).not.toThrow();
     });
 
     it('should allow user/*.read to satisfy patient/*.read (user covers patient)', () => {
       const token = tokenWith('user/*.read');
-      expect(() => service.validateToken(token, 'patient/Patient.read')).not.toThrow();
+      expect(() =>
+        service.validateToken(token, 'patient/Patient.read'),
+      ).not.toThrow();
     });
 
     it('should allow system/*.* to satisfy any scope', () => {
       const token = tokenWith('system/*.*');
-      expect(() => service.validateToken(token, 'patient/Patient.read')).not.toThrow();
-      expect(() => service.validateToken(token, 'system/Subscription.write')).not.toThrow();
+      expect(() =>
+        service.validateToken(token, 'patient/Patient.read'),
+      ).not.toThrow();
+      expect(() =>
+        service.validateToken(token, 'system/Subscription.write'),
+      ).not.toThrow();
     });
 
     it('should REJECT: patient/*.read does NOT grant write access', () => {
       const token = tokenWith('patient/*.read');
-      expect(() => service.validateToken(token, 'patient/Observation.write'))
-        .toThrow(UnauthorizedException);
+      expect(() =>
+        service.validateToken(token, 'patient/Observation.write'),
+      ).toThrow(UnauthorizedException);
     });
 
     it('should REJECT: patient/Patient.read does NOT grant Observation.read', () => {
       const token = tokenWith('patient/Patient.read');
-      expect(() => service.validateToken(token, 'patient/Observation.read'))
-        .toThrow(UnauthorizedException);
+      expect(() =>
+        service.validateToken(token, 'patient/Observation.read'),
+      ).toThrow(UnauthorizedException);
     });
 
     it('should REJECT: patient/ prefix cannot satisfy system/ requests', () => {
       const token = tokenWith('patient/*.read');
-      expect(() => service.validateToken(token, 'system/Subscription.read'))
-        .toThrow(UnauthorizedException);
+      expect(() =>
+        service.validateToken(token, 'system/Subscription.read'),
+      ).toThrow(UnauthorizedException);
     });
 
     it('should handle multiple scopes in a single token', () => {
-      const token = tokenWith('patient/Patient.read patient/Observation.write system/Subscription.read');
-      expect(() => service.validateToken(token, 'patient/Patient.read')).not.toThrow();
-      expect(() => service.validateToken(token, 'patient/Observation.write')).not.toThrow();
-      expect(() => service.validateToken(token, 'system/Subscription.read')).not.toThrow();
-      expect(() => service.validateToken(token, 'patient/Condition.read'))
-        .toThrow(UnauthorizedException);
+      const token = tokenWith(
+        'patient/Patient.read patient/Observation.write system/Subscription.read',
+      );
+      expect(() =>
+        service.validateToken(token, 'patient/Patient.read'),
+      ).not.toThrow();
+      expect(() =>
+        service.validateToken(token, 'patient/Observation.write'),
+      ).not.toThrow();
+      expect(() =>
+        service.validateToken(token, 'system/Subscription.read'),
+      ).not.toThrow();
+      expect(() =>
+        service.validateToken(token, 'patient/Condition.read'),
+      ).toThrow(UnauthorizedException);
     });
   });
 
@@ -166,9 +192,11 @@ describe('FhirAuthService', () => {
       );
 
       expect(result.patient).toBe('42');
-      
+
       // Verify the token contains patient claim
-      const decoded = realJwtService.verify(result.access_token, { secret: 'test-secret-key' });
+      const decoded = realJwtService.verify(result.access_token, {
+        secret: 'test-secret-key',
+      });
       expect(decoded.patient).toBe('42');
     });
 
@@ -176,7 +204,14 @@ describe('FhirAuthService', () => {
       mockPrisma.patient.findUnique.mockResolvedValue(null);
 
       await expect(
-        service.generateToken('client_credentials', 'enterprise_fhir_client', undefined, 'patient/*.read', undefined, '999'),
+        service.generateToken(
+          'client_credentials',
+          'enterprise_fhir_client',
+          undefined,
+          'patient/*.read',
+          undefined,
+          '999',
+        ),
       ).rejects.toThrow(BadRequestException);
     });
 
@@ -216,11 +251,13 @@ describe('FhirAuthService', () => {
       );
 
       // Step 2: Exchange code for token
-      mockRedisClient.get.mockResolvedValue(JSON.stringify({
-        clientId: 'enterprise_fhir_client',
-        scope: 'patient/*.read',
-        patient: '1'
-      }));
+      mockRedisClient.get.mockResolvedValue(
+        JSON.stringify({
+          clientId: 'enterprise_fhir_client',
+          scope: 'patient/*.read',
+          patient: '1',
+        }),
+      );
 
       const tokenResult = await service.generateToken(
         'authorization_code',
@@ -246,17 +283,31 @@ describe('FhirAuthService', () => {
       );
 
       // First exchange: success
-      mockRedisClient.get.mockResolvedValueOnce(JSON.stringify({
-        clientId: 'enterprise_fhir_client',
-        scope: 'patient/*.read',
-        patient: '1'
-      }));
-      await service.generateToken('authorization_code', 'enterprise_fhir_client', undefined, undefined, authResult.code);
+      mockRedisClient.get.mockResolvedValueOnce(
+        JSON.stringify({
+          clientId: 'enterprise_fhir_client',
+          scope: 'patient/*.read',
+          patient: '1',
+        }),
+      );
+      await service.generateToken(
+        'authorization_code',
+        'enterprise_fhir_client',
+        undefined,
+        undefined,
+        authResult.code,
+      );
 
       // Second exchange: MUST fail
       mockRedisClient.get.mockResolvedValueOnce(null);
       await expect(
-        service.generateToken('authorization_code', 'enterprise_fhir_client', undefined, undefined, authResult.code),
+        service.generateToken(
+          'authorization_code',
+          'enterprise_fhir_client',
+          undefined,
+          undefined,
+          authResult.code,
+        ),
       ).rejects.toThrow(UnauthorizedException);
     });
 
@@ -268,12 +319,20 @@ describe('FhirAuthService', () => {
       );
 
       // Try to exchange with different client
-      mockRedisClient.get.mockResolvedValue(JSON.stringify({
-        clientId: 'enterprise_fhir_client',
-        scope: 'patient/*.read'
-      }));
+      mockRedisClient.get.mockResolvedValue(
+        JSON.stringify({
+          clientId: 'enterprise_fhir_client',
+          scope: 'patient/*.read',
+        }),
+      );
       await expect(
-        service.generateToken('authorization_code', 'suspicious_client', undefined, undefined, authResult.code),
+        service.generateToken(
+          'authorization_code',
+          'suspicious_client',
+          undefined,
+          undefined,
+          authResult.code,
+        ),
       ).rejects.toThrow(UnauthorizedException);
     });
 
@@ -304,7 +363,11 @@ describe('FhirAuthService', () => {
 
     it('should reject wrong client_secret in production mode', async () => {
       await expect(
-        service.generateToken('client_credentials', 'enterprise_fhir_client', 'wrong-secret'),
+        service.generateToken(
+          'client_credentials',
+          'enterprise_fhir_client',
+          'wrong-secret',
+        ),
       ).rejects.toThrow(UnauthorizedException);
     });
 
@@ -326,28 +389,30 @@ describe('FhirAuthService', () => {
     it('should reject expired tokens', () => {
       const token = realJwtService.sign(
         { sub: 'test', scope: 'patient/*.read' },
-        { secret: 'test-secret-key', expiresIn: '0s' }
+        { secret: 'test-secret-key', expiresIn: '0s' },
       );
 
       // Small delay to ensure token expires
-      expect(() => service.validateToken(token, 'patient/*.read'))
-        .toThrow(UnauthorizedException);
+      expect(() => service.validateToken(token, 'patient/*.read')).toThrow(
+        UnauthorizedException,
+      );
     });
 
     it('should reject tokens with wrong secret', () => {
       const token = new JwtService({ secret: 'wrong-secret' }).sign(
         { sub: 'test', scope: 'patient/*.read' },
-        { expiresIn: '1h' }
+        { expiresIn: '1h' },
       );
 
-      expect(() => service.validateToken(token, 'patient/*.read'))
-        .toThrow(UnauthorizedException);
+      expect(() => service.validateToken(token, 'patient/*.read')).toThrow(
+        UnauthorizedException,
+      );
     });
 
     it('should pass validation without requiredScope (token is valid)', () => {
       const token = realJwtService.sign(
         { sub: 'test', scope: 'patient/*.read' },
-        { secret: 'test-secret-key', expiresIn: '1h' }
+        { secret: 'test-secret-key', expiresIn: '1h' },
       );
 
       const result = service.validateToken(token);

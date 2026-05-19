@@ -1,6 +1,14 @@
 import * as winston from 'winston';
 
-const sensitiveKeys = ['password', 'token', 'secret', 'key', 'auth', 'hash', 'hashedpassword'];
+const sensitiveKeys = [
+  'password',
+  'token',
+  'secret',
+  'key',
+  'auth',
+  'hash',
+  'hashedpassword',
+];
 
 /**
  * دالة مساعدة لتنقيح وحجب البيانات الحساسة (Redaction)
@@ -10,15 +18,15 @@ function redactObject(obj: any): any {
   if (!obj || typeof obj !== 'object') {
     return obj;
   }
-  
+
   if (Array.isArray(obj)) {
     return obj.map(redactObject);
   }
-  
+
   const redacted = { ...obj };
   for (const key in redacted) {
     if (Object.prototype.hasOwnProperty.call(redacted, key)) {
-      if (sensitiveKeys.some(sk => key.toLowerCase().includes(sk))) {
+      if (sensitiveKeys.some((sk) => key.toLowerCase().includes(sk))) {
         redacted[key] = '[REDACTED_BY_SIEM]';
       } else {
         redacted[key] = redactObject(redacted[key]);
@@ -50,10 +58,8 @@ export const siemLogger = winston.createLogger({
   format: winston.format.combine(
     winston.format.timestamp(),
     redactFormat(),
-    winston.format.json() // إخراج بصيغة NDJSON (دقيقة وقابلة للتحليل آلياً)
+    winston.format.json(), // إخراج بصيغة NDJSON (دقيقة وقابلة للتحليل آلياً)
   ),
   defaultMeta: { service: 'saraya-erp', stream: 'SiemAudit' },
-  transports: [
-    new winston.transports.Console()
-  ],
+  transports: [new winston.transports.Console()],
 });

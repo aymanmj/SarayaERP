@@ -68,7 +68,8 @@ export class InventoryService {
       batchNumber: b.batchNumber,
       expiryDate: b.expiryDate,
       daysRemaining: Math.ceil(
-        (new Date(b.expiryDate!).getTime() - Date.now()) / (1000 * 60 * 60 * 24),
+        (new Date(b.expiryDate!).getTime() - Date.now()) /
+          (1000 * 60 * 60 * 24),
       ),
     }));
 

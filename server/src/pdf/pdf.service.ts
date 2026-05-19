@@ -96,12 +96,12 @@ export class PdfService implements OnModuleInit, OnModuleDestroy {
     handlebars.registerHelper('inc', (value) => parseInt(value) + 1);
 
     handlebars.registerHelper('formatMoney', (val) => {
-       if (val === undefined || val === null) return '0.000';
-       return new Intl.NumberFormat('en-US', {
-         style: 'decimal',
-         minimumFractionDigits: 3,
-         maximumFractionDigits: 3,
-       }).format(Number(val));
+      if (val === undefined || val === null) return '0.000';
+      return new Intl.NumberFormat('en-US', {
+        style: 'decimal',
+        minimumFractionDigits: 3,
+        maximumFractionDigits: 3,
+      }).format(Number(val));
     });
 
     handlebars.registerHelper('toString', (val) => {
@@ -157,7 +157,7 @@ export class PdfService implements OnModuleInit, OnModuleDestroy {
       path.join(__dirname, 'templates', templateFilename), // Fallback
     ];
 
-    let templatePath = possiblePaths.find((p) => fs.existsSync(p));
+    const templatePath = possiblePaths.find((p) => fs.existsSync(p));
 
     if (!templatePath) {
       this.logger.error(`Template not found: ${templateName}`);
@@ -193,7 +193,7 @@ export class PdfService implements OnModuleInit, OnModuleDestroy {
         printBackground: true,
         margin: { top: '10mm', bottom: '15mm', left: '10mm', right: '10mm' },
         displayHeaderFooter: true,
-        headerTemplate: '<div></div>', 
+        headerTemplate: '<div></div>',
         footerTemplate: `
           <div style="font-size: 8px; width: 100%; text-align: center; color: #555; font-family: sans-serif;">
             Page <span class="pageNumber"></span> of <span class="totalPages"></span>
@@ -209,7 +209,7 @@ export class PdfService implements OnModuleInit, OnModuleDestroy {
           height: '200mm', // A typical length, though often continuous
           printBackground: true,
           margin: { top: '0', bottom: '0', left: '0', right: '0' },
-          displayHeaderFooter: false, 
+          displayHeaderFooter: false,
         };
       }
 

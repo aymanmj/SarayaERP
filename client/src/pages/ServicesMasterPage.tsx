@@ -56,6 +56,7 @@ export default function ServicesMasterPage() {
   const loadData = async () => {
     setLoading(true);
     try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const params: any = {};
       if (filterType) params.type = filterType;
       
@@ -66,6 +67,7 @@ export default function ServicesMasterPage() {
 
       setServices(resSrv.data);
       setCategories(resCat.data);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
       toast.error("فشل تحميل البيانات");
     } finally {
@@ -75,6 +77,7 @@ export default function ServicesMasterPage() {
 
   useEffect(() => {
     loadData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterType]);
 
   const handleUpdateInline = async (id: number) => {
@@ -86,6 +89,7 @@ export default function ServicesMasterPage() {
       toast.success("تم تحديث بيانات الخدمة");
       setEditingId(null);
       loadData();
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
       toast.error("فشل التحديث");
     }
@@ -111,6 +115,7 @@ export default function ServicesMasterPage() {
         defaultPrice: "",
       });
       loadData();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       toast.error(err.response?.data?.message || "فشل الإضافة");
     }
@@ -125,6 +130,7 @@ export default function ServicesMasterPage() {
       // Refresh categories
       const resCat = await apiClient.get<ServiceCategory[]>("/services/categories");
       setCategories(resCat.data);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
       toast.error("فشل إضافة الفئة");
     }

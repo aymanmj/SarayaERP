@@ -117,28 +117,28 @@ export class PharmacyService {
 
     const [prescriptions, totalCount] = await this.prisma.$transaction([
       this.prisma.prescription.findMany({
-      where: {
-        hospitalId,
-        status: PrescriptionStatus.ACTIVE,
-        dispenses: { none: {} },
-      },
-      include: {
-        patient: { select: { id: true, fullName: true, mrn: true } },
-        doctor: { select: { id: true, fullName: true } },
-        encounter: { select: { id: true, type: true } },
-        items: { include: { product: true } },
-      },
-      orderBy: { createdAt: 'asc' },
-      skip,
-      take: limit,
-    }),
+        where: {
+          hospitalId,
+          status: PrescriptionStatus.ACTIVE,
+          dispenses: { none: {} },
+        },
+        include: {
+          patient: { select: { id: true, fullName: true, mrn: true } },
+          doctor: { select: { id: true, fullName: true } },
+          encounter: { select: { id: true, type: true } },
+          items: { include: { product: true } },
+        },
+        orderBy: { createdAt: 'asc' },
+        skip,
+        take: limit,
+      }),
       this.prisma.prescription.count({
         where: {
           hospitalId,
           status: PrescriptionStatus.ACTIVE,
           dispenses: { none: {} },
-        }
-      })
+        },
+      }),
     ]);
 
     const mapped = prescriptions.map((p) => ({
@@ -180,7 +180,7 @@ export class PharmacyService {
         page,
         limit,
         totalPages: Math.ceil(totalCount / limit),
-      }
+      },
     };
   }
 
@@ -234,8 +234,6 @@ export class PharmacyService {
       },
     });
   }
-
-
 
   // ✅ [UPDATED] إنشاء وصفة مع فحص الأمان (Safety Check)
   async createPrescriptionForEncounter(params: {
@@ -306,7 +304,8 @@ export class PharmacyService {
     const drugNames = products.map((p) => p.name);
 
     // Call CDSS Service
-    const interactions = await this.cdssService.checkDrugInteractions(drugNames);
+    const interactions =
+      await this.cdssService.checkDrugInteractions(drugNames);
 
     if (interactions.length > 0 && !params.overrideSafety) {
       throw new BadRequestException({
@@ -352,7 +351,11 @@ export class PharmacyService {
   // -----------------------------------------------------------------------
   // 🟢 CPOE: التحقق الصيدلاني (Pharmacist Verification) - HIMSS Stage 6
   // -----------------------------------------------------------------------
-  async verifyOrder(prescriptionId: number, pharmacistId: number, hospitalId: number) {
+  async verifyOrder(
+    prescriptionId: number,
+    pharmacistId: number,
+    hospitalId: number,
+  ) {
     const prescription = await this.prisma.prescription.findUnique({
       where: { id: prescriptionId, hospitalId },
       include: {
@@ -366,10 +369,11 @@ export class PharmacyService {
     // 1. تشغيل التدقيق السريري العميق CDSS قبل الاعتماد النهائي (للتحق من عدم تغير حالة المريض منذ وصف الطبيب)
     const drugNames = prescription.items
       .map((i) => i.product?.name)
-      .filter(Boolean) as string[];
+      .filter(Boolean);
 
-    const interactions = await this.cdssService.checkDrugInteractions(drugNames);
-    
+    const interactions =
+      await this.cdssService.checkDrugInteractions(drugNames);
+
     // في بيئة الإنتاج: إذا كان هناك تعارض حرج، يمكن للمراجع أن يطلب (MODIFIED) أو يرفضها (REJECTED).
     // لأغراض هذه الدالة (Verify)، نفترض أن الصيدلي قرر الاعتماد بعد المراجعة.
 
@@ -421,8 +425,13 @@ export class PharmacyService {
       }
 
       // 🛡️ CPOE Check: يمنع صرف العلاج دون تحقق صيدلاني
-      if (prescription.pharmacistVerificationStatus !== PharmacistVerificationStatus.VERIFIED) {
-        throw new BadRequestException('لا يمكن الصرف: الوصفة لم تخضع للتدقيق والاعتماد الصيدلاني (CPOE).');
+      if (
+        prescription.pharmacistVerificationStatus !==
+        PharmacistVerificationStatus.VERIFIED
+      ) {
+        throw new BadRequestException(
+          'لا يمكن الصرف: الوصفة لم تخضع للتدقيق والاعتماد الصيدلاني (CPOE).',
+        );
       }
 
       const existingDispense = await tx.dispenseRecord.findFirst({
@@ -592,7 +601,6 @@ export class PharmacyService {
     return result;
   }
 
-
   // -----------------------------------------------------------------------
   // 🟢 عمليات الصرف المباشر (POS) - ✅ تحديث القفل التفاؤلي
   // -----------------------------------------------------------------------
@@ -639,8 +647,13 @@ export class PharmacyService {
       }
 
       // 🛡️ CPOE Check
-      if (prescription.pharmacistVerificationStatus !== PharmacistVerificationStatus.VERIFIED) {
-        throw new BadRequestException('لا يمكن الصرف: الوصفة لم تخضع للتدقيق والاعتماد الصيدلاني (CPOE).');
+      if (
+        prescription.pharmacistVerificationStatus !==
+        PharmacistVerificationStatus.VERIFIED
+      ) {
+        throw new BadRequestException(
+          'لا يمكن الصرف: الوصفة لم تخضع للتدقيق والاعتماد الصيدلاني (CPOE).',
+        );
       }
 
       const overrides = new Map<
@@ -940,7 +953,7 @@ export class PharmacyService {
       const currentVal = Number(currentStockRec?.quantity ?? 0);
 
       // تحديد كمية التعديل
-      let qtyChange = quantity;
+      const qtyChange = quantity;
 
       // ✅ [FIXED KEY] استخدام warehouseId_productId_batchNumber في Upsert
       await tx.productStock.upsert({

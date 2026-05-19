@@ -46,6 +46,7 @@ vi.mock('lucide-react', () => ({
 }));
 
 const { apiClient } = await import('../api/apiClient');
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const { toast } = await import('sonner');
 
 const mockPreAuths = [

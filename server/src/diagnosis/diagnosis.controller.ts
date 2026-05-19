@@ -8,31 +8,36 @@ import {
   Post,
   Query,
   UseGuards,
-  Req,
 } from '@nestjs/common';
 import { DiagnosisService } from './diagnosis.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { Permissions } from '../auth/permissions.decorator';
+import { CurrentUser } from '../auth/current-user.decorator';
 import { DiagnosisType, TerminologySystem } from '@prisma/client';
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('diagnosis')
 export class DiagnosisController {
   constructor(private readonly diagnosisService: DiagnosisService) {}
 
+  @Permissions('diagnosis:view')
   @Get('search')
   async search(@Query('q') q: string) {
     return this.diagnosisService.searchCodes(q);
   }
 
+  @Permissions('diagnosis:view')
   @Get('encounter/:id')
   async listForEncounter(@Param('id', ParseIntPipe) id: number) {
     return this.diagnosisService.getEncounterDiagnoses(id);
   }
 
+  @Permissions('diagnosis:manage')
   @Post('encounter/:id')
   async addDiagnosis(
     @Param('id', ParseIntPipe) encounterId: number,
-    @Req() req: any,
+    @CurrentUser() user: any,
     @Body()
     body: {
       codeId?: number;
@@ -44,7 +49,7 @@ export class DiagnosisController {
   ) {
     return this.diagnosisService.addDiagnosisToEncounter({
       encounterId,
-      userId: req.user.sub,
+      userId: user.sub,
       codeId: body.codeId,
       type: body.type,
       note: body.note,
@@ -53,8 +58,10 @@ export class DiagnosisController {
     });
   }
 
+  @Permissions('diagnosis:manage')
   @Delete(':id')
   async remove(@Param('id', ParseIntPipe) id: number) {
     return this.diagnosisService.removeEncounterDiagnosis(id);
   }
 }
+

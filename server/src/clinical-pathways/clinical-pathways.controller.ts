@@ -1,26 +1,34 @@
 import {
-  Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Put,
+  Query,
+  UseGuards,
 } from '@nestjs/common';
 import { ClinicalPathwaysService } from './clinical-pathways.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { Permissions } from '../auth/permissions.decorator';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { JwtPayload } from '../auth/jwt-payload.type';
 
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('clinical-pathways')
 export class ClinicalPathwaysController {
   constructor(private readonly service: ClinicalPathwaysService) {}
 
   @Post()
-  @Roles('ADMIN', 'DOCTOR')
+  @Permissions('clinical-pathways:manage')
   create(@Body() body: any, @CurrentUser() user: JwtPayload) {
     return this.service.create(user.hospitalId, user.sub, body);
   }
 
   @Get()
-  @Roles('ADMIN', 'DOCTOR', 'NURSE')
+  @Permissions('clinical-pathways:view')
   findAll(
     @CurrentUser() user: JwtPayload,
     @Query('search') search?: string,
@@ -28,45 +36,59 @@ export class ClinicalPathwaysController {
     @Query('status') status?: any,
     @Query('contentKey') contentKey?: string,
   ) {
-    return this.service.findAll(user.hospitalId, { search, scope, status, contentKey });
+    return this.service.findAll(user.hospitalId, {
+      search,
+      scope,
+      status,
+      contentKey,
+    });
   }
 
   @Get(':id/history')
-  @Roles('ADMIN', 'DOCTOR', 'NURSE')
+  @Permissions('clinical-pathways:view')
   history(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
     return this.service.findHistory(user.hospitalId, +id);
   }
 
   @Get(':id')
-  @Roles('ADMIN', 'DOCTOR', 'NURSE')
+  @Permissions('clinical-pathways:view')
   findOne(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
     return this.service.findOne(user.hospitalId, +id);
   }
 
   @Put(':id')
-  @Roles('ADMIN', 'DOCTOR')
-  update(@Param('id') id: string, @Body() body: any, @CurrentUser() user: JwtPayload) {
+  @Permissions('clinical-pathways:manage')
+  update(
+    @Param('id') id: string,
+    @Body() body: any,
+    @CurrentUser() user: JwtPayload,
+  ) {
     return this.service.update(user.hospitalId, +id, user.sub, body);
   }
 
   @Delete(':id')
-  @Roles('ADMIN')
+  @Permissions('clinical-pathways:manage')
   remove(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
     return this.service.remove(user.hospitalId, +id, user.sub);
   }
 
   @Post(':id/submit-review')
-  @Roles('ADMIN', 'DOCTOR')
+  @Permissions('clinical-pathways:manage')
   submitForReview(
     @Param('id') id: string,
     @Body() body: { notes?: string },
     @CurrentUser() user: JwtPayload,
   ) {
-    return this.service.submitForReview(user.hospitalId, +id, user.sub, body?.notes);
+    return this.service.submitForReview(
+      user.hospitalId,
+      +id,
+      user.sub,
+      body?.notes,
+    );
   }
 
   @Post(':id/approve')
-  @Roles('ADMIN')
+  @Permissions('clinical-pathways:manage')
   approve(
     @Param('id') id: string,
     @Body() body: { notes?: string },
@@ -76,7 +98,7 @@ export class ClinicalPathwaysController {
   }
 
   @Post(':id/reject')
-  @Roles('ADMIN')
+  @Permissions('clinical-pathways:manage')
   reject(
     @Param('id') id: string,
     @Body() body: { notes?: string },
@@ -86,7 +108,7 @@ export class ClinicalPathwaysController {
   }
 
   @Post(':id/publish')
-  @Roles('ADMIN')
+  @Permissions('clinical-pathways:manage')
   publish(
     @Param('id') id: string,
     @Body() body: { notes?: string },
@@ -96,7 +118,7 @@ export class ClinicalPathwaysController {
   }
 
   @Post(':id/retire')
-  @Roles('ADMIN')
+  @Permissions('clinical-pathways:manage')
   retire(
     @Param('id') id: string,
     @Body() body: { notes?: string },
@@ -108,35 +130,41 @@ export class ClinicalPathwaysController {
   // ==================== ENROLLMENT ====================
 
   @Post(':id/enroll')
-  @Roles('ADMIN', 'DOCTOR')
+  @Permissions('clinical-pathways:manage')
   enroll(
     @Param('id') id: string,
     @Body() body: { encounterId: number; notes?: string },
     @CurrentUser() user: JwtPayload,
   ) {
-    return this.service.enroll(user.hospitalId, user.sub, +id, body.encounterId, body.notes);
+    return this.service.enroll(
+      user.hospitalId,
+      user.sub,
+      +id,
+      body.encounterId,
+      body.notes,
+    );
   }
 
   @Get('enrollment/:enrollmentId')
-  @Roles('ADMIN', 'DOCTOR', 'NURSE')
+  @Permissions('clinical-pathways:view')
   getEnrollment(@Param('enrollmentId') enrollmentId: string) {
     return this.service.getEnrollment(+enrollmentId);
   }
 
   @Get('enrollments/by-encounter/:encounterId')
-  @Roles('ADMIN', 'DOCTOR', 'NURSE')
+  @Permissions('clinical-pathways:view')
   getEnrollmentsByEncounter(@Param('encounterId') encounterId: string) {
     return this.service.getEnrollmentsByEncounter(+encounterId);
   }
 
   @Post('enrollment/:id/advance')
-  @Roles('ADMIN', 'DOCTOR')
+  @Permissions('clinical-pathways:manage')
   advanceDay(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
     return this.service.advanceDay(+id, user.sub, user.hospitalId);
   }
 
   @Post('enrollment/:id/variance')
-  @Roles('ADMIN', 'DOCTOR', 'NURSE')
+  @Permissions('clinical-pathways:view')
   reportVariance(
     @Param('id') id: string,
     @Body() body: { stepId: number; varianceType: string; reason: string },
@@ -146,7 +174,7 @@ export class ClinicalPathwaysController {
   }
 
   @Post('enrollment/:id/complete')
-  @Roles('ADMIN', 'DOCTOR')
+  @Permissions('clinical-pathways:manage')
   completeEnrollment(@Param('id') id: string) {
     return this.service.completeEnrollment(+id);
   }

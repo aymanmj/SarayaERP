@@ -5,9 +5,9 @@ import { v4 as uuidv4 } from 'uuid';
 
 /**
  * التحقق من أهلية المريض التأمينية عبر NPHIES
- * 
+ *
  * يرسل CoverageEligibilityRequest ويستقبل CoverageEligibilityResponse
- * 
+ *
  * الأهلية تشمل:
  * - هل البوليصة فعالة؟
  * - ما هي التغطيات المتاحة (استشارات، أدوية، عمليات)؟
@@ -25,7 +25,7 @@ export class NphiesEligibilityService {
 
   /**
    * التحقق من أهلية التأمين لمريض
-   * 
+   *
    * @param patient بيانات المريض
    * @param insurance بيانات التأمين
    * @returns نتيجة التحقق مع التغطيات المتاحة
@@ -122,7 +122,9 @@ export class NphiesEligibilityService {
   /**
    * تحليل استجابة NPHIES وتحويلها لصيغة مبسطة
    */
-  private parseEligibilityResponse(fhirResponse: any): NphiesEligibilityResponse {
+  private parseEligibilityResponse(
+    fhirResponse: any,
+  ): NphiesEligibilityResponse {
     try {
       // البحث عن CoverageEligibilityResponse في الـ Bundle
       const entries = fhirResponse?.entry || [];
@@ -141,7 +143,9 @@ export class NphiesEligibilityService {
           return {
             eligible: false,
             status: 'rejected',
-            errorMessage: issues.map((i: any) => i.diagnostics || i.details?.text).join('; '),
+            errorMessage: issues
+              .map((i: any) => i.diagnostics || i.details?.text)
+              .join('; '),
             benefits: [],
           };
         }
@@ -169,7 +173,8 @@ export class NphiesEligibilityService {
               category: category?.code || 'unknown',
               categoryDisplay: category?.display || '',
               type: ben.type?.coding?.[0]?.code || '',
-              allowedValue: ben.allowedMoney?.value || ben.allowedUnsignedInt || 0,
+              allowedValue:
+                ben.allowedMoney?.value || ben.allowedUnsignedInt || 0,
               usedValue: ben.usedMoney?.value || ben.usedUnsignedInt || 0,
               currency: ben.allowedMoney?.currency || 'SAR',
             });

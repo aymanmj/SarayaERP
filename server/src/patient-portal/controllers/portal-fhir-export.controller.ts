@@ -218,7 +218,11 @@ export class PortalFhirExportController {
     @Req() req: any,
   ) {
     const baseUrl = `${req.protocol}://${req.get('host')}/api/patient-portal/v1/fhir`;
-    return this.fhirService.searchMedicationRequests(query, baseUrl, patient.sub);
+    return this.fhirService.searchMedicationRequests(
+      query,
+      baseUrl,
+      patient.sub,
+    );
   }
 
   @Get('Encounter')

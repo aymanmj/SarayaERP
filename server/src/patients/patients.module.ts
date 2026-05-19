@@ -11,11 +11,7 @@ import { IntegrationModule } from '../integration/integration.module';
 @Module({
   imports: [PrismaModule, IntegrationModule],
   controllers: [PatientsController, MpiController],
-  providers: [
-    PatientsService,
-    SoftDeleteService,
-    MpiService,
-  ],
+  providers: [PatientsService, SoftDeleteService, MpiService],
   exports: [PatientsService, MpiService],
 })
 export class PatientsModule {}

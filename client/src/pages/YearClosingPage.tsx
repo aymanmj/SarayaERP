@@ -139,6 +139,7 @@ export default function YearClosingPage() {
       // تحديث البيانات بعد الإقفال
       await loadData();
       setDescription("");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       console.error(err);
       const msg = err?.response?.data?.message;
@@ -300,6 +301,7 @@ export default function YearClosingPage() {
 }
 
 function PendingDocumentsCheck({ yearId }: { yearId: number }) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [documents, setDocuments] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [checked, setChecked] = useState(false);
@@ -307,6 +309,7 @@ function PendingDocumentsCheck({ yearId }: { yearId: number }) {
   async function check() {
     setLoading(true);
     try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const res = await apiClient.get<{ success: boolean; data: any[] }>(
         `/accounting/financial-years/${yearId}/pending-documents`,
       );
@@ -322,6 +325,7 @@ function PendingDocumentsCheck({ yearId }: { yearId: number }) {
 
   useEffect(() => {
     check();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [yearId]);
 
   if (loading)

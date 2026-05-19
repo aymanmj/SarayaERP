@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Param, ParseIntPipe, Body, UseGuards, Patch } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Param,
+  ParseIntPipe,
+  Body,
+  UseGuards,
+  Patch,
+} from '@nestjs/common';
 import { RegistriesService } from './registries.service';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../auth/permissions.guard';
@@ -34,7 +43,11 @@ export class RegistriesController {
     @Param('registryId', ParseIntPipe) registryId: number,
     @Body() dto: UpsertRegistryDto,
   ) {
-    return this.registriesService.updateRegistry(user.hospitalId, registryId, dto);
+    return this.registriesService.updateRegistry(
+      user.hospitalId,
+      registryId,
+      dto,
+    );
   }
 
   @Get('patient/:patientId/gaps')
@@ -49,7 +62,10 @@ export class RegistriesController {
     @Param('gapId', ParseIntPipe) gapId: number,
     @Body() body: { reason?: string; notes?: string },
   ) {
-    return this.registriesService.closeGap(gapId, body.reason ?? body.notes ?? '');
+    return this.registriesService.closeGap(
+      gapId,
+      body.reason ?? body.notes ?? '',
+    );
   }
 
   @Get(':registryId/analytics')
@@ -72,13 +88,21 @@ export class RegistriesController {
   @Permissions('admin:all')
   async triggerMembershipEval() {
     const result = await this.registriesService.evaluateRegistryMemberships();
-    return { success: true, message: 'Registry membership evaluation triggered', ...result };
+    return {
+      success: true,
+      message: 'Registry membership evaluation triggered',
+      ...result,
+    };
   }
 
   @Post('trigger-gaps-eval')
   @Permissions('admin:all')
   async triggerGapsEval() {
     const result = await this.registriesService.evaluateCareGaps();
-    return { success: true, message: 'Care Gaps evaluation triggered', ...result };
+    return {
+      success: true,
+      message: 'Care Gaps evaluation triggered',
+      ...result,
+    };
   }
 }

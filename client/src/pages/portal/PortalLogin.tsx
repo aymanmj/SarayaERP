@@ -45,6 +45,7 @@ export default function PortalLogin() {
         toast.success('تم إرسال رمز التحقق');
         setStep('otp');
       }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'فشل إرسال رمز التحقق');
     } finally {
@@ -65,6 +66,7 @@ export default function PortalLogin() {
       login(data.patient, data.accessToken, data.refreshToken);
       toast.success(`مرحباً ${data.patient.fullName}`);
       navigate('/portal');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'رمز التحقق غير صحيح');
     } finally {

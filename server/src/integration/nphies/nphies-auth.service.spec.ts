@@ -63,18 +63,22 @@ describe('NphiesAuthService', () => {
 
     describe('getAccessToken', () => {
       it('should call OAuth2 token endpoint and return access_token', async () => {
-        (httpService.post as jest.Mock).mockReturnValue(of({
-          data: { access_token: 'test-token-123', expires_in: 3600 },
-        }));
+        (httpService.post as jest.Mock).mockReturnValue(
+          of({
+            data: { access_token: 'test-token-123', expires_in: 3600 },
+          }),
+        );
 
         const token = await service.getAccessToken();
         expect(token).toBe('test-token-123');
       });
 
       it('should cache token and not re-fetch on second call', async () => {
-        (httpService.post as jest.Mock).mockReturnValue(of({
-          data: { access_token: 'cached-token', expires_in: 3600 },
-        }));
+        (httpService.post as jest.Mock).mockReturnValue(
+          of({
+            data: { access_token: 'cached-token', expires_in: 3600 },
+          }),
+        );
 
         await service.getAccessToken();
         await service.getAccessToken();
@@ -85,10 +89,15 @@ describe('NphiesAuthService', () => {
 
       it('should throw when token endpoint fails', async () => {
         (httpService.post as jest.Mock).mockReturnValue(
-          throwError(() => ({ response: { data: { error_description: 'invalid_client' } }, message: 'fail' })),
+          throwError(() => ({
+            response: { data: { error_description: 'invalid_client' } },
+            message: 'fail',
+          })),
         );
 
-        await expect(service.getAccessToken()).rejects.toThrow('NPHIES Authentication Failed');
+        await expect(service.getAccessToken()).rejects.toThrow(
+          'NPHIES Authentication Failed',
+        );
       });
     });
 
@@ -96,29 +105,49 @@ describe('NphiesAuthService', () => {
       it('should send POST request with correct headers', async () => {
         // Mock token fetch
         (httpService.post as jest.Mock)
-          .mockReturnValueOnce(of({ data: { access_token: 'my-token', expires_in: 3600 } }))
+          .mockReturnValueOnce(
+            of({ data: { access_token: 'my-token', expires_in: 3600 } }),
+          )
           // Mock FHIR request
-          .mockReturnValueOnce(of({ data: { resourceType: 'Bundle', entry: [] } }));
+          .mockReturnValueOnce(
+            of({ data: { resourceType: 'Bundle', entry: [] } }),
+          );
 
-        const result = await service.sendFhirRequest('/nphies-fs/Claim/$submit', { test: true });
+        const result = await service.sendFhirRequest(
+          '/nphies-fs/Claim/$submit',
+          { test: true },
+        );
 
         expect(result).toEqual({ resourceType: 'Bundle', entry: [] });
 
         // Verify second call (FHIR request) has correct headers
         const fhirCall = (httpService.post as jest.Mock).mock.calls[1];
-        expect(fhirCall[0]).toBe('https://test.nphies.sa/nphies-fs/Claim/$submit');
-        expect(fhirCall[2].headers['Content-Type']).toBe('application/fhir+json');
+        expect(fhirCall[0]).toBe(
+          'https://test.nphies.sa/nphies-fs/Claim/$submit',
+        );
+        expect(fhirCall[2].headers['Content-Type']).toBe(
+          'application/fhir+json',
+        );
         expect(fhirCall[2].headers['Authorization']).toBe('Bearer my-token');
       });
 
       it('should retry once on 401 (expired token)', async () => {
         // First: token fetch
         (httpService.post as jest.Mock)
-          .mockReturnValueOnce(of({ data: { access_token: 'old-token', expires_in: 3600 } }))
+          .mockReturnValueOnce(
+            of({ data: { access_token: 'old-token', expires_in: 3600 } }),
+          )
           // Second: FHIR request fails with 401
-          .mockReturnValueOnce(throwError(() => ({ response: { status: 401, data: {} }, message: 'Unauthorized' })))
+          .mockReturnValueOnce(
+            throwError(() => ({
+              response: { status: 401, data: {} },
+              message: 'Unauthorized',
+            })),
+          )
           // Third: new token
-          .mockReturnValueOnce(of({ data: { access_token: 'new-token', expires_in: 3600 } }))
+          .mockReturnValueOnce(
+            of({ data: { access_token: 'new-token', expires_in: 3600 } }),
+          )
           // Fourth: FHIR retry succeeds
           .mockReturnValueOnce(of({ data: { resourceType: 'Bundle' } }));
 
@@ -164,7 +193,7 @@ describe('NphiesAuthService', () => {
     });
 
     afterAll(() => {
-      [tempCertPath, tempKeyPath].forEach(f => {
+      [tempCertPath, tempKeyPath].forEach((f) => {
         if (fs.existsSync(f)) fs.unlinkSync(f);
       });
     });

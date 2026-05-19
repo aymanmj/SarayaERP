@@ -45,12 +45,12 @@ describe('LabOrdersController', () => {
   it('creates lab orders by combining route and body payload', async () => {
     labOrdersService.createForEncounter.mockResolvedValue({ count: 2 });
 
-    const result = await encounterController.createForEncounter(12, {
-      hospitalId: 4,
-      doctorId: 8,
-      testIds: [1, 2],
-      notes: 'Fasting',
-    });
+    const mockUser = { sub: 8, hospitalId: 4 };
+    const result = await encounterController.createForEncounter(
+      12,
+      mockUser,
+      { testIds: [1, 2], notes: 'Fasting' },
+    );
 
     expect(result).toEqual({ count: 2 });
     expect(labOrdersService.createForEncounter).toHaveBeenCalledWith({
@@ -65,9 +65,8 @@ describe('LabOrdersController', () => {
   it('loads worklist for the authenticated hospital', async () => {
     labOrdersService.getWorklist.mockResolvedValue([{ id: 3 }]);
 
-    const result = await generalController.worklist({
-      user: { hospitalId: 4 },
-    } as any);
+    const mockUser = { hospitalId: 4 } as any;
+    const result = await generalController.worklist(mockUser);
 
     expect(result).toEqual([{ id: 3 }]);
     expect(labOrdersService.getWorklist).toHaveBeenCalledWith(4);

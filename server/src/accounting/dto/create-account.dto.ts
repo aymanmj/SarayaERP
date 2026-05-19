@@ -10,7 +10,15 @@ export class CreateAccountDto {
   @Length(3, 100)
   name!: string;
 
-  @IsEnum(['ASSET', 'LIABILITY', 'EQUITY', 'REVENUE', 'EXPENSE', 'CONTRA_ASSET', 'CONTRA_REVENUE'])
+  @IsEnum([
+    'ASSET',
+    'LIABILITY',
+    'EQUITY',
+    'REVENUE',
+    'EXPENSE',
+    'CONTRA_ASSET',
+    'CONTRA_REVENUE',
+  ])
   type: AccountType;
 
   @IsOptional()

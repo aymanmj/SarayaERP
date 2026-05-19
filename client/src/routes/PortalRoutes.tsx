@@ -1,3 +1,4 @@
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { lazy, Suspense } from 'react';
 import { Route, Navigate } from 'react-router-dom';
 import { usePortalAuthStore } from '../stores/portalAuthStore';

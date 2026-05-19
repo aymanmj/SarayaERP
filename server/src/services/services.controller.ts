@@ -12,11 +12,11 @@ import {
 } from '@nestjs/common';
 import { ServicesService } from './services.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { Permissions } from '../auth/permissions.decorator';
 import { ServiceType } from '@prisma/client';
 
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('services')
 export class ServicesController {
   constructor(private readonly servicesService: ServicesService) {}
@@ -27,7 +27,7 @@ export class ServicesController {
   }
 
   @Post()
-  @Roles('ADMIN', 'ACCOUNTANT')
+  @Permissions('services:manage')
   async create(@Req() req: any, @Body() body: any) {
     return this.servicesService.create(req.user.hospitalId, {
       code: body.code,
@@ -44,7 +44,7 @@ export class ServicesController {
   }
 
   @Post('categories')
-  @Roles('ADMIN', 'ACCOUNTANT')
+  @Permissions('services:manage')
   async createCategory(@Req() req: any, @Body() body: any) {
     return this.servicesService.createCategory(req.user.hospitalId, {
       name: body.name,
@@ -53,7 +53,7 @@ export class ServicesController {
   }
 
   @Patch(':id')
-  @Roles('ADMIN', 'ACCOUNTANT')
+  @Permissions('services:manage')
   async update(
     @Req() req: any,
     @Param('id', ParseIntPipe) id: number,
@@ -63,7 +63,12 @@ export class ServicesController {
       name: body.name,
       defaultPrice:
         body.defaultPrice !== undefined ? Number(body.defaultPrice) : undefined,
-      categoryId: body.categoryId !== undefined ? (body.categoryId ? Number(body.categoryId) : null) : undefined,
+      categoryId:
+        body.categoryId !== undefined
+          ? body.categoryId
+            ? Number(body.categoryId)
+            : null
+          : undefined,
       isActive: body.isActive,
     });
   }

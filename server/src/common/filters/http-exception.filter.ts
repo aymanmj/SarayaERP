@@ -101,7 +101,9 @@ export class AllExceptionsFilter implements ExceptionFilter {
       this.logger.warn(`[${request.method}] ${request.url} >> ${message}`);
       // Log details for validation errors to help debugging
       if (exception instanceof Prisma.PrismaClientValidationError) {
-        this.logger.error(`Prisma Validation Error Details: ${exception.message}`);
+        this.logger.error(
+          `Prisma Validation Error Details: ${exception.message}`,
+        );
       }
     }
 
@@ -127,7 +129,10 @@ export class AllExceptionsFilter implements ExceptionFilter {
       success: false,
       statusCode: status,
       message,
-      error: errorResponse && typeof errorResponse === 'object' ? errorResponse['error'] : undefined,
+      error:
+        errorResponse && typeof errorResponse === 'object'
+          ? errorResponse['error']
+          : undefined,
       timestamp: new Date().toISOString(),
       path: request.url,
       // يمكن عرض التفاصيل فقط في بيئة التطوير

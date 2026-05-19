@@ -19,7 +19,9 @@ describe('NphiesService', () => {
         NphiesService,
         {
           provide: NphiesCryptoService,
-          useValue: { signPayload: jest.fn().mockReturnValue('mock.jws.signature') },
+          useValue: {
+            signPayload: jest.fn().mockReturnValue('mock.jws.signature'),
+          },
         },
         {
           provide: ConfigService,
@@ -42,36 +44,54 @@ describe('NphiesService', () => {
 
   describe('buildMessageHeader', () => {
     it('should return a valid FHIR MessageHeader resource', () => {
-      const header = service.buildMessageHeader('eligibility-request', 'CoverageEligibilityRequest/123');
+      const header = service.buildMessageHeader(
+        'eligibility-request',
+        'CoverageEligibilityRequest/123',
+      );
       expect(header.resourceType).toBe('MessageHeader');
       expect(header.id).toBeDefined();
     });
 
     it('should set correct event coding', () => {
       const header = service.buildMessageHeader('claim-request', 'Claim/456');
-      expect(header.eventCoding.system).toBe('http://nphies.sa/terminology/CodeSystem/ksa-message-events');
+      expect(header.eventCoding.system).toBe(
+        'http://nphies.sa/terminology/CodeSystem/ksa-message-events',
+      );
       expect(header.eventCoding.code).toBe('claim-request');
     });
 
     it('should set destination with receiver ID', () => {
-      const header = service.buildMessageHeader('eligibility-request', 'Test/1');
-      expect(header.destination[0].receiver.identifier.value).toBe('test-payer-001');
+      const header = service.buildMessageHeader(
+        'eligibility-request',
+        'Test/1',
+      );
+      expect(header.destination[0].receiver.identifier.value).toBe(
+        'test-payer-001',
+      );
     });
 
     it('should set sender with provider ID', () => {
-      const header = service.buildMessageHeader('eligibility-request', 'Test/1');
+      const header = service.buildMessageHeader(
+        'eligibility-request',
+        'Test/1',
+      );
       expect(header.sender.identifier.value).toBe('test-provider-001');
     });
 
     it('should set focus reference', () => {
-      const header = service.buildMessageHeader('preauthorization-request', 'Claim/789');
+      const header = service.buildMessageHeader(
+        'preauthorization-request',
+        'Claim/789',
+      );
       expect(header.focus).toEqual([{ reference: 'Claim/789' }]);
     });
 
     it('should include JWS signature extension', () => {
       const header = service.buildMessageHeader('claim-request', 'Claim/test');
       expect(header.extension).toHaveLength(1);
-      expect(header.extension[0].valueSignature.sigFormat).toBe('application/jose');
+      expect(header.extension[0].valueSignature.sigFormat).toBe(
+        'application/jose',
+      );
     });
 
     it('should call cryptoService.signPayload', () => {
@@ -82,19 +102,29 @@ describe('NphiesService', () => {
 
   describe('buildPatient', () => {
     it('should return a FHIR Patient resource', () => {
-      const patient = service.buildPatient({ id: 'pat-001', fullName: 'أحمد محمد' });
+      const patient = service.buildPatient({
+        id: 'pat-001',
+        fullName: 'أحمد محمد',
+      });
       expect(patient.resourceType).toBe('Patient');
       expect(patient.id).toBe('pat-001');
     });
 
     it('should parse name correctly', () => {
-      const patient = service.buildPatient({ id: '1', fullName: 'خالد عبدالله السعيد' });
+      const patient = service.buildPatient({
+        id: '1',
+        fullName: 'خالد عبدالله السعيد',
+      });
       expect(patient.name[0].given[0]).toBe('خالد');
       expect(patient.name[0].family).toBe('السعيد');
     });
 
     it('should include national ID when provided', () => {
-      const patient = service.buildPatient({ id: '1', fullName: 'Test', nationalId: '1234567890' });
+      const patient = service.buildPatient({
+        id: '1',
+        fullName: 'Test',
+        nationalId: '1234567890',
+      });
       expect(patient.identifier[0].value).toBe('1234567890');
     });
 
@@ -104,26 +134,44 @@ describe('NphiesService', () => {
     });
 
     it('should map gender correctly', () => {
-      expect(service.buildPatient({ id: '1', fullName: 'T', gender: 'MALE' }).gender).toBe('male');
-      expect(service.buildPatient({ id: '2', fullName: 'T', gender: 'FEMALE' }).gender).toBe('female');
-      expect(service.buildPatient({ id: '3', fullName: 'T' }).gender).toBe('unknown');
+      expect(
+        service.buildPatient({ id: '1', fullName: 'T', gender: 'MALE' }).gender,
+      ).toBe('male');
+      expect(
+        service.buildPatient({ id: '2', fullName: 'T', gender: 'FEMALE' })
+          .gender,
+      ).toBe('female');
+      expect(service.buildPatient({ id: '3', fullName: 'T' }).gender).toBe(
+        'unknown',
+      );
     });
 
     it('should format birthDate as YYYY-MM-DD', () => {
-      const patient = service.buildPatient({ id: '1', fullName: 'T', dateOfBirth: new Date('1990-05-15T00:00:00Z') });
+      const patient = service.buildPatient({
+        id: '1',
+        fullName: 'T',
+        dateOfBirth: new Date('1990-05-15T00:00:00Z'),
+      });
       expect(patient.birthDate).toBe('1990-05-15');
     });
 
     it('should include phone when provided', () => {
-      const patient = service.buildPatient({ id: '1', fullName: 'T', phone: '+966501234567' });
+      const patient = service.buildPatient({
+        id: '1',
+        fullName: 'T',
+        phone: '+966501234567',
+      });
       expect(patient.telecom[0].value).toBe('+966501234567');
     });
   });
 
   describe('buildCoverage', () => {
     const base = {
-      id: 'cov-001', memberId: 'MEM-123', payerIdentifier: 'PAYER-X',
-      payerName: 'بوبا', patientRef: 'Patient/pat-001',
+      id: 'cov-001',
+      memberId: 'MEM-123',
+      payerIdentifier: 'PAYER-X',
+      payerName: 'بوبا',
+      patientRef: 'Patient/pat-001',
     };
 
     it('should return a FHIR Coverage resource', () => {
@@ -139,7 +187,9 @@ describe('NphiesService', () => {
     });
 
     it('should default relationship to self', () => {
-      expect(service.buildCoverage(base).relationship.coding[0].code).toBe('self');
+      expect(service.buildCoverage(base).relationship.coding[0].code).toBe(
+        'self',
+      );
     });
   });
 
@@ -178,7 +228,9 @@ describe('NphiesService', () => {
       expect(att).not.toBeNull();
       expect(att.title).toBe('Lab Report');
       expect(att.contentType).toBe('application/pdf');
-      expect(Buffer.from(att.data, 'base64').toString()).toBe('mock PDF content');
+      expect(Buffer.from(att.data, 'base64').toString()).toBe(
+        'mock PDF content',
+      );
     });
 
     it('should return null for non-existent file', () => {

@@ -107,15 +107,17 @@ export class NightlyBillingService {
     this.logger.log('🔄 Starting Nightly ICU Ventilator Charges Job...');
 
     // Find a service item for Ventilator Usage
-    // Note: Assuming there is a service code like 'VENT-USAGE-DAY' or similar. 
+    // Note: Assuming there is a service code like 'VENT-USAGE-DAY' or similar.
     // For safety, we pull a general 'ICU Equipment' or 'Ventilator' service item, or create a placeholder logic if missing.
     const ventService = await this.prisma.serviceItem.findFirst({
-      where: { code: 'VENT-USAGE-DAY', isActive: true }
+      where: { code: 'VENT-USAGE-DAY', isActive: true },
     });
 
     if (!ventService) {
-       this.logger.warn('⚠️ No active service item found with code "VENT-USAGE-DAY". Skipping ventilator billing.');
-       return;
+      this.logger.warn(
+        '⚠️ No active service item found with code "VENT-USAGE-DAY". Skipping ventilator billing.',
+      );
+      return;
     }
 
     const todayStart = new Date();
@@ -126,48 +128,50 @@ export class NightlyBillingService {
     // Find all patients who had a ventilator log today
     const flowsheetsWithVent = await this.prisma.iCUFlowsheet.findMany({
       where: {
-         shiftDate: { gte: todayStart, lte: todayEnd },
-         entries: { some: { ventilatorLog: { isNot: null } } }
+        shiftDate: { gte: todayStart, lte: todayEnd },
+        entries: { some: { ventilatorLog: { isNot: null } } },
       },
       include: {
         entries: {
           where: { ventilatorLog: { isNot: null } },
-          include: { ventilatorLog: true }
-        }
-      }
+          include: { ventilatorLog: true },
+        },
+      },
     });
 
     let count = 0;
 
     for (const flowsheet of flowsheetsWithVent) {
-       // Check if we already billed them today
-       const existingCharge = await this.prisma.encounterCharge.findFirst({
-         where: {
-           encounterId: flowsheet.encounterId,
-           serviceItemId: ventService.id,
-           createdAt: { gte: todayStart, lte: todayEnd }
-         }
-       });
+      // Check if we already billed them today
+      const existingCharge = await this.prisma.encounterCharge.findFirst({
+        where: {
+          encounterId: flowsheet.encounterId,
+          serviceItemId: ventService.id,
+          createdAt: { gte: todayStart, lte: todayEnd },
+        },
+      });
 
-       if (existingCharge) continue;
+      if (existingCharge) continue;
 
-       // Create charge
-       await this.prisma.encounterCharge.create({
-         data: {
-           hospitalId: flowsheet.hospitalId,
-           encounterId: flowsheet.encounterId,
-           serviceItemId: ventService.id,
-           sourceType: ChargeSource.MANUAL, // or EQUIPMENT if you have it in your enum
-           quantity: 1,
-           unitPrice: ventService.defaultPrice,
-           totalAmount: ventService.defaultPrice
-         }
-       });
+      // Create charge
+      await this.prisma.encounterCharge.create({
+        data: {
+          hospitalId: flowsheet.hospitalId,
+          encounterId: flowsheet.encounterId,
+          serviceItemId: ventService.id,
+          sourceType: ChargeSource.MANUAL, // or EQUIPMENT if you have it in your enum
+          quantity: 1,
+          unitPrice: ventService.defaultPrice,
+          totalAmount: ventService.defaultPrice,
+        },
+      });
 
-       count++;
+      count++;
     }
 
-    this.logger.log(`✅ Finished. Charged ${count} patients for Ventilator usage.`);
+    this.logger.log(
+      `✅ Finished. Charged ${count} patients for Ventilator usage.`,
+    );
   }
 }
 

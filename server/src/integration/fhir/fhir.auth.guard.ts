@@ -1,4 +1,10 @@
-import { Injectable, CanActivate, ExecutionContext, UnauthorizedException, SetMetadata } from '@nestjs/common';
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  UnauthorizedException,
+  SetMetadata,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { FhirAuthService } from './fhir.auth.service';
 import { Request } from 'express';
@@ -6,7 +12,7 @@ import { Request } from 'express';
 /**
  * Decorator to declare the required FHIR scope for an endpoint.
  * Uses the SMART v2 scope syntax: prefix/Resource.action
- * 
+ *
  * @example @FhirScope('patient/Observation.write')
  */
 export const FhirScope = (scope: string) => SetMetadata('fhir_scope', scope);
@@ -31,12 +37,12 @@ export interface FhirRequest extends Request {
 
 /**
  * Enterprise FHIR Auth Guard
- * 
+ *
  * Protects FHIR endpoints with:
  * 1. Bearer token validation (JWT)
  * 2. Scope-based access control (read/write per resource)
  * 3. SMART patient context injection for downstream enforcement
- * 
+ *
  * The guard extracts and validates the token, checks the required scope,
  * and injects the decoded SMART context into the request for use by
  * controllers and services to enforce patient-level isolation.
@@ -45,12 +51,15 @@ export interface FhirRequest extends Request {
 export class FhirAuthGuard implements CanActivate {
   constructor(
     private fhirAuthService: FhirAuthService,
-    private reflector: Reflector
+    private reflector: Reflector,
   ) {}
 
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest<Request>();
-    const requiredScope = this.reflector.get<string>('fhir_scope', context.getHandler());
+    const requiredScope = this.reflector.get<string>(
+      'fhir_scope',
+      context.getHandler(),
+    );
 
     // The metadata endpoint is public per FHIR spec
     if (request.path.endsWith('/fhir/metadata')) {
@@ -64,14 +73,16 @@ export class FhirAuthGuard implements CanActivate {
 
     const authHeader = request.headers['authorization'];
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      throw new UnauthorizedException('Missing or invalid FHIR Bearer Token. All FHIR endpoints require SMART authorization.');
+      throw new UnauthorizedException(
+        'Missing or invalid FHIR Bearer Token. All FHIR endpoints require SMART authorization.',
+      );
     }
 
     const token = authHeader.split(' ')[1];
-    
+
     // Validate token and scopes — throws if invalid
     const decoded = this.fhirAuthService.validateToken(token, requiredScope);
-    
+
     // Inject the full SMART context into the request
     // Controllers MUST use this to enforce patient-level data isolation
     (request as FhirRequest).smartContext = {

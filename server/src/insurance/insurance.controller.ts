@@ -15,13 +15,10 @@ import {
 } from '@nestjs/common';
 import { InsuranceService } from './insurance.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
-
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Controller('insurance')
-@Roles('ADMIN', 'ACCOUNTANT', 'RECEPTION')
-export class InsuranceController {
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { Permissions } from '../auth/permissions.decorator';
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@Controller('insurance')export class InsuranceController {
   constructor(private readonly insuranceService: InsuranceService) {}
 
   // Providers
@@ -31,7 +28,7 @@ export class InsuranceController {
   }
 
   @Post('providers')
-  @Roles('ADMIN')
+  @Permissions('insurance:manage')
   async createProvider(@Req() req: any, @Body() body: any) {
     return this.insuranceService.createProvider(req.user.hospitalId, body);
   }
@@ -43,7 +40,7 @@ export class InsuranceController {
 
   // Policies (Updated to support planId)
   @Post('providers/:id/policies')
-  @Roles('ADMIN')
+  @Permissions('insurance:manage')
   async createPolicy(@Param('id', ParseIntPipe) id: number, @Body() body: any) {
     // body: { name, policyNumber, startDate, endDate, planId, ... }
     return this.insuranceService.createPolicy(id, body);
@@ -51,7 +48,7 @@ export class InsuranceController {
 
   // Plans (New)
   @Post('providers/:id/plans')
-  @Roles('ADMIN')
+  @Permissions('insurance:manage')
   async createPlan(
     @Param('id', ParseIntPipe) providerId: number,
     @Body() body: any,
@@ -66,7 +63,7 @@ export class InsuranceController {
   }
 
   @Post('plans/:id/rules')
-  @Roles('ADMIN')
+  @Permissions('insurance:manage')
   async addRule(@Param('id', ParseIntPipe) planId: number, @Body() body: any) {
     // body: { serviceCategoryId?, serviceItemId?, ruleType, copayType, copayValue, requiresApproval }
     return this.insuranceService.addCoverageRule(planId, body);
@@ -94,7 +91,7 @@ export class InsuranceController {
 
   // Claims
   @Get('claims')
-  @Roles('ADMIN', 'ACCOUNTANT')
+  @Permissions('insurance:manage')
   async listClaims(
     @Req() req: any,
     @Query('providerId') providerId?: string,
@@ -111,10 +108,11 @@ export class InsuranceController {
   }
 
   @Post('claims/update-status')
-  @Roles('ADMIN', 'ACCOUNTANT')
+  @Permissions('insurance:manage')
   async updateClaimsStatus(
     @Req() req: any,
-    @Body() body: { invoiceIds: number[]; status: string; rejectionReason?: string },
+    @Body()
+    body: { invoiceIds: number[]; status: string; rejectionReason?: string },
   ) {
     return this.insuranceService.updateClaimsStatus(
       req.user.hospitalId,
@@ -126,7 +124,7 @@ export class InsuranceController {
   }
 
   @Patch('providers/:id')
-  @Roles('ADMIN')
+  @Permissions('insurance:manage')
   async updateProvider(
     @Param('id', ParseIntPipe) id: number,
     @Body() body: any,
@@ -135,7 +133,7 @@ export class InsuranceController {
   }
 
   @Delete('providers/:id')
-  @Roles('ADMIN')
+  @Permissions('insurance:manage')
   async deleteProvider(@Param('id', ParseIntPipe) id: number) {
     return this.insuranceService.softDeleteProvider(id);
   }
@@ -154,12 +152,11 @@ export class InsuranceController {
 // } from '@nestjs/common';
 // import { InsuranceService } from './insurance.service';
 // import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-// import { RolesGuard } from '../auth/roles.guard';
-// import { Roles } from '../auth/roles.decorator';
-
-// @UseGuards(JwtAuthGuard, RolesGuard)
+// import { PermissionsGuard } from '../auth/permissions.guard';
+// import { Permissions } from '../auth/permissions.decorator';
+// @UseGuards(JwtAuthGuard, PermissionsGuard)
 // @Controller('insurance')
-// @Roles('ADMIN', 'ACCOUNTANT', 'RECEPTION')
+// @Permissions('insurance:view')
 // export class InsuranceController {
 //   constructor(private readonly insuranceService: InsuranceService) {}
 
@@ -169,19 +166,19 @@ export class InsuranceController {
 //   }
 
 //   @Post('providers')
-//   @Roles('ADMIN')
+//   @Permissions('insurance:manage')
 //   async createProvider(@Req() req: any, @Body() body: any) {
 //     return this.insuranceService.createProvider(req.user.hospitalId, body);
 //   }
 
 //   @Post('providers/:id/policies')
-//   @Roles('ADMIN')
+//   @Permissions('insurance:manage')
 //   async createPolicy(@Param('id', ParseIntPipe) id: number, @Body() body: any) {
 //     return this.insuranceService.createPolicy(id, body);
 //   }
 
 //   @Get('claims')
-//   @Roles('ADMIN', 'ACCOUNTANT')
+//   @Permissions('insurance:manage')
 //   async listClaims(
 //     @Req() req: any,
 //     @Query('providerId') providerId?: string,
@@ -198,7 +195,7 @@ export class InsuranceController {
 //   }
 
 //   @Post('claims/update-status')
-//   @Roles('ADMIN', 'ACCOUNTANT')
+//   @Permissions('insurance:manage')
 //   async updateClaimsStatus(
 //     @Req() req: any,
 //     @Body() body: { invoiceIds: number[]; status: string },

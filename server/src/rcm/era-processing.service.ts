@@ -1,10 +1,15 @@
-import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ClsService } from 'nestjs-cls';
 
 /**
  * خدمة معالجة إشعارات التحويل الإلكتروني (ERA - Electronic Remittance Advice)
- * 
+ *
  * الميزات:
  * 1. استلام وتخزين ملفات ERA الواردة من NPHIES أو بوابات التأمين.
  * 2. مطابقة المبالغ المدفوعة (Reconciliation) مع المطالبات المحلية (Claims).
@@ -52,12 +57,20 @@ export class EraProcessingService {
 
     // 1. حساب الإجماليات للمطابقة (Reconciliation)
     const totalClaims = data.lineItems.length;
-    const totalAdjustments = data.lineItems.reduce((acc, item) => acc + (item.adjustmentAmount || 0), 0);
-    const computedTotalPaid = data.lineItems.reduce((acc, item) => acc + item.paidAmount, 0);
+    const totalAdjustments = data.lineItems.reduce(
+      (acc, item) => acc + (item.adjustmentAmount || 0),
+      0,
+    );
+    const computedTotalPaid = data.lineItems.reduce(
+      (acc, item) => acc + item.paidAmount,
+      0,
+    );
 
     // التحقق من صحة إجمالي الملف
     if (Math.abs(computedTotalPaid - data.totalPaid) > 0.01) {
-      this.logger.warn(`ERA ${data.eraNumber}: إجمالي المدفوعات لا يتطابق. مدعّى: ${data.totalPaid}, محسوب: ${computedTotalPaid}`);
+      this.logger.warn(
+        `ERA ${data.eraNumber}: إجمالي المدفوعات لا يتطابق. مدعّى: ${data.totalPaid}, محسوب: ${computedTotalPaid}`,
+      );
     }
 
     // 2. محاولة مطابقة المطالبات داخلياً
@@ -91,7 +104,7 @@ export class EraProcessingService {
           claimId: claim?.id || null,
           status,
         };
-      })
+      }),
     );
 
     // 3. تخزين الـ ERA في قاعدة البيانات
@@ -117,7 +130,9 @@ export class EraProcessingService {
       },
     });
 
-    this.logger.log(`📥 تم استلام ERA رقم ${era.eraNumber} بنجاح. المطالبات: ${totalClaims}`);
+    this.logger.log(
+      `📥 تم استلام ERA رقم ${era.eraNumber} بنجاح. المطالبات: ${totalClaims}`,
+    );
     return era;
   }
 
@@ -131,7 +146,8 @@ export class EraProcessingService {
     });
 
     if (!era) throw new NotFoundException('لم يتم العثور على ملف ERA');
-    if (era.status === 'RECONCILED') throw new BadRequestException('تمت تسوية هذا الملف مسبقاً');
+    if (era.status === 'RECONCILED')
+      throw new BadRequestException('تمت تسوية هذا الملف مسبقاً');
 
     let processedCount = 0;
 
@@ -181,7 +197,9 @@ export class EraProcessingService {
       });
     });
 
-    this.logger.log(`✅ تمت تسوية ERA ${era.eraNumber} بنجاح. المطالبات المعالجة: ${processedCount}`);
+    this.logger.log(
+      `✅ تمت تسوية ERA ${era.eraNumber} بنجاح. المطالبات المعالجة: ${processedCount}`,
+    );
     return { success: true, processedCount };
   }
 
@@ -190,10 +208,14 @@ export class EraProcessingService {
    */
   private determineClaimStatus(lineItemStatus: string): any {
     switch (lineItemStatus) {
-      case 'DENIED': return 'REJECTED';
-      case 'UNDERPAID': return 'PARTIALLY_PAID';
-      case 'MATCHED': return 'PAID';
-      default: return 'SUBMITTED';
+      case 'DENIED':
+        return 'REJECTED';
+      case 'UNDERPAID':
+        return 'PARTIALLY_PAID';
+      case 'MATCHED':
+        return 'PAID';
+      default:
+        return 'SUBMITTED';
     }
   }
 }

@@ -155,10 +155,9 @@ describe('Patient Journey Integration Tests', () => {
       notes: 'Initial ER assessment',
     });
 
-    const patient = await patientsService.create(
-      1,
-      { fullName: 'Ahmed Ali' } as any,
-    );
+    const patient = await patientsService.create(1, {
+      fullName: 'Ahmed Ali',
+    } as any);
     const encounter = await encountersService.createEncounter(1, {
       patientId: patient.id,
       type: 'ER' as any,

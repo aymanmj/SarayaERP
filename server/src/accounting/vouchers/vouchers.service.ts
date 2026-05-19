@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AccountingService } from '../accounting.service';
 import { CreateVoucherDto, UpdateVoucherDto } from './dto/voucher.dto';
@@ -34,8 +38,8 @@ export class VouchersService {
     return this.prisma.voucher.findMany({
       where: {
         hospitalId,
-        type: type ? (type as any) : undefined,
-        status: status ? (status as any) : undefined,
+        type: type ? type : undefined,
+        status: status ? status : undefined,
         date: {
           gte: from ? new Date(from) : undefined,
           lte: to ? new Date(to) : undefined,
@@ -53,10 +57,10 @@ export class VouchersService {
   async findOne(hospitalId: number, id: number) {
     const voucher = await this.prisma.voucher.findFirst({
       where: { id, hospitalId },
-      include: { 
-        account: true, 
-        cashAccount: true, 
-        createdBy: { select: { id: true, fullName: true } }
+      include: {
+        account: true,
+        cashAccount: true,
+        createdBy: { select: { id: true, fullName: true } },
       },
     });
     if (!voucher) throw new NotFoundException('Voucher not found');
@@ -100,7 +104,9 @@ export class VouchersService {
     return this.prisma.$transaction(async (tx) => {
       // Generate Code PV-0001 or RV-0001
       const prefix = voucher.type === 'PAYMENT' ? 'PV' : 'RV';
-      const count = await tx.voucher.count({ where: { hospitalId, type: voucher.type as any } });
+      const count = await tx.voucher.count({
+        where: { hospitalId, type: voucher.type as any },
+      });
       const code = `${prefix}-${String(count + 1).padStart(5, '0')}`;
 
       // Optimistic Concurrency Control (OCC)
@@ -111,7 +117,9 @@ export class VouchersService {
       });
 
       if (updateResult.count === 0) {
-        throw new BadRequestException('Voucher was modified by another transaction and is no longer in DRAFT status');
+        throw new BadRequestException(
+          'Voucher was modified by another transaction and is no longer in DRAFT status',
+        );
       }
 
       const updated = await tx.voucher.findUnique({ where: { id } });
@@ -133,7 +141,7 @@ export class VouchersService {
     if (voucher.status !== VoucherStatus.POSTED) {
       throw new BadRequestException('Can only cancel a POSTED voucher');
     }
-    
+
     // For now we just mark cancelled. Real ERPs generate a JOURNAL_REVERSAL entry.
     // OCC check to prevent concurrent cancellations
     const updateResult = await this.prisma.voucher.updateMany({
@@ -142,7 +150,9 @@ export class VouchersService {
     });
 
     if (updateResult.count === 0) {
-      throw new BadRequestException('Voucher was modified by another transaction and is no longer in POSTED status');
+      throw new BadRequestException(
+        'Voucher was modified by another transaction and is no longer in POSTED status',
+      );
     }
 
     return this.prisma.voucher.findUnique({ where: { id } });

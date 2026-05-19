@@ -47,7 +47,10 @@ describe('QualityService', () => {
   describe('reportIncident', () => {
     it('should generate incident number and calculate review date correctly for MAJOR severity', async () => {
       mockPrisma.clinicalIncident.count.mockResolvedValue(5);
-      mockPrisma.clinicalIncident.create.mockResolvedValue({ id: 1, incidentNumber: 'INC-2026-0006' });
+      mockPrisma.clinicalIncident.create.mockResolvedValue({
+        id: 1,
+        incidentNumber: 'INC-2026-0006',
+      });
 
       const dto = {
         incidentDate: '2026-05-17',
@@ -59,70 +62,109 @@ describe('QualityService', () => {
 
       await service.reportIncident(1, 2, dto);
 
-      expect(mockPrisma.clinicalIncident.count).toHaveBeenCalledWith({ where: { hospitalId: 1 } });
+      expect(mockPrisma.clinicalIncident.count).toHaveBeenCalledWith({
+        where: { hospitalId: 1 },
+      });
       const createCall = mockPrisma.clinicalIncident.create.mock.calls[0][0];
-      
+
       expect(createCall.data.incidentNumber).toMatch(/INC-\d{4}-0006/);
-      
+
       // MAJOR severity should be +1 day
       const expectedDueDate = new Date();
       expectedDueDate.setDate(expectedDueDate.getDate() + 1);
-      
+
       // Allow slight difference in milliseconds
-      expect(createCall.data.reviewDueDate.toISOString().substring(0, 10)).toEqual(expectedDueDate.toISOString().substring(0, 10));
+      expect(
+        createCall.data.reviewDueDate.toISOString().substring(0, 10),
+      ).toEqual(expectedDueDate.toISOString().substring(0, 10));
     });
   });
 
   describe('closeIncident', () => {
     it('should throw BadRequestException if there are open CAPA actions', async () => {
-      mockPrisma.clinicalIncident.findFirst.mockResolvedValue({ id: 1, status: IncidentStatus.INVESTIGATED });
+      mockPrisma.clinicalIncident.findFirst.mockResolvedValue({
+        id: 1,
+        status: IncidentStatus.INVESTIGATED,
+      });
       mockPrisma.capaAction.count.mockResolvedValue(1);
 
-      await expect(service.closeIncident(1, 1, 2)).rejects.toThrow(BadRequestException);
+      await expect(service.closeIncident(1, 1, 2)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should close incident if all CAPA actions are completed or verified', async () => {
-      mockPrisma.clinicalIncident.findFirst.mockResolvedValue({ id: 1, status: IncidentStatus.INVESTIGATED });
+      mockPrisma.clinicalIncident.findFirst.mockResolvedValue({
+        id: 1,
+        status: IncidentStatus.INVESTIGATED,
+      });
       mockPrisma.capaAction.count.mockResolvedValue(0); // 0 open capas
-      mockPrisma.clinicalIncident.update.mockResolvedValue({ id: 1, status: IncidentStatus.CLOSED });
+      mockPrisma.clinicalIncident.update.mockResolvedValue({
+        id: 1,
+        status: IncidentStatus.CLOSED,
+      });
 
       const result = await service.closeIncident(1, 1, 2);
       expect(result.status).toBe(IncidentStatus.CLOSED);
       expect(mockPrisma.clinicalIncident.update).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({ status: IncidentStatus.CLOSED })
-        })
+          data: expect.objectContaining({ status: IncidentStatus.CLOSED }),
+        }),
       );
     });
   });
 
   describe('CAPA Management', () => {
     it('should verify CAPA and close it, then check if incident should be CAPA_VERIFIED', async () => {
-      mockPrisma.capaAction.findFirst.mockResolvedValue({ id: 1, incidentId: 5, status: CapaStatus.COMPLETED });
-      mockPrisma.capaAction.update.mockResolvedValue({ id: 1, status: CapaStatus.VERIFIED });
+      mockPrisma.capaAction.findFirst.mockResolvedValue({
+        id: 1,
+        incidentId: 5,
+        status: CapaStatus.COMPLETED,
+      });
+      mockPrisma.capaAction.update.mockResolvedValue({
+        id: 1,
+        status: CapaStatus.VERIFIED,
+      });
       mockPrisma.capaAction.count.mockResolvedValue(0); // No remaining open
       mockPrisma.clinicalIncident.update.mockResolvedValue({});
 
-      await service.verifyCapaAction(1, 1, { verificationNotes: 'Looks good', isEffective: true }, 2);
+      await service.verifyCapaAction(
+        1,
+        1,
+        { verificationNotes: 'Looks good', isEffective: true },
+        2,
+      );
 
       expect(mockPrisma.capaAction.update).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({ status: CapaStatus.VERIFIED, isEffective: true })
-        })
+          data: expect.objectContaining({
+            status: CapaStatus.VERIFIED,
+            isEffective: true,
+          }),
+        }),
       );
       expect(mockPrisma.clinicalIncident.update).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { id: 5 },
-          data: { status: IncidentStatus.CAPA_VERIFIED }
-        })
+          data: { status: IncidentStatus.CAPA_VERIFIED },
+        }),
       );
     });
 
     it('should fail to verify CAPA if not completed', async () => {
-      mockPrisma.capaAction.findFirst.mockResolvedValue({ id: 1, incidentId: 5, status: CapaStatus.IN_PROGRESS });
+      mockPrisma.capaAction.findFirst.mockResolvedValue({
+        id: 1,
+        incidentId: 5,
+        status: CapaStatus.IN_PROGRESS,
+      });
 
       await expect(
-        service.verifyCapaAction(1, 1, { verificationNotes: 'Looks good', isEffective: true }, 2)
+        service.verifyCapaAction(
+          1,
+          1,
+          { verificationNotes: 'Looks good', isEffective: true },
+          2,
+        ),
       ).rejects.toThrow(BadRequestException);
     });
   });

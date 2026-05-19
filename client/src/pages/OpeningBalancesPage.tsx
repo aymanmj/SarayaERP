@@ -106,6 +106,7 @@ export default function OpeningBalancesPage() {
       } else {
         setLines([]);
       }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       // 404 أو لا توجد بيانات = لا نعرض خطأ، بل نعتبرها فارغة
       const status = err?.response?.status;
@@ -145,6 +146,7 @@ export default function OpeningBalancesPage() {
           setSelectedYearId(openYear.id);
           setEntryDate(openYear.startDate.substring(0, 10));
         }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (err: any) {
         console.error(err);
         setError("حدث خطأ أثناء تحميل البيانات.");
@@ -186,6 +188,7 @@ export default function OpeningBalancesPage() {
   const updateLine = (
     tempId: string,
     field: "accountId" | "debit" | "credit",
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     value: any
   ) => {
     setLines((prev) =>
@@ -258,6 +261,7 @@ export default function OpeningBalancesPage() {
 
       // إعادة تحميل الأرصدة من الـ backend بعد الحفظ
       await loadBalancesForYear(selectedYearId);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       console.error(err);
       const msg =

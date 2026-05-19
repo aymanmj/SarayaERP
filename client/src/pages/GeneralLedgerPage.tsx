@@ -214,6 +214,7 @@ export default function GeneralLedgerPage() {
     try {
       const res = await apiClient.get<AccountLite[]>("/accounting/accounts");
       setAccounts(res.data);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       console.error(err);
       toast.error("تعذر تحميل قائمة الحسابات.");
@@ -245,6 +246,7 @@ export default function GeneralLedgerPage() {
       );
 
       setLedger(res.data);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       console.error(err);
       const msg = err?.response?.data?.message;

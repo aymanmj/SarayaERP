@@ -3,6 +3,7 @@
 // وحدة الجودة والسلامة المريض — Clinical Incident / Near Miss / CAPA
 // =====================================================================
 
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
   Injectable,
   Logger,
@@ -11,19 +12,25 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { IncidentStatus, CapaStatus, IncidentSeverity } from '@prisma/client';
 import {
-  IncidentStatus,
-  CapaStatus,
-  IncidentSeverity,
-} from '@prisma/client';
-import { CreateIncidentDto, UpdateIncidentDto } from './dto/create-incident.dto';
-import { CreateCapaDto, UpdateCapaDto, VerifyCapaDto } from './dto/create-capa.dto';
+  CreateIncidentDto,
+  UpdateIncidentDto,
+} from './dto/create-incident.dto';
+import {
+  CreateCapaDto,
+  UpdateCapaDto,
+  VerifyCapaDto,
+} from './dto/create-capa.dto';
 
 @Injectable()
 export class QualityService {
   private readonly logger = new Logger(QualityService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private eventEmitter: EventEmitter2,
+  ) {}
 
   // ======================== Incident Number Generator ========================
 
@@ -83,7 +90,14 @@ export class QualityService {
       `Incident reported: ${incidentNumber} | Severity: ${dto.severity} | Hospital: ${hospitalId}`,
     );
 
-    // TODO: emit event → notification to Quality Manager
+    this.eventEmitter.emit('quality.incident_reported', {
+      hospitalId,
+      incidentId: incident.id,
+      incidentNumber: incident.incidentNumber,
+      severity: incident.severity,
+      reporterName: incident.reporter?.fullName || 'Anonymous',
+    });
+
     return incident;
   }
 
@@ -267,10 +281,7 @@ export class QualityService {
 
   // ======================== 7. CAPA Management ========================
 
-  async addCapaAction(
-    hospitalId: number,
-    dto: CreateCapaDto,
-  ) {
+  async addCapaAction(hospitalId: number, dto: CreateCapaDto) {
     // التحقق من وجود الحادثة
     const incident = await this.findOne(hospitalId, dto.incidentId);
 
@@ -300,6 +311,14 @@ export class QualityService {
         data: { status: IncidentStatus.CAPA_OPEN },
       });
     }
+
+    this.eventEmitter.emit('quality.capa_added', {
+      hospitalId,
+      capaId: action.id,
+      incidentId: dto.incidentId,
+      actionType: dto.actionType,
+      assignedToName: action.assignedTo?.fullName || 'Unknown',
+    });
 
     return action;
   }

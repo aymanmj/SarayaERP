@@ -15,12 +15,12 @@ import {
 } from '@nestjs/common';
 import { HrService } from './hr.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { Permissions } from '../auth/permissions.decorator';
 import { ShiftType, LeaveType, LeaveStatus } from '@prisma/client';
 import { RequireFeature } from '../licensing/license.decorator';
 
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('hr')
 @RequireFeature('HR')
 export class HrController {
@@ -28,20 +28,20 @@ export class HrController {
 
   // --- Shifts ---
   @Post('shifts')
-  @Roles('ADMIN', 'HR')
+  @Permissions('hr:manage')
   async createShift(@Req() req: any, @Body() body: any) {
     return this.hrService.createWorkShift(req.user.hospitalId, body);
   }
 
   @Get('shifts')
-  @Roles('ADMIN', 'HR')
+  @Permissions('hr:manage')
   async getShifts(@Req() req: any) {
     return this.hrService.getWorkShifts(req.user.hospitalId);
   }
 
   // --- Roster ---
   @Post('roster/assign')
-  @Roles('ADMIN', 'HR')
+  @Permissions('hr:manage')
   async assignRoster(@Req() req: any, @Body() body: any) {
     return this.hrService.assignRoster({
       hospitalId: req.user.hospitalId,
@@ -54,7 +54,7 @@ export class HrController {
   }
 
   @Get('roster')
-  @Roles('ADMIN', 'HR', 'DOCTOR', 'NURSE')
+  @Permissions('hr:view')
   async getRoster(
     @Req() req: any,
     @Query('from') from: string,
@@ -70,7 +70,7 @@ export class HrController {
   }
 
   @Patch('roster/:id')
-  @Roles('ADMIN', 'HR')
+  @Permissions('hr:manage')
   async updateRosterEntry(
     @Req() req: any,
     @Param('id', ParseIntPipe) id: number,
@@ -80,7 +80,7 @@ export class HrController {
   }
 
   @Delete('roster/:id')
-  @Roles('ADMIN', 'HR')
+  @Permissions('hr:manage')
   async deleteRosterEntry(
     @Req() req: any,
     @Param('id', ParseIntPipe) id: number,
@@ -102,7 +102,7 @@ export class HrController {
   }
 
   @Patch('leaves/:id/status')
-  @Roles('ADMIN', 'HR')
+  @Permissions('hr:manage')
   async updateLeaveStatus(
     @Req() req: any,
     @Param('id', ParseIntPipe) id: number,
@@ -117,7 +117,7 @@ export class HrController {
   }
 
   @Get('leaves')
-  @Roles('ADMIN', 'HR')
+  @Permissions('hr:manage')
   async getLeaves(@Req() req: any, @Query('status') status?: string) {
     return this.hrService.getLeaves(req.user.hospitalId, status as any);
   }

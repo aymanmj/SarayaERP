@@ -1,6 +1,6 @@
 /**
  * Patient Portal — Financial Controller
- * 
+ *
  * Read-only access to patient's financial data:
  * invoices, payments, outstanding balance, insurance info.
  */
@@ -15,7 +15,12 @@ import {
   UseGuards,
   ParseIntPipe,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiBearerAuth,
+  ApiOperation,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { PatientPortalService } from '../patient-portal.service';
 import { PatientAuthGuard } from '../auth/patient-auth.guard';
 import { CurrentPatient } from '../auth/current-patient.decorator';
@@ -36,7 +41,11 @@ export class PortalFinancialController {
     @Query('page') page?: number,
     @Query('limit') limit?: number,
   ) {
-    return this.portalService.getInvoices(patient.sub, Number(page) || 1, Number(limit) || 20);
+    return this.portalService.getInvoices(
+      patient.sub,
+      Number(page) || 1,
+      Number(limit) || 20,
+    );
   }
 
   @Get('invoices/:id')
@@ -57,7 +66,11 @@ export class PortalFinancialController {
     @Query('page') page?: number,
     @Query('limit') limit?: number,
   ) {
-    return this.portalService.getPayments(patient.sub, Number(page) || 1, Number(limit) || 20);
+    return this.portalService.getPayments(
+      patient.sub,
+      Number(page) || 1,
+      Number(limit) || 20,
+    );
   }
 
   @Get('balance')

@@ -1,5 +1,18 @@
-import { Controller, Get, Query, UseGuards, ParseIntPipe, BadRequestException, Param } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Query,
+  UseGuards,
+  ParseIntPipe,
+  BadRequestException,
+  Param,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiBearerAuth,
+  ApiOperation,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { PatientPortalService } from '../patient-portal.service';
 import { PatientAuthGuard } from '../auth/patient-auth.guard';
 import { CurrentPatient } from '../auth/current-patient.decorator';
@@ -32,7 +45,12 @@ export class PortalDirectoryController {
 
   @Get('doctors/:doctorId/slots')
   @ApiOperation({ summary: 'عرض الفترات المتاحة للحجز لطبيب معين' })
-  @ApiQuery({ name: 'date', required: true, type: String, description: 'YYYY-MM-DD' })
+  @ApiQuery({
+    name: 'date',
+    required: true,
+    type: String,
+    description: 'YYYY-MM-DD',
+  })
   async getAvailableSlots(
     @CurrentPatient() patient: any,
     @Param('doctorId', ParseIntPipe) doctorId: number,
@@ -41,6 +59,10 @@ export class PortalDirectoryController {
     if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
       throw new BadRequestException('يجب إدخال التاريخ بصيغة YYYY-MM-DD');
     }
-    return this.portalService.getDoctorAvailableSlots(patient.hospitalId, doctorId, date);
+    return this.portalService.getDoctorAvailableSlots(
+      patient.hospitalId,
+      doctorId,
+      date,
+    );
   }
 }

@@ -52,9 +52,14 @@ import { OutboxRelayService } from './outbox-relay.service';
     FhirAuthService,
     FhirAuthGuard,
     OutboundQueueService, // ✅ [NEW] Outbound queue management
-    OutboundConsumer,     // ✅ [NEW] Outbound queue processor
-    OutboxRelayService,   // ✅ [NEW] Transactional Outbox Relay
+    OutboundConsumer, // ✅ [NEW] Outbound queue processor
+    OutboxRelayService, // ✅ [NEW] Transactional Outbox Relay
   ],
-  exports: [IntegrationService, FhirService, FhirAuthService, OutboundQueueService],
+  exports: [
+    IntegrationService,
+    FhirService,
+    FhirAuthService,
+    OutboundQueueService,
+  ],
 })
 export class IntegrationModule {}

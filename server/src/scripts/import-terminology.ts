@@ -14,7 +14,9 @@ async function importTerminology() {
   const filePath = process.argv[2];
   if (!filePath) {
     console.error('❌ Error: Please provide the path to the CSV file.');
-    console.log('Usage: npx ts-node src/scripts/import-terminology.ts <path-to-csv>');
+    console.log(
+      'Usage: npx ts-node src/scripts/import-terminology.ts <path-to-csv>',
+    );
     process.exit(1);
   }
 
@@ -25,11 +27,11 @@ async function importTerminology() {
   }
 
   console.log(`📊 Reading terminology data from: ${absolutePath}`);
-  
+
   const fileStream = fs.createReadStream(absolutePath);
   const rl = readline.createInterface({
     input: fileStream,
-    crlfDelay: Infinity
+    crlfDelay: Infinity,
   });
 
   let lineCount = 0;
@@ -41,12 +43,12 @@ async function importTerminology() {
     lineCount++;
     if (lineCount === 1) {
       // Parse headers
-      headers = line.split(',').map(h => h.trim().toLowerCase());
+      headers = line.split(',').map((h) => h.trim().toLowerCase());
       continue;
     }
 
     // Basic CSV parsing (not handling quoted commas for simplicity in this basic importer)
-    const values = line.split(',').map(v => v.trim());
+    const values = line.split(',').map((v) => v.trim());
     if (values.length < 3) continue; // Minimum: system, code, display
 
     let systemStr = '';
@@ -80,12 +82,26 @@ async function importTerminology() {
     // Map System String to Enum
     let systemEnum: any;
     switch (systemStr.toUpperCase()) {
-      case 'ICD10': case 'ICD-10': systemEnum = 'ICD10'; break;
-      case 'SNOMED_CT': case 'SNOMED': systemEnum = 'SNOMED_CT'; break;
-      case 'LOINC': systemEnum = 'LOINC'; break;
-      case 'ATC': systemEnum = 'ATC'; break;
-      case 'RXNORM': systemEnum = 'RXNORM'; break;
-      default: systemEnum = 'LOCAL'; break;
+      case 'ICD10':
+      case 'ICD-10':
+        systemEnum = 'ICD10';
+        break;
+      case 'SNOMED_CT':
+      case 'SNOMED':
+        systemEnum = 'SNOMED_CT';
+        break;
+      case 'LOINC':
+        systemEnum = 'LOINC';
+        break;
+      case 'ATC':
+        systemEnum = 'ATC';
+        break;
+      case 'RXNORM':
+        systemEnum = 'RXNORM';
+        break;
+      default:
+        systemEnum = 'LOCAL';
+        break;
     }
 
     try {
@@ -93,14 +109,14 @@ async function importTerminology() {
         where: {
           system_code: {
             system: systemEnum,
-            code: code
-          }
+            code: code,
+          },
         },
         update: {
           display,
           displayAr: displayAr || null,
           parentCode: parentCode || null,
-          version: version || null
+          version: version || null,
         },
         create: {
           system: systemEnum,
@@ -108,15 +124,17 @@ async function importTerminology() {
           display,
           displayAr: displayAr || null,
           parentCode: parentCode || null,
-          version: version || null
-        }
+          version: version || null,
+        },
       });
       importedCount++;
       if (importedCount % 1000 === 0) {
         console.log(`✅ Imported ${importedCount} concepts...`);
       }
     } catch (err) {
-      console.error(`❌ Failed to import code ${code}: ${(err as Error).message}`);
+      console.error(
+        `❌ Failed to import code ${code}: ${(err as Error).message}`,
+      );
       skippedCount++;
     }
   }

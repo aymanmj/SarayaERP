@@ -97,6 +97,7 @@ export default function NewPurchaseReturnPage() {
       });
       toast.success("تم إنشاء مرتجع المشتريات بنجاح");
       navigate("/purchases/invoices"); // Or to the Return details if we implement it
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       console.error(err);
       toast.error(err.response?.data?.message || "فشل إنشاء المرتجع");

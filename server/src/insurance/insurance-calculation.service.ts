@@ -88,7 +88,8 @@ export class InsuranceCalculationService {
         insuranceShare: Money.toDb(Money.sub(finalServicePrice, patientShare)),
         requiresPreAuth: false,
         ruleApplied: 'LEGACY_POLICY_RATE',
-        contractedPrice: finalServicePrice !== servicePrice ? finalServicePrice : undefined,
+        contractedPrice:
+          finalServicePrice !== servicePrice ? finalServicePrice : undefined,
       };
     }
 
@@ -117,7 +118,8 @@ export class InsuranceCalculationService {
         requiresPreAuth: false,
         reason: 'Service is excluded in the insurance plan',
         ruleApplied: `EXCLUSION_${appliedRule.id}`,
-        contractedPrice: finalServicePrice !== servicePrice ? finalServicePrice : undefined,
+        contractedPrice:
+          finalServicePrice !== servicePrice ? finalServicePrice : undefined,
       };
     }
 
@@ -180,8 +182,8 @@ export class InsuranceCalculationService {
       requiresPreAuth,
       preAuthCode,
       ruleApplied: appliedRule ? `RULE_${appliedRule.id}` : 'PLAN_DEFAULT',
-      contractedPrice: finalServicePrice !== servicePrice ? finalServicePrice : undefined,
+      contractedPrice:
+        finalServicePrice !== servicePrice ? finalServicePrice : undefined,
     };
   }
 }
-

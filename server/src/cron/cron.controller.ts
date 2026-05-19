@@ -3,10 +3,9 @@
 import { Controller, Post, UseGuards } from '@nestjs/common';
 import { NightlyBillingService } from './nightly-billing.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
-
-@UseGuards(JwtAuthGuard, RolesGuard)
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { Permissions } from '../auth/permissions.decorator';
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('cron')
 export class CronController {
   constructor(private readonly nightlyService: NightlyBillingService) {}
@@ -14,7 +13,7 @@ export class CronController {
   // تشغيل الفوترة الليلية يدوياً
   // POST /cron/run-nightly-billing
   @Post('run-nightly-billing')
-  @Roles('ADMIN') // للأدمن فقط
+  @Permissions('system:manage') // للأدمن فقط
   async triggerNightlyBilling() {
     return this.nightlyService.runDailyBedCharges();
   }

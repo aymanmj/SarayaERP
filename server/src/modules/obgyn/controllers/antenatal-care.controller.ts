@@ -9,46 +9,60 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { AntenatalCareService } from '../services/antenatal-care.service';
-import { CreateAntenatalCareDto, CreateAntenatalVisitDto } from '../dto/antenatal-care.dto';
+import {
+  CreateAntenatalCareDto,
+  CreateAntenatalVisitDto,
+} from '../dto/antenatal-care.dto';
 import { JwtAuthGuard } from '../../../auth/jwt-auth.guard';
-import { RolesGuard } from '../../../auth/roles.guard';
-import { Roles } from '../../../auth/roles.decorator';
+import { PermissionsGuard } from '../../../auth/permissions.guard';
+import { Permissions } from '../../../auth/permissions.decorator';
 import { CurrentUser } from '../../../auth/current-user.decorator';
 import type { JwtPayload } from '../../../auth/jwt-payload.type';
 
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('obgyn/anc')
 export class AntenatalCareController {
   constructor(private readonly ancService: AntenatalCareService) {}
 
   /** تسجيل حمل جديد */
+  @Permissions('obgyn:manage')
   @Post()
-  @Roles('ADMIN', 'DOCTOR', 'NURSE')
-  async create(@Body() dto: CreateAntenatalCareDto, @CurrentUser() user: JwtPayload) {
+  async create(
+    @Body() dto: CreateAntenatalCareDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
     return this.ancService.createCare(user.hospitalId, dto);
   }
 
   /** إضافة زيارة متابعة */
+  @Permissions('obgyn:manage')
   @Post('visits')
-  @Roles('ADMIN', 'DOCTOR', 'NURSE')
-  async addVisit(@Body() dto: CreateAntenatalVisitDto, @CurrentUser() user: JwtPayload) {
+  async addVisit(
+    @Body() dto: CreateAntenatalVisitDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
     return this.ancService.addVisit(user.hospitalId, dto);
   }
 
   /** تحديث Rh الزوج */
+  @Permissions('obgyn:manage')
   @Patch(':id/partner-rh')
-  @Roles('ADMIN', 'DOCTOR', 'NURSE')
   async updatePartnerRh(
     @Param('id', ParseIntPipe) id: number,
     @Body('partnerRhFactor') partnerRhFactor: string,
     @CurrentUser() user: JwtPayload,
   ) {
-    return this.ancService.updatePartnerRh(user.hospitalId, id, partnerRhFactor, user.sub);
+    return this.ancService.updatePartnerRh(
+      user.hospitalId,
+      id,
+      partnerRhFactor,
+      user.sub,
+    );
   }
 
   /** تسجيل حقنة Anti-D */
+  @Permissions('obgyn:manage')
   @Patch(':id/anti-d')
-  @Roles('ADMIN', 'DOCTOR', 'NURSE')
   async recordAntiD(
     @Param('id', ParseIntPipe) id: number,
     @Body('type') type: 'week28' | 'postpartum',
@@ -58,32 +72,36 @@ export class AntenatalCareController {
   }
 
   /** جلب سجلات حمل لمريضة */
+  @Permissions('obgyn:view')
   @Get('patient/:patientId')
-  @Roles('ADMIN', 'DOCTOR', 'NURSE', 'RECEPTION')
   async getByPatient(@Param('patientId', ParseIntPipe) patientId: number) {
     return this.ancService.findByPatient(patientId);
   }
 
   /** جلب سجل حمل معين مع الزيارات */
+  @Permissions('obgyn:view')
   @Get(':id')
-  @Roles('ADMIN', 'DOCTOR', 'NURSE')
-  async getOne(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: JwtPayload) {
+  async getOne(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: JwtPayload,
+  ) {
     return this.ancService.findOne(user.hospitalId, id);
   }
 
   /** جلب جميع الحوامل النشطات */
+  @Permissions('obgyn:view')
   @Get()
-  @Roles('ADMIN', 'DOCTOR', 'NURSE')
   async getActive(@CurrentUser() user: JwtPayload) {
     return this.ancService.findActivePregnancies(user.hospitalId);
   }
 
   /** تحديث حالة الحمل (ولادة / إجهاض / إلخ) */
+  @Permissions('obgyn:manage')
   @Patch(':id/status')
-  @Roles('ADMIN', 'DOCTOR')
   async updateStatus(
     @Param('id', ParseIntPipe) id: number,
-    @Body('status') status: 'DELIVERED' | 'MISCARRIAGE' | 'ECTOPIC' | 'CANCELLED',
+    @Body('status')
+    status: 'DELIVERED' | 'MISCARRIAGE' | 'ECTOPIC' | 'CANCELLED',
     @CurrentUser() user: JwtPayload,
   ) {
     return this.ancService.updateStatus(user.hospitalId, id, status);

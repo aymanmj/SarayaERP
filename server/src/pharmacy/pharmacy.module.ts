@@ -8,11 +8,7 @@ import { AccountingModule } from '../accounting/accounting.module';
 import { CDSSModule } from '../cdss/cdss.module';
 
 @Module({
-  imports: [
-    PrismaModule,
-    AccountingModule,
-    forwardRef(() => CDSSModule),
-  ],
+  imports: [PrismaModule, AccountingModule, forwardRef(() => CDSSModule)],
   providers: [PharmacyService],
   controllers: [PharmacyController],
   exports: [PharmacyService],

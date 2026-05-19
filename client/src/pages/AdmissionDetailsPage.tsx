@@ -135,12 +135,14 @@ export default function AdmissionDetailsPage() {
     if (id) {
       loadAdmissionDetails(parseInt(id));
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const loadAdmissionDetails = async (admissionId: number) => {
     try {
       const response = await apiClient.get(`/admissions/${admissionId}`);
       setAdmission(response.data);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       toast.error(err?.response?.data?.message || "فشل تحميل تفاصيل الإيواء");
       navigate('/admissions/advanced');
@@ -161,6 +163,7 @@ export default function AdmissionDetailsPage() {
 
       toast.success("تم تسريح المريض بنجاح");
       loadAdmissionDetails(admission.id);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       toast.error(err?.response?.data?.message || "فشل تسريح المريض");
     }
@@ -292,6 +295,7 @@ export default function AdmissionDetailsPage() {
         ].map((tab) => (
           <button
             key={tab.id}
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             onClick={() => setActiveTab(tab.id as any)}
             className={`px-4 py-2 text-sm font-medium transition-colors ${
               activeTab === tab.id

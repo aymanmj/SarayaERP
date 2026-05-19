@@ -12,6 +12,7 @@ export default function SemenAnalysisForm({ initialData = {}, onSave, onCancel }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let finalValue: any = value;
     if (type === "number") finalValue = value === "" ? undefined : Number(value);
     setForm((prev) => ({ ...prev, [name]: finalValue }));

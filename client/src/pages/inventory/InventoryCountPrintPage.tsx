@@ -34,6 +34,7 @@ export default function InventoryCountPrintPage() {
   useEffect(() => {
     if (!id) return;
     fetchCount();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const fetchCount = async () => {

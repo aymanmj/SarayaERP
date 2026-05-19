@@ -7,7 +7,7 @@ import { ConsolidatedReportingService } from './consolidated-reporting.service';
 /**
  * وحدة Multi-Tenancy
  * توفر خدمات إدارة المؤسسات وعزل البيانات والتقارير الموحدة عبر كامل النظام
- * 
+ *
  * @Global - متاحة لكل الوحدات بدون استيراد صريح
  */
 @Global()

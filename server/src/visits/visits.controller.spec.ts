@@ -49,7 +49,9 @@ describe('VisitsController', () => {
   });
 
   it('rejects invalid encounter ids when listing visits', async () => {
-    expect(() => controller.listForEncounter('NaN')).toThrow(BadRequestException);
+    expect(() => controller.listForEncounter('NaN')).toThrow(
+      BadRequestException,
+    );
   });
 
   it('lists visits for a valid encounter id', async () => {

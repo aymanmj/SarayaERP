@@ -82,9 +82,11 @@ export class CDSSService {
    * فحص التفاعلات الدوائية بين قائمة من الأدوية
    * يبحث في قاعدة البيانات عن التفاعلات المعروفة
    */
-  async checkDrugInteractions(drugGenericNames: string[]): Promise<CDSSAlertResult[]> {
+  async checkDrugInteractions(
+    drugGenericNames: string[],
+  ): Promise<CDSSAlertResult[]> {
     const alerts: CDSSAlertResult[] = [];
-    const normalized = drugGenericNames.map(d => d.toLowerCase().trim());
+    const normalized = drugGenericNames.map((d) => d.toLowerCase().trim());
 
     // جلب جميع التفاعلات المحتملة
     const interactions = await this.prisma.drugInteraction.findMany({
@@ -103,8 +105,12 @@ export class CDSSService {
       const drugB = interaction.drugBGeneric.toLowerCase();
 
       // هل كلا الدوائين موجودان في القائمة؟
-      const hasA = normalized.some(d => d.includes(drugA) || drugA.includes(d));
-      const hasB = normalized.some(d => d.includes(drugB) || drugB.includes(d));
+      const hasA = normalized.some(
+        (d) => d.includes(drugA) || drugA.includes(d),
+      );
+      const hasB = normalized.some(
+        (d) => d.includes(drugB) || drugB.includes(d),
+      );
 
       if (hasA && hasB) {
         alerts.push({
@@ -118,7 +124,8 @@ export class CDSSService {
             recommendation: interaction.recommendation,
             source: interaction.source,
           },
-          requiresOverride: interaction.severity === DrugInteractionSeverity.CONTRAINDICATED,
+          requiresOverride:
+            interaction.severity === DrugInteractionSeverity.CONTRAINDICATED,
         });
       }
     }
@@ -146,7 +153,7 @@ export class CDSSService {
 
     if (allergies.length === 0) return alerts;
 
-    const normalizedDrugs = drugGenericNames.map(d => d.toLowerCase().trim());
+    const normalizedDrugs = drugGenericNames.map((d) => d.toLowerCase().trim());
 
     // ─── Phase 1: Cross-Reactivity Engine (DB-driven) ───
     // لكل حساسية، نبحث عن مجموعتها (AllergyGroup) ثم نفحص كل أعضاء المجموعة
@@ -160,29 +167,36 @@ export class CDSSService {
         where: { drugGeneric: { equals: allergen, mode: 'insensitive' } },
         include: {
           allergyGroup: {
-            include: { members: true }
-          }
-        }
+            include: { members: true },
+          },
+        },
       });
 
       if (allergenGroups.length > 0) {
         // وجدنا مجموعة — نفحص كل أعضائها ضد الأدوية الموصوفة
         for (const entry of allergenGroups) {
-          const groupMembers = entry.allergyGroup.members.map(m => m.drugGeneric.toLowerCase());
+          const groupMembers = entry.allergyGroup.members.map((m) =>
+            m.drugGeneric.toLowerCase(),
+          );
           const groupName = entry.allergyGroup.name;
 
           for (const drug of normalizedDrugs) {
             // هل الدواء الموصوف ينتمي لنفس مجموعة الحساسية؟
-            const memberMatch = groupMembers.find(m => drug.includes(m) || m.includes(drug));
+            const memberMatch = groupMembers.find(
+              (m) => drug.includes(m) || m.includes(drug),
+            );
             if (memberMatch) {
               const key = `${drug}|${allergen}`;
               if (crossReactivityMatched.has(key)) continue;
               crossReactivityMatched.add(key);
 
-              const isDirect = drug.includes(allergen) || allergen.includes(drug);
+              const isDirect =
+                drug.includes(allergen) || allergen.includes(drug);
               alerts.push({
                 type: CDSSAlertType.DRUG_ALLERGY,
-                severity: isDirect ? this.mapAllergySeverity(allergy.severity) : CDSSAlertSeverity.HIGH,
+                severity: isDirect
+                  ? this.mapAllergySeverity(allergy.severity)
+                  : CDSSAlertSeverity.HIGH,
                 message: isDirect
                   ? `Direct allergy match: "${drug}" — patient is allergic to "${allergy.allergen}"`
                   : `Cross-reactivity risk: "${drug}" belongs to ${groupName} group — patient is allergic to "${allergy.allergen}" (same group)`,
@@ -295,7 +309,9 @@ export class CDSSService {
   /**
    * فحص القيم الحرجة لنتائج المختبر
    */
-  async checkLabCriticalValue(input: LabValueCheck): Promise<CDSSAlertResult | null> {
+  async checkLabCriticalValue(
+    input: LabValueCheck,
+  ): Promise<CDSSAlertResult | null> {
     const rule = await this.prisma.labCriticalValue.findFirst({
       where: {
         labTestCode: input.testCode,
@@ -358,7 +374,9 @@ export class CDSSService {
   /**
    * فحص العلامات الحيوية الحرجة
    */
-  async checkVitalCriticalValue(input: VitalValueCheck): Promise<CDSSAlertResult | null> {
+  async checkVitalCriticalValue(
+    input: VitalValueCheck,
+  ): Promise<CDSSAlertResult | null> {
     const rule = await this.prisma.vitalCriticalValue.findFirst({
       where: {
         vitalType: input.vitalType,
@@ -406,40 +424,56 @@ export class CDSSService {
   /**
    * حساب وظائف الكلى بناءً على معادلة Cockcroft-Gault
    */
-  private calculateEGFR(creatinine: number, age: number, gender: Gender, weight: number = 70): number {
+  private calculateEGFR(
+    creatinine: number,
+    age: number,
+    gender: Gender,
+    weight: number = 70,
+  ): number {
     let crCl = ((140 - age) * weight) / (72 * creatinine);
     if (gender === 'FEMALE') crCl *= 0.85;
     return Math.round(crCl * 10) / 10;
   }
 
-  async checkRenalAdjustment(patientId: number, drugs: DrugCheckInput[]): Promise<CDSSAlertResult[]> {
+  async checkRenalAdjustment(
+    patientId: number,
+    drugs: DrugCheckInput[],
+  ): Promise<CDSSAlertResult[]> {
     const alerts: CDSSAlertResult[] = [];
-    
-    const patient = await this.prisma.patient.findUnique({ where: { id: patientId } });
+
+    const patient = await this.prisma.patient.findUnique({
+      where: { id: patientId },
+    });
     if (!patient || !patient.dateOfBirth) return alerts;
     const age = new Date().getFullYear() - patient.dateOfBirth.getFullYear();
     const gender = patient.gender || 'MALE';
-    
-    // جلب أحدث فحص للكرياتينين 
+
+    // جلب أحدث فحص للكرياتينين
     const latestCrea = await this.prisma.labOrderResult.findFirst({
       where: {
         labOrder: { order: { encounter: { patientId } } },
-        OR: [ { parameterName: { contains: 'Creatinine', mode: 'insensitive' } }, { parameter: { code: 'CREA' } } ]
+        OR: [
+          { parameterName: { contains: 'Creatinine', mode: 'insensitive' } },
+          { parameter: { code: 'CREA' } },
+        ],
       },
-      orderBy: { labOrder: { resultDate: 'desc' } }
+      orderBy: { labOrder: { resultDate: 'desc' } },
     });
-    
+
     if (!latestCrea) return alerts;
-    
+
     const creaValue = parseFloat(latestCrea.value);
     if (isNaN(creaValue) || creaValue === 0) return alerts;
-    
+
     const egfr = this.calculateEGFR(creaValue, age, gender);
-    
+
     for (const drug of drugs) {
       const name = drug.genericName.toLowerCase();
       const concept = await this.resolveDrugTerminology(drug);
-      const atcCode = concept?.system === TerminologySystem.ATC ? concept.code.toUpperCase() : null;
+      const atcCode =
+        concept?.system === TerminologySystem.ATC
+          ? concept.code.toUpperCase()
+          : null;
 
       // ─── DB-Driven Renal Rules (KDIGO / FDA guidelines) ───
       // يبحث في قاعدة البيانات أولاً بالـ ATC prefix ثم بالاسم العام
@@ -447,9 +481,9 @@ export class CDSSService {
         where: {
           isActive: true,
           OR: [
-            ...(atcCode ? [
-              { atcPrefix: { not: null }, AND: [{ isActive: true }] },
-            ] : []),
+            ...(atcCode
+              ? [{ atcPrefix: { not: null }, AND: [{ isActive: true }] }]
+              : []),
             { drugGeneric: { equals: name, mode: 'insensitive' } },
           ],
         },
@@ -457,68 +491,109 @@ export class CDSSService {
       });
 
       // التحقق من ATC prefix يدوياً بعد الجلب (Prisma لا يدعم startsWith في OR مع حقل nullable بشكل مثالي)
-      let matchedRule: import('@prisma/client').RenalDoseRequirement | null = null;
+      let matchedRule: import('@prisma/client').RenalDoseRequirement | null =
+        null;
       if (renalRule) {
-        if (renalRule.atcPrefix && atcCode && atcCode.startsWith(renalRule.atcPrefix)) {
-          matchedRule = renalRule as import('@prisma/client').RenalDoseRequirement;
+        if (
+          renalRule.atcPrefix &&
+          atcCode &&
+          atcCode.startsWith(renalRule.atcPrefix)
+        ) {
+          matchedRule = renalRule;
         } else if (renalRule.drugGeneric) {
-          matchedRule = renalRule as import('@prisma/client').RenalDoseRequirement;
+          matchedRule = renalRule;
         }
       }
 
       // ─── Fallback: hardcoded لأدوية معروفة (safety net) ───
       const hardcodedRenalDrugs = [
-        { match: (n: string, c: string | null) => c?.startsWith('J01') || c?.startsWith('J02'), class: 'HIGH' },
-        { match: (n: string, c: string | null) => c?.startsWith('M01'), class: 'MODERATE' },
-        { match: (n: string) => ['vancomycin', 'gentamicin', 'tobramycin', 'amikacin', 'colistin',
-                                  'cisplatin', 'methotrexate', 'ibuprofen', 'naproxen'].some(d => n.includes(d)), class: 'HIGH' },
-        { match: (n: string) => ['metformin', 'digoxin', 'lithium', 'atenolol'].some(d => n.includes(d)), class: 'MODERATE' },
+        {
+          match: (n: string, c: string | null) =>
+            c?.startsWith('J01') || c?.startsWith('J02'),
+          class: 'HIGH',
+        },
+        {
+          match: (n: string, c: string | null) => c?.startsWith('M01'),
+          class: 'MODERATE',
+        },
+        {
+          match: (n: string) =>
+            [
+              'vancomycin',
+              'gentamicin',
+              'tobramycin',
+              'amikacin',
+              'colistin',
+              'cisplatin',
+              'methotrexate',
+              'ibuprofen',
+              'naproxen',
+            ].some((d) => n.includes(d)),
+          class: 'HIGH',
+        },
+        {
+          match: (n: string) =>
+            ['metformin', 'digoxin', 'lithium', 'atenolol'].some((d) =>
+              n.includes(d),
+            ),
+          class: 'MODERATE',
+        },
       ];
 
       const requiresRenalReview = matchedRule
         ? egfr < matchedRule.minSafeEgfr
-        : hardcodedRenalDrugs.some(r => r.match(name, atcCode));
+        : hardcodedRenalDrugs.some((r) => r.match(name, atcCode));
 
       if (requiresRenalReview && egfr < 60) {
         const actionText = matchedRule?.action ?? 'MONITOR';
         const actionAr = matchedRule?.actionAr ?? 'مراجعة الجرعة مطلوبة';
-        const evidenceSource = matchedRule?.evidenceSource ?? 'Clinical Guidelines';
+        const evidenceSource =
+          matchedRule?.evidenceSource ?? 'Clinical Guidelines';
 
         alerts.push({
           type: CDSSAlertType.RENAL_DOSE_ADJUST,
-          severity: egfr < 30 ? CDSSAlertSeverity.CRITICAL : CDSSAlertSeverity.HIGH,
+          severity:
+            egfr < 30 ? CDSSAlertSeverity.CRITICAL : CDSSAlertSeverity.HIGH,
           message: `Renal Adjustment Required: eGFR is ${egfr} mL/min/1.73m². Action: ${actionText} for ${drug.genericName}. Evidence: ${evidenceSource}`,
           messageAr: `تعديل الجرعة الكلوي مطلوب: وظائف الكلى eGFR = ${egfr}. ${actionAr} لدواء ${drug.genericName}. المصدر: ${evidenceSource}`,
-          context: { egfr, drug: drug.genericName, latestCreatinine: creaValue, atcCode, action: actionText, evidenceSource },
-          requiresOverride: egfr < 30
+          context: {
+            egfr,
+            drug: drug.genericName,
+            latestCreatinine: creaValue,
+            atcCode,
+            action: actionText,
+            evidenceSource,
+          },
+          requiresOverride: egfr < 30,
         });
       }
     }
     return alerts;
   }
 
-
   async checkDoseRange(drugs: DrugCheckInput[]): Promise<CDSSAlertResult[]> {
     const alerts: CDSSAlertResult[] = [];
-    
+
     // Fetch dose rules for these drugs from DB
-    const genericNames = drugs.map(d => d.genericName.toLowerCase());
-    
+    const genericNames = drugs.map((d) => d.genericName.toLowerCase());
+
     const doseRules = await this.prisma.drugDoseRange.findMany({
       where: {
-        drugName: { in: genericNames, mode: 'insensitive' }
-      }
+        drugName: { in: genericNames, mode: 'insensitive' },
+      },
     });
 
     for (const drug of drugs) {
       if (!drug.dose) continue;
-      
+
       const doseMatch = drug.dose.match(/(\d+(\.\d+)?)/);
       if (!doseMatch) continue;
       const numDose = parseFloat(doseMatch[0]);
-      
-      const rule = doseRules.find(r => r.drugName.toLowerCase() === drug.genericName.toLowerCase());
-      
+
+      const rule = doseRules.find(
+        (r) => r.drugName.toLowerCase() === drug.genericName.toLowerCase(),
+      );
+
       if (rule) {
         if (rule.maxDoseValue && numDose > Number(rule.maxDoseValue)) {
           alerts.push({
@@ -526,8 +601,12 @@ export class CDSSService {
             severity: CDSSAlertSeverity.CRITICAL,
             message: `Dose exceeds maximum limit! ${numDose}mg given, Max is ${rule.maxDoseValue}mg per dose.`,
             messageAr: `الجرعة تتجاوز الحد الأقصى! الجرعة الموصوفة ${numDose} لدواء ${drug.genericName}. الحد الأقصى: ${rule.maxDoseValue}mg`,
-            context: { drug: drug.genericName, inputDose: numDose, maxDose: Number(rule.maxDoseValue) },
-            requiresOverride: true
+            context: {
+              drug: drug.genericName,
+              inputDose: numDose,
+              maxDose: Number(rule.maxDoseValue),
+            },
+            requiresOverride: true,
           });
         } else if (rule.minDoseValue && numDose < Number(rule.minDoseValue)) {
           alerts.push({
@@ -535,8 +614,12 @@ export class CDSSService {
             severity: CDSSAlertSeverity.MODERATE,
             message: `Dose is below minimum recommended limit! ${numDose}mg given, Min is ${rule.minDoseValue}mg per dose.`,
             messageAr: `الجرعة أقل من الحد الأدنى الموصى به! الجرعة الموصوفة ${numDose} لدواء ${drug.genericName}. الحد الأدنى: ${rule.minDoseValue}mg`,
-            context: { drug: drug.genericName, inputDose: numDose, minDose: Number(rule.minDoseValue) },
-            requiresOverride: false
+            context: {
+              drug: drug.genericName,
+              inputDose: numDose,
+              minDose: Number(rule.minDoseValue),
+            },
+            requiresOverride: false,
           });
         }
       }
@@ -550,24 +633,36 @@ export class CDSSService {
    * فحص شامل للوصفة الطبية
    * يجمع كل أنواع الفحوصات في نتيجة واحدة
    */
-  async checkPrescription(input: PrescriptionCheckInput): Promise<CDSSCheckResult> {
+  async checkPrescription(
+    input: PrescriptionCheckInput,
+  ): Promise<CDSSCheckResult> {
     const allAlerts: CDSSAlertResult[] = [];
-    const genericNames = input.drugs.map(d => d.genericName);
+    const genericNames = input.drugs.map((d) => d.genericName);
 
     // 1. فحص التفاعلات الدوائية
     const interactions = await this.checkDrugInteractions(genericNames);
     allAlerts.push(...interactions);
 
     // 2. فحص الحساسيات
-    const allergies = await this.checkDrugAllergies(input.patientId, genericNames);
+    const allergies = await this.checkDrugAllergies(
+      input.patientId,
+      genericNames,
+    );
     allAlerts.push(...allergies);
 
     // 3. فحص التكرار
-    const duplicates = await this.checkDuplicateTherapy(input.patientId, genericNames, input.drugs);
+    const duplicates = await this.checkDuplicateTherapy(
+      input.patientId,
+      genericNames,
+      input.drugs,
+    );
     allAlerts.push(...duplicates);
 
     // 4. الفحص الكلوي لملاءمة الجرعة
-    const renalAlerts = await this.checkRenalAdjustment(input.patientId, input.drugs);
+    const renalAlerts = await this.checkRenalAdjustment(
+      input.patientId,
+      input.drugs,
+    );
     allAlerts.push(...renalAlerts);
 
     // 5. فحص نطاق الجرعات (Dose Range)
@@ -575,8 +670,10 @@ export class CDSSService {
     allAlerts.push(...doseAlerts);
 
     // تحديد إمكانية المتابعة
-    const hasCritical = allAlerts.some(a => a.severity === CDSSAlertSeverity.CRITICAL);
-    const hasBlocker = allAlerts.some(a => a.requiresOverride);
+    const hasCritical = allAlerts.some(
+      (a) => a.severity === CDSSAlertSeverity.CRITICAL,
+    );
+    const hasBlocker = allAlerts.some((a) => a.requiresOverride);
 
     return {
       passed: allAlerts.length === 0,
@@ -659,7 +756,10 @@ export class CDSSService {
       },
     });
 
-    if (updatedAlert.severity === CDSSAlertSeverity.CRITICAL || updatedAlert.severity === CDSSAlertSeverity.HIGH) {
+    if (
+      updatedAlert.severity === CDSSAlertSeverity.CRITICAL ||
+      updatedAlert.severity === CDSSAlertSeverity.HIGH
+    ) {
       this.eventEmitter.emit('clinical.variance.cdss', {
         hospitalId: updatedAlert.hospitalId,
         patientId: updatedAlert.patientId,
@@ -752,7 +852,10 @@ export class CDSSService {
     });
 
     // 3. الأدوية الحالية
-    const medications = await this.getPatientCurrentMedications(hospitalId, patientId);
+    const medications = await this.getPatientCurrentMedications(
+      hospitalId,
+      patientId,
+    );
 
     // 4. آخر العلامات الحيوية
     let latestVitals: {
@@ -795,7 +898,10 @@ export class CDSSService {
     });
 
     // 6. التنبيهات النشطة
-    const activeAlerts = await this.getPatientActiveAlerts(hospitalId, patientId);
+    const activeAlerts = await this.getPatientActiveAlerts(
+      hospitalId,
+      patientId,
+    );
 
     return {
       patient: {
@@ -940,10 +1046,11 @@ export class CDSSService {
     return { alerts, savedCount };
   }
 
-
   // ======================== Helpers ========================
 
-  private mapInteractionSeverity(severity: DrugInteractionSeverity): CDSSAlertSeverity {
+  private mapInteractionSeverity(
+    severity: DrugInteractionSeverity,
+  ): CDSSAlertSeverity {
     switch (severity) {
       case DrugInteractionSeverity.CONTRAINDICATED:
         return CDSSAlertSeverity.CRITICAL;
@@ -1005,7 +1112,8 @@ export class CDSSService {
       10,
     );
     const exactAtc = atcCandidates.find(
-      (entry) => entry.display.toLowerCase() === drug.genericName.trim().toLowerCase(),
+      (entry) =>
+        entry.display.toLowerCase() === drug.genericName.trim().toLowerCase(),
     );
     if (exactAtc) return exactAtc;
 
@@ -1016,8 +1124,166 @@ export class CDSSService {
     );
     return (
       rxNormCandidates.find(
-        (entry) => entry.display.toLowerCase() === drug.genericName.trim().toLowerCase(),
+        (entry) =>
+          entry.display.toLowerCase() === drug.genericName.trim().toLowerCase(),
       ) ?? null
     );
   }
+
+  // ======================== Knowledge Base Search ========================
+
+  /**
+   * البحث في قاعدة بيانات التفاعلات الدوائية
+   */
+  async searchDrugInteractions(drugName: string, limit: number = 20) {
+    const normalized = drugName.toLowerCase().trim();
+
+    return this.prisma.drugInteraction.findMany({
+      where: {
+        isActive: true,
+        OR: [
+          { drugAGeneric: { contains: normalized, mode: 'insensitive' } },
+          { drugBGeneric: { contains: normalized, mode: 'insensitive' } },
+        ],
+      },
+      select: {
+        id: true,
+        drugAGeneric: true,
+        drugBGeneric: true,
+        severity: true,
+        description: true,
+        descriptionAr: true,
+        recommendation: true,
+        source: true,
+      },
+      orderBy: { severity: 'asc' }, // CONTRAINDICATED أولاً
+      take: limit,
+    });
+  }
+
+  // ======================== Renal Function Assessment ========================
+
+  /**
+   * حساب eGFR لمريض بناءً على آخر قيمة كرياتينين
+   * يرجع تقييم شامل للوظائف الكلوية مع تصنيف CKD (KDIGO)
+   */
+  async computePatientEGFR(hospitalId: number, patientId: number) {
+    const patient = await this.prisma.patient.findUnique({
+      where: { id: patientId },
+    });
+
+    if (!patient || !patient.dateOfBirth) {
+      return {
+        available: false,
+        reason: 'بيانات المريض أو تاريخ الميلاد غير متوفرة',
+      };
+    }
+
+    const age = Math.floor(
+      (Date.now() - patient.dateOfBirth.getTime()) / (365.25 * 24 * 60 * 60 * 1000),
+    );
+    const gender = patient.gender || 'MALE';
+
+    // جلب أحدث فحص كرياتينين
+    const latestCrea = await this.prisma.labOrderResult.findFirst({
+      where: {
+        labOrder: { order: { encounter: { patientId, hospitalId } } },
+        OR: [
+          { parameterName: { contains: 'Creatinine', mode: 'insensitive' } },
+          { parameter: { code: 'CREA' } },
+        ],
+      },
+      orderBy: { labOrder: { resultDate: 'desc' } },
+      include: {
+        labOrder: { select: { resultDate: true } },
+      },
+    });
+
+    if (!latestCrea) {
+      return {
+        available: false,
+        reason: 'لم يتم العثور على نتائج كرياتينين للمريض',
+      };
+    }
+
+    const creaValue = parseFloat(latestCrea.value);
+    if (isNaN(creaValue) || creaValue === 0) {
+      return {
+        available: false,
+        reason: 'قيمة الكرياتينين غير صالحة للحساب',
+      };
+    }
+
+    const egfr = this.calculateEGFR(creaValue, age, gender);
+
+    // تصنيف CKD حسب KDIGO
+    let ckdStage: string;
+    let ckdDescription: string;
+    let ckdDescriptionAr: string;
+    let riskLevel: 'NORMAL' | 'MILD' | 'MODERATE' | 'HIGH' | 'CRITICAL';
+
+    if (egfr >= 90) {
+      ckdStage = 'G1';
+      ckdDescription = 'Normal or high kidney function';
+      ckdDescriptionAr = 'وظائف كلوية طبيعية أو مرتفعة';
+      riskLevel = 'NORMAL';
+    } else if (egfr >= 60) {
+      ckdStage = 'G2';
+      ckdDescription = 'Mildly decreased kidney function';
+      ckdDescriptionAr = 'انخفاض طفيف في وظائف الكلى';
+      riskLevel = 'MILD';
+    } else if (egfr >= 45) {
+      ckdStage = 'G3a';
+      ckdDescription = 'Mildly to moderately decreased';
+      ckdDescriptionAr = 'انخفاض متوسط في وظائف الكلى';
+      riskLevel = 'MODERATE';
+    } else if (egfr >= 30) {
+      ckdStage = 'G3b';
+      ckdDescription = 'Moderately to severely decreased';
+      ckdDescriptionAr = 'انخفاض متوسط إلى شديد في وظائف الكلى';
+      riskLevel = 'HIGH';
+    } else if (egfr >= 15) {
+      ckdStage = 'G4';
+      ckdDescription = 'Severely decreased kidney function';
+      ckdDescriptionAr = 'انخفاض شديد في وظائف الكلى';
+      riskLevel = 'HIGH';
+    } else {
+      ckdStage = 'G5';
+      ckdDescription = 'Kidney failure — dialysis consideration';
+      ckdDescriptionAr = 'فشل كلوي — يتطلب تقييم غسيل كلوي';
+      riskLevel = 'CRITICAL';
+    }
+
+    return {
+      available: true,
+      patientId,
+      age,
+      gender,
+      creatinine: {
+        value: creaValue,
+        unit: 'mg/dL',
+        date: latestCrea.labOrder?.resultDate,
+      },
+      egfr: {
+        value: egfr,
+        unit: 'mL/min/1.73m²',
+        method: 'Cockcroft-Gault',
+      },
+      ckd: {
+        stage: ckdStage,
+        description: ckdDescription,
+        descriptionAr: ckdDescriptionAr,
+        riskLevel,
+      },
+      recommendations:
+        egfr < 60
+          ? [
+              'مراجعة جرعات الأدوية المطروحة كلوياً',
+              'تجنب مضادات الالتهاب غير الستيرويدية (NSAIDs)',
+              'مراقبة مستوى البوتاسيوم والفوسفات',
+            ]
+          : [],
+    };
+  }
 }
+

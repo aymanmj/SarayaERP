@@ -1,11 +1,16 @@
-import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { NphiesClaimService } from '../integration/nphies/nphies-claim.service';
 import { ClsService } from 'nestjs-cls';
 
 /**
  * خدمة الدفعات التأمينية (Batch Submission Workflow)
- * 
+ *
  * تتيح تجميع المطالبات (Claims) الجاهزة في دفعات (Batches)
  * بناءً على شركة التأمين (Insurance Provider) وإرسالها دفعة واحدة.
  */
@@ -33,7 +38,7 @@ export class BatchSubmissionService {
       where: {
         hospitalId,
         status: 'SCRUBBED', // فقط المطالبات المفحوصة والسليمة
-        batchId: null,      // غير مرتبطة بدفعة أخرى
+        batchId: null, // غير مرتبطة بدفعة أخرى
         invoice: {
           insuranceProviderId: providerId,
         },
@@ -48,7 +53,10 @@ export class BatchSubmissionService {
       throw new BadRequestException('لا توجد مطالبات جاهزة لهذه الشركة');
     }
 
-    const totalAmount = readyClaims.reduce((sum, claim) => sum + Number(claim.claimedAmount), 0);
+    const totalAmount = readyClaims.reduce(
+      (sum, claim) => sum + Number(claim.claimedAmount),
+      0,
+    );
     const batchNumber = `BATCH-${hospitalId}-${providerId}-${Date.now()}`;
 
     // إنشاء الدفعة وربط المطالبات بها
@@ -65,7 +73,7 @@ export class BatchSubmissionService {
       });
 
       await tx.claim.updateMany({
-        where: { id: { in: readyClaims.map(c => c.id) } },
+        where: { id: { in: readyClaims.map((c) => c.id) } },
         data: { batchId: batch.id },
       });
 
@@ -83,7 +91,8 @@ export class BatchSubmissionService {
     });
 
     if (!batch) throw new NotFoundException('الدفعة غير موجودة');
-    if (batch.status === 'SUBMITTED') throw new BadRequestException('تم إرسال الدفعة مسبقاً');
+    if (batch.status === 'SUBMITTED')
+      throw new BadRequestException('تم إرسال الدفعة مسبقاً');
 
     let successCount = 0;
     let failureCount = 0;
@@ -99,7 +108,9 @@ export class BatchSubmissionService {
         }
       } catch (error) {
         failureCount++;
-        this.logger.error(`فشل إرسال المطالبة ${claim.id} ضمن الدفعة ${batchId}: ${error}`);
+        this.logger.error(
+          `فشل إرسال المطالبة ${claim.id} ضمن الدفعة ${batchId}: ${error}`,
+        );
       }
     }
 
@@ -112,7 +123,9 @@ export class BatchSubmissionService {
       },
     });
 
-    this.logger.log(`📤 إرسال الدفعة ${batch.batchNumber}: نجاح ${successCount}، فشل ${failureCount}`);
+    this.logger.log(
+      `📤 إرسال الدفعة ${batch.batchNumber}: نجاح ${successCount}، فشل ${failureCount}`,
+    );
 
     return {
       batchId,

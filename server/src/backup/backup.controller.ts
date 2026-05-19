@@ -1,13 +1,21 @@
-
-import { Controller, Get, Post, Delete, Param, Body, UseGuards, HttpException, HttpStatus } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Delete,
+  Param,
+  Body,
+  UseGuards,
+  HttpException,
+  HttpStatus,
+} from '@nestjs/common';
 import { BackupService } from './backup.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { Permissions } from '../auth/permissions.decorator';
 
 @Controller('backup')
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('ADMIN')
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 export class BackupController {
   constructor(private readonly backupService: BackupService) {}
 
@@ -16,12 +24,14 @@ export class BackupController {
   // ==========================================
 
   /** عرض جميع النسخ المتوفرة */
+  @Permissions('backup:view')
   @Get()
   async getBackups() {
     return this.backupService.getBackups();
   }
 
   /** البحث في جميع الأقراص المتاحة عن نسخ احتياطية */
+  @Permissions('backup:manage')
   @Post('scan')
   async scanAllPaths() {
     return this.backupService.scanAllPaths();
@@ -32,9 +42,15 @@ export class BackupController {
   // ==========================================
 
   /** إنشاء نسخة احتياطية (مع إمكانية تحديد المسار + نسخ مزدوج) */
+  @Permissions('backup:manage')
   @Post()
-  async createBackup(@Body() body?: { targetPath?: string; secondaryPath?: string }) {
-    return this.backupService.createBackup(body?.targetPath, body?.secondaryPath);
+  async createBackup(
+    @Body() body?: { targetPath?: string; secondaryPath?: string },
+  ) {
+    return this.backupService.createBackup(
+      body?.targetPath,
+      body?.secondaryPath,
+    );
   }
 
   // ==========================================
@@ -42,14 +58,22 @@ export class BackupController {
   // ==========================================
 
   /** استعادة نسخة احتياطية */
+  @Permissions('backup:manage')
   @Post(':filename/restore')
   async restoreBackup(
     @Param('filename') filename: string,
     @Body() body?: { storagePath?: string },
   ) {
     // التحقق من صيغة اسم الملف
-    if (!filename.match(/^saraya_backup_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.sql\.gz$/)) {
-      throw new HttpException('صيغة اسم الملف غير صالحة', HttpStatus.BAD_REQUEST);
+    if (
+      !filename.match(
+        /^saraya_backup_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.sql\.gz$/,
+      )
+    ) {
+      throw new HttpException(
+        'صيغة اسم الملف غير صالحة',
+        HttpStatus.BAD_REQUEST,
+      );
     }
     return this.backupService.restoreBackup(filename, body?.storagePath);
   }
@@ -59,13 +83,17 @@ export class BackupController {
   // ==========================================
 
   /** حذف نسخة احتياطية */
+  @Permissions('backup:manage')
   @Delete(':filename')
   async deleteBackup(
     @Param('filename') filename: string,
     @Body() body?: { storagePath?: string },
   ) {
     if (!filename.match(/^saraya_backup_.*\.sql\.gz$/)) {
-      throw new HttpException('صيغة اسم الملف غير صالحة', HttpStatus.BAD_REQUEST);
+      throw new HttpException(
+        'صيغة اسم الملف غير صالحة',
+        HttpStatus.BAD_REQUEST,
+      );
     }
     await this.backupService.deleteBackup(filename, body?.storagePath);
     return { message: 'تم حذف النسخة بنجاح' };
@@ -76,6 +104,7 @@ export class BackupController {
   // ==========================================
 
   /** عرض حالة عامل النسخ الاحتياطي */
+  @Permissions('backup:view')
   @Get('status')
   async getStatus() {
     return this.backupService.getStatus();
@@ -86,6 +115,7 @@ export class BackupController {
   // ==========================================
 
   /** عرض جميع أماكن التخزين المتاحة (أقراص، USB، شبكة) */
+  @Permissions('backup:view')
   @Get('storage-paths')
   async getStoragePaths() {
     return this.backupService.listStoragePaths();
@@ -96,12 +126,14 @@ export class BackupController {
   // ==========================================
 
   /** عرض إعدادات النسخ الاحتياطي */
+  @Permissions('backup:view')
   @Get('auto-path')
   async getAutoPath() {
     return this.backupService.getConfig();
   }
 
   /** تحديث مسار النسخ التلقائي (بسيط) */
+  @Permissions('backup:manage')
   @Post('auto-path')
   async setAutoPath(@Body() body: { path: string }) {
     if (!body?.path) {
@@ -111,12 +143,16 @@ export class BackupController {
   }
 
   /** تحديث إعدادات النسخ الاحتياطي الكاملة (مسار أساسي + ثانوي + تفعيل المزدوج) */
+  @Permissions('backup:manage')
   @Post('config')
-  async setConfig(@Body() body: {
-    autoBackupPath?: string;
-    secondaryPath?: string | null;
-    dualBackupEnabled?: boolean;
-  }) {
+  async setConfig(
+    @Body()
+    body: {
+      autoBackupPath?: string;
+      secondaryPath?: string | null;
+      dualBackupEnabled?: boolean;
+    },
+  ) {
     return this.backupService.setConfig(body);
   }
 }

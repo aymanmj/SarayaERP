@@ -1,15 +1,15 @@
 /**
  * Request Lifecycle Interceptor
- * 
+ *
  * Enterprise-grade request monitoring that:
  *  1. Measures request duration (X-Response-Time header)
  *  2. Logs slow requests (>2s) as warnings
  *  3. Logs failed requests with full context
  *  4. Correlates all logs with X-Request-Id
- * 
+ *
  * This interceptor works with the CorrelationMiddleware to provide
  * full request lifecycle observability.
- * 
+ *
  * Performance thresholds:
  *  - Normal:  < 1000ms (no log)
  *  - Warning: >= 2000ms (WARN log)
@@ -65,7 +65,7 @@ export class RequestLifecycleInterceptor implements NestInterceptor {
             `⚠️ SLOW [${requestId}] ${method} ${url} → ${statusCode} (${duration}ms)`,
           );
         }
-        // Normal requests: no log (reduce noise). 
+        // Normal requests: no log (reduce noise).
         // Enable debug-level logging if needed:
         // else {
         //   this.logger.debug(`[${requestId}] ${method} ${url} → ${statusCode} (${duration}ms)`);

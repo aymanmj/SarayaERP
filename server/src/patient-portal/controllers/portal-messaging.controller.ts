@@ -1,6 +1,6 @@
 /**
  * Patient Portal — Messaging Controller
- * 
+ *
  * Secure messaging between patients and their doctors.
  * All endpoints enforce patient-scoped data isolation.
  */
@@ -16,7 +16,12 @@ import {
   UseGuards,
   ParseIntPipe,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiBearerAuth,
+  ApiOperation,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { PatientAuthGuard } from '../auth/patient-auth.guard';
 import { CurrentPatient } from '../auth/current-patient.decorator';
 import { PortalMessagingService } from '../messaging/portal-messaging.service';
@@ -35,7 +40,11 @@ export class PortalMessagingController {
     @CurrentPatient() patient: any,
     @Body() dto: SendMessageDto,
   ) {
-    return this.messagingService.sendMessage(patient.sub, patient.hospitalId, dto);
+    return this.messagingService.sendMessage(
+      patient.sub,
+      patient.hospitalId,
+      dto,
+    );
   }
 
   @Get('threads')
@@ -47,7 +56,11 @@ export class PortalMessagingController {
     @Query('page') page?: number,
     @Query('limit') limit?: number,
   ) {
-    return this.messagingService.getThreads(patient.sub, Number(page) || 1, Number(limit) || 20);
+    return this.messagingService.getThreads(
+      patient.sub,
+      Number(page) || 1,
+      Number(limit) || 20,
+    );
   }
 
   @Get('unread-count')

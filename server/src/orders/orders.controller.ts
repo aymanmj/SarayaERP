@@ -9,8 +9,8 @@ import {
 } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { Permissions } from '../auth/permissions.decorator';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { JwtPayload } from '../auth/jwt-payload.type';
 import { IsInt, IsEnum, IsOptional, IsString, Min } from 'class-validator';
@@ -85,13 +85,13 @@ class UpdateRadiologyReportDto {
   reportText?: string;
 }
 
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('orders')
 export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 
   @Post('lab')
-  @Roles('ADMIN', 'DOCTOR')
+  @Permissions('orders:manage')
   createLabOrder(
     @Body() dto: CreateLabOrderDto,
     @CurrentUser() user: JwtPayload,
@@ -106,7 +106,7 @@ export class OrdersController {
   }
 
   @Post('radiology')
-  @Roles('ADMIN', 'DOCTOR')
+  @Permissions('orders:manage')
   createRadiologyOrder(
     @Body() dto: CreateRadiologyOrderDto,
     @CurrentUser() user: JwtPayload,
@@ -121,7 +121,7 @@ export class OrdersController {
   }
 
   @Get('by-encounter/:id')
-  @Roles('ADMIN', 'DOCTOR', 'NURSE')
+  @Permissions('orders:view')
   listForEncounter(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
     const encId = Number(id);
     if (!encId || Number.isNaN(encId)) {
@@ -133,7 +133,7 @@ export class OrdersController {
 
   // 🔹 تسجيل / تحديث نتيجة معملية
   @Post('lab/result')
-  @Roles('ADMIN', 'DOCTOR') // لاحقًا: LAB_TECH
+  @Permissions('orders:manage') // لاحقًا: LAB_TECH
   updateLabResult(
     @Body() dto: UpdateLabResultDto,
     @CurrentUser() user: JwtPayload,
@@ -150,7 +150,7 @@ export class OrdersController {
 
   // 🔹 تسجيل / تحديث تقرير أشعة
   @Post('radiology/report')
-  @Roles('ADMIN', 'DOCTOR') // لاحقًا: RADIOLOGIST
+  @Permissions('orders:manage') // لاحقًا: RADIOLOGIST
   updateRadiologyReport(
     @Body() dto: UpdateRadiologyReportDto,
     @CurrentUser() user: JwtPayload,

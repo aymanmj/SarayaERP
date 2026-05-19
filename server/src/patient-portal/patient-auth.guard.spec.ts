@@ -1,6 +1,6 @@
 /**
  * Patient Portal — Auth Guard Security Tests
- * 
+ *
  * Tests negative cases:
  * - Staff token (wrong role) → REJECTED
  * - Refresh token (wrong type) → REJECTED
@@ -62,12 +62,16 @@ describe('PatientAuthGuard — Security Hardening', () => {
 
   it('should REJECT request with no token', async () => {
     const ctx = createMockContext(undefined);
-    await expect(guard.canActivate(ctx as any)).rejects.toThrow(UnauthorizedException);
+    await expect(guard.canActivate(ctx as any)).rejects.toThrow(
+      UnauthorizedException,
+    );
   });
 
   it('should REJECT request with non-Bearer scheme', async () => {
     const ctx = createMockContext('Basic abc123');
-    await expect(guard.canActivate(ctx as any)).rejects.toThrow(UnauthorizedException);
+    await expect(guard.canActivate(ctx as any)).rejects.toThrow(
+      UnauthorizedException,
+    );
   });
 
   it('should ACCEPT valid patient access token', async () => {
@@ -111,7 +115,9 @@ describe('PatientAuthGuard — Security Hardening', () => {
     });
 
     const ctx = createMockContext('Bearer staff-token');
-    await expect(guard.canActivate(ctx as any)).rejects.toThrow(UnauthorizedException);
+    await expect(guard.canActivate(ctx as any)).rejects.toThrow(
+      UnauthorizedException,
+    );
   });
 
   it('should REJECT staff token (role = DOCTOR)', async () => {
@@ -123,7 +129,9 @@ describe('PatientAuthGuard — Security Hardening', () => {
     });
 
     const ctx = createMockContext('Bearer doctor-token');
-    await expect(guard.canActivate(ctx as any)).rejects.toThrow(UnauthorizedException);
+    await expect(guard.canActivate(ctx as any)).rejects.toThrow(
+      UnauthorizedException,
+    );
   });
 
   it('should REJECT refresh token (type = refresh)', async () => {
@@ -135,7 +143,9 @@ describe('PatientAuthGuard — Security Hardening', () => {
     });
 
     const ctx = createMockContext('Bearer refresh-token');
-    await expect(guard.canActivate(ctx as any)).rejects.toThrow(UnauthorizedException);
+    await expect(guard.canActivate(ctx as any)).rejects.toThrow(
+      UnauthorizedException,
+    );
   });
 
   it('should REJECT token without sub', async () => {
@@ -147,7 +157,9 @@ describe('PatientAuthGuard — Security Hardening', () => {
     });
 
     const ctx = createMockContext('Bearer incomplete-token');
-    await expect(guard.canActivate(ctx as any)).rejects.toThrow(UnauthorizedException);
+    await expect(guard.canActivate(ctx as any)).rejects.toThrow(
+      UnauthorizedException,
+    );
   });
 
   it('should REJECT token without hospitalId', async () => {
@@ -159,7 +171,9 @@ describe('PatientAuthGuard — Security Hardening', () => {
     });
 
     const ctx = createMockContext('Bearer no-hospital-token');
-    await expect(guard.canActivate(ctx as any)).rejects.toThrow(UnauthorizedException);
+    await expect(guard.canActivate(ctx as any)).rejects.toThrow(
+      UnauthorizedException,
+    );
   });
 
   it('should REJECT token with wrong audience', async () => {
@@ -172,14 +186,20 @@ describe('PatientAuthGuard — Security Hardening', () => {
     });
 
     const ctx = createMockContext('Bearer wrong-aud-token');
-    await expect(guard.canActivate(ctx as any)).rejects.toThrow(UnauthorizedException);
+    await expect(guard.canActivate(ctx as any)).rejects.toThrow(
+      UnauthorizedException,
+    );
   });
 
   it('should REJECT expired/invalid JWT', async () => {
-    (jwtService.verifyAsync as jest.Mock).mockRejectedValue(new Error('jwt expired'));
+    (jwtService.verifyAsync as jest.Mock).mockRejectedValue(
+      new Error('jwt expired'),
+    );
 
     const ctx = createMockContext('Bearer expired-token');
-    await expect(guard.canActivate(ctx as any)).rejects.toThrow(UnauthorizedException);
+    await expect(guard.canActivate(ctx as any)).rejects.toThrow(
+      UnauthorizedException,
+    );
   });
 
   it('should REJECT token without aud (no backward compatibility)', async () => {
@@ -193,6 +213,8 @@ describe('PatientAuthGuard — Security Hardening', () => {
     });
 
     const ctx = createMockContext('Bearer valid-no-aud');
-    await expect(guard.canActivate(ctx as any)).rejects.toThrow(UnauthorizedException);
+    await expect(guard.canActivate(ctx as any)).rejects.toThrow(
+      UnauthorizedException,
+    );
   });
 });

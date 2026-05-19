@@ -35,7 +35,7 @@ describe('LicenseController', () => {
       modules: [],
       isGracePeriod: true,
       daysRemaining: 7,
-      error: undefined
+      error: undefined,
     });
 
     const result = controller.getInfo();

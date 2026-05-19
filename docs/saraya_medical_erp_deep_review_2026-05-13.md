@@ -37,15 +37,15 @@
 | ملفات الخادم داخل `server/src` | 443 |
 | ملفات الواجهة داخل `client/src` | 250 |
 | ملفات الموبايل | 49 |
-| اختبارات الخادم | 59 ملفا |
+| اختبارات الخادم | 63 ملفا |
 | نماذج Prisma | 187 model |
 | Enums في Prisma | 106 enum |
 | Controllers في الخادم | 88 |
 | Services في الخادم | 105 |
-| اختبارات الخادم التي نجحت | 59/59 suites |
-| عدد اختبارات الخادم | 520 passed, 4 skipped |
+| اختبارات الخادم التي نجحت | 63/63 suites |
+| عدد اختبارات الخادم | 535 passed, 4 skipped |
 | بناء الواجهة | نجح |
-| Lint الواجهة | فشل: 855 مشكلة |
+| Lint الواجهة | فشل: 863 مشكلة |
 
 هذه الأرقام مهمة لأنها تؤكد أن النظام كبير فعلا، لكن جودة الكود الأمامي تحتاج تنظيفا منظما.
 
@@ -103,6 +103,9 @@
 - عند تفعيل OTP، يعيد حالة `REQUIRES_OTP` بدل كشف البيانات مباشرة.
 - `triggerConsentOtp` يرسل OTP للمريض عبر outbound queue، مع حفظ الغرض والجهة الطالبة.
 - `verifyConsentOtp` يصدر temporary consent token لمدة ساعة للوصول إلى FHIR patient scope.
+- `MpiConsentRecord` في Prisma يضيف سجل موافقات فعلي بحالات مثل `ACTIVE` و`REVOKED` وحقول `revokedAt`, `revokedReason`, `otpVerifiedAt`.
+- `server/src/patients/patients.service.ts` ينشئ سجل موافقة MPI عند إنشاء المريض، إما `PENDING_OTP` أو `ACTIVE` حسب إعدادات المؤسسة.
+- `server/src/settings/settings.controller.ts` و`client/src/pages/OrganizationSettingsPage.tsx` يضيفان واجهة إدارية لتفعيل federation واشتراط OTP، مع عرض إحصاءات الربط على مستوى الشبكة.
 - `MpiController` يوفر:
   - `GET /mpi/search`
   - `POST /mpi/consent/trigger`
@@ -110,7 +113,22 @@
 - الواجهة تحتوي إشارات MPI في `PatientsPage` و`EncounterDetailsPage`.
 
 التقييم: **هذه ليست مجرد ميزة مستشفى واحد؛ هذه طبقة HIE/MPI يمكن أن تصبح أساس سجل وطني موحد**.  
-الملاحظة العادلة: الموجود حاليا هو foundation قوي، لكنه يحتاج قبل الاستخدام الوطني إلى سياسات governance وطنية، consent ledger كامل، IHE profile mapping، audit مخصص لكل طلب تبادل، patient matching tuning، APIs موثقة للمؤسسات الخارجية، وإثباتات أداء وأمن على مستوى وطني.
+الملاحظة العادلة: الموجود حاليا هو foundation قوي ومعه بداية consent registry حقيقية، لكنه يحتاج قبل الاستخدام الوطني إلى إنفاذ موثق لكل حالة موافقة وإلغاء، token invalidation عند revocation، IHE profile mapping، audit مخصص لكل طلب تبادل، patient matching tuning، APIs موثقة للمؤسسات الخارجية، وإثباتات أداء وأمن على مستوى وطني.
+
+### 4.1.3 الجودة وسلامة المرضى: Incident / Near Miss / CAPA
+
+بعد التحديثات الأخيرة أصبحت هذه النقطة موجودة في الكود وليست مجرد backlog.
+
+الأدلة:
+
+- `server/src/quality/quality.module.ts` مضاف في `AppModule`.
+- `server/src/quality/quality.controller.ts` يوفر مسارات dashboard، الحوادث، near miss، إغلاق الحوادث، CAPA، والتحقق من CAPA.
+- `server/src/quality/quality.service.ts` يدير ترقيم الحوادث، تواريخ المراجعة حسب severity، منع إغلاق الحادث قبل اكتمال CAPA، وإحصاءات dashboard.
+- `server/prisma/schema.prisma` يحتوي `ClinicalIncident` و`CapaAction` مع enums للحالة والشدة والنوع وroot cause.
+- `client/src/pages/QualityAndSafetyPage.tsx` يوفر واجهة dashboard، تسجيل حادث، قائمة الحوادث، ومهام CAPA.
+
+التقييم: **هذه إضافة مهمة ترفع نضج السرايا في مجال Clinical Governance وسلامة المرضى**.  
+الملاحظات المتبقية: المسارات حاليا محمية بـ JWT فقط وتحتاج PermissionsGuard/صلاحيات جودة صريحة، توليد رقم الحادث بطريقة count+1 يحتاج حماية من السباق عند الضغط العالي، ويوجد TODO لإشعارات Quality Manager، كما يجب ربط CAPA مباشرة بدورة حياة order sets/pathways وCDSS عندما يكون السبب السريري أو الإجرائي متكررا.
 
 ### 4.2 حوكمة المحتوى السريري
 
@@ -271,22 +289,23 @@
 5. **AI Coding Assistance** يربط الملاحظة السريرية بالترميز والفوترة.
 6. **MPI/Federation وConsent OTP** تؤهل السرايا ليكون منصة شبكة صحية وطنية عند اكتمال الحوكمة.
 7. **أمن وتشغيل أعلى من المعتاد**: Vault, audit hash chain, tenant isolation, backup, monitoring.
-8. **اختبارات خادم جيدة نسبيا**: 520 اختبارا ناجحا.
-9. **بنية قابلة للتوسع** باستخدام NestJS/Prisma/PostgreSQL/Redis/Bull/OpenTelemetry.
-10. **ملكية كاملة للكود** تمنح مرونة أعلى من الأنظمة المغلقة.
+8. **وحدة Quality / Incident / Near Miss / CAPA** أصبحت موجودة كمسار تشغيلي في الخادم والواجهة.
+9. **اختبارات خادم جيدة نسبيا**: 535 اختبارا ناجحا.
+10. **بنية قابلة للتوسع** باستخدام NestJS/Prisma/PostgreSQL/Redis/Bull/OpenTelemetry.
+11. **ملكية كاملة للكود** تمنح مرونة أعلى من الأنظمة المغلقة.
 
 ## 6. نقاط الضعف والمخاطر
 
 1. **النضج التجاري غير مثبت من الكود وحده**: لا توجد في المستودع أدلة كافية على عدد العملاء، uptime حقيقي، شهادات، أو تشغيل production واسع.
-2. **Lint الواجهة فاشل**: 855 مشكلة تعني دين تقني واضح.
+2. **Lint الواجهة فاشل**: 863 مشكلة تعني دين تقني واضح.
 3. **الموبايل prototype** ولا يجب بيعه كمنتج إنتاجي مكتمل بعد.
 4. **الوثائق غير متزامنة مع الكود**، خصوصا وثائق clinical governance.
 5. **الامتثال readiness وليس certification**: ISO/SOC2/HIPAA readiness controls موجودة، لكن الاعتماد الخارجي غير مثبت.
 6. **NPHIES يحتاج إثبات خارجي**: وجود الكود ممتاز، لكن السوق السعودي سيطلب certification وsuccessful transactions.
 7. **CDSS يحتاج knowledge base سريرية أعمق**: بعض المنطق يبدو محليا/ثابتا ويحتاج قواعد دوائية/إرشادية معتمدة.
 8. **AI Coding يحتاج ضوابط جودة واعتماد**: يجب ألا يعتمد الكود على اقتراح النموذج وحده دون مراجعة الطبيب/الم coder، audit، وقياس دقة.
-9. **MPI الوطني يحتاج حوكمة وطنية**: الأساس البرمجي موجود، لكن التشغيل الوطني يحتاج consent registry، اتفاقيات تبادل، سياسات retention، ومطابقة مرضى أكثر صرامة.
-10. **CAPA/incident/near miss** يظهر كوثائق/backlog أكثر من كونه وحدة تشغيلية متكاملة.
+9. **MPI الوطني يحتاج حوكمة وطنية**: الأساس البرمجي وسجل الموافقات موجودان، لكن التشغيل الوطني يحتاج إنفاذ consent revocation، اتفاقيات تبادل، سياسات retention، ومطابقة مرضى أكثر صرامة.
+10. **Quality/CAPA يحتاج حوكمة صلاحيات وربط أعمق**: الوحدة أصبحت موجودة، لكنها تحتاج PermissionsGuard، إشعارات، audit أدق، وربطا مباشرا مع Clinical Content Lifecycle.
 11. **قابلية المقارنة مع Epic/Oracle محدودة** بسبب غياب شبكة عملاء، Marketplace مكتمل، ecosystem، certifications، وبيانات تشغيل فعلية.
 
 ## 7. موقع السرايا مقارنة بالأنظمة العالمية
@@ -432,10 +451,10 @@ Hakeem برنامج وطني للسجل الصحي الإلكتروني في ا�
 
 ### أولوية 90 يوما
 
-1. وحدة Incident / Near Miss / CAPA تشغيلية كاملة.
+1. تقوية وحدة Incident / Near Miss / CAPA بصلاحيات جودة صريحة، إشعارات، audit، وربطها بدورة حياة المحتوى السريري.
 2. audit coverage report يوضح ما هي routes المغطاة بـ ABAC/Tenant/Permissions.
 3. NPHIES sandbox certification أو إثبات رسمي قابل للعرض.
-4. consent ledger كامل لتبادل البيانات الوطني، مع سجل موافقات وإلغائها وأغراض الوصول.
+4. استكمال إنفاذ consent ledger لتبادل البيانات الوطني، خصوصا إلغاء الموافقة، إبطال tokens، وأغراض الوصول.
 5. تحسين CDSS وAI Coding بقاعدة معرفة دوائية/سريرية/ترميزية معتمدة.
 6. UX hardening لمسارات admission, billing, claims, pharmacy, lab/radiology, MPI consent.
 7. Performance/load testing على سيناريوهات واقعية، خصوصا MPI search وFHIR export.
@@ -454,9 +473,9 @@ Hakeem برنامج وطني للسجل الصحي الإلكتروني في ا�
 
 تم تنفيذ:
 
-- `npx jest --runInBand` داخل `server`: نجح، 59 test suites passed، 520 tests passed، 4 skipped.
+- `npx jest --runInBand` داخل `server`: نجح، 63 test suites passed، 535 tests passed، 4 skipped.
 - `npm run build` داخل `client`: نجح.
-- `npm run lint` داخل `client`: فشل، 855 مشكلة.
+- `npm run lint` داخل `client`: فشل، 863 مشكلة.
 
 ملاحظة: بعض الأوامر احتاجت تشغيل خارج sandbox بسبب أخطاء صلاحيات Windows/EPERM، ثم نجحت.
 

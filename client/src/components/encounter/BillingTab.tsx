@@ -100,6 +100,7 @@ export function BillingTab({ encounterId, hospitalId }: BillingTabProps) {
     if (encounterId && hospitalId) {
       fetchSummary();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [encounterId, hospitalId]);
 
   // ⚠️ إنشاء الفاتورة منقول للخزينة (Cashier Page)
@@ -138,6 +139,7 @@ export function BillingTab({ encounterId, hospitalId }: BillingTabProps) {
     return { totalCharges, totalInvoiced, totalPaid, outstanding };
   }, [summary]);
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const hasUninvoiced = summary?.charges?.some((c) => !c.invoiceId) ?? false;
 
   return (

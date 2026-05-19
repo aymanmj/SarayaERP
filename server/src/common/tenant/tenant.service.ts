@@ -180,7 +180,12 @@ export class TenantService {
   /**
    * إدارة إعدادات المؤسسة (key-value)
    */
-  async setOrgSetting(orgId: number, key: string, value: string, description?: string) {
+  async setOrgSetting(
+    orgId: number,
+    key: string,
+    value: string,
+    description?: string,
+  ) {
     return this.prisma.orgSetting.upsert({
       where: { organizationId_key: { organizationId: orgId, key } },
       update: { value, description },
@@ -188,7 +193,11 @@ export class TenantService {
     });
   }
 
-  async getOrgSetting(orgId: number, key: string, defaultValue?: string): Promise<string | null> {
+  async getOrgSetting(
+    orgId: number,
+    key: string,
+    defaultValue?: string,
+  ): Promise<string | null> {
     const setting = await this.prisma.orgSetting.findUnique({
       where: { organizationId_key: { organizationId: orgId, key } },
     });
@@ -209,7 +218,11 @@ export class TenantService {
   /**
    * تعيين مستخدم في فرع (منحه صلاحية الوصول)
    */
-  async assignUserToBranch(userId: number, hospitalId: number, isDefault = false) {
+  async assignUserToBranch(
+    userId: number,
+    hospitalId: number,
+    isDefault = false,
+  ) {
     // التحقق من وجود المستخدم والفرع
     const [user, hospital] = await Promise.all([
       this.prisma.user.findUnique({ where: { id: userId } }),
@@ -234,7 +247,9 @@ export class TenantService {
       update: { isDefault },
       create: { userId, hospitalId, isDefault },
       include: {
-        hospital: { select: { id: true, code: true, name: true, displayName: true } },
+        hospital: {
+          select: { id: true, code: true, name: true, displayName: true },
+        },
       },
     });
   }
@@ -270,7 +285,13 @@ export class TenantService {
       where: { userId },
       include: {
         hospital: {
-          select: { id: true, code: true, name: true, displayName: true, isActive: true },
+          select: {
+            id: true,
+            code: true,
+            name: true,
+            displayName: true,
+            isActive: true,
+          },
         },
       },
       orderBy: { isDefault: 'desc' },

@@ -180,17 +180,22 @@ export class RadiologyService {
         let insuranceProviderId: number | null = null;
 
         if (encounterInfo.patient.insurancePolicy?.isActive) {
-          const copayRate = Number(encounterInfo.patient.insurancePolicy.patientCopayRate || 0) / 100;
+          const copayRate =
+            Number(
+              encounterInfo.patient.insurancePolicy.patientCopayRate || 0,
+            ) / 100;
           patientShare = Math.round(totalAmount * copayRate * 100) / 100;
           insuranceShare = Math.round((totalAmount - patientShare) * 100) / 100;
-          insuranceProviderId = encounterInfo.patient.insurancePolicy.insuranceProviderId;
+          insuranceProviderId =
+            encounterInfo.patient.insurancePolicy.insuranceProviderId;
         }
 
         // جلب الفترة المالية
-        const { financialYear, period } = await this.accounting.validateDateInOpenPeriod(
-          hospitalId,
-          new Date(),
-        );
+        const { financialYear, period } =
+          await this.accounting.validateDateInOpenPeriod(
+            hospitalId,
+            new Date(),
+          );
 
         // إنشاء الفاتورة
         const invoice = await tx.invoice.create({
@@ -242,12 +247,12 @@ export class RadiologyService {
   async getWorklist(hospitalId: number) {
     const radOrders = await this.prisma.radiologyOrder.findMany({
       where: {
-        order: { 
-          hospitalId, 
-          type: OrderType.RADIOLOGY, 
+        order: {
+          hospitalId,
+          type: OrderType.RADIOLOGY,
           isDeleted: false,
           // ✅ [PAYWALL] لا تظهر للفني إلا إذا كانت مدفوعة أو معفاة
-          paymentStatus: { in: [PaymentStatus.PAID, PaymentStatus.WAIVED] }
+          paymentStatus: { in: [PaymentStatus.PAID, PaymentStatus.WAIVED] },
         },
       },
       include: {
@@ -327,33 +332,37 @@ export class RadiologyService {
   }
 
   // ✅ [NEW] البدء في المعالجة (Start Processing / Send to Device)
-  async startProcessing(hospitalId: number, radiologyOrderId: number, userId: number) {
-     return this.prisma.$transaction(async (tx) => {
-       const radOrder = await tx.radiologyOrder.findUnique({
-         where: { id: radiologyOrderId },
-         include: { order: true },
-       });
+  async startProcessing(
+    hospitalId: number,
+    radiologyOrderId: number,
+    userId: number,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const radOrder = await tx.radiologyOrder.findUnique({
+        where: { id: radiologyOrderId },
+        include: { order: true },
+      });
 
-       if (!radOrder) throw new NotFoundException('الطلب غير موجود.');
-       if (radOrder.order.hospitalId !== hospitalId)
-         throw new BadRequestException('غير مصرح لك.');
+      if (!radOrder) throw new NotFoundException('الطلب غير موجود.');
+      if (radOrder.order.hospitalId !== hospitalId)
+        throw new BadRequestException('غير مصرح لك.');
 
-       if (radOrder.status === RadiologyStatus.COMPLETED) {
-         return radOrder;
-       }
-       
-       const updated = await tx.radiologyOrder.update({
-         where: { id: radiologyOrderId },
-         data: { status: RadiologyStatus.IN_PROGRESS }, // Enum updated in schema
-       });
-       
-       this.eventEmitter.emit(
-         'radiology.order_started',
-         new RadiologyOrderStartedEvent(hospitalId, radiologyOrderId, userId)
-       );
+      if (radOrder.status === RadiologyStatus.COMPLETED) {
+        return radOrder;
+      }
 
-       return updated;
-     });
+      const updated = await tx.radiologyOrder.update({
+        where: { id: radiologyOrderId },
+        data: { status: RadiologyStatus.IN_PROGRESS }, // Enum updated in schema
+      });
+
+      this.eventEmitter.emit(
+        'radiology.order_started',
+        new RadiologyOrderStartedEvent(hospitalId, radiologyOrderId, userId),
+      );
+
+      return updated;
+    });
   }
 
   async completeOrderWithReport(params: {
@@ -389,7 +398,7 @@ export class RadiologyService {
       const existingCharge = await tx.encounterCharge.findFirst({
         where: {
           hospitalId: order.hospitalId,
-          encounterId: order.encounterId!,
+          encounterId: order.encounterId,
           sourceType: ChargeSource.RADIOLOGY_ORDER,
           sourceId: radOrder.id,
         },
@@ -409,7 +418,7 @@ export class RadiologyService {
         await tx.encounterCharge.create({
           data: {
             hospitalId: order.hospitalId,
-            encounterId: order.encounterId!,
+            encounterId: order.encounterId,
             serviceItemId: study.serviceItem.id,
             sourceType: ChargeSource.RADIOLOGY_ORDER,
             sourceId: radOrder.id,

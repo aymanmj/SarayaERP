@@ -103,7 +103,9 @@ export class LabOrdersService {
     });
 
     if (!doctor || !doctor.isActive || doctor.hospitalId !== hospitalId) {
-      throw new BadRequestException('الطبيب غير صالح أو لا ينتمي لنفس المستشفى.');
+      throw new BadRequestException(
+        'الطبيب غير صالح أو لا ينتمي لنفس المستشفى.',
+      );
     }
 
     // جلب التحاليل المطلوبة
@@ -200,17 +202,19 @@ export class LabOrdersService {
         let insuranceProviderId: number | null = null;
 
         if (patientData?.insurancePolicy?.isActive) {
-          const copayRate = Number(patientData.insurancePolicy.patientCopayRate || 0) / 100;
+          const copayRate =
+            Number(patientData.insurancePolicy.patientCopayRate || 0) / 100;
           patientShare = Math.round(totalAmount * copayRate * 100) / 100;
           insuranceShare = Math.round((totalAmount - patientShare) * 100) / 100;
           insuranceProviderId = patientData.insurancePolicy.insuranceProviderId;
         }
 
         // جلب الفترة المالية
-        const { financialYear, period } = await this.accounting.validateDateInOpenPeriod(
-          hospitalId,
-          new Date(),
-        );
+        const { financialYear, period } =
+          await this.accounting.validateDateInOpenPeriod(
+            hospitalId,
+            new Date(),
+          );
 
         // إنشاء الفاتورة
         const invoice = await tx.invoice.create({
@@ -292,5 +296,3 @@ export class LabOrdersService {
     }));
   }
 }
-
-

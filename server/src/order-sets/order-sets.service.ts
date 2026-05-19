@@ -1,5 +1,15 @@
-import { ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { ClinicalContentEventType, ClinicalContentStatus, OrderSetItemType, Prisma } from '@prisma/client';
+import {
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
+import {
+  ClinicalContentEventType,
+  ClinicalContentStatus,
+  OrderSetItemType,
+  Prisma,
+} from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { LabService } from '../labs/labs.service';
 import { RadiologyService } from '../radiology/radiology.service';
@@ -55,11 +65,37 @@ export class OrderSetsService {
     return {
       items: {
         include: {
-          labTest: { select: { id: true, name: true, code: true, arabicName: true } },
-          radiologyStudy: { select: { id: true, name: true, code: true, arabicName: true, modality: true } },
-          product: { select: { id: true, name: true, code: true, genericName: true, form: true } },
+          labTest: {
+            select: { id: true, name: true, code: true, arabicName: true },
+          },
+          radiologyStudy: {
+            select: {
+              id: true,
+              name: true,
+              code: true,
+              arabicName: true,
+              modality: true,
+            },
+          },
+          product: {
+            select: {
+              id: true,
+              name: true,
+              code: true,
+              genericName: true,
+              form: true,
+            },
+          },
           serviceItem: { select: { id: true, name: true, code: true } },
-          terminologyConcept: { select: { id: true, system: true, code: true, display: true, displayAr: true } }
+          terminologyConcept: {
+            select: {
+              id: true,
+              system: true,
+              code: true,
+              display: true,
+              displayAr: true,
+            },
+          },
         },
         orderBy: { sortOrder: 'asc' as const },
       },
@@ -82,7 +118,10 @@ export class OrderSetsService {
     };
   }
 
-  private buildWhere(hospitalId: number, filters?: OrderSetQueryFilters): Prisma.OrderSetWhereInput {
+  private buildWhere(
+    hospitalId: number,
+    filters?: OrderSetQueryFilters,
+  ): Prisma.OrderSetWhereInput {
     const scope = filters?.scope === 'all' ? 'all' : 'published';
     const where: Prisma.OrderSetWhereInput = {
       hospitalId,
@@ -174,13 +213,19 @@ export class OrderSetsService {
     });
 
     if (!orderSet) {
-      throw new NotFoundException('لا توجد نسخة منشورة ونشطة من مجموعة الطلبات');
+      throw new NotFoundException(
+        'لا توجد نسخة منشورة ونشطة من مجموعة الطلبات',
+      );
     }
 
     return orderSet;
   }
 
-  private async assertNoPendingVersion(hospitalId: number, contentKey: string, excludeId?: number) {
+  private async assertNoPendingVersion(
+    hospitalId: number,
+    contentKey: string,
+    excludeId?: number,
+  ) {
     const pending = await this.prisma.orderSet.findFirst({
       where: {
         hospitalId,
@@ -263,7 +308,11 @@ export class OrderSetsService {
     });
   }
 
-  async findOne(hospitalId: number, id: number, scope: 'published' | 'all' = 'all') {
+  async findOne(
+    hospitalId: number,
+    id: number,
+    scope: 'published' | 'all' = 'all',
+  ) {
     const orderSet = await this.prisma.orderSet.findFirst({
       where: {
         id,
@@ -293,7 +342,12 @@ export class OrderSetsService {
     });
   }
 
-  async update(hospitalId: number, id: number, userId: number, data: Partial<OrderSetPayload>) {
+  async update(
+    hospitalId: number,
+    id: number,
+    userId: number,
+    data: Partial<OrderSetPayload>,
+  ) {
     const existing = await this.prisma.orderSet.findFirst({
       where: { id, hospitalId },
       include: this.orderSetInclude(),
@@ -304,7 +358,9 @@ export class OrderSetsService {
       throw new ForbiddenException('لا يمكن تعديل إصدار متقاعد');
     }
 
-    const itemPayload = data.items ? this.normalizeItems(data.items) : undefined;
+    const itemPayload = data.items
+      ? this.normalizeItems(data.items)
+      : undefined;
 
     if (existing.status === ClinicalContentStatus.DRAFT) {
       const updatedId = await this.prisma.$transaction(async (tx) => {
@@ -339,10 +395,18 @@ export class OrderSetsService {
       return this.findOne(hospitalId, updatedId, 'all');
     }
 
-    await this.assertNoPendingVersion(hospitalId, existing.contentKey, existing.id);
+    await this.assertNoPendingVersion(
+      hospitalId,
+      existing.contentKey,
+      existing.id,
+    );
 
     const draftId = await this.prisma.$transaction(async (tx) => {
-      const nextVersion = await this.getNextVersion(tx, hospitalId, existing.contentKey);
+      const nextVersion = await this.getNextVersion(
+        tx,
+        hospitalId,
+        existing.contentKey,
+      );
       const draft = await tx.orderSet.create({
         data: {
           hospitalId,
@@ -356,10 +420,12 @@ export class OrderSetsService {
           description: data.description ?? existing.description ?? undefined,
           category: data.category ?? existing.category ?? undefined,
           specialty: data.specialty ?? existing.specialty ?? undefined,
-          changeSummary: data.changeSummary ?? `نسخة مشتقة من الإصدار v${existing.version}`,
+          changeSummary:
+            data.changeSummary ?? `نسخة مشتقة من الإصدار v${existing.version}`,
           items: {
-            create: itemPayload
-              ?? this.normalizeItems(
+            create:
+              itemPayload ??
+              this.normalizeItems(
                 existing.items.map((item) => ({
                   itemType: item.itemType,
                   labTestId: item.labTestId ?? undefined,
@@ -386,7 +452,8 @@ export class OrderSetsService {
         draft.id,
         ClinicalContentEventType.VERSION_CLONED,
         userId,
-        data.changeSummary || `إنشاء مسودة جديدة من الإصدار v${existing.version}`,
+        data.changeSummary ||
+          `إنشاء مسودة جديدة من الإصدار v${existing.version}`,
       );
 
       return draft.id;
@@ -395,7 +462,12 @@ export class OrderSetsService {
     return this.findOne(hospitalId, draftId, 'all');
   }
 
-  async submitForReview(hospitalId: number, id: number, userId: number, notes?: string) {
+  async submitForReview(
+    hospitalId: number,
+    id: number,
+    userId: number,
+    notes?: string,
+  ) {
     const orderSet = await this.getOrderSetOrThrow(hospitalId, id);
     if (orderSet.status !== ClinicalContentStatus.DRAFT) {
       throw new ForbiddenException('يمكن إرسال المسودات فقط للمراجعة');
@@ -424,7 +496,12 @@ export class OrderSetsService {
     return this.findOne(hospitalId, id, 'all');
   }
 
-  async approve(hospitalId: number, id: number, userId: number, notes?: string) {
+  async approve(
+    hospitalId: number,
+    id: number,
+    userId: number,
+    notes?: string,
+  ) {
     const orderSet = await this.getOrderSetOrThrow(hospitalId, id);
     if (orderSet.status !== ClinicalContentStatus.IN_REVIEW) {
       throw new ForbiddenException('يمكن اعتماد إصدار تحت المراجعة فقط');
@@ -456,10 +533,12 @@ export class OrderSetsService {
   async reject(hospitalId: number, id: number, userId: number, notes?: string) {
     const orderSet = await this.getOrderSetOrThrow(hospitalId, id);
     if (
-      orderSet.status !== ClinicalContentStatus.IN_REVIEW
-      && orderSet.status !== ClinicalContentStatus.APPROVED
+      orderSet.status !== ClinicalContentStatus.IN_REVIEW &&
+      orderSet.status !== ClinicalContentStatus.APPROVED
     ) {
-      throw new ForbiddenException('يمكن إرجاع إصدار من المراجعة أو بعد الاعتماد فقط');
+      throw new ForbiddenException(
+        'يمكن إرجاع إصدار من المراجعة أو بعد الاعتماد فقط',
+      );
     }
 
     await this.prisma.$transaction(async (tx) => {
@@ -485,7 +564,12 @@ export class OrderSetsService {
     return this.findOne(hospitalId, id, 'all');
   }
 
-  async publish(hospitalId: number, id: number, userId: number, notes?: string) {
+  async publish(
+    hospitalId: number,
+    id: number,
+    userId: number,
+    notes?: string,
+  ) {
     const orderSet = await this.getOrderSetOrThrow(hospitalId, id);
     if (orderSet.status !== ClinicalContentStatus.APPROVED) {
       throw new ForbiddenException('لا يمكن نشر إلا إصدار معتمد');
@@ -581,7 +665,9 @@ export class OrderSetsService {
   async remove(hospitalId: number, id: number, userId: number) {
     const existing = await this.getOrderSetOrThrow(hospitalId, id);
     if (existing.status === ClinicalContentStatus.PUBLISHED) {
-      throw new ForbiddenException('لا يمكن تعطيل نسخة منشورة مباشرة. قم بتقاعدها أو استبدالها أولًا.');
+      throw new ForbiddenException(
+        'لا يمكن تعطيل نسخة منشورة مباشرة. قم بتقاعدها أو استبدالها أولًا.',
+      );
     }
 
     return this.prisma.orderSet.update({
@@ -598,7 +684,12 @@ export class OrderSetsService {
 
   // ==================== EXECUTE ORDER SET ====================
 
-  async execute(hospitalId: number, userId: number, orderSetId: number, encounterId: number) {
+  async execute(
+    hospitalId: number,
+    userId: number,
+    orderSetId: number,
+    encounterId: number,
+  ) {
     const orderSet = await this.getOrderSetForExecution(hospitalId, orderSetId);
 
     // Verify encounter
@@ -649,27 +740,33 @@ export class OrderSetsService {
         results.labOrders.push(...labResults);
         results.total += labResults.length;
       } catch (err: any) {
-        this.logger.warn(`Error dispatching Lab Orders in OrderSet: ${err.message}`);
+        this.logger.warn(
+          `Error dispatching Lab Orders in OrderSet: ${err.message}`,
+        );
         results.skipped.push(`LAB_BATCH: خطأ - ${err.message}`);
       }
     }
 
     if (radStudyIds.length > 0) {
       try {
-        const radResults = await this.radiologyService.createOrdersForEncounter({
-          encounterId,
-          hospitalId,
-          doctorId: userId,
-          studyIds: radStudyIds,
-          notes:
-            radNotesArr.length > 0
-              ? radNotesArr.join(' | ')
-              : `أوامر أشعة من بروتوكول منشور: ${orderSet.name}`,
-        });
+        const radResults = await this.radiologyService.createOrdersForEncounter(
+          {
+            encounterId,
+            hospitalId,
+            doctorId: userId,
+            studyIds: radStudyIds,
+            notes:
+              radNotesArr.length > 0
+                ? radNotesArr.join(' | ')
+                : `أوامر أشعة من بروتوكول منشور: ${orderSet.name}`,
+          },
+        );
         results.radiologyOrders.push(...radResults);
         results.total += radResults.length;
       } catch (err: any) {
-        this.logger.warn(`Error dispatching Rad Orders in OrderSet: ${err.message}`);
+        this.logger.warn(
+          `Error dispatching Rad Orders in OrderSet: ${err.message}`,
+        );
         results.skipped.push(`RADIOLOGY_BATCH: خطأ - ${err.message}`);
       }
     }
@@ -710,16 +807,22 @@ export class OrderSetsService {
             break;
           case 'NURSING':
           case 'PROCEDURE':
-            results.skipped.push(`${item.itemType}: ${item.nursingAction || item.instructions || 'N/A'}`);
+            results.skipped.push(
+              `${item.itemType}: ${item.nursingAction || item.instructions || 'N/A'}`,
+            );
             break;
         }
       } catch (err: any) {
-        this.logger.warn(`Error executing order set item ${item.id}: ${err.message}`);
+        this.logger.warn(
+          `Error executing order set item ${item.id}: ${err.message}`,
+        );
         results.skipped.push(`${item.itemType}: خطأ - ${err.message}`);
       }
     }
 
-    this.logger.log(`Order Set "${orderSet.name}" executed for encounter ${encounterId}: ${results.total} orders created`);
+    this.logger.log(
+      `Order Set "${orderSet.name}" executed for encounter ${encounterId}: ${results.total} orders created`,
+    );
 
     return {
       orderSetName: orderSet.name,

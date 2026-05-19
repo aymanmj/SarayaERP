@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { apiClient } from "../../../api/apiClient";
 import { toast } from "sonner";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { CryoTank, CryoCanister, CryoItem } from "../types";
 
 type Props = {
@@ -74,6 +75,7 @@ export default function CryoBankPanel({ patientId, patientName }: Props) {
 
   useEffect(() => {
     loadData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [patientId]);
 
   const fmtDate = (d?: string) => d ? new Date(d).toLocaleDateString("ar-LY") : "—";
@@ -87,6 +89,7 @@ export default function CryoBankPanel({ patientId, patientName }: Props) {
       setShowTankForm(false);
       setTankCode(""); setTankName(""); setTankLocation("");
       loadData();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
       toast.error(e?.response?.data?.message || "فشل إنشاء التانك.");
     }
@@ -101,6 +104,7 @@ export default function CryoBankPanel({ patientId, patientName }: Props) {
       setShowCanisterForm(false);
       setCanisterCode(""); setCanisterTankId(null);
       loadData();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
       toast.error(e?.response?.data?.message || "فشل إضافة الحاوية.");
     }
@@ -115,6 +119,7 @@ export default function CryoBankPanel({ patientId, patientName }: Props) {
       setShowFreezeForm(false);
       setFreezeForm({ canisterId: 0, itemType: "SPERM", caneCode: "", gobletColor: "", visotubeColor: "", strawCount: 1, description: "", freezeDate: "" });
       loadData();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
       toast.error(e?.response?.data?.message || "فشل تجميد العينة.");
     }
@@ -127,6 +132,7 @@ export default function CryoBankPanel({ patientId, patientName }: Props) {
       await apiClient.patch(`/obgyn/fertility/cryo/items/${itemId}/thaw`, {});
       toast.success("تمت إذابة العينة بنجاح. 🌡️");
       loadData();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
       toast.error(e?.response?.data?.message || "فشل إذابة العينة.");
     }
@@ -139,6 +145,7 @@ export default function CryoBankPanel({ patientId, patientName }: Props) {
       await apiClient.patch(`/obgyn/fertility/cryo/items/${itemId}/discard`, {});
       toast.success("تم إتلاف العينة.");
       loadData();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
       toast.error(e?.response?.data?.message || "فشل إتلاف العينة.");
     }

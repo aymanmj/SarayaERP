@@ -1,5 +1,11 @@
 import {
-  IsInt, IsOptional, IsString, IsEnum, IsDateString, IsNumber, IsBoolean,
+  IsInt,
+  IsOptional,
+  IsString,
+  IsEnum,
+  IsDateString,
+  IsNumber,
+  IsBoolean,
 } from 'class-validator';
 
 // ==========================================
@@ -394,7 +400,6 @@ export class CreateSemenAnalysisDto {
   doctorNotes?: string;
 }
 
-
 // ==========================================
 // Andrology Visit
 // ==========================================
@@ -628,7 +633,6 @@ export class CreateHormoneTestDto {
   @IsOptional()
   notes?: string;
 }
-
 
 // ==========================================
 // Cryopreservation

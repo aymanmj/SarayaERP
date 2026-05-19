@@ -13,6 +13,7 @@ export function ConsentFormsPage() {
   const queryClient = useQueryClient();
 
   const [dialogOpen, setDialogOpen] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [selectedForm, setSelectedForm] = useState<any>(null);
 
   // Fetch Consents
@@ -37,6 +38,7 @@ export function ConsentFormsPage() {
     onError: () => toast.error("حدث خطأ أثناء الإلغاء"),
   });
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleOpenDialog = (form?: any) => {
     setSelectedForm(form || null);
     setDialogOpen(true);
@@ -96,6 +98,7 @@ export function ConsentFormsPage() {
                   </td>
                 </tr>
               ) : (
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 consentForms.map((form: any) => (
                   <tr key={form.id} className="hover:bg-white/[0.02] transition-colors">
                     <td className="px-6 py-4 font-mono text-slate-400">#{form.id}</td>

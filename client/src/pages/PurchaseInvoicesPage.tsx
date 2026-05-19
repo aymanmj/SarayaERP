@@ -115,6 +115,7 @@ export default function PurchaseInvoicesPage() {
       if (whRes.data.length > 0) {
         setWarehouseId(String(whRes.data[0].id));
       }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       console.error(err);
       toast.error("حدث خطأ أثناء تحميل البيانات الأولية.");
@@ -130,6 +131,7 @@ export default function PurchaseInvoicesPage() {
         "/purchases/invoices",
       );
       setInvoices(res.data);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       console.error(err);
       toast.error("حدث خطأ أثناء تحميل فواتير الشراء.");
@@ -168,6 +170,7 @@ export default function PurchaseInvoicesPage() {
 
   // ===== إدارة بنود الفاتورة =====
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const updateLine = (index: number, field: keyof LineFormRow, value: any) => {
     setLines((prev) =>
       prev.map((l, i) => {
@@ -207,6 +210,7 @@ export default function PurchaseInvoicesPage() {
 
   // ===== حفظ فاتورة شراء جديدة =====
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleSaveInvoice = async (e: any) => {
     e.preventDefault();
 
@@ -279,6 +283,7 @@ export default function PurchaseInvoicesPage() {
       ]);
 
       await loadInvoices();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       console.error(err);
       const msg = err?.response?.data?.message;

@@ -12,32 +12,30 @@ import {
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
 import { PermissionsGuard } from '../auth/permissions.guard';
 import { Permissions } from '../auth/permissions.decorator';
-import { Roles } from '../auth/roles.decorator';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { JwtPayload } from '../auth/jwt-payload.type';
 
-@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get()
-  @Roles('ADMIN')
+  @Permissions('users:manage')
   async findAll(@Req() req: any) {
     return this.usersService.findAll(req.user.hospitalId);
   }
 
   @Post()
-  @Roles('ADMIN')
+  @Permissions('users:manage')
   async create(@Req() req: any, @Body() body: any) {
     return this.usersService.create(req.user.hospitalId, body);
   }
 
   @Patch(':id')
-  @Roles('ADMIN')
+  @Permissions('users:manage')
   async update(
     @Req() req: any,
     @Param('id', ParseIntPipe) id: number,
@@ -47,40 +45,40 @@ export class UsersController {
   }
 
   @Get('doctors-list')
-  @Roles('ADMIN', 'DOCTOR', 'NURSE', 'RECEPTION', 'CASHIER')
+  @Permissions('users:view')
   async getDoctors(@CurrentUser() user: JwtPayload) {
     return this.usersService.findActiveDoctors(user.hospitalId);
   }
 
   @Get('staff-list')
-  @Roles('ADMIN', 'DOCTOR', 'NURSE', 'RECEPTION', 'CASHIER')
+  @Permissions('users:view')
   async getStaff(@CurrentUser() user: JwtPayload) {
     return this.usersService.findActiveStaff(user.hospitalId);
   }
 
   @Get('roles')
-  @Permissions('ROLE_VIEW')
+  @Permissions('users:view')
   async getRoles() {
     return this.usersService.findAllRoles();
   }
 
   // ✅ [NEW] Get roles with their assigned permissions
   @Get('roles-permissions')
-  @Permissions('ROLE_VIEW')
+  @Permissions('users:view')
   async getRolesWithPermissions() {
     return this.usersService.findAllRolesWithPermissions();
   }
 
   // ✅ [NEW] Get all available permissions
   @Get('permissions')
-  @Permissions('ROLE_VIEW')
+  @Permissions('users:view')
   async getPermissions() {
     return this.usersService.findAllPermissions();
   }
 
   // ✅ [NEW] Update role permissions
   @Patch('roles/:id/permissions')
-  @Permissions('ROLE_MANAGE')
+  @Permissions('users:manage')
   async updateRolePermissions(
     @Param('id', ParseIntPipe) id: number,
     @Body() body: { permissionIds: number[] },
@@ -91,8 +89,7 @@ export class UsersController {
   // ✅ [Diagnostic] Fix Doctor Permissions
   // Allow simplified access for debugging
   @Post('fix-permissions')
-  @Roles('ADMIN')
-  @Permissions('ROLE_MANAGE')
+  @Permissions('users:manage')
   async fixPermissions() {
     if (process.env.ENABLE_DIAGNOSTIC_ENDPOINTS !== 'true') {
       throw new ForbiddenException('Diagnostic endpoints are disabled');
@@ -103,8 +100,7 @@ export class UsersController {
 
   // ✅ [Diagnostic] Fix Nurse Permissions
   @Post('fix-nurse-permissions')
-  @Roles('ADMIN')
-  @Permissions('ROLE_MANAGE')
+  @Permissions('users:manage')
   async fixNursePermissions() {
     if (process.env.ENABLE_DIAGNOSTIC_ENDPOINTS !== 'true') {
       throw new ForbiddenException('Diagnostic endpoints are disabled');

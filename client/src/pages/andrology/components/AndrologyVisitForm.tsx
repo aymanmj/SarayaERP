@@ -24,6 +24,7 @@ export default function AndrologyVisitForm({ initialData = {}, onSave, onCancel 
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let finalValue: any = value;
     if (type === "number") finalValue = value === "" ? undefined : Number(value);
     if (type === "checkbox") finalValue = (e.target as HTMLInputElement).checked;

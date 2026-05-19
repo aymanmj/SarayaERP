@@ -1,6 +1,6 @@
 /**
  * Patient Portal — Appointments Controller
- * 
+ *
  * Allows patients to view, book, and cancel appointments.
  */
 
@@ -15,7 +15,12 @@ import {
   UseGuards,
   ParseIntPipe,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiBearerAuth,
+  ApiOperation,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { PatientPortalService } from '../patient-portal.service';
 import { PatientAuthGuard } from '../auth/patient-auth.guard';
 import { CurrentPatient } from '../auth/current-patient.decorator';
@@ -37,7 +42,11 @@ export class PortalAppointmentsController {
     @Query('page') page?: number,
     @Query('limit') limit?: number,
   ) {
-    return this.portalService.getAppointments(patient.sub, Number(page) || 1, Number(limit) || 20);
+    return this.portalService.getAppointments(
+      patient.sub,
+      Number(page) || 1,
+      Number(limit) || 20,
+    );
   }
 
   @Get(':id')
@@ -50,12 +59,19 @@ export class PortalAppointmentsController {
   }
 
   @Post('book')
-  @ApiOperation({ summary: 'حجز موعد جديد', description: 'يسمح للمريض بحجز موعد مع طبيب محدد' })
+  @ApiOperation({
+    summary: 'حجز موعد جديد',
+    description: 'يسمح للمريض بحجز موعد مع طبيب محدد',
+  })
   async bookAppointment(
     @CurrentPatient() patient: any,
     @Body() dto: BookAppointmentDto,
   ) {
-    return this.portalService.bookAppointment(patient.sub, patient.hospitalId, dto);
+    return this.portalService.bookAppointment(
+      patient.sub,
+      patient.hospitalId,
+      dto,
+    );
   }
 
   @Patch(':id/cancel')

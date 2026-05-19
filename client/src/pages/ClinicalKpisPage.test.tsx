@@ -14,6 +14,7 @@ vi.mock('recharts', async () => {
   const OriginalRechartsModule = await vi.importActual('recharts');
   return {
     ...OriginalRechartsModule,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ResponsiveContainer: ({ children }: any) => (
       <div style={{ width: '100%', height: '100%' }}>{children}</div>
     ),
@@ -34,12 +35,14 @@ describe('ClinicalKpisPage', () => {
   });
 
   it('renders loading state initially', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (apiClient.get as any).mockResolvedValue(new Promise(() => {})); // Never resolves
     renderComponent();
     expect(screen.getByText(/جاري تجميع المؤشرات السريرية/i)).toBeInTheDocument();
   });
 
   it('fetches and displays HIMSS KPIs successfully', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (apiClient.get as any).mockResolvedValueOnce({
       data: {
         readmissionRate: 12.5,
@@ -67,6 +70,7 @@ describe('ClinicalKpisPage', () => {
   });
 
   it('handles API failure gracefully', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (apiClient.get as any).mockRejectedValueOnce(new Error('Network Error'));
 
     renderComponent();

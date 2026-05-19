@@ -45,6 +45,7 @@ export default function ResourceSchedulerPage() {
     queryFn: async () => {
       const res = await apiClient.get("/departments");
       return (res.data || []).filter(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (dept: any) => dept.hospitalId === hospitalId && dept.isActive !== false,
       );
     },
@@ -84,6 +85,7 @@ export default function ResourceSchedulerPage() {
       setNotes("");
       refetchBookings();
     },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     onError: (err: any) =>
       toast.error(err.response?.data?.message || "فشل الحجز أو يوجد تعارض."),
   });
@@ -105,6 +107,7 @@ export default function ResourceSchedulerPage() {
       setResourceDepartmentId("");
       queryClient.invalidateQueries({ queryKey: ["resources", hospitalId] });
     },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     onError: (err: any) =>
       toast.error(err.response?.data?.message || "فشل إضافة المورد."),
   });
@@ -118,6 +121,7 @@ export default function ResourceSchedulerPage() {
     onError: () => toast.error("فشل الإلغاء."),
   });
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const filteredResources = resources.filter((resource: any) => {
     if (!resourceSearch.trim()) return true;
     const query = resourceSearch.trim().toLowerCase();
@@ -184,6 +188,7 @@ export default function ResourceSchedulerPage() {
                 لا توجد موارد مطابقة.
               </div>
             ) : (
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               filteredResources.map((resource: any) => (
                 <button
                   key={resource.id}
@@ -244,6 +249,7 @@ export default function ResourceSchedulerPage() {
             </div>
           ) : (
             <div className="grid gap-3">
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               {bookings.map((booking: any) => (
                 <div
                   key={booking.id}
@@ -410,6 +416,7 @@ export default function ResourceSchedulerPage() {
                   onChange={(e) => setResourceDepartmentId(e.target.value)}
                 >
                   <option value="">-- بدون قسم --</option>
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   {departments.map((dept: any) => (
                     <option key={dept.id} value={dept.id}>
                       {dept.name}

@@ -21,10 +21,33 @@ describe('ClaimService', () => {
     patientShare: new Decimal(100),
     insuranceProviderId: 5,
     status: 'ISSUED',
-    patient: { id: 1, fullName: 'أحمد محمد', mrn: 'MRN-001', dateOfBirth: new Date('1990-01-01'), gender: 'MALE' },
-    insuranceProvider: { id: 5, name: 'تأمين الراجحي', isActive: true, plans: [] },
-    encounter: { id: 50, type: 'OUTPATIENT', diagnoses: [{ type: 'PRIMARY', code: 'J06.9' }] },
-    items: [{ id: 1, serviceItemId: 10, quantity: 1, unitPrice: 500, totalAmount: 500 }],
+    patient: {
+      id: 1,
+      fullName: 'أحمد محمد',
+      mrn: 'MRN-001',
+      dateOfBirth: new Date('1990-01-01'),
+      gender: 'MALE',
+    },
+    insuranceProvider: {
+      id: 5,
+      name: 'تأمين الراجحي',
+      isActive: true,
+      plans: [],
+    },
+    encounter: {
+      id: 50,
+      type: 'OUTPATIENT',
+      diagnoses: [{ type: 'PRIMARY', code: 'J06.9' }],
+    },
+    items: [
+      {
+        id: 1,
+        serviceItemId: 10,
+        quantity: 1,
+        unitPrice: 500,
+        totalAmount: 500,
+      },
+    ],
   };
 
   const mockClaim = {
@@ -120,9 +143,9 @@ describe('ClaimService', () => {
     it('should throw NotFoundException for non-existent invoice', async () => {
       mockPrisma.invoice.findFirst.mockResolvedValue(null);
 
-      await expect(
-        service.createClaim(mockHospitalId, 999),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.createClaim(mockHospitalId, 999)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('should throw BadRequestException for non-insured invoice', async () => {
@@ -131,18 +154,18 @@ describe('ClaimService', () => {
         insuranceProviderId: null,
       });
 
-      await expect(
-        service.createClaim(mockHospitalId, 100),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.createClaim(mockHospitalId, 100)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should throw BadRequestException for duplicate active claim', async () => {
       mockPrisma.invoice.findFirst.mockResolvedValue(mockInvoice);
       mockPrisma.claim.findFirst.mockResolvedValue(mockClaim);
 
-      await expect(
-        service.createClaim(mockHospitalId, 100),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.createClaim(mockHospitalId, 100)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
@@ -156,11 +179,18 @@ describe('ClaimService', () => {
         invoice: mockInvoice,
       });
       mockScrubber.scrub.mockResolvedValue([
-        { ruleCode: 'AUTHORIZATION', severity: 'WARNING', message: 'تحقق من Pre-Auth' },
+        {
+          ruleCode: 'AUTHORIZATION',
+          severity: 'WARNING',
+          message: 'تحقق من Pre-Auth',
+        },
       ]);
       mockPrisma.claimScrubResult.deleteMany.mockResolvedValue({});
       mockPrisma.claimScrubResult.createMany.mockResolvedValue({});
-      mockPrisma.claim.update.mockResolvedValue({ ...mockClaim, status: ClaimStatus.SCRUBBED });
+      mockPrisma.claim.update.mockResolvedValue({
+        ...mockClaim,
+        status: ClaimStatus.SCRUBBED,
+      });
       mockPrisma.claimHistory.create.mockResolvedValue({});
       // getClaimById
       mockPrisma.claim.findUnique.mockResolvedValue({
@@ -183,12 +213,19 @@ describe('ClaimService', () => {
         invoice: { ...mockInvoice, patient: null },
       });
       mockScrubber.scrub.mockResolvedValue([
-        { ruleCode: 'COMPLETENESS', severity: 'ERROR', message: 'بيانات المريض غير موجودة' },
+        {
+          ruleCode: 'COMPLETENESS',
+          severity: 'ERROR',
+          message: 'بيانات المريض غير موجودة',
+        },
         { ruleCode: 'CODING', severity: 'ERROR', message: 'التشخيص مفقود' },
       ]);
       mockPrisma.claimScrubResult.deleteMany.mockResolvedValue({});
       mockPrisma.claimScrubResult.createMany.mockResolvedValue({});
-      mockPrisma.claim.update.mockResolvedValue({ ...mockClaim, status: ClaimStatus.SCRUB_FAILED });
+      mockPrisma.claim.update.mockResolvedValue({
+        ...mockClaim,
+        status: ClaimStatus.SCRUB_FAILED,
+      });
       mockPrisma.claimHistory.create.mockResolvedValue({});
       mockPrisma.claim.findUnique.mockResolvedValue({
         ...mockClaim,
@@ -332,8 +369,16 @@ describe('ClaimService', () => {
   describe('getClaimsDashboard', () => {
     it('should return dashboard with status breakdown and KPIs', async () => {
       mockPrisma.claim.groupBy.mockResolvedValue([
-        { status: ClaimStatus.DRAFT, _count: 5, _sum: { claimedAmount: new Decimal(2000) } },
-        { status: ClaimStatus.PAID, _count: 10, _sum: { claimedAmount: new Decimal(8000) } },
+        {
+          status: ClaimStatus.DRAFT,
+          _count: 5,
+          _sum: { claimedAmount: new Decimal(2000) },
+        },
+        {
+          status: ClaimStatus.PAID,
+          _count: 10,
+          _sum: { claimedAmount: new Decimal(8000) },
+        },
       ]);
       mockPrisma.claim.aggregate
         .mockResolvedValueOnce({ _sum: { claimedAmount: new Decimal(10000) } })
@@ -377,7 +422,12 @@ describe('ClaimScrubberService', () => {
     const claim = {
       claimNumber: 'CLM-TEST-001',
       claimedAmount: 500,
-      invoice: { patient: null, insuranceProvider: { isActive: true }, encounter: { diagnoses: [] }, items: [] },
+      invoice: {
+        patient: null,
+        insuranceProvider: { isActive: true },
+        encounter: { diagnoses: [] },
+        items: [],
+      },
     };
 
     const results = await scrubber.scrub(claim as any);
@@ -401,7 +451,11 @@ describe('ClaimScrubberService', () => {
 
     const results = await scrubber.scrub(claim as any);
 
-    expect(results.some((r) => r.field === 'patient.dateOfBirth' && r.severity === 'ERROR')).toBe(true);
+    expect(
+      results.some(
+        (r) => r.field === 'patient.dateOfBirth' && r.severity === 'ERROR',
+      ),
+    ).toBe(true);
   });
 
   it('should return ERROR when insurance provider is inactive', async () => {
@@ -418,7 +472,11 @@ describe('ClaimScrubberService', () => {
 
     const results = await scrubber.scrub(claim as any);
 
-    expect(results.some((r) => r.ruleCode === 'ELIGIBILITY' && r.severity === 'ERROR')).toBe(true);
+    expect(
+      results.some(
+        (r) => r.ruleCode === 'ELIGIBILITY' && r.severity === 'ERROR',
+      ),
+    ).toBe(true);
   });
 
   it('should return ERROR when no diagnosis exists', async () => {
@@ -435,7 +493,9 @@ describe('ClaimScrubberService', () => {
 
     const results = await scrubber.scrub(claim as any);
 
-    expect(results.some((r) => r.ruleCode === 'CODING' && r.severity === 'ERROR')).toBe(true);
+    expect(
+      results.some((r) => r.ruleCode === 'CODING' && r.severity === 'ERROR'),
+    ).toBe(true);
   });
 
   it('should return WARNING for inpatient without pre-auth', async () => {
@@ -445,14 +505,21 @@ describe('ClaimScrubberService', () => {
       invoice: {
         patient: { fullName: 'أحمد', dateOfBirth: new Date(), gender: 'MALE' },
         insuranceProvider: { name: 'تأمين سارية', isActive: true },
-        encounter: { type: 'IPD', diagnoses: [{ type: 'PRIMARY', code: 'I21.0' }] },
+        encounter: {
+          type: 'IPD',
+          diagnoses: [{ type: 'PRIMARY', code: 'I21.0' }],
+        },
         items: [{ id: 1 }],
       },
     };
 
     const results = await scrubber.scrub(claim as any);
 
-    expect(results.some((r) => r.ruleCode === 'AUTHORIZATION' && r.severity === 'WARNING')).toBe(true);
+    expect(
+      results.some(
+        (r) => r.ruleCode === 'AUTHORIZATION' && r.severity === 'WARNING',
+      ),
+    ).toBe(true);
   });
 
   it('should pass clean claim with all data present', async () => {
@@ -460,9 +527,16 @@ describe('ClaimScrubberService', () => {
       claimNumber: 'CLM-TEST-CLEAN',
       claimedAmount: 500,
       invoice: {
-        patient: { fullName: 'أحمد محمد', dateOfBirth: new Date('1990-01-01'), gender: 'MALE' },
+        patient: {
+          fullName: 'أحمد محمد',
+          dateOfBirth: new Date('1990-01-01'),
+          gender: 'MALE',
+        },
         insuranceProvider: { name: 'بوبا العربية', isActive: true },
-        encounter: { type: 'OUTPATIENT', diagnoses: [{ type: 'PRIMARY', code: 'J06.9' }] },
+        encounter: {
+          type: 'OUTPATIENT',
+          diagnoses: [{ type: 'PRIMARY', code: 'J06.9' }],
+        },
         items: [{ id: 1, name: 'استشارة' }],
       },
     };

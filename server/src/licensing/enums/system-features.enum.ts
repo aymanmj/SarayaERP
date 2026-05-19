@@ -15,5 +15,5 @@ export enum SystemFeature {
   HR = 'HR',
   ASSETS = 'ASSETS',
   ACCOUNTS = 'ACCOUNTS', // General accounting
-  OBGYN = 'OBGYN',       // Specialty
+  OBGYN = 'OBGYN', // Specialty
 }

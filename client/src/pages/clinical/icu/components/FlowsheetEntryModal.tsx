@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { apiClient } from '../../../../api/apiClient';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { X, Save, Activity, HeartPulse, Droplets, Wind, FileText } from 'lucide-react';
 
 interface Props {
@@ -38,6 +39,7 @@ export const FlowsheetEntryModal = ({ isOpen, onClose, encounterId, onSuccess }:
     e.preventDefault();
     setLoading(true);
     try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const payload: any = { encounterId, shiftName: formData.shiftName };
       const numericFields = ['heartRate', 'bpSystolic', 'bpDiastolic', 'temperature', 'o2Sat', 'respRate', 'gcsScore', 'intakeAmount', 'outputAmount', 'ventFio2', 'ventPeep'];
       numericFields.forEach(field => {

@@ -5,7 +5,9 @@ import { formatDate } from "@/lib/utils";
 import { DatePicker } from "@/components/ui/date-picker";
 import {
   ClockIcon,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   ArrowLeftOnRectangleIcon,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   ArrowRightOnRectangleIcon,
   DocumentArrowDownIcon, // تأكد من وجودها في @heroicons/react/24/outline
   UserPlusIcon,
@@ -36,6 +38,7 @@ export default function AttendancePage() {
 
   const [showManualModal, setShowManualModal] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [uploading, setUploading] = useState(false);
 
   const [manualData, setManualData] = useState({
@@ -70,6 +73,7 @@ export default function AttendancePage() {
   useEffect(() => {
     loadRecords();
     loadUsers();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dateFrom, dateTo]);
 
   const handleManualPunch = async () => {

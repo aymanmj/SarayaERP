@@ -152,7 +152,11 @@ export class ReportsService {
    * 📊 تقرير أداء الأطباء التفصيلي
    * يجمع 6 مقاييس لكل طبيب: الحالات، الإيواء، العمليات، الإيرادات، متوسط الاستشارة، الإحالات
    */
-  async getDoctorPerformance(hospitalId: number, dateFrom?: Date, dateTo?: Date) {
+  async getDoctorPerformance(
+    hospitalId: number,
+    dateFrom?: Date,
+    dateTo?: Date,
+  ) {
     // Fix: ensure dateTo includes full end-of-day
     if (dateTo) {
       dateTo.setHours(23, 59, 59, 999);
@@ -176,13 +180,26 @@ export class ReportsService {
 
     const doctorIds = doctorEncounters.map((d) => d.doctorId!).filter(Boolean);
     if (doctorIds.length === 0) {
-      return { doctors: [], summary: { totalEncounters: 0, totalRevenue: 0, totalSurgeries: 0, activeDoctors: 0 } };
+      return {
+        doctors: [],
+        summary: {
+          totalEncounters: 0,
+          totalRevenue: 0,
+          totalSurgeries: 0,
+          activeDoctors: 0,
+        },
+      };
     }
 
     // 2. Fetch doctor info (including commissionRate)
     const users = await this.prisma.user.findMany({
       where: { id: { in: doctorIds } },
-      select: { id: true, fullName: true, commissionRate: true, specialty: { select: { name: true } } },
+      select: {
+        id: true,
+        fullName: true,
+        commissionRate: true,
+        specialty: { select: { name: true } },
+      },
     });
 
     // 3. Admissions per doctor (via encounter)
@@ -243,8 +260,11 @@ export class ReportsService {
     const durationMap = new Map<number, number[]>();
     closedEncounters.forEach((e) => {
       if (!e.doctorId || !e.dischargeDate) return;
-      const mins = Math.round((e.dischargeDate!.getTime() - (e.admissionDate?.getTime() ?? 0)) / 60000);
-      if (mins > 0 && mins < 1440) { // فقط أقل من يوم (لاستبعاد حالات الإيواء)
+      const mins = Math.round(
+        (e.dischargeDate.getTime() - (e.admissionDate?.getTime() ?? 0)) / 60000,
+      );
+      if (mins > 0 && mins < 1440) {
+        // فقط أقل من يوم (لاستبعاد حالات الإيواء)
         const list = durationMap.get(e.doctorId) || [];
         list.push(mins);
         durationMap.set(e.doctorId, list);
@@ -256,7 +276,11 @@ export class ReportsService {
     await Promise.all(
       doctorIds.map(async (docId) => {
         // getDoctorRate returns: doctor-specific rule → default rule → 0
-        const rate = await this.commissionService.getDoctorRate(hospitalId, docId, ServiceType.CONSULTATION);
+        const rate = await this.commissionService.getDoctorRate(
+          hospitalId,
+          docId,
+          ServiceType.CONSULTATION,
+        );
         commissionRateMap.set(docId, rate);
       }),
     );
@@ -268,8 +292,10 @@ export class ReportsService {
 
     const doctors = doctorIds.map((docId) => {
       const user = users.find((u) => u.id === docId);
-      const encounters = doctorEncounters.find((d) => d.doctorId === docId)?._count?.id || 0;
-      const admissionCount = admissions.find((a) => a.admittingDoctorId === docId)?._count?.id || 0;
+      const encounters =
+        doctorEncounters.find((d) => d.doctorId === docId)?._count?.id || 0;
+      const admissionCount =
+        admissions.find((a) => a.admittingDoctorId === docId)?._count?.id || 0;
       const surgeryCount = surgeryCountMap.get(docId) || 0;
       const revenue = revenueMap.get(docId) || 0;
 
@@ -277,14 +303,16 @@ export class ReportsService {
       const ruleRate = commissionRateMap.get(docId) || 0;
       const userRate = Number(user?.commissionRate || 0);
       // ruleRate is already 0-100 (percentage), userRate is 0-1 (fraction)
-      const commissionPct = ruleRate > 0 ? ruleRate : (userRate * 100);
-      const doctorCommission = commissionPct > 0 ? Math.round(revenue * commissionPct) / 100 : 0;
+      const commissionPct = ruleRate > 0 ? ruleRate : userRate * 100;
+      const doctorCommission =
+        commissionPct > 0 ? Math.round(revenue * commissionPct) / 100 : 0;
 
       // Avg consultation
       const durations = durationMap.get(docId) || [];
-      const avgConsultationMins = durations.length > 0
-        ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length)
-        : 0;
+      const avgConsultationMins =
+        durations.length > 0
+          ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length)
+          : 0;
 
       totalRevenue += revenue;
       totalSurgeries += surgeryCount;
@@ -321,7 +349,11 @@ export class ReportsService {
   /**
    * تقرير الإيرادات حسب القسم/التخصص
    */
-  async getRevenueByDepartment(hospitalId: number, dateFrom?: Date, dateTo?: Date) {
+  async getRevenueByDepartment(
+    hospitalId: number,
+    dateFrom?: Date,
+    dateTo?: Date,
+  ) {
     if (dateTo) {
       dateTo.setHours(23, 59, 59, 999);
     }
@@ -400,8 +432,12 @@ export class ReportsService {
 
     const specialtyAgg = new Map<string, { revenue: number; count: number }>();
     for (const charge of chargesWithPerformer) {
-      const specialtyName = (charge.performer as any)?.specialty?.name || 'غير محدد';
-      const existing = specialtyAgg.get(specialtyName) || { revenue: 0, count: 0 };
+      const specialtyName =
+        (charge.performer as any)?.specialty?.name || 'غير محدد';
+      const existing = specialtyAgg.get(specialtyName) || {
+        revenue: 0,
+        count: 0,
+      };
       existing.revenue += Number(charge.totalAmount || 0);
       existing.count += 1;
       specialtyAgg.set(specialtyName, existing);

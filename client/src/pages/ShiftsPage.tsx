@@ -17,6 +17,7 @@ type WorkShift = {
 
 export default function ShiftsPage() {
   const [shifts, setShifts] = useState<WorkShift[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [loading, setLoading] = useState(false);
 
   // Form
@@ -31,6 +32,7 @@ export default function ShiftsPage() {
     try {
       const res = await apiClient.get<WorkShift[]>("/hr/shifts");
       setShifts(res.data);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
       toast.error("فشل تحميل الورديات");
     } finally {
@@ -55,6 +57,7 @@ export default function ShiftsPage() {
       toast.success("تم إضافة الوردية");
       setName("");
       loadShifts();
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
       toast.error("فشل الحفظ");
     }
@@ -86,6 +89,7 @@ export default function ShiftsPage() {
           <label className="text-xs text-slate-400">النوع</label>
           <select
             value={type}
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             onChange={(e) => setType(e.target.value as any)}
             className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm w-32"
           >

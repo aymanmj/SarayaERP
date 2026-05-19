@@ -11,11 +11,11 @@ import {
 } from '@nestjs/common';
 import { SurgeryService } from './surgery.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { Permissions } from '../auth/permissions.decorator';
 import { SurgeryStatus, SurgeryRole, TerminologySystem } from '@prisma/client';
 
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('surgery')
 export class SurgeryController {
   constructor(private readonly surgeryService: SurgeryService) {}
@@ -27,7 +27,7 @@ export class SurgeryController {
   }
 
   @Post('theatres')
-  @Roles('ADMIN')
+  @Permissions('surgery:manage')
   async createTheatre(@Req() req: any, @Body() body: { name: string }) {
     return this.surgeryService.createTheatre(req.user.hospitalId, body.name);
   }
@@ -40,7 +40,7 @@ export class SurgeryController {
 
   // ── جدولة عملية ──
   @Post('schedule')
-  @Roles('ADMIN', 'DOCTOR', 'NURSE')
+  @Permissions('surgery:view')
   async schedule(@Req() req: any, @Body() body: any) {
     return this.surgeryService.scheduleSurgery({
       hospitalId: req.user.hospitalId,

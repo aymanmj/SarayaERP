@@ -25,7 +25,9 @@ export class AuthService {
       where: { username },
       include: {
         hospital: {
-          include: { organization: { select: { id: true, code: true, name: true } } },
+          include: {
+            organization: { select: { id: true, code: true, name: true } },
+          },
         },
         userRoles: {
           include: {
@@ -37,7 +39,15 @@ export class AuthService {
         // ✅ Multi-Branch: جلب كل الفروع التي يملك المستخدم وصولاً إليها
         accessibleHospitals: {
           include: {
-            hospital: { select: { id: true, code: true, name: true, displayName: true, isActive: true } },
+            hospital: {
+              select: {
+                id: true,
+                code: true,
+                name: true,
+                displayName: true,
+                isActive: true,
+              },
+            },
           },
           orderBy: { isDefault: 'desc' },
         },
@@ -86,7 +96,14 @@ export class AuthService {
       });
     }
 
-    return { ...user, roles, permissions, organizationId, isSuperAdmin, accessibleBranches };
+    return {
+      ...user,
+      roles,
+      permissions,
+      organizationId,
+      isSuperAdmin,
+      accessibleBranches,
+    };
   }
 
   // توليد Access Token
@@ -96,8 +113,8 @@ export class AuthService {
       username: user.username,
       roles: user.roles,
       hospitalId: user.hospitalId,
-      organizationId: user.organizationId || null,  // ✅ Multi-Tenancy
-      isSuperAdmin: user.isSuperAdmin || false,      // ✅ Multi-Tenancy
+      organizationId: user.organizationId || null, // ✅ Multi-Tenancy
+      isSuperAdmin: user.isSuperAdmin || false, // ✅ Multi-Tenancy
       permissions: user.permissions,
     };
 
@@ -157,8 +174,8 @@ export class AuthService {
       username: user.username,
       roles: user.roles,
       hospitalId: user.hospitalId,
-      organizationId: user.organizationId,  // ✅ Multi-Tenancy
-      isSuperAdmin: user.isSuperAdmin,      // ✅ Multi-Tenancy
+      organizationId: user.organizationId, // ✅ Multi-Tenancy
+      isSuperAdmin: user.isSuperAdmin, // ✅ Multi-Tenancy
       permissions: user.permissions,
     });
     const refreshToken = await this.generateRefreshToken(user.id);
@@ -213,10 +230,12 @@ export class AuthService {
       throw new ForbiddenException('ليس لديك صلاحية الوصول لهذا الفرع');
     }
 
-    const hospital = access?.hospital || await this.prisma.hospital.findUnique({
-      where: { id: targetHospitalId },
-      include: { organization: { select: { id: true } } },
-    });
+    const hospital =
+      access?.hospital ||
+      (await this.prisma.hospital.findUnique({
+        where: { id: targetHospitalId },
+        include: { organization: { select: { id: true } } },
+      }));
 
     if (!hospital || !hospital.isActive) {
       throw new ForbiddenException('الفرع غير مفعل');
@@ -236,7 +255,7 @@ export class AuthService {
       id: user.id,
       username: user.username,
       roles,
-      hospitalId: targetHospitalId,  // ← الفرع الجديد!
+      hospitalId: targetHospitalId, // ← الفرع الجديد!
       organizationId: hospital.organization?.id || null,
       isSuperAdmin: roles.includes('SUPER_ADMIN'),
       permissions,
@@ -267,8 +286,8 @@ export class AuthService {
         });
       }
     } else {
-       // Fallback: revoke all sessions or just return?
-       // Ideally we revoke the one from the cookie.
+      // Fallback: revoke all sessions or just return?
+      // Ideally we revoke the one from the cookie.
     }
     return true;
   }
@@ -280,7 +299,8 @@ export class AuthService {
     const [idStr, token] = incomingRt.split('.');
     const id = Number(idStr);
 
-    if (isNaN(id) || !token) throw new ForbiddenException('Invalid Token Format');
+    if (isNaN(id) || !token)
+      throw new ForbiddenException('Invalid Token Format');
 
     const rtRecord = await this.prisma.refreshToken.findUnique({
       where: { id },
@@ -290,7 +310,9 @@ export class AuthService {
             userRoles: {
               include: {
                 role: {
-                  include: { rolePermissions: { include: { permission: true } } },
+                  include: {
+                    rolePermissions: { include: { permission: true } },
+                  },
                 },
               },
             },
@@ -308,10 +330,10 @@ export class AuthService {
       // This handles race conditions when multiple parallel requests trigger refresh.
       const GRACE_PERIOD_MS = 10000;
       const updatedAt = (rtRecord as any).updatedAt as Date | undefined;
-      const isRecentlyRotated = 
-        rtRecord.replacedByToken === 'ROTATED' && 
+      const isRecentlyRotated =
+        rtRecord.replacedByToken === 'ROTATED' &&
         updatedAt &&
-        (new Date().getTime() - updatedAt.getTime()) < GRACE_PERIOD_MS;
+        new Date().getTime() - updatedAt.getTime() < GRACE_PERIOD_MS;
 
       if (!isRecentlyRotated) {
         // Real theft or old reuse! Revoke all tokens for this user
@@ -321,8 +343,8 @@ export class AuthService {
         });
         throw new ForbiddenException('Token Reuse Detected - Access Revoked');
       }
-      
-      // If it IS in the grace period, we should technically return the NEW tokens 
+
+      // If it IS in the grace period, we should technically return the NEW tokens
       // but we don't have them easily here without extra DB lookups.
       // However, the client should have already received them from the first request.
       // To break the loop, we can either throw or return a specific signal.
@@ -338,8 +360,8 @@ export class AuthService {
     // 4. Check Expiry
     if (new Date() > rtRecord.expiresAt) {
       await this.prisma.refreshToken.update({
-         where: { id },
-         data: { revoked: true }
+        where: { id },
+        data: { revoked: true },
       }); // Mark revoked on expiry cleanup
       throw new ForbiddenException('Token Expired');
     }
@@ -382,5 +404,3 @@ export class AuthService {
     return { accessToken: newAccessToken, refreshToken: newRefreshToken };
   }
 }
-
-

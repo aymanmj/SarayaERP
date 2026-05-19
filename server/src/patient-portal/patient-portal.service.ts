@@ -1,12 +1,12 @@
 /**
  * Patient Portal — Core Service Layer
- * 
+ *
  * Enterprise business logic for all patient-facing operations.
  * Every method enforces patient-scoped data isolation.
- * 
+ *
  * Architecture:
  * Controller → Service → PrismaService
- *              ↕ 
+ *              ↕
  *         PatientOtpService (Auth)
  *         FhirService (FHIR Export)
  */
@@ -83,7 +83,13 @@ export class PatientPortalService {
       where: { id },
       include: {
         patient: {
-          select: { id: true, fullName: true, mrn: true, hospitalId: true, isActive: true },
+          select: {
+            id: true,
+            fullName: true,
+            mrn: true,
+            hospitalId: true,
+            isActive: true,
+          },
         },
       },
     });
@@ -97,8 +103,12 @@ export class PatientPortalService {
         where: { patientId: rtRecord.patientId },
         data: { revoked: true },
       });
-      this.logger.warn(`🚨 Refresh token reuse detected for Patient/${rtRecord.patientId}`);
-      throw new ForbiddenException('تم اكتشاف إعادة استخدام — تم تسجيل الخروج من جميع الأجهزة');
+      this.logger.warn(
+        `🚨 Refresh token reuse detected for Patient/${rtRecord.patientId}`,
+      );
+      throw new ForbiddenException(
+        'تم اكتشاف إعادة استخدام — تم تسجيل الخروج من جميع الأجهزة',
+      );
     }
 
     // Verify hash
@@ -195,7 +205,9 @@ export class PatientPortalService {
 
     // Multi-tenant verification: JWT hospitalId must match patient record
     if (hospitalId && patient.hospitalId !== hospitalId) {
-      this.logger.warn(`🚫 Cross-hospital access attempt: JWT hospital=${hospitalId}, patient hospital=${patient.hospitalId}`);
+      this.logger.warn(
+        `🚫 Cross-hospital access attempt: JWT hospital=${hospitalId}, patient hospital=${patient.hospitalId}`,
+      );
       throw new NotFoundException('المريض غير موجود');
     }
 
@@ -230,7 +242,12 @@ export class PatientPortalService {
 
     return {
       items,
-      meta: { totalCount, page, limit, totalPages: Math.ceil(totalCount / limit) },
+      meta: {
+        totalCount,
+        page,
+        limit,
+        totalPages: Math.ceil(totalCount / limit),
+      },
     };
   }
 
@@ -277,7 +294,12 @@ export class PatientPortalService {
 
     return {
       items,
-      meta: { totalCount, page, limit, totalPages: Math.ceil(totalCount / limit) },
+      meta: {
+        totalCount,
+        page,
+        limit,
+        totalPages: Math.ceil(totalCount / limit),
+      },
     };
   }
 
@@ -313,7 +335,13 @@ export class PatientPortalService {
         items: {
           include: {
             product: {
-              select: { id: true, name: true, genericName: true, strength: true, form: true },
+              select: {
+                id: true,
+                name: true,
+                genericName: true,
+                strength: true,
+                form: true,
+              },
             },
           },
         },
@@ -359,7 +387,12 @@ export class PatientPortalService {
 
     return {
       items,
-      meta: { totalCount, page, limit, totalPages: Math.ceil(totalCount / limit) },
+      meta: {
+        totalCount,
+        page,
+        limit,
+        totalPages: Math.ceil(totalCount / limit),
+      },
     };
   }
 
@@ -403,7 +436,12 @@ export class PatientPortalService {
 
     return {
       items,
-      meta: { totalCount, page, limit, totalPages: Math.ceil(totalCount / limit) },
+      meta: {
+        totalCount,
+        page,
+        limit,
+        totalPages: Math.ceil(totalCount / limit),
+      },
     };
   }
 
@@ -424,7 +462,7 @@ export class PatientPortalService {
 
   /**
    * Book appointment — DELEGATES to AppointmentsService.
-   * 
+   *
    * Inherits ALL business rules:
    * - Doctor work days validation
    * - Daily appointment limits
@@ -432,18 +470,24 @@ export class PatientPortalService {
    * - Overbook policy
    * - Auto encounter + invoice creation
    */
-  async bookAppointment(patientId: number, hospitalId: number, dto: {
-    doctorId: number;
-    departmentId?: number;
-    scheduledStart: string;
-    reason?: string;
-  }) {
+  async bookAppointment(
+    patientId: number,
+    hospitalId: number,
+    dto: {
+      doctorId: number;
+      departmentId?: number;
+      scheduledStart: string;
+      reason?: string;
+    },
+  ) {
     const scheduledStart = new Date(dto.scheduledStart);
 
     // Portal policy: must be at least 1 hour in the future
     const minBookTime = new Date(Date.now() + 60 * 60 * 1000);
     if (scheduledStart <= minBookTime) {
-      throw new BadRequestException('يجب حجز الموعد قبل ساعة على الأقل من الوقت المطلوب');
+      throw new BadRequestException(
+        'يجب حجز الموعد قبل ساعة على الأقل من الوقت المطلوب',
+      );
     }
 
     // Calculate default slot duration (30 minutes)
@@ -462,19 +506,21 @@ export class PatientPortalService {
       createdByUserId: 0, // System/Portal booking
     });
 
-    this.logger.log(`📅 Appointment booked via Portal: Patient/${patientId} → Doctor/${dto.doctorId}`);
+    this.logger.log(
+      `📅 Appointment booked via Portal: Patient/${patientId} → Doctor/${dto.doctorId}`,
+    );
     return result;
   }
 
   /**
    * Cancel appointment — with portal cancellation policy.
-   * 
+   *
    * Policy:
    * - Can only cancel own appointments
    * - Cannot cancel already cancelled or completed appointments
    * - Must cancel at least 2 hours before the appointment
    * - Cannot cancel if the patient has checked in
-   * 
+   *
    * Billing cleanup (encounter + invoices) is delegated to AppointmentsService.
    */
   async cancelAppointment(patientId: number, appointmentId: number) {
@@ -494,7 +540,10 @@ export class PatientPortalService {
       throw new BadRequestException('لا يمكن إلغاء موعد مكتمل');
     }
 
-    if (appointment.status === 'CHECKED_IN' || appointment.status === 'CALLED') {
+    if (
+      appointment.status === 'CHECKED_IN' ||
+      appointment.status === 'CALLED'
+    ) {
       throw new BadRequestException('لا يمكن إلغاء الموعد بعد تسجيل الحضور');
     }
 
@@ -504,14 +553,15 @@ export class PatientPortalService {
 
     if (hoursUntilAppointment < this.MIN_CANCEL_HOURS) {
       throw new BadRequestException(
-        `لا يمكن إلغاء الموعد قبل أقل من ${this.MIN_CANCEL_HOURS} ساعة. يرجى التواصل مع الاستقبال.`
+        `لا يمكن إلغاء الموعد قبل أقل من ${this.MIN_CANCEL_HOURS} ساعة. يرجى التواصل مع الاستقبال.`,
       );
     }
 
-    const result = await this.appointmentsService.cancelPatientAppointmentWithBillingCleanup(
-      patientId,
-      appointmentId,
-    );
+    const result =
+      await this.appointmentsService.cancelPatientAppointmentWithBillingCleanup(
+        patientId,
+        appointmentId,
+      );
 
     this.logger.log(
       `Portal cancellation: Appointment/${appointmentId} patient=${patientId}`,
@@ -546,7 +596,12 @@ export class PatientPortalService {
       this.prisma.patient.findUnique({
         where: { id: patientId },
         select: {
-          id: true, mrn: true, fullName: true, dateOfBirth: true, gender: true, hospitalId: true,
+          id: true,
+          mrn: true,
+          fullName: true,
+          dateOfBirth: true,
+          gender: true,
+          hospitalId: true,
           insurancePolicy: {
             select: {
               provider: { select: { name: true } },
@@ -641,7 +696,9 @@ export class PatientPortalService {
 
     // Multi-tenant verification
     if (hospitalId && profile && profile.hospitalId !== hospitalId) {
-      this.logger.warn(`🚫 Dashboard cross-hospital attempt: JWT=${hospitalId}, patient=${profile.hospitalId}`);
+      this.logger.warn(
+        `🚫 Dashboard cross-hospital attempt: JWT=${hospitalId}, patient=${profile.hospitalId}`,
+      );
       throw new NotFoundException('المريض غير موجود');
     }
 
@@ -700,7 +757,12 @@ export class PatientPortalService {
 
     return {
       items,
-      meta: { totalCount, page, limit, totalPages: Math.ceil(totalCount / limit) },
+      meta: {
+        totalCount,
+        page,
+        limit,
+        totalPages: Math.ceil(totalCount / limit),
+      },
     };
   }
 
@@ -773,7 +835,12 @@ export class PatientPortalService {
 
     return {
       items,
-      meta: { totalCount, page, limit, totalPages: Math.ceil(totalCount / limit) },
+      meta: {
+        totalCount,
+        page,
+        limit,
+        totalPages: Math.ceil(totalCount / limit),
+      },
     };
   }
 
@@ -783,7 +850,9 @@ export class PatientPortalService {
       select: {
         insurancePolicy: {
           include: {
-            provider: { select: { id: true, name: true, phone: true, email: true } },
+            provider: {
+              select: { id: true, name: true, phone: true, email: true },
+            },
             plan: { select: { id: true, name: true } },
           },
         },
@@ -842,7 +911,11 @@ export class PatientPortalService {
     });
   }
 
-  async getDoctorAvailableSlots(hospitalId: number, doctorId: number, dateStr: string) {
+  async getDoctorAvailableSlots(
+    hospitalId: number,
+    doctorId: number,
+    dateStr: string,
+  ) {
     // Basic mock logic for available slots since appointments service may not have a simple 'getAvailableSlots' exposed yet.
     // In a real enterprise system, this evaluates Doctor Schedules, Leaves, and existing appointments.
     const startOfDay = new Date(`${dateStr}T00:00:00Z`);
@@ -868,18 +941,20 @@ export class PatientPortalService {
       select: { scheduledStart: true },
     });
 
-    const bookedTimes = existingAppointments.map(a => a.scheduledStart.getTime());
+    const bookedTimes = existingAppointments.map((a) =>
+      a.scheduledStart.getTime(),
+    );
 
     // Generate slots every 30 minutes from 09:00 to 17:00
     const slots: { time: string; available: boolean }[] = [];
     const baseDate = new Date(`${dateStr}T00:00:00Z`);
-    
+
     // Convert baseDate to local offset or assume UTC (here we assume simple hours for demo)
     for (let hour = 9; hour < 17; hour++) {
-      for (let min of [0, 30]) {
+      for (const min of [0, 30]) {
         const slotTime = new Date(baseDate);
         slotTime.setUTCHours(hour, min, 0, 0);
-        
+
         // Skip past slots
         if (slotTime.getTime() <= Date.now()) continue;
 
@@ -900,7 +975,12 @@ export class PatientPortalService {
   //  PAYMENTS PROCESSING (SIMULATED)
   // ===========================================
 
-  async processPayment(patientId: number, invoiceId: number, amount: number, paymentMethod: string) {
+  async processPayment(
+    patientId: number,
+    invoiceId: number,
+    amount: number,
+    paymentMethod: string,
+  ) {
     const invoice = await this.prisma.invoice.findUnique({
       where: { id: invoiceId },
     });
@@ -915,7 +995,9 @@ export class PatientPortalService {
 
     const remaining = Number(invoice.totalAmount) - Number(invoice.paidAmount);
     if (amount > remaining) {
-      throw new BadRequestException(`لا يمكن دفع أكثر من المبلغ المتبقي (${remaining})`);
+      throw new BadRequestException(
+        `لا يمكن دفع أكثر من المبلغ المتبقي (${remaining})`,
+      );
     }
 
     return this.prisma.$transaction(async (tx) => {
@@ -933,7 +1015,10 @@ export class PatientPortalService {
 
       // 2. Update Invoice
       const newPaidAmount = Number(invoice.paidAmount) + amount;
-      const newStatus = newPaidAmount >= Number(invoice.totalAmount) ? 'PAID' : 'PARTIALLY_PAID';
+      const newStatus =
+        newPaidAmount >= Number(invoice.totalAmount)
+          ? 'PAID'
+          : 'PARTIALLY_PAID';
 
       await tx.invoice.update({
         where: { id: invoiceId },
@@ -951,7 +1036,11 @@ export class PatientPortalService {
   //  TOKEN HELPERS (Private)
   // ===========================================
 
-  private async generateAccessToken(patient: { id: number; mrn: string; hospitalId: number }) {
+  private async generateAccessToken(patient: {
+    id: number;
+    mrn: string;
+    hospitalId: number;
+  }) {
     const payload: PatientJwtPayload = {
       sub: patient.id,
       mrn: patient.mrn,

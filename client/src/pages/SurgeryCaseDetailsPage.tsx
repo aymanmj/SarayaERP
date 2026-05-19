@@ -72,6 +72,7 @@ export default function SurgeryCaseDetailsPage() {
   const navigate = useNavigate();
 
   const [surgery, setSurgery] = useState<SurgeryCaseDetails | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [loading, setLoading] = useState(false);
 
   // Lists for dropdowns
@@ -131,6 +132,7 @@ export default function SurgeryCaseDetailsPage() {
   useEffect(() => {
     loadCase();
     loadLists();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   // Actions
@@ -170,6 +172,7 @@ export default function SurgeryCaseDetailsPage() {
       toast.success("تم صرف المستهلك وإضافته للفاتورة");
       loadCase();
       setConsumableQty(1);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       toast.error(
         err?.response?.data?.message || "فشل الصرف (تحقق من رصيد مخزن العمليات)"

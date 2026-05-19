@@ -39,7 +39,7 @@ async function bootstrap() {
   // ============================================
   // 🔒 SECURITY CONFIGURATION
   // ============================================
-  
+
   app.use(cookieParser());
   app.use(compression());
 
@@ -74,18 +74,23 @@ async function bootstrap() {
   };
 
   // Helmet: Security headers (XSS, clickjacking, etc.)
-  app.use(helmet({
-    contentSecurityPolicy: {
-      directives: isProduction && enableStrictCsp
-        ? strictCspDirectives
-        : compatibilityCspDirectives,
-    },
-    crossOriginEmbedderPolicy: false, // For WebSocket compatibility
-    crossOriginResourcePolicy: { policy: 'cross-origin' },
-  }));
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives:
+          isProduction && enableStrictCsp
+            ? strictCspDirectives
+            : compatibilityCspDirectives,
+      },
+      crossOriginEmbedderPolicy: false, // For WebSocket compatibility
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+    }),
+  );
 
   if (isProduction && !enableStrictCsp) {
-    logger.warn('⚠️ Running with compatibility CSP. Set ENABLE_STRICT_CSP=true after frontend CSP hardening is complete.');
+    logger.warn(
+      '⚠️ Running with compatibility CSP. Set ENABLE_STRICT_CSP=true after frontend CSP hardening is complete.',
+    );
   }
 
   // ============================================
@@ -93,15 +98,15 @@ async function bootstrap() {
   // ============================================
   app.useGlobalPipes(
     new ValidationPipe({
-      whitelist: true,           // Strip unknown properties
-      transform: true,           // Auto-transform types
+      whitelist: true, // Strip unknown properties
+      transform: true, // Auto-transform types
       forbidNonWhitelisted: isProduction,
       transformOptions: {
         enableImplicitConversion: true,
       },
       // Validation error formatting
       exceptionFactory: (errors) => {
-        const messages = errors.map(error => ({
+        const messages = errors.map((error) => ({
           field: error.property,
           constraints: Object.values(error.constraints || {}),
         }));
@@ -114,7 +119,9 @@ async function bootstrap() {
   // 🔗 REQUEST CORRELATION (X-Request-Id)
   // ============================================
   const correlationMiddleware = new CorrelationMiddleware();
-  app.use((req: any, res: any, next: any) => correlationMiddleware.use(req, res, next));
+  app.use((req: any, res: any, next: any) =>
+    correlationMiddleware.use(req, res, next),
+  );
 
   // ============================================
   // 📤 RESPONSE FORMATTING & LIFECYCLE MONITORING
@@ -128,16 +135,24 @@ async function bootstrap() {
   // ============================================
   // 🌐 CORS CONFIGURATION
   // ============================================
-  const configuredOrigins = (process.env.CORS_ORIGINS || process.env.CORS_ORIGIN || '')
+  const configuredOrigins = (
+    process.env.CORS_ORIGINS ||
+    process.env.CORS_ORIGIN ||
+    ''
+  )
     .split(',')
-    .map(s => s.trim())
+    .map((s) => s.trim())
     .filter(Boolean);
-  
+
   // In production: require explicit CORS_ORIGINS. In dev: allow all for convenience.
-  const allowAllOrigins = !isProduction && (configuredOrigins.includes('*') || configuredOrigins.length === 0);
-  
+  const allowAllOrigins =
+    !isProduction &&
+    (configuredOrigins.includes('*') || configuredOrigins.length === 0);
+
   if (isProduction && configuredOrigins.length === 0) {
-    logger.warn('⚠️ CORS_ORIGINS is not set in production! Only same-origin requests will be allowed.');
+    logger.warn(
+      '⚠️ CORS_ORIGINS is not set in production! Only same-origin requests will be allowed.',
+    );
   }
 
   app.enableCors({
@@ -166,7 +181,9 @@ async function bootstrap() {
         ) {
           return callback(null, origin);
         }
-      } catch { /* invalid origin URL — fall through to whitelist check */ }
+      } catch {
+        /* invalid origin URL — fall through to whitelist check */
+      }
 
       // Check if origin is in whitelist
       if (configuredOrigins.includes(origin)) {
@@ -207,7 +224,7 @@ async function bootstrap() {
       .addTag('pharmacy', 'Pharmacy operations')
       .addTag('labs', 'Laboratory services')
       .build();
-    
+
     const document = SwaggerModule.createDocument(app, config);
     SwaggerModule.setup('api/docs', app, document, {
       swaggerOptions: {
@@ -226,7 +243,7 @@ async function bootstrap() {
 
   const gracefulShutdown = async (signal: string) => {
     logger.warn(`⏹️ Received ${signal}. Starting graceful shutdown...`);
-    
+
     const shutdownTimer = setTimeout(() => {
       logger.error('❌ Graceful shutdown timed out after 30s. Forcing exit.');
       process.exit(1);
@@ -252,7 +269,7 @@ async function bootstrap() {
   // ============================================
   const port = process.env.PORT || 3000;
   await app.listen(port, '0.0.0.0');
-  
+
   logger.log(`🚀 Saraya ERP Backend is running on: http://localhost:${port}`);
   logger.log(`🔒 Security: Helmet enabled, CORS configured`);
   logger.log(`📊 Rate Limiting: Active (ThrottlerModule)`);
@@ -261,4 +278,3 @@ async function bootstrap() {
 }
 
 bootstrap();
-

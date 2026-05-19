@@ -218,17 +218,22 @@ export class LabService {
         let insuranceProviderId: number | null = null;
 
         if (encounterInfo.patient.insurancePolicy?.isActive) {
-          const copayRate = Number(encounterInfo.patient.insurancePolicy.patientCopayRate || 0) / 100;
+          const copayRate =
+            Number(
+              encounterInfo.patient.insurancePolicy.patientCopayRate || 0,
+            ) / 100;
           patientShare = Math.round(totalAmount * copayRate * 100) / 100;
           insuranceShare = Math.round((totalAmount - patientShare) * 100) / 100;
-          insuranceProviderId = encounterInfo.patient.insurancePolicy.insuranceProviderId;
+          insuranceProviderId =
+            encounterInfo.patient.insurancePolicy.insuranceProviderId;
         }
 
         // جلب الفترة المالية
-        const { financialYear, period } = await this.accounting.validateDateInOpenPeriod(
-          hospitalId,
-          new Date(),
-        );
+        const { financialYear, period } =
+          await this.accounting.validateDateInOpenPeriod(
+            hospitalId,
+            new Date(),
+          );
 
         // إنشاء الفاتورة
         const invoice = await tx.invoice.create({
@@ -281,34 +286,37 @@ export class LabService {
   }
 
   // 5. البدء في المعالجة (Start Processing / Send to Device)
-  async startProcessing(hospitalId: number, labOrderId: number, userId: number) {
+  async startProcessing(
+    hospitalId: number,
+    labOrderId: number,
+    userId: number,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const labOrder = await tx.labOrder.findUnique({
+        where: { id: labOrderId },
+        include: { order: true },
+      });
 
-     return this.prisma.$transaction(async (tx) => {
-       const labOrder = await tx.labOrder.findUnique({
-         where: { id: labOrderId },
-         include: { order: true },
-       });
+      if (!labOrder) throw new NotFoundException('الطلب غير موجود.');
+      if (labOrder.order.hospitalId !== hospitalId)
+        throw new BadRequestException('غير مصرح لك.');
 
-       if (!labOrder) throw new NotFoundException('الطلب غير موجود.');
-       if (labOrder.order.hospitalId !== hospitalId)
-         throw new BadRequestException('غير مصرح لك.');
+      if (labOrder.resultStatus === LabResultStatus.COMPLETED) {
+        return labOrder;
+      }
 
-       if (labOrder.resultStatus === LabResultStatus.COMPLETED) {
-         return labOrder;
-       }
-       
-       const updated = await tx.labOrder.update({
-         where: { id: labOrderId },
-         data: { resultStatus: LabResultStatus.IN_PROGRESS },
-       });
-       
-       this.eventEmitter.emit(
-         'lab.order_started',
-         new LabOrderStartedEvent(hospitalId, labOrderId, userId)
-       );
+      const updated = await tx.labOrder.update({
+        where: { id: labOrderId },
+        data: { resultStatus: LabResultStatus.IN_PROGRESS },
+      });
 
-       return updated;
-     });
+      this.eventEmitter.emit(
+        'lab.order_started',
+        new LabOrderStartedEvent(hospitalId, labOrderId, userId),
+      );
+
+      return updated;
+    });
   }
 
   // 6. إدخال النتيجة
@@ -360,18 +368,15 @@ export class LabService {
       if (params.resultValue && encounter) {
         const numericValue = parseFloat(params.resultValue);
         if (!isNaN(numericValue)) {
-          this.eventEmitter.emit(
-            'lab.result_verified',
-            {
-              hospitalId: params.hospitalId,
-              labOrderId: updated.id,
-              patientId: encounter.patientId, // Fixed: get from encounter
-              testCode: labOrder.test.code,
-              value: numericValue,
-              unit: params.resultUnit || labOrder.test.unit || '',
-              verifiedAt: new Date(),
-            } as any,
-          );
+          this.eventEmitter.emit('lab.result_verified', {
+            hospitalId: params.hospitalId,
+            labOrderId: updated.id,
+            patientId: encounter.patientId, // Fixed: get from encounter
+            testCode: labOrder.test.code,
+            value: numericValue,
+            unit: params.resultUnit || labOrder.test.unit || '',
+            verifiedAt: new Date(),
+          } as any);
         }
       }
 

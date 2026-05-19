@@ -1,4 +1,9 @@
-import { ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import {
   ClinicalContentEventType,
   ClinicalContentStatus,
@@ -79,11 +84,16 @@ export class ClinicalPathwaysService {
         orderBy: { createdAt: 'desc' as const },
         take: 10,
       },
-      ...(includeCounts ? { _count: { select: { steps: true, enrollments: true } } } : {}),
+      ...(includeCounts
+        ? { _count: { select: { steps: true, enrollments: true } } }
+        : {}),
     };
   }
 
-  private buildWhere(hospitalId: number, filters?: ClinicalPathwayQueryFilters): Prisma.ClinicalPathwayWhereInput {
+  private buildWhere(
+    hospitalId: number,
+    filters?: ClinicalPathwayQueryFilters,
+  ): Prisma.ClinicalPathwayWhereInput {
     const scope = filters?.scope === 'all' ? 'all' : 'published';
     const where: Prisma.ClinicalPathwayWhereInput = {
       hospitalId,
@@ -156,7 +166,11 @@ export class ClinicalPathwaysService {
     return pathway;
   }
 
-  private async assertNoPendingVersion(hospitalId: number, contentKey: string, excludeId?: number) {
+  private async assertNoPendingVersion(
+    hospitalId: number,
+    contentKey: string,
+    excludeId?: number,
+  ) {
     const pending = await this.prisma.clinicalPathway.findFirst({
       where: {
         hospitalId,
@@ -199,7 +213,11 @@ export class ClinicalPathwaysService {
     hospitalId: number,
     steps: Array<{ orderSetId?: number | null }>,
   ) {
-    const orderSetIds = [...new Set(steps.map((step) => step.orderSetId).filter(Boolean) as number[])];
+    const orderSetIds = [
+      ...new Set(
+        steps.map((step) => step.orderSetId).filter(Boolean) as number[],
+      ),
+    ];
     if (orderSetIds.length === 0) return;
 
     const linked = await this.prisma.orderSet.findMany({
@@ -211,17 +229,25 @@ export class ClinicalPathwaysService {
       select: { id: true, status: true },
     });
 
-    const invalid = linked.filter((item) => item.status !== ClinicalContentStatus.PUBLISHED);
+    const invalid = linked.filter(
+      (item) => item.status !== ClinicalContentStatus.PUBLISHED,
+    );
     const missingCount = orderSetIds.length - linked.length;
 
     if (invalid.length > 0 || missingCount > 0) {
-      throw new ForbiddenException('لا يمكن نشر المسار ما لم تكن كل مجموعات الطلبات المرتبطة منشورة ونشطة');
+      throw new ForbiddenException(
+        'لا يمكن نشر المسار ما لم تكن كل مجموعات الطلبات المرتبطة منشورة ونشطة',
+      );
     }
   }
 
   // ==================== CRUD ====================
 
-  async create(hospitalId: number, userId: number, data: ClinicalPathwayPayload) {
+  async create(
+    hospitalId: number,
+    userId: number,
+    data: ClinicalPathwayPayload,
+  ) {
     const created = await this.prisma.$transaction(async (tx) => {
       const pathway = await tx.clinicalPathway.create({
         data: {
@@ -263,7 +289,11 @@ export class ClinicalPathwaysService {
     });
   }
 
-  async findOne(hospitalId: number, id: number, scope: 'published' | 'all' = 'all') {
+  async findOne(
+    hospitalId: number,
+    id: number,
+    scope: 'published' | 'all' = 'all',
+  ) {
     const pathway = await this.prisma.clinicalPathway.findFirst({
       where: {
         id,
@@ -280,8 +310,12 @@ export class ClinicalPathwaysService {
               include: {
                 items: {
                   include: {
-                    labTest: { select: { id: true, name: true, arabicName: true } },
-                    radiologyStudy: { select: { id: true, name: true, arabicName: true } },
+                    labTest: {
+                      select: { id: true, name: true, arabicName: true },
+                    },
+                    radiologyStudy: {
+                      select: { id: true, name: true, arabicName: true },
+                    },
                     product: { select: { id: true, name: true } },
                     serviceItem: { select: { id: true, name: true } },
                   },
@@ -313,7 +347,12 @@ export class ClinicalPathwaysService {
     });
   }
 
-  async update(hospitalId: number, id: number, userId: number, data: Partial<ClinicalPathwayPayload>) {
+  async update(
+    hospitalId: number,
+    id: number,
+    userId: number,
+    data: Partial<ClinicalPathwayPayload>,
+  ) {
     const existing = await this.prisma.clinicalPathway.findFirst({
       where: { id, hospitalId },
       include: this.pathwayInclude(),
@@ -324,7 +363,9 @@ export class ClinicalPathwaysService {
       throw new ForbiddenException('لا يمكن تعديل إصدار متقاعد');
     }
 
-    const stepPayload = data.steps ? this.normalizeSteps(data.steps) : undefined;
+    const stepPayload = data.steps
+      ? this.normalizeSteps(data.steps)
+      : undefined;
 
     if (existing.status === ClinicalContentStatus.DRAFT) {
       const updatedId = await this.prisma.$transaction(async (tx) => {
@@ -359,10 +400,18 @@ export class ClinicalPathwaysService {
       return this.findOne(hospitalId, updatedId, 'all');
     }
 
-    await this.assertNoPendingVersion(hospitalId, existing.contentKey, existing.id);
+    await this.assertNoPendingVersion(
+      hospitalId,
+      existing.contentKey,
+      existing.id,
+    );
 
     const draftId = await this.prisma.$transaction(async (tx) => {
-      const nextVersion = await this.getNextVersion(tx, hospitalId, existing.contentKey);
+      const nextVersion = await this.getNextVersion(
+        tx,
+        hospitalId,
+        existing.contentKey,
+      );
       const draft = await tx.clinicalPathway.create({
         data: {
           hospitalId,
@@ -374,13 +423,15 @@ export class ClinicalPathwaysService {
           name: data.name ?? existing.name,
           nameAr: data.nameAr ?? existing.nameAr ?? undefined,
           description: data.description ?? existing.description ?? undefined,
-          targetDiagnosis: data.targetDiagnosis ?? existing.targetDiagnosis ?? undefined,
+          targetDiagnosis:
+            data.targetDiagnosis ?? existing.targetDiagnosis ?? undefined,
           expectedLOS: data.expectedLOS ?? existing.expectedLOS ?? undefined,
-          changeSummary: data.changeSummary ?? `نسخة مشتقة من الإصدار v${existing.version}`,
+          changeSummary:
+            data.changeSummary ?? `نسخة مشتقة من الإصدار v${existing.version}`,
           steps: {
             create:
-              stepPayload
-              ?? this.normalizeSteps(
+              stepPayload ??
+              this.normalizeSteps(
                 existing.steps.map((step) => ({
                   dayNumber: step.dayNumber,
                   phase: step.phase ?? undefined,
@@ -402,7 +453,8 @@ export class ClinicalPathwaysService {
         draft.id,
         ClinicalContentEventType.VERSION_CLONED,
         userId,
-        data.changeSummary || `إنشاء مسودة جديدة من الإصدار v${existing.version}`,
+        data.changeSummary ||
+          `إنشاء مسودة جديدة من الإصدار v${existing.version}`,
       );
 
       return draft.id;
@@ -411,7 +463,12 @@ export class ClinicalPathwaysService {
     return this.findOne(hospitalId, draftId, 'all');
   }
 
-  async submitForReview(hospitalId: number, id: number, userId: number, notes?: string) {
+  async submitForReview(
+    hospitalId: number,
+    id: number,
+    userId: number,
+    notes?: string,
+  ) {
     const pathway = await this.getPathwayOrThrow(hospitalId, id);
     if (pathway.status !== ClinicalContentStatus.DRAFT) {
       throw new ForbiddenException('يمكن إرسال المسودات فقط للمراجعة');
@@ -440,7 +497,12 @@ export class ClinicalPathwaysService {
     return this.findOne(hospitalId, id, 'all');
   }
 
-  async approve(hospitalId: number, id: number, userId: number, notes?: string) {
+  async approve(
+    hospitalId: number,
+    id: number,
+    userId: number,
+    notes?: string,
+  ) {
     const pathway = await this.getPathwayOrThrow(hospitalId, id);
     if (pathway.status !== ClinicalContentStatus.IN_REVIEW) {
       throw new ForbiddenException('يمكن اعتماد إصدار تحت المراجعة فقط');
@@ -472,10 +534,12 @@ export class ClinicalPathwaysService {
   async reject(hospitalId: number, id: number, userId: number, notes?: string) {
     const pathway = await this.getPathwayOrThrow(hospitalId, id);
     if (
-      pathway.status !== ClinicalContentStatus.IN_REVIEW
-      && pathway.status !== ClinicalContentStatus.APPROVED
+      pathway.status !== ClinicalContentStatus.IN_REVIEW &&
+      pathway.status !== ClinicalContentStatus.APPROVED
     ) {
-      throw new ForbiddenException('يمكن إرجاع إصدار من المراجعة أو بعد الاعتماد فقط');
+      throw new ForbiddenException(
+        'يمكن إرجاع إصدار من المراجعة أو بعد الاعتماد فقط',
+      );
     }
 
     await this.prisma.$transaction(async (tx) => {
@@ -501,7 +565,12 @@ export class ClinicalPathwaysService {
     return this.findOne(hospitalId, id, 'all');
   }
 
-  async publish(hospitalId: number, id: number, userId: number, notes?: string) {
+  async publish(
+    hospitalId: number,
+    id: number,
+    userId: number,
+    notes?: string,
+  ) {
     const pathway = await this.getPathwayOrThrow(hospitalId, id);
     if (pathway.status !== ClinicalContentStatus.APPROVED) {
       throw new ForbiddenException('لا يمكن نشر إلا إصدار معتمد');
@@ -599,7 +668,9 @@ export class ClinicalPathwaysService {
   async remove(hospitalId: number, id: number, userId: number) {
     const existing = await this.getPathwayOrThrow(hospitalId, id);
     if (existing.status === ClinicalContentStatus.PUBLISHED) {
-      throw new ForbiddenException('لا يمكن تعطيل نسخة منشورة مباشرة. قم بتقاعدها أو استبدالها أولًا.');
+      throw new ForbiddenException(
+        'لا يمكن تعطيل نسخة منشورة مباشرة. قم بتقاعدها أو استبدالها أولًا.',
+      );
     }
 
     return this.prisma.clinicalPathway.update({
@@ -616,19 +687,27 @@ export class ClinicalPathwaysService {
 
   // ==================== ENROLLMENT ====================
 
-  async enroll(hospitalId: number, userId: number, pathwayId: number, encounterId: number, notes?: string) {
+  async enroll(
+    hospitalId: number,
+    userId: number,
+    pathwayId: number,
+    encounterId: number,
+    notes?: string,
+  ) {
     const pathway = await this.findOne(hospitalId, pathwayId, 'published');
 
     const encounter = await this.prisma.encounter.findFirst({
       where: { id: encounterId, hospitalId, status: 'OPEN' },
       include: { patient: true },
     });
-    if (!encounter) throw new ForbiddenException('الحالة المرضية غير موجودة أو مغلقة');
+    if (!encounter)
+      throw new ForbiddenException('الحالة المرضية غير موجودة أو مغلقة');
 
     const existing = await this.prisma.pathwayEnrollment.findUnique({
       where: { pathwayId_encounterId: { pathwayId, encounterId } },
     });
-    if (existing) throw new ForbiddenException('المريض مسجل بالفعل في هذا المسار العلاجي');
+    if (existing)
+      throw new ForbiddenException('المريض مسجل بالفعل في هذا المسار العلاجي');
 
     const enrollment = await this.prisma.pathwayEnrollment.create({
       data: {
@@ -648,28 +727,48 @@ export class ClinicalPathwaysService {
       },
     });
 
-    this.logger.log(`Patient ${encounter.patient.fullName} enrolled in pathway "${pathway.name}"`);
+    this.logger.log(
+      `Patient ${encounter.patient.fullName} enrolled in pathway "${pathway.name}"`,
+    );
 
     const day0Steps = pathway.steps.filter((step) => step.dayNumber === 0);
     for (const step of day0Steps) {
       if (step.orderSetId) {
         try {
-          await this.orderSetsService.execute(hospitalId, userId, step.orderSetId, encounterId);
-          this.logger.log(`Auto-executed order set for Day 0 step: ${step.title}`);
+          await this.orderSetsService.execute(
+            hospitalId,
+            userId,
+            step.orderSetId,
+            encounterId,
+          );
+          this.logger.log(
+            `Auto-executed order set for Day 0 step: ${step.title}`,
+          );
         } catch (err: any) {
-          this.logger.warn(`Failed to auto-execute Day 0 order set: ${err.message}`);
+          this.logger.warn(
+            `Failed to auto-execute Day 0 order set: ${err.message}`,
+          );
         }
       }
 
-      const tasksList = step.milestones ? step.milestones.split('\\n').map(t => t.trim()).filter(Boolean) : [step.title];
+      const tasksList = step.milestones
+        ? step.milestones
+            .split('\\n')
+            .map((t) => t.trim())
+            .filter(Boolean)
+        : [step.title];
       for (const t of tasksList) {
         await this.prisma.careTask.create({
           data: {
             enrollmentId: enrollment.id,
             stepId: step.id,
             title: t,
-            type: t.toLowerCase().includes('med') ? 'MEDICATION_CHECK' : (t.toLowerCase().includes('assess') ? 'ASSESSMENT' : 'MONITORING'),
-          }
+            type: t.toLowerCase().includes('med')
+              ? 'MEDICATION_CHECK'
+              : t.toLowerCase().includes('assess')
+                ? 'ASSESSMENT'
+                : 'MONITORING',
+          },
         });
       }
     }
@@ -685,10 +784,20 @@ export class ClinicalPathwaysService {
           include: {
             steps: {
               include: {
-                orderSet: { select: { id: true, name: true, nameAr: true, version: true, status: true } },
+                orderSet: {
+                  select: {
+                    id: true,
+                    name: true,
+                    nameAr: true,
+                    version: true,
+                    status: true,
+                  },
+                },
                 variances: {
                   where: { enrollmentId: id },
-                  include: { reportedBy: { select: { id: true, fullName: true } } },
+                  include: {
+                    reportedBy: { select: { id: true, fullName: true } },
+                  },
                 },
               },
               orderBy: [{ dayNumber: 'asc' }, { sortOrder: 'asc' }],
@@ -712,44 +821,67 @@ export class ClinicalPathwaysService {
 
   async advanceDay(id: number, userId: number, hospitalId: number) {
     const enrollment = await this.getEnrollment(id);
-    if (enrollment.status !== 'ACTIVE') throw new ForbiddenException('المسار غير نشط');
+    if (enrollment.status !== 'ACTIVE')
+      throw new ForbiddenException('المسار غير نشط');
 
-    // 1. Variance Enforcement Check 
+    // 1. Variance Enforcement Check
     const pendingTasks = await this.prisma.careTask.count({
-      where: { 
+      where: {
         enrollmentId: id,
         status: { in: ['PENDING', 'IN_PROGRESS'] },
-        step: { dayNumber: enrollment.currentDay }
-      }
+        step: { dayNumber: enrollment.currentDay },
+      },
     });
 
     if (pendingTasks > 0) {
-      throw new ForbiddenException('لا يمكن الدفع لليوم التالي. توجد مهام رعاية سريرية لم تكتمل لهذا اليوم. يجب تقييد خرق بروتوكول (Variance) أو إكمال المهام أولاً.');
+      throw new ForbiddenException(
+        'لا يمكن الدفع لليوم التالي. توجد مهام رعاية سريرية لم تكتمل لهذا اليوم. يجب تقييد خرق بروتوكول (Variance) أو إكمال المهام أولاً.',
+      );
     }
 
     const nextDay = enrollment.currentDay + 1;
-    const maxDay = Math.max(...enrollment.pathway.steps.map((step) => step.dayNumber));
+    const maxDay = Math.max(
+      ...enrollment.pathway.steps.map((step) => step.dayNumber),
+    );
 
-    const nextDaySteps = enrollment.pathway.steps.filter((step) => step.dayNumber === nextDay);
+    const nextDaySteps = enrollment.pathway.steps.filter(
+      (step) => step.dayNumber === nextDay,
+    );
     for (const step of nextDaySteps) {
       if (step.orderSetId) {
         try {
-          await this.orderSetsService.execute(hospitalId, userId, step.orderSetId, enrollment.encounterId);
+          await this.orderSetsService.execute(
+            hospitalId,
+            userId,
+            step.orderSetId,
+            enrollment.encounterId,
+          );
         } catch (err: any) {
-          this.logger.warn(`Failed to auto-execute order set for Day ${nextDay}: ${err.message}`);
+          this.logger.warn(
+            `Failed to auto-execute order set for Day ${nextDay}: ${err.message}`,
+          );
         }
       }
 
       // Generate Tasks for next day
-      const tasksList = step.milestones ? step.milestones.split('\\n').map(t => t.trim()).filter(Boolean) : [step.title];
+      const tasksList = step.milestones
+        ? step.milestones
+            .split('\\n')
+            .map((t) => t.trim())
+            .filter(Boolean)
+        : [step.title];
       for (const t of tasksList) {
         await this.prisma.careTask.create({
           data: {
             enrollmentId: enrollment.id,
             stepId: step.id,
             title: t,
-            type: t.toLowerCase().includes('med') ? 'MEDICATION_CHECK' : (t.toLowerCase().includes('assess') ? 'ASSESSMENT' : 'MONITORING'),
-          }
+            type: t.toLowerCase().includes('med')
+              ? 'MEDICATION_CHECK'
+              : t.toLowerCase().includes('assess')
+                ? 'ASSESSMENT'
+                : 'MONITORING',
+          },
         });
       }
     }
@@ -760,18 +892,26 @@ export class ClinicalPathwaysService {
       where: { id },
       data: {
         currentDay: nextDay,
-        status: isComplete ? PathwayEnrollmentStatus.COMPLETED : PathwayEnrollmentStatus.ACTIVE,
+        status: isComplete
+          ? PathwayEnrollmentStatus.COMPLETED
+          : PathwayEnrollmentStatus.ACTIVE,
         completedAt: isComplete ? new Date() : undefined,
       },
     });
   }
 
-  async reportVariance(id: number, userId: number, data: {
-    stepId: number;
-    varianceType: VarianceType;
-    reason: string;
-  }) {
-    const enrollment = await this.prisma.pathwayEnrollment.findUnique({ where: { id } });
+  async reportVariance(
+    id: number,
+    userId: number,
+    data: {
+      stepId: number;
+      varianceType: VarianceType;
+      reason: string;
+    },
+  ) {
+    const enrollment = await this.prisma.pathwayEnrollment.findUnique({
+      where: { id },
+    });
     if (!enrollment) throw new NotFoundException('التسجيل في المسار غير موجود');
 
     return this.prisma.pathwayVariance.create({
@@ -790,7 +930,9 @@ export class ClinicalPathwaysService {
   }
 
   async completeEnrollment(id: number) {
-    const enrollment = await this.prisma.pathwayEnrollment.findUnique({ where: { id } });
+    const enrollment = await this.prisma.pathwayEnrollment.findUnique({
+      where: { id },
+    });
     if (!enrollment) throw new NotFoundException('التسجيل في المسار غير موجود');
 
     return this.prisma.pathwayEnrollment.update({

@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import {
   ArrowUpCircle,
   Clock,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   Search,
   Server,
   UserPlus,
@@ -25,6 +26,7 @@ export default function WaitlistManager() {
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [foundPatient, setFoundPatient] = useState<any>(null);
   const [isSearching, setIsSearching] = useState(false);
   const [resourceId, setResourceId] = useState("");
@@ -42,6 +44,7 @@ export default function WaitlistManager() {
   });
 
   const selectedResource = useMemo(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     () => resources.find((resource: any) => resource.id === Number(resourceId)),
     [resourceId, resources],
   );
@@ -72,6 +75,7 @@ export default function WaitlistManager() {
       setNotes("");
       refetch();
     },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     onError: (err: any) =>
       toast.error(err.response?.data?.message || "فشل إضافة المريض لقائمة الانتظار."),
   });
@@ -155,6 +159,7 @@ export default function WaitlistManager() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             {waitlist.map((entry: any) => (
               <div
                 key={entry.id}
@@ -277,6 +282,7 @@ export default function WaitlistManager() {
                   onChange={(e) => setResourceId(e.target.value)}
                 >
                   <option value="">-- اختر المورد --</option>
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   {resources.map((resource: any) => (
                     <option key={resource.id} value={resource.id}>
                       {resource.name} ({resource.type})

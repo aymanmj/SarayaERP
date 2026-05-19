@@ -11,32 +11,32 @@ import {
 } from '@nestjs/common';
 import { AttendanceService } from './attendance.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { Permissions } from '../auth/permissions.decorator';
 import { BulkPunchDto, CreatePunchDto } from './dto/attendance.dto';
 
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('attendance')
 export class AttendanceController {
   constructor(private readonly attendanceService: AttendanceService) {}
 
   // تسجيل بصمة واحدة (Live API)
   @Post('punch')
-  @Roles('ADMIN', 'HR')
+  @Permissions('attendance:manage')
   async logPunch(@Body() dto: CreatePunchDto) {
     return this.attendanceService.processPunch(dto);
   }
 
   // استيراد بصمات متعددة (من ملف أو جهاز)
   @Post('bulk-import')
-  @Roles('ADMIN', 'HR')
+  @Permissions('attendance:manage')
   async bulkImport(@Body() dto: BulkPunchDto) {
     return this.attendanceService.processBulkPunches(dto.punches);
   }
 
   // عرض السجلات
   @Get()
-  @Roles('ADMIN', 'HR', 'ACCOUNTANT')
+  @Permissions('attendance:manage')
   async list(
     @Req() req: any,
     @Query('from') from?: string,
@@ -56,7 +56,7 @@ export class AttendanceController {
   }
 
   @Post('upload')
-  @Roles('ADMIN', 'HR')
+  @Permissions('attendance:manage')
   async uploadAttendanceFile(@Body() body: { data: any[] }) {
     // body.data متوقع أن تكون مصفوفة: [{ employeeId: 101, timestamp: '2025-02-01 08:00:00' }, ...]
     return this.attendanceService.processBulkPunches(body.data);

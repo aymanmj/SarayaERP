@@ -19,10 +19,19 @@ export class VaultService implements OnModuleInit {
     private configService: ConfigService,
     private httpService: HttpService,
   ) {
-    this.defaultSecret = this.configService.get<string>('JWT_SECRET', 'fallback_secret');
-    this.vaultUrl = this.configService.get<string>('VAULT_ADDR', 'http://127.0.0.1:8200');
-    this.vaultToken = this.configService.get<string>('VAULT_TOKEN', 'saraya-root-token-dev');
-    
+    this.defaultSecret = this.configService.get<string>(
+      'JWT_SECRET',
+      'fallback_secret',
+    );
+    this.vaultUrl = this.configService.get<string>(
+      'VAULT_ADDR',
+      'http://127.0.0.1:8200',
+    );
+    this.vaultToken = this.configService.get<string>(
+      'VAULT_TOKEN',
+      'saraya-root-token-dev',
+    );
+
     // In production, require Vault. In dev, we can fallback gracefully.
     const env = this.configService.get<string>('NODE_ENV', 'development');
     this.isVaultEnabled = env === 'production' || !!process.env.VAULT_ADDR;
@@ -32,14 +41,20 @@ export class VaultService implements OnModuleInit {
     this.logger.log('Initializing Key Management System (Vault)...');
     try {
       await this.refreshKeys();
-      
+
       // Schedule key refreshment every hour
-      setInterval(() => {
-        this.refreshKeys().catch((err) => this.logger.error('Failed to refresh keys', err));
-      }, 60 * 60 * 1000);
-      
+      setInterval(
+        () => {
+          this.refreshKeys().catch((err) =>
+            this.logger.error('Failed to refresh keys', err),
+          );
+        },
+        60 * 60 * 1000,
+      );
     } catch (error) {
-      this.logger.warn(`Failed to connect to Vault, falling back to ENV variables. Error: ${error.message}`);
+      this.logger.warn(
+        `Failed to connect to Vault, falling back to ENV variables. Error: ${error.message}`,
+      );
     }
   }
 
@@ -53,17 +68,21 @@ export class VaultService implements OnModuleInit {
       const response = await lastValueFrom(
         this.httpService.get(`${this.vaultUrl}/v1/secret/data/saraya`, {
           headers: { 'X-Vault-Token': this.vaultToken },
-        })
+        }),
       );
 
       const secrets = response.data?.data?.data || {};
       for (const [kid, secret] of Object.entries(secrets)) {
         this.keysCache.set(kid, secret as string);
       }
-      this.logger.log(`Successfully fetched ${Object.keys(secrets).length} enterprise secrets from Vault.`);
+      this.logger.log(
+        `Successfully fetched ${Object.keys(secrets).length} enterprise secrets from Vault.`,
+      );
     } catch (error) {
       if (error.response && error.response.status === 404) {
-        this.logger.warn('Vault path "secret/data/saraya" not found. Need to initialize secrets.');
+        this.logger.warn(
+          'Vault path "secret/data/saraya" not found. Need to initialize secrets.',
+        );
       } else {
         throw error;
       }
@@ -95,7 +114,7 @@ export class VaultService implements OnModuleInit {
    * Gets the Active Key ID for issuing new JWTs
    */
   getActiveKeyId(): string {
-    // If we have an 'active' labeled key in vault, we return its ID. 
+    // If we have an 'active' labeled key in vault, we return its ID.
     // Usually, the system would maintain a map of all keys and 'active' points to current ID.
     // For now, let's assume 'kid-1' is active if vault is not fully seeded.
     if (this.keysCache.has('active_kid')) {

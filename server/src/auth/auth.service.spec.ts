@@ -1,6 +1,6 @@
 /**
  * Auth Service — Unit Tests
- * 
+ *
  * Tests login flow, password verification, token generation,
  * refresh token rotation, and reuse detection.
  */
@@ -42,7 +42,12 @@ describe('AuthService', () => {
     ],
     accessibleHospitals: [
       {
-        hospital: { id: 1, code: 'SH001', name: 'Saraya Hospital', isActive: true },
+        hospital: {
+          id: 1,
+          code: 'SH001',
+          name: 'Saraya Hospital',
+          isActive: true,
+        },
         isDefault: true,
       },
     ],
@@ -78,10 +83,13 @@ describe('AuthService', () => {
       providers: [
         AuthService,
         { provide: PrismaService, useValue: mockPrisma },
-        { provide: JwtService, useValue: new JwtService({ secret: TEST_SECRET }) },
-        { 
-          provide: ConfigService, 
-          useValue: { get: jest.fn().mockReturnValue(TEST_SECRET) } 
+        {
+          provide: JwtService,
+          useValue: new JwtService({ secret: TEST_SECRET }),
+        },
+        {
+          provide: ConfigService,
+          useValue: { get: jest.fn().mockReturnValue(TEST_SECRET) },
         },
         { provide: VaultService, useValue: vaultService },
       ],
@@ -113,22 +121,25 @@ describe('AuthService', () => {
     it('should reject wrong password', async () => {
       prisma.user.findUnique.mockResolvedValue(mockUser());
 
-      await expect(service.login('admin', 'wrongPassword'))
-        .rejects.toThrow(UnauthorizedException);
+      await expect(service.login('admin', 'wrongPassword')).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
 
     it('should reject non-existent user', async () => {
       prisma.user.findUnique.mockResolvedValue(null);
 
-      await expect(service.login('ghost', PASSWORD))
-        .rejects.toThrow(UnauthorizedException);
+      await expect(service.login('ghost', PASSWORD)).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
 
     it('should reject disabled user', async () => {
       prisma.user.findUnique.mockResolvedValue(mockUser({ isActive: false }));
 
-      await expect(service.login('admin', PASSWORD))
-        .rejects.toThrow(UnauthorizedException);
+      await expect(service.login('admin', PASSWORD)).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
 
     it('should reject user from disabled hospital', async () => {
@@ -136,8 +147,9 @@ describe('AuthService', () => {
         mockUser({ hospital: { id: 1, isActive: false } }),
       );
 
-      await expect(service.login('admin', PASSWORD))
-        .rejects.toThrow(UnauthorizedException);
+      await expect(service.login('admin', PASSWORD)).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
   });
 
@@ -174,7 +186,9 @@ describe('AuthService', () => {
         },
       );
 
-      vaultService.getKeyOrSecret.mockRejectedValueOnce(new Error('missing key'));
+      vaultService.getKeyOrSecret.mockRejectedValueOnce(
+        new Error('missing key'),
+      );
 
       await expect(service.verifyToken(token)).resolves.toBeNull();
     });
@@ -190,20 +204,23 @@ describe('AuthService', () => {
   // ===========================================
   describe('refreshTokens', () => {
     it('should reject missing refresh token', async () => {
-      await expect(service.refreshTokens(''))
-        .rejects.toThrow(ForbiddenException);
+      await expect(service.refreshTokens('')).rejects.toThrow(
+        ForbiddenException,
+      );
     });
 
     it('should reject malformed refresh token', async () => {
-      await expect(service.refreshTokens('not-a-valid-format'))
-        .rejects.toThrow(ForbiddenException);
+      await expect(service.refreshTokens('not-a-valid-format')).rejects.toThrow(
+        ForbiddenException,
+      );
     });
 
     it('should reject non-existent refresh token', async () => {
       prisma.refreshToken.findUnique.mockResolvedValue(null);
 
-      await expect(service.refreshTokens('999.sometoken'))
-        .rejects.toThrow(ForbiddenException);
+      await expect(service.refreshTokens('999.sometoken')).rejects.toThrow(
+        ForbiddenException,
+      );
     });
 
     it('should reject revoked token (reuse detection)', async () => {
@@ -217,8 +234,9 @@ describe('AuthService', () => {
         user: mockUser(),
       });
 
-      await expect(service.refreshTokens('1.sometoken'))
-        .rejects.toThrow(ForbiddenException);
+      await expect(service.refreshTokens('1.sometoken')).rejects.toThrow(
+        ForbiddenException,
+      );
 
       // Should revoke ALL user tokens (security measure)
       expect(prisma.refreshToken.updateMany).toHaveBeenCalledWith({
@@ -337,7 +355,9 @@ describe('AuthService', () => {
       expect(result.permissions).toContain('WRITE_PRESCRIPTIONS');
       expect(result.permissions).toContain('MANAGE_USERS');
       // No duplicates
-      expect(result.permissions.filter((p: string) => p === 'VIEW_PATIENTS')).toHaveLength(1);
+      expect(
+        result.permissions.filter((p: string) => p === 'VIEW_PATIENTS'),
+      ).toHaveLength(1);
     });
   });
 });

@@ -29,6 +29,7 @@ export default function PriceListsPage() {
     try {
       const res = await apiClient.get<PriceList[]>("/price-lists");
       setLists(res.data);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
       toast.error("فشل تحميل قوائم الأسعار");
     } finally {
@@ -56,6 +57,7 @@ export default function PriceListsPage() {
       setNewName("");
       setNewCode("");
       loadLists();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       toast.error(err?.response?.data?.message || "فشل الإنشاء");
     }

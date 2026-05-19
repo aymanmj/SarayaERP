@@ -9,11 +9,11 @@ import * as jwt from 'jsonwebtoken';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
-    constructor(
-      config: ConfigService, 
-      private readonly cls: ClsService,
-      private readonly vaultService: VaultService
-    ) {
+  constructor(
+    config: ConfigService,
+    private readonly cls: ClsService,
+    private readonly vaultService: VaultService,
+  ) {
     super({
       jwtFromRequest: ExtractJwt.fromExtractors([
         (req: Request) => {
@@ -26,7 +26,11 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       ]),
       ignoreExpiration: false,
       issuer: 'saraya-staff', // Enforce Token Isolation
-      secretOrKeyProvider: async (request: any, rawJwtToken: string, done: any) => {
+      secretOrKeyProvider: async (
+        request: any,
+        rawJwtToken: string,
+        done: any,
+      ) => {
         try {
           const decoded = jwt.decode(rawJwtToken, { complete: true }) as any;
           const kid = decoded?.header?.kid;

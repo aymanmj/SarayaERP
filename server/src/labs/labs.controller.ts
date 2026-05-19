@@ -14,8 +14,8 @@ import {
 } from '@nestjs/common';
 import { LabService } from './labs.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { Permissions } from '../auth/permissions.decorator';
 import { RequireFeature } from '../licensing/license.decorator';
 import {
   IsArray,
@@ -54,7 +54,7 @@ class CompleteLabOrderDto {
   referenceRange?: string;
 }
 
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('lab')
 @RequireFeature('LAB')
 export class LabController {
@@ -77,7 +77,7 @@ export class LabController {
   }
 
   @Post('encounters/:encounterId/orders')
-  @Roles('ADMIN', 'DOCTOR')
+  @Permissions('labs:manage')
   async createOrdersForEncounter(
     @Param('encounterId', ParseIntPipe) encounterId: number,
     @Body() dto: CreateLabOrdersDto,
@@ -94,18 +94,15 @@ export class LabController {
   }
 
   @Get('worklist')
-  @Roles('ADMIN', 'LAB_TECH', 'DOCTOR')
+  @Permissions('labs:view')
   async worklist(@Req() req: any) {
     return this.labService.getWorklist(req.user.hospitalId);
   }
 
   // ✅ [NEW] زر بدء التحليل (يرسل HL7)
   @Post('orders/:id/start')
-  @Roles('ADMIN', 'LAB_TECH', 'DOCTOR')
-  async startOrder(
-    @Param('id', ParseIntPipe) id: number,
-    @Req() req: any,
-  ) {
+  @Permissions('labs:view')
+  async startOrder(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
     return this.labService.startProcessing(
       req.user.hospitalId,
       id,
@@ -114,7 +111,7 @@ export class LabController {
   }
 
   @Patch('orders/:id/complete')
-  @Roles('ADMIN', 'DOCTOR', 'LAB_TECH')
+  @Permissions('labs:view')
   async completeOrder(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: CompleteLabOrderDto,
@@ -132,7 +129,7 @@ export class LabController {
 
   // ✅ [NEW] Endpoint لتقرير المختبر المجمع
   @Get('encounters/:id/print')
-  @Roles('ADMIN', 'DOCTOR', 'LAB_TECH', 'RECEPTION')
+  @Permissions('labs:view')
   async getCumulativeReport(
     @Param('id', ParseIntPipe) encounterId: number,
     @Req() req: any,

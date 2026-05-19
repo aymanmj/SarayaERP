@@ -9,10 +9,9 @@ import {
 } from '@nestjs/common';
 import { VisitsService } from './visits.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { Permissions } from '../auth/permissions.decorator';
 import { CurrentUser } from '../auth/current-user.decorator';
-import type { JwtPayload } from '../auth/jwt-payload.type';
 import { IsInt, IsOptional, IsString, Min } from 'class-validator';
 
 class CreateVisitDto {
@@ -29,29 +28,24 @@ class CreateVisitDto {
   diagnosisText?: string;
 }
 
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('visits')
 export class VisitsController {
   constructor(private readonly visitsService: VisitsService) {}
 
-  // الطبيب (أو الأدمن) يضيف Visit
+  @Permissions('visits:manage')
   @Post()
-  @Roles('ADMIN', 'DOCTOR')
-  create(
-    @Body() dto: CreateVisitDto,
-    @CurrentUser() user: JwtPayload,
-  ) {
+  create(@Body() dto: CreateVisitDto, @CurrentUser() user: any) {
     return this.visitsService.createVisit({
       encounterId: dto.encounterId,
-      doctorId: user.sub, // id من الـ token
+      doctorId: user.sub,
       notes: dto.notes,
       diagnosisText: dto.diagnosisText,
     });
   }
 
-  // جلب زيارات Encounter معين
+  @Permissions('visits:view')
   @Get('by-encounter/:id')
-  @Roles('ADMIN', 'DOCTOR', 'NURSE')
   listForEncounter(@Param('id') id: string) {
     const encId = Number(id);
     if (!encId || Number.isNaN(encId)) {
@@ -61,3 +55,4 @@ export class VisitsController {
     return this.visitsService.listForEncounter(encId);
   }
 }
+

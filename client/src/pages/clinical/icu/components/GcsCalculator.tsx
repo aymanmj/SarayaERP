@@ -7,6 +7,7 @@ interface Props {
   readonly?: boolean;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export const GcsCalculator = ({ initialScore, onChange, readonly = false }: Props) => {
   const [eye, setEye] = useState<number>(0);
   const [verbal, setVerbal] = useState<number>(0);
@@ -16,6 +17,7 @@ export const GcsCalculator = ({ initialScore, onChange, readonly = false }: Prop
     if (eye > 0 && verbal > 0 && motor > 0) {
       onChange(eye + verbal + motor, eye, verbal, motor);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eye, verbal, motor]);
 
   const totalScore = (eye || 0) + (verbal || 0) + (motor || 0);

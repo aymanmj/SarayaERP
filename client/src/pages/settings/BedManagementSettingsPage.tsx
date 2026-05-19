@@ -24,6 +24,7 @@ export default function BedManagementSettingsPage() {
   const [wards, setWards] = useState<Ward[]>([]);
   const [services, setServices] = useState<ServiceItemLite[]>([]);
   const [departments, setDepartments] = useState<DepartmentLite[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [loading, setLoading] = useState(false);
 
   // Mofals specific state
@@ -116,6 +117,7 @@ export default function BedManagementSettingsPage() {
       await apiClient.delete(`/beds/wards/${id}`);
       toast.success("تم الحذف بنجاح");
       loadData();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       toast.error(err.response?.data?.message || "فشل الحذف");
     }
@@ -153,6 +155,7 @@ export default function BedManagementSettingsPage() {
       await apiClient.delete(`/beds/rooms/${id}`);
       toast.success("تم الحذف بنجاح");
       loadData();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       toast.error(err.response?.data?.message || "فشل الحذف");
     }
@@ -190,6 +193,7 @@ export default function BedManagementSettingsPage() {
       await apiClient.delete(`/beds/beds/${id}`);
       toast.success("تم الحذف بنجاح");
       loadData();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       toast.error(err.response?.data?.message || "فشل الحذف");
     }

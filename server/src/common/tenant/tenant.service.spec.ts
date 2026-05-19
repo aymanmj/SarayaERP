@@ -23,8 +23,18 @@ describe('TenantService', () => {
     updatedAt: new Date(),
   };
 
-  const mockHospital1 = { id: 10, name: 'مستشفى السرايا - الرياض', code: 'SRY-RYD', organizationId: 1 };
-  const mockHospital2 = { id: 20, name: 'مستشفى السرايا - جدة', code: 'SRY-JED', organizationId: 1 };
+  const mockHospital1 = {
+    id: 10,
+    name: 'مستشفى السرايا - الرياض',
+    code: 'SRY-RYD',
+    organizationId: 1,
+  };
+  const mockHospital2 = {
+    id: 20,
+    name: 'مستشفى السرايا - جدة',
+    code: 'SRY-JED',
+    organizationId: 1,
+  };
 
   const mockChildOrg = {
     id: 2,
@@ -98,7 +108,11 @@ describe('TenantService', () => {
 
     it('should create a child organization when valid parentId is provided', async () => {
       mockPrisma.organization.findUnique.mockResolvedValue(mockOrganization);
-      mockPrisma.organization.create.mockResolvedValue({ ...mockOrganization, id: 2, parentId: 1 });
+      mockPrisma.organization.create.mockResolvedValue({
+        ...mockOrganization,
+        id: 2,
+        parentId: 1,
+      });
 
       const result = await service.createOrganization({
         code: 'SRY-EAST',
@@ -129,7 +143,10 @@ describe('TenantService', () => {
         country: 'LY',
       });
 
-      await service.createOrganization({ code: 'DEFAULT', name: 'اختبار الافتراضيات' });
+      await service.createOrganization({
+        code: 'DEFAULT',
+        name: 'اختبار الافتراضيات',
+      });
 
       expect(mockPrisma.organization.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
@@ -165,7 +182,9 @@ describe('TenantService', () => {
     it('should throw NotFoundException for non-existent organization', async () => {
       mockPrisma.organization.findUnique.mockResolvedValue(null);
 
-      await expect(service.getOrganizationTree(999)).rejects.toThrow(NotFoundException);
+      await expect(service.getOrganizationTree(999)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -208,7 +227,10 @@ describe('TenantService', () => {
   describe('linkHospitalToOrganization', () => {
     it('should link hospital to organization', async () => {
       mockPrisma.organization.findUnique.mockResolvedValue(mockOrganization);
-      mockPrisma.hospital.update.mockResolvedValue({ ...mockHospital1, organizationId: 1 });
+      mockPrisma.hospital.update.mockResolvedValue({
+        ...mockHospital1,
+        organizationId: 1,
+      });
 
       const result = await service.linkHospitalToOrganization(10, 1);
 
@@ -222,9 +244,9 @@ describe('TenantService', () => {
     it('should throw NotFoundException for invalid organization', async () => {
       mockPrisma.organization.findUnique.mockResolvedValue(null);
 
-      await expect(
-        service.linkHospitalToOrganization(10, 999),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.linkHospitalToOrganization(10, 999)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -241,7 +263,12 @@ describe('TenantService', () => {
         description: 'تفعيل تكامل NPHIES',
       });
 
-      const result = await service.setOrgSetting(1, 'nphies.enabled', 'true', 'تفعيل تكامل NPHIES');
+      const result = await service.setOrgSetting(
+        1,
+        'nphies.enabled',
+        'true',
+        'تفعيل تكامل NPHIES',
+      );
 
       expect(result.key).toBe('nphies.enabled');
       expect(result.value).toBe('true');
@@ -277,7 +304,11 @@ describe('TenantService', () => {
   describe('findAllOrganizations', () => {
     it('should return only active organizations with counts', async () => {
       mockPrisma.organization.findMany.mockResolvedValue([
-        { ...mockOrganization, _count: { hospitals: 2, children: 1 }, parent: null },
+        {
+          ...mockOrganization,
+          _count: { hospitals: 2, children: 1 },
+          parent: null,
+        },
       ]);
 
       const result = await service.findAllOrganizations();

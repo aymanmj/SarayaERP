@@ -12,10 +12,9 @@ import {
 } from '@nestjs/common';
 import { PriceListsService } from './price-lists.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
-
-@UseGuards(JwtAuthGuard, RolesGuard)
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { Permissions } from '../auth/permissions.decorator';
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('price-lists')
 export class PriceListsController {
   constructor(private readonly service: PriceListsService) {}
@@ -26,14 +25,14 @@ export class PriceListsController {
   }
 
   @Post()
-  @Roles('ADMIN', 'ACCOUNTANT')
+  @Permissions('price-lists:manage')
   async create(@Req() req: any, @Body() body: any) {
     return this.service.create(req.user.hospitalId, body);
   }
 
   // إضافة/تحديث سعر خدمة داخل قائمة
   @Post(':id/items')
-  @Roles('ADMIN', 'ACCOUNTANT')
+  @Permissions('price-lists:manage')
   async upsertItem(
     @Param('id', ParseIntPipe) listId: number,
     @Body() body: { serviceItemId: number; price: number },

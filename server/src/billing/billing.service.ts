@@ -85,11 +85,11 @@ export class BillingService {
       patient: encounter.patient,
       charges: encounter.charges,
       invoices: encounter.invoices,
-      totals: { 
-        totalCharges: Money.toDb(totalCharges), 
-        totalInvoiced: Money.toDb(totalInvoiced), 
-        totalPaid: Money.toDb(totalPaid), 
-        outstanding: Money.toDb(outstanding) 
+      totals: {
+        totalCharges: Money.toDb(totalCharges),
+        totalInvoiced: Money.toDb(totalInvoiced),
+        totalPaid: Money.toDb(totalPaid),
+        outstanding: Money.toDb(outstanding),
       },
     };
   }
@@ -140,11 +140,17 @@ export class BillingService {
         );
       }
 
-      const finalItemAmount = result.contractedPrice !== undefined ? result.contractedPrice : itemAmount;
+      const finalItemAmount =
+        result.contractedPrice !== undefined
+          ? result.contractedPrice
+          : itemAmount;
 
       totalAmount = Money.add(totalAmount, finalItemAmount);
       totalPatientShare = Money.add(totalPatientShare, result.patientShare);
-      totalInsuranceShare = Money.add(totalInsuranceShare, result.insuranceShare);
+      totalInsuranceShare = Money.add(
+        totalInsuranceShare,
+        result.insuranceShare,
+      );
 
       calculationDetails.push({
         chargeId: charge.id,
@@ -529,10 +535,10 @@ export class BillingService {
       // 1. جلب الفاتورة الأصلية
       const original = await tx.invoice.findUnique({
         where: { id: originalInvoiceId },
-        include: { 
+        include: {
           charges: {
-            include: { serviceItem: true } 
-          } 
+            include: { serviceItem: true },
+          },
         },
       });
 
@@ -576,7 +582,7 @@ export class BillingService {
           patientId: original.patientId,
           encounterId: original.encounterId,
           status: InvoiceStatus.PAID,
-          
+
           totalAmount: totalAmount,
           discountAmount: Money.toDb(original.discountAmount),
           patientShare: patientShare,
@@ -592,13 +598,13 @@ export class BillingService {
 
       // 4. حساب Revenue Split
       const revenueSplit: Record<string, number> = {};
-      
+
       for (const charge of original.charges) {
         let accountKey: SystemAccountKey = SystemAccountKey.REVENUE_OUTPATIENT;
-        
+
         // Fix: Access type through serviceItem
-        const type = charge.serviceItem.type; 
-        
+        const type = charge.serviceItem.type;
+
         switch (type) {
           case ServiceType.LAB:
             accountKey = SystemAccountKey.REVENUE_LAB;
@@ -617,7 +623,7 @@ export class BillingService {
         }
 
         // Fix: Use totalAmount as net/amount might be missing on type
-        const chargeAmount = Number(charge.totalAmount); 
+        const chargeAmount = Number(charge.totalAmount);
         if (revenueSplit[accountKey]) {
           revenueSplit[accountKey] += chargeAmount;
         } else {

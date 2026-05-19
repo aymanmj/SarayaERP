@@ -41,11 +41,12 @@ export class TerminologyCommand {
     for await (const line of rl) {
       if (!line.trim() || line.startsWith('SYSTEM')) continue; // Skip empty/header
 
-      const parts = line.split(',').map(p => p.trim().replace(/^"|"$/g, ''));
+      const parts = line.split(',').map((p) => p.trim().replace(/^"|"$/g, ''));
       if (parts.length >= 3) {
         let systemTypeStr = parts[0].toUpperCase();
         if (systemTypeStr === 'SNOMED') systemTypeStr = 'SNOMED_CT';
-        if (!Object.values(TerminologySystem).includes(systemTypeStr as any)) continue;
+        if (!Object.values(TerminologySystem).includes(systemTypeStr as any))
+          continue;
 
         batch.push({
           system: systemTypeStr as TerminologySystem,
@@ -74,7 +75,7 @@ export class TerminologyCommand {
   }
 
   private async flushBatch(batch: any[]) {
-    // using createMany to insert fast. 
+    // using createMany to insert fast.
     // skipDuplicates handles already existing codes
     await this.prisma.terminologyConcept.createMany({
       data: batch,

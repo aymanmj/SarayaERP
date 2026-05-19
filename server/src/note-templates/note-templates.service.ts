@@ -22,12 +22,16 @@ export class NoteTemplatesService {
     });
   }
 
-  async create(hospitalId: number, userId: number, data: {
-    name: string;
-    specialty?: string;
-    noteType: NoteType;
-    content: string;
-  }) {
+  async create(
+    hospitalId: number,
+    userId: number,
+    data: {
+      name: string;
+      specialty?: string;
+      noteType: NoteType;
+      content: string;
+    },
+  ) {
     return this.prisma.clinicalNoteTemplate.create({
       data: {
         hospitalId,
@@ -40,13 +44,17 @@ export class NoteTemplatesService {
     });
   }
 
-  async update(hospitalId: number, id: number, data: {
-    name?: string;
-    specialty?: string;
-    noteType?: NoteType;
-    content?: string;
-    isActive?: boolean;
-  }) {
+  async update(
+    hospitalId: number,
+    id: number,
+    data: {
+      name?: string;
+      specialty?: string;
+      noteType?: NoteType;
+      content?: string;
+      isActive?: boolean;
+    },
+  ) {
     const template = await this.prisma.clinicalNoteTemplate.findFirst({
       where: { id, hospitalId },
     });

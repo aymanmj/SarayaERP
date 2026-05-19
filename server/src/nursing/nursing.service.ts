@@ -17,7 +17,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 export class NursingService {
   constructor(
     private prisma: PrismaService,
-    private eventEmitter: EventEmitter2
+    private eventEmitter: EventEmitter2,
   ) {}
 
   // 1. جلب قائمة المرضى في عنبر معين (أو كل العنابر) - Ward Dashboard
@@ -248,7 +248,11 @@ export class NursingService {
       );
     }
 
-    if (!verification.isVerified5Rights && isEmergencyOverride && !varianceReason) {
+    if (
+      !verification.isVerified5Rights &&
+      isEmergencyOverride &&
+      !varianceReason
+    ) {
       throw new BadRequestException(
         'في حالات تجاوز المطابقة (Emergency Override)، يجب إدخال سبب التجاوز (Variance Reason) إجبارياً للتدقيق.',
       );
@@ -267,7 +271,8 @@ export class NursingService {
         scannedPatientBarcode: patientBarcode,
         scannedDrugBarcode: drugBarcode,
         isVerified5Rights: verification.isVerified5Rights,
-        isEmergencyOverride: !verification.isVerified5Rights && isEmergencyOverride,
+        isEmergencyOverride:
+          !verification.isVerified5Rights && isEmergencyOverride,
         varianceReason: varianceReason || null,
         administeredAt: new Date(),
       },
@@ -327,14 +332,16 @@ export class NursingService {
         assignedTo: { select: { fullName: true } },
         completedBy: { select: { fullName: true } },
       },
-      orderBy: [
-        { step: { dayNumber: 'desc' } },
-        { createdAt: 'desc' },
-      ],
+      orderBy: [{ step: { dayNumber: 'desc' } }, { createdAt: 'desc' }],
     });
   }
 
-  async updateCareTaskStatus(userId: number, taskId: number, status: CareTaskStatus, notes?: string) {
+  async updateCareTaskStatus(
+    userId: number,
+    taskId: number,
+    status: CareTaskStatus,
+    notes?: string,
+  ) {
     const data: any = { status, notes };
     if (status === 'COMPLETED' || status === 'SKIPPED') {
       data.completedById = userId;
@@ -348,7 +355,7 @@ export class NursingService {
       data,
       include: {
         step: { select: { title: true, dayNumber: true } },
-        completedBy: { select: { fullName: true } }
+        completedBy: { select: { fullName: true } },
       },
     });
   }
@@ -360,7 +367,11 @@ export class NursingService {
   /**
    * توليد جدول مواعيد إعطاء الأدوية (MAR) ليوم محدد
    */
-  async generateMARSchedule(hospitalId: number, encounterId: number, targetDate: Date = new Date()) {
+  async generateMARSchedule(
+    hospitalId: number,
+    encounterId: number,
+    targetDate: Date = new Date(),
+  ) {
     // 1. Get active prescription items
     const prescriptions = await this.prisma.prescription.findMany({
       where: {
@@ -374,7 +385,7 @@ export class NursingService {
     });
 
     const schedule: any[] = [];
-    
+
     // Normalize targetDate to start of day
     const startOfDay = new Date(targetDate);
     startOfDay.setHours(0, 0, 0, 0);
@@ -395,7 +406,7 @@ export class NursingService {
     for (const rx of prescriptions) {
       for (const item of rx.items) {
         const slots: Date[] = [];
-        
+
         switch (item.frequency) {
           case 'DAILY':
             slots.push(new Date(startOfDay.getTime() + 8 * 60 * 60 * 1000)); // 08:00
@@ -413,7 +424,11 @@ export class NursingService {
             slots.push(new Date(startOfDay.getTime() + 6 * 60 * 60 * 1000)); // 06:00
             slots.push(new Date(startOfDay.getTime() + 12 * 60 * 60 * 1000)); // 12:00
             slots.push(new Date(startOfDay.getTime() + 18 * 60 * 60 * 1000)); // 18:00
-            slots.push(new Date(startOfDay.getTime() + 23 * 60 * 60 * 1000 + 59 * 60 * 1000)); // 23:59 (stay within today)
+            slots.push(
+              new Date(
+                startOfDay.getTime() + 23 * 60 * 60 * 1000 + 59 * 60 * 1000,
+              ),
+            ); // 23:59 (stay within today)
             break;
           case 'QHS':
             slots.push(new Date(startOfDay.getTime() + 22 * 60 * 60 * 1000)); // 22:00
@@ -426,16 +441,17 @@ export class NursingService {
           // Find if there's an administration record within +/- 2 hours of this slot
           const slotStart = new Date(slotTime.getTime() - 2 * 60 * 60 * 1000);
           const slotEnd = new Date(slotTime.getTime() + 2 * 60 * 60 * 1000);
-          
+
           const adminRecord = todayAdmins.find(
-            a => a.prescriptionItemId === item.id && 
-                 a.administeredAt >= slotStart && 
-                 a.administeredAt <= slotEnd
+            (a) =>
+              a.prescriptionItemId === item.id &&
+              a.administeredAt >= slotStart &&
+              a.administeredAt <= slotEnd,
           );
 
           let status = 'PENDING';
           let isOverdue = false;
-          
+
           if (adminRecord) {
             status = adminRecord.status; // GIVEN, REFUSED, etc.
           } else {
@@ -461,38 +477,47 @@ export class NursingService {
     }
 
     // Sort by scheduled time
-    return schedule.sort((a, b) => a.scheduledTime.getTime() - b.scheduledTime.getTime());
+    return schedule.sort(
+      (a, b) => a.scheduledTime.getTime() - b.scheduledTime.getTime(),
+    );
   }
 
   /**
    * الكشف عن الأدوية المتأخرة وإطلاق تنبيهات
    */
   async getOverdueMedications(hospitalId: number, encounterId?: number) {
-    const activeEncounters = encounterId 
-      ? [{ id: encounterId }] 
+    const activeEncounters = encounterId
+      ? [{ id: encounterId }]
       : await this.prisma.encounter.findMany({
           where: { hospitalId, type: 'IPD', status: 'OPEN' },
-          select: { id: true }
+          select: { id: true },
         });
 
     const allOverdue: any[] = [];
-    
+
     for (const enc of activeEncounters) {
-      const schedule = await this.generateMARSchedule(hospitalId, enc.id, new Date());
-      const overdueItems = schedule.filter(s => s.isOverdue);
-      
+      const schedule = await this.generateMARSchedule(
+        hospitalId,
+        enc.id,
+        new Date(),
+      );
+      const overdueItems = schedule.filter((s) => s.isOverdue);
+
       if (overdueItems.length > 0) {
         allOverdue.push({
           encounterId: enc.id,
           overdueItems,
         });
-        
+
         // Emit event for alerting system
         this.eventEmitter.emit('nursing.medication.overdue', {
           hospitalId,
           encounterId: enc.id,
           overdueCount: overdueItems.length,
-          items: overdueItems.map(i => ({ drug: i.drugName, scheduled: i.scheduledTime }))
+          items: overdueItems.map((i) => ({
+            drug: i.drugName,
+            scheduled: i.scheduledTime,
+          })),
         });
       }
     }

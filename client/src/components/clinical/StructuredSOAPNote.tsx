@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 
 interface SOAPNoteProps {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   note: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onSave: (data: any) => Promise<void>;
   onSign: (noteId: number) => Promise<void>;
   onCoSign: (noteId: number) => Promise<void>;

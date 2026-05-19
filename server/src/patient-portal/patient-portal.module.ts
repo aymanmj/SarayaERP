@@ -1,6 +1,6 @@
 /**
  * Patient Portal Module — Enterprise Configuration
- * 
+ *
  * Dependencies:
  * - PrismaModule (database access)
  * - JwtModule (token generation)

@@ -1,5 +1,16 @@
-
-import { Controller, Get, Post, Param, ParseIntPipe, Query, Req, Res, Body, UseGuards, ForbiddenException } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Param,
+  ParseIntPipe,
+  Query,
+  Req,
+  Res,
+  Body,
+  UseGuards,
+  ForbiddenException,
+} from '@nestjs/common';
 import { FhirService } from './fhir.service';
 import type { Request, Response } from 'express';
 import { FhirAuthService } from './fhir.auth.service';
@@ -8,12 +19,12 @@ import type { SmartContext } from './fhir.auth.guard';
 
 /**
  * Enterprise FHIR R4 Controller
- * 
+ *
  * All clinical endpoints enforce SMART patient context isolation:
  * - If the token has a `patient` claim, all queries are restricted to that patient.
  * - Direct reads (GET /Patient/:id) verify the ID matches the token's patient context.
  * - System-level tokens (no patient claim) can access all resources.
- * 
+ *
  * Scope enforcement is handled by @FhirScope() + FhirAuthGuard.
  * Patient isolation is handled by extracting smartContext and passing to service layer.
  */
@@ -21,7 +32,7 @@ import type { SmartContext } from './fhir.auth.guard';
 export class FhirController {
   constructor(
     private fhirService: FhirService,
-    private fhirAuthService: FhirAuthService
+    private fhirAuthService: FhirAuthService,
   ) {}
 
   private getBaseUrl(req: Request) {
@@ -52,8 +63,8 @@ export class FhirController {
     if (patientContext !== undefined && patientContext !== resourcePatientId) {
       throw new ForbiddenException(
         `Access denied. Your token is scoped to Patient/${patientContext} ` +
-        `but you attempted to access data for Patient/${resourcePatientId}. ` +
-        `SMART on FHIR patient isolation prohibits cross-patient access.`
+          `but you attempted to access data for Patient/${resourcePatientId}. ` +
+          `SMART on FHIR patient isolation prohibits cross-patient access.`,
       );
     }
   }
@@ -78,15 +89,26 @@ export class FhirController {
       token_endpoint_auth_methods_supported: ['client_secret_post'],
       grant_types_supported: ['authorization_code', 'client_credentials'],
       scopes_supported: [
-        'patient/*.read', 'patient/*.write', 'patient/*.*',
-        'user/*.read', 'user/*.write', 'user/*.*',
-        'system/*.read', 'system/*.write', 'system/*.*',
-        'launch/patient', 'openid', 'fhirUser',
+        'patient/*.read',
+        'patient/*.write',
+        'patient/*.*',
+        'user/*.read',
+        'user/*.write',
+        'user/*.*',
+        'system/*.read',
+        'system/*.write',
+        'system/*.*',
+        'launch/patient',
+        'openid',
+        'fhirUser',
       ],
       capabilities: [
-        'launch-standalone', 'client-confidential-symmetric',
-        'context-standalone-patient', 'permission-patient',
-        'permission-user', 'sso-openid-connect',
+        'launch-standalone',
+        'client-confidential-symmetric',
+        'context-standalone-patient',
+        'permission-patient',
+        'permission-user',
+        'sso-openid-connect',
       ],
     };
   }
@@ -103,9 +125,14 @@ export class FhirController {
     @Query('state') state: string,
     @Query('aud') aud: string,
     @Query('launch') launchPatient: string,
-    @Res() res: Response
+    @Res() res: Response,
   ) {
-    const auth = await this.fhirAuthService.authorize(clientId, scope, redirectUri, launchPatient);
+    const auth = await this.fhirAuthService.authorize(
+      clientId,
+      scope,
+      redirectUri,
+      launchPatient,
+    );
     return res.redirect(`${redirectUri}?code=${auth.code}&state=${state}`);
   }
 
@@ -118,7 +145,14 @@ export class FhirController {
     @Body('code') code: string,
     @Body('patient') patient: string,
   ) {
-    return this.fhirAuthService.generateToken(grantType, clientId, clientSecret, scope, code, patient);
+    return this.fhirAuthService.generateToken(
+      grantType,
+      clientId,
+      clientSecret,
+      scope,
+      code,
+      patient,
+    );
   }
 
   // ==========================================
@@ -129,7 +163,11 @@ export class FhirController {
   @Get('Patient')
   searchPatients(@Query() query: any, @Req() req: Request) {
     const patientContext = this.getPatientContext(req);
-    return this.fhirService.searchPatients(query, this.getBaseUrl(req), patientContext);
+    return this.fhirService.searchPatients(
+      query,
+      this.getBaseUrl(req),
+      patientContext,
+    );
   }
 
   @UseGuards(FhirAuthGuard)
@@ -146,9 +184,13 @@ export class FhirController {
   @UseGuards(FhirAuthGuard)
   @FhirScope('patient/Patient.read')
   @Get('Patient/:id/\\$export')
-  async patientExport(@Param('id', ParseIntPipe) id: number, @Req() req: Request, @Res() res: Response) {
+  async patientExport(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: Request,
+    @Res() res: Response,
+  ) {
     this.enforcePatientAccess(req, id);
-    // As per FHIR Bulk Data Access specification, we return a 200 OK with NDJSON stream 
+    // As per FHIR Bulk Data Access specification, we return a 200 OK with NDJSON stream
     // for synchronous patient-level export in Phase 4 (Async 202 is mandatory for System-level).
     const ndjsonStream = await this.fhirService.exportPatientData(id);
     res.setHeader('Content-Type', 'application/fhir+ndjson');
@@ -190,13 +232,20 @@ export class FhirController {
   @Get('Encounter')
   searchEncounters(@Query() query: any, @Req() req: Request) {
     const patientContext = this.getPatientContext(req);
-    return this.fhirService.searchEncounters(query, this.getBaseUrl(req), patientContext);
+    return this.fhirService.searchEncounters(
+      query,
+      this.getBaseUrl(req),
+      patientContext,
+    );
   }
 
   @UseGuards(FhirAuthGuard)
   @FhirScope('patient/Encounter.read')
   @Get('Encounter/:id')
-  async getEncounter(@Param('id', ParseIntPipe) id: number, @Req() req: Request) {
+  async getEncounter(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: Request,
+  ) {
     const patientContext = this.getPatientContext(req);
     return this.fhirService.getEncounter(id, patientContext);
   }
@@ -209,13 +258,20 @@ export class FhirController {
   @Get('Observation')
   searchObservations(@Query() query: any, @Req() req: Request) {
     const patientContext = this.getPatientContext(req);
-    return this.fhirService.searchObservations(query, this.getBaseUrl(req), patientContext);
+    return this.fhirService.searchObservations(
+      query,
+      this.getBaseUrl(req),
+      patientContext,
+    );
   }
 
   @UseGuards(FhirAuthGuard)
   @FhirScope('patient/Observation.read')
   @Get('Observation/:id')
-  async getObservation(@Param('id', ParseIntPipe) id: number, @Req() req: Request) {
+  async getObservation(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: Request,
+  ) {
     const patientContext = this.getPatientContext(req);
     return this.fhirService.getObservation(id, patientContext);
   }
@@ -236,13 +292,20 @@ export class FhirController {
   @Get('Condition')
   searchConditions(@Query() query: any, @Req() req: Request) {
     const patientContext = this.getPatientContext(req);
-    return this.fhirService.searchConditions(query, this.getBaseUrl(req), patientContext);
+    return this.fhirService.searchConditions(
+      query,
+      this.getBaseUrl(req),
+      patientContext,
+    );
   }
 
   @UseGuards(FhirAuthGuard)
   @FhirScope('patient/Condition.read')
   @Get('Condition/:id')
-  async getCondition(@Param('id', ParseIntPipe) id: number, @Req() req: Request) {
+  async getCondition(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: Request,
+  ) {
     const patientContext = this.getPatientContext(req);
     return this.fhirService.getCondition(id, patientContext);
   }
@@ -255,7 +318,11 @@ export class FhirController {
   @Get('AllergyIntolerance')
   searchAllergies(@Query() query: any, @Req() req: Request) {
     const patientContext = this.getPatientContext(req);
-    return this.fhirService.searchAllergies(query, this.getBaseUrl(req), patientContext);
+    return this.fhirService.searchAllergies(
+      query,
+      this.getBaseUrl(req),
+      patientContext,
+    );
   }
 
   @UseGuards(FhirAuthGuard)
@@ -274,13 +341,20 @@ export class FhirController {
   @Get('MedicationRequest')
   searchMedicationRequests(@Query() query: any, @Req() req: Request) {
     const patientContext = this.getPatientContext(req);
-    return this.fhirService.searchMedicationRequests(query, this.getBaseUrl(req), patientContext);
+    return this.fhirService.searchMedicationRequests(
+      query,
+      this.getBaseUrl(req),
+      patientContext,
+    );
   }
 
   @UseGuards(FhirAuthGuard)
   @FhirScope('patient/MedicationRequest.read')
   @Get('MedicationRequest/:id')
-  async getMedicationRequest(@Param('id', ParseIntPipe) id: number, @Req() req: Request) {
+  async getMedicationRequest(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: Request,
+  ) {
     const patientContext = this.getPatientContext(req);
     return this.fhirService.getMedicationRequest(id, patientContext);
   }
@@ -293,13 +367,20 @@ export class FhirController {
   @Get('Procedure')
   searchProcedures(@Query() query: any, @Req() req: Request) {
     const patientContext = this.getPatientContext(req);
-    return this.fhirService.searchProcedures(query, this.getBaseUrl(req), patientContext);
+    return this.fhirService.searchProcedures(
+      query,
+      this.getBaseUrl(req),
+      patientContext,
+    );
   }
 
   @UseGuards(FhirAuthGuard)
   @FhirScope('patient/Procedure.read')
   @Get('Procedure/:id')
-  async getProcedure(@Param('id', ParseIntPipe) id: number, @Req() req: Request) {
+  async getProcedure(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: Request,
+  ) {
     const patientContext = this.getPatientContext(req);
     return this.fhirService.getProcedure(id, patientContext);
   }
@@ -312,7 +393,11 @@ export class FhirController {
   @Get('DocumentReference')
   searchDocumentReferences(@Query() query: any, @Req() req: Request) {
     const patientContext = this.getPatientContext(req);
-    return this.fhirService.searchDocumentReferences(query, this.getBaseUrl(req), patientContext);
+    return this.fhirService.searchDocumentReferences(
+      query,
+      this.getBaseUrl(req),
+      patientContext,
+    );
   }
 
   @UseGuards(FhirAuthGuard)

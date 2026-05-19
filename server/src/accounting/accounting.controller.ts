@@ -20,8 +20,8 @@ import {
 import { AccountingService } from './accounting.service';
 import { CostCentersService } from './cost-centers.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { Permissions } from '../auth/permissions.decorator';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { JwtPayload } from '../auth/jwt-payload.type';
 import { AccountingSourceModule } from '@prisma/client';
@@ -50,8 +50,8 @@ type AccountLite = {
   name: string;
 };
 
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('ADMIN') // ممكن تضيف ACCOUNTANT لاحقاً
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@Permissions('accounting:manage') // ممكن تضيف ACCOUNTANT لاحقاً
 @Controller('accounting')
 @RequireFeature('ACCOUNTS')
 export class AccountingController {
@@ -135,7 +135,7 @@ export class AccountingController {
   }
 
   @Get('ledger')
-  @Roles('ADMIN', 'ACCOUNTANT') // عدّل الأدوار حسب نظامك
+  @Permissions('accounting:manage') // عدّل الأدوار حسب نظامك
   async getLedger(
     @CurrentUser() user: JwtPayload,
     @Query('accountId', ParseIntPipe) accountId: number,
@@ -410,7 +410,7 @@ export class AccountingController {
    * (محمي بالتحقق من السنة ونوع القيد)
    */
   @Delete('entries/:id')
-  @Roles('ADMIN')
+  @Permissions('accounting:manage')
   async deleteEntry(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: JwtPayload,
@@ -425,7 +425,7 @@ export class AccountingController {
   }
 
   @Post('cost-centers')
-  @Roles('ADMIN', 'ACCOUNTANT')
+  @Permissions('accounting:manage')
   async createCostCenter(@CurrentUser() user: JwtPayload, @Body() body: any) {
     return this.costCentersService.create(user.hospitalId, body);
   }

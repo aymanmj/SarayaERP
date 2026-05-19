@@ -136,7 +136,12 @@ export class TenantController {
     @Param('id', ParseIntPipe) id: number,
     @Body() data: { key: string; value: string; description?: string },
   ) {
-    return this.tenantService.setOrgSetting(id, data.key, data.value, data.description);
+    return this.tenantService.setOrgSetting(
+      id,
+      data.key,
+      data.value,
+      data.description,
+    );
   }
 
   // ============================================

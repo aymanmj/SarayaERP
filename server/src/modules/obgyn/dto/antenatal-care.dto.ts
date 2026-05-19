@@ -1,4 +1,15 @@
-import { IsInt, IsOptional, IsDateString, IsString, IsEnum, IsNumber, IsBoolean, ValidateNested, Min, Max } from 'class-validator';
+import {
+  IsInt,
+  IsOptional,
+  IsDateString,
+  IsString,
+  IsEnum,
+  IsNumber,
+  IsBoolean,
+  ValidateNested,
+  Min,
+  Max,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export enum PregnancyRisk {

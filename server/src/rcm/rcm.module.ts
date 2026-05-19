@@ -11,7 +11,7 @@ import { NphiesModule } from '../integration/nphies/nphies.module';
 
 /**
  * وحدة إدارة دورة الإيرادات (Revenue Cycle Management)
- * 
+ *
  * تشمل:
  * - إدارة المطالبات التأمينية (Claims)
  * - محرك فحص المطالبات (Claims Scrubbing)
@@ -32,8 +32,8 @@ import { NphiesModule } from '../integration/nphies/nphies.module';
     BatchSubmissionService,
   ],
   exports: [
-    ClaimService, 
-    ClaimScrubberService, 
+    ClaimService,
+    ClaimScrubberService,
     DenialManagementService,
     EraProcessingService,
     InsuranceContractService,

@@ -96,10 +96,9 @@ export class EncountersService {
 
           if (erService) {
             // حساب السعر (يراعي التأمين إن وُجد)
-            const policyId =
-              patient.insurancePolicy?.isActive
-                ? patient.insurancePolicy.id
-                : null;
+            const policyId = patient.insurancePolicy?.isActive
+              ? patient.insurancePolicy.id
+              : null;
 
             const price = await this.priceService.getServicePrice(
               hospitalId,
@@ -131,8 +130,7 @@ export class EncountersService {
                 Number(patient.insurancePolicy.patientCopayRate || 0) / 100;
               patientShare = Math.round(price * copayRate * 100) / 100;
               insuranceShare = Math.round((price - patientShare) * 100) / 100;
-              insuranceProviderId =
-                patient.insurancePolicy.insuranceProviderId;
+              insuranceProviderId = patient.insurancePolicy.insuranceProviderId;
             }
 
             // محاولة إنشاء فاتورة (قد تفشل إذا الفترة المالية مغلقة)
@@ -268,7 +266,11 @@ export class EncountersService {
   // ✅ [NEW] دالة الخروج الآمن (Discharge & Clearance)
   async dischargePatient(hospitalId: number, encounterId: number) {
     // 0. جلب إعداد الحد المسموح به للمديونية
-    const debtLimit = await this.systemSettings.getNumber(hospitalId, 'billing.debtLimit', 0.01);
+    const debtLimit = await this.systemSettings.getNumber(
+      hospitalId,
+      'billing.debtLimit',
+      0.01,
+    );
 
     return this.prisma.$transaction(async (tx) => {
       // 1. جلب الحالة مع الفواتير والسرير
@@ -289,7 +291,9 @@ export class EncountersService {
       }
 
       if (encounter.type === EncounterType.IPD) {
-        throw new BadRequestException('حالات الإيواء يجب إغلاقها استكمال "خطة الخروج الطبية" أولاً ولضمان الفوترة التلقائية لرسوم السرير.');
+        throw new BadRequestException(
+          'حالات الإيواء يجب إغلاقها استكمال "خطة الخروج الطبية" أولاً ولضمان الفوترة التلقائية لرسوم السرير.',
+        );
       }
 
       if (encounter.status !== EncounterStatus.OPEN) {
@@ -375,7 +379,8 @@ export class EncountersService {
             lengthOfStay: Math.max(
               0,
               Math.floor(
-                (new Date().getTime() - activeAdmission.actualAdmissionDate.getTime()) /
+                (new Date().getTime() -
+                  activeAdmission.actualAdmissionDate.getTime()) /
                   (1000 * 60 * 60 * 24),
               ),
             ),
@@ -424,8 +429,8 @@ export class EncountersService {
           take: 1,
         },
         admission: {
-            select: { id: true, primaryDiagnosis: true }
-        }
+          select: { id: true, primaryDiagnosis: true },
+        },
       },
       orderBy: {
         admissionDate: 'desc',
@@ -617,5 +622,4 @@ export class EncountersService {
       },
     };
   }
-
 }

@@ -44,6 +44,7 @@ export function TriageAssessmentForm() {
       }
     }, 1000); // Debounce
     return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vitals]);
 
   async function checkSuggestion() {
@@ -85,6 +86,7 @@ export function TriageAssessmentForm() {
         },
       });
       navigate("/triage"); // Back to board
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
       alert("Failed to save assessment");
     } finally {

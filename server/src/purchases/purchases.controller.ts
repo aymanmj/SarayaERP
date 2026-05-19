@@ -15,8 +15,6 @@ import { Permissions } from '../auth/permissions.decorator';
 import { PermissionsGuard } from '../auth/permissions.guard';
 import { PurchasesService } from './purchases.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
 import {
   IsArray,
   IsDateString,
@@ -184,8 +182,8 @@ class RecordSupplierPaymentDto {
   notes?: string;
 }
 
-@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
-@Roles('ADMIN', 'ACCOUNTANT')
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@Permissions('purchases:manage')
 @Controller('purchases')
 export class PurchasesController {
   constructor(
@@ -209,7 +207,7 @@ export class PurchasesController {
   @Permissions('purchases:invoice:create')
   async createInvoice(@Req() req: any, @Body() dto: CreatePurchaseInvoiceDto) {
     const hospitalId = req.user.hospitalId as number;
-    const userId = (req.user as any)?.id ?? (req.user as any)?.sub;
+    const userId = req.user?.id ?? req.user?.sub;
 
     return this.purchases.createPurchaseInvoice({
       hospitalId,
@@ -231,7 +229,7 @@ export class PurchasesController {
   @Permissions('purchases:invoice:approve')
   async approveInvoice(@Req() req: any, @Param('id', ParseIntPipe) id: number) {
     const hospitalId = req.user.hospitalId as number;
-    const userId = (req.user as any)?.id ?? (req.user as any)?.sub;
+    const userId = req.user?.id ?? req.user?.sub;
 
     return this.purchases.approvePurchaseInvoice({
       hospitalId,
@@ -247,7 +245,7 @@ export class PurchasesController {
     @Body() dto: UpdatePurchaseInvoiceDto,
   ) {
     const hospitalId = req.user.hospitalId as number;
-    const userId = (req.user as any)?.id ?? (req.user as any)?.sub;
+    const userId = req.user?.id ?? req.user?.sub;
 
     return this.purchases.updatePurchaseInvoice({
       hospitalId,
@@ -273,7 +271,7 @@ export class PurchasesController {
     @Body() dto: CancelPurchaseInvoiceDto,
   ) {
     const hospitalId = req.user.hospitalId as number;
-    const userId = (req.user as any)?.id ?? (req.user as any)?.sub;
+    const userId = req.user?.id ?? req.user?.sub;
 
     return this.purchases.cancelPurchaseInvoice({
       hospitalId,
@@ -290,7 +288,7 @@ export class PurchasesController {
     @Body() dto: RecordSupplierPaymentDto,
   ) {
     const hospitalId = req.user.hospitalId as number;
-    const userId = (req.user as any)?.id ?? (req.user as any)?.sub;
+    const userId = req.user?.id ?? req.user?.sub;
 
     return this.purchases.recordSupplierPayment({
       hospitalId,

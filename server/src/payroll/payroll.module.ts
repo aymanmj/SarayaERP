@@ -9,12 +9,7 @@ import { AttendanceModule } from '../attendance/attendance.module';
 import { CommissionModule } from '../commission/commission.module';
 
 @Module({
-  imports: [
-    PrismaModule,
-    AccountingModule,
-    AttendanceModule,
-    CommissionModule,
-  ],
+  imports: [PrismaModule, AccountingModule, AttendanceModule, CommissionModule],
   controllers: [PayrollController],
   providers: [PayrollService],
 })

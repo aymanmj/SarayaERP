@@ -112,7 +112,9 @@ describe('NphiesCryptoService', () => {
 
       // base64url → base64 → decode
       const base64 = headerPart.replace(/-/g, '+').replace(/_/g, '/');
-      const decoded = JSON.parse(Buffer.from(base64, 'base64').toString('utf8'));
+      const decoded = JSON.parse(
+        Buffer.from(base64, 'base64').toString('utf8'),
+      );
 
       expect(decoded.alg).toBe('RS256');
       expect(decoded.typ).toBe('JWT');
@@ -124,7 +126,9 @@ describe('NphiesCryptoService', () => {
       const payloadPart = result.split('.')[1];
 
       const base64 = payloadPart.replace(/-/g, '+').replace(/_/g, '/');
-      const decoded = JSON.parse(Buffer.from(base64, 'base64').toString('utf8'));
+      const decoded = JSON.parse(
+        Buffer.from(base64, 'base64').toString('utf8'),
+      );
 
       expect(decoded.id).toBe('msg-001');
       expect(decoded.eventCoding.code).toBe('test');
@@ -145,7 +149,10 @@ describe('NphiesCryptoService', () => {
     it('should not contain standard base64 characters (+, /, =) — must be base64url', () => {
       // Sign multiple payloads to increase chance of special chars
       for (let i = 0; i < 10; i++) {
-        const result = service.signPayload({ test: `data-${i}`, random: Math.random() });
+        const result = service.signPayload({
+          test: `data-${i}`,
+          random: Math.random(),
+        });
         expect(result).not.toMatch(/[+/=]/);
       }
     });
@@ -197,7 +204,8 @@ describe('NphiesCryptoService', () => {
             provide: ConfigService,
             useValue: {
               get: jest.fn((key: string) => {
-                if (key === 'NPHIES_PRIVATE_KEY_PATH') return '/nonexistent/path/key.pem';
+                if (key === 'NPHIES_PRIVATE_KEY_PATH')
+                  return '/nonexistent/path/key.pem';
                 return undefined;
               }),
             },

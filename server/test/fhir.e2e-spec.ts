@@ -38,7 +38,9 @@ describe('FHIR & SMART App Launch (e2e)', () => {
       expect(response.body).toHaveProperty('authorization_endpoint');
       expect(response.body).toHaveProperty('token_endpoint');
       expect(response.body.capabilities).toContain('launch-standalone');
-      expect(response.body.capabilities).toContain('context-standalone-patient');
+      expect(response.body.capabilities).toContain(
+        'context-standalone-patient',
+      );
     });
 
     it('should return basic Capability Statement', async () => {
@@ -53,9 +55,7 @@ describe('FHIR & SMART App Launch (e2e)', () => {
 
   describe('Patient Context Isolation (Authorization)', () => {
     it('should reject unauthenticated access to clinical data', async () => {
-      return request(app.getHttpServer())
-        .get('/fhir/Patient/1')
-        .expect(401); // Requires Bearer token
+      return request(app.getHttpServer()).get('/fhir/Patient/1').expect(401); // Requires Bearer token
     });
 
     it('should block access if patient context does not match requested resource', async () => {
@@ -87,9 +87,9 @@ describe('FHIR & SMART App Launch (e2e)', () => {
 
       // 2. Generate a token scoped explicitly for Patient A
       // Using fhirAuthService logic directly or mocking. We can bypass by using the actual endpoint.
-      // But we need a valid client and code. To simplify E2E, we can directly generate a token using JwtService 
+      // But we need a valid client and code. To simplify E2E, we can directly generate a token using JwtService
       // with the SMART payload structure format our Guard expects.
-      
+
       const jwtService = app.get('JwtService'); // From imports, assuming global
       const tokenForPatientA = jwtService.sign({
         sub: 'ext-app-client',
@@ -103,13 +103,13 @@ describe('FHIR & SMART App Launch (e2e)', () => {
         .get(`/fhir/Patient/${patientA.id}`)
         .set('Authorization', `Bearer ${tokenForPatientA}`)
         .expect(200);
-        
+
       // 4. Request data for Patient B with Patient A's token (Should be Forbidden!)
       const response = await request(app.getHttpServer())
         .get(`/fhir/Patient/${patientB.id}`)
         .set('Authorization', `Bearer ${tokenForPatientA}`)
         .expect(403);
-        
+
       expect(response.body.message).toContain('Access denied');
       expect(response.body.message).toContain('prohibits cross-patient access');
     });

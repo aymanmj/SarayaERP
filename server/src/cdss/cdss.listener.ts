@@ -17,7 +17,9 @@ export class CDSSListener {
 
   @OnEvent('patient.problem_added', { async: true })
   async handlePatientProblemAdded(payload: any) {
-    this.logger.log(`🔔 CDSS triggered for Patient Problem: ${payload.description} (ICD-10: ${payload.icd10Code})`);
+    this.logger.log(
+      `🔔 CDSS triggered for Patient Problem: ${payload.description} (ICD-10: ${payload.icd10Code})`,
+    );
 
     try {
       if (!payload.icd10Code && !payload.description) return;
@@ -30,10 +32,10 @@ export class CDSSListener {
           status: 'PUBLISHED',
           targetDiagnosis: {
             contains: payload.icd10Code || payload.description,
-            mode: 'insensitive'
-          }
+            mode: 'insensitive',
+          },
         },
-        select: { id: true, name: true }
+        select: { id: true, name: true },
       });
 
       if (matchingPathways.length > 0) {
@@ -48,15 +50,19 @@ export class CDSSListener {
               message: `اقتراح مسار رعاية سريرية: ${pathway.name} (بناءً على التشخيص المضاف)`,
               context: {
                 pathwayId: pathway.id,
-                triggerDescription: payload.description
-              }
-            }
+                triggerDescription: payload.description,
+              },
+            },
           });
-          this.logger.log(`✅ Pathway Suggestion Generated: ${pathway.name} for patient ${payload.patientId}`);
+          this.logger.log(
+            `✅ Pathway Suggestion Generated: ${pathway.name} for patient ${payload.patientId}`,
+          );
         }
       }
     } catch (error) {
-      this.logger.error(`Error processing problem added event for pathway suggestion: ${error.message}`);
+      this.logger.error(
+        `Error processing problem added event for pathway suggestion: ${error.message}`,
+      );
     }
   }
 
@@ -76,6 +82,54 @@ export class CDSSListener {
       };
 
       await this.cdssService.checkLabResultAndAlert(input);
+
+      // ── Auto-eGFR Computation on Creatinine Result ──
+      // When a creatinine result is verified, automatically compute eGFR
+      // and create a proactive alert if renal function is impaired
+      const isCreatinine =
+        payload.testCode?.toUpperCase() === 'CREA' ||
+        payload.testCode?.toLowerCase().includes('creatinine');
+
+      if (isCreatinine && payload.value > 0) {
+        this.logger.log(
+          `🧬 Auto-computing eGFR for patient ${payload.patientId} (Creatinine: ${payload.value})`,
+        );
+
+        const egfrResult = await this.cdssService.computePatientEGFR(
+          payload.hospitalId,
+          payload.patientId,
+        );
+
+        const egfr = egfrResult?.egfr;
+        const ckd = egfrResult?.ckd;
+        const creat = egfrResult?.creatinine;
+
+        if (egfrResult.available && egfr && ckd && creat && egfr.value < 60) {
+          // Create proactive renal alert
+          await this.prisma.cDSSAlert.create({
+            data: {
+              hospitalId: payload.hospitalId,
+              patientId: payload.patientId,
+              alertType: 'RENAL_DOSE_ADJUST',
+              severity: egfr.value < 30 ? 'CRITICAL' : 'HIGH',
+              message: `Auto-eGFR Alert: eGFR = ${egfr.value} mL/min/1.73m² (${ckd.stage}). ${ckd.description}`,
+              messageAr: `تنبيه وظائف كلى تلقائي: eGFR = ${egfr.value} (${ckd.stage}). ${ckd.descriptionAr}`,
+              context: {
+                egfr: egfr.value,
+                ckdStage: ckd.stage,
+                creatinine: creat.value,
+                riskLevel: ckd.riskLevel,
+                recommendations: egfrResult.recommendations,
+                autoTriggered: true,
+              },
+            },
+          });
+
+          this.logger.warn(
+            `⚠️ Renal Alert created: eGFR ${egfr.value} (${ckd.stage}) for patient ${payload.patientId}`,
+          );
+        }
+      }
     } catch (error) {
       this.logger.error(`Error processing lab result event: ${error.message}`);
     }

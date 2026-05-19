@@ -102,9 +102,9 @@ describe('PatientOtpService', () => {
     it('should reject invalid MRN + phone combination', async () => {
       mockPrisma.patient.findFirst.mockResolvedValue(null);
 
-      await expect(
-        service.requestOtp('INVALID', '0000000000'),
-      ).rejects.toThrow(UnauthorizedException);
+      await expect(service.requestOtp('INVALID', '0000000000')).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
 
     it('should rate limit after 5 OTPs per hour', async () => {
@@ -158,7 +158,12 @@ describe('PatientOtpService', () => {
   //  VERIFY OTP
   // ===========================================
   describe('verifyOtp', () => {
-    const mockPatient = { id: 1, fullName: 'أحمد', mrn: 'MRN-0001', hospitalId: 1 };
+    const mockPatient = {
+      id: 1,
+      fullName: 'أحمد',
+      mrn: 'MRN-0001',
+      hospitalId: 1,
+    };
 
     it('should verify valid OTP and return patient', async () => {
       const plainCode = '483921';
@@ -193,18 +198,18 @@ describe('PatientOtpService', () => {
       });
       mockPrisma.patientOtp.update.mockResolvedValue({ id: 1 });
 
-      await expect(
-        service.verifyOtp('MRN-0001', '999999'),
-      ).rejects.toThrow(UnauthorizedException);
+      await expect(service.verifyOtp('MRN-0001', '999999')).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
 
     it('should reject expired OTP', async () => {
       mockPrisma.patient.findFirst.mockResolvedValue(mockPatient);
       mockPrisma.patientOtp.findFirst.mockResolvedValue(null); // No valid OTP found
 
-      await expect(
-        service.verifyOtp('MRN-0001', '483921'),
-      ).rejects.toThrow(UnauthorizedException);
+      await expect(service.verifyOtp('MRN-0001', '483921')).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
 
     it('should lock out after 3 failed attempts', async () => {
@@ -220,17 +225,17 @@ describe('PatientOtpService', () => {
       });
       mockPrisma.patientOtp.update.mockResolvedValue({ id: 1 });
 
-      await expect(
-        service.verifyOtp('MRN-0001', '123456'),
-      ).rejects.toThrow(UnauthorizedException);
+      await expect(service.verifyOtp('MRN-0001', '123456')).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
 
     it('should reject non-existent patient', async () => {
       mockPrisma.patient.findFirst.mockResolvedValue(null);
 
-      await expect(
-        service.verifyOtp('FAKE-MRN', '123456'),
-      ).rejects.toThrow(UnauthorizedException);
+      await expect(service.verifyOtp('FAKE-MRN', '123456')).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
   });
 });

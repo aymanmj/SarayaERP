@@ -76,4 +76,3 @@ export class HealthController {
     return this.connectivityService.getState();
   }
 }
-

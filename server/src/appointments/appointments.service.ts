@@ -119,7 +119,12 @@ export class AppointmentsService {
     doctorId: number,
     date: Date,
     isEmergency: boolean = false,
-  ): Promise<{ allowed: boolean; current: number; max: number; message?: string }> {
+  ): Promise<{
+    allowed: boolean;
+    current: number;
+    max: number;
+    message?: string;
+  }> {
     const schedule = await this.prisma.doctorSchedule.findUnique({
       where: { doctorId },
     });
@@ -191,7 +196,7 @@ export class AppointmentsService {
       // حالات الطوارئ: يمكنها الحجز طالما لم نصل للحد الكلي
       // وأيضاً يمكن وضع حد خاص للطوارئ إذا أردنا (maxEmergency)
       if (schedule.maxEmergency && schedule.maxEmergency > 0) {
-         const emergencyBookedCount = await this.prisma.appointment.count({
+        const emergencyBookedCount = await this.prisma.appointment.count({
           where: {
             hospitalId,
             doctorId,
@@ -200,9 +205,12 @@ export class AppointmentsService {
             status: { notIn: [AppointmentStatus.CANCELLED] },
           },
         });
-        
-        if (emergencyBookedCount >= schedule.maxEmergency && !schedule.allowOverbook) {
-           return {
+
+        if (
+          emergencyBookedCount >= schedule.maxEmergency &&
+          !schedule.allowOverbook
+        ) {
+          return {
             allowed: false,
             current: emergencyBookedCount,
             max: schedule.maxEmergency,
@@ -212,7 +220,11 @@ export class AppointmentsService {
       }
     }
 
-    return { allowed: true, current: totalBookedCount, max: schedule.maxPerDay };
+    return {
+      allowed: true,
+      current: totalBookedCount,
+      max: schedule.maxPerDay,
+    };
   }
 
   /**
@@ -267,20 +279,35 @@ export class AppointmentsService {
       .filter((n): n is number => n !== null);
 
     const normalBooked = todayAppointments.filter((a) => !a.isEmergency).length;
-    const emergencyBooked = todayAppointments.filter((a) => a.isEmergency).length;
+    const emergencyBooked = todayAppointments.filter(
+      (a) => a.isEmergency,
+    ).length;
 
     // حساب الأرقام العادية المتاحة (أول 10)
     const availableNormalNumbers: number[] = [];
     let candidate = 2;
     while (availableNormalNumbers.length < 10 && candidate <= 100) {
-      if (!usedNumbers.includes(candidate) && !reservedNumbers.includes(candidate)) {
+      if (
+        !usedNumbers.includes(candidate) &&
+        !reservedNumbers.includes(candidate)
+      ) {
         availableNormalNumbers.push(candidate);
       }
       candidate++;
     }
 
-    const nextNormalNumber = await this.getNextQueueNumber(hospitalId, doctorId, date, false);
-    const nextEmergencyNumber = await this.getNextQueueNumber(hospitalId, doctorId, date, true);
+    const nextNormalNumber = await this.getNextQueueNumber(
+      hospitalId,
+      doctorId,
+      date,
+      false,
+    );
+    const nextEmergencyNumber = await this.getNextQueueNumber(
+      hospitalId,
+      doctorId,
+      date,
+      true,
+    );
 
     return {
       totalBooked: todayAppointments.length,
@@ -312,8 +339,8 @@ export class AppointmentsService {
     createdByUserId: number;
     type?: AppointmentType;
     isEmergency?: boolean; // ✅ جديد
-    isSpecial?: boolean;   // ✅ جديد
-    queueNumber?: number;  // ✅ جديد (اختياري للتخصيص اليدوي)
+    isSpecial?: boolean; // ✅ جديد
+    queueNumber?: number; // ✅ جديد (اختياري للتخصيص اليدوي)
   }) {
     const {
       hospitalId,
@@ -356,16 +383,30 @@ export class AppointmentsService {
       const scheduleVal = await this.prisma.doctorSchedule.findUnique({
         where: { doctorId },
       });
-      
+
       if (scheduleVal && scheduleVal.workDays) {
         const appointmentDate = new Date(scheduledStart);
-        const dayOfWeek = appointmentDate.getDay(); 
-        const allowedDays = scheduleVal.workDays.split(',').map(d => parseInt(d.trim()));
-        
+        const dayOfWeek = appointmentDate.getDay();
+        const allowedDays = scheduleVal.workDays
+          .split(',')
+          .map((d) => parseInt(d.trim()));
+
         if (!allowedDays.includes(dayOfWeek)) {
-            const daysMap = ["الأحد", "الاثنين", "الثلاثاء", "الاربعاء", "الخميس", "الجمعة", "السبت"];
-            const allowedDaysNames = allowedDays.map(d => daysMap[d]).join("، ");
-            throw new BadRequestException(`الطبيب غير متواجد في هذا اليوم. أيام العمل هي: ${allowedDaysNames}`);
+          const daysMap = [
+            'الأحد',
+            'الاثنين',
+            'الثلاثاء',
+            'الاربعاء',
+            'الخميس',
+            'الجمعة',
+            'السبت',
+          ];
+          const allowedDaysNames = allowedDays
+            .map((d) => daysMap[d])
+            .join('، ');
+          throw new BadRequestException(
+            `الطبيب غير متواجد في هذا اليوم. أيام العمل هي: ${allowedDaysNames}`,
+          );
         }
       }
 
@@ -457,10 +498,18 @@ export class AppointmentsService {
         let serviceCode = 'CONSULT-OPD';
         if (doctor?.jobRank) {
           switch (doctor.jobRank) {
-            case 'CONSULTANT': serviceCode = 'CONSULT-CONS'; break;
-            case 'SPECIALIST': serviceCode = 'CONSULT-SPEC'; break;
-            case 'GENERAL_PRACTITIONER': serviceCode = 'CONSULT-GEN'; break;
-            case 'RESIDENT': serviceCode = 'CONSULT-OPD'; break;
+            case 'CONSULTANT':
+              serviceCode = 'CONSULT-CONS';
+              break;
+            case 'SPECIALIST':
+              serviceCode = 'CONSULT-SPEC';
+              break;
+            case 'GENERAL_PRACTITIONER':
+              serviceCode = 'CONSULT-GEN';
+              break;
+            case 'RESIDENT':
+              serviceCode = 'CONSULT-OPD';
+              break;
           }
         }
 
@@ -527,17 +576,22 @@ export class AppointmentsService {
           let insuranceProviderId: number | null = null;
 
           if (patientWithInsurance?.insurancePolicy?.isActive) {
-            const copayRate = Number(patientWithInsurance.insurancePolicy.patientCopayRate || 0) / 100;
+            const copayRate =
+              Number(
+                patientWithInsurance.insurancePolicy.patientCopayRate || 0,
+              ) / 100;
             patientShare = Math.round(price * copayRate * 100) / 100;
             insuranceShare = Math.round((price - patientShare) * 100) / 100;
-            insuranceProviderId = patientWithInsurance.insurancePolicy.insuranceProviderId;
+            insuranceProviderId =
+              patientWithInsurance.insurancePolicy.insuranceProviderId;
           }
 
           // جلب الفترة المالية
-          const { financialYear, period } = await this.accounting.validateDateInOpenPeriod(
-            hospitalId,
-            new Date(),
-          );
+          const { financialYear, period } =
+            await this.accounting.validateDateInOpenPeriod(
+              hospitalId,
+              new Date(),
+            );
 
           // إنشاء الفاتورة
           const invoice = await tx.invoice.create({
@@ -706,7 +760,7 @@ export class AppointmentsService {
           : {}),
       },
       orderBy: [
-        { queueNumber: 'asc' },  // ✅ ترتيب برقم التسلسل
+        { queueNumber: 'asc' }, // ✅ ترتيب برقم التسلسل
         { scheduledStart: 'asc' },
       ],
       include: {
@@ -861,17 +915,19 @@ export class AppointmentsService {
 
         if (patientData?.insurancePolicy?.isActive) {
           // نسبة الخصم على المريض (copay) - كلما زادت قل ما يدفعه التأمين
-          const copayRate = Number(patientData.insurancePolicy.patientCopayRate || 0) / 100;
+          const copayRate =
+            Number(patientData.insurancePolicy.patientCopayRate || 0) / 100;
           patientShare = Math.round(price * copayRate * 100) / 100;
           insuranceShare = Math.round((price - patientShare) * 100) / 100;
           insuranceProviderId = patientData.insurancePolicy.insuranceProviderId;
         }
 
         // ✅ جلب الفترة المالية المفتوحة (مطلوب لإنشاء الفاتورة)
-        const { financialYear, period } = await this.accounting.validateDateInOpenPeriod(
-          hospitalId,
-          new Date(),
-        );
+        const { financialYear, period } =
+          await this.accounting.validateDateInOpenPeriod(
+            hospitalId,
+            new Date(),
+          );
 
         // إنشاء الفاتورة
         const invoice = await tx.invoice.create({
@@ -1017,7 +1073,9 @@ export class AppointmentsService {
     const priceItems = await this.prisma.serviceItem.findMany({
       where: {
         hospitalId,
-        code: { in: ['CONSULT-CONS', 'CONSULT-SPEC', 'CONSULT-GEN', 'CONSULT-OPD'] },
+        code: {
+          in: ['CONSULT-CONS', 'CONSULT-SPEC', 'CONSULT-GEN', 'CONSULT-OPD'],
+        },
       },
       select: { code: true, defaultPrice: true },
     });
@@ -1105,8 +1163,8 @@ export class AppointmentsService {
             serviceCode = 'CONSULT-GEN';
             break;
           case 'RESIDENT':
-             serviceCode = 'CONSULT-OPD';
-             break;
+            serviceCode = 'CONSULT-OPD';
+            break;
           default:
             serviceCode = 'CONSULT-OPD';
         }
@@ -1147,7 +1205,10 @@ export class AppointmentsService {
 
   @OnEvent('invoice.cancelled')
   @OnEvent('billing.credit_note_created')
-  async handleInvoiceCancellation(payload: { encounterId?: number; hospitalId: number }) {
+  async handleInvoiceCancellation(payload: {
+    encounterId?: number;
+    hospitalId: number;
+  }) {
     if (!payload.encounterId) return;
 
     try {
@@ -1162,13 +1223,17 @@ export class AppointmentsService {
         }
 
         // Only cancel if NO other non-cancelled invoices remain
-        const activeRegularInvoices = encounter.invoices.filter(inv => inv.status !== 'CANCELLED' && inv.type !== 'CREDIT_NOTE');
-        
+        const activeRegularInvoices = encounter.invoices.filter(
+          (inv) => inv.status !== 'CANCELLED' && inv.type !== 'CREDIT_NOTE',
+        );
+
         // Even if there are other invoices, if this event is triggered, it means the main ticket was refunded/cancelled
-        // For outpatient consultation, normally there's 1 invoice. 
+        // For outpatient consultation, normally there's 1 invoice.
         // We will cancel the clinical session immediately to clear the queue.
-        
-        this.logger.log(`Syncing billing cancellation for Encounter #${encounter.id}... cancelling appointment.`);
+
+        this.logger.log(
+          `Syncing billing cancellation for Encounter #${encounter.id}... cancelling appointment.`,
+        );
 
         // 1. Cancel the Encounter
         await tx.encounter.update({
@@ -1179,13 +1244,15 @@ export class AppointmentsService {
         // 2. Cancel all related appointments
         if (encounter.appointments && encounter.appointments.length > 0) {
           await tx.appointment.updateMany({
-             where: { id: { in: encounter.appointments.map(a => a.id) } },
-             data: { status: AppointmentStatus.CANCELLED },
+            where: { id: { in: encounter.appointments.map((a) => a.id) } },
+            data: { status: AppointmentStatus.CANCELLED },
           });
         }
       });
     } catch (err) {
-      this.logger.error(`Failed to cancel encounter/appointment after invoice cancellation: ${err.message}`);
+      this.logger.error(
+        `Failed to cancel encounter/appointment after invoice cancellation: ${err.message}`,
+      );
     }
   }
 }

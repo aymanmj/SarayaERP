@@ -7,16 +7,16 @@ import { NphiesCryptoService } from './nphies-crypto.service';
 
 /**
  * خدمة بناء رسائل FHIR المتوافقة مع NPHIES
- * 
+ *
  * NPHIES تستخدم FHIR R4 bundles لكل العمليات:
  * - Eligibility Request → CoverageEligibilityRequest
  * - Pre-Authorization → Claim (use=preauthorization)
  * - Claim Submission → Claim (use=claim)
- * 
+ *
  * كل Bundle يحتوي:
  * 1. MessageHeader — يحدد نوع الرسالة والمُرسِل والمُستقبِل
  * 2. Resource entries — الموارد المطلوبة حسب نوع العملية
- * 
+ *
  * @see https://build.fhir.org/ig/nichetech/NPHIES-Implementation-Guide/
  */
 @Injectable()
@@ -34,14 +34,21 @@ export class NphiesService {
     private configService: ConfigService,
     private cryptoService: NphiesCryptoService,
   ) {
-    this.senderId = this.configService.get<string>('NPHIES_SENDER_ID', 'provider-org-001');
-    this.receiverId = this.configService.get<string>('NPHIES_RECEIVER_ID', 'payer-org-001');
-    this.profileBase = 'http://nphies.sa/fhir/ksa/nphies-fs/StructureDefinition';
+    this.senderId = this.configService.get<string>(
+      'NPHIES_SENDER_ID',
+      'provider-org-001',
+    );
+    this.receiverId = this.configService.get<string>(
+      'NPHIES_RECEIVER_ID',
+      'payer-org-001',
+    );
+    this.profileBase =
+      'http://nphies.sa/fhir/ksa/nphies-fs/StructureDefinition';
   }
 
   /**
    * بناء MessageHeader — مطلوب في كل Bundle NPHIES
-   * 
+   *
    * @param eventType نوع الحدث: eligibility-request | preauthorization | claim
    * @param focusRef مرجع المورد الأساسي في الـ Bundle
    */
@@ -86,7 +93,7 @@ export class NphiesService {
     const signaturePayload = {
       id: messageHeader.id,
       eventCoding: messageHeader.eventCoding,
-      focus: messageHeader.focus
+      focus: messageHeader.focus,
     };
 
     const signature = this.cryptoService.signPayload(signaturePayload);
@@ -100,15 +107,17 @@ export class NphiesService {
             {
               system: 'urn:iso-astm:E1762-95:2013',
               code: '1.2.840.10065.1.12.1.1',
-              display: 'Author\'s Signature'
-            }
+              display: "Author's Signature",
+            },
           ],
           when: new Date().toISOString(),
-          who: { reference: `http://nphies.sa/license/provider-license/${this.senderId}` },
+          who: {
+            reference: `http://nphies.sa/license/provider-license/${this.senderId}`,
+          },
           sigFormat: 'application/jose',
-          data: Buffer.from(signature).toString('base64')
-        }
-      }
+          data: Buffer.from(signature).toString('base64'),
+        },
+      },
     ];
 
     return messageHeader;
@@ -136,7 +145,10 @@ export class NphiesService {
             {
               type: {
                 coding: [
-                  { system: 'http://terminology.hl7.org/CodeSystem/v2-0203', code: 'NI' },
+                  {
+                    system: 'http://terminology.hl7.org/CodeSystem/v2-0203',
+                    code: 'NI',
+                  },
                 ],
               },
               system: 'http://nphies.sa/identifier/national-id',
@@ -155,9 +167,7 @@ export class NphiesService {
       birthDate: patient.dateOfBirth
         ? patient.dateOfBirth.toISOString().split('T')[0]
         : undefined,
-      telecom: patient.phone
-        ? [{ system: 'phone', value: patient.phone }]
-        : [],
+      telecom: patient.phone ? [{ system: 'phone', value: patient.phone }] : [],
     };
   }
 
@@ -201,7 +211,8 @@ export class NphiesService {
       relationship: {
         coding: [
           {
-            system: 'http://terminology.hl7.org/CodeSystem/subscriber-relationship',
+            system:
+              'http://terminology.hl7.org/CodeSystem/subscriber-relationship',
             code: coverage.relationship || 'self',
           },
         ],
@@ -222,7 +233,8 @@ export class NphiesService {
               type: {
                 coding: [
                   {
-                    system: 'http://terminology.hl7.org/CodeSystem/coverage-class',
+                    system:
+                      'http://terminology.hl7.org/CodeSystem/coverage-class',
                     code: 'group',
                   },
                 ],
@@ -237,7 +249,7 @@ export class NphiesService {
 
   /**
    * بناء FHIR Bundle كامل (الغلاف المشترك)
-   * 
+   *
    * @param type نوع البوندل (message)
    * @param entries مصفوفة الموارد
    */
@@ -270,12 +282,16 @@ export class NphiesService {
 
   /**
    * بناء FHIR Attachment (مرفقات المطالبة أو الموافقة المسبقة)
-   * 
+   *
    * @param localFilePath مسار الملف على القرص المحلي
    * @param title عنوان المرفق (مثال: تقرير مختبر، أشعة)
    * @param contentType نوع الملف (مثال: application/pdf, image/jpeg)
    */
-  buildAttachment(localFilePath: string, title: string, contentType: string = 'application/pdf'): any {
+  buildAttachment(
+    localFilePath: string,
+    title: string,
+    contentType: string = 'application/pdf',
+  ): any {
     if (!fs.existsSync(localFilePath)) {
       this.logger.warn(`⚠️ المرفق غير موجود في المسار: ${localFilePath}`);
       return null;

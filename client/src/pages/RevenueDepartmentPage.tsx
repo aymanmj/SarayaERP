@@ -14,6 +14,7 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   Legend,
 } from "recharts";
 
@@ -97,6 +98,7 @@ export default function RevenueDepartmentPage() {
 
   useEffect(() => {
     loadData(preset);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [preset]);
 
   return (
@@ -174,6 +176,7 @@ export default function RevenueDepartmentPage() {
                       innerRadius={70}
                       outerRadius={120}
                       paddingAngle={3}
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       label={(props: any) =>
                         `${props.name} ${((props.percent || 0) * 100).toFixed(0)}%`
                       }

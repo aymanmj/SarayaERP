@@ -83,7 +83,8 @@ export class ComplianceService {
         controlId: 'SOC2-CC6.1',
         name: 'Data Encryption',
         status: 'WARNING',
-        details: 'ENCRYPTION_KEY missing or too weak. Ensure DB-level encryption is active.',
+        details:
+          'ENCRYPTION_KEY missing or too weak. Ensure DB-level encryption is active.',
         owner: 'Infrastructure Team',
         dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
       });
@@ -94,7 +95,7 @@ export class ComplianceService {
       where: {
         userRoles: { some: { role: { name: 'SYSTEM_ADMIN' } } },
         phone: null,
-      }
+      },
     });
 
     if (vulnerableAdmins > 0) {
@@ -121,8 +122,8 @@ export class ComplianceService {
     const ghostUsers = await this.prisma.user.count({
       where: {
         isActive: true,
-        isDeleted: true
-      }
+        isDeleted: true,
+      },
     });
 
     if (ghostUsers > 0) {
@@ -143,7 +144,9 @@ export class ComplianceService {
       });
     }
 
-    this.logger.log(`🛡️ Compliance Readiness Report Generated: ${isReady ? 'READY' : 'NEEDS_WORK'}`);
+    this.logger.log(
+      `🛡️ Compliance Readiness Report Generated: ${isReady ? 'READY' : 'NEEDS_WORK'}`,
+    );
 
     return {
       status: isReady ? 'READY' : 'NEEDS_WORK',
@@ -165,7 +168,10 @@ export class ComplianceService {
 
     for (const log of logs) {
       const dataToHash = `${previousHash}|${log.action}|${log.entity || ''}|${log.entityId || ''}|${log.userId || ''}|${log.createdAt.toISOString()}`;
-      const computedHash = crypto.createHash('sha256').update(dataToHash).digest('hex');
+      const computedHash = crypto
+        .createHash('sha256')
+        .update(dataToHash)
+        .digest('hex');
 
       if (log.hash !== computedHash || log.previousHash !== previousHash) {
         await this.prisma.auditLog.update({
@@ -180,7 +186,13 @@ export class ComplianceService {
       previousHash = computedHash;
     }
 
-    this.logger.log(`Repair Complete. Fixed ${fixedCount} out of ${logs.length} logs.`);
-    return { message: 'Audit chain repaired successfully.', fixedCount, totalLogs: logs.length };
+    this.logger.log(
+      `Repair Complete. Fixed ${fixedCount} out of ${logs.length} logs.`,
+    );
+    return {
+      message: 'Audit chain repaired successfully.',
+      fixedCount,
+      totalLogs: logs.length,
+    };
   }
 }

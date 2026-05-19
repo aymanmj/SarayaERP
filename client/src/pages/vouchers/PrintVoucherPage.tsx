@@ -5,6 +5,7 @@ import PrintLayout from '../../components/print/PrintLayout';
 
 export default function PrintVoucherPage() {
   const { id } = useParams<{ id: string }>();
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const navigate = useNavigate();
   const [voucher, setVoucher] = useState<Voucher | null>(null);
   const [loading, setLoading] = useState(true);

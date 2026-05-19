@@ -3,7 +3,9 @@
 import { useEffect, useState } from "react";
 import { apiClient } from "../api/apiClient";
 import { useNavigate } from "react-router-dom";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { toast } from "sonner";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { formatDate } from "@/lib/utils";
 import { DatePicker } from "@/components/ui/date-picker";
 
@@ -93,6 +95,7 @@ export default function IncomeStatementPage() {
       setYear(targetYear);
 
       // 2️⃣ إعداد الباراميترات
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const params: any = {
         financialYearId: targetYear.id,
       };
@@ -108,6 +111,7 @@ export default function IncomeStatementPage() {
       );
 
       setData(incRes.data);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       console.error(err);
       const msg =

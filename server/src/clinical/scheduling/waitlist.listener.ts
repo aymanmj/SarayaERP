@@ -21,7 +21,9 @@ export class WaitlistListener {
     freedSlotStart: Date;
     freedSlotEnd: Date;
   }) {
-    this.logger.log(`Booking cancelled for resource ${payload.resourceId}. Checking waitlist...`);
+    this.logger.log(
+      `Booking cancelled for resource ${payload.resourceId}. Checking waitlist...`,
+    );
 
     const exactResourceCandidates = await this.prisma.waitlist.findMany({
       where: {
@@ -45,18 +47,18 @@ export class WaitlistListener {
               resourceId: null,
               departmentId: payload.departmentId,
             },
-            orderBy: [
-              { priority: 'asc' },
-              { requestedDate: 'asc' },
-            ],
+            orderBy: [{ priority: 'asc' }, { requestedDate: 'asc' }],
             take: 1,
           })
         : [];
 
-    const candidate = exactResourceCandidates[0] ?? fallbackDepartmentCandidates[0];
+    const candidate =
+      exactResourceCandidates[0] ?? fallbackDepartmentCandidates[0];
 
     if (candidate) {
-      this.logger.log(`Found candidate on waitlist: Patient ${candidate.patientId}. Promoting to NOTIFIED.`);
+      this.logger.log(
+        `Found candidate on waitlist: Patient ${candidate.patientId}. Promoting to NOTIFIED.`,
+      );
 
       // Update the waitlist status to NOTIFIED
       // In a real system, you would also trigger an SMS/Email notification to the patient here.

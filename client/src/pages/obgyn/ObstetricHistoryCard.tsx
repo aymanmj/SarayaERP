@@ -47,6 +47,7 @@ export function ObstetricHistoryCard({ patientId, editable = false }: Props) {
 
   useEffect(() => {
     if (patientId) loadHistory();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [patientId]);
 
   const handleSave = async () => {
@@ -55,6 +56,7 @@ export function ObstetricHistoryCard({ patientId, editable = false }: Props) {
       toast.success('تم تحديث التاريخ التوليدي بنجاح');
       setIsEditing(false);
       loadHistory();
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
       toast.error('فشل تحديث التاريخ التوليدي');
     }

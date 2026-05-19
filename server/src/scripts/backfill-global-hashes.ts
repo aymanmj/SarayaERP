@@ -25,7 +25,12 @@
  */
 
 import { PrismaClient } from '@prisma/client';
-import { createHash, createCipheriv, createDecipheriv, scryptSync } from 'crypto';
+import {
+  createHash,
+  createCipheriv,
+  createDecipheriv,
+  scryptSync,
+} from 'crypto';
 
 const prisma = new PrismaClient();
 const DRY_RUN = process.env.DRY_RUN === '1';
@@ -36,8 +41,10 @@ const DRY_RUN = process.env.DRY_RUN === '1';
 const ALGORITHM = 'aes-256-gcm';
 
 function buildEncryptionKey(): Buffer {
-  const encryptionKey = process.env.ENCRYPTION_KEY || 'your-secret-key-32-chars-long-!!!';
-  const encryptionSalt = process.env.ENCRYPTION_SALT || 'saraya-default-salt-123';
+  const encryptionKey =
+    process.env.ENCRYPTION_KEY || 'your-secret-key-32-chars-long-!!!';
+  const encryptionSalt =
+    process.env.ENCRYPTION_SALT || 'saraya-default-salt-123';
   return scryptSync(encryptionKey, encryptionSalt, 32);
 }
 
@@ -75,7 +82,9 @@ async function main() {
   console.log('╔══════════════════════════════════════════════════════════╗');
   console.log('║   GlobalPatient Hash Backfill Script                    ║');
   console.log('║   Fixes MPI lookup by recomputing search hashes         ║');
-  console.log(`║   Mode: ${DRY_RUN ? '🔍 DRY RUN (no writes)' : '✏️  LIVE (will update DB)'}                       ║`);
+  console.log(
+    `║   Mode: ${DRY_RUN ? '🔍 DRY RUN (no writes)' : '✏️  LIVE (will update DB)'}                       ║`,
+  );
   console.log('╚══════════════════════════════════════════════════════════╝');
   console.log();
 
@@ -86,7 +95,9 @@ async function main() {
     where: { isDeleted: false },
   });
 
-  console.log(`📊 Found ${globalPatients.length} GlobalPatient records to process.\n`);
+  console.log(
+    `📊 Found ${globalPatients.length} GlobalPatient records to process.\n`,
+  );
 
   let updated = 0;
   let skipped = 0;
@@ -108,8 +119,10 @@ async function main() {
 
       // Check if any hash needs updating
       const needsUpdate =
-        (correctNationalIdHash && gp.nationalIdHash !== correctNationalIdHash) ||
-        (correctIdentityNumberHash && gp.identityNumberHash !== correctIdentityNumberHash);
+        (correctNationalIdHash &&
+          gp.nationalIdHash !== correctNationalIdHash) ||
+        (correctIdentityNumberHash &&
+          gp.identityNumberHash !== correctIdentityNumberHash);
 
       if (!needsUpdate) {
         skipped++;
@@ -117,15 +130,24 @@ async function main() {
       }
 
       const updateData: any = {};
-      if (correctNationalIdHash && gp.nationalIdHash !== correctNationalIdHash) {
+      if (
+        correctNationalIdHash &&
+        gp.nationalIdHash !== correctNationalIdHash
+      ) {
         updateData.nationalIdHash = correctNationalIdHash;
       }
-      if (correctIdentityNumberHash && gp.identityNumberHash !== correctIdentityNumberHash) {
+      if (
+        correctIdentityNumberHash &&
+        gp.identityNumberHash !== correctIdentityNumberHash
+      ) {
         updateData.identityNumberHash = correctIdentityNumberHash;
       }
 
       if (DRY_RUN) {
-        console.log(`[DRY] GP #${gp.id} "${gp.fullName}" → would set:`, Object.keys(updateData).join(', '));
+        console.log(
+          `[DRY] GP #${gp.id} "${gp.fullName}" → would set:`,
+          Object.keys(updateData).join(', '),
+        );
       } else {
         await prisma.globalPatient.update({
           where: { id: gp.id },
@@ -134,7 +156,6 @@ async function main() {
         console.log(`✅ GP #${gp.id} "${gp.fullName}" → hashes updated`);
       }
       updated++;
-
     } catch (error: any) {
       errors++;
       console.error(`❌ GP #${gp.id}: ${error.message}`);
@@ -142,7 +163,9 @@ async function main() {
   }
 
   // === PHASE 2: Backfill from Local Patients (phone/email hashes) ===
-  console.log('\n─── Phase 2: Syncing phone/email hashes from Local Patients ───\n');
+  console.log(
+    '\n─── Phase 2: Syncing phone/email hashes from Local Patients ───\n',
+  );
 
   const patientsWithGlobal = await prisma.patient.findMany({
     where: {
@@ -179,16 +202,19 @@ async function main() {
       if (Object.keys(syncData).length === 0) continue;
 
       if (DRY_RUN) {
-        console.log(`[DRY] GP #${gp.id} ← LP #${lp.id}: would sync ${Object.keys(syncData).join(', ')}`);
+        console.log(
+          `[DRY] GP #${gp.id} ← LP #${lp.id}: would sync ${Object.keys(syncData).join(', ')}`,
+        );
       } else {
         await prisma.globalPatient.update({
           where: { id: gp.id },
           data: syncData,
         });
-        console.log(`✅ GP #${gp.id} ← LP #${lp.id}: synced ${Object.keys(syncData).join(', ')}`);
+        console.log(
+          `✅ GP #${gp.id} ← LP #${lp.id}: synced ${Object.keys(syncData).join(', ')}`,
+        );
       }
       syncCount++;
-
     } catch (error: any) {
       errors++;
       console.error(`❌ LP #${lp.id}: ${error.message}`);

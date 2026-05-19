@@ -172,7 +172,12 @@ function enforceTenantOnData(
   source = 'data',
   injectMissing = true,
 ): void {
-  if (!needsRLS(model) || context.isSuperAdmin || !context.hospitalId || !data) {
+  if (
+    !needsRLS(model) ||
+    context.isSuperAdmin ||
+    !context.hospitalId ||
+    !data
+  ) {
     return;
   }
 
@@ -352,9 +357,14 @@ export const extendedPrisma = (
           return query(scopedArgs);
         },
         async findFirst({ model, args, query }) {
-          const scopedArgs = applyTenantPolicy(model, 'findFirst', args as any, {
-            includeSoftDeleteFilter: model !== 'Patient',
-          });
+          const scopedArgs = applyTenantPolicy(
+            model,
+            'findFirst',
+            args as any,
+            {
+              includeSoftDeleteFilter: model !== 'Patient',
+            },
+          );
           return query(scopedArgs);
         },
         async findFirstOrThrow({ model, args, query }) {
@@ -369,7 +379,11 @@ export const extendedPrisma = (
           return query(scopedArgs);
         },
         async findUnique({ model, args, query }) {
-          const scopedArgs = applyTenantPolicy(model, 'findUnique', args as any);
+          const scopedArgs = applyTenantPolicy(
+            model,
+            'findUnique',
+            args as any,
+          );
           return query(scopedArgs);
         },
         async findUniqueOrThrow({ model, args, query }) {

@@ -103,7 +103,9 @@ export class SurgeryService {
       where: { id: params.serviceItemId, hospitalId, isActive: true },
     });
     if (!serviceItem) {
-      throw new BadRequestException('خدمة العملية غير موجودة في كتالوج الخدمات.');
+      throw new BadRequestException(
+        'خدمة العملية غير موجودة في كتالوج الخدمات.',
+      );
     }
 
     // التحقق من تضارب المواعيد
@@ -174,7 +176,9 @@ export class SurgeryService {
           },
         },
         theatre: true,
-        serviceItem: { select: { id: true, name: true, code: true, defaultPrice: true } },
+        serviceItem: {
+          select: { id: true, name: true, code: true, defaultPrice: true },
+        },
         team: {
           include: {
             user: { select: { fullName: true } },
@@ -408,33 +412,75 @@ export class SurgeryService {
   // --------------------------------------------------------
   // 4.1. Clinical Workflows (Pre/Intra/Post-Op)
   // --------------------------------------------------------
-  async recordPreOpChecklist(hospitalId: number, caseId: number, checklist: any, userId: number) {
-    const formattedNote = `--- PRE-OP CHECKLIST (By User ${userId}) ---\n` + JSON.stringify(checklist, null, 2);
-    const existing = await this.prisma.surgeryCase.findUnique({ where: { id: caseId }, select: { anesthesiaNotes: true } });
-    
+  async recordPreOpChecklist(
+    hospitalId: number,
+    caseId: number,
+    checklist: any,
+    userId: number,
+  ) {
+    const formattedNote =
+      `--- PRE-OP CHECKLIST (By User ${userId}) ---\n` +
+      JSON.stringify(checklist, null, 2);
+    const existing = await this.prisma.surgeryCase.findUnique({
+      where: { id: caseId },
+      select: { anesthesiaNotes: true },
+    });
+
     return this.prisma.surgeryCase.update({
       where: { id: caseId, hospitalId },
-      data: { anesthesiaNotes: existing?.anesthesiaNotes ? existing.anesthesiaNotes + '\n\n' + formattedNote : formattedNote }
+      data: {
+        anesthesiaNotes: existing?.anesthesiaNotes
+          ? existing.anesthesiaNotes + '\n\n' + formattedNote
+          : formattedNote,
+      },
     });
   }
 
-  async recordIntraOpLog(hospitalId: number, caseId: number, log: any, userId: number) {
-    const formattedNote = `--- INTRA-OP LOG (By User ${userId}) ---\n` + JSON.stringify(log, null, 2);
-    const existing = await this.prisma.surgeryCase.findUnique({ where: { id: caseId }, select: { surgeonNotes: true } });
-    
+  async recordIntraOpLog(
+    hospitalId: number,
+    caseId: number,
+    log: any,
+    userId: number,
+  ) {
+    const formattedNote =
+      `--- INTRA-OP LOG (By User ${userId}) ---\n` +
+      JSON.stringify(log, null, 2);
+    const existing = await this.prisma.surgeryCase.findUnique({
+      where: { id: caseId },
+      select: { surgeonNotes: true },
+    });
+
     return this.prisma.surgeryCase.update({
       where: { id: caseId, hospitalId },
-      data: { surgeonNotes: existing?.surgeonNotes ? existing.surgeonNotes + '\n\n' + formattedNote : formattedNote }
+      data: {
+        surgeonNotes: existing?.surgeonNotes
+          ? existing.surgeonNotes + '\n\n' + formattedNote
+          : formattedNote,
+      },
     });
   }
 
-  async recordPostOpPACU(hospitalId: number, caseId: number, pacuLog: any, userId: number) {
-    const formattedNote = `--- PACU RECOVERY LOG (By User ${userId}) ---\n` + JSON.stringify(pacuLog, null, 2);
-    const existing = await this.prisma.surgeryCase.findUnique({ where: { id: caseId }, select: { postOpDiagnosis: true } });
-    
+  async recordPostOpPACU(
+    hospitalId: number,
+    caseId: number,
+    pacuLog: any,
+    userId: number,
+  ) {
+    const formattedNote =
+      `--- PACU RECOVERY LOG (By User ${userId}) ---\n` +
+      JSON.stringify(pacuLog, null, 2);
+    const existing = await this.prisma.surgeryCase.findUnique({
+      where: { id: caseId },
+      select: { postOpDiagnosis: true },
+    });
+
     return this.prisma.surgeryCase.update({
       where: { id: caseId, hospitalId },
-      data: { postOpDiagnosis: existing?.postOpDiagnosis ? existing.postOpDiagnosis + '\n\n' + formattedNote : formattedNote }
+      data: {
+        postOpDiagnosis: existing?.postOpDiagnosis
+          ? existing.postOpDiagnosis + '\n\n' + formattedNote
+          : formattedNote,
+      },
     });
   }
 

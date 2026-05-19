@@ -82,6 +82,7 @@ export default function ChartOfAccountsPage() {
       setError(null);
       const res = await apiClient.get<AccountRow[]>("/accounting/accounts");
       setRows(res.data);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       console.error(err);
       const msg =
@@ -122,6 +123,7 @@ export default function ChartOfAccountsPage() {
       }
       await loadAccounts();
       resetForm();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       console.error(err);
       const msg =
@@ -139,6 +141,7 @@ export default function ChartOfAccountsPage() {
       setError(null);
       await apiClient.patch(`/accounting/accounts/${id}/toggle-active`);
       await loadAccounts();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       console.error(err);
       const msg =

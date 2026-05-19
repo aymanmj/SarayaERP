@@ -92,7 +92,10 @@ export class NotificationsService {
     });
 
     // 2. إرسال Push Notification
-    await this.sendPushNotification(userId, title, message, { link, notificationId: notification.id });
+    await this.sendPushNotification(userId, title, message, {
+      link,
+      notificationId: notification.id,
+    });
 
     return notification;
   }

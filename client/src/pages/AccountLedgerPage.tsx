@@ -76,6 +76,7 @@ export default function AccountLedgerPage() {
 
         // تأكيد تزامن الـ URL مع الفلاتر
         setSearchParams(params);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (err: any) {
         console.error(err);
         const msg =

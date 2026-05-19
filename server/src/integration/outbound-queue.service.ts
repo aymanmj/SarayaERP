@@ -18,7 +18,7 @@ import { OnEvent } from '@nestjs/event-emitter';
 import { Prisma } from '@prisma/client';
 import { ConnectivityService } from '../common/services/connectivity.service';
 
-export type OutboundJobType = 
+export type OutboundJobType =
   | 'push-notification'
   | 'nphies-claim'
   | 'nphies-preauth'
@@ -59,7 +59,9 @@ export class OutboundQueueService implements OnModuleInit {
         `📦 Outbound Queue has pending items: ${waiting} waiting, ${delayed} delayed, ${failed} failed`,
       );
     } else {
-      this.logger.log('📦 Outbound Queue is empty — ready for offline operations');
+      this.logger.log(
+        '📦 Outbound Queue is empty — ready for offline operations',
+      );
     }
   }
 
@@ -124,8 +126,10 @@ export class OutboundQueueService implements OnModuleInit {
         status: 'PENDING',
       },
     });
-    
-    this.logger.debug(`📤 OUTBOX (Transactional): ${data.type} saved to DB Outbox`);
+
+    this.logger.debug(
+      `📤 OUTBOX (Transactional): ${data.type} saved to DB Outbox`,
+    );
   }
 
   // ============================================
@@ -188,7 +192,9 @@ export class OutboundQueueService implements OnModuleInit {
     ]);
 
     return {
-      internetStatus: this.connectivityService.isOnline() ? 'online' : 'offline',
+      internetStatus: this.connectivityService.isOnline()
+        ? 'online'
+        : 'offline',
       queue: {
         waiting,
         active,
@@ -209,7 +215,10 @@ export class OutboundQueueService implements OnModuleInit {
    * عند عودة الإنترنت — نقوم بتنشيط العمليات المؤجلة
    */
   @OnEvent('connectivity.online')
-  async handleConnectivityRestored(payload: { restoredAt: Date; wasOfflineFor: number }) {
+  async handleConnectivityRestored(payload: {
+    restoredAt: Date;
+    wasOfflineFor: number;
+  }) {
     const delayedCount = await this.outboundQueue.getDelayedCount();
     const waitingCount = await this.outboundQueue.getWaitingCount();
     const total = delayedCount + waitingCount;
@@ -217,7 +226,7 @@ export class OutboundQueueService implements OnModuleInit {
     if (total > 0) {
       this.logger.log(
         `🟢 Internet restored after ${Math.round(payload.wasOfflineFor / 1000)}s — ` +
-        `Processing ${total} queued outbound operations...`,
+          `Processing ${total} queued outbound operations...`,
       );
 
       // نقل العمليات المؤجلة للتنفيذ الفوري
@@ -229,6 +238,8 @@ export class OutboundQueueService implements OnModuleInit {
 
   @OnEvent('connectivity.offline')
   handleConnectivityLost() {
-    this.logger.warn('🔴 Internet lost — New outbound operations will be queued');
+    this.logger.warn(
+      '🔴 Internet lost — New outbound operations will be queued',
+    );
   }
 }

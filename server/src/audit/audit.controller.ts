@@ -1,29 +1,28 @@
 import { Controller, Get, Query, UseGuards, Req } from '@nestjs/common';
 import { AuditService } from './audit.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
-
-@UseGuards(JwtAuthGuard, RolesGuard)
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { Permissions } from '../auth/permissions.decorator';
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('audit')
 export class AuditController {
   constructor(private readonly auditService: AuditService) {}
 
   //   @Get('logs')
-  //   @Roles('ADMIN', 'IT_ADMIN')
+  //   @Permissions('audit:manage')
   //   async getLogs(@Req() req: any, @Query() query: any) {
   //     // يمكنك تحسين الفلترة هنا
   //     return this.auditService.findAll(req.user.hospitalId, query);
   //   }
 
   @Get('logs')
-  @Roles('ADMIN', 'IT_ADMIN') // حماية المسار
+  @Permissions('audit:manage') // حماية المسار
   async getLogs(@Req() req: any, @Query() query: any) {
     return this.auditService.findAll(req.user.hospitalId, query);
   }
 
   @Get('integrity-check')
-  @Roles('ADMIN', 'IT_ADMIN')
+  @Permissions('audit:manage')
   async verifyIntegrity() {
     return this.auditService.verifyChain();
   }

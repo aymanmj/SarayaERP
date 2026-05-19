@@ -1,26 +1,34 @@
 import {
-  Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Put,
+  Query,
+  UseGuards,
 } from '@nestjs/common';
 import { OrderSetsService } from './order-sets.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { Permissions } from '../auth/permissions.decorator';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { JwtPayload } from '../auth/jwt-payload.type';
 
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('order-sets')
 export class OrderSetsController {
   constructor(private readonly service: OrderSetsService) {}
 
   @Post()
-  @Roles('ADMIN', 'DOCTOR')
+  @Permissions('order-sets:manage')
   create(@Body() body: any, @CurrentUser() user: JwtPayload) {
     return this.service.create(user.hospitalId, user.sub, body);
   }
 
   @Get()
-  @Roles('ADMIN', 'DOCTOR', 'NURSE')
+  @Permissions('order-sets:view')
   findAll(
     @CurrentUser() user: JwtPayload,
     @Query('category') category?: string,
@@ -30,57 +38,73 @@ export class OrderSetsController {
     @Query('status') status?: any,
     @Query('contentKey') contentKey?: string,
   ) {
-    return this.service.findAll(user.hospitalId, { category, specialty, search, scope, status, contentKey });
+    return this.service.findAll(user.hospitalId, {
+      category,
+      specialty,
+      search,
+      scope,
+      status,
+      contentKey,
+    });
   }
 
   @Get('categories')
-  @Roles('ADMIN', 'DOCTOR', 'NURSE')
+  @Permissions('order-sets:view')
   getCategories(@CurrentUser() user: JwtPayload) {
     return this.service.getCategories(user.hospitalId);
   }
 
   @Get('specialties')
-  @Roles('ADMIN', 'DOCTOR', 'NURSE')
+  @Permissions('order-sets:view')
   getSpecialties(@CurrentUser() user: JwtPayload) {
     return this.service.getSpecialties(user.hospitalId);
   }
 
   @Get(':id/history')
-  @Roles('ADMIN', 'DOCTOR', 'NURSE')
+  @Permissions('order-sets:view')
   history(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
     return this.service.findHistory(user.hospitalId, +id);
   }
 
   @Get(':id')
-  @Roles('ADMIN', 'DOCTOR', 'NURSE')
+  @Permissions('order-sets:view')
   findOne(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
     return this.service.findOne(user.hospitalId, +id);
   }
 
   @Put(':id')
-  @Roles('ADMIN', 'DOCTOR')
-  update(@Param('id') id: string, @Body() body: any, @CurrentUser() user: JwtPayload) {
+  @Permissions('order-sets:manage')
+  update(
+    @Param('id') id: string,
+    @Body() body: any,
+    @CurrentUser() user: JwtPayload,
+  ) {
     return this.service.update(user.hospitalId, +id, user.sub, body);
   }
 
   @Delete(':id')
-  @Roles('ADMIN')
+  @Permissions('order-sets:manage')
   remove(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
     return this.service.remove(user.hospitalId, +id, user.sub);
   }
 
   @Post(':id/submit-review')
-  @Roles('ADMIN', 'DOCTOR')
+  @Permissions('order-sets:manage')
   submitForReview(
     @Param('id') id: string,
     @Body() body: { notes?: string },
     @CurrentUser() user: JwtPayload,
   ) {
-    return this.service.submitForReview(user.hospitalId, +id, user.sub, body?.notes);
+    return this.service.submitForReview(
+      user.hospitalId,
+      +id,
+      user.sub,
+      body?.notes,
+    );
   }
 
   @Post(':id/approve')
-  @Roles('ADMIN')
+  @Permissions('order-sets:manage')
   approve(
     @Param('id') id: string,
     @Body() body: { notes?: string },
@@ -90,7 +114,7 @@ export class OrderSetsController {
   }
 
   @Post(':id/reject')
-  @Roles('ADMIN')
+  @Permissions('order-sets:manage')
   reject(
     @Param('id') id: string,
     @Body() body: { notes?: string },
@@ -100,7 +124,7 @@ export class OrderSetsController {
   }
 
   @Post(':id/publish')
-  @Roles('ADMIN')
+  @Permissions('order-sets:manage')
   publish(
     @Param('id') id: string,
     @Body() body: { notes?: string },
@@ -110,7 +134,7 @@ export class OrderSetsController {
   }
 
   @Post(':id/retire')
-  @Roles('ADMIN')
+  @Permissions('order-sets:manage')
   retire(
     @Param('id') id: string,
     @Body() body: { notes?: string },
@@ -120,12 +144,17 @@ export class OrderSetsController {
   }
 
   @Post(':id/execute')
-  @Roles('ADMIN', 'DOCTOR')
+  @Permissions('order-sets:manage')
   execute(
     @Param('id') id: string,
     @Body() body: { encounterId: number },
     @CurrentUser() user: JwtPayload,
   ) {
-    return this.service.execute(user.hospitalId, user.sub, +id, body.encounterId);
+    return this.service.execute(
+      user.hospitalId,
+      user.sub,
+      +id,
+      body.encounterId,
+    );
   }
 }

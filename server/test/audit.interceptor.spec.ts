@@ -1,4 +1,3 @@
-
 import { Test, TestingModule } from '@nestjs/testing';
 import { ExecutionContext, CallHandler } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
@@ -58,7 +57,7 @@ describe('AuditInterceptor', () => {
 
   it('should log mutation requests (POST)', (done) => {
     const context = createMockContext('POST', '/test', () => {}, {});
-    
+
     interceptor.intercept(context, next).subscribe(() => {
       expect(auditService.log).toHaveBeenCalled();
       done();
@@ -71,11 +70,11 @@ describe('AuditInterceptor', () => {
       testMethod() {}
     }
     const handler = new TestClass().testMethod;
-    
+
     // Jest spy to mock Reflector behavior if needed, but Test.createTestingModule handles it if we use standard decorators.
     // However, since we are testing the interceptor which USES the reflector, we rely on the reflector finding the metadata.
     // Standard Reflector should work with the decorator if defined properly.
-    
+
     const context = createMockContext('GET', '/sensitive', handler, TestClass);
 
     interceptor.intercept(context, next).subscribe(() => {

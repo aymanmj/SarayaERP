@@ -16,9 +16,12 @@ export class AiCodingController {
   @Post('suggest')
   @Permissions('clinical:encounters:create')
   async suggestCodes(
-    @Body() data: { clinicalNote: string; patientDemographics?: string }
+    @Body() data: { clinicalNote: string; patientDemographics?: string },
   ) {
-    return this.aiCodingService.suggestCodes(data.clinicalNote, data.patientDemographics);
+    return this.aiCodingService.suggestCodes(
+      data.clinicalNote,
+      data.patientDemographics,
+    );
   }
 
   /**
@@ -28,10 +31,7 @@ export class AiCodingController {
    */
   @Post('apply')
   @Permissions('clinical:encounters:create')
-  async applyCodes(
-    @Body() dto: ApplyCodesDto,
-    @Req() req: any,
-  ) {
+  async applyCodes(@Body() dto: ApplyCodesDto, @Req() req: any) {
     return this.aiCodingService.applySuggestedCodes(
       dto,
       req.user.sub,

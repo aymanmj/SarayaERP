@@ -1,5 +1,10 @@
-
-import { IsNotEmpty, IsNumber, IsOptional, IsString, IsEnum } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsEnum,
+} from 'class-validator';
 import { NoteType } from '@prisma/client';
 
 export class CreateClinicalNoteDto {

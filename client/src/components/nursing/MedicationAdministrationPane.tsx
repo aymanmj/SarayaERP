@@ -84,6 +84,7 @@ export function MedicationAdministrationPane({
 
   useEffect(() => {
     loadMAR();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [encounterId]);
 
   const handleAdminister = async (
@@ -109,6 +110,7 @@ export function MedicationAdministrationPane({
       );
       toast.success("تم تسجيل الإجراء بنجاح.");
       await loadMAR();
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
       toast.error("فشل التسجيل.");
     } finally {

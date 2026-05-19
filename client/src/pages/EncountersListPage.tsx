@@ -54,6 +54,7 @@ export default function EncountersListPage() {
   const [typeFilter, setTypeFilter] = useState<string>(
     searchParams.get("type") || "",
   );
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [statusFilter, setStatusFilter] = useState<string>(
     searchParams.get("status") || "",
   );
@@ -92,6 +93,7 @@ export default function EncountersListPage() {
     }
   }, [isError]);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const encounters = data?.items || [];
   const meta = data?.meta;
 

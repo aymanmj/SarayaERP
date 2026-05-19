@@ -9,13 +9,13 @@ import { NphiesCryptoService } from './nphies-crypto.service';
 
 /**
  * وحدة تكامل NPHIES (منصة المطالبات الوطنية السعودية)
- * 
+ *
  * تتيح:
  * - التحقق من أهلية المريض التأمينية (Eligibility Check)
  * - إرسال الموافقات المسبقة (Pre-Authorization)
  * - إرسال المطالبات الإلكترونية (eClaims)
  * - استقبال ومعالجة الردود (ERA/Remittance)
- * 
+ *
  * تعتمد على معيار HL7 FHIR R4
  */
 import { IntegrationModule } from '../integration.module';
@@ -38,6 +38,11 @@ import { PrismaModule } from '../../prisma/prisma.module';
     NphiesEligibilityService,
     NphiesClaimService,
   ],
-  exports: [NphiesService, NphiesCryptoService, NphiesEligibilityService, NphiesClaimService],
+  exports: [
+    NphiesService,
+    NphiesCryptoService,
+    NphiesEligibilityService,
+    NphiesClaimService,
+  ],
 })
 export class NphiesModule {}

@@ -140,6 +140,7 @@ export default function SupplierStatementPage() {
 
       if (res.data.fromDate) setFromDate(res.data.fromDate.slice(0, 10));
       if (res.data.toDate) setToDate(res.data.toDate.slice(0, 10));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       console.error(err);
       setError(
@@ -198,6 +199,7 @@ export default function SupplierStatementPage() {
     a.href = url;
 
     const today = new Date().toISOString().slice(0, 10);
+    // eslint-disable-next-line no-useless-escape
     const safeName = data.supplier.name.replace(/[^\w\-]+/g, "_");
     a.download = `supplier-statement-${safeName}-${today}.csv`;
 

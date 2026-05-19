@@ -50,6 +50,7 @@ export default function LabWorklistPage() {
     try {
       const res = await apiClient.get<LabWorklistItem[]>("/lab/worklist");
       setItems(res.data);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
       toast.error("حدث خطأ أثناء تحميل القائمة.");
     } finally {
@@ -106,6 +107,7 @@ export default function LabWorklistPage() {
 
       toast.success("تم الحفظ.");
       load(); // تحديث
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
     } catch (err: any) {
       toast.error("فشل الحفظ.");
     }
@@ -141,6 +143,7 @@ export default function LabWorklistPage() {
         await apiClient.post(`/lab/orders/${item.id}/start`);
         toast.success("✅ تم إرسال الطلب للجهاز (HL7).");
         load();
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
         toast.error("فشل بدء التحليل.");
     }

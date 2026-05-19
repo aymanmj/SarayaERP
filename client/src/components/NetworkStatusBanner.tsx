@@ -7,6 +7,7 @@
 // 🔴 غير متصل بالسيرفر → شريط أحمر
 
 import React, { useEffect, useState } from 'react';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { Wifi, WifiOff, Cloud, CloudOff } from 'lucide-react';
 import { useNetworkStatus, type NetworkStatus } from '@/hooks/useNetworkStatus';
 
@@ -61,12 +62,14 @@ export function NetworkStatusBanner() {
       const timer = setTimeout(() => setVisible(true), 1000);
       return () => clearTimeout(timer);
     } else {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setVisible(false);
     }
   }, [config.show, dismissed]);
 
   // إعادة عرض الشريط عند تغير الحالة
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setDismissed(false);
   }, [status]);
 

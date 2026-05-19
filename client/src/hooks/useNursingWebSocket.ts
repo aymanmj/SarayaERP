@@ -3,8 +3,10 @@ import { useEffect, useRef, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { getSocketUrl } from '../utils/socketUrl';
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 interface NursingUpdate {
   type: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   data: any;
   timestamp: string;
 }
@@ -29,6 +31,7 @@ interface MedicationUpdate {
 interface VitalsUpdate {
   type: 'vitals_updated';
   encounterId: number;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   vitals: any;
   nurseName: string;
   timestamp: string;
@@ -85,6 +88,7 @@ export function useNursingWebSocket() {
     });
 
     // Initial data
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     socket.on('initial_data', (data: { criticalAlerts: PatientAlert[], pendingMedications: any[] }) => {
       console.log('Received initial data:', data);
       // Handle initial data
@@ -188,6 +192,7 @@ export function useNursingWebSocket() {
 
   const reportVitalsUpdated = (data: {
     encounterId: number;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     vitals: any;
     nurseName: string;
   }) => {

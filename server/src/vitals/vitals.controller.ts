@@ -5,27 +5,34 @@ import {
   Param,
   ParseIntPipe,
   Post,
-  Req,
   UseGuards,
 } from '@nestjs/common';
 import { VitalsService } from './vitals.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { Permissions } from '../auth/permissions.decorator';
+import { CurrentUser } from '../auth/current-user.decorator';
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('vitals')
 export class VitalsController {
   constructor(private readonly vitalsService: VitalsService) {}
 
+  @Permissions('vitals:view')
   @Get('encounter/:id')
-  async list(@Param('id', ParseIntPipe) id: number) {
+  async list(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: any,
+  ) {
     return this.vitalsService.getForEncounter(id);
   }
 
+  @Permissions('vitals:manage')
   @Post('encounter/:id')
   async create(
     @Param('id', ParseIntPipe) encounterId: number,
-    @Req() req: any,
-    @Body() body: any, // يفضل عمل DTO هنا لاحقاً
+    @CurrentUser() user: any,
+    @Body() body: any,
   ) {
     // حساب BMI تلقائي لو تم إرسال الوزن والطول
     let bmi = body.bmi;
@@ -38,7 +45,7 @@ export class VitalsController {
 
     return this.vitalsService.create({
       encounterId,
-      userId: req.user.sub,
+      userId: user.sub,
       temperature: body.temperature ? Number(body.temperature) : undefined,
       bpSystolic: body.bpSystolic ? Number(body.bpSystolic) : undefined,
       bpDiastolic: body.bpDiastolic ? Number(body.bpDiastolic) : undefined,
@@ -52,3 +59,4 @@ export class VitalsController {
     });
   }
 }
+

@@ -56,7 +56,8 @@ describe('PortalMessagingService', () => {
   describe('sendMessage', () => {
     it('should send message to a valid doctor in the same hospital', async () => {
       mockPrisma.user.findFirst.mockResolvedValue({
-        id: 5, fullName: 'د. محمد',
+        id: 5,
+        fullName: 'د. محمد',
       });
       mockPrisma.patientMessage.create.mockResolvedValue({
         id: 1,
@@ -110,7 +111,9 @@ describe('PortalMessagingService', () => {
     it('should continue existing thread when threadId is valid and belongs to patient', async () => {
       mockPrisma.user.findFirst.mockResolvedValue({ id: 5, fullName: 'Dr. X' });
       mockPrisma.patientMessage.findFirst.mockResolvedValue({
-        id: 10, threadId: 'existing-thread', patientId: 1,
+        id: 10,
+        threadId: 'existing-thread',
+        patientId: 1,
       });
       mockPrisma.patientMessage.create.mockResolvedValue({
         id: 2,
@@ -150,12 +153,24 @@ describe('PortalMessagingService', () => {
   describe('getThreadMessages', () => {
     it('should return messages and auto-mark incoming as read', async () => {
       mockPrisma.patientMessage.findFirst.mockResolvedValue({
-        id: 1, threadId: 'thread-1', patientId: 1,
+        id: 1,
+        threadId: 'thread-1',
+        patientId: 1,
       });
       mockPrisma.$transaction.mockResolvedValue([
         [
-          { id: 1, body: 'hello', direction: 'PATIENT_TO_DOCTOR', doctor: { id: 5, fullName: 'Dr.' } },
-          { id: 2, body: 'reply', direction: 'DOCTOR_TO_PATIENT', doctor: { id: 5, fullName: 'Dr.' } },
+          {
+            id: 1,
+            body: 'hello',
+            direction: 'PATIENT_TO_DOCTOR',
+            doctor: { id: 5, fullName: 'Dr.' },
+          },
+          {
+            id: 2,
+            body: 'reply',
+            direction: 'DOCTOR_TO_PATIENT',
+            doctor: { id: 5, fullName: 'Dr.' },
+          },
         ],
         2,
       ]);
@@ -193,9 +208,14 @@ describe('PortalMessagingService', () => {
   describe('markAsRead', () => {
     it('should mark a message as read for owning patient', async () => {
       mockPrisma.patientMessage.findUnique.mockResolvedValue({
-        id: 10, patientId: 1, isRead: false,
+        id: 10,
+        patientId: 1,
+        isRead: false,
       });
-      mockPrisma.patientMessage.update.mockResolvedValue({ id: 10, isRead: true });
+      mockPrisma.patientMessage.update.mockResolvedValue({
+        id: 10,
+        isRead: true,
+      });
 
       const result = await service.markAsRead(1, 10);
       expect(result.message).toContain('مقروء');
@@ -203,7 +223,9 @@ describe('PortalMessagingService', () => {
 
     it('should return early for already-read message', async () => {
       mockPrisma.patientMessage.findUnique.mockResolvedValue({
-        id: 10, patientId: 1, isRead: true,
+        id: 10,
+        patientId: 1,
+        isRead: true,
       });
 
       const result = await service.markAsRead(1, 10);
@@ -213,16 +235,22 @@ describe('PortalMessagingService', () => {
 
     it('should REJECT marking message of another patient as read', async () => {
       mockPrisma.patientMessage.findUnique.mockResolvedValue({
-        id: 10, patientId: 999, isRead: false,
+        id: 10,
+        patientId: 999,
+        isRead: false,
       });
 
-      await expect(service.markAsRead(1, 10)).rejects.toThrow(NotFoundException);
+      await expect(service.markAsRead(1, 10)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('should REJECT marking non-existent message', async () => {
       mockPrisma.patientMessage.findUnique.mockResolvedValue(null);
 
-      await expect(service.markAsRead(1, 999)).rejects.toThrow(NotFoundException);
+      await expect(service.markAsRead(1, 999)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 

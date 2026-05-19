@@ -70,7 +70,9 @@ describe('RegistriesService', () => {
         { encounter: { patientId: 100 } },
         { encounter: { patientId: 101 } },
       ]);
-      prismaService.patientRegistryMembership.findUnique.mockResolvedValue(null);
+      prismaService.patientRegistryMembership.findUnique.mockResolvedValue(
+        null,
+      );
 
       const result = await service.evaluateRegistryMemberships();
 
@@ -78,7 +80,9 @@ describe('RegistriesService', () => {
         where: { diagnosisCode: { code: 'E11.9' } },
         select: { encounter: { select: { patientId: true } } },
       });
-      expect(prismaService.patientRegistryMembership.upsert).toHaveBeenCalledTimes(2);
+      expect(
+        prismaService.patientRegistryMembership.upsert,
+      ).toHaveBeenCalledTimes(2);
       expect(result).toEqual({ evaluated: 2, added: 2 });
     });
   });
@@ -130,7 +134,10 @@ describe('RegistriesService', () => {
         { patientId: 100 },
       ]);
       // Recent test exists
-      prismaService.labOrder.findFirst.mockResolvedValue({ id: 999, status: 'COMPLETED' }); 
+      prismaService.labOrder.findFirst.mockResolvedValue({
+        id: 999,
+        status: 'COMPLETED',
+      });
       prismaService.careGap.updateMany.mockResolvedValue({ count: 1 });
 
       const result = await service.evaluateCareGaps();
@@ -153,7 +160,9 @@ describe('RegistriesService', () => {
         id: 1,
         hospitalId: 7,
         name: 'Diabetes Registry',
-        criteria: [{ id: 10, type: 'DIAGNOSIS', operator: 'EQUALS', value: 'E11.9' }],
+        criteria: [
+          { id: 10, type: 'DIAGNOSIS', operator: 'EQUALS', value: 'E11.9' },
+        ],
         careGapRules: [{ id: 20, name: 'HbA1c Every 6 Months' }],
       });
 
@@ -200,7 +209,9 @@ describe('RegistriesService', () => {
         id: 1,
         hospitalId: 7,
         name: 'Diabetes Registry',
-        criteria: [{ id: 10, type: 'AGE_OVER', operator: 'GREATER_THAN', value: '40' }],
+        criteria: [
+          { id: 10, type: 'AGE_OVER', operator: 'GREATER_THAN', value: '40' },
+        ],
         careGapRules: [{ id: 20, name: 'Updated Rule', isActive: true }],
       });
 

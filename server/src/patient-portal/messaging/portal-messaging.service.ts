@@ -1,9 +1,9 @@
 /**
  * Patient Portal — Secure Messaging Service
- * 
+ *
  * Enables HIPAA-compliant communication between patients and doctors.
  * All messages are patient-scoped (data isolation enforced).
- * 
+ *
  * Polling-first approach (30s intervals) — WebSocket upgrade planned.
  */
 
@@ -128,14 +128,24 @@ export class PortalMessagingService {
 
     return {
       items: threads,
-      meta: { totalCount, page, limit, totalPages: Math.ceil(totalCount / limit) },
+      meta: {
+        totalCount,
+        page,
+        limit,
+        totalPages: Math.ceil(totalCount / limit),
+      },
     };
   }
 
   /**
    * Get all messages within a specific thread.
    */
-  async getThreadMessages(patientId: number, threadId: string, page = 1, limit = 50) {
+  async getThreadMessages(
+    patientId: number,
+    threadId: string,
+    page = 1,
+    limit = 50,
+  ) {
     const skip = (page - 1) * limit;
 
     // Verify thread belongs to patient
@@ -174,7 +184,12 @@ export class PortalMessagingService {
 
     return {
       items,
-      meta: { totalCount, page, limit, totalPages: Math.ceil(totalCount / limit) },
+      meta: {
+        totalCount,
+        page,
+        limit,
+        totalPages: Math.ceil(totalCount / limit),
+      },
     };
   }
 

@@ -38,7 +38,10 @@ describe('ComplianceService', () => {
   // ============================================
   describe('Report Structure', () => {
     it('should return READY status when all controls pass', async () => {
-      mockAuditService.verifyChain.mockResolvedValue({ valid: true, message: 'Chain intact' });
+      mockAuditService.verifyChain.mockResolvedValue({
+        valid: true,
+        message: 'Chain intact',
+      });
       mockPrisma.user.count.mockResolvedValue(0); // No vulnerable admins, no ghost users
       process.env.ENCRYPTION_KEY = 'a'.repeat(32); // Valid 32-char key
 
@@ -54,7 +57,10 @@ describe('ComplianceService', () => {
     });
 
     it('should return NEEDS_WORK status when audit chain is invalid', async () => {
-      mockAuditService.verifyChain.mockResolvedValue({ valid: false, message: 'Tampered entry found' });
+      mockAuditService.verifyChain.mockResolvedValue({
+        valid: false,
+        message: 'Tampered entry found',
+      });
       mockPrisma.user.count.mockResolvedValue(0);
 
       const report = await service.generateComplianceReport();
@@ -63,9 +69,12 @@ describe('ComplianceService', () => {
     });
 
     it('should return NEEDS_WORK status when vulnerable admins exist', async () => {
-      mockAuditService.verifyChain.mockResolvedValue({ valid: true, message: 'OK' });
+      mockAuditService.verifyChain.mockResolvedValue({
+        valid: true,
+        message: 'OK',
+      });
       mockPrisma.user.count
-        .mockResolvedValueOnce(3)  // 3 vulnerable admins
+        .mockResolvedValueOnce(3) // 3 vulnerable admins
         .mockResolvedValueOnce(0); // 0 ghost users
 
       const report = await service.generateComplianceReport();
@@ -79,11 +88,16 @@ describe('ComplianceService', () => {
   // ============================================
   describe('Control Mappings', () => {
     it('should include ISO-27001-A.12.4.1 control for audit log integrity', async () => {
-      mockAuditService.verifyChain.mockResolvedValue({ valid: true, message: 'OK' });
+      mockAuditService.verifyChain.mockResolvedValue({
+        valid: true,
+        message: 'OK',
+      });
       mockPrisma.user.count.mockResolvedValue(0);
 
       const report = await service.generateComplianceReport();
-      const auditControl = report.controls.find(c => c.controlId === 'ISO-27001-A.12.4.1');
+      const auditControl = report.controls.find(
+        (c) => c.controlId === 'ISO-27001-A.12.4.1',
+      );
 
       expect(auditControl).toBeDefined();
       expect(auditControl!.name).toBe('Audit Log Integrity');
@@ -91,11 +105,16 @@ describe('ComplianceService', () => {
     });
 
     it('should include SOC2-CC6.1 control for data encryption', async () => {
-      mockAuditService.verifyChain.mockResolvedValue({ valid: true, message: 'OK' });
+      mockAuditService.verifyChain.mockResolvedValue({
+        valid: true,
+        message: 'OK',
+      });
       mockPrisma.user.count.mockResolvedValue(0);
 
       const report = await service.generateComplianceReport();
-      const encControl = report.controls.find(c => c.controlId === 'SOC2-CC6.1');
+      const encControl = report.controls.find(
+        (c) => c.controlId === 'SOC2-CC6.1',
+      );
 
       expect(encControl).toBeDefined();
       expect(encControl!.name).toBe('Data Encryption');
@@ -103,13 +122,18 @@ describe('ComplianceService', () => {
     });
 
     it('should include ISO-27001-A.9.2 control for privileged access', async () => {
-      mockAuditService.verifyChain.mockResolvedValue({ valid: true, message: 'OK' });
+      mockAuditService.verifyChain.mockResolvedValue({
+        valid: true,
+        message: 'OK',
+      });
       mockPrisma.user.count
-        .mockResolvedValueOnce(2)  // 2 vulnerable admins
+        .mockResolvedValueOnce(2) // 2 vulnerable admins
         .mockResolvedValueOnce(0);
 
       const report = await service.generateComplianceReport();
-      const pamControl = report.controls.find(c => c.controlId === 'ISO-27001-A.9.2');
+      const pamControl = report.controls.find(
+        (c) => c.controlId === 'ISO-27001-A.9.2',
+      );
 
       expect(pamControl).toBeDefined();
       expect(pamControl!.status).toBe('FAIL');
@@ -118,13 +142,18 @@ describe('ComplianceService', () => {
     });
 
     it('should include SOC2-CC6.2 control for access control lifecycle', async () => {
-      mockAuditService.verifyChain.mockResolvedValue({ valid: true, message: 'OK' });
+      mockAuditService.verifyChain.mockResolvedValue({
+        valid: true,
+        message: 'OK',
+      });
       mockPrisma.user.count
-        .mockResolvedValueOnce(0)  // No vulnerable admins
+        .mockResolvedValueOnce(0) // No vulnerable admins
         .mockResolvedValueOnce(5); // 5 ghost users
 
       const report = await service.generateComplianceReport();
-      const aclControl = report.controls.find(c => c.controlId === 'SOC2-CC6.2');
+      const aclControl = report.controls.find(
+        (c) => c.controlId === 'SOC2-CC6.2',
+      );
 
       expect(aclControl).toBeDefined();
       expect(aclControl!.status).toBe('WARNING');
@@ -137,24 +166,33 @@ describe('ComplianceService', () => {
   // ============================================
   describe('Edge Cases', () => {
     it('should handle audit chain verification failure gracefully', async () => {
-      mockAuditService.verifyChain.mockRejectedValue(new Error('Database connection lost'));
+      mockAuditService.verifyChain.mockRejectedValue(
+        new Error('Database connection lost'),
+      );
       mockPrisma.user.count.mockResolvedValue(0);
 
       const report = await service.generateComplianceReport();
 
       expect(report.status).toBe('NEEDS_WORK');
-      const auditControl = report.controls.find(c => c.controlId === 'ISO-27001-A.12.4.1');
+      const auditControl = report.controls.find(
+        (c) => c.controlId === 'ISO-27001-A.12.4.1',
+      );
       expect(auditControl!.status).toBe('FAIL');
       expect(auditControl!.details).toContain('Database connection lost');
     });
 
     it('should warn about weak encryption key', async () => {
-      mockAuditService.verifyChain.mockResolvedValue({ valid: true, message: 'OK' });
+      mockAuditService.verifyChain.mockResolvedValue({
+        valid: true,
+        message: 'OK',
+      });
       mockPrisma.user.count.mockResolvedValue(0);
       process.env.ENCRYPTION_KEY = 'short'; // Too short
 
       const report = await service.generateComplianceReport();
-      const encControl = report.controls.find(c => c.controlId === 'SOC2-CC6.1');
+      const encControl = report.controls.find(
+        (c) => c.controlId === 'SOC2-CC6.1',
+      );
 
       expect(encControl!.status).toBe('WARNING');
       expect(encControl!.dueDate).toBeDefined();
@@ -163,7 +201,10 @@ describe('ComplianceService', () => {
     });
 
     it('should always include exactly 4 controls', async () => {
-      mockAuditService.verifyChain.mockResolvedValue({ valid: true, message: 'OK' });
+      mockAuditService.verifyChain.mockResolvedValue({
+        valid: true,
+        message: 'OK',
+      });
       mockPrisma.user.count.mockResolvedValue(0);
 
       const report = await service.generateComplianceReport();

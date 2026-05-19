@@ -44,7 +44,11 @@ export class PayrollService {
     const commissionRateMap = new Map<number, number>();
     await Promise.all(
       doctors.map(async (doc) => {
-        const rate = await this.commissionService.getDoctorRate(hospitalId, doc.id, ServiceType.CONSULTATION);
+        const rate = await this.commissionService.getDoctorRate(
+          hospitalId,
+          doc.id,
+          ServiceType.CONSULTATION,
+        );
         commissionRateMap.set(doc.id, rate);
       }),
     );
@@ -85,7 +89,7 @@ export class PayrollService {
           },
         });
 
-        let grandTotals = { basic: 0, allowances: 0, deductions: 0, net: 0 };
+        const grandTotals = { basic: 0, allowances: 0, deductions: 0, net: 0 };
 
         for (const emp of employees) {
           const stats = await this.attendanceService.getEmployeeMonthlyStats(
@@ -121,7 +125,7 @@ export class PayrollService {
           // استخدام نظام العمولات الجديد (CommissionRule) مع fallback للنسبة القديمة
           const ruleRate = commissionRateMap.get(emp.id) || 0; // 0-100 percentage
           const userRate = Number(emp.commissionRate || 0); // 0-1 fraction
-          const effectiveRate = ruleRate > 0 ? (ruleRate / 100) : userRate; // convert to fraction
+          const effectiveRate = ruleRate > 0 ? ruleRate / 100 : userRate; // convert to fraction
 
           if (emp.isDoctor && effectiveRate > 0) {
             const revenue = await tx.encounterCharge.aggregate({

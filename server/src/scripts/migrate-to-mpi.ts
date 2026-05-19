@@ -7,7 +7,9 @@ async function main() {
 
   // Fetch all existing patients
   const existingPatients = await prisma.patient.findMany();
-  console.log(`Found ${existingPatients.length} existing local patients to migrate.`);
+  console.log(
+    `Found ${existingPatients.length} existing local patients to migrate.`,
+  );
 
   for (const patient of existingPatients) {
     try {
@@ -42,9 +44,13 @@ async function main() {
             emailHash: patient.emailHash,
           },
         });
-        console.log(`Created GlobalPatient [ID: ${globalPatient.id}] for LocalPatient [ID: ${patient.id}]`);
+        console.log(
+          `Created GlobalPatient [ID: ${globalPatient.id}] for LocalPatient [ID: ${patient.id}]`,
+        );
       } else {
-        console.log(`Matched existing GlobalPatient [ID: ${globalPatient.id}] for LocalPatient [ID: ${patient.id}]`);
+        console.log(
+          `Matched existing GlobalPatient [ID: ${globalPatient.id}] for LocalPatient [ID: ${patient.id}]`,
+        );
       }
 
       // 3. Link Local Patient to Global Patient
@@ -54,7 +60,6 @@ async function main() {
           globalPatientId: globalPatient.id,
         },
       });
-
     } catch (error) {
       console.error(`Error migrating patient ID ${patient.id}:`, error);
     }

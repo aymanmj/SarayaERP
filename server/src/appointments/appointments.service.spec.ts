@@ -239,7 +239,11 @@ describe('AppointmentsService', () => {
         { queueNumber: 4 },
       ]);
 
-      const result = await bookingService.getNextQueueNumber(1, 9, new Date('2026-04-20T09:00:00Z'));
+      const result = await bookingService.getNextQueueNumber(
+        1,
+        9,
+        new Date('2026-04-20T09:00:00Z'),
+      );
 
       expect(result).toBe(6);
     });
@@ -257,7 +261,12 @@ describe('AppointmentsService', () => {
         { queueNumber: 9 },
       ]);
 
-      const result = await bookingService.getNextQueueNumber(1, 9, new Date('2026-04-20T09:00:00Z'), true);
+      const result = await bookingService.getNextQueueNumber(
+        1,
+        9,
+        new Date('2026-04-20T09:00:00Z'),
+        true,
+      );
 
       expect(result).toBe(11);
     });
@@ -301,8 +310,14 @@ describe('AppointmentsService', () => {
         .mockResolvedValueOnce(0);
       prisma.appointment.findMany.mockResolvedValue([]);
       prisma.appointment.create.mockResolvedValue({ id: 50 });
-      prisma.user.findUnique.mockResolvedValue({ id: 5, jobRank: 'CONSULTANT' });
-      prisma.serviceItem.findFirst.mockResolvedValue({ id: 81, code: 'CONSULT-CONS' });
+      prisma.user.findUnique.mockResolvedValue({
+        id: 5,
+        jobRank: 'CONSULTANT',
+      });
+      prisma.serviceItem.findFirst.mockResolvedValue({
+        id: 81,
+        code: 'CONSULT-CONS',
+      });
       prisma.encounter.create.mockResolvedValue({ id: 90 });
       prisma.patient.findUnique.mockResolvedValue({
         id: 1,
@@ -373,7 +388,10 @@ describe('AppointmentsService', () => {
       prisma.appointment.count
         .mockResolvedValueOnce(0)
         .mockResolvedValueOnce(0);
-      prisma.appointment.findFirst.mockResolvedValue({ id: 999, queueNumber: 6 });
+      prisma.appointment.findFirst.mockResolvedValue({
+        id: 999,
+        queueNumber: 6,
+      });
 
       await expect(
         bookingService.createAppointment({
@@ -395,7 +413,10 @@ describe('AppointmentsService', () => {
         appointments: [{ id: 50 }, { id: 51 }],
         invoices: [{ id: 200, status: 'CANCELLED', type: 'REGULAR' }],
       });
-      prisma.encounter.update.mockResolvedValue({ id: 90, status: EncounterStatus.CANCELLED });
+      prisma.encounter.update.mockResolvedValue({
+        id: 90,
+        status: EncounterStatus.CANCELLED,
+      });
       prisma.appointment.updateMany.mockResolvedValue({ count: 2 });
 
       await bookingService.handleInvoiceCancellation({

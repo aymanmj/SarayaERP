@@ -4,11 +4,11 @@
 import Decimal from 'decimal.js';
 
 // ✅ تكوين الدقة العالية للعمليات الحسابية
-Decimal.set({ 
-  precision: 20, 
+Decimal.set({
+  precision: 20,
   rounding: Decimal.ROUND_HALF_UP,
   minE: -9, // أصغر أس للأعداد الصغيرة جداً
-  maxE: 9   // أكبر أس
+  maxE: 9, // أكبر أس
 });
 
 type MoneyValue = number | string | Decimal;
@@ -17,14 +17,14 @@ type MoneyValue = number | string | Decimal;
  * 💰 Money Utility Class
  * فئة مساعدة لإجراء العمليات الحسابية المالية بدقة عالية
  * تستخدم مكتبة decimal.js لتجنب أخطاء الأرقام العشرية في JavaScript
- * 
+ *
  * @example
  * // جمع
  * Money.add(10.1, 20.2) // 30.3 (بدلاً من 30.299999999999997)
- * 
+ *
  * // حساب العمولة
  * Money.mul(1000, 0.15) // 150
- * 
+ *
  * // حساب نسبة مئوية
  * Money.percent(500, 20) // 100 (20% من 500)
  */
@@ -58,18 +58,14 @@ export class Money {
 
   /** جمع مصفوفة من القيم */
   static sum(...values: MoneyValue[]): number {
-    return values.reduce<Decimal>(
-      (acc, val) => acc.plus(new Decimal(val)),
-      new Decimal(0)
-    ).toNumber();
+    return values
+      .reduce<Decimal>((acc, val) => acc.plus(new Decimal(val)), new Decimal(0))
+      .toNumber();
   }
 
   /** حساب النسبة المئوية: (amount * percent / 100) */
   static percent(amount: MoneyValue, percent: MoneyValue): number {
-    return new Decimal(amount)
-      .times(new Decimal(percent))
-      .div(100)
-      .toNumber();
+    return new Decimal(amount).times(new Decimal(percent)).div(100).toNumber();
   }
 
   /** حساب النسبة كعامل: (amount * rate) حيث rate عدد عشري مثل 0.15 */
@@ -86,27 +82,37 @@ export class Money {
 
   /** تقريب لـ 3 خانات عشرية (للدينار الليبي/الكويتي) */
   static toDb(amount: MoneyValue): number {
-    return new Decimal(amount).toDecimalPlaces(3, Decimal.ROUND_HALF_UP).toNumber();
+    return new Decimal(amount)
+      .toDecimalPlaces(3, Decimal.ROUND_HALF_UP)
+      .toNumber();
   }
 
   /** تقريب لـ 2 خانات عشرية (للعملات القياسية USD, EUR, SAR) */
   static to2dp(amount: MoneyValue): number {
-    return new Decimal(amount).toDecimalPlaces(2, Decimal.ROUND_HALF_UP).toNumber();
+    return new Decimal(amount)
+      .toDecimalPlaces(2, Decimal.ROUND_HALF_UP)
+      .toNumber();
   }
 
   /** تقريب لعدد مخصص من الخانات */
   static round(amount: MoneyValue, decimals: number = 3): number {
-    return new Decimal(amount).toDecimalPlaces(decimals, Decimal.ROUND_HALF_UP).toNumber();
+    return new Decimal(amount)
+      .toDecimalPlaces(decimals, Decimal.ROUND_HALF_UP)
+      .toNumber();
   }
 
   /** تقريب لأعلى */
   static ceil(amount: MoneyValue, decimals: number = 3): number {
-    return new Decimal(amount).toDecimalPlaces(decimals, Decimal.ROUND_UP).toNumber();
+    return new Decimal(amount)
+      .toDecimalPlaces(decimals, Decimal.ROUND_UP)
+      .toNumber();
   }
 
   /** تقريب لأسفل */
   static floor(amount: MoneyValue, decimals: number = 3): number {
-    return new Decimal(amount).toDecimalPlaces(decimals, Decimal.ROUND_DOWN).toNumber();
+    return new Decimal(amount)
+      .toDecimalPlaces(decimals, Decimal.ROUND_DOWN)
+      .toNumber();
   }
 
   // ======================== المقارنات ========================
@@ -208,7 +214,7 @@ export class Money {
 /**
  * 🔗 MoneyChain Class
  * فئة للعمليات المتسلسلة (Fluent API)
- * 
+ *
  * @example
  * Money.from(1000)
  *   .sub(100)      // طرح 100

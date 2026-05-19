@@ -8,10 +8,14 @@ import { PriceListsModule } from '../price-lists/price-lists.module';
 import { AccountingModule } from '../accounting/accounting.module';
 
 @Module({
-  imports: [PrismaModule, SystemSettingsModule, PriceListsModule, AccountingModule],
+  imports: [
+    PrismaModule,
+    SystemSettingsModule,
+    PriceListsModule,
+    AccountingModule,
+  ],
   providers: [EncountersService, SoftDeleteService],
   controllers: [EncountersController],
   exports: [EncountersService],
 })
 export class EncountersModule {}
-

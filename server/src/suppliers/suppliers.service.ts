@@ -379,7 +379,7 @@ export class SuppliersService {
       holder.buckets.unallocatedCredit = credit;
 
       const take = (key: keyof Buckets) => {
-        const cur = holder.buckets[key] as number;
+        const cur = holder.buckets[key];
         if (cur <= 0 || credit <= 0) return;
         const used = Math.min(cur, credit);
         holder.buckets[key] = round3(cur - used) as any;

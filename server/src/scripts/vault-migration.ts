@@ -2,7 +2,7 @@ import axios from 'axios';
 
 /**
  * 🚀 Legacy to Vault Seamless Migration Script
- * 
+ *
  * Runs automatically during Docker entrypoint.
  * If Vault is fresh (empty) but the server has legacy `.env` configurations injected via
  * the host machine (process.env), this script pushes them to HashiCorp Vault automatically.
@@ -14,7 +14,9 @@ async function migrateToVault() {
 
   // Only run if Vault is configured in the environment
   if (!vaultUrl || !vaultToken) {
-    console.log('⚠️  VAULT_ADDR or VAULT_TOKEN not found in process.env. Skipping auto-migration.');
+    console.log(
+      '⚠️  VAULT_ADDR or VAULT_TOKEN not found in process.env. Skipping auto-migration.',
+    );
     return;
   }
 
@@ -57,21 +59,29 @@ async function migrateToVault() {
 
       if (needsUpdate) {
         console.log('🔄 Syncing missing keys to Vault...');
-        await axios.post(`${vaultUrl}/v1/secret/data/saraya`, {
-          data: updatedSecrets
-        }, {
-          headers: { 'X-Vault-Token': vaultToken }
-        });
+        await axios.post(
+          `${vaultUrl}/v1/secret/data/saraya`,
+          {
+            data: updatedSecrets,
+          },
+          {
+            headers: { 'X-Vault-Token': vaultToken },
+          },
+        );
         console.log('✅ Vault successfully updated with new keys.');
       } else {
-        console.log('✅ HashiCorp Vault is already fully seeded. Migration skipped.');
+        console.log(
+          '✅ HashiCorp Vault is already fully seeded. Migration skipped.',
+        );
       }
       return;
     }
 
     if (response.status === 404) {
-      console.log('🔄 Fresh Vault detected. Checking for legacy environment variables to migrate...');
-      
+      console.log(
+        '🔄 Fresh Vault detected. Checking for legacy environment variables to migrate...',
+      );
+
       // Collect legacy variables to migrate
       const legacySecrets = {
         DATABASE_URL: process.env.DATABASE_URL,
@@ -87,24 +97,31 @@ async function migrateToVault() {
         TELEGRAM_BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN,
         TELEGRAM_BOT_URL: process.env.TELEGRAM_BOT_URL,
         GEMINI_API_KEY: process.env.GEMINI_API_KEY,
-        
       };
 
       // Filter out mapped secrets to see if any exist
       const populatedSecrets = Object.fromEntries(
-        Object.entries(legacySecrets).filter(([_, v]) => v !== undefined && v !== null && v !== '')
+        Object.entries(legacySecrets).filter(
+          ([_, v]) => v !== undefined && v !== null && v !== '',
+        ),
       );
 
       if (Object.keys(populatedSecrets).length === 0) {
-        console.log('⚠️  No legacy secrets found in environment to migrate. Continuing...');
+        console.log(
+          '⚠️  No legacy secrets found in environment to migrate. Continuing...',
+        );
         return;
       }
 
       // Initialize KV Engine just in case
       try {
-        await axios.post(`${vaultUrl}/v1/sys/mounts/secret`, {
-          type: 'kv-v2'
-        }, { headers: { 'X-Vault-Token': vaultToken } });
+        await axios.post(
+          `${vaultUrl}/v1/sys/mounts/secret`,
+          {
+            type: 'kv-v2',
+          },
+          { headers: { 'X-Vault-Token': vaultToken } },
+        );
       } catch (e: any) {
         if (e.response?.status !== 400) {
           console.log(`ℹ️ Note: KV Engine check: ${e.message}`);
@@ -112,17 +129,27 @@ async function migrateToVault() {
       }
 
       // Push to Vault
-      await axios.post(`${vaultUrl}/v1/secret/data/saraya`, {
-        data: populatedSecrets
-      }, {
-        headers: { 'X-Vault-Token': vaultToken }
-      });
+      await axios.post(
+        `${vaultUrl}/v1/secret/data/saraya`,
+        {
+          data: populatedSecrets,
+        },
+        {
+          headers: { 'X-Vault-Token': vaultToken },
+        },
+      );
 
-      console.log('✅ BINGO! Legacy secrets successfully migrated to HashiCorp Vault!');
-      console.log('🛡️  Your system is now enterprise-grade. Please remove sensitive keys from your .env file on the host.');
+      console.log(
+        '✅ BINGO! Legacy secrets successfully migrated to HashiCorp Vault!',
+      );
+      console.log(
+        '🛡️  Your system is now enterprise-grade. Please remove sensitive keys from your .env file on the host.',
+      );
     }
   } catch (error: any) {
-    console.error(`❌ Migration check failed to connect to Vault: ${error.message}`);
+    console.error(
+      `❌ Migration check failed to connect to Vault: ${error.message}`,
+    );
   }
 }
 

@@ -18,13 +18,17 @@ export class IntegrationListener {
 
   @OnEvent('lab.order_created')
   async handleLabOrderCreated(event: LabOrderCreatedEvent) {
-    this.logger.log(`📢 Event Listener Caught: lab.order_created (Order #${event.orderId})`);
+    this.logger.log(
+      `📢 Event Listener Caught: lab.order_created (Order #${event.orderId})`,
+    );
   }
 
   // ✅ [NEW] Trigger HL7 when Tech clicks "Start"
   @OnEvent('lab.order_started')
   async handleLabOrderStarted(event: LabOrderStartedEvent) {
-    this.logger.log(`🚀 Starting Lab Order Processing: LabOrder #${event.labOrderId}`);
+    this.logger.log(
+      `🚀 Starting Lab Order Processing: LabOrder #${event.labOrderId}`,
+    );
     try {
       // 1. Resolve Parent Order ID from LabOrder ID
       const labOrder = await this.prisma.labOrder.findUnique({
@@ -37,7 +41,10 @@ export class IntegrationListener {
         return;
       }
 
-      await this.integrationService.sendOrderToDevice(labOrder.orderId, event.hospitalId); 
+      await this.integrationService.sendOrderToDevice(
+        labOrder.orderId,
+        event.hospitalId,
+      );
     } catch (err) {
       this.logger.error('❌ Failed to trigger lab device send', err);
     }
@@ -45,12 +52,16 @@ export class IntegrationListener {
 
   @OnEvent('radiology.order_created')
   async handleRadiologyOrder(event: RadiologyOrderCreatedEvent) {
-    this.logger.log(`📢 Event Listener Caught: radiology.order_created (Order #${event.orderId})`);
+    this.logger.log(
+      `📢 Event Listener Caught: radiology.order_created (Order #${event.orderId})`,
+    );
   }
 
   @OnEvent('radiology.order_started')
   async handleRadiologyOrderStarted(event: RadiologyOrderStartedEvent) {
-    this.logger.log(`🚀 Starting Radiology Order: RadiologyOrder #${event.radiologyOrderId}`);
+    this.logger.log(
+      `🚀 Starting Radiology Order: RadiologyOrder #${event.radiologyOrderId}`,
+    );
     try {
       // 1. Resolve Parent Order ID from RadiologyOrder ID
       const radOrder = await this.prisma.radiologyOrder.findUnique({
@@ -59,7 +70,9 @@ export class IntegrationListener {
       });
 
       if (!radOrder) {
-        this.logger.error(`❌ RadiologyOrder #${event.radiologyOrderId} not found.`);
+        this.logger.error(
+          `❌ RadiologyOrder #${event.radiologyOrderId} not found.`,
+        );
         return;
       }
 

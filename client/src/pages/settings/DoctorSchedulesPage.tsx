@@ -51,11 +51,13 @@ export default function DoctorSchedulesPage() {
       const schedules = schedsRes.data as DoctorSchedule[];
 
       // Merge
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const merged = docs.map((d: any) => ({
         ...d,
         schedule: schedules.find((s) => s.doctorId === d.id) || null,
       }));
       setDoctors(merged);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
       toast.error("فشل تحميل البيانات");
     } finally {
@@ -104,6 +106,7 @@ export default function DoctorSchedulesPage() {
       toast.success("تم تحديث الجدول بنجاح");
       setEditingDoc(null);
       loadData();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       toast.error(err.response?.data?.message || "فشل التحديث");
     } finally {

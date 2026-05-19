@@ -15,8 +15,8 @@ import {
 } from '@nestjs/common';
 import { AppointmentsService } from './appointments.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { Permissions } from '../auth/permissions.decorator';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { JwtPayload } from '../auth/jwt-payload.type';
 import {
@@ -109,7 +109,14 @@ class ListAppointmentsQueryDto {
   departmentId?: number;
 
   @IsOptional()
-  @IsEnum(['REQUESTED', 'CONFIRMED', 'CHECKED_IN', 'COMPLETED', 'CANCELLED', 'NO_SHOW'])
+  @IsEnum([
+    'REQUESTED',
+    'CONFIRMED',
+    'CHECKED_IN',
+    'COMPLETED',
+    'CANCELLED',
+    'NO_SHOW',
+  ])
   status?: AppointmentStatus;
 
   @IsOptional()
@@ -119,7 +126,14 @@ class ListAppointmentsQueryDto {
 }
 
 class UpdateAppointmentStatusDto {
-  @IsEnum(['REQUESTED', 'CONFIRMED', 'CHECKED_IN', 'COMPLETED', 'CANCELLED', 'NO_SHOW'])
+  @IsEnum([
+    'REQUESTED',
+    'CONFIRMED',
+    'CHECKED_IN',
+    'COMPLETED',
+    'CANCELLED',
+    'NO_SHOW',
+  ])
   status: AppointmentStatus;
 }
 
@@ -178,7 +192,7 @@ class UpsertDoctorScheduleDto {
 // Controller
 // ============================================
 
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('appointments')
 export class AppointmentsController {
   constructor(
@@ -188,7 +202,7 @@ export class AppointmentsController {
   ) {}
 
   @Post()
-  @Roles('ADMIN', 'RECEPTION', 'DOCTOR')
+  @Permissions('appointments:view')
   async create(
     @Body() dto: CreateAppointmentDto,
     @CurrentUser() user: JwtPayload,
@@ -218,7 +232,7 @@ export class AppointmentsController {
   }
 
   @Get()
-  @Roles('ADMIN', 'RECEPTION', 'DOCTOR', 'CASHIER')
+  @Permissions('appointments:view')
   async list(
     @Query() query: ListAppointmentsQueryDto,
     @CurrentUser() user: JwtPayload,
@@ -251,7 +265,7 @@ export class AppointmentsController {
   }
 
   @Get('queue-status/:doctorId')
-  @Roles('ADMIN', 'RECEPTION', 'DOCTOR')
+  @Permissions('appointments:view')
   async getQueueStatus(
     @Param('doctorId') doctorId: string,
     @Query('date') dateStr: string,
@@ -267,11 +281,15 @@ export class AppointmentsController {
       throw new BadRequestException('تنسيق التاريخ غير صحيح');
     }
 
-    return this.appointmentsService.getQueueStatus(user.hospitalId, docId, date);
+    return this.appointmentsService.getQueueStatus(
+      user.hospitalId,
+      docId,
+      date,
+    );
   }
 
   @Get(':id')
-  @Roles('ADMIN', 'RECEPTION', 'DOCTOR')
+  @Permissions('appointments:view')
   async getOne(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
     const apptId = Number(id);
     if (!apptId || Number.isNaN(apptId)) {
@@ -282,7 +300,7 @@ export class AppointmentsController {
   }
 
   @Patch(':id/status')
-  @Roles('ADMIN', 'RECEPTION', 'DOCTOR')
+  @Permissions('appointments:view')
   async updateStatus(
     @Param('id') id: string,
     @Body() dto: UpdateAppointmentStatusDto,
@@ -314,13 +332,13 @@ export class AppointmentsController {
   }
 
   @Get('schedules/list')
-  @Roles('ADMIN', 'RECEPTION')
+  @Permissions('appointments:view')
   async listDoctorSchedules(@CurrentUser() user: JwtPayload) {
     return this.appointmentsService.listDoctorSchedules(user.hospitalId);
   }
 
   @Get('schedules/:doctorId')
-  @Roles('ADMIN', 'RECEPTION', 'DOCTOR')
+  @Permissions('appointments:view')
   async getDoctorSchedule(
     @Param('doctorId') doctorId: string,
     @CurrentUser() user: JwtPayload,
@@ -334,7 +352,7 @@ export class AppointmentsController {
   }
 
   @Put('schedules/:doctorId')
-  @Roles('ADMIN')
+  @Permissions('appointments:manage')
   async upsertDoctorSchedule(
     @Param('doctorId') doctorId: string,
     @Body() dto: UpsertDoctorScheduleDto,
@@ -353,7 +371,7 @@ export class AppointmentsController {
   }
 
   @Get(':id/print')
-  @Roles('ADMIN', 'RECEPTION')
+  @Permissions('appointments:view')
   async downloadReceipt(
     @Param('id') id: string,
     @CurrentUser() user: JwtPayload,
@@ -373,12 +391,18 @@ export class AppointmentsController {
 
     const finalData = {
       ...data,
-      hospitalName: hospital?.displayName || hospital?.name || 'Saraya Hospital',
-      address: [hospital?.addressLine1, hospital?.addressLine2, hospital?.city].filter(Boolean).join(' - '),
+      hospitalName:
+        hospital?.displayName || hospital?.name || 'Saraya Hospital',
+      address: [hospital?.addressLine1, hospital?.addressLine2, hospital?.city]
+        .filter(Boolean)
+        .join(' - '),
       printHeaderFooter: hospital?.printHeaderFooter ?? true, // ✅
     };
 
-    const buffer = await this.pdfService.generatePdf('booking-receipt', finalData);
+    const buffer = await this.pdfService.generatePdf(
+      'booking-receipt',
+      finalData,
+    );
 
     res.set({
       'Content-Type': 'application/pdf',

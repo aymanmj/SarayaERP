@@ -15,13 +15,13 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { Permissions } from '../auth/permissions.decorator';
 import { IntegrationDirection, IntegrationProtocol } from '@prisma/client';
 import { OutboundQueueService } from './outbound-queue.service';
 
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('ADMIN', 'IT_ADMIN') // صلاحية للأدمن أو مسؤول الـ IT
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@Permissions('integration:manage') // صلاحية للأدمن أو مسؤول الـ IT
 @Controller('integration')
 export class IntegrationController {
   constructor(

@@ -27,6 +27,7 @@ type AssetLite = { id: number; name: string; tagNumber: string };
 export default function MaintenancePage() {
   const [tickets, setTickets] = useState<MaintenanceTicket[]>([]);
   const [assets, setAssets] = useState<AssetLite[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [loading, setLoading] = useState(false);
 
   // Modal State

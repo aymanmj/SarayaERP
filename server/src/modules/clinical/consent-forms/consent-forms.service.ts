@@ -28,28 +28,28 @@ export class ConsentFormsService {
       },
       include: {
         doctor: {
-          select: { id: true, fullName: true, specialty: true }
-        }
-      }
+          select: { id: true, fullName: true, specialty: true },
+        },
+      },
     });
   }
 
   async findByPatient(patientId: number, hospitalId: number) {
     return this.prisma.consentForm.findMany({
-      where: { 
+      where: {
         patientId,
         hospitalId,
-        isDeleted: false
+        isDeleted: false,
       },
       include: {
         doctor: {
-          select: { id: true, fullName: true, specialty: true }
+          select: { id: true, fullName: true, specialty: true },
         },
         encounter: {
-          select: { id: true, type: true, status: true, admissionDate: true }
-        }
+          select: { id: true, type: true, status: true, admissionDate: true },
+        },
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
   }
 
@@ -58,12 +58,18 @@ export class ConsentFormsService {
       where: { id },
       include: {
         doctor: {
-          select: { id: true, fullName: true, specialty: true }
+          select: { id: true, fullName: true, specialty: true },
         },
         patient: {
-          select: { id: true, mrn: true, fullName: true, dateOfBirth: true, gender: true }
-        }
-      }
+          select: {
+            id: true,
+            mrn: true,
+            fullName: true,
+            dateOfBirth: true,
+            gender: true,
+          },
+        },
+      },
     });
 
     if (!form || form.isDeleted) {
@@ -83,7 +89,7 @@ export class ConsentFormsService {
         signedByRef: signDto.signedByRef,
         status: ConsentStatus.SIGNED,
         signedAt: new Date(),
-      }
+      },
     });
   }
 
@@ -93,8 +99,8 @@ export class ConsentFormsService {
     return this.prisma.consentForm.update({
       where: { id },
       data: {
-        status: ConsentStatus.REVOKED
-      }
+        status: ConsentStatus.REVOKED,
+      },
     });
   }
 }

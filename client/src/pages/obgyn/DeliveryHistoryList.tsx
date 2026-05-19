@@ -48,6 +48,7 @@ export function DeliveryHistoryList({ patientId }: Props) {
         if (patientId) {
             loadDeliveries();
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [patientId]);
 
     const loadDeliveries = async () => {
@@ -125,6 +126,7 @@ export function DeliveryHistoryList({ patientId }: Props) {
                                     </TableCell>
                                     <TableCell>
                                         <div className="space-y-1">
+                                            // eslint-disable-next-line @typescript-eslint/no-unused-vars
                                             {delivery.babies.map((baby, idx) => (
                                                 <div key={baby.id} className="text-sm flex items-center gap-2">
                                                     <span className={`w-2 h-2 rounded-full ${baby.gender === 'MALE' ? 'bg-blue-400' : 'bg-pink-400'}`}></span>

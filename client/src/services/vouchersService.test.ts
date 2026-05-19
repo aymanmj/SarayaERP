@@ -30,7 +30,9 @@ describe('vouchersService', () => {
   const mockVoucher = {
     id: 1,
     code: 'VCH-001',
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     type: VoucherType.PAYMENT as any,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     status: VoucherStatus.DRAFT as any,
     date: '2026-04-22',
     amount: 5000,
@@ -89,6 +91,7 @@ describe('vouchersService', () => {
       });
 
       const payload = {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         type: VoucherType.RECEIPT as any,
         amount: 3000,
         accountId: 5,

@@ -1,24 +1,33 @@
 /**
  * Patient Portal — Telegram Webhook Controller
- * 
+ *
  * Handles incoming Telegram Bot updates via webhook.
  * Supports two account-linking flows:
- * 
+ *
  * 1. **Deep Linking (Primary)**: Patient clicks a personalized link from the
  *    login page → `/start <UUID>` → account is linked and OTP sent instantly.
- * 
+ *
  * 2. **Contact Sharing (Legacy)**: Patient manually shares their phone number
  *    via the Telegram keyboard button → account is linked by phone match.
- * 
+ *
  * Webhook URL: POST /api/patient-portal/v1/telegram/webhook
- * 
+ *
  * Webhook Registration:
  * - Automatic on startup when TELEGRAM_WEBHOOK_URL is set
  * - Manual via POST /api/patient-portal/v1/telegram/register-webhook
  * - Status check via GET /api/patient-portal/v1/telegram/status
  */
 
-import { Controller, Post, Get, Body, Logger, HttpCode, HttpStatus, OnModuleInit } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Body,
+  Logger,
+  HttpCode,
+  HttpStatus,
+  OnModuleInit,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { EncryptionService } from '../../common/encryption/encryption.service';
 import { VaultService } from '../../common/vault/vault.service';
@@ -34,31 +43,39 @@ export class PortalTelegramController implements OnModuleInit {
     private readonly prisma: PrismaService,
     private readonly encryptionService: EncryptionService,
     private readonly vaultService: VaultService,
-    private readonly otpService: PatientOtpService
+    private readonly otpService: PatientOtpService,
   ) {}
 
   async onModuleInit() {
     // ── Load Bot Token ──────────────────────────────────────
     try {
       const token =
-        await this.vaultService.getOptionalSecret('TELEGRAM_BOT_TOKEN')
-        || process.env.TELEGRAM_BOT_TOKEN
-        || null;
+        (await this.vaultService.getOptionalSecret('TELEGRAM_BOT_TOKEN')) ||
+        process.env.TELEGRAM_BOT_TOKEN ||
+        null;
 
       if (token) {
         this.botToken = token;
-        this.logger.log(`✅ Telegram Bot Token loaded (${token.substring(0, 6)}...)`);
+        this.logger.log(
+          `✅ Telegram Bot Token loaded (${token.substring(0, 6)}...)`,
+        );
       } else {
-        this.logger.warn('⚠️ TELEGRAM_BOT_TOKEN not configured — webhook responses disabled');
+        this.logger.warn(
+          '⚠️ TELEGRAM_BOT_TOKEN not configured — webhook responses disabled',
+        );
         return; // No point registering webhook without a token
       }
     } catch (err: any) {
       const fallback = process.env.TELEGRAM_BOT_TOKEN;
       if (fallback) {
         this.botToken = fallback;
-        this.logger.warn(`⚠️ Vault unreachable, using TELEGRAM_BOT_TOKEN from env (${fallback.substring(0, 6)}...)`);
+        this.logger.warn(
+          `⚠️ Vault unreachable, using TELEGRAM_BOT_TOKEN from env (${fallback.substring(0, 6)}...)`,
+        );
       } else {
-        this.logger.warn(`⚠️ Failed to load Telegram Bot Token: ${err.message}`);
+        this.logger.warn(
+          `⚠️ Failed to load Telegram Bot Token: ${err.message}`,
+        );
         return;
       }
     }
@@ -71,7 +88,7 @@ export class PortalTelegramController implements OnModuleInit {
     } else {
       this.logger.warn(
         '⚠️ TELEGRAM_WEBHOOK_URL not set — skipping auto webhook registration. ' +
-        'Set it to your public URL (e.g. https://your-domain.com/api) to enable.'
+          'Set it to your public URL (e.g. https://your-domain.com/api) to enable.',
       );
     }
   }
@@ -83,7 +100,9 @@ export class PortalTelegramController implements OnModuleInit {
   /**
    * Internal helper to register the webhook with Telegram.
    */
-  private async registerWebhookInternal(baseUrl: string): Promise<{ success: boolean; message: string }> {
+  private async registerWebhookInternal(
+    baseUrl: string,
+  ): Promise<{ success: boolean; message: string }> {
     if (!this.botToken) {
       const msg = 'Cannot register webhook — BOT_TOKEN not configured';
       this.logger.warn(msg);
@@ -104,11 +123,13 @@ export class PortalTelegramController implements OnModuleInit {
           allowed_updates: ['message'], // Only message updates (not edits, etc.)
           drop_pending_updates: false,
         },
-        { timeout: 10000 }
+        { timeout: 10000 },
       );
 
       if (response.data?.ok) {
-        this.logger.log(`✅ Telegram webhook registered successfully at: ${webhookUrl}`);
+        this.logger.log(
+          `✅ Telegram webhook registered successfully at: ${webhookUrl}`,
+        );
         return { success: true, message: `Webhook registered: ${webhookUrl}` };
       } else {
         const errMsg = `Telegram API returned: ${JSON.stringify(response.data)}`;
@@ -125,7 +146,7 @@ export class PortalTelegramController implements OnModuleInit {
   /**
    * Manual webhook registration endpoint.
    * POST /api/patient-portal/v1/telegram/register-webhook
-   * 
+   *
    * Can be called manually to re-register the webhook if needed.
    * Uses TELEGRAM_WEBHOOK_URL from environment.
    */
@@ -136,7 +157,8 @@ export class PortalTelegramController implements OnModuleInit {
     if (!baseUrl) {
       return {
         success: false,
-        message: 'TELEGRAM_WEBHOOK_URL is not configured. Set it in your environment variables.',
+        message:
+          'TELEGRAM_WEBHOOK_URL is not configured. Set it in your environment variables.',
       };
     }
     return this.registerWebhookInternal(baseUrl);
@@ -160,8 +182,13 @@ export class PortalTelegramController implements OnModuleInit {
     if (this.botToken) {
       try {
         const [meResponse, webhookResponse] = await Promise.all([
-          axios.get(`https://api.telegram.org/bot${this.botToken}/getMe`, { timeout: 5000 }),
-          axios.get(`https://api.telegram.org/bot${this.botToken}/getWebhookInfo`, { timeout: 5000 }),
+          axios.get(`https://api.telegram.org/bot${this.botToken}/getMe`, {
+            timeout: 5000,
+          }),
+          axios.get(
+            `https://api.telegram.org/bot${this.botToken}/getWebhookInfo`,
+            { timeout: 5000 },
+          ),
         ]);
 
         result.bot = {
@@ -228,15 +255,17 @@ export class PortalTelegramController implements OnModuleInit {
     // Deep linking flow: /start <UUID>
     if (parts.length === 2 && parts[1].length > 10) {
       const linkToken = parts[1];
-      this.logger.log(`Received deep link /start from Chat ID: ${chatId} with token: ${linkToken}`);
+      this.logger.log(
+        `Received deep link /start from Chat ID: ${chatId} with token: ${linkToken}`,
+      );
 
       const patient = await this.prisma.patient.findFirst({
         where: {
           telegramLinkToken: linkToken,
           telegramLinkExpiresAt: { gt: new Date() },
           isActive: true,
-          isDeleted: false
-        }
+          isDeleted: false,
+        },
       });
 
       if (patient) {
@@ -246,19 +275,29 @@ export class PortalTelegramController implements OnModuleInit {
           data: {
             telegramChatId: chatId,
             telegramLinkToken: null,
-            telegramLinkExpiresAt: null
-          }
+            telegramLinkExpiresAt: null,
+          },
         });
 
-        this.logger.log(`✅ Deep-linked Patient ${patient.mrn} to Chat ID ${chatId}`);
+        this.logger.log(
+          `✅ Deep-linked Patient ${patient.mrn} to Chat ID ${chatId}`,
+        );
 
         // Send activation confirmation
-        await this.sendTelegramMessage(chatId, 'تم تفعيل حسابك بنجاح! يتم الآن إرسال رمز الدخول... ✅');
+        await this.sendTelegramMessage(
+          chatId,
+          'تم تفعيل حسابك بنجاح! يتم الآن إرسال رمز الدخول... ✅',
+        );
 
         // Generate and send OTP immediately
-        const otpSent = await this.otpService.generateAndSendOtpForPatient(patient.id, chatId);
+        const otpSent = await this.otpService.generateAndSendOtpForPatient(
+          patient.id,
+          chatId,
+        );
         if (!otpSent) {
-          this.logger.error(`Failed to send OTP after deep-linking Patient ${patient.mrn}`);
+          this.logger.error(
+            `Failed to send OTP after deep-linking Patient ${patient.mrn}`,
+          );
         }
         return;
       }
@@ -267,7 +306,7 @@ export class PortalTelegramController implements OnModuleInit {
       this.logger.warn(`Invalid or expired link token received: ${linkToken}`);
       await this.sendTelegramMessage(
         chatId,
-        'رابط التفعيل غير صالح أو منتهي الصلاحية. يرجى المحاولة مرة أخرى من بوابة المريض.'
+        'رابط التفعيل غير صالح أو منتهي الصلاحية. يرجى المحاولة مرة أخرى من بوابة المريض.',
       );
       return;
     }
@@ -280,8 +319,8 @@ export class PortalTelegramController implements OnModuleInit {
       {
         keyboard: [[{ text: 'مشاركة رقم الهاتف 📱', request_contact: true }]],
         resize_keyboard: true,
-        one_time_keyboard: true
-      }
+        one_time_keyboard: true,
+      },
     );
   }
 
@@ -294,17 +333,18 @@ export class PortalTelegramController implements OnModuleInit {
 
     // Clean phone number (e.g., removing +, handling local vs international)
     let cleanPhone = phoneNumber.replace(/\D/g, '');
-    if (cleanPhone.startsWith('0')) cleanPhone = '218' + cleanPhone.substring(1);
+    if (cleanPhone.startsWith('0'))
+      cleanPhone = '218' + cleanPhone.substring(1);
     else if (cleanPhone.length === 9) cleanPhone = '218' + cleanPhone;
 
     // Fetch patients to find a match.
     // In a large db, phoneHash should be used. For now, we iterate active patients and decrypt.
     const patients = await this.prisma.patient.findMany({
       where: { isActive: true, isDeleted: false },
-      select: { id: true, mrn: true, phone: true }
+      select: { id: true, mrn: true, phone: true },
     });
 
-    const matchedPatient = patients.find(p => {
+    const matchedPatient = patients.find((p) => {
       if (!p.phone) return false;
       try {
         const decryptedPhone = this.encryptionService.decrypt(p.phone);
@@ -319,19 +359,23 @@ export class PortalTelegramController implements OnModuleInit {
     if (matchedPatient) {
       await this.prisma.patient.update({
         where: { id: matchedPatient.id },
-        data: { telegramChatId: chatId }
+        data: { telegramChatId: chatId },
       });
 
-      this.logger.log(`Linked Telegram Chat ID ${chatId} to Patient ${matchedPatient.mrn}`);
+      this.logger.log(
+        `Linked Telegram Chat ID ${chatId} to Patient ${matchedPatient.mrn}`,
+      );
       await this.sendTelegramMessage(
         chatId,
-        'تم تفعيل خدمة تلقي رموز التحقق (OTP) والإشعارات لحسابك بنجاح. ✅'
+        'تم تفعيل خدمة تلقي رموز التحقق (OTP) والإشعارات لحسابك بنجاح. ✅',
       );
     } else {
-      this.logger.warn(`Received contact ${phoneNumber} but no matching patient found.`);
+      this.logger.warn(
+        `Received contact ${phoneNumber} but no matching patient found.`,
+      );
       await this.sendTelegramMessage(
         chatId,
-        'لم يتم العثور على ملف طبي مرتبط بهذا الرقم. يرجى التأكد من رقم هاتفك أو مراجعة قسم الاستقبال.'
+        'لم يتم العثور على ملف طبي مرتبط بهذا الرقم. يرجى التأكد من رقم هاتفك أو مراجعة قسم الاستقبال.',
       );
     }
   }
@@ -339,9 +383,15 @@ export class PortalTelegramController implements OnModuleInit {
   // ===========================================
   //  Telegram API Helper
   // ===========================================
-  private async sendTelegramMessage(chatId: string, text: string, replyMarkup?: any): Promise<void> {
+  private async sendTelegramMessage(
+    chatId: string,
+    text: string,
+    replyMarkup?: any,
+  ): Promise<void> {
     if (!this.botToken) {
-      this.logger.warn('Cannot send Telegram message — BOT_TOKEN not configured');
+      this.logger.warn(
+        'Cannot send Telegram message — BOT_TOKEN not configured',
+      );
       return;
     }
 
@@ -353,10 +403,12 @@ export class PortalTelegramController implements OnModuleInit {
       await axios.post(
         `https://api.telegram.org/bot${this.botToken}/sendMessage`,
         payload,
-        { timeout: 5000 }
+        { timeout: 5000 },
       );
     } catch (e: any) {
-      this.logger.error(`Failed to send Telegram message to ${chatId}: ${e.message}`);
+      this.logger.error(
+        `Failed to send Telegram message to ${chatId}: ${e.message}`,
+      );
     }
   }
 }

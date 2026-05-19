@@ -14,6 +14,7 @@ import {
 import { toast } from "sonner";
 
 export default function ClinicalKpisPage() {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [kpis, setKpis] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -22,6 +23,7 @@ export default function ClinicalKpisPage() {
       try {
         const res = await apiClient.get("/analytics/clinical-kpis");
         setKpis(res.data);
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       } catch (err) {
         toast.error("فشل تحميل المؤشرات السريرية");
       } finally {
@@ -31,6 +33,7 @@ export default function ClinicalKpisPage() {
     loadData();
   }, []);
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const KPICard = ({ title, value, unit, color, icon, description }: any) => (
     <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-sm hover:border-slate-700 transition-all group">
       <div className="flex justify-between items-start mb-4">

@@ -1,7 +1,15 @@
-import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  Logger,
+} from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { NotificationsService } from '../../../notifications/notifications.service';
-import { CreateAntenatalCareDto, CreateAntenatalVisitDto } from '../dto/antenatal-care.dto';
+import {
+  CreateAntenatalCareDto,
+  CreateAntenatalVisitDto,
+} from '../dto/antenatal-care.dto';
 
 @Injectable()
 export class AntenatalCareService {
@@ -84,7 +92,11 @@ export class AntenatalCareService {
   /**
    * إرسال تنبيهات Rh عند تسجيل حمل لأم Rh-
    */
-  private async sendRhNegativeAlerts(care: any, hospitalId: number, doctorId: number) {
+  private async sendRhNegativeAlerts(
+    care: any,
+    hospitalId: number,
+    doctorId: number,
+  ) {
     const patientName = care.patient?.fullName || 'مريضة';
 
     // تنبيه 1: الأم Rh سالب
@@ -93,7 +105,7 @@ export class AntenatalCareService {
       doctorId,
       '⚠️ تنبيه Rh سالب — خطر عدم التوافق',
       `المريضة ${patientName} (MRN: ${care.patient?.mrn}) — عامل Rh سالب (-). ` +
-      `يرجى التحقق من فصيلة دم الزوج وجدولة حقنة Anti-D في الأسبوع 28.`,
+        `يرجى التحقق من فصيلة دم الزوج وجدولة حقنة Anti-D في الأسبوع 28.`,
       `/obgyn/anc?careId=${care.id}`,
     );
 
@@ -108,13 +120,20 @@ export class AntenatalCareService {
       );
     }
 
-    this.logger.log(`[Rh Protocol] Alerts sent for patient ${care.patientId}, care #${care.id}`);
+    this.logger.log(
+      `[Rh Protocol] Alerts sent for patient ${care.patientId}, care #${care.id}`,
+    );
   }
 
   /**
    * تحديث Rh الزوج وإعادة حساب التوافق
    */
-  async updatePartnerRh(hospitalId: number, careId: number, partnerRhFactor: string, doctorId?: number) {
+  async updatePartnerRh(
+    hospitalId: number,
+    careId: number,
+    partnerRhFactor: string,
+    doctorId?: number,
+  ) {
     const care = await this.prisma.antenatalCare.findUnique({
       where: { id: careId },
       include: { patient: { select: { fullName: true, mrn: true } } },
@@ -133,7 +152,11 @@ export class AntenatalCareService {
       riskLevel = 'MEDIUM';
     }
     // خفض الخطورة إذا الزوج سالب (الخطر زال)
-    if (isMotherNeg && partnerRhFactor === 'Negative' && riskLevel === 'MEDIUM') {
+    if (
+      isMotherNeg &&
+      partnerRhFactor === 'Negative' &&
+      riskLevel === 'MEDIUM'
+    ) {
       riskLevel = 'LOW';
     }
 
@@ -152,15 +175,17 @@ export class AntenatalCareService {
       const patientName = care.patient?.fullName || 'مريضة';
       if (rhIncompatible) {
         await this.notifications.create(
-          hospitalId, targetDoctor,
+          hospitalId,
+          targetDoctor,
           '🔴 عدم توافق Rh مؤكد — بروتوكول Anti-D',
           `الزوج Rh موجب (+) — المريضة ${patientName} تحتاج حقنة Anti-D في الأسبوع 28. ` +
-          `يرجى جدولة الحقنة ومتابعة الحالة عن كثب.`,
+            `يرجى جدولة الحقنة ومتابعة الحالة عن كثب.`,
           `/obgyn/anc?careId=${careId}`,
         );
       } else if (isMotherNeg && partnerRhFactor === 'Negative') {
         await this.notifications.create(
-          hospitalId, targetDoctor,
+          hospitalId,
+          targetDoctor,
           '✅ خطر Rh قد زال',
           `الزوج Rh سالب (-) مثل الأم — المريضة ${patientName}. الجنين سيكون Rh سالب حتماً. لا حاجة لحقنة Anti-D.`,
           `/obgyn/anc?careId=${careId}`,
@@ -174,15 +199,22 @@ export class AntenatalCareService {
   /**
    * تسجيل إعطاء حقنة Anti-D (أسبوع 28 أو بعد الولادة)
    */
-  async recordAntiD(hospitalId: number, careId: number, type: 'week28' | 'postpartum') {
-    const care = await this.prisma.antenatalCare.findUnique({ where: { id: careId } });
+  async recordAntiD(
+    hospitalId: number,
+    careId: number,
+    type: 'week28' | 'postpartum',
+  ) {
+    const care = await this.prisma.antenatalCare.findUnique({
+      where: { id: careId },
+    });
     if (!care || care.hospitalId !== hospitalId) {
       throw new NotFoundException('سجل الحمل غير موجود.');
     }
 
-    const data = type === 'week28'
-      ? { antiDWeek28Given: true }
-      : { antiDPostpartumGiven: true };
+    const data =
+      type === 'week28'
+        ? { antiDWeek28Given: true }
+        : { antiDPostpartumGiven: true };
 
     return this.prisma.antenatalCare.update({
       where: { id: careId },
@@ -236,14 +268,20 @@ export class AntenatalCareService {
     });
 
     // === تنبيه Anti-D في الأسبوع 26-28 ===
-    if (care.rhIncompatible && !care.antiDWeek28Given && gestationalWeek >= 26 && gestationalWeek <= 30) {
+    if (
+      care.rhIncompatible &&
+      !care.antiDWeek28Given &&
+      gestationalWeek >= 26 &&
+      gestationalWeek <= 30
+    ) {
       if (care.doctorId) {
         const patientName = care.patient?.fullName || 'مريضة';
         await this.notifications.create(
-          hospitalId, care.doctorId,
+          hospitalId,
+          care.doctorId,
           '💉 موعد حقنة Anti-D — الأسبوع 28',
           `المريضة ${patientName} في الأسبوع ${gestationalWeek} — Rh غير متوافق. ` +
-          `يجب إعطاء حقنة Anti-D الوقائية الآن (الأسبوع 28).`,
+            `يجب إعطاء حقنة Anti-D الوقائية الآن (الأسبوع 28).`,
           `/obgyn/anc?careId=${care.id}`,
         );
       }
@@ -285,7 +323,8 @@ export class AntenatalCareService {
     }
 
     const currentWeek = Math.floor(
-      (new Date().getTime() - care.lmpDate.getTime()) / (1000 * 60 * 60 * 24 * 7),
+      (new Date().getTime() - care.lmpDate.getTime()) /
+        (1000 * 60 * 60 * 24 * 7),
     );
 
     return {
@@ -320,21 +359,26 @@ export class AntenatalCareService {
     });
 
     // === تنبيه Anti-D عند الإجهاض لأم Rh- ===
-    if ((status === 'MISCARRIAGE' || status === 'ECTOPIC') && care.rhFactor === 'Negative') {
+    if (
+      (status === 'MISCARRIAGE' || status === 'ECTOPIC') &&
+      care.rhFactor === 'Negative'
+    ) {
       const patientName = care.patient?.fullName || 'مريضة';
       // تنبيه الطبيب المعالج
       if (care.doctorId) {
         await this.notifications.create(
-          hospitalId, care.doctorId,
+          hospitalId,
+          care.doctorId,
           '🚨 عاجل: حقنة Anti-D مطلوبة — إجهاض لأم Rh سالب',
           `المريضة ${patientName} (MRN: ${care.patient?.mrn}) — تم تسجيل ${status === 'MISCARRIAGE' ? 'إجهاض' : 'حمل خارج الرحم'}. ` +
-          `يجب إعطاء حقنة Anti-D خلال 72 ساعة لحماية الأجنة المستقبلية.`,
+            `يجب إعطاء حقنة Anti-D خلال 72 ساعة لحماية الأجنة المستقبلية.`,
           `/obgyn/anc?careId=${id}`,
         );
       }
       // تنبيه لجميع أطباء النساء والولادة
       await this.notifications.notifyRoles(
-        hospitalId, ['DOCTOR'],
+        hospitalId,
+        ['DOCTOR'],
         '⚠️ حالة Rh حرجة — Anti-D مطلوب',
         `المريضة ${patientName} — ${status === 'MISCARRIAGE' ? 'إجهاض' : 'حمل خارج الرحم'} + Rh سالب. حقنة Anti-D خلال 72 ساعة.`,
         `/obgyn/anc?careId=${id}`,

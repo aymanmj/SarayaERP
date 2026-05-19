@@ -24,7 +24,7 @@ export class AuditService {
       // 1- SIEM Logger (Stream to Console for Promtail)
       siemLogger.info({
         message: 'AUDIT_TRAIL',
-        ...options
+        ...options,
       });
 
       // 2- DB Storage with ISO 27001 Hash Chain
@@ -45,7 +45,7 @@ export class AuditService {
       // 1- SIEM Logger (Stream to Console for Promtail)
       siemLogger.warn({
         message: 'CRITICAL_AUDIT_TRAIL',
-        ...options
+        ...options,
       });
 
       // 2- DB Storage with ISO 27001 Hash Chain
@@ -53,7 +53,9 @@ export class AuditService {
     } catch (err) {
       console.error('CRITICAL AUDIT LOG FAILURE', err);
       // Fail explicitly for clinical governance
-      throw new Error(`Critical Audit Failure: Cannot proceed with action [${options.action}] without recording audit trail.`);
+      throw new Error(
+        `Critical Audit Failure: Cannot proceed with action [${options.action}] without recording audit trail.`,
+      );
     }
   }
 
@@ -78,7 +80,7 @@ export class AuditService {
     if (query.entity) {
       where.entity = { contains: query.entity, mode: 'insensitive' };
     }
-    
+
     if (query.userId) {
       where.userId = Number(query.userId);
     }
@@ -116,13 +118,13 @@ export class AuditService {
     // Get logs with pagination
     const logs = await this.prisma.auditLog.findMany({
       where,
-      include: { 
-        user: { 
-          select: { 
-            fullName: true, 
-            username: true 
-          } 
-        } 
+      include: {
+        user: {
+          select: {
+            fullName: true,
+            username: true,
+          },
+        },
       },
       orderBy: { createdAt: 'desc' },
       skip,
@@ -188,12 +190,12 @@ export class AuditService {
       // Get the most recent log to continue the chain
       const lastLog = await tx.auditLog.findFirst({
         orderBy: { id: 'desc' },
-        select: { hash: true }
+        select: { hash: true },
       });
-      
+
       const previousHash = lastLog?.hash || 'GENESIS';
       const timestamp = new Date();
-      
+
       // Compute hash: SHA256(previousHash + action + entity + entityId + userId + timestamp)
       const dataToHash = `${previousHash}|${options.action}|${options.entity || ''}|${options.entityId || ''}|${options.userId || ''}|${timestamp.toISOString()}`;
       const hash = crypto.createHash('sha256').update(dataToHash).digest('hex');
@@ -210,7 +212,7 @@ export class AuditService {
           details: options.details ?? null,
           createdAt: timestamp,
           previousHash,
-          hash
+          hash,
         },
       });
     });
@@ -219,10 +221,23 @@ export class AuditService {
   /**
    * Verify the integrity of the audit log chain.
    */
-  async verifyChain(): Promise<{ valid: boolean; brokenAtId?: number; message: string }> {
+  async verifyChain(): Promise<{
+    valid: boolean;
+    brokenAtId?: number;
+    message: string;
+  }> {
     const logs = await this.prisma.auditLog.findMany({
       orderBy: { id: 'asc' },
-      select: { id: true, action: true, entity: true, entityId: true, userId: true, createdAt: true, previousHash: true, hash: true }
+      select: {
+        id: true,
+        action: true,
+        entity: true,
+        entityId: true,
+        userId: true,
+        createdAt: true,
+        previousHash: true,
+        hash: true,
+      },
     });
 
     if (logs.length === 0) return { valid: true, message: 'No logs to verify' };
@@ -231,19 +246,33 @@ export class AuditService {
 
     for (const log of logs) {
       if (log.previousHash !== expectedPrevious) {
-        return { valid: false, brokenAtId: log.id, message: `Chain broken at ID ${log.id}: previousHash mismatch` };
+        return {
+          valid: false,
+          brokenAtId: log.id,
+          message: `Chain broken at ID ${log.id}: previousHash mismatch`,
+        };
       }
 
       const dataToHash = `${log.previousHash}|${log.action}|${log.entity || ''}|${log.entityId || ''}|${log.userId || ''}|${log.createdAt.toISOString()}`;
-      const computedHash = crypto.createHash('sha256').update(dataToHash).digest('hex');
+      const computedHash = crypto
+        .createHash('sha256')
+        .update(dataToHash)
+        .digest('hex');
 
       if (log.hash !== computedHash) {
-        return { valid: false, brokenAtId: log.id, message: `Chain broken at ID ${log.id}: hash mismatch (data altered)` };
+        return {
+          valid: false,
+          brokenAtId: log.id,
+          message: `Chain broken at ID ${log.id}: hash mismatch (data altered)`,
+        };
       }
 
       expectedPrevious = log.hash;
     }
 
-    return { valid: true, message: `Successfully verified ${logs.length} records in the audit chain` };
+    return {
+      valid: true,
+      message: `Successfully verified ${logs.length} records in the audit chain`,
+    };
   }
 }

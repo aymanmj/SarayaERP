@@ -14,6 +14,7 @@ type Specialty = {
 
 export default function SpecialtiesPage() {
   const [specs, setSpecs] = useState<Specialty[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState({ name: "", code: "" });
@@ -23,6 +24,7 @@ export default function SpecialtiesPage() {
     try {
       const res = await apiClient.get<Specialty[]>("/specialties");
       setSpecs(res.data);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
       toast.error("فشل التحميل");
     } finally {

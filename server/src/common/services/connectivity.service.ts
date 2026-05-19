@@ -4,7 +4,12 @@
 // يراقب حالة الاتصال بالإنترنت ويصدر أحداث للنظام
 // يُستخدم من Integration/Notifications لتقرير هل يتم الإرسال الآن أو يُؤجل
 
-import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleInit,
+  OnModuleDestroy,
+} from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import * as https from 'https';
 import * as http from 'http';
@@ -44,7 +49,7 @@ export class ConnectivityService implements OnModuleInit, OnModuleDestroy {
   private readonly HTTP_TARGETS = [
     'https://1.1.1.1/',
     'https://8.8.8.8/',
-    'http://connectivitycheck.gstatic.com/generate_204'
+    'http://connectivitycheck.gstatic.com/generate_204',
   ];
 
   constructor(private readonly eventEmitter: EventEmitter2) {}
@@ -54,7 +59,10 @@ export class ConnectivityService implements OnModuleInit, OnModuleDestroy {
     // فحص فوري
     await this.checkConnectivity();
     // فحص دوري
-    this.checkInterval = setInterval(() => this.checkConnectivity(), this.CHECK_INTERVAL_MS);
+    this.checkInterval = setInterval(
+      () => this.checkConnectivity(),
+      this.CHECK_INTERVAL_MS,
+    );
     this.logger.log('🌐 Connectivity Monitor active (checking every 30s)');
   }
 
@@ -90,16 +98,20 @@ export class ConnectivityService implements OnModuleInit, OnModuleDestroy {
         reachable = await new Promise<boolean>((resolve) => {
           const isHttps = target.startsWith('https');
           const client = isHttps ? https : http;
-          
-          const req = client.request(target, {
-            method: 'HEAD',
-            timeout: 3000,
-            family: 4, // إجبار IPv4 لتجاوز مشاكل تجمد IPv6
-            rejectUnauthorized: false, // لا نهتم بصلاحية الشهادة، نريد فقط إثبات الاتصال
-          }, (res) => {
-            // أي استجابة تعني أننا وصلنا للانترنت
-            resolve(true);
-          });
+
+          const req = client.request(
+            target,
+            {
+              method: 'HEAD',
+              timeout: 3000,
+              family: 4, // إجبار IPv4 لتجاوز مشاكل تجمد IPv6
+              rejectUnauthorized: false, // لا نهتم بصلاحية الشهادة، نريد فقط إثبات الاتصال
+            },
+            (res) => {
+              // أي استجابة تعني أننا وصلنا للانترنت
+              resolve(true);
+            },
+          );
 
           req.on('timeout', () => {
             req.destroy();
@@ -107,7 +119,9 @@ export class ConnectivityService implements OnModuleInit, OnModuleDestroy {
           });
 
           req.on('error', (err) => {
-            this.logger.warn(`Connectivity check failed for ${target}: ${err.message}`);
+            this.logger.warn(
+              `Connectivity check failed for ${target}: ${err.message}`,
+            );
             resolve(false);
           });
 
@@ -118,7 +132,9 @@ export class ConnectivityService implements OnModuleInit, OnModuleDestroy {
           break; // واحد يكفي
         }
       } catch (err: any) {
-        this.logger.warn(`Unexpected error during check for ${target}: ${err.message}`);
+        this.logger.warn(
+          `Unexpected error during check for ${target}: ${err.message}`,
+        );
       }
     }
 
@@ -143,7 +159,8 @@ export class ConnectivityService implements OnModuleInit, OnModuleDestroy {
       this.state.consecutiveFailures++;
 
       if (
-        (wasOnline && this.state.consecutiveFailures >= this.FAILURE_THRESHOLD) ||
+        (wasOnline &&
+          this.state.consecutiveFailures >= this.FAILURE_THRESHOLD) ||
         (!this.hasCompletedInitialCheck && this.state.consecutiveFailures >= 1)
       ) {
         // 🔴 انقطاع مؤكد

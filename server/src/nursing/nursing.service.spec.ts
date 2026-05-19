@@ -54,11 +54,17 @@ describe('NursingService - MAR Schedule', () => {
     });
 
     it('should generate 1 slot for DAILY frequency at 08:00', async () => {
-      mockPrisma.prescription.findMany.mockResolvedValue([{
-        items: [mockPrescriptionItem('DAILY')],
-      }]);
+      mockPrisma.prescription.findMany.mockResolvedValue([
+        {
+          items: [mockPrescriptionItem('DAILY')],
+        },
+      ]);
 
-      const schedule = await service.generateMARSchedule(1, 100, new Date('2026-05-04'));
+      const schedule = await service.generateMARSchedule(
+        1,
+        100,
+        new Date('2026-05-04'),
+      );
 
       expect(schedule).toHaveLength(1);
       expect(schedule[0].scheduledTime.getHours()).toBe(8);
@@ -66,11 +72,17 @@ describe('NursingService - MAR Schedule', () => {
     });
 
     it('should generate 2 slots for BID frequency at 08:00 and 20:00', async () => {
-      mockPrisma.prescription.findMany.mockResolvedValue([{
-        items: [mockPrescriptionItem('BID')],
-      }]);
+      mockPrisma.prescription.findMany.mockResolvedValue([
+        {
+          items: [mockPrescriptionItem('BID')],
+        },
+      ]);
 
-      const schedule = await service.generateMARSchedule(1, 100, new Date('2026-05-04'));
+      const schedule = await service.generateMARSchedule(
+        1,
+        100,
+        new Date('2026-05-04'),
+      );
 
       expect(schedule).toHaveLength(2);
       expect(schedule[0].scheduledTime.getHours()).toBe(8);
@@ -78,11 +90,17 @@ describe('NursingService - MAR Schedule', () => {
     });
 
     it('should generate 3 slots for TID frequency at 08:00, 14:00, 20:00', async () => {
-      mockPrisma.prescription.findMany.mockResolvedValue([{
-        items: [mockPrescriptionItem('TID')],
-      }]);
+      mockPrisma.prescription.findMany.mockResolvedValue([
+        {
+          items: [mockPrescriptionItem('TID')],
+        },
+      ]);
 
-      const schedule = await service.generateMARSchedule(1, 100, new Date('2026-05-04'));
+      const schedule = await service.generateMARSchedule(
+        1,
+        100,
+        new Date('2026-05-04'),
+      );
 
       expect(schedule).toHaveLength(3);
       const hours = schedule.map((s: any) => s.scheduledTime.getHours());
@@ -90,9 +108,11 @@ describe('NursingService - MAR Schedule', () => {
     });
 
     it('should generate 4 slots for QID frequency — all within the same calendar day', async () => {
-      mockPrisma.prescription.findMany.mockResolvedValue([{
-        items: [mockPrescriptionItem('QID')],
-      }]);
+      mockPrisma.prescription.findMany.mockResolvedValue([
+        {
+          items: [mockPrescriptionItem('QID')],
+        },
+      ]);
 
       const targetDate = new Date('2026-05-04');
       const schedule = await service.generateMARSchedule(1, 100, targetDate);
@@ -112,22 +132,34 @@ describe('NursingService - MAR Schedule', () => {
     });
 
     it('should generate 1 slot for QHS frequency at 22:00', async () => {
-      mockPrisma.prescription.findMany.mockResolvedValue([{
-        items: [mockPrescriptionItem('QHS')],
-      }]);
+      mockPrisma.prescription.findMany.mockResolvedValue([
+        {
+          items: [mockPrescriptionItem('QHS')],
+        },
+      ]);
 
-      const schedule = await service.generateMARSchedule(1, 100, new Date('2026-05-04'));
+      const schedule = await service.generateMARSchedule(
+        1,
+        100,
+        new Date('2026-05-04'),
+      );
 
       expect(schedule).toHaveLength(1);
       expect(schedule[0].scheduledTime.getHours()).toBe(22);
     });
 
     it('should generate 0 slots for PRN (as-needed) frequency', async () => {
-      mockPrisma.prescription.findMany.mockResolvedValue([{
-        items: [mockPrescriptionItem('PRN')],
-      }]);
+      mockPrisma.prescription.findMany.mockResolvedValue([
+        {
+          items: [mockPrescriptionItem('PRN')],
+        },
+      ]);
 
-      const schedule = await service.generateMARSchedule(1, 100, new Date('2026-05-04'));
+      const schedule = await service.generateMARSchedule(
+        1,
+        100,
+        new Date('2026-05-04'),
+      );
 
       expect(schedule).toHaveLength(0);
     });
@@ -138,9 +170,11 @@ describe('NursingService - MAR Schedule', () => {
   // ============================================
   describe('Slot Status', () => {
     it('should mark slots as PENDING when no administration record exists', async () => {
-      mockPrisma.prescription.findMany.mockResolvedValue([{
-        items: [mockPrescriptionItem('DAILY')],
-      }]);
+      mockPrisma.prescription.findMany.mockResolvedValue([
+        {
+          items: [mockPrescriptionItem('DAILY')],
+        },
+      ]);
       mockPrisma.medicationAdministration.findMany.mockResolvedValue([]);
 
       // Use a future date to avoid OVERDUE
@@ -156,16 +190,20 @@ describe('NursingService - MAR Schedule', () => {
       const targetDate = new Date();
       targetDate.setHours(0, 0, 0, 0);
 
-      mockPrisma.prescription.findMany.mockResolvedValue([{
-        items: [mockPrescriptionItem('DAILY')],
-      }]);
+      mockPrisma.prescription.findMany.mockResolvedValue([
+        {
+          items: [mockPrescriptionItem('DAILY')],
+        },
+      ]);
 
       // Admin record at 08:30 matches the 08:00 slot (within +/- 2 hour window)
-      mockPrisma.medicationAdministration.findMany.mockResolvedValue([{
-        prescriptionItemId: 1,
-        administeredAt: new Date(targetDate.getTime() + 8.5 * 60 * 60 * 1000),
-        status: 'GIVEN',
-      }]);
+      mockPrisma.medicationAdministration.findMany.mockResolvedValue([
+        {
+          prescriptionItemId: 1,
+          administeredAt: new Date(targetDate.getTime() + 8.5 * 60 * 60 * 1000),
+          status: 'GIVEN',
+        },
+      ]);
 
       const schedule = await service.generateMARSchedule(1, 100, targetDate);
 
@@ -178,16 +216,23 @@ describe('NursingService - MAR Schedule', () => {
   // ============================================
   describe('Sort Order', () => {
     it('should sort schedule by scheduledTime ascending', async () => {
-      mockPrisma.prescription.findMany.mockResolvedValue([{
-        items: [mockPrescriptionItem('QID')],
-      }]);
+      mockPrisma.prescription.findMany.mockResolvedValue([
+        {
+          items: [mockPrescriptionItem('QID')],
+        },
+      ]);
       mockPrisma.medicationAdministration.findMany.mockResolvedValue([]);
 
-      const schedule = await service.generateMARSchedule(1, 100, new Date('2026-05-04'));
+      const schedule = await service.generateMARSchedule(
+        1,
+        100,
+        new Date('2026-05-04'),
+      );
 
       for (let i = 1; i < schedule.length; i++) {
-        expect(schedule[i].scheduledTime.getTime())
-          .toBeGreaterThanOrEqual(schedule[i - 1].scheduledTime.getTime());
+        expect(schedule[i].scheduledTime.getTime()).toBeGreaterThanOrEqual(
+          schedule[i - 1].scheduledTime.getTime(),
+        );
       }
     });
   });

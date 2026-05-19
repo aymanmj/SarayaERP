@@ -16,8 +16,15 @@ import {
 import { CDSSService } from './cdss.service';
 import type { PrescriptionCheckInput } from './cdss.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { Permissions } from '../auth/permissions.decorator';
 import { CurrentUser } from '../auth/current-user.decorator';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiParam,
+} from '@nestjs/swagger';
 import { RequireFeature } from '../licensing/license.decorator';
 import {
   CheckLabResultDto,
@@ -28,7 +35,7 @@ import {
 
 @ApiTags('CDSS')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('cdss')
 @RequireFeature('CDSS')
 export class CDSSController {
@@ -38,27 +45,36 @@ export class CDSSController {
 
   @ApiOperation({ summary: 'جلب السياق السريري الكامل للمريض' })
   @ApiParam({ name: 'patientId', description: 'معرف المريض' })
+  @Permissions('cdss:view')
   @Get('context/:patientId')
   async getPatientClinicalContext(
     @CurrentUser() user: any,
     @Param('patientId', ParseIntPipe) patientId: number,
   ) {
-    return this.cdssService.getPatientClinicalContext(user.hospitalId, patientId);
+    return this.cdssService.getPatientClinicalContext(
+      user.hospitalId,
+      patientId,
+    );
   }
 
   @ApiOperation({ summary: 'جلب الأدوية الحالية للمريض' })
   @ApiParam({ name: 'patientId', description: 'معرف المريض' })
+  @Permissions('cdss:view')
   @Get('patient/:patientId/medications')
   async getPatientMedications(
     @CurrentUser() user: any,
     @Param('patientId', ParseIntPipe) patientId: number,
   ) {
-    return this.cdssService.getPatientCurrentMedications(user.hospitalId, patientId);
+    return this.cdssService.getPatientCurrentMedications(
+      user.hospitalId,
+      patientId,
+    );
   }
 
   // ======================== فحص الوصفات ========================
 
   @ApiOperation({ summary: 'فحص شامل للوصفة الطبية قبل الحفظ' })
+  @Permissions('cdss:manage')
   @Post('check-prescription')
   async checkPrescription(
     @CurrentUser() user: any,
@@ -72,6 +88,7 @@ export class CDSSController {
   }
 
   @ApiOperation({ summary: 'فحص التفاعلات الدوائية فقط' })
+  @Permissions('cdss:manage')
   @Post('check-interactions')
   async checkDrugInteractions(@Body() body: { drugs: string[] }) {
     return this.cdssService.checkDrugInteractions(body.drugs);
@@ -80,6 +97,7 @@ export class CDSSController {
   // ======================== فحص نتائج المختبر ========================
 
   @ApiOperation({ summary: 'فحص نتيجة مختبرية وإنشاء تنبيه إذا كانت حرجة' })
+  @Permissions('cdss:manage')
   @Post('check-lab-result')
   async checkLabResult(
     @CurrentUser() user: any,
@@ -93,12 +111,12 @@ export class CDSSController {
 
   // ======================== فحص العلامات الحيوية ========================
 
-  @ApiOperation({ summary: 'فحص العلامات الحيوية وإنشاء تنبيهات إذا كانت حرجة' })
+  @ApiOperation({
+    summary: 'فحص العلامات الحيوية وإنشاء تنبيهات إذا كانت حرجة',
+  })
+  @Permissions('cdss:manage')
   @Post('check-vitals')
-  async checkVitals(
-    @CurrentUser() user: any,
-    @Body() input: CheckVitalsDto,
-  ) {
+  async checkVitals(@CurrentUser() user: any, @Body() input: CheckVitalsDto) {
     return this.cdssService.checkVitalsAndAlert({
       ...input,
       hospitalId: user.hospitalId,
@@ -109,6 +127,7 @@ export class CDSSController {
 
   @ApiOperation({ summary: 'جلب تنبيهات المريض النشطة' })
   @ApiParam({ name: 'patientId', description: 'معرف المريض' })
+  @Permissions('cdss:view')
   @Get('alerts/patient/:patientId')
   async getPatientAlerts(
     @CurrentUser() user: any,
@@ -119,6 +138,7 @@ export class CDSSController {
 
   @ApiOperation({ summary: 'الاعتراف بالتنبيه' })
   @ApiParam({ name: 'id', description: 'معرف التنبيه' })
+  @Permissions('cdss:manage')
   @Post('alerts/:id/acknowledge')
   async acknowledgeAlert(
     @CurrentUser() user: any,
@@ -129,6 +149,7 @@ export class CDSSController {
 
   @ApiOperation({ summary: 'تجاوز التنبيه مع سبب' })
   @ApiParam({ name: 'id', description: 'معرف التنبيه' })
+  @Permissions('cdss:manage')
   @Post('alerts/:id/override')
   async overrideAlert(
     @CurrentUser() user: any,
@@ -141,17 +162,43 @@ export class CDSSController {
   // ======================== قاعدة المعرفة ========================
 
   @ApiOperation({ summary: 'البحث في التفاعلات الدوائية' })
+  @Permissions('cdss:view')
   @Get('interactions')
   async searchInteractions(
     @Query('drug') drug: string,
     @Query('limit') limit = '20',
   ) {
-    // TODO: تنفيذ البحث في قاعدة البيانات
+    const parsedLimit = Math.min(parseInt(limit) || 20, 100);
+
+    if (!drug || drug.trim().length < 2) {
+      return { results: [], total: 0 };
+    }
+
+    const interactions = await this.cdssService.searchDrugInteractions(
+      drug.trim(),
+      parsedLimit,
+    );
+
     return {
-      message: 'Search endpoint - to be implemented with full-text search',
-      drug,
-      limit: parseInt(limit),
+      drug: drug.trim(),
+      total: interactions.length,
+      results: interactions,
     };
+  }
+
+  @ApiOperation({
+    summary: 'حساب eGFR لمريض بناءً على آخر كرياتينين',
+    description:
+      'يحسب معدل الترشيح الكلوي المقدر (eGFR) باستخدام معادلة Cockcroft-Gault',
+  })
+  @ApiParam({ name: 'patientId', description: 'معرف المريض' })
+  @Permissions('cdss:view')
+  @Get('renal/egfr/:patientId')
+  async computePatientEGFR(
+    @CurrentUser() user: any,
+    @Param('patientId', ParseIntPipe) patientId: number,
+  ) {
+    return this.cdssService.computePatientEGFR(user.hospitalId, patientId);
   }
 }
 

@@ -78,7 +78,11 @@ export class RegistriesService {
     });
   }
 
-  async updateRegistry(hospitalId: number, registryId: number, dto: UpsertRegistryDto) {
+  async updateRegistry(
+    hospitalId: number,
+    registryId: number,
+    dto: UpsertRegistryDto,
+  ) {
     const existing = await this.getRegistry(hospitalId, registryId);
 
     return this.prisma.$transaction(async (tx) => {
@@ -111,7 +115,9 @@ export class RegistriesService {
         .filter((id): id is number => typeof id === 'number');
 
       const existingRuleIds = existing.careGapRules.map((rule) => rule.id);
-      const missingRuleIds = existingRuleIds.filter((id) => !incomingRuleIds.includes(id));
+      const missingRuleIds = existingRuleIds.filter(
+        (id) => !incomingRuleIds.includes(id),
+      );
 
       if (missingRuleIds.length > 0) {
         await tx.careGapRule.updateMany({
@@ -253,7 +259,9 @@ export class RegistriesService {
               },
             });
             opened += 1;
-            this.logger.log(`Created Care Gap for Patient ${member.patientId} - Rule: ${rule.name}`);
+            this.logger.log(
+              `Created Care Gap for Patient ${member.patientId} - Rule: ${rule.name}`,
+            );
           }
         } else {
           // If the patient fulfilled the requirement, close any OPEN gaps
@@ -281,24 +289,30 @@ export class RegistriesService {
 
   private async evaluateCriteria(criteriaList: any[]): Promise<number[]> {
     if (!criteriaList || criteriaList.length === 0) return [];
-    
-    let matchingPatientIds = new Set<number>();
-    
+
+    const matchingPatientIds = new Set<number>();
+
     // Simplistic evaluation: Get all patients that have the diagnosis if criteria is DIAGNOSIS
     for (const criteria of criteriaList) {
       if (criteria.type === 'DIAGNOSIS') {
-        const encounterDiagnoses = await this.prisma.encounterDiagnosis.findMany({
-          where: { diagnosisCode: { code: criteria.value } },
-          select: { encounter: { select: { patientId: true } } },
-        });
-        encounterDiagnoses.forEach(ed => matchingPatientIds.add(ed.encounter.patientId));
+        const encounterDiagnoses =
+          await this.prisma.encounterDiagnosis.findMany({
+            where: { diagnosisCode: { code: criteria.value } },
+            select: { encounter: { select: { patientId: true } } },
+          });
+        encounterDiagnoses.forEach((ed) =>
+          matchingPatientIds.add(ed.encounter.patientId),
+        );
       }
     }
 
     return Array.from(matchingPatientIds);
   }
 
-  private async checkPatientGap(patientId: number, rule: any): Promise<boolean> {
+  private async checkPatientGap(
+    patientId: number,
+    rule: any,
+  ): Promise<boolean> {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - rule.frequencyDays);
 

@@ -34,11 +34,9 @@ describe('RadiologyController', () => {
 
   it('rejects creating radiology orders without studies', async () => {
     await expect(
-      controller.createOrdersForEncounter(
-        { user } as any,
-        21,
-        { studyIds: [] } as any,
-      ),
+      controller.createOrdersForEncounter({ user } as any, 21, {
+        studyIds: [],
+      } as any),
     ).rejects.toThrow(BadRequestException);
   });
 
@@ -65,7 +63,10 @@ describe('RadiologyController', () => {
   });
 
   it('starts radiology processing with hospital and performer context', async () => {
-    radiologyService.startProcessing.mockResolvedValue({ id: 11, status: 'IN_PROGRESS' });
+    radiologyService.startProcessing.mockResolvedValue({
+      id: 11,
+      status: 'IN_PROGRESS',
+    });
 
     await controller.startOrder({ user } as any, 11);
 
@@ -87,11 +88,9 @@ describe('RadiologyController', () => {
       status: 'COMPLETED',
     });
 
-    await controller.reportOrder(
-      { user } as any,
-      11,
-      { reportText: 'No acute findings.' } as any,
-    );
+    await controller.reportOrder({ user } as any, 11, {
+      reportText: 'No acute findings.',
+    } as any);
 
     expect(radiologyService.completeOrderWithReport).toHaveBeenCalledWith({
       hospitalId: 5,

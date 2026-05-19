@@ -10,7 +10,7 @@ const defaultDoseRanges = [
     minDoseValue: 500,
     maxDoseValue: 1000,
     doseUnit: 'mg',
-    frequencyMax: 4
+    frequencyMax: 4,
   },
   {
     drugName: 'Paracetamol Oral',
@@ -19,7 +19,7 @@ const defaultDoseRanges = [
     minDoseValue: 500,
     maxDoseValue: 1000,
     doseUnit: 'mg',
-    frequencyMax: 4
+    frequencyMax: 4,
   },
   {
     drugName: 'Amoxicillin',
@@ -28,7 +28,7 @@ const defaultDoseRanges = [
     minDoseValue: 250,
     maxDoseValue: 875,
     doseUnit: 'mg',
-    frequencyMax: 3
+    frequencyMax: 3,
   },
   {
     drugName: 'Ibuprofen',
@@ -37,7 +37,7 @@ const defaultDoseRanges = [
     minDoseValue: 200,
     maxDoseValue: 800,
     doseUnit: 'mg',
-    frequencyMax: 4
+    frequencyMax: 4,
   },
   {
     drugName: 'Vancomycin hydrochloride',
@@ -46,7 +46,7 @@ const defaultDoseRanges = [
     minDoseValue: 500,
     maxDoseValue: 2000,
     doseUnit: 'mg',
-    frequencyMax: 4
+    frequencyMax: 4,
   },
   {
     drugName: 'Gentamicin 80mg',
@@ -55,8 +55,8 @@ const defaultDoseRanges = [
     minDoseValue: 80,
     maxDoseValue: 120,
     doseUnit: 'mg',
-    frequencyMax: 3
-  }
+    frequencyMax: 3,
+  },
 ];
 
 async function seedDrugDoseRanges() {
@@ -69,18 +69,18 @@ async function seedDrugDoseRanges() {
   for (const range of defaultDoseRanges) {
     try {
       const existing = await prisma.drugDoseRange.findFirst({
-        where: { drugName: { equals: range.drugName, mode: 'insensitive' } }
+        where: { drugName: { equals: range.drugName, mode: 'insensitive' } },
       });
 
       if (!existing) {
         await prisma.drugDoseRange.create({
-          data: range
+          data: range,
         });
         imported++;
       } else {
         await prisma.drugDoseRange.update({
           where: { id: existing.id },
-          data: range
+          data: range,
         });
         imported++;
       }

@@ -1,9 +1,17 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { CDSSService, DrugCheckInput, PrescriptionCheckInput } from './cdss.service';
+import {
+  CDSSService,
+  DrugCheckInput,
+  PrescriptionCheckInput,
+} from './cdss.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { TerminologyService } from '../terminology/terminology.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { CDSSAlertType, CDSSAlertSeverity, TerminologySystem } from '@prisma/client';
+import {
+  CDSSAlertType,
+  CDSSAlertSeverity,
+  TerminologySystem,
+} from '@prisma/client';
 
 describe('CDSSService', () => {
   let cdssService: CDSSService;
@@ -101,15 +109,14 @@ describe('CDSSService', () => {
           drugGeneric: 'aspirin',
           allergyGroup: {
             name: 'NSAIDs',
-            members: [
-              { drugGeneric: 'aspirin' },
-              { drugGeneric: 'ibuprofen' },
-            ]
-          }
-        }
+            members: [{ drugGeneric: 'aspirin' }, { drugGeneric: 'ibuprofen' }],
+          },
+        },
       ]);
 
-      const alerts = await cdssService.checkDrugAllergies(1, ['Ibuprofen 400mg']);
+      const alerts = await cdssService.checkDrugAllergies(1, [
+        'Ibuprofen 400mg',
+      ]);
 
       expect(alerts).toBeDefined();
       expect(alerts.length).toBe(1);
@@ -129,14 +136,14 @@ describe('CDSSService', () => {
           drugGeneric: 'aspirin',
           allergyGroup: {
             name: 'NSAIDs',
-            members: [
-              { drugGeneric: 'aspirin' },
-            ]
-          }
-        }
+            members: [{ drugGeneric: 'aspirin' }],
+          },
+        },
       ]);
 
-      const alerts = await cdssService.checkDrugAllergies(1, ['Amoxicillin 500mg']);
+      const alerts = await cdssService.checkDrugAllergies(1, [
+        'Amoxicillin 500mg',
+      ]);
 
       expect(alerts.length).toBe(0);
     });
@@ -173,7 +180,11 @@ describe('CDSSService', () => {
       mockPrismaService.terminologyConcept.findUnique.mockResolvedValue(null);
 
       const drugs: DrugCheckInput[] = [
-        { genericName: 'Vancomycin hydrochloride', dose: '1000mg', route: 'IV' },
+        {
+          genericName: 'Vancomycin hydrochloride',
+          dose: '1000mg',
+          route: 'IV',
+        },
       ];
 
       const alerts = await cdssService.checkRenalAdjustment(1, drugs);
@@ -184,7 +195,7 @@ describe('CDSSService', () => {
       expect(alerts[0].severity).toEqual(CDSSAlertSeverity.HIGH);
       expect(alerts[0].requiresOverride).toBe(false); // Only critical requires override
     });
-    
+
     it('should generate a CRITICAL Renal Dose alert when eGFR is below 30', async () => {
       mockPrismaService.patient.findUnique.mockResolvedValue({
         id: 1,
@@ -212,9 +223,14 @@ describe('CDSSService', () => {
   describe('checkDoseRange', () => {
     it('should generate a CRITICAL alert when Paracetamol dose exceeds 1000mg per dose', async () => {
       mockPrismaService.drugDoseRange.findMany.mockResolvedValue([
-        { drugName: 'paracetamol iv', maxDoseValue: 1000, minDoseValue: 500, doseUnit: 'mg' }
+        {
+          drugName: 'paracetamol iv',
+          maxDoseValue: 1000,
+          minDoseValue: 500,
+          doseUnit: 'mg',
+        },
       ]);
-      
+
       const drugs: DrugCheckInput[] = [
         { genericName: 'Paracetamol IV', dose: '1500mg', route: 'IV' },
       ];
@@ -231,15 +247,135 @@ describe('CDSSService', () => {
 
     it('should NOT generate an alert when Paracetamol dose is safe (1000mg)', async () => {
       mockPrismaService.drugDoseRange.findMany.mockResolvedValue([
-        { drugName: 'paracetamol iv', maxDoseValue: 1000, minDoseValue: 500, doseUnit: 'mg' }
+        {
+          drugName: 'paracetamol iv',
+          maxDoseValue: 1000,
+          minDoseValue: 500,
+          doseUnit: 'mg',
+        },
       ]);
-      
+
       const drugs: DrugCheckInput[] = [
         { genericName: 'Paracetamol IV', dose: '1000mg', route: 'IV' },
       ];
 
       const alerts = await cdssService.checkDoseRange(drugs);
       expect(alerts.length).toBe(0);
+    });
+  });
+
+  // ============================================
+  // computePatientEGFR — Standalone Renal Assessment
+  // ============================================
+  describe('computePatientEGFR', () => {
+    it('should compute eGFR and return CKD staging for a male patient', async () => {
+      // Patient: Male, age 50, creatinine 1.5
+      mockPrismaService.patient.findUnique.mockResolvedValue({
+        id: 1,
+        dateOfBirth: new Date(new Date().getFullYear() - 50, 0, 1),
+        gender: 'MALE',
+      });
+
+      mockPrismaService.labOrderResult.findFirst.mockResolvedValue({
+        value: '1.5',
+        labOrder: { resultDate: new Date() },
+      });
+
+      const result = await cdssService.computePatientEGFR(1, 1);
+
+      expect(result).toBeDefined();
+      expect(result.egfr!.value).toBe(58.3); // Cockcroft-Gault
+      expect(result.ckd!.stage).toBe('G3a'); // 45-59 = G3a
+      expect(result.ckd!.description).toContain('Mildly to moderately decreased');
+    });
+
+    it('should compute eGFR for a female patient (0.85 multiplier)', async () => {
+      mockPrismaService.patient.findUnique.mockResolvedValue({
+        id: 2,
+        dateOfBirth: new Date(new Date().getFullYear() - 50, 0, 1),
+        gender: 'FEMALE',
+      });
+
+      mockPrismaService.labOrderResult.findFirst.mockResolvedValue({
+        value: '1.5',
+        labOrder: { resultDate: new Date() },
+      });
+
+      const result = await cdssService.computePatientEGFR(1, 2);
+
+      expect(result).toBeDefined();
+      expect(result.egfr!.value).toBe(49.6); // 58.3 * 0.85
+      expect(result.ckd!.stage).toBe('G3a'); // 45-59 = G3a (49.6 is in this range)
+    });
+
+    it('should classify Stage G5 (Kidney Failure) for eGFR < 15', async () => {
+      mockPrismaService.patient.findUnique.mockResolvedValue({
+        id: 3,
+        dateOfBirth: new Date(new Date().getFullYear() - 70, 0, 1),
+        gender: 'MALE',
+      });
+
+      // Very high creatinine
+      mockPrismaService.labOrderResult.findFirst.mockResolvedValue({
+        value: '8.0',
+        labOrder: { resultDate: new Date() },
+      });
+
+      const result = await cdssService.computePatientEGFR(1, 3);
+
+      expect(result).toBeDefined();
+      expect(result.egfr!.value).toBeLessThan(15);
+      expect(result.ckd!.stage).toBe('G5');
+      expect(result.ckd!.description).toContain('Kidney failure');
+    });
+
+    it('should return available:false when patient has no creatinine results', async () => {
+      mockPrismaService.patient.findUnique.mockResolvedValue({
+        id: 4,
+        dateOfBirth: new Date(new Date().getFullYear() - 40, 0, 1),
+        gender: 'MALE',
+      });
+
+      mockPrismaService.labOrderResult.findFirst.mockResolvedValue(null);
+
+      const result = await cdssService.computePatientEGFR(1, 4);
+      expect(result.available).toBe(false);
+      expect(result.reason).toBeDefined();
+    });
+  });
+
+  // ============================================
+  // searchDrugInteractions — Knowledge Base Search
+  // ============================================
+  describe('searchDrugInteractions', () => {
+    beforeEach(() => {
+      (mockPrismaService as any).drugInteraction = { findMany: jest.fn() };
+    });
+
+    it('should search drug interactions by generic name', async () => {
+      (mockPrismaService as any).drugInteraction.findMany.mockResolvedValue([
+        {
+          id: 1,
+          drugAGeneric: 'warfarin',
+          drugBGeneric: 'aspirin',
+          severity: 'CRITICAL',
+          description: 'Greatly increased risk of major bleeding',
+          recommendation: 'Avoid combination',
+        },
+      ]);
+
+      const results = await cdssService.searchDrugInteractions('warfarin');
+
+      expect(results).toHaveLength(1);
+      expect(results[0].severity).toBe('CRITICAL');
+      expect(results[0].drugAGeneric).toBe('warfarin');
+    });
+
+    it('should return empty array when no interactions found', async () => {
+      (mockPrismaService as any).drugInteraction.findMany.mockResolvedValue([]);
+
+      const results = await cdssService.searchDrugInteractions('vitamin_c');
+      expect(results).toHaveLength(0);
     });
   });
 });

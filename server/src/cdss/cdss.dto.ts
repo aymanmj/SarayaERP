@@ -49,7 +49,10 @@ export class PrescriptionCheckDto {
   @IsNumber()
   encounterId?: number;
 
-  @ApiProperty({ description: 'قائمة الأدوية للفحص', type: [DrugCheckInputDto] })
+  @ApiProperty({
+    description: 'قائمة الأدوية للفحص',
+    type: [DrugCheckInputDto],
+  })
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => DrugCheckInputDto)

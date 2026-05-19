@@ -68,7 +68,9 @@ export class DiagnosisService {
       });
 
       if (!concept) {
-        throw new NotFoundException('الرمز المعياري غير موجود في القاموس الطبي');
+        throw new NotFoundException(
+          'الرمز المعياري غير موجود في القاموس الطبي',
+        );
       }
 
       let diagnosisCode = await this.prisma.diagnosisCode.findFirst({
@@ -76,7 +78,7 @@ export class DiagnosisService {
           OR: [
             { terminologyConceptId: concept.id },
             { icd10Code: concept.code },
-            { code: concept.code }
+            { code: concept.code },
           ],
         },
         select: { id: true },
@@ -89,14 +91,15 @@ export class DiagnosisService {
             code: concept.code,
             nameEn: concept.display,
             nameAr: concept.displayAr,
-            icd10Code: concept.system === TerminologySystem.ICD10 ? concept.code : null,
+            icd10Code:
+              concept.system === TerminologySystem.ICD10 ? concept.code : null,
             terminologyConceptId: concept.id,
             isActive: true,
           },
-          select: { id: true }
+          select: { id: true },
         });
       }
-      
+
       selectedCodeId = diagnosisCode.id;
     }
 

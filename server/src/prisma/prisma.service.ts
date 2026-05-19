@@ -20,7 +20,7 @@ export class PrismaService
   implements OnModuleInit, OnModuleDestroy
 {
   private readonly logger = new Logger(PrismaService.name);
-  
+
   constructor(
     private readonly cls: ClsService,
     private readonly config: ConfigService,
@@ -33,10 +33,12 @@ export class PrismaService
         },
       },
     });
-    
+
     // Wrap the Prisma client with extensions
-    const client = extendedPrisma(this, this.encryptionService).$extends(auditExtension(this.cls, this));
-    
+    const client = extendedPrisma(this, this.encryptionService).$extends(
+      auditExtension(this.cls, this),
+    );
+
     // Attach lifecycle hooks to the proxy so NestJS can call them
     (client as any).onModuleInit = this.onModuleInit.bind(this);
     (client as any).onModuleDestroy = this.onModuleDestroy.bind(this);
@@ -68,7 +70,7 @@ export class PrismaService
           // لو تحب تشوف لوق كل مرة شيل التعليق:
           // this.logger.debug('DB keep-alive ping OK');
         } catch (error) {
-          this.logger.error('DB keep-alive ping failed', error as any);
+          this.logger.error('DB keep-alive ping failed', error);
         }
       },
       5 * 60 * 1000,

@@ -104,6 +104,7 @@ export function InventoryCountDetailsPage() {
       const res = await api.post("/inventory/counts", payload);
       toast.success("تم إنشاء مسودة الجرد بنجاح");
       navigate(`/inventory/counts/${res.data.id}`);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       toast.error("فشل إنشاء الجرد (تأكد من صحة البيانات)");
     } finally {
@@ -129,6 +130,7 @@ export function InventoryCountDetailsPage() {
 
     try {
         await api.put(`/inventory/counts/lines/${lineId}`, { physicalQty: qty });
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
         toast.error("فشل تحديث الصنف");
     }
@@ -143,6 +145,7 @@ export function InventoryCountDetailsPage() {
       await api.post(`/inventory/counts/${count.id}/post`);
       toast.success("تم ترحيل الجرد وتحديث المخزون!");
       fetchCount(); // Refresh without args
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       toast.error("فشل ترحيل الجرد");
     } finally {

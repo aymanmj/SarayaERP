@@ -159,7 +159,9 @@ describe('CashierController', () => {
       expect.objectContaining({
         paymentId: 5,
         patient: expect.objectContaining({ fullName: 'Ahmed' }),
-        organization: expect.objectContaining({ displayName: 'Saraya Hospital' }),
+        organization: expect.objectContaining({
+          displayName: 'Saraya Hospital',
+        }),
       }),
     );
     expect(res.end).toHaveBeenCalledWith(Buffer.from('pdf'));
@@ -169,7 +171,12 @@ describe('CashierController', () => {
     await expect(
       controller.closeShift(
         { user: { hospitalId: 1, sub: 'bad-id' } } as any,
-        { date: '2026-04-19', from: '08:00', to: '16:00', actualCash: 100 } as any,
+        {
+          date: '2026-04-19',
+          from: '08:00',
+          to: '16:00',
+          actualCash: 100,
+        } as any,
       ),
     ).rejects.toThrow(BadRequestException);
   });
@@ -179,7 +186,13 @@ describe('CashierController', () => {
 
     await controller.closeShift(
       { user } as any,
-      { date: '2026-04-19', from: '20:00', to: '04:00', actualCash: 100, note: 'night' } as any,
+      {
+        date: '2026-04-19',
+        from: '20:00',
+        to: '04:00',
+        actualCash: 100,
+        note: 'night',
+      } as any,
     );
 
     expect(cashierService.closeCashierShift).toHaveBeenCalledWith(

@@ -59,7 +59,7 @@ describe('LabService', () => {
     },
   };
 
-  const mockPrismaService = ({
+  const mockPrismaService = {
     labTest: {
       findMany: jest.fn(),
       findFirst: jest.fn(),
@@ -84,7 +84,9 @@ describe('LabService', () => {
     encounterCharge: {
       create: jest.fn().mockResolvedValue({ id: 1 }),
       updateMany: jest.fn(),
-      findFirst: jest.fn().mockResolvedValue({ id: 1, totalAmount: 25, invoiceId: 100 }),
+      findFirst: jest
+        .fn()
+        .mockResolvedValue({ id: 1, totalAmount: 25, invoiceId: 100 }),
     },
     invoice: {
       create: jest.fn().mockResolvedValue({ id: 1 }),
@@ -93,7 +95,7 @@ describe('LabService', () => {
       findUnique: jest.fn().mockResolvedValue({ id: 1, fullName: 'Doctor' }),
     },
     $transaction: jest.fn((fn) => fn(mockPrismaService)),
-  });
+  };
 
   const mockEventEmitter = {
     emit: jest.fn(),
@@ -189,7 +191,10 @@ describe('LabService', () => {
     it('should return lab orders for specific encounter', async () => {
       mockPrismaService.labOrder.findMany.mockResolvedValue([mockLabOrder]);
 
-      const result = await service.listOrdersForEncounter(mockEncounterId, mockHospitalId);
+      const result = await service.listOrdersForEncounter(
+        mockEncounterId,
+        mockHospitalId,
+      );
 
       expect(result).toBeDefined();
       expect(Array.isArray(result)).toBe(true);
@@ -222,7 +227,10 @@ describe('LabService', () => {
       });
 
       expect(result).toBeDefined();
-      expect(mockEventEmitter.emit).toHaveBeenCalledWith('lab.order_created', expect.any(Object));
+      expect(mockEventEmitter.emit).toHaveBeenCalledWith(
+        'lab.order_created',
+        expect.any(Object),
+      );
     });
 
     it('should throw error if encounter not found', async () => {
@@ -256,11 +264,29 @@ describe('LabService', () => {
       });
       mockPrismaService.labTest.findMany.mockResolvedValue(mockLabTests);
       mockPrismaService.order.create
-        .mockResolvedValueOnce({ id: 11, hospitalId: mockHospitalId, encounterId: mockEncounterId })
-        .mockResolvedValueOnce({ id: 12, hospitalId: mockHospitalId, encounterId: mockEncounterId });
+        .mockResolvedValueOnce({
+          id: 11,
+          hospitalId: mockHospitalId,
+          encounterId: mockEncounterId,
+        })
+        .mockResolvedValueOnce({
+          id: 12,
+          hospitalId: mockHospitalId,
+          encounterId: mockEncounterId,
+        });
       mockPrismaService.labOrder.create
-        .mockResolvedValueOnce({ ...mockLabOrder, id: 21, orderId: 11, test: mockLabTests[0] })
-        .mockResolvedValueOnce({ ...mockLabOrder, id: 22, orderId: 12, test: mockLabTests[1] });
+        .mockResolvedValueOnce({
+          ...mockLabOrder,
+          id: 21,
+          orderId: 11,
+          test: mockLabTests[0],
+        })
+        .mockResolvedValueOnce({
+          ...mockLabOrder,
+          id: 22,
+          orderId: 12,
+          test: mockLabTests[1],
+        });
       mockPriceListsService.getServicePrice
         .mockResolvedValueOnce(50)
         .mockResolvedValueOnce(150);
@@ -287,10 +313,12 @@ describe('LabService', () => {
           insuranceProviderId: 8,
         }),
       });
-      expect(mockPrismaService.encounterCharge.updateMany).toHaveBeenCalledWith({
-        where: { id: { in: [101, 102] } },
-        data: { invoiceId: 1 },
-      });
+      expect(mockPrismaService.encounterCharge.updateMany).toHaveBeenCalledWith(
+        {
+          where: { id: { in: [101, 102] } },
+          data: { invoiceId: 1 },
+        },
+      );
     });
 
     it('should reject createOrders when no valid tests are selected', async () => {
@@ -325,7 +353,11 @@ describe('LabService', () => {
         resultStatus: 'IN_PROGRESS',
       });
 
-      const result = await service.startProcessing(mockHospitalId, 1, mockDoctorId);
+      const result = await service.startProcessing(
+        mockHospitalId,
+        1,
+        mockDoctorId,
+      );
 
       expect(result.resultStatus).toBe('IN_PROGRESS');
       expect(mockEventEmitter.emit).toHaveBeenCalledWith(
@@ -342,7 +374,11 @@ describe('LabService', () => {
       };
       mockPrismaService.labOrder.findUnique.mockResolvedValue(completedOrder);
 
-      const result = await service.startProcessing(mockHospitalId, 1, mockDoctorId);
+      const result = await service.startProcessing(
+        mockHospitalId,
+        1,
+        mockDoctorId,
+      );
 
       expect(result).toEqual(completedOrder);
       expect(mockPrismaService.labOrder.update).not.toHaveBeenCalled();
@@ -355,8 +391,10 @@ describe('LabService', () => {
         ...mockLabOrder,
         order: { hospitalId: mockHospitalId, encounterId: mockEncounterId },
       });
-      mockPrismaService.encounter.findUnique.mockResolvedValue({ patientId: 1 });
-      
+      mockPrismaService.encounter.findUnique.mockResolvedValue({
+        patientId: 1,
+      });
+
       mockPrismaService.labOrder.update.mockResolvedValue({
         ...mockLabOrder,
         resultStatus: 'COMPLETED',
@@ -396,7 +434,9 @@ describe('LabService', () => {
         ...mockLabOrder,
         order: { hospitalId: mockHospitalId, encounterId: mockEncounterId },
       });
-      mockPrismaService.encounter.findUnique.mockResolvedValue({ patientId: 1 });
+      mockPrismaService.encounter.findUnique.mockResolvedValue({
+        patientId: 1,
+      });
       mockPrismaService.labOrder.update.mockResolvedValue({
         ...mockLabOrder,
         resultStatus: 'COMPLETED',
@@ -438,7 +478,10 @@ describe('LabService', () => {
       });
       mockPrismaService.labOrder.findMany.mockResolvedValue([mockLabOrder]);
 
-      const result = await service.getCumulativeReport(mockHospitalId, mockEncounterId);
+      const result = await service.getCumulativeReport(
+        mockHospitalId,
+        mockEncounterId,
+      );
 
       expect(result).toBeDefined();
       expect(result.encounter).toBeDefined();

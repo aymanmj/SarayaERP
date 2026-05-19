@@ -17,6 +17,8 @@ import {
   Request,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { Permissions } from '../auth/permissions.decorator';
 import { ClinicalProfileService } from './clinical-profile.service';
 import {
   CreateProblemDto,
@@ -30,12 +32,13 @@ import {
 } from './dto/clinical-profile.dto';
 
 @Controller('patients/:patientId')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 export class ClinicalProfileController {
   constructor(private readonly service: ClinicalProfileService) {}
 
   // ======================== Clinical Summary ========================
 
+  @Permissions('clinical-profile:view')
   @Get('clinical-summary')
   async getClinicalSummary(
     @Param('patientId', ParseIntPipe) patientId: number,
@@ -46,6 +49,7 @@ export class ClinicalProfileController {
 
   // ======================== Problem List ========================
 
+  @Permissions('clinical-profile:view')
   @Get('problems')
   async getProblems(
     @Param('patientId', ParseIntPipe) patientId: number,
@@ -54,15 +58,22 @@ export class ClinicalProfileController {
     return this.service.getProblems(patientId, req.user.hospitalId);
   }
 
+  @Permissions('clinical-profile:manage')
   @Post('problems')
   async createProblem(
     @Param('patientId', ParseIntPipe) patientId: number,
     @Body() dto: CreateProblemDto,
     @Request() req: any,
   ) {
-    return this.service.createProblem(patientId, req.user.hospitalId, req.user.id, dto);
+    return this.service.createProblem(
+      patientId,
+      req.user.hospitalId,
+      req.user.id,
+      dto,
+    );
   }
 
+  @Permissions('clinical-profile:manage')
   @Patch('problems/:problemId')
   async updateProblem(
     @Param('problemId', ParseIntPipe) problemId: number,
@@ -72,6 +83,7 @@ export class ClinicalProfileController {
     return this.service.updateProblem(problemId, req.user.hospitalId, dto);
   }
 
+  @Permissions('clinical-profile:manage')
   @Delete('problems/:problemId')
   async deleteProblem(
     @Param('problemId', ParseIntPipe) problemId: number,
@@ -82,6 +94,7 @@ export class ClinicalProfileController {
 
   // ======================== Medical History ========================
 
+  @Permissions('clinical-profile:view')
   @Get('medical-history')
   async getMedicalHistory(
     @Param('patientId', ParseIntPipe) patientId: number,
@@ -90,17 +103,23 @@ export class ClinicalProfileController {
     return this.service.getMedicalHistory(patientId, req.user.hospitalId);
   }
 
+  @Permissions('clinical-profile:manage')
   @Put('medical-history')
   async upsertMedicalHistory(
     @Param('patientId', ParseIntPipe) patientId: number,
     @Body() dto: UpsertMedicalHistoryDto,
     @Request() req: any,
   ) {
-    return this.service.upsertMedicalHistory(patientId, req.user.hospitalId, dto);
+    return this.service.upsertMedicalHistory(
+      patientId,
+      req.user.hospitalId,
+      dto,
+    );
   }
 
   // ======================== PMH Entries ========================
 
+  @Permissions('clinical-profile:manage')
   @Post('pmh-entries')
   async createPMHEntry(
     @Param('patientId', ParseIntPipe) patientId: number,
@@ -110,6 +129,7 @@ export class ClinicalProfileController {
     return this.service.createPMHEntry(patientId, req.user.hospitalId, dto);
   }
 
+  @Permissions('clinical-profile:manage')
   @Delete('pmh-entries/:entryId')
   async deletePMHEntry(
     @Param('entryId', ParseIntPipe) entryId: number,
@@ -120,15 +140,21 @@ export class ClinicalProfileController {
 
   // ======================== Surgical Entries ========================
 
+  @Permissions('clinical-profile:manage')
   @Post('surgical-entries')
   async createSurgicalEntry(
     @Param('patientId', ParseIntPipe) patientId: number,
     @Body() dto: CreateSurgicalEntryDto,
     @Request() req: any,
   ) {
-    return this.service.createSurgicalEntry(patientId, req.user.hospitalId, dto);
+    return this.service.createSurgicalEntry(
+      patientId,
+      req.user.hospitalId,
+      dto,
+    );
   }
 
+  @Permissions('clinical-profile:manage')
   @Delete('surgical-entries/:entryId')
   async deleteSurgicalEntry(
     @Param('entryId', ParseIntPipe) entryId: number,
@@ -139,15 +165,21 @@ export class ClinicalProfileController {
 
   // ======================== Family History ========================
 
+  @Permissions('clinical-profile:manage')
   @Post('family-history')
   async createFamilyHistoryEntry(
     @Param('patientId', ParseIntPipe) patientId: number,
     @Body() dto: CreateFamilyHistoryDto,
     @Request() req: any,
   ) {
-    return this.service.createFamilyHistoryEntry(patientId, req.user.hospitalId, dto);
+    return this.service.createFamilyHistoryEntry(
+      patientId,
+      req.user.hospitalId,
+      dto,
+    );
   }
 
+  @Permissions('clinical-profile:manage')
   @Delete('family-history/:entryId')
   async deleteFamilyHistoryEntry(
     @Param('entryId', ParseIntPipe) entryId: number,
@@ -158,6 +190,7 @@ export class ClinicalProfileController {
 
   // ======================== Home Medications ========================
 
+  @Permissions('clinical-profile:view')
   @Get('home-medications')
   async getHomeMedications(
     @Param('patientId', ParseIntPipe) patientId: number,
@@ -166,32 +199,49 @@ export class ClinicalProfileController {
     return this.service.getHomeMedications(patientId, req.user.hospitalId);
   }
 
+  @Permissions('clinical-profile:manage')
   @Post('home-medications')
   async createHomeMedication(
     @Param('patientId', ParseIntPipe) patientId: number,
     @Body() dto: CreateHomeMedicationDto,
     @Request() req: any,
   ) {
-    return this.service.createHomeMedication(patientId, req.user.hospitalId, req.user.id, dto);
+    return this.service.createHomeMedication(
+      patientId,
+      req.user.hospitalId,
+      req.user.id,
+      dto,
+    );
   }
 
+  @Permissions('clinical-profile:manage')
   @Patch('home-medications/:medicationId')
   async updateHomeMedication(
     @Param('medicationId', ParseIntPipe) medicationId: number,
     @Body() dto: UpdateHomeMedicationDto,
     @Request() req: any,
   ) {
-    return this.service.updateHomeMedication(medicationId, req.user.hospitalId, dto);
+    return this.service.updateHomeMedication(
+      medicationId,
+      req.user.hospitalId,
+      dto,
+    );
   }
 
+  @Permissions('clinical-profile:manage')
   @Post('home-medications/:medicationId/verify')
   async verifyHomeMedication(
     @Param('medicationId', ParseIntPipe) medicationId: number,
     @Request() req: any,
   ) {
-    return this.service.verifyHomeMedication(medicationId, req.user.hospitalId, req.user.id);
+    return this.service.verifyHomeMedication(
+      medicationId,
+      req.user.hospitalId,
+      req.user.id,
+    );
   }
 
+  @Permissions('clinical-profile:manage')
   @Delete('home-medications/:medicationId')
   async deleteHomeMedication(
     @Param('medicationId', ParseIntPipe) medicationId: number,

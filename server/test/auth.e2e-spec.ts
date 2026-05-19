@@ -23,8 +23,8 @@ describe('Authentication (e2e)', () => {
     await app.init();
 
     prisma = app.get<PrismaService>(PrismaService);
-    // Helper needs JWT service which might be internal to AuthModule, 
-    // but if it's exported or Global, we can get it. 
+    // Helper needs JWT service which might be internal to AuthModule,
+    // but if it's exported or Global, we can get it.
     // Alternatively, instantiate it manually if just for generating tokens.
     const jwt = app.get<JwtService>(JwtService);
     authHelper = new AuthHelper(prisma, jwt);
@@ -65,9 +65,7 @@ describe('Authentication (e2e)', () => {
 
   describe('GET /users/me (Protected Route)', () => {
     it('should reject unauthenticated requests', async () => {
-      return request(app.getHttpServer())
-        .get('/users/me')
-        .expect(401);
+      return request(app.getHttpServer()).get('/users/me').expect(401);
     });
 
     // Uncomment this when we have a route to test

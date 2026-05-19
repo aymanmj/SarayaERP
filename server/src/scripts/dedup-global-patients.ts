@@ -40,8 +40,10 @@ const DRY_RUN = process.env.DRY_RUN === '1';
 const ALGORITHM = 'aes-256-gcm';
 
 function buildEncryptionKey(): Buffer {
-  const encryptionKey = process.env.ENCRYPTION_KEY || 'your-secret-key-32-chars-long-!!!';
-  const encryptionSalt = process.env.ENCRYPTION_SALT || 'saraya-default-salt-123';
+  const encryptionKey =
+    process.env.ENCRYPTION_KEY || 'your-secret-key-32-chars-long-!!!';
+  const encryptionSalt =
+    process.env.ENCRYPTION_SALT || 'saraya-default-salt-123';
   return scryptSync(encryptionKey, encryptionSalt, 32);
 }
 
@@ -83,7 +85,9 @@ async function main() {
   console.log('╔══════════════════════════════════════════════════════════╗');
   console.log('║   GlobalPatient Deduplication Script  v2                ║');
   console.log('║   Merges duplicate MPI records into a single entry     ║');
-  console.log(`║   Mode: ${DRY_RUN ? '🔍 DRY RUN (no writes)' : '⚡ LIVE — changes will be written'}                       ║`);
+  console.log(
+    `║   Mode: ${DRY_RUN ? '🔍 DRY RUN (no writes)' : '⚡ LIVE — changes will be written'}                       ║`,
+  );
   console.log('╚══════════════════════════════════════════════════════════╝\n');
 
   // ──────────────────────────────────────────────────
@@ -102,7 +106,9 @@ async function main() {
   console.log(`📊 Total GlobalPatient records: ${allGPs.length}\n`);
 
   if (!DRY_RUN) {
-    console.log('🧹 Phase 0: Clearing all hashes to prevent UNIQUE conflicts...');
+    console.log(
+      '🧹 Phase 0: Clearing all hashes to prevent UNIQUE conflicts...',
+    );
     await prisma.globalPatient.updateMany({
       where: { isDeleted: false },
       data: {
@@ -135,8 +141,12 @@ async function main() {
     groups.get(normalizedId)!.push(gp);
   }
 
-  const duplicateGroups = Array.from(groups.entries()).filter(([, gps]) => gps.length > 1);
-  const singleGroups = Array.from(groups.entries()).filter(([, gps]) => gps.length === 1);
+  const duplicateGroups = Array.from(groups.entries()).filter(
+    ([, gps]) => gps.length > 1,
+  );
+  const singleGroups = Array.from(groups.entries()).filter(
+    ([, gps]) => gps.length === 1,
+  );
 
   if (duplicateGroups.length === 0) {
     console.log('✅ No duplicate GlobalPatient records found!');
@@ -156,18 +166,27 @@ async function main() {
       gps.sort((a, b) => a.id - b.id);
       const survivor = gps[0];
       const duplicates = gps.slice(1);
-      const dupIds = duplicates.map(d => d.id);
+      const dupIds = duplicates.map((d) => d.id);
 
       console.log(`─── Group: "${survivor.fullName}" (key: ${groupKey}) ───`);
-      console.log(`    Survivor:   GP #${survivor.id} (${survivor.localPatients.length} patient files)`);
-      console.log(`    Duplicates: ${dupIds.map(id => `GP #${id}`).join(', ')} (${duplicates.reduce((s, d) => s + d.localPatients.length, 0)} patient files)`);
+      console.log(
+        `    Survivor:   GP #${survivor.id} (${survivor.localPatients.length} patient files)`,
+      );
+      console.log(
+        `    Duplicates: ${dupIds.map((id) => `GP #${id}`).join(', ')} (${duplicates.reduce((s, d) => s + d.localPatients.length, 0)} patient files)`,
+      );
 
       survivorIds.push(survivor.id);
 
       if (DRY_RUN) {
-        console.log(`    [DRY] Would merge ${gps.length} records into GP #${survivor.id}\n`);
+        console.log(
+          `    [DRY] Would merge ${gps.length} records into GP #${survivor.id}\n`,
+        );
         totalMerged += duplicates.length;
-        totalRelinked += duplicates.reduce((s, d) => s + d.localPatients.length, 0);
+        totalRelinked += duplicates.reduce(
+          (s, d) => s + d.localPatients.length,
+          0,
+        );
         totalDeleted += dupIds.length;
         continue;
       }
@@ -175,12 +194,14 @@ async function main() {
       // Re-link patients from duplicates → survivor
       for (const dup of duplicates) {
         if (dup.localPatients.length > 0) {
-          const patientIds = dup.localPatients.map(p => p.id);
+          const patientIds = dup.localPatients.map((p) => p.id);
           await prisma.patient.updateMany({
             where: { id: { in: patientIds } },
             data: { globalPatientId: survivor.id },
           });
-          console.log(`    ✅ Re-linked ${patientIds.length} patients from GP #${dup.id} → GP #${survivor.id}`);
+          console.log(
+            `    ✅ Re-linked ${patientIds.length} patients from GP #${dup.id} → GP #${survivor.id}`,
+          );
           totalRelinked += patientIds.length;
         }
       }
@@ -190,11 +211,12 @@ async function main() {
         where: { id: { in: dupIds } },
         data: { isDeleted: true },
       });
-      console.log(`    🗑️ Soft-deleted ${dupIds.length} duplicate(s): ${dupIds.map(id => `GP #${id}`).join(', ')}\n`);
+      console.log(
+        `    🗑️ Soft-deleted ${dupIds.length} duplicate(s): ${dupIds.map((id) => `GP #${id}`).join(', ')}\n`,
+      );
 
       totalMerged += duplicates.length;
       totalDeleted += dupIds.length;
-
     } catch (error: any) {
       errors++;
       console.error(`    ❌ Error: ${error.message}\n`);
@@ -264,16 +286,19 @@ async function main() {
       if (Object.keys(hashData).length === 0) continue;
 
       if (DRY_RUN) {
-        console.log(`    [DRY] GP #${gpId} "${gp.fullName}" → would set: ${Object.keys(hashData).join(', ')}`);
+        console.log(
+          `    [DRY] GP #${gpId} "${gp.fullName}" → would set: ${Object.keys(hashData).join(', ')}`,
+        );
       } else {
         await prisma.globalPatient.update({
           where: { id: gpId },
           data: hashData,
         });
-        console.log(`    ✅ GP #${gpId} "${gp.fullName}" → ${Object.keys(hashData).join(', ')}`);
+        console.log(
+          `    ✅ GP #${gpId} "${gp.fullName}" → ${Object.keys(hashData).join(', ')}`,
+        );
       }
       hashesFixed++;
-
     } catch (error: any) {
       errors++;
       console.error(`    ❌ GP #${gpId}: ${error.message}`);

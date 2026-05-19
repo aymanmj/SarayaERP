@@ -83,7 +83,10 @@ export class ServicesService {
     });
   }
 
-  async createCategory(hospitalId: number, data: { name: string; description?: string }) {
+  async createCategory(
+    hospitalId: number,
+    data: { name: string; description?: string },
+  ) {
     return this.prisma.serviceCategory.create({
       data: {
         hospitalId,

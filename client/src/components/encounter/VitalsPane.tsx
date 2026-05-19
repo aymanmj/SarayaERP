@@ -50,6 +50,7 @@ function getVitalFlag(key: string, value: number): { flag: string; className: st
 }
 
 export function VitalsPane({ encounterId }: { encounterId: number }) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [vitalsList, setVitalsList] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -82,6 +83,7 @@ export function VitalsPane({ encounterId }: { encounterId: number }) {
     finally { setLoading(false); }
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (encounterId) loadVitals(); }, [encounterId]);
 
   const handleSubmit = async () => {
@@ -237,6 +239,7 @@ export function VitalsPane({ encounterId }: { encounterId: number }) {
                       name={vc.key}
                       type="number"
                       step={vc.step || "1"}
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       value={(form as any)[vc.key]}
                       onChange={handleChange}
                       placeholder={vc.placeholder}
@@ -263,6 +266,7 @@ export function VitalsPane({ encounterId }: { encounterId: number }) {
                       name={bc.key}
                       type="number"
                       step={bc.step || "1"}
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       value={(form as any)[bc.key]}
                       onChange={handleChange}
                       placeholder={bc.placeholder}

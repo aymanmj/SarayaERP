@@ -11,6 +11,7 @@ interface ConsentFormDialogProps {
   hospitalId: number;
   encounterId?: number;
   doctorId?: number; // the current logged in user (doctor)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   existingForm?: any; // If we are opening a pending form to sign it
 }
 

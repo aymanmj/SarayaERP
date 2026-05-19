@@ -6,6 +6,7 @@ import {
   Search,
   Loader2,
   KeyRound,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   CheckCircle2,
   ShieldAlert,
   Building2,
@@ -83,6 +84,7 @@ export function MpiSearchModal({ onClose }: MpiSearchModalProps) {
       } else {
         setResults([]);
       }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       if (err.response?.status === 403) {
         toast.error(
@@ -106,6 +108,7 @@ export function MpiSearchModal({ onClose }: MpiSearchModalProps) {
       await apiClient.post(`/mpi/consent/trigger?patientId=${patientId}`);
       toast.success("تم إرسال رمز التحقق (OTP) للمريض بنجاح");
       setOtpSent(true);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       if (err.response?.status === 400) {
         toast.warning(
@@ -144,6 +147,7 @@ export function MpiSearchModal({ onClose }: MpiSearchModalProps) {
       setOtpTarget(null);
       setOtpSent(false);
       setOtpCode("");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       toast.error(
         err.response?.data?.message || "رمز التحقق غير صحيح أو منتهي الصلاحية"

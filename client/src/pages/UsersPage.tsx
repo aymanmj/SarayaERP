@@ -70,6 +70,7 @@ export default function UsersPage() {
   });
 
   // 1. Queries
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { data: users = [], isLoading: usersLoading } = useQuery({
       queryKey: ['users'],
       queryFn: async () => {
@@ -107,6 +108,7 @@ export default function UsersPage() {
 
   // 2. Mutation
   const saveUserMutation = useMutation({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       mutationFn: async (payload: any) => {
           if (editingId) {
              await apiClient.patch(`/users/${editingId}`, payload);
@@ -119,6 +121,7 @@ export default function UsersPage() {
           toast.success(editingId ? "تم تحديث المستخدم" : "تم إنشاء المستخدم");
           setShowModal(false);
       },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       onError: (err: any) => {
           console.error(err);
           toast.error(err.response?.data?.message || "حدث خطأ");

@@ -78,4 +78,3 @@ export class UpdateIncidentDto {
   @IsInt()
   investigatedById?: number;
 }
-

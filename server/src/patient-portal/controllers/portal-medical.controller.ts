@@ -1,6 +1,6 @@
 /**
  * Patient Portal — Medical Records Controller
- * 
+ *
  * Read-only access to the patient's complete medical history.
  * All endpoints enforce patient-scoped isolation via PatientAuthGuard.
  */
@@ -13,7 +13,12 @@ import {
   UseGuards,
   ParseIntPipe,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiBearerAuth,
+  ApiOperation,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { PatientPortalService } from '../patient-portal.service';
 import { PatientAuthGuard } from '../auth/patient-auth.guard';
 import { CurrentPatient } from '../auth/current-patient.decorator';
@@ -26,7 +31,10 @@ export class PortalMedicalController {
   constructor(private readonly portalService: PatientPortalService) {}
 
   @Get('dashboard')
-  @ApiOperation({ summary: 'لوحة المعلومات', description: 'ملخص شامل — الموعد القادم، آخر النتائج، الرصيد، التأمين' })
+  @ApiOperation({
+    summary: 'لوحة المعلومات',
+    description: 'ملخص شامل — الموعد القادم، آخر النتائج، الرصيد، التأمين',
+  })
   async getDashboard(@CurrentPatient() patient: any) {
     return this.portalService.getDashboard(patient.sub, patient.hospitalId);
   }
@@ -46,7 +54,11 @@ export class PortalMedicalController {
     @Query('page') page?: number,
     @Query('limit') limit?: number,
   ) {
-    return this.portalService.getVitals(patient.sub, Number(page) || 1, Number(limit) || 20);
+    return this.portalService.getVitals(
+      patient.sub,
+      Number(page) || 1,
+      Number(limit) || 20,
+    );
   }
 
   @Get('vitals/:id')
@@ -67,7 +79,11 @@ export class PortalMedicalController {
     @Query('page') page?: number,
     @Query('limit') limit?: number,
   ) {
-    return this.portalService.getLabResults(patient.sub, Number(page) || 1, Number(limit) || 20);
+    return this.portalService.getLabResults(
+      patient.sub,
+      Number(page) || 1,
+      Number(limit) || 20,
+    );
   }
 
   @Get('lab-results/:id')
@@ -106,7 +122,11 @@ export class PortalMedicalController {
     @Query('page') page?: number,
     @Query('limit') limit?: number,
   ) {
-    return this.portalService.getEncounters(patient.sub, Number(page) || 1, Number(limit) || 20);
+    return this.portalService.getEncounters(
+      patient.sub,
+      Number(page) || 1,
+      Number(limit) || 20,
+    );
   }
 
   @Get('encounters/:id')

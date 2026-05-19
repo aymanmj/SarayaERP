@@ -1,4 +1,9 @@
-import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { NphiesAuthService } from './nphies-auth.service';
 import { NphiesService } from './nphies.service';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -9,14 +14,14 @@ import { OutboundQueueService } from '../outbound-queue.service';
 
 /**
  * خدمة إرسال المطالبات الإلكترونية عبر NPHIES
- * 
+ *
  * تدعم:
  * 1. إرسال مطالبة واحدة (Claim Submission)
  * 2. إرسال طلب موافقة مسبقة (Pre-Authorization)
  * 3. الاستعلام عن حالة مطالبة (Claim Status Inquiry)
  * 4. إلغاء مطالبة (Claim Cancellation)
  * 5. معالجة الردود (ERA - Remittance Advice)
- * 
+ *
  * @see https://build.fhir.org/ig/nichetech/NPHIES-Implementation-Guide/
  */
 @Injectable()
@@ -34,13 +39,15 @@ export class NphiesClaimService {
 
   /**
    * إرسال مطالبة تأمينية إلى NPHIES
-   * 
+   *
    * @param claimId معرّف المطالبة في قاعدة بيانات السرايا
    * @returns نتيجة الإرسال مع رقم المطالبة في NPHIES
    */
   async submitClaim(claimId: number): Promise<NphiesClaimSubmissionResult> {
     if (this.activeSubmissions.has(claimId)) {
-      throw new BadRequestException('يتم إرسال هذه المطالبة حالياً، الرجاء الانتظار...');
+      throw new BadRequestException(
+        'يتم إرسال هذه المطالبة حالياً، الرجاء الانتظار...',
+      );
     }
     this.activeSubmissions.add(claimId);
     try {
@@ -50,11 +57,16 @@ export class NphiesClaimService {
     }
   }
 
-  async processQueuedClaim(claimId: number): Promise<NphiesClaimSubmissionResult> {
+  async processQueuedClaim(
+    claimId: number,
+  ): Promise<NphiesClaimSubmissionResult> {
     return this._submitClaimInternal(claimId, true);
   }
 
-  private async _submitClaimInternal(claimId: number, fromQueue = false): Promise<NphiesClaimSubmissionResult> {
+  private async _submitClaimInternal(
+    claimId: number,
+    fromQueue = false,
+  ): Promise<NphiesClaimSubmissionResult> {
     // جلب بيانات المطالبة كاملة
     const claim = await this.prisma.claim.findUnique({
       where: { id: claimId },
@@ -84,8 +96,12 @@ export class NphiesClaimService {
 
     // Prevent double submissions via DB status check
     const completedStatuses: ClaimStatus[] = [
-      ClaimStatus.SUBMITTED, ClaimStatus.ACCEPTED, ClaimStatus.PAID, 
-      ClaimStatus.PARTIALLY_PAID, ClaimStatus.REJECTED, ClaimStatus.APPEAL_ACCEPTED
+      ClaimStatus.SUBMITTED,
+      ClaimStatus.ACCEPTED,
+      ClaimStatus.PAID,
+      ClaimStatus.PARTIALLY_PAID,
+      ClaimStatus.REJECTED,
+      ClaimStatus.APPEAL_ACCEPTED,
     ];
     if (completedStatuses.includes(claim.status)) {
       throw new BadRequestException('لا يمكن إرسال مطالبة تمت معالجتها مسبقاً');
@@ -115,7 +131,9 @@ export class NphiesClaimService {
     const coverageResource = this.nphiesService.buildCoverage({
       id: coverageId,
       memberId: patient.insuranceMemberId || `MEM-${patient.id}`,
-      payerIdentifier: invoice.insuranceProvider?.code || `PAYER-${invoice.insuranceProviderId}`,
+      payerIdentifier:
+        invoice.insuranceProvider?.code ||
+        `PAYER-${invoice.insuranceProviderId}`,
       payerName: invoice.insuranceProvider?.name || 'Unknown Payer',
       patientRef: `Patient/${patientId}`,
     });
@@ -134,50 +152,55 @@ export class NphiesClaimService {
     };
 
     // بناء FHIR Claim Resource
-    const diagnosisEntries = (encounter?.encounterDiagnoses || []).map((diag: any, idx: number) => ({
-      sequence: idx + 1,
-      diagnosisCodeableConcept: {
-        coding: [
-          {
-            system: 'http://hl7.org/fhir/sid/icd-10',
-            code: diag.icdCode || diag.code || 'Z00.0',
-            display: diag.name || diag.description || '',
-          },
-        ],
-      },
-      type: [
-        {
+    const diagnosisEntries = (encounter?.encounterDiagnoses || []).map(
+      (diag: any, idx: number) => ({
+        sequence: idx + 1,
+        diagnosisCodeableConcept: {
           coding: [
             {
-              system: 'http://terminology.hl7.org/CodeSystem/ex-diagnosistype',
-              code: diag.type === 'PRIMARY' ? 'principal' : 'secondary',
+              system: 'http://hl7.org/fhir/sid/icd-10',
+              code: diag.icdCode || diag.code || 'Z00.0',
+              display: diag.name || diag.description || '',
             },
           ],
         },
-      ],
-    }));
-
-    const chargeItems = (invoice.charges || encounter?.charges || []).map((charge: any, idx: number) => ({
-      sequence: idx + 1,
-      productOrService: {
-        coding: [
+        type: [
           {
-            system: 'http://nphies.sa/terminology/CodeSystem/procedures',
-            code: charge.serviceItem?.code || `SVC-${charge.serviceItemId}`,
-            display: charge.serviceItem?.name || '',
+            coding: [
+              {
+                system:
+                  'http://terminology.hl7.org/CodeSystem/ex-diagnosistype',
+                code: diag.type === 'PRIMARY' ? 'principal' : 'secondary',
+              },
+            ],
           },
         ],
-      },
-      quantity: { value: charge.quantity || 1 },
-      unitPrice: {
-        value: Number(charge.unitPrice || charge.totalAmount),
-        currency: 'SAR',
-      },
-      net: {
-        value: Number(charge.totalAmount),
-        currency: 'SAR',
-      },
-    }));
+      }),
+    );
+
+    const chargeItems = (invoice.charges || encounter?.charges || []).map(
+      (charge: any, idx: number) => ({
+        sequence: idx + 1,
+        productOrService: {
+          coding: [
+            {
+              system: 'http://nphies.sa/terminology/CodeSystem/procedures',
+              code: charge.serviceItem?.code || `SVC-${charge.serviceItemId}`,
+              display: charge.serviceItem?.name || '',
+            },
+          ],
+        },
+        quantity: { value: charge.quantity || 1 },
+        unitPrice: {
+          value: Number(charge.unitPrice || charge.totalAmount),
+          currency: 'SAR',
+        },
+        net: {
+          value: Number(charge.totalAmount),
+          currency: 'SAR',
+        },
+      }),
+    );
 
     const fhirClaim = {
       resourceType: 'Claim',
@@ -198,12 +221,19 @@ export class NphiesClaimService {
         type: 'Organization',
         identifier: {
           system: 'http://nphies.sa/license/payer-license',
-          value: invoice.insuranceProvider?.code || `PAYER-${invoice.insuranceProviderId}`,
+          value:
+            invoice.insuranceProvider?.code ||
+            `PAYER-${invoice.insuranceProviderId}`,
         },
       },
       provider: { reference: `Organization/${organizationId}` },
       priority: {
-        coding: [{ system: 'http://terminology.hl7.org/CodeSystem/processpriority', code: 'normal' }],
+        coding: [
+          {
+            system: 'http://terminology.hl7.org/CodeSystem/processpriority',
+            code: 'normal',
+          },
+        ],
       },
       insurance: [
         {
@@ -212,28 +242,46 @@ export class NphiesClaimService {
           coverage: { reference: `Coverage/${coverageId}` },
         },
       ],
-      diagnosis: diagnosisEntries.length > 0
-        ? diagnosisEntries
-        : [
-            {
-              sequence: 1,
-              diagnosisCodeableConcept: {
-                coding: [{ system: 'http://hl7.org/fhir/sid/icd-10', code: 'Z00.0', display: 'General examination' }],
+      diagnosis:
+        diagnosisEntries.length > 0
+          ? diagnosisEntries
+          : [
+              {
+                sequence: 1,
+                diagnosisCodeableConcept: {
+                  coding: [
+                    {
+                      system: 'http://hl7.org/fhir/sid/icd-10',
+                      code: 'Z00.0',
+                      display: 'General examination',
+                    },
+                  ],
+                },
               },
-            },
-          ],
-      item: chargeItems.length > 0
-        ? chargeItems
-        : [
-            {
-              sequence: 1,
-              productOrService: {
-                coding: [{ system: 'http://nphies.sa/terminology/CodeSystem/procedures', code: 'CONSULT', display: 'Consultation' }],
+            ],
+      item:
+        chargeItems.length > 0
+          ? chargeItems
+          : [
+              {
+                sequence: 1,
+                productOrService: {
+                  coding: [
+                    {
+                      system:
+                        'http://nphies.sa/terminology/CodeSystem/procedures',
+                      code: 'CONSULT',
+                      display: 'Consultation',
+                    },
+                  ],
+                },
+                unitPrice: {
+                  value: Number(claim.claimedAmount),
+                  currency: 'SAR',
+                },
+                net: { value: Number(claim.claimedAmount), currency: 'SAR' },
               },
-              unitPrice: { value: Number(claim.claimedAmount), currency: 'SAR' },
-              net: { value: Number(claim.claimedAmount), currency: 'SAR' },
-            },
-          ],
+            ],
       total: {
         value: Number(claim.claimedAmount),
         currency: 'SAR',
@@ -257,7 +305,9 @@ export class NphiesClaimService {
 
     if (!this.connectivityService.isOnline()) {
       if (fromQueue) {
-        throw new Error('System is offline. Retrying queued NPHIES claim later.');
+        throw new Error(
+          'System is offline. Retrying queued NPHIES claim later.',
+        );
       }
       // Offline mode: Queue for later
       await this.outboundQueueService.enqueue({
@@ -281,7 +331,9 @@ export class NphiesClaimService {
         },
       });
 
-      this.logger.warn(`🔴 System offline. Claim ${claim.claimNumber} queued for NPHIES synchronization.`);
+      this.logger.warn(
+        `🔴 System offline. Claim ${claim.claimNumber} queued for NPHIES synchronization.`,
+      );
 
       return {
         accepted: true,
@@ -304,7 +356,9 @@ export class NphiesClaimService {
       await this.prisma.claim.update({
         where: { id: claimId },
         data: {
-          status: result.accepted ? ClaimStatus.SUBMITTED : ClaimStatus.SCRUB_FAILED,
+          status: result.accepted
+            ? ClaimStatus.SUBMITTED
+            : ClaimStatus.SCRUB_FAILED,
           submittedAt: result.accepted ? new Date() : undefined,
           externalClaimId: result.nphiesClaimId || null,
         },
@@ -315,7 +369,9 @@ export class NphiesClaimService {
         data: {
           claimId,
           fromStatus: claim.status,
-          toStatus: result.accepted ? ClaimStatus.SUBMITTED : ClaimStatus.SCRUB_FAILED,
+          toStatus: result.accepted
+            ? ClaimStatus.SUBMITTED
+            : ClaimStatus.SCRUB_FAILED,
           notes: `NPHIES: ${result.dispositionMessage || result.status}`,
         },
       });
@@ -326,7 +382,9 @@ export class NphiesClaimService {
 
       return result;
     } catch (error: any) {
-      this.logger.error(`❌ فشل إرسال المطالبة ${claim.claimNumber} إلى NPHIES: ${error.message}`);
+      this.logger.error(
+        `❌ فشل إرسال المطالبة ${claim.claimNumber} إلى NPHIES: ${error.message}`,
+      );
 
       await this.prisma.claimHistory.create({
         data: {
@@ -349,17 +407,43 @@ export class NphiesClaimService {
    * إرسال طلب موافقة مسبقة (Pre-Authorization)
    */
   async submitPreAuthorization(
-    patientData: { id: string; fullName: string; nationalId?: string; dateOfBirth?: Date; gender?: string },
-    insuranceData: { memberId: string; payerIdentifier: string; payerName: string },
-    serviceItems: Array<{ code: string; name: string; quantity: number; unitPrice: number }>,
-    diagnosisCodes: Array<{ code: string; display: string; isPrimary: boolean }>,
-    attachments?: Array<{ localFilePath: string; title: string; contentType?: string }>
+    patientData: {
+      id: string;
+      fullName: string;
+      nationalId?: string;
+      dateOfBirth?: Date;
+      gender?: string;
+    },
+    insuranceData: {
+      memberId: string;
+      payerIdentifier: string;
+      payerName: string;
+    },
+    serviceItems: Array<{
+      code: string;
+      name: string;
+      quantity: number;
+      unitPrice: number;
+    }>,
+    diagnosisCodes: Array<{
+      code: string;
+      display: string;
+      isPrimary: boolean;
+    }>,
+    attachments?: Array<{
+      localFilePath: string;
+      title: string;
+      contentType?: string;
+    }>,
   ): Promise<NphiesClaimSubmissionResult> {
     const patientId = uuidv4();
     const coverageId = uuidv4();
     const claimId = uuidv4();
 
-    const patientResource = this.nphiesService.buildPatient({ ...patientData, id: patientId });
+    const patientResource = this.nphiesService.buildPatient({
+      ...patientData,
+      id: patientId,
+    });
     const coverageResource = this.nphiesService.buildCoverage({
       id: coverageId,
       ...insuranceData,
@@ -371,7 +455,12 @@ export class NphiesClaimService {
       id: claimId,
       status: 'active',
       type: {
-        coding: [{ system: 'http://terminology.hl7.org/CodeSystem/claim-type', code: 'institutional' }],
+        coding: [
+          {
+            system: 'http://terminology.hl7.org/CodeSystem/claim-type',
+            code: 'institutional',
+          },
+        ],
       },
       use: 'preauthorization',
       patient: { reference: `Patient/${patientId}` },
@@ -383,41 +472,96 @@ export class NphiesClaimService {
           value: insuranceData.payerIdentifier,
         },
       },
-      priority: { coding: [{ system: 'http://terminology.hl7.org/CodeSystem/processpriority', code: 'normal' }] },
-      insurance: [{ sequence: 1, focal: true, coverage: { reference: `Coverage/${coverageId}` } }],
+      priority: {
+        coding: [
+          {
+            system: 'http://terminology.hl7.org/CodeSystem/processpriority',
+            code: 'normal',
+          },
+        ],
+      },
+      insurance: [
+        {
+          sequence: 1,
+          focal: true,
+          coverage: { reference: `Coverage/${coverageId}` },
+        },
+      ],
       diagnosis: diagnosisCodes.map((d, idx) => ({
         sequence: idx + 1,
         diagnosisCodeableConcept: {
-          coding: [{ system: 'http://hl7.org/fhir/sid/icd-10', code: d.code, display: d.display }],
+          coding: [
+            {
+              system: 'http://hl7.org/fhir/sid/icd-10',
+              code: d.code,
+              display: d.display,
+            },
+          ],
         },
-        type: [{
-          coding: [{ system: 'http://terminology.hl7.org/CodeSystem/ex-diagnosistype', code: d.isPrimary ? 'principal' : 'secondary' }],
-        }],
+        type: [
+          {
+            coding: [
+              {
+                system:
+                  'http://terminology.hl7.org/CodeSystem/ex-diagnosistype',
+                code: d.isPrimary ? 'principal' : 'secondary',
+              },
+            ],
+          },
+        ],
       })),
       item: serviceItems.map((svc, idx) => ({
         sequence: idx + 1,
         productOrService: {
-          coding: [{ system: 'http://nphies.sa/terminology/CodeSystem/procedures', code: svc.code, display: svc.name }],
+          coding: [
+            {
+              system: 'http://nphies.sa/terminology/CodeSystem/procedures',
+              code: svc.code,
+              display: svc.name,
+            },
+          ],
         },
         quantity: { value: svc.quantity },
         unitPrice: { value: svc.unitPrice, currency: 'SAR' },
         net: { value: svc.unitPrice * svc.quantity, currency: 'SAR' },
       })),
-      supportingInfo: attachments ? attachments.map((att, idx) => {
-        const attachmentData = this.nphiesService.buildAttachment(att.localFilePath, att.title, att.contentType);
-        if (!attachmentData) return null;
-        return {
-          sequence: idx + 1,
-          category: {
-            coding: [{ system: 'http://terminology.hl7.org/CodeSystem/claiminformationcategory', code: 'attachment' }]
-          },
-          valueAttachment: attachmentData
-        };
-      }).filter(info => info !== null) : undefined,
+      supportingInfo: attachments
+        ? attachments
+            .map((att, idx) => {
+              const attachmentData = this.nphiesService.buildAttachment(
+                att.localFilePath,
+                att.title,
+                att.contentType,
+              );
+              if (!attachmentData) return null;
+              return {
+                sequence: idx + 1,
+                category: {
+                  coding: [
+                    {
+                      system:
+                        'http://terminology.hl7.org/CodeSystem/claiminformationcategory',
+                      code: 'attachment',
+                    },
+                  ],
+                },
+                valueAttachment: attachmentData,
+              };
+            })
+            .filter((info) => info !== null)
+        : undefined,
     };
 
-    const messageHeader = this.nphiesService.buildMessageHeader('preauthorization-request', `Claim/${claimId}`);
-    const bundle = this.nphiesService.buildBundle('message', [messageHeader, preAuthClaim, patientResource, coverageResource]);
+    const messageHeader = this.nphiesService.buildMessageHeader(
+      'preauthorization-request',
+      `Claim/${claimId}`,
+    );
+    const bundle = this.nphiesService.buildBundle('message', [
+      messageHeader,
+      preAuthClaim,
+      patientResource,
+      coverageResource,
+    ]);
 
     try {
       const response = await this.authService.sendFhirRequest<any>(
@@ -434,7 +578,9 @@ export class NphiesClaimService {
   /**
    * الاستعلام عن حالة مطالبة في NPHIES
    */
-  async checkClaimStatus(externalClaimId: string): Promise<NphiesClaimStatusResult> {
+  async checkClaimStatus(
+    externalClaimId: string,
+  ): Promise<NphiesClaimStatusResult> {
     try {
       const response = await this.authService.sendFhirRequest<any>(
         `/nphies-fs/Claim/${externalClaimId}`,
@@ -491,11 +637,21 @@ export class NphiesClaimService {
         return {
           accepted: false,
           status: 'error',
-          errorMessage: issues.map((i: any) => this.translateNphiesError(i.code, i.diagnostics || i.details?.text)).join(' | '),
+          errorMessage: issues
+            .map((i: any) =>
+              this.translateNphiesError(
+                i.code,
+                i.diagnostics || i.details?.text,
+              ),
+            )
+            .join(' | '),
           errors: issues.map((i: any) => ({
             severity: i.severity,
             code: i.code,
-            message: this.translateNphiesError(i.code, i.diagnostics || i.details?.text),
+            message: this.translateNphiesError(
+              i.code,
+              i.diagnostics || i.details?.text,
+            ),
           })),
         };
       }
@@ -519,16 +675,18 @@ export class NphiesClaimService {
    */
   private translateNphiesError(code: string, originalMessage: string): string {
     const arabicMessages: Record<string, string> = {
-      'security': 'مشكلة أمنية أو عدم صلاحية الشهادات (mTLS/JWS).',
-      'invalid': 'البيانات المرسلة غير صحيحة أو غير مكتملة.',
+      security: 'مشكلة أمنية أو عدم صلاحية الشهادات (mTLS/JWS).',
+      invalid: 'البيانات المرسلة غير صحيحة أو غير مكتملة.',
       'not-found': 'لم يتم العثور على المريض أو البوليصة في سجلات التأمين.',
-      'expired': 'بوليصة التأمين منتهية الصلاحية.',
+      expired: 'بوليصة التأمين منتهية الصلاحية.',
       'business-rule': 'تم رفض الطلب بناءً على قواعد التأمين (Business Rule).',
-      'timeout': 'انتهى وقت الاتصال بمنصة نفيس.',
+      timeout: 'انتهى وقت الاتصال بمنصة نفيس.',
     };
 
     const translated = arabicMessages[code];
-    return translated ? `${translated} (${originalMessage || code})` : (originalMessage || code);
+    return translated
+      ? `${translated} (${originalMessage || code})`
+      : originalMessage || code;
   }
 
   /**
@@ -537,8 +695,8 @@ export class NphiesClaimService {
   private extractAdjudication(claimResponse: any): AdjudicationItem[] {
     const items: AdjudicationItem[] = [];
 
-    for (const item of (claimResponse.item || [])) {
-      for (const adj of (item.adjudication || [])) {
+    for (const item of claimResponse.item || []) {
+      for (const adj of item.adjudication || []) {
         items.push({
           category: adj.category?.coding?.[0]?.code || 'unknown',
           amount: adj.amount?.value || 0,

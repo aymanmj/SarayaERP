@@ -1,4 +1,10 @@
-import { Injectable, NestInterceptor, ExecutionContext, CallHandler, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  NestInterceptor,
+  ExecutionContext,
+  CallHandler,
+  Logger,
+} from '@nestjs/common';
 import { Observable, tap } from 'rxjs';
 import { Reflector } from '@nestjs/core';
 import { IS_SENSITIVE_KEY } from './audit.decorator';
@@ -22,13 +28,14 @@ export class AuditInterceptor implements NestInterceptor {
     const method = req.method as string;
     const path: string = req.originalUrl ?? req.url;
 
-    const sensitiveAnnotation = this.reflector.getAllAndOverride<string | boolean>(
-      IS_SENSITIVE_KEY,
-      [context.getHandler(), context.getClass()]
-    );
+    const sensitiveAnnotation = this.reflector.getAllAndOverride<
+      string | boolean
+    >(IS_SENSITIVE_KEY, [context.getHandler(), context.getClass()]);
     const isSensitiveRead = method === 'GET' && !!sensitiveAnnotation;
 
-    const isModifyingAction = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method);
+    const isModifyingAction = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(
+      method,
+    );
     const shouldLog = isSensitiveRead || isModifyingAction;
 
     if (!shouldLog) {
@@ -42,10 +49,16 @@ export class AuditInterceptor implements NestInterceptor {
         next: async (responseBody) => {
           const duration = Date.now() - start;
           const { entity, entityId } = this.inferEntityAndId(path, req);
-          const actionName = this.getActionName(method, path, isSensitiveRead, sensitiveAnnotation, responseBody);
-          
+          const actionName = this.getActionName(
+            method,
+            path,
+            isSensitiveRead,
+            sensitiveAnnotation,
+            responseBody,
+          );
+
           try {
-            // For general writes, we can use log() instead of logCritical() to avoid blocking if the SIEM is down, 
+            // For general writes, we can use log() instead of logCritical() to avoid blocking if the SIEM is down,
             // but for ISO 27001, logCritical is preferred for all state changes.
             await this.audit.logCritical({
               hospitalId: user?.hospitalId ?? null,
@@ -69,8 +82,8 @@ export class AuditInterceptor implements NestInterceptor {
             this.logger.error('Failed to log sensitive audit', err);
             throw new Error('Critical Audit Failure: ' + err.message);
           }
-        }
-      })
+        },
+      }),
     );
   }
 
@@ -79,17 +92,21 @@ export class AuditInterceptor implements NestInterceptor {
     path: string,
     isSensitiveRead: boolean,
     sensitiveAnnotation: string | boolean | undefined,
-    responseBody: any
+    responseBody: any,
   ): string {
     if (typeof sensitiveAnnotation === 'string') {
       return sensitiveAnnotation;
     }
     switch (method) {
-      case 'POST': return 'CREATE_ENTITY';
+      case 'POST':
+        return 'CREATE_ENTITY';
       case 'PUT':
-      case 'PATCH': return 'UPDATE_ENTITY';
-      case 'DELETE': return 'DELETE_ENTITY';
-      default: return 'VIEW_SENSITIVE_DATA';
+      case 'PATCH':
+        return 'UPDATE_ENTITY';
+      case 'DELETE':
+        return 'DELETE_ENTITY';
+      default:
+        return 'VIEW_SENSITIVE_DATA';
     }
   }
 
@@ -116,18 +133,23 @@ export class AuditInterceptor implements NestInterceptor {
     if (forwarded) {
       return forwarded.split(',')[0].trim();
     }
-    return req.ip || req.connection?.remoteAddress || req.socket?.remoteAddress || 'unknown';
+    return (
+      req.ip ||
+      req.connection?.remoteAddress ||
+      req.socket?.remoteAddress ||
+      'unknown'
+    );
   }
 
   private sanitizeBody(body: any) {
     if (!body) return null;
     const copy = { ...body };
     const sensitiveFields = ['password', 'token', 'secret', 'key', 'auth'];
-    
+
     for (const field of sensitiveFields) {
       if (copy[field]) copy[field] = '***';
     }
-    
+
     return copy;
   }
 }

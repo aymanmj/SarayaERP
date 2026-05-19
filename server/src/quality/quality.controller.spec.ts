@@ -22,9 +22,7 @@ describe('QualityController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [QualityController],
-      providers: [
-        { provide: QualityService, useValue: mockService },
-      ],
+      providers: [{ provide: QualityService, useValue: mockService }],
     }).compile();
 
     controller = module.get<QualityController>(QualityController);
@@ -45,7 +43,12 @@ describe('QualityController', () => {
 
   it('should call reportIncident', async () => {
     mockService.reportIncident.mockResolvedValue({ id: 1 });
-    const dto = { incidentDate: '2026-05-17', incidentType: 'OTHER' as any, severity: 'MINOR' as any, description: 'Test' };
+    const dto = {
+      incidentDate: '2026-05-17',
+      incidentType: 'OTHER' as any,
+      severity: 'MINOR' as any,
+      description: 'Test',
+    };
     await controller.reportIncident({ hospitalId: 1, sub: 2 } as any, dto);
     expect(mockService.reportIncident).toHaveBeenCalledWith(1, 2, dto);
   });

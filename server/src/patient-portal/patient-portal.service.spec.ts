@@ -1,6 +1,6 @@
 /**
  * Patient Portal Service — Unit Tests (Enterprise Updated)
- * 
+ *
  * Tests:
  * - Token generation + refresh rotation + reuse detection
  * - Profile retrieval + data isolation
@@ -10,7 +10,11 @@
  * - Financial queries
  */
 import { Test, TestingModule } from '@nestjs/testing';
-import { ForbiddenException, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { PatientPortalService } from './patient-portal.service';
@@ -109,7 +113,10 @@ describe('PatientPortalService', () => {
   describe('verifyOtpAndLogin', () => {
     it('should return access + refresh tokens on successful OTP', async () => {
       mockOtpService.verifyOtp.mockResolvedValue({
-        id: 1, fullName: 'أحمد', mrn: 'MRN-0001', hospitalId: 1,
+        id: 1,
+        fullName: 'أحمد',
+        mrn: 'MRN-0001',
+        hospitalId: 1,
       });
       mockPrisma.patientRefreshToken.create.mockResolvedValue({ id: 1 });
 
@@ -127,12 +134,18 @@ describe('PatientPortalService', () => {
         id: 1,
         revoked: true,
         patientId: 1,
-        patient: { id: 1, fullName: 'X', mrn: 'M', hospitalId: 1, isActive: true },
+        patient: {
+          id: 1,
+          fullName: 'X',
+          mrn: 'M',
+          hospitalId: 1,
+          isActive: true,
+        },
       });
 
-      await expect(
-        service.refreshTokens('1.fakehash'),
-      ).rejects.toThrow(ForbiddenException);
+      await expect(service.refreshTokens('1.fakehash')).rejects.toThrow(
+        ForbiddenException,
+      );
 
       expect(mockPrisma.patientRefreshToken.updateMany).toHaveBeenCalledWith({
         where: { patientId: 1 },
@@ -143,15 +156,15 @@ describe('PatientPortalService', () => {
     it('should reject non-existent token', async () => {
       mockPrisma.patientRefreshToken.findUnique.mockResolvedValue(null);
 
-      await expect(
-        service.refreshTokens('999.invalidhash'),
-      ).rejects.toThrow(ForbiddenException);
+      await expect(service.refreshTokens('999.invalidhash')).rejects.toThrow(
+        ForbiddenException,
+      );
     });
 
     it('should reject malformed token', async () => {
-      await expect(
-        service.refreshTokens('invalidformat'),
-      ).rejects.toThrow(ForbiddenException);
+      await expect(service.refreshTokens('invalidformat')).rejects.toThrow(
+        ForbiddenException,
+      );
     });
 
     it('should rotate a valid patient refresh token and issue new credentials', async () => {
@@ -311,7 +324,9 @@ describe('PatientPortalService', () => {
         encounter: { id: 10, patientId: 999, type: 'OPD' },
       });
 
-      await expect(service.getVitalById(1, 1)).rejects.toThrow(NotFoundException);
+      await expect(service.getVitalById(1, 1)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -322,7 +337,9 @@ describe('PatientPortalService', () => {
         patientId: 999,
       });
 
-      await expect(service.getEncounterById(1, 10)).rejects.toThrow(NotFoundException);
+      await expect(service.getEncounterById(1, 10)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -412,10 +429,12 @@ describe('PatientPortalService', () => {
         scheduledStart: futureTime,
         encounterId: 10,
       });
-      mockAppointmentsService.cancelPatientAppointmentWithBillingCleanup.mockResolvedValue({
-        id: 1,
-        status: 'CANCELLED',
-      });
+      mockAppointmentsService.cancelPatientAppointmentWithBillingCleanup.mockResolvedValue(
+        {
+          id: 1,
+          status: 'CANCELLED',
+        },
+      );
 
       const result = await service.cancelAppointment(1, 1);
 
@@ -440,7 +459,9 @@ describe('PatientPortalService', () => {
         ),
       );
 
-      await expect(service.cancelAppointment(1, 1)).rejects.toThrow(BadRequestException);
+      await expect(service.cancelAppointment(1, 1)).rejects.toThrow(
+        BadRequestException,
+      );
       expect(
         mockAppointmentsService.cancelPatientAppointmentWithBillingCleanup,
       ).toHaveBeenCalledWith(1, 1);
@@ -455,7 +476,9 @@ describe('PatientPortalService', () => {
         scheduledStart: tooClose,
       });
 
-      await expect(service.cancelAppointment(1, 1)).rejects.toThrow(BadRequestException);
+      await expect(service.cancelAppointment(1, 1)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should REJECT cancellation of checked-in appointment', async () => {
@@ -467,7 +490,9 @@ describe('PatientPortalService', () => {
         scheduledStart: futureTime,
       });
 
-      await expect(service.cancelAppointment(1, 1)).rejects.toThrow(BadRequestException);
+      await expect(service.cancelAppointment(1, 1)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should REJECT cancellation of called appointment', async () => {
@@ -479,7 +504,9 @@ describe('PatientPortalService', () => {
         scheduledStart: futureTime,
       });
 
-      await expect(service.cancelAppointment(1, 1)).rejects.toThrow(BadRequestException);
+      await expect(service.cancelAppointment(1, 1)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should reject cancelling other patients appointment', async () => {
@@ -489,7 +516,9 @@ describe('PatientPortalService', () => {
         status: 'CONFIRMED',
       });
 
-      await expect(service.cancelAppointment(1, 1)).rejects.toThrow(NotFoundException);
+      await expect(service.cancelAppointment(1, 1)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('should reject already cancelled appointment', async () => {
@@ -499,7 +528,9 @@ describe('PatientPortalService', () => {
         status: 'CANCELLED',
       });
 
-      await expect(service.cancelAppointment(1, 1)).rejects.toThrow(BadRequestException);
+      await expect(service.cancelAppointment(1, 1)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should reject cancelling completed appointment', async () => {
@@ -509,7 +540,9 @@ describe('PatientPortalService', () => {
         status: 'COMPLETED',
       });
 
-      await expect(service.cancelAppointment(1, 1)).rejects.toThrow(BadRequestException);
+      await expect(service.cancelAppointment(1, 1)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
@@ -519,7 +552,12 @@ describe('PatientPortalService', () => {
   describe('getDashboard', () => {
     it('should return aggregated dashboard data', async () => {
       mockPrisma.patient.findUnique.mockResolvedValue({
-        id: 1, mrn: 'MRN-0001', fullName: 'أحمد', dateOfBirth: null, gender: 'MALE', hospitalId: 1,
+        id: 1,
+        mrn: 'MRN-0001',
+        fullName: 'أحمد',
+        dateOfBirth: null,
+        gender: 'MALE',
+        hospitalId: 1,
         insurancePolicy: {
           provider: { name: 'شركة التأمين' },
           plan: { name: 'الخطة الذهبية' },
@@ -557,7 +595,12 @@ describe('PatientPortalService', () => {
 
     it('should handle patient with no data gracefully', async () => {
       mockPrisma.patient.findUnique.mockResolvedValue({
-        id: 1, mrn: 'MRN-0001', fullName: 'جديد', dateOfBirth: null, gender: null, hospitalId: 1,
+        id: 1,
+        mrn: 'MRN-0001',
+        fullName: 'جديد',
+        dateOfBirth: null,
+        gender: null,
+        hospitalId: 1,
         insurancePolicy: null,
       });
       mockPrisma.appointment.findFirst.mockResolvedValue(null);
@@ -594,7 +637,9 @@ describe('PatientPortalService', () => {
       mockPrisma.patientMessage.count.mockResolvedValue(0);
       mockPrisma.medicationRefillRequest.count.mockResolvedValue(0);
 
-      await expect(service.getDashboard(1, 1)).rejects.toThrow(NotFoundException);
+      await expect(service.getDashboard(1, 1)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -673,7 +718,9 @@ describe('PatientPortalService', () => {
         charges: [],
       });
 
-      await expect(service.getInvoiceById(1, 7)).rejects.toThrow(NotFoundException);
+      await expect(service.getInvoiceById(1, 7)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });

@@ -32,7 +32,7 @@ describe('OutboundConsumer', () => {
     }).compile();
 
     consumer = module.get<OutboundConsumer>(OutboundConsumer);
-    
+
     const mockWorker = {
       pause: jest.fn().mockResolvedValue(undefined),
       resume: jest.fn().mockResolvedValue(undefined),
@@ -56,7 +56,7 @@ describe('OutboundConsumer', () => {
   describe('Offline Handling (Pause/Resume)', () => {
     it('should pause worker on initialization if offline', async () => {
       connectivityService.isOnline.mockReturnValue(false);
-      
+
       // Use fake timers to test the setTimeout in onModuleInit
       jest.useFakeTimers();
       await consumer.onModuleInit();
@@ -93,7 +93,9 @@ describe('OutboundConsumer', () => {
 
     it('should dynamically resolve NphiesClaimService and process nphies-claim', async () => {
       connectivityService.isOnline.mockReturnValue(true);
-      const mockProcessQueuedClaim = jest.fn().mockResolvedValue({ success: true });
+      const mockProcessQueuedClaim = jest
+        .fn()
+        .mockResolvedValue({ success: true });
       moduleRef.get.mockReturnValue({
         processQueuedClaim: mockProcessQueuedClaim,
       });

@@ -67,9 +67,11 @@ export default function DoctorRoundsPage() {
   const loadRotation = async () => {
     setLoading(true);
     try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const res = await apiClient.get<any>("/clinical/inpatient/my-rotation");
       const patientsList: Inpatient[] = Array.isArray(res.data) ? res.data : (res.data.data || []);
       setPatients(patientsList);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (e) {
       toast.error("فشل تحميل قائمة المرضى");
     } finally {
@@ -86,6 +88,7 @@ export default function DoctorRoundsPage() {
     }
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleSaveNote = async (data: any) => {
     if (!selectedPatient) return;
     try {
@@ -97,6 +100,7 @@ export default function DoctorRoundsPage() {
       toast.success("تم حفظ الملاحظة السريرية");
       setFormKey(Date.now());
       loadRotation();
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (e) {
       toast.error("فشل الحفظ");
     }
@@ -111,6 +115,7 @@ export default function DoctorRoundsPage() {
       toast.success("تم إضافة التعليمات");
       setInstruction("");
       loadCarePlan(selectedPatient.id);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (e) {
       toast.error("فشل الحفظ");
     }

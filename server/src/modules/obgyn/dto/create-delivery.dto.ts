@@ -1,4 +1,13 @@
-import { IsEnum, IsInt, IsOptional, IsBoolean, IsNumber, ValidateNested, IsDateString, Min } from 'class-validator';
+import {
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsBoolean,
+  IsNumber,
+  ValidateNested,
+  IsDateString,
+  Min,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export enum DeliveryMethod {

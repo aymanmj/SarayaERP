@@ -15,7 +15,7 @@ export class AnalyticsService {
     // بناءً على المراجعة السابقة، رأينا PurchaseInvoice، هل هناك SalesInvoice؟
     // دعنا نتحقق من schema.prisma لاحقاً، سنفترض وجود Prescription/Encounter مدفوعات
     // سأستخدم استعلام آمن يعتمد على Encounter مبدئياً حتى نتأكد من الفواتير
-    
+
     // سنبحث عن الانكاونترز اليوم
     const dailyVisits = await this.prisma.encounter.count({
       where: {
@@ -29,7 +29,7 @@ export class AnalyticsService {
       where: {
         hospitalId,
         status: 'OPEN', // ✅ Active Encounters
-        type: 'IPD',    // ✅ Inpatients only
+        type: 'IPD', // ✅ Inpatients only
       },
     });
 
@@ -50,25 +50,25 @@ export class AnalyticsService {
 
     // 4. الإيرادات اليومية الفعلية (Actual Daily Revenue from Billing)
     const invoicesToday = await this.prisma.invoice.aggregate({
-        _sum: { totalAmount: true },
-        where: {
-            hospitalId,
-            createdAt: { gte: today },
-            status: { in: ['ISSUED', 'PAID'] },
-            type: { not: 'CREDIT_NOTE' }
-        }
+      _sum: { totalAmount: true },
+      where: {
+        hospitalId,
+        createdAt: { gte: today },
+        status: { in: ['ISSUED', 'PAID'] },
+        type: { not: 'CREDIT_NOTE' },
+      },
     });
 
     const creditNotesToday = await this.prisma.invoice.aggregate({
-        _sum: { totalAmount: true },
-        where: {
-            hospitalId,
-            createdAt: { gte: today },
-            status: 'PAID',
-            type: 'CREDIT_NOTE'
-        }
+      _sum: { totalAmount: true },
+      where: {
+        hospitalId,
+        createdAt: { gte: today },
+        status: 'PAID',
+        type: 'CREDIT_NOTE',
+      },
     });
-    
+
     // Revenue is Gross Billed amount minus Credit Notes
     const grossRevenue = Number(invoicesToday._sum.totalAmount || 0);
     const returnsValue = Number(creditNotesToday._sum.totalAmount || 0);
@@ -86,7 +86,11 @@ export class AnalyticsService {
   // -----------------------------------------------------------------------
   // 🟢 Clinical Variance Tracking & Analytics - HIMSS Stage 6/7 Target
   // -----------------------------------------------------------------------
-  async getClinicalVarianceReport(hospitalId: number, startDate: Date, endDate: Date) {
+  async getClinicalVarianceReport(
+    hospitalId: number,
+    startDate: Date,
+    endDate: Date,
+  ) {
     // 1. CDSS Overrides (أطباء يتجاوزون تنبيهات النظام)
     const cdssOverrides = await this.prisma.cDSSAlert.findMany({
       where: {
@@ -98,7 +102,9 @@ export class AnalyticsService {
         },
       },
       include: {
-        acknowledgedBy: { select: { fullName: true, department: { select: { name: true } } } },
+        acknowledgedBy: {
+          select: { fullName: true, department: { select: { name: true } } },
+        },
       },
     });
 
@@ -109,11 +115,14 @@ export class AnalyticsService {
         HIGH: cdssOverrides.filter((a) => a.severity === 'HIGH').length,
         MODERATE: cdssOverrides.filter((a) => a.severity === 'MODERATE').length,
       },
-      byDepartment: cdssOverrides.reduce((acc, alert) => {
-        const dept = alert.acknowledgedBy?.department?.name || 'Unknown';
-        acc[dept] = (acc[dept] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>),
+      byDepartment: cdssOverrides.reduce(
+        (acc, alert) => {
+          const dept = alert.acknowledgedBy?.department?.name || 'Unknown';
+          acc[dept] = (acc[dept] || 0) + 1;
+          return acc;
+        },
+        {} as Record<string, number>,
+      ),
       recentExamples: cdssOverrides.slice(0, 5).map((a) => ({
         alertType: a.alertType,
         doctor: a.acknowledgedBy?.fullName,
@@ -133,18 +142,23 @@ export class AnalyticsService {
         },
       },
       include: {
-        performer: { select: { fullName: true, department: { select: { name: true } } } },
+        performer: {
+          select: { fullName: true, department: { select: { name: true } } },
+        },
         prescriptionItem: { include: { product: { select: { name: true } } } },
       },
     });
 
     const nursingMetrics = {
       totalOverrides: clmaOverrides.length,
-      byDoctorOrNurse: clmaOverrides.reduce((acc, admin) => {
-        const name = admin.performer?.fullName || 'Unknown';
-        acc[name] = (acc[name] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>),
+      byDoctorOrNurse: clmaOverrides.reduce(
+        (acc, admin) => {
+          const name = admin.performer?.fullName || 'Unknown';
+          acc[name] = (acc[name] || 0) + 1;
+          return acc;
+        },
+        {} as Record<string, number>,
+      ),
       recentExamples: clmaOverrides.slice(0, 5).map((a) => ({
         nurse: a.performer?.fullName,
         drug: a.prescriptionItem?.product?.name,
@@ -205,7 +219,9 @@ export class AnalyticsService {
     let readmissionCount = 0;
     for (const adm of ipdAdmissions) {
       // Find previous IPD discharge within 30 days
-      const thirtyDaysBefore = new Date(adm.createdAt.getTime() - 30 * 24 * 60 * 60 * 1000);
+      const thirtyDaysBefore = new Date(
+        adm.createdAt.getTime() - 30 * 24 * 60 * 60 * 1000,
+      );
       const previousDischarge = await this.prisma.encounter.findFirst({
         where: {
           patientId: adm.patientId,
@@ -217,7 +233,10 @@ export class AnalyticsService {
       });
       if (previousDischarge) readmissionCount++;
     }
-    const readmissionRate = ipdAdmissions.length > 0 ? (readmissionCount / ipdAdmissions.length) * 100 : 0;
+    const readmissionRate =
+      ipdAdmissions.length > 0
+        ? (readmissionCount / ipdAdmissions.length) * 100
+        : 0;
 
     // 2. Average Length of Stay (ALOS)
     const dischargedEncounters = await this.prisma.encounter.findMany({
@@ -231,39 +250,63 @@ export class AnalyticsService {
     });
 
     let totalStayHours = 0;
-    dischargedEncounters.forEach(enc => {
+    dischargedEncounters.forEach((enc) => {
       if (enc.dischargeDate && enc.createdAt) {
-        totalStayHours += (enc.dischargeDate.getTime() - enc.createdAt.getTime()) / (1000 * 60 * 60);
+        totalStayHours +=
+          (enc.dischargeDate.getTime() - enc.createdAt.getTime()) /
+          (1000 * 60 * 60);
       }
     });
-    const averageLOSDays = dischargedEncounters.length > 0 ? (totalStayHours / dischargedEncounters.length) / 24 : 0;
+    const averageLOSDays =
+      dischargedEncounters.length > 0
+        ? totalStayHours / dischargedEncounters.length / 24
+        : 0;
 
     // 3. Medication Error / Override Rate
     const totalMeds = await this.prisma.medicationAdministration.count({
       where: { hospitalId, administeredAt: { gte: startDate, lte: endDate } },
     });
     const overrideMeds = await this.prisma.medicationAdministration.count({
-      where: { hospitalId, isEmergencyOverride: true, administeredAt: { gte: startDate, lte: endDate } },
+      where: {
+        hospitalId,
+        isEmergencyOverride: true,
+        administeredAt: { gte: startDate, lte: endDate },
+      },
     });
-    const medicationOverrideRate = totalMeds > 0 ? (overrideMeds / totalMeds) * 100 : 0;
+    const medicationOverrideRate =
+      totalMeds > 0 ? (overrideMeds / totalMeds) * 100 : 0;
 
     // 4. Care Gap Closure Rate
     const totalGaps = await this.prisma.careGap.count({
-      where: { patient: { hospitalId }, createdAt: { lte: endDate }, OR: [{ closedAt: null }, { closedAt: { gte: startDate } }] },
+      where: {
+        patient: { hospitalId },
+        createdAt: { lte: endDate },
+        OR: [{ closedAt: null }, { closedAt: { gte: startDate } }],
+      },
     });
     const closedGaps = await this.prisma.careGap.count({
-      where: { patient: { hospitalId }, status: 'CLOSED', closedAt: { gte: startDate, lte: endDate } },
+      where: {
+        patient: { hospitalId },
+        status: 'CLOSED',
+        closedAt: { gte: startDate, lte: endDate },
+      },
     });
-    const careGapClosureRate = totalGaps > 0 ? (closedGaps / totalGaps) * 100 : 0;
+    const careGapClosureRate =
+      totalGaps > 0 ? (closedGaps / totalGaps) * 100 : 0;
 
     // 5. CDSS Alert Fatigue (Override Rate)
     const totalAlerts = await this.prisma.cDSSAlert.count({
       where: { hospitalId, createdAt: { gte: startDate, lte: endDate } },
     });
     const overriddenAlerts = await this.prisma.cDSSAlert.count({
-      where: { hospitalId, status: 'OVERRIDDEN', createdAt: { gte: startDate, lte: endDate } },
+      where: {
+        hospitalId,
+        status: 'OVERRIDDEN',
+        createdAt: { gte: startDate, lte: endDate },
+      },
     });
-    const cdssOverrideRate = totalAlerts > 0 ? (overriddenAlerts / totalAlerts) * 100 : 0;
+    const cdssOverrideRate =
+      totalAlerts > 0 ? (overriddenAlerts / totalAlerts) * 100 : 0;
 
     return {
       period: { startDate, endDate },

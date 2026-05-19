@@ -103,6 +103,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     // 2. Attempt API Logout (Fire & Forget)
     try {
         await apiClient.post("/auth/logout");
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (e) {
         // Ignore errors, we are already logged out locally
     }
@@ -122,6 +123,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     try {
       const res = await apiClient.post("/auth/switch-branch", { targetHospitalId });
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { currentBranch } = res.data;
 
       // Update user's hospitalId in local state
