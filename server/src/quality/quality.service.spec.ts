@@ -3,6 +3,7 @@ import { QualityService } from './quality.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { IncidentStatus, IncidentSeverity, CapaStatus } from '@prisma/client';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 describe('QualityService', () => {
   let service: QualityService;
@@ -32,6 +33,7 @@ describe('QualityService', () => {
       providers: [
         QualityService,
         { provide: PrismaService, useValue: mockPrisma },
+        { provide: EventEmitter2, useValue: { emit: jest.fn() } },
       ],
     }).compile();
 

@@ -1,3 +1,4 @@
+import { PermissionsGuard } from '../auth/permissions.guard';
 import { Test, TestingModule } from '@nestjs/testing';
 import { PharmacyController } from './pharmacy.controller';
 import { PharmacyService } from './pharmacy.service';
@@ -25,7 +26,7 @@ describe('PharmacyController', () => {
           },
         },
       ],
-    }).compile();
+    }).overrideGuard(PermissionsGuard).useValue({ canActivate: () => true }).compile();
 
     controller = module.get<PharmacyController>(PharmacyController);
   });

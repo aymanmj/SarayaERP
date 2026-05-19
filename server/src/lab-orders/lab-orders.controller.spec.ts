@@ -1,3 +1,4 @@
+import { PermissionsGuard } from '../auth/permissions.guard';
 import { Test, TestingModule } from '@nestjs/testing';
 import {
   LabOrdersController,
@@ -20,7 +21,7 @@ describe('LabOrdersController', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [LabOrdersController, LabOrdersGeneralController],
       providers: [{ provide: LabOrdersService, useValue: labOrdersService }],
-    }).compile();
+    }).overrideGuard(PermissionsGuard).useValue({ canActivate: () => true }).compile();
 
     encounterController = module.get<LabOrdersController>(LabOrdersController);
     generalController = module.get<LabOrdersGeneralController>(

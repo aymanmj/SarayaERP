@@ -1,3 +1,4 @@
+import { PermissionsGuard } from '../auth/permissions.guard';
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException } from '@nestjs/common';
 import { AppointmentsController } from './appointments.controller';
@@ -44,7 +45,7 @@ describe('AppointmentsController', () => {
         { provide: PdfService, useValue: pdfService },
         { provide: PrismaService, useValue: prisma },
       ],
-    }).compile();
+    }).overrideGuard(PermissionsGuard).useValue({ canActivate: () => true }).compile();
 
     controller = module.get<AppointmentsController>(AppointmentsController);
   });

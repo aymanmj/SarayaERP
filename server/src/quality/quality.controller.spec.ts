@@ -1,3 +1,4 @@
+import { PermissionsGuard } from '../auth/permissions.guard';
 import { Test, TestingModule } from '@nestjs/testing';
 import { QualityController } from './quality.controller';
 import { QualityService } from './quality.service';
@@ -23,7 +24,7 @@ describe('QualityController', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [QualityController],
       providers: [{ provide: QualityService, useValue: mockService }],
-    }).compile();
+    }).overrideGuard(PermissionsGuard).useValue({ canActivate: () => true }).compile();
 
     controller = module.get<QualityController>(QualityController);
     service = module.get<QualityService>(QualityService);

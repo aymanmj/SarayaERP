@@ -1,3 +1,4 @@
+import { PermissionsGuard } from '../auth/permissions.guard';
 import { Test, TestingModule } from '@nestjs/testing';
 import { BedsController } from './beds.controller';
 import { BedsService } from './beds.service';
@@ -18,7 +19,7 @@ describe('BedsController', () => {
           },
         },
       ],
-    }).compile();
+    }).overrideGuard(PermissionsGuard).useValue({ canActivate: () => true }).compile();
 
     controller = module.get<BedsController>(BedsController);
   });

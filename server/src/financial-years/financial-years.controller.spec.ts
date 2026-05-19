@@ -1,3 +1,4 @@
+import { PermissionsGuard } from '../auth/permissions.guard';
 import { Test, TestingModule } from '@nestjs/testing';
 import { FinancialYearsController } from './financial-years.controller';
 import { FinancialYearsService } from './financial-years.service';
@@ -23,7 +24,7 @@ describe('FinancialYearsController', () => {
           },
         },
       ],
-    }).compile();
+    }).overrideGuard(PermissionsGuard).useValue({ canActivate: () => true }).compile();
 
     controller = module.get<FinancialYearsController>(FinancialYearsController);
   });

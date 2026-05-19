@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { PermissionsGuard } from './auth/permissions.guard';
 
 describe('AppController', () => {
   let appController: AppController;
@@ -9,7 +10,7 @@ describe('AppController', () => {
     const app: TestingModule = await Test.createTestingModule({
       controllers: [AppController],
       providers: [AppService],
-    }).compile();
+    }).overrideGuard(PermissionsGuard).useValue({ canActivate: () => true }).compile();
 
     appController = app.get<AppController>(AppController);
   });

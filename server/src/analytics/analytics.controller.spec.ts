@@ -1,3 +1,4 @@
+import { PermissionsGuard } from '../auth/permissions.guard';
 import { Test, TestingModule } from '@nestjs/testing';
 import { AnalyticsController } from './analytics.controller';
 import { AnalyticsService } from './analytics.service';
@@ -16,7 +17,7 @@ describe('AnalyticsController', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AnalyticsController],
       providers: [{ provide: AnalyticsService, useValue: mockService }],
-    }).compile();
+    }).overrideGuard(PermissionsGuard).useValue({ canActivate: () => true }).compile();
 
     controller = module.get<AnalyticsController>(AnalyticsController);
     service = module.get<AnalyticsService>(AnalyticsService);

@@ -1,3 +1,4 @@
+import { PermissionsGuard } from '../auth/permissions.guard';
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException } from '@nestjs/common';
 import { CashierController } from './cashier.controller';
@@ -43,7 +44,7 @@ describe('CashierController', () => {
         { provide: PdfService, useValue: pdfService },
         { provide: PrismaService, useValue: prisma },
       ],
-    }).compile();
+    }).overrideGuard(PermissionsGuard).useValue({ canActivate: () => true }).compile();
 
     controller = module.get<CashierController>(CashierController);
   });

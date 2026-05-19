@@ -1,3 +1,4 @@
+import { PermissionsGuard } from '../auth/permissions.guard';
 import { Test, TestingModule } from '@nestjs/testing';
 import { BillingController } from './billing.controller';
 import { BillingService } from './billing.service';
@@ -35,7 +36,7 @@ describe('BillingController', () => {
           useValue: createPrismaMock(),
         },
       ],
-    }).compile();
+    }).overrideGuard(PermissionsGuard).useValue({ canActivate: () => true }).compile();
 
     controller = module.get<BillingController>(BillingController);
   });

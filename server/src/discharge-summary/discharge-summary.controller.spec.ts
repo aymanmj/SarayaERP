@@ -1,3 +1,4 @@
+import { PermissionsGuard } from '../auth/permissions.guard';
 import { Test, TestingModule } from '@nestjs/testing';
 import { DischargeSummaryController } from './discharge-summary.controller';
 import { DischargeSummaryService } from './discharge-summary.service';
@@ -21,7 +22,7 @@ describe('DischargeSummaryController', () => {
           useValue: mockDischargeSummaryService,
         },
       ],
-    }).compile();
+    }).overrideGuard(PermissionsGuard).useValue({ canActivate: () => true }).compile();
 
     controller = module.get<DischargeSummaryController>(
       DischargeSummaryController,

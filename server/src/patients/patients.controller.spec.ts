@@ -1,3 +1,4 @@
+import { PermissionsGuard } from '../auth/permissions.guard';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Reflector } from '@nestjs/core';
 import { PatientsController } from './patients.controller';
@@ -46,7 +47,7 @@ describe('PatientsController', () => {
           useValue: { canActivate: jest.fn().mockResolvedValue(true) },
         },
       ],
-    }).compile();
+    }).overrideGuard(PermissionsGuard).useValue({ canActivate: () => true }).compile();
 
     controller = module.get<PatientsController>(PatientsController);
   });
