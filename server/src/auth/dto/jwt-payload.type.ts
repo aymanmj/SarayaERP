@@ -3,4 +3,5 @@ export type JwtPayload = {
   username: string;
   hospitalId: number;
   roles: string[]; // مثل: ['ADMIN', 'DOCTOR']
+  patientId?: number;
 };

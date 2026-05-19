@@ -100,7 +100,7 @@ export class BatchSubmissionService {
     // إرسال كل مطالبة بشكل فردي (أو مجمع حسب ما يدعمه NPHIES لاحقاً)
     for (const claim of batch.claims) {
       try {
-        const result = await this.nphiesClaimService.submitClaim(claim.id);
+        const result = await this.nphiesClaimService.submitClaim(claim.hospitalId, claim.id);
         if (result.accepted) {
           successCount++;
         } else {

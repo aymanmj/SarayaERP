@@ -6,4 +6,5 @@ export interface JwtPayload {
   isSuperAdmin?: boolean; // ✅ Multi-Tenancy: صلاحية الوصول لكل المؤسسات
   roles: string[]; // مثل: ['ADMIN', 'DOCTOR']
   permissions: string[]; // ✅ Added granular permissions
+  patientId?: number;
 }
