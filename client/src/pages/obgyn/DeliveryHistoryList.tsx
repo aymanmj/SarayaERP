@@ -126,8 +126,7 @@ export function DeliveryHistoryList({ patientId }: Props) {
                                     </TableCell>
                                     <TableCell>
                                         <div className="space-y-1">
-                                            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                                            {delivery.babies.map((baby, idx) => (
+                                            {delivery.babies.map((baby) => (
                                                 <div key={baby.id} className="text-sm flex items-center gap-2">
                                                     <span className={`w-2 h-2 rounded-full ${baby.gender === 'MALE' ? 'bg-blue-400' : 'bg-pink-400'}`}></span>
                                                     <span className="text-slate-300">

@@ -3,7 +3,7 @@ import { apiClient } from "../api/apiClient";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { Building2, Globe, Mail, Phone, MapPin, CheckCircle2, Save, RefreshCw, Printer, FileCheck } from "lucide-react";
-import type { OrganizationSettings } from "../types/organization";
+import type { OrganizationSettings, Branch } from "../types/organization";
 
 const emptySettings: OrganizationSettings = {
   id: 0,
@@ -292,9 +292,6 @@ export default function OrganizationSettingsPage() {
                   </div>
                   <div className="w-16 h-16 border border-slate-200 rounded-lg flex items-center justify-center overflow-hidden bg-slate-50/50 flex-shrink-0">
                     {settings.logoUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      // eslint-disable-next-line @next/next/no-img-element
-                      // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={settings.logoUrl}
                         alt="Logo"
@@ -433,8 +430,7 @@ export default function OrganizationSettingsPage() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-800/50">
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        {networkData.branches.map((branch: any) => (
+                        {networkData.branches.map((branch: Branch) => (
                           <tr key={branch.id} className={`transition-colors ${branch.isCurrent ? 'bg-violet-500/5' : 'hover:bg-white/[0.02]'}`}>
                             <td className="px-4 py-3 font-mono text-sky-400 text-xs">{branch.code}</td>
                             <td className="px-4 py-3">

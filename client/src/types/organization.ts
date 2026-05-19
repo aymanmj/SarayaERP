@@ -13,3 +13,14 @@ export type OrganizationSettings = {
   mpiEnableFederation?: boolean;
   mpiRequirePatientOTP?: boolean;
 };
+
+export interface Branch {
+  id: number;
+  code: string;
+  name: string;
+  isCurrent?: boolean;
+  city?: string | null;
+  patientCount?: number;
+  isActive?: boolean;
+}
+

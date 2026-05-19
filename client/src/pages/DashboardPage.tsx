@@ -43,7 +43,78 @@ type LicenseInfoResponse = {
   details: LicenseDetails;
 };
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, ComponentType } from "react";
+
+// StatCard Component (Moved outside to prevent re-creation during render)
+interface StatCardProps {
+  title: string;
+  value: string | number;
+  subtext: string;
+  colorClass: string;
+  icon: ComponentType<{ className?: string }>;
+  loading?: boolean;
+}
+
+const StatCard = ({
+  title,
+  value,
+  subtext,
+  colorClass,
+  icon: Icon,
+  loading,
+}: StatCardProps) => (
+  <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 flex flex-col justify-between h-32 hover:bg-slate-900/90 transition-all duration-200 shadow-sm hover:shadow-md">
+    <div className="flex items-center justify-between">
+      <div className="text-xs text-slate-400 font-medium">{title}</div>
+      <Icon className={`w-4 h-4 ${colorClass}`} />
+    </div>
+    <div className={`text-3xl font-bold ${colorClass}`}>
+      {loading ? "..." : value}
+    </div>
+    <div className="text-[11px] text-slate-500">{subtext}</div>
+  </div>
+);
+
+// QuickActionCard Component (Moved outside to prevent re-creation during render)
+interface QuickActionCardProps {
+  title: string;
+  description: string;
+  icon: ComponentType<{ className?: string }>;
+  href: string;
+  colorClass: string;
+  badge?: string;
+}
+
+const QuickActionCard = ({
+  title,
+  description,
+  icon: Icon,
+  href,
+  colorClass,
+  badge,
+}: QuickActionCardProps) => (
+  <a
+    href={href}
+    className="group rounded-2xl border border-slate-800 bg-slate-900/40 p-5 hover:bg-slate-900/60 transition-all duration-200 hover:border-slate-700 hover:shadow-lg"
+  >
+    <div className="flex items-start justify-between mb-3">
+      <div className={`p-2 rounded-lg ${colorClass} bg-opacity-10`}>
+        <Icon className={`w-5 h-5 ${colorClass}`} />
+      </div>
+      {badge && (
+        <span className="px-2 py-1 text-xs rounded-full bg-sky-900/30 text-sky-300 border border-sky-700/50">
+          {badge}
+        </span>
+      )}
+    </div>
+    <h3 className="text-sm font-semibold text-slate-200 mb-1 group-hover:text-white transition-colors">
+      {title}
+    </h3>
+    <p className="text-xs text-slate-400 leading-relaxed">
+      {description}
+    </p>
+  </a>
+);
 
 export function DashboardPage() {
   const user = useAuthStore((s) => s.user);
@@ -101,70 +172,7 @@ export function DashboardPage() {
     return plan || "أساسي";
   };
 
-  const StatCard = ({
-    title,
-    value,
-    subtext,
-    colorClass,
-    icon: Icon,
-  }: {
-    title: string;
-    value: string | number;
-    subtext: string;
-    colorClass: string;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    icon: any;
-  }) => (
-    <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 flex flex-col justify-between h-32 hover:bg-slate-900/90 transition-all duration-200 shadow-sm hover:shadow-md">
-      <div className="flex items-center justify-between">
-        <div className="text-xs text-slate-400 font-medium">{title}</div>
-        <Icon className={`w-4 h-4 ${colorClass}`} />
-      </div>
-      <div className={`text-3xl font-bold ${colorClass}`}>
-        {loading ? "..." : value}
-      </div>
-      <div className="text-[11px] text-slate-500">{subtext}</div>
-    </div>
-  );
 
-  const QuickActionCard = ({
-    title,
-    description,
-    icon: Icon,
-    href,
-    colorClass,
-    badge,
-  }: {
-    title: string;
-    description: string;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    icon: any;
-    href: string;
-    colorClass: string;
-    badge?: string;
-  }) => (
-    <a
-      href={href}
-      className="group rounded-2xl border border-slate-800 bg-slate-900/40 p-5 hover:bg-slate-900/60 transition-all duration-200 hover:border-slate-700 hover:shadow-lg"
-    >
-      <div className="flex items-start justify-between mb-3">
-        <div className={`p-2 rounded-lg ${colorClass} bg-opacity-10`}>
-          <Icon className={`w-5 h-5 ${colorClass.replace('text-', 'text-')}`} />
-        </div>
-        {badge && (
-          <span className="px-2 py-1 text-xs rounded-full bg-sky-900/30 text-sky-300 border border-sky-700/50">
-            {badge}
-          </span>
-        )}
-      </div>
-      <h3 className="text-sm font-semibold text-slate-200 mb-1 group-hover:text-white transition-colors">
-        {title}
-      </h3>
-      <p className="text-xs text-slate-400 leading-relaxed">
-        {description}
-      </p>
-    </a>
-  );
 
   return (
     <div className="h-full flex flex-col gap-8 pb-10">
@@ -220,26 +228,25 @@ export function DashboardPage() {
 
       {/* Essential Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        // eslint-disable-next-line react-hooks/static-components
         <StatCard
           title="المرضى المنومين"
           value={stats?.activeInpatients ?? 0}
           subtext={`إشغال: ${stats?.occupancyRate ?? 0}%`}
           colorClass="text-sky-400"
           icon={BuildingOfficeIcon}
+          loading={loading}
         />
 
-        // eslint-disable-next-line react-hooks/static-components
         <StatCard
           title="مواعيد اليوم"
           value={stats?.appointmentsToday ?? 0}
           subtext="إجمالي الحجوزات"
           colorClass="text-amber-400"
           icon={CalendarIcon}
+          loading={loading}
         />
 
         {stats?.hasRevenueAccess && (
-          // eslint-disable-next-line react-hooks/static-components
           <StatCard
             title={
               stats.isPersonalRevenue
@@ -250,16 +257,17 @@ export function DashboardPage() {
             subtext={stats.isPersonalRevenue ? "ورديتك" : "المحصلة"}
             colorClass="text-emerald-400"
             icon={BanknotesIcon}
+            loading={loading}
           />
         )}
 
-        // eslint-disable-next-line react-hooks/static-components
         <StatCard
           title="نواقص المخزون"
           value={stats?.lowStockCount ?? 0}
           subtext="أصناف تحتاج طلب"
           colorClass={(stats?.lowStockCount ?? 0) > 0 ? "text-rose-400" : "text-slate-200"}
           icon={ExclamationTriangleIcon}
+          loading={loading}
         />
       </div>
 
@@ -272,7 +280,6 @@ export function DashboardPage() {
             وصول سريع
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            // eslint-disable-next-line react-hooks/static-components
             <QuickActionCard
               title="مكتب الدخول"
               description="إدخال المرضى الجدد وإدارة الإيواء"
@@ -280,7 +287,6 @@ export function DashboardPage() {
               href="/admissions"
               colorClass="text-blue-400"
             />
-            // eslint-disable-next-line react-hooks/static-components
             <QuickActionCard
               title="حجز المواعيد"
               description="جدولة المواعيد للعيادات"
@@ -288,7 +294,6 @@ export function DashboardPage() {
               href="/appointments"
               colorClass="text-amber-400"
             />
-            // eslint-disable-next-line react-hooks/static-components
             <QuickActionCard
               title="الخزينة"
               description="تحصيل المدفوعات وإدارة الفواتير"
@@ -296,7 +301,6 @@ export function DashboardPage() {
               href="/cashier"
               colorClass="text-emerald-400"
             />
-            // eslint-disable-next-line react-hooks/static-components
             <QuickActionCard
               title="الصيدلية"
               description="إدارة الأدوية والمخزون الطبي"
@@ -314,7 +318,6 @@ export function DashboardPage() {
             لوحات تحكم متقدمة
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            // eslint-disable-next-line react-hooks/static-components
             <QuickActionCard
               title="لوحة تنفيذية"
               description="إحصائيات وتقارير مفصلة للمستشفى"
@@ -323,7 +326,6 @@ export function DashboardPage() {
               colorClass="text-indigo-400"
               badge="جديدة"
             />
-            // eslint-disable-next-line react-hooks/static-components
             <QuickActionCard
               title="تخطيط الخروج"
               description="إدارة عملية خروج المرضى"
@@ -332,7 +334,6 @@ export function DashboardPage() {
               colorClass="text-green-400"
               badge="محدثة"
             />
-            // eslint-disable-next-line react-hooks/static-components
             <QuickActionCard
               title="إدارة الأسرة"
               description="مراقبة حالة الأسرة والعنابر"
@@ -341,7 +342,6 @@ export function DashboardPage() {
               colorClass="text-cyan-400"
               badge="مباشر"
             />
-            // eslint-disable-next-line react-hooks/static-components
             <QuickActionCard
               title="التقارير"
               description="تقارير مالية وإدارية شاملة"
