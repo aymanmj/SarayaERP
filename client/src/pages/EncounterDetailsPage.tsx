@@ -44,7 +44,8 @@ const loadRequestTransferModal = () =>
   import("./clinical/transfers/RequestTransferModal").then((module) => ({
     default: module.RequestTransferModal,
   }));
-const loadQuickSummaryCard = () => import("../components/encounter/QuickSummaryCard");
+const loadQuickSummaryCard = () =>
+  import("../components/encounter/QuickSummaryCard");
 const loadQuickProtocolsWidget = () =>
   import("../components/encounter/QuickProtocolsWidget");
 
@@ -113,7 +114,13 @@ type TabKey =
   | "ANDROLOGY";
 
 // ✅ إضافة التبويب للقائمة
-const tabs: { key: TabKey; label: string; icon: string; alert?: boolean; gender?: "MALE" | "FEMALE" }[] = [
+const tabs: {
+  key: TabKey;
+  label: string;
+  icon: string;
+  alert?: boolean;
+  gender?: "MALE" | "FEMALE";
+}[] = [
   { key: "VISITS", label: "التشخيص والزيارة", icon: "🩺" },
   { key: "ALLERGIES", label: "الحساسية والمخاطر", icon: "⚠️", alert: true },
   { key: "OBGYN", label: "النساء والولادة", icon: "🤰", gender: "FEMALE" },
@@ -164,20 +171,32 @@ function calculateAge(dob: string | null | undefined) {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-function LegacyQuickSummaryCard({ encounterId, status }: { encounterId: number; status: EncounterStatus }) {
+function LegacyQuickSummaryCard({
+  encounterId,
+  status,
+}: {
+  encounterId: number;
+  status: EncounterStatus;
+}) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [vitals, setVitals] = useState<any[]>([]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [diagnoses, setDiagnoses] = useState<any[]>([]);
 
   useEffect(() => {
-    apiClient.get(`/vitals/encounter/${encounterId}`).then(r => setVitals(r.data)).catch(() => {});
-    apiClient.get(`/diagnosis/encounter/${encounterId}`).then(r => setDiagnoses(r.data)).catch(() => {});
+    apiClient
+      .get(`/vitals/encounter/${encounterId}`)
+      .then((r) => setVitals(r.data))
+      .catch(() => {});
+    apiClient
+      .get(`/diagnosis/encounter/${encounterId}`)
+      .then((r) => setDiagnoses(r.data))
+      .catch(() => {});
   }, [encounterId]);
 
   const latestVital = vitals.length > 0 ? vitals[0] : null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const primaryDx = diagnoses.find((d: any) => d.type === 'PRIMARY');
+  const primaryDx = diagnoses.find((d: any) => d.type === "PRIMARY");
 
   return (
     <div className="bg-slate-900/60 border border-slate-800 p-4 rounded-2xl">
@@ -189,11 +208,16 @@ function LegacyQuickSummaryCard({ encounterId, status }: { encounterId: number; 
           <span className="text-slate-500">العلامات الحيوية:</span>
           {latestVital ? (
             <span className="text-emerald-400 font-mono">
-              {latestVital.bpSystolic && `${latestVital.bpSystolic}/${latestVital.bpDiastolic}`}
+              {latestVital.bpSystolic &&
+                `${latestVital.bpSystolic}/${latestVital.bpDiastolic}`}
               {latestVital.pulse && ` | HR ${latestVital.pulse}`}
               {latestVital.temperature && ` | ${latestVital.temperature}°`}
               {latestVital.o2Sat && ` | O₂ ${latestVital.o2Sat}%`}
-              {!latestVital.bpSystolic && !latestVital.pulse && !latestVital.temperature && !latestVital.o2Sat && 'مسجلة'}
+              {!latestVital.bpSystolic &&
+                !latestVital.pulse &&
+                !latestVital.temperature &&
+                !latestVital.o2Sat &&
+                "مسجلة"}
             </span>
           ) : (
             <span className="text-red-400">لا توجد قراءات</span>
@@ -202,8 +226,13 @@ function LegacyQuickSummaryCard({ encounterId, status }: { encounterId: number; 
         <div className="flex justify-between">
           <span className="text-slate-500">التشخيص المبدئي:</span>
           {primaryDx ? (
-            <span className="text-emerald-400 truncate max-w-[180px]" title={primaryDx.diagnosisCode?.nameEn}>
-              {primaryDx.diagnosisCode?.code} — {primaryDx.diagnosisCode?.nameAr || primaryDx.diagnosisCode?.nameEn}
+            <span
+              className="text-emerald-400 truncate max-w-[180px]"
+              title={primaryDx.diagnosisCode?.nameEn}
+            >
+              {primaryDx.diagnosisCode?.code} —{" "}
+              {primaryDx.diagnosisCode?.nameAr ||
+                primaryDx.diagnosisCode?.nameEn}
             </span>
           ) : (
             <span className="text-red-400">غير متوفر</span>
@@ -211,8 +240,20 @@ function LegacyQuickSummaryCard({ encounterId, status }: { encounterId: number; 
         </div>
         <div className="flex justify-between">
           <span className="text-slate-500">حالة الملف:</span>
-          <span className={status === 'OPEN' ? 'text-emerald-400' : status === 'CLOSED' ? 'text-slate-500' : 'text-red-400'}>
-            {status === 'OPEN' ? '🟢 مفتوح' : status === 'CLOSED' ? '🔒 مغلق' : '❌ ملغي'}
+          <span
+            className={
+              status === "OPEN"
+                ? "text-emerald-400"
+                : status === "CLOSED"
+                  ? "text-slate-500"
+                  : "text-red-400"
+            }
+          >
+            {status === "OPEN"
+              ? "🟢 مفتوح"
+              : status === "CLOSED"
+                ? "🔒 مغلق"
+                : "❌ ملغي"}
           </span>
         </div>
       </div>
@@ -230,19 +271,30 @@ function LegacyQuickProtocolsWidget({ encounterId }: { encounterId: number }) {
   const [enrollingId, setEnrollingId] = useState<number | null>(null);
 
   useEffect(() => {
-    apiClient.get('/order-sets').then(r => setOrderSets(r.data)).catch(() => {});
-    apiClient.get('/clinical-pathways').then(r => setPathways(r.data)).catch(() => {});
+    apiClient
+      .get("/order-sets")
+      .then((r) => setOrderSets(r.data))
+      .catch(() => {});
+    apiClient
+      .get("/clinical-pathways")
+      .then((r) => setPathways(r.data))
+      .catch(() => {});
   }, []);
 
   const executeOrderSet = async (setId: number, name: string) => {
-    if (!confirm(`تأكيد تنفيذ بروتوكول "${name}" بجميع طلباته السريرية لهذه الحالة؟`)) return;
+    if (
+      !confirm(
+        `تأكيد تنفيذ بروتوكول "${name}" بجميع طلباته السريرية لهذه الحالة؟`,
+      )
+    )
+      return;
     setExecutingId(setId);
     try {
       await apiClient.post(`/order-sets/${setId}/execute`, { encounterId });
-      toast.success('تم الاعتماد وإرسال الطلبات بنجاح');
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      toast.success("تم الاعتماد وإرسال الطلبات بنجاح");
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'تعذر تنفيذ البروتوكول');
+      toast.error(err?.response?.data?.message || "تعذر تنفيذ البروتوكول");
     } finally {
       setExecutingId(null);
     }
@@ -252,11 +304,13 @@ function LegacyQuickProtocolsWidget({ encounterId }: { encounterId: number }) {
     if (!confirm(`تأكيد إدراج الحالة في المسار العلاجي "${name}"؟`)) return;
     setEnrollingId(pathwayId);
     try {
-      await apiClient.post(`/clinical-pathways/${pathwayId}/enroll`, { encounterId });
-      toast.success('تم إدراج المريض وبدء المسار العلاجي');
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await apiClient.post(`/clinical-pathways/${pathwayId}/enroll`, {
+        encounterId,
+      });
+      toast.success("تم إدراج المريض وبدء المسار العلاجي");
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'تعذر الإدراج في المسار');
+      toast.error(err?.response?.data?.message || "تعذر الإدراج في المسار");
     } finally {
       setEnrollingId(null);
     }
@@ -267,14 +321,14 @@ function LegacyQuickProtocolsWidget({ encounterId }: { encounterId: number }) {
   return (
     <div className="bg-slate-900/80 border border-sky-900/40 p-4 rounded-2xl shadow-[0_0_30px_-5px_rgba(14,165,233,0.15)] relative overflow-hidden mt-4">
       <div className="absolute top-0 right-0 w-32 h-32 bg-sky-500/10 rounded-full blur-3xl -mx-10 -my-10 pointer-events-none" />
-      
+
       {orderSets.length > 0 && (
         <div className="mb-4">
           <h3 className="text-xs font-black text-sky-400 mb-3 border-b border-slate-800 pb-2 flex items-center gap-1.5 relative z-10">
             ⚡ أوامر المجموعات (Order Sets)
           </h3>
           <div className="space-y-2 relative z-10 max-h-48 overflow-y-auto custom-scrollbar pr-1">
-            {orderSets.map(set => (
+            {orderSets.map((set) => (
               <button
                 key={set.id}
                 onClick={() => executeOrderSet(set.id, set.nameAr || set.name)}
@@ -282,13 +336,23 @@ function LegacyQuickProtocolsWidget({ encounterId }: { encounterId: number }) {
                 className="w-full relative group bg-slate-950 border border-slate-800 hover:border-sky-500/50 p-3 rounded-xl transition-all text-right disabled:opacity-50"
               >
                 <div className="flex justify-between items-center mb-1">
-                  <div className="text-xs font-bold text-slate-200">{set.nameAr || set.name}</div>
-                  <span className="text-[9px] px-1.5 py-0.5 rounded border border-slate-700 text-slate-400">{set.category || 'عام'}</span>
+                  <div className="text-xs font-bold text-slate-200">
+                    {set.nameAr || set.name}
+                  </div>
+                  <span className="text-[9px] px-1.5 py-0.5 rounded border border-slate-700 text-slate-400">
+                    {set.category || "عام"}
+                  </span>
                 </div>
-                <div className="text-[10px] text-slate-500 truncate max-w-[85%]">{set.description || 'تنفيذ الإجراءات المرفقة تلقائياً'}</div>
-                
+                <div className="text-[10px] text-slate-500 truncate max-w-[85%]">
+                  {set.description || "تنفيذ الإجراءات المرفقة تلقائياً"}
+                </div>
+
                 <div className="absolute left-3 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  {executingId === set.id ? <span className="animate-pulse">⏳</span> : '🚀'}
+                  {executingId === set.id ? (
+                    <span className="animate-pulse">⏳</span>
+                  ) : (
+                    "🚀"
+                  )}
                 </div>
               </button>
             ))}
@@ -302,7 +366,7 @@ function LegacyQuickProtocolsWidget({ encounterId }: { encounterId: number }) {
             🛤️ مسارات العلاج (Pathways)
           </h3>
           <div className="space-y-2 relative z-10 max-h-48 overflow-y-auto custom-scrollbar pr-1">
-            {pathways.map(pw => (
+            {pathways.map((pw) => (
               <button
                 key={pw.id}
                 onClick={() => enrollPathway(pw.id, pw.nameAr || pw.name)}
@@ -310,13 +374,23 @@ function LegacyQuickProtocolsWidget({ encounterId }: { encounterId: number }) {
                 className="w-full relative group bg-slate-950 border border-slate-800 hover:border-pink-500/50 p-3 rounded-xl transition-all text-right disabled:opacity-50"
               >
                 <div className="flex justify-between items-center mb-1">
-                  <div className="text-xs font-bold text-slate-200">{pw.nameAr || pw.name}</div>
-                  <span className="text-[9px] px-1.5 py-0.5 rounded border border-slate-700 text-slate-400">LOS: {pw.expectedLOSDays || '-'}</span>
+                  <div className="text-xs font-bold text-slate-200">
+                    {pw.nameAr || pw.name}
+                  </div>
+                  <span className="text-[9px] px-1.5 py-0.5 rounded border border-slate-700 text-slate-400">
+                    LOS: {pw.expectedLOSDays || "-"}
+                  </span>
                 </div>
-                <div className="text-[10px] text-slate-500 truncate max-w-[85%]">{pw.targetDiagnosis || 'خطة علاجية مقسمة على الأيام'}</div>
-                
+                <div className="text-[10px] text-slate-500 truncate max-w-[85%]">
+                  {pw.targetDiagnosis || "خطة علاجية مقسمة على الأيام"}
+                </div>
+
                 <div className="absolute left-3 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  {enrollingId === pw.id ? <span className="animate-pulse">⏳</span> : '➕'}
+                  {enrollingId === pw.id ? (
+                    <span className="animate-pulse">⏳</span>
+                  ) : (
+                    "➕"
+                  )}
                 </div>
               </button>
             ))}
@@ -325,12 +399,18 @@ function LegacyQuickProtocolsWidget({ encounterId }: { encounterId: number }) {
       )}
 
       <div className="text-center mt-3 pt-2 border-t border-slate-800 relative z-10 flex flex-col gap-1.5">
-         <Link to="/order-sets" className="text-[10px] text-sky-500 hover:text-sky-400 font-bold transition-colors">
-           إدارة محتوى البروتوكولات ←
-         </Link>
-         <Link to="/clinical-pathways" className="text-[10px] text-pink-500 hover:text-pink-400 font-bold transition-colors">
-           إدارة المسارات السريرية ←
-         </Link>
+        <Link
+          to="/order-sets"
+          className="text-[10px] text-sky-500 hover:text-sky-400 font-bold transition-colors"
+        >
+          إدارة محتوى البروتوكولات ←
+        </Link>
+        <Link
+          to="/clinical-pathways"
+          className="text-[10px] text-pink-500 hover:text-pink-400 font-bold transition-colors"
+        >
+          إدارة المسارات السريرية ←
+        </Link>
       </div>
     </div>
   );
@@ -347,14 +427,26 @@ export default function EncounterDetailsPage() {
   const [visitNotes, setVisitNotes] = useState("");
   const [activeTab, setActiveTab] = useState<TabKey>("VISITS");
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [noteTemplates, setNoteTemplates] = useState<{ id: number; name: string; content: string }[]>([]);
-  
+  const [noteTemplates, setNoteTemplates] = useState<
+    { id: number; name: string; content: string }[]
+  >([]);
+
   // Admission Modal
   const [showAdmitModal, setShowAdmitModal] = useState(false);
   const [selectedDept, setSelectedDept] = useState("");
   const [selectedWardId, setSelectedWardId] = useState("");
   const [selectedBedId, setSelectedBedId] = useState("");
-  const [wardTree, setWardTree] = useState<{ id: number; name: string; rooms: { id: number; roomNumber: string; beds: { id: number; bedNumber: string; status: string }[] }[] }[]>([]);
+  const [wardTree, setWardTree] = useState<
+    {
+      id: number;
+      name: string;
+      rooms: {
+        id: number;
+        roomNumber: string;
+        beds: { id: number; bedNumber: string; status: string }[];
+      }[];
+    }[]
+  >([]);
 
   // Transfer Modal
   const [showTransferModal, setShowTransferModal] = useState(false);
@@ -363,133 +455,165 @@ export default function EncounterDetailsPage() {
   const [showAiModal, setShowAiModal] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [aiSuggestions, setAiSuggestions] = useState<any>(null);
-  const [selectedDxCodes, setSelectedDxCodes] = useState<Set<number>>(new Set());
-  const [selectedPxCodes, setSelectedPxCodes] = useState<Set<number>>(new Set());
-  const [dxTypes, setDxTypes] = useState<Record<number, 'PRIMARY' | 'SECONDARY'>>({});
+  const [selectedDxCodes, setSelectedDxCodes] = useState<Set<number>>(
+    new Set(),
+  );
+  const [selectedPxCodes, setSelectedPxCodes] = useState<Set<number>>(
+    new Set(),
+  );
+  const [dxTypes, setDxTypes] = useState<
+    Record<number, "PRIMARY" | "SECONDARY">
+  >({});
 
   // Load ward tree for bed selection
   useEffect(() => {
-    apiClient.get("/beds/tree").then((res) => setWardTree(res.data)).catch(() => {});
-    apiClient.get("/note-templates").then((res) => setNoteTemplates(res.data)).catch(() => {});
+    apiClient
+      .get("/beds/tree")
+      .then((res) => setWardTree(res.data))
+      .catch(() => {});
+    apiClient
+      .get("/note-templates")
+      .then((res) => setNoteTemplates(res.data))
+      .catch(() => {});
   }, []);
 
   // 1. Fetch Encounter Details
-  const { data: encounter, isLoading: loading, error } = useQuery({
-      queryKey: ['encounter', encId],
-      queryFn: async () => {
-          const res = await apiClient.get<EncounterDetail>(`/encounters/${encId}`);
-          return res.data;
-      },
-      enabled: !!encId
+  const {
+    data: encounter,
+    isLoading: loading,
+    error,
+  } = useQuery({
+    queryKey: ["encounter", encId],
+    queryFn: async () => {
+      const res = await apiClient.get<EncounterDetail>(`/encounters/${encId}`);
+      return res.data;
+    },
+    enabled: !!encId,
   });
 
   // 2. Fetch Departments
   const { data: departments = [] } = useQuery({
-      queryKey: ['departments'],
-      queryFn: async () => {
-          const res = await apiClient.get<Department[]>("/departments");
-          return res.data;
-      },
-      staleTime: Infinity, // Departments rarely change
+    queryKey: ["departments"],
+    queryFn: async () => {
+      const res = await apiClient.get<Department[]>("/departments");
+      return res.data;
+    },
+    staleTime: Infinity, // Departments rarely change
   });
 
   // 3. Fetch Active Transfers for this Encounter
   const { data: pendingTransfers = [] } = useQuery({
-      queryKey: ['transfers', encId],
-      queryFn: async () => {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const res = await apiClient.get<any[]>("/transfers/pending"); 
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return res.data.filter((t: any) => t.encounterId === encId);
-      },
-      enabled: !!encId
+    queryKey: ["transfers", encId],
+    queryFn: async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const res = await apiClient.get<any[]>("/transfers/pending");
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return res.data.filter((t: any) => t.encounterId === encId);
+    },
+    enabled: !!encId,
   });
 
-  const activeTransfer = pendingTransfers.length > 0 ? pendingTransfers[0] : null;
+  const activeTransfer =
+    pendingTransfers.length > 0 ? pendingTransfers[0] : null;
 
   // --- Mutations ---
 
   const assignDoctorMutation = useMutation({
-      mutationFn: async () => {
-          await apiClient.patch(`/encounters/${encId}/assign-doctor`, {
-             doctorId: user?.id,
-          });
-      },
-      onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: ['encounter', encId] });
-          toast.success("تم تعيينك طبيباً للحالة.");
-      },
-      onError: () => toast.error("فشل التعيين.")
+    mutationFn: async () => {
+      await apiClient.patch(`/encounters/${encId}/assign-doctor`, {
+        doctorId: user?.id,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["encounter", encId] });
+      toast.success("تم تعيينك طبيباً للحالة.");
+    },
+    onError: () => toast.error("فشل التعيين."),
   });
 
   const addVisitNoteMutation = useMutation({
-      mutationFn: async (notes: string) => {
-          const res = await apiClient.post<Visit>("/visits", {
-             encounterId: encId,
-             notes: notes,
-          });
-          return res.data;
-      },
-      onSuccess: (newVisit) => {
-          queryClient.setQueryData(['encounter', encId], (old: EncounterDetail | undefined) => {
-              if (!old) return old;
-              return {
-                  ...old,
-                  visits: old.visits ? [newVisit, ...old.visits] : [newVisit]
-              };
-          });
-          setVisitNotes("");
-          toast.success("تم حفظ الملاحظة.");
-      },
-      onError: () => toast.error("فشل الحفظ.")
+    mutationFn: async (notes: string) => {
+      const res = await apiClient.post<Visit>("/visits", {
+        encounterId: encId,
+        notes: notes,
+      });
+      return res.data;
+    },
+    onSuccess: (newVisit) => {
+      queryClient.setQueryData(
+        ["encounter", encId],
+        (old: EncounterDetail | undefined) => {
+          if (!old) return old;
+          return {
+            ...old,
+            visits: old.visits ? [newVisit, ...old.visits] : [newVisit],
+          };
+        },
+      );
+      setVisitNotes("");
+      toast.success("تم حفظ الملاحظة.");
+    },
+    onError: () => toast.error("فشل الحفظ."),
   });
 
   const dischargeMutation = useMutation({
-      mutationFn: async () => {
-          await apiClient.patch(`/encounters/${encId}/discharge`);
-      },
-      onSuccess: () => {
-          toast.success("تم تسجيل خروج المريض وإغلاق الملف.");
-          navigate("/triage");
-      },
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      onError: (err: any) => toast.error(err.response?.data?.message || "فشل تسجيل الخروج")
+    mutationFn: async () => {
+      await apiClient.patch(`/encounters/${encId}/discharge`);
+    },
+    onSuccess: () => {
+      toast.success("تم تسجيل خروج المريض وإغلاق الملف.");
+      navigate("/triage");
+    },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    onError: (err: any) =>
+      toast.error(err.response?.data?.message || "فشل تسجيل الخروج"),
   });
 
   const admitMutation = useMutation({
-      mutationFn: async ({ deptId, bedId }: { deptId: number; bedId?: number }) => {
-          await apiClient.post(`/admissions`, {
-            patientId: encounter?.patientId,
-            encounterId: encId,
-            departmentId: deptId,
-            admissionType: "EMERGENCY", 
-            priority: "HIGH",
-            admissionReason: "دخول من قسم الطوارئ",
-            isEmergency: true,
-            admittingDoctorId: encounter?.doctorId || user?.id, 
-            primaryPhysicianId: encounter?.doctorId || user?.id,
-            bedId: bedId || undefined,
-          });
-          if (bedId && encId) {
-            try {
-              await apiClient.post('/beds/assign', { encounterId: encId, bedId });
-            } catch {
-              // Bed assignment is best-effort, admission already succeeded
-            }
-          }
-      },
-      onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: ['encounter', encId] });
-          toast.success("تم تحويل المريض للإيواء بنجاح وأُضيف لجدول التنويم النشط.");
-          setShowAdmitModal(false);
-      },
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      onError: (err: any) => toast.error(err.response?.data?.message || "فشل الإيواء")
+    mutationFn: async ({
+      deptId,
+      bedId,
+    }: {
+      deptId: number;
+      bedId?: number;
+    }) => {
+      await apiClient.post(`/admissions`, {
+        patientId: encounter?.patientId,
+        encounterId: encId,
+        departmentId: deptId,
+        admissionType: "EMERGENCY",
+        priority: "HIGH",
+        admissionReason: "دخول من قسم الطوارئ",
+        isEmergency: true,
+        admittingDoctorId: encounter?.doctorId || user?.id,
+        primaryPhysicianId: encounter?.doctorId || user?.id,
+        bedId: bedId || undefined,
+      });
+      if (bedId && encId) {
+        try {
+          await apiClient.post("/beds/assign", { encounterId: encId, bedId });
+        } catch {
+          // Bed assignment is best-effort, admission already succeeded
+        }
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["encounter", encId] });
+      toast.success(
+        "تم تحويل المريض للإيواء بنجاح وأُضيف لجدول التنويم النشط.",
+      );
+      setShowAdmitModal(false);
+    },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    onError: (err: any) =>
+      toast.error(err.response?.data?.message || "فشل الإيواء"),
   });
 
   const aiCodingMutation = useMutation({
     mutationFn: async (note: string) => {
-      const { data } = await apiClient.post('/clinical/ai-coding/suggest', { clinicalNote: note });
+      const { data } = await apiClient.post("/clinical/ai-coding/suggest", {
+        clinicalNote: note,
+      });
       return data;
     },
     onSuccess: (data) => {
@@ -497,18 +621,25 @@ export default function EncounterDetailsPage() {
       // Auto-select all codes by default
       if (data?.diagnoses) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        setSelectedDxCodes(new Set(data.diagnoses.map((_: any, i: number) => i)));
-        const types: Record<number, 'PRIMARY' | 'SECONDARY'> = {};
+        setSelectedDxCodes(
+          new Set(data.diagnoses.map((_: any, i: number) => i)),
+        );
+        const types: Record<number, "PRIMARY" | "SECONDARY"> = {};
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        data.diagnoses.forEach((_: any, i: number) => { types[i] = i === 0 ? 'PRIMARY' : 'SECONDARY'; });
+        data.diagnoses.forEach((_: any, i: number) => {
+          types[i] = i === 0 ? "PRIMARY" : "SECONDARY";
+        });
         setDxTypes(types);
       }
       if (data?.procedures) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        setSelectedPxCodes(new Set(data.procedures.map((_: any, i: number) => i)));
+        setSelectedPxCodes(
+          new Set(data.procedures.map((_: any, i: number) => i)),
+        );
       }
     },
-    onError: () => toast.error("فشل تحليل الملاحظة السريرية بواسطة الذكاء الاصطناعي")
+    onError: () =>
+      toast.error("فشل تحليل الملاحظة السريرية بواسطة الذكاء الاصطناعي"),
   });
 
   const applyCodesMutation = useMutation({
@@ -520,8 +651,10 @@ export default function EncounterDetailsPage() {
         .map((dx: any, i: number) => ({
           code: dx.code,
           nameEn: dx.nameEn,
-          nameAr: dx.nameAr || '',
-          type: dxTypes[aiSuggestions.diagnoses.indexOf(dx)] || (i === 0 ? 'PRIMARY' : 'SECONDARY'),
+          nameAr: dx.nameAr || "",
+          type:
+            dxTypes[aiSuggestions.diagnoses.indexOf(dx)] ||
+            (i === 0 ? "PRIMARY" : "SECONDARY"),
         }));
       const selectedProcedures = aiSuggestions.procedures
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -530,10 +663,10 @@ export default function EncounterDetailsPage() {
         .map((px: any) => ({
           code: px.code,
           nameEn: px.nameEn,
-          nameAr: px.nameAr || '',
+          nameAr: px.nameAr || "",
           modifier: px.modifier || undefined,
         }));
-      const { data } = await apiClient.post('/clinical/ai-coding/apply', {
+      const { data } = await apiClient.post("/clinical/ai-coding/apply", {
         encounterId: encId,
         selectedDiagnoses,
         selectedProcedures,
@@ -542,20 +675,23 @@ export default function EncounterDetailsPage() {
     },
     onSuccess: (result) => {
       const msgs: string[] = [];
-      if (result.diagnosesSaved > 0) msgs.push(`${result.diagnosesSaved} تشخيص`);
-      if (result.proceduresSaved > 0) msgs.push(`${result.proceduresSaved} إجراء`);
-      toast.success(`✅ تم اعتماد ${msgs.join(' و ')} بنجاح`);
+      if (result.diagnosesSaved > 0)
+        msgs.push(`${result.diagnosesSaved} تشخيص`);
+      if (result.proceduresSaved > 0)
+        msgs.push(`${result.proceduresSaved} إجراء`);
+      toast.success(`✅ تم اعتماد ${msgs.join(" و ")} بنجاح`);
       if (result.warnings?.length) {
-        result.warnings.forEach((w: string) => toast.warning(w, { duration: 6000 }));
+        result.warnings.forEach((w: string) =>
+          toast.warning(w, { duration: 6000 }),
+        );
       }
       // Refresh diagnosis and billing data
-      queryClient.invalidateQueries({ queryKey: ['encounter', encId] });
+      queryClient.invalidateQueries({ queryKey: ["encounter", encId] });
       setShowAiModal(false);
       setAiSuggestions(null);
     },
-    onError: () => toast.error("فشل اعتماد الأكواد الطبية")
+    onError: () => toast.error("فشل اعتماد الأكواد الطبية"),
   });
-
 
   // --- Handlers ---
 
@@ -580,7 +716,8 @@ export default function EncounterDetailsPage() {
   };
 
   const handleDischarge = () => {
-    if (!confirm("هل أنت متأكد من قرار خروج المريض (Discharge) وإغلاق الملف؟")) return;
+    if (!confirm("هل أنت متأكد من قرار خروج المريض (Discharge) وإغلاق الملف؟"))
+      return;
     dischargeMutation.mutate();
   };
 
@@ -598,7 +735,8 @@ export default function EncounterDetailsPage() {
   // Loading States aliases for UI
   const assigning = assignDoctorMutation.isPending;
   const savingVisit = addVisitNoteMutation.isPending;
-  const processingDecision = dischargeMutation.isPending || admitMutation.isPending;
+  const processingDecision =
+    dischargeMutation.isPending || admitMutation.isPending;
 
   if (loading)
     return (
@@ -618,26 +756,28 @@ export default function EncounterDetailsPage() {
       {/* 1. Header */}
       {activeTransfer && (
         <div className="bg-amber-900/20 border border-amber-500/50 rounded-2xl p-4 flex items-center gap-4 shadow-sm animate-pulse">
-            <div className="p-2 bg-amber-500/20 text-amber-400 rounded-full">
-               <Clock className="w-6 h-6" />
-            </div>
-            <div className="flex-1">
-               <h3 className="text-amber-400 font-bold text-sm">يوجد طلب نقل قيد المعالجة (Transfer Pending)</h3>
-               <p className="text-amber-200/70 text-xs mt-1">
-                  {activeTransfer.status === 'REQUESTED' 
-                    ? "بانتظار طبيب/تمريض القسم المستقبل لتخصيص سرير للمريض." 
-                    : activeTransfer.status === 'BED_ALLOCATED' 
-                    ? "تم تخصيص السرير بنجاح! يرجى التواصل مع فريق التمريض لتسليم الحالة (SBAR Handover) قبل نقل المريض فعلياً."
-                    : activeTransfer.status === 'HANDOVER_SIGNED'
+          <div className="p-2 bg-amber-500/20 text-amber-400 rounded-full">
+            <Clock className="w-6 h-6" />
+          </div>
+          <div className="flex-1">
+            <h3 className="text-amber-400 font-bold text-sm">
+              يوجد طلب نقل قيد المعالجة (Transfer Pending)
+            </h3>
+            <p className="text-amber-200/70 text-xs mt-1">
+              {activeTransfer.status === "REQUESTED"
+                ? "بانتظار طبيب/تمريض القسم المستقبل لتخصيص سرير للمريض."
+                : activeTransfer.status === "BED_ALLOCATED"
+                  ? "تم تخصيص السرير بنجاح! يرجى التواصل مع فريق التمريض لتسليم الحالة (SBAR Handover) قبل نقل المريض فعلياً."
+                  : activeTransfer.status === "HANDOVER_SIGNED"
                     ? "تم تسليم الحالة. بانتظار تأكيد وصول المريض للقسم المستقبل."
                     : "الطلب قيد المعالجة."}
-               </p>
-            </div>
-            <div className="text-left shrink-0">
-               <span className="bg-amber-950/50 text-amber-500 border border-amber-500/30 px-3 py-1 rounded-xl text-xs font-bold">
-                 الحالة: {activeTransfer.status}
-               </span>
-            </div>
+            </p>
+          </div>
+          <div className="text-left shrink-0">
+            <span className="bg-amber-950/50 text-amber-500 border border-amber-500/30 px-3 py-1 rounded-xl text-xs font-bold">
+              الحالة: {activeTransfer.status}
+            </span>
+          </div>
         </div>
       )}
 
@@ -667,7 +807,7 @@ export default function EncounterDetailsPage() {
             >
               📋 السجل الطبي
             </Link>
-            
+
             {encounter.type === "IPD" && encounter.admission?.id && (
               <Link
                 to={`/discharge-summary/${encounter.admission.id}`}
@@ -739,14 +879,17 @@ export default function EncounterDetailsPage() {
           {/* Custom Tab Navigation */}
           <div className="flex gap-2 border-b border-slate-800 pb-1 overflow-x-auto">
             {tabs
-              .filter(tab => !tab.gender || tab.gender === encounter.patient?.gender) // ✅ فلترة حسب الجنس
+              .filter(
+                (tab) =>
+                  !tab.gender || tab.gender === encounter.patient?.gender,
+              ) // ✅ فلترة حسب الجنس
               .map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
-                onMouseEnter={() => tabPreloaders[tab.key]?.()}
-                onFocus={() => tabPreloaders[tab.key]?.()}
-                className={`px-4 py-2.5 rounded-t-xl text-xs font-medium transition-all flex items-center gap-2
+                <button
+                  key={tab.key}
+                  onClick={() => setActiveTab(tab.key)}
+                  onMouseEnter={() => tabPreloaders[tab.key]?.()}
+                  onFocus={() => tabPreloaders[tab.key]?.()}
+                  className={`px-4 py-2.5 rounded-t-xl text-xs font-medium transition-all flex items-center gap-2
                             ${
                               activeTab === tab.key
                                 ? "bg-slate-800 text-sky-400 border-t border-x border-slate-700 shadow-sm"
@@ -755,10 +898,10 @@ export default function EncounterDetailsPage() {
                             ${tab.alert ? "text-amber-400 hover:text-amber-200" : ""}
                             ${tab.key === "OBGYN" ? "text-pink-400 hover:text-pink-200" : ""} 
                             `}
-              >
-                <span>{tab.icon}</span> {tab.label}
-              </button>
-            ))}
+                >
+                  <span>{tab.icon}</span> {tab.label}
+                </button>
+              ))}
           </div>
 
           {/* Tab Content */}
@@ -777,7 +920,9 @@ export default function EncounterDetailsPage() {
                       disabled={aiCodingMutation.isPending}
                       className="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-lg flex items-center gap-1.5 disabled:opacity-50"
                     >
-                      {aiCodingMutation.isPending ? "جاري التحليل..." : "تحليل بواسطة الذكاء الاصطناعي 🧠"}
+                      {aiCodingMutation.isPending
+                        ? "جاري التحليل..."
+                        : "تحليل بواسطة الذكاء الاصطناعي 🧠"}
                     </button>
                   </div>
                   <textarea
@@ -798,10 +943,18 @@ export default function EncounterDetailsPage() {
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <Suspense fallback={<LazyPanelFallback label="تحميل لوحة العلامات الحيوية..." />}>
+                  <Suspense
+                    fallback={
+                      <LazyPanelFallback label="تحميل لوحة العلامات الحيوية..." />
+                    }
+                  >
                     <VitalsPane encounterId={encounter.id} />
                   </Suspense>
-                  <Suspense fallback={<LazyPanelFallback label="تحميل لوحة التشخيص..." />}>
+                  <Suspense
+                    fallback={
+                      <LazyPanelFallback label="تحميل لوحة التشخيص..." />
+                    }
+                  >
                     <DiagnosisPane encounterId={encounter.id} />
                   </Suspense>
                 </div>
@@ -810,66 +963,98 @@ export default function EncounterDetailsPage() {
 
             {/* ✅ عرض تبويب الحساسية والمخاطر */}
             {activeTab === "ALLERGIES" && (
-              <Suspense fallback={<LazyPanelFallback label="تحميل لوحة الحساسية والمخاطر..." />}>
+              <Suspense
+                fallback={
+                  <LazyPanelFallback label="تحميل لوحة الحساسية والمخاطر..." />
+                }
+              >
                 <AllergiesPane patientId={encounter.patientId} />
               </Suspense>
             )}
 
             {/* ✅ عرض تبويب النساء والولادة */}
             {activeTab === "OBGYN" && (
-               <div className="max-w-3xl space-y-6">
-                 <Suspense fallback={<LazyPanelFallback label="تحميل ملف النساء والولادة..." />}>
-                   <ObstetricHistoryCard patientId={encounter.patientId} editable={true} />
-                 </Suspense>
-                 <div className="flex justify-end gap-3 flex-wrap">
-                    <button
-                      onClick={() => navigate(`/obgyn/anc?patientId=${encounter.patientId}`)}
-                      className="bg-violet-600 hover:bg-violet-500 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg"
-                    >
-                      <span>🤰</span> متابعة الحمل (ANC)
-                    </button>
-                    <button
-                      onClick={() => navigate(`/obgyn/fertility?patientId=${encounter.patientId}`)}
-                      className="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg"
-                    >
-                      <span>🧬</span> الحقن المجهري (IVF)
-                    </button>
-                    <button
-                      onClick={() => navigate(`/obgyn/deliveries/new?encounterId=${encId}`)}
-                      className="bg-pink-600 hover:bg-pink-500 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg"
-                    >
-                      <span>👶</span> تسجيل ولادة جديدة
-                    </button>
-                 </div>
-               </div>
+              <div className="max-w-3xl space-y-6">
+                <Suspense
+                  fallback={
+                    <LazyPanelFallback label="تحميل ملف النساء والولادة..." />
+                  }
+                >
+                  <ObstetricHistoryCard
+                    patientId={encounter.patientId}
+                    editable={true}
+                  />
+                </Suspense>
+                <div className="flex justify-end gap-3 flex-wrap">
+                  <button
+                    onClick={() =>
+                      navigate(`/obgyn/anc?patientId=${encounter.patientId}`)
+                    }
+                    className="bg-violet-600 hover:bg-violet-500 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg"
+                  >
+                    <span>🤰</span> متابعة الحمل (ANC)
+                  </button>
+                  <button
+                    onClick={() =>
+                      navigate(
+                        `/obgyn/fertility?patientId=${encounter.patientId}`,
+                      )
+                    }
+                    className="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg"
+                  >
+                    <span>🧬</span> الحقن المجهري (IVF)
+                  </button>
+                  <button
+                    onClick={() =>
+                      navigate(`/obgyn/deliveries/new?encounterId=${encId}`)
+                    }
+                    className="bg-pink-600 hover:bg-pink-500 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg"
+                  >
+                    <span>👶</span> تسجيل ولادة جديدة
+                  </button>
+                </div>
+              </div>
             )}
 
             {/* ✅ عرض تبويب أمراض الذكورة */}
             {activeTab === "ANDROLOGY" && (
-               <div className="max-w-3xl space-y-6">
-                 <div className="bg-slate-900/80 border border-cyan-900/40 rounded-2xl p-6">
-                   <h3 className="text-lg font-bold text-cyan-400 mb-4 flex items-center gap-2">🧬 ملف أمراض الذكورة والعقم</h3>
-                   <p className="text-slate-400 text-sm mb-6">يمكنك من هنا الوصول لملف المريض في عيادة أمراض الذكورة وتحاليل السائل المنوي وملفات العقم المشتركة.</p>
-                   <div className="flex justify-end gap-3 flex-wrap">
-                     <button
-                       onClick={() => navigate(`/andrology?patientId=${encounter.patientId}`)}
-                       className="bg-cyan-600 hover:bg-cyan-500 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg"
-                     >
-                       <span>🔬</span> تحليل السائل المنوي
-                     </button>
-                     <button
-                       onClick={() => navigate(`/obgyn/fertility?patientId=${encounter.patientId}`)}
-                       className="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg"
-                     >
-                       <span>💑</span> ملف العقم المشترك (IVF)
-                     </button>
-                   </div>
-                 </div>
-               </div>
+              <div className="max-w-3xl space-y-6">
+                <div className="bg-slate-900/80 border border-cyan-900/40 rounded-2xl p-6">
+                  <h3 className="text-lg font-bold text-cyan-400 mb-4 flex items-center gap-2">
+                    🧬 ملف أمراض الذكورة والعقم
+                  </h3>
+                  <p className="text-slate-400 text-sm mb-6">
+                    يمكنك من هنا الوصول لملف المريض في عيادة أمراض الذكورة
+                    وتحاليل السائل المنوي وملفات العقم المشتركة.
+                  </p>
+                  <div className="flex justify-end gap-3 flex-wrap">
+                    <button
+                      onClick={() =>
+                        navigate(`/andrology?patientId=${encounter.patientId}`)
+                      }
+                      className="bg-cyan-600 hover:bg-cyan-500 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg"
+                    >
+                      <span>🔬</span> تحليل السائل المنوي
+                    </button>
+                    <button
+                      onClick={() =>
+                        navigate(
+                          `/obgyn/fertility?patientId=${encounter.patientId}`,
+                        )
+                      }
+                      className="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg"
+                    >
+                      <span>💑</span> ملف العقم المشترك (IVF)
+                    </button>
+                  </div>
+                </div>
+              </div>
             )}
 
             {activeTab === "LABS" && (
-              <Suspense fallback={<LazyPanelFallback label="تحميل تبويب المختبر..." />}>
+              <Suspense
+                fallback={<LazyPanelFallback label="تحميل تبويب المختبر..." />}
+              >
                 <LabsTab
                   encounterId={encounter.id}
                   hospitalId={encounter.hospitalId}
@@ -878,7 +1063,9 @@ export default function EncounterDetailsPage() {
               </Suspense>
             )}
             {activeTab === "RADIOLOGY" && (
-              <Suspense fallback={<LazyPanelFallback label="تحميل تبويب الأشعة..." />}>
+              <Suspense
+                fallback={<LazyPanelFallback label="تحميل تبويب الأشعة..." />}
+              >
                 <RadiologyTab
                   encounterId={encounter.id}
                   hospitalId={encounter.hospitalId}
@@ -887,7 +1074,9 @@ export default function EncounterDetailsPage() {
               </Suspense>
             )}
             {activeTab === "PRESCRIPTIONS" && (
-              <Suspense fallback={<LazyPanelFallback label="تحميل تبويب الأدوية..." />}>
+              <Suspense
+                fallback={<LazyPanelFallback label="تحميل تبويب الأدوية..." />}
+              >
                 <PrescriptionsTab
                   encounterId={encounter.id}
                   hospitalId={encounter.hospitalId}
@@ -896,7 +1085,9 @@ export default function EncounterDetailsPage() {
               </Suspense>
             )}
             {activeTab === "BILLING" && (
-              <Suspense fallback={<LazyPanelFallback label="تحميل تبويب الفوترة..." />}>
+              <Suspense
+                fallback={<LazyPanelFallback label="تحميل تبويب الفوترة..." />}
+              >
                 <BillingTab
                   encounterId={encounter.id}
                   hospitalId={encounter.hospitalId}
@@ -934,9 +1125,11 @@ export default function EncounterDetailsPage() {
                   <span>🛏️</span> دخول (Admission)
                 </button>
 
-                {encounter.patient?.gender === 'FEMALE' && (
+                {encounter.patient?.gender === "FEMALE" && (
                   <button
-                    onClick={() => navigate(`/obgyn/deliveries/new?encounterId=${encId}`)}
+                    onClick={() =>
+                      navigate(`/obgyn/deliveries/new?encounterId=${encId}`)
+                    }
                     className="w-full py-2.5 bg-pink-600 hover:bg-pink-500 text-white rounded-xl text-xs font-bold shadow transition flex justify-center items-center gap-2"
                   >
                     <span>👶</span> تسجيل ولادة (Delivery)
@@ -954,7 +1147,9 @@ export default function EncounterDetailsPage() {
               {activeTransfer ? (
                 <div className="w-full py-2.5 bg-slate-700/50 border border-slate-600/50 text-slate-400 rounded-xl text-xs font-bold flex flex-col justify-center items-center gap-2 cursor-not-allowed">
                   <span>⏳ طلب النقل قيد الانتظار</span>
-                  <span className="text-[10px] text-slate-500 font-normal">لا يمكنك طلب نقل جديد حالياً</span>
+                  <span className="text-[10px] text-slate-500 font-normal">
+                    لا يمكنك طلب نقل جديد حالياً
+                  </span>
                 </div>
               ) : (
                 <button
@@ -967,10 +1162,16 @@ export default function EncounterDetailsPage() {
             </div>
           )}
 
-          <Suspense fallback={<LazyPanelFallback label="تحميل الملخص السريع..." />}>
+          <Suspense
+            fallback={<LazyPanelFallback label="تحميل الملخص السريع..." />}
+          >
             <QuickSummaryCard encounterId={encId} status={encounter.status} />
           </Suspense>
-          <Suspense fallback={<LazyPanelFallback label="تحميل البروتوكولات السريعة..." />}>
+          <Suspense
+            fallback={
+              <LazyPanelFallback label="تحميل البروتوكولات السريعة..." />
+            }
+          >
             <QuickProtocolsWidget encounterId={encId} />
           </Suspense>
         </div>
@@ -986,7 +1187,9 @@ export default function EncounterDetailsPage() {
             <div className="space-y-4 mb-6">
               {/* Department Selection */}
               <div>
-                <label className="text-xs text-slate-400 mb-1 block">إلى أي قسم؟</label>
+                <label className="text-xs text-slate-400 mb-1 block">
+                  إلى أي قسم؟
+                </label>
                 <select
                   className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm outline-none focus:border-purple-500"
                   value={selectedDept}
@@ -1003,7 +1206,9 @@ export default function EncounterDetailsPage() {
 
               {/* Ward Selection */}
               <div>
-                <label className="text-xs text-slate-400 mb-1 block">العنبر (اختياري)</label>
+                <label className="text-xs text-slate-400 mb-1 block">
+                  العنبر (اختياري)
+                </label>
                 <select
                   className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm outline-none focus:border-purple-500"
                   value={selectedWardId}
@@ -1015,47 +1220,60 @@ export default function EncounterDetailsPage() {
                   <option value="">-- اختر العنبر --</option>
                   {wardTree.map((w) => (
                     <option key={w.id} value={w.id}>
-                      {w.name} ({w.rooms.flatMap((r) => r.beds.filter((b) => b.status === "AVAILABLE")).length} سرير متاح)
+                      {w.name} (
+                      {
+                        w.rooms.flatMap((r) =>
+                          r.beds.filter((b) => b.status === "AVAILABLE"),
+                        ).length
+                      }{" "}
+                      سرير متاح)
                     </option>
                   ))}
                 </select>
               </div>
 
               {/* Bed Selection */}
-              {selectedWardId && (() => {
-                const ward = wardTree.find((w) => w.id === Number(selectedWardId));
-                const beds = ward?.rooms.flatMap((room) =>
-                  room.beds
-                    .filter((b) => b.status === "AVAILABLE")
-                    .map((b) => ({ ...b, roomNumber: room.roomNumber }))
-                ) || [];
-                return (
-                  <div>
-                    <label className="text-xs text-slate-400 mb-1 block">السرير</label>
-                    {beds.length === 0 ? (
-                      <p className="text-xs text-rose-400 bg-rose-950/30 border border-rose-800/30 rounded-xl p-2">
-                        ⚠️ لا توجد أسرّة متاحة في هذا العنبر.
-                      </p>
-                    ) : (
-                      <select
-                        className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm outline-none focus:border-purple-500"
-                        value={selectedBedId}
-                        onChange={(e) => setSelectedBedId(e.target.value)}
-                      >
-                        <option value="">-- اختر السرير --</option>
-                        {beds.map((b) => (
-                          <option key={b.id} value={b.id}>
-                            غرفة {b.roomNumber} — سرير {b.bedNumber}
-                          </option>
-                        ))}
-                      </select>
-                    )}
-                  </div>
-                );
-              })()}
+              {selectedWardId &&
+                (() => {
+                  const ward = wardTree.find(
+                    (w) => w.id === Number(selectedWardId),
+                  );
+                  const beds =
+                    ward?.rooms.flatMap((room) =>
+                      room.beds
+                        .filter((b) => b.status === "AVAILABLE")
+                        .map((b) => ({ ...b, roomNumber: room.roomNumber })),
+                    ) || [];
+                  return (
+                    <div>
+                      <label className="text-xs text-slate-400 mb-1 block">
+                        السرير
+                      </label>
+                      {beds.length === 0 ? (
+                        <p className="text-xs text-rose-400 bg-rose-950/30 border border-rose-800/30 rounded-xl p-2">
+                          ⚠️ لا توجد أسرّة متاحة في هذا العنبر.
+                        </p>
+                      ) : (
+                        <select
+                          className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm outline-none focus:border-purple-500"
+                          value={selectedBedId}
+                          onChange={(e) => setSelectedBedId(e.target.value)}
+                        >
+                          <option value="">-- اختر السرير --</option>
+                          {beds.map((b) => (
+                            <option key={b.id} value={b.id}>
+                              غرفة {b.roomNumber} — سرير {b.bedNumber}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
+                  );
+                })()}
 
               <p className="text-[10px] text-slate-500">
-                * اختيار السرير اختياري. يمكن تعيين السرير لاحقاً من صفحة حالات الإيواء.
+                * اختيار السرير اختياري. يمكن تعيين السرير لاحقاً من صفحة حالات
+                الإيواء.
               </p>
             </div>
             <div className="flex justify-end gap-2">
@@ -1079,7 +1297,7 @@ export default function EncounterDetailsPage() {
       {/* Transfer Request Modal */}
       {encounter.patient && (
         <Suspense fallback={null}>
-          <RequestTransferModal 
+          <RequestTransferModal
             isOpen={showTransferModal}
             onClose={() => setShowTransferModal(false)}
             encounterId={encId}
@@ -1102,26 +1320,34 @@ export default function EncounterDetailsPage() {
                 المساعد الذكي — تحليل واعتماد الأكواد الطبية
               </h2>
               <button
-                onClick={() => { setShowAiModal(false); setAiSuggestions(null); }}
+                onClick={() => {
+                  setShowAiModal(false);
+                  setAiSuggestions(null);
+                }}
                 className="text-slate-400 hover:text-white transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
-            
+
             <div className="p-5 flex-1 overflow-y-auto max-h-[70vh] custom-scrollbar">
               {aiCodingMutation.isPending ? (
                 <div className="flex flex-col items-center justify-center py-16 space-y-4">
                   <div className="relative">
                     <span className="h-14 w-14 animate-spin rounded-full border-4 border-slate-700 border-t-sky-500 block" />
-                    <span className="absolute inset-0 flex items-center justify-center text-xl">🧠</span>
+                    <span className="absolute inset-0 flex items-center justify-center text-xl">
+                      🧠
+                    </span>
                   </div>
-                  <p className="text-sm text-slate-400">يقوم الذكاء الاصطناعي بتحليل الملاحظات واستخراج الأكواد...</p>
-                  <p className="text-[10px] text-slate-600">ICD-10 + CPT + E&M Evaluation</p>
+                  <p className="text-sm text-slate-400">
+                    يقوم الذكاء الاصطناعي بتحليل الملاحظات واستخراج الأكواد...
+                  </p>
+                  <p className="text-[10px] text-slate-600">
+                    ICD-10 + CPT + E&M Evaluation
+                  </p>
                 </div>
               ) : aiSuggestions ? (
                 <div className="space-y-6">
-
                   {/* AI Reasoning (collapsible) */}
                   {aiSuggestions.reasoning && (
                     <details className="bg-indigo-950/30 border border-indigo-900/40 rounded-xl overflow-hidden">
@@ -1135,128 +1361,224 @@ export default function EncounterDetailsPage() {
                   )}
 
                   {/* ICD-10 Diagnoses */}
-                  {aiSuggestions.diagnoses && aiSuggestions.diagnoses.length > 0 && (
-                    <div>
-                      <div className="flex justify-between items-center mb-3 border-b border-slate-800 pb-2">
-                        <h3 className="text-sm font-bold text-emerald-400">تشخيصات ICD-10 المقترحة</h3>
-                        <button
-                          onClick={() => {
-                            if (selectedDxCodes.size === aiSuggestions.diagnoses.length) setSelectedDxCodes(new Set());
-                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                            else setSelectedDxCodes(new Set(aiSuggestions.diagnoses.map((_: any, i: number) => i)));
-                          }}
-                          className="text-[10px] text-emerald-500 hover:text-emerald-300 font-bold transition-colors"
-                        >
-                          {selectedDxCodes.size === aiSuggestions.diagnoses.length ? 'إلغاء الكل' : 'تحديد الكل'}
-                        </button>
-                      </div>
-                      <div className="space-y-2">
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        {aiSuggestions.diagnoses.map((dx: any, i: number) => (
-                          <label key={i} className={`flex items-start gap-3 bg-slate-950 border rounded-xl p-3 cursor-pointer transition-all ${
-                            selectedDxCodes.has(i) ? 'border-emerald-500/60 ring-1 ring-emerald-500/20' : 'border-slate-800 hover:border-slate-700'
-                          }`}>
-                            <input
-                              type="checkbox"
-                              checked={selectedDxCodes.has(i)}
-                              onChange={() => {
-                                const next = new Set(selectedDxCodes);
-                                // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-                                next.has(i) ? next.delete(i) : next.add(i);
-                                setSelectedDxCodes(next);
-                              }}
-                              className="mt-1 accent-emerald-500 w-4 h-4 shrink-0"
-                            />
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="font-mono text-emerald-300 font-bold bg-emerald-900/30 px-2 py-0.5 rounded text-sm">{dx.code}</span>
-                                <span className="text-sm text-slate-200 truncate">{dx.nameEn}</span>
-                                {dx.nameAr && <span className="text-xs text-slate-500">({dx.nameAr})</span>}
-                              </div>
-                              <div className="flex items-center gap-3 mt-2">
-                                <div className="flex-1 max-w-[120px]">
-                                  <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                                    <div className={`h-full rounded-full transition-all ${dx.confidence >= 0.8 ? 'bg-emerald-500' : dx.confidence >= 0.5 ? 'bg-amber-500' : 'bg-red-500'}`} style={{ width: `${(dx.confidence * 100)}%` }} />
-                                  </div>
-                                  <span className="text-[9px] text-slate-600 mt-0.5 block">{Math.round(dx.confidence * 100)}% ثقة</span>
+                  {aiSuggestions.diagnoses &&
+                    aiSuggestions.diagnoses.length > 0 && (
+                      <div>
+                        <div className="flex justify-between items-center mb-3 border-b border-slate-800 pb-2">
+                          <h3 className="text-sm font-bold text-emerald-400">
+                            تشخيصات ICD-10 المقترحة
+                          </h3>
+                          <button
+                            onClick={() => {
+                              if (
+                                selectedDxCodes.size ===
+                                aiSuggestions.diagnoses.length
+                              )
+                                setSelectedDxCodes(new Set());
+                              else
+                                setSelectedDxCodes(
+                                  new Set(
+                                    aiSuggestions.diagnoses.map(
+                                      (_: any, i: number) => i,
+                                    ),
+                                  ),
+                                );
+                            }}
+                            className="text-[10px] text-emerald-500 hover:text-emerald-300 font-bold transition-colors"
+                          >
+                            {selectedDxCodes.size ===
+                            aiSuggestions.diagnoses.length
+                              ? "إلغاء الكل"
+                              : "تحديد الكل"}
+                          </button>
+                        </div>
+                        <div className="space-y-2">
+                          // eslint-disable-next-line
+                          @typescript-eslint/no-explicit-any
+                          {aiSuggestions.diagnoses.map((dx: any, i: number) => (
+                            <label
+                              key={i}
+                              className={`flex items-start gap-3 bg-slate-950 border rounded-xl p-3 cursor-pointer transition-all ${
+                                selectedDxCodes.has(i)
+                                  ? "border-emerald-500/60 ring-1 ring-emerald-500/20"
+                                  : "border-slate-800 hover:border-slate-700"
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selectedDxCodes.has(i)}
+                                onChange={() => {
+                                  const next = new Set(selectedDxCodes);
+                                  // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+                                  next.has(i) ? next.delete(i) : next.add(i);
+                                  setSelectedDxCodes(next);
+                                }}
+                                className="mt-1 accent-emerald-500 w-4 h-4 shrink-0"
+                              />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="font-mono text-emerald-300 font-bold bg-emerald-900/30 px-2 py-0.5 rounded text-sm">
+                                    {dx.code}
+                                  </span>
+                                  <span className="text-sm text-slate-200 truncate">
+                                    {dx.nameEn}
+                                  </span>
+                                  {dx.nameAr && (
+                                    <span className="text-xs text-slate-500">
+                                      ({dx.nameAr})
+                                    </span>
+                                  )}
                                 </div>
-                                <select
-                                  value={dxTypes[i] || 'SECONDARY'}
-                                  onChange={(e) => setDxTypes({ ...dxTypes, [i]: e.target.value as 'PRIMARY' | 'SECONDARY' })}
-                                  className="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-[10px] text-slate-300 outline-none focus:border-emerald-500"
-                                >
-                                  <option value="PRIMARY">رئيسي (Primary)</option>
-                                  <option value="SECONDARY">ثانوي (Secondary)</option>
-                                </select>
+                                <div className="flex items-center gap-3 mt-2">
+                                  <div className="flex-1 max-w-[120px]">
+                                    <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                                      <div
+                                        className={`h-full rounded-full transition-all ${dx.confidence >= 0.8 ? "bg-emerald-500" : dx.confidence >= 0.5 ? "bg-amber-500" : "bg-red-500"}`}
+                                        style={{
+                                          width: `${dx.confidence * 100}%`,
+                                        }}
+                                      />
+                                    </div>
+                                    <span className="text-[9px] text-slate-600 mt-0.5 block">
+                                      {Math.round(dx.confidence * 100)}% ثقة
+                                    </span>
+                                  </div>
+                                  <select
+                                    value={dxTypes[i] || "SECONDARY"}
+                                    onChange={(e) =>
+                                      setDxTypes({
+                                        ...dxTypes,
+                                        [i]: e.target.value as
+                                          | "PRIMARY"
+                                          | "SECONDARY",
+                                      })
+                                    }
+                                    className="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-[10px] text-slate-300 outline-none focus:border-emerald-500"
+                                  >
+                                    <option value="PRIMARY">
+                                      رئيسي (Primary)
+                                    </option>
+                                    <option value="SECONDARY">
+                                      ثانوي (Secondary)
+                                    </option>
+                                  </select>
+                                </div>
                               </div>
-                            </div>
-                          </label>
-                        ))}
+                            </label>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
                   {/* CPT Procedures */}
-                  {aiSuggestions.procedures && aiSuggestions.procedures.length > 0 && (
-                    <div>
-                      <div className="flex justify-between items-center mb-3 border-b border-slate-800 pb-2">
-                        <h3 className="text-sm font-bold text-amber-400">إجراءات CPT المقترحة</h3>
-                        <button
-                          onClick={() => {
-                            if (selectedPxCodes.size === aiSuggestions.procedures.length) setSelectedPxCodes(new Set());
-                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                            else setSelectedPxCodes(new Set(aiSuggestions.procedures.map((_: any, i: number) => i)));
-                          }}
-                          className="text-[10px] text-amber-500 hover:text-amber-300 font-bold transition-colors"
-                        >
-                          {selectedPxCodes.size === aiSuggestions.procedures.length ? 'إلغاء الكل' : 'تحديد الكل'}
-                        </button>
-                      </div>
-                      <div className="space-y-2">
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        {aiSuggestions.procedures.map((px: any, i: number) => (
-                          <label key={i} className={`flex items-start gap-3 bg-slate-950 border rounded-xl p-3 cursor-pointer transition-all ${
-                            selectedPxCodes.has(i) ? 'border-amber-500/60 ring-1 ring-amber-500/20' : 'border-slate-800 hover:border-slate-700'
-                          }`}>
-                            <input
-                              type="checkbox"
-                              checked={selectedPxCodes.has(i)}
-                              onChange={() => {
-                                const next = new Set(selectedPxCodes);
-                                // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-                                next.has(i) ? next.delete(i) : next.add(i);
-                                setSelectedPxCodes(next);
-                              }}
-                              className="mt-1 accent-amber-500 w-4 h-4 shrink-0"
-                            />
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="font-mono text-amber-300 font-bold bg-amber-900/30 px-2 py-0.5 rounded text-sm">{px.code}</span>
-                                {px.modifier && <span className="text-[10px] text-amber-500 bg-amber-950/50 px-1.5 py-0.5 rounded font-mono">-{px.modifier}</span>}
-                                <span className="text-sm text-slate-200 truncate">{px.nameEn}</span>
-                              </div>
-                              {px.nameAr && <div className="text-xs text-slate-500 mt-1">{px.nameAr}</div>}
-                              <div className="mt-2 max-w-[120px]">
-                                <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                                  <div className={`h-full rounded-full transition-all ${px.confidence >= 0.8 ? 'bg-amber-500' : px.confidence >= 0.5 ? 'bg-yellow-500' : 'bg-red-500'}`} style={{ width: `${(px.confidence * 100)}%` }} />
+                  {aiSuggestions.procedures &&
+                    aiSuggestions.procedures.length > 0 && (
+                      <div>
+                        <div className="flex justify-between items-center mb-3 border-b border-slate-800 pb-2">
+                          <h3 className="text-sm font-bold text-amber-400">
+                            إجراءات CPT المقترحة
+                          </h3>
+                          <button
+                            onClick={() => {
+                              if (
+                                selectedPxCodes.size ===
+                                aiSuggestions.procedures.length
+                              )
+                                setSelectedPxCodes(new Set());
+                              else
+                                setSelectedPxCodes(
+                                  new Set(
+                                    aiSuggestions.procedures.map(
+                                      (_: any, i: number) => i,
+                                    ),
+                                  ),
+                                );
+                            }}
+                            className="text-[10px] text-amber-500 hover:text-amber-300 font-bold transition-colors"
+                          >
+                            {selectedPxCodes.size ===
+                            aiSuggestions.procedures.length
+                              ? "إلغاء الكل"
+                              : "تحديد الكل"}
+                          </button>
+                        </div>
+                        <div className="space-y-2">
+                          // eslint-disable-next-line
+                          @typescript-eslint/no-explicit-any
+                          {aiSuggestions.procedures.map(
+                            (px: any, i: number) => (
+                              <label
+                                key={i}
+                                className={`flex items-start gap-3 bg-slate-950 border rounded-xl p-3 cursor-pointer transition-all ${
+                                  selectedPxCodes.has(i)
+                                    ? "border-amber-500/60 ring-1 ring-amber-500/20"
+                                    : "border-slate-800 hover:border-slate-700"
+                                }`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={selectedPxCodes.has(i)}
+                                  onChange={() => {
+                                    const next = new Set(selectedPxCodes);
+                                    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+                                    next.has(i) ? next.delete(i) : next.add(i);
+                                    setSelectedPxCodes(next);
+                                  }}
+                                  className="mt-1 accent-amber-500 w-4 h-4 shrink-0"
+                                />
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="font-mono text-amber-300 font-bold bg-amber-900/30 px-2 py-0.5 rounded text-sm">
+                                      {px.code}
+                                    </span>
+                                    {px.modifier && (
+                                      <span className="text-[10px] text-amber-500 bg-amber-950/50 px-1.5 py-0.5 rounded font-mono">
+                                        -{px.modifier}
+                                      </span>
+                                    )}
+                                    <span className="text-sm text-slate-200 truncate">
+                                      {px.nameEn}
+                                    </span>
+                                  </div>
+                                  {px.nameAr && (
+                                    <div className="text-xs text-slate-500 mt-1">
+                                      {px.nameAr}
+                                    </div>
+                                  )}
+                                  <div className="mt-2 max-w-[120px]">
+                                    <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                                      <div
+                                        className={`h-full rounded-full transition-all ${px.confidence >= 0.8 ? "bg-amber-500" : px.confidence >= 0.5 ? "bg-yellow-500" : "bg-red-500"}`}
+                                        style={{
+                                          width: `${px.confidence * 100}%`,
+                                        }}
+                                      />
+                                    </div>
+                                    <span className="text-[9px] text-slate-600 mt-0.5 block">
+                                      {Math.round(px.confidence * 100)}% ثقة
+                                    </span>
+                                  </div>
                                 </div>
-                                <span className="text-[9px] text-slate-600 mt-0.5 block">{Math.round(px.confidence * 100)}% ثقة</span>
-                              </div>
-                            </div>
-                          </label>
-                        ))}
+                              </label>
+                            ),
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  {(!aiSuggestions.diagnoses?.length && !aiSuggestions.procedures?.length) && (
-                    <div className="text-center text-slate-500 py-8">
-                      لم يتعرف الذكاء الاصطناعي على أية أكواد طبية دقيقة من الملاحظات المكتوبة.
-                    </div>
-                  )}
+                  {!aiSuggestions.diagnoses?.length &&
+                    !aiSuggestions.procedures?.length && (
+                      <div className="text-center text-slate-500 py-8">
+                        لم يتعرف الذكاء الاصطناعي على أية أكواد طبية دقيقة من
+                        الملاحظات المكتوبة.
+                      </div>
+                    )}
 
                   <div className="bg-sky-950/30 border border-sky-900/50 rounded-xl p-4 text-xs text-sky-200/70 leading-relaxed">
-                    <strong className="text-sky-400">ملاحظة:</strong> اختر الأكواد المناسبة واضغط "اعتماد" لحفظها تلقائياً في التشخيص والفوترة. الأكواد غير المرتبطة بخدمات في النظام ستظهر كتنبيهات.
+                    <strong className="text-sky-400">ملاحظة:</strong> اختر
+                    الأكواد المناسبة واضغط "اعتماد" لحفظها تلقائياً في التشخيص
+                    والفوترة. الأكواد غير المرتبطة بخدمات في النظام ستظهر
+                    كتنبيهات.
                   </div>
                 </div>
               ) : (
@@ -1269,29 +1591,41 @@ export default function EncounterDetailsPage() {
             <div className="bg-slate-800/50 p-4 border-t border-slate-700 flex justify-between items-center">
               <div className="text-[10px] text-slate-500">
                 {aiSuggestions && (
-                  <span>{selectedDxCodes.size + selectedPxCodes.size} كود مُختار</span>
+                  <span>
+                    {selectedDxCodes.size + selectedPxCodes.size} كود مُختار
+                  </span>
                 )}
               </div>
               <div className="flex gap-3">
                 <button
-                  onClick={() => { setShowAiModal(false); setAiSuggestions(null); }}
+                  onClick={() => {
+                    setShowAiModal(false);
+                    setAiSuggestions(null);
+                  }}
                   className="bg-slate-700 hover:bg-slate-600 text-white px-5 py-2 rounded-xl text-sm font-bold transition-colors"
                 >
                   إغلاق
                 </button>
-                {aiSuggestions && (selectedDxCodes.size > 0 || selectedPxCodes.size > 0) && (
-                  <button
-                    onClick={() => applyCodesMutation.mutate()}
-                    disabled={applyCodesMutation.isPending}
-                    className="bg-gradient-to-r from-emerald-600 to-sky-600 hover:from-emerald-500 hover:to-sky-500 text-white px-6 py-2 rounded-xl text-sm font-bold transition-all shadow-lg shadow-emerald-500/20 disabled:opacity-50 flex items-center gap-2"
-                  >
-                    {applyCodesMutation.isPending ? (
-                      <><span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" /> جاري الاعتماد...</>
-                    ) : (
-                      <>✅ اعتماد المختار ({selectedDxCodes.size + selectedPxCodes.size})</>
-                    )}
-                  </button>
-                )}
+                {aiSuggestions &&
+                  (selectedDxCodes.size > 0 || selectedPxCodes.size > 0) && (
+                    <button
+                      onClick={() => applyCodesMutation.mutate()}
+                      disabled={applyCodesMutation.isPending}
+                      className="bg-gradient-to-r from-emerald-600 to-sky-600 hover:from-emerald-500 hover:to-sky-500 text-white px-6 py-2 rounded-xl text-sm font-bold transition-all shadow-lg shadow-emerald-500/20 disabled:opacity-50 flex items-center gap-2"
+                    >
+                      {applyCodesMutation.isPending ? (
+                        <>
+                          <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />{" "}
+                          جاري الاعتماد...
+                        </>
+                      ) : (
+                        <>
+                          ✅ اعتماد المختار (
+                          {selectedDxCodes.size + selectedPxCodes.size})
+                        </>
+                      )}
+                    </button>
+                  )}
               </div>
             </div>
           </div>
