@@ -117,7 +117,7 @@ export class AiCodingService implements OnModuleInit {
 
     // Model selection: configurable via env, with stable fallback
     const modelName =
-      this.configService.get<string>('GEMINI_MODEL') || 'gemini-3.1-flash-lite';
+      this.configService.get<string>('GEMINI_MODEL') || 'gemini-3.5-flash';
     this.logger.log(`🤖 Initializing AI Coding with model: ${modelName}`);
 
     const requestOptions: any = {};
@@ -130,21 +130,28 @@ export class AiCodingService implements OnModuleInit {
 
     if (baseUrl) {
       requestOptions.baseUrl = baseUrl.trim();
-      this.logger.log(`🤖 AI Coding configured with Custom Base URL: ${requestOptions.baseUrl}`);
+      this.logger.log(
+        `🤖 AI Coding configured with Custom Base URL: ${requestOptions.baseUrl}`,
+      );
     }
     if (apiVersion) {
       requestOptions.apiVersion = apiVersion.trim();
-      this.logger.log(`🤖 AI Coding configured with Custom API Version: ${requestOptions.apiVersion}`);
+      this.logger.log(
+        `🤖 AI Coding configured with Custom API Version: ${requestOptions.apiVersion}`,
+      );
     }
 
-    this.model = this.genAI.getGenerativeModel({
-      model: modelName,
-      generationConfig: {
-        responseMimeType: 'application/json',
-        temperature: 0.0,
-        topP: 0.8,
+    this.model = this.genAI.getGenerativeModel(
+      {
+        model: modelName,
+        generationConfig: {
+          responseMimeType: 'application/json',
+          temperature: 0.0,
+          topP: 0.8,
+        },
       },
-    }, requestOptions);
+      requestOptions,
+    );
     return true;
   }
 
