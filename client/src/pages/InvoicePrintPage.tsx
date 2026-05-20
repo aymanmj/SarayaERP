@@ -188,8 +188,8 @@ export default function InvoicePrintPage() {
   if (isError) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50 text-rose-500 font-bold">
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        خطأ: {(error as any)?.message || "تعذر تحميل الفاتورة"}
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any خطأ:{" "}
+        {(error as any)?.message || "تعذر تحميل الفاتورة"}
       </div>
     );
   }
@@ -313,7 +313,6 @@ export default function InvoicePrintPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             {charges.map((c: any, idx: number) => {
               const items = pharmacyMap[c.id] ?? [];
               return (
@@ -366,7 +365,8 @@ export default function InvoicePrintPage() {
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-200">
-                              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                              // eslint-disable-next-line
+                              @typescript-eslint/no-explicit-any
                               {items.map((item: any) => (
                                 <tr key={item.id}>
                                   <td className="py-1 px-2">
@@ -463,4 +463,3 @@ export default function InvoicePrintPage() {
     </PrintLayout>
   );
 }
-

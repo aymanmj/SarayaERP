@@ -1409,7 +1409,6 @@ export default function EncounterDetailsPage() {
                                 checked={selectedDxCodes.has(i)}
                                 onChange={() => {
                                   const next = new Set(selectedDxCodes);
-                                  // eslint-disable-next-line @typescript-eslint/no-unused-expressions
                                   next.has(i) ? next.delete(i) : next.add(i);
                                   setSelectedDxCodes(next);
                                 }}
@@ -1520,7 +1519,6 @@ export default function EncounterDetailsPage() {
                                   checked={selectedPxCodes.has(i)}
                                   onChange={() => {
                                     const next = new Set(selectedPxCodes);
-                                    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
                                     next.has(i) ? next.delete(i) : next.add(i);
                                     setSelectedPxCodes(next);
                                   }}

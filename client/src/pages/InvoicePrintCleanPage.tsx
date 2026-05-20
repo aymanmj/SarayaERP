@@ -1,9 +1,9 @@
-import React from 'react';
-import { useParams } from 'react-router-dom';
-import { apiClient } from '../api/apiClient';
-import { useQuery } from '@tanstack/react-query';
+import React from "react";
+import { useParams } from "react-router-dom";
+import { apiClient } from "../api/apiClient";
+import { useQuery } from "@tanstack/react-query";
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-import { Loader2 } from 'lucide-react';
+import { Loader2 } from "lucide-react";
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 type OrganizationSettings = {
@@ -145,9 +145,7 @@ export default function InvoicePrintCleanPage() {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50 text-rose-500 font-bold">
-        <div className="text-center">
-          جاري تحميل الفاتورة...
-        </div>
+        <div className="text-center">جاري تحميل الفاتورة...</div>
       </div>
     );
   }
@@ -155,8 +153,7 @@ export default function InvoicePrintCleanPage() {
   if (isError) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50 text-rose-500 font-bold">
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        خطأ: {(error as any)?.message || "تعذر تحميل الفاتورة"}
+        {(error as any)?.message || "تعذر تحميل الفاتورة"}
       </div>
     );
   }
@@ -198,25 +195,39 @@ export default function InvoicePrintCleanPage() {
             <div className="flex justify-between items-start">
               {/* Organization Info */}
               <div className="text-right space-y-3">
-                <h1 className="text-4xl font-bold text-slate-900 tracking-tight" style={{ fontFamily: 'Tajawal, sans-serif' }}>
-                  {orgSettings?.displayName || orgSettings?.legalName || 'المستشفى المركزي'}
+                <h1
+                  className="text-4xl font-bold text-slate-900 tracking-tight"
+                  style={{ fontFamily: "Tajawal, sans-serif" }}
+                >
+                  {orgSettings?.displayName ||
+                    orgSettings?.legalName ||
+                    "المستشفى المركزي"}
                 </h1>
-                <div className="text-base text-slate-600 max-w-[400px] leading-relaxed" style={{ fontFamily: 'Tajawal, sans-serif' }}>
-                  {orgSettings?.address || 'العنوان الرئيسي للمنشأة'}
+                <div
+                  className="text-base text-slate-600 max-w-[400px] leading-relaxed"
+                  style={{ fontFamily: "Tajawal, sans-serif" }}
+                >
+                  {orgSettings?.address || "العنوان الرئيسي للمنشأة"}
                 </div>
                 <div className="flex flex-wrap gap-4 text-sm text-slate-500">
                   <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 rounded-lg">
                     <span>📞</span>
-                    <span className="font-medium">{orgSettings?.phone || '123456789'}</span>
+                    <span className="font-medium">
+                      {orgSettings?.phone || "123456789"}
+                    </span>
                   </div>
                   <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 rounded-lg">
                     <span>✉️</span>
-                    <span className="font-medium">{orgSettings?.email || 'info@hospital.com'}</span>
+                    <span className="font-medium">
+                      {orgSettings?.email || "info@hospital.com"}
+                    </span>
                   </div>
                   {orgSettings?.taxNumber && (
                     <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 rounded-lg">
                       <span>🏢</span>
-                      <span className="font-medium">الرقم الضريبي: {orgSettings.taxNumber}</span>
+                      <span className="font-medium">
+                        الرقم الضريبي: {orgSettings.taxNumber}
+                      </span>
                     </div>
                   )}
                 </div>
@@ -225,16 +236,26 @@ export default function InvoicePrintCleanPage() {
               {/* Logo & Document Title */}
               <div className="text-left flex flex-col items-end">
                 {orgSettings?.logo ? (
-                  <img src={orgSettings.logo} alt="Logo" className="w-20 h-20 object-contain mb-2" />
+                  <img
+                    src={orgSettings.logo}
+                    alt="Logo"
+                    className="w-20 h-20 object-contain mb-2"
+                  />
                 ) : (
                   <div className="w-20 h-20 bg-emerald-100 rounded-lg flex items-center justify-center mb-2">
                     <span className="text-2xl text-emerald-600">🏥</span>
                   </div>
                 )}
-                <div className="text-4xl font-bold text-emerald-900 uppercase tracking-wider mb-2" style={{ fontFamily: 'Tajawal, sans-serif' }}>
+                <div
+                  className="text-4xl font-bold text-emerald-900 uppercase tracking-wider mb-2"
+                  style={{ fontFamily: "Tajawal, sans-serif" }}
+                >
                   {isCreditNote ? "إشعار دائن" : "فاتورة ضريبية"}
                 </div>
-                <div className="text-sm text-emerald-600 font-medium uppercase tracking-wider mb-2" style={{ fontFamily: 'Tajawal, sans-serif' }}>
+                <div
+                  className="text-sm text-emerald-600 font-medium uppercase tracking-wider mb-2"
+                  style={{ fontFamily: "Tajawal, sans-serif" }}
+                >
                   {isCreditNote ? "Credit Note" : "Tax Invoice"}
                 </div>
                 <div className="text-xs text-slate-400 font-mono bg-slate-100 px-2 py-1 rounded inline-block">
@@ -314,86 +335,88 @@ export default function InvoicePrintCleanPage() {
 
           {/* Main Table */}
           <div className="mb-8 relative z-10">
-  <table
-    dir="rtl"
-    className="w-full text-sm border-collapse table-fixed"
-  >
-    <thead>
-      <tr className="bg-slate-900 text-white">
-        <th className="py-2 px-4 text-right font-bold w-[48px] rounded-tr-md">
-          #
-        </th>
-        <th className="py-2 px-4 text-right font-bold">
-          البيان / Description
-        </th>
-        <th className="py-2 px-4 text-center font-bold w-[88px]">
-          الكمية
-        </th>
-        <th className="py-2 px-4 text-right font-bold w-[120px]">
-          سعر الوحدة
-        </th>
-        <th className="py-2 px-4 text-right font-bold w-[120px] rounded-tl-md">
-          الإجمالي
-        </th>
-      </tr>
-    </thead>
+            <table
+              dir="rtl"
+              className="w-full text-sm border-collapse table-fixed"
+            >
+              <thead>
+                <tr className="bg-slate-900 text-white">
+                  <th className="py-2 px-4 text-right font-bold w-[48px] rounded-tr-md">
+                    #
+                  </th>
+                  <th className="py-2 px-4 text-right font-bold">
+                    البيان / Description
+                  </th>
+                  <th className="py-2 px-4 text-center font-bold w-[88px]">
+                    الكمية
+                  </th>
+                  <th className="py-2 px-4 text-right font-bold w-[120px]">
+                    سعر الوحدة
+                  </th>
+                  <th className="py-2 px-4 text-right font-bold w-[120px] rounded-tl-md">
+                    الإجمالي
+                  </th>
+                </tr>
+              </thead>
 
-    <tbody className="divide-y divide-slate-100">
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      {charges.map((c: any, idx: number) => {
-        const items = pharmacyMap[c.id] ?? [];
-        return (
-          <React.Fragment key={c.id}>
-            <tr className="odd:bg-white even:bg-slate-50/50">
-              <td className="py-2 px-4 text-right text-slate-500 border-l border-slate-100 font-mono">
-                {idx + 1}
-              </td>
-              <td className="py-2 px-4 text-right font-medium text-slate-800">
-                {c.serviceItem.name}
-                {c.serviceItem.code && (
-                  <span className="text-xs text-slate-400 block mt-0.5 font-mono">
-                    {c.serviceItem.code}
-                  </span>
-                )}
-              </td>
-              <td className="py-2 px-4 text-center text-slate-600 font-mono">
-                {c.quantity}
-              </td>
-              <td className="py-2 px-4 text-right text-slate-600 font-mono">
-                {formatMoney(c.unitPrice)}
-              </td>
-              <td className="py-2 px-4 text-right text-slate-900 font-bold font-mono border-r border-slate-100">
-                {formatMoney(c.totalAmount)}
-              </td>
-            </tr>
+              <tbody className="divide-y divide-slate-100">
+                {charges.map((c: any, idx: number) => {
+                  const items = pharmacyMap[c.id] ?? [];
+                  return (
+                    <React.Fragment key={c.id}>
+                      <tr className="odd:bg-white even:bg-slate-50/50">
+                        <td className="py-2 px-4 text-right text-slate-500 border-l border-slate-100 font-mono">
+                          {idx + 1}
+                        </td>
+                        <td className="py-2 px-4 text-right font-medium text-slate-800">
+                          {c.serviceItem.name}
+                          {c.serviceItem.code && (
+                            <span className="text-xs text-slate-400 block mt-0.5 font-mono">
+                              {c.serviceItem.code}
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-2 px-4 text-center text-slate-600 font-mono">
+                          {c.quantity}
+                        </td>
+                        <td className="py-2 px-4 text-right text-slate-600 font-mono">
+                          {formatMoney(c.unitPrice)}
+                        </td>
+                        <td className="py-2 px-4 text-right text-slate-900 font-bold font-mono border-r border-slate-100">
+                          {formatMoney(c.totalAmount)}
+                        </td>
+                      </tr>
 
-            {items.length > 0 && (
-              <tr>
-                <td colSpan={5} className="bg-slate-50 p-0 border-x border-slate-100">
-                  {/* ...nested pharmacy table (كما في كودك) */}
-                </td>
-              </tr>
-            )}
-          </React.Fragment>
-        );
-      })}
-    </tbody>
+                      {items.length > 0 && (
+                        <tr>
+                          <td
+                            colSpan={5}
+                            className="bg-slate-50 p-0 border-x border-slate-100"
+                          >
+                            {/* ...nested pharmacy table (كما في كودك) */}
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </tbody>
 
-    {/* ==> تذكّر: عدد الأعمدة هنا يجب أن يساوي عدد أعمدة ال thead (5 أعمدة) */}
-    <tfoot className="border-t-2 border-slate-900">
-      <tr className="bg-slate-50">
-        {/* نستخدم colSpan=3 ثم خانتين للمسمى والمبلغ => 3+1+1 = 5 أعمدة */}
-        <td colSpan={3}></td>
-        <td className="py-2 px-4 text-right font-bold text-slate-600">
-          المجموع:
-        </td>
-        <td className="py-2 px-4 text-right font-bold font-mono text-slate-800">
-          {formatMoney(subTotal)}
-        </td>
-      </tr>
-    </tfoot>
-  </table>
-</div>
+              {/* ==> تذكّر: عدد الأعمدة هنا يجب أن يساوي عدد أعمدة ال thead (5 أعمدة) */}
+              <tfoot className="border-t-2 border-slate-900">
+                <tr className="bg-slate-50">
+                  {/* نستخدم colSpan=3 ثم خانتين للمسمى والمبلغ => 3+1+1 = 5 أعمدة */}
+                  <td colSpan={3}></td>
+                  <td className="py-2 px-4 text-right font-bold text-slate-600">
+                    المجموع:
+                  </td>
+                  <td className="py-2 px-4 text-right font-bold font-mono text-slate-800">
+                    {formatMoney(subTotal)}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
 
           {/* Totals Section */}
           <div className="flex justify-end mb-8 relative z-10">
@@ -452,11 +475,17 @@ export default function InvoicePrintCleanPage() {
 
         {/* Footer */}
         <footer className="mt-auto relative z-10 bg-gradient-to-r from-slate-50 to-emerald-50 border-t border-slate-200 text-center px-8 py-6">
-          <div className="text-sm text-slate-600 mb-4 italic bg-white p-3 rounded-lg border border-slate-500" style={{ fontFamily: 'Tajawal, sans-serif' }}>
+          <div
+            className="text-sm text-slate-600 mb-4 italic bg-white p-3 rounded-lg border border-slate-500"
+            style={{ fontFamily: "Tajawal, sans-serif" }}
+          >
             نسخة إلكترونية معتمدة
           </div>
 
-          <div className="flex justify-between items-center text-[10px] text-slate-500 uppercase tracking-wider" style={{ fontFamily: 'Tajawal, sans-serif' }}>
+          <div
+            className="flex justify-between items-center text-[10px] text-slate-500 uppercase tracking-wider"
+            style={{ fontFamily: "Tajawal, sans-serif" }}
+          >
             <div className="flex items-center gap-2">
               <span>Powered by</span>
               <span className="font-bold text-emerald-600">Saraya ERP</span>
@@ -508,16 +537,18 @@ export default function InvoicePrintCleanPage() {
         }
       `}</style>
 
-      <script dangerouslySetInnerHTML={{
-        __html: `
+      <script
+        dangerouslySetInnerHTML={{
+          __html: `
         // Auto-print when page loads
         window.onload = function() {
           setTimeout(() => {
             window.print();
           }, 500);
         };
-        `
-      }} />
+        `,
+        }}
+      />
     </div>
   );
 }
