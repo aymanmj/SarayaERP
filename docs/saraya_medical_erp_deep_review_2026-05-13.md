@@ -1,19 +1,20 @@
 # مراجعة معمقة لنظام السرايا الطبي
 
-تاريخ المراجعة: 2026-05-13  
+تاريخ المراجعة الأصلية: 2026-05-13
+آخر تحديث لهذه النسخة: 2026-05-20
 نطاق المراجعة: ملفات وأكواد المستودع الحالي في `E:\SarayaERP`، مع مقارنة سوقية مرجعية بالأنظمة العالمية والإقليمية.
 
 ## 1. الخلاصة التنفيذية العادلة
 
-النتيجة الأهم بعد المراجعة المعمقة: **نظام السرايا الطبي ليس مجرد نظام إدارة عيادات أو HIS تقليدي، بل منصة طبية/إدارية Enterprise في مرحلة نضج تجاري متقدمة جزئيا**. الكود يحتوي فعليا على طبقات لا تظهر عادة في الأنظمة الصغيرة: حوكمة المحتوى السريري، Revenue Cycle Management، NPHIES، FHIR R4، بوابة مريض، CDSS، AI Coding Assistance، عزل مستأجرين، MPI/Federation للسجل الموحد، تدقيق بسلسلة hash، تشفير، Vault، مراقبة، نسخ احتياطي، وإدارة تشغيلية واسعة.
+النتيجة الأهم بعد المراجعة المعمقة والتحديثات الأخيرة: **نظام السرايا الطبي ليس مجرد نظام إدارة عيادات أو HIS تقليدي، بل منصة طبية/إدارية Enterprise ناضجة تقنيا بدرجة واضحة، مع بقاء النضج التجاري والتشغيلي بحاجة إلى إثباتات خارج الكود**. الكود يحتوي فعليا على طبقات لا تظهر عادة في الأنظمة الصغيرة: حوكمة المحتوى السريري، Revenue Cycle Management، NPHIES، FHIR R4، بوابة مريض، CDSS، AI Coding Assistance، عزل مستأجرين، MPI/Federation للسجل الموحد، consent revocation، تدقيق بسلسلة hash، تشفير، Vault، مراقبة، نسخ احتياطي، وإدارة تشغيلية واسعة.
 
 التصنيف الأقرب:
 
 - **وظيفيا:** HIS/ERP طبي متكامل يغطي المستشفى والمركز الطبي والعيادات، مع امتدادات RCM وتكاملات.
-- **تقنيا:** منصة NestJS/React/Prisma/PostgreSQL/Redis قابلة للتوسع، وليست prototype في الخادم أو الويب.
+- **تقنيا:** منصة NestJS/React/Prisma/PostgreSQL/Redis قابلة للتوسع، وليست prototype في الخادم أو الويب. التحسينات الأخيرة عالجت نقاطا مؤثرة مثل ABAC/Permissions coverage، Redis-backed counters، FHIR consent blacklist، وتحسينات NPHIES/JWT.
 - **تجاريا:** منتج قوي يحتاج إلى إثباتات سوقية وتشغيلية خارج الكود: مواقع تشغيل فعلية، شهادات امتثال، NPHIES certification/production evidence، SIEM فعلي، اختبارات اختراق، ومرجعيات عملاء.
 - **الموبايل:** كما ذكرت، تطبيق الموبايل ما يزال Prototype ولم يدخل مرحلة الإنتاج، وهذا واضح من كثرة `any`، TODO crash reporting، وبنية offline/sync الأولية.
-- **Developer ecosystem:** بدأ فعليا عبر FHIR/SMART OAuth وregistered apps وSubscriptions ودليل تكامل عملي، لكنه لم يصل بعد إلى Marketplace كامل بواجهة إدارة تطبيقات ودليل مطورين عام.
+- **Developer ecosystem:** بدأ فعليا عبر FHIR/SMART OAuth وregistered apps وSubscriptions ودليل تكامل عملي وواجهة Integration، لكنه لم يصل بعد إلى Marketplace كامل بواجهة إدارة تطبيقات خارجية ودليل مطورين عام.
 
 بالتالي، الحكم العادل هو: **السرايا أقوى بكثير من نظام محلي عادي، لكنه لا يقارن بعد بعمق Epic أو Oracle Health كمنظومة عالمية عاملة على آلاف المؤسسات، إلا إذا قورنت النسخة الحالية كمنتج قابل للتسويق في أسواق عربية/إقليمية محددة.**
 
@@ -34,20 +35,22 @@
 
 | المؤشر | النتيجة |
 |---|---:|
-| ملفات الخادم داخل `server/src` | 443 |
-| ملفات الواجهة داخل `client/src` | 250 |
+| ملفات الخادم داخل `server/src` | 454 |
+| ملفات الواجهة داخل `client/src` | 253 |
 | ملفات الموبايل | 49 |
-| اختبارات الخادم | 63 ملفا |
-| نماذج Prisma | 187 model |
-| Enums في Prisma | 106 enum |
-| Controllers في الخادم | 88 |
-| Services في الخادم | 105 |
-| اختبارات الخادم التي نجحت | 63/63 suites |
-| عدد اختبارات الخادم | 547 passed, 4 skipped |
+| اختبارات الخادم | 64 ملفا |
+| نماذج Prisma | 193 model |
+| Enums في Prisma | 116 enum |
+| Controllers في الخادم | 89 |
+| Services في الخادم | 106 |
+| اختبارات الخادم التي نجحت | 64/64 suites |
+| عدد اختبارات الخادم | 558 passed, 4 skipped |
 | بناء الواجهة | نجح |
 | Lint الواجهة | نجح مع 65 تحذيرا |
+| ABAC/Permissions coverage حسب التقرير | 89/89 controllers |
+| Effective ABAC coverage حسب التقرير | 77/77 بعد استثناء auth/health/FHIR ونحوها |
 
-هذه الأرقام مهمة لأنها تؤكد أن النظام كبير فعلا، وأن جودة الكود الأمامي تحسنت بوضوح بعد إزالة أخطاء lint وتحويل الباقي إلى تحذيرات محدودة.
+هذه الأرقام مهمة لأنها تؤكد أن النظام كبير فعلا، وأن جودة الكود الأمامي تحسنت بوضوح بعد إزالة أخطاء lint وتحويل الباقي إلى تحذيرات محدودة، كما أن تغطية الصلاحيات والعزل أصبحت موثقة في `audit_coverage_report.md`.
 
 ## 4. ما هو موجود فعلا في نظام السرايا
 
@@ -77,12 +80,14 @@
   - `POST /clinical/ai-coding/apply` لاعتماد الأكواد المختارة.
 - `server/src/clinical/ai-coding/ai-coding.service.ts` يستخدم Gemini عبر `GEMINI_API_KEY` من Vault أو البيئة، ويطلب إخراج JSON منظم.
 - يقترح ICD-10 diagnoses وCPT procedures مع confidence وreasoning.
+- مسار `applySuggestedCodes` لا يحفظ كل ما يقترحه النموذج تلقائيا، بل يحفظ فقط `selectedDiagnoses` و`selectedProcedures` القادمة من الواجهة بعد اختيار المستخدم.
+- الخادم يرفض الاعتماد إذا لم يتم اختيار كود واحد على الأقل، ويتأكد أن الزيارة مفتوحة وتتبع نفس `hospitalId`.
 - عند الاعتماد، يحفظ ICD-10 في `EncounterDiagnosis`، وينشئ أو يربط `TerminologyConcept` و`DiagnosisCode`.
 - يحول CPT إلى `EncounterCharge` مع محاولة جلب السعر من Price Lists، ما يربط التوثيق السريري بالفوترة.
-- في الواجهة، `client/src/pages/EncounterDetailsPage.tsx` يحتوي نافذة اعتماد الأكواد المقترحة واختيار primary/secondary diagnosis واختيار CPT.
+- في الواجهة، `client/src/pages/EncounterDetailsPage.tsx` يحتوي نافذة مراجعة واعتماد الأكواد المقترحة: اختيار/إلغاء اختيار التشخيصات والإجراءات، تحديد primary/secondary diagnosis، ثم الضغط على زر `اعتماد المختار`.
 
 التقييم: **ميزة تجارية قوية جدا** لأنها تربط الطبيب، الترميز، المطالبات، والفوترة.  
-الفجوة: يجب إضافة audit واضح على كل اقتراح/اعتماد، قياس دقة، human-in-the-loop policy، منع الاعتماد الآلي دون مراجعة، وربطها بقواعد payer/NPHIES حتى لا تتحول الأخطاء إلى رفض مطالبات.
+الملاحظة العادلة: مبدأ `human-in-the-loop` موجود فعلا؛ الترميز لا يعتمد من الذكاء الاصطناعي وحده، بل بعد مراجعة واختيار واعتماد من المستخدم السريري داخل شاشة الزيارة. الفجوة المتبقية ليست "منع الاعتماد الآلي"، بل تقوية الضبط المؤسسي: audit واضح لكل اقتراح واعتماد، تسجيل هوية الطبيب/المراجع ودوره، فرض أن الاعتماد يتم من الطبيب المعالج أو مستخدم مصرح بوضوح حسب سياسة المؤسسة، قياس دقة مستمر، وربط قواعد payer/NPHIES قبل إرسال المطالبات.
 
 ### 4.1.2 منصة السجل الوطني / الشبكة الصحية الوطنية
 
@@ -103,6 +108,8 @@
 - عند تفعيل OTP، يعيد حالة `REQUIRES_OTP` بدل كشف البيانات مباشرة.
 - `triggerConsentOtp` يرسل OTP للمريض عبر outbound queue، مع حفظ الغرض والجهة الطالبة.
 - `verifyConsentOtp` يصدر temporary consent token لمدة ساعة للوصول إلى FHIR patient scope.
+- `revokeConsent` يبطل OTPs والموافقات السابقة، ويسجل `MPI_CONSENT_REVOKED` في audit log.
+- عند الإلغاء، يتم وضع blacklist في Redis على مستوى المريض أو المؤسسة، ويقوم `FhirAuthService.validateToken` بفحص هذه القائمة عند استخدام `mpi_consent` token.
 - `MpiConsentRecord` في Prisma يضيف سجل موافقات فعلي بحالات مثل `ACTIVE` و`REVOKED` وحقول `revokedAt`, `revokedReason`, `otpVerifiedAt`.
 - `server/src/patients/patients.service.ts` ينشئ سجل موافقة MPI عند إنشاء المريض، إما `PENDING_OTP` أو `ACTIVE` حسب إعدادات المؤسسة.
 - `server/src/settings/settings.controller.ts` و`client/src/pages/OrganizationSettingsPage.tsx` يضيفان واجهة إدارية لتفعيل federation واشتراط OTP، مع عرض إحصاءات الربط على مستوى الشبكة.
@@ -110,10 +117,12 @@
   - `GET /mpi/search`
   - `POST /mpi/consent/trigger`
   - `POST /mpi/consent/verify`
+  - `DELETE /mpi/consent/revoke/:patientId`
+  - `GET /mpi/consent/audit/:patientId`
 - الواجهة تحتوي إشارات MPI في `PatientsPage` و`EncounterDetailsPage`.
 
 التقييم: **هذه ليست مجرد ميزة مستشفى واحد؛ هذه طبقة HIE/MPI يمكن أن تصبح أساس سجل وطني موحد**.  
-الملاحظة العادلة: الموجود حاليا هو foundation قوي ومعه consent registry ومسار revocation/audit فعليان، لكنه يحتاج قبل الاستخدام الوطني إلى ربط revocation بإنفاذ الوصول في كل نقطة قراءة، token invalidation فعلي للـ JWT الصادر لمدة ساعة، IHE profile mapping، audit مخصص لكل طلب تبادل، patient matching tuning، APIs موثقة للمؤسسات الخارجية، وإثباتات أداء وأمن على مستوى وطني.
+الملاحظة العادلة: الموجود حاليا هو foundation قوي ومعه consent registry ومسار revocation/audit فعليان. بعد التحديث الأخير أصبح FHIR auth يتحقق من blacklist في Redis عند استخدام `mpi_consent` token، مع fallback إلى قاعدة البيانات عند تعطل Redis. ما يزال التشغيل الوطني يحتاج IHE profile mapping، audit مخصص لكل طلب تبادل، patient matching tuning، APIs موثقة للمؤسسات الخارجية، وإثباتات أداء وأمن على مستوى وطني.
 
 ### 4.1.3 الجودة وسلامة المرضى: Incident / Near Miss / CAPA
 
@@ -123,12 +132,14 @@
 
 - `server/src/quality/quality.module.ts` مضاف في `AppModule`.
 - `server/src/quality/quality.controller.ts` يوفر مسارات dashboard، الحوادث، near miss، إغلاق الحوادث، CAPA، والتحقق من CAPA.
-- `server/src/quality/quality.service.ts` يدير ترقيم الحوادث، تواريخ المراجعة حسب severity، منع إغلاق الحادث قبل اكتمال CAPA، وإحصاءات dashboard.
+- `server/src/quality/quality.service.ts` يدير ترقيم الحوادث عبر Redis/Lua مع fallback لقاعدة البيانات، تواريخ المراجعة حسب severity، منع إغلاق الحادث قبل اكتمال CAPA، وإحصاءات dashboard.
+- `QualityService` يصدر أحداث `quality.incident_reported` و`quality.capa_added`.
+- `server/src/notifications/notifications.listener.ts` يستقبل أحداث الجودة ويرسل إشعارات للأدوار المعنية.
 - `server/prisma/schema.prisma` يحتوي `ClinicalIncident` و`CapaAction` مع enums للحالة والشدة والنوع وroot cause.
 - `client/src/pages/QualityAndSafetyPage.tsx` يوفر واجهة dashboard، تسجيل حادث، قائمة الحوادث، ومهام CAPA.
 
 التقييم: **هذه إضافة مهمة ترفع نضج السرايا في مجال Clinical Governance وسلامة المرضى**.  
-الملاحظات المتبقية: تمت إضافة `PermissionsGuard` وصلاحيات `quality:view` و`quality:manage` لمسارات الجودة الأساسية، لكن `my-capa-tasks` وبلاغ الحادث يحتاجان قرارا واضحا حول صلاحياتهما المقصودة. توليد رقم الحادث بطريقة count+1 ما زال يحتاج حماية من السباق عند الضغط العالي، ويجب ربط CAPA مباشرة بدورة حياة order sets/pathways وCDSS عندما يكون السبب السريري أو الإجرائي متكررا.
+الملاحظات المتبقية: تمت إضافة `PermissionsGuard` وصلاحيات `quality:view` و`quality:manage` لمسارات الجودة الأساسية، كما أصبح توليد رقم الحادث مدعوما بعداد Redis/Lua مع fallback لقاعدة البيانات، وأضيفت إشعارات الجودة. المتبقي هنا هو اختبار ضغط فعلي لهذا المسار، وحسم صلاحيات `my-capa-tasks` وبلاغ الحادث لأنهما تحت guard عام دون `@Permissions` صريحة، وربط CAPA مباشرة بدورة حياة order sets/pathways وCDSS عندما يكون السبب السريري أو الإجرائي متكررا.
 
 ### 4.2 حوكمة المحتوى السريري
 
@@ -144,7 +155,7 @@
 - صفحات الواجهة: `OrderSetsPage.tsx` و `ClinicalPathwaysPage.tsx`.
 
 التقييم: **ميزة Enterprise حقيقية**.  
-الملاحظة: وثائق `docs/clinical-governance` تبدو أقدم من الكود في بعض المواضع وتذكر فجوات تم تنفيذها لاحقا؛ يجب تحديثها حتى لا تظلم النظام عند العرض التجاري.
+الملاحظة: وثائق `docs/clinical-governance` تحسنت وتذكر الآن حالة إنجاز عدة epics، لكن ما زال يلزم تدقيقها دوريا حتى لا تتعارض مع أسماء النماذج والمسارات الفعلية في الكود عند العرض التجاري.
 
 ### 4.3 الإدارة المالية و RCM
 
@@ -160,8 +171,9 @@
 - نماذج `Claim`, `ClaimBatch`, `ClaimScrubResult`, `ClaimHistory` في Prisma.
 - `server/src/rcm/claim.service.ts`.
 - `server/src/rcm/scrubber/claim-scrubber.service.ts`.
-- `server/src/nphies/*`.
+- `server/src/integration/nphies/*`.
 - اختبارات `server/src/rcm/claim.service.spec.ts`.
+- اختبارات `server/src/integration/nphies/nphies-claim.service.spec.ts` تغطي عزل المستأجرين في الإرسال والاستعلام والموافقة المسبقة.
 
 التقييم: **قوي على مستوى المنتج المحلي والإقليمي**.  
 الفجوة: يحتاج إلى إثباتات تشغيل فعلية مع payers/NPHIES، ومراجعة محاسبية للتكامل النهائي بين ERA/claims/accounting حسب كل سوق.
@@ -180,6 +192,8 @@
 - بناء FHIR Bundles وMessageHeader وCoverage وPatient.
 - Outbound queue عند انقطاع الاتصال.
 - Connectivity monitor.
+- حماية `NphiesController` بـ `PermissionsGuard` وصلاحيات claims/NPHIES.
+- فحوصات tenant isolation داخل `NphiesClaimService` قبل الإرسال والاستعلام.
 
 التقييم: **تكامل تقني جدي**.  
 المطلوب قبل البيع في السعودية: إثبات sandbox/production certification، سجلات نجاح فعلية، mapping كامل للأكواد، test packs، وإجراءات تشغيلية للتعامل مع rejection/resubmission.
@@ -197,14 +211,15 @@
 - Audit hash chain مع verify/repair.
 - Compliance report لـ ISO 27001 وSOC2 وHIPAA readiness controls.
 - SIEM logger.
-- Tenant isolation في Prisma extension.
+- Tenant isolation في Prisma extension مع حقن/تحقق `hospitalId` ومنع cross-tenant access.
 - Clinical ABAC وbreak-glass audit.
+- تقرير `audit_coverage_report.md` يوثق 89/89 controllers كـ ABAC guarded وtenant isolated، مع effective coverage 77/77 بعد الاستثناءات.
 - Backup service وbackup worker وrestore scripts.
 - Monitoring: Prometheus, Grafana, Alertmanager, OpenTelemetry.
 - Docker production stack وNginx/Kong configs.
 
 التقييم: **فوق المتوسط بوضوح** لمنصة عربية محلية.  
-الفجوة: readiness في الكود لا يساوي certification. يلزم external audit، penetration test، runbooks موقعة، retention policies، SIEM فعلي، واختبارات restore موثقة.
+الفجوة: readiness في الكود لا يساوي certification. يلزم external audit، penetration test، runbooks موقعة، retention policies، SIEM فعلي، واختبارات restore موثقة. كما أن تقرير التغطية يجب أن يبقى قابلا للتدقيق آليا في CI وليس ملفا ساكنا فقط.
 
 ### 4.5.1 Marketplace / Developer Portal
 
@@ -253,13 +268,13 @@
 
 نقاط الضعف:
 
-- فشل lint بعدد كبير: 855 مشكلة.
-- استخدام واسع لـ `any`.
+- لا توجد أخطاء lint حاليا، لكن بقيت 65 تحذيرا.
+- استخدام `any` ما زال موجودا في مواضع متعددة، لكنه لم يعد يكسر lint بسبب تحويله إلى warning.
 - بعض النصوص العربية في ملفات معينة تظهر كـ encoding/mojibake.
 - bundle كبير، خصوصا DICOM loader وindex chunk.
 - الحاجة إلى UX audit لمسارات المستخدمين الحرجة: التسجيل، الفوترة، claims، المختبر، الأشعة، التنويم.
 
-التقييم: **وظيفيا واسعة، لكنها تحتاج polishing هندسي وتجاري قبل demo أمام مستشفيات كبيرة**.
+التقييم: **وظيفيا واسعة وقابلة للبناء حاليا، لكنها تحتاج polishing هندسي وتجاري قبل demo أمام مستشفيات كبيرة**. وضع الواجهة تحسن بوضوح بعد انتقال lint من فشل كبير إلى نجاح مع تحذيرات.
 
 ### 4.7 تطبيق الموبايل
 
@@ -289,23 +304,24 @@
 5. **AI Coding Assistance** يربط الملاحظة السريرية بالترميز والفوترة.
 6. **MPI/Federation وConsent OTP** تؤهل السرايا ليكون منصة شبكة صحية وطنية عند اكتمال الحوكمة.
 7. **أمن وتشغيل أعلى من المعتاد**: Vault, audit hash chain, tenant isolation, backup, monitoring.
-8. **وحدة Quality / Incident / Near Miss / CAPA** أصبحت موجودة كمسار تشغيلي في الخادم والواجهة، ومعها صلاحيات جودة أساسية.
-9. **اختبارات خادم جيدة نسبيا**: 547 اختبارا ناجحا.
-10. **بنية قابلة للتوسع** باستخدام NestJS/Prisma/PostgreSQL/Redis/Bull/OpenTelemetry.
-11. **ملكية كاملة للكود** تمنح مرونة أعلى من الأنظمة المغلقة.
+8. **وحدة Quality / Incident / Near Miss / CAPA** أصبحت موجودة كمسار تشغيلي في الخادم والواجهة، ومعها صلاحيات جودة أساسية، إشعارات، وترقيم حوادث أكثر أمانا عبر Redis.
+9. **ABAC/Tenant isolation موثق** عبر `audit_coverage_report.md` وPrisma extension.
+10. **اختبارات خادم جيدة نسبيا**: 558 اختبارا ناجحا.
+11. **بنية قابلة للتوسع** باستخدام NestJS/Prisma/PostgreSQL/Redis/Bull/OpenTelemetry.
+12. **ملكية كاملة للكود** تمنح مرونة أعلى من الأنظمة المغلقة.
 
 ## 6. نقاط الضعف والمخاطر
 
 1. **النضج التجاري غير مثبت من الكود وحده**: لا توجد في المستودع أدلة كافية على عدد العملاء، uptime حقيقي، شهادات، أو تشغيل production واسع.
 2. **Lint الواجهة تحسن جذريا**: لم تعد هناك أخطاء lint، لكن بقيت 65 تحذيرا أغلبها `any` وتعطيلات eslint غير مستخدمة.
 3. **الموبايل prototype** ولا يجب بيعه كمنتج إنتاجي مكتمل بعد.
-4. **الوثائق غير متزامنة مع الكود**، خصوصا وثائق clinical governance.
+4. **الوثائق تحسنت لكنها تحتاج ضبطا مستمرا**: لم تعد الفجوات القديمة كلها صحيحة، لكن يجب منع عودة التعارض بين docs والكود.
 5. **الامتثال readiness وليس certification**: ISO/SOC2/HIPAA readiness controls موجودة، لكن الاعتماد الخارجي غير مثبت.
 6. **NPHIES يحتاج إثبات خارجي**: وجود الكود ممتاز، لكن السوق السعودي سيطلب certification وsuccessful transactions.
 7. **CDSS يحتاج knowledge base سريرية أعمق**: بعض المنطق يبدو محليا/ثابتا ويحتاج قواعد دوائية/إرشادية معتمدة.
-8. **AI Coding يحتاج ضوابط جودة واعتماد**: يجب ألا يعتمد الكود على اقتراح النموذج وحده دون مراجعة الطبيب/الم coder، audit، وقياس دقة.
-9. **MPI الوطني يحتاج حوكمة وطنية**: الأساس البرمجي وسجل الموافقات ومسار الإلغاء موجودة، لكن التشغيل الوطني يحتاج إنفاذ revocation على كل وصول فعلي، اتفاقيات تبادل، سياسات retention، ومطابقة مرضى أكثر صرامة.
-10. **Quality/CAPA يحتاج ربطا أعمق**: الوحدة أصبحت موجودة وصلاحياتها تحسنت، لكنها تحتاج معالجة ترقيم الحوادث تحت الضغط، وتدفق إشعارات واضح، وربطا مباشرا مع Clinical Content Lifecycle.
+8. **AI Coding يحتاج حوكمة تدقيق أقوى**: مسار الاعتماد البشري موجود ولا يعتمد الترميز تلقائيا من النموذج، لكن يلزم audit أعمق للاقتراح والاعتماد، وفرض أوضح لهوية الطبيب المعالج/المراجع المصرح، وقياس دقة دوري.
+9. **MPI الوطني يحتاج حوكمة وطنية**: الأساس البرمجي وسجل الموافقات ومسار الإلغاء وإنفاذ blacklist موجودة، لكن التشغيل الوطني يحتاج اتفاقيات تبادل، سياسات retention، ومطابقة مرضى أكثر صرامة.
+10. **Quality/CAPA يحتاج ربطا أعمق**: الوحدة أصبحت موجودة وصلاحياتها وترقيمها وإشعاراتها تحسنت، لكنها تحتاج اختبار ضغط، وتدفق CAPA مغلق مع Clinical Content Lifecycle عند تكرار السبب الجذري.
 11. **قابلية المقارنة مع Epic/Oracle محدودة** بسبب غياب شبكة عملاء، Marketplace مكتمل، ecosystem، certifications، وبيانات تشغيل فعلية.
 
 ## 7. موقع السرايا مقارنة بالأنظمة العالمية
@@ -391,40 +407,45 @@ Hakeem برنامج وطني للسجل الصحي الإلكتروني في ا�
 
 ## 9. القيمة السوقية التقديرية
 
-هذه ليست valuation مالية رسمية، لأن المستودع لا يحتوي على معلومات العملاء، الإيرادات، العقود، CAC، churn، ARR، أو شهادات الاعتماد. لذلك التقييم أدناه **تقدير سيناريوهات**.
+هذه ليست valuation مالية رسمية، لأن المستودع لا يحتوي على معلومات العملاء، الإيرادات، العقود، CAC، churn، ARR، أو شهادات الاعتماد. لذلك التقييم أدناه **تقدير سيناريوهات**. بعد التحديثات الأخيرة، من غير العادل إبقاء قيمة الأصل التقني كما كانت قبل إغلاق فجوات مثل ABAC/Tenant isolation، NPHIES tenant checks، Quality/CAPA notifications، Redis-backed incident numbering، MPI consent revocation/blacklist، وتحسن lint. هذه التحسينات لا تصنع ARR وحدها، لكنها ترفع جاهزية المنتج وتقلل خصم المخاطر التقنية.
 
 ### 9.1 قيمة الكود كأصل تقني دون عملاء مثبتين
 
-تقدير محافظ: **700 ألف إلى 2 مليون دولار**.
+تقدير محافظ بعد التحديثات: **1.2 إلى 3.5 مليون دولار**.
 
 مبررات:
 
 - حجم الكود كبير وواسع.
 - توجد وحدات Enterprise حقيقية.
 - توجد ميزات ذات قيمة سوقية عالية مثل AI Coding وMPI/Federation وNPHIES.
-- الاختبارات الخلفية جيدة.
+- AI Coding يعتمد على مراجعة واعتماد بشري داخل شاشة الزيارة، وهذا يرفع قابلية الدفاع عنه طبيا وتأمينيا مقارنة باعتماد آلي غير مضبوط.
+- ABAC/Tenant isolation أصبح موثقا على مستوى controllers، مع تحسينات واضحة في NPHIES وMPI/Consent وQuality/CAPA.
+- الاختبارات الخلفية جيدة: 558 اختبارا ناجحا.
 - لكن غياب إثبات العملاء والشهادات يقلل القيمة الاستثمارية.
 
 ### 9.2 قيمة المنتج مع عميل أو عميلين production ودون ARR كبير
 
-تقدير محتمل: **2 إلى 5 ملايين دولار**.
+تقدير محتمل بعد إغلاق الفجوات التقنية الأخيرة: **3 إلى 8 ملايين دولار**.
 
 الشروط:
 
 - تشغيل فعلي في مستشفى/مركز.
 - NPHIES مثبت في بيئة sandbox/production.
+- تشغيل AI Coding بموافقة الطبيب المعالج أو مراجع سريري مصرح، مع سجل تدقيق واضح.
+- إثبات تشغيل MPI/Consent revocation وQuality/CAPA تحت ضغط واقعي.
 - SLA وbackup/restore drill موثق.
 - demo تجاري مستقر.
 
 ### 9.3 قيمة الشركة/المنتج مع ARR متكرر
 
-إذا وصل النظام إلى ARR سنوي واضح، يمكن تقدير القيمة بمضاعفات B2B SaaS/vertical software التقريبية، مثلا **4x إلى 8x ARR** حسب النمو والهامش والاحتفاظ والعملاء.
+إذا وصل النظام إلى ARR سنوي واضح، يمكن تقدير القيمة بمضاعفات B2B SaaS/vertical software التقريبية، مثلا **4x إلى 8x ARR** في الحالة العادية، وقد ترتفع إلى **8x إلى 12x ARR** فقط عند وجود نمو قوي، احتفاظ عال، NPHIES/امتثال مثبت، وتشغيل إنتاجي في أكثر من مؤسسة. مصادر 2026 الخاصة ببرمجيات SaaS تشير عموما إلى نطاقات خاصة حول 4x إلى 6x ARR للشركات الخاصة، بينما قد تتسع مضاعفات vertical/healthcare software العامة إلى نطاق أعلى حسب الجودة والنمو.
 
 أمثلة:
 
 - ARR = 500 ألف دولار: قيمة تقريبية 2 إلى 4 ملايين دولار.
 - ARR = 1 مليون دولار: قيمة تقريبية 4 إلى 8 ملايين دولار.
 - ARR = 2 مليون دولار مع نمو جيد: قيمة تقريبية 8 إلى 16 مليون دولار.
+- ARR = 2 مليون دولار مع نمو قوي واحتفاظ عال وتشغيل صحي مثبت: قيمة تقريبية 16 إلى 24 مليون دولار.
 
 ### 9.4 قيمة البيع/الترخيص للمستشفى الواحد
 
@@ -440,21 +461,21 @@ Hakeem برنامج وطني للسجل الصحي الإلكتروني في ا�
 
 ### أولوية عالية خلال 30 يوما
 
-1. تحديث وثائق clinical governance لتعكس أن lifecycle/versioning موجود فعلا.
+1. تحويل `audit_coverage_report.md` إلى فحص CI آلي يفشل عند إضافة controller غير محمي.
 2. تجهيز ملف NPHIES evidence pack: endpoints, mappings, test logs, certification status, known gaps.
-3. تجهيز ملف MPI/National HIE evidence pack يشرح GlobalPatient، consent OTP، FHIR token، وحدود المشاركة بين المؤسسات.
-4. تجهيز ملف AI Coding safety pack يوضح human approval، حدود النموذج، audit، وقياس الدقة.
-5. إصلاح encoding العربي في الواجهة والوثائق المتضررة.
-6. تقليل أخطاء lint الحرجة في الواجهة، خصوصا `any`, hooks, unused variables.
+3. تجهيز ملف MPI/National HIE evidence pack يشرح GlobalPatient، consent OTP، revocation/blacklist، FHIR token، وحدود المشاركة بين المؤسسات.
+4. تجهيز ملف AI Coding safety pack يوضح أن الاعتماد يتم بعد مراجعة الطبيب/المراجع المصرح، مع حدود النموذج، audit، وقياس الدقة.
+5. إصلاح encoding العربي في الملفات المتضررة التي تظهر mojibake.
+6. تخفيض تحذيرات lint المتبقية من 65 إلى أقل من 20، خصوصا `any` وتعطيلات eslint غير المستخدمة.
 7. إنشاء وثيقة Product Capability Matrix من الكود لا من التسويق.
 8. توثيق DR drill عملي بتاريخ ونتائج RTO/RPO.
 
 ### أولوية 90 يوما
 
-1. تقوية وحدة Incident / Near Miss / CAPA بصلاحيات جودة صريحة، إشعارات، audit، وربطها بدورة حياة المحتوى السريري.
-2. audit coverage report يوضح ما هي routes المغطاة بـ ABAC/Tenant/Permissions.
+1. إجراء load/concurrency test لمسارات Quality incident numbering وMPI consent blacklist وFHIR export.
+2. استكمال صلاحيات `my-capa-tasks` وبلاغ الحوادث بسياسة واضحة: من يستطيع الإبلاغ، ومن يرى مهامه فقط.
 3. NPHIES sandbox certification أو إثبات رسمي قابل للعرض.
-4. استكمال إنفاذ consent ledger لتبادل البيانات الوطني، خصوصا إلغاء الموافقة، إبطال tokens، وأغراض الوصول.
+4. تحويل consent ledger إلى حوكمة تشغيلية كاملة: سياسات وطنية، نماذج موافقة، أغراض الوصول، retention، ولوحات audit.
 5. تحسين CDSS وAI Coding بقاعدة معرفة دوائية/سريرية/ترميزية معتمدة.
 6. UX hardening لمسارات admission, billing, claims, pharmacy, lab/radiology, MPI consent.
 7. Performance/load testing على سيناريوهات واقعية، خصوصا MPI search وFHIR export.
@@ -473,7 +494,7 @@ Hakeem برنامج وطني للسجل الصحي الإلكتروني في ا�
 
 تم تنفيذ:
 
-- `npx jest --runInBand` داخل `server`: نجح، 63 test suites passed، 547 tests passed، 4 skipped.
+- `npx jest --runInBand` داخل `server`: نجح، 64 test suites passed، 558 tests passed، 4 skipped.
 - `npm run build` داخل `client`: نجح.
 - `npm run lint` داخل `client`: نجح مع 65 تحذيرا وبدون أخطاء.
 
@@ -503,13 +524,19 @@ Hakeem برنامج وطني للسجل الصحي الإلكتروني في ا�
   https://ehs.com.jo/hakeem-program
 - My Hakeem  
   https://my.hakeem.jo/index.php/en
+- Finerva: B2B SaaS 2026 Valuation Multiples
+  https://finerva.com/report/b2b-saas-2026-valuation-multiples/
+- Multiples.vc: Public Software Valuation Multiples, May 2026
+  https://multiples.vc/reports/software-saas-valuation-multiples
+- iMerge Advisors: Q1 2026 Private SaaS Valuation Report
+  https://imergeadvisors.com/saas-valuation-multiples-q1-2026/
 
 ## 13. الحكم النهائي
 
-الحكم المنصف بعد مراجعة الكود: **السرايا نظام طبي مؤسسي حقيقي، واسع، ومبني بوعي واضح تجاه المستشفيات والمراكز الطبية، وليس مجرد prototype أو CRUD system**.  
+الحكم المنصف بعد مراجعة الكود والتحديثات الأخيرة: **السرايا نظام طبي مؤسسي حقيقي، واسع، ومبني بوعي واضح تجاه المستشفيات والمراكز الطبية، وليس مجرد prototype أو CRUD system**.
 
-نقاطه الأقوى هي الجمع بين HIS وERP وRCM وNPHIES وFHIR وAI Coding وMPI/Federation والحوكمة السريرية والأمن التشغيلي في منصة واحدة.  
+نقاطه الأقوى هي الجمع بين HIS وERP وRCM وNPHIES وFHIR وAI Coding وMPI/Federation والحوكمة السريرية وQuality/CAPA وABAC/Tenant isolation والأمن التشغيلي في منصة واحدة.
 
-نقاطه الأضعف ليست في “غياب النظام”، بل في **إثبات النضج التجاري والتشغيلي**: الاعتمادات، العملاء، شهادات NPHIES/ISO/SOC2، حوكمة الشبكة الوطنية، سياسات AI safety، polish الواجهة، الموبايل الإنتاجي، واختبارات التشغيل الواقعية.
+نقاطه الأضعف لم تعد في “غياب ميزات أساسية”، بل في **إثبات النضج التجاري والتشغيلي**: الاعتمادات، العملاء، شهادات NPHIES/ISO/SOC2، حوكمة الشبكة الوطنية، سياسات AI safety، polish الواجهة، الموبايل الإنتاجي، واختبارات التشغيل الواقعية تحت الضغط.
 
-إذا تم تنفيذ حزمة 90 يوما المقترحة، يمكن تقديم السرايا بثقة كنظام عربي/إقليمي منافس بقوة للمستشفيات المتوسطة والمراكز الطبية الكبيرة، مع إمكانية الدخول للسوق السعودي إذا اكتمل إثبات NPHIES والامتثال المحلي.
+إذا تم تنفيذ حزمة 90 يوما المقترحة، يمكن تقديم السرايا بثقة كنظام عربي/إقليمي منافس بقوة للمستشفيات المتوسطة والمراكز الطبية الكبيرة، مع إمكانية الدخول للسوق السعودي إذا اكتمل إثبات NPHIES والامتثال المحلي. المقارنة مع Epic/Oracle/SAP يجب أن تبقى مقارنة موقع استراتيجي لا مساواة نضج عالمي؛ السرايا قوي إقليميا ومؤهل للتطور، لكنه يحتاج إثباتات تشغيل واعتمادات قبل أي ادعاء بمستوى العمالقة العالميين.

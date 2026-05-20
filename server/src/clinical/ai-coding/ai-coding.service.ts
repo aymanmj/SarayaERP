@@ -10,6 +10,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { VaultService } from '../../common/vault/vault.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PriceListsService } from '../../price-lists/price-lists.service';
+import { BillingService } from '../../billing/billing.service';
 import {
   DiagnosisType,
   ChargeSource,
@@ -72,6 +73,7 @@ export class AiCodingService implements OnModuleInit {
     private vaultService: VaultService,
     private prisma: PrismaService,
     private priceService: PriceListsService,
+    private billingService: BillingService,
   ) {}
 
   async onModuleInit() {
@@ -463,6 +465,27 @@ ${clinicalNote}
         }
       }
     });
+
+    if (proceduresSaved > 0) {
+      try {
+        await this.billingService.createInvoiceForEncounter(
+          encounterId,
+          hospitalId,
+          userId,
+        );
+        this.logger.log(
+          `Generated Invoice for AI-coded CPT procedures on Encounter #${encounterId}`,
+        );
+      } catch (err: any) {
+        this.logger.error(
+          `Failed to generate invoice for AI-coded CPT procedures on Encounter #${encounterId}: ${err.message}`,
+          err.stack,
+        );
+        warnings.push(
+          `تم حفظ الإجراءات، ولكن تعذر إنشاء الفاتورة التلقائية: ${err.message}`,
+        );
+      }
+    }
 
     this.logger.log(
       `✅ AI Coding Applied: ${diagnosesSaved} diagnoses, ${proceduresSaved} procedures ` +
