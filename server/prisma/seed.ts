@@ -173,6 +173,11 @@ async function main() {
     { code: 'billing:invoices:view', description: 'عرض سجل الفواتير' },
     { code: 'billing:payments:collect', description: 'استلام المدفوعات (الكاشير)' },
     { code: 'billing:insurance:manage', description: 'إدارة التأمين والمطالبات' },
+    { code: 'billing:manage', description: 'إلغاء وتعديل وإدارة الفواتير بالكامل' },
+    
+    // --- الكاشير والخزينة (Cashier) ---
+    { code: 'cashier:view', description: 'عرض لوحة الخزينة وقائمة العمل للكاشير' },
+    { code: 'cashier:manage', description: 'إجراءات الخزينة واستلام المدفوعات وتفاصيل الفواتير' },
     { code: 'acc:dashboard:view', description: 'عرض لوحة المحاسبة' },
     { code: 'acc:entries:view', description: 'عرض القيود المحاسبية' },
     { code: 'acc:entries:create', description: 'إنشاء قيود يومية' },
@@ -351,6 +356,7 @@ async function main() {
       'billing:invoices:create',
       'billing:payments:collect',
       'billing:insurance:manage',
+      'billing:manage',
       'acc:dashboard:view',
       'acc:entries:view',
       'acc:entries:create',
@@ -371,9 +377,12 @@ async function main() {
       'billing:dashboard:view',
       'billing:payments:collect',
       'billing:invoices:view',
+      'billing:manage',
       'claims:read',
       'claims:create',
       'claims:update',
+      'cashier:view',
+      'cashier:manage',
     ],
 
     // 10. مسؤول الجودة والسلامة (Quality & Safety Officer)
@@ -397,6 +406,7 @@ async function main() {
       'billing:dashboard:view',
       'billing:invoices:view',
       'billing:insurance:manage',
+      'billing:manage',
       'clinical:patients:view',
     ],
 
