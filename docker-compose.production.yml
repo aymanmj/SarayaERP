@@ -88,6 +88,13 @@ services:
       TELEGRAM_BOT_URL: ${TELEGRAM_BOT_URL:-https://t.me/SarayaMedBot}
       TELEGRAM_WEBHOOK_URL: ${TELEGRAM_WEBHOOK_URL:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY}
+      # 🌐 HTTP/HTTPS proxy configuration for restricted egress / offline-first network environments
+      HTTPS_PROXY: ${HTTPS_PROXY:-}
+      HTTP_PROXY: ${HTTP_PROXY:-}
+      NO_PROXY: ${NO_PROXY:-}
+      # 🤖 Custom Gemini API URL/Version settings (useful for regional gateways or reverse proxies)
+      GEMINI_BASE_URL: ${GEMINI_BASE_URL:-}
+      GEMINI_API_VERSION: ${GEMINI_API_VERSION:-}
     volumes:
       - ./uploads:/app/uploads
       - ./data/license:/app/data/license
@@ -103,6 +110,9 @@ services:
         condition: service_healthy
       vault:
         condition: service_started
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
     networks:
       - saraya_net
     healthcheck:

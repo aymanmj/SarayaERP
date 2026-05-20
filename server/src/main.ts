@@ -11,11 +11,31 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import compression from 'compression';
+import { ProxyAgent, setGlobalDispatcher } from 'undici';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
   const isProduction = process.env.NODE_ENV === 'production';
   const enableStrictCsp = process.env.ENABLE_STRICT_CSP === 'true';
+
+  // ============================================
+  // 🌐 GLOBAL PROXY SUPPORT (For undici/fetch)
+  // ============================================
+  const proxyUrl =
+    process.env.HTTPS_PROXY ||
+    process.env.HTTP_PROXY ||
+    process.env.https_proxy ||
+    process.env.http_proxy;
+  if (proxyUrl) {
+    try {
+      const proxyAgent = new ProxyAgent(proxyUrl);
+      setGlobalDispatcher(proxyAgent);
+      logger.log(`🌐 Global HTTP/HTTPS Proxy configured: ${proxyUrl}`);
+    } catch (proxyError: any) {
+      logger.error(`❌ Failed to configure global proxy: ${proxyError.message}`);
+    }
+  }
+
   const app = await NestFactory.create(AppModule, {
     logger: ['error', 'warn', 'log'], // Production logging levels
   });
