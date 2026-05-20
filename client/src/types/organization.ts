@@ -12,6 +12,8 @@ export type OrganizationSettings = {
   printHeaderFooter?: boolean;
   mpiEnableFederation?: boolean;
   mpiRequirePatientOTP?: boolean;
+  inventoryRequireMaterialRequestApproval?: boolean;
+  inventoryAutoFefoAllocation?: boolean;
 };
 
 export interface Branch {

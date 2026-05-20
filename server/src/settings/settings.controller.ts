@@ -63,12 +63,21 @@ export class SettingsController {
 
     let mpiEnableFederation = false;
     let mpiRequirePatientOTP = true; // default to true
+    let inventoryRequireMaterialRequestApproval = true;
+    let inventoryAutoFefoAllocation = false;
 
     if (hospital.organizationId) {
       const settings = await this.prisma.orgSetting.findMany({
         where: {
           organizationId: hospital.organizationId,
-          key: { in: ['mpi.enableFederation', 'mpi.requirePatientOTP'] },
+          key: {
+            in: [
+              'mpi.enableFederation',
+              'mpi.requirePatientOTP',
+              'inventory.requireMaterialRequestApproval',
+              'inventory.autoFefoAllocation',
+            ],
+          },
         },
       });
       const enableSetting = settings.find(
@@ -80,11 +89,31 @@ export class SettingsController {
         (s) => s.key === 'mpi.requirePatientOTP',
       );
       if (otpSetting) mpiRequirePatientOTP = otpSetting.value === 'true';
+
+      const invApprovalSetting = settings.find(
+        (s) => s.key === 'inventory.requireMaterialRequestApproval',
+      );
+      if (invApprovalSetting)
+        inventoryRequireMaterialRequestApproval =
+          invApprovalSetting.value === 'true';
+
+      const invFefoSetting = settings.find(
+        (s) => s.key === 'inventory.autoFefoAllocation',
+      );
+      if (invFefoSetting)
+        inventoryAutoFefoAllocation = invFefoSetting.value === 'true';
     } else {
       const settings = await this.prisma.systemSetting.findMany({
         where: {
           hospitalId: hospital.id,
-          key: { in: ['mpi.enableFederation', 'mpi.requirePatientOTP'] },
+          key: {
+            in: [
+              'mpi.enableFederation',
+              'mpi.requirePatientOTP',
+              'inventory.requireMaterialRequestApproval',
+              'inventory.autoFefoAllocation',
+            ],
+          },
         },
       });
       const enableSetting = settings.find(
@@ -96,6 +125,19 @@ export class SettingsController {
         (s) => s.key === 'mpi.requirePatientOTP',
       );
       if (otpSetting) mpiRequirePatientOTP = otpSetting.value === 'true';
+
+      const invApprovalSetting = settings.find(
+        (s) => s.key === 'inventory.requireMaterialRequestApproval',
+      );
+      if (invApprovalSetting)
+        inventoryRequireMaterialRequestApproval =
+          invApprovalSetting.value === 'true';
+
+      const invFefoSetting = settings.find(
+        (s) => s.key === 'inventory.autoFefoAllocation',
+      );
+      if (invFefoSetting)
+        inventoryAutoFefoAllocation = invFefoSetting.value === 'true';
     }
 
     return {
@@ -112,6 +154,8 @@ export class SettingsController {
       printHeaderFooter: hospital.printHeaderFooter,
       mpiEnableFederation,
       mpiRequirePatientOTP,
+      inventoryRequireMaterialRequestApproval,
+      inventoryAutoFefoAllocation,
     };
   }
 
@@ -233,6 +277,20 @@ export class SettingsController {
         : dto.mpiRequirePatientOTP,
     );
 
+    const rawInvApproval = req?.body?.inventoryRequireMaterialRequestApproval;
+    const inventoryRequireMaterialRequestApproval = parseBool(
+      rawInvApproval !== undefined
+        ? rawInvApproval
+        : dto.inventoryRequireMaterialRequestApproval,
+    );
+
+    const rawInvFefo = req?.body?.inventoryAutoFefoAllocation;
+    const inventoryAutoFefoAllocation = parseBool(
+      rawInvFefo !== undefined
+        ? rawInvFefo
+        : dto.inventoryAutoFefoAllocation,
+    );
+
     const hospital = await this.prisma.hospital.update({
       where: { id: user.hospitalId },
       data: {
@@ -297,6 +355,42 @@ export class SettingsController {
           },
         });
       }
+      if (inventoryRequireMaterialRequestApproval !== undefined) {
+        await this.prisma.orgSetting.upsert({
+          where: {
+            organizationId_key: {
+              organizationId: hospital.organizationId,
+              key: 'inventory.requireMaterialRequestApproval',
+            },
+          },
+          update: {
+            value: inventoryRequireMaterialRequestApproval ? 'true' : 'false',
+          },
+          create: {
+            organizationId: hospital.organizationId,
+            key: 'inventory.requireMaterialRequestApproval',
+            value: inventoryRequireMaterialRequestApproval ? 'true' : 'false',
+            description: 'Require Material Request Approval',
+          },
+        });
+      }
+      if (inventoryAutoFefoAllocation !== undefined) {
+        await this.prisma.orgSetting.upsert({
+          where: {
+            organizationId_key: {
+              organizationId: hospital.organizationId,
+              key: 'inventory.autoFefoAllocation',
+            },
+          },
+          update: { value: inventoryAutoFefoAllocation ? 'true' : 'false' },
+          create: {
+            organizationId: hospital.organizationId,
+            key: 'inventory.autoFefoAllocation',
+            value: inventoryAutoFefoAllocation ? 'true' : 'false',
+            description: 'Auto FEFO Allocation',
+          },
+        });
+      }
     } else {
       if (mpiEnableFederation !== undefined) {
         await this.prisma.systemSetting.upsert({
@@ -329,6 +423,42 @@ export class SettingsController {
             key: 'mpi.requirePatientOTP',
             value: mpiRequirePatientOTP ? 'true' : 'false',
             description: 'Require OTP for Federation',
+          },
+        });
+      }
+      if (inventoryRequireMaterialRequestApproval !== undefined) {
+        await this.prisma.systemSetting.upsert({
+          where: {
+            hospitalId_key: {
+              hospitalId: hospital.id,
+              key: 'inventory.requireMaterialRequestApproval',
+            },
+          },
+          update: {
+            value: inventoryRequireMaterialRequestApproval ? 'true' : 'false',
+          },
+          create: {
+            hospitalId: hospital.id,
+            key: 'inventory.requireMaterialRequestApproval',
+            value: inventoryRequireMaterialRequestApproval ? 'true' : 'false',
+            description: 'Require Material Request Approval',
+          },
+        });
+      }
+      if (inventoryAutoFefoAllocation !== undefined) {
+        await this.prisma.systemSetting.upsert({
+          where: {
+            hospitalId_key: {
+              hospitalId: hospital.id,
+              key: 'inventory.autoFefoAllocation',
+            },
+          },
+          update: { value: inventoryAutoFefoAllocation ? 'true' : 'false' },
+          create: {
+            hospitalId: hospital.id,
+            key: 'inventory.autoFefoAllocation',
+            value: inventoryAutoFefoAllocation ? 'true' : 'false',
+            description: 'Auto FEFO Allocation',
           },
         });
       }

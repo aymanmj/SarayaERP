@@ -592,6 +592,11 @@ export function MainLayout() {
         },
         { label: "التحويلات المخزنية", path: "/inventory/transfers", access: "inventory:transfers:manage" },
         {
+          label: "طلبات المواد",
+          path: "/inventory/material-requests",
+          access: "inventory:stock:manage",
+        },
+        {
           label: "جرد المخزون",
           path: "/inventory/counts",
           access: "inventory:stock:manage",
