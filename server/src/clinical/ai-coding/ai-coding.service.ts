@@ -117,8 +117,7 @@ export class AiCodingService implements OnModuleInit {
 
     // Model selection: configurable via env, with stable fallback
     const modelName =
-      this.configService.get<string>('GEMINI_MODEL') ||
-      'gemini-3.1-flash-lite-preview';
+      this.configService.get<string>('GEMINI_MODEL') || 'gemini-3.1-flash-lite';
     this.logger.log(`🤖 Initializing AI Coding with model: ${modelName}`);
 
     this.model = this.genAI.getGenerativeModel({
