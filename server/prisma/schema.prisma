@@ -139,6 +139,10 @@ model Hospital {
   clinicalNoteTemplates     ClinicalNoteTemplate[]
   transferOrders            TransferOrder[]
   icuFlowsheets             ICUFlowsheet[]
+  itemCategories            ItemCategory[]
+  unitsOfMeasure            UnitOfMeasure[]
+  materialRequests          MaterialRequest[]
+  stockIssues               StockIssue[]
 
   // ICU Relations
   icuDailyAssessments ICUDailyAssessment[]
@@ -196,6 +200,7 @@ model Department {
   wards            Ward[]
   resources        Resource[]
   waitlists        Waitlist[]
+  materialRequests MaterialRequest[]
 }
 
 model Specialty {
@@ -456,6 +461,9 @@ model User {
   investigatedIncidents   ClinicalIncident[]   @relation("IncidentInvestigator")
   assignedCapaActions     CapaAction[]         @relation("CapaAssignee")
   verifiedCapaActions     CapaAction[]         @relation("CapaVerifier")
+  requestedMaterials      MaterialRequest[]    @relation("UserRequestedMaterials")
+  approvedMaterials       MaterialRequest[]    @relation("UserApprovedMaterials")
+  issuedStock             StockIssue[]         @relation("UserIssuedStock")
 }
 
 model RefreshToken {
@@ -1089,6 +1097,14 @@ model Product {
   surgeryConsumables   SurgeryConsumable[]
   orderSetItems        OrderSetItem[]        @relation("OrderSetProduct")
   terminologyConcept   TerminologyConcept?   @relation("ProductTerminologyConcept", fields: [terminologyConceptId], references: [id])
+  categoryId           Int?
+  baseUomId            Int?
+  isBatchTracked       Boolean               @default(true)
+  category             ItemCategory?         @relation(fields: [categoryId], references: [id])
+  baseUom              UnitOfMeasure?        @relation("ProductBaseUom", fields: [baseUomId], references: [id])
+  productUoms          ProductUOM[]
+  materialRequestItems MaterialRequestItem[]
+  stockIssueItems      StockIssueItem[]
 
   @@unique([hospitalId, code])
   @@index([hospitalId, name])
@@ -1846,6 +1862,9 @@ model Warehouse {
   purchaseInvoices  PurchaseInvoice[]
   stockTransactions StockTransaction[]
   hospital          Hospital           @relation(fields: [hospitalId], references: [id])
+  requestedMaterials MaterialRequest[] @relation("RequestingWarehouse")
+  fulfilledMaterials MaterialRequest[] @relation("FulfillingWarehouse")
+  stockIssues       StockIssue[]
 
   @@unique([hospitalId, name])
 }
@@ -1874,9 +1893,147 @@ model StockTransaction {
   product           Product              @relation(fields: [productId], references: [id])
   purchaseInvoice   PurchaseInvoice?     @relation(fields: [purchaseInvoiceId], references: [id])
   warehouse         Warehouse?           @relation(fields: [warehouseId], references: [id])
+  stockIssueId      Int?
+  stockIssue        StockIssue?          @relation(fields: [stockIssueId], references: [id])
 
   @@index([hospitalId, productId])
   @@index([referenceType, referenceId])
+}
+
+enum MaterialRequestStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  PARTIALLY_ISSUED
+  COMPLETED
+  REJECTED
+}
+
+enum StockIssueStatus {
+  ISSUED
+  RECEIVED
+}
+
+model ItemCategory {
+  id          Int            @id @default(autoincrement())
+  hospitalId  Int
+  parentId    Int?
+  code        String?
+  name        String
+  description String?
+  isActive    Boolean        @default(true)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  hospital    Hospital       @relation(fields: [hospitalId], references: [id])
+  parent      ItemCategory?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children    ItemCategory[] @relation("CategoryHierarchy")
+  products    Product[]
+  
+  @@unique([hospitalId, name])
+}
+
+model UnitOfMeasure {
+  id          Int           @id @default(autoincrement())
+  hospitalId  Int
+  code        String
+  name        String
+  isActive    Boolean       @default(true)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  hospital    Hospital      @relation(fields: [hospitalId], references: [id])
+  products    Product[]     @relation("ProductBaseUom")
+  productUoms ProductUOM[]
+  materialRequestItems MaterialRequestItem[]
+
+  @@unique([hospitalId, code])
+}
+
+model ProductUOM {
+  id              Int           @id @default(autoincrement())
+  productId       Int
+  uomId           Int
+  conversionRate  Decimal       @db.Decimal(18, 3)
+  isPurchasingUOM Boolean       @default(false)
+  isIssuingUOM    Boolean       @default(false)
+  product         Product       @relation(fields: [productId], references: [id])
+  uom             UnitOfMeasure @relation(fields: [uomId], references: [id])
+
+  @@unique([productId, uomId])
+}
+
+model MaterialRequest {
+  id                    Int                   @id @default(autoincrement())
+  hospitalId            Int
+  requestNumber         String
+  fromDepartmentId      Int?
+  requestingWarehouseId Int
+  fulfillingWarehouseId Int
+  requestedById         Int
+  status                MaterialRequestStatus @default(DRAFT)
+  notes                 String?
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  approvedById          Int?
+  approvedAt            DateTime?
+
+  hospital              Hospital              @relation(fields: [hospitalId], references: [id])
+  fromDepartment        Department?           @relation(fields: [fromDepartmentId], references: [id])
+  requestingWarehouse   Warehouse             @relation("RequestingWarehouse", fields: [requestingWarehouseId], references: [id])
+  fulfillingWarehouse   Warehouse             @relation("FulfillingWarehouse", fields: [fulfillingWarehouseId], references: [id])
+  requestedBy           User                  @relation("UserRequestedMaterials", fields: [requestedById], references: [id])
+  approvedBy            User?                 @relation("UserApprovedMaterials", fields: [approvedById], references: [id])
+  items                 MaterialRequestItem[]
+  stockIssues           StockIssue[]
+
+  @@unique([hospitalId, requestNumber])
+}
+
+model MaterialRequestItem {
+  id                Int             @id @default(autoincrement())
+  materialRequestId Int
+  productId         Int
+  uomId             Int?
+  requestedQty      Decimal         @db.Decimal(18, 3)
+  issuedQty         Decimal         @default(0) @db.Decimal(18, 3)
+  notes             String?
+
+  materialRequest   MaterialRequest @relation(fields: [materialRequestId], references: [id], onDelete: Cascade)
+  product           Product         @relation(fields: [productId], references: [id])
+  uom               UnitOfMeasure?  @relation(fields: [uomId], references: [id])
+}
+
+model StockIssue {
+  id                Int              @id @default(autoincrement())
+  hospitalId        Int
+  issueNumber       String
+  materialRequestId Int
+  issuedFromId      Int
+  issuedById        Int
+  status            StockIssueStatus @default(ISSUED)
+  notes             String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  hospital          Hospital         @relation(fields: [hospitalId], references: [id])
+  materialRequest   MaterialRequest  @relation(fields: [materialRequestId], references: [id])
+  issuedFrom        Warehouse        @relation(fields: [issuedFromId], references: [id])
+  issuedBy          User             @relation("UserIssuedStock", fields: [issuedById], references: [id])
+  items             StockIssueItem[]
+  stockTransactions StockTransaction[]
+
+  @@unique([hospitalId, issueNumber])
+}
+
+model StockIssueItem {
+  id           Int         @id @default(autoincrement())
+  stockIssueId Int
+  productId    Int
+  batchNumber  String?
+  expiryDate   DateTime?
+  issuedQty    Decimal     @db.Decimal(18, 3)
+
+  stockIssue   StockIssue  @relation(fields: [stockIssueId], references: [id], onDelete: Cascade)
+  product      Product     @relation(fields: [productId], references: [id])
 }
 
 model Prescription {
