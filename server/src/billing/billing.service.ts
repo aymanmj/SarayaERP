@@ -24,6 +24,7 @@ import {
 } from '../insurance/insurance-calculation.service';
 import { AccountingService } from '../accounting/accounting.service';
 import { Money } from '../common/utils/money.util';
+import { PriceListsService } from '../price-lists/price-lists.service';
 
 // ✅ تعريف نوع البيانات للمصفوفة لتجنب خطأ TS2345
 type CalculationDetail = CoverageResult & { chargeId: number };
@@ -38,6 +39,7 @@ export class BillingService {
     private financialYears: FinancialYearsService,
     private insuranceCalc: InsuranceCalculationService,
     private accounting: AccountingService,
+    private priceLists: PriceListsService,
   ) {}
 
   async getEncounterBilling(encounterId: number, hospitalId: number) {
@@ -117,6 +119,30 @@ export class BillingService {
 
     if (charges.length === 0)
       throw new BadRequestException('لا توجد بنود للفوترة.');
+
+    // ✅ تحديث أسعار البنود غير المفوترة طبقاً لأحدث تسعيرة في النظام قبل إنشاء الفاتورة
+    for (const charge of charges) {
+      const currentPrice = await this.priceLists.getServicePrice(
+        hospitalId,
+        charge.serviceItemId,
+        encounter.patient.insurancePolicy?.id,
+      );
+
+      const quantity = Number(charge.quantity || 1);
+      const newTotalAmount = currentPrice * quantity;
+
+      if (Number(charge.unitPrice) !== currentPrice) {
+        await this.prisma.encounterCharge.update({
+          where: { id: charge.id },
+          data: {
+            unitPrice: currentPrice,
+            totalAmount: newTotalAmount,
+          },
+        });
+        charge.unitPrice = new Prisma.Decimal(currentPrice);
+        charge.totalAmount = new Prisma.Decimal(newTotalAmount);
+      }
+    }
 
     let totalAmount = 0;
     let totalPatientShare = 0;

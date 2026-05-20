@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { apiClient } from "../api/apiClient";
 import { toast } from "sonner";
+import { HasPermission } from "../components/HasPermission";
 
 type InvoiceStatus =
   | "DRAFT"
@@ -94,6 +95,7 @@ export default function CashierPage() {
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState<PaymentMethod>("CASH");
   const [reference, setReference] = useState("");
+  const [cancelling, setCancelling] = useState(false);
 
   const selectedInvoice = invoices.find((x) => x.id === selectedId) || null;
   const selectedValues = selectedInvoice
@@ -110,6 +112,34 @@ export default function CashierPage() {
       toast.error("حدث خطأ أثناء تحميل قائمة الفواتير للكاشير.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCancelInvoice = async () => {
+    if (!selectedInvoice) return;
+    if (selectedInvoice.paidAmount > 0) {
+      toast.error("لا يمكن إلغاء فاتورة تم دفع جزء منها أو كاملة. يرجى استخدام المرتجعات.");
+      return;
+    }
+
+    if (!window.confirm(`هل أنت متأكد من إلغاء الفاتورة #${selectedInvoice.id}؟`)) {
+      return;
+    }
+
+    setCancelling(true);
+    try {
+      await apiClient.post(`/billing/invoices/${selectedInvoice.id}/cancel`);
+      toast.success("تم إلغاء الفاتورة بنجاح وتحرير الخدمات للفوترة مجدداً.");
+      setSelectedId(null);
+      await loadWorklist();
+    } catch (err: any) {
+      console.error(err);
+      const msg = err?.response?.data?.message;
+      toast.error(
+        typeof msg === "string" ? msg : "حدث خطأ أثناء إلغاء الفاتورة.",
+      );
+    } finally {
+      setCancelling(false);
     }
   };
 
@@ -449,6 +479,18 @@ export default function CashierPage() {
                   ? "تأكيد (تغطية كاملة)"
                   : "تأكيد واستلام النقدية"}
               </button>
+
+              <HasPermission access="billing:manage">
+                {selectedInvoice.paidAmount === 0 && (
+                  <button
+                    onClick={handleCancelInvoice}
+                    disabled={cancelling}
+                    className="w-full py-2.5 rounded-xl border border-rose-500/30 bg-rose-950/20 hover:bg-rose-950/40 text-rose-400 font-bold text-sm transition-all mt-2"
+                  >
+                    {cancelling ? "جارِ إلغاء الفاتورة..." : "إلغاء الفاتورة بالكامل"}
+                  </button>
+                )}
+              </HasPermission>
             </div>
           )}
         </div>

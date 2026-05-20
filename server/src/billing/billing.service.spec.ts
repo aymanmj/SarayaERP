@@ -9,6 +9,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { FinancialYearsService } from '../financial-years/financial-years.service';
 import { InsuranceCalculationService } from '../insurance/insurance-calculation.service';
 import { AccountingService } from '../accounting/accounting.service';
+import { PriceListsService } from '../price-lists/price-lists.service';
 import Decimal from 'decimal.js';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { ServiceType, SystemAccountKey } from '@prisma/client';
@@ -135,6 +136,14 @@ describe('BillingService', () => {
     recordCreditNoteEntry: jest.fn().mockResolvedValue({ id: 12 }),
   };
 
+  const mockPriceListsService = {
+    getServicePrice: jest.fn().mockImplementation((h, s, p) => {
+      if (s === 1) return 50;
+      if (s === 2) return 25;
+      return 0;
+    }),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -147,6 +156,7 @@ describe('BillingService', () => {
           useValue: mockInsuranceCalcService,
         },
         { provide: AccountingService, useValue: mockAccountingService },
+        { provide: PriceListsService, useValue: mockPriceListsService },
       ],
     }).compile();
 

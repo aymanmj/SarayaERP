@@ -337,10 +337,18 @@ export function BillingTab({ encounterId, hospitalId }: BillingTabProps) {
                           ? "bg-emerald-900/30 text-emerald-400"
                           : inv.status === "PARTIALLY_PAID"
                             ? "bg-amber-900/30 text-amber-400"
-                            : "bg-slate-800 text-slate-300"
+                            : inv.status === "CANCELLED"
+                              ? "bg-rose-900/30 text-rose-400 font-bold"
+                              : "bg-slate-800 text-slate-300"
                       }`}
                     >
-                      {inv.status}
+                      {inv.status === "PAID"
+                        ? "مدفوعة"
+                        : inv.status === "PARTIALLY_PAID"
+                          ? "مدفوعة جزئياً"
+                          : inv.status === "CANCELLED"
+                            ? "ملغاة"
+                            : "مسودة"}
                     </span>
                   </div>
                 </div>
