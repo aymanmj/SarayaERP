@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { apiClient } from "../../api/apiClient";
 import { toast } from "sonner";
+import { HasPermission } from "../HasPermission";
 
 // --- Types Definitions ---
 
@@ -80,6 +81,7 @@ function formatMoney(val: number | string | null | undefined) {
 export function BillingTab({ encounterId, hospitalId }: BillingTabProps) {
   const [loading, setLoading] = useState(false);
   const [summary, setSummary] = useState<BillingSummary | null>(null);
+  const [deletingChargeId, setDeletingChargeId] = useState<number | null>(null);
 
   const fetchSummary = async () => {
     setLoading(true);
@@ -93,6 +95,25 @@ export function BillingTab({ encounterId, hospitalId }: BillingTabProps) {
       toast.error("حدث خطأ أثناء تحميل بيانات الفوترة.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteCharge = async (chargeId: number) => {
+    if (!window.confirm("هل أنت متأكد من رغبتك في حذف هذا البند؟")) {
+      return;
+    }
+
+    setDeletingChargeId(chargeId);
+    try {
+      await apiClient.delete(`/billing/charges/${chargeId}`);
+      toast.success("تم حذف البند بنجاح.");
+      fetchSummary();
+    } catch (err: any) {
+      console.error(err);
+      const errMsg = err.response?.data?.message || "حدث خطأ أثناء حذف البند.";
+      toast.error(errMsg);
+    } finally {
+      setDeletingChargeId(null);
     }
   };
 
@@ -284,9 +305,21 @@ export function BillingTab({ encounterId, hospitalId }: BillingTabProps) {
                           #{c.invoiceId}
                         </a>
                       ) : (
-                        <span className="text-amber-500 text-[10px]">
-                          غير مفوتر
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-amber-500 text-[10px]">
+                            غير مفوتر
+                          </span>
+                          <HasPermission access="billing:manage">
+                            <button
+                              onClick={() => handleDeleteCharge(c.id)}
+                              disabled={deletingChargeId === c.id}
+                              className="text-rose-500 hover:text-rose-400 font-bold hover:underline transition-colors px-1 py-0.5 rounded hover:bg-rose-950/20 disabled:opacity-50"
+                              title="حذف هذا البند"
+                            >
+                              {deletingChargeId === c.id ? "جاري الحذف..." : "❌ حذف"}
+                            </button>
+                          </HasPermission>
+                        </div>
                       )}
                     </td>
                   </tr>

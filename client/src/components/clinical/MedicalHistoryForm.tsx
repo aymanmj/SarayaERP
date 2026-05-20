@@ -177,7 +177,6 @@ function PMHSection({ patientId, entries }: { patientId: number; entries: any[] 
         <p className="text-slate-500 text-center text-sm py-6">لا توجد أمراض سابقة مسجّلة</p>
       ) : (
         <div className="space-y-2">
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           {entries.map((e: any) => (
             <div key={e.id} className="bg-slate-900/60 border border-slate-800 rounded-xl px-4 py-3 flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -281,7 +280,6 @@ function SurgicalSection({ patientId, entries }: { patientId: number; entries: a
         <p className="text-slate-500 text-center text-sm py-6">لا توجد عمليات جراحية مسجّلة</p>
       ) : (
         <div className="space-y-2">
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           {entries.map((e: any) => (
             <div key={e.id} className="bg-slate-900/60 border border-slate-800 rounded-xl px-4 py-3 flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -389,7 +387,6 @@ function FamilySection({ patientId, entries }: { patientId: number; entries: any
         <p className="text-slate-500 text-center text-sm py-6">لا يوجد تاريخ عائلي مسجّل</p>
       ) : (
         <div className="space-y-2">
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           {entries.map((e: any) => (
             <div key={e.id} className="bg-slate-900/60 border border-slate-800 rounded-xl px-4 py-3 flex items-center justify-between">
               <div className="flex items-center gap-3">

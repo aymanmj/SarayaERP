@@ -74,6 +74,8 @@ describe('BillingService', () => {
       updateMany: jest.fn(),
       update: jest.fn(),
       findFirst: jest.fn(),
+      findUnique: jest.fn(),
+      delete: jest.fn(),
     },
     invoice: {
       create: jest.fn(),
@@ -632,6 +634,61 @@ describe('BillingService', () => {
           originalInvoiceId: 12,
           encounterId: mockEncounterId,
         }),
+      );
+    });
+  });
+
+  describe('deleteCharge', () => {
+    it('should successfully delete an unbilled charge', async () => {
+      const mockCharge = {
+        id: 1,
+        hospitalId: mockHospitalId,
+        invoiceId: null,
+      };
+
+      mockPrismaService.encounterCharge.findUnique.mockResolvedValue(mockCharge);
+      mockPrismaService.encounterCharge.delete.mockResolvedValue(mockCharge);
+
+      const result = await service.deleteCharge(mockHospitalId, 1);
+      expect(result).toEqual({ success: true });
+      expect(mockPrismaService.encounterCharge.delete).toHaveBeenCalledWith({
+        where: { id: 1 },
+      });
+    });
+
+    it('should throw NotFoundException if charge not found', async () => {
+      mockPrismaService.encounterCharge.findUnique.mockResolvedValue(null);
+
+      await expect(service.deleteCharge(mockHospitalId, 999)).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('should throw BadRequestException if charge belongs to another hospital', async () => {
+      const mockCharge = {
+        id: 1,
+        hospitalId: 999, // different hospital
+        invoiceId: null,
+      };
+
+      mockPrismaService.encounterCharge.findUnique.mockResolvedValue(mockCharge);
+
+      await expect(service.deleteCharge(mockHospitalId, 1)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('should throw BadRequestException if charge is already billed', async () => {
+      const mockCharge = {
+        id: 1,
+        hospitalId: mockHospitalId,
+        invoiceId: 45, // already billed
+      };
+
+      mockPrismaService.encounterCharge.findUnique.mockResolvedValue(mockCharge);
+
+      await expect(service.deleteCharge(mockHospitalId, 1)).rejects.toThrow(
+        BadRequestException,
       );
     });
   });

@@ -144,6 +144,15 @@ export class BillingService {
       }
     }
 
+    // Filter charges to only include priced ones (unitPrice > 0)
+    const pricedCharges = charges.filter((c) => Number(c.unitPrice) > 0);
+
+    if (pricedCharges.length === 0) {
+      throw new BadRequestException(
+        'كل البنود غير مسعرة. يرجى تسعير البنود أولاً أو إلغائها.',
+      );
+    }
+
     let totalAmount = 0;
     let totalPatientShare = 0;
     let totalInsuranceShare = 0;
@@ -151,7 +160,7 @@ export class BillingService {
     // ✅ استخدام النوع المعرف مسبقاً
     const calculationDetails: CalculationDetail[] = [];
 
-    for (const charge of charges) {
+    for (const charge of pricedCharges) {
       const itemAmount = Money.fromPrisma(charge.totalAmount);
 
       const result = await this.insuranceCalc.calculateCoverage(
@@ -677,5 +686,29 @@ export class BillingService {
 
       return creditNote;
     });
+  }
+
+  async deleteCharge(hospitalId: number, chargeId: number) {
+    const charge = await this.prisma.encounterCharge.findUnique({
+      where: { id: chargeId },
+    });
+
+    if (!charge) {
+      throw new NotFoundException('البند غير موجود.');
+    }
+
+    if (charge.hospitalId !== hospitalId) {
+      throw new BadRequestException('غير مصرح لك.');
+    }
+
+    if (charge.invoiceId) {
+      throw new BadRequestException('لا يمكن حذف بند تمت فوترته بالفعل.');
+    }
+
+    await this.prisma.encounterCharge.delete({
+      where: { id: chargeId },
+    });
+
+    return { success: true };
   }
 }

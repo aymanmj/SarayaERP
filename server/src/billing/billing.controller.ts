@@ -6,6 +6,7 @@ import {
   Param,
   ParseIntPipe,
   Post,
+  Delete,
   UseGuards,
   Query,
   Res,
@@ -53,6 +54,15 @@ export class BillingController {
       user.hospitalId,
       user.sub,
     );
+  }
+
+  @Delete('charges/:id')
+  @Permissions('billing:manage')
+  async deleteCharge(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.billingService.deleteCharge(user.hospitalId, id);
   }
 
   @Post('invoices/:id/return')

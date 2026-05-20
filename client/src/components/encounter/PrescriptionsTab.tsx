@@ -307,7 +307,6 @@ export function PrescriptionsTab({
 
         {/* Dynamic Rows */}
         <div className="space-y-2">
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
           {items.map((item, idx) => (
             <div
               key={item.tempId}
