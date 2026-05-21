@@ -3,6 +3,7 @@ import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { LabOrdersService } from './lab-orders.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { AccountingService } from '../accounting/accounting.service';
+import { ServicesService } from '../services/services.service';
 
 describe('LabOrdersService', () => {
   let service: LabOrdersService;
@@ -57,6 +58,14 @@ describe('LabOrdersService', () => {
         {
           provide: AccountingService,
           useValue: accounting,
+        },
+        {
+          provide: ServicesService,
+          useValue: { 
+            explodeServiceCharges: jest.fn().mockImplementation(async (hospitalId, itemId) => {
+              return [{ serviceItemId: itemId, quantity: 1, name: 'Test', cptCode: null }];
+            })
+          },
         },
       ],
     }).compile();

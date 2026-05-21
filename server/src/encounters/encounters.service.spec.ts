@@ -16,6 +16,7 @@ import { SoftDeleteService } from '../common/soft-delete.service';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
 import { PriceListsService } from '../price-lists/price-lists.service';
 import { AccountingService } from '../accounting/accounting.service';
+import { ServicesService } from '../services/services.service';
 
 describe('EncountersService', () => {
   let service: EncountersService;
@@ -59,6 +60,7 @@ describe('EncountersService', () => {
       encounterCharge: {
         create: jest.fn(),
         update: jest.fn(),
+        updateMany: jest.fn(),
         count: jest.fn(),
       },
       invoice: {
@@ -96,6 +98,14 @@ describe('EncountersService', () => {
         { provide: SystemSettingsService, useValue: mockSystemSettings },
         { provide: PriceListsService, useValue: mockPriceService },
         { provide: AccountingService, useValue: mockAccountingService },
+        { 
+          provide: ServicesService, 
+          useValue: { 
+            explodeServiceCharges: jest.fn().mockImplementation(async (hospitalId, itemId) => {
+              return [{ serviceItemId: itemId, quantity: 1, name: 'Test', cptCode: null }];
+            })
+          } 
+        },
       ],
     }).compile();
 
@@ -242,8 +252,8 @@ describe('EncountersService', () => {
           insuranceProviderId: 7,
         }),
       });
-      expect(prisma.encounterCharge.update).toHaveBeenCalledWith({
-        where: { id: 90 },
+      expect(prisma.encounterCharge.updateMany).toHaveBeenCalledWith({
+        where: { id: { in: [90] } },
         data: { invoiceId: 91 },
       });
       expect(result).not.toBeNull();

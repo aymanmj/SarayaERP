@@ -7,6 +7,7 @@ import { AccountingService } from '../accounting/accounting.service';
 import { SoftDeleteService } from '../common/soft-delete.service';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
 import { PriceListsService } from '../price-lists/price-lists.service';
+import { ServicesService } from '../services/services.service';
 
 describe('Patient Journey Integration Tests', () => {
   let patientsService: PatientsService;
@@ -88,6 +89,14 @@ describe('Patient Journey Integration Tests', () => {
         { provide: SoftDeleteService, useValue: mockSoftDeleteService },
         { provide: SystemSettingsService, useValue: mockSystemSettings },
         { provide: PriceListsService, useValue: mockPriceService },
+        { 
+          provide: ServicesService, 
+          useValue: { 
+            explodeServiceCharges: jest.fn().mockImplementation(async (hospitalId, itemId) => {
+              return [{ serviceItemId: itemId, quantity: 1, name: 'Test', cptCode: null }];
+            })
+          } 
+        },
       ],
     }).compile();
 

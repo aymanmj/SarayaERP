@@ -5,6 +5,8 @@ import { ConfigService } from '@nestjs/config';
 import { VaultService } from '../../common/vault/vault.service';
 import { PriceListsService } from '../../price-lists/price-lists.service';
 import { BillingService } from '../../billing/billing.service';
+import { ServicesService } from '../../services/services.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 // Mock the GoogleGenerativeAI SDK
@@ -69,6 +71,8 @@ describe('AiCodingService', () => {
         { provide: PrismaService, useValue: prismaService },
         { provide: PriceListsService, useValue: priceListsService },
         { provide: BillingService, useValue: billingService },
+        { provide: ServicesService, useValue: { explodeServiceCharges: jest.fn().mockResolvedValue([]) } },
+        { provide: EventEmitter2, useValue: { emit: jest.fn() } },
       ],
     }).compile();
 
