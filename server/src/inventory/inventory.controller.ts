@@ -372,4 +372,22 @@ export class InventoryController {
   async getUOMs(@CurrentUser() user: any) {
     return this.inventoryService.getUOMs(user.hospitalId);
   }
+
+  @Post('master-data/uoms')
+  @Permissions('inventory:manage')
+  async createUOM(@CurrentUser() user: any, @Body() dto: any) {
+    return this.inventoryService.createUOM(user.hospitalId, dto);
+  }
+
+  @Put('master-data/uoms/:id')
+  @Permissions('inventory:manage')
+  async updateUOM(@CurrentUser() user: any, @Param('id') id: string, @Body() dto: any) {
+    return this.inventoryService.updateUOM(user.hospitalId, Number(id), dto);
+  }
+
+  @Delete('master-data/uoms/:id')
+  @Permissions('inventory:manage')
+  async deleteUOM(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.inventoryService.deleteUOM(user.hospitalId, Number(id));
+  }
 }

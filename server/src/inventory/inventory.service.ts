@@ -1085,4 +1085,38 @@ export class InventoryService {
       orderBy: { name: 'asc' },
     });
   }
+
+  async createUOM(hospitalId: number, dto: any) {
+    return this.prisma.unitOfMeasure.create({
+      data: {
+        hospitalId,
+        code: dto.code,
+        name: dto.name,
+        isActive: dto.isActive !== undefined ? dto.isActive : true,
+      },
+    });
+  }
+
+  async updateUOM(hospitalId: number, id: number, dto: any) {
+    const existing = await this.prisma.unitOfMeasure.findFirst({
+      where: { id, hospitalId }
+    });
+    if (!existing) {
+      throw new Error('Unit of Measure not found or unauthorized');
+    }
+    return this.prisma.unitOfMeasure.update({
+      where: { id },
+      data: {
+        code: dto.code,
+        name: dto.name,
+        isActive: dto.isActive !== undefined ? dto.isActive : true,
+      },
+    });
+  }
+
+  async deleteUOM(hospitalId: number, id: number) {
+    return this.prisma.unitOfMeasure.deleteMany({
+      where: { id, hospitalId },
+    });
+  }
 }

@@ -143,6 +143,70 @@ export class ProcurementService {
   }
 
   // ==========================================
+  // 2b. Direct Purchase Order (PO) - أمر شراء مباشر
+  // ==========================================
+  async createPODirect(data: {
+    hospitalId: number;
+    userId: number;
+    supplierId: number;
+    notes?: string;
+    items: { productId: number; uomId: number; quantity: number; unitPrice: number }[];
+  }) {
+    return this.prisma.$transaction(async (tx) => {
+      const productIds = data.items.map((i) => i.productId);
+      const count = await tx.product.count({
+        where: { id: { in: productIds }, hospitalId: data.hospitalId },
+      });
+      if (count !== productIds.length) {
+        throw new BadRequestException('بعض المنتجات غير صالحة');
+      }
+
+      const productUoms = await tx.productUOM.findMany({
+        where: {
+          OR: data.items.map(i => ({ productId: i.productId, uomId: i.uomId }))
+        }
+      });
+
+      const poNumber = `PO-${Date.now()}`;
+      let totalAmount = 0;
+
+      const poItems = data.items.map((item) => {
+        const uom = productUoms.find(pu => pu.productId === item.productId && pu.uomId === item.uomId);
+        const conversionRate = uom ? Number(uom.conversionRate) : 1;
+        const baseQty = item.quantity * conversionRate;
+        const lineTotal = item.unitPrice * item.quantity;
+        totalAmount += lineTotal;
+
+        return {
+          productId: item.productId,
+          uomId: item.uomId,
+          quantity: item.quantity,
+          baseQuantity: baseQty,
+          unitPrice: item.unitPrice,
+          totalPrice: lineTotal,
+          receivedQuantity: 0,
+        };
+      });
+
+      const po = await tx.purchaseOrder.create({
+        data: {
+          hospitalId: data.hospitalId,
+          poNumber,
+          supplierId: data.supplierId,
+          createdById: data.userId,
+          status: POStatus.SENT,
+          totalAmount,
+          notes: data.notes,
+          items: { create: poItems },
+        },
+      });
+
+      return po;
+    });
+  }
+
+
+  // ==========================================
   // 3. Goods Receipt Note (GRN) - استلام المخزون
   // ==========================================
   /**

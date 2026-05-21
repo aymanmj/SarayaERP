@@ -583,6 +583,11 @@ export function MainLayout() {
           access: "inventory:stock:manage",
         },
         {
+          label: "إدارة وحدات القياس (UOMs)",
+          path: "/inventory/master-data/uoms",
+          access: "inventory:stock:manage",
+        },
+        {
           label: "🏭 إدارة المستودعات",
           path: "/inventory/warehouses",
           access: "inventory:stock:manage",

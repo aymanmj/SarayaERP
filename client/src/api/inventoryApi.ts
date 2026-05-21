@@ -277,6 +277,18 @@ export const inventoryApi = {
     const response = await apiClient.get('/inventory/master-data/uoms');
     return response.data;
   },
+  createUOM: async (payload: { code: string; name: string; isActive?: boolean }) => {
+    const response = await apiClient.post('/inventory/master-data/uoms', payload);
+    return response.data;
+  },
+  updateUOM: async (id: number, payload: { code: string; name: string; isActive?: boolean }) => {
+    const response = await apiClient.put(`/inventory/master-data/uoms/${id}`, payload);
+    return response.data;
+  },
+  deleteUOM: async (id: number) => {
+    const response = await apiClient.delete(`/inventory/master-data/uoms/${id}`);
+    return response.data;
+  },
 
   // ==========================================
   // Material Requests

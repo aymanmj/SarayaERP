@@ -162,8 +162,23 @@ function ZoneBinTree({ warehouse, onRefresh }: { warehouse: Warehouse; onRefresh
     });
   };
 
-  const resetZoneForm = () => { setZoneCode(''); setZoneName(''); setZoneDesc(''); setAddingZone(false); setEditingZone(null); };
-  const resetBinForm = () => { setBinCode(''); setBinName(''); setBinDesc(''); setAddingBinForZone(null); setEditingBin(null); };
+  const resetZoneForm = (closeForm: boolean | React.MouseEvent = true) => {
+    const shouldClose = typeof closeForm === 'boolean' ? closeForm : true;
+    setZoneCode('');
+    setZoneName('');
+    setZoneDesc('');
+    if (shouldClose) setAddingZone(false);
+    setEditingZone(null);
+  };
+
+  const resetBinForm = (closeForm: boolean | React.MouseEvent = true) => {
+    const shouldClose = typeof closeForm === 'boolean' ? closeForm : true;
+    setBinCode('');
+    setBinName('');
+    setBinDesc('');
+    if (shouldClose) setAddingBinForZone(null);
+    setEditingBin(null);
+  };
 
   const createZoneMut = useMutation({
     mutationFn: () => inventoryApi.createZone(warehouse.id, { code: zoneCode, name: zoneName, description: zoneDesc || undefined }),
@@ -225,7 +240,7 @@ function ZoneBinTree({ warehouse, onRefresh }: { warehouse: Warehouse; onRefresh
           <ZoneIcon /> المناطق والأرفف
           <span className="text-xs text-slate-500">({zones.length} منطقة)</span>
         </h4>
-        <button onClick={() => { resetZoneForm(); setAddingZone(true); }} className={btnSmall}>
+        <button onClick={(e) => { e.stopPropagation(); resetZoneForm(false); setAddingZone(true); }} className={btnSmall}>
           <PlusIcon /> إضافة منطقة
         </button>
       </div>
@@ -428,7 +443,14 @@ export function WarehouseManagementPage() {
     onError: (e: any) => toast.error(e?.response?.data?.message || 'فشل في تعديل المستودع'),
   });
 
-  const resetForm = () => { setWhName(''); setWhCode(''); setWhActive(true); setShowAddWarehouse(false); setEditingWarehouse(null); };
+  const resetForm = (closeModal: boolean | React.MouseEvent = true) => { 
+    const shouldClose = typeof closeModal === 'boolean' ? closeModal : true;
+    setWhName(''); 
+    setWhCode(''); 
+    setWhActive(true); 
+    if (shouldClose) setShowAddWarehouse(false); 
+    setEditingWarehouse(null); 
+  };
 
   const startEdit = (wh: Warehouse) => {
     setEditingWarehouse(wh);
@@ -456,7 +478,7 @@ export function WarehouseManagementPage() {
           </h1>
           <p className="text-sm text-slate-500 mt-1">إنشاء وتنظيم المستودعات والمناطق وأماكن التخزين</p>
         </div>
-        <button onClick={() => { setShowAddWarehouse(true); resetForm(); }} className={btnPrimary}>
+        <button onClick={() => { resetForm(false); setShowAddWarehouse(true); }} className={btnPrimary}>
           <PlusIcon /> إضافة مستودع جديد
         </button>
       </div>

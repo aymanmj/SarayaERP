@@ -10,14 +10,17 @@ import {
   Req,
   UseGuards,
   Patch,
+  NotFoundException,
 } from '@nestjs/common';
 import { ProcurementService } from './procurement.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/permissions.guard';
 import { Permissions } from '../auth/permissions.decorator';
 import { Type } from 'class-transformer';
-import { IsArray, IsInt, IsOptional, IsString, ValidateNested, IsDateString, Min } from 'class-validator';
+import { IsArray, IsInt, IsOptional, IsString, ValidateNested, IsDateString, Min, IsNumber } from 'class-validator';
 import { PrismaService } from '../prisma/prisma.service';
+import { POStatus } from '@prisma/client';
+
 
 class CreateSupplierDto {
   @IsString()
@@ -82,6 +85,37 @@ class CreatePOFromPRDto {
   @IsInt()
   supplierId!: number;
 }
+
+class PODirectItemDto {
+  @IsInt()
+  productId!: number;
+
+  @IsInt()
+  uomId!: number;
+
+  @IsNumber()
+  @Min(0.001)
+  quantity!: number;
+
+  @IsNumber()
+  @Min(0)
+  unitPrice!: number;
+}
+
+class CreatePODirectDto {
+  @IsInt()
+  supplierId!: number;
+
+  @IsOptional()
+  @IsString()
+  notes?: string;
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => PODirectItemDto)
+  items!: PODirectItemDto[];
+}
+
 
 class GRNItemDto {
   @IsInt()
@@ -195,6 +229,40 @@ export class ProcurementController {
     });
   }
 
+  @Get('orders/:id')
+  @Permissions('inventory:view')
+  async getPOById(@Req() req: any, @Param('id', ParseIntPipe) id: number) {
+    const po = await this.prisma.purchaseOrder.findFirst({
+      where: { id, hospitalId: req.user.hospitalId },
+      include: {
+        supplier: true,
+        createdBy: true,
+        items: {
+          include: {
+            product: true,
+            uom: true,
+          },
+        },
+      },
+    });
+    if (!po) {
+      throw new NotFoundException('أمر الشراء غير موجود');
+    }
+    return po;
+  }
+
+  @Post('orders')
+  @Permissions('inventory:manage')
+  async createPODirect(@Req() req: any, @Body() dto: CreatePODirectDto) {
+    return this.procurementService.createPODirect({
+      hospitalId: req.user.hospitalId,
+      userId: req.user.sub,
+      supplierId: dto.supplierId,
+      notes: dto.notes,
+      items: dto.items,
+    });
+  }
+
   @Post('orders/from-pr')
   @Permissions('inventory:manage')
   async createPOFromPR(@Req() req: any, @Body() dto: CreatePOFromPRDto) {
@@ -204,6 +272,25 @@ export class ProcurementController {
       dto.prId,
       dto.supplierId,
     );
+  }
+
+  @Patch('orders/:id/status')
+  @Permissions('inventory:manage')
+  async updatePOStatus(
+    @Req() req: any,
+    @Param('id', ParseIntPipe) id: number,
+    @Body('status') status: POStatus,
+  ) {
+    const po = await this.prisma.purchaseOrder.findFirst({
+      where: { id, hospitalId: req.user.hospitalId },
+    });
+    if (!po) {
+      throw new NotFoundException('أمر الشراء غير موجود');
+    }
+    return this.prisma.purchaseOrder.update({
+      where: { id },
+      data: { status },
+    });
   }
 
   // ==============================
@@ -226,3 +313,4 @@ export class ProcurementController {
     });
   }
 }
+

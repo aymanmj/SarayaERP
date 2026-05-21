@@ -65,8 +65,14 @@ export function PurchaseOrdersPage() {
         </div>
         <div className="flex gap-2">
           <button
+            onClick={() => navigate("/purchases/orders/new")}
+            className="px-4 py-1.5 rounded-full text-xs bg-sky-600 hover:bg-sky-500 font-medium transition-colors"
+          >
+            أمر شراء مباشر جديد
+          </button>
+          <button
             onClick={loadOrders}
-            className="px-3 py-1.5 rounded-full text-xs bg-slate-800 hover:bg-slate-700"
+            className="px-3 py-1.5 rounded-full text-xs bg-slate-800 hover:bg-slate-700 transition-colors"
           >
             تحديث
           </button>
