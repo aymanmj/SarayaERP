@@ -14,11 +14,13 @@ import {
   EncounterType,
   BedStatus,
   ChargeSource,
+  InvoiceStatus,
 } from '@prisma/client';
 
 import { SystemSettingsService } from '../system-settings/system-settings.service';
 import { PriceListsService } from '../price-lists/price-lists.service';
 import { AccountingService } from '../accounting/accounting.service';
+import { ServicesService } from '../services/services.service';
 
 @Injectable()
 export class EncountersService {
@@ -30,6 +32,7 @@ export class EncountersService {
     private systemSettings: SystemSettingsService,
     private priceService: PriceListsService,
     private accounting: AccountingService,
+    private servicesService: ServicesService,
   ) {}
 
   async createEncounter(
@@ -100,36 +103,49 @@ export class EncountersService {
               ? patient.insurancePolicy.id
               : null;
 
-            const price = await this.priceService.getServicePrice(
+            const explodedItems = await this.servicesService.explodeServiceCharges(
               hospitalId,
               erService.id,
               policyId,
             );
 
-            // إنشاء بند مالي (Charge)
-            const charge = await tx.encounterCharge.create({
-              data: {
-                hospitalId,
-                encounterId: encounter.id,
-                serviceItemId: erService.id,
-                sourceType: ChargeSource.MANUAL,
-                quantity: 1,
-                unitPrice: price,
-                totalAmount: price,
-                performerId: doctorId ?? null,
-              },
-            });
+            let totalChargePrice = 0;
+            const chargeIds: number[] = [];
 
-            // حساب حصص الدفع (مريض / تأمين)
-            let patientShare = price;
+            for (const expItem of explodedItems) {
+              const itemPrice = await this.priceService.getServicePrice(
+                hospitalId,
+                expItem.serviceItemId,
+                policyId,
+              );
+              
+              const charge = await tx.encounterCharge.create({
+                data: {
+                  hospitalId,
+                  encounterId: encounter.id,
+                  serviceItemId: expItem.serviceItemId,
+                  sourceType: ChargeSource.MANUAL,
+                  quantity: expItem.quantity,
+                  unitPrice: itemPrice,
+                  totalAmount: itemPrice * expItem.quantity,
+                  performerId: doctorId ?? null,
+                },
+              });
+              
+              chargeIds.push(charge.id);
+              totalChargePrice += itemPrice * expItem.quantity;
+            }
+
+            // حساب حصص الدفع (مريض / تأمين) على إجمالي البنود
+            let patientShare = totalChargePrice;
             let insuranceShare = 0;
             let insuranceProviderId: number | null = null;
 
             if (patient.insurancePolicy?.isActive) {
               const copayRate =
                 Number(patient.insurancePolicy.patientCopayRate || 0) / 100;
-              patientShare = Math.round(price * copayRate * 100) / 100;
-              insuranceShare = Math.round((price - patientShare) * 100) / 100;
+              patientShare = Math.round(totalChargePrice * copayRate * 100) / 100;
+              insuranceShare = Math.round((totalChargePrice - patientShare) * 100) / 100;
               insuranceProviderId = patient.insurancePolicy.insuranceProviderId;
             }
 
@@ -146,8 +162,8 @@ export class EncountersService {
                   hospitalId,
                   patientId,
                   encounterId: encounter.id,
-                  status: 'ISSUED',
-                  totalAmount: price,
+                  status: InvoiceStatus.ISSUED,
+                  totalAmount: totalChargePrice,
                   discountAmount: 0,
                   paidAmount: 0,
                   currency: 'LYD',
@@ -159,14 +175,14 @@ export class EncountersService {
                 },
               });
 
-              // ربط البند بالفاتورة
-              await tx.encounterCharge.update({
-                where: { id: charge.id },
+              // ربط البنود بالفاتورة
+              await tx.encounterCharge.updateMany({
+                where: { id: { in: chargeIds } },
                 data: { invoiceId: invoice.id },
               });
 
               this.logger.log(
-                `✅ ER Auto-Billing: Invoice #${invoice.id} created for encounter #${encounter.id} (${price} LYD)`,
+                `✅ ER Auto-Billing: Invoice #${invoice.id} created for encounter #${encounter.id} (${totalChargePrice} LYD)`,
               );
             } catch (invoiceErr) {
               // الفاتورة فشلت (فترة مالية مغلقة مثلاً) — البند يبقى بدون فاتورة
@@ -222,6 +238,13 @@ export class EncountersService {
         },
         invoices: true,
         admission: true,
+        visits: {
+          orderBy: { createdAt: 'desc' }
+        },
+        clinicalNotes: {
+          orderBy: { createdAt: 'desc' },
+          include: { createdBy: { select: { fullName: true } } }
+        },
       },
     });
 

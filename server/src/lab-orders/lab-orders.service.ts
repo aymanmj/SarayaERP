@@ -14,12 +14,14 @@ import {
   PaymentStatus,
 } from '@prisma/client';
 import { AccountingService } from '../accounting/accounting.service';
+import { ServicesService } from '../services/services.service';
 
 @Injectable()
 export class LabOrdersService {
   constructor(
     private prisma: PrismaService,
     private accounting: AccountingService,
+    private servicesService: ServicesService,
   ) {}
 
   /**
@@ -170,21 +172,31 @@ export class LabOrdersService {
 
         // 3) إنشاء EncounterCharge لو التحليل مربوط بخدمة تسعير
         if (test.serviceItemId && test.serviceItem) {
-          const price = Number(test.serviceItem.defaultPrice);
-          const charge = await tx.encounterCharge.create({
-            data: {
-              hospitalId,
-              encounterId,
-              serviceItemId: test.serviceItemId,
-              sourceType: ChargeSource.LAB_ORDER,
-              sourceId: order.id,
-              quantity: 1,
-              unitPrice: price,
-              totalAmount: price,
-            },
-          });
-          chargeIds.push(charge.id);
-          totalAmount += price;
+          // Temporarily ignoring insurance policy id since patient is not loaded on encounter here
+          const insurancePolicyId = null;
+            
+          const explodedItems = await this.servicesService.explodeServiceCharges(
+            hospitalId,
+            test.serviceItemId,
+            insurancePolicyId,
+          );
+
+          for (const expItem of explodedItems) {
+            const charge = await tx.encounterCharge.create({
+              data: {
+                hospitalId,
+                encounterId,
+                serviceItemId: expItem.serviceItemId,
+                sourceType: ChargeSource.LAB_ORDER,
+                sourceId: order.id,
+                quantity: expItem.quantity,
+                unitPrice: Number(test.serviceItem.defaultPrice || 0),
+                totalAmount: Number(test.serviceItem.defaultPrice || 0) * expItem.quantity,
+              },
+            });
+            chargeIds.push(charge.id);
+            totalAmount += Number(test.serviceItem.defaultPrice || 0) * expItem.quantity;
+          }
         }
       }
 

@@ -5,9 +5,10 @@ import { LabOrdersService } from './lab-orders.service';
 import { LabOrdersController } from './lab-orders.controller';
 import { PrismaService } from '../prisma/prisma.service';
 import { AccountingModule } from '../accounting/accounting.module';
+import { ServicesModule } from '../services/services.module';
 
 @Module({
-  imports: [AccountingModule],
+  imports: [AccountingModule, ServicesModule],
   controllers: [LabOrdersController],
   providers: [LabOrdersService, PrismaService],
   exports: [LabOrdersService],

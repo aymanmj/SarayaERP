@@ -17,6 +17,8 @@ import {
   ServiceType,
   TerminologySystem,
 } from '@prisma/client';
+import { ServicesService } from '../../services/services.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 // ─── Interfaces ────────────────────────────────────────────────────
 
@@ -74,6 +76,8 @@ export class AiCodingService implements OnModuleInit {
     private prisma: PrismaService,
     private priceService: PriceListsService,
     private billingService: BillingService,
+    private servicesService: ServicesService,
+    private eventEmitter: EventEmitter2,
   ) {}
 
   async onModuleInit() {
@@ -450,35 +454,42 @@ ${clinicalNote}
             ? (encounter.patient.insurancePolicy as any).id
             : null;
 
-          let price = 0;
-          try {
-            price = await this.priceService.getServicePrice(
-              hospitalId,
-              serviceItem.id,
-              insurancePolicyId,
-            );
-          } catch {
-            // Use the service item's base price if price list lookup fails
-            price = Number(serviceItem.defaultPrice || 0);
-          }
+          const explodedItems = await this.servicesService.explodeServiceCharges(
+            hospitalId,
+            serviceItem.id,
+            insurancePolicyId,
+          );
 
-          // Create EncounterCharge
-          await tx.encounterCharge.create({
-            data: {
-              hospitalId,
-              encounterId,
-              serviceItemId: serviceItem.id,
-              sourceType: ChargeSource.MANUAL,
-              quantity: 1,
-              unitPrice: price,
-              totalAmount: price,
-              performerId: encounter.doctorId ?? userId,
-            },
-          });
+          for (const expItem of explodedItems) {
+            let itemPrice = 0;
+            try {
+              itemPrice = await this.priceService.getServicePrice(
+                hospitalId,
+                expItem.serviceItemId,
+                insurancePolicyId,
+              );
+            } catch {
+              itemPrice = Number(serviceItem.defaultPrice || 0); // Should ideally be child's defaultPrice, but this fallback is rare
+            }
+
+            // Create EncounterCharge
+            await tx.encounterCharge.create({
+              data: {
+                hospitalId,
+                encounterId,
+                serviceItemId: expItem.serviceItemId,
+                sourceType: ChargeSource.MANUAL,
+                quantity: expItem.quantity,
+                unitPrice: itemPrice,
+                totalAmount: itemPrice * expItem.quantity,
+                performerId: encounter.doctorId ?? userId,
+              },
+            });
+          }
 
           proceduresSaved++;
           this.logger.log(
-            `💰 Auto-billed CPT ${px.code}: ${price} (encounter #${encounterId})`,
+            `💰 Auto-billed CPT ${px.code} (encounter #${encounterId})`,
           );
         } catch (err: any) {
           this.logger.warn(
@@ -517,4 +528,84 @@ ${clinicalNote}
 
     return { diagnosesSaved, proceduresSaved, warnings };
   }
+
+  // =====================================================================
+  // Phase 3: Smart Follow-up Scheduling (AI)
+  // =====================================================================
+
+  /**
+   * استخراج خطط المتابعة من ملاحظات الطبيب (حقل Plan في SOAP Note)
+   * يُرجع قائمة بالإجراءات/المواعيد الموصى بها مع الإطار الزمني
+   */
+  async extractFollowUpPlan(planText: string): Promise<FollowUpExtraction[]> {
+    const isReady = await this.ensureModelLoaded();
+    if (!isReady) {
+      this.logger.warn('AI Model not loaded. Cannot extract follow-up plan.');
+      return [];
+    }
+
+    if (!planText || planText.trim().length < 10) {
+      return [];
+    }
+
+    const prompt = `You are a medical follow-up extraction system. Analyze the following physician's "Plan" section from a clinical SOAP note and extract any follow-up appointments, procedures, or tests that need to be scheduled.
+
+Plan text:
+"""
+${planText}
+"""
+
+Return a JSON array of follow-up items. Each item should have:
+- "action": string - What needs to be done (e.g., "EGD", "Ultrasound", "Follow-up visit", "Blood test")
+- "actionAr": string - Arabic translation of the action
+- "timeframe": string - When it should be scheduled (e.g., "2 weeks", "1 month", "3 days")
+- "timeframeDays": number - Approximate number of days from now
+- "priority": "ROUTINE" | "URGENT" | "STAT"
+- "department": string - Suggested department (e.g., "Gastroenterology", "Radiology", "Lab")
+- "notes": string - Any additional context from the plan text
+
+If no follow-up items are found, return an empty array [].
+Only return valid JSON, no markdown or explanation.`;
+
+    try {
+      const result = await this.model.generateContent(prompt);
+      const text = result.response.text();
+      const parsed = JSON.parse(text);
+
+      if (!Array.isArray(parsed)) {
+        this.logger.warn('AI returned non-array for follow-up extraction');
+        return [];
+      }
+
+      return parsed.map((item: any) => ({
+        action: item.action || '',
+        actionAr: item.actionAr || '',
+        timeframe: item.timeframe || '',
+        timeframeDays: Number(item.timeframeDays) || 14,
+        priority: ['ROUTINE', 'URGENT', 'STAT'].includes(item.priority)
+          ? item.priority
+          : 'ROUTINE',
+        department: item.department || '',
+        notes: item.notes || '',
+      }));
+    } catch (error: any) {
+      this.logger.error(
+        `Failed to extract follow-up plan: ${error.message}`,
+        error.stack,
+      );
+      return [];
+    }
+  }
+}
+
+// ─── Interfaces (Phase 3) ──────────────────────────────────────────
+
+export interface FollowUpExtraction {
+  action: string;
+  actionAr: string;
+  timeframe: string;
+  timeframeDays: number;
+  priority: 'ROUTINE' | 'URGENT' | 'STAT';
+  department: string;
+  notes: string;
 }

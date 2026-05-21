@@ -11,6 +11,7 @@ import { AlertCircle, Clock, CheckCircle2, Sparkles, X } from "lucide-react";
 
 // Components
 import { AllergiesPane } from "../components/encounter/AllergiesPane";
+import { StructuredSOAPNote } from "../components/clinical/StructuredSOAPNote";
 
 const loadVitalsPane = () =>
   import("../components/encounter/VitalsPane").then((module) => ({
@@ -97,6 +98,13 @@ type EncounterDetail = {
   createdAt: string;
   patient?: Patient;
   visits?: Visit[];
+  clinicalNotes?: {
+    id: number;
+    content: string;
+    createdAt: string;
+    type: string;
+    createdBy?: { fullName: string };
+  }[];
   doctor?: { fullName: string };
   admission?: { id: number };
   department?: { name: string };
@@ -424,7 +432,7 @@ export default function EncounterDetailsPage() {
   const queryClient = useQueryClient();
 
   // UI State
-  const [visitNotes, setVisitNotes] = useState("");
+  const [formKey, setFormKey] = useState(Date.now());
   const [activeTab, setActiveTab] = useState<TabKey>("VISITS");
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [noteTemplates, setNoteTemplates] = useState<
@@ -532,26 +540,19 @@ export default function EncounterDetailsPage() {
   });
 
   const addVisitNoteMutation = useMutation({
-    mutationFn: async (notes: string) => {
-      const res = await apiClient.post<Visit>("/visits", {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    mutationFn: async (data: any) => {
+      const res = await apiClient.post("/clinical-notes", {
+        ...data,
         encounterId: encId,
-        notes: notes,
+        type: "VISIT",
       });
       return res.data;
     },
-    onSuccess: (newVisit) => {
-      queryClient.setQueryData(
-        ["encounter", encId],
-        (old: EncounterDetail | undefined) => {
-          if (!old) return old;
-          return {
-            ...old,
-            visits: old.visits ? [newVisit, ...old.visits] : [newVisit],
-          };
-        },
-      );
-      setVisitNotes("");
-      toast.success("تم حفظ الملاحظة.");
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["encounter", encId] });
+      setFormKey(Date.now());
+      toast.success("تم حفظ الملاحظة السريرية.");
     },
     onError: () => toast.error("فشل الحفظ."),
   });
@@ -610,9 +611,10 @@ export default function EncounterDetailsPage() {
   });
 
   const aiCodingMutation = useMutation({
-    mutationFn: async (note: string) => {
-      const { data } = await apiClient.post("/clinical/ai-coding/suggest", {
-        clinicalNote: note,
+    mutationFn: async (data: any) => {
+      if (!data?.note) return;
+      await apiClient.post("/clinical/ai-coding/clinical-notes", {
+        clinicalNote: JSON.stringify(data.note),
       });
       return data;
     },
@@ -700,19 +702,20 @@ export default function EncounterDetailsPage() {
     assignDoctorMutation.mutate();
   };
 
-  const handleAddVisitNote = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!encounter || !visitNotes.trim()) return;
-    addVisitNoteMutation.mutate(visitNotes);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handleAddVisitNote = (data: any) => {
+    if (!encounter) return;
+    addVisitNoteMutation.mutate(data);
   };
 
-  const handleAiCoding = () => {
-    if (!visitNotes.trim()) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handleAiCoding = (data: any) => {
+    if (!data?.note) {
       toast.warning("يرجى كتابة ملاحظات سريرية أولاً ليتم تحليلها.");
       return;
     }
     setShowAiModal(true);
-    aiCodingMutation.mutate(visitNotes);
+    aiCodingMutation.mutate(data);
   };
 
   const handleDischarge = () => {
@@ -909,38 +912,14 @@ export default function EncounterDetailsPage() {
             {activeTab === "VISITS" && (
               <div className="grid grid-cols-1 gap-6">
                 {/* Clinical Notes Section */}
-                <div className="bg-slate-900/80 border border-slate-700 p-4 rounded-2xl shadow-sm relative overflow-hidden">
-                  <div className="flex justify-between items-center mb-3">
-                    <h3 className="text-sm font-bold text-sky-400 flex items-center gap-2">
-                      <Sparkles className="w-4 h-4 text-sky-400" />
-                      الملاحظات السريرية (Clinical Notes)
-                    </h3>
-                    <button
-                      onClick={handleAiCoding}
-                      disabled={aiCodingMutation.isPending}
-                      className="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-lg flex items-center gap-1.5 disabled:opacity-50"
-                    >
-                      {aiCodingMutation.isPending
-                        ? "جاري التحليل..."
-                        : "تحليل بواسطة الذكاء الاصطناعي 🧠"}
-                    </button>
-                  </div>
-                  <textarea
-                    value={visitNotes}
-                    onChange={(e) => setVisitNotes(e.target.value)}
-                    placeholder="اكتب ملاحظاتك السريرية هنا... (مثال: يشتكي المريض من ألم حاد في الصدر مع ضيق في التنفس...)"
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm text-slate-200 outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 min-h-[120px] resize-y custom-scrollbar"
-                  />
-                  <div className="flex justify-end mt-3">
-                    <button
-                      onClick={handleAddVisitNote}
-                      disabled={savingVisit || !visitNotes.trim()}
-                      className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl text-xs font-bold transition-colors disabled:opacity-50"
-                    >
-                      {savingVisit ? "جاري الحفظ..." : "حفظ الملاحظة"}
-                    </button>
-                  </div>
-                </div>
+                <StructuredSOAPNote
+                  key={formKey}
+                  note={{}}
+                  onSave={handleAddVisitNote}
+                  isSaving={savingVisit}
+                  onAiAnalyze={handleAiCoding}
+                  isAnalyzing={aiCodingMutation.isPending}
+                />
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   <Suspense

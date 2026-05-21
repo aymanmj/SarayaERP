@@ -145,6 +145,7 @@ export class OrdersController {
       resultUnit: dto.resultUnit,
       referenceRange: dto.referenceRange,
       resultStatus: dto.resultStatus,
+      userId: user.sub,
     });
   }
 
@@ -160,6 +161,7 @@ export class OrdersController {
       radiologyOrderId: dto.radiologyOrderId,
       status: dto.status,
       reportText: dto.reportText,
+      userId: user.sub,
     });
   }
 }

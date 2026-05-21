@@ -64,8 +64,6 @@ export default function OrganizationSettingsPage() {
         printHeaderFooter: settings.printHeaderFooter,
         mpiEnableFederation: settings.mpiEnableFederation,
         mpiRequirePatientOTP: settings.mpiRequirePatientOTP,
-        inventoryRequireMaterialRequestApproval: settings.inventoryRequireMaterialRequestApproval,
-        inventoryAutoFefoAllocation: settings.inventoryAutoFefoAllocation,
       });
 
       toast.success("تم حفظ بيانات المستشفى بنجاح.");
@@ -365,62 +363,6 @@ export default function OrganizationSettingsPage() {
           </div>
         </div>
 
-        {/* Center/Bottom Area for Inventory Settings */}
-        <div className="lg:col-span-3 space-y-6">
-          <div className="bg-slate-900/60 border border-amber-800/30 rounded-2xl p-6 relative overflow-hidden">
-            <h2 className="text-base font-bold text-amber-300 mb-6 flex items-center gap-2">
-              <div className="p-1.5 bg-amber-500/20 text-amber-400 rounded-lg">
-                📦
-              </div>
-              إعدادات المخازن (Inventory Settings)
-            </h2>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <label className="flex items-start gap-3 cursor-pointer group bg-slate-950 p-4 rounded-xl border border-slate-800 hover:border-amber-500/50 transition-all">
-                <div className="relative flex items-center pt-0.5">
-                  <input
-                    type="checkbox"
-                    checked={settings.inventoryRequireMaterialRequestApproval !== false} // defaults to true visually
-                    onChange={(e) =>
-                      setSettings((prev) => ({ ...prev, inventoryRequireMaterialRequestApproval: e.target.checked }))
-                    }
-                    className="peer sr-only"
-                  />
-                  <div className="w-10 h-6 bg-slate-800 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-amber-500/50 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-400 peer-checked:after:bg-white after:border-slate-300 after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
-                </div>
-                <div className="flex-1">
-                  <span className="text-sm font-bold text-slate-200 group-hover:text-white transition-colors">
-                    إلزامية اعتماد طلبات المواد (Material Requests)
-                  </span>
-                  <p className="text-[10px] text-slate-500 mt-1 leading-relaxed">
-                    عند التفعيل، ستحتاج طلبات صرف المواد من المخزن إلى موافقة مدير المخزن قبل عملية الصرف.
-                  </p>
-                </div>
-              </label>
-
-              <label className="flex items-start gap-3 cursor-pointer group bg-slate-950 p-4 rounded-xl border border-slate-800 hover:border-amber-500/50 transition-all">
-                <div className="relative flex items-center pt-0.5">
-                  <input
-                    type="checkbox"
-                    checked={settings.inventoryAutoFefoAllocation || false}
-                    onChange={(e) =>
-                      setSettings((prev) => ({ ...prev, inventoryAutoFefoAllocation: e.target.checked }))
-                    }
-                    className="peer sr-only"
-                  />
-                  <div className="w-10 h-6 bg-slate-800 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-amber-500/50 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-400 peer-checked:after:bg-white after:border-slate-300 after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
-                </div>
-                <div className="flex-1">
-                  <span className="text-sm font-bold text-slate-200 group-hover:text-white transition-colors">
-                    السحب التلقائي بنظام (FEFO)
-                  </span>
-                  <p className="text-[10px] text-slate-500 mt-1 leading-relaxed">
-                    عند التفعيل، سيقوم النظام تلقائياً بتحديد وصرف التشغيلات (Batches) الأقرب لانتهاء الصلاحية دون تدخّل يدوي.
-                  </p>
-                </div>
-              </label>
-            </div>
-          </div>
         </div>
       </div>
 

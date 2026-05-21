@@ -863,5 +863,80 @@ export class InventoryService {
       return { success: true };
     });
   }
-}
 
+  // --- Phase 3: Auto-deplete service materials ---
+  async autoDepleteServiceMaterials(
+    hospitalId: number,
+    serviceItemId: number,
+    warehouseId: number,
+    multiplier: number,
+    userId: number,
+    referenceId: number,
+    referenceType: string,
+  ) {
+    const mappings = await this.prisma.serviceItemProduct.findMany({
+      where: { serviceItemId, isMandatory: true },
+      include: { product: true },
+    });
+
+    if (mappings.length === 0) return;
+
+    await this.prisma.$transaction(async (tx) => {
+      for (const map of mappings) {
+        const requiredQty = Number(map.quantity) * multiplier;
+        const product = map.product;
+
+        const stocks = await tx.productStock.findMany({
+          where: {
+            hospitalId,
+            warehouseId,
+            productId: map.productId,
+            quantity: { gt: 0 },
+          },
+          orderBy: [
+            { expiryDate: 'asc' },
+            { createdAt: 'asc' },
+          ],
+        });
+
+        let rem = requiredQty;
+        for (const st of stocks) {
+          if (rem <= 0) break;
+          const avail = Number(st.quantity);
+          const take = Math.min(avail, rem);
+          
+          await tx.productStock.update({
+            where: { id: st.id },
+            data: { quantity: { decrement: take } },
+          });
+
+          await tx.stockTransaction.create({
+            data: {
+              hospitalId,
+              warehouseId,
+              productId: map.productId,
+              type: StockTransactionType.OUT,
+              quantity: take,
+              unitCost: Number(product.costPrice || 0),
+              totalCost: Number(product.costPrice || 0) * take,
+              batchNumber: st.batchNumber,
+              expiryDate: st.expiryDate,
+              referenceType,
+              referenceId,
+              notes: `خصم تلقائي لتنفيذ خدمة (Service ID: ${serviceItemId})`,
+              createdById: userId,
+            },
+          });
+
+          rem -= take;
+        }
+
+        if (rem > 0) {
+          throw new BadRequestException(
+            `رصيد غير كافٍ للصنف ${product.name} (ID: ${product.id}) في المستودع لإتمام الخدمة. مطلوب ${rem} إضافية.`,
+          );
+        }
+      }
+    });
+  }
+}

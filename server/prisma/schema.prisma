@@ -248,7 +248,42 @@ model ServiceItem {
   wards             Ward[]
   orderSetItems     OrderSetItem[]     @relation("OrderSetService")
 
+  materialMappings  ServiceItemProduct[]
+  bundleChildren    ServiceBundleItem[] @relation("ServiceBundleParent")
+  bundleParents     ServiceBundleItem[] @relation("ServiceBundleChild")
+
   @@index([cptCode])
+}
+
+model ServiceItemProduct {
+  id            Int         @id @default(autoincrement())
+  serviceItemId Int
+  productId     Int
+  quantity      Decimal     @db.Decimal(18, 3)
+  isMandatory   Boolean     @default(true)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  serviceItem   ServiceItem @relation(fields: [serviceItemId], references: [id], onDelete: Cascade)
+  product       Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([serviceItemId, productId])
+  @@index([serviceItemId])
+  @@index([productId])
+}
+
+model ServiceBundleItem {
+  id              Int         @id @default(autoincrement())
+  parentServiceId Int
+  childServiceId  Int
+  quantity        Int         @default(1)
+  createdAt       DateTime    @default(now())
+
+  parentService   ServiceItem @relation("ServiceBundleParent", fields: [parentServiceId], references: [id], onDelete: Cascade)
+  childService    ServiceItem @relation("ServiceBundleChild", fields: [childServiceId], references: [id], onDelete: Cascade)
+
+  @@unique([parentServiceId, childServiceId])
+  @@index([parentServiceId])
 }
 
 model Invoice {
@@ -815,6 +850,22 @@ model EncounterCharge {
   invoice       Invoice?     @relation(fields: [invoiceId], references: [id])
   performer     User?        @relation("ChargePerformer", fields: [performerId], references: [id])
   serviceItem   ServiceItem  @relation(fields: [serviceItemId], references: [id])
+  diagnoses     EncounterChargeDiagnosis[]
+}
+
+model EncounterChargeDiagnosis {
+  id                   Int                @id @default(autoincrement())
+  encounterChargeId    Int
+  encounterDiagnosisId Int
+  orderIndex           Int                @default(1)
+  createdAt            DateTime           @default(now())
+
+  encounterCharge      EncounterCharge    @relation(fields: [encounterChargeId], references: [id], onDelete: Cascade)
+  encounterDiagnosis   EncounterDiagnosis @relation(fields: [encounterDiagnosisId], references: [id], onDelete: Cascade)
+
+  @@unique([encounterChargeId, encounterDiagnosisId])
+  @@index([encounterChargeId])
+  @@index([encounterDiagnosisId])
 }
 
 model Visit {
@@ -1105,6 +1156,7 @@ model Product {
   productUoms          ProductUOM[]
   materialRequestItems MaterialRequestItem[]
   stockIssueItems      StockIssueItem[]
+  serviceMappings      ServiceItemProduct[]
 
   @@unique([hospitalId, code])
   @@index([hospitalId, name])
@@ -2603,6 +2655,7 @@ model EncounterDiagnosis {
   createdBy       User?         @relation(fields: [createdById], references: [id])
   diagnosisCode   DiagnosisCode @relation(fields: [diagnosisCodeId], references: [id])
   encounter       Encounter     @relation(fields: [encounterId], references: [id])
+  chargeDiagnoses EncounterChargeDiagnosis[]
 
   @@index([encounterId])
   @@index([diagnosisCodeId])

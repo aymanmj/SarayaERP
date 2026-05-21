@@ -41,12 +41,4 @@ export class UpdateOrganizationSettingsDto {
   @IsOptional()
   @IsBoolean()
   mpiRequirePatientOTP?: boolean;
-
-  @IsOptional()
-  @IsBoolean()
-  inventoryRequireMaterialRequestApproval?: boolean;
-
-  @IsOptional()
-  @IsBoolean()
-  inventoryAutoFefoAllocation?: boolean;
 }

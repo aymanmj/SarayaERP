@@ -1576,6 +1576,20 @@ async function main() {
       description: 'السماح بالسحب بالسالب من المخزون',
     },
     {
+      key: 'inventory.requireMaterialRequestApproval',
+      value: 'true',
+      type: 'BOOLEAN',
+      group: 'INVENTORY',
+      description: 'إلزامية اعتماد طلبات المواد قبل الصرف',
+    },
+    {
+      key: 'inventory.autoFefoAllocation',
+      value: 'false',
+      type: 'BOOLEAN',
+      group: 'INVENTORY',
+      description: 'السحب التلقائي بنظام (FEFO)',
+    },
+    {
       key: 'medical.defaultLanguage',
       value: 'ar',
       type: 'STRING',

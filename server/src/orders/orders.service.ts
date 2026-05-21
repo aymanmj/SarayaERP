@@ -11,9 +11,14 @@ import {
   RadiologyStatus,
 } from '@prisma/client';
 
+import { EventEmitter2 } from '@nestjs/event-emitter';
+
 @Injectable()
 export class OrdersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private eventEmitter: EventEmitter2,
+  ) {}
 
   async createLabOrder(data: {
     hospitalId: number;
@@ -146,6 +151,7 @@ export class OrdersService {
     referenceRange?: string;
     resultStatus: LabResultStatus;
     resultDate?: Date;
+    userId?: number;
   }) {
     const labOrder = await this.prisma.labOrder.findFirst({
       where: { id: params.labOrderId },
@@ -175,8 +181,8 @@ export class OrdersService {
       },
     });
 
-    // لو اكتملت النتيجة: نحدث حالة الـ Order نفسها
-    if (params.resultStatus === LabResultStatus.COMPLETED) {
+    // لو اكتملت النتيجة: نحدث حالة الـ Order نفسها ونشغل حدث الخصم من المخزون
+    if (params.resultStatus === LabResultStatus.COMPLETED && labOrder.resultStatus !== LabResultStatus.COMPLETED) {
       await this.prisma.order.update({
         where: { id: labOrder.orderId },
         data: {
@@ -184,6 +190,22 @@ export class OrdersService {
           completedAt: resultDate,
         },
       });
+
+      // جلب معلومات الخدمة للإيفنت
+      const labTest = await this.prisma.labTest.findUnique({
+        where: { id: labOrder.testId },
+        select: { serviceItemId: true },
+      });
+
+      if (labTest?.serviceItemId) {
+        this.eventEmitter.emit('service.completed', {
+          hospitalId: params.hospitalId,
+          serviceItemId: labTest.serviceItemId,
+          performerId: params.userId || labOrder.order.orderedById,
+          referenceType: 'LAB_ORDER',
+          referenceId: labOrder.id,
+        });
+      }
     }
 
     return updatedLabOrder;
@@ -196,6 +218,7 @@ export class OrdersService {
     status: RadiologyStatus;
     reportText?: string;
     reportedAt?: Date;
+    userId?: number;
   }) {
     const radOrder = await this.prisma.radiologyOrder.findFirst({
       where: { id: params.radiologyOrderId },
@@ -223,7 +246,7 @@ export class OrdersService {
       },
     });
 
-    if (params.status === RadiologyStatus.COMPLETED) {
+    if (params.status === RadiologyStatus.COMPLETED && radOrder.status !== RadiologyStatus.COMPLETED) {
       await this.prisma.order.update({
         where: { id: radOrder.orderId },
         data: {
@@ -231,6 +254,21 @@ export class OrdersService {
           completedAt: reportedAt,
         },
       });
+
+      const study = await this.prisma.radiologyStudy.findUnique({
+        where: { id: radOrder.studyId },
+        select: { serviceItemId: true },
+      });
+
+      if (study?.serviceItemId) {
+        this.eventEmitter.emit('service.completed', {
+          hospitalId: params.hospitalId,
+          serviceItemId: study.serviceItemId,
+          performerId: params.userId || radOrder.order.orderedById,
+          referenceType: 'RADIOLOGY_ORDER',
+          referenceId: radOrder.id,
+        });
+      }
     }
 
     return updatedRadOrder;

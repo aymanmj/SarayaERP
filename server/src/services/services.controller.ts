@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseIntPipe,
@@ -24,6 +25,11 @@ export class ServicesController {
   @Get()
   async list(@Req() req: any, @Query('type') type?: ServiceType) {
     return this.servicesService.findAll(req.user.hospitalId, type);
+  }
+
+  @Get(':id')
+  async findOne(@Req() req: any, @Param('id', ParseIntPipe) id: number) {
+    return this.servicesService.findOne(req.user.hospitalId, id);
   }
 
   @Post()
@@ -71,5 +77,74 @@ export class ServicesController {
           : undefined,
       isActive: body.isActive,
     });
+  }
+
+  // =====================================================================
+  // Material Mappings (Service-to-Item)
+  // =====================================================================
+
+  @Get(':id/materials')
+  async getMaterials(@Param('id', ParseIntPipe) id: number) {
+    return this.servicesService.getMaterialMappings(id);
+  }
+
+  @Post(':id/materials')
+  @Permissions('services:manage')
+  async addMaterial(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: any,
+  ) {
+    return this.servicesService.addMaterialMapping(id, {
+      productId: Number(body.productId),
+      quantity: Number(body.quantity),
+      isMandatory: body.isMandatory,
+    });
+  }
+
+  @Patch('materials/:mappingId')
+  @Permissions('services:manage')
+  async updateMaterial(
+    @Param('mappingId', ParseIntPipe) mappingId: number,
+    @Body() body: any,
+  ) {
+    return this.servicesService.updateMaterialMapping(mappingId, {
+      quantity: body.quantity !== undefined ? Number(body.quantity) : undefined,
+      isMandatory: body.isMandatory,
+    });
+  }
+
+  @Delete('materials/:mappingId')
+  @Permissions('services:manage')
+  async removeMaterial(@Param('mappingId', ParseIntPipe) mappingId: number) {
+    return this.servicesService.removeMaterialMapping(mappingId);
+  }
+
+  // =====================================================================
+  // Bundle Items (Charge Explosion)
+  // =====================================================================
+
+  @Get(':id/bundle')
+  async getBundleItems(@Param('id', ParseIntPipe) id: number) {
+    return this.servicesService.getBundleItems(id);
+  }
+
+  @Post(':id/bundle')
+  @Permissions('services:manage')
+  async addBundleItem(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: any,
+  ) {
+    return this.servicesService.addBundleItem(id, {
+      childServiceId: Number(body.childServiceId),
+      quantity: body.quantity ? Number(body.quantity) : undefined,
+    });
+  }
+
+  @Delete('bundle/:bundleItemId')
+  @Permissions('services:manage')
+  async removeBundleItem(
+    @Param('bundleItemId', ParseIntPipe) bundleItemId: number,
+  ) {
+    return this.servicesService.removeBundleItem(bundleItemId);
   }
 }

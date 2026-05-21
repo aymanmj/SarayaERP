@@ -30,7 +30,6 @@ type ProductItemLite = {
   genericName?: string | null;
   strength?: string | null;
   form?: string | null;
-  unitPrice: number;
   stockOnHand: number;
 };
 

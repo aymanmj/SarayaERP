@@ -6,6 +6,7 @@ import { SoftDeleteService } from '../common/soft-delete.service';
 import { SystemSettingsModule } from '../system-settings/system-settings.module';
 import { PriceListsModule } from '../price-lists/price-lists.module';
 import { AccountingModule } from '../accounting/accounting.module';
+import { ServicesModule } from '../services/services.module';
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { AccountingModule } from '../accounting/accounting.module';
     SystemSettingsModule,
     PriceListsModule,
     AccountingModule,
+    ServicesModule,
   ],
   providers: [EncountersService, SoftDeleteService],
   controllers: [EncountersController],

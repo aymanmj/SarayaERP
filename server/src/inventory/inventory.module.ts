@@ -6,6 +6,8 @@ import { InventoryService } from './inventory.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { AccountingService } from '../accounting/accounting.service';
 
+import { InventoryAutoDepletionListener } from './inventory-auto-depletion.listener';
+
 @Module({
   controllers: [InventoryCountController, InventoryController],
   providers: [
@@ -13,6 +15,7 @@ import { AccountingService } from '../accounting/accounting.service';
     InventoryService,
     PrismaService,
     AccountingService,
+    InventoryAutoDepletionListener,
   ],
 })
 export class InventoryModule {}
