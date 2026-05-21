@@ -268,8 +268,14 @@ export const inventoryApi = {
   },
 
   removeProductUom: async (productId: number, uomId: number) => {
-    const { data } = await apiClient.delete(`/inventory/products/${productId}/uoms/${uomId}`);
-    return data;
+    const response = await apiClient.delete(`/inventory/products/${productId}/uoms/${uomId}`);
+    return response.data;
+  },
+  
+  // Master Data
+  getUOMs: async () => {
+    const response = await apiClient.get('/inventory/master-data/uoms');
+    return response.data;
   },
 
   // ==========================================

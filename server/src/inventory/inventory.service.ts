@@ -1077,4 +1077,11 @@ export class InventoryService {
       },
     });
   }
+
+  async getUOMs(hospitalId: number) {
+    return this.prisma.unitOfMeasure.findMany({
+      where: { hospitalId },
+      orderBy: { name: 'asc' },
+    });
+  }
 }

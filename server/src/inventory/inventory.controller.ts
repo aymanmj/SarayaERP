@@ -366,4 +366,10 @@ export class InventoryController {
   async createProduct(@CurrentUser() user: any, @Body() dto: any) {
     return this.inventoryService.createProduct(user.hospitalId, dto);
   }
+
+  @Get('master-data/uoms')
+  @Permissions('inventory:view')
+  async getUOMs(@CurrentUser() user: any) {
+    return this.inventoryService.getUOMs(user.hospitalId);
+  }
 }

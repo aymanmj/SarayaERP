@@ -2,7 +2,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { inventoryApi } from '../../api/inventoryApi';
-import { systemSettingsApi } from '../../api/systemSettings';
 import { toast } from 'sonner';
 
 const BoxIcon = () => (
@@ -34,7 +33,7 @@ export function ProductUOMManagementPage() {
 
   const { data: uoms } = useQuery({
     queryKey: ['uoms'],
-    queryFn: () => systemSettingsApi.getUOMs(),
+    queryFn: () => inventoryApi.getUOMs(),
   });
 
   const addUomMut = useMutation({
