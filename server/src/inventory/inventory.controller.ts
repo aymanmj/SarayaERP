@@ -19,13 +19,35 @@ import { Permissions } from '../auth/permissions.decorator';
 import { Type } from 'class-transformer';
 import {
   IsArray,
+  IsBoolean,
   IsInt,
+  IsNumber,
   IsOptional,
   IsString,
   Min,
   ValidateNested,
 } from 'class-validator';
 import { MaterialRequestStatus } from '@prisma/client';
+
+// ✅ Product UOM DTOs
+class CreateProductUomDto {
+  @IsInt()
+  @Type(() => Number)
+  uomId!: number;
+
+  @IsNumber()
+  @Min(0.001)
+  @Type(() => Number)
+  conversionRate!: number;
+
+  @IsOptional()
+  @IsBoolean()
+  isPurchasingUOM?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  isIssuingUOM?: boolean;
+}
 
 // ✅ تعريف DTO للبند في التحويل المباشر
 class TransferItemDto {
@@ -286,5 +308,32 @@ export class InventoryController {
       id,
       req.user.sub,
     );
+  }
+
+  // ==========================================
+  // Product UOM Management
+  // ==========================================
+  @Get('products')
+  @Permissions('inventory:view')
+  async getProducts(@CurrentUser() user: any) {
+    return this.inventoryService.getProductsWithUoms(user.hospitalId);
+  }
+
+  @Post('products/:productId/uoms')
+  @Permissions('inventory:manage')
+  async addProductUom(
+    @Param('productId', ParseIntPipe) productId: number,
+    @Body() dto: CreateProductUomDto,
+  ) {
+    return this.inventoryService.addProductUom(productId, dto);
+  }
+
+  @Delete('products/:productId/uoms/:uomId')
+  @Permissions('inventory:manage')
+  async removeProductUom(
+    @Param('productId', ParseIntPipe) productId: number,
+    @Param('uomId', ParseIntPipe) uomId: number,
+  ) {
+    return this.inventoryService.removeProductUom(productId, uomId);
   }
 }

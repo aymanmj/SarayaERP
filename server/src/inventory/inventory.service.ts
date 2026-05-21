@@ -939,4 +939,54 @@ export class InventoryService {
       }
     });
   }
+
+  // ==========================================
+  // Product UOM Management
+  // ==========================================
+  async getProductsWithUoms(hospitalId: number) {
+    return this.prisma.product.findMany({
+      where: { hospitalId, isActive: true, isDeleted: false },
+      include: {
+        baseUom: true,
+        productUoms: {
+          include: { uom: true }
+        }
+      },
+      orderBy: { name: 'asc' }
+    });
+  }
+
+  async addProductUom(productId: number, dto: any) {
+    return this.prisma.productUOM.upsert({
+      where: {
+        productId_uomId: {
+          productId,
+          uomId: dto.uomId,
+        }
+      },
+      update: {
+        conversionRate: dto.conversionRate,
+        isPurchasingUOM: dto.isPurchasingUOM,
+        isIssuingUOM: dto.isIssuingUOM,
+      },
+      create: {
+        productId,
+        uomId: dto.uomId,
+        conversionRate: dto.conversionRate,
+        isPurchasingUOM: dto.isPurchasingUOM || false,
+        isIssuingUOM: dto.isIssuingUOM || false,
+      }
+    });
+  }
+
+  async removeProductUom(productId: number, uomId: number) {
+    return this.prisma.productUOM.delete({
+      where: {
+        productId_uomId: {
+          productId,
+          uomId,
+        }
+      }
+    });
+  }
 }

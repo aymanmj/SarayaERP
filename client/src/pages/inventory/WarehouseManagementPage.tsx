@@ -221,7 +221,7 @@ function ZoneBinTree({ warehouse, onRefresh }: { warehouse: Warehouse; onRefresh
           <ZoneIcon /> المناطق والأرفف
           <span className="text-xs text-slate-500">({zones.length} منطقة)</span>
         </h4>
-        <button onClick={() => { setAddingZone(true); resetZoneForm(); }} className={btnSmall}>
+        <button onClick={() => { resetZoneForm(); setAddingZone(true); }} className={btnSmall}>
           <PlusIcon /> إضافة منطقة
         </button>
       </div>
@@ -309,7 +309,7 @@ function ZoneBinTree({ warehouse, onRefresh }: { warehouse: Warehouse; onRefresh
                   </div>
                 </div>
                 <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
-                  <button onClick={() => { setAddingBinForZone(zone.id); resetBinForm(); }} className={btnSmall}><PlusIcon /> رف</button>
+                  <button onClick={() => { resetBinForm(); setAddingBinForZone(zone.id); }} className={btnSmall}><PlusIcon /> رف</button>
                   <button onClick={() => startEditZone(zone)} className="p-1.5 rounded-lg hover:bg-slate-600/50 text-slate-400 hover:text-sky-400 transition-all"><EditIcon /></button>
                   <button
                     onClick={() => { if (confirm('هل أنت متأكد من حذف هذه المنطقة؟')) deleteZoneMut.mutate(zone.id); }}

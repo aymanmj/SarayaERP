@@ -250,7 +250,25 @@ export const inventoryApi = {
     items: { productId: number; quantity: number }[];
     notes?: string;
   }) => {
-    const { data } = await apiClient.post('/inventory/transfer', payload);
+    const { data } = await apiClient.post('/inventory/transfers', payload);
+    return data;
+  },
+
+  // ==========================================
+  // Product UOM Management
+  // ==========================================
+  getProductsWithUoms: async () => {
+    const { data } = await apiClient.get('/inventory/products');
+    return data;
+  },
+
+  addProductUom: async (productId: number, payload: { uomId: number, conversionRate: number, isPurchasingUOM?: boolean, isIssuingUOM?: boolean }) => {
+    const { data } = await apiClient.post(`/inventory/products/${productId}/uoms`, payload);
+    return data;
+  },
+
+  removeProductUom: async (productId: number, uomId: number) => {
+    const { data } = await apiClient.delete(`/inventory/products/${productId}/uoms/${uomId}`);
     return data;
   },
 
