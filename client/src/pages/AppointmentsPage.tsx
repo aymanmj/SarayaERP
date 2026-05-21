@@ -103,111 +103,6 @@ export default function AppointmentsPage() {
   const user = useAuthStore((s) => s.user);
   const roles = user?.roles ?? [];
   const navigate = useNavigate();
-// src/pages/AppointmentsPage.tsx
-
-import React, { useState, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import { format, addDays, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, startOfWeek, endOfWeek } from "date-fns";
-import { ar } from "date-fns/locale";
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import { ChevronLeft, ChevronRight, Calendar, Clock, Users, User, Search, Plus, Filter, X, Printer, Video, PlayCircle, FileText, CheckCircle, AlertCircle, BarChart3, Sparkles } from "lucide-react";
-import { apiClient } from "../api/apiClient";
-import { useAuthStore } from "../stores/authStore";
-import { toast } from "sonner";
-
-// --- Types ---
-type AppointmentStatus =
-  | "REQUESTED"
-  | "CONFIRMED"
-  | "CHECKED_IN"
-  | "COMPLETED"
-  | "CANCELLED"
-  | "NO_SHOW";
-
-type Appointment = {
-  id: number;
-  hospitalId: number;
-  patientId: number;
-  doctorId?: number | null;
-  status: AppointmentStatus;
-  reason?: string | null;
-  scheduledStart: string;
-  scheduledEnd: string;
-  queueNumber?: number | null;
-  isEmergency?: boolean | null;
-  encounterId?: number | null;
-  type?: "IN_PERSON" | "ONLINE";
-  meetingLink?: string | null;
-  patient: {
-    fullName: string;
-    mrn: string;
-    id: number;
-  };
-  doctor?: {
-    fullName: string;
-    id: number;
-  };
-};
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-type PatientLite = {
-  id: number;
-  fullName: string;
-  mrn: string;
-  phone: string | null;
-};
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-type DoctorLite = { 
-  id: number; 
-  fullName: string;
-  schedule?: {
-    workDays: string | null;
-    startTime: string | null;
-    endTime: string | null;
-    consultationPrice?: number | null;
-    calculatedPrice?: number | null; // ✅ السعر المحسوب من الباك اند
-  };
-  doctor?: {
-    id: number;
-    fullName: string;
-    jobRank?: string | null; // ✅ الرتبة الوظيفية
-  };
-};
-
-const statusLabels: Record<AppointmentStatus, string> = {
-  REQUESTED: "طلب جديد",
-  CONFIRMED: "مؤكّد",
-  CHECKED_IN: "جاري الكشف",
-  COMPLETED: "تم الكشف",
-  CANCELLED: "ملغى",
-  NO_SHOW: "لم يحضر",
-};
-
-const statusClasses: Record<AppointmentStatus, string> = {
-  REQUESTED: "bg-sky-800/40 text-sky-200 border border-sky-500/40",
-  CONFIRMED: "bg-emerald-800/30 text-emerald-200 border border-emerald-500/40",
-  CHECKED_IN: "bg-amber-800/30 text-amber-200 border border-amber-500/40",
-  COMPLETED: "bg-green-800/30 text-green-200 border border-green-500/40",
-  CANCELLED: "bg-rose-900/30 text-rose-200 border border-rose-500/40",
-  NO_SHOW: "bg-slate-700/60 text-slate-200 border border-slate-500/40",
-};
-
-function formatTime(iso: string) {
-  const d = new Date(iso);
-  return d.toLocaleTimeString("ar-LY", { hour: "2-digit", minute: "2-digit" });
-}
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function formatDateInput(d: Date) {
-  return d.toISOString().slice(0, 10);
-}
-
-export default function AppointmentsPage() {
-  const user = useAuthStore((s) => s.user);
-  const roles = user?.roles ?? [];
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
 
   const [date, setDate] = useState<string>(() => format(new Date(), 'yyyy-MM-dd'));
@@ -401,6 +296,567 @@ export default function AppointmentsPage() {
       queryClient.invalidateQueries({ queryKey: ['appointments-calendar', currentMonth, selectedDoctor] });
     },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    onError: (err: any) => {
+      toast.error(err.response?.data?.message || "فشل حجز الموعد");
+    },
+  });
+
+  const registerERMutation = useMutation({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      mutationFn: async (payload: any) => {
+          await apiClient.post("/encounters", payload);
+      },
+      onSuccess: () => {
+        toast.success("تم تسجيل حالة الطوارئ. المريض الآن في قائمة الفرز.");
+        setShowERModal(false);
+        setErForm({ patientId: "", complaint: "" });
+      },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      onError: (err: any) => {
+        toast.error(err.response?.data?.message || "فشل تسجيل الطوارئ");
+      }
+  });
+
+  const statusMutation = useMutation({
+      mutationFn: async ({ id, status }: { id: number, status: AppointmentStatus }) => {
+          const res = await apiClient.patch<Appointment>(`/appointments/${id}/status`, { status });
+          return res.data;
+      },
+      onSuccess: (data, variables) => {
+         queryClient.setQueryData(['appointments', date], (old: Appointment[] | undefined) => 
+            old ? old.map(a => a.id === variables.id ? data : a) : []
+         );
+         queryClient.invalidateQueries({ queryKey: ['appointments'] }); 
+         
+         if (variables.status === "CHECKED_IN" && data.encounterId) {
+            toast.success("تم بدء الزيارة. جاري الانتقال للملف الطبي...");
+            navigate(`/encounters/${data.encounterId}`);
+         } else if (variables.status === "COMPLETED") {
+             toast.success("تم إنهاء الكشف بنجاح.");
+         } else {
+            toast.success("تم تحديث الحالة");
+         }
+      },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      onError: (err: any) => {
+         toast.error(err?.response?.data?.message || "فشل تحديث الحالة.");
+      }
+  });
+
+  // Calendar Functions
+  const generateCalendarDays = () => {
+    const monthStart = startOfMonth(currentMonth);
+    const monthEnd = endOfMonth(currentMonth);
+    const calendarStart = startOfWeek(monthStart);
+    const calendarEnd = endOfWeek(monthEnd);
+    
+    const days = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
+    
+    return days.map(day => ({
+      date: day,
+      appointments: appointments.filter(apt => isSameDay(new Date(apt.scheduledStart), day)),
+      isCurrentMonth: isSameMonth(day, currentMonth),
+      isToday: isSameDay(day, new Date()),
+      isSelected: selectedDate ? isSameDay(day, selectedDate) : false
+    }));
+  };
+
+  const handleDayClick = (date: Date) => {
+    setSelectedDate(date);
+    const dayString = format(date, 'yyyy-MM-dd');
+    setDate(dayString);
+    setViewMode('table');
+  };
+
+  const navigateMonth = (direction: 'prev' | 'next') => {
+    setCurrentMonth(prev => direction === 'prev' ? subMonths(prev, 1) : addMonths(prev, 1));
+  };
+
+  const weekDays = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+
+  const getStatusColor = (status: AppointmentStatus) => {
+    switch (status) {
+      case 'REQUESTED': return 'bg-blue-500';
+      case 'CONFIRMED': return 'bg-green-500';
+      case 'CHECKED_IN': return 'bg-yellow-500';
+      case 'COMPLETED': return 'bg-gray-500';
+      case 'CANCELLED': return 'bg-red-500';
+      case 'NO_SHOW': return 'bg-orange-500';
+      default: return 'bg-gray-400';
+    }
+  };
+
+  // Filter Patients
+  const getFilteredPatients = (query: string) => {
+    if (!Array.isArray(patientsList)) return [];
+
+    if (!query) return patientsList.slice(0, 20);
+    const q = query.toLowerCase();
+    return patientsList
+      .filter(
+        (p) =>
+          p.fullName.toLowerCase().includes(q) ||
+          p.mrn.toLowerCase().includes(q) ||
+          (p.phone && p.phone.includes(q)),
+      )
+      .slice(0, 20);
+  };
+
+  // 1. Create Appointment Handle
+  async function handleCreateAppointment(e: React.FormEvent) {
+    e.preventDefault();
+    if (!form.patientId) {
+      toast.warning("اختر المريض");
+      return;
+    }
+
+    // Check for double booking - same patient at same time
+    const conflictingAppointment = appointments.find(apt => {
+      const aptStart = new Date(apt.scheduledStart);
+      const aptEnd = new Date(apt.scheduledEnd);
+      const newStart = new Date(`${date}T${form.startTime}:00`);
+      const newEnd = new Date(`${date}T${form.endTime}:00`);
+      
+      return apt.patientId === Number(form.patientId) && 
+             apt.status !== 'CANCELLED' && 
+             apt.status !== 'COMPLETED' &&
+             apt.status !== 'NO_SHOW' &&
+             ((newStart >= aptStart && newStart < aptEnd) || // New start overlaps
+              (newEnd > aptStart && newEnd <= aptEnd) ||   // New end overlaps
+              (newStart <= aptStart && newEnd >= aptEnd));  // New appointment contains existing
+    });
+
+    if (conflictingAppointment) {
+      const conflictingTime = `${formatTime(conflictingAppointment.scheduledStart)} - ${formatTime(conflictingAppointment.scheduledEnd)}`;
+      toast.error(`المريض لديه موعد محجوز بالفعل في هذا الوقت (${conflictingTime}). يرجى اختيار وقت آخر أو إلغاء الموعد السابق.`);
+      return;
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const start = new Date(`${date}T${form.startTime}:00`).toISOString();
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const end = new Date(`${date}T${form.endTime}:00`).toISOString();
+
+    createMutation.mutate({
+        patientId: Number(form.patientId),
+        doctorId: form.doctorId ? Number(form.doctorId) : undefined,
+        reason: form.reason,
+        startTime: form.startTime,
+        endTime: form.endTime,
+        type: form.type,
+        isSpecial: form.isSpecial, // ✅ Add special flag
+    });
+  }
+
+  // 2. ER Handle
+  async function handleRegisterER(e: React.FormEvent) {
+    e.preventDefault();
+    if (!erForm.patientId) {
+      toast.warning("اختر المريض");
+      return;
+    }
+
+    registerERMutation.mutate({
+        patientId: Number(erForm.patientId),
+        type: "ER",
+        chiefComplaint: erForm.complaint || "حالة طوارئ",
+    });
+  }
+
+  // 3. Status Handles
+  async function handleStartVisit(appt: Appointment) {
+    if (!confirm("هل تريد بدء الكشف وإنشاء ملف حالة طبية؟")) return;
+    setUpdatingId(appt.id);
+    statusMutation.mutate({ id: appt.id, status: "CHECKED_IN" }, { onSettled: () => setUpdatingId(null) });
+  }
+
+  async function handleCompleteVisit(appt: Appointment) {
+    if (!confirm("هل تريد إنهاء الكشف وإغلاق الموعد؟")) return;
+    setUpdatingId(appt.id);
+    statusMutation.mutate({ id: appt.id, status: "COMPLETED" }, { onSettled: () => setUpdatingId(null) });
+  }
+
+  async function handleChangeStatus(id: number, status: AppointmentStatus) {
+    if (!confirm("هل أنت متأكد من تغيير الحالة؟")) return;
+    setUpdatingId(id);
+    statusMutation.mutate({ id, status }, { onSettled: () => setUpdatingId(null) });
+  }
+
+  const creating = createMutation.isPending || registerERMutation.isPending;
+
+  // 4. Print Receipt
+  async function handlePrintReceipt(apptId: number) {
+    try {
+      const res = await apiClient.get(`/appointments/${apptId}/print`, {
+        responseType: "blob",
+      });
+      
+      const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `booking-${apptId}.pdf`); 
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (err) {
+      toast.error("فشل تحميل الإيصال.");
+    }
+  }
+
+  return (
+    <div
+      className="flex flex-col h-full text-slate-100 p-6 space-y-6"
+      dir="rtl"
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold mb-1">مكتب الاستقبال والمواعيد</h1>
+          <p className="text-sm text-slate-400">
+            حجز العيادات وتسجيل حالات الطوارئ.
+          </p>
+        </div>
+        <div className="flex gap-2">
+          {/* View Mode Toggle */}
+          <div className="flex bg-slate-700 rounded-lg p-1">
+            <button
+              onClick={() => setViewMode('table')}
+              className={`px-3 py-1 rounded text-sm transition-colors ${
+                viewMode === 'table' 
+                  ? 'bg-sky-600 text-white' 
+                  : 'text-slate-300 hover:text-white'
+              }`}
+            >
+              جدول
+            </button>
+            <button
+              onClick={() => setViewMode('calendar')}
+              className={`px-3 py-1 rounded text-sm transition-colors ${
+                viewMode === 'calendar' 
+                  ? 'bg-sky-600 text-white' 
+                  : 'text-slate-300 hover:text-white'
+              }`}
+            >
+              تقويم
+            </button>
+          </div>
+          
+          {/* ✅ زر الطوارئ الجديد */}
+          <button
+            onClick={() => setShowERModal(true)}
+            className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-sm font-bold shadow-lg shadow-rose-500/20 animate-pulse"
+          >
+            🚨 تسجيل طوارئ
+          </button>
+
+          <button
+            onClick={() => setShowAppointmentModal(true)}
+            className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-sm font-medium shadow-lg shadow-sky-500/20"
+          >
+            + حجز عيادة
+          </button>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-4">
+        {/* Date Controls */}
+        {viewMode === 'table' ? (
+          <div className="flex items-center gap-2 bg-slate-900/50 p-2 rounded-xl border border-slate-800 w-fit">
+            <span className="text-sm text-slate-400 mr-2">
+              تاريخ العرض:
+            </span>
+            <div className="relative max-w-sm">
+              <input
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                className="block w-full px-3 py-2.5 bg-slate-800 border border-slate-600 text-slate-100 text-sm rounded-lg focus:ring-sky-500 focus:border-sky-500 shadow-sm placeholder:text-slate-400 [&::-webkit-calendar-picker-indicator]:w-5 [&::-webkit-calendar-picker-indicator]:h-5 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:filter [&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:sepia-0 [&::-webkit-calendar-picker-indicator]:saturate-0 [&::-webkit-calendar-picker-indicator]:hue-rotate-180 [&::-webkit-calendar-picker-indicator]:brightness-200 [&::-webkit-calendar-picker-indicator]:contrast-100"
+                placeholder="اختر التاريخ"
+              />
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => navigateMonth('prev')}
+              className="p-2 bg-slate-700 hover:bg-slate-600 rounded-lg"
+            >
+              ←
+            </button>
+            
+            <h2 className="text-xl font-semibold min-w-[200px] text-center">
+              {format(currentMonth, 'MMMM yyyy', { locale: ar })}
+            </h2>
+            
+            <button
+              onClick={() => navigateMonth('next')}
+              className="p-2 bg-slate-700 hover:bg-slate-600 rounded-lg"
+            >
+              →
+            </button>
+            
+            <button
+              onClick={() => setCurrentMonth(new Date())}
+              className="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm"
+            >
+              اليوم
+            </button>
+            
+            <select
+              value={selectedDoctor || ''}
+              onChange={(e) => setSelectedDoctor(e.target.value ? Number(e.target.value) : null)}
+              className="bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm"
+            >
+              <option value="">جميع الأطباء</option>
+              {doctorsList.map((doctor: any) => (
+                <option key={doctor.id} value={doctor.id}>
+                  {doctor.fullName}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+        
+        <div className="flex gap-2 text-xs text-slate-300">
+          <span className="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700">
+            إجمالي: {stats.total}
+          </span>
+          <span className="px-3 py-1.5 rounded-lg bg-emerald-900/30 border border-emerald-500/30 text-emerald-400">
+            مكتملة: {stats.completed}
+          </span>
+        </div>
+      </div>
+
+      {error && (
+        <div className="text-sm text-rose-300 bg-rose-950/40 p-3 rounded-xl border border-rose-700/50">
+          {error}
+        </div>
+      )}
+
+      {/* Content based on view mode */}
+      {viewMode === 'table' ? (
+        /* Appointment Table */
+        <div className="flex-1 rounded-3xl border border-slate-800 bg-slate-950/80 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-900/50 text-slate-400 border-b border-slate-800 sticky top-0 z-10">
+                <tr>
+                  <th className="py-4 px-6 text-right font-medium">الرقم</th>
+                  <th className="py-4 px-6 text-right font-medium">الوقت</th>
+                  <th className="py-4 px-6 text-right font-medium">المريض</th>
+                  <th className="py-4 px-6 text-right font-medium">الطبيب</th>
+                  <th className="py-4 px-6 text-center font-medium min-w-[200px]">الحالة والإجراءات</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800/50">
+                {loading ? (
+                  <tr>
+                    <td colSpan={5} className="py-12 text-center text-slate-500">
+                      <div className="flex items-center justify-center gap-2">
+                        <div className="w-4 h-4 border-2 border-sky-500 border-t-transparent rounded-full animate-spin"></div>
+                        جارِ التحميل...
+                      </div>
+                    </td>
+                  </tr>
+                ) : appointments.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="py-12 text-center text-slate-500">
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center">
+                          <span className="text-slate-400">📅</span>
+                        </div>
+                        <span>لا توجد مواعيد لهذا اليوم.</span>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  appointments.map((appt, index) => (
+                    <tr key={appt.id} className={`hover:bg-slate-900/40 transition-all duration-200 ${index % 2 === 0 ? '' : 'bg-slate-900/20'}`}>
+                      <td className="py-4 px-6">
+                        <div className="flex items-center gap-2">
+                          <span className="text-slate-400 font-mono text-sm">#{appt.queueNumber ?? appt.id}</span>
+                          {appt.isEmergency && (
+                            <span className="w-2 h-2 bg-amber-500 rounded-full animate-pulse" title="حالة خاصة"></span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-4 px-6">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-sky-300 font-medium">{formatTime(appt.scheduledStart)}</span>
+                          {appt.type === "ONLINE" && (
+                            <span className="text-purple-400 text-xs">📹</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-4 px-6">
+                        <div className="flex flex-col">
+                          <span className="font-medium text-slate-200">{appt.patient?.fullName}</span>
+                          <span className="text-xs text-slate-500">{appt.patient?.mrn}</span>
+                        </div>
+                      </td>
+                      <td className="py-4 px-6 text-slate-300">
+                        <div className="flex items-center gap-2">
+                          <span>{appt.doctor?.fullName ?? "—"}</span>
+                        </div>
+                      </td>
+                      <td className="py-4 px-6">
+                        <div className="flex flex-col items-center gap-2 min-w-[200px]">
+                          {/* Status Display */}
+                          <div className="flex flex-col items-center gap-1">
+                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusClasses[appt.status]}`}>
+                              {statusLabels[appt.status]}
+                            </span>
+                            {appt.isEmergency && (
+                              <span className="px-2 py-0.5 bg-amber-600/20 text-amber-300 border border-amber-600/40 rounded-full text-xs font-medium">
+                                ⚠️ خاص
+                              </span>
+                            )}
+                          </div>
+                          
+                          {/* Actions */}
+                          <div className="flex flex-wrap items-center justify-center gap-1.5">
+                            {isReception && appt.status === "REQUESTED" && (
+                              <button
+                                onClick={() => handleChangeStatus(appt.id, "CONFIRMED")}
+                                className="px-2.5 py-1 bg-emerald-700 hover:bg-emerald-600 rounded-md text-xs text-white font-medium transition-colors"
+                              >
+                                تأكيد
+                              </button>
+                            )}
+
+                            {isDoctor && (appt.status === "CONFIRMED" || appt.status === "REQUESTED") && (
+                              <button
+                                disabled={updatingId === appt.id}
+                                onClick={() => handleStartVisit(appt)}
+                                className="px-2.5 py-1 bg-sky-600 hover:bg-sky-500 rounded-md text-xs text-white font-medium shadow-md shadow-sky-500/20 flex items-center gap-1 transition-all disabled:opacity-50"
+                              >
+                                <span>▶</span>
+                                ابدأ
+                              </button>
+                            )}
+
+                            {isDoctor && appt.status === "CHECKED_IN" && appt.encounterId && (
+                              <>
+                                <button
+                                  onClick={() => navigate(`/encounters/${appt.encounterId}`)}
+                                  className="px-2.5 py-1 bg-amber-600 hover:bg-amber-500 rounded-md text-xs text-white font-medium transition-colors"
+                                >
+                                  ملف
+                                </button>
+                                <button
+                                  onClick={() => handleCompleteVisit(appt)}
+                                  className="px-2.5 py-1 bg-emerald-700 hover:bg-emerald-600 rounded-md text-xs text-white font-medium transition-colors"
+                                >
+                                  إنهاء
+                                </button>
+                              </>
+                            )}
+
+                            {isReception && appt.status !== "CANCELLED" && appt.status !== "COMPLETED" && (
+                              <button
+                                onClick={() => handleChangeStatus(appt.id, "CANCELLED")}
+                                className="px-2.5 py-1 text-rose-400 hover:text-rose-300 hover:bg-rose-950/30 rounded-md text-xs font-medium transition-all"
+                              >
+                                إلغاء
+                              </button>
+                            )}
+
+                            {appt.type === "ONLINE" && appt.meetingLink && (
+                              <a
+                                href={appt.meetingLink}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="px-2.5 py-1 bg-purple-700 hover:bg-purple-600 rounded-md text-xs text-white font-medium shadow-md shadow-purple-500/20 flex items-center gap-1 transition-colors"
+                              >
+                                📹
+                              </a>
+                            )}
+
+                            {(appt.status === "CONFIRMED" || appt.status === "REQUESTED") && (
+                              <button
+                                onClick={() => handlePrintReceipt(appt.id)}
+                                className="px-2.5 py-1 bg-slate-700 hover:bg-slate-600 rounded-md text-xs text-slate-200 font-medium border border-slate-600 flex items-center gap-1 transition-colors"
+                                title="طباعة تذكرة موعد"
+                              >
+                                🖨️
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : (
+        /* Calendar View */
+        <div className="bg-slate-900/50 rounded-xl border border-slate-700 overflow-hidden">
+          {/* Week days header */}
+          <div className="grid grid-cols-7 bg-slate-800/50 border-b border-slate-700">
+            {weekDays.map(day => (
+              <div key={day} className="p-3 text-center text-sm font-medium text-slate-300">
+                {day}
+              </div>
+            ))}
+          </div>
+          
+          {/* Calendar days */}
+          <div className="grid grid-cols-7">
+            {generateCalendarDays().map((day, index) => (
+              <div
+                key={index}
+                onClick={() => handleDayClick(day.date)}
+                className={`min-h-[100px] p-2 border border-slate-700 cursor-pointer transition-colors ${
+                  !day.isCurrentMonth ? 'bg-slate-800/30 text-slate-500' : 'bg-slate-900/30'
+                } ${
+                  day.isToday ? 'ring-2 ring-sky-500' : ''
+                } ${
+                  day.isSelected ? 'bg-slate-700/50' : ''
+                } hover:bg-slate-700/50`}
+              >
+                <div className="flex justify-between items-start mb-1">
+                  <span className={`text-sm font-medium ${
+                    day.isToday ? 'text-sky-400' : ''
+                  }`}>
+                    {format(day.date, 'd')}
+                  </span>
+                  {day.appointments.length > 0 && (
+                    <span className="text-xs bg-sky-600 px-1 rounded">
+                      {day.appointments.length}
+                    </span>
+                  )}
+                </div>
+                
+                <div className="space-y-1">
+                  {day.appointments.slice(0, 3).map((apt, idx) => (
+                    <div
+                      key={apt.id}
+                      className={`text-xs p-1 rounded truncate ${getStatusColor(apt.status)} text-white`}
+                      title={`${apt.patient.fullName} - ${formatTime(apt.scheduledStart)}`}
+                    >
+                      {apt.patient.fullName.split(' ')[0]} - {formatTime(apt.scheduledStart)}
+                    </div>
+                  ))}
+                  {day.appointments.length > 3 && (
+                    <div className="text-xs text-slate-400">
+                      +{day.appointments.length - 3} أخرى
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Appointment Modal */}
+      {showAppointmentModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="bg-slate-950 border border-slate-700 rounded-2xl w-full max-w-lg max-h-[85vh] overflow-hidden flex flex-col shadow-2xl">
             {/* Sticky Header */}
             <div className="sticky top-0 bg-slate-950 border-b border-slate-700 p-6 pb-4">
               <div className="flex items-center justify-between">

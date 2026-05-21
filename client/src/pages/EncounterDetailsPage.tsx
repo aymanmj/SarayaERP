@@ -703,9 +703,9 @@ export default function EncounterDetailsPage() {
   };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const handleAddVisitNote = (data: any) => {
+  const handleAddVisitNote = async (data: any) => {
     if (!encounter) return;
-    addVisitNoteMutation.mutate(data);
+    await addVisitNoteMutation.mutateAsync(data);
   };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

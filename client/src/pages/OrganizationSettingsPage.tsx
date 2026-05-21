@@ -362,8 +362,6 @@ export default function OrganizationSettingsPage() {
             </label>
           </div>
         </div>
-
-        </div>
       </div>
 
       {/* === MPI Network Dashboard === */}
