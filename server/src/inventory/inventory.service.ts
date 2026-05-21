@@ -698,7 +698,6 @@ export class InventoryService {
               batchNumber: st.batchNumber,
               quantity: take,
               expiryDate: st.expiryDate,
-              unitCost: costToUse,
             });
             rem -= take;
           }
@@ -771,7 +770,6 @@ export class InventoryService {
               batchNumber: alloc.batchNumber,
               expiryDate: alloc.expiryDate,
               issuedQty: new Prisma.Decimal(alloc.quantity),
-              unitCost: new Prisma.Decimal(costPrice),
             },
           });
         }
@@ -832,7 +830,11 @@ export class InventoryService {
         const qty = Number(item.issuedQty);
 
         // الحصول على تكلفة الشراء من إذن الصرف
-        const costPrice = Number(item.unitCost || 0);
+        const product = await tx.product.findUnique({
+          where: { id: item.productId },
+          select: { costPrice: true }
+        });
+        const costPrice = Number(product?.costPrice || 0);
 
         // إضافة للمستلم (Upsert)
         const existingStock = await tx.productStock.findFirst({
@@ -1073,7 +1075,6 @@ export class InventoryService {
         sellPrice: dto.sellPrice || 0,
         minStock: dto.minStock || 0,
         maxStock: dto.maxStock || null,
-        reorderLevel: dto.reorderLevel || null,
       },
     });
   }

@@ -134,7 +134,7 @@ export class ProcurementController {
   @Permissions('inventory:view') // Reusing inventory permissions for now, could be purchases:view
   async getSuppliers(@Req() req: any) {
     return this.prisma.supplier.findMany({
-      where: { hospitalId: req.user.hospitalId, isDeleted: false, isActive: true },
+      where: { hospitalId: req.user.hospitalId, isActive: true },
     });
   }
 
