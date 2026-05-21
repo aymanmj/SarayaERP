@@ -29,16 +29,33 @@ export class ProcurementService {
     hospitalId: number;
     userId: number;
     departmentId?: number;
-    items: { productId: number; quantity: number }[];
+    items: { productId: number; uomId: number; quantity: number }[];
     notes?: string;
   }) {
-    // التحقق من المنتجات
+    // التحقق من المنتجات ووحدات القياس
     const productIds = data.items.map((i) => i.productId);
     const count = await this.prisma.product.count({
       where: { id: { in: productIds }, hospitalId: data.hospitalId },
     });
     if (count !== productIds.length)
       throw new BadRequestException('بعض المنتجات غير صالحة');
+
+    const productUoms = await this.prisma.productUOM.findMany({
+      where: {
+        OR: data.items.map(i => ({ productId: i.productId, uomId: i.uomId }))
+      }
+    });
+
+    const itemsData = data.items.map((i) => {
+      const uom = productUoms.find(pu => pu.productId === i.productId && pu.uomId === i.uomId);
+      const conversionRate = uom ? Number(uom.conversionRate) : 1;
+      return {
+        productId: i.productId,
+        uomId: i.uomId,
+        quantity: i.quantity,
+        baseQuantity: i.quantity * conversionRate,
+      };
+    });
 
     const prNumber = `PR-${Date.now()}`; // يفضل استخدام sequence حقيقي
 
@@ -51,10 +68,7 @@ export class ProcurementService {
         status: PRStatus.PENDING,
         notes: data.notes,
         items: {
-          create: data.items.map((i) => ({
-            productId: i.productId,
-            quantity: i.quantity,
-          })),
+          create: itemsData,
         },
       },
     });
@@ -88,14 +102,18 @@ export class ProcurementService {
       // حساب الإجمالي المبدئي (بناءً على التكلفة الحالية للمنتج)
       let totalAmount = 0;
       const poItems = pr.items.map((item) => {
-        const unitPrice = Number(item.product.costPrice); // السعر المتوقع
-        const lineTotal = unitPrice * Number(item.quantity);
+        const unitPriceBase = Number(item.product.costPrice); // السعر الأساسي المتوقع للوحدة الصغرى
+        const conversionRate = Number(item.quantity) > 0 ? Number(item.baseQuantity) / Number(item.quantity) : 1;
+        const uomPrice = unitPriceBase * conversionRate;
+        const lineTotal = uomPrice * Number(item.quantity);
         totalAmount += lineTotal;
 
         return {
           productId: item.productId,
+          uomId: item.uomId,
           quantity: item.quantity,
-          unitPrice: unitPrice,
+          baseQuantity: item.baseQuantity,
+          unitPrice: uomPrice,
           totalPrice: lineTotal,
           receivedQuantity: 0,
         };
@@ -141,6 +159,7 @@ export class ProcurementService {
     warehouseId: number;
     items: {
       productId: number;
+      uomId: number;
       quantity: number;
       batchNumber: string;
       expiryDate: Date;
@@ -154,6 +173,22 @@ export class ProcurementService {
       });
       if (!po) throw new NotFoundException('PO not found');
 
+      // جلب معاملات التحويل للوحدات
+      const productUoms = await tx.productUOM.findMany({
+        where: {
+          OR: data.items.map(i => ({ productId: i.productId, uomId: i.uomId }))
+        }
+      });
+
+      const receivedItemsData = data.items.map((i) => {
+        const uom = productUoms.find(pu => pu.productId === i.productId && pu.uomId === i.uomId);
+        const conversionRate = uom ? Number(uom.conversionRate) : 1;
+        return {
+          ...i,
+          baseQuantity: i.quantity * conversionRate
+        };
+      });
+
       // 1. إنشاء سجل GRN
       const grnNumber = `GRN-${Date.now()}`;
       const grn = await tx.goodsReceipt.create({
@@ -166,9 +201,11 @@ export class ProcurementService {
           status: GRNStatus.COMPLETED, // نفترض أنه استلام نهائي فوراً
           notes: data.notes,
           items: {
-            create: data.items.map((i) => ({
+            create: receivedItemsData.map((i) => ({
               productId: i.productId,
+              uomId: i.uomId,
               quantity: i.quantity,
+              baseQuantity: i.baseQuantity,
               batchNumber: i.batchNumber,
               expiryDate: i.expiryDate,
             })),
@@ -193,16 +230,17 @@ export class ProcurementService {
       let totalGrnValue = 0;
 
       // 2. معالجة كل صنف
-      for (const receivedItem of data.items) {
+      for (const receivedItem of receivedItemsData) {
         // البحث عن السعر في الـ PO (لتقييم المخزون بالتكلفة المتفق عليها)
         const poItem = po.items.find(
           (i) => i.productId === receivedItem.productId,
         );
-        const unitCost = Number(poItem?.unitPrice ?? 0); // لو غير موجود، صفر أو سعر المنتج الحالي
+        const unitCost = Number(poItem?.unitPrice ?? 0); // التكلفة للوحدة الكبيرة
+        const baseUnitCost = receivedItem.baseQuantity > 0 ? (unitCost * receivedItem.quantity) / receivedItem.baseQuantity : 0;
         const lineValue = unitCost * receivedItem.quantity;
         totalGrnValue += lineValue;
 
-        // أ) تحديث المخزون (ProductStock)
+        // أ) تحديث المخزون (ProductStock) بالوحدة الصغرى
         await tx.productStock.upsert({
           where: {
             warehouseId_productId_batchNumber: {
@@ -211,24 +249,24 @@ export class ProcurementService {
               batchNumber: receivedItem.batchNumber,
             },
           },
-          update: { quantity: { increment: receivedItem.quantity } },
+          update: { quantity: { increment: receivedItem.baseQuantity } },
           create: {
             hospitalId: data.hospitalId,
             warehouseId: data.warehouseId,
             productId: receivedItem.productId,
             batchNumber: receivedItem.batchNumber,
             expiryDate: receivedItem.expiryDate,
-            quantity: receivedItem.quantity,
+            quantity: receivedItem.baseQuantity,
           },
         });
 
         // ب) تحديث المنتج الرئيسي (StockOnHand & Cost)
-        // (يمكن هنا تطبيق Weighted Average Cost، للتبسيط سنستخدم آخر سعر شراء)
+        // (يمكن هنا تطبيق Weighted Average Cost، للتبسيط سنستخدم التكلفة للوحدة الصغرى)
         await tx.product.update({
           where: { id: receivedItem.productId },
           data: {
-            stockOnHand: { increment: receivedItem.quantity },
-            costPrice: unitCost, // تحديث التكلفة
+            stockOnHand: { increment: receivedItem.baseQuantity },
+            costPrice: baseUnitCost, // تحديث التكلفة للوحدة الصغرى
           },
         });
 
@@ -240,7 +278,9 @@ export class ProcurementService {
             productId: receivedItem.productId,
             type: StockTransactionType.IN,
             quantity: receivedItem.quantity,
-            unitCost: unitCost,
+            uomId: receivedItem.uomId,
+            baseQuantity: receivedItem.baseQuantity,
+            unitCost: baseUnitCost, // نسجل التكلفة الأساسية هنا
             totalCost: lineValue,
             batchNumber: receivedItem.batchNumber,
             expiryDate: receivedItem.expiryDate,
@@ -250,11 +290,15 @@ export class ProcurementService {
           },
         });
 
-        // د) تحديث الكمية المستلمة في الـ PO
+        // د) تحديث الكمية المستلمة في الـ PO بوحدة الـ PO
         if (poItem) {
+          // يمكن أن تكون وحدة الـ GRN مختلفة عن وحدة الـ PO، لذلك نحسب النسبة ونعكسها لوحدة PO
+          const poConversionRate = Number(poItem.quantity) > 0 ? Number(poItem.baseQuantity) / Number(poItem.quantity) : 1;
+          const receivedQtyInPoUom = receivedItem.baseQuantity / poConversionRate;
+          
           await tx.purchaseOrderItem.update({
             where: { id: poItem.id },
-            data: { receivedQuantity: { increment: receivedItem.quantity } },
+            data: { receivedQuantity: { increment: receivedQtyInPoUom } },
           });
         }
       }

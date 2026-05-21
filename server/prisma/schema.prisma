@@ -1188,12 +1188,16 @@ model PurchaseRequest {
 }
 
 model PurchaseRequestItem {
-  id                Int             @id @default(autoincrement())
+  id                Int     @id @default(autoincrement())
   purchaseRequestId Int
   productId         Int
-  quantity          Decimal         @db.Decimal(18, 3)
-  product           Product         @relation(fields: [productId], references: [id])
-  purchaseRequest   PurchaseRequest @relation(fields: [purchaseRequestId], references: [id], onDelete: Cascade)
+  quantity          Decimal @db.Decimal(18, 3)
+  uomId             Int?
+  baseQuantity      Decimal @default(0) @db.Decimal(18, 3)
+
+  product         Product         @relation(fields: [productId], references: [id])
+  purchaseRequest PurchaseRequest @relation(fields: [purchaseRequestId], references: [id], onDelete: Cascade)
+  uom             UnitOfMeasure?  @relation(fields: [uomId], references: [id])
 }
 
 model PurchaseOrder {
@@ -1219,15 +1223,19 @@ model PurchaseOrder {
 }
 
 model PurchaseOrderItem {
-  id               Int           @id @default(autoincrement())
+  id               Int     @id @default(autoincrement())
   purchaseOrderId  Int
   productId        Int
-  quantity         Decimal       @db.Decimal(18, 3)
-  unitPrice        Decimal       @db.Decimal(18, 3)
-  totalPrice       Decimal       @db.Decimal(18, 3)
-  receivedQuantity Decimal       @default(0) @db.Decimal(18, 3)
-  product          Product       @relation(fields: [productId], references: [id])
-  purchaseOrder    PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  quantity         Decimal @db.Decimal(18, 3)
+  uomId            Int?
+  baseQuantity     Decimal @default(0) @db.Decimal(18, 3)
+  unitPrice        Decimal @db.Decimal(18, 3)
+  totalPrice       Decimal @db.Decimal(18, 3)
+  receivedQuantity Decimal @default(0) @db.Decimal(18, 3)
+
+  product       Product        @relation(fields: [productId], references: [id])
+  purchaseOrder PurchaseOrder  @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  uom           UnitOfMeasure? @relation(fields: [uomId], references: [id])
 }
 
 // ==========================================
@@ -1868,14 +1876,18 @@ model GoodsReceipt {
 }
 
 model GoodsReceiptItem {
-  id             Int          @id @default(autoincrement())
+  id             Int       @id @default(autoincrement())
   goodsReceiptId Int
   productId      Int
-  quantity       Decimal      @db.Decimal(18, 3)
+  quantity       Decimal   @db.Decimal(18, 3)
+  uomId          Int?
+  baseQuantity   Decimal   @default(0) @db.Decimal(18, 3)
   batchNumber    String?
   expiryDate     DateTime?
-  goodsReceipt   GoodsReceipt @relation(fields: [goodsReceiptId], references: [id], onDelete: Cascade)
-  product        Product      @relation(fields: [productId], references: [id])
+
+  goodsReceipt GoodsReceipt   @relation(fields: [goodsReceiptId], references: [id], onDelete: Cascade)
+  product      Product        @relation(fields: [productId], references: [id])
+  uom          UnitOfMeasure? @relation(fields: [uomId], references: [id])
 }
 
 model ProductStock {
@@ -1959,6 +1971,8 @@ model StockTransaction {
   productId         Int
   type              StockTransactionType
   quantity          Decimal              @db.Decimal(18, 3)
+  uomId             Int?
+  baseQuantity      Decimal              @default(0) @db.Decimal(18, 3)
   unitCost          Decimal              @db.Decimal(18, 3)
   totalCost         Decimal              @db.Decimal(18, 3)
   referenceType     String?
@@ -1980,6 +1994,7 @@ model StockTransaction {
   bin               WarehouseBin?        @relation(fields: [binId], references: [id])
   stockIssueId      Int?
   stockIssue        StockIssue?          @relation(fields: [stockIssueId], references: [id])
+  uom               UnitOfMeasure?       @relation(fields: [uomId], references: [id])
 
   @@index([hospitalId, productId])
   @@index([referenceType, referenceId])
@@ -2029,6 +2044,11 @@ model UnitOfMeasure {
   products             Product[]             @relation("ProductBaseUom")
   productUoms          ProductUOM[]
   materialRequestItems MaterialRequestItem[]
+  purchaseRequestItems PurchaseRequestItem[]
+  purchaseOrderItems   PurchaseOrderItem[]
+  goodsReceiptItems    GoodsReceiptItem[]
+  stockTransactions    StockTransaction[]
+  stockIssueItems      StockIssueItem[]
 
   @@unique([hospitalId, code])
 }
@@ -2116,9 +2136,12 @@ model StockIssueItem {
   batchNumber  String?
   expiryDate   DateTime?
   issuedQty    Decimal   @db.Decimal(18, 3)
+  uomId        Int?
+  baseQuantity Decimal   @default(0) @db.Decimal(18, 3)
 
-  stockIssue StockIssue @relation(fields: [stockIssueId], references: [id], onDelete: Cascade)
-  product    Product    @relation(fields: [productId], references: [id])
+  stockIssue StockIssue     @relation(fields: [stockIssueId], references: [id], onDelete: Cascade)
+  product    Product        @relation(fields: [productId], references: [id])
+  uom        UnitOfMeasure? @relation(fields: [uomId], references: [id])
 }
 
 model Prescription {

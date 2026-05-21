@@ -5,10 +5,13 @@ import { InventoryCountDetailsPage } from "../pages/inventory/InventoryCountDeta
 import InventoryCountPrintPage from "../pages/inventory/InventoryCountPrintPage";
 import { WarehouseManagementPage } from "../pages/inventory/WarehouseManagementPage";
 
-// Material Requests
 import { MaterialRequestsPage } from "../pages/inventory/MaterialRequestsPage";
 import { CreateMaterialRequestPage } from "../pages/inventory/CreateMaterialRequestPage";
 import { MaterialRequestDetailsPage } from "../pages/inventory/MaterialRequestDetailsPage";
+
+// Procurement
+import { CreatePurchaseRequestPage } from "../pages/inventory/procurement/CreatePurchaseRequestPage";
+import { CreateGoodsReceiptPage } from "../pages/inventory/procurement/CreateGoodsReceiptPage";
 
 export const InventoryRoutes = (
   <>
@@ -28,6 +31,10 @@ export const InventoryRoutes = (
     <Route path="/inventory/material-requests" element={<MaterialRequestsPage />} />
     <Route path="/inventory/material-requests/new" element={<CreateMaterialRequestPage />} />
     <Route path="/inventory/material-requests/:id" element={<MaterialRequestDetailsPage />} />
+    
+    {/* Procurement */}
+    <Route path="/inventory/procurement/pr/new" element={<CreatePurchaseRequestPage />} />
+    <Route path="/inventory/procurement/grn/new" element={<CreateGoodsReceiptPage />} />
   </>
 );
 
