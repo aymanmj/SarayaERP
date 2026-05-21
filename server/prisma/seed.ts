@@ -1590,6 +1590,13 @@ async function main() {
       description: 'السحب التلقائي بنظام (FEFO)',
     },
     {
+      key: 'purchases.requirePoApproval',
+      value: 'true',
+      type: 'BOOLEAN',
+      group: 'INVENTORY',
+      description: 'إلزامية اعتماد أوامر الشراء من الإدارة',
+    },
+    {
       key: 'medical.defaultLanguage',
       value: 'ar',
       type: 'STRING',

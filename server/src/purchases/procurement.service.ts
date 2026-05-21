@@ -257,6 +257,7 @@ export class ProcurementService {
             batchNumber: receivedItem.batchNumber,
             expiryDate: receivedItem.expiryDate,
             quantity: receivedItem.baseQuantity,
+            unitCost: baseUnitCost,
           },
         });
 

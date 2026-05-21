@@ -150,6 +150,10 @@ function ZoneBinTree({ warehouse, onRefresh }: { warehouse: Warehouse; onRefresh
 
   const queryClient = useQueryClient();
 
+  if (!warehouse) {
+    return <div className="text-center p-4 text-slate-500 text-sm">جاري تحميل بيانات المستودع...</div>;
+  }
+
   const toggleZone = (id: number) => {
     setExpandedZones(prev => {
       const next = new Set(prev);

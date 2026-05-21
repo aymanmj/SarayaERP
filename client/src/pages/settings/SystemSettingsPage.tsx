@@ -27,12 +27,14 @@ const KEY_LABELS: Record<string, string> = {
   'otp.maxAttempts': 'الحد الأقصى للمحاولات',
   'inventory.requireMaterialRequestApproval': 'إلزامية اعتماد طلبات المواد',
   'inventory.autoFefoAllocation': 'السحب التلقائي بنظام (FEFO)',
+  'purchases.requirePoApproval': 'إلزامية اعتماد أوامر الشراء',
 };
 
 const KEY_DESCRIPTIONS: Record<string, string> = {
   'inventory.requireMaterialRequestApproval': 'عند التفعيل، ستحتاج طلبات صرف المواد من المخزن إلى موافقة مدير المخزن قبل عملية الصرف.',
   'inventory.autoFefoAllocation': 'عند التفعيل، سيقوم النظام تلقائياً بتحديد وصرف التشغيلات (Batches) الأقرب لانتهاء الصلاحية دون تدخّل يدوي.',
   'accounting.allowNegativeStock': 'السماح بصرف كميات غير متوفرة دفترياً، مما ينتج عنه أرصدة سالبة تُسوّى لاحقاً.',
+  'purchases.requirePoApproval': 'عند التفعيل، لن يكون من الممكن استلام البضائع لأوامر الشراء إلا بعد اعتمادها من قبل الإدارة.',
 };
 
 export const SystemSettingsPage = () => {

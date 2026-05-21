@@ -12,9 +12,12 @@ import { MaterialRequestDetailsPage } from "../pages/inventory/MaterialRequestDe
 // Procurement
 import { CreatePurchaseRequestPage } from "../pages/inventory/procurement/CreatePurchaseRequestPage";
 import { CreateGoodsReceiptPage } from "../pages/inventory/procurement/CreateGoodsReceiptPage";
+import { PurchaseOrdersPage } from "../pages/inventory/procurement/PurchaseOrdersPage";
 
 // Settings & Master Data
 import { ProductUOMManagementPage } from "../pages/inventory/ProductUOMManagementPage";
+import { ItemCategoriesManagementPage } from "../pages/inventory/master-data/ItemCategoriesManagementPage";
+import { ProductsMasterDataPage } from "../pages/inventory/master-data/ProductsMasterDataPage";
 
 export const InventoryRoutes = (
   <>
@@ -38,9 +41,12 @@ export const InventoryRoutes = (
     {/* Procurement */}
     <Route path="/inventory/procurement/pr/new" element={<CreatePurchaseRequestPage />} />
     <Route path="/inventory/procurement/grn/new" element={<CreateGoodsReceiptPage />} />
+    <Route path="/purchases/orders" element={<PurchaseOrdersPage />} />
 
     {/* Master Data */}
     <Route path="/inventory/settings/product-uoms" element={<ProductUOMManagementPage />} />
+    <Route path="/inventory/master-data/categories" element={<ItemCategoriesManagementPage />} />
+    <Route path="/inventory/master-data/products" element={<ProductsMasterDataPage />} />
   </>
 );
 

@@ -553,7 +553,20 @@ export class InventoryService {
         include: {
           items: {
             include: {
-              product: { select: { id: true, name: true, costPrice: true, baseUomId: true } },
+              product: {
+                select: {
+                  id: true,
+                  name: true,
+                  costPrice: true,
+                  baseUomId: true,
+                  category: {
+                    select: {
+                      valuationMethod: true,
+                      expenseAccountId: true,
+                    }
+                  }
+                }
+              },
             },
           },
         },
@@ -645,18 +658,29 @@ export class InventoryService {
               expiryDate: stock.expiryDate,
             },
           ];
-        } else {
-          // FEFO
+          // Determine sorting order based on Valuation Method
+          const valuationMethod = product.category?.valuationMethod || 'WEIGHTED_AVERAGE';
+          
+          let orderByList: any[] = [];
+          if (valuationMethod === 'LIFO') {
+            orderByList = [{ createdAt: 'desc' }];
+          } else if (valuationMethod === 'FIFO') {
+            orderByList = [{ createdAt: 'asc' }];
+          } else {
+            // WEIGHTED_AVERAGE usually depletes FEFO (First Expired First Out) or FIFO for physical stock
+            orderByList = [
+              { expiryDate: 'asc' },
+              { createdAt: 'asc' },
+            ];
+          }
+
           const stocks = await tx.productStock.findMany({
             where: {
               warehouseId: mr.fulfillingWarehouseId,
               productId: reqItem.productId,
               quantity: { gt: 0 },
             },
-            orderBy: [
-              { expiryDate: 'asc' },
-              { createdAt: 'asc' },
-            ],
+            orderBy: orderByList,
           });
 
           let rem = issueQtyInBase;
@@ -664,10 +688,17 @@ export class InventoryService {
             if (rem <= 0) break;
             const avail = Number(st.quantity);
             const take = Math.min(avail, rem);
+            
+            // For Weighted Average, we use the product's overall costPrice instead of batch's unitCost.
+            const costToUse = valuationMethod === 'WEIGHTED_AVERAGE' 
+              ? Number(product.costPrice || 0)
+              : Number(st.unitCost || 0);
+
             allocations.push({
               batchNumber: st.batchNumber,
               quantity: take,
               expiryDate: st.expiryDate,
+              unitCost: costToUse,
             });
             rem -= take;
           }
@@ -711,7 +742,9 @@ export class InventoryService {
           }
 
           // تسجيل حركة خروج
-          const costPrice = Number(product.costPrice || 0);
+          // Ensure we use the cost calculated from the allocation
+          const costPrice = (alloc as any).unitCost || Number(product.costPrice || 0);
+          
           await tx.stockTransaction.create({
             data: {
               hospitalId,
@@ -738,6 +771,7 @@ export class InventoryService {
               batchNumber: alloc.batchNumber,
               expiryDate: alloc.expiryDate,
               issuedQty: new Prisma.Decimal(alloc.quantity),
+              unitCost: new Prisma.Decimal(costPrice),
             },
           });
         }
@@ -797,6 +831,9 @@ export class InventoryService {
       for (const item of issue.items) {
         const qty = Number(item.issuedQty);
 
+        // الحصول على تكلفة الشراء من إذن الصرف
+        const costPrice = Number(item.unitCost || 0);
+
         // إضافة للمستلم (Upsert)
         const existingStock = await tx.productStock.findFirst({
           where: {
@@ -820,17 +857,11 @@ export class InventoryService {
               batchNumber: item.batchNumber,
               expiryDate: item.expiryDate,
               quantity: qty,
+              unitCost: new Prisma.Decimal(costPrice),
               version: 1,
             },
           });
         }
-
-        // الحصول على تكلفة الشراء
-        const product = await tx.product.findUnique({
-          where: { id: item.productId },
-          select: { costPrice: true },
-        });
-        const costPrice = Number(product?.costPrice || 0);
 
         // تسجيل حركة دخول
         await tx.stockTransaction.create({
@@ -987,6 +1018,63 @@ export class InventoryService {
           uomId,
         }
       }
+    });
+  }
+
+  // ==========================================
+  // Master Data
+  // ==========================================
+  async getItemCategories(hospitalId: number) {
+    return this.prisma.itemCategory.findMany({
+      where: { hospitalId, isActive: true },
+      include: {
+        inventoryAccount: true,
+        expenseAccount: true,
+      },
+      orderBy: { name: 'asc' },
+    });
+  }
+
+  async createItemCategory(hospitalId: number, dto: any) {
+    return this.prisma.itemCategory.create({
+      data: {
+        hospitalId,
+        name: dto.name,
+        code: dto.code,
+        valuationMethod: dto.valuationMethod || 'WEIGHTED_AVERAGE',
+        inventoryAccountId: dto.inventoryAccountId || null,
+        expenseAccountId: dto.expenseAccountId || null,
+        parentId: dto.parentId || null,
+      },
+    });
+  }
+
+  async getMasterProducts(hospitalId: number) {
+    return this.prisma.product.findMany({
+      where: { hospitalId, isDeleted: false },
+      include: {
+        category: true,
+        baseUom: true,
+      },
+      orderBy: { name: 'asc' },
+    });
+  }
+
+  async createProduct(hospitalId: number, dto: any) {
+    return this.prisma.product.create({
+      data: {
+        hospitalId,
+        name: dto.name,
+        code: dto.code,
+        type: dto.type || 'CONSUMABLE',
+        categoryId: dto.categoryId || null,
+        baseUomId: dto.baseUomId || null,
+        costPrice: dto.costPrice || 0,
+        sellPrice: dto.sellPrice || 0,
+        minStock: dto.minStock || 0,
+        maxStock: dto.maxStock || null,
+        reorderLevel: dto.reorderLevel || null,
+      },
     });
   }
 }

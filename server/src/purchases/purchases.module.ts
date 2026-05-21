@@ -3,6 +3,7 @@
 import { Module } from '@nestjs/common';
 import { PurchasesController } from './purchases.controller';
 import { PurchaseReturnsController } from './purchase-returns.controller'; // ✅ [NEW]
+import { ProcurementController } from './procurement.controller';
 import { PurchasesService } from './purchases.service';
 import { ProcurementService } from './procurement.service';
 import { PurchaseReturnsService } from './purchase-returns.service';
@@ -11,7 +12,7 @@ import { AccountingModule } from '../accounting/accounting.module';
 
 @Module({
   imports: [PrismaModule, AccountingModule],
-  controllers: [PurchasesController, PurchaseReturnsController], // ✅ [NEW]
+  controllers: [PurchasesController, PurchaseReturnsController, ProcurementController], // ✅ [NEW]
   providers: [PurchasesService, ProcurementService, PurchaseReturnsService],
   exports: [PurchasesService, ProcurementService, PurchaseReturnsService],
 })

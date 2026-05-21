@@ -7,6 +7,9 @@ import {
   Param,
   ParseIntPipe,
   Post,
+  Put,
+  Patch,
+  Delete,
   Query,
   UseGuards,
   Req,
@@ -335,5 +338,32 @@ export class InventoryController {
     @Param('uomId', ParseIntPipe) uomId: number,
   ) {
     return this.inventoryService.removeProductUom(productId, uomId);
+  }
+
+  // ==========================================
+  // Master Data
+  // ==========================================
+  @Get('master-data/categories')
+  @Permissions('inventory:view')
+  async getCategories(@CurrentUser() user: any) {
+    return this.inventoryService.getItemCategories(user.hospitalId);
+  }
+
+  @Post('master-data/categories')
+  @Permissions('inventory:manage')
+  async createCategory(@CurrentUser() user: any, @Body() dto: any) {
+    return this.inventoryService.createItemCategory(user.hospitalId, dto);
+  }
+
+  @Get('master-data/products')
+  @Permissions('inventory:view')
+  async getMasterProducts(@CurrentUser() user: any) {
+    return this.inventoryService.getMasterProducts(user.hospitalId);
+  }
+
+  @Post('master-data/products')
+  @Permissions('inventory:manage')
+  async createProduct(@CurrentUser() user: any, @Body() dto: any) {
+    return this.inventoryService.createProduct(user.hospitalId, dto);
   }
 }

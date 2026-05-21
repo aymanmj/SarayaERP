@@ -1899,6 +1899,7 @@ model ProductStock {
   minStock     Decimal       @default(0) @db.Decimal(18, 3)
   maxStock     Decimal?      @db.Decimal(18, 3)
   reorderLevel Decimal?      @db.Decimal(18, 3)
+  unitCost     Decimal       @default(0) @db.Decimal(18, 3)
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
   batchNumber  String?
@@ -2014,20 +2015,32 @@ enum StockIssueStatus {
   RECEIVED
 }
 
+enum InventoryValuationMethod {
+  FIFO
+  LIFO
+  WEIGHTED_AVERAGE
+  STANDARD_COST
+}
+
 model ItemCategory {
-  id          Int            @id @default(autoincrement())
-  hospitalId  Int
-  parentId    Int?
-  code        String?
-  name        String
-  description String?
-  isActive    Boolean        @default(true)
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
-  hospital    Hospital       @relation(fields: [hospitalId], references: [id])
-  parent      ItemCategory?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
-  children    ItemCategory[] @relation("CategoryHierarchy")
-  products    Product[]
+  id                 Int                      @id @default(autoincrement())
+  hospitalId         Int
+  parentId           Int?
+  code               String?
+  name               String
+  description        String?
+  valuationMethod    InventoryValuationMethod @default(WEIGHTED_AVERAGE)
+  inventoryAccountId Int? // GL Account for Asset/Inventory
+  expenseAccountId   Int? // GL Account for COGS/Expense
+  isActive           Boolean                  @default(true)
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime                 @updatedAt
+  hospital           Hospital                 @relation(fields: [hospitalId], references: [id])
+  parent             ItemCategory?            @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children           ItemCategory[]           @relation("CategoryHierarchy")
+  products           Product[]
+  inventoryAccount   Account?                 @relation("CategoryInventoryAccount", fields: [inventoryAccountId], references: [id])
+  expenseAccount     Account?                 @relation("CategoryExpenseAccount", fields: [expenseAccountId], references: [id])
 
   @@unique([hospitalId, name])
 }
@@ -2396,6 +2409,8 @@ model Account {
   productsWithExpenseAccount Product[]              @relation("ProductExpenseAccount")
   purchaseInvoiceLines       PurchaseInvoiceLine[]
   systemAccountMappings      SystemAccountMapping[]
+  inventoryCategories        ItemCategory[]         @relation("CategoryInventoryAccount")
+  expenseCategories          ItemCategory[]         @relation("CategoryExpenseAccount")
 
   @@unique([hospitalId, code])
   @@index([hospitalId, type])

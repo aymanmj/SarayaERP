@@ -568,8 +568,38 @@ export function MainLayout() {
           access: "inventory:stock:view",
         },
         {
+          label: "البيانات الأساسية (الأصناف)",
+          path: "/inventory/master-data/products",
+          access: "inventory:stock:manage",
+        },
+        {
+          label: "فئات الأصناف للتقييم",
+          path: "/inventory/master-data/categories",
+          access: "inventory:stock:manage",
+        },
+        {
+          label: "إعدادات معاملات التحويل",
+          path: "/inventory/settings/product-uoms",
+          access: "inventory:stock:manage",
+        },
+        {
           label: "🏭 إدارة المستودعات",
           path: "/inventory/warehouses",
+          access: "inventory:stock:manage",
+        },
+        {
+          label: "طلبات الشراء (PR)",
+          path: "/inventory/procurement/pr/new",
+          access: "inventory:stock:manage",
+        },
+        {
+          label: "أوامر الشراء (PO)",
+          path: "/purchases/orders",
+          access: "purchases:manage",
+        },
+        {
+          label: "استلام بضاعة (GRN)",
+          path: "/inventory/procurement/grn/new",
           access: "inventory:stock:manage",
         },
         { label: "الموردون", path: "/suppliers", access: "purchases:suppliers:manage" },
