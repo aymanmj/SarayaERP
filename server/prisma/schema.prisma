@@ -150,7 +150,7 @@ model Hospital {
   icuEquipmentUsages  ICUEquipmentUsage[]
 
   // Quality & Patient Safety
-  clinicalIncidents   ClinicalIncident[]
+  clinicalIncidents ClinicalIncident[]
 
   // Clinical Profile (EMR)
   patientProblems         PatientProblem[]
@@ -248,24 +248,24 @@ model ServiceItem {
   wards             Ward[]
   orderSetItems     OrderSetItem[]     @relation("OrderSetService")
 
-  materialMappings  ServiceItemProduct[]
-  bundleChildren    ServiceBundleItem[] @relation("ServiceBundleParent")
-  bundleParents     ServiceBundleItem[] @relation("ServiceBundleChild")
+  materialMappings ServiceItemProduct[]
+  bundleChildren   ServiceBundleItem[]  @relation("ServiceBundleParent")
+  bundleParents    ServiceBundleItem[]  @relation("ServiceBundleChild")
 
   @@index([cptCode])
 }
 
 model ServiceItemProduct {
-  id            Int         @id @default(autoincrement())
+  id            Int      @id @default(autoincrement())
   serviceItemId Int
   productId     Int
-  quantity      Decimal     @db.Decimal(18, 3)
-  isMandatory   Boolean     @default(true)
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  quantity      Decimal  @db.Decimal(18, 3)
+  isMandatory   Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  serviceItem   ServiceItem @relation(fields: [serviceItemId], references: [id], onDelete: Cascade)
-  product       Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  serviceItem ServiceItem @relation(fields: [serviceItemId], references: [id], onDelete: Cascade)
+  product     Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@unique([serviceItemId, productId])
   @@index([serviceItemId])
@@ -273,14 +273,14 @@ model ServiceItemProduct {
 }
 
 model ServiceBundleItem {
-  id              Int         @id @default(autoincrement())
+  id              Int      @id @default(autoincrement())
   parentServiceId Int
   childServiceId  Int
-  quantity        Int         @default(1)
-  createdAt       DateTime    @default(now())
+  quantity        Int      @default(1)
+  createdAt       DateTime @default(now())
 
-  parentService   ServiceItem @relation("ServiceBundleParent", fields: [parentServiceId], references: [id], onDelete: Cascade)
-  childService    ServiceItem @relation("ServiceBundleChild", fields: [childServiceId], references: [id], onDelete: Cascade)
+  parentService ServiceItem @relation("ServiceBundleParent", fields: [parentServiceId], references: [id], onDelete: Cascade)
+  childService  ServiceItem @relation("ServiceBundleChild", fields: [childServiceId], references: [id], onDelete: Cascade)
 
   @@unique([parentServiceId, childServiceId])
   @@index([parentServiceId])
@@ -492,13 +492,13 @@ model User {
   accessibleHospitals     UserHospitalAccess[]
 
   // Quality & Patient Safety
-  reportedIncidents       ClinicalIncident[]   @relation("IncidentReporter")
-  investigatedIncidents   ClinicalIncident[]   @relation("IncidentInvestigator")
-  assignedCapaActions     CapaAction[]         @relation("CapaAssignee")
-  verifiedCapaActions     CapaAction[]         @relation("CapaVerifier")
-  requestedMaterials      MaterialRequest[]    @relation("UserRequestedMaterials")
-  approvedMaterials       MaterialRequest[]    @relation("UserApprovedMaterials")
-  issuedStock             StockIssue[]         @relation("UserIssuedStock")
+  reportedIncidents     ClinicalIncident[] @relation("IncidentReporter")
+  investigatedIncidents ClinicalIncident[] @relation("IncidentInvestigator")
+  assignedCapaActions   CapaAction[]       @relation("CapaAssignee")
+  verifiedCapaActions   CapaAction[]       @relation("CapaVerifier")
+  requestedMaterials    MaterialRequest[]  @relation("UserRequestedMaterials")
+  approvedMaterials     MaterialRequest[]  @relation("UserApprovedMaterials")
+  issuedStock           StockIssue[]       @relation("UserIssuedStock")
 }
 
 model RefreshToken {
@@ -688,11 +688,11 @@ model GlobalPatient {
   phoneHash          String? @unique
   emailHash          String? @unique
 
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-  isDeleted       Boolean           @default(false)
-  localPatients   Patient[]
-  consentRecords  MpiConsentRecord[]
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  isDeleted      Boolean            @default(false)
+  localPatients  Patient[]
+  consentRecords MpiConsentRecord[]
 
   @@index([nationalIdHash])
   @@index([phoneHash])
@@ -708,16 +708,16 @@ model PatientOtp {
   expiresAt DateTime
   attempts  Int      @default(0)
   verified  Boolean  @default(false)
-  channel                  String   @default("console") // console | sms | whatsapp
-  createdAt                DateTime @default(now())
-  
+  channel   String   @default("console") // console | sms | whatsapp
+  createdAt DateTime @default(now())
+
   // MPI Consent Tracking Fields
   requestingOrganizationId Int?
   requestingHospitalId     Int?
   requestingUserId         Int?
   purpose                  String?
 
-  patient                  Patient  @relation(fields: [patientId], references: [id])
+  patient Patient @relation(fields: [patientId], references: [id])
 
   @@index([patientId, createdAt])
 }
@@ -833,35 +833,35 @@ model TriageAssessment {
 }
 
 model EncounterCharge {
-  id            Int          @id @default(autoincrement())
+  id            Int                        @id @default(autoincrement())
   hospitalId    Int
   encounterId   Int
   serviceItemId Int
   sourceType    ChargeSource
   sourceId      Int?
-  quantity      Int          @default(1)
-  unitPrice     Decimal      @db.Decimal(18, 3)
-  totalAmount   Decimal      @db.Decimal(18, 3)
-  createdAt     DateTime     @default(now())
+  quantity      Int                        @default(1)
+  unitPrice     Decimal                    @db.Decimal(18, 3)
+  totalAmount   Decimal                    @db.Decimal(18, 3)
+  createdAt     DateTime                   @default(now())
   invoiceId     Int?
   performerId   Int?
-  encounter     Encounter    @relation(fields: [encounterId], references: [id])
-  hospital      Hospital     @relation(fields: [hospitalId], references: [id])
-  invoice       Invoice?     @relation(fields: [invoiceId], references: [id])
-  performer     User?        @relation("ChargePerformer", fields: [performerId], references: [id])
-  serviceItem   ServiceItem  @relation(fields: [serviceItemId], references: [id])
+  encounter     Encounter                  @relation(fields: [encounterId], references: [id])
+  hospital      Hospital                   @relation(fields: [hospitalId], references: [id])
+  invoice       Invoice?                   @relation(fields: [invoiceId], references: [id])
+  performer     User?                      @relation("ChargePerformer", fields: [performerId], references: [id])
+  serviceItem   ServiceItem                @relation(fields: [serviceItemId], references: [id])
   diagnoses     EncounterChargeDiagnosis[]
 }
 
 model EncounterChargeDiagnosis {
-  id                   Int                @id @default(autoincrement())
+  id                   Int      @id @default(autoincrement())
   encounterChargeId    Int
   encounterDiagnosisId Int
-  orderIndex           Int                @default(1)
-  createdAt            DateTime           @default(now())
+  orderIndex           Int      @default(1)
+  createdAt            DateTime @default(now())
 
-  encounterCharge      EncounterCharge    @relation(fields: [encounterChargeId], references: [id], onDelete: Cascade)
-  encounterDiagnosis   EncounterDiagnosis @relation(fields: [encounterDiagnosisId], references: [id], onDelete: Cascade)
+  encounterCharge    EncounterCharge    @relation(fields: [encounterChargeId], references: [id], onDelete: Cascade)
+  encounterDiagnosis EncounterDiagnosis @relation(fields: [encounterDiagnosisId], references: [id], onDelete: Cascade)
 
   @@unique([encounterChargeId, encounterDiagnosisId])
   @@index([encounterChargeId])
@@ -1879,21 +1879,24 @@ model GoodsReceiptItem {
 }
 
 model ProductStock {
-  id          Int       @id @default(autoincrement())
-  hospitalId  Int
-  warehouseId Int
-  productId   Int
-  quantity    Decimal   @default(0) @db.Decimal(18, 3)
-  minStock    Decimal   @default(0) @db.Decimal(18, 3)
-  maxStock    Decimal?  @db.Decimal(18, 3)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  batchNumber String?
-  expiryDate  DateTime?
-  version     Int       @default(1)
-  hospital    Hospital  @relation(fields: [hospitalId], references: [id])
-  product     Product   @relation(fields: [productId], references: [id])
-  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
+  id           Int           @id @default(autoincrement())
+  hospitalId   Int
+  warehouseId  Int
+  productId    Int
+  quantity     Decimal       @default(0) @db.Decimal(18, 3)
+  minStock     Decimal       @default(0) @db.Decimal(18, 3)
+  maxStock     Decimal?      @db.Decimal(18, 3)
+  reorderLevel Decimal?      @db.Decimal(18, 3)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  batchNumber  String?
+  expiryDate   DateTime?
+  version      Int           @default(1)
+  hospital     Hospital      @relation(fields: [hospitalId], references: [id])
+  product      Product       @relation(fields: [productId], references: [id])
+  warehouse    Warehouse     @relation(fields: [warehouseId], references: [id])
+  binId        Int?
+  bin          WarehouseBin? @relation(fields: [binId], references: [id])
 
   @@unique([warehouseId, productId, batchNumber])
   @@index([hospitalId, warehouseId])
@@ -1901,24 +1904,52 @@ model ProductStock {
 }
 
 model Warehouse {
-  id                Int                @id @default(autoincrement())
-  hospitalId        Int
-  code              String?
-  name              String
-  isActive          Boolean            @default(true)
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
-  goodsReceipts     GoodsReceipt[]
-  inventoryCounts   InventoryCount[]
-  productStocks     ProductStock[]
-  purchaseInvoices  PurchaseInvoice[]
-  stockTransactions StockTransaction[]
-  hospital          Hospital           @relation(fields: [hospitalId], references: [id])
-  requestedMaterials MaterialRequest[] @relation("RequestingWarehouse")
-  fulfilledMaterials MaterialRequest[] @relation("FulfillingWarehouse")
-  stockIssues       StockIssue[]
+  id                 Int                @id @default(autoincrement())
+  hospitalId         Int
+  code               String?
+  name               String
+  isActive           Boolean            @default(true)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  goodsReceipts      GoodsReceipt[]
+  inventoryCounts    InventoryCount[]
+  productStocks      ProductStock[]
+  purchaseInvoices   PurchaseInvoice[]
+  stockTransactions  StockTransaction[]
+  hospital           Hospital           @relation(fields: [hospitalId], references: [id])
+  requestedMaterials MaterialRequest[]  @relation("RequestingWarehouse")
+  fulfilledMaterials MaterialRequest[]  @relation("FulfillingWarehouse")
+  stockIssues        StockIssue[]
+  zones              WarehouseZone[]
 
   @@unique([hospitalId, name])
+}
+
+model WarehouseZone {
+  id          Int            @id @default(autoincrement())
+  warehouseId Int
+  code        String
+  name        String
+  description String?
+  isActive    Boolean        @default(true)
+  warehouse   Warehouse      @relation(fields: [warehouseId], references: [id])
+  bins        WarehouseBin[]
+
+  @@unique([warehouseId, code])
+}
+
+model WarehouseBin {
+  id                Int                @id @default(autoincrement())
+  zoneId            Int
+  code              String
+  name              String
+  description       String?
+  isActive          Boolean            @default(true)
+  zone              WarehouseZone      @relation(fields: [zoneId], references: [id])
+  productStocks     ProductStock[]
+  stockTransactions StockTransaction[]
+
+  @@unique([zoneId, code])
 }
 
 model StockTransaction {
@@ -1945,6 +1976,8 @@ model StockTransaction {
   product           Product              @relation(fields: [productId], references: [id])
   purchaseInvoice   PurchaseInvoice?     @relation(fields: [purchaseInvoiceId], references: [id])
   warehouse         Warehouse?           @relation(fields: [warehouseId], references: [id])
+  binId             Int?
+  bin               WarehouseBin?        @relation(fields: [binId], references: [id])
   stockIssueId      Int?
   stockIssue        StockIssue?          @relation(fields: [stockIssueId], references: [id])
 
@@ -1980,21 +2013,21 @@ model ItemCategory {
   parent      ItemCategory?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
   children    ItemCategory[] @relation("CategoryHierarchy")
   products    Product[]
-  
+
   @@unique([hospitalId, name])
 }
 
 model UnitOfMeasure {
-  id          Int           @id @default(autoincrement())
-  hospitalId  Int
-  code        String
-  name        String
-  isActive    Boolean       @default(true)
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  hospital    Hospital      @relation(fields: [hospitalId], references: [id])
-  products    Product[]     @relation("ProductBaseUom")
-  productUoms ProductUOM[]
+  id                   Int                   @id @default(autoincrement())
+  hospitalId           Int
+  code                 String
+  name                 String
+  isActive             Boolean               @default(true)
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  hospital             Hospital              @relation(fields: [hospitalId], references: [id])
+  products             Product[]             @relation("ProductBaseUom")
+  productUoms          ProductUOM[]
   materialRequestItems MaterialRequestItem[]
 
   @@unique([hospitalId, code])
@@ -2028,30 +2061,30 @@ model MaterialRequest {
   approvedById          Int?
   approvedAt            DateTime?
 
-  hospital              Hospital              @relation(fields: [hospitalId], references: [id])
-  fromDepartment        Department?           @relation(fields: [fromDepartmentId], references: [id])
-  requestingWarehouse   Warehouse             @relation("RequestingWarehouse", fields: [requestingWarehouseId], references: [id])
-  fulfillingWarehouse   Warehouse             @relation("FulfillingWarehouse", fields: [fulfillingWarehouseId], references: [id])
-  requestedBy           User                  @relation("UserRequestedMaterials", fields: [requestedById], references: [id])
-  approvedBy            User?                 @relation("UserApprovedMaterials", fields: [approvedById], references: [id])
-  items                 MaterialRequestItem[]
-  stockIssues           StockIssue[]
+  hospital            Hospital              @relation(fields: [hospitalId], references: [id])
+  fromDepartment      Department?           @relation(fields: [fromDepartmentId], references: [id])
+  requestingWarehouse Warehouse             @relation("RequestingWarehouse", fields: [requestingWarehouseId], references: [id])
+  fulfillingWarehouse Warehouse             @relation("FulfillingWarehouse", fields: [fulfillingWarehouseId], references: [id])
+  requestedBy         User                  @relation("UserRequestedMaterials", fields: [requestedById], references: [id])
+  approvedBy          User?                 @relation("UserApprovedMaterials", fields: [approvedById], references: [id])
+  items               MaterialRequestItem[]
+  stockIssues         StockIssue[]
 
   @@unique([hospitalId, requestNumber])
 }
 
 model MaterialRequestItem {
-  id                Int             @id @default(autoincrement())
+  id                Int     @id @default(autoincrement())
   materialRequestId Int
   productId         Int
   uomId             Int?
-  requestedQty      Decimal         @db.Decimal(18, 3)
-  issuedQty         Decimal         @default(0) @db.Decimal(18, 3)
+  requestedQty      Decimal @db.Decimal(18, 3)
+  issuedQty         Decimal @default(0) @db.Decimal(18, 3)
   notes             String?
 
-  materialRequest   MaterialRequest @relation(fields: [materialRequestId], references: [id], onDelete: Cascade)
-  product           Product         @relation(fields: [productId], references: [id])
-  uom               UnitOfMeasure?  @relation(fields: [uomId], references: [id])
+  materialRequest MaterialRequest @relation(fields: [materialRequestId], references: [id], onDelete: Cascade)
+  product         Product         @relation(fields: [productId], references: [id])
+  uom             UnitOfMeasure?  @relation(fields: [uomId], references: [id])
 }
 
 model StockIssue {
@@ -2066,10 +2099,10 @@ model StockIssue {
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
 
-  hospital          Hospital         @relation(fields: [hospitalId], references: [id])
-  materialRequest   MaterialRequest  @relation(fields: [materialRequestId], references: [id])
-  issuedFrom        Warehouse        @relation(fields: [issuedFromId], references: [id])
-  issuedBy          User             @relation("UserIssuedStock", fields: [issuedById], references: [id])
+  hospital          Hospital           @relation(fields: [hospitalId], references: [id])
+  materialRequest   MaterialRequest    @relation(fields: [materialRequestId], references: [id])
+  issuedFrom        Warehouse          @relation(fields: [issuedFromId], references: [id])
+  issuedBy          User               @relation("UserIssuedStock", fields: [issuedById], references: [id])
   items             StockIssueItem[]
   stockTransactions StockTransaction[]
 
@@ -2077,15 +2110,15 @@ model StockIssue {
 }
 
 model StockIssueItem {
-  id           Int         @id @default(autoincrement())
+  id           Int       @id @default(autoincrement())
   stockIssueId Int
   productId    Int
   batchNumber  String?
   expiryDate   DateTime?
-  issuedQty    Decimal     @db.Decimal(18, 3)
+  issuedQty    Decimal   @db.Decimal(18, 3)
 
-  stockIssue   StockIssue  @relation(fields: [stockIssueId], references: [id], onDelete: Cascade)
-  product      Product     @relation(fields: [productId], references: [id])
+  stockIssue StockIssue @relation(fields: [stockIssueId], references: [id], onDelete: Cascade)
+  product    Product    @relation(fields: [productId], references: [id])
 }
 
 model Prescription {
@@ -2645,16 +2678,16 @@ model VitalSign {
 }
 
 model EncounterDiagnosis {
-  id              Int           @id @default(autoincrement())
+  id              Int                        @id @default(autoincrement())
   encounterId     Int
   diagnosisCodeId Int
-  type            DiagnosisType @default(PRIMARY)
+  type            DiagnosisType              @default(PRIMARY)
   note            String?
-  createdAt       DateTime      @default(now())
+  createdAt       DateTime                   @default(now())
   createdById     Int?
-  createdBy       User?         @relation(fields: [createdById], references: [id])
-  diagnosisCode   DiagnosisCode @relation(fields: [diagnosisCodeId], references: [id])
-  encounter       Encounter     @relation(fields: [encounterId], references: [id])
+  createdBy       User?                      @relation(fields: [createdById], references: [id])
+  diagnosisCode   DiagnosisCode              @relation(fields: [diagnosisCodeId], references: [id])
+  encounter       Encounter                  @relation(fields: [encounterId], references: [id])
   chargeDiagnoses EncounterChargeDiagnosis[]
 
   @@index([encounterId])
@@ -4356,14 +4389,14 @@ model VentilatorLog {
   respRateActual Int? // Actual Respiratory Rate
 
   // Extended ventilator parameters
-  inspiratoryPressure  Decimal? @db.Decimal(5, 2) // cmH2O
-  pressureSupport      Decimal? @db.Decimal(5, 2) // cmH2O (PSV/PS above PEEP)
-  ieRatio              String?                     // e.g. "1:2", "1:3"
-  plateauPressure      Decimal? @db.Decimal(5, 2) // cmH2O (target < 30)
-  peakPressure         Decimal? @db.Decimal(5, 2) // cmH2O
-  compliance           Decimal? @db.Decimal(6, 2) // mL/cmH2O (lung compliance)
-  etco2                Decimal? @db.Decimal(5, 2) // mmHg (end-tidal CO2)
-  respiratoryRate      Int?                        // Set/target RR (alias for respRateSet)
+  inspiratoryPressure Decimal? @db.Decimal(5, 2) // cmH2O
+  pressureSupport     Decimal? @db.Decimal(5, 2) // cmH2O (PSV/PS above PEEP)
+  ieRatio             String? // e.g. "1:2", "1:3"
+  plateauPressure     Decimal? @db.Decimal(5, 2) // cmH2O (target < 30)
+  peakPressure        Decimal? @db.Decimal(5, 2) // cmH2O
+  compliance          Decimal? @db.Decimal(6, 2) // mL/cmH2O (lung compliance)
+  etco2               Decimal? @db.Decimal(5, 2) // mmHg (end-tidal CO2)
+  respiratoryRate     Int? // Set/target RR (alias for respRateSet)
 
   entry ICUFlowsheetEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
 }
@@ -5552,8 +5585,8 @@ model AllergyGroupDrug {
 
 model OutboxEvent {
   id          Int       @id @default(autoincrement())
-  type        String    // e.g., 'nphies-claim', 'push-notification', etc.
-  payload     Json      // The job payload
+  type        String // e.g., 'nphies-claim', 'push-notification', etc.
+  payload     Json // The job payload
   hospitalId  Int?
   status      String    @default("PENDING") // PENDING, PROCESSED, FAILED
   error       String?
@@ -5583,20 +5616,20 @@ enum IncidentType {
 }
 
 enum IncidentSeverity {
-  NEAR_MISS       // حادثة وشيكة — لم تصل للمريض
-  MINOR           // طفيف — لا ضرر دائم
-  MODERATE        // متوسط — إصابة مؤقتة
-  MAJOR           // خطير — إصابة دائمة أو دخول ICU
-  SENTINEL        // كارثي — وفاة أو إعاقة دائمة غير متوقعة
+  NEAR_MISS // حادثة وشيكة — لم تصل للمريض
+  MINOR // طفيف — لا ضرر دائم
+  MODERATE // متوسط — إصابة مؤقتة
+  MAJOR // خطير — إصابة دائمة أو دخول ICU
+  SENTINEL // كارثي — وفاة أو إعاقة دائمة غير متوقعة
 }
 
 enum IncidentStatus {
-  REPORTED        // مُبلَّغ عنه
-  UNDER_REVIEW    // قيد المراجعة
-  INVESTIGATED    // تحت التحقيق
-  CAPA_OPEN       // CAPA مفتوح
-  CAPA_VERIFIED   // CAPA مُتحقَّق منه
-  CLOSED          // مغلق
+  REPORTED // مُبلَّغ عنه
+  UNDER_REVIEW // قيد المراجعة
+  INVESTIGATED // تحت التحقيق
+  CAPA_OPEN // CAPA مفتوح
+  CAPA_VERIFIED // CAPA مُتحقَّق منه
+  CLOSED // مغلق
 }
 
 enum RootCauseCategory {
@@ -5610,8 +5643,8 @@ enum RootCauseCategory {
 }
 
 enum CapaActionType {
-  CORRECTIVE   // إجراء تصحيحي
-  PREVENTIVE   // إجراء وقائي
+  CORRECTIVE // إجراء تصحيحي
+  PREVENTIVE // إجراء وقائي
 }
 
 enum CapaStatus {
@@ -5623,47 +5656,47 @@ enum CapaStatus {
 }
 
 model ClinicalIncident {
-  id             Int              @id @default(autoincrement())
+  id             Int      @id @default(autoincrement())
   hospitalId     Int
-  incidentNumber String           @unique // AUTO: INC-2026-0001
+  incidentNumber String   @unique // AUTO: INC-2026-0001
   incidentDate   DateTime
   reportedById   Int
 
   // تصنيف الحادثة
-  incidentType   IncidentType
-  severity       IncidentSeverity
+  incidentType IncidentType
+  severity     IncidentSeverity
 
   // وصف الحادثة
-  description    String
-  descriptionAr  String?
-  location       String? // ward, OR, pharmacy, etc.
-  patientId      Int?
-  isAnonymous    Boolean          @default(false) // إبلاغ مجهول الهوية
+  description   String
+  descriptionAr String?
+  location      String? // ward, OR, pharmacy, etc.
+  patientId     Int?
+  isAnonymous   Boolean @default(false) // إبلاغ مجهول الهوية
 
   // التحقيق
-  status               IncidentStatus @default(REPORTED)
-  investigatedById     Int?
-  investigationNotes   String?
-  rootCause            String?
-  rootCauseCategory    RootCauseCategory?
-  contributingFactors  String?       // عوامل مساهمة إضافية
-  immediateAction      String?       // الإجراء الفوري المتخذ
+  status              IncidentStatus     @default(REPORTED)
+  investigatedById    Int?
+  investigationNotes  String?
+  rootCause           String?
+  rootCauseCategory   RootCauseCategory?
+  contributingFactors String? // عوامل مساهمة إضافية
+  immediateAction     String? // الإجراء الفوري المتخذ
 
   // مواعيد مهمة
-  reportedAt           DateTime      @default(now())
+  reportedAt           DateTime  @default(now())
   reviewDueDate        DateTime?
   investigationDueDate DateTime?
   closedAt             DateTime?
   closedById           Int?
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
-  hospital     Hospital         @relation(fields: [hospitalId], references: [id])
-  reporter     User             @relation("IncidentReporter", fields: [reportedById], references: [id])
-  patient      Patient?         @relation(fields: [patientId], references: [id])
-  investigator User?            @relation("IncidentInvestigator", fields: [investigatedById], references: [id])
+  hospital     Hospital     @relation(fields: [hospitalId], references: [id])
+  reporter     User         @relation("IncidentReporter", fields: [reportedById], references: [id])
+  patient      Patient?     @relation(fields: [patientId], references: [id])
+  investigator User?        @relation("IncidentInvestigator", fields: [investigatedById], references: [id])
   capaActions  CapaAction[]
 
   @@index([hospitalId, status])
@@ -5672,17 +5705,17 @@ model ClinicalIncident {
 }
 
 model CapaAction {
-  id          Int            @id @default(autoincrement())
-  incidentId  Int
-  actionType  CapaActionType
-  description String
+  id            Int            @id @default(autoincrement())
+  incidentId    Int
+  actionType    CapaActionType
+  description   String
   descriptionAr String?
 
-  assignedToId      Int
-  dueDate           DateTime
-  completedAt       DateTime?
-  completedNotes    String?
-  status            CapaStatus  @default(OPEN)
+  assignedToId   Int
+  dueDate        DateTime
+  completedAt    DateTime?
+  completedNotes String?
+  status         CapaStatus @default(OPEN)
 
   // التحقق من الفعالية
   verifiedById      Int?
@@ -5693,9 +5726,9 @@ model CapaAction {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  incident    ClinicalIncident @relation(fields: [incidentId], references: [id])
-  assignedTo  User             @relation("CapaAssignee", fields: [assignedToId], references: [id])
-  verifiedBy  User?            @relation("CapaVerifier", fields: [verifiedById], references: [id])
+  incident   ClinicalIncident @relation(fields: [incidentId], references: [id])
+  assignedTo User             @relation("CapaAssignee", fields: [assignedToId], references: [id])
+  verifiedBy User?            @relation("CapaVerifier", fields: [verifiedById], references: [id])
 
   @@index([incidentId])
   @@index([assignedToId, status])
@@ -5708,9 +5741,9 @@ model CapaAction {
 // ================================================
 
 enum RenalRiskClass {
-  HIGH           // تجنب أو جرعة محدودة جداً
-  MODERATE       // تعديل مطلوب
-  LOW            // مراقبة فقط
+  HIGH // تجنب أو جرعة محدودة جداً
+  MODERATE // تعديل مطلوب
+  LOW // مراقبة فقط
 }
 
 enum HepaticRiskClass {
@@ -5721,13 +5754,13 @@ enum HepaticRiskClass {
 
 model RenalDoseRequirement {
   id             Int            @id @default(autoincrement())
-  atcPrefix      String?        // e.g. "J01" (Antibiotics), "M01" (NSAIDs), "J02" (Antifungals)
-  drugGeneric    String?        // Fallback: اسم الدواء العام (vancomycin, gentamicin...)
+  atcPrefix      String? // e.g. "J01" (Antibiotics), "M01" (NSAIDs), "J02" (Antifungals)
+  drugGeneric    String? // Fallback: اسم الدواء العام (vancomycin, gentamicin...)
   renalClass     RenalRiskClass
-  minSafeEgfr   Float          // أدنى eGFR مقبول (ml/min/1.73m²)
-  action         String         // "AVOID" | "REDUCE_DOSE_50%" | "INCREASE_INTERVAL" | "MONITOR"
+  minSafeEgfr    Float // أدنى eGFR مقبول (ml/min/1.73m²)
+  action         String // "AVOID" | "REDUCE_DOSE_50%" | "INCREASE_INTERVAL" | "MONITOR"
   actionAr       String?
-  evidenceSource String         // "KDIGO 2023" | "FDA Label" | "UpToDate" | "BNF"
+  evidenceSource String // "KDIGO 2023" | "FDA Label" | "UpToDate" | "BNF"
   notes          String?
   isActive       Boolean        @default(true)
   createdAt      DateTime       @default(now())
@@ -5738,18 +5771,18 @@ model RenalDoseRequirement {
 }
 
 model HepaticDoseRequirement {
-  id              Int              @id @default(autoincrement())
-  atcPrefix       String?
-  drugGeneric     String?
-  hepaticClass    HepaticRiskClass
-  childPughClass  String           // "A" | "B" | "C" — Child-Pugh Score
-  action          String           // "AVOID" | "REDUCE_DOSE_50%" | "USE_WITH_CAUTION"
-  actionAr        String?
-  evidenceSource  String
-  notes           String?
-  isActive        Boolean          @default(true)
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  id             Int              @id @default(autoincrement())
+  atcPrefix      String?
+  drugGeneric    String?
+  hepaticClass   HepaticRiskClass
+  childPughClass String // "A" | "B" | "C" — Child-Pugh Score
+  action         String // "AVOID" | "REDUCE_DOSE_50%" | "USE_WITH_CAUTION"
+  actionAr       String?
+  evidenceSource String
+  notes          String?
+  isActive       Boolean          @default(true)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
 
   @@index([atcPrefix])
   @@index([drugGeneric])
@@ -5761,45 +5794,45 @@ model HepaticDoseRequirement {
 // ================================================
 
 enum MpiConsentType {
-  FULL              // مشاركة كاملة للسجلات عبر الشبكة
-  LIMITED           // مشاركة ديموغرافية فقط
-  EMERGENCY_ONLY    // لحالات الطوارئ فقط
+  FULL // مشاركة كاملة للسجلات عبر الشبكة
+  LIMITED // مشاركة ديموغرافية فقط
+  EMERGENCY_ONLY // لحالات الطوارئ فقط
 }
 
 enum MpiConsentStatus {
-  PENDING_OTP       // الربط تم — بانتظار OTP المريض لتفعيل مشاركة البيانات
-  ACTIVE            // الربط والمشاركة فعّالان
-  REVOKED           // سحب الموافقة
-  EXPIRED           // انتهت الصلاحية
+  PENDING_OTP // الربط تم — بانتظار OTP المريض لتفعيل مشاركة البيانات
+  ACTIVE // الربط والمشاركة فعّالان
+  REVOKED // سحب الموافقة
+  EXPIRED // انتهت الصلاحية
 }
 
 model MpiConsentRecord {
   id              Int              @id @default(autoincrement())
   globalPatientId Int
-  hospitalId      Int              // المنشأة التي أخذت الموافقة
+  hospitalId      Int // المنشأة التي أخذت الموافقة
   consentType     MpiConsentType   @default(FULL)
   // PENDING_OTP: الربط تم تلقائياً، لكن مشاركة البيانات معلّقة حتى تأكيد المريض
   // ACTIVE: مشاركة البيانات فعّالة (إما بعد OTP أو تلقائياً إن لم يُطلب OTP)
   status          MpiConsentStatus @default(ACTIVE)
 
-  consentedAt     DateTime         @default(now())
-  expiresAt       DateTime?        // null = لا تنتهي
-  revokedAt       DateTime?
-  revokedReason   String?
-  revokedById     Int?
+  consentedAt   DateTime  @default(now())
+  expiresAt     DateTime? // null = لا تنتهي
+  revokedAt     DateTime?
+  revokedReason String?
+  revokedById   Int?
 
   // طريقة الموافقة
   // "OTP" | "IMPLICIT" (تلقائي بدون OTP) | "WRITTEN" | "VERBAL_EMERGENCY"
-  consentMethod   String
-  consentDetails  String?          // سبب أو وصف الموافقة
-  witnessedById   Int?             // موظف النظام شاهد الموافقة
-  otpVerified     Boolean          @default(false)
-  otpVerifiedAt   DateTime?        // وقت التحقق من OTP
+  consentMethod  String
+  consentDetails String? // سبب أو وصف الموافقة
+  witnessedById  Int? // موظف النظام شاهد الموافقة
+  otpVerified    Boolean   @default(false)
+  otpVerifiedAt  DateTime? // وقت التحقق من OTP
 
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  globalPatient   GlobalPatient    @relation(fields: [globalPatientId], references: [id])
+  globalPatient GlobalPatient @relation(fields: [globalPatientId], references: [id])
 
   @@index([globalPatientId, status])
   @@index([hospitalId])
@@ -5807,21 +5840,20 @@ model MpiConsentRecord {
 }
 
 model DataRetentionPolicy {
-  id                       Int      @id @default(autoincrement())
-  hospitalId               Int      @unique
-  activePatientRetentionYrs  Int    @default(10)  // سجلات المرضى النشطة
-  inactivePatientRetentionYrs Int   @default(7)   // سجلات المرضى غير النشطين
-  globalMpiRetentionYrs    Int      @default(25)  // السجل الوطني (وفق اشتراطات MOH)
-  auditLogRetentionYrs     Int      @default(10)  // سجلات المراجعة
+  id                          Int @id @default(autoincrement())
+  hospitalId                  Int @unique
+  activePatientRetentionYrs   Int @default(10) // سجلات المرضى النشطة
+  inactivePatientRetentionYrs Int @default(7) // سجلات المرضى غير النشطين
+  globalMpiRetentionYrs       Int @default(25) // السجل الوطني (وفق اشتراطات MOH)
+  auditLogRetentionYrs        Int @default(10) // سجلات المراجعة
 
-  lastReviewDate           DateTime
-  nextReviewDate           DateTime
-  approvedById             Int
+  lastReviewDate DateTime
+  nextReviewDate DateTime
+  approvedById   Int
 
-  notes                    String?
-  createdAt                DateTime @default(now())
-  updatedAt                DateTime @updatedAt
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([hospitalId])
 }
-

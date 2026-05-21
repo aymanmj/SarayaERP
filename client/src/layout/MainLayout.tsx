@@ -558,10 +558,20 @@ export function MainLayout() {
     },
     {
       key: "purchases",
-      title: "المشتريات والمخزون",
+      title: "المخازن وسلاسل الإمداد",
       icon: <Icons.Package />,
       allowedRoles: [],
       items: [
+        {
+          label: "📊 لوحة تحكم المخزون",
+          path: "/inventory/dashboard",
+          access: "inventory:stock:view",
+        },
+        {
+          label: "🏭 إدارة المستودعات",
+          path: "/inventory/warehouses",
+          access: "inventory:stock:manage",
+        },
         { label: "الموردون", path: "/suppliers", access: "purchases:suppliers:manage" },
         {
           label: "فواتير المشتريات",

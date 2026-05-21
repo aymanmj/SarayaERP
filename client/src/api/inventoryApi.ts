@@ -96,6 +96,9 @@ export interface ProductStock {
   warehouseId: number;
   productId: number;
   quantity: number;
+  minStock: number;
+  maxStock?: number | null;
+  reorderLevel?: number | null;
   batchNumber?: string | null;
   expiryDate?: string | null;
   product?: {
@@ -106,11 +109,63 @@ export interface ProductStock {
 }
 
 // ==========================================
+// Warehouse Types
+// ==========================================
+
+export interface WarehouseBin {
+  id: number;
+  zoneId: number;
+  code: string;
+  name: string;
+  description?: string | null;
+  isActive: boolean;
+  _count?: { productStocks: number };
+}
+
+export interface WarehouseZone {
+  id: number;
+  warehouseId: number;
+  code: string;
+  name: string;
+  description?: string | null;
+  isActive: boolean;
+  bins: WarehouseBin[];
+}
+
+export interface Warehouse {
+  id: number;
+  hospitalId: number;
+  name: string;
+  code?: string | null;
+  isActive: boolean;
+  zones?: WarehouseZone[];
+  _count?: {
+    zones: number;
+    productStocks: number;
+  };
+}
+
+export interface StockAlert {
+  productId: number;
+  productName: string;
+  productCode: string | null;
+  warehouseId: number;
+  warehouseName: string;
+  currentQty: number;
+  minStock: number;
+  reorderLevel?: number | null;
+  maxStock?: number | null;
+  alertType: 'OUT_OF_STOCK' | 'BELOW_MIN' | 'BELOW_REORDER' | 'ABOVE_MAX' | 'EXPIRING_SOON';
+}
+
+// ==========================================
 // API Methods
 // ==========================================
 
 export const inventoryApi = {
-  // Warehouses
+  // ==========================================
+  // Warehouses - Legacy (via /inventory/)
+  // ==========================================
   getWarehouses: async () => {
     const { data } = await apiClient.get('/inventory/warehouses');
     return data;
@@ -123,7 +178,85 @@ export const inventoryApi = {
     return data as ProductStock[];
   },
 
+  // ==========================================
+  // Warehouse Management CRUD (via /warehouses/)
+  // ==========================================
+  createWarehouse: async (payload: { name: string; code?: string; isActive?: boolean }) => {
+    const { data } = await apiClient.post('/warehouses', payload);
+    return data as Warehouse;
+  },
+
+  listWarehousesDetailed: async () => {
+    const { data } = await apiClient.get('/warehouses');
+    return data as Warehouse[];
+  },
+
+  getWarehouseDetails: async (id: number) => {
+    const { data } = await apiClient.get(`/warehouses/${id}`);
+    return data as Warehouse;
+  },
+
+  updateWarehouse: async (id: number, payload: { name?: string; code?: string; isActive?: boolean }) => {
+    const { data } = await apiClient.put(`/warehouses/${id}`, payload);
+    return data as Warehouse;
+  },
+
+  // Zones
+  createZone: async (warehouseId: number, payload: { code: string; name: string; description?: string }) => {
+    const { data } = await apiClient.post(`/warehouses/${warehouseId}/zones`, payload);
+    return data as WarehouseZone;
+  },
+
+  updateZone: async (zoneId: number, payload: { name?: string; code?: string; description?: string; isActive?: boolean }) => {
+    const { data } = await apiClient.put(`/warehouses/zones/${zoneId}`, payload);
+    return data as WarehouseZone;
+  },
+
+  deleteZone: async (zoneId: number) => {
+    const { data } = await apiClient.delete(`/warehouses/zones/${zoneId}`);
+    return data;
+  },
+
+  // Bins
+  createBin: async (zoneId: number, payload: { code: string; name: string; description?: string }) => {
+    const { data } = await apiClient.post(`/warehouses/zones/${zoneId}/bins`, payload);
+    return data as WarehouseBin;
+  },
+
+  updateBin: async (binId: number, payload: { name?: string; code?: string; description?: string; isActive?: boolean }) => {
+    const { data } = await apiClient.put(`/warehouses/bins/${binId}`, payload);
+    return data as WarehouseBin;
+  },
+
+  deleteBin: async (binId: number) => {
+    const { data } = await apiClient.delete(`/warehouses/bins/${binId}`);
+    return data;
+  },
+
+  // ==========================================
+  // Stock Alerts
+  // ==========================================
+  getStockAlerts: async () => {
+    const { data } = await apiClient.get('/inventory/alerts');
+    return data;
+  },
+
+  // ==========================================
+  // Stock Transfers
+  // ==========================================
+  transferStock: async (payload: {
+    fromWarehouseId: number;
+    toWarehouseId: number;
+    items: { productId: number; quantity: number }[];
+    notes?: string;
+  }) => {
+    const { data } = await apiClient.post('/inventory/transfer', payload);
+    return data;
+  },
+
+  // ==========================================
   // Material Requests
+  // ==========================================
   createMaterialRequest: async (payload: CreateMaterialRequestPayload) => {
     const { data } = await apiClient.post('/inventory/material-requests', payload);
     return data;
@@ -165,3 +298,4 @@ export const inventoryApi = {
     return data;
   },
 };
+
