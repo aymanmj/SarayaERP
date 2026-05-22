@@ -397,44 +397,46 @@ export class InventoryService {
       throw new BadRequestException('يجب إضافة صنف واحد على الأقل.');
     }
 
-    const reqNumber = `MR-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.floor(1000 + Math.random() * 9000)}`;
-
     const requireApproval = await this.isApprovalRequired(hospitalId);
     const initialStatus = requireApproval
       ? MaterialRequestStatus.PENDING_APPROVAL
       : MaterialRequestStatus.APPROVED;
 
-    return this.prisma.materialRequest.create({
-      data: {
-        hospitalId,
-        requestNumber: reqNumber,
-        requestingWarehouseId,
-        fulfillingWarehouseId,
-        fromDepartmentId: fromDepartmentId || null,
-        requestedById: userId,
-        status: initialStatus,
-        notes,
-        approvedById: requireApproval ? null : userId,
-        approvedAt: requireApproval ? null : new Date(),
-        items: {
-          create: items.map((item) => ({
-            productId: item.productId,
-            uomId: item.uomId || null,
-            requestedQty: new Prisma.Decimal(item.requestedQty),
-            notes: item.notes,
-          })),
-        },
-      },
-      include: {
-        items: {
-          include: {
-            product: { select: { name: true, code: true } },
-            uom: { select: { name: true } },
+    return this.prisma.$transaction(async (tx) => {
+      const reqNumber = await this.getNextSequence(tx, hospitalId, 'MR');
+
+      return tx.materialRequest.create({
+        data: {
+          hospitalId,
+          requestNumber: reqNumber,
+          requestingWarehouseId,
+          fulfillingWarehouseId,
+          fromDepartmentId: fromDepartmentId || null,
+          requestedById: userId,
+          status: initialStatus,
+          notes,
+          approvedById: requireApproval ? null : userId,
+          approvedAt: requireApproval ? null : new Date(),
+          items: {
+            create: items.map((item) => ({
+              productId: item.productId,
+              uomId: item.uomId || null,
+              requestedQty: new Prisma.Decimal(item.requestedQty),
+              notes: item.notes,
+            })),
           },
         },
-        requestingWarehouse: { select: { name: true } },
-        fulfillingWarehouse: { select: { name: true } },
-      },
+        include: {
+          items: {
+            include: {
+              product: { select: { name: true, code: true } },
+              uom: { select: { name: true } },
+            },
+          },
+          requestingWarehouse: { select: { name: true } },
+          fulfillingWarehouse: { select: { name: true } },
+        },
+      });
     });
   }
 
@@ -1209,5 +1211,32 @@ export class InventoryService {
     return this.prisma.unitOfMeasure.deleteMany({
       where: { id, hospitalId },
     });
+  }
+
+  private async getNextSequence(
+    tx: any,
+    hospitalId: number,
+    prefix: 'MR',
+  ): Promise<string> {
+    await tx.$executeRaw`SELECT 1 FROM "Hospital" WHERE id = ${hospitalId} FOR UPDATE`;
+
+    const last = await tx.materialRequest.findFirst({
+      where: { hospitalId },
+      orderBy: { id: 'desc' },
+      select: { requestNumber: true },
+    });
+    const lastNumber = last?.requestNumber || null;
+
+    let nextVal = 1;
+    if (lastNumber) {
+      const parts = lastNumber.split('-');
+      const suffix = parts[parts.length - 1];
+      const parsed = parseInt(suffix, 10);
+      if (!isNaN(parsed)) {
+        nextVal = parsed + 1;
+      }
+    }
+
+    return `${prefix}-${String(nextVal).padStart(6, '0')}`;
   }
 }

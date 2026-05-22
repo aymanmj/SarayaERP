@@ -1,14 +1,14 @@
 # ABAC & Tenant Isolation Coverage Report
 
-**Generated:** 2026-05-19
+**Generated:** 2026-05-22
 
 | Metric | Count | Percentage |
 |--------|-------|------------|
-| Total Controllers | 89 | — |
-| ABAC Guarded | 89 | 100% |
-| Tenant Isolated | 89 | 100% |
+| Total Controllers | 91 | — |
+| ABAC Guarded | 91 | 100% |
+| Tenant Isolated | 91 | 100% |
 | Exempt (Auth/Health/FHIR) | 12 | — |
-| **Effective ABAC Coverage** | **77/77** | **100%** |
+| **Effective ABAC Coverage** | **79/79** | **100%** |
 
 ## Compliant Controllers
 
@@ -70,6 +70,7 @@
 | PortalMessagingController | ✅ | ✅ |
 | PortalRefillController | ✅ | ✅ |
 | PriceListsController | ✅ | ✅ |
+| ProcurementController | ✅ | ✅ |
 | PurchaseReturnsController | ✅ | ✅ |
 | PurchasesController | ✅ | ✅ |
 | QualityController | ✅ | ✅ |
@@ -91,6 +92,7 @@
 | VisitsController | ✅ | ✅ |
 | VitalsController | ✅ | ✅ |
 | VouchersController | ✅ | ✅ |
+| WarehouseController | ✅ | ✅ |
 
 ## Exempt Controllers
 

@@ -150,38 +150,11 @@ function ZoneBinTree({ warehouse, onRefresh }: { warehouse: Warehouse; onRefresh
 
   const queryClient = useQueryClient();
 
-  if (!warehouse) {
-    return <div className="text-center p-4 text-slate-500 text-sm">جاري تحميل بيانات المستودع...</div>;
-  }
-
-  const toggleZone = (id: number) => {
-    setExpandedZones(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-  };
-
-  const resetZoneForm = (closeForm: boolean | React.MouseEvent = true) => {
-    const shouldClose = typeof closeForm === 'boolean' ? closeForm : true;
-    setZoneCode('');
-    setZoneName('');
-    setZoneDesc('');
-    if (shouldClose) setAddingZone(false);
-    setEditingZone(null);
-  };
-
-  const resetBinForm = (closeForm: boolean | React.MouseEvent = true) => {
-    const shouldClose = typeof closeForm === 'boolean' ? closeForm : true;
-    setBinCode('');
-    setBinName('');
-    setBinDesc('');
-    if (shouldClose) setAddingBinForZone(null);
-    setEditingBin(null);
-  };
-
   const createZoneMut = useMutation({
-    mutationFn: () => inventoryApi.createZone(warehouse.id, { code: zoneCode, name: zoneName, description: zoneDesc || undefined }),
+    mutationFn: () => {
+      if (!warehouse) throw new Error('Warehouse not loaded');
+      return inventoryApi.createZone(warehouse.id, { code: zoneCode, name: zoneName, description: zoneDesc || undefined });
+    },
     onSuccess: () => { toast.success('تم إضافة المنطقة بنجاح'); resetZoneForm(); onRefresh(); },
     onError: (e: any) => toast.error(e?.response?.data?.message || 'فشل في إضافة المنطقة'),
   });
@@ -215,6 +188,36 @@ function ZoneBinTree({ warehouse, onRefresh }: { warehouse: Warehouse; onRefresh
     onSuccess: () => { toast.success('تم حذف الرف'); onRefresh(); },
     onError: (e: any) => toast.error(e?.response?.data?.message || 'فشل في حذف الرف'),
   });
+
+  if (!warehouse) {
+    return <div className="text-center p-4 text-slate-500 text-sm">جاري تحميل بيانات المستودع...</div>;
+  }
+
+  const toggleZone = (id: number) => {
+    setExpandedZones(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const resetZoneForm = (closeForm: boolean | React.MouseEvent = true) => {
+    const shouldClose = typeof closeForm === 'boolean' ? closeForm : true;
+    setZoneCode('');
+    setZoneName('');
+    setZoneDesc('');
+    if (shouldClose) setAddingZone(false);
+    setEditingZone(null);
+  };
+
+  const resetBinForm = (closeForm: boolean | React.MouseEvent = true) => {
+    const shouldClose = typeof closeForm === 'boolean' ? closeForm : true;
+    setBinCode('');
+    setBinName('');
+    setBinDesc('');
+    if (shouldClose) setAddingBinForZone(null);
+    setEditingBin(null);
+  };
 
   const startEditZone = (z: WarehouseZone) => {
     setEditingZone(z);

@@ -432,7 +432,7 @@ export default function EncounterDetailsPage() {
   const queryClient = useQueryClient();
 
   // UI State
-  const [formKey, setFormKey] = useState(Date.now());
+  const [formKey, setFormKey] = useState(() => Date.now());
   const [activeTab, setActiveTab] = useState<TabKey>("VISITS");
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [noteTemplates, setNoteTemplates] = useState<
@@ -1388,7 +1388,11 @@ export default function EncounterDetailsPage() {
                                 checked={selectedDxCodes.has(i)}
                                 onChange={() => {
                                   const next = new Set(selectedDxCodes);
-                                  next.has(i) ? next.delete(i) : next.add(i);
+                                  if (next.has(i)) {
+                                    next.delete(i);
+                                  } else {
+                                    next.add(i);
+                                  }
                                   setSelectedDxCodes(next);
                                 }}
                                 className="mt-1 accent-emerald-500 w-4 h-4 shrink-0"
@@ -1498,7 +1502,11 @@ export default function EncounterDetailsPage() {
                                   checked={selectedPxCodes.has(i)}
                                   onChange={() => {
                                     const next = new Set(selectedPxCodes);
-                                    next.has(i) ? next.delete(i) : next.add(i);
+                                    if (next.has(i)) {
+                                      next.delete(i);
+                                    } else {
+                                      next.add(i);
+                                    }
                                     setSelectedPxCodes(next);
                                   }}
                                   className="mt-1 accent-amber-500 w-4 h-4 shrink-0"

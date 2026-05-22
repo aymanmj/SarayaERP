@@ -89,8 +89,7 @@ export function CreateGoodsReceiptPage() {
 
   const handleItemChange = (index: number, field: string, value: string | number) => {
     const newItems = [...items];
-    // @ts-ignore
-    newItems[index][field] = value;
+    (newItems[index] as any)[field] = value;
 
     // Load UOMs if product changes
     if (field === 'productId') {

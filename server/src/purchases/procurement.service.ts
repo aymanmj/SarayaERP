@@ -32,45 +32,47 @@ export class ProcurementService {
     items: { productId: number; uomId: number; quantity: number }[];
     notes?: string;
   }) {
-    // التحقق من المنتجات ووحدات القياس
-    const productIds = data.items.map((i) => i.productId);
-    const count = await this.prisma.product.count({
-      where: { id: { in: productIds }, hospitalId: data.hospitalId },
-    });
-    if (count !== productIds.length)
-      throw new BadRequestException('بعض المنتجات غير صالحة');
+    return this.prisma.$transaction(async (tx) => {
+      // التحقق من المنتجات ووحدات القياس
+      const productIds = data.items.map((i) => i.productId);
+      const count = await tx.product.count({
+        where: { id: { in: productIds }, hospitalId: data.hospitalId },
+      });
+      if (count !== productIds.length)
+        throw new BadRequestException('بعض المنتجات غير صالحة');
 
-    const productUoms = await this.prisma.productUOM.findMany({
-      where: {
-        OR: data.items.map(i => ({ productId: i.productId, uomId: i.uomId }))
-      }
-    });
+      const productUoms = await tx.productUOM.findMany({
+        where: {
+          OR: data.items.map(i => ({ productId: i.productId, uomId: i.uomId }))
+        }
+      });
 
-    const itemsData = data.items.map((i) => {
-      const uom = productUoms.find(pu => pu.productId === i.productId && pu.uomId === i.uomId);
-      const conversionRate = uom ? Number(uom.conversionRate) : 1;
-      return {
-        productId: i.productId,
-        uomId: i.uomId,
-        quantity: i.quantity,
-        baseQuantity: i.quantity * conversionRate,
-      };
-    });
+      const itemsData = data.items.map((i) => {
+        const uom = productUoms.find(pu => pu.productId === i.productId && pu.uomId === i.uomId);
+        const conversionRate = uom ? Number(uom.conversionRate) : 1;
+        return {
+          productId: i.productId,
+          uomId: i.uomId,
+          quantity: i.quantity,
+          baseQuantity: i.quantity * conversionRate,
+        };
+      });
 
-    const prNumber = `PR-${Date.now()}`; // يفضل استخدام sequence حقيقي
+      const prNumber = await this.getNextSequence(tx, data.hospitalId, 'PR');
 
-    return this.prisma.purchaseRequest.create({
-      data: {
-        hospitalId: data.hospitalId,
-        requestNumber: prNumber,
-        requestedById: data.userId,
-        departmentId: data.departmentId,
-        status: PRStatus.PENDING,
-        notes: data.notes,
-        items: {
-          create: itemsData,
+      return tx.purchaseRequest.create({
+        data: {
+          hospitalId: data.hospitalId,
+          requestNumber: prNumber,
+          requestedById: data.userId,
+          departmentId: data.departmentId,
+          status: PRStatus.PENDING,
+          notes: data.notes,
+          items: {
+            create: itemsData,
+          },
         },
-      },
+      });
     });
   }
 
@@ -97,7 +99,7 @@ export class ProcurementService {
         );
       }
 
-      const poNumber = `PO-${Date.now()}`;
+      const poNumber = await this.getNextSequence(tx, hospitalId, 'PO');
 
       // حساب الإجمالي المبدئي (بناءً على التكلفة الحالية للمنتج)
       let totalAmount = 0;
@@ -167,7 +169,7 @@ export class ProcurementService {
         }
       });
 
-      const poNumber = `PO-${Date.now()}`;
+      const poNumber = await this.getNextSequence(tx, data.hospitalId, 'PO');
       let totalAmount = 0;
 
       const poItems = data.items.map((item) => {
@@ -235,7 +237,29 @@ export class ProcurementService {
         where: { id: data.poId },
         include: { items: true },
       });
-      if (!po) throw new NotFoundException('PO not found');
+      if (!po || po.hospitalId !== data.hospitalId) {
+        throw new NotFoundException('أمر الشراء غير موجود أو غير تابع لهذه المؤسسة');
+      }
+
+      // التحقق من أن المستودع تابع لنفس المستشفى
+      const warehouse = await tx.warehouse.findFirst({
+        where: { id: data.warehouseId, hospitalId: data.hospitalId },
+      });
+      if (!warehouse) {
+        throw new BadRequestException('المستودع المحدد غير موجود أو غير تابع لهذه المؤسسة');
+      }
+
+      // التحقق من أن جميع المنتجات تابعة لنفس المستشفى
+      const productIds = data.items.map((i) => i.productId);
+      const productsCount = await tx.product.count({
+        where: {
+          id: { in: productIds },
+          hospitalId: data.hospitalId,
+        },
+      });
+      if (productsCount !== productIds.length) {
+        throw new BadRequestException('بعض المنتجات غير صالحة أو غير تابعة لهذه المؤسسة');
+      }
 
       // جلب معاملات التحويل للوحدات
       const productUoms = await tx.productUOM.findMany({
@@ -254,7 +278,7 @@ export class ProcurementService {
       });
 
       // 1. إنشاء سجل GRN
-      const grnNumber = `GRN-${Date.now()}`;
+      const grnNumber = await this.getNextSequence(tx, data.hospitalId, 'GRN');
       const grn = await tx.goodsReceipt.create({
         data: {
           hospitalId: data.hospitalId,
@@ -523,5 +547,49 @@ export class ProcurementService {
 
       return invoice;
     });
+  }
+
+  private async getNextSequence(
+    tx: any,
+    hospitalId: number,
+    prefix: 'PR' | 'PO' | 'GRN',
+  ): Promise<string> {
+    await tx.$executeRaw`SELECT 1 FROM "Hospital" WHERE id = ${hospitalId} FOR UPDATE`;
+
+    let lastNumber: string | null = null;
+    if (prefix === 'PR') {
+      const last = await tx.purchaseRequest.findFirst({
+        where: { hospitalId },
+        orderBy: { id: 'desc' },
+        select: { requestNumber: true },
+      });
+      lastNumber = last?.requestNumber || null;
+    } else if (prefix === 'PO') {
+      const last = await tx.purchaseOrder.findFirst({
+        where: { hospitalId },
+        orderBy: { id: 'desc' },
+        select: { poNumber: true },
+      });
+      lastNumber = last?.poNumber || null;
+    } else if (prefix === 'GRN') {
+      const last = await tx.goodsReceipt.findFirst({
+        where: { hospitalId },
+        orderBy: { id: 'desc' },
+        select: { grnNumber: true },
+      });
+      lastNumber = last?.grnNumber || null;
+    }
+
+    let nextVal = 1;
+    if (lastNumber) {
+      const parts = lastNumber.split('-');
+      const suffix = parts[parts.length - 1];
+      const parsed = parseInt(suffix, 10);
+      if (!isNaN(parsed)) {
+        nextVal = parsed + 1;
+      }
+    }
+
+    return `${prefix}-${String(nextVal).padStart(6, '0')}`;
   }
 }
