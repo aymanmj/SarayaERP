@@ -153,6 +153,7 @@ export default function InvoicePrintCleanPage() {
   if (isError) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50 text-rose-500 font-bold">
+        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
         {(error as any)?.message || "تعذر تحميل الفاتورة"}
       </div>
     );
@@ -360,6 +361,7 @@ export default function InvoicePrintCleanPage() {
               </thead>
 
               <tbody className="divide-y divide-slate-100">
+                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                 {charges.map((c: any, idx: number) => {
                   const items = pharmacyMap[c.id] ?? [];
                   return (

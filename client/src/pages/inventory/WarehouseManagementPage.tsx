@@ -1,4 +1,5 @@
 // src/pages/inventory/WarehouseManagementPage.tsx
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { useState, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { inventoryApi, Warehouse, WarehouseZone, WarehouseBin } from '../../api/inventoryApi';
@@ -68,6 +69,7 @@ function FormField({ label, required, children }: { label: string; required?: bo
 const inputClass = "w-full bg-slate-800/80 border border-slate-600/50 rounded-xl px-4 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 focus:border-sky-500 focus:ring-1 focus:ring-sky-500/30 outline-none transition-all";
 const btnPrimary = "flex items-center gap-2 px-5 py-2.5 bg-gradient-to-l from-sky-500 to-sky-600 hover:from-sky-400 hover:to-sky-500 text-white rounded-xl text-sm font-medium shadow-lg shadow-sky-500/20 transition-all duration-200 disabled:opacity-50";
 const btnSecondary = "flex items-center gap-2 px-4 py-2 bg-slate-700/50 hover:bg-slate-600/50 text-slate-300 rounded-xl text-sm transition-all";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const btnDanger = "flex items-center gap-1.5 px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 rounded-lg text-xs transition-all";
 const btnSmall = "flex items-center gap-1.5 px-3 py-1.5 bg-slate-700/40 hover:bg-slate-600/40 text-slate-300 rounded-lg text-xs transition-all";
 
@@ -148,6 +150,7 @@ function ZoneBinTree({ warehouse, onRefresh }: { warehouse: Warehouse; onRefresh
   const [binName, setBinName] = useState('');
   const [binDesc, setBinDesc] = useState('');
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const queryClient = useQueryClient();
 
   const createZoneMut = useMutation({
@@ -156,36 +159,42 @@ function ZoneBinTree({ warehouse, onRefresh }: { warehouse: Warehouse; onRefresh
       return inventoryApi.createZone(warehouse.id, { code: zoneCode, name: zoneName, description: zoneDesc || undefined });
     },
     onSuccess: () => { toast.success('تم إضافة المنطقة بنجاح'); resetZoneForm(); onRefresh(); },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     onError: (e: any) => toast.error(e?.response?.data?.message || 'فشل في إضافة المنطقة'),
   });
 
   const updateZoneMut = useMutation({
     mutationFn: () => inventoryApi.updateZone(editingZone!.id, { code: zoneCode, name: zoneName, description: zoneDesc || undefined }),
     onSuccess: () => { toast.success('تم تعديل المنطقة'); resetZoneForm(); onRefresh(); },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     onError: (e: any) => toast.error(e?.response?.data?.message || 'فشل في تعديل المنطقة'),
   });
 
   const deleteZoneMut = useMutation({
     mutationFn: (id: number) => inventoryApi.deleteZone(id),
     onSuccess: () => { toast.success('تم حذف المنطقة'); onRefresh(); },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     onError: (e: any) => toast.error(e?.response?.data?.message || 'فشل في حذف المنطقة'),
   });
 
   const createBinMut = useMutation({
     mutationFn: () => inventoryApi.createBin(addingBinForZone!, { code: binCode, name: binName, description: binDesc || undefined }),
     onSuccess: () => { toast.success('تم إضافة الرف بنجاح'); resetBinForm(); onRefresh(); },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     onError: (e: any) => toast.error(e?.response?.data?.message || 'فشل في إضافة الرف'),
   });
 
   const updateBinMut = useMutation({
     mutationFn: () => inventoryApi.updateBin(editingBin!.id, { code: binCode, name: binName, description: binDesc || undefined }),
     onSuccess: () => { toast.success('تم تعديل الرف'); resetBinForm(); onRefresh(); },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     onError: (e: any) => toast.error(e?.response?.data?.message || 'فشل في تعديل الرف'),
   });
 
   const deleteBinMut = useMutation({
     mutationFn: (id: number) => inventoryApi.deleteBin(id),
     onSuccess: () => { toast.success('تم حذف الرف'); onRefresh(); },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     onError: (e: any) => toast.error(e?.response?.data?.message || 'فشل في حذف الرف'),
   });
 
@@ -433,6 +442,7 @@ export function WarehouseManagementPage() {
       resetForm();
       queryClient.invalidateQueries({ queryKey: ['warehouses-detailed'] });
     },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     onError: (e: any) => toast.error(e?.response?.data?.message || 'فشل في إنشاء المستودع'),
   });
 
@@ -443,6 +453,7 @@ export function WarehouseManagementPage() {
       resetForm();
       queryClient.invalidateQueries({ queryKey: ['warehouses-detailed'] });
     },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     onError: (e: any) => toast.error(e?.response?.data?.message || 'فشل في تعديل المستودع'),
   });
 

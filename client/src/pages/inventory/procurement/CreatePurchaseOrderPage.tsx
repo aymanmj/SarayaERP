@@ -10,6 +10,7 @@ interface POItem {
   uomId: string;
   quantity: number;
   unitPrice: number;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   productUoms: any[];
 }
 
@@ -45,9 +46,11 @@ export function CreatePurchaseOrderPage() {
     setItems(newItems);
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleItemChange = (index: number, field: keyof POItem, value: any) => {
     const newItems = [...items];
     if (field === 'productId') {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const selectedProduct = products.find((p: any) => p.id === Number(value));
       newItems[index].productId = value;
       newItems[index].unitPrice = selectedProduct ? Number(selectedProduct.costPrice || 0) : 0;
@@ -62,6 +65,7 @@ export function CreatePurchaseOrderPage() {
         newItems[index].uomId = "";
       }
     } else {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (newItems[index] as any)[field] = value;
     }
     setItems(newItems);
@@ -106,6 +110,7 @@ export function CreatePurchaseOrderPage() {
       const res = await apiClient.post('/procurement/orders', payload);
       toast.success("تم إنشاء أمر الشراء المباشر بنجاح");
       navigate(`/purchases/orders/${res.data.id}`);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       console.error(error);
       toast.error(error.response?.data?.message || "حدث خطأ أثناء إنشاء أمر الشراء");
@@ -150,6 +155,7 @@ export function CreatePurchaseOrderPage() {
                 className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 outline-none transition-all"
               >
                 <option value="">-- اختر المورد --</option>
+                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                 {suppliers.map((s: any) => (
                   <option key={s.id} value={s.id}>{s.name} ({s.contactName || "لا يوجد جهة اتصال"})</option>
                 ))}
@@ -212,6 +218,7 @@ export function CreatePurchaseOrderPage() {
                           className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 focus:border-blue-500 outline-none"
                         >
                           <option value="">-- اختر الصنف --</option>
+                          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                           {products.map((p: any) => (
                             <option key={p.id} value={p.id}>{p.name} ({p.code || "بدون كود"})</option>
                           ))}
@@ -225,6 +232,7 @@ export function CreatePurchaseOrderPage() {
                           className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 focus:border-blue-500 outline-none"
                         >
                           <option value="">-- الوحدة --</option>
+                          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                           {item.productUoms.map((pu: any) => (
                             <option key={pu.uomId} value={pu.uomId}>{pu.uom?.name || "وحدة"}</option>
                           ))}

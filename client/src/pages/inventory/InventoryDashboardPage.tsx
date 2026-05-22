@@ -90,7 +90,7 @@ export function InventoryDashboardPage() {
                 onChange={(e) => setSelectedWarehouseId(e.target.value)}
             >
                 <option value="all">كل المستودعات</option>
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                 {warehouses.map((w: any) => (
                     <option key={w.id} value={w.id}>{w.name}</option>
                 ))}
@@ -184,7 +184,7 @@ export function InventoryDashboardPage() {
                             paddingAngle={5}
                             dataKey="value"
                         >
-                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                             {stats.statusDistribution.map((entry: any, index: number) => (
                                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                             ))}

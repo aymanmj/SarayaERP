@@ -64,9 +64,7 @@ export default function PortalRefills() {
             <div className="portal-input-group"><label>اختر الوصفة</label>
               <select value={selectedPrescription} onChange={e => setSelectedPrescription(e.target.value)} required>
                 <option value="">-- اختر وصفة نشطة --</option>
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 {activeMeds.map((m: any) => (
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   <option key={m.id} value={m.id}>{m.items?.map((i:any)=>i.product?.name).join(', ')} — د. {m.doctor?.fullName}</option>
                 ))}
               </select>
@@ -81,7 +79,7 @@ export default function PortalRefills() {
         <div className="portal-empty"><Pill size={48}/><p>لا توجد طلبات تجديد</p></div>
       ) : (
         <div className="portal-list">
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
           {refills.map((r: any) => {
             const st = statusMap[r.status] || { label: r.status, icon: Clock, cls: '' };
             const Icon = st.icon;
@@ -92,7 +90,7 @@ export default function PortalRefills() {
                     <span className={`portal-status ${st.cls}`}><Icon size={14}/> {st.label}</span>
                     <span className="portal-list-date">{new Date(r.createdAt).toLocaleDateString('ar-LY')}</span>
                   </div>
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                   <h4>{r.prescription?.items?.map((i:any)=>i.product?.name).join(', ')}</h4>
                   <p className="portal-card-sub">د. {r.prescription?.doctor?.fullName}</p>
                   {r.reviewNotes && <p className="portal-list-item-note">ملاحظات المراجع: {r.reviewNotes}</p>}

@@ -145,3 +145,20 @@ console.log(`Report generated at ${reportPath}`);
 console.log(`\n=== ABAC GOVERNANCE SUMMARY ===`);
 console.log(`Total: ${totalControllers} | ABAC: ${abacGuarded} (${Math.round((abacGuarded/totalControllers)*100)}%) | Tenant: ${tenantIsolated} (${Math.round((tenantIsolated/totalControllers)*100)}%)`);
 console.log(`Effective (non-exempt): ${nonExemptABAC}/${nonExemptTotal} (${Math.round((nonExemptABAC/nonExemptTotal)*100)}%)`);
+
+// Check Mode for CI
+const isCheckMode = process.argv.includes('--check');
+if (isCheckMode) {
+  const nonCompliant = results.filter(r => r.abacStatus === 'NO');
+  if (nonCompliant.length > 0) {
+    console.error(`\n❌ ABAC AUDIT FAILURE: The following ${nonCompliant.length} controllers require ABAC/Tenant Isolation:`);
+    nonCompliant.forEach(r => {
+      console.error(`  - ${r.controller} (Tenant: ${r.tenantStatus === 'YES' ? '✅' : '❌'}, ABAC: ${r.abacStatus === 'YES' ? '✅' : '❌'})`);
+    });
+    process.exit(1);
+  } else {
+    console.log(`\n✅ ABAC AUDIT SUCCESS: All controllers have active ABAC and Tenant Isolation guards (100% coverage).`);
+    process.exit(0);
+  }
+}
+

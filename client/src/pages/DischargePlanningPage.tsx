@@ -568,7 +568,6 @@ export default function DischargePlanningPage() {
                     className="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition-all"
                   >
                     <option value="">— اختر مريضاً —</option>
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     {activeInpatients.map((inp: any) => {
                       const bed = inp.bedAssignments?.[0]?.bed;
                       const ward = bed?.ward?.name || '';
@@ -628,7 +627,6 @@ export default function DischargePlanningPage() {
                     <label key={item.key} className="flex items-center gap-2 cursor-pointer group">
                       <input
                         type="checkbox"
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         checked={(formData as any)[item.key]}
                         onChange={(e) => setFormData({...formData, [item.key]: e.target.checked})}
                         className="w-4 h-4 text-emerald-500 bg-slate-700 border-slate-600 rounded focus:ring-emerald-500"

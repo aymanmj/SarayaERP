@@ -126,7 +126,7 @@ export default function PortalInvoices() {
         <div className="portal-empty"><CreditCard size={48}/><p>لا توجد فواتير</p></div>
       ) : (
         <div className="portal-list">
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
           {invoices.map((inv: any) => {
             const st = statusMap[inv.status] || { label: inv.status, cls: '' };
             const canPay = ['ISSUED', 'PARTIALLY_PAID'].includes(inv.status);

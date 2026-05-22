@@ -1,0 +1,3001 @@
+Found 782 total double-slash eslint comments.
+Found 231 candidates near JSX tags:
+
+--- Candidate #1: E:\SarayaERP\client\src\main.tsx:50 ---
+Line: // eslint-disable-next-line react-refresh/only-export-components
+Context:
+      46: const InvoicePrintPDFPage = lazy(() => import("./pages/InvoicePrintPDFPage"));
+      47: const PaymentReceiptPrintPage = lazy(() => import("./pages/PaymentReceiptPrintPage"));
+      48: 
+      49: // --- Component Loader ---
+-->   50: // eslint-disable-next-line react-refresh/only-export-components
+      51: const PageLoader = () => (
+      52:   <div className="h-full w-full flex flex-col items-center justify-center text-slate-500 min-h-[60vh]">
+      53:     <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-sky-500 mb-4"></div>
+      54:     <div className="text-sm animate-pulse">جارِ تحميل النظام...</div>
+
+--- Candidate #2: E:\SarayaERP\client\src\pages\EncounterDetailsPage.tsx:189 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+     185: }: {
+     186:   encounterId: number;
+     187:   status: EncounterStatus;
+     188: }) {
+-->  189:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     190:   const [vitals, setVitals] = useState<any[]>([]);
+     191:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     192:   const [diagnoses, setDiagnoses] = useState<any[]>([]);
+     193: 
+
+--- Candidate #3: E:\SarayaERP\client\src\pages\EncounterDetailsPage.tsx:191 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+     187:   status: EncounterStatus;
+     188: }) {
+     189:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     190:   const [vitals, setVitals] = useState<any[]>([]);
+-->  191:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     192:   const [diagnoses, setDiagnoses] = useState<any[]>([]);
+     193: 
+     194:   useEffect(() => {
+     195:     apiClient
+
+--- Candidate #4: E:\SarayaERP\client\src\pages\EncounterDetailsPage.tsx:206 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+     202:       .catch(() => {});
+     203:   }, [encounterId]);
+     204: 
+     205:   const latestVital = vitals.length > 0 ? vitals[0] : null;
+-->  206:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     207:   const primaryDx = diagnoses.find((d: any) => d.type === "PRIMARY");
+     208: 
+     209:   return (
+     210:     <div className="bg-slate-900/60 border border-slate-800 p-4 rounded-2xl">
+
+--- Candidate #5: E:\SarayaERP\client\src\pages\EncounterDetailsPage.tsx:272 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+Context:
+     268:     </div>
+     269:   );
+     270: }
+     271: 
+-->  272: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+     273: function LegacyQuickProtocolsWidget({ encounterId }: { encounterId: number }) {
+     274:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     275:   const [orderSets, setOrderSets] = useState<any[]>([]);
+     276:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
+--- Candidate #6: E:\SarayaERP\client\src\pages\EncounterDetailsPage.tsx:274 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+     270: }
+     271: 
+     272: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+     273: function LegacyQuickProtocolsWidget({ encounterId }: { encounterId: number }) {
+-->  274:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     275:   const [orderSets, setOrderSets] = useState<any[]>([]);
+     276:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     277:   const [pathways, setPathways] = useState<any[]>([]);
+     278:   const [executingId, setExecutingId] = useState<number | null>(null);
+
+--- Candidate #7: E:\SarayaERP\client\src\pages\EncounterDetailsPage.tsx:276 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+     272: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+     273: function LegacyQuickProtocolsWidget({ encounterId }: { encounterId: number }) {
+     274:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     275:   const [orderSets, setOrderSets] = useState<any[]>([]);
+-->  276:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     277:   const [pathways, setPathways] = useState<any[]>([]);
+     278:   const [executingId, setExecutingId] = useState<number | null>(null);
+     279:   const [enrollingId, setEnrollingId] = useState<number | null>(null);
+     280: 
+
+--- Candidate #8: E:\SarayaERP\client\src\pages\EncounterDetailsPage.tsx:437 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+Context:
+     433: 
+     434:   // UI State
+     435:   const [formKey, setFormKey] = useState(() => Date.now());
+     436:   const [activeTab, setActiveTab] = useState<TabKey>("VISITS");
+-->  437:   // eslint-disable-next-line @typescript-eslint/no-unused-vars
+     438:   const [noteTemplates, setNoteTemplates] = useState<
+     439:     { id: number; name: string; content: string }[]
+     440:   >([]);
+     441: 
+
+--- Candidate #9: E:\SarayaERP\client\src\pages\EncounterDetailsPage.tsx:464 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+     460:   const [showTransferModal, setShowTransferModal] = useState(false);
+     461: 
+     462:   // AI Coding Modal
+     463:   const [showAiModal, setShowAiModal] = useState(false);
+-->  464:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     465:   const [aiSuggestions, setAiSuggestions] = useState<any>(null);
+     466:   const [selectedDxCodes, setSelectedDxCodes] = useState<Set<number>>(
+     467:     new Set(),
+     468:   );
+
+--- Candidate #10: E:\SarayaERP\client\src\pages\EncounterDetailsPage.tsx:516 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+     512:   // 3. Fetch Active Transfers for this Encounter
+     513:   const { data: pendingTransfers = [] } = useQuery({
+     514:     queryKey: ["transfers", encId],
+     515:     queryFn: async () => {
+-->  516:       // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     517:       const res = await apiClient.get<any[]>("/transfers/pending");
+     518:       // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     519:       return res.data.filter((t: any) => t.encounterId === encId);
+     520:     },
+
+--- Candidate #11: E:\SarayaERP\client\src\pages\EncounterDetailsPage.tsx:518 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+     514:     queryKey: ["transfers", encId],
+     515:     queryFn: async () => {
+     516:       // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     517:       const res = await apiClient.get<any[]>("/transfers/pending");
+-->  518:       // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     519:       return res.data.filter((t: any) => t.encounterId === encId);
+     520:     },
+     521:     enabled: !!encId,
+     522:   });
+
+--- Candidate #12: E:\SarayaERP\client\src\pages\EncounterDetailsPage.tsx:628 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+     624:       // Auto-select all codes by default
+     625:       if (data?.diagnoses) {
+     626:         // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     627:         setSelectedDxCodes(
+-->  628:           // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     629:           new Set(data.diagnoses.map((_: any, i: number) => i)),
+     630:         );
+     631:         const types: Record<number, "PRIMARY" | "SECONDARY"> = {};
+     632:         // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
+--- Candidate #13: E:\SarayaERP\client\src\pages\EncounterDetailsPage.tsx:632 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+     628:           // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     629:           new Set(data.diagnoses.map((_: any, i: number) => i)),
+     630:         );
+     631:         const types: Record<number, "PRIMARY" | "SECONDARY"> = {};
+-->  632:         // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     633:         data.diagnoses.forEach((_: any, i: number) => {
+     634:           types[i] = i === 0 ? "PRIMARY" : "SECONDARY";
+     635:         });
+     636:         setDxTypes(types);
+
+--- Candidate #14: E:\SarayaERP\client\src\pages\EncounterDetailsPage.tsx:1379 ---
+Line: // eslint-disable-next-line
+Context:
+    1375:                               : "تحديد الكل"}
+    1376:                           </button>
+    1377:                         </div>
+    1378:                         <div className="space-y-2">
+--> 1379:                           // eslint-disable-next-line
+    1380:                           @typescript-eslint/no-explicit-any
+    1381:                           // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    1382:                           {aiSuggestions.diagnoses.map((dx: any, i: number) => (
+    1383:                             <label
+
+--- Candidate #15: E:\SarayaERP\client\src\pages\EncounterDetailsPage.tsx:1381 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+    1377:                         </div>
+    1378:                         <div className="space-y-2">
+    1379:                           // eslint-disable-next-line
+    1380:                           @typescript-eslint/no-explicit-any
+--> 1381:                           // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    1382:                           {aiSuggestions.diagnoses.map((dx: any, i: number) => (
+    1383:                             <label
+    1384:                               key={i}
+    1385:                               className={`flex items-start gap-3 bg-slate-950 border rounded-xl p-3 cursor-pointer transition-all ${
+
+--- Candidate #16: E:\SarayaERP\client\src\pages\EncounterDetailsPage.tsx:1494 ---
+Line: // eslint-disable-next-line
+Context:
+    1490:                               : "تحديد الكل"}
+    1491:                           </button>
+    1492:                         </div>
+    1493:                         <div className="space-y-2">
+--> 1494:                           // eslint-disable-next-line
+    1495:                           @typescript-eslint/no-explicit-any
+    1496:                           {aiSuggestions.procedures.map(
+    1497:                             // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    1498:                             (px: any, i: number) => (
+
+--- Candidate #17: E:\SarayaERP\client\src\pages\EncounterDetailsPage.tsx:1497 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+    1493:                         <div className="space-y-2">
+    1494:                           // eslint-disable-next-line
+    1495:                           @typescript-eslint/no-explicit-any
+    1496:                           {aiSuggestions.procedures.map(
+--> 1497:                             // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    1498:                             (px: any, i: number) => (
+    1499:                               <label
+    1500:                                 key={i}
+    1501:                                 className={`flex items-start gap-3 bg-slate-950 border rounded-xl p-3 cursor-pointer transition-all ${
+
+--- Candidate #18: E:\SarayaERP\client\src\pages\PharmacyWorklistPage.tsx:84 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      80:   async function loadData() {
+      81:     try {
+      82:       setLoading(true);
+      83:       const res =
+-->   84:         // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      85:         await apiClient.get<any>("/pharmacy/worklist");
+      86:       const listA = Array.isArray(res.data) ? res.data : (res.data.data || []);
+      87:       setData(listA);
+      88:     // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
+--- Candidate #19: E:\SarayaERP\client\src\pages\PharmacyWorklistPage.tsx:88 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+Context:
+      84:         // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      85:         await apiClient.get<any>("/pharmacy/worklist");
+      86:       const listA = Array.isArray(res.data) ? res.data : (res.data.data || []);
+      87:       setData(listA);
+-->   88:     // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      89:     } catch (err) {
+      90:       toast.error("فشل تحميل القائمة.");
+      91:     } finally {
+      92:       setLoading(false);
+
+--- Candidate #20: E:\SarayaERP\client\src\pages\LabWorklistPage.tsx:53 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+Context:
+      49:     setLoading(true);
+      50:     try {
+      51:       const res = await apiClient.get<LabWorklistItem[]>("/lab/worklist");
+      52:       setItems(res.data);
+-->   53:     // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      54:     } catch (err) {
+      55:       toast.error("حدث خطأ أثناء تحميل القائمة.");
+      56:     } finally {
+      57:       setLoading(false);
+
+--- Candidate #21: E:\SarayaERP\client\src\pages\RadiologyWorklistPage.tsx:56 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+Context:
+      52:       const res = await apiClient.get<RadiologyWorklistItem[]>(
+      53:         "/radiology/worklist",
+      54:       );
+      55:       setItems(res.data);
+-->   56:     // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      57:     } catch (err) {
+      58:       toast.error("حدث خطأ أثناء تحميل القائمة.");
+      59:     } finally {
+      60:       setLoading(false);
+
+--- Candidate #22: E:\SarayaERP\client\src\pages\PatientStatementPage.tsx:161 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+Context:
+     157:   const [error, setError] = useState<string | null>(null);
+     158: 
+     159:   const [pharmacyDispenses, setPharmacyDispenses] =
+     160:     useState<EncounterDispenseMap>({});
+-->  161:   // eslint-disable-next-line @typescript-eslint/no-unused-vars
+     162:   const [loadingPharmacy, setLoadingPharmacy] = useState(false);
+     163: 
+     164:   async function loadPharmacyDispensesForInvoices(invoices: InvoiceDto[]) {
+     165:     // نستخرج كل encounterId من الفواتير
+
+--- Candidate #23: E:\SarayaERP\client\src\pages\InvoicePrintPage.tsx:158 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+     154:         apiClient.get(`/billing/invoices/${invoiceId}/print`),
+     155:         apiClient.get(`/cashier/invoices/${invoiceId}/details`),
+     156:       ]);
+     157: 
+-->  158:       // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     159:       const pharmacyMap: Record<number, any[]> = {};
+     160:       for (const line of detailsRes.data.lines) {
+     161:         if (line.pharmacyItems && line.pharmacyItems.length > 0) {
+     162:           pharmacyMap[line.id] = line.pharmacyItems;
+
+--- Candidate #24: E:\SarayaERP\client\src\pages\InvoicesListPage.tsx:115 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+     111: 
+     112:   const invoices = data?.items || [];
+     113:   const meta = data?.meta;
+     114: 
+-->  115:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     116:   const formatMoney = (val: any) => Number(val || 0).toFixed(3);
+     117: 
+     118:   return (
+     119:     <div
+
+--- Candidate #25: E:\SarayaERP\client\src\pages\ChartOfAccountsPage.tsx:85 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      81:       setLoading(true);
+      82:       setError(null);
+      83:       const res = await apiClient.get<AccountRow[]>("/accounting/accounts");
+      84:       setRows(res.data);
+-->   85:     // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      86:     } catch (err: any) {
+      87:       console.error(err);
+      88:       const msg =
+      89:         err?.response?.data?.message ||
+
+--- Candidate #26: E:\SarayaERP\client\src\pages\ManualEntryPage.tsx:78 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      74:           apiClient.get<CostCenterLite[]>("/accounting/cost-centers"),
+      75:         ]);
+      76:         setAccounts(accRes.data);
+      77:         setCostCenters(ccRes.data);
+-->   78:       // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      79:       } catch (err: any) {
+      80:         console.error(err);
+      81:         const msg =
+      82:           err?.response?.data?.message || "حدث خطأ أثناء تحميل البيانات.";
+
+--- Candidate #27: E:\SarayaERP\client\src\pages\IncomeStatementPage.tsx:70 ---
+Line: // eslint-disable-next-line react-hooks/exhaustive-deps
+Context:
+      66:       .get<CostCenterLite[]>("/accounting/cost-centers")
+      67:       .then((res) => setCostCenters(res.data))
+      68:       .catch(console.error);
+      69:     load();
+-->   70:     // eslint-disable-next-line react-hooks/exhaustive-deps
+      71:   }, []);
+      72: 
+      73:   async function load() {
+      74:     try {
+
+--- Candidate #28: E:\SarayaERP\client\src\pages\CashierUserReportPage.tsx:131 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+     127:       const res = await apiClient.get<CashierUserReport>(
+     128:         `/cashier/reports/by-cashier?${params.toString()}`
+     129:       );
+     130:       setReport(res.data);
+-->  131:     // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     132:     } catch (err: any) {
+     133:       console.error(err);
+     134:       const msg = err?.response?.data?.message;
+     135:       if (typeof msg === "string") setError(msg);
+
+--- Candidate #29: E:\SarayaERP\client\src\pages\CashierShiftsPage.tsx:84 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      80:       const res = await apiClient.get<CashierShiftRow[]>(
+      81:         `/cashier/shifts?${params.toString()}`
+      82:       );
+      83:       setShifts(res.data);
+-->   84:     // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      85:     } catch (err: any) {
+      86:       console.error(err);
+      87:       const msg = err?.response?.data?.message;
+      88:       if (typeof msg === "string") {
+
+--- Candidate #30: E:\SarayaERP\client\src\pages\SuppliersPage.tsx:37 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      33:     setLoading(true);
+      34:     try {
+      35:       const res = await apiClient.get<Supplier[]>("/suppliers");
+      36:       setSuppliers(res.data);
+-->   37:     // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      38:     } catch (err: any) {
+      39:       console.error(err);
+      40:       toast.error("حدث خطأ أثناء تحميل الموردين.");
+      41:     } finally {
+
+--- Candidate #31: E:\SarayaERP\client\src\pages\PurchaseInvoicesPage.tsx:134 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+     130:       const res = await apiClient.get<PurchaseInvoiceRow[]>(
+     131:         "/purchases/invoices",
+     132:       );
+     133:       setInvoices(res.data);
+-->  134:     // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     135:     } catch (err: any) {
+     136:       console.error(err);
+     137:       toast.error("حدث خطأ أثناء تحميل فواتير الشراء.");
+     138:     } finally {
+
+--- Candidate #32: E:\SarayaERP\client\src\pages\GeneralLedgerPage.tsx:217 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+     213:   const loadAccounts = async () => {
+     214:     try {
+     215:       const res = await apiClient.get<AccountLite[]>("/accounting/accounts");
+     216:       setAccounts(res.data);
+-->  217:     // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     218:     } catch (err: any) {
+     219:       console.error(err);
+     220:       toast.error("تعذر تحميل قائمة الحسابات.");
+     221:     }
+
+--- Candidate #33: E:\SarayaERP\client\src\pages\YearClosingPage.tsx:304 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+     300:   );
+     301: }
+     302: 
+     303: function PendingDocumentsCheck({ yearId }: { yearId: number }) {
+-->  304:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     305:   const [documents, setDocuments] = useState<any[]>([]);
+     306:   const [loading, setLoading] = useState(false);
+     307:   const [checked, setChecked] = useState(false);
+     308: 
+
+--- Candidate #34: E:\SarayaERP\client\src\pages\InvoiceDetailsPage.tsx:169 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+Context:
+     165:       enabled: !!id
+     166:   });
+     167: 
+     168:   // 2. Fetch Org Settings
+-->  169:   // eslint-disable-next-line @typescript-eslint/no-unused-vars
+     170:   const { data: org } = useQuery({
+     171:       queryKey: ['organizationSettings'],
+     172:       queryFn: async () => {
+     173:           const res = await apiClient.get<OrganizationSettings>("/settings/organization");
+
+--- Candidate #35: E:\SarayaERP\client\src\pages\PurchaseInvoiceDetailsPage.tsx:167 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+     163:     </span>
+     164:   );
+     165: }
+     166: 
+-->  167: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     168: function getErrMsg(err: any, fallback: string) {
+     169:   const msg = err?.response?.data?.message;
+     170:   if (!msg) return fallback;
+     171:   if (typeof msg === "string") return msg;
+
+--- Candidate #36: E:\SarayaERP\client\src\pages\PurchaseInvoiceDetailsPage.tsx:189 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+Context:
+     185:   const [error, setError] = useState<string | null>(null);
+     186: 
+     187:   // نموذج الدفع
+     188:   const [payAmount, setPayAmount] = useState<string>("");
+-->  189:   // eslint-disable-next-line @typescript-eslint/no-unused-vars
+     190:   const [payMethod, setPayMethod] = useState<PaymentMethod>("CASH");
+     191:   const [payReference, setPayReference] = useState<string>("");
+     192:   const [payNotes, setPayNotes] = useState<string>("");
+     193: 
+
+--- Candidate #37: E:\SarayaERP\client\src\pages\InventoryTransfersPage.tsx:34 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+Context:
+      30: };
+      31: 
+      32: export default function InventoryTransfersPage() {
+      33:   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
+-->   34:   // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      35:   const [loading, setLoading] = useState(false);
+      36: 
+      37:   // --- تبويبات ---
+      38:   const [activeTab, setActiveTab] = useState<"STOCK" | "TRANSFER">("STOCK");
+
+--- Candidate #38: E:\SarayaERP\client\src\pages\ServicesMasterPage.tsx:133 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+Context:
+     129:       setNewCategoryName("");
+     130:       // Refresh categories
+     131:       const resCat = await apiClient.get<ServiceCategory[]>("/services/categories");
+     132:       setCategories(resCat.data);
+-->  133:     // eslint-disable-next-line @typescript-eslint/no-unused-vars
+     134:     } catch (err) {
+     135:       toast.error("فشل إضافة الفئة");
+     136:     }
+     137:   };
+
+--- Candidate #39: E:\SarayaERP\client\src\pages\UsersPage.tsx:73 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+Context:
+      69:     annualLeaveBalance: "30",
+      70:   });
+      71: 
+      72:   // 1. Queries
+-->   73:   // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      74:   const { data: users = [], isLoading: usersLoading } = useQuery({
+      75:       queryKey: ['users'],
+      76:       queryFn: async () => {
+      77:           const res = await apiClient.get<User[]>("/users");
+
+--- Candidate #40: E:\SarayaERP\client\src\pages\PayrollPage.tsx:16 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      12:   DocumentTextIcon,
+      13: } from "@heroicons/react/24/outline";
+      14: 
+      15: export default function PayrollPage() {
+-->   16:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      17:   const [runs, setRuns] = useState<any[]>([]);
+      18:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      19:   const [selectedRun, setSelectedRun] = useState<any | null>(null);
+      20:   // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
+--- Candidate #41: E:\SarayaERP\client\src\pages\PayrollPage.tsx:18 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      14: 
+      15: export default function PayrollPage() {
+      16:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      17:   const [runs, setRuns] = useState<any[]>([]);
+-->   18:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      19:   const [selectedRun, setSelectedRun] = useState<any | null>(null);
+      20:   // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      21:   const [loading, setLoading] = useState(false);
+      22:   const [approving, setApproving] = useState(false);
+
+--- Candidate #42: E:\SarayaERP\client\src\pages\PayrollPage.tsx:20 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+Context:
+      16:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      17:   const [runs, setRuns] = useState<any[]>([]);
+      18:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      19:   const [selectedRun, setSelectedRun] = useState<any | null>(null);
+-->   20:   // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      21:   const [loading, setLoading] = useState(false);
+      22:   const [approving, setApproving] = useState(false);
+      23:   const [month, setMonth] = useState(new Date().getMonth() + 1);
+      24:   const [year, setYear] = useState(new Date().getFullYear());
+
+--- Candidate #43: E:\SarayaERP\client\src\pages\InsuranceClaimsPage.tsx:66 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      62:   // Load Claims
+      63:   const loadClaims = async () => {
+      64:     setLoading(true);
+      65:     try {
+-->   66:       // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      67:       const params: any = { status: statusFilter };
+      68:       if (selectedProvider) params.providerId = selectedProvider;
+      69: 
+      70:       const res = await apiClient.get<ClaimInvoice[]>("/insurance/claims", { params });
+
+--- Candidate #44: E:\SarayaERP\client\src\pages\InsuranceClaimsPage.tsx:73 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+Context:
+      69: 
+      70:       const res = await apiClient.get<ClaimInvoice[]>("/insurance/claims", { params });
+      71:       setClaims(res.data);
+      72:       setSelectedIds([]); // Reset selection
+-->   73:     // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      74:     } catch (err) {
+      75:       toast.error("فشل تحميل المطالبات.");
+      76:     } finally {
+      77:       setLoading(false);
+
+--- Candidate #45: E:\SarayaERP\client\src\pages\HousekeepingPage.tsx:26 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      22:       // سنجلب كل العنابر ونفلتر، أو نستخدم endpoint مخصص
+      23:       // للتبسيط، سأفترض أننا سنقوم بفلترة الرد من /beds/tree
+      24:       // أو الأفضل: إضافة endpoint لجلب الأسرة غير المتاحة
+      25:       // سأستخدم هنا حل سريع: جلب الشجرة وفلترتها في الفرونت
+-->   26:       // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      27:       const res = await apiClient.get<any[]>("/beds/tree");
+      28:       const dirtyBeds: Bed[] = [];
+      29: 
+      30:       // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
+--- Candidate #46: E:\SarayaERP\client\src\pages\HousekeepingPage.tsx:30 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      26:       // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      27:       const res = await apiClient.get<any[]>("/beds/tree");
+      28:       const dirtyBeds: Bed[] = [];
+      29: 
+-->   30:       // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      31:       res.data.forEach((ward: any) => {
+      32:         // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      33:         ward.rooms.forEach((room: any) => {
+      34:           // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
+--- Candidate #47: E:\SarayaERP\client\src\pages\NursingStationPage.tsx:83 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      79:   const loadData = async () => {
+      80:     setLoading(true);
+      81:     try {
+      82:       // Get all inpatients for nursing view
+-->   83:       // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      84:       const res = await apiClient.get<any>("/clinical/inpatient/all-patients");
+      85:       const listA = Array.isArray(res.data) ? res.data : (res.data.data || []);
+      86:       setEncounters(listA);
+      87:     // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
+--- Candidate #48: E:\SarayaERP\client\src\pages\NursingStationPage.tsx:87 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+Context:
+      83:       // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      84:       const res = await apiClient.get<any>("/clinical/inpatient/all-patients");
+      85:       const listA = Array.isArray(res.data) ? res.data : (res.data.data || []);
+      86:       setEncounters(listA);
+-->   87:     // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      88:     } catch (err) {
+      89:       // Fallback: try getting via my-rotation (for testing)
+      90:       try {
+      91:         // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
+--- Candidate #49: E:\SarayaERP\client\src\pages\NursingStationPage.tsx:91 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      87:     // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      88:     } catch (err) {
+      89:       // Fallback: try getting via my-rotation (for testing)
+      90:       try {
+-->   91:         // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      92:         const res = await apiClient.get<any>("/clinical/inpatient/my-rotation?doctorId=1");
+      93:         const listB = Array.isArray(res.data) ? res.data : (res.data.data || []);
+      94:         setEncounters(listB);
+      95:       } catch {
+
+--- Candidate #50: E:\SarayaERP\client\src\pages\ShiftsPage.tsx:20 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+Context:
+      16: };
+      17: 
+      18: export default function ShiftsPage() {
+      19:   const [shifts, setShifts] = useState<WorkShift[]>([]);
+-->   20:   // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      21:   const [loading, setLoading] = useState(false);
+      22: 
+      23:   // Form
+      24:   const [name, setName] = useState("");
+
+--- Candidate #51: E:\SarayaERP\client\src\pages\ShiftsPage.tsx:35 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+Context:
+      31:     setLoading(true);
+      32:     try {
+      33:       const res = await apiClient.get<WorkShift[]>("/hr/shifts");
+      34:       setShifts(res.data);
+-->   35:     // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      36:     } catch (err) {
+      37:       toast.error("فشل تحميل الورديات");
+      38:     } finally {
+      39:       setLoading(false);
+
+--- Candidate #52: E:\SarayaERP\client\src\pages\RosterPage.tsx:40 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+Context:
+      36: export default function RosterPage() {
+      37:   const [users, setUsers] = useState<UserLite[]>([]);
+      38:   const [shifts, setShifts] = useState<WorkShift[]>([]);
+      39:   const [rosterData, setRosterData] = useState<RosterEntry[]>([]);
+-->   40:   // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      41:   const [loading, setLoading] = useState(false);
+      42: 
+      43:   // --- View Control ---
+      44:   const [currentMonth, setCurrentMonth] = useState(new Date());
+
+--- Candidate #53: E:\SarayaERP\client\src\pages\RosterPage.tsx:80 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+Context:
+      76:           apiClient.get<WorkShift[]>("/hr/shifts"),
+      77:         ]);
+      78:         setUsers(uRes.data);
+      79:         setShifts(sRes.data);
+-->   80:       // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      81:       } catch (e) {
+      82:         toast.error("فشل تحميل الموارد الأساسية");
+      83:       }
+      84:     };
+
+--- Candidate #54: E:\SarayaERP\client\src\pages\LeavesPage.tsx:37 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+Context:
+      33:   const { user } = useAuthStore();
+      34:   const isAdmin = user?.roles.includes("ADMIN") || user?.roles.includes("HR");
+      35: 
+      36:   const [leaves, setLeaves] = useState<LeaveRequest[]>([]);
+-->   37:   // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      38:   const [loading, setLoading] = useState(false);
+      39:   const [showModal, setShowModal] = useState(false);
+      40: 
+      41:   // Form
+
+--- Candidate #55: E:\SarayaERP\client\src\pages\LeavesPage.tsx:189 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+     185:                 <label className="text-xs text-slate-400">نوع الإجازة</label>
+     186:                 <select
+     187:                   value={form.type}
+     188:                   onChange={(e) =>
+-->  189:                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     190:                     setForm({ ...form, type: e.target.value as any })
+     191:                   }
+     192:                   className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm"
+     193:                 >
+
+--- Candidate #56: E:\SarayaERP\client\src\pages\SurgeryCaseDetailsPage.tsx:75 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+Context:
+      71:   const { id } = useParams<{ id: string }>();
+      72:   const navigate = useNavigate();
+      73: 
+      74:   const [surgery, setSurgery] = useState<SurgeryCaseDetails | null>(null);
+-->   75:   // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      76:   const [loading, setLoading] = useState(false);
+      77: 
+      78:   // Lists for dropdowns
+      79:   const [users, setUsers] = useState<UserLite[]>([]);
+
+--- Candidate #57: E:\SarayaERP\client\src\pages\AssetsPage.tsx:55 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+Context:
+      51:       const res = await apiClient.get<Asset[]>("/assets", {
+      52:         params: { q: search || undefined },
+      53:       });
+      54:       setAssets(res.data);
+-->   55:     // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      56:     } catch (err) {
+      57:       toast.error("فشل تحميل الأصول");
+      58:     } finally {
+      59:       setLoading(false);
+
+--- Candidate #58: E:\SarayaERP\client\src\pages\MaintenancePage.tsx:30 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+Context:
+      26: 
+      27: export default function MaintenancePage() {
+      28:   const [tickets, setTickets] = useState<MaintenanceTicket[]>([]);
+      29:   const [assets, setAssets] = useState<AssetLite[]>([]);
+-->   30:   // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      31:   const [loading, setLoading] = useState(false);
+      32: 
+      33:   // Modal State
+      34:   const [showCreateModal, setShowCreateModal] = useState(false);
+
+--- Candidate #59: E:\SarayaERP\client\src\pages\DepreciationPage.tsx:11 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+       7: 
+       8: export default function DepreciationPage() {
+       9:   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+      10:   const [processing, setProcessing] = useState(false);
+-->   11:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      12:   const [result, setResult] = useState<any>(null);
+      13: 
+      14:   const handleRun = async () => {
+      15:     if (
+
+--- Candidate #60: E:\SarayaERP\client\src\pages\ReportsDashboardPage.tsx:34 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      30:   "#6366f1",
+      31: ];
+      32: 
+      33: export default function ReportsDashboardPage() {
+-->   34:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      35:   const [financialData, setFinancialData] = useState<any[]>([]);
+      36:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      37:   const [operationalData, setOperationalData] = useState<any[]>([]);
+      38:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
+--- Candidate #61: E:\SarayaERP\client\src\pages\ReportsDashboardPage.tsx:36 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      32: 
+      33: export default function ReportsDashboardPage() {
+      34:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      35:   const [financialData, setFinancialData] = useState<any[]>([]);
+-->   36:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      37:   const [operationalData, setOperationalData] = useState<any[]>([]);
+      38:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      39:   const [kpis, setKpis] = useState<any>(null);
+      40:   const [loading, setLoading] = useState(true);
+
+--- Candidate #62: E:\SarayaERP\client\src\pages\ReportsDashboardPage.tsx:38 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      34:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      35:   const [financialData, setFinancialData] = useState<any[]>([]);
+      36:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      37:   const [operationalData, setOperationalData] = useState<any[]>([]);
+-->   38:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      39:   const [kpis, setKpis] = useState<any>(null);
+      40:   const [loading, setLoading] = useState(true);
+      41: 
+      42:   useEffect(() => {
+
+--- Candidate #63: E:\SarayaERP\client\src\pages\ReportsDashboardPage.tsx:63 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      59:     }
+      60:     loadData();
+      61:   }, []);
+      62: 
+-->   63:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      64:   const KPICard = ({ title, value, unit, color }: any) => (
+      65:     <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-sm">
+      66:       <div className="text-xs text-slate-500 font-bold mb-2 uppercase tracking-wider">
+      67:         {title}
+
+--- Candidate #64: E:\SarayaERP\client\src\pages\PriceListsPage.tsx:32 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+Context:
+      28:     setLoading(true);
+      29:     try {
+      30:       const res = await apiClient.get<PriceList[]>("/price-lists");
+      31:       setLists(res.data);
+-->   32:     // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      33:     } catch (err) {
+      34:       toast.error("فشل تحميل قوائم الأسعار");
+      35:     } finally {
+      36:       setLoading(false);
+
+--- Candidate #65: E:\SarayaERP\client\src\pages\PriceListDetailsPage.tsx:64 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      60: 
+      61:       // نبحث عن اسم القائمة (يمكن عمل Endpoint خاص لجلب تفاصيل القائمة، أو نفلتر من القائمة الرئيسية، هنا سنفترض وجودها في القائمة لتبسيط الكود أو نجلبها بشكل منفصل. للسرعة سنجلب القوائم ونبحث)
+      62:       // *تحسين:* يفضل عمل Endpoint `GET /price-lists/:id` في الباكند. سأفترض وجودها أو التعامل مع البيانات المتاحة.
+      63:       // سنجلب القوائم مؤقتاً لمعرفة الاسم
+-->   64:       // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      65:       apiClient.get<any[]>("/price-lists").then((res) => {
+      66:         const found = res.data.find((l) => l.id === listId);
+      67:         if (found) setListInfo({ name: found.name, code: found.code });
+      68:       });
+
+--- Candidate #66: E:\SarayaERP\client\src\pages\InsuranceProviderDetailsPage.tsx:29 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+Context:
+      25: 
+      26:   const [plans, setPlans] = useState<InsurancePlan[]>([]);
+      27:   const [policies, setPolicies] = useState<Policy[]>([]); // ✅
+      28:   const [providerName, setProviderName] = useState("");
+-->   29:   // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      30:   const [loading, setLoading] = useState(false);
+      31: 
+      32:   // Modals
+      33:   const [showPlanModal, setShowPlanModal] = useState(false);
+
+--- Candidate #67: E:\SarayaERP\client\src\pages\InsuranceProviderDetailsPage.tsx:55 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      51: 
+      52:   const loadData = async () => {
+      53:     setLoading(true);
+      54:     try {
+-->   55:       // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      56:       const res = await apiClient.get<any>(`/insurance/providers/${providerId}`);
+      57:       if (res.data) {
+      58:         setProviderName(res.data.name);
+      59:         setPlans(res.data.plans || []);
+
+--- Candidate #68: E:\SarayaERP\client\src\pages\PlanRulesPage.tsx:29 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+Context:
+      25: 
+      26:   // Data for Dropdowns
+      27:   const [categories, setCategories] = useState<ServiceCategory[]>([]);
+      28:   const [services, setServices] = useState<ServiceItem[]>([]);
+-->   29:   // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      30:   const [loadingResources, setLoadingResources] = useState(false);
+      31: 
+      32:   // Modal State
+      33:   const [showModal, setShowModal] = useState(false);
+
+--- Candidate #69: E:\SarayaERP\client\src\pages\PreAuthPage.tsx:55 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      51:   const [selectedAuth, setSelectedAuth] = useState<PreAuthorization | null>(null);
+      52: 
+      53:   // Add Request State
+      54:   const [searchMrn, setSearchMrn] = useState("");
+-->   55:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      56:   const [foundPatient, setFoundPatient] = useState<any>(null);
+      57:   const [requestedAmount, setRequestedAmount] = useState("");
+      58:   const [requestNotes, setRequestNotes] = useState("");
+      59: 
+
+--- Candidate #70: E:\SarayaERP\client\src\pages\InsuranceProvidersPage.tsx:49 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+Context:
+      45:       const res = await apiClient.get<InsuranceProvider[]>(
+      46:         "/insurance/providers",
+      47:       );
+      48:       setProviders(res.data);
+-->   49:     // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      50:     } catch (err) {
+      51:       toast.error("فشل تحميل شركات التأمين");
+      52:     } finally {
+      53:       setLoading(false);
+
+--- Candidate #71: E:\SarayaERP\client\src\pages\TriageDashboardPage.tsx:112 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+Context:
+     108:     setLoading(true);
+     109:     try {
+     110:       const res = await apiClient.get<ERPatient[]>("/triage/waiting");
+     111:       setPatients(res.data);
+-->  112:     // eslint-disable-next-line @typescript-eslint/no-unused-vars
+     113:     } catch (err) {
+     114:       toast.error("فشل تحميل قائمة الانتظار");
+     115:     } finally {
+     116:       setLoading(false);
+
+--- Candidate #72: E:\SarayaERP\client\src\pages\EncountersListPage.tsx:57 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+Context:
+      53:   const [page, setPage] = useState(1);
+      54:   const [typeFilter, setTypeFilter] = useState<string>(
+      55:     searchParams.get("type") || "",
+      56:   );
+-->   57:   // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      58:   const [statusFilter, setStatusFilter] = useState<string>(
+      59:     searchParams.get("status") || "",
+      60:   );
+      61:   const [searchQuery, setSearchQuery] = useState("");
+
+--- Candidate #73: E:\SarayaERP\client\src\pages\AuditLogsPage.tsx:141 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+     137:     if (lower.includes("delete")) return <Trash2 className="w-4 h-4" />;
+     138:     return <FileText className="w-4 h-4" />;
+     139:   };
+     140: 
+-->  141:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     142:   const getChanges = (oldData: any, newData: any) => {
+     143:     if (!oldData && !newData) return [];
+     144:     if (!oldData && newData) return Object.keys(newData).map(key => ({ key, old: undefined, new: newData[key] }));
+     145:     if (oldData && !newData) return Object.keys(oldData).map(key => ({ key, old: oldData[key], new: undefined }));
+
+--- Candidate #74: E:\SarayaERP\client\src\pages\DoctorRoundsPage.tsx:70 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      66: 
+      67:   const loadRotation = async () => {
+      68:     setLoading(true);
+      69:     try {
+-->   70:       // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      71:       const res = await apiClient.get<any>("/clinical/inpatient/my-rotation");
+      72:       const patientsList: Inpatient[] = Array.isArray(res.data) ? res.data : (res.data.data || []);
+      73:       setPatients(patientsList);
+      74:     // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
+--- Candidate #75: E:\SarayaERP\client\src\pages\DoctorRoundsPage.tsx:74 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+Context:
+      70:       // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      71:       const res = await apiClient.get<any>("/clinical/inpatient/my-rotation");
+      72:       const patientsList: Inpatient[] = Array.isArray(res.data) ? res.data : (res.data.data || []);
+      73:       setPatients(patientsList);
+-->   74:     // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      75:     } catch (e) {
+      76:       toast.error("فشل تحميل قائمة المرضى");
+      77:     } finally {
+      78:       setLoading(false);
+
+--- Candidate #76: E:\SarayaERP\client\src\pages\RolesPermissionsPage.tsx:31 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+Context:
+      27:   const [roles, setRoles] = useState<Role[]>([]);
+      28:   const [allPermissions, setAllPermissions] = useState<Permission[]>([]);
+      29:   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
+      30:   const [selectedPermissionIds, setSelectedPermissionIds] = useState<number[]>([]);
+-->   31:   // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      32:   const [loading, setLoading] = useState(false);
+      33:   const [saving, setSaving] = useState(false);
+      34: 
+      35:   const loadData = async () => {
+
+--- Candidate #77: E:\SarayaERP\client\src\pages\RolesPermissionsPage.tsx:44 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+Context:
+      40:         apiClient.get<Permission[]>("/users/permissions"),
+      41:       ]);
+      42:       setRoles(rolesRes.data);
+      43:       setAllPermissions(permsRes.data);
+-->   44:     // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      45:     } catch (err) {
+      46:       toast.error("فشل تحميل البيانات");
+      47:     } finally {
+      48:       setLoading(false);
+
+--- Candidate #78: E:\SarayaERP\client\src\pages\UsersAndRolesPage.tsx:612 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+Context:
+     608:                   <div className="flex-1 overflow-y-auto custom-scrollbar space-y-6">
+     609:                     {Object.entries(groupedPermissions).map(([prefix, perms]) => {
+     610:                       const groupInfo = permissionGroupLabels[prefix] || { label: prefix, icon: "📌" };
+     611:                       const selectedInGroup = perms.filter((p) => selectedPermissionIds.includes(p.id)).length;
+-->  612:                       // eslint-disable-next-line @typescript-eslint/no-unused-vars
+     613:                       const allSelected = selectedInGroup === perms.length;
+     614: 
+     615:                       return (
+     616:                         <div key={prefix} className="bg-slate-950/50 rounded-xl p-4">
+
+--- Candidate #79: E:\SarayaERP\client\src\pages\PatientPortalPage.tsx:30 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+Context:
+      26: }
+      27: 
+      28: export function PatientPortalPage() {
+      29:   const [searchTerm, setSearchTerm] = useState('');
+-->   30:   // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      31:   const [showAddModal, setShowAddModal] = useState(false);
+      32:   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+      33: 
+      34:   // Fetch quick stats
+
+--- Candidate #80: E:\SarayaERP\client\src\pages\ReportsPage.tsx:32 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+Context:
+      28:   category: string;
+      29: }
+      30: 
+      31: export function ReportsPage() {
+-->   32:   // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      33:   const navigate = useNavigate();
+      34:   // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      35:   const { user } = useAuthStore();
+      36:   const [selectedReportType, setSelectedReportType] = useState<string>('');
+
+--- Candidate #81: E:\SarayaERP\client\src\pages\ReportsPage.tsx:34 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+Context:
+      30: 
+      31: export function ReportsPage() {
+      32:   // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      33:   const navigate = useNavigate();
+-->   34:   // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      35:   const { user } = useAuthStore();
+      36:   const [selectedReportType, setSelectedReportType] = useState<string>('');
+      37:   const [dateRange, setDateRange] = useState({
+      38:     from: startOfDay(addDays(new Date(), -30)),
+
+--- Candidate #82: E:\SarayaERP\client\src\pages\AdvancedAdmissionManagement.tsx:86 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      82:   const [showBedTransferModal, setShowBedTransferModal] = useState(false);
+      83:   const [showQuickAdmissionModal, setShowQuickAdmissionModal] = useState(false);
+      84:   const [showIsolationModal, setShowIsolationModal] = useState(false);
+      85:   const [selectedAdmission, setSelectedAdmission] = useState<Admission | null>(null);
+-->   86:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      87:   const [patients, setPatients] = useState<any[]>([]);
+      88:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      89:   const [doctors, setDoctors] = useState<any[]>([]);
+      90:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
+--- Candidate #83: E:\SarayaERP\client\src\pages\AdvancedAdmissionManagement.tsx:88 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      84:   const [showIsolationModal, setShowIsolationModal] = useState(false);
+      85:   const [selectedAdmission, setSelectedAdmission] = useState<Admission | null>(null);
+      86:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      87:   const [patients, setPatients] = useState<any[]>([]);
+-->   88:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      89:   const [doctors, setDoctors] = useState<any[]>([]);
+      90:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      91:   const [availableBeds, setAvailableBeds] = useState<any[]>([]);
+      92: 
+
+--- Candidate #84: E:\SarayaERP\client\src\pages\AdvancedAdmissionManagement.tsx:90 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      86:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      87:   const [patients, setPatients] = useState<any[]>([]);
+      88:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      89:   const [doctors, setDoctors] = useState<any[]>([]);
+-->   90:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      91:   const [availableBeds, setAvailableBeds] = useState<any[]>([]);
+      92: 
+      93:   // Filters
+      94:   const [statusFilter, setStatusFilter] = useState<string>('');
+
+--- Candidate #85: E:\SarayaERP\client\src\pages\AdvancedAdmissionManagement.tsx:146 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+     142: 
+     143:   const loadData = async () => {
+     144:     setLoading(true);
+     145:     try {
+-->  146:       // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     147:       const promises: Promise<any>[] = [];
+     148: 
+     149:       if (activeTab === 'overview' || activeTab === 'admissions') {
+     150:         promises.push(
+
+--- Candidate #86: E:\SarayaERP\client\src\pages\AdvancedAdmissionManagement.tsx:471 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+     467:           { id: 'statistics', label: 'الإحصائيات' },
+     468:         ].map((tab) => (
+     469:           <button
+     470:             key={tab.id}
+-->  471:             // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     472:             onClick={() => setActiveTab(tab.id as any)}
+     473:             className={`px-4 py-2 text-sm font-medium transition-colors ${
+     474:               activeTab === tab.id
+     475:                 ? "text-sky-400 border-b-2 border-sky-400"
+
+--- Candidate #87: E:\SarayaERP\client\src\pages\AdvancedAdmissionManagement.tsx:1255 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+    1251:                     <select
+    1252:                       value={selectedAdmission.isolationType || 'NONE'}
+    1253:                       onChange={(e) => setSelectedAdmission({
+    1254:                         ...selectedAdmission,
+--> 1255:                         // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    1256:                         isolationType: e.target.value as any
+    1257:                       })}
+    1258:                       className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2"
+    1259:                     >
+
+--- Candidate #88: E:\SarayaERP\client\src\pages\AdmissionDetailsPage.tsx:298 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+     294:           { id: 'transfers', label: 'نقلات السرير' },
+     295:         ].map((tab) => (
+     296:           <button
+     297:             key={tab.id}
+-->  298:             // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     299:             onClick={() => setActiveTab(tab.id as any)}
+     300:             className={`px-4 py-2 text-sm font-medium transition-colors ${
+     301:               activeTab === tab.id
+     302:                 ? "text-sky-400 border-b-2 border-sky-400"
+
+--- Candidate #89: E:\SarayaERP\client\src\pages\DischargePlanningPage.tsx:78 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+Context:
+      74:   }>;
+      75: };
+      76: 
+      77: export default function DischargePlanningPage() {
+-->   78:   // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      79:   const navigate = useNavigate();
+      80:   const [plans, setPlans] = useState<DischargePlan[]>([]);
+      81:   const [loading, setLoading] = useState(false);
+      82:   const [selectedPlan, setSelectedPlan] = useState<DischargePlan | null>(null);
+
+--- Candidate #90: E:\SarayaERP\client\src\pages\DischargePlanningPage.tsx:90 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      86:   const [searchTerm, setSearchTerm] = useState('');
+      87:   const [filterDepartment, setFilterDepartment] = useState('');
+      88: 
+      89:   // Active inpatients for selector
+-->   90:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      91:   const [activeInpatients, setActiveInpatients] = useState<any[]>([]);
+      92:   const [loadingInpatients, setLoadingInpatients] = useState(false);
+      93: 
+      94:   // Form state for creating new plan
+
+--- Candidate #91: E:\SarayaERP\client\src\pages\DischargePlanningPage.tsx:399 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+     395:             { id: 'completed', label: 'مكتمل' },
+     396:           ].map((tab) => (
+     397:             <button
+     398:               key={tab.id}
+-->  399:               // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     400:               onClick={() => setActiveTab(tab.id as any)}
+     401:               className={`px-4 py-2 text-sm font-medium transition-colors ${
+     402:                 activeTab === tab.id
+     403:                   ? "text-sky-400 border-b-2 border-sky-400"
+
+--- Candidate #92: E:\SarayaERP\client\src\pages\DischargePlanningPage.tsx:571 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+     567:                     onChange={(e) => setFormData({...formData, admissionId: e.target.value})}
+     568:                     className="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition-all"
+     569:                   >
+     570:                     <option value="">— اختر مريضاً —</option>
+-->  571:                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     572:                     {activeInpatients.map((inp: any) => {
+     573:                       const bed = inp.bedAssignments?.[0]?.bed;
+     574:                       const ward = bed?.ward?.name || '';
+     575:                       const admId = inp.admission?.id;
+
+--- Candidate #93: E:\SarayaERP\client\src\pages\DischargePlanningPage.tsx:631 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+     627:                   ].map(item => (
+     628:                     <label key={item.key} className="flex items-center gap-2 cursor-pointer group">
+     629:                       <input
+     630:                         type="checkbox"
+-->  631:                         // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     632:                         checked={(formData as any)[item.key]}
+     633:                         onChange={(e) => setFormData({...formData, [item.key]: e.target.checked})}
+     634:                         className="w-4 h-4 text-emerald-500 bg-slate-700 border-slate-600 rounded focus:ring-emerald-500"
+     635:                       />
+
+--- Candidate #94: E:\SarayaERP\client\src\pages\BedManagementDashboard.tsx:80 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+Context:
+      76:   const navigate = useNavigate();
+      77:   const [wards, setWards] = useState<Ward[]>([]);
+      78:   const [stats, setStats] = useState<BedStats | null>(null);
+      79:   const [activities, setActivities] = useState<BedActivity[]>([]);
+-->   80:   // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      81:   const [loading, setLoading] = useState(false);
+      82:   const [selectedWard, setSelectedWard] = useState<number | null>(null);
+      83:   // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      84:   const [selectedRoom, setSelectedRoom] = useState<number | null>(null);
+
+--- Candidate #95: E:\SarayaERP\client\src\pages\BedManagementDashboard.tsx:83 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+Context:
+      79:   const [activities, setActivities] = useState<BedActivity[]>([]);
+      80:   // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      81:   const [loading, setLoading] = useState(false);
+      82:   const [selectedWard, setSelectedWard] = useState<number | null>(null);
+-->   83:   // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      84:   const [selectedRoom, setSelectedRoom] = useState<number | null>(null);
+      85:   const [activeTab, setActiveTab] = useState<'overview' | 'wards' | 'activities'>('overview');
+      86:   const [searchTerm, setSearchTerm] = useState('');
+      87:   const [statusFilter, setStatusFilter] = useState<BedStatus | 'ALL'>('ALL');
+
+--- Candidate #96: E:\SarayaERP\client\src\pages\BedManagementDashboard.tsx:88 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+Context:
+      84:   const [selectedRoom, setSelectedRoom] = useState<number | null>(null);
+      85:   const [activeTab, setActiveTab] = useState<'overview' | 'wards' | 'activities'>('overview');
+      86:   const [searchTerm, setSearchTerm] = useState('');
+      87:   const [statusFilter, setStatusFilter] = useState<BedStatus | 'ALL'>('ALL');
+-->   88:   // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      89:   const [showActivityModal, setShowActivityModal] = useState(false);
+      90:   // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      91:   const [refreshInterval, setRefreshInterval] = useState<ReturnType<typeof setInterval> | null>(null);
+      92: 
+
+--- Candidate #97: E:\SarayaERP\client\src\pages\BedManagementDashboard.tsx:90 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+Context:
+      86:   const [searchTerm, setSearchTerm] = useState('');
+      87:   const [statusFilter, setStatusFilter] = useState<BedStatus | 'ALL'>('ALL');
+      88:   // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      89:   const [showActivityModal, setShowActivityModal] = useState(false);
+-->   90:   // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      91:   const [refreshInterval, setRefreshInterval] = useState<ReturnType<typeof setInterval> | null>(null);
+      92: 
+      93:   // Auto-refresh every 30 seconds
+      94:   useEffect(() => {
+
+--- Candidate #98: E:\SarayaERP\client\src\pages\BedManagementDashboard.tsx:379 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+     375:         ].map((tab) => (
+     376:           <button
+     377:             key={tab.id}
+     378:             onClick={() => {
+-->  379:               // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     380:               setActiveTab(tab.id as any);
+     381:               if (tab.id === 'overview') {
+     382:                 setSelectedWard(null);
+     383:                 setSearchTerm('');
+
+--- Candidate #99: E:\SarayaERP\client\src\pages\RevenueDepartmentPage.tsx:101 ---
+Line: // eslint-disable-next-line react-hooks/exhaustive-deps
+Context:
+      97:   };
+      98: 
+      99:   useEffect(() => {
+     100:     loadData(preset);
+-->  101:   // eslint-disable-next-line react-hooks/exhaustive-deps
+     102:   }, [preset]);
+     103: 
+     104:   return (
+     105:     <div className="p-6 text-slate-100 space-y-6" dir="rtl">
+
+--- Candidate #100: E:\SarayaERP\client\src\pages\ReferralsPage.tsx:60 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      56:     reason: "",
+      57:     clinicalSummary: "",
+      58:     priority: "ROUTINE",
+      59:   });
+-->   60:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      61:   const [patients, setPatients] = useState<any[]>([]);
+      62: 
+      63:   const loadReferrals = async () => {
+      64:     setLoading(true);
+
+--- Candidate #101: E:\SarayaERP\client\src\pages\ReferralsPage.tsx:80 ---
+Line: // eslint-disable-next-line no-empty
+Context:
+      76:   const loadDoctors = async () => {
+      77:     try {
+      78:       const res = await apiClient.get<Doctor[]>("/cashier/users");
+      79:       setDoctors(res.data);
+-->   80:     // eslint-disable-next-line no-empty
+      81:     } catch {}
+      82:   };
+      83: 
+      84:   const searchPatients = async (q: string) => {
+
+--- Candidate #102: E:\SarayaERP\client\src\pages\ReferralsPage.tsx:300 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+     296:                 className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-sky-600 focus:border-transparent outline-none"
+     297:               />
+     298:               {patients.length > 0 && !form.patientId && (
+     299:                 <div className="bg-slate-800 border border-slate-700 rounded-xl mt-1 max-h-40 overflow-y-auto">
+-->  300:                   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     301:                   {patients.map((p: any) => (
+     302:                     <button
+     303:                       key={p.id}
+     304:                       onClick={() => {
+
+--- Candidate #103: E:\SarayaERP\client\src\pages\PatientChartPage.tsx:520 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+     516:                   لا توجد تشخيصات مسجّلة
+     517:                 </p>
+     518:               ) : (
+     519:                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+-->  520:                   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     521:                   {summary.recentDiagnoses.map((dx: any, i: number) => (
+     522:                     <Link
+     523:                       key={i}
+     524:                       to={`/encounters/${dx.encounter?.id}`}
+
+--- Candidate #104: E:\SarayaERP\client\src\pages\DischargeSummaryBuilderPage.tsx:12 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+       8:   const { admissionId } = useParams();
+       9:   const navigate = useNavigate();
+      10:   const { user } = useAuthStore();
+      11:   const [loading, setLoading] = useState(true);
+-->   12:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      13:   const [summary, setSummary] = useState<any>(null);
+      14: 
+      15:   // Form State
+      16:   const [formData, setFormData] = useState({
+
+--- Candidate #105: E:\SarayaERP\client\src\pages\OrderSetsPage.tsx:85 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      81:   const [showExecuteModal, setShowExecuteModal] = useState(false);
+      82:   const [executing, setExecuting] = useState(false);
+      83:   const [workflowBusyId, setWorkflowBusyId] = useState<number | null>(null);
+      84:   const [encounterSearchTerm, setEncounterSearchTerm] = useState('');
+-->   85:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      86:   const [activeEncounters, setActiveEncounters] = useState<any[]>([]);
+      87:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      88:   const [selectedEncounter, setSelectedEncounter] = useState<any | null>(null);
+      89:   const [searchFilter, setSearchFilter] = useState('');
+
+--- Candidate #106: E:\SarayaERP\client\src\pages\OrderSetsPage.tsx:87 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      83:   const [workflowBusyId, setWorkflowBusyId] = useState<number | null>(null);
+      84:   const [encounterSearchTerm, setEncounterSearchTerm] = useState('');
+      85:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      86:   const [activeEncounters, setActiveEncounters] = useState<any[]>([]);
+-->   87:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      88:   const [selectedEncounter, setSelectedEncounter] = useState<any | null>(null);
+      89:   const [searchFilter, setSearchFilter] = useState('');
+      90:   const [categoryFilter, setCategoryFilter] = useState('');
+      91:   const [statusFilter, setStatusFilter] = useState('');
+
+--- Candidate #107: E:\SarayaERP\client\src\pages\OrderSetsPage.tsx:100 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      96:   const [builderDescription, setBuilderDescription] = useState('');
+      97:   const [builderCategory, setBuilderCategory] = useState('');
+      98:   const [builderSpecialty, setBuilderSpecialty] = useState('');
+      99:   const [builderChangeSummary, setBuilderChangeSummary] = useState('');
+-->  100:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     101:   const [builderItems, setBuilderItems] = useState<any[]>([]);
+     102:   const [newItemType, setNewItemType] = useState<OrderSetItemType>('LAB');
+     103:   const [newItemRefId, setNewItemRefId] = useState('');
+     104:   const [newItemPriority, setNewItemPriority] = useState('ROUTINE');
+
+--- Candidate #108: E:\SarayaERP\client\src\pages\OrderSetsPage.tsx:108 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+     104:   const [newItemPriority, setNewItemPriority] = useState('ROUTINE');
+     105:   const [newItemInstructions, setNewItemInstructions] = useState('');
+     106:   const [newItemNursingAction, setNewItemNursingAction] = useState('');
+     107: 
+-->  108:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     109:   const [labTests, setLabTests] = useState<any[]>([]);
+     110:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     111:   const [radiologyStudies, setRadiologyStudies] = useState<any[]>([]);
+     112:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
+--- Candidate #109: E:\SarayaERP\client\src\pages\OrderSetsPage.tsx:110 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+     106:   const [newItemNursingAction, setNewItemNursingAction] = useState('');
+     107: 
+     108:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     109:   const [labTests, setLabTests] = useState<any[]>([]);
+-->  110:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     111:   const [radiologyStudies, setRadiologyStudies] = useState<any[]>([]);
+     112:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     113:   const [products, setProducts] = useState<any[]>([]);
+     114: 
+
+--- Candidate #110: E:\SarayaERP\client\src\pages\OrderSetsPage.tsx:112 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+     108:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     109:   const [labTests, setLabTests] = useState<any[]>([]);
+     110:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     111:   const [radiologyStudies, setRadiologyStudies] = useState<any[]>([]);
+-->  112:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     113:   const [products, setProducts] = useState<any[]>([]);
+     114: 
+     115:   useEffect(() => {
+     116:     loadData();
+
+--- Candidate #111: E:\SarayaERP\client\src\pages\OrderSetsPage.tsx:117 ---
+Line: // eslint-disable-next-line react-hooks/exhaustive-deps
+Context:
+     113:   const [products, setProducts] = useState<any[]>([]);
+     114: 
+     115:   useEffect(() => {
+     116:     loadData();
+-->  117:   // eslint-disable-next-line react-hooks/exhaustive-deps
+     118:   }, [searchFilter, categoryFilter, statusFilter]);
+     119: 
+     120:   const searchEncounters = async (q: string) => {
+     121:     if (q.length < 2) {
+
+--- Candidate #112: E:\SarayaERP\client\src\pages\OrderSetsPage.tsx:824 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+     820:                 />
+     821: 
+     822:                 {activeEncounters.length > 0 && !selectedEncounter && (
+     823:                   <div className="absolute w-full top-full mt-2 bg-slate-800 border border-slate-700 rounded-xl max-h-56 overflow-y-auto shadow-2xl py-1 z-50 custom-scrollbar">
+-->  824:                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     825:                     {activeEncounters.map((enc: any) => (
+     826:                       <button
+     827:                         key={enc.id}
+     828:                         onClick={() => {
+
+--- Candidate #113: E:\SarayaERP\client\src\pages\ClinicalPathwaysPage.tsx:59 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      55:   completedAt?: string;
+      56:   notes?: string;
+      57:   pathway: ClinicalPathway;
+      58:   enrolledBy: { fullName: string };
+-->   59:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      60:   variances: any[];
+      61: };
+      62: 
+      63: const PHASE_COLORS: Record<string, string> = {
+
+--- Candidate #114: E:\SarayaERP\client\src\pages\ClinicalPathwaysPage.tsx:86 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+Context:
+      82:   const [selectedPathway, setSelectedPathway] = useState<ClinicalPathway | null>(null);
+      83:   const [showBuilder, setShowBuilder] = useState(false);
+      84:   const [showEnrollModal, setShowEnrollModal] = useState(false);
+      85:   const [showDetail, setShowDetail] = useState(false);
+-->   86:   // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      87:   const [enrollmentDetail, setEnrollmentDetail] = useState<Enrollment | null>(null);
+      88:   const [searchFilter, setSearchFilter] = useState('');
+      89:   const [statusFilter, setStatusFilter] = useState('');
+      90:   const [workflowBusyId, setWorkflowBusyId] = useState<number | null>(null);
+
+--- Candidate #115: E:\SarayaERP\client\src\pages\ClinicalPathwaysPage.tsx:98 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      94:   const [bDescription, setBDescription] = useState('');
+      95:   const [bDiagnosis, setBDiagnosis] = useState('');
+      96:   const [bLOS, setBLOS] = useState('');
+      97:   const [bChangeSummary, setBChangeSummary] = useState('');
+-->   98:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      99:   const [bSteps, setBSteps] = useState<any[]>([]);
+     100: 
+     101:   const [enrolling, setEnrolling] = useState(false);
+     102:   const [enrollNotes, setEnrollNotes] = useState('');
+
+--- Candidate #116: E:\SarayaERP\client\src\pages\ClinicalPathwaysPage.tsx:104 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+     100: 
+     101:   const [enrolling, setEnrolling] = useState(false);
+     102:   const [enrollNotes, setEnrollNotes] = useState('');
+     103:   const [encounterSearchTerm, setEncounterSearchTerm] = useState('');
+-->  104:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     105:   const [activeEncounters, setActiveEncounters] = useState<any[]>([]);
+     106:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     107:   const [selectedEncounter, setSelectedEncounter] = useState<any | null>(null);
+     108: 
+
+--- Candidate #117: E:\SarayaERP\client\src\pages\ClinicalPathwaysPage.tsx:106 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+     102:   const [enrollNotes, setEnrollNotes] = useState('');
+     103:   const [encounterSearchTerm, setEncounterSearchTerm] = useState('');
+     104:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     105:   const [activeEncounters, setActiveEncounters] = useState<any[]>([]);
+-->  106:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     107:   const [selectedEncounter, setSelectedEncounter] = useState<any | null>(null);
+     108: 
+     109:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     110:   const [orderSets, setOrderSets] = useState<any[]>([]);
+
+--- Candidate #118: E:\SarayaERP\client\src\pages\ClinicalPathwaysPage.tsx:109 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+     105:   const [activeEncounters, setActiveEncounters] = useState<any[]>([]);
+     106:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     107:   const [selectedEncounter, setSelectedEncounter] = useState<any | null>(null);
+     108: 
+-->  109:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     110:   const [orderSets, setOrderSets] = useState<any[]>([]);
+     111: 
+     112:   useEffect(() => {
+     113:     loadData();
+
+--- Candidate #119: E:\SarayaERP\client\src\pages\ClinicalPathwaysPage.tsx:114 ---
+Line: // eslint-disable-next-line react-hooks/exhaustive-deps
+Context:
+     110:   const [orderSets, setOrderSets] = useState<any[]>([]);
+     111: 
+     112:   useEffect(() => {
+     113:     loadData();
+-->  114:   // eslint-disable-next-line react-hooks/exhaustive-deps
+     115:   }, [searchFilter, statusFilter]);
+     116: 
+     117:   const searchEncounters = async (q: string) => {
+     118:     if (q.length < 2) {
+
+--- Candidate #120: E:\SarayaERP\client\src\pages\ClinicalPathwaysPage.tsx:754 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+     750:                               onChange={(e) => updateStep(idx, 'orderSetId', e.target.value)}
+     751:                               className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm outline-none focus:border-pink-500 text-sky-300 font-bold"
+     752:                             >
+     753:                               <option value="">بدون</option>
+-->  754:                               // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     755:                               {orderSets.map((set: any) => (
+     756:                                 <option key={set.id} value={set.id}>
+     757:                                   📦 {set.nameAr || set.name} (v{set.version})
+     758:                                 </option>
+
+--- Candidate #121: E:\SarayaERP\client\src\pages\ClinicalPathwaysPage.tsx:886 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+     882:                   />
+     883: 
+     884:                   {activeEncounters.length > 0 && !selectedEncounter && (
+     885:                     <div className="absolute w-full top-full mt-2 bg-slate-800 border border-slate-700 rounded-xl max-h-56 overflow-y-auto shadow-2xl py-1 z-50 custom-scrollbar">
+-->  886:                       // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     887:                       {activeEncounters.map((enc: any) => (
+     888:                         <button
+     889:                           key={enc.id}
+     890:                           onClick={() => {
+
+--- Candidate #122: E:\SarayaERP\client\src\pages\PreAuthPage.test.tsx:49 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+Context:
+      45:   Loader2: () => <span data-testid="icon-loader" />,
+      46: }));
+      47: 
+      48: const { apiClient } = await import('../api/apiClient');
+-->   49: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      50: const { toast } = await import('sonner');
+      51: 
+      52: const mockPreAuths = [
+      53:   {
+
+--- Candidate #123: E:\SarayaERP\client\src\pages\ClinicalKpisPage.tsx:17 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      13: } from "recharts";
+      14: import { toast } from "sonner";
+      15: 
+      16: export default function ClinicalKpisPage() {
+-->   17:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      18:   const [kpis, setKpis] = useState<any>(null);
+      19:   const [loading, setLoading] = useState(true);
+      20: 
+      21:   useEffect(() => {
+
+--- Candidate #124: E:\SarayaERP\client\src\pages\ClinicalKpisPage.tsx:36 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      32:     }
+      33:     loadData();
+      34:   }, []);
+      35: 
+-->   36:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      37:   const KPICard = ({ title, value, unit, color, icon, description }: any) => (
+      38:     <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-sm hover:border-slate-700 transition-all group">
+      39:       <div className="flex justify-between items-start mb-4">
+      40:         <div className="text-xs text-slate-400 font-bold uppercase tracking-wider">
+
+--- Candidate #125: E:\SarayaERP\client\src\pages\QualityAndSafetyPage.tsx:95 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      91:   };
+      92: 
+      93:   const [stats, setStats] = useState<DashboardStats | null>(null);
+      94:   const [incidents, setIncidents] = useState<Incident[]>([]);
+-->   95:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      96:   const [myCapas, setMyCapas] = useState<any[]>([]);
+      97:   const [loading, setLoading] = useState(true);
+      98:   const [submitting, setSubmitting] = useState(false);
+      99:   const [form, setForm] = useState<ReportForm>(defaultForm);
+
+--- Candidate #126: E:\SarayaERP\client\src\pages\QualityAndSafetyPage.tsx:198 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+     194:           {([['dashboard', '📊 لوحة التحكم'], ['incidents', '📋 الحوادث'], ['my-capa', '✅ مهام CAPA'], ['report', '＋ إبلاغ']] as const).map(([key, label]) => (
+     195:             <button
+     196:               key={key}
+     197:               id={`tab-quality-${key}`}
+-->  198:               // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     199:               onClick={() => setTab(key as any)}
+     200:               className={`px-5 py-3.5 text-sm font-medium border-b-2 transition-all ${
+     201:                 tab === key ? 'border-red-500 text-red-400' : 'border-transparent text-slate-400 hover:text-slate-200'
+     202:               }`}
+
+--- Candidate #127: E:\SarayaERP\client\src\pages\ClinicalKpisPage.test.tsx:17 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      13: vi.mock('recharts', async () => {
+      14:   const OriginalRechartsModule = await vi.importActual('recharts');
+      15:   return {
+      16:     ...OriginalRechartsModule,
+-->   17:     // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      18:     ResponsiveContainer: ({ children }: any) => (
+      19:       <div style={{ width: '100%', height: '100%' }}>{children}</div>
+      20:     ),
+      21:   };
+
+--- Candidate #128: E:\SarayaERP\client\src\pages\AppointmentsPage.tsx:115 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+Context:
+     111:   // Calendar View State
+     112:   const [currentMonth, setCurrentMonth] = useState(new Date());
+     113:   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+     114:   const [viewMode, setViewMode] = useState<'table' | 'calendar'>('table');
+-->  115:   // eslint-disable-next-line @typescript-eslint/no-unused-vars
+     116:   const [mainTab, setMainTab] = useState<'appointments' | 'ai_followups'>('appointments');
+     117:   const [selectedDoctor, setSelectedDoctor] = useState<number | null>(null);
+     118: 
+     119:   // Modals State
+
+--- Candidate #129: E:\SarayaERP\client\src\pages\AppointmentsPage.tsx:196 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+     192:   // 2. Fetch Patients List
+     193:   const { data: patientsList = [] } = useQuery({
+     194:       queryKey: ['patientsList'],
+     195:       queryFn: async () => {
+-->  196:           // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     197:           const res = await apiClient.get<any>("/patients", { params: { limit: 1000 } });
+     198:           return res.data.items || res.data; 
+     199:       },
+     200:       staleTime: 1000 * 60 * 10,
+
+--- Candidate #130: E:\SarayaERP\client\src\pages\AppointmentsPage.tsx:238 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+     234:   // 5. Fetch Notifications for AI Follow-ups
+     235:   const { data: notifications = [] } = useQuery({
+     236:     queryKey: ['notifications'],
+     237:     queryFn: async () => {
+-->  238:       // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     239:       const res = await apiClient.get<any[]>("/notifications");
+     240:       return res.data;
+     241:     },
+     242:     refetchInterval: 60000, // Poll every minute
+
+--- Candidate #131: E:\SarayaERP\client\src\pages\settings\DepartmentsPage.tsx:17 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+Context:
+      13: };
+      14: 
+      15: export default function DepartmentsPage() {
+      16:   const [depts, setDepts] = useState<Department[]>([]);
+-->   17:   // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      18:   const [loading, setLoading] = useState(false);
+      19:   const [showModal, setShowModal] = useState(false);
+      20:   const [editingId, setEditingId] = useState<number | null>(null);
+      21: 
+
+--- Candidate #132: E:\SarayaERP\client\src\pages\settings\DepartmentsPage.tsx:29 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+Context:
+      25:     setLoading(true);
+      26:     try {
+      27:       const res = await apiClient.get<Department[]>("/departments");
+      28:       setDepts(res.data);
+-->   29:     // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      30:     } catch (err) {
+      31:       toast.error("فشل تحميل الأقسام");
+      32:     } finally {
+      33:       setLoading(false);
+
+--- Candidate #133: E:\SarayaERP\client\src\pages\settings\SpecialtiesPage.tsx:17 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+Context:
+      13: };
+      14: 
+      15: export default function SpecialtiesPage() {
+      16:   const [specs, setSpecs] = useState<Specialty[]>([]);
+-->   17:   // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      18:   const [loading, setLoading] = useState(false);
+      19:   const [showModal, setShowModal] = useState(false);
+      20:   const [form, setForm] = useState({ name: "", code: "" });
+      21: 
+
+--- Candidate #134: E:\SarayaERP\client\src\pages\settings\SpecialtiesPage.tsx:27 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+Context:
+      23:     setLoading(true);
+      24:     try {
+      25:       const res = await apiClient.get<Specialty[]>("/specialties");
+      26:       setSpecs(res.data);
+-->   27:     // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      28:     } catch (err) {
+      29:       toast.error("فشل التحميل");
+      30:     } finally {
+      31:       setLoading(false);
+
+--- Candidate #135: E:\SarayaERP\client\src\pages\settings\BedManagementSettingsPage.tsx:27 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+Context:
+      23: export default function BedManagementSettingsPage() {
+      24:   const [wards, setWards] = useState<Ward[]>([]);
+      25:   const [services, setServices] = useState<ServiceItemLite[]>([]);
+      26:   const [departments, setDepartments] = useState<DepartmentLite[]>([]);
+-->   27:   // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      28:   const [loading, setLoading] = useState(false);
+      29: 
+      30:   // Mofals specific state
+      31:   const [showWardModal, setShowWardModal] = useState(false);
+
+--- Candidate #136: E:\SarayaERP\client\src\pages\settings\BackupSettingsPage.tsx:384 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+Context:
+     380:       setLoading(true);
+     381:       const res = await apiClient.post<BackupFile[]>("/backup/scan");
+     382:       setBackups(res.data);
+     383:       toast.success(`تم العثور على ${res.data.length} نسخة احتياطية`);
+-->  384:     // eslint-disable-next-line @typescript-eslint/no-unused-vars
+     385:     } catch (err) {
+     386:       toast.error("فشل البحث");
+     387:     } finally {
+     388:       setLoading(false);
+
+--- Candidate #137: E:\SarayaERP\client\src\pages\settings\NoteTemplatesPage.tsx:61 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      57: 
+      58:   const loadTemplates = async () => {
+      59:     setLoading(true);
+      60:     try {
+-->   61:       // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      62:       const params: any = {};
+      63:       if (filterSpecialty) params.specialty = filterSpecialty;
+      64:       const res = await apiClient.get<NoteTemplate[]>("/note-templates", { params });
+      65:       setTemplates(res.data);
+
+--- Candidate #138: E:\SarayaERP\client\src\pages\settings\ComplianceDashboardPage.tsx:73 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      69:       const res = await apiClient.get<ComplianceReport>(
+      70:         "/audit/compliance/report"
+      71:       );
+      72:       setReport(res.data);
+-->   73:     // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      74:     } catch (err: any) {
+      75:       toast.error(err.response?.data?.message || "فشل تحميل تقرير الجاهزية");
+      76:     } finally {
+      77:       setLoading(false);
+
+--- Candidate #139: E:\SarayaERP\client\src\pages\accounting\CostCentersPage.tsx:14 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+Context:
+      10: };
+      11: 
+      12: export default function CostCentersPage() {
+      13:   const [centers, setCenters] = useState<CostCenter[]>([]);
+-->   14:   // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      15:   const [loading, setLoading] = useState(false);
+      16:   const [showModal, setShowModal] = useState(false);
+      17:   const [form, setForm] = useState({ name: "", code: "", type: "BOTH" });
+      18: 
+
+--- Candidate #140: E:\SarayaERP\client\src\pages\inventory\InventoryDashboardPage.tsx:27 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      23: import { useQuery } from "@tanstack/react-query";
+      24: 
+      25: const COLORS = ['#10b981', '#0ea5e9', '#f59e0b', '#ef4444'];
+      26: 
+-->   27: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      28: const StatCard = ({ title, value, icon: Icon, colorClass }: any) => (
+      29:     <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-2xl flex items-center gap-4 shadow-lg hover:bg-slate-800/50 transition-colors">
+      30:         <div className={`p-4 rounded-xl ${colorClass} bg-opacity-20`}>
+      31:             <Icon className={`w-6 h-6 ${colorClass.replace('bg-', 'text-')}`} />
+
+--- Candidate #141: E:\SarayaERP\client\src\pages\inventory\procurement\CreatePurchaseRequestPage.tsx:12 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+       8: export function CreatePurchaseRequestPage() {
+       9:   const navigate = useNavigate();
+      10:   const [departmentId, setDepartmentId] = useState<string>("");
+      11:   const [notes, setNotes] = useState("");
+-->   12:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      13:   const [items, setItems] = useState<{ productId: string; quantity: number; uomId?: string; productUoms: any[] }[]>([]);
+      14:   const [saving, setSaving] = useState(false);
+      15: 
+      16:   // Load Departments
+
+--- Candidate #142: E:\SarayaERP\client\src\pages\inventory\procurement\CreateGoodsReceiptPage.tsx:14 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      10:   const navigate = useNavigate();
+      11:   const [poId, setPoId] = useState<string>("");
+      12:   const [warehouseId, setWarehouseId] = useState<string>("");
+      13:   const [notes, setNotes] = useState("");
+-->   14:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      15:   const [items, setItems] = useState<{ productId: string; quantity: number; uomId?: string; batchNumber: string; expiryDate: string; productUoms: any[] }[]>([]);
+      16:   const [saving, setSaving] = useState(false);
+      17: 
+      18:   // Load Warehouses
+
+--- Candidate #143: E:\SarayaERP\client\src\pages\inventory\procurement\PurchaseOrdersPage.tsx:27 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      23:     setLoading(true);
+      24:     try {
+      25:       const res = await apiClient.get<PurchaseOrder[]>("/procurement/orders");
+      26:       setOrders(res.data);
+-->   27:     // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      28:     } catch (err: any) {
+      29:       console.error(err);
+      30:       toast.error("حدث خطأ أثناء تحميل أوامر الشراء.");
+      31:     } finally {
+
+--- Candidate #144: E:\SarayaERP\client\src\pages\inventory\master-data\UOMManagementPage.tsx:6 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+       2: import { inventoryApi } from '../../../api/inventoryApi';
+       3: import { toast } from 'sonner';
+       4: 
+       5: export const UOMManagementPage: React.FC = () => {
+-->    6:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       7:   const [uoms, setUoms] = useState<any[]>([]);
+       8:   const [loading, setLoading] = useState(false);
+       9:   const [showModal, setShowModal] = useState(false);
+      10:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
+--- Candidate #145: E:\SarayaERP\client\src\pages\inventory\master-data\UOMManagementPage.tsx:10 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+       6:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       7:   const [uoms, setUoms] = useState<any[]>([]);
+       8:   const [loading, setLoading] = useState(false);
+       9:   const [showModal, setShowModal] = useState(false);
+-->   10:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      11:   const [editingUOM, setEditingUOM] = useState<any>(null);
+      12:   
+      13:   const [formData, setFormData] = useState({
+      14:     code: '',
+
+--- Candidate #146: E:\SarayaERP\client\src\pages\dashboard\ExecutiveDashboard.tsx:80 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+Context:
+      76: }
+      77: 
+      78: export function ExecutiveDashboard() {
+      79:   const [selectedPeriod, setSelectedPeriod] = useState<'today' | 'week' | 'month'>('today');
+-->   80:   // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      81:   const [refreshInterval, setRefreshInterval] = useState<ReturnType<typeof setInterval> | null>(null);
+      82: 
+      83:   // Fetch executive stats
+      84:   const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useQuery({
+
+--- Candidate #147: E:\SarayaERP\client\src\pages\clinical\triage\TriageDashboard.tsx:31 ---
+Line: // eslint-disable-next-line react-hooks/immutability
+Context:
+      27:   const [waitingList, setWaitingList] = useState<WaitingPatient[]>([]);
+      28:   const navigate = useNavigate();
+      29: 
+      30:   useEffect(() => {
+-->   31:     // eslint-disable-next-line react-hooks/immutability
+      32:     loadWaitingList();
+      33:     const interval = setInterval(loadWaitingList, 30000); // تحديث كل 30 ثانية
+      34:     return () => clearInterval(interval);
+      35:   }, []);
+
+--- Candidate #148: E:\SarayaERP\client\src\pages\clinical\consent-forms\ConsentFormsPage.tsx:16 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      12:   const hospitalId = user?.hospitalId;
+      13:   const queryClient = useQueryClient();
+      14: 
+      15:   const [dialogOpen, setDialogOpen] = useState(false);
+-->   16:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      17:   const [selectedForm, setSelectedForm] = useState<any>(null);
+      18: 
+      19:   // Fetch Consents
+      20:   const { data: consentForms = [], isLoading } = useQuery({
+
+--- Candidate #149: E:\SarayaERP\client\src\pages\clinical\icu\IcuDashboard.tsx:8 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+       4: import { Loader2, FileSignature, Activity, Users, Bed, AlertCircle, HeartPulse, ShieldAlert } from 'lucide-react';
+       5: import { HandoverNoteModal } from '../transfers/HandoverNoteModal';
+       6: 
+       7: export const IcuDashboard = () => {
+-->    8:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       9:   const [transfers, setTransfers] = useState<any[]>([]);
+      10:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      11:   const [stats, setStats] = useState<any>(null);
+      12:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
+--- Candidate #150: E:\SarayaERP\client\src\pages\clinical\icu\IcuDashboard.tsx:10 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+       6: 
+       7: export const IcuDashboard = () => {
+       8:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       9:   const [transfers, setTransfers] = useState<any[]>([]);
+-->   10:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      11:   const [stats, setStats] = useState<any>(null);
+      12:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      13:   const [patients, setPatients] = useState<any[]>([]);
+      14:   const [loading, setLoading] = useState(true);
+
+--- Candidate #151: E:\SarayaERP\client\src\pages\clinical\icu\IcuDashboard.tsx:12 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+       8:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       9:   const [transfers, setTransfers] = useState<any[]>([]);
+      10:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      11:   const [stats, setStats] = useState<any>(null);
+-->   12:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      13:   const [patients, setPatients] = useState<any[]>([]);
+      14:   const [loading, setLoading] = useState(true);
+      15:   const navigate = useNavigate();
+      16: 
+
+--- Candidate #152: E:\SarayaERP\client\src\pages\clinical\icu\IcuDashboard.tsx:19 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      15:   const navigate = useNavigate();
+      16: 
+      17:   // Handover Modal State
+      18:   const [showHandoverModal, setShowHandoverModal] = useState(false);
+-->   19:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      20:   const [selectedTransfer, setSelectedTransfer] = useState<any>(null);
+      21: 
+      22:   // Bed Allocation State
+      23:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
+--- Candidate #153: E:\SarayaERP\client\src\pages\clinical\icu\IcuDashboard.tsx:23 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      19:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      20:   const [selectedTransfer, setSelectedTransfer] = useState<any>(null);
+      21: 
+      22:   // Bed Allocation State
+-->   23:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      24:   const [wardTree, setWardTree] = useState<any[]>([]);
+      25:   const [allocatingTransferId, setAllocatingTransferId] = useState<number | null>(null);
+      26:   const [selectedBedId, setSelectedBedId] = useState<string>('');
+      27: 
+
+--- Candidate #154: E:\SarayaERP\client\src\pages\clinical\icu\IcuDashboard.tsx:29 ---
+Line: // eslint-disable-next-line react-hooks/immutability
+Context:
+      25:   const [allocatingTransferId, setAllocatingTransferId] = useState<number | null>(null);
+      26:   const [selectedBedId, setSelectedBedId] = useState<string>('');
+      27: 
+      28:   useEffect(() => {
+-->   29:     // eslint-disable-next-line react-hooks/immutability
+      30:     fetchData();
+      31:   }, []);
+      32: 
+      33:   const fetchData = async () => {
+
+--- Candidate #155: E:\SarayaERP\client\src\pages\clinical\icu\IcuFlowsheet.tsx:9 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+       5: import { FlowsheetEntryModal } from './components/FlowsheetEntryModal';
+       6: 
+       7: export const IcuFlowsheet = () => {
+       8:   const { encounterId } = useParams<{ encounterId: string }>();
+-->    9:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      10:   const [entries, setEntries] = useState<any[]>([]);
+      11:   const [ioBalance, setIoBalance] = useState({ totalIntake: 0, totalOutput: 0, balance: 0 });
+      12:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      13:   const [patientData, setPatientData] = useState<any>(null);
+
+--- Candidate #156: E:\SarayaERP\client\src\pages\clinical\icu\IcuFlowsheet.tsx:12 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+       8:   const { encounterId } = useParams<{ encounterId: string }>();
+       9:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      10:   const [entries, setEntries] = useState<any[]>([]);
+      11:   const [ioBalance, setIoBalance] = useState({ totalIntake: 0, totalOutput: 0, balance: 0 });
+-->   12:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      13:   const [patientData, setPatientData] = useState<any>(null);
+      14:   const [loading, setLoading] = useState(true);
+      15:   const [activeTab, setActiveTab] = useState('vitals');
+      16:   const [showEntryModal, setShowEntryModal] = useState(false);
+
+--- Candidate #157: E:\SarayaERP\client\src\pages\clinical\icu\IcuPatientDetail.tsx:19 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      15:   const { encounterId } = useParams<{ encounterId: string }>();
+      16:   const navigate = useNavigate();
+      17: 
+      18:   /* ── state ── */
+-->   19:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      20:   const [patientData, setPatientData] = useState<any>(null);
+      21:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      22:   const [assessments, setAssessments] = useState<any[]>([]);
+      23:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
+--- Candidate #158: E:\SarayaERP\client\src\pages\clinical\icu\IcuPatientDetail.tsx:21 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      17: 
+      18:   /* ── state ── */
+      19:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      20:   const [patientData, setPatientData] = useState<any>(null);
+-->   21:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      22:   const [assessments, setAssessments] = useState<any[]>([]);
+      23:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      24:   const [drips, setDrips] = useState<any[]>([]);
+      25:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
+--- Candidate #159: E:\SarayaERP\client\src\pages\clinical\icu\IcuPatientDetail.tsx:23 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      19:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      20:   const [patientData, setPatientData] = useState<any>(null);
+      21:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      22:   const [assessments, setAssessments] = useState<any[]>([]);
+-->   23:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      24:   const [drips, setDrips] = useState<any[]>([]);
+      25:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      26:   const [equipmentList, setEquipmentList] = useState<any[]>([]);
+      27:   const [loading, setLoading] = useState(true);
+
+--- Candidate #160: E:\SarayaERP\client\src\pages\clinical\icu\IcuPatientDetail.tsx:25 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      21:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      22:   const [assessments, setAssessments] = useState<any[]>([]);
+      23:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      24:   const [drips, setDrips] = useState<any[]>([]);
+-->   25:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      26:   const [equipmentList, setEquipmentList] = useState<any[]>([]);
+      27:   const [loading, setLoading] = useState(true);
+      28: 
+      29:   const [showAssessmentModal, setShowAssessmentModal] = useState(false);
+
+--- Candidate #161: E:\SarayaERP\client\src\pages\clinical\icu\components\GcsCalculator.tsx:10 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+Context:
+       6:   onChange: (total: number, eye: number, verbal: number, motor: number) => void;
+       7:   readonly?: boolean;
+       8: }
+       9: 
+-->   10: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      11: export const GcsCalculator = ({ initialScore, onChange, readonly = false }: Props) => {
+      12:   const [eye, setEye] = useState<number>(0);
+      13:   const [verbal, setVerbal] = useState<number>(0);
+      14:   const [motor, setMotor] = useState<number>(0);
+
+--- Candidate #162: E:\SarayaERP\client\src\pages\clinical\icu\components\MedicationDripPanel.tsx:11 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+       7:   encounterId: number;
+       8: }
+       9: 
+      10: export const MedicationDripPanel = ({ encounterId }: Props) => {
+-->   11:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      12:   const [drips, setDrips] = useState<any[]>([]);
+      13:   const [loading, setLoading] = useState(true);
+      14:   const [showAddModal, setShowAddModal] = useState(false);
+      15:   const [newDrip, setNewDrip] = useState({
+
+--- Candidate #163: E:\SarayaERP\client\src\pages\clinical\icu\components\EquipmentPanel.tsx:11 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+       7:   encounterId: number;
+       8: }
+       9: 
+      10: export const EquipmentPanel = ({ encounterId }: Props) => {
+-->   11:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      12:   const [equipmentList, setEquipmentList] = useState<any[]>([]);
+      13:   const [loading, setLoading] = useState(true);
+      14:   const [showAddModal, setShowAddModal] = useState(false);
+      15:   const [newEq, setNewEq] = useState({
+
+--- Candidate #164: E:\SarayaERP\client\src\pages\clinical\icu\components\IcuStepDownModal.tsx:27 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      23:  *   3. System chains: requestTransfer → allocateBed → confirmArrival
+      24:  */
+      25: export const IcuStepDownModal = ({ isOpen, onClose, encounterId, patientName, fromBedId, currentWardName, currentBedNumber, onSuccess }: Props) => {
+      26:   const [step, setStep] = useState<'form' | 'processing' | 'done' | 'error'>('form');
+-->   27:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      28:   const [wardTree, setWardTree] = useState<any[]>([]);
+      29:   const [selectedBedId, setSelectedBedId] = useState('');
+      30:   const [reason, setReason] = useState('');
+      31:   const [notes, setNotes] = useState('');
+
+--- Candidate #165: E:\SarayaERP\client\src\pages\clinical\registries\RegistriesDashboard.tsx:63 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      59: export default function RegistriesDashboard() {
+      60:   const queryClient = useQueryClient();
+      61:   const [searchQuery, setSearchQuery] = useState("");
+      62:   const [activePatientId, setActivePatientId] = useState<number | null>(null);
+-->   63:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      64:   const [foundPatient, setFoundPatient] = useState<any>(null);
+      65:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      66:   const [selectedGap, setSelectedGap] = useState<any>(null);
+      67:   const [closeNotes, setCloseNotes] = useState("");
+
+--- Candidate #166: E:\SarayaERP\client\src\pages\clinical\registries\RegistriesDashboard.tsx:65 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      61:   const [searchQuery, setSearchQuery] = useState("");
+      62:   const [activePatientId, setActivePatientId] = useState<number | null>(null);
+      63:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      64:   const [foundPatient, setFoundPatient] = useState<any>(null);
+-->   65:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      66:   const [selectedGap, setSelectedGap] = useState<any>(null);
+      67:   const [closeNotes, setCloseNotes] = useState("");
+      68:   const [isSearching, setIsSearching] = useState(false);
+      69:   const [selectedRegistryId, setSelectedRegistryId] = useState<number | null>(null);
+
+--- Candidate #167: E:\SarayaERP\client\src\pages\clinical\scheduling\ResourceSchedulerPage.tsx:418 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+     414:                   value={resourceDepartmentId}
+     415:                   onChange={(e) => setResourceDepartmentId(e.target.value)}
+     416:                 >
+     417:                   <option value="">-- بدون قسم --</option>
+-->  418:                   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     419:                   {departments.map((dept: any) => (
+     420:                     <option key={dept.id} value={dept.id}>
+     421:                       {dept.name}
+     422:                     </option>
+
+--- Candidate #168: E:\SarayaERP\client\src\pages\clinical\scheduling\WaitlistManager.tsx:29 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      25:   const hospitalId = user?.hospitalId || 1;
+      26: 
+      27:   const [showAddModal, setShowAddModal] = useState(false);
+      28:   const [searchQuery, setSearchQuery] = useState("");
+-->   29:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      30:   const [foundPatient, setFoundPatient] = useState<any>(null);
+      31:   const [isSearching, setIsSearching] = useState(false);
+      32:   const [resourceId, setResourceId] = useState("");
+      33:   const [priority, setPriority] = useState("NORMAL");
+
+--- Candidate #169: E:\SarayaERP\client\src\pages\admin\SecurityAuditPage.tsx:12 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+       8:   MagnifyingGlassIcon,
+       9: } from "@heroicons/react/24/outline";
+      10: 
+      11: export default function SecurityAuditPage() {
+-->   12:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      13:   const [logs, setLogs] = useState<any[]>([]);
+      14:   const [filter, setFilter] = useState("ALL");
+      15:   const [loading, setLoading] = useState(false);
+      16: 
+
+--- Candidate #170: E:\SarayaERP\client\src\pages\admin\SecurityAuditPage.tsx:31 ---
+Line: // eslint-disable-next-line react-hooks/exhaustive-deps
+Context:
+      27:   };
+      28: 
+      29:   useEffect(() => {
+      30:     loadLogs();
+-->   31:   // eslint-disable-next-line react-hooks/exhaustive-deps
+      32:   }, [filter]);
+      33: 
+      34:   return (
+      35:     <div className="p-6 space-y-6 text-slate-100" dir="rtl">
+
+--- Candidate #171: E:\SarayaERP\client\src\pages\obgyn\DeliveryRegistrationPage.tsx:19 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      15:   const [searchParams] = useSearchParams();
+      16:   const encounterId = searchParams.get('encounterId');
+      17: 
+      18:   const [loading, setLoading] = useState(false);
+-->   19:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      20:   const [encounter, setEncounter] = useState<any>(null);
+      21:   
+      22:   // Form State
+      23:   const [deliveryMethod, setDeliveryMethod] = useState('NVD');
+
+--- Candidate #172: E:\SarayaERP\client\src\pages\obgyn\DeliveryRegistrationPage.tsx:25 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      21:   
+      22:   // Form State
+      23:   const [deliveryMethod, setDeliveryMethod] = useState('NVD');
+      24:   const [babyCount, setBabyCount] = useState(1);
+-->   25:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      26:   const [babies, setBabies] = useState<any[]>([{ 
+      27:       gender: 'MALE', 
+      28:       weight: '', 
+      29:       birthTime: new Date().toISOString().slice(0, 16),
+
+--- Candidate #173: E:\SarayaERP\client\src\pages\obgyn\FertilityDashboardPage.tsx:127 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+     123:   // Case Form
+     124:   const [malePatientId, setMalePatientId] = useState<number | ''>('');
+     125:   const [malePatientInfo, setMalePatientInfo] = useState<{ fullName: string; mrn: string } | null>(null);
+     126:   const [maleSearch, setMaleSearch] = useState('');
+-->  127:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     128:   const [maleSearchResults, setMaleSearchResults] = useState<any[]>([]);
+     129:   const [showMaleResults, setShowMaleResults] = useState(false);
+     130:   const [infertilityType, setInfertilityType] = useState('UNEXPLAINED');
+     131:   const [diagnosis, setDiagnosis] = useState('');
+
+--- Candidate #174: E:\SarayaERP\client\src\pages\obgyn\FertilityDashboardPage.tsx:221 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+     217:       });
+     218:       toast.success('تم بدء دورة علاجية جديدة');
+     219:       setShowNewCycleForm(false);
+     220:       loadCase(fertCase.id);
+-->  221:     // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     222:     } catch (err: any) { toast.error(err.response?.data?.message || 'فشل إنشاء الدورة'); }
+     223:   };
+     224: 
+     225:   const resultColors: Record<string, string> = {
+
+--- Candidate #175: E:\SarayaERP\client\src\pages\vouchers\PrintVoucherPage.tsx:8 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+Context:
+       4: import PrintLayout from '../../components/print/PrintLayout';
+       5: 
+       6: export default function PrintVoucherPage() {
+       7:   const { id } = useParams<{ id: string }>();
+-->    8:   // eslint-disable-next-line @typescript-eslint/no-unused-vars
+       9:   const navigate = useNavigate();
+      10:   const [voucher, setVoucher] = useState<Voucher | null>(null);
+      11:   const [loading, setLoading] = useState(true);
+      12: 
+
+--- Candidate #176: E:\SarayaERP\client\src\pages\andrology\components\SemenAnalysisForm.tsx:15 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      11:   const [form, setForm] = useState<Partial<SemenAnalysis>>(initialData);
+      12: 
+      13:   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+      14:     const { name, value, type } = e.target;
+-->   15:     // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      16:     let finalValue: any = value;
+      17:     if (type === "number") finalValue = value === "" ? undefined : Number(value);
+      18:     setForm((prev) => ({ ...prev, [name]: finalValue }));
+      19:   };
+
+--- Candidate #177: E:\SarayaERP\client\src\pages\andrology\components\HormoneTestForm.tsx:15 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      11:   const [form, setForm] = useState<Partial<HormoneTest>>(initialData);
+      12: 
+      13:   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      14:     const { name, value, type } = e.target;
+-->   15:     // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      16:     let finalValue: any = value;
+      17:     if (type === "number") finalValue = value === "" ? undefined : Number(value);
+      18:     setForm((prev) => ({ ...prev, [name]: finalValue }));
+      19:   };
+
+--- Candidate #178: E:\SarayaERP\client\src\pages\andrology\components\AndrologyVisitForm.tsx:27 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      23:   });
+      24: 
+      25:   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+      26:     const { name, value, type } = e.target;
+-->   27:     // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      28:     let finalValue: any = value;
+      29:     if (type === "number") finalValue = value === "" ? undefined : Number(value);
+      30:     if (type === "checkbox") finalValue = (e.target as HTMLInputElement).checked;
+      31:     
+
+--- Candidate #179: E:\SarayaERP\client\src\pages\andrology\components\AndrologySurgeryForm.tsx:18 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      14:   });
+      15: 
+      16:   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+      17:     const { name, value, type } = e.target;
+-->   18:     // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      19:     let finalValue: any = value;
+      20:     if (type === "checkbox") finalValue = (e.target as HTMLInputElement).checked;
+      21:     if (e.target.tagName === 'SELECT' && (value === "true" || value === "false")) {
+      22:       finalValue = value === "true";
+
+--- Candidate #180: E:\SarayaERP\client\src\pages\portal\PortalDashboard.tsx:21 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      17: 
+      18: export default function PortalDashboard() {
+      19:   const navigate = useNavigate();
+      20:   const { patient } = usePortalAuthStore();
+-->   21:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      22:   const [dashboard, setDashboard] = useState<any>(null);
+      23:   const [loading, setLoading] = useState(true);
+      24: 
+      25:   useEffect(() => {
+
+--- Candidate #181: E:\SarayaERP\client\src\pages\portal\PortalAppointments.tsx:13 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+       9: import { toast } from 'sonner';
+      10: import { Calendar, Plus, X, Loader2, Clock, User, Building2, ChevronRight, ChevronLeft, CheckCircle2 } from 'lucide-react';
+      11: 
+      12: export default function PortalAppointments() {
+-->   13:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      14:   const [appointments, setAppointments] = useState<any[]>([]);
+      15:   const [loading, setLoading] = useState(true);
+      16:   
+      17:   // Wizard State
+
+--- Candidate #182: E:\SarayaERP\client\src\pages\portal\PortalAppointments.tsx:24 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      20:   const [wizardLoading, setWizardLoading] = useState(false);
+      21:   const [submitting, setSubmitting] = useState(false);
+      22:   
+      23:   // Directory Data
+-->   24:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      25:   const [departments, setDepartments] = useState<any[]>([]);
+      26:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      27:   const [doctors, setDoctors] = useState<any[]>([]);
+      28:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
+--- Candidate #183: E:\SarayaERP\client\src\pages\portal\PortalAppointments.tsx:26 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      22:   
+      23:   // Directory Data
+      24:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      25:   const [departments, setDepartments] = useState<any[]>([]);
+-->   26:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      27:   const [doctors, setDoctors] = useState<any[]>([]);
+      28:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      29:   const [availableSlots, setAvailableSlots] = useState<any[]>([]);
+      30:   
+
+--- Candidate #184: E:\SarayaERP\client\src\pages\portal\PortalAppointments.tsx:28 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      24:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      25:   const [departments, setDepartments] = useState<any[]>([]);
+      26:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      27:   const [doctors, setDoctors] = useState<any[]>([]);
+-->   28:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      29:   const [availableSlots, setAvailableSlots] = useState<any[]>([]);
+      30:   
+      31:   // Selection State
+      32:   const [selectedDept, setSelectedDept] = useState<number | null>(null);
+
+--- Candidate #185: E:\SarayaERP\client\src\pages\portal\PortalAppointments.tsx:335 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+     331:           <p>لا توجد مواعيد</p>
+     332:         </div>
+     333:       ) : (
+     334:         <div className="portal-list">
+-->  335:           // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     336:           {appointments.map((apt: any) => {
+     337:             const status = statusLabels[apt.status] || { label: apt.status, className: '' };
+     338:             const canCancel = ['REQUESTED', 'CONFIRMED'].includes(apt.status);
+     339:             return (
+
+--- Candidate #186: E:\SarayaERP\client\src\pages\portal\PortalMedicalRecords.tsx:26 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      22: ];
+      23: 
+      24: export default function PortalMedicalRecords() {
+      25:   const [activeTab, setActiveTab] = useState<Tab>('vitals');
+-->   26:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      27:   const [data, setData] = useState<any[]>([]);
+      28:   const [loading, setLoading] = useState(true);
+      29: 
+      30:   const endpoints: Record<Tab, string> = {
+
+--- Candidate #187: E:\SarayaERP\client\src\pages\portal\PortalMessages.tsx:7 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+       3: import { toast } from 'sonner';
+       4: import { MessageSquare, Send, ArrowRight, Loader2, Plus } from 'lucide-react';
+       5: 
+       6: export default function PortalMessages() {
+-->    7:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       8:   const [threads, setThreads] = useState<any[]>([]);
+       9:   const [selectedThread, setSelectedThread] = useState<string | null>(null);
+      10:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      11:   const [messages, setMessages] = useState<any[]>([]);
+
+--- Candidate #188: E:\SarayaERP\client\src\pages\portal\PortalMessages.tsx:10 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+       6: export default function PortalMessages() {
+       7:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       8:   const [threads, setThreads] = useState<any[]>([]);
+       9:   const [selectedThread, setSelectedThread] = useState<string | null>(null);
+-->   10:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      11:   const [messages, setMessages] = useState<any[]>([]);
+      12:   const [loading, setLoading] = useState(true);
+      13:   const [msgLoading, setMsgLoading] = useState(false);
+      14:   const [showCompose, setShowCompose] = useState(false);
+
+--- Candidate #189: E:\SarayaERP\client\src\pages\portal\PortalMessages.tsx:20 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      16:   const [replyBody, setReplyBody] = useState('');
+      17:   const [sending, setSending] = useState(false);
+      18:   const chatEndRef = useRef<HTMLDivElement>(null);
+      19: 
+-->   20:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      21:   const [departments, setDepartments] = useState<any[]>([]);
+      22:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      23:   const [doctors, setDoctors] = useState<any[]>([]);
+      24:   const [selectedDept, setSelectedDept] = useState<number | null>(null);
+
+--- Candidate #190: E:\SarayaERP\client\src\pages\portal\PortalMessages.tsx:22 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      18:   const chatEndRef = useRef<HTMLDivElement>(null);
+      19: 
+      20:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      21:   const [departments, setDepartments] = useState<any[]>([]);
+-->   22:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      23:   const [doctors, setDoctors] = useState<any[]>([]);
+      24:   const [selectedDept, setSelectedDept] = useState<number | null>(null);
+      25:   const [fetchingDir, setFetchingDir] = useState(false);
+      26: 
+
+--- Candidate #191: E:\SarayaERP\client\src\pages\portal\PortalRefills.tsx:7 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+       3: import { toast } from 'sonner';
+       4: import { Pill, Loader2, Clock, CheckCircle, XCircle, Package } from 'lucide-react';
+       5: 
+       6: export default function PortalRefills() {
+-->    7:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       8:   const [refills, setRefills] = useState<any[]>([]);
+       9:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      10:   const [meds, setMeds] = useState<any[]>([]);
+      11:   const [loading, setLoading] = useState(true);
+
+--- Candidate #192: E:\SarayaERP\client\src\pages\portal\PortalRefills.tsx:9 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+       5: 
+       6: export default function PortalRefills() {
+       7:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       8:   const [refills, setRefills] = useState<any[]>([]);
+-->    9:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      10:   const [meds, setMeds] = useState<any[]>([]);
+      11:   const [loading, setLoading] = useState(true);
+      12:   const [showRequest, setShowRequest] = useState(false);
+      13:   const [selectedPrescription, setSelectedPrescription] = useState('');
+
+--- Candidate #193: E:\SarayaERP\client\src\pages\portal\PortalRefills.tsx:42 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      38:     // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      39:     catch (err: any) { toast.error(err.response?.data?.message || 'فشل الإلغاء'); }
+      40:   };
+      41: 
+-->   42:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      43:   const statusMap: Record<string, { label: string; icon: any; cls: string }> = {
+      44:     PENDING: { label: 'قيد المراجعة', icon: Clock, cls: 'status-pending' },
+      45:     APPROVED: { label: 'تمت الموافقة', icon: CheckCircle, cls: 'status-confirmed' },
+      46:     DENIED: { label: 'مرفوض', icon: XCircle, cls: 'status-cancelled' },
+
+--- Candidate #194: E:\SarayaERP\client\src\pages\portal\PortalRefills.tsx:50 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      46:     DENIED: { label: 'مرفوض', icon: XCircle, cls: 'status-cancelled' },
+      47:     DISPENSED: { label: 'تم الصرف', icon: Package, cls: 'status-completed' },
+      48:   };
+      49: 
+-->   50:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      51:   const activeMeds = meds.filter((m: any) => m.status === 'ACTIVE');
+      52: 
+      53:   return (
+      54:     <div className="portal-page">
+
+--- Candidate #195: E:\SarayaERP\client\src\pages\portal\PortalInvoices.tsx:7 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+       3: import { CreditCard, Loader2, X } from 'lucide-react';
+       4: import { toast } from 'sonner';
+       5: 
+       6: export default function PortalInvoices() {
+-->    7:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       8:   const [invoices, setInvoices] = useState<any[]>([]);
+       9:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      10:   const [balance, setBalance] = useState<any>(null);
+      11:   const [loading, setLoading] = useState(true);
+
+--- Candidate #196: E:\SarayaERP\client\src\pages\portal\PortalInvoices.tsx:9 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+       5: 
+       6: export default function PortalInvoices() {
+       7:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       8:   const [invoices, setInvoices] = useState<any[]>([]);
+-->    9:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      10:   const [balance, setBalance] = useState<any>(null);
+      11:   const [loading, setLoading] = useState(true);
+      12: 
+      13:   // Payment Modal State
+
+--- Candidate #197: E:\SarayaERP\client\src\pages\portal\PortalInvoices.tsx:15 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      11:   const [loading, setLoading] = useState(true);
+      12: 
+      13:   // Payment Modal State
+      14:   const [showPayment, setShowPayment] = useState(false);
+-->   15:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      16:   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
+      17:   const [paymentAmount, setPaymentAmount] = useState<number | string>('');
+      18:   const [paymentMethod, setPaymentMethod] = useState('CREDIT_CARD');
+      19:   const [submittingPayment, setSubmittingPayment] = useState(false);
+
+--- Candidate #198: E:\SarayaERP\client\src\pages\portal\PortalProfile.tsx:6 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+       2: import { portalApi } from '../../api/portalApi';
+       3: import { User, Loader2, Shield, AlertTriangle, Phone, Mail, MapPin, Calendar, MessageCircle, CheckCircle2 } from 'lucide-react';
+       4: 
+       5: export default function PortalProfile() {
+-->    6:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       7:   const [profile, setProfile] = useState<any>(null);
+       8:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       9:   const [insurance, setInsurance] = useState<any>(null);
+      10:   const [loading, setLoading] = useState(true);
+
+--- Candidate #199: E:\SarayaERP\client\src\pages\portal\PortalProfile.tsx:8 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+       4: 
+       5: export default function PortalProfile() {
+       6:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       7:   const [profile, setProfile] = useState<any>(null);
+-->    8:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       9:   const [insurance, setInsurance] = useState<any>(null);
+      10:   const [loading, setLoading] = useState(true);
+      11: 
+      12:   useEffect(() => {
+
+--- Candidate #200: E:\SarayaERP\client\src\pages\telehealth\DoctorTelehealthDashboard.tsx:19 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+Context:
+      15:   type: string;
+      16: };
+      17: 
+      18: export default function DoctorTelehealthDashboard() {
+-->   19:   // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      20:   const { user } = useAuthStore();
+      21:   const [activeRoomUrl, setActiveRoomUrl] = useState<string | null>(null);
+      22: 
+      23:   const { data: appointments = [], isLoading, refetch } = useQuery({
+
+--- Candidate #201: E:\SarayaERP\client\src\pages\telehealth\DoctorTelehealthDashboard.tsx:130 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+Context:
+     126:         ) : (
+     127:           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+     128:             {appointments.map((app) => {
+     129:               const appDate = new Date(app.appointmentDate);
+-->  130:               // eslint-disable-next-line @typescript-eslint/no-unused-vars
+     131:               const isPast = appDate < new Date();
+     132:               return (
+     133:                 <div
+     134:                   key={app.id}
+
+--- Candidate #202: E:\SarayaERP\client\src\pages\telehealth\PatientTelehealthRoom.tsx:16 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+Context:
+      12: export default function PatientTelehealthRoom() {
+      13:   const { id } = useParams();
+      14:   const appointmentId = Number(id);
+      15:   const navigate = useNavigate();
+-->   16:   // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      17:   const { user } = useAuthStore();
+      18: 
+      19:   const [inWaitingRoom, setInWaitingRoom] = useState(false);
+      20:   const [activeRoomUrl, setActiveRoomUrl] = useState<string | null>(null);
+
+--- Candidate #203: E:\SarayaERP\client\src\pages\telehealth\PatientTelehealthRoom.tsx:23 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+Context:
+      19:   const [inWaitingRoom, setInWaitingRoom] = useState(false);
+      20:   const [activeRoomUrl, setActiveRoomUrl] = useState<string | null>(null);
+      21: 
+      22:   // Poll for room access once in the waiting room
+-->   23:   // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      24:   const { data: accessData, refetch: pollAccess } = useQuery({
+      25:     queryKey: ["telehealth-access", appointmentId],
+      26:     queryFn: async () => {
+      27:       const data = await clinicalServices.getPatientRoomAccess(appointmentId);
+
+--- Candidate #204: E:\SarayaERP\client\src\components\NotificationBell.tsx:51 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+Context:
+      47:     try {
+      48:       const res = await apiClient.get<Notification[]>("/notifications");
+      49:       setNotifications(res.data);
+      50:       setUnreadCount(res.data.filter((n) => !n.isRead).length);
+-->   51:     // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      52:     } catch (err) {
+      53:       console.error("Failed to fetch notifications");
+      54:     }
+      55:   };
+
+--- Candidate #205: E:\SarayaERP\client\src\components\PermissionGuard.test.tsx:16 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      12:  * Helper to mock the store with selector support.
+      13:  * PermissionGuard calls: useAuthStore((s) => s.user)
+      14:  * So the mock must handle selector functions correctly.
+      15:  */
+-->   16: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      17: function mockAuthUser(user: any) {
+      18:   (useAuthStore as unknown as ReturnType<typeof vi.fn>).mockImplementation(
+      19:     // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      20:     (selector: any) => selector({ user })
+
+--- Candidate #206: E:\SarayaERP\client\src\components\PermissionGuard.test.tsx:19 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      15:  */
+      16: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      17: function mockAuthUser(user: any) {
+      18:   (useAuthStore as unknown as ReturnType<typeof vi.fn>).mockImplementation(
+-->   19:     // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      20:     (selector: any) => selector({ user })
+      21:   );
+      22: }
+      23: 
+
+--- Candidate #207: E:\SarayaERP\client\src\components\HasPermission.test.tsx:13 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+       9:   useAuthStore: vi.fn(),
+      10: }));
+      11: 
+      12: // Helper to mock the selector-based store
+-->   13: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      14: function mockAuthUser(user: any) {
+      15:   (useAuthStore as unknown as ReturnType<typeof vi.fn>).mockImplementation(
+      16:     // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      17:     (selector: any) => selector({ user })
+
+--- Candidate #208: E:\SarayaERP\client\src\components\HasPermission.test.tsx:16 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      12: // Helper to mock the selector-based store
+      13: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      14: function mockAuthUser(user: any) {
+      15:   (useAuthStore as unknown as ReturnType<typeof vi.fn>).mockImplementation(
+-->   16:     // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      17:     (selector: any) => selector({ user })
+      18:   );
+      19: }
+      20: 
+
+--- Candidate #209: E:\SarayaERP\client\src\components\NetworkStatusBanner.tsx:10 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+Context:
+       6: // 🟡 سيرفر فقط (بدون إنترنت) → شريط أصفر هادئ
+       7: // 🔴 غير متصل بالسيرفر → شريط أحمر
+       8: 
+       9: import React, { useEffect, useState } from 'react';
+-->   10: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      11: import { Wifi, WifiOff, Cloud, CloudOff } from 'lucide-react';
+      12: import { useNetworkStatus, type NetworkStatus } from '@/hooks/useNetworkStatus';
+      13: 
+      14: const STATUS_CONFIG: Record<NetworkStatus, {
+
+--- Candidate #210: E:\SarayaERP\client\src\components\encounter\LabsTab.tsx:64 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+Context:
+      60: };
+      61: 
+      62: const defaultCatStyle = { icon: '📋', color: 'text-slate-400', bg: 'bg-slate-950/30', border: 'border-slate-800/30' };
+      63: 
+-->   64: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      65: export function LabsTab({ encounterId, hospitalId, doctorId }: LabsTabProps) {
+      66:   const [labOrders, setLabOrders] = useState<LabOrderDto[]>([]);
+      67:   const [testsCatalog, setTestsCatalog] = useState<LabTest[]>([]);
+      68:   const [selectedTestIds, setSelectedTestIds] = useState<number[]>([]);
+
+--- Candidate #211: E:\SarayaERP\client\src\components\encounter\VitalsPane.tsx:53 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      49:   return null;
+      50: }
+      51: 
+      52: export function VitalsPane({ encounterId }: { encounterId: number }) {
+-->   53:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      54:   const [vitalsList, setVitalsList] = useState<any[]>([]);
+      55:   const [loading, setLoading] = useState(false);
+      56:   const [showForm, setShowForm] = useState(false);
+      57: 
+
+--- Candidate #212: E:\SarayaERP\client\src\components\encounter\VitalsPane.tsx:242 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+     238:                     <input
+     239:                       name={vc.key}
+     240:                       type="number"
+     241:                       step={vc.step || "1"}
+-->  242:                       // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     243:                       value={(form as any)[vc.key]}
+     244:                       onChange={handleChange}
+     245:                       placeholder={vc.placeholder}
+     246:                       className={`w-full bg-slate-950/80 border border-slate-700 rounded-lg px-3 py-2.5 text-base font-mono font-bold text-center outline-none focus:border-sky-500 transition-all ${vc.color} placeholder:text-slate-700`}
+
+--- Candidate #213: E:\SarayaERP\client\src\components\encounter\VitalsPane.tsx:269 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+     265:                     <input
+     266:                       name={bc.key}
+     267:                       type="number"
+     268:                       step={bc.step || "1"}
+-->  269:                       // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     270:                       value={(form as any)[bc.key]}
+     271:                       onChange={handleChange}
+     272:                       placeholder={bc.placeholder}
+     273:                       className={`w-full bg-slate-950/80 border border-slate-700 rounded-lg px-3 py-2.5 text-base font-mono font-bold text-center outline-none focus:border-sky-500 transition-all ${bc.color} placeholder:text-slate-700`}
+
+--- Candidate #214: E:\SarayaERP\client\src\components\encounter\DiagnosisPane.tsx:55 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      51: 
+      52:   // ✅ دالة البحث الجديدة المتوافقة مع SmartCombobox
+      53:   const searchDiagnosis = async (query: string) => {
+      54:     // استخدم محرك الـ Terminology العالمي للبحث عن أمراض بناءً على نظام ICD10
+-->   55:     // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      56:     const res = await apiClient.get<any[]>(
+      57:       `/terminology/ICD10/search?q=${query}`,
+      58:     );
+      59:     return res.data.map((d) => ({
+
+--- Candidate #215: E:\SarayaERP\client\src\components\encounter\DiagnosisPane.tsx:152 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+     148:             <div className="flex gap-2 items-center">
+     149:               <select
+     150:                 className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-xs outline-none focus:border-emerald-500 w-32"
+     151:                 value={type}
+-->  152:                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     153:                 onChange={(e) => setType(e.target.value as any)}
+     154:               >
+     155:                 <option value="PRIMARY">رئيسي</option>
+     156:                 <option value="SECONDARY">ثانوي</option>
+
+--- Candidate #216: E:\SarayaERP\client\src\components\encounter\QuickSummaryCard.tsx:13 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+       9: }: {
+      10:   encounterId: number;
+      11:   status: EncounterStatus;
+      12: }) {
+-->   13:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      14:   const [vitals, setVitals] = useState<any[]>([]);
+      15:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      16:   const [diagnoses, setDiagnoses] = useState<any[]>([]);
+      17: 
+
+--- Candidate #217: E:\SarayaERP\client\src\components\encounter\QuickSummaryCard.tsx:15 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      11:   status: EncounterStatus;
+      12: }) {
+      13:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      14:   const [vitals, setVitals] = useState<any[]>([]);
+-->   15:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      16:   const [diagnoses, setDiagnoses] = useState<any[]>([]);
+      17: 
+      18:   useEffect(() => {
+      19:     apiClient
+
+--- Candidate #218: E:\SarayaERP\client\src\components\encounter\QuickSummaryCard.tsx:30 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      26:       .catch(() => {});
+      27:   }, [encounterId]);
+      28: 
+      29:   const latestVital = vitals.length > 0 ? vitals[0] : null;
+-->   30:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      31:   const primaryDx = diagnoses.find((diagnosis: any) => diagnosis.type === "PRIMARY");
+      32: 
+      33:   return (
+      34:     <div className="bg-slate-900/60 border border-slate-800 p-4 rounded-2xl">
+
+--- Candidate #219: E:\SarayaERP\client\src\components\encounter\QuickProtocolsWidget.tsx:11 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+       7:   encounterId,
+       8: }: {
+       9:   encounterId: number;
+      10: }) {
+-->   11:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      12:   const [orderSets, setOrderSets] = useState<any[]>([]);
+      13:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      14:   const [pathways, setPathways] = useState<any[]>([]);
+      15:   const [executingId, setExecutingId] = useState<number | null>(null);
+
+--- Candidate #220: E:\SarayaERP\client\src\components\encounter\QuickProtocolsWidget.tsx:13 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+       9:   encounterId: number;
+      10: }) {
+      11:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      12:   const [orderSets, setOrderSets] = useState<any[]>([]);
+-->   13:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      14:   const [pathways, setPathways] = useState<any[]>([]);
+      15:   const [executingId, setExecutingId] = useState<number | null>(null);
+      16:   const [enrollingId, setEnrollingId] = useState<number | null>(null);
+      17: 
+
+--- Candidate #221: E:\SarayaERP\client\src\components\encounter\BillingTab.tsx:164 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+Context:
+     160: 
+     161:     return { totalCharges, totalInvoiced, totalPaid, outstanding };
+     162:   }, [summary]);
+     163: 
+-->  164:   // eslint-disable-next-line @typescript-eslint/no-unused-vars
+     165:   const hasUninvoiced = summary?.charges?.some((c) => !c.invoiceId) ?? false;
+     166: 
+     167:   return (
+     168:     <div className="space-y-4 text-xs">
+
+--- Candidate #222: E:\SarayaERP\client\src\components\encounter\PrescriptionsTab.tsx:93 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+Context:
+      89: ];
+      90: 
+      91: export function PrescriptionsTab({
+      92:   encounterId,
+-->   93:   // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      94:   hospitalId,
+      95:   doctorId,
+      96: }: PrescriptionsTabProps) {
+      97:   const [catalog, setCatalog] = useState<ProductItemLite[]>([]);
+
+--- Candidate #223: E:\SarayaERP\client\src\components\nursing\NursingNotificationCenter.tsx:35 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      31:     clearMedicationUpdates,
+      32:     clearVitalsUpdates,
+      33:   } = useNursingWebSocket();
+      34: 
+-->   35:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      36:   const [fetchedOverdue, setFetchedOverdue] = useState<any[]>([]);
+      37: 
+      38:   useEffect(() => {
+      39:     // Fetch initial overdue medications
+
+--- Candidate #224: E:\SarayaERP\client\src\components\clinical\MedicalHistoryForm.tsx:36 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-unused-vars
+Context:
+      32:   UNKNOWN: "غير معروف",
+      33: };
+      34: 
+      35: export function MedicalHistoryForm({ patientId }: { patientId: number }) {
+-->   36:   // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      37:   const queryClient = useQueryClient();
+      38:   const [section, setSection] = useState<HistorySection>("PMH");
+      39: 
+      40:   const { data: history, isLoading } = useQuery({
+
+--- Candidate #225: E:\SarayaERP\client\src\components\clinical\StructuredSOAPNote.tsx:4 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+       1: import React, { useState } from 'react';
+       2: 
+       3: interface SOAPNoteProps {
+-->    4:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       5:   note: any;
+       6:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       7:   onSave: (data: any) => Promise<void>;
+       8:   onSign?: (noteId: number) => Promise<void>;
+
+--- Candidate #226: E:\SarayaERP\client\src\components\clinical\StructuredSOAPNote.tsx:6 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+       2: 
+       3: interface SOAPNoteProps {
+       4:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       5:   note: any;
+-->    6:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       7:   onSave: (data: any) => Promise<void>;
+       8:   onSign?: (noteId: number) => Promise<void>;
+       9:   onCoSign?: (noteId: number) => Promise<void>;
+      10:   isReadOnly?: boolean;
+
+--- Candidate #227: E:\SarayaERP\client\src\components\clinical\StructuredSOAPNote.tsx:11 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+       7:   onSave: (data: any) => Promise<void>;
+       8:   onSign?: (noteId: number) => Promise<void>;
+       9:   onCoSign?: (noteId: number) => Promise<void>;
+      10:   isReadOnly?: boolean;
+-->   11:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      12:   onAiAnalyze?: (data: any) => void;
+      13:   isAnalyzing?: boolean;
+      14:   isSaving?: boolean;
+      15: }
+
+--- Candidate #228: E:\SarayaERP\client\src\components\ui\input.tsx:5 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-empty-object-type
+Context:
+       1: import * as React from "react"
+       2: 
+       3: import { cn } from "@/lib/utils"
+       4: 
+-->    5: // eslint-disable-next-line @typescript-eslint/no-empty-object-type
+       6: export interface InputProps
+       7:   extends React.InputHTMLAttributes<HTMLInputElement> {}
+       8: 
+       9: const Input = React.forwardRef<HTMLInputElement, InputProps>(
+
+--- Candidate #229: E:\SarayaERP\client\src\components\ui\badge.tsx:36 ---
+Line: // eslint-disable-next-line react-refresh/only-export-components
+Context:
+      32:     <div className={cn(badgeVariants({ variant }), className)} {...props} />
+      33:   )
+      34: }
+      35: 
+-->   36: // eslint-disable-next-line react-refresh/only-export-components
+      37: export { Badge, badgeVariants }
+
+--- Candidate #230: E:\SarayaERP\client\src\components\vouchers\VoucherModal.tsx:10 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+       6: interface VoucherModalProps {
+       7:   isOpen: boolean;
+       8:   onClose: () => void;
+       9:   onSave: (data: CreateVoucherDto) => Promise<void>;
+-->   10:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      11:   initialData?: any;
+      12: }
+      13: 
+      14: export default function VoucherModal({ isOpen, onClose, onSave, initialData }: VoucherModalProps) {
+
+--- Candidate #231: E:\SarayaERP\client\src\components\vouchers\VoucherModal.tsx:26 ---
+Line: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Context:
+      22:     payeeOrPayer: '',
+      23:     reference: '',
+      24:   });
+      25: 
+-->   26:   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      27:   const [accounts, setAccounts] = useState<any[]>([]);
+      28: 
+      29:   useEffect(() => {
+      30:     if (isOpen) {

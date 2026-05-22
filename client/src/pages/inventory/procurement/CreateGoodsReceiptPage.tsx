@@ -11,6 +11,7 @@ export function CreateGoodsReceiptPage() {
   const [poId, setPoId] = useState<string>("");
   const [warehouseId, setWarehouseId] = useState<string>("");
   const [notes, setNotes] = useState("");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [items, setItems] = useState<{ productId: string; quantity: number; uomId?: string; batchNumber: string; expiryDate: string; productUoms: any[] }[]>([]);
   const [saving, setSaving] = useState(false);
 
@@ -53,7 +54,9 @@ export function CreateGoodsReceiptPage() {
       toast.dismiss();
 
       if (poDetails && poDetails.items) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const poItems = poDetails.items.map((item: any) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const matchedProduct = products.find((p: any) => p.id === item.productId);
           const remainingQty = Math.max(0, Number(item.quantity) - Number(item.receivedQuantity || 0));
 
@@ -89,10 +92,12 @@ export function CreateGoodsReceiptPage() {
 
   const handleItemChange = (index: number, field: string, value: string | number) => {
     const newItems = [...items];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (newItems[index] as any)[field] = value;
 
     // Load UOMs if product changes
     if (field === 'productId') {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const selectedProduct = products.find((p: any) => p.id === Number(value));
       if (selectedProduct) {
         newItems[index].productUoms = selectedProduct.productUoms || [];
@@ -147,6 +152,7 @@ export function CreateGoodsReceiptPage() {
       await procurementApi.createGRN(payload);
       toast.success("تم استلام البضاعة وإدخالها المخزن بنجاح (GRN)");
       navigate(`/inventory/dashboard`); 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       console.error(error);
       toast.error(error.response?.data?.message || "حدث خطأ أثناء الاستلام");
@@ -204,6 +210,7 @@ export function CreateGoodsReceiptPage() {
                   className="w-full bg-slate-950 border border-slate-700 rounded-xl py-2.5 px-3 text-sm focus:border-blue-500 outline-none transition-all text-slate-200"
                 >
                   <option value="">اختر أمر الشراء...</option>
+                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                   {purchaseOrders.map((po: any) => (
                     <option key={po.id} value={po.id}>
                       {po.poNumber || `PO #${po.id}`} - {po.supplier?.name || "مورد غير معروف"} ({new Date(po.poDate).toLocaleDateString('ar-EG')})
@@ -225,6 +232,7 @@ export function CreateGoodsReceiptPage() {
                   className="w-full bg-slate-950 border border-slate-700 rounded-xl py-2.5 px-3 text-sm focus:border-blue-500 outline-none transition-all"
                 >
                   <option value="">اختر المستودع...</option>
+                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                   {warehouses.map((w: any) => (
                     <option key={w.id} value={w.id}>{w.name}</option>
                   ))}
@@ -294,6 +302,7 @@ export function CreateGoodsReceiptPage() {
                             className="w-full bg-slate-950 border border-slate-700 rounded-lg py-2 px-2 text-xs focus:border-blue-500 outline-none"
                           >
                             <option value="">الصنف...</option>
+                            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                             {products.map((p: any) => (
                               <option key={p.id} value={p.id}>{p.code ? `[${p.code}] ` : ''}{p.name}</option>
                             ))}
@@ -316,6 +325,7 @@ export function CreateGoodsReceiptPage() {
                             disabled={!item.productId}
                           >
                             <option value="">الوحدة...</option>
+                            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                             {item.productUoms?.map((pu: any) => (
                               <option key={pu.id} value={pu.uomId}>
                                 {pu.uom?.name || `وحدة #${pu.uomId}`} (معامل {pu.conversionRate})

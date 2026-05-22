@@ -277,7 +277,7 @@ export const IcuDashboard = () => {
                                onChange={e => setSelectedBedId(e.target.value)}
                              >
                                <option value="">-- اختر السرير --</option>
-                               // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                               {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                                {wardTree.flatMap(w => w.rooms.flatMap((r: any) => r.beds.filter((b: any) => b.status === 'AVAILABLE').map((b: any) => (
                                  <option key={b.id} value={b.id}>{w.name} - السرير {b.bedNumber} {r.roomNumber ? `(غرفة ${r.roomNumber})` : ''}</option>
                                ))))}

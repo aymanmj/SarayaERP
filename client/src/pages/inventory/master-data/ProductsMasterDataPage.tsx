@@ -115,6 +115,7 @@ export function ProductsMasterDataPage() {
               <label className="block text-xs text-slate-400 mb-1">فئة الصنف (لتحديد التقييم المحاسبي)</label>
               <select value={formData.categoryId} onChange={e => setFormData({...formData, categoryId: e.target.value})} className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200">
                 <option value="">-- اختر الفئة --</option>
+                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                 {categories?.map((c: any) => <option key={c.id} value={c.id}>{c.name} ({c.valuationMethod})</option>)}
               </select>
             </div>
@@ -122,6 +123,7 @@ export function ProductsMasterDataPage() {
               <label className="block text-xs text-slate-400 mb-1">الوحدة الأساسية (الصغرى)</label>
               <select value={formData.baseUomId} onChange={e => setFormData({...formData, baseUomId: e.target.value})} className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200">
                 <option value="">-- اختر الوحدة --</option>
+                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                 {uoms?.map((u: any) => <option key={u.id} value={u.id}>{u.name}</option>)}
               </select>
             </div>
@@ -167,6 +169,7 @@ export function ProductsMasterDataPage() {
                   </tr>
                 </thead>
                 <tbody>
+                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                   {products?.map((p: any) => (
                     <tr key={p.id} className="border-b border-slate-700/50 hover:bg-slate-700/20">
                       <td className="py-3 px-2 text-slate-400 font-mono">{p.code}</td>

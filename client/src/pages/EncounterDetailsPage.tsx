@@ -611,6 +611,7 @@ export default function EncounterDetailsPage() {
   });
 
   const aiCodingMutation = useMutation({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     mutationFn: async (data: any) => {
       if (!data?.note) return;
       await apiClient.post("/clinical/ai-coding/clinical-notes", {
@@ -624,6 +625,7 @@ export default function EncounterDetailsPage() {
       if (data?.diagnoses) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         setSelectedDxCodes(
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           new Set(data.diagnoses.map((_: any, i: number) => i)),
         );
         const types: Record<number, "PRIMARY" | "SECONDARY"> = {};
@@ -636,6 +638,7 @@ export default function EncounterDetailsPage() {
       if (data?.procedures) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         setSelectedPxCodes(
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           new Set(data.procedures.map((_: any, i: number) => i)),
         );
       }
@@ -1358,6 +1361,7 @@ export default function EncounterDetailsPage() {
                                 setSelectedDxCodes(
                                   new Set(
                                     aiSuggestions.diagnoses.map(
+                                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
                                       (_: any, i: number) => i,
                                     ),
                                   ),
@@ -1372,8 +1376,6 @@ export default function EncounterDetailsPage() {
                           </button>
                         </div>
                         <div className="space-y-2">
-                          // eslint-disable-next-line
-                          @typescript-eslint/no-explicit-any
                           {aiSuggestions.diagnoses.map((dx: any, i: number) => (
                             <label
                               key={i}
@@ -1471,6 +1473,7 @@ export default function EncounterDetailsPage() {
                                 setSelectedPxCodes(
                                   new Set(
                                     aiSuggestions.procedures.map(
+                                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
                                       (_: any, i: number) => i,
                                     ),
                                   ),
@@ -1485,8 +1488,6 @@ export default function EncounterDetailsPage() {
                           </button>
                         </div>
                         <div className="space-y-2">
-                          // eslint-disable-next-line
-                          @typescript-eslint/no-explicit-any
                           {aiSuggestions.procedures.map(
                             (px: any, i: number) => (
                               <label

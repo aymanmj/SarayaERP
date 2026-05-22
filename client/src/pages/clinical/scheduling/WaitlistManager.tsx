@@ -159,7 +159,7 @@ export default function WaitlistManager() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
             {waitlist.map((entry: any) => (
               <div
                 key={entry.id}
@@ -282,7 +282,7 @@ export default function WaitlistManager() {
                   onChange={(e) => setResourceId(e.target.value)}
                 >
                   <option value="">-- اختر المورد --</option>
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                   {resources.map((resource: any) => (
                     <option key={resource.id} value={resource.id}>
                       {resource.name} ({resource.type})

@@ -386,7 +386,6 @@ export default function AuditLogsPage() {
                     {getChanges(selectedLog.oldValues, selectedLog.newValues).length === 0 ? (
                       <div className="text-slate-500 text-center py-6">لم يتم رصد تغييرات فعلية في الحقول.</div>
                     ) : (
-                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       getChanges(selectedLog.oldValues, selectedLog.newValues).map((change: any, index: number) => (
                         <div key={index} className="flex flex-col border-b border-slate-800 pb-4 last:border-0 last:pb-0">
                           <div className="text-sky-400 font-mono text-xs mb-3 font-bold bg-sky-900/20 border border-sky-500/20 self-start px-3 py-1 rounded-lg">

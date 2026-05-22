@@ -751,7 +751,6 @@ export default function ClinicalPathwaysPage() {
                               className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm outline-none focus:border-pink-500 text-sky-300 font-bold"
                             >
                               <option value="">بدون</option>
-                              // eslint-disable-next-line @typescript-eslint/no-explicit-any
                               {orderSets.map((set: any) => (
                                 <option key={set.id} value={set.id}>
                                   📦 {set.nameAr || set.name} (v{set.version})
@@ -883,7 +882,6 @@ export default function ClinicalPathwaysPage() {
 
                   {activeEncounters.length > 0 && !selectedEncounter && (
                     <div className="absolute w-full top-full mt-2 bg-slate-800 border border-slate-700 rounded-xl max-h-56 overflow-y-auto shadow-2xl py-1 z-50 custom-scrollbar">
-                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       {activeEncounters.map((enc: any) => (
                         <button
                           key={enc.id}

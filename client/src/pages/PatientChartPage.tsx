@@ -517,7 +517,6 @@ export default function PatientChartPage() {
                 </p>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   {summary.recentDiagnoses.map((dx: any, i: number) => (
                     <Link
                       key={i}

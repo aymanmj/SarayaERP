@@ -141,7 +141,6 @@ export default function PaymentReceiptPage() {
       <div className="min-h-screen bg-gradient-to-br from-rose-50 to-slate-100 flex items-center justify-center">
         <div className="flex flex-col items-center gap-4 p-8 bg-white rounded-2xl shadow-lg border border-rose-200">
           <div className="text-rose-600 font-bold text-center">
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             خطأ: {(error as any)?.message}
           </div>
         </div>

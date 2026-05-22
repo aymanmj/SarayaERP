@@ -377,7 +377,6 @@ export default function RegistriesDashboard() {
                   لا توجد سجلات معرفة بعد. ابدأ بإنشاء سجل جديد.
                 </div>
               ) : (
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 registries.map((registry: any) => (
                   <button
                     key={registry.id}
@@ -492,7 +491,6 @@ export default function RegistriesDashboard() {
                     <h3 className="font-bold text-slate-200 mb-3">معايير الانضمام</h3>
                     <div className="space-y-3">
                       {selectedRegistry.criteria?.length > 0 ? (
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         selectedRegistry.criteria.map((criteria: any) => (
                           <div
                             key={criteria.id}
@@ -516,7 +514,6 @@ export default function RegistriesDashboard() {
                     <h3 className="font-bold text-slate-200 mb-3">قواعد فجوات الرعاية</h3>
                     <div className="space-y-3">
                       {selectedRegistry.careGapRules?.length > 0 ? (
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         selectedRegistry.careGapRules.map((rule: any) => (
                           <div
                             key={rule.id}
@@ -578,7 +575,7 @@ export default function RegistriesDashboard() {
               </div>
             ) : (
               <div className="grid gap-4">
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                 {careGaps.map((gap: any) => (
                   <div
                     key={gap.id}

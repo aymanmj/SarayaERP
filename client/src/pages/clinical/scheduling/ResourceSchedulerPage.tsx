@@ -188,7 +188,6 @@ export default function ResourceSchedulerPage() {
                 لا توجد موارد مطابقة.
               </div>
             ) : (
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               filteredResources.map((resource: any) => (
                 <button
                   key={resource.id}
@@ -249,7 +248,7 @@ export default function ResourceSchedulerPage() {
             </div>
           ) : (
             <div className="grid gap-3">
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
               {bookings.map((booking: any) => (
                 <div
                   key={booking.id}

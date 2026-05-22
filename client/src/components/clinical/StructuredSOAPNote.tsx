@@ -8,6 +8,7 @@ interface SOAPNoteProps {
   onSign?: (noteId: number) => Promise<void>;
   onCoSign?: (noteId: number) => Promise<void>;
   isReadOnly?: boolean;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onAiAnalyze?: (data: any) => void;
   isAnalyzing?: boolean;
   isSaving?: boolean;

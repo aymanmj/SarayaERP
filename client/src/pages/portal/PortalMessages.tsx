@@ -164,7 +164,6 @@ export default function PortalMessages() {
         <div className={`portal-threads ${selectedThread ? 'hide-mobile' : ''}`}>
           {loading ? <div className="portal-page-loader"><Loader2 className="animate-spin" size={24}/></div> : threads.length === 0 ? (
             <div className="portal-empty small"><MessageSquare size={36}/><p>لا توجد محادثات</p></div>
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           ) : threads.map((t: any) => (
             <div key={t.threadId} className={`portal-thread-item ${selectedThread === t.threadId ? 'active' : ''}`} onClick={() => openThread(t.threadId)}>
               <div className="portal-thread-top"><span className="portal-thread-doctor">د. {t.doctorName}</span>{t.unreadCount > 0 && <span className="portal-badge">{t.unreadCount}</span>}</div>
@@ -180,7 +179,7 @@ export default function PortalMessages() {
             <>
               <div className="portal-chat-header"><button className="portal-back-btn mobile-only" onClick={() => setSelectedThread(null)}><ArrowRight size={18}/> رجوع</button></div>
               <div className="portal-chat-messages">
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                 {messages.map((msg: any) => (
                   <div key={msg.id} className={`portal-message ${msg.direction === 'PATIENT_TO_DOCTOR' ? 'sent' : 'received'}`}>
                     <div className="portal-message-bubble"><p>{msg.body}</p><span className="portal-message-time">{new Date(msg.createdAt).toLocaleTimeString('ar-LY', { hour: '2-digit', minute: '2-digit' })}</span></div>

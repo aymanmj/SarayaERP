@@ -821,7 +821,6 @@ export default function OrderSetsPage() {
 
                 {activeEncounters.length > 0 && !selectedEncounter && (
                   <div className="absolute w-full top-full mt-2 bg-slate-800 border border-slate-700 rounded-xl max-h-56 overflow-y-auto shadow-2xl py-1 z-50 custom-scrollbar">
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     {activeEncounters.map((enc: any) => (
                       <button
                         key={enc.id}

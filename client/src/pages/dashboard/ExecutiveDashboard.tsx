@@ -276,8 +276,7 @@ export function ExecutiveDashboard() {
             <ClockIcon className="w-5 h-5 text-indigo-500" />
           </div>
           <div className="text-2xl font-bold text-indigo-400 mb-2">
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            {(stats as any)?.avgLengthOfStay || 0} <span className="text-sm text-slate-500">يوم</span>
+            {stats.avgLengthOfStay || 0} <span className="text-sm text-slate-500">يوم</span>
           </div>
           <div className="text-xs text-slate-400">من آخر 100 حالة خروج</div>
         </div>
@@ -289,21 +288,17 @@ export function ExecutiveDashboard() {
             <ChartBarIcon className="w-5 h-5 text-cyan-500" />
           </div>
           <div className="flex items-center gap-2 mb-2">
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            <span className={`text-2xl font-bold ${((stats as any)?.revenueGrowthRate || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              {((stats as any)?.revenueGrowthRate || 0) >= 0 ? '+' : ''}{(stats as any)?.revenueGrowthRate || 0}%
+            <span className={`text-2xl font-bold ${(stats.revenueGrowthRate || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+              {(stats.revenueGrowthRate || 0) >= 0 ? '+' : ''}{stats.revenueGrowthRate || 0}%
             </span>
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            {((stats as any)?.revenueGrowthRate || 0) >= 0 ? (
+            {(stats.revenueGrowthRate || 0) >= 0 ? (
               <ArrowTrendingUpIcon className="w-5 h-5 text-emerald-400" />
             ) : (
               <ArrowTrendingDownIcon className="w-5 h-5 text-red-400" />
             )}
           </div>
           <div className="text-xs text-slate-400">
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            {((stats as any)?.currentMonthRevenue || 0).toLocaleString()} د.ل هذا الشهر
+            {(stats.currentMonthRevenue || 0).toLocaleString()} د.ل هذا الشهر
           </div>
         </div>
 
@@ -314,10 +309,8 @@ export function ExecutiveDashboard() {
             <ClipboardDocumentListIcon className="w-5 h-5 text-amber-500" />
           </div>
           <div className="space-y-2">
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            {((stats as any)?.top5Diagnoses || []).length > 0 ? (
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              ((stats as any)?.top5Diagnoses || []).map((d: any, i: number) => (
+            {(stats.top5Diagnoses || []).length > 0 ? (
+              (stats.top5Diagnoses || []).map((d, i) => (
                 <div key={i} className="flex justify-between items-center text-xs">
                   <div className="flex items-center gap-2 truncate flex-1">
                     <span className="bg-amber-900/30 text-amber-400 px-1.5 py-0.5 rounded text-[10px] font-mono">{d.code}</span>

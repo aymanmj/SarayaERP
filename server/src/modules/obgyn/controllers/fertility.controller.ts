@@ -1,4 +1,4 @@
-﻿import {
+import {
   Controller,
   Post,
   Get,
@@ -159,7 +159,7 @@ export class FertilityController {
     return this.fertilityService.addMedication(user.hospitalId, dto);
   }
 
-  // ===================== Semen Analysis (Ø£Ù…Ø±Ø§Ø¶ Ø§Ù„Ø°ÙƒÙˆØ±Ø©) =====================
+  // ===================== Semen Analysis (أمراض الذكورة) =====================
 
   @Post('semen-analysis')
   @Permissions('obgyn:manage')

@@ -40,7 +40,7 @@ export default function PortalProfile() {
             <div className="portal-profile-section">
               <h3><AlertTriangle size={18}/> الحساسية</h3>
               <div className="portal-tags">
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                 {profile.allergies.map((a: any) => (
                   <span key={a.id} className={`portal-tag ${a.severity === 'HIGH' ? 'danger' : 'warning'}`}>{a.allergen}</span>
                 ))}

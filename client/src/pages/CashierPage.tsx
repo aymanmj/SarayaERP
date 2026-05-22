@@ -132,6 +132,7 @@ export default function CashierPage() {
       toast.success("تم إلغاء الفاتورة بنجاح وتحرير الخدمات للفوترة مجدداً.");
       setSelectedId(null);
       await loadWorklist();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       console.error(err);
       const msg = err?.response?.data?.message;

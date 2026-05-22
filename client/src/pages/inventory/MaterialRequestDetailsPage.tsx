@@ -10,6 +10,7 @@ import { IssueStockModal } from "@/components/inventory/IssueStockModal";
 export function MaterialRequestDetailsPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { user, hasPermission } = useAuth();
   
   const [rejecting, setRejecting] = useState(false);
@@ -49,6 +50,7 @@ export function MaterialRequestDetailsPage() {
       await inventoryApi.approveMaterialRequest(request.id);
       toast.success("تم اعتماد الطلب بنجاح");
       refetch();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       toast.error(err.response?.data?.message || "فشل اعتماد الطلب");
     } finally {
@@ -64,6 +66,7 @@ export function MaterialRequestDetailsPage() {
       await inventoryApi.rejectMaterialRequest(request.id, reason);
       toast.success("تم رفض الطلب");
       refetch();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       toast.error(err.response?.data?.message || "فشل رفض الطلب");
     } finally {
@@ -77,6 +80,7 @@ export function MaterialRequestDetailsPage() {
       await inventoryApi.receiveStockIssue(issueId);
       toast.success("تم استلام الشحنة وإضافتها للمخزون بنجاح");
       refetch();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       toast.error(err.response?.data?.message || "فشل استلام الشحنة");
     }

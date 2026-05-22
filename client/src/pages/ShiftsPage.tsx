@@ -89,7 +89,6 @@ export default function ShiftsPage() {
           <label className="text-xs text-slate-400">النوع</label>
           <select
             value={type}
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             onChange={(e) => setType(e.target.value as any)}
             className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm w-32"
           >

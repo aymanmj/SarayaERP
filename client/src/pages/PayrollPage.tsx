@@ -234,7 +234,6 @@ export default function PayrollPage() {
                   </thead>
                   <tbody className="divide-y divide-slate-800/50">
                     {selectedRun.slips &&
-                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       selectedRun.slips.map((slip: any) => (
                         <tr
                           key={slip.id}

@@ -128,7 +128,7 @@ export default function PortalMedicalRecords() {
         </div>
       ) : (
         <div className="portal-list">
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
           {data.map((item: any, i: number) => (
             <div key={item.id || i} className="portal-list-item">
               <div className="portal-list-item-content">
@@ -164,7 +164,7 @@ export default function PortalMedicalRecords() {
                 )}
                 {activeTab === 'medications' && (
                   <>
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                     <h4>{item.items?.map((i: any) => i.product?.name).join(', ') || 'وصفة'}</h4>
                     <p className="portal-card-sub">
                       د. {item.doctor?.fullName} — {new Date(item.createdAt).toLocaleDateString('ar-LY')}

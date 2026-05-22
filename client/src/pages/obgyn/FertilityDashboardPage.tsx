@@ -397,7 +397,7 @@ export default function FertilityDashboardPage() {
                           <div>
                             <h5 className="text-xs text-slate-400 font-bold mb-1">الأجنة:</h5>
                             <div className="flex gap-2 flex-wrap">
-                              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                               {cycle.embryos.map((e: any) => (
                                 <span key={e.id} className={`px-2 py-1 rounded text-xs border ${
                                   e.status === 'FROZEN' ? 'border-cyan-500/40 bg-cyan-900/20 text-cyan-400' :
@@ -416,7 +416,7 @@ export default function FertilityDashboardPage() {
                           <div>
                             <h5 className="text-xs text-slate-400 font-bold mb-1">الأدوية:</h5>
                             <div className="flex gap-2 flex-wrap">
-                              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                               {cycle.medications.map((m: any) => (
                                 <span key={m.id} className="px-2 py-1 rounded text-xs border border-amber-500/30 bg-amber-900/10 text-amber-300">
                                   💊 {m.medicationName} — {m.dose} {m.route ? `(${m.route})` : ''}
@@ -479,7 +479,7 @@ export default function FertilityDashboardPage() {
                 )}
                 {showMaleResults && maleSearchResults.length > 0 && (
                   <div className="absolute top-full left-0 right-0 mt-1 bg-slate-900 border border-slate-600 rounded-xl shadow-2xl z-40 max-h-48 overflow-y-auto">
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                     {maleSearchResults.map((p: any) => (
                       <button
                         key={p.id}
