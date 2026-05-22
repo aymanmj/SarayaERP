@@ -1798,9 +1798,10 @@ export class AccountingService {
    * جلب السنة المالية الحالية المفتوحة + الفترة (الشهر) المفتوح لهذا التاريخ
    * نفس منطق FinancialYearsService.getOpenPeriodForDate لكن داخل AccountingService
    */
-  async getOpenPeriodForDate(hospitalId: number, date: Date) {
+  async getOpenPeriodForDate(hospitalId: number, date: Date, tx?: Prisma.TransactionClient) {
+    const db = this.db(tx);
     // 1) نجيب السنة المالية الحالية المفتوحة
-    const fy = await this.prisma.financialYear.findFirst({
+    const fy = await db.financialYear.findFirst({
       where: {
         hospitalId,
         deletedAt: null,
@@ -1818,7 +1819,7 @@ export class AccountingService {
     }
 
     // 2) نجيب كل الفترات المفتوحة لهذه السنة
-    const periods = await this.prisma.financialPeriod.findMany({
+    const periods = await db.financialPeriod.findMany({
       where: {
         financialYearId: fy.id,
         deletedAt: null,
@@ -1870,41 +1871,77 @@ export class AccountingService {
     userId: number;
     totalCost: number;
     module: 'PHARMACY' | 'INVENTORY';
+    tx?: Prisma.TransactionClient;
+    inventoryAccountId?: number | null;
+    expenseAccountId?: number | null;
   }) {
-    const { sourceId, hospitalId, userId, totalCost, module } = params;
+    const {
+      sourceId,
+      hospitalId,
+      userId,
+      totalCost,
+      module,
+      tx,
+      inventoryAccountId,
+      expenseAccountId,
+    } = params;
 
     // تكلفة صفرية أو سالبة لا تحتاج لقيد
     if (totalCost <= 0.0001) return;
 
-    // 1. تحديد الحسابات (Debit: COGS, Credit: Inventory)
-    let inventoryKey: SystemAccountKey;
-    let cogsKey: SystemAccountKey;
+    const db = this.db(tx);
 
-    if (module === 'PHARMACY') {
-      inventoryKey = SystemAccountKey.INVENTORY_DRUGS; // دائن (نقص أصل)
-      cogsKey = SystemAccountKey.COGS_DRUGS; // مدين (مصروف)
-    } else {
-      // افتراضياً للمستلزمات
-      inventoryKey = SystemAccountKey.INVENTORY_SUPPLIES;
-      cogsKey = SystemAccountKey.COGS_SUPPLIES;
+    // 1. تحديد الحسابات (Debit: COGS, Credit: Inventory)
+    let inventoryAccount: any = null;
+    let cogsAccount: any = null;
+
+    if (inventoryAccountId) {
+      inventoryAccount = await db.account.findFirst({
+        where: { id: inventoryAccountId },
+      });
     }
 
-    const inventoryAccount = await this.getSystemAccountOrThrow(
-      hospitalId,
-      inventoryKey,
-    );
-    const cogsAccount = await this.getSystemAccountOrThrow(hospitalId, cogsKey);
+    if (expenseAccountId) {
+      cogsAccount = await db.account.findFirst({
+        where: { id: expenseAccountId },
+      });
+    }
+
+    if (!inventoryAccount) {
+      let inventoryKey: SystemAccountKey;
+      if (module === 'PHARMACY') {
+        inventoryKey = SystemAccountKey.INVENTORY_DRUGS; // دائن (نقص أصل)
+      } else {
+        // افتراضياً للمستلزمات
+        inventoryKey = SystemAccountKey.INVENTORY_SUPPLIES;
+      }
+      inventoryAccount = await this.getSystemAccountOrThrow(
+        hospitalId,
+        inventoryKey,
+        tx,
+      );
+    }
+
+    if (!cogsAccount) {
+      let cogsKey: SystemAccountKey;
+      if (module === 'PHARMACY') {
+        cogsKey = SystemAccountKey.COGS_DRUGS; // مدين (مصروف)
+      } else {
+        cogsKey = SystemAccountKey.COGS_SUPPLIES;
+      }
+      cogsAccount = await this.getSystemAccountOrThrow(hospitalId, cogsKey, tx);
+    }
 
     // 2. تحديد الفترة المالية
-    // نستخدم تاريخ اليوم كتاريخ للقيد (أو مرر التاريخ في الـ params لو أردت دقة أكبر)
     const entryDate = new Date();
     const { fy, period } = await this.getOpenPeriodForDate(
       hospitalId,
       entryDate,
+      tx,
     );
 
     // 3. إنشاء القيد
-    await this.prisma.accountingEntry.create({
+    await db.accountingEntry.create({
       data: {
         hospitalId,
         entryDate,
@@ -1936,7 +1973,7 @@ export class AccountingService {
     });
 
     this.logger.log(
-      `COGS Entry created for ${module} #${sourceId}, Cost: ${totalCost}`,
+      `COGS Entry created for ${module} #${sourceId}, Cost: ${totalCost} (Tx-aware)`,
     );
   }
 

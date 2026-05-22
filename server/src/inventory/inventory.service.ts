@@ -8,10 +8,14 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { StockTransactionType, MaterialRequestStatus, StockIssueStatus, Prisma } from '@prisma/client';
+import { AccountingService } from '../accounting/accounting.service';
 
 @Injectable()
 export class InventoryService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private accountingService: AccountingService,
+  ) {}
 
   // فحص تنبيهات المخزون (نقص الكمية + قرب انتهاء الصلاحية)
   async monitorStockLevels(hospitalId: number) {
@@ -562,6 +566,7 @@ export class InventoryService {
                   category: {
                     select: {
                       valuationMethod: true,
+                      inventoryAccountId: true,
                       expenseAccountId: true,
                     }
                   }
@@ -600,6 +605,13 @@ export class InventoryService {
 
       let allCompleted = true;
 
+      // خريطة لتجميع التكاليف لكل فئة من حساب المخزون والمصروفات
+      const categoryCostMap = new Map<string, {
+        inventoryAccountId: number | null;
+        expenseAccountId: number | null;
+        totalCost: number;
+      }>();
+
       for (const reqItem of mr.items) {
         const remainingToIssue = Number(reqItem.requestedQty) - Number(reqItem.issuedQty);
         if (remainingToIssue <= 0) continue;
@@ -637,7 +649,7 @@ export class InventoryService {
         }
 
         // تخصيص التشغيلات (Batches Allocation)
-        let allocations: { batchNumber: string | null; quantity: number; expiryDate: Date | null }[] = [];
+        let allocations: { batchNumber: string | null; quantity: number; expiryDate: Date | null; unitCost: number }[] = [];
         if (chosenBatch) {
           const stock = await tx.productStock.findFirst({
             where: {
@@ -651,13 +663,20 @@ export class InventoryService {
               `الرصيد غير كافٍ للصنف ${product.name} (التشغيلة: ${chosenBatch}) في المخزن المصدر. المتاح: ${stock?.quantity || 0}`,
             );
           }
+          const valuationMethod = product.category?.valuationMethod || 'WEIGHTED_AVERAGE';
+          const costToUse = valuationMethod === 'WEIGHTED_AVERAGE'
+            ? Number(product.costPrice || 0)
+            : Number(stock.unitCost || 0);
+
           allocations = [
             {
               batchNumber: chosenBatch,
               quantity: issueQtyInBase,
               expiryDate: stock.expiryDate,
+              unitCost: costToUse,
             },
           ];
+        } else {
           // Determine sorting order based on Valuation Method
           const valuationMethod = product.category?.valuationMethod || 'WEIGHTED_AVERAGE';
           
@@ -698,6 +717,7 @@ export class InventoryService {
               batchNumber: st.batchNumber,
               quantity: take,
               expiryDate: st.expiryDate,
+              unitCost: costToUse,
             });
             rem -= take;
           }
@@ -772,6 +792,16 @@ export class InventoryService {
               issuedQty: new Prisma.Decimal(alloc.quantity),
             },
           });
+
+          // تجميع تكاليف الصنف للفئة الخاصة به
+          const inventoryAccountId = product.category?.inventoryAccountId || null;
+          const expenseAccountId = product.category?.expenseAccountId || null;
+          const key = `${inventoryAccountId || 'null'}-${expenseAccountId || 'null'}`;
+          
+          const allocCost = costPrice * alloc.quantity;
+          const existing = categoryCostMap.get(key) || { inventoryAccountId, expenseAccountId, totalCost: 0 };
+          existing.totalCost += allocCost;
+          categoryCostMap.set(key, existing);
         }
 
         // تحديث الكمية المصروفة على بند الطلب الأصلي
@@ -803,6 +833,22 @@ export class InventoryService {
         where: { id: materialRequestId },
         data: { status: nextStatus },
       });
+
+      // تسجيل القيود المحاسبية للتكلفة
+      for (const [_, data] of categoryCostMap) {
+        if (data.totalCost > 0.0001) {
+          await this.accountingService.recordCogsEntry({
+            sourceId: stockIssue.id,
+            hospitalId,
+            userId,
+            totalCost: data.totalCost,
+            module: 'INVENTORY',
+            tx,
+            inventoryAccountId: data.inventoryAccountId,
+            expenseAccountId: data.expenseAccountId,
+          });
+        }
+      }
 
       return { success: true, stockIssueId: stockIssue.id, issueNumber };
     });
@@ -909,15 +955,36 @@ export class InventoryService {
   ) {
     const mappings = await this.prisma.serviceItemProduct.findMany({
       where: { serviceItemId, isMandatory: true },
-      include: { product: true },
+      include: {
+        product: {
+          include: {
+            category: {
+              select: {
+                inventoryAccountId: true,
+                expenseAccountId: true,
+              },
+            },
+          },
+        },
+      },
     });
 
     if (mappings.length === 0) return;
 
     await this.prisma.$transaction(async (tx) => {
+      // خريطة لتجميع التكاليف لكل فئة من حساب المخزون والمصروفات
+      const categoryCostMap = new Map<string, {
+        inventoryAccountId: number | null;
+        expenseAccountId: number | null;
+        totalCost: number;
+      }>();
+
       for (const map of mappings) {
         const requiredQty = Number(map.quantity) * multiplier;
         const product = map.product;
+        const inventoryAccountId = product.category?.inventoryAccountId || null;
+        const expenseAccountId = product.category?.expenseAccountId || null;
+        const key = `${inventoryAccountId || 'null'}-${expenseAccountId || 'null'}`;
 
         const stocks = await tx.productStock.findMany({
           where: {
@@ -943,6 +1010,9 @@ export class InventoryService {
             data: { quantity: { decrement: take } },
           });
 
+          const unitCost = Number(product.costPrice || 0);
+          const totalCost = unitCost * take;
+
           await tx.stockTransaction.create({
             data: {
               hospitalId,
@@ -950,8 +1020,8 @@ export class InventoryService {
               productId: map.productId,
               type: StockTransactionType.OUT,
               quantity: take,
-              unitCost: Number(product.costPrice || 0),
-              totalCost: Number(product.costPrice || 0) * take,
+              unitCost,
+              totalCost,
               batchNumber: st.batchNumber,
               expiryDate: st.expiryDate,
               referenceType,
@@ -961,6 +1031,11 @@ export class InventoryService {
             },
           });
 
+          // تجميع تكاليف الصنف للفئة الخاصة به
+          const existing = categoryCostMap.get(key) || { inventoryAccountId, expenseAccountId, totalCost: 0 };
+          existing.totalCost += totalCost;
+          categoryCostMap.set(key, existing);
+
           rem -= take;
         }
 
@@ -968,6 +1043,22 @@ export class InventoryService {
           throw new BadRequestException(
             `رصيد غير كافٍ للصنف ${product.name} (ID: ${product.id}) في المستودع لإتمام الخدمة. مطلوب ${rem} إضافية.`,
           );
+        }
+      }
+
+      // تسجيل القيود المحاسبية للتكلفة
+      for (const [_, data] of categoryCostMap) {
+        if (data.totalCost > 0.0001) {
+          await this.accountingService.recordCogsEntry({
+            sourceId: referenceId,
+            hospitalId,
+            userId,
+            totalCost: data.totalCost,
+            module: 'INVENTORY',
+            tx,
+            inventoryAccountId: data.inventoryAccountId,
+            expenseAccountId: data.expenseAccountId,
+          });
         }
       }
     });
