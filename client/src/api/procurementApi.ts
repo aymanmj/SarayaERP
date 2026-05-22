@@ -44,4 +44,14 @@ export const procurementApi = {
     const response = await apiClient.post('/purchases/grn', data);
     return response.data;
   },
+
+  getPOs: async () => {
+    const response = await apiClient.get('/procurement/orders');
+    return response.data;
+  },
+
+  getPOById: async (id: number) => {
+    const response = await apiClient.get(`/procurement/orders/${id}`);
+    return response.data;
+  },
 };

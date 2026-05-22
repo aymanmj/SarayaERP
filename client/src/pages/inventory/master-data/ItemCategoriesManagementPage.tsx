@@ -30,7 +30,7 @@ export function ItemCategoriesManagementPage() {
   const { data: accounts } = useQuery({
     queryKey: ['financial-accounts-for-inventory'],
     queryFn: async () => {
-      const res = await api.get('/finance/accounts?type=ASSET,EXPENSE');
+      const res = await api.get('/accounting/accounts');
       return res.data;
     }
   });

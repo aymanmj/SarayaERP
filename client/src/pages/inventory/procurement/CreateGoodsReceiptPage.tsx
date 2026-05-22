@@ -32,8 +32,50 @@ export function CreateGoodsReceiptPage() {
     }
   });
 
-  // In a real scenario, selecting a PO would auto-populate items. Here we just have an input for demo.
-  // const { data: purchaseOrders } = useQuery(...)
+  // Load Purchase Orders
+  const { data: purchaseOrders = [] } = useQuery({
+    queryKey: ['purchase-orders'],
+    queryFn: async () => {
+      return procurementApi.getPOs();
+    }
+  });
+
+  const handlePoChange = async (selectedPoId: string) => {
+    setPoId(selectedPoId);
+    if (!selectedPoId) {
+      setItems([]);
+      return;
+    }
+
+    try {
+      toast.loading("جاري تحميل بنود أمر الشراء...");
+      const poDetails = await procurementApi.getPOById(Number(selectedPoId));
+      toast.dismiss();
+
+      if (poDetails && poDetails.items) {
+        const poItems = poDetails.items.map((item: any) => {
+          const matchedProduct = products.find((p: any) => p.id === item.productId);
+          const remainingQty = Math.max(0, Number(item.quantity) - Number(item.receivedQuantity || 0));
+
+          return {
+            productId: String(item.productId),
+            quantity: remainingQty,
+            uomId: String(item.uomId),
+            batchNumber: "",
+            expiryDate: "",
+            productUoms: matchedProduct?.productUoms || (item.uom ? [{ uomId: item.uomId, uom: item.uom, conversionRate: 1 }] : [])
+          };
+        });
+
+        setItems(poItems);
+        toast.success(`تم تحميل ${poItems.length} صنف من أمر الشراء`);
+      }
+    } catch (error) {
+      toast.dismiss();
+      console.error(error);
+      toast.error("فشل في تحميل تفاصيل أمر الشراء");
+    }
+  };
 
   const addItem = () => {
     setItems([...items, { productId: "", quantity: 1, batchNumber: "", expiryDate: "", productUoms: [] }]);
@@ -157,13 +199,23 @@ export function CreateGoodsReceiptPage() {
             <div className="space-y-4">
               <div className="flex flex-col gap-2">
                 <label className="text-xs font-bold text-slate-400">أمر الشراء المرتبط (PO) <span className="text-rose-400">*</span></label>
-                <input
-                  type="number"
+                <select
                   value={poId}
-                  onChange={(e) => setPoId(e.target.value)}
-                  placeholder="رقم أو معرف الـ PO..."
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl py-2.5 px-3 text-sm focus:border-blue-500 outline-none transition-all"
-                />
+                  onChange={(e) => handlePoChange(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-700 rounded-xl py-2.5 px-3 text-sm focus:border-blue-500 outline-none transition-all text-slate-200"
+                >
+                  <option value="">اختر أمر الشراء...</option>
+                  {purchaseOrders.map((po: any) => (
+                    <option key={po.id} value={po.id}>
+                      {po.poNumber || `PO #${po.id}`} - {po.supplier?.name || "مورد غير معروف"} ({new Date(po.poDate).toLocaleDateString('ar-EG')})
+                    </option>
+                  ))}
+                </select>
+                {poId && (
+                  <span className="text-[10px] text-emerald-400 mt-0.5">
+                    ✓ تم ربط أمر الشراء بنجاح. تم تحميل البنود تلقائياً.
+                  </span>
+                )}
               </div>
 
               <div className="flex flex-col gap-2">
