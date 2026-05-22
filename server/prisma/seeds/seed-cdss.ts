@@ -381,6 +381,110 @@ const VITAL_CRITICAL_VALUES = [
   { vitalType: 'RR', vitalName: 'Respiratory Rate', criticalLow: 8, criticalHigh: 30, unit: '/min', action: 'Respiratory assessment', ageGroup: 'ADULT' },
 ];
 
+// ======================== قواعد القصور الكلوي الكلينيكية ========================
+const RENAL_DOSE_REQUIREMENTS = [
+  {
+    atcPrefix: 'M01A', // NSAIDs
+    drugGeneric: 'ibuprofen',
+    renalClass: 'MODERATE' as const,
+    minSafeEgfr: 30,
+    action: 'AVOID',
+    actionAr: 'تجنب الاستخدام في القصور الكلوي الحاد (eGFR < 30)',
+    evidenceSource: 'KDIGO 2023',
+    notes: 'NSAIDs may cause acute kidney injury in vulnerable patients.',
+  },
+  {
+    atcPrefix: 'J01X', // Glycopeptides / Other antibacterials
+    drugGeneric: 'vancomycin',
+    renalClass: 'HIGH' as const,
+    minSafeEgfr: 30,
+    action: 'REDUCE_DOSE_50%',
+    actionAr: 'تعديل الجرعة بنسبة 50% أو زيادة الفاصل الزمني للتكرار',
+    evidenceSource: 'FDA Label',
+    notes: 'Nephrotoxic drug requiring serum level monitoring.',
+  },
+  {
+    atcPrefix: 'J01G', // Aminoglycosides
+    drugGeneric: 'gentamicin',
+    renalClass: 'HIGH' as const,
+    minSafeEgfr: 30,
+    action: 'REDUCE_DOSE_50%',
+    actionAr: 'تعديل الجرعة بنسبة 50% أو زيادة الفاصل الزمني للتكرار',
+    evidenceSource: 'FDA Label',
+    notes: 'Highly nephrotoxic, requires therapeutic drug monitoring.',
+  },
+];
+
+// ======================== قواعد القصور الكبدي الكلينيكية ========================
+const HEPATIC_DOSE_REQUIREMENTS = [
+  {
+    atcPrefix: 'N02B', // Other analgesics
+    drugGeneric: 'paracetamol',
+    hepaticClass: 'MODERATE' as const,
+    childPughClass: 'C',
+    action: 'REDUCE_DOSE_50%',
+    actionAr: 'تخفيض الجرعة القصوى إلى 2 جرام يومياً أو تجنب الاستخدام',
+    evidenceSource: 'FDA Label',
+    notes: 'Severe hepatic impairment increases risk of acetaminophen hepatotoxicity.',
+  },
+  {
+    atcPrefix: 'L01B', // Antimetabolites
+    drugGeneric: 'methotrexate',
+    hepaticClass: 'HIGH' as const,
+    childPughClass: 'B',
+    action: 'AVOID',
+    actionAr: 'تجنب الاستخدام لمرضى الفشل الكبدي المتوسط (Child-Pugh B)',
+    evidenceSource: 'UpToDate',
+    notes: 'Hepatotoxic agent, contraindicated in active liver disease.',
+  },
+  {
+    atcPrefix: 'L01B', // Antimetabolites
+    drugGeneric: 'methotrexate',
+    hepaticClass: 'HIGH' as const,
+    childPughClass: 'C',
+    action: 'AVOID',
+    actionAr: 'تجنب الاستخدام لمرضى الفشل الكبدي الشديد (Child-Pugh C)',
+    evidenceSource: 'UpToDate',
+    notes: 'Hepatotoxic agent, contraindicated in active liver disease.',
+  },
+  {
+    atcPrefix: 'J02A', // Antimycotics for systemic use
+    drugGeneric: 'ketoconazole',
+    hepaticClass: 'HIGH' as const,
+    childPughClass: 'B',
+    action: 'AVOID',
+    actionAr: 'تجنب الاستخدام لمرضى الفشل الكبدي المتوسط (Child-Pugh B)',
+    evidenceSource: 'FDA Black Box Warning',
+    notes: 'Severe hepatotoxicity risk.',
+  },
+  {
+    atcPrefix: 'J02A', // Antimycotics for systemic use
+    drugGeneric: 'ketoconazole',
+    hepaticClass: 'HIGH' as const,
+    childPughClass: 'C',
+    action: 'AVOID',
+    actionAr: 'تجنب الاستخدام لمرضى الفشل الكبدي الشديد (Child-Pugh C)',
+    evidenceSource: 'FDA Black Box Warning',
+    notes: 'Severe hepatotoxicity risk.',
+  },
+];
+
+// ======================== مجموعات الحساسية والتحسس المشترك ========================
+const ALLERGY_GROUPS = [
+  {
+    name: 'NSAIDs',
+    nameAr: 'مضادات الالتهاب غير الستيرويدية',
+    description: 'Non-Steroidal Anti-Inflammatory Drugs cross-reactivity group',
+    members: ['aspirin', 'ibuprofen', 'naproxen', 'diclofenac'],
+  },
+  {
+    name: 'Penicillins',
+    nameAr: 'البنسلينات',
+    description: 'Beta-lactam penicillins group',
+    members: ['penicillin', 'amoxicillin', 'ampicillin', 'piperacillin'],
+  },
+];
+
 // ======================== Main Seed Function ========================
 
 export async function seedCDSS() {
@@ -434,6 +538,58 @@ export async function seedCDSS() {
     skipDuplicates: true,
   });
   console.log(`   ✅ ${VITAL_CRITICAL_VALUES.length} vital critical values seeded`);
+
+  // 4. Renal Dose Requirements
+  console.log('腎 Seeding Renal Dose Requirements...');
+  await prisma.renalDoseRequirement.deleteMany({});
+  await prisma.renalDoseRequirement.createMany({
+    data: RENAL_DOSE_REQUIREMENTS,
+    skipDuplicates: true,
+  });
+  console.log(`   ✅ ${RENAL_DOSE_REQUIREMENTS.length} renal dose requirements seeded`);
+
+  // 5. Hepatic Dose Requirements
+  console.log('肝 Seeding Hepatic Dose Requirements...');
+  await prisma.hepaticDoseRequirement.deleteMany({});
+  await prisma.hepaticDoseRequirement.createMany({
+    data: HEPATIC_DOSE_REQUIREMENTS,
+    skipDuplicates: true,
+  });
+  console.log(`   ✅ ${HEPATIC_DOSE_REQUIREMENTS.length} hepatic dose requirements seeded`);
+
+  // 6. Allergy Groups & Members
+  console.log('🛡️ Seeding Allergy Groups and Cross-Reactivity members...');
+  for (const group of ALLERGY_GROUPS) {
+    const allergyGroup = await prisma.allergyGroup.upsert({
+      where: { name: group.name },
+      update: {
+        nameAr: group.nameAr,
+        description: group.description,
+      },
+      create: {
+        name: group.name,
+        nameAr: group.nameAr,
+        description: group.description,
+      },
+    });
+
+    for (const member of group.members) {
+      await prisma.allergyGroupDrug.upsert({
+        where: {
+          allergyGroupId_drugGeneric: {
+            allergyGroupId: allergyGroup.id,
+            drugGeneric: member.toLowerCase(),
+          },
+        },
+        update: {},
+        create: {
+          allergyGroupId: allergyGroup.id,
+          drugGeneric: member.toLowerCase(),
+        },
+      });
+    }
+  }
+  console.log(`   ✅ ${ALLERGY_GROUPS.length} allergy groups seeded with members`);
 
   console.log('🎉 CDSS Seeding Complete!');
 }

@@ -476,32 +476,23 @@ export class CDSSService {
           : null;
 
       // ─── DB-Driven Renal Rules (KDIGO / FDA guidelines) ───
-      // يبحث في قاعدة البيانات أولاً بالـ ATC prefix ثم بالاسم العام
-      const renalRule = await this.prisma.renalDoseRequirement.findFirst({
-        where: {
-          isActive: true,
-          OR: [
-            ...(atcCode
-              ? [{ atcPrefix: { not: null }, AND: [{ isActive: true }] }]
-              : []),
-            { drugGeneric: { equals: name, mode: 'insensitive' } },
-          ],
-        },
+      const renalRules = await this.prisma.renalDoseRequirement.findMany({
+        where: { isActive: true },
         orderBy: { renalClass: 'asc' }, // HIGH قبل MODERATE
       });
 
-      // التحقق من ATC prefix يدوياً بعد الجلب (Prisma لا يدعم startsWith في OR مع حقل nullable بشكل مثالي)
-      let matchedRule: import('@prisma/client').RenalDoseRequirement | null =
-        null;
-      if (renalRule) {
-        if (
-          renalRule.atcPrefix &&
-          atcCode &&
-          atcCode.startsWith(renalRule.atcPrefix)
-        ) {
-          matchedRule = renalRule;
-        } else if (renalRule.drugGeneric) {
-          matchedRule = renalRule;
+      let matchedRule: import('@prisma/client').RenalDoseRequirement | null = null;
+      for (const rule of renalRules) {
+        if (rule.atcPrefix && atcCode && atcCode.startsWith(rule.atcPrefix.toUpperCase())) {
+          matchedRule = rule;
+          break;
+        }
+        if (rule.drugGeneric) {
+          const ruleGeneric = rule.drugGeneric.toLowerCase().trim();
+          if (name.includes(ruleGeneric) || ruleGeneric.includes(name)) {
+            matchedRule = rule;
+            break;
+          }
         }
       }
 
@@ -565,6 +556,94 @@ export class CDSSService {
             evidenceSource,
           },
           requiresOverride: egfr < 30,
+        });
+      }
+    }
+    return alerts;
+  }
+
+  async getPatientChildPughClass(patientId: number): Promise<string | null> {
+    const problems = await this.prisma.patientProblem.findMany({
+      where: {
+        patientId,
+        type: { in: ['ACTIVE', 'CHRONIC'] },
+      },
+    });
+
+    for (const problem of problems) {
+      const match = problem.description.match(/Child-Pugh\s*(Class\s+)?([A-C])/i);
+      if (match) {
+        return match[2].toUpperCase(); // returns 'A' | 'B' | 'C'
+      }
+    }
+    return null;
+  }
+
+  async checkHepaticAdjustment(
+    patientId: number,
+    drugs: DrugCheckInput[],
+  ): Promise<CDSSAlertResult[]> {
+    const alerts: CDSSAlertResult[] = [];
+
+    const childPughClass = await this.getPatientChildPughClass(patientId);
+    if (!childPughClass) return alerts;
+
+    for (const drug of drugs) {
+      const name = drug.genericName.toLowerCase();
+      const concept = await this.resolveDrugTerminology(drug);
+      const atcCode =
+        concept?.system === TerminologySystem.ATC
+          ? concept.code.toUpperCase()
+          : null;
+
+      // 1. الاستعلام من قاعدة البيانات بقواعد الكبد النشطة
+      const hepaticRules = await this.prisma.hepaticDoseRequirement.findMany({
+        where: { isActive: true, childPughClass },
+      });
+
+      let matchedRule: import('@prisma/client').HepaticDoseRequirement | null = null;
+      for (const rule of hepaticRules) {
+        if (rule.atcPrefix && atcCode && atcCode.startsWith(rule.atcPrefix.toUpperCase())) {
+          matchedRule = rule;
+          break;
+        }
+        if (rule.drugGeneric) {
+          const ruleGeneric = rule.drugGeneric.toLowerCase().trim();
+          if (name.includes(ruleGeneric) || ruleGeneric.includes(name)) {
+            matchedRule = rule;
+            break;
+          }
+        }
+      }
+
+      // 2. Fallback لأدوية شائعة للسلامة
+      const isParacetamol = name.includes('paracetamol') || name.includes('acetaminophen');
+      
+      const requiresHepaticReview = matchedRule
+        ? true
+        : isParacetamol && childPughClass === 'C';
+
+      if (requiresHepaticReview) {
+        const actionText = matchedRule?.action ?? 'AVOID';
+        const actionAr = matchedRule?.actionAr ?? 'تجنب استخدام الدواء أو قلل الجرعة لأدنى حد';
+        const evidenceSource = matchedRule?.evidenceSource ?? 'Clinical Practice Guidelines';
+
+        alerts.push({
+          type: CDSSAlertType.DRUG_DISEASE,
+          severity:
+            childPughClass === 'C' || matchedRule?.hepaticClass === 'HIGH'
+              ? CDSSAlertSeverity.CRITICAL
+              : CDSSAlertSeverity.HIGH,
+          message: `Hepatic Adjustment Required: Patient has Child-Pugh Class ${childPughClass}. Action: ${actionText} for ${drug.genericName}. Evidence: ${evidenceSource}`,
+          messageAr: `تعديل الجرعة الكبدي مطلوب: المريض مصنف Child-Pugh Class ${childPughClass}. الإجراء: ${actionAr} لدواء ${drug.genericName}. المصدر: ${evidenceSource}`,
+          context: {
+            childPughClass,
+            drug: drug.genericName,
+            atcCode,
+            action: actionText,
+            evidenceSource,
+          },
+          requiresOverride: childPughClass === 'C' || matchedRule?.hepaticClass === 'HIGH',
         });
       }
     }
@@ -664,6 +743,13 @@ export class CDSSService {
       input.drugs,
     );
     allAlerts.push(...renalAlerts);
+
+    // 4.5. الفحص الكبدي لملاءمة الجرعة
+    const hepaticAlerts = await this.checkHepaticAdjustment(
+      input.patientId,
+      input.drugs,
+    );
+    allAlerts.push(...hepaticAlerts);
 
     // 5. فحص نطاق الجرعات (Dose Range)
     const doseAlerts = await this.checkDoseRange(input.drugs);

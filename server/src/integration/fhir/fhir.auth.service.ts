@@ -50,14 +50,53 @@ export class FhirAuthService implements OnModuleInit, OnModuleDestroy {
     const host = this.config.get<string>('REDIS_HOST') || 'localhost';
     const port = this.config.get<number>('REDIS_PORT') || 6379;
     const password = this.config.get<string>('REDIS_PASSWORD');
-    this.redisClient = new Redis({ host, port, password });
-    this.redisClient.on('error', (err) =>
-      this.logger.error('Redis connection error in FhirAuthService:', err),
-    );
+    const isMock = this.config.get<string>('REDIS_MOCK') === 'true' || process.env.REDIS_MOCK === 'true';
+
+    if (isMock) {
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error('REDIS_MOCK is not allowed in production.');
+      }
+      const { InMemoryRedis } = require('../../common/in-memory-redis');
+      this.redisClient = new InMemoryRedis() as any;
+      return;
+    }
+
+    try {
+      this.redisClient = new Redis({
+        host,
+        port,
+        password,
+        maxRetriesPerRequest: 1,
+        enableOfflineQueue: false,
+      });
+      this.redisClient.on('error', (err) => {
+        if (process.env.NODE_ENV === 'production') {
+          this.logger.error('Redis connection failed in FhirAuthService. Fallback to In-Memory is disabled in production.', err);
+          return;
+        }
+        this.logger.warn('Redis connection failed in FhirAuthService. Switching to In-Memory Redis fallback.');
+        const { InMemoryRedis } = require('../../common/in-memory-redis');
+        this.redisClient = new InMemoryRedis() as any;
+      });
+    } catch (err) {
+      if (process.env.NODE_ENV === 'production') {
+        this.logger.error('Failed to initialize Redis in FhirAuthService. Fallback to In-Memory is disabled in production.', err);
+        throw err;
+      }
+      this.logger.error('Failed to initialize Redis in FhirAuthService, using In-Memory fallback:', err);
+      const { InMemoryRedis } = require('../../common/in-memory-redis');
+      this.redisClient = new InMemoryRedis() as any;
+    }
   }
 
   onModuleDestroy() {
-    this.redisClient.disconnect();
+    if (this.redisClient) {
+      try {
+        this.redisClient.disconnect();
+      } catch (err) {
+        // Ignore disconnect errors for mock or already closed connections
+      }
+    }
   }
 
   /**

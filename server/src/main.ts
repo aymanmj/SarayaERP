@@ -1,5 +1,6 @@
 import './tracing'; // يجب أن يكون أول استيراد لضمان اعتراض وتتبع كل شيء (OpenTelemetry)
 import 'reflect-metadata';
+import './common/bullmq-mock';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe, Logger, BadRequestException } from '@nestjs/common';

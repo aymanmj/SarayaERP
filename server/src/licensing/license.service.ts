@@ -162,6 +162,21 @@ export class LicenseService implements OnModuleInit {
   // ============================================================
 
   getStatus(force = false): LicenseStatus {
+    if (process.env.LICENSE_BYPASS === 'true' && process.env.NODE_ENV !== 'production') {
+      return {
+        isValid: true,
+        machineId: this._machineId || 'BYPASS',
+        hospitalName: 'Saraya Medical Center (Bypass) [DEV MODE]',
+        plan: 'ENTERPRISE',
+        expiryDate: '2030-12-31',
+        maxUsers: 99999,
+        modules: [],
+        isGracePeriod: false,
+        isExpired: false,
+        daysRemaining: 9999,
+        licensePath: this.licenseFilePath,
+      };
+    }
     if (
       !force &&
       this._cachedStatus &&

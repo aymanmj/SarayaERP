@@ -44,6 +44,14 @@ describe('CDSSService', () => {
     },
     renalDoseRequirement: {
       findFirst: jest.fn(),
+      findMany: jest.fn().mockResolvedValue([]),
+    },
+    patientProblem: {
+      findMany: jest.fn(),
+    },
+    hepaticDoseRequirement: {
+      findFirst: jest.fn(),
+      findMany: jest.fn().mockResolvedValue([]),
     },
   };
 
@@ -378,6 +386,72 @@ describe('CDSSService', () => {
 
       const results = await cdssService.searchDrugInteractions('vitamin_c');
       expect(results).toHaveLength(0);
+    });
+  });
+
+  describe('checkHepaticAdjustment & getPatientChildPughClass', () => {
+    it('should extract Child-Pugh class A, B, or C from patient active problems', async () => {
+      mockPrismaService.patientProblem.findMany.mockResolvedValue([
+        { description: 'Liver Cirrhosis Child-Pugh Class B', type: 'ACTIVE' },
+      ]);
+
+      const childPughClass = await cdssService.getPatientChildPughClass(1);
+      expect(childPughClass).toBe('B');
+    });
+
+    it('should generate a CRITICAL Hepatic Dose alert when Child-Pugh Class is C and Paracetamol is prescribed (fallback check)', async () => {
+      mockPrismaService.patientProblem.findMany.mockResolvedValue([
+        { description: 'Severe hepatic failure, Child-Pugh C', type: 'ACTIVE' },
+      ]);
+      mockPrismaService.hepaticDoseRequirement.findMany.mockResolvedValue([]);
+      mockPrismaService.terminologyConcept.findUnique.mockResolvedValue(null);
+
+      const drugs: DrugCheckInput[] = [
+        { genericName: 'Paracetamol 500mg', dose: '500mg', route: 'Oral' },
+      ];
+
+      const alerts = await cdssService.checkHepaticAdjustment(1, drugs);
+
+      expect(alerts).toBeDefined();
+      expect(alerts.length).toBe(1);
+      expect(alerts[0].type).toEqual(CDSSAlertType.DRUG_DISEASE);
+      expect(alerts[0].severity).toEqual(CDSSAlertSeverity.CRITICAL);
+      expect(alerts[0].requiresOverride).toBe(true);
+      expect(alerts[0].message).toContain('Child-Pugh Class C');
+    });
+
+    it('should generate a HIGH/CRITICAL alert based on hepatic rule from database', async () => {
+      mockPrismaService.patientProblem.findMany.mockResolvedValue([
+        { description: 'Hepatic impairment Child-Pugh Class A', type: 'ACTIVE' },
+      ]);
+
+      mockPrismaService.hepaticDoseRequirement.findMany.mockResolvedValue([
+        {
+          id: 1,
+          drugGeneric: 'methotrexate',
+          childPughClass: 'A',
+          hepaticClass: 'HIGH',
+          minSafeChildPugh: 'A',
+          action: 'AVOID',
+          actionAr: 'تجنب استخدام الميثوتريكسيت',
+          evidenceSource: 'FDA Label',
+          isActive: true,
+        },
+      ]);
+      mockPrismaService.terminologyConcept.findUnique.mockResolvedValue(null);
+
+      const drugs: DrugCheckInput[] = [
+        { genericName: 'Methotrexate 2.5mg', dose: '2.5mg', route: 'Oral' },
+      ];
+
+      const alerts = await cdssService.checkHepaticAdjustment(1, drugs);
+
+      expect(alerts).toBeDefined();
+      expect(alerts.length).toBe(1);
+      expect(alerts[0].type).toEqual(CDSSAlertType.DRUG_DISEASE);
+      expect(alerts[0].severity).toEqual(CDSSAlertSeverity.CRITICAL);
+      expect(alerts[0].requiresOverride).toBe(true);
+      expect(alerts[0].context!.action).toBe('AVOID');
     });
   });
 });
