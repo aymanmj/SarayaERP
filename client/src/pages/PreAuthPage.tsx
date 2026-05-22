@@ -52,7 +52,7 @@ export default function PreAuthPage() {
 
   // Add Request State
   const [searchMrn, setSearchMrn] = useState("");
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const [foundPatient, setFoundPatient] = useState<any>(null);
   const [requestedAmount, setRequestedAmount] = useState("");
   const [requestNotes, setRequestNotes] = useState("");

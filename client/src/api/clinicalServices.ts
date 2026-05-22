@@ -1,9 +1,9 @@
 import { apiClient } from './apiClient';
 
 const api = {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   get: (url: string, config?: any) => apiClient.get(`/clinical${url}`, config),
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   post: (url: string, data?: any, config?: any) => apiClient.post(`/clinical${url}`, data, config),
 };
 
@@ -41,12 +41,12 @@ export const clinicalServices = {
     const response = await api.get(`/registries/${registryId}`);
     return response.data;
   },
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   createRegistry: async (data: any) => {
     const response = await api.post(`/registries`, data);
     return response.data;
   },
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   updateRegistry: async (registryId: number, data: any) => {
     const response = await apiClient.patch(`/clinical/registries/${registryId}`, data);
     return response.data;
@@ -77,7 +77,7 @@ export const clinicalServices = {
     const response = await api.get(`/scheduling/hospitals/${hospitalId}/resources`);
     return response.data;
   },
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   createResource: async (data: any) => {
     const response = await api.post(`/scheduling/resources`, data);
     return response.data;
@@ -88,7 +88,7 @@ export const clinicalServices = {
     });
     return response.data;
   },
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   createBooking: async (data: any) => {
     const response = await api.post(`/scheduling/bookings`, data);
     return response.data;
@@ -101,7 +101,7 @@ export const clinicalServices = {
     const response = await api.get(`/scheduling/hospitals/${hospitalId}/waitlist`);
     return response.data;
   },
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   joinWaitlist: async (data: any) => {
     const response = await api.post(`/scheduling/waitlist`, data);
     return response.data;

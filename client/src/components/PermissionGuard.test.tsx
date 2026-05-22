@@ -13,10 +13,10 @@ vi.mock('../stores/authStore', () => ({
  * PermissionGuard calls: useAuthStore((s) => s.user)
  * So the mock must handle selector functions correctly.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 function mockAuthUser(user: any) {
   (useAuthStore as unknown as ReturnType<typeof vi.fn>).mockImplementation(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     (selector: any) => selector({ user })
   );
 }

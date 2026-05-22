@@ -11,7 +11,7 @@ import { toast } from 'sonner';
 
 type Tab = 'vitals' | 'labs' | 'medications' | 'allergies' | 'diagnoses' | 'encounters';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 const tabs: { key: Tab; label: string; icon: any }[] = [
   { key: 'vitals', label: 'العلامات الحيوية', icon: Activity },
   { key: 'labs', label: 'نتائج التحاليل', icon: FlaskConical },
@@ -23,7 +23,7 @@ const tabs: { key: Tab; label: string; icon: any }[] = [
 
 export default function PortalMedicalRecords() {
   const [activeTab, setActiveTab] = useState<Tab>('vitals');
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -37,7 +37,7 @@ export default function PortalMedicalRecords() {
   };
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+     
     setLoading(true);
     portalApi.get(endpoints[activeTab])
       .then(res => setData(res.data?.items || res.data || []))
@@ -46,7 +46,7 @@ export default function PortalMedicalRecords() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const handleDownloadPdf = (item: any) => {
     // Simulated PDF Download using print window
     const printWindow = window.open('', '_blank');
@@ -128,7 +128,7 @@ export default function PortalMedicalRecords() {
         </div>
       ) : (
         <div className="portal-list">
-          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+          { }
           {data.map((item: any, i: number) => (
             <div key={item.id || i} className="portal-list-item">
               <div className="portal-list-item-content">
@@ -164,7 +164,7 @@ export default function PortalMedicalRecords() {
                 )}
                 {activeTab === 'medications' && (
                   <>
-                    {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                    { }
                     <h4>{item.items?.map((i: any) => i.product?.name).join(', ') || 'وصفة'}</h4>
                     <p className="portal-card-sub">
                       د. {item.doctor?.fullName} — {new Date(item.createdAt).toLocaleDateString('ar-LY')}

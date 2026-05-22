@@ -22,10 +22,10 @@ portalApi.interceptors.request.use((config) => {
 
 // Response interceptor: unwrap standard responses + handle 401
 let isRefreshing = false;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 let failedQueue: any[] = [];
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 const processQueue = (error: any) => {
   failedQueue.forEach((prom) => {
     if (error) prom.reject(error);

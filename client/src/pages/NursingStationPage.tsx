@@ -80,7 +80,7 @@ export default function NursingStationPage() {
     setLoading(true);
     try {
       // Get all inpatients for nursing view
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const res = await apiClient.get<any>("/clinical/inpatient/all-patients");
       const listA = Array.isArray(res.data) ? res.data : (res.data.data || []);
       setEncounters(listA);
@@ -88,7 +88,7 @@ export default function NursingStationPage() {
     } catch (err) {
       // Fallback: try getting via my-rotation (for testing)
       try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         const res = await apiClient.get<any>("/clinical/inpatient/my-rotation?doctorId=1");
         const listB = Array.isArray(res.data) ? res.data : (res.data.data || []);
         setEncounters(listB);
@@ -140,7 +140,7 @@ export default function NursingStationPage() {
       toast.success("تم تسجيل التنفيذ بنجاح");
       setShowExecuteModal(false);
       handleSelectPatient(selectedEncounter); // Refresh
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     } catch (err: any) {
       toast.error(err.response?.data?.message || "حدث خطأ");
     } finally {

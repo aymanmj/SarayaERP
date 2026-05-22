@@ -31,11 +31,11 @@ const COLORS = [
 ];
 
 export default function ReportsDashboardPage() {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const [financialData, setFinancialData] = useState<any[]>([]);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const [operationalData, setOperationalData] = useState<any[]>([]);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const [kpis, setKpis] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -60,7 +60,7 @@ export default function ReportsDashboardPage() {
     loadData();
   }, []);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const KPICard = ({ title, value, unit, color }: any) => (
     <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-sm">
       <div className="text-xs text-slate-500 font-bold mb-2 uppercase tracking-wider">

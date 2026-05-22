@@ -193,7 +193,7 @@ export default function AppointmentsPage() {
   const { data: patientsList = [] } = useQuery({
       queryKey: ['patientsList'],
       queryFn: async () => {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+           
           const res = await apiClient.get<any>("/patients", { params: { limit: 1000 } });
           return res.data.items || res.data; 
       },
@@ -209,10 +209,10 @@ export default function AppointmentsPage() {
             apiClient.get("/appointments/schedules/list"),
           ]);
           
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+           
           return docRes.data.map((d: any) => ({
             ...d,
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+             
             schedule: schedRes.data.find((s: any) => s.doctorId === d.id) || null,
           }));
       },
@@ -235,7 +235,7 @@ export default function AppointmentsPage() {
   const { data: notifications = [] } = useQuery({
     queryKey: ['notifications'],
     queryFn: async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const res = await apiClient.get<any[]>("/notifications");
       return res.data;
     },
@@ -298,14 +298,14 @@ export default function AppointmentsPage() {
       queryClient.invalidateQueries({ queryKey: ['appointments', date] });
       queryClient.invalidateQueries({ queryKey: ['appointments-calendar', currentMonth, selectedDoctor] });
     },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     onError: (err: any) => {
       toast.error(err.response?.data?.message || "فشل حجز الموعد");
     },
   });
 
   const registerERMutation = useMutation({
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       mutationFn: async (payload: any) => {
           await apiClient.post("/encounters", payload);
       },
@@ -314,7 +314,7 @@ export default function AppointmentsPage() {
         setShowERModal(false);
         setErForm({ patientId: "", complaint: "" });
       },
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       onError: (err: any) => {
         toast.error(err.response?.data?.message || "فشل تسجيل الطوارئ");
       }
@@ -340,7 +340,7 @@ export default function AppointmentsPage() {
             toast.success("تم تحديث الحالة");
          }
       },
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       onError: (err: any) => {
          toast.error(err?.response?.data?.message || "فشل تحديث الحالة.");
       }
@@ -612,7 +612,7 @@ export default function AppointmentsPage() {
               className="bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm"
             >
               <option value="">جميع الأطباء</option>
-              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+              { }
               {doctorsList.map((doctor: any) => (
                 <option key={doctor.id} value={doctor.id}>
                   {doctor.fullName}

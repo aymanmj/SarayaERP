@@ -13,7 +13,7 @@ export function ConsentFormsPage() {
   const queryClient = useQueryClient();
 
   const [dialogOpen, setDialogOpen] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const [selectedForm, setSelectedForm] = useState<any>(null);
 
   // Fetch Consents
@@ -38,7 +38,7 @@ export function ConsentFormsPage() {
     onError: () => toast.error("حدث خطأ أثناء الإلغاء"),
   });
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const handleOpenDialog = (form?: any) => {
     setSelectedForm(form || null);
     setDialogOpen(true);

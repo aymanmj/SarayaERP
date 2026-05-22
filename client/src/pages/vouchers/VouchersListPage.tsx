@@ -31,7 +31,7 @@ export default function VouchersListPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab]);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const handleSaveVoucher = async (data: any) => {
     try {
       if (editingVoucher) {
@@ -42,7 +42,7 @@ export default function VouchersListPage() {
         toast.success('تم حفظ المسودة بنجاح');
       }
       fetchVouchers();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'حدث خطأ أثناء الحفظ');
     }
@@ -54,7 +54,7 @@ export default function VouchersListPage() {
       await postVoucher(id);
       toast.success('تم الترحيل بنجاح');
       fetchVouchers();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'فشل الترحيل');
     }
@@ -66,7 +66,7 @@ export default function VouchersListPage() {
       await cancelVoucher(id);
       toast.success('تم الإلغاء');
       fetchVouchers();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'فشل الإلغاء');
     }

@@ -110,43 +110,43 @@ export default function BedManagementDashboard() {
       ]);
       
       // Process wards data
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const processedWards = wardsRes.data.map((ward: any) => ({
         ...ward,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         totalBeds: ward.rooms.reduce((sum: number, room: any) => sum + room.beds.length, 0),
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         occupiedBeds: ward.rooms.reduce((sum: number, room: any) => 
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+           
           sum + room.beds.filter((bed: any) => bed.status === 'OCCUPIED').length, 0),
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         availableBeds: ward.rooms.reduce((sum: number, room: any) => 
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+           
           sum + room.beds.filter((bed: any) => bed.status === 'AVAILABLE').length, 0),
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         cleaningBeds: ward.rooms.reduce((sum: number, room: any) => 
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+           
           sum + room.beds.filter((bed: any) => bed.status === 'CLEANING').length, 0),
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         maintenanceBeds: ward.rooms.reduce((sum: number, room: any) => 
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+           
           sum + room.beds.filter((bed: any) => bed.status === 'MAINTENANCE').length, 0),
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         blockedBeds: ward.rooms.reduce((sum: number, room: any) => 
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+           
           sum + room.beds.filter((bed: any) => bed.status === 'BLOCKED').length, 0),
         occupancyRate: 0,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         rooms: ward.rooms.map((room: any) => ({
           ...room,
           totalBeds: room.beds.length,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+           
           occupiedBeds: room.beds.filter((bed: any) => bed.status === 'OCCUPIED').length,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+           
           availableBeds: room.beds.filter((bed: any) => bed.status === 'AVAILABLE').length,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+           
           cleaningBeds: room.beds.filter((bed: any) => bed.status === 'CLEANING').length,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+           
           maintenanceBeds: room.beds.filter((bed: any) => bed.status === 'MAINTENANCE').length,
           occupancyRate: 0
         }))
@@ -164,7 +164,7 @@ export default function BedManagementDashboard() {
       setStats(statsRes.data);
       // إزالة تحميل activities لعدم وجود endpoint
       setActivities([]);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     } catch (error: any) {
       toast.error(error?.response?.data?.message || 'فشل تحميل بيانات الأسرة');
     } finally {
@@ -177,7 +177,7 @@ export default function BedManagementDashboard() {
       await apiClient.post('/beds/mark-clean', { bedId });
       toast.success('تم وضع علامة "نظيف" على السرير');
       loadData();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     } catch (error: any) {
       toast.error(error?.response?.data?.message || 'فشل تحديث حالة السرير');
     }
@@ -190,7 +190,7 @@ export default function BedManagementDashboard() {
       await apiClient.post('/beds/mark-clean', { bedId });
       toast.success('تم وضع السرير في حالة الصيانة');
       loadData();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     } catch (error: any) {
       toast.error(error?.response?.data?.message || 'فشل تحديث حالة السرير');
     }
@@ -376,7 +376,7 @@ export default function BedManagementDashboard() {
           <button
             key={tab.id}
             onClick={() => {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+               
               setActiveTab(tab.id as any);
               if (tab.id === 'overview') {
                 setSelectedWard(null);

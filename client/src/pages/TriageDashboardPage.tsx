@@ -166,13 +166,13 @@ export default function TriageDashboardPage() {
 
       if (alerts && alerts.length > 0) {
         // Show alerts
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         const critical = alerts.filter((a: any) => a.severity === 'CRITICAL');
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         const warning = alerts.filter((a: any) => a.severity === 'WARNING');
 
         let message = "⚠️ تنبيهات نظام دعم القرار:\n";
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         alerts.forEach((a: any) => message += `- ${a.message}\n`);
         
         if (critical.length > 0) {

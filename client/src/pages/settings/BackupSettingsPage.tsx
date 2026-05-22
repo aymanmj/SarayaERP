@@ -316,7 +316,7 @@ export default function BackupSettingsPage() {
 
     try {
       setLoading(true);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const body: any = { targetPath: manualPath };
       // إذا النسخ المزدوج مفعل وهناك مسار ثانوي، أرسله
       if (dualBackupEnabled && secondaryPath && secondaryPath !== manualPath) {
@@ -329,7 +329,7 @@ export default function BackupSettingsPage() {
       toast.success(msg);
       setPolling(true);
       setTimeout(fetchBackups, 3000);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     } catch (err: any) {
       toast.error(err?.response?.data?.message || "فشل بدء النسخ الاحتياطي");
     } finally {
@@ -354,7 +354,7 @@ export default function BackupSettingsPage() {
       });
       toast.success("تم بدء عملية الاستعادة. النظام قد يتوقف قليلاً.");
       setPolling(true);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     } catch (err: any) {
       toast.error(err?.response?.data?.message || "فشل بدء الاستعادة");
     }
@@ -399,7 +399,7 @@ export default function BackupSettingsPage() {
       });
       toast.success("تم حفظ إعدادات النسخ الاحتياطي بنجاح");
       setConfigDirty(false);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     } catch (err: any) {
       toast.error(err?.response?.data?.message || "فشل حفظ الإعدادات");
     } finally {

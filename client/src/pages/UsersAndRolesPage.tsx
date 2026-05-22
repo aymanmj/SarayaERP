@@ -290,7 +290,7 @@ export default function UsersAndRolesPage() {
       }
       setShowUserModal(false);
       loadUsersData();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     } catch (err: any) {
       toast.error(err.response?.data?.message || "حدث خطأ");
     }
@@ -326,7 +326,7 @@ export default function UsersAndRolesPage() {
       });
       toast.success(`تم تحديث صلاحيات ${selectedRole.name}`);
       loadRolesData();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     } catch (err: any) {
       toast.error(err.response?.data?.message || "حدث خطأ");
     } finally {

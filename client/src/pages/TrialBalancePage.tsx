@@ -69,7 +69,7 @@ export default function TrialBalancePage() {
     setError(null);
 
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const params: any = {};
       if (selectedYearId) params.financialYearId = selectedYearId;
       if (fromDate) params.from = fromDate;
@@ -80,7 +80,7 @@ export default function TrialBalancePage() {
         { params }
       );
       setData(res.data);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     } catch (err: any) {
       console.error(err);
       const msg =

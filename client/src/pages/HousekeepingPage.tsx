@@ -23,15 +23,15 @@ export default function HousekeepingPage() {
       // للتبسيط، سأفترض أننا سنقوم بفلترة الرد من /beds/tree
       // أو الأفضل: إضافة endpoint لجلب الأسرة غير المتاحة
       // سأستخدم هنا حل سريع: جلب الشجرة وفلترتها في الفرونت
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const res = await apiClient.get<any[]>("/beds/tree");
       const dirtyBeds: Bed[] = [];
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       res.data.forEach((ward: any) => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         ward.rooms.forEach((room: any) => {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+           
           room.beds.forEach((bed: any) => {
             if (bed.status === "CLEANING") {
               dirtyBeds.push({

@@ -6,10 +6,10 @@ import { FlowsheetEntryModal } from './components/FlowsheetEntryModal';
 
 export const IcuFlowsheet = () => {
   const { encounterId } = useParams<{ encounterId: string }>();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const [entries, setEntries] = useState<any[]>([]);
   const [ioBalance, setIoBalance] = useState({ totalIntake: 0, totalOutput: 0, balance: 0 });
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const [patientData, setPatientData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('vitals');
@@ -35,7 +35,7 @@ export const IcuFlowsheet = () => {
       }
       
       setIoBalance(ioRes.data);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const found = pRes.data.find((p: any) => p.encounterId === Number(encounterId));
       if (found) setPatientData(found);
     } catch (err) {

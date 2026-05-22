@@ -63,7 +63,7 @@ export default function InsuranceClaimsPage() {
   const loadClaims = async () => {
     setLoading(true);
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const params: any = { status: statusFilter };
       if (selectedProvider) params.providerId = selectedProvider;
 

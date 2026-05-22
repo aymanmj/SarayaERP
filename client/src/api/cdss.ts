@@ -6,7 +6,7 @@ export type CDSSAlertResult = {
   severity: "INFO" | "LOW" | "MODERATE" | "HIGH" | "CRITICAL";
   message: string;
   messageAr?: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   context?: Record<string, any>;
   requiresOverride: boolean;
 };

@@ -186,9 +186,9 @@ function LegacyQuickSummaryCard({
   encounterId: number;
   status: EncounterStatus;
 }) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const [vitals, setVitals] = useState<any[]>([]);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const [diagnoses, setDiagnoses] = useState<any[]>([]);
 
   useEffect(() => {
@@ -203,7 +203,7 @@ function LegacyQuickSummaryCard({
   }, [encounterId]);
 
   const latestVital = vitals.length > 0 ? vitals[0] : null;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const primaryDx = diagnoses.find((d: any) => d.type === "PRIMARY");
 
   return (
@@ -271,9 +271,9 @@ function LegacyQuickSummaryCard({
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function LegacyQuickProtocolsWidget({ encounterId }: { encounterId: number }) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const [orderSets, setOrderSets] = useState<any[]>([]);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const [pathways, setPathways] = useState<any[]>([]);
   const [executingId, setExecutingId] = useState<number | null>(null);
   const [enrollingId, setEnrollingId] = useState<number | null>(null);
@@ -300,7 +300,7 @@ function LegacyQuickProtocolsWidget({ encounterId }: { encounterId: number }) {
     try {
       await apiClient.post(`/order-sets/${setId}/execute`, { encounterId });
       toast.success("تم الاعتماد وإرسال الطلبات بنجاح");
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
     } catch (err: any) {
       toast.error(err?.response?.data?.message || "تعذر تنفيذ البروتوكول");
     } finally {
@@ -316,7 +316,7 @@ function LegacyQuickProtocolsWidget({ encounterId }: { encounterId: number }) {
         encounterId,
       });
       toast.success("تم إدراج المريض وبدء المسار العلاجي");
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
     } catch (err: any) {
       toast.error(err?.response?.data?.message || "تعذر الإدراج في المسار");
     } finally {
@@ -461,7 +461,7 @@ export default function EncounterDetailsPage() {
 
   // AI Coding Modal
   const [showAiModal, setShowAiModal] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const [aiSuggestions, setAiSuggestions] = useState<any>(null);
   const [selectedDxCodes, setSelectedDxCodes] = useState<Set<number>>(
     new Set(),
@@ -513,9 +513,9 @@ export default function EncounterDetailsPage() {
   const { data: pendingTransfers = [] } = useQuery({
     queryKey: ["transfers", encId],
     queryFn: async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const res = await apiClient.get<any[]>("/transfers/pending");
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       return res.data.filter((t: any) => t.encounterId === encId);
     },
     enabled: !!encId,
@@ -540,7 +540,7 @@ export default function EncounterDetailsPage() {
   });
 
   const addVisitNoteMutation = useMutation({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     mutationFn: async (data: any) => {
       const res = await apiClient.post("/clinical-notes", {
         ...data,
@@ -565,7 +565,7 @@ export default function EncounterDetailsPage() {
       toast.success("تم تسجيل خروج المريض وإغلاق الملف.");
       navigate("/triage");
     },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     onError: (err: any) =>
       toast.error(err.response?.data?.message || "فشل تسجيل الخروج"),
   });
@@ -605,13 +605,13 @@ export default function EncounterDetailsPage() {
       );
       setShowAdmitModal(false);
     },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     onError: (err: any) =>
       toast.error(err.response?.data?.message || "فشل الإيواء"),
   });
 
   const aiCodingMutation = useMutation({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     mutationFn: async (data: any) => {
       if (!data?.note) return;
       await apiClient.post("/clinical/ai-coding/clinical-notes", {
@@ -623,22 +623,22 @@ export default function EncounterDetailsPage() {
       setAiSuggestions(data);
       // Auto-select all codes by default
       if (data?.diagnoses) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         setSelectedDxCodes(
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+           
           new Set(data.diagnoses.map((_: any, i: number) => i)),
         );
         const types: Record<number, "PRIMARY" | "SECONDARY"> = {};
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         data.diagnoses.forEach((_: any, i: number) => {
           types[i] = i === 0 ? "PRIMARY" : "SECONDARY";
         });
         setDxTypes(types);
       }
       if (data?.procedures) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         setSelectedPxCodes(
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+           
           new Set(data.procedures.map((_: any, i: number) => i)),
         );
       }
@@ -650,9 +650,9 @@ export default function EncounterDetailsPage() {
   const applyCodesMutation = useMutation({
     mutationFn: async () => {
       const selectedDiagnoses = aiSuggestions.diagnoses
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         .filter((_: any, i: number) => selectedDxCodes.has(i))
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         .map((dx: any, i: number) => ({
           code: dx.code,
           nameEn: dx.nameEn,
@@ -662,9 +662,9 @@ export default function EncounterDetailsPage() {
             (i === 0 ? "PRIMARY" : "SECONDARY"),
         }));
       const selectedProcedures = aiSuggestions.procedures
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         .filter((_: any, i: number) => selectedPxCodes.has(i))
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         .map((px: any) => ({
           code: px.code,
           nameEn: px.nameEn,
@@ -705,13 +705,13 @@ export default function EncounterDetailsPage() {
     assignDoctorMutation.mutate();
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const handleAddVisitNote = async (data: any) => {
     if (!encounter) return;
     await addVisitNoteMutation.mutateAsync(data);
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const handleAiCoding = (data: any) => {
     if (!data?.note) {
       toast.warning("يرجى كتابة ملاحظات سريرية أولاً ليتم تحليلها.");
@@ -1361,7 +1361,7 @@ export default function EncounterDetailsPage() {
                                 setSelectedDxCodes(
                                   new Set(
                                     aiSuggestions.diagnoses.map(
-                                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                       
                                       (_: any, i: number) => i,
                                     ),
                                   ),
@@ -1473,7 +1473,7 @@ export default function EncounterDetailsPage() {
                                 setSelectedPxCodes(
                                   new Set(
                                     aiSuggestions.procedures.map(
-                                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                       
                                       (_: any, i: number) => i,
                                     ),
                                   ),

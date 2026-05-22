@@ -72,7 +72,7 @@ export default function BranchesAccessPage() {
       const res = await apiClient.get("/users");
       // Extract users from the response (may be nested or flat)
       const users = res.data?.users || res.data || [];
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       return users.map((u: any) => ({
         id: u.id,
         fullName: u.fullName,
@@ -466,7 +466,7 @@ export default function BranchesAccessPage() {
                   const res = await apiClient.get("/organizations/hospitals", {
                     params: { search: q || undefined },
                   });
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                   
                   return (res.data as any[]).map((h) => ({
                     id: h.id,
                     label: h.displayName || h.name,

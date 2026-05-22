@@ -9,7 +9,7 @@ export const DischargeSummaryBuilderPage = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const [loading, setLoading] = useState(true);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const [summary, setSummary] = useState<any>(null);
 
   // Form State
@@ -47,7 +47,7 @@ export const DischargeSummaryBuilderPage = () => {
           warningSignsToWatch: res.data.warningSignsToWatch || '',
         });
       }
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (e: any) {
       toast.error("فشل تحميل مسودة الخروج");
     } finally {
@@ -76,7 +76,7 @@ export const DischargeSummaryBuilderPage = () => {
       }
       
       loadDraft(); // reload to get updated status
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     } catch (e: any) {
       toast.error(e.response?.data?.message || "فشل الحفظ");
     }
@@ -255,7 +255,7 @@ export const DischargeSummaryBuilderPage = () => {
               <div className="mt-4 flex-1">
                  <h4 className="text-sm font-bold text-slate-300 mb-2">أدوية الخروج (منسُوخة من الوصفات):</h4>
                  <ul className="bg-slate-950 border border-slate-800 rounded-lg p-3 max-h-40 overflow-y-auto space-y-2">
-                    {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                    { }
                     {summary.dischargeMedications?.map((m: any, idx: number) => (
                       <li key={idx} className="flex gap-2 text-sm text-slate-400">💊 {m.text}</li>
                     ))}

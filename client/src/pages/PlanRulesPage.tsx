@@ -117,7 +117,7 @@ export default function PlanRulesPage() {
       return;
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     const payload: any = {
       ruleType: form.ruleType,
       copayType: form.copayType,

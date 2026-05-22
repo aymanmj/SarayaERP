@@ -51,7 +51,7 @@ export default function DoctorSchedulesPage() {
       const schedules = schedsRes.data as DoctorSchedule[];
 
       // Merge
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const merged = docs.map((d: any) => ({
         ...d,
         schedule: schedules.find((s) => s.doctorId === d.id) || null,
@@ -106,7 +106,7 @@ export default function DoctorSchedulesPage() {
       toast.success("تم تحديث الجدول بنجاح");
       setEditingDoc(null);
       loadData();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     } catch (err: any) {
       toast.error(err.response?.data?.message || "فشل التحديث");
     } finally {

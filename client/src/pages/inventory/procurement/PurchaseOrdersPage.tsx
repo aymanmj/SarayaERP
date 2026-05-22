@@ -24,7 +24,7 @@ export function PurchaseOrdersPage() {
     try {
       const res = await apiClient.get<PurchaseOrder[]>("/procurement/orders");
       setOrders(res.data);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     } catch (err: any) {
       console.error(err);
       toast.error("حدث خطأ أثناء تحميل أوامر الشراء.");

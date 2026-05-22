@@ -80,7 +80,7 @@ export default function CommissionSettingsPage() {
   }, [selectedDoctorId, rules]);
 
   const saveMutation = useMutation({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     mutationFn: async (payload: { rules: any[] }) => {
       await apiClient.post("/commission-rules/bulk", payload);
     },

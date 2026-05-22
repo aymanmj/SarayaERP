@@ -125,7 +125,7 @@ export default function InventoryTransfersPage() {
   const updateLine = (
     index: number,
     field: keyof TransferItemRow,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     val: any
   ) => {
     setTransferLines((prev) =>
@@ -201,7 +201,7 @@ export default function InventoryTransfersPage() {
         );
         setSourceProducts(res.data);
       }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     } catch (err: any) {
       console.error(err);
       toast.error(err?.response?.data?.message || "فشل عملية التحويل.");

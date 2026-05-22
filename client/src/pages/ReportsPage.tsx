@@ -16,7 +16,7 @@ interface Report {
   generatedAt: string;
   generatedBy: string;
   period: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   data: any;
   status?: 'GENERATED' | 'FAILED' | 'PENDING';
 }

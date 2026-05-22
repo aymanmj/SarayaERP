@@ -83,7 +83,7 @@ export default function PharmacyStockPage() {
       toast.success("تم تسجيل حركة المخزون بنجاح.");
       resetForm();
       await loadData();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     } catch (err: any) {
       console.error(err);
       const msg =

@@ -70,7 +70,7 @@ export const DailyAssessmentForm = ({ encounterId, onSuccess, onCancel }: Props)
     e.preventDefault();
     setLoading(true);
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const payload: any = {
         encounterId,
         assessmentDate: formData.assessmentDate,

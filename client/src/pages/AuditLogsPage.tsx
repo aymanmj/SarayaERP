@@ -11,11 +11,11 @@ type AuditLog = {
   createdAt: string;
   ipAddress: string | null;
   user?: { fullName: string; username: string } | null;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   details?: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   oldValues?: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   newValues?: any;
 };
 
@@ -87,7 +87,7 @@ export default function AuditLogsPage() {
   };
 
   const handleExport = () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     const escapeCSVField = (field: any): string => {
       if (field === null || field === undefined) return "";
       const str = String(field);
@@ -138,7 +138,7 @@ export default function AuditLogsPage() {
     return <FileText className="w-4 h-4" />;
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const getChanges = (oldData: any, newData: any) => {
     if (!oldData && !newData) return [];
     if (!oldData && newData) return Object.keys(newData).map(key => ({ key, old: undefined, new: newData[key] }));

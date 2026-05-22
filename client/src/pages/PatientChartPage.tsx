@@ -29,19 +29,19 @@ type ClinicalSummary = {
     createdAt: string;
     globalPatient?: { id: number; fullName: string } | null;
   };
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   problems: any[];
   medicalHistory: {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     socialHistory: any;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     pastMedical: any[];
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     pastSurgical: any[];
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     familyHistory: any[];
   };
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   homeMedications: any[];
   allergies: { id: number; allergen: string; severity: string; reaction: string | null }[];
   activeEncounters: {
@@ -53,7 +53,7 @@ type ClinicalSummary = {
     doctor: { id: number; fullName: string } | null;
     department: { id: number; name: string } | null;
   }[];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   recentDiagnoses: any[];
   stats: {
     totalEncounters: number;

@@ -80,6 +80,6 @@ export interface PatientAgingResponse {
 
 export interface PatientsListResponse {
   items: Patient[];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   meta: any;
 }

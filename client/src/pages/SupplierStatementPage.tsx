@@ -140,7 +140,7 @@ export default function SupplierStatementPage() {
 
       if (res.data.fromDate) setFromDate(res.data.fromDate.slice(0, 10));
       if (res.data.toDate) setToDate(res.data.toDate.slice(0, 10));
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     } catch (err: any) {
       console.error(err);
       setError(

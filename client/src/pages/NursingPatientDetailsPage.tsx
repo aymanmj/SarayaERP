@@ -74,7 +74,7 @@ export default function NursingPatientDetailsPage() {
 
   useEffect(() => {
     if (encounterId) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+       
       loadHeader();
       loadNotes();
     }

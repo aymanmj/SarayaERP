@@ -81,7 +81,7 @@ export function ItemCategoriesManagementPage() {
               <label className="block text-xs text-slate-400 mb-1">الفئة الأب</label>
               <select value={formData.parentId} onChange={e => setFormData({...formData, parentId: e.target.value})} className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200">
                 <option value="">-- فئة رئيسية --</option>
-                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                { }
                 {categories?.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
@@ -98,7 +98,7 @@ export function ItemCategoriesManagementPage() {
               <label className="block text-xs text-slate-400 mb-1">حساب المخزون (Asset Account)</label>
               <select value={formData.inventoryAccountId} onChange={e => setFormData({...formData, inventoryAccountId: e.target.value})} className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200">
                 <option value="">-- اختر حساب المخزون --</option>
-                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                { }
                 {accounts?.filter((a: any) => a.type === 'ASSET').map((a: any) => <option key={a.id} value={a.id}>{a.code} - {a.name}</option>)}
               </select>
             </div>
@@ -106,7 +106,7 @@ export function ItemCategoriesManagementPage() {
               <label className="block text-xs text-slate-400 mb-1">حساب التكلفة / المصروف (Expense Account)</label>
               <select value={formData.expenseAccountId} onChange={e => setFormData({...formData, expenseAccountId: e.target.value})} className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200">
                 <option value="">-- اختر حساب التكلفة --</option>
-                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                { }
                 {accounts?.filter((a: any) => a.type === 'EXPENSE').map((a: any) => <option key={a.id} value={a.id}>{a.code} - {a.name}</option>)}
               </select>
             </div>
@@ -140,7 +140,7 @@ export function ItemCategoriesManagementPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                    { }
                     {categories?.map((cat: any) => (
                       <tr key={cat.id} className="border-b border-slate-700/50 hover:bg-slate-700/20">
                         <td className="py-3 px-2 font-medium text-slate-200">{cat.name}</td>

@@ -159,42 +159,42 @@ function ZoneBinTree({ warehouse, onRefresh }: { warehouse: Warehouse; onRefresh
       return inventoryApi.createZone(warehouse.id, { code: zoneCode, name: zoneName, description: zoneDesc || undefined });
     },
     onSuccess: () => { toast.success('تم إضافة المنطقة بنجاح'); resetZoneForm(); onRefresh(); },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     onError: (e: any) => toast.error(e?.response?.data?.message || 'فشل في إضافة المنطقة'),
   });
 
   const updateZoneMut = useMutation({
     mutationFn: () => inventoryApi.updateZone(editingZone!.id, { code: zoneCode, name: zoneName, description: zoneDesc || undefined }),
     onSuccess: () => { toast.success('تم تعديل المنطقة'); resetZoneForm(); onRefresh(); },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     onError: (e: any) => toast.error(e?.response?.data?.message || 'فشل في تعديل المنطقة'),
   });
 
   const deleteZoneMut = useMutation({
     mutationFn: (id: number) => inventoryApi.deleteZone(id),
     onSuccess: () => { toast.success('تم حذف المنطقة'); onRefresh(); },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     onError: (e: any) => toast.error(e?.response?.data?.message || 'فشل في حذف المنطقة'),
   });
 
   const createBinMut = useMutation({
     mutationFn: () => inventoryApi.createBin(addingBinForZone!, { code: binCode, name: binName, description: binDesc || undefined }),
     onSuccess: () => { toast.success('تم إضافة الرف بنجاح'); resetBinForm(); onRefresh(); },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     onError: (e: any) => toast.error(e?.response?.data?.message || 'فشل في إضافة الرف'),
   });
 
   const updateBinMut = useMutation({
     mutationFn: () => inventoryApi.updateBin(editingBin!.id, { code: binCode, name: binName, description: binDesc || undefined }),
     onSuccess: () => { toast.success('تم تعديل الرف'); resetBinForm(); onRefresh(); },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     onError: (e: any) => toast.error(e?.response?.data?.message || 'فشل في تعديل الرف'),
   });
 
   const deleteBinMut = useMutation({
     mutationFn: (id: number) => inventoryApi.deleteBin(id),
     onSuccess: () => { toast.success('تم حذف الرف'); onRefresh(); },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     onError: (e: any) => toast.error(e?.response?.data?.message || 'فشل في حذف الرف'),
   });
 
@@ -442,7 +442,7 @@ export function WarehouseManagementPage() {
       resetForm();
       queryClient.invalidateQueries({ queryKey: ['warehouses-detailed'] });
     },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     onError: (e: any) => toast.error(e?.response?.data?.message || 'فشل في إنشاء المستودع'),
   });
 
@@ -453,7 +453,7 @@ export function WarehouseManagementPage() {
       resetForm();
       queryClient.invalidateQueries({ queryKey: ['warehouses-detailed'] });
     },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     onError: (e: any) => toast.error(e?.response?.data?.message || 'فشل في تعديل المستودع'),
   });
 

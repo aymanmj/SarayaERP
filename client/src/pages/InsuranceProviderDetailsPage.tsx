@@ -52,7 +52,7 @@ export default function InsuranceProviderDetailsPage() {
   const loadData = async () => {
     setLoading(true);
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const res = await apiClient.get<any>(`/insurance/providers/${providerId}`);
       if (res.data) {
         setProviderName(res.data.name);

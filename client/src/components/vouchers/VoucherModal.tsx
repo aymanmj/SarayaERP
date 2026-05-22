@@ -7,7 +7,7 @@ interface VoucherModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (data: CreateVoucherDto) => Promise<void>;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   initialData?: any;
 }
 
@@ -23,7 +23,7 @@ export default function VoucherModal({ isOpen, onClose, onSave, initialData }: V
     reference: '',
   });
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const [accounts, setAccounts] = useState<any[]>([]);
 
   useEffect(() => {

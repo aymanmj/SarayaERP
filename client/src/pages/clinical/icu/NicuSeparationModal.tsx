@@ -29,7 +29,7 @@ export const NicuSeparationModal: React.FC<NicuSeparationModalProps> = ({
       toast.success(`تم فتح ملف مستقل للمولود بنجاح برقم: ${res.data.mrn}`);
       onSuccess();
       onClose();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     } catch (err: any) {
       console.error(err);
       toast.error(err?.response?.data?.message || 'فشل عملية فصل ملف المولود');

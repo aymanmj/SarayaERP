@@ -95,7 +95,7 @@ export default function IncomeStatementPage() {
       setYear(targetYear);
 
       // 2️⃣ إعداد الباراميترات
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const params: any = {
         financialYearId: targetYear.id,
       };
@@ -111,7 +111,7 @@ export default function IncomeStatementPage() {
       );
 
       setData(incRes.data);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     } catch (err: any) {
       console.error(err);
       const msg =

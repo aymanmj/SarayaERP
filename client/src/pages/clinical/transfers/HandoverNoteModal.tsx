@@ -51,7 +51,7 @@ export const HandoverNoteModal: React.FC<HandoverNoteModalProps> = ({
       toast.success(isSigned ? 'تم توقيع ملاحظات التسليم بنجاح' : 'تم حفظ مسودة ملاحظات التسليم');
       onSuccess();
       onClose();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     } catch (err: any) {
       console.error(err);
       toast.error(err?.response?.data?.message || 'فشل حفظ الملاحظات');

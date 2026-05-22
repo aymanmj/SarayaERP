@@ -56,7 +56,7 @@ export default function ServicesMasterPage() {
   const loadData = async () => {
     setLoading(true);
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const params: any = {};
       if (filterType) params.type = filterType;
       
@@ -115,7 +115,7 @@ export default function ServicesMasterPage() {
         defaultPrice: "",
       });
       loadData();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     } catch (err: any) {
       toast.error(err.response?.data?.message || "فشل الإضافة");
     }

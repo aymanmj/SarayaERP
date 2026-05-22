@@ -50,7 +50,7 @@ type DoctorLite = {
 // واجهة الاستجابة الجديدة للمرضى
 type PatientsListResponse = {
   items: PatientLite[];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   meta: any;
 };
 
@@ -145,7 +145,7 @@ export default function AdmissionsPage() {
       } else {
         throw new Error("فشل إنشاء سجل الإيواء");
       }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     } catch (err: any) {
       console.error(err);
       toast.error(err?.response?.data?.message || "فشل عملية الإيواء.");
@@ -207,7 +207,7 @@ export default function AdmissionsPage() {
       } else {
         throw new Error("فشل الإيواء السريع");
       }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     } catch (err: any) {
       console.error(err);
       toast.error(err?.response?.data?.message || "فشل الإيواء السريع.");

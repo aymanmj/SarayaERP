@@ -24,7 +24,7 @@ interface Props {
  */
 export const IcuStepDownModal = ({ isOpen, onClose, encounterId, patientName, fromBedId, currentWardName, currentBedNumber, onSuccess }: Props) => {
   const [step, setStep] = useState<'form' | 'processing' | 'done' | 'error'>('form');
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const [wardTree, setWardTree] = useState<any[]>([]);
   const [selectedBedId, setSelectedBedId] = useState('');
   const [reason, setReason] = useState('');
@@ -48,7 +48,7 @@ export const IcuStepDownModal = ({ isOpen, onClose, encounterId, patientName, fr
     try {
       const res = await apiClient.get('/beds/tree');
       // Filter OUT ICU wards — we only want regular inpatient wards
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const regularWards = res.data.filter((w: any) =>
         w.type !== 'ICU' && !w.name.includes('عناية') && !w.name.includes('ICU')
       );
@@ -59,12 +59,12 @@ export const IcuStepDownModal = ({ isOpen, onClose, encounterId, patientName, fr
   };
 
   const availableBeds = wardTree.flatMap(w =>
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     w.rooms.flatMap((r: any) =>
       r.beds
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         .filter((b: any) => b.status === 'AVAILABLE')
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         .map((b: any) => ({
           id: b.id,
           label: `${w.name} — سرير ${b.bedNumber}${r.roomNumber ? ` (غرفة ${r.roomNumber})` : ''}`
@@ -99,7 +99,7 @@ export const IcuStepDownModal = ({ isOpen, onClose, encounterId, patientName, fr
       await apiClient.patch(`/transfers/${transferId}/arrive`);
 
       setStep('done');
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     } catch (err: any) {
       console.error(err);
       setErrorMsg(err?.response?.data?.message || 'فشلت عملية النقل. يرجى المحاولة مرة أخرى.');

@@ -132,7 +132,7 @@ export default function CashierPage() {
       toast.success("تم إلغاء الفاتورة بنجاح وتحرير الخدمات للفوترة مجدداً.");
       setSelectedId(null);
       await loadWorklist();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     } catch (err: any) {
       console.error(err);
       const msg = err?.response?.data?.message;
@@ -208,7 +208,7 @@ export default function CashierPage() {
       );
 
       // ✅ [FIX] قراءة البيانات بشكل صحيح من استجابة الباكيند
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const data: any = res.data;
 
       // الباكيند يعيد: { id: (InvoiceId), paymentId: number | null, ... }
@@ -233,7 +233,7 @@ export default function CashierPage() {
       setReference("");
       setSelectedId(null);
       await loadWorklist();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     } catch (err: any) {
       console.error(err);
       const msg = err?.response?.data?.message;

@@ -112,7 +112,7 @@ export default function InvoicesListPage() {
   const invoices = data?.items || [];
   const meta = data?.meta;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const formatMoney = (val: any) => Number(val || 0).toFixed(3);
 
   return (

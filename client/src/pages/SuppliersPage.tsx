@@ -34,7 +34,7 @@ export default function SuppliersPage() {
     try {
       const res = await apiClient.get<Supplier[]>("/suppliers");
       setSuppliers(res.data);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     } catch (err: any) {
       console.error(err);
       toast.error("حدث خطأ أثناء تحميل الموردين.");
@@ -72,7 +72,7 @@ export default function SuppliersPage() {
       setAddress("");
       setNotes("");
       await loadSuppliers();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     } catch (err: any) {
       console.error(err);
       const msg = err?.response?.data?.message;

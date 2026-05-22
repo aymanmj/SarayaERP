@@ -107,7 +107,7 @@ export default function LabWorklistPage() {
 
       toast.success("تم الحفظ.");
       load(); // تحديث
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err: any) {
       toast.error("فشل الحفظ.");
     }

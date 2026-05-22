@@ -117,7 +117,7 @@ export default function BedManagementSettingsPage() {
       await apiClient.delete(`/beds/wards/${id}`);
       toast.success("تم الحذف بنجاح");
       loadData();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     } catch (err: any) {
       toast.error(err.response?.data?.message || "فشل الحذف");
     }
@@ -155,7 +155,7 @@ export default function BedManagementSettingsPage() {
       await apiClient.delete(`/beds/rooms/${id}`);
       toast.success("تم الحذف بنجاح");
       loadData();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     } catch (err: any) {
       toast.error(err.response?.data?.message || "فشل الحذف");
     }
@@ -193,7 +193,7 @@ export default function BedManagementSettingsPage() {
       await apiClient.delete(`/beds/beds/${id}`);
       toast.success("تم الحذف بنجاح");
       loadData();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     } catch (err: any) {
       toast.error(err.response?.data?.message || "فشل الحذف");
     }

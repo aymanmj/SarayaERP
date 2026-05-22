@@ -92,7 +92,7 @@ export default function PharmacyStockReportPage() {
     try {
       setLoading(true);
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const params: any = {};
       if (fromDate) params.from = fromDate;
       if (toDate) params.to = toDate;
@@ -106,7 +106,7 @@ export default function PharmacyStockReportPage() {
       );
 
       setTxns(res.data);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     } catch (err: any) {
       console.error(err);
       const msg =

@@ -43,7 +43,7 @@ export default function PatientTelehealthRoom() {
       setInWaitingRoom(true);
       toast.success("أنت الآن في غرفة الانتظار الافتراضية.");
     },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     onError: (err: any) => {
       toast.error(err.response?.data?.message || "فشل دخول غرفة الانتظار");
     },

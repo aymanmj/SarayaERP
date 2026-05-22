@@ -33,7 +33,7 @@ export interface Voucher {
 
 export type CreateVoucherDto = Partial<Voucher>;
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 export const getVouchers = async (params?: any): Promise<Voucher[]> => {
   const response = await apiClient.get('/accounting/vouchers', { params });
   return response.data;

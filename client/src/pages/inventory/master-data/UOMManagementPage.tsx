@@ -3,11 +3,11 @@ import { inventoryApi } from '../../../api/inventoryApi';
 import { toast } from 'sonner';
 
 export const UOMManagementPage: React.FC = () => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const [uoms, setUoms] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const [editingUOM, setEditingUOM] = useState<any>(null);
   
   const [formData, setFormData] = useState({
@@ -50,13 +50,13 @@ export const UOMManagementPage: React.FC = () => {
       }
       setShowModal(false);
       fetchUOMs();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'حدث خطأ أثناء الحفظ');
     }
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const handleEdit = (uom: any) => {
     setEditingUOM(uom);
     setFormData({
@@ -73,7 +73,7 @@ export const UOMManagementPage: React.FC = () => {
         await inventoryApi.deleteUOM(id);
         toast.success('تم حذف الوحدة بنجاح');
         fetchUOMs();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       } catch (error: any) {
         toast.error(error.response?.data?.message || 'فشل في حذف الوحدة؛ قد تكون مرتبطة بأصناف أو حركات مخزنية حالية');
       }

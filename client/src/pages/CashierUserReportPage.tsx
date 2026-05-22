@@ -128,7 +128,7 @@ export default function CashierUserReportPage() {
         `/cashier/reports/by-cashier?${params.toString()}`
       );
       setReport(res.data);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     } catch (err: any) {
       console.error(err);
       const msg = err?.response?.data?.message;
@@ -223,7 +223,7 @@ export default function CashierUserReportPage() {
           to: toTime,
           actualCash: actual,
           note: note || undefined,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         } as any
       );
 
@@ -243,7 +243,7 @@ export default function CashierUserReportPage() {
 
       // إعادة تحميل التقرير لنفس الفترة الحالية
       await loadReport();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     } catch (err: any) {
       console.error(err);
       const msg = err?.response?.data?.message;

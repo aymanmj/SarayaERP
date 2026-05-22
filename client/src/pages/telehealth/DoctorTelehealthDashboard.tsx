@@ -43,7 +43,7 @@ export default function DoctorTelehealthDashboard() {
       toast.success("تم بدء الجلسة الافتراضية بنجاح.");
       refetch();
     },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     onError: (err: any) => {
       toast.error(err.response?.data?.message || "فشل بدء الجلسة الافتراضية");
     },

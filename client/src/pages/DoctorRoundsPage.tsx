@@ -67,7 +67,7 @@ export default function DoctorRoundsPage() {
   const loadRotation = async () => {
     setLoading(true);
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const res = await apiClient.get<any>("/clinical/inpatient/my-rotation");
       const patientsList: Inpatient[] = Array.isArray(res.data) ? res.data : (res.data.data || []);
       setPatients(patientsList);
@@ -88,7 +88,7 @@ export default function DoctorRoundsPage() {
     }
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const handleSaveNote = async (data: any) => {
     if (!selectedPatient) return;
     try {

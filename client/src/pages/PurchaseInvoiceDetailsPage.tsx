@@ -91,14 +91,14 @@ type EditLineRow = {
   expiryDate?: string;
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 function toNum(v: any) {
   if (v === null || v === undefined) return 0;
   const n = typeof v === "string" ? Number(v) : (v as number);
   return Number.isFinite(n) ? n : 0;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 function formatMoney(v: any) {
   return toNum(v).toFixed(3);
 }
@@ -164,7 +164,7 @@ function StatusPill({ status }: { status: PurchaseInvoiceStatus }) {
   );
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 function getErrMsg(err: any, fallback: string) {
   const msg = err?.response?.data?.message;
   if (!msg) return fallback;
@@ -227,7 +227,7 @@ export default function PurchaseInvoiceDetailsPage() {
         toNum(res.data.netAmount) - toNum(res.data.paidAmount),
       );
       setPayAmount(rem > 0 ? rem.toFixed(3) : "0.000");
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     } catch (err: any) {
       console.error(err);
       setError(getErrMsg(err, "حدث خطأ أثناء تحميل تفاصيل الفاتورة."));
@@ -312,7 +312,7 @@ export default function PurchaseInvoiceDetailsPage() {
   const updateEditLine = (
     idx: number,
     field: keyof EditLineRow,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     value: any,
   ) => {
     setEditLines((prev) =>
@@ -358,7 +358,7 @@ export default function PurchaseInvoiceDetailsPage() {
       await apiClient.post(`/purchases/invoices/${data.id}/approve`);
       toast.success("تم اعتماد الفاتورة بنجاح.");
       await fetchInvoice();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     } catch (err: any) {
       console.error(err);
       const msg = getErrMsg(err, "تعذر اعتماد الفاتورة.");
@@ -384,7 +384,7 @@ export default function PurchaseInvoiceDetailsPage() {
       toast.success("تم إلغاء الفاتورة بنجاح.");
       setEditMode(false);
       await fetchInvoice();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     } catch (err: any) {
       console.error(err);
       const msg = getErrMsg(err, "تعذر إلغاء الفاتورة.");
@@ -441,7 +441,7 @@ export default function PurchaseInvoiceDetailsPage() {
       toast.success("تم حفظ التعديلات بنجاح.");
       setEditMode(false);
       await fetchInvoice();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     } catch (err: any) {
       console.error(err);
       const msg = getErrMsg(err, "تعذر حفظ التعديلات.");
@@ -480,7 +480,7 @@ export default function PurchaseInvoiceDetailsPage() {
       setPayReference("");
       setPayNotes("");
       await fetchInvoice();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     } catch (err: any) {
       console.error(err);
       const msg = getErrMsg(err, "تعذر تسجيل الدفعة.");

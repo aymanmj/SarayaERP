@@ -51,7 +51,7 @@ export default function ActivationPage() {
           // License is invalid/expired beyond grace - needs activation
           setMode("activation");
         }
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       } catch (err: any) {
         console.error("[ActivationPage] Error fetching status:", err);
         setLicenseInfo({
@@ -95,7 +95,7 @@ export default function ActivationPage() {
       setTimeout(() => {
         window.location.href = "/";
       }, 1500);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     } catch (err: any) {
       const errorMsg = err.response?.data?.message || "فشلت العملية. تحقق من المفتاح.";
       toast.error(errorMsg);

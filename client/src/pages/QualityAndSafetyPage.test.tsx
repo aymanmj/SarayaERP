@@ -27,7 +27,7 @@ describe('QualityAndSafetyPage', () => {
   });
 
   it('renders the dashboard tab by default and loads stats', async () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     (apiClient.get as any).mockResolvedValueOnce({
       data: {
         byStatus: { REPORTED: 5, CLOSED: 10 },
@@ -55,7 +55,7 @@ describe('QualityAndSafetyPage', () => {
   });
 
   it('switches to the incidents tab when clicked and fetches data', async () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     (apiClient.get as any).mockImplementation((url: string) => {
       if (url.includes('/quality/dashboard')) return Promise.resolve({
         data: {
@@ -106,7 +106,7 @@ describe('QualityAndSafetyPage', () => {
   });
 
   it('can submit a new incident report', async () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     (apiClient.get as any).mockResolvedValue({
       data: {
         byStatus: {},
@@ -116,7 +116,7 @@ describe('QualityAndSafetyPage', () => {
         recentIncidents: [],
       }
     });
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     (apiClient.post as any).mockResolvedValue({ data: { id: 2, incidentNumber: 'INC-2026-0002' } });
 
     renderComponent(['/quality?tab=report']);

@@ -101,13 +101,13 @@ export default function IntegrationPage() {
   };
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+     
     if (activeTab === "DEVICES") loadDevices();
     if (activeTab === "LOGS") loadLogs();
   }, [activeTab]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+     
     if (selectedDeviceId) loadMappings(selectedDeviceId);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDeviceId]);

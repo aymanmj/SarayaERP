@@ -75,7 +75,7 @@ export default function ManualEntryPage() {
         ]);
         setAccounts(accRes.data);
         setCostCenters(ccRes.data);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       } catch (err: any) {
         console.error(err);
         const msg =
@@ -209,7 +209,7 @@ export default function ManualEntryPage() {
         ]);
         setDescription("");
       }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     } catch (err: any) {
       console.error(err);
       const msg = err?.response?.data?.message || "حدث خطأ أثناء حفظ القيد.";

@@ -157,7 +157,7 @@ export function PrescriptionsTab({
     );
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const updateItem = (id: number, field: keyof DraftItem, val: any) => {
     setItems((prev) =>
       prev.map((i) => (i.tempId === id ? { ...i, [field]: val } : i)),
@@ -216,13 +216,13 @@ export function PrescriptionsTab({
       );
       setPrescriptions(res.data);
       setPrescriptions(res.data);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     } catch (e: any) {
       // ✅ معالجة تحذيرات السلامة
       if (e.response?.data?.code === "SAFETY_WARNING") {
         const warnings = e.response.data.interactions
           .map(
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+             
             (w: any) =>
               `- ${w.drugs.join(" + ")}: ${w.description} (${w.severity})`,
           )
@@ -272,7 +272,7 @@ export function PrescriptionsTab({
             );
             setPrescriptions(res.data);
             return;
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+           
           } catch (retryErr: any) {
              toast.error(retryErr.response?.data?.message || "فشل الحفظ بعد التجاوز");
              return;
@@ -306,7 +306,7 @@ export function PrescriptionsTab({
 
         {/* Dynamic Rows */}
         <div className="space-y-2">
-          {items.map((item, idx) => (
+          {items.map((item) => (
             <div
               key={item.tempId}
               className="flex flex-col md:flex-row gap-2 items-start bg-slate-950/50 p-2 rounded-xl border border-slate-800/50"

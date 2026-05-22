@@ -8,7 +8,7 @@ interface Props {
 }
 
 export const MedicationDripPanel = ({ encounterId }: Props) => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const [drips, setDrips] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);

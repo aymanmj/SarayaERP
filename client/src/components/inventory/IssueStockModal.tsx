@@ -70,7 +70,7 @@ export function IssueStockModal({ request, onClose, onSuccess }: Props) {
       
       toast.success("تم صرف المواد بنجاح وإصدار شحنة جديدة");
       onSuccess();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     } catch (error: any) {
       console.error(error);
       toast.error(error.response?.data?.message || "حدث خطأ أثناء الصرف");

@@ -67,7 +67,7 @@ export function DicomViewer({ imageId, onClose }: DicomViewerProps) {
         cornerstoneTools.setToolActive("ZoomMouseWheel", {});
 
         setLoading(false);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       } catch (err: any) {
         console.error("DICOM Load Error:", err);
         setError("تعذر تحميل صورة الأشعة. تأكد من أن الرابط صالح ويدعم CORS.");

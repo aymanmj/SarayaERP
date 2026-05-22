@@ -15,7 +15,7 @@ export default function AndrologySurgeryForm({ initialData = {}, onSave, onCance
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     let finalValue: any = value;
     if (type === "checkbox") finalValue = (e.target as HTMLInputElement).checked;
     if (e.target.tagName === 'SELECT' && (value === "true" || value === "false")) {

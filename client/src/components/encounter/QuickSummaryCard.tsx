@@ -10,9 +10,9 @@ export default function QuickSummaryCard({
   encounterId: number;
   status: EncounterStatus;
 }) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const [vitals, setVitals] = useState<any[]>([]);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const [diagnoses, setDiagnoses] = useState<any[]>([]);
 
   useEffect(() => {
@@ -27,7 +27,7 @@ export default function QuickSummaryCard({
   }, [encounterId]);
 
   const latestVital = vitals.length > 0 ? vitals[0] : null;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const primaryDx = diagnoses.find((diagnosis: any) => diagnosis.type === "PRIMARY");
 
   return (

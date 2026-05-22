@@ -81,7 +81,7 @@ export default function PharmacyWorklistPage() {
     try {
       setLoading(true);
       const res =
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         await apiClient.get<any>("/pharmacy/worklist");
       const listA = Array.isArray(res.data) ? res.data : (res.data.data || []);
       setData(listA);
@@ -190,7 +190,7 @@ export default function PharmacyWorklistPage() {
 
       // تحديث القائمة
       setData((prev) => prev.filter((x) => x.id !== pId));
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     } catch (err: any) {
       console.error(err);
       toast.error(err?.response?.data?.message || "فشل العملية.");

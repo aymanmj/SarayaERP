@@ -57,7 +57,7 @@ export function NotificationBell() {
   // Poll كل 60 ثانية
   useEffect(() => {
     if (user) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+       
       fetchNotifications();
       const interval = setInterval(fetchNotifications, 60000);
       return () => clearInterval(interval);

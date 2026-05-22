@@ -87,7 +87,7 @@ export default function DischargePlanningPage() {
   const [filterDepartment, setFilterDepartment] = useState('');
 
   // Active inpatients for selector
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const [activeInpatients, setActiveInpatients] = useState<any[]>([]);
   const [loadingInpatients, setLoadingInpatients] = useState(false);
 
@@ -131,7 +131,7 @@ export default function DischargePlanningPage() {
       let filteredData = transformedData;
       
       if (searchTerm) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         filteredData = transformedData.filter((item: any) => 
           item.admission?.patient?.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
           item.admission?.patient?.mrn?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -139,7 +139,7 @@ export default function DischargePlanningPage() {
         );
       }
       
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       setPlans(filteredData.map((item: any) => ({
         id: item.id,
         admissionId: item.admissionId,
@@ -171,7 +171,7 @@ export default function DischargePlanningPage() {
         reviewedBy: item.caseManager?.fullName || '',
         reviewedAt: item.completedDate || '',
       })));
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     } catch (error: any) {
       toast.error(error?.response?.data?.message || 'فشل تحميل خطط الخروج');
     } finally {
@@ -236,11 +236,11 @@ export default function DischargePlanningPage() {
         educationCompleted: false,
       });
       loadDischargePlans();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     } catch (error: any) {
       const msg = error?.response?.data?.message;
       if (Array.isArray(msg)) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         toast.error(msg.map((m: any) => m.constraints ? Object.values(m.constraints).join(', ') : m).join(' | '));
       } else {
         toast.error(msg || 'فشل إنشاء خطة الخروج');
@@ -268,7 +268,7 @@ export default function DischargePlanningPage() {
       }
       
       loadDischargePlans();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     } catch (error: any) {
       toast.error(error?.response?.data?.message || 'فشل النظام في إجراء التخريج الفعلي. تأكد من استكمال ملخص الخروج (Medical Summary) والتسوية المالية.', { duration: 10000 });
     }
@@ -280,7 +280,7 @@ export default function DischargePlanningPage() {
       await apiClient.delete(`/admissions/${admissionId}/discharge-planning`);
       toast.success('تم حذف خطة الخروج بنجاح.');
       loadDischargePlans();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     } catch (error: any) {
       toast.error(error?.response?.data?.message || 'فشل حذف الخطة.');
     }
@@ -396,7 +396,7 @@ export default function DischargePlanningPage() {
           ].map((tab) => (
             <button
               key={tab.id}
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+               
               onClick={() => setActiveTab(tab.id as any)}
               className={`px-4 py-2 text-sm font-medium transition-colors ${
                 activeTab === tab.id

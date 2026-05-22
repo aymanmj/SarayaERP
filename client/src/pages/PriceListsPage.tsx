@@ -57,7 +57,7 @@ export default function PriceListsPage() {
       setNewName("");
       setNewCode("");
       loadLists();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     } catch (err: any) {
       toast.error(err?.response?.data?.message || "فشل الإنشاء");
     }

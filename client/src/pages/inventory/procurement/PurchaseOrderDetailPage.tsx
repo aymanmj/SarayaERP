@@ -29,7 +29,7 @@ export function PurchaseOrderDetailPage() {
       toast.success("تم إلغاء أمر الشراء بنجاح");
       queryClient.invalidateQueries({ queryKey: ['purchase-order', id] });
     },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     onError: (err: any) => {
       console.error(err);
       toast.error(err.response?.data?.message || "فشل إلغاء أمر الشراء");
@@ -178,7 +178,7 @@ export function PurchaseOrderDetailPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800 print:divide-slate-300 text-slate-300 print:text-black">
-                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */}
+                {/* eslint-disable-next-line @typescript-eslint/no-unused-vars */}
                 {po.items?.map((item: any, idx: number) => (
                   <tr key={item.id} className="hover:bg-slate-900/20">
                     <td className="py-3.5 px-4 font-medium">

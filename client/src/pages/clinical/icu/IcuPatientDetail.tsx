@@ -16,13 +16,13 @@ export const IcuPatientDetail = () => {
   const navigate = useNavigate();
 
   /* ── state ── */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const [patientData, setPatientData] = useState<any>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const [assessments, setAssessments] = useState<any[]>([]);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const [drips, setDrips] = useState<any[]>([]);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const [equipmentList, setEquipmentList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -46,7 +46,7 @@ export const IcuPatientDetail = () => {
         apiClient.get(`/icu/drips/${encounterId}`),
         apiClient.get(`/icu/equipment/${encounterId}`),
       ]);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       setPatientData(pRes.data.find((p: any) => p.encounterId === Number(encounterId)));
       setAssessments(aRes.data);
       setDrips(dRes.data);

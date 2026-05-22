@@ -106,7 +106,7 @@ export default function RadiologyWorklistPage() {
 
       toast.success("تم حفظ التقرير وإكمال الطلب.");
       load(); // تحديث القائمة
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err: any) {
       toast.error("فشل الحفظ.");
     }

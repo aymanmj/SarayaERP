@@ -108,7 +108,7 @@ export function BillingTab({ encounterId, hospitalId }: BillingTabProps) {
       await apiClient.delete(`/billing/charges/${chargeId}`);
       toast.success("تم حذف البند بنجاح.");
       fetchSummary();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     } catch (err: any) {
       console.error(err);
       const errMsg = err.response?.data?.message || "حدث خطأ أثناء حذف البند.";

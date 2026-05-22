@@ -34,7 +34,7 @@ export const useSocketStore = create<SocketState>((set, get) => ({
       console.log("🟢 Connected to Real-time Server");
     });
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     socket.on("notification", (data: any) => {
       // عرض الإشعار اللحظي
       // data = { title, message, type, link }

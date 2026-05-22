@@ -172,7 +172,7 @@ export default function SurgeryCaseDetailsPage() {
       toast.success("تم صرف المستهلك وإضافته للفاتورة");
       loadCase();
       setConsumableQty(1);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     } catch (err: any) {
       toast.error(
         err?.response?.data?.message || "فشل الصرف (تحقق من رصيد مخزن العمليات)"

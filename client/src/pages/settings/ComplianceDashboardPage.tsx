@@ -70,7 +70,7 @@ export default function ComplianceDashboardPage() {
         "/audit/compliance/report"
       );
       setReport(res.data);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     } catch (err: any) {
       toast.error(err.response?.data?.message || "فشل تحميل تقرير الجاهزية");
     } finally {

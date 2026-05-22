@@ -69,7 +69,7 @@ export default function BalanceSheetPage() {
       );
 
       setData(res.data);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     } catch (err: any) {
       console.error(err);
       const msg = err?.response?.data?.message;

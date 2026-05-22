@@ -57,7 +57,7 @@ export default function ReferralsPage() {
     clinicalSummary: "",
     priority: "ROUTINE",
   });
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const [patients, setPatients] = useState<any[]>([]);
 
   const loadReferrals = async () => {

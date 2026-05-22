@@ -4,10 +4,10 @@ import { toast } from 'sonner';
 import { MessageSquare, Send, ArrowRight, Loader2, Plus } from 'lucide-react';
 
 export default function PortalMessages() {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const [threads, setThreads] = useState<any[]>([]);
   const [selectedThread, setSelectedThread] = useState<string | null>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const [messages, setMessages] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [msgLoading, setMsgLoading] = useState(false);
@@ -17,9 +17,9 @@ export default function PortalMessages() {
   const [sending, setSending] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const [departments, setDepartments] = useState<any[]>([]);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const [doctors, setDoctors] = useState<any[]>([]);
   const [selectedDept, setSelectedDept] = useState<number | null>(null);
   const [fetchingDir, setFetchingDir] = useState(false);
@@ -93,7 +93,7 @@ export default function PortalMessages() {
       setShowCompose(false);
       setNewMsg({ doctorId: '', subject: '', body: '' });
       fetchThreads();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     } catch (err: any) { toast.error(err.response?.data?.message || 'فشل الإرسال'); }
     finally { setSending(false); }
   };
@@ -101,7 +101,7 @@ export default function PortalMessages() {
   const handleReply = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!replyBody.trim() || !selectedThread) return;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     const doctorId = messages.find((m: any) => m.doctorId)?.doctorId;
     if (!doctorId) return;
     setSending(true);
@@ -110,7 +110,7 @@ export default function PortalMessages() {
       setReplyBody('');
       openThread(selectedThread);
       fetchThreads();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     } catch (err: any) { toast.error(err.response?.data?.message || 'فشل الإرسال'); }
     finally { setSending(false); }
   };
@@ -179,7 +179,7 @@ export default function PortalMessages() {
             <>
               <div className="portal-chat-header"><button className="portal-back-btn mobile-only" onClick={() => setSelectedThread(null)}><ArrowRight size={18}/> رجوع</button></div>
               <div className="portal-chat-messages">
-                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                { }
                 {messages.map((msg: any) => (
                   <div key={msg.id} className={`portal-message ${msg.direction === 'PATIENT_TO_DOCTOR' ? 'sent' : 'received'}`}>
                     <div className="portal-message-bubble"><p>{msg.body}</p><span className="portal-message-time">{new Date(msg.createdAt).toLocaleTimeString('ar-LY', { hour: '2-digit', minute: '2-digit' })}</span></div>

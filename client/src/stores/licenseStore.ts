@@ -50,7 +50,7 @@ const PERIODIC_CHECK_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 // Internal fetch logic
 // ============================================================
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 async function doFetch(set: any, get: any) {
   try {
     const timeoutPromise = new Promise((_, reject) => {
@@ -61,7 +61,7 @@ async function doFetch(set: any, get: any) {
     const featurePromise = apiClient.get("/license/features");
     
     // We wait for status first, if it fails race handles, otherwise we await features
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     const response = (await Promise.race([fetchPromise, timeoutPromise])) as any;
     
     // After getting status safely, fetch features (should be instantaneous and cacheable)
@@ -124,7 +124,7 @@ async function doFetch(set: any, get: any) {
       // Stop periodic checks when license is inactive
       get().stopPeriodicCheck();
     }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   } catch (err: any) {
     console.error("[LicenseStore] ❌ Error:", err);
     set({
@@ -235,7 +235,7 @@ export const useLicenseStore = create<LicenseStoreState>((set, get) => ({
         });
         get().stopPeriodicCheck();
       }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     } catch (err: any) {
       // Network error during periodic check — DON'T interrupt the user
       // Just log and retry next cycle

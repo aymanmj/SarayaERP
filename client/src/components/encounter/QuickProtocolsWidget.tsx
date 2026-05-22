@@ -8,9 +8,9 @@ export default function QuickProtocolsWidget({
 }: {
   encounterId: number;
 }) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const [orderSets, setOrderSets] = useState<any[]>([]);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const [pathways, setPathways] = useState<any[]>([]);
   const [executingId, setExecutingId] = useState<number | null>(null);
   const [enrollingId, setEnrollingId] = useState<number | null>(null);
@@ -32,7 +32,7 @@ export default function QuickProtocolsWidget({
     try {
       await apiClient.post(`/order-sets/${setId}/execute`, { encounterId });
       toast.success("تم الاعتماد وإرسال الطلبات بنجاح");
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "تعذر تنفيذ البروتوكول");
     } finally {
@@ -49,7 +49,7 @@ export default function QuickProtocolsWidget({
     try {
       await apiClient.post(`/clinical-pathways/${pathwayId}/enroll`, { encounterId });
       toast.success("تم إدراج المريض وبدء المسار العلاجي");
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "تعذر الإدراج في المسار");
     } finally {

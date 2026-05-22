@@ -201,7 +201,7 @@ export default function SurgerySchedulePage() {
       toast.success("تم حجز العملية بنجاح");
       setShowModal(false);
       loadData();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     } catch (err: any) {
       toast.error(err?.response?.data?.message || "فشل الحجز");
     }
@@ -215,7 +215,7 @@ export default function SurgerySchedulePage() {
       setShowOTModal(false);
       setNewOTName("");
       loadResources();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     } catch (err: any) {
       toast.error(err?.response?.data?.message || "فشل إضافة الغرفة");
     }

@@ -119,7 +119,7 @@ export function PatientsPage() {
 
   // 3. Save Mutation
   const saveMutation = useMutation({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     mutationFn: async (payload: any) => {
       if (editingPatient) {
         await apiClient.patch(`/patients/${editingPatient.id}`, payload);
@@ -136,7 +136,7 @@ export function PatientsPage() {
       );
       setModalOpen(false);
     },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     onError: (err: any) => {
       toast.error(err.response?.data?.message || "فشل في حفظ البيانات");
     },

@@ -77,7 +77,7 @@ export default function AccountingEntriesPage() {
     return () => clearTimeout(timer);
   }, [loadEntries]);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const formatMoney = (val: any) =>
     Number(val || 0).toLocaleString("en-US", { minimumFractionDigits: 3 });
 

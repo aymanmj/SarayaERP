@@ -9,7 +9,7 @@ import {
 } from "@heroicons/react/24/outline";
 
 export default function SecurityAuditPage() {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const [logs, setLogs] = useState<any[]>([]);
   const [filter, setFilter] = useState("ALL");
   const [loading, setLoading] = useState(false);

@@ -469,7 +469,7 @@ export default function OrganizationsPage() {
                   const res = await apiClient.get("/organizations/hospitals", {
                     params: { search: q || undefined },
                   });
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                   
                   return (res.data as any[]).map((h) => ({
                     id: h.id,
                     label: h.displayName || h.name,
@@ -531,7 +531,7 @@ function CreateOrgModal({
 }: {
   organizations: Organization[];
   onClose: () => void;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   onSubmit: (data: any) => void;
   isLoading: boolean;
 }) {

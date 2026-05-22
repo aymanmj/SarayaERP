@@ -111,7 +111,7 @@ export default function SuppliersAgingPage() {
     setLoading(true);
     setError(null);
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const params: any = {};
       const dateToUse = overrideDate || asOfDate;
       if (dateToUse) params.asOf = dateToUse;
@@ -132,7 +132,7 @@ export default function SuppliersAgingPage() {
           setAsOfDate(d.toISOString().slice(0, 10));
         }
       }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     } catch (err: any) {
       console.error(err);
       setError(

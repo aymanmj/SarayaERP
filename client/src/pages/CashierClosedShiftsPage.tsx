@@ -43,7 +43,7 @@ export default function CashierClosedShiftsPage() {
         },
       });
       setRows(res.data);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     } catch (err: any) {
       console.error(err);
       const msg =

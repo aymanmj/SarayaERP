@@ -307,7 +307,7 @@ export function MainLayout() {
 
   // إغلاق القائمة الجانبية عند تغيير الصفحة (للموبايل)
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+     
     setMobileMenuOpen(false);
   }, [location.pathname]);
 
@@ -798,7 +798,7 @@ export function MainLayout() {
   ];
 
   // فلترة القائمة
-  // eslint-disable-next-line react-hooks/preserve-manual-memoization
+   
   const authorizedMenu = useMemo(() => {
     if (!user) return [];
 

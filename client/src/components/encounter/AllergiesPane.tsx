@@ -72,7 +72,7 @@ export function AllergiesPane({ patientId }: { patientId: number }) {
       setReaction("");
       setSeverity("MODERATE");
       loadAllergies();
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err: any) {
       toast.error("فشل الحفظ.");
     } finally {

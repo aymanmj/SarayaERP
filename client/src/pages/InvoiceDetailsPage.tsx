@@ -187,7 +187,7 @@ export default function InvoiceDetailsPage() {
           setIsReturnModalOpen(false);
           setReturnReason("");
       },
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       onError: (err: any) => {
           console.error(err);
           toast.error(err.response?.data?.message || "فشل إنشاء المرتجع");

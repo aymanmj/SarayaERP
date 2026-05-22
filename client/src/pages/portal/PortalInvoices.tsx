@@ -4,15 +4,15 @@ import { CreditCard, Loader2, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function PortalInvoices() {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const [invoices, setInvoices] = useState<any[]>([]);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const [balance, setBalance] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   // Payment Modal State
   const [showPayment, setShowPayment] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const [paymentAmount, setPaymentAmount] = useState<number | string>('');
   const [paymentMethod, setPaymentMethod] = useState('CREDIT_CARD');
@@ -28,7 +28,7 @@ export default function PortalInvoices() {
 
   useEffect(() => { fetchFinancials(); }, []);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const openPaymentModal = (invoice: any) => {
     setSelectedInvoice(invoice);
     const remaining = Number(invoice.totalAmount) - Number(invoice.paidAmount);
@@ -49,7 +49,7 @@ export default function PortalInvoices() {
       toast.success('تمت عملية الدفع بنجاح');
       setShowPayment(false);
       fetchFinancials();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'فشلت عملية الدفع');
     } finally {
@@ -126,7 +126,7 @@ export default function PortalInvoices() {
         <div className="portal-empty"><CreditCard size={48}/><p>لا توجد فواتير</p></div>
       ) : (
         <div className="portal-list">
-          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+          { }
           {invoices.map((inv: any) => {
             const st = statusMap[inv.status] || { label: inv.status, cls: '' };
             const canPay = ['ISSUED', 'PARTIALLY_PAID'].includes(inv.status);
