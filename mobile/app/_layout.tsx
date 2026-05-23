@@ -56,8 +56,8 @@ export default function Layout() {
             <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="index" />
           <Stack.Screen name="login" />
-          <Stack.Screen name="rounds/index" options={{ title: 'Doctor Rounds', headerShown: true }} />
-          <Stack.Screen name="rounds/[id]" options={{ title: 'Patient Details', headerShown: true }} />
+          <Stack.Screen name="rounds/index" options={{ title: 'Doctor Rounds', headerShown: false }} />
+          <Stack.Screen name="rounds/[id]" options={{ title: 'Patient Details', headerShown: false }} />
           <Stack.Screen name="profile" options={{ headerShown: false }} />
         </Stack>
         

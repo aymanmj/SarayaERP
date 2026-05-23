@@ -11,11 +11,13 @@ import { useAuth } from '../context/AuthContext';
 import i18n, { LANGUAGE_KEY } from '../i18n';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Updates from 'expo-updates';
+import { useTranslation } from 'react-i18next';
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { signOut } = useAuth();
   const [userInfo, setUserInfoState] = useState<UserProfile | null>(null);
+  const { t } = useTranslation();
 
   // Trigger re-render on language change
   const [, setTick] = useState<number>(0);
@@ -62,12 +64,12 @@ export default function ProfileScreen() {
 
   const handleLogout = async () => {
     Alert.alert(
-      i18n.t('common.logoutConfirmTitle'),
-      i18n.t('common.logoutConfirmMessage'),
+      t('common.logoutConfirmTitle'),
+      t('common.logoutConfirmMessage'),
       [
-        { text: i18n.t('common.cancel'), style: "cancel" },
+        { text: t('common.cancel'), style: "cancel" },
         { 
-          text: i18n.t('common.logout'), 
+          text: t('common.logout'), 
           style: "destructive",
           onPress: async () => {
             await signOut();
@@ -135,7 +137,7 @@ export default function ProfileScreen() {
                <View style={[styles.iconBox, {backgroundColor: 'rgba(16, 185, 129, 0.1)'}]}>
                  <Ionicons name="language-outline" size={20} color={theme.colors.success} />
                </View>
-               <Text style={styles.settingLabel}>{i18n.t('common.language') || 'Language'}</Text>
+               <Text style={styles.settingLabel}>{t('common.language') || 'Language'}</Text>
              </View>
              <TouchableOpacity onPress={toggleLanguage}>
                  <Text style={[styles.settingValue, { color: theme.colors.primary, fontWeight: 'bold' }]}>

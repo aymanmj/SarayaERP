@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, TextInput, Alert, ActivityIndicator, FlatList, StatusBar } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import api from '../../services/api';
 import { useToast } from '../../components/ToastContext';
 import LabResultsList from "../../components/LabResultsList";
@@ -13,6 +13,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { theme } from '../../constants/theme';
 import StorageService from "../../services/StorageService";
 import { ClinicalNote, VitalSign } from '../../types';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function PatientDetailScreen() {
   const params = useLocalSearchParams<{
@@ -23,6 +24,7 @@ export default function PatientDetailScreen() {
     dob?: string;
     vitals?: string;
   }>();
+  const router = useRouter();
   const { showToast } = useToast();
   const { id, name, diagnosis, gender, dob, vitals } = params;
 
@@ -229,9 +231,15 @@ export default function PatientDetailScreen() {
       )}
 
       {/* Dynamic Header */}
-      <View style={styles.header}>
+      <LinearGradient
+        colors={[theme.colors.primaryDark, theme.colors.primary]}
+        style={styles.header}
+      >
         <View style={styles.headerTop}>
-           <Text style={styles.patientName}>{name || "Unknown Patient"}</Text>
+           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+              <Ionicons name="arrow-back" size={24} color="#fff" />
+           </TouchableOpacity>
+           <Text style={styles.patientName} numberOfLines={1}>{name || "Unknown Patient"}</Text>
            <View style={styles.badge}>
              <Text style={styles.badgeText}>{gender === 'MALE' || gender === 'Male' ? 'Male' : 'Female'}</Text>
            </View>
@@ -243,7 +251,7 @@ export default function PatientDetailScreen() {
              {dob ? new Date().getFullYear() - new Date(dob as string).getFullYear() : 'N/A'} Years
            </Text>
         </View>
-      </View>
+      </LinearGradient>
 
       {/* Modern Tabs */}
       <View style={styles.tabBar}>
@@ -384,18 +392,18 @@ const styles = StyleSheet.create({
   // Header 
   header: { 
     padding: theme.sizes.lg, 
-    paddingTop: 40,
-    backgroundColor: theme.colors.primary, 
+    paddingTop: 50,
     borderBottomLeftRadius: 24, 
     borderBottomRightRadius: 24,
     ...theme.shadows.medium,
     zIndex: 10,
   },
-  headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  headerTop: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  backButton: { marginRight: 12, justifyContent: 'center', alignItems: 'center' },
   patientName: { fontSize: 22, fontWeight: "700", color: theme.colors.surface, flex: 1 },
   badge: { backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
   badgeText: { color: theme.colors.surface, fontSize: 12, fontWeight: '600' },
-  headerDetails: { flexDirection: 'row', alignItems: 'center' },
+  headerDetails: { flexDirection: 'row', alignItems: 'center', paddingLeft: 36 },
   headerDetailText: { fontSize: 14, color: theme.colors.primaryLight, fontWeight: '500' },
   headerSeparator: { marginHorizontal: 8, color: theme.colors.primaryLight },
 
