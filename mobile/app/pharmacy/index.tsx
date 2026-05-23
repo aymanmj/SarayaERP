@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback, memo } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, TextInput, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, TextInput, RefreshControl, StatusBar } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import api from '../../services/api';
 import StorageService from '../../services/StorageService'; 
 
@@ -12,15 +12,19 @@ import SkeletonLoader from '../../components/SkeletonLoader';
 import { usePharmacyWorklist } from '../../hooks/api/usePharmacyWorklist';
 import { theme } from '../../constants/theme';
 import { PharmacyWorklistItem, StockItem } from '../../types';
+import { useToast } from '../../components/ToastContext';
+import ScannerModal from '../../components/ScannerModal';
 
 export default function PharmacyDashboard() {
   const { t } = useTranslation();
   const router = useRouter();
+  const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState<'worklist' | 'stock'>('worklist');
   const [stockList, setStockList] = useState<StockItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const [loadingStock, setLoadingStock] = useState(false);
+  const [scannerVisible, setScannerVisible] = useState(false);
 
   // Worklist uses Infinite Query
   const { 
@@ -41,6 +45,34 @@ export default function PharmacyDashboard() {
       loadStock();
     }
   }, [activeTab]);
+
+  const handleScan = async (data: string) => {
+    setScannerVisible(false);
+    if (activeTab === 'worklist') {
+      const found = worklist.find(item => 
+        item.patient?.mrn === data || 
+        item.patient?.nationalId === data || 
+        item.id.toString() === data
+      );
+      if (found) {
+        router.push(`/pharmacy/dispense/${found.id}`);
+      } else {
+        showToast(t('rounds.noPatients') || "No matching patient or prescription found", "warning");
+      }
+    } else {
+      setSearchQuery(data);
+      setLoadingStock(true);
+      try {
+        const stockData = await api.getDrugStock(data);
+        setStockList((stockData || []) as StockItem[]);
+        showToast("تم تحديث البحث برمز الباركود", "success");
+      } catch (error) {
+        showToast("فشل البحث عن صنف الدواء", "error");
+      } finally {
+        setLoadingStock(false);
+      }
+    }
+  };
 
   const loadStock = async () => {
     setLoadingStock(true);
@@ -114,17 +146,21 @@ const StockCard = memo(({ item }: { item: StockItem }) => (
   ), []);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={theme.colors.primaryDark} />
       {/* Header */}
-      <View style={styles.header}>
+      <LinearGradient
+        colors={[theme.colors.primaryDark, theme.colors.primary]}
+        style={styles.header}
+      >
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
            <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{t('pharmacy.title')}</Text>
-        <TouchableOpacity onPress={() => router.push('/pharmacy/scan')} style={styles.scanButton}>
+        <TouchableOpacity onPress={() => setScannerVisible(true)} style={styles.scanButton}>
             <Ionicons name="scan" size={24} color="#fff" />
         </TouchableOpacity>
-      </View>
+      </LinearGradient>
 
       {/* Tabs */}
       <View style={styles.tabs}>
@@ -207,18 +243,28 @@ const StockCard = memo(({ item }: { item: StockItem }) => (
             }
           />
       )}
-    </SafeAreaView>
+      <ScannerModal 
+        visible={scannerVisible} 
+        onClose={() => setScannerVisible(false)} 
+        onScan={handleScan}
+        title={activeTab === 'worklist' ? "امسح ملف المريض أو الوصفة" : "امسح باركود الدواء"}
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.background },
   header: {
-      backgroundColor: theme.colors.primary,
-      padding: 16,
+      paddingTop: 50,
+      paddingBottom: 20,
+      paddingHorizontal: 20,
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
+      borderBottomLeftRadius: 20,
+      borderBottomRightRadius: 20,
+      ...theme.shadows.medium,
   },
   headerTitle: { color: theme.colors.surface, fontSize: 20, fontWeight: 'bold' },
   backButton: { },

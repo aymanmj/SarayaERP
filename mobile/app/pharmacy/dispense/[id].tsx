@@ -122,9 +122,9 @@ export default function DispenseScreen() {
                 Alert.alert("Success", "Prescription dispensed successfully.");
             }
             router.back();
-        } catch (error) {
+        } catch (error: any) {
             console.error(error);
-            Alert.alert("Error", "Failed to dispense");
+            Alert.alert("خطأ", error.message || "فشل صرف الوصفة");
         } finally {
             setDispensing(false);
         }

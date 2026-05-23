@@ -83,7 +83,7 @@ const AddVitalModal: React.FC<AddVitalModalProps> = ({ visible, onClose, encount
       Alert.alert('نجاح', 'تم تسجيل العلامات الحيوية بنجاح');
     } catch (error: any) {
       console.error('Failed to create vitals:', error);
-      Alert.alert('خطأ', error.response?.data?.message || 'فشل تسجيل العلامات الحيوية');
+      Alert.alert('خطأ', error.message || 'فشل تسجيل العلامات الحيوية');
     } finally {
       setLoading(false);
     }

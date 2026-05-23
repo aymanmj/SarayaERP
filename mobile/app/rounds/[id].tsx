@@ -88,9 +88,9 @@ export default function PatientDetailScreen() {
              queryClient.invalidateQueries({ queryKey: ['clinicalNotes', numericId] });
         }, 500);
 
-    } catch (error) {
+    } catch (error: any) {
         console.error("Failed to save note:", error);
-        showToast("Failed to save note", "error");
+        showToast(error.message || "فشل حفظ الملاحظة", "error");
         // Revert optimistic update if it fails
         queryClient.setQueryData<ClinicalNote[]>(['clinicalNotes', numericId], (oldData) => {
             return oldData?.filter((note) => note.id !== tempNoteId) || [];

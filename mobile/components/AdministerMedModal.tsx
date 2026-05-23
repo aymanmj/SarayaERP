@@ -71,9 +71,9 @@ export default function AdministerMedModal({ visible, onClose, medication, encou
       onSuccess();
       reset();
       onClose();
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      Alert.alert("Error", "Failed to record administration");
+      Alert.alert("خطأ", error.message || "فشل تسجيل إعطاء الدواء");
     } finally {
       setSubmitting(false);
     }

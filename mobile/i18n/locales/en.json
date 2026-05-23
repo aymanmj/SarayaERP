@@ -9,7 +9,11 @@
     "logout": "Log Out",
     "back": "Back",
     "search": "Search",
-    "offline": "You are offline"
+    "offline": "You are offline",
+    "logoutConfirmTitle": "Confirm Logout",
+    "logoutConfirmMessage": "Are you sure you want to log out?",
+    "language": "Language",
+    "noData": "No data available"
   },
   "login": {
     "title": "Login",

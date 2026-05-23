@@ -6,6 +6,7 @@ import { getUserInfo, removeAuthToken, removeUserInfo } from '../services/api';
 import { theme } from '../constants/theme';
 import { UserProfile } from '../types';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useAuth } from '../context/AuthContext';
 
 import i18n, { LANGUAGE_KEY } from '../i18n';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -13,6 +14,7 @@ import * as Updates from 'expo-updates';
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const { signOut } = useAuth();
   const [userInfo, setUserInfoState] = useState<UserProfile | null>(null);
 
   // Trigger re-render on language change
@@ -60,17 +62,15 @@ export default function ProfileScreen() {
 
   const handleLogout = async () => {
     Alert.alert(
-      "Confirm Logout",
-      "Are you sure you want to log out?",
+      i18n.t('common.logoutConfirmTitle'),
+      i18n.t('common.logoutConfirmMessage'),
       [
-        { text: "Cancel", style: "cancel" },
+        { text: i18n.t('common.cancel'), style: "cancel" },
         { 
-          text: "Logout", 
+          text: i18n.t('common.logout'), 
           style: "destructive",
           onPress: async () => {
-            await removeAuthToken();
-            await removeUserInfo();
-            router.replace("/");
+            await signOut();
           } 
         }
       ]

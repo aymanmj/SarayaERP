@@ -5,19 +5,36 @@ import { Platform } from "react-native";
 import StorageService from './StorageService';
 import { PharmacyWorklistItem, StockItem, CDSSAlert, DispensePrescriptionItemPayload } from "../types";
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 // Read from environment variable, fallback to hardcoded URL if missing
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL || "https://erp.alsarayatech.ly/api";
+export const getApiUrl = async (): Promise<string> => {
+  try {
+    const customUrl = await AsyncStorage.getItem("custom_api_url");
+    return customUrl || process.env.EXPO_PUBLIC_API_URL || "https://alrehab.alsarayatech.ly/api";
+  } catch (e) {
+    return process.env.EXPO_PUBLIC_API_URL || "https://alrehab.alsarayatech.ly/api";
+  }
+};
+
+export const setApiUrl = async (url: string) => {
+  try {
+    await AsyncStorage.setItem("custom_api_url", url);
+  } catch (e) {
+    console.error("Failed to save API URL", e);
+  }
+};
 
 const api = axios.create({
-  baseURL: BASE_URL,
   headers: {
     "Content-Type": "application/json",
   },
 });
 
-// Add a request interceptor to attach the token
+// Add a request interceptor to attach the token and resolve baseURL dynamically
 api.interceptors.request.use(
   async (config) => {
+    config.baseURL = await getApiUrl();
     const token = await SecureStore.getItemAsync("userToken");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -29,7 +46,7 @@ api.interceptors.request.use(
   },
 );
 
-// Response interceptor to unwrap the 'data' property
+// Response interceptor to unwrap the 'data' property and handle errors in a user-friendly way
 api.interceptors.response.use(
   (response) => {
     if (response.data && response.data.success && response.data.data !== undefined) {
@@ -39,9 +56,63 @@ api.interceptors.response.use(
     return response;
   },
   (error) => {
-    if (error.response && error.response.status === 400) {
-      console.error('API Validation Error:', JSON.stringify(error.response.data, null, 2));
+    let friendlyMessage = "حدث خطأ غير متوقع. يرجى المحاولة لاحقاً.";
+    
+    if (error.response) {
+      const status = error.response.status;
+      switch (status) {
+        case 400:
+          // Try to extract the custom validation error message from NestJS
+          friendlyMessage = error.response.data?.message || "البيانات المدخلة غير صالحة. يرجى مراجعة الحقول.";
+          if (Array.isArray(friendlyMessage)) {
+            friendlyMessage = friendlyMessage.join("\n");
+          }
+          break;
+        case 401:
+          friendlyMessage = "اسم المستخدم أو كلمة المرور غير صحيحة، أو انتهت صلاحية الجلسة.";
+          break;
+        case 403:
+          friendlyMessage = "عذراً، ليس لديك الصلاحية للوصول إلى هذه الخدمة أو تنفيذ هذا الإجراء.";
+          break;
+        case 404:
+          friendlyMessage = "الخدمة أو الصفحة المطلوبة غير موجودة.";
+          break;
+        case 429:
+          friendlyMessage = "لقد قمت بالعديد من الطلبات في وقت قصير. يرجى الانتظار دقيقة والمحاولة مجدداً.";
+          break;
+        case 500:
+          friendlyMessage = "حدث خطأ داخلي في الخادم. يرجى الاتصال بالدعم الفني للسرايا.";
+          break;
+        case 502:
+        case 503:
+        case 504:
+          friendlyMessage = "الخادم قيد الصيانة حالياً أو غير متاح. يرجى المحاولة بعد قليل.";
+          break;
+        case 530:
+          friendlyMessage = "تعذر الاتصال بخادم المستشفى أو المركز الطبي. يرجى التحقق من اتصال السيرفر بالشبكة.";
+          break;
+        default:
+          friendlyMessage = `تعذر إكمال العملية (رمز الاستجابة ${status}).`;
+      }
+      console.error(`API Error [${status}]:`, JSON.stringify(error.response.data, null, 2));
+    } else if (error.request) {
+      // Network error or timeout (no response was received)
+      friendlyMessage = "تعذر الاتصال بالخادم. يرجى التحقق من اتصال شبكة الإنترنت بجهازك.";
+    } else {
+      friendlyMessage = error.message || "حدث خطأ أثناء الاتصال بالشبكة.";
     }
+
+    // Override the error message so all catch blocks display this friendly text
+    error.message = friendlyMessage;
+
+    // Also override response data message for components that fetch it directly
+    if (error.response) {
+      if (!error.response.data) {
+        error.response.data = {};
+      }
+      error.response.data.message = friendlyMessage;
+    }
+
     return Promise.reject(error);
   }
 );
@@ -70,7 +141,7 @@ export const removeAuthToken = async () => {
   }
 };
 
-import AsyncStorage from '@react-native-async-storage/async-storage';
+
 
 export const setUserInfo = async (userInfo: any) => {
   const jsonValue = JSON.stringify(userInfo);

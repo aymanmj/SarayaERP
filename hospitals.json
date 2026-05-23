@@ -1,0 +1,8 @@
+[
+  { "id": "1", "name": "مستشفى طرابلس الطبي", "url": "https://tmc.alsarayatech.ly/api" },
+  { "id": "2", "name": "مستشفى العيون", "url": "https://eye.alsarayatech.ly/api" },
+  { "id": "3", "name": "مستشفى الخضراء", "url": "https://alkhadra.alsarayatech.ly/api" },
+  { "id": "4", "name": "مشفى الرحاب الدولي", "url": "https://alrehab.alsarayatech.ly/api" },
+  { "id": "5", "name": "مشفى المواصفات", "url": "https://muasafat.alsarayatech.ly/api" },
+  { "id": "6", "name": "عيادة المسرة", "url": "https://almasarra.alsarayatech.ly/api" }
+]

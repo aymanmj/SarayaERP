@@ -49,6 +49,8 @@ import StorageService from "../../services/StorageService";
 
 import { useTranslation } from "react-i18next";
 
+import { LinearGradient } from "expo-linear-gradient";
+
 export default function RoundsScreen() {
   const { t } = useTranslation();
   const router = useRouter();
@@ -214,7 +216,10 @@ const EncounterCard = memo(({ item, onPress }: { item: Encounter, onPress: () =>
             <Text style={styles.offlineText}>You are currently offline. Viewing cached data.</Text>
         </View>
       )}
-      <View style={styles.header}>
+      <LinearGradient
+        colors={[theme.colors.primaryDark, theme.colors.primary]}
+        style={styles.header}
+      >
          <View style={styles.headerTopRow}>
              <View>
                  <Text style={styles.headerTitle}>{t('rounds.title')}</Text>
@@ -235,7 +240,7 @@ const EncounterCard = memo(({ item, onPress }: { item: Encounter, onPress: () =>
                 </TouchableOpacity>
              </View>
          </View>
-      </View>
+      </LinearGradient>
       <FlatList
         data={encounters}
         keyExtractor={(item) => item.id.toString()}

@@ -7,7 +7,7 @@
       "developmentClient": true,
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://erp.alsarayatech.ly/api",
+        "EXPO_PUBLIC_API_URL": "https://alrehab.alsarayatech.ly/api",
         "EXPO_PUBLIC_ENV": "development"
       }
     },
@@ -15,15 +15,25 @@
       "distribution": "internal",
       "channel": "staging",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://staging.alsarayatech.ly/api",
+        "EXPO_PUBLIC_API_URL": "https://alrehab.alsarayatech.ly/api",
         "EXPO_PUBLIC_ENV": "staging"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://alrehab.alsarayatech.ly/api",
+        "EXPO_PUBLIC_ENV": "production"
       }
     },
     "production": {
       "distribution": "store",
       "channel": "production",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://erp.alsarayatech.ly/api",
+        "EXPO_PUBLIC_API_URL": "https://alrehab.alsarayatech.ly/api",
         "EXPO_PUBLIC_ENV": "production"
       },
       "android": {
