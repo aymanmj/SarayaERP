@@ -177,6 +177,7 @@ model Hospital {
   resources          Resource[]
   waitlists          Waitlist[]
   userAccesses       UserHospitalAccess[]
+  developerApps      DeveloperApp[]
 }
 
 model Department {
@@ -5894,4 +5895,41 @@ model DataRetentionPolicy {
   updatedAt DateTime @updatedAt
 
   @@index([hospitalId])
+}
+
+model DeveloperApp {
+  id           Int                 @id @default(autoincrement())
+  hospitalId   Int
+  name         String
+  clientId     String              @unique
+  clientSecret String
+  redirectUris String[]
+  isActive     Boolean             @default(true)
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  hospital     Hospital            @relation(fields: [hospitalId], references: [id])
+  scopes       DeveloperAppScope[]
+  apiKeys      ApiKey[]
+}
+
+model DeveloperAppScope {
+  id        Int          @id @default(autoincrement())
+  appId     Int
+  scope     String       // e.g. "patient/*.read", "user/*.*"
+  app       DeveloperApp @relation(fields: [appId], references: [id], onDelete: Cascade)
+  createdAt DateTime     @default(now())
+
+  @@unique([appId, scope])
+}
+
+model ApiKey {
+  id           Int          @id @default(autoincrement())
+  appId        Int
+  key          String       @unique
+  name         String?
+  isActive     Boolean      @default(true)
+  expiresAt    DateTime?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  app          DeveloperApp @relation(fields: [appId], references: [id], onDelete: Cascade)
 }

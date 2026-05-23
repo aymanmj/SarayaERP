@@ -3,6 +3,7 @@ import axios from "axios";
 import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
 import StorageService from './StorageService';
+import { PharmacyWorklistItem, StockItem, CDSSAlert, DispensePrescriptionItemPayload } from "../types";
 
 // Read from environment variable, fallback to hardcoded URL if missing
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL || "https://erp.alsarayatech.ly/api";
@@ -262,7 +263,7 @@ const extendedApi = {
   registerDevice: (token: string, platform?: string) =>
     extendedApi.post('/notifications/devices', { token, platform }).then((res: any) => res.data),
   // Pharmacy & Inventory
-  getPharmacyWorklist: async (page?: number, limit?: number) => {
+  getPharmacyWorklist: async (page?: number, limit?: number): Promise<PharmacyWorklistItem[]> => {
     if (await StorageService.isOnline()) {
         try {
             const url = page && limit ? `/pharmacy/worklist?page=${page}&limit=${limit}` : '/pharmacy/worklist';
@@ -282,7 +283,7 @@ const extendedApi = {
     }
   },
 
-  getDrugStock: async (query?: string) => {
+  getDrugStock: async (query?: string): Promise<StockItem[]> => {
     // Stock is large, maybe only cache if query is empty (full list) or handles specifics?
     // For simplicity, we cache the full list if query is empty
     if (await StorageService.isOnline()) {
@@ -306,7 +307,7 @@ const extendedApi = {
     }
   },
 
-  dispensePrescription: async (prescriptionId: number, items: any[], notes?: string) => {
+  dispensePrescription: async (prescriptionId: number, items: DispensePrescriptionItemPayload[], notes?: string): Promise<any> => {
     // Offline dispensing is tricky due to stock checks. 
     // We will allow queuing but warn user that stock might not be available.
     if (await StorageService.isOnline()) {
@@ -320,7 +321,21 @@ const extendedApi = {
     }
   },
 
-  adjustStock: async (drugItemId: number, quantity: number, type: 'IN' | 'ADJUST', reason?: string) => {
+  getPatientAlerts: async (patientId: number): Promise<CDSSAlert[]> => {
+    if (await StorageService.isOnline()) {
+        try {
+            const res = await api.get(`/cdss/alerts/patient/${patientId}`);
+            return res.data || [];
+        } catch(e) {
+            console.warn("Online fetch CDSS alerts failed", e);
+            return [];
+        }
+    } else {
+        return [];
+    }
+  },
+
+  adjustStock: async (drugItemId: number, quantity: number, type: 'IN' | 'ADJUST', reason?: string): Promise<any> => {
       if (await StorageService.isOnline()) {
         return api.post('/pharmacy/stock/transactions', { drugItemId, quantity, type, notes: reason }).then((res) => res.data);
       } else {

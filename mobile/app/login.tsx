@@ -5,7 +5,6 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
@@ -16,10 +15,11 @@ import api, { setAuthToken, setUserInfo } from "../services/api";
 import { Ionicons } from "@expo/vector-icons";
 import { theme } from "../constants/theme";
 import { useAuth } from "../context/AuthContext";
-
+import { LinearGradient } from "expo-linear-gradient";
 import { useTranslation } from "react-i18next";
 import { I18nManager } from "react-native";
 import { useToast } from "../components/ToastContext";
+import { AuthResponse, UserProfile } from "../types";
 
 export default function LoginScreen() {
   const { t } = useTranslation();
@@ -38,153 +38,180 @@ export default function LoginScreen() {
 
     setLoading(true);
     try {
-      const response = await api.post("/auth/login", { username, password });
+      const response = await api.post<AuthResponse>("/auth/login", { username, password });
+      const authData = response.data;
 
-      if (response.data.success && response.data.accessToken) {
-        await setAuthToken(response.data.accessToken);
-        // Assuming response.data.user contains user details like { id, username, fullName, role }
-        // If not, we might need to decode the token or fetch profile
-        if (response.data.user) {
-            await setUserInfo(response.data.user);
-            await signIn(response.data.accessToken, response.data.user);
-            
-            // Role-based redirection is now handled inside AuthContext or we can do it here.
-            // But let's keep it here for now to ensure proper navigation
-            const roles = response.data.user.roles || [];
-            if (roles.includes('PHARMACIST')) {
-                router.replace("/pharmacy");
-            } else {
-                router.replace("/rounds");
-            }
+      if (authData.success && authData.accessToken) {
+        await setAuthToken(authData.accessToken);
+        if (authData.user) {
+          await setUserInfo(authData.user);
+          await signIn(authData.accessToken, authData.user);
+          
+          const roles = authData.user.roles || [];
+          if (roles.includes('PHARMACIST')) {
+            router.replace("/pharmacy");
+          } else {
+            router.replace("/rounds");
+          }
         } else {
-             await signIn(response.data.accessToken, {} as any);
-             router.replace("/rounds"); 
+          const fallbackUser: UserProfile = {
+            id: 0,
+            username: "unknown",
+            fullName: "Unknown User",
+            roles: []
+          };
+          await signIn(authData.accessToken, fallbackUser);
+          router.replace("/rounds"); 
         }
       } else {
-        const msg = response.data.message || "Invalid credentials";
+        const msg = authData.message || "Invalid credentials";
         showToast(msg, 'error');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(error);
-      showToast(error.message || "Connection failed", 'error');
+      const errMessage = error instanceof Error ? error.message : "Connection failed";
+      showToast(errMessage, 'error');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <KeyboardAvoidingView 
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
+    <LinearGradient
+      colors={[theme.colors.darkBackground, "#111827", "#1f2937"]}
       style={styles.container}
     >
-      <StatusBar barStyle="dark-content" />
-      <View style={styles.header}>
-        <View style={styles.iconContainer}>
-           <Ionicons name="person" size={50} color={theme.colors.primary} />
-        </View>
-        <Text style={styles.title}>Welcome Back</Text>
-        <Text style={styles.subtitle}>Sign in to continue</Text>
-      </View>
+      <StatusBar barStyle="light-content" />
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={styles.keyboardView}
+      >
+        <View style={styles.glassCard}>
+          <View style={styles.header}>
+            <View style={styles.iconContainer}>
+              <Ionicons name="medical" size={44} color={theme.colors.primary} />
+            </View>
+            <Text style={styles.title}>Saraya ERP</Text>
+            <Text style={styles.subtitle}>Clinical & Pharmacy Portal</Text>
+          </View>
 
-      <View style={styles.form}>
-        <View style={styles.inputContainer}>
-          <Ionicons name="person-outline" size={20} color={theme.colors.textLight} style={styles.inputIcon} />
-          <TextInput
-            style={[styles.input, {textAlign: I18nManager.isRTL ? 'right' : 'left'}]}
-            placeholder={t('login.email')}
-            value={username}
-            onChangeText={setUsername}
-            autoCapitalize="none"
-            placeholderTextColor={theme.colors.textMuted}
-          />
-        </View>
+          <View style={styles.form}>
+            <View style={styles.inputContainer}>
+              <Ionicons name="person-outline" size={20} color={theme.colors.textMuted} style={styles.inputIcon} />
+              <TextInput
+                style={[styles.input, { textAlign: I18nManager.isRTL ? 'right' : 'left' }]}
+                placeholder={t('login.email') || "Username or Email"}
+                value={username}
+                onChangeText={setUsername}
+                autoCapitalize="none"
+                placeholderTextColor={theme.colors.textMuted}
+              />
+            </View>
 
-        <View style={styles.inputContainer}>
-          <Ionicons name="lock-closed-outline" size={20} color={theme.colors.textLight} style={styles.inputIcon} />
-          <TextInput
-            style={[styles.input, {textAlign: I18nManager.isRTL ? 'right' : 'left'}]}
-            placeholder={t('login.password')}
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            placeholderTextColor={theme.colors.textMuted}
-          />
-        </View>
+            <View style={styles.inputContainer}>
+              <Ionicons name="lock-closed-outline" size={20} color={theme.colors.textMuted} style={styles.inputIcon} />
+              <TextInput
+                style={[styles.input, { textAlign: I18nManager.isRTL ? 'right' : 'left' }]}
+                placeholder={t('login.password') || "Password"}
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+                placeholderTextColor={theme.colors.textMuted}
+              />
+            </View>
 
-        <TouchableOpacity 
-          style={styles.loginButton} 
-          onPress={handleLogin}
-          disabled={loading}
-          activeOpacity={0.8}
-        >
-          {loading ? (
-            <ActivityIndicator size="small" color="#fff" />
-          ) : (
-            <Text style={styles.loginButtonText}>{t('login.submit')}</Text>
-          )}
-        </TouchableOpacity>
-        
-        <View style={styles.footer}>
-           <Text style={styles.footerText}>Need help? Contact IT Support</Text>
+            <TouchableOpacity 
+              style={styles.loginButton} 
+              onPress={handleLogin}
+              disabled={loading}
+              activeOpacity={0.85}
+            >
+              {loading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={styles.loginButtonText}>{t('login.submit') || "Sign In"}</Text>
+              )}
+            </TouchableOpacity>
+            
+            <View style={styles.footer}>
+              <Text style={styles.footerText}>Authorized clinical personnel only.</Text>
+            </View>
+          </View>
         </View>
-      </View>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
+  },
+  keyboardView: {
+    flex: 1,
     justifyContent: "center",
+  },
+  glassCard: {
+    backgroundColor: "rgba(21, 31, 50, 0.75)",
+    borderRadius: theme.borderRadius.xl,
+    padding: theme.sizes.lg,
+    marginHorizontal: 20,
+    borderWidth: 1,
+    borderColor: "rgba(13, 148, 136, 0.2)",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 5,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: 30,
   },
   iconContainer: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: '#e0f2fe',
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: "rgba(13, 148, 136, 0.1)",
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
-    borderWidth: 4,
-    borderColor: theme.colors.surface,
-    ...theme.shadows.small,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "rgba(13, 148, 136, 0.3)",
   },
   title: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: "800",
-    color: theme.colors.text,
-    marginBottom: 5,
+    color: "#ffffff",
+    marginBottom: 4,
+    letterSpacing: 0.5,
   },
   subtitle: {
-    fontSize: 16,
-    color: theme.colors.textLight,
+    fontSize: 14,
+    color: theme.colors.primaryLight,
+    fontWeight: "500",
   },
   form: {
-    paddingHorizontal: 30,
+    width: "100%",
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: theme.colors.surface,
+    backgroundColor: "rgba(15, 23, 42, 0.6)",
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: "rgba(226, 232, 240, 0.1)",
     borderRadius: theme.borderRadius.lg,
     marginBottom: theme.sizes.md,
     paddingHorizontal: theme.sizes.md,
     height: 56,
   },
   inputIcon: {
-    marginRight: 10,
+    marginRight: 12,
   },
   input: {
     flex: 1,
     fontSize: 16,
-    color: theme.colors.text,
+    color: "#ffffff",
   },
   loginButton: {
     backgroundColor: theme.colors.primary,
@@ -192,21 +219,25 @@ const styles = StyleSheet.create({
     borderRadius: theme.borderRadius.lg,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 20,
-    ...theme.shadows.medium,
+    marginTop: 16,
+    shadowColor: theme.colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 3,
   },
   loginButtonText: {
-    color: theme.colors.surface,
+    color: "#ffffff",
     fontSize: 16,
     fontWeight: 'bold',
-    letterSpacing: 1,
+    letterSpacing: 0.5,
   },
   footer: {
-    marginTop: 30,
+    marginTop: 24,
     alignItems: 'center',
   },
   footerText: {
     color: theme.colors.textMuted,
-    fontSize: 14,
+    fontSize: 13,
   },
 });

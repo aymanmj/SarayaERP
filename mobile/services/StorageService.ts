@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
+import { OfflineAction, FailedAction, OfflineActionType } from '../types';
 
 const KEYS = {
   ROUNDS: 'offline_rounds',
@@ -7,26 +8,6 @@ const KEYS = {
   PENDING_ACTIONS: 'offline_pending_actions',
   FAILED_ACTIONS: 'offline_failed_actions',
 };
-
-
-export type OfflineActionType =
-  | 'CREATE_NOTE'
-  | 'CREATE_VITALS'
-  | 'ADMINISTER_MED'
-  | 'DISPENSE_PRESCRIPTION'
-  | 'ADJUST_STOCK';
-
-export interface OfflineAction {
-  id: string;
-  type: OfflineActionType;
-  payload: any;
-  timestamp: number;
-}
-
-export interface FailedAction extends OfflineAction {
-  error: string;
-  failedAt: number;
-}
 
 const StorageService = {
   // ... existing methods ...

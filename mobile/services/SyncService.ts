@@ -1,4 +1,12 @@
-import StorageService, { OfflineAction } from './StorageService';
+import StorageService from './StorageService';
+import { 
+  OfflineAction, 
+  CreateNotePayload, 
+  CreateVitalsPayload, 
+  AdministerMedPayload, 
+  DispensePrescriptionPayload, 
+  AdjustStockPayload 
+} from '../types';
 import api from './api'; 
 import Logger from './Logger'; 
 import NetInfo from '@react-native-community/netinfo';
@@ -53,23 +61,30 @@ const SyncService = {
         case 'CREATE_NOTE':
             await api.post('/clinical-notes', action.payload);
             break;
-        case 'CREATE_VITALS':
-            // Payload: { encounterId, ...data }
-            const { encounterId: vitalsEncId, ...vitalsData } = action.payload;
-            await api.createVitals(Number(vitalsEncId), vitalsData);
+        case 'CREATE_VITALS': {
+            const payload = action.payload as CreateVitalsPayload;
+            const { encounterId, ...vitalsData } = payload;
+            await api.createVitals(Number(encounterId), vitalsData);
             break;
-        case 'ADMINISTER_MED':
-            const { encounterId: medEncId, prescriptionItemId, status, notes } = action.payload;
-            await api.administerMedication(Number(medEncId), Number(prescriptionItemId), status, notes);
+        }
+        case 'ADMINISTER_MED': {
+            const payload = action.payload as AdministerMedPayload;
+            const { encounterId, prescriptionItemId, status, notes } = payload;
+            await api.administerMedication(Number(encounterId), Number(prescriptionItemId), status, notes);
             break;
-        case 'DISPENSE_PRESCRIPTION':
-            const { prescriptionId, items, notes: dispenseNotes } = action.payload;
-            await api.dispensePrescription(Number(prescriptionId), items, dispenseNotes);
+        }
+        case 'DISPENSE_PRESCRIPTION': {
+            const payload = action.payload as DispensePrescriptionPayload;
+            const { prescriptionId, items, notes } = payload;
+            await api.dispensePrescription(Number(prescriptionId), items, notes);
             break;
-        case 'ADJUST_STOCK':
-             const { drugItemId, quantity, type, reason } = action.payload;
+        }
+        case 'ADJUST_STOCK': {
+             const payload = action.payload as AdjustStockPayload;
+             const { drugItemId, quantity, type, reason } = payload;
              await api.adjustStock(Number(drugItemId), Number(quantity), type, reason);
              break;
+        }
         default:
             Logger.warn(`SyncService: Unknown action type ${action.type}`);
             break;

@@ -27,11 +27,15 @@ import {
   HttpCode,
   HttpStatus,
   OnModuleInit,
+  UseGuards,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { EncryptionService } from '../../common/encryption/encryption.service';
 import { VaultService } from '../../common/vault/vault.service';
 import { PatientOtpService } from '../auth/patient-otp.service';
+import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
+import { PermissionsGuard } from '../../auth/permissions.guard';
+import { Permissions } from '../../auth/permissions.decorator';
 import axios from 'axios';
 
 @Controller('patient-portal/v1/telegram')
@@ -150,6 +154,8 @@ export class PortalTelegramController implements OnModuleInit {
    * Can be called manually to re-register the webhook if needed.
    * Uses TELEGRAM_WEBHOOK_URL from environment.
    */
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('integration:manage')
   @Post('register-webhook')
   @HttpCode(HttpStatus.OK)
   async registerWebhook() {
@@ -168,6 +174,8 @@ export class PortalTelegramController implements OnModuleInit {
    * Diagnostic endpoint to check bot status and webhook configuration.
    * GET /api/patient-portal/v1/telegram/status
    */
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('integration:manage')
   @Get('status')
   async getStatus() {
     const result: any = {

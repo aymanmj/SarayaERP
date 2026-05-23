@@ -12,9 +12,17 @@ import { useGetClinicalNotes } from '../../hooks/api/useClinicalNotes';
 import { useQueryClient } from '@tanstack/react-query';
 import { theme } from '../../constants/theme';
 import StorageService from "../../services/StorageService";
+import { ClinicalNote, VitalSign } from '../../types';
 
 export default function PatientDetailScreen() {
-  const params = useLocalSearchParams();
+  const params = useLocalSearchParams<{
+    id: string;
+    name?: string;
+    diagnosis?: string;
+    gender?: string;
+    dob?: string;
+    vitals?: string;
+  }>();
   const { showToast } = useToast();
   const { id, name, diagnosis, gender, dob, vitals } = params;
 
@@ -51,7 +59,7 @@ export default function PatientDetailScreen() {
     setSubmitting(true);
     try {
         // Optimistic Update
-        const tempNote = {
+        const tempNote: ClinicalNote = {
             id: tempNoteId,
             content: newNote,
             createdAt: new Date().toISOString(),
@@ -59,7 +67,7 @@ export default function PatientDetailScreen() {
             createdBy: { fullName: "You (Pending...)" },
         };
         
-        queryClient.setQueryData(['clinicalNotes', numericId], (oldData: any) => {
+        queryClient.setQueryData<ClinicalNote[]>(['clinicalNotes', numericId], (oldData) => {
             if (!Array.isArray(oldData)) return [tempNote];
             return [tempNote, ...oldData];
         });
@@ -84,32 +92,101 @@ export default function PatientDetailScreen() {
         console.error("Failed to save note:", error);
         showToast("Failed to save note", "error");
         // Revert optimistic update if it fails
-        queryClient.setQueryData(['clinicalNotes', numericId], (oldData: any) => {
-            return oldData?.filter((note: any) => note.id !== tempNoteId);
+        queryClient.setQueryData<ClinicalNote[]>(['clinicalNotes', numericId], (oldData) => {
+            return oldData?.filter((note) => note.id !== tempNoteId) || [];
         });
     } finally {
         setSubmitting(false);
     }
   };
 
-  // Helper directly in component or separate utils if needed. for now simplistic.
-  const parseVitals = (vitalsStr: any) => {
+  const parseVitals = (vitalsStr: string | undefined): Partial<VitalSign> | null => {
+    if (!vitalsStr) return null;
     try {
-      if (typeof vitalsStr === 'string') return JSON.parse(vitalsStr);
-      return vitalsStr;
+      return JSON.parse(vitalsStr);
     } catch (e) {
       return null;
     }
   };
 
-  const parsedVitals = vitals ? parseVitals(vitals) : null;
+  const parsedVitals = parseVitals(vitals);
+  
+  const pulse = parsedVitals?.pulse ?? (parsedVitals as any)?.heartRate;
   const patientDetails = {
       bp: parsedVitals?.bpSystolic && parsedVitals?.bpDiastolic ? `${parsedVitals.bpSystolic}/${parsedVitals.bpDiastolic}` : '--/--',
-      hr: parsedVitals?.heartRate || '--',
-      temp: parsedVitals?.temperature ? `${parsedVitals.temperature}°C` : '--'
+      hr: pulse !== undefined ? `${pulse}` : '--',
+      temp: parsedVitals?.temperature ? `${parsedVitals.temperature}°C` : '--',
+      o2Sat: parsedVitals?.o2Sat !== undefined ? `${parsedVitals.o2Sat}%` : '--'
   };
 
-  const renderNoteItem = ({ item, index }: { item: any, index: number }) => (
+  const checkCriticalVitals = (v: Partial<VitalSign> | null) => {
+    if (!v) return null;
+    const alerts: string[] = [];
+    
+    const p = v.pulse ?? (v as any).heartRate;
+    const o2 = v.o2Sat;
+    const t = v.temperature;
+    const sys = v.bpSystolic;
+    const dia = v.bpDiastolic;
+
+    if (o2 !== undefined && o2 < 92) {
+      alerts.push(`Critical O2 Saturation: ${o2}% (< 92%)`);
+    }
+    if (p !== undefined) {
+      if (p > 120) {
+        alerts.push(`Critical Heart Rate: ${p} bpm (> 120 bpm)`);
+      } else if (p < 50) {
+        alerts.push(`Critical Heart Rate: ${p} bpm (< 50 bpm)`);
+      }
+    }
+    if (t !== undefined) {
+      if (t > 39) {
+        alerts.push(`Critical Temperature: ${t}°C (> 39°C)`);
+      } else if (t < 35.5) {
+        alerts.push(`Critical Temperature: ${t}°C (< 35.5°C)`);
+      }
+    }
+    if (sys !== undefined && dia !== undefined) {
+      if (sys > 160 || dia > 100) {
+        alerts.push(`Critical Blood Pressure: ${sys}/${dia} mmHg (> 160/100)`);
+      } else if (sys < 90 || dia < 50) {
+        alerts.push(`Critical Blood Pressure: ${sys}/${dia} mmHg (< 90/50)`);
+      }
+    }
+    return alerts.length > 0 ? alerts : null;
+  };
+
+  const criticalAlerts = checkCriticalVitals(parsedVitals);
+
+  const getHrColor = (pVal: number | undefined) => {
+    if (pVal === undefined) return theme.colors.text;
+    if (pVal > 120 || pVal < 50) return theme.colors.error;
+    if (pVal > 100 || pVal < 60) return theme.colors.warning;
+    return theme.colors.success;
+  };
+  
+  const getTempColor = (tVal: number | undefined) => {
+    if (tVal === undefined) return theme.colors.text;
+    if (tVal > 39 || tVal < 35.5) return theme.colors.error;
+    if (tVal > 37.8 || tVal < 36.2) return theme.colors.warning;
+    return theme.colors.success;
+  };
+  
+  const getO2Color = (oVal: number | undefined) => {
+    if (oVal === undefined) return theme.colors.text;
+    if (oVal < 92) return theme.colors.error;
+    if (oVal < 95) return theme.colors.warning;
+    return theme.colors.success;
+  };
+
+  const getBpColor = (sys: number | undefined, dia: number | undefined) => {
+    if (sys === undefined || dia === undefined) return theme.colors.text;
+    if (sys > 160 || dia > 100 || sys < 90 || dia < 50) return theme.colors.error;
+    if (sys > 140 || dia > 90 || sys < 95 || dia < 55) return theme.colors.warning;
+    return theme.colors.success;
+  };
+
+  const renderNoteItem = ({ item, index }: { item: ClinicalNote, index: number }) => (
     <View style={styles.timelineItem}>
       <View style={styles.timelineLeft}>
         <View style={styles.timelineDot} />
@@ -134,6 +211,20 @@ export default function PatientDetailScreen() {
       {isOffline && (
         <View style={styles.offlineBanner}>
             <Text style={styles.offlineText}>Offline Mode</Text>
+        </View>
+      )}
+
+      {/* Critical Alert Banner */}
+      {criticalAlerts && criticalAlerts.length > 0 && (
+        <View style={styles.criticalBanner}>
+          <Ionicons name="warning" size={20} color={theme.colors.surface} style={{ marginRight: 8 }} />
+          <View style={{ flex: 1 }}>
+            {criticalAlerts.map((alertText, index) => (
+              <Text key={index} style={styles.criticalText}>
+                {alertText}
+              </Text>
+            ))}
+          </View>
         </View>
       )}
 
@@ -179,21 +270,27 @@ export default function PatientDetailScreen() {
                <Text style={styles.cardTitle}>Latest Vitals</Text>
                <View style={styles.vitalsGrid}>
                    <View style={styles.vitalItem}>
-                       <Ionicons name="heart" size={20} color="#ef4444" />
+                       <Ionicons name="heart" size={20} color={getHrColor(pulse)} />
                        <Text style={styles.vitalLabel}>HR</Text>
-                       <Text style={styles.vitalValue}>{patientDetails.hr}</Text>
+                       <Text style={[styles.vitalValue, { color: getHrColor(pulse) }]}>{patientDetails.hr}</Text>
                    </View>
                    <View style={styles.vitalDivider} />
                    <View style={styles.vitalItem}>
-                       <Ionicons name="speedometer" size={20} color="#3b82f6" />
+                       <Ionicons name="speedometer" size={20} color={getBpColor(parsedVitals?.bpSystolic, parsedVitals?.bpDiastolic)} />
                        <Text style={styles.vitalLabel}>BP</Text>
-                       <Text style={styles.vitalValue}>{patientDetails.bp}</Text>
+                       <Text style={[styles.vitalValue, { color: getBpColor(parsedVitals?.bpSystolic, parsedVitals?.bpDiastolic) }]}>{patientDetails.bp}</Text>
                    </View>
                    <View style={styles.vitalDivider} />
                    <View style={styles.vitalItem}>
-                       <Ionicons name="thermometer" size={20} color="#f59e0b" />
+                       <Ionicons name="thermometer" size={20} color={getTempColor(parsedVitals?.temperature)} />
                        <Text style={styles.vitalLabel}>Temp</Text>
-                       <Text style={styles.vitalValue}>{patientDetails.temp}</Text>
+                       <Text style={[styles.vitalValue, { color: getTempColor(parsedVitals?.temperature) }]}>{patientDetails.temp}</Text>
+                   </View>
+                   <View style={styles.vitalDivider} />
+                   <View style={styles.vitalItem}>
+                       <Ionicons name="pulse" size={20} color={getO2Color(parsedVitals?.o2Sat)} />
+                       <Text style={styles.vitalLabel}>O2 Sat</Text>
+                       <Text style={[styles.vitalValue, { color: getO2Color(parsedVitals?.o2Sat) }]}>{patientDetails.o2Sat}</Text>
                    </View>
                </View>
             </View>
@@ -374,5 +471,20 @@ const styles = StyleSheet.create({
       color: theme.colors.surface,
       fontSize: 12,
       fontWeight: '700',
+  },
+  criticalBanner: {
+    backgroundColor: theme.colors.error,
+    padding: theme.sizes.md,
+    marginHorizontal: 16,
+    marginTop: 16,
+    borderRadius: theme.borderRadius.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    ...theme.shadows.medium,
+  },
+  criticalText: {
+    color: theme.colors.surface,
+    fontSize: 13,
+    fontWeight: '700',
   },
 });

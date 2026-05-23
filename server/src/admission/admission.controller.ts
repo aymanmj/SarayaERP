@@ -26,6 +26,8 @@ import { CreateBedTransferDto } from './dto/create-bed-transfer.dto';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 
 @ApiTags('Admissions')
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@Permissions('admission:view')
 @Controller('admissions')
 export class AdmissionController {
   constructor(private readonly admissionService: AdmissionService) {}

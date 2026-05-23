@@ -7,11 +7,13 @@ import api from '../../../services/api';
 import { useQueryClient } from '@tanstack/react-query';
 import { theme } from '../../../constants/theme';
 import ScannerModal from '../../../components/ScannerModal';
+import { PharmacyWorklistItem, PrescriptionItem, CDSSAlert } from '../../../types';
 
 export default function DispenseScreen() {
     const { id } = useLocalSearchParams();
     const router = useRouter();
-    const [prescription, setPrescription] = useState<any>(null);
+    const [prescription, setPrescription] = useState<PharmacyWorklistItem | null>(null);
+    const [alerts, setAlerts] = useState<CDSSAlert[]>([]);
     const [loading, setLoading] = useState(true);
     const [dispensing, setDispensing] = useState(false);
     const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
@@ -26,11 +28,11 @@ export default function DispenseScreen() {
         setLoading(true);
         try {
             // First try to resolve from React Query cache
-            let found = null;
+            let found: PharmacyWorklistItem | null = null;
             const data: any = queryClient.getQueryData(['pharmacyWorklist', 10]);
             if (data?.pages) {
                 for (const page of data.pages) {
-                    found = page.find((p: any) => p.id == id);
+                    found = page.find((p: PharmacyWorklistItem) => p.id == Number(id));
                     if (found) break;
                 }
             }
@@ -38,14 +40,20 @@ export default function DispenseScreen() {
             // Fallback to fetch first page
             if (!found) {
                 const list = await api.getPharmacyWorklist(1, 20);
-                found = list.find((p: any) => p.id == id);
+                found = list.find((p: PharmacyWorklistItem) => p.id == Number(id)) || null;
             }
 
             if (found) {
                 setPrescription(found);
                 // Pre-select all items by default
                 if (found.items) {
-                    setSelectedItems(new Set(found.items.map((i: any) => i.id)));
+                    setSelectedItems(new Set(found.items.map((i: PrescriptionItem) => i.id)));
+                }
+
+                // Fetch CDSS alerts for the patient if available
+                if (found.patient?.id) {
+                    const cdssAlerts = await api.getPatientAlerts(found.patient.id);
+                    setAlerts(cdssAlerts);
                 }
             } else {
                 Alert.alert("Error", "Prescription not found in recent worklist");
@@ -71,7 +79,7 @@ export default function DispenseScreen() {
         setScannerVisible(false);
         
         // Find matching item by code or name
-        const match = prescription?.items?.find((item: any) => {
+        const match = prescription?.items?.find((item: PrescriptionItem) => {
             const drugName = item.drugItem?.name || item.drugItem?.tradeName || '';
             const drugCode = item.drugItem?.code || '';
             return (data === drugCode) || 
@@ -90,6 +98,7 @@ export default function DispenseScreen() {
     };
 
     const handleDispense = async () => {
+        if (!prescription) return;
         if (selectedItems.size === 0) {
             Alert.alert("Validation", "Select at least one item to dispense");
             return;
@@ -99,11 +108,10 @@ export default function DispenseScreen() {
         try {
             // Prepare payload
             const itemsToDispense = prescription.items
-                .filter((item: any) => selectedItems.has(item.id))
-                .map((item: any) => ({
+                .filter((item: PrescriptionItem) => selectedItems.has(item.id))
+                .map((item: PrescriptionItem) => ({
                     prescriptionItemId: item.id,
                     quantity: item.quantity, // Dispensing full quantity
-                    // dispensedDrugItemId: item.drugItemId // Assuming same drug
                 }));
             
             const result = await api.dispensePrescription(Number(id), itemsToDispense, "Dispensed via mobile");
@@ -143,8 +151,29 @@ export default function DispenseScreen() {
                     <Text style={styles.value}>{prescription.doctor?.fullName}</Text>
                 </View>
 
+                {alerts.length > 0 && (
+                    <View style={styles.alertContainer}>
+                        <View style={styles.alertHeader}>
+                            <Ionicons name="warning" size={20} color="#b45309" />
+                            <Text style={styles.alertTitle}>Clinical Decision Support (CDSS)</Text>
+                        </View>
+                        {alerts.map((alert) => (
+                            <View key={alert.id} style={[styles.alertRow, alert.severity === 'CRITICAL' && styles.alertRowCritical]}>
+                                <Ionicons 
+                                    name={alert.severity === 'CRITICAL' ? "alert-circle" : "warning"} 
+                                    size={16} 
+                                    color={alert.severity === 'CRITICAL' ? "#be123c" : "#b45309"} 
+                                />
+                                <Text style={[styles.alertMessage, alert.severity === 'CRITICAL' && styles.alertMessageCritical]}>
+                                    {alert.messageAr || alert.message}
+                                </Text>
+                            </View>
+                        ))}
+                    </View>
+                )}
+
                 <Text style={styles.sectionTitle}>Prescription Items</Text>
-                {prescription.items?.map((item: any) => (
+                {prescription.items?.map((item: PrescriptionItem) => (
                     <TouchableOpacity 
                         key={item.id} 
                         style={[styles.itemCard, selectedItems.has(item.id) && styles.selectedCard]}
@@ -155,7 +184,7 @@ export default function DispenseScreen() {
                              {selectedItems.has(item.id) && <Ionicons name="checkmark" size={16} color="#fff" />}
                         </View>
                         <View style={{ flex: 1 }}>
-                            <Text style={styles.drugName}>{item.drugItem?.tradeName}</Text>
+                            <Text style={styles.drugName}>{item.drugItem?.tradeName || item.drugItem?.name}</Text>
                             <Text style={styles.drugDetail}>{item.dose} - {item.route} - {item.frequency}</Text>
                             <Text style={styles.drugDetail}>Qty: {item.quantity} days</Text>
                         </View>
@@ -208,5 +237,45 @@ const styles = StyleSheet.create({
     footer: { padding: theme.sizes.lg, backgroundColor: theme.colors.surface, ...theme.shadows.medium, borderTopWidth: 1, borderTopColor: theme.colors.border },
     dispenseBtn: { backgroundColor: theme.colors.primary, padding: 16, borderRadius: theme.sizes.sm, alignItems: 'center' },
     disabledBtn: { backgroundColor: theme.colors.textMuted },
-    btnText: { color: theme.colors.surface, fontSize: 16, fontWeight: '700' }
+    btnText: { color: theme.colors.surface, fontSize: 16, fontWeight: '700' },
+    alertContainer: {
+        backgroundColor: '#fffbeb',
+        borderColor: '#fef3c7',
+        borderWidth: 1,
+        borderRadius: theme.sizes.md,
+        padding: 12,
+        marginBottom: 24,
+    },
+    alertHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 8,
+    },
+    alertTitle: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: '#92400e',
+        marginLeft: 6,
+    },
+    alertRow: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        paddingVertical: 4,
+        paddingHorizontal: 6,
+        borderRadius: 4,
+        marginBottom: 4,
+    },
+    alertRowCritical: {
+        backgroundColor: '#ffe4e6',
+    },
+    alertMessage: {
+        fontSize: 13,
+        color: '#b45309',
+        marginLeft: 6,
+        flex: 1,
+    },
+    alertMessageCritical: {
+        color: '#be123c',
+        fontWeight: '600',
+    },
 });

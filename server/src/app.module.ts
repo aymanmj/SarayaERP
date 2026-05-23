@@ -49,6 +49,7 @@ import { ReportsModule } from './reports/reports.module';
 import { PriceListsModule } from './price-lists/price-lists.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { IntegrationModule } from './integration/integration.module';
+import { DeveloperModule } from './integration/developer/developer.module';
 import { TriageModule } from './triage/triage.module';
 import { DepartmentsModule } from './departments/departments.module';
 import { SpecialtiesModule } from './specialties/specialties.module';
@@ -232,6 +233,7 @@ import { QualityModule } from './quality/quality.module'; // ✅ [NEW] Quality &
     DashboardModule,
     NotificationsModule,
     IntegrationModule,
+    DeveloperModule,
     NphiesModule, // ✅ [NEW] Phase 1: NPHIES Saudi eClaims Integration
     AnalyticsModule,
     BackupModule, // ✅ [NEW] Backup & Restore
