@@ -3,8 +3,12 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useAuthStore } from "../stores/authStore";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 
 export function LoginPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
+
   const login = useAuthStore((s) => s.login);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const navigate = useNavigate();
@@ -35,11 +39,11 @@ export function LoginPage() {
       console.error(err);
 
       if (err.code === "ERR_NETWORK") {
-        setError("تعذّر الاتصال بالسيرفر، تأكد أن الـ API شغّال.");
+        setError(t("login.errNetwork", "تعذّر الاتصال بالسيرفر، تأكد أن الـ API شغّال."));
       } else if (err.response?.status === 401) {
-        setError("بيانات الدخول غير صحيحة.");
+        setError(t("login.errUnauthorized", "بيانات الدخول غير صحيحة."));
       } else {
-        setError("فشل تسجيل الدخول، حدث خطأ غير متوقع.");
+        setError(t("login.errUnexpected", "فشل تسجيل الدخول، حدث خطأ غير متوقع."));
       }
     } finally {
       setLoading(false);
@@ -53,8 +57,8 @@ export function LoginPage() {
           <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
         </svg>
       ),
-      label: "العيادات والطوارئ",
-      desc: "إدارة شاملة من الاستقبال حتى التخريج",
+      label: t("login.triageTitle", "العيادات والطوارئ"),
+      desc: t("login.triageDesc", "إدارة شاملة من الاستقبال حتى التخريج"),
     },
     {
       icon: (
@@ -62,8 +66,8 @@ export function LoginPage() {
           <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23.693L5 14.5m14.8.8l1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0112 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.61L5 14.5" />
         </svg>
       ),
-      label: "المختبر والأشعة",
-      desc: "أوامر ونتائج وتقارير متكاملة",
+      label: t("login.labsTitle", "المختبر والأشعة"),
+      desc: t("login.labsDesc", "أوامر ونتائج وتقارير متكاملة"),
     },
     {
       icon: (
@@ -71,8 +75,8 @@ export function LoginPage() {
           <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z" />
         </svg>
       ),
-      label: "المحاسبة والتأمين",
-      desc: "فوترة ومطالبات تأمين وقيود محاسبية",
+      label: t("login.financeTitle", "المحاسبة والتأمين"),
+      desc: t("login.financeDesc", "فوترة ومطالبات تأمين وقيود محاسبية"),
     },
     {
       icon: (
@@ -80,8 +84,8 @@ export function LoginPage() {
           <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 18.75h3" />
         </svg>
       ),
-      label: "تطبيق الجوال",
-      desc: "جولات الأطباء وإدارة التنويم والأدوية",
+      label: t("login.mobileTitle", "تطبيق الجوال"),
+      desc: t("login.mobileDesc", "جولات الأطباء وإدارة التنويم والأدوية"),
     },
   ];
 
@@ -93,18 +97,18 @@ export function LoginPage() {
         <div className="absolute bottom-[-10rem] left-[-5rem] w-[500px] h-[500px] rounded-full bg-[#c5a044]/10 blur-[120px]" />
       </div>
 
-      {/* ───────── Right Panel: Brand Showcase ───────── */}
+      {/* ───────── Showcase Panel (Mirrors order based on dir="rtl"/"ltr") ───────── */}
       <div className="hidden lg:flex flex-col w-[52%] p-10 xl:p-14 relative z-10">
         {/* Logo + Name */}
-        <div className="flex items-center gap-4 mb-auto">
+        <div className={`flex items-center gap-4 mb-auto ${isRtl ? 'flex-row' : 'flex-row-reverse text-left'}`}>
           <img
             src="/sarayalogo.png"
-            alt="نظام السرايا الطبي"
+            alt={t("common.appName", "نظام السرايا الطبي")}
             className="w-14 h-14 object-contain rounded-xl drop-shadow-[0_0_12px_rgba(197,160,68,0.4)]"
           />
           <div>
             <div className="text-xl font-black tracking-tight text-white leading-tight">
-              السرايا للتقنية
+              {isRtl ? "السرايا للتقنية" : "Al-Saraya Tech"}
             </div>
             <div className="text-[9px] font-semibold tracking-[0.25em] uppercase text-[#c5a044]/80">
               ALSARAYA TECHNOLOGY
@@ -113,7 +117,7 @@ export function LoginPage() {
         </div>
 
         {/* Middle Content */}
-        <div className="my-auto max-w-lg">
+        <div className={`my-auto max-w-lg ${isRtl ? 'text-right' : 'text-left'}`}>
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#c5a044]/10 border border-[#c5a044]/25 mb-6">
             <span className="w-1.5 h-1.5 rounded-full bg-[#c5a044] animate-pulse" />
             <span className="text-[10px] font-bold text-[#c5a044] tracking-wider uppercase">
@@ -122,16 +126,15 @@ export function LoginPage() {
           </div>
 
           <h1 className="text-4xl xl:text-[2.8rem] font-black leading-[1.2] mb-5">
-            منظومة إدارة
+            {t("login.titleIntegrated", "منظومة إدارة")}
             <br />
             <span className="bg-gradient-to-l from-[#c5a044] to-[#e8d48b] bg-clip-text text-transparent">
-              المستشفيات المتكاملة
+              {t("login.subtitleIntegrated", "المستشفيات المتكاملة")}
             </span>
           </h1>
 
           <p className="text-[15px] text-slate-400 leading-[1.8] mb-8">
-            نظام شامل لإدارة ملفات المرضى، المواعيد، التنويم، العمليات،
-            المختبر، الأشعة، الصيدلية، والمحاسبة مع سجل تدقيق كامل.
+            {t("login.brandDesc", "نظام شامل لإدارة ملفات المرضى، المواعيد، التنويم، العمليات، المختبر، الأشعة، الصيدلية، والمحاسبة مع سجل تدقيق كامل.")}
           </p>
 
           {/* Feature Grid */}
@@ -144,7 +147,7 @@ export function LoginPage() {
                 <div className="w-9 h-9 rounded-lg bg-[#c5a044]/10 flex items-center justify-center text-[#c5a044] flex-shrink-0 mt-0.5">
                   {f.icon}
                 </div>
-                <div>
+                <div className={isRtl ? "text-right" : "text-left"}>
                   <div className="text-[13px] font-bold text-slate-200 leading-tight">
                     {f.label}
                   </div>
@@ -159,34 +162,36 @@ export function LoginPage() {
 
         {/* Bottom */}
         <div className="mt-auto flex items-center justify-between text-[10px] text-slate-600">
-          <span>© {new Date().getFullYear()} شركة السرايا للتقنية — طرابلس، ليبيا</span>
+          <span>© {new Date().getFullYear()} {t("login.companyInfo", "شركة السرايا للتقنية — طرابلس، ليبيا")}</span>
           <span dir="ltr" className="font-mono">v1.0.0</span>
         </div>
       </div>
 
-      {/* ───────── Left Panel: Login Form ───────── */}
+      {/* ───────── Form Panel ───────── */}
       <div className="flex-1 flex items-center justify-center p-6 sm:p-10 relative z-10">
         <div className="w-full max-w-[380px]">
           {/* Mobile-only branding */}
           <div className="lg:hidden flex flex-col items-center mb-10">
             <img
               src="/sarayalogo.png"
-              alt="نظام السرايا الطبي"
+              alt={t("common.appName", "نظام السرايا الطبي")}
               className="w-16 h-16 object-contain rounded-xl drop-shadow-[0_0_18px_rgba(197,160,68,0.5)] mb-3"
             />
-            <div className="text-lg font-black text-[#c5a044]">السرايا للتقنية</div>
+            <div className="text-lg font-black text-[#c5a044]">
+              {isRtl ? "السرايا للتقنية" : "Al-Saraya Tech"}
+            </div>
             <div className="text-[10px] text-slate-500 tracking-widest uppercase">
               Hospital Suite
             </div>
           </div>
 
           {/* Header */}
-          <div className="text-right mb-7">
+          <div className={`mb-7 ${isRtl ? 'text-right' : 'text-left'}`}>
             <h2 className="text-[22px] font-black text-white mb-1.5">
-              تسجيل الدخول
+              {t("login.title", "تسجيل الدخول")}
             </h2>
             <p className="text-[13px] text-slate-500">
-              أدخل بيانات حسابك للوصول إلى لوحة إدارة المنظومة.
+              {t("login.description", "أدخل بيانات حسابك للوصول إلى لوحة إدارة المنظومة.")}
             </p>
           </div>
 
@@ -207,35 +212,35 @@ export function LoginPage() {
           >
             <div className="space-y-5">
               {/* Username */}
-              <div>
+              <div className={isRtl ? "text-right" : "text-left"}>
                 <label className="block text-[12px] font-semibold mb-2 text-slate-400">
-                  اسم المستخدم
+                  {t("login.username", "اسم المستخدم")}
                 </label>
                 <div className="relative">
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-600">
+                  <span className={`absolute top-1/2 -translate-y-1/2 text-slate-600 ${isRtl ? 'right-3' : 'left-3'}`}>
                     <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                     </svg>
                   </span>
                   <input
                     name="username"
-                    className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl pl-4 pr-10 py-3 text-[14px] text-white placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-[#c5a044]/40 focus:border-[#c5a044]/40 transition-all"
+                    className={`w-full bg-white/[0.04] border border-white/[0.08] rounded-xl py-3 text-[14px] text-white placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-[#c5a044]/40 focus:border-[#c5a044]/40 transition-all ${isRtl ? 'pl-4 pr-10' : 'pl-10 pr-4'}`}
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     autoComplete="username"
                     dir="ltr"
-                    placeholder="admin"
+                    placeholder={t("login.usernamePlaceholder", "اسم المستخدم")}
                   />
                 </div>
               </div>
 
               {/* Password */}
-              <div>
+              <div className={isRtl ? "text-right" : "text-left"}>
                 <label className="block text-[12px] font-semibold mb-2 text-slate-400">
-                  كلمة المرور
+                  {t("login.password", "كلمة المرور")}
                 </label>
                 <div className="relative">
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-600">
+                  <span className={`absolute top-1/2 -translate-y-1/2 text-slate-600 ${isRtl ? 'right-3' : 'left-3'}`}>
                     <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                     </svg>
@@ -248,12 +253,12 @@ export function LoginPage() {
                     onChange={(e) => setPassword(e.target.value)}
                     autoComplete="current-password"
                     dir="ltr"
-                    placeholder="••••••••"
+                    placeholder={t("login.passwordPlaceholder", "••••••••")}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600 hover:text-slate-400 transition-colors"
+                    className={`absolute top-1/2 -translate-y-1/2 text-slate-600 hover:text-slate-400 transition-colors ${isRtl ? 'left-3' : 'right-3'}`}
                   >
                     {showPassword ? (
                       <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -274,7 +279,7 @@ export function LoginPage() {
                 <svg className="w-3.5 h-3.5 text-[#c5a044]/50 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                 </svg>
-                <span>بيانات الدخول مشفرة ومحمية بالكامل.</span>
+                <span>{t("login.securityNote", "بيانات الدخول مشفرة ومحمية بالكامل.")}</span>
               </div>
 
               {/* Submit */}
@@ -286,10 +291,10 @@ export function LoginPage() {
                 {loading ? (
                   <span className="flex items-center gap-2">
                     <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    جاري التحقق...
+                    {t("login.checking", "جاري التحقق...")}
                   </span>
                 ) : (
-                  "تسجيل الدخول"
+                  t("login.submit", "تسجيل الدخول")
                 )}
               </button>
             </div>
@@ -297,7 +302,7 @@ export function LoginPage() {
 
           {/* Footer — single instance only */}
           <div className="mt-8 text-center text-[10px] text-slate-700 lg:hidden">
-            © {new Date().getFullYear()} السرايا للتقنية — Saraya ERP
+            © {new Date().getFullYear()} {t("login.companyInfo", "شركة السرايا للتقنية — طرابلس، ليبيا")} — Saraya ERP
           </div>
         </div>
       </div>

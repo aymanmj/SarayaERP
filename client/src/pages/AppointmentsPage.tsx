@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { format, addDays, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, startOfWeek, endOfWeek } from "date-fns";
 import { ar } from "date-fns/locale";
@@ -71,13 +72,13 @@ type DoctorLite = {
   };
 };
 
-const statusLabels: Record<AppointmentStatus, string> = {
-  REQUESTED: "طلب جديد",
-  CONFIRMED: "مؤكّد",
-  CHECKED_IN: "جاري الكشف",
-  COMPLETED: "تم الكشف",
-  CANCELLED: "ملغى",
-  NO_SHOW: "لم يحضر",
+const statusLabelsKeys: Record<AppointmentStatus, string> = {
+  REQUESTED: "statusRequested",
+  CONFIRMED: "statusConfirmed",
+  CHECKED_IN: "statusCheckedIn",
+  COMPLETED: "statusCompleted",
+  CANCELLED: "statusCancelled",
+  NO_SHOW: "statusNoShow",
 };
 
 const statusClasses: Record<AppointmentStatus, string> = {
@@ -100,6 +101,8 @@ function formatDateInput(d: Date) {
 }
 
 export default function AppointmentsPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
   const user = useAuthStore((s) => s.user);
   const roles = user?.roles ?? [];
   const navigate = useNavigate();
@@ -187,7 +190,7 @@ export default function AppointmentsPage() {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const monthAppointments = monthData || [];
 
-  const error = queryError ? "حدث خطأ أثناء تحميل المواعيد." : null;
+  const error = queryError ? t("appointments.queryError", "حدث خطأ أثناء تحميل المواعيد.") : null;
 
   // 2. Fetch Patients List
   const { data: patientsList = [] } = useQuery({
@@ -283,7 +286,7 @@ export default function AppointmentsPage() {
       return apiClient.post("/appointments", payload);
     },
     onSuccess: () => {
-      toast.success("تم حجز الموعد بنجاح");
+      toast.success(t("appointments.successAdd"));
       setShowAppointmentModal(false);
       setForm({
         patientId: "",
@@ -300,7 +303,7 @@ export default function AppointmentsPage() {
     },
      
     onError: (err: any) => {
-      toast.error(err.response?.data?.message || "فشل حجز الموعد");
+      toast.error(err.response?.data?.message || t("appointments.failedAdd", "فشل حجز الموعد"));
     },
   });
 
@@ -310,13 +313,13 @@ export default function AppointmentsPage() {
           await apiClient.post("/encounters", payload);
       },
       onSuccess: () => {
-        toast.success("تم تسجيل حالة الطوارئ. المريض الآن في قائمة الفرز.");
+        toast.success(t("appointments.successER", "تم تسجيل حالة الطوارئ. المريض الآن في قائمة الفرز."));
         setShowERModal(false);
         setErForm({ patientId: "", complaint: "" });
       },
        
       onError: (err: any) => {
-        toast.error(err.response?.data?.message || "فشل تسجيل الطوارئ");
+        toast.error(err.response?.data?.message || t("appointments.failedER", "فشل تسجيل الطوارئ"));
       }
   });
 
@@ -332,17 +335,17 @@ export default function AppointmentsPage() {
          queryClient.invalidateQueries({ queryKey: ['appointments'] }); 
          
          if (variables.status === "CHECKED_IN" && data.encounterId) {
-            toast.success("تم بدء الزيارة. جاري الانتقال للملف الطبي...");
+            toast.success(t("appointments.visitStartedToast"));
             navigate(`/encounters/${data.encounterId}`);
          } else if (variables.status === "COMPLETED") {
-             toast.success("تم إنهاء الكشف بنجاح.");
+             toast.success(t("appointments.visitEndedToast"));
          } else {
-            toast.success("تم تحديث الحالة");
+            toast.success(t("appointments.statusUpdatedToast"));
          }
       },
        
       onError: (err: any) => {
-         toast.error(err?.response?.data?.message || "فشل تحديث الحالة.");
+         toast.error(err?.response?.data?.message || t("appointments.statusUpdateFailedToast"));
       }
   });
 
@@ -375,7 +378,15 @@ export default function AppointmentsPage() {
     setCurrentMonth(prev => direction === 'prev' ? subMonths(prev, 1) : addMonths(prev, 1));
   };
 
-  const weekDays = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+  const weekDays = [
+    t("appointments.calendar.sun", "الأحد"),
+    t("appointments.calendar.mon", "الاثنين"),
+    t("appointments.calendar.tue", "الثلاثاء"),
+    t("appointments.calendar.wed", "الأربعاء"),
+    t("appointments.calendar.thu", "الخميس"),
+    t("appointments.calendar.fri", "الجمعة"),
+    t("appointments.calendar.sat", "السبت")
+  ];
 
   const getStatusColor = (status: AppointmentStatus) => {
     switch (status) {
@@ -468,19 +479,19 @@ export default function AppointmentsPage() {
 
   // 3. Status Handles
   async function handleStartVisit(appt: Appointment) {
-    if (!confirm("هل تريد بدء الكشف وإنشاء ملف حالة طبية؟")) return;
+    if (!confirm(t("appointments.confirmStartVisit"))) return;
     setUpdatingId(appt.id);
     statusMutation.mutate({ id: appt.id, status: "CHECKED_IN" }, { onSettled: () => setUpdatingId(null) });
   }
 
   async function handleCompleteVisit(appt: Appointment) {
-    if (!confirm("هل تريد إنهاء الكشف وإغلاق الموعد؟")) return;
+    if (!confirm(t("appointments.confirmCompleteVisit"))) return;
     setUpdatingId(appt.id);
     statusMutation.mutate({ id: appt.id, status: "COMPLETED" }, { onSettled: () => setUpdatingId(null) });
   }
 
   async function handleChangeStatus(id: number, status: AppointmentStatus) {
-    if (!confirm("هل أنت متأكد من تغيير الحالة؟")) return;
+    if (!confirm(t("appointments.confirmChangeStatus"))) return;
     setUpdatingId(id);
     statusMutation.mutate({ id, status }, { onSettled: () => setUpdatingId(null) });
   }
@@ -503,21 +514,21 @@ export default function AppointmentsPage() {
       link.remove();
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
-      toast.error("فشل تحميل الإيصال.");
+      toast.error(t("appointments.receiptLoadFailedToast"));
     }
   }
 
   return (
     <div
       className="flex flex-col h-full text-slate-100 p-6 space-y-6"
-      dir="rtl"
+      dir={isRtl ? "rtl" : "ltr"}
     >
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold mb-1">مكتب الاستقبال والمواعيد</h1>
+          <h1 className="text-2xl font-bold mb-1">{t("appointments.title")}</h1>
           <p className="text-sm text-slate-400">
-            حجز العيادات وتسجيل حالات الطوارئ.
+            {t("appointments.subTitle")}
           </p>
         </div>
         <div className="flex gap-2">
@@ -531,7 +542,7 @@ export default function AppointmentsPage() {
                   : 'text-slate-300 hover:text-white'
               }`}
             >
-              جدول
+              {t("appointments.tableView")}
             </button>
             <button
               onClick={() => setViewMode('calendar')}
@@ -541,7 +552,7 @@ export default function AppointmentsPage() {
                   : 'text-slate-300 hover:text-white'
               }`}
             >
-              تقويم
+              {t("appointments.calendarView")}
             </button>
           </div>
           
@@ -550,14 +561,14 @@ export default function AppointmentsPage() {
             onClick={() => setShowERModal(true)}
             className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-sm font-bold shadow-lg shadow-rose-500/20 animate-pulse"
           >
-            🚨 تسجيل طوارئ
+            🚨 {t("appointments.erRegister")}
           </button>
 
           <button
             onClick={() => setShowAppointmentModal(true)}
             className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-sm font-medium shadow-lg shadow-sky-500/20"
           >
-            + حجز عيادة
+            + {t("appointments.bookClinic")}
           </button>
         </div>
       </div>
@@ -567,7 +578,7 @@ export default function AppointmentsPage() {
         {viewMode === 'table' ? (
           <div className="flex items-center gap-2 bg-slate-900/50 p-2 rounded-xl border border-slate-800 w-fit">
             <span className="text-sm text-slate-400 mr-2">
-              تاريخ العرض:
+              {t("appointments.displayDateLabel")}
             </span>
             <div className="relative max-w-sm">
               <input
@@ -603,7 +614,7 @@ export default function AppointmentsPage() {
               onClick={() => setCurrentMonth(new Date())}
               className="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm"
             >
-              اليوم
+              {t("appointments.today")}
             </button>
             
             <select
@@ -611,7 +622,7 @@ export default function AppointmentsPage() {
               onChange={(e) => setSelectedDoctor(e.target.value ? Number(e.target.value) : null)}
               className="bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm"
             >
-              <option value="">جميع الأطباء</option>
+              <option value="">{t("appointments.allDoctors")}</option>
               { }
               {doctorsList.map((doctor: any) => (
                 <option key={doctor.id} value={doctor.id}>
@@ -624,10 +635,10 @@ export default function AppointmentsPage() {
         
         <div className="flex gap-2 text-xs text-slate-300">
           <span className="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700">
-            إجمالي: {stats.total}
+            {t("appointments.totalLabel")} {stats.total}
           </span>
           <span className="px-3 py-1.5 rounded-lg bg-emerald-900/30 border border-emerald-500/30 text-emerald-400">
-            مكتملة: {stats.completed}
+            {t("appointments.completedLabel")} {stats.completed}
           </span>
         </div>
       </div>
@@ -643,14 +654,14 @@ export default function AppointmentsPage() {
         /* Appointment Table */
         <div className="flex-1 rounded-3xl border border-slate-800 bg-slate-950/80 overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className={`w-full text-sm ${isRtl ? "text-right" : "text-left"}`}>
               <thead className="bg-slate-900/50 text-slate-400 border-b border-slate-800 sticky top-0 z-10">
                 <tr>
-                  <th className="py-4 px-6 text-right font-medium">الرقم</th>
-                  <th className="py-4 px-6 text-right font-medium">الوقت</th>
-                  <th className="py-4 px-6 text-right font-medium">المريض</th>
-                  <th className="py-4 px-6 text-right font-medium">الطبيب</th>
-                  <th className="py-4 px-6 text-center font-medium min-w-[200px]">الحالة والإجراءات</th>
+                  <th className={`py-4 px-6 ${isRtl ? "text-right" : "text-left"} font-medium`}>{t("appointments.tableQueue")}</th>
+                  <th className={`py-4 px-6 ${isRtl ? "text-right" : "text-left"} font-medium`}>{t("appointments.tableTime")}</th>
+                  <th className={`py-4 px-6 ${isRtl ? "text-right" : "text-left"} font-medium`}>{t("appointments.tablePatient")}</th>
+                  <th className={`py-4 px-6 ${isRtl ? "text-right" : "text-left"} font-medium`}>{t("appointments.tableDoctor")}</th>
+                  <th className="py-4 px-6 text-center font-medium min-w-[200px]">{t("appointments.tableStatusActions")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/50">
@@ -659,7 +670,7 @@ export default function AppointmentsPage() {
                     <td colSpan={5} className="py-12 text-center text-slate-500">
                       <div className="flex items-center justify-center gap-2">
                         <div className="w-4 h-4 border-2 border-sky-500 border-t-transparent rounded-full animate-spin"></div>
-                        جارِ التحميل...
+                        {t("common.loading")}
                       </div>
                     </td>
                   </tr>
@@ -670,7 +681,7 @@ export default function AppointmentsPage() {
                         <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center">
                           <span className="text-slate-400">📅</span>
                         </div>
-                        <span>لا توجد مواعيد لهذا اليوم.</span>
+                        <span>{t("appointments.noAppointments", "لا توجد مواعيد لهذا اليوم.")}</span>
                       </div>
                     </td>
                   </tr>
@@ -709,7 +720,7 @@ export default function AppointmentsPage() {
                           {/* Status Display */}
                           <div className="flex flex-col items-center gap-1">
                             <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusClasses[appt.status]}`}>
-                              {statusLabels[appt.status]}
+                              {t("appointments." + statusLabelsKeys[appt.status])}
                             </span>
                             {appt.isEmergency && (
                               <span className="px-2 py-0.5 bg-amber-600/20 text-amber-300 border border-amber-600/40 rounded-full text-xs font-medium">
@@ -724,9 +735,7 @@ export default function AppointmentsPage() {
                               <button
                                 onClick={() => handleChangeStatus(appt.id, "CONFIRMED")}
                                 className="px-2.5 py-1 bg-emerald-700 hover:bg-emerald-600 rounded-md text-xs text-white font-medium transition-colors"
-                              >
-                                تأكيد
-                              </button>
+                              >{t("appointments.confirmBtn")}</button>
                             )}
 
                             {isDoctor && (appt.status === "CONFIRMED" || appt.status === "REQUESTED") && (
@@ -735,9 +744,7 @@ export default function AppointmentsPage() {
                                 onClick={() => handleStartVisit(appt)}
                                 className="px-2.5 py-1 bg-sky-600 hover:bg-sky-500 rounded-md text-xs text-white font-medium shadow-md shadow-sky-500/20 flex items-center gap-1 transition-all disabled:opacity-50"
                               >
-                                <span>▶</span>
-                                ابدأ
-                              </button>
+                                <span>▶</span>{t("appointments.startBtn")}</button>
                             )}
 
                             {isDoctor && appt.status === "CHECKED_IN" && appt.encounterId && (
@@ -745,15 +752,11 @@ export default function AppointmentsPage() {
                                 <button
                                   onClick={() => navigate(`/encounters/${appt.encounterId}`)}
                                   className="px-2.5 py-1 bg-amber-600 hover:bg-amber-500 rounded-md text-xs text-white font-medium transition-colors"
-                                >
-                                  ملف
-                                </button>
+                                >{t("appointments.fileBtn")}</button>
                                 <button
                                   onClick={() => handleCompleteVisit(appt)}
                                   className="px-2.5 py-1 bg-emerald-700 hover:bg-emerald-600 rounded-md text-xs text-white font-medium transition-colors"
-                                >
-                                  إنهاء
-                                </button>
+                                >{t("appointments.endBtn")}</button>
                               </>
                             )}
 
@@ -761,9 +764,7 @@ export default function AppointmentsPage() {
                               <button
                                 onClick={() => handleChangeStatus(appt.id, "CANCELLED")}
                                 className="px-2.5 py-1 text-rose-400 hover:text-rose-300 hover:bg-rose-950/30 rounded-md text-xs font-medium transition-all"
-                              >
-                                إلغاء
-                              </button>
+                              >{t("appointments.cancelBtn")}</button>
                             )}
 
                             {appt.type === "ONLINE" && appt.meetingLink && (
@@ -781,7 +782,7 @@ export default function AppointmentsPage() {
                               <button
                                 onClick={() => handlePrintReceipt(appt.id)}
                                 className="px-2.5 py-1 bg-slate-700 hover:bg-slate-600 rounded-md text-xs text-slate-200 font-medium border border-slate-600 flex items-center gap-1 transition-colors"
-                                title="طباعة تذكرة موعد"
+                                title={t("appointments.printTicketTooltip")}
                               >
                                 🖨️
                               </button>
@@ -848,7 +849,7 @@ export default function AppointmentsPage() {
                   ))}
                   {day.appointments.length > 3 && (
                     <div className="text-xs text-slate-400">
-                      +{day.appointments.length - 3} أخرى
+                      +{day.appointments.length - 3} {t("appointments.other", "أخرى")}
                     </div>
                   )}
                 </div>
@@ -865,7 +866,7 @@ export default function AppointmentsPage() {
             {/* Sticky Header */}
             <div className="sticky top-0 bg-slate-950 border-b border-slate-700 p-6 pb-4">
               <div className="flex items-center justify-between">
-                <h3 className="text-xl font-bold text-slate-100">حجز موعد عيادة</h3>
+                <h3 className="text-xl font-bold text-slate-100">{t("appointments.newAppointmentTitle")}</h3>
                 <button
                   onClick={() => setShowAppointmentModal(false)}
                   className="text-slate-400 hover:text-slate-200 transition-colors p-1 rounded-lg hover:bg-slate-800"
@@ -882,7 +883,7 @@ export default function AppointmentsPage() {
               {/* Date Selection - Custom Styled */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-slate-300">
-                  التاريخ
+                  {t("appointments.dateLabel", "التاريخ")}
                 </label>
                 <div className="relative group">
                   {/* Decorative Box */}
@@ -905,12 +906,12 @@ export default function AppointmentsPage() {
 
               {/* Patient Search */}
               <div className="space-y-2 relative">
-                <label className="text-sm font-medium text-slate-300">المريض</label>
+                <label className="text-sm font-medium text-slate-300">{t("appointments.tablePatient")}</label>
                 <div className="relative">
                   <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                   <input
                     type="text"
-                    placeholder="ابحث عن مريض بالاسم أو الرقم الطبي..."
+                    placeholder={t("appointments.searchPatientPlaceholder")}
                     value={patientSearch}
                     onChange={(e) => {
                       setPatientSearch(e.target.value);
@@ -952,13 +953,13 @@ export default function AppointmentsPage() {
                             </span>
                           </div>
                           {form.patientId === String(p.id) && (
-                            <span className="text-sky-500 text-xs">تم الاختيار</span>
+                            <span className="text-sky-500 text-xs">{t("appointments.selected")}</span>
                           )}
                         </div>
                       ))}
                     {getFilteredPatients(patientSearch).length === 0 && (
                       <div className="p-4 text-center text-slate-500 text-sm">
-                        لا توجد نتائج مطابقة
+                        {t("appointments.noMatches")}
                       </div>
                     )}
                   </div>
@@ -967,13 +968,13 @@ export default function AppointmentsPage() {
 
               {/* Doctor Selection */}
               <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-300">الطبيب المعالج</label>
+                <label className="text-sm font-medium text-slate-300">{t("appointments.tableDoctor")}</label>
                 <select
                   className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-sm focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 outline-none transition-all"
                   value={form.doctorId}
                   onChange={(e) => setForm({ ...form, doctorId: e.target.value })}
                 >
-                  <option value="">-- اختر طبيباً --</option>
+                  <option value="">{t("appointments.selectDoctorPlaceholder")}</option>
                   {doctorsList.map((d) => (
                     <option key={d.id} value={d.id}>
                       {d.fullName}
@@ -1015,12 +1016,12 @@ export default function AppointmentsPage() {
                   return (
                     <div className="bg-gradient-to-r from-slate-900/50 to-slate-800/50 p-4 rounded-xl border border-slate-700 space-y-4">
                       <div className="text-sm font-semibold text-slate-200 flex items-center gap-2">
-                        📊 إحصائيات اليوم - {doc.fullName}
+                        📊 {t("appointments.stats.todayStats")} - {doc.fullName}
                       </div>
                       
                       <div className="grid grid-cols-2 gap-3">
                         <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-600">
-                          <div className="text-xs text-slate-400 mb-1">الأرقام المحجوزة</div>
+                          <div className="text-xs text-slate-400 mb-1">{t("appointments.stats.reservedNumbers")}</div>
                           <div className="text-lg font-bold text-sky-400">{remainingReserved}/{reservedNumbers.length}</div>
                           <div className="w-full bg-slate-700 rounded-full h-1.5 mt-2">
                             <div 
@@ -1030,7 +1031,7 @@ export default function AppointmentsPage() {
                           </div>
                         </div>
                         <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-600">
-                          <div className="text-xs text-slate-400 mb-1">الحد اليومي</div>
+                          <div className="text-xs text-slate-400 mb-1">{t("appointments.stats.dailyLimit")}</div>
                           <div className="text-lg font-bold text-emerald-400">{remainingTotal}/{maxPerDay}</div>
                           <div className="w-full bg-slate-700 rounded-full h-1.5 mt-2">
                             <div 
@@ -1040,7 +1041,7 @@ export default function AppointmentsPage() {
                           </div>
                         </div>
                         <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-600">
-                          <div className="text-xs text-slate-400 mb-1">حالات الطوارئ</div>
+                          <div className="text-xs text-slate-400 mb-1">{t("appointments.stats.emergencyCases")}</div>
                           <div className="text-lg font-bold text-amber-400">{remainingEmergency}/{maxEmergency}</div>
                           <div className="w-full bg-slate-700 rounded-full h-1.5 mt-2">
                             <div 
@@ -1050,7 +1051,7 @@ export default function AppointmentsPage() {
                           </div>
                         </div>
                         <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-600">
-                          <div className="text-xs text-slate-400 mb-1">حالات عادية</div>
+                          <div className="text-xs text-slate-400 mb-1">{t("appointments.stats.normalCases")}</div>
                           <div className="text-lg font-bold text-blue-400">{remainingNormal}/{maxPerDay - reservedNumbers.length}</div>
                           <div className="w-full bg-slate-700 rounded-full h-1.5 mt-2">
                             <div 
@@ -1065,21 +1066,21 @@ export default function AppointmentsPage() {
                       {remainingTotal === 0 && (
                         <div className="bg-rose-950/30 border border-rose-800 p-3 rounded-lg text-sm text-rose-300 flex items-center gap-2 animate-pulse">
                           <span>⚠️</span>
-                          <span>وصلت للحد الأقصى اليومي</span>
+                          <span>{t("appointments.stats.limitReached")}</span>
                         </div>
                       )}
                       
                       {form.isSpecial && remainingEmergency === 0 && (
                         <div className="bg-amber-950/30 border border-amber-800 p-3 rounded-lg text-sm text-amber-300 flex items-center gap-2 animate-pulse">
                           <span>⚠️</span>
-                          <span>لا توجد أرقام محجوزة متاحة للطوارئ</span>
+                          <span>{t("appointments.stats.noReservedLeft")}</span>
                         </div>
                       )}
                       
                       {remainingNormal === 0 && !form.isSpecial && remainingTotal > 0 && (
                         <div className="bg-blue-950/30 border border-blue-800 p-3 rounded-lg text-sm text-blue-300 flex items-center gap-2">
                           <span>ℹ️</span>
-                          <span>فقط الأرقام المحجوزة متاحة (حالات خاصة)</span>
+                          <span>{t("appointments.stats.onlyReservedLeft")}</span>
                         </div>
                       )}
                     </div>
@@ -1091,7 +1092,7 @@ export default function AppointmentsPage() {
               {/* Time Selection */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-300">وقت البدء</label>
+                  <label className="text-sm font-medium text-slate-300">{t("appointments.startTime")}</label>
                   <input
                     type="time"
                     className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-sm focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 outline-none transition-all"
@@ -1102,7 +1103,7 @@ export default function AppointmentsPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-300">وقت الانتهاء</label>
+                  <label className="text-sm font-medium text-slate-300">{t("appointments.endTime")}</label>
                   <input
                     type="time"
                     className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-sm focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 outline-none transition-all"
@@ -1131,10 +1132,10 @@ export default function AppointmentsPage() {
                               <div className={`p-3 rounded-lg border text-sm ${isInvalidDay ? 'bg-rose-950/30 border-rose-800 text-rose-300' : 'bg-emerald-950/30 border-emerald-800 text-emerald-400'}`}>
                                   <div className="font-semibold flex items-center gap-2">
                                       {isInvalidDay ? <span>⚠️</span> : <span>✅</span>}
-                                      {isInvalidDay ? 'الطبيب لا يعمل في هذا اليوم!' : 'الطبيب متاح في هذا اليوم'}
+                                      {isInvalidDay ? t("appointments.availability.doctorNotWorking") : t("appointments.availability.doctorAvailable")}
                                   </div>
                                   <div className="mt-1 text-xs opacity-90">
-                                      أيام العمل: {allowedNames}
+                                      {t("appointments.availability.workDays")} {allowedNames}
                                   </div>
                               </div>
                           );
@@ -1150,9 +1151,9 @@ export default function AppointmentsPage() {
                               <div className="bg-gradient-to-r from-emerald-900/20 to-emerald-800/20 border border-emerald-700 p-4 rounded-xl flex justify-between items-center">
                                 <span className="text-sm text-emerald-200 font-medium flex items-center gap-2">
                                   <span>💰</span>
-                                  سعر الكشف:
+                                  {t("appointments.availability.price")}
                                 </span>
-                                <span className="text-xl font-bold text-emerald-400">{priceDisplay} د.ل</span>
+                                <span className="text-xl font-bold text-emerald-400">{priceDisplay} {t("appointments.currency")}</span>
                               </div>
                           </div>
                       );
@@ -1162,7 +1163,7 @@ export default function AppointmentsPage() {
 
               {/* Appointment Type */}
               <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-700">
-                <label className="text-sm font-medium text-slate-300 block mb-3">نوع الموعد</label>
+                <label className="text-sm font-medium text-slate-300 block mb-3">{t("appointments.bookingType")}</label>
                 <div className="flex gap-4">
                   <label className="flex items-center gap-3 cursor-pointer group">
                     <input
@@ -1172,7 +1173,7 @@ export default function AppointmentsPage() {
                       onChange={() => setForm({ ...form, type: "IN_PERSON" })}
                       className="w-4 h-4 accent-sky-500"
                     />
-                    <span className="text-sm text-slate-300 group-hover:text-slate-200 transition-colors">عيادة (In-Person)</span>
+                    <span className="text-sm text-slate-300 group-hover:text-slate-200 transition-colors">{t("appointments.inPerson")}</span>
                   </label>
                   <label className="flex items-center gap-3 cursor-pointer group">
                     <input
@@ -1182,7 +1183,7 @@ export default function AppointmentsPage() {
                       onChange={() => setForm({ ...form, type: "ONLINE" })}
                       className="w-4 h-4 accent-purple-500"
                     />
-                    <span className="text-sm text-slate-300 group-hover:text-slate-200 transition-colors">أونلاين (Telemedicine) 📹</span>
+                    <span className="text-sm text-slate-300 group-hover:text-slate-200 transition-colors">{t("appointments.online")} 📹</span>
                   </label>
                 </div>
               </div>
@@ -1200,9 +1201,9 @@ export default function AppointmentsPage() {
                   <div className="flex-1">
                     <span className="text-sm font-medium text-amber-300 flex items-center gap-2">
                       <span>⚠️</span>
-                      حالة خاصة/طوارئ
+                      {t("appointments.specialCase")}
                     </span>
-                    <span className="text-xs text-amber-500 block mt-1">سيتم استخدام رقم محجوز للحالات الخاصة</span>
+                    <span className="text-xs text-amber-500 block mt-1">{t("appointments.specialCaseDesc")}</span>
                   </div>
                 </label>
               </div>
@@ -1226,7 +1227,7 @@ export default function AppointmentsPage() {
                     <div className="bg-gradient-to-r from-amber-950/30 to-amber-900/30 border border-amber-700 p-4 rounded-xl space-y-3">
                       <div className="text-sm font-medium text-amber-300 flex items-center gap-2">
                         <span>🔢</span>
-                        الأرقام المحجوزة المتاحة:
+                        {t("appointments.stats.availableReserved")}
                       </div>
                       
                       {/* Available Numbers Grid */}
@@ -1265,22 +1266,22 @@ export default function AppointmentsPage() {
                         <div className="flex items-center gap-4">
                           <div className="flex items-center gap-1">
                             <div className="w-3 h-3 bg-emerald-900/30 border border-emerald-700 rounded"></div>
-                            <span className="text-amber-400">متاح ({availableReservedNumbers.length})</span>
+                            <span className="text-amber-400">{t("appointments.available")} ({availableReservedNumbers.length})</span>
                           </div>
                           <div className="flex items-center gap-1">
                             <div className="w-3 h-3 bg-rose-900/30 border border-rose-700 rounded"></div>
-                            <span className="text-amber-400">محجوز ({usedReservedNumbers.length})</span>
+                            <span className="text-amber-400">{t("appointments.reserved")} ({usedReservedNumbers.length})</span>
                           </div>
                         </div>
                         <div className="text-amber-500">
-                          سيتم اختيار أول رقم متاح: {availableReservedNumbers.length > 0 ? availableReservedNumbers[0] : 'لا يوجد'}
+                          {t("appointments.firstAvailableNum")} {availableReservedNumbers.length > 0 ? availableReservedNumbers[0] : t("appointments.none")}
                         </div>
                       </div>
                       
                       {availableReservedNumbers.length === 0 && (
                         <div className="bg-rose-950/30 border border-rose-800 p-3 rounded-lg text-sm text-rose-300 flex items-center gap-2 animate-pulse">
                           <span>⚠️</span>
-                          <span>جميع الأرقام المحجوزة تم حجزها</span>
+                          <span>{t("appointments.allReservedUsed")}</span>
                         </div>
                       )}
                     </div>
@@ -1297,14 +1298,14 @@ export default function AppointmentsPage() {
                   onClick={() => setShowAppointmentModal(false)}
                   className="px-6 py-3 bg-slate-800 hover:bg-slate-700 rounded-xl text-slate-300 text-sm font-medium transition-colors"
                 >
-                  إلغاء
+                  {t("common.cancel")}
                 </button>
                 <button
                   onClick={handleCreateAppointment}
                   disabled={creating}
                   className="px-8 py-3 bg-gradient-to-r from-sky-600 to-sky-500 hover:from-sky-500 hover:to-sky-400 rounded-xl text-white text-sm font-semibold shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {creating ? "جاري الحفظ..." : "حفظ الموعد"}
+                  {creating ? t("appointments.savingBtn") : t("appointments.saveBtn")}
                 </button>
               </div>
             </div>
@@ -1317,15 +1318,15 @@ export default function AppointmentsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
           <div className="bg-slate-950 border border-rose-700/50 rounded-2xl p-6 w-full max-w-md space-y-4 shadow-2xl shadow-rose-900/20">
             <h3 className="text-lg font-bold text-rose-400 flex items-center gap-2">
-              🚨 تسجيل حالة طوارئ جديدة
+              🚨 {t("appointments.er.registerNewTitle")}
             </h3>
 
             <div className="space-y-1 bg-slate-900/50 p-3 rounded-xl border border-slate-800">
               <label className="text-xs text-slate-400 block mb-1">
-                بحث عن مريض <span className="text-rose-400">*</span>
+                {t("appointments.er.searchPatient")} <span className="text-rose-400">*</span>
               </label>
               <input
-                placeholder="اسم، ملف، هاتف..."
+                placeholder={t("appointments.er.searchPatientPlaceholder")}
                 className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:border-rose-500 outline-none mb-2"
                 value={erPatientSearch}
                 onChange={(e) => setErPatientSearch(e.target.value)}
@@ -1350,12 +1351,12 @@ export default function AppointmentsPage() {
 
             <div className="space-y-1">
               <label className="text-xs text-slate-400">
-                الشكوى الرئيسية (اختياري)
+                {t("appointments.er.chiefComplaintLabel")}
               </label>
               <textarea
                 rows={2}
                 className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:border-rose-500 outline-none"
-                placeholder="مثال: ألم شديد في الصدر، ضيق تنفس..."
+                placeholder={t("appointments.er.chiefComplaintPlaceholder")}
                 value={erForm.complaint}
                 onChange={(e) =>
                   setErForm({ ...erForm, complaint: e.target.value })
@@ -1368,14 +1369,14 @@ export default function AppointmentsPage() {
                 onClick={() => setShowERModal(false)}
                 className="px-4 py-2 bg-slate-800 rounded-xl text-slate-300 text-sm hover:bg-slate-700"
               >
-                إلغاء
+                {t("common.cancel")}
               </button>
               <button
                 onClick={handleRegisterER}
                 disabled={creating}
                 className="px-6 py-2 bg-rose-600 hover:bg-rose-500 rounded-xl text-white text-sm font-bold shadow-lg animate-pulse"
               >
-                تسجيل الحالة فوراً
+                {t("appointments.er.registerImmediatelyBtn")}
               </button>
             </div>
           </div>

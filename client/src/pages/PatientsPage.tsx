@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { apiClient } from "../api/apiClient";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { Patient, PatientLite, GlobalPatientSearchResult } from "@/types";
 import { toast } from "sonner";
@@ -52,6 +53,8 @@ const calculateAge = (dob: string | null) => {
 };
 
 export function PatientsPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -131,14 +134,14 @@ export function PatientsPage() {
       queryClient.invalidateQueries({ queryKey: ["patients"] });
       toast.success(
         editingPatient
-          ? "تم تحديث بيانات المريض بنجاح"
-          : "تم تسجيل المريض بنجاح",
+          ? t("patients.successUpdate")
+          : t("patients.successAdd"),
       );
       setModalOpen(false);
     },
      
     onError: (err: any) => {
-      toast.error(err.response?.data?.message || "فشل في حفظ البيانات");
+      toast.error(err.response?.data?.message || t("patients.failedSave"));
     },
   });
 
@@ -149,10 +152,10 @@ export function PatientsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["patients"] });
-      toast.success("تمت الأرشفة بنجاح");
+      toast.success(t("patients.successArchive"));
     },
     onError: () => {
-      toast.error("فشل في أرشفة السجل");
+      toast.error(t("patients.failedArchive"));
     },
   });
 
@@ -240,7 +243,7 @@ export function PatientsPage() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.fullName) return toast.error("اسم المريض مطلوب");
+    if (!formData.fullName) return toast.error(t("patients.nameRequired"));
 
     const payload = {
       ...formData,
@@ -253,7 +256,7 @@ export function PatientsPage() {
   };
 
   const handleSoftDelete = async (p: Patient) => {
-    if (!confirm(`هل أنت متأكد من أرشفة سجل المريض "${p.fullName}"؟`)) return;
+    if (!confirm(`${t("patients.confirmArchive")} "${p.fullName}"؟`)) return;
     deleteMutation.mutate(p.id);
   };
 
@@ -270,16 +273,16 @@ export function PatientsPage() {
   return (
     <div
       className="flex flex-col h-full text-slate-100 p-4 md:p-6 space-y-6"
-      dir="rtl"
+      dir={isRtl ? "rtl" : "ltr"}
     >
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-3xl font-black text-white tracking-tight">
-            سجل المرضى الموحد
+            {t("patients.title")}
           </h1>
           <p className="text-sm text-slate-400">
-            إدارة الملفات الطبية الإلكترونية وتتبع حالات التأمين.
+            {t("patients.subTitle")}
           </p>
         </div>
         <div className="flex gap-3">
@@ -287,13 +290,13 @@ export function PatientsPage() {
             onClick={() => setMpiModalOpen(true)}
             className="px-6 py-2.5 bg-violet-600/20 border border-violet-500/50 hover:bg-violet-600/40 text-violet-300 rounded-2xl text-sm font-bold transition-all active:scale-95 flex items-center gap-2"
           >
-            🔍 البحث الإقليمي (MPI)
+            🔍 {t("patients.mpiSearch")}
           </button>
           <button
             onClick={() => openModal()}
             className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl text-sm font-bold shadow-lg shadow-emerald-900/20 transition-all active:scale-95"
           >
-            + تسجيل مريض جديد
+            + {t("patients.addNew")}
           </button>
         </div>
       </div>
@@ -301,12 +304,12 @@ export function PatientsPage() {
       {/* Search & Stats */}
       <div className="grid grid-cols-1 xl:grid-cols-4 gap-4">
         <div className="xl:col-span-3 relative group">
-          <span className="absolute inset-y-0 right-4 flex items-center text-slate-500">
+          <span className={`absolute inset-y-0 ${isRtl ? "right-4" : "left-4"} flex items-center text-slate-500`}>
             🔍
           </span>
           <input
-            className="w-full bg-slate-900/60 border border-slate-800 rounded-2xl pr-12 pl-4 py-3 text-sm focus:border-sky-500 outline-none transition-all placeholder:text-slate-600 shadow-inner"
-            placeholder="البحث بالاسم، رقم الملف، الهاتف، أو الرقم الوطني..."
+            className={`w-full bg-slate-900/60 border border-slate-800 rounded-2xl ${isRtl ? "pr-12 pl-4" : "pl-12 pr-4"} py-3 text-sm focus:border-sky-500 outline-none transition-all placeholder:text-slate-600 shadow-inner`}
+            placeholder={t("patients.searchPlaceholder")}
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);
@@ -316,12 +319,12 @@ export function PatientsPage() {
         </div>
         <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-3 flex items-center justify-around text-xs">
           <div className="text-center">
-            <div className="text-slate-500">الإجمالي</div>
+            <div className="text-slate-500">{t("patients.statsTotal")}</div>
             <div className="font-bold text-white">{meta?.totalCount ?? 0}</div>
           </div>
           <div className="w-px h-8 bg-slate-800"></div>
           <div className="text-center">
-            <div className="text-slate-500">النتائج</div>
+            <div className="text-slate-500">{t("patients.statsResults")}</div>
             <div className="font-bold text-sky-400">{patients.length}</div>
           </div>
         </div>
@@ -330,24 +333,24 @@ export function PatientsPage() {
       {/* Main Table */}
       <div className="flex-1 bg-slate-900/50 border border-slate-800 rounded-3xl overflow-hidden flex flex-col shadow-2xl">
         <div className="overflow-x-auto custom-scrollbar flex-1">
-          <table className="w-full text-sm text-right">
+          <table className={`w-full text-sm ${isRtl ? "text-right" : "text-left"}`}>
             <thead className="bg-slate-950/50 text-slate-500 sticky top-0 backdrop-blur z-10">
               <tr className="text-[10px] uppercase tracking-widest border-b border-slate-800">
-                <th className="px-6 py-4 font-bold">الملف (MRN)</th>
-                <th className="px-6 py-4 font-bold">المريض</th>
+                <th className="px-6 py-4 font-bold">{t("patients.tableNo")}</th>
+                <th className="px-6 py-4 font-bold">{t("patients.tableName")}</th>
                 <th className="px-6 py-4 font-bold text-center">
-                  العمر / الجنس
+                  {t("patients.tableAgeGender")}
                 </th>
-                <th className="px-6 py-4 font-bold">التأمين</th>
-                <th className="px-6 py-4 font-bold">الحالة</th>
-                <th className="px-6 py-4 font-bold text-center">الإجراءات</th>
+                <th className="px-6 py-4 font-bold">{t("patients.tableInsurance")}</th>
+                <th className="px-6 py-4 font-bold">{t("patients.tableStatus")}</th>
+                <th className="px-6 py-4 font-bold text-center">{t("patients.tableActions")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/50">
               {loading ? (
                 <tr>
                   <td colSpan={6} className="text-center py-10">
-                    جارِ التحميل...
+                    {t("common.loading")}
                   </td>
                 </tr>
               ) : (
@@ -365,7 +368,7 @@ export function PatientsPage() {
                       </div>
                       <div className="flex items-center gap-2 mt-0.5">
                         <span className="text-[10px] text-slate-500">
-                          هاتف: {p.phone || "—"}
+                          {t("patients.phoneLabel")} {p.phone || "—"}
                         </span>
                         {p.globalPatient && (
                           <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-violet-900/30 text-violet-400 font-bold border border-violet-800/40">
@@ -377,12 +380,12 @@ export function PatientsPage() {
                     <td className="px-6 py-4 text-center">
                       <div className="flex flex-col items-center gap-1">
                         <span className="text-slate-200">
-                          {calculateAge(p.dateOfBirth)} سنة
+                          {calculateAge(p.dateOfBirth)} {t("patients.years")}
                         </span>
                         <span
                           className={`text-[10px] px-1.5 rounded ${p.gender === "MALE" ? "bg-blue-900/30 text-blue-400" : "bg-rose-900/30 text-rose-400"}`}
                         >
-                          {p.gender === "MALE" ? "ذكر" : "أنثى"}
+                          {p.gender === "MALE" ? t("patients.genderMale") : t("patients.genderFemale")}
                         </span>
                       </div>
                     </td>
@@ -397,7 +400,7 @@ export function PatientsPage() {
                           </span>
                         </div>
                       ) : (
-                        <span className="text-slate-600 text-[10px]">نقدي</span>
+                        <span className="text-slate-600 text-[10px]">{t("patients.cash")}</span>
                       )}
                     </td>
                     <td className="px-6 py-4">
@@ -407,7 +410,7 @@ export function PatientsPage() {
                         <span
                           className={`w-1.5 h-1.5 rounded-full ${p.isActive ? "bg-emerald-500 animate-pulse" : "bg-slate-700"}`}
                         ></span>
-                        {p.isActive ? "نشط" : "مؤرشف"}
+                        {p.isActive ? t("patients.statusActive") : t("patients.statusArchived")}
                       </span>
                     </td>
                     <td className="px-6 py-4">
@@ -418,7 +421,7 @@ export function PatientsPage() {
                             navigate(`/encounters?patientId=${p.id}`)
                           }
                           className="p-2 bg-slate-800 hover:bg-sky-900/40 text-sky-400 rounded-xl transition-all border border-slate-700"
-                          title="الملف الطبي"
+                          title={t("patients.tooltips.medicalRecord")}
                         >
                           📑
                         </button>
@@ -426,7 +429,7 @@ export function PatientsPage() {
                         <button
                           onClick={() => openModal(p)}
                           className="p-2 bg-slate-800 hover:bg-amber-900/40 text-amber-400 rounded-xl transition-all border border-slate-700"
-                          title="تعديل"
+                          title={t("patients.tooltips.edit")}
                         >
                           ✏️
                         </button>
@@ -436,7 +439,7 @@ export function PatientsPage() {
                             navigate(`/patients/${p.id}/statement`)
                           }
                           className="p-2 bg-slate-800 hover:bg-emerald-900/40 text-emerald-400 rounded-xl transition-all border border-slate-700"
-                          title="كشف حساب"
+                          title={t("patients.tooltips.statement")}
                         >
                           💰
                         </button>
@@ -446,7 +449,7 @@ export function PatientsPage() {
                             navigate(`/patients/${p.id}/chart`)
                           }
                           className="p-2 bg-slate-800 hover:bg-sky-900/40 text-sky-400 rounded-xl transition-all border border-slate-700"
-                          title="السجل الطبي الشامل (EMR)"
+                          title={t("patients.tooltips.emr")}
                         >
                           📋
                         </button>
@@ -456,7 +459,7 @@ export function PatientsPage() {
                             navigate(`/patients/${p.id}/consents`)
                           }
                           className="p-2 bg-slate-800 hover:bg-rose-900/40 text-rose-400 rounded-xl transition-all border border-slate-700 font-bold"
-                          title="نماذج الموافقة"
+                          title={t("patients.tooltips.consents")}
                         >
                           ✍️
                         </button>
@@ -465,7 +468,7 @@ export function PatientsPage() {
                         <button
                           onClick={() => handleSoftDelete(p)}
                           className="p-2 hover:bg-rose-900/30 text-slate-600 hover:text-rose-400 rounded-xl transition-all border hover:border-rose-900/50"
-                          title="أرشفة"
+                          title={t("patients.tooltips.archive")}
                         >
                           🗑️
                         </button>
@@ -481,7 +484,7 @@ export function PatientsPage() {
         {/* Pagination */}
         <div className="bg-slate-950/80 border-t border-slate-800 px-6 py-4 flex justify-between items-center text-xs">
           <div className="text-slate-500">
-            صفحة {page} من {meta?.totalPages || 1}
+            {t("patients.paginationPage")} {page} {t("patients.paginationOf")} {meta?.totalPages || 1}
           </div>
           <div className="flex gap-2">
             <button
@@ -489,14 +492,14 @@ export function PatientsPage() {
               onClick={() => setPage((p) => p - 1)}
               className="px-3 py-1 bg-slate-900 border border-slate-800 rounded-lg disabled:opacity-20"
             >
-              السابق
+              {t("patients.prev")}
             </button>
             <button
               disabled={page >= (meta?.totalPages || 1)}
               onClick={() => setPage((p) => p + 1)}
               className="px-3 py-1 bg-slate-900 border border-slate-800 rounded-lg disabled:opacity-20"
             >
-              التالي
+              {t("patients.next")}
             </button>
           </div>
         </div>
@@ -512,7 +515,7 @@ export function PatientsPage() {
             {/* Modal Header - Fixed */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800 flex-shrink-0">
               <h2 className="text-lg md:text-xl font-bold text-white">
-                {editingPatient ? "✏️ تعديل بيانات المريض" : "➕ تسجيل مريض جديد"}
+                {editingPatient ? t("patients.editPatientTitle") : t("patients.newPatientTitle")}
               </h2>
               <button onClick={() => setModalOpen(false)} className="w-9 h-9 flex items-center justify-center rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors text-lg">✕</button>
             </div>
@@ -523,11 +526,11 @@ export function PatientsPage() {
               {/* === القسم 1: البيانات الأساسية === */}
               <div className="space-y-1.5">
                 <h3 className="text-xs font-bold text-sky-400 flex items-center gap-1.5 pb-2 border-b border-slate-800/60">
-                  <span>👤</span> البيانات الأساسية
+                  <span>👤</span> {t("patients.basicInfo")}
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
                   <div className="space-y-1.5 sm:col-span-2">
-                    <label className="text-slate-400 text-xs font-medium">الاسم الكامل *</label>
+                    <label className="text-slate-400 text-xs font-medium">{t("patients.fullName")} *</label>
                     <input
                       name="fullName"
                       className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:border-sky-500 outline-none transition-colors"
@@ -538,27 +541,27 @@ export function PatientsPage() {
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-slate-400 text-xs font-medium">الرقم الوطني</label>
+                    <label className="text-slate-400 text-xs font-medium">{t("patients.nationalId")}</label>
                     <input
                       name="nationalId"
                       className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:border-sky-500 outline-none transition-colors"
                       value={formData.nationalId}
                       onChange={(e) => setFormData({ ...formData, nationalId: e.target.value })}
                       onBlur={handleNationalIdBlur}
-                      placeholder="أدخل الرقم الوطني للبحث في الشبكة الوطنية..."
+                      placeholder={t("patients.nationalIdPlaceholder")}
                     />
                     {searchingGlobal && (
-                      <p className="text-[10px] text-sky-400 mt-1 animate-pulse">🔄 جارِ البحث في الشبكة الوطنية...</p>
+                      <p className="text-[10px] text-sky-400 mt-1 animate-pulse">{t("patients.searchingNational")}</p>
                     )}
                     {globalMatch?.found && (
-                      <p className="text-[10px] text-violet-400 mt-1 font-bold">✨ تم العثور على سجل وطني: {globalMatch.patient?.fullName}</p>
+                      <p className="text-[10px] text-violet-400 mt-1 font-bold">{t("patients.foundNational")} {globalMatch.patient?.fullName}</p>
                     )}
                     {globalMatch && !globalMatch.found && (
-                      <p className="text-[10px] text-slate-500 mt-1">لا يوجد سجل وطني سابق — سيتم إنشاء سجل جديد</p>
+                      <p className="text-[10px] text-slate-500 mt-1">{t("patients.noNationalRecord")}</p>
                     )}
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-slate-400 text-xs font-medium">تاريخ الميلاد</label>
+                    <label className="text-slate-400 text-xs font-medium">{t("patients.dob")}</label>
                     <DatePicker
                       date={formData.dateOfBirth ? new Date(formData.dateOfBirth) : undefined}
                       onChange={(d) => setFormData({ ...formData, dateOfBirth: d ? d.toISOString().slice(0, 10) : "" })}
@@ -566,28 +569,28 @@ export function PatientsPage() {
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-slate-400 text-xs font-medium">الجنس</label>
+                    <label className="text-slate-400 text-xs font-medium">{t("patients.gender")}</label>
                     <select
                       name="gender"
                       className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:border-sky-500 outline-none transition-colors appearance-none"
                       value={formData.gender || ""}
                       onChange={(e) => setFormData({ ...formData, gender: e.target.value as Gender })}
                     >
-                      <option value="MALE">ذكر</option>
-                      <option value="FEMALE">أنثى</option>
+                      <option value="MALE">{t("patients.genderMale")}</option>
+                      <option value="FEMALE">{t("patients.genderFemale")}</option>
                     </select>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-slate-400 text-xs font-medium">الحالة الاجتماعية</label>
+                    <label className="text-slate-400 text-xs font-medium">{t("patients.maritalStatus")}</label>
                     <select
                       className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:border-sky-500 outline-none transition-colors appearance-none"
                       value={formData.maritalStatus}
                       onChange={(e) => setFormData({ ...formData, maritalStatus: e.target.value })}
                     >
-                      <option value="SINGLE">أعزب / عزباء</option>
-                      <option value="MARRIED">متزوج / ة</option>
-                      <option value="DIVORCED">مطلق / ة</option>
-                      <option value="WIDOWED">أرمل / ة</option>
+                      <option value="SINGLE">{t("patients.single")}</option>
+                      <option value="MARRIED">{t("patients.married")}</option>
+                      <option value="DIVORCED">{t("patients.divorced")}</option>
+                      <option value="WIDOWED">{t("patients.widowed")}</option>
                     </select>
                   </div>
                 </div>
@@ -596,11 +599,11 @@ export function PatientsPage() {
               {/* === القسم 2: بيانات التواصل === */}
               <div className="space-y-1.5">
                 <h3 className="text-xs font-bold text-emerald-400 flex items-center gap-1.5 pb-2 border-b border-slate-800/60">
-                  <span>📞</span> بيانات التواصل
+                  <span>📞</span> {t("patients.contactInfo")}
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
                   <div className="space-y-1.5">
-                    <label className="text-slate-400 text-xs font-medium">رقم الهاتف</label>
+                    <label className="text-slate-400 text-xs font-medium">{t("patients.phone")}</label>
                     <input
                       name="phone"
                       type="tel"
@@ -610,7 +613,7 @@ export function PatientsPage() {
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-slate-400 text-xs font-medium">العنوان</label>
+                    <label className="text-slate-400 text-xs font-medium">{t("patients.address")}</label>
                     <input
                       className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:border-sky-500 outline-none transition-colors"
                       value={formData.address}
@@ -623,11 +626,11 @@ export function PatientsPage() {
               {/* === القسم 3: الوثائق والهوية === */}
               <div className="space-y-1.5">
                 <h3 className="text-xs font-bold text-amber-400 flex items-center gap-1.5 pb-2 border-b border-slate-800/60">
-                  <span>🪪</span> الوثائق والهوية
+                  <span>🪪</span> {t("patients.documentsIdentity")}
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
                   <div className="space-y-1.5">
-                    <label className="text-slate-400 text-xs font-medium">إسم الأم</label>
+                    <label className="text-slate-400 text-xs font-medium">{t("patients.motherName")}</label>
                     <input
                       className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:border-sky-500 outline-none transition-colors"
                       value={formData.motherName}
@@ -635,7 +638,7 @@ export function PatientsPage() {
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-slate-400 text-xs font-medium">رقم القيد</label>
+                    <label className="text-slate-400 text-xs font-medium">{t("patients.registryNumber")}</label>
                     <input
                       className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:border-sky-500 outline-none transition-colors"
                       value={formData.registryNumber}
@@ -643,7 +646,7 @@ export function PatientsPage() {
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-slate-400 text-xs font-medium">رقم كتيب العائلة</label>
+                    <label className="text-slate-400 text-xs font-medium">{t("patients.familyBooklet")}</label>
                     <input
                       className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:border-sky-500 outline-none transition-colors"
                       value={formData.familyBooklet}
@@ -651,7 +654,7 @@ export function PatientsPage() {
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-slate-400 text-xs font-medium">رقم ورقة العائلة</label>
+                    <label className="text-slate-400 text-xs font-medium">{t("patients.familySheet")}</label>
                     <input
                       className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:border-sky-500 outline-none transition-colors"
                       value={formData.familySheet}
@@ -659,21 +662,21 @@ export function PatientsPage() {
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-slate-400 text-xs font-medium">نوع الهوية</label>
+                    <label className="text-slate-400 text-xs font-medium">{t("patients.identityType")}</label>
                     <select
                       className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:border-sky-500 outline-none transition-colors appearance-none"
                       value={formData.identityType}
                       onChange={(e) => setFormData({ ...formData, identityType: e.target.value })}
                     >
-                      <option value="PERSONAL_ID">بطاقة شخصية</option>
-                      <option value="PASSPORT">جواز سفر</option>
+                      <option value="PERSONAL_ID">{t("patients.personalId")}</option>
+                      <option value="PASSPORT">{t("patients.passport")}</option>
                     </select>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-slate-400 text-xs font-medium">رقم الهوية</label>
+                    <label className="text-slate-400 text-xs font-medium">{t("patients.identityNumber")}</label>
                     <input
                       className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:border-sky-500 outline-none transition-colors"
-                      placeholder="أدخل رقم البطاقة أو الجواز"
+                      placeholder={t("patients.identityNumberPlaceholder")}
                       value={formData.identityNumber}
                       onChange={(e) => setFormData({ ...formData, identityNumber: e.target.value })}
                     />
@@ -684,38 +687,38 @@ export function PatientsPage() {
               {/* === القسم 4: التأمين الصحي === */}
               <div className="space-y-1.5">
                 <h3 className="text-xs font-bold text-violet-400 flex items-center gap-1.5 pb-2 border-b border-slate-800/60">
-                  <span>🏥</span> التأمين الصحي
+                  <span>🏥</span> {t("patients.insurance")}
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
                   <div className="space-y-1.5 sm:col-span-2">
-                    <label className="text-slate-400 text-xs font-medium">شركة التأمين</label>
+                    <label className="text-slate-400 text-xs font-medium">{t("patients.insuranceProvider")}</label>
                     <select
                       className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:border-sky-500 outline-none transition-colors appearance-none"
                       value={formData.insuranceProviderId}
                       onChange={(e) => setFormData({ ...formData, insuranceProviderId: e.target.value, insurancePolicyId: "" })}
                     >
-                      <option value="">-- دفع نقدي --</option>
+                      <option value="">{t("patients.cashPayment")}</option>
                       {providers.map((p) => (
                         <option key={p.id} value={p.id}>{p.name}</option>
                       ))}
                     </select>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-slate-400 text-xs font-medium">العقد / البوليصة</label>
+                    <label className="text-slate-400 text-xs font-medium">{t("patients.insurancePolicy")}</label>
                     <select
                       className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:border-sky-500 outline-none transition-colors appearance-none disabled:opacity-50"
                       disabled={!formData.insuranceProviderId}
                       value={formData.insurancePolicyId}
                       onChange={(e) => setFormData({ ...formData, insurancePolicyId: e.target.value })}
                     >
-                      <option value="">-- اختر العقد --</option>
+                      <option value="">{t("patients.selectPolicy")}</option>
                       {activePolicies.map((pol) => (
                         <option key={pol.id} value={pol.id}>{pol.name}</option>
                       ))}
                     </select>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-slate-400 text-xs font-medium">رقم بطاقة التأمين</label>
+                    <label className="text-slate-400 text-xs font-medium">{t("patients.insuranceMemberId")}</label>
                     <input
                       className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:border-sky-500 outline-none transition-colors disabled:opacity-50"
                       disabled={!formData.insuranceProviderId}
@@ -736,7 +739,7 @@ export function PatientsPage() {
                 onClick={() => setModalOpen(false)}
                 className="w-full sm:w-auto px-6 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-bold text-sm transition-colors"
               >
-                إلغاء
+                {t("patients.cancel")}
               </button>
               <button
                 type="submit"
@@ -744,7 +747,7 @@ export function PatientsPage() {
                 onClick={handleSave}
                 className="w-full sm:w-auto px-10 py-3 bg-sky-600 hover:bg-sky-500 text-white rounded-xl font-bold shadow-lg disabled:opacity-50 text-sm transition-colors"
               >
-                {saving ? "جارِ الحفظ..." : "💾 حفظ البيانات"}
+                {saving ? t("patients.saving") : `💾 ${t("patients.saveBtn")}`}
               </button>
             </div>
           </div>

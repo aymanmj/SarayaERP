@@ -6,6 +6,7 @@
 
 import { useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "../api/apiClient";
 import { ProblemListPanel } from "../components/clinical/ProblemListPanel";
@@ -101,6 +102,8 @@ function formatDate(iso: string | null | undefined) {
 // ---------- Component ----------
 
 export default function PatientChartPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
   const { id } = useParams();
   const navigate = useNavigate();
   const patientId = Number(id);
@@ -125,7 +128,7 @@ export default function PatientChartPage() {
       <div className="flex items-center justify-center h-full">
         <div className="text-center space-y-4">
           <div className="w-12 h-12 border-4 border-sky-500/30 border-t-sky-500 rounded-full animate-spin mx-auto" />
-          <p className="text-slate-400 text-sm">جارِ تحميل السجل الطبي...</p>
+          <p className="text-slate-400 text-sm">{t("patients.chart.loading")}</p>
         </div>
       </div>
     );
@@ -135,13 +138,13 @@ export default function PatientChartPage() {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center space-y-3 bg-rose-950/20 border border-rose-500/30 rounded-2xl p-8">
-          <p className="text-rose-400 text-lg font-bold">خطأ في تحميل السجل الطبي</p>
-          <p className="text-slate-500 text-sm">تأكد من صحة رقم المريض</p>
+          <p className="text-rose-400 text-lg font-bold">{t("patients.chart.loadingError")}</p>
+          <p className="text-slate-500 text-sm">{t("patients.chart.verifyPatientId")}</p>
           <button
             onClick={() => navigate(-1)}
             className="bg-slate-800 text-slate-300 px-4 py-2 rounded-xl text-sm"
           >
-            ← رجوع
+            ← {t("patients.chart.back")}
           </button>
         </div>
       </div>
@@ -152,7 +155,7 @@ export default function PatientChartPage() {
   const age = calculateAge(patient.dateOfBirth);
 
   return (
-    <div className="flex flex-col h-full text-slate-100 p-4 md:p-6 gap-5 overflow-hidden" dir="rtl">
+    <div className="flex flex-col h-full text-slate-100 p-4 md:p-6 gap-5 overflow-hidden" dir={isRtl ? "rtl" : "ltr"}>
       {/* ═══════════════════ Header ═══════════════════ */}
       <div className="bg-gradient-to-l from-slate-900 via-slate-900 to-sky-950/30 border border-slate-800 rounded-2xl p-5 shadow-lg">
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
@@ -172,7 +175,7 @@ export default function PatientChartPage() {
                   onClick={() => navigate(-1)}
                   className="text-slate-500 hover:text-white text-xs bg-slate-800/80 hover:bg-slate-700 px-2 py-1 rounded-lg transition-colors"
                 >
-                  ← رجوع
+                  ← {t("patients.chart.back")}
                 </button>
                 <h1 className="text-2xl font-bold text-white tracking-tight">
                   {patient.fullName}
@@ -187,11 +190,11 @@ export default function PatientChartPage() {
                 )}
               </div>
               <div className="flex items-center gap-3 text-xs text-slate-400 flex-wrap">
-                {age !== null && <span>{age} سنة</span>}
+                {age !== null && <span>{age} {t("patients.chart.years")}</span>}
                 {patient.gender && (
                   <>
                     <span className="text-slate-700">|</span>
-                    <span>{patient.gender === "MALE" ? "ذكر" : "أنثى"}</span>
+                    <span>{patient.gender === "MALE" ? t("patients.genderMale") : t("patients.genderFemale")}</span>
                   </>
                 )}
                 {patient.phone && (
@@ -205,17 +208,17 @@ export default function PatientChartPage() {
                     <span className="text-slate-700">|</span>
                     <span>
                       {patient.maritalStatus === "MARRIED"
-                        ? "متزوج/ة"
+                        ? t("patients.married")
                         : patient.maritalStatus === "SINGLE"
-                          ? "أعزب/عزباء"
+                          ? t("patients.single")
                           : patient.maritalStatus === "DIVORCED"
-                            ? "مطلّق/ة"
-                            : "أرمل/ة"}
+                            ? t("patients.divorced")
+                            : t("patients.widowed")}
                     </span>
                   </>
                 )}
                 <span className="text-slate-700">|</span>
-                <span className="text-slate-500">مسجّل {formatDate(patient.createdAt)}</span>
+                <span className="text-slate-500">{t("patients.chart.registered")} {formatDate(patient.createdAt)}</span>
               </div>
             </div>
           </div>
@@ -224,17 +227,17 @@ export default function PatientChartPage() {
           <div className="flex items-center gap-3 flex-wrap">
             {allergies.length > 0 && (
               <div className="bg-red-950/40 border border-red-500/40 text-red-300 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 animate-pulse">
-                ⚠️ {allergies.length} حساسية
+                ⚠️ {allergies.length} {t("patients.chart.allergy")}
               </div>
             )}
             {stats.activeProblems > 0 && (
               <div className="bg-amber-950/40 border border-amber-500/30 text-amber-300 px-3 py-1.5 rounded-xl text-xs font-bold">
-                📋 {stats.activeProblems} مشكلة نشطة
+                📋 {stats.activeProblems} {t("patients.chart.activeProblem")}
               </div>
             )}
             {stats.unverifiedMedications > 0 && (
               <div className="bg-violet-950/40 border border-violet-500/30 text-violet-300 px-3 py-1.5 rounded-xl text-xs font-bold">
-                💊 {stats.unverifiedMedications} دواء غير محقق
+                💊 {stats.unverifiedMedications} {t("patients.chart.unverifiedMed")}
               </div>
             )}
             {activeEncounters.length > 0 && (
@@ -242,7 +245,7 @@ export default function PatientChartPage() {
                 to={`/encounters/${activeEncounters[0].id}`}
                 className="bg-emerald-950/40 border border-emerald-500/30 text-emerald-300 px-3 py-1.5 rounded-xl text-xs font-bold hover:bg-emerald-900/40 transition-colors flex items-center gap-1.5"
               >
-                🟢 حالة نشطة — انتقل
+                🟢 {t("patients.chart.activeEncounterGo")}
               </Link>
             )}
             <button
@@ -258,12 +261,12 @@ export default function PatientChartPage() {
                   downloadAnchorNode.remove();
                 } catch (error) {
                   console.error("Failed to export FHIR", error);
-                  alert("فشل تصدير سجل FHIR. الرجاء المحاولة لاحقاً.");
+                  alert(t("patients.chart.exportFhirFailed", "فشل تصدير سجل FHIR. الرجاء المحاولة لاحقاً."));
                 }
               }}
               className="bg-sky-600 hover:bg-sky-500 text-white px-3 py-1.5 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 shadow-lg"
             >
-              📥 تصدير سجل FHIR
+              📥 {t("patients.chart.exportFhir")}
             </button>
           </div>
         </div>
@@ -282,7 +285,7 @@ export default function PatientChartPage() {
             }`}
           >
             <span>{tab.icon}</span>
-            {tab.label}
+            {tab.key === "HOME_MEDS" ? t("patients.chart.tabs.homeMeds") : t("patients.chart.tabs." + tab.key.toLowerCase())}
             {/* Notification badges */}
             {tab.key === "ALLERGIES" && allergies.length > 0 && (
               <span className="bg-red-500/20 text-red-400 text-[10px] px-1.5 py-0.5 rounded-full font-bold">
@@ -312,25 +315,25 @@ export default function PatientChartPage() {
             <div className="xl:col-span-3 grid grid-cols-2 md:grid-cols-4 gap-3">
               <StatCard
                 icon="📋"
-                label="المشاكل النشطة"
+                label={t("patients.chart.tabs.problems")}
                 value={stats.activeProblems}
                 color="amber"
               />
               <StatCard
                 icon="⚠️"
-                label="الحساسيات"
+                label={t("patients.chart.tabs.allergies")}
                 value={stats.allergiesCount}
                 color="red"
               />
               <StatCard
                 icon="🩺"
-                label="إجمالي الزيارات"
+                label={t("patients.chart.encountersHistory")}
                 value={stats.totalEncounters}
                 color="sky"
               />
               <StatCard
                 icon="🛏️"
-                label="مرات الإيواء"
+                label={t("patients.chart.totalAdmissions", "مرات الإيواء")}
                 value={stats.totalAdmissions}
                 color="purple"
               />
@@ -340,19 +343,19 @@ export default function PatientChartPage() {
             <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-sm font-bold text-amber-400 flex items-center gap-2">
-                  📋 المشاكل الصحية النشطة
+                  📋 {t("patients.chart.activeProblemsTitle", "المشاكل الصحية النشطة")}
                 </h3>
                 <button
                   onClick={() => setActiveTab("PROBLEMS")}
                   className="text-[10px] text-sky-400 hover:text-sky-300"
                 >
-                  عرض الكل ←
+                  {t("patients.chart.viewAll", "عرض الكل")} ←
                 </button>
               </div>
               {summary.problems.filter((p) => p.type === "ACTIVE" || p.type === "CHRONIC").length ===
                 0 ? (
                 <p className="text-slate-500 text-xs text-center py-4">
-                  لا توجد مشاكل صحية نشطة مسجّلة
+                  {t("patients.chart.noActiveProblems")}
                 </p>
               ) : (
                 <div className="space-y-2">
@@ -382,7 +385,7 @@ export default function PatientChartPage() {
                               : "bg-red-500/10 text-red-400"
                           }`}
                         >
-                          {p.type === "CHRONIC" ? "مزمن" : "نشط"}
+                          {p.type === "CHRONIC" ? t("patients.chart.chronic", "مزمن") : t("patients.chart.active", "نشط")}
                         </span>
                       </div>
                     ))}
@@ -394,19 +397,19 @@ export default function PatientChartPage() {
             <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-sm font-bold text-red-400 flex items-center gap-2">
-                  ⚠️ الحساسيات
+                  ⚠️ {t("patients.chart.tabs.allergies")}
                 </h3>
                 <button
                   onClick={() => setActiveTab("ALLERGIES")}
                   className="text-[10px] text-sky-400 hover:text-sky-300"
                 >
-                  عرض الكل ←
+                  {t("patients.chart.viewAll", "عرض الكل")} ←
                 </button>
               </div>
               {allergies.length === 0 ? (
                 <div className="flex items-center justify-center py-4">
                   <span className="text-emerald-400 text-xs bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-xl">
-                    ✅ لا توجد حساسيات مسجّلة — NKDA
+                    ✅ {t("patients.chart.nkda")}
                   </span>
                 </div>
               ) : (
@@ -427,10 +430,10 @@ export default function PatientChartPage() {
                         }`}
                       >
                         {a.severity === "SEVERE"
-                          ? "شديدة"
+                          ? t("patients.chart.severitySevere")
                           : a.severity === "MODERATE"
-                            ? "متوسطة"
-                            : "خفيفة"}
+                            ? t("patients.chart.severityModerate")
+                            : t("patients.chart.severityMild")}
                       </span>
                       {a.reaction && (
                         <span className="text-slate-500 text-[10px]">({a.reaction})</span>
@@ -444,11 +447,11 @@ export default function PatientChartPage() {
             {/* Active Encounters & Navigation */}
             <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5">
               <h3 className="text-sm font-bold text-emerald-400 flex items-center gap-2 mb-4">
-                🩺 الحالات النشطة
+                🩺 {t("patients.chart.activeEncounters", "الحالات النشطة")}
               </h3>
               {activeEncounters.length === 0 ? (
                 <p className="text-slate-500 text-xs text-center py-4">
-                  لا توجد حالات نشطة حالياً
+                  {t("patients.chart.noActiveEncounters")}
                 </p>
               ) : (
                 <div className="space-y-2">
@@ -469,17 +472,17 @@ export default function PatientChartPage() {
                           }`}
                         >
                           {enc.type === "ER"
-                            ? "طوارئ"
+                            ? t("menu.triage")
                             : enc.type === "IPD"
-                              ? "إيواء"
-                              : "عيادة"}
+                              ? t("menu.activeInpatients")
+                              : t("common.clinical")}
                         </span>
                         <span className="text-slate-300">
-                          {enc.chiefComplaint || "بدون شكوى محددة"}
+                          {enc.chiefComplaint || t("patients.chart.noComplaint", "بدون شكوى محددة")}
                         </span>
                       </div>
                       <span className="text-sky-400 opacity-0 group-hover:opacity-100 transition-opacity">
-                        افتح ←
+                        {t("patients.chart.open", "افتح")} ←
                       </span>
                     </Link>
                   ))}
@@ -495,13 +498,13 @@ export default function PatientChartPage() {
                   to={`/patients/${patientId}/consents`}
                   className="flex items-center gap-2 text-xs text-slate-400 hover:text-sky-300 transition-colors py-1"
                 >
-                  📝 نماذج الموافقة
+                  📝 {t("patients.tooltips.consents")}
                 </Link>
                 <Link
                   to={`/encounters?patientId=${patientId}`}
                   className="flex items-center gap-2 text-xs text-slate-400 hover:text-sky-300 transition-colors py-1"
                 >
-                  🗂️ سجل الزيارات الكامل
+                  🗂️ {t("patients.chart.viewFullHistory")}
                 </Link>
               </div>
             </div>
@@ -509,11 +512,11 @@ export default function PatientChartPage() {
             {/* Recent Diagnoses */}
             <div className="lg:col-span-2 xl:col-span-3 bg-slate-900/60 border border-slate-800 rounded-2xl p-5">
               <h3 className="text-sm font-bold text-sky-400 flex items-center gap-2 mb-4">
-                🏥 آخر التشخيصات
+                🏥 {t("patients.chart.recentDiagnoses")}
               </h3>
               {summary.recentDiagnoses.length === 0 ? (
                 <p className="text-slate-500 text-xs text-center py-4">
-                  لا توجد تشخيصات مسجّلة
+                  {t("patients.chart.noDiagnoses")}
                 </p>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
@@ -560,12 +563,12 @@ export default function PatientChartPage() {
           <div className="max-w-3xl">
             <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5">
               <h3 className="text-lg font-bold text-red-400 mb-4 flex items-center gap-2">
-                ⚠️ الحساسية والمخاطر الدوائية
+                ⚠️ {t("patients.chart.allergyTitle", "الحساسية والمخاطر الدوائية")}
               </h3>
               {allergies.length === 0 ? (
                 <div className="text-center py-8">
                   <p className="text-emerald-400 text-sm bg-emerald-500/10 border border-emerald-500/20 px-4 py-3 rounded-xl inline-block">
-                    ✅ لا توجد حساسيات مسجّلة (NKDA)
+                    ✅ {t("patients.chart.nkda")}
                   </p>
                 </div>
               ) : (
@@ -595,7 +598,7 @@ export default function PatientChartPage() {
                       </div>
                       {a.reaction && (
                         <p className="text-slate-400 text-xs mt-2">
-                          التفاعل: {a.reaction}
+                          {t("patients.chart.reaction")} {a.reaction}
                         </p>
                       )}
                     </div>
@@ -603,7 +606,7 @@ export default function PatientChartPage() {
                 </div>
               )}
               <p className="text-[10px] text-slate-600 mt-4 text-center">
-                لإضافة حساسية جديدة، افتح أي ملف حالة (Encounter) ← تبويب "الحساسية والمخاطر"
+                {t("patients.chart.addAllergyInstruction")}
               </p>
             </div>
           </div>
@@ -614,14 +617,14 @@ export default function PatientChartPage() {
           <div className="max-w-4xl">
             <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5">
               <h3 className="text-lg font-bold text-sky-400 mb-4 flex items-center gap-2">
-                🩺 سجل الزيارات والحالات
+                🩺 {t("patients.chart.encountersHistory")}
               </h3>
               <div className="flex items-center gap-2 mb-4 text-xs text-slate-400">
                 <span className="bg-slate-800 px-2 py-1 rounded">
-                  إجمالي الزيارات: {stats.totalEncounters}
+                  {t("patients.chart.tabs.encounters")}: {stats.totalEncounters}
                 </span>
                 <span className="bg-slate-800 px-2 py-1 rounded">
-                  مرات الإيواء: {stats.totalAdmissions}
+                  {t("patients.chart.totalAdmissions", "مرات الإيواء")}: {stats.totalAdmissions}
                 </span>
               </div>
               {activeEncounters.length > 0 && (
@@ -641,19 +644,19 @@ export default function PatientChartPage() {
                           <div>
                             <div className="text-sm text-white">
                               {enc.type === "ER"
-                                ? "طوارئ"
+                                ? t("menu.triage")
                                 : enc.type === "IPD"
-                                  ? "إيواء"
-                                  : "عيادة خارجية"}
+                                  ? t("menu.activeInpatients")
+                                  : t("patients.chart.outpatient", "عيادة خارجية")}
                             </div>
                             <div className="text-[10px] text-slate-400">
                               {enc.chiefComplaint || "—"} |{" "}
-                              {enc.doctor?.fullName || "بدون طبيب"} |{" "}
+                              {enc.doctor?.fullName || t("patients.chart.noDoctor", "بدون طبيب")} |{" "}
                               {formatDate(enc.createdAt)}
                             </div>
                           </div>
                         </div>
-                        <span className="text-sky-400 text-xs">افتح ←</span>
+                        <span className="text-sky-400 text-xs">{t("patients.chart.open", "افتح")} ←</span>
                       </Link>
                     ))}
                   </div>
@@ -664,7 +667,7 @@ export default function PatientChartPage() {
                   to={`/encounters?patientId=${patientId}`}
                   className="bg-sky-600 hover:bg-sky-500 text-white px-6 py-2 rounded-xl text-xs font-bold inline-flex items-center gap-2 transition-colors"
                 >
-                  🗂️ عرض السجل الكامل
+                  🗂️ {t("patients.chart.viewFullHistory")}
                 </Link>
               </div>
             </div>
