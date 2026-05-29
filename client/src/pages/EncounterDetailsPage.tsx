@@ -8,6 +8,7 @@ import { useAuthStore } from "../stores/authStore";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { AlertCircle, Clock, CheckCircle2, Sparkles, X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 // Components
 import { AllergiesPane } from "../components/encounter/AllergiesPane";
@@ -159,10 +160,10 @@ function LazyPanelFallback({ label = "تحميل المحتوى..." }: { label?:
   );
 }
 
-function formatDateTime(iso?: string | null) {
+function formatDateTime(iso?: string | null, isRtl: boolean = true) {
   if (!iso) return "—";
   const d = new Date(iso);
-  return d.toLocaleString("ar-LY", {
+  return d.toLocaleString(isRtl ? "ar-LY" : "en-US", {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -425,6 +426,8 @@ function LegacyQuickProtocolsWidget({ encounterId }: { encounterId: number }) {
 }
 
 export default function EncounterDetailsPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
   const { id } = useParams();
   const navigate = useNavigate();
   const encId = Number(id);
@@ -534,9 +537,9 @@ export default function EncounterDetailsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["encounter", encId] });
-      toast.success("تم تعيينك طبيباً للحالة.");
+      toast.success(t("encounter.success.doctorAssigned", "تم تعيينك طبيباً للحالة."));
     },
-    onError: () => toast.error("فشل التعيين."),
+    onError: () => toast.error(t("encounter.error.assignFailed", "فشل التعيين.")),
   });
 
   const addVisitNoteMutation = useMutation({
@@ -552,9 +555,9 @@ export default function EncounterDetailsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["encounter", encId] });
       setFormKey(Date.now());
-      toast.success("تم حفظ الملاحظة السريرية.");
+      toast.success(t("encounter.success.noteSaved", "تم حفظ الملاحظة السريرية."));
     },
-    onError: () => toast.error("فشل الحفظ."),
+    onError: () => toast.error(t("encounter.error.saveFailed", "فشل الحفظ.")),
   });
 
   const dischargeMutation = useMutation({
@@ -562,12 +565,12 @@ export default function EncounterDetailsPage() {
       await apiClient.patch(`/encounters/${encId}/discharge`);
     },
     onSuccess: () => {
-      toast.success("تم تسجيل خروج المريض وإغلاق الملف.");
+      toast.success(t("encounter.success.discharged", "تم تسجيل خروج المريض وإغلاق الملف."));
       navigate("/triage");
     },
      
     onError: (err: any) =>
-      toast.error(err.response?.data?.message || "فشل تسجيل الخروج"),
+      toast.error(err.response?.data?.message || t("encounter.error.dischargeFailed", "فشل تسجيل الخروج")),
   });
 
   const admitMutation = useMutation({
@@ -584,7 +587,7 @@ export default function EncounterDetailsPage() {
         departmentId: deptId,
         admissionType: "EMERGENCY",
         priority: "HIGH",
-        admissionReason: "دخول من قسم الطوارئ",
+        admissionReason: t("encounter.admission.erReason", "دخول من قسم الطوارئ"),
         isEmergency: true,
         admittingDoctorId: encounter?.doctorId || user?.id,
         primaryPhysicianId: encounter?.doctorId || user?.id,
@@ -601,13 +604,13 @@ export default function EncounterDetailsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["encounter", encId] });
       toast.success(
-        "تم تحويل المريض للإيواء بنجاح وأُضيف لجدول التنويم النشط.",
+        t("encounter.success.admitted", "تم تحويل المريض للإيواء بنجاح وأُضيف لجدول التنويم النشط.")
       );
       setShowAdmitModal(false);
     },
      
     onError: (err: any) =>
-      toast.error(err.response?.data?.message || "فشل الإيواء"),
+      toast.error(err.response?.data?.message || t("encounter.error.admitFailed", "فشل الإيواء")),
   });
 
   const aiCodingMutation = useMutation({
@@ -644,7 +647,7 @@ export default function EncounterDetailsPage() {
       }
     },
     onError: () =>
-      toast.error("فشل تحليل الملاحظة السريرية بواسطة الذكاء الاصطناعي"),
+      toast.error(t("encounter.error.aiCodingFailed", "فشل تحليل الملاحظة السريرية بواسطة الذكاء الاصطناعي")),
   });
 
   const applyCodesMutation = useMutation({
@@ -681,10 +684,10 @@ export default function EncounterDetailsPage() {
     onSuccess: (result) => {
       const msgs: string[] = [];
       if (result.diagnosesSaved > 0)
-        msgs.push(`${result.diagnosesSaved} تشخيص`);
+        msgs.push(`${result.diagnosesSaved} ${t("encounter.ai.diagnosisCount", "تشخيص")}`);
       if (result.proceduresSaved > 0)
-        msgs.push(`${result.proceduresSaved} إجراء`);
-      toast.success(`✅ تم اعتماد ${msgs.join(" و ")} بنجاح`);
+        msgs.push(`${result.proceduresSaved} ${t("encounter.ai.procedureCount", "إجراء")}`);
+      toast.success(`${t("encounter.success.codesApplied", "✅ تم اعتماد")} ${msgs.join(" & ")}`);
       if (result.warnings?.length) {
         result.warnings.forEach((w: string) =>
           toast.warning(w, { duration: 6000 }),
@@ -695,7 +698,7 @@ export default function EncounterDetailsPage() {
       setShowAiModal(false);
       setAiSuggestions(null);
     },
-    onError: () => toast.error("فشل اعتماد الأكواد الطبية"),
+    onError: () => toast.error(t("encounter.error.applyCodesFailed", "فشل اعتماد الأكواد الطبية")),
   });
 
   // --- Handlers ---
@@ -714,7 +717,7 @@ export default function EncounterDetailsPage() {
    
   const handleAiCoding = (data: any) => {
     if (!data?.note) {
-      toast.warning("يرجى كتابة ملاحظات سريرية أولاً ليتم تحليلها.");
+      toast.warning(t("encounter.warning.writeNotesFirst", "يرجى كتابة ملاحظات سريرية أولاً ليتم تحليلها."));
       return;
     }
     setShowAiModal(true);
@@ -722,14 +725,14 @@ export default function EncounterDetailsPage() {
   };
 
   const handleDischarge = () => {
-    if (!confirm("هل أنت متأكد من قرار خروج المريض (Discharge) وإغلاق الملف؟"))
+    if (!confirm(t("encounter.confirm.discharge", "هل أنت متأكد من قرار خروج المريض (Discharge) وإغلاق الملف؟")))
       return;
     dischargeMutation.mutate();
   };
 
   const handleAdmit = () => {
     if (!selectedDept) {
-      toast.warning("يرجى اختيار القسم المحول إليه");
+      toast.warning(t("encounter.warning.selectDepartment", "يرجى اختيار القسم المحول إليه"));
       return;
     }
     admitMutation.mutate({
@@ -747,18 +750,20 @@ export default function EncounterDetailsPage() {
   if (loading)
     return (
       <div className="p-8 text-center text-slate-400">
-        جارِ تحميل الملف الطبي...
+        {t("encounter.loading.medicalFile", "جارِ تحميل الملف الطبي...")}
       </div>
     );
   if (error || !encounter)
     return (
-      <div className="p-8 text-center text-rose-400">الملف غير موجود.</div>
+      <div className="p-8 text-center text-rose-400">
+        {t("encounter.error.notFound", "الملف غير موجود.")}
+      </div>
     );
 
   const isClosed = encounter.status !== "OPEN";
 
   return (
-    <div className="flex flex-col h-full text-slate-100 p-4 md:p-6 space-y-6 overflow-hidden">
+    <div dir={isRtl ? "rtl" : "ltr"} className="flex flex-col h-full text-slate-100 p-4 md:p-6 space-y-6 overflow-hidden">
       {/* 1. Header */}
       {activeTransfer && (
         <div className="bg-amber-900/20 border border-amber-500/50 rounded-2xl p-4 flex items-center gap-4 shadow-sm animate-pulse">
@@ -767,21 +772,21 @@ export default function EncounterDetailsPage() {
           </div>
           <div className="flex-1">
             <h3 className="text-amber-400 font-bold text-sm">
-              يوجد طلب نقل قيد المعالجة (Transfer Pending)
+              {t("encounter.transfer.pendingTitle", "يوجد طلب نقل قيد المعالجة (Transfer Pending)")}
             </h3>
             <p className="text-amber-200/70 text-xs mt-1">
               {activeTransfer.status === "REQUESTED"
-                ? "بانتظار طبيب/تمريض القسم المستقبل لتخصيص سرير للمريض."
+                ? t("encounter.transfer.statusRequested", "بانتظار طبيب/تمريض القسم المستقبل لتخصيص سرير للمريض.")
                 : activeTransfer.status === "BED_ALLOCATED"
-                  ? "تم تخصيص السرير بنجاح! يرجى التواصل مع فريق التمريض لتسليم الحالة (SBAR Handover) قبل نقل المريض فعلياً."
+                  ? t("encounter.transfer.statusBedAllocated", "تم تخصيص السرير بنجاح! يرجى التواصل مع فريق التمريض لتسليم الحالة (SBAR Handover) قبل نقل المريض فعلياً.")
                   : activeTransfer.status === "HANDOVER_SIGNED"
-                    ? "تم تسليم الحالة. بانتظار تأكيد وصول المريض للقسم المستقبل."
-                    : "الطلب قيد المعالجة."}
+                    ? t("encounter.transfer.statusHandoverSigned", "تم تسليم الحالة. بانتظار تأكيد وصول المريض للقسم المستقبل.")
+                    : t("encounter.transfer.statusDefault", "الطلب قيد المعالجة.")}
             </p>
           </div>
           <div className="text-left shrink-0">
             <span className="bg-amber-950/50 text-amber-500 border border-amber-500/30 px-3 py-1 rounded-xl text-xs font-bold">
-              الحالة: {activeTransfer.status}
+              {t("encounter.transfer.statusLabel", "الحالة:")} {activeTransfer.status}
             </span>
           </div>
         </div>
@@ -794,7 +799,7 @@ export default function EncounterDetailsPage() {
               onClick={() => navigate(-1)}
               className="text-slate-400 hover:text-white text-xs bg-slate-800 px-2 py-1 rounded"
             >
-              ➜ رجوع
+              {t("common.back", "➜ رجوع")}
             </button>
             <h1 className="text-2xl font-bold text-white tracking-tight">
               {encounter.patient?.fullName}
@@ -804,14 +809,14 @@ export default function EncounterDetailsPage() {
             </span>
             {encounter.patient?.globalPatient && (
               <span className="bg-violet-900/30 text-violet-300 border border-violet-500/30 px-2 py-0.5 rounded text-[10px] font-bold">
-                🌐 MPI
+                {t("encounter.header.mpiBadge", "🌐 MPI")}
               </span>
             )}
             <Link
               to={`/patients/${encounter.patientId}/chart`}
               className="bg-emerald-900/30 text-emerald-300 border border-emerald-500/30 px-2.5 py-0.5 rounded text-xs font-bold hover:bg-emerald-800/40 transition-colors flex items-center gap-1"
             >
-              📋 السجل الطبي
+              {t("encounter.header.medicalRecord", "📋 السجل الطبي")}
             </Link>
 
             {encounter.type === "IPD" && encounter.admission?.id && (
@@ -819,7 +824,7 @@ export default function EncounterDetailsPage() {
                 to={`/discharge-summary/${encounter.admission.id}`}
                 className="bg-amber-900/30 text-amber-300 border border-amber-500/30 px-2.5 py-0.5 rounded text-xs font-bold hover:bg-amber-800/40 transition-colors flex items-center gap-1"
               >
-                📝 ملخص الخروج (Discharge Summary)
+                {t("encounter.header.dischargeSummary", "📝 ملخص الخروج (Discharge Summary)")}
               </Link>
             )}
 
@@ -827,25 +832,25 @@ export default function EncounterDetailsPage() {
               className={`px-2 py-0.5 rounded text-[10px] font-bold border ${encounter.type === "ER" ? "bg-rose-900/20 text-rose-300 border-rose-500/30" : "bg-purple-900/20 text-purple-300 border-purple-500/30"}`}
             >
               {encounter.type === "ER"
-                ? "طوارئ"
+                ? t("encounter.type.er", "طوارئ")
                 : encounter.type === "IPD"
-                  ? "دخول / إيواء"
-                  : "عيادة"}
+                  ? t("encounter.type.ipd", "دخول / إيواء")
+                  : t("encounter.type.opd", "عيادة")}
             </span>
           </div>
           <div className="text-xs text-slate-400 flex gap-4 mt-2">
-            <span>{encounter.patient?.gender === "MALE" ? "ذكر" : "أنثى"}</span>
+            <span>{encounter.patient?.gender === "MALE" ? t("common.gender.male", "ذكر") : t("common.gender.female", "أنثى")}</span>
             <span className="text-slate-600">|</span>
-            <span>{calculateAge(encounter.patient?.dateOfBirth)} سنة</span>
+            <span>{calculateAge(encounter.patient?.dateOfBirth)} {t("common.age.years", "سنة")}</span>
             <span className="text-slate-600">|</span>
             <span className="text-slate-300">
-              دخول: {formatDateTime(encounter.createdAt)}
+              {t("encounter.header.admissionDate", "دخول:")} {formatDateTime(encounter.createdAt, isRtl)}
             </span>
             {encounter.chiefComplaint && (
               <>
                 <span className="text-slate-600">|</span>
                 <span className="text-amber-200/80">
-                  الشكوى: {encounter.chiefComplaint}
+                  {t("encounter.header.chiefComplaint", "الشكوى:")} {encounter.chiefComplaint}
                 </span>
               </>
             )}
@@ -854,7 +859,7 @@ export default function EncounterDetailsPage() {
 
         <div className="flex items-center gap-3">
           <div className="text-right mr-2 hidden lg:block">
-            <div className="text-[10px] text-slate-500">الطبيب المعالج</div>
+            <div className="text-[10px] text-slate-500">{t("encounter.header.attendingDoctor", "الطبيب المعالج")}</div>
             <div className="text-sm font-semibold text-emerald-400">
               {encounter.doctor?.fullName ?? "---"}
             </div>
@@ -866,13 +871,13 @@ export default function EncounterDetailsPage() {
               disabled={assigning}
               className="bg-amber-600 hover:bg-amber-500 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-lg animate-pulse"
             >
-              {assigning ? "..." : "✋ تولي الحالة"}
+              {assigning ? "..." : t("encounter.header.assignToMe", "✋ تولي الحالة")}
             </button>
           )}
 
           {isClosed && (
             <div className="bg-slate-800 text-slate-300 px-4 py-2 rounded-xl text-xs font-bold border border-slate-600">
-              🔒 ملف مغلق
+              {t("encounter.header.fileClosed", "🔒 ملف مغلق")}
             </div>
           )}
         </div>
@@ -905,7 +910,7 @@ export default function EncounterDetailsPage() {
                             ${tab.key === "OBGYN" ? "text-pink-400 hover:text-pink-200" : ""} 
                             `}
                 >
-                  <span>{tab.icon}</span> {tab.label}
+                  <span>{tab.icon}</span> {t(`encounter.tabs.${tab.key.toLowerCase()}`, tab.label)}
                 </button>
               ))}
           </div>
@@ -927,14 +932,14 @@ export default function EncounterDetailsPage() {
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   <Suspense
                     fallback={
-                      <LazyPanelFallback label="تحميل لوحة العلامات الحيوية..." />
+                      <LazyPanelFallback label={t("encounter.loading.vitals", "تحميل لوحة العلامات الحيوية...")} />
                     }
                   >
                     <VitalsPane encounterId={encounter.id} />
                   </Suspense>
                   <Suspense
                     fallback={
-                      <LazyPanelFallback label="تحميل لوحة التشخيص..." />
+                      <LazyPanelFallback label={t("encounter.loading.diagnosis", "تحميل لوحة التشخيص...")} />
                     }
                   >
                     <DiagnosisPane encounterId={encounter.id} />
@@ -947,7 +952,7 @@ export default function EncounterDetailsPage() {
             {activeTab === "ALLERGIES" && (
               <Suspense
                 fallback={
-                  <LazyPanelFallback label="تحميل لوحة الحساسية والمخاطر..." />
+                  <LazyPanelFallback label={t("encounter.loading.allergies", "تحميل لوحة الحساسية والمخاطر...")} />
                 }
               >
                 <AllergiesPane patientId={encounter.patientId} />
@@ -959,7 +964,7 @@ export default function EncounterDetailsPage() {
               <div className="max-w-3xl space-y-6">
                 <Suspense
                   fallback={
-                    <LazyPanelFallback label="تحميل ملف النساء والولادة..." />
+                    <LazyPanelFallback label={t("encounter.loading.obgyn", "تحميل ملف النساء والولادة...")} />
                   }
                 >
                   <ObstetricHistoryCard
@@ -974,7 +979,7 @@ export default function EncounterDetailsPage() {
                     }
                     className="bg-violet-600 hover:bg-violet-500 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg"
                   >
-                    <span>🤰</span> متابعة الحمل (ANC)
+                    <span>🤰</span> {t("encounter.obgyn.anc", "متابعة الحمل (ANC)")}
                   </button>
                   <button
                     onClick={() =>
@@ -984,7 +989,7 @@ export default function EncounterDetailsPage() {
                     }
                     className="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg"
                   >
-                    <span>🧬</span> الحقن المجهري (IVF)
+                    <span>🧬</span> {t("encounter.obgyn.ivf", "الحقن المجهري (IVF)")}
                   </button>
                   <button
                     onClick={() =>
@@ -992,7 +997,7 @@ export default function EncounterDetailsPage() {
                     }
                     className="bg-pink-600 hover:bg-pink-500 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg"
                   >
-                    <span>👶</span> تسجيل ولادة جديدة
+                    <span>👶</span> {t("encounter.obgyn.newDelivery", "تسجيل ولادة جديدة")}
                   </button>
                 </div>
               </div>
@@ -1003,11 +1008,10 @@ export default function EncounterDetailsPage() {
               <div className="max-w-3xl space-y-6">
                 <div className="bg-slate-900/80 border border-cyan-900/40 rounded-2xl p-6">
                   <h3 className="text-lg font-bold text-cyan-400 mb-4 flex items-center gap-2">
-                    🧬 ملف أمراض الذكورة والعقم
+                    🧬 {t("encounter.andrology.title", "ملف أمراض الذكورة والعقم")}
                   </h3>
                   <p className="text-slate-400 text-sm mb-6">
-                    يمكنك من هنا الوصول لملف المريض في عيادة أمراض الذكورة
-                    وتحاليل السائل المنوي وملفات العقم المشتركة.
+                    {t("encounter.andrology.description", "يمكنك من هنا الوصول لملف المريض في عيادة أمراض الذكورة وتحاليل السائل المنوي وملفات العقم المشتركة.")}
                   </p>
                   <div className="flex justify-end gap-3 flex-wrap">
                     <button
@@ -1016,7 +1020,7 @@ export default function EncounterDetailsPage() {
                       }
                       className="bg-cyan-600 hover:bg-cyan-500 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg"
                     >
-                      <span>🔬</span> تحليل السائل المنوي
+                      <span>🔬</span> {t("encounter.andrology.semenAnalysis", "تحليل السائل المنوي")}
                     </button>
                     <button
                       onClick={() =>
@@ -1026,7 +1030,7 @@ export default function EncounterDetailsPage() {
                       }
                       className="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg"
                     >
-                      <span>💑</span> ملف العقم المشترك (IVF)
+                      <span>💑</span> {t("encounter.andrology.sharedIvf", "ملف العقم المشترك (IVF)")}
                     </button>
                   </div>
                 </div>
@@ -1035,7 +1039,7 @@ export default function EncounterDetailsPage() {
 
             {activeTab === "LABS" && (
               <Suspense
-                fallback={<LazyPanelFallback label="تحميل تبويب المختبر..." />}
+                fallback={<LazyPanelFallback label={t("encounter.loading.labs", "تحميل تبويب المختبر...")} />}
               >
                 <LabsTab
                   encounterId={encounter.id}
@@ -1046,7 +1050,7 @@ export default function EncounterDetailsPage() {
             )}
             {activeTab === "RADIOLOGY" && (
               <Suspense
-                fallback={<LazyPanelFallback label="تحميل تبويب الأشعة..." />}
+                fallback={<LazyPanelFallback label={t("encounter.loading.radiology", "تحميل تبويب الأشعة...")} />}
               >
                 <RadiologyTab
                   encounterId={encounter.id}
@@ -1057,7 +1061,7 @@ export default function EncounterDetailsPage() {
             )}
             {activeTab === "PRESCRIPTIONS" && (
               <Suspense
-                fallback={<LazyPanelFallback label="تحميل تبويب الأدوية..." />}
+                fallback={<LazyPanelFallback label={t("encounter.loading.prescriptions", "تحميل تبويب الأدوية...")} />}
               >
                 <PrescriptionsTab
                   encounterId={encounter.id}
@@ -1069,7 +1073,7 @@ export default function EncounterDetailsPage() {
             )}
             {activeTab === "BILLING" && (
               <Suspense
-                fallback={<LazyPanelFallback label="تحميل تبويب الفوترة..." />}
+                fallback={<LazyPanelFallback label={t("encounter.loading.billing", "تحميل تبويب الفوترة...")} />}
               >
                 <BillingTab
                   encounterId={encounter.id}
@@ -1085,10 +1089,10 @@ export default function EncounterDetailsPage() {
           {!isClosed && encounter.type === "ER" && (
             <div className="bg-slate-800 border border-slate-700 p-4 rounded-2xl shadow-lg">
               <h2 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
-                ⚖️ القرار الطبي
+                {t("encounter.decision.title", "⚖️ القرار الطبي")}
               </h2>
               <p className="text-xs text-slate-400 mb-4">
-                بناءً على التقييم، يرجى اتخاذ القرار المناسب للحالة:
+                {t("encounter.decision.subtitle", "بناءً على التقييم، يرجى اتخاذ القرار المناسب للحالة:")}
               </p>
 
               <div className="flex flex-col gap-3">
@@ -1097,7 +1101,7 @@ export default function EncounterDetailsPage() {
                   disabled={processingDecision}
                   className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold shadow transition flex justify-center items-center gap-2"
                 >
-                  <span>🏠</span> خروج (Discharge)
+                  <span>🏠</span> {t("encounter.decision.discharge", "خروج (Discharge)")}
                 </button>
 
                 <button
@@ -1105,7 +1109,7 @@ export default function EncounterDetailsPage() {
                   disabled={processingDecision}
                   className="w-full py-2.5 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-bold shadow transition flex justify-center items-center gap-2"
                 >
-                  <span>🛏️</span> دخول (Admission)
+                  <span>🛏️</span> {t("encounter.decision.admission", "دخول (Admission)")}
                 </button>
 
                 {encounter.patient?.gender === "FEMALE" && (
@@ -1115,7 +1119,7 @@ export default function EncounterDetailsPage() {
                     }
                     className="w-full py-2.5 bg-pink-600 hover:bg-pink-500 text-white rounded-xl text-xs font-bold shadow transition flex justify-center items-center gap-2"
                   >
-                    <span>👶</span> تسجيل ولادة (Delivery)
+                    <span>👶</span> {t("encounter.decision.delivery", "تسجيل ولادة (Delivery)")}
                   </button>
                 )}
               </div>
@@ -1125,13 +1129,13 @@ export default function EncounterDetailsPage() {
           {!isClosed && encounter.type === "IPD" && (
             <div className="bg-slate-800 border border-slate-700 p-4 rounded-2xl shadow-lg mt-4">
               <h2 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
-                🔄 أوامر النقل
+                {t("encounter.transferOrders.title", "🔄 أوامر النقل")}
               </h2>
               {activeTransfer ? (
                 <div className="w-full py-2.5 bg-slate-700/50 border border-slate-600/50 text-slate-400 rounded-xl text-xs font-bold flex flex-col justify-center items-center gap-2 cursor-not-allowed">
-                  <span>⏳ طلب النقل قيد الانتظار</span>
+                  <span>{t("encounter.transferOrders.pending", "⏳ طلب النقل قيد الانتظار")}</span>
                   <span className="text-[10px] text-slate-500 font-normal">
-                    لا يمكنك طلب نقل جديد حالياً
+                    {t("encounter.transferOrders.cannotRequest", "لا يمكنك طلب نقل جديد حالياً")}
                   </span>
                 </div>
               ) : (
@@ -1139,20 +1143,20 @@ export default function EncounterDetailsPage() {
                   onClick={() => setShowTransferModal(true)}
                   className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold shadow transition flex justify-center items-center gap-2"
                 >
-                  <span>🚑</span> طلب نقل (عناية/قسم)
+                  <span>🚑</span> {t("encounter.transferOrders.requestTransfer", "طلب نقل (عناية/قسم)")}
                 </button>
               )}
             </div>
           )}
 
           <Suspense
-            fallback={<LazyPanelFallback label="تحميل الملخص السريع..." />}
+            fallback={<LazyPanelFallback label={t("encounter.loading.quickSummary", "تحميل الملخص السريع...")} />}
           >
             <QuickSummaryCard encounterId={encId} status={encounter.status} />
           </Suspense>
           <Suspense
             fallback={
-              <LazyPanelFallback label="تحميل البروتوكولات السريعة..." />
+              <LazyPanelFallback label={t("encounter.loading.quickProtocols", "تحميل البروتوكولات السريعة...")} />
             }
           >
             <QuickProtocolsWidget encounterId={encId} />
@@ -1165,20 +1169,20 @@ export default function EncounterDetailsPage() {
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
           <div className="bg-slate-950 border border-slate-700 rounded-2xl w-full max-w-md p-6 shadow-2xl">
             <h3 className="text-lg font-bold text-white mb-4">
-              قرار إيواء المريض
+              {t("encounter.admitModal.title", "قرار إيواء المريض")}
             </h3>
             <div className="space-y-4 mb-6">
               {/* Department Selection */}
               <div>
                 <label className="text-xs text-slate-400 mb-1 block">
-                  إلى أي قسم؟
+                  {t("encounter.admitModal.departmentLabel", "إلى أي قسم؟")}
                 </label>
                 <select
                   className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm outline-none focus:border-purple-500"
                   value={selectedDept}
                   onChange={(e) => setSelectedDept(e.target.value)}
                 >
-                  <option value="">-- اختر القسم --</option>
+                  <option value="">{t("encounter.admitModal.selectDepartment", "-- اختر القسم --")}</option>
                   {departments.map((d) => (
                     <option key={d.id} value={d.id}>
                       {d.name}
@@ -1190,7 +1194,7 @@ export default function EncounterDetailsPage() {
               {/* Ward Selection */}
               <div>
                 <label className="text-xs text-slate-400 mb-1 block">
-                  العنبر (اختياري)
+                  {t("encounter.admitModal.wardLabel", "العنبر (اختياري)")}
                 </label>
                 <select
                   className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm outline-none focus:border-purple-500"
@@ -1200,7 +1204,7 @@ export default function EncounterDetailsPage() {
                     setSelectedBedId("");
                   }}
                 >
-                  <option value="">-- اختر العنبر --</option>
+                  <option value="">{t("encounter.admitModal.selectWard", "-- اختر العنبر --")}</option>
                   {wardTree.map((w) => (
                     <option key={w.id} value={w.id}>
                       {w.name} (
@@ -1209,7 +1213,7 @@ export default function EncounterDetailsPage() {
                           r.beds.filter((b) => b.status === "AVAILABLE"),
                         ).length
                       }{" "}
-                      سرير متاح)
+                      {t("encounter.admitModal.bedsAvailable", "سرير متاح)")}
                     </option>
                   ))}
                 </select>
@@ -1230,11 +1234,11 @@ export default function EncounterDetailsPage() {
                   return (
                     <div>
                       <label className="text-xs text-slate-400 mb-1 block">
-                        السرير
+                        {t("encounter.admitModal.bedLabel", "السرير")}
                       </label>
                       {beds.length === 0 ? (
                         <p className="text-xs text-rose-400 bg-rose-950/30 border border-rose-800/30 rounded-xl p-2">
-                          ⚠️ لا توجد أسرّة متاحة في هذا العنبر.
+                          {t("encounter.admitModal.noBedsAvailable", "⚠️ لا توجد أسرّة متاحة في هذا العنبر.")}
                         </p>
                       ) : (
                         <select
@@ -1242,10 +1246,10 @@ export default function EncounterDetailsPage() {
                           value={selectedBedId}
                           onChange={(e) => setSelectedBedId(e.target.value)}
                         >
-                          <option value="">-- اختر السرير --</option>
+                          <option value="">{t("encounter.admitModal.selectBed", "-- اختر السرير --")}</option>
                           {beds.map((b) => (
                             <option key={b.id} value={b.id}>
-                              غرفة {b.roomNumber} — سرير {b.bedNumber}
+                              {t("encounter.admitModal.roomBedOption", { roomNumber: b.roomNumber, bedNumber: b.bedNumber, defaultValue: "غرفة {{roomNumber}} — سرير {{bedNumber}}" })}
                             </option>
                           ))}
                         </select>
@@ -1255,8 +1259,7 @@ export default function EncounterDetailsPage() {
                 })()}
 
               <p className="text-[10px] text-slate-500">
-                * اختيار السرير اختياري. يمكن تعيين السرير لاحقاً من صفحة حالات
-                الإيواء.
+                {t("encounter.admitModal.bedOptionalNote", "* اختيار السرير اختياري. يمكن تعيين السرير لاحقاً من صفحة حالات الإيواء.")}
               </p>
             </div>
             <div className="flex justify-end gap-2">
@@ -1264,13 +1267,13 @@ export default function EncounterDetailsPage() {
                 onClick={() => setShowAdmitModal(false)}
                 className="px-4 py-2 bg-slate-800 rounded-xl text-xs text-slate-300"
               >
-                إلغاء
+                {t("common.cancel", "إلغاء")}
               </button>
               <button
                 onClick={handleAdmit}
                 className="px-4 py-2 bg-purple-600 hover:bg-purple-500 rounded-xl text-xs text-white font-bold"
               >
-                تأكيد الدخول
+                {t("encounter.admitModal.confirm", "تأكيد الدخول")}
               </button>
             </div>
           </div>
@@ -1300,7 +1303,7 @@ export default function EncounterDetailsPage() {
             <div className="bg-gradient-to-r from-slate-800/80 to-indigo-900/30 p-4 border-b border-slate-700 flex justify-between items-center">
               <h2 className="text-lg font-bold text-sky-400 flex items-center gap-2">
                 <Sparkles className="w-5 h-5" />
-                المساعد الذكي — تحليل واعتماد الأكواد الطبية
+                {t("encounter.ai.modalTitle", "المساعد الذكي — تحليل واعتماد الأكواد الطبية")}
               </h2>
               <button
                 onClick={() => {
@@ -1323,10 +1326,10 @@ export default function EncounterDetailsPage() {
                     </span>
                   </div>
                   <p className="text-sm text-slate-400">
-                    يقوم الذكاء الاصطناعي بتحليل الملاحظات واستخراج الأكواد...
+                    {t("encounter.ai.analyzing", "يقوم الذكاء الاصطناعي بتحليل الملاحظات واستخراج الأكواد...")}
                   </p>
                   <p className="text-[10px] text-slate-600">
-                    ICD-10 + CPT + E&M Evaluation
+                    {t("encounter.ai.evaluationTypes", "ICD-10 + CPT + E&M Evaluation")}
                   </p>
                 </div>
               ) : aiSuggestions ? (
@@ -1335,7 +1338,7 @@ export default function EncounterDetailsPage() {
                   {aiSuggestions.reasoning && (
                     <details className="bg-indigo-950/30 border border-indigo-900/40 rounded-xl overflow-hidden">
                       <summary className="px-4 py-3 text-xs font-bold text-indigo-300 cursor-pointer hover:bg-indigo-900/20 transition-colors flex items-center gap-2">
-                        🧠 التحليل المنطقي للذكاء الاصطناعي (Reasoning)
+                        {t("encounter.ai.reasoningTitle", "🧠 التحليل المنطقي للذكاء الاصطناعي (Reasoning)")}
                       </summary>
                       <div className="px-4 pb-3 text-xs text-indigo-200/70 leading-relaxed whitespace-pre-wrap border-t border-indigo-900/30 pt-3">
                         {aiSuggestions.reasoning}
@@ -1349,7 +1352,7 @@ export default function EncounterDetailsPage() {
                       <div>
                         <div className="flex justify-between items-center mb-3 border-b border-slate-800 pb-2">
                           <h3 className="text-sm font-bold text-emerald-400">
-                            تشخيصات ICD-10 المقترحة
+                            {t("encounter.ai.suggestedDiagnoses", "تشخيصات ICD-10 المقترحة")}
                           </h3>
                           <button
                             onClick={() => {
@@ -1362,7 +1365,6 @@ export default function EncounterDetailsPage() {
                                 setSelectedDxCodes(
                                   new Set(
                                     aiSuggestions.diagnoses.map(
-                                       
                                       (_: any, i: number) => i,
                                     ),
                                   ),
@@ -1372,8 +1374,8 @@ export default function EncounterDetailsPage() {
                           >
                             {selectedDxCodes.size ===
                             aiSuggestions.diagnoses.length
-                              ? "إلغاء الكل"
-                              : "تحديد الكل"}
+                              ? t("common.deselectAll", "إلغاء الكل")
+                              : t("common.selectAll", "تحديد الكل")}
                           </button>
                         </div>
                         <div className="space-y-2">
@@ -1425,7 +1427,7 @@ export default function EncounterDetailsPage() {
                                       />
                                     </div>
                                     <span className="text-[9px] text-slate-600 mt-0.5 block">
-                                      {Math.round(dx.confidence * 100)}% ثقة
+                                      {Math.round(dx.confidence * 100)}{t("encounter.ai.confidence", "% ثقة")}
                                     </span>
                                   </div>
                                   <select
@@ -1441,10 +1443,10 @@ export default function EncounterDetailsPage() {
                                     className="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-[10px] text-slate-300 outline-none focus:border-emerald-500"
                                   >
                                     <option value="PRIMARY">
-                                      رئيسي (Primary)
+                                      {t("encounter.ai.typePrimary", "رئيسي (Primary)")}
                                     </option>
                                     <option value="SECONDARY">
-                                      ثانوي (Secondary)
+                                      {t("encounter.ai.typeSecondary", "ثانوي (Secondary)")}
                                     </option>
                                   </select>
                                 </div>
@@ -1461,7 +1463,7 @@ export default function EncounterDetailsPage() {
                       <div>
                         <div className="flex justify-between items-center mb-3 border-b border-slate-800 pb-2">
                           <h3 className="text-sm font-bold text-amber-400">
-                            إجراءات CPT المقترحة
+                            {t("encounter.ai.suggestedProcedures", "إجراءات CPT المقترحة")}
                           </h3>
                           <button
                             onClick={() => {
@@ -1474,7 +1476,6 @@ export default function EncounterDetailsPage() {
                                 setSelectedPxCodes(
                                   new Set(
                                     aiSuggestions.procedures.map(
-                                       
                                       (_: any, i: number) => i,
                                     ),
                                   ),
@@ -1484,8 +1485,8 @@ export default function EncounterDetailsPage() {
                           >
                             {selectedPxCodes.size ===
                             aiSuggestions.procedures.length
-                              ? "إلغاء الكل"
-                              : "تحديد الكل"}
+                              ? t("common.deselectAll", "إلغاء الكل")
+                              : t("common.selectAll", "تحديد الكل")}
                           </button>
                         </div>
                         <div className="space-y-2">
@@ -1542,7 +1543,7 @@ export default function EncounterDetailsPage() {
                                       />
                                     </div>
                                     <span className="text-[9px] text-slate-600 mt-0.5 block">
-                                      {Math.round(px.confidence * 100)}% ثقة
+                                      {Math.round(px.confidence * 100)}{t("encounter.ai.confidence", "% ثقة")}
                                     </span>
                                   </div>
                                 </div>
@@ -1556,21 +1557,17 @@ export default function EncounterDetailsPage() {
                   {!aiSuggestions.diagnoses?.length &&
                     !aiSuggestions.procedures?.length && (
                       <div className="text-center text-slate-500 py-8">
-                        لم يتعرف الذكاء الاصطناعي على أية أكواد طبية دقيقة من
-                        الملاحظات المكتوبة.
+                        {t("encounter.ai.noCodesFound", "لم يتعرف الذكاء الاصطناعي على أية أكواد طبية دقيقة من الملاحظات المكتوبة.")}
                       </div>
                     )}
 
                   <div className="bg-sky-950/30 border border-sky-900/50 rounded-xl p-4 text-xs text-sky-200/70 leading-relaxed">
-                    <strong className="text-sky-400">ملاحظة:</strong> اختر
-                    الأكواد المناسبة واضغط "اعتماد" لحفظها تلقائياً في التشخيص
-                    والفوترة. الأكواد غير المرتبطة بخدمات في النظام ستظهر
-                    كتنبيهات.
+                    <strong className="text-sky-400">{t("common.note", "ملاحظة:")}</strong> {t("encounter.ai.instructionNote", "اختر الأكواد المناسبة واضغط \"اعتماد\" لحفظها تلقائياً في التشخيص والفوترة. الأكواد غير المرتبطة بخدمات في النظام ستظهر كتنبيهات.")}
                   </div>
                 </div>
               ) : (
                 <div className="text-center text-slate-500 py-8">
-                  حدث خطأ أثناء تحميل الاقتراحات.
+                  {t("encounter.ai.loadError", "حدث خطأ أثناء تحميل الاقتراحات.")}
                 </div>
               )}
             </div>
@@ -1579,7 +1576,7 @@ export default function EncounterDetailsPage() {
               <div className="text-[10px] text-slate-500">
                 {aiSuggestions && (
                   <span>
-                    {selectedDxCodes.size + selectedPxCodes.size} كود مُختار
+                    {selectedDxCodes.size + selectedPxCodes.size} {t("encounter.ai.selectedCodes", "كود مُختار")}
                   </span>
                 )}
               </div>
@@ -1591,7 +1588,7 @@ export default function EncounterDetailsPage() {
                   }}
                   className="bg-slate-700 hover:bg-slate-600 text-white px-5 py-2 rounded-xl text-sm font-bold transition-colors"
                 >
-                  إغلاق
+                  {t("common.close", "إغلاق")}
                 </button>
                 {aiSuggestions &&
                   (selectedDxCodes.size > 0 || selectedPxCodes.size > 0) && (
@@ -1603,12 +1600,11 @@ export default function EncounterDetailsPage() {
                       {applyCodesMutation.isPending ? (
                         <>
                           <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />{" "}
-                          جاري الاعتماد...
+                          {t("encounter.ai.applying", "جاري الاعتماد...")}
                         </>
                       ) : (
                         <>
-                          ✅ اعتماد المختار (
-                          {selectedDxCodes.size + selectedPxCodes.size})
+                          {t("encounter.ai.applySelected", "✅ اعتماد المختار")} ({selectedDxCodes.size + selectedPxCodes.size})
                         </>
                       )}
                     </button>

@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { apiClient } from "../api/apiClient";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 
 // Enums & Types
 type PrescriptionStatus =
@@ -48,16 +49,21 @@ type WorklistPrescription = {
   items: PrescriptionItemLite[];
 };
 
-function formatDateTime(value: string) {
+function formatDateTime(value: string, locale: string = "ar-LY") {
   const d = new Date(value);
-  return d.toLocaleString("ar-LY");
+  return d.toLocaleString(locale);
 }
 
-function formatMoney(value: number) {
-  return `LYD ${value.toFixed(3)}`;
+function formatMoney(value: number, currency: string = "LYD") {
+  return `${currency} ${value.toFixed(3)}`;
 }
 
 export default function PharmacyWorklistPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
+  const dateLocale = isRtl ? "ar-LY" : "en-US";
+  const currencyLabel = t("common.currency.lyd", "LYD");
+
   const [data, setData] = useState<WorklistPrescription[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -87,7 +93,7 @@ export default function PharmacyWorklistPage() {
       setData(listA);
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
-      toast.error("فشل تحميل القائمة.");
+      toast.error(t("pharmacy.loadFailed", "فشل تحميل القائمة."));
     } finally {
       setLoading(false);
     }
@@ -171,18 +177,18 @@ export default function PharmacyWorklistPage() {
         // ✅ سيناريو الإيواء: صرف فقط (إضافة للفاتورة المفتوحة)
         await apiClient.post(`/pharmacy/prescriptions/${pId}/dispense`, {
           items: itemsPayload,
-          notes: "صرف للعنبر (IPD Dispense)",
+          notes: t("pharmacy.notes.ipdDispense", "صرف للعنبر (IPD Dispense)"),
         });
-        toast.success("تم صرف الأدوية وإرسالها للعنبر.");
+        toast.success(t("pharmacy.success.ipdDispensed", "تم صرف الأدوية وإرسالها للعنبر."));
       } else {
         // ✅ سيناريو الخارجي: صرف + دفع فوري
         await apiClient.post(`/pharmacy/prescriptions/${pId}/dispense-pay`, {
           paymentMethod,
           amountPaid: Number(amountPaid),
           items: itemsPayload,
-          notes: "صرف مباشر (POS)",
+          notes: t("pharmacy.notes.posDispense", "صرف مباشر (POS)"),
         });
-        toast.success("تم الصرف والدفع بنجاح.");
+        toast.success(t("pharmacy.success.dispensePaid", "تم الصرف والدفع بنجاح."));
       }
 
       setShowDispenseModal(false);
@@ -193,7 +199,7 @@ export default function PharmacyWorklistPage() {
      
     } catch (err: any) {
       console.error(err);
-      toast.error(err?.response?.data?.message || "فشل العملية.");
+      toast.error(err?.response?.data?.message || t("pharmacy.operationFailed", "فشل العملية."));
     } finally {
       setProcessing(false);
     }
@@ -205,28 +211,28 @@ export default function PharmacyWorklistPage() {
   return (
     <div
       className="p-6 space-y-6 text-slate-100 h-full flex flex-col"
-      dir="rtl"
+      dir={isRtl ? "rtl" : "ltr"}
       data-testid="pharmacy-page"
     >
       {/* Header */}
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">صرف الوصفات (الصيدلية)</h1>
-          <p className="text-sm text-slate-400">قائمة الوصفات المعلقة للصرف.</p>
+          <h1 className="text-2xl font-bold">{t("pharmacy.title", "صرف الوصفات (الصيدلية)")}</h1>
+          <p className="text-sm text-slate-400">{t("pharmacy.subtitle", "قائمة الوصفات المعلقة للصرف.")}</p>
         </div>
         <div className="flex gap-2">
           <button
             onClick={loadData}
             className="px-4 py-2 rounded bg-slate-800 hover:bg-slate-700 text-sm"
           >
-            تحديث
+            {t("common.refresh", "تحديث")}
           </button>
           <a
             href="/pharmacy/stock"
             target="_blank"
             className="px-4 py-2 rounded bg-sky-700 hover:bg-sky-600 text-sm text-white"
           >
-            المخزون
+            {t("pharmacy.stockLink", "المخزون")}
           </a>
         </div>
       </div>
@@ -236,13 +242,13 @@ export default function PharmacyWorklistPage() {
         <table className="w-full text-sm text-right">
           <thead className="text-slate-400 border-b border-slate-800">
             <tr>
-              <th className="px-4 py-3">رقم الوصفة</th>
-              <th className="px-4 py-3">نوع المريض</th>
-              <th className="px-4 py-3">المريض</th>
-              <th className="px-4 py-3">الطبيب</th>
-              <th className="px-4 py-3">التاريخ</th>
-              <th className="px-4 py-3">عدد الأصناف</th>
-              <th className="px-4 py-3">إجراءات</th>
+              <th className="px-4 py-3">{t("pharmacy.table.prescriptionNo", "رقم الوصفة")}</th>
+              <th className="px-4 py-3">{t("pharmacy.table.patientType", "نوع المريض")}</th>
+              <th className="px-4 py-3">{t("pharmacy.table.patient", "المريض")}</th>
+              <th className="px-4 py-3">{t("pharmacy.table.doctor", "الطبيب")}</th>
+              <th className="px-4 py-3">{t("pharmacy.table.date", "التاريخ")}</th>
+              <th className="px-4 py-3">{t("pharmacy.table.itemCount", "عدد الأصناف")}</th>
+              <th className="px-4 py-3">{t("pharmacy.table.actions", "إجراءات")}</th>
             </tr>
           </thead>
           <tbody>
@@ -263,7 +269,7 @@ export default function PharmacyWorklistPage() {
                           : "bg-emerald-900/40 text-emerald-300 border border-emerald-500/30"
                       }`}
                     >
-                      {isIPD ? "إيواء (منوم)" : "خارجي / طوارئ"}
+                      {isIPD ? t("pharmacy.patientType.inpatient", "إيواء (منوم)") : t("pharmacy.patientType.outpatient", "خارجي / طوارئ")}
                     </span>
                   </td>
                   <td className="px-4 py-3 font-semibold">
@@ -276,7 +282,7 @@ export default function PharmacyWorklistPage() {
                     {p.doctor.fullName}
                   </td>
                   <td className="px-4 py-3 text-slate-400">
-                    {formatDateTime(p.createdAt)}
+                    {formatDateTime(p.createdAt, dateLocale)}
                   </td>
                   <td className="px-4 py-3 text-slate-200">{p.items.length}</td>
                   <td className="px-4 py-3">
@@ -285,7 +291,7 @@ export default function PharmacyWorklistPage() {
                       data-testid={`dispense-prescription-${p.id}`}
                       className="px-4 py-1.5 bg-sky-600 hover:bg-sky-500 text-white rounded-lg text-xs font-bold shadow-lg"
                     >
-                      عرض وصرف
+                      {t("pharmacy.viewAndDispense", "عرض وصرف")}
                     </button>
                   </td>
                 </tr>
@@ -294,7 +300,7 @@ export default function PharmacyWorklistPage() {
             {data.length === 0 && !loading && (
               <tr>
                 <td colSpan={7} className="text-center py-10 text-slate-500">
-                  لا توجد وصفات في الانتظار.
+                  {t("pharmacy.emptyState", "لا توجد وصفات في الانتظار.")}
                 </td>
               </tr>
             )}
@@ -313,15 +319,15 @@ export default function PharmacyWorklistPage() {
             <div className="flex justify-between items-center p-4 border-b border-slate-800 bg-slate-900 rounded-t-2xl">
               <div>
                 <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                  صرف الوصفة #{selectedPrescription.id}
+                  {t("pharmacy.modal.dispenseTitle", "صرف الوصفة #")}{selectedPrescription.id}
                   {isIPD && (
                     <span className="bg-purple-600 text-white text-[10px] px-2 py-0.5 rounded-full">
-                      مريض إيواء
+                      {t("pharmacy.modal.inpatientBadge", "مريض إيواء")}
                     </span>
                   )}
                 </h3>
                 <div className="text-xs text-slate-400">
-                  المريض: {selectedPrescription.patient.fullName}
+                  {t("pharmacy.modal.patientLabel", "المريض:")} {selectedPrescription.patient.fullName}
                 </div>
               </div>
               <button
@@ -338,19 +344,19 @@ export default function PharmacyWorklistPage() {
                 <thead className="bg-slate-900 text-slate-400">
                   <tr>
                     <th className="p-2 border border-slate-800 w-1/3">
-                      الدواء الموصوف
+                      {t("pharmacy.modal.prescribedDrug", "الدواء الموصوف")}
                     </th>
                     <th className="p-2 border border-slate-800 w-1/3">
-                      البديل / المصروف فعلياً
+                      {t("pharmacy.modal.substitute", "البديل / المصروف فعلياً")}
                     </th>
                     <th className="p-2 border border-slate-800 w-20 text-center">
-                      الكمية
+                      {t("pharmacy.modal.quantity", "الكمية")}
                     </th>
                     <th className="p-2 border border-slate-800 w-24 text-center">
-                      السعر
+                      {t("pharmacy.modal.price", "السعر")}
                     </th>
                     <th className="p-2 border border-slate-800 w-24 text-center">
-                      الإجمالي
+                      {t("pharmacy.modal.total", "الإجمالي")}
                     </th>
                   </tr>
                 </thead>
@@ -398,21 +404,21 @@ export default function PharmacyWorklistPage() {
                             {it.drugItem && (
                               <option value={it.drugItem.id}>
                                 {it.drugItem.name} ({it.drugItem.strength}) -{" "}
-                                {formatMoney(it.drugItem.unitPrice)}
+                                {formatMoney(it.drugItem.unitPrice, currencyLabel)}
                               </option>
                             )}
-                            <optgroup label="بدائل بنفس الاسم العلمي">
+                            <optgroup label={t("pharmacy.modal.sameGenericGroup", "بدائل بنفس الاسم العلمي")}>
                               {similarDrugs
                                 .filter((d) => d.id !== it.drugItem?.id)
                                 .map((d) => (
                                   <option key={d.id} value={d.id}>
                                     {d.name} ({d.strength}) -{" "}
-                                    {formatMoney(d.unitPrice)} (رصيد:{" "}
+                                    {formatMoney(d.unitPrice, currencyLabel)} ({t("pharmacy.modal.stockLabel", "رصيد:")}{" "}
                                     {d.stockOnHand})
                                   </option>
                                 ))}
                             </optgroup>
-                            <optgroup label="كل الأدوية">
+                            <optgroup label={t("pharmacy.modal.allDrugsGroup", "كل الأدوية")}>
                               {catalog
                                 .filter(
                                   (d) =>
@@ -422,7 +428,7 @@ export default function PharmacyWorklistPage() {
                                 .slice(0, 50)
                                 .map((d) => (
                                   <option key={d.id} value={d.id}>
-                                    {d.name} - {formatMoney(d.unitPrice)}
+                                    {d.name} - {formatMoney(d.unitPrice, currencyLabel)}
                                   </option>
                                 ))}
                             </optgroup>
@@ -430,7 +436,7 @@ export default function PharmacyWorklistPage() {
                           {selectedProduct?.stockOnHand !== undefined &&
                             selectedProduct.stockOnHand < qty && (
                               <div className="text-rose-500 text-[10px] mt-1">
-                                ⚠️ الرصيد غير كافٍ (
+                                {t("pharmacy.modal.insufficientStock", "⚠️ الرصيد غير كافٍ")} (
                                 {selectedProduct.stockOnHand})
                               </div>
                             )}
@@ -451,10 +457,10 @@ export default function PharmacyWorklistPage() {
                           />
                         </td>
                         <td className="p-2 border border-slate-800 text-center align-top text-slate-400">
-                          {formatMoney(price)}
+                          {formatMoney(price, currencyLabel)}
                         </td>
                         <td className="p-2 border border-slate-800 text-center align-top font-bold text-emerald-400">
-                          {formatMoney(lineTotal)}
+                          {formatMoney(lineTotal, currencyLabel)}
                         </td>
                       </tr>
                     );
@@ -472,10 +478,10 @@ export default function PharmacyWorklistPage() {
               <div className="flex justify-between items-start mb-4">
                 <div>
                   <div className="text-sm text-slate-300 mb-1">
-                    الإجمالي المطلوب:
+                    {t("pharmacy.modal.totalRequired", "الإجمالي المطلوب:")}
                   </div>
                   <div className="text-2xl font-bold text-emerald-400">
-                    {formatMoney(currentTotal)}
+                    {formatMoney(currentTotal, currencyLabel)}
                   </div>
                 </div>
 
@@ -484,7 +490,7 @@ export default function PharmacyWorklistPage() {
                   <div className="flex gap-4 bg-slate-950 p-3 rounded-xl border border-slate-800">
                     <div>
                       <label className="block text-xs text-slate-400 mb-1">
-                        طريقة الدفع
+                        {t("pharmacy.modal.paymentMethod", "طريقة الدفع")}
                       </label>
                       <select
                         value={paymentMethod}
@@ -494,14 +500,14 @@ export default function PharmacyWorklistPage() {
                         data-testid="pharmacy-payment-method"
                         className="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs outline-none w-32"
                       >
-                        <option value="CASH">نقداً</option>
-                        <option value="CARD">بطاقة</option>
-                        <option value="INSURANCE">تأمين</option>
+                        <option value="CASH">{t("pharmacy.payment.cash", "نقداً")}</option>
+                        <option value="CARD">{t("pharmacy.payment.card", "بطاقة")}</option>
+                        <option value="INSURANCE">{t("pharmacy.payment.insurance", "تأمين")}</option>
                       </select>
                     </div>
                     <div>
                       <label className="block text-xs text-slate-400 mb-1">
-                        المبلغ المستلم
+                        {t("pharmacy.modal.amountReceived", "المبلغ المستلم")}
                       </label>
                       <input
                         type="number"
@@ -516,10 +522,9 @@ export default function PharmacyWorklistPage() {
 
                 {isIPD && (
                   <div className="bg-purple-900/30 border border-purple-500/30 p-3 rounded-xl max-w-xs text-xs text-purple-200">
-                    ℹ️ هذا المريض في حالة <b>إيواء (Inpatient)</b>.
+                    {t("pharmacy.modal.ipdInfoTitle", "ℹ️ هذا المريض في حالة إيواء (Inpatient).")}
                     <br />
-                    سيتم صرف الأدوية وإضافتها للفاتورة المفتوحة (Charge) دون دفع
-                    فوري.
+                    {t("pharmacy.modal.ipdInfoBody", "سيتم صرف الأدوية وإضافتها للفاتورة المفتوحة (Charge) دون دفع فوري.")}
                   </div>
                 )}
               </div>
@@ -530,7 +535,7 @@ export default function PharmacyWorklistPage() {
                   className="px-5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-medium"
                   disabled={processing}
                 >
-                  إلغاء
+                  {t("common.cancel", "إلغاء")}
                 </button>
 
                 <button
@@ -544,10 +549,10 @@ export default function PharmacyWorklistPage() {
                   }`}
                 >
                   {processing
-                    ? "جارِ التنفيذ..."
+                    ? t("pharmacy.processing", "جارِ التنفيذ...")
                     : isIPD
-                      ? "تأكيد الصرف للعنبر"
-                      : "تأكيد الصرف والدفع"}
+                      ? t("pharmacy.confirmDispenseIPD", "تأكيد الصرف للعنبر")
+                      : t("pharmacy.confirmDispenseAndPay", "تأكيد الصرف والدفع")}
                 </button>
               </div>
             </div>

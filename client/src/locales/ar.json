@@ -24,7 +24,29 @@
     "welcomeMsg": "مرحباً بك في نظام السرايا الطبي - النسخة التشغيلية",
     "switchBranch": "تبديل الفرع",
     "mainBranch": "الفرع الرئيسي",
-    "openMenu": "فتح القائمة"
+    "openMenu": "فتح القائمة",
+    "refresh": "تحديث",
+    "searchPlaceholder": "بحث...",
+    "previous": "السابق",
+    "next": "التالي",
+    "saved": "تم الحفظ.",
+    "saveFailed": "فشل الحفظ.",
+    "back": "➜ رجوع",
+    "close": "إغلاق",
+    "note": "ملاحظة:",
+    "selectAll": "تحديد الكل",
+    "deselectAll": "إلغاء الكل",
+    "gender": {
+      "male": "ذكر",
+      "female": "أنثى"
+    },
+    "age": {
+      "years": "سنة"
+    },
+    "currency": {
+      "lyd": "د.ل"
+    },
+    "loadingContent": "تحميل المحتوى..."
   },
   "cdss": {
     "alerts": "التنبيهات السريرية الذكية",
@@ -463,6 +485,7 @@
     "loadFailed": "فشل تحميل قائمة الانتظار",
     "saveSuccess": "تم حفظ الفرز بنجاح",
     "saveFailed": "فشل الحفظ",
+    "saveBtn": "حفظ الفرز",
     "requiredFields": "يجب تحديد مستوى الخطورة والشكوى الرئيسية.",
     "assess": "تقييم الفرز (Triage Assessment)",
     "reassess": "إعادة تقييم",
@@ -486,7 +509,13 @@
       "bloodPressure": "الضغط (Sys/Dia)",
       "heartRate": "النبض (HR)",
       "temperature": "الحرارة (Temp)",
-      "oxygen": "الأكسجين (SpO2)"
+      "oxygen": "الأكسجين (SpO2)",
+      "sysPh": "انقباضي",
+      "diaPh": "انبساطي",
+      "respRate": "التنفس (RR)",
+      "painScore": "مقياس الألم (0-10)",
+      "bloodPressureSys": "الضغط (SYS)",
+      "bloodPressureDia": "الضغط (DIA)"
     },
     "complaint": {
       "title": "2. الشكوى الرئيسية",
@@ -520,7 +549,21 @@
     "cdss": {
       "title": "⚠️ تنبيهات نظام دعم القرار:\n",
       "criticalAlert": "\n🚫 يوجد مؤشرات حرجة! هل أنت متأكد من المتابعة؟"
-    }
+    },
+    "error": {
+      "saveFailed": "فشل حفظ التقييم"
+    },
+    "liveBoardTitle": "🚨 شاشة فرز الطوارئ (Live Triage Board)",
+    "liveBoardSubtitle": "قائمة المرضى بانتظار الفرز أو الطبيب",
+    "waitingCount": "العدد في الانتظار: ",
+    "waitTime": "انتظار: ",
+    "waitingForTriage": "بانتظار الفرز",
+    "triaged": "تم الفرز",
+    "assessPatient": "فرز المريض: ",
+    "complaintAndLevel": "الشكوى والمستوى",
+    "aiSuggestion": "اقتراح النظام الذكي",
+    "saving": "جاري الحفظ...",
+    "saveAssessment": "حفظ التقييم (Save Assessment)"
   },
   "admissions": {
     "title": "نظام الإيواء",
@@ -812,5 +855,333 @@
     "diet": "النظام الغذائي (Diet)",
     "dischargeMeds": "أدوية الخروج (منسُوخة من الوصفات):",
     "noDischargeMeds": "لا توجد أدوية خروج مسجلة."
+  },
+  "encounters": {
+    "title": "سجل الحالات الطبية",
+    "subtitle": "متابعة الزيارات، حالات الطوارئ، وعمليات الإيواء النشطة.",
+    "loadFailed": "فشل تحميل سجل الحالات الطبية",
+    "loading": "جارِ تحميل السجلات...",
+    "empty": "لا توجد حالات مسجلة تطابق البحث.",
+    "unknownPatient": "مريض غير معروف",
+    "unassignedDoctor": "غير محدد",
+    "patientHistoryLabel": "عرض تاريخ المريض ID:",
+    "type": {
+      "er": "طوارئ",
+      "ipd": "إيواء",
+      "opd": "عيادة"
+    },
+    "stats": {
+      "active": "الحالات النشطة",
+      "er": "في الطوارئ",
+      "ipd": "قيد الإيواء"
+    },
+    "filters": {
+      "searchLabel": "بحث سريع",
+      "searchPlaceholder": "رقم الحالة، MRN، أو اسم المريض...",
+      "typeLabel": "نوع الحالة",
+      "all": "الكل",
+      "opd": "عيادات خارجية",
+      "er": "طوارئ",
+      "ipd": "إيواء"
+    },
+    "table": {
+      "id": "رقم الحالة",
+      "admissionDate": "تاريخ الدخول",
+      "patient": "المريض",
+      "typeDepartment": "النوع / القسم",
+      "doctor": "الطبيب",
+      "status": "الحالة",
+      "actions": "إجراءات"
+    },
+    "status": {
+      "open": "نشطة",
+      "closed": "مكتملة",
+      "cancelled": "ملغاة"
+    },
+    "actions": {
+      "openFile": "فتح الملف ➜"
+    },
+    "pagination": {
+      "total": "إجمالي السجلات:"
+    }
+  },
+  "lab": {
+    "title": "قائمة المعمل",
+    "subtitle": "إدخال النتائج وطباعة التقارير المجمعة.",
+    "loadFailed": "حدث خطأ أثناء تحميل القائمة.",
+    "paymentRequired": "⚠️ لا يمكن إدخال النتيجة قبل سداد الرسوم.",
+    "paymentRequiredStart": "⚠️ يجب سداد الرسوم قبل بدء التحليل.",
+    "startSuccess": "✅ تم إرسال الطلب للجهاز (HL7).",
+    "startFailed": "فشل بدء التحليل.",
+    "empty": "لا توجد طلبات.",
+    "encounterLabel": "الحالة #",
+    "orderDate": "تاريخ الطلب:",
+    "statusLabel": "الحالة:",
+    "prompt": {
+      "enterResult": "إدخال نتيجة",
+      "forPatient": "للمريض",
+      "unit": "وحدة القياس (اختياري):",
+      "referenceRange": "المعدل المرجعي (اختياري):"
+    },
+    "payment": {
+      "paid": "تم الدفع",
+      "waived": "معفى",
+      "unpaid": "غير مدفوع"
+    },
+    "status": {
+      "completed": "مكتمل",
+      "inProgress": "جاري التحليل...",
+      "pending": "انتظار"
+    },
+    "actions": {
+      "start": "⚡ بدء التحليل",
+      "editResult": "تعديل النتيجة",
+      "enterResult": "إدخال النتيجة",
+      "report": "تقرير مجمع"
+    }
+  },
+  "radiology": {
+    "title": "قائمة الأشعة (Worklist)",
+    "subtitle": "عرض طلبات الأشعة، إدخال التقارير، وطباعة النتائج.",
+    "loadFailed": "حدث خطأ أثناء تحميل القائمة.",
+    "startSuccess": "✅ تم بدء التصوير وإرسال الطلب (HL7).",
+    "startFailed": "فشل بدء التصوير.",
+    "reportSaved": "تم حفظ التقرير وإكمال الطلب.",
+    "empty": "لا توجد طلبات.",
+    "orderDate": "تاريخ الطلب:",
+    "statusLabel": "الحالة:",
+    "prompt": {
+      "enterReport": "أدخل تقرير الأشعة للمريض"
+    },
+    "status": {
+      "pending": "قيد الانتظار",
+      "scheduled": "مجدول",
+      "inProgress": "جاري التصوير...",
+      "completed": "مكتمل"
+    },
+    "actions": {
+      "start": "⚡ بدء الفحص",
+      "editReport": "تعديل التقرير",
+      "enterReport": "إدخال التقرير",
+      "print": "طباعة"
+    }
+  },
+  "pharmacy": {
+    "title": "صرف الوصفات (الصيدلية)",
+    "subtitle": "قائمة الوصفات المعلقة للصرف.",
+    "loadFailed": "فشل تحميل القائمة.",
+    "operationFailed": "فشل العملية.",
+    "stockLink": "المخزون",
+    "viewAndDispense": "عرض وصرف",
+    "processing": "جارِ التنفيذ...",
+    "confirmDispenseIPD": "تأكيد الصرف للعنبر",
+    "confirmDispenseAndPay": "تأكيد الصرف والدفع",
+    "emptyState": "لا توجد وصفات في الانتظار.",
+    "notes": {
+      "ipdDispense": "صرف للعنبر (IPD Dispense)",
+      "posDispense": "صرف مباشر (POS)"
+    },
+    "success": {
+      "ipdDispensed": "تم صرف الأدوية وإرسالها للعنبر.",
+      "dispensePaid": "تم الصرف والدفع بنجاح."
+    },
+    "table": {
+      "prescriptionNo": "رقم الوصفة",
+      "patientType": "نوع المريض",
+      "patient": "المريض",
+      "doctor": "الطبيب",
+      "date": "التاريخ",
+      "itemCount": "عدد الأصناف",
+      "actions": "إجراءات"
+    },
+    "patientType": {
+      "inpatient": "إيواء (منوم)",
+      "outpatient": "خارجي / طوارئ"
+    },
+    "modal": {
+      "dispenseTitle": "صرف الوصفة #",
+      "inpatientBadge": "مريض إيواء",
+      "patientLabel": "المريض:",
+      "prescribedDrug": "الدواء الموصوف",
+      "substitute": "البديل / المصروف فعلياً",
+      "quantity": "الكمية",
+      "price": "السعر",
+      "total": "الإجمالي",
+      "sameGenericGroup": "بدائل بنفس الاسم العلمي",
+      "stockLabel": "رصيد:",
+      "allDrugsGroup": "كل الأدوية",
+      "insufficientStock": "⚠️ الرصيد غير كافٍ",
+      "totalRequired": "الإجمالي المطلوب:",
+      "paymentMethod": "طريقة الدفع",
+      "amountReceived": "المبلغ المستلم",
+      "ipdInfoTitle": "ℹ️ هذا المريض في حالة إيواء (Inpatient).",
+      "ipdInfoBody": "سيتم صرف الأدوية وإضافتها للفاتورة المفتوحة (Charge) دون دفع فوري."
+    },
+    "payment": {
+      "cash": "نقداً",
+      "card": "بطاقة",
+      "insurance": "تأمين"
+    }
+  },
+  "encounter": {
+    "tabs": {
+      "visits": "التشخيص والزيارة",
+      "allergies": "الحساسية والمخاطر",
+      "obgyn": "النساء والولادة",
+      "andrology": "أمراض الذكورة",
+      "labs": "المختبر",
+      "radiology": "الأشعة",
+      "prescriptions": "الأدوية",
+      "billing": "الفوترة"
+    },
+    "loading": {
+      "medicalFile": "جارِ تحميل الملف الطبي...",
+      "vitals": "تحميل لوحة العلامات الحيوية...",
+      "diagnosis": "تحميل لوحة التشخيص...",
+      "allergies": "تحميل لوحة الحساسية والمخاطر...",
+      "obgyn": "تحميل ملف النساء والولادة...",
+      "labs": "تحميل تبويب المختبر...",
+      "radiology": "تحميل تبويب الأشعة...",
+      "prescriptions": "تحميل تبويب الأدوية...",
+      "billing": "تحميل تبويب الفوترة...",
+      "quickSummary": "تحميل الملخص السريع...",
+      "quickProtocols": "تحميل البروتوكولات السريعة..."
+    },
+    "error": {
+      "notFound": "الملف غير موجود.",
+      "assignFailed": "فشل التعيين.",
+      "saveFailed": "فشل الحفظ.",
+      "dischargeFailed": "فشل تسجيل الخروج",
+      "admitFailed": "فشل الإيواء",
+      "aiCodingFailed": "فشل تحليل الملاحظة السريرية بواسطة الذكاء الاصطناعي",
+      "applyCodesFailed": "فشل اعتماد الأكواد الطبية"
+    },
+    "success": {
+      "doctorAssigned": "تم تعيينك طبيباً للحالة.",
+      "noteSaved": "تم حفظ الملاحظة السريرية.",
+      "discharged": "تم تسجيل خروج المريض وإغلاق الملف.",
+      "admitted": "تم تحويل المريض للإيواء بنجاح وأُضيف لجدول التنويم النشط.",
+      "codesApplied": "✅ تم اعتماد"
+    },
+    "warning": {
+      "writeNotesFirst": "يرجى كتابة ملاحظات سريرية أولاً ليتم تحليلها.",
+      "selectDepartment": "يرجى اختيار القسم المحول إليه"
+    },
+    "confirm": {
+      "discharge": "هل أنت متأكد من قرار خروج المريض (Discharge) وإغلاق الملف؟"
+    },
+    "quickSummary": {
+      "title": "ملخص سريع",
+      "vitals": "العلامات الحيوية:",
+      "recorded": "مسجلة",
+      "noReadings": "لا توجد قراءات",
+      "primaryDiagnosis": "التشخيص المبدئي:",
+      "unavailable": "غير متوفر",
+      "fileStatus": "حالة الملف:"
+    },
+    "status": {
+      "open": "🟢 مفتوح",
+      "closed": "🔒 مغلق",
+      "cancelled": "❌ ملغي"
+    },
+    "protocols": {
+      "confirmExecute": "تأكيد تنفيذ بروتوكول بجميع طلباته السريرية لهذه الحالة؟",
+      "executeSuccess": "تم الاعتماد وإرسال الطلبات بنجاح",
+      "executeFailed": "تعذر تنفيذ البروتوكول",
+      "confirmEnroll": "تأكيد إدراج الحالة في المسار العلاجي؟",
+      "enrollSuccess": "تم إدراج المريض وبدء المسار العلاجي",
+      "enrollFailed": "تعذر الإدراج في المسار",
+      "orderSetsTitle": "⚡ أوامر المجموعات (Order Sets)",
+      "categoryGeneral": "عام",
+      "defaultDescription": "تنفيذ الإجراءات المرفقة تلقائياً",
+      "pathwaysTitle": "🛤️ مسارات العلاج (Pathways)",
+      "losLabel": "LOS:",
+      "defaultPathwayDesc": "خطة علاجية مقسمة على الأيام",
+      "manageProtocols": "إدارة محتوى البروتوكولات ←",
+      "managePathways": "إدارة المسارات السريرية ←"
+    },
+    "header": {
+      "mpiBadge": "🌐 MPI",
+      "medicalRecord": "📋 السجل الطبي",
+      "dischargeSummary": "📝 ملخص الخروج (Discharge Summary)",
+      "attendingDoctor": "الطبيب المعالج",
+      "assignToMe": "✋ تولي الحالة",
+      "fileClosed": "🔒 ملف مغلق",
+      "admissionDate": "دخول:",
+      "chiefComplaint": "الشكوى:"
+    },
+    "type": {
+      "er": "طوارئ",
+      "ipd": "دخول / إيواء",
+      "opd": "عيادة"
+    },
+    "transfer": {
+      "pendingTitle": "يوجد طلب نقل قيد المعالجة (Transfer Pending)",
+      "statusRequested": "بانتظار طبيب/تمريض القسم المستقبل لتخصيص سرير للمريض.",
+      "statusBedAllocated": "تم تخصيص السرير بنجاح! يرجى التواصل مع فريق التمريض لتسليم الحالة (SBAR Handover) قبل نقل المريض فعلياً.",
+      "statusHandoverSigned": "تم تسليم الحالة. بانتظار تأكيد وصول المريض للقسم المستقبل.",
+      "statusDefault": "الطلب قيد المعالجة.",
+      "statusLabel": "الحالة:"
+    },
+    "decision": {
+      "title": "⚖️ القرار الطبي",
+      "subtitle": "بناءً على التقييم، يرجى اتخاذ القرار المناسب للحالة:",
+      "discharge": "🏠 خروج (Discharge)",
+      "admission": "🛏️ دخول (Admission)",
+      "delivery": "👶 تسجيل ولادة (Delivery)"
+    },
+    "transferOrders": {
+      "title": "🔄 أوامر النقل",
+      "pending": "⏳ طلب النقل قيد الانتظار",
+      "cannotRequest": "لا يمكنك طلب نقل جديد حالياً",
+      "requestTransfer": "🚑 طلب نقل (عناية/قسم)"
+    },
+    "admission": {
+      "erReason": "دخول من قسم الطوارئ"
+    },
+    "obgyn": {
+      "anc": "🤰 متابعة الحمل (ANC)",
+      "ivf": "🧬 الحقن المجهري (IVF)",
+      "newDelivery": "👶 تسجيل ولادة جديدة"
+    },
+    "andrology": {
+      "title": "🧬 ملف أمراض الذكورة والعقم",
+      "description": "يمكنك من هنا الوصول لملف المريض في عيادة أمراض الذكورة وتحاليل السائل المنوي وملفات العقم المشتركة.",
+      "semenAnalysis": "🔬 تحليل السائل المنوي",
+      "sharedIvf": "💑 ملف العقم المشترك (IVF)"
+    },
+    "admitModal": {
+      "title": "قرار إيواء المريض",
+      "departmentLabel": "إلى أي قسم؟",
+      "selectDepartment": "-- اختر القسم --",
+      "wardLabel": "العنبر (اختياري)",
+      "selectWard": "-- اختر العنبر --",
+      "bedsAvailable": "سرير متاح)",
+      "bedLabel": "السرير",
+      "noBedsAvailable": "⚠️ لا توجد أسرّة متاحة في هذا العنبر.",
+      "selectBed": "-- اختر السرير --",
+      "roomBedOption": "غرفة {{roomNumber}} — سرير {{bedNumber}}",
+      "bedOptionalNote": "* اختيار السرير اختياري. يمكن تعيين السرير لاحقاً من صفحة حالات الإيواء.",
+      "confirm": "تأكيد الدخول"
+    },
+    "ai": {
+      "modalTitle": "المساعد الذكي — تحليل واعتماد الأكواد الطبية",
+      "analyzing": "يقوم الذكاء الاصطناعي بتحليل الملاحظات واستخراج الأكواد...",
+      "evaluationTypes": "ICD-10 + CPT + E&M Evaluation",
+      "reasoningTitle": "🧠 التحليل المنطقي للذكاء الاصطناعي (Reasoning)",
+      "suggestedDiagnoses": "تشخيصات ICD-10 المقترحة",
+      "confidence": "% ثقة",
+      "typePrimary": "رئيسي (Primary)",
+      "typeSecondary": "ثانوي (Secondary)",
+      "suggestedProcedures": "إجراءات CPT المقترحة",
+      "noCodesFound": "لم يتعرف الذكاء الاصطناعي على أية أكواد طبية دقيقة من الملاحظات المكتوبة.",
+      "instructionNote": "اختر الأكواد المناسبة واضغط \"اعتماد\" لحفظها تلقائياً في التشخيص والفوترة. الأكواد غير المرتبطة بخدمات في النظام ستظهر كتنبيهات.",
+      "loadError": "حدث خطأ أثناء تحميل الاقتراحات.",
+      "selectedCodes": "كود مُختار",
+      "applying": "جاري الاعتماد...",
+      "applySelected": "✅ اعتماد المختار",
+      "diagnosisCount": "تشخيص",
+      "procedureCount": "إجراء"
+    }
   }
 }

@@ -392,7 +392,7 @@ export default function TriageDashboardPage() {
                     </label>
                     <div className="flex gap-1">
                       <input
-                        placeholder="Sys"
+                        placeholder={t("triage.vitals.sysPh", "Sys")}
                         type="number"
                         className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-xs"
                         value={form.bpSystolic}
@@ -401,7 +401,7 @@ export default function TriageDashboardPage() {
                         }
                       />
                       <input
-                        placeholder="Dia"
+                        placeholder={t("triage.vitals.diaPh", "Dia")}
                         type="number"
                         className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-xs"
                         value={form.bpDiastolic}
@@ -504,7 +504,7 @@ export default function TriageDashboardPage() {
                 onClick={handleSubmit}
                 className="px-8 py-2 rounded-xl bg-emerald-600 text-white text-sm font-bold hover:bg-emerald-500 shadow-lg shadow-emerald-500/20"
               >
-                {t("triage.saveSuccess")}
+                {t("triage.saveBtn", "حفظ الفرز")}
               </button>
             </div>
           </div>

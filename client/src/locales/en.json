@@ -24,7 +24,29 @@
     "welcomeMsg": "Welcome to Saraya Medical System - Operational Version",
     "switchBranch": "Switch Branch",
     "mainBranch": "Main Branch",
-    "openMenu": "Open Menu"
+    "openMenu": "Open Menu",
+    "refresh": "Refresh",
+    "searchPlaceholder": "Search...",
+    "previous": "Previous",
+    "next": "Next",
+    "saved": "Saved.",
+    "saveFailed": "Save failed.",
+    "back": "➜ Back",
+    "close": "Close",
+    "note": "Note:",
+    "selectAll": "Select All",
+    "deselectAll": "Deselect All",
+    "gender": {
+      "male": "Male",
+      "female": "Female"
+    },
+    "age": {
+      "years": "years"
+    },
+    "currency": {
+      "lyd": "LYD"
+    },
+    "loadingContent": "Loading content..."
   },
   "cdss": {
     "alerts": "Smart Clinical Alerts",
@@ -463,6 +485,7 @@
     "loadFailed": "Failed to load waiting list",
     "saveSuccess": "Triage saved successfully",
     "saveFailed": "Save failed",
+    "saveBtn": "Save Triage",
     "requiredFields": "Please select a triage level and enter a chief complaint.",
     "assess": "Triage Assessment",
     "reassess": "Reassess",
@@ -486,7 +509,13 @@
       "bloodPressure": "Blood Pressure (Sys/Dia)",
       "heartRate": "Heart Rate (HR)",
       "temperature": "Temperature (Temp)",
-      "oxygen": "Oxygen (SpO2)"
+      "oxygen": "Oxygen (SpO2)",
+      "sysPh": "Sys",
+      "diaPh": "Dia",
+      "respRate": "Respiration Rate (RR)",
+      "painScore": "Pain Score (0-10)",
+      "bloodPressureSys": "Blood Pressure (SYS)",
+      "bloodPressureDia": "Blood Pressure (DIA)"
     },
     "complaint": {
       "title": "2. Chief Complaint",
@@ -520,7 +549,21 @@
     "cdss": {
       "title": "⚠️ Decision Support Alerts:\n",
       "criticalAlert": "\n🚫 Critical values detected! Are you sure you want to proceed?"
-    }
+    },
+    "error": {
+      "saveFailed": "Failed to save assessment"
+    },
+    "liveBoardTitle": "🚨 Emergency Live Triage Board",
+    "liveBoardSubtitle": "Patients waiting for triage or doctor review",
+    "waitingCount": "Waiting Count: ",
+    "waitTime": "Wait time: ",
+    "waitingForTriage": "Awaiting Triage",
+    "triaged": "Triaged",
+    "assessPatient": "Triage Patient: ",
+    "complaintAndLevel": "Complaint & Level",
+    "aiSuggestion": "AI Smart Suggestion",
+    "saving": "Saving...",
+    "saveAssessment": "Save Assessment"
   },
   "admissions": {
     "title": "Admissions System",
@@ -812,5 +855,333 @@
     "diet": "Diet Instructions",
     "dischargeMeds": "Discharge Medications (copied from prescriptions):",
     "noDischargeMeds": "No discharge medications recorded."
+  },
+  "encounters": {
+    "title": "Medical Records",
+    "subtitle": "Track visits, emergencies, and active admissions.",
+    "loadFailed": "Failed to load medical records",
+    "loading": "Loading records...",
+    "empty": "No records match the search criteria.",
+    "unknownPatient": "Unknown patient",
+    "unassignedDoctor": "Unassigned",
+    "patientHistoryLabel": "Patient history ID:",
+    "type": {
+      "er": "Emergency",
+      "ipd": "Admission",
+      "opd": "Outpatient"
+    },
+    "stats": {
+      "active": "Active Cases",
+      "er": "In ER",
+      "ipd": "Admitted"
+    },
+    "filters": {
+      "searchLabel": "Quick Search",
+      "searchPlaceholder": "Case number, MRN, or patient name...",
+      "typeLabel": "Case Type",
+      "all": "All",
+      "opd": "Outpatient Clinics",
+      "er": "Emergency",
+      "ipd": "Admission"
+    },
+    "table": {
+      "id": "Case #",
+      "admissionDate": "Admission Date",
+      "patient": "Patient",
+      "typeDepartment": "Type / Department",
+      "doctor": "Doctor",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "status": {
+      "open": "Active",
+      "closed": "Completed",
+      "cancelled": "Cancelled"
+    },
+    "actions": {
+      "openFile": "Open File ➜"
+    },
+    "pagination": {
+      "total": "Total Records:"
+    }
+  },
+  "lab": {
+    "title": "Lab Worklist",
+    "subtitle": "Enter results and print aggregate reports.",
+    "loadFailed": "Error loading the worklist.",
+    "paymentRequired": "⚠️ Cannot enter result before payment.",
+    "paymentRequiredStart": "⚠️ Payment is required before starting analysis.",
+    "startSuccess": "✅ Order sent to analyzer (HL7).",
+    "startFailed": "Failed to start analysis.",
+    "empty": "No orders found.",
+    "encounterLabel": "Encounter #",
+    "orderDate": "Order Date:",
+    "statusLabel": "Status:",
+    "prompt": {
+      "enterResult": "Enter result",
+      "forPatient": "for patient",
+      "unit": "Unit of measure (optional):",
+      "referenceRange": "Reference range (optional):"
+    },
+    "payment": {
+      "paid": "Paid",
+      "waived": "Waived",
+      "unpaid": "Unpaid"
+    },
+    "status": {
+      "completed": "Completed",
+      "inProgress": "In Progress...",
+      "pending": "Pending"
+    },
+    "actions": {
+      "start": "⚡ Start Analysis",
+      "editResult": "Edit Result",
+      "enterResult": "Enter Result",
+      "report": "Aggregate Report"
+    }
+  },
+  "radiology": {
+    "title": "Radiology Worklist",
+    "subtitle": "View imaging orders, enter reports, and print results.",
+    "loadFailed": "Error loading the worklist.",
+    "startSuccess": "✅ Imaging started and order sent (HL7).",
+    "startFailed": "Failed to start imaging.",
+    "reportSaved": "Report saved and order completed.",
+    "empty": "No orders found.",
+    "orderDate": "Order Date:",
+    "statusLabel": "Status:",
+    "prompt": {
+      "enterReport": "Enter radiology report for patient"
+    },
+    "status": {
+      "pending": "Pending",
+      "scheduled": "Scheduled",
+      "inProgress": "Imaging in Progress...",
+      "completed": "Completed"
+    },
+    "actions": {
+      "start": "⚡ Start Exam",
+      "editReport": "Edit Report",
+      "enterReport": "Enter Report",
+      "print": "Print"
+    }
+  },
+  "pharmacy": {
+    "title": "Pharmacy Dispensing",
+    "subtitle": "Pending prescriptions waiting to be dispensed.",
+    "loadFailed": "Failed to load the list.",
+    "operationFailed": "Operation failed.",
+    "stockLink": "Stock",
+    "viewAndDispense": "View & Dispense",
+    "processing": "Processing...",
+    "confirmDispenseIPD": "Confirm Ward Dispense",
+    "confirmDispenseAndPay": "Confirm Dispense & Pay",
+    "emptyState": "No prescriptions waiting.",
+    "notes": {
+      "ipdDispense": "IPD Dispense",
+      "posDispense": "POS Dispense"
+    },
+    "success": {
+      "ipdDispensed": "Medications dispensed and sent to the ward.",
+      "dispensePaid": "Dispensed and payment processed successfully."
+    },
+    "table": {
+      "prescriptionNo": "Rx #",
+      "patientType": "Patient Type",
+      "patient": "Patient",
+      "doctor": "Doctor",
+      "date": "Date",
+      "itemCount": "Items",
+      "actions": "Actions"
+    },
+    "patientType": {
+      "inpatient": "Inpatient",
+      "outpatient": "Outpatient / ER"
+    },
+    "modal": {
+      "dispenseTitle": "Dispense Rx #",
+      "inpatientBadge": "Inpatient",
+      "patientLabel": "Patient:",
+      "prescribedDrug": "Prescribed Drug",
+      "substitute": "Substitute / Actual Dispensed",
+      "quantity": "Quantity",
+      "price": "Price",
+      "total": "Total",
+      "sameGenericGroup": "Same generic alternatives",
+      "stockLabel": "Stock:",
+      "allDrugsGroup": "All drugs",
+      "insufficientStock": "⚠️ Insufficient stock",
+      "totalRequired": "Total Required:",
+      "paymentMethod": "Payment Method",
+      "amountReceived": "Amount Received",
+      "ipdInfoTitle": "ℹ️ This patient is admitted (Inpatient).",
+      "ipdInfoBody": "Medications will be dispensed and added to the open bill (Charge) without immediate payment."
+    },
+    "payment": {
+      "cash": "Cash",
+      "card": "Card",
+      "insurance": "Insurance"
+    }
+  },
+  "encounter": {
+    "tabs": {
+      "visits": "Diagnosis & Visit",
+      "allergies": "Allergies & Risks",
+      "obgyn": "OBGYN",
+      "andrology": "Andrology",
+      "labs": "Laboratory",
+      "radiology": "Radiology",
+      "prescriptions": "Prescriptions",
+      "billing": "Billing"
+    },
+    "loading": {
+      "medicalFile": "Loading medical file...",
+      "vitals": "Loading vitals panel...",
+      "diagnosis": "Loading diagnosis panel...",
+      "allergies": "Loading allergies & risks...",
+      "obgyn": "Loading OBGYN module...",
+      "labs": "Loading lab tab...",
+      "radiology": "Loading radiology tab...",
+      "prescriptions": "Loading prescriptions tab...",
+      "billing": "Loading billing tab...",
+      "quickSummary": "Loading quick summary...",
+      "quickProtocols": "Loading quick protocols..."
+    },
+    "error": {
+      "notFound": "File not found.",
+      "assignFailed": "Assignment failed.",
+      "saveFailed": "Save failed.",
+      "dischargeFailed": "Discharge failed",
+      "admitFailed": "Admission failed",
+      "aiCodingFailed": "AI clinical note analysis failed",
+      "applyCodesFailed": "Failed to apply medical codes"
+    },
+    "success": {
+      "doctorAssigned": "You have been assigned as the attending doctor.",
+      "noteSaved": "Clinical note saved.",
+      "discharged": "Patient discharged and file closed.",
+      "admitted": "Patient admitted successfully and added to active admissions.",
+      "codesApplied": "✅ Successfully applied"
+    },
+    "warning": {
+      "writeNotesFirst": "Please write clinical notes first for AI analysis.",
+      "selectDepartment": "Please select the destination department"
+    },
+    "confirm": {
+      "discharge": "Are you sure you want to discharge the patient and close the file?"
+    },
+    "quickSummary": {
+      "title": "Quick Summary",
+      "vitals": "Vital Signs:",
+      "recorded": "recorded",
+      "noReadings": "No readings",
+      "primaryDiagnosis": "Primary Diagnosis:",
+      "unavailable": "Not available",
+      "fileStatus": "File Status:"
+    },
+    "status": {
+      "open": "🟢 Open",
+      "closed": "🔒 Closed",
+      "cancelled": "❌ Cancelled"
+    },
+    "protocols": {
+      "confirmExecute": "Confirm executing protocol with all its clinical orders for this case?",
+      "executeSuccess": "Orders approved and sent successfully",
+      "executeFailed": "Failed to execute protocol",
+      "confirmEnroll": "Confirm enrolling the patient in this clinical pathway?",
+      "enrollSuccess": "Patient enrolled and pathway started",
+      "enrollFailed": "Failed to enroll in pathway",
+      "orderSetsTitle": "⚡ Order Sets",
+      "categoryGeneral": "General",
+      "defaultDescription": "Auto-execute attached orders",
+      "pathwaysTitle": "🛤️ Clinical Pathways",
+      "losLabel": "LOS:",
+      "defaultPathwayDesc": "Day-by-day treatment plan",
+      "manageProtocols": "Manage Protocols ←",
+      "managePathways": "Manage Clinical Pathways ←"
+    },
+    "header": {
+      "mpiBadge": "🌐 MPI",
+      "medicalRecord": "📋 Medical Record",
+      "dischargeSummary": "📝 Discharge Summary",
+      "attendingDoctor": "Attending Doctor",
+      "assignToMe": "✋ Take Over Case",
+      "fileClosed": "🔒 File Closed",
+      "admissionDate": "Admission:",
+      "chiefComplaint": "Complaint:"
+    },
+    "type": {
+      "er": "Emergency",
+      "ipd": "Admission",
+      "opd": "Outpatient"
+    },
+    "transfer": {
+      "pendingTitle": "Transfer request pending (Transfer Pending)",
+      "statusRequested": "Awaiting receiving department to allocate a bed.",
+      "statusBedAllocated": "Bed allocated! Please coordinate SBAR Handover before physical transfer.",
+      "statusHandoverSigned": "Handover completed. Awaiting confirmation of patient arrival.",
+      "statusDefault": "Request is being processed.",
+      "statusLabel": "Status:"
+    },
+    "decision": {
+      "title": "⚖️ Medical Decision",
+      "subtitle": "Based on assessment, please make the appropriate decision:",
+      "discharge": "🏠 Discharge",
+      "admission": "🛏️ Admission",
+      "delivery": "👶 Delivery Registration"
+    },
+    "transferOrders": {
+      "title": "🔄 Transfer Orders",
+      "pending": "⏳ Transfer request pending",
+      "cannotRequest": "Cannot request a new transfer at this time",
+      "requestTransfer": "🚑 Request Transfer (Ward/Unit)"
+    },
+    "admission": {
+      "erReason": "Admission from Emergency Department"
+    },
+    "obgyn": {
+      "anc": "🤰 Antenatal Care (ANC)",
+      "ivf": "🧬 Fertility (IVF)",
+      "newDelivery": "👶 Register New Delivery"
+    },
+    "andrology": {
+      "title": "🧬 Andrology & Infertility File",
+      "description": "Access andrology clinic file, semen analysis, and shared fertility records.",
+      "semenAnalysis": "🔬 Semen Analysis",
+      "sharedIvf": "💑 Shared Fertility File (IVF)"
+    },
+    "admitModal": {
+      "title": "Admission Decision",
+      "departmentLabel": "To which department?",
+      "selectDepartment": "-- Select Department --",
+      "wardLabel": "Ward (optional)",
+      "selectWard": "-- Select Ward --",
+      "bedsAvailable": "beds available)",
+      "bedLabel": "Bed",
+      "noBedsAvailable": "⚠️ No beds available in this ward.",
+      "selectBed": "-- Select Bed --",
+      "roomBedOption": "Room {{roomNumber}} — Bed {{bedNumber}}",
+      "bedOptionalNote": "* Bed selection is optional. You can assign a bed later from the admissions page.",
+      "confirm": "Confirm Admission"
+    },
+    "ai": {
+      "modalTitle": "AI Assistant — Medical Code Analysis & Approval",
+      "analyzing": "AI is analyzing notes and extracting codes...",
+      "evaluationTypes": "ICD-10 + CPT + E&M Evaluation",
+      "reasoningTitle": "🧠 AI Reasoning Analysis",
+      "suggestedDiagnoses": "Suggested ICD-10 Diagnoses",
+      "confidence": "% confidence",
+      "typePrimary": "Primary",
+      "typeSecondary": "Secondary",
+      "suggestedProcedures": "Suggested CPT Procedures",
+      "noCodesFound": "AI did not identify any precise medical codes from the written notes.",
+      "instructionNote": "Select appropriate codes and click 'Apply' to auto-save them to diagnosis and billing. Codes not linked to system services will show as alerts.",
+      "loadError": "Error loading suggestions.",
+      "selectedCodes": "code(s) selected",
+      "applying": "Applying...",
+      "applySelected": "✅ Apply Selected",
+      "diagnosisCount": "diagnosis",
+      "procedureCount": "procedure"
+    }
   }
 }

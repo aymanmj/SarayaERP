@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { apiClient } from "../api/apiClient";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 
 type PatientLite = { id: number; fullName: string; mrn: string };
 type TestLite = {
@@ -29,9 +30,9 @@ type LabWorklistItem = {
   test: TestLite;
 };
 
-function formatDateTime(iso: string) {
+function formatDateTime(iso: string, locale: string = "ar-LY") {
   const d = new Date(iso);
-  return d.toLocaleString("ar-LY", {
+  return d.toLocaleString(locale, {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -41,6 +42,10 @@ function formatDateTime(iso: string) {
 }
 
 export default function LabWorklistPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
+  const dateLocale = isRtl ? "ar-LY" : "en-US";
+
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<LabWorklistItem[]>([]);
   const [search, setSearch] = useState("");
@@ -52,7 +57,7 @@ export default function LabWorklistPage() {
       setItems(res.data);
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
-      toast.error("حدث خطأ أثناء تحميل القائمة.");
+      toast.error(t("lab.loadFailed", "حدث خطأ أثناء تحميل القائمة."));
     } finally {
       setLoading(false);
     }
@@ -77,13 +82,13 @@ export default function LabWorklistPage() {
   const handleComplete = async (item: LabWorklistItem) => {
     // ✅ [PAYWALL] منع الإدخال لغير المدفوع
     if (item.order.paymentStatus === "PENDING") {
-      toast.error("⚠️ لا يمكن إدخال النتيجة قبل سداد الرسوم.");
+      toast.error(t("lab.paymentRequired", "⚠️ لا يمكن إدخال النتيجة قبل سداد الرسوم."));
       return;
     }
 
     // هذه طريقة مبسطة، يفضل استخدام Modal
     const val = window.prompt(
-      `إدخال نتيجة (${item.test.name}) للمريض ${item.patient?.fullName ?? ""}:`,
+      t("lab.prompt.enterResult", "إدخال نتيجة") + ` (${item.test.name}) ` + t("lab.prompt.forPatient", "للمريض") + ` ${item.patient?.fullName ?? ""}:`,
       undefined, // Default value should be empty or existing value if editing, but simplest is empty for now
     );
     // Note: If resultValue exists, maybe pre-fill?
@@ -91,9 +96,9 @@ export default function LabWorklistPage() {
     if (val === null) return; // User cancelled
 
     const unit =
-      window.prompt("وحدة القياس (اختياري):", item.test.unit ?? "") ??
+      window.prompt(t("lab.prompt.unit", "وحدة القياس (اختياري):"), item.test.unit ?? "") ??
       undefined;
-    const ref = window.prompt("المعدل المرجعي (اختياري):", "") ?? undefined;
+    const ref = window.prompt(t("lab.prompt.referenceRange", "المعدل المرجعي (اختياري):"), "") ?? undefined;
 
     // CDSS Check logic... (simplified for brevity as in original)
     // ...
@@ -105,11 +110,11 @@ export default function LabWorklistPage() {
         referenceRange: ref || undefined,
       });
 
-      toast.success("تم الحفظ.");
+      toast.success(t("common.saved", "تم الحفظ."));
       load(); // تحديث
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err: any) {
-      toast.error("فشل الحفظ.");
+      toast.error(t("common.saveFailed", "فشل الحفظ."));
     }
   };
 
@@ -117,63 +122,63 @@ export default function LabWorklistPage() {
     if (status === "PAID")
       return (
         <span className="text-[10px] bg-emerald-900/30 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded font-mono">
-          تم الدفع
+          {t("lab.payment.paid", "تم الدفع")}
         </span>
       );
     if (status === "WAIVED")
       return (
         <span className="text-[10px] bg-sky-900/30 text-sky-400 border border-sky-500/20 px-2 py-0.5 rounded font-mono">
-          معفى
+          {t("lab.payment.waived", "معفى")}
         </span>
       );
     return (
       <span className="text-[10px] bg-rose-900/30 text-rose-400 border border-rose-500/20 px-2 py-0.5 rounded font-bold">
-        غير مدفوع
+        {t("lab.payment.unpaid", "غير مدفوع")}
       </span>
     );
   };
 
   const handleStart = async (item: LabWorklistItem) => {
     if (item.order.paymentStatus === "PENDING") {
-      toast.error("⚠️ يجب سداد الرسوم قبل بدء التحليل.");
+      toast.error(t("lab.paymentRequiredStart", "⚠️ يجب سداد الرسوم قبل بدء التحليل."));
       return;
     }
 
     try {
         await apiClient.post(`/lab/orders/${item.id}/start`);
-        toast.success("✅ تم إرسال الطلب للجهاز (HL7).");
+        toast.success(t("lab.startSuccess", "✅ تم إرسال الطلب للجهاز (HL7)."));
         load();
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
-        toast.error("فشل بدء التحليل.");
+        toast.error(t("lab.startFailed", "فشل بدء التحليل."));
     }
   };
 
   const renderStatus = (status: string) => {
     if (status === "COMPLETED")
-      return <span className="text-emerald-400">مكتمل</span>;
+      return <span className="text-emerald-400">{t("lab.status.completed", "مكتمل")}</span>;
     if (status === "IN_PROGRESS")
-      return <span className="text-sky-400 animate-pulse">جاري التحليل...</span>;
+      return <span className="text-sky-400 animate-pulse">{t("lab.status.inProgress", "جاري التحليل...")}</span>;
     if (status === "PENDING")
-      return <span className="text-amber-400">انتظار</span>;
+      return <span className="text-amber-400">{t("lab.status.pending", "انتظار")}</span>;
     return status;
   };
 
   return (
     <div
       className="flex flex-col h-full text-slate-100 p-6 space-y-6"
-      dir="rtl"
+      dir={isRtl ? "rtl" : "ltr"}
     >
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold mb-1">قائمة المعمل</h1>
+          <h1 className="text-2xl font-bold mb-1">{t("lab.title", "قائمة المعمل")}</h1>
           <p className="text-sm text-slate-400">
-            إدخال النتائج وطباعة التقارير المجمعة.
+            {t("lab.subtitle", "إدخال النتائج وطباعة التقارير المجمعة.")}
           </p>
         </div>
         <div className="flex gap-2">
           <input
-            placeholder="بحث..."
+            placeholder={t("common.searchPlaceholder", "بحث...")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-sm outline-none focus:border-sky-500 transition-colors"
@@ -182,7 +187,7 @@ export default function LabWorklistPage() {
             onClick={load}
             className="px-4 py-1.5 rounded-xl bg-slate-800 text-sm hover:bg-slate-700 transition"
           >
-            تحديث
+            {t("common.refresh", "تحديث")}
           </button>
         </div>
       </div>
@@ -207,7 +212,7 @@ export default function LabWorklistPage() {
                     ({it.patient?.mrn})
                   </span>
                   <span className="text-xs text-slate-600 bg-slate-800 px-2 py-0.5 rounded">
-                    Encounter #{it.order.encounterId}
+                    {t("lab.encounterLabel", "Encounter #")}{it.order.encounterId}
                   </span>
                 </div>
                 <div className="text-sm text-sky-400 font-medium flex items-center gap-2">
@@ -221,7 +226,7 @@ export default function LabWorklistPage() {
                   {renderPaymentStatus(it.order.paymentStatus)}
                 </div>
                 <div className="text-xs text-slate-500">
-                  تاريخ الطلب: {formatDateTime(it.order.createdAt)} • الحالة:{" "}
+                  {t("lab.orderDate", "تاريخ الطلب:")} {formatDateTime(it.order.createdAt, dateLocale)} • {t("lab.statusLabel", "الحالة:")}{" "}
                   {renderStatus(it.resultStatus)}
                 </div>
               </div>
@@ -239,7 +244,7 @@ export default function LabWorklistPage() {
                         }`}
                     >
                         {it.order.paymentStatus === "PENDING" && <span>🔒</span>}
-                        <span>⚡ بدء التحليل</span>
+                        <span>{t("lab.actions.start", "⚡ بدء التحليل")}</span>
                     </button>
                 )}
 
@@ -258,8 +263,8 @@ export default function LabWorklistPage() {
                     <span className="ml-1">🔒</span>
                   )}
                   {it.resultStatus === "COMPLETED"
-                    ? "تعديل النتيجة"
-                    : "إدخال النتيجة"}
+                    ? t("lab.actions.editResult", "تعديل النتيجة")
+                    : t("lab.actions.enterResult", "إدخال النتيجة")}
                 </button>
                 )}
 
@@ -274,7 +279,7 @@ export default function LabWorklistPage() {
                     }
                     className="px-4 py-2 rounded-xl bg-sky-700 hover:bg-sky-600 text-xs text-white shadow-lg font-bold flex items-center gap-2"
                   >
-                    <span>🖨️</span> تقرير مجمع
+                    <span>🖨️</span> {t("lab.actions.report", "تقرير مجمع")}
                   </button>
                 )}
               </div>
@@ -282,7 +287,7 @@ export default function LabWorklistPage() {
           ))}
           {filtered.length === 0 && !loading && (
             <div className="text-center py-10 text-slate-500">
-              لا توجد طلبات.
+              {t("lab.empty", "لا توجد طلبات.")}
             </div>
           )}
         </div>

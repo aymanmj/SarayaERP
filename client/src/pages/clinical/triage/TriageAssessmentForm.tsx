@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 import { apiClient } from "../../../api/apiClient";
 import {
   HeartIcon,
@@ -10,6 +12,8 @@ import {
 } from "@heroicons/react/24/outline";
 
 export function TriageAssessmentForm() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
   const { id } = useParams();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -85,10 +89,11 @@ export function TriageAssessmentForm() {
           temperature: Number(vitals.temperature),
         },
       });
+      toast.success(t("triage.saveSuccess", "تم حفظ الفرز بنجاح"));
       navigate("/triage"); // Back to board
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
-      alert("Failed to save assessment");
+      toast.error(t("triage.error.saveFailed", "Failed to save assessment"));
     } finally {
       setLoading(false);
     }
@@ -103,21 +108,23 @@ export function TriageAssessmentForm() {
   ];
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
+    <div dir={isRtl ? "rtl" : "ltr"} className="max-w-4xl mx-auto p-6">
       <h1 className="text-2xl font-bold text-white mb-6">
-        فرز المريض: <span className="text-sky-400">{patientName}</span>
+        {t("triage.assessPatient", "فرز المريض: ")} <span className="text-sky-400">{patientName}</span>
       </h1>
 
       <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Vitals Section */}
         <div className="space-y-4 bg-slate-900 p-6 rounded-xl border border-slate-800">
           <h2 className="font-bold text-lg text-slate-300 flex items-center gap-2">
-            <HeartIcon className="w-5 h-5" /> العلامات الحيوية
+            <HeartIcon className="w-5 h-5" /> {t("triage.vitals.title", "العلامات الحيوية")}
           </h2>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm text-slate-400 mb-1">النبض (HR)</label>
+              <label className="block text-sm text-slate-400 mb-1">
+                {t("triage.vitals.heartRate", "النبض (HR)")}
+              </label>
               <input
                 name="vitalSigns.heartRate"
                 type="number"
@@ -128,7 +135,9 @@ export function TriageAssessmentForm() {
               />
             </div>
             <div>
-              <label className="block text-sm text-slate-400 mb-1">الأكسجين (SpO2)</label>
+              <label className="block text-sm text-slate-400 mb-1">
+                {t("triage.vitals.oxygen", "الأكسجين (SpO2)")}
+              </label>
               <input
                 name="vitalSigns.oxygenSaturation"
                 type="number"
@@ -139,7 +148,9 @@ export function TriageAssessmentForm() {
               />
             </div>
             <div>
-              <label className="block text-sm text-slate-400 mb-1">التنفس (RR)</label>
+              <label className="block text-sm text-slate-400 mb-1">
+                {t("triage.vitals.respRate", "التنفس (RR)")}
+              </label>
               <input
                 name="vitalSigns.respRate"
                 type="number"
@@ -150,7 +161,9 @@ export function TriageAssessmentForm() {
               />
             </div>
             <div>
-              <label className="block text-sm text-slate-400 mb-1">مقياس الألم (0-10)</label>
+              <label className="block text-sm text-slate-400 mb-1">
+                {t("triage.vitals.painScore", "مقياس الألم (0-10)")}
+              </label>
               <input
                 name="vitalSigns.painScore"
                 type="number"
@@ -161,7 +174,9 @@ export function TriageAssessmentForm() {
               />
             </div>
             <div>
-              <label className="block text-sm text-slate-400 mb-1">الضغط (SYS)</label>
+              <label className="block text-sm text-slate-400 mb-1">
+                {t("triage.vitals.bloodPressureSys", "الضغط (SYS)")}
+              </label>
               <input
                 name="vitalSigns.bloodPressureSystolic"
                 type="number"
@@ -171,7 +186,9 @@ export function TriageAssessmentForm() {
               />
             </div>
             <div>
-              <label className="block text-sm text-slate-400 mb-1">الضغط (DIA)</label>
+              <label className="block text-sm text-slate-400 mb-1">
+                {t("triage.vitals.bloodPressureDia", "الضغط (DIA)")}
+              </label>
               <input
                 name="vitalSigns.bloodPressureDiastolic"
                 type="number"
@@ -181,7 +198,9 @@ export function TriageAssessmentForm() {
               />
             </div>
             <div>
-               <label className="block text-sm text-slate-400 mb-1">الحرارة (Temp)</label>
+               <label className="block text-sm text-slate-400 mb-1">
+                 {t("triage.vitals.temperature", "الحرارة (Temp)")}
+               </label>
                <input
                  name="vitalSigns.temperature"
                  type="number"
@@ -197,12 +216,14 @@ export function TriageAssessmentForm() {
         {/* Triage Level & Complaint */}
         <div className="space-y-6">
           <div className="bg-slate-900 p-6 rounded-xl border border-slate-800">
-            <h2 className="font-bold text-lg text-slate-300 mb-4">الشكوى والمستوى</h2>
+            <h2 className="font-bold text-lg text-slate-300 mb-4">
+              {t("triage.complaintAndLevel", "الشكوى والمستوى")}
+            </h2>
             
             <textarea
               name="chiefComplaint"
               className="w-full bg-slate-950 border border-slate-700 rounded p-3 text-white h-24 mb-6"
-              placeholder="الشكوى الرئيسية (Chief Complaint)..."
+              placeholder={t("triage.complaint.placeholder", "الشكوى الرئيسية (Chief Complaint)...")}
               value={chiefComplaint}
               onChange={(e) => setChiefComplaint(e.target.value)}
               required
@@ -212,16 +233,20 @@ export function TriageAssessmentForm() {
               <div className="mb-4 p-3 bg-sky-900/30 border border-sky-500/30 rounded-lg flex items-center gap-3">
                 <ExclamationTriangleIcon className="w-6 h-6 text-sky-400" />
                 <div>
-                  <div className="text-xs text-sky-400 uppercase font-bold">اقتراح النظام الذكي</div>
+                  <div className="text-xs text-sky-400 uppercase font-bold">
+                    {t("triage.aiSuggestion", "اقتراح النظام الذكي")}
+                  </div>
                   <div className="text-white font-bold">{suggestedLevel}</div>
                 </div>
               </div>
             )}
 
             <div className="space-y-2">
-              <label className="block text-sm text-slate-400">مستوى الخطورة</label>
+              <label className="block text-sm text-slate-400">
+                {t("triage.priority.title", "مستوى الخطورة")}
+              </label>
               <div className="space-y-2">
-                {levels.map((lvl) => (
+                {levels.map((lvl, idx) => (
                   <button
                     key={lvl.id}
                     type="button"
@@ -231,7 +256,9 @@ export function TriageAssessmentForm() {
                       ${selectedLevel === lvl.id ? lvl.color + " ring-2 ring-white" : "bg-slate-800 text-slate-400 hover:bg-slate-700"}
                     `}
                   >
-                    <span>{lvl.label}</span>
+                    <span>
+                      {isRtl ? lvl.label : `Level ${idx + 1} - ${t(`triage.levels.${lvl.id.toLowerCase()}.label`)}`}
+                    </span>
                     {selectedLevel === lvl.id && <CheckBadgeIcon className="w-5 h-5" />}
                   </button>
                 ))}
@@ -244,7 +271,7 @@ export function TriageAssessmentForm() {
             disabled={loading || !selectedLevel}
             className="w-full bg-blue-600 hover:bg-blue-500 text-white py-4 rounded-xl font-bold text-lg disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? "جاري الحفظ..." : "حفظ التقييم (Save Assessment)"}
+            {loading ? t("triage.saving", "جاري الحفظ...") : t("triage.saveAssessment", "حفظ التقييم (Save Assessment)")}
           </button>
         </div>
       </form>

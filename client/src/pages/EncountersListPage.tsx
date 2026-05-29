@@ -8,6 +8,7 @@ import { apiClient } from "../api/apiClient";
 import { toast } from "sonner";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { formatDate } from "@/lib/utils";
+import { useTranslation } from "react-i18next";
 
 // --- Types ---
 type EncounterStatus = "OPEN" | "CLOSED" | "CANCELLED";
@@ -46,6 +47,8 @@ interface EncounterListResponse {
 }
 
 export default function EncountersListPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -89,7 +92,7 @@ export default function EncountersListPage() {
 
   useEffect(() => {
     if (isError) {
-      toast.error("فشل تحميل سجل الحالات الطبية");
+      toast.error(t("encounters.loadFailed", "فشل تحميل سجل الحالات الطبية"));
     }
   }, [isError]);
 
@@ -122,11 +125,11 @@ export default function EncountersListPage() {
   const getTypeLabel = (type: EncounterType) => {
     switch (type) {
       case "ER":
-        return { label: "طوارئ", color: "text-rose-400 bg-rose-400/10" };
+        return { label: t("encounters.type.er", "طوارئ"), color: "text-rose-400 bg-rose-400/10" };
       case "IPD":
-        return { label: "إيواء", color: "text-purple-400 bg-purple-400/10" };
+        return { label: t("encounters.type.ipd", "إيواء"), color: "text-purple-400 bg-purple-400/10" };
       case "OPD":
-        return { label: "عيادة", color: "text-sky-400 bg-sky-400/10" };
+        return { label: t("encounters.type.opd", "عيادة"), color: "text-sky-400 bg-sky-400/10" };
       default:
         return { label: type, color: "text-slate-400 bg-slate-400/10" };
     }
@@ -135,23 +138,23 @@ export default function EncountersListPage() {
   return (
     <div
       className="flex flex-col h-full text-slate-100 p-4 md:p-6 space-y-6"
-      dir="rtl"
+      dir={isRtl ? "rtl" : "ltr"}
     >
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-3xl font-black text-white tracking-tight">
-            سجل الحالات الطبية
+            {t("encounters.title", "سجل الحالات الطبية")}
           </h1>
           <p className="text-sm text-slate-400 mt-1">
-            متابعة الزيارات، حالات الطوارئ، وعمليات الإيواء النشطة.
+            {t("encounters.subtitle", "متابعة الزيارات، حالات الطوارئ، وعمليات الإيواء النشطة.")}
           </p>
         </div>
 
         {patientIdParam && (
           <div className="bg-sky-600/20 border border-sky-500/50 px-4 py-2 rounded-2xl flex items-center gap-3 animate-in fade-in slide-in-from-left-2">
             <span className="text-xs text-sky-300">
-              عرض تاريخ المريض ID: <b>{patientIdParam}</b>
+              {t("encounters.patientHistoryLabel", "عرض تاريخ المريض ID:")} <b>{patientIdParam}</b>
             </span>
             <button
               onClick={() => {
@@ -175,7 +178,7 @@ export default function EncountersListPage() {
           </div>
           <div>
             <div className="text-[10px] text-slate-500 font-bold uppercase">
-              الحالات النشطة
+              {t("encounters.stats.active", "الحالات النشطة")}
             </div>
             <div className="text-xl font-black text-white">{stats.active}</div>
           </div>
@@ -186,7 +189,7 @@ export default function EncountersListPage() {
           </div>
           <div>
             <div className="text-[10px] text-slate-500 font-bold uppercase">
-              في الطوارئ
+              {t("encounters.stats.er", "في الطوارئ")}
             </div>
             <div className="text-xl font-black text-white">{stats.er}</div>
           </div>
@@ -197,7 +200,7 @@ export default function EncountersListPage() {
           </div>
           <div>
             <div className="text-[10px] text-slate-500 font-bold uppercase">
-              قيد الإيواء
+              {t("encounters.stats.ipd", "قيد الإيواء")}
             </div>
             <div className="text-xl font-black text-white">{stats.ipd}</div>
           </div>
@@ -208,11 +211,11 @@ export default function EncountersListPage() {
       <div className="bg-slate-900/60 border border-slate-800 p-4 rounded-2xl flex flex-wrap gap-4 items-end shadow-sm">
         <div className="flex-1 min-w-[200px] space-y-1">
           <label className="text-[10px] text-slate-500 font-bold mr-2">
-            بحث سريع
+            {t("encounters.filters.searchLabel", "بحث سريع")}
           </label>
           <input
             className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-sm focus:border-sky-500 outline-none transition-all"
-            placeholder="رقم الحالة، MRN، أو اسم المريض..."
+            placeholder={t("encounters.filters.searchPlaceholder", "رقم الحالة، MRN، أو اسم المريض...")}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -220,17 +223,17 @@ export default function EncountersListPage() {
 
         <div className="w-40 space-y-1">
           <label className="text-[10px] text-slate-500 font-bold mr-2">
-            نوع الحالة
+            {t("encounters.filters.typeLabel", "نوع الحالة")}
           </label>
           <select
             className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm outline-none"
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value)}
           >
-            <option value="">الكل</option>
-            <option value="OPD">عيادات خارجية</option>
-            <option value="ER">طوارئ</option>
-            <option value="IPD">إيواء</option>
+            <option value="">{t("encounters.filters.all", "الكل")}</option>
+            <option value="OPD">{t("encounters.filters.opd", "عيادات خارجية")}</option>
+            <option value="ER">{t("encounters.filters.er", "طوارئ")}</option>
+            <option value="IPD">{t("encounters.filters.ipd", "إيواء")}</option>
           </select>
         </div>
 
@@ -241,7 +244,7 @@ export default function EncountersListPage() {
           }}
           className="px-6 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-sm font-bold border border-slate-700 transition-all"
         >
-          تحديث
+          {t("common.refresh", "تحديث")}
         </button>
       </div>
 
@@ -251,13 +254,13 @@ export default function EncountersListPage() {
           <table className="w-full text-sm text-right">
             <thead className="bg-slate-950/50 text-slate-500 sticky top-0 backdrop-blur z-10">
               <tr className="text-[10px] uppercase tracking-widest border-b border-slate-800">
-                <th className="px-6 py-4 font-bold">رقم الحالة</th>
-                <th className="px-6 py-4 font-bold">تاريخ الدخول</th>
-                <th className="px-6 py-4 font-bold">المريض</th>
-                <th className="px-6 py-4 font-bold">النوع / القسم</th>
-                <th className="px-6 py-4 font-bold">الطبيب</th>
-                <th className="px-6 py-4 font-bold text-center">الحالة</th>
-                <th className="px-6 py-4 font-bold text-center">إجراءات</th>
+                <th className="px-6 py-4 font-bold">{t("encounters.table.id", "رقم الحالة")}</th>
+                <th className="px-6 py-4 font-bold">{t("encounters.table.admissionDate", "تاريخ الدخول")}</th>
+                <th className="px-6 py-4 font-bold">{t("encounters.table.patient", "المريض")}</th>
+                <th className="px-6 py-4 font-bold">{t("encounters.table.typeDepartment", "النوع / القسم")}</th>
+                <th className="px-6 py-4 font-bold">{t("encounters.table.doctor", "الطبيب")}</th>
+                <th className="px-6 py-4 font-bold text-center">{t("encounters.table.status", "الحالة")}</th>
+                <th className="px-6 py-4 font-bold text-center">{t("encounters.table.actions", "إجراءات")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/50 text-xs">
@@ -267,13 +270,13 @@ export default function EncountersListPage() {
                     colSpan={7}
                     className="text-center py-20 text-slate-500 animate-pulse"
                   >
-                    جارِ تحميل السجلات...
+                    {t("encounters.loading", "جارِ تحميل السجلات...")}
                   </td>
                 </tr>
               ) : encounters.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="text-center py-20 text-slate-600">
-                    لا توجد حالات مسجلة تطابق البحث.
+                    {t("encounters.empty", "لا توجد حالات مسجلة تطابق البحث.")}
                   </td>
                 </tr>
               ) : (
@@ -290,7 +293,7 @@ export default function EncountersListPage() {
                       <td className="px-6 py-4 text-slate-300">
                         {formatDate(enc.createdAt)}
                         <div className="text-[10px] text-slate-600">
-                          {new Date(enc.createdAt).toLocaleTimeString("ar-LY", {
+                          {new Date(enc.createdAt).toLocaleTimeString(isRtl ? "ar-LY" : "en-US", {
                             hour: "2-digit",
                             minute: "2-digit",
                           })}
@@ -299,7 +302,7 @@ export default function EncountersListPage() {
                       <td className="px-6 py-4">
                         {/* ✅ استخدام الحماية هنا لمنع الانهيار */}
                         <div className="font-bold text-slate-100 group-hover:text-white">
-                          {enc.patient?.fullName || "مريض غير معروف"}
+                          {enc.patient?.fullName || t("encounters.unknownPatient", "مريض غير معروف")}
                         </div>
                         <div className="text-[10px] text-sky-500/70 font-mono">
                           {enc.patient?.mrn || "—"}
@@ -317,7 +320,7 @@ export default function EncountersListPage() {
                       </td>
                       <td className="px-6 py-4 text-slate-300 font-medium">
                         {enc.doctor?.fullName || (
-                          <span className="text-rose-500/50">غير محدد</span>
+                          <span className="text-rose-500/50">{t("encounters.unassignedDoctor", "غير محدد")}</span>
                         )}
                       </td>
                       <td className="px-6 py-4 text-center">
@@ -325,10 +328,10 @@ export default function EncountersListPage() {
                           className={`px-2.5 py-1 rounded-full text-[9px] font-black border tracking-tighter ${getStatusStyle(enc.status)}`}
                         >
                           {enc.status === "OPEN"
-                            ? "نشطة"
+                            ? t("encounters.status.open", "نشطة")
                             : enc.status === "CLOSED"
-                              ? "مكتملة"
-                              : "ملغاة"}
+                              ? t("encounters.status.closed", "مكتملة")
+                              : t("encounters.status.cancelled", "ملغاة")}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-center">
@@ -336,7 +339,7 @@ export default function EncountersListPage() {
                           onClick={() => navigate(`/encounters/${enc.id}`)}
                           className="px-4 py-1.5 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-[11px] font-bold shadow-lg shadow-sky-900/20 transition-all active:scale-95"
                         >
-                          فتح الملف ➜
+                          {t("encounters.actions.openFile", "فتح الملف ➜")}
                         </button>
                       </td>
                     </tr>
@@ -350,7 +353,7 @@ export default function EncountersListPage() {
         {/* Pagination Footer */}
         <div className="bg-slate-950/80 border-t border-slate-800 px-6 py-4 flex justify-between items-center text-xs">
           <div className="text-slate-500">
-            إجمالي السجلات:{" "}
+            {t("encounters.pagination.total", "إجمالي السجلات:")}{" "}
             <span className="text-white font-bold">
               {meta?.totalCount ?? encounters.length}
             </span>
@@ -361,14 +364,14 @@ export default function EncountersListPage() {
               onClick={() => setPage((p) => p - 1)}
               className="px-4 py-1.5 bg-slate-900 border border-slate-800 rounded-xl disabled:opacity-20 hover:text-sky-400 transition-colors"
             >
-              السابق
+              {t("common.previous", "السابق")}
             </button>
             <button
               disabled={page >= (meta?.totalPages || 1) || loading}
               onClick={() => setPage((p) => p + 1)}
               className="px-4 py-1.5 bg-slate-900 border border-slate-800 rounded-xl disabled:opacity-20 hover:text-sky-400 transition-colors"
             >
-              التالي
+              {t("common.next", "التالي")}
             </button>
           </div>
         </div>
