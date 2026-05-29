@@ -5,6 +5,7 @@ import { useAuthStore } from "../stores/authStore";
 import { useSocketStore } from "../stores/socketStore";
 import { useState, useEffect, useMemo } from "react";
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { NotificationBell } from "../components/NotificationBell";
 import { LanguageSwitcher } from "../components/LanguageSwitcher";
 
@@ -253,6 +254,7 @@ type MenuItem = {
   path: string;
   access?: string; // كود الصلاحية الدقيق
   requiredModule?: string; // 👈 جديد: المودل المطلوب لتفعيل هذا العنصر
+  translationKey?: string; // مفتاح الترجمة
 };
 
 type MenuSection = {
@@ -262,9 +264,13 @@ type MenuSection = {
   allowedRoles: string[];
   items: MenuItem[];
   requiredModule?: string; // 👈 جديد: المودل المطلوب للقسم كله
+  translationKey?: string; // مفتاح الترجمة
 };
 
 export function MainLayout() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
+
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   // ✅ Multi-Branch
@@ -281,8 +287,8 @@ export function MainLayout() {
   // ✅ Multi-Branch: اسم الفرع الحالي
   const currentBranchName = useMemo(() => {
     const branch = accessibleBranches.find((b) => b.id === currentBranchId);
-    return branch?.name || "الفرع الرئيسي";
-  }, [accessibleBranches, currentBranchId]);
+    return branch?.name || t("common.mainBranch", "الفرع الرئيسي");
+  }, [accessibleBranches, currentBranchId, t]);
 
   // License Store
   const fetchLicenseStatus = useLicenseStore((s) => s.fetchLicenseStatus);
@@ -348,13 +354,15 @@ export function MainLayout() {
     {
       key: "home",
       title: "الرئيسية",
+      translationKey: "home",
       icon: <Icons.Home />,
       allowedRoles: [], // Open to all authenticated
-      items: [{ label: "لوحة المتابعة", path: "/" }],
+      items: [{ label: "لوحة المتابعة", path: "/", translationKey: "dashboard" }],
     },
     {
       key: "clinical",
       title: "التشغيل السريري",
+      translationKey: "clinical",
       icon: <Icons.Activity />,
       allowedRoles: [],
       items: [
@@ -362,204 +370,239 @@ export function MainLayout() {
           label: "فرز الطوارئ (Triage)",
           path: "/triage",
           access: "nursing:triage:manage",
+          translationKey: "triage",
         },
         {
           label: "المواعيد",
           path: "/appointments",
           access: "clinical:appointments:view",
+          translationKey: "appointments",
         },
-        { label: "المرضى", path: "/patients", access: "clinical:patients:view" },
+        { label: "المرضى", path: "/patients", access: "clinical:patients:view", translationKey: "patients" },
         {
           label: "سجل الحالات",
           path: "/encounters",
           access: "clinical:encounters:view",
+          translationKey: "encounters",
         },
         {
           label: "الإيواء (Admissions)",
           path: "/admissions",
           access: "adt:admissions:create",
+          translationKey: "admissions",
         },
         {
           label: "حالات الإيواء",
           path: "/active-inpatients",
           access: "adt:bed:view",
+          translationKey: "activeInpatients",
         },
         {
           label: "محطة التمريض (Ward)",
           path: "/nursing",
           access: "nursing:station:view",
+          translationKey: "nursing",
         },
         {
           label: "جولات الأطباء",
           path: "/doctor-rounds",
           access: "clinical:doctor:view", 
+          translationKey: "rounds",
         },
         {
           label: "تخطيط الخروج",
           path: "/discharge-planning",
           access: "clinical:encounters:view",
+          translationKey: "discharge",
         },
         {
           label: "إدارة الأسرة (Dashboard)",
           path: "/bed-management",
           access: "adt:bed:manage",
+          translationKey: "beds",
         },
         {
           label: "تسجيل ولادة (OB/GYN)",
           path: "/obgyn/deliveries/new",
           requiredModule: "OBGYN",
+          translationKey: "obgyn",
         },
         {
           label: "متابعة الحمل (ANC)",
           path: "/obgyn/anc",
           requiredModule: "OBGYN",
+          translationKey: "anc",
         },
         {
           label: "الحقن المجهري (IVF)",
           path: "/obgyn/fertility",
           requiredModule: "OBGYN",
+          translationKey: "ivf",
         },
         {
           label: "أمراض الذكورة والعقم",
           path: "/andrology",
           requiredModule: "OBGYN",
+          translationKey: "andrology",
         },
         { 
           label: "الصيدلية", 
           path: "/pharmacy", 
           access: "pharmacy:dashboard:view",
-          requiredModule: "PHARMACY" 
+          requiredModule: "PHARMACY",
+          translationKey: "pharmacy",
         },
         { 
           label: "مختبر التحاليل", 
           path: "/lab", 
           access: "lab:dashboard:view",
-          requiredModule: "LAB" 
+          requiredModule: "LAB",
+          translationKey: "labs",
         },
         { 
           label: "الأشعة", 
           path: "/radiology", 
           access: "rad:dashboard:view",
-          requiredModule: "RADIOLOGY" 
+          requiredModule: "RADIOLOGY",
+          translationKey: "radiology",
         },
-        { label: "تجهيز الأسرة", path: "/housekeeping", access: "adt:bed:manage" },
-        { label: "📋 نظام الإحالات", path: "/referrals" },
-        { label: "العناية المركزة (ICU)", path: "/clinical/icu", access: "adt:bed:view" },
-        { label: "مجموعات الطلبات (Order Sets)", path: "/clinical/order-sets" },
-        { label: "المسارات العلاجية (Pathways)", path: "/clinical/pathways" },
-        { label: "لوحة السجلات وفجوات الرعاية", path: "/clinical/registries" },
-        { label: "الجدولة المتقدمة للموارد", path: "/clinical/scheduling" },
-        { label: "قوائم الانتظار الذكية", path: "/clinical/waitlist" },
+        { label: "تجهيز الأسرة", path: "/housekeeping", access: "adt:bed:manage", translationKey: "housekeeping" },
+        { label: "📋 نظام الإحالات", path: "/referrals", translationKey: "referrals" },
+        { label: "العناية المركزة (ICU)", path: "/clinical/icu", access: "adt:bed:view", translationKey: "icu" },
+        { label: "مجموعات الطلبات (Order Sets)", path: "/clinical/order-sets", translationKey: "orderSets" },
+        { label: "المسارات العلاجية (Pathways)", path: "/clinical/pathways", translationKey: "pathways" },
+        { label: "لوحة السجلات وفجوات الرعاية", path: "/clinical/registries", translationKey: "registries" },
+        { label: "الجدولة المتقدمة للموارد", path: "/clinical/scheduling", translationKey: "scheduling" },
+        { label: "قوائم الانتظار الذكية", path: "/clinical/waitlist", translationKey: "waitlist" },
       ],
     },
     {
       key: "surgery",
       title: "العمليات الجراحية",
+      translationKey: "surgery",
       icon: <Icons.Scissors />,
       allowedRoles: [],
       items: [
         { 
           label: "جدول العمليات", 
           path: "/surgery", 
-          access: "surgery:dashboard:view" 
+          access: "surgery:dashboard:view",
+          translationKey: "surgerySchedule",
         }
       ],
     },
     {
       key: "humanResources",
       title: "الموارد البشرية",
+      translationKey: "hr",
       icon: <Icons.Users />,
       allowedRoles: [],
       requiredModule: "HR",
       items: [
-        { label: "تعريف الورديات", path: "/hr/shifts", access: "hr:shifts:manage" },
-        { label: "جدول المناوبات", path: "/hr/roster", access: "hr:shifts:manage" },
-        { label: "إدارة الإجازات", path: "/hr/leaves", access: "hr:leave:manage" },
-        { label: "الحضور والانصراف", path: "/attendance", access: "hr:attendance:manage" },
-        { label: "الرواتب والأجور", path: "/payroll", access: "hr:payroll:manage" },
+        { label: "تعريف الورديات", path: "/hr/shifts", access: "hr:shifts:manage", translationKey: "shifts" },
+        { label: "جدول المناوبات", path: "/hr/roster", access: "hr:shifts:manage", translationKey: "roster" },
+        { label: "إدارة الإجازات", path: "/hr/leaves", access: "hr:leave:manage", translationKey: "leaves" },
+        { label: "الحضور والانصراف", path: "/attendance", access: "hr:attendance:manage", translationKey: "attendance" },
+        { label: "الرواتب والأجور", path: "/payroll", access: "hr:payroll:manage", translationKey: "payroll" },
       ],
     },
     {
       key: "revenue",
       title: "الإيرادات والخزينة",
+      translationKey: "revenue",
       icon: <Icons.DollarSign />,
       allowedRoles: [],
       items: [
-        { label: "الخزينة (POS)", path: "/cashier", access: "billing:payments:collect" },
+        { label: "الخزينة (POS)", path: "/cashier", access: "billing:payments:collect", translationKey: "cashier" },
         {
           label: "سجل الفواتير",
           path: "/invoices",
           access: "billing:invoices:view",
+          translationKey: "invoices",
         },
         {
           label: "تقرير الكاشير اليومي",
           path: "/cashier/reports/daily",
           access: "billing:payments:collect",
+          translationKey: "cashierReport",
         },
         {
           label: "تقرير المستخدمين",
           path: "/cashier/reports/by-cashier",
           access: "billing:payments:collect",
+          translationKey: "userReport",
         },
         {
           label: "الشفتات المقفولة",
           path: "/cashier/shifts",
           access: "billing:payments:collect",
+          translationKey: "closedShifts",
         },
         {
           label: "تحليل ذمم المرضى",
           path: "/accounting/patients-aging",
           access: "acc:reports:view",
+          translationKey: "patientsAging",
         },
         {
           label: "شركات التأمين",
           path: "/insurance/providers",
           access: "billing:insurance:manage",
+          translationKey: "insurance",
         },
         {
           label: "الموافقات المسبقة",
           path: "/insurance/pre-auth",
           access: "billing:insurance:manage",
+          translationKey: "preAuth",
         },
         {
           label: "مطالبات التأمين",
           path: "/insurance/claims",
           access: "billing:insurance:manage",
+          translationKey: "claims",
         },
       ],
     },
     {
       key: "analytics",
       title: "التحليلات والتقارير",
+      translationKey: "analytics",
       icon: <Icons.ChartBar />,
       allowedRoles: ["ADMIN", "CEO", "QUALITY_MANAGER"],
       items: [
         {
           label: "اللوحة التنفيذية (KPIs)",
           path: "/analytics/executive",
+          translationKey: "executive",
         },
         {
           label: "مؤشرات الجودة (HIMSS)",
           path: "/analytics/clinical-kpis",
+          translationKey: "himss",
         },
         {
           label: "لوحة التقارير والتحليلات",
           path: "/reports",
           access: "acc:reports:view",
+          translationKey: "reports",
         },
         {
           label: "تقارير أداء الأطباء",
           path: "/reports/doctor-performance",
+          translationKey: "doctorPerf",
         },
         {
           label: "📊 إيرادات الأقسام",
           path: "/reports/revenue-department",
+          translationKey: "revDept",
         },
       ],
     },
     {
       key: "purchases",
       title: "المخازن وسلاسل الإمداد",
+      translationKey: "purchases",
       icon: <Icons.Package />,
       allowedRoles: [],
       items: [
@@ -567,107 +610,126 @@ export function MainLayout() {
           label: "📊 لوحة تحكم المخزون",
           path: "/inventory/dashboard",
           access: "inventory:stock:view",
+          translationKey: "stockDashboard",
         },
         {
           label: "البيانات الأساسية (الأصناف)",
           path: "/inventory/master-data/products",
           access: "inventory:stock:manage",
+          translationKey: "products",
         },
         {
           label: "فئات الأصناف للتقييم",
           path: "/inventory/master-data/categories",
           access: "inventory:stock:manage",
+          translationKey: "categories",
         },
         {
           label: "إعدادات معاملات التحويل",
           path: "/inventory/settings/product-uoms",
           access: "inventory:stock:manage",
+          translationKey: "uomConversion",
         },
         {
           label: "إدارة وحدات القياس (UOMs)",
           path: "/inventory/master-data/uoms",
           access: "inventory:stock:manage",
+          translationKey: "uoms",
         },
         {
           label: "🏭 إدارة المستودعات",
           path: "/inventory/warehouses",
           access: "inventory:stock:manage",
+          translationKey: "warehouses",
         },
         {
           label: "طلبات الشراء (PR)",
           path: "/inventory/procurement/pr/new",
           access: "inventory:stock:manage",
+          translationKey: "pr",
         },
         {
           label: "أوامر الشراء (PO)",
           path: "/purchases/orders",
           access: "purchases:manage",
+          translationKey: "po",
         },
         {
           label: "استلام بضاعة (GRN)",
           path: "/inventory/procurement/grn/new",
           access: "inventory:stock:manage",
+          translationKey: "grn",
         },
-        { label: "الموردون", path: "/suppliers", access: "purchases:suppliers:manage" },
+        { label: "الموردون", path: "/suppliers", access: "purchases:suppliers:manage", translationKey: "suppliers" },
         {
           label: "فواتير المشتريات",
           path: "/purchases/invoices",
           access: "purchases:invoices:manage",
+          translationKey: "purchaseInvoices",
         },
         {
           label: "تحليل ذمم الموردين",
           path: "/suppliers/aging",
           access: "purchases:dashboard:view",
+          translationKey: "supplierAging",
         },
         {
           label: "مخزون الصيدلية",
           path: "/pharmacy/stock",
           access: "pharmacy:inventory:view",
           requiredModule: "PHARMACY",
+          translationKey: "pharmacyStock",
         },
         {
           label: "تنبيهات المخزون 🔔",
           path: "/inventory/alerts",
           access: "inventory:stock:view",
+          translationKey: "inventoryAlerts",
         },
         {
           label: "تقرير حركات المخزون",
           path: "/pharmacy/stock-report",
           access: "pharmacy:inventory:view",
           requiredModule: "PHARMACY",
+          translationKey: "stockReport",
         },
-        { label: "التحويلات المخزنية", path: "/inventory/transfers", access: "inventory:transfers:manage" },
+        { label: "التحويلات المخزنية", path: "/inventory/transfers", access: "inventory:transfers:manage", translationKey: "transfers" },
         {
           label: "طلبات المواد",
           path: "/inventory/material-requests",
           access: "inventory:stock:manage",
+          translationKey: "materialRequests",
         },
         {
           label: "جرد المخزون",
           path: "/inventory/counts",
           access: "inventory:stock:manage",
+          translationKey: "counts",
         },
       ],
     },
     {
       key: "assets",
       title: "الأصول والصيانة",
+      translationKey: "assets",
       icon: <Icons.Building />,
       allowedRoles: [],
       requiredModule: "ASSETS",
       items: [
-        { label: "سجل الأصول", path: "/assets", access: "assets:dashboard:view" },
-        { label: "إدارة الصيانة", path: "/assets/maintenance", access: "assets:maintenance:manage" },
+        { label: "سجل الأصول", path: "/assets", access: "assets:dashboard:view", translationKey: "assetsRegistry" },
+        { label: "إدارة الصيانة", path: "/assets/maintenance", access: "assets:maintenance:manage", translationKey: "maintenance" },
         {
           label: "احتساب الإهلاك",
           path: "/assets/depreciation",
           access: "assets:manage",
+          translationKey: "depreciation",
         },
       ],
     },
     {
       key: "accounting",
       title: "المحاسبة العامة",
+      translationKey: "accounting",
       icon: <Icons.Calculator />,
       allowedRoles: [],
       requiredModule: "ACCOUNTS",
@@ -676,72 +738,86 @@ export function MainLayout() {
           label: "السنوات المالية",
           path: "/financial-years",
           access: "acc:settings:manage",
+          translationKey: "years",
         },
         {
           label: "دليل الحسابات",
           path: "/accounting/chart-of-accounts",
           access: "acc:dashboard:view",
+          translationKey: "coa",
         },
         {
           label: "الأرصدة الافتتاحية",
           path: "/accounting/opening-balances",
-          access: "acc:entries:create",
+          access: "acc:opening-balances",
+          translationKey: "openingBalances",
         },
         {
           label: "قيد يدوي",
           path: "/accounting/manual-entry",
           access: "acc:entries:create",
+          translationKey: "manualEntry",
         },
         {
           label: "دفتر اليومية العامة",
           path: "/accounting/journal",
           access: "acc:entries:view",
+          translationKey: "journal",
         },
         {
           label: "سجل القيود المحاسبية (Entries)",
           path: "/accounting/entries",
           access: "acc:entries:view",
+          translationKey: "entries",
         },
         {
           label: "دفتر الأستاذ",
           path: "/accounting/ledger",
           access: "acc:reports:view",
+          translationKey: "ledger",
         },
         {
           label: "ميزان المراجعة",
           path: "/accounting/trial-balance",
           access: "acc:reports:view",
+          translationKey: "trialBalance",
         },
         {
           label: "قائمة الدخل",
           path: "/accounting/income-statement",
           access: "acc:reports:view",
+          translationKey: "incomeStatement",
         },
         {
           label: "مراكز التكلفة",
           path: "/accounting/cost-centers",
           access: "acc:cost_centers:manage",
+          translationKey: "costCenters",
         },
         {
           label: "أذونات الصرف والقبض",
           path: "/accounting/vouchers",
           access: "acc:entries:create",
+          translationKey: "vouchers",
         },
         {
           label: "الميزانية العمومية",
           path: "/accounting/balance-sheet",
           access: "acc:reports:view",
+          translationKey: "balanceSheet",
         },
         {
           label: "إقفال السنة",
           path: "/accounting/year-closing",
           access: "acc:year:close",
+          translationKey: "closing",
         },
       ],
     },
     {
       key: "quality",
       title: "الجودة وسلامة المريض",
+      translationKey: "quality",
       icon: <Icons.Shield />,
       allowedRoles: ["ADMIN", "QUALITY_MANAGER", "MEDICAL_DIRECTOR"],
       items: [
@@ -749,51 +825,56 @@ export function MainLayout() {
           label: "🛡️ لوحة الجودة والحوادث",
           path: "/quality",
           access: "quality:incidents:view",
+          translationKey: "qualityDashboard",
         },
         {
           label: "📋 الإبلاغ عن حادثة / Near Miss",
           path: "/quality?tab=report",
           access: "quality:incidents:report",
+          translationKey: "incidentReport",
         },
         {
           label: "✅ مهام CAPA المسندة إليّ",
           path: "/quality?tab=my-capa",
+          translationKey: "myCapa",
         },
       ],
     },
     {
       key: "integration",
       title: "الربط والتكامل",
+      translationKey: "integration",
       icon: <Icons.Network />,
       allowedRoles: [],
       items: [
-        { label: "🌐 السجل الوطني (MPI)", path: "/settings", access: "admin:settings:manage" },
-        { label: "إدارة الأجهزة (LIS/PACS)", path: "/integration", access: "integration:manage" },
+        { label: "🌐 السجل الوطني (MPI)", path: "/settings", access: "admin:settings:manage", translationKey: "mpi" },
+        { label: "إدارة الأجهزة (LIS/PACS)", path: "/integration", access: "integration:manage", translationKey: "gateway" },
       ],
     },
     {
       key: "settings",
       title: "الإعدادات",
+      translationKey: "settings",
       icon: <Icons.Settings />,
       allowedRoles: [],
       items: [
-        { label: "🏛️ المؤسسة والفروع", path: "/settings", access: "admin:settings:manage" },
-        { label: "🌳 الشبكة والمؤسسات", path: "/settings/organizations", access: "admin:settings:manage" },
-        { label: "🔀 وصول الفروع", path: "/settings/branch-access", access: "admin:users:manage" },
-        { label: "إعدادات النظام", path: "/settings/system", access: "admin:settings:manage" },
-        { label: "الأقسام (Departments)", path: "/settings/departments", access: "admin:settings:manage" },
-        { label: "التخصصات (Specialties)", path: "/settings/specialties", access: "admin:settings:manage" },
-        { label: "قوائم الأسعار", path: "/settings/price-lists", access: "admin:settings:manage" },
-        { label: "الخدمات والأسعار", path: "/services", access: "admin:settings:manage" },
-        { label: "المستخدمون والصلاحيات", path: "/users", access: "admin:users:manage" },
-        { label: "إدارة الأسرة", path: "/settings/bed-management", access: "adt:bed:manage" },
-        { label: "لوحة تدقيق الامتثال (ISO/SOC2)", path: "/settings/compliance", access: "admin:audit:view" },
-        { label: "سجل التدقيق (Audit Logs)", path: "/audit/logs", access: "admin:audit:view" },
-        { label: "جداول الأطباء", path: "/settings/doctor-schedules", access: "admin:settings:manage" },
-        { label: "النسخ الاحتياطي والاستعادة", path: "/settings/backup", access: "admin:settings:manage" }, 
-        { label: "📝 قوالب الملاحظات الطبية", path: "/settings/note-templates", access: "admin:settings:manage" },
-        { label: "⚙️ إعدادات العمولات", path: "/settings/commissions", access: "admin:settings:manage" },
-        { label: "حول النظام", path: "/about" }, 
+        { label: "🏛️ المؤسسة والفروع", path: "/settings", access: "admin:settings:manage", translationKey: "branches" },
+        { label: "🌳 الشبكة والمؤسسات", path: "/settings/organizations", access: "admin:settings:manage", translationKey: "tenants" },
+        { label: "🔀 وصول الفروع", path: "/settings/branch-access", access: "admin:users:manage", translationKey: "branchAccess" },
+        { label: "إعدادات النظام", path: "/settings/system", access: "admin:settings:manage", translationKey: "system" },
+        { label: "الأقسام (Departments)", path: "/settings/departments", access: "admin:settings:manage", translationKey: "departments" },
+        { label: "التخصصات (Specialties)", path: "/settings/specialties", access: "admin:settings:manage", translationKey: "specialties" },
+        { label: "قوائم الأسعار", path: "/settings/price-lists", access: "admin:settings:manage", translationKey: "priceLists" },
+        { label: "الخدمات والأسعار", path: "/services", access: "admin:settings:manage", translationKey: "services" },
+        { label: "المستخدمون والصلاحيات", path: "/users", access: "admin:users:manage", translationKey: "users" },
+        { label: "إدارة الأسرة", path: "/settings/bed-management", access: "adt:bed:manage", translationKey: "bedConfig" },
+        { label: "لوحة تدقيق الامتثال (ISO/SOC2)", path: "/settings/compliance", access: "admin:audit:view", translationKey: "compliance" },
+        { label: "سجل التدقيق (Audit Logs)", path: "/audit/logs", access: "admin:audit:view", translationKey: "auditLogs" },
+        { label: "جداول الأطباء", path: "/settings/doctor-schedules", access: "admin:settings:manage", translationKey: "doctorSchedules" },
+        { label: "النسخ الاحتياطي والاستعادة", path: "/settings/backup", access: "admin:settings:manage", translationKey: "backups" }, 
+        { label: "📝 قوالب الملاحظات الطبية", path: "/settings/note-templates", access: "admin:settings:manage", translationKey: "noteTemplates" },
+        { label: "⚙️ إعدادات العمولات", path: "/settings/commissions", access: "admin:settings:manage", translationKey: "commissions" },
+        { label: "حول النظام", path: "/about", translationKey: "about" }, 
       ],
     },
   ];
@@ -828,7 +909,7 @@ export function MainLayout() {
   }, [user, isModuleEnabled]);
 
   const navLinkClasses = ({ isActive }: { isActive: boolean }) =>
-    `block w-full px-4 py-2.5 rounded-lg text-xs md:text-sm transition-all duration-200 border-r-[3px] 
+    `block w-full px-4 py-2.5 rounded-lg text-xs md:text-sm transition-all duration-200 ${isRtl ? 'border-r-[3px]' : 'border-l-[3px]'} 
      ${isActive ? "bg-sky-500/10 text-sky-400 border-sky-500 font-medium" : "text-slate-400 border-transparent hover:text-slate-200 hover:bg-white/5"}`;
 
   return (
@@ -841,10 +922,11 @@ export function MainLayout() {
         />
       )}
 
-      <aside className={`w-64 flex flex-col border-l border-slate-800 bg-slate-950/95 backdrop-blur h-full flex-shrink-0 z-50
-        fixed md:relative top-0 right-0
+      <aside className={`w-64 flex flex-col bg-slate-950/95 backdrop-blur h-full flex-shrink-0 z-50
+        fixed md:relative top-0
+        ${isRtl ? 'right-0 border-l border-slate-800' : 'left-0 border-r border-slate-800'}
         transition-transform duration-300 ease-in-out
-        ${mobileMenuOpen ? 'translate-x-0' : 'translate-x-full md:translate-x-0'}
+        ${mobileMenuOpen ? 'translate-x-0' : (isRtl ? 'translate-x-full md:translate-x-0' : '-translate-x-full md:translate-x-0')}
         md:flex`}>
         <div className="px-5 py-4 border-b border-slate-800 flex-shrink-0 flex items-center gap-3">
           <img src="/sarayalogo.png" alt="السرايا" className="w-10 h-10 rounded-lg object-contain" />
@@ -852,7 +934,7 @@ export function MainLayout() {
             <div className="text-[10px] uppercase tracking-[0.2em] text-sky-500 font-bold mb-0.5">
               HOSPITAL SUITE
             </div>
-            <div className="font-bold text-sm text-white leading-tight">نظام السرايا الطبي</div>
+            <div className="font-bold text-sm text-white leading-tight">{t("common.appName", "نظام السرايا الطبي")}</div>
           </div>
         </div>
 
@@ -873,26 +955,39 @@ export function MainLayout() {
                     >
                       {section.icon}
                     </span>
-                    <span>{section.title}</span>
+                    <span>{t("menu." + (section.translationKey || section.key), section.title)}</span>
                   </div>
                   <span
-                    className={`transition-transform duration-300 text-slate-600 ${isOpen ? "-rotate-90" : "rotate-0"}`}
+                    className={`transition-transform duration-300 text-slate-600 ${isOpen ? (isRtl ? "-rotate-90" : "rotate-90") : "rotate-0"}`}
                   >
-                    <Icons.ChevronLeft />
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className={isRtl ? "" : "scale-x-[-1]"}
+                    >
+                      <path d="m15 18-6-6 6-6" />
+                    </svg>
                   </span>
                 </button>
 
                 <div
                   className={`overflow-hidden transition-all duration-300 ease-in-out ${isOpen ? "max-h-[2000px] opacity-100 mt-1" : "max-h-0 opacity-0"}`}
                 >
-                  <div className="pr-4 pl-1 space-y-1 py-1 mr-2 border-r border-slate-800/50">
+                  <div className={`space-y-1 py-1 ${isRtl ? 'pr-4 pl-1 mr-2 border-r border-slate-800/50' : 'pl-4 pr-1 ml-2 border-l border-slate-800/50'}`}>
                     {section.items.map((item) => (
                       <NavLink
                         key={item.path}
                         to={item.path}
                         className={navLinkClasses}
                       >
-                        {item.label}
+                        {t("menu." + (item.translationKey || item.label), item.label)}
                       </NavLink>
                     ))}
                   </div>
@@ -917,7 +1012,7 @@ export function MainLayout() {
             onClick={logout}
             className="w-full flex items-center justify-center gap-2 rounded-xl bg-rose-900/20 hover:bg-rose-900/40 text-rose-400 hover:text-rose-300 text-xs py-2 transition border border-rose-900/30"
           >
-            تسجيل الخروج
+            {t("common.logout", "تسجيل الخروج")}
           </button>
         </div>
       </aside>
@@ -969,7 +1064,7 @@ export function MainLayout() {
           <button
             onClick={() => setMobileMenuOpen(true)}
             className="md:hidden p-2 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
-            aria-label="فتح القائمة"
+            aria-label={t("common.openMenu", "فتح القائمة")}
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <line x1="3" x2="21" y1="6" y2="6" />
@@ -978,7 +1073,7 @@ export function MainLayout() {
             </svg>
           </button>
           <div className="hidden md:block text-slate-400 text-xs font-medium">
-            مرحباً بك في نظام السرايا الطبي - النسخة التشغيلية
+            {t("common.welcomeMsg", "مرحباً بك في نظام السرايا الطبي - النسخة التشغيلية")}
           </div>
           <div className="flex items-center gap-4">
             <LanguageSwitcher />
@@ -989,7 +1084,7 @@ export function MainLayout() {
                 <button
                   onClick={() => setBranchMenuOpen(!branchMenuOpen)}
                   className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-sky-900/30 hover:bg-sky-900/50 border border-sky-700/30 text-sky-300 text-xs font-medium transition-all duration-200"
-                  title="تبديل الفرع"
+                  title={t("common.switchBranch", "تبديل الفرع")}
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M6 3v12" /><circle cx="18" cy="6" r="3" /><circle cx="6" cy="18" r="3" /><path d="M18 9a9 9 0 0 1-9 9" />
@@ -1008,7 +1103,7 @@ export function MainLayout() {
                     <div className="fixed inset-0 z-40" onClick={() => setBranchMenuOpen(false)} />
                     <div className="absolute left-0 top-full mt-2 w-56 bg-slate-900 border border-slate-700/50 rounded-xl shadow-2xl shadow-black/50 z-50 overflow-hidden backdrop-blur-xl">
                       <div className="px-3 py-2 border-b border-slate-700/50">
-                        <div className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">تبديل الفرع</div>
+                        <div className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">{t("common.switchBranch", "تبديل الفرع")}</div>
                       </div>
                       <div className="py-1 max-h-60 overflow-y-auto custom-scrollbar">
                         {accessibleBranches.map((branch) => (

@@ -3,10 +3,14 @@
 @import "./pages/portal/portal.css";
 
 body {
-  direction: rtl;
+  direction: inherit;
   font-family: "Cairo", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
   background-color: #0f172a; /* خلفية غامقة بسيطة */
+}
+
+html[lang="en"] body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 /* ==== إعدادات الطباعة العامة ==== */
