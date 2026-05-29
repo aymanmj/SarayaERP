@@ -453,10 +453,157 @@
       "sat": "Saturday"
     },
     "statusRequested": "New Request",
-    "statusConfirmed": "Confirmed",
     "statusCheckedIn": "In Progress",
-    "statusCompleted": "Completed",
-    "statusCancelled": "Cancelled",
     "statusNoShow": "No Show"
+  },
+  "triage": {
+    "title": "🚨 ER Triage Dashboard",
+    "description": "Assess and prioritize patients in the Emergency Department.",
+    "refreshBtn": "Refresh Queue 🔄",
+    "loadFailed": "Failed to load waiting list",
+    "saveSuccess": "Triage saved successfully",
+    "saveFailed": "Save failed",
+    "requiredFields": "Please select a triage level and enter a chief complaint.",
+    "assess": "Triage Assessment",
+    "reassess": "Reassess",
+    "startTriage": "Start Triage 🩺",
+    "patientChart": "Chart",
+    "chiefComplaint": "Complaint:",
+    "noComplaint": "No complaint registered",
+    "emptyQueue": "✅ No patients waiting at the moment.",
+    "gender": {
+      "male": "Male",
+      "female": "Female"
+    },
+    "ageUnit": "years",
+    "waitUnit": {
+      "minute": "minute",
+      "hour": "hour",
+      "and": "and"
+    },
+    "vitals": {
+      "title": "1. Vital Signs (Vitals)",
+      "bloodPressure": "Blood Pressure (Sys/Dia)",
+      "heartRate": "Heart Rate (HR)",
+      "temperature": "Temperature (Temp)",
+      "oxygen": "Oxygen (SpO2)"
+    },
+    "complaint": {
+      "title": "2. Chief Complaint",
+      "placeholder": "What is the patient complaining of?"
+    },
+    "priority": {
+      "title": "3. Triage Level (Priority)"
+    },
+    "levels": {
+      "resuscitation": {
+        "label": "Resuscitation (Immediate)",
+        "desc": "Life-threatening condition"
+      },
+      "emergent": {
+        "label": "Emergent (10 mins)",
+        "desc": "Chest pain, severe dyspnea"
+      },
+      "urgent": {
+        "label": "Urgent (30 mins)",
+        "desc": "Abdominal pain, fracture"
+      },
+      "lessUrgent": {
+        "label": "Less Urgent (60 mins)",
+        "desc": "Minor wounds, fever"
+      },
+      "nonUrgent": {
+        "label": "Non-Urgent (120 mins)",
+        "desc": "Dressing change, prescription"
+      }
+    },
+    "cdss": {
+      "title": "⚠️ Decision Support Alerts:\n",
+      "criticalAlert": "\n🚫 Critical values detected! Are you sure you want to proceed?"
+    }
+  },
+  "admissions": {
+    "title": "Admissions System",
+    "description": "Patient admission management and bed allocation",
+    "advancedManagement": "🎯 Advanced Management",
+    "dashboard": "🏠 Dashboard",
+    "stats": {
+      "totalWards": "Total Wards",
+      "registeredPatients": "Registered Patients",
+      "availableDoctors": "Available Doctors",
+      "availableBeds": "Available Beds"
+    },
+    "newAdmission": "🏥 Admit New Patient",
+    "patientLabel": "Patient",
+    "selectPatient": "Select Patient...",
+    "doctorLabel": "Attending Doctor",
+    "selectDoctor": "Select Doctor...",
+    "selectedBed": "Selected Bed",
+    "noBedSelected": "Not Selected",
+    "admitBtn": "🏥 Admit Patient",
+    "quickAdmitBtn": "🚨 Emergency Admission",
+    "admitLoading": "Admitting...",
+    "quickAdmitLoading": "Admitting...",
+    "confirmAdmit": "Are you sure you want to admit the patient to Bed {bedNumber} ({wardName})?",
+    "confirmQuickAdmit": "Are you sure you want to perform a quick emergency admission to Bed {bedNumber} ({wardName})?",
+    "admitSuccess": "Admission processed and bed reserved successfully.",
+    "quickAdmitSuccess": "Quick emergency admission completed successfully.",
+    "admitError": "An error occurred while loading admissions data.",
+    "admitReasonDefault": "Inpatient admission via admissions module",
+    "admitReasonQuick": "Emergency case - quick admission",
+    "diagnosisQuick": "Emergency Case",
+    "map": "🗺️ Bed Map",
+    "room": "Room",
+    "status": {
+      "available": "Available",
+      "occupied": "Occupied",
+      "cleaning": "Cleaning",
+      "maintenance": "Maintenance"
+    },
+    "legendTitle": "🔑 Bed Status Legend"
+  },
+  "inpatients": {
+    "title": "Active Inpatients",
+    "description": "List of patients currently admitted in the wards.",
+    "roundsBtn": "👨‍⚕️ My Rounds",
+    "refreshBtn": "Refresh",
+    "loadFailed": "Failed to load inpatient list.",
+    "dischargeNoAdmission": "Admission details not available for this patient.",
+    "dischargeConfirm": "Are you sure you want to discharge patient: {patientName}?\nMedical discharge plan and financial balance will be reviewed.",
+    "dischargeSuccess": "Discharge completed successfully. Bed is now in 'cleaning' status.",
+    "dischargeError": "Failed to complete discharge.",
+    "dischargeIncompletePlan": "Medical discharge plan is incomplete. Redirecting to discharge planning.",
+    "assignBedSuccess": "Bed assigned successfully!",
+    "assignBedFailed": "Failed to assign bed.",
+    "table": {
+      "admissionNumber": "Encounter ID",
+      "admissionDate": "Admission Date",
+      "patient": "Patient",
+      "doctor": "Doctor",
+      "location": "Location (Bed)",
+      "actions": "Actions"
+    },
+    "emptyList": "No inpatients admitted at the moment.",
+    "transferTooltip": "Transfer to another bed",
+    "transferLink": "Transfer",
+    "assignBedBtn": "⚠️ Assign Bed",
+    "medicalRecordBtn": "📄 Medical Record",
+    "transferBtn": "🚑 Transfer",
+    "surgeryBtn": "🔪 Book Surgery",
+    "dischargeBtn": "Discharge",
+    "maternityBtn": "🍼 Register Birth (NICU)",
+    "maternityTooltip": "Disassociate and create inpatient record for newborn, setting mother as guarantor",
+    "bedModal": {
+      "title": "🛏️ Assign / Transfer Bed",
+      "patient": "Patient:",
+      "current": "(Current: {wardName} - {bedNumber})",
+      "ward": "Ward / Department",
+      "selectWard": "-- Select Ward --",
+      "bed": "Available Bed",
+      "selectBed": "-- Select Bed --",
+      "noBeds": "⚠️ No beds available in this ward. Try another ward.",
+      "assignBtn": "✅ Assign Bed",
+      "assigning": "Assigning..."
+    }
   }
 }

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { apiClient } from "../api/apiClient";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 
 // Types
 type BedStatus =
@@ -55,6 +56,8 @@ type PatientsListResponse = {
 };
 
 export default function AdmissionsPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
   const navigate = useNavigate();
   const [wards, setWards] = useState<Ward[]>([]);
   const [patients, setPatients] = useState<PatientLite[]>([]);
@@ -80,7 +83,7 @@ export default function AdmissionsPage() {
         setDoctors(doctorsRes.data);
       } catch (err) {
         console.error(err);
-        toast.error("حدث خطأ أثناء تحميل بيانات الإيواء.");
+        toast.error(t("admissions.admitError", "حدث خطأ أثناء تحميل بيانات الإيواء."));
       } finally {
         setLoading(false);
       }
@@ -91,24 +94,24 @@ export default function AdmissionsPage() {
   // 2. دالة التنويم (Admission Logic) - Updated to use new Admission API
   const handleAdmission = async () => {
     if (!selectedPatientId) {
-      toast.warning("يجب اختيار المريض.");
+      toast.warning(t("admissions.warnings.selectPatient", "يجب اختيار المريض."));
       return;
     }
     if (!selectedBed) {
-      toast.warning("يجب اختيار سرير متاح.");
+      toast.warning(t("admissions.warnings.selectBed", "يجب اختيار سرير متاح."));
       return;
     }
     if (!selectedDoctorId) {
-      toast.warning("يجب اختيار الطبيب المسؤول.");
+      toast.warning(t("admissions.warnings.selectDoctor", "يجب اختيار الطبيب المسؤول."));
       return;
     }
 
-    if (
-      !confirm(
-        `هل أنت متأكد من إيواء المريض في السرير ${selectedBed.number} (${selectedBed.wardName})؟`,
-      )
-    )
-      return;
+    const confirmMsg = t("admissions.confirmAdmit", {
+      defaultValue: "هل أنت متأكد من إيواء المريض في السرير {{bedNumber}} ({{wardName}})؟",
+      bedNumber: selectedBed.number,
+      wardName: selectedBed.wardName
+    });
+    if (!confirm(confirmMsg)) return;
 
     setSubmitting(true);
     try {
@@ -124,7 +127,7 @@ export default function AdmissionsPage() {
         departmentId: selectedDoctor?.departmentId || 1, // ✅ [NEW] Use doctor's department or default to 1
         admissionType: "ELECTIVE",
         priority: "MEDIUM",
-        admissionReason: "دخول إيواء عبر نظام الإيواء",
+        admissionReason: t("admissions.admitReasonDefault", "دخول إيواء عبر نظام الإيواء"),
         isEmergency: false,
         isolationRequired: false,
       };
@@ -132,7 +135,7 @@ export default function AdmissionsPage() {
       const admissionRes = await apiClient.post("/admissions", admissionData);
       
       if (admissionRes.data.id) {
-        toast.success("تم إجراء الدخول وحجز السرير بنجاح.");
+        toast.success(t("admissions.admitSuccess", "تم إجراء الدخول وحجز السرير بنجاح."));
 
         // إعادة تعيين
         setSelectedBed(null);
@@ -143,12 +146,12 @@ export default function AdmissionsPage() {
         const wardsRes = await apiClient.get<Ward[]>("/beds/tree");
         setWards(wardsRes.data);
       } else {
-        throw new Error("فشل إنشاء سجل الإيواء");
+        throw new Error(t("admissions.admitFailed", "فشل إنشاء سجل الإيواء"));
       }
      
     } catch (err: any) {
       console.error(err);
-      toast.error(err?.response?.data?.message || "فشل عملية الإيواء.");
+      toast.error(err?.response?.data?.message || t("admissions.admitErrorMsg", "فشل عملية الإيواء."));
     } finally {
       setSubmitting(false);
     }
@@ -157,24 +160,24 @@ export default function AdmissionsPage() {
   // 3. دالة الإيواء السريع للطوارئ
   const handleQuickEmergencyAdmission = async () => {
     if (!selectedPatientId) {
-      toast.warning("يجب اختيار المريض للإيواء السريع.");
+      toast.warning(t("admissions.warnings.selectPatient", "يجب اختيار المريض."));
       return;
     }
     if (!selectedBed) {
-      toast.warning("يجب اختيار سرير متاح للإيواء السريع.");
+      toast.warning(t("admissions.warnings.selectBed", "يجب اختيار سرير متاح."));
       return;
     }
     if (!selectedDoctorId) {
-      toast.warning("يجب اختيار الطبيب للإيواء السريع.");
+      toast.warning(t("admissions.warnings.selectDoctor", "يجب اختيار الطبيب المسؤول."));
       return;
     }
 
-    if (
-      !confirm(
-        `هل أنت متأكد من الإيواء السريع للطوارئ للمريض في السرير ${selectedBed.number} (${selectedBed.wardName})؟`,
-      )
-    )
-      return;
+    const confirmQuickMsg = t("admissions.confirmQuickAdmit", {
+      defaultValue: "هل أنت متأكد من الإيواء السريع للطوارئ للمريض في السرير {{bedNumber}} ({{wardName}})؟",
+      bedNumber: selectedBed.number,
+      wardName: selectedBed.wardName
+    });
+    if (!confirm(confirmQuickMsg)) return;
 
     setSubmitting(true);
     try {
@@ -187,14 +190,14 @@ export default function AdmissionsPage() {
         bedId: selectedBed.id,
         admittingDoctorId: Number(selectedDoctorId),
         departmentId: selectedDoctor?.departmentId || 1, // ✅ [NEW] Use doctor's department or default to 1
-        admissionReason: "حالة طارئة - إيواء سريع",
-        primaryDiagnosis: "حالة طارئة",
+        admissionReason: t("admissions.admitReasonQuick", "حالة طارئة - إيواء سريع"),
+        primaryDiagnosis: t("admissions.diagnosisQuick", "حالة طارئة"),
       };
 
       const admissionRes = await apiClient.post("/admissions/quick-admission", quickAdmissionData);
       
       if (admissionRes.data.id) {
-        toast.success("تم الإيواء السريع للطوارئ بنجاح.");
+        toast.success(t("admissions.quickAdmitSuccess", "تم الإيواء السريع للطوارئ بنجاح."));
 
         // إعادة تعيين
         setSelectedBed(null);
@@ -205,12 +208,12 @@ export default function AdmissionsPage() {
         const wardsRes = await apiClient.get<Ward[]>("/beds/tree");
         setWards(wardsRes.data);
       } else {
-        throw new Error("فشل الإيواء السريع");
+        throw new Error(t("admissions.quickAdmitFailed", "فشل الإيواء السريع"));
       }
      
     } catch (err: any) {
       console.error(err);
-      toast.error(err?.response?.data?.message || "فشل الإيواء السريع.");
+      toast.error(err?.response?.data?.message || t("admissions.quickAdmitErrorMsg", "فشل الإيواء السريع."));
     } finally {
       setSubmitting(false);
     }
@@ -248,7 +251,7 @@ export default function AdmissionsPage() {
 
   if (loading) {
     return (
-      <div className="flex flex-col h-full text-slate-100 p-6 space-y-6" dir="rtl">
+      <div className="flex flex-col h-full text-slate-100 p-6 space-y-6" dir={isRtl ? "rtl" : "ltr"}>
         <div className="flex justify-center items-center h-64">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-sky-500"></div>
         </div>
@@ -259,15 +262,15 @@ export default function AdmissionsPage() {
   return (
     <div
       className="flex flex-col h-full text-slate-100 p-6 space-y-6"
-      dir="rtl"
+      dir={isRtl ? "rtl" : "ltr"}
       data-testid="admissions-page"
     >
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold mb-1">نظام الإيواء</h1>
+          <h1 className="text-2xl font-bold mb-1">{t("admissions.title")}</h1>
           <p className="text-sm text-slate-400">
-            إدارة دخول المرضى وتخصيص الأسرة
+            {t("admissions.description")}
           </p>
         </div>
         <div className="flex gap-3">
@@ -275,13 +278,13 @@ export default function AdmissionsPage() {
             onClick={() => navigate('/admissions/advanced')}
             className="px-6 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold shadow-lg shadow-sky-500/20 transition-all"
           >
-            🎯 الإدارة المتقدمة
+            {t("admissions.advancedManagement", "🎯 الإدارة المتقدمة")}
           </button>
           <button
             onClick={() => navigate('/')}
             className="px-4 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-medium transition-all"
           >
-            🏠 لوحة التحكم
+            {t("admissions.dashboard", "🏠 لوحة التحكم")}
           </button>
         </div>
       </div>
@@ -289,19 +292,19 @@ export default function AdmissionsPage() {
       {/* Quick Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-slate-900/50 rounded-xl p-4 border border-slate-700">
-          <div className="text-sm text-slate-400 mb-1">إجمالي العنابر</div>
+          <div className="text-sm text-slate-400 mb-1">{t("admissions.stats.totalWards")}</div>
           <div className="text-2xl font-bold">{wards.length}</div>
         </div>
         <div className="bg-slate-900/50 rounded-xl p-4 border border-slate-700">
-          <div className="text-sm text-slate-400 mb-1">المرضى المسجلين</div>
+          <div className="text-sm text-slate-400 mb-1">{t("admissions.stats.registeredPatients")}</div>
           <div className="text-2xl font-bold">{patients.length}</div>
         </div>
         <div className="bg-slate-900/50 rounded-xl p-4 border border-slate-700">
-          <div className="text-sm text-slate-400 mb-1">الأطباء المتاحون</div>
+          <div className="text-sm text-slate-400 mb-1">{t("admissions.stats.availableDoctors")}</div>
           <div className="text-2xl font-bold">{doctors.length}</div>
         </div>
         <div className="bg-slate-900/50 rounded-xl p-4 border border-slate-700">
-          <div className="text-sm text-slate-400 mb-1">الأسرة المتاحة</div>
+          <div className="text-sm text-slate-400 mb-1">{t("admissions.stats.availableBeds")}</div>
           <div className="text-2xl font-bold text-green-400">
             {wards.reduce((sum, ward) => 
               sum + ward.rooms.reduce((roomSum, room) => 
@@ -313,11 +316,11 @@ export default function AdmissionsPage() {
 
       {/* Admission Form */}
       <div className="bg-slate-900/50 rounded-xl p-6 border border-slate-700">
-        <h2 className="text-lg font-semibold mb-4">🏥 إدخال مريض جديد</h2>
+        <h2 className="text-lg font-semibold mb-4">{t("admissions.newAdmission")}</h2>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-2">
-              المريض
+              {t("admissions.patientLabel")}
             </label>
             <select
               value={selectedPatientId}
@@ -325,7 +328,7 @@ export default function AdmissionsPage() {
               data-testid="admission-patient-select"
               className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500"
             >
-              <option value="">اختر المريض...</option>
+              <option value="">{t("admissions.selectPatient")}</option>
               {patients.map((patient) => (
                 <option key={patient.id} value={patient.id}>
                   {patient.fullName} - {patient.mrn}
@@ -335,7 +338,7 @@ export default function AdmissionsPage() {
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-2">
-              الطبيب المسؤول
+              {t("admissions.doctorLabel")}
             </label>
             <select
               value={selectedDoctorId}
@@ -343,7 +346,7 @@ export default function AdmissionsPage() {
               data-testid="admission-doctor-select"
               className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500"
             >
-              <option value="">اختر الطبيب...</option>
+              <option value="">{t("admissions.selectDoctor")}</option>
               {doctors.map((doctor) => (
                 <option key={doctor.id} value={doctor.id}>
                   {doctor.fullName}
@@ -353,7 +356,7 @@ export default function AdmissionsPage() {
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-2">
-              السرير المحدد
+              {t("admissions.selectedBed")}
             </label>
             <div
               className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-slate-100"
@@ -364,7 +367,7 @@ export default function AdmissionsPage() {
                   {getBedIcon(selectedBed.status)} {selectedBed.number} - {selectedBed.wardName}
                 </span>
               ) : (
-                <span className="text-slate-400">لم يتم الاختيار</span>
+                <span className="text-slate-400">{t("admissions.noBedSelected")}</span>
               )}
             </div>
           </div>
@@ -375,7 +378,7 @@ export default function AdmissionsPage() {
               data-testid="submit-admission"
               className="flex-1 px-4 py-2 bg-sky-600 hover:bg-sky-500 disabled:bg-slate-700 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-all"
             >
-              {submitting ? "جاري التنويم..." : "🏥 تنويم المريض"}
+              {submitting ? t("admissions.admitLoading") : t("admissions.admitBtn")}
             </button>
             <button
               onClick={handleQuickEmergencyAdmission}
@@ -383,7 +386,7 @@ export default function AdmissionsPage() {
               data-testid="submit-quick-admission"
               className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-500 disabled:bg-slate-700 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-all"
             >
-              {submitting ? "جاري الإيواء..." : "🚨 إيواء طارئ"}
+              {submitting ? t("admissions.quickAdmitLoading") : t("admissions.quickAdmitBtn")}
             </button>
           </div>
         </div>
@@ -391,7 +394,7 @@ export default function AdmissionsPage() {
 
       {/* Bed Map */}
       <div className="bg-slate-900/50 rounded-xl p-6 border border-slate-700">
-        <h2 className="text-lg font-semibold mb-4">🗺️ خريطة الأسرة</h2>
+        <h2 className="text-lg font-semibold mb-4">{t("admissions.map")}</h2>
         <div className="space-y-6">
           {wards.map((ward) => (
             <div key={ward.id} className="border border-slate-700 rounded-lg p-4">
@@ -407,7 +410,7 @@ export default function AdmissionsPage() {
                 {ward.rooms.map((room) => (
                   <div key={room.id} className="border border-slate-700 rounded-lg p-3">
                     <h4 className="text-sm font-medium text-slate-300 mb-2">
-                      غرفة {room.roomNumber}
+                      {t("admissions.room")} {room.roomNumber}
                     </h4>
                     <div className="grid grid-cols-2 gap-2">
                       {room.beds.map((bed) => (
@@ -435,10 +438,10 @@ export default function AdmissionsPage() {
                             {bed.bedNumber}
                           </div>
                           <div className="text-xs opacity-70">
-                            {bed.status === "AVAILABLE" && "متاح"}
-                            {bed.status === "OCCUPIED" && "مشغول"}
-                            {bed.status === "CLEANING" && "تنظيف"}
-                            {bed.status === "MAINTENANCE" && "صيانة"}
+                            {bed.status === "AVAILABLE" && t("admissions.status.available")}
+                            {bed.status === "OCCUPIED" && t("admissions.status.occupied")}
+                            {bed.status === "CLEANING" && t("admissions.status.cleaning")}
+                            {bed.status === "MAINTENANCE" && t("admissions.status.maintenance")}
                           </div>
                         </button>
                       ))}
@@ -453,23 +456,23 @@ export default function AdmissionsPage() {
 
       {/* Legend */}
       <div className="bg-slate-900/50 rounded-xl p-4 border border-slate-700">
-        <h3 className="text-sm font-medium text-slate-300 mb-3">🔑 مفتاح الأسرة</h3>
+        <h3 className="text-sm font-medium text-slate-300 mb-3">{t("admissions.legendTitle")}</h3>
         <div className="flex flex-wrap gap-4 text-sm">
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 bg-emerald-600 rounded"></div>
-            <span>متاح</span>
+            <span>{t("admissions.status.available")}</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 bg-rose-900/60 rounded"></div>
-            <span>مشغول</span>
+            <span>{t("admissions.status.occupied")}</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 bg-amber-600/60 rounded"></div>
-            <span>تنظيف</span>
+            <span>{t("admissions.status.cleaning")}</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 bg-slate-600 rounded"></div>
-            <span>صيانة</span>
+            <span>{t("admissions.status.maintenance")}</span>
           </div>
         </div>
       </div>

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { apiClient } from "../api/apiClient";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 
 // أنواع البيانات
 type TriageLevel =
@@ -74,15 +75,37 @@ function calculateAge(dob: string | null) {
   return Math.abs(ageDate.getUTCFullYear() - 1970);
 }
 
-function getWaitTime(date: string) {
+function getWaitTime(date: string, t: any) {
   const diff = Date.now() - new Date(date).getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 60) return `${mins} دقيقة`;
+  if (mins < 60) return `${mins} ${t("triage.waitUnit.minute", "دقيقة")}`;
   const hrs = Math.floor(mins / 60);
-  return `${hrs} ساعة و ${mins % 60} دقيقة`;
+  return `${hrs} ${t("triage.waitUnit.hour", "ساعة")} ${t("triage.waitUnit.and", "و")} ${mins % 60} ${t("triage.waitUnit.minute", "دقيقة")}`;
 }
 
 export default function TriageDashboardPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
+  const getLevelKey = (key: TriageLevel) => {
+    switch (key) {
+      case "RESUSCITATION": return "resuscitation";
+      case "EMERGENT": return "emergent";
+      case "URGENT": return "urgent";
+      case "LESS_URGENT": return "lessUrgent";
+      case "NON_URGENT": return "nonUrgent";
+      default: return "";
+    }
+  };
+
+  const localizedTriageLevels = TRIAGE_LEVELS.map(lvl => {
+    const lKey = getLevelKey(lvl.key);
+    return {
+      ...lvl,
+      label: t("triage.levels." + lKey + ".label", lvl.label),
+      desc: t("triage.levels." + lKey + ".desc", lvl.desc)
+    };
+  });
+
   const [patients, setPatients] = useState<ERPatient[]>([]);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -111,7 +134,7 @@ export default function TriageDashboardPage() {
       setPatients(res.data);
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
-      toast.error("فشل تحميل قائمة الانتظار");
+      toast.error(t("triage.loadFailed", "فشل تحميل قائمة الانتظار"));
     } finally {
       setLoading(false);
     }
@@ -171,12 +194,12 @@ export default function TriageDashboardPage() {
          
         const warning = alerts.filter((a: any) => a.severity === 'WARNING');
 
-        let message = "⚠️ تنبيهات نظام دعم القرار:\n";
+        let message = t("triage.cdss.title", "⚠️ تنبيهات نظام دعم القرار:\n");
          
         alerts.forEach((a: any) => message += `- ${a.message}\n`);
         
         if (critical.length > 0) {
-           message += "\n🚫 يوجد مؤشرات حرجة! هل أنت متأكد من المتابعة؟";
+           message += t("triage.cdss.criticalAlert", "\n🚫 يوجد مؤشرات حرجة! هل أنت متأكد من المتابعة؟");
            if (!window.confirm(message)) return false;
         } else if (warning.length > 0) {
            toast.warning(message);
@@ -190,7 +213,7 @@ export default function TriageDashboardPage() {
 
   const handleSubmit = async () => {
     if (!selectedEncounter || !form.level || !form.chiefComplaint) {
-      toast.warning("يجب تحديد مستوى الخطورة والشكوى الرئيسية.");
+      toast.warning(t("triage.requiredFields", "يجب تحديد مستوى الخطورة والشكوى الرئيسية."));
       return;
     }
 
@@ -215,34 +238,34 @@ export default function TriageDashboardPage() {
         notes: form.notes,
       });
 
-      toast.success("تم حفظ الفرز بنجاح");
+      toast.success(t("triage.saveSuccess", "تم حفظ الفرز بنجاح"));
       setSelectedEncounter(null);
       loadData();
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
-      toast.error("فشل الحفظ");
+      toast.error(t("triage.saveFailed", "فشل الحفظ"));
     }
   };
 
   return (
     <div
       className="p-6 text-slate-100 h-full flex flex-col space-y-6"
-      dir="rtl"
+      dir={isRtl ? "rtl" : "ltr"}
     >
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold mb-1 flex items-center gap-2">
-            🚨 لوحة فرز الطوارئ (Triage)
+            {t("triage.title")}
           </h1>
           <p className="text-sm text-slate-400">
-            تقييم وترتيب أولويات المرضى في قسم الطوارئ.
+            {t("triage.description")}
           </p>
         </div>
         <button
           onClick={loadData}
           className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-sm"
         >
-          تحديث القائمة 🔄
+          {t("triage.refreshBtn")}
         </button>
       </div>
 
@@ -250,19 +273,19 @@ export default function TriageDashboardPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 overflow-y-auto pb-4 flex-1">
         {loading && patients.length === 0 && (
           <div className="col-span-full text-center py-10 text-slate-500">
-            جاري التحميل...
+            {t("common.loading")}
           </div>
         )}
 
         {!loading && patients.length === 0 && (
           <div className="col-span-full text-center py-10 text-emerald-400 bg-slate-900/50 rounded-2xl border border-slate-800">
-            ✅ لا يوجد مرضى في الانتظار حالياً.
+            {t("triage.emptyQueue")}
           </div>
         )}
 
         {patients.map((p) => {
           const levelConfig = p.triageLevel
-            ? TRIAGE_LEVELS.find((l) => l.key === p.triageLevel)
+            ? localizedTriageLevels.find((l) => l.key === p.triageLevel)
             : null;
 
           return (
@@ -282,14 +305,14 @@ export default function TriageDashboardPage() {
                     {p.patient.fullName}
                   </h3>
                   <span className="text-[10px] font-mono bg-slate-950 px-2 py-0.5 rounded text-slate-400">
-                    {getWaitTime(p.createdAt)}
+                    {getWaitTime(p.createdAt, t)}
                   </span>
                 </div>
 
                 <div className="text-xs text-slate-400 mb-3 flex gap-2">
-                  <span>{p.patient.gender === "MALE" ? "ذكر" : "أنثى"}</span>
+                  <span>{p.patient.gender === "MALE" ? t("triage.gender.male", "ذكر") : t("triage.gender.female", "أنثى")}</span>
                   <span>•</span>
-                  <span>{calculateAge(p.patient.dateOfBirth)} سنة</span>
+                  <span>{calculateAge(p.patient.dateOfBirth)} {t("triage.ageUnit", "سنة")}</span>
                   <span>•</span>
                   <span>{p.patient.mrn}</span>
                 </div>
@@ -297,13 +320,13 @@ export default function TriageDashboardPage() {
                 {p.chiefComplaint ? (
                   <div className="text-sm text-slate-200 bg-slate-950/50 p-2 rounded mb-3 border border-slate-800">
                     <span className="text-slate-500 text-[10px] block">
-                      الشكوى:
+                      {t("triage.chiefComplaint")}
                     </span>
                     {p.chiefComplaint}
                   </div>
                 ) : (
                   <div className="text-sm text-slate-500 italic mb-3">
-                    لم يتم تسجيل شكوى
+                    {t("triage.noComplaint")}
                   </div>
                 )}
 
@@ -321,13 +344,13 @@ export default function TriageDashboardPage() {
                   onClick={() => openAssessment(p)}
                   className="flex-1 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-lg text-xs font-bold shadow-lg"
                 >
-                  {p.triageLevel ? "إعادة تقييم" : "بدء الفرز 🩺"}
+                  {p.triageLevel ? t("triage.reassess") : t("triage.startTriage")}
                 </button>
                 <button
                   onClick={() => navigate(`/encounters/${p.id}`)}
                   className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs"
                 >
-                  الملف
+                  {t("triage.patientChart")}
                 </button>
               </div>
             </div>
@@ -342,7 +365,7 @@ export default function TriageDashboardPage() {
             <div className="p-5 border-b border-slate-800 flex justify-between items-center bg-slate-900">
               <div>
                 <h2 className="text-lg font-bold text-white">
-                  تقييم الفرز (Triage Assessment)
+                  {t("triage.assess")}
                 </h2>
                 <p className="text-xs text-slate-400">
                   {selectedEncounter.patient.fullName}
@@ -360,12 +383,12 @@ export default function TriageDashboardPage() {
               {/* 1. Vital Signs */}
               <div className="space-y-3">
                 <h3 className="text-sm font-semibold text-emerald-400 border-b border-slate-800 pb-1">
-                  1. العلامات الحيوية (Vitals)
+                  {t("triage.vitals.title")}
                 </h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   <div>
                     <label className="text-[10px] text-slate-400 block mb-1">
-                      الضغط (Sys/Dia)
+                      {t("triage.vitals.bloodPressure")}
                     </label>
                     <div className="flex gap-1">
                       <input
@@ -390,7 +413,7 @@ export default function TriageDashboardPage() {
                   </div>
                   <div>
                     <label className="text-[10px] text-slate-400 block mb-1">
-                      النبض (HR)
+                      {t("triage.vitals.heartRate")}
                     </label>
                     <input
                       type="number"
@@ -403,7 +426,7 @@ export default function TriageDashboardPage() {
                   </div>
                   <div>
                     <label className="text-[10px] text-slate-400 block mb-1">
-                      الحرارة (Temp)
+                      {t("triage.vitals.temperature")}
                     </label>
                     <input
                       type="number"
@@ -416,7 +439,7 @@ export default function TriageDashboardPage() {
                   </div>
                   <div>
                     <label className="text-[10px] text-slate-400 block mb-1">
-                      الأكسجين (SpO2)
+                      {t("triage.vitals.oxygen")}
                     </label>
                     <input
                       type="number"
@@ -433,12 +456,12 @@ export default function TriageDashboardPage() {
               {/* 2. Chief Complaint */}
               <div className="space-y-2">
                 <h3 className="text-sm font-semibold text-sky-400 border-b border-slate-800 pb-1">
-                  2. الشكوى الرئيسية
+                  {t("triage.complaint.title")}
                 </h3>
                 <textarea
                   rows={2}
                   className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm focus:border-sky-500 outline-none"
-                  placeholder="ما الذي يشكو منه المريض؟"
+                  placeholder={t("triage.complaint.placeholder")}
                   value={form.chiefComplaint}
                   onChange={(e) =>
                     setForm({ ...form, chiefComplaint: e.target.value })
@@ -449,10 +472,10 @@ export default function TriageDashboardPage() {
               {/* 3. Triage Level */}
               <div className="space-y-2">
                 <h3 className="text-sm font-semibold text-amber-400 border-b border-slate-800 pb-1">
-                  3. قرار الفرز (Priority)
+                  {t("triage.priority.title")}
                 </h3>
                 <div className="grid grid-cols-1 gap-2">
-                  {TRIAGE_LEVELS.map((lvl) => (
+                  {localizedTriageLevels.map((lvl) => (
                     <button
                       key={lvl.key}
                       onClick={() => setForm({ ...form, level: lvl.key })}
@@ -475,13 +498,13 @@ export default function TriageDashboardPage() {
                 onClick={() => setSelectedEncounter(null)}
                 className="px-5 py-2 rounded-xl bg-slate-800 text-slate-300 text-sm hover:bg-slate-700"
               >
-                إلغاء
+                {t("common.cancel")}
               </button>
               <button
                 onClick={handleSubmit}
                 className="px-8 py-2 rounded-xl bg-emerald-600 text-white text-sm font-bold hover:bg-emerald-500 shadow-lg shadow-emerald-500/20"
               >
-                حفظ الفرز ✅
+                {t("triage.saveSuccess")}
               </button>
             </div>
           </div>

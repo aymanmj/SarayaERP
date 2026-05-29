@@ -356,9 +356,9 @@
     "tableStatus": "الحالة",
     "tableActions": "الإجراءات",
     "statusPending": "قيد الانتظار",
-    "statusConfirmed": "مؤكد",
-    "statusCancelled": "ملغي",
-    "statusCompleted": "مكتمل",
+    "statusConfirmed": "مؤكّد",
+    "statusCancelled": "ملغى",
+    "statusCompleted": "تم الكشف",
     "filterAll": "كل الحالات",
     "newAppointmentTitle": "حجز موعد عيادة",
     "selectPatient": "اختر المريض",
@@ -453,11 +453,157 @@
       "sat": "السبت"
     },
     "statusRequested": "طلب جديد",
-    "statusConfirmed": "مؤكّد",
     "statusCheckedIn": "جاري الكشف",
-    "statusCompleted": "تم الكشف",
-    "statusCancelled": "ملغى",
     "statusNoShow": "لم يحضر"
+  },
+  "triage": {
+    "title": "🚨 لوحة فرز الطوارئ (Triage)",
+    "description": "تقييم وترتيب أولويات المرضى في قسم الطوارئ.",
+    "refreshBtn": "تحديث القائمة 🔄",
+    "loadFailed": "فشل تحميل قائمة الانتظار",
+    "saveSuccess": "تم حفظ الفرز بنجاح",
+    "saveFailed": "فشل الحفظ",
+    "requiredFields": "يجب تحديد مستوى الخطورة والشكوى الرئيسية.",
+    "assess": "تقييم الفرز (Triage Assessment)",
+    "reassess": "إعادة تقييم",
+    "startTriage": "بدء الفرز 🩺",
+    "patientChart": "الملف",
+    "chiefComplaint": "الشكوى:",
+    "noComplaint": "لم يتم تسجيل شكوى",
+    "emptyQueue": "✅ لا يوجد مرضى في الانتظار حالياً.",
+    "gender": {
+      "male": "ذكر",
+      "female": "أنثى"
+    },
+    "ageUnit": "سنة",
+    "waitUnit": {
+      "minute": "دقيقة",
+      "hour": "ساعة",
+      "and": "و"
+    },
+    "vitals": {
+      "title": "1. العلامات الحيوية (Vitals)",
+      "bloodPressure": "الضغط (Sys/Dia)",
+      "heartRate": "النبض (HR)",
+      "temperature": "الحرارة (Temp)",
+      "oxygen": "الأكسجين (SpO2)"
+    },
+    "complaint": {
+      "title": "2. الشكوى الرئيسية",
+      "placeholder": "ما الذي يشكو منه المريض؟"
+    },
+    "priority": {
+      "title": "3. قرار الفرز (Priority)"
+    },
+    "levels": {
+      "resuscitation": {
+        "label": "إنعاش (فوري)",
+        "desc": "حياة أو موت"
+      },
+      "emergent": {
+        "label": "طارئ جداً (10د)",
+        "desc": "ألم صدر، ضيق تنفس شديد"
+      },
+      "urgent": {
+        "label": "عاجل (30د)",
+        "desc": "ألم بطن، كسر"
+      },
+      "lessUrgent": {
+        "label": "أقل استعجالاً (60د)",
+        "desc": "جروح بسيطة، حرارة"
+      },
+      "nonUrgent": {
+        "label": "غير عاجل (120د)",
+        "desc": "تغيير ضماد، وصفة"
+      }
+    },
+    "cdss": {
+      "title": "⚠️ تنبيهات نظام دعم القرار:\n",
+      "criticalAlert": "\n🚫 يوجد مؤشرات حرجة! هل أنت متأكد من المتابعة؟"
+    }
+  },
+  "admissions": {
+    "title": "نظام الإيواء",
+    "description": "إدارة دخول المرضى وتخصيص الأسرة",
+    "advancedManagement": "🎯 الإدارة المتقدمة",
+    "dashboard": "🏠 لوحة التحكم",
+    "stats": {
+      "totalWards": "إجمالي العنابر",
+      "registeredPatients": "المرضى المسجلين",
+      "availableDoctors": "الأطباء المتاحون",
+      "availableBeds": "الأسرة المتاحة"
+    },
+    "newAdmission": "🏥 إدخال مريض جديد",
+    "patientLabel": "المريض",
+    "selectPatient": "اختر المريض...",
+    "doctorLabel": "الطبيب المسؤول",
+    "selectDoctor": "اختر الطبيب...",
+    "selectedBed": "السرير المحدد",
+    "noBedSelected": "لم يتم الاختيار",
+    "admitBtn": "🏥 تنويم المريض",
+    "quickAdmitBtn": "🚨 إيواء طارئ",
+    "admitLoading": "جاري التنويم...",
+    "quickAdmitLoading": "جاري الإيواء...",
+    "confirmAdmit": "هل أنت متأكد من إيواء المريض في السرير {bedNumber} ({wardName})؟",
+    "confirmQuickAdmit": "هل أنت متأكد من الإيواء السريع للطوارئ للمريض في السرير {bedNumber} ({wardName})؟",
+    "admitSuccess": "تم إجراء الدخول وحجز السرير بنجاح.",
+    "quickAdmitSuccess": "تم الإيواء السريع للطوارئ بنجاح.",
+    "admitError": "حدث خطأ أثناء تحميل بيانات الإيواء.",
+    "admitReasonDefault": "دخول إيواء عبر نظام الإيواء",
+    "admitReasonQuick": "حالة طارئة - إيواء سريع",
+    "diagnosisQuick": "حالة طارئة",
+    "map": "🗺️ خريطة الأسرة",
+    "room": "غرفة",
+    "status": {
+      "available": "متاح",
+      "occupied": "مشغول",
+      "cleaning": "تنظيف",
+      "maintenance": "صيانة"
+    },
+    "legendTitle": "🔑 مفتاح الأسرة"
+  },
+  "inpatients": {
+    "title": "حالات الإيواء (Inpatients)",
+    "description": "قائمة المرضى المتواجدين حالياً في غرف الإيواء.",
+    "roundsBtn": "👨‍⚕️ المرور الطبي (My Rounds)",
+    "refreshBtn": "تحديث",
+    "loadFailed": "فشل تحميل قائمة المنومين.",
+    "dischargeNoAdmission": "بيانات الدخول (الإيواء) غير متوفرة لهذا المريض.",
+    "dischargeConfirm": "هل أنت متأكد من إجراء خروج للمريض: {patientName}؟\nسيتم مراجعة خطة الخروج الطبية والموقف المالي.",
+    "dischargeSuccess": "تم إجراء الخروج بنجاح. السرير الآن في حالة 'تنظيف'.",
+    "dischargeError": "فشل إجراء الخروج.",
+    "dischargeIncompletePlan": "خطة الخروج الطبية غير مكتملة. سيتم تحويلك لصفحة تخطيط الخروج.",
+    "assignBedSuccess": "تم تعيين السرير بنجاح!",
+    "assignBedFailed": "فشل تعيين السرير",
+    "table": {
+      "admissionNumber": "رقم الدخول",
+      "admissionDate": "تاريخ الدخول",
+      "patient": "المريض",
+      "doctor": "الطبيب",
+      "location": "الموقع (السرير)",
+      "actions": "إجراءات"
+    },
+    "emptyList": "لا يوجد مرضى منومين حالياً.",
+    "transferTooltip": "نقل إلى سرير آخر",
+    "transferLink": "نقل",
+    "assignBedBtn": "⚠️ تعيين سرير",
+    "medicalRecordBtn": "📄 الملف الطبي",
+    "transferBtn": "🚑 نقل",
+    "surgeryBtn": "🔪 حجز عملية",
+    "dischargeBtn": "استخراج",
+    "maternityBtn": "🍼 تسجيل مولود (NICU)",
+    "maternityTooltip": "فصل وإنشاء ملف إيواء لمولود جديد وتعيينه كضامن",
+    "bedModal": {
+      "title": "🛏️ تعيين / نقل سرير",
+      "patient": "المريض:",
+      "current": "(حالياً: {wardName} - {bedNumber})",
+      "ward": "العنبر / القسم",
+      "selectWard": "-- اختر العنبر --",
+      "bed": "السرير المتاح",
+      "selectBed": "-- اختر السرير --",
+      "noBeds": "⚠️ لا توجد أسرّة متاحة في هذا العنبر. جرّب عنبراً آخر.",
+      "assignBtn": "✅ تعيين السرير",
+      "assigning": "جارِ التعيين..."
+    }
   }
 }
-
