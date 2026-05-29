@@ -4,16 +4,16 @@ export const COLORS = {
   primaryDark: '#0f766e', // Teal 700
   secondary: '#4f46e5', // Indigo 600 (Modern accent color)
   secondaryLight: '#818cf8', // Indigo 400
-  background: '#f8fafc', // Slate 50 (Very clean light background)
-  surface: '#ffffff', // White
-  text: '#0f172a', // Slate 900 (Rich typography)
-  textLight: '#475569', // Slate 600
-  textMuted: '#94a3b8', // Slate 400
-  border: '#e2e8f0', // Slate 200
-  error: '#e11d48', // Rose 600 (Clinical critical value red)
+  background: '#0b0f19', // Deepest dark slate background
+  surface: '#151f32', // Rich dark slate card background
+  text: '#ffffff', // White rich typography for readability
+  textLight: '#cbd5e1', // Slate 300
+  textMuted: '#64748b', // Slate 500
+  border: 'rgba(255, 255, 255, 0.08)', // Soft dark border
+  error: '#f43f5e', // Rose 500 (Clinical critical value red)
   success: '#10b981', // Emerald 500 (Clean success green)
   warning: '#f59e0b', // Amber 500 (Attention warning)
-  info: '#2563eb', // Blue 600
+  info: '#3b82f6', // Blue 500
   darkBackground: '#0b0f19', // Deepest dark slate
   darkSurface: '#151f32', // Rich dark slate card background
 };

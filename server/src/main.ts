@@ -7,6 +7,7 @@ import { ValidationPipe, Logger, BadRequestException } from '@nestjs/common';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { RequestLifecycleInterceptor } from './common/interceptors/request-lifecycle.interceptor';
+import { LocalizationInterceptor } from './common/interceptors/localization.interceptor';
 import { CorrelationMiddleware } from './common/middleware/correlation.middleware';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
@@ -150,6 +151,7 @@ async function bootstrap() {
   app.useGlobalInterceptors(
     new RequestLifecycleInterceptor(),
     new TransformInterceptor(),
+    new LocalizationInterceptor(),
   );
   app.useGlobalFilters(new AllExceptionsFilter());
 
@@ -223,6 +225,7 @@ async function bootstrap() {
       'X-Requested-With',
       'X-Client-Name',
       'X-Request-Id',
+      'Accept-Language',
     ],
     exposedHeaders: ['X-Total-Count', 'X-Request-Id'],
     credentials: true,

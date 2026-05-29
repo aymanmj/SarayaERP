@@ -1063,6 +1063,7 @@ export default function EncounterDetailsPage() {
                   encounterId={encounter.id}
                   hospitalId={encounter.hospitalId}
                   doctorId={encounter.doctorId}
+                  patientId={encounter.patientId}
                 />
               </Suspense>
             )}

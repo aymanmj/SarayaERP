@@ -283,7 +283,7 @@ const styles = StyleSheet.create({
   drugName: { fontSize: 16, fontWeight: '700', color: theme.colors.text },
   statusBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, color: theme.colors.surface, fontSize: 10, fontWeight: 'bold', overflow: 'hidden' },
   detailText: { color: theme.colors.textLight, marginBottom: 4 },
-  itemsCount: { alignSelf: 'flex-start', backgroundColor: '#e0f2fe', color: theme.colors.primaryDark, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4, fontSize: 12, marginTop: 8 },
+  itemsCount: { alignSelf: 'flex-start', backgroundColor: 'rgba(13, 148, 136, 0.15)', color: theme.colors.primaryLight, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4, fontSize: 12, marginTop: 8 },
   stockLevel: { fontSize: 18, fontWeight: 'bold', color: theme.colors.primary },
   emptyText: { textAlign: 'center', marginTop: 32, color: theme.colors.textMuted },
 });

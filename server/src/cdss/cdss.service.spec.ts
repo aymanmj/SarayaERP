@@ -53,6 +53,10 @@ describe('CDSSService', () => {
       findFirst: jest.fn(),
       findMany: jest.fn().mockResolvedValue([]),
     },
+    cDSSAlert: {
+      findMany: jest.fn().mockResolvedValue([]),
+      create: jest.fn(),
+    },
   };
 
   beforeEach(async () => {
@@ -452,6 +456,78 @@ describe('CDSSService', () => {
       expect(alerts[0].severity).toEqual(CDSSAlertSeverity.CRITICAL);
       expect(alerts[0].requiresOverride).toBe(true);
       expect(alerts[0].context!.action).toBe('AVOID');
+    });
+  });
+
+  describe('checkPrescription with frequency-based suppression', () => {
+    it('should suppress a warning if it was overridden within the last 24 hours', async () => {
+      mockPrismaService.patient.findUnique.mockResolvedValue({
+        id: 1,
+        dateOfBirth: new Date(new Date().getFullYear() - 30, 0, 1),
+        gender: 'MALE',
+      });
+      mockPrismaService.labOrderResult.findFirst.mockResolvedValue(null);
+      mockPrismaService.patientAllergy.findMany.mockResolvedValue([
+        { allergen: 'Aspirin', severity: 'SEVERE', reaction: 'Anaphylaxis' },
+      ]);
+      mockPrismaService.allergyGroupDrug.findMany.mockResolvedValue([]);
+
+      mockPrismaService.cDSSAlert.findMany.mockResolvedValue([
+        {
+          id: 101,
+          alertType: 'DRUG_ALLERGY',
+          status: 'OVERRIDDEN',
+          createdAt: new Date(),
+          overrideReason: 'Patient tolerated it before with antihistamines',
+          context: {
+            drug: 'aspirin',
+            allergen: 'Aspirin',
+          },
+        },
+      ]);
+
+      const checkInput = {
+        patientId: 1,
+        hospitalId: 1,
+        drugs: [{ genericName: 'Aspirin', dose: '100mg' }],
+        userId: 2,
+      };
+
+      const result = await cdssService.checkPrescription(checkInput);
+
+      expect(result.alerts).toHaveLength(1);
+      expect(result.alerts[0].requiresOverride).toBe(false);
+      expect(result.alerts[0].context!.autoSuppressed).toBe(true);
+      expect(result.alerts[0].context!.originalOverrideReason).toContain('Patient tolerated it before');
+      expect(result.canProceed).toBe(true);
+    });
+
+    it('should not suppress warning if overridden by another doctor or for another patient', async () => {
+      mockPrismaService.patient.findUnique.mockResolvedValue({
+        id: 1,
+        dateOfBirth: new Date(new Date().getFullYear() - 30, 0, 1),
+        gender: 'MALE',
+      });
+      mockPrismaService.labOrderResult.findFirst.mockResolvedValue(null);
+      mockPrismaService.patientAllergy.findMany.mockResolvedValue([
+        { allergen: 'Aspirin', severity: 'SEVERE', reaction: 'Anaphylaxis' },
+      ]);
+      mockPrismaService.allergyGroupDrug.findMany.mockResolvedValue([]);
+
+      mockPrismaService.cDSSAlert.findMany.mockResolvedValue([]);
+
+      const checkInput = {
+        patientId: 1,
+        hospitalId: 1,
+        drugs: [{ genericName: 'Aspirin', dose: '100mg' }],
+        userId: 2,
+      };
+
+      const result = await cdssService.checkPrescription(checkInput);
+
+      expect(result.alerts).toHaveLength(1);
+      expect(result.alerts[0].requiresOverride).toBe(true);
+      expect(result.canProceed).toBe(false);
     });
   });
 });

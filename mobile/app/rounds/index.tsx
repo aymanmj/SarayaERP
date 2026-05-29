@@ -349,7 +349,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: "#e0f2fe",
+    backgroundColor: "rgba(13, 148, 136, 0.15)",
     justifyContent: "center",
     alignItems: "center",
     marginRight: 12,
@@ -357,7 +357,7 @@ const styles = StyleSheet.create({
   avatarText: {
     fontSize: 20,
     fontWeight: "bold",
-    color: theme.colors.primaryDark,
+    color: theme.colors.primaryLight,
   },
   headerText: {
     flex: 1,

@@ -37,7 +37,7 @@ const ActiveMedCard = memo(({ item, onPressAdminister, onPressCard }: { item: an
     >
       <View style={styles.cardHeader}>
         <View style={styles.iconContainer}>
-            <Ionicons name="medkit" size={20} color="#0284c7" />
+            <Ionicons name="medkit" size={20} color={theme.colors.primary} />
         </View>
         <View style={styles.headerText}>
            <Text style={styles.drugName}>{item.product?.name || item.drugItem?.name || "Unknown Drug"}</Text>
@@ -180,7 +180,7 @@ const styles = StyleSheet.create({
   // Card
   card: { backgroundColor: theme.colors.surface, borderRadius: 16, padding: 16, marginBottom: 16, ...theme.shadows.small, borderWidth: 1, borderColor: theme.colors.border },
   cardHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-  iconContainer: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#e0f2fe', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  iconContainer: { width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(13, 148, 136, 0.15)', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
   headerText: { flex: 1 },
   drugName: { fontSize: 16, fontWeight: '700', color: theme.colors.text },
   genericName: { fontSize: 13, color: theme.colors.textLight, fontStyle: 'italic', marginTop: 2 },
@@ -211,9 +211,9 @@ const styles = StyleSheet.create({
   timestamp: { fontSize: 13, fontWeight: '600', color: theme.colors.text },
   
   statusBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
-  bgGreen: { backgroundColor: '#dcfce7' },
-  bgRed: { backgroundColor: '#fee2e2' },
-  bgYellow: { backgroundColor: '#fef3c7' },
+  bgGreen: { backgroundColor: 'rgba(16, 185, 129, 0.15)' },
+  bgRed: { backgroundColor: 'rgba(244, 63, 94, 0.15)' },
+  bgYellow: { backgroundColor: 'rgba(245, 158, 11, 0.15)' },
   statusText: { fontSize: 10, fontWeight: '700' },
   textGreen: { color: theme.colors.success },
   textRed: { color: theme.colors.error },

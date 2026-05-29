@@ -83,6 +83,7 @@ export class CDSSController {
     const checkInput: PrescriptionCheckInput = {
       ...input,
       hospitalId: user.hospitalId,
+      userId: user.sub,
     };
     return this.cdssService.checkPrescription(checkInput);
   }

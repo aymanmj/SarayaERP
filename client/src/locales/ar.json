@@ -1,0 +1,39 @@
+{
+  "common": {
+    "appName": "سرايا ERP",
+    "dashboard": "لوحة التحكم",
+    "about": "حول النظام",
+    "login": "تسجيل الدخول",
+    "logout": "تسجيل الخروج",
+    "arabic": "العربية",
+    "english": "English",
+    "welcome": "مرحباً بك",
+    "patients": "المرضى",
+    "appointments": "المواعيد",
+    "admissions": "الإيواء والقبول",
+    "clinical": "العيادة الطبية",
+    "finance": "المالية والمحاسبة",
+    "inventory": "المخازن والصيدلية",
+    "patientPortal": "بوابة المريض",
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "search": "بحث",
+    "loading": "جارِ التحميل...",
+    "error": "خطأ",
+    "success": "تم بنجاح"
+  },
+  "cdss": {
+    "alerts": "التنبيهات السريرية الذكية",
+    "noAlerts": "لا توجد تنبيهات نشطة للمريض.",
+    "passiveAlerts": "تنبيهات غير معطلة (تثقيفية)",
+    "criticalAlerts": "تنبيهات حرجة (مخاطر عالية)",
+    "overrideReason": "سبب التجاوز (مطلوب)",
+    "overridePlaceholder": "يرجى كتابة سبب التجاوز سريرياً (10 أحرف على الأقل)...",
+    "autoSuppressed": "تم الإخماد تلقائياً بناءً على تجاوز سابق خلال 24 ساعة",
+    "originalReason": "السبب الأصلي بالتجاوز:",
+    "requiresOverrideText": "يتطلب مبرراً سريرياً للتجاوز والمتابعة",
+    "panicHigh": "قيمة حرجة مرتفعة جداً",
+    "criticalLow": "قيمة منخفضة حرجة",
+    "criticalHigh": "قيمة مرتفعة حرجة"
+  }
+}

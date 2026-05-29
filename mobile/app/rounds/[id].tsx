@@ -450,7 +450,7 @@ const styles = StyleSheet.create({
   noteHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
   noteAuthor: { fontSize: 13, fontWeight: '600', color: theme.colors.text },
   noteTime: { fontSize: 11, color: theme.colors.textMuted },
-  noteTypeBadge: { alignSelf: 'flex-start', backgroundColor: '#e0f2fe', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4, color: theme.colors.primaryDark, fontSize: 10, fontWeight: '600', marginBottom: 8, overflow: 'hidden' },
+  noteTypeBadge: { alignSelf: 'flex-start', backgroundColor: 'rgba(13, 148, 136, 0.15)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4, color: theme.colors.primaryLight, fontSize: 10, fontWeight: '600', marginBottom: 8, overflow: 'hidden' },
   noteText: { fontSize: 14, color: theme.colors.textLight, lineHeight: 20 },
 
   emptyState: { alignItems: 'center', marginTop: 40 },

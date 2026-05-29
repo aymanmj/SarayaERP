@@ -15,6 +15,7 @@ import "@fontsource/tajawal/700.css";
 import "@fontsource/tajawal/800.css";
 import "@fontsource/tajawal/900.css";
 import "./styles.css";
+import "./lib/i18n";
 import { Toaster } from "sonner";
 import { useAuthStore } from "./stores/authStore";
 import { ProtectedRoute } from "./components/ProtectedRoute";

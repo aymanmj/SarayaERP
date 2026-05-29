@@ -26,6 +26,11 @@ describe('Clinical Services Integration Tests', () => {
 
   const cdssService = {
     checkDrugInteractions: jest.fn().mockResolvedValue([]),
+    checkPrescription: jest.fn().mockResolvedValue({
+      passed: true,
+      alerts: [],
+      canProceed: true,
+    }),
   };
 
   const priceListsService = {
@@ -50,6 +55,9 @@ describe('Clinical Services Integration Tests', () => {
         create: jest.fn(),
       },
       prescriptionItem: {
+        create: jest.fn(),
+      },
+      cDSSAlert: {
         create: jest.fn(),
       },
       labTest: {

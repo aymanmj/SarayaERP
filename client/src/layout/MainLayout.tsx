@@ -6,6 +6,7 @@ import { useSocketStore } from "../stores/socketStore";
 import { useState, useEffect, useMemo } from "react";
 import type { ReactNode } from "react";
 import { NotificationBell } from "../components/NotificationBell";
+import { LanguageSwitcher } from "../components/LanguageSwitcher";
 
 // ... (Icons تبقى كما هي - لا تغيير) ...
 const Icons = {
@@ -980,6 +981,7 @@ export function MainLayout() {
             مرحباً بك في نظام السرايا الطبي - النسخة التشغيلية
           </div>
           <div className="flex items-center gap-4">
+            <LanguageSwitcher />
             <NotificationBell />
             {/* ✅ Multi-Branch: زر تبديل الفرع */}
             {accessibleBranches.length > 1 && (

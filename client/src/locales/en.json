@@ -1,0 +1,39 @@
+{
+  "common": {
+    "appName": "Saraya ERP",
+    "dashboard": "Dashboard",
+    "about": "About",
+    "login": "Login",
+    "logout": "Logout",
+    "arabic": "العربية",
+    "english": "English",
+    "welcome": "Welcome",
+    "patients": "Patients",
+    "appointments": "Appointments",
+    "admissions": "Admissions",
+    "clinical": "Clinical",
+    "finance": "Finance & Accounting",
+    "inventory": "Inventory & Pharmacy",
+    "patientPortal": "Patient Portal",
+    "save": "Save",
+    "cancel": "Cancel",
+    "search": "Search",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success"
+  },
+  "cdss": {
+    "alerts": "Smart Clinical Alerts",
+    "noAlerts": "No active clinical alerts for this patient.",
+    "passiveAlerts": "Passive Alerts (Educational)",
+    "criticalAlerts": "Critical Alerts (High Risk)",
+    "overrideReason": "Override Reason (Required)",
+    "overridePlaceholder": "Please enter clinical override reason (at least 10 characters)...",
+    "autoSuppressed": "Auto-Suppressed based on a recent override in the past 24 hours",
+    "originalReason": "Original Override Reason:",
+    "requiresOverrideText": "Requires clinical justification to override and proceed",
+    "panicHigh": "Panic High Value",
+    "criticalLow": "Critical Low Value",
+    "criticalHigh": "Critical High Value"
+  }
+}

@@ -18,13 +18,14 @@ const processQueue = (error: any) => {
   });
   failedQueue = [];
 };
-
 // 1. Request Interceptor (Minimal - just return config)
 apiClient.interceptors.request.use((config) => {
-  // No need to inject Bearer token, Cookies handle it
+  const currentLang = localStorage.getItem("language") || "ar";
+  if (config.headers) {
+    config.headers["Accept-Language"] = currentLang;
+  }
   return config;
 });
-
 // 2. Response Interceptor
 apiClient.interceptors.response.use(
   (response) => {

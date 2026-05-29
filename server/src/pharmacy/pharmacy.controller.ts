@@ -82,6 +82,7 @@ export class PharmacyController {
       doctorId,
       notes: body.notes ?? undefined,
       overrideSafety: body.overrideSafety, // 👈 تمرير خيار التجاوز
+      overrideReason: body.overrideReason ?? undefined, // 👈 تمرير مبرر التجاوز
       items,
     });
   }

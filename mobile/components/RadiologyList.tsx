@@ -96,7 +96,7 @@ export default function RadiologyList({ encounterId }: RadiologyListProps) {
             style={styles.pacsButton}
             onPress={() => openPacs(item.pacsUrl!)}
         >
-            <Ionicons name="images" size={18} color="#0284c7" />
+            <Ionicons name="images" size={18} color={theme.colors.primary} />
             <Text style={styles.pacsButtonText}>View Images (PACS)</Text>
         </TouchableOpacity>
       )}
@@ -220,13 +220,13 @@ const styles = StyleSheet.create({
       justifyContent: 'center',
       padding: 10,
       borderRadius: 8,
-      backgroundColor: '#e0f2fe',
+      backgroundColor: 'rgba(13, 148, 136, 0.15)',
       marginTop: 12,
       borderWidth: 1,
-      borderColor: '#bae6fd',
+      borderColor: 'rgba(13, 148, 136, 0.2)',
   },
   pacsButtonText: {
-      color: theme.colors.primary,
+      color: theme.colors.primaryLight,
       fontWeight: '600',
       marginLeft: 8,
   },

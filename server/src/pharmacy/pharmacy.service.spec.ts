@@ -84,6 +84,10 @@ describe('PharmacyService', () => {
       payment: {
         create: jest.fn(),
       },
+      cDSSAlert: {
+        create: jest.fn(),
+        findMany: jest.fn().mockResolvedValue([]),
+      },
       $transaction: jest.fn((fn: any) => {
         if (Array.isArray(fn)) return Promise.all(fn);
         return fn(mock); // Pass the same mock as tx
@@ -103,6 +107,11 @@ describe('PharmacyService', () => {
 
   const mockCDSSService = {
     checkDrugInteractions: jest.fn().mockResolvedValue([]),
+    checkPrescription: jest.fn().mockResolvedValue({
+      passed: true,
+      alerts: [],
+      canProceed: true,
+    }),
   };
 
   beforeEach(async () => {
@@ -162,6 +171,11 @@ describe('PharmacyService', () => {
 
       prisma.prescription.create.mockResolvedValue({ id: 1 });
       prisma.prescriptionItem.create.mockResolvedValue({ id: 1 });
+      cdss.checkPrescription.mockResolvedValue({
+        passed: true,
+        alerts: [],
+        canProceed: true,
+      });
     });
 
     it('should create prescription successfully for valid encounter', async () => {
@@ -198,14 +212,17 @@ describe('PharmacyService', () => {
     });
 
     it('should BLOCK prescription when drug-allergy interaction detected', async () => {
-      prisma.encounter.findUnique.mockResolvedValue({
-        id: 10,
-        hospitalId: 1,
-        patientId: 1,
-        patient: {
-          id: 1,
-          allergies: [{ id: 1, allergen: 'amoxicillin', severity: 'SEVERE' }],
-        },
+      cdss.checkPrescription.mockResolvedValue({
+        passed: false,
+        alerts: [
+          {
+            type: 'DRUG_ALLERGY',
+            severity: 'CRITICAL',
+            message: 'Direct allergy match',
+            requiresOverride: true,
+          },
+        ],
+        canProceed: false,
       });
 
       await expect(
@@ -214,14 +231,18 @@ describe('PharmacyService', () => {
     });
 
     it('should BLOCK prescription when CDSS detects drug interactions (without override)', async () => {
-      cdss.checkDrugInteractions.mockResolvedValue([
-        {
-          drug1: 'Amoxicillin',
-          drug2: 'Methotrexate',
-          severity: 'high',
-          description: 'Increased toxicity',
-        },
-      ]);
+      cdss.checkPrescription.mockResolvedValue({
+        passed: false,
+        alerts: [
+          {
+            type: 'DRUG_INTERACTION',
+            severity: 'CRITICAL',
+            message: 'Increased toxicity',
+            requiresOverride: true,
+          },
+        ],
+        canProceed: false,
+      });
 
       await expect(
         service.createPrescriptionForEncounter(baseParams),
@@ -229,14 +250,18 @@ describe('PharmacyService', () => {
     });
 
     it('should ALLOW prescription when overrideSafety is true (doctor acknowledges risk)', async () => {
-      cdss.checkDrugInteractions.mockResolvedValue([
-        {
-          drug1: 'X',
-          drug2: 'Y',
-          severity: 'moderate',
-          description: 'Interaction',
-        },
-      ]);
+      cdss.checkPrescription.mockResolvedValue({
+        passed: false,
+        alerts: [
+          {
+            type: 'DRUG_INTERACTION',
+            severity: 'CRITICAL',
+            message: 'Interaction',
+            requiresOverride: true,
+          },
+        ],
+        canProceed: false,
+      });
 
       const result = await service.createPrescriptionForEncounter({
         ...baseParams,

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, TextInput, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Keyboard } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../services/api';
+import { theme } from '../constants/theme';
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -237,32 +238,32 @@ const styles = StyleSheet.create({
   },
 
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  title: { fontSize: 18, fontWeight: '700', color: '#1e293b' },
-  closeBtn: { padding: 4, backgroundColor: '#f1f5f9', borderRadius: 20 },
-  scanBtn: { padding: 4, backgroundColor: '#f0f9ff', borderRadius: 20, borderWidth: 1, borderColor: '#e0f2fe' },
+  title: { fontSize: 18, fontWeight: '700', color: theme.colors.text },
+  closeBtn: { padding: 4, backgroundColor: theme.colors.background, borderRadius: 20 },
+  scanBtn: { padding: 4, backgroundColor: theme.colors.background, borderRadius: 20, borderWidth: 1, borderColor: theme.colors.border },
 
   drugCard: { 
     flexDirection: 'row', 
-    backgroundColor: '#f0f9ff', 
+    backgroundColor: 'rgba(13, 148, 136, 0.1)', 
     padding: 16, 
     borderRadius: 16, 
     alignItems: 'center', 
     marginBottom: 24,
     borderWidth: 1,
-    borderColor: '#e0f2fe'
+    borderColor: 'rgba(13, 148, 136, 0.2)'
   },
   iconContainer: { 
     width: 40, height: 40, 
     borderRadius: 20, 
-    backgroundColor: '#fff', 
+    backgroundColor: theme.colors.surface, 
     justifyContent: 'center', alignItems: 'center', 
     marginRight: 12 
   },
   drugDetails: { flex: 1 },
-  drugName: { fontSize: 16, fontWeight: '700', color: '#0c4a6e' },
-  drugDose: { fontSize: 13, color: '#0369a1', marginTop: 2, fontWeight: '500' },
+  drugName: { fontSize: 16, fontWeight: '700', color: theme.colors.text },
+  drugDose: { fontSize: 13, color: theme.colors.primaryLight, marginTop: 2, fontWeight: '500' },
 
-  sectionLabel: { fontSize: 13, fontWeight: '600', color: '#64748b', marginBottom: 8, marginLeft: 4 },
+  sectionLabel: { fontSize: 13, fontWeight: '600', color: theme.colors.textMuted, marginBottom: 8, marginLeft: 4 },
   
   statusContainer: { flexDirection: 'row', gap: 8, marginBottom: 24 },
   statusBtn: { 
@@ -272,28 +273,28 @@ const styles = StyleSheet.create({
     paddingVertical: 12, 
     borderRadius: 12, 
     borderWidth: 1, 
-    borderColor: '#e2e8f0', 
+    borderColor: theme.colors.border, 
     justifyContent: 'center', 
     alignItems: 'center',
-    backgroundColor: '#fff'
+    backgroundColor: theme.colors.surface
   },
   
   statusBtnGiven: { backgroundColor: '#16a34a', borderColor: '#16a34a' },
   statusBtnNotGiven: { backgroundColor: '#dc2626', borderColor: '#dc2626' },
   statusBtnHeld: { backgroundColor: '#d97706', borderColor: '#d97706' },
 
-  statusText: { fontSize: 12, fontWeight: '600', color: '#64748b' },
+  statusText: { fontSize: 12, fontWeight: '600', color: theme.colors.textLight },
   statusTextActive: { color: '#fff' },
 
   input: { 
-    backgroundColor: '#f8fafc', 
+    backgroundColor: theme.colors.background, 
     borderWidth: 1, 
-    borderColor: '#e2e8f0', 
+    borderColor: theme.colors.border, 
     borderRadius: 12, 
     padding: 16, 
     height: 100, 
     fontSize: 14, 
-    color: '#334155', 
+    color: theme.colors.text, 
     marginBottom: 4 
   },
   inputError: {

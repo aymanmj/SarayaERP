@@ -31,6 +31,7 @@ export interface PrescriptionCheckInput {
   encounterId?: number;
   hospitalId: number;
   drugs: DrugCheckInput[];
+  userId?: number;
 }
 
 export interface CDSSCheckResult {
@@ -709,6 +710,104 @@ export class CDSSService {
   // ======================== 7. Full Prescription Check ========================
 
   /**
+   * تطبيق آلية إخماد التكرار القريب للتنبيهات (Frequency-Based Suppression)
+   * إذا تجاوز الطبيب تنبيهاً خلال الـ 24 ساعة الماضية لنفس المريض،
+   * يتم إخماد التنبيه تلقائياً ولا يطلب النظام تبريراً إضافياً.
+   */
+  async applyFrequencySuppression(
+    hospitalId: number,
+    patientId: number,
+    userId: number,
+    alerts: CDSSAlertResult[],
+  ): Promise<CDSSAlertResult[]> {
+    if (!userId) return alerts;
+
+    const last24Hours = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+    // جلب جميع التنبيهات التي تم تجاوزها لهذا المريض من قبل هذا المستخدم في آخر 24 ساعة
+    const recentOverrides = await this.prisma.cDSSAlert.findMany({
+      where: {
+        hospitalId,
+        patientId,
+        acknowledgedById: userId,
+        status: CDSSAlertStatus.OVERRIDDEN,
+        createdAt: { gte: last24Hours },
+      },
+    });
+
+    if (recentOverrides.length === 0) return alerts;
+
+    return alerts.map((alert) => {
+      // البحث عن تجاوز مسبق متطابق السياق
+      const matchedOverride = recentOverrides.find((o) => {
+        if (o.alertType !== alert.type) return false;
+
+        const historyContext = o.context ? (o.context as Record<string, any>) : {};
+        const currentContext = alert.context || {};
+
+        if (alert.type === CDSSAlertType.DRUG_INTERACTION) {
+          const histA = String(historyContext.drugA || '').toLowerCase().trim();
+          const histB = String(historyContext.drugB || '').toLowerCase().trim();
+          const currA = String(currentContext.drugA || '').toLowerCase().trim();
+          const currB = String(currentContext.drugB || '').toLowerCase().trim();
+          return (
+            (histA === currA && histB === currB) ||
+            (histA === currB && histB === currA)
+          );
+        }
+
+        if (alert.type === CDSSAlertType.DRUG_ALLERGY) {
+          const histDrug = String(historyContext.drug || '').toLowerCase().trim();
+          const histAllergen = String(historyContext.allergen || '').toLowerCase().trim();
+          const currDrug = String(currentContext.drug || '').toLowerCase().trim();
+          const currAllergen = String(currentContext.allergen || '').toLowerCase().trim();
+          return histDrug === currDrug && histAllergen === currAllergen;
+        }
+
+        if (alert.type === CDSSAlertType.DUPLICATE_THERAPY) {
+          if (historyContext.atcGroup && currentContext.atcGroup) {
+            return String(historyContext.atcGroup).toLowerCase().trim() === String(currentContext.atcGroup).toLowerCase().trim();
+          }
+          const histDrug = String(historyContext.drug || '').toLowerCase().trim();
+          const currDrug = String(currentContext.drug || '').toLowerCase().trim();
+          return histDrug === currDrug;
+        }
+
+        if (
+          alert.type === CDSSAlertType.RENAL_DOSE_ADJUST ||
+          alert.type === CDSSAlertType.DRUG_DISEASE ||
+          alert.type === CDSSAlertType.DOSAGE_WARNING
+        ) {
+          const histDrug = String(historyContext.drug || '').toLowerCase().trim();
+          const currDrug = String(currentContext.drug || '').toLowerCase().trim();
+          return histDrug === currDrug;
+        }
+
+        return false;
+      });
+
+      if (matchedOverride) {
+        return {
+          ...alert,
+          requiresOverride: false,
+          context: {
+            ...alert.context,
+            autoSuppressed: true,
+            originalOverrideReason: matchedOverride.overrideReason,
+            originalOverrideAt: matchedOverride.createdAt,
+          },
+          message: `${alert.message} (Auto-Suppressed: Overridden on ${matchedOverride.createdAt.toLocaleTimeString()})`,
+          messageAr: alert.messageAr
+            ? `${alert.messageAr} (تم الإخماد تلقائياً: تم التجاوز مسبقاً في ${matchedOverride.createdAt.toLocaleTimeString()})`
+            : undefined,
+        };
+      }
+
+      return alert;
+    });
+  }
+
+  /**
    * فحص شامل للوصفة الطبية
    * يجمع كل أنواع الفحوصات في نتيجة واحدة
    */
@@ -755,15 +854,32 @@ export class CDSSService {
     const doseAlerts = await this.checkDoseRange(input.drugs);
     allAlerts.push(...doseAlerts);
 
+    // تطبيق آلية إخماد التكرار القريب
+    let finalAlerts = allAlerts;
+    if (input.userId) {
+      finalAlerts = await this.applyFrequencySuppression(
+        input.hospitalId,
+        input.patientId,
+        input.userId,
+        allAlerts,
+      );
+    }
+
+    // تصفية الصلاحيات: التنبيهات غير الحرجة لا تمنع الوصفة وتمر تلقائياً
+    for (const alert of finalAlerts) {
+      if (alert.severity !== CDSSAlertSeverity.CRITICAL) {
+        alert.requiresOverride = false;
+      }
+    }
     // تحديد إمكانية المتابعة
-    const hasCritical = allAlerts.some(
-      (a) => a.severity === CDSSAlertSeverity.CRITICAL,
+    const hasCritical = finalAlerts.some(
+      (a) => a.severity === CDSSAlertSeverity.CRITICAL && !a.context?.autoSuppressed,
     );
-    const hasBlocker = allAlerts.some((a) => a.requiresOverride);
+    const hasBlocker = finalAlerts.some((a) => a.requiresOverride);
 
     return {
-      passed: allAlerts.length === 0,
-      alerts: allAlerts,
+      passed: finalAlerts.length === 0,
+      alerts: finalAlerts,
       canProceed: !hasCritical && !hasBlocker,
     };
   }

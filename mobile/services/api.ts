@@ -63,9 +63,42 @@ api.interceptors.response.use(
       switch (status) {
         case 400:
           // Try to extract the custom validation error message from NestJS
-          friendlyMessage = error.response.data?.message || "البيانات المدخلة غير صالحة. يرجى مراجعة الحقول.";
-          if (Array.isArray(friendlyMessage)) {
-            friendlyMessage = friendlyMessage.join("\n");
+          let rawMsg = error.response.data?.message;
+          
+          // Parse if NestJS returned messages as a stringified JSON array
+          if (typeof rawMsg === 'string' && (rawMsg.startsWith('[') || rawMsg.startsWith('{'))) {
+             try {
+                rawMsg = JSON.parse(rawMsg);
+             } catch (e) {
+                // Ignore parsing errors
+             }
+          }
+
+          if (Array.isArray(rawMsg)) {
+             friendlyMessage = rawMsg.map((msg: any) => {
+                if (typeof msg === 'string') return msg;
+                if (msg && typeof msg === 'object') {
+                   if (msg.constraints) {
+                      return Array.isArray(msg.constraints) 
+                         ? msg.constraints.join(", ") 
+                         : Object.values(msg.constraints).join(", ");
+                   }
+                   if (msg.message) return msg.message;
+                }
+                return JSON.stringify(msg);
+             }).join("\n");
+          } else if (rawMsg && typeof rawMsg === 'object') {
+             if (rawMsg.constraints) {
+                friendlyMessage = Array.isArray(rawMsg.constraints) 
+                   ? rawMsg.constraints.join(", ") 
+                   : Object.values(rawMsg.constraints).join(", ");
+             } else if (rawMsg.message) {
+                friendlyMessage = rawMsg.message;
+             } else {
+                friendlyMessage = JSON.stringify(rawMsg);
+             }
+          } else {
+             friendlyMessage = rawMsg || "البيانات المدخلة غير صالحة. يرجى مراجعة الحقول.";
           }
           break;
         case 401:

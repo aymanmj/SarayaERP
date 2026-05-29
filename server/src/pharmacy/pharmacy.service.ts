@@ -242,6 +242,7 @@ export class PharmacyService {
     doctorId: number;
     notes?: string;
     overrideSafety?: boolean; // 👈 إضافة خيار تجاوز التحذيرات
+    overrideReason?: string; // 👈 إضافة مبرر التجاوز
     items: {
       drugItemId: number;
       dose: string;
@@ -277,45 +278,39 @@ export class PharmacyService {
       where: { id: { in: productIds } },
     });
 
-    // 2. فحص كل دواء مقابل الحساسيات
-    if (allergies.length > 0) {
-      for (const prod of products) {
-        // فحص الاسم العلمي والاسم التجاري (بحث نصي بسيط)
-        const drugName = prod.name.toLowerCase();
-        const generic = (prod.genericName || '').toLowerCase();
+    // 2. تشغيل الفحص السريري الشامل باستخدام CDSS
+    const cdssResult = await this.cdssService.checkPrescription({
+      patientId: encounter.patientId,
+      hospitalId,
+      userId: doctorId,
+      drugs: items.map((it) => {
+        const prod = products.find((p) => p.id === it.drugItemId);
+        return {
+          productId: it.drugItemId,
+          genericName: prod?.genericName || prod?.name || '',
+          dose: it.dose,
+          route: it.route,
+        };
+      }),
+    });
 
-        for (const allergy of allergies) {
-          const allergen = allergy.allergen.toLowerCase();
+    const blockers = cdssResult.alerts.filter((a) => a.requiresOverride);
 
-          // إذا كان اسم الدواء أو الاسم العلمي يحتوي على مادة التحسس
-          if (
-            drugName.includes(allergen) ||
-            (generic && generic.includes(allergen))
-          ) {
-            throw new BadRequestException(
-              `⚠️ تحذير سلامة: المريض لديه حساسية من "${allergy.allergen}"، وهذا يتعارض مع الدواء "${prod.name}".`,
-            );
-          }
-        }
-      }
-    }
-
-    // 3. فحص التداخلات الدوائية (Clinical Safety) via CDSS
-    const drugNames = products.map((p) => p.name);
-
-    // Call CDSS Service
-    const interactions =
-      await this.cdssService.checkDrugInteractions(drugNames);
-
-    if (interactions.length > 0 && !params.overrideSafety) {
+    if (blockers.length > 0 && !params.overrideSafety) {
       throw new BadRequestException({
-        message: '⚠️ تحذير: توجد تداخلات دوائية محتملة.',
+        message: '⚠️ تحذير سلامة: تم اكتشاف مخاطر سريرية حرجة تتطلب التجاوز.',
         code: 'SAFETY_WARNING',
-        interactions,
+        interactions: blockers.map((b) => ({
+          drugs: b.context?.drug || b.context?.drugA
+            ? [b.context?.drug || b.context?.drugA, b.context?.drugB].filter(Boolean)
+            : [],
+          description: b.messageAr || b.message,
+          severity: b.severity,
+        })),
       });
     }
 
-    // 4. إنشاء الوصفة (إذا اجتازت الفحص أو تم التجاوز)
+    // 4. إنشاء الوصفة وتخزين التنبيهات المرتبطة بها
     return this.prisma.$transaction(async (tx) => {
       const pres = await tx.prescription.create({
         data: {
@@ -344,6 +339,31 @@ export class PharmacyService {
           },
         });
       }
+
+      // حفظ التنبيهات المرتبطة بهذه الوصفة في قاعدة البيانات
+      for (const alert of cdssResult.alerts) {
+        const isOverridden = alert.requiresOverride || alert.context?.autoSuppressed;
+        await tx.cDSSAlert.create({
+          data: {
+            hospitalId,
+            patientId: encounter.patientId,
+            encounterId,
+            prescriptionId: pres.id,
+            alertType: alert.type,
+            severity: alert.severity,
+            message: alert.message,
+            messageAr: alert.messageAr || alert.message,
+            context: alert.context as any,
+            status: isOverridden ? 'OVERRIDDEN' : 'ACTIVE',
+            acknowledgedById: doctorId,
+            acknowledgedAt: isOverridden ? new Date() : null,
+            overrideReason: alert.context?.autoSuppressed
+              ? `Auto-Suppressed: ${alert.context?.originalOverrideReason}`
+              : (alert.requiresOverride ? (params.overrideReason || 'Overridden by doctor during prescription creation') : null),
+          },
+        });
+      }
+
       return pres;
     });
   }

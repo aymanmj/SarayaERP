@@ -11,11 +11,15 @@ export const portalApi = axios.create({
   baseURL: '/api/patient-portal/v1',
 });
 
-// Request interceptor: attach patient's JWT
+// Request interceptor: attach patient's JWT and Accept-Language header
 portalApi.interceptors.request.use((config) => {
   const token = localStorage.getItem('portal_access_token');
-  if (token) {
+  if (token && config.headers) {
     config.headers.Authorization = `Bearer ${token}`;
+  }
+  const currentLang = localStorage.getItem("language") || "ar";
+  if (config.headers) {
+    config.headers["Accept-Language"] = currentLang;
   }
   return config;
 });
