@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { apiClient } from "../api/apiClient";
 import { toast } from "sonner";
 import { formatDate } from "@/lib/utils";
@@ -52,6 +53,8 @@ type InpatientEncounter = {
 };
 
 export default function NursingStationPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
   const navigate = useNavigate();
   const [encounters, setEncounters] = useState<InpatientEncounter[]>([]);
   const [selectedEncounter, setSelectedEncounter] = useState<InpatientEncounter | null>(null);
@@ -93,7 +96,7 @@ export default function NursingStationPage() {
         const listB = Array.isArray(res.data) ? res.data : (res.data.data || []);
         setEncounters(listB);
       } catch {
-        toast.error("فشل تحميل قائمة مرضى الإيواء");
+        toast.error(t("nursing.loadFailed", "فشل تحميل قائمة مرضى الإيواء"));
       }
     } finally {
       setLoading(false);
@@ -137,12 +140,12 @@ export default function NursingStationPage() {
         status: "ADMINISTERED",
       });
       
-      toast.success("تم تسجيل التنفيذ بنجاح");
+      toast.success(t("nursing.saveSuccess", "تم تسجيل التنفيذ بنجاح"));
       setShowExecuteModal(false);
       handleSelectPatient(selectedEncounter); // Refresh
      
     } catch (err: any) {
-      toast.error(err.response?.data?.message || "حدث خطأ");
+      toast.error(err.response?.data?.message || t("nursing.errorMsg", "حدث خطأ"));
     } finally {
       setSaving(false);
     }
@@ -150,14 +153,14 @@ export default function NursingStationPage() {
 
   const getTypeLabel = (type: string) => {
     const labels: Record<string, string> = {
-      MEDICATION: "💊 دواء",
-      VITALS: "❤️ علامات حيوية",
-      LAB_ORDER: "🧪 مختبر",
-      RADIOLOGY: "📷 أشعة",
-      DIET: "🍽️ نظام غذائي",
-      ACTIVITY: "🏃 نشاط",
-      NURSING_CARE: "🩺 رعاية تمريضية",
-      OTHER: "📝 أخرى",
+      MEDICATION: t("nursing.itemTypes.medication", "💊 دواء"),
+      VITALS: t("nursing.itemTypes.vitals", "❤️ علامات حيوية"),
+      LAB_ORDER: t("nursing.itemTypes.labs", "🧪 مختبر"),
+      RADIOLOGY: t("nursing.itemTypes.radiology", "📷 أشعة"),
+      DIET: t("nursing.itemTypes.diet", "🍽️ نظام غذائي"),
+      ACTIVITY: t("nursing.itemTypes.activity", "🏃 نشاط"),
+      NURSING_CARE: t("nursing.itemTypes.nursing", "🩺 رعاية تمريضية"),
+      OTHER: t("nursing.itemTypes.other", "📝 أخرى"),
     };
     return labels[type] || type;
   };
@@ -175,7 +178,7 @@ export default function NursingStationPage() {
   return (
     <div
       className="p-6 h-full flex flex-col text-slate-100"
-      dir="rtl"
+      dir={isRtl ? "rtl" : "ltr"}
       data-testid="nursing-page"
     >
       {/* Header */}
@@ -183,11 +186,11 @@ export default function NursingStationPage() {
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-2xl font-bold flex items-center gap-3">
-              <span className="text-3xl">🏥</span>
-              محطة التمريض
-            </h1>
+                <span className="text-3xl">🏥</span>
+                {t("nursing.title")}
+              </h1>
             <p className="text-sm text-slate-400">
-              عرض وتنفيذ الأوامر الطبية للمرضى المنومين
+              {t("nursing.description")}
             </p>
           </div>
           <div className="flex items-center gap-4">
@@ -195,7 +198,7 @@ export default function NursingStationPage() {
             <div className="flex items-center gap-2">
               <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-emerald-500' : 'bg-red-500'}`}></div>
               <span className="text-xs text-slate-400">
-                {isConnected ? 'متصل' : 'غير متصل'}
+                {isConnected ? t("nursing.connected") : t("nursing.disconnected")}
               </span>
             </div>
             
@@ -209,7 +212,7 @@ export default function NursingStationPage() {
         {/* Patients List */}
         <div className="w-72 flex-shrink-0 bg-slate-900/50 border border-slate-800 rounded-2xl p-4 overflow-y-auto custom-scrollbar">
           <div className="text-xs text-slate-500 uppercase tracking-wider mb-3 flex items-center justify-between">
-            <span>المرضى المنومين</span>
+            <span>{t("nursing.inpatients")}</span>
             <span className="bg-sky-600 text-white px-2 py-0.5 rounded-full text-[10px]">
               {encounters.length}
             </span>
@@ -235,11 +238,11 @@ export default function NursingStationPage() {
                   {bed && (
                     <div className="text-[10px] mt-1 flex items-center gap-1">
                       <span>🛏️</span>
-                      <span>{bed.ward?.name} - سرير {bed.number}</span>
+                      <span>{bed.ward?.name} - {t("inpatients.bedModal.bed")} {bed.number}</span>
                     </div>
                   )}
                   <div className="text-[10px] mt-1 opacity-50">
-                    {enc.carePlanItems?.filter(i => i.status === "ACTIVE").length || 0} أوامر نشطة
+                    {t("nursing.activeOrdersCount", { count: enc.carePlanItems?.filter(i => i.status === "ACTIVE").length || 0, defaultValue: "{{count}} أوامر نشطة" })}
                   </div>
                   
                   {/* Real-time Alerts */}
@@ -247,7 +250,7 @@ export default function NursingStationPage() {
                     <div className="mt-2 flex items-center gap-1">
                       <ExclamationTriangleIcon className="w-3 h-3 text-red-500" />
                       <span className="text-[10px] text-red-400">
-                        {alerts.filter(alert => alert.encounterId === enc.id).length} تنبيه
+                        {t("nursing.alertsCount", { count: alerts.filter(alert => alert.encounterId === enc.id).length, defaultValue: "{{count}} تنبيه" })}
                       </span>
                     </div>
                   )}
@@ -257,7 +260,7 @@ export default function NursingStationPage() {
             {encounters.length === 0 && !loading && (
               <div className="text-center text-slate-500 py-8">
                 <div className="text-3xl mb-2">🛏️</div>
-                <div>لا يوجد مرضى منومين</div>
+                <div>{t("nursing.noInpatients")}</div>
               </div>
             )}
           </div>
@@ -269,7 +272,7 @@ export default function NursingStationPage() {
             <div className="flex-1 flex items-center justify-center text-slate-500">
               <div className="text-center">
                 <div className="text-5xl mb-3">📋</div>
-                <div className="text-lg">اختر مريضاً لعرض الخطة العلاجية</div>
+                <div className="text-lg">{t("nursing.selectPatientMsg")}</div>
               </div>
             </div>
           ) : (
@@ -290,13 +293,13 @@ export default function NursingStationPage() {
                       onClick={() => navigate(`/nursing/patient/${selectedEncounter.id}`)}
                       className="text-xs bg-sky-600 hover:bg-sky-500 text-white px-3 py-1.5 rounded-lg flex items-center gap-1"
                     >
-                      📂 الملف الكامل
+                      {t("nursing.fullChart")}
                     </button>
                     <button
                       onClick={() => handleSelectPatient(selectedEncounter)}
                       className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg"
                     >
-                      🔄 تحديث
+                      {t("nursing.refresh")}
                     </button>
                   </div>
                 </div>
@@ -307,7 +310,7 @@ export default function NursingStationPage() {
                 {selectedEncounter.carePlanItems?.filter(i => i.status === "ACTIVE").length === 0 ? (
                   <div className="text-center text-slate-500 py-12">
                     <div className="text-4xl mb-2">✅</div>
-                    <div>لا توجد أوامر نشطة حالياً</div>
+                    <div>{t("nursing.noActiveOrders")}</div>
                   </div>
                 ) : (
                   selectedEncounter.carePlanItems
@@ -341,12 +344,12 @@ export default function NursingStationPage() {
                             {/* Last Execution */}
                             {item.executions?.[0] && (
                               <div className="mt-3 bg-emerald-500/5 border border-emerald-500/10 rounded-lg p-2 text-[11px]">
-                                <div className="text-emerald-400 font-bold mb-1">آخر تنفيذ:</div>
+                                <div className="text-emerald-400 font-bold mb-1">{t("nursing.lastExecution")}</div>
                                 <div className="text-slate-400">
                                   {new Date(item.executions[0].executedAt).toLocaleString("ar-SA")} - 
                                   {item.executions[0].executedBy?.fullName}
                                   {item.executions[0].resultValue && (
-                                    <span className="text-white mr-2">النتيجة: {item.executions[0].resultValue}</span>
+                                    <span className="text-white mr-2">{t("nursing.result")} {item.executions[0].resultValue}</span>
                                   )}
                                 </div>
                               </div>
@@ -359,7 +362,7 @@ export default function NursingStationPage() {
                             data-testid={`execute-care-plan-${item.id}`}
                             className="flex-shrink-0 bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-lg shadow-emerald-900/20 transition-all"
                           >
-                            ✓ تنفيذ
+                            {t("nursing.execute")}
                           </button>
                         </div>
                       </div>
@@ -379,7 +382,7 @@ export default function NursingStationPage() {
         >
           <div className="bg-slate-950 border border-slate-700 rounded-3xl p-6 w-full max-w-lg space-y-6 shadow-2xl animate-in zoom-in-95 duration-200">
             <div className="flex justify-between items-center border-b border-slate-800 pb-4">
-              <h3 className="text-xl font-bold text-white">تسجيل تنفيذ الأمر</h3>
+              <h3 className="text-xl font-bold text-white">{t("nursing.executeModal.title")}</h3>
               <button
                 onClick={() => setShowExecuteModal(false)}
                 className="text-slate-500 hover:text-white"
@@ -407,11 +410,11 @@ export default function NursingStationPage() {
             <div className="space-y-4">
               <div>
                 <label className="text-slate-400 text-xs block mb-2">
-                  النتيجة / القيمة (اختياري)
+                  {t("nursing.executeModal.resultLabel")}
                 </label>
                 <input
                   className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 outline-none focus:border-emerald-500 transition"
-                  placeholder="مثال: 120/80 mmHg, تم الإعطاء, ..."
+                  placeholder={t("nursing.executeModal.resultPlaceholder")}
                   value={executeForm.resultValue}
                   data-testid="nursing-execute-result"
                   onChange={(e) =>
@@ -422,12 +425,12 @@ export default function NursingStationPage() {
 
               <div>
                 <label className="text-slate-400 text-xs block mb-2">
-                  ملاحظات (اختياري)
+                  {t("nursing.executeModal.notesLabel")}
                 </label>
                 <textarea
                   className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 outline-none focus:border-emerald-500 transition resize-none"
                   rows={3}
-                  placeholder="أي ملاحظات إضافية..."
+                  placeholder={t("nursing.executeModal.notesPlaceholder")}
                   value={executeForm.note}
                   data-testid="nursing-execute-note"
                   onChange={(e) =>
@@ -442,7 +445,7 @@ export default function NursingStationPage() {
                 onClick={() => setShowExecuteModal(false)}
                 className="px-6 py-2.5 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 text-sm transition"
               >
-                إلغاء
+                {t("common.cancel")}
               </button>
               <button
                 onClick={handleExecute}
@@ -450,7 +453,7 @@ export default function NursingStationPage() {
                 data-testid="nursing-confirm-execution"
                 className="px-8 py-2.5 rounded-xl bg-emerald-600 text-white hover:bg-emerald-500 disabled:bg-slate-700 text-sm font-bold shadow-lg transition"
               >
-                {saving ? "جاري الحفظ..." : "✓ تأكيد التنفيذ"}
+                {saving ? t("nursing.executeModal.saving") : t("nursing.executeModal.confirmBtn")}
               </button>
             </div>
           </div>

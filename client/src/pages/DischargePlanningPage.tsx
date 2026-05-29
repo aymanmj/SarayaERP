@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { apiClient } from "../api/apiClient";
 import { toast } from "sonner";
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -75,6 +76,8 @@ type DischargeChecklist = {
 };
 
 export default function DischargePlanningPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const navigate = useNavigate();
   const [plans, setPlans] = useState<DischargePlan[]>([]);
@@ -173,7 +176,7 @@ export default function DischargePlanningPage() {
       })));
      
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || 'فشل تحميل خطط الخروج');
+      toast.error(error?.response?.data?.message || t("dischargePlanning.loadFailed", "فشل تحميل خطط الخروج"));
     } finally {
       setLoading(false);
     }
@@ -186,7 +189,7 @@ export default function DischargePlanningPage() {
       const res = await apiClient.get('/encounters/list/active-inpatients');
       setActiveInpatients(res.data || []);
     } catch {
-      toast.error('فشل تحميل قائمة المنومين');
+      toast.error(t("dischargePlanning.loadInpatientsFailed", "فشل تحميل قائمة المرضى المنومين"));
     } finally {
       setLoadingInpatients(false);
     }
@@ -194,7 +197,7 @@ export default function DischargePlanningPage() {
 
   const handleCreatePlan = async () => {
     if (!formData.admissionId || !formData.plannedDischargeDate) {
-      toast.error('يرجى اختيار المريض وتحديد تاريخ الخروج المخطط');
+      toast.error(t("dischargePlanning.requiredFields", "يرجى اختيار المريض وتحديد تاريخ الخروج المخطط"));
       return;
     }
 
@@ -218,7 +221,7 @@ export default function DischargePlanningPage() {
         status: 'PLANNING',
       });
       
-      toast.success('تم إنشاء خطة الخروج بنجاح');
+      toast.success(t("dischargePlanning.saveSuccess", "تم إنشاء خطة الخروج بنجاح"));
       setShowCreateModal(false);
       setFormData({
         admissionId: '',
@@ -251,7 +254,7 @@ export default function DischargePlanningPage() {
   const handleUpdatePlanStatus = async (planId: number, admissionId: number, newStatus: string) => {
     try {
       if (newStatus === 'COMPLETED') {
-        const confirmMsg = "هل أنت متأكد من إنهاء خطة التخريج وإخلاء المريض نهائياً؟\nتأكد من توقيع ملخص الخروج السريري وتصفية الحساب المالي.";
+        const confirmMsg = t("dischargePlanning.confirmCompleted", "هل أنت متأكد من إنهاء خطة التخريج وإخلاء المريض نهائياً؟\nتأكد من توقيع ملخص الخروج السريري وتصفية الحساب المالي.");
         if (!confirm(confirmMsg)) return;
 
         await apiClient.patch(`/admissions/discharge-planning/${planId}/status`, {
@@ -259,7 +262,7 @@ export default function DischargePlanningPage() {
         });
         
         await apiClient.post(`/admissions/${admissionId}/discharge`, {});
-        toast.success('تم إكمال الخطة وإجراء الخروج بنجاح. السرير الآن متاح للتنظيف.', { duration: 8000 });
+        toast.success(t("dischargePlanning.completeSuccess", "تم إكمال الخطة وإجراء الخروج بنجاح. السرير الآن متاح للتنظيف."), { duration: 8000 });
       } else {
         await apiClient.patch(`/admissions/discharge-planning/${planId}/status`, {
           status: newStatus
@@ -270,30 +273,30 @@ export default function DischargePlanningPage() {
       loadDischargePlans();
      
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || 'فشل النظام في إجراء التخريج الفعلي. تأكد من استكمال ملخص الخروج (Medical Summary) والتسوية المالية.', { duration: 10000 });
+      toast.error(error?.response?.data?.message || t("dischargePlanning.completeFailed", "فشل النظام في إجراء التخريج الفعلي. تأكد من استكمال ملخص الخروج (Medical Summary) والتسوية المالية."), { duration: 10000 });
     }
   };
 
   const handleDeletePlan = async (admissionId: number, patientName: string) => {
-    if (!confirm(`هل أنت متأكد من حذف خطة الخروج للمريض: ${patientName}؟`)) return;
+    if (!confirm(t("dischargePlanning.deleteConfirm", { defaultValue: "هل أنت متأكد من حذف خطة الخروج للمريض: {{patientName}}؟", patientName }))) return;
     try {
       await apiClient.delete(`/admissions/${admissionId}/discharge-planning`);
-      toast.success('تم حذف خطة الخروج بنجاح.');
+      toast.success(t("dischargePlanning.deleteSuccess", "تم حذف خطة الخروج بنجاح."));
       loadDischargePlans();
      
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || 'فشل حذف الخطة.');
+      toast.error(error?.response?.data?.message || t("dischargePlanning.deleteFailed", "فشل حذف الخطة."));
     }
   };
 
   const getDispositionLabel = (disposition: string) => {
     const labels = {
-      'HOME': 'العودة للمنزل',
-      'TRANSFER': 'نقل لمستشفى آخر',
-      'REHAB': 'مركز تأهيل',
-      'LTC': 'رعاية طويلة الأمد',
-      'AMA': 'مغادرة برغبة المريض',
-      'EXPIRED': 'وفاة'
+      'HOME': t("dischargePlanning.dispositions.home", '{t("dischargePlanning.dispositions.home")}'),
+      'TRANSFER': t("dischargePlanning.dispositions.transfer", '{t("dischargePlanning.dispositions.transfer")}'),
+      'REHAB': t("dischargePlanning.dispositions.rehab", '{t("dischargePlanning.dispositions.rehab")}'),
+      'LTC': t("dischargePlanning.dispositions.ltc", '{t("dischargePlanning.dispositions.ltc")}'),
+      'AMA': t("dischargePlanning.dispositions.ama", 'مغادرة برغبة المريض'),
+      'EXPIRED': t("dischargePlanning.dispositions.expired", '{t("dischargePlanning.dispositions.expired")}')
     };
     return labels[disposition as keyof typeof labels] || disposition;
   };
@@ -322,10 +325,10 @@ export default function DischargePlanningPage() {
 
   const getStatusLabel = (status: string) => {
     const labels = {
-      'PENDING': 'في الانتظار',
-      'IN_PROGRESS': 'قيد التنفيذ',
-      'COMPLETED': 'مكتمل',
-      'CANCELLED': 'ملغي'
+      'PENDING': t("dischargePlanning.statusLabels.pending", 'في الانتظار'),
+      'IN_PROGRESS': t("dischargePlanning.statusLabels.inProgress", 'قيد التنفيذ'),
+      'COMPLETED': t("dischargePlanning.statusLabels.completed", 'مكتمل'),
+      'CANCELLED': t("dischargePlanning.statusLabels.cancelled", 'ملغي')
     };
     return labels[status as keyof typeof labels] || status;
   };
@@ -333,51 +336,51 @@ export default function DischargePlanningPage() {
   const calculateDaysUntilDischarge = (plannedDate?: string) => {
     if (!plannedDate) return '-';
     const days = differenceInDays(new Date(plannedDate), new Date());
-    if (days < 0) return `متأخر ${Math.abs(days)} يوم`;
-    if (days === 0) return 'اليوم';
-    return `${days} يوم`;
+    if (days < 0) return t("dischargePlanning.remainingDays.late", { count: Math.abs(days), defaultValue: `متأخر ${Math.abs(days)} يوم` });
+    if (days === 0) return t("dischargePlanning.remainingDays.today", 'اليوم');
+    return t("dischargePlanning.remainingDays.days", { count: days, defaultValue: `${days} يوم` });
   };
 
   return (
-    <div className="flex flex-col h-full text-slate-100 p-6 space-y-6" dir="rtl">
+    <div className="flex flex-col h-full text-slate-100 p-6 space-y-6" dir={isRtl ? "rtl" : "ltr"}>
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold mb-1">تخطيط الخروج</h1>
+          <h1 className="text-2xl font-bold mb-1">{t("dischargePlanning.title")}</h1>
           <p className="text-sm text-slate-400">
-            إدارة خطط خروج المرضى وضمان انتقال آمن للرعاية
+            {t("dischargePlanning.description")}
           </p>
         </div>
         <button
           onClick={() => { setShowCreateModal(true); loadActiveInpatients(); }}
           className="px-6 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold shadow-lg shadow-sky-500/20 transition-all"
         >
-          + إنشاء خطة خروج
+          {t("dischargePlanning.createPlan")}
         </button>
       </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-slate-900/50 rounded-xl p-4 border border-slate-700">
-          <div className="text-sm text-slate-400 mb-1">خطط في الانتظار</div>
+          <div className="text-sm text-slate-400 mb-1">{t("dischargePlanning.stats.pending")}</div>
           <div className="text-2xl font-bold text-yellow-400">
             {plans.filter(p => p.status === 'PENDING').length}
           </div>
         </div>
         <div className="bg-slate-900/50 rounded-xl p-4 border border-slate-700">
-          <div className="text-sm text-slate-400 mb-1">خطط قيد التنفيذ</div>
+          <div className="text-sm text-slate-400 mb-1">{t("dischargePlanning.stats.inProgress")}</div>
           <div className="text-2xl font-bold text-blue-400">
             {plans.filter(p => p.status === 'IN_PROGRESS').length}
           </div>
         </div>
         <div className="bg-slate-900/50 rounded-xl p-4 border border-slate-700">
-          <div className="text-sm text-slate-400 mb-1">خطط مكتملة</div>
+          <div className="text-sm text-slate-400 mb-1">{t("dischargePlanning.stats.completed")}</div>
           <div className="text-2xl font-bold text-green-400">
             {plans.filter(p => p.status === 'COMPLETED').length}
           </div>
         </div>
         <div className="bg-slate-900/50 rounded-xl p-4 border border-slate-700">
-          <div className="text-sm text-slate-400 mb-1">معدل الإنجاز</div>
+          <div className="text-sm text-slate-400 mb-1">{t("dischargePlanning.stats.rate")}</div>
           <div className="text-2xl font-bold text-purple-400">
             {plans.length > 0 
               ? Math.round((plans.filter(p => p.status === 'COMPLETED').length / plans.length) * 100)
@@ -390,9 +393,9 @@ export default function DischargePlanningPage() {
       <div className="flex flex-wrap gap-4 items-center">
         <div className="flex space-x-1 space-x-reverse border-b border-slate-700">
           {[
-            { id: 'pending', label: 'في الانتظار' },
-            { id: 'in-progress', label: 'قيد التنفيذ' },
-            { id: 'completed', label: 'مكتمل' },
+            { id: 'pending', label: t("dischargePlanning.tabs.pending") },
+            { id: 'in-progress', label: t("dischargePlanning.tabs.inProgress") },
+            { id: 'completed', label: t("dischargePlanning.tabs.completed") },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -411,7 +414,7 @@ export default function DischargePlanningPage() {
         
         <input
           type="text"
-          placeholder="البحث عن مريض..."
+          placeholder={t("dischargePlanning.searchPlaceholder")}
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-sm"
@@ -422,27 +425,27 @@ export default function DischargePlanningPage() {
           onChange={(e) => setFilterDepartment(e.target.value)}
           className="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-sm"
         >
-          <option value="">جميع الأقسام</option>
-          <option value="Internal Medicine">الباطنية</option>
-          <option value="Surgery">الجراحة</option>
-          <option value="Pediatrics">الأطفال</option>
-          <option value="ICU">العناية المركزة</option>
+          <option value="">{t("dischargePlanning.allDepts")}</option>
+          <option value="Internal Medicine">{t("dischargePlanning.depts.internal")}</option>
+          <option value="Surgery">{t("dischargePlanning.depts.surgery")}</option>
+          <option value="Pediatrics">{t("dischargePlanning.depts.pediatrics")}</option>
+          <option value="ICU">{t("dischargePlanning.depts.icu")}</option>
         </select>
       </div>
 
       {/* Plans Table */}
       <div className="bg-slate-900/50 rounded-xl border border-slate-700 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className={`w-full ${isRtl ? "text-right" : "text-left"}`}>
             <thead className="bg-slate-800/50">
               <tr>
-                <th className="px-4 py-3 text-right text-sm font-medium">المريض</th>
-                <th className="px-4 py-3 text-right text-sm font-medium">القسم</th>
-                <th className="px-4 py-3 text-right text-sm font-medium">تاريخ الخروج</th>
-                <th className="px-4 py-3 text-right text-sm font-medium">الوجهة</th>
-                <th className="px-4 py-3 text-right text-sm font-medium">الحالة</th>
-                <th className="px-4 py-3 text-right text-sm font-medium">المتبقي</th>
-                <th className="px-4 py-3 text-right text-sm font-medium">إجراءات</th>
+                <th className="px-4 py-3 text-sm font-medium">{t("dischargePlanning.table.patient")}</th>
+                <th className="px-4 py-3 text-sm font-medium">{t("dischargePlanning.table.dept")}</th>
+                <th className="px-4 py-3 text-sm font-medium">{t("dischargePlanning.table.date")}</th>
+                <th className="px-4 py-3 text-sm font-medium">{t("dischargePlanning.table.disposition")}</th>
+                <th className="px-4 py-3 text-sm font-medium">{t("dischargePlanning.table.status")}</th>
+                <th className="px-4 py-3 text-sm font-medium">{t("dischargePlanning.table.remaining")}</th>
+                <th className="px-4 py-3 text-sm font-medium">{t("dischargePlanning.table.actions")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-700">
@@ -473,7 +476,7 @@ export default function DischargePlanningPage() {
                     </td>
                     <td className="px-4 py-3">
                       {plan.plannedDischargeDate 
-                        ? format(new Date(plan.plannedDischargeDate), 'dd/MM/yyyy', { locale: ar })
+                        ? format(new Date(plan.plannedDischargeDate), 'dd/MM/yyyy', { locale: isRtl ? ar : undefined })
                         : '-'
                       }
                     </td>
@@ -501,7 +504,7 @@ export default function DischargePlanningPage() {
                           }}
                           className="px-3 py-1 bg-sky-600 hover:bg-sky-500 rounded text-xs transition-colors"
                         >
-                          تفاصيل
+                          {t("dischargePlanning.actions.details")}
                         </button>
                         {plan.status === 'PENDING' && (
                           <>
@@ -509,13 +512,13 @@ export default function DischargePlanningPage() {
                               onClick={() => handleUpdatePlanStatus(plan.id, plan.admissionId, 'IN_PROGRESS')}
                               className="px-3 py-1 bg-blue-600 hover:bg-blue-500 rounded text-xs transition-colors"
                             >
-                              بدء
+                              {t("dischargePlanning.actions.start")}
                             </button>
                             <button
                               onClick={() => handleDeletePlan(plan.admissionId, plan.patient?.fullName || '')}
                               className="px-3 py-1 bg-rose-700 hover:bg-rose-600 rounded text-xs transition-colors"
                             >
-                              حذف
+                              {t("dischargePlanning.actions.delete")}
                             </button>
                           </>
                         )}
@@ -524,7 +527,7 @@ export default function DischargePlanningPage() {
                             onClick={() => handleUpdatePlanStatus(plan.id, plan.admissionId, 'COMPLETED')}
                             className="px-3 py-1 bg-green-600 hover:bg-green-500 rounded text-xs transition-colors"
                           >
-                            إكمال
+                            {t("dischargePlanning.actions.complete")}
                           </button>
                         )}
                       </div>
@@ -546,8 +549,8 @@ export default function DischargePlanningPage() {
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-sky-600/20 flex items-center justify-center text-sky-400 text-lg">📋</div>
                 <div>
-                  <h3 className="text-lg font-bold">إنشاء خطة خروج جديدة</h3>
-                  <p className="text-xs text-slate-400">اختر المريض وحدد تفاصيل الخروج</p>
+                  <h3 className="text-lg font-bold">{t("dischargePlanning.modal.createTitle")}</h3>
+                  <p className="text-xs text-slate-400">{t("dischargePlanning.modal.createDesc")}</p>
                 </div>
               </div>
               <button onClick={() => setShowCreateModal(false)} className="text-slate-400 hover:text-white transition-colors text-xl">✕</button>
@@ -556,18 +559,18 @@ export default function DischargePlanningPage() {
             <div className="space-y-5">
               {/* Patient Selector */}
               <div>
-                <label className="block text-sm font-semibold mb-2 text-slate-300">🏥 اختر المريض المنوّم <span className="text-rose-400">*</span></label>
+                <label className="block text-sm font-semibold mb-2 text-slate-300">{t("dischargePlanning.modal.patientLabel")} <span className="text-rose-400">*</span></label>
                 {loadingInpatients ? (
                   <div className="text-center py-4 text-slate-500 text-sm">جارِ تحميل قائمة المنومين...</div>
                 ) : activeInpatients.length === 0 ? (
-                  <div className="text-center py-4 text-slate-500 text-sm">لا يوجد مرضى منومين حالياً.</div>
+                  <div className="text-center py-4 text-slate-500 text-sm">{t("dischargePlanning.modal.noInpatients")}</div>
                 ) : (
                   <select
                     value={formData.admissionId}
                     onChange={(e) => setFormData({...formData, admissionId: e.target.value})}
                     className="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition-all"
                   >
-                    <option value="">— اختر مريضاً —</option>
+                    <option value="">{t("dischargePlanning.modal.selectPatient")}</option>
                     {activeInpatients.map((inp: any) => {
                       const bed = inp.bedAssignments?.[0]?.bed;
                       const ward = bed?.ward?.name || '';
@@ -586,7 +589,7 @@ export default function DischargePlanningPage() {
               {/* Date + Disposition Row */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-semibold mb-2 text-slate-300">📅 تاريخ الخروج المخطط <span className="text-rose-400">*</span></label>
+                  <label className="block text-sm font-semibold mb-2 text-slate-300">{t("dischargePlanning.modal.dateLabel")} <span className="text-rose-400">*</span></label>
                   <input
                     type="date"
                     value={formData.plannedDischargeDate}
@@ -595,7 +598,7 @@ export default function DischargePlanningPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold mb-2 text-slate-300">🏠 وجهة الخروج</label>
+                  <label className="block text-sm font-semibold mb-2 text-slate-300">{t("dischargePlanning.modal.dispositionLabel")}</label>
                   <select
                     value={formData.dischargeDisposition}
                     onChange={(e) => setFormData({...formData, dischargeDisposition: e.target.value})}
@@ -605,9 +608,9 @@ export default function DischargePlanningPage() {
                     <option value="TRANSFER_TO_ANOTHER_FACILITY">نقل لمستشفى آخر</option>
                     <option value="REHABILITATION">مركز تأهيل</option>
                     <option value="LONG_TERM_CARE">رعاية طويلة الأمد</option>
-                    <option value="HOME_HEALTH_CARE">رعاية منزلية</option>
-                    <option value="HOSPICE">رعاية ملطفة</option>
-                    <option value="LEFT_AGAINST_MEDICAL_ADVICE">مغادرة ضد الرأي الطبي</option>
+                    <option value="HOME_HEALTH_CARE">{t("dischargePlanning.dispositions.homeHealth")}</option>
+                    <option value="HOSPICE">{t("dischargePlanning.dispositions.hospice")}</option>
+                    <option value="LEFT_AGAINST_MEDICAL_ADVICE">{t("dischargePlanning.dispositions.ama")}</option>
                     <option value="EXPIRED">وفاة</option>
                   </select>
                 </div>
@@ -615,14 +618,14 @@ export default function DischargePlanningPage() {
 
               {/* Medical Readiness */}
               <div className="bg-slate-900/60 rounded-xl p-4 border border-slate-700">
-                <h4 className="text-sm font-semibold text-emerald-400 mb-3">✅ الجاهزية الطبية</h4>
+                <h4 className="text-sm font-semibold text-emerald-400 mb-3">{t("dischargePlanning.modal.readinessTitle")}</h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {[
-                    { key: 'medicalStability', label: 'الاستقرار الطبي' },
-                    { key: 'vitalsStable', label: 'استقرار العلامات الحيوية' },
-                    { key: 'painControlled', label: 'السيطرة على الألم' },
-                    { key: 'medicationsReady', label: 'الأدوية جاهزة' },
-                    { key: 'educationCompleted', label: 'إكمال تثقيف المريض' },
+                    { key: 'medicalStability', label: t("dischargePlanning.modal.readiness.stability") },
+                    { key: 'vitalsStable', label: t("dischargePlanning.modal.readiness.vitals") },
+                    { key: 'painControlled', label: t("dischargePlanning.modal.readiness.pain") },
+                    { key: 'medicationsReady', label: t("dischargePlanning.modal.readiness.meds") },
+                    { key: 'educationCompleted', label: t("dischargePlanning.modal.readiness.education") },
                   ].map(item => (
                     <label key={item.key} className="flex items-center gap-2 cursor-pointer group">
                       <input
@@ -646,7 +649,7 @@ export default function DischargePlanningPage() {
                     onChange={(e) => setFormData({...formData, followUpRequired: e.target.checked})}
                     className="w-4 h-4 text-sky-500 bg-slate-700 border-slate-600 rounded"
                   />
-                  <span className="text-sm font-semibold text-sky-400">🔄 يتطلب متابعة بعد الخروج</span>
+                  <span className="text-sm font-semibold text-sky-400">{t("dischargePlanning.modal.followupLabel")}</span>
                 </label>
                 {formData.followUpRequired && (
                   <textarea
@@ -654,7 +657,7 @@ export default function DischargePlanningPage() {
                     onChange={(e) => setFormData({...formData, followUpInstructions: e.target.value})}
                     rows={2}
                     className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-sm"
-                    placeholder="تعليمات المتابعة (مثل: مراجعة العيادة بعد أسبوع...)"
+                    placeholder={t("dischargePlanning.modal.followupPlaceholder")}
                   />
                 )}
               </div>
@@ -667,18 +670,18 @@ export default function DischargePlanningPage() {
                   onChange={(e) => setFormData({...formData, homeHealthServices: e.target.checked})}
                   className="w-4 h-4 text-sky-600 bg-slate-700 border-slate-600 rounded"
                 />
-                <span className="text-sm text-slate-300">🏡 يحتاج خدمات رعاية منزلية</span>
+                <span className="text-sm text-slate-300">{t("dischargePlanning.modal.homeHealthLabel")}</span>
               </label>
 
               {/* Notes */}
               <div>
-                <label className="block text-sm font-semibold mb-2 text-slate-300">📝 ملاحظات إضافية</label>
+                <label className="block text-sm font-semibold mb-2 text-slate-300">{t("dischargePlanning.modal.notesLabel")}</label>
                 <textarea
                   value={formData.notes}
                   onChange={(e) => setFormData({...formData, notes: e.target.value})}
                   rows={2}
                   className="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-sm"
-                  placeholder="ملاحظات للفريق الطبي..."
+                  placeholder={t("dischargePlanning.modal.notesPlaceholder")}
                 />
               </div>
             </div>
@@ -690,13 +693,13 @@ export default function DischargePlanningPage() {
                 disabled={!formData.admissionId || !formData.plannedDischargeDate}
                 className="flex-1 px-4 py-3 bg-sky-600 hover:bg-sky-500 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl font-bold text-sm transition-colors"
               >
-                ✅ إنشاء الخطة
+                {t("dischargePlanning.createPlan")}
               </button>
               <button
                 onClick={() => setShowCreateModal(false)}
                 className="px-6 py-3 bg-slate-700 hover:bg-slate-600 rounded-xl text-sm transition-colors"
               >
-                إلغاء
+                {t("common.cancel")}
               </button>
             </div>
           </div>
@@ -708,7 +711,7 @@ export default function DischargePlanningPage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-slate-800 rounded-xl p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-start mb-4">
-              <h3 className="text-xl font-bold">تفاصيل خطة الخروج</h3>
+              <h3 className="text-xl font-bold">{t("dischargePlanning.detailsModal.title")}</h3>
               <button
                 onClick={() => setShowDetailsModal(false)}
                 className="text-slate-400 hover:text-slate-200"
@@ -720,7 +723,7 @@ export default function DischargePlanningPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Patient Info */}
               <div className="bg-slate-700/50 rounded-lg p-4">
-                <h4 className="font-semibold mb-3">معلومات المريض</h4>
+                <h4 className="font-semibold mb-3">{t("dischargePlanning.detailsModal.patientInfo")}</h4>
                 <div className="space-y-2 text-sm">
                   <div><span className="text-slate-400">الاسم:</span> {selectedPlan.patient.fullName}</div>
                   <div><span className="text-slate-400">الرقم الطبي:</span> {selectedPlan.patient.mrn}</div>
@@ -731,10 +734,10 @@ export default function DischargePlanningPage() {
               
               {/* Admission Info */}
               <div className="bg-slate-700/50 rounded-lg p-4">
-                <h4 className="font-semibold mb-3">معلومات الإدخال</h4>
+                <h4 className="font-semibold mb-3">{t("dischargePlanning.detailsModal.admissionInfo")}</h4>
                 <div className="space-y-2 text-sm">
                   <div><span className="text-slate-400">رقم الإدخال:</span> {selectedPlan.admission.id}</div>
-                  <div><span className="text-slate-400">تاريخ الإدخال:</span> {format(new Date(selectedPlan.admission.admissionDate), 'dd/MM/yyyy', { locale: ar })}</div>
+                  <div><span className="text-slate-400">تاريخ الإدخال:</span> {format(new Date(selectedPlan.admission.admissionDate), 'dd/MM/yyyy', { locale: isRtl ? ar : undefined })}</div>
                   <div><span className="text-slate-400">القسم:</span> {selectedPlan.admission.department}</div>
                   <div><span className="text-slate-400">السرير:</span> {selectedPlan.admission.bed.bedNumber} - {selectedPlan.admission.bed.ward}</div>
                   <div><span className="text-slate-400">الطبيب المعالج:</span> {selectedPlan.admission.admittingDoctor}</div>
@@ -743,10 +746,10 @@ export default function DischargePlanningPage() {
               
               {/* Discharge Plan */}
               <div className="bg-slate-700/50 rounded-lg p-4 md:col-span-2">
-                <h4 className="font-semibold mb-3">خطة الخروج</h4>
+                <h4 className="font-semibold mb-3">{t("dischargePlanning.detailsModal.planTitle")}</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                   <div>
-                    <span className="text-slate-400">تاريخ الخروج المخطط:</span>
+                    <span className="text-slate-400">{t("dischargePlanning.modal.dateLabel")}:</span>
                     <div className="font-medium">
                       {selectedPlan.plannedDischargeDate 
                         ? format(new Date(selectedPlan.plannedDischargeDate), 'dd/MM/yyyy', { locale: ar })
@@ -755,22 +758,22 @@ export default function DischargePlanningPage() {
                     </div>
                   </div>
                   <div>
-                    <span className="text-slate-400">الوجهة:</span>
+                    <span className="text-slate-400">{t("dischargePlanning.modal.dispositionLabel")}:</span>
                     <div className="font-medium">{getDispositionLabel(selectedPlan.dischargeDisposition)}</div>
                   </div>
                   <div>
-                    <span className="text-slate-400">المتابعة المطلوبة:</span>
+                    <span className="text-slate-400">{t("dischargePlanning.modal.followupLabel")}:</span>
                     <div className="font-medium">{selectedPlan.followUpRequired ? 'نعم' : 'لا'}</div>
                   </div>
                   <div>
-                    <span className="text-slate-400">الرعاية المنزلية:</span>
+                    <span className="text-slate-400">{t("dischargePlanning.modal.homeHealthLabel")}:</span>
                     <div className="font-medium">{selectedPlan.homeHealthServices ? 'نعم' : 'لا'}</div>
                   </div>
                 </div>
                 
                 {selectedPlan.followUpInstructions && (
                   <div className="mt-4">
-                    <span className="text-slate-400">تعليمات المتابعة:</span>
+                    <span className="text-slate-400">{t("dischargePlanning.detailsModal.followupInstructions")}</span>
                     <div className="mt-1 p-2 bg-slate-600/50 rounded text-sm">
                       {selectedPlan.followUpInstructions}
                     </div>
@@ -779,7 +782,7 @@ export default function DischargePlanningPage() {
                 
                 {selectedPlan.notes && (
                   <div className="mt-4">
-                    <span className="text-slate-400">ملاحظات:</span>
+                    <span className="text-slate-400">{t("dischargePlanning.detailsModal.notes")}</span>
                     <div className="mt-1 p-2 bg-slate-600/50 rounded text-sm">
                       {selectedPlan.notes}
                     </div>
@@ -797,7 +800,7 @@ export default function DischargePlanningPage() {
                   }}
                   className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg"
                 >
-                  بدء التنفيذ
+                  {t("dischargePlanning.actions.start")}
                 </button>
               )}
               {selectedPlan.status === 'IN_PROGRESS' && (

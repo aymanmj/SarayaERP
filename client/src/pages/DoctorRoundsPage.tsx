@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuthStore } from "../stores/authStore";
 import { StructuredSOAPNote } from "../components/clinical/StructuredSOAPNote";
+import { useTranslation } from "react-i18next";
 
 type Execution = {
   id: number;
@@ -44,6 +45,8 @@ type Inpatient = {
 };
 
 export default function DoctorRoundsPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
   const user = useAuthStore((s) => s.user);
   const [patients, setPatients] = useState<Inpatient[]>([]);
   const [selectedPatient, setSelectedPatient] = useState<Inpatient | null>(null);
@@ -73,7 +76,7 @@ export default function DoctorRoundsPage() {
       setPatients(patientsList);
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (e) {
-      toast.error("فشل تحميل قائمة المرضى");
+      toast.error(t("rounds.loadFailed", "فشل تحميل قائمة المرضى"));
     } finally {
       setLoading(false);
     }
@@ -97,12 +100,12 @@ export default function DoctorRoundsPage() {
         encounterId: selectedPatient.id,
         type: "DOCTOR_ROUND",
       });
-      toast.success("تم حفظ الملاحظة السريرية");
+      toast.success(t("rounds.saveSuccessNote", "تم حفظ الملاحظة السريرية"));
       setFormKey(Date.now());
       loadRotation();
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (e) {
-      toast.error("فشل الحفظ");
+      toast.error(t("rounds.saveFailed", "فشل الحفظ"));
     }
   };
 
@@ -112,7 +115,7 @@ export default function DoctorRoundsPage() {
       await apiClient.post(`/clinical/inpatient/encounters/${selectedPatient.id}/care-plan`, {
         instruction,
       });
-      toast.success("تم إضافة التعليمات");
+      toast.success(t("rounds.saveSuccessInstruction", "تم إضافة التعليمات"));
       setInstruction("");
       loadCarePlan(selectedPatient.id);
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -122,6 +125,7 @@ export default function DoctorRoundsPage() {
   };
 
   const getTypeLabel = (type: string) => {
+    // using dynamic label map with fallback
     const labels: Record<string, string> = {
       MEDICATION: "💊",
       VITALS: "❤️",
@@ -136,13 +140,13 @@ export default function DoctorRoundsPage() {
   };
 
   return (
-    <div className="flex h-full text-slate-100 bg-slate-950" dir="rtl">
+    <div className={`flex h-full text-slate-100 bg-slate-950 ${isRtl ? "text-right" : "text-left"}`} dir={isRtl ? "rtl" : "ltr"}>
       {/* Sidebar: Patient List */}
       <div className="w-1/3 border-l border-slate-800 p-4 overflow-y-auto bg-slate-900/50">
         <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-          👨‍⚕️ مروري اليومي (My Rounds)
+          {t("rounds.title")}
         </h2>
-        {loading && <p className="text-slate-500">جارِ التحميل...</p>}
+        {loading && <p className="text-slate-500">{t("common.loading")}</p>}
         <div className="space-y-3">
           {patients.map((p) => (
             <div
@@ -174,7 +178,7 @@ export default function DoctorRoundsPage() {
       <div className="flex-1 p-6 overflow-y-auto">
         {!selectedPatient ? (
           <div className="h-full flex items-center justify-center text-slate-500">
-            اختر مريضاً للبدء في المرور الطبي
+            {t("rounds.selectPatientMsg")}
           </div>
         ) : (
           <div className="space-y-6">
@@ -187,11 +191,11 @@ export default function DoctorRoundsPage() {
                   to={`/patients/${selectedPatient.patient.id}/chart`}
                   className="bg-emerald-900/30 text-emerald-300 border border-emerald-500/30 px-2.5 py-1 rounded-xl text-[10px] font-bold hover:bg-emerald-800/40 transition-colors"
                 >
-                  📋 السجل الطبي
+                  {t("rounds.medicalChart")}
                 </Link>
               </div>
               <p className="text-slate-400 text-sm">
-                ملف: {selectedPatient.patient.mrn} | دخول رقم #{selectedPatient.id}
+                {t("patients.mrn", "الملف")}: {selectedPatient.patient.mrn} | {t("rounds.encounterNumber")}: #{selectedPatient.id}
               </p>
             </header>
 
@@ -209,9 +213,9 @@ export default function DoctorRoundsPage() {
 
               {/* 2. Care Plan / Orders with Execution Status */}
               <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col">
-                <h3 className="font-bold text-lg mb-3 text-emerald-300">📋 الخطة العلاجية والمهام</h3>
+                <h3 className="font-bold text-lg mb-3 text-emerald-300">📋 {t("rounds.notesTitle")}</h3>
                 <div className="flex-1 space-y-3 mb-4 overflow-y-auto max-h-[300px] custom-scrollbar">
-                  {carePlan.length === 0 && <p className="text-slate-500 text-center py-4">لا توجد مهام نشطة</p>}
+                  {carePlan.length === 0 && <p className="text-slate-500 text-center py-4">{t("rounds.noTasks")}</p>}
                   {carePlan.map((item) => {
                     const lastExecution = item.executions?.[0];
                     const hasExecutions = item.executions && item.executions.length > 0;
@@ -242,7 +246,7 @@ export default function DoctorRoundsPage() {
                               <div className="mt-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-2">
                                 <div className="flex items-center gap-2 text-emerald-400 text-xs font-bold mb-1">
                                   <span>✅</span>
-                                  <span>تم التنفيذ بواسطة التمريض</span>
+                                  <span>{t("rounds.nurseExecuted")}</span>
                                 </div>
                                 <div className="text-[11px] text-slate-400">
                                   <span className="text-slate-300">{lastExecution?.executedBy?.fullName}</span>
@@ -251,7 +255,7 @@ export default function DoctorRoundsPage() {
                                 </div>
                                 {lastExecution?.resultValue && (
                                   <div className="text-xs text-white mt-1">
-                                    النتيجة: <span className="font-mono bg-slate-800 px-2 py-0.5 rounded">{lastExecution.resultValue}</span>
+                                    {t("nursing.result")} <span className="font-mono bg-slate-800 px-2 py-0.5 rounded">{lastExecution.resultValue}</span>
                                   </div>
                                 )}
                                 {lastExecution?.note && (
@@ -288,7 +292,7 @@ export default function DoctorRoundsPage() {
                 <div className="flex gap-2 mt-auto pt-4 border-t border-slate-800">
                    <input 
                      className="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:border-emerald-500 outline-none"
-                     placeholder="أمر جديد (مثال: صيام، تحليل صباحي...)"
+                     placeholder={t("rounds.newOrderPlaceholder")}
                      value={instruction}
                      onChange={(e) => setInstruction(e.target.value)}
                      onKeyDown={(e) => e.key === 'Enter' && handleAddInstruction()}
@@ -305,7 +309,7 @@ export default function DoctorRoundsPage() {
             
              {/* Vitals Summary */}
              <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-4">
-                <h3 className="font-bold text-slate-300 mb-2">آخر العلامات الحيوية (Vitals)</h3>
+                <h3 className="font-bold text-slate-300 mb-2">{t("rounds.vitalsTitle")}</h3>
                 
                 {selectedPatient.vitalSigns && selectedPatient.vitalSigns.length > 0 ? (
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 w-full">
@@ -353,13 +357,13 @@ export default function DoctorRoundsPage() {
                      
                      <div className="col-span-2 md:col-span-4 text-center mt-2">
                         <span className="text-xs text-slate-500 flex items-center justify-center gap-1">
-                          🕒 recorded at {new Date(selectedPatient.vitalSigns[0].createdAt).toLocaleString('ar-SA')}
+                          🕒 {t("rounds.recordedAt")} {new Date(selectedPatient.vitalSigns[0].createdAt).toLocaleString('ar-SA')}
                         </span>
                      </div>
                   </div>
                 ) : (
                   <div className="text-slate-500 text-sm italic">
-                    لا توجد علامات حيوية مسجلة حديثاً
+                    {t("rounds.noVitals")}
                   </div>
                 )}
              </div>
