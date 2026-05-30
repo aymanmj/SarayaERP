@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { apiClient } from "../../../api/apiClient";
 import { PatientInfo, SemenAnalysis, HormoneTest, AndrologySurgery, AndrologyMedication, AndrologyVisit } from "../types";
+import { useTranslation } from "react-i18next";
 
 type OrgSettings = {
   displayName?: string;
@@ -23,6 +24,8 @@ type Props = {
 };
 
 export default function AndrologyReportPrint({ patient, analyses, hormones, surgeries, medications, visits, onClose }: Props) {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
   const [org, setOrg] = useState<OrgSettings | null>(null);
 
   useEffect(() => {
@@ -33,11 +36,11 @@ export default function AndrologyReportPrint({ patient, analyses, hormones, surg
     window.print();
   };
 
-  const fmtDate = (d?: string) => d ? new Date(d).toLocaleDateString("en-GB") : "—";
+  const fmtDate = (d?: string) => d ? new Date(d).toLocaleDateString(isRtl ? "ar-LY" : "en-GB") : "—";
   const fmtNum = (n?: number | null) => n != null ? Number(n).toFixed(1) : "—";
 
   const latestVisit = visits[0];
-  const hospitalName = org?.displayName || org?.legalName || "Medical Center";
+  const hospitalName = org?.displayName || org?.legalName || t("andrology.print.defaultHospitalName", "Medical Center");
   const hospitalAddress = org?.address || "";
   const hospitalPhone = org?.phone || "";
   const hospitalEmail = org?.email || "";
@@ -96,50 +99,50 @@ export default function AndrologyReportPrint({ patient, analyses, hormones, surg
       <div className="andrology-report-overlay fixed inset-0 bg-black/90 z-[100] flex flex-col items-center overflow-y-auto">
         {/* Action Bar (Not printable) */}
         <div className="print-hidden w-full bg-slate-900 border-b border-slate-700 p-4 sticky top-0 z-10 flex justify-between items-center">
-          <h2 className="text-white font-bold">📄 Medical Report Preview</h2>
+          <h2 className="text-white font-bold">{t("andrology.print.previewTitle", "📄 Medical Report Preview")}</h2>
           <div className="flex gap-3">
-            <button onClick={onClose} className="px-4 py-2 bg-slate-800 text-slate-300 hover:text-white rounded-lg text-sm">Cancel</button>
-            <button onClick={handlePrint} className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-bold text-sm shadow-lg shadow-blue-500/20">🖨️ Print Report</button>
+            <button onClick={onClose} className="px-4 py-2 bg-slate-800 text-slate-300 hover:text-white rounded-lg text-sm">{t("andrology.common.cancel", "إلغاء")}</button>
+            <button onClick={handlePrint} className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-bold text-sm shadow-lg shadow-blue-500/20">{t("andrology.print.printButton", "🖨️ Print Report")}</button>
           </div>
         </div>
 
         {/* A4 Paper Container */}
-        <div className="report-paper bg-white w-full max-w-[210mm] my-8 shadow-2xl px-10 pt-8 pb-6 text-slate-900" dir="ltr" style={{ direction: 'ltr', color: '#000' }}>
+        <div className="report-paper bg-white w-full max-w-[210mm] my-8 shadow-2xl px-10 pt-8 pb-6 text-slate-900" dir={isRtl ? "rtl" : "ltr"} style={{ direction: isRtl ? 'rtl' : 'ltr', color: '#000' }}>
           
           {/* Header */}
           <div className="flex justify-between items-start border-b-2 border-slate-800 pb-5 mb-6">
             <div>
-              <h1 className="text-2xl font-black text-slate-900 tracking-tight uppercase">Medical Report</h1>
-              <h2 className="text-xs font-bold text-slate-500 tracking-widest mt-1">DEPARTMENT OF ANDROLOGY & REPRODUCTIVE MEDICINE</h2>
+              <h1 className="text-2xl font-black text-slate-900 tracking-tight uppercase">{t("andrology.print.reportTitle", "Medical Report")}</h1>
+              <h2 className="text-xs font-bold text-slate-500 tracking-widest mt-1">{t("andrology.print.department", "DEPARTMENT OF ANDROLOGY & REPRODUCTIVE MEDICINE")}</h2>
             </div>
-            <div className="text-right flex items-start gap-3">
+            <div className={`${isRtl ? "text-left" : "text-right"} flex items-start gap-3`}>
               <div>
                 <h3 className="text-lg font-bold text-blue-900">{hospitalName}</h3>
                 {hospitalAddress && <p className="text-[10px] text-slate-500 mt-0.5 max-w-[200px]">{hospitalAddress}</p>}
-                {hospitalPhone && <p className="text-[10px] text-slate-500">Tel: {hospitalPhone}</p>}
+                {hospitalPhone && <p className="text-[10px] text-slate-500">{t("andrology.print.tel", "Tel: ")}{hospitalPhone}</p>}
                 {hospitalEmail && <p className="text-[10px] text-slate-500">{hospitalEmail}</p>}
-                <p className="text-[10px] text-slate-400 mt-1">Date: {new Date().toLocaleDateString('en-GB')}</p>
+                <p className="text-[10px] text-slate-400 mt-1">{t("andrology.print.dateLabel", "Date: ")}{new Date().toLocaleDateString(isRtl ? 'ar-LY' : 'en-GB')}</p>
               </div>
-              <img src={hospitalLogo} alt="Logo" className="w-14 h-14 object-contain rounded-lg border border-slate-200" onError={(e) => { (e.target as HTMLImageElement).src = '/sarayalogo.png'; }} />
+              <img src={hospitalLogo} alt={t("andrology.print.logoAlt", "Logo")} className="w-14 h-14 object-contain rounded-lg border border-slate-200" onError={(e) => { (e.target as HTMLImageElement).src = '/sarayalogo.png'; }} />
             </div>
           </div>
 
           {/* Patient Info */}
           <div className="bg-slate-50 px-4 py-3 rounded-lg border border-slate-200 mb-5 grid grid-cols-2 gap-3 text-xs">
-            <div><span className="font-bold text-slate-500">Patient Name:</span> <span className="font-medium text-slate-900">{patient.fullName}</span></div>
-            <div><span className="font-bold text-slate-500">MRN:</span> <span className="font-mono font-medium text-slate-900">{patient.mrn}</span></div>
-            <div><span className="font-bold text-slate-500">Phone:</span> <span className="font-medium text-slate-900">{patient.phone || "—"}</span></div>
-            <div><span className="font-bold text-slate-500">Report Date:</span> <span className="font-medium text-slate-900">{new Date().toLocaleDateString('en-GB')}</span></div>
+            <div><span className="font-bold text-slate-500">{t("andrology.print.patientName", "Patient Name:")}</span> <span className="font-medium text-slate-900">{patient.fullName}</span></div>
+            <div><span className="font-bold text-slate-500">{t("andrology.print.mrn", "MRN:")}</span> <span className="font-mono font-medium text-slate-900">{patient.mrn}</span></div>
+            <div><span className="font-bold text-slate-500">{t("andrology.print.phone", "Phone:")}</span> <span className="font-medium text-slate-900">{patient.phone || "—"}</span></div>
+            <div><span className="font-bold text-slate-500">{t("andrology.print.reportDate", "Report Date:")}</span> <span className="font-medium text-slate-900">{new Date().toLocaleDateString(isRtl ? 'ar-LY' : 'en-GB')}</span></div>
           </div>
 
           {/* Main Diagnosis */}
           {latestVisit && (
             <div className="mb-5">
-              <h3 className="text-sm font-bold border-b border-slate-300 pb-1.5 mb-2 uppercase tracking-wider text-slate-800">1. Clinical Overview</h3>
+              <h3 className="text-sm font-bold border-b border-slate-300 pb-1.5 mb-2 uppercase tracking-wider text-slate-800">{t("andrology.print.sections.clinicalOverview", "1. Clinical Overview")}</h3>
               <div className="px-3 py-2 bg-slate-50 rounded-lg text-xs leading-relaxed">
-                <div className="mb-1.5"><span className="font-bold">Primary Diagnosis: </span>{latestVisit.diagnosis || "Under Evaluation"}</div>
-                {latestVisit.chiefComplaint && <div className="mb-1.5"><span className="font-bold">Chief Complaint: </span>{latestVisit.chiefComplaint}</div>}
-                {latestVisit.treatmentPlan && <div><span className="font-bold">Proposed Plan: </span>{latestVisit.treatmentPlan}</div>}
+                <div className="mb-1.5"><span className="font-bold">{t("andrology.print.fields.primaryDiagnosis", "Primary Diagnosis: ")}</span>{latestVisit.diagnosis || t("andrology.print.fields.underEvaluation", "Under Evaluation")}</div>
+                {latestVisit.chiefComplaint && <div className="mb-1.5"><span className="font-bold">{t("andrology.print.fields.chiefComplaint", "Chief Complaint: ")}</span>{latestVisit.chiefComplaint}</div>}
+                {latestVisit.treatmentPlan && <div><span className="font-bold">{t("andrology.print.fields.proposedPlan", "Proposed Plan: ")}</span>{latestVisit.treatmentPlan}</div>}
               </div>
             </div>
           )}
@@ -148,17 +151,17 @@ export default function AndrologyReportPrint({ patient, analyses, hormones, surg
           {analyses.length > 0 && (
             <div className="mb-5">
               <h3 className="text-sm font-bold border-b border-slate-300 pb-1.5 mb-2 uppercase tracking-wider text-slate-800">
-                {latestVisit ? '2' : '1'}. Semen Analysis History
+                {latestVisit ? (isRtl ? '2. سجل تحاليل السائل المنوي' : '2. Semen Analysis History') : (isRtl ? '1. سجل تحاليل السائل المنوي' : '1. Semen Analysis History')}
               </h3>
-              <table className="w-full text-left text-[10px] border border-slate-200">
+              <table className={`w-full ${isRtl ? "text-right" : "text-left"} text-[10px] border border-slate-200`}>
                 <thead className="bg-slate-100 font-bold">
                   <tr>
-                    <th className="p-1.5 border-b border-slate-200">Date</th>
-                    <th className="p-1.5 border-b border-slate-200">Vol (ml)</th>
-                    <th className="p-1.5 border-b border-slate-200">Conc. (M/ml)</th>
-                    <th className="p-1.5 border-b border-slate-200">PR+NP (%)</th>
-                    <th className="p-1.5 border-b border-slate-200">Normal (%)</th>
-                    <th className="p-1.5 border-b border-slate-200">Classification</th>
+                    <th className="p-1.5 border-b border-slate-200">{t("andrology.print.table.date", "Date")}</th>
+                    <th className="p-1.5 border-b border-slate-200">{t("andrology.print.table.volume", "Vol (ml)")}</th>
+                    <th className="p-1.5 border-b border-slate-200">{t("andrology.print.table.concentration", "Conc. (M/ml)")}</th>
+                    <th className="p-1.5 border-b border-slate-200">{t("andrology.print.table.motility", "PR+NP (%)")}</th>
+                    <th className="p-1.5 border-b border-slate-200">{t("andrology.print.table.normalForms", "Normal (%)")}</th>
+                    <th className="p-1.5 border-b border-slate-200">{t("andrology.print.table.classification", "Classification")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -181,16 +184,16 @@ export default function AndrologyReportPrint({ patient, analyses, hormones, surg
           {hormones.length > 0 && (
             <div className="mb-5">
               <h3 className="text-sm font-bold border-b border-slate-300 pb-1.5 mb-2 uppercase tracking-wider text-slate-800">
-                {latestVisit ? (analyses.length > 0 ? '3' : '2') : (analyses.length > 0 ? '2' : '1')}. Hormonal Profile
+                {latestVisit ? (analyses.length > 0 ? (isRtl ? '3. التتبع الهرموني' : '3. Hormonal Profile') : (isRtl ? '2. التتبع الهرموني' : '2. Hormonal Profile')) : (analyses.length > 0 ? (isRtl ? '2. التتبع الهرموني' : '2. Hormonal Profile') : (isRtl ? '1. التتبع الهرموني' : '1. Hormonal Profile'))}
               </h3>
-              <table className="w-full text-left text-[10px] border border-slate-200">
+              <table className={`w-full ${isRtl ? "text-right" : "text-left"} text-[10px] border border-slate-200`}>
                 <thead className="bg-slate-100 font-bold">
                   <tr>
-                    <th className="p-1.5 border-b border-slate-200">Date</th>
-                    <th className="p-1.5 border-b border-slate-200">FSH (mIU/mL)</th>
-                    <th className="p-1.5 border-b border-slate-200">LH (mIU/mL)</th>
-                    <th className="p-1.5 border-b border-slate-200">Testosterone (ng/dL)</th>
-                    <th className="p-1.5 border-b border-slate-200">Prolactin (ng/mL)</th>
+                    <th className="p-1.5 border-b border-slate-200">{t("andrology.print.table.date", "Date")}</th>
+                    <th className="p-1.5 border-b border-slate-200">{t("andrology.print.table.fsh", "FSH (mIU/mL)")}</th>
+                    <th className="p-1.5 border-b border-slate-200">{t("andrology.print.table.lh", "LH (mIU/mL)")}</th>
+                    <th className="p-1.5 border-b border-slate-200">{t("andrology.print.table.testosterone", "Testosterone (ng/dL)")}</th>
+                    <th className="p-1.5 border-b border-slate-200">{t("andrology.print.table.prolactin", "Prolactin (ng/mL)")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -211,7 +214,7 @@ export default function AndrologyReportPrint({ patient, analyses, hormones, surg
           {/* Surgical History */}
           {surgeries.length > 0 && (
             <div className="mb-5">
-              <h3 className="text-sm font-bold border-b border-slate-300 pb-1.5 mb-2 uppercase tracking-wider text-slate-800">Surgical History</h3>
+              <h3 className="text-sm font-bold border-b border-slate-300 pb-1.5 mb-2 uppercase tracking-wider text-slate-800">{t("andrology.print.sections.surgicalHistory", "Surgical History")}</h3>
               <div className="space-y-2">
                 {surgeries.map(s => (
                   <div key={s.id} className="text-[11px] bg-slate-50 p-2 rounded-lg">
@@ -219,8 +222,8 @@ export default function AndrologyReportPrint({ patient, analyses, hormones, surg
                       <span>{s.procedure}</span>
                       <span className="text-slate-500 font-normal text-[10px]">{fmtDate(s.surgeryDate)}</span>
                     </div>
-                    {s.technique && <div className="text-[10px] text-slate-600 mt-0.5">Technique: {s.technique}</div>}
-                    <div className="text-[10px] font-medium text-slate-800 mt-0.5">Outcome: {s.outcome || (s.spermRetrieved ? "Successful Sperm Retrieval ✓" : "No Sperm Retrieved")}</div>
+                    {s.technique && <div className="text-[10px] text-slate-600 mt-0.5">{t("andrology.print.fields.technique", "Technique: ")}{s.technique}</div>}
+                    <div className="text-[10px] font-medium text-slate-800 mt-0.5">{t("andrology.print.fields.outcome", "Outcome: ")}{s.outcome || (s.spermRetrieved ? t("andrology.print.fields.successfulRetrieval", "Successful Sperm Retrieval ✓") : t("andrology.print.fields.noSpermRetrieved", "No Sperm Retrieved"))}</div>
                   </div>
                 ))}
               </div>
@@ -230,14 +233,14 @@ export default function AndrologyReportPrint({ patient, analyses, hormones, surg
           {/* Medications */}
           {medications.length > 0 && (
             <div className="mb-5">
-              <h3 className="text-sm font-bold border-b border-slate-300 pb-1.5 mb-2 uppercase tracking-wider text-slate-800">Pharmacological Therapy</h3>
-              <ul className="list-disc pl-5 text-[11px] space-y-1">
+              <h3 className="text-sm font-bold border-b border-slate-300 pb-1.5 mb-2 uppercase tracking-wider text-slate-800">{t("andrology.print.sections.pharmacologicalTherapy", "Pharmacological Therapy")}</h3>
+              <ul className={`list-disc ${isRtl ? "pr-5" : "pl-5"} text-[11px] space-y-1`}>
                 {medications.map(m => (
                   <li key={m.id}>
                     <span className="font-bold">{m.medication}</span> 
                     {m.dose && ` — ${m.dose}`}
                     {m.frequency && ` (${m.frequency})`}
-                    <span className="text-slate-500 ml-2">Started: {fmtDate(m.startDate)}</span>
+                    <span className="text-slate-500 ml-2 mr-2">{t("andrology.print.fields.started", "Started: ")}{fmtDate(m.startDate)}</span>
                   </li>
                 ))}
               </ul>
@@ -248,14 +251,14 @@ export default function AndrologyReportPrint({ patient, analyses, hormones, surg
           <div className="mt-10 pt-5 border-t border-slate-300 flex justify-end">
             <div className="text-center w-56">
               <div className="border-b border-slate-400 h-6 mb-1.5"></div>
-              <p className="text-xs font-bold">Consultant Signature</p>
-              <p className="text-[9px] text-slate-500">Andrology & Reproductive Medicine</p>
+              <p className="text-xs font-bold">{t("andrology.print.consultantSignature", "Consultant Signature")}</p>
+              <p className="text-[9px] text-slate-500">{t("andrology.print.deptSignature", "Andrology & Reproductive Medicine")}</p>
             </div>
           </div>
 
           {/* Footer */}
           <div className="mt-4 text-center text-[8px] text-slate-400">
-            Generated electronically by Saraya Medical ERP • {new Date().toLocaleDateString('en-GB')}
+            {t("andrology.print.footer", "Generated electronically by Saraya Medical ERP • ")}{new Date().toLocaleDateString(isRtl ? 'ar-LY' : 'en-GB')}
           </div>
 
         </div>

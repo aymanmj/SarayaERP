@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useTranslation } from 'react-i18next';
 
 // ============ Types ============
 
@@ -62,49 +63,6 @@ interface IVFCycle {
   medications: any[];
 }
 
-// ============ Labels ============
-
-const infertilityLabels: Record<string, string> = {
-  MALE_FACTOR: 'عامل ذكوري',
-  FEMALE_FACTOR: 'عامل أنثوي',
-  COMBINED: 'عامل مشترك',
-  UNEXPLAINED: 'غير مفسر',
-};
-
-const cycleTypeLabels: Record<string, string> = {
-  IVF: 'أطفال أنابيب (IVF)',
-  ICSI: 'حقن مجهري (ICSI)',
-  IUI: 'تلقيح صناعي (IUI)',
-  FET: 'نقل أجنة مجمدة (FET)',
-  EGG_FREEZING: 'تجميد بويضات',
-  NATURAL: 'طبيعي',
-};
-
-const resultLabels: Record<string, string> = {
-  PENDING: 'في الانتظار',
-  POSITIVE: 'إيجابي (حمل) 🎉',
-  NEGATIVE: 'سلبي',
-  BIOCHEMICAL: 'حمل كيميائي',
-  ECTOPIC: 'حمل خارج الرحم',
-  MISCARRIAGE: 'إجهاض',
-};
-
-const embryoStatusLabels: Record<string, string> = {
-  DEVELOPING: 'قيد التطور',
-  TRANSFERRED: 'تم الترجيع',
-  FROZEN: 'مجمد ❄️',
-  THAWED: 'مذاب',
-  DISCARDED: 'تم التخلص',
-  DONATED: 'تبرع',
-};
-
-const statusLabels: Record<string, string> = {
-  ACTIVE: 'نشط',
-  SUCCESSFUL: 'ناجح 🎉',
-  DISCONTINUED: 'متوقف',
-  REFERRED: 'محول',
-};
-
 // ============ Component ============
 
 export default function FertilityDashboardPage() {
@@ -112,6 +70,52 @@ export default function FertilityDashboardPage() {
   const [searchParams] = useSearchParams();
   const patientId = searchParams.get('patientId');
   const caseId = searchParams.get('caseId');
+
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === 'ar';
+
+  // ============ Labels ============
+
+  const infertilityLabels: Record<string, string> = {
+    MALE_FACTOR: t('obgyn.fertility.infertilityLabels.maleFactor', 'عامل ذكوري'),
+    FEMALE_FACTOR: t('obgyn.fertility.infertilityLabels.femaleFactor', 'عامل أنثوي'),
+    COMBINED: t('obgyn.fertility.infertilityLabels.combined', 'عامل مشترك'),
+    UNEXPLAINED: t('obgyn.fertility.infertilityLabels.unexplained', 'غير مفسر'),
+  };
+
+  const cycleTypeLabels: Record<string, string> = {
+    IVF: t('obgyn.fertility.cycleTypeLabels.ivf', 'أطفال أنابيب (IVF)'),
+    ICSI: t('obgyn.fertility.cycleTypeLabels.icsi', 'حقن مجهري (ICSI)'),
+    IUI: t('obgyn.fertility.cycleTypeLabels.iui', 'تلقيح صناعي (IUI)'),
+    FET: t('obgyn.fertility.cycleTypeLabels.fet', 'نقل أجنة مجمدة (FET)'),
+    EGG_FREEZING: t('obgyn.fertility.cycleTypeLabels.eggFreezing', 'تجميد بويضات'),
+    NATURAL: t('obgyn.fertility.cycleTypeLabels.natural', 'طبيعي'),
+  };
+
+  const resultLabels: Record<string, string> = {
+    PENDING: t('obgyn.fertility.resultLabels.pending', 'في الانتظار'),
+    POSITIVE: t('obgyn.fertility.resultLabels.positive', 'إيجابي (حمل) 🎉'),
+    NEGATIVE: t('obgyn.fertility.resultLabels.negative', 'سلبي'),
+    BIOCHEMICAL: t('obgyn.fertility.resultLabels.biochemical', 'حمل كيميائي'),
+    ECTOPIC: t('obgyn.fertility.resultLabels.ectopic', 'حمل خارج الرحم'),
+    MISCARRIAGE: t('obgyn.fertility.resultLabels.miscarriage', 'إجهاض'),
+  };
+
+  const embryoStatusLabels: Record<string, string> = {
+    DEVELOPING: t('obgyn.fertility.embryoStatusLabels.developing', 'قيد التطور'),
+    TRANSFERRED: t('obgyn.fertility.embryoStatusLabels.transferred', 'تم الترجيع'),
+    FROZEN: t('obgyn.fertility.embryoStatusLabels.frozen', 'مجمد ❄️'),
+    THAWED: t('obgyn.fertility.embryoStatusLabels.thawed', 'مذاب'),
+    DISCARDED: t('obgyn.fertility.embryoStatusLabels.discarded', 'تم التخلص'),
+    DONATED: t('obgyn.fertility.embryoStatusLabels.donated', 'تبرع'),
+  };
+
+  const statusLabels: Record<string, string> = {
+    ACTIVE: t('obgyn.fertility.statusLabels.active', 'نشط'),
+    SUCCESSFUL: t('obgyn.fertility.statusLabels.successful', 'ناجح 🎉'),
+    DISCONTINUED: t('obgyn.fertility.statusLabels.discontinued', 'متوقف'),
+    REFERRED: t('obgyn.fertility.statusLabels.referred', 'محول'),
+  };
 
   const [fertCase, setFertCase] = useState<FertilityCase | null>(null);
   const [cases, setCases] = useState<FertilityCase[]>([]);
@@ -146,19 +150,19 @@ export default function FertilityDashboardPage() {
 
   const loadCase = async (id: number) => {
     try { setLoading(true); const res = await apiClient.get(`/obgyn/fertility/cases/${id}`); setFertCase(res.data); } 
-    catch { toast.error('فشل تحميل ملف العقم'); } 
+    catch { toast.error(t('obgyn.fertility.toast.loadCaseError', 'فشل تحميل ملف العقم')); } 
     finally { setLoading(false); }
   };
 
   const loadPatientCases = async (pid: number) => {
     try { setLoading(true); const res = await apiClient.get(`/obgyn/fertility/cases/patient/${pid}`); setCases(res.data); } 
-    catch { toast.error('فشل تحميل سجلات العقم'); } 
+    catch { toast.error(t('obgyn.fertility.toast.loadPatientCasesError', 'فشل تحميل سجلات العقم')); } 
     finally { setLoading(false); }
   };
 
   const loadActiveCases = async () => {
     try { setLoading(true); const res = await apiClient.get('/obgyn/fertility/cases'); setCases(res.data); } 
-    catch { toast.error('فشل تحميل الحالات'); } 
+    catch { toast.error(t('obgyn.fertility.toast.loadActiveCasesError', 'فشل تحميل الحالات')); } 
     finally { setLoading(false); }
   };
 
@@ -193,7 +197,7 @@ export default function FertilityDashboardPage() {
   };
 
   const handleCreateCase = async () => {
-    if (!patientId) return toast.error('يرجى تحديد المريضة');
+    if (!patientId) return toast.error(t('obgyn.fertility.toast.patientRequired', 'يرجى تحديد المريضة'));
     try {
       const res = await apiClient.post('/obgyn/fertility/cases', {
         femalePatientId: Number(patientId),
@@ -201,25 +205,25 @@ export default function FertilityDashboardPage() {
         infertilityType, diagnosis, durationYears: durationYears || undefined,
         amhLevel: amhLevel || undefined, fshLevel: fshLevel || undefined,
       });
-      toast.success('تم فتح ملف العقم بنجاح');
+      toast.success(t('obgyn.fertility.toast.createCaseSuccess', 'تم فتح ملف العقم بنجاح'));
       setShowNewCaseForm(false);
       navigate(`/obgyn/fertility?caseId=${res.data.id}`);
      
-    } catch (err: any) { toast.error(err.response?.data?.message || 'فشل إنشاء الملف'); }
+    } catch (err: any) { toast.error(err.response?.data?.message || t('obgyn.fertility.toast.createCaseError', 'فشل إنشاء الملف')); }
   };
 
   const handleCreateCycle = async () => {
-    if (!fertCase || !startDate) return toast.error('يرجى تحديد تاريخ البدء');
+    if (!fertCase || !startDate) return toast.error(t('obgyn.fertility.toast.startDateRequired', 'يرجى تحديد تاريخ البدء'));
     try {
       await apiClient.post('/obgyn/fertility/cycles', {
         fertilityCaseId: fertCase.id, cycleType, protocol: protocol || undefined,
         startDate: new Date(startDate).toISOString(),
       });
-      toast.success('تم بدء دورة علاجية جديدة');
+      toast.success(t('obgyn.fertility.toast.createCycleSuccess', 'تم بدء دورة علاجية جديدة'));
       setShowNewCycleForm(false);
       loadCase(fertCase.id);
      
-    } catch (err: any) { toast.error(err.response?.data?.message || 'فشل إنشاء الدورة'); }
+    } catch (err: any) { toast.error(err.response?.data?.message || t('obgyn.fertility.toast.createCycleError', 'فشل إنشاء الدورة')); }
   };
 
   const resultColors: Record<string, string> = {
@@ -231,23 +235,23 @@ export default function FertilityDashboardPage() {
     MISCARRIAGE: 'text-red-400 bg-red-900/20 border-red-500/30',
   };
 
-  if (loading) return <div className="p-8 text-center text-slate-400">جاري التحميل...</div>;
+  if (loading) return <div className="p-8 text-center text-slate-400">{t('obgyn.fertility.loading', 'جاري التحميل...')}</div>;
 
   // === Case Detail View ===
   if (fertCase) {
     return (
-      <div className="container mx-auto p-6 space-y-6" dir="rtl">
+      <div className="container mx-auto p-6 space-y-6" dir={isRtl ? "rtl" : "ltr"}>
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-              🧬 ملف العقم والحقن المجهري
+              🧬 {t('obgyn.fertility.title', 'ملف العقم والحقن المجهري')}
             </h1>
             <p className="text-slate-400">
-              👩 {fertCase.femalePatient?.fullName || '—'} (MRN: {fertCase.femalePatient?.mrn})
-              {fertCase.malePatient && <> — 👨 {fertCase.malePatient.fullName} (MRN: {fertCase.malePatient.mrn})</>}
+              {t('obgyn.fertility.femaleIcon', '👩 ')}{fertCase.femalePatient?.fullName || '—'}{t('obgyn.fertility.mrn', ' (MRN: ')}{fertCase.femalePatient?.mrn})
+              {fertCase.malePatient && <>{t('obgyn.fertility.maleIcon', ' — 👨 ')}{fertCase.malePatient.fullName}{t('obgyn.fertility.mrn', ' (MRN: ')}{fertCase.malePatient.mrn})</>}
             </p>
           </div>
-          <Button variant="secondary" onClick={() => navigate(-1)} className="bg-slate-800 text-slate-200 hover:bg-slate-700">رجوع</Button>
+          <Button variant="secondary" onClick={() => navigate(-1)} className="bg-slate-800 text-slate-200 hover:bg-slate-700">{t('obgyn.fertility.btn.back', 'رجوع')}</Button>
         </div>
 
         {/* Case Summary */}
@@ -255,19 +259,19 @@ export default function FertilityDashboardPage() {
           <Card className="bg-transparent border border-violet-500/30 text-center">
             <CardContent className="p-4">
               <div className="text-lg font-bold text-violet-400">{infertilityLabels[fertCase.infertilityType]}</div>
-              <div className="text-xs text-slate-400 mt-1">نوع العقم</div>
+              <div className="text-xs text-slate-400 mt-1">{t('obgyn.fertility.summary.infertilityType', 'نوع العقم')}</div>
             </CardContent>
           </Card>
           <Card className="bg-transparent border border-slate-700 text-center">
             <CardContent className="p-4">
-              <div className="text-xl font-bold text-white">{fertCase.durationYears || '—'} سنة</div>
-              <div className="text-xs text-slate-400 mt-1">مدة عدم الإنجاب</div>
+              <div className="text-xl font-bold text-white">{fertCase.durationYears || '—'}{t('obgyn.fertility.unit.years', ' سنة')}</div>
+              <div className="text-xs text-slate-400 mt-1">{t('obgyn.fertility.summary.duration', 'مدة عدم الإنجاب')}</div>
             </CardContent>
           </Card>
           <Card className="bg-transparent border border-sky-500/30 text-center">
             <CardContent className="p-4">
               <div className="text-xl font-bold text-sky-400">{fertCase.cycles?.length || 0}</div>
-              <div className="text-xs text-slate-400 mt-1">الدورات العلاجية</div>
+              <div className="text-xs text-slate-400 mt-1">{t('obgyn.fertility.summary.cycles', 'الدورات العلاجية')}</div>
             </CardContent>
           </Card>
           <Card className="bg-transparent border border-slate-700 text-center">
@@ -275,23 +279,23 @@ export default function FertilityDashboardPage() {
               <div className={`text-lg font-bold ${fertCase.status === 'SUCCESSFUL' ? 'text-green-400' : 'text-white'}`}>
                 {statusLabels[fertCase.status]}
               </div>
-              <div className="text-xs text-slate-400 mt-1">الحالة</div>
+              <div className="text-xs text-slate-400 mt-1">{t('obgyn.fertility.summary.status', 'الحالة')}</div>
             </CardContent>
           </Card>
         </div>
 
         {/* Couple Info & Lab Results */}
         <Card className="bg-transparent border border-slate-700 text-slate-100">
-          <CardHeader><CardTitle className="text-white">البيانات التشخيصية</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-white">{t('obgyn.fertility.diagnosticData', 'البيانات التشخيصية')}</CardTitle></CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-              <div><span className="text-slate-400">الزوجة:</span> <span className="text-white font-bold">{fertCase.femalePatient?.fullName || '—'}</span></div>
-              <div><span className="text-slate-400">الزوج:</span> <span className="text-white font-bold">{fertCase.malePatient?.fullName || 'غير مربوط'}</span></div>
-              <div><span className="text-slate-400">AMH:</span> <span className="text-white font-bold">{fertCase.amhLevel || '—'} ng/mL</span></div>
-              <div><span className="text-slate-400">FSH:</span> <span className="text-white font-bold">{fertCase.fshLevel || '—'} mIU/mL</span></div>
-              <div className="col-span-2"><span className="text-slate-400">التشخيص:</span> <span className="text-white">{fertCase.diagnosis || '—'}</span></div>
-              <div><span className="text-slate-400">تحاليل سائل منوي:</span> <span className="text-cyan-400 font-bold">{fertCase.semenAnalyses?.length || 0}</span></div>
-              <div><span className="text-slate-400">زيارات ذكورة:</span> <span className="text-cyan-400 font-bold">{fertCase.andrologyVisits?.length || 0}</span></div>
+              <div><span className="text-slate-400">{t('obgyn.fertility.wife', 'الزوجة:')}</span> <span className="text-white font-bold">{fertCase.femalePatient?.fullName || '—'}</span></div>
+              <div><span className="text-slate-400">{t('obgyn.fertility.husband', 'الزوج:')}</span> <span className="text-white font-bold">{fertCase.malePatient?.fullName || t('obgyn.fertility.notLinked', 'غير مربوط')}</span></div>
+              <div><span className="text-slate-400">AMH:</span> <span className="text-white font-bold">{fertCase.amhLevel || '—'}{t('obgyn.fertility.unit.ngml', ' ng/mL')}</span></div>
+              <div><span className="text-slate-400">FSH:</span> <span className="text-white font-bold">{fertCase.fshLevel || '—'}{t('obgyn.fertility.unit.miuml', ' mIU/mL')}</span></div>
+              <div className="col-span-2"><span className="text-slate-400">{t('obgyn.fertility.diagnosisLabel', 'التشخيص:')}</span> <span className="text-white">{fertCase.diagnosis || '—'}</span></div>
+              <div><span className="text-slate-400">{t('obgyn.fertility.semenAnalyses', 'تحاليل سائل منوي:')}</span> <span className="text-cyan-400 font-bold">{fertCase.semenAnalyses?.length || 0}</span></div>
+              <div><span className="text-slate-400">{t('obgyn.fertility.andrologyVisits', 'زيارات ذكورة:')}</span> <span className="text-cyan-400 font-bold">{fertCase.andrologyVisits?.length || 0}</span></div>
             </div>
           </CardContent>
         </Card>
@@ -299,10 +303,10 @@ export default function FertilityDashboardPage() {
         {/* Cycles */}
         <Card className="bg-transparent border border-slate-700 text-slate-100">
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-white">الدورات العلاجية</CardTitle>
+            <CardTitle className="text-white">{t('obgyn.fertility.cycles', 'الدورات العلاجية')}</CardTitle>
             {fertCase.status === 'ACTIVE' && (
               <Button onClick={() => setShowNewCycleForm(!showNewCycleForm)} className="bg-violet-600 hover:bg-violet-500 text-white">
-                {showNewCycleForm ? 'إلغاء' : '+ دورة جديدة'}
+                {showNewCycleForm ? t('common.cancel', 'إلغاء') : t('obgyn.fertility.btn.newCycle', '+ دورة جديدة')}
               </Button>
             )}
           </CardHeader>
@@ -311,7 +315,7 @@ export default function FertilityDashboardPage() {
               <div className="bg-slate-900/60 p-4 rounded-lg border border-violet-500/30 space-y-3">
                 <div className="grid grid-cols-3 gap-3">
                   <div className="space-y-1">
-                    <Label className="text-slate-400">نوع الدورة</Label>
+                    <Label className="text-slate-400">{t('obgyn.fertility.cycle.type', 'نوع الدورة')}</Label>
                     <Select value={cycleType} onValueChange={setCycleType}>
                       <SelectTrigger className="bg-slate-950 border-slate-700 text-white"><SelectValue /></SelectTrigger>
                       <SelectContent className="bg-slate-900 border-slate-700 text-white">
@@ -322,25 +326,25 @@ export default function FertilityDashboardPage() {
                     </Select>
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-slate-400">البروتوكول</Label>
+                    <Label className="text-slate-400">{t('obgyn.fertility.cycle.protocol', 'البروتوكول')}</Label>
                     <Select value={protocol || 'none'} onValueChange={v => setProtocol(v === 'none' ? '' : v)}>
                       <SelectTrigger className="bg-slate-950 border-slate-700 text-white"><SelectValue /></SelectTrigger>
                       <SelectContent className="bg-slate-900 border-slate-700 text-white">
                         <SelectItem value="none" className="focus:bg-slate-800 focus:text-white">—</SelectItem>
-                        <SelectItem value="Long" className="focus:bg-slate-800 focus:text-white">Long Protocol</SelectItem>
-                        <SelectItem value="Short" className="focus:bg-slate-800 focus:text-white">Short Protocol</SelectItem>
-                        <SelectItem value="Antagonist" className="focus:bg-slate-800 focus:text-white">Antagonist</SelectItem>
-                        <SelectItem value="Natural" className="focus:bg-slate-800 focus:text-white">Natural</SelectItem>
-                        <SelectItem value="Mini-stim" className="focus:bg-slate-800 focus:text-white">Mini-stim</SelectItem>
+                        <SelectItem value="Long" className="focus:bg-slate-800 focus:text-white">{t('obgyn.fertility.protocols.long', 'Long Protocol')}</SelectItem>
+                        <SelectItem value="Short" className="focus:bg-slate-800 focus:text-white">{t('obgyn.fertility.protocols.short', 'Short Protocol')}</SelectItem>
+                        <SelectItem value="Antagonist" className="focus:bg-slate-800 focus:text-white">{t('obgyn.fertility.protocols.antagonist', 'Antagonist')}</SelectItem>
+                        <SelectItem value="Natural" className="focus:bg-slate-800 focus:text-white">{t('obgyn.fertility.protocols.natural', 'Natural')}</SelectItem>
+                        <SelectItem value="Mini-stim" className="focus:bg-slate-800 focus:text-white">{t('obgyn.fertility.protocols.ministim', 'Mini-stim')}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-slate-400">تاريخ البدء</Label>
+                    <Label className="text-slate-400">{t('obgyn.fertility.cycle.startDate', 'تاريخ البدء')}</Label>
                     <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="bg-slate-950 border-slate-700 text-white" />
                   </div>
                 </div>
-                <Button onClick={handleCreateCycle} className="bg-violet-600 hover:bg-violet-500 text-white w-full">بدء الدورة</Button>
+                <Button onClick={handleCreateCycle} className="bg-violet-600 hover:bg-violet-500 text-white w-full">{t('obgyn.fertility.btn.startCycle', 'بدء الدورة')}</Button>
               </div>
             )}
 
@@ -366,11 +370,11 @@ export default function FertilityDashboardPage() {
                     </div>
                     
                     <div className="flex gap-4 mt-2 text-xs text-slate-400">
-                      <span>بدأت: {new Date(cycle.startDate).toLocaleDateString('ar-LY')}</span>
-                      {cycle.eggsRetrieved != null && <span>بويضات: <b className="text-sky-400">{cycle.eggsRetrieved}</b></span>}
-                      {cycle.eggsFertilized != null && <span>مخصبة: <b className="text-green-400">{cycle.eggsFertilized}</b></span>}
-                      {cycle.embryosTransferred != null && <span>مرجعة: <b className="text-pink-400">{cycle.embryosTransferred}</b></span>}
-                      {cycle.embryosFrozen != null && <span>مجمدة: <b className="text-cyan-400">{cycle.embryosFrozen}</b> ❄️</span>}
+                      <span>{t('obgyn.fertility.cycle.started', 'بدأت: ')}{new Date(cycle.startDate).toLocaleDateString(i18n.language)}</span>
+                      {cycle.eggsRetrieved != null && <span>{t('obgyn.fertility.cycle.eggs', 'بويضات: ')}<b className="text-sky-400">{cycle.eggsRetrieved}</b></span>}
+                      {cycle.eggsFertilized != null && <span>{t('obgyn.fertility.cycle.fertilized', 'مخصبة: ')}<b className="text-green-400">{cycle.eggsFertilized}</b></span>}
+                      {cycle.embryosTransferred != null && <span>{t('obgyn.fertility.cycle.transferred', 'مرجعة: ')}<b className="text-pink-400">{cycle.embryosTransferred}</b></span>}
+                      {cycle.embryosFrozen != null && <span>{t('obgyn.fertility.cycle.frozen', 'مجمدة: ')}<b className="text-cyan-400">{cycle.embryosFrozen}</b> ❄️</span>}
                     </div>
 
                     {/* Expanded Cycle Details */}
@@ -378,12 +382,12 @@ export default function FertilityDashboardPage() {
                       <div className="mt-4 space-y-3 border-t border-slate-700 pt-3">
                         <div className="grid grid-cols-3 md:grid-cols-6 gap-3 text-center">
                           {[
-                            { label: 'أيام التحفيز', value: cycle.stimulationDays },
-                            { label: 'بويضات ناضجة', value: cycle.eggsMature },
-                            { label: 'أجنة يوم 3', value: cycle.embryosDay3 },
-                            { label: 'أجنة يوم 5', value: cycle.embryosDay5 },
-                            { label: 'سماكة البطانة', value: cycle.endometrialThickness ? `${cycle.endometrialThickness} مم` : null },
-                            { label: 'Beta HCG', value: cycle.betaHCGResult },
+                            { label: t('obgyn.fertility.cycle.stimulationDays', 'أيام التحفيز'), value: cycle.stimulationDays },
+                            { label: t('obgyn.fertility.cycle.matureEggs', 'بويضات ناضجة'), value: cycle.eggsMature },
+                            { label: t('obgyn.fertility.cycle.embryosDay3', 'أجنة يوم 3'), value: cycle.embryosDay3 },
+                            { label: t('obgyn.fertility.cycle.embryosDay5', 'أجنة يوم 5'), value: cycle.embryosDay5 },
+                            { label: t('obgyn.fertility.cycle.endometrialThickness', 'سماكة البطانة'), value: cycle.endometrialThickness ? `${cycle.endometrialThickness}${t('obgyn.fertility.unit.mm', ' مم')}` : null },
+                            { label: t('obgyn.fertility.cycle.betaHcg', 'Beta HCG'), value: cycle.betaHCGResult },
                           ].map((item, idx) => (
                             <div key={idx} className="bg-slate-900/50 p-2 rounded-lg">
                               <div className="text-white font-bold">{item.value ?? '—'}</div>
@@ -395,9 +399,8 @@ export default function FertilityDashboardPage() {
                         {/* Embryos */}
                         {cycle.embryos && cycle.embryos.length > 0 && (
                           <div>
-                            <h5 className="text-xs text-slate-400 font-bold mb-1">الأجنة:</h5>
+                            <h5 className="text-xs text-slate-400 font-bold mb-1">{t('obgyn.fertility.cycle.embryos', 'الأجنة:')}</h5>
                             <div className="flex gap-2 flex-wrap">
-                              { }
                               {cycle.embryos.map((e: any) => (
                                 <span key={e.id} className={`px-2 py-1 rounded text-xs border ${
                                   e.status === 'FROZEN' ? 'border-cyan-500/40 bg-cyan-900/20 text-cyan-400' :
@@ -414,9 +417,8 @@ export default function FertilityDashboardPage() {
                         {/* Medications */}
                         {cycle.medications && cycle.medications.length > 0 && (
                           <div>
-                            <h5 className="text-xs text-slate-400 font-bold mb-1">الأدوية:</h5>
+                            <h5 className="text-xs text-slate-400 font-bold mb-1">{t('obgyn.fertility.cycle.medications', 'الأدوية:')}</h5>
                             <div className="flex gap-2 flex-wrap">
-                              { }
                               {cycle.medications.map((m: any) => (
                                 <span key={m.id} className="px-2 py-1 rounded text-xs border border-amber-500/30 bg-amber-900/10 text-amber-300">
                                   💊 {m.medicationName} — {m.dose} {m.route ? `(${m.route})` : ''}
@@ -431,7 +433,7 @@ export default function FertilityDashboardPage() {
                 ))}
               </div>
             ) : (
-              <p className="text-center text-slate-500 py-6">لا توجد دورات علاجية مسجلة بعد.</p>
+              <p className="text-center text-slate-500 py-6">{t('obgyn.fertility.cycle.emptyState', 'لا توجد دورات علاجية مسجلة بعد.')}</p>
             )}
           </CardContent>
         </Card>
@@ -441,45 +443,44 @@ export default function FertilityDashboardPage() {
 
   // === Cases List View ===
   return (
-    <div className="container mx-auto p-6 space-y-6" dir="rtl">
+    <div className="container mx-auto p-6 space-y-6" dir={isRtl ? "rtl" : "ltr"}>
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-white">🧬 الحقن المجهري وعلاج العقم</h1>
+        <h1 className="text-2xl font-bold text-white">🧬 {t('obgyn.fertility.list.title', 'الحقن المجهري وعلاج العقم')}</h1>
         <div className="flex gap-2">
           {patientId && (
             <Button onClick={() => setShowNewCaseForm(!showNewCaseForm)} className="bg-violet-600 hover:bg-violet-500 text-white">
-              {showNewCaseForm ? 'إلغاء' : '+ فتح ملف جديد'}
+              {showNewCaseForm ? t('common.cancel', 'إلغاء') : t('obgyn.fertility.btn.openNewCase', '+ فتح ملف جديد')}
             </Button>
           )}
-          <Button variant="secondary" onClick={() => navigate(-1)} className="bg-slate-800 text-slate-200 hover:bg-slate-700">رجوع</Button>
+          <Button variant="secondary" onClick={() => navigate(-1)} className="bg-slate-800 text-slate-200 hover:bg-slate-700">{t('obgyn.fertility.btn.back', 'رجوع')}</Button>
         </div>
       </div>
 
       {showNewCaseForm && (
         <Card className="bg-transparent border border-violet-500/30 text-slate-100">
-          <CardHeader><CardTitle className="text-violet-400">فتح ملف عقم جديد</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-violet-400">{t('obgyn.fertility.create.title', 'فتح ملف عقم جديد')}</CardTitle></CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="space-y-1 relative md:col-span-2">
-                <Label className="text-slate-400">ملف الزوج (اختياري) — ابحث بالاسم أو رقم الملف</Label>
+                <Label className="text-slate-400">{t('obgyn.fertility.create.husbandSearchLabel', 'ملف الزوج (اختياري) — ابحث بالاسم أو رقم الملف')}</Label>
                 {malePatientInfo ? (
                   <div className="flex items-center gap-2 bg-slate-900 border border-emerald-500/30 rounded-lg px-3 py-2">
                     <span className="text-emerald-400">👨</span>
                     <span className="text-white font-bold text-sm flex-1">{malePatientInfo.fullName}</span>
                     <span className="text-xs text-slate-400 font-mono">MRN: {malePatientInfo.mrn}</span>
-                    <button type="button" onClick={clearMalePatient} className="text-red-400 hover:text-red-300 text-xs bg-slate-800 px-2 py-1 rounded">✕ إزالة</button>
+                    <button type="button" onClick={clearMalePatient} className="text-red-400 hover:text-red-300 text-xs bg-slate-800 px-2 py-1 rounded">{t('obgyn.fertility.btn.remove', '✕ إزالة')}</button>
                   </div>
                 ) : (
                   <Input
                     value={maleSearch}
                     onChange={e => searchMalePatient(e.target.value)}
-                    placeholder="ابحث عن الزوج بالاسم أو رقم الملف أو الهاتف..."
+                    placeholder={t('obgyn.fertility.create.husbandSearchPlaceholder', 'ابحث عن الزوج بالاسم أو رقم الملف أو الهاتف...')}
                     className="bg-slate-900 border-slate-700 text-white"
                     autoComplete="off"
                   />
                 )}
                 {showMaleResults && maleSearchResults.length > 0 && (
                   <div className="absolute top-full left-0 right-0 mt-1 bg-slate-900 border border-slate-600 rounded-xl shadow-2xl z-40 max-h-48 overflow-y-auto">
-                    { }
                     {maleSearchResults.map((p: any) => (
                       <button
                         key={p.id}
@@ -498,7 +499,7 @@ export default function FertilityDashboardPage() {
                 )}
               </div>
               <div className="space-y-1">
-                <Label className="text-slate-400">نوع العقم</Label>
+                <Label className="text-slate-400">{t('obgyn.fertility.create.infertilityType', 'نوع العقم')}</Label>
                 <Select value={infertilityType} onValueChange={setInfertilityType}>
                   <SelectTrigger className="bg-slate-900 border-slate-700 text-white"><SelectValue /></SelectTrigger>
                   <SelectContent className="bg-slate-900 border-slate-700 text-white">
@@ -509,23 +510,23 @@ export default function FertilityDashboardPage() {
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label className="text-slate-400">مدة عدم الإنجاب (سنوات)</Label>
+                <Label className="text-slate-400">{t('obgyn.fertility.create.duration', 'مدة عدم الإنجاب (سنوات)')}</Label>
                 <Input type="number" value={durationYears} onChange={e => setDurationYears(e.target.value ? Number(e.target.value) : '')} className="bg-slate-900 border-slate-700 text-white" />
               </div>
               <div className="space-y-1">
-                <Label className="text-slate-400">AMH (ng/mL)</Label>
+                <Label className="text-slate-400">{t('obgyn.fertility.create.amh', 'AMH (ng/mL)')}</Label>
                 <Input type="number" step="0.01" value={amhLevel} onChange={e => setAmhLevel(e.target.value ? Number(e.target.value) : '')} className="bg-slate-900 border-slate-700 text-white" />
               </div>
               <div className="space-y-1">
-                <Label className="text-slate-400">FSH (mIU/mL)</Label>
+                <Label className="text-slate-400">{t('obgyn.fertility.create.fsh', 'FSH (mIU/mL)')}</Label>
                 <Input type="number" step="0.01" value={fshLevel} onChange={e => setFshLevel(e.target.value ? Number(e.target.value) : '')} className="bg-slate-900 border-slate-700 text-white" />
               </div>
             </div>
             <div className="space-y-1">
-              <Label className="text-slate-400">التشخيص</Label>
-              <Input value={diagnosis} onChange={e => setDiagnosis(e.target.value)} placeholder="التشخيص التفصيلي..." className="bg-slate-900 border-slate-700 text-white" />
+              <Label className="text-slate-400">{t('obgyn.fertility.create.diagnosis', 'التشخيص')}</Label>
+              <Input value={diagnosis} onChange={e => setDiagnosis(e.target.value)} placeholder={t('obgyn.fertility.create.diagnosisPlaceholder', 'التشخيص التفصيلي...')} className="bg-slate-900 border-slate-700 text-white" />
             </div>
-            <Button onClick={handleCreateCase} className="bg-violet-600 hover:bg-violet-500 text-white w-full font-bold">فتح الملف</Button>
+            <Button onClick={handleCreateCase} className="bg-violet-600 hover:bg-violet-500 text-white w-full font-bold">{t('obgyn.fertility.btn.submitCase', 'فتح الملف')}</Button>
           </CardContent>
         </Card>
       )}
@@ -538,14 +539,14 @@ export default function FertilityDashboardPage() {
                 <div className="flex items-center gap-4">
                   <span className="text-2xl">🧬</span>
                   <div>
-                    <div className="text-white font-bold">👩 {c.femalePatient?.fullName || `ملف #${c.id}`} {c.malePatient && <span className="text-slate-400 font-normal">+ 👨 {c.malePatient.fullName}</span>}</div>
+                    <div className="text-white font-bold">👩 {c.femalePatient?.fullName || `${t('obgyn.fertility.list.caseNumber', 'ملف #')}${c.id}`} {c.malePatient && <span className="text-slate-400 font-normal">{t('obgyn.fertility.maleIcon', ' — 👨 ')}{c.malePatient.fullName}</span>}</div>
                     <div className="text-xs text-slate-400">
-                      {infertilityLabels[c.infertilityType]} — {c.durationYears ? `${c.durationYears} سنة` : ''}
+                      {infertilityLabels[c.infertilityType]} — {c.durationYears ? `${c.durationYears}${t('obgyn.fertility.unit.years', ' سنة')}` : ''}
                     </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="text-xs text-slate-400">{c._count?.cycles || 0} دورات</span>
+                  <span className="text-xs text-slate-400">{c._count?.cycles || 0}{t('obgyn.fertility.list.cyclesCount', ' دورات')}</span>
                   <span className={`px-3 py-1 rounded-full text-xs font-bold border ${c.status === 'ACTIVE' ? 'text-violet-400 bg-violet-900/20 border-violet-500/30' : 'text-slate-500 bg-slate-800 border-slate-700'}`}>
                     {statusLabels[c.status]}
                   </span>

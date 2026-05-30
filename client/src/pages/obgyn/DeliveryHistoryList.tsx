@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { apiClient } from '../../api/apiClient';
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -41,6 +42,8 @@ interface Props {
 }
 
 export function DeliveryHistoryList({ patientId }: Props) {
+    const { t, i18n } = useTranslation();
+    const isRtl = i18n.language === 'ar';
     const [deliveries, setDeliveries] = useState<Delivery[]>([]);
     const [loading, setLoading] = useState(false);
 
@@ -63,35 +66,35 @@ export function DeliveryHistoryList({ patientId }: Props) {
         }
     };
 
-    if (loading) return <div className="text-center p-4 text-slate-400">جاري تحميل سجل الولادات...</div>;
+    if (loading) return <div className="text-center p-4 text-slate-400">{t('obgyn.deliveryList.loading')}</div>;
 
     if (deliveries.length === 0) {
         return (
             <div className="text-center p-4 mt-4 border border-slate-800 rounded-lg bg-slate-900/30">
                 <p className="text-slate-500 text-sm">
-                    لا توجد سجلات ولادة تفصيلية لهذا المريض. 
+                    {t('obgyn.deliveryList.emptyState')}
                     <br/>
-                    (يتم عرض السجلات الجديدة المسجلة عبر النظام هنا)
+                    {t('obgyn.deliveryList.emptyNote')}
                 </p>
             </div>
         );
     }
 
     return (
-        <Card className="bg-transparent border border-slate-700 text-slate-100 mt-6" dir="rtl">
+        <Card className="bg-transparent border border-slate-700 text-slate-100 mt-6" dir={isRtl ? "rtl" : "ltr"}>
             <CardHeader>
-                <CardTitle className="text-lg font-bold text-white mb-2">سجل الولادات التفصيلي</CardTitle>
+                <CardTitle className="text-lg font-bold text-white mb-2">{t('obgyn.deliveryList.title')}</CardTitle>
             </CardHeader>
             <CardContent>
                 <div className="rounded-md border border-slate-800 bg-slate-900/50">
                     <Table>
                         <TableHeader className="bg-slate-900">
                             <TableRow className="border-slate-800 hover:bg-slate-900">
-                                <TableHead className="text-slate-400 text-right">تاريخ الولادة</TableHead>
-                                <TableHead className="text-slate-400 text-right">طريقة الولادة</TableHead>
-                                <TableHead className="text-slate-400 text-center">عدد المواليد</TableHead>
-                                <TableHead className="text-slate-400 text-right">تفاصيل المواليد</TableHead>
-                                <TableHead className="text-slate-400 text-right">ملاحظات / مضاعفات</TableHead>
+                                <TableHead className={`text-slate-400 ${isRtl ? 'text-right' : 'text-left'}`}>{t('obgyn.deliveryList.table.date')}</TableHead>
+                                <TableHead className={`text-slate-400 ${isRtl ? 'text-right' : 'text-left'}`}>{t('obgyn.deliveryList.table.method')}</TableHead>
+                                <TableHead className="text-slate-400 text-center">{t('obgyn.deliveryList.table.babyCount')}</TableHead>
+                                <TableHead className={`text-slate-400 ${isRtl ? 'text-right' : 'text-left'}`}>{t('obgyn.deliveryList.table.babyDetails')}</TableHead>
+                                <TableHead className={`text-slate-400 ${isRtl ? 'text-right' : 'text-left'}`}>{t('obgyn.deliveryList.table.notes')}</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -130,7 +133,7 @@ export function DeliveryHistoryList({ patientId }: Props) {
                                                 <div key={baby.id} className="text-sm flex items-center gap-2">
                                                     <span className={`w-2 h-2 rounded-full ${baby.gender === 'MALE' ? 'bg-blue-400' : 'bg-pink-400'}`}></span>
                                                     <span className="text-slate-300">
-                                                        {baby.gender === 'MALE' ? 'ذكر' : 'أنثى'}
+                                                        {baby.gender === 'MALE' ? t('obgyn.deliveryList.table.male') : t('obgyn.deliveryList.table.female')}
                                                     </span>
                                                     {baby.weight && <span className="text-slate-500">({baby.weight} kg)</span>}
                                                 </div>

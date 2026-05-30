@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiClient } from "../api/apiClient";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 
 // Types
 type BedStatus = 'AVAILABLE' | 'OCCUPIED' | 'CLEANING' | 'MAINTENANCE' | 'BLOCKED';
@@ -73,6 +74,8 @@ type BedActivity = {
 };
 
 export default function BedManagementDashboard() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
   const navigate = useNavigate();
   const [wards, setWards] = useState<Ward[]>([]);
   const [stats, setStats] = useState<BedStats | null>(null);
@@ -110,43 +113,26 @@ export default function BedManagementDashboard() {
       ]);
       
       // Process wards data
-       
       const processedWards = wardsRes.data.map((ward: any) => ({
         ...ward,
-         
         totalBeds: ward.rooms.reduce((sum: number, room: any) => sum + room.beds.length, 0),
-         
         occupiedBeds: ward.rooms.reduce((sum: number, room: any) => 
-           
           sum + room.beds.filter((bed: any) => bed.status === 'OCCUPIED').length, 0),
-         
         availableBeds: ward.rooms.reduce((sum: number, room: any) => 
-           
           sum + room.beds.filter((bed: any) => bed.status === 'AVAILABLE').length, 0),
-         
         cleaningBeds: ward.rooms.reduce((sum: number, room: any) => 
-           
           sum + room.beds.filter((bed: any) => bed.status === 'CLEANING').length, 0),
-         
         maintenanceBeds: ward.rooms.reduce((sum: number, room: any) => 
-           
           sum + room.beds.filter((bed: any) => bed.status === 'MAINTENANCE').length, 0),
-         
         blockedBeds: ward.rooms.reduce((sum: number, room: any) => 
-           
           sum + room.beds.filter((bed: any) => bed.status === 'BLOCKED').length, 0),
         occupancyRate: 0,
-         
         rooms: ward.rooms.map((room: any) => ({
           ...room,
           totalBeds: room.beds.length,
-           
           occupiedBeds: room.beds.filter((bed: any) => bed.status === 'OCCUPIED').length,
-           
           availableBeds: room.beds.filter((bed: any) => bed.status === 'AVAILABLE').length,
-           
           cleaningBeds: room.beds.filter((bed: any) => bed.status === 'CLEANING').length,
-           
           maintenanceBeds: room.beds.filter((bed: any) => bed.status === 'MAINTENANCE').length,
           occupancyRate: 0
         }))
@@ -162,11 +148,9 @@ export default function BedManagementDashboard() {
       
       setWards(processedWards);
       setStats(statsRes.data);
-      // إزالة تحميل activities لعدم وجود endpoint
       setActivities([]);
-     
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || 'فشل تحميل بيانات الأسرة');
+      toast.error(error?.response?.data?.message || t("beds.loadFailed", "فشل تحميل بيانات الأسرة"));
     } finally {
       setLoading(false);
     }
@@ -175,24 +159,20 @@ export default function BedManagementDashboard() {
   const handleMarkBedClean = async (bedId: number) => {
     try {
       await apiClient.post('/beds/mark-clean', { bedId });
-      toast.success('تم وضع علامة "نظيف" على السرير');
+      toast.success(t("beds.updateSuccess", "تم تحديث السرير بنجاح"));
       loadData();
-     
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || 'فشل تحديث حالة السرير');
+      toast.error(error?.response?.data?.message || t("beds.updateFailed", "فشل تحديث حالة السرير"));
     }
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleMarkBedMaintenance = async (bedId: number, notes: string) => {
     try {
-      // استخدام endpoint الموجود لتحديث حالة السرير
       await apiClient.post('/beds/mark-clean', { bedId });
-      toast.success('تم وضع السرير في حالة الصيانة');
+      toast.success(t("beds.updateSuccess", "تم تحديث السرير بنجاح"));
       loadData();
-     
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || 'فشل تحديث حالة السرير');
+      toast.error(error?.response?.data?.message || t("beds.updateFailed", "فشل تحديث حالة السرير"));
     }
   };
 
@@ -227,13 +207,13 @@ export default function BedManagementDashboard() {
 
   const filteredWards = wards.filter(ward => {
     const matchesSearch = ward.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         ward.type.toLowerCase().includes(searchTerm.toLowerCase());
+                          ward.type.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesFilter = (activeTab === 'wards' && selectedWard) ? ward.id === selectedWard : true;
     return matchesSearch && matchesFilter;
   });
 
   const formatTime = (timestamp: string) => {
-    return new Date(timestamp).toLocaleTimeString('ar-SA', { 
+    return new Date(timestamp).toLocaleTimeString(isRtl ? 'ar-SA' : 'en-US', { 
       hour: '2-digit', 
       minute: '2-digit' 
     });
@@ -249,27 +229,27 @@ export default function BedManagementDashboard() {
   };
 
   return (
-    <div className="flex flex-col h-full text-slate-100 p-6 space-y-6" dir="rtl">
+    <div className="flex flex-col h-full text-slate-100 p-6 space-y-6" dir={isRtl ? "rtl" : "ltr"}>
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold mb-1">لوحة تحكم الأسرة</h1>
+          <h1 className="text-2xl font-bold mb-1">{t("beds.dashboardTitle")}</h1>
           <p className="text-sm text-slate-400">
-            مراقبة حالة الأسرة في المستشفى بشكل مباشر
+            {t("beds.dashboardSubtitle")}
           </p>
         </div>
         <div className="flex gap-2">
           <button
             onClick={handleRefresh}
-            className="px-4 py-2 bg-sky-600 hover:bg-sky-500 rounded-lg flex items-center gap-2"
+            className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg flex items-center gap-2 text-sm"
           >
-            🔄 تحديث
+            🔄 {t("housekeeping.refresh")}
           </button>
           <button
             onClick={() => navigate('/settings/bed-management')}
-            className="px-4 py-2 bg-slate-600 hover:bg-slate-500 rounded-lg"
+            className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm"
           >
-            ⚙️ إعدادات
+            ⚙️ {t("beds.setupTitle")}
           </button>
         </div>
       </div>
@@ -280,7 +260,7 @@ export default function BedManagementDashboard() {
           <div className="bg-slate-900/50 rounded-xl p-4 border border-slate-700">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-sm text-slate-400 mb-1">إجمالي الأسرة</div>
+                <div className="text-sm text-slate-400 mb-1">{t("beds.stats.total")}</div>
                 <div className="text-2xl font-bold">{stats.total}</div>
               </div>
               <div className="text-3xl">🏥</div>
@@ -290,7 +270,7 @@ export default function BedManagementDashboard() {
           <div className="bg-slate-900/50 rounded-xl p-4 border border-slate-700">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-sm text-slate-400 mb-1">متاحة</div>
+                <div className="text-sm text-slate-400 mb-1">{t("beds.stats.available")}</div>
                 <div className="text-2xl font-bold text-green-400">{stats.available}</div>
               </div>
               <div className="text-3xl">🛏️</div>
@@ -300,7 +280,7 @@ export default function BedManagementDashboard() {
           <div className="bg-slate-900/50 rounded-xl p-4 border border-slate-700">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-sm text-slate-400 mb-1">مشغولة</div>
+                <div className="text-sm text-slate-400 mb-1">{t("beds.stats.occupied")}</div>
                 <div className="text-2xl font-bold text-red-400">{stats.occupied}</div>
               </div>
               <div className="text-3xl">👤</div>
@@ -310,7 +290,7 @@ export default function BedManagementDashboard() {
           <div className="bg-slate-900/50 rounded-xl p-4 border border-slate-700">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-sm text-slate-400 mb-1">نسبة الإشغال</div>
+                <div className="text-sm text-slate-400 mb-1">{t("beds.stats.occupancyRate")}</div>
                 <div className={`text-2xl font-bold ${getOccupancyColor(stats.overallOccupancyRate || 0)}`}>
                   {(stats.overallOccupancyRate || 0).toFixed(1)}%
                 </div>
@@ -328,7 +308,7 @@ export default function BedManagementDashboard() {
             <div className="flex items-center gap-3">
               <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
               <div>
-                <div className="text-sm text-slate-400">قيد التنظيف</div>
+                <div className="text-sm text-slate-400">{t("beds.stats.cleaning")}</div>
                 <div className="font-semibold">{stats.cleaning}</div>
               </div>
             </div>
@@ -338,7 +318,7 @@ export default function BedManagementDashboard() {
             <div className="flex items-center gap-3">
               <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
               <div>
-                <div className="text-sm text-slate-400">الصيانة</div>
+                <div className="text-sm text-slate-400">{t("beds.stats.maintenance")}</div>
                 <div className="font-semibold">{stats.maintenance}</div>
               </div>
             </div>
@@ -348,7 +328,7 @@ export default function BedManagementDashboard() {
             <div className="flex items-center gap-3">
               <div className="w-3 h-3 bg-gray-500 rounded-full"></div>
               <div>
-                <div className="text-sm text-slate-400">محجوزة</div>
+                <div className="text-sm text-slate-400">{t("beds.stats.blocked")}</div>
                 <div className="font-semibold">{stats.blocked}</div>
               </div>
             </div>
@@ -358,7 +338,7 @@ export default function BedManagementDashboard() {
             <div className="flex items-center gap-3">
               <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
               <div>
-                <div className="text-sm text-slate-400">معدل الدوران</div>
+                <div className="text-sm text-slate-400">{t("beds.stats.turnoverRate")}</div>
                 <div className="font-semibold">{(stats.turnoverRate || 0).toFixed(1)}%</div>
               </div>
             </div>
@@ -369,14 +349,13 @@ export default function BedManagementDashboard() {
       {/* Tabs */}
       <div className="flex space-x-1 space-x-reverse border-b border-slate-700">
         {[
-          { id: 'overview', label: 'نظرة عامة' },
-          { id: 'wards', label: 'العنابر' },
-          { id: 'activities', label: 'النشاطات' },
+          { id: 'overview', label: t("beds.tabs.overview") },
+          { id: 'wards', label: t("beds.tabs.wards") },
+          { id: 'activities', label: t("beds.tabs.activities") },
         ].map((tab) => (
           <button
             key={tab.id}
             onClick={() => {
-               
               setActiveTab(tab.id as any);
               if (tab.id === 'overview') {
                 setSelectedWard(null);
@@ -399,23 +378,23 @@ export default function BedManagementDashboard() {
         <div className="flex flex-wrap gap-4 items-center">
           <input
             type="text"
-            placeholder="البحث عن عنبر أو غرفة..."
+            placeholder={t("beds.filters.search")}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-sm"
+            className="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white"
           />
           
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as BedStatus | 'ALL')}
-            className="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-sm"
+            className="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white"
           >
-            <option value="ALL">جميع الحالات</option>
-            <option value="AVAILABLE">متاحة</option>
-            <option value="OCCUPIED">مشغولة</option>
-            <option value="CLEANING">قيد التنظيف</option>
-            <option value="MAINTENANCE">الصيانة</option>
-            <option value="BLOCKED">محجوزة</option>
+            <option value="ALL">{t("beds.filters.allStatuses")}</option>
+            <option value="AVAILABLE">{t("beds.statuses.AVAILABLE")}</option>
+            <option value="OCCUPIED">{t("beds.statuses.OCCUPIED")}</option>
+            <option value="CLEANING">{t("beds.statuses.CLEANING")}</option>
+            <option value="MAINTENANCE">{t("beds.statuses.MAINTENANCE")}</option>
+            <option value="BLOCKED">{t("beds.statuses.BLOCKED")}</option>
           </select>
         </div>
       )}
@@ -444,19 +423,19 @@ export default function BedManagementDashboard() {
                   
                   <div className="grid grid-cols-2 gap-2 text-sm mb-3">
                     <div className="flex justify-between">
-                      <span className="text-slate-400">الإجمالي:</span>
+                      <span className="text-slate-400">{t("beds.card.total")}</span>
                       <span>{ward.totalBeds}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-slate-400">مشغول:</span>
+                      <span className="text-slate-400">{t("beds.card.occupied")}</span>
                       <span className="text-red-400">{ward.occupiedBeds}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-slate-400">متاح:</span>
+                      <span className="text-slate-400">{t("beds.card.available")}</span>
                       <span className="text-green-400">{ward.availableBeds}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-slate-400">تنظيف:</span>
+                      <span className="text-slate-400">{t("beds.card.cleaning")}</span>
                       <span className="text-yellow-400">{ward.cleaningBeds}</span>
                     </div>
                   </div>
@@ -479,7 +458,7 @@ export default function BedManagementDashboard() {
                     }}
                     className="w-full mt-2 px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded text-sm transition-colors"
                   >
-                    عرض التفاصيل
+                    {t("beds.card.viewDetails")}
                   </button>
                 </div>
               ))}
@@ -496,12 +475,12 @@ export default function BedManagementDashboard() {
                   <h3 className="text-lg font-semibold">{ward.name}</h3>
                   <div className="flex items-center gap-4">
                     <span className="text-sm text-slate-400">
-                      الإشغال: <span className={`font-bold ${getOccupancyColor(ward.occupancyRate)}`}>
+                      {t("beds.stats.occupancyRate")}: <span className={`font-bold ${getOccupancyColor(ward.occupancyRate)}`}>
                         {(ward.occupancyRate || 0).toFixed(1)}%
                       </span>
                     </span>
                     <span className="text-sm text-slate-400">
-                      {ward.occupiedBeds} / {ward.totalBeds} مشغول
+                      {ward.occupiedBeds} / {ward.totalBeds} {t("beds.statuses.OCCUPIED")}
                     </span>
                   </div>
                 </div>
@@ -510,7 +489,7 @@ export default function BedManagementDashboard() {
                   {ward.rooms.map((room) => (
                     <div key={room.id} className="bg-slate-800/50 rounded-lg p-4">
                       <div className="flex justify-between items-center mb-3">
-                        <h4 className="font-medium">غرفة {room.roomNumber}</h4>
+                        <h4 className="font-medium">{t("beds.room")} {room.roomNumber}</h4>
                         <span className="text-sm text-slate-400">
                           {room.occupiedBeds}/{room.totalBeds}
                         </span>
@@ -525,11 +504,11 @@ export default function BedManagementDashboard() {
                               className={`p-3 rounded-lg text-center text-xs cursor-pointer transition-all ${getBedColor(bed.status)} border-2`}
                               onClick={() => {
                                 if (bed.status === 'CLEANING') {
-                                  if (confirm(`هل تريد وضع علامة "نظيف" على السرير ${bed.bedNumber}؟`)) {
+                                  if (confirm(t("beds.confirmClean", { bedNumber: bed.bedNumber }))) {
                                     handleMarkBedClean(bed.id);
                                   }
                                 } else if (bed.status === 'MAINTENANCE' || bed.status === 'BLOCKED') {
-                                  const notes = prompt(`أدخل ملاحظات للسرير ${bed.bedNumber}:`);
+                                  const notes = prompt(t("beds.notesPrompt", { bedNumber: bed.bedNumber }));
                                   if (notes !== null) {
                                     handleMarkBedMaintenance(bed.id, notes);
                                   }
@@ -543,11 +522,11 @@ export default function BedManagementDashboard() {
                                 {bed.bedNumber}
                               </div>
                               <div className="text-xs opacity-80">
-                                {bed.status === 'AVAILABLE' && 'متاح'}
-                                {bed.status === 'OCCUPIED' && 'مشغول'}
-                                {bed.status === 'CLEANING' && 'تنظيف'}
-                                {bed.status === 'MAINTENANCE' && 'صيانة'}
-                                {bed.status === 'BLOCKED' && 'محجوز'}
+                                {bed.status === 'AVAILABLE' && t("beds.statuses.AVAILABLE")}
+                                {bed.status === 'OCCUPIED' && t("beds.statuses.OCCUPIED")}
+                                {bed.status === 'CLEANING' && t("beds.statuses.CLEANING")}
+                                {bed.status === 'MAINTENANCE' && t("beds.statuses.MAINTENANCE")}
+                                {bed.status === 'BLOCKED' && t("beds.statuses.BLOCKED")}
                               </div>
                               {bed.patient && (
                                 <div className="text-xs mt-1 truncate">
@@ -569,12 +548,12 @@ export default function BedManagementDashboard() {
         {activeTab === 'activities' && (
           <div className="bg-slate-900/50 rounded-xl border border-slate-700">
             <div className="p-4 border-b border-slate-700">
-              <h3 className="text-lg font-semibold">النشاطات الأخيرة</h3>
+              <h3 className="text-lg font-semibold">{t("beds.activity.title")}</h3>
             </div>
             <div className="divide-y divide-slate-700">
               {activities.length === 0 ? (
                 <div className="p-8 text-center text-slate-500">
-                  لا توجد نشاطات حديثة
+                  {t("beds.activity.empty")}
                 </div>
               ) : (
                 activities.map((activity) => (
@@ -587,19 +566,19 @@ export default function BedManagementDashboard() {
                           <span className="text-xs text-slate-400">{activity.wardName}</span>
                         </div>
                         <div className="text-sm text-slate-300 mb-1">
-                          {activity.type === 'ASSIGNMENT' && 'تم حجز السرير'}
-                          {activity.type === 'RELEASE' && 'تم تحرير السرير'}
-                          {activity.type === 'CLEANING' && 'تم بدء التنظيف'}
-                          {activity.type === 'MAINTENANCE' && 'تم بدء الصيانة'}
+                          {activity.type === 'ASSIGNMENT' && t("beds.activity.assigned")}
+                          {activity.type === 'RELEASE' && t("beds.activity.released")}
+                          {activity.type === 'CLEANING' && t("beds.activity.cleaning")}
+                          {activity.type === 'MAINTENANCE' && t("beds.activity.maintenance")}
                         </div>
                         {activity.patientName && (
                           <div className="text-xs text-slate-400">
-                            المريض: {activity.patientName}
+                            {t("beds.activity.patient")} {activity.patientName}
                           </div>
                         )}
                         {activity.notes && (
                           <div className="text-xs text-slate-400 mt-1">
-                            ملاحظات: {activity.notes}
+                            {t("beds.activity.notes")} {activity.notes}
                           </div>
                         )}
                       </div>
@@ -613,8 +592,8 @@ export default function BedManagementDashboard() {
                       </div>
                     </div>
                   </div>
-                ))
-              )}
+                )
+              ))}
             </div>
           </div>
         )}

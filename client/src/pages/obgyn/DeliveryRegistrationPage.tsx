@@ -8,15 +8,16 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-// import { Textarea } from '@/components/ui/textareaarea'; // Check if this exists, fallback to textarea HTML
+import { useTranslation } from 'react-i18next';
 
 export default function DeliveryRegistrationPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === 'ar';
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const encounterId = searchParams.get('encounterId');
 
   const [loading, setLoading] = useState(false);
-   
   const [encounter, setEncounter] = useState<any>(null);
   
   // Form State
@@ -38,7 +39,6 @@ export default function DeliveryRegistrationPage() {
   const [bloodLoss, setBloodLoss] = useState<number | ''>('');
   const [notes, setNotes] = useState('');
 
-
   useEffect(() => {
     if (encounterId) {
       loadEncounter(encounterId);
@@ -49,13 +49,11 @@ export default function DeliveryRegistrationPage() {
     try {
       const res = await apiClient.get(`/encounters/${id}`);
       setEncounter(res.data);
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
-      toast.error('فشل تحميل بيانات الزيارة');
+      toast.error(t('obgyn.delivery.toast.loadEncounterError', 'فشل تحميل بيانات الزيارة'));
     }
   };
 
-   
   const updateBaby = (index: number, field: string, value: any) => {
     const newBabies = [...babies];
     newBabies[index] = { ...newBabies[index], [field]: value };
@@ -83,7 +81,7 @@ export default function DeliveryRegistrationPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!encounterId) return toast.error('رقم الزيارة مفقود');
+    if (!encounterId) return toast.error(t('obgyn.delivery.toast.encounterIdMissing', 'رقم الزيارة مفقود'));
 
     setLoading(true);
     try {
@@ -109,28 +107,27 @@ export default function DeliveryRegistrationPage() {
         };
 
         await apiClient.post('/obgyn/deliveries', payload);
-        toast.success('تم تسجيل الولادة بنجاح');
+        toast.success(t('obgyn.delivery.toast.success', 'تم تسجيل الولادة بنجاح'));
         navigate(`/encounters/${encounterId}`);
-     
     } catch (err: any) {
-        toast.error(err.response?.data?.message || 'فشل تسجيل الولادة');
+        toast.error(err.response?.data?.message || t('obgyn.delivery.toast.error', 'فشل تسجيل الولادة'));
     } finally {
         setLoading(false);
     }
   };
 
-  if (!encounterId) return <div className="p-8 text-center text-red-500">يجب تحديد رقم الزيارة (Encounter ID) للبدء.</div>;
+  if (!encounterId) return <div className="p-8 text-center text-red-500">{t('obgyn.delivery.encounterIdRequired', 'يجب تحديد رقم الزيارة (Encounter ID) للبدء.')}</div>;
 
   return (
-    <div className="container mx-auto p-6 space-y-6" dir="rtl">
+    <div className="container mx-auto p-6 space-y-6" dir={isRtl ? 'rtl' : 'ltr'}>
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-white">تسجيل ولادة جديدة via Saraya</h1>
+        <h1 className="text-3xl font-bold text-white">{t('obgyn.delivery.title', 'تسجيل ولادة جديدة via Saraya')}</h1>
         <Button 
             variant="secondary" 
             onClick={() => navigate(-1)}
             className="bg-slate-800 text-slate-200 hover:bg-slate-700"
         >
-            رجوع
+            {t('obgyn.delivery.btn.back', 'رجوع')}
         </Button>
       </div>
 
@@ -140,11 +137,11 @@ export default function DeliveryRegistrationPage() {
             {encounter && (
                 <Card className="bg-transparent border border-slate-700 text-slate-100">
                     <CardHeader>
-                        <CardTitle className="text-white">بيانات المريضة</CardTitle>
+                        <CardTitle className="text-white">{t('obgyn.delivery.patientInfo', 'بيانات المريضة')}</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <div className="text-lg font-bold text-sky-400">{encounter.patient?.fullName}</div>
-                        <div className="text-sm text-slate-400">MRN: {encounter.patient?.mrn}</div>
+                        <div className="text-sm text-slate-400">{t('obgyn.delivery.mrn', 'MRN: ')}{encounter.patient?.mrn}</div>
                     </CardContent>
                 </Card>
             )}
@@ -156,7 +153,7 @@ export default function DeliveryRegistrationPage() {
         <div className="lg:col-span-2">
             <Card className="bg-transparent border border-slate-700 text-slate-100">
                 <CardHeader>
-                    <CardTitle className="text-white">تفاصيل الولادة</CardTitle>
+                    <CardTitle className="text-white">{t('obgyn.delivery.details', 'تفاصيل الولادة')}</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <form onSubmit={handleSubmit} className="space-y-6">
@@ -164,28 +161,28 @@ export default function DeliveryRegistrationPage() {
                         {/* Delivery Method */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label className="text-slate-400">طريقة الولادة</Label>
+                                <Label className="text-slate-400">{t('obgyn.delivery.method', 'طريقة الولادة')}</Label>
                                 <Select value={deliveryMethod} onValueChange={setDeliveryMethod}>
                                     <SelectTrigger className="bg-slate-900 border-slate-700 text-white">
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent className="bg-slate-900 border-slate-700 text-white">
-                                        <SelectItem value="NVD" className="focus:bg-slate-800 focus:text-white">ولادة طبيعية (NVD)</SelectItem>
-                                        <SelectItem value="ASSISTED_NVD" className="focus:bg-slate-800 focus:text-white">ولادة مساعدة (Assisted)</SelectItem>
-                                        <SelectItem value="CS_ELECTIVE" className="focus:bg-slate-800 focus:text-white">قيصرية اختيارية</SelectItem>
-                                        <SelectItem value="CS_EMERGENCY" className="focus:bg-slate-800 focus:text-white">قيصرية طارئة</SelectItem>
-                                        <SelectItem value="VBAC" className="focus:bg-slate-800 focus:text-white">ولادة طبيعية بعد قيصرية (VBAC)</SelectItem>
+                                        <SelectItem value="NVD" className="focus:bg-slate-800 focus:text-white">{t('obgyn.delivery.methods.nvd', 'ولادة طبيعية (NVD)')}</SelectItem>
+                                        <SelectItem value="ASSISTED_NVD" className="focus:bg-slate-800 focus:text-white">{t('obgyn.delivery.methods.assistedNvd', 'ولادة مساعدة (Assisted)')}</SelectItem>
+                                        <SelectItem value="CS_ELECTIVE" className="focus:bg-slate-800 focus:text-white">{t('obgyn.delivery.methods.csElective', 'قيصرية اختيارية')}</SelectItem>
+                                        <SelectItem value="CS_EMERGENCY" className="focus:bg-slate-800 focus:text-white">{t('obgyn.delivery.methods.csEmergency', 'قيصرية طارئة')}</SelectItem>
+                                        <SelectItem value="VBAC" className="focus:bg-slate-800 focus:text-white">{t('obgyn.delivery.methods.vbac', 'ولادة طبيعية بعد قيصرية (VBAC)')}</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
 
                             <div className="space-y-2">
-                                <Label className="text-slate-400">توصيل المشيمة</Label>
+                                <Label className="text-slate-400">{t('obgyn.delivery.placentaDelivery', 'توصيل المشيمة')}</Label>
                                 <Select value={placentaDelivery} onValueChange={setPlacentaDelivery}>
                                     <SelectTrigger className="bg-slate-900 border-slate-700 text-white"><SelectValue /></SelectTrigger>
                                     <SelectContent className="bg-slate-900 border-slate-700 text-white">
-                                        <SelectItem value="SPONTANEOUS" className="focus:bg-slate-800 focus:text-white">تلقائي</SelectItem>
-                                        <SelectItem value="MANUAL" className="focus:bg-slate-800 focus:text-white">يدوي</SelectItem>
+                                        <SelectItem value="SPONTANEOUS" className="focus:bg-slate-800 focus:text-white">{t('obgyn.delivery.placenta.spontaneous', 'تلقائي')}</SelectItem>
+                                        <SelectItem value="MANUAL" className="focus:bg-slate-800 focus:text-white">{t('obgyn.delivery.placenta.manual', 'يدوي')}</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -193,35 +190,35 @@ export default function DeliveryRegistrationPage() {
 
                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div className="space-y-2">
-                                <Label className="text-slate-400">شق العجان (Episiotomy)</Label>
+                                <Label className="text-slate-400">{t('obgyn.delivery.episiotomy', 'شق العجان (Episiotomy)')}</Label>
                                 <Select value={episiotomy ? 'YES' : 'NO'} onValueChange={(v) => setEpisiotomy(v === 'YES')}>
                                     <SelectTrigger className="bg-slate-900 border-slate-700 text-white"><SelectValue /></SelectTrigger>
                                     <SelectContent className="bg-slate-900 border-slate-700 text-white">
-                                        <SelectItem value="NO" className="focus:bg-slate-800 focus:text-white">لا</SelectItem>
-                                        <SelectItem value="YES" className="focus:bg-slate-800 focus:text-white">نعم</SelectItem>
+                                        <SelectItem value="NO" className="focus:bg-slate-800 focus:text-white">{t('obgyn.delivery.no', 'لا')}</SelectItem>
+                                        <SelectItem value="YES" className="focus:bg-slate-800 focus:text-white">{t('obgyn.delivery.yes', 'نعم')}</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
                             <div className="space-y-2">
-                                <Label className="text-slate-400">تمزق العجان (Perineal Tear)</Label>
+                                <Label className="text-slate-400">{t('obgyn.delivery.perinealTear', 'تمزق العجان (Perineal Tear)')}</Label>
                                 <Select value={perinealTear} onValueChange={setPerinealTear}>
                                     <SelectTrigger className="bg-slate-900 border-slate-700 text-white"><SelectValue /></SelectTrigger>
                                     <SelectContent className="bg-slate-900 border-slate-700 text-white">
-                                        <SelectItem value="NONE" className="focus:bg-slate-800 focus:text-white">لا يوجد</SelectItem>
-                                        <SelectItem value="DEGREE_1" className="focus:bg-slate-800 focus:text-white">درجة 1</SelectItem>
-                                        <SelectItem value="DEGREE_2" className="focus:bg-slate-800 focus:text-white">درجة 2</SelectItem>
-                                        <SelectItem value="DEGREE_3" className="focus:bg-slate-800 focus:text-white">درجة 3</SelectItem>
-                                        <SelectItem value="DEGREE_4" className="focus:bg-slate-800 focus:text-white">درجة 4</SelectItem>
+                                        <SelectItem value="NONE" className="focus:bg-slate-800 focus:text-white">{t('obgyn.delivery.tears.none', 'لا يوجد')}</SelectItem>
+                                        <SelectItem value="DEGREE_1" className="focus:bg-slate-800 focus:text-white">{t('obgyn.delivery.tears.degree1', 'درجة 1')}</SelectItem>
+                                        <SelectItem value="DEGREE_2" className="focus:bg-slate-800 focus:text-white">{t('obgyn.delivery.tears.degree2', 'درجة 2')}</SelectItem>
+                                        <SelectItem value="DEGREE_3" className="focus:bg-slate-800 focus:text-white">{t('obgyn.delivery.tears.degree3', 'درجة 3')}</SelectItem>
+                                        <SelectItem value="DEGREE_4" className="focus:bg-slate-800 focus:text-white">{t('obgyn.delivery.tears.degree4', 'درجة 4')}</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
                              <div className="space-y-2">
-                                <Label className="text-slate-400">فقدان الدم (مل)</Label>
+                                <Label className="text-slate-400">{t('obgyn.delivery.bloodLoss', 'فقدان الدم (مل)')}</Label>
                                 <Input 
                                     type="number" 
                                     value={bloodLoss} 
                                     onChange={e => setBloodLoss(e.target.value === '' ? '' : Number(e.target.value))} 
-                                    placeholder="مثلاً 500" 
+                                    placeholder={t('obgyn.delivery.bloodLossPlaceholder', 'مثلاً 500')} 
                                     className="bg-slate-900 border-slate-700 text-white"
                                 />
                             </div>
@@ -231,9 +228,9 @@ export default function DeliveryRegistrationPage() {
                         {/* Babies Section */}
                         <div className="border-t border-slate-800 pt-4">
                             <div className="flex justify-between items-center mb-4">
-                                <h3 className="font-bold text-lg text-white">بيانات المواليد</h3>
+                                <h3 className="font-bold text-lg text-white">{t('obgyn.delivery.newbornsData', 'بيانات المواليد')}</h3>
                                 <div className="flex items-center gap-2">
-                                    <Label className="text-slate-400">عدد المواليد: </Label>
+                                    <Label className="text-slate-400">{t('obgyn.delivery.babyCount', 'عدد المواليد: ')}</Label>
                                     <Input 
                                         type="number" 
                                         min={1} 
@@ -248,20 +245,20 @@ export default function DeliveryRegistrationPage() {
                             <div className="space-y-4">
                                 {babies.map((baby, index) => (
                                     <div key={index} className="bg-slate-900/50 p-4 rounded-lg border border-slate-700">
-                                        <h4 className="font-semibold mb-2 text-pink-400">مولود #{index + 1}</h4>
+                                        <h4 className="font-semibold mb-2 text-pink-400">{t('obgyn.delivery.babyNumber', 'مولود #')}{index + 1}</h4>
                                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                                             <div className="space-y-1">
-                                                <Label className="text-slate-400">الجنس</Label>
+                                                <Label className="text-slate-400">{t('obgyn.delivery.gender', 'الجنس')}</Label>
                                                 <Select value={baby.gender} onValueChange={(v) => updateBaby(index, 'gender', v)}>
                                                     <SelectTrigger className="bg-slate-950 border-slate-700 text-white"><SelectValue /></SelectTrigger>
                                                     <SelectContent className="bg-slate-900 border-slate-700 text-white">
-                                                        <SelectItem value="MALE" className="focus:bg-slate-800 focus:text-white">ذكر</SelectItem>
-                                                        <SelectItem value="FEMALE" className="focus:bg-slate-800 focus:text-white">أنثى</SelectItem>
+                                                        <SelectItem value="MALE" className="focus:bg-slate-800 focus:text-white">{t('obgyn.delivery.genderMale', 'ذكر')}</SelectItem>
+                                                        <SelectItem value="FEMALE" className="focus:bg-slate-800 focus:text-white">{t('obgyn.delivery.genderFemale', 'أنثى')}</SelectItem>
                                                     </SelectContent>
                                                 </Select>
                                             </div>
                                             <div className="space-y-1">
-                                                <Label className="text-slate-400">الوزن (كجم)</Label>
+                                                <Label className="text-slate-400">{t('obgyn.delivery.weight', 'الوزن (كجم)')}</Label>
                                                 <Input 
                                                     type="number" 
                                                     step="0.01" 
@@ -271,7 +268,7 @@ export default function DeliveryRegistrationPage() {
                                                 />
                                             </div>
                                             <div className="space-y-1">
-                                                <Label className="text-slate-400">الطول (سم)</Label>
+                                                <Label className="text-slate-400">{t('obgyn.delivery.length', 'الطول (سم)')}</Label>
                                                 <Input 
                                                     type="number" 
                                                     step="0.1" 
@@ -281,7 +278,7 @@ export default function DeliveryRegistrationPage() {
                                                 />
                                             </div>
                                             <div className="space-y-1">
-                                                <Label className="text-slate-400">محيط الرأس (سم)</Label>
+                                                <Label className="text-slate-400">{t('obgyn.delivery.headCircumference', 'محيط الرأس (سم)')}</Label>
                                                 <Input 
                                                     type="number" 
                                                     step="0.1" 
@@ -291,7 +288,7 @@ export default function DeliveryRegistrationPage() {
                                                 />
                                             </div>
                                              <div className="space-y-1 col-span-2 md:col-span-1">
-                                                <Label className="text-slate-400">وقت الولادة</Label>
+                                                <Label className="text-slate-400">{t('obgyn.delivery.birthTime', 'وقت الولادة')}</Label>
                                                 <Input 
                                                     type="datetime-local" 
                                                     value={baby.birthTime} 
@@ -300,7 +297,7 @@ export default function DeliveryRegistrationPage() {
                                                 />
                                             </div>
                                             <div className="space-y-1">
-                                                <Label className="text-slate-400">Apgar 1m</Label>
+                                                <Label className="text-slate-400">{t('obgyn.delivery.apgapScore1', 'Apgar 1m')}</Label>
                                                 <Input 
                                                     type="number" 
                                                     max={10}
@@ -310,7 +307,7 @@ export default function DeliveryRegistrationPage() {
                                                 />
                                             </div>
                                             <div className="space-y-1">
-                                                <Label className="text-slate-400">Apgar 5m</Label>
+                                                <Label className="text-slate-400">{t('obgyn.delivery.apgarScore5', 'Apgar 5m')}</Label>
                                                 <Input 
                                                     type="number" 
                                                     max={10}
@@ -320,7 +317,7 @@ export default function DeliveryRegistrationPage() {
                                                 />
                                             </div>
                                             <div className="space-y-1">
-                                                <Label className="text-slate-400">Apgar 10m</Label>
+                                                <Label className="text-slate-400">{t('obgyn.delivery.apgarScore10', 'Apgar 10m')}</Label>
                                                 <Input 
                                                     type="number" 
                                                     max={10}
@@ -332,13 +329,13 @@ export default function DeliveryRegistrationPage() {
                                         </div>
                                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">
                                             <div className="space-y-1">
-                                                <Label className="text-slate-400">حالة المولود</Label>
+                                                <Label className="text-slate-400">{t('obgyn.delivery.babyStatus', 'حالة المولود')}</Label>
                                                 <Select value={baby.status || 'ALIVE'} onValueChange={(v) => updateBaby(index, 'status', v)}>
                                                     <SelectTrigger className="bg-slate-950 border-slate-700 text-white"><SelectValue /></SelectTrigger>
                                                     <SelectContent className="bg-slate-900 border-slate-700 text-white">
-                                                        <SelectItem value="ALIVE" className="focus:bg-slate-800 focus:text-white">حي</SelectItem>
-                                                        <SelectItem value="STILLBORN" className="focus:bg-slate-800 focus:text-white">ميت</SelectItem>
-                                                        <SelectItem value="NICU" className="focus:bg-slate-800 focus:text-white">عناية مركزة (NICU)</SelectItem>
+                                                        <SelectItem value="ALIVE" className="focus:bg-slate-800 focus:text-white">{t('obgyn.delivery.status.alive', 'حي')}</SelectItem>
+                                                        <SelectItem value="STILLBORN" className="focus:bg-slate-800 focus:text-white">{t('obgyn.delivery.status.stillborn', 'ميت')}</SelectItem>
+                                                        <SelectItem value="NICU" className="focus:bg-slate-800 focus:text-white">{t('obgyn.delivery.status.nicu', 'عناية مركزة (NICU)')}</SelectItem>
                                                     </SelectContent>
                                                 </Select>
                                             </div>
@@ -349,7 +346,7 @@ export default function DeliveryRegistrationPage() {
                                                     onChange={(e) => updateBaby(index, 'vitaminKGiven', e.target.checked)}
                                                     className="h-4 w-4 rounded border-slate-600"
                                                 />
-                                                <Label className="text-slate-300">فيتامين K</Label>
+                                                <Label className="text-slate-300">{t('obgyn.delivery.vitaminK', 'فيتامين K')}</Label>
                                             </div>
                                             <div className="flex items-center gap-2 pt-5">
                                                 <input 
@@ -358,7 +355,7 @@ export default function DeliveryRegistrationPage() {
                                                     onChange={(e) => updateBaby(index, 'bcgVaccineGiven', e.target.checked)}
                                                     className="h-4 w-4 rounded border-slate-600"
                                                 />
-                                                <Label className="text-slate-300">تطعيم BCG</Label>
+                                                <Label className="text-slate-300">{t('obgyn.delivery.bcgVaccine', 'تطعيم BCG')}</Label>
                                             </div>
                                         </div>
                                     </div>
@@ -367,11 +364,11 @@ export default function DeliveryRegistrationPage() {
                         </div>
 
                         <div className="space-y-2">
-                            <Label className="text-slate-400">ملاحظات إضافية</Label>
+                            <Label className="text-slate-400">{t('obgyn.delivery.notes', 'ملاحظات إضافية')}</Label>
                             <Input 
                                 value={notes} 
                                 onChange={e => setNotes(e.target.value)} 
-                                placeholder="أي مضاعفات أو ملاحظات أخرى..." 
+                                placeholder={t('obgyn.delivery.notesPlaceholder', 'أي مضاعفات أو ملاحظات أخرى...')} 
                                 className="bg-slate-900 border-slate-700 text-white"
                             />
                         </div>
@@ -383,10 +380,10 @@ export default function DeliveryRegistrationPage() {
                                 onClick={() => navigate(-1)}
                                 className="text-slate-400 hover:text-white hover:bg-slate-800"
                             >
-                                إلغاء
+                                {t('obgyn.delivery.btn.cancel', 'إلغاء')}
                             </Button>
                             <Button type="submit" disabled={loading} className="w-40 bg-pink-600 hover:bg-pink-500 text-white font-bold">
-                                {loading ? 'جاري الحفظ...' : 'حفظ وتسجيل الولادة'}
+                                {loading ? t('obgyn.delivery.btn.saving', 'جاري الحفظ...') : t('obgyn.delivery.btn.save', 'حفظ وتسجيل الولادة')}
                             </Button>
                         </div>
                     </form>

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { apiClient } from "../api/apiClient";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 
 interface Referral {
   id: number;
@@ -23,20 +24,17 @@ interface Doctor {
   fullName: string;
 }
 
-const STATUS_MAP: Record<string, { label: string; color: string }> = {
-  PENDING: { label: "في الانتظار", color: "bg-amber-900/30 text-amber-400 border-amber-700" },
-  ACCEPTED: { label: "مقبولة", color: "bg-sky-900/30 text-sky-400 border-sky-700" },
-  COMPLETED: { label: "مكتملة", color: "bg-emerald-900/30 text-emerald-400 border-emerald-700" },
-  REJECTED: { label: "مرفوضة", color: "bg-red-900/30 text-red-400 border-red-700" },
-  CANCELLED: { label: "ملغاة", color: "bg-slate-800/50 text-slate-400 border-slate-700" },
-};
-
-const PRIORITY_MAP: Record<string, { label: string; color: string }> = {
-  URGENT: { label: "عاجلة", color: "text-red-400" },
-  ROUTINE: { label: "عادية", color: "text-slate-400" },
+const STATUS_MAP: Record<string, { color: string }> = {
+  PENDING: { color: "bg-amber-900/30 text-amber-400 border-amber-700" },
+  ACCEPTED: { color: "bg-sky-900/30 text-sky-400 border-sky-700" },
+  COMPLETED: { color: "bg-emerald-900/30 text-emerald-400 border-emerald-700" },
+  REJECTED: { color: "bg-red-900/30 text-red-400 border-red-700" },
+  CANCELLED: { color: "bg-slate-800/50 text-slate-400 border-slate-700" },
 };
 
 export default function ReferralsPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
   const [tab, setTab] = useState<"received" | "sent">("received");
   const [referrals, setReferrals] = useState<Referral[]>([]);
   const [loading, setLoading] = useState(false);
@@ -67,7 +65,7 @@ export default function ReferralsPage() {
       const res = await apiClient.get<Referral[]>(endpoint);
       setReferrals(res.data);
     } catch {
-      toast.error("فشل تحميل الإحالات");
+      toast.error(t("referrals.alerts.loadFailed", "فشل تحميل الإحالات"));
     } finally {
       setLoading(false);
     }
@@ -101,7 +99,7 @@ export default function ReferralsPage() {
 
   const handleCreate = async () => {
     if (!form.patientId || !form.receivingDoctorId || !form.reason) {
-      toast.error("يرجى ملء جميع الحقول المطلوبة");
+      toast.error(t("referrals.alerts.requiredFields", "يرجى ملء جميع الحقول المطلوبة"));
       return;
     }
     try {
@@ -112,12 +110,12 @@ export default function ReferralsPage() {
         clinicalSummary: form.clinicalSummary || undefined,
         priority: form.priority,
       });
-      toast.success("تم إنشاء الإحالة بنجاح");
+      toast.success(t("referrals.alerts.createSuccess", "تم إنشاء الإحالة بنجاح"));
       setShowModal(false);
       setForm({ patientSearch: "", patientId: 0, receivingDoctorId: 0, reason: "", clinicalSummary: "", priority: "ROUTINE" });
       loadReferrals();
     } catch {
-      toast.error("فشل إنشاء الإحالة");
+      toast.error(t("referrals.alerts.createFailed", "فشل إنشاء الإحالة"));
     }
   };
 
@@ -125,38 +123,38 @@ export default function ReferralsPage() {
     try {
       if (action === "accept") {
         await apiClient.patch(`/referrals/${id}/accept`);
-        toast.success("تم قبول الإحالة");
+        toast.success(t("referrals.alerts.acceptSuccess", "تم قبول الإحالة"));
       } else if (action === "complete") {
         await apiClient.patch(`/referrals/${id}/complete`, { notes });
-        toast.success("تم إكمال الإحالة");
+        toast.success(t("referrals.alerts.completeSuccess", "تم إكمال الإحالة"));
       } else if (action === "reject") {
         await apiClient.patch(`/referrals/${id}/reject`, { notes });
-        toast.success("تم رفض الإحالة");
+        toast.success(t("referrals.alerts.rejectSuccess", "تم رفض الإحالة"));
       } else if (action === "cancel") {
         await apiClient.patch(`/referrals/${id}/cancel`);
-        toast.success("تم إلغاء الإحالة");
+        toast.success(t("referrals.alerts.cancelSuccess", "تم إلغاء الإحالة"));
       }
       setActionModal(null);
       setActionNotes("");
       loadReferrals();
     } catch {
-      toast.error("فشل تنفيذ الإجراء");
+      toast.error(t("referrals.alerts.opFailed", "فشل تنفيذ الإجراء"));
     }
   };
 
   return (
-    <div className="p-6 text-slate-100 space-y-6" dir="rtl">
+    <div className="p-6 text-slate-100 space-y-6" dir={isRtl ? "rtl" : "ltr"}>
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold">نظام الإحالات</h1>
-          <p className="text-slate-400 text-sm mt-1">إحالة المرضى بين الأطباء مع تتبع الحالة</p>
+          <h1 className="text-2xl font-bold">{t("referrals.title")}</h1>
+          <p className="text-slate-400 text-sm mt-1">{t("referrals.subtitle")}</p>
         </div>
         <button
           onClick={() => setShowModal(true)}
-          className="px-5 py-2.5 bg-sky-600 text-white rounded-xl font-bold hover:bg-sky-500 transition shadow-lg shadow-sky-900/30"
+          className="px-5 py-2.5 bg-sky-600 text-white rounded-xl font-bold hover:bg-sky-500 transition shadow-lg shadow-sky-900/30 text-sm"
         >
-          + إحالة جديدة
+          {t("referrals.newReferral")}
         </button>
       </div>
 
@@ -170,7 +168,7 @@ export default function ReferralsPage() {
               : "text-slate-400 hover:text-white"
           }`}
         >
-          إحالات واردة
+          {t("referrals.tabReceived")}
         </button>
         <button
           onClick={() => setTab("sent")}
@@ -180,30 +178,30 @@ export default function ReferralsPage() {
               : "text-slate-400 hover:text-white"
           }`}
         >
-          إحالات صادرة
+          {t("referrals.tabSent")}
         </button>
       </div>
 
       {/* Table */}
       {loading ? (
-        <div className="text-center py-16 text-slate-500 animate-pulse">جاري التحميل...</div>
+        <div className="text-center py-16 text-slate-500 animate-pulse">{t("referrals.loading")}</div>
       ) : referrals.length === 0 ? (
-        <div className="text-center py-16 text-slate-500">لا توجد إحالات</div>
+        <div className="text-center py-16 text-slate-500 border border-dashed border-slate-800 rounded-xl">{t("referrals.empty")}</div>
       ) : (
         <div className="bg-slate-900/70 border border-slate-800 rounded-2xl overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-slate-800/50">
               <tr>
-                <th className="px-5 py-3 text-right text-slate-400">#</th>
-                <th className="px-5 py-3 text-right text-slate-400">المريض</th>
+                <th className="px-5 py-3 text-right text-slate-400">{t("referrals.table.no")}</th>
+                <th className="px-5 py-3 text-right text-slate-400">{t("referrals.table.patient")}</th>
                 <th className="px-5 py-3 text-right text-slate-400">
-                  {tab === "received" ? "من الطبيب" : "إلى الطبيب"}
+                  {tab === "received" ? t("referrals.table.fromDoctor") : t("referrals.table.toDoctor")}
                 </th>
-                <th className="px-5 py-3 text-right text-slate-400">السبب</th>
-                <th className="px-5 py-3 text-center text-slate-400">الأولوية</th>
-                <th className="px-5 py-3 text-center text-slate-400">الحالة</th>
-                <th className="px-5 py-3 text-right text-slate-400">التاريخ</th>
-                <th className="px-5 py-3 text-center text-slate-400">إجراءات</th>
+                <th className="px-5 py-3 text-right text-slate-400">{t("referrals.table.reason")}</th>
+                <th className="px-5 py-3 text-center text-slate-400">{t("referrals.table.priority")}</th>
+                <th className="px-5 py-3 text-center text-slate-400">{t("referrals.table.status")}</th>
+                <th className="px-5 py-3 text-right text-slate-400">{t("referrals.table.date")}</th>
+                <th className="px-5 py-3 text-center text-slate-400">{t("referrals.table.actions")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800">
@@ -221,17 +219,17 @@ export default function ReferralsPage() {
                   </td>
                   <td className="px-5 py-3 max-w-[200px] truncate">{r.reason}</td>
                   <td className="px-5 py-3 text-center">
-                    <span className={PRIORITY_MAP[r.priority]?.color || ""}>
-                      {PRIORITY_MAP[r.priority]?.label || r.priority}
+                    <span className={r.priority === "URGENT" ? "text-red-400" : "text-slate-400"}>
+                      {t("referrals.priority." + r.priority, r.priority)}
                     </span>
                   </td>
                   <td className="px-5 py-3 text-center">
                     <span className={`px-3 py-1 rounded-full text-xs border ${STATUS_MAP[r.status]?.color || ""}`}>
-                      {STATUS_MAP[r.status]?.label || r.status}
+                      {t("referrals.status." + r.status, r.status)}
                     </span>
                   </td>
                   <td className="px-5 py-3 text-slate-400 text-xs">
-                    {new Date(r.createdAt).toLocaleDateString("ar-LY")}
+                    {new Date(r.createdAt).toLocaleDateString(isRtl ? "ar-LY" : "en-US")}
                   </td>
                   <td className="px-5 py-3 text-center">
                     <div className="flex gap-1 justify-center">
@@ -239,24 +237,24 @@ export default function ReferralsPage() {
                         <>
                           <button
                             onClick={() => handleAction("accept", r.id)}
-                            className="px-3 py-1 bg-emerald-600 text-white rounded-lg text-xs hover:bg-emerald-500 transition"
+                            className="px-3 py-1 bg-emerald-600 text-white rounded-lg text-xs hover:bg-emerald-500 transition font-bold"
                           >
-                            قبول
+                            {t("referrals.accept")}
                           </button>
                           <button
                             onClick={() => setActionModal({ type: "reject", id: r.id })}
-                            className="px-3 py-1 bg-red-600 text-white rounded-lg text-xs hover:bg-red-500 transition"
+                            className="px-3 py-1 bg-red-600 text-white rounded-lg text-xs hover:bg-red-500 transition font-bold"
                           >
-                            رفض
+                            {t("referrals.reject")}
                           </button>
                         </>
                       )}
                       {tab === "received" && r.status === "ACCEPTED" && (
                         <button
                           onClick={() => setActionModal({ type: "complete", id: r.id })}
-                          className="px-3 py-1 bg-sky-600 text-white rounded-lg text-xs hover:bg-sky-500 transition"
+                          className="px-3 py-1 bg-sky-600 text-white rounded-lg text-xs hover:bg-sky-500 transition font-bold"
                         >
-                          إكمال
+                          {t("referrals.complete")}
                         </button>
                       )}
                       {tab === "sent" && r.status === "PENDING" && (
@@ -264,7 +262,7 @@ export default function ReferralsPage() {
                           onClick={() => handleAction("cancel", r.id)}
                           className="px-3 py-1 bg-slate-600 text-white rounded-lg text-xs hover:bg-slate-500 transition"
                         >
-                          إلغاء
+                          {t("referrals.cancel")}
                         </button>
                       )}
                     </div>
@@ -278,13 +276,13 @@ export default function ReferralsPage() {
 
       {/* Create Referral Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center backdrop-blur-sm">
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center backdrop-blur-sm p-4">
           <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 w-full max-w-lg shadow-2xl">
-            <h2 className="text-xl font-bold mb-5">إحالة جديدة</h2>
+            <h2 className="text-xl font-bold mb-5">{t("referrals.newReferral")}</h2>
 
             {/* Patient Search */}
             <div className="mb-4">
-              <label className="text-sm text-slate-400 mb-1 block">المريض *</label>
+              <label className="text-sm text-slate-400 mb-1 block">{t("referrals.form.patient")}</label>
               <input
                 type="text"
                 value={form.patientSearch}
@@ -292,8 +290,8 @@ export default function ReferralsPage() {
                   setForm({ ...form, patientSearch: e.target.value, patientId: 0 });
                   searchPatients(e.target.value);
                 }}
-                placeholder="ابحث بالاسم أو رقم الملف..."
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-sky-600 focus:border-transparent outline-none"
+                placeholder={t("referrals.form.patientSearchPlaceholder")}
+                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-sky-600 focus:border-transparent outline-none text-white"
               />
               {patients.length > 0 && !form.patientId && (
                 <div className="bg-slate-800 border border-slate-700 rounded-xl mt-1 max-h-40 overflow-y-auto">
@@ -304,7 +302,7 @@ export default function ReferralsPage() {
                         setForm({ ...form, patientId: p.id, patientSearch: p.fullName });
                         setPatients([]);
                       }}
-                      className="w-full px-4 py-2 text-right text-sm hover:bg-slate-700 transition"
+                      className="w-full px-4 py-2 text-right text-sm hover:bg-slate-700 transition text-slate-100"
                     >
                       {p.fullName} - {p.mrn}
                     </button>
@@ -315,13 +313,13 @@ export default function ReferralsPage() {
 
             {/* Receiving Doctor */}
             <div className="mb-4">
-              <label className="text-sm text-slate-400 mb-1 block">الطبيب المُحال إليه *</label>
+              <label className="text-sm text-slate-400 mb-1 block">{t("referrals.form.receivingDoctor")}</label>
               <select
                 value={form.receivingDoctorId}
                 onChange={(e) => setForm({ ...form, receivingDoctorId: Number(e.target.value) })}
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-sky-600 outline-none"
+                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-sky-600 outline-none text-white"
               >
-                <option value={0}>اختر الطبيب...</option>
+                <option value={0}>{t("referrals.form.selectDoctor")}</option>
                 {doctors.map((d) => (
                   <option key={d.id} value={d.id}>{d.fullName}</option>
                 ))}
@@ -330,38 +328,38 @@ export default function ReferralsPage() {
 
             {/* Reason */}
             <div className="mb-4">
-              <label className="text-sm text-slate-400 mb-1 block">سبب الإحالة *</label>
+              <label className="text-sm text-slate-400 mb-1 block">{t("referrals.form.reason")}</label>
               <input
                 type="text"
                 value={form.reason}
                 onChange={(e) => setForm({ ...form, reason: e.target.value })}
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-sky-600 outline-none"
-                placeholder="سبب الإحالة..."
+                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-sky-600 outline-none text-white"
+                placeholder={t("referrals.form.reasonPlaceholder")}
               />
             </div>
 
             {/* Clinical Summary */}
             <div className="mb-4">
-              <label className="text-sm text-slate-400 mb-1 block">الملخص السريري</label>
+              <label className="text-sm text-slate-400 mb-1 block">{t("referrals.form.clinicalSummary")}</label>
               <textarea
                 value={form.clinicalSummary}
                 onChange={(e) => setForm({ ...form, clinicalSummary: e.target.value })}
                 rows={3}
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-sky-600 outline-none resize-none"
-                placeholder="ملخص الحالة السريرية..."
+                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-sky-600 outline-none resize-none text-white"
+                placeholder={t("referrals.form.clinicalSummaryPlaceholder")}
               />
             </div>
 
             {/* Priority */}
             <div className="mb-5">
-              <label className="text-sm text-slate-400 mb-1 block">الأولوية</label>
+              <label className="text-sm text-slate-400 mb-1 block">{t("referrals.form.priority")}</label>
               <select
                 value={form.priority}
                 onChange={(e) => setForm({ ...form, priority: e.target.value })}
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-sky-600 outline-none"
+                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-sky-600 outline-none text-white"
               >
-                <option value="ROUTINE">عادية</option>
-                <option value="URGENT">عاجلة</option>
+                <option value="ROUTINE">{t("referrals.priority.ROUTINE")}</option>
+                <option value="URGENT">{t("referrals.priority.URGENT")}</option>
               </select>
             </div>
 
@@ -369,15 +367,15 @@ export default function ReferralsPage() {
             <div className="flex gap-3 justify-end">
               <button
                 onClick={() => setShowModal(false)}
-                className="px-5 py-2.5 bg-slate-700 text-slate-300 rounded-xl hover:bg-slate-600 transition"
+                className="px-5 py-2.5 bg-slate-800 text-slate-300 rounded-xl hover:bg-slate-700 transition text-sm"
               >
-                إلغاء
+                {t("referrals.cancel")}
               </button>
               <button
                 onClick={handleCreate}
-                className="px-5 py-2.5 bg-sky-600 text-white rounded-xl font-bold hover:bg-sky-500 transition"
+                className="px-5 py-2.5 bg-sky-600 text-white rounded-xl font-bold hover:bg-sky-500 transition text-sm"
               >
-                إرسال الإحالة
+                {t("referrals.sendReferral")}
               </button>
             </div>
           </div>
@@ -386,39 +384,39 @@ export default function ReferralsPage() {
 
       {/* Action Notes Modal (Complete/Reject) */}
       {actionModal && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center backdrop-blur-sm">
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center backdrop-blur-sm p-4">
           <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 w-full max-w-md shadow-2xl">
             <h2 className="text-lg font-bold mb-4">
-              {actionModal.type === "complete" ? "إكمال الإحالة" : "رفض الإحالة"}
+              {actionModal.type === "complete" ? t("referrals.actionModal.completeTitle") : t("referrals.actionModal.rejectTitle")}
             </h2>
             <div className="mb-4">
-              <label className="text-sm text-slate-400 mb-1 block">ملاحظات</label>
+              <label className="text-sm text-slate-400 mb-1 block">{t("referrals.actionModal.notes")}</label>
               <textarea
                 value={actionNotes}
                 onChange={(e) => setActionNotes(e.target.value)}
                 rows={3}
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-sky-600 outline-none resize-none"
+                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-sky-600 outline-none resize-none text-white"
                 placeholder={
                   actionModal.type === "complete"
-                    ? "نتيجة الكشف أو الملاحظات..."
-                    : "سبب الرفض..."
+                    ? t("referrals.actionModal.completePlaceholder")
+                    : t("referrals.actionModal.rejectPlaceholder")
                 }
               />
             </div>
             <div className="flex gap-3 justify-end">
               <button
                 onClick={() => { setActionModal(null); setActionNotes(""); }}
-                className="px-5 py-2.5 bg-slate-700 text-slate-300 rounded-xl hover:bg-slate-600 transition"
+                className="px-5 py-2.5 bg-slate-800 text-slate-300 rounded-xl hover:bg-slate-700 transition text-sm"
               >
-                إلغاء
+                {t("referrals.cancel")}
               </button>
               <button
                 onClick={() => handleAction(actionModal.type, actionModal.id, actionNotes)}
-                className={`px-5 py-2.5 text-white rounded-xl font-bold transition ${
+                className={`px-5 py-2.5 text-white rounded-xl font-bold transition text-sm ${
                   actionModal.type === "complete" ? "bg-emerald-600 hover:bg-emerald-500" : "bg-red-600 hover:bg-red-500"
                 }`}
               >
-                {actionModal.type === "complete" ? "تأكيد الإكمال" : "تأكيد الرفض"}
+                {actionModal.type === "complete" ? t("referrals.confirmComplete") : t("referrals.confirmReject")}
               </button>
             </div>
           </div>

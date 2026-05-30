@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useTranslation } from 'react-i18next';
 
 interface AntenatalCare {
   id: number;
@@ -53,6 +54,8 @@ interface AntenatalVisit {
 }
 
 export default function AntenatalCarePage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === 'ar';
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const patientId = searchParams.get('patientId');
@@ -104,7 +107,7 @@ export default function AntenatalCarePage() {
       const res = await apiClient.get(`/obgyn/anc/${id}`);
       setCare(res.data);
     } catch {
-      toast.error('فشل تحميل سجل الحمل');
+      toast.error(t('obgyn.anc.toast.loadCareError', 'فشل تحميل سجل الحمل'));
     } finally {
       setLoading(false);
     }
@@ -116,14 +119,14 @@ export default function AntenatalCarePage() {
       const res = await apiClient.get(`/obgyn/anc/patient/${pid}`);
       setCares(res.data);
     } catch {
-      toast.error('فشل تحميل سجلات الحمل');
+      toast.error(t('obgyn.anc.toast.loadCaresError', 'فشل تحميل سجلات الحمل'));
     } finally {
       setLoading(false);
     }
   };
 
   const handleCreateCare = async () => {
-    if (!patientId || !lmpDate) return toast.error('يرجى تحديد تاريخ آخر دورة');
+    if (!patientId || !lmpDate) return toast.error(t('obgyn.anc.toast.lmpDateRequired', 'يرجى تحديد تاريخ آخر دورة'));
     try {
       const res = await apiClient.post('/obgyn/anc', {
         patientId: Number(patientId),
@@ -131,12 +134,12 @@ export default function AntenatalCarePage() {
         gravida, para, bloodGroup, rhFactor, partnerRhFactor: partnerRhFactor || undefined,
         riskLevel, riskFactors,
       });
-      toast.success('تم تسجيل الحمل بنجاح');
+      toast.success(t('obgyn.anc.toast.createCareSuccess', 'تم تسجيل الحمل بنجاح'));
       setShowNewCareForm(false);
       navigate(`/obgyn/anc?careId=${res.data.id}`, { replace: true });
      
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'فشل تسجيل الحمل');
+      toast.error(err.response?.data?.message || t('obgyn.anc.toast.createCareError', 'فشل تسجيل الحمل'));
     }
   };
 
@@ -159,7 +162,7 @@ export default function AntenatalCarePage() {
         notes: visitNotes || undefined,
         nextVisitDate: nextVisitDate ? new Date(nextVisitDate).toISOString() : undefined,
       });
-      toast.success('تم إضافة زيارة المتابعة');
+      toast.success(t('obgyn.anc.toast.addVisitSuccess', 'تم إضافة زيارة المتابعة'));
       setShowVisitForm(false);
       loadCare(care.id);
       setVisitWeight(''); setBpSys(''); setBpDia(''); setFundalHeight('');
@@ -168,7 +171,7 @@ export default function AntenatalCarePage() {
       setComplaints(''); setVisitNotes(''); setNextVisitDate('');
      
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'فشل إضافة الزيارة');
+      toast.error(err.response?.data?.message || t('obgyn.anc.toast.addVisitError', 'فشل إضافة الزيارة'));
     }
   };
 
@@ -176,10 +179,10 @@ export default function AntenatalCarePage() {
     if (!care) return;
     try {
       await apiClient.patch(`/obgyn/anc/${care.id}/partner-rh`, { partnerRhFactor: value });
-      toast.success('تم تحديث Rh الزوج');
+      toast.success(t('obgyn.anc.toast.updatePartnerRhSuccess', 'تم تحديث Rh الزوج'));
       loadCare(care.id);
     } catch {
-      toast.error('فشل تحديث Rh الزوج');
+      toast.error(t('obgyn.anc.toast.updatePartnerRhError', 'فشل تحديث Rh الزوج'));
     }
   };
 
@@ -187,10 +190,10 @@ export default function AntenatalCarePage() {
     if (!care) return;
     try {
       await apiClient.patch(`/obgyn/anc/${care.id}/anti-d`, { type });
-      toast.success('تم تسجيل حقنة Anti-D');
+      toast.success(t('obgyn.anc.toast.recordAntiDSuccess', 'تم تسجيل حقنة Anti-D'));
       loadCare(care.id);
     } catch {
-      toast.error('فشل تسجيل الحقنة');
+      toast.error(t('obgyn.anc.toast.recordAntiDError', 'فشل تسجيل الحقنة'));
     }
   };
 
@@ -201,14 +204,14 @@ export default function AntenatalCarePage() {
   };
 
   const statusLabels: Record<string, string> = {
-    ACTIVE: 'حمل نشط',
-    DELIVERED: 'تمت الولادة',
-    MISCARRIAGE: 'إجهاض',
-    ECTOPIC: 'حمل خارج الرحم',
-    CANCELLED: 'ملغي',
+    ACTIVE: t('obgyn.anc.status.active', 'حمل نشط'),
+    DELIVERED: t('obgyn.anc.status.delivered', 'تمت الولادة'),
+    MISCARRIAGE: t('obgyn.anc.status.miscarriage', 'إجهاض'),
+    ECTOPIC: t('obgyn.anc.status.ectopic', 'حمل خارج الرحم'),
+    CANCELLED: t('obgyn.anc.status.cancelled', 'ملغي'),
   };
 
-  if (loading) return <div className="p-8 text-center text-slate-400">جاري التحميل...</div>;
+  if (loading) return <div className="p-8 text-center text-slate-400">{t('obgyn.anc.loading', 'جاري التحميل...')}</div>;
 
   // === Single Care View ===
   if (care) {
@@ -216,11 +219,11 @@ export default function AntenatalCarePage() {
     const showRhWarning = isRhNegative && care.status === 'ACTIVE';
 
     return (
-      <div className="container mx-auto p-6 space-y-6" dir="rtl">
+      <div className="container mx-auto p-6 space-y-6" dir={isRtl ? "rtl" : "ltr"}>
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-white">متابعة الحمل</h1>
-            <p className="text-slate-400">{care.patient?.fullName} — MRN: {care.patient?.mrn}</p>
+            <h1 className="text-2xl font-bold text-white">{t('obgyn.anc.title', 'متابعة الحمل')}</h1>
+            <p className="text-slate-400">{care.patient?.fullName} — {t('obgyn.anc.mrn', ' — MRN: ')}{care.patient?.mrn}</p>
           </div>
           <Button variant="secondary" onClick={() => {
             if (patientId) {
@@ -230,7 +233,7 @@ export default function AntenatalCarePage() {
             } else {
               navigate(-1);
             }
-          }} className="bg-slate-800 text-slate-200 hover:bg-slate-700">رجوع</Button>
+          }} className="bg-slate-800 text-slate-200 hover:bg-slate-700">{t('obgyn.anc.btn.back', 'رجوع')}</Button>
         </div>
 
         {/* === Rh Warning Banner === */}
@@ -240,32 +243,32 @@ export default function AntenatalCarePage() {
               <span className="text-3xl">{care.rhIncompatible ? '🔴' : '⚠️'}</span>
               <div className="flex-1">
                 <h3 className={`font-bold text-lg ${care.rhIncompatible ? 'text-red-400' : 'text-amber-400'}`}>
-                  {care.rhIncompatible ? 'عدم توافق Rh مؤكد — بروتوكول Anti-D مفعّل' : 'تنبيه: الأم Rh سالب (-)'}
+                  {care.rhIncompatible ? t('obgyn.anc.rh.incompatibleTitle', 'عدم توافق Rh مؤكد — بروتوكول Anti-D مفعّل') : t('obgyn.anc.rh.negativeWarningTitle', 'تنبيه: الأم Rh سالب (-)')}
                 </h3>
                 <p className="text-slate-300 text-sm mt-1">
                   {care.rhIncompatible
-                    ? 'الزوج Rh موجب أو غير معروف. يجب إعطاء حقنة Anti-D في الأسبوع 28 وبعد الولادة مباشرة.'
-                    : 'يرجى فحص فصيلة دم الزوج لتحديد ما إذا كان هناك خطر عدم توافق Rh.'}
+                    ? t('obgyn.anc.rh.incompatibleText', 'الزوج Rh موجب أو غير معروف. يجب إعطاء حقنة Anti-D في الأسبوع 28 وبعد الولادة مباشرة.')
+                    : t('obgyn.anc.rh.checkPartnerText', 'يرجى فحص فصيلة دم الزوج لتحديد ما إذا كان هناك خطر عدم توافق Rh.')}
                 </p>
 
                 {/* Partner Rh Update */}
                 <div className="flex items-center gap-3 mt-3">
-                  <Label className="text-slate-300 whitespace-nowrap">Rh الزوج:</Label>
+                  <Label className="text-slate-300 whitespace-nowrap">{t('obgyn.anc.rh.partnerRh', 'Rh الزوج:')}</Label>
                   <Select
                     value={care.partnerRhFactor || 'none'}
                     onValueChange={(v) => { if (v !== 'none') handleUpdatePartnerRh(v); }}
                   >
                     <SelectTrigger className="bg-slate-950 border-slate-600 text-white w-48"><SelectValue /></SelectTrigger>
                     <SelectContent className="bg-slate-900 border-slate-700 text-white">
-                      <SelectItem value="none" className="focus:bg-slate-800 focus:text-white">غير محدد</SelectItem>
-                      <SelectItem value="Positive" className="focus:bg-slate-800 focus:text-white">موجب (+)</SelectItem>
-                      <SelectItem value="Negative" className="focus:bg-slate-800 focus:text-white">سالب (-)</SelectItem>
-                      <SelectItem value="Unknown" className="focus:bg-slate-800 focus:text-white">غير معروف</SelectItem>
+                      <SelectItem value="none" className="focus:bg-slate-800 focus:text-white">{t('obgyn.anc.rh.notSpecified', 'غير محدد')}</SelectItem>
+                      <SelectItem value="Positive" className="focus:bg-slate-800 focus:text-white">{t('obgyn.anc.rh.positive', 'موجب (+)')}</SelectItem>
+                      <SelectItem value="Negative" className="focus:bg-slate-800 focus:text-white">{t('obgyn.anc.rh.negative', 'سالب (-)')}</SelectItem>
+                      <SelectItem value="Unknown" className="focus:bg-slate-800 focus:text-white">{t('obgyn.anc.rh.unknown', 'غير معروف')}</SelectItem>
                     </SelectContent>
                   </Select>
 
                   {care.partnerRhFactor === 'Negative' && (
-                    <span className="text-green-400 text-sm font-bold">✅ الخطر قد زال — الجنين سيكون Rh سالب</span>
+                    <span className="text-green-400 text-sm font-bold">{t('obgyn.anc.rh.noRisk', '✅ الخطر قد زال — الجنين سيكون Rh سالب')}</span>
                   )}
                 </div>
 
@@ -274,19 +277,19 @@ export default function AntenatalCarePage() {
                   <div className="flex items-center gap-4 mt-3 flex-wrap">
                     <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${care.antiDWeek28Given ? 'bg-green-900/30 border-green-500/40 text-green-400' : 'bg-red-900/20 border-red-500/30 text-red-400'}`}>
                       <span>{care.antiDWeek28Given ? '✅' : '❌'}</span>
-                      <span className="text-sm font-medium">Anti-D الأسبوع 28</span>
+                      <span className="text-sm font-medium">{t('obgyn.anc.rh.antiDWeek28', 'Anti-D الأسبوع 28')}</span>
                       {!care.antiDWeek28Given && (
                         <Button size="sm" onClick={() => handleRecordAntiD('week28')} className="bg-red-600 hover:bg-red-500 text-white text-xs h-7 px-2 mr-1">
-                          تسجيل الحقنة
+                          {t('obgyn.anc.btn.recordInjection', 'تسجيل الحقنة')}
                         </Button>
                       )}
                     </div>
                     <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${care.antiDPostpartumGiven ? 'bg-green-900/30 border-green-500/40 text-green-400' : 'bg-slate-800 border-slate-600 text-slate-400'}`}>
                       <span>{care.antiDPostpartumGiven ? '✅' : '⏳'}</span>
-                      <span className="text-sm font-medium">Anti-D بعد الولادة</span>
+                      <span className="text-sm font-medium">{t('obgyn.anc.rh.antiDPostpartum', 'Anti-D بعد الولادة')}</span>
                       {!care.antiDPostpartumGiven && care.status === 'ACTIVE' && (
                         <Button size="sm" onClick={() => handleRecordAntiD('postpartum')} className="bg-slate-700 hover:bg-slate-600 text-white text-xs h-7 px-2 mr-1">
-                          تسجيل
+                          {t('obgyn.anc.btn.record', 'تسجيل')}
                         </Button>
                       )}
                     </div>
@@ -302,31 +305,33 @@ export default function AntenatalCarePage() {
           <Card className="bg-transparent border border-pink-500/30 text-center">
             <CardContent className="p-4">
               <div className="text-3xl font-bold text-pink-400">{care.currentGestationalWeek}</div>
-              <div className="text-xs text-slate-400 mt-1">أسبوع الحمل</div>
+              <div className="text-xs text-slate-400 mt-1">{t('obgyn.anc.summary.gestationalWeek', 'أسبوع الحمل')}</div>
             </CardContent>
           </Card>
           <Card className="bg-transparent border border-sky-500/30 text-center">
             <CardContent className="p-4">
               <div className="text-xl font-bold text-sky-400">{care.daysToEDD && care.daysToEDD > 0 ? care.daysToEDD : 0}</div>
-              <div className="text-xs text-slate-400 mt-1">يوم للولادة</div>
+              <div className="text-xs text-slate-400 mt-1">{t('obgyn.anc.summary.daysToEdd', 'يوم للولادة')}</div>
             </CardContent>
           </Card>
           <Card className="bg-transparent border border-slate-700 text-center">
             <CardContent className="p-4">
-              <div className="text-xl font-bold text-white">{new Date(care.eddDate).toLocaleDateString('ar-LY')}</div>
-              <div className="text-xs text-slate-400 mt-1">تاريخ الولادة المتوقع</div>
+              <div className="text-xl font-bold text-white">{new Date(care.eddDate).toLocaleDateString(i18n.language)}</div>
+              <div className="text-xs text-slate-400 mt-1">{t('obgyn.anc.summary.eddDate', 'تاريخ الولادة المتوقع')}</div>
             </CardContent>
           </Card>
           <Card className="bg-transparent border border-slate-700 text-center">
             <CardContent className="p-4">
               <div className="text-xl font-bold text-white">G{care.gravida} P{care.para}</div>
-              <div className="text-xs text-slate-400 mt-1">التاريخ الولادي</div>
+              <div className="text-xs text-slate-400 mt-1">{t('obgyn.anc.summary.obstetricHistory', 'التاريخ الولادي')}</div>
             </CardContent>
           </Card>
           <Card className={`bg-transparent border text-center ${riskColors[care.riskLevel]}`}>
             <CardContent className="p-4">
-              <div className="text-xl font-bold">{care.riskLevel === 'LOW' ? 'منخفض' : care.riskLevel === 'MEDIUM' ? 'متوسط' : 'عالي'}</div>
-              <div className="text-xs text-slate-400 mt-1">مستوى الخطورة</div>
+              <div className="text-xl font-bold">
+                {care.riskLevel === 'LOW' ? t('obgyn.anc.risk.low', 'منخفض') : care.riskLevel === 'MEDIUM' ? t('obgyn.anc.risk.medium', 'متوسط') : t('obgyn.anc.risk.high', 'عالي')}
+              </div>
+              <div className="text-xs text-slate-400 mt-1">{t('obgyn.anc.summary.riskLevel', 'مستوى الخطورة')}</div>
             </CardContent>
           </Card>
         </div>
@@ -334,10 +339,10 @@ export default function AntenatalCarePage() {
         {/* Visits Section */}
         <Card className="bg-transparent border border-slate-700 text-slate-100">
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-white">زيارات المتابعة ({care.visits?.length || 0})</CardTitle>
+            <CardTitle className="text-white">{t('obgyn.anc.visits.title', 'زيارات المتابعة')} ({care.visits?.length || 0})</CardTitle>
             {care.status === 'ACTIVE' && (
               <Button onClick={() => setShowVisitForm(!showVisitForm)} className="bg-pink-600 hover:bg-pink-500 text-white">
-                {showVisitForm ? 'إلغاء' : '+ زيارة جديدة'}
+                {showVisitForm ? t('obgyn.anc.btn.cancel', 'إلغاء') : t('obgyn.anc.btn.newVisit', '+ زيارة جديدة')}
               </Button>
             )}
           </CardHeader>
@@ -345,98 +350,106 @@ export default function AntenatalCarePage() {
             {/* New Visit Form */}
             {showVisitForm && (
               <div className="bg-slate-900/60 p-4 rounded-lg border border-pink-500/30 space-y-4">
-                <h4 className="font-bold text-pink-400">بيانات الزيارة</h4>
+                <h4 className="font-bold text-pink-400">{t('obgyn.anc.visits.visitData', 'بيانات الزيارة')}</h4>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   <div className="space-y-1">
-                    <Label className="text-slate-400">وزن الأم (كجم)</Label>
+                    <Label className="text-slate-400">{t('obgyn.anc.visits.maternalWeight', 'وزن الأم (كجم)')}</Label>
                     <Input type="number" step="0.1" value={visitWeight} onChange={e => setVisitWeight(e.target.value ? Number(e.target.value) : '')} className="bg-slate-950 border-slate-700 text-white" />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-slate-400">الضغط الانقباضي</Label>
+                    <Label className="text-slate-400">{t('obgyn.anc.visits.systolicBp', 'الضغط الانقباضي')}</Label>
                     <Input type="number" value={bpSys} onChange={e => setBpSys(e.target.value ? Number(e.target.value) : '')} className="bg-slate-950 border-slate-700 text-white" />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-slate-400">الضغط الانبساطي</Label>
+                    <Label className="text-slate-400">{t('obgyn.anc.visits.diastolicBp', 'الضغط الانبساطي')}</Label>
                     <Input type="number" value={bpDia} onChange={e => setBpDia(e.target.value ? Number(e.target.value) : '')} className="bg-slate-950 border-slate-700 text-white" />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-slate-400">ارتفاع الرحم (سم)</Label>
+                    <Label className="text-slate-400">{t('obgyn.anc.visits.fundalHeight', 'ارتفاع الرحم (سم)')}</Label>
                     <Input type="number" step="0.5" value={fundalHeight} onChange={e => setFundalHeight(e.target.value ? Number(e.target.value) : '')} className="bg-slate-950 border-slate-700 text-white" />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-slate-400">نبض الجنين</Label>
+                    <Label className="text-slate-400">{t('obgyn.anc.visits.fetalHeartRate', 'نبض الجنين')}</Label>
                     <Input type="number" value={fhr} onChange={e => setFhr(e.target.value ? Number(e.target.value) : '')} className="bg-slate-950 border-slate-700 text-white" />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-slate-400">حركة الجنين</Label>
+                    <Label className="text-slate-400">{t('obgyn.anc.visits.fetalMovement', 'حركة الجنين')}</Label>
                     <Select value={fetalMovement ? 'YES' : 'NO'} onValueChange={v => setFetalMovement(v === 'YES')}>
                       <SelectTrigger className="bg-slate-950 border-slate-700 text-white"><SelectValue /></SelectTrigger>
                       <SelectContent className="bg-slate-900 border-slate-700 text-white">
-                        <SelectItem value="YES" className="focus:bg-slate-800 focus:text-white">نعم</SelectItem>
-                        <SelectItem value="NO" className="focus:bg-slate-800 focus:text-white">لا</SelectItem>
+                        <SelectItem value="YES" className="focus:bg-slate-800 focus:text-white">{t('obgyn.anc.yes', 'نعم')}</SelectItem>
+                        <SelectItem value="NO" className="focus:bg-slate-800 focus:text-white">{t('obgyn.anc.no', 'لا')}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-slate-400">وضع الجنين</Label>
+                    <Label className="text-slate-400">{t('obgyn.anc.visits.fetalPresentation', 'وضع الجنين')}</Label>
                     <Select value={presentation || 'none'} onValueChange={v => setPresentation(v === 'none' ? '' : v)}>
                       <SelectTrigger className="bg-slate-950 border-slate-700 text-white"><SelectValue /></SelectTrigger>
                       <SelectContent className="bg-slate-900 border-slate-700 text-white">
                         <SelectItem value="none" className="focus:bg-slate-800 focus:text-white">—</SelectItem>
-                        <SelectItem value="Cephalic" className="focus:bg-slate-800 focus:text-white">رأسي (Cephalic)</SelectItem>
-                        <SelectItem value="Breech" className="focus:bg-slate-800 focus:text-white">مقعدي (Breech)</SelectItem>
-                        <SelectItem value="Transverse" className="focus:bg-slate-800 focus:text-white">عرضي (Transverse)</SelectItem>
+                        <SelectItem value="Cephalic" className="focus:bg-slate-800 focus:text-white">{t('obgyn.anc.visits.presentations.cephalic', 'رأسي (Cephalic)')}</SelectItem>
+                        <SelectItem value="Breech" className="focus:bg-slate-800 focus:text-white">{t('obgyn.anc.visits.presentations.breech', 'مقعدي (Breech)')}</SelectItem>
+                        <SelectItem value="Transverse" className="focus:bg-slate-800 focus:text-white">{t('obgyn.anc.visits.presentations.transverse', 'عرضي (Transverse)')}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-slate-400">هيموجلوبين (g/dL)</Label>
+                    <Label className="text-slate-400">{t('obgyn.anc.visits.hemoglobin', 'هيموجلوبين (g/dL)')}</Label>
                     <Input type="number" step="0.1" value={hemoglobin} onChange={e => setHemoglobin(e.target.value ? Number(e.target.value) : '')} className="bg-slate-950 border-slate-700 text-white" />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-slate-400">بروتين البول</Label>
+                    <Label className="text-slate-400">{t('obgyn.anc.visits.urineProtein', 'بروتين البول')}</Label>
                     <Select value={urineProtein} onValueChange={setUrineProtein}>
                       <SelectTrigger className="bg-slate-950 border-slate-700 text-white"><SelectValue /></SelectTrigger>
                       <SelectContent className="bg-slate-900 border-slate-700 text-white">
-                        {['Nil', 'Trace', '+', '++', '+++'].map(v => <SelectItem key={v} value={v} className="focus:bg-slate-800 focus:text-white">{v}</SelectItem>)}
+                        {['Nil', 'Trace', '+', '++', '+++'].map(v => (
+                          <SelectItem key={v} value={v} className="focus:bg-slate-800 focus:text-white">
+                            {v === 'Nil' ? t('obgyn.anc.lab.value.nil', 'Nil') : v === 'Trace' ? t('obgyn.anc.lab.value.trace', 'Trace') : v}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-slate-400">نسبة السكر بالبول</Label>
+                    <Label className="text-slate-400">{t('obgyn.anc.visits.urineGlucose', 'نسبة السكر بالبول')}</Label>
                     <Select value={urineGlucose} onValueChange={setUrineGlucose}>
                       <SelectTrigger className="bg-slate-950 border-slate-700 text-white"><SelectValue /></SelectTrigger>
                       <SelectContent className="bg-slate-900 border-slate-700 text-white">
-                        {['Nil', 'Trace', '+', '++', '+++'].map(v => <SelectItem key={v} value={v} className="focus:bg-slate-800 focus:text-white">{v}</SelectItem>)}
+                        {['Nil', 'Trace', '+', '++', '+++'].map(v => (
+                          <SelectItem key={v} value={v} className="focus:bg-slate-800 focus:text-white">
+                            {v === 'Nil' ? t('obgyn.anc.lab.value.nil', 'Nil') : v === 'Trace' ? t('obgyn.anc.lab.value.trace', 'Trace') : v}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-slate-400">وذمة (Edema)</Label>
+                    <Label className="text-slate-400">{t('obgyn.anc.visits.edema', 'وذمة (Edema)')}</Label>
                     <Select value={edema ? 'YES' : 'NO'} onValueChange={v => setEdema(v === 'YES')}>
                       <SelectTrigger className="bg-slate-950 border-slate-700 text-white"><SelectValue /></SelectTrigger>
                       <SelectContent className="bg-slate-900 border-slate-700 text-white">
-                        <SelectItem value="NO" className="focus:bg-slate-800 focus:text-white">لا</SelectItem>
-                        <SelectItem value="YES" className="focus:bg-slate-800 focus:text-white">نعم</SelectItem>
+                        <SelectItem value="NO" className="focus:bg-slate-800 focus:text-white">{t('obgyn.anc.no', 'لا')}</SelectItem>
+                        <SelectItem value="YES" className="focus:bg-slate-800 focus:text-white">{t('obgyn.anc.yes', 'نعم')}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-slate-400">الزيارة القادمة</Label>
-                    <Input type="date" value={nextVisitDate} onChange={e => setNextVisitDate(e.target.value)} className="bg-slate-950 border-slate-700 text-white" />
+                    <Label className="text-slate-400">{t('obgyn.anc.visits.nextVisit', 'الزيارة القادمة')}</Label>
+                    <Input type="date" value={nextVisitDate} onChange={e => setNextVisitDate(e.target.value)} className="bg-slate-955 border-slate-700 text-white" />
                   </div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <Label className="text-slate-400">شكاوى المريضة</Label>
-                    <Input value={complaints} onChange={e => setComplaints(e.target.value)} placeholder="أي شكاوى..." className="bg-slate-950 border-slate-700 text-white" />
+                    <Label className="text-slate-400">{t('obgyn.anc.visits.complaints', 'شكاوى المريضة')}</Label>
+                    <Input value={complaints} onChange={e => setComplaints(e.target.value)} placeholder={t('obgyn.anc.visits.complaintsPlaceholder', 'أي شكاوى...')} className="bg-slate-950 border-slate-700 text-white" />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-slate-400">ملاحظات الطبيب</Label>
-                    <Input value={visitNotes} onChange={e => setVisitNotes(e.target.value)} placeholder="ملاحظات..." className="bg-slate-950 border-slate-700 text-white" />
+                    <Label className="text-slate-400">{t('obgyn.anc.visits.doctorNotes', 'ملاحظات الطبيب')}</Label>
+                    <Input value={visitNotes} onChange={e => setVisitNotes(e.target.value)} placeholder={t('obgyn.anc.visits.notesPlaceholder', 'ملاحظات...')} className="bg-slate-950 border-slate-700 text-white" />
                   </div>
                 </div>
-                <Button onClick={handleAddVisit} className="bg-pink-600 hover:bg-pink-500 text-white w-full">حفظ الزيارة</Button>
+                <Button onClick={handleAddVisit} className="bg-pink-600 hover:bg-pink-500 text-white w-full">{t('obgyn.anc.btn.saveVisit', 'حفظ الزيارة')}</Button>
               </div>
             )}
 
@@ -446,26 +459,26 @@ export default function AntenatalCarePage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-slate-700 text-slate-400">
-                      <th className="py-2 px-3 text-right">الأسبوع</th>
-                      <th className="py-2 px-3 text-right">التاريخ</th>
-                      <th className="py-2 px-3 text-right">الوزن</th>
-                      <th className="py-2 px-3 text-right">الضغط</th>
-                      <th className="py-2 px-3 text-right">ارتفاع الرحم</th>
-                      <th className="py-2 px-3 text-right">نبض الجنين</th>
-                      <th className="py-2 px-3 text-right">الحركة</th>
-                      <th className="py-2 px-3 text-right">Hb</th>
-                      <th className="py-2 px-3 text-right">ملاحظات</th>
+                      <th className="py-2 px-3 text-right">{t('obgyn.anc.table.week', 'الأسبوع')}</th>
+                      <th className="py-2 px-3 text-right">{t('obgyn.anc.table.date', 'التاريخ')}</th>
+                      <th className="py-2 px-3 text-right">{t('obgyn.anc.table.weight', 'الوزن')}</th>
+                      <th className="py-2 px-3 text-right">{t('obgyn.anc.table.bp', 'الضغط')}</th>
+                      <th className="py-2 px-3 text-right">{t('obgyn.anc.table.fundalHeight', 'ارتفاع الرحم')}</th>
+                      <th className="py-2 px-3 text-right">{t('obgyn.anc.table.fhr', 'نبض الجنين')}</th>
+                      <th className="py-2 px-3 text-right">{t('obgyn.anc.table.movement', 'الحركة')}</th>
+                      <th className="py-2 px-3 text-right">{t('obgyn.anc.table.hb', 'Hb')}</th>
+                      <th className="py-2 px-3 text-right">{t('obgyn.anc.table.notes', 'ملاحظات')}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {care.visits.map(v => (
-                      <tr key={v.id} className="border-b border-slate-800 hover:bg-slate-800/30">
-                        <td className="py-2 px-3 font-bold text-pink-400">W{v.gestationalWeek}</td>
-                        <td className="py-2 px-3 text-slate-300">{new Date(v.visitDate).toLocaleDateString('ar-LY')}</td>
-                        <td className="py-2 px-3 text-white">{v.weight ? `${v.weight} كجم` : '—'}</td>
+                      <tr key={v.id} className="border-b border-slate-800 hover:bg-slate-800/50">
+                        <td className="py-2 px-3 font-bold text-pink-400">{t('obgyn.anc.weekAbbreviation', 'W')}{v.gestationalWeek}</td>
+                        <td className="py-2 px-3 text-slate-300">{new Date(v.visitDate).toLocaleDateString(i18n.language)}</td>
+                        <td className="py-2 px-3 text-white">{v.weight ? `${v.weight}${t('obgyn.anc.unit.kg', ' كجم')}` : '—'}</td>
                         <td className="py-2 px-3 text-white">{v.bloodPressureSys && v.bloodPressureDia ? `${v.bloodPressureSys}/${v.bloodPressureDia}` : '—'}</td>
-                        <td className="py-2 px-3 text-white">{v.fundalHeight ? `${v.fundalHeight} سم` : '—'}</td>
-                        <td className="py-2 px-3 text-white">{v.fetalHeartRate ? `${v.fetalHeartRate} bpm` : '—'}</td>
+                        <td className="py-2 px-3 text-white">{v.fundalHeight ? `${v.fundalHeight}${t('obgyn.anc.unit.cm', ' سم')}` : '—'}</td>
+                        <td className="py-2 px-3 text-white">{v.fetalHeartRate ? `${v.fetalHeartRate}${t('obgyn.anc.unit.bpm', ' bpm')}` : '—'}</td>
                         <td className="py-2 px-3">{v.fetalMovement === true ? <span className="text-green-400">✓</span> : v.fetalMovement === false ? <span className="text-red-400">✗</span> : '—'}</td>
                         <td className="py-2 px-3 text-white">{v.hemoglobin || '—'}</td>
                         <td className="py-2 px-3 text-slate-400 max-w-[200px] truncate">{v.notes || v.complaints || '—'}</td>
@@ -475,7 +488,7 @@ export default function AntenatalCarePage() {
                 </table>
               </div>
             ) : (
-              <p className="text-center text-slate-500 py-8">لا توجد زيارات متابعة مسجلة بعد.</p>
+              <p className="text-center text-slate-500 py-8">{t('obgyn.anc.visits.emptyState', 'لا توجد زيارات متابعة مسجلة بعد.')}</p>
             )}
           </CardContent>
         </Card>
@@ -485,39 +498,39 @@ export default function AntenatalCarePage() {
 
   // === Patient Cares List ===
   return (
-    <div className="container mx-auto p-6 space-y-6" dir="rtl">
+    <div className="container mx-auto p-6 space-y-6" dir={isRtl ? "rtl" : "ltr"}>
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-white">سجلات الحمل</h1>
+        <h1 className="text-2xl font-bold text-white">{t('obgyn.anc.list.title', 'سجلات الحمل')}</h1>
         <div className="flex gap-2">
           {patientId && (
             <Button onClick={() => setShowNewCareForm(!showNewCareForm)} className="bg-pink-600 hover:bg-pink-500 text-white">
-              {showNewCareForm ? 'إلغاء' : '+ تسجيل حمل جديد'}
+              {showNewCareForm ? t('obgyn.anc.btn.cancel', 'إلغاء') : t('obgyn.anc.btn.newCare', '+ تسجيل حمل جديد')}
             </Button>
           )}
-          <Button variant="secondary" onClick={() => navigate(-1)} className="bg-slate-800 text-slate-200 hover:bg-slate-700">رجوع</Button>
+          <Button variant="secondary" onClick={() => navigate(-1)} className="bg-slate-800 text-slate-200 hover:bg-slate-700">{t('obgyn.anc.btn.back', 'رجوع')}</Button>
         </div>
       </div>
 
       {/* New Care Form */}
       {showNewCareForm && (
         <Card className="bg-transparent border border-pink-500/30 text-slate-100">
-          <CardHeader><CardTitle className="text-pink-400">تسجيل حمل جديد</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-pink-400">{t('obgyn.anc.create.title', 'تسجيل حمل جديد')}</CardTitle></CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="space-y-1">
-                <Label className="text-slate-400">تاريخ آخر دورة (LMP) *</Label>
+                <Label className="text-slate-400">{t('obgyn.anc.create.lmpDate', 'تاريخ آخر دورة (LMP) *')}</Label>
                 <Input type="date" value={lmpDate} onChange={e => setLmpDate(e.target.value)} className="bg-slate-900 border-slate-700 text-white" />
               </div>
               <div className="space-y-1">
-                <Label className="text-slate-400">عدد مرات الحمل (Gravida)</Label>
+                <Label className="text-slate-400">{t('obgyn.anc.create.gravida', 'عدد مرات الحمل (Gravida)')}</Label>
                 <Input type="number" min={1} value={gravida} onChange={e => setGravida(Number(e.target.value))} className="bg-slate-900 border-slate-700 text-white" />
               </div>
               <div className="space-y-1">
-                <Label className="text-slate-400">الولادات السابقة (Para)</Label>
+                <Label className="text-slate-400">{t('obgyn.anc.create.para', 'الولادات السابقة (Para)')}</Label>
                 <Input type="number" min={0} value={para} onChange={e => setPara(Number(e.target.value))} className="bg-slate-900 border-slate-700 text-white" />
               </div>
               <div className="space-y-1">
-                <Label className="text-slate-400">فصيلة الدم</Label>
+                <Label className="text-slate-400">{t('obgyn.anc.create.bloodGroup', 'فصيلة الدم')}</Label>
                 <Select value={bloodGroup || 'none'} onValueChange={v => setBloodGroup(v === 'none' ? '' : v)}>
                   <SelectTrigger className="bg-slate-900 border-slate-700 text-white"><SelectValue /></SelectTrigger>
                   <SelectContent className="bg-slate-900 border-slate-700 text-white">
@@ -529,53 +542,53 @@ export default function AntenatalCarePage() {
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label className="text-slate-400">عامل Rh (الأم)</Label>
+                <Label className="text-slate-400">{t('obgyn.anc.create.rhFactor', 'عامل Rh (الأم)')}</Label>
                 <Select value={rhFactor || 'none'} onValueChange={v => setRhFactor(v === 'none' ? '' : v)}>
                   <SelectTrigger className="bg-slate-900 border-slate-700 text-white"><SelectValue /></SelectTrigger>
                   <SelectContent className="bg-slate-900 border-slate-700 text-white">
                     <SelectItem value="none" className="focus:bg-slate-800 focus:text-white">—</SelectItem>
-                    <SelectItem value="Positive" className="focus:bg-slate-800 focus:text-white">إيجابي (+)</SelectItem>
-                    <SelectItem value="Negative" className="focus:bg-slate-800 focus:text-white">سلبي (-)</SelectItem>
+                    <SelectItem value="Positive" className="focus:bg-slate-800 focus:text-white">{t('obgyn.anc.rh.positive', 'موجب (+)')}</SelectItem>
+                    <SelectItem value="Negative" className="focus:bg-slate-800 focus:text-white">{t('obgyn.anc.rh.negative', 'سالب (-)')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label className="text-slate-400">عامل Rh (الزوج)</Label>
+                <Label className="text-slate-400">{t('obgyn.anc.create.partnerRh', 'عامل Rh (الزوج)')}</Label>
                 <Select value={partnerRhFactor || 'none'} onValueChange={v => setPartnerRhFactor(v === 'none' ? '' : v)}>
                   <SelectTrigger className="bg-slate-900 border-slate-700 text-white"><SelectValue /></SelectTrigger>
                   <SelectContent className="bg-slate-900 border-slate-700 text-white">
-                    <SelectItem value="none" className="focus:bg-slate-800 focus:text-white">غير محدد</SelectItem>
-                    <SelectItem value="Positive" className="focus:bg-slate-800 focus:text-white">إيجابي (+)</SelectItem>
-                    <SelectItem value="Negative" className="focus:bg-slate-800 focus:text-white">سلبي (-)</SelectItem>
-                    <SelectItem value="Unknown" className="focus:bg-slate-800 focus:text-white">غير معروف</SelectItem>
+                    <SelectItem value="none" className="focus:bg-slate-800 focus:text-white">{t('obgyn.anc.rh.notSpecified', 'غير محدد')}</SelectItem>
+                    <SelectItem value="Positive" className="focus:bg-slate-800 focus:text-white">{t('obgyn.anc.rh.positive', 'موجب (+)')}</SelectItem>
+                    <SelectItem value="Negative" className="focus:bg-slate-800 focus:text-white">{t('obgyn.anc.rh.negative', 'سالب (-)')}</SelectItem>
+                    <SelectItem value="Unknown" className="focus:bg-slate-800 focus:text-white">{t('obgyn.anc.rh.unknown', 'غير معروف')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label className="text-slate-400">مستوى الخطورة</Label>
+                <Label className="text-slate-400">{t('obgyn.anc.create.riskLevel', 'مستوى الخطورة')}</Label>
                 <Select value={riskLevel} onValueChange={setRiskLevel}>
                   <SelectTrigger className="bg-slate-900 border-slate-700 text-white"><SelectValue /></SelectTrigger>
                   <SelectContent className="bg-slate-900 border-slate-700 text-white">
-                    <SelectItem value="LOW" className="focus:bg-slate-800 focus:text-white">منخفض</SelectItem>
-                    <SelectItem value="MEDIUM" className="focus:bg-slate-800 focus:text-white">متوسط</SelectItem>
-                    <SelectItem value="HIGH" className="focus:bg-slate-800 focus:text-white">عالي</SelectItem>
+                    <SelectItem value="LOW" className="focus:bg-slate-800 focus:text-white">{t('obgyn.anc.risk.low', 'منخفض')}</SelectItem>
+                    <SelectItem value="MEDIUM" className="focus:bg-slate-800 focus:text-white">{t('obgyn.anc.risk.medium', 'متوسط')}</SelectItem>
+                    <SelectItem value="HIGH" className="focus:bg-slate-800 focus:text-white">{t('obgyn.anc.risk.high', 'عالي')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label className="text-slate-400">عوامل الخطورة</Label>
-                <Input value={riskFactors} onChange={e => setRiskFactors(e.target.value)} placeholder="سكري حمل، ضغط مرتفع..." className="bg-slate-900 border-slate-700 text-white" />
+                <Label className="text-slate-400">{t('obgyn.anc.create.riskFactors', 'عوامل الخطورة')}</Label>
+                <Input value={riskFactors} onChange={e => setRiskFactors(e.target.value)} placeholder={t('obgyn.anc.create.riskFactorsPlaceholder', 'سكري حمل، ضغط مرتفع...')} className="bg-slate-900 border-slate-700 text-white" />
               </div>
             </div>
 
             {/* Rh Warning in Form */}
             {rhFactor === 'Negative' && (
               <div className="bg-amber-950/30 border border-amber-500/40 rounded-lg p-3 text-amber-300 text-sm">
-                ⚠️ الأم Rh سالب — سيتم رفع مستوى الخطورة تلقائياً وإرسال تنبيهات سريرية للطبيب.
+                {t('obgyn.anc.create.rhWarning', '⚠️ الأم Rh سالب — سيتم رفع مستوى الخطورة تلقائياً وإرسال تنبيهات سريرية للطبيب.')}
               </div>
             )}
 
-            <Button onClick={handleCreateCare} className="bg-pink-600 hover:bg-pink-500 text-white w-full font-bold">تسجيل الحمل</Button>
+            <Button onClick={handleCreateCare} className="bg-pink-600 hover:bg-pink-500 text-white w-full font-bold">{t('obgyn.anc.btn.submitCare', 'تسجيل الحمل')}</Button>
           </CardContent>
         </Card>
       )}
@@ -593,20 +606,20 @@ export default function AntenatalCarePage() {
                   <div>
                     <div className="text-white font-bold">
                       G{c.gravida} P{c.para}
-                      {c.rhFactor === 'Negative' && <span className="text-red-400 mr-2 text-xs">🔴 Rh-</span>}
+                      {c.rhFactor === 'Negative' && <span className="text-red-400 mr-2 text-xs">{t('obgyn.anc.list.rhNegativeLabel', '🔴 Rh-')}</span>}
                     </div>
-                    <div className="text-xs text-slate-400">LMP: {new Date(c.lmpDate).toLocaleDateString('ar-LY')} — EDD: {new Date(c.eddDate).toLocaleDateString('ar-LY')}</div>
+                    <div className="text-xs text-slate-400">LMP: {new Date(c.lmpDate).toLocaleDateString(i18n.language)} — EDD: {new Date(c.eddDate).toLocaleDateString(i18n.language)}</div>
                   </div>
                 </div>
-                <div className="text-sm text-slate-400">{c._count?.visits || 0} زيارات</div>
+                <div className="text-sm text-slate-400">{c._count?.visits || 0}{t('obgyn.anc.list.visitsCount', ' زيارات')}</div>
               </CardContent>
             </Card>
           ))}
         </div>
       ) : !showNewCareForm ? (
         <div className="text-center py-12 text-slate-500">
-          <p className="text-lg mb-2">لا توجد سجلات حمل لهذه المريضة.</p>
-          {patientId && <Button onClick={() => setShowNewCareForm(true)} className="bg-pink-600 hover:bg-pink-500 text-white">تسجيل حمل جديد</Button>}
+          <p className="text-lg mb-2">{t('obgyn.anc.list.emptyState', 'لا توجد سجلات حمل لهذه المريضة.')}</p>
+          {patientId && <Button onClick={() => setShowNewCareForm(true)} className="bg-pink-600 hover:bg-pink-500 text-white">{t('obgyn.anc.btn.newCare', 'تسجيل حمل جديد')}</Button>}
         </div>
       ) : null}
     </div>

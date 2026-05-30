@@ -1183,5 +1183,1080 @@
       "diagnosisCount": "تشخيص",
       "procedureCount": "إجراء"
     }
+  },
+  "beds": {
+    "dashboardTitle": "لوحة تحكم الأسرة",
+    "dashboardSubtitle": "مراقبة حالة الأسرة في المستشفى بشكل مباشر",
+    "setupTitle": "إعدادات الأقسام الداخلية (Inpatient Setup)",
+    "setupSubtitle": "إدارة العنابر، الغرف، الأسرة، وتسعير الإقامة.",
+    "addWardBtn": "+ إضافة عنبر جديد",
+    "addRoomBtn": "+ إضافة غرفة",
+    "addBedBtn": "+ سرير",
+    "roomPh": "رقم/اسم الغرفة",
+    "bedPh": "رقم السرير",
+    "saveBtn": "حفظ",
+    "createBtn": "إنشاء",
+    "emptyLabel": "فارغة",
+    "typeLabel": "النوع:",
+    "rateLabel": "سعر الليلة:",
+    "unpriced": "غير مسعر!",
+    "deptLabel": "القسم:",
+    "saveChanges": "حفظ التغييرات",
+    "editWard": "تعديل عنبر",
+    "addWard": "إضافة عنبر جديد",
+    "wardName": "اسم العنبر",
+    "wardType": "النوع",
+    "wardTypeGeneral": "عام (General)",
+    "wardTypeIcu": "عناية مركزة (ICU)",
+    "wardTypePrivate": "خاص (Private)",
+    "wardDept": "القسم التابع له (اخياري)",
+    "selectWardDept": "-- القسم (اختياري) --",
+    "pricingService": "خدمة التسعير (Service Item)",
+    "selectPricingService": "-- اختر خدمة السعر اليومي --",
+    "pricingNote": "يجب تعريف خدمات \"إقامة\" (Type: BED) في دليل الخدمات لتظهر هنا.",
+    "cancel": "إلغاء",
+    "loadFailed": "فشل تحميل البيانات",
+    "updateSuccess": "تم التعديل بنجاح",
+    "wardCreated": "تم إنشاء العنبر",
+    "opFailed": "فشلت العملية",
+    "confirmDeleteWard": "هل أنت متأكد من حذف هذا العنبر؟ (يجب ألا يحتوي على غرف)",
+    "deleteSuccess": "تم الحذف بنجاح",
+    "deleteFailed": "فشل الحذف",
+    "roomAdded": "تمت إضافة الغرفة",
+    "roomAddFailed": "فشل إضافة الغرفة",
+    "updateFailed": "فشل التعديل",
+    "confirmDeleteRoom": "هل أنت متأكد من حذف هذه الغرفة؟ (يجب ألا تحتوي على أسِرة)",
+    "bedAdded": "تمت إضافة السرير",
+    "bedAddFailed": "فشل إضافة السرير",
+    "confirmDeleteBed": "هل أنت متأكد من حذف هذا السرير؟ (لا يمكن الحذف إذا كان مريض منوماً فيه)",
+    "stats": {
+      "total": "إجمالي الأسرة",
+      "available": "متاحة",
+      "occupied": "مشغولة",
+      "occupancyRate": "نسبة الإشغال",
+      "cleaning": "قيد التنظيف",
+      "maintenance": "الصيانة",
+      "blocked": "محجوزة",
+      "turnoverRate": "معدل الدوران"
+    },
+    "tabs": {
+      "overview": "نظرة عامة",
+      "wards": "العنابر",
+      "activities": "النشاطات"
+    },
+    "filters": {
+      "search": "البحث عن عنبر أو غرفة...",
+      "allStatuses": "جميع الحالات"
+    },
+    "card": {
+      "total": "الإجمالي:",
+      "occupied": "مشغول:",
+      "available": "متاح:",
+      "cleaning": "تنظيف:",
+      "viewDetails": "عرض التفاصيل"
+    },
+    "statuses": {
+      "AVAILABLE": "متاح",
+      "OCCUPIED": "مشغول",
+      "CLEANING": "تنظيف",
+      "MAINTENANCE": "صيانة",
+      "BLOCKED": "محجوز"
+    },
+    "confirmClean": "هل تريد وضع علامة \"نظيف\" على السرير {{bedNumber}}؟",
+    "notesPrompt": "أدخل ملاحظات للسرير {{bedNumber}}:",
+    "activity": {
+      "title": "النشاطات الأخيرة",
+      "empty": "لا توجد نشاطات حديثة",
+      "assigned": "تم حجز السرير",
+      "released": "تم تحرير السرير",
+      "cleaning": "تم بدء التنظيف",
+      "maintenance": "تم بدء الصيانة",
+      "patient": "المريض:",
+      "notes": "ملاحظات:"
+    }
+  },
+  "housekeeping": {
+    "title": "إدارة النظافة (Housekeeping)",
+    "subtitle": "قائمة الأسرة التي تحتاج إلى تنظيف وتجهيز.",
+    "refresh": "تحديث",
+    "loadSuccess": "تم تنظيف السرير وأصبح متاحاً.",
+    "loadError": "فشل التحديث.",
+    "markClean": "تم التنظيف ✅",
+    "emptyState": "✨ جميع الأسرة نظيفة وجاهزة.",
+    "loading": "جارِ البحث عن أسرة...",
+    "roomLabel": "غرفة"
+  },
+  "referrals": {
+    "title": "نظام الإحالات",
+    "subtitle": "إحالة المرضى بين الأطباء مع تتبع الحالة",
+    "newReferral": "+ إحالة جديدة",
+    "sendReferral": "إرسال الإحالة",
+    "cancel": "إلغاء",
+    "accept": "قبول",
+    "reject": "رفض",
+    "complete": "إكمال",
+    "confirmComplete": "تأكيد الإكمال",
+    "confirmReject": "تأكيد الرفض",
+    "tabReceived": "إحالات واردة",
+    "tabSent": "إحالات صادرة",
+    "loading": "جاري التحميل...",
+    "empty": "لا توجد إحالات",
+    "table": {
+      "no": "#",
+      "patient": "المريض",
+      "fromDoctor": "من الطبيب",
+      "toDoctor": "إلى الطبيب",
+      "reason": "السبب",
+      "priority": "الأولوية",
+      "status": "الحالة",
+      "date": "التاريخ",
+      "actions": "إجراءات"
+    },
+    "status": {
+      "PENDING": "في الانتظار",
+      "ACCEPTED": "مقبولة",
+      "COMPLETED": "مكتملة",
+      "REJECTED": "مرفوضة",
+      "CANCELLED": "ملغاة"
+    },
+    "priority": {
+      "URGENT": "عاجلة",
+      "ROUTINE": "عادية"
+    },
+    "form": {
+      "patient": "المريض *",
+      "patientSearchPlaceholder": "ابحث بالاسم أو رقم الملف...",
+      "receivingDoctor": "الطبيب المُحال إليه *",
+      "selectDoctor": "اختر الطبيب...",
+      "reason": "سبب الإحالة *",
+      "reasonPlaceholder": "سبب الإحالة...",
+      "clinicalSummary": "الملخص السريري",
+      "clinicalSummaryPlaceholder": "ملخص الحالة السريرية...",
+      "priority": "الأولوية"
+    },
+    "actionModal": {
+      "completeTitle": "إكمال الإحالة",
+      "rejectTitle": "رفض الإحالة",
+      "notes": "ملاحظات",
+      "completePlaceholder": "نتيجة الكشف أو الملاحظات...",
+      "rejectPlaceholder": "سبب الرفض..."
+    },
+    "alerts": {
+      "loadFailed": "فشل تحميل الإحالات",
+      "requiredFields": "يرجى ملء جميع الحقول المطلوبة",
+      "createSuccess": "تم إنشاء الإحالة بنجاح",
+      "createFailed": "فشل إنشاء الإحالة",
+      "acceptSuccess": "تم قبول الإحالة",
+      "completeSuccess": "تم إكمال الإحالة",
+      "rejectSuccess": "تم رفض الإحالة",
+      "cancelSuccess": "تم إلغاء الإحالة",
+      "opFailed": "فشل تنفيذ الإجراء"
+    }
+  },
+  "obgyn": {
+    "history": {
+      "toast": {
+        "updateSuccess": "تم تحديث التاريخ التوليدي بنجاح",
+        "updateError": "فشل تحديث التاريخ التوليدي"
+      },
+      "loading": "جاري التحميل...",
+      "emptyState": "لا يوجد سجل توليدي لهذا المريض.",
+      "title": "التاريخ التوليدي (Obstetric History)",
+      "btn": {
+        "edit": "تعديل",
+        "cancel": "إلغاء",
+        "save": "حفظ التغييرات"
+      },
+      "labels": {
+        "gravida": "عدد مرات الحمل (Gravida)",
+        "para": "عدد الولادات (Para)",
+        "abortion": "الإجهاض (Abortion)",
+        "prevCs": "القيصريات السابقة (Prev CS)",
+        "bloodGroup": "فصيلة الدم",
+        "riskFactors": "عوامل الخطورة (Risk Factors)",
+        "riskFactorsPlaceholder": "الضغط، السكري، عمليات سابقة...",
+        "unitPregnancy": "حمل",
+        "unitDelivery": "ولادة",
+        "unitAbortion": "إجهاض",
+        "unitCs": "قيصرية",
+        "riskFactorsLabel": "Risk Factors",
+        "noRiskFactors": "لا توجد عوامل خطورة مسجلة"
+      }
+    },
+    "deliveryList": {
+      "loading": "جاري تحميل سجل الولادات...",
+      "emptyState": "لا توجد سجلات ولادة تفصيلية لهذا المريض.",
+      "emptyNote": "(يتم عرض السجلات الجديدة المسجلة عبر النظام هنا)",
+      "title": "سجل الولادات التفصيلي",
+      "table": {
+        "date": "تاريخ الولادة",
+        "method": "طريقة الولادة",
+        "babyCount": "عدد المواليد",
+        "babyDetails": "تفاصيل المواليد",
+        "notes": "ملاحظات / مضاعفات",
+        "male": "ذكر",
+        "female": "أنثى"
+      }
+    },
+    "delivery": {
+      "toast": {
+        "loadEncounterError": "فشل تحميل بيانات الزيارة",
+        "encounterIdMissing": "رقم الزيارة مفقود",
+        "success": "تم تسجيل الولادة بنجاح",
+        "error": "فشل تسجيل الولادة"
+      },
+      "encounterIdRequired": "يجب تحديد رقم الزيارة (Encounter ID) للبدء.",
+      "title": "تسجيل ولادة جديدة via Saraya",
+      "btn": {
+        "back": "رجوع",
+        "cancel": "إلغاء",
+        "saving": "جاري الحفظ...",
+        "save": "حفظ وتسجيل الولادة"
+      },
+      "patientInfo": "بيانات المريضة",
+      "mrn": "MRN: ",
+      "details": "تفاصيل الولادة",
+      "method": "طريقة الولادة",
+      "methods": {
+        "nvd": "ولادة طبيعية (NVD)",
+        "assistedNvd": "ولادة مساعدة (Assisted)",
+        "csElective": "قيصرية اختيارية",
+        "csEmergency": "قيصرية طارئة",
+        "vbac": "ولادة طبيعية بعد قيصرية (VBAC)"
+      },
+      "placentaDelivery": "توصيل المشيمة",
+      "placenta": {
+        "spontaneous": "تلقائي",
+        "manual": "يدوي"
+      },
+      "episiotomy": "شق العجان (Episiotomy)",
+      "no": "لا",
+      "yes": "نعم",
+      "perinealTear": "تمزق العجان (Perineal Tear)",
+      "tears": {
+        "none": "لا يوجد",
+        "degree1": "درجة 1",
+        "degree2": "درجة 2",
+        "degree3": "درجة 3",
+        "degree4": "درجة 4"
+      },
+      "bloodLoss": "فقدان الدم (مل)",
+      "bloodLossPlaceholder": "مثلاً 500",
+      "newbornsData": "بيانات المواليد",
+      "babyCount": "عدد المواليد: ",
+      "babyNumber": "مولود #",
+      "gender": "الجنس",
+      "genderMale": "ذكر",
+      "genderFemale": "أنثى",
+      "weight": "الوزن (كجم)",
+      "length": "الطول (سم)",
+      "headCircumference": "محيط الرأس (سم)",
+      "birthTime": "وقت الولادة",
+      "apgarScore1": "Apgar 1m",
+      "apgarScore5": "Apgar 5m",
+      "apgarScore10": "Apgar 10m",
+      "babyStatus": "حالة المولود",
+      "status": {
+        "alive": "حي",
+        "stillborn": "ميت",
+        "nicu": "عناية مركزة (NICU)"
+      },
+      "vitaminK": "فيتامين K",
+      "bcgVaccine": "تطعيم BCG",
+      "notes": "ملاحظات إضافية",
+      "notesPlaceholder": "أي مضاعفات أو ملاحظات أخرى..."
+    },
+    "anc": {
+      "toast": {
+        "loadCareError": "فشل تحميل سجل الحمل",
+        "loadCaresError": "فشل تحميل سجلات الحمل",
+        "lmpDateRequired": "يرجى تحديد تاريخ آخر دورة",
+        "createCareSuccess": "تم تسجيل الحمل بنجاح",
+        "createCareError": "فشل تسجيل الحمل",
+        "addVisitSuccess": "تم إضافة زيارة المتابعة",
+        "addVisitError": "فشل إضافة الزيارة",
+        "updatePartnerRhSuccess": "تم تحديث Rh الزوج",
+        "updatePartnerRhError": "فشل تحديث Rh الزوج",
+        "recordAntiDSuccess": "تم تسجيل حقنة Anti-D",
+        "recordAntiDError": "فشل تسجيل الحقنة"
+      },
+      "status": {
+        "active": "حمل نشط",
+        "delivered": "تمت الولادة",
+        "miscarriage": "إجهاض",
+        "ectopic": "حمل خارج الرحم",
+        "cancelled": "ملغي"
+      },
+      "loading": "جاري التحميل...",
+      "title": "متابعة الحمل",
+      "mrn": " — MRN: ",
+      "btn": {
+        "back": "رجوع",
+        "recordInjection": "تسجيل الحقنة",
+        "record": "تسجيل",
+        "cancel": "إلغاء",
+        "newVisit": "+ زيارة جديدة",
+        "saveVisit": "حفظ الزيارة",
+        "newCare": "+ تسجيل حمل جديد",
+        "submitCare": "تسجيل الحمل"
+      },
+      "rh": {
+        "incompatibleTitle": "عدم توافق Rh مؤكد — بروتوكول Anti-D مفعّل",
+        "negativeWarningTitle": "تنبيه: الأم Rh سالب (-)",
+        "incompatibleDesc": "الزوج Rh موجب أو غير معروف. يجب إعطاء حقنة Anti-D في الأسبوع 28 وبعد الولادة مباشرة.",
+        "negativeWarningDesc": "يرجى فحص فصيلة دم الزوج لتحديد ما إذا كان هناك خطر عدم توافق Rh.",
+        "partnerRh": "Rh الزوج:",
+        "notSpecified": "غير محدد",
+        "positive": "موجب (+)",
+        "negative": "سالب (-)",
+        "unknown": "غير معروف",
+        "noRisk": "✅ الخطر قد زال — الجنين سيكون Rh سالب",
+        "antiDWeek28": "Anti-D الأسبوع 28",
+        "antiDPostpartum": "Anti-D بعد الولادة",
+        "positiveText": "إيجابي (+)",
+        "negativeText": "سلبي (-)"
+      },
+      "summary": {
+        "gestationalWeek": "أسبوع الحمل",
+        "daysToEdd": "يوم للولادة",
+        "eddDate": "تاريخ الولادة المتوقع",
+        "obstetricHistory": "التاريخ الولادي",
+        "riskLevel": "مستوى الخطورة"
+      },
+      "risk": {
+        "low": "منخفض",
+        "medium": "متوسط",
+        "high": "عالي"
+      },
+      "visits": {
+        "title": "زيارات المتابعة",
+        "visitData": "بيانات الزيارة",
+        "maternalWeight": "وزن الأم (كجم)",
+        "systolicBp": "الضغط الانقباضي",
+        "diastolicBp": "الضغط الانبساطي",
+        "fundalHeight": "ارتفاع الرحم (سم)",
+        "fetalHeartRate": "نبض الجنين",
+        "fetalMovement": "حركة الجنين",
+        "fetalPresentation": "وضع الجنين",
+        "presentations": {
+          "cephalic": "رأسي (Cephalic)",
+          "breech": "مقعدي (Breech)",
+          "transverse": "عرضي (Transverse)"
+        },
+        "hemoglobin": "هيموجلوبين (g/dL)",
+        "urineProtein": "بروتين البول",
+        "urineGlucose": "نسبة السكر بالبول",
+        "edema": "وذمة (Edema)",
+        "nextVisit": "الزيارة القادمة",
+        "complaints": "شكاوى المريضة",
+        "complaintsPlaceholder": "أي شكاوى...",
+        "doctorNotes": "ملاحظات الطبيب",
+        "notesPlaceholder": "ملاحظات...",
+        "emptyState": "لا توجد زيارات متابعة مسجلة بعد."
+      },
+      "yes": "نعم",
+      "no": "لا",
+      "lab": {
+        "value": {
+          "nil": "Nil",
+          "trace": "Trace",
+          "plus": "+",
+          "doublePlus": "++",
+          "triplePlus": "+++"
+        }
+      },
+      "table": {
+        "week": "الأسبوع",
+        "date": "التاريخ",
+        "weight": "الوزن",
+        "bp": "الضغط",
+        "fundalHeight": "ارتفاع الرحم",
+        "fhr": "نبض الجنين",
+        "movement": "الحركة",
+        "hb": "Hb",
+        "notes": "ملاحظات"
+      },
+      "weekAbbreviation": "الأسبوع",
+      "unit": {
+        "kg": " كجم",
+        "cm": " سم",
+        "bpm": " bpm"
+      },
+      "list": {
+        "title": "سجلات الحمل",
+        "rhNegativeLabel": "🔴 Rh-",
+        "visitsCount": " زيارات",
+        "emptyState": "لا توجد سجلات حمل لهذه المريضة."
+      },
+      "create": {
+        "title": "تسجيل حمل جديد",
+        "lmpDate": "تاريخ آخر دورة (LMP) *",
+        "gravida": "عدد مرات الحمل (Gravida)",
+        "para": "الولادات السابقة (Para)",
+        "bloodGroup": "فصيلة الدم",
+        "rhFactor": "عامل Rh (الأم)",
+        "partnerRh": "عامل Rh (الزوج)",
+        "riskLevel": "مستوى الخطورة",
+        "riskFactors": "عوامل الخطورة",
+        "riskFactorsPlaceholder": "سكري حمل، ضغط مرتفع...",
+        "rhWarning": "⚠️ الأم Rh سالب — سيتم رفع مستوى الخطورة تلقائياً وإرسال تنبيهات سريرية للطبيب."
+      }
+    },
+    "fertility": {
+      "infertilityLabels": {
+        "maleFactor": "عامل ذكوري",
+        "femaleFactor": "عامل أنثوي",
+        "combined": "عامل مشترك",
+        "unexplained": "غير مفسر"
+      },
+      "cycleTypeLabels": {
+        "ivf": "أطفال أنابيب (IVF)",
+        "icsi": "حقن مجهري (ICSI)",
+        "iui": "تلقيح صناعي (IUI)",
+        "fet": "نقل أجنة مجمدة (FET)",
+        "eggFreezing": "تجميد بويضات",
+        "natural": "طبيعي"
+      },
+      "resultLabels": {
+        "pending": "في الانتظار",
+        "positive": "إيجابي (حمل) 🎉",
+        "negative": "سلبي",
+        "biochemical": "حمل كيميائي",
+        "ectopic": "حمل خارج الرحم",
+        "miscarriage": "إجهاض"
+      },
+      "embryoStatusLabels": {
+        "developing": "قيد التطور",
+        "transferred": "تم الترجيع",
+        "frozen": "مجمد ❄️",
+        "thawed": "مذاب",
+        "discarded": "تم التخلص",
+        "donated": "تبرع"
+      },
+      "statusLabels": {
+        "active": "نشط",
+        "successful": "ناجح 🎉",
+        "discontinued": "متوقف",
+        "referred": "محول"
+      },
+      "toast": {
+        "loadCaseError": "فشل تحميل ملف العقم",
+        "loadPatientCasesError": "فشل تحميل سجلات العقم",
+        "loadActiveCasesError": "فشل تحميل الحالات",
+        "patientRequired": "يرجى تحديد المريضة",
+        "createCaseSuccess": "تم فتح ملف العقم بنجاح",
+        "createCaseError": "فشل إنشاء الملف",
+        "startDateRequired": "يرجى تحديد تاريخ البدء",
+        "createCycleSuccess": "تم بدء دورة علاجية جديدة",
+        "createCycleError": "فشل إنشاء الدورة"
+      },
+      "loading": "جاري التحميل...",
+      "title": "🧬 ملف العقم والحقن المجهري",
+      "femaleIcon": "👩 ",
+      "mrn": " (MRN: ",
+      "maleIcon": " — 👨 ",
+      "btn": {
+        "back": "رجوع",
+        "newCycle": "+ دورة جديدة",
+        "startCycle": "بدء الدورة",
+        "openNewCase": "+ فتح ملف جديد",
+        "remove": "✕ إزالة",
+        "submitCase": "فتح الملف"
+      },
+      "summary": {
+        "infertilityType": "نوع العقم",
+        "duration": "مدة عدم الإنجاب",
+        "cycles": "الدورات العلاجية",
+        "status": "الحالة"
+      },
+      "unit": {
+        "years": " سنة",
+        "ngml": " ng/mL",
+        "miuml": " mIU/mL",
+        "mm": " مم"
+      },
+      "diagnosticData": "البيانات التشخيصية",
+      "wife": "الزوجة:",
+      "husband": "الزوج:",
+      "notLinked": "غير مربوط",
+      "diagnosisLabel": "التشخيص:",
+      "semenAnalyses": "تحاليل سائل منوي:",
+      "andrologyVisits": "زيارات ذكورة:",
+      "cycles": "الدورات العلاجية",
+      "cycle": {
+        "type": "نوع الدورة",
+        "protocol": "البروتوكول",
+        "startDate": "تاريخ البدء",
+        "started": "بدأت: ",
+        "eggs": "بويضات: ",
+        "fertilized": "مخصبة: ",
+        "transferred": "مرجعة: ",
+        "frozen": "مجمدة: ",
+        "stimulationDays": "أيام التحفيز",
+        "matureEggs": "بويضات ناضجة",
+        "embryosDay3": "أجنة يوم 3",
+        "embryosDay5": "أجنة يوم 5",
+        "endometrialThickness": "سماكة البطانة",
+        "betaHcg": "Beta HCG",
+        "embryos": "الأجنة:",
+        "medications": "الأدوية:",
+        "emptyState": "لا توجد دورات علاجية مسجلة بعد."
+      },
+      "protocols": {
+        "long": "Long Protocol",
+        "short": "Short Protocol",
+        "antagonist": "Antagonist",
+        "natural": "Natural",
+        "ministim": "Mini-stim"
+      },
+      "create": {
+        "title": "فتح ملف عقم جديد",
+        "husbandSearchLabel": "ملف الزوج (اختياري) — ابحث بالاسم أو رقم الملف",
+        "husbandSearchPlaceholder": "ابحث عن الزوج بالاسم أو رقم الملف أو الهاتف...",
+        "infertilityType": "نوع العقم",
+        "duration": "مدة عدم الإنجاب (سنوات)",
+        "amh": "AMH (ng/mL)",
+        "fsh": "FSH (mIU/mL)",
+        "diagnosis": "التشخيص",
+        "diagnosisPlaceholder": "التشخيص التفصيلي..."
+      },
+      "list": {
+        "title": "🧬 الحقن المجهري وعلاج العقم",
+        "caseNumber": "ملف #",
+        "cyclesCount": " دورات",
+        "emptyPatient": "لا توجد ملفات عقم لهذه المريضة.",
+        "emptyActive": "لا توجد حالات نشطة."
+      }
+    }
+  },
+  "andrology": {
+    "loading": {
+      "section": "جارِ تحميل القسم...",
+      "cryo": "جارِ تحميل بنك التجميد...",
+      "semenForm": "جارِ تحميل نموذج السائل المنوي...",
+      "visitForm": "جارِ تحميل نموذج الزيارة...",
+      "hormoneForm": "جارِ تحميل نموذج الهرمونات...",
+      "surgeryForm": "جارِ تحميل نموذج الجراحة...",
+      "medicationForm": "جارِ تحميل نموذج الدواء...",
+      "investigationForm": "جارِ تحميل نموذج الفحوصات...",
+      "reportPrint": "جارِ تحميل التقرير الطبي..."
+    },
+    "search": {
+      "patientNotFound": "لم يتم العثور على أي مريض.",
+      "searchError": "خطأ في البحث.",
+      "title": "البحث عن المريض",
+      "placeholder": "ابحث بواسطة الاسم، رقم الملف (MRN)، أو رقم الهاتف...",
+      "searching": "جاري البحث...",
+      "button": "بحث الآن",
+      "resultsFound": "تم العثور على {count} نتيجة — الرجاء الاختيار:"
+    },
+    "semen": {
+      "saveSuccess": "تم حفظ تحليل السائل المنوي بنجاح.",
+      "recordTitle": "📋 سجل السائل المنوي (WHO 6th Ed)",
+      "addNew": "➕ إضافة تحليل جديد",
+      "noRecords": "لا توجد تحاليل سائل منوي مسجلة.",
+      "testDate": "تاريخ الفحص: ",
+      "abstinencePeriod": "فترة امتناع: ",
+      "days": " أيام",
+      "collectionMethod": "طريقة الجمع: ",
+      "fields": {
+        "volume": "الحجم",
+        "volumeUnit": "ml",
+        "concentration": "التركيز",
+        "concentrationUnit": "M/ml",
+        "totalMotility": "الحركة الكلية PR+NP",
+        "percent": "%",
+        "progressivePR": "التقدمية PR",
+        "normalForms": "شكل طبيعي (Kruger)"
+      }
+    },
+    "common": {
+      "saveFailed": "فشل الحفظ.",
+      "loading": "جارِ التحميل...",
+      "cancel": "إلغاء",
+      "yes": "نعم",
+      "no": "لا"
+    },
+    "visit": {
+      "saveSuccess": "تم حفظ زيارة أمراض الذكورة."
+    },
+    "hormone": {
+      "saveSuccess": "تم حفظ البروفايل الهرموني بنجاح."
+    },
+    "surgery": {
+      "saveSuccess": "تم حفظ العملية الجراحية بنجاح."
+    },
+    "medication": {
+      "saveSuccess": "تم حفظ الدواء بنجاح."
+    },
+    "investigation": {
+      "saveSuccess": "تم حفظ الفحص الطبي بنجاح."
+    },
+    "title": "عيادة أمراض الذكورة والعقم",
+    "subtitle": "وحدة المتابعة المتقدمة: تحليل وتشخيص، بروفايل هرموني، وجراحات دقيقة",
+    "patient": {
+      "mrn": "MRN: ",
+      "medicalReport": "🖨️ التقرير الطبي",
+      "anotherPatient": "🔄 مريض آخر"
+    },
+    "tabs": {
+      "overview": "📊 لوحة التحكم",
+      "semen": "🔬 السائل المنوي",
+      "hormones": "🩸 الهرمونات",
+      "visits": "🩺 الزيارات",
+      "surgeries": "🔪 الجراحات",
+      "medications": "💊 الأدوية",
+      "investigations": "🔬 الفحوصات (Investigations)",
+      "cryo": "❄️ بنك التجميد"
+    },
+    "overview": {
+      "summaryTitle": "الملخص السريري 💡",
+      "lastSemenStatus": "حالة السائل المنوي (آخر تحليل)",
+      "notClassified": "لم يُصنف بعد",
+      "noAnalysis": "لا يوجد تحليل",
+      "lastHormonalStatus": "الوضع الهرموني (آخر فحص)",
+      "noHormoneProfile": "لا يوجد بروفايل",
+      "lastClinicalDiagnosis": "آخر تشخيص سريري",
+      "notDetermined": "لم يحدد بعد",
+      "surgicalProcedures": "الإجراءات الجراحية",
+      "surgeriesCount": " عملية (آخرها: ",
+      "noSurgeries": "لا يوجد تدخلات جراحية",
+      "semenTrend": "📈 مسار السائل المنوي عبر الزمن",
+      "concentrationVsMotility": "Concentration vs Motility",
+      "chart": {
+        "concentration": "Concentration (M/ml)",
+        "motility": "Motility (%)",
+        "requiresTwoSemen": "يتطلب التخطيط البياني تحليلين أو أكثر",
+        "testosterone": "Testosterone (ng/dL)",
+        "fsh": "FSH (mIU/mL)",
+        "requiresTwoHormone": "يتطلب التخطيط البياني فحصين أو أكثر"
+      },
+      "hormoneTrend": "📉 التغير الهرموني الكلي",
+      "fshVsTestosterone": "FSH vs Testosterone",
+      "timelineTitle": "⏱️ التسلسل الزمني السريع للمريض (Timeline)",
+      "timeline": {
+        "startMedication": "بدء علاج",
+        "surgery": "عملية جراحية",
+        "semenAnalysis": "سائل منوي",
+        "investigation": "فحص وتصوير"
+      }
+    },
+    "hormones": {
+      "title": "🩸 التتبع الهرموني (Hormonal Profile)",
+      "addNew": "➕ إضافة فحص هرموني",
+      "noRecords": "لا توجد فحوصات هرمونية مسجلة.",
+      "table": {
+        "date": "التاريخ",
+        "fsh": "FSH",
+        "lh": "LH",
+        "totalT": "Total T",
+        "e2": "E2",
+        "prl": "PRL",
+        "notes": "ملاحظات"
+      }
+    },
+    "visits": {
+      "title": "🩺 زيارات أمراض الذكورة",
+      "addNew": "➕ زيارة جديدة",
+      "noRecords": "لا توجد زيارات مسجلة.",
+      "visitOn": "📅 زيارة بتاريخ ",
+      "fields": {
+        "chiefComplaint": "الشكوى الرئيسية",
+        "varicoceleGrade": "الدوالي العامة",
+        "varicoceleSides": "الدوالي (يمين / يسار)",
+        "treatmentPlan": "خطة العلاج"
+      }
+    },
+    "surgeries": {
+      "title": "🔪 التدخلات الجراحية والميكروسكوبية",
+      "addNew": "➕ توثيق جراحة",
+      "noRecords": "لم يتم إجراء عمليات جراحية للمريض.",
+      "spermRetrievedSuccess": "✅ نجاح الاستخراج",
+      "fields": {
+        "date": "تاريخ العملية: ",
+        "surgeon": "الجراح: ",
+        "technique": "التقنية الجراحية:",
+        "findings": "نتائج العملية (Findings):",
+        "outcome": "النتيجة (Outcome):"
+      }
+    },
+    "medications": {
+      "title": "💊 الخطة العلاجية الدوائية",
+      "addNew": "➕ إضافة دواء",
+      "noRecords": "لم يتم وصف أدوية للمريض.",
+      "fields": {
+        "defaultCategory": "دواء عام",
+        "start": "البدء: ",
+        "end": "الانتهاء: ",
+        "dose": "جرعة: ",
+        "frequency": "تكرار: ",
+        "response": "✅ استجابة: "
+      }
+    },
+    "investigations": {
+      "title": "🔬 الفحوصات الطبية المتقدمة",
+      "addNew": "➕ إرفاق فحص جديد",
+      "noRecords": "لا توجد فحوصات أو صور أشعة مسجلة.",
+      "fields": {
+        "date": "تاريخ الفحص: ",
+        "facility": "المختبر: ",
+        "findings": "النتائج الفنية (Findings):",
+        "interpretation": "التفسير والخلاصة (Interpretation):",
+        "normalRange": "Normal Range:"
+      }
+    },
+    "forms": {
+      "semen": {
+        "title": "🔬 تحليل سائل منوي جديد (WHO 6th Edition)",
+        "sections": {
+          "collectionAndPhysical": "1. أخذ العينة والخصائص الفيزيائية",
+          "concentrationAndMotility": "2. التركيز والحركة",
+          "morphologyAndOthers": "3. الشكل السوي والاختبارات الدقيقة"
+        },
+        "fields": {
+          "abstinenceDays": "فترة الامتناع (أيام)",
+          "collectionMethod": "طريقة الجمع",
+          "volumeMl": "الحجم (ml)",
+          "ph": "pH",
+          "color": "اللون",
+          "viscosity": "اللزوجة",
+          "liquefaction": "التميع (Liquefaction)",
+          "liquefactionMinutes": "زمن التميع (دقيقة)",
+          "countMilPerMl": "التركيز (مليون/مل)",
+          "totalCountMil": "العدد الكلي (مليون)",
+          "progressivePR": "حركة تقدمية PR (%)",
+          "nonProgressiveNP": "حركة غير تقدمية NP (%)",
+          "immotileIM": "غير متحرك IM (%)",
+          "vitality": "الحيوية (Vitality %)",
+          "normalForms": "شكل طبيعي (%)",
+          "headDefects": "تشوه الرأس (%)",
+          "midpieceDefects": "تشوه القطعة الوسطى (%)",
+          "tailDefects": "تشوه الذيل (%)",
+          "wbcCount": "WBC (مليون/مل)",
+          "roundCells": "خلايا مدورة (Round Cells)",
+          "agglutination": "تراص (Agglutination)",
+          "dnaFragmentation": "تكسير المادة الوراثية (DFI %)",
+          "dfiMethod": "طريقة فحص DFI",
+          "conclusion": "الخلاصة (ستُصنف تلقائياً للـ WHO إذا تركت فارغة)",
+          "doctorNotes": "ملاحظات الطبيب / المختبر"
+        },
+        "options": {
+          "normal": "طبيعي",
+          "high": "مرتفع",
+          "none": "لا يوجد",
+          "mild": "خفيف",
+          "moderate": "متوسط",
+          "severe": "شديد"
+        },
+        "placeholders": {
+          "color": "Grey/Yellow/Red",
+          "conclusion": "مثلاً: Severe OAT..."
+        },
+        "buttons": {
+          "save": "💾 حفظ التحليل"
+        }
+      },
+      "hormone": {
+        "title": "🩸 بروفايل هرموني جديد",
+        "fields": {
+          "testDate": "تاريخ السحب",
+          "fsh": "FSH (mIU/mL)",
+          "lh": "LH (mIU/mL)",
+          "totalTestosterone": "Total Testosterone (ng/dL)",
+          "freeTestosterone": "Free Testosterone (pg/mL)",
+          "prolactin": "Prolactin (ng/mL)",
+          "estradiol": "Estradiol E2 (pg/mL)",
+          "tsh": "TSH (mIU/L)",
+          "inhibinB": "Inhibin B (pg/mL)",
+          "shbg": "SHBG (nmol/L)",
+          "amhMale": "AMH Male (ng/mL)",
+          "notes": "ملاحظات الطبيب"
+        },
+        "buttons": {
+          "save": "💾 حفظ البروفايل"
+        }
+      },
+      "investigation": {
+        "title": "🔬 إضافة فحص طبي أو شعاعي",
+        "fields": {
+          "type": "نوع الفحص ",
+          "date": "تاريخ الفحص",
+          "facilityName": "اسم المركز / المختبر (Facility Name)",
+          "findings": "النتائج (Findings) ",
+          "interpretation": "الاستنتاج أو التفسير (Interpretation)",
+          "notes": "ملاحظات الطبيب"
+        },
+        "placeholders": {
+          "selectType": "— اختر نوع الفحص —",
+          "facilityName": "مثال: مختبر البرج، مستشفى السرايا...",
+          "findings": "اكتب نتائج الفحص التفصيلية هنا..."
+        },
+        "groups": {
+          "imaging": "تصوير وشعاعيات",
+          "genetic": "فحوصات وراثية وجينية",
+          "biopsies": "خزعات وعيًنات",
+          "other": "أخرى"
+        },
+        "options": {
+          "scrotalUs": "أشعة تلفزيونية للخصية (Scrotal US)",
+          "scrotalDoppler": "أشعة دوبلر (Scrotal Doppler)",
+          "trus": "أشعة عبر المستقيم (TRUS)",
+          "karyotype": "تحليل الكروموسومات (Karyotype)",
+          "yMicrodeletion": "حذف طفرات الكروموسوم (Y-Microdeletion)",
+          "cftr": "طفرات التليف الكيسي (CFTR)",
+          "testicularBiopsy": "خزعة خصية تشخيصية",
+          "other": "فحص آخر..."
+        },
+        "buttons": {
+          "save": "💾 حفظ الفحص"
+        }
+      },
+      "medication": {
+        "title": "💊 إضافة علاج طبي",
+        "fields": {
+          "medication": "اسم الدواء / المادة الفعالة ",
+          "category": "الفئة الدوائية (Category)",
+          "dose": "الجرعة (Dose)",
+          "frequency": "التكرار (Frequency)",
+          "startDate": "تاريخ البدء",
+          "endDate": "تاريخ الانتهاء المتوقع",
+          "response": "الاستجابة (Clinical Response)",
+          "sideEffects": "الآثار الجانبية (Side Effects)"
+        },
+        "placeholders": {
+          "medication": "مثال: ClomiPhene Citrate 50mg",
+          "selectCategory": "— اختر —",
+          "dose": "مثال: حبة واحدة",
+          "frequency": "مثال: مرتين يومياً",
+          "response": "التأثير الواضح بعد فترة من العلاج",
+          "sideEffects": "أي آثار جانبية تم ملاحظتها"
+        },
+        "options": {
+          "antiEstrogen": "مضادات الاستروجين (Anti-estrogen)",
+          "gonadotropins": "هرمونات الجونادوتروبين (Gonadotropins)",
+          "antioxidants": "مضادات الأكسدة ومكملات (Antioxidants)",
+          "antibiotics": "مضادات حيوية (Antibiotics)",
+          "pde5Inhibitors": "منشطات جنسية (PDE5 Inhibitors)",
+          "other": "غير ذلك"
+        },
+        "buttons": {
+          "save": "💾 حفظ العلاج"
+        }
+      },
+      "surgery": {
+        "title": "🔪 إجراء جراحي جديد",
+        "fields": {
+          "procedure": "الإجراء الجراحي",
+          "date": "تاريخ العملية",
+          "technique": "التقنية الجراحية (Technique)",
+          "surgeonName": "اسم الجراح",
+          "spermRetrieved": "هل تم استخراج حيوانات منوية ناجحة؟ (Sperm Retrieved)",
+          "findings": "النتائج / Findings",
+          "complications": "المضاعفات / Complications",
+          "outcome": "النتيجة النهائية / Outcome"
+        },
+        "placeholders": {
+          "selectProcedure": "— اختر —",
+          "technique": "مثال: Microsurgical Subinguinal"
+        },
+        "options": {
+          "varicocelectomy": "دوالي الخصية (Varicocelectomy)",
+          "vasectomyReversal": "عكس الربط",
+          "other": "أخرى"
+        },
+        "buttons": {
+          "save": "💾 حفظ العملية"
+        }
+      },
+      "visit": {
+        "title": "🩺 زيارة أمراض الذكورة (التاريخ الطبي المتقدم)",
+        "sections": {
+          "complaintAndInfertility": "1. الشكوى الرئيسية وتاريخ العقم",
+          "sexualFunction": "2. الوظيفة الجنسية",
+          "medicalLifestyleHistory": "3. التاريخ المرضي والجراحي وأسلوب حياة المريض",
+          "physicalExam": "4. الفحص السريري"
+        },
+        "fields": {
+          "chiefComplaint": "الشكوى الرئيسية",
+          "infertilityMonths": "مدة العقم (أشهر)",
+          "previousPregnancies": "عدد مرات الحمل السابق",
+          "coitalFrequency": "معدل الجماع الأسبوعي",
+          "erectileDisfunc": "ضعف الانتصاب",
+          "ejaculatoryDisfunc": "اضطراب القذف",
+          "prematureEjac": "سرعة القذف",
+          "retrogradeEjac": "قذف ارتجاعي",
+          "libidoLevel": "الرغبة الجنسية",
+          "cryptorchidismHistory": " خصية معلقة (سابقاً)",
+          "orchitisHistory": " التهاب خصية",
+          "inguinalSurgery": " جراحة إربية",
+          "chemotherapy": " علاج كيميائي",
+          "radiationExposure": " تعرض إشعاعي",
+          "smokingHabit": "التدخين",
+          "alcoholUse": "الكحول",
+          "occupationalExposure": "التعرف المهني (حرارة/مواد)",
+          "medicalConditions": "الأمراض المزمنة",
+          "surgicalHistory": "عمليات جراحية أخرى",
+          "currentMedications": "الأدوية الحالية",
+          "bmi": "مؤشر كتلة الجسم BMI",
+          "varicoceleGrade": "الدوالي (الدرجة العامة)",
+          "testicularVolR": "حجم الخصية اليمنى (ml)",
+          "testicularVolL": "حجم الخصية اليسرى (ml)",
+          "testisConsistency": "قوام الخصية",
+          "vasPresence": "الأسهر (Vas Deferens)",
+          "epididymalFindings": "فحص البربخ",
+          "gynecomastia": " تثدي (Gynecomastia)",
+          "diagnosis": "التشخيص النهائي",
+          "treatmentPlan": "خطة العلاج المتفق عليها"
+        },
+        "placeholders": {
+          "coitalFrequency": "مثال: 2-3 مرات"
+        },
+        "options": {
+          "libidoNormal": "طبيعية",
+          "libidoLow": "منخفضة",
+          "libidoAbsent": "معدومة",
+          "smokingNon": "غير مدخن",
+          "smokingSmoker": "مدخن",
+          "smokingEx": "مدخن سابق",
+          "alcoholOccasional": "أحياناً",
+          "alcoholRegular": "بانتظام",
+          "varicoceleNone": "لا يوجد",
+          "varicoceleGrade1": "درجة 1",
+          "varicoceleGrade2": "درجة 2",
+          "varicoceleGrade3": "درجة 3",
+          "varicoceleBilateral": "جهتين",
+          "consistencyNormal": "طبيعي",
+          "consistencySoft": "رخو",
+          "consistencyAtrophic": "ضامر",
+          "vasPresent": "موجود",
+          "vasAbsent": "غير موجود (CBAVD)",
+          "vasPartial": "جزئي"
+        },
+        "buttons": {
+          "save": "💾 حفظ الزيارة السريرية"
+        }
+      }
+    },
+    "print": {
+      "previewTitle": "📄 معاينة التقرير الطبي",
+      "printButton": "🖨️ طباعة التقرير",
+      "reportTitle": "التقرير الطبي",
+      "department": "قسم أمراض الذكورة والطب الإنجابي",
+      "tel": "الهاتف: ",
+      "dateLabel": "التاريخ: ",
+      "logoAlt": "الشعار",
+      "patientName": "اسم المريض:",
+      "mrn": "رقم الملف (MRN):",
+      "phone": "الهاتف:",
+      "reportDate": "تاريخ التقرير:",
+      "sections": {
+        "clinicalOverview": "1. الملخص السريري",
+        "semenHistory": "2. سجل تحاليل السائل المنوي",
+        "hormonalProfile": "3. التتبع الهرموني",
+        "surgicalHistory": "4. السجل الجراحي",
+        "pharmacologicalTherapy": "5. الخطة العلاجية الدوائية"
+      },
+      "fields": {
+        "primaryDiagnosis": "التشخيص الرئيسي: ",
+        "underEvaluation": "قيد التقييم",
+        "chiefComplaint": "الشكوى الرئيسية: ",
+        "proposedPlan": "الخطة المقترحة: ",
+        "technique": "التقنية المستخدمة: ",
+        "outcome": "النتيجة: ",
+        "successfulRetrieval": "تم استخراج حيوانات منوية بنجاح ✓",
+        "noSpermRetrieved": "لم يتم استخراج حيوانات منوية",
+        "started": "البدء: "
+      },
+      "table": {
+        "date": "التاريخ",
+        "volume": "الحجم (مل)",
+        "concentration": "التركيز (مليون/مل)",
+        "motility": "الحركة PR+NP (%)",
+        "normalForms": "شكل طبيعي (%)",
+        "classification": "التصنيف",
+        "fsh": "FSH (mIU/mL)",
+        "lh": "LH (mIU/mL)",
+        "testosterone": "Testosterone (ng/dL)",
+        "prolactin": "Prolactin (ng/mL)"
+      },
+      "consultantSignature": "توقيع الاستشاري",
+      "deptSignature": "أمراض الذكورة والطب الإنجابي",
+      "footer": "تم إنشاء هذا التقرير إلكترونياً بواسطة نظام السرايا الطبي ERP • "
+    },
+    "cryo": {
+      "title": "❄️ بنك التجميد (Cryopreservation Bank)",
+      "btn": {
+        "newTank": "🏗️ تانك جديد",
+        "newCanister": "📦 حاوية جديدة",
+        "freezeItem": "❄️ تجميد عينة",
+        "thaw": "🌡️ إذابة",
+        "discard": "🗑️ إتلاف",
+        "save": "💾 حفظ",
+        "freeze": "❄️ تجميد"
+      },
+      "stats": {
+        "frozenCount": "عينات مجمدة حالياً",
+        "thawedCount": "تمت إذابتها",
+        "tanksCount": "تانكات نيتروجين",
+        "totalCount": "إجمالي العينات"
+      },
+      "emptyState": {
+        "title": "لا توجد عينات مجمدة لهذا المريض.",
+        "subtitle": "اضغط على \"تجميد عينة\" لتسجيل أول عينة."
+      },
+      "patientRecords": "📋 سجل العينات المجمدة للمريض ({{name}})",
+      "labels": {
+        "sperm": "حيوانات منوية (Sperm)",
+        "oocytes": "بويضات (Oocytes)",
+        "embryoD3": "أجنة يوم 3 (Embryo D3)",
+        "embryoD5": "أجنة يوم 5 (Blastocyst)",
+        "testicularTissue": "نسيج خصية (Testicular Tissue)",
+        "frozen": "مجمد ❄️",
+        "thawed": "تمت الإذابة 🌡️",
+        "discarded": "تم الإتلاف 🗑️",
+        "transferredOut": "نُقل ↗️",
+        "freezeDate": "تجميد: ",
+        "thawDate": "إذابة: ",
+        "tanksOverview": "🗄️ البنية التحتية لبنك التجميد",
+        "noCanisters": "لا توجد حاويات",
+        "itemsCount": "{{count}} عينة"
+      },
+      "alerts": {
+        "thawConfirm": "هل أنت متأكد من إذابة هذه العينة؟",
+        "discardConfirm": "⚠️ هل أنت متأكد من إتلاف هذه العينة؟ هذا الإجراء لا يمكن التراجع عنه.",
+        "selectCanisterFirst": "اختر الحاوية أولاً.",
+        "createTankSuccess": "تم إنشاء التانك بنجاح.",
+        "createTankError": "فشل إنشاء التانك.",
+        "addCanisterSuccess": "تم إضافة الحاوية بنجاح.",
+        "addCanisterError": "فشل إضافة الحاوية.",
+        "freezeSuccess": "تم تجميد العينة بنجاح! ❄️",
+        "freezeError": "فشل تجميد العينة.",
+        "thawSuccess": "تمت إذابة العينة بنجاح. 🌡️",
+        "thawError": "فشل إذابة العينة.",
+        "discardSuccess": "تم إتلاف العينة.",
+        "discardError": "فشل إتلاف العينة."
+      },
+      "form": {
+        "freezeTitle": "❄️ تجميد عينة جديدة",
+        "itemType": "نوع العينة *",
+        "canister": "الحاوية (Tank → Canister) *",
+        "selectCanister": "— اختر الحاوية —",
+        "caneCode": "رمز العصا (Cane Code)",
+        "gobletColor": "لون الكأس (Goblet Color)",
+        "select": "— اختر —",
+        "visotubeColor": "لون الأنبوب (Visotube Color)",
+        "strawCount": "عدد الأنابيب (Straws)",
+        "freezeDate": "تاريخ التجميد",
+        "notes": "وصف / ملاحظات",
+        "newTankTitle": "🏗️ إنشاء تانك نيتروجين جديد",
+        "tankCode": "كود التانك *",
+        "tankName": "اسم التانك *",
+        "tankLocation": "الموقع",
+        "newCanisterTitle": "📦 إضافة حاوية (Canister)",
+        "tank": "التانك *",
+        "selectTank": "— اختر التانك —",
+        "canisterCode": "كود الحاوية *"
+      }
+    }
   }
 }
