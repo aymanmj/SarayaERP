@@ -40,45 +40,75 @@ export class WarehouseController {
 
   @Put(':id')
   @Permissions('inventory:manage')
-  async updateWarehouse(@Req() req: any, @Param('id', ParseIntPipe) id: number, @Body() data: any) {
+  async updateWarehouse(
+    @Req() req: any,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() data: any,
+  ) {
     return this.warehouseService.updateWarehouse(req.user.hospitalId, id, data);
   }
 
   // --- ZONES ---
   @Post(':id/zones')
   @Permissions('inventory:manage')
-  async createZone(@Req() req: any, @Param('id', ParseIntPipe) warehouseId: number, @Body() data: any) {
-    return this.warehouseService.createZone(req.user.hospitalId, warehouseId, data);
+  async createZone(
+    @Req() req: any,
+    @Param('id', ParseIntPipe) warehouseId: number,
+    @Body() data: any,
+  ) {
+    return this.warehouseService.createZone(
+      req.user.hospitalId,
+      warehouseId,
+      data,
+    );
   }
 
   @Put('zones/:zoneId')
   @Permissions('inventory:manage')
-  async updateZone(@Req() req: any, @Param('zoneId', ParseIntPipe) zoneId: number, @Body() data: any) {
+  async updateZone(
+    @Req() req: any,
+    @Param('zoneId', ParseIntPipe) zoneId: number,
+    @Body() data: any,
+  ) {
     return this.warehouseService.updateZone(req.user.hospitalId, zoneId, data);
   }
 
   @Delete('zones/:zoneId')
   @Permissions('inventory:manage')
-  async deleteZone(@Req() req: any, @Param('zoneId', ParseIntPipe) zoneId: number) {
+  async deleteZone(
+    @Req() req: any,
+    @Param('zoneId', ParseIntPipe) zoneId: number,
+  ) {
     return this.warehouseService.deleteZone(req.user.hospitalId, zoneId);
   }
 
   // --- BINS ---
   @Post('zones/:zoneId/bins')
   @Permissions('inventory:manage')
-  async createBin(@Req() req: any, @Param('zoneId', ParseIntPipe) zoneId: number, @Body() data: any) {
+  async createBin(
+    @Req() req: any,
+    @Param('zoneId', ParseIntPipe) zoneId: number,
+    @Body() data: any,
+  ) {
     return this.warehouseService.createBin(req.user.hospitalId, zoneId, data);
   }
 
   @Put('bins/:binId')
   @Permissions('inventory:manage')
-  async updateBin(@Req() req: any, @Param('binId', ParseIntPipe) binId: number, @Body() data: any) {
+  async updateBin(
+    @Req() req: any,
+    @Param('binId', ParseIntPipe) binId: number,
+    @Body() data: any,
+  ) {
     return this.warehouseService.updateBin(req.user.hospitalId, binId, data);
   }
 
   @Delete('bins/:binId')
   @Permissions('inventory:manage')
-  async deleteBin(@Req() req: any, @Param('binId', ParseIntPipe) binId: number) {
+  async deleteBin(
+    @Req() req: any,
+    @Param('binId', ParseIntPipe) binId: number,
+  ) {
     return this.warehouseService.deleteBin(req.user.hospitalId, binId);
   }
 }

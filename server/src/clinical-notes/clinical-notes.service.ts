@@ -41,7 +41,10 @@ export class ClinicalNotesService {
     });
 
     // Phase 3: Smart Follow-up – إطلاق حدث عند وجود حقل Plan
-    if (createClinicalNoteDto.plan && createClinicalNoteDto.plan.trim().length > 10) {
+    if (
+      createClinicalNoteDto.plan &&
+      createClinicalNoteDto.plan.trim().length > 10
+    ) {
       this.logger.log(
         `📋 Plan field detected in note #${note.id} for encounter #${encounter.id}. Emitting follow-up extraction event.`,
       );

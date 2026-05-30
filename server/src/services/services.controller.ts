@@ -90,10 +90,7 @@ export class ServicesController {
 
   @Post(':id/materials')
   @Permissions('services:manage')
-  async addMaterial(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() body: any,
-  ) {
+  async addMaterial(@Param('id', ParseIntPipe) id: number, @Body() body: any) {
     return this.servicesService.addMaterialMapping(id, {
       productId: Number(body.productId),
       quantity: Number(body.quantity),

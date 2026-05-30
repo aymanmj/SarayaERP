@@ -1,4 +1,8 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ServiceType } from '@prisma/client';
 
@@ -28,13 +32,22 @@ export class ServicesService {
         category: true,
         materialMappings: {
           include: {
-            product: { select: { id: true, name: true, code: true, stockOnHand: true } },
+            product: {
+              select: { id: true, name: true, code: true, stockOnHand: true },
+            },
           },
           orderBy: { createdAt: 'asc' },
         },
         bundleChildren: {
           include: {
-            childService: { select: { id: true, name: true, cptCode: true, defaultPrice: true } },
+            childService: {
+              select: {
+                id: true,
+                name: true,
+                cptCode: true,
+                defaultPrice: true,
+              },
+            },
           },
           orderBy: { createdAt: 'asc' },
         },
@@ -136,7 +149,9 @@ export class ServicesService {
     return this.prisma.serviceItemProduct.findMany({
       where: { serviceItemId },
       include: {
-        product: { select: { id: true, name: true, code: true, stockOnHand: true } },
+        product: {
+          select: { id: true, name: true, code: true, stockOnHand: true },
+        },
       },
       orderBy: { createdAt: 'asc' },
     });
@@ -148,7 +163,9 @@ export class ServicesService {
   ) {
     // التحقق من عدم التكرار
     const exists = await this.prisma.serviceItemProduct.findUnique({
-      where: { serviceItemId_productId: { serviceItemId, productId: data.productId } },
+      where: {
+        serviceItemId_productId: { serviceItemId, productId: data.productId },
+      },
     });
     if (exists) {
       throw new BadRequestException('هذا المنتج مرتبط بالخدمة بالفعل.');
@@ -223,7 +240,9 @@ export class ServicesService {
       },
     });
     if (exists) {
-      throw new BadRequestException('هذه الخدمة الفرعية مرتبطة بالخدمة الأم بالفعل.');
+      throw new BadRequestException(
+        'هذه الخدمة الفرعية مرتبطة بالخدمة الأم بالفعل.',
+      );
     }
 
     // التحقق من عدم وجود حلقة (الخدمة الفرعية هي أم لهذه الخدمة)
@@ -236,7 +255,9 @@ export class ServicesService {
       },
     });
     if (reverseExists) {
-      throw new BadRequestException('هذا الربط سيُنشئ حلقة دائرية. الخدمة الفرعية هي خدمة أم لهذه الخدمة.');
+      throw new BadRequestException(
+        'هذا الربط سيُنشئ حلقة دائرية. الخدمة الفرعية هي خدمة أم لهذه الخدمة.',
+      );
     }
 
     return this.prisma.serviceBundleItem.create({
@@ -273,7 +294,14 @@ export class ServicesService {
     hospitalId: number,
     serviceItemId: number,
     policyId: number | null,
-  ): Promise<Array<{ serviceItemId: number; quantity: number; name: string; cptCode: string | null }>> {
+  ): Promise<
+    Array<{
+      serviceItemId: number;
+      quantity: number;
+      name: string;
+      cptCode: string | null;
+    }>
+  > {
     const bundleItems = await this.prisma.serviceBundleItem.findMany({
       where: { parentServiceId: serviceItemId },
       include: {
@@ -290,7 +318,14 @@ export class ServicesService {
         select: { id: true, name: true, cptCode: true },
       });
       if (!original) throw new NotFoundException('الخدمة غير موجودة.');
-      return [{ serviceItemId: original.id, quantity: 1, name: original.name, cptCode: original.cptCode }];
+      return [
+        {
+          serviceItemId: original.id,
+          quantity: 1,
+          name: original.name,
+          cptCode: original.cptCode,
+        },
+      ];
     }
 
     // تفجير الحزمة

@@ -21,7 +21,9 @@ export class InventoryAutoDepletionListener {
     referenceId: number;
   }) {
     try {
-      this.logger.log(`Received service.completed event for service ${payload.serviceItemId}. Triggering auto-depletion.`);
+      this.logger.log(
+        `Received service.completed event for service ${payload.serviceItemId}. Triggering auto-depletion.`,
+      );
 
       // Find the main warehouse for the hospital.
       // Usually, there might be a specific warehouse linked to the user/department.
@@ -32,7 +34,9 @@ export class InventoryAutoDepletionListener {
       });
 
       if (!defaultWarehouse) {
-        this.logger.warn(`No active warehouse found for hospital ${payload.hospitalId}. Skipping auto-depletion.`);
+        this.logger.warn(
+          `No active warehouse found for hospital ${payload.hospitalId}. Skipping auto-depletion.`,
+        );
         return;
       }
 
@@ -46,9 +50,13 @@ export class InventoryAutoDepletionListener {
         payload.referenceType,
       );
 
-      this.logger.log(`Successfully auto-depleted materials for service ${payload.serviceItemId}`);
+      this.logger.log(
+        `Successfully auto-depleted materials for service ${payload.serviceItemId}`,
+      );
     } catch (error) {
-      this.logger.error(`Failed to auto-deplete materials for service ${payload.serviceItemId}: ${error.message}`);
+      this.logger.error(
+        `Failed to auto-deplete materials for service ${payload.serviceItemId}: ${error.message}`,
+      );
     }
   }
 }

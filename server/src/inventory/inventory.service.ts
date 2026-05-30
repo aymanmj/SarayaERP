@@ -7,7 +7,12 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { StockTransactionType, MaterialRequestStatus, StockIssueStatus, Prisma } from '@prisma/client';
+import {
+  StockTransactionType,
+  MaterialRequestStatus,
+  StockIssueStatus,
+  Prisma,
+} from '@prisma/client';
 import { AccountingService } from '../accounting/accounting.service';
 
 @Injectable()
@@ -347,7 +352,9 @@ export class InventoryService {
         where: { productId_uomId: { productId, uomId: fromUomId } },
       });
       if (!fromConv) {
-        throw new BadRequestException('وحدة القياس المصدر غير صالحة لهذا الصنف.');
+        throw new BadRequestException(
+          'وحدة القياس المصدر غير صالحة لهذا الصنف.',
+        );
       }
       qtyInBase = qty * Number(fromConv.conversionRate);
     }
@@ -377,7 +384,12 @@ export class InventoryService {
     fulfillingWarehouseId: number;
     fromDepartmentId?: number;
     notes?: string;
-    items: { productId: number; uomId?: number; requestedQty: number; notes?: string }[];
+    items: {
+      productId: number;
+      uomId?: number;
+      requestedQty: number;
+      notes?: string;
+    }[];
   }) {
     const {
       hospitalId,
@@ -450,7 +462,12 @@ export class InventoryService {
         status: filters.status || undefined,
         OR: filters.search
           ? [
-              { requestNumber: { contains: filters.search, mode: 'insensitive' } },
+              {
+                requestNumber: {
+                  contains: filters.search,
+                  mode: 'insensitive',
+                },
+              },
               { notes: { contains: filters.search, mode: 'insensitive' } },
             ]
           : undefined,
@@ -476,7 +493,13 @@ export class InventoryService {
         approvedBy: { select: { fullName: true } },
         items: {
           include: {
-            product: { select: { name: true, code: true, baseUom: { select: { name: true } } } },
+            product: {
+              select: {
+                name: true,
+                code: true,
+                baseUom: { select: { name: true } },
+              },
+            },
             uom: { select: { name: true } },
           },
         },
@@ -505,7 +528,9 @@ export class InventoryService {
     }
 
     if (request.status !== MaterialRequestStatus.PENDING_APPROVAL) {
-      throw new BadRequestException('يمكن فقط اعتماد الطلبات المعلقة للـ Approval.');
+      throw new BadRequestException(
+        'يمكن فقط اعتماد الطلبات المعلقة للـ Approval.',
+      );
     }
 
     return this.prisma.materialRequest.update({
@@ -518,7 +543,12 @@ export class InventoryService {
     });
   }
 
-  async rejectMaterialRequest(hospitalId: number, id: number, userId: number, notes?: string) {
+  async rejectMaterialRequest(
+    hospitalId: number,
+    id: number,
+    userId: number,
+    notes?: string,
+  ) {
     const request = await this.prisma.materialRequest.findFirst({
       where: { id, hospitalId },
     });
@@ -528,14 +558,18 @@ export class InventoryService {
     }
 
     if (request.status !== MaterialRequestStatus.PENDING_APPROVAL) {
-      throw new BadRequestException('يمكن فقط رفض الطلبات المعلقة للـ Approval.');
+      throw new BadRequestException(
+        'يمكن فقط رفض الطلبات المعلقة للـ Approval.',
+      );
     }
 
     return this.prisma.materialRequest.update({
       where: { id },
       data: {
         status: MaterialRequestStatus.REJECTED,
-        notes: notes ? `${request.notes || ''}\nتم الرفض بواسطة المستخدم ${userId}: ${notes}` : request.notes,
+        notes: notes
+          ? `${request.notes || ''}\nتم الرفض بواسطة المستخدم ${userId}: ${notes}`
+          : request.notes,
       },
     });
   }
@@ -570,9 +604,9 @@ export class InventoryService {
                       valuationMethod: true,
                       inventoryAccountId: true,
                       expenseAccountId: true,
-                    }
-                  }
-                }
+                    },
+                  },
+                },
               },
             },
           },
@@ -587,7 +621,9 @@ export class InventoryService {
         mr.status !== MaterialRequestStatus.APPROVED &&
         mr.status !== MaterialRequestStatus.PARTIALLY_ISSUED
       ) {
-        throw new BadRequestException('لا يمكن الصرف لطلب غير معتمد أو تم صرفه بالكامل.');
+        throw new BadRequestException(
+          'لا يمكن الصرف لطلب غير معتمد أو تم صرفه بالكامل.',
+        );
       }
 
       const issueNumber = `SI-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -608,14 +644,18 @@ export class InventoryService {
       let allCompleted = true;
 
       // خريطة لتجميع التكاليف لكل فئة من حساب المخزون والمصروفات
-      const categoryCostMap = new Map<string, {
-        inventoryAccountId: number | null;
-        expenseAccountId: number | null;
-        totalCost: number;
-      }>();
+      const categoryCostMap = new Map<
+        string,
+        {
+          inventoryAccountId: number | null;
+          expenseAccountId: number | null;
+          totalCost: number;
+        }
+      >();
 
       for (const reqItem of mr.items) {
-        const remainingToIssue = Number(reqItem.requestedQty) - Number(reqItem.issuedQty);
+        const remainingToIssue =
+          Number(reqItem.requestedQty) - Number(reqItem.issuedQty);
         if (remainingToIssue <= 0) continue;
 
         let issueQty = remainingToIssue;
@@ -645,13 +685,20 @@ export class InventoryService {
             where: { productId: reqItem.productId, uomId: reqItem.uomId },
           });
           if (!uomConv) {
-            throw new BadRequestException(`وحدة القياس المحددة للصنف ${product.name} غير صالحة.`);
+            throw new BadRequestException(
+              `وحدة القياس المحددة للصنف ${product.name} غير صالحة.`,
+            );
           }
           issueQtyInBase = issueQty * Number(uomConv.conversionRate);
         }
 
         // تخصيص التشغيلات (Batches Allocation)
-        let allocations: { batchNumber: string | null; quantity: number; expiryDate: Date | null; unitCost: number }[] = [];
+        let allocations: {
+          batchNumber: string | null;
+          quantity: number;
+          expiryDate: Date | null;
+          unitCost: number;
+        }[] = [];
         if (chosenBatch) {
           const stock = await tx.productStock.findFirst({
             where: {
@@ -665,10 +712,12 @@ export class InventoryService {
               `الرصيد غير كافٍ للصنف ${product.name} (التشغيلة: ${chosenBatch}) في المخزن المصدر. المتاح: ${stock?.quantity || 0}`,
             );
           }
-          const valuationMethod = product.category?.valuationMethod || 'WEIGHTED_AVERAGE';
-          const costToUse = valuationMethod === 'WEIGHTED_AVERAGE'
-            ? Number(product.costPrice || 0)
-            : Number(stock.unitCost || 0);
+          const valuationMethod =
+            product.category?.valuationMethod || 'WEIGHTED_AVERAGE';
+          const costToUse =
+            valuationMethod === 'WEIGHTED_AVERAGE'
+              ? Number(product.costPrice || 0)
+              : Number(stock.unitCost || 0);
 
           allocations = [
             {
@@ -680,8 +729,9 @@ export class InventoryService {
           ];
         } else {
           // Determine sorting order based on Valuation Method
-          const valuationMethod = product.category?.valuationMethod || 'WEIGHTED_AVERAGE';
-          
+          const valuationMethod =
+            product.category?.valuationMethod || 'WEIGHTED_AVERAGE';
+
           let orderByList: any[] = [];
           if (valuationMethod === 'LIFO') {
             orderByList = [{ createdAt: 'desc' }];
@@ -689,10 +739,7 @@ export class InventoryService {
             orderByList = [{ createdAt: 'asc' }];
           } else {
             // WEIGHTED_AVERAGE usually depletes FEFO (First Expired First Out) or FIFO for physical stock
-            orderByList = [
-              { expiryDate: 'asc' },
-              { createdAt: 'asc' },
-            ];
+            orderByList = [{ expiryDate: 'asc' }, { createdAt: 'asc' }];
           }
 
           const stocks = await tx.productStock.findMany({
@@ -709,11 +756,12 @@ export class InventoryService {
             if (rem <= 0) break;
             const avail = Number(st.quantity);
             const take = Math.min(avail, rem);
-            
+
             // For Weighted Average, we use the product's overall costPrice instead of batch's unitCost.
-            const costToUse = valuationMethod === 'WEIGHTED_AVERAGE' 
-              ? Number(product.costPrice || 0)
-              : Number(st.unitCost || 0);
+            const costToUse =
+              valuationMethod === 'WEIGHTED_AVERAGE'
+                ? Number(product.costPrice || 0)
+                : Number(st.unitCost || 0);
 
             allocations.push({
               batchNumber: st.batchNumber,
@@ -764,8 +812,9 @@ export class InventoryService {
 
           // تسجيل حركة خروج
           // Ensure we use the cost calculated from the allocation
-          const costPrice = (alloc as any).unitCost || Number(product.costPrice || 0);
-          
+          const costPrice =
+            (alloc as any).unitCost || Number(product.costPrice || 0);
+
           await tx.stockTransaction.create({
             data: {
               hospitalId,
@@ -796,12 +845,17 @@ export class InventoryService {
           });
 
           // تجميع تكاليف الصنف للفئة الخاصة به
-          const inventoryAccountId = product.category?.inventoryAccountId || null;
+          const inventoryAccountId =
+            product.category?.inventoryAccountId || null;
           const expenseAccountId = product.category?.expenseAccountId || null;
           const key = `${inventoryAccountId || 'null'}-${expenseAccountId || 'null'}`;
-          
+
           const allocCost = costPrice * alloc.quantity;
-          const existing = categoryCostMap.get(key) || { inventoryAccountId, expenseAccountId, totalCost: 0 };
+          const existing = categoryCostMap.get(key) || {
+            inventoryAccountId,
+            expenseAccountId,
+            totalCost: 0,
+          };
           existing.totalCost += allocCost;
           categoryCostMap.set(key, existing);
         }
@@ -880,7 +934,7 @@ export class InventoryService {
         // الحصول على تكلفة الشراء من إذن الصرف
         const product = await tx.product.findUnique({
           where: { id: item.productId },
-          select: { costPrice: true }
+          select: { costPrice: true },
         });
         const costPrice = Number(product?.costPrice || 0);
 
@@ -975,11 +1029,14 @@ export class InventoryService {
 
     await this.prisma.$transaction(async (tx) => {
       // خريطة لتجميع التكاليف لكل فئة من حساب المخزون والمصروفات
-      const categoryCostMap = new Map<string, {
-        inventoryAccountId: number | null;
-        expenseAccountId: number | null;
-        totalCost: number;
-      }>();
+      const categoryCostMap = new Map<
+        string,
+        {
+          inventoryAccountId: number | null;
+          expenseAccountId: number | null;
+          totalCost: number;
+        }
+      >();
 
       for (const map of mappings) {
         const requiredQty = Number(map.quantity) * multiplier;
@@ -995,10 +1052,7 @@ export class InventoryService {
             productId: map.productId,
             quantity: { gt: 0 },
           },
-          orderBy: [
-            { expiryDate: 'asc' },
-            { createdAt: 'asc' },
-          ],
+          orderBy: [{ expiryDate: 'asc' }, { createdAt: 'asc' }],
         });
 
         let rem = requiredQty;
@@ -1006,7 +1060,7 @@ export class InventoryService {
           if (rem <= 0) break;
           const avail = Number(st.quantity);
           const take = Math.min(avail, rem);
-          
+
           await tx.productStock.update({
             where: { id: st.id },
             data: { quantity: { decrement: take } },
@@ -1034,7 +1088,11 @@ export class InventoryService {
           });
 
           // تجميع تكاليف الصنف للفئة الخاصة به
-          const existing = categoryCostMap.get(key) || { inventoryAccountId, expenseAccountId, totalCost: 0 };
+          const existing = categoryCostMap.get(key) || {
+            inventoryAccountId,
+            expenseAccountId,
+            totalCost: 0,
+          };
           existing.totalCost += totalCost;
           categoryCostMap.set(key, existing);
 
@@ -1075,10 +1133,10 @@ export class InventoryService {
       include: {
         baseUom: true,
         productUoms: {
-          include: { uom: true }
-        }
+          include: { uom: true },
+        },
       },
-      orderBy: { name: 'asc' }
+      orderBy: { name: 'asc' },
     });
   }
 
@@ -1088,7 +1146,7 @@ export class InventoryService {
         productId_uomId: {
           productId,
           uomId: dto.uomId,
-        }
+        },
       },
       update: {
         conversionRate: dto.conversionRate,
@@ -1101,7 +1159,7 @@ export class InventoryService {
         conversionRate: dto.conversionRate,
         isPurchasingUOM: dto.isPurchasingUOM || false,
         isIssuingUOM: dto.isIssuingUOM || false,
-      }
+      },
     });
   }
 
@@ -1111,8 +1169,8 @@ export class InventoryService {
         productId_uomId: {
           productId,
           uomId,
-        }
-      }
+        },
+      },
     });
   }
 
@@ -1192,7 +1250,7 @@ export class InventoryService {
 
   async updateUOM(hospitalId: number, id: number, dto: any) {
     const existing = await this.prisma.unitOfMeasure.findFirst({
-      where: { id, hospitalId }
+      where: { id, hospitalId },
     });
     if (!existing) {
       throw new Error('Unit of Measure not found or unauthorized');

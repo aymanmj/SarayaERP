@@ -482,9 +482,14 @@ export class CDSSService {
         orderBy: { renalClass: 'asc' }, // HIGH قبل MODERATE
       });
 
-      let matchedRule: import('@prisma/client').RenalDoseRequirement | null = null;
+      let matchedRule: import('@prisma/client').RenalDoseRequirement | null =
+        null;
       for (const rule of renalRules) {
-        if (rule.atcPrefix && atcCode && atcCode.startsWith(rule.atcPrefix.toUpperCase())) {
+        if (
+          rule.atcPrefix &&
+          atcCode &&
+          atcCode.startsWith(rule.atcPrefix.toUpperCase())
+        ) {
           matchedRule = rule;
           break;
         }
@@ -572,7 +577,9 @@ export class CDSSService {
     });
 
     for (const problem of problems) {
-      const match = problem.description.match(/Child-Pugh\s*(Class\s+)?([A-C])/i);
+      const match = problem.description.match(
+        /Child-Pugh\s*(Class\s+)?([A-C])/i,
+      );
       if (match) {
         return match[2].toUpperCase(); // returns 'A' | 'B' | 'C'
       }
@@ -602,9 +609,14 @@ export class CDSSService {
         where: { isActive: true, childPughClass },
       });
 
-      let matchedRule: import('@prisma/client').HepaticDoseRequirement | null = null;
+      let matchedRule: import('@prisma/client').HepaticDoseRequirement | null =
+        null;
       for (const rule of hepaticRules) {
-        if (rule.atcPrefix && atcCode && atcCode.startsWith(rule.atcPrefix.toUpperCase())) {
+        if (
+          rule.atcPrefix &&
+          atcCode &&
+          atcCode.startsWith(rule.atcPrefix.toUpperCase())
+        ) {
           matchedRule = rule;
           break;
         }
@@ -618,16 +630,19 @@ export class CDSSService {
       }
 
       // 2. Fallback لأدوية شائعة للسلامة
-      const isParacetamol = name.includes('paracetamol') || name.includes('acetaminophen');
-      
+      const isParacetamol =
+        name.includes('paracetamol') || name.includes('acetaminophen');
+
       const requiresHepaticReview = matchedRule
         ? true
         : isParacetamol && childPughClass === 'C';
 
       if (requiresHepaticReview) {
         const actionText = matchedRule?.action ?? 'AVOID';
-        const actionAr = matchedRule?.actionAr ?? 'تجنب استخدام الدواء أو قلل الجرعة لأدنى حد';
-        const evidenceSource = matchedRule?.evidenceSource ?? 'Clinical Practice Guidelines';
+        const actionAr =
+          matchedRule?.actionAr ?? 'تجنب استخدام الدواء أو قلل الجرعة لأدنى حد';
+        const evidenceSource =
+          matchedRule?.evidenceSource ?? 'Clinical Practice Guidelines';
 
         alerts.push({
           type: CDSSAlertType.DRUG_DISEASE,
@@ -644,7 +659,8 @@ export class CDSSService {
             action: actionText,
             evidenceSource,
           },
-          requiresOverride: childPughClass === 'C' || matchedRule?.hepaticClass === 'HIGH',
+          requiresOverride:
+            childPughClass === 'C' || matchedRule?.hepaticClass === 'HIGH',
         });
       }
     }
@@ -742,14 +758,24 @@ export class CDSSService {
       const matchedOverride = recentOverrides.find((o) => {
         if (o.alertType !== alert.type) return false;
 
-        const historyContext = o.context ? (o.context as Record<string, any>) : {};
+        const historyContext = o.context
+          ? (o.context as Record<string, any>)
+          : {};
         const currentContext = alert.context || {};
 
         if (alert.type === CDSSAlertType.DRUG_INTERACTION) {
-          const histA = String(historyContext.drugA || '').toLowerCase().trim();
-          const histB = String(historyContext.drugB || '').toLowerCase().trim();
-          const currA = String(currentContext.drugA || '').toLowerCase().trim();
-          const currB = String(currentContext.drugB || '').toLowerCase().trim();
+          const histA = String(historyContext.drugA || '')
+            .toLowerCase()
+            .trim();
+          const histB = String(historyContext.drugB || '')
+            .toLowerCase()
+            .trim();
+          const currA = String(currentContext.drugA || '')
+            .toLowerCase()
+            .trim();
+          const currB = String(currentContext.drugB || '')
+            .toLowerCase()
+            .trim();
           return (
             (histA === currA && histB === currB) ||
             (histA === currB && histB === currA)
@@ -757,19 +783,34 @@ export class CDSSService {
         }
 
         if (alert.type === CDSSAlertType.DRUG_ALLERGY) {
-          const histDrug = String(historyContext.drug || '').toLowerCase().trim();
-          const histAllergen = String(historyContext.allergen || '').toLowerCase().trim();
-          const currDrug = String(currentContext.drug || '').toLowerCase().trim();
-          const currAllergen = String(currentContext.allergen || '').toLowerCase().trim();
+          const histDrug = String(historyContext.drug || '')
+            .toLowerCase()
+            .trim();
+          const histAllergen = String(historyContext.allergen || '')
+            .toLowerCase()
+            .trim();
+          const currDrug = String(currentContext.drug || '')
+            .toLowerCase()
+            .trim();
+          const currAllergen = String(currentContext.allergen || '')
+            .toLowerCase()
+            .trim();
           return histDrug === currDrug && histAllergen === currAllergen;
         }
 
         if (alert.type === CDSSAlertType.DUPLICATE_THERAPY) {
           if (historyContext.atcGroup && currentContext.atcGroup) {
-            return String(historyContext.atcGroup).toLowerCase().trim() === String(currentContext.atcGroup).toLowerCase().trim();
+            return (
+              String(historyContext.atcGroup).toLowerCase().trim() ===
+              String(currentContext.atcGroup).toLowerCase().trim()
+            );
           }
-          const histDrug = String(historyContext.drug || '').toLowerCase().trim();
-          const currDrug = String(currentContext.drug || '').toLowerCase().trim();
+          const histDrug = String(historyContext.drug || '')
+            .toLowerCase()
+            .trim();
+          const currDrug = String(currentContext.drug || '')
+            .toLowerCase()
+            .trim();
           return histDrug === currDrug;
         }
 
@@ -778,8 +819,12 @@ export class CDSSService {
           alert.type === CDSSAlertType.DRUG_DISEASE ||
           alert.type === CDSSAlertType.DOSAGE_WARNING
         ) {
-          const histDrug = String(historyContext.drug || '').toLowerCase().trim();
-          const currDrug = String(currentContext.drug || '').toLowerCase().trim();
+          const histDrug = String(historyContext.drug || '')
+            .toLowerCase()
+            .trim();
+          const currDrug = String(currentContext.drug || '')
+            .toLowerCase()
+            .trim();
           return histDrug === currDrug;
         }
 
@@ -873,7 +918,8 @@ export class CDSSService {
     }
     // تحديد إمكانية المتابعة
     const hasCritical = finalAlerts.some(
-      (a) => a.severity === CDSSAlertSeverity.CRITICAL && !a.context?.autoSuppressed,
+      (a) =>
+        a.severity === CDSSAlertSeverity.CRITICAL && !a.context?.autoSuppressed,
     );
     const hasBlocker = finalAlerts.some((a) => a.requiresOverride);
 

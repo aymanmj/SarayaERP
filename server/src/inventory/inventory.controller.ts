@@ -216,7 +216,10 @@ export class InventoryController {
   // إنشاء طلب مواد
   @Post('material-requests')
   @Permissions('inventory:manage')
-  async createMaterialRequest(@Req() req: any, @Body() dto: CreateMaterialRequestDto) {
+  async createMaterialRequest(
+    @Req() req: any,
+    @Body() dto: CreateMaterialRequestDto,
+  ) {
     return this.inventoryService.createMaterialRequest({
       hospitalId: req.user.hospitalId,
       userId: req.user.sub,
@@ -249,7 +252,10 @@ export class InventoryController {
     @Req() req: any,
     @Param('id', ParseIntPipe) id: number,
   ) {
-    return this.inventoryService.getMaterialRequestById(req.user.hospitalId, id);
+    return this.inventoryService.getMaterialRequestById(
+      req.user.hospitalId,
+      id,
+    );
   }
 
   // اعتماد طلب مواد (للصرف)
@@ -381,7 +387,11 @@ export class InventoryController {
 
   @Put('master-data/uoms/:id')
   @Permissions('inventory:manage')
-  async updateUOM(@CurrentUser() user: any, @Param('id') id: string, @Body() dto: any) {
+  async updateUOM(
+    @CurrentUser() user: any,
+    @Param('id') id: string,
+    @Body() dto: any,
+  ) {
     return this.inventoryService.updateUOM(user.hospitalId, Number(id), dto);
   }
 

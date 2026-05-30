@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import * as crypto from 'crypto';
 
@@ -61,7 +65,9 @@ export class DeveloperService {
     }
 
     if (app.hospitalId !== hospitalId) {
-      throw new ForbiddenException(`Access denied. App does not belong to your hospital.`);
+      throw new ForbiddenException(
+        `Access denied. App does not belong to your hospital.`,
+      );
     }
 
     return app;
@@ -111,7 +117,9 @@ export class DeveloperService {
     const scopeExists = app.scopes.some((s) => s.id === scopeId);
 
     if (!scopeExists) {
-      throw new NotFoundException(`Scope with ID ${scopeId} not found on this app.`);
+      throw new NotFoundException(
+        `Scope with ID ${scopeId} not found on this app.`,
+      );
     }
 
     return this.prisma.developerAppScope.delete({
@@ -119,7 +127,12 @@ export class DeveloperService {
     });
   }
 
-  async generateApiKey(appId: number, hospitalId: number, name?: string, expiresDays?: number) {
+  async generateApiKey(
+    appId: number,
+    hospitalId: number,
+    name?: string,
+    expiresDays?: number,
+  ) {
     await this.findAppOrThrow(appId, hospitalId);
 
     const rawKey = 'sk_' + this.generateRandomString(32);
@@ -145,7 +158,9 @@ export class DeveloperService {
     const keyExists = app.apiKeys.some((k) => k.id === keyId);
 
     if (!keyExists) {
-      throw new NotFoundException(`API Key with ID ${keyId} not found on this app.`);
+      throw new NotFoundException(
+        `API Key with ID ${keyId} not found on this app.`,
+      );
     }
 
     return this.prisma.apiKey.delete({

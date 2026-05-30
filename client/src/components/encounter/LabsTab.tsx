@@ -228,7 +228,7 @@ export function LabsTab({ encounterId, hospitalId, doctorId }: LabsTabProps) {
                 }`}
               >
                 <div className="flex items-center justify-between gap-1">
-                  <span className="font-bold truncate">{t.arabicName || t.name}</span>
+                  <span className="font-bold truncate">{t.name}</span>
                   {isSelected && <span className="text-sky-400">✓</span>}
                 </div>
                 <div className="text-[9px] text-slate-500 font-mono mt-0.5">{t.code}</div>
@@ -274,7 +274,7 @@ export function LabsTab({ encounterId, hospitalId, doctorId }: LabsTabProps) {
           <div key={lo.id} className="border border-slate-800 rounded-2xl p-4 bg-slate-900/40">
             <div className="flex justify-between items-center mb-3 pb-2 border-b border-slate-800/50">
               <div className="flex items-center gap-2">
-                <span className="font-bold text-sky-400">{lo.test.arabicName || lo.test.name}</span>
+                <span className="font-bold text-sky-400">{lo.test.name}</span>
                 <span className="text-[10px] text-slate-500 font-mono bg-slate-950 px-1.5 rounded">
                   {lo.test.code}
                 </span>

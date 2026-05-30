@@ -40,7 +40,7 @@ export class LocalizationInterceptor implements NestInterceptor {
 
       const localizedObj: any = {};
       const keys = Object.keys(data);
-      
+
       // تحديد جميع المفاتيح الأساسية التي تمتلك لاحقات ثنائية اللغة
       const baseKeys = new Set<string>();
       for (const key of keys) {
@@ -60,15 +60,25 @@ export class LocalizationInterceptor implements NestInterceptor {
         if (baseKeys.has(key)) {
           const keyAr = `${key}Ar`;
           const keyEn = `${key}En`;
-          
+
           const valAr = data[keyAr];
           const valEn = data[keyEn];
           const valDefault = data[key];
 
           if (lang === 'ar') {
-            localizedObj[key] = this.localize(valAr !== undefined && valAr !== null ? valAr : (valDefault ?? valEn), lang);
+            localizedObj[key] = this.localize(
+              valAr !== undefined && valAr !== null
+                ? valAr
+                : (valDefault ?? valEn),
+              lang,
+            );
           } else {
-            localizedObj[key] = this.localize(valEn !== undefined && valEn !== null ? valEn : (valDefault ?? valAr), lang);
+            localizedObj[key] = this.localize(
+              valEn !== undefined && valEn !== null
+                ? valEn
+                : (valDefault ?? valAr),
+              lang,
+            );
           }
         } else {
           localizedObj[key] = this.localize(data[key], lang);
@@ -85,9 +95,15 @@ export class LocalizationInterceptor implements NestInterceptor {
           const valEn = data[keyEn];
 
           if (lang === 'ar') {
-            localizedObj[baseKey] = this.localize(valAr !== undefined && valAr !== null ? valAr : valEn, lang);
+            localizedObj[baseKey] = this.localize(
+              valAr !== undefined && valAr !== null ? valAr : valEn,
+              lang,
+            );
           } else {
-            localizedObj[baseKey] = this.localize(valEn !== undefined && valEn !== null ? valEn : valAr, lang);
+            localizedObj[baseKey] = this.localize(
+              valEn !== undefined && valEn !== null ? valEn : valAr,
+              lang,
+            );
           }
         }
       }

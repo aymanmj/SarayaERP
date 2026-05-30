@@ -71,7 +71,10 @@ describe('AiCodingService', () => {
         { provide: PrismaService, useValue: prismaService },
         { provide: PriceListsService, useValue: priceListsService },
         { provide: BillingService, useValue: billingService },
-        { provide: ServicesService, useValue: { explodeServiceCharges: jest.fn().mockResolvedValue([]) } },
+        {
+          provide: ServicesService,
+          useValue: { explodeServiceCharges: jest.fn().mockResolvedValue([]) },
+        },
         { provide: EventEmitter2, useValue: { emit: jest.fn() } },
       ],
     }).compile();
@@ -91,7 +94,8 @@ describe('AiCodingService', () => {
       expect(GoogleGenerativeAI).toHaveBeenCalledWith('vault-test-key');
 
       // Default instantiation options
-      const genAIInstance = (GoogleGenerativeAI as jest.Mock).mock.results[0].value;
+      const genAIInstance = (GoogleGenerativeAI as jest.Mock).mock.results[0]
+        .value;
       expect(genAIInstance.getGenerativeModel).toHaveBeenCalledWith(
         {
           model: 'gemini-2.5-flash',
@@ -101,7 +105,7 @@ describe('AiCodingService', () => {
             topP: 0.8,
           },
         },
-        {} // no custom options passed since they are undefined
+        {}, // no custom options passed since they are undefined
       );
     });
 
@@ -118,7 +122,8 @@ describe('AiCodingService', () => {
       const success = await service.ensureModelLoaded();
       expect(success).toBe(true);
 
-      const genAIInstance = (GoogleGenerativeAI as jest.Mock).mock.results[0].value;
+      const genAIInstance = (GoogleGenerativeAI as jest.Mock).mock.results[0]
+        .value;
       expect(genAIInstance.getGenerativeModel).toHaveBeenCalledWith(
         {
           model: 'gemini-2.5-flash',
@@ -131,7 +136,7 @@ describe('AiCodingService', () => {
         {
           baseUrl: 'https://my-proxy-url.com',
           apiVersion: 'v1beta',
-        }
+        },
       );
     });
   });

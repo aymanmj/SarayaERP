@@ -103,11 +103,12 @@ export class EncountersService {
               ? patient.insurancePolicy.id
               : null;
 
-            const explodedItems = await this.servicesService.explodeServiceCharges(
-              hospitalId,
-              erService.id,
-              policyId,
-            );
+            const explodedItems =
+              await this.servicesService.explodeServiceCharges(
+                hospitalId,
+                erService.id,
+                policyId,
+              );
 
             let totalChargePrice = 0;
             const chargeIds: number[] = [];
@@ -118,7 +119,7 @@ export class EncountersService {
                 expItem.serviceItemId,
                 policyId,
               );
-              
+
               const charge = await tx.encounterCharge.create({
                 data: {
                   hospitalId,
@@ -131,7 +132,7 @@ export class EncountersService {
                   performerId: doctorId ?? null,
                 },
               });
-              
+
               chargeIds.push(charge.id);
               totalChargePrice += itemPrice * expItem.quantity;
             }
@@ -144,8 +145,10 @@ export class EncountersService {
             if (patient.insurancePolicy?.isActive) {
               const copayRate =
                 Number(patient.insurancePolicy.patientCopayRate || 0) / 100;
-              patientShare = Math.round(totalChargePrice * copayRate * 100) / 100;
-              insuranceShare = Math.round((totalChargePrice - patientShare) * 100) / 100;
+              patientShare =
+                Math.round(totalChargePrice * copayRate * 100) / 100;
+              insuranceShare =
+                Math.round((totalChargePrice - patientShare) * 100) / 100;
               insuranceProviderId = patient.insurancePolicy.insuranceProviderId;
             }
 
@@ -239,11 +242,11 @@ export class EncountersService {
         invoices: true,
         admission: true,
         visits: {
-          orderBy: { createdAt: 'desc' }
+          orderBy: { createdAt: 'desc' },
         },
         clinicalNotes: {
           orderBy: { createdAt: 'desc' },
-          include: { createdBy: { select: { fullName: true } } }
+          include: { createdBy: { select: { fullName: true } } },
         },
       },
     });

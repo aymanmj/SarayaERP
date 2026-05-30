@@ -89,13 +89,22 @@ describe('Patient Journey Integration Tests', () => {
         { provide: SoftDeleteService, useValue: mockSoftDeleteService },
         { provide: SystemSettingsService, useValue: mockSystemSettings },
         { provide: PriceListsService, useValue: mockPriceService },
-        { 
-          provide: ServicesService, 
-          useValue: { 
-            explodeServiceCharges: jest.fn().mockImplementation(async (hospitalId, itemId) => {
-              return [{ serviceItemId: itemId, quantity: 1, name: 'Test', cptCode: null }];
-            })
-          } 
+        {
+          provide: ServicesService,
+          useValue: {
+            explodeServiceCharges: jest
+              .fn()
+              .mockImplementation(async (hospitalId, itemId) => {
+                return [
+                  {
+                    serviceItemId: itemId,
+                    quantity: 1,
+                    name: 'Test',
+                    cptCode: null,
+                  },
+                ];
+              }),
+          },
         },
       ],
     }).compile();

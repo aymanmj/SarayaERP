@@ -162,7 +162,10 @@ export class LicenseService implements OnModuleInit {
   // ============================================================
 
   getStatus(force = false): LicenseStatus {
-    if (process.env.LICENSE_BYPASS === 'true' && process.env.NODE_ENV !== 'production') {
+    if (
+      process.env.LICENSE_BYPASS === 'true' &&
+      process.env.NODE_ENV !== 'production'
+    ) {
       return {
         isValid: true,
         machineId: this._machineId || 'BYPASS',

@@ -12,7 +12,11 @@ import { InventoryAutoDepletionListener } from './inventory-auto-depletion.liste
 
 @Module({
   imports: [AccountingModule],
-  controllers: [InventoryCountController, InventoryController, WarehouseController],
+  controllers: [
+    InventoryCountController,
+    InventoryController,
+    WarehouseController,
+  ],
   providers: [
     InventoryCountService,
     InventoryService,

@@ -245,7 +245,7 @@ export function RadiologyTab({ encounterId, hospitalId, doctorId }: RadiologyTab
                 }`}
               >
                 <div className="flex items-center justify-between gap-1">
-                  <span className="font-bold truncate">{s.arabicName || s.name}</span>
+                  <span className="font-bold truncate">{s.name}</span>
                   {isSelected && <span className="text-sky-400">✓</span>}
                 </div>
                 <div className="flex items-center gap-1 mt-0.5">
@@ -300,7 +300,7 @@ export function RadiologyTab({ encounterId, hospitalId, doctorId }: RadiologyTab
               <div className="flex justify-between items-center mb-3 pb-2 border-b border-slate-800/50">
                 <div className="flex items-center gap-2">
                   <span className={`text-lg ${ms.color}`}>{ms.icon}</span>
-                  <span className="font-bold text-sky-400">{o.study.arabicName || o.study.name}</span>
+                  <span className="font-bold text-sky-400">{o.study.name}</span>
                   <span className="text-[10px] text-slate-500 font-mono bg-slate-950 px-1.5 rounded">
                     {o.study.code}
                   </span>

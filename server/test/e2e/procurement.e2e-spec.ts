@@ -29,7 +29,9 @@ describe('Procurement & Supply Chain E2E', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+    app.useGlobalPipes(
+      new ValidationPipe({ whitelist: true, transform: true }),
+    );
     await app.init();
 
     prisma = app.get<PrismaService>(PrismaService);
@@ -40,7 +42,11 @@ describe('Procurement & Supply Chain E2E', () => {
       await resetDatabase(prisma);
 
       const hospital = await prisma.hospital.create({
-        data: { code: 'PROC_HOSP', name: 'Procurement Hospital', isActive: true },
+        data: {
+          code: 'PROC_HOSP',
+          name: 'Procurement Hospital',
+          isActive: true,
+        },
       });
       hospitalId = hospital.id;
 
@@ -82,19 +88,29 @@ describe('Procurement & Supply Chain E2E', () => {
       });
 
       // Create users
-      const storeKeeper = await authHelper.createUserWithRole(hospitalId, 'StoreKeeper', 'STORE_KEEPER', 'store@saraya.com');
-      const accountant = await authHelper.createUserWithRole(hospitalId, 'Accountant', 'ACCOUNTANT', 'acc@saraya.com');
+      const storeKeeper = await authHelper.createUserWithRole(
+        hospitalId,
+        'StoreKeeper',
+        'STORE_KEEPER',
+        'store@saraya.com',
+      );
+      const accountant = await authHelper.createUserWithRole(
+        hospitalId,
+        'Accountant',
+        'ACCOUNTANT',
+        'acc@saraya.com',
+      );
 
       storeKeeperToken = authHelper.generateToken(storeKeeper);
       accountantToken = authHelper.generateToken(accountant);
 
       // Create Master Data
       const category = await prisma.itemCategory.create({
-        data: { hospitalId, name: 'Medications', code: 'MEDS' }
+        data: { hospitalId, name: 'Medications', code: 'MEDS' },
       });
 
       const baseUom = await prisma.uom.create({
-        data: { hospitalId, name: 'Piece', code: 'PCS' }
+        data: { hospitalId, name: 'Piece', code: 'PCS' },
       });
 
       const product = await prisma.product.create({
@@ -106,23 +122,30 @@ describe('Procurement & Supply Chain E2E', () => {
           categoryId: category.id,
           baseUomId: baseUom.id,
           costPrice: 5.0,
-          isActive: true
-        }
+          isActive: true,
+        },
       });
       productId = product.id;
 
       const warehouse = await prisma.warehouse.create({
-        data: { hospitalId, name: 'Main Pharmacy', code: 'W-MAIN' }
+        data: { hospitalId, name: 'Main Pharmacy', code: 'W-MAIN' },
       });
       warehouseId = warehouse.id;
 
       const supplier = await prisma.supplier.create({
-        data: { hospitalId, code: 'S-001', name: 'Global Pharma', isActive: true }
+        data: {
+          hospitalId,
+          code: 'S-001',
+          name: 'Global Pharma',
+          isActive: true,
+        },
       });
       supplierId = supplier.id;
-
     } catch (e) {
-      console.warn('Procurement E2E setup failed (maybe Redis is not running)', e);
+      console.warn(
+        'Procurement E2E setup failed (maybe Redis is not running)',
+        e,
+      );
     }
   });
 
@@ -139,14 +162,14 @@ describe('Procurement & Supply Chain E2E', () => {
           requiredDate: new Date().toISOString(),
           requestingWarehouseId: warehouseId,
           notes: 'Urgent paracetamol',
-          items: [{ productId, uomId: 1, quantity: 100, baseQuantity: 100 }]
+          items: [{ productId, uomId: 1, quantity: 100, baseQuantity: 100 }],
         });
-      
+
       // If redis connects successfully, we check assertions
       if (prRes.status !== 500) {
         expect(prRes.status).toBe(201);
         expect(prRes.body.status).toBe('PENDING_APPROVAL');
       }
-    } catch(e) {}
+    } catch (e) {}
   });
 });

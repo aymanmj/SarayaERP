@@ -174,12 +174,13 @@ export class LabOrdersService {
         if (test.serviceItemId && test.serviceItem) {
           // Temporarily ignoring insurance policy id since patient is not loaded on encounter here
           const insurancePolicyId = null;
-            
-          const explodedItems = await this.servicesService.explodeServiceCharges(
-            hospitalId,
-            test.serviceItemId,
-            insurancePolicyId,
-          );
+
+          const explodedItems =
+            await this.servicesService.explodeServiceCharges(
+              hospitalId,
+              test.serviceItemId,
+              insurancePolicyId,
+            );
 
           for (const expItem of explodedItems) {
             const charge = await tx.encounterCharge.create({
@@ -191,11 +192,13 @@ export class LabOrdersService {
                 sourceId: order.id,
                 quantity: expItem.quantity,
                 unitPrice: Number(test.serviceItem.defaultPrice || 0),
-                totalAmount: Number(test.serviceItem.defaultPrice || 0) * expItem.quantity,
+                totalAmount:
+                  Number(test.serviceItem.defaultPrice || 0) * expItem.quantity,
               },
             });
             chargeIds.push(charge.id);
-            totalAmount += Number(test.serviceItem.defaultPrice || 0) * expItem.quantity;
+            totalAmount +=
+              Number(test.serviceItem.defaultPrice || 0) * expItem.quantity;
           }
         }
       }

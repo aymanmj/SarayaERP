@@ -61,10 +61,19 @@ describe('LabOrdersService', () => {
         },
         {
           provide: ServicesService,
-          useValue: { 
-            explodeServiceCharges: jest.fn().mockImplementation(async (hospitalId, itemId) => {
-              return [{ serviceItemId: itemId, quantity: 1, name: 'Test', cptCode: null }];
-            })
+          useValue: {
+            explodeServiceCharges: jest
+              .fn()
+              .mockImplementation(async (hospitalId, itemId) => {
+                return [
+                  {
+                    serviceItemId: itemId,
+                    quantity: 1,
+                    name: 'Test',
+                    cptCode: null,
+                  },
+                ];
+              }),
           },
         },
       ],

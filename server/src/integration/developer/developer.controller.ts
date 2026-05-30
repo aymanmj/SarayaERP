@@ -22,8 +22,15 @@ export class DeveloperController {
   constructor(private developerService: DeveloperService) {}
 
   @Post('apps')
-  async registerApp(@Req() req: any, @Body() body: { name: string; redirectUris: string[] }) {
-    return this.developerService.registerApp(req.user.hospitalId, body.name, body.redirectUris);
+  async registerApp(
+    @Req() req: any,
+    @Body() body: { name: string; redirectUris: string[] },
+  ) {
+    return this.developerService.registerApp(
+      req.user.hospitalId,
+      body.name,
+      body.redirectUris,
+    );
   }
 
   @Get('apps')
@@ -35,7 +42,8 @@ export class DeveloperController {
   async updateApp(
     @Req() req: any,
     @Param('id', ParseIntPipe) id: number,
-    @Body() body: { name?: string; redirectUris?: string[]; isActive?: boolean },
+    @Body()
+    body: { name?: string; redirectUris?: string[]; isActive?: boolean },
   ) {
     return this.developerService.updateApp(id, req.user.hospitalId, body);
   }

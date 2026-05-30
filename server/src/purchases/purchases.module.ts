@@ -12,7 +12,11 @@ import { AccountingModule } from '../accounting/accounting.module';
 
 @Module({
   imports: [PrismaModule, AccountingModule],
-  controllers: [PurchasesController, PurchaseReturnsController, ProcurementController], // ✅ [NEW]
+  controllers: [
+    PurchasesController,
+    PurchaseReturnsController,
+    ProcurementController,
+  ], // ✅ [NEW]
   providers: [PurchasesService, ProcurementService, PurchaseReturnsService],
   exports: [PurchasesService, ProcurementService, PurchaseReturnsService],
 })

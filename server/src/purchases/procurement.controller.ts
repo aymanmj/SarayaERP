@@ -17,10 +17,18 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/permissions.guard';
 import { Permissions } from '../auth/permissions.decorator';
 import { Type } from 'class-transformer';
-import { IsArray, IsInt, IsOptional, IsString, ValidateNested, IsDateString, Min, IsNumber } from 'class-validator';
+import {
+  IsArray,
+  IsInt,
+  IsOptional,
+  IsString,
+  ValidateNested,
+  IsDateString,
+  Min,
+  IsNumber,
+} from 'class-validator';
 import { PrismaService } from '../prisma/prisma.service';
 import { POStatus } from '@prisma/client';
-
 
 class CreateSupplierDto {
   @IsString()
@@ -115,7 +123,6 @@ class CreatePODirectDto {
   @Type(() => PODirectItemDto)
   items!: PODirectItemDto[];
 }
-
 
 class GRNItemDto {
   @IsInt()
@@ -305,7 +312,7 @@ export class ProcurementController {
       userId: req.user.sub,
       poId: dto.poId,
       warehouseId: dto.warehouseId,
-      items: dto.items.map(i => ({
+      items: dto.items.map((i) => ({
         ...i,
         expiryDate: new Date(i.expiryDate),
       })),
@@ -313,4 +320,3 @@ export class ProcurementController {
     });
   }
 }
-

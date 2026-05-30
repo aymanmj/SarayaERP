@@ -61,6 +61,41 @@ export async function seedMedicalData() {
   const products = getProducts();
   console.log(`💊 Seeding ${products.length} products (Drugs & Supplies)...`);
 
+  const productTranslations: Record<string, string> = {
+    Panadol: 'بنادول',
+    Augmentin: 'أوجمنتين',
+    Brufen: 'بروفين',
+    Voltaren: 'فولتارين',
+    Cataflam: 'كاتافلام',
+    Nexium: 'نيكسيوم',
+    Glucophage: 'جلوكوفاج',
+    Lantus: 'لانتوس',
+    Syringe: 'حقنة',
+    Cannula: 'كانيولا',
+    'Examination Gloves': 'قفازات فحص',
+    'Surgical Gloves': 'قفازات جراحية معقمة',
+    'Face Mask': 'كمامة طبية',
+    'Gauze Swabs': 'شاش طبي',
+    'Cotton Wool': 'قطن طبي',
+    'Betadine Solution': 'محلول بيتادين',
+    'Alcohol Swabs': 'مسحات كحولية',
+    'Normal Saline': 'محلول ملحي normal saline',
+    Glucose: 'محلول جلوكوز',
+    'Ringer Lactate': 'محلول رينجر لاكتات',
+    'Urine Bag': 'كيس جمع بول',
+    'Foley Catheter': 'قسطرة فولي',
+    'ECG Electrodes': 'أقطاب رسم قلب ECG',
+  };
+
+  const getArabicProductName = (nameEn: string): string => {
+    for (const [enKey, arVal] of Object.entries(productTranslations)) {
+      if (nameEn.toLowerCase().includes(enKey.toLowerCase())) {
+        return nameEn.replace(new RegExp(enKey, 'i'), arVal);
+      }
+    }
+    return nameEn;
+  };
+
   let prodCount = 0;
   for (const p of products) {
     const productConcept = p.rxNormCode
@@ -95,17 +130,24 @@ export async function seedMedicalData() {
           select: { id: true },
         });
 
+    const nameAr = getArabicProductName(p.name);
+    const nameEn = p.name;
+
     await prisma.product.upsert({
       where: { hospitalId_code: { hospitalId, code: p.code } },
       update: {
+        name: nameAr,
+        nameAr,
+        nameEn,
         stockOnHand: p.stockOnHand,
         terminologyConceptId: productConcept?.id,
-        // rxNormCode: p.rxNormCode, // Optional update
       },
       create: {
         hospitalId,
         code: p.code,
-        name: p.name,
+        name: nameAr,
+        nameAr,
+        nameEn,
         genericName: p.genericName,
         type: p.type,
         form: p.form,

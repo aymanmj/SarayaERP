@@ -69,10 +69,7 @@ export class SettingsController {
         where: {
           organizationId: hospital.organizationId,
           key: {
-            in: [
-              'mpi.enableFederation',
-              'mpi.requirePatientOTP',
-            ],
+            in: ['mpi.enableFederation', 'mpi.requirePatientOTP'],
           },
         },
       });
@@ -90,10 +87,7 @@ export class SettingsController {
         where: {
           hospitalId: hospital.id,
           key: {
-            in: [
-              'mpi.enableFederation',
-              'mpi.requirePatientOTP',
-            ],
+            in: ['mpi.enableFederation', 'mpi.requirePatientOTP'],
           },
         },
       });

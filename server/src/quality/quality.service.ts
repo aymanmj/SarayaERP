@@ -37,14 +37,16 @@ export class QualityService {
     const host = this.configService.get<string>('REDIS_HOST') || 'localhost';
     const port = this.configService.get<number>('REDIS_PORT') || 6379;
     const password = this.configService.get<string>('REDIS_PASSWORD');
-    const isMock = this.configService.get<string>('REDIS_MOCK') === 'true' || process.env.REDIS_MOCK === 'true';
+    const isMock =
+      this.configService.get<string>('REDIS_MOCK') === 'true' ||
+      process.env.REDIS_MOCK === 'true';
 
     if (isMock) {
       if (process.env.NODE_ENV === 'production') {
         throw new Error('REDIS_MOCK is not allowed in production.');
       }
       const { InMemoryRedis } = require('../common/in-memory-redis');
-      this.redisClient = new InMemoryRedis() as any;
+      this.redisClient = new InMemoryRedis();
       return;
     }
 
@@ -58,21 +60,32 @@ export class QualityService {
       });
       this.redisClient.on('error', (err) => {
         if (process.env.NODE_ENV === 'production') {
-          this.logger.error('Redis connection failed in QualityService. Fallback to In-Memory is disabled in production.', err);
+          this.logger.error(
+            'Redis connection failed in QualityService. Fallback to In-Memory is disabled in production.',
+            err,
+          );
           return;
         }
-        this.logger.warn('Redis connection failed in QualityService. Switching to In-Memory Redis fallback.');
+        this.logger.warn(
+          'Redis connection failed in QualityService. Switching to In-Memory Redis fallback.',
+        );
         const { InMemoryRedis } = require('../common/in-memory-redis');
-        this.redisClient = new InMemoryRedis() as any;
+        this.redisClient = new InMemoryRedis();
       });
     } catch (err) {
       if (process.env.NODE_ENV === 'production') {
-        this.logger.error('Failed to initialize Redis in QualityService. Fallback to In-Memory is disabled in production.', err);
+        this.logger.error(
+          'Failed to initialize Redis in QualityService. Fallback to In-Memory is disabled in production.',
+          err,
+        );
         throw err;
       }
-      this.logger.error('Failed to initialize Redis in QualityService, using In-Memory fallback:', err);
+      this.logger.error(
+        'Failed to initialize Redis in QualityService, using In-Memory fallback:',
+        err,
+      );
       const { InMemoryRedis } = require('../common/in-memory-redis');
-      this.redisClient = new InMemoryRedis() as any;
+      this.redisClient = new InMemoryRedis();
     }
   }
 

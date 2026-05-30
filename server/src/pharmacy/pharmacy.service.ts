@@ -301,9 +301,12 @@ export class PharmacyService {
         message: '⚠️ تحذير سلامة: تم اكتشاف مخاطر سريرية حرجة تتطلب التجاوز.',
         code: 'SAFETY_WARNING',
         interactions: blockers.map((b) => ({
-          drugs: b.context?.drug || b.context?.drugA
-            ? [b.context?.drug || b.context?.drugA, b.context?.drugB].filter(Boolean)
-            : [],
+          drugs:
+            b.context?.drug || b.context?.drugA
+              ? [b.context?.drug || b.context?.drugA, b.context?.drugB].filter(
+                  Boolean,
+                )
+              : [],
           description: b.messageAr || b.message,
           severity: b.severity,
         })),
@@ -342,7 +345,8 @@ export class PharmacyService {
 
       // حفظ التنبيهات المرتبطة بهذه الوصفة في قاعدة البيانات
       for (const alert of cdssResult.alerts) {
-        const isOverridden = alert.requiresOverride || alert.context?.autoSuppressed;
+        const isOverridden =
+          alert.requiresOverride || alert.context?.autoSuppressed;
         await tx.cDSSAlert.create({
           data: {
             hospitalId,
@@ -359,7 +363,10 @@ export class PharmacyService {
             acknowledgedAt: isOverridden ? new Date() : null,
             overrideReason: alert.context?.autoSuppressed
               ? `Auto-Suppressed: ${alert.context?.originalOverrideReason}`
-              : (alert.requiresOverride ? (params.overrideReason || 'Overridden by doctor during prescription creation') : null),
+              : alert.requiresOverride
+                ? params.overrideReason ||
+                  'Overridden by doctor during prescription creation'
+                : null,
           },
         });
       }

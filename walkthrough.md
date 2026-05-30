@@ -1,36 +1,85 @@
-# إنجاز المرحلة الأولى: التأسيس المعماري السريري (Phase 1)
+# Walkthrough: i18n Translation Setup & Alert Suppression Engine (CDSS Fatigue)
 
-تم بحمد الله إنجاز وتفعيل الحزمة الأولى من الاستراتيجية الشاملة، والتي تركز بشكل مباشر على **موثوقية المنصة سريريًا وتقنيًا**. الآن، تمتلك منصة السرايا مقومات لا تتوفر إلا في كبرى الأنظمة العالمية (مثل Epic).
-
-> [!IMPORTANT]
-> **التأثير المباشر للعمل الذي أنجزناه:** 
-> - لن تفقد أي حركة حساسة (Audit) بسبب خطأ في قاعدة البيانات؛ الحوكمة أصبحت صارمة.
-> - أصبح النظام قابلاً للتكامل المباشر مع محركات الذكاء الاصطناعي ومعايير إنذارات האدوية عبر `CDS Hooks`.
-> - تم زرع بذور الـ `OpenTelemetry` التي ستمكننا لاحقاً من رؤية أداء كل استعلام في النظام بالمللي ثانية.
+تم بحمد الله إنجاز وتجهيز وتركيب إطار عمل الترجمة المتكامل (i18n) للواجهات وقاعدة البيانات، بالإضافة إلى تحسين وبرمجة خوارزمية فرز التنبيهات السريرية الذكية (Alert Suppression Engine) لحماية الأطباء من إرهاق التنبيهات (CDSS Fatigue) وفق أعلى المعايير الاحترافية والطبية العالمية.
 
 ---
 
-## 🛠️ التقنيات التي تمت إضافتها
+## 1. التعديلات المنجزة بالتفصيل (Detailed Changes)
 
-### 1. معيار دعم القرار السريري (CDS Hooks Standard)
-الابتعاد عن الطرق التقليدية (Hardcoded) وانشاء مسار اكتشاف قياسي للخدمات الذكية:
-- **`GET /cds-services`**: يُرجع سجل الخدمات المدعومة مثل خدمة "Saraya Medication Safety". يمكن الآن لأي تطبيق خارجي معتمد استدعاء هذه الخدمة لاختبار الأدوية.
-- تم برمجة الـ Controller ليستجيب بطريقة البطاقات القياسية (`cards`) المتضمنة لـ `indicators` (`warning`, `critical`).
+### أ. إطار عمل الترجمة المتكامل (i18n Framework Setup)
+1. **الواجهة الأمامية (React Client):**
+   - تم تثبيت وتهيئة مكتبة `i18next` و `react-i18next` ودعم تبديل الاتجاه ديناميكياً بين اليمين لليسار (RTL) للغة العربية واليسار لليمين (LTR) للغة الإنجليزية.
+   - بناء مكون `LanguageSwitcher.tsx` في الهيدر العلوي لحفظ لغة المستخدم المفضلة في `localStorage`.
+   - تعديل ترويسة الطلبات (Request Interceptor) في `apiClient.ts` و `portalApi.ts` لإرسال ترويسة `Accept-Language` مع كل طلب API تلقائياً.
+2. **الواجهة الخلفية (NestJS Server):**
+   - بناء واعتماد `LocalizationInterceptor` لقراءة اللغة المطلوبة والقيام بدمج الأعمدة الثنائية (`nameAr` / `nameEn`) تلقائياً وإرجاعها في حقل موحد `name` للتسهيل على الواجهة.
+   - تمرير اختبارات الوحدة بالكامل للـ Localization Interceptor.
 
-### 2. التتبع الموزع (OpenTelemetry Setup)
-تم إعداد ملف التهيئة الأساسي للرؤية العميقة:
-- تم كتابة وحقن `tracing.ts` في مقدمة تشغيل السيرفر (`main.ts`).
-- تم تثبيت حزم `@opentelemetry/sdk-node` و `@opentelemetry/auto-instrumentations-node` لتعمل بصمت في الخلفية وترسل مسارات الطلبات (Traces) لمنع أوقات الاستجابة البطيئة.
+### ب. مراحل توطين الواجهات (UI Translation Expansion)
+تم تعريب وإنجلترا كامل شاشات النظام السريرية والإدارية والمساندة مع دعم الانعكاس الكامل والتوجيه التلقائي (RTL/LTR Layout Mirroring):
+1. **المرحلة الأولى:**
+   - شاشة تسجيل الدخول (`LoginPage.tsx`)
+   - لوحة التحكم الرئيسية (`DashboardPage.tsx`)
+   - سجل المرضى الموحد (`PatientsPage.tsx`)
+   - السجل الطبي الشامل (`PatientChartPage.tsx`)
+   - مكتب الاستقبال والجدولة (`AppointmentsPage.tsx`)
+2. **المرحلة الثانية:**
+   - شاشة فرز الطوارئ المعتمدة (`TriageDashboardPage.tsx`)
+   - شاشة مكتب الدخول والإيواء (`AdmissionsPage.tsx`)
+   - شاشة المرضى المنومين بالأجنحة (`ActiveInpatientsPage.tsx`)
+3. **المرحلة الثالثة:**
+   - شاشة محطة التمريض (`NursingStationPage.tsx`)
+   - شاشة المرور الطبي للأطباء (`DoctorRoundsPage.tsx`)
+   - شاشة تخطيط الخروج للمرضى (`DischargePlanningPage.tsx`)
+   - شاشة ملخص الدخول والخروج (`DischargeSummaryBuilderPage.tsx`)
+4. **المرحلة الرابعة:**
+   - شاشة فرز الطوارئ المعتمدة الفعالة (`TriageDashboard.tsx` & `TriageAssessmentForm.tsx` تحت `pages/clinical/triage/`)
+   - سجل الحالات الطبية للزيارات (`EncountersListPage.tsx`)
+   - تفاصيل الحالة الطبية الشاملة (`EncounterDetailsPage.tsx`)
+   - قوائم عمل الأقسام المساندة (`LabWorklistPage.tsx` و `RadiologyWorklistPage.tsx` و `PharmacyWorklistPage.tsx`)
+5. **ملفات القواميس المحدثة (`ar.json` & `en.json`):** توسيع قواميس الترجمة وإضافة كافة المفاتيح لفرز الحالات والتحاليل وأقسام المنظومة.
 
-### 3. مسارات التدقيق الحرجة (Zero-Loss Audit Trails)
-تحويل مسارات التدقيق من وضع "الأفضل مجهودًا" إلى وضع "الإيقاف الإلزامي":
-- تم إنشاء دالة `logCritical()` في محرك المراجعات (Audit).
-- يتم الآن تطبيق هذه الدالة في `audit.interceptor.ts` عند محاولة المستخدم الوصول لسجل طبي حساس (Sensitive Read). إذا تعذر تسجيل من قرأ الملف (بسبب انقطاع قاعدة البيانات أو غيره)، يقوم الغارد بكسر طلب القراءة ورفضه كليًا بدلاً من التظاهر بنجاح العمل (Fail-Safe Mechanism).
+### ج. محرك التنبيهات الذكي وفرز التداخلات (Smart CDSS Alert Suppression)
+1. **الواجهة الخلفية وسير العمل (Backend Business Logic):**
+   - تطوير خوارزمية **"الإخماد التلقائي الذكي" (Frequency-Based Suppression)** في `cdss.service.ts`؛ حيث يبحث النظام في الـ 24 ساعة الماضية لنفس المريض ونفس الطبيب عن التنبيهات التي تم تجاوزها مسبقاً (`status: OVERRIDDEN`). وفي حال تكرار التنبيه، يتم إخماده تلقائياً دون مقاطعة الطبيب مع توثيق مبرر التجاوز الأصلي.
+   - قصر حظر إنشاء الوصفات وإلزام التبرير الطبي على التحذيرات الحرجة فقط (`requiresOverride = true` عند severity `CRITICAL`).
+2. **الواجهة الأمامية والتمثيل البصري (Client CDSS UI):**
+   - تعديل صفحة الوصفات `PrescriptionsTab.tsx` لدعم التحقق الديناميكي الفوري أثناء كتابة الوصفة.
+   - تقسيم الواجهة بصرياً إلى جزء خاص بالمدخلات الطبية ولوحة جانبية أنيقة للـ CDSS Live Alerts.
+
+### د. توطين قاعدة البيانات ثنائية اللغة (Phase 5: Database i18n Layer)
+1. **مخطط قاعدة البيانات (Prisma Schema):**
+   - إضافة أعمدة `nameAr` و `nameEn` للجداول الأساسية: `Hospital`, `Department`, `Specialty`, `ServiceCategory`, `ServiceItem`, `LabTest`, `RadiologyStudy`, `Product`.
+2. **تغذية البيانات (Seeding Scripts):**
+   - تحديث `seed.ts` و `seed-lab-radiology.ts` و `seed-medical-data.ts` لتهيئة الحقول ثنائية اللغة بالكامل.
+3. **مواءمة شاشات العميل:**
+   - إزالة الفولباك اليدوي والاستعاضة عنه مباشرة بالحقل الموحد `name` في شاشات `LabsTab.tsx` و `RadiologyTab.tsx` و `OrderSetsPage.tsx` للاستفادة من المعالجة التلقائية بالـ Backend.
 
 ---
 
-## 🧪 كيف يمكنك ملاحظة الفرق؟
-1. **تجربة الـ CDS Hooks:** 
-   بإمكانك الآن فتح المنفذ الأساسي وطلب `http://localhost:3000/api/cds-services` بـ Postman لترى مخرجات JSON المتوافقة كليًا مع معايير HL7.
-2. **تجربة الأمان الصارم:** 
-   عند قيام الطبيب أو المبرمج بوضع علامة `@IsSensitive()` على مسار API جديد، لن يتم إرجاع أي مريض ما لم توافق قاعدة المراجعات (Audit Log) على استلام الطلب وتسجيله وتوثيق بصمة المستعلم أولاً.
+## 2. التحقق والاختبارات (Verification & Testing)
+
+### أ. بناء مشروع العميل (Vite Production Build)
+تم بناء واجهة العميل للإنتاج بنجاح تام دون أي أخطاء:
+```bash
+vite v7.2.4 building client environment for production...
+transforming...
+✓ built in 30.97s
+```
+
+### ب. بناء مشروع السيرفر (NestJS Production Build)
+تم بناء السيرفر بنجاح كامل:
+```bash
+> server@0.0.1 build
+> nest build
+```
+
+### ج. اختبارات الوحدة والتكامل (Jest Testing Suite)
+تم تشغيل كامل اختبارات السيرفر بنجاح باهر:
+```bash
+Test Suites: 67 passed, 67 total
+Tests:       4 skipped, 583 passed, 587 total
+Snapshots:   0 total
+Time:        38.87 s
+Ran all test suites.
+```

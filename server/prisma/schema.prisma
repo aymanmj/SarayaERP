@@ -60,15 +60,25 @@ model Hospital {
   vouchers                  Voucher[]
   code                      String                     @unique
   name                      String
+  nameAr                    String?
+  nameEn                    String?
   isActive                  Boolean                    @default(true)
   createdAt                 DateTime                   @default(now())
   updatedAt                 DateTime                   @updatedAt
   addressLine1              String?
+  addressLine1Ar            String?
+  addressLine1En            String?
   addressLine2              String?
+  addressLine2Ar            String?
+  addressLine2En            String?
   city                      String?
   displayName               String?
+  displayNameAr             String?
+  displayNameEn             String?
   email                     String?
   legalName                 String?
+  legalNameAr               String?
+  legalNameEn               String?
   logoUrl                   String?
   phone                     String?
   website                   String?
@@ -184,6 +194,8 @@ model Department {
   id               Int               @id @default(autoincrement())
   hospitalId       Int
   name             String
+  nameAr           String?
+  nameEn           String?
   type             String?
   isActive         Boolean           @default(true)
   deletedAt        DateTime?
@@ -208,6 +220,8 @@ model Specialty {
   id       Int     @id @default(autoincrement())
   code     String? @unique
   name     String
+  nameAr   String?
+  nameEn   String?
   isActive Boolean @default(true)
   doctors  User[]
 }
@@ -216,6 +230,8 @@ model ServiceCategory {
   id            Int            @id @default(autoincrement())
   hospitalId    Int
   name          String
+  nameAr        String?
+  nameEn        String?
   code          String?
   isActive      Boolean        @default(true)
   coverageRules CoverageRule[]
@@ -230,6 +246,8 @@ model ServiceItem {
   code              String?            @unique
   cptCode           String? // Standard CPT code for mapping
   name              String
+  nameAr            String?
+  nameEn            String?
   type              ServiceType
   defaultPrice      Decimal            @db.Decimal(18, 3)
   isActive          Boolean            @default(true)
@@ -953,6 +971,8 @@ model LabTest {
   hospitalId    Int
   code          String             @unique
   name          String
+  nameAr        String?
+  nameEn        String?
   category      String?
   unit          String?
   isActive      Boolean            @default(true)
@@ -1019,6 +1039,8 @@ model RadiologyStudy {
   hospitalId      Int
   code            String           @unique
   name            String
+  nameAr          String?
+  nameEn          String?
   modality        String?
   bodyPart        String?
   isActive        Boolean          @default(true)
@@ -1113,6 +1135,8 @@ model Product {
   hospitalId           Int
   code                 String
   name                 String
+  nameAr               String?
+  nameEn               String?
   type                 ProductType           @default(DRUG)
   genericName          String?
   strength             String?

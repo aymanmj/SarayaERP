@@ -34,7 +34,9 @@ async function bootstrap() {
       setGlobalDispatcher(proxyAgent);
       logger.log(`🌐 Global HTTP/HTTPS Proxy configured: ${proxyUrl}`);
     } catch (proxyError: any) {
-      logger.error(`❌ Failed to configure global proxy: ${proxyError.message}`);
+      logger.error(
+        `❌ Failed to configure global proxy: ${proxyError.message}`,
+      );
     }
   }
 

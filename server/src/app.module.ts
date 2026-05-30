@@ -135,17 +135,29 @@ import { QualityModule } from './quality/quality.module'; // ✅ [NEW] Quality &
         {
           name: 'short',
           ttl: 1000, // 1 second
-          limit: (process.env.DISABLE_THROTTLER === 'true' && process.env.NODE_ENV !== 'production') ? 9999999 : 100,
+          limit:
+            process.env.DISABLE_THROTTLER === 'true' &&
+            process.env.NODE_ENV !== 'production'
+              ? 9999999
+              : 100,
         },
         {
           name: 'medium',
           ttl: 10000, // 10 seconds
-          limit: (process.env.DISABLE_THROTTLER === 'true' && process.env.NODE_ENV !== 'production') ? 9999999 : 200,
+          limit:
+            process.env.DISABLE_THROTTLER === 'true' &&
+            process.env.NODE_ENV !== 'production'
+              ? 9999999
+              : 200,
         },
         {
           name: 'long',
           ttl: 60000, // 1 minute
-          limit: (process.env.DISABLE_THROTTLER === 'true' && process.env.NODE_ENV !== 'production') ? 9999999 : 1000,
+          limit:
+            process.env.DISABLE_THROTTLER === 'true' &&
+            process.env.NODE_ENV !== 'production'
+              ? 9999999
+              : 1000,
         },
       ],
     }),

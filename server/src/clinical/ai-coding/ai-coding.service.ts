@@ -454,11 +454,12 @@ ${clinicalNote}
             ? (encounter.patient.insurancePolicy as any).id
             : null;
 
-          const explodedItems = await this.servicesService.explodeServiceCharges(
-            hospitalId,
-            serviceItem.id,
-            insurancePolicyId,
-          );
+          const explodedItems =
+            await this.servicesService.explodeServiceCharges(
+              hospitalId,
+              serviceItem.id,
+              insurancePolicyId,
+            );
 
           for (const expItem of explodedItems) {
             let itemPrice = 0;

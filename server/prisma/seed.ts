@@ -27,11 +27,24 @@ async function main() {
 
   const hospital = await prisma.hospital.upsert({
     where: { code: 'MAIN' },
-    update: {},
+    update: {
+      nameAr: 'مستشفى السرايا الدولي',
+      nameEn: 'Saraya International Hospital',
+      displayNameAr: 'مستشفى السرايا الدولي',
+      displayNameEn: 'Saraya International Hospital',
+      legalNameAr: 'مستشفى السرايا الدولي المساهمة',
+      legalNameEn: 'Saraya International Hospital JSC',
+    },
     create: {
       code: 'MAIN',
       name: 'مستشفى السرايا الدولي',
+      nameAr: 'مستشفى السرايا الدولي',
+      nameEn: 'Saraya International Hospital',
       displayName: 'Saraya International Hospital',
+      displayNameAr: 'مستشفى السرايا الدولي',
+      displayNameEn: 'Saraya International Hospital',
+      legalNameAr: 'مستشفى السرايا الدولي المساهمة',
+      legalNameEn: 'Saraya International Hospital JSC',
       isActive: true,
       printHeaderFooter: true,
     },
@@ -47,27 +60,37 @@ async function main() {
 
   // الأقسام
   const depts = [
-    'الاستقبال العام',
-    'الطوارئ',
-    'العيادات الخارجية',
-    'المختبر',
-    'الأشعة',
-    'الصيدلية',
-    'العمليات',
-    'العناية المركزة',
-    'الموارد البشرية',
-    'الحسابات',
+    { ar: 'الاستقبال العام', en: 'General Reception' },
+    { ar: 'الطوارئ', en: 'Emergency Department' },
+    { ar: 'العيادات الخارجية', en: 'Outpatient Clinic' },
+    { ar: 'المختبر', en: 'Laboratory' },
+    { ar: 'الأشعة', en: 'Radiology' },
+    { ar: 'الصيدلية', en: 'Pharmacy' },
+    { ar: 'العمليات', en: 'Operating Theatre' },
+    { ar: 'العناية المركزة', en: 'Intensive Care Unit' },
+    { ar: 'الموارد البشرية', en: 'Human Resources' },
+    { ar: 'الحسابات', en: 'Finance & Accounts' },
   ];
 
-  for (const d of depts) {
-    const isClinical = !['الموارد البشرية', 'الحسابات'].includes(d);
+  for (let idx = 0; idx < depts.length; idx++) {
+    const d = depts[idx];
+    const isClinical = !['Human Resources', 'Finance & Accounts'].includes(
+      d.en,
+    );
     await prisma.department.upsert({
-      where: { id: depts.indexOf(d) + 1 }, // تبسيط للـ ID
-      update: { type: isClinical ? 'CLINICAL' : 'ADMINISTRATIVE' },
-      create: { 
-        hospitalId: hospital.id, 
-        name: d,
-        type: isClinical ? 'CLINICAL' : 'ADMINISTRATIVE'
+      where: { id: idx + 1 },
+      update: {
+        name: d.ar,
+        nameAr: d.ar,
+        nameEn: d.en,
+        type: isClinical ? 'CLINICAL' : 'ADMINISTRATIVE',
+      },
+      create: {
+        hospitalId: hospital.id,
+        name: d.ar,
+        nameAr: d.ar,
+        nameEn: d.en,
+        type: isClinical ? 'CLINICAL' : 'ADMINISTRATIVE',
       },
     });
   }
@@ -109,9 +132,15 @@ async function main() {
     { code: 'admin:audit:view', description: 'عرض سجلات النظام' },
 
     // --- الاستقبال والعيادات (Clinical & Reception) ---
-    { code: 'clinical:dashboard:view', description: 'عرض لوحة التحكم السريرية' },
+    {
+      code: 'clinical:dashboard:view',
+      description: 'عرض لوحة التحكم السريرية',
+    },
     { code: 'clinical:appointments:view', description: 'عرض المواعيد' },
-    { code: 'clinical:appointments:manage', description: 'إدارة وحجز المواعيد' },
+    {
+      code: 'clinical:appointments:manage',
+      description: 'إدارة وحجز المواعيد',
+    },
     { code: 'clinical:patients:view', description: 'عرض ملفات المرضى' },
     { code: 'clinical:patients:manage', description: 'إدارة بيانات المرضى' },
     { code: 'clinical:encounters:view', description: 'عرض الزيارات الطبية' },
@@ -121,7 +150,10 @@ async function main() {
     { code: 'clinical:vitals:manage', description: 'تسجيل العلامات الحيوية' },
 
     // --- التمريض والأقسام (Nursing & Inpatient) ---
-    { code: 'nursing:dashboard:view', description: 'عرض لوحة التحكم التمريضية' },
+    {
+      code: 'nursing:dashboard:view',
+      description: 'عرض لوحة التحكم التمريضية',
+    },
     { code: 'nursing:station:view', description: 'الدخول لمحطة التمريض' },
     { code: 'nursing:triage:manage', description: 'إدارة الفرز (Triage)' },
     { code: 'nursing:notes:manage', description: 'إدارة ملاحظات التمريض' },
@@ -168,16 +200,34 @@ async function main() {
     { code: 'hr:attendance:manage', description: 'إدارة الحضور والانصراف' },
 
     // --- الفوترة والحسابات (Billing & Accounting) ---
-    { code: 'billing:dashboard:view', description: 'عرض لوحة الفوترة والإيرادات' },
+    {
+      code: 'billing:dashboard:view',
+      description: 'عرض لوحة الفوترة والإيرادات',
+    },
     { code: 'billing:invoices:create', description: 'إصدار الفواتير' },
     { code: 'billing:invoices:view', description: 'عرض سجل الفواتير' },
-    { code: 'billing:payments:collect', description: 'استلام المدفوعات (الكاشير)' },
-    { code: 'billing:insurance:manage', description: 'إدارة التأمين والمطالبات' },
-    { code: 'billing:manage', description: 'إلغاء وتعديل وإدارة الفواتير بالكامل' },
-    
+    {
+      code: 'billing:payments:collect',
+      description: 'استلام المدفوعات (الكاشير)',
+    },
+    {
+      code: 'billing:insurance:manage',
+      description: 'إدارة التأمين والمطالبات',
+    },
+    {
+      code: 'billing:manage',
+      description: 'إلغاء وتعديل وإدارة الفواتير بالكامل',
+    },
+
     // --- الكاشير والخزينة (Cashier) ---
-    { code: 'cashier:view', description: 'عرض لوحة الخزينة وقائمة العمل للكاشير' },
-    { code: 'cashier:manage', description: 'إجراءات الخزينة واستلام المدفوعات وتفاصيل الفواتير' },
+    {
+      code: 'cashier:view',
+      description: 'عرض لوحة الخزينة وقائمة العمل للكاشير',
+    },
+    {
+      code: 'cashier:manage',
+      description: 'إجراءات الخزينة واستلام المدفوعات وتفاصيل الفواتير',
+    },
     { code: 'acc:dashboard:view', description: 'عرض لوحة المحاسبة' },
     { code: 'acc:entries:view', description: 'عرض القيود المحاسبية' },
     { code: 'acc:entries:create', description: 'إنشاء قيود يومية' },
@@ -189,25 +239,37 @@ async function main() {
     { code: 'purchases:dashboard:view', description: 'عرض لوحة المشتريات' },
     { code: 'purchases:suppliers:manage', description: 'إدارة الموردين' },
     { code: 'purchases:orders:create', description: 'إنشاء أوامر شراء' },
-    { code: 'purchases:invoices:manage', description: 'إدارة فواتير المشتريات' },
+    {
+      code: 'purchases:invoices:manage',
+      description: 'إدارة فواتير المشتريات',
+    },
     { code: 'inventory:dashboard:view', description: 'عرض لوحة المخزون' },
     { code: 'inventory:stock:view', description: 'عرض أرصدة المخزون' },
     { code: 'inventory:stock:manage', description: 'إدارة الجرد والتسويات' },
-    { code: 'inventory:transfers:manage', description: 'إدارة التحويلات المخزنية' },
-    
+    {
+      code: 'inventory:transfers:manage',
+      description: 'إدارة التحويلات المخزنية',
+    },
+
     // --- الأصول (Assets) ---
     { code: 'assets:dashboard:view', description: 'عرض إدارة الأصول' },
     { code: 'assets:manage', description: 'إضافة وإدارة الأصول' },
     { code: 'assets:maintenance:manage', description: 'إدارة الصيانة' },
-    
+
     // --- التكامل (Integration) ---
-    { code: 'integration:manage', description: 'إدارة الربط مع الأجهزة والأنظمة' },
+    {
+      code: 'integration:manage',
+      description: 'إدارة الربط مع الأجهزة والأنظمة',
+    },
 
     // --- الجودة والسلامة والحوكمة (Quality & Governance) ---
     { code: 'quality:view', description: 'عرض بيانات الجودة والسلامة' },
     { code: 'quality:manage', description: 'إدارة الجودة والسلامة' },
     { code: 'clinical-pathways:view', description: 'عرض المسارات السريرية' },
-    { code: 'clinical-pathways:manage', description: 'إدارة المسارات السريرية' },
+    {
+      code: 'clinical-pathways:manage',
+      description: 'إدارة المسارات السريرية',
+    },
     { code: 'order-sets:view', description: 'عرض مجموعات الأوامر الطبية' },
     { code: 'order-sets:manage', description: 'إدارة مجموعات الأوامر الطبية' },
     { code: 'note-templates:view', description: 'عرض قوالب الملاحظات' },
@@ -264,17 +326,17 @@ async function main() {
       'clinical:encounters:create',
       'clinical:doctor:view',
       'clinical:diagnoses:manage',
-      'lab:requests:create',       // طلب تحاليل
-      'lab:requests:view',         // رؤية النتائج
-      'rad:requests:create',       // طلب أشعة
-      'rad:requests:view',         // رؤية التقارير
+      'lab:requests:create', // طلب تحاليل
+      'lab:requests:view', // رؤية النتائج
+      'rad:requests:create', // طلب أشعة
+      'rad:requests:view', // رؤية التقارير
       'pharmacy:prescriptions:view', // رؤية الأدوية
-      'nursing:station:view',      // رؤية التمريض (للمتابعة)
-      'adt:bed:view',              // رؤية الأسرة
-      'surgery:dashboard:view',    // جدول العمليات
-      'surgery:report:create',     // تقارير العمليات
-      'cdss:view',                 // التنبيهات السريرية
-      'cdss:manage',               // تجاوز التنبيهات
+      'nursing:station:view', // رؤية التمريض (للمتابعة)
+      'adt:bed:view', // رؤية الأسرة
+      'surgery:dashboard:view', // جدول العمليات
+      'surgery:report:create', // تقارير العمليات
+      'cdss:view', // التنبيهات السريرية
+      'cdss:manage', // تجاوز التنبيهات
       'icu:view',
       'icu:manage',
       'transfers:view',
@@ -298,9 +360,9 @@ async function main() {
       'nursing:notes:manage',
       'clinical:vitals:manage',
       'adt:bed:view',
-      'adt:admissions:create', 
-      'lab:requests:view',     // متابعة الطلبات
-      'rad:requests:view',     // متابعة الطلبات
+      'adt:admissions:create',
+      'lab:requests:view', // متابعة الطلبات
+      'rad:requests:view', // متابعة الطلبات
       'pharmacy:prescriptions:view',
       'icu:view',
       'icu:manage',
@@ -315,9 +377,9 @@ async function main() {
       'clinical:appointments:manage',
       'clinical:patients:view',
       'clinical:patients:manage',
-      'billing:invoices:create',   // إنشاء فاتورة مبدئية
-      'billing:payments:collect',  // استلام نقدية (إذا كان يقوم دور الكاشير أيضاً)
-      'patients:manage',           // إدارة السجل الوطني MPI
+      'billing:invoices:create', // إنشاء فاتورة مبدئية
+      'billing:payments:collect', // استلام نقدية (إذا كان يقوم دور الكاشير أيضاً)
+      'patients:manage', // إدارة السجل الوطني MPI
     ],
 
     // 5. الصيدلي (Pharmacist)
@@ -328,7 +390,7 @@ async function main() {
       'pharmacy:inventory:view',
       'pharmacy:inventory:manage',
       'pharmacy:products:manage',
-      'purchases:orders:create',   // طلب أدوية ناقصة
+      'purchases:orders:create', // طلب أدوية ناقصة
     ],
 
     // 6. فني المختبر (Lab Tech)
@@ -366,7 +428,7 @@ async function main() {
       'purchases:invoices:manage',
       'purchases:dashboard:view',
       'assets:dashboard:view',
-      'inventory:stock:view',      // للمراجعة
+      'inventory:stock:view', // للمراجعة
       'claims:read',
       'claims:create',
       'claims:update',
@@ -682,16 +744,33 @@ async function main() {
           select: { id: true },
         });
 
+    const drugTranslations: Record<string, string> = {
+      'Panadol 500mg': 'بنادول 500 ملغ',
+      'Panadol Extra': 'بنادول إكسترا',
+      'Brufen 400mg': 'بروفين 400 ملغ',
+      'Cataflam 50mg': 'كاتافلام 50 ملغ',
+      'Voltaren 75mg': 'فولتارين 75 ملغ',
+      'Augmentin 1g': 'أوجمنتين 1 غرام',
+    };
+
+    const nameAr = drugTranslations[d.name] || d.name;
+    const nameEn = d.name;
+
     const product = await prisma.product.upsert({
       where: { hospitalId_code: { hospitalId: hospital.id, code: d.code } },
       update: {
+        name: nameAr,
+        nameAr,
+        nameEn,
         stockOnHand: d.stock,
         terminologyConceptId: terminologyConcept?.id,
       },
       create: {
         hospitalId: hospital.id,
         code: d.code,
-        name: d.name,
+        name: nameAr,
+        nameAr,
+        nameEn,
         genericName: d.generic,
         form: d.form,
         type: (d as any).type || ProductType.DRUG, // Default DRUG
@@ -1623,7 +1702,8 @@ async function main() {
       value: 'true',
       type: 'BOOLEAN',
       group: 'MPI',
-      description: 'مشاركة البيانات الديموغرافية مع الشبكة الوطنية (يتطلب موافقة المريض)',
+      description:
+        'مشاركة البيانات الديموغرافية مع الشبكة الوطنية (يتطلب موافقة المريض)',
     },
     // OTP Settings (Disabled by default)
     {

@@ -6,12 +6,17 @@ import { Logger } from '@nestjs/common';
  */
 export class InMemoryRedis {
   private readonly logger = new Logger('InMemoryRedis');
-  private static readonly store = new Map<string, { value: string; expiresAt?: number }>();
+  private static readonly store = new Map<
+    string,
+    { value: string; expiresAt?: number }
+  >();
   private readonly eventCallbacks: Record<string, Function[]> = {};
 
   constructor(options?: any) {
     if (process.env.NODE_ENV === 'production') {
-      throw new Error('CRITICAL SECURITY ERROR: In-Memory Redis fallback cannot be initialized in production. Redis server connection is required for data integrity across nodes.');
+      throw new Error(
+        'CRITICAL SECURITY ERROR: In-Memory Redis fallback cannot be initialized in production. Redis server connection is required for data integrity across nodes.',
+      );
     }
     this.logger.log('🚀 Initialized In-Memory Redis fallback client');
     // Simulate connection success asynchronously to not block
@@ -40,7 +45,12 @@ export class InMemoryRedis {
     }
   }
 
-  async set(key: string, value: string, mode?: string, duration?: number): Promise<'OK'> {
+  async set(
+    key: string,
+    value: string,
+    mode?: string,
+    duration?: number,
+  ): Promise<'OK'> {
     let expiresAt: number | undefined;
     if (mode === 'EX' && duration !== undefined) {
       expiresAt = Date.now() + duration * 1000;
@@ -88,7 +98,7 @@ export class InMemoryRedis {
     // return redis.call('INCR', key)
     const entry = InMemoryRedis.store.get(key);
     let currentVal = entry ? Number(entry.value) : null;
-    
+
     if (currentVal === null || isNaN(currentVal)) {
       currentVal = dbCount;
     }

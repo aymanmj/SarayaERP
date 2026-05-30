@@ -10,7 +10,9 @@ describe('LocalizationInterceptor', () => {
     interceptor = new LocalizationInterceptor();
   });
 
-  const createMockContext = (acceptLanguageHeader: string): ExecutionContext => {
+  const createMockContext = (
+    acceptLanguageHeader: string,
+  ): ExecutionContext => {
     const request = {
       headers: {
         'accept-language': acceptLanguageHeader,

@@ -182,7 +182,10 @@ export class OrdersService {
     });
 
     // لو اكتملت النتيجة: نحدث حالة الـ Order نفسها ونشغل حدث الخصم من المخزون
-    if (params.resultStatus === LabResultStatus.COMPLETED && labOrder.resultStatus !== LabResultStatus.COMPLETED) {
+    if (
+      params.resultStatus === LabResultStatus.COMPLETED &&
+      labOrder.resultStatus !== LabResultStatus.COMPLETED
+    ) {
       await this.prisma.order.update({
         where: { id: labOrder.orderId },
         data: {
@@ -246,7 +249,10 @@ export class OrdersService {
       },
     });
 
-    if (params.status === RadiologyStatus.COMPLETED && radOrder.status !== RadiologyStatus.COMPLETED) {
+    if (
+      params.status === RadiologyStatus.COMPLETED &&
+      radOrder.status !== RadiologyStatus.COMPLETED
+    ) {
       await this.prisma.order.update({
         where: { id: radOrder.orderId },
         data: {

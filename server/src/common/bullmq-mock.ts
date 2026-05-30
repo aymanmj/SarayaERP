@@ -4,9 +4,13 @@ const Module = require('module');
 
 if (process.env.REDIS_MOCK === 'true') {
   if (process.env.NODE_ENV === 'production') {
-    throw new Error('FATAL: REDIS_MOCK cannot be enabled in production environment. Redis server is strictly required.');
+    throw new Error(
+      'FATAL: REDIS_MOCK cannot be enabled in production environment. Redis server is strictly required.',
+    );
   }
-  console.log('⚠️ REDIS_MOCK is true: Intercepting and mocking @nestjs/bullmq and bullmq modules.');
+  console.log(
+    '⚠️ REDIS_MOCK is true: Intercepting and mocking @nestjs/bullmq and bullmq modules.',
+  );
 
   const originalLoad = Module._load;
 
@@ -17,26 +21,44 @@ if (process.env.REDIS_MOCK === 'true') {
       console.log(`[MockQueue ${this.name}] Job added: ${name}`, data);
       return { id: `mock-job-${Date.now()}` };
     }
-    async getWaitingCount() { return 0; }
-    async getDelayedCount() { return 0; }
-    async getFailedCount() { return 0; }
-    async getActiveCount() { return 0; }
-    async getCompletedCount() { return 0; }
+    async getWaitingCount() {
+      return 0;
+    }
+    async getDelayedCount() {
+      return 0;
+    }
+    async getFailedCount() {
+      return 0;
+    }
+    async getActiveCount() {
+      return 0;
+    }
+    async getCompletedCount() {
+      return 0;
+    }
   }
 
   class MockJob {
     public attemptsMade = 0;
     public opts: any = {};
-    constructor(public id: string, public name: string, public data: any) {}
+    constructor(
+      public id: string,
+      public name: string,
+      public data: any,
+    ) {}
   }
 
   // Decorators and helpers
   const Processor = (name: string) => (target: any) => {};
-  
+
   class MockWorkerHost {
     worker = {
-      pause: async () => { console.log('Mock Worker Paused'); },
-      resume: async () => { console.log('Mock Worker Resumed'); },
+      pause: async () => {
+        console.log('Mock Worker Paused');
+      },
+      resume: async () => {
+        console.log('Mock Worker Resumed');
+      },
     };
   }
 

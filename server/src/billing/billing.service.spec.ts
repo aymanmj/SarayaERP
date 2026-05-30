@@ -646,7 +646,9 @@ describe('BillingService', () => {
         invoiceId: null,
       };
 
-      mockPrismaService.encounterCharge.findUnique.mockResolvedValue(mockCharge);
+      mockPrismaService.encounterCharge.findUnique.mockResolvedValue(
+        mockCharge,
+      );
       mockPrismaService.encounterCharge.delete.mockResolvedValue(mockCharge);
 
       const result = await service.deleteCharge(mockHospitalId, 1);
@@ -671,7 +673,9 @@ describe('BillingService', () => {
         invoiceId: null,
       };
 
-      mockPrismaService.encounterCharge.findUnique.mockResolvedValue(mockCharge);
+      mockPrismaService.encounterCharge.findUnique.mockResolvedValue(
+        mockCharge,
+      );
 
       await expect(service.deleteCharge(mockHospitalId, 1)).rejects.toThrow(
         BadRequestException,
@@ -685,7 +689,9 @@ describe('BillingService', () => {
         invoiceId: 45, // already billed
       };
 
-      mockPrismaService.encounterCharge.findUnique.mockResolvedValue(mockCharge);
+      mockPrismaService.encounterCharge.findUnique.mockResolvedValue(
+        mockCharge,
+      );
 
       await expect(service.deleteCharge(mockHospitalId, 1)).rejects.toThrow(
         BadRequestException,

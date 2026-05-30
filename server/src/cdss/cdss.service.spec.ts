@@ -426,7 +426,10 @@ describe('CDSSService', () => {
 
     it('should generate a HIGH/CRITICAL alert based on hepatic rule from database', async () => {
       mockPrismaService.patientProblem.findMany.mockResolvedValue([
-        { description: 'Hepatic impairment Child-Pugh Class A', type: 'ACTIVE' },
+        {
+          description: 'Hepatic impairment Child-Pugh Class A',
+          type: 'ACTIVE',
+        },
       ]);
 
       mockPrismaService.hepaticDoseRequirement.findMany.mockResolvedValue([
@@ -498,7 +501,9 @@ describe('CDSSService', () => {
       expect(result.alerts).toHaveLength(1);
       expect(result.alerts[0].requiresOverride).toBe(false);
       expect(result.alerts[0].context!.autoSuppressed).toBe(true);
-      expect(result.alerts[0].context!.originalOverrideReason).toContain('Patient tolerated it before');
+      expect(result.alerts[0].context!.originalOverrideReason).toContain(
+        'Patient tolerated it before',
+      );
       expect(result.canProceed).toBe(true);
     });
 

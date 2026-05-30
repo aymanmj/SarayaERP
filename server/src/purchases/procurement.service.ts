@@ -43,12 +43,17 @@ export class ProcurementService {
 
       const productUoms = await tx.productUOM.findMany({
         where: {
-          OR: data.items.map(i => ({ productId: i.productId, uomId: i.uomId }))
-        }
+          OR: data.items.map((i) => ({
+            productId: i.productId,
+            uomId: i.uomId,
+          })),
+        },
       });
 
       const itemsData = data.items.map((i) => {
-        const uom = productUoms.find(pu => pu.productId === i.productId && pu.uomId === i.uomId);
+        const uom = productUoms.find(
+          (pu) => pu.productId === i.productId && pu.uomId === i.uomId,
+        );
         const conversionRate = uom ? Number(uom.conversionRate) : 1;
         return {
           productId: i.productId,
@@ -105,7 +110,10 @@ export class ProcurementService {
       let totalAmount = 0;
       const poItems = pr.items.map((item) => {
         const unitPriceBase = Number(item.product.costPrice); // السعر الأساسي المتوقع للوحدة الصغرى
-        const conversionRate = Number(item.quantity) > 0 ? Number(item.baseQuantity) / Number(item.quantity) : 1;
+        const conversionRate =
+          Number(item.quantity) > 0
+            ? Number(item.baseQuantity) / Number(item.quantity)
+            : 1;
         const uomPrice = unitPriceBase * conversionRate;
         const lineTotal = uomPrice * Number(item.quantity);
         totalAmount += lineTotal;
@@ -152,7 +160,12 @@ export class ProcurementService {
     userId: number;
     supplierId: number;
     notes?: string;
-    items: { productId: number; uomId: number; quantity: number; unitPrice: number }[];
+    items: {
+      productId: number;
+      uomId: number;
+      quantity: number;
+      unitPrice: number;
+    }[];
   }) {
     return this.prisma.$transaction(async (tx) => {
       const productIds = data.items.map((i) => i.productId);
@@ -165,15 +178,20 @@ export class ProcurementService {
 
       const productUoms = await tx.productUOM.findMany({
         where: {
-          OR: data.items.map(i => ({ productId: i.productId, uomId: i.uomId }))
-        }
+          OR: data.items.map((i) => ({
+            productId: i.productId,
+            uomId: i.uomId,
+          })),
+        },
       });
 
       const poNumber = await this.getNextSequence(tx, data.hospitalId, 'PO');
       let totalAmount = 0;
 
       const poItems = data.items.map((item) => {
-        const uom = productUoms.find(pu => pu.productId === item.productId && pu.uomId === item.uomId);
+        const uom = productUoms.find(
+          (pu) => pu.productId === item.productId && pu.uomId === item.uomId,
+        );
         const conversionRate = uom ? Number(uom.conversionRate) : 1;
         const baseQty = item.quantity * conversionRate;
         const lineTotal = item.unitPrice * item.quantity;
@@ -207,7 +225,6 @@ export class ProcurementService {
     });
   }
 
-
   // ==========================================
   // 3. Goods Receipt Note (GRN) - استلام المخزون
   // ==========================================
@@ -238,7 +255,9 @@ export class ProcurementService {
         include: { items: true },
       });
       if (!po || po.hospitalId !== data.hospitalId) {
-        throw new NotFoundException('أمر الشراء غير موجود أو غير تابع لهذه المؤسسة');
+        throw new NotFoundException(
+          'أمر الشراء غير موجود أو غير تابع لهذه المؤسسة',
+        );
       }
 
       // التحقق من أن المستودع تابع لنفس المستشفى
@@ -246,7 +265,9 @@ export class ProcurementService {
         where: { id: data.warehouseId, hospitalId: data.hospitalId },
       });
       if (!warehouse) {
-        throw new BadRequestException('المستودع المحدد غير موجود أو غير تابع لهذه المؤسسة');
+        throw new BadRequestException(
+          'المستودع المحدد غير موجود أو غير تابع لهذه المؤسسة',
+        );
       }
 
       // التحقق من أن جميع المنتجات تابعة لنفس المستشفى
@@ -258,22 +279,29 @@ export class ProcurementService {
         },
       });
       if (productsCount !== productIds.length) {
-        throw new BadRequestException('بعض المنتجات غير صالحة أو غير تابعة لهذه المؤسسة');
+        throw new BadRequestException(
+          'بعض المنتجات غير صالحة أو غير تابعة لهذه المؤسسة',
+        );
       }
 
       // جلب معاملات التحويل للوحدات
       const productUoms = await tx.productUOM.findMany({
         where: {
-          OR: data.items.map(i => ({ productId: i.productId, uomId: i.uomId }))
-        }
+          OR: data.items.map((i) => ({
+            productId: i.productId,
+            uomId: i.uomId,
+          })),
+        },
       });
 
       const receivedItemsData = data.items.map((i) => {
-        const uom = productUoms.find(pu => pu.productId === i.productId && pu.uomId === i.uomId);
+        const uom = productUoms.find(
+          (pu) => pu.productId === i.productId && pu.uomId === i.uomId,
+        );
         const conversionRate = uom ? Number(uom.conversionRate) : 1;
         return {
           ...i,
-          baseQuantity: i.quantity * conversionRate
+          baseQuantity: i.quantity * conversionRate,
         };
       });
 
@@ -324,7 +352,10 @@ export class ProcurementService {
           (i) => i.productId === receivedItem.productId,
         );
         const unitCost = Number(poItem?.unitPrice ?? 0); // التكلفة للوحدة الكبيرة
-        const baseUnitCost = receivedItem.baseQuantity > 0 ? (unitCost * receivedItem.quantity) / receivedItem.baseQuantity : 0;
+        const baseUnitCost =
+          receivedItem.baseQuantity > 0
+            ? (unitCost * receivedItem.quantity) / receivedItem.baseQuantity
+            : 0;
         const lineValue = unitCost * receivedItem.quantity;
         totalGrnValue += lineValue;
 
@@ -382,9 +413,13 @@ export class ProcurementService {
         // د) تحديث الكمية المستلمة في الـ PO بوحدة الـ PO
         if (poItem) {
           // يمكن أن تكون وحدة الـ GRN مختلفة عن وحدة الـ PO، لذلك نحسب النسبة ونعكسها لوحدة PO
-          const poConversionRate = Number(poItem.quantity) > 0 ? Number(poItem.baseQuantity) / Number(poItem.quantity) : 1;
-          const receivedQtyInPoUom = receivedItem.baseQuantity / poConversionRate;
-          
+          const poConversionRate =
+            Number(poItem.quantity) > 0
+              ? Number(poItem.baseQuantity) / Number(poItem.quantity)
+              : 1;
+          const receivedQtyInPoUom =
+            receivedItem.baseQuantity / poConversionRate;
+
           await tx.purchaseOrderItem.update({
             where: { id: poItem.id },
             data: { receivedQuantity: { increment: receivedQtyInPoUom } },

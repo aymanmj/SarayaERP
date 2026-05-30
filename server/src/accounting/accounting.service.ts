@@ -1798,7 +1798,11 @@ export class AccountingService {
    * جلب السنة المالية الحالية المفتوحة + الفترة (الشهر) المفتوح لهذا التاريخ
    * نفس منطق FinancialYearsService.getOpenPeriodForDate لكن داخل AccountingService
    */
-  async getOpenPeriodForDate(hospitalId: number, date: Date, tx?: Prisma.TransactionClient) {
+  async getOpenPeriodForDate(
+    hospitalId: number,
+    date: Date,
+    tx?: Prisma.TransactionClient,
+  ) {
     const db = this.db(tx);
     // 1) نجيب السنة المالية الحالية المفتوحة
     const fy = await db.financialYear.findFirst({

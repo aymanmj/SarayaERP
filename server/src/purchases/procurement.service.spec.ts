@@ -86,8 +86,13 @@ describe('ProcurementService', () => {
       mockPrisma.productUOM.findMany.mockResolvedValue([
         { productId: 1, uomId: 2, conversionRate: 10 },
       ]);
-      mockPrisma.purchaseRequest.findFirst.mockResolvedValue({ requestNumber: 'PR-000005' });
-      mockPrisma.purchaseRequest.create.mockResolvedValue({ id: 10, requestNumber: 'PR-000006' });
+      mockPrisma.purchaseRequest.findFirst.mockResolvedValue({
+        requestNumber: 'PR-000005',
+      });
+      mockPrisma.purchaseRequest.create.mockResolvedValue({
+        id: 10,
+        requestNumber: 'PR-000006',
+      });
 
       const result = await service.createPR({
         hospitalId: 1,
@@ -111,7 +116,10 @@ describe('ProcurementService', () => {
       mockPrisma.product.count.mockResolvedValue(1);
       mockPrisma.productUOM.findMany.mockResolvedValue([]);
       mockPrisma.purchaseRequest.findFirst.mockResolvedValue(null);
-      mockPrisma.purchaseRequest.create.mockResolvedValue({ id: 10, requestNumber: 'PR-000001' });
+      mockPrisma.purchaseRequest.create.mockResolvedValue({
+        id: 10,
+        requestNumber: 'PR-000001',
+      });
 
       const result = await service.createPR({
         hospitalId: 1,
@@ -154,8 +162,13 @@ describe('ProcurementService', () => {
           },
         ],
       });
-      mockPrisma.purchaseOrder.findFirst.mockResolvedValue({ poNumber: 'PO-000042' });
-      mockPrisma.purchaseOrder.create.mockResolvedValue({ id: 20, poNumber: 'PO-000043' });
+      mockPrisma.purchaseOrder.findFirst.mockResolvedValue({
+        poNumber: 'PO-000042',
+      });
+      mockPrisma.purchaseOrder.create.mockResolvedValue({
+        id: 20,
+        poNumber: 'PO-000043',
+      });
       mockPrisma.purchaseRequest.update.mockResolvedValue({});
 
       const result = await service.createPOFromPR(1, 9, 10, 5);
@@ -195,14 +208,22 @@ describe('ProcurementService', () => {
         items: [{ productId: 1, unitPrice: 100 }],
       });
       // Warehouse verification succeeds
-      mockPrisma.warehouse.findFirst.mockResolvedValue({ id: 3, hospitalId: 1 });
+      mockPrisma.warehouse.findFirst.mockResolvedValue({
+        id: 3,
+        hospitalId: 1,
+      });
       // Product verification succeeds
       mockPrisma.product.count.mockResolvedValue(1);
       mockPrisma.productUOM.findMany.mockResolvedValue([
         { productId: 1, uomId: 2, conversionRate: 1 },
       ]);
-      mockPrisma.goodsReceipt.findFirst.mockResolvedValue({ grnNumber: 'GRN-000008' });
-      mockPrisma.goodsReceipt.create.mockResolvedValue({ id: 30, grnNumber: 'GRN-000009' });
+      mockPrisma.goodsReceipt.findFirst.mockResolvedValue({
+        grnNumber: 'GRN-000008',
+      });
+      mockPrisma.goodsReceipt.create.mockResolvedValue({
+        id: 30,
+        grnNumber: 'GRN-000009',
+      });
 
       mockAccounting.getOpenPeriodForDate.mockResolvedValue({
         fy: { id: 2 },
@@ -283,7 +304,10 @@ describe('ProcurementService', () => {
         id: 20,
         hospitalId: 1,
       });
-      mockPrisma.warehouse.findFirst.mockResolvedValue({ id: 3, hospitalId: 1 });
+      mockPrisma.warehouse.findFirst.mockResolvedValue({
+        id: 3,
+        hospitalId: 1,
+      });
       // Product count is less than items length
       mockPrisma.product.count.mockResolvedValue(0);
 
@@ -293,7 +317,15 @@ describe('ProcurementService', () => {
           userId: 9,
           poId: 20,
           warehouseId: 3,
-          items: [{ productId: 1, uomId: 2, quantity: 5, batchNumber: 'B', expiryDate: new Date() }],
+          items: [
+            {
+              productId: 1,
+              uomId: 2,
+              quantity: 5,
+              batchNumber: 'B',
+              expiryDate: new Date(),
+            },
+          ],
         }),
       ).rejects.toThrow(BadRequestException);
     });

@@ -169,8 +169,8 @@ export default function OrderSetsPage() {
 
    
   const getItemLabel = (item: OrderSetItem | any) => {
-    if (item.labTest) return item.labTest.arabicName || item.labTest.name;
-    if (item.radiologyStudy) return item.radiologyStudy.arabicName || item.radiologyStudy.name;
+    if (item.labTest) return item.labTest.name;
+    if (item.radiologyStudy) return item.radiologyStudy.name;
     if (item.product) return item.product.name;
     if (item.serviceItem) return item.serviceItem.name;
     if (item.nursingAction) return item.nursingAction;
@@ -230,11 +230,11 @@ export default function OrderSetsPage() {
     if (newItemType === 'LAB' && newItemRefId) {
       item.labTestId = +newItemRefId;
       const test = labTests.find((t) => t.id === +newItemRefId);
-      item._label = test?.arabicName || test?.name || `Test #${newItemRefId}`;
+      item._label = test?.name || `Test #${newItemRefId}`;
     } else if (newItemType === 'RADIOLOGY' && newItemRefId) {
       item.radiologyStudyId = +newItemRefId;
       const study = radiologyStudies.find((s) => s.id === +newItemRefId);
-      item._label = study?.arabicName || study?.name || `Study #${newItemRefId}`;
+      item._label = study?.name || `Study #${newItemRefId}`;
     } else if (newItemType === 'MEDICATION' && newItemRefId) {
       item.productId = +newItemRefId;
       const prod = products.find((p) => p.id === +newItemRefId);
@@ -700,8 +700,8 @@ export default function OrderSetsPage() {
                           className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-sky-500"
                         >
                           <option value="">-- اختر عنصرًا --</option>
-                          {newItemType === 'LAB' && labTests.map((t) => <option key={t.id} value={t.id}>{t.arabicName || t.name}</option>)}
-                          {newItemType === 'RADIOLOGY' && radiologyStudies.map((s) => <option key={s.id} value={s.id}>{s.arabicName || s.name}</option>)}
+                          {newItemType === 'LAB' && labTests.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                          {newItemType === 'RADIOLOGY' && radiologyStudies.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
                           {newItemType === 'MEDICATION' && products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                         </select>
                       )}
