@@ -1,6 +1,7 @@
 // src/pages/inventory/WarehouseManagementPage.tsx
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { inventoryApi, Warehouse, WarehouseZone, WarehouseBin } from '../../api/inventoryApi';
 import { toast } from 'sonner';
@@ -80,6 +81,8 @@ function WarehouseCard({ warehouse, onEdit, onSelect, isSelected }: {
   onSelect: () => void;
   isSelected: boolean;
 }) {
+  const { t } = useTranslation();
+
   return (
     <div
       onClick={onSelect}
@@ -107,7 +110,7 @@ function WarehouseCard({ warehouse, onEdit, onSelect, isSelected }: {
               ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
               : 'bg-slate-700/50 text-slate-500 border border-slate-600/30'
           }`}>
-            {warehouse.isActive ? 'نشط' : 'معطل'}
+            {warehouse.isActive ? t("inventory.warehouse.active", "نشط") : t("inventory.warehouse.inactive", "معطل")}
           </span>
           <button
             onClick={(e) => { e.stopPropagation(); onEdit(); }}
@@ -121,11 +124,11 @@ function WarehouseCard({ warehouse, onEdit, onSelect, isSelected }: {
       <div className="mt-4 flex items-center gap-4 text-xs text-slate-500">
         <div className="flex items-center gap-1.5">
           <ZoneIcon />
-          <span>{warehouse._count?.zones ?? 0} مناطق</span>
+          <span>{t("inventory.warehouse.zonesCount", "{{count}} مناطق", { count: warehouse._count?.zones ?? 0 })}</span>
         </div>
         <div className="flex items-center gap-1.5">
           <BinIcon />
-          <span>{warehouse._count?.productStocks ?? 0} صنف مخزني</span>
+          <span>{t("inventory.warehouse.stockItemsCount", "{{count}} صنف مخزني", { count: warehouse._count?.productStocks ?? 0 })}</span>
         </div>
       </div>
     </div>
@@ -134,6 +137,7 @@ function WarehouseCard({ warehouse, onEdit, onSelect, isSelected }: {
 
 // ─────────────────── Zone / Bin Tree ───────────────────
 function ZoneBinTree({ warehouse, onRefresh }: { warehouse: Warehouse; onRefresh: () => void }) {
+  const { t } = useTranslation();
   const [expandedZones, setExpandedZones] = useState<Set<number>>(new Set());
   const [addingZone, setAddingZone] = useState(false);
   const [addingBinForZone, setAddingBinForZone] = useState<number | null>(null);
@@ -158,48 +162,48 @@ function ZoneBinTree({ warehouse, onRefresh }: { warehouse: Warehouse; onRefresh
       if (!warehouse) throw new Error('Warehouse not loaded');
       return inventoryApi.createZone(warehouse.id, { code: zoneCode, name: zoneName, description: zoneDesc || undefined });
     },
-    onSuccess: () => { toast.success('تم إضافة المنطقة بنجاح'); resetZoneForm(); onRefresh(); },
+    onSuccess: () => { toast.success(t("inventory.warehouse.toast.zoneAdded", "تم إضافة المنطقة بنجاح")); resetZoneForm(); onRefresh(); },
      
-    onError: (e: any) => toast.error(e?.response?.data?.message || 'فشل في إضافة المنطقة'),
+    onError: (e: any) => toast.error(e?.response?.data?.message || t("inventory.warehouse.error.addZone", "فشل في إضافة المنطقة")),
   });
 
   const updateZoneMut = useMutation({
     mutationFn: () => inventoryApi.updateZone(editingZone!.id, { code: zoneCode, name: zoneName, description: zoneDesc || undefined }),
-    onSuccess: () => { toast.success('تم تعديل المنطقة'); resetZoneForm(); onRefresh(); },
+    onSuccess: () => { toast.success(t("inventory.warehouse.toast.zoneUpdated", "تم تعديل المنطقة")); resetZoneForm(); onRefresh(); },
      
-    onError: (e: any) => toast.error(e?.response?.data?.message || 'فشل في تعديل المنطقة'),
+    onError: (e: any) => toast.error(e?.response?.data?.message || t("inventory.warehouse.error.editZone", "فشل في تعديل المنطقة")),
   });
 
   const deleteZoneMut = useMutation({
     mutationFn: (id: number) => inventoryApi.deleteZone(id),
-    onSuccess: () => { toast.success('تم حذف المنطقة'); onRefresh(); },
+    onSuccess: () => { toast.success(t("inventory.warehouse.toast.zoneDeleted", "تم حذف المنطقة")); onRefresh(); },
      
-    onError: (e: any) => toast.error(e?.response?.data?.message || 'فشل في حذف المنطقة'),
+    onError: (e: any) => toast.error(e?.response?.data?.message || t("inventory.warehouse.error.deleteZone", "فشل في حذف المنطقة")),
   });
 
   const createBinMut = useMutation({
     mutationFn: () => inventoryApi.createBin(addingBinForZone!, { code: binCode, name: binName, description: binDesc || undefined }),
-    onSuccess: () => { toast.success('تم إضافة الرف بنجاح'); resetBinForm(); onRefresh(); },
+    onSuccess: () => { toast.success(t("inventory.warehouse.toast.binAdded", "تم إضافة الرف بنجاح")); resetBinForm(); onRefresh(); },
      
-    onError: (e: any) => toast.error(e?.response?.data?.message || 'فشل في إضافة الرف'),
+    onError: (e: any) => toast.error(e?.response?.data?.message || t("inventory.warehouse.error.addBin", "فشل في إضافة الرف")),
   });
 
   const updateBinMut = useMutation({
     mutationFn: () => inventoryApi.updateBin(editingBin!.id, { code: binCode, name: binName, description: binDesc || undefined }),
-    onSuccess: () => { toast.success('تم تعديل الرف'); resetBinForm(); onRefresh(); },
+    onSuccess: () => { toast.success(t("inventory.warehouse.toast.binUpdated", "تم تعديل الرف")); resetBinForm(); onRefresh(); },
      
-    onError: (e: any) => toast.error(e?.response?.data?.message || 'فشل في تعديل الرف'),
+    onError: (e: any) => toast.error(e?.response?.data?.message || t("inventory.warehouse.error.editBin", "فشل في تعديل الرف")),
   });
 
   const deleteBinMut = useMutation({
     mutationFn: (id: number) => inventoryApi.deleteBin(id),
-    onSuccess: () => { toast.success('تم حذف الرف'); onRefresh(); },
+    onSuccess: () => { toast.success(t("inventory.warehouse.toast.binDeleted", "تم حذف الرف")); onRefresh(); },
      
-    onError: (e: any) => toast.error(e?.response?.data?.message || 'فشل في حذف الرف'),
+    onError: (e: any) => toast.error(e?.response?.data?.message || t("inventory.warehouse.error.deleteBin", "فشل في حذف الرف")),
   });
 
   if (!warehouse) {
-    return <div className="text-center p-4 text-slate-500 text-sm">جاري تحميل بيانات المستودع...</div>;
+    return <div className="text-center p-4 text-slate-500 text-sm">{t("inventory.warehouse.loadingWarehouseData", "جاري تحميل بيانات المستودع...")}</div>;
   }
 
   const toggleZone = (id: number) => {
@@ -249,11 +253,11 @@ function ZoneBinTree({ warehouse, onRefresh }: { warehouse: Warehouse; onRefresh
       {/* Header */}
       <div className="flex items-center justify-between">
         <h4 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
-          <ZoneIcon /> المناطق والأرفف
-          <span className="text-xs text-slate-500">({zones.length} منطقة)</span>
+          <ZoneIcon /> {t("inventory.warehouse.zonesAndBins", "المناطق والأرفف")}
+          <span className="text-xs text-slate-500">{t("inventory.warehouse.zonesLength", "({{count}} منطقة)", { count: zones.length })}</span>
         </h4>
         <button onClick={(e) => { e.stopPropagation(); resetZoneForm(false); setAddingZone(true); }} className={btnSmall}>
-          <PlusIcon /> إضافة منطقة
+          <PlusIcon /> {t("inventory.warehouse.addZone", "إضافة منطقة")}
         </button>
       </div>
 
@@ -261,56 +265,56 @@ function ZoneBinTree({ warehouse, onRefresh }: { warehouse: Warehouse; onRefresh
       {addingZone && (
         <div className="p-4 rounded-xl border border-sky-500/30 bg-sky-500/5 space-y-3">
           <div className="grid grid-cols-2 gap-3">
-            <input value={zoneCode} onChange={e => setZoneCode(e.target.value)} placeholder="كود المنطقة (مثل: Z01)" className={inputClass} />
-            <input value={zoneName} onChange={e => setZoneName(e.target.value)} placeholder="اسم المنطقة" className={inputClass} />
+            <input value={zoneCode} onChange={e => setZoneCode(e.target.value)} placeholder={t("inventory.warehouse.zoneCodePlaceholder", "كود المنطقة (مثل: Z01)")} className={inputClass} />
+            <input value={zoneName} onChange={e => setZoneName(e.target.value)} placeholder={t("inventory.warehouse.zoneNamePlaceholder", "اسم المنطقة")} className={inputClass} />
           </div>
-          <input value={zoneDesc} onChange={e => setZoneDesc(e.target.value)} placeholder="وصف (اختياري)" className={inputClass} />
+          <input value={zoneDesc} onChange={e => setZoneDesc(e.target.value)} placeholder={t("inventory.warehouse.descriptionOptional", "وصف (اختياري)")} className={inputClass} />
           <div className="flex gap-2 justify-end">
-            <button onClick={resetZoneForm} className={btnSecondary}>إلغاء</button>
+            <button onClick={resetZoneForm} className={btnSecondary}>{t("common.cancel", "إلغاء")}</button>
             <button onClick={() => createZoneMut.mutate()} disabled={!zoneCode || !zoneName || createZoneMut.isPending} className={btnPrimary}>
-              <CheckIcon /> حفظ
+              <CheckIcon /> {t("common.save", "حفظ")}
             </button>
           </div>
         </div>
       )}
 
       {/* Edit Zone Modal */}
-      <Modal open={!!editingZone} onClose={resetZoneForm} title="تعديل المنطقة">
+      <Modal open={!!editingZone} onClose={resetZoneForm} title={t("inventory.warehouse.editZone", "تعديل المنطقة")}>
         <div className="space-y-4">
-          <FormField label="كود المنطقة" required>
+          <FormField label={t("inventory.warehouse.zoneCode", "كود المنطقة")} required>
             <input value={zoneCode} onChange={e => setZoneCode(e.target.value)} className={inputClass} />
           </FormField>
-          <FormField label="اسم المنطقة" required>
+          <FormField label={t("inventory.warehouse.zoneNamePlaceholder", "اسم المنطقة")} required>
             <input value={zoneName} onChange={e => setZoneName(e.target.value)} className={inputClass} />
           </FormField>
-          <FormField label="وصف">
+          <FormField label={t("inventory.warehouse.description", "وصف")}>
             <input value={zoneDesc} onChange={e => setZoneDesc(e.target.value)} className={inputClass} />
           </FormField>
           <div className="flex gap-2 justify-end pt-2">
-            <button onClick={resetZoneForm} className={btnSecondary}>إلغاء</button>
+            <button onClick={resetZoneForm} className={btnSecondary}>{t("common.cancel", "إلغاء")}</button>
             <button onClick={() => updateZoneMut.mutate()} disabled={!zoneCode || !zoneName || updateZoneMut.isPending} className={btnPrimary}>
-              <CheckIcon /> حفظ التعديلات
+              <CheckIcon /> {t("inventory.warehouse.saveChanges", "حفظ التعديلات")}
             </button>
           </div>
         </div>
       </Modal>
 
       {/* Edit Bin Modal */}
-      <Modal open={!!editingBin} onClose={resetBinForm} title="تعديل الرف">
+      <Modal open={!!editingBin} onClose={resetBinForm} title={t("inventory.warehouse.editBin", "تعديل الرف")}>
         <div className="space-y-4">
-          <FormField label="كود الرف" required>
+          <FormField label={t("inventory.warehouse.binCode", "كود الرف")} required>
             <input value={binCode} onChange={e => setBinCode(e.target.value)} className={inputClass} />
           </FormField>
-          <FormField label="اسم الرف" required>
+          <FormField label={t("inventory.warehouse.binName", "اسم الرف")} required>
             <input value={binName} onChange={e => setBinName(e.target.value)} className={inputClass} />
           </FormField>
-          <FormField label="وصف">
+          <FormField label={t("inventory.warehouse.description", "وصف")}>
             <input value={binDesc} onChange={e => setBinDesc(e.target.value)} className={inputClass} />
           </FormField>
           <div className="flex gap-2 justify-end pt-2">
-            <button onClick={resetBinForm} className={btnSecondary}>إلغاء</button>
+            <button onClick={resetBinForm} className={btnSecondary}>{t("common.cancel", "إلغاء")}</button>
             <button onClick={() => updateBinMut.mutate()} disabled={!binCode || !binName || updateBinMut.isPending} className={btnPrimary}>
-              <CheckIcon /> حفظ التعديلات
+              <CheckIcon /> {t("inventory.warehouse.saveChanges", "حفظ التعديلات")}
             </button>
           </div>
         </div>
@@ -320,7 +324,7 @@ function ZoneBinTree({ warehouse, onRefresh }: { warehouse: Warehouse; onRefresh
       {zones.length === 0 ? (
         <div className="text-center py-8 text-slate-500 text-sm">
           <ZoneIcon />
-          <p className="mt-2">لا توجد مناطق بعد. أضف أول منطقة للمستودع.</p>
+          <p className="mt-2">{t("inventory.warehouse.noZonesYet", "لا توجد مناطق بعد. أضف أول منطقة للمستودع.")}</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -336,14 +340,14 @@ function ZoneBinTree({ warehouse, onRefresh }: { warehouse: Warehouse; onRefresh
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-mono bg-sky-500/10 text-sky-400 px-2 py-0.5 rounded-md">{zone.code}</span>
                     <span className="text-sm font-medium text-slate-200">{zone.name}</span>
-                    <span className="text-xs text-slate-500">({zone.bins?.length || 0} رف)</span>
+                    <span className="text-xs text-slate-500">{t("inventory.warehouse.binsCount", "({{count}} رف)", { count: zone.bins?.length || 0 })}</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
-                  <button onClick={() => { resetBinForm(); setAddingBinForZone(zone.id); }} className={btnSmall}><PlusIcon /> رف</button>
+                  <button onClick={() => { resetBinForm(); setAddingBinForZone(zone.id); }} className={btnSmall}><PlusIcon /> {t("inventory.warehouse.bin", "رف")}</button>
                   <button onClick={() => startEditZone(zone)} className="p-1.5 rounded-lg hover:bg-slate-600/50 text-slate-400 hover:text-sky-400 transition-all"><EditIcon /></button>
                   <button
-                    onClick={() => { if (confirm('هل أنت متأكد من حذف هذه المنطقة؟')) deleteZoneMut.mutate(zone.id); }}
+                    onClick={() => { if (confirm(t("inventory.warehouse.confirmDeleteZone", 'هل أنت متأكد من حذف هذه المنطقة؟'))) deleteZoneMut.mutate(zone.id); }}
                     className="p-1.5 rounded-lg hover:bg-rose-500/10 text-slate-400 hover:text-rose-400 transition-all"
                   ><TrashIcon /></button>
                 </div>
@@ -356,14 +360,14 @@ function ZoneBinTree({ warehouse, onRefresh }: { warehouse: Warehouse; onRefresh
                   {addingBinForZone === zone.id && (
                     <div className="p-3 mx-3 mt-3 rounded-lg border border-emerald-500/30 bg-emerald-500/5 space-y-2">
                       <div className="grid grid-cols-2 gap-2">
-                        <input value={binCode} onChange={e => setBinCode(e.target.value)} placeholder="كود الرف (مثل: B01)" className={inputClass} />
-                        <input value={binName} onChange={e => setBinName(e.target.value)} placeholder="اسم الرف" className={inputClass} />
+                        <input value={binCode} onChange={e => setBinCode(e.target.value)} placeholder={t("inventory.warehouse.binCodePlaceholder", "كود الرف (مثل: B01)")} className={inputClass} />
+                        <input value={binName} onChange={e => setBinName(e.target.value)} placeholder={t("inventory.warehouse.binNamePlaceholder", "اسم الرف")} className={inputClass} />
                       </div>
-                      <input value={binDesc} onChange={e => setBinDesc(e.target.value)} placeholder="وصف (اختياري)" className={inputClass} />
+                      <input value={binDesc} onChange={e => setBinDesc(e.target.value)} placeholder={t("inventory.warehouse.descriptionOptional", "وصف (اختياري)")} className={inputClass} />
                       <div className="flex gap-2 justify-end">
-                        <button onClick={resetBinForm} className={btnSecondary}>إلغاء</button>
+                        <button onClick={resetBinForm} className={btnSecondary}>{t("common.cancel", "إلغاء")}</button>
                         <button onClick={() => createBinMut.mutate()} disabled={!binCode || !binName || createBinMut.isPending} className={btnPrimary}>
-                          <CheckIcon /> حفظ
+                          <CheckIcon /> {t("common.save", "حفظ")}
                         </button>
                       </div>
                     </div>
@@ -383,7 +387,7 @@ function ZoneBinTree({ warehouse, onRefresh }: { warehouse: Warehouse; onRefresh
                           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button onClick={() => startEditBin(bin)} className="p-1 rounded hover:bg-slate-600/50 text-slate-400 hover:text-sky-400"><EditIcon /></button>
                             <button
-                              onClick={() => { if (confirm('هل أنت متأكد من حذف هذا الرف؟')) deleteBinMut.mutate(bin.id); }}
+                              onClick={() => { if (confirm(t("inventory.warehouse.confirmDeleteBin", 'هل أنت متأكد من حذف هذا الرف؟'))) deleteBinMut.mutate(bin.id); }}
                               className="p-1 rounded hover:bg-rose-500/10 text-slate-400 hover:text-rose-400"
                             ><TrashIcon /></button>
                           </div>
@@ -391,7 +395,7 @@ function ZoneBinTree({ warehouse, onRefresh }: { warehouse: Warehouse; onRefresh
                       ))}
                     </div>
                   ) : (
-                    <div className="py-4 text-center text-xs text-slate-500">لا يوجد أرفف في هذه المنطقة</div>
+                    <div className="py-4 text-center text-xs text-slate-500">{t("inventory.warehouse.noBinsInZone", "لا يوجد أرفف في هذه المنطقة")}</div>
                   )}
                 </div>
               )}
@@ -405,6 +409,8 @@ function ZoneBinTree({ warehouse, onRefresh }: { warehouse: Warehouse; onRefresh
 
 // ─────────────────── Main Page ───────────────────
 export function WarehouseManagementPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
   const queryClient = useQueryClient();
   const [selectedWarehouseId, setSelectedWarehouseId] = useState<number | null>(null);
   const [showAddWarehouse, setShowAddWarehouse] = useState(false);
@@ -438,23 +444,23 @@ export function WarehouseManagementPage() {
   const createMut = useMutation({
     mutationFn: () => inventoryApi.createWarehouse({ name: whName, code: whCode || undefined, isActive: whActive }),
     onSuccess: () => {
-      toast.success('تم إنشاء المستودع بنجاح');
+      toast.success(t("inventory.warehouse.toast.warehouseCreated", "تم إنشاء المستودع بنجاح"));
       resetForm();
       queryClient.invalidateQueries({ queryKey: ['warehouses-detailed'] });
     },
      
-    onError: (e: any) => toast.error(e?.response?.data?.message || 'فشل في إنشاء المستودع'),
+    onError: (e: any) => toast.error(e?.response?.data?.message || t("inventory.warehouse.error.createWarehouse", "فشل في إنشاء المستودع")),
   });
 
   const updateMut = useMutation({
     mutationFn: () => inventoryApi.updateWarehouse(editingWarehouse!.id, { name: whName, code: whCode || undefined, isActive: whActive }),
     onSuccess: () => {
-      toast.success('تم تعديل المستودع بنجاح');
+      toast.success(t("inventory.warehouse.toast.warehouseUpdated", "تم تعديل المستودع بنجاح"));
       resetForm();
       queryClient.invalidateQueries({ queryKey: ['warehouses-detailed'] });
     },
      
-    onError: (e: any) => toast.error(e?.response?.data?.message || 'فشل في تعديل المستودع'),
+    onError: (e: any) => toast.error(e?.response?.data?.message || t("inventory.warehouse.error.updateWarehouse", "فشل في تعديل المستودع")),
   });
 
   const resetForm = (closeModal: boolean | React.MouseEvent = true) => { 
@@ -482,18 +488,18 @@ export function WarehouseManagementPage() {
   const warehouses = warehousesQuery.data || [];
 
   return (
-    <div className="space-y-6 p-1">
+    <div className="space-y-6 p-1" dir={isRtl ? "rtl" : "ltr"}>
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-100 flex items-center gap-3">
             <span className="p-2 bg-gradient-to-br from-sky-500/20 to-indigo-500/20 rounded-xl text-sky-400"><WarehouseIcon /></span>
-            إدارة المستودعات
+            {t("inventory.warehouse.title", "إدارة المستودعات")}
           </h1>
-          <p className="text-sm text-slate-500 mt-1">إنشاء وتنظيم المستودعات والمناطق وأماكن التخزين</p>
+          <p className="text-sm text-slate-500 mt-1">{t("inventory.warehouse.subtitle", "إنشاء وتنظيم المستودعات والمناطق وأماكن التخزين")}</p>
         </div>
         <button onClick={() => { resetForm(false); setShowAddWarehouse(true); }} className={btnPrimary}>
-          <PlusIcon /> إضافة مستودع جديد
+          <PlusIcon /> {t("inventory.warehouse.addNewWarehouse", "إضافة مستودع جديد")}
         </button>
       </div>
 
@@ -501,35 +507,35 @@ export function WarehouseManagementPage() {
       <Modal
         open={showAddWarehouse || !!editingWarehouse}
         onClose={resetForm}
-        title={editingWarehouse ? 'تعديل المستودع' : 'إضافة مستودع جديد'}
+        title={editingWarehouse ? t("inventory.warehouse.editWarehouse", 'تعديل المستودع') : t("inventory.warehouse.addNewWarehouse", 'إضافة مستودع جديد')}
       >
         <div className="space-y-4">
-          <FormField label="اسم المستودع" required>
-            <input value={whName} onChange={e => setWhName(e.target.value)} placeholder="مثال: المستودع الرئيسي" className={inputClass} autoFocus />
+          <FormField label={t("inventory.warehouse.warehouseName", "اسم المستودع")} required>
+            <input value={whName} onChange={e => setWhName(e.target.value)} placeholder={t("inventory.warehouse.warehouseNameExample", "مثال: المستودع الرئيسي")} className={inputClass} autoFocus />
           </FormField>
-          <FormField label="كود المستودع">
-            <input value={whCode} onChange={e => setWhCode(e.target.value)} placeholder="مثال: WH-MAIN" className={inputClass} dir="ltr" />
+          <FormField label={t("inventory.warehouse.warehouseCode", "كود المستودع")}>
+            <input value={whCode} onChange={e => setWhCode(e.target.value)} placeholder={t("inventory.warehouse.warehouseCodeExample", "مثال: WH-MAIN")} className={inputClass} dir="ltr" />
           </FormField>
-          <FormField label="الحالة">
+          <FormField label={t("inventory.warehouse.statusLabel", "الحالة")}>
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setWhActive(true)}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${whActive ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-slate-700/30 text-slate-500 border border-slate-600/30'}`}
-              >نشط</button>
+              >{t("inventory.warehouse.activeState", "نشط")}</button>
               <button
                 onClick={() => setWhActive(false)}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${!whActive ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30' : 'bg-slate-700/30 text-slate-500 border border-slate-600/30'}`}
-              >معطل</button>
+              >{t("inventory.warehouse.inactiveState", "معطل")}</button>
             </div>
           </FormField>
           <div className="flex gap-3 justify-end pt-3 border-t border-slate-700/50">
-            <button onClick={resetForm} className={btnSecondary}>إلغاء</button>
+            <button onClick={resetForm} className={btnSecondary}>{t("common.cancel", "إلغاء")}</button>
             <button
               onClick={() => editingWarehouse ? updateMut.mutate() : createMut.mutate()}
               disabled={!whName || createMut.isPending || updateMut.isPending}
               className={btnPrimary}
             >
-              <CheckIcon /> {editingWarehouse ? 'حفظ التعديلات' : 'إنشاء المستودع'}
+              <CheckIcon /> {editingWarehouse ? t("inventory.warehouse.saveChanges", 'حفظ التعديلات') : t("inventory.warehouse.createWarehouse", 'إنشاء المستودع')}
             </button>
           </div>
         </div>
@@ -539,15 +545,15 @@ export function WarehouseManagementPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Warehouses List */}
         <div className="space-y-3">
-          <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wider px-1">المستودعات ({warehouses.length})</h2>
+          <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wider px-1">{t("inventory.warehouse.warehousesList", "المستودعات")} ({warehouses.length})</h2>
           {warehousesQuery.isLoading ? (
             <div className="space-y-3">{[1, 2, 3].map(i => <div key={i} className="h-24 rounded-2xl bg-slate-800/30 animate-pulse" />)}</div>
           ) : warehouses.length === 0 ? (
             <div className="text-center py-12 text-slate-500">
               <WarehouseIcon />
-              <p className="mt-3 text-sm">لا توجد مستودعات بعد</p>
+              <p className="mt-3 text-sm">{t("inventory.warehouse.noWarehousesYet", "لا توجد مستودعات بعد")}</p>
               <button onClick={() => setShowAddWarehouse(true)} className={`${btnPrimary} mt-4 mx-auto`}>
-                <PlusIcon /> إضافة أول مستودع
+                <PlusIcon /> {t("inventory.warehouse.addFirstWarehouse", "إضافة أول مستودع")}
               </button>
             </div>
           ) : (
@@ -580,17 +586,17 @@ export function WarehouseManagementPage() {
                 <div className="grid grid-cols-3 gap-3">
                   <div className="p-3 rounded-xl bg-slate-800/50 border border-slate-700/30 text-center">
                     <div className="text-2xl font-bold text-sky-400">{selectedWarehouseQuery.data.zones?.length || 0}</div>
-                    <div className="text-xs text-slate-500 mt-1">مناطق</div>
+                    <div className="text-xs text-slate-500 mt-1">{t("inventory.warehouse.statsZones", "مناطق")}</div>
                   </div>
                   <div className="p-3 rounded-xl bg-slate-800/50 border border-slate-700/30 text-center">
                     <div className="text-2xl font-bold text-emerald-400">
                       {selectedWarehouseQuery.data.zones?.reduce((acc, z) => acc + (z.bins?.length || 0), 0) || 0}
                     </div>
-                    <div className="text-xs text-slate-500 mt-1">أرفف</div>
+                    <div className="text-xs text-slate-500 mt-1">{t("inventory.warehouse.statsBins", "أرفف")}</div>
                   </div>
                   <div className="p-3 rounded-xl bg-slate-800/50 border border-slate-700/30 text-center">
                     <div className="text-2xl font-bold text-amber-400">{stockQuery.data?.length || 0}</div>
-                    <div className="text-xs text-slate-500 mt-1">أصناف مخزنة</div>
+                    <div className="text-xs text-slate-500 mt-1">{t("inventory.warehouse.statsItems", "أصناف مخزنة")}</div>
                   </div>
                 </div>
               </div>
@@ -604,18 +610,18 @@ export function WarehouseManagementPage() {
               {stockQuery.data && stockQuery.data.length > 0 && (
                 <div className="p-5 rounded-2xl border border-slate-700/40 bg-slate-800/20">
                   <h4 className="text-sm font-semibold text-slate-300 mb-3 flex items-center gap-2">
-                    <BinIcon /> الأصناف المخزنة ({stockQuery.data.length})
+                    <BinIcon /> {t("inventory.warehouse.storedItemsCount", "الأصناف المخزنة ({{count}})", { count: stockQuery.data.length })}
                   </h4>
                   <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
+                    <table className={`w-full text-sm ${isRtl ? "text-right" : "text-left"}`}>
                       <thead>
                         <tr className="text-xs text-slate-500 border-b border-slate-700/30">
-                          <th className="text-right py-2 pr-3">الصنف</th>
-                          <th className="text-right py-2">الكود</th>
-                          <th className="text-center py-2">الكمية</th>
-                          <th className="text-center py-2">الحد الأدنى</th>
-                          <th className="text-center py-2">التشغيلة</th>
-                          <th className="text-center py-2">الصلاحية</th>
+                          <th className="py-2 pr-3">{t("inventory.warehouse.tableProduct", "الصنف")}</th>
+                          <th className="py-2">{t("inventory.warehouse.tableCode", "الكود")}</th>
+                          <th className="text-center py-2">{t("inventory.warehouse.tableQuantity", "الكمية")}</th>
+                          <th className="text-center py-2">{t("inventory.warehouse.tableMinStock", "الحد الأدنى")}</th>
+                          <th className="text-center py-2">{t("inventory.warehouse.tableBatch", "التشغيلة")}</th>
+                          <th className="text-center py-2">{t("inventory.warehouse.tableExpiry", "الصلاحية")}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -629,7 +635,7 @@ export function WarehouseManagementPage() {
                             <td className="py-2 text-center text-slate-500">{Number(stock.minStock).toLocaleString()}</td>
                             <td className="py-2 text-center text-slate-500 text-xs">{stock.batchNumber || '-'}</td>
                             <td className="py-2 text-center text-slate-500 text-xs">
-                              {stock.expiryDate ? new Date(stock.expiryDate).toLocaleDateString('ar-SA') : '-'}
+                              {stock.expiryDate ? new Date(stock.expiryDate).toLocaleDateString(isRtl ? 'ar-SA' : 'en-US') : '-'}
                             </td>
                           </tr>
                         ))}
@@ -643,7 +649,7 @@ export function WarehouseManagementPage() {
             <div className="flex items-center justify-center h-64 text-slate-500 text-sm rounded-2xl border border-dashed border-slate-700/40">
               <div className="text-center">
                 <WarehouseIcon />
-                <p className="mt-3">اختر مستودعاً من القائمة لعرض التفاصيل</p>
+                <p className="mt-3">{t("inventory.warehouse.selectWarehouseToView", "اختر مستودعاً من القائمة لعرض التفاصيل")}</p>
               </div>
             </div>
           )}

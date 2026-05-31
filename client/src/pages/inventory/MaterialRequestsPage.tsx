@@ -131,7 +131,7 @@ export function MaterialRequestsPage() {
               {loading ? (
                 <tr>
                   <td colSpan={8} className="text-center py-20 text-slate-500 animate-pulse">
-                    جاري تحميل البيانات...
+                    {t("common.loading", "جاري تحميل البيانات...")}
                   </td>
                 </tr>
               ) : filteredRequests.length === 0 ? (

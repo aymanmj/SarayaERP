@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { apiClient } from "../../../api/apiClient";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -15,6 +16,8 @@ type PurchaseOrder = {
 };
 
 export function PurchaseOrdersPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
   const [orders, setOrders] = useState<PurchaseOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -27,7 +30,7 @@ export function PurchaseOrdersPage() {
      
     } catch (err: any) {
       console.error(err);
-      toast.error("حدث خطأ أثناء تحميل أوامر الشراء.");
+      toast.error(t("inventory.purchaseOrder.toast.loadFailed", "حدث خطأ أثناء تحميل أوامر الشراء."));
     } finally {
       setLoading(false);
     }
@@ -40,61 +43,61 @@ export function PurchaseOrdersPage() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "DRAFT":
-        return <span className="px-2 py-1 rounded bg-slate-700 text-slate-300">مسودة</span>;
+        return <span className="px-2 py-1 rounded bg-slate-700 text-slate-300">{t("inventory.purchaseOrder.status.draft", "مسودة")}</span>;
       case "PENDING_APPROVAL":
-        return <span className="px-2 py-1 rounded bg-amber-900/50 text-amber-500 border border-amber-800/50">بانتظار الاعتماد</span>;
+        return <span className="px-2 py-1 rounded bg-amber-900/50 text-amber-500 border border-amber-800/50">{t("inventory.purchaseOrder.status.pending", "بانتظار الاعتماد")}</span>;
       case "APPROVED":
-        return <span className="px-2 py-1 rounded bg-emerald-900/50 text-emerald-500 border border-emerald-800/50">معتمد</span>;
+        return <span className="px-2 py-1 rounded bg-emerald-900/50 text-emerald-500 border border-emerald-800/50">{t("inventory.purchaseOrder.status.approved", "معتمد")}</span>;
       case "PARTIALLY_RECEIVED":
-        return <span className="px-2 py-1 rounded bg-sky-900/50 text-sky-500 border border-sky-800/50">مستلم جزئياً</span>;
+        return <span className="px-2 py-1 rounded bg-sky-900/50 text-sky-500 border border-sky-800/50">{t("inventory.purchaseOrder.status.partiallyReceived", "مستلم جزئياً")}</span>;
       case "FULLY_RECEIVED":
-        return <span className="px-2 py-1 rounded bg-indigo-900/50 text-indigo-500 border border-indigo-800/50">مستلم بالكامل</span>;
+        return <span className="px-2 py-1 rounded bg-indigo-900/50 text-indigo-500 border border-indigo-800/50">{t("inventory.purchaseOrder.status.fullyReceived", "مستلم بالكامل")}</span>;
       case "CANCELLED":
-        return <span className="px-2 py-1 rounded bg-rose-900/50 text-rose-500 border border-rose-800/50">ملغي</span>;
+        return <span className="px-2 py-1 rounded bg-rose-900/50 text-rose-500 border border-rose-800/50">{t("inventory.purchaseOrder.status.cancelled", "ملغي")}</span>;
       default:
         return <span className="px-2 py-1 rounded bg-slate-700 text-slate-300">{status}</span>;
     }
   };
 
   return (
-    <div className="flex flex-col h-full text-slate-100">
+    <div className="flex flex-col h-full text-slate-100" dir={isRtl ? "rtl" : "ltr"}>
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold mb-1">أوامر الشراء (PO)</h1>
-          <p className="text-sm text-slate-400">إدارة ومتابعة أوامر الشراء للموردين.</p>
+          <h1 className="text-2xl font-bold mb-1">{t("inventory.purchaseOrder.title", "أوامر الشراء (PO)")}</h1>
+          <p className="text-sm text-slate-400">{t("inventory.purchaseOrder.subtitle", "إدارة ومتابعة أوامر الشراء للموردين.")}</p>
         </div>
         <div className="flex gap-2">
           <button
             onClick={() => navigate("/purchases/orders/new")}
             className="px-4 py-1.5 rounded-full text-xs bg-sky-600 hover:bg-sky-500 font-medium transition-colors"
           >
-            أمر شراء مباشر جديد
+            {t("inventory.purchaseOrder.createBtn", "أمر شراء مباشر جديد")}
           </button>
           <button
             onClick={loadOrders}
             className="px-3 py-1.5 rounded-full text-xs bg-slate-800 hover:bg-slate-700 transition-colors"
           >
-            تحديث
+            {t("common.refresh", "تحديث")}
           </button>
         </div>
       </div>
 
       <div className="flex-1 rounded-3xl border border-slate-800 bg-slate-950/80 p-4 text-xs overflow-auto">
         {loading ? (
-          <div className="text-slate-500 flex justify-center p-8">جارِ التحميل...</div>
+          <div className="text-slate-500 flex justify-center p-8">{t("common.loading", "جارِ التحميل...")}</div>
         ) : orders.length === 0 ? (
-          <div className="text-slate-500 flex justify-center p-8">لا توجد أوامر شراء حالياً.</div>
+          <div className="text-slate-500 flex justify-center p-8">{t("inventory.purchaseOrder.empty", "لا توجد أوامر شراء حالياً.")}</div>
         ) : (
-          <table className="w-full text-right border-separate border-spacing-y-1">
+          <table className={`w-full border-separate border-spacing-y-1 ${isRtl ? "text-right" : "text-left"}`}>
             <thead className="text-slate-400">
               <tr>
-                <th className="px-3 py-2 font-medium">رقم الأمر</th>
-                <th className="px-3 py-2 font-medium">التاريخ</th>
-                <th className="px-3 py-2 font-medium">المورد</th>
-                <th className="px-3 py-2 font-medium">المنشئ</th>
-                <th className="px-3 py-2 font-medium text-left">الإجمالي</th>
-                <th className="px-3 py-2 font-medium">الحالة</th>
-                <th className="px-3 py-2 font-medium">إجراءات</th>
+                <th className="px-3 py-2 font-medium">{t("inventory.purchaseOrder.tableNumber", "رقم الأمر")}</th>
+                <th className="px-3 py-2 font-medium">{t("inventory.purchaseOrder.tableDate", "التاريخ")}</th>
+                <th className="px-3 py-2 font-medium">{t("inventory.purchaseOrder.tableSupplier", "المورد")}</th>
+                <th className="px-3 py-2 font-medium">{t("inventory.purchaseOrder.tableCreator", "المنشئ")}</th>
+                <th className={`px-3 py-2 font-medium ${isRtl ? "text-left" : "text-right"}`}>{t("inventory.purchaseOrder.tableTotal", "الإجمالي")}</th>
+                <th className="px-3 py-2 font-medium">{t("common.status", "الحالة")}</th>
+                <th className="px-3 py-2 font-medium">{t("common.actions", "إجراءات")}</th>
               </tr>
             </thead>
             <tbody>
@@ -106,8 +109,8 @@ export function PurchaseOrdersPage() {
                   </td>
                   <td className="px-3 py-2 font-medium">{order.supplier.name}</td>
                   <td className="px-3 py-2 text-slate-400">{order.createdBy.fullName}</td>
-                  <td className="px-3 py-2 font-medium text-emerald-400 text-left">
-                    {order.totalAmount.toLocaleString()} د.ل
+                  <td className={`px-3 py-2 font-medium text-emerald-400 ${isRtl ? "text-left" : "text-right"}`}>
+                    {order.totalAmount.toLocaleString()} {t("inventory.currencyDinar", "د.ل")}
                   </td>
                   <td className="px-3 py-2">{getStatusBadge(order.status)}</td>
                   <td className="px-3 py-2">
@@ -115,7 +118,7 @@ export function PurchaseOrdersPage() {
                       onClick={() => navigate(`/purchases/orders/${order.id}`)}
                       className="text-sky-400 hover:text-sky-300 underline"
                     >
-                      التفاصيل
+                      {t("inventory.purchaseOrder.tableDetails", "التفاصيل")}
                     </button>
                   </td>
                 </tr>

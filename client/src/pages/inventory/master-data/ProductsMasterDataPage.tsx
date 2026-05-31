@@ -65,7 +65,7 @@ export function ProductsMasterDataPage() {
       return api.post('/inventory/master-data/products', payload);
     },
     onSuccess: () => {
-      toast.success('تمت إضافة الصنف بنجاح');
+      toast.success(t("inventory.products.toast.saveSuccess", "تمت إضافة الصنف بنجاح"));
       queryClient.invalidateQueries({ queryKey: ['master-products'] });
       setShowAddForm(false);
       setFormData({ name: '', code: '', type: 'CONSUMABLE', categoryId: '', baseUomId: '', costPrice: '0', sellPrice: '0', minStock: '0', maxStock: '0', reorderLevel: '0' });
@@ -156,7 +156,7 @@ export function ProductsMasterDataPage() {
         </div>
         <div className="p-4">
           {isLoadingProducts ? (
-            <div className="text-center text-slate-500 py-8">جاري التحميل...</div>
+            <div className="text-center text-slate-500 py-8">{t("common.loading", "جاري التحميل...")}</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">

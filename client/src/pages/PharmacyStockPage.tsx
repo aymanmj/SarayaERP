@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { apiClient } from "../api/apiClient";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 
-// ✅ [RENAMED] DrugStockItem -> ProductStockItem
 type ProductStockItem = {
   id: number;
   code: string | null;
@@ -10,13 +10,16 @@ type ProductStockItem = {
   genericName: string | null;
   strength: string | null;
   form: string | null;
-  unitPrice: number; // mapped from sellPrice in backend
+  unitPrice: number;
   stockOnHand: number;
 };
 
 type StockTxnType = "IN" | "ADJUST";
 
 export default function PharmacyStockPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
+
   const [data, setData] = useState<ProductStockItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
@@ -29,14 +32,13 @@ export default function PharmacyStockPage() {
   async function loadData() {
     try {
       setLoading(true);
-      // Backend still uses /pharmacy/stock for now, which returns products (drugs)
       const res = await apiClient.get<ProductStockItem[]>("/pharmacy/stock", {
         params: search.trim() ? { q: search.trim() } : undefined,
       });
       setData(res.data);
     } catch (err) {
       console.error(err);
-      toast.error("حدث خطأ أثناء جلب مخزون الأدوية.");
+      toast.error(t("inventory.pharmacyStock.toast.loadError", "حدث خطأ أثناء جلب مخزون الأدوية."));
     } finally {
       setLoading(false);
     }
@@ -56,59 +58,57 @@ export default function PharmacyStockPage() {
 
   async function handleSubmit() {
     if (!selectedId) {
-      toast.error("يرجى اختيار دواء/منتج.");
+      toast.error(t("inventory.pharmacyStock.toast.selectProduct", "يرجى اختيار دواء/منتج."));
       return;
     }
 
     const q = Number(quantity);
     if (!quantity || isNaN(q)) {
-      toast.error("يرجى إدخال كمية صحيحة.");
+      toast.error(t("inventory.pharmacyStock.toast.validQty", "يرجى إدخال كمية صحيحة."));
       return;
     }
 
     if (txnType === "IN" && q <= 0) {
-      toast.error("كمية التوريد يجب أن تكون أكبر من الصفر.");
+      toast.error(t("inventory.pharmacyStock.toast.qtyPositive", "كمية التوريد يجب أن تكون أكبر من الصفر."));
       return;
     }
 
     try {
       await apiClient.post("/pharmacy/stock/transactions", {
-        // DTO Backend expects drugItemId (mapped to productId)
         drugItemId: selectedId,
         type: txnType,
         quantity: q,
         unitCost: unitCost ? Number(unitCost) : undefined,
       });
 
-      toast.success("تم تسجيل حركة المخزون بنجاح.");
+      toast.success(t("inventory.pharmacyStock.toast.success", "تم تسجيل حركة المخزون بنجاح."));
       resetForm();
       await loadData();
-     
     } catch (err: any) {
       console.error(err);
       const msg =
-        err?.response?.data?.message ?? "حدث خطأ أثناء تسجيل حركة المخزون.";
+        err?.response?.data?.message ?? t("inventory.pharmacyStock.toast.error", "حدث خطأ أثناء تسجيل حركة المخزون.");
       toast.error(msg);
     }
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between gap-4">
+    <div className="p-6 space-y-6" dir={isRtl ? "rtl" : "ltr"}>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-white">
-            مخزون الصيدلية (المنتجات)
+            {t("inventory.pharmacyStock.title", "مخزون الصيدلية (المنتجات)")}
           </h1>
           <p className="text-sm text-gray-400">
-            إدارة رصيد الأدوية والمستلزمات (توريد جديد أو تسوية الكميات).
+            {t("inventory.pharmacyStock.subtitle", "إدارة رصيد الأدوية والمستلزمات (توريد جديد أو تسوية الكميات).")}
           </p>
         </div>
 
         <div className="flex items-center gap-3">
           <input
             type="text"
-            placeholder="بحث باسم الدواء أو الكود..."
-            className="px-3 py-2 rounded bg-gray-900 border border-gray-700 text-sm text-gray-100 w-64"
+            placeholder={t("inventory.pharmacyStock.searchPlaceholder", "بحث باسم الدواء أو الكود...")}
+            className={`px-3 py-2 rounded bg-gray-900 border border-gray-700 text-sm text-gray-100 w-64 ${isRtl ? 'text-right' : 'text-left'}`}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             onKeyDown={(e) => {
@@ -120,21 +120,21 @@ export default function PharmacyStockPage() {
           <button
             onClick={loadData}
             disabled={loading}
-            className="px-4 py-2 rounded bg-emerald-600 hover:bg-emerald-700 text-sm text-white disabled:opacity-60"
+            className="px-4 py-2 rounded bg-emerald-600 hover:bg-emerald-700 text-sm text-white disabled:opacity-60 font-bold"
           >
-            {loading ? "جارِ التحديث..." : "بحث / تحديث"}
+            {loading ? t("inventory.pharmacyStock.btn.searching", "جارِ التحديث...") : t("inventory.pharmacyStock.btn.search", "بحث / تحديث")}
           </button>
         </div>
       </div>
 
       <div className="rounded-2xl bg-gray-900 border border-gray-800 p-4 space-y-4">
         <h2 className="font-semibold text-gray-100 text-lg">
-          تسجيل حركة مخزون
+          {t("inventory.pharmacyStock.form.title", "تسجيل حركة مخزون")}
         </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
           <div className="space-y-1">
-            <label className="block text-xs text-gray-400 mb-1">المنتج</label>
+            <label className="block text-xs text-gray-400 mb-1">{t("inventory.pharmacyStock.form.product", "المنتج")}</label>
             <select
               className="w-full bg-gray-950 border border-gray-700 rounded px-2 py-2 text-sm text-gray-100"
               value={selectedId ?? ""}
@@ -142,7 +142,7 @@ export default function PharmacyStockPage() {
                 setSelectedId(e.target.value ? Number(e.target.value) : null)
               }
             >
-              <option value="">اختر منتج...</option>
+              <option value="">{t("inventory.pharmacyStock.form.productPlaceholder", "اختر منتج...")}</option>
               {data.map((d) => (
                 <option key={d.id} value={d.id}>
                   {d.name}
@@ -155,25 +155,25 @@ export default function PharmacyStockPage() {
 
           <div className="space-y-1">
             <label className="block text-xs text-gray-400 mb-1">
-              نوع الحركة
+              {t("inventory.pharmacyStock.form.type", "نوع الحركة")}
             </label>
             <select
               className="w-full bg-gray-950 border border-gray-700 rounded px-2 py-2 text-sm text-gray-100"
               value={txnType}
               onChange={(e) => setTxnType(e.target.value as StockTxnType)}
             >
-              <option value="IN">توريد إلى المخزون (IN)</option>
-              <option value="ADJUST">تسوية رصيد (ADJUST)</option>
+              <option value="IN">{t("inventory.pharmacyStock.form.typeIn", "توريد إلى المخزون (IN)")}</option>
+              <option value="ADJUST">{t("inventory.pharmacyStock.form.typeAdjust", "تسوية رصيد (ADJUST)")}</option>
             </select>
           </div>
 
           <div className="space-y-1">
-            <label className="block text-xs text-gray-400 mb-1">الكمية</label>
+            <label className="block text-xs text-gray-400 mb-1">{t("inventory.pharmacyStock.form.qty", "الكمية")}</label>
             <input
               type="number"
               step="0.001"
-              className="w-full bg-gray-950 border border-gray-700 rounded px-2 py-2 text-sm text-gray-100"
-              placeholder={txnType === "IN" ? "مثال: 50" : "مثال: 10 أو -5"}
+              className={`w-full bg-gray-950 border border-gray-700 rounded px-2 py-2 text-sm text-gray-100 ${isRtl ? 'text-right' : 'text-left'}`}
+              placeholder={txnType === "IN" ? t("inventory.pharmacyStock.form.qtyPlaceholderIn", "مثال: 50") : t("inventory.pharmacyStock.form.qtyPlaceholderAdjust", "مثال: 10 أو -5")}
               value={quantity}
               onChange={(e) => setQuantity(e.target.value)}
             />
@@ -181,13 +181,13 @@ export default function PharmacyStockPage() {
 
           <div className="space-y-1">
             <label className="block text-xs text-gray-400 mb-1">
-              تكلفة / سعر الوحدة (اختياري)
+              {t("inventory.pharmacyStock.form.cost", "تكلفة / سعر الوحدة (اختياري)")}
             </label>
             <input
               type="number"
               step="0.001"
-              className="w-full bg-gray-950 border border-gray-700 rounded px-2 py-2 text-sm text-gray-100"
-              placeholder="مثال: 5.250"
+              className={`w-full bg-gray-950 border border-gray-700 rounded px-2 py-2 text-sm text-gray-100 ${isRtl ? 'text-right' : 'text-left'}`}
+              placeholder={t("inventory.pharmacyStock.form.costPlaceholder", "مثال: 5.250")}
               value={unitCost}
               onChange={(e) => setUnitCost(e.target.value)}
             />
@@ -199,13 +199,13 @@ export default function PharmacyStockPage() {
             onClick={resetForm}
             className="px-4 py-2 rounded border border-gray-700 text-sm text-gray-200 hover:bg-gray-800"
           >
-            تفريغ الحقول
+            {t("inventory.pharmacyStock.form.clearBtn", "تفريغ الحقول")}
           </button>
           <button
             onClick={handleSubmit}
-            className="px-4 py-2 rounded bg-emerald-600 hover:bg-emerald-700 text-sm text-white"
+            className="px-4 py-2 rounded bg-emerald-600 hover:bg-emerald-700 text-sm text-white font-bold"
           >
-            حفظ حركة المخزون
+            {t("inventory.pharmacyStock.form.saveBtn", "حفظ حركة المخزون")}
           </button>
         </div>
       </div>
@@ -213,30 +213,22 @@ export default function PharmacyStockPage() {
       <div className="rounded-2xl bg-gray-900 border border-gray-800 overflow-hidden">
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
           <h2 className="font-semibold text-gray-100">
-            قائمة المنتجات (الأدوية) ورصيد المخزون
+            {t("inventory.pharmacyStock.tableTitle", "قائمة المنتجات (الأدوية) ورصيد المخزون")}
           </h2>
           <span className="text-sm text-gray-400">
-            العدد: {data.length.toString()}
+            {t("inventory.pharmacyStock.tableCount", "العدد: ")}{data.length.toString()}
           </span>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
+          <table className={`min-w-full text-sm ${isRtl ? 'text-right' : 'text-left'}`}>
             <thead className="bg-gray-900/60 border-b border-gray-800">
               <tr>
-                <th className="px-4 py-2 text-right text-gray-400">المنتج</th>
-                <th className="px-4 py-2 text-right text-gray-400">
-                  الاسم العلمي
-                </th>
-                <th className="px-4 py-2 text-right text-gray-400">
-                  القوة / الشكل
-                </th>
-                <th className="px-4 py-2 text-right text-gray-400">
-                  سعر الوحدة (بيع)
-                </th>
-                <th className="px-4 py-2 text-right text-gray-400">
-                  رصيد المخزون
-                </th>
+                <th className={`px-4 py-2 text-gray-400 ${isRtl ? 'text-right' : 'text-left'}`}>{t("inventory.pharmacyStock.table.product", "المنتج")}</th>
+                <th className={`px-4 py-2 text-gray-400 ${isRtl ? 'text-right' : 'text-left'}`}>{t("inventory.pharmacyStock.table.generic", "الاسم العلمي")}</th>
+                <th className={`px-4 py-2 text-gray-400 ${isRtl ? 'text-right' : 'text-left'}`}>{t("inventory.pharmacyStock.table.strengthForm", "القوة / الشكل")}</th>
+                <th className={`px-4 py-2 text-gray-400 ${isRtl ? 'text-right' : 'text-left'}`}>{t("inventory.pharmacyStock.table.price", "سعر الوحدة (بيع)")}</th>
+                <th className={`px-4 py-2 text-gray-400 ${isRtl ? 'text-right' : 'text-left'}`}>{t("inventory.pharmacyStock.table.stock", "رصيد المخزون")}</th>
               </tr>
             </thead>
             <tbody>
@@ -245,7 +237,7 @@ export default function PharmacyStockPage() {
                   key={d.id}
                   className="border-b border-gray-800/60 hover:bg-gray-800/40"
                 >
-                  <td className="px-4 py-2 text-right text-gray-200">
+                  <td className="px-4 py-2 text-gray-200">
                     {d.name}
                     {d.code ? (
                       <span className="text-xs text-gray-400 ml-1">
@@ -253,16 +245,16 @@ export default function PharmacyStockPage() {
                       </span>
                     ) : null}
                   </td>
-                  <td className="px-4 py-2 text-right text-gray-300">
+                  <td className="px-4 py-2 text-gray-300">
                     {d.genericName ?? "-"}
                   </td>
-                  <td className="px-4 py-2 text-right text-gray-300">
+                  <td className="px-4 py-2 text-gray-300">
                     {d.strength ?? "-"} {d.form ?? ""}
                   </td>
-                  <td className="px-4 py-2 text-right text-emerald-300">
+                  <td className="px-4 py-2 text-emerald-300 font-mono">
                     {d.unitPrice.toFixed(3)}
                   </td>
-                  <td className="px-4 py-2 text-right text-blue-300">
+                  <td className="px-4 py-2 text-blue-300 font-mono">
                     {d.stockOnHand.toFixed(3)}
                   </td>
                 </tr>
@@ -274,7 +266,7 @@ export default function PharmacyStockPage() {
                     colSpan={5}
                     className="px-4 py-6 text-center text-gray-500"
                   >
-                    لا توجد منتجات مسجلة أو لا توجد نتائج مطابقة للبحث.
+                    {t("inventory.pharmacyStock.table.empty", "لا توجد منتجات مسجلة أو لا توجد نتائج مطابقة للبحث.")}
                   </td>
                 </tr>
               )}
@@ -285,7 +277,7 @@ export default function PharmacyStockPage() {
                     colSpan={5}
                     className="px-4 py-6 text-center text-gray-400"
                   >
-                    جارِ تحميل البيانات...
+                    {t("inventory.pharmacyStock.table.loading", "جارِ تحميل البيانات...")}
                   </td>
                 </tr>
               )}

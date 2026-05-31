@@ -22,13 +22,6 @@ type Asset = {
   department?: { name: string };
 };
 
-const STATUS_LABELS: Record<AssetStatus, string> = {
-  IN_SERVICE: "في الخدمة",
-  UNDER_MAINTENANCE: "تحت الصيانة",
-  RETIRED: "تالف / مكهن",
-  SOLD: "مباع",
-};
-
 export default function AssetsPage() {
   const { t, i18n } = useTranslation();
   const isRtl = i18n.language === "ar";
@@ -49,6 +42,13 @@ export default function AssetsPage() {
     salvageValue: "0",
   });
 
+  const statusLabels: Record<AssetStatus, string> = {
+    IN_SERVICE: t("assets.status.inService", "في الخدمة"),
+    UNDER_MAINTENANCE: t("assets.status.underMaintenance", "تحت الصيانة"),
+    RETIRED: t("assets.status.retired", "تالف / مكهن"),
+    SOLD: t("assets.status.sold", "مباع"),
+  };
+
   const loadAssets = async () => {
     setLoading(true);
     try {
@@ -58,7 +58,7 @@ export default function AssetsPage() {
       setAssets(res.data);
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
-      toast.error("فشل تحميل الأصول");
+      toast.error(t("assets.toast.loadError", "فشل تحميل الأصول"));
     } finally {
       setLoading(false);
     }
@@ -71,7 +71,7 @@ export default function AssetsPage() {
 
   const handleCreate = async () => {
     if (!form.name || !form.tagNumber || !form.purchaseCost) {
-      toast.warning("يرجى ملء الحقول الأساسية");
+      toast.warning(t("assets.toast.fillRequired", "يرجى ملء الحقول الأساسية"));
       return;
     }
     try {
@@ -81,7 +81,7 @@ export default function AssetsPage() {
         usefulLifeYears: Number(form.usefulLifeYears),
         salvageValue: Number(form.salvageValue),
       });
-      toast.success("تم تسجيل الأصل بنجاح");
+      toast.success(t("assets.toast.saveSuccess", "تم تسجيل الأصل بنجاح"));
       setShowModal(false);
       setForm({
         name: "",
@@ -95,7 +95,7 @@ export default function AssetsPage() {
       loadAssets();
      
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || "فشل الحفظ");
+      toast.error(err?.response?.data?.message || t("assets.toast.saveError", "فشل الحفظ"));
     }
   };
 
@@ -106,16 +106,16 @@ export default function AssetsPage() {
     >
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold mb-1">سجل الأصول الثابتة</h1>
+          <h1 className="text-2xl font-bold mb-1">{t("assets.title", "سجل الأصول الثابتة")}</h1>
           <p className="text-sm text-slate-400">
-            إدارة الأجهزة والمعدات والمباني.
+            {t("assets.subtitle", "إدارة الأجهزة والمعدات والمباني.")}
           </p>
         </div>
         <button
           onClick={() => setShowModal(true)}
           className="px-4 py-2 bg-sky-600 hover:bg-sky-500 rounded-xl text-sm font-bold text-white shadow-lg"
         >
-          + تسجيل أصل جديد
+          {t("assets.newAsset", "+ تسجيل أصل جديد")}
         </button>
       </div>
 
@@ -123,7 +123,7 @@ export default function AssetsPage() {
       <div className="bg-slate-900/60 border border-slate-800 p-3 rounded-2xl">
         <input
           className="bg-transparent w-full outline-none text-sm text-slate-200 placeholder:text-slate-500"
-          placeholder="بحث برقم الأصل (Tag) أو الاسم..."
+          placeholder={t("assets.searchPlaceholder", "بحث برقم الأصل (Tag) أو الاسم...")}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
@@ -133,13 +133,13 @@ export default function AssetsPage() {
         <table className="w-full text-sm text-right">
           <thead className="text-slate-400 border-b border-slate-800">
             <tr>
-              <th className="px-4 py-3">رقم الأصل (Tag)</th>
-              <th className="px-4 py-3">الاسم</th>
-              <th className="px-4 py-3">الرقم التسلسلي</th>
-              <th className="px-4 py-3">تاريخ الشراء</th>
-              <th className="px-4 py-3">التكلفة</th>
-              <th className="px-4 py-3">القيمة الحالية</th>
-              <th className="px-4 py-3">الحالة</th>
+              <th className="px-4 py-3">{t("assets.table.tag", "رقم الأصل (Tag)")}</th>
+              <th className="px-4 py-3">{t("assets.table.name", "الاسم")}</th>
+              <th className="px-4 py-3">{t("assets.table.serial", "الرقم التسلسلي")}</th>
+              <th className="px-4 py-3">{t("assets.table.purchaseDate", "تاريخ الشراء")}</th>
+              <th className="px-4 py-3">{t("assets.table.cost", "التكلفة")}</th>
+              <th className="px-4 py-3">{t("assets.table.currentValue", "القيمة الحالية")}</th>
+              <th className="px-4 py-3">{t("assets.table.status", "الحالة")}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800">
@@ -171,7 +171,7 @@ export default function AssetsPage() {
                         : "bg-slate-800 text-slate-400 border-slate-600"
                     }`}
                   >
-                    {STATUS_LABELS[a.status]}
+                    {statusLabels[a.status]}
                   </span>
                 </td>
               </tr>
@@ -179,7 +179,7 @@ export default function AssetsPage() {
             {assets.length === 0 && !loading && (
               <tr>
                 <td colSpan={7} className="text-center py-10 text-slate-500">
-                  لا توجد أصول مطابقة.
+                  {t("assets.empty", "لا توجد أصول مطابقة.")}
                 </td>
               </tr>
             )}
@@ -191,10 +191,10 @@ export default function AssetsPage() {
       {showModal && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
           <div className="bg-slate-950 border border-slate-700 rounded-2xl p-6 w-full max-w-2xl space-y-4">
-            <h2 className="text-lg font-bold">تسجيل أصل جديد</h2>
+            <h2 className="text-lg font-bold">{t("assets.modal.title", "تسجيل أصل جديد")}</h2>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
-                <label className="text-xs text-slate-400">اسم الأصل *</label>
+                <label className="text-xs text-slate-400">{t("assets.modal.nameLabel", "اسم الأصل *")}</label>
                 <input
                   className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm"
                   value={form.name}
@@ -203,7 +203,7 @@ export default function AssetsPage() {
               </div>
               <div className="space-y-1">
                 <label className="text-xs text-slate-400">
-                  رقم الأصل (Tag/Barcode) *
+                  {t("assets.modal.tagLabel", "رقم الأصل (Tag/Barcode) *")}
                 </label>
                 <input
                   className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm"
@@ -215,7 +215,7 @@ export default function AssetsPage() {
               </div>
               <div className="space-y-1">
                 <label className="text-xs text-slate-400">
-                  الرقم التسلسلي (Serial)
+                  {t("assets.modal.serialLabel", "الرقم التسلسلي (Serial)")}
                 </label>
                 <input
                   className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm"
@@ -226,7 +226,7 @@ export default function AssetsPage() {
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-xs text-slate-400">تاريخ الشراء *</label>
+                <label className="text-xs text-slate-400">{t("assets.modal.purchaseDateLabel", "تاريخ الشراء *")}</label>
                 <DatePicker
                   date={form.purchaseDate ? new Date(form.purchaseDate) : undefined}
                   onChange={(d) =>
@@ -236,7 +236,7 @@ export default function AssetsPage() {
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-xs text-slate-400">تكلفة الشراء *</label>
+                <label className="text-xs text-slate-400">{t("assets.modal.purchaseCostLabel", "تكلفة الشراء *")}</label>
                 <input
                   type="number"
                   className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm"
@@ -248,7 +248,7 @@ export default function AssetsPage() {
               </div>
               <div className="space-y-1">
                 <label className="text-xs text-slate-400">
-                  العمر الافتراضي (سنوات) *
+                  {t("assets.modal.usefulLifeLabel", "العمر الافتراضي (سنوات) *")}
                 </label>
                 <input
                   type="number"
@@ -261,7 +261,7 @@ export default function AssetsPage() {
               </div>
               <div className="space-y-1">
                 <label className="text-xs text-slate-400">
-                  قيمة الخردة (Salvage)
+                  {t("assets.modal.salvageValueLabel", "قيمة الخردة (Salvage)")}
                 </label>
                 <input
                   type="number"
@@ -278,13 +278,13 @@ export default function AssetsPage() {
                 onClick={() => setShowModal(false)}
                 className="px-4 py-2 bg-slate-800 rounded-xl text-sm hover:bg-slate-700"
               >
-                إلغاء
+                {t("common.cancel", "إلغاء")}
               </button>
               <button
                 onClick={handleCreate}
                 className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-sm font-bold"
               >
-                حفظ
+                {t("common.save", "حفظ")}
               </button>
             </div>
           </div>

@@ -29,13 +29,13 @@ export default function ClinicalKpisPage() {
         setKpis(res.data);
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       } catch (err) {
-        toast.error("فشل تحميل المؤشرات السريرية");
+        toast.error(t("clinicalKpis.toast.loadError", "فشل تحميل المؤشرات السريرية"));
       } finally {
         setLoading(false);
       }
     }
     loadData();
-  }, []);
+  }, [t]);
 
    
   const KPICard = ({ title, value, unit, color, icon, description }: any) => (
@@ -59,19 +59,19 @@ export default function ClinicalKpisPage() {
     return (
       <div className="p-10 flex flex-col items-center justify-center h-full text-slate-500 animate-pulse">
         <div className="text-4xl mb-4">📊</div>
-        <div>جاري تجميع المؤشرات السريرية (HIMSS Quality Metrics)...</div>
+        <div>{t("clinicalKpis.loading", "جاري تجميع المؤشرات السريرية (HIMSS Quality Metrics)...")}</div>
       </div>
     );
   }
 
   // Mock data for the chart to show trends over the last 6 months
   const trendData = [
-    { name: "يناير", readmission: 12, override: 8, gapClosure: 70 },
-    { name: "فبراير", readmission: 11, override: 9, gapClosure: 72 },
-    { name: "مارس", readmission: 14, override: 7, gapClosure: 68 },
-    { name: "أبريل", readmission: 9, override: 5, gapClosure: 75 },
-    { name: "مايو", readmission: 8, override: 4, gapClosure: 80 },
-    { name: "يونيو", readmission: Number(kpis?.readmissionRate?.toFixed(1) || 0), override: Number(kpis?.medicationOverrideRate?.toFixed(1) || 0), gapClosure: Number(kpis?.careGapClosureRate?.toFixed(1) || 0) },
+    { name: t("clinicalKpis.months.jan", "يناير"), readmission: 12, override: 8, gapClosure: 70 },
+    { name: t("clinicalKpis.months.feb", "فبراير"), readmission: 11, override: 9, gapClosure: 72 },
+    { name: t("clinicalKpis.months.mar", "مارس"), readmission: 14, override: 7, gapClosure: 68 },
+    { name: t("clinicalKpis.months.apr", "أبريل"), readmission: 9, override: 5, gapClosure: 75 },
+    { name: t("clinicalKpis.months.may", "مايو"), readmission: 8, override: 4, gapClosure: 80 },
+    { name: t("clinicalKpis.months.jun", "يونيو"), readmission: Number(kpis?.readmissionRate?.toFixed(1) || 0), override: Number(kpis?.medicationOverrideRate?.toFixed(1) || 0), gapClosure: Number(kpis?.careGapClosureRate?.toFixed(1) || 0) },
   ];
 
   return (
@@ -81,59 +81,59 @@ export default function ClinicalKpisPage() {
           <div className="flex items-center gap-3 mb-2">
             <span className="text-fuchsia-400 bg-fuchsia-400/10 p-2 rounded-xl text-xl">🎯</span>
             <h1 className="text-3xl font-black tracking-tight text-white">
-              مؤشرات الأداء السريري والجودة
+              {t("clinicalKpis.title", "مؤشرات الأداء السريري والجودة")}
             </h1>
           </div>
           <p className="text-slate-400 text-sm">
-            لوحة تحكم مدير الجودة - مؤشرات جودة الرعاية الصحية (HIMSS Stage 6/7)
+            {t("clinicalKpis.subtitle", "لوحة تحكم مدير الجودة - مؤشرات جودة الرعاية الصحية (HIMSS Stage 6/7)")}
           </p>
         </div>
         <div className="text-xs font-mono bg-slate-800 text-slate-400 px-3 py-1.5 rounded-lg border border-slate-700">
-          Last 30 Days
+          {t("clinicalKpis.last30Days", "آخر 30 يوم")}
         </div>
       </div>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-8">
         <KPICard
-          title="معدل إعادة التنويم"
+          title={t("clinicalKpis.cards.readmissionRate.title", "معدل إعادة التنويم")}
           value={kpis?.readmissionRate?.toFixed(1) || 0}
           unit="%"
           color="text-rose-400"
           icon="🔄"
-          description="إعادة التنويم خلال 30 يوماً من الخروج"
+          description={t("clinicalKpis.cards.readmissionRate.desc", "إعادة التنويم خلال 30 يوماً من الخروج")}
         />
         <KPICard
-          title="متوسط مدة الإقامة (ALOS)"
+          title={t("clinicalKpis.cards.alos.title", "متوسط مدة الإقامة (ALOS)")}
           value={kpis?.averageLengthOfStay?.toFixed(1) || 0}
-          unit="أيام"
+          unit={t("clinicalKpis.cards.alos.unit", "أيام")}
           color="text-amber-400"
           icon="⏳"
-          description="متوسط بقاء المريض في المستشفى"
+          description={t("clinicalKpis.cards.alos.desc", "متوسط بقاء المريض في المستشفى")}
         />
         <KPICard
-          title="تجاوزات التنبيهات الدوائية"
+          title={t("clinicalKpis.cards.medOverride.title", "تجاوزات التنبيهات الدوائية")}
           value={kpis?.medicationOverrideRate?.toFixed(1) || 0}
           unit="%"
           color="text-fuchsia-400"
           icon="⚠️"
-          description="نسبة تجاهل الأطباء لتحذيرات النظام"
+          description={t("clinicalKpis.cards.medOverride.desc", "نسبة تجاهل الأطباء لتحذيرات النظام")}
         />
         <KPICard
-          title="إجهاد التنبيهات (Fatigue)"
+          title={t("clinicalKpis.cards.alertFatigue.title", "إجهاد التنبيهات (Fatigue)")}
           value={kpis?.alertFatigueRate?.toFixed(1) || 0}
           unit="%"
           color="text-purple-400"
           icon="🔔"
-          description="نسبة الإلغاء السريع للتنبيهات"
+          description={t("clinicalKpis.cards.alertFatigue.desc", "نسبة الإلغاء السريع للتنبيهات")}
         />
         <KPICard
-          title="إغلاق فجوات الرعاية"
+          title={t("clinicalKpis.cards.gapClosure.title", "إغلاق فجوات الرعاية")}
           value={kpis?.careGapClosureRate?.toFixed(1) || 0}
           unit="%"
           color="text-emerald-400"
           icon="✅"
-          description="مدى التزام الطاقم بالبروتوكولات الوقائية"
+          description={t("clinicalKpis.cards.gapClosure.desc", "مدى التزام الطاقم بالبروتوكولات الوقائية")}
         />
       </div>
 
@@ -141,16 +141,16 @@ export default function ClinicalKpisPage() {
       <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 mb-8">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-lg font-bold text-slate-200">
-            تحليل اتجاهات الجودة (Quality Trends)
+            {t("clinicalKpis.chart.title", "تحليل اتجاهات الجودة (Quality Trends)")}
           </h2>
           <div className="flex gap-4 text-xs font-bold">
             <div className="flex items-center gap-2 text-rose-400">
               <div className="w-3 h-3 rounded-full bg-rose-500"></div>
-              إعادة التنويم
+              {t("clinicalKpis.chart.readmissionLegend", "إعادة التنويم")}
             </div>
             <div className="flex items-center gap-2 text-emerald-400">
               <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
-              إغلاق الفجوات
+              {t("clinicalKpis.chart.gapClosureLegend", "إغلاق الفجوات")}
             </div>
           </div>
         </div>
@@ -181,7 +181,7 @@ export default function ClinicalKpisPage() {
               <Area
                 type="monotone"
                 dataKey="readmission"
-                name="معدل إعادة التنويم (%)"
+                name={t("clinicalKpis.chart.readmissionYAxis", "معدل إعادة التنويم (%)")}
                 stroke="#f43f5e"
                 fillOpacity={1}
                 fill="url(#colorReadmission)"
@@ -190,7 +190,7 @@ export default function ClinicalKpisPage() {
               <Area
                 type="monotone"
                 dataKey="gapClosure"
-                name="إغلاق فجوات الرعاية (%)"
+                name={t("clinicalKpis.chart.gapClosureYAxis", "إغلاق فجوات الرعاية (%)")}
                 stroke="#10b981"
                 fillOpacity={1}
                 fill="url(#colorGap)"

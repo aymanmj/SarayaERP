@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "../../api/apiClient";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { format, subDays, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay } from 'date-fns';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -76,6 +77,7 @@ interface RecentActivity {
 }
 
 export function ExecutiveDashboard() {
+  const { t, i18n } = useTranslation();
   const [selectedPeriod, setSelectedPeriod] = useState<'today' | 'week' | 'month'>('today');
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [refreshInterval, setRefreshInterval] = useState<ReturnType<typeof setInterval> | null>(null);
@@ -117,7 +119,7 @@ export function ExecutiveDashboard() {
 
   const handleManualRefresh = () => {
     refetchStats();
-    toast.success('تم تحديث البيانات');
+    toast.success(t("executiveDashboard.toast.refreshSuccess", "تم تحديث البيانات"));
   };
 
   const getChangePercentage = (current: number, previous: number) => {
@@ -139,7 +141,7 @@ export function ExecutiveDashboard() {
     switch (priority) {
       case 'high': return 'text-red-400 bg-red-900/20 border-red-800';
       case 'medium': return 'text-amber-400 bg-amber-900/20 border-amber-800';
-      case 'low': return 'text-green-400 bg-green-900/20 border-green-800';
+      case 'low': return 'text-green-400 bg-green-950/20 border-green-800';
       default: return 'text-slate-400 bg-slate-900/20 border-slate-800';
     }
   };
@@ -147,7 +149,7 @@ export function ExecutiveDashboard() {
   if (statsLoading) {
     return (
       <div className="flex items-center justify-center p-20 text-slate-500 animate-pulse">
-        جاري تحميل البيانات التحليلية...
+        {t("executiveDashboard.loading", "جاري تحميل البيانات التحليلية...")}
       </div>
     );
   }
@@ -164,8 +166,8 @@ export function ExecutiveDashboard() {
       {/* Header */}
       <header className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-white mb-2">لوحة المعلومات التنفيذية</h1>
-          <p className="text-slate-400">نظرة شاملة على الأداء اليومي والمالي والمؤشرات الحيوية</p>
+          <h1 className="text-3xl font-bold text-white mb-2">{t("executiveDashboard.title", "لوحة المعلومات التنفيذية")}</h1>
+          <p className="text-slate-400">{t("executiveDashboard.subtitle", "نظرة شاملة على الأداء اليومي والمالي والمؤشرات الحيوية")}</p>
         </div>
         <div className="flex items-center gap-4">
           {/* Period Selector */}
@@ -180,7 +182,11 @@ export function ExecutiveDashboard() {
                     : 'text-slate-300 hover:text-white'
                 }`}
               >
-                {period === 'today' ? 'اليوم' : period === 'week' ? 'الأسبوع' : 'الشهر'}
+                {period === 'today' 
+                  ? t("executiveDashboard.periods.today", "اليوم") 
+                  : period === 'week' 
+                    ? t("executiveDashboard.periods.week", "الأسبوع") 
+                    : t("executiveDashboard.periods.month", "الشهر")}
               </button>
             ))}
           </div>
@@ -189,14 +195,15 @@ export function ExecutiveDashboard() {
           <button
             onClick={handleManualRefresh}
             className="p-2 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors"
-            title="تحديث البيانات"
+            title={t("executiveDashboard.refreshData", "تحديث البيانات")}
           >
             <ArrowPathIcon className="w-5 h-5 text-slate-300" />
           </button>
           
           {/* Last Updated */}
           <div className="text-xs text-slate-500 font-mono">
-            آخر تحديث: {stats?.lastUpdated ? new Date(stats.lastUpdated).toLocaleTimeString("ar-LY") : '--:--'}
+            {t("executiveDashboard.lastUpdated", "آخر تحديث: ")}
+            {stats?.lastUpdated ? new Date(stats.lastUpdated).toLocaleTimeString(i18n.language === 'ar' ? 'ar-LY' : 'en-US') : '--:--'}
           </div>
         </div>
       </header>
@@ -206,11 +213,11 @@ export function ExecutiveDashboard() {
         {/* Daily Revenue */}
         <div className={cardClass}>
           <div className="flex items-center justify-between mb-4">
-            <span className="text-slate-400 text-sm">الإيرادات اليومية</span>
+            <span className="text-slate-400 text-sm">{t("executiveDashboard.kpi.dailyRevenue", "الإيرادات اليومية")}</span>
             <BanknotesIcon className="w-5 h-5 text-emerald-500" />
           </div>
           <div className="text-2xl font-bold text-emerald-400 mb-2">
-            {(stats?.dailyRevenue || 0).toLocaleString()} د.ل.
+            {(stats?.dailyRevenue || 0).toLocaleString()} {t("common.currency.lyd", "د.ل")}
           </div>
           <div className="flex items-center gap-2 text-xs">
             {revenueChange >= 0 ? (
@@ -219,7 +226,7 @@ export function ExecutiveDashboard() {
               <ArrowTrendingDownIcon className="w-4 h-4 text-red-400" />
             )}
             <span className={revenueChange >= 0 ? 'text-emerald-400' : 'text-red-400'}>
-              {Math.abs(revenueChange).toFixed(1)}% عن الشهر الماضي
+              {Math.abs(revenueChange).toFixed(1)}% {t("executiveDashboard.kpi.vsLastMonth", "عن الشهر الماضي")}
             </span>
           </div>
         </div>
@@ -227,42 +234,42 @@ export function ExecutiveDashboard() {
         {/* Daily Visits */}
         <div className={cardClass}>
           <div className="flex items-center justify-between mb-4">
-            <span className="text-slate-400 text-sm">الزيارات اليوم</span>
+            <span className="text-slate-400 text-sm">{t("executiveDashboard.kpi.dailyVisits", "الزيارات اليوم")}</span>
             <UserGroupIcon className="w-5 h-5 text-sky-500" />
           </div>
           <div className="text-2xl font-bold text-white mb-2">
             {stats?.dailyVisits || 0}
           </div>
           <div className="text-xs text-slate-400">
-            {stats?.todayAppointments || 0} موعد محدد
+            {stats?.todayAppointments || 0} {t("executiveDashboard.kpi.scheduledAppointments", "موعد محدد")}
           </div>
         </div>
 
         {/* Occupancy Rate */}
         <div className={cardClass}>
           <div className="flex items-center justify-between mb-4">
-            <span className="text-slate-400 text-sm">نسبة الإشغال</span>
+            <span className="text-slate-400 text-sm">{t("executiveDashboard.kpi.occupancyRate", "نسبة الإشغال")}</span>
             <BuildingOfficeIcon className="w-5 h-5 text-purple-500" />
           </div>
           <div className="text-2xl font-bold text-white mb-2">
             {(occupancyChange || 0).toFixed(1)}%
           </div>
           <div className="text-xs text-slate-400">
-            {stats?.activeInpatients || 0} من {stats?.totalBeds || 0} سرير
+            {stats?.activeInpatients || 0} {t("executiveDashboard.kpi.of", "من")} {stats?.totalBeds || 0} {t("executiveDashboard.kpi.beds", "سرير")}
           </div>
         </div>
 
         {/* Emergency Cases */}
         <div className={cardClass}>
           <div className="flex items-center justify-between mb-4">
-            <span className="text-slate-400 text-sm">حالات الطوارئ</span>
+            <span className="text-slate-400 text-sm">{t("executiveDashboard.kpi.emergencyCases", "حالات الطوارئ")}</span>
             <ClockIcon className="w-5 h-5 text-red-500" />
           </div>
           <div className="text-2xl font-bold text-red-400 mb-2">
             {stats?.emergencyCases || 0}
           </div>
           <div className="text-xs text-slate-400">
-            {stats?.pendingAdmissions || 0} في الانتظار
+            {stats?.pendingAdmissions || 0} {t("executiveDashboard.kpi.pending", "في الانتظار")}
           </div>
         </div>
       </div>
@@ -272,19 +279,19 @@ export function ExecutiveDashboard() {
         {/* Average Length of Stay */}
         <div className={cardClass}>
           <div className="flex items-center justify-between mb-4">
-            <span className="text-slate-400 text-sm">متوسط مدة الإقامة</span>
+            <span className="text-slate-400 text-sm">{t("executiveDashboard.kpi.avgLengthOfStay", "متوسط مدة الإقامة")}</span>
             <ClockIcon className="w-5 h-5 text-indigo-500" />
           </div>
           <div className="text-2xl font-bold text-indigo-400 mb-2">
-            {stats.avgLengthOfStay || 0} <span className="text-sm text-slate-500">يوم</span>
+            {stats.avgLengthOfStay || 0} <span className="text-sm text-slate-500">{t("executiveDashboard.kpi.days", "يوم")}</span>
           </div>
-          <div className="text-xs text-slate-400">من آخر 100 حالة خروج</div>
+          <div className="text-xs text-slate-400">{t("executiveDashboard.kpi.ofLastDischarges", "من آخر 100 حالة خروج")}</div>
         </div>
 
         {/* Revenue Growth Rate */}
         <div className={cardClass}>
           <div className="flex items-center justify-between mb-4">
-            <span className="text-slate-400 text-sm">نمو الإيرادات الشهري</span>
+            <span className="text-slate-400 text-sm">{t("executiveDashboard.kpi.monthlyRevenueGrowth", "نمو الإيرادات الشهري")}</span>
             <ChartBarIcon className="w-5 h-5 text-cyan-500" />
           </div>
           <div className="flex items-center gap-2 mb-2">
@@ -298,14 +305,14 @@ export function ExecutiveDashboard() {
             )}
           </div>
           <div className="text-xs text-slate-400">
-            {(stats.currentMonthRevenue || 0).toLocaleString()} د.ل هذا الشهر
+            {(stats.currentMonthRevenue || 0).toLocaleString()} {t("common.currency.lyd", "د.ل")} {t("executiveDashboard.kpi.thisMonth", "هذا الشهر")}
           </div>
         </div>
 
         {/* Top 5 Diagnoses */}
         <div className={cardClass}>
           <div className="flex items-center justify-between mb-4">
-            <span className="text-slate-400 text-sm">أعلى 5 تشخيصات</span>
+            <span className="text-slate-400 text-sm">{t("executiveDashboard.kpi.top5Diagnoses", "أعلى 5 تشخيصات")}</span>
             <ClipboardDocumentListIcon className="w-5 h-5 text-amber-500" />
           </div>
           <div className="space-y-2">
@@ -320,7 +327,7 @@ export function ExecutiveDashboard() {
                 </div>
               ))
             ) : (
-              <div className="text-center text-slate-500 py-4">لا توجد بيانات</div>
+              <div className="text-center text-slate-500 py-4">{t("executiveDashboard.noData", "لا توجد بيانات")}</div>
             )}
           </div>
         </div>
@@ -331,19 +338,19 @@ export function ExecutiveDashboard() {
         {/* Weekly Performance Chart */}
         <div className={`lg:col-span-2 ${cardClass} h-96`}>
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-slate-300 font-bold">الأداء الأسبوعي</h3>
+            <h3 className="text-slate-300 font-bold">{t("executiveDashboard.charts.weeklyPerformance", "الأداء الأسبوعي")}</h3>
             <ChartBarIcon className="w-5 h-5 text-slate-400" />
           </div>
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart
               data={stats?.weeklyTrend || [
-                { day: "السبت", revenue: 5000, visits: 120, admissions: 15 },
-                { day: "الأحد", revenue: 6200, visits: 150, admissions: 18 },
-                { day: "الإثنين", revenue: 7000, visits: 180, admissions: 22 },
-                { day: "الثلاثاء", revenue: 5800, visits: 140, admissions: 16 },
-                { day: "الأربعاء", revenue: 6500, visits: 160, admissions: 19 },
-                { day: "الخميس", revenue: 8000, visits: 190, admissions: 25 },
-                { day: "الجمعة", revenue: 4000, visits: 90, admissions: 12 },
+                { day: t("executiveDashboard.days.sat", "السبت"), revenue: 5000, visits: 120, admissions: 15 },
+                { day: t("executiveDashboard.days.sun", "الأحد"), revenue: 6200, visits: 150, admissions: 18 },
+                { day: t("executiveDashboard.days.mon", "الإثنين"), revenue: 7000, visits: 180, admissions: 22 },
+                { day: t("executiveDashboard.days.tue", "الثلاثاء"), revenue: 5800, visits: 140, admissions: 16 },
+                { day: t("executiveDashboard.days.wed", "الأربعاء"), revenue: 6500, visits: 160, admissions: 19 },
+                { day: t("executiveDashboard.days.thu", "الخميس"), revenue: 8000, visits: 190, admissions: 25 },
+                { day: t("executiveDashboard.days.fri", "الجمعة"), revenue: 4000, visits: 90, admissions: 12 },
               ]}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
@@ -354,24 +361,24 @@ export function ExecutiveDashboard() {
                 labelStyle={{ color: "#e2e8f0" }}
               />
               <Legend />
-              <Area type="monotone" dataKey="revenue" name="الإيرادات" stackId="1" stroke="#10b981" fill="#10b981" fillOpacity={0.6} />
-              <Area type="monotone" dataKey="visits" name="الزيارات" stackId="2" stroke="#38bdf8" fill="#38bdf8" fillOpacity={0.6} />
-              <Area type="monotone" dataKey="admissions" name="الإدخالات" stackId="3" stroke="#818cf8" fill="#818cf8" fillOpacity={0.6} />
+              <Area type="monotone" dataKey="revenue" name={t("executiveDashboard.charts.revenue", "الإيرادات")} stackId="1" stroke="#10b981" fill="#10b981" fillOpacity={0.6} />
+              <Area type="monotone" dataKey="visits" name={t("executiveDashboard.charts.visits", "الزيارات")} stackId="2" stroke="#38bdf8" fill="#38bdf8" fillOpacity={0.6} />
+              <Area type="monotone" dataKey="admissions" name={t("executiveDashboard.charts.admissions", "الإدخالات")} stackId="3" stroke="#818cf8" fill="#818cf8" fillOpacity={0.6} />
             </AreaChart>
           </ResponsiveContainer>
         </div>
 
         {/* Department Distribution */}
         <div className={cardClass}>
-          <h3 className="text-slate-300 font-bold mb-4">توزيع الإيرادات حسب القسم</h3>
+          <h3 className="text-slate-300 font-bold mb-4">{t("executiveDashboard.charts.deptRevenueDistribution", "توزيع الإيرادات حسب القسم")}</h3>
           <ResponsiveContainer width="100%" height={280}>
             <PieChart>
               <Pie
                 data={stats?.departmentDistribution || [
-                  { name: "الصيدلية", value: 400, color: "#10b981", patients: 45 },
-                  { name: "المختبر", value: 300, color: "#38bdf8", patients: 32 },
-                  { name: "العيادات", value: 300, color: "#818cf8", patients: 28 },
-                  { name: "التنويم", value: 200, color: "#f59e0b", patients: 15 },
+                  { name: t("common.pharmacy", "الصيدلية"), value: 400, color: "#10b981", patients: 45 },
+                  { name: t("common.labs", "المختبر"), value: 300, color: "#38bdf8", patients: 32 },
+                  { name: t("common.clinical", "العيادات"), value: 300, color: "#818cf8", patients: 28 },
+                  { name: t("common.admissions", "التنويم"), value: 200, color: "#f59e0b", patients: 15 },
                 ]}
                 dataKey="value"
                 nameKey="name"
@@ -381,10 +388,10 @@ export function ExecutiveDashboard() {
                 label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
               >
                 {(stats?.departmentDistribution || [
-                  { name: "الصيدلية", value: 400, color: "#10b981", patients: 45 },
-                  { name: "المختبر", value: 300, color: "#38bdf8", patients: 32 },
-                  { name: "العيادات", value: 300, color: "#818cf8", patients: 28 },
-                  { name: "التنويم", value: 200, color: "#f59e0b", patients: 15 },
+                  { name: t("common.pharmacy", "الصيدلية"), value: 400, color: "#10b981", patients: 45 },
+                  { name: t("common.labs", "المختبر"), value: 300, color: "#38bdf8", patients: 32 },
+                  { name: t("common.clinical", "العيادات"), value: 300, color: "#818cf8", patients: 28 },
+                  { name: t("common.admissions", "التنويم"), value: 200, color: "#f59e0b", patients: 15 },
                 ]).map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}
@@ -399,15 +406,15 @@ export function ExecutiveDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Bed Status */}
         <div className={cardClass}>
-          <h3 className="text-slate-300 font-bold mb-4">حالة الأسرة</h3>
+          <h3 className="text-slate-300 font-bold mb-4">{t("executiveDashboard.charts.bedStatus", "حالة الأسرة")}</h3>
           <ResponsiveContainer width="100%" height={250}>
             <BarChart
               data={stats?.bedStatus || [
-                { status: "متاح", count: 45, color: "#10b981" },
-                { status: "مشغول", count: 78, color: "#38bdf8" },
-                { status: "تنظيف", count: 12, color: "#f59e0b" },
-                { status: "صيانة", count: 5, color: "#ef4444" },
-                { status: "محجوز", count: 3, color: "#818cf8" },
+                { status: t("executiveDashboard.bedStatus.available", "متاح"), count: 45, color: "#10b981" },
+                { status: t("executiveDashboard.bedStatus.occupied", "مشغل"), count: 78, color: "#38bdf8" },
+                { status: t("executiveDashboard.bedStatus.cleaning", "تنظيف"), count: 12, color: "#f59e0b" },
+                { status: t("executiveDashboard.bedStatus.maintenance", "صيانة"), count: 5, color: "#ef4444" },
+                { status: t("executiveDashboard.bedStatus.reserved", "محجوز"), count: 3, color: "#818cf8" },
               ]}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
@@ -416,27 +423,27 @@ export function ExecutiveDashboard() {
               <Tooltip
                 contentStyle={{ backgroundColor: "#0f172a", borderColor: "#1e293b" }}
               />
-              <Bar dataKey="count" name="عدد الأسرة" fill="#38bdf8" />
+              <Bar dataKey="count" name={t("executiveDashboard.charts.bedCount", "عدد الأسرة")} fill="#38bdf8" />
             </BarChart>
           </ResponsiveContainer>
         </div>
 
         {/* Hourly Activity */}
         <div className={cardClass}>
-          <h3 className="text-slate-300 font-bold mb-4">النشاط الساعي</h3>
+          <h3 className="text-slate-300 font-bold mb-4">{t("executiveDashboard.charts.hourlyActivity", "النشاط الساعي")}</h3>
           <ResponsiveContainer width="100%" height={250}>
             <LineChart
               data={stats?.hourlyActivity || [
-                { hour: "8ص", visits: 15, appointments: 8 },
-                { hour: "9ص", visits: 25, appointments: 15 },
-                { hour: "10ص", visits: 35, appointments: 22 },
-                { hour: "11ص", visits: 30, appointments: 18 },
-                { hour: "12م", visits: 20, appointments: 12 },
-                { hour: "1م", visits: 18, appointments: 10 },
-                { hour: "2م", visits: 22, appointments: 14 },
-                { hour: "3م", visits: 28, appointments: 16 },
-                { hour: "4م", visits: 25, appointments: 12 },
-                { hour: "5م", visits: 15, appointments: 8 },
+                { hour: t("executiveDashboard.hours.8am", "8ص"), visits: 15, appointments: 8 },
+                { hour: t("executiveDashboard.hours.9am", "9ص"), visits: 25, appointments: 15 },
+                { hour: t("executiveDashboard.hours.10am", "10ص"), visits: 35, appointments: 22 },
+                { hour: t("executiveDashboard.hours.11am", "11ص"), visits: 30, appointments: 18 },
+                { hour: t("executiveDashboard.hours.12pm", "12م"), visits: 20, appointments: 12 },
+                { hour: t("executiveDashboard.hours.1pm", "1م"), visits: 18, appointments: 10 },
+                { hour: t("executiveDashboard.hours.2pm", "2م"), visits: 22, appointments: 14 },
+                { hour: t("executiveDashboard.hours.3pm", "3م"), visits: 28, appointments: 16 },
+                { hour: t("executiveDashboard.hours.4pm", "4م"), visits: 25, appointments: 12 },
+                { hour: t("executiveDashboard.hours.5pm", "5م"), visits: 15, appointments: 8 },
               ]}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
@@ -446,8 +453,8 @@ export function ExecutiveDashboard() {
                 contentStyle={{ backgroundColor: "#0f172a", borderColor: "#1e293b" }}
               />
               <Legend />
-              <Line type="monotone" dataKey="visits" name="الزيارات" stroke="#38bdf8" strokeWidth={2} />
-              <Line type="monotone" dataKey="appointments" name="المواعيد" stroke="#10b981" strokeWidth={2} />
+              <Line type="monotone" dataKey="visits" name={t("executiveDashboard.charts.visits", "الزيارات")} stroke="#38bdf8" strokeWidth={2} />
+              <Line type="monotone" dataKey="appointments" name={t("executiveDashboard.charts.appointments", "المواعيد")} stroke="#10b981" strokeWidth={2} />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -456,17 +463,17 @@ export function ExecutiveDashboard() {
       {/* Recent Activities */}
       <div className={cardClass}>
         <div className="flex justify-between items-center mb-4">
-          <h3 className="text-slate-300 font-bold">الأنشطة الحديثة</h3>
+          <h3 className="text-slate-300 font-bold">{t("executiveDashboard.activities.recentActivities", "الأنشطة الحديثة")}</h3>
           <div className="flex items-center gap-2 text-xs text-slate-400">
             <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-            مباشر
+            {t("executiveDashboard.activities.live", "مباشر")}
           </div>
         </div>
         <div className="space-y-2 max-h-64 overflow-y-auto">
           {activitiesLoading ? (
-            <div className="text-center text-slate-500 py-8">جاري تحميل الأنشطة...</div>
+            <div className="text-center text-slate-500 py-8">{t("executiveDashboard.activities.loading", "جاري تحميل الأنشطة...")}</div>
           ) : activities.length === 0 ? (
-            <div className="text-center text-slate-500 py-8">لا توجد أنشطة حديثة</div>
+            <div className="text-center text-slate-500 py-8">{t("executiveDashboard.activities.noActivities", "لا توجد أنشطة حديثة")}</div>
           ) : (
             activities.slice(0, 10).map((activity) => (
               <div
@@ -487,7 +494,7 @@ export function ExecutiveDashboard() {
                       </div>
                     </div>
                     <div className="text-xs text-slate-500">
-                      {new Date(activity.timestamp).toLocaleTimeString("ar-LY", {
+                      {new Date(activity.timestamp).toLocaleTimeString(i18n.language === 'ar' ? 'ar-LY' : 'en-US', {
                         hour: '2-digit',
                         minute: '2-digit'
                       })}

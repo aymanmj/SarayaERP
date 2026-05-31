@@ -15,7 +15,7 @@ type SupplierAgingRow = {
   b91_120: number;
   b121_plus: number;
   total: number;
-  unallocatedCredit?: number; // ✅ جديد من السيرفر
+  unallocatedCredit?: number;
 };
 
 type AgingTotals = {
@@ -25,7 +25,7 @@ type AgingTotals = {
   b91_120: number;
   b121_plus: number;
   total: number;
-  unallocatedCredit?: number; // ✅ جديد من السيرفر
+  unallocatedCredit?: number;
 };
 
 type SuppliersAgingResponse = {
@@ -38,27 +38,27 @@ function formatMoney(v: number) {
   return (v ?? 0).toFixed(3);
 }
 
-function buildSuppliersAgingCsv(data: SuppliersAgingResponse): string {
+function buildSuppliersAgingCsv(data: SuppliersAgingResponse, t: any): string {
   const lines: string[] = [];
 
-  lines.push("تقرير أعمار ذمم الموردين");
+  lines.push(t("inventory.suppliersAging.csv.title", "تقرير أعمار ذمم الموردين"));
   const asOfDate = new Date(data.asOf);
   const asOfStr = asOfDate.toISOString().slice(0, 10);
-  lines.push(`حتى تاريخ,${asOfStr}`);
+  lines.push(`${t("inventory.suppliersAging.csv.asOf", "حتى تاريخ")},${asOfStr}`);
   lines.push("");
 
   // رأس الجدول
   lines.push(
     [
-      "كود المورد",
-      "اسم المورد",
-      "0-30 يوم",
-      "31-60 يوم",
-      "61-90 يوم",
-      "91-120 يوم",
-      "+120 يوم",
-      "الإجمالي",
-      "دفعات غير مربوطة",
+      t("inventory.suppliersAging.csv.code", "كود المورد"),
+      t("inventory.suppliersAging.csv.name", "اسم المورد"),
+      t("inventory.suppliersAging.csv.days30", "0-30 يوم"),
+      t("inventory.suppliersAging.csv.days60", "31-60 يوم"),
+      t("inventory.suppliersAging.csv.days90", "61-90 يوم"),
+      t("inventory.suppliersAging.csv.days120", "91-120 يوم"),
+      t("inventory.suppliersAging.csv.daysPlus", "+120 يوم"),
+      t("inventory.suppliersAging.csv.total", "الإجمالي"),
+      t("inventory.suppliersAging.csv.unallocated", "دفعات غير مربوطة"),
     ].join(",")
   );
 
@@ -85,7 +85,7 @@ function buildSuppliersAgingCsv(data: SuppliersAgingResponse): string {
   lines.push(
     [
       "",
-      "الإجمالي",
+      t("inventory.suppliersAging.csv.grandTotal", "الإجمالي"),
       formatMoney(data.grandTotals.b0_30),
       formatMoney(data.grandTotals.b31_60),
       formatMoney(data.grandTotals.b61_90),
@@ -108,14 +108,13 @@ export default function SuppliersAgingPage() {
   const [data, setData] = useState<SuppliersAgingResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [asOfDate, setAsOfDate] = useState<string>("");
-  const [q, setQ] = useState<string>(""); // ✅ بحث
+  const [q, setQ] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
 
   const load = async (overrideDate?: string) => {
     setLoading(true);
     setError(null);
     try {
-       
       const params: any = {};
       const dateToUse = overrideDate || asOfDate;
       if (dateToUse) params.asOf = dateToUse;
@@ -129,19 +128,17 @@ export default function SuppliersAgingPage() {
 
       setData(res.data);
 
-      // أول مرة: لو asOfDate فاضي، نأخذ التاريخ من السيرفر
       if (!asOfDate) {
         const d = new Date(res.data.asOf);
         if (!Number.isNaN(d.getTime())) {
           setAsOfDate(d.toISOString().slice(0, 10));
         }
       }
-     
     } catch (err: any) {
       console.error(err);
       setError(
         err?.response?.data?.message ||
-          "حدث خطأ أثناء جلب تقرير أعمار ذمم الموردين."
+          t("inventory.suppliersAging.errorDefault", "حدث خطأ أثناء جلب تقرير أعمار ذمم الموردين.")
       );
     } finally {
       setLoading(false);
@@ -153,7 +150,6 @@ export default function SuppliersAgingPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   const suppliers = data?.suppliers ?? [];
   const grand = data?.grandTotals;
 
@@ -170,7 +166,6 @@ export default function SuppliersAgingPage() {
 
   const asOfLabel =
     data?.asOf &&
-    data?.asOf &&
     formatDate(data.asOf);
 
   const handleRefresh = () => load(asOfDate);
@@ -179,7 +174,7 @@ export default function SuppliersAgingPage() {
     if (!data) return;
     if (typeof window === "undefined") return;
 
-    const csv = buildSuppliersAgingCsv(data);
+    const csv = buildSuppliersAgingCsv(data, t);
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
 
     const url = URL.createObjectURL(blob);
@@ -196,7 +191,6 @@ export default function SuppliersAgingPage() {
   };
 
   const openStatement = (supplierId: number) => {
-    // ✅ نفتح كشف الحساب حتى تاريخ asOf تلقائيًا
     const to = asOfDate ? `?to=${encodeURIComponent(asOfDate)}` : "";
     navigate(`/suppliers/${supplierId}/statement${to}`);
   };
@@ -209,20 +203,20 @@ export default function SuppliersAgingPage() {
       {/* العنوان والأزرار */}
       <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-2xl font-bold mb-1">تقرير أعمار ذمم الموردين</h1>
+          <h1 className="text-2xl font-bold mb-1">{t("inventory.suppliersAging.title", "تقرير أعمار ذمم الموردين")}</h1>
           <p className="text-sm text-slate-400">
-            توزيع أرصدة الموردين حسب فترات الاستحقاق (0-30، 31-60، ...).
+            {t("inventory.suppliersAging.subtitle", "توزيع أرصدة الموردين حسب فترات الاستحقاق (0-30، 31-60، ...).")}
           </p>
           {asOfLabel && (
             <p className="text-xs text-slate-500 mt-1">
-              البيانات حتى تاريخ: <span>{asOfLabel}</span>
+              {t("inventory.suppliersAging.asOfLabel", "البيانات حتى تاريخ: ")} <span>{asOfLabel}</span>
             </p>
           )}
         </div>
 
         <div className="flex items-end gap-2 flex-wrap">
           <div className="flex flex-col text-xs">
-            <label className="mb-1 text-slate-400">حتى تاريخ</label>
+            <label className="mb-1 text-slate-400">{t("inventory.suppliersAging.filters.asOf", "حتى تاريخ")}</label>
             <DatePicker
               date={asOfDate ? new Date(asOfDate) : undefined}
               onChange={(d) => setAsOfDate(d ? d.toISOString().slice(0, 10) : "")}
@@ -234,18 +228,18 @@ export default function SuppliersAgingPage() {
             type="button"
             onClick={handleRefresh}
             disabled={loading}
-            className="px-3 py-1.5 rounded-xl text-xs bg-emerald-500 text-slate-950 hover:bg-emerald-400 disabled:opacity-60"
+            className="px-3 py-1.5 rounded-xl text-xs bg-emerald-500 text-slate-950 hover:bg-emerald-400 disabled:opacity-60 font-bold"
           >
-            {loading ? "جاري التحديث..." : "تحديث"}
+            {loading ? t("inventory.suppliersAging.btn.refreshing", "جاري التحديث...") : t("inventory.suppliersAging.btn.refresh", "تحديث")}
           </button>
 
           <button
             type="button"
             onClick={handleExportCsv}
             disabled={!data}
-            className="px-3 py-1.5 rounded-xl text-xs bg-sky-500 text-slate-950 hover:bg-sky-400 disabled:opacity-60"
+            className="px-3 py-1.5 rounded-xl text-xs bg-sky-500 text-slate-950 hover:bg-sky-400 disabled:opacity-60 font-bold"
           >
-            تصدير إلى Excel (CSV)
+            {t("inventory.suppliersAging.btn.export", "تصدير إلى Excel (CSV)")}
           </button>
         </div>
       </div>
@@ -255,18 +249,18 @@ export default function SuppliersAgingPage() {
         <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
           <div className="flex flex-col gap-1 w-full md:max-w-[420px]">
             <label className="text-[11px] text-slate-400">
-              بحث (اسم/كود المورد)
+              {t("inventory.suppliersAging.search.label", "بحث (اسم/كود المورد)")}
             </label>
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="مثال: المتحدة أو SUP-01"
-              className="rounded-xl border border-slate-700 bg-slate-950/70 px-3 py-2 text-xs outline-none focus:border-emerald-400"
+              placeholder={t("inventory.suppliersAging.search.placeholder", "مثال: المتحدة أو SUP-01")}
+              className={`rounded-xl border border-slate-700 bg-slate-950/70 px-3 py-2 text-xs outline-none focus:border-emerald-400 ${isRtl ? 'text-right' : 'text-left'}`}
             />
           </div>
 
           <div className="text-[11px] text-slate-500">
-            النتائج: <span className="text-slate-200">{filtered.length}</span>
+            {t("inventory.suppliersAging.search.results", "النتائج: ")} <span className="text-slate-200">{filtered.length}</span>
           </div>
         </div>
       </div>
@@ -282,43 +276,43 @@ export default function SuppliersAgingPage() {
       {grand && (
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-7 gap-3 mb-4 text-xs">
           <div className="rounded-2xl border border-slate-700/70 bg-slate-900/70 p-3">
-            <div className="text-slate-400 mb-1">0 - 30 يوم</div>
+            <div className="text-slate-400 mb-1">{t("inventory.suppliersAging.summary.days30", "0 - 30 يوم")}</div>
             <div className="text-emerald-300 font-semibold">
               LYD {formatMoney(grand.b0_30)}
             </div>
           </div>
           <div className="rounded-2xl border border-slate-700/70 bg-slate-900/70 p-3">
-            <div className="text-slate-400 mb-1">31 - 60 يوم</div>
+            <div className="text-slate-400 mb-1">{t("inventory.suppliersAging.summary.days60", "31 - 60 يوم")}</div>
             <div className="text-emerald-300 font-semibold">
               LYD {formatMoney(grand.b31_60)}
             </div>
           </div>
           <div className="rounded-2xl border border-slate-700/70 bg-slate-900/70 p-3">
-            <div className="text-slate-400 mb-1">61 - 90 يوم</div>
+            <div className="text-slate-400 mb-1">{t("inventory.suppliersAging.summary.days90", "61 - 90 يوم")}</div>
             <div className="text-emerald-300 font-semibold">
               LYD {formatMoney(grand.b61_90)}
             </div>
           </div>
           <div className="rounded-2xl border border-slate-700/70 bg-slate-900/70 p-3">
-            <div className="text-slate-400 mb-1">91 - 120 يوم</div>
+            <div className="text-slate-400 mb-1">{t("inventory.suppliersAging.summary.days120", "91 - 120 يوم")}</div>
             <div className="text-emerald-300 font-semibold">
               LYD {formatMoney(grand.b91_120)}
             </div>
           </div>
           <div className="rounded-2xl border border-slate-700/70 bg-slate-900/70 p-3">
-            <div className="text-slate-400 mb-1">أكثر من 120 يوم</div>
+            <div className="text-slate-400 mb-1">{t("inventory.suppliersAging.summary.daysPlus", "أكثر من 120 يوم")}</div>
             <div className="text-emerald-300 font-semibold">
               LYD {formatMoney(grand.b121_plus)}
             </div>
           </div>
           <div className="rounded-2xl border border-amber-500/60 bg-slate-900/70 p-3">
-            <div className="text-amber-300 mb-1">إجمالي الرصيد</div>
+            <div className="text-amber-300 mb-1">{t("inventory.suppliersAging.summary.totalBalance", "إجمالي الرصيد")}</div>
             <div className="text-amber-300 font-semibold">
               LYD {formatMoney(grand.total)}
             </div>
           </div>
           <div className="rounded-2xl border border-sky-500/50 bg-slate-900/70 p-3">
-            <div className="text-sky-300 mb-1">دفعات غير مربوطة</div>
+            <div className="text-sky-300 mb-1">{t("inventory.suppliersAging.summary.unallocated", "دفعات غير مربوطة")}</div>
             <div className="text-sky-300 font-semibold">
               LYD {formatMoney(Number(grand.unallocatedCredit ?? 0))}
             </div>
@@ -329,25 +323,25 @@ export default function SuppliersAgingPage() {
       {/* جدول الأعمار */}
       <div className="flex-1 rounded-3xl border border-slate-800 bg-slate-950/80 p-4 text-xs overflow-auto">
         {loading && filtered.length === 0 ? (
-          <div className="text-slate-400 text-xs">جارِ تحميل البيانات...</div>
+          <div className="text-slate-400 text-xs">{t("inventory.suppliersAging.table.loading", "جارِ تحميل البيانات...")}</div>
         ) : filtered.length === 0 ? (
           <div className="text-slate-500 text-xs">
-            لا توجد أرصدة مستحقة على الموردين في التاريخ المحدد.
+            {t("inventory.suppliersAging.table.empty", "لا توجد أرصدة مستحقة على الموردين في التاريخ المحدد.")}
           </div>
         ) : (
-          <table className="w-full text-[11px] text-right border-separate border-spacing-y-1 min-w-[1100px]">
+          <table className={`w-full text-[11px] border-separate border-spacing-y-1 min-w-[1100px] ${isRtl ? 'text-right' : 'text-left'}`}>
             <thead className="text-slate-400">
               <tr>
-                <th className="px-2 py-1">كود المورد</th>
-                <th className="px-2 py-1">اسم المورد</th>
-                <th className="px-2 py-1">0-30</th>
-                <th className="px-2 py-1">31-60</th>
-                <th className="px-2 py-1">61-90</th>
-                <th className="px-2 py-1">91-120</th>
-                <th className="px-2 py-1">+120</th>
-                <th className="px-2 py-1">الإجمالي</th>
-                <th className="px-2 py-1">غير مربوطة</th>
-                <th className="px-2 py-1">إجراء</th>
+                <th className="px-2 py-1">{t("inventory.suppliersAging.table.code", "كود المورد")}</th>
+                <th className="px-2 py-1">{t("inventory.suppliersAging.table.name", "اسم المورد")}</th>
+                <th className="px-2 py-1">{t("inventory.suppliersAging.table.days30", "0-30")}</th>
+                <th className="px-2 py-1">{t("inventory.suppliersAging.table.days60", "31-60")}</th>
+                <th className="px-2 py-1">{t("inventory.suppliersAging.table.days90", "61-90")}</th>
+                <th className="px-2 py-1">{t("inventory.suppliersAging.table.days120", "91-120")}</th>
+                <th className="px-2 py-1">{t("inventory.suppliersAging.table.daysPlus", "+120")}</th>
+                <th className="px-2 py-1">{t("inventory.suppliersAging.table.total", "الإجمالي")}</th>
+                <th className="px-2 py-1">{t("inventory.suppliersAging.table.unallocated", "غير مربوطة")}</th>
+                <th className="px-2 py-1 text-center">{t("inventory.suppliersAging.table.action", "إجراء")}</th>
               </tr>
             </thead>
             <tbody>
@@ -362,34 +356,34 @@ export default function SuppliersAgingPage() {
                   <td className="px-2 py-1 align-top text-slate-100">
                     {s.supplierName}
                   </td>
-                  <td className="px-2 py-1 align-top text-emerald-300">
+                  <td className="px-2 py-1 align-top text-emerald-300 font-mono">
                     {formatMoney(s.b0_30)}
                   </td>
-                  <td className="px-2 py-1 align-top text-emerald-300">
+                  <td className="px-2 py-1 align-top text-emerald-300 font-mono">
                     {formatMoney(s.b31_60)}
                   </td>
-                  <td className="px-2 py-1 align-top text-emerald-300">
+                  <td className="px-2 py-1 align-top text-emerald-300 font-mono">
                     {formatMoney(s.b61_90)}
                   </td>
-                  <td className="px-2 py-1 align-top text-emerald-300">
+                  <td className="px-2 py-1 align-top text-emerald-300 font-mono">
                     {formatMoney(s.b91_120)}
                   </td>
-                  <td className="px-2 py-1 align-top text-emerald-300">
+                  <td className="px-2 py-1 align-top text-emerald-300 font-mono">
                     {formatMoney(s.b121_plus)}
                   </td>
-                  <td className="px-2 py-1 align-top font-semibold text-amber-300">
+                  <td className="px-2 py-1 align-top font-semibold text-amber-300 font-mono">
                     {formatMoney(s.total)}
                   </td>
-                  <td className="px-2 py-1 align-top text-sky-300">
+                  <td className="px-2 py-1 align-top text-sky-300 font-mono">
                     {formatMoney(Number(s.unallocatedCredit ?? 0))}
                   </td>
-                  <td className="px-2 py-1 align-top">
+                  <td className="px-2 py-1 align-top text-center">
                     <button
                       type="button"
                       onClick={() => openStatement(s.supplierId)}
-                      className="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px]"
+                      className="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] font-bold"
                     >
-                      كشف الحساب
+                      {t("inventory.suppliersAging.table.btnStatement", "كشف الحساب")}
                     </button>
                   </td>
                 </tr>

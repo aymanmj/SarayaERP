@@ -7,11 +7,9 @@ export const UOMManagementPage: React.FC = () => {
   const { t, i18n } = useTranslation();
   const isRtl = i18n.language === "ar";
 
-   
   const [uoms, setUoms] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
-   
   const [editingUOM, setEditingUOM] = useState<any>(null);
   
   const [formData, setFormData] = useState({
@@ -25,9 +23,8 @@ export const UOMManagementPage: React.FC = () => {
       setLoading(true);
       const data = await inventoryApi.getUOMs();
       setUoms(data);
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
-      toast.error('حدث خطأ أثناء تحميل الوحدات');
+      toast.error(t('inventory.uom.toast.loadError', 'حدث خطأ أثناء تحميل الوحدات'));
     } finally {
       setLoading(false);
     }
@@ -40,27 +37,25 @@ export const UOMManagementPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.code || !formData.name) {
-      toast.error('الرجاء إدخال الرمز والاسم');
+      toast.error(t('inventory.uom.toast.validationError', 'الرجاء إدخال الرمز والاسم'));
       return;
     }
 
     try {
       if (editingUOM) {
         await inventoryApi.updateUOM(editingUOM.id, formData);
-        toast.success('تم التحديث بنجاح');
+        toast.success(t('inventory.uom.toast.successUpdate', 'تم التحديث بنجاح'));
       } else {
         await inventoryApi.createUOM(formData);
-        toast.success('تمت الإضافة بنجاح');
+        toast.success(t('inventory.uom.toast.successCreate', 'تمت الإضافة بنجاح'));
       }
       setShowModal(false);
       fetchUOMs();
-     
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'حدث خطأ أثناء الحفظ');
+      toast.error(error.response?.data?.message || t('inventory.uom.toast.errorSave', 'حدث خطأ أثناء الحفظ'));
     }
   };
 
-   
   const handleEdit = (uom: any) => {
     setEditingUOM(uom);
     setFormData({
@@ -72,14 +67,13 @@ export const UOMManagementPage: React.FC = () => {
   };
 
   const handleDelete = async (id: number) => {
-    if (window.confirm('هل أنت متأكد من رغبتك في حذف هذه الوحدة؟ لا يمكن التراجع عن هذا الإجراء.')) {
+    if (window.confirm(t('inventory.uom.confirmDelete', 'هل أنت متأكد من رغبتك في حذف هذه الوحدة؟ لا يمكن التراجع عن هذا الإجراء.'))) {
       try {
         await inventoryApi.deleteUOM(id);
-        toast.success('تم حذف الوحدة بنجاح');
+        toast.success(t('inventory.uom.toast.successDelete', 'تم حذف الوحدة بنجاح'));
         fetchUOMs();
-       
       } catch (error: any) {
-        toast.error(error.response?.data?.message || 'فشل في حذف الوحدة؛ قد تكون مرتبطة بأصناف أو حركات مخزنية حالية');
+        toast.error(error.response?.data?.message || t('inventory.uom.toast.errorDelete', 'فشل في حذف الوحدة؛ قد تكون مرتبطة بأصناف أو حركات مخزنية حالية'));
       }
     }
   };
@@ -90,9 +84,9 @@ export const UOMManagementPage: React.FC = () => {
         <div>
           <h1 className="text-2xl font-bold text-white flex items-center gap-3">
             <span className="p-2 bg-blue-500/20 text-blue-400 rounded-xl">📏</span>
-            إدارة وحدات القياس (UOMs)
+            {t('inventory.uom.title', 'إدارة وحدات القياس (UOMs)')}
           </h1>
-          <p className="text-slate-400 text-sm mt-1">إدارة الوحدات الأساسية والتحويلية في النظام للربط والمخزون</p>
+          <p className="text-slate-400 text-sm mt-1">{t('inventory.uom.subtitle', 'إدارة الوحدات الأساسية والتحويلية في النظام للربط والمخزون')}</p>
         </div>
         <button
           onClick={() => {
@@ -102,33 +96,33 @@ export const UOMManagementPage: React.FC = () => {
           }}
           className="bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-blue-900/20 transition-all flex items-center gap-2"
         >
-          <span>+</span> إضافة وحدة قياس
+          <span>+</span> {t('inventory.uom.add', 'إضافة وحدة قياس')}
         </button>
       </div>
 
       <div className="bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden shadow-sm">
         {loading ? (
-          <div className="p-12 text-center text-slate-500">جاري التحميل...</div>
+          <div className="p-12 text-center text-slate-500">{t('inventory.uom.loading', 'جاري التحميل...')}</div>
         ) : uoms.length === 0 ? (
-          <div className="p-12 text-center text-slate-500">لا توجد وحدات قياس معرّفة حالياً</div>
+          <div className="p-12 text-center text-slate-500">{t('inventory.uom.empty', 'لا توجد وحدات قياس معرّفة حالياً')}</div>
         ) : (
-          <table className="w-full text-right text-sm">
+          <table className={`w-full text-sm ${isRtl ? 'text-right' : 'text-left'}`}>
             <thead className="bg-slate-950/50 border-b border-slate-800 text-slate-400 font-bold">
               <tr>
-                <th className="px-6 py-4 font-bold text-right">الرمز</th>
-                <th className="px-6 py-4 font-bold text-right">الاسم</th>
-                <th className="px-6 py-4 font-bold text-right">الحالة</th>
-                <th className="px-6 py-4 font-bold text-center w-32">إجراءات</th>
+                <th className={`px-6 py-4 font-bold ${isRtl ? 'text-right' : 'text-left'}`}>{t('inventory.uom.tableCode', 'الرمز')}</th>
+                <th className={`px-6 py-4 font-bold ${isRtl ? 'text-right' : 'text-left'}`}>{t('inventory.uom.tableName', 'الاسم')}</th>
+                <th className={`px-6 py-4 font-bold ${isRtl ? 'text-right' : 'text-left'}`}>{t('inventory.uom.tableStatus', 'الحالة')}</th>
+                <th className="px-6 py-4 font-bold text-center w-32">{t('inventory.uom.tableActions', 'إجراءات')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/50">
               {uoms.map((uom) => (
                 <tr key={uom.id} className="hover:bg-slate-800/30 transition-colors border-b border-slate-800/30">
-                  <td className="px-6 py-4 font-mono font-medium text-slate-200">{uom.code}</td>
-                  <td className="px-6 py-4 text-slate-300">{uom.name}</td>
-                  <td className="px-6 py-4">
+                  <td className={`px-6 py-4 font-mono font-medium text-slate-200 ${isRtl ? 'text-right' : 'text-left'}`}>{uom.code}</td>
+                  <td className={`px-6 py-4 text-slate-300 ${isRtl ? 'text-right' : 'text-left'}`}>{uom.name}</td>
+                  <td className={`px-6 py-4 ${isRtl ? 'text-right' : 'text-left'}`}>
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${uom.isActive ? 'bg-green-500/10 text-green-400' : 'bg-slate-500/10 text-slate-400'}`}>
-                      {uom.isActive ? 'نشط' : 'غير نشط'}
+                      {uom.isActive ? t('inventory.uom.active', 'نشط') : t('inventory.uom.inactive', 'غير نشط')}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-center">
@@ -136,14 +130,14 @@ export const UOMManagementPage: React.FC = () => {
                       <button
                         onClick={() => handleEdit(uom)}
                         className="p-1.5 text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors"
-                        title="تعديل"
+                        title={t('inventory.uom.edit', 'تعديل')}
                       >
                         ✏️
                       </button>
                       <button
                         onClick={() => handleDelete(uom.id)}
                         className="p-1.5 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors"
-                        title="حذف"
+                        title={t('inventory.uom.delete', 'حذف')}
                       >
                         ❌
                       </button>
@@ -161,7 +155,7 @@ export const UOMManagementPage: React.FC = () => {
           <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden" dir={isRtl ? "rtl" : "ltr"}>
             <div className="px-6 py-4 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
               <h2 className="text-lg font-bold text-white">
-                {editingUOM ? 'تعديل وحدة قياس' : 'وحدة قياس جديدة'}
+                {editingUOM ? t('inventory.uom.modal.editTitle', 'تعديل وحدة قياس') : t('inventory.uom.modal.newTitle', 'وحدة قياس جديدة')}
               </h2>
               <button
                 onClick={() => setShowModal(false)}
@@ -173,29 +167,29 @@ export const UOMManagementPage: React.FC = () => {
 
             <form onSubmit={handleSubmit} className="p-6 space-y-5">
               <div>
-                <label className="block text-xs font-bold text-slate-400 mb-1">رمز الوحدة (UOM Code)</label>
+                <label className="block text-xs font-bold text-slate-400 mb-1">{t('inventory.uom.modal.codeLabel', 'رمز الوحدة (UOM Code)')}</label>
                 <input
                   type="text"
                   required
                   value={formData.code}
                   onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
                   className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-slate-200 placeholder:text-slate-600 font-mono"
-                  placeholder="مثال: PCS, BOX, KG"
+                  placeholder={t('inventory.uom.modal.codePlaceholder', 'مثال: PCS, BOX, KG')}
                 />
                 <p className="text-[10px] text-slate-500 mt-1.5 leading-relaxed">
-                  الرمز القياسي للوحدة (يُكتب بالإنجليزية الكبيرة). يُستخدم كمعيار مرجعي لربط الحسابات وتكامل منظومة الفاتورة الإلكترونية.
+                  {t('inventory.uom.modal.codeHelp', 'الرمز القياسي للوحدة (يُكتب بالإنجليزية الكبيرة). يُستخدم كمعيار مرجعي لربط الحسابات وتكامل منظومة الفاتورة الإلكترونية.')}
                 </p>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-400 mb-1">اسم الوحدة</label>
+                <label className="block text-xs font-bold text-slate-400 mb-1">{t('inventory.uom.modal.nameLabel', 'اسم الوحدة')}</label>
                 <input
                   type="text"
                   required
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-slate-200 placeholder:text-slate-500"
-                  placeholder="مثال: قطعة، علبة، صندوق"
+                  placeholder={t('inventory.uom.modal.namePlaceholder', 'مثال: قطعة، علبة، صندوق')}
                 />
               </div>
 
@@ -208,7 +202,7 @@ export const UOMManagementPage: React.FC = () => {
                   className="w-4 h-4 text-blue-600 bg-slate-950 border-slate-700 rounded focus:ring-blue-500 cursor-pointer"
                 />
                 <label htmlFor="isActive" className="text-sm text-slate-300 cursor-pointer select-none">
-                  وحدة نشطة ومتاحة للاستخدام في الأصناف
+                  {t('inventory.uom.modal.activeHelp', 'وحدة نشطة ومتاحة للاستخدام في الأصناف')}
                 </label>
               </div>
 
@@ -218,13 +212,13 @@ export const UOMManagementPage: React.FC = () => {
                   onClick={() => setShowModal(false)}
                   className="px-5 py-2 text-sm font-bold text-slate-300 bg-slate-850 hover:bg-slate-800 rounded-xl transition-all"
                 >
-                  إلغاء
+                  {t('inventory.uom.modal.cancel', 'إلغاء')}
                 </button>
                 <button
                   type="submit"
                   className="px-6 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-500 rounded-xl shadow-lg shadow-blue-900/20 transition-all"
                 >
-                  حفظ
+                  {t('inventory.uom.modal.save', 'حفظ')}
                 </button>
               </div>
             </form>

@@ -74,13 +74,13 @@ export function CreatePurchaseRequestPage() {
     e.preventDefault();
 
     if (items.length === 0) {
-      toast.error("يرجى إضافة صنف واحد على الأقل");
+      toast.error(t("inventory.materialRequest.create.toast.noItems", "يرجى إضافة صنف واحد على الأقل"));
       return;
     }
 
     const invalidItems = items.some(i => !i.productId || i.quantity <= 0 || !i.uomId);
     if (invalidItems) {
-      toast.error("يرجى التأكد من اختيار الصنف والوحدة وتحديد كمية صحيحة لكل سطر");
+      toast.error(t("inventory.purchaseRequest.create.toast.invalidItems", "يرجى التأكد من اختيار الصنف والوحدة وتحديد كمية صحيحة لكل سطر"));
       return;
     }
 
@@ -97,12 +97,12 @@ export function CreatePurchaseRequestPage() {
       };
 
       await procurementApi.createPurchaseRequest(payload);
-      toast.success("تم إنشاء طلب الشراء بنجاح");
+      toast.success(t("inventory.purchaseRequest.create.toast.success", "تم إنشاء طلب الشراء بنجاح"));
       navigate(`/inventory/dashboard`); // Or go to PR list page when created
      
     } catch (error: any) {
       console.error(error);
-      toast.error(error.response?.data?.message || "حدث خطأ أثناء إنشاء الطلب");
+      toast.error(error.response?.data?.message || t("inventory.purchaseRequest.create.toast.error", "حدث خطأ أثناء إنشاء الطلب"));
     } finally {
       setSaving(false);
     }
@@ -117,10 +117,10 @@ export function CreatePurchaseRequestPage() {
             <div className="p-2 bg-emerald-500/20 text-emerald-400 rounded-xl">
                🛒
             </div>
-            طلب شراء جديد (Purchase Request)
+            {t("inventory.purchaseRequest.create.title", "طلب شراء جديد (Purchase Request)")}
           </h1>
           <p className="text-sm text-slate-400 mt-1">
-            إنشاء طلب جديد لشراء أصناف ومواد للمؤسسة.
+            {t("inventory.purchaseRequest.create.subtitle", "إنشاء طلب جديد لشراء أصناف ومواد للمؤسسة.")}
           </p>
         </div>
         <div className="flex gap-3">
@@ -128,14 +128,14 @@ export function CreatePurchaseRequestPage() {
             onClick={() => navigate("/inventory/dashboard")}
             className="px-5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-sm font-bold transition-colors"
           >
-            إلغاء
+            {t("common.cancel", "إلغاء")}
           </button>
           <button
             onClick={handleSubmit}
             disabled={saving}
             className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-sm font-bold shadow-lg shadow-emerald-900/20 transition-all disabled:opacity-50"
           >
-            {saving ? "جاري الحفظ..." : "حفظ الطلب"}
+            {saving ? t("common.saving", "جاري الحفظ...") : t("inventory.purchaseRequest.create.saveBtn", "حفظ الطلب")}
           </button>
         </div>
       </div>
@@ -145,18 +145,18 @@ export function CreatePurchaseRequestPage() {
         <div className="lg:col-span-1 space-y-6">
           <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6">
             <h2 className="text-base font-bold text-slate-200 mb-6 border-b border-slate-800 pb-2">
-              البيانات الأساسية
+              {t("inventory.purchaseRequest.create.basicInfo", "البيانات الأساسية")}
             </h2>
             
             <div className="space-y-4">
               <div className="flex flex-col gap-2">
-                <label className="text-xs font-bold text-slate-400">القسم الطالب</label>
+                <label className="text-xs font-bold text-slate-400">{t("inventory.purchaseRequest.create.requestingDepartment", "القسم الطالب")}</label>
                 <select
                   value={departmentId}
                   onChange={(e) => setDepartmentId(e.target.value)}
                   className="w-full bg-slate-950 border border-slate-700 rounded-xl py-2.5 px-3 text-sm focus:border-emerald-500 outline-none transition-all"
                 >
-                  <option value="">(اختياري) اختر القسم...</option>
+                  <option value="">{t("inventory.purchaseRequest.create.selectDepartment", "(اختياري) اختر القسم...")}</option>
                   { }
                   {departments.map((d: any) => (
                     <option key={d.id} value={d.id}>{d.name}</option>
@@ -165,11 +165,11 @@ export function CreatePurchaseRequestPage() {
               </div>
 
               <div className="flex flex-col gap-2 pt-2">
-                <label className="text-xs font-bold text-slate-400">ملاحظات ومبررات الطلب</label>
+                <label className="text-xs font-bold text-slate-400">{t("inventory.purchaseRequest.create.notesLabel", "ملاحظات ومبررات الطلب")}</label>
                 <textarea
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  placeholder="ملاحظات توضح سبب الشراء..."
+                  placeholder={t("inventory.purchaseRequest.create.notesPlaceholder", "ملاحظات توضح سبب الشراء...")}
                   className="w-full bg-slate-950 border border-slate-700 rounded-xl py-2.5 px-3 text-sm focus:border-emerald-500 outline-none transition-all min-h-[100px] resize-none"
                 />
               </div>
@@ -182,36 +182,36 @@ export function CreatePurchaseRequestPage() {
           <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6">
             <div className="flex justify-between items-center border-b border-slate-800 pb-4 mb-4">
               <h2 className="text-base font-bold text-slate-200">
-                الأصناف المطلوبة
+                {t("inventory.purchaseRequest.create.requestedItems", "الأصناف المطلوبة")}
               </h2>
               <button
                 type="button"
                 onClick={addItem}
                 className="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-emerald-400 rounded-lg text-xs font-bold border border-slate-700 transition-all flex items-center gap-1"
               >
-                <span>+</span> إضافة صنف
+                <span>+</span> {t("inventory.purchaseRequest.create.addItemBtn", "إضافة صنف")}
               </button>
             </div>
 
             {items.length === 0 ? (
               <div className="text-center py-12 text-slate-500 border border-dashed border-slate-800 rounded-xl bg-slate-950/50">
-                <p className="text-sm">لم يتم إضافة أي أصناف للطلب</p>
+                <p className="text-sm">{t("inventory.purchaseRequest.create.emptyItems", "لم يتم إضافة أي أصناف للطلب")}</p>
                 <button
                   type="button"
                   onClick={addItem}
                   className="mt-3 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-bold transition-all"
                 >
-                  إضافة الصنف الأول
+                  {t("inventory.purchaseRequest.create.addFirstItemBtn", "إضافة الصنف الأول")}
                 </button>
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-sm text-right">
+                <table className={`w-full text-sm ${isRtl ? "text-right" : "text-left"}`}>
                   <thead className="text-[10px] uppercase text-slate-500 bg-slate-950/50">
                     <tr>
-                      <th className="px-3 py-3 font-bold rounded-r-xl">الصنف</th>
-                      <th className="px-3 py-3 font-bold w-32">الكمية</th>
-                      <th className="px-3 py-3 font-bold w-48">الوحدة (UOM)</th>
+                      <th className="px-3 py-3 font-bold rounded-r-xl">{t("inventory.warehouse.tableProduct", "الصنف")}</th>
+                      <th className="px-3 py-3 font-bold w-32">{t("inventory.warehouse.tableQuantity", "الكمية")}</th>
+                      <th className="px-3 py-3 font-bold w-48">{t("inventory.purchaseRequest.create.uomLabel", "الوحدة (UOM)")}</th>
                       <th className="px-3 py-3 font-bold w-16 text-center rounded-l-xl"></th>
                     </tr>
                   </thead>
@@ -224,7 +224,7 @@ export function CreatePurchaseRequestPage() {
                             onChange={(e) => handleItemChange(index, "productId", e.target.value)}
                             className="w-full bg-slate-950 border border-slate-700 rounded-lg py-2 px-2 text-xs focus:border-emerald-500 outline-none"
                           >
-                            <option value="">اختر الصنف...</option>
+                            <option value="">{t("inventory.purchaseRequest.create.selectProduct", "اختر الصنف...")}</option>
                             { }
                             {products.map((p: any) => (
                               <option key={p.id} value={p.id}>{p.code ? `[${p.code}] ` : ''}{p.name}</option>
@@ -247,11 +247,11 @@ export function CreatePurchaseRequestPage() {
                             className="w-full bg-slate-950 border border-slate-700 rounded-lg py-2 px-2 text-xs focus:border-emerald-500 outline-none"
                             disabled={!item.productId}
                           >
-                            <option value="">اختر الوحدة...</option>
+                            <option value="">{t("inventory.purchaseRequest.create.selectUom", "اختر الوحدة...")}</option>
                             { }
                             {item.productUoms?.map((pu: any) => (
                               <option key={pu.id} value={pu.uomId}>
-                                {pu.uom?.name || `وحدة رقم ${pu.uomId}`} (معامل: {pu.conversionRate})
+                                {pu.uom?.name || `${t("inventory.purchaseRequest.create.uomIdPrefix", "وحدة رقم")} ${pu.uomId}`} ({t("inventory.purchaseRequest.create.conversionRateLabel", "معامل:")} {pu.conversionRate})
                               </option>
                             ))}
                           </select>
@@ -261,7 +261,7 @@ export function CreatePurchaseRequestPage() {
                             type="button"
                             onClick={() => removeItem(index)}
                             className="p-1.5 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors"
-                            title="حذف السطر"
+                            title={t("inventory.purchaseRequest.create.deleteRow", "حذف السطر")}
                           >
                             ❌
                           </button>

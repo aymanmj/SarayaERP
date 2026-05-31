@@ -56,13 +56,13 @@ export default function ReportsDashboardPage() {
         setKpis(kpiRes.data);
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       } catch (err) {
-        toast.error("فشل تحميل البيانات التحليلية");
+        toast.error(t("reportsDashboard.toast.loadError", "فشل تحميل البيانات التحليلية"));
       } finally {
         setLoading(false);
       }
     }
     loadData();
-  }, []);
+  }, [t]);
 
    
   const KPICard = ({ title, value, unit, color }: any) => (
@@ -79,7 +79,7 @@ export default function ReportsDashboardPage() {
   if (loading)
     return (
       <div className="p-10 text-center text-slate-500 animate-pulse">
-        جاري إعداد التقارير الاستراتيجية...
+        {t("reportsDashboard.loading", "جاري إعداد التقارير الاستراتيجية...")}
       </div>
     );
 
@@ -88,10 +88,10 @@ export default function ReportsDashboardPage() {
       <div className="flex justify-between items-end mb-4">
         <div>
           <h1 className="text-3xl font-black tracking-tight">
-            التحليلات الاستراتيجية
+            {t("reportsDashboard.title", "التحليلات الاستراتيجية")}
           </h1>
           <p className="text-slate-400 text-sm mt-1">
-            نظام دعم القرار - Decision Support System
+            {t("reportsDashboard.subtitle", "نظام دعم القرار - Decision Support System")}
           </p>
         </div>
       </div>
@@ -99,29 +99,29 @@ export default function ReportsDashboardPage() {
       {/* 1. KPIs Section */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <KPICard
-          title="إشغال الأسرة"
+          title={t("reportsDashboard.kpi.bedOccupancy", "إشغال الأسرة")}
           value={kpis?.occupancyRate}
           unit="%"
           color="text-sky-400"
         />
         <KPICard
-          title="إجمالي المرضى"
+          title={t("reportsDashboard.kpi.totalPatients", "إجمالي المرضى")}
           value={kpis?.totalPatients}
-          unit="مسجل"
+          unit={t("reportsDashboard.kpi.registeredUnit", "مسجل")}
           color="text-emerald-400"
         />
         <KPICard
-          title="الحالات النشطة"
+          title={t("reportsDashboard.kpi.activeCases", "الحالات النشطة")}
           value={kpis?.activeCases}
-          unit="حالة"
+          unit={t("reportsDashboard.kpi.casesUnit", "حالة")}
           color="text-amber-400"
         />
         <KPICard
-          title="صافي الربح"
+          title={t("reportsDashboard.kpi.netProfit", "صافي الربح")}
           value={financialData
             .reduce((s, m) => s + m.profit, 0)
             .toLocaleString()}
-          unit="LYD"
+          unit={t("common.currency.lyd", "د.ل")}
           color="text-white"
         />
       </div>
@@ -131,7 +131,7 @@ export default function ReportsDashboardPage() {
         {/* الربحية والنمو */}
         <div className="lg:col-span-2 bg-slate-900/50 border border-slate-800 rounded-3xl p-6">
           <h2 className="text-sm font-bold text-slate-300 mb-6">
-            تحليل نمو الدخل والمصروفات
+            {t("reportsDashboard.charts.incomeExpenseGrowth", "تحليل نمو الدخل والمصروفات")}
           </h2>
           <div className="h-80" dir="ltr">
             <ResponsiveContainer width="100%" height="100%">
@@ -163,7 +163,7 @@ export default function ReportsDashboardPage() {
                 <Area
                   type="monotone"
                   dataKey="revenue"
-                  name="إيرادات (محصلة)"
+                  name={t("reportsDashboard.charts.revenueReceived", "إيرادات (محصلة)")}
                   stroke="#10b981"
                   fillOpacity={1}
                   fill="url(#colorRev)"
@@ -172,7 +172,7 @@ export default function ReportsDashboardPage() {
                 <Area
                   type="monotone"
                   dataKey="expense"
-                  name="مصروفات"
+                  name={t("reportsDashboard.charts.expenses", "مصروفات")}
                   stroke="#f43f5e"
                   fillOpacity={0}
                   strokeWidth={2}
@@ -186,7 +186,7 @@ export default function ReportsDashboardPage() {
         {/* توزيع الدخل حسب القسم */}
         <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-6">
           <h2 className="text-sm font-bold text-slate-300 mb-6">
-            كفاءة الأقسام
+            {t("reportsDashboard.charts.deptEfficiency", "كفاءة الأقسام")}
           </h2>
           <div className="h-80" dir="ltr">
             <ResponsiveContainer width="100%" height="100%">

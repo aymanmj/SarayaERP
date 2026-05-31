@@ -74,7 +74,7 @@ export function InventoryDashboardPage() {
       return <div className="flex h-full items-center justify-center text-slate-500"><Loader2 className="animate-spin w-8 h-8" /></div>;
   }
   
-  if (isError) return <div className="p-8 text-center text-rose-500">فشل تحميل البيانات</div>;
+  if (isError) return <div className="p-8 text-center text-rose-500">{t("inventory.failedToLoadData", "فشل تحميل البيانات")}</div>;
   if (!stats) return null; // Or skeleton
 
   return (
@@ -82,8 +82,8 @@ export function InventoryDashboardPage() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-           <h1 className="text-3xl font-black text-white tracking-tight">لوحة تحكم المخزون</h1>
-           <p className="text-sm text-slate-400">مراقبة التنبيهات، حركة الأصناف، وحالة المستودعات.</p>
+           <h1 className="text-3xl font-black text-white tracking-tight">{t("inventory.dashboard.title", "لوحة تحكم المخزون")}</h1>
+           <p className="text-sm text-slate-400">{t("inventory.dashboard.subtitle", "مراقبة التنبيهات، حركة الأصناف، وحالة المستودعات.")}</p>
         </div>
 
         {/* Warehouse Filter */}
@@ -93,7 +93,7 @@ export function InventoryDashboardPage() {
                 value={selectedWarehouseId}
                 onChange={(e) => setSelectedWarehouseId(e.target.value)}
             >
-                <option value="all">كل المستودعات</option>
+                <option value="all">{t("inventory.dashboard.allWarehouses", "كل المستودعات")}</option>
                 { }
                 {warehouses.map((w: any) => (
                     <option key={w.id} value={w.id}>{w.name}</option>
@@ -104,10 +104,10 @@ export function InventoryDashboardPage() {
 
        {/* Stats Grid */}
        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <StatCard title="إجمالي قيمة المخزون" value={`${formatMoney(stats.totalValue)} د.ل`} icon={TrendingUp} colorClass="bg-emerald-500" />
-            <StatCard title="أصناف منخفضة الرصيد" value={`${stats.lowStockCount} صنف`} icon={AlertCircle} colorClass="bg-rose-500" />
-            <StatCard title="أوامر شراء معلقة" value={`${stats.pendingOrders} طلبات`} icon={Package} colorClass="bg-amber-500" />
-            <StatCard title="عمليات جرد نشطة" value={`${stats.activeCounts} عمليات`} icon={RefreshCcw} colorClass="bg-sky-500" />
+            <StatCard title={t("inventory.dashboard.totalValue", "إجمالي قيمة المخزون")} value={`${formatMoney(stats.totalValue)} ${t("inventory.currencyDinar", "د.ل")}`} icon={TrendingUp} colorClass="bg-emerald-500" />
+            <StatCard title={t("inventory.dashboard.lowStockItems", "أصناف منخفضة الرصيد")} value={`${stats.lowStockCount} ${t("inventory.dashboard.items", "صنف")}`} icon={AlertCircle} colorClass="bg-rose-500" />
+            <StatCard title={t("inventory.dashboard.pendingOrders", "أوامر شراء معلقة")} value={`${stats.pendingOrders} ${t("inventory.dashboard.requests", "طلبات")}`} icon={Package} colorClass="bg-amber-500" />
+            <StatCard title={t("inventory.dashboard.activeCounts", "عمليات جرد نشطة")} value={`${stats.activeCounts} ${t("inventory.dashboard.operations", "عمليات")}`} icon={RefreshCcw} colorClass="bg-sky-500" />
        </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -117,7 +117,7 @@ export function InventoryDashboardPage() {
             <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-6 shadow-xl">
                  <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
                     <TrendingUp className="w-5 h-5 text-emerald-500" />
-                    تطور قيمة المخزون (تقريبي)
+                    {t("inventory.dashboard.stockValueTrend", "تطور قيمة المخزون (تقريبي)")}
                  </h3>
                  <div className="h-[300px] w-full" dir="ltr">
                     <ResponsiveContainer width="100%" height="100%">
@@ -135,7 +135,7 @@ export function InventoryDashboardPage() {
                                 contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', borderRadius: '8px', color: '#f8fafc' }}
                                 itemStyle={{ color: '#f8fafc' }}
                                 labelStyle={{ color: '#94a3b8', marginBottom: '0.5rem' }}
-                                formatter={(val: number) => [formatMoney(val), "القيمة"]}
+                                formatter={(val: number) => [formatMoney(val), t("inventory.dashboard.chartValue", "القيمة")]}
                             />
                             <Area type="monotone" dataKey="value" stroke="#10b981" fillOpacity={1} fill="url(#colorValue)" />
                         </AreaChart>
@@ -147,7 +147,7 @@ export function InventoryDashboardPage() {
             <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-6 shadow-xl">
                  <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
                     <AlertCircle className="w-5 h-5 text-rose-500" />
-                    أصناف قاربت على النفاذ (Top 5)
+                    {t("inventory.dashboard.topLowStock", "أصناف قاربت على النفاذ (Top 5)")}
                  </h3>
                  <div className="h-[250px] w-full" dir="ltr">
                     <ResponsiveContainer width="100%" height="100%">
@@ -161,8 +161,8 @@ export function InventoryDashboardPage() {
                                 itemStyle={{ color: '#f8fafc' }}
                                 labelStyle={{ color: '#94a3b8' }}
                             />
-                            <Bar dataKey="qty" fill="#f43f5e" radius={[0, 4, 4, 0]} barSize={20} name="الكمية الحالية" />
-                            <Bar dataKey="limit" fill="#334155" radius={[0, 4, 4, 0]} barSize={20} name="حد الطلب" />
+                            <Bar dataKey="qty" fill="#f43f5e" radius={[0, 4, 4, 0]} barSize={20} name={t("inventory.dashboard.currentQty", "الكمية الحالية")} />
+                            <Bar dataKey="limit" fill="#334155" radius={[0, 4, 4, 0]} barSize={20} name={t("inventory.dashboard.reorderLimit", "حد الطلب")} />
                             <Legend wrapperStyle={{ paddingTop: '20px' }} />
                         </BarChart>
                     </ResponsiveContainer>
@@ -175,7 +175,7 @@ export function InventoryDashboardPage() {
           <InventoryAlertsWidget />
 
           <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-6 shadow-xl">
-              <h3 className="text-lg font-bold text-white mb-6">حالة عمليات الجرد</h3>
+              <h3 className="text-lg font-bold text-white mb-6">{t("inventory.dashboard.countsStatus", "حالة عمليات الجرد")}</h3>
               <div className="h-[200px] w-full" dir="ltr">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>

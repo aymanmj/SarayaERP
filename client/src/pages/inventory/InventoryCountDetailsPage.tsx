@@ -91,7 +91,7 @@ export function InventoryCountDetailsPage() {
 
   const handleCreate = async () => {
     if (!newCountParams.warehouseId) {
-        toast.error("يرجى اختيار المخزن");
+        toast.error(t("inventory.count.details.toast.selectWarehouse", "يرجى اختيار المخزن"));
         return;
     }
 
@@ -106,11 +106,11 @@ export function InventoryCountDetailsPage() {
       };
       
       const res = await api.post("/inventory/counts", payload);
-      toast.success("تم إنشاء مسودة الجرد بنجاح");
+      toast.success(t("inventory.count.details.toast.createSuccess", "تم إنشاء مسودة الجرد بنجاح"));
       navigate(`/inventory/counts/${res.data.id}`);
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
-      toast.error("فشل إنشاء الجرد (تأكد من صحة البيانات)");
+      toast.error(t("inventory.count.details.toast.createFailed", "فشل إنشاء الجرد (تأكد من صحة البيانات)"));
     } finally {
       setSaving(false);
     }
@@ -136,22 +136,22 @@ export function InventoryCountDetailsPage() {
         await api.put(`/inventory/counts/lines/${lineId}`, { physicalQty: qty });
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
-        toast.error("فشل تحديث الصنف");
+        toast.error(t("inventory.count.details.toast.updateLineFailed", "فشل تحديث الصنف"));
     }
   };
 
   const handlePost = async () => {
     if (!count) return;
-    if (!confirm("هل أنت متأكد من اعتماد هذا الجرد وتحديث الأرصدة؟ لا يمكن التراجع عن هذه العملية.")) return;
+    if (!confirm(t("inventory.count.details.confirmPost", "هل أنت متأكد من اعتماد هذا الجرد وتحديث الأرصدة؟ لا يمكن التراجع عن هذه العملية."))) return;
 
     setSaving(true);
     try {
       await api.post(`/inventory/counts/${count.id}/post`);
-      toast.success("تم ترحيل الجرد وتحديث المخزون!");
+      toast.success(t("inventory.count.details.toast.postSuccess", "تم ترحيل الجرد وتحديث المخزون!"));
       fetchCount(); // Refresh without args
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
-      toast.error("فشل ترحيل الجرد");
+      toast.error(t("inventory.count.details.toast.postFailed", "فشل ترحيل الجرد"));
     } finally {
       setSaving(false);
     }
@@ -159,13 +159,22 @@ export function InventoryCountDetailsPage() {
 
   const getStatusLabel = (status: string) => {
     switch(status) {
-      case "POSTED": return "مرحل";
-      case "DRAFT": return "مسودة";
-      case "REVIEW": return "مراجعة";
-      case "IN_PROGRESS": return "قيد التنفيذ";
+      case "POSTED": return t("inventory.count.status.posted", "مرحل");
+      case "DRAFT": return t("inventory.count.status.draft", "مسودة");
+      case "REVIEW": return t("inventory.count.status.review", "مراجعة");
+      case "IN_PROGRESS": return t("inventory.count.status.inProgress", "قيد التنفيذ");
       default: return status;
     }
   };
+
+  const getTypeLabel = (type: string) => {
+     switch(type) {
+         case "FULL": return t("inventory.count.type.full", "جرد شامل");
+         case "QUARTERLY": return t("inventory.count.type.quarterly", "ربع سنوي");
+         case "SPOT_CHECK": return t("inventory.count.type.spotCheck", "جرد مفاجئ");
+         default: return type;
+     }
+  }
 
   if (loading) {
       return (
@@ -183,56 +192,56 @@ export function InventoryCountDetailsPage() {
                  <ArrowLeft className="w-6 h-6" />
              </button>
              <div>
-                <h1 className="text-3xl font-black text-white tracking-tight">بدء جرد مخزني جديد</h1>
-                <p className="text-sm text-slate-400 mt-1">قم بتحديد المخزن ونوع الجرد للبدء في المطابقة الفعلية للأرصدة.</p>
+                <h1 className="text-3xl font-black text-white tracking-tight">{t("inventory.count.details.newTitle", "بدء جرد مخزني جديد")}</h1>
+                <p className="text-sm text-slate-400 mt-1">{t("inventory.count.details.newSubtitle", "قم بتحديد المخزن ونوع الجرد للبدء في المطابقة الفعلية للأرصدة.")}</p>
              </div>
         </div>
 
         <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-8 shadow-2xl">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
                 <div className="space-y-3">
-                    <label className="text-sm font-medium text-slate-300">المخزن <span className="text-rose-500">*</span></label>
+                    <label className="text-sm font-medium text-slate-300">{t("inventory.warehouse", "المخزن")} <span className="text-rose-500">*</span></label>
                     <div className="relative">
                         <select
                             className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition-all appearance-none"
                             value={newCountParams.warehouseId}
                             onChange={(e) => setNewCountParams(prev => ({ ...prev, warehouseId: e.target.value }))}
                         >
-                            <option value="" disabled>اختر المخزن...</option>
+                            <option value="" disabled>{t("inventory.count.details.selectWarehouse", "اختر المخزن...")}</option>
                             {warehouses.map(w => (
                                 <option key={w.id} value={w.id}>{w.name}</option>
                             ))}
                         </select>
                          <div className="absolute left-3 top-3.5 pointer-events-none text-slate-500">
                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-                         </div>
+                          </div>
                     </div>
                 </div>
 
                 <div className="space-y-3">
-                    <label className="text-sm font-medium text-slate-300">نوع الجرد <span className="text-rose-500">*</span></label>
+                    <label className="text-sm font-medium text-slate-300">{t("inventory.count.details.countType", "نوع الجرد")} <span className="text-rose-500">*</span></label>
                     <div className="relative">
                         <select
                             className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition-all appearance-none"
                             value={newCountParams.type}
                             onChange={(e) => setNewCountParams(prev => ({ ...prev, type: e.target.value }))}
                         >
-                            <option value="FULL">جرد شامل</option>
-                            <option value="QUARTERLY">جرد ربع سنوي</option>
-                            <option value="SPOT_CHECK">جرد مفاجئ</option>
+                            <option value="FULL">{t("inventory.count.type.full", "جرد شامل")}</option>
+                            <option value="QUARTERLY">{t("inventory.count.type.quarterly", "جرد ربع سنوي")}</option>
+                            <option value="SPOT_CHECK">{t("inventory.count.type.spotCheck", "جرد مفاجئ")}</option>
                         </select>
                          <div className="absolute left-3 top-3.5 pointer-events-none text-slate-500">
                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-                         </div>
+                          </div>
                     </div>
                 </div>
             </div>
 
             <div className="space-y-3 mb-8">
-                <label className="text-sm font-medium text-slate-300">ملاحظات / وصف</label>
+                <label className="text-sm font-medium text-slate-300">{t("inventory.count.details.notesLabel", "ملاحظات / وصف")}</label>
                 <textarea 
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition-all min-h-[100px]"
-                    placeholder="اكتب أي ملاحظات إضافية هنا..."
+                    placeholder={t("inventory.count.details.notesPlaceholder", "اكتب أي ملاحظات إضافية هنا...")}
                     value={newCountParams.notes}
                     onChange={(e) => setNewCountParams(prev => ({ ...prev, notes: e.target.value }))}
                 />
@@ -243,7 +252,7 @@ export function InventoryCountDetailsPage() {
                     onClick={() => navigate(-1)}
                     className="px-6 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-sm font-bold border border-slate-700 transition-all"
                 >
-                    إلغاء
+                    {t("common.cancel", "إلغاء")}
                 </button>
                 <button
                     onClick={handleCreate}
@@ -251,7 +260,7 @@ export function InventoryCountDetailsPage() {
                     className="px-8 py-2.5 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-sm font-bold shadow-lg shadow-sky-900/20 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                    إنشاء وبدء الجرد
+                    {t("inventory.count.details.createBtn", "إنشاء وبدء الجرد")}
                 </button>
             </div>
         </div>
@@ -259,7 +268,7 @@ export function InventoryCountDetailsPage() {
     );
   }
 
-  if (!count) return <div className="p-10 text-center text-slate-500">لم يتم العثور على الجرد</div>;
+  if (!count) return <div className="p-10 text-center text-slate-500">{t("inventory.count.details.notFound", "لم يتم العثور على الجرد")}</div>;
 
   const isEditable = count.status !== "POSTED";
 
@@ -273,7 +282,7 @@ export function InventoryCountDetailsPage() {
              </button>
             <div>
                 <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight flex items-center gap-3">
-                    جرد #{count.id}
+                    {t("inventory.count.details.countPrefix", "جرد #")}{count.id}
                     <span className={`px-3 py-1 rounded-full text-[10px] md:text-xs font-bold border uppercase tracking-wider ${
                         count.status === "POSTED" 
                         ? "bg-emerald-900/30 text-emerald-400 border-emerald-500/30" 
@@ -290,7 +299,7 @@ export function InventoryCountDetailsPage() {
                         <>
                             <span className="text-slate-600">•</span>
                             <span className="flex items-center gap-1">
-                                بواسطة {count.assignedTo.fullName}
+                                {t("inventory.count.details.by", "بواسطة")} {count.assignedTo.fullName}
                             </span>
                         </>
                     )}
@@ -303,7 +312,7 @@ export function InventoryCountDetailsPage() {
                 onClick={() => window.open(`/inventory/counts/${count.id}/print`, '_blank')}
                 className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold border border-slate-700 transition-all flex items-center gap-2"
             >
-                <Printer className="w-4 h-4" /> طباعة القائمة
+                <Printer className="w-4 h-4" /> {t("inventory.count.details.printBtn", "طباعة القائمة")}
             </button>
            {isEditable && (
              <button
@@ -312,7 +321,7 @@ export function InventoryCountDetailsPage() {
                 className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-emerald-900/20 transition-all flex items-center gap-2 disabled:opacity-50"
              >
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
-                اعتماد وترحيل الفروقات
+                {t("inventory.count.details.postBtn", "اعتماد وترحيل الفروقات")}
              </button>
            )}
         </div>
@@ -323,8 +332,8 @@ export function InventoryCountDetailsPage() {
           <div className="bg-amber-900/10 border border-amber-500/20 p-4 rounded-2xl flex items-start gap-3">
               <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
               <div>
-                  <h4 className="font-bold text-amber-400 text-sm">تنبيه وجود فروقات</h4>
-                  <p className="text-xs text-amber-200/70 mt-1">يوجد فروقات بين الرصيد النظامي والجرد الفعلي للأصناف. عند الاعتماد، سيقوم النظام بإنشاء حركة تسوية مخزنية وتوليد القيد المحاسبي للفارق تلقائياً.</p>
+                  <h4 className="font-bold text-amber-400 text-sm">{t("inventory.count.details.varianceWarningTitle", "تنبيه وجود فروقات")}</h4>
+                  <p className="text-xs text-amber-200/70 mt-1">{t("inventory.count.details.varianceWarningDesc", "يوجد فروقات بين الرصيد النظامي والجرد الفعلي للأصناف. عند الاعتماد، سيقوم النظام بإنشاء حركة تسوية مخزنية وتوليد القيد المحاسبي للفارق تلقائياً.")}</p>
               </div>
           </div>
       )}
@@ -332,14 +341,14 @@ export function InventoryCountDetailsPage() {
       {/* Main Table */}
       <div className="flex-1 bg-slate-900/50 border border-slate-800 rounded-3xl overflow-hidden flex flex-col shadow-2xl">
         <div className="overflow-x-auto flex-1 custom-scrollbar">
-          <table className="w-full text-sm text-right">
+          <table className={`w-full text-sm ${isRtl ? "text-right" : "text-left"}`}>
             <thead className="bg-slate-950/50 text-slate-500 sticky top-0 backdrop-blur z-10">
               <tr className="text-[10px] uppercase tracking-widest border-b border-slate-800">
-                <th className="px-6 py-4 font-bold w-[30%]">الصنف</th>
-                <th className="px-6 py-4 font-bold">التشغيلة / الصلاحية</th>
-                <th className="px-6 py-4 font-bold text-center">رصيد النظام</th>
-                <th className="px-6 py-4 font-bold text-center w-32">الجرد الفعلي</th>
-                <th className="px-6 py-4 font-bold text-center">الفارق</th>
+                <th className="px-6 py-4 font-bold w-[30%]">{t("inventory.warehouse.tableProduct", "الصنف")}</th>
+                <th className="px-6 py-4 font-bold">{t("inventory.count.details.tableBatchExpiry", "التشغيلة / الصلاحية")}</th>
+                <th className="px-6 py-4 font-bold text-center">{t("inventory.count.details.tableSystemQty", "رصيد النظام")}</th>
+                <th className="px-6 py-4 font-bold text-center w-32">{t("inventory.count.details.tablePhysicalQty", "الجرد الفعلي")}</th>
+                <th className="px-6 py-4 font-bold text-center">{t("inventory.count.details.tableVariance", "الفارق")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/50 text-xs">
@@ -385,7 +394,7 @@ export function InventoryCountDetailsPage() {
                                     : Number(line.variance) > 0 
                                         ? "bg-emerald-900/20 text-emerald-400 border border-emerald-500/20" 
                                         : "text-slate-600 opacity-50"
-                            }`}>
+                             }`}>
                                 {Number(line.variance) > 0 ? "+" : ""}{Number(line.variance).toFixed(2)}
                             </span>
                         </td>
@@ -394,7 +403,7 @@ export function InventoryCountDetailsPage() {
                 {count.lines?.length === 0 && (
                      <tr>
                         <td colSpan={5} className="text-center py-20 text-slate-500">
-                          لا توجد أصناف في هذا الجرد.
+                          {t("inventory.count.details.emptyLines", "لا توجد أصناف في هذا الجرد.")}
                         </td>
                       </tr>
                 )}
@@ -405,4 +414,3 @@ export function InventoryCountDetailsPage() {
     </div>
   );
 }
-

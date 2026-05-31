@@ -18,7 +18,7 @@ export default function DepreciationPage() {
   const handleRun = async () => {
     if (
       !confirm(
-        "هل أنت متأكد من تشغيل الإهلاك لهذا التاريخ؟ سيتم إنشاء قيود محاسبية."
+        t("depreciation.confirmRun", "هل أنت متأكد من تشغيل الإهلاك لهذا التاريخ؟ سيتم إنشاء قيود محاسبية.")
       )
     )
       return;
@@ -28,10 +28,10 @@ export default function DepreciationPage() {
     try {
       const res = await apiClient.post("/assets/depreciation/run", { date });
       setResult(res.data);
-      toast.success("تم تشغيل الإهلاك بنجاح.");
-     
+      toast.success(t("depreciation.toast.runSuccess", "تم تشغيل الإهلاك بنجاح."));
+      
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || "فشل العملية");
+      toast.error(err?.response?.data?.message || t("depreciation.toast.runError", "فشل العملية"));
     } finally {
       setProcessing(false);
     }
@@ -44,16 +44,15 @@ export default function DepreciationPage() {
     >
       <div className="max-w-lg w-full bg-slate-900/60 border border-slate-800 p-8 rounded-3xl text-center shadow-2xl">
         <div className="text-4xl mb-4">📉</div>
-        <h1 className="text-2xl font-bold mb-2">احتساب الإهلاك الشهري</h1>
+        <h1 className="text-2xl font-bold mb-2">{t("depreciation.title", "احتساب الإهلاك الشهري")}</h1>
         <p className="text-slate-400 text-sm mb-6">
-          سيقوم النظام بحساب قسط الإهلاك لجميع الأصول النشطة وإنشاء القيود
-          المحاسبية للفترة التي يقع فيها التاريخ المختار.
+          {t("depreciation.description", "سيقوم النظام بحساب قسط الإهلاك لجميع الأصول النشطة وإنشاء القيود المحاسبية للفترة التي يقع فيها التاريخ المختار.")}
         </p>
 
         <div className="flex flex-col gap-4 items-center">
           <div className="w-full">
             <label className="block text-xs text-slate-400 mb-2 text-right">
-              تاريخ الاستحقاق (عادة نهاية الشهر)
+              {t("depreciation.dateLabel", "تاريخ الاستحقاق (عادة نهاية الشهر)")}
             </label>
             <DatePicker
               date={date ? new Date(date) : undefined}
@@ -67,17 +66,22 @@ export default function DepreciationPage() {
             disabled={processing}
             className="w-full py-3 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded-xl shadow-lg disabled:opacity-50"
           >
-            {processing ? "جاري المعالجة..." : "بدء الاحتساب"}
+            {processing ? t("common.processing", "جاري المعالجة...") : t("depreciation.runBtn", "بدء الاحتساب")}
           </button>
         </div>
 
         {result && (
           <div className="mt-6 p-4 bg-emerald-900/20 border border-emerald-500/30 rounded-xl text-right text-sm space-y-2">
-            <div className="font-bold text-emerald-400">✅ اكتملت العملية</div>
-            <div>عدد الأصول التي تمت معالجتها: {result.processedCount}</div>
+            <div className="font-bold text-emerald-400">{t("depreciation.result.success", "✅ اكتملت العملية")}</div>
+            <div>
+              {t("depreciation.result.processedCount", "عدد الأصول التي تمت معالجتها: ")}
+              {result.processedCount}
+            </div>
             {result.errors?.length > 0 && (
               <div className="text-rose-400 mt-2 text-xs">
-                تنبيه: فشلت المعالجة لـ {result.errors.length} أصل.
+                {t("depreciation.result.errorsPrefix", "تنبيه: فشلت المعالجة لـ ")}
+                {result.errors.length}
+                {t("depreciation.result.errorsSuffix", " أصل.")}
               </div>
             )}
           </div>

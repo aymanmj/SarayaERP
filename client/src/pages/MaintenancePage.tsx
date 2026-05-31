@@ -60,7 +60,7 @@ export default function MaintenancePage() {
       );
       setTickets(res.data);
     } catch {
-      toast.error("فشل تحميل التذاكر");
+      toast.error(t("maintenance.toast.loadError", "فشل تحميل التذاكر"));
     } finally {
       setLoading(false);
     }
@@ -78,6 +78,7 @@ export default function MaintenancePage() {
   useEffect(() => {
     loadTickets();
     loadAssets();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleCreate = async () => {
@@ -89,11 +90,11 @@ export default function MaintenancePage() {
         priority: createForm.priority,
         issueDescription: createForm.desc,
       });
-      toast.success("تم فتح تذكرة الصيانة");
+      toast.success(t("maintenance.toast.createSuccess", "تم فتح تذكرة الصيانة"));
       setShowCreateModal(false);
       loadTickets();
     } catch {
-      toast.error("فشل الإنشاء");
+      toast.error(t("maintenance.toast.createError", "فشل الإنشاء"));
     }
   };
 
@@ -105,11 +106,11 @@ export default function MaintenancePage() {
         cost: Number(resolveForm.cost),
         status: resolveForm.status,
       });
-      toast.success("تم تحديث حالة التذكرة");
+      toast.success(t("maintenance.toast.updateSuccess", "تم تحديث حالة التذكرة"));
       setShowResolveModal(false);
       loadTickets();
     } catch {
-      toast.error("فشل التحديث");
+      toast.error(t("maintenance.toast.updateError", "فشل التحديث"));
     }
   };
 
@@ -120,16 +121,16 @@ export default function MaintenancePage() {
     >
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold mb-1">إدارة الصيانة (CMMS)</h1>
+          <h1 className="text-2xl font-bold mb-1">{t("maintenance.title", "إدارة الصيانة (CMMS)")}</h1>
           <p className="text-sm text-slate-400">
-            متابعة أعطال الأجهزة والصيانة الدورية.
+            {t("maintenance.subtitle", "متابعة أعطال الأجهزة والصيانة الدورية.")}
           </p>
         </div>
         <button
           onClick={() => setShowCreateModal(true)}
           className="px-4 py-2 bg-rose-600 hover:bg-rose-500 rounded-xl text-sm font-bold text-white shadow-lg"
         >
-          + إبلاغ عن عطل
+          {t("maintenance.reportIssue", "+ إبلاغ عن عطل")}
         </button>
       </div>
 
@@ -137,69 +138,71 @@ export default function MaintenancePage() {
         <table className="w-full text-sm text-right">
           <thead className="text-slate-400 border-b border-slate-800">
             <tr>
-              <th className="px-4 py-3">رقم التذكرة</th>
-              <th className="px-4 py-3">الجهاز</th>
-              <th className="px-4 py-3">النوع</th>
-              <th className="px-4 py-3">الأولوية</th>
-              <th className="px-4 py-3">الوصف</th>
-              <th className="px-4 py-3">طالب الصيانة</th>
-              <th className="px-4 py-3">الحالة</th>
-              <th className="px-4 py-3">إجراء</th>
+              <th className="px-4 py-3">{t("maintenance.table.ticketNumber", "رقم التذكرة")}</th>
+              <th className="px-4 py-3">{t("maintenance.table.device", "الجهاز")}</th>
+              <th className="px-4 py-3">{t("maintenance.table.type", "النوع")}</th>
+              <th className="px-4 py-3">{t("maintenance.table.priority", "الأولوية")}</th>
+              <th className="px-4 py-3">{t("maintenance.table.desc", "الوصف")}</th>
+              <th className="px-4 py-3">{t("maintenance.table.requester", "طالب الصيانة")}</th>
+              <th className="px-4 py-3">{t("maintenance.table.status", "الحالة")}</th>
+              <th className="px-4 py-3">{t("maintenance.table.action", "إجراء")}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800">
-            {tickets.map((t) => (
-              <tr key={t.id} className="hover:bg-slate-800/40">
-                <td className="px-4 py-3 font-mono text-slate-500">#{t.id}</td>
+            {tickets.map((tItem) => (
+              <tr key={tItem.id} className="hover:bg-slate-800/40">
+                <td className="px-4 py-3 font-mono text-slate-500">#{tItem.id}</td>
                 <td className="px-4 py-3 font-semibold">
-                  {t.asset.name}{" "}
+                  {tItem.asset.name}{" "}
                   <span className="text-xs text-sky-400">
-                    ({t.asset.tagNumber})
+                    ({tItem.asset.tagNumber})
                   </span>
                 </td>
                 <td className="px-4 py-3 text-xs">
-                  {t.type === "CORRECTIVE" ? "إصلاح عطل" : "صيانة دورية"}
+                  {tItem.type === "CORRECTIVE" 
+                    ? t("maintenance.types.corrective", "إصلاح عطل") 
+                    : t("maintenance.types.preventive", "صيانة دورية")}
                 </td>
                 <td className="px-4 py-3">
                   <span
                     className={`text-[10px] px-2 py-0.5 rounded ${
-                      t.priority === "HIGH"
+                      tItem.priority === "HIGH"
                         ? "bg-rose-900 text-rose-300"
                         : "bg-slate-800 text-slate-300"
                     }`}
                   >
-                    {t.priority}
+                    {tItem.priority}
                   </span>
                 </td>
                 <td className="px-4 py-3 text-slate-300 truncate max-w-xs">
-                  {t.issueDescription}
+                  {tItem.issueDescription}
                 </td>
                 <td className="px-4 py-3 text-slate-400">
-                  {t.requester.fullName}
+                  {tItem.requester.fullName}
                 </td>
                 <td className="px-4 py-3">
                   <span
                     className={`px-2 py-1 rounded text-[10px] font-bold border ${
-                      t.status === "OPEN"
+                      tItem.status === "OPEN"
                         ? "bg-rose-900/20 border-rose-500/30 text-rose-300"
-                        : t.status === "RESOLVED"
+                        : tItem.status === "RESOLVED"
                         ? "bg-emerald-900/20 border-emerald-500/30 text-emerald-300"
                         : "bg-slate-800 border-slate-600 text-slate-400"
                     }`}
                   >
-                    {t.status}
+                    {tItem.status}
                   </span>
                 </td>
                 <td className="px-4 py-3">
-                  {t.status !== "CLOSED" && (
+                  {tItem.status !== "CLOSED" && (
                     <button
                       onClick={() => {
-                        setSelectedTicketId(t.id);
+                        setSelectedTicketId(tItem.id);
                         setShowResolveModal(true);
                       }}
                       className="text-xs bg-slate-800 hover:bg-slate-700 px-3 py-1 rounded"
                     >
-                      تحديث / إغلاق
+                      {t("maintenance.action.updateClose", "تحديث / إغلاق")}
                     </button>
                   )}
                 </td>
@@ -213,11 +216,11 @@ export default function MaintenancePage() {
       {showCreateModal && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
           <div className="bg-slate-950 border border-slate-700 rounded-2xl p-6 w-full max-w-md space-y-4">
-            <h3 className="text-lg font-bold">تسجيل طلب صيانة</h3>
+            <h3 className="text-lg font-bold">{t("maintenance.modal.createTitle", "تسجيل طلب صيانة")}</h3>
             <div className="space-y-3">
               <div>
                 <label className="text-xs text-slate-400 block mb-1">
-                  الجهاز
+                  {t("maintenance.modal.deviceLabel", "الجهاز")}
                 </label>
                 <select
                   className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm"
@@ -226,7 +229,7 @@ export default function MaintenancePage() {
                     setCreateForm({ ...createForm, assetId: e.target.value })
                   }
                 >
-                  <option value="">-- اختر الجهاز --</option>
+                  <option value="">{t("maintenance.modal.selectDevicePlaceholder", "-- اختر الجهاز --")}</option>
                   {assets.map((a) => (
                     <option key={a.id} value={a.id}>
                       {a.name} ({a.tagNumber})
@@ -237,7 +240,7 @@ export default function MaintenancePage() {
               <div className="flex gap-2">
                 <div className="flex-1">
                   <label className="text-xs text-slate-400 block mb-1">
-                    النوع
+                    {t("maintenance.modal.typeLabel", "النوع")}
                   </label>
                   <select
                     className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm"
@@ -246,13 +249,13 @@ export default function MaintenancePage() {
                       setCreateForm({ ...createForm, type: e.target.value })
                     }
                   >
-                    <option value="CORRECTIVE">إصلاح عطل</option>
-                    <option value="PREVENTIVE">صيانة دورية</option>
+                    <option value="CORRECTIVE">{t("maintenance.types.corrective", "إصلاح عطل")}</option>
+                    <option value="PREVENTIVE">{t("maintenance.types.preventive", "صيانة دورية")}</option>
                   </select>
                 </div>
                 <div className="flex-1">
                   <label className="text-xs text-slate-400 block mb-1">
-                    الأهمية
+                    {t("maintenance.modal.priorityLabel", "الأهمية")}
                   </label>
                   <select
                     className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm"
@@ -261,15 +264,15 @@ export default function MaintenancePage() {
                       setCreateForm({ ...createForm, priority: e.target.value })
                     }
                   >
-                    <option value="NORMAL">عادية</option>
-                    <option value="HIGH">عالية</option>
-                    <option value="CRITICAL">حرجة جداً</option>
+                    <option value="NORMAL">{t("maintenance.priority.normal", "عادية")}</option>
+                    <option value="HIGH">{t("maintenance.priority.high", "عالية")}</option>
+                    <option value="CRITICAL">{t("maintenance.priority.critical", "حرجة جداً")}</option>
                   </select>
                 </div>
               </div>
               <div>
                 <label className="text-xs text-slate-400 block mb-1">
-                  وصف المشكلة
+                  {t("maintenance.modal.descLabel", "وصف المشكلة")}
                 </label>
                 <textarea
                   className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm"
@@ -286,13 +289,13 @@ export default function MaintenancePage() {
                 onClick={() => setShowCreateModal(false)}
                 className="px-4 py-2 bg-slate-800 rounded-xl text-sm"
               >
-                إلغاء
+                {t("common.cancel", "إلغاء")}
               </button>
               <button
                 onClick={handleCreate}
                 className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-sm font-bold"
               >
-                تسجيل الطلب
+                {t("maintenance.modal.submitCreate", "تسجيل الطلب")}
               </button>
             </div>
           </div>
@@ -303,11 +306,11 @@ export default function MaintenancePage() {
       {showResolveModal && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
           <div className="bg-slate-950 border border-slate-700 rounded-2xl p-6 w-full max-w-md space-y-4">
-            <h3 className="text-lg font-bold">تحديث حالة الصيانة</h3>
+            <h3 className="text-lg font-bold">{t("maintenance.modal.updateTitle", "تحديث حالة الصيانة")}</h3>
             <div className="space-y-3">
               <div>
                 <label className="text-xs text-slate-400 block mb-1">
-                  الحالة الجديدة
+                  {t("maintenance.modal.statusLabel", "الحالة الجديدة")}
                 </label>
                 <select
                   className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm"
@@ -316,14 +319,14 @@ export default function MaintenancePage() {
                     setResolveForm({ ...resolveForm, status: e.target.value })
                   }
                 >
-                  <option value="IN_PROGRESS">جاري العمل</option>
-                  <option value="RESOLVED">تم الإصلاح (بانتظار الإغلاق)</option>
-                  <option value="CLOSED">مغلقة (عودة للخدمة)</option>
+                  <option value="IN_PROGRESS">{t("maintenance.status.inProgress", "جاري العمل")}</option>
+                  <option value="RESOLVED">{t("maintenance.status.resolved", "تم الإصلاح (بانتظار الإغلاق)")}</option>
+                  <option value="CLOSED">{t("maintenance.status.closed", "مغلقة (عودة للخدمة)")}</option>
                 </select>
               </div>
               <div>
                 <label className="text-xs text-slate-400 block mb-1">
-                  تقرير الفني
+                  {t("maintenance.modal.techReportLabel", "تقرير الفني")}
                 </label>
                 <textarea
                   className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm"
@@ -332,12 +335,12 @@ export default function MaintenancePage() {
                   onChange={(e) =>
                     setResolveForm({ ...resolveForm, notes: e.target.value })
                   }
-                  placeholder="ماذا تم عمله؟ هل تم استبدال قطع؟"
+                  placeholder={t("maintenance.modal.techNotesPlaceholder", "ماذا تم عمله؟ هل تم استبدال قطع؟")}
                 />
               </div>
               <div>
                 <label className="text-xs text-slate-400 block mb-1">
-                  تكلفة الإصلاح (إن وجدت)
+                  {t("maintenance.modal.costLabel", "تكلفة الإصلاح (إن وجدت)")}
                 </label>
                 <input
                   type="number"
@@ -354,13 +357,13 @@ export default function MaintenancePage() {
                 onClick={() => setShowResolveModal(false)}
                 className="px-4 py-2 bg-slate-800 rounded-xl text-sm"
               >
-                إلغاء
+                {t("common.cancel", "إلغاء")}
               </button>
               <button
                 onClick={handleResolve}
                 className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-sm font-bold"
               >
-                تحديث
+                {t("common.update", "تحديث")}
               </button>
             </div>
           </div>

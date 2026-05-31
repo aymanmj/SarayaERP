@@ -31,10 +31,7 @@ export default function NewPurchaseReturnPage() {
 
   const [invoice, setInvoice] = useState<InvoiceDetails | null>(null);
   const [returnReason, setReturnReason] = useState("");
-  
-  // State for return quantities: { productId: returnQty }
   const [returnQuantities, setReturnQuantities] = useState<Record<number, string>>({});
-  
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -47,7 +44,6 @@ export default function NewPurchaseReturnPage() {
     try {
       const res = await apiClient.get<InvoiceDetails>(`/purchases/invoices/${id}`);
       setInvoice(res.data);
-      // Initialize return quantities to 0
       const initialQtys: Record<number, string> = {};
       res.data.lines.forEach(line => {
         initialQtys[line.productId] = "0";
@@ -55,7 +51,7 @@ export default function NewPurchaseReturnPage() {
       setReturnQuantities(initialQtys);
     } catch (err) {
       console.error(err);
-      toast.error("فشل تحميل بيانات الفاتورة.");
+      toast.error(t("inventory.newPurchaseReturn.toast.loadError", "فشل تحميل بيانات الفاتورة."));
     }
   };
 
@@ -79,15 +75,14 @@ export default function NewPurchaseReturnPage() {
     }).filter(Boolean);
 
     if (itemsToReturn.length === 0) {
-      toast.error("يجب تحديد كمية للإرجاع لمنتج واحد على الأقل.");
+      toast.error(t("inventory.newPurchaseReturn.toast.oneQtyRequired", "يجب تحديد كمية للإرجاع لمنتج واحد على الأقل."));
       return;
     }
 
-    // Validate quantities constraint locally (backend also checks)
     for (const item of itemsToReturn) {
       const line = invoice.lines.find(l => l.productId === item!.productId);
       if (line && item!.quantity > line.quantity) {
-        toast.error(`الكمية المرجعة للمنتج ${line.product?.name} تتجاوز الكمية الأصلية.`);
+        toast.error(t("inventory.newPurchaseReturn.toast.qtyExceeded", "الكمية المرجعة للمنتج {{name}} تتجاوز الكمية الأصلية.", { name: line.product?.name || line.description }));
         return;
       }
     }
@@ -99,71 +94,69 @@ export default function NewPurchaseReturnPage() {
         reason: returnReason,
         items: itemsToReturn
       });
-      toast.success("تم إنشاء مرتجع المشتريات بنجاح");
-      navigate("/purchases/invoices"); // Or to the Return details if we implement it
-     
+      toast.success(t("inventory.newPurchaseReturn.toast.success", "تم إنشاء مرتجع المشتريات بنجاح"));
+      navigate("/purchases/invoices");
     } catch (err: any) {
       console.error(err);
-      toast.error(err.response?.data?.message || "فشل إنشاء المرتجع");
+      toast.error(err.response?.data?.message || t("inventory.newPurchaseReturn.toast.error", "فشل إنشاء المرتجع"));
     } finally {
       setLoading(false);
     }
   };
 
   if (!invoiceId) {
-    return <div className="p-10 text-slate-400">يرجى تحديد فاتورة للبدء.</div>;
+    return <div className="p-10 text-slate-400 text-center">{t("inventory.newPurchaseReturn.noInvoice", "يرجى تحديد فاتورة للبدء.")}</div>;
   }
 
   if (!invoice) {
-    return <div className="p-10 text-slate-400">جارِ تحميل الفاتورة...</div>;
+    return <div className="p-10 text-slate-400 text-center">{t("inventory.newPurchaseReturn.loadingInvoice", "جارِ تحميل الفاتورة...")}</div>;
   }
 
   return (
     <div className="p-6 lg:p-10 text-slate-100 max-w-5xl mx-auto" dir={isRtl ? "rtl" : "ltr"}>
-      <h1 className="text-2xl font-bold mb-6 text-rose-400">مرتجع مشتريات جديد</h1>
+      <h1 className="text-2xl font-bold mb-6 text-rose-400">{t("inventory.newPurchaseReturn.title", "مرتجع مشتريات جديد")}</h1>
       
       <div className="bg-slate-900/50 p-4 rounded-2xl border border-slate-800 mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
-          <label className="text-xs text-slate-500 block mb-1">المورد</label>
+          <label className="text-xs text-slate-500 block mb-1">{t("inventory.newPurchaseReturn.supplier", "المورد")}</label>
           <div className="font-semibold">{invoice.supplier.name}</div>
         </div>
         <div>
-          <label className="text-xs text-slate-500 block mb-1">رقم الفاتورة الأصلية</label>
+          <label className="text-xs text-slate-500 block mb-1">{t("inventory.newPurchaseReturn.originalInv", "رقم الفاتورة الأصلية")}</label>
           <div className="font-semibold text-emerald-300">#{invoice.invoiceNumber || invoice.id}</div>
         </div>
         <div>
-          <label className="text-xs text-slate-500 block mb-1">تاريخ الفاتورة</label>
+          <label className="text-xs text-slate-500 block mb-1">{t("inventory.newPurchaseReturn.invDate", "تاريخ الفاتورة")}</label>
           <div>{format(new Date(invoice.invoiceDate), "yyyy-MM-dd")}</div>
         </div>
       </div>
 
       <div className="mb-6">
-        <label className="block text-sm text-slate-400 mb-2">سبب الإرجاع</label>
+        <label className="block text-sm text-slate-400 mb-2">{t("inventory.newPurchaseReturn.reason", "سبب الإرجاع")}</label>
         <textarea
-          className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 focus:border-rose-500/50 outline-none"
+          className={`w-full bg-slate-950 border border-slate-800 rounded-xl p-3 focus:border-rose-500/50 outline-none ${isRtl ? 'text-right' : 'text-left'}`}
           rows={3}
           value={returnReason}
           onChange={(e) => setReturnReason(e.target.value)}
-          placeholder="مثال: البضاعة تالفة، انتهاء الصلاحية..."
+          placeholder={t("inventory.newPurchaseReturn.reasonPlaceholder", "مثال: البضاعة تالفة، انتهاء الصلاحية...")}
         />
       </div>
 
       <div className="bg-slate-950 border border-slate-800 rounded-2xl overflow-hidden mb-6">
-        <table className="w-full text-right text-sm">
+        <table className={`w-full text-sm ${isRtl ? 'text-right' : 'text-left'}`}>
           <thead className="bg-slate-900 text-slate-400">
             <tr>
-              <th className="p-3">المنتج</th>
-              <th className="p-3">السعر</th>
-              <th className="p-3 text-center">الكمية الأصلية</th>
-              <th className="p-3 w-32">الكمية المرجعة</th>
-              <th className="p-3 w-40">قيمة المرتجع</th>
+              <th className="p-3">{t("inventory.newPurchaseReturn.table.product", "المنتج")}</th>
+              <th className="p-3">{t("inventory.newPurchaseReturn.table.price", "السعر")}</th>
+              <th className="p-3 text-center">{t("inventory.newPurchaseReturn.table.originalQty", "الكمية الأصلية")}</th>
+              <th className="p-3 w-32 text-center">{t("inventory.newPurchaseReturn.table.returnedQty", "الكمية المرجعة")}</th>
+              <th className="p-3 w-40">{t("inventory.newPurchaseReturn.table.returnedValue", "قيمة المرتجع")}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800">
             {invoice.lines.map((line) => {
               const returnQty = Number(returnQuantities[line.productId] || 0);
               const returnValue = returnQty * line.unitPrice;
-              
               const isOver = returnQty > line.quantity;
 
               return (
@@ -172,15 +165,15 @@ export default function NewPurchaseReturnPage() {
                     <div className="font-medium">{line.product?.name || line.description}</div>
                     <div className="text-xs text-slate-500">{line.product?.code}</div>
                   </td>
-                  <td className="p-3 text-slate-300">{Number(line.unitPrice).toFixed(3)}</td>
-                  <td className="p-3 text-center text-slate-400">{line.quantity}</td>
+                  <td className="p-3 text-slate-300 font-mono">{Number(line.unitPrice).toFixed(3)}</td>
+                  <td className="p-3 text-center text-slate-400 font-mono">{line.quantity}</td>
                   <td className="p-3">
                     <input
                       type="number"
                       min="0"
                       max={line.quantity}
-                      step="1" // Assuming integer mostly
-                      className={`w-full bg-slate-900 border rounded px-2 py-1 text-center outline-none ${
+                      step="1"
+                      className={`w-full bg-slate-900 border rounded px-2 py-1 text-center outline-none font-mono ${
                         isOver ? "border-red-500 text-red-500" : "border-slate-700 text-slate-100 focus:border-rose-500"
                       }`}
                       value={returnQuantities[line.productId]}
@@ -202,14 +195,14 @@ export default function NewPurchaseReturnPage() {
           onClick={() => navigate(-1)}
           className="px-6 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300"
         >
-          إلغاء
+          {t("inventory.newPurchaseReturn.btn.cancel", "إلغاء")}
         </button>
         <button
           onClick={handleSubmit}
           disabled={loading}
           className="px-6 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-semibold disabled:opacity-50"
         >
-          {loading ? "جاري الحفظ..." : "حفظ وإصدار المرتجع"}
+          {loading ? t("inventory.newPurchaseReturn.btn.saving", "جاري الحفظ...") : t("inventory.newPurchaseReturn.btn.save", "حفظ وإصدار المرتجع")}
         </button>
       </div>
     </div>

@@ -4,11 +4,11 @@ import { useEffect, useMemo, useState } from "react";
 import { apiClient } from "../api/apiClient";
 import { toast } from "sonner";
 import { DatePicker } from "@/components/ui/date-picker";
+import { useTranslation } from "react-i18next";
 
 type StockTxnType = "IN" | "OUT" | "ADJUST";
 type StockTxnFilterType = "ALL" | StockTxnType;
 
-// ✅ [RENAMED] DrugOption -> ProductOption
 type ProductOption = {
   id: number;
   name: string;
@@ -17,7 +17,6 @@ type ProductOption = {
   form: string | null;
 };
 
-// ✅ [RENAMED] drug -> product field in StockTxnRow
 type StockTxnRow = {
   id: number;
   createdAt: string;
@@ -25,7 +24,6 @@ type StockTxnRow = {
   quantity: number;
   unitCost: number;
   totalCost: number;
-  // Backend returns "drug" property currently (mapped in service), but structure is product
   drug: {
     id: number;
     code: string | null;
@@ -40,12 +38,15 @@ type StockTxnRow = {
   dispenseRecordId: number | null;
 };
 
-function formatDateTime(dt: string) {
+function formatDateTime(dt: string, isRtl: boolean) {
   const d = new Date(dt);
-  return d.toLocaleString("ar-LY");
+  return d.toLocaleString(isRtl ? "ar-LY" : "en-US");
 }
 
 export default function PharmacyStockReportPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
+
   const [txns, setTxns] = useState<StockTxnRow[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -84,7 +85,7 @@ export default function PharmacyStockReportPage() {
       setProducts(options);
     } catch (err) {
       console.error(err);
-      toast.error("حدث خطأ أثناء جلب قائمة المنتجات.");
+      toast.error(t("inventory.pharmacyStockReport.toast.productsLoadError", "حدث خطأ أثناء جلب قائمة المنتجات."));
     }
   }
 
@@ -92,11 +93,9 @@ export default function PharmacyStockReportPage() {
     try {
       setLoading(true);
 
-       
       const params: any = {};
       if (fromDate) params.from = fromDate;
       if (toDate) params.to = toDate;
-      // DTO still expects drugItemId
       if (selectedProductId) params.drugItemId = selectedProductId;
       if (typeFilter !== "ALL") params.type = typeFilter;
 
@@ -106,12 +105,11 @@ export default function PharmacyStockReportPage() {
       );
 
       setTxns(res.data);
-     
     } catch (err: any) {
       console.error(err);
       const msg =
         err?.response?.data?.message ??
-        "حدث خطأ أثناء جلب تقرير حركات المخزون.";
+        t("inventory.pharmacyStockReport.toast.reportLoadError", "حدث خطأ أثناء جلب تقرير حركات المخزون.");
       toast.error(msg);
     } finally {
       setLoading(false);
@@ -153,7 +151,7 @@ export default function PharmacyStockReportPage() {
       }
     }
 
-    const netQty = totalInQty + totalAdjustQty + totalOutQty; // Logic depends on adjust sign
+    const netQty = totalInQty + totalAdjustQty + totalOutQty;
 
     return {
       totalInQty,
@@ -166,24 +164,24 @@ export default function PharmacyStockReportPage() {
   }, [txns]);
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 space-y-6" dir={isRtl ? "rtl" : "ltr"}>
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-white">
-            تقرير حركات مخزون الصيدلية
+            {t("inventory.pharmacyStockReport.title", "تقرير حركات مخزون الصيدلية")}
           </h1>
           <p className="text-sm text-gray-400">
-            عرض وتحليل حركات توريد وصرف المنتجات الدوائية.
+            {t("inventory.pharmacyStockReport.subtitle", "عرض وتحليل حركات توريد وصرف المنتجات الدوائية.")}
           </p>
         </div>
       </div>
 
       <div className="rounded-2xl bg-gray-900 border border-gray-800 p-4 space-y-4">
-        <h2 className="font-semibold text-gray-100 text-lg">الفلاتر</h2>
+        <h2 className="font-semibold text-gray-100 text-lg">{t("inventory.pharmacyStockReport.filters.title", "الفلاتر")}</h2>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
           <div className="space-y-1">
-            <label className="block text-xs text-gray-400 mb-1">من تاريخ</label>
+            <label className="block text-xs text-gray-400 mb-1">{t("inventory.pharmacyStockReport.filters.from", "من تاريخ")}</label>
             <DatePicker
               date={fromDate ? new Date(fromDate) : undefined}
               onChange={(d) => setFromDate(d ? d.toISOString().slice(0, 10) : "")}
@@ -193,7 +191,7 @@ export default function PharmacyStockReportPage() {
 
           <div className="space-y-1">
             <label className="block text-xs text-gray-400 mb-1">
-              إلى تاريخ
+              {t("inventory.pharmacyStockReport.filters.to", "إلى تاريخ")}
             </label>
             <DatePicker
               date={toDate ? new Date(toDate) : undefined}
@@ -204,7 +202,7 @@ export default function PharmacyStockReportPage() {
 
           <div className="space-y-1">
             <label className="block text-xs text-gray-400 mb-1">
-              نوع الحركة
+              {t("inventory.pharmacyStockReport.filters.type", "نوع الحركة")}
             </label>
             <select
               className="w-full bg-gray-950 border border-gray-700 rounded px-2 py-2 text-sm text-gray-100"
@@ -213,16 +211,16 @@ export default function PharmacyStockReportPage() {
                 setTypeFilter(e.target.value as StockTxnFilterType)
               }
             >
-              <option value="ALL">الكل</option>
-              <option value="IN">توريد (IN)</option>
-              <option value="OUT">صرف (OUT)</option>
-              <option value="ADJUST">تسوية (ADJUST)</option>
+              <option value="ALL">{t("inventory.pharmacyStockReport.filters.typeAll", "الكل")}</option>
+              <option value="IN">{t("inventory.pharmacyStockReport.filters.typeIn", "توريد (IN)")}</option>
+              <option value="OUT">{t("inventory.pharmacyStockReport.filters.typeOut", "صرف (OUT)")}</option>
+              <option value="ADJUST">{t("inventory.pharmacyStockReport.filters.typeAdjust", "تسوية (ADJUST)")}</option>
             </select>
           </div>
 
           <div className="space-y-1">
             <label className="block text-xs text-gray-400 mb-1">
-              منتج محدد (اختياري)
+              {t("inventory.pharmacyStockReport.filters.product", "منتج محدد (اختياري)")}
             </label>
             <select
               className="w-full bg-gray-950 border border-gray-700 rounded px-2 py-2 text-sm text-gray-100"
@@ -233,7 +231,7 @@ export default function PharmacyStockReportPage() {
                 )
               }
             >
-              <option value="">كل المنتجات</option>
+              <option value="">{t("inventory.pharmacyStockReport.filters.allProducts", "كل المنتجات")}</option>
               {products.map((d) => (
                 <option key={d.id} value={d.id}>
                   {d.name}
@@ -248,13 +246,13 @@ export default function PharmacyStockReportPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
           <div className="space-y-1 md:col-span-2">
             <label className="block text-xs text-gray-400 mb-1">
-              بحث في المنتجات (لتصفية القائمة)
+              {t("inventory.pharmacyStockReport.filters.searchProduct", "بحث في المنتجات (لتصفية القائمة)")}
             </label>
             <div className="flex gap-2">
               <input
                 type="text"
-                className="flex-1 bg-gray-950 border border-gray-700 rounded px-2 py-2 text-sm text-gray-100"
-                placeholder="اكتب جزء من اسم المنتج..."
+                className={`flex-1 bg-gray-950 border border-gray-700 rounded px-2 py-2 text-sm text-gray-100 ${isRtl ? 'text-right' : 'text-left'}`}
+                placeholder={t("inventory.pharmacyStockReport.filters.searchProductPlaceholder", "اكتب جزء من اسم المنتج...")}
                 value={searchProduct}
                 onChange={(e) => setSearchProduct(e.target.value)}
                 onKeyDown={(e) => {
@@ -265,9 +263,9 @@ export default function PharmacyStockReportPage() {
               />
               <button
                 onClick={loadProducts}
-                className="px-4 py-2 rounded bg-gray-800 hover:bg-gray-700 text-sm text-gray-100"
+                className="px-4 py-2 rounded bg-gray-800 hover:bg-gray-700 text-sm text-gray-100 font-bold"
               >
-                تحديث القائمة
+                {t("inventory.pharmacyStockReport.filters.updateProductList", "تحديث القائمة")}
               </button>
             </div>
           </div>
@@ -276,125 +274,117 @@ export default function PharmacyStockReportPage() {
             <button
               onClick={loadReport}
               disabled={loading}
-              className="px-4 py-2 rounded bg-emerald-600 hover:bg-emerald-700 text-sm text-white disabled:opacity-60"
+              className="px-4 py-2 rounded bg-emerald-600 hover:bg-emerald-700 text-sm text-white disabled:opacity-60 font-bold"
             >
-              {loading ? "جارِ تحميل التقرير..." : "عرض التقرير"}
+              {loading ? t("inventory.pharmacyStockReport.filters.loadingReport", "جارِ تحميل التقرير...") : t("inventory.pharmacyStockReport.filters.showReport", "عرض التقرير")}
             </button>
           </div>
         </div>
       </div>
 
       {/* ملخص */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs md:text-sm">
         <div className="rounded-xl bg-gray-900 border border-gray-800 p-4">
-          <h3 className="text-xs text-gray-400 mb-2">توريد (IN)</h3>
-          <div className="text-lg font-semibold text-emerald-300">
-            إجمالي الكمية: {summary.totalInQty.toFixed(3)}
+          <h3 className="text-xs text-gray-400 mb-2">{t("inventory.pharmacyStockReport.summary.inTitle", "توريد (IN)")}</h3>
+          <div className="text-lg font-semibold text-emerald-300 font-mono">
+            {t("inventory.pharmacyStockReport.summary.qtyTotal", "إجمالي الكمية: ")}{summary.totalInQty.toFixed(3)}
           </div>
-          <div className="text-sm text-gray-300">
-            إجمالي التكلفة: {summary.totalCostIn.toFixed(3)}
+          <div className="text-sm text-gray-300 font-mono">
+            {t("inventory.pharmacyStockReport.summary.costTotal", "إجمالي التكلفة: ")}{summary.totalCostIn.toFixed(3)}
           </div>
         </div>
 
         <div className="rounded-xl bg-gray-900 border border-gray-800 p-4">
-          <h3 className="text-xs text-gray-400 mb-2">صرف (OUT)</h3>
-          <div className="text-lg font-semibold text-rose-300">
-            إجمالي الكمية: {summary.totalOutQty.toFixed(3)}
+          <h3 className="text-xs text-gray-400 mb-2">{t("inventory.pharmacyStockReport.summary.outTitle", "صرف (OUT)")}</h3>
+          <div className="text-lg font-semibold text-rose-300 font-mono">
+            {t("inventory.pharmacyStockReport.summary.qtyTotal", "إجمالي الكمية: ")}{summary.totalOutQty.toFixed(3)}
           </div>
-          <div className="text-sm text-gray-300">
-            إجمالي التكلفة: {summary.totalCostOut.toFixed(3)}
+          <div className="text-sm text-gray-300 font-mono">
+            {t("inventory.pharmacyStockReport.summary.costTotal", "إجمالي التكلفة: ")}{summary.totalCostOut.toFixed(3)}
           </div>
         </div>
 
         <div className="rounded-xl bg-gray-900 border border-gray-800 p-4">
-          <h3 className="text-xs text-gray-400 mb-2">تسويات (ADJUST)</h3>
-          <div className="text-lg font-semibold text-blue-300">
-            صافي كمية التسويات: {summary.totalAdjustQty.toFixed(3)}
+          <h3 className="text-xs text-gray-400 mb-2">{t("inventory.pharmacyStockReport.summary.adjustTitle", "تسويات (ADJUST)")}</h3>
+          <div className="text-lg font-semibold text-blue-300 font-mono">
+            {t("inventory.pharmacyStockReport.summary.adjustNet", "صافي كمية التسويات: ")}{summary.totalAdjustQty.toFixed(3)}
           </div>
         </div>
       </div>
 
       <div className="rounded-2xl bg-gray-900 border border-gray-800 overflow-hidden">
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
-          <h2 className="font-semibold text-gray-100">حركات مخزون الصيدلية</h2>
+          <h2 className="font-semibold text-gray-100">{t("inventory.pharmacyStockReport.tableTitle", "حركات مخزون الصيدلية")}</h2>
           <span className="text-sm text-gray-400">
-            عدد الحركات: {txns.length.toString()}
+            {t("inventory.pharmacyStockReport.tableCount", "عدد الحركات: ")}{txns.length.toString()}
           </span>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
+          <table className={`min-w-full text-sm ${isRtl ? 'text-right' : 'text-left'}`}>
             <thead className="bg-gray-900/60 border-b border-gray-800">
               <tr>
-                <th className="px-4 py-2 text-right text-gray-400">
-                  التاريخ / الوقت
-                </th>
-                <th className="px-4 py-2 text-right text-gray-400">نوع</th>
-                <th className="px-4 py-2 text-right text-gray-400">المنتج</th>
-                <th className="px-4 py-2 text-right text-gray-400">الكمية</th>
-                <th className="px-4 py-2 text-right text-gray-400">
-                  تكلفة الوحدة
-                </th>
-                <th className="px-4 py-2 text-right text-gray-400">
-                  إجمالي التكلفة
-                </th>
-                <th className="px-4 py-2 text-right text-gray-400">
-                  تم بواسطة
-                </th>
-                <th className="px-4 py-2 text-right text-gray-400">المصدر</th>
+                <th className={`px-4 py-2 text-gray-400 ${isRtl ? 'text-right' : 'text-left'}`}>{t("inventory.pharmacyStockReport.table.dateTime", "التاريخ / الوقت")}</th>
+                <th className={`px-4 py-2 text-gray-400 ${isRtl ? 'text-right' : 'text-left'}`}>{t("inventory.pharmacyStockReport.table.type", "نوع")}</th>
+                <th className={`px-4 py-2 text-gray-400 ${isRtl ? 'text-right' : 'text-left'}`}>{t("inventory.pharmacyStockReport.table.product", "المنتج")}</th>
+                <th className={`px-4 py-2 text-gray-400 ${isRtl ? 'text-right' : 'text-left'}`}>{t("inventory.pharmacyStockReport.table.qty", "الكمية")}</th>
+                <th className={`px-4 py-2 text-gray-400 ${isRtl ? 'text-right' : 'text-left'}`}>{t("inventory.pharmacyStockReport.table.costUnit", "تكلفة الوحدة")}</th>
+                <th className={`px-4 py-2 text-gray-400 ${isRtl ? 'text-right' : 'text-left'}`}>{t("inventory.pharmacyStockReport.table.costTotal", "إجمالي التكلفة")}</th>
+                <th className={`px-4 py-2 text-gray-400 ${isRtl ? 'text-right' : 'text-left'}`}>{t("inventory.pharmacyStockReport.table.createdBy", "تم بواسطة")}</th>
+                <th className={`px-4 py-2 text-gray-400 ${isRtl ? 'text-right' : 'text-left'}`}>{t("inventory.pharmacyStockReport.table.source", "المصدر")}</th>
               </tr>
             </thead>
             <tbody>
-              {txns.map((t) => {
+              {txns.map((tRow) => {
                 let typeLabel = "";
                 let typeClass = "";
-                if (t.type === "IN") {
-                  typeLabel = "توريد (IN)";
+                if (tRow.type === "IN") {
+                  typeLabel = t("inventory.pharmacyStockReport.types.in", "توريد (IN)");
                   typeClass = "text-emerald-300";
-                } else if (t.type === "OUT") {
-                  typeLabel = "صرف (OUT)";
+                } else if (tRow.type === "OUT") {
+                  typeLabel = t("inventory.pharmacyStockReport.types.out", "صرف (OUT)");
                   typeClass = "text-rose-300";
                 } else {
-                  typeLabel = "تسوية (ADJUST)";
+                  typeLabel = t("inventory.pharmacyStockReport.types.adjust", "تسوية (ADJUST)");
                   typeClass = "text-blue-300";
                 }
 
                 return (
                   <tr
-                    key={t.id}
+                    key={tRow.id}
                     className="border-b border-gray-800/60 hover:bg-gray-800/40"
                   >
-                    <td className="px-4 py-2 text-right text-gray-200">
-                      {formatDateTime(t.createdAt)}
+                    <td className="px-4 py-2 text-gray-200">
+                      {formatDateTime(tRow.createdAt, isRtl)}
                     </td>
                     <td
-                      className={`px-4 py-2 text-right font-semibold ${typeClass}`}
+                      className={`px-4 py-2 font-semibold ${typeClass}`}
                     >
                       {typeLabel}
                     </td>
-                    <td className="px-4 py-2 text-right text-gray-200">
-                      {t.drug.name}
-                      {t.drug.strength ? ` (${t.drug.strength})` : ""}{" "}
-                      {t.drug.code ? (
-                        <span className="text-xs text-gray-400">
-                          [{t.drug.code}]
+                    <td className="px-4 py-2 text-gray-200">
+                      {tRow.drug.name}
+                      {tRow.drug.strength ? ` (${tRow.drug.strength})` : ""}{" "}
+                      {tRow.drug.code ? (
+                        <span className="text-xs text-gray-400 ml-1">
+                          [{tRow.drug.code}]
                         </span>
                       ) : null}
                     </td>
-                    <td className="px-4 py-2 text-right text-gray-200">
-                      {t.quantity.toFixed(3)}
+                    <td className="px-4 py-2 text-gray-200 font-mono">
+                      {tRow.quantity.toFixed(3)}
                     </td>
-                    <td className="px-4 py-2 text-right text-gray-200">
-                      {t.unitCost.toFixed(3)}
+                    <td className="px-4 py-2 text-gray-200 font-mono">
+                      {tRow.unitCost.toFixed(3)}
                     </td>
-                    <td className="px-4 py-2 text-right text-gray-100">
-                      {t.totalCost.toFixed(3)}
+                    <td className="px-4 py-2 text-gray-100 font-mono">
+                      {tRow.totalCost.toFixed(3)}
                     </td>
-                    <td className="px-4 py-2 text-right text-gray-300">
-                      {t.createdBy.fullName}
+                    <td className="px-4 py-2 text-gray-300">
+                      {tRow.createdBy.fullName}
                     </td>
-                    <td className="px-4 py-2 text-right text-gray-300">
-                      {t.dispenseRecordId ? "وصفة طبية" : "حركة يدوية"}
+                    <td className="px-4 py-2 text-gray-300">
+                      {tRow.dispenseRecordId ? t("inventory.pharmacyStockReport.table.sourceDispense", "وصفة طبية") : t("inventory.pharmacyStockReport.table.sourceManual", "حركة يدوية")}
                     </td>
                   </tr>
                 );
@@ -406,7 +396,7 @@ export default function PharmacyStockReportPage() {
                     colSpan={8}
                     className="px-4 py-6 text-center text-gray-500"
                   >
-                    لا توجد حركات مخزون ضمن نطاق الفلاتر المحدد.
+                    {t("inventory.pharmacyStockReport.table.empty", "لا توجد حركات مخزون ضمن نطاق الفلاتر المحدد.")}
                   </td>
                 </tr>
               )}
@@ -417,7 +407,7 @@ export default function PharmacyStockReportPage() {
                     colSpan={8}
                     className="px-4 py-6 text-center text-gray-400"
                   >
-                    جارِ تحميل التقرير...
+                    {t("inventory.pharmacyStockReport.table.loading", "جارِ تحميل التقرير...")}
                   </td>
                 </tr>
               )}

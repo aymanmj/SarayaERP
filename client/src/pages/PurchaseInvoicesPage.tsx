@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 // src/pages/PurchaseInvoicesPage.tsx
 
 import { useEffect, useMemo, useState } from "react";
@@ -7,6 +6,7 @@ import { apiClient } from "../api/apiClient";
 import { toast } from "sonner";
 import { formatDate } from "@/lib/utils";
 import { DatePicker } from "@/components/ui/date-picker";
+import { useTranslation } from "react-i18next";
 
 type SupplierLite = {
   id: number;
@@ -45,7 +45,6 @@ type Warehouse = {
   name: string;
 };
 
-// ✅ [UPDATED] إضافة حقول التشغيلة والصلاحية
 type LineFormRow = {
   productId?: number | "";
   description: string;
@@ -54,8 +53,6 @@ type LineFormRow = {
   batchNumber?: string;
   expiryDate?: string;
 };
-
-// Local formatDate removed
 
 function formatMoney(val: string | number | null | undefined) {
   const num = Number(val ?? 0);
@@ -88,7 +85,6 @@ export default function PurchaseInvoicesPage() {
   const [vatAmount, setVatAmount] = useState<string>("0.000");
   const [notes, setNotes] = useState<string>("");
 
-  // ✅ [UPDATED] تهيئة السطور بالحقول الجديدة
   const [lines, setLines] = useState<LineFormRow[]>([
     {
       productId: "",
@@ -101,8 +97,6 @@ export default function PurchaseInvoicesPage() {
   ]);
 
   const [savingInvoice, setSavingInvoice] = useState(false);
-
-  // ===== تحميل البيانات الأولية =====
 
   const loadInitialData = async () => {
     setLoadingInitial(true);
@@ -119,10 +113,9 @@ export default function PurchaseInvoicesPage() {
       if (whRes.data.length > 0) {
         setWarehouseId(String(whRes.data[0].id));
       }
-     
     } catch (err: any) {
       console.error(err);
-      toast.error("حدث خطأ أثناء تحميل البيانات الأولية.");
+      toast.error(t("inventory.purchaseInvoices.toast.initialDataError", "حدث خطأ أثناء تحميل البيانات الأولية."));
     } finally {
       setLoadingInitial(false);
     }
@@ -135,10 +128,9 @@ export default function PurchaseInvoicesPage() {
         "/purchases/invoices",
       );
       setInvoices(res.data);
-     
     } catch (err: any) {
       console.error(err);
-      toast.error("حدث خطأ أثناء تحميل فواتير الشراء.");
+      toast.error(t("inventory.purchaseInvoices.toast.loadError", "حدث خطأ أثناء تحميل فواتير الشراء."));
     } finally {
       setInvoicesLoading(false);
     }
@@ -148,8 +140,6 @@ export default function PurchaseInvoicesPage() {
     loadInitialData();
     loadInvoices();
   }, []);
-
-  // ===== حساب الإجماليات للفورم =====
 
   const totalAmount = useMemo(
     () =>
@@ -172,9 +162,6 @@ export default function PurchaseInvoicesPage() {
     [totalAmount, discountNum, vatNum],
   );
 
-  // ===== إدارة بنود الفاتورة =====
-
-   
   const updateLine = (index: number, field: keyof LineFormRow, value: any) => {
     setLines((prev) =>
       prev.map((l, i) => {
@@ -212,24 +199,21 @@ export default function PurchaseInvoicesPage() {
     );
   };
 
-  // ===== حفظ فاتورة شراء جديدة =====
-
-   
   const handleSaveInvoice = async (e: any) => {
     e.preventDefault();
 
     if (!supplierId) {
-      toast.warning("اختر المورد أولاً.");
+      toast.warning(t("inventory.purchaseInvoices.toast.supplierRequired", "اختر المورد أولاً."));
       return;
     }
 
     if (!warehouseId) {
-      toast.warning("اختر المخزن الذي ستدخل إليه البضاعة.");
+      toast.warning(t("inventory.purchaseInvoices.toast.warehouseRequired", "اختر المخزن الذي ستدخل إليه البضاعة."));
       return;
     }
 
     if (!invoiceDate) {
-      toast.warning("تاريخ الفاتورة مطلوب.");
+      toast.warning(t("inventory.purchaseInvoices.toast.dateRequired", "تاريخ الفاتورة مطلوب."));
       return;
     }
 
@@ -238,7 +222,7 @@ export default function PurchaseInvoicesPage() {
     );
 
     if (validLines.length === 0) {
-      toast.warning("يجب إضافة بند واحد على الأقل.");
+      toast.warning(t("inventory.purchaseInvoices.toast.oneLineRequired", "يجب إضافة بند واحد على الأقل."));
       return;
     }
 
@@ -260,15 +244,13 @@ export default function PurchaseInvoicesPage() {
           quantity: Number(l.quantity),
           unitPrice: Number(l.unitPrice),
           drugItemId: l.productId ? Number(l.productId) : undefined,
-          // ✅ [UPDATED] إرسال بيانات التشغيلة
           batchNumber: l.batchNumber || undefined,
           expiryDate: l.expiryDate ? new Date(l.expiryDate) : undefined,
         })),
       });
 
-      toast.success("تم حفظ فاتورة الشراء بنجاح.");
+      toast.success(t("inventory.purchaseInvoices.toast.saveSuccess", "تم حفظ فاتورة الشراء بنجاح."));
 
-      // إعادة ضبط الفورم
       setInvoiceNumber("");
       setInvoiceDate(today);
       setDueDate("");
@@ -287,12 +269,11 @@ export default function PurchaseInvoicesPage() {
       ]);
 
       await loadInvoices();
-     
     } catch (err: any) {
       console.error(err);
       const msg = err?.response?.data?.message;
       toast.error(
-        typeof msg === "string" ? msg : "حدث خطأ أثناء حفظ فاتورة الشراء.",
+        typeof msg === "string" ? msg : t("inventory.purchaseInvoices.toast.saveError", "حدث خطأ أثناء حفظ فاتورة الشراء."),
       );
     } finally {
       setSavingInvoice(false);
@@ -304,9 +285,9 @@ export default function PurchaseInvoicesPage() {
       {/* العنوان العلوي */}
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold mb-1">فواتير الشراء (توريد)</h1>
+          <h1 className="text-2xl font-bold mb-1">{t("inventory.purchaseInvoices.title", "فواتير الشراء (توريد)")}</h1>
           <p className="text-sm text-slate-400">
-            إنشاء فواتير الشراء وإدخال المخزون (بالتشغيلات وتواريخ الصلاحية).
+            {t("inventory.purchaseInvoices.subtitle", "إنشاء فواتير الشراء وإدخال المخزون (بالتشغيلات وتواريخ الصلاحية).")}
           </p>
         </div>
         <button
@@ -314,7 +295,7 @@ export default function PurchaseInvoicesPage() {
           onClick={loadInvoices}
           className="px-3 py-1.5 rounded-full text-xs bg-slate-800 hover:bg-slate-700"
         >
-          تحديث القائمة
+          {t("inventory.purchaseInvoices.btn.refresh", "تحديث القائمة")}
         </button>
       </div>
 
@@ -325,11 +306,11 @@ export default function PurchaseInvoicesPage() {
       >
         <div className="flex items-center justify-between mb-2">
           <div className="text-sm font-semibold text-slate-200">
-            إنشاء فاتورة شراء جديدة
+            {t("inventory.purchaseInvoices.form.title", "إنشاء فاتورة شراء جديدة")}
           </div>
           {loadingInitial && (
             <span className="text-[11px] text-slate-500">
-              جارِ تحميل البيانات الأولية...
+              {t("inventory.purchaseInvoices.form.loading", "جارِ تحميل البيانات الأولية...")}
             </span>
           )}
         </div>
@@ -338,14 +319,14 @@ export default function PurchaseInvoicesPage() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
           <div className="flex flex-col gap-1">
             <label className="text-slate-300">
-              المورد <span className="text-rose-400">*</span>
+              {t("inventory.purchaseInvoices.form.supplier", "المورد")} <span className="text-rose-400">*</span>
             </label>
             <select
               value={supplierId}
               onChange={(e) => setSupplierId(e.target.value)}
               className="bg-slate-900 border border-slate-700 rounded-2xl px-3 py-2 text-xs"
             >
-              <option value="">اختر المورد...</option>
+              <option value="">{t("inventory.purchaseInvoices.form.supplierPlaceholder", "اختر المورد...")}</option>
               {suppliers.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
@@ -356,14 +337,14 @@ export default function PurchaseInvoicesPage() {
 
           <div className="flex flex-col gap-1">
             <label className="text-slate-300">
-              المخزن المستلم <span className="text-rose-400">*</span>
+              {t("inventory.purchaseInvoices.form.warehouse", "المخزن المستلم")} <span className="text-rose-400">*</span>
             </label>
             <select
               value={warehouseId}
               onChange={(e) => setWarehouseId(e.target.value)}
               className="bg-slate-900 border border-slate-700 rounded-2xl px-3 py-2 text-xs"
             >
-              <option value="">اختر المخزن...</option>
+              <option value="">{t("inventory.purchaseInvoices.form.warehousePlaceholder", "اختر المخزن...")}</option>
               {warehouses.map((w) => (
                 <option key={w.id} value={w.id}>
                   {w.name}
@@ -373,18 +354,18 @@ export default function PurchaseInvoicesPage() {
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="text-slate-300">رقم الفاتورة (من المورد)</label>
+            <label className="text-slate-300">{t("inventory.purchaseInvoices.form.invNumber", "رقم الفاتورة (من المورد)")}</label>
             <input
               value={invoiceNumber}
               onChange={(e) => setInvoiceNumber(e.target.value)}
-              className="bg-slate-900 border border-slate-700 rounded-2xl px-3 py-2 text-xs"
-              placeholder="مثال: INV-2025-001"
+              className={`bg-slate-900 border border-slate-700 rounded-2xl px-3 py-2 text-xs ${isRtl ? 'text-right' : 'text-left'}`}
+              placeholder={t("inventory.purchaseInvoices.form.invNumberPlaceholder", "مثال: INV-2025-001")}
             />
           </div>
 
           <div className="flex flex-col gap-1">
             <label className="text-slate-300">
-              تاريخ الفاتورة <span className="text-rose-400">*</span>
+              {t("inventory.purchaseInvoices.form.invDate", "تاريخ الفاتورة")} <span className="text-rose-400">*</span>
             </label>
             <DatePicker
               date={invoiceDate ? new Date(invoiceDate) : undefined}
@@ -397,7 +378,7 @@ export default function PurchaseInvoicesPage() {
         {/* الصف الثاني */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
           <div className="flex flex-col gap-1">
-            <label className="text-slate-300">تاريخ الاستحقاق</label>
+            <label className="text-slate-300">{t("inventory.purchaseInvoices.form.dueDate", "تاريخ الاستحقاق")}</label>
             <DatePicker
               date={dueDate ? new Date(dueDate) : undefined}
               onChange={(d) => setDueDate(d ? d.toISOString().slice(0, 10) : "")}
@@ -406,46 +387,46 @@ export default function PurchaseInvoicesPage() {
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="text-slate-300">العملة</label>
+            <label className="text-slate-300">{t("inventory.purchaseInvoices.form.currency", "العملة")}</label>
             <input
               value={currency}
               onChange={(e) => setCurrency(e.target.value)}
-              className="bg-slate-900 border border-slate-700 rounded-2xl px-3 py-2 text-xs"
+              className={`bg-slate-900 border border-slate-700 rounded-2xl px-3 py-2 text-xs ${isRtl ? 'text-right' : 'text-left'}`}
             />
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="text-slate-300">قيمة الخصم</label>
+            <label className="text-slate-300">{t("inventory.purchaseInvoices.form.discount", "قيمة الخصم")}</label>
             <input
               type="number"
               step="0.001"
               min="0"
               value={discountAmount}
               onChange={(e) => setDiscountAmount(e.target.value)}
-              className="bg-slate-900 border border-slate-700 rounded-2xl px-3 py-2 text-xs"
+              className={`bg-slate-900 border border-slate-700 rounded-2xl px-3 py-2 text-xs ${isRtl ? 'text-right' : 'text-left'}`}
             />
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="text-slate-300">قيمة الضريبة (VAT)</label>
+            <label className="text-slate-300">{t("inventory.purchaseInvoices.form.vat", "قيمة الضريبة (VAT)")}</label>
             <input
               type="number"
               step="0.001"
               min="0"
               value={vatAmount}
               onChange={(e) => setVatAmount(e.target.value)}
-              className="bg-slate-900 border border-slate-700 rounded-2xl px-3 py-2 text-xs"
+              className={`bg-slate-900 border border-slate-700 rounded-2xl px-3 py-2 text-xs ${isRtl ? 'text-right' : 'text-left'}`}
             />
           </div>
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className="text-slate-300">ملاحظات مختصرة</label>
+          <label className="text-slate-300">{t("inventory.purchaseInvoices.form.notes", "ملاحظات مختصرة")}</label>
           <input
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            className="bg-slate-900 border border-slate-700 rounded-2xl px-3 py-2 text-xs"
-            placeholder="مثال: فاتورة عن مستلزمات شهر 11"
+            className={`bg-slate-900 border border-slate-700 rounded-2xl px-3 py-2 text-xs ${isRtl ? 'text-right' : 'text-left'}`}
+            placeholder={t("inventory.purchaseInvoices.form.notesPlaceholder", "مثال: فاتورة عن مستلزمات شهر 11")}
           />
         </div>
 
@@ -453,28 +434,28 @@ export default function PurchaseInvoicesPage() {
         <div className="mt-4 space-y-2">
           <div className="flex items-center justify-between">
             <div className="text-slate-300 text-sm">
-              بنود الفاتورة (الأصناف)
+              {t("inventory.purchaseInvoices.lines.title", "بنود الفاتورة (الأصناف)")}
             </div>
             <button
               type="button"
               onClick={addLine}
-              className="px-3 py-1.5 rounded-full text-[11px] bg-slate-800 hover:bg-slate-700"
+              className="px-3 py-1.5 rounded-full text-[11px] bg-slate-800 hover:bg-slate-700 font-bold"
             >
-              + إضافة بند
+              {t("inventory.purchaseInvoices.lines.addBtn", "+ إضافة بند")}
             </button>
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-[11px] text-right border-separate border-spacing-y-1 min-w-[900px]">
+            <table className={`w-full text-[11px] border-separate border-spacing-y-1 min-w-[900px] ${isRtl ? 'text-right' : 'text-left'}`}>
               <thead className="text-slate-400">
                 <tr>
-                  <th className="px-2 py-1 w-64">المنتج (للمخزون)</th>
-                  <th className="px-2 py-1">الوصف</th>
-                  <th className="px-2 py-1 w-24">رقم التشغيلة</th>
-                  <th className="px-2 py-1 w-28">ت. الانتهاء</th>
-                  <th className="px-2 py-1 w-20">الكمية</th>
-                  <th className="px-2 py-1 w-24">السعر</th>
-                  <th className="px-2 py-1 w-24">الإجمالي</th>
+                  <th className="px-2 py-1 w-64">{t("inventory.purchaseInvoices.lines.table.product", "المنتج (للمخزون)")}</th>
+                  <th className="px-2 py-1">{t("inventory.purchaseInvoices.lines.table.description", "الوصف")}</th>
+                  <th className="px-2 py-1 w-24">{t("inventory.purchaseInvoices.lines.table.batch", "رقم التشغيلة")}</th>
+                  <th className="px-2 py-1 w-28">{t("inventory.purchaseInvoices.lines.table.expiry", "ت. الانتهاء")}</th>
+                  <th className="px-2 py-1 w-20 text-center">{t("inventory.purchaseInvoices.lines.table.qty", "الكمية")}</th>
+                  <th className="px-2 py-1 w-24 text-center">{t("inventory.purchaseInvoices.lines.table.price", "السعر")}</th>
+                  <th className="px-2 py-1 w-24 text-center">{t("inventory.purchaseInvoices.lines.table.total", "الإجمالي")}</th>
                   <th className="px-2 py-1 w-10"></th>
                 </tr>
               </thead>
@@ -496,7 +477,7 @@ export default function PurchaseInvoicesPage() {
                             updateLine(idx, "productId", e.target.value)
                           }
                         >
-                          <option value="">(بدون منتج - مصروف)</option>
+                          <option value="">{t("inventory.purchaseInvoices.lines.table.productPlaceholder", "(بدون منتج - مصروف)")}</option>
                           {products.map((p) => (
                             <option key={p.id} value={p.id}>
                               {p.name} {p.code ? `[${p.code}]` : ""}
@@ -513,7 +494,7 @@ export default function PurchaseInvoicesPage() {
                             updateLine(idx, "description", e.target.value)
                           }
                           className="w-full bg-slate-900 border border-slate-700 rounded-xl px-2 py-1"
-                          placeholder="وصف البند"
+                          placeholder={t("inventory.purchaseInvoices.lines.table.descriptionPlaceholder", "وصف البند")}
                         />
                       </td>
 
@@ -525,7 +506,7 @@ export default function PurchaseInvoicesPage() {
                             updateLine(idx, "batchNumber", e.target.value)
                           }
                           className="w-full bg-slate-900 border border-slate-700 rounded-xl px-2 py-1"
-                          placeholder="Batch No"
+                          placeholder={t("inventory.purchaseInvoices.lines.table.batchPlaceholder", "Batch No")}
                         />
                       </td>
 
@@ -569,7 +550,7 @@ export default function PurchaseInvoicesPage() {
                       </td>
 
                       {/* الإجمالي */}
-                      <td className="px-2 py-1 align-top text-emerald-300 pt-2 text-center">
+                      <td className="px-2 py-1 align-top text-emerald-300 pt-2 text-center font-mono">
                         {formatMoney(lineTotal)} {currency}
                       </td>
 
@@ -579,7 +560,7 @@ export default function PurchaseInvoicesPage() {
                           <button
                             type="button"
                             onClick={() => removeLine(idx)}
-                            className="px-2 py-1 rounded-full text-[10px] bg-rose-700/80 hover:bg-rose-600"
+                            className="px-2 py-1 rounded-full text-[10px] bg-rose-700/80 hover:bg-rose-600 font-bold"
                           >
                             ×
                           </button>
@@ -595,26 +576,26 @@ export default function PurchaseInvoicesPage() {
           {/* ملخص الأرقام */}
           <div className="mt-3 grid grid-cols-1 md:grid-cols-4 gap-3 text-[11px]">
             <div className="rounded-2xl border border-slate-800 bg-slate-950/80 p-3">
-              <div className="text-slate-400 mb-1">إجمالي البنود</div>
-              <div className="text-sm font-semibold text-emerald-300">
+              <div className="text-slate-400 mb-1">{t("inventory.purchaseInvoices.summary.itemsTotal", "إجمالي البنود")}</div>
+              <div className="text-sm font-semibold text-emerald-300 font-mono">
                 {formatMoney(totalAmount)} {currency}
               </div>
             </div>
             <div className="rounded-2xl border border-slate-800 bg-slate-950/80 p-3">
-              <div className="text-slate-400 mb-1">إجمالي الخصم</div>
-              <div className="text-sm font-semibold text-amber-300">
+              <div className="text-slate-400 mb-1">{t("inventory.purchaseInvoices.summary.discountTotal", "إجمالي الخصم")}</div>
+              <div className="text-sm font-semibold text-amber-300 font-mono">
                 {formatMoney(discountNum)} {currency}
               </div>
             </div>
             <div className="rounded-2xl border border-slate-800 bg-slate-950/80 p-3">
-              <div className="text-slate-400 mb-1">إجمالي الضريبة (VAT)</div>
-              <div className="text-sm font-semibold text-amber-300">
+              <div className="text-slate-400 mb-1">{t("inventory.purchaseInvoices.summary.vatTotal", "إجمالي الضريبة (VAT)")}</div>
+              <div className="text-sm font-semibold text-amber-300 font-mono">
                 {formatMoney(vatNum)} {currency}
               </div>
             </div>
             <div className="rounded-2xl border border-emerald-700 bg-emerald-950/40 p-3">
-              <div className="text-emerald-200 mb-1">الصافي (الواجب دفعه)</div>
-              <div className="text-sm font-bold text-emerald-300">
+              <div className="text-emerald-200 mb-1">{t("inventory.purchaseInvoices.summary.netTotal", "الصافي (الواجب دفعه)")}</div>
+              <div className="text-sm font-bold text-emerald-300 font-mono">
                 {formatMoney(netAmount)} {currency}
               </div>
             </div>
@@ -626,9 +607,9 @@ export default function PurchaseInvoicesPage() {
           <button
             type="submit"
             disabled={savingInvoice}
-            className="px-4 py-2 rounded-2xl text-xs bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60"
+            className="px-4 py-2 rounded-2xl text-xs bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 font-bold"
           >
-            {savingInvoice ? "جارِ الحفظ..." : "حفظ فاتورة الشراء"}
+            {savingInvoice ? t("inventory.purchaseInvoices.btn.saving", "جارِ الحفظ...") : t("inventory.purchaseInvoices.btn.save", "حفظ فاتورة الشراء")}
           </button>
         </div>
       </form>
@@ -636,30 +617,30 @@ export default function PurchaseInvoicesPage() {
       {/* قائمة فواتير الشراء */}
       <div className="flex-1 rounded-3xl border border-slate-800 bg-slate-950/80 p-4 text-xs overflow-auto">
         <h2 className="text-sm font-semibold text-slate-200 mb-3">
-          سجل فواتير الشراء
+          {t("inventory.purchaseInvoices.list.title", "سجل فواتير الشراء")}
         </h2>
 
         {invoicesLoading ? (
-          <div className="text-slate-500 text-xs">جارِ تحميل البيانات...</div>
+          <div className="text-slate-500 text-xs">{t("inventory.purchaseInvoices.list.loading", "جارِ تحميل البيانات...")}</div>
         ) : invoices.length === 0 ? (
           <div className="text-slate-500 text-xs">
-            لا توجد فواتير شراء مضافة بعد.
+            {t("inventory.purchaseInvoices.list.empty", "لا توجد فواتير شراء مضافة بعد.")}
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-[11px] text-right border-separate border-spacing-y-1">
+            <table className={`w-full text-[11px] border-separate border-spacing-y-1 ${isRtl ? 'text-right' : 'text-left'}`}>
               <thead className="text-slate-400">
                 <tr>
-                  <th className="px-2 py-1 text-right">رقم</th>
-                  <th className="px-2 py-1 text-right">المورد</th>
-                  <th className="px-2 py-1 text-right">رقم الفاتورة</th>
-                  <th className="px-2 py-1 text-right">تاريخ الفاتورة</th>
-                  <th className="px-2 py-1 text-right">تاريخ الاستحقاق</th>
-                  <th className="px-2 py-1 text-right">الحالة</th>
-                  <th className="px-2 py-1 text-right">الصافي</th>
-                  <th className="px-2 py-1 text-right">المدفوع</th>
-                  <th className="px-2 py-1 text-right">المتبقي</th>
-                  <th className="px-2 py-1 text-right">إجراءات</th>
+                  <th className="px-2 py-1">{t("inventory.purchaseInvoices.list.table.id", "رقم")}</th>
+                  <th className="px-2 py-1">{t("inventory.purchaseInvoices.list.table.supplier", "المورد")}</th>
+                  <th className="px-2 py-1">{t("inventory.purchaseInvoices.list.table.invNumber", "رقم الفاتورة")}</th>
+                  <th className="px-2 py-1">{t("inventory.purchaseInvoices.list.table.invDate", "تاريخ الفاتورة")}</th>
+                  <th className="px-2 py-1">{t("inventory.purchaseInvoices.list.table.dueDate", "تاريخ الاستحقاق")}</th>
+                  <th className="px-2 py-1">{t("inventory.purchaseInvoices.list.table.status", "الحالة")}</th>
+                  <th className="px-2 py-1">{t("inventory.purchaseInvoices.list.table.net", "الصافي")}</th>
+                  <th className="px-2 py-1">{t("inventory.purchaseInvoices.list.table.paid", "المدفوع")}</th>
+                  <th className="px-2 py-1">{t("inventory.purchaseInvoices.list.table.remaining", "المتبقي")}</th>
+                  <th className="px-2 py-1 text-center">{t("inventory.purchaseInvoices.list.table.actions", "إجراءات")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -689,24 +670,24 @@ export default function PurchaseInvoicesPage() {
                       <td className="px-2 py-1 align-top">
                         <span className="uppercase">{inv.status}</span>
                       </td>
-                      <td className="px-2 py-1 align-top text-emerald-300">
+                      <td className="px-2 py-1 align-top text-emerald-300 font-mono">
                         {formatMoney(inv.netAmount)} {inv.currency}
                       </td>
-                      <td className="px-2 py-1 align-top text-amber-300">
+                      <td className="px-2 py-1 align-top text-amber-300 font-mono">
                         {formatMoney(inv.paidAmount)} {inv.currency}
                       </td>
-                      <td className="px-2 py-1 align-top">
+                      <td className="px-2 py-1 align-top font-mono">
                         {formatMoney(remaining)} {inv.currency}
                       </td>
-                      <td className="px-2 py-1 align-top">
+                      <td className="px-2 py-1 align-top text-center">
                         <button
                           type="button"
                           onClick={() =>
                             navigate(`/purchases/invoices/${inv.id}`)
                           }
-                          className="px-3 py-1 rounded-full text-[10px] bg-slate-800 hover:bg-slate-700"
+                          className="px-3 py-1 rounded-full text-[10px] bg-slate-800 hover:bg-slate-700 font-bold"
                         >
-                          تفاصيل
+                          {t("inventory.purchaseInvoices.list.table.detailsBtn", "تفاصيل")}
                         </button>
                       </td>
                     </tr>

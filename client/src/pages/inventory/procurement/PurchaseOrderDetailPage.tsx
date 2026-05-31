@@ -30,13 +30,13 @@ export function PurchaseOrderDetailPage() {
       return apiClient.patch(`/procurement/orders/${id}/status`, { status: 'CANCELLED' });
     },
     onSuccess: () => {
-      toast.success("تم إلغاء أمر الشراء بنجاح");
+      toast.success(t("inventory.purchaseOrder.details.toast.cancelSuccess", "تم إلغاء أمر الشراء بنجاح"));
       queryClient.invalidateQueries({ queryKey: ['purchase-order', id] });
     },
      
     onError: (err: any) => {
       console.error(err);
-      toast.error(err.response?.data?.message || "فشل إلغاء أمر الشراء");
+      toast.error(err.response?.data?.message || t("inventory.purchaseOrder.details.toast.cancelFailed", "فشل إلغاء أمر الشراء"));
     }
   });
 
@@ -45,15 +45,15 @@ export function PurchaseOrderDetailPage() {
   };
 
   if (isLoading) {
-    return <div className="p-8 text-center text-slate-500">جاري تحميل تفاصيل أمر الشراء...</div>;
+    return <div className="p-8 text-center text-slate-500">{t("inventory.purchaseOrder.details.loading", "جاري تحميل تفاصيل أمر الشراء...")}</div>;
   }
 
   if (error || !po) {
     return (
-      <div className="p-8 text-center text-rose-500">
-        حدث خطأ أثناء تحميل أمر الشراء أو أنه غير موجود.
+      <div className="p-8 text-center text-rose-500" dir={isRtl ? "rtl" : "ltr"}>
+        {t("inventory.purchaseOrder.details.loadFailed", "حدث خطأ أثناء تحميل أمر الشراء أو أنه غير موجود.")}
         <button onClick={() => navigate('/purchases/orders')} className="mt-4 block mx-auto px-4 py-2 bg-slate-800 text-slate-300 rounded-lg text-xs">
-          عودة إلى أوامر الشراء
+          {t("inventory.purchaseOrder.details.backToList", "عودة إلى أوامر الشراء")}
         </button>
       </div>
     );
@@ -62,15 +62,15 @@ export function PurchaseOrderDetailPage() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "DRAFT":
-        return <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-800 text-slate-300 border border-slate-700">مسودة</span>;
+        return <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-800 text-slate-300 border border-slate-700">{t("inventory.purchaseOrder.status.draft", "مسودة")}</span>;
       case "SENT":
-        return <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-900/50 text-blue-400 border border-blue-800/40">تم الإرسال</span>;
+        return <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-900/50 text-blue-400 border border-blue-800/40">{t("inventory.purchaseOrder.status.sent", "تم الإرسال")}</span>;
       case "PARTIALLY_RECEIVED":
-        return <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-900/50 text-amber-400 border border-amber-800/40">مستلم جزئياً</span>;
+        return <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-900/50 text-amber-400 border border-amber-800/40">{t("inventory.purchaseOrder.status.partiallyReceived", "مستلم جزئياً")}</span>;
       case "COMPLETED":
-        return <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-900/50 text-emerald-400 border border-emerald-800/40">مكتمل</span>;
+        return <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-900/50 text-emerald-400 border border-emerald-800/40">{t("inventory.purchaseOrder.status.completed", "مكتمل")}</span>;
       case "CANCELLED":
-        return <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-900/50 text-rose-400 border border-rose-800/40">ملغي</span>;
+        return <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-900/50 text-rose-400 border border-rose-800/40">{t("inventory.purchaseOrder.status.cancelled", "ملغي")}</span>;
       default:
         return <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-800 text-slate-300 border border-slate-700">{status}</span>;
     }
@@ -91,9 +91,9 @@ export function PurchaseOrderDetailPage() {
           </button>
           <div>
             <h1 className="text-xl font-bold flex items-center gap-2">
-              تفاصيل أمر الشراء: <span className="font-mono text-sky-400">{po.poNumber}</span>
+              {t("inventory.purchaseOrder.details.title", "تفاصيل أمر الشراء:")} <span className="font-mono text-sky-400">{po.poNumber}</span>
             </h1>
-            <p className="text-xs text-slate-500 mt-0.5">عرض وطباعة أمر الشراء وتتبع حالة الاستلام.</p>
+            <p className="text-xs text-slate-500 mt-0.5">{t("inventory.purchaseOrder.details.subtitle", "عرض وطباعة أمر الشراء وتتبع حالة الاستلام.")}</p>
           </div>
         </div>
 
@@ -101,13 +101,13 @@ export function PurchaseOrderDetailPage() {
           {showCancelButton && (
             <button
               onClick={() => {
-                if (window.confirm("هل أنت متأكد من إلغاء أمر الشراء هذا؟")) {
+                if (window.confirm(t("inventory.purchaseOrder.details.confirmCancel", "هل أنت متأكد من إلغاء أمر الشراء هذا؟"))) {
                   cancelPOMutation.mutate();
                 }
               }}
               className="px-4 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 rounded-xl text-xs font-semibold transition-all"
             >
-              إلغاء الأمر
+              {t("inventory.purchaseOrder.details.cancelBtn", "إلغاء الأمر")}
             </button>
           )}
           <button
@@ -115,7 +115,7 @@ export function PurchaseOrderDetailPage() {
             className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-semibold transition-all shadow-lg shadow-blue-600/10"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-            طباعة أمر الشراء
+            {t("inventory.purchaseOrder.details.printBtn", "طباعة أمر الشراء")}
           </button>
         </div>
       </div>
@@ -128,57 +128,57 @@ export function PurchaseOrderDetailPage() {
         {/* Print Only Header (Hospital & Supplier info) */}
         <div className="hidden print:flex justify-between items-start border-b-2 border-slate-900 pb-6 mb-6 text-black">
           <div>
-            <h2 className="text-xl font-bold">مستشفى صرايا التخصصي</h2>
-            <p className="text-xs text-slate-600 mt-1">قسم المشتريات والتموين الطبي</p>
-            <p className="text-[11px] text-slate-500">هاتف: 091-0000000 | بريد الكتروني: info@saraya.ly</p>
+            <h2 className="text-xl font-bold">{t("inventory.purchaseOrder.print.hospitalName", "مستشفى صرايا التخصصي")}</h2>
+            <p className="text-xs text-slate-600 mt-1">{t("inventory.purchaseOrder.print.departmentName", "قسم المشتريات والتموين الطبي")}</p>
+            <p className="text-[11px] text-slate-500">{t("inventory.purchaseOrder.print.contactInfo", "هاتف: 091-0000000 | بريد الكتروني: info@saraya.ly")}</p>
           </div>
           <div className="text-left font-mono">
-            <h1 className="text-2xl font-bold mb-1">أمر شراء (PO)</h1>
-            <p className="text-sm">رقم الأمر: {po.poNumber}</p>
-            <p className="text-sm">التاريخ: {format(new Date(po.poDate), "yyyy/MM/dd")}</p>
+            <h1 className="text-2xl font-bold mb-1">{t("inventory.purchaseOrder.title", "أمر شراء (PO)")}</h1>
+            <p className="text-sm">{t("inventory.purchaseOrder.details.poNumberLabel", "رقم الأمر:")} {po.poNumber}</p>
+            <p className="text-sm">{t("inventory.purchaseOrder.details.dateLabel", "التاريخ:")} {format(new Date(po.poDate), "yyyy/MM/dd")}</p>
           </div>
         </div>
 
         {/* Info Blocks */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 print:text-black">
           <div className="space-y-3 bg-slate-900/30 print:bg-slate-100 p-5 rounded-2xl border border-slate-800/60 print:border-slate-300">
-            <h3 className="text-sm font-bold text-slate-400 print:text-slate-700 border-b border-slate-800 print:border-slate-300 pb-2">بيانات المورد</h3>
+            <h3 className="text-sm font-bold text-slate-400 print:text-slate-700 border-b border-slate-800 print:border-slate-300 pb-2">{t("inventory.purchaseOrder.details.supplierData", "بيانات المورد")}</h3>
             <div className="space-y-1.5 text-xs text-slate-300 print:text-slate-900">
-              <p><span className="text-slate-500 print:text-slate-600">اسم المورد:</span> <strong className="text-slate-100 print:text-black">{po.supplier.name}</strong></p>
-              <p><span className="text-slate-500 print:text-slate-600">مسؤول الاتصال:</span> {po.supplier.contactName || "N/A"}</p>
-              <p><span className="text-slate-500 print:text-slate-600">الهاتف:</span> {po.supplier.phone || "N/A"}</p>
-              <p><span className="text-slate-500 print:text-slate-600">البريد الإلكتروني:</span> {po.supplier.email || "N/A"}</p>
+              <p><span className="text-slate-500 print:text-slate-600">{t("inventory.purchaseOrder.details.supplierNameLabel", "اسم المورد:")}</span> <strong className="text-slate-100 print:text-black">{po.supplier.name}</strong></p>
+              <p><span className="text-slate-500 print:text-slate-600">{t("inventory.purchaseOrder.details.contactPersonLabel", "مسؤول الاتصال:")}</span> {po.supplier.contactName || "N/A"}</p>
+              <p><span className="text-slate-500 print:text-slate-600">{t("inventory.purchaseOrder.details.phoneLabel", "الهاتف:")}</span> {po.supplier.phone || "N/A"}</p>
+              <p><span className="text-slate-500 print:text-slate-600">{t("inventory.purchaseOrder.details.emailLabel", "البريد الإلكتروني:")}</span> {po.supplier.email || "N/A"}</p>
             </div>
           </div>
 
           <div className="space-y-3 bg-slate-900/30 print:bg-slate-100 p-5 rounded-2xl border border-slate-800/60 print:border-slate-300">
-            <h3 className="text-sm font-bold text-slate-400 print:text-slate-700 border-b border-slate-800 print:border-slate-300 pb-2">تفاصيل الأمر</h3>
+            <h3 className="text-sm font-bold text-slate-400 print:text-slate-700 border-b border-slate-800 print:border-slate-300 pb-2">{t("inventory.purchaseOrder.details.poDetails", "تفاصيل الأمر")}</h3>
             <div className="space-y-1.5 text-xs text-slate-300 print:text-slate-900">
-              <p><span className="text-slate-500 print:text-slate-600">رقم أمر الشراء:</span> <strong className="text-slate-100 print:text-black font-mono">{po.poNumber}</strong></p>
-              <p><span className="text-slate-500 print:text-slate-600">تاريخ الإصدار:</span> {format(new Date(po.poDate), "yyyy-MM-dd HH:mm")}</p>
-              <p><span className="text-slate-500 print:text-slate-600">حرر بواسطة:</span> {po.createdBy?.fullName || "N/A"}</p>
+              <p><span className="text-slate-500 print:text-slate-600">{t("inventory.purchaseOrder.details.poNumberField", "رقم أمر الشراء:")}</span> <strong className="text-slate-100 print:text-black font-mono">{po.poNumber}</strong></p>
+              <p><span className="text-slate-500 print:text-slate-600">{t("inventory.purchaseOrder.details.issueDateField", "تاريخ الإصدار:")}</span> {format(new Date(po.poDate), "yyyy-MM-dd HH:mm")}</p>
+              <p><span className="text-slate-500 print:text-slate-600">{t("inventory.purchaseOrder.details.createdByField", "حرر بواسطة:")}</span> {po.createdBy?.fullName || "N/A"}</p>
               <p className="flex items-center gap-2">
-                <span className="text-slate-500 print:text-slate-600">حالة الأمر:</span>
+                <span className="text-slate-500 print:text-slate-600">{t("inventory.purchaseOrder.details.statusField", "حالة الأمر:")}</span>
                 <span className="print:hidden">{getStatusBadge(po.status)}</span>
-                <span className="hidden print:inline font-bold">{po.status === 'SENT' ? 'تم الإرسال للمورد' : po.status}</span>
+                <span className="hidden print:inline font-bold">{po.status === 'SENT' ? t("inventory.purchaseOrder.status.sentToSupplier", 'تم الإرسال للمورد') : po.status}</span>
               </p>
             </div>
           </div>
         </div>
 
-        {/* Items Table */}
+        {/* Table */}
         <div className="space-y-3 print:text-black">
-          <h3 className="text-sm font-bold text-slate-400 print:text-slate-700">الأصناف المطلوبة</h3>
+          <h3 className="text-sm font-bold text-slate-400 print:text-slate-700">{t("inventory.purchaseOrder.details.requestedItems", "الأصناف المطلوبة")}</h3>
           <div className="bg-slate-900/10 border border-slate-800 print:border-slate-400 rounded-2xl overflow-hidden">
-            <table className="w-full text-xs text-right border-collapse">
+            <table className={`w-full text-xs border-collapse ${isRtl ? "text-right" : "text-left"}`}>
               <thead className="bg-slate-900/60 print:bg-slate-200 border-b border-slate-800 print:border-slate-400 text-slate-400 print:text-black">
                 <tr>
-                  <th className="py-3.5 px-4 font-bold">اسم المنتج / الصنف</th>
-                  <th className="py-3.5 px-4 font-bold text-center">الوحدة المشتراة</th>
-                  <th className="py-3.5 px-4 font-bold text-center">الكمية</th>
-                  <th className="py-3.5 px-4 font-bold text-center print:hidden">الكمية المستلمة</th>
-                  <th className="py-3.5 px-4 font-bold text-left">سعر الوحدة</th>
-                  <th className="py-3.5 px-4 font-bold text-left">الإجمالي</th>
+                  <th className="py-3.5 px-4 font-bold">{t("inventory.purchaseOrder.details.tableName", "اسم المنتج / الصنف")}</th>
+                  <th className="py-3.5 px-4 font-bold text-center">{t("inventory.purchaseOrder.details.tableUnit", "الوحدة المشتراة")}</th>
+                  <th className="py-3.5 px-4 font-bold text-center">{t("inventory.warehouse.tableQuantity", "الكمية")}</th>
+                  <th className="py-3.5 px-4 font-bold text-center print:hidden">{t("inventory.purchaseOrder.details.tableReceivedQty", "الكمية المستلمة")}</th>
+                  <th className="py-3.5 px-4 font-bold text-left">{t("inventory.purchaseOrder.details.tableUnitPrice", "سعر الوحدة")}</th>
+                  <th className="py-3.5 px-4 font-bold text-left">{t("inventory.purchaseOrder.details.tableTotal", "الإجمالي")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800 print:divide-slate-300 text-slate-300 print:text-black">
@@ -188,7 +188,7 @@ export function PurchaseOrderDetailPage() {
                     <td className="py-3.5 px-4 font-medium">
                       <div>{item.product?.name}</div>
                       {item.product?.code && (
-                        <span className="text-[10px] text-slate-500 print:text-slate-600 font-mono">كود: {item.product.code}</span>
+                        <span className="text-[10px] text-slate-500 print:text-slate-600 font-mono">{t("inventory.purchaseOrder.details.codeLabel", "كود:")} {item.product.code}</span>
                       )}
                     </td>
                     <td className="py-3.5 px-4 text-center">{item.uom?.name || "N/A"}</td>
@@ -196,9 +196,9 @@ export function PurchaseOrderDetailPage() {
                     <td className="py-3.5 px-4 text-center font-mono print:hidden text-slate-500">
                       {Number(item.receivedQuantity).toLocaleString()}
                     </td>
-                    <td className="py-3.5 px-4 text-left font-mono">{Number(item.unitPrice).toLocaleString(undefined, { minimumFractionDigits: 2 })} د.ل</td>
+                    <td className="py-3.5 px-4 text-left font-mono">{Number(item.unitPrice).toLocaleString(undefined, { minimumFractionDigits: 2 })} {t("inventory.currencyDinar", "د.ل")}</td>
                     <td className="py-3.5 px-4 text-left font-mono text-slate-100 print:text-black font-semibold">
-                      {Number(item.totalPrice).toLocaleString(undefined, { minimumFractionDigits: 2 })} د.ل
+                      {Number(item.totalPrice).toLocaleString(undefined, { minimumFractionDigits: 2 })} {t("inventory.currencyDinar", "د.ل")}
                     </td>
                   </tr>
                 ))}
@@ -210,25 +210,25 @@ export function PurchaseOrderDetailPage() {
         {/* Notes & Summary Bar */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 pt-4 border-t border-slate-800 print:border-slate-400 print:text-black">
           <div className="max-w-md">
-            <span className="text-xs font-bold text-slate-500 block mb-1">ملاحظات وشروط إضافية:</span>
+            <span className="text-xs font-bold text-slate-500 block mb-1">{t("inventory.purchaseOrder.details.additionalNotes", "ملاحظات وشروط إضافية:")}</span>
             <p className="text-xs text-slate-400 print:text-slate-800 italic bg-slate-900/20 print:bg-slate-50 p-3 rounded-xl border border-slate-800/40 print:border-slate-200">
-              {po.notes || "لا توجد ملاحظات خاصة."}
+              {po.notes || t("inventory.purchaseOrder.details.noNotes", "لا توجد ملاحظات خاصة.")}
             </p>
           </div>
 
           <div className="w-full md:w-auto bg-emerald-500/5 print:bg-slate-100 border border-emerald-500/10 print:border-slate-400 p-5 rounded-2xl text-left min-w-[280px]">
             <div className="flex justify-between items-center text-xs text-slate-400 print:text-slate-700 mb-1.5">
-              <span>المجموع الفرعي:</span>
-              <span className="font-mono">{Number(po.totalAmount).toLocaleString(undefined, { minimumFractionDigits: 2 })} د.ل</span>
+              <span>{t("inventory.purchaseOrder.details.subtotalLabel", "المجموع الفرعي:")}</span>
+              <span className="font-mono">{Number(po.totalAmount).toLocaleString(undefined, { minimumFractionDigits: 2 })} {t("inventory.currencyDinar", "د.ل")}</span>
             </div>
             <div className="flex justify-between items-center text-xs text-slate-400 print:text-slate-700 mb-2 pb-2 border-b border-slate-800/50 print:border-slate-300">
-              <span>الضريبة / الرسوم:</span>
-              <span className="font-mono">0.00 د.ل</span>
+              <span>{t("inventory.purchaseOrder.details.taxLabel", "الضريبة / الرسوم:")}</span>
+              <span className="font-mono">0.00 {t("inventory.currencyDinar", "د.ل")}</span>
             </div>
             <div className="flex justify-between items-center font-bold text-sm">
-              <span className="text-slate-300 print:text-black">الإجمالي الكلي:</span>
+              <span className="text-slate-300 print:text-black">{t("inventory.purchaseOrder.details.grandTotalField", "الإجمالي الكلي:")}</span>
               <span className="text-lg text-emerald-400 print:text-emerald-700 font-mono">
-                {Number(po.totalAmount).toLocaleString(undefined, { minimumFractionDigits: 2 })} د.ل
+                {Number(po.totalAmount).toLocaleString(undefined, { minimumFractionDigits: 2 })} {t("inventory.currencyDinar", "د.ل")}
               </span>
             </div>
           </div>
@@ -237,14 +237,14 @@ export function PurchaseOrderDetailPage() {
         {/* Print Signatures */}
         <div className="hidden print:grid grid-cols-3 gap-8 pt-16 text-xs text-black text-center">
           <div>
-            <p className="font-bold border-t border-slate-400 pt-2">مُعِد الطلب</p>
+            <p className="font-bold border-t border-slate-400 pt-2">{t("inventory.purchaseOrder.print.poPreparer", "مُعِد الطلب")}</p>
             <p className="text-[10px] text-slate-500 mt-1">{po.createdBy?.fullName || ""}</p>
           </div>
           <div>
-            <p className="font-bold border-t border-slate-400 pt-2">مدير إدارة التموين الطبي</p>
+            <p className="font-bold border-t border-slate-400 pt-2">{t("inventory.purchaseOrder.print.medicalSupplyManager", "مدير إدارة التموين الطبي")}</p>
           </div>
           <div>
-            <p className="font-bold border-t border-slate-400 pt-2">المدير المالي والاعتماد</p>
+            <p className="font-bold border-t border-slate-400 pt-2">{t("inventory.purchaseOrder.print.financialManager", "المدير المالي والاعتماد")}</p>
           </div>
         </div>
       </div>

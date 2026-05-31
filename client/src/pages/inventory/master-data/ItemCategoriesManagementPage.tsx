@@ -49,7 +49,7 @@ export function ItemCategoriesManagementPage() {
       return api.post('/inventory/master-data/categories', payload);
     },
     onSuccess: () => {
-      toast.success('تمت إضافة الفئة بنجاح');
+      toast.success(t("inventory.categories.toast.saveSuccess", "تمت إضافة الفئة بنجاح"));
       queryClient.invalidateQueries({ queryKey: ['item-categories'] });
       setFormData({ name: '', code: '', valuationMethod: 'WEIGHTED_AVERAGE', inventoryAccountId: '', expenseAccountId: '', parentId: '' });
     },
@@ -129,7 +129,7 @@ export function ItemCategoriesManagementPage() {
           </div>
           <div className="p-4">
             {isLoading ? (
-              <div className="text-center text-slate-500 py-8">جاري التحميل...</div>
+              <div className="text-center text-slate-500 py-8">{t("common.loading", "جاري التحميل...")}</div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
