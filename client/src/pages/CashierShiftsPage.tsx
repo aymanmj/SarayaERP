@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { apiClient } from "../api/apiClient";
 import { toast } from "sonner";
 import { formatDate } from "@/lib/utils";
@@ -41,6 +42,8 @@ function formatMoney(val: number | string | null | undefined) {
 }
 
 export default function CashierShiftsPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.dir() === "rtl";
   // 🗓️ إعداد التاريخ الافتراضي: آخر 7 أيام
   const todayStr = new Date().toISOString().slice(0, 10);
   const sevenDaysAgo = (() => {
@@ -89,8 +92,8 @@ export default function CashierShiftsPage() {
         setError(msg);
         toast.error(msg);
       } else {
-        setError("حدث خطأ أثناء تحميل الشفتات المقفولة.");
-        toast.error("حدث خطأ أثناء تحميل الشفتات المقفولة.");
+        setError(t("treasury.shifts.toast.loadError", "حدث خطأ أثناء تحميل الشفتات المقفولة."));
+        toast.error(t("treasury.shifts.toast.loadError", "حدث خطأ أثناء تحميل الشفتات المقفولة."));
       }
     } finally {
       setLoading(false);
@@ -127,7 +130,7 @@ export default function CashierShiftsPage() {
       {/* العنوان */}
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold mb-1">الشفتات المقفولة للكاشير</h1>
+          <h1 className="text-2xl font-bold mb-1">{t("treasury.shifts.title", "الشفتات المقفولة للكاشير")}</h1>
           <p className="text-sm text-slate-400">
             استعراض جميع شفتات الكاشير المقفولة مع إمكانية الفلترة حسب التاريخ
             والكاشير.
@@ -147,7 +150,7 @@ export default function CashierShiftsPage() {
         <div className="grid grid-cols-1 md:grid-cols-5 gap-3 text-xs">
           {/* من تاريخ */}
           <div className="flex flex-col gap-1">
-            <label className="text-slate-300">من تاريخ</label>
+            <label className="text-slate-300">{t("treasury.shifts.filterFrom", "من تاريخ")}</label>
             <DatePicker
               date={fromDate ? new Date(fromDate) : undefined}
               onChange={(d) => setFromDate(d ? d.toISOString().slice(0, 10) : "")}
@@ -157,7 +160,7 @@ export default function CashierShiftsPage() {
 
           {/* إلى تاريخ */}
           <div className="flex flex-col gap-1">
-            <label className="text-slate-300">إلى تاريخ</label>
+            <label className="text-slate-300">{t("treasury.shifts.filterTo", "إلى تاريخ")}</label>
             <DatePicker
               date={toDate ? new Date(toDate) : undefined}
               onChange={(d) => setToDate(d ? d.toISOString().slice(0, 10) : "")}
@@ -167,13 +170,13 @@ export default function CashierShiftsPage() {
 
           {/* الكاشير */}
           <div className="flex flex-col gap-1">
-            <label className="text-slate-300">الكاشير</label>
+            <label className="text-slate-300">{t("treasury.shifts.cashier", "الكاشير")}</label>
             <select
               value={cashierId}
               onChange={(e) => setCashierId(e.target.value)}
               className="bg-slate-900 border border-slate-700 rounded-2xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/60"
             >
-              <option value="">الكل (حسب الصلاحيات)</option>
+              <option value="">{t("treasury.shifts.allCashiers", "الكل (حسب الصلاحيات)")}</option>
               {cashiers.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.fullName} ({c.username})
@@ -206,14 +209,14 @@ export default function CashierShiftsPage() {
       {/* ملخص الأرقام */}
       <div className="mb-4 grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
         <div className="rounded-3xl border border-slate-800 bg-slate-950/80 p-4">
-          <div className="text-slate-400 mb-1">عدد الشفتات</div>
+          <div className="text-slate-400 mb-1">{t("treasury.shifts.count", "عدد الشفتات")}</div>
           <div className="text-2xl font-bold text-slate-100">
             {summary.totalShifts}
           </div>
         </div>
 
         <div className="rounded-3xl border border-slate-800 bg-slate-950/80 p-4">
-          <div className="text-slate-400 mb-1">إجمالي النقدية (حسب النظام)</div>
+          <div className="text-slate-400 mb-1">{t("treasury.shifts.totalSystem", "إجمالي النقدية (حسب النظام)")}</div>
           <div className="text-2xl font-bold text-amber-300">
             {formatMoney(summary.totalSystem)} LYD
           </div>
@@ -229,7 +232,7 @@ export default function CashierShiftsPage() {
         </div>
 
         <div className="rounded-3xl border border-slate-800 bg-slate-950/80 p-4">
-          <div className="text-slate-400 mb-1">إجمالي الفارق</div>
+          <div className="text-slate-400 mb-1">{t("treasury.shifts.totalDiff", "إجمالي الفارق")}</div>
           <div
             className={
               summary.totalDiff > 0
@@ -259,14 +262,14 @@ export default function CashierShiftsPage() {
             <table className="w-full text-[11px] text-right border-separate border-spacing-y-1">
               <thead className="text-slate-400">
                 <tr>
-                  <th className="px-2 py-1 text-right">رقم الشفت</th>
-                  <th className="px-2 py-1 text-right">التاريخ</th>
-                  <th className="px-2 py-1 text-right">من - إلى</th>
-                  <th className="px-2 py-1 text-right">الكاشير</th>
-                  <th className="px-2 py-1 text-right">النظام (نقداً)</th>
-                  <th className="px-2 py-1 text-right">الفعلي (المسلم)</th>
-                  <th className="px-2 py-1 text-right">الفرق</th>
-                  <th className="px-2 py-1 text-right">ملاحظة</th>
+                  <th className="px-2 py-1 text-right">{t("treasury.shifts.table.id", "رقم الشفت")}</th>
+                  <th className="px-2 py-1 text-right">{t("treasury.shifts.table.date", "التاريخ")}</th>
+                  <th className="px-2 py-1 text-right">{t("treasury.shifts.table.range", "من - إلى")}</th>
+                  <th className="px-2 py-1 text-right">{t("treasury.shifts.table.cashier", "الكاشير")}</th>
+                  <th className="px-2 py-1 text-right">{t("treasury.shifts.table.system", "النظام (نقداً)")}</th>
+                  <th className="px-2 py-1 text-right">{t("treasury.shifts.table.actual", "الفعلي (المسلم)")}</th>
+                  <th className="px-2 py-1 text-right">{t("treasury.shifts.table.diff", "الفرق")}</th>
+                  <th className="px-2 py-1 text-right">{t("treasury.shifts.table.note", "ملاحظة")}</th>
                 </tr>
               </thead>
               <tbody>

@@ -1,6 +1,7 @@
 // src/pages/CashierDailyReportPage.tsx
 
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { apiClient } from "../api/apiClient";
 import { DatePicker } from "@/components/ui/date-picker";
 
@@ -51,6 +52,8 @@ function getTodayDateStr() {
 }
 
 export default function CashierDailyReportPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.dir() === "rtl";
   const [reportDate, setReportDate] = useState<string>(getTodayDateStr());
   const [report, setReport] = useState<CashierDailyReport | null>(null);
   const [loading, setLoading] = useState(false);
@@ -71,7 +74,7 @@ export default function CashierDailyReportPage() {
       console.error(err);
       const msg = err?.response?.data?.message;
       if (typeof msg === "string") setError(msg);
-      else setError("حدث خطأ أثناء تحميل تقرير الكاشير.");
+      else setError(t("treasury.dailyReport.loadingError", "حدث خطأ أثناء تحميل تقرير الكاشير."));
     } finally {
       setLoading(false);
     }
@@ -95,7 +98,7 @@ export default function CashierDailyReportPage() {
     >
       <div
         id="print-root"
-        dir="rtl"
+        dir={isRtl ? "rtl" : "ltr"}
         className="print-wrapper w-[800px] bg-slate-950/90 text-slate-100 rounded-2xl shadow-xl px-8 py-6"
       >
         {/* شريط علوي + أزرار */}
@@ -129,7 +132,7 @@ export default function CashierDailyReportPage() {
         {/* فلاتر بسيطة (تاريخ اليوم) */}
         <div className="mb-4 rounded-2xl border border-slate-800 bg-slate-900/70 p-4 flex items-center justify-between text-xs">
           <div className="flex items-center gap-3">
-            <label className="text-slate-300">تاريخ التقرير:</label>
+            <label className="text-slate-300">{t("treasury.dailyReport.reportDate", "تاريخ التقرير:")}</label>
             <DatePicker
               date={reportDate ? new Date(reportDate) : undefined}
               onChange={(d) => setReportDate(d ? d.toISOString().slice(0, 10) : "")}
@@ -144,7 +147,7 @@ export default function CashierDailyReportPage() {
             </button>
           </div>
           <div className="text-[11px] text-slate-400">
-            نطاق التقرير:{" "}
+            {t("treasury.dailyReport.dateRange", "نطاق التقرير:")}{" "}
             {report ? (
               <>
                 <span className="text-sky-300">
@@ -182,7 +185,7 @@ export default function CashierDailyReportPage() {
             {/* Cards ملخص علوي */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
               <div className="border border-slate-800 rounded-2xl bg-slate-900/70 p-3">
-                <div className="text-slate-400 mb-1">إجمالي عدد الدفعات</div>
+                <div className="text-slate-400 mb-1">{t("treasury.dailyReport.totalCount", "إجمالي عدد الدفعات")}</div>
                 <div className="text-2xl font-bold text-emerald-300">
                   {report.paymentsSummary.totalCount}
                 </div>
@@ -196,7 +199,7 @@ export default function CashierDailyReportPage() {
                 </div>
               </div>
               <div className="border border-slate-800 rounded-2xl bg-slate-900/70 p-3">
-                <div className="text-slate-400 mb-1">عدد الفواتير في اليوم</div>
+                <div className="text-slate-400 mb-1">{t("treasury.dailyReport.invoicesCount", "عدد الفواتير في اليوم")}</div>
                 <div className="text-2xl font-bold text-sky-300">
                   {report.invoicesSummary.invoiceCount}
                 </div>
@@ -232,15 +235,7 @@ export default function CashierDailyReportPage() {
                       {report.paymentsByMethod.map((row) => (
                         <tr key={row.method}>
                           <td className="px-2 py-1 border border-slate-800">
-                            {row.method === "CASH"
-                              ? "نقداً"
-                              : row.method === "CARD"
-                              ? "بطاقة"
-                              : row.method === "TRANSFER"
-                              ? "حوالة / تحويل"
-                              : row.method === "INSURANCE"
-                              ? "تأمين"
-                              : "أخرى"}
+                            {row.method === "CASH" ? t("treasury.methods.CASH", "نقداً") : row.method === "CARD" ? t("treasury.methods.CARD", "بطاقة") : row.method === "TRANSFER" ? t("treasury.methods.TRANSFER", "حوالة / تحويل") : row.method === "INSURANCE" ? t("treasury.methods.INSURANCE", "تأمين") : t("treasury.methods.OTHER", "أخرى")}
                           </td>
                           <td className="px-2 py-1 border border-slate-800">
                             {row.count}
@@ -262,13 +257,13 @@ export default function CashierDailyReportPage() {
                 </h2>
                 <div className="space-y-1">
                   <div className="flex justify-between">
-                    <span className="text-slate-400">إجمالي الفواتير:</span>
+                    <span className="text-slate-400">{t("treasury.dailyReport.totalInvoiced", "إجمالي الفواتير:")}</span>
                     <span>
                       {formatMoney(report.invoicesSummary.totalInvoiced)} LYD
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-400">إجمالي الخصومات:</span>
+                    <span className="text-slate-400">{t("treasury.dailyReport.totalDiscounts", "إجمالي الخصومات:")}</span>
                     <span>
                       {formatMoney(report.invoicesSummary.totalDiscount)} LYD
                     </span>
@@ -282,7 +277,7 @@ export default function CashierDailyReportPage() {
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-400">إجمالي المتبقي:</span>
+                    <span className="text-slate-400">{t("treasury.dailyReport.totalRemaining", "إجمالي المتبقي:")}</span>
                     <span
                       className={
                         report.invoicesSummary.totalRemaining > 0

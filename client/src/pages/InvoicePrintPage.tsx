@@ -3,6 +3,7 @@
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { useEffect, useState, useMemo, Fragment } from "react";
 import { useParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { apiClient } from "../api/apiClient";
 import PrintLayout from "../components/print/PrintLayout";
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -139,7 +140,17 @@ function formatMoney(val: number | string | null | undefined) {
   });
 }
 
+
+const statusKeys: Record<string, string> = {
+  DRAFT: "treasury.common.draft",
+  ISSUED: "treasury.common.issued",
+  PARTIALLY_PAID: "treasury.common.partiallyPaid",
+  PAID: "treasury.common.paid",
+  CANCELLED: "treasury.common.cancelled",
+};
+
 export default function InvoicePrintPage() {
+  const { t } = useTranslation();
   const { id } = useParams();
   const invoiceId = Number(id);
 
@@ -179,7 +190,7 @@ export default function InvoicePrintPage() {
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="flex flex-col items-center gap-2 text-slate-500">
           <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
-          <span className="font-medium">جارِ إعداد الفاتورة...</span>
+          <span className="font-medium">{t("treasury.print.loading", "جارِ إعداد الفاتورة...")}</span>
         </div>
       </div>
     );
@@ -188,7 +199,7 @@ export default function InvoicePrintPage() {
   if (isError) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50 text-rose-500 font-bold">
-        خطأ: {(error as any)?.message || "تعذر تحميل الفاتورة"}
+        {t("common.error", "خطأ")}: {(error as any)?.message || t("treasury.print.error", "تعذر تحميل الفاتورة")}
       </div>
     );
   }
@@ -212,16 +223,16 @@ export default function InvoicePrintPage() {
 
   return (
     <PrintLayout
-      title={isCreditNote ? "إشعار دائن (مرتجع)" : "فاتورة ضريبية"}
+      title={isCreditNote ? t("treasury.print.creditNote", "إشعار دائن (مرتجع)") : t("treasury.print.taxInvoice", "فاتورة ضريبية")}
       subtitle={isCreditNote ? "Credit Note" : "Tax Invoice"}
       documentId={invoice.id}
-      footerNotes="نسخة إلكترونية معتمدة."
+      footerNotes={t("treasury.print.certifiedVersion", "نسخة إلكترونية معتمدة.")}
     >
       {/* Watermark */}
       {isCreditNote && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 opacity-10">
           <div className="text-[120px] font-black text-rose-600 -rotate-45 border-8 border-rose-600 px-10 rounded-3xl">
-            مرتجع / RETURN
+            {t("treasury.print.watermarkReturn", "مرتجع / RETURN")}
           </div>
         </div>
       )}
@@ -230,25 +241,25 @@ export default function InvoicePrintPage() {
       <div className="grid grid-cols-2 gap-6 mb-8 text-sm relative z-10">
         <div className="bg-slate-50/50 p-4 rounded-lg border border-slate-200">
           <div className="text-[10px] text-slate-400 uppercase font-bold tracking-wider mb-3 border-b border-slate-200 pb-1">
-            بيانات المريض (Patient Info)
+            {t("treasury.print.patientInfo", "بيانات المريض (Patient Info)")}
           </div>
           <div className="space-y-2">
             <div className="flex justify-between">
-              <span className="text-slate-500">الاسم:</span>
+              <span className="text-slate-500">{t("treasury.print.patientName", "الاسم:")}</span>
               <span className="font-bold text-slate-900">
                 {patient?.fullName || "—"}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-500">رقم الملف:</span>
+              <span className="text-slate-500">{t("treasury.print.mrn", "رقم الملف:")}</span>
               <span className="font-mono text-slate-700 font-semibold">
                 {patient?.mrn || "—"}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-500">الجهة الضامنة:</span>
+              <span className="text-slate-500">{t("treasury.print.insuranceProvider", "الجهة الضامنة:")}</span>
               <span className="text-slate-900">
-                {invoice.insuranceShare > 0 ? "تأمين" : "نقدي (مريض)"}
+                {invoice.insuranceShare > 0 ? t("treasury.print.insured", "تأمين") : t("treasury.print.cashPatient", "نقدي (مريض)")}
               </span>
             </div>
           </div>
@@ -256,17 +267,17 @@ export default function InvoicePrintPage() {
 
         <div className="bg-slate-50/50 p-4 rounded-lg border border-slate-200">
           <div className="text-[10px] text-slate-400 uppercase font-bold tracking-wider mb-3 border-b border-slate-200 pb-1">
-            تفاصيل الفاتورة (Invoice Details)
+            {t("treasury.print.invoiceDetails", "تفاصيل الفاتورة (Invoice Details)")}
           </div>
           <div className="space-y-2">
             <div className="flex justify-between">
-              <span className="text-slate-500">التاريخ:</span>
+              <span className="text-slate-500">{t("treasury.print.date", "التاريخ:")}</span>
               <span className="font-medium text-slate-900 font-mono">
                 {formatDateTime(invoice.createdAt)}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-500">الحالة:</span>
+              <span className="text-slate-500">{t("treasury.print.status", "الحالة:")}</span>
               <span
                 className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
                   invoice.status === "PAID"
@@ -276,12 +287,12 @@ export default function InvoicePrintPage() {
                       : "bg-slate-100 text-slate-700 border-slate-200"
                 }`}
               >
-                {invoice.status}
+                {t(statusKeys[invoice.status] || invoice.status, invoice.status) as string}
               </span>
             </div>
             {invoice.originalInvoiceId && (
               <div className="flex justify-between">
-                <span className="text-slate-500">فاتورة أصلية:</span>
+                <span className="text-slate-500">{t("treasury.print.originalInvoice", "فاتورة أصلية:")}</span>
                 <span className="font-mono font-bold text-slate-700">
                   #{invoice.originalInvoiceId}
                 </span>
@@ -300,14 +311,14 @@ export default function InvoicePrintPage() {
                 #
               </th>
               <th className="py-2 px-3 text-right font-bold">
-                البيان / Description
+                {t("treasury.print.desc", "البيان / Description")}
               </th>
-              <th className="py-2 px-3 text-center font-bold w-20">الكمية</th>
+              <th className="py-2 px-3 text-center font-bold w-20">{t("treasury.print.qty", "الكمية")}</th>
               <th className="py-2 px-3 text-right font-bold w-28">
-                سعر الوحدة
+                {t("treasury.print.unitPrice", "سعر الوحدة")}
               </th>
               <th className="py-2 px-3 text-right font-bold w-28 rounded-tl-md">
-                الإجمالي
+                {t("treasury.print.total", "الإجمالي")}
               </th>
             </tr>
           </thead>
@@ -351,16 +362,16 @@ export default function InvoicePrintPage() {
                             <thead className="bg-slate-100">
                               <tr>
                                 <th className="py-1 px-2 text-right font-normal">
-                                  اسم الدواء
+                                  {t("treasury.print.drugName", "اسم الدواء")}
                                 </th>
                                 <th className="py-1 px-2 text-center font-normal">
-                                  الكمية
+                                  {t("treasury.print.qty", "الكمية")}
                                 </th>
                                 <th className="py-1 px-2 text-right font-normal">
-                                  سعر الوحدة
+                                  {t("treasury.print.unitPrice", "سعر الوحدة")}
                                 </th>
                                 <th className="py-1 px-2 text-right font-normal">
-                                  إجمالي
+                                  {t("treasury.print.total", "إجمالي")}
                                 </th>
                               </tr>
                             </thead>
@@ -396,7 +407,7 @@ export default function InvoicePrintPage() {
             <tr className="bg-slate-50">
               <td colSpan={3}></td>
               <td className="py-2 px-3 text-right font-bold text-slate-600">
-                المجموع:
+                {t("treasury.print.summaryTotal", "المجموع:")}
               </td>
               <td className="py-2 px-3 text-right font-bold font-mono text-slate-800">
                 {formatMoney(subTotal)}
@@ -411,7 +422,7 @@ export default function InvoicePrintPage() {
         <div className="w-[300px] bg-white border border-slate-200 rounded-lg p-4 shadow-sm">
           {discount > 0 && (
             <div className="flex justify-between text-sm text-rose-600 mb-2">
-              <span>الخصم:</span>
+              <span>{t("treasury.print.discount", "الخصم:")}</span>
               <span className="font-mono font-bold">
                 - {formatMoney(discount)}
               </span>
@@ -419,7 +430,7 @@ export default function InvoicePrintPage() {
           )}
 
           <div className="flex justify-between text-base font-black text-slate-900 border-b-2 border-slate-900 pb-2 mb-2">
-            <span>الصـافـي:</span>
+            <span>{t("treasury.print.netTotal", "الصـافـي:")}</span>
             <span className="font-mono">
               {formatMoney(netTotal)}{" "}
               <span className="text-xs font-normal text-slate-500">
@@ -429,12 +440,12 @@ export default function InvoicePrintPage() {
           </div>
 
           <div className="flex justify-between text-sm text-emerald-600 pt-1">
-            <span>تم دفع:</span>
+            <span>{t("treasury.print.paid", "تم دفع:")}</span>
             <span className="font-mono font-bold">{formatMoney(paid)}</span>
           </div>
 
           <div className="flex justify-between text-sm text-slate-900 pt-1 border-t border-slate-200 mt-2">
-            <span>المتبقي:</span>
+            <span>{t("treasury.print.remaining", "المتبقي:")}</span>
             <span
               className={`font-mono font-bold ${remaining > 0.001 ? "text-rose-600" : "text-slate-400"}`}
             >
@@ -449,13 +460,13 @@ export default function InvoicePrintPage() {
         <div className="text-center w-1/3">
           <div className="h-px bg-slate-400 mb-2 w-32 mx-auto"></div>
           <div className="text-[10px] text-slate-500 font-bold uppercase">
-            المحاسب (Cashier)
+            {t("treasury.print.cashier", "المحاسب (Cashier)")}
           </div>
         </div>
         <div className="text-center w-1/3">
           <div className="h-px bg-slate-400 mb-2 w-32 mx-auto"></div>
           <div className="text-[10px] text-slate-500 font-bold uppercase">
-            المستلم (Receiver)
+            {t("treasury.print.receiver", "المستلم (Receiver)")}
           </div>
         </div>
       </div>

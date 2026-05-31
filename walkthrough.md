@@ -83,3 +83,16 @@ Snapshots:   0 total
 Time:        38.87 s
 Ran all test suites.
 ```
+
+---
+
+## 3. إصلاحات إضافية قبل الرفع (Additional Post-Compaction Fixes)
+
+### حل مشكلة اختبارات CDSSService (`cdss.service.spec.ts`)
+واجهنا بعض الأخطاء في اختبارات `CDSSService` بعد إدخال وزن المريض وحساب الكلى المعتمد على حقل `vitalSign`. تم حل هذه المشاكل بالكامل:
+1. **تحديث Mock لخدمة Prisma (`mockPrismaService`):**
+   - تم إدراج كائن `vitalSign` بمحاكاة `findFirst` وإرجاع قيمة `null` (والتي تؤول لافتراض وزن 70 كجم بشكل آمن).
+2. **تصحيح استدعاءات `checkDoseRange`:**
+   - تم ضبط اختبارات `checkDoseRange` لتستقبل المعامل الأول `patientId` (والذي تم إضافته لربط الوزن الطبي للمريض بالجرعات الموصوفة).
+   - تم محاكاة وجود مريض عن طريق `patient.findUnique` وتحديد عمره لضمان عمل الحسابات بشكل صحيح.
+   - تم التحقق من نجاح جميع الاختبارات الـ 21 الخاصة بـ `CDSSService` واجتيازها بنسبة 100%.

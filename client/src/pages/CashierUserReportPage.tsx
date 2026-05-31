@@ -1,6 +1,7 @@
 // src/pages/CashierUserReportPage.tsx
 
 import { useEffect, useState, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { apiClient } from "../api/apiClient";
 import { toast } from "sonner";
 import { useSearchParams } from "react-router-dom";
@@ -76,6 +77,8 @@ function formatMoney(val: number | string | null | undefined) {
 }
 
 export default function CashierUserReportPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.dir() === "rtl";
   const today = new Date().toISOString().slice(0, 10);
 
   const [reportDate, setReportDate] = useState<string>(today);
@@ -296,7 +299,7 @@ export default function CashierUserReportPage() {
 
           {/* من وقت */}
           <div className="flex flex-col gap-1">
-            <label className="text-slate-300">من الساعة</label>
+            <label className="text-slate-300">{t("treasury.userReport.fromHour", "من الساعة")}</label>
             <input
               type="time"
               value={fromTime}
@@ -307,7 +310,7 @@ export default function CashierUserReportPage() {
 
           {/* إلى وقت */}
           <div className="flex flex-col gap-1">
-            <label className="text-slate-300">إلى الساعة</label>
+            <label className="text-slate-300">{t("treasury.userReport.toHour", "إلى الساعة")}</label>
             <input
               type="time"
               value={toTime}
@@ -457,7 +460,7 @@ export default function CashierUserReportPage() {
                 <table className="w-full text-[11px] text-right">
                   <thead className="text-slate-400">
                     <tr>
-                      <th className="px-2 py-1 text-right">طريقة الدفع</th>
+                      <th className="px-2 py-1 text-right">{t("treasury.userReport.method", "طريقة الدفع")}</th>
                       <th className="px-2 py-1 text-right">عدد الدفعات</th>
                       <th className="px-2 py-1 text-right">الإجمالي</th>
                     </tr>
@@ -498,12 +501,12 @@ export default function CashierUserReportPage() {
                   <thead className="text-slate-400">
                     <tr>
                       <th className="px-2 py-1 text-right">الوقت</th>
-                      <th className="px-2 py-1 text-right">المريض</th>
+                      <th className="px-2 py-1 text-right">{t("treasury.userReport.patient", "المريض")}</th>
                       <th className="px-2 py-1 text-right">رقم الملف</th>
-                      <th className="px-2 py-1 text-right">رقم الفاتورة</th>
-                      <th className="px-2 py-1 text-right">طريقة الدفع</th>
-                      <th className="px-2 py-1 text-right">المبلغ</th>
-                      <th className="px-2 py-1 text-right">المرجع</th>
+                      <th className="px-2 py-1 text-right">{t("treasury.userReport.invoiceId", "رقم الفاتورة")}</th>
+                      <th className="px-2 py-1 text-right">{t("treasury.userReport.method", "طريقة الدفع")}</th>
+                      <th className="px-2 py-1 text-right">{t("treasury.userReport.amount", "المبلغ")}</th>
+                      <th className="px-2 py-1 text-right">{t("treasury.userReport.reference", "المرجع")}</th>
                     </tr>
                   </thead>
                   <tbody>

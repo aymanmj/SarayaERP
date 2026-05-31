@@ -1,6 +1,7 @@
 // src/pages/CashierPage.tsx
 
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { apiClient } from "../api/apiClient";
 import { toast } from "sonner";
 import { HasPermission } from "../components/HasPermission";
@@ -88,6 +89,8 @@ function getInvoiceShares(inv: CashierInvoice) {
 }
 
 export default function CashierPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.dir() === "rtl";
   const [loading, setLoading] = useState(false);
   const [invoices, setInvoices] = useState<CashierInvoice[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -109,7 +112,7 @@ export default function CashierPage() {
       setInvoices(res.data);
     } catch (err) {
       console.error(err);
-      toast.error("حدث خطأ أثناء تحميل قائمة الفواتير للكاشير.");
+      toast.error(t("treasury.cashier.toast.loadError", "حدث خطأ أثناء تحميل قائمة الفواتير للكاشير."));
     } finally {
       setLoading(false);
     }
@@ -118,18 +121,18 @@ export default function CashierPage() {
   const handleCancelInvoice = async () => {
     if (!selectedInvoice) return;
     if (selectedInvoice.paidAmount > 0) {
-      toast.error("لا يمكن إلغاء فاتورة تم دفع جزء منها أو كاملة. يرجى استخدام المرتجعات.");
+      toast.error(t("treasury.cashier.toast.cannotCancelPaid", "لا يمكن إلغاء فاتورة تم دفع جزء منها أو كاملة. يرجى استخدام المرتجعات."));
       return;
     }
 
-    if (!window.confirm(`هل أنت متأكد من إلغاء الفاتورة #${selectedInvoice.id}؟`)) {
+    if (!window.confirm(t("treasury.cashier.toast.confirmCancel", { id: selectedInvoice.id, defaultValue: `هل أنت متأكد من إلغاء الفاتورة #${selectedInvoice.id}؟` }))) {
       return;
     }
 
     setCancelling(true);
     try {
       await apiClient.post(`/billing/invoices/${selectedInvoice.id}/cancel`);
-      toast.success("تم إلغاء الفاتورة بنجاح وتحرير الخدمات للفوترة مجدداً.");
+      toast.success(t("treasury.cashier.toast.cancelSuccess", "تم إلغاء الفاتورة بنجاح وتحرير الخدمات للفوترة مجدداً."));
       setSelectedId(null);
       await loadWorklist();
      
@@ -137,7 +140,7 @@ export default function CashierPage() {
       console.error(err);
       const msg = err?.response?.data?.message;
       toast.error(
-        typeof msg === "string" ? msg : "حدث خطأ أثناء إلغاء الفاتورة.",
+        typeof msg === "string" ? msg : t("treasury.cashier.toast.cancelError", "حدث خطأ أثناء إلغاء الفاتورة."),
       );
     } finally {
       setCancelling(false);
@@ -173,27 +176,27 @@ export default function CashierPage() {
       window.URL.revokeObjectURL(url);
     } catch (err) {
       console.error('Error generating PDF:', err);
-      toast.error("فشل تحميل ملف الـ PDF. تأكد من إعدادات السيرفر.");
+      toast.error(t("treasury.cashier.toast.pdfLoadError", "فشل تحميل ملف الـ PDF. تأكد من إعدادات السيرفر."));
     }
   };
 
   const handlePay = async () => {
     if (!selectedInvoice) {
-      toast.warning("اختر فاتورة أولاً.");
+      toast.warning(t("treasury.cashier.toast.selectFirst", "اختر فاتورة أولاً."));
       return;
     }
 
     const value = Number(amount);
 
     if (value < 0) {
-      toast.warning("القيمة لا يمكن أن تكون سالبة.");
+      toast.warning(t("treasury.cashier.toast.negativeValue", "القيمة لا يمكن أن تكون سالبة."));
       return;
     }
 
     // إذا كان هناك مبلغ مستحق، لا نسمح بـ 0
     // أما إذا كان المستحق 0 (تأمين كامل)، نسمح بـ 0 للتأكيد
     if (value === 0 && selectedValues && selectedValues.dueNow > 0.005) {
-      toast.warning("أدخل قيمة دفع صحيحة (المبلغ المستحق أكبر من 0).");
+      toast.warning(t("treasury.cashier.toast.positiveValue", "أدخل قيمة دفع صحيحة (المبلغ المستحق أكبر من 0)."));
       return;
     }
 
@@ -215,9 +218,9 @@ export default function CashierPage() {
       const paymentId = data.paymentId;
 
       if (value === 0) {
-        toast.success("تم تأكيد الفاتورة (مغطاة بالتأمين).");
+        toast.success(t("treasury.cashier.toast.confirmedInsurance", "تم تأكيد الفاتورة (مغطاة بالتأمين)."));
       } else {
-        toast.success("تم تسجيل الدفعة بنجاح.");
+        toast.success(t("treasury.cashier.toast.paymentSuccess", "تم تسجيل الدفعة بنجاح."));
       }
 
       // ✅ [FIX] فتح الإيصال فقط إذا كان هناك ID للدفعة
@@ -238,7 +241,7 @@ export default function CashierPage() {
       console.error(err);
       const msg = err?.response?.data?.message;
       toast.error(
-        typeof msg === "string" ? msg : "حدث خطأ أثناء تسجيل الدفعة.",
+        typeof msg === "string" ? msg : t("treasury.cashier.toast.paymentError", "حدث خطأ أثناء تسجيل الدفعة."),
       );
     }
   };
@@ -246,13 +249,13 @@ export default function CashierPage() {
   return (
     <div
       className="flex flex-col h-full text-slate-100 p-6 space-y-6"
-      dir="rtl"
+      dir={isRtl ? "rtl" : "ltr"}
       data-testid="cashier-page"
     >
       {/* الهيدر */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold mb-1">خزينة / الكاشير</h1>
+          <h1 className="text-2xl font-bold mb-1">{t("treasury.cashier.title", "خزينة / الكاشير")}</h1>
           <p className="text-sm text-slate-400">
             تحصيل الفواتير والخدمات (كشف، مختبر، أشعة).
           </p>
@@ -291,14 +294,14 @@ export default function CashierPage() {
             <table className="min-w-full text-xs text-right">
               <thead className="bg-slate-900 text-slate-300 sticky top-0">
                 <tr>
-                  <th className="px-3 py-3">#</th>
-                  <th className="px-3 py-3">المريض</th>
-                  <th className="px-3 py-3 text-center">النوع</th>
-                  <th className="px-3 py-3">الإجمالي</th>
-                  <th className="px-3 py-3 text-sky-400">حصة التأمين</th>
-                  <th className="px-3 py-3 text-emerald-400">حصة المريض</th>
-                  <th className="px-3 py-3 text-rose-400">المطلوب الآن</th>
-                  <th className="px-3 py-3">إجراء</th>
+                  <th className="px-3 py-3">{t("treasury.cashier.table.id", "#")}</th>
+                  <th className="px-3 py-3">{t("treasury.cashier.table.patient", "المريض")}</th>
+                  <th className="px-3 py-3 text-center">{t("treasury.cashier.table.type", "النوع")}</th>
+                  <th className="px-3 py-3">{t("treasury.cashier.table.total", "الإجمالي")}</th>
+                  <th className="px-3 py-3 text-sky-400">{t("treasury.cashier.table.insuranceShare", "حصة التأمين")}</th>
+                  <th className="px-3 py-3 text-emerald-400">{t("treasury.cashier.table.patientShare", "حصة المريض")}</th>
+                  <th className="px-3 py-3 text-rose-400">{t("treasury.cashier.table.dueNow", "المطلوب الآن")}</th>
+                  <th className="px-3 py-3">{t("treasury.cashier.table.action", "إجراء")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800">
@@ -386,14 +389,14 @@ export default function CashierPage() {
             <div className="space-y-4">
               <div className="bg-slate-950/50 p-3 rounded-xl border border-slate-800 text-xs space-y-2">
                 <div className="flex justify-between">
-                  <span className="text-slate-400">إجمالي الفاتورة:</span>
+                  <span className="text-slate-400">{t("treasury.cashier.invoiceTotal", "إجمالي الفاتورة:")}</span>
                   <span className="text-slate-200 font-mono">
                     {formatMoney(selectedValues.total)}
                   </span>
                 </div>
                 {selectedValues.isInsurance && (
                   <div className="flex justify-between">
-                    <span className="text-slate-400">يغطيه التأمين:</span>
+                    <span className="text-slate-400">{t("treasury.cashier.coveredByInsurance", "يغطيه التأمين:")}</span>
                     <span className="text-sky-400 font-mono">
                       {formatMoney(selectedValues.insurance)}
                     </span>
@@ -408,20 +411,20 @@ export default function CashierPage() {
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">تم دفعه سابقاً:</span>
+                  <span className="text-slate-400">{t("treasury.cashier.previouslyPaid", "تم دفعه سابقاً:")}</span>
                   <span className="text-slate-200 font-mono">
                     {formatMoney(selectedValues.paid)}
                   </span>
                 </div>
                 {/* عرض المتبقي على المريض بوضوح */}
                 <div className="flex justify-between font-bold text-rose-400 pt-1">
-                  <span>المطلوب الآن:</span>
+                  <span>{t("treasury.cashier.table.dueNow", "المطلوب الآن:")}</span>
                   <span>{formatMoney(selectedValues.dueNow)}</span>
                 </div>
 
                 {selectedInvoice.patient.insurancePolicy && (
                   <div className="pt-2 mt-2 border-t border-slate-800 text-[10px] text-purple-300 text-center">
-                    مؤمن لدى:{" "}
+                    {t("treasury.cashier.insuredUnder", "مؤمن لدى:")}{" "}
                     {selectedInvoice.patient.insurancePolicy.provider.name}
                     <br />({selectedInvoice.patient.insurancePolicy.name})
                   </div>
@@ -444,17 +447,17 @@ export default function CashierPage() {
                   />
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="text-slate-300 text-xs">طريقة الدفع</label>
+                  <label className="text-slate-300 text-xs">{t("treasury.cashier.paymentMethod", "طريقة الدفع")}</label>
                   <select
                     value={method}
                     onChange={(e) => setMethod(e.target.value as PaymentMethod)}
                     data-testid="cashier-payment-method"
                     className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 outline-none focus:border-emerald-500"
                   >
-                    <option value="CASH">نقداً</option>
-                    <option value="CARD">بطاقة</option>
-                    <option value="TRANSFER">تحويل</option>
-                    <option value="OTHER">أخرى</option>
+                    <option value="CASH">{t("treasury.methods.CASH", "نقداً")}</option>
+                    <option value="CARD">{t("treasury.methods.CARD", "بطاقة")}</option>
+                    <option value="TRANSFER">{t("treasury.methods.TRANSFER", "تحويل")}</option>
+                    <option value="OTHER">{t("treasury.methods.OTHER", "أخرى")}</option>
                   </select>
                 </div>
                 <div className="flex flex-col gap-1">

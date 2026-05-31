@@ -6,6 +6,7 @@
 import { HasPermission } from "../components/HasPermission";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { apiClient } from "../api/apiClient";
 import { toast } from "sonner";
 import { formatDate } from "@/lib/utils";
@@ -40,7 +41,18 @@ interface InvoiceListResponse {
     meta: PaginationMeta;
 }
 
+
+const statusKeys: Record<string, string> = {
+  DRAFT: "treasury.common.draft",
+  ISSUED: "treasury.common.issued",
+  PARTIALLY_PAID: "treasury.common.partiallyPaid",
+  PAID: "treasury.common.paid",
+  CANCELLED: "treasury.common.cancelled",
+};
+
 export default function InvoicesListPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.dir() === "rtl";
   const navigate = useNavigate();
 
   // دالة طباعة PDF باستخدام نفس الطريقة المستخدمة في InvoiceDetailsPage
@@ -66,7 +78,7 @@ export default function InvoicesListPage() {
       window.URL.revokeObjectURL(url);
     } catch (err) {
       console.error('Error generating PDF:', err);
-      toast.error("فشل تحميل ملف الـ PDF. تأكد من إعدادات السيرفر.");
+      toast.error(t("treasury.invoicesList.toast.pdfLoadError", "فشل تحميل ملف الـ PDF. تأكد من إعدادات السيرفر."));
     }
   };
 
@@ -105,7 +117,7 @@ export default function InvoicesListPage() {
 
   useEffect(() => {
       if (isError) {
-          toast.error("فشل تحميل قائمة الفواتير");
+          toast.error(t("treasury.invoicesList.toast.loadError", "فشل تحميل قائمة الفواتير"));
       }
   }, [isError]);
 
@@ -118,7 +130,7 @@ export default function InvoicesListPage() {
   return (
     <div
       className="flex flex-col h-full text-slate-100 p-4 md:p-6 space-y-6"
-      dir="rtl"
+      dir={isRtl ? "rtl" : "ltr"}
     >
       {/* Header */}
       <div className="flex justify-between items-center">
@@ -127,7 +139,7 @@ export default function InvoicesListPage() {
             سجل الفواتير
           </h1>
           <p className="text-sm text-slate-400">
-            إدارة المطالبات المالية، التحصيل، وحالات التأمين.
+            {t("treasury.invoicesList.subtitle", "إدارة المطالبات المالية، التحصيل، وحالات التأمين.")}
           </p>
         </div>
       </div>
@@ -140,7 +152,7 @@ export default function InvoicesListPage() {
           </span>
           <input
             className="w-full bg-slate-950 border border-slate-800 rounded-xl pr-12 pl-4 py-2.5 text-sm focus:border-sky-500 outline-none transition-all"
-            placeholder="بحث برقم الفاتورة، اسم المريض أو MRN..."
+            placeholder={t("treasury.invoicesList.placeholder", "البحث باسم المريض أو رقم الملف أو رقم الفاتورة...")}
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);
@@ -158,11 +170,11 @@ export default function InvoicesListPage() {
               setPage(1);
             }}
           >
-            <option value="">كل الحالات</option>
-            <option value="ISSUED">صادرة</option>
-            <option value="PARTIALLY_PAID">مدفوعة جزئياً</option>
-            <option value="PAID">مدفوعة بالكامل</option>
-            <option value="CANCELLED">ملغاة</option>
+            <option value="">{t("treasury.invoicesList.filterStatus", "الحالة: الكل")}</option>
+            <option value="ISSUED">{t("treasury.common.issued", "صادرة")}</option>
+            <option value="PARTIALLY_PAID">{t("treasury.common.partiallyPaid", "مدفوعة جزئياً")}</option>
+            <option value="PAID">{t("treasury.common.paid", "مدفوعة")}</option>
+            <option value="CANCELLED">{t("treasury.common.cancelled", "ملغاة")}</option>
           </select>
         </div>
 
@@ -180,13 +192,14 @@ export default function InvoicesListPage() {
           <table className="w-full text-sm text-right">
             <thead className="bg-slate-950/50 text-slate-500 sticky top-0 backdrop-blur z-10">
               <tr className="text-[10px] uppercase tracking-widest border-b border-slate-800">
-                <th className="px-6 py-4 font-bold">رقم الفاتورة</th>
-                <th className="px-6 py-4 font-bold">المريض</th>
-                <th className="px-6 py-4 font-bold">تاريخ الإصدار</th>
-                <th className="px-6 py-4 font-bold">الإجمالي (LYD)</th>
-                <th className="px-6 py-4 font-bold">المدفوع / التأمين</th>
-                <th className="px-6 py-4 font-bold text-center">الحالة</th>
-                <th className="px-6 py-4 font-bold text-center">إجراءات</th>
+                <th className="px-6 py-4 font-bold">{t("treasury.invoicesList.table.id", "رقم الفاتورة")}</th>
+                <th className="px-6 py-4 font-bold">{t("treasury.invoicesList.table.patient", "المريض")}</th>
+                <th className="px-6 py-4 font-bold">{t("treasury.invoicesList.table.date", "تاريخ الإصدار")}</th>
+                <th className="px-6 py-4 font-bold">{t("treasury.invoicesList.table.total", "إجمالي الفاتورة")}</th>
+                <th className="px-6 py-4 font-bold">{t("treasury.invoicesList.table.typeStatus", "النوع / الحالة")}</th>
+                <th className="px-6 py-4 font-bold text-center">{t("treasury.invoicesList.table.paid", "تم دفعه")}</th>
+                <th className="px-6 py-4 font-bold text-center">{t("treasury.invoicesList.table.remaining", "المتبقي")}</th>
+                <th className="px-6 py-4 font-bold text-center">{t("treasury.invoicesList.table.actions", "الإجراءات")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/50 text-xs">
@@ -196,7 +209,7 @@ export default function InvoicesListPage() {
                     colSpan={7}
                     className="text-center py-20 text-slate-500 animate-pulse"
                   >
-                    جارِ تحميل الفواتير...
+                    {t("treasury.invoicesList.loading", "جارِ تحميل الفواتير...")}
                   </td>
                 </tr>
               ) : (
@@ -246,11 +259,11 @@ export default function InvoicesListPage() {
                                 : "bg-slate-800 text-slate-400 border-slate-700"
                             }`}
                       >
-                        {inv.returns && inv.returns.length > 0 ? "MERGED / REFUNDED" : inv.status}
+                        {inv.returns && inv.returns.length > 0 ? t("treasury.invoicesList.creditNote", "MERGED / REFUNDED") : t(statusKeys[inv.status] || inv.status, inv.status)}
                       </span>
                       {inv.returns && inv.returns.length > 0 && (
                         <div className="text-[9px] text-rose-400 font-bold mt-1">
-                          (تم الإرجاع)
+                          {t("treasury.invoicesList.creditNote", "تم الإرجاع")}
                         </div>
                       )}
                     </td>
@@ -282,7 +295,7 @@ export default function InvoicesListPage() {
         {/* Footer & Pagination */}
         <div className="bg-slate-950/80 border-t border-slate-800 px-6 py-4 flex justify-between items-center text-xs">
           <div className="text-slate-500">
-            إجمالي الفواتير:{" "}
+            {t("treasury.invoicesList.table.total", "إجمالي الفواتير")}:{" "}
             <span className="text-white font-bold">
               {meta?.totalCount ?? 0}
             </span>
@@ -298,8 +311,8 @@ export default function InvoicesListPage() {
               </button>
 
               <div className="flex items-center px-4 text-slate-400">
-                صفحة <span className="text-sky-400 font-bold mx-1">{page}</span>{" "}
-                من{" "}
+                {t("patients.paginationPage", "صفحة")} <span className="text-sky-400 font-bold mx-1">{page}</span>{" "}
+                {t("patients.paginationOf", "من")}{" "}
                 <span className="text-white font-bold mx-1">
                   {meta?.totalPages || 1}
                 </span>

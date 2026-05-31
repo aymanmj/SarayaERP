@@ -1,6 +1,7 @@
 // src/pages/RevenueDepartmentPage.tsx
 
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { apiClient } from "../api/apiClient";
 import { toast } from "sonner";
 import {
@@ -56,6 +57,8 @@ const PRESETS = [
 ];
 
 export default function RevenueDepartmentPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.dir() === "rtl";
   const [data, setData] = useState<RevenueReport | null>(null);
   const [loading, setLoading] = useState(false);
   const [preset, setPreset] = useState("month");
@@ -90,7 +93,7 @@ export default function RevenueDepartmentPage() {
       );
       setData(res.data);
     } catch {
-      toast.error("فشل تحميل تقرير الإيرادات");
+      toast.error(t("treasury.revDept.toast.loadError", "فشل تحميل تقرير الإيرادات"));
     } finally {
       setLoading(false);
     }
@@ -102,13 +105,13 @@ export default function RevenueDepartmentPage() {
   }, [preset]);
 
   return (
-    <div className="p-6 text-slate-100 space-y-6" dir="rtl">
+    <div className="p-6 text-slate-100 space-y-6" dir={isRtl ? "rtl" : "ltr"}>
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold">تقرير الإيرادات حسب القسم</h1>
+          <h1 className="text-2xl font-bold">{t("treasury.revDept.title", "تقرير الإيرادات حسب القسم")}</h1>
           <p className="text-slate-400 text-sm mt-1">
-            تفصيل الإيرادات بحسب نوع الخدمة والتخصص الطبي
+            {t("treasury.revDept.subtitle", "تفصيل الإيرادات بحسب نوع الخدمة والتخصص الطبي")}
           </p>
         </div>
         <div className="flex gap-2">
@@ -122,7 +125,7 @@ export default function RevenueDepartmentPage() {
                   : "bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700"
               }`}
             >
-              {p.label}
+              {t(`treasury.revDept.presets.${p.value}`, p.label)}
             </button>
           ))}
         </div>
@@ -130,27 +133,27 @@ export default function RevenueDepartmentPage() {
 
       {loading ? (
         <div className="flex items-center justify-center py-20 text-slate-500 animate-pulse">
-          جاري تحميل البيانات...
+          {t("treasury.revDept.loading", "جاري تحميل البيانات...")}
         </div>
       ) : data ? (
         <>
           {/* Summary Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-5">
-              <div className="text-slate-400 text-sm mb-2">إجمالي الإيرادات</div>
+              <div className="text-slate-400 text-sm mb-2">{t("treasury.revDept.totalRevenue", "إجمالي الإيرادات")}</div>
               <div className="text-3xl font-bold text-emerald-400">
                 {data.total.revenue.toLocaleString()}{" "}
-                <span className="text-sm text-slate-500">د.ل</span>
+                <span className="text-sm text-slate-500">{t("treasury.revDept.currency", "د.ل")}</span>
               </div>
             </div>
             <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-5">
-              <div className="text-slate-400 text-sm mb-2">عدد الخدمات</div>
+              <div className="text-slate-400 text-sm mb-2">{t("treasury.revDept.servicesCount", "عدد الخدمات")}</div>
               <div className="text-3xl font-bold text-sky-400">
                 {data.total.count.toLocaleString()}
               </div>
             </div>
             <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-5">
-              <div className="text-slate-400 text-sm mb-2">عدد التخصصات</div>
+              <div className="text-slate-400 text-sm mb-2">{t("treasury.revDept.specialtiesCount", "عدد التخصصات")}</div>
               <div className="text-3xl font-bold text-purple-400">
                 {data.bySpecialty.length}
               </div>
@@ -162,7 +165,7 @@ export default function RevenueDepartmentPage() {
             {/* Pie Chart — Revenue by ServiceType */}
             <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-6">
               <h3 className="text-lg font-bold mb-4 text-slate-200 border-b border-slate-800 pb-2">
-                توزيع الإيرادات حسب نوع الخدمة
+                {t("treasury.revDept.serviceChart", "توزيع الإيرادات حسب نوع الخدمة")}
               </h3>
               {data.byServiceType.length > 0 ? (
                 <ResponsiveContainer width="100%" height={320}>
@@ -190,7 +193,7 @@ export default function RevenueDepartmentPage() {
                     </Pie>
                     <Tooltip
                       formatter={(value: number) =>
-                        `${value.toLocaleString()} د.ل`
+                        `${value.toLocaleString()} {t("treasury.revDept.currency", "د.ل")}`
                       }
                       contentStyle={{
                         backgroundColor: "#0f172a",
@@ -202,7 +205,7 @@ export default function RevenueDepartmentPage() {
                 </ResponsiveContainer>
               ) : (
                 <div className="text-center text-slate-500 py-16">
-                  لا توجد بيانات للفترة المحددة
+                  {t("treasury.revDept.noData", "لا توجد بيانات للفترة المحددة")}
                 </div>
               )}
             </div>
@@ -210,7 +213,7 @@ export default function RevenueDepartmentPage() {
             {/* Bar Chart — Revenue by Specialty */}
             <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-6">
               <h3 className="text-lg font-bold mb-4 text-slate-200 border-b border-slate-800 pb-2">
-                الإيرادات حسب التخصص الطبي
+                {t("treasury.revDept.specialtyChart", "الإيرادات حسب التخصص الطبي")}
               </h3>
               {data.bySpecialty.length > 0 ? (
                 <ResponsiveContainer width="100%" height={320} >
@@ -234,7 +237,7 @@ export default function RevenueDepartmentPage() {
                     />
                     <Tooltip
                       formatter={(value: number) =>
-                        `${value.toLocaleString()} د.ل`
+                        `${value.toLocaleString()} {t("treasury.revDept.currency", "د.ل")}`
                       }
                       contentStyle={{
                         backgroundColor: "#0f172a",
@@ -244,7 +247,7 @@ export default function RevenueDepartmentPage() {
                     />
                     <Bar
                       dataKey="revenue"
-                      name="الإيرادات"
+                      name={t("treasury.revDept.revenue", "الإيرادات")}
                       fill="#818cf8"
                       radius={[0, 6, 6, 0]}
                       barSize={24}
@@ -253,7 +256,7 @@ export default function RevenueDepartmentPage() {
                 </ResponsiveContainer>
               ) : (
                 <div className="text-center text-slate-500 py-16">
-                  لا توجد بيانات للفترة المحددة
+                  {t("treasury.revDept.noData", "لا توجد بيانات للفترة المحددة")}
                 </div>
               )}
             </div>
@@ -265,23 +268,23 @@ export default function RevenueDepartmentPage() {
             <div className="bg-slate-900/70 border border-slate-800 rounded-2xl overflow-hidden">
               <div className="px-6 py-4 border-b border-slate-800">
                 <h3 className="font-bold text-slate-200">
-                  تفصيل حسب نوع الخدمة
+                  {t("treasury.revDept.serviceTable", "تفصيل حسب نوع الخدمة")}
                 </h3>
               </div>
               <table className="w-full text-sm">
                 <thead className="bg-slate-800/50">
                   <tr>
                     <th className="px-6 py-3 text-right text-slate-400">
-                      نوع الخدمة
+                      {t("treasury.revDept.serviceType", "نوع الخدمة")}
                     </th>
                     <th className="px-6 py-3 text-center text-slate-400">
-                      العدد
+                      {t("treasury.revDept.count", "العدد")}
                     </th>
                     <th className="px-6 py-3 text-center text-slate-400">
-                      الإيرادات
+                      {t("treasury.revDept.revenue", "الإيرادات")}
                     </th>
                     <th className="px-6 py-3 text-center text-slate-400">
-                      النسبة
+                      {t("treasury.revDept.ratio", "النسبة")}
                     </th>
                   </tr>
                 </thead>
@@ -304,7 +307,7 @@ export default function RevenueDepartmentPage() {
                         {item.count.toLocaleString()}
                       </td>
                       <td className="px-6 py-3 text-center font-mono text-emerald-400">
-                        {item.revenue.toLocaleString()} د.ل
+                        {item.revenue.toLocaleString()} {t("treasury.revDept.currency", "د.ل")}
                       </td>
                       <td className="px-6 py-3 text-center text-slate-400">
                         {data.total.revenue > 0
@@ -325,23 +328,23 @@ export default function RevenueDepartmentPage() {
             <div className="bg-slate-900/70 border border-slate-800 rounded-2xl overflow-hidden">
               <div className="px-6 py-4 border-b border-slate-800">
                 <h3 className="font-bold text-slate-200">
-                  تفصيل حسب التخصص
+                  {t("treasury.revDept.specialtyTable", "تفصيل حسب التخصص")}
                 </h3>
               </div>
               <table className="w-full text-sm">
                 <thead className="bg-slate-800/50">
                   <tr>
                     <th className="px-6 py-3 text-right text-slate-400">
-                      التخصص
+                      {t("treasury.revDept.specialty", "التخصص")}
                     </th>
                     <th className="px-6 py-3 text-center text-slate-400">
-                      العدد
+                      {t("treasury.revDept.count", "العدد")}
                     </th>
                     <th className="px-6 py-3 text-center text-slate-400">
-                      الإيرادات
+                      {t("treasury.revDept.revenue", "الإيرادات")}
                     </th>
                     <th className="px-6 py-3 text-center text-slate-400">
-                      النسبة
+                      {t("treasury.revDept.ratio", "النسبة")}
                     </th>
                   </tr>
                 </thead>
@@ -364,7 +367,7 @@ export default function RevenueDepartmentPage() {
                         {item.count.toLocaleString()}
                       </td>
                       <td className="px-6 py-3 text-center font-mono text-emerald-400">
-                        {item.revenue.toLocaleString()} د.ل
+                        {item.revenue.toLocaleString()} {t("treasury.revDept.currency", "د.ل")}
                       </td>
                       <td className="px-6 py-3 text-center text-slate-400">
                         {data.total.revenue > 0

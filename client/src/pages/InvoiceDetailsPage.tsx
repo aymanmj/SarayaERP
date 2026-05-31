@@ -4,6 +4,7 @@
 
 import { useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { apiClient } from "../api/apiClient";
 import { toast } from "sonner";
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -141,7 +142,18 @@ function statusLabel(status: InvoiceStatus) {
   }
 }
 
+
+const statusKeys: Record<string, string> = {
+  DRAFT: "treasury.common.draft",
+  ISSUED: "treasury.common.issued",
+  PARTIALLY_PAID: "treasury.common.partiallyPaid",
+  PAID: "treasury.common.paid",
+  CANCELLED: "treasury.common.cancelled",
+};
+
 export default function InvoiceDetailsPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.dir() === "rtl";
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -183,14 +195,14 @@ export default function InvoiceDetailsPage() {
       },
       onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: ['invoice', id] });
-          toast.success("تم إنشاء المرتجع بنجاح");
+          toast.success(t("treasury.invoiceDetails.toast.returnSuccess", "تم إنشاء المرتجع بنجاح"));
           setIsReturnModalOpen(false);
           setReturnReason("");
       },
        
       onError: (err: any) => {
           console.error(err);
-          toast.error(err.response?.data?.message || "فشل إنشاء المرتجع");
+          toast.error(err.response?.data?.message || t("treasury.invoiceDetails.toast.returnError", "فشل إنشاء المرتجع"));
       }
   });
 
@@ -263,7 +275,7 @@ export default function InvoiceDetailsPage() {
   //     : `
   //       <tr>
   //         <td colspan="5" class="text-center">
-  //           لا توجد مدفوعات مسجلة على هذه الفاتورة.
+  //           {t("treasury.invoiceDetails.noPayments", "لا توجد مدفوعات مسجلة على هذه الفاتورة.")}
   //         </td>
   //       </tr>
   //     `;
@@ -381,7 +393,7 @@ export default function InvoiceDetailsPage() {
   //             <div class="box" style="flex:1; margin-right:8px;">
   //               <strong>معلومات الفاتورة</strong>
   //               <div>التاريخ: ${formatDateTime(invoice.createdAt)}</div>
-  //               <div>الحالة: ${statusLabel(invoice.status)}</div>
+  //               <div>الحالة: ${t(statusKeys[invoice.status] || "", statusLabel(invoice.status))}</div>
   //               <div>السنة المالية: ${
   //                 invoice.financialYear
   //                   ? `${invoice.financialYear.code} – ${invoice.financialYear.name}`
@@ -419,7 +431,7 @@ export default function InvoiceDetailsPage() {
   //                   chargesRows ||
   //                   `<tr>
   //                     <td colspan="5" class="text-center">
-  //                       لا توجد بنود لهذه الفاتورة.
+  //                       {t("treasury.invoiceDetails.noLines", "لا توجد بنود لهذه الفاتورة.")}
   //                     </td>
   //                   </tr>`
   //                 }
@@ -513,7 +525,7 @@ export default function InvoiceDetailsPage() {
       window.URL.revokeObjectURL(url);
     } catch (err) {
       console.error(err);
-      toast.error("فشل تحميل ملف الـ PDF. تأكد من إعدادات السيرفر.");
+      toast.error(t("treasury.invoicesList.toast.pdfLoadError", "فشل تحميل ملف الـ PDF. تأكد من إعدادات السيرفر."));
     }
   };
 
@@ -522,7 +534,7 @@ export default function InvoiceDetailsPage() {
   if (!id) {
     return (
       <div className="p-6 text-sm text-rose-400">
-        لم يتم تمرير رقم الفاتورة في الرابط.
+        {t("treasury.invoiceDetails.toast.noInvoiceId", "لم يتم تمرير رقم الفاتورة في الرابط.")}
       </div>
     );
   }
@@ -530,7 +542,7 @@ export default function InvoiceDetailsPage() {
   if (!data && loading) {
     return (
       <div className="p-6 text-sm text-slate-300">
-        جارِ تحميل بيانات الفاتورة...
+        {t("treasury.invoiceDetails.loading", "جارِ تحميل بيانات الفاتورة...")}
       </div>
     );
   }
@@ -538,7 +550,7 @@ export default function InvoiceDetailsPage() {
   if (!data && !loading) {
     return (
       <div className="p-6 text-sm text-slate-300">
-        لم يتم العثور على بيانات هذه الفاتورة.
+        {t("treasury.invoiceDetails.notFound", "لم يتم العثور على بيانات هذه الفاتورة.")}
       </div>
     );
   }
@@ -546,13 +558,13 @@ export default function InvoiceDetailsPage() {
   const { invoice, patient, encounter, charges, payments } = data!;
 
   return (
-    <div className="flex flex-col h-full text-slate-100">
+    <div className="flex flex-col h-full text-slate-100" dir={isRtl ? "rtl" : "ltr"}>
       {/* العنوان + الأزرار */}
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold mb-1">فاتورة رقم #{invoice.id}</h1>
+          <h1 className="text-2xl font-bold mb-1">{t("treasury.invoiceDetails.title", "معلومات الفاتورة")} #{invoice.id}</h1>
           <p className="text-sm text-slate-400">
-            عرض تفاصيل الفاتورة والمريض والحالة البنود والمدفوعات.
+            {t("treasury.invoiceDetails.subtitle", "عرض تفاصيل الفاتورة والمريض والحالة البنود والمدفوعات.")}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -585,7 +597,7 @@ export default function InvoiceDetailsPage() {
 
           {data.creditNotes && data.creditNotes.length > 0 && (
              <span className="px-3 py-1.5 rounded-full text-xs bg-rose-600/20 text-rose-300 border border-rose-600/30">
-               تم الإرجاع (Credit Note #{data.creditNotes[0].id})
+               {t("treasury.invoiceDetails.returnSuccess", { id: data.creditNotes[0].id, defaultValue: `تم الإرجاع (Credit Note #${data.creditNotes[0].id})` })}
              </span>
           )}
 
@@ -603,7 +615,7 @@ export default function InvoiceDetailsPage() {
       {isReturnModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
           <div className="w-[400px] bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl p-6">
-            <h2 className="text-xl font-bold mb-4 text-rose-400">إنشاء مرتجع / استرداد</h2>
+            <h2 className="text-xl font-bold mb-4 text-rose-400">{t("treasury.invoiceDetails.returnModalTitle", "إنشاء مرتجع / استرداد")}</h2>
             <p className="text-sm text-slate-400 mb-4">
               سيتم إنشاء فاتورة مرتجع (Credit Note) وعكس القيود المحاسبية بالكامل. 
               يرجى إدخال سبب المرتجع أدناه.
@@ -611,7 +623,7 @@ export default function InvoiceDetailsPage() {
             
             <textarea
               className="w-full h-24 bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm focus:outline-none focus:border-rose-500/50 mb-4"
-              placeholder="سبب المرتجع..."
+              placeholder={t("treasury.invoiceDetails.returnReasonPlaceholder", "سبب المرتجع...")}
               value={returnReason}
               onChange={(e) => setReturnReason(e.target.value)}
             />
@@ -641,7 +653,7 @@ export default function InvoiceDetailsPage() {
           {/* بيانات الفاتورة */}
           <div className="rounded-3xl border border-slate-800 bg-slate-950/80 p-4 text-xs space-y-2">
             <div className="flex items-center justify-between mb-1">
-              <span className="text-slate-400">معلومات الفاتورة</span>
+              <span className="text-slate-400">{t("treasury.invoiceDetails.invoiceMeta", "معلومات الفاتورة")}</span>
               <span
                 className={`px-2 py-0.5 rounded-full text-[10px] ${
                   invoice.status === "PAID"
@@ -653,35 +665,35 @@ export default function InvoiceDetailsPage() {
                         : "bg-slate-700/40 text-slate-200"
                 }`}
               >
-                {statusLabel(invoice.status)}
+                {t(statusKeys[invoice.status] || "", statusLabel(invoice.status))}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-400">التاريخ:</span>
+              <span className="text-slate-400">{t("treasury.invoiceDetails.date", "التاريخ:")}</span>
               <span className="font-semibold">
                 {formatDateTime(invoice.createdAt)}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-400">المبلغ الإجمالي:</span>
+              <span className="text-slate-400">{t("treasury.invoiceDetails.total", "المبلغ الإجمالي:")}</span>
               <span className="font-semibold">
                 {formatMoney(invoice.totalAmount)} {invoice.currency}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-400">الخصم:</span>
+              <span className="text-slate-400">{t("treasury.invoiceDetails.discount", "الخصم:")}</span>
               <span>
                 {formatMoney(invoice.discountAmount)} {invoice.currency}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-400">المدفوع:</span>
+              <span className="text-slate-400">{t("treasury.invoiceDetails.paid", "المدفوع:")}</span>
               <span className="text-emerald-300 font-semibold">
                 {formatMoney(invoice.paidAmount)} {invoice.currency}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-400">المتبقي:</span>
+              <span className="text-slate-400">{t("treasury.invoiceDetails.remaining", "المتبقي:")}</span>
               <span
                 className={`font-semibold ${
                   outstanding > 0 ? "text-amber-300" : "text-emerald-300"
@@ -692,7 +704,7 @@ export default function InvoiceDetailsPage() {
             </div>
             <div className="mt-2 pt-2 border-t border-slate-800 space-y-1">
               <div className="flex justify-between">
-                <span className="text-slate-400">السنة المالية:</span>
+                <span className="text-slate-400">{t("treasury.invoiceDetails.fy", "السنة المالية:")}</span>
                 <span>
                   {invoice.financialYear
                     ? `${invoice.financialYear.code} – ${invoice.financialYear.name}`
@@ -700,7 +712,7 @@ export default function InvoiceDetailsPage() {
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-400">الفترة المالية:</span>
+                <span className="text-slate-400">{t("treasury.invoiceDetails.fp", "الفترة المالية:")}</span>
                 <span>
                   {invoice.financialPeriod
                     ? invoice.financialPeriod.periodCode
@@ -712,30 +724,30 @@ export default function InvoiceDetailsPage() {
 
           {/* بيانات المريض */}
           <div className="rounded-3xl border border-slate-800 bg-slate-950/80 p-4 text-xs space-y-2">
-            <div className="text-slate-400 mb-1">بيانات المريض</div>
+            <div className="text-slate-400 mb-1">{t("treasury.invoiceDetails.patientData", "بيانات المريض")}</div>
             <div className="flex justify-between">
-              <span className="text-slate-400">الاسم:</span>
+              <span className="text-slate-400">{t("treasury.invoiceDetails.patientName", "الاسم:")}</span>
               <span className="font-semibold">{patient.fullName}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-400">الرقم الطبي (MRN):</span>
+              <span className="text-slate-400">{t("treasury.invoiceDetails.patientMrn", "الرقم الطبي (MRN):")}</span>
               <span>{patient.mrn}</span>
             </div>
           </div>
 
           {/* بيانات الحالة */}
           <div className="rounded-3xl border border-slate-800 bg-slate-950/80 p-4 text-xs space-y-2">
-            <div className="text-slate-400 mb-1">بيانات الحالة الطبية</div>
+            <div className="text-slate-400 mb-1">{t("treasury.invoiceDetails.encounterData", "بيانات الحالة الطبية")}</div>
             <div className="flex justify-between">
-              <span className="text-slate-400">رقم الحالة:</span>
+              <span className="text-slate-400">{t("treasury.invoiceDetails.encounterId", "رقم الحالة:")}</span>
               <span>#{encounter.id}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-400">نوع الحالة:</span>
+              <span className="text-slate-400">{t("treasury.invoiceDetails.encounterType", "نوع الحالة:")}</span>
               <span>{encounter.type}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-400">حالة الحالة:</span>
+              <span className="text-slate-400">{t("treasury.invoiceDetails.encounterStatus", "حالة الحالة:")}</span>
               <span>{encounter.status}</span>
             </div>
           </div>
@@ -798,7 +810,7 @@ export default function InvoiceDetailsPage() {
                       colSpan={5}
                       className="px-2 py-4 text-center text-slate-500"
                     >
-                      لا توجد بنود لهذه الفاتورة.
+                      {t("treasury.invoiceDetails.noLines", "لا توجد بنود لهذه الفاتورة.")}
                     </td>
                   </tr>
                 )}
@@ -811,7 +823,7 @@ export default function InvoiceDetailsPage() {
         <div className="rounded-3xl border border-slate-800 bg-slate-950/80 p-4 text-xs">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-semibold text-slate-200">
-              المدفوعات على الفاتورة
+              {t("treasury.invoiceDetails.payments", "المدفوعات على الفاتورة")}
             </h2>
           </div>
 
@@ -819,10 +831,10 @@ export default function InvoiceDetailsPage() {
             <table className="w-full text-[11px] text-right border-separate border-spacing-y-1">
               <thead className="text-slate-400">
                 <tr>
-                  <th className="px-2 py-1 text-right">التاريخ</th>
-                  <th className="px-2 py-1 text-right">المبلغ</th>
-                  <th className="px-2 py-1 text-right">طريقة الدفع</th>
-                  <th className="px-2 py-1 text-right">المرجع</th>
+                  <th className="px-2 py-1 text-right">{t("treasury.invoiceDetails.table.date", "التاريخ")}</th>
+                  <th className="px-2 py-1 text-right">{t("treasury.invoiceDetails.table.amount", "المبلغ")}</th>
+                  <th className="px-2 py-1 text-right">{t("treasury.invoiceDetails.table.method", "طريقة الدفع")}</th>
+                  <th className="px-2 py-1 text-right">{t("treasury.invoiceDetails.table.ref", "المرجع")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -849,7 +861,7 @@ export default function InvoiceDetailsPage() {
                       colSpan={4}
                       className="px-2 py-4 text-center text-slate-500"
                     >
-                      لا توجد مدفوعات مسجلة على هذه الفاتورة.
+                      {t("treasury.invoiceDetails.noPayments", "لا توجد مدفوعات مسجلة على هذه الفاتورة.")}
                     </td>
                   </tr>
                 )}
