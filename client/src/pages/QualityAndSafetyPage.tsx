@@ -43,36 +43,6 @@ type ReportForm = {
   immediateAction: string;
 };
 
-const SEVERITY_CONFIG: Record<IncidentSeverity, { label: string; labelAr: string; color: string; bg: string }> = {
-  NEAR_MISS:  { label: 'Near Miss',  labelAr: 'حادثة وشيكة', color: 'text-blue-400',   bg: 'bg-blue-900/30 border-blue-700' },
-  MINOR:      { label: 'Minor',      labelAr: 'طفيف',         color: 'text-green-400',  bg: 'bg-green-900/30 border-green-700' },
-  MODERATE:   { label: 'Moderate',   labelAr: 'متوسط',        color: 'text-yellow-400', bg: 'bg-yellow-900/30 border-yellow-700' },
-  MAJOR:      { label: 'Major',      labelAr: 'خطير',         color: 'text-orange-400', bg: 'bg-orange-900/30 border-orange-700' },
-  SENTINEL:   { label: 'Sentinel',   labelAr: 'كارثي',        color: 'text-red-400',    bg: 'bg-red-900/30 border-red-700' },
-};
-
-const STATUS_CONFIG: Record<IncidentStatus, { labelAr: string; color: string }> = {
-  REPORTED:      { labelAr: 'مُبلَّغ عنه',     color: 'bg-slate-700 text-slate-300' },
-  UNDER_REVIEW:  { labelAr: 'قيد المراجعة',    color: 'bg-blue-900 text-blue-300' },
-  INVESTIGATED:  { labelAr: 'تحت التحقيق',     color: 'bg-purple-900 text-purple-300' },
-  CAPA_OPEN:     { labelAr: 'CAPA مفتوح',      color: 'bg-yellow-900 text-yellow-300' },
-  CAPA_VERIFIED: { labelAr: 'CAPA مُتحقَّق',    color: 'bg-teal-900 text-teal-300' },
-  CLOSED:        { labelAr: 'مغلق',            color: 'bg-green-900 text-green-300' },
-};
-
-const TYPE_LABELS: Record<IncidentType, string> = {
-  PATIENT_FALL: 'سقوط مريض',
-  MEDICATION_ERROR: 'خطأ دوائي',
-  PROCEDURE_COMPLICATION: 'مضاعفة إجراء',
-  NEAR_MISS: 'حادثة وشيكة',
-  HEALTHCARE_ASSOCIATED_INFECTION: 'عدوى مكتسبة',
-  DIAGNOSTIC_ERROR: 'خطأ تشخيصي',
-  EQUIPMENT_FAILURE: 'عطل معدات',
-  BLOOD_TRANSFUSION_REACTION: 'تفاعل نقل دم',
-  PRESSURE_INJURY: 'قرحة ضغط',
-  OTHER: 'أخرى',
-};
-
 const defaultForm: ReportForm = {
   incidentDate: new Date().toISOString().split('T')[0],
   incidentType: 'OTHER',
@@ -86,6 +56,36 @@ const defaultForm: ReportForm = {
 export default function QualityAndSafetyPage() {
   const { t, i18n } = useTranslation();
   const isRtl = i18n.language === "ar";
+
+  const SEVERITY_CONFIG: Record<IncidentSeverity, { label: string; labelAr: string; color: string; bg: string }> = {
+    NEAR_MISS:  { label: 'Near Miss',  labelAr: t("quality.imminentAccident", "حادثة وشيكة"), color: 'text-blue-400',   bg: 'bg-blue-900/30 border-blue-700' },
+    MINOR:      { label: 'Minor',      labelAr: t("quality.slight", "طفيف"),         color: 'text-green-400',  bg: 'bg-green-900/30 border-green-700' },
+    MODERATE:   { label: 'Moderate',   labelAr: t("quality.middle", "متوسط"),        color: 'text-yellow-400', bg: 'bg-yellow-900/30 border-yellow-700' },
+    MAJOR:      { label: 'Major',      labelAr: t("quality.dangerous", "خطير"),         color: 'text-orange-400', bg: 'bg-orange-900/30 border-orange-700' },
+    SENTINEL:   { label: 'Sentinel',   labelAr: t("quality.disastrous", "كارثي"),        color: 'text-red-400',    bg: 'bg-red-900/30 border-red-700' },
+  };
+
+  const STATUS_CONFIG: Record<IncidentStatus, { labelAr: string; color: string }> = {
+    REPORTED:      { labelAr: t("quality.reported", "مُبلَّغ عنه"),     color: 'bg-slate-700 text-slate-300' },
+    UNDER_REVIEW:  { labelAr: t("quality.underReview", "قيد المراجعة"),    color: 'bg-blue-900 text-blue-300' },
+    INVESTIGATED:  { labelAr: t("quality.underInvestigation", "تحت التحقيق"),     color: 'bg-purple-900 text-purple-300' },
+    CAPA_OPEN:     { labelAr: t("quality.capaIsOpen", "CAPA مفتوح"),      color: 'bg-yellow-900 text-yellow-300' },
+    CAPA_VERIFIED: { labelAr: t("quality.capaVerified", "CAPA مُتحقَّق"),    color: 'bg-teal-900 text-teal-300' },
+    CLOSED:        { labelAr: t("quality.closed", "مغلق"),            color: 'bg-green-900 text-green-300' },
+  };
+
+  const TYPE_LABELS: Record<IncidentType, string> = {
+    PATIENT_FALL: t("quality.sickFall", "سقوط مريض"),
+    MEDICATION_ERROR: t("quality.medicationError", "خطأ دوائي"),
+    PROCEDURE_COMPLICATION: t("quality.doubleAction", "مضاعفة إجراء"),
+    NEAR_MISS: t("quality.imminentAccident", "حادثة وشيكة"),
+    HEALTHCARE_ASSOCIATED_INFECTION: t("quality.acquiredInfection", "عدوى مكتسبة"),
+    DIAGNOSTIC_ERROR: t("quality.diagnosticError", "خطأ تشخيصي"),
+    EQUIPMENT_FAILURE: t("quality.equipmentMalfunction", "عطل معدات"),
+    BLOOD_TRANSFUSION_REACTION: t("quality.bloodTransfusionReaction", "تفاعل نقل دم"),
+    PRESSURE_INJURY: t("quality.pressureUlcer", "قرحة ضغط"),
+    OTHER: t("quality.other", "أخرى"),
+  };
 
   const [searchParams, setSearchParams] = useSearchParams();
   const tab = (searchParams.get('tab') as 'dashboard' | 'incidents' | 'report' | 'my-capa') || 'dashboard';
@@ -109,7 +109,7 @@ export default function QualityAndSafetyPage() {
       const res = await apiClient.get('/quality/dashboard');
       setStats(res.data);
     } catch {
-      toast.error('تعذّر تحميل إحصائيات الجودة');
+      toast.error(t("quality.unableToLoadQualityStatistics", "تعذّر تحميل إحصائيات الجودة"));
     } finally {
       setLoading(false);
     }
@@ -124,7 +124,7 @@ export default function QualityAndSafetyPage() {
       const res = await apiClient.get(`/quality/incidents?${params}`);
       setIncidents(res.data.items ?? []);
     } catch {
-      toast.error('تعذّر تحميل قائمة الحوادث');
+      toast.error(t("quality.unableToLoadIncidentList", "تعذّر تحميل قائمة الحوادث"));
     } finally {
       setLoading(false);
     }
@@ -136,7 +136,7 @@ export default function QualityAndSafetyPage() {
       const res = await apiClient.get('/quality/my-capa-tasks');
       setMyCapas(res.data);
     } catch {
-      toast.error('تعذّر تحميل مهام CAPA');
+      toast.error(t("quality.capaAssignmentsCouldNotBeLoaded", "تعذّر تحميل مهام CAPA"));
     } finally {
       setLoading(false);
     }
@@ -152,17 +152,17 @@ export default function QualityAndSafetyPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (form.description.length < 20) {
-      toast.error('الوصف يجب أن يكون 20 حرفاً على الأقل');
+      toast.error(t("quality.descriptionMustBeAtLeast20Characters", "الوصف يجب أن يكون 20 حرفاً على الأقل"));
       return;
     }
     setSubmitting(true);
     try {
       await apiClient.post('/quality/incidents', form);
-      toast.success('تم الإبلاغ عن الحادثة بنجاح');
+      toast.success(t("quality.theIncidentHasBeenSuccessfullyReported", "تم الإبلاغ عن الحادثة بنجاح"));
       setForm(defaultForm);
       setTab('incidents');
     } catch {
-      toast.error('فشل الإبلاغ عن الحادثة');
+      toast.error(t("quality.failedToReportTheIncident", "فشل الإبلاغ عن الحادثة"));
     } finally {
       setSubmitting(false);
     }
@@ -178,8 +178,8 @@ export default function QualityAndSafetyPage() {
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-red-600/20 border border-red-500/40 rounded-xl flex items-center justify-center text-2xl">🛡️</div>
             <div>
-              <h1 className="text-2xl font-bold text-white">الجودة وسلامة المريض</h1>
-              <p className="text-slate-400 text-sm">إدارة الحوادث السريرية والـ CAPA</p>
+              <h1 className="text-2xl font-bold text-white">{t("quality.qualityAndPatientSafety", t("quality.qualityAndPatientSafety", "الجودة وسلامة المريض"))}</h1>
+              <p className="text-slate-400 text-sm">{t("quality.clinicalIncidentManagementAndCapa", t("quality.clinicalIncidentManagementAndCapa", "إدارة الحوادث السريرية والـ CAPA"))}</p>
             </div>
           </div>
           <button
@@ -195,7 +195,7 @@ export default function QualityAndSafetyPage() {
       {/* Tabs */}
       <div className="border-b border-slate-800 px-6">
         <div className="max-w-7xl mx-auto flex gap-1">
-          {([['dashboard', '📊 لوحة التحكم'], ['incidents', '📋 الحوادث'], ['my-capa', '✅ مهام CAPA'], ['report', '＋ إبلاغ']] as const).map(([key, label]) => (
+          {([['dashboard', t("quality.controlPanel", "📊 لوحة التحكم")], ['incidents', t("quality.accidents", "📋 الحوادث")], ['my-capa', t("quality.capaTasks", "✅ مهام CAPA")], ['report', t("quality.inform", "＋ إبلاغ")]] as const).map(([key, label]) => (
             <button
               key={key}
               id={`tab-quality-${key}`}
@@ -224,25 +224,25 @@ export default function QualityAndSafetyPage() {
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                   <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
                     <div className="text-3xl font-bold text-white">{totalIncidents}</div>
-                    <div className="text-slate-400 text-sm mt-1">إجمالي الحوادث</div>
+                    <div className="text-slate-400 text-sm mt-1">{t("quality.totalAccidents", t("quality.totalAccidents", "إجمالي الحوادث"))}</div>
                   </div>
                   <div className={`border rounded-2xl p-5 ${(stats.byStatus['REPORTED'] || 0) > 0 ? 'bg-yellow-900/20 border-yellow-800' : 'bg-slate-900 border-slate-800'}`}>
                     <div className="text-3xl font-bold text-yellow-400">{stats.byStatus['REPORTED'] ?? 0}</div>
-                    <div className="text-slate-400 text-sm mt-1">تنتظر المراجعة</div>
+                    <div className="text-slate-400 text-sm mt-1">{t("quality.awaitingReview", t("quality.awaitingReview", "تنتظر المراجعة"))}</div>
                   </div>
                   <div className={`border rounded-2xl p-5 ${stats.openCapas > 0 ? 'bg-orange-900/20 border-orange-800' : 'bg-slate-900 border-slate-800'}`}>
                     <div className="text-3xl font-bold text-orange-400">{stats.openCapas}</div>
-                    <div className="text-slate-400 text-sm mt-1">CAPA مفتوحة</div>
+                    <div className="text-slate-400 text-sm mt-1">{t("quality.capaIsOpen", t("quality.capaIsOpen", "CAPA مفتوحة"))}</div>
                   </div>
                   <div className={`border rounded-2xl p-5 ${stats.overdueCapas > 0 ? 'bg-red-900/30 border-red-700' : 'bg-slate-900 border-slate-800'}`}>
                     <div className="text-3xl font-bold text-red-400">{stats.overdueCapas}</div>
-                    <div className="text-slate-400 text-sm mt-1">CAPA متأخرة</div>
+                    <div className="text-slate-400 text-sm mt-1">{t("quality.capaIsLate", t("quality.capaIsLate", "CAPA متأخرة"))}</div>
                   </div>
                 </div>
 
                 {/* Severity Breakdown */}
                 <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-                  <h3 className="text-lg font-semibold mb-4">توزيع الحوادث حسب الخطورة</h3>
+                  <h3 className="text-lg font-semibold mb-4">{t("quality.distributionOfAccidentsAccordingToSeveri", t("quality.distributionOfAccidentsAccordingToSeveri", "توزيع الحوادث حسب الخطورة"))}</h3>
                   <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                     {(Object.entries(SEVERITY_CONFIG) as [IncidentSeverity, typeof SEVERITY_CONFIG[IncidentSeverity]][]).map(([sev, cfg]) => (
                       <div key={sev} className={`border rounded-xl p-4 text-center ${cfg.bg}`}>
@@ -255,10 +255,10 @@ export default function QualityAndSafetyPage() {
 
                 {/* Recent Incidents */}
                 <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-                  <h3 className="text-lg font-semibold mb-4">آخر الحوادث المُبلَّغ عنها</h3>
+                  <h3 className="text-lg font-semibold mb-4">{t("quality.latestReportedIncidents", t("quality.latestReportedIncidents", "آخر الحوادث المُبلَّغ عنها"))}</h3>
                   <div className="space-y-3">
                     {stats.recentIncidents.length === 0 && (
-                      <p className="text-slate-500 text-center py-8">لا توجد حوادث حتى الآن</p>
+                      <p className="text-slate-500 text-center py-8">{t("quality.noAccidentsYet", t("quality.noAccidentsYet", "لا توجد حوادث حتى الآن"))}</p>
                     )}
                     {stats.recentIncidents.map(i => (
                       <div key={i.id} className="flex items-center justify-between p-4 bg-slate-800/50 rounded-xl border border-slate-700/50">
@@ -294,7 +294,7 @@ export default function QualityAndSafetyPage() {
                 onChange={e => setFilterStatus(e.target.value)}
                 className="bg-slate-800 border border-slate-700 rounded-xl px-4 py-2 text-sm text-white"
               >
-                <option value="">جميع الحالات</option>
+                <option value="">{t("quality.allCases", t("quality.allCases", "جميع الحالات"))}</option>
                 {Object.entries(STATUS_CONFIG).map(([k, v]) => (
                   <option key={k} value={k}>{v.labelAr}</option>
                 ))}
@@ -305,7 +305,7 @@ export default function QualityAndSafetyPage() {
                 onChange={e => setFilterSeverity(e.target.value)}
                 className="bg-slate-800 border border-slate-700 rounded-xl px-4 py-2 text-sm text-white"
               >
-                <option value="">جميع درجات الخطورة</option>
+                <option value="">{t("quality.allDegreesOfDanger", t("quality.allDegreesOfDanger", "جميع درجات الخطورة"))}</option>
                 {Object.entries(SEVERITY_CONFIG).map(([k, v]) => (
                   <option key={k} value={k}>{v.labelAr}</option>
                 ))}
@@ -316,7 +316,7 @@ export default function QualityAndSafetyPage() {
               <div className="flex justify-center py-20"><div className="w-8 h-8 border-2 border-red-500 border-t-transparent rounded-full animate-spin" /></div>
             ) : (
               <div className="space-y-3">
-                {incidents.length === 0 && <p className="text-slate-500 text-center py-16">لا توجد حوادث مطابقة</p>}
+                {incidents.length === 0 && <p className="text-slate-500 text-center py-16">{t("quality.thereAreNoMatchingIncidents", t("quality.thereAreNoMatchingIncidents", "لا توجد حوادث مطابقة"))}</p>}
                 {incidents.map(incident => (
                   <div key={incident.id} className="bg-slate-900 border border-slate-800 rounded-2xl p-5 hover:border-slate-700 transition-all">
                     <div className="flex flex-wrap items-start justify-between gap-3">
@@ -326,7 +326,7 @@ export default function QualityAndSafetyPage() {
                         </span>
                         <span className="font-mono font-bold text-white">{incident.incidentNumber}</span>
                         <span className="text-slate-400 text-sm">{TYPE_LABELS[incident.incidentType]}</span>
-                        {incident.isAnonymous && <span className="text-xs text-slate-500 bg-slate-800 px-2 py-0.5 rounded-lg">مجهول</span>}
+                        {incident.isAnonymous && <span className="text-xs text-slate-500 bg-slate-800 px-2 py-0.5 rounded-lg">{t("quality.unknown", t("quality.unknown", "مجهول"))}</span>}
                       </div>
                       <div className="flex items-center gap-2">
                         <span className={`text-xs px-2 py-1 rounded-lg ${STATUS_CONFIG[incident.status].color}`}>
@@ -360,16 +360,16 @@ export default function QualityAndSafetyPage() {
               <div className="flex justify-center py-20"><div className="w-8 h-8 border-2 border-red-500 border-t-transparent rounded-full animate-spin" /></div>
             ) : (
               <div className="space-y-3">
-                {myCapas.length === 0 && <p className="text-slate-500 text-center py-16">لا توجد مهام CAPA مسندة إليك</p>}
+                {myCapas.length === 0 && <p className="text-slate-500 text-center py-16">{t("quality.thereAreNoCapaTasksAssignedToYou", t("quality.thereAreNoCapaTasksAssignedToYou", "لا توجد مهام CAPA مسندة إليك"))}</p>}
                 {myCapas.map(capa => (
                   <div key={capa.id} className={`bg-slate-900 border rounded-2xl p-5 hover:border-slate-700 transition-all ${capa.isOverdue ? 'border-red-900/50' : 'border-slate-800'}`}>
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div className="flex items-center gap-3 flex-wrap">
                         <span className="font-mono font-bold text-white">{capa.incident.incidentNumber}</span>
                         <span className="text-xs bg-slate-800 px-2 py-1 rounded-lg text-slate-300">
-                          {capa.actionType === 'CORRECTIVE' ? 'إجراء تصحيحي' : 'إجراء وقائي'}
+                          {capa.actionType === 'CORRECTIVE' ? t("quality.correctiveAction", "إجراء تصحيحي") : t("quality.preventiveMeasure", "إجراء وقائي")}
                         </span>
-                        {capa.isOverdue && <span className="text-xs bg-red-900/50 text-red-300 px-2 py-1 rounded-lg">متأخر</span>}
+                        {capa.isOverdue && <span className="text-xs bg-red-900/50 text-red-300 px-2 py-1 rounded-lg">{t("quality.late", t("quality.late", "متأخر"))}</span>}
                       </div>
                       <span className={`text-xs px-2 py-1 rounded-lg ${
                         capa.status === 'OPEN' ? 'bg-yellow-900 text-yellow-300' :
@@ -400,13 +400,13 @@ export default function QualityAndSafetyPage() {
               <form id="form-report-incident" onSubmit={handleSubmit} className="space-y-5">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm text-slate-400 mb-1">تاريخ الحادثة *</label>
+                    <label className="block text-sm text-slate-400 mb-1">{t("quality.dateOfIncident", t("quality.dateOfIncident", "تاريخ الحادثة *"))}</label>
                     <input id="input-incident-date" type="date" required value={form.incidentDate}
                       onChange={e => setForm(f => ({ ...f, incidentDate: e.target.value }))}
                       className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-white text-sm" />
                   </div>
                   <div>
-                    <label className="block text-sm text-slate-400 mb-1">الموقع</label>
+                    <label className="block text-sm text-slate-400 mb-1">{t("quality.theSite", t("quality.theSite", "الموقع"))}</label>
                     <input id="input-incident-location" type="text" placeholder="الجناح / غرفة العمليات..." value={form.location}
                       onChange={e => setForm(f => ({ ...f, location: e.target.value }))}
                       className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-white text-sm" />
@@ -415,7 +415,7 @@ export default function QualityAndSafetyPage() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm text-slate-400 mb-1">نوع الحادثة *</label>
+                    <label className="block text-sm text-slate-400 mb-1">{t("quality.incidentType", t("quality.incidentType", "نوع الحادثة *"))}</label>
                     <select id="select-incident-type" required value={form.incidentType}
                       onChange={e => setForm(f => ({ ...f, incidentType: e.target.value as IncidentType }))}
                       className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-white text-sm">
@@ -423,7 +423,7 @@ export default function QualityAndSafetyPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm text-slate-400 mb-1">درجة الخطورة *</label>
+                    <label className="block text-sm text-slate-400 mb-1">{t("quality.severityLevel", t("quality.severityLevel", "درجة الخطورة *"))}</label>
                     <select id="select-incident-severity" required value={form.severity}
                       onChange={e => setForm(f => ({ ...f, severity: e.target.value as IncidentSeverity }))}
                       className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-white text-sm">
@@ -443,7 +443,7 @@ export default function QualityAndSafetyPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm text-slate-400 mb-1">وصف الحادثة * (20 حرفاً على الأقل)</label>
+                  <label className="block text-sm text-slate-400 mb-1">{t("quality.descriptionOfTheIncidentAtLeast20Charact", t("quality.descriptionOfTheIncidentAtLeast20Charact", "وصف الحادثة * (20 حرفاً على الأقل)"))}</label>
                   <textarea id="textarea-incident-description" required rows={4} value={form.description}
                     onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
                     placeholder="اشرح ما حدث بدقة — من، ماذا، متى، وكيف..."
@@ -452,10 +452,10 @@ export default function QualityAndSafetyPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm text-slate-400 mb-1">الإجراء الفوري المُتخذ</label>
+                  <label className="block text-sm text-slate-400 mb-1">{t("quality.immediateActionTaken", t("quality.immediateActionTaken", "الإجراء الفوري المُتخذ"))}</label>
                   <textarea id="textarea-immediate-action" rows={2} value={form.immediateAction}
                     onChange={e => setForm(f => ({ ...f, immediateAction: e.target.value }))}
-                    placeholder="ما الذي تم فعله فور اكتشاف الحادثة؟"
+                    placeholder={t("quality.whatWasDoneImmediatelyAfterDiscoveringTh", t("quality.whatWasDoneImmediatelyAfterDiscoveringTh", "ما الذي تم فعله فور اكتشاف الحادثة؟"))}
                     className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm resize-none" />
                 </div>
 
@@ -463,13 +463,13 @@ export default function QualityAndSafetyPage() {
                   <input id="checkbox-anonymous" type="checkbox" checked={form.isAnonymous}
                     onChange={e => setForm(f => ({ ...f, isAnonymous: e.target.checked }))}
                     className="w-4 h-4 rounded border-slate-600 bg-slate-800" />
-                  <span className="text-sm text-slate-300">الإبلاغ بشكل مجهول الهوية</span>
+                  <span className="text-sm text-slate-300">{t("quality.reportAnonymously", t("quality.reportAnonymously", "الإبلاغ بشكل مجهول الهوية"))}</span>
                 </label>
 
                 <div className="flex gap-3 pt-2">
                   <button type="submit" id="btn-submit-incident" disabled={submitting}
                     className="flex-1 py-3 bg-red-600 hover:bg-red-500 disabled:opacity-50 rounded-xl font-semibold transition-all">
-                    {submitting ? 'جارٍ الإرسال...' : 'إرسال البلاغ'}
+                    {submitting ? 'جارٍ الإرسال...' : t("quality.sendTheReport", "إرسال البلاغ")}
                   </button>
                   <button type="button" onClick={() => setTab('dashboard')}
                     className="px-6 py-3 bg-slate-800 hover:bg-slate-700 rounded-xl font-semibold transition-all">

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 // src/pages/FinancialYearsPage.tsx
 
 import { useEffect, useMemo, useState } from "react";
@@ -63,6 +64,9 @@ type ApiResponse<T> = {
 // Local formatDate removed
 
 export default function FinancialYearsPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
+
   // قائمة السنوات
   const [years, setYears] = useState<FinancialYear[]>([]);
   const [loadingYears, setLoadingYears] = useState(false);
@@ -330,7 +334,7 @@ export default function FinancialYearsPage() {
       {/* العنوان العلوي */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold mb-1">السنوات المالية</h1>
+          <h1 className="text-2xl font-bold mb-1">{t("accounting.financialYears.fiscalYears", t("accounting.financialYears.fiscalYears", "السنوات المالية"))}</h1>
           <p className="text-sm text-slate-400">
             إدارة السنوات المالية والفترات (الأشهر) المرتبطة بها، كأساس للجرد
             والمرتبات والتقارير المالية.
@@ -339,7 +343,7 @@ export default function FinancialYearsPage() {
 
         {currentYear && (
           <div className="hidden md:flex items-center gap-2">
-            <span className="text-xs text-slate-400">السنة الحالية:</span>
+            <span className="text-xs text-slate-400">{t("accounting.financialYears.currentYear", t("accounting.financialYears.currentYear", "السنة الحالية:"))}</span>
             <span className="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/70 text-xs text-emerald-300">
               {formatDate(currentYear.startDate)} –{" "}
               {formatDate(currentYear.endDate)}
@@ -352,12 +356,12 @@ export default function FinancialYearsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1">
         {/* عمود إنشاء سنة جديدة */}
         <div className="rounded-3xl border border-slate-800 bg-slate-950/80 p-5 flex flex-col">
-          <h2 className="text-lg font-semibold mb-4">إنشاء سنة مالية جديدة</h2>
+          <h2 className="text-lg font-semibold mb-4">{t("accounting.financialYears.createANewFiscalYear", t("accounting.financialYears.createANewFiscalYear", "إنشاء سنة مالية جديدة"))}</h2>
 
           <form onSubmit={handleCreateYear} className="space-y-3 text-sm">
             {/* السنة */}
             <div className="flex flex-col gap-1">
-              <label className="text-xs text-slate-300">السنة</label>
+              <label className="text-xs text-slate-300">{t("accounting.financialYears.sunnah", t("accounting.financialYears.sunnah", "السنة"))}</label>
               <input
                 type="number"
                 min={1900}
@@ -381,7 +385,7 @@ export default function FinancialYearsPage() {
                 type="text"
                 value={yearName}
                 onChange={(e) => setYearName(e.target.value)}
-                placeholder="مثال: السنة المالية 2025"
+                placeholder={t("accounting.financialYears.exampleFiscalYear2025", t("accounting.financialYears.exampleFiscalYear2025", "مثال: السنة المالية 2025"))}
                 className="bg-slate-900/70 border border-slate-700 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/60"
               />
             </div>
@@ -403,7 +407,7 @@ export default function FinancialYearsPage() {
             {/* التواريخ */}
             <div className="grid grid-cols-2 gap-3">
               <div className="flex flex-col gap-1">
-                <label className="text-xs text-slate-300">تاريخ البداية</label>
+                <label className="text-xs text-slate-300">{t("accounting.financialYears.startDate", t("accounting.financialYears.startDate", "تاريخ البداية"))}</label>
                 <DatePicker
                   date={startDate ? new Date(startDate) : undefined}
                   onChange={(d) => setStartDate(d ? d.toISOString().slice(0, 10) : "")}
@@ -411,7 +415,7 @@ export default function FinancialYearsPage() {
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-xs text-slate-300">تاريخ النهاية</label>
+                <label className="text-xs text-slate-300">{t("accounting.financialYears.endDate", t("accounting.financialYears.endDate", "تاريخ النهاية"))}</label>
                 <DatePicker
                   date={endDate ? new Date(endDate) : undefined}
                   onChange={(d) => setEndDate(d ? d.toISOString().slice(0, 10) : "")}
@@ -430,7 +434,7 @@ export default function FinancialYearsPage() {
                 disabled={creating}
                 className="px-4 py-2 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white text-sm disabled:opacity-60"
               >
-                {creating ? "جارِ الحفظ..." : "حفظ السنة المالية"}
+                {creating ? "جارِ الحفظ..." : t("accounting.financialYears.saveTheFiscalYear", "حفظ السنة المالية")}
               </button>
             </div>
           </form>
@@ -494,10 +498,10 @@ export default function FinancialYearsPage() {
                           }`}
                         >
                           {y.status === "OPEN"
-                            ? "مفتوحة"
+                            ? t("accounting.financialYears.open", "مفتوحة")
                             : y.status === "DRAFT"
-                              ? "مسودة"
-                              : "مغلقة"}
+                              ? t("accounting.financialYears.draft", "مسودة")
+                              : t("accounting.financialYears.closed", "مغلقة")}
                         </span>
 
                         {y.isCurrent && (
@@ -547,7 +551,7 @@ export default function FinancialYearsPage() {
                               >
                                 {openingLoadingId === y.id
                                   ? "جارِ توليد الأرصدة..."
-                                  : "توليد أرصدة افتتاحية"}
+                                  : t("accounting.financialYears.generateOpeningBalances", "توليد أرصدة افتتاحية")}
                               </button>
 
                               {/* زر إغلاق السنة */}
@@ -599,8 +603,8 @@ export default function FinancialYearsPage() {
                   {generatingPeriods
                     ? "جارِ إنشاء الفترات..."
                     : periods.length === 0
-                      ? "توليد فترات السنة"
-                      : "تم إنشاء الفترات"}
+                      ? t("accounting.financialYears.generateYearPeriods", "توليد فترات السنة")
+                      : t("accounting.financialYears.periodsHaveBeenCreated", "تم إنشاء الفترات")}
                 </button>
               )}
             </div>
@@ -623,12 +627,12 @@ export default function FinancialYearsPage() {
                   <thead className="text-slate-400">
                     <tr>
                       <th className="text-right px-2 py-1">#</th>
-                      <th className="text-right px-2 py-1">الفترة</th>
-                      <th className="text-right px-2 py-1">التاريخ</th>
-                      <th className="text-right px-2 py-1">أيام</th>
-                      <th className="text-right px-2 py-1">الرواتب / البصمة</th>
-                      <th className="text-right px-2 py-1">الحالة</th>
-                      <th className="text-right px-2 py-1">إجراء</th>
+                      <th className="text-right px-2 py-1">{t("accounting.financialYears.period", t("accounting.financialYears.period", "الفترة"))}</th>
+                      <th className="text-right px-2 py-1">{t("accounting.financialYears.theDate", t("accounting.financialYears.theDate", "التاريخ"))}</th>
+                      <th className="text-right px-2 py-1">{t("accounting.financialYears.days", t("accounting.financialYears.days", "أيام"))}</th>
+                      <th className="text-right px-2 py-1">{t("accounting.financialYears.payrollfootprint", t("accounting.financialYears.payrollfootprint", "الرواتب / البصمة"))}</th>
+                      <th className="text-right px-2 py-1">{t("accounting.financialYears.theCondition", t("accounting.financialYears.theCondition", "الحالة"))}</th>
+                      <th className="text-right px-2 py-1">{t("accounting.financialYears.procedure", t("accounting.financialYears.procedure", "إجراء"))}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -657,7 +661,7 @@ export default function FinancialYearsPage() {
                               {formatDate(p.payrollEndDate)}
                             </>
                           ) : (
-                            "نفس فترة الشهر"
+                            t("accounting.financialYears.theSamePeriodOfTheMonth", "نفس فترة الشهر")
                           )}
                         </td>
                         <td className="px-2 py-1 align-top">
@@ -668,7 +672,7 @@ export default function FinancialYearsPage() {
                                 : "bg-rose-500/10 text-rose-300 border-rose-500/70"
                             }`}
                           >
-                            {p.isOpen ? "مفتوحة" : "مغلقة"}
+                            {p.isOpen ? t("accounting.financialYears.open", "مفتوحة") : t("accounting.financialYears.closed", "مغلقة")}
                           </span>
                         </td>
                         <td className="px-2 py-1 align-top">
@@ -677,7 +681,7 @@ export default function FinancialYearsPage() {
                             onClick={() => togglePeriodOpen(p)}
                             className="px-2 py-1 rounded-full bg-slate-800 hover:bg-slate-700 text-[11px]"
                           >
-                            {p.isOpen ? "إغلاق الفترة" : "فتح الفترة"}
+                            {p.isOpen ? t("accounting.financialYears.closePeriod", "إغلاق الفترة") : t("accounting.financialYears.openPeriod", "فتح الفترة")}
                           </button>
                         </td>
                       </tr>

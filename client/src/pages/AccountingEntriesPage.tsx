@@ -70,7 +70,7 @@ export default function AccountingEntriesPage() {
       setMeta(res.data.meta);
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
-      toast.error("فشل تحميل دفتر اليومية");
+      toast.error(t("accounting.entries.failedToLoadJournal", "فشل تحميل دفتر اليومية"));
     } finally {
       setLoading(false);
     }
@@ -148,12 +148,12 @@ export default function AccountingEntriesPage() {
               setPage(1);
             }}
           >
-            <option value="">كل المصادر</option>
-            <option value="BILLING">الفوترة والعيادات</option>
-            <option value="CASHIER">الخزينة والتحصيل</option>
-            <option value="INVENTORY">المخزون والمشتريات</option>
-            <option value="PAYROLL">الرواتب والأجور</option>
-            <option value="MANUAL">القيود اليدوية</option>
+            <option value="">{t("accounting.entries.allSources", t("accounting.entries.allSources", "كل المصادر"))}</option>
+            <option value="BILLING">{t("accounting.entries.billingAndClinics", t("accounting.entries.billingAndClinics", "الفوترة والعيادات"))}</option>
+            <option value="CASHIER">{t("accounting.entries.treasuryAndCollection", t("accounting.entries.treasuryAndCollection", "الخزينة والتحصيل"))}</option>
+            <option value="INVENTORY">{t("accounting.entries.inventoryAndPurchases", t("accounting.entries.inventoryAndPurchases", "المخزون والمشتريات"))}</option>
+            <option value="PAYROLL">{t("accounting.entries.salariesAndWages", t("accounting.entries.salariesAndWages", "الرواتب والأجور"))}</option>
+            <option value="MANUAL">{t("accounting.entries.manualRestrictions", t("accounting.entries.manualRestrictions", "القيود اليدوية"))}</option>
           </select>
         </div>
         <button
@@ -198,7 +198,7 @@ export default function AccountingEntriesPage() {
                   </span>
                 </div>
                 <div className="text-[11px] text-slate-500 italic text-left md:text-right">
-                  {entry.description || "بدون وصف إضافي"}
+                  {entry.description || t("accounting.entries.noAdditionalDescription", "بدون وصف إضافي")}
                 </div>
               </div>
 
@@ -207,9 +207,9 @@ export default function AccountingEntriesPage() {
                 <table className="w-full text-xs text-right">
                   <thead className="bg-slate-900/80 text-slate-500 font-bold">
                     <tr>
-                      <th className="px-4 py-2">الحساب</th>
-                      <th className="px-4 py-2 text-center">مدين (Debit)</th>
-                      <th className="px-4 py-2 text-center">دائن (Credit)</th>
+                      <th className="px-4 py-2">{t("accounting.entries.theAccount", t("accounting.entries.theAccount", "الحساب"))}</th>
+                      <th className="px-4 py-2 text-center">{t("accounting.entries.debit", t("accounting.entries.debit", "مدين (Debit)"))}</th>
+                      <th className="px-4 py-2 text-center">{t("accounting.entries.credit", t("accounting.entries.credit", "دائن (Credit)"))}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800/50">

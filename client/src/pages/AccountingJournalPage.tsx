@@ -1,5 +1,5 @@
 // src/pages/AccountingJournalPage.tsx
-
+import { useTranslation } from "react-i18next";
 import { useEffect, useMemo, useState } from "react";
 import { apiClient } from "../api/apiClient";
 import type {
@@ -18,6 +18,7 @@ type ApiResponse<T> = ApiOk<T> | ApiErr;
 const PAGE_SIZE = 50;
 
 const AccountingJournalPage = () => {
+  const { t } = useTranslation();
   const [entries, setEntries] = useState<JournalEntrySummary[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);

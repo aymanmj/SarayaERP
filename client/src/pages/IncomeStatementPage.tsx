@@ -150,7 +150,7 @@ export default function IncomeStatementPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold mb-1">قائمة الدخل والربحية</h1>
+          <h1 className="text-2xl font-bold mb-1">{t("accounting.incomeStatement.incomeAndProfitabilityStatement", t("accounting.incomeStatement.incomeAndProfitabilityStatement", "قائمة الدخل والربحية"))}</h1>
           <p className="text-sm text-slate-400">
             تحليل الإيرادات والمصروفات وصافي الربح (P&L) على مستوى المستشفى أو
             الأقسام.
@@ -162,7 +162,7 @@ export default function IncomeStatementPage() {
             <div className="text-right text-sm bg-slate-900 px-3 py-1 rounded-xl border border-slate-800">
               <div className="text-slate-300 font-semibold">{year.name}</div>
               <div className="text-slate-500 text-[10px]">
-                {year.status === "OPEN" ? "🟢 مفتوحة" : "🔴 مغلقة"} •{" "}
+                {year.status === "OPEN" ? t("accounting.incomeStatement.open", "🟢 مفتوحة") : t("accounting.incomeStatement.closed", "🔴 مغلقة")} •{" "}
                 {year.code}
               </div>
             </div>
@@ -187,7 +187,7 @@ export default function IncomeStatementPage() {
       {/* Filters */}
       <div className="bg-slate-900/60 border border-slate-800 p-4 rounded-2xl flex flex-wrap gap-4 items-end shadow-sm">
         <div className="flex flex-col gap-1">
-          <label className="text-xs text-slate-400 font-bold">من تاريخ</label>
+          <label className="text-xs text-slate-400 font-bold">{t("accounting.incomeStatement.fromHistory", t("accounting.incomeStatement.fromHistory", "من تاريخ"))}</label>
           <DatePicker
             date={fromFilter ? new Date(fromFilter) : undefined}
             onChange={(d) => setFromFilter(d ? d.toISOString().slice(0, 10) : "")}
@@ -195,7 +195,7 @@ export default function IncomeStatementPage() {
           />
         </div>
         <div className="flex flex-col gap-1">
-          <label className="text-xs text-slate-400 font-bold">إلى تاريخ</label>
+          <label className="text-xs text-slate-400 font-bold">{t("accounting.incomeStatement.toDate", t("accounting.incomeStatement.toDate", "إلى تاريخ"))}</label>
           <DatePicker
             date={toFilter ? new Date(toFilter) : undefined}
             onChange={(d) => setToFilter(d ? d.toISOString().slice(0, 10) : "")}
@@ -213,7 +213,7 @@ export default function IncomeStatementPage() {
             onChange={(e) => setSelectedCostCenter(e.target.value)}
             className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:border-sky-500 outline-none"
           >
-            <option value="">-- المؤسسة بالكامل (All) --</option>
+            <option value="">{t("accounting.incomeStatement.theEntireOrganizationAll", t("accounting.incomeStatement.theEntireOrganizationAll", "-- المؤسسة بالكامل (All) --"))}</option>
             {costCenters.map((cc) => (
               <option key={cc.id} value={cc.id}>
                 {cc.name} ({cc.code})
@@ -282,9 +282,9 @@ export default function IncomeStatementPage() {
                 <table className="w-full text-xs text-right">
                   <thead className="text-slate-500">
                     <tr>
-                      <th className="pb-2">الكود</th>
-                      <th className="pb-2">الحساب</th>
-                      <th className="pb-2">الصافي</th>
+                      <th className="pb-2">{t("accounting.incomeStatement.code", t("accounting.incomeStatement.code", "الكود"))}</th>
+                      <th className="pb-2">{t("accounting.incomeStatement.theAccount", t("accounting.incomeStatement.theAccount", "الحساب"))}</th>
+                      <th className="pb-2">{t("accounting.incomeStatement.net", t("accounting.incomeStatement.net", "الصافي"))}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -321,9 +321,9 @@ export default function IncomeStatementPage() {
                 <table className="w-full text-xs text-right">
                   <thead className="text-slate-500">
                     <tr>
-                      <th className="pb-2">الكود</th>
-                      <th className="pb-2">الحساب</th>
-                      <th className="pb-2">الصافي</th>
+                      <th className="pb-2">{t("accounting.incomeStatement.code", t("accounting.incomeStatement.code", "الكود"))}</th>
+                      <th className="pb-2">{t("accounting.incomeStatement.theAccount", t("accounting.incomeStatement.theAccount", "الحساب"))}</th>
+                      <th className="pb-2">{t("accounting.incomeStatement.net", t("accounting.incomeStatement.net", "الصافي"))}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -390,7 +390,7 @@ export default function IncomeStatementPage() {
             </div>
 
             <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-4 text-xs text-slate-400 leading-relaxed">
-              ℹ️ <strong>ملاحظة:</strong>
+              ℹ️ <strong>{t("accounting.incomeStatement.note", t("accounting.incomeStatement.note", "ملاحظة:"))}</strong>
               <br />
               هذا التقرير يعكس الأداء المالي بناءً على الاستحقاق (Accrual
               Basis). للاطلاع على التدفق النقدي الفعلي، يرجى مراجعة تقرير

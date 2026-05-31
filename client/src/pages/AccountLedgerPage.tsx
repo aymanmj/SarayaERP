@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { apiClient } from "../api/apiClient";
@@ -37,6 +38,9 @@ function formatNumber(n: number | undefined | null) {
 }
 
 export default function AccountLedgerPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
+
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -107,7 +111,7 @@ export default function AccountLedgerPage() {
             ← رجوع
           </button>
           <div>
-            <h1 className="text-2xl font-bold mb-1">دفتر الأستاذ</h1>
+            <h1 className="text-2xl font-bold mb-1">{t("accounting.accountLedger.ledger", t("accounting.accountLedger.ledger", "دفتر الأستاذ"))}</h1>
             <p className="text-sm text-slate-400">
               استعراض الحركات المحاسبية على حساب محدد مع الرصيد التراكمي.
             </p>
@@ -129,14 +133,14 @@ export default function AccountLedgerPage() {
           className="print:hidden inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs bg-emerald-500 hover:bg-emerald-400 text-white shadow-md shadow-emerald-500/40"
         >
           <span>🖨️</span>
-          <span>طباعة دفتر الأستاذ</span>
+          <span>{t("accounting.accountLedger.ledgerPrinting", t("accounting.accountLedger.ledgerPrinting", "طباعة دفتر الأستاذ"))}</span>
         </button>
       </div>
 
       {/* Filters */}
       <div className="mb-4 rounded-3xl border border-slate-800 bg-slate-950/80 p-4 flex flex-wrap items-end gap-4 text-sm">
         <div className="flex flex-col gap-1">
-          <label className="text-xs text-slate-400">من تاريخ</label>
+          <label className="text-xs text-slate-400">{t("accounting.accountLedger.fromHistory", t("accounting.accountLedger.fromHistory", "من تاريخ"))}</label>
           <DatePicker
             date={from ? new Date(from) : undefined}
             onChange={(d) => setFrom(d ? d.toISOString().slice(0, 10) : undefined)}
@@ -144,7 +148,7 @@ export default function AccountLedgerPage() {
           />
         </div>
         <div className="flex flex-col gap-1">
-          <label className="text-xs text-slate-400">إلى تاريخ</label>
+          <label className="text-xs text-slate-400">{t("accounting.accountLedger.toDate", t("accounting.accountLedger.toDate", "إلى تاريخ"))}</label>
           <DatePicker
             date={to ? new Date(to) : undefined}
             onChange={(d) => setTo(d ? d.toISOString().slice(0, 10) : undefined)}
@@ -206,31 +210,31 @@ export default function AccountLedgerPage() {
               </h2>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-slate-400">الفترة:</span>
+                  <span className="text-slate-400">{t("accounting.accountLedger.period", t("accounting.accountLedger.period", "الفترة:"))}</span>
                   <span className="text-slate-100">
                     {formatDate(data.fromDate)} — {formatDate(data.toDate)}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">الرصيد الافتتاحي:</span>
+                  <span className="text-slate-400">{t("accounting.accountLedger.openingBalance", t("accounting.accountLedger.openingBalance", "الرصيد الافتتاحي:"))}</span>
                   <span className="text-sky-300">
                     LYD {formatNumber(data.openingBalance)}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">إجمالي المدين:</span>
+                  <span className="text-slate-400">{t("accounting.accountLedger.totalDebit", t("accounting.accountLedger.totalDebit", "إجمالي المدين:"))}</span>
                   <span className="text-emerald-300">
                     LYD {formatNumber(data.totalDebit)}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">إجمالي الدائن:</span>
+                  <span className="text-slate-400">{t("accounting.accountLedger.totalCredit", t("accounting.accountLedger.totalCredit", "إجمالي الدائن:"))}</span>
                   <span className="text-rose-300">
                     LYD {formatNumber(data.totalCredit)}
                   </span>
                 </div>
                 <div className="flex justify-between border-t border-slate-800 pt-2 mt-2">
-                  <span className="text-slate-400">الرصيد الختامي:</span>
+                  <span className="text-slate-400">{t("accounting.accountLedger.closingBalance", t("accounting.accountLedger.closingBalance", "الرصيد الختامي:"))}</span>
                   <span className="text-sky-300 font-semibold">
                     LYD {formatNumber(data.closingBalance)}
                   </span>
@@ -255,12 +259,12 @@ export default function AccountLedgerPage() {
                   <table className="min-w-full text-right">
                     <thead className="text-[11px] text-slate-400 border-b border-slate-800">
                       <tr>
-                        <th className="py-2 px-2">التاريخ</th>
-                        <th className="py-2 px-2">رقم القيد</th>
-                        <th className="py-2 px-2">الوصف</th>
-                        <th className="py-2 px-2">مدين</th>
-                        <th className="py-2 px-2">دائن</th>
-                        <th className="py-2 px-2">الرصيد</th>
+                        <th className="py-2 px-2">{t("accounting.accountLedger.theDate", t("accounting.accountLedger.theDate", "التاريخ"))}</th>
+                        <th className="py-2 px-2">{t("accounting.accountLedger.registrationNumber", t("accounting.accountLedger.registrationNumber", "رقم القيد"))}</th>
+                        <th className="py-2 px-2">{t("accounting.accountLedger.description", t("accounting.accountLedger.description", "الوصف"))}</th>
+                        <th className="py-2 px-2">{t("accounting.accountLedger.debtor", t("accounting.accountLedger.debtor", "مدين"))}</th>
+                        <th className="py-2 px-2">{t("accounting.accountLedger.creditor", t("accounting.accountLedger.creditor", "دائن"))}</th>
+                        <th className="py-2 px-2">{t("accounting.accountLedger.balance", t("accounting.accountLedger.balance", "الرصيد"))}</th>
                       </tr>
                     </thead>
                     <tbody>

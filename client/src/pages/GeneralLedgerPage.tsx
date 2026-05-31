@@ -1,5 +1,5 @@
 // src/pages/GeneralLedgerPage.tsx
-
+import { useTranslation } from "react-i18next";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { apiClient } from "../api/apiClient";
@@ -82,9 +82,9 @@ function formatMoney(val: number | string | null | undefined) {
 }
 
 // تنسيق الرصيد الموقَّع (مدين/دائن)
-function formatSignedBalance(val: number | string | null | undefined) {
+function formatSignedBalance(val: number | string | null | undefined, t: any) {
   const num = Number(val ?? 0);
-  const side = num >= 0 ? "مدين" : "دائن";
+  const side = num >= 0 ? t("accounting.ledger.debtor", "مدين") : t("accounting.ledger.creditor", "دائن");
   const abs = Math.abs(num);
   return `${formatMoney(abs)} ${side}`;
 }
@@ -99,24 +99,14 @@ function normalizeSourceModule(
     : null;
 }
 
-const sourceLabels: Record<SourceModule, string> = {
-  BILLING: "الفوترة",
-  CASHIER: "الخزينة",
-  INVENTORY: "المخزون",
-  MANUAL: "قيد يدوي",
-  OPENING: "أرصدة افتتاحية",
-  CLOSING: "إقفال",
-  PAYROLL: "المرتبات",
-};
-
 // ✅ تخمين نوع المستند من الوصف (عشان يعالج البيانات القديمة/الملخبطة)
-function guessDocKind(ln: LedgerLine): "INVOICE" | "PAYMENT" | null {
+function guessDocKind(ln: LedgerLine, t: any): "INVOICE" | "PAYMENT" | null {
   const d = (ln.description ?? "").toLowerCase();
 
   // كلمات عربية شائعة
-  if (d.includes("تحصيل") || d.includes("دفعة") || d.includes("سند قبض"))
+  if (d.includes(t("accounting.ledger.collection", "تحصيل")) || d.includes(t("accounting.ledger.batch", "دفعة")) || d.includes(t("accounting.ledger.receiptVoucher", "سند قبض")))
     return "PAYMENT";
-  if (d.includes("فاتورة")) return "INVOICE";
+  if (d.includes(t("accounting.ledger.invoice", "فاتورة"))) return "INVOICE";
 
   return null;
 }
@@ -130,14 +120,14 @@ function buildFallbackRoute(ln: LedgerLine) {
 }
 
 // ✅ خريطة موحدة للمسارات (مطابقة لـ Router عندك)
-function resolveSourceRoute(ln: LedgerLine): string | null {
+function resolveSourceRoute(ln: LedgerLine, t: any): string | null {
   if (!ln.sourceModule || !ln.sourceId) return null;
 
   const mod = normalizeSourceModule(ln.sourceModule);
   const id = ln.sourceId;
 
   // 1) لو نعرف نوعه من الوصف → نعطيه أولوية (يعالج البيانات القديمة)
-  const kind = guessDocKind(ln);
+  const kind = guessDocKind(ln, t);
   if (kind === "INVOICE") return `/billing/invoices/${id}`;
   if (kind === "PAYMENT") return `/payments/${id}/receipt`;
 
@@ -168,6 +158,19 @@ function resolveSourceRoute(ln: LedgerLine): string | null {
 }
 
 export default function GeneralLedgerPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
+
+  const sourceLabels: Record<SourceModule, string> = {
+    BILLING: t("accounting.ledger.billing", "الفوترة"),
+    CASHIER: t("accounting.ledger.treasury", "الخزينة"),
+    INVENTORY: t("accounting.ledger.inventory", "المخزون"),
+    MANUAL: t("accounting.ledger.manualEntry", "قيد يدوي"),
+    OPENING: t("accounting.ledger.openingCredits", "أرصدة افتتاحية"),
+    CLOSING: t("accounting.ledger.closing", "إقفال"),
+    PAYROLL: t("accounting.ledger.salaries", "المرتبات"),
+  };
+
   const today = new Date().toISOString().slice(0, 10);
   const navigate = useNavigate();
 
@@ -204,7 +207,7 @@ export default function GeneralLedgerPage() {
   // };
 
   const handleOpenSource = (ln: LedgerLine) => {
-    const route = resolveSourceRoute(ln);
+    const route = resolveSourceRoute(ln, t);
     if (!route) return;
     navigate(route);
   };
@@ -393,9 +396,9 @@ export default function GeneralLedgerPage() {
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-[11px]">
               <div className="rounded-2xl border border-slate-700 bg-slate-900/70 px-3 py-2">
-                <div className="text-slate-400">الرصيد الافتتاحي</div>
+                <div className="text-slate-400">{t("accounting.ledger.openingBalance", "الرصيد الافتتاحي")}</div>
                 <div className="text-sm font-semibold text-slate-100">
-                  {formatSignedBalance(ledger.openingBalance)} LYD
+                  {formatSignedBalance(ledger.openingBalance, t)} LYD
                 </div>
               </div>
               <div className="rounded-2xl border border-slate-700 bg-slate-900/70 px-3 py-2">
@@ -411,9 +414,9 @@ export default function GeneralLedgerPage() {
                 </div>
               </div>
               <div className="rounded-2xl border border-slate-700 bg-slate-900/70 px-3 py-2">
-                <div className="text-slate-400">الرصيد الختامي</div>
+                <div className="text-slate-400">{t("accounting.ledger.closingBalance", "الرصيد الختامي")}</div>
                 <div className="text-sm font-semibold text-slate-100">
-                  {formatSignedBalance(ledger.closingBalance)} LYD
+                  {formatSignedBalance(ledger.closingBalance, t)} LYD
                 </div>
               </div>
             </div>
@@ -450,7 +453,7 @@ export default function GeneralLedgerPage() {
                     <td className="px-2 py-1 align-top">—</td>
                     <td className="px-2 py-1 align-top">—</td>
                     <td className="px-2 py-1 align-top font-semibold text-slate-100">
-                      {formatSignedBalance(ledger.openingBalance)} LYD
+                      {formatSignedBalance(ledger.openingBalance, t)} LYD
                     </td>
                   </tr>
 
@@ -489,7 +492,7 @@ export default function GeneralLedgerPage() {
                         {ln.credit ? `${formatMoney(ln.credit)} LYD` : "—"}
                       </td>
                       <td className="px-2 py-1 align-top font-semibold text-slate-100">
-                        {formatSignedBalance(ln.balance)} LYD
+                        {formatSignedBalance(ln.balance, t)} LYD
                       </td>
                     </tr>
                   ))}

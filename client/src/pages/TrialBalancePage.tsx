@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 // src/pages/TrialBalancePage.tsx
 
 import { useEffect, useState } from "react";
@@ -51,6 +52,9 @@ function buildLedgerUrl(accountId: number, fromDate?: string, toDate?: string) {
 }
 
 export default function TrialBalancePage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
+
   const navigate = useNavigate();
 
   const [years, setYears] = useState<FinancialYearDto[]>([]);
@@ -130,7 +134,7 @@ export default function TrialBalancePage() {
       {/* الهيدر */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold mb-1">ميزان المراجعة</h1>
+          <h1 className="text-2xl font-bold mb-1">{t("accounting.trialBalance.trialBalance", t("accounting.trialBalance.trialBalance", "ميزان المراجعة"))}</h1>
           <p className="text-sm text-slate-400">
             استعراض أرصدة الحسابات حسب الفترة الزمنية، مع إمكانية فتح دفتر
             الأستاذ لكل حساب.
@@ -157,7 +161,7 @@ export default function TrialBalancePage() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-xs items-end">
           {/* السنة المالية */}
           <div className="flex flex-col gap-1">
-            <label className="text-slate-300">السنة المالية</label>
+            <label className="text-slate-300">{t("accounting.trialBalance.fiscalYear", t("accounting.trialBalance.fiscalYear", "السنة المالية"))}</label>
             <select
               value={selectedYearId ?? ""}
               onChange={(e) => {
@@ -171,7 +175,7 @@ export default function TrialBalancePage() {
               }}
               className="bg-slate-900/80 border border-slate-700 rounded-2xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500/60"
             >
-              <option value="">كل السنوات</option>
+              <option value="">{t("accounting.trialBalance.allYears", t("accounting.trialBalance.allYears", "كل السنوات"))}</option>
               {years.map((y) => (
                 <option key={y.id} value={y.id}>
                   {y.code} — {y.name}
@@ -182,7 +186,7 @@ export default function TrialBalancePage() {
 
           {/* من تاريخ */}
           <div className="flex flex-col gap-1">
-            <label className="text-slate-300">من تاريخ</label>
+            <label className="text-slate-300">{t("accounting.trialBalance.fromHistory", t("accounting.trialBalance.fromHistory", "من تاريخ"))}</label>
             <DatePicker
               date={fromDate ? new Date(fromDate) : undefined}
               onChange={(d) => setFromDate(d ? d.toISOString().slice(0, 10) : "")}
@@ -192,7 +196,7 @@ export default function TrialBalancePage() {
 
           {/* إلى تاريخ */}
           <div className="flex flex-col gap-1">
-            <label className="text-slate-300">إلى تاريخ</label>
+            <label className="text-slate-300">{t("accounting.trialBalance.toDate", t("accounting.trialBalance.toDate", "إلى تاريخ"))}</label>
             <DatePicker
               date={toDate ? new Date(toDate) : undefined}
               onChange={(d) => setToDate(d ? d.toISOString().slice(0, 10) : "")}
@@ -217,13 +221,13 @@ export default function TrialBalancePage() {
       {data && data.rows.length > 0 && (
         <div className="mb-4 grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
           <div className="rounded-3xl border border-slate-800 bg-slate-950/80 p-3">
-            <div className="text-slate-400 mb-1">إجمالي المدين</div>
+            <div className="text-slate-400 mb-1">{t("accounting.trialBalance.totalDebit", t("accounting.trialBalance.totalDebit", "إجمالي المدين"))}</div>
             <div className="text-lg font-semibold text-emerald-300">
               LYD {formatMoney(totalsDebit)}
             </div>
           </div>
           <div className="rounded-3xl border border-slate-800 bg-slate-950/80 p-3">
-            <div className="text-slate-400 mb-1">إجمالي الدائن</div>
+            <div className="text-slate-400 mb-1">{t("accounting.trialBalance.totalCredit", t("accounting.trialBalance.totalCredit", "إجمالي الدائن"))}</div>
             <div className="text-lg font-semibold text-rose-300">
               LYD {formatMoney(totalsCredit)}
             </div>
@@ -261,11 +265,11 @@ export default function TrialBalancePage() {
             <table className="w-full text-[11px] text-right border-separate border-spacing-y-1">
               <thead>
                 <tr className="text-slate-400">
-                  <th className="px-2 py-1 text-right">الكود</th>
-                  <th className="px-2 py-1 text-right">اسم الحساب</th>
-                  <th className="px-2 py-1 text-right">مدين</th>
-                  <th className="px-2 py-1 text-right">دائن</th>
-                  <th className="px-2 py-1 text-right">الرصيد (مدين - دائن)</th>
+                  <th className="px-2 py-1 text-right">{t("accounting.trialBalance.code", t("accounting.trialBalance.code", "الكود"))}</th>
+                  <th className="px-2 py-1 text-right">{t("accounting.trialBalance.accountName", t("accounting.trialBalance.accountName", "اسم الحساب"))}</th>
+                  <th className="px-2 py-1 text-right">{t("accounting.trialBalance.debtor", t("accounting.trialBalance.debtor", "مدين"))}</th>
+                  <th className="px-2 py-1 text-right">{t("accounting.trialBalance.creditor", t("accounting.trialBalance.creditor", "دائن"))}</th>
+                  <th className="px-2 py-1 text-right">{t("accounting.trialBalance.balanceDebitCredit", t("accounting.trialBalance.balanceDebitCredit", "الرصيد (مدين - دائن)"))}</th>
                 </tr>
               </thead>
               <tbody>

@@ -26,7 +26,7 @@ export default function CostCentersPage() {
       const res = await apiClient.get<CostCenter[]>("/accounting/cost-centers");
       setCenters(res.data);
     } catch {
-      toast.error("فشل التحميل");
+      toast.error(t("accounting.costCenters.downloadFailed", "فشل التحميل"));
     } finally {
       setLoading(false);
     }
@@ -40,12 +40,12 @@ export default function CostCentersPage() {
     if (!form.name || !form.code) return;
     try {
       await apiClient.post("/accounting/cost-centers", form);
-      toast.success("تم الحفظ");
+      toast.success(t("accounting.costCenters.saved", "تم الحفظ"));
       setShowModal(false);
       setForm({ name: "", code: "", type: "BOTH" });
       loadData();
     } catch {
-      toast.error("فشل الحفظ");
+      toast.error(t("accounting.costCenters.saveFailed", "فشل الحفظ"));
     }
   };
 
@@ -56,7 +56,7 @@ export default function CostCentersPage() {
     >
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold">مراكز التكلفة (Cost Centers)</h1>
+          <h1 className="text-2xl font-bold">{t("accounting.costCenters.costCenters", t("accounting.costCenters.costCenters", "مراكز التكلفة (Cost Centers)"))}</h1>
           <p className="text-sm text-slate-400">
             إدارة الأقسام المالية لتحليل الربحية.
           </p>
@@ -73,9 +73,9 @@ export default function CostCentersPage() {
         <table className="w-full text-sm text-right">
           <thead className="text-slate-400 border-b border-slate-800">
             <tr>
-              <th className="px-4 py-2">الكود</th>
-              <th className="px-4 py-2">الاسم</th>
-              <th className="px-4 py-2">النوع</th>
+              <th className="px-4 py-2">{t("accounting.costCenters.code", t("accounting.costCenters.code", "الكود"))}</th>
+              <th className="px-4 py-2">{t("accounting.costCenters.theName", t("accounting.costCenters.theName", "الاسم"))}</th>
+              <th className="px-4 py-2">{t("accounting.costCenters.type", t("accounting.costCenters.type", "النوع"))}</th>
             </tr>
           </thead>
           <tbody>
@@ -84,7 +84,7 @@ export default function CostCentersPage() {
                 <td className="px-4 py-3 font-mono text-sky-400">{c.code}</td>
                 <td className="px-4 py-3 font-bold">{c.name}</td>
                 <td className="px-4 py-3 text-xs">
-                  {c.type === "BOTH" ? "إيراد ومصروف" : c.type}
+                  {c.type === "BOTH" ? t("accounting.costCenters.revenueAndExpense", "إيراد ومصروف") : c.type}
                 </td>
               </tr>
             ))}
@@ -95,16 +95,16 @@ export default function CostCentersPage() {
       {showModal && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
           <div className="bg-slate-950 border border-slate-700 rounded-2xl p-6 w-full max-w-sm space-y-4">
-            <h3 className="font-bold text-lg">إضافة مركز تكلفة</h3>
+            <h3 className="font-bold text-lg">{t("accounting.costCenters.addACostCenter", t("accounting.costCenters.addACostCenter", "إضافة مركز تكلفة"))}</h3>
             <div className="space-y-2">
               <input
-                placeholder="الاسم (مثال: المختبر)"
+                placeholder={t("accounting.costCenters.nameExampleLaboratory", t("accounting.costCenters.nameExampleLaboratory", "الاسم (مثال: المختبر)"))}
                 className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sm"
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
               />
               <input
-                placeholder="الكود (مثال: CC-LAB)"
+                placeholder={t("accounting.costCenters.codeExampleCclab", t("accounting.costCenters.codeExampleCclab", "الكود (مثال: CC-LAB)"))}
                 className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sm"
                 value={form.code}
                 onChange={(e) => setForm({ ...form, code: e.target.value })}
@@ -114,9 +114,9 @@ export default function CostCentersPage() {
                 value={form.type}
                 onChange={(e) => setForm({ ...form, type: e.target.value })}
               >
-                <option value="BOTH">إيراد ومصروف</option>
-                <option value="REVENUE">إيراد فقط (Profit Center)</option>
-                <option value="COST">مصروف فقط (Cost Center)</option>
+                <option value="BOTH">{t("accounting.costCenters.revenueAndExpense", t("accounting.costCenters.revenueAndExpense", "إيراد ومصروف"))}</option>
+                <option value="REVENUE">{t("accounting.costCenters.revenueOnlyProfitCenter", t("accounting.costCenters.revenueOnlyProfitCenter", "إيراد فقط (Profit Center)"))}</option>
+                <option value="COST">{t("accounting.costCenters.costCenterOnly", t("accounting.costCenters.costCenterOnly", "مصروف فقط (Cost Center)"))}</option>
               </select>
             </div>
             <div className="flex justify-end gap-2 pt-2">

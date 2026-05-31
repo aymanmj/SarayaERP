@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 // src/pages/OpeningBalancesPage.tsx
 
 import { useEffect, useState } from "react";
@@ -46,6 +47,9 @@ function formatNumber(n: number) {
 }
 
 export default function OpeningBalancesPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
+
   const navigate = useNavigate();
 
   const [years, setYears] = useState<FinancialYearDto[]>([]);
@@ -287,7 +291,7 @@ export default function OpeningBalancesPage() {
             ← رجوع
           </button>
           <div>
-            <h1 className="text-2xl font-bold mb-1">الأرصدة الافتتاحية</h1>
+            <h1 className="text-2xl font-bold mb-1">{t("accounting.openingBalances.openingBalances", t("accounting.openingBalances.openingBalances", "الأرصدة الافتتاحية"))}</h1>
             <p className="text-sm text-slate-400">
               إعداد رصيد أول المدة للحسابات حسب السنة المالية.
             </p>
@@ -316,7 +320,7 @@ export default function OpeningBalancesPage() {
           {/* اختيارات السنة والتاريخ + حالة الميزان */}
           <div className="mb-4 rounded-3xl border border-slate-800 bg-slate-950/80 p-4 flex flex-wrap items-end gap-4 text-sm">
             <div className="flex flex-col gap-1">
-              <label className="text-xs text-slate-400">السنة المالية</label>
+              <label className="text-xs text-slate-400">{t("accounting.openingBalances.fiscalYear", t("accounting.openingBalances.fiscalYear", "السنة المالية"))}</label>
               <select
                 className="bg-slate-900/70 border border-slate-700/60 rounded-xl px-3 py-1.5 text-xs"
                 value={selectedYearId ?? ""}
@@ -329,7 +333,7 @@ export default function OpeningBalancesPage() {
                   }
                 }}
               >
-                <option value="">— اختر السنة —</option>
+                <option value="">{t("accounting.openingBalances.selectYear", t("accounting.openingBalances.selectYear", "— اختر السنة —"))}</option>
                 {years.map((y) => (
                   <option key={y.id} value={y.id}>
                     {y.code} — {y.name} ({formatDate(y.startDate)} إلى{" "}
@@ -345,7 +349,7 @@ export default function OpeningBalancesPage() {
             </div>
 
             <div className="flex flex-col gap-1">
-              <label className="text-xs text-slate-400">تاريخ القيد</label>
+              <label className="text-xs text-slate-400">{t("accounting.openingBalances.registrationDate", t("accounting.openingBalances.registrationDate", "تاريخ القيد"))}</label>
               <DatePicker
                 date={entryDate ? new Date(entryDate) : undefined}
                 onChange={(d) => setEntryDate(d ? d.toISOString().slice(0, 10) : "")}
@@ -355,7 +359,7 @@ export default function OpeningBalancesPage() {
 
             {/* حالة الميزان */}
             <div className="flex flex-col gap-1 mr-auto">
-              <span className="text-xs text-slate-400">حالة الميزان</span>
+              <span className="text-xs text-slate-400">{t("accounting.openingBalances.balanceStatus", t("accounting.openingBalances.balanceStatus", "حالة الميزان"))}</span>
               <div
                 className={`px-3 py-1.5 rounded-full border text-xs font-semibold flex flex-wrap gap-2 items-center
                   ${
@@ -365,7 +369,7 @@ export default function OpeningBalancesPage() {
                   }`}
               >
                 <span>
-                  {isBalanced ? "✅ الميزان متزن" : "⚠️ الميزان غير متزن"}
+                  {isBalanced ? t("accounting.openingBalances.theScaleIsBalanced", "✅ الميزان متزن") : t("accounting.openingBalances.theScaleIsOutOfBalance", "⚠️ الميزان غير متزن")}
                 </span>
                 <span className="text-[11px]">
                   مـدين: {formatNumber(totalDebit)} | دائـن:{" "}
@@ -388,7 +392,7 @@ export default function OpeningBalancesPage() {
                 disabled={saving}
                 className="px-4 py-1.5 rounded-full bg-emerald-600 hover:bg-emerald-500 text-xs text-white disabled:opacity-50"
               >
-                {saving ? "جارِ الحفظ..." : "حفظ الأرصدة الافتتاحية"}
+                {saving ? "جارِ الحفظ..." : t("accounting.openingBalances.saveOpeningBalances", "حفظ الأرصدة الافتتاحية")}
               </button>
             </div>
           </div>
@@ -410,9 +414,9 @@ export default function OpeningBalancesPage() {
               <table className="min-w-full text-right">
                 <thead className="text-[11px] text-slate-400 border-b border-slate-800">
                   <tr>
-                    <th className="py-2 px-2 w-64">الحساب</th>
-                    <th className="py-2 px-2 w-32">مدين</th>
-                    <th className="py-2 px-2 w-32">دائن</th>
+                    <th className="py-2 px-2 w-64">{t("accounting.openingBalances.theAccount", t("accounting.openingBalances.theAccount", "الحساب"))}</th>
+                    <th className="py-2 px-2 w-32">{t("accounting.openingBalances.debtor", t("accounting.openingBalances.debtor", "مدين"))}</th>
+                    <th className="py-2 px-2 w-32">{t("accounting.openingBalances.creditor", t("accounting.openingBalances.creditor", "دائن"))}</th>
                     <th className="py-2 px-2 w-16"></th>
                   </tr>
                 </thead>
@@ -442,7 +446,7 @@ export default function OpeningBalancesPage() {
                             updateLine(line.tempId, "accountId", e.target.value)
                           }
                         >
-                          <option value="">— اختر الحساب —</option>
+                          <option value="">{t("accounting.openingBalances.chooseAccount", t("accounting.openingBalances.chooseAccount", "— اختر الحساب —"))}</option>
                           {accounts.map((a) => (
                             <option key={a.id} value={a.id}>
                               {a.code} — {a.name}
@@ -490,19 +494,19 @@ export default function OpeningBalancesPage() {
             {/* ملخص تحت الجدول (إجمالي مدين/دائن/فرق) */}
             <div className="mt-4 grid grid-cols-3 gap-4 text-xs">
               <div className="rounded-2xl bg-slate-900/70 border border-slate-700/60 p-3">
-                <div className="text-slate-400 mb-1">إجمالي المدين</div>
+                <div className="text-slate-400 mb-1">{t("accounting.openingBalances.totalDebit", t("accounting.openingBalances.totalDebit", "إجمالي المدين"))}</div>
                 <div className="text-emerald-300 font-semibold">
                   LYD {formatNumber(totalDebit)}
                 </div>
               </div>
               <div className="rounded-2xl bg-slate-900/70 border border-slate-700/60 p-3">
-                <div className="text-slate-400 mb-1">إجمالي الدائن</div>
+                <div className="text-slate-400 mb-1">{t("accounting.openingBalances.totalCredit", t("accounting.openingBalances.totalCredit", "إجمالي الدائن"))}</div>
                 <div className="text-rose-300 font-semibold">
                   LYD {formatNumber(totalCredit)}
                 </div>
               </div>
               <div className="rounded-2xl bg-slate-900/70 border border-slate-700/60 p-3">
-                <div className="text-slate-400 mb-1">الفرق (مدين - دائن)</div>
+                <div className="text-slate-400 mb-1">{t("accounting.openingBalances.differenceDebitCredit", t("accounting.openingBalances.differenceDebitCredit", "الفرق (مدين - دائن)"))}</div>
                 <div
                   className={
                     isBalanced

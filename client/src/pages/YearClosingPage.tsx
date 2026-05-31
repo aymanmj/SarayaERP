@@ -1,5 +1,5 @@
 // src/pages/YearClosingPage.tsx
-
+import { useTranslation } from "react-i18next";
 import { useEffect, useState } from "react";
 import { apiClient } from "../api/apiClient";
 import { toast } from "sonner";
@@ -301,7 +301,7 @@ export default function YearClosingPage() {
 }
 
 function PendingDocumentsCheck({ yearId }: { yearId: number }) {
-   
+  const { t } = useTranslation();
   const [documents, setDocuments] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [checked, setChecked] = useState(false);

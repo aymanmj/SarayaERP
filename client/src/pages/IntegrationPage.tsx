@@ -75,7 +75,7 @@ export default function IntegrationPage() {
       const res = await apiClient.get<Device[]>("/integration/devices");
       setDevices(res.data);
     } catch {
-      toast.error("فشل تحميل الأجهزة");
+      toast.error(t("integration.failedToLoadDevices", "فشل تحميل الأجهزة"));
     }
   };
 
@@ -84,7 +84,7 @@ export default function IntegrationPage() {
       const res = await apiClient.get<Log[]>("/integration/logs");
       setLogs(res.data);
     } catch {
-      toast.error("فشل تحميل السجلات");
+      toast.error(t("integration.failedToLoadRecords", "فشل تحميل السجلات"));
     }
   };
 
@@ -100,7 +100,7 @@ export default function IntegrationPage() {
         setLabTests(cat.data);
       }
     } catch {
-      toast.error("فشل تحميل التعيينات");
+      toast.error(t("integration.failedToLoadAssignments", "فشل تحميل التعيينات"));
     }
   };
 
@@ -143,7 +143,7 @@ export default function IntegrationPage() {
 
   const handleSaveDevice = async () => {
     if (!deviceForm.name || !deviceForm.port) {
-      toast.warning("يرجى إدخال الاسم والمنفذ");
+      toast.warning(t("integration.pleaseEnterNameAndPort", "يرجى إدخال الاسم والمنفذ"));
       return;
     }
 
@@ -154,16 +154,16 @@ export default function IntegrationPage() {
           `/integration/devices/${editingDevice.id}`,
           deviceForm,
         );
-        toast.success("تم تحديث الجهاز");
+        toast.success(t("integration.theDeviceHasBeenUpdated", "تم تحديث الجهاز"));
       } else {
         // Create
         await apiClient.post("/integration/devices", deviceForm);
-        toast.success("تم إضافة الجهاز");
+        toast.success(t("integration.theDeviceHasBeenAdded", "تم إضافة الجهاز"));
       }
       setShowDeviceModal(false);
       loadDevices();
     } catch {
-      toast.error("فشل الحفظ");
+      toast.error(t("integration.saveFailed", "فشل الحفظ"));
     }
   };
 
@@ -176,11 +176,11 @@ export default function IntegrationPage() {
       return;
     try {
       await apiClient.delete(`/integration/devices/${id}`);
-      toast.success("تم حذف الجهاز");
+      toast.success(t("integration.theDeviceHasBeenDeleted", "تم حذف الجهاز"));
       if (selectedDeviceId === id) setSelectedDeviceId(null);
       loadDevices();
     } catch {
-      toast.error("فشل الحذف");
+      toast.error(t("integration.deletionFailed", "فشل الحذف"));
     }
   };
 
@@ -193,24 +193,24 @@ export default function IntegrationPage() {
         `/integration/devices/${selectedDeviceId}/mappings`,
         newMapping,
       );
-      toast.success("تم الربط");
+      toast.success(t("integration.linked", "تم الربط"));
       setNewMapping({ labTestId: "", deviceCode: "" });
       loadMappings(selectedDeviceId);
       loadDevices(); // لتحديث العداد
     } catch {
-      toast.error("فشل الربط (ربما موجود مسبقاً)");
+      toast.error(t("integration.bindingFailurePossiblyAlreadyExists", "فشل الربط (ربما موجود مسبقاً)"));
     }
   };
 
   const handleDeleteMapping = async (mappingId: number) => {
-    if (!confirm("هل أنت متأكد من إلغاء هذا الربط؟")) return;
+    if (!confirm(t("integration.areYouSureYouCanCancelThisLink", "هل أنت متأكد من إلغاء هذا الربط؟"))) return;
     try {
       await apiClient.delete(`/integration/mappings/${mappingId}`);
-      toast.success("تم الحذف بنجاح");
+      toast.success(t("integration.deletedSuccessfully", "تم الحذف بنجاح"));
       if (selectedDeviceId) loadMappings(selectedDeviceId);
     } catch (err) {
       console.error(err);
-      toast.error("فشل عملية الحذف");
+      toast.error(t("integration.deletionOperationFailed", "فشل عملية الحذف"));
     }
   };
 
@@ -250,7 +250,7 @@ export default function IntegrationPage() {
           {/* قائمة الأجهزة */}
           <div className="lg:col-span-1 bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex flex-col">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="font-semibold text-slate-200">الأجهزة المعرفة</h3>
+              <h3 className="font-semibold text-slate-200">{t("integration.knowledgeDevices", t("integration.knowledgeDevices", "الأجهزة المعرفة"))}</h3>
               <button
                 onClick={openCreateModal}
                 className="text-xs bg-emerald-600 px-3 py-1.5 rounded-lg hover:bg-emerald-500 font-bold transition text-white"
@@ -295,7 +295,7 @@ export default function IntegrationPage() {
                     <span
                       className={`text-[10px] px-2 py-0.5 rounded ${dev.isActive ? "bg-emerald-900/40 text-emerald-400" : "bg-rose-900/40 text-rose-400"}`}
                     >
-                      {dev.isActive ? "نشط" : "متوقف"}
+                      {dev.isActive ? t("integration.active", "نشط") : t("integration.stopped", "متوقف")}
                     </span>
                   </div>
 
@@ -335,12 +335,12 @@ export default function IntegrationPage() {
             {!selectedDeviceId ? (
               <div className="flex-1 flex flex-col items-center justify-center text-slate-500 gap-2">
                 <div className="text-4xl opacity-20">🖥️</div>
-                <div>اختر جهازاً من القائمة لإدارة الأكواد الخاصة به.</div>
+                <div>{t("integration.selectADeviceFromTheListToManageItsCodes", t("integration.selectADeviceFromTheListToManageItsCodes", "اختر جهازاً من القائمة لإدارة الأكواد الخاصة به."))}</div>
               </div>
             ) : (
               <>
                 <h3 className="font-semibold mb-4 text-sky-400 flex items-center gap-2">
-                  <span>ربط الأكواد (Code Mapping)</span>
+                  <span>{t("integration.codeMapping", t("integration.codeMapping", "ربط الأكواد (Code Mapping)"))}</span>
                   <span className="text-xs text-slate-500 font-normal">
                     - {devices.find((d) => d.id === selectedDeviceId)?.name}
                   </span>
@@ -362,7 +362,7 @@ export default function IntegrationPage() {
                         })
                       }
                     >
-                      <option value="">-- اختر التحليل --</option>
+                      <option value="">{t("integration.chooseAnalysis", t("integration.chooseAnalysis", "-- اختر التحليل --"))}</option>
                       {labTests.map((t) => (
                         <option key={t.id} value={t.id}>
                           {t.name} ({t.code})
@@ -399,9 +399,9 @@ export default function IntegrationPage() {
                   <table className="w-full text-sm text-right">
                     <thead className="text-slate-400 bg-slate-900/80 sticky top-0">
                       <tr>
-                        <th className="p-3 font-medium">التحليل (System)</th>
-                        <th className="p-3 font-medium">كود الجهاز (Device)</th>
-                        <th className="p-3 w-20 text-center">إجراء</th>
+                        <th className="p-3 font-medium">{t("integration.analysis", t("integration.analysis", "التحليل (System)"))}</th>
+                        <th className="p-3 font-medium">{t("integration.deviceCode", t("integration.deviceCode", "كود الجهاز (Device)"))}</th>
+                        <th className="p-3 w-20 text-center">{t("integration.procedure", t("integration.procedure", "إجراء"))}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800">
@@ -503,7 +503,7 @@ export default function IntegrationPage() {
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
           <div className="bg-slate-950 border border-slate-700 rounded-2xl p-6 w-full max-w-sm space-y-4 shadow-2xl">
             <h3 className="font-bold text-lg text-white">
-              {editingDevice ? "تعديل بيانات الجهاز" : "إضافة جهاز جديد"}
+              {editingDevice ? t("integration.modifyDeviceData", "تعديل بيانات الجهاز") : t("integration.addANewDevice", "إضافة جهاز جديد")}
             </h3>
 
             <div className="space-y-3">
@@ -513,7 +513,7 @@ export default function IntegrationPage() {
                 </label>
                 <input
                   className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:border-sky-500 outline-none"
-                  placeholder="مثال: Cobas 6000"
+                  placeholder={t("integration.exampleCobas6000", t("integration.exampleCobas6000", "مثال: Cobas 6000"))}
                   value={deviceForm.name}
                   onChange={(e) =>
                     setDeviceForm({ ...deviceForm, name: e.target.value })
@@ -535,8 +535,8 @@ export default function IntegrationPage() {
                     })
                   }
                 >
-                  <option value="LAB">مختبر (Lab)</option>
-                  <option value="RADIOLOGY">أشعة (Radiology)</option>
+                  <option value="LAB">{t("integration.laboratory", t("integration.laboratory", "مختبر (Lab)"))}</option>
+                  <option value="RADIOLOGY">{t("integration.radiology", t("integration.radiology", "أشعة (Radiology)"))}</option>
                 </select>
               </div>
 

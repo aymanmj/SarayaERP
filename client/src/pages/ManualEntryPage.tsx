@@ -199,7 +199,7 @@ export default function ManualEntryPage() {
         setSuccessMsg(
           `تم حفظ القيد اليدوي بنجاح (رقم القيد ${res.data.entryId}).`,
         );
-        toast.success("تم ترحيل القيد بنجاح");
+        toast.success(t("accounting.manualEntry.theEntryWasPostedSuccessfully", "تم ترحيل القيد بنجاح"));
         // تصفير النموذج
         setLines([
           {
@@ -236,7 +236,7 @@ export default function ManualEntryPage() {
             ← رجوع
           </button>
           <div>
-            <h1 className="text-2xl font-bold mb-1">قيد يومية يدوي</h1>
+            <h1 className="text-2xl font-bold mb-1">{t("accounting.manualEntry.manualJournalEntry", t("accounting.manualEntry.manualJournalEntry", "قيد يومية يدوي"))}</h1>
             <p className="text-sm text-slate-400">
               تسجيل العمليات المحاسبية (تسويات، مصاريف، عهد) مع توجيه مراكز
               التكلفة.
@@ -265,7 +265,7 @@ export default function ManualEntryPage() {
         {/* الصف العلوي: تاريخ + وصف مختصر */}
         <div className="flex flex-wrap gap-4 items-end text-sm border-b border-slate-800 pb-4">
           <div className="flex flex-col gap-1 w-48">
-            <label className="text-xs text-slate-400">تاريخ القيد</label>
+            <label className="text-xs text-slate-400">{t("accounting.manualEntry.registrationDate", t("accounting.manualEntry.registrationDate", "تاريخ القيد"))}</label>
             <DatePicker
               date={entryDate ? new Date(entryDate) : undefined}
               onChange={(d) => setEntryDate(d ? d.toISOString().slice(0, 10) : "")}
@@ -290,7 +290,7 @@ export default function ManualEntryPage() {
             disabled={saving || loadingResources}
             className="ml-auto px-6 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-xs font-bold text-white disabled:opacity-50 shadow-lg shadow-emerald-900/20"
           >
-            {saving ? "جارِ الترحيل..." : "حفظ وترحيل القيد"}
+            {saving ? "جارِ الترحيل..." : t("accounting.manualEntry.saveAndTransferTheRegistration", "حفظ وترحيل القيد")}
           </button>
         </div>
 
@@ -300,11 +300,11 @@ export default function ManualEntryPage() {
             <thead className="text-[11px] text-slate-400 bg-slate-900/80">
               <tr>
                 <th className="py-2 px-2 w-10 text-center">#</th>
-                <th className="py-2 px-2 w-64">الحساب (GL Account)</th>
-                <th className="py-2 px-2 w-48">مركز التكلفة (Cost Center)</th>
-                <th className="py-2 px-2 w-32">مدين (Debit)</th>
-                <th className="py-2 px-2 w-32">دائن (Credit)</th>
-                <th className="py-2 px-2">البيان / الشرح</th>
+                <th className="py-2 px-2 w-64">{t("accounting.manualEntry.glAccount", t("accounting.manualEntry.glAccount", "الحساب (GL Account)"))}</th>
+                <th className="py-2 px-2 w-48">{t("accounting.manualEntry.costCenter", t("accounting.manualEntry.costCenter", "مركز التكلفة (Cost Center)"))}</th>
+                <th className="py-2 px-2 w-32">{t("accounting.manualEntry.debit", t("accounting.manualEntry.debit", "مدين (Debit)"))}</th>
+                <th className="py-2 px-2 w-32">{t("accounting.manualEntry.credit", t("accounting.manualEntry.credit", "دائن (Credit)"))}</th>
+                <th className="py-2 px-2">{t("accounting.manualEntry.statementexplanation", t("accounting.manualEntry.statementexplanation", "البيان / الشرح"))}</th>
                 <th className="py-2 px-2 w-10"></th>
               </tr>
             </thead>
@@ -330,7 +330,7 @@ export default function ManualEntryPage() {
                         })
                       }
                     >
-                      <option value="">-- اختر الحساب --</option>
+                      <option value="">{t("accounting.manualEntry.selectAccount", t("accounting.manualEntry.selectAccount", "-- اختر الحساب --"))}</option>
                       {accounts.map((acc) => (
                         <option key={acc.id} value={acc.id}>
                           {acc.code} — {acc.name}
@@ -351,7 +351,7 @@ export default function ManualEntryPage() {
                         })
                       }
                     >
-                      <option value="">(عام / بدون مركز)</option>
+                      <option value="">{t("accounting.manualEntry.generalnoPosition", t("accounting.manualEntry.generalnoPosition", "(عام / بدون مركز)"))}</option>
                       {costCenters.map((cc) => (
                         <option key={cc.id} value={cc.id}>
                           {cc.code} — {cc.name}
@@ -427,13 +427,13 @@ export default function ManualEntryPage() {
         {/* الملخص السفلي */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm pt-2">
           <div className="rounded-2xl bg-emerald-900/10 border border-emerald-500/20 p-3 flex justify-between items-center">
-            <span className="text-slate-400 text-xs">إجمالي المدين</span>
+            <span className="text-slate-400 text-xs">{t("accounting.manualEntry.totalDebit", t("accounting.manualEntry.totalDebit", "إجمالي المدين"))}</span>
             <span className="text-lg font-mono font-bold text-emerald-400">
               {totals.totalDebit.toFixed(3)}
             </span>
           </div>
           <div className="rounded-2xl bg-rose-900/10 border border-rose-500/20 p-3 flex justify-between items-center">
-            <span className="text-slate-400 text-xs">إجمالي الدائن</span>
+            <span className="text-slate-400 text-xs">{t("accounting.manualEntry.totalCredit", t("accounting.manualEntry.totalCredit", "إجمالي الدائن"))}</span>
             <span className="text-lg font-mono font-bold text-rose-400">
               {totals.totalCredit.toFixed(3)}
             </span>
@@ -441,7 +441,7 @@ export default function ManualEntryPage() {
           <div
             className={`rounded-2xl border p-3 flex justify-between items-center transition-colors ${Math.abs(totals.diff) < 0.0001 ? "bg-sky-900/10 border-sky-500/20" : "bg-amber-900/10 border-amber-500/40"}`}
           >
-            <span className="text-slate-400 text-xs">الفرق (الموازنة)</span>
+            <span className="text-slate-400 text-xs">{t("accounting.manualEntry.differenceBudget", t("accounting.manualEntry.differenceBudget", "الفرق (الموازنة)"))}</span>
             <span
               className={`text-lg font-mono font-bold ${Math.abs(totals.diff) < 0.0001 ? "text-sky-400" : "text-amber-400"}`}
             >
