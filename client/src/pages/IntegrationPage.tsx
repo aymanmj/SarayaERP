@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 // src/pages/IntegrationPage.tsx
 
 import { useEffect, useState } from "react";
@@ -37,6 +38,9 @@ type Log = {
 type LabTestLite = { id: number; name: string; code: string };
 
 export default function IntegrationPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
+
   const [activeTab, setActiveTab] = useState<"DEVICES" | "LOGS">("DEVICES");
 
   // Devices State
@@ -213,7 +217,7 @@ export default function IntegrationPage() {
   return (
     <div
       className="p-6 text-slate-100 h-full flex flex-col space-y-6"
-      dir="rtl"
+      dir={isRtl ? "rtl" : "ltr"}
     >
       {/* Header */}
       <div className="flex justify-between items-center">

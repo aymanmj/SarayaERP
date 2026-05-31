@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 // ============================================
 // NetworkStatusBanner — Offline-First Status Indicator
 // ============================================
@@ -50,6 +51,9 @@ const STATUS_CONFIG: Record<NetworkStatus, {
 };
 
 export function NetworkStatusBanner() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
+
   const { status } = useNetworkStatus();
   const [visible, setVisible] = useState(false);
   const [dismissed, setDismissed] = useState(false);
@@ -94,7 +98,7 @@ export function NetworkStatusBanner() {
       <div className="max-w-7xl mx-auto px-4 py-2 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Icon className={`w-4 h-4 ${config.iconClass} flex-shrink-0`} />
-          <span className={`text-sm font-medium ${config.textClass}`} dir="rtl">
+          <span className={`text-sm font-medium ${config.textClass}`} dir={isRtl ? "rtl" : "ltr"}>
             {config.message}
           </span>
         </div>

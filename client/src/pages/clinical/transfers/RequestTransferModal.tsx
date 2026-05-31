@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import React, { useState } from 'react';
 import { apiClient } from '../../../api/apiClient';
 import { toast } from 'sonner';
@@ -19,6 +20,9 @@ export const RequestTransferModal: React.FC<RequestTransferModalProps> = ({
   fromBedId,
   onSuccess
 }) => {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
+
   const [reason, setReason] = useState('');
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -55,7 +59,7 @@ export const RequestTransferModal: React.FC<RequestTransferModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[60] p-4 backdrop-blur-sm" dir="rtl">
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[60] p-4 backdrop-blur-sm" dir={isRtl ? "rtl" : "ltr"}>
       <div className="bg-slate-950 border border-slate-700 rounded-2xl w-full max-w-lg p-6 shadow-2xl">
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-xl font-bold text-white flex items-center gap-2">

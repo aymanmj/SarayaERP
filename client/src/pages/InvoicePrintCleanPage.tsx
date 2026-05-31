@@ -121,12 +121,12 @@ const statusKeys: Record<string, string> = {
 };
 
 export default function InvoicePrintCleanPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
+
   const { id } = useParams();
   const invoiceId = Number(id);
 
-  // Fetch organization settings
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { data: orgSettings, isLoading: orgLoading } = useQuery({
     queryKey: ["organizationSettings"],
     queryFn: async () => {
@@ -348,7 +348,7 @@ export default function InvoicePrintCleanPage() {
           {/* Main Table */}
           <div className="mb-8 relative z-10">
             <table
-              dir="rtl"
+              dir={isRtl ? "rtl" : "ltr"}
               className="w-full text-sm border-collapse table-fixed"
             >
               <thead>

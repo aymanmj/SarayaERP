@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 // src/pages/PriceListDetailsPage.tsx
 
 import { useEffect, useState, useMemo } from "react";
@@ -27,6 +28,9 @@ type MergedRow = ServiceItem & {
 };
 
 export default function PriceListDetailsPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
+
   const { id } = useParams<{ id: string }>();
   const listId = Number(id);
   const navigate = useNavigate();
@@ -146,7 +150,7 @@ export default function PriceListDetailsPage() {
   return (
     <div
       className="flex flex-col h-full text-slate-100 p-6 space-y-4"
-      dir="rtl"
+      dir={isRtl ? "rtl" : "ltr"}
     >
       {/* Header */}
       <div className="flex justify-between items-center bg-slate-900/60 p-4 rounded-2xl border border-slate-800">

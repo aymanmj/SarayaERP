@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 // client/src/pages/settings/DepartmentsPage.tsx
 
 import { useEffect, useState } from "react";
@@ -13,6 +14,9 @@ type Specialty = {
 };
 
 export default function SpecialtiesPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
+
   const [specs, setSpecs] = useState<Specialty[]>([]);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [loading, setLoading] = useState(false);
@@ -52,7 +56,7 @@ export default function SpecialtiesPage() {
   return (
     <div
       className="p-6 text-slate-100 h-full flex flex-col space-y-6"
-      dir="rtl"
+      dir={isRtl ? "rtl" : "ltr"}
     >
       <div className="flex justify-between items-center">
         <div>

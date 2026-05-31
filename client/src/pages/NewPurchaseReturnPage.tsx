@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useEffect, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { apiClient } from "../api/apiClient";
@@ -21,6 +22,9 @@ type InvoiceDetails = {
 };
 
 export default function NewPurchaseReturnPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
+
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const invoiceId = searchParams.get("invoiceId");
@@ -115,7 +119,7 @@ export default function NewPurchaseReturnPage() {
   }
 
   return (
-    <div className="p-6 lg:p-10 text-slate-100 max-w-5xl mx-auto" dir="rtl">
+    <div className="p-6 lg:p-10 text-slate-100 max-w-5xl mx-auto" dir={isRtl ? "rtl" : "ltr"}>
       <h1 className="text-2xl font-bold mb-6 text-rose-400">مرتجع مشتريات جديد</h1>
       
       <div className="bg-slate-900/50 p-4 rounded-2xl border border-slate-800 mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">

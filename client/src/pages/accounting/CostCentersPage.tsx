@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useEffect, useState } from "react";
 import { apiClient } from "../../api/apiClient";
 import { toast } from "sonner";
@@ -10,6 +11,9 @@ type CostCenter = {
 };
 
 export default function CostCentersPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
+
   const [centers, setCenters] = useState<CostCenter[]>([]);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [loading, setLoading] = useState(false);
@@ -48,7 +52,7 @@ export default function CostCentersPage() {
   return (
     <div
       className="p-6 text-slate-100 h-full flex flex-col space-y-6"
-      dir="rtl"
+      dir={isRtl ? "rtl" : "ltr"}
     >
       <div className="flex justify-between items-center">
         <div>

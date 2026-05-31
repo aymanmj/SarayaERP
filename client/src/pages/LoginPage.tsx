@@ -97,7 +97,7 @@ export function LoginPage() {
         <div className="absolute bottom-[-10rem] left-[-5rem] w-[500px] h-[500px] rounded-full bg-[#c5a044]/10 blur-[120px]" />
       </div>
 
-      {/* ───────── Showcase Panel (Mirrors order based on dir="rtl"/"ltr") ───────── */}
+      {/* ───────── Showcase Panel (Mirrors order based on dir={isRtl ? "rtl" : "ltr"}/"ltr") ───────── */}
       <div className="hidden lg:flex flex-col w-[52%] p-10 xl:p-14 relative z-10">
         {/* Logo + Name */}
         <div className={`flex items-center gap-4 mb-auto ${isRtl ? 'flex-row' : 'flex-row-reverse text-left'}`}>

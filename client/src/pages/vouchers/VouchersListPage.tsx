@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import React, { useState, useEffect } from 'react';
 import { Plus, Check, X, Printer, Edit } from 'lucide-react';
 import { getVouchers, createVoucher, updateVoucher, postVoucher, cancelVoucher, Voucher, VoucherType, VoucherStatus } from '../../services/vouchersService';
@@ -6,6 +7,9 @@ import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 
 export default function VouchersListPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
+
   const [vouchers, setVouchers] = useState<Voucher[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<VoucherType>(VoucherType.PAYMENT);
@@ -73,7 +77,7 @@ export default function VouchersListPage() {
   };
 
   return (
-    <div className="flex flex-col h-full text-slate-100 p-6 space-y-6" dir="rtl">
+    <div className="flex flex-col h-full text-slate-100 p-6 space-y-6" dir={isRtl ? "rtl" : "ltr"}>
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold mb-1 text-slate-100">أذونات الصرف والقبض</h1>

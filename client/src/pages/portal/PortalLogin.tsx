@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 /**
  * Patient Portal — Login Page
  * 
@@ -16,6 +17,9 @@ import { Phone, KeyRound, ArrowLeft, Loader2, MessageCircle } from 'lucide-react
 type Step = 'credentials' | 'otp' | 'telegram_link';
 
 export default function PortalLogin() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
+
   const navigate = useNavigate();
   const { login } = usePortalAuthStore();
 
@@ -75,7 +79,7 @@ export default function PortalLogin() {
   };
 
   return (
-    <div dir="rtl" className="portal-login-page">
+    <div dir={isRtl ? "rtl" : "ltr"} className="portal-login-page">
       <div className="portal-login-bg" />
 
       <div className="portal-login-container">

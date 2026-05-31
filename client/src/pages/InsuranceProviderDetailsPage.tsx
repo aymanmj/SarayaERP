@@ -133,7 +133,7 @@ export default function InsuranceProviderDetailsPage() {
   return (
     <div
       className="p-6 text-slate-100 h-full flex flex-col space-y-8"
-      dir="rtl"
+      dir={isRtl ? "rtl" : "ltr"}
     >
       {/* Header */}
       <div className="flex justify-between items-center border-b border-slate-800 pb-4">
@@ -489,7 +489,7 @@ export default function InsuranceProviderDetailsPage() {
 //   return (
 //     <div
 //       className="p-6 text-slate-100 h-full flex flex-col space-y-6"
-//       dir="rtl"
+//       dir={isRtl ? "rtl" : "ltr"}
 //     >
 //       <div className="flex justify-between items-center">
 //         <div>

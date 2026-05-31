@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 // src/pages/QualityAndSafetyPage.tsx
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
@@ -83,6 +84,9 @@ const defaultForm: ReportForm = {
 };
 
 export default function QualityAndSafetyPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
+
   const [searchParams, setSearchParams] = useSearchParams();
   const tab = (searchParams.get('tab') as 'dashboard' | 'incidents' | 'report' | 'my-capa') || 'dashboard';
   
@@ -167,7 +171,7 @@ export default function QualityAndSafetyPage() {
   const totalIncidents = stats ? Object.values(stats.byStatus).reduce((a, b) => a + b, 0) : 0;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white" dir="rtl">
+    <div className="min-h-screen bg-slate-950 text-white" dir={isRtl ? "rtl" : "ltr"}>
       {/* Header */}
       <div className="bg-gradient-to-r from-red-950 via-slate-900 to-slate-950 border-b border-red-900/40 px-6 py-5">
         <div className="max-w-7xl mx-auto flex items-center justify-between">

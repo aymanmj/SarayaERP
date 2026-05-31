@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 // src/pages/ActivationPage.tsx
 // Professional Licensing System 4.0 - Activation & Renewal
 
@@ -25,6 +26,9 @@ interface LicenseInfo {
 type PageMode = "activation" | "renewal";
 
 export default function ActivationPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
+
   const [licenseInfo, setLicenseInfo] = useState<LicenseInfo | null>(null);
   const [licenseKey, setLicenseKey] = useState("");
   const [loading, setLoading] = useState(false);
@@ -130,7 +134,7 @@ export default function ActivationPage() {
   return (
     <div
       className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center p-4"
-      dir="rtl"
+      dir={isRtl ? "rtl" : "ltr"}
     >
       <div className="relative max-w-lg w-full">
         {/* Glow Effect */}

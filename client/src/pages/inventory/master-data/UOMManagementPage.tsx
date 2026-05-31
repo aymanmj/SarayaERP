@@ -1,8 +1,12 @@
+import { useTranslation } from "react-i18next";
 import React, { useState, useEffect } from 'react';
 import { inventoryApi } from '../../../api/inventoryApi';
 import { toast } from 'sonner';
 
 export const UOMManagementPage: React.FC = () => {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
+
    
   const [uoms, setUoms] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -81,7 +85,7 @@ export const UOMManagementPage: React.FC = () => {
   };
 
   return (
-    <div className="p-6 text-slate-100" dir="rtl">
+    <div className="p-6 text-slate-100" dir={isRtl ? "rtl" : "ltr"}>
       <div className="flex justify-between items-center mb-6 bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-sm">
         <div>
           <h1 className="text-2xl font-bold text-white flex items-center gap-3">
@@ -154,7 +158,7 @@ export const UOMManagementPage: React.FC = () => {
 
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden" dir="rtl">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden" dir={isRtl ? "rtl" : "ltr"}>
             <div className="px-6 py-4 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
               <h2 className="text-lg font-bold text-white">
                 {editingUOM ? 'تعديل وحدة قياس' : 'وحدة قياس جديدة'}

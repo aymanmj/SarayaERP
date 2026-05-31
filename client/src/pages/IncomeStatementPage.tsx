@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 // src/pages/IncomeStatementPage.tsx
 
 import { useEffect, useState } from "react";
@@ -46,6 +47,9 @@ type CostCenterLite = { id: number; name: string; code: string };
 // Local formatDate removed
 
 export default function IncomeStatementPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -141,7 +145,7 @@ export default function IncomeStatementPage() {
   return (
     <div
       className="flex flex-col h-full text-slate-100 p-6 space-y-6"
-      dir="rtl"
+      dir={isRtl ? "rtl" : "ltr"}
     >
       {/* Header */}
       <div className="flex items-center justify-between">

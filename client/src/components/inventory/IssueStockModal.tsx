@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import React, { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
@@ -11,6 +12,9 @@ interface Props {
 }
 
 export function IssueStockModal({ request, onClose, onSuccess }: Props) {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
+
   const [submitting, setSubmitting] = useState(false);
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<{ productId: number; quantity: number; batchNumber?: string }[]>([]);
@@ -80,7 +84,7 @@ export function IssueStockModal({ request, onClose, onSuccess }: Props) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm" dir="rtl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm" dir={isRtl ? "rtl" : "ltr"}>
       <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-4xl shadow-2xl flex flex-col max-h-[90vh]">
         <div className="p-5 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
           <h2 className="text-lg font-bold text-white flex items-center gap-2">

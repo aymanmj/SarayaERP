@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 // src/pages/PurchaseInvoicesPage.tsx
 
 import { useEffect, useMemo, useState } from "react";
@@ -62,6 +63,9 @@ function formatMoney(val: string | number | null | undefined) {
 }
 
 export default function PurchaseInvoicesPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
+
   const navigate = useNavigate();
   const today = new Date().toISOString().slice(0, 10);
 
@@ -296,7 +300,7 @@ export default function PurchaseInvoicesPage() {
   };
 
   return (
-    <div className="flex flex-col h-full text-slate-100" dir="rtl">
+    <div className="flex flex-col h-full text-slate-100" dir={isRtl ? "rtl" : "ltr"}>
       {/* العنوان العلوي */}
       <div className="mb-6 flex items-center justify-between">
         <div>

@@ -46,7 +46,9 @@
     "currency": {
       "lyd": "د.ل"
     },
-    "loadingContent": "تحميل المحتوى..."
+    "loadingContent": "تحميل المحتوى...",
+    "switchToEnglish": "Switch to English",
+    "switchToArabic": "التحويل إلى العربية"
   },
   "cdss": {
     "alerts": "التدقيق السريري الذكي (CDSS)",

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 // src/pages/clinical/transfers/HandoverNoteModal.tsx
 import React, { useState } from 'react';
 import { apiClient } from '../../../api/apiClient';
@@ -25,6 +26,9 @@ export const HandoverNoteModal: React.FC<HandoverNoteModalProps> = ({
   onSuccess,
   existingData
 }) => {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
+
   const [situation, setSituation] = useState(existingData?.situation || '');
   const [background, setBackground] = useState(existingData?.background || '');
   const [assessment, setAssessment] = useState(existingData?.assessment || '');
@@ -61,7 +65,7 @@ export const HandoverNoteModal: React.FC<HandoverNoteModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[70] p-4 backdrop-blur-sm" dir="rtl">
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[70] p-4 backdrop-blur-sm" dir={isRtl ? "rtl" : "ltr"}>
       <div className="bg-slate-950 border border-slate-700 rounded-2xl w-full max-w-2xl shadow-2xl flex flex-col max-h-[90vh]">
         <div className="flex justify-between items-center p-6 border-b border-slate-800 shrink-0">
           <div>

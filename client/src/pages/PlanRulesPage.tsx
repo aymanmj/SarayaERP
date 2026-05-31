@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 // src/pages/insurance/PlanRulesPage.tsx
 
 import { useEffect, useState, useMemo } from "react";
@@ -15,6 +16,9 @@ type ServiceItem = {
 };
 
 export default function PlanRulesPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
+
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const planId = Number(id);
@@ -172,7 +176,7 @@ export default function PlanRulesPage() {
   return (
     <div
       className="p-6 text-slate-100 h-full flex flex-col space-y-6"
-      dir="rtl"
+      dir={isRtl ? "rtl" : "ltr"}
     >
       {/* Header */}
       <div className="flex justify-between items-center">

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 // src/pages/UsersPage.tsx
 
 // src/pages/UsersPage.tsx
@@ -45,6 +46,9 @@ type User = {
 };
 
 export default function UsersPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
+
   const queryClient = useQueryClient();
   const [showModal, setShowModal] = useState(false);
 
@@ -211,7 +215,7 @@ export default function UsersPage() {
   };
 
   return (
-    <div className="p-6 h-full flex flex-col text-slate-100" dir="rtl">
+    <div className="p-6 h-full flex flex-col text-slate-100" dir={isRtl ? "rtl" : "ltr"}>
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <div>

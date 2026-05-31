@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 // src/pages/NursingPatientDetailsPage.tsx
 
 import { useEffect, useState } from "react";
@@ -25,6 +26,9 @@ type PatientHeader = {
 };
 
 export default function NursingPatientDetailsPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
+
   const { id } = useParams<{ id: string }>(); // encounterId
   const encounterId = Number(id);
   const navigate = useNavigate();
@@ -104,7 +108,7 @@ export default function NursingPatientDetailsPage() {
   return (
     <div
       className="flex flex-col h-full text-slate-100 p-4 md:p-6 space-y-6"
-      dir="rtl"
+      dir={isRtl ? "rtl" : "ltr"}
     >
       {/* Header Banner */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">

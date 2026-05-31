@@ -44,7 +44,7 @@ export function DiagnosisPane({ encounterId }: { encounterId: number }) {
       console.error(err);
       toast.error(t("diagnosis.toast.loadFailed", "فشل تحميل التشخيصات"));
     }
-  }, [encounterId]);
+  }, [encounterId, t]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect

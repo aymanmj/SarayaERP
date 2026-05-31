@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 /**
  * Patient Portal — Layout Component
  * 
@@ -26,6 +27,9 @@ const navItems = [
 ];
 
 export function PortalLayout() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
+
   const { patient, logout } = usePortalAuthStore();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -36,7 +40,7 @@ export function PortalLayout() {
   };
 
   return (
-    <div dir="rtl" className="portal-layout">
+    <div dir={isRtl ? "rtl" : "ltr"} className="portal-layout">
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div

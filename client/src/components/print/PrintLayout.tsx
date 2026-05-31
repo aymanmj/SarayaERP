@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import React from "react";
 import { apiClient } from "../../api/apiClient";
 import type { OrganizationSettings } from "../../types/organization";
@@ -27,6 +28,9 @@ export default function PrintLayout({
   showWatermark = false,
   watermarkText = "ORIGINAL",
 }: PrintLayoutProps) {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
+
   const { data: fetchedOrg, isLoading } = useQuery({
     queryKey: ["organizationSettings"],
     queryFn: async () => {
@@ -166,7 +170,7 @@ export default function PrintLayout({
         </div>
       </div>
 
-      <div id="print-container" dir="rtl">
+      <div id="print-container" dir={isRtl ? "rtl" : "ltr"}>
         {/* Header */}
         <header className="print-header">
           {/* Watermark */}

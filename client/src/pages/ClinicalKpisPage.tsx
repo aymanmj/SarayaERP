@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 // src/pages/ClinicalKpisPage.tsx
 
 import { useEffect, useState } from "react";
@@ -14,6 +15,9 @@ import {
 import { toast } from "sonner";
 
 export default function ClinicalKpisPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
+
    
   const [kpis, setKpis] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -71,7 +75,7 @@ export default function ClinicalKpisPage() {
   ];
 
   return (
-    <div className="p-6 text-slate-100 h-full overflow-y-auto" dir="rtl">
+    <div className="p-6 text-slate-100 h-full overflow-y-auto" dir={isRtl ? "rtl" : "ltr"}>
       <div className="flex justify-between items-end mb-8 border-b border-slate-800 pb-4">
         <div>
           <div className="flex items-center gap-3 mb-2">

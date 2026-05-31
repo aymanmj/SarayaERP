@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import React, { useEffect, useState } from 'react';
 import { SystemSetting, systemSettingsApi } from '../../api/systemSettings';
 import { toast } from 'sonner';
@@ -38,6 +39,9 @@ const KEY_DESCRIPTIONS: Record<string, string> = {
 };
 
 export const SystemSettingsPage = () => {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
+
   const [settings, setSettings] = useState<SystemSetting[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingKey, setSavingKey] = useState<string | null>(null);
@@ -161,7 +165,7 @@ export const SystemSettingsPage = () => {
   const activeMeta = GROUP_META[activeGroup] || GROUP_META.OTHER;
 
   return (
-    <div className="p-6 max-w-7xl mx-auto" dir="rtl">
+    <div className="p-6 max-w-7xl mx-auto" dir={isRtl ? "rtl" : "ltr"}>
       <div className="flex justify-between items-center mb-8 bg-slate-900/60 p-6 rounded-3xl border border-slate-800 shadow-xl backdrop-blur-sm">
         <div>
           <h1 className="text-3xl font-black text-white mb-2 tracking-tight flex items-center gap-3">

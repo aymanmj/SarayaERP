@@ -260,7 +260,7 @@ export default function PreAuthPage() {
   };
 
   return (
-    <div className="p-6 text-slate-100 h-full flex flex-col space-y-6" dir="rtl">
+    <div className="p-6 text-slate-100 h-full flex flex-col space-y-6" dir={isRtl ? "rtl" : "ltr"}>
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold mb-1">{t("preAuth.title", "الموافقات المسبقة (Pre-Auth)")}</h1>

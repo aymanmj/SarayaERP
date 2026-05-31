@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import React, { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "../../api/apiClient";
@@ -63,6 +64,9 @@ interface OrgTreeNode extends Organization {
 // ============================================
 
 export default function OrganizationsPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
+
   const queryClient = useQueryClient();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [expandedNodes, setExpandedNodes] = useState<Set<number>>(new Set());
@@ -281,7 +285,7 @@ export default function OrganizationsPage() {
   return (
     <div
       className="flex flex-col h-full text-slate-100 p-4 md:p-6 space-y-6 overflow-hidden"
-      dir="rtl"
+      dir={isRtl ? "rtl" : "ltr"}
     >
       {/* Header */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-sm relative overflow-hidden">

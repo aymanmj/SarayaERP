@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 // src/pages/settings/NoteTemplatesPage.tsx
 
 import { useEffect, useState } from "react";
@@ -42,6 +43,9 @@ const SPECIALTIES = [
 ];
 
 export default function NoteTemplatesPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
+
   const [templates, setTemplates] = useState<NoteTemplate[]>([]);
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -120,7 +124,7 @@ export default function NoteTemplatesPage() {
   };
 
   return (
-    <div className="p-6 text-slate-100 space-y-6" dir="rtl">
+    <div className="p-6 text-slate-100 space-y-6" dir={isRtl ? "rtl" : "ltr"}>
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 // src/pages/RolesPermissionsPage.tsx
 // صفحة إدارة الأدوار والصلاحيات
 
@@ -24,6 +25,9 @@ type Role = {
 };
 
 export default function RolesPermissionsPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
+
   const [roles, setRoles] = useState<Role[]>([]);
   const [allPermissions, setAllPermissions] = useState<Permission[]>([]);
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
@@ -107,7 +111,7 @@ export default function RolesPermissionsPage() {
   };
 
   return (
-    <div className="p-6 h-full flex flex-col text-slate-100" dir="rtl">
+    <div className="p-6 h-full flex flex-col text-slate-100" dir={isRtl ? "rtl" : "ltr"}>
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold">إدارة الأدوار والصلاحيات</h1>

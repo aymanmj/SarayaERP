@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 // src/pages/ManualEntryPage.tsx
 
 import { useEffect, useMemo, useState } from "react";
@@ -41,6 +42,9 @@ function todayIso() {
 }
 
 export default function ManualEntryPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
+
   const navigate = useNavigate();
 
   const [accounts, setAccounts] = useState<AccountLite[]>([]);
@@ -220,7 +224,7 @@ export default function ManualEntryPage() {
   };
 
   return (
-    <div className="flex flex-col h-full text-slate-100 p-6" dir="rtl">
+    <div className="flex flex-col h-full text-slate-100 p-6" dir={isRtl ? "rtl" : "ltr"}>
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">

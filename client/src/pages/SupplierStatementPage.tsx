@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { apiClient } from "../api/apiClient";
@@ -110,6 +111,9 @@ function buildSupplierStatementCsv(data: SupplierStatementResponse): string {
 }
 
 export default function SupplierStatementPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
+
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -233,7 +237,7 @@ export default function SupplierStatementPage() {
   const opening = data?.openingBalance ?? 0;
 
   return (
-    <div className="flex flex-col h-full text-slate-100" dir="rtl">
+    <div className="flex flex-col h-full text-slate-100" dir={isRtl ? "rtl" : "ltr"}>
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold mb-1">

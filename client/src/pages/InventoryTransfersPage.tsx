@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 // src/pages/InventoryTransfersPage.tsx
 
 import { useEffect, useState } from "react";
@@ -30,6 +31,9 @@ type TransferItemRow = {
 };
 
 export default function InventoryTransfersPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
+
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [loading, setLoading] = useState(false);
@@ -211,7 +215,7 @@ export default function InventoryTransfersPage() {
   return (
     <div
       className="flex flex-col h-full text-slate-100 p-6 space-y-6"
-      dir="rtl"
+      dir={isRtl ? "rtl" : "ltr"}
     >
       <div className="flex justify-between items-center">
         <div>

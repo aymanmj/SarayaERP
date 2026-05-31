@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 /**
  * Patient Portal — Medical Records Page
  * 
@@ -22,6 +23,9 @@ const tabs: { key: Tab; label: string; icon: any }[] = [
 ];
 
 export default function PortalMedicalRecords() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
+
   const [activeTab, setActiveTab] = useState<Tab>('vitals');
    
   const [data, setData] = useState<any[]>([]);
@@ -56,7 +60,7 @@ export default function PortalMedicalRecords() {
     }
     
     printWindow.document.write(`
-      <html dir="rtl" lang="ar">
+      <html dir={isRtl ? "rtl" : "ltr"} lang="ar">
         <head>
           <title>نتيجة تحليل - ${item.test?.name || 'تحليل'}</title>
           <style>

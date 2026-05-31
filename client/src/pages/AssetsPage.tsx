@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 // src/pages/AssetsPage.tsx
 
 import { useEffect, useState } from "react";
@@ -29,6 +30,9 @@ const STATUS_LABELS: Record<AssetStatus, string> = {
 };
 
 export default function AssetsPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
+
   const [assets, setAssets] = useState<Asset[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
@@ -98,7 +102,7 @@ export default function AssetsPage() {
   return (
     <div
       className="p-6 text-slate-100 h-full flex flex-col space-y-6"
-      dir="rtl"
+      dir={isRtl ? "rtl" : "ltr"}
     >
       <div className="flex justify-between items-center">
         <div>

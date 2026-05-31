@@ -1,7 +1,7 @@
 import './tracing'; // يجب أن يكون أول استيراد لضمان اعتراض وتتبع كل شيء (OpenTelemetry)
 import 'reflect-metadata';
 import './common/bullmq-mock';
-import { NestFactory } from '@nestjs/core';
+import { NestFactory, Reflector } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe, Logger, BadRequestException } from '@nestjs/common';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
@@ -153,7 +153,7 @@ async function bootstrap() {
   app.useGlobalInterceptors(
     new RequestLifecycleInterceptor(),
     new TransformInterceptor(),
-    new LocalizationInterceptor(),
+    new LocalizationInterceptor(app.get(Reflector)),
   );
   app.useGlobalFilters(new AllExceptionsFilter());
 
@@ -228,6 +228,7 @@ async function bootstrap() {
       'X-Client-Name',
       'X-Request-Id',
       'Accept-Language',
+      'X-Bypass-Localization',
     ],
     exposedHeaders: ['X-Total-Count', 'X-Request-Id'],
     credentials: true,

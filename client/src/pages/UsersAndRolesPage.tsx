@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 // src/pages/UsersAndRolesPage.tsx
 // صفحة إدارة المستخدمين والأدوار والصلاحيات - نسخة محسّنة ومتكاملة
 
@@ -124,6 +125,9 @@ const permissionGroupLabels: Record<string, { label: string; icon: string }> = {
 };
 
 export default function UsersAndRolesPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
+
   // ===== STATE =====
   const [activeTab, setActiveTab] = useState<TabType>("users");
   const [loading, setLoading] = useState(false);
@@ -356,7 +360,7 @@ export default function UsersAndRolesPage() {
 
   // ===== RENDER =====
   return (
-    <div className="p-6 h-full flex flex-col text-slate-100" dir="rtl">
+    <div className="p-6 h-full flex flex-col text-slate-100" dir={isRtl ? "rtl" : "ltr"}>
       {/* Header */}
       <div className="flex justify-between items-start mb-6">
         <div>

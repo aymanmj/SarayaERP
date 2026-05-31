@@ -28,6 +28,9 @@ jobs:
             server/package-lock.json
             client/package-lock.json
 
+      - name: Verify i18n keys are balanced
+        run: node scripts/check-i18n.js
+
       - name: Install server dependencies
         working-directory: ./server
         run: npm ci

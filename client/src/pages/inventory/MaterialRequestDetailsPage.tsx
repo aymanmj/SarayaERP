@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -8,6 +9,9 @@ import { formatDate } from "@/lib/utils";
 import { IssueStockModal } from "@/components/inventory/IssueStockModal";
 
 export function MaterialRequestDetailsPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
+
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -111,7 +115,7 @@ export function MaterialRequestDetailsPage() {
   };
 
   return (
-    <div className="flex flex-col h-full text-slate-100 p-4 md:p-6 space-y-6 overflow-y-auto custom-scrollbar" dir="rtl">
+    <div className="flex flex-col h-full text-slate-100 p-4 md:p-6 space-y-6 overflow-y-auto custom-scrollbar" dir={isRtl ? "rtl" : "ltr"}>
       
       {/* Header */}
       <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 relative overflow-hidden shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">

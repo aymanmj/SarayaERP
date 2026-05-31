@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 // src/pages/DepreciationPage.tsx
 
 import { useState } from "react";
@@ -6,6 +7,9 @@ import { toast } from "sonner";
 import { DatePicker } from "@/components/ui/date-picker";
 
 export default function DepreciationPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
+
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [processing, setProcessing] = useState(false);
    
@@ -36,7 +40,7 @@ export default function DepreciationPage() {
   return (
     <div
       className="p-6 text-slate-100 h-full flex flex-col items-center justify-center space-y-6"
-      dir="rtl"
+      dir={isRtl ? "rtl" : "ltr"}
     >
       <div className="max-w-lg w-full bg-slate-900/60 border border-slate-800 p-8 rounded-3xl text-center shadow-2xl">
         <div className="text-4xl mb-4">📉</div>

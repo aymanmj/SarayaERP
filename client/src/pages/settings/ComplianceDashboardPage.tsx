@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useEffect, useState } from "react";
 import { apiClient } from "@/api/apiClient";
 import { toast } from "sonner";
@@ -60,6 +61,9 @@ const statusBadge = (status: ComplianceControl["status"]) => {
 };
 
 export default function ComplianceDashboardPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
+
   const [report, setReport] = useState<ComplianceReport | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -115,7 +119,7 @@ export default function ComplianceDashboardPage() {
   return (
     <div
       className="p-6 text-slate-100 h-full overflow-y-auto custom-scrollbar print:bg-white print:text-black"
-      dir="rtl"
+      dir={isRtl ? "rtl" : "ltr"}
     >
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">

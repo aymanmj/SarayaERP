@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -15,6 +16,9 @@ interface POItem {
 }
 
 export function CreatePurchaseOrderPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
+
   const navigate = useNavigate();
   const [supplierId, setSupplierId] = useState<string>("");
   const [notes, setNotes] = useState("");
@@ -120,7 +124,7 @@ export function CreatePurchaseOrderPage() {
   };
 
   return (
-    <div className="space-y-6 p-4 text-slate-100 max-w-6xl mx-auto" dir="rtl">
+    <div className="space-y-6 p-4 text-slate-100 max-w-6xl mx-auto" dir={isRtl ? "rtl" : "ltr"}>
       {/* Header */}
       <div className="flex justify-between items-center border-b border-slate-800 pb-4">
         <div>

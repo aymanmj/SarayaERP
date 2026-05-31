@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiClient } from "../api/apiClient";
@@ -99,6 +100,9 @@ function buildSuppliersAgingCsv(data: SuppliersAgingResponse): string {
 }
 
 export default function SuppliersAgingPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
+
   const navigate = useNavigate();
 
   const [data, setData] = useState<SuppliersAgingResponse | null>(null);
@@ -200,7 +204,7 @@ export default function SuppliersAgingPage() {
   return (
     <div
       className="flex flex-col h-full px-6 py-6 lg:px-10 lg:py-8 text-slate-100"
-      dir="rtl"
+      dir={isRtl ? "rtl" : "ltr"}
     >
       {/* العنوان والأزرار */}
       <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">

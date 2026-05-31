@@ -31,20 +31,23 @@ export function ConsentFormDialog({
   const hospitalName = licenseDetails?.hospitalName;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
-  const [signedByRef, setSignedByRef] = useState(t("consents.dialog.selfPatient", "المريض نفسه"));
+  const [signedByRef, setSignedByRef] = useState(existingForm?.signedByRef || t("consents.dialog.selfPatient", "المريض نفسه"));
   const [formType, setFormType] = useState<string>(existingForm?.formType || "GENERAL");
   const [title, setTitle] = useState(existingForm?.title || "");
   const [content, setContent] = useState(
     existingForm?.content || t("consents.dialog.defaultContent", "أقر أنا الموقع أدناه بموافقتي الكاملة على الإجراء الطبي...")
   );
 
-  // Sync state if translation changes or existingForm changes
+  // Sync state if existingForm changes
   useEffect(() => {
-    if (!existingForm) {
-      setSignedByRef(t("consents.dialog.selfPatient", "المريض نفسه"));
-      setContent(t("consents.dialog.defaultContent", "أقر أنا الموقع أدناه بموافقتي الكاملة على الإجراء الطبي..."));
+    if (existingForm) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setFormType(existingForm.formType || "GENERAL");
+      setTitle(existingForm.title || "");
+      setContent(existingForm.content || "");
+      setSignedByRef(existingForm.signedByRef || "");
     }
-  }, [t, existingForm]);
+  }, [existingForm]);
 
   const isSignMode = !!existingForm && existingForm.status === "DRAFT";
   const isViewMode = !!existingForm && existingForm.status !== "DRAFT";

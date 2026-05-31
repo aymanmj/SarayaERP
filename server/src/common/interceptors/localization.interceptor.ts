@@ -5,8 +5,10 @@ import {
   ExecutionContext,
   CallHandler,
 } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
+import { BYPASS_LOCALIZATION_KEY } from '../decorators/bypass-localization.decorator';
 
 /**
  * واجهة اعتراضية لتعريب البيانات تلقائياً بناءً على ترويسة Accept-Language.
@@ -14,8 +16,27 @@ import { map } from 'rxjs/operators';
  */
 @Injectable()
 export class LocalizationInterceptor implements NestInterceptor {
+  constructor(private reflector?: Reflector) {}
+
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+    if (this.reflector) {
+      const isBypassed = this.reflector.getAllAndOverride<boolean>(
+        BYPASS_LOCALIZATION_KEY,
+        [context.getHandler(), context.getClass()],
+      );
+      if (isBypassed) {
+        return next.handle();
+      }
+    }
+
     const request = context.switchToHttp().getRequest();
+    const bypassHeader = request.headers['x-bypass-localization'] === 'true';
+    const bypassQuery = request.query?.bypassLocalize === 'true';
+
+    if (bypassHeader || bypassQuery) {
+      return next.handle();
+    }
+
     const acceptLanguage = request.headers['accept-language'] || 'ar';
     const lang = acceptLanguage.toLowerCase().startsWith('en') ? 'en' : 'ar';
 

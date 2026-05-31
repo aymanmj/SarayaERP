@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 // src/pages/AccountingEntriesPage.tsx
 
 import { useEffect, useState, useCallback } from "react";
@@ -40,6 +41,9 @@ const sourceColors: Record<string, string> = {
 };
 
 export default function AccountingEntriesPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
+
   const navigate = useNavigate();
   const [entries, setEntries] = useState<AccountingEntry[]>([]);
   const [meta, setMeta] = useState<PaginationMeta | null>(null);
@@ -84,7 +88,7 @@ export default function AccountingEntriesPage() {
   return (
     <div
       className="flex flex-col h-full text-slate-100 p-4 md:p-6 space-y-6"
-      dir="rtl"
+      dir={isRtl ? "rtl" : "ltr"}
     >
       {/* Header */}
       <div className="flex justify-between items-center">

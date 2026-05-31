@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -32,6 +33,9 @@ interface InventoryCount {
 }
 
 export function InventoryCountDetailsPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
+
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -173,7 +177,7 @@ export function InventoryCountDetailsPage() {
 
   if (isNew) {
     return (
-      <div className="flex flex-col h-full text-slate-100 p-4 md:p-6 space-y-8 max-w-4xl mx-auto" dir="rtl">
+      <div className="flex flex-col h-full text-slate-100 p-4 md:p-6 space-y-8 max-w-4xl mx-auto" dir={isRtl ? "rtl" : "ltr"}>
         <div className="flex items-center gap-4">
              <button onClick={() => navigate(-1)} className="p-2 hover:bg-slate-800 rounded-full transition-colors text-slate-400 hover:text-white">
                  <ArrowLeft className="w-6 h-6" />
@@ -260,7 +264,7 @@ export function InventoryCountDetailsPage() {
   const isEditable = count.status !== "POSTED";
 
   return (
-    <div className="flex flex-col h-full text-slate-100 p-4 md:p-6 space-y-6" dir="rtl">
+    <div className="flex flex-col h-full text-slate-100 p-4 md:p-6 space-y-6" dir={isRtl ? "rtl" : "ltr"}>
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="flex items-center gap-4">

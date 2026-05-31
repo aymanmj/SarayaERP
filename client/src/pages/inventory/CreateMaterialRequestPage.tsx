@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
@@ -8,6 +9,9 @@ import { inventoryApi, MaterialRequestItem } from "@/api/inventoryApi";
 import { apiClient } from "@/api/apiClient";
 
 export function CreateMaterialRequestPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
+
   const navigate = useNavigate();
   const [requestingWarehouseId, setRequestingWarehouseId] = useState<string>("");
   const [fulfillingWarehouseId, setFulfillingWarehouseId] = useState<string>("");
@@ -100,7 +104,7 @@ export function CreateMaterialRequestPage() {
   };
 
   return (
-    <div className="flex flex-col h-full text-slate-100 p-4 md:p-6 space-y-6 overflow-y-auto custom-scrollbar" dir="rtl">
+    <div className="flex flex-col h-full text-slate-100 p-4 md:p-6 space-y-6 overflow-y-auto custom-scrollbar" dir={isRtl ? "rtl" : "ltr"}>
       {/* Header */}
       <div className="flex justify-between items-center bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-sm">
         <div>

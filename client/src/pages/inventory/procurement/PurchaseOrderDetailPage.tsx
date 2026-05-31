@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import React, { useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -6,6 +7,9 @@ import { format } from "date-fns";
 import { apiClient } from "../../../api/apiClient";
 
 export function PurchaseOrderDetailPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
+
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -75,7 +79,7 @@ export function PurchaseOrderDetailPage() {
   const showCancelButton = po.status !== 'CANCELLED' && po.status !== 'COMPLETED' && po.status !== 'PARTIALLY_RECEIVED';
 
   return (
-    <div className="p-4 max-w-5xl mx-auto space-y-6 text-slate-100" dir="rtl">
+    <div className="p-4 max-w-5xl mx-auto space-y-6 text-slate-100" dir={isRtl ? "rtl" : "ltr"}>
       {/* Action Header - Hidden on Print */}
       <div className="flex justify-between items-center border-b border-slate-800 pb-4 print:hidden">
         <div className="flex items-center gap-3">

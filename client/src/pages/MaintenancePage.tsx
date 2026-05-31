@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 // src/pages/MaintenancePage.tsx
 
 import { useEffect, useState } from "react";
@@ -25,6 +26,9 @@ type MaintenanceTicket = {
 type AssetLite = { id: number; name: string; tagNumber: string };
 
 export default function MaintenancePage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
+
   const [tickets, setTickets] = useState<MaintenanceTicket[]>([]);
   const [assets, setAssets] = useState<AssetLite[]>([]);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -112,7 +116,7 @@ export default function MaintenancePage() {
   return (
     <div
       className="p-6 text-slate-100 h-full flex flex-col space-y-6"
-      dir="rtl"
+      dir={isRtl ? "rtl" : "ltr"}
     >
       <div className="flex justify-between items-center">
         <div>

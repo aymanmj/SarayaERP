@@ -74,7 +74,7 @@ export function VitalsPane({ encounterId }: { encounterId: number }) {
     if (v < 25) return { label: t("vitals.bmi.normal", "طبيعي"), color: "text-emerald-400" };
     if (v < 30) return { label: t("vitals.bmi.overweight", "زيادة وزن"), color: "text-amber-400" };
     return { label: t("vitals.bmi.obese", "سمنة"), color: "text-rose-400" };
-  }, [bmi]);
+  }, [bmi, t]);
 
   const loadVitals = async () => {
     try {

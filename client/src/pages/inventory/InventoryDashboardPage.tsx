@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { apiClient } from "@/api/apiClient";
 import { InventoryAlertsWidget } from "../../components/inventory/InventoryAlertsWidget";
@@ -38,6 +39,9 @@ const StatCard = ({ title, value, icon: Icon, colorClass }: any) => (
 );
 
 export function InventoryDashboardPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
+
   const { user } = useAuth();
   const [selectedWarehouseId, setSelectedWarehouseId] = useState<string>("all");
 
@@ -74,7 +78,7 @@ export function InventoryDashboardPage() {
   if (!stats) return null; // Or skeleton
 
   return (
-    <div className="flex flex-col h-full text-slate-100 p-4 md:p-6 space-y-6 overflow-y-auto custom-scrollbar" dir="rtl">
+    <div className="flex flex-col h-full text-slate-100 p-4 md:p-6 space-y-6 overflow-y-auto custom-scrollbar" dir={isRtl ? "rtl" : "ltr"}>
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>

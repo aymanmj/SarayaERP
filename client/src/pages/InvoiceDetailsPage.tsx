@@ -306,7 +306,7 @@ export default function InvoiceDetailsPage() {
   //   }
 
   //   win.document.write(`
-  //     <html lang="ar" dir="rtl">
+  //     <html lang="ar" dir={isRtl ? "rtl" : "ltr"}>
   //       <head>
   //         <meta charset="utf-8" />
   //         <title>فاتورة رقم #${invoice.id}</title>

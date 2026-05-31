@@ -12,16 +12,22 @@ describe('LocalizationInterceptor', () => {
 
   const createMockContext = (
     acceptLanguageHeader: string,
+    extraHeaders?: Record<string, string>,
+    query?: Record<string, any>,
   ): ExecutionContext => {
     const request = {
       headers: {
         'accept-language': acceptLanguageHeader,
+        ...extraHeaders,
       },
+      query: query || {},
     };
     return {
       switchToHttp: () => ({
         getRequest: () => request,
       }),
+      getHandler: () => {},
+      getClass: () => {},
     } as unknown as ExecutionContext;
   };
 
@@ -123,5 +129,61 @@ describe('LocalizationInterceptor', () => {
     expect(result.price).toBeInstanceOf(Decimal);
     expect(result.price).toBe(mockDecimal);
     expect(result.name).toBe('اسم الخدمة');
+  });
+
+  it('should bypass localization if class or handler has bypass metadata', async () => {
+    const mockReflector = {
+      getAllAndOverride: () => true,
+    } as any;
+    const interceptorWithBypass = new LocalizationInterceptor(mockReflector);
+
+    const mockData = {
+      nameAr: 'الاسم بالعربية',
+      nameEn: 'Name in English',
+    };
+
+    const context = createMockContext('ar');
+    const handler = createMockCallHandler(mockData);
+
+    const result = await interceptorWithBypass.intercept(context, handler).toPromise();
+
+    expect(result).toEqual({
+      nameAr: 'الاسم بالعربية',
+      nameEn: 'Name in English',
+    });
+  });
+
+  it('should bypass localization if X-Bypass-Localization header is true', async () => {
+    const mockData = {
+      nameAr: 'الاسم بالعربية',
+      nameEn: 'Name in English',
+    };
+
+    const context = createMockContext('ar', { 'x-bypass-localization': 'true' });
+    const handler = createMockCallHandler(mockData);
+
+    const result = await interceptor.intercept(context, handler).toPromise();
+
+    expect(result).toEqual({
+      nameAr: 'الاسم بالعربية',
+      nameEn: 'Name in English',
+    });
+  });
+
+  it('should bypass localization if bypassLocalize query param is true', async () => {
+    const mockData = {
+      nameAr: 'الاسم بالعربية',
+      nameEn: 'Name in English',
+    };
+
+    const context = createMockContext('ar', undefined, { bypassLocalize: 'true' });
+    const handler = createMockCallHandler(mockData);
+
+    const result = await interceptor.intercept(context, handler).toPromise();
+
+    expect(result).toEqual({
+      nameAr: 'الاسم بالعربية',
+      nameEn: 'Name in English',
+    });
   });
 });

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 // src/pages/PurchaseInvoiceDetailsPage.tsx
 
 import { useEffect, useMemo, useState } from "react";
@@ -174,6 +175,9 @@ function getErrMsg(err: any, fallback: string) {
 }
 
 export default function PurchaseInvoiceDetailsPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
+
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
@@ -503,7 +507,7 @@ export default function PurchaseInvoiceDetailsPage() {
   return (
     <div
       className="flex flex-col h-full px-6 py-6 lg:px-10 lg:py-8 text-slate-100"
-      dir="rtl"
+      dir={isRtl ? "rtl" : "ltr"}
     >
       <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>

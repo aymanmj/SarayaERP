@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import React, { useState, useEffect } from 'react';
 import { X, Save, AlertCircle } from 'lucide-react';
 import { CreateVoucherDto, VoucherType } from '../../services/vouchersService';
@@ -12,6 +13,9 @@ interface VoucherModalProps {
 }
 
 export default function VoucherModal({ isOpen, onClose, onSave, initialData }: VoucherModalProps) {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
+
   const [formData, setFormData] = useState<CreateVoucherDto>({
     type: VoucherType.PAYMENT,
     date: new Date().toISOString().split('T')[0],
@@ -82,7 +86,7 @@ export default function VoucherModal({ isOpen, onClose, onSave, initialData }: V
       
       {/* Modal Wrapping Box */}
       <div className="fixed inset-0 flex items-center justify-center p-4 pointer-events-none">
-        <div className="mx-auto w-full max-w-2xl rounded-2xl bg-slate-900 border border-slate-700 shadow-2xl pointer-events-auto overflow-hidden flex flex-col max-h-[90vh]" dir="rtl">
+        <div className="mx-auto w-full max-w-2xl rounded-2xl bg-slate-900 border border-slate-700 shadow-2xl pointer-events-auto overflow-hidden flex flex-col max-h-[90vh]" dir={isRtl ? "rtl" : "ltr"}>
           
           {/* Header */}
           <div className="flex justify-between items-center bg-slate-900/80 px-6 py-4 border-b border-slate-800">

@@ -46,7 +46,9 @@
     "currency": {
       "lyd": "LYD"
     },
-    "loadingContent": "Loading content..."
+    "loadingContent": "Loading content...",
+    "switchToEnglish": "Switch to English",
+    "switchToArabic": "Switch to Arabic"
   },
   "cdss": {
     "alerts": "Clinical Decision Support System (CDSS)",

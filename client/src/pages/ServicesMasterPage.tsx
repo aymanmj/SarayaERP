@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 // src/pages/ServicesMasterPage.tsx
 
 import { useEffect, useState } from "react";
@@ -28,6 +29,9 @@ const SERVICE_TYPES = [
 ];
 
 export default function ServicesMasterPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
+
   const [services, setServices] = useState<ServiceItem[]>([]);
   const [categories, setCategories] = useState<ServiceCategory[]>([]);
   const [loading, setLoading] = useState(false);
@@ -145,7 +149,7 @@ export default function ServicesMasterPage() {
   return (
     <div
       className="flex flex-col h-full text-slate-100 p-6 space-y-6"
-      dir="rtl"
+      dir={isRtl ? "rtl" : "ltr"}
     >
       <div className="flex justify-between items-center">
         <div>

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 
 import { useEffect, useState } from "react";
 import { apiClient } from "../../api/apiClient";
@@ -23,6 +24,9 @@ type Doctor = {
 };
 
 export default function DoctorSchedulesPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
+
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [loading, setLoading] = useState(false);
   
@@ -115,7 +119,7 @@ export default function DoctorSchedulesPage() {
   }
 
   return (
-    <div className="p-6 text-slate-100" dir="rtl">
+    <div className="p-6 text-slate-100" dir={isRtl ? "rtl" : "ltr"}>
       <h1 className="text-2xl font-bold mb-6">إعدادات جداول الأطباء</h1>
 
       {loading ? (
