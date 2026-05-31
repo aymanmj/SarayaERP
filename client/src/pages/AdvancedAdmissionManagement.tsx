@@ -217,7 +217,7 @@ export default function AdvancedAdmissionManagement() {
       await apiClient.post(`/admissions/${admission.id}/discharge`, {
         dischargeDisposition: "HOME",
         followUpRequired: false,
-        notes: "تسريح عادي",
+        notes: t("admissions.modals.defaultDischargeNotes", "تسريح عادي"),
       });
 
       toast.success(t("admissions.modals.dischargeSuccess", "تم تسريح المريض بنجاح، السرير الآن متاح للتنظيف."), {
@@ -652,7 +652,7 @@ export default function AdvancedAdmissionManagement() {
                             </span>
                             {admission.isolationRequired && (
                               <span className="text-xs text-slate-400">
-                                {admission.isolationReason ? admission.isolationReason.substring(0, 20) + '...' : 'مطلوب'}
+                                {admission.isolationReason ? admission.isolationReason.substring(0, 20) + '...' : t("common.required", "مطلوب")}
                               </span>
                             )}
                           </div>
@@ -973,7 +973,7 @@ export default function AdvancedAdmissionManagement() {
                   handleCreateDischargePlanning({
                     plannedDischargeDate: selectedAdmission.expectedDischargeDate,
                     dischargeDisposition: dispositionSelect?.value || 'HOME',
-                    notes: notesInput?.value || "ملاحظات التخطيط"
+                    notes: notesInput?.value || t("admissions.modals.dischargePlanning.defaultNotes", "ملاحظات التخطيط")
                   });
                 }}
                 className="px-4 py-2 bg-sky-600 hover:bg-sky-500 rounded-lg"
@@ -1032,7 +1032,7 @@ export default function AdvancedAdmissionManagement() {
                   const notesInput = document.getElementById('transferNotesInput') as HTMLTextAreaElement;
                   handleRequestBedTransfer({
                     reason: reasonSelect?.value || "MEDICAL",
-                    notes: notesInput?.value || "ملاحظات النقل"
+                    notes: notesInput?.value || t("admissions.modals.bedTransfer.defaultNotes", "ملاحظات النقل")
                   });
                 }}
                 className="px-4 py-2 bg-sky-600 hover:bg-sky-500 rounded-lg"

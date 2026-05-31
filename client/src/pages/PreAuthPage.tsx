@@ -1,6 +1,7 @@
 // src/pages/insurance/PreAuthPage.tsx
 
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { apiClient } from "../api/apiClient";
 import { toast } from "sonner";
 import { formatDate } from "@/lib/utils";
@@ -42,6 +43,8 @@ type PreAuthorization = {
 };
 
 export default function PreAuthPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.dir() === "rtl";
   const [auths, setAuths] = useState<PreAuthorization[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -78,7 +81,7 @@ export default function PreAuthPage() {
       const res = await apiClient.get<PreAuthorization[]>("/insurance/pre-auth");
       setAuths(res.data);
     } catch {
-      toast.error("فشل التحميل");
+      toast.error(t("common.loadFailed", "فشل التحميل"));
     } finally {
       setLoading(false);
     }
@@ -97,17 +100,17 @@ export default function PreAuthPage() {
         const patientId = res.data[0].id;
         const patRes = await apiClient.get(`/patients/${patientId}`);
         if (!patRes.data.insurancePolicy) {
-          toast.warning("هذا المريض ليس لديه بوليصة تأمين فعالة.");
+          toast.warning(t("preAuth.toast.noActivePolicy", "هذا المريض ليس لديه بوليصة تأمين فعالة."));
           setFoundPatient(null);
         } else {
           setFoundPatient(patRes.data);
-          toast.success("تم العثور على المريض");
+          toast.success(t("common.patientFound", "تم العثور على المريض"));
         }
       } else {
-        toast.error("لم يتم العثور على المريض");
+        toast.error(t("common.patientNotFound", "لم يتم العثور على المريض"));
       }
     } catch {
-      toast.error("خطأ في البحث");
+      toast.error(t("common.searchError", "خطأ في البحث"));
     }
   };
 
@@ -120,7 +123,7 @@ export default function PreAuthPage() {
         requestedAmount: requestedAmount ? Number(requestedAmount) : undefined,
         notes: requestNotes,
       });
-      toast.success("تم تسجيل طلب الموافقة بنجاح");
+      toast.success(t("preAuth.toast.createdSuccess", "تم تسجيل طلب الموافقة بنجاح"));
       setShowAddModal(false);
       setFoundPatient(null);
       setSearchMrn("");
@@ -128,7 +131,7 @@ export default function PreAuthPage() {
       setRequestNotes("");
       loadData();
     } catch {
-      toast.error("فشل الإضافة");
+      toast.error(t("common.addFailed", "فشل الإضافة"));
     }
   };
 
@@ -165,12 +168,12 @@ export default function PreAuthPage() {
         },
       });
       if (res.data?.eligible) {
-        toast.success("✅ المريض مؤهل تأمينياً عبر NPHIES");
+        toast.success(t("preAuth.toast.nphiesEligible", "✅ المريض مؤهل تأمينياً عبر NPHIES"));
       } else {
         toast.error(`❌ غير مؤهل: ${res.data?.errorMessage || res.data?.status || "سبب غير محدد"}`);
       }
     } catch {
-      toast.error("فشل التحقق من الأهلية عبر NPHIES");
+      toast.error(t("preAuth.toast.nphiesEligibilityFailed", "فشل التحقق من الأهلية عبر NPHIES"));
     } finally {
       setEligibilityLoading(false);
     }
@@ -189,11 +192,11 @@ export default function PreAuthPage() {
   const handleNphiesSubmit = async () => {
     if (!nphiesAuth) return;
     if (nphiesServices.some(s => !s.code)) {
-      toast.warning("يرجى إدخال رمز الخدمة (CPT Code) لكل خدمة");
+      toast.warning(t("preAuth.toast.cptCodeRequired", "يرجى إدخال رمز الخدمة (CPT Code) لكل خدمة"));
       return;
     }
     if (nphiesDiagnoses.some(d => !d.code)) {
-      toast.warning("يرجى إدخال رمز التشخيص (ICD-10) لكل تشخيص");
+      toast.warning(t("preAuth.toast.icdCodeRequired", "يرجى إدخال رمز التشخيص (ICD-10) لكل تشخيص"));
       return;
     }
     setNphiesLoading(true);
@@ -214,7 +217,7 @@ export default function PreAuthPage() {
         diagnoses: nphiesDiagnoses,
       });
       if (res.data?.accepted) {
-        toast.success(`✅ تم قبول الموافقة المسبقة — رقم NPHIES: ${res.data.nphiesClaimId || "—"}`);
+        toast.success(t("preAuth.toast.nphiesAccepted", { claimId: res.data.nphiesClaimId || "—", defaultValue: `✅ تم قبول الموافقة المسبقة — رقم NPHIES: ${res.data.nphiesClaimId || "—"}` }));
         // Auto-update local record if auth code returned
         if (res.data.nphiesClaimId) {
           await apiClient.patch(`/insurance/pre-auth/${nphiesAuth.id}`, {
@@ -225,10 +228,10 @@ export default function PreAuthPage() {
         setShowNphiesModal(false);
         loadData();
       } else {
-        toast.error(`❌ رفض NPHIES: ${res.data?.errorMessage || "سبب غير محدد"}`);
+        toast.error(`❌ {t("common.reject", "رفض")} NPHIES: ${res.data?.errorMessage || "سبب غير محدد"}`);
       }
     } catch {
-      toast.error("فشل الإرسال إلى منصة نفيس (NPHIES)");
+      toast.error(t("preAuth.toast.nphiesSubmitFailed", "فشل الإرسال إلى منصة نفيس (NPHIES)"));
     } finally {
       setNphiesLoading(false);
     }
@@ -237,7 +240,7 @@ export default function PreAuthPage() {
   const handleActionSubmit = async () => {
     if (!selectedAuth) return;
     if (actionType === "APPROVED" && !authCode) {
-      toast.warning("رقم الموافقة (Auth Code) إجباري عند القبول");
+      toast.warning(t("preAuth.toast.authCodeRequired", "رقم الموافقة (Auth Code) إجباري عند القبول"));
       return;
     }
 
@@ -248,11 +251,11 @@ export default function PreAuthPage() {
         approvedAmount: actionType === "APPROVED" && approvedAmount ? Number(approvedAmount) : null,
         expiresAt: actionType === "APPROVED" && expiresAt ? new Date(expiresAt).toISOString() : null,
       });
-      toast.success("تم تحديث حالة الموافقة بنجاح");
+      toast.success(t("preAuth.toast.updatedSuccess", "تم تحديث حالة الموافقة بنجاح"));
       setShowActionModal(false);
       loadData();
     } catch {
-      toast.error("فشل التحديث");
+      toast.error(t("preAuth.toast.updateFailed", "فشل التحديث"));
     }
   };
 
@@ -260,27 +263,27 @@ export default function PreAuthPage() {
     <div className="p-6 text-slate-100 h-full flex flex-col space-y-6" dir="rtl">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold mb-1">الموافقات المسبقة (Pre-Auth)</h1>
-          <p className="text-sm text-slate-400">متابعة طلبات الموافقة الواردة والصادرة لشركات التأمين.</p>
+          <h1 className="text-2xl font-bold mb-1">{t("preAuth.title", "الموافقات المسبقة (Pre-Auth)")}</h1>
+          <p className="text-sm text-slate-400">{t("preAuth.subtitle", "متابعة طلبات الموافقة الواردة والصادرة لشركات التأمين.")}</p>
         </div>
         <div className="flex gap-2">
           <button
             onClick={loadData}
             className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-sm transition"
           >
-            تحديث 🔄
+            {t("common.refresh", "تحديث")} 🔄
           </button>
           <button
             onClick={() => setShowAddModal(true)}
             className="px-4 py-2 bg-sky-600 hover:bg-sky-500 rounded-xl text-sm font-bold shadow-lg transition"
           >
-            + طلب موافقة جديد
+            {t("preAuth.btn.newRequest", "+ طلب موافقة جديد")}
           </button>
         </div>
       </div>
 
       <div className="flex-1 bg-slate-900/50 border border-slate-800 rounded-2xl overflow-auto p-4">
-        <table className="w-full text-sm text-right">
+        <table className="w-full text-sm text-start">
           <thead className="text-slate-400 border-b border-slate-800">
             <tr>
               <th className="px-4 py-3">التاريخ</th>
@@ -303,7 +306,7 @@ export default function PreAuthPage() {
             {!loading && auths.length === 0 && (
               <tr>
                 <td colSpan={7} className="text-center py-10 text-slate-500">
-                  لا توجد طلبات جارية.
+                  {t("preAuth.empty", "لا توجد طلبات جارية.")}
                 </td>
               </tr>
             )}
@@ -316,7 +319,7 @@ export default function PreAuthPage() {
                   <td className="px-4 py-3 font-medium">
                     {auth.patient.fullName}
                     <div className="text-xs text-slate-500">
-                      {auth.patient.mrn} | {auth.patient.insuranceMemberId || "بدون رقم أجنبي"}
+                      {auth.patient.mrn} | {auth.patient.insuranceMemberId || t("preAuth.noMemberId", "بدون رقم أجنبي")}
                     </div>
                   </td>
                   <td className="px-4 py-3 text-slate-300">
@@ -336,7 +339,7 @@ export default function PreAuthPage() {
                           : "bg-amber-900/40 text-amber-400"
                       }`}
                     >
-                      {auth.status === "PENDING" ? "قيد الانتظار" : auth.status === "APPROVED" ? "موافق عليه" : "مرفوض"}
+                      {auth.status === "PENDING" ? t("preAuth.status.pending", "قيد الانتظار") : auth.status === "APPROVED" ? t("preAuth.status.approved", "موافق عليه") : t("preAuth.status.rejected", "مرفوض")}
                     </span>
                   </td>
                   <td className="px-4 py-3">
@@ -355,7 +358,7 @@ export default function PreAuthPage() {
                           onClick={() => openActionModal(auth, "APPROVED")}
                           className="px-3 py-1 bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-400 border border-emerald-500/30 rounded text-xs transition"
                         >
-                          تأكيد
+                          {t("common.confirm", "تأكيد")}
                         </button>
                         <button
                           onClick={() => openActionModal(auth, "REJECTED")}
@@ -368,7 +371,7 @@ export default function PreAuthPage() {
                             onClick={() => openNphiesModal(auth)}
                             className="px-3 py-1 bg-violet-600/20 hover:bg-violet-600/40 text-violet-400 border border-violet-500/30 rounded text-xs transition flex items-center gap-1"
                           >
-                            <Upload className="w-3 h-3" /> نفيس
+                            <Upload className="w-3 h-3" /> {t("preAuth.btn.nphies", "نفيس")}
                           </button>
                         </FeatureGuard>
                       </div>
@@ -384,11 +387,11 @@ export default function PreAuthPage() {
       {showAddModal && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 backdrop-blur-sm animate-in fade-in">
           <div className="bg-slate-950 border border-slate-700 rounded-2xl p-6 w-full max-w-lg shadow-2xl animate-in zoom-in-95">
-            <h3 className="text-xl font-bold text-sky-400 mb-4">إنشاء طلب موافقة مسبقة</h3>
+            <h3 className="text-xl font-bold text-sky-400 mb-4">{t("preAuth.add.modalTitle", "إنشاء طلب موافقة مسبقة")}</h3>
             
             <div className="space-y-4">
               <div>
-                <label className="block text-xs text-slate-400 mb-1">البحث عن مريض (الاسم، رقم الملف، الهاتف) <span className="text-rose-500">*</span></label>
+                <label className="block text-xs text-slate-400 mb-1">{t("preAuth.add.searchLabel", "البحث عن مريض (الاسم، رقم الملف، الهاتف)")} <span className="text-rose-500">*</span></label>
                 <div className="flex gap-2">
                   <input
                     value={searchMrn}
@@ -397,7 +400,7 @@ export default function PreAuthPage() {
                     placeholder="مثال: أحمد، MRN-0001، 09..."
                     className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:border-sky-500 outline-none"
                   />
-                  <button onClick={searchPatient} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-sm">بحث</button>
+                  <button onClick={searchPatient} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-sm">{t("common.search", "بحث")}</button>
                   <FeatureGuard feature="INSURANCE_INTEGRATION">
                     <button
                       onClick={checkEligibility}
@@ -405,7 +408,7 @@ export default function PreAuthPage() {
                       className="px-4 py-2 bg-violet-700 hover:bg-violet-600 disabled:opacity-40 rounded-xl text-sm flex items-center gap-1 whitespace-nowrap transition"
                     >
                       {eligibilityLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <ShieldCheck className="w-3 h-3" />}
-                      أهلية NPHIES
+                      {t("preAuth.add.nphiesEligibility", "أهلية NPHIES")}
                     </button>
                   </FeatureGuard>
                 </div>
@@ -417,12 +420,12 @@ export default function PreAuthPage() {
                     <div className="font-bold text-white">{foundPatient.fullName}</div>
                     <div className="text-xs text-sky-300 mt-1">البوليصة: {foundPatient.insurancePolicy?.name}</div>
                   </div>
-                  <div className="text-xs bg-slate-800 px-2 py-1 rounded">رقم التأمين: {foundPatient.insuranceMemberId || "غير متوفر"}</div>
+                  <div className="text-xs bg-slate-800 px-2 py-1 rounded">{t("preAuth.add.insuranceMemberId", "رقم التأمين:")} {foundPatient.insuranceMemberId || t("common.notAvailable", "غير متوفر")}</div>
                 </div>
               )}
 
               <div>
-                <label className="block text-xs text-slate-400 mb-1">المبلغ المطلوب (اختياري)</label>
+                <label className="block text-xs text-slate-400 mb-1">{t("preAuth.add.requestedAmountLabel", "المبلغ المطلوب (اختياري)")}</label>
                 <input
                   type="number"
                   value={requestedAmount}
@@ -433,19 +436,19 @@ export default function PreAuthPage() {
               </div>
 
               <div>
-                <label className="block text-xs text-slate-400 mb-1">ملاحظات / وصف الخدمة المطلوبة</label>
+                <label className="block text-xs text-slate-400 mb-1">{t("preAuth.add.notesLabel", "ملاحظات / وصف الخدمة المطلوبة")}</label>
                 <textarea
                   value={requestNotes}
                   onChange={(e) => setRequestNotes(e.target.value)}
-                  placeholder="تفاصيل التقرير الطبي واسم الطبيب المعالج..."
+                  placeholder={t("preAuth.placeholder.notes", "تفاصيل التقرير الطبي واسم الطبيب المعالج...")}
                   className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:border-sky-500 outline-none h-24"
                 />
               </div>
             </div>
 
             <div className="flex justify-end gap-3 mt-6">
-              <button onClick={() => setShowAddModal(false)} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm rounded-xl">إلغاء</button>
-              <button disabled={!foundPatient} onClick={handleAddSubmit} className="disabled:opacity-50 px-6 py-2 bg-sky-600 hover:bg-sky-500 text-white text-sm font-bold rounded-xl shadow-lg">حفظ الطلب</button>
+              <button onClick={() => setShowAddModal(false)} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm rounded-xl">{t("common.cancel", "إلغاء")}</button>
+              <button disabled={!foundPatient} onClick={handleAddSubmit} className="disabled:opacity-50 px-6 py-2 bg-sky-600 hover:bg-sky-500 text-white text-sm font-bold rounded-xl shadow-lg">{t("common.save", "حفظ الطلب")}</button>
             </div>
           </div>
         </div>
@@ -456,7 +459,7 @@ export default function PreAuthPage() {
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 backdrop-blur-sm animate-in fade-in">
           <div className="bg-slate-950 border border-slate-700 rounded-2xl p-6 w-full max-w-md shadow-2xl animate-in zoom-in-95">
             <h3 className={`text-xl font-bold mb-4 ${actionType === "APPROVED" ? "text-emerald-400" : "text-rose-400"}`}>
-              {actionType === "APPROVED" ? "تسجيل الموافقة" : "تسجيل الرفض"}
+              {actionType === "APPROVED" ? t("preAuth.action.approveTitle", "تسجيل الموافقة") : t("preAuth.action.rejectTitle", "تسجيل الرفض")}
             </h3>
             
             <div className="bg-slate-900 border border-slate-800 p-3 rounded-lg mb-4 text-xs space-y-1">
@@ -468,7 +471,7 @@ export default function PreAuthPage() {
             {actionType === "APPROVED" && (
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">رقم الموافقة الممنوح (Auth Code) <span className="text-rose-500">*</span></label>
+                  <label className="block text-xs text-slate-400 mb-1">{t("preAuth.action.authCodeLabel", "رقم الموافقة الممنوح (Auth Code)")} <span className="text-rose-500">*</span></label>
                   <input
                     value={authCode}
                     onChange={(e) => setAuthCode(e.target.value)}
@@ -478,7 +481,7 @@ export default function PreAuthPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs text-slate-400 mb-1">المبلغ الموافق عليه (اختياري)</label>
+                    <label className="block text-xs text-slate-400 mb-1">{t("preAuth.action.approvedAmountLabel", "المبلغ الموافق عليه (اختياري)")}</label>
                     <input
                       type="number"
                       value={approvedAmount}
@@ -488,7 +491,7 @@ export default function PreAuthPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs text-slate-400 mb-1">تاريخ الانتهاء</label>
+                    <label className="block text-xs text-slate-400 mb-1">{t("preAuth.action.endDateLabel", "تاريخ الانتهاء")}</label>
                     <input
                       type="date"
                       value={expiresAt}
@@ -502,19 +505,19 @@ export default function PreAuthPage() {
 
             {actionType === "REJECTED" && (
               <p className="text-sm text-slate-300">
-                سيتم تحديث حالة الطلب إلى "مرفوض". يمكنك إضافة ملاحظة إضافية للسبب من واجهة الملاحظات لاحقاً إذا احتجت لذلك. هل أنت متأكد من الرفض؟
+                t("preAuth.action.rejectWarning", "سيتم تحديث حالة الطلب إلى "مرفوض". يمكنك إضافة ملاحظة إضافية للسبب من واجهة الملاحظات لاحقاً إذا احتجت لذلك. هل أنت متأكد من الرفض؟")
               </p>
             )}
 
             <div className="flex justify-end gap-3 mt-6">
-              <button onClick={() => setShowActionModal(false)} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm rounded-xl">إلغاء</button>
+              <button onClick={() => setShowActionModal(false)} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm rounded-xl">{t("common.cancel", "إلغاء")}</button>
               <button 
                 onClick={handleActionSubmit} 
                 className={`px-6 py-2 text-white text-sm font-bold rounded-xl shadow-lg transition ${
                   actionType === "APPROVED" ? "bg-emerald-600 hover:bg-emerald-500" : "bg-rose-600 hover:bg-rose-500"
                 }`}
               >
-                {actionType === "APPROVED" ? "تأكيد الموافقة" : "تأكيد الرفض"}
+                {actionType === "APPROVED" ? t("preAuth.action.confirmApprove", "تأكيد الموافقة") : t("preAuth.action.confirmReject", "تأكيد الرفض")}
               </button>
             </div>
           </div>
@@ -526,55 +529,55 @@ export default function PreAuthPage() {
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 backdrop-blur-sm animate-in fade-in">
           <div className="bg-slate-950 border border-violet-500/30 rounded-2xl p-6 w-full max-w-2xl shadow-2xl animate-in zoom-in-95 max-h-[90vh] overflow-y-auto">
             <h3 className="text-xl font-bold text-violet-400 mb-1 flex items-center gap-2">
-              <Upload className="w-5 h-5" /> إرسال إلى منصة نفيس (NPHIES)
+              <Upload className="w-5 h-5" /> {t("preAuth.nphies.modalTitle", "إرسال إلى منصة نفيس (NPHIES)")}
             </h3>
-            <p className="text-xs text-slate-500 mb-4">موافقة مسبقة — {nphiesAuth.patient.fullName} — {nphiesAuth.policy.provider.name}</p>
+            <p className="text-xs text-slate-500 mb-4">{t("preAuth.nphies.subtitle", "موافقة مسبقة")} — {nphiesAuth.patient.fullName} — {nphiesAuth.policy.provider.name}</p>
 
             {/* Services */}
             <div className="mb-4">
-              <label className="block text-xs font-bold text-slate-400 mb-2">الخدمات المطلوبة (CPT Codes)</label>
+              <label className="block text-xs font-bold text-slate-400 mb-2">{t("preAuth.nphies.servicesLabel", "الخدمات المطلوبة (CPT Codes)")}</label>
               {nphiesServices.map((svc, idx) => (
                 <div key={idx} className="grid grid-cols-4 gap-2 mb-2">
                   <input value={svc.code} onChange={e => { const n = [...nphiesServices]; n[idx].code = e.target.value; setNphiesServices(n); }}
-                    placeholder="رمز CPT" className="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs focus:border-violet-500 outline-none" />
+                    placeholder={t("preAuth.placeholder.cptCode", "رمز CPT")} className="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs focus:border-violet-500 outline-none" />
                   <input value={svc.name} onChange={e => { const n = [...nphiesServices]; n[idx].name = e.target.value; setNphiesServices(n); }}
-                    placeholder="اسم الخدمة" className="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs focus:border-violet-500 outline-none" />
+                    placeholder={t("preAuth.placeholder.serviceName", "اسم الخدمة")} className="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs focus:border-violet-500 outline-none" />
                   <input type="number" value={svc.quantity} onChange={e => { const n = [...nphiesServices]; n[idx].quantity = Number(e.target.value); setNphiesServices(n); }}
-                    placeholder="الكمية" className="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs focus:border-violet-500 outline-none" />
+                    placeholder={t("preAuth.placeholder.quantity", "الكمية")} className="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs focus:border-violet-500 outline-none" />
                   <input type="number" value={svc.unitPrice} onChange={e => { const n = [...nphiesServices]; n[idx].unitPrice = Number(e.target.value); setNphiesServices(n); }}
-                    placeholder="السعر" className="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs focus:border-violet-500 outline-none" />
+                    placeholder={t("preAuth.placeholder.price", "السعر")} className="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs focus:border-violet-500 outline-none" />
                 </div>
               ))}
               <button onClick={() => setNphiesServices([...nphiesServices, { code: "", name: "", quantity: 1, unitPrice: 0 }])}
-                className="text-xs text-violet-400 hover:text-violet-300 transition">+ إضافة خدمة</button>
+                className="text-xs text-violet-400 hover:text-violet-300 transition">t("preAuth.nphies.addServiceBtn", "+ إضافة خدمة")</button>
             </div>
 
             {/* Diagnoses */}
             <div className="mb-4">
-              <label className="block text-xs font-bold text-slate-400 mb-2">التشخيصات (ICD-10)</label>
+              <label className="block text-xs font-bold text-slate-400 mb-2">{t("preAuth.nphies.diagnosesLabel", "التشخيصات (ICD-10)")}</label>
               {nphiesDiagnoses.map((diag, idx) => (
                 <div key={idx} className="grid grid-cols-3 gap-2 mb-2">
                   <input value={diag.code} onChange={e => { const n = [...nphiesDiagnoses]; n[idx].code = e.target.value; setNphiesDiagnoses(n); }}
-                    placeholder="رمز ICD-10" className="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs focus:border-violet-500 outline-none" />
+                    placeholder={t("preAuth.placeholder.icdCode", "رمز ICD-10")} className="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs focus:border-violet-500 outline-none" />
                   <input value={diag.display} onChange={e => { const n = [...nphiesDiagnoses]; n[idx].display = e.target.value; setNphiesDiagnoses(n); }}
-                    placeholder="وصف التشخيص" className="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs focus:border-violet-500 outline-none" />
+                    placeholder={t("preAuth.placeholder.diagnosisDesc", "وصف التشخيص")} className="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs focus:border-violet-500 outline-none" />
                   <label className="flex items-center gap-1 text-xs text-slate-400">
                     <input type="checkbox" checked={diag.isPrimary} onChange={e => { const n = [...nphiesDiagnoses]; n[idx].isPrimary = e.target.checked; setNphiesDiagnoses(n); }}
-                      className="rounded border-slate-700" /> رئيسي
+                      className="rounded border-slate-700" /> t("preAuth.nphies.isPrimary", "رئيسي")
                   </label>
                 </div>
               ))}
               <button onClick={() => setNphiesDiagnoses([...nphiesDiagnoses, { code: "", display: "", isPrimary: false }])}
-                className="text-xs text-violet-400 hover:text-violet-300 transition">+ إضافة تشخيص</button>
+                className="text-xs text-violet-400 hover:text-violet-300 transition">t("preAuth.nphies.addDiagnosisBtn", "+ إضافة تشخيص")</button>
             </div>
 
             {/* Attachments */}
             <div className="mb-5">
-              <label className="block text-xs font-bold text-slate-400 mb-2">المرفقات السريرية (اختياري)</label>
+              <label className="block text-xs font-bold text-slate-400 mb-2">{t("preAuth.nphies.attachmentsLabel", "المرفقات السريرية (اختياري)")}</label>
               <div className="border-2 border-dashed border-slate-700 hover:border-violet-500/50 rounded-xl p-4 text-center transition cursor-pointer"
                 onClick={() => document.getElementById('nphies-file-input')?.click()}>
                 <FileCheck className="w-8 h-8 mx-auto text-slate-600 mb-2" />
-                <p className="text-xs text-slate-500">اضغط لرفع تقارير طبية أو صور أشعة (PDF, JPG, PNG)</p>
+                <p className="text-xs text-slate-500">t("preAuth.nphies.uploadHint", "اضغط لرفع تقارير طبية أو صور أشعة (PDF, JPG, PNG)")</p>
                 <input id="nphies-file-input" type="file" multiple accept=".pdf,.jpg,.jpeg,.png" className="hidden"
                   onChange={e => setNphiesFiles(Array.from(e.target.files || []))} />
               </div>
@@ -591,11 +594,11 @@ export default function PreAuthPage() {
             </div>
 
             <div className="flex justify-end gap-3">
-              <button onClick={() => setShowNphiesModal(false)} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm rounded-xl">إلغاء</button>
+              <button onClick={() => setShowNphiesModal(false)} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm rounded-xl">{t("common.cancel", "إلغاء")}</button>
               <button onClick={handleNphiesSubmit} disabled={nphiesLoading}
                 className="px-6 py-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-sm font-bold rounded-xl shadow-lg transition flex items-center gap-2">
                 {nphiesLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                إرسال إلى نفيس
+                t("preAuth.nphies.submitBtn", "إرسال إلى نفيس")
               </button>
             </div>
           </div>

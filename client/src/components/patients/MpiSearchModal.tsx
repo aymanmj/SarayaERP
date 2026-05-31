@@ -2,6 +2,7 @@ import { useState } from "react";
 import { apiClient } from "../../api/apiClient";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 import {
   Search,
   Loader2,
@@ -38,6 +39,8 @@ interface MpiSearchModalProps {
 }
 
 export function MpiSearchModal({ onClose }: MpiSearchModalProps) {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
   const navigate = useNavigate();
   const [nationalId, setNationalId] = useState("");
   const [phone, setPhone] = useState("");
@@ -61,7 +64,7 @@ export function MpiSearchModal({ onClose }: MpiSearchModalProps) {
   const handleSearch = async (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!nationalId.trim() && !phone.trim()) {
-      toast.warning("أدخل الرقم الوطني أو رقم الهاتف للبحث");
+      toast.warning(t("mpi.search.toast.enterIdOrPhone", "أدخل الرقم الوطني أو رقم الهاتف للبحث"));
       return;
     }
 
@@ -84,15 +87,15 @@ export function MpiSearchModal({ onClose }: MpiSearchModalProps) {
       } else {
         setResults([]);
       }
-     
+      
     } catch (err: any) {
       if (err.response?.status === 403) {
         toast.error(
           err.response.data.message ||
-            "تبادل البيانات معطّل بواسطة سياسات المؤسسة"
+            t("mpi.search.toast.disabledPolicy", "تبادل البيانات معطّل بواسطة سياسات المؤسسة")
         );
       } else {
-        toast.error("حدث خطأ أثناء البحث في الشبكة");
+        toast.error(t("mpi.search.toast.searchError", "حدث خطأ أثناء البحث في الشبكة"));
       }
     } finally {
       setLoading(false);
@@ -106,16 +109,16 @@ export function MpiSearchModal({ onClose }: MpiSearchModalProps) {
     setOtpCode("");
     try {
       await apiClient.post(`/mpi/consent/trigger?patientId=${patientId}`);
-      toast.success("تم إرسال رمز التحقق (OTP) للمريض بنجاح");
+      toast.success(t("mpi.search.toast.otpSentSuccess", "تم إرسال رمز التحقق (OTP) للمريض بنجاح"));
       setOtpSent(true);
-     
+      
     } catch (err: any) {
       if (err.response?.status === 400) {
         toast.warning(
-          err.response.data.message || "يرجى الانتظار قبل طلب رمز جديد"
+          err.response.data.message || t("mpi.search.toast.pleaseWait", "يرجى الانتظار قبل طلب رمز جديد")
         );
       } else {
-        toast.error(err.response?.data?.message || "فشل إرسال رمز التحقق");
+        toast.error(err.response?.data?.message || t("mpi.search.toast.otpSendFailed", "فشل إرسال رمز التحقق"));
       }
     } finally {
       setOtpLoading(false);
@@ -129,7 +132,7 @@ export function MpiSearchModal({ onClose }: MpiSearchModalProps) {
       const res = await apiClient.post(
         `/mpi/consent/verify?patientId=${otpTarget.patientId}&otp=${otpCode}`
       );
-      toast.success("تم التحقق بنجاح! السجل الطبي متاح الآن.");
+      toast.success(t("mpi.search.toast.otpVerifySuccess", "تم التحقق بنجاح! السجل الطبي متاح الآن."));
 
       // Mark this facility as verified
       setVerifiedFacilities((prev) => {
@@ -147,10 +150,10 @@ export function MpiSearchModal({ onClose }: MpiSearchModalProps) {
       setOtpTarget(null);
       setOtpSent(false);
       setOtpCode("");
-     
+      
     } catch (err: any) {
       toast.error(
-        err.response?.data?.message || "رمز التحقق غير صحيح أو منتهي الصلاحية"
+        err.response?.data?.message || t("mpi.search.toast.otpVerifyFailed", "رمز التحقق غير صحيح أو منتهي الصلاحية")
       );
     } finally {
       setOtpLoading(false);
@@ -164,7 +167,7 @@ export function MpiSearchModal({ onClose }: MpiSearchModalProps) {
     <div
       className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm"
       onClick={onClose}
-      dir="rtl"
+      dir={isRtl ? "rtl" : "ltr"}
     >
       <div
         className="bg-slate-950 border border-slate-700 w-full max-w-3xl rounded-3xl shadow-2xl p-6 flex flex-col max-h-[90vh]"
@@ -172,13 +175,13 @@ export function MpiSearchModal({ onClose }: MpiSearchModalProps) {
       >
         {/* Header */}
         <div className="flex justify-between items-center mb-6">
-          <div>
+          <div className={isRtl ? "text-right" : "text-left"}>
             <h2 className="text-xl font-bold text-white flex items-center gap-2">
               <Search className="w-5 h-5 text-sky-400" />
-              البحث الإقليمي الموحد (MPI Federation)
+              {t("mpi.search.title", "البحث الإقليمي الموحد (MPI Federation)")}
             </h2>
             <p className="text-sm text-slate-400 mt-1">
-              ابحث عن سجلات المريض في جميع المستشفيات المرتبطة بالشبكة.
+              {t("mpi.search.subtitle", "ابحث عن سجلات المريض في جميع المستشفيات المرتبطة بالشبكة.")}
             </p>
           </div>
           <button
@@ -194,15 +197,15 @@ export function MpiSearchModal({ onClose }: MpiSearchModalProps) {
           <input
             autoFocus
             type="text"
-            placeholder="الرقم الوطني / رقم الهوية..."
-            className="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-sm focus:border-sky-500 outline-none text-white"
+            placeholder={t("mpi.search.idPlaceholder", "الرقم الوطني / رقم الهوية...")}
+            className={`flex-1 bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-sm focus:border-sky-500 outline-none text-white ${isRtl ? "text-right" : "text-left"}`}
             value={nationalId}
             onChange={(e) => setNationalId(e.target.value)}
           />
           <input
             type="text"
-            placeholder="رقم الجوال (اختياري)..."
-            className="w-48 bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-sm focus:border-sky-500 outline-none text-white"
+            placeholder={t("mpi.search.phonePlaceholder", "رقم الجوال (اختياري)...")}
+            className={`w-48 bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-sm focus:border-sky-500 outline-none text-white ${isRtl ? "text-right" : "text-left"}`}
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
           />
@@ -216,26 +219,26 @@ export function MpiSearchModal({ onClose }: MpiSearchModalProps) {
             ) : (
               <Search className="w-4 h-4" />
             )}
-            بحث
+            {t("common.search", "بحث")}
           </button>
         </form>
 
         {/* Results */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-4">
+        <div className={`flex-1 overflow-y-auto custom-scrollbar space-y-4 ${isRtl ? "pl-2 text-right" : "pr-2 text-left"}`}>
           {!searched && !loading && (
             <div className="flex flex-col items-center justify-center h-40 text-slate-500 space-y-3">
               <ShieldAlert className="w-10 h-10 opacity-20" />
               <p className="text-sm text-center">
-                البيانات المعروضة تخضع لسياسات الخصوصية.
+                {t("mpi.search.privacyWarn1", "البيانات المعروضة تخضع لسياسات الخصوصية.")}
                 <br />
-                قد يتطلب عرض الملف موافقة المريض عبر رمز OTP.
+                {t("mpi.search.privacyWarn2", "قد يتطلب عرض الملف موافقة المريض عبر رمز OTP.")}
               </p>
             </div>
           )}
 
           {searched && !loading && results.length === 0 && (
             <div className="text-center py-10 text-slate-400">
-              لا توجد نتائج مطابقة في الشبكة الإقليمية.
+              {t("mpi.search.noResults", "لا توجد نتائج مطابقة في الشبكة الإقليمية.")}
             </div>
           )}
 
@@ -250,19 +253,19 @@ export function MpiSearchModal({ onClose }: MpiSearchModalProps) {
                   {patient.fullName}
                 </h3>
                 <div className="flex gap-6 mt-2 text-sm text-slate-400">
-                  <span>الرقم الوطني: {patient.nationalId || "—"}</span>
+                  <span>{t("mpi.search.nationalId", "الرقم الوطني: ")}{patient.nationalId || "—"}</span>
                   <span>
-                    تاريخ الميلاد:{" "}
+                    {t("mpi.search.dob", "تاريخ الميلاد: ")}
                     {patient.dateOfBirth?.split("T")[0] || "—"}
                   </span>
-                  <span>الجنس: {patient.gender === "MALE" ? "ذكر" : "أنثى"}</span>
+                  <span>{t("mpi.search.gender", "الجنس: ")}{patient.gender === "MALE" ? t("common.male", "ذكر") : t("common.female", "أنثى")}</span>
                 </div>
               </div>
 
               {/* Facilities */}
               <div className="space-y-2">
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
-                  المنشآت المرتبطة ({patient.facilities.length})
+                  {t("mpi.search.linkedFacilities", "المنشآت المرتبطة")} ({patient.facilities.length})
                 </p>
                 {patient.facilities.map((facility) => {
                   const fKey = getFacilityKey(
@@ -293,7 +296,7 @@ export function MpiSearchModal({ onClose }: MpiSearchModalProps) {
                             {facility.hospitalName}
                           </span>
                           {isAccessible && facility.localMrn && (
-                            <span className="text-xs text-slate-400 mr-2">
+                            <span className={`text-xs text-slate-400 ${isRtl ? "mr-2" : "ml-2"}`}>
                               MRN: {facility.localMrn}
                             </span>
                           )}
@@ -311,13 +314,13 @@ export function MpiSearchModal({ onClose }: MpiSearchModalProps) {
                               } else {
                                 const refUrl = fhirReferences[fKey] || facility.fhirReference;
                                 if (refUrl) window.open(refUrl, '_blank');
-                                else toast.error("رابط السجل غير متاح");
+                                else toast.error(t("mpi.search.toast.noRecordLink", "رابط السجل غير متاح"));
                               }
                             }}
                             className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-emerald-900/20 transition-all"
                           >
                             <Unlock className="w-3.5 h-3.5" />
-                            عرض السجل
+                            {t("mpi.search.viewRecord", "عرض السجل")}
                           </button>
                         ) : (
                           <button
@@ -332,7 +335,7 @@ export function MpiSearchModal({ onClose }: MpiSearchModalProps) {
                             ) : (
                               <Lock className="w-3.5 h-3.5" />
                             )}
-                            طلب موافقة (OTP)
+                            {t("mpi.search.requestOtp", "طلب موافقة (OTP)")}
                           </button>
                         )}
                       </div>
@@ -352,7 +355,7 @@ export function MpiSearchModal({ onClose }: MpiSearchModalProps) {
                   <div className="mt-4 pt-4 border-t border-rose-900/30 bg-rose-950/20 p-4 rounded-xl">
                     <p className="text-xs text-rose-300 mb-3 font-medium flex items-center gap-2">
                       <KeyRound className="w-4 h-4" />
-                      أدخل رمز التحقق (OTP) الذي استلمه المريض:
+                      {t("mpi.search.enterOtp", "أدخل رمز التحقق (OTP) الذي استلمه المريض:")}
                     </p>
                     <div className="flex items-center gap-3">
                       <input
@@ -378,11 +381,11 @@ export function MpiSearchModal({ onClose }: MpiSearchModalProps) {
                         ) : (
                           <Send className="w-4 h-4" />
                         )}
-                        تحقق
+                        {t("common.verify", "تحقق")}
                       </button>
                     </div>
                     <p className="text-[10px] text-slate-600 mt-2">
-                      صالح لمدة 15 دقيقة • يمكن إعادة الطلب بعد دقيقة واحدة
+                      {t("mpi.search.otpExpiryTip", "صالح لمدة 15 دقيقة • يمكن إعادة الطلب بعد دقيقة واحدة")}
                     </p>
                   </div>
                 )}

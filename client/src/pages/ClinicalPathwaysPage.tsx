@@ -254,20 +254,20 @@ export default function ClinicalPathwaysPage() {
       if (selectedPathway) {
         response = await apiClient.put(`/clinical-pathways/${selectedPathway.id}`, payload);
         if (response.data?.id !== selectedPathway.id) {
-          toast.success(`تم إنشاء مسودة جديدة v${response.data?.version ?? '?'} بدل تعديل النسخة الحالية مباشرة`);
+          toast.success(t("pathways.toast.newDraftCreated", { version: response.data?.version ?? '?', defaultValue: `تم إنشاء مسودة جديدة v${response.data?.version ?? '?'} بدل تعديل النسخة الحالية مباشرة` }));
         } else {
-          toast.success('تم تحديث مسودة المسار بنجاح');
+          toast.success(t("pathways.toast.draftUpdated", "تم تحديث مسودة المسار بنجاح"));
         }
       } else {
         response = await apiClient.post('/clinical-pathways', payload);
-        toast.success('تم إنشاء مسودة المسار العلاجي بنجاح');
+        toast.success(t("pathways.toast.draftCreated", "تم إنشاء مسودة المسار العلاجي بنجاح"));
       }
       setShowBuilder(false);
       resetBuilder();
       await loadData();
      
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'فشل حفظ المسار العلاجي');
+      toast.error(err?.response?.data?.message || t("pathways.toast.saveFailed", "فشل حفظ المسار العلاجي"));
     }
   };
 
@@ -279,7 +279,7 @@ export default function ClinicalPathwaysPage() {
         encounterId: selectedEncounter.id,
         notes: enrollNotes || undefined,
       });
-      toast.success(`تم تسجيل المريض في "${selectedPathway.nameAr || selectedPathway.name}" بنجاح`);
+      toast.success(t("pathways.toast.enrollSuccess", { name: selectedPathway.nameAr || selectedPathway.name, defaultValue: `تم تسجيل المريض في "${selectedPathway.nameAr || selectedPathway.name}" بنجاح` }));
       setShowEnrollModal(false);
       setSelectedEncounter(null);
       setEncounterSearchTerm('');
@@ -287,21 +287,21 @@ export default function ClinicalPathwaysPage() {
       setActiveEncounters([]);
      
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'فشل التسجيل');
+      toast.error(err?.response?.data?.message || t("pathways.toast.enrollFailed", "فشل التسجيل"));
     } finally {
       setEnrolling(false);
     }
   };
 
   const deletePathway = async (id: number) => {
-    if (!confirm('هل تريد تعطيل هذا المسار العلاجي؟')) return;
+    if (!confirm(t("pathways.confirmDisable", "هل تريد تعطيل هذا المسار العلاجي؟"))) return;
     try {
       await apiClient.delete(`/clinical-pathways/${id}`);
       toast.success(t('pathways.toast.deleted', t('pathways.toast.deleted', t('pathways.toast.deleted', t('pathways.toast.deleted', 'تم تعطيل المسار')))));
       await loadData();
      
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'فشل تعطيل المسار');
+      toast.error(err?.response?.data?.message || t("pathways.toast.disableFailed", "فشل تعطيل المسار"));
     }
   };
 
@@ -310,7 +310,7 @@ export default function ClinicalPathwaysPage() {
     endpoint: 'submit-review' | 'approve' | 'reject' | 'publish' | 'retire',
     successMessage: string,
   ) => {
-    const notes = window.prompt('أضف ملاحظة مختصرة لهذا الإجراء (اختياري):', '') || undefined;
+    const notes = window.prompt(t("common.addNotesPrompt", "أضف ملاحظة مختصرة لهذا الإجراء (اختياري):"), '') || undefined;
     setWorkflowBusyId(pathway.id);
     try {
       await apiClient.post(`/clinical-pathways/${pathway.id}/${endpoint}`, { notes });
@@ -318,7 +318,7 @@ export default function ClinicalPathwaysPage() {
       await loadData();
      
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'فشل تنفيذ الإجراء');
+      toast.error(err?.response?.data?.message || t("pathways.toast.workflowFailed", "فشل تنفيذ الإجراء"));
     } finally {
       setWorkflowBusyId(null);
     }
@@ -342,16 +342,16 @@ export default function ClinicalPathwaysPage() {
     <div className="flex flex-col h-full text-slate-100 p-6 space-y-6" dir={isRtl ? "rtl" : "ltr"}>
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold mb-1">المسارات العلاجية</h1>
+          <h1 className="text-2xl font-bold mb-1">{t("pathways.title", "المسارات العلاجية")}</h1>
           <p className="text-sm text-slate-400">
-            إدارة المسارات السريرية عبر المسودة والمراجعة والاعتماد والنشر
+            {t("pathways.subtitle", "إدارة المسارات السريرية عبر المسودة والمراجعة والاعتماد والنشر")}
           </p>
         </div>
         <button
           onClick={() => openBuilder()}
           className="px-6 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold shadow-lg shadow-sky-500/20 transition-all"
         >
-          + مسار علاجي جديد
+          {t("pathways.createNew", "+ مسار علاجي جديد")}
         </button>
       </div>
 
@@ -373,7 +373,7 @@ export default function ClinicalPathwaysPage() {
       <div className="flex gap-4 items-center flex-wrap">
         <input
           type="text"
-          placeholder="بحث بالاسم أو التشخيص..."
+          placeholder={t("pathways.placeholder.search", "بحث بالاسم أو التشخيص...")}
           value={searchFilter}
           onChange={(e) => setSearchFilter(e.target.value)}
           className="bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-sm w-64 focus:border-sky-500 focus:outline-none"
@@ -428,7 +428,7 @@ export default function ClinicalPathwaysPage() {
               <div className="flex gap-2 overflow-x-auto pb-2 mb-4">
                 {groupStepsByDay(pathway.steps).map(([day, steps]) => (
                   <div key={day} className="flex-shrink-0 bg-slate-800/80 rounded-xl border border-slate-700/50 p-3 min-w-[180px]">
-                    <div className="text-xs font-bold text-sky-400 mb-2">اليوم {day}</div>
+                    <div className="text-xs font-bold text-sky-400 mb-2">{t("common.day", "اليوم")} {day}</div>
                     {steps.map((step, idx) => (
                       <div key={idx} className="mb-1.5">
                         <div className="flex items-center gap-1.5">
@@ -452,14 +452,14 @@ export default function ClinicalPathwaysPage() {
 
               <div className="flex items-center justify-between pt-3 border-t border-slate-700/50">
                 <span className="text-[11px] text-slate-500">
-                  {pathway.steps.length} خطوة • {pathway._count?.enrollments || 0} تسجيل • {pathway.createdBy.fullName}
+                  {pathway.steps.length} {t("pathways.stepsLabel", "خطوة")} • {pathway._count?.enrollments || 0} {t("pathways.enrollmentsLabel", "تسجيل")} • {pathway.createdBy.fullName}
                 </span>
                 <div className="flex gap-2 flex-wrap justify-end">
                   <button
                     onClick={() => viewPathwayDetail(pathway)}
                     className="px-3 py-1 bg-sky-600 hover:bg-sky-500 rounded-lg text-xs transition-colors"
                   >
-                    عرض التفاصيل
+                    {t("pathways.btn.details", "عرض التفاصيل")}
                   </button>
                   {pathway.status === 'PUBLISHED' && (
                     <button
@@ -469,19 +469,19 @@ export default function ClinicalPathwaysPage() {
                       }}
                       className="px-3 py-1 bg-green-600 hover:bg-green-500 rounded-lg text-xs font-bold transition-colors"
                     >
-                      📋 تسجيل مريض
+                      {t("pathways.btn.enroll", "📋 تسجيل مريض")}
                     </button>
                   )}
                   <button
                     onClick={() => openBuilder(pathway)}
                     className="px-3 py-1 bg-slate-600 hover:bg-slate-500 rounded-lg text-xs transition-colors"
                   >
-                    {pathway.status === 'DRAFT' ? 'تعديل' : 'إصدار جديد'}
+                    {pathway.status === 'DRAFT' ? t("pathways.btn.edit", "تعديل") : t("pathways.btn.newVersion", "إصدار جديد")}
                   </button>
                   {pathway.status === 'DRAFT' && (
                     <button
                       disabled={workflowBusyId === pathway.id}
-                      onClick={() => runWorkflowAction(pathway, 'submit-review', 'تم إرسال المسودة للمراجعة')}
+                      onClick={() => runWorkflowAction(pathway, 'submit-review', t("pathways.toast.submittedReview", "تم إرسال المسودة للمراجعة"))}
                       className="px-3 py-1 bg-sky-600 hover:bg-sky-500 disabled:opacity-50 rounded-lg text-xs transition-colors"
                     >
                       للمراجعة
@@ -491,14 +491,14 @@ export default function ClinicalPathwaysPage() {
                     <>
                       <button
                         disabled={workflowBusyId === pathway.id}
-                        onClick={() => runWorkflowAction(pathway, 'approve', 'تم اعتماد الإصدار')}
+                        onClick={() => runWorkflowAction(pathway, 'approve', t("pathways.toast.approved", "تم اعتماد الإصدار"))}
                         className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 rounded-lg text-xs transition-colors"
                       >
                         اعتماد
                       </button>
                       <button
                         disabled={workflowBusyId === pathway.id}
-                        onClick={() => runWorkflowAction(pathway, 'reject', 'تمت إعادة الإصدار إلى مسودة')}
+                        onClick={() => runWorkflowAction(pathway, 'reject', t("pathways.toast.rejected", "تمت إعادة الإصدار إلى مسودة"))}
                         className="px-3 py-1 bg-amber-600 hover:bg-amber-500 disabled:opacity-50 rounded-lg text-xs transition-colors"
                       >
                         إرجاع
@@ -509,7 +509,7 @@ export default function ClinicalPathwaysPage() {
                     <>
                       <button
                         disabled={workflowBusyId === pathway.id}
-                        onClick={() => runWorkflowAction(pathway, 'publish', 'تم نشر الإصدار للاستخدام')}
+                        onClick={() => runWorkflowAction(pathway, 'publish', t("pathways.toast.published", "تم نشر الإصدار للاستخدام"))}
                         className="px-3 py-1 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 rounded-lg text-xs transition-colors"
                       >
                         نشر
@@ -526,7 +526,7 @@ export default function ClinicalPathwaysPage() {
                   {pathway.status === 'PUBLISHED' && (
                     <button
                       disabled={workflowBusyId === pathway.id}
-                      onClick={() => runWorkflowAction(pathway, 'retire', 'تم تقاعد الإصدار المنشور')}
+                      onClick={() => runWorkflowAction(pathway, 'retire', t("pathways.toast.retired", "تم تقاعد الإصدار المنشور"))}
                       className="px-3 py-1 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 rounded-lg text-xs transition-colors"
                     >
                       تقاعد
@@ -547,8 +547,8 @@ export default function ClinicalPathwaysPage() {
 
           {pathways.length === 0 && (
             <div className="text-center py-16 text-slate-400">
-              <p className="text-xl mb-2">لا توجد مسارات علاجية</p>
-              <p className="text-sm">ابدأ بإنشاء أول مسار ثم مرره عبر المراجعة والاعتماد والنشر</p>
+              <p className="text-xl mb-2">{t("pathways.empty", "لا توجد مسارات علاجية")}</p>
+              <p className="text-sm">{t("pathways.emptyHint", "ابدأ بإنشاء أول مسار ثم مرره عبر المراجعة والاعتماد والنشر")}</p>
             </div>
           )}
         </div>
@@ -556,8 +556,8 @@ export default function ClinicalPathwaysPage() {
 
       {!loading && activeTab === 'enrollments' && (
         <div className="text-center py-16 text-slate-400">
-          <p className="text-xl mb-2">تسجيلات المرضى</p>
-          <p className="text-sm">لعرض تفاصيل التسجيلات انتقل إلى الحالة المرضية أو شغّل لوحة متابعة منفصلة لاحقًا</p>
+          <p className="text-xl mb-2">{t("pathways.enrollmentsEmpty", "تسجيلات المرضى")}</p>
+          <p className="text-sm">{t("pathways.enrollmentsEmptyHint", "لعرض تفاصيل التسجيلات انتقل إلى الحالة المرضية أو شغّل لوحة متابعة منفصلة لاحقًا")}</p>
           {enrollmentDetail && <div className="hidden">{enrollmentDetail.id}</div>}
         </div>
       )}
@@ -567,14 +567,14 @@ export default function ClinicalPathwaysPage() {
           <div className="bg-slate-900 border-b border-slate-800 px-6 py-4 flex items-center justify-between shadow-sm shrink-0">
             <div>
               <h2 className="text-xl font-black text-white">
-                {selectedPathway ? 'إدارة إصدار المسار العلاجي' : 'بناء مسار علاجي جديد'}
+                {selectedPathway ? t("pathways.builder.editTitle", "إدارة إصدار المسار العلاجي") : t("pathways.builder.newTitle", "بناء مسار علاجي جديد")}
               </h2>
               <p className="text-xs text-slate-400 mt-1">
                 {selectedPathway
                   ? selectedPathway.status === 'DRAFT'
-                    ? 'يمكنك تعديل هذه المسودة مباشرة قبل إرسالها للمراجعة'
-                    : `سيتم إنشاء مسودة جديدة من الإصدار الحالي v${selectedPathway.version} بدل تعديل النسخة الحالية مباشرة`
-                  : 'قم ببناء رحلة علاجية معيارية قبل اعتمادها ونشرها'}
+                    ? t("pathways.builder.draftHint", "يمكنك تعديل هذه المسودة مباشرة قبل إرسالها للمراجعة")
+                    : t("pathways.builder.versionHint", { version: selectedPathway.version, defaultValue: `سيتم إنشاء مسودة جديدة من الإصدار الحالي v${selectedPathway.version} بدل تعديل النسخة الحالية مباشرة` })
+                  : t("pathways.builder.newHint", "قم ببناء رحلة علاجية معيارية قبل اعتمادها ونشرها")}
               </p>
             </div>
             <div className="flex gap-3">
@@ -585,13 +585,13 @@ export default function ClinicalPathwaysPage() {
                 }}
                 className="px-6 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl transition-colors font-bold border border-slate-700"
               >
-                إلغاء التغييرات
+                {t("pathways.btn.cancelChanges", "إلغاء التغييرات")}
               </button>
               <button
                 onClick={savePathway}
                 className="px-8 py-2.5 bg-pink-600 hover:bg-pink-500 text-white rounded-xl font-bold transition-colors shadow-lg shadow-pink-900/30"
               >
-                💾 حفظ المسودة
+                {t("pathways.btn.saveDraft", "💾 حفظ المسودة")}
               </button>
             </div>
           </div>
@@ -600,12 +600,12 @@ export default function ClinicalPathwaysPage() {
             <div className="w-full xl:w-[400px] bg-slate-900/50 border-l border-slate-800 overflow-y-auto p-6 custom-scrollbar shrink-0">
               <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
                 <span className="w-8 h-8 rounded-lg bg-pink-500/20 text-pink-400 flex items-center justify-center">⚙️</span>
-                الإعدادات الأساسية
+                {t("pathways.builder.basicSettings", "الإعدادات الأساسية")}
               </h3>
 
               <div className="space-y-6">
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 mb-1.5">الاسم الإنجليزي (EN)</label>
+                  <label className="block text-xs font-bold text-slate-400 mb-1.5">{t("pathways.builder.nameEn", "الاسم الإنجليزي (EN)")}</label>
                   <input
                     value={bName}
                     onChange={(e) => setBName(e.target.value)}
@@ -614,12 +614,12 @@ export default function ClinicalPathwaysPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 mb-1.5">الاسم العربي (AR)</label>
+                  <label className="block text-xs font-bold text-slate-400 mb-1.5">{t("pathways.builder.nameAr", "الاسم العربي (AR)")}</label>
                   <input
                     value={bNameAr}
                     onChange={(e) => setBNameAr(e.target.value)}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm outline-none focus:border-pink-500 transition-all"
-                    placeholder="مسار الالتهاب الرئوي"
+                    placeholder={t("pathways.placeholder.pneumonia", "مسار الالتهاب الرئوي")}
                   />
                 </div>
 
@@ -634,7 +634,7 @@ export default function ClinicalPathwaysPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-400 mb-1.5">مدة الإقامة المتوقعة</label>
+                    <label className="block text-xs font-bold text-slate-400 mb-1.5">{t("pathways.builder.expectedLos", "مدة الإقامة المتوقعة")}</label>
                     <div className="relative">
                       <input
                         type="number"
@@ -643,30 +643,30 @@ export default function ClinicalPathwaysPage() {
                         className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm outline-none focus:border-amber-500 transition-all pl-12"
                         placeholder="5"
                       />
-                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 text-xs font-bold">أيام</span>
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 text-xs font-bold">{t("common.days", "أيام")}</span>
                     </div>
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 mb-1.5">الوصف العلمي</label>
+                  <label className="block text-xs font-bold text-slate-400 mb-1.5">{t("pathways.builder.description", "الوصف العلمي")}</label>
                   <textarea
                     value={bDescription}
                     onChange={(e) => setBDescription(e.target.value)}
                     rows={5}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm outline-none focus:border-pink-500 transition-all resize-none"
-                    placeholder="نطاق المسار والأهداف العامة..."
+                    placeholder={t("pathways.placeholder.description", "نطاق المسار والأهداف العامة...")}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 mb-1.5">ملخص التغيير</label>
+                  <label className="block text-xs font-bold text-slate-400 mb-1.5">{t("pathways.builder.changeSummary", "ملخص التغيير")}</label>
                   <textarea
                     value={bChangeSummary}
                     onChange={(e) => setBChangeSummary(e.target.value)}
                     rows={3}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm outline-none focus:border-pink-500 transition-all resize-none"
-                    placeholder="ما الذي تغير في هذه النسخة؟"
+                    placeholder={t("pathways.placeholder.changeSummary", "ما الذي تغير في هذه النسخة؟")}
                   />
                 </div>
               </div>
@@ -679,15 +679,15 @@ export default function ClinicalPathwaysPage() {
                 <div>
                   <h3 className="text-xl font-bold flex items-center gap-2 text-white">
                     <span className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center">🛤️</span>
-                    الخطوات والمراحل الزمنية
+                    {t("pathways.builder.steps", "الخطوات والمراحل الزمنية")}
                   </h3>
-                  <p className="text-xs text-slate-400 mt-1 mr-10">إضافة الإجراءات ومجموعات الطلبات موزعة حسب الأيام والمراحل العلاجية.</p>
+                  <p className="text-xs text-slate-400 mt-1 mr-10">{t("pathways.builder.stepsSubtitle", "إضافة الإجراءات ومجموعات الطلبات موزعة حسب الأيام والمراحل العلاجية.")}</p>
                 </div>
                 <button
                   onClick={addStep}
                   className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold shadow-lg shadow-emerald-900/30 transition-all h-[42px] whitespace-nowrap"
                 >
-                  + خطوة جديدة
+                  {t("pathways.btn.addStep", "+ خطوة جديدة")}
                 </button>
               </div>
 
@@ -695,8 +695,8 @@ export default function ClinicalPathwaysPage() {
                 {bSteps.length === 0 ? (
                   <div className="h-full flex flex-col items-center justify-center text-slate-500">
                     <div className="text-6xl mb-4 opacity-50">⏳</div>
-                    <p className="text-xl font-bold text-white mb-2">المسار لم يبدأ بعد</p>
-                    <p className="text-sm max-w-sm text-center">أضف اليوم الأول والخطوات الأساسية لبدء بناء المسار العلاجي</p>
+                    <p className="text-xl font-bold text-white mb-2">{t("pathways.builder.emptySteps", "المسار لم يبدأ بعد")}</p>
+                    <p className="text-sm max-w-sm text-center">{t("pathways.builder.emptyStepsHint", "أضف اليوم الأول والخطوات الأساسية لبدء بناء المسار العلاجي")}</p>
                   </div>
                 ) : (
                   <div className="max-w-4xl mx-auto space-y-6">
@@ -712,7 +712,7 @@ export default function ClinicalPathwaysPage() {
                               {step.dayNumber}
                             </div>
                             <div>
-                              <h4 className="font-bold text-sky-400">اليوم {step.dayNumber}</h4>
+                              <h4 className="font-bold text-sky-400">{t("common.day", "اليوم")} {step.dayNumber}</h4>
                             </div>
                           </div>
                           <button
@@ -741,22 +741,22 @@ export default function ClinicalPathwaysPage() {
                               onChange={(e) => updateStep(idx, 'phase', e.target.value)}
                               className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm outline-none focus:border-pink-500"
                             >
-                              <option value="">بدون مرحلة مخصصة</option>
-                              <option value="Assessment">التقييم</option>
-                              <option value="Treatment">العلاج</option>
-                              <option value="Monitoring">المتابعة</option>
-                              <option value="Discharge">الخروج</option>
+                              <option value="">{t("pathways.phase.none", "بدون مرحلة مخصصة")}</option>
+                              <option value="Assessment">{t("pathways.phase.assessment", "التقييم")}</option>
+                              <option value="Treatment">{t("pathways.phase.treatment", "العلاج")}</option>
+                              <option value="Monitoring">{t("pathways.phase.monitoring", "المتابعة")}</option>
+                              <option value="Discharge">{t("pathways.phase.discharge", "الخروج")}</option>
                             </select>
                           </div>
 
                           <div className="md:col-span-6">
-                            <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase">ربط بمجموعة طلبات منشورة</label>
+                            <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase">{t("pathways.builder.linkOrderSet", "ربط بمجموعة طلبات منشورة")}</label>
                             <select
                               value={step.orderSetId}
                               onChange={(e) => updateStep(idx, 'orderSetId', e.target.value)}
                               className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm outline-none focus:border-pink-500 text-sky-300 font-bold"
                             >
-                              <option value="">بدون</option>
+                              <option value="">{t("common.noneOption", "بدون")}</option>
                               {orderSets.map((set: any) => (
                                 <option key={set.id} value={set.id}>
                                   📦 {set.nameAr || set.name} (v{set.version})
@@ -766,7 +766,7 @@ export default function ClinicalPathwaysPage() {
                           </div>
 
                           <div className="md:col-span-6">
-                            <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase">اسم الإجراء</label>
+                            <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase">{t("pathways.builder.stepName", "اسم الإجراء")}</label>
                             <input
                               value={step.title}
                               onChange={(e) => updateStep(idx, 'title', e.target.value)}
@@ -776,12 +776,12 @@ export default function ClinicalPathwaysPage() {
                           </div>
 
                           <div className="md:col-span-6">
-                            <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase">الهدف المتوقع</label>
+                            <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase">{t("pathways.builder.expectedOutcome", "الهدف المتوقع")}</label>
                             <input
                               value={step.expectedOutcome}
                               onChange={(e) => updateStep(idx, 'expectedOutcome', e.target.value)}
                               className="w-full bg-emerald-950/20 border border-emerald-900/50 rounded-xl px-3 py-2 text-sm outline-none focus:border-emerald-500 text-emerald-400 placeholder-emerald-900"
-                              placeholder="استقرار العلامات الحيوية"
+                              placeholder={t("pathways.placeholder.outcome", "استقرار العلامات الحيوية")}
                             />
                           </div>
                         </div>
@@ -818,7 +818,7 @@ export default function ClinicalPathwaysPage() {
               )}
               {selectedPathway.expectedLOS && (
                 <span className="px-3 py-1 bg-amber-500/20 text-amber-300 rounded-full text-xs border border-amber-500/30">
-                  🗓 مدة الإقامة المتوقعة: {selectedPathway.expectedLOS} {t("common.day", "يوم")}
+                  🗓 {t("pathways.builder.expectedLos", "مدة الإقامة المتوقعة")}: {selectedPathway.expectedLOS} {t("common.day", "يوم")}
                 </span>
               )}
             </div>
@@ -830,7 +830,7 @@ export default function ClinicalPathwaysPage() {
                     <div className="w-10 h-10 bg-sky-600 rounded-full flex items-center justify-center font-bold text-sm">
                       {day}
                     </div>
-                    <h4 className="font-semibold text-sky-300">اليوم {day}</h4>
+                    <h4 className="font-semibold text-sky-300">{t("common.day", "اليوم")} {day}</h4>
                   </div>
                   <div className="mr-5 border-r-2 border-slate-700 pr-5 space-y-3 pb-4">
                     {steps.map((step, idx) => (
@@ -845,11 +845,11 @@ export default function ClinicalPathwaysPage() {
                         </div>
                         {step.description && <p className="text-xs text-slate-400 mb-2">{step.description}</p>}
                         {step.expectedOutcome && (
-                          <p className="text-xs text-emerald-400">🎯 الهدف: {step.expectedOutcome}</p>
+                          <p className="text-xs text-emerald-400">🎯 {t("pathways.goal", "الهدف:")} {step.expectedOutcome}</p>
                         )}
                         {step.orderSet && (
                           <p className="text-xs text-amber-400 mt-1">
-                            📦 مجموعة الطلبات: {step.orderSet.nameAr || step.orderSet.name}
+                            📦 {t("pathways.linkedOrderSet", "مجموعة الطلبات:")} {step.orderSet.nameAr || step.orderSet.name}
                           </p>
                         )}
                       </div>
@@ -867,12 +867,12 @@ export default function ClinicalPathwaysPage() {
           <div className="bg-slate-900 border border-slate-700/60 rounded-3xl p-6 md:p-8 w-full max-w-lg shadow-[0_0_50px_-12px_rgba(236,72,153,0.15)] relative overflow-hidden">
             <div className="absolute top-0 right-0 w-32 h-32 bg-pink-500/10 rounded-full blur-3xl -mx-10 -my-10" />
 
-            <h3 className="text-2xl font-black mb-2 text-white">تسجيل حالة في مسار علاجي</h3>
-            <p className="text-sm text-slate-400 mb-6">مسار: {selectedPathway.nameAr || selectedPathway.name}</p>
+            <h3 className="text-2xl font-black mb-2 text-white">{t("pathways.enroll.title", "تسجيل حالة في مسار علاجي")}</h3>
+            <p className="text-sm text-slate-400 mb-6">{t("pathways.pathwayLabel", "مسار:")} {selectedPathway.nameAr || selectedPathway.name}</p>
 
             <div className="space-y-6 mb-8">
               <div>
-                <label className="block text-sm font-bold mb-3 text-slate-300">بحث عن الحالة النشطة</label>
+                <label className="block text-sm font-bold mb-3 text-slate-300">{t("pathways.enroll.searchEncounter", "بحث عن الحالة النشطة")}</label>
                 <div className="relative z-10">
                   <input
                     type="text"
@@ -883,7 +883,7 @@ export default function ClinicalPathwaysPage() {
                       searchEncounters(e.target.value);
                     }}
                     className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3.5 text-sm focus:border-pink-500 focus:ring-1 focus:ring-pink-500 outline-none transition-all placeholder-slate-500"
-                    placeholder="ابحث بالاسم أو رقم MRN..."
+                    placeholder={t("common.searchMRNHint", "ابحث بالاسم أو رقم MRN...")}
                   />
 
                   {activeEncounters.length > 0 && !selectedEncounter && (
@@ -898,12 +898,12 @@ export default function ClinicalPathwaysPage() {
                           }}
                           className="w-full px-4 py-3 hover:bg-slate-700/50 transition-colors flex justify-between items-center border-b border-slate-700/30 last:border-0 rounded-lg mx-1 w-[calc(100%-8px)]"
                         >
-                          <div className="text-right">
+                          <div className="text-start">
                             <div className="font-bold text-sm text-slate-100">{enc.patient?.fullName || 'مريض غير معروف'}</div>
                             <div className="text-xs text-pink-400 font-mono mt-0.5">#{enc.patient?.mrn}</div>
                           </div>
                           <div className="text-left bg-slate-900/50 px-2 py-1.5 rounded-lg border border-slate-700/50">
-                            <div className="text-[10px] text-slate-300 font-bold">{enc.department?.name || 'بدون قسم'} • {enc.type}</div>
+                            <div className="text-[10px] text-slate-300 font-bold">{enc.department?.name || t("common.noDept", "بدون قسم")} • {enc.type}</div>
                             <div className="text-[10px] text-slate-400 mt-0.5">🩺 {enc.doctor?.fullName || 'بدون طبيب'}</div>
                           </div>
                         </button>
@@ -914,13 +914,13 @@ export default function ClinicalPathwaysPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-3 text-slate-300">ملاحظات سريرية (اختياري)</label>
+                <label className="block text-sm font-medium mb-3 text-slate-300">{t("pathways.enroll.clinicalNotes", "ملاحظات سريرية (اختياري)")}</label>
                 <textarea
                   value={enrollNotes}
                   onChange={(e) => setEnrollNotes(e.target.value)}
                   rows={3}
                   className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:border-pink-500 outline-none transition-all resize-none"
-                  placeholder="اكتب ملاحظاتك هنا..."
+                  placeholder={t("common.writeNotesHint", "اكتب ملاحظاتك هنا...")}
                 />
               </div>
             </div>
@@ -931,7 +931,7 @@ export default function ClinicalPathwaysPage() {
                 disabled={enrolling || !selectedEncounter}
                 className="flex-1 py-3 bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 disabled:from-slate-700 disabled:to-slate-800 disabled:text-slate-500 disabled:cursor-not-allowed rounded-xl font-bold transition-all shadow-lg shadow-pink-900/20 text-white border border-pink-500/30"
               >
-                {enrolling ? 'جاري التسجيل...' : '📋 تسجيل وبدء المسار'}
+                {enrolling ? t("pathways.enrolling", "جاري التسجيل...") : t("pathways.enrollStart", "📋 تسجيل وبدء المسار")}
               </button>
               <button
                 onClick={() => {

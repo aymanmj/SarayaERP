@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { apiClient } from "../api/apiClient";
 import { toast } from "sonner";
 import { formatDate } from "@/lib/utils";
@@ -34,6 +35,8 @@ function formatMoney(v: number) {
 }
 
 export default function InsuranceClaimsPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.dir() === "rtl";
   const [providers, setProviders] = useState<InsuranceProvider[]>([]);
   const [claims, setClaims] = useState<ClaimInvoice[]>([]);
   const [loading, setLoading] = useState(false);
@@ -72,7 +75,7 @@ export default function InsuranceClaimsPage() {
       setSelectedIds([]); // Reset selection
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
-      toast.error("فشل تحميل المطالبات.");
+      toast.error(t("insuranceClaims.toast.loadFailed", "فشل تحميل المطالبات."));
     } finally {
       setLoading(false);
     }
@@ -101,25 +104,25 @@ export default function InsuranceClaimsPage() {
   // Actions
   const handleUpdateStatus = async (newStatus: string) => {
     if (selectedIds.length === 0) return;
-    const actionName = newStatus === "SUBMITTED" ? "إرسال المطالبة" : "تسجيل السداد";
-    if (!confirm(`هل أنت متأكد من ${actionName} لعدد ${selectedIds.length} فاتورة؟`)) return;
+    const actionName = newStatus === "SUBMITTED" ? t("insuranceClaims.action.submitBtn", "إرسال المطالبة") : t("insuranceClaims.action.payBtn", "تسجيل السداد");
+    if (!confirm(t("insuranceClaims.confirmBatchAction", { action: actionName, count: selectedIds.length, defaultValue: `هل أنت متأكد من ${actionName} لعدد ${selectedIds.length} فاتورة؟` }))) return;
 
     try {
       await apiClient.post("/insurance/claims/update-status", {
         invoiceIds: selectedIds,
         status: newStatus,
       });
-      toast.success("تم تحديث الحالة بنجاح.");
+      toast.success(t("insuranceClaims.toast.statusUpdated", "تم تحديث الحالة بنجاح."));
       loadClaims();
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
-      toast.error("فشل التحديث.");
+      toast.error(t("preAuth.toast.updateFailed", "فشل التحديث."));
     }
   };
 
   const handleRejectSubmit = async () => {
     if (!rejectionReason.trim()) {
-      toast.warning("يرجى إدخال سبب الرفض");
+      toast.warning(t("insuranceClaims.toast.reasonRequired", "يرجى إدخال سبب الرفض"));
       return;
     }
     
@@ -129,7 +132,7 @@ export default function InsuranceClaimsPage() {
         status: "REJECTED",
         rejectionReason: rejectionReason,
       });
-      toast.success("تم تسجيل الرفض بنجاح.");
+      toast.success(t("insuranceClaims.toast.rejectRecorded", "تم تسجيل الرفض بنجاح."));
       setShowRejectModal(false);
       setRejectionReason("");
       loadClaims();
@@ -142,7 +145,7 @@ export default function InsuranceClaimsPage() {
   // === NPHIES: Submit eClaims ===
   const handleNphiesSubmit = async () => {
     if (selectedIds.length === 0) return;
-    if (!confirm(`هل تريد رفع ${selectedIds.length} مطالبة إلى منصة نفيس (NPHIES)؟`)) return;
+    if (!confirm(t("insuranceClaims.confirmNphiesSubmit", { count: selectedIds.length, defaultValue: `هل تريد رفع ${selectedIds.length} مطالبة إلى منصة نفيس (NPHIES)؟` }))) return;
 
     setNphiesLoading(true);
     let accepted = 0;
@@ -164,11 +167,11 @@ export default function InsuranceClaimsPage() {
     setNphiesLoading(false);
 
     if (accepted > 0 && rejected === 0) {
-      toast.success(`✅ تم رفع ${accepted} مطالبة بنجاح إلى NPHIES`);
+      toast.success(t("insuranceClaims.toast.nphiesSuccess", { count: accepted, defaultValue: `✅ تم رفع ${accepted} مطالبة بنجاح إلى NPHIES` }));
     } else if (accepted > 0 && rejected > 0) {
-      toast.warning(`⚠️ تم قبول ${accepted} ورفض ${rejected} مطالبة`);
+      toast.warning(t("insuranceClaims.toast.nphiesPartial", { accepted, rejected, defaultValue: `⚠️ تم قبول ${accepted} ورفض ${rejected} مطالبة` }));
     } else {
-      toast.error(`❌ فشل رفع جميع المطالبات (${rejected})`);
+      toast.error(t("insuranceClaims.toast.nphiesFailedAll", { count: rejected, defaultValue: `❌ فشل رفع جميع المطالبات (${rejected})` }));
     }
 
     loadClaims();
@@ -181,21 +184,21 @@ export default function InsuranceClaimsPage() {
       : claims;
 
     if (itemsToPrint.length === 0) {
-      toast.warning("لا توجد فواتير للطباعة.");
+      toast.warning(t("insuranceClaims.toast.noInvoicesToPrint", "لا توجد فواتير للطباعة."));
       return;
     }
 
-    const providerName = itemsToPrint[0]?.insuranceProvider?.name || "شركة التأمين";
+    const providerName = itemsToPrint[0]?.insuranceProvider?.name || t("insuranceClaims.filter.provider", "شركة التأمين");
     const totalClaim = itemsToPrint.reduce((sum, c) => sum + Number(c.insuranceShare), 0);
 
     const printWindow = window.open("", "_blank");
     if (!printWindow) {
-      toast.error("يرجى السماح بالنوافذ المنبثقة (Popups) للطباعة.");
+      toast.error(t("insuranceClaims.toast.allowPopups", "يرجى السماح بالنوافذ المنبثقة (Popups) للطباعة."));
       return;
     }
 
     const htmlContent = `
-      <html dir="rtl" lang="ar">
+      <html dir={isRtl ? "rtl" : "ltr"} lang="ar">
         <head>
           <title>كشف مطالبة مالية</title>
           <style>
@@ -293,10 +296,10 @@ export default function InsuranceClaimsPage() {
             <div className="p-2 bg-sky-500/20 text-sky-400 rounded-xl">
               <ShieldCheck className="w-6 h-6" />
             </div>
-            إدارة مطالبات التأمين (RCM)
+            {t("insuranceClaims.title", "إدارة مطالبات التأمين (RCM)")}
           </h1>
           <p className="text-sm text-slate-400 mt-1">
-            متابعة الفواتير المستحقة، إدارة المطالبات المرفوضة، وتجهيز ملفات NPHIES.
+            {t("insuranceClaims.subtitle", "متابعة الفواتير المستحقة، إدارة المطالبات المرفوضة، وتجهيز ملفات NPHIES.")}
           </p>
         </div>
       </div>
@@ -312,7 +315,7 @@ export default function InsuranceClaimsPage() {
             value={selectedProvider}
             onChange={(e) => setSelectedProvider(e.target.value)}
           >
-            <option value="">-- عرض كل الشركات --</option>
+            <option value="">-- {t("insuranceClaims.filter.allProviders", "عرض كل الشركات")} --</option>
             {providers.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}
@@ -323,17 +326,17 @@ export default function InsuranceClaimsPage() {
 
         <div className="flex flex-col gap-2">
           <label className="text-xs font-bold text-slate-400 flex items-center gap-1">
-            <FileText className="w-4 h-4" /> حالة المطالبة
+            <FileText className="w-4 h-4" /> {t("insuranceClaims.filter.status", "حالة المطالبة")}
           </label>
           <select
             className="bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-sm w-56 focus:border-sky-500 outline-none transition-colors"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
           >
-            <option value="PENDING">⏳ معلقة (لم ترسل)</option>
-            <option value="SUBMITTED">📤 تم الإرسال (Submitted)</option>
-            <option value="PAID">💰 تم السداد (Paid)</option>
-            <option value="REJECTED">❌ مرفوضة (Rejected)</option>
+            <option value="PENDING">⏳ {t("insuranceClaims.status.pendingOption", "معلقة (لم ترسل)")}</option>
+            <option value="SUBMITTED">📤 {t("insuranceClaims.status.submittedOption", "تم الإرسال (Submitted)")}</option>
+            <option value="PAID">💰 {t("insuranceClaims.status.paidOption", "تم السداد (Paid)")}</option>
+            <option value="REJECTED">❌ {t("insuranceClaims.status.rejectedOption", "مرفوضة (Rejected)")}</option>
           </select>
         </div>
 
@@ -343,7 +346,7 @@ export default function InsuranceClaimsPage() {
           </div>
           <div>
             <div className="text-xs font-bold text-slate-400">
-              إجمالي المطالبات الظاهرة
+              {t("insuranceClaims.stats.totalClaims", "إجمالي المطالبات الظاهرة")}
             </div>
             <div className="text-xl font-black text-sky-400 tracking-tight">
               {formatMoney(totalClaimAmount)} <span className="text-sm font-bold text-slate-500">LYD</span>
@@ -356,8 +359,8 @@ export default function InsuranceClaimsPage() {
       <div className={`transition-all duration-300 ease-in-out origin-top overflow-hidden ${selectedIds.length > 0 ? 'opacity-100 max-h-24' : 'opacity-0 max-h-0'}`}>
         <div className="bg-sky-900/20 border border-sky-500/30 p-4 rounded-2xl flex justify-between items-center shadow-[0_0_20px_-5px_rgba(14,165,233,0.15)]">
           <div className="text-sm text-slate-300">
-            تم تحديد <span className="font-black text-white text-lg bg-sky-500/20 px-2 py-0.5 rounded-lg mx-1">{selectedIds.length}</span> مطالبة 
-            بقيمة إجمالية <span className="font-black text-emerald-400 text-lg mx-1">{formatMoney(selectedTotal)}</span> LYD
+            {t("insuranceClaims.action.selectedPrefix", "تم تحديد")} <span className="font-black text-white text-lg bg-sky-500/20 px-2 py-0.5 rounded-lg mx-1">{selectedIds.length}</span> {t("insuranceClaims.action.selectedClaims", "مطالبة")} 
+            {t("insuranceClaims.action.selectedClaimsValue", "بقيمة إجمالية")} <span className="font-black text-emerald-400 text-lg mx-1">{formatMoney(selectedTotal)}</span> LYD
           </div>
           <div className="flex gap-2">
             {statusFilter === "PENDING" && (
@@ -365,7 +368,7 @@ export default function InsuranceClaimsPage() {
                 onClick={() => handleUpdateStatus("SUBMITTED")}
                 className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm rounded-xl font-bold shadow-lg transition-colors flex items-center gap-2"
               >
-                <CheckCircle2 className="w-4 h-4" /> إرسال المطالبة للشركة
+                <CheckCircle2 className="w-4 h-4" /> {t("insuranceClaims.action.submitBtn", "إرسال المطالبة للشركة")}
               </button>
             )}
             {statusFilter === "PENDING" && (
@@ -376,7 +379,7 @@ export default function InsuranceClaimsPage() {
                   className="px-4 py-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-sm rounded-xl font-bold shadow-lg transition-colors flex items-center gap-2"
                 >
                   {nphiesLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                  رفع إلى نفيس (NPHIES)
+                  {t("preAuth.nphies.submitBtn", "رفع إلى نفيس (NPHIES)")}
                 </button>
               </FeatureGuard>
             )}
@@ -386,13 +389,13 @@ export default function InsuranceClaimsPage() {
                   onClick={() => handleUpdateStatus("PAID")}
                   className="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white text-sm rounded-xl font-bold shadow-lg transition-colors flex items-center gap-2"
                 >
-                  <CheckCircle2 className="w-4 h-4" /> تسجيل كسداد
+                  <CheckCircle2 className="w-4 h-4" /> {t("insuranceClaims.action.payBtn", "تسجيل كسداد")}
                 </button>
                 <button
                   onClick={() => setShowRejectModal(true)}
                   className="px-4 py-2 bg-rose-900/50 hover:bg-rose-900/80 border border-rose-500/30 text-rose-300 hover:text-white text-sm rounded-xl font-bold transition-colors flex items-center gap-2"
                 >
-                  <XCircle className="w-4 h-4" /> رفض المطالبات
+                  <XCircle className="w-4 h-4" /> {t("insuranceClaims.action.rejectBtn", "رفض المطالبات")}
                 </button>
               </>
             )}
@@ -402,7 +405,7 @@ export default function InsuranceClaimsPage() {
                 onClick={() => handleUpdateStatus("PENDING")}
                 className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white text-sm rounded-xl font-bold shadow-lg transition-colors flex items-center gap-2"
               >
-                <RefreshCw className="w-4 h-4" /> إعادة تقديم المطالبة
+                <RefreshCw className="w-4 h-4" /> {t("insuranceClaims.action.resubmitBtn", "إعادة تقديم المطالبة")}
               </button>
             )}
 
@@ -419,7 +422,7 @@ export default function InsuranceClaimsPage() {
       {/* Table */}
       <div className="flex-1 bg-slate-900/50 border border-slate-800 rounded-2xl overflow-hidden flex flex-col relative">
         <div className="overflow-auto custom-scrollbar flex-1">
-          <table className="w-full text-sm text-right">
+          <table className="w-full text-sm text-start">
             <thead className="text-slate-400 bg-slate-900/80 sticky top-0 z-10 backdrop-blur-md border-b border-slate-800">
               <tr>
                 <th className="w-12 px-4 py-4 text-center">
@@ -430,14 +433,14 @@ export default function InsuranceClaimsPage() {
                     checked={selectedIds.length > 0 && selectedIds.length === claims.length}
                   />
                 </th>
-                <th className="px-4 py-4 font-bold">رقم الفاتورة</th>
-                <th className="px-4 py-4 font-bold">التاريخ</th>
-                <th className="px-4 py-4 font-bold">المريض</th>
-                <th className="px-4 py-4 font-bold">رقم العضوية</th>
-                <th className="px-4 py-4 font-bold">شركة التأمين</th>
-                <th className="px-4 py-4 font-bold text-sky-400">المطالبة (حصة الشركة)</th>
-                <th className="px-4 py-4 font-bold text-slate-500">حصة المريض</th>
-                <th className="px-4 py-4 font-bold">حالة RCM</th>
+                <th className="px-4 py-4 font-bold">{t("insuranceClaims.table.invoiceNumber", "رقم الفاتورة")}</th>
+                <th className="px-4 py-4 font-bold">{t("common.date", "التاريخ")}</th>
+                <th className="px-4 py-4 font-bold">{t("common.patient", "المريض")}</th>
+                <th className="px-4 py-4 font-bold">{t("insuranceClaims.table.memberId", "رقم العضوية")}</th>
+                <th className="px-4 py-4 font-bold">{t("insuranceClaims.filter.provider", "شركة التأمين")}</th>
+                <th className="px-4 py-4 font-bold text-sky-400">{t("insuranceClaims.table.insuranceShare", "المطالبة (حصة الشركة)")}</th>
+                <th className="px-4 py-4 font-bold text-slate-500">{t("insuranceClaims.table.patientShare", "حصة المريض")}</th>
+                <th className="px-4 py-4 font-bold">{t("insuranceClaims.table.rcmStatus", "حالة RCM")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/50">
@@ -446,7 +449,7 @@ export default function InsuranceClaimsPage() {
                   <td colSpan={9} className="text-center py-20 text-slate-500">
                     <div className="flex flex-col items-center justify-center">
                       <div className="w-10 h-10 rounded-full border-4 border-sky-500/30 border-t-sky-500 animate-spin mb-3"></div>
-                      <span className="animate-pulse">جاري سحب بيانات المطالبات...</span>
+                      <span className="animate-pulse">t("insuranceClaims.loading", "جاري سحب بيانات المطالبات...")</span>
                     </div>
                   </td>
                 </tr>
@@ -456,7 +459,7 @@ export default function InsuranceClaimsPage() {
                   <td colSpan={9} className="text-center py-20 text-slate-500">
                     <div className="flex flex-col items-center justify-center bg-slate-900/50 w-full rounded-xl border border-dashed border-slate-700 max-w-md mx-auto p-10">
                       <ShieldCheck className="w-16 h-16 text-slate-600 mb-4 opacity-30" />
-                      <p>لا توجد مطالبات تأمينية تطابق معايير البحث.</p>
+                      <p>{t("insuranceClaims.empty", "لا توجد مطالبات تأمينية تطابق معايير البحث.")}</p>
                     </div>
                   </td>
                 </tr>
@@ -483,7 +486,7 @@ export default function InsuranceClaimsPage() {
                     {c.patient.fullName}
                   </td>
                   <td className="px-4 py-3 text-slate-400 font-mono text-xs bg-slate-950 rounded-lg inline-block mt-2 mb-2 ml-4">
-                    {c.patient.insuranceMemberId || "غير مسجل"}
+                    {c.patient.insuranceMemberId || t("insuranceClaims.notRegistered", "غير مسجل")}
                   </td>
                   <td className="px-4 py-3">{c.insuranceProvider?.name}</td>
                   <td className="px-4 py-3 font-black text-sky-400 text-base tracking-tight">
@@ -504,13 +507,13 @@ export default function InsuranceClaimsPage() {
                               : "bg-slate-800 text-slate-400 border-slate-700"
                       }`}
                     >
-                      {c.claimStatus === "SUBMITTED" ? "تم الإرسال" :
-                       c.claimStatus === "PAID" ? "تم السداد" :
-                       c.claimStatus === "REJECTED" ? "مرفوضة" : "معلقة"}
+                      {c.claimStatus === "SUBMITTED" ? t("preAuth.status.submitted", "تم الإرسال") :
+                       c.claimStatus === "PAID" ? t("preAuth.status.paid", "تم السداد") :
+                       c.claimStatus === "REJECTED" ? t("preAuth.status.rejected", "مرفوضة") : t("preAuth.status.pending", "معلقة")}
                     </span>
                     {c.claimStatus === "REJECTED" && c.rejectionReason && (
                       <div className="text-[10px] text-rose-400/80 mt-1 max-w-[150px] truncate" title={c.rejectionReason}>
-                        السبب: {c.rejectionReason}
+                        {t("insuranceClaims.rejectionReasonLabel", "السبب:")} {c.rejectionReason}
                       </div>
                     )}
                   </td>
@@ -529,19 +532,19 @@ export default function InsuranceClaimsPage() {
               <div className="p-2 bg-rose-500/20 text-rose-400 rounded-xl">
                 <XCircle className="w-6 h-6" />
               </div>
-              <h3 className="text-lg font-bold text-rose-400">رفض المطالبات التأمينية</h3>
+              <h3 className="text-lg font-bold text-rose-400">{t("insuranceClaims.rejectModal.title", "رفض المطالبات التأمينية")}</h3>
             </div>
             
             <div className="p-6">
               <p className="text-sm text-slate-400 mb-4 leading-relaxed">
-                سيتم تغيير حالة <span className="font-bold text-white">{selectedIds.length}</span> مطالبات إلى <span className="text-rose-400 font-bold">"مرفوضة"</span>. 
-                يرجى تدوين سبب الرفض الوارد من شركة التأمين ليتم مراجعته في قسم دورة الإيرادات (RCM).
+                {t("insuranceClaims.rejectModal.warningPrefix", "سيتم تغيير حالة")} <span className="font-bold text-white">{selectedIds.length}</span> {t("insuranceClaims.rejectModal.claimsTo", "مطالبات إلى")} <span className="text-rose-400 font-bold">"{t("preAuth.status.rejected", "مرفوضة")}"</span>. 
+                {t("insuranceClaims.rejectModal.warningSuffix", "يرجى تدوين سبب الرفض الوارد من شركة التأمين ليتم مراجعته في قسم دورة الإيرادات (RCM).")}
               </p>
               
-              <label className="block text-xs font-bold text-slate-400 mb-2">سبب الرفض (إلزامي)</label>
+              <label className="block text-xs font-bold text-slate-400 mb-2">{t("insuranceClaims.rejectModal.reasonLabel", "سبب الرفض (إلزامي)")}</label>
               <textarea
                 className="w-full bg-slate-950 border border-slate-700 rounded-xl p-4 text-sm focus:border-rose-500 focus:ring-1 focus:ring-rose-500 outline-none text-slate-100 min-h-[120px] resize-none"
-                placeholder="أدخل الرمز أو التبرير (مثال: الخدمة غير مشمولة بالوثيقة)..."
+                placeholder={t("insuranceClaims.rejectModal.placeholder", "أدخل الرمز أو التبرير (مثال: الخدمة غير مشمولة بالوثيقة)...")}
                 value={rejectionReason}
                 onChange={(e) => setRejectionReason(e.target.value)}
               />
@@ -552,14 +555,14 @@ export default function InsuranceClaimsPage() {
                 onClick={() => setShowRejectModal(false)}
                 className="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-bold rounded-xl transition-colors border border-slate-700 hover:border-slate-600"
               >
-                إلغاء التراجع
+                {t("common.cancel", "إلغاء التراجع")}
               </button>
               <button
                 onClick={handleRejectSubmit}
                 disabled={!rejectionReason.trim()}
                 className="px-6 py-2.5 bg-rose-600 hover:bg-rose-500 text-white text-sm font-bold rounded-xl shadow-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
-                <XCircle className="w-4 h-4" /> تأكيد الرفض
+                <XCircle className="w-4 h-4" /> {t("preAuth.action.confirmReject", "تأكيد الرفض")}
               </button>
             </div>
           </div>

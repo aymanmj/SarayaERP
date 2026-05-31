@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { apiClient } from "../api/apiClient";
 import { useNavigate } from "react-router-dom";
 import { formatDate } from "@/lib/utils";
@@ -35,6 +36,8 @@ function formatMoney(v: number) {
 // Local formatDate removed
 
 export default function PatientsAgingPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.dir() === "rtl";
   const [data, setData] = useState<PatientAgingResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -58,10 +61,10 @@ export default function PatientsAgingPage() {
   const asOf = data ? formatDate(data.asOf) : "";
 
   return (
-    <div className="flex flex-col h-full text-slate-100">
+    <div className="flex flex-col h-full text-slate-100" dir={isRtl ? "rtl" : "ltr"}>
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold mb-1">تحليل أعمار ذمم المرضى</h1>
+          <h1 className="text-2xl font-bold mb-1">{t("patientsAging.title", "تحليل أعمار ذمم المرضى")}</h1>
           <p className="text-sm text-slate-400">
             استعراض أرصدة المرضى (والتأمين المرتبط بهم) مقسمة حسب فترات
             الاستحقاق (0-30، 31-60، 61-90، 91-120، أكثر من 120 يوم).
@@ -79,19 +82,19 @@ export default function PatientsAgingPage() {
       {data && (
         <div className="mb-4 grid grid-cols-1 md:grid-cols-3 gap-3">
           <div className="rounded-3xl border border-slate-800 bg-slate-950/80 p-4">
-            <div className="text-xs text-slate-400 mb-1">تاريخ التقرير</div>
+            <div className="text-xs text-slate-400 mb-1">{t("patientsAging.reportDate", "تاريخ التقرير")}</div>
             <div className="text-lg font-semibold text-slate-100">{asOf}</div>
           </div>
           <div className="rounded-3xl border border-slate-800 bg-slate-950/80 p-4">
             <div className="text-xs text-slate-400 mb-1">
-              إجمالي رصيد المرضى
+              {t("patientsAging.totalBalance", "إجمالي رصيد المرضى")}
             </div>
             <div className="text-lg font-semibold text-sky-300">
               LYD {formatMoney(data.grandTotals.total)}
             </div>
           </div>
           <div className="rounded-3xl border border-slate-800 bg-slate-950/80 p-4 text-xs">
-            <div className="text-slate-400 mb-1">توزيع سريع</div>
+            <div className="text-slate-400 mb-1">{t("patientsAging.quickDistribution", "توزيع سريع")}</div>
             <div>0-30: LYD {formatMoney(data.grandTotals.b0_30)}</div>
             <div>31-60: LYD {formatMoney(data.grandTotals.b31_60)}</div>
             <div>61-90: LYD {formatMoney(data.grandTotals.b61_90)}</div>
@@ -103,23 +106,23 @@ export default function PatientsAgingPage() {
 
       <div className="flex-1 rounded-3xl border border-slate-800 bg-slate-950/80 p-4 text-xs overflow-auto">
         {loading ? (
-          <div className="text-slate-500 text-xs">جارِ تحميل البيانات...</div>
+          <div className="text-slate-500 text-xs">{t("common.loading", "جارِ تحميل البيانات...")}</div>
         ) : !data || data.patients.length === 0 ? (
           <div className="text-slate-500 text-xs">
-            لا توجد أرصدة مستحقة على المرضى حالياً.
+            {t("patientsAging.empty", "لا توجد أرصدة مستحقة على المرضى حالياً.")}
           </div>
         ) : (
-          <table className="w-full text-[11px] text-right border-separate border-spacing-y-1">
+          <table className="w-full text-[11px] text-start border-separate border-spacing-y-1">
             <thead className="text-slate-400">
               <tr>
-                <th className="px-2 py-1">المريض</th>
-                <th className="px-2 py-1">0 - 30 يوم</th>
-                <th className="px-2 py-1">31 - 60 يوم</th>
-                <th className="px-2 py-1">61 - 90 يوم</th>
-                <th className="px-2 py-1">91 - 120 يوم</th>
-                <th className="px-2 py-1">&gt; 120 يوم</th>
-                <th className="px-2 py-1">إجمالي الرصيد</th>
-                <th className="px-2 py-1">إجراءات</th>
+                <th className="px-2 py-1">{t("common.patient", "المريض")}</th>
+                <th className="px-2 py-1">{t("patientsAging.days.0_30", "0 - 30 يوم")}</th>
+                <th className="px-2 py-1">{t("patientsAging.days.31_60", "31 - 60 يوم")}</th>
+                <th className="px-2 py-1">{t("patientsAging.days.61_90", "61 - 90 يوم")}</th>
+                <th className="px-2 py-1">{t("patientsAging.days.91_120", "91 - 120 يوم")}</th>
+                <th className="px-2 py-1">{t("patientsAging.days.121_plus", "> 120 يوم")}</th>
+                <th className="px-2 py-1">{t("patientsAging.totalBalanceHeader", "إجمالي الرصيد")}</th>
+                <th className="px-2 py-1">{t("common.actions", "إجراءات")}</th>
               </tr>
             </thead>
             <tbody>
@@ -132,7 +135,7 @@ export default function PatientsAgingPage() {
                     <div className="font-semibold">{p.patientName}</div>
                     {p.mrn && (
                       <div className="text-[10px] text-slate-400">
-                        ملف: {p.mrn}
+                        {t("common.file", "ملف:")} {p.mrn}
                       </div>
                     )}
                   </td>
@@ -162,14 +165,14 @@ export default function PatientsAgingPage() {
                       }
                       className="px-3 py-1 rounded-full text-[11px] bg-slate-800 hover:bg-slate-700"
                     >
-                      كشف الحساب
+                      {t("patientsAging.statementBtn", "كشف الحساب")}
                     </button>
                   </td>
                 </tr>
               ))}
 
               <tr className="bg-slate-900 border border-slate-700 rounded-xl font-semibold">
-                <td className="px-2 py-1 align-top">الإجمالي</td>
+                <td className="px-2 py-1 align-top">{t("common.total", "الإجمالي")}</td>
                 <td className="px-2 py-1 align-top">
                   {formatMoney(data.grandTotals.b0_30)}
                 </td>

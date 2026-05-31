@@ -461,7 +461,7 @@ export default function AndrologyPage() {
                       {analyses[0] && (
                         <div className="min-w-[200px] shrink-0 bg-emerald-950/20 border border-emerald-900/50 p-4 rounded-xl flex items-center gap-3 snap-start">
                           <div className="text-2xl mt-1 opacity-80">🔬</div>
-                          <div><div className="text-[10px] text-emerald-400 font-mono">{fmtDate(analyses[0].sampleDate)}</div><div className="text-sm font-bold text-white truncate max-w-[150px]">سائل منوي</div><div className="text-xs text-slate-400">{analyses[0].autoClassification?.substring(0,15) || "-"}</div></div>
+                          <div><div className="text-[10px] text-emerald-400 font-mono">{fmtDate(analyses[0].sampleDate)}</div><div className="text-sm font-bold text-white truncate max-w-[150px]">{t("andrology.overview.semenSample", "سائل منوي")}</div><div className="text-xs text-slate-400">{analyses[0].autoClassification?.substring(0,15) || "-"}</div></div>
                         </div>
                       )}
                       {investigations[0] && (
@@ -487,7 +487,7 @@ export default function AndrologyPage() {
                 </div>
 
                 {loading ? (
-                  <div className="text-center text-slate-400 py-12">جارِ التحميل...</div>
+                  <div className="text-center text-slate-400 py-12">{t("common.loading", "جارِ التحميل...")}</div>
                 ) : analyses.length === 0 ? (
                   <div className="text-center text-slate-500 py-16 bg-slate-900/30 rounded-3xl border border-slate-800/50 border-dashed">
                     <p className="text-5xl mb-4 opacity-50">🧪</p>
@@ -537,7 +537,7 @@ export default function AndrologyPage() {
                   </button>
                 </div>
                 {loading ? (
-                  <div className="text-center text-slate-400 py-12">جارِ التحميل...</div>
+                  <div className="text-center text-slate-400 py-12">{t("common.loading", "جارِ التحميل...")}</div>
                 ) : hormones.length === 0 ? (
                   <div className="text-center text-slate-500 py-16 bg-slate-900/30 rounded-3xl border border-slate-800/50 border-dashed">
                     <p className="text-5xl mb-4 opacity-50">🩸</p>
@@ -548,13 +548,13 @@ export default function AndrologyPage() {
                     <table className="w-full text-right text-sm">
                       <thead className="text-xs text-slate-400 bg-slate-950">
                         <tr>
-                          <th className="p-4 rounded-tr-xl font-medium">التاريخ</th>
+                          <th className="p-4 rounded-tr-xl font-medium">{t("common.date", "التاريخ")}</th>
                           <th className="p-4 font-medium text-center">FSH <span className="text-[10px] text-slate-500">mIU</span></th>
                           <th className="p-4 font-medium text-center">LH <span className="text-[10px] text-slate-500">mIU</span></th>
                           <th className="p-4 font-medium text-center">Total T <span className="text-[10px] text-slate-500">ng/dL</span></th>
                           <th className="p-4 font-medium text-center">E2 <span className="text-[10px] text-slate-500">pg/mL</span></th>
                           <th className="p-4 font-medium text-center">PRL <span className="text-[10px] text-slate-500">ng/mL</span></th>
-                          <th className="p-4 rounded-tl-xl font-medium">ملاحظات</th>
+                          <th className="p-4 rounded-tl-xl font-medium">{t("common.notes", "ملاحظات")}</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-800/50">
@@ -676,7 +676,7 @@ export default function AndrologyPage() {
                         <div className="flex justify-between items-start">
                           <div>
                             <h4 className="text-base font-bold text-white">{m.medication}</h4>
-                            <div className="text-xs text-violet-300 mt-1">{m.category || "دواء عام"}</div>
+                            <div className="text-xs text-violet-300 mt-1">{m.category || t("andrology.medication.generalMed", "دواء عام")}</div>
                           </div>
                           <div className="text-right">
                             <div className="text-xs text-slate-400">{t("andrology.print.fields.started", "البدء: ")}<span className="text-white font-mono">{fmtDate(m.startDate)}</span></div>
@@ -684,10 +684,10 @@ export default function AndrologyPage() {
                           </div>
                         </div>
                         <div className="mt-4 flex flex-wrap gap-2 text-xs">
-                          {m.dose && <span className="bg-slate-800 text-slate-200 px-2 py-1 rounded-md border border-slate-700">t("andrology.medication.fields.dose", "جرعة: "){m.dose}</span>}
-                          {m.frequency && <span className="bg-slate-800 text-slate-200 px-2 py-1 rounded-md border border-slate-700">t("andrology.medication.fields.frequency", "تكرار: "){m.frequency}</span>}
+                          {m.dose && <span className="bg-slate-800 text-slate-200 px-2 py-1 rounded-md border border-slate-700">{t("andrology.medication.fields.dose", "جرعة: ")}{m.dose}</span>}
+                          {m.frequency && <span className="bg-slate-800 text-slate-200 px-2 py-1 rounded-md border border-slate-700">{t("andrology.medication.fields.frequency", "تكرار: ")}{m.frequency}</span>}
                         </div>
-                        {m.response && <div className="mt-4 text-xs bg-emerald-950/20 text-emerald-300 font-medium p-2.5 rounded-xl border border-emerald-900/30">t("andrology.medication.fields.response", "✅ استجابة: "){m.response}</div>}
+                        {m.response && <div className="mt-4 text-xs bg-emerald-950/20 text-emerald-300 font-medium p-2.5 rounded-xl border border-emerald-900/30">{t("andrology.medication.fields.response", "✅ استجابة: ")}{m.response}</div>}
                       </div>
                     ))}
                   </div>
@@ -720,7 +720,7 @@ export default function AndrologyPage() {
                             <h4 className="text-lg font-bold text-white inline-flex items-center gap-2">
                               {inv.type}
                             </h4>
-                            <div className="text-xs text-indigo-200 mt-1">تاريخ الفحص: <span className="font-mono">{fmtDate(inv.investigationDate)}</span></div>
+                            <div className="text-xs text-indigo-200 mt-1">{t("andrology.investigation.testDate", "تاريخ الفحص: ")}<span className="font-mono">{fmtDate(inv.investigationDate)}</span></div>
                           </div>
                           {inv.facilityName && <div className="text-xs text-slate-400 bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800">{t("andrology.investigation.fields.facilityName", "المختبر: ")}{inv.facilityName}</div>}
                         </div>

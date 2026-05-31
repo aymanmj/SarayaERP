@@ -55,7 +55,7 @@ export default function WaitlistManager() {
   const addMutation = useMutation({
     mutationFn: async () => {
       const noteParts = [
-        selectedResource ? `المورد المطلوب: ${selectedResource.name}` : null,
+        selectedResource ? t("waitlist.notes.requiredResource", { name: selectedResource.name, defaultValue: `المورد المطلوب: ${selectedResource.name}` }) : null,
         notes.trim() || null,
       ].filter(Boolean);
 
@@ -119,7 +119,7 @@ export default function WaitlistManager() {
   };
 
   return (
-    <div className="flex flex-col h-full text-slate-100 p-4 md:p-6 space-y-6 overflow-hidden">
+    <div className="flex flex-col h-full text-slate-100 p-4 md:p-6 space-y-6 overflow-hidden" dir={isRtl ? "rtl" : "ltr"}>
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-sm relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
         <div className="relative z-10">
@@ -127,10 +127,10 @@ export default function WaitlistManager() {
             <div className="p-2 bg-amber-500/20 text-amber-400 rounded-xl">
               <Clock className="w-6 h-6" />
             </div>
-            قوائم الانتظار الذكية
+            {t("waitlist.title", "قوائم الانتظار الذكية")}
           </h1>
           <p className="text-sm text-slate-400 mt-1">
-            متابعة المرضى بانتظار الموارد السريرية مع ترتيب حسب الأولوية والقسم.
+            {t("waitlist.subtitle", "متابعة المرضى بانتظار الموارد السريرية مع ترتيب حسب الأولوية والقسم.")}
           </p>
         </div>
         <div className="relative z-10 flex gap-2">
@@ -138,13 +138,13 @@ export default function WaitlistManager() {
             to="/clinical/scheduling"
             className="bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 hover:bg-indigo-600/40 px-4 py-2 rounded-xl text-sm font-bold transition-colors flex items-center gap-2 shadow-lg"
           >
-            <Server className="w-4 h-4" /> جدولة الموارد
+            <Server className="w-4 h-4" /> {t("scheduler.title", "جدولة الموارد")}
           </Link>
           <button
             onClick={() => setShowAddModal(true)}
             className="bg-amber-600 hover:bg-amber-500 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-lg transition-colors flex items-center gap-2"
           >
-            <UserPlus className="w-4 h-4" /> إضافة مريض
+            <UserPlus className="w-4 h-4" /> {t("waitlist.btn.addPatient", "إضافة مريض")}
           </button>
         </div>
       </div>
@@ -158,7 +158,7 @@ export default function WaitlistManager() {
         ) : waitlist.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-slate-400 bg-slate-900/50 rounded-xl border border-dashed border-slate-700">
             <Clock className="w-16 h-16 text-slate-600 mb-4 opacity-50" />
-            <p>قائمة الانتظار فارغة حاليًا.</p>
+            <p>{t("waitlist.empty", "قائمة الانتظار فارغة حاليًا.")}</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -179,14 +179,14 @@ export default function WaitlistManager() {
                 <div className="flex justify-between items-start mb-4 relative z-10">
                   <div>
                     <h3 className="font-bold text-slate-200 text-lg">
-                      {entry.patient?.fullName || `المريض #${entry.patientId}`}
+                      {entry.patient?.fullName || t("common.patientId", { id: entry.patientId, defaultValue: `المريض #${entry.patientId}` })}
                     </h3>
                     <div className="text-xs text-slate-500 flex items-center gap-1 mt-1">
                       <Server className="w-3 h-3" />
-                      {entry.resource?.name || entry.department?.name || "بدون قسم محدد"}
+                      {entry.resource?.name || entry.department?.name || t("common.noDept", "بدون قسم محدد")}
                     </div>
                   </div>
-                  <div className="text-right">
+                  <div className="text-start">
                     <span
                       className={`px-2 py-1 rounded text-[10px] font-bold ${
                         entry.priority === 1
@@ -225,7 +225,7 @@ export default function WaitlistManager() {
                     </span>
                   </div>
                   <div className="text-[10px] text-slate-500">
-                    أضيف:{" "}
+                    {t("waitlist.addedLabel", "أضيف:")}{" "}
                     {new Date(entry.requestedDate || entry.createdAt).toLocaleDateString(
                       "ar-LY",
                     )}
@@ -262,7 +262,7 @@ export default function WaitlistManager() {
                     disabled={isSearching}
                     className="bg-amber-600 hover:bg-amber-500 text-white px-4 py-2 rounded-xl text-sm font-bold transition-colors disabled:opacity-50"
                   >
-                    {isSearching ? "بحث..." : "بحث"}
+                    {isSearching ? t("common.searching", "بحث...") : t("common.search", "بحث")}
                   </button>
                 </div>
                 {foundPatient && (
@@ -294,7 +294,7 @@ export default function WaitlistManager() {
                 </select>
                 {selectedResource?.department?.name && (
                   <div className="text-[11px] text-slate-500 mt-2">
-                    سيتم ربط الطلب بالقسم: {selectedResource.department.name}
+                    {t("waitlist.add.linkDept", { name: selectedResource.department.name, defaultValue: `سيتم ربط الطلب بالقسم: ${selectedResource.department.name}` })}
                   </div>
                 )}
               </div>
@@ -337,7 +337,7 @@ export default function WaitlistManager() {
                 disabled={!foundPatient || !resourceId || addMutation.isPending}
                 className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-lg text-sm shadow-lg transition-colors disabled:opacity-50"
               >
-                إضافة للقائمة
+                {t("waitlist.btn.addToList", "إضافة للقائمة")}
               </button>
             </div>
           </div>

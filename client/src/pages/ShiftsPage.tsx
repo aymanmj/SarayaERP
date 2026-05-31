@@ -64,7 +64,10 @@ export default function ShiftsPage() {
   }, []);
 
   const handleCreate = async () => {
-    if (!name) return;
+    if (!name.trim()) {
+      toast.warning(t("hr.shifts.toast.nameRequired", "يرجى إدخال اسم الوردية أولاً"));
+      return;
+    }
     try {
       await apiClient.post("/hr/shifts", {
         name,

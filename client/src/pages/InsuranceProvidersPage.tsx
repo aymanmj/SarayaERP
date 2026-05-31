@@ -1,6 +1,7 @@
 // src/pages/insurance/InsuranceProvidersPage.tsx
 
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { apiClient } from "../api/apiClient";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -20,6 +21,8 @@ type InsuranceProvider = {
 };
 
 export default function InsuranceProvidersPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.dir() === "rtl";
   const [providers, setProviders] = useState<InsuranceProvider[]>([]);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -48,7 +51,7 @@ export default function InsuranceProvidersPage() {
       setProviders(res.data);
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
-      toast.error("فشل تحميل شركات التأمين");
+      toast.error(t("insuranceProviders.toast.loadFailed", "فشل تحميل شركات التأمين"));
     } finally {
       setLoading(false);
     }
@@ -73,7 +76,7 @@ export default function InsuranceProvidersPage() {
     setShowModal(true);
   };
 
-  // فتح المودال للتعديل
+  // فتح المودال لل{t("common.edit", "تعديل")}
   const openEditModal = (provider: InsuranceProvider) => {
     setIsEditing(true);
     setEditingId(provider.id);
@@ -91,7 +94,7 @@ export default function InsuranceProvidersPage() {
   // الحفظ (إنشاء أو تعديل)
   const handleSave = async () => {
     if (!formData.name || !formData.code) {
-      toast.warning("الاسم والكود مطلوبان");
+      toast.warning(t("insuranceProviders.toast.requiredFields", "الاسم والكود مطلوبان"));
       return;
     }
 
@@ -99,31 +102,31 @@ export default function InsuranceProvidersPage() {
       if (isEditing && editingId) {
         // تعديل
         await apiClient.patch(`/insurance/providers/${editingId}`, formData);
-        toast.success("تم تعديل بيانات الشركة بنجاح");
+        toast.success(t("insuranceProviders.toast.updatedSuccess", "تم تعديل بيانات الشركة بنجاح"));
       } else {
         // إنشاء
         await apiClient.post("/insurance/providers", formData);
-        toast.success("تم إضافة الشركة بنجاح");
+        toast.success(t("insuranceProviders.toast.createdSuccess", "تم إضافة الشركة بنجاح"));
       }
       setShowModal(false);
       loadProviders();
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
-      toast.error("فشل الحفظ");
+      toast.error(t("common.saveFailed", "فشل الحفظ"));
     }
   };
 
-  // الأرشفة (Soft Delete)
+  // ال{t("common.archive", "أرشفة")} (Soft Delete)
   const handleSoftDelete = async (id: number, name: string) => {
-    if (!confirm(`هل أنت متأكد من أرشفة (إيقاف) شركة "${name}"؟`)) return;
+    if (!confirm(t("insuranceProviders.confirmArchive", { name, defaultValue: `هل أنت متأكد من أرشفة (إيقاف) شركة "${name}"؟` }))) return;
 
     try {
       await apiClient.delete(`/insurance/providers/${id}`);
-      toast.success("تم أرشفة الشركة بنجاح");
+      toast.success(t("insuranceProviders.toast.archivedSuccess", "تم أرشفة الشركة بنجاح"));
       loadProviders();
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
-      toast.error("فشل الأرشفة");
+      toast.error(t("insuranceProviders.toast.archiveFailed", "فشل الأرشفة"));
     }
   };
 
@@ -136,17 +139,17 @@ export default function InsuranceProvidersPage() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold mb-1">
-            شركات التأمين (Insurance Providers)
+            {t("insuranceProviders.title", "شركات التأمين (Insurance Providers)")}
           </h1>
           <p className="text-sm text-slate-400">
-            إدارة عقود الشركات، البوالص، والخطط التأمينية.
+            {t("insuranceProviders.subtitle", "إدارة عقود الشركات، البوالص، والخطط التأمينية.")}
           </p>
         </div>
         <button
           onClick={openCreateModal}
           className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-xl text-sm font-bold shadow-lg flex items-center gap-2"
         >
-          <span>+</span> شركة جديدة
+          <span>+</span> {t("insuranceProviders.btn.newProvider", "شركة جديدة")}
         </button>
       </div>
 
@@ -160,7 +163,7 @@ export default function InsuranceProvidersPage() {
 
         {!loading && providers.length === 0 && (
           <div className="col-span-3 text-center py-10 bg-slate-900/50 rounded-2xl border border-slate-800 text-slate-500">
-            لا توجد شركات تأمين مضافة بعد.
+            {t("insuranceProviders.empty", "لا توجد شركات تأمين مضافة بعد.")}
           </div>
         )}
 
@@ -185,7 +188,7 @@ export default function InsuranceProvidersPage() {
                       : "bg-rose-900/30 text-rose-300 border-rose-500/30"
                   }`}
                 >
-                  {prov.isActive ? "نشط" : "أرشيف"}
+                  {prov.isActive ? t("common.active", "نشط") : t("common.archive", "أرشيف")}
                 </span>
               </div>
 
@@ -207,7 +210,7 @@ export default function InsuranceProvidersPage() {
                 onClick={() => navigate(`/insurance/providers/${prov.id}`)}
                 className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-sky-300 rounded-lg transition flex items-center gap-1"
               >
-                <span>⚙️</span> إدارة الخطط
+                <span>⚙️</span> {t("insuranceProviders.btn.managePlans", "إدارة الخطط")}
               </button>
 
               <div className="flex gap-2">
@@ -236,13 +239,13 @@ export default function InsuranceProvidersPage() {
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
           <div className="bg-slate-950 border border-slate-700 rounded-2xl p-6 w-full max-w-md space-y-4 shadow-2xl animate-in zoom-in-95 duration-200">
             <h3 className="text-lg font-bold text-white mb-4">
-              {isEditing ? "تعديل شركة تأمين" : "إضافة شركة تأمين"}
+              {isEditing ? t("insuranceProviders.edit.editTitle", "تعديل شركة تأمين") : t("insuranceProviders.edit.createTitle", "إضافة شركة تأمين")}
             </h3>
 
             <div className="space-y-3 text-sm">
               <div>
                 <label className="block text-slate-400 mb-1 text-xs">
-                  اسم الشركة <span className="text-rose-500">*</span>
+                  {t("insuranceProviders.edit.providerName", "اسم الشركة")} <span className="text-rose-500">*</span>
                 </label>
                 <input
                   className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 focus:border-sky-500 outline-none"
@@ -256,7 +259,7 @@ export default function InsuranceProvidersPage() {
 
               <div>
                 <label className="block text-slate-400 mb-1 text-xs">
-                  الكود التعريفي <span className="text-rose-500">*</span>
+                  {t("insuranceProviders.edit.code", "الكود التعريفي")} <span className="text-rose-500">*</span>
                 </label>
                 <input
                   className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 focus:border-sky-500 outline-none font-mono"
@@ -271,7 +274,7 @@ export default function InsuranceProvidersPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-slate-400 mb-1 text-xs">
-                    الهاتف
+                    {t("common.phone", "الهاتف")}
                   </label>
                   <input
                     className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 focus:border-sky-500 outline-none"
@@ -283,7 +286,7 @@ export default function InsuranceProvidersPage() {
                 </div>
                 <div>
                   <label className="block text-slate-400 mb-1 text-xs">
-                    البريد الإلكتروني
+                    {t("common.email", "البريد الإلكتروني")}
                   </label>
                   <input
                     className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 focus:border-sky-500 outline-none"
@@ -297,7 +300,7 @@ export default function InsuranceProvidersPage() {
 
               <div>
                 <label className="block text-slate-400 mb-1 text-xs">
-                  العنوان
+                  {t("common.address", "العنوان")}
                 </label>
                 <input
                   className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 focus:border-sky-500 outline-none"
@@ -323,7 +326,7 @@ export default function InsuranceProvidersPage() {
                     htmlFor="isActive"
                     className="text-sm text-slate-300 cursor-pointer"
                   >
-                    الشركة نشطة (Active)
+                    {t("insuranceProviders.edit.activeLabel", "الشركة نشطة (Active)")}
                   </label>
                 </div>
               )}

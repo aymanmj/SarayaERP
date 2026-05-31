@@ -3674,48 +3674,107 @@
       "createFailed": "فشل إنشاء السجل.",
       "updated": "تم تحديث السجل وقواعده.",
       "updateFailed": "فشل تحديث السجل.",
-      "gapClosed": "تم إغلاق الفجوة يدوياً.",
-      "gapCloseFailed": "فشل في إغلاق الفجوة."
+      "closeSuccess": "تم إغلاق فجوة الرعاية بنجاح.",
+      "closeFailed": "فشل إغلاق فجوة الرعاية.",
+      "nameRequired": "يرجى إدخال اسم السجل.",
+      "criteriaRequired": "يجب تعريف معيار واحد على الأقل.",
+      "rulesRequired": "يجب تعريف قاعدة فجوة رعاية واحدة على الأقل."
     },
-    "title": "سجل الأمراض وفجوات الرعاية",
-    "subtitle": "إدارة السجلات الإكلينيكية وتحديد فجوات الرعاية الوقائية للمرضى بشكل مؤتمت.",
+    "title": "لوحة السجلات وفجوات الرعاية",
+    "subtitle": "إدارة السجلات المرضية، معايير الانضمام، وقواعد فجوات الرعاية من مكان واحد.",
     "btn": {
-      "evaluateMembers": "تقييم الأعضاء",
-      "evaluateGaps": "تقييم الفجوات",
-      "new": "إنشاء سجل جديد",
-      "closeGap": "معالجة الفجوة"
+      "newRegistry": "سجل جديد",
+      "updateRegistries": "تحديث السجلات",
+      "evaluateGaps": "تقييم الفجوات"
     },
-    "listTitle": "سجل الأمراض المعرف",
-    "statsTitle": "إحصائيات السجل النشط",
-    "stats": {
-      "totalEnrolled": "إجمالي المسجلين",
-      "activeGaps": "فجوات رعاية نشطة",
-      "patientsNoGaps": "مرضى بدون فجوات"
-    },
-    "criteriaTitle": "معايير إدراج السجل الإكلينيكي",
-    "criteriaSubtitle": "تحديد الفئة المستهدفة للسجل بناء على تصفية قواعد البيانات السريرية:",
-    "rulesTitle": "قواعد فجوات الرعاية الوقائية",
-    "rules": {
-      "everyDays": "كل {{days}} يوم"
-    },
-    "enrolledListTitle": "قائمة المرضى المسجلين",
+    "definedRegistries": "السجلات المعرفة",
+    "emptyRegistries": "لا توجد سجلات معرفة بعد. ابدأ بإنشاء سجل جديد.",
+    "criteriaUnit": "معيار",
+    "ruleUnit": "قاعدة",
+    "memberUnit": "عضو",
+    "searchPatient": "بحث عن مريض",
     "placeholder": {
-      "searchEnrolled": "ابحث برقم الملف أو الاسم..."
+      "searchPatient": "الاسم، رقم الملف، أو الهاتف...",
+      "type": "النوع",
+      "operator": "المعامل",
+      "value": "القيمة",
+      "ruleName": "اسم القاعدة",
+      "targetType": "نوع الهدف",
+      "targetValue": "القيمة المستهدفة",
+      "frequencyDays": "عدد الأيام",
+      "ruleDescription": "وصف القاعدة",
+      "closeReason": "أدخل سبب إغلاق الفجوة..."
     },
-    "gapsTitle": "فجوات الرعاية للمريض",
-    "table": {
-      "targetItem": "المستند المطلوبة",
-      "detectedAt": "تاريخ الاكتشاف"
+    "patientSelected": "المريض محدد",
+    "details": {
+      "title": "تفاصيل السجل",
+      "emptyHint": "اختر سجلًا من القائمة لعرض معاييره وقواعد فجوات الرعاية الخاصة به.",
+      "noDescription": "لا يوجد وصف لهذا السجل.",
+      "criteria": "معايير الانضمام",
+      "noCriteria": "لا توجد معايير معرفة.",
+      "careGapRules": "قواعد فجوات الرعاية",
+      "everyDays": "كل {{days}} يوم",
+      "noRules": "لا توجد قواعد فجوات معرفة."
     },
-    "emptyGaps": "لا توجد فجوات رعاية نشطة لهذا المريض.",
+    "analytics": {
+      "members": "الأعضاء:",
+      "openGaps": "الفجوات المفتوحة:"
+    },
+    "patientGaps": {
+      "title": "فجوات الرعاية للمريض {{id}}",
+      "searchHint": "يرجى البحث عن مريض لعرض فجوات الرعاية الخاصة به.",
+      "noOpenGaps": "لا توجد فجوات رعاية مفتوحة لهذا المريض.",
+      "identifiedDate": "تاريخ الاكتشاف:",
+      "closeGapBtn": "معالجة الفجوة وإغلاقها"
+    },
+    "edit": {
+      "editTitle": "تعديل السجل",
+      "createTitle": "إنشاء سجل جديد",
+      "registryName": "اسم السجل",
+      "registryActive": "السجل نشط",
+      "addCriteria": "معيار",
+      "addRule": "قاعدة",
+      "ruleActive": "القاعدة نشطة"
+    },
     "closeGap": {
-      "title": "تأكيد إغلاق فجوة الرعاية",
-      "subtitle": "يرجى إدخال مبرر أو ملاحظات إغلاق الفجوة يدوياً:",
-      "placeholder": "تم توفير الخدمة للمريض خارجياً / مبرر طبي...",
-      "btnConfirm": "إغلاق الفجوة"
+      "title": "إغلاق فجوة الرعاية",
+      "ruleLabel": "القاعدة:",
+      "confirmBtn": "تأكيد الإغلاق"
     }
   },
   "scheduler": {
+    "availableResources": "الموارد المتاحة",
+    "placeholder": {
+      "search": "ابحث عن مورد..."
+    },
+    "upcomingBookings": "الحجوزات القادمة",
+    "sevenDays": "(7 أيام)",
+    "btn": {
+      "addResource": "إضافة مورد",
+      "waitlist": "قوائم الانتظار",
+      "bookResource": "حجز المورد",
+      "cancelBooking": "إلغاء الحجز",
+      "saveResource": "حفظ المورد",
+      "confirmBooking": "تأكيد الحجز"
+    },
+    "title": "جدولة الموارد المتقدمة",
+    "subtitle": "إدارة وحجز الموارد السريرية مثل الغرف والمعدات مع منع التعارض.",
+    "emptyResources": "لا توجد موارد مطابقة.",
+    "loadingBookings": "جاري تحميل الحجوزات...",
+    "emptyBookings": "لا توجد حجوزات قادمة لهذا المورد.",
+    "confirmCancel": "هل تريد إلغاء هذا الحجز؟",
+    "promptSelectResource": "يرجى تحديد مورد من القائمة لعرض جدول حجوزاته.",
+    "book": {
+      "title": "حجز مورد جديد",
+      "patientId": "رقم المريض",
+      "startTime": "وقت البداية",
+      "endTime": "وقت النهاية"
+    },
+    "create": {
+      "title": "إضافة مورد جديد",
+      "resourceName": "اسم المورد",
+      "resourceType": "نوع المورد"
+    },
     "toast": {
       "bookedSuccess": "تم حجز المورد بنجاح.",
       "bookedFailed": "فشل الحجز أو يوجد تعارض.",
@@ -3723,42 +3782,31 @@
       "resourceCreateFailed": "فشل إضافة المورد.",
       "cancelledSuccess": "تم إلغاء الحجز.",
       "cancelledFailed": "فشل الإلغاء."
-    },
-    "title": "جدولة الموارد المتقدمة",
-    "subtitle": "إدارة وحجز الموارد السريرية مثل الغرف والمعدات مع منع التعارض.",
-    "btn": {
-      "addPatient": "إضافة مريض",
-      "addResource": "إضافة مورد",
-      "waitlist": "قوائم الانتظار",
-      "bookResource": "حجز المورد"
-    },
-    "availableResources": "الموارد المتاحة",
-    "placeholder": {
-      "search": "ابحث عن مورد..."
-    },
-    "emptyResources": "لا توجد موارد مطابقة.",
-    "upcomingBookings": "الحجوزات القادمة {{days}}",
-    "promptSelectResource": "يرجى تحديد مورد من القائمة لعرض جدول حجوزاته.",
-    "loadingBookings": "جاري تحميل الحجوزات...",
-    "emptyBookings": "لا توجد حجوزات قادمة لهذا المورد.",
-    "confirmCancel": "هل تريد إلغاء هذا الحجز؟",
-    "book": {
-      "title": "حجز مورد جديد",
-      "startTime": "وقت البداية",
-      "endTime": "وقت النهاية",
-      "btnConfirm": "تأكيد الحجز"
-    },
-    "create": {
-      "title": "إضافة مورد جديد",
-      "resourceName": "اسم المورد",
-      "resourceType": "نوع المورد",
-      "btnSave": "حفظ المورد"
     }
   },
   "waitlist": {
-    "toast": {
-      "addedSuccess": "تمت إضافة المريض لقائمة الانتظار.",
-      "addedFailed": "فشل إضافة المريض لقائمة الانتظار."
+    "title": "قوائم الانتظار الذكية",
+    "subtitle": "متابعة المرضى بانتظار الموارد السريرية مع ترتيب حسب الأولوية والقسم.",
+    "btn": {
+      "addPatient": "إضافة مريض",
+      "addToList": "إضافة للقائمة"
+    },
+    "empty": "قائمة الانتظار فارغة حاليًا.",
+    "addedLabel": "أضيف:",
+    "loading": "جاري تحميل قائمة الانتظار...",
+    "add": {
+      "title": "إضافة مريض لقائمة الانتظار",
+      "resourceRequired": "المورد المطلوب",
+      "linkDept": "سيتم ربط الطلب بالقسم:"
+    },
+    "priorityLabel": "الأولوية",
+    "placeholder": {
+      "search": "الاسم، رقم الملف، أو الهاتف..."
+    },
+    "priority": {
+      "urgent": "عاجل",
+      "high": "عالي",
+      "normal": "عادي"
     },
     "status": {
       "notified": "تم الإشعار",
@@ -3766,25 +3814,12 @@
       "cancelled": "ملغى",
       "waiting": "قيد الانتظار"
     },
-    "priority": {
-      "high": "عالي"
+    "toast": {
+      "addedSuccess": "تمت إضافة المريض لقائمة الانتظار.",
+      "addedFailed": "فشل إضافة المريض لقائمة الانتظار."
     },
-    "title": "قوائم الانتظار الذكية",
-    "subtitle": "متابعة المرضى بانتظار الموارد السريرية مع ترتيب حسب الأولوية والقسم.",
-    "btn": {
-      "addPatient": "إضافة مريض",
-      "addConfirm": "إضافة للقائمة"
-    },
-    "loading": "جاري تحميل قائمة الانتظار...",
-    "empty": "قائمة الانتظار فارغة حالياً.",
-    "addedLabel": "أضيف:",
-    "add": {
-      "title": "إضافة مريض لقائمة الانتظار",
-      "searchPatient": "البحث عن مريض",
-      "requestedResource": "المورد المطلوب"
-    },
-    "placeholder": {
-      "search": "الاسم، رقم الملف، أو الهاتف..."
+    "notes": {
+      "requiredResource": "المورد المطلوب:"
     }
   },
   "treasury": {
@@ -4490,6 +4525,308 @@
       "pacuNotesLabel": "ملاحظات سريرية لوحدة الإفاقة (PACU Notes)",
       "pacuNotesPh": "ملاحظات إضافية، مستوى الألم، الغثيان، إلخ...",
       "savePacuBtn": "💾 حفظ تقييم الإفاقة والدريد"
+    }
+  },
+  "clinicalPathways": {
+    "toast": {
+      "newDraftCreated": "تم إنشاء مسودة جديدة v{{version}} بدل تعديل النسخة الحالية مباشرة",
+      "draftUpdated": "تم تحديث مسودة المسار بنجاح",
+      "draftCreated": "تم إنشاء مسودة المسار العلاجي بنجاح",
+      "saveFailed": "فشل حفظ المسار العلاجي",
+      "enrollSuccess": "تم تسجيل المريض في \"{{name}}\" بنجاح",
+      "enrollFailed": "فشل التسجيل",
+      "disableFailed": "فشل تعطيل المسار",
+      "workflowFailed": "فشل تنفيذ الإجراء",
+      "submittedReview": "تم إرسال المسودة للمراجعة",
+      "approved": "تم اعتماد الإصدار",
+      "rejected": "تمت إعادة الإصدار إلى مسودة",
+      "published": "تم نشر الإصدار للاستخدام",
+      "retired": "تم تقاعد الإصدار المنشور"
+    },
+    "confirmDisable": "هل تريد تعطيل هذا المسار العلاجي؟",
+    "title": "المسارات العلاجية",
+    "subtitle": "إدارة المسارات السريرية عبر المسودة والمراجعة والاعتماد والنشر",
+    "createNew": "+ مسار علاجي جديد",
+    "tabs": {
+      "pathways": "المسارات العلاجية",
+      "enrollments": "تسجيلات المرضى"
+    },
+    "placeholder": {
+      "search": "بحث بالاسم أو التشخيص...",
+      "pneumonia": "مسار الالتهاب الرئوي",
+      "description": "نطاق المسار والأهداف العامة...",
+      "changeSummary": "ما الذي تغير في هذه النسخة؟",
+      "outcome": "استقرار العلامات الحيوية"
+    },
+    "stepsLabel": "خطوة",
+    "enrollmentsLabel": "تسجيل",
+    "btn": {
+      "details": "عرض التفاصيل",
+      "enroll": "📋 تسجيل مريض",
+      "edit": "تعديل",
+      "newVersion": "إصدار جديد",
+      "submitReview": "للمراجعة",
+      "approve": "اعتماد",
+      "reject": "إرجاع",
+      "publish": "نشر",
+      "retire": "تقاعد",
+      "cancelChanges": "إلغاء التغييرات",
+      "saveDraft": "💾 حفظ المسودة",
+      "addStep": "+ خطوة جديدة"
+    },
+    "empty": "لا توجد مسارات علاجية",
+    "emptyHint": "ابدأ بإنشاء أول مسار ثم مرره عبر المراجعة والاعتماد والنشر",
+    "enrollmentsEmpty": "تسجيلات المرضى",
+    "enrollmentsEmptyHint": "لعرض تفاصيل التسجيلات انتقل إلى الحالة المرضية أو شغّل لوحة متابعة منفصلة لاحقًا",
+    "builder": {
+      "editTitle": "إدارة إصدار المسار العلاجي",
+      "newTitle": "بناء مسار علاجي جديد",
+      "draftHint": "يمكنك تعديل هذه المسودة مباشرة قبل إرسالها للمراجعة",
+      "versionHint": "سيتم إنشاء مسودة جديدة من الإصدار الحالي v{{version}} بدل تعديل النسخة الحالية مباشرة",
+      "newHint": "قم ببناء رحلة علاجية معيارية قبل اعتمادها ونشرها",
+      "basicSettings": "الإعدادات الأساسية",
+      "nameEn": "الاسم الإنجليزي (EN)",
+      "nameAr": "الاسم العربي (AR)",
+      "expectedLos": "مدة الإقامة المتوقعة",
+      "description": "الوصف العلمي",
+      "changeSummary": "ملخص التغيير",
+      "steps": "الخطوات والمراحل الزمنية",
+      "stepsSubtitle": "إضافة الإجراءات ومجموعات الطلبات موزعة حسب الأيام والمراحل العلاجية.",
+      "emptySteps": "المسار لم يبدأ بعد",
+      "emptyStepsHint": "أضف اليوم الأول والخطوات الأساسية لبدء بناء المسار العلاجي",
+      "linkOrderSet": "ربط بمجموعة طلبات منشورة",
+      "stepName": "اسم الإجراء",
+      "expectedOutcome": "الهدف المتوقع"
+    },
+    "phase": {
+      "none": "بدون مرحلة مخصصة",
+      "assessment": "التقييم",
+      "treatment": "العلاج",
+      "monitoring": "المتابعة",
+      "discharge": "الخروج"
+    },
+    "goal": "الهدف:",
+    "linkedOrderSet": "مجموعة الطلبات:",
+    "pathwayLabel": "مسار:",
+    "enroll": {
+      "title": "تسجيل حالة في مسار علاجي",
+      "searchEncounter": "بحث عن الحالة النشطة",
+      "clinicalNotes": "ملاحظات سريرية (اختياري)"
+    },
+    "enrolling": "جاري التسجيل...",
+    "enrollStart": "📋 تسجيل وبدء المسار"
+  },
+  "patientsAging": {
+    "title": "تحليل أعمار ذمم المرضى",
+    "subtitle": "استعراض أرصدة المرضى (والتأمين المرتبط بهم) مقسمة حسب فترات الاستحقاق (0-30، 31-60، 61-90، 91-120، أكثر من 120 يوم).",
+    "reportDate": "تاريخ التقرير",
+    "totalBalance": "إجمالي رصيد المرضى",
+    "quickDistribution": "توزيع سريع",
+    "empty": "لا توجد أرصدة مستحقة على المرضى حالياً.",
+    "days": {
+      "0_30": "0 - 30 يوم",
+      "31_60": "31 - 60 يوم",
+      "61_90": "61 - 90 يوم",
+      "91_120": "91 - 120 يوم",
+      "121_plus": "> 120 يوم"
+    },
+    "totalBalanceHeader": "إجمالي الرصيد",
+    "statementBtn": "كشف الحساب"
+  },
+  "insuranceProviders": {
+    "title": "شركات التأمين (Insurance Providers)",
+    "subtitle": "إدارة عقود الشركات، البوالص، والخطط التأمينية.",
+    "btn": {
+      "newProvider": "شركة جديدة",
+      "managePlans": "إدارة الخطط"
+    },
+    "empty": "لا توجد شركات تأمين مضافة بعد.",
+    "confirmArchive": "هل أنت متأكد من أرشفة (إيقاف) شركة \"{{name}}\"؟",
+    "toast": {
+      "loadFailed": "فشل تحميل شركات التأمين",
+      "requiredFields": "الاسم والكود مطلوبان",
+      "updatedSuccess": "تم تعديل بيانات الشركة بنجاح",
+      "createdSuccess": "تم إضافة الشركة بنجاح",
+      "archivedSuccess": "تم أرشفة الشركة بنجاح",
+      "archiveFailed": "فشل الأرشفة"
+    },
+    "edit": {
+      "editTitle": "تعديل شركة تأمين",
+      "createTitle": "إضافة شركة تأمين",
+      "providerName": "اسم الشركة",
+      "code": "الكود التعريفي",
+      "activeLabel": "الشركة نشطة (Active)"
+    },
+    "details": {
+      "backBtn": "➜ العودة لقائمة الشركات",
+      "manageLabel": "إدارة:",
+      "activePolicies": "📋 البوالص / العقود السارية",
+      "newPolicyBtn": "+ عقد / بوليصة جديدة",
+      "policyName": "اسم البوليصة",
+      "policyNumber": "رقم البوليصة",
+      "linkedPlan": "الخطة المرتبطة",
+      "validity": "الصلاحية",
+      "emptyPolicies": "لا توجد بوالص. يجب إضافة بوليصة لربط المرضى.",
+      "noPlan": "بدون خطة (نقدي/عام)",
+      "expired": "منتهي",
+      "coveragePlans": "⚙️ خطط التغطية (Plans)",
+      "newPlanBtn": "+ خطة جديدة",
+      "defaultCopay": "التحمل الافتراضي:",
+      "manageRules": "إدارة القواعد ⚙️",
+      "emptyPlans": "لا توجد خطط تأمينية. قم بإنشاء خطة أولاً ثم اربطها ببوليصة.",
+      "newPlanModalTitle": "إضافة خطة تأمين جديدة",
+      "planNameLabel": "اسم الخطة",
+      "defaultCopayLabel": "نسبة التحمل الافتراضية (%)",
+      "newPolicyModalTitle": "إضافة عقد / بوليصة جديدة",
+      "policyNameRequiredLabel": "اسم البوليصة / العقد *",
+      "policyNumberLabel": "رقم البوليصة",
+      "linkedPlanLabel": "الخطة المرتبطة (Plan)",
+      "noPlanOption": "بدون خطة (تغطية عامة)",
+      "startDateLabel": "تاريخ البدء",
+      "endDateLabel": "تاريخ الانتهاء",
+      "savePolicyBtn": "حفظ البوليصة",
+      "toast": {
+        "loadFailed": "فشل تحميل البيانات",
+        "planCreated": "تم إنشاء الخطة",
+        "planCreateFailed": "فشل إنشاء الخطة",
+        "policyNameRequired": "اسم البوليصة مطلوب",
+        "policyCreated": "تم إنشاء البوليصة",
+        "policyCreateFailed": "فشل إنشاء البوليصة"
+      }
+    }
+  },
+  "preAuth": {
+    "title": "الموافقات المسبقة (Pre-Auth)",
+    "subtitle": "متابعة طلبات الموافقة الواردة والصادرة لشركات التأمين.",
+    "btn": {
+      "newRequest": "+ طلب موافقة جديد",
+      "nphies": "نفيس"
+    },
+    "table": {
+      "providerPolicy": "الشركة و الوثيقة",
+      "requestedAmount": "المبلغ المطلوب",
+      "status": "حالة الطلب",
+      "authCode": "رقم الموافقة"
+    },
+    "empty": "لا توجد طلبات جارية.",
+    "noMemberId": "بدون رقم أجنبي",
+    "provider": "الشركة:",
+    "status": {
+      "pending": "قيد الانتظار",
+      "approved": "موافق عليه",
+      "rejected": "مرفوض",
+      "submitted": "تم الإرسال",
+      "paid": "تم السداد"
+    },
+    "toast": {
+      "noActivePolicy": "هذا المريض ليس لديه بوليصة تأمين فعالة.",
+      "createdSuccess": "تم تسجيل طلب الموافقة بنجاح",
+      "nphiesEligible": "✅ المريض مؤهل تأمينياً عبر NPHIES",
+      "nphiesEligibilityFailed": "فشل التحقق من الأهلية عبر NPHIES",
+      "cptCodeRequired": "يرجى إدخال رمز الخدمة (CPT Code) لكل خدمة",
+      "icdCodeRequired": "يرجى إدخال رمز التشخيص (ICD-10) لكل تشخيص",
+      "nphiesAccepted": "✅ تم قبول الموافقة المسبقة — رقم NPHIES: {{claimId}}",
+      "nphiesSubmitFailed": "فشل الإرسال إلى منصة نفيس (NPHIES)",
+      "authCodeRequired": "رقم الموافقة (Auth Code) إجباري عند القبول",
+      "updatedSuccess": "تم تحديث حالة الموافقة بنجاح",
+      "updateFailed": "فشل التحديث"
+    },
+    "add": {
+      "modalTitle": "إنشاء طلب موافقة مسبقة",
+      "searchLabel": "البحث عن مريض (الاسم، رقم الملف، الهاتف)",
+      "nphiesEligibility": "أهلية NPHIES",
+      "insuranceMemberId": "رقم التأمين:",
+      "requestedAmountLabel": "المبلغ المطلوب (اختياري)",
+      "notesLabel": "ملاحظات / وصف الخدمة المطلوبة"
+    },
+    "placeholder": {
+      "notes": "تفاصيل التقرير الطبي واسم الطبيب المعالج...",
+      "cptCode": "رمز CPT",
+      "serviceName": "اسم الخدمة",
+      "quantity": "الكمية",
+      "price": "السعر",
+      "icdCode": "رمز ICD-10",
+      "diagnosisDesc": "وصف التشخيص"
+    },
+    "action": {
+      "approveTitle": "تسجيل الموافقة",
+      "rejectTitle": "تسجيل الرفض",
+      "authCodeLabel": "رقم الموافقة الممنوح (Auth Code)",
+      "approvedAmountLabel": "المبلغ الموافق عليه (اختياري)",
+      "endDateLabel": "تاريخ الانتهاء",
+      "rejectWarning": "سيتم تحديث حالة الطلب إلى \"مرفوض\". يمكنك إضافة ملاحظة إضافية للسبب من واجهة الملاحظات لاحقاً إذا احتجت لذلك. هل أنت متأكد من الرفض؟",
+      "confirmApprove": "تأكيد الموافقة",
+      "confirmReject": "تأكيد الرفض"
+    },
+    "nphies": {
+      "modalTitle": "إرسال إلى منصة نفيس (NPHIES)",
+      "subtitle": "موافقة مسبقة",
+      "servicesLabel": "الخدمات المطلوبة (CPT Codes)",
+      "addServiceBtn": "+ إضافة خدمة",
+      "diagnosesLabel": "التشخيصات (ICD-10)",
+      "isPrimary": "رئيسي",
+      "addDiagnosisBtn": "+ إضافة تشخيص",
+      "attachmentsLabel": "المرفقات السريرية (اختياري)",
+      "uploadHint": "اضغط لرفع تقارير طبية أو صور أشعة (PDF, JPG, PNG)",
+      "submitBtn": "إرسال إلى نفيس"
+    }
+  },
+  "insuranceClaims": {
+    "title": "إدارة مطالبات التأمين (RCM)",
+    "subtitle": "متابعة الفواتير المستحقة، إدارة المطالبات المرفوضة، وتجهيز ملفات NPHIES.",
+    "filter": {
+      "provider": "شركة التأمين",
+      "allProviders": "عرض كل الشركات",
+      "status": "حالة المطالبة"
+    },
+    "status": {
+      "pendingOption": "معلقة (لم ترسل)",
+      "submittedOption": "تم الإرسال (Submitted)",
+      "paidOption": "تم السداد (Paid)",
+      "rejectedOption": "مرفوضة (Rejected)"
+    },
+    "stats": {
+      "totalClaims": "إجمالي المطالبات الظاهرة"
+    },
+    "action": {
+      "selectedPrefix": "تم تحديد",
+      "selectedClaims": "مطالبة",
+      "selectedClaimsValue": "بقيمة إجمالية",
+      "submitBtn": "إرسال المطالبة",
+      "payBtn": "تسجيل السداد",
+      "rejectBtn": "رفض المطالبات",
+      "resubmitBtn": "إعادة تقديم المطالبة",
+      "printBtn": "طباعة كشف التجمع"
+    },
+    "table": {
+      "invoiceNumber": "رقم الفاتورة",
+      "memberId": "رقم العضوية",
+      "insuranceShare": "المطالبة (حصة الشركة)",
+      "patientShare": "حصة المريض",
+      "rcmStatus": "حالة RCM"
+    },
+    "loading": "جاري سحب بيانات المطالبات...",
+    "empty": "لا توجد مطالبات تأمينية تطابق معايير البحث.",
+    "notRegistered": "غير مسجل",
+    "rejectionReasonLabel": "السبب:",
+    "rejectModal": {
+      "title": "رفض المطالبات التأمينية",
+      "warningPrefix": "سيتم تغيير حالة",
+      "claimsTo": "مطالبات إلى",
+      "warningSuffix": "يرجى تدوين سبب الرفض الوارد من شركة التأمين ليتم مراجعته في قسم دورة الإيرادات (RCM).",
+      "reasonLabel": "سبب الرفض (إلزامي)",
+      "placeholder": "أدخل الرمز أو التبرير (مثال: الخدمة غير مشمولة بالوثيقة)..."
+    },
+    "toast": {
+      "loadFailed": "فشل تحميل المطالبات.",
+      "statusUpdated": "تم تحديث الحالة بنجاح.",
+      "reasonRequired": "يرجى إدخال سبب الرفض",
+      "rejectRecorded": "تم تسجيل الرفض بنجاح.",
+      "nphiesSuccess": "✅ تم رفع {{count}} مطالبة بنجاح إلى NPHIES",
+      "nphiesPartial": "⚠️ تم قبول {{accepted}} ورفض {{rejected}} مطالبة",
+      "nphiesFailedAll": "❌ فشل رفع جميع المطالبات ({{count}})",
+      "noInvoicesToPrint": "لا توجد فواتير للطباعة.",
+      "allowPopups": "يرجى السماح بالنوافذ المنبثقة (Popups) للطباعة."
     }
   }
 }

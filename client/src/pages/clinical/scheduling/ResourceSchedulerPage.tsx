@@ -136,7 +136,7 @@ export default function ResourceSchedulerPage() {
   });
 
   return (
-    <div className="flex flex-col h-full text-slate-100 p-4 md:p-6 space-y-6 overflow-hidden">
+    <div className="flex flex-col h-full text-slate-100 p-4 md:p-6 space-y-6 overflow-hidden" dir={isRtl ? "rtl" : "ltr"}>
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-sm relative overflow-hidden">
         <div className="absolute top-0 left-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
         <div className="relative z-10">
@@ -144,10 +144,10 @@ export default function ResourceSchedulerPage() {
             <div className="p-2 bg-indigo-500/20 text-indigo-400 rounded-xl">
               <Server className="w-6 h-6" />
             </div>
-            جدولة الموارد المتقدمة
+            {t("scheduler.title", "جدولة الموارد المتقدمة")}
           </h1>
           <p className="text-sm text-slate-400 mt-1">
-            إدارة وحجز الموارد السريرية مثل الغرف والمعدات مع منع التعارض.
+            {t("scheduler.subtitle", "إدارة وحجز الموارد السريرية مثل الغرف والمعدات مع منع التعارض.")}
           </p>
         </div>
         <div className="relative z-10 flex gap-2">
@@ -155,13 +155,13 @@ export default function ResourceSchedulerPage() {
             onClick={() => setShowCreateResourceModal(true)}
             className="bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-600/40 px-4 py-2 rounded-xl text-sm font-bold transition-colors flex items-center gap-2 shadow-lg"
           >
-            <Plus className="w-4 h-4" /> إضافة مورد
+            <Plus className="w-4 h-4" /> {t("scheduler.btn.addResource", "إضافة مورد")}
           </button>
           <Link
             to="/clinical/waitlist"
             className="bg-amber-600/20 text-amber-400 border border-amber-500/30 hover:bg-amber-600/40 px-4 py-2 rounded-xl text-sm font-bold transition-colors flex items-center gap-2 shadow-lg"
           >
-            <Clock className="w-4 h-4" /> قوائم الانتظار
+            <Clock className="w-4 h-4" /> {t("scheduler.btn.waitlist", "قوائم الانتظار")}
           </Link>
         </div>
       </div>
@@ -188,14 +188,14 @@ export default function ResourceSchedulerPage() {
               <p className="text-center text-slate-500 py-4">{t("common.loading", "جاري التحميل...")}</p>
             ) : filteredResources.length === 0 ? (
               <div className="text-center text-slate-500 py-8 border border-dashed border-slate-700 rounded-xl">
-                لا توجد موارد مطابقة.
+                {t("scheduler.emptyResources", "لا توجد موارد مطابقة.")}
               </div>
             ) : (
               filteredResources.map((resource: any) => (
                 <button
                   key={resource.id}
                   onClick={() => setActiveResource(resource.id)}
-                  className={`w-full text-right p-4 rounded-xl border transition-all ${
+                  className={`w-full text-start p-4 rounded-xl border transition-all ${
                     activeResource === resource.id
                       ? "bg-indigo-600/20 border-indigo-500 shadow-[0_0_15px_-3px_rgba(99,102,241,0.3)]"
                       : "bg-slate-950 border-slate-800 hover:border-slate-600"
@@ -210,7 +210,7 @@ export default function ResourceSchedulerPage() {
                   <div className="text-xs text-slate-500 mt-2 flex gap-3">
                     <span className="flex items-center gap-1">
                       <MapPin className="w-3 h-3" />
-                      {resource.department?.name || "بدون قسم"}
+                      {resource.department?.name || t("common.noDepartment", "بدون قسم")}
                     </span>
                   </div>
                 </button>
@@ -223,14 +223,14 @@ export default function ResourceSchedulerPage() {
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-lg font-bold text-slate-200 flex items-center gap-2">
               <Calendar className="w-5 h-5 text-indigo-400" />
-              الحجوزات القادمة {activeResource ? "(7 أيام)" : ""}
+              {t("scheduler.upcomingBookings", "الحجوزات القادمة")} {activeResource ? t("scheduler.sevenDays", "(7 أيام)") : ""}
             </h2>
             {activeResource && (
               <button
                 onClick={() => setShowBookingModal(true)}
                 className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-lg transition-colors flex items-center gap-2"
               >
-                <Plus className="w-4 h-4" /> حجز المورد
+                <Plus className="w-4 h-4" /> {t("scheduler.btn.bookResource", "حجز المورد")}
               </button>
             )}
           </div>
@@ -242,7 +242,7 @@ export default function ResourceSchedulerPage() {
             </div>
           ) : loadingBookings ? (
             <div className="flex justify-center py-20 text-slate-400">
-              جاري تحميل الحجوزات...
+              {t("scheduler.loadingBookings", "جاري تحميل الحجوزات...")}
             </div>
           ) : bookings.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-slate-400 bg-slate-900/30 rounded-xl border border-slate-800">
@@ -281,7 +281,7 @@ export default function ResourceSchedulerPage() {
                         }
                       }}
                       className="mr-3 text-rose-500 hover:text-rose-400 p-1"
-                      title="إلغاء الحجز"
+                      title={t("scheduler.btn.cancelBooking", "إلغاء الحجز")}
                     >
                       <XCircle className="w-5 h-5" />
                     </button>
@@ -308,7 +308,7 @@ export default function ResourceSchedulerPage() {
             <div className="p-6 space-y-4">
               <div>
                 <label className="block text-xs font-bold text-slate-400 mb-1">
-                  رقم المريض
+                  {t("scheduler.book.patientId", "رقم المريض")}
                 </label>
                 <input
                   type="number"
@@ -319,7 +319,7 @@ export default function ResourceSchedulerPage() {
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-400 mb-1">
-                  وقت البداية
+                  {t("scheduler.book.startTime", "وقت البداية")}
                 </label>
                 <input
                   type="datetime-local"
@@ -330,7 +330,7 @@ export default function ResourceSchedulerPage() {
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-400 mb-1">
-                  وقت النهاية
+                  {t("scheduler.book.endTime", "وقت النهاية")}
                 </label>
                 <input
                   type="datetime-local"
@@ -341,7 +341,7 @@ export default function ResourceSchedulerPage() {
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-400 mb-1">
-                  ملاحظات
+                  {t("common.notes", "ملاحظات")}
                 </label>
                 <textarea
                   className="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm focus:border-indigo-500 outline-none"
@@ -362,7 +362,7 @@ export default function ResourceSchedulerPage() {
                 disabled={!patientId || !startTime || !endTime || bookMutation.isPending}
                 className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg text-sm shadow-lg transition-colors disabled:opacity-50"
               >
-                تأكيد الحجز
+                {t("scheduler.btn.confirmBooking", "تأكيد الحجز")}
               </button>
             </div>
           </div>
@@ -384,7 +384,7 @@ export default function ResourceSchedulerPage() {
             <div className="p-6 space-y-4">
               <div>
                 <label className="block text-xs font-bold text-slate-400 mb-1">
-                  اسم المورد
+                  {t("scheduler.create.resourceName", "اسم المورد")}
                 </label>
                 <input
                   type="text"
@@ -396,7 +396,7 @@ export default function ResourceSchedulerPage() {
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-400 mb-1">
-                  نوع المورد
+                  {t("scheduler.create.resourceType", "نوع المورد")}
                 </label>
                 <select
                   className="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm focus:border-emerald-500 outline-none"
@@ -410,7 +410,7 @@ export default function ResourceSchedulerPage() {
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-400 mb-1">
-                  القسم
+                  {t("common.department", "القسم")}
                 </label>
                 <select
                   className="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm focus:border-emerald-500 outline-none"
@@ -439,7 +439,7 @@ export default function ResourceSchedulerPage() {
                 disabled={!resourceName.trim() || createResourceMutation.isPending}
                 className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg text-sm shadow-lg transition-colors disabled:opacity-50"
               >
-                حفظ المورد
+                {t("scheduler.btn.saveResource", "حفظ المورد")}
               </button>
             </div>
           </div>

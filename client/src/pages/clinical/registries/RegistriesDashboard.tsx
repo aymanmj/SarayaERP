@@ -110,7 +110,7 @@ export default function RegistriesDashboard() {
     mutationFn: clinicalServices.triggerGapsEval,
     onSuccess: (data) =>
       toast.success(t('registries.toast.evalGapsSuccess', { evaluated: data.evaluated, opened: data.opened, defaultValue: t('registries.toast.evalGapsSuccess', { evaluated: data.evaluated, opened: data.opened, defaultValue: t('registries.toast.evalGapsSuccess', { evaluated: data.evaluated, opened: data.opened, defaultValue: t('registries.toast.evalGapsSuccess', { evaluated: data.evaluated, opened: data.opened, defaultValue: `تم تقييم ${data.evaluated} فجوة واكتشاف ${data.opened} فجوة رعاية جديدة` }) }) }) })),
-    onError: () => toast.error(t('registries.toast.evalGapsFailed', 'فشل تشغيل تقييم الفجوات')),
+    onError: () => toast.error(t('registries.toast.evalGapsFailed', 'فشل تشغيل {t("registries.btn.evaluateGaps", "تقييم الفجوات")}')),
   });
 
   const createRegistryMutation = useMutation({
@@ -217,17 +217,17 @@ export default function RegistriesDashboard() {
     };
 
     if (!normalizedPayload.name) {
-      toast.warning("يرجى إدخال اسم السجل.");
+      toast.warning(t("registries.toast.nameRequired", "يرجى إدخال اسم السجل."));
       return;
     }
 
     if (normalizedPayload.criteria.length === 0) {
-      toast.warning("يجب تعريف معيار واحد على الأقل.");
+      toast.warning(t("registries.toast.criteriaRequired", "يجب تعريف معيار واحد على الأقل."));
       return;
     }
 
     if (normalizedPayload.careGapRules.length === 0) {
-      toast.warning("يجب تعريف قاعدة فجوة رعاية واحدة على الأقل.");
+      toast.warning(t("registries.toast.rulesRequired", "يجب تعريف قاعدة فجوة رعاية واحدة على الأقل."));
       return;
     }
 
@@ -309,16 +309,16 @@ export default function RegistriesDashboard() {
       await clinicalServices.closeCareGap(selectedGap.id, closeNotes);
     },
     onSuccess: () => {
-      toast.success("تم إغلاق فجوة الرعاية بنجاح.");
+      toast.success(t("registries.toast.closeSuccess", "تم إغلاق فجوة الرعاية بنجاح."));
       setSelectedGap(null);
       setCloseNotes("");
       refetchGaps();
     },
-    onError: () => toast.error("فشل إغلاق فجوة الرعاية."),
+    onError: () => toast.error(t("registries.toast.closeFailed", "فشل إغلاق فجوة الرعاية.")),
   });
 
   return (
-    <div className="flex flex-col h-full text-slate-100 p-4 md:p-6 space-y-6 overflow-hidden">
+    <div className="flex flex-col h-full text-slate-100 p-4 md:p-6 space-y-6 overflow-hidden" dir={isRtl ? "rtl" : "ltr"}>
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-sm relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl -mx-20 -my-20 pointer-events-none" />
         <div className="relative z-10">
@@ -326,10 +326,10 @@ export default function RegistriesDashboard() {
             <div className="p-2 bg-emerald-500/20 text-emerald-400 rounded-xl">
               <ShieldAlert className="w-6 h-6" />
             </div>
-            لوحة السجلات وفجوات الرعاية
+            {t("registries.title", "لوحة السجلات وفجوات الرعاية")}
           </h1>
           <p className="text-sm text-slate-400 mt-1">
-            إدارة السجلات المرضية، معايير الانضمام، وقواعد فجوات الرعاية من مكان واحد.
+            {t("registries.subtitle", "إدارة السجلات المرضية، معايير الانضمام، وقواعد فجوات الرعاية من مكان واحد.")}
           </p>
         </div>
         <div className="relative z-10 flex gap-2 flex-wrap">
@@ -337,7 +337,7 @@ export default function RegistriesDashboard() {
             onClick={openCreateRegistryModal}
             className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl text-sm font-bold transition-colors"
           >
-            <Plus className="w-4 h-4" /> سجل جديد
+            <Plus className="w-4 h-4" /> {t("registries.btn.newRegistry", "سجل جديد")}
           </button>
           <button
             onClick={() => triggerMembershipMutation.mutate()}
@@ -345,7 +345,7 @@ export default function RegistriesDashboard() {
             className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded-xl text-sm font-bold transition-colors border border-slate-700 disabled:opacity-50"
           >
             <Users className="w-4 h-4 text-sky-400" />
-            تحديث السجلات
+            {t("registries.btn.updateRegistries", "تحديث السجلات")}
           </button>
           <button
             onClick={() => triggerGapsMutation.mutate()}
@@ -363,28 +363,28 @@ export default function RegistriesDashboard() {
           <div className="bg-slate-900/60 border border-slate-800 p-5 rounded-2xl">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-bold text-slate-200 flex items-center gap-2">
-                <Database className="w-5 h-5 text-emerald-400" /> السجلات المعرفة
+                <Database className="w-5 h-5 text-emerald-400" /> {t("registries.definedRegistries", "السجلات المعرفة")}
               </h3>
               {selectedRegistry && (
                 <button
                   onClick={openEditRegistryModal}
                   className="text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-1.5 rounded-lg flex items-center gap-1"
                 >
-                  <Pencil className="w-3.5 h-3.5" /> تعديل
+                  <Pencil className="w-3.5 h-3.5" /> {t("common.edit", "تعديل")}
                 </button>
               )}
             </div>
             <div className="space-y-3">
               {registries.length === 0 ? (
                 <div className="text-sm text-slate-500 border border-dashed border-slate-700 rounded-xl p-4">
-                  لا توجد سجلات معرفة بعد. ابدأ بإنشاء سجل جديد.
+                  {t("registries.emptyRegistries", "لا توجد سجلات معرفة بعد. ابدأ بإنشاء سجل جديد.")}
                 </div>
               ) : (
                 registries.map((registry: any) => (
                   <button
                     key={registry.id}
                     onClick={() => setSelectedRegistryId(registry.id)}
-                    className={`w-full text-right p-4 rounded-xl border transition-all ${
+                    className={`w-full text-start p-4 rounded-xl border transition-all ${
                       selectedRegistryId === registry.id
                         ? "bg-emerald-600/15 border-emerald-500/40"
                         : "bg-slate-950 border-slate-800 hover:border-slate-600"
@@ -394,7 +394,7 @@ export default function RegistriesDashboard() {
                       <div>
                         <div className="font-bold text-slate-200">{registry.name}</div>
                         <div className="text-xs text-slate-500 mt-1">
-                          {registry.description || "بدون وصف"}
+                          {registry.description || t("common.noDescription", "بدون وصف")}
                         </div>
                       </div>
                       <span
@@ -404,13 +404,13 @@ export default function RegistriesDashboard() {
                             : "bg-slate-800 text-slate-400"
                         }`}
                       >
-                        {registry.isActive ? "نشط" : "متوقف"}
+                        {registry.isActive ? t("common.active", "نشط") : t("common.inactive", "متوقف")}
                       </span>
                     </div>
                     <div className="mt-3 text-[11px] text-slate-500 flex gap-3">
-                      <span>{registry.criteria?.length || 0} معيار</span>
-                      <span>{registry.careGapRules?.length || 0} قاعدة</span>
-                      <span>{registry._count?.members || 0} عضو</span>
+                      <span>{registry.criteria?.length || 0} {t("registries.criteriaUnit", "معيار")}</span>
+                      <span>{registry.careGapRules?.length || 0} {t("registries.ruleUnit", "قاعدة")}</span>
+                      <span>{registry._count?.members || 0} {t("registries.memberUnit", "عضو")}</span>
                     </div>
                   </button>
                 ))
@@ -420,12 +420,12 @@ export default function RegistriesDashboard() {
 
           <div className="bg-slate-900/60 border border-slate-800 p-5 rounded-2xl">
             <h3 className="text-lg font-bold text-slate-200 mb-4 flex items-center gap-2">
-              <Search className="w-5 h-5 text-slate-400" /> بحث عن مريض
+              <Search className="w-5 h-5 text-slate-400" /> {t("registries.searchPatient", "بحث عن مريض")}
             </h3>
             <div className="flex gap-2 mb-4">
               <input
                 type="text"
-                placeholder="الاسم، رقم الملف، أو الهاتف..."
+                placeholder={t("registries.placeholder.searchPatient", "الاسم، رقم الملف، أو الهاتف...")}
                 className="flex-1 bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm focus:border-emerald-500 outline-none"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -436,7 +436,7 @@ export default function RegistriesDashboard() {
                 disabled={isSearching}
                 className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl font-bold transition-colors disabled:opacity-50"
               >
-                {isSearching ? "جاري البحث..." : "بحث"}
+                {isSearching ? t("common.searching", "جاري البحث...") : t("common.search", "بحث")}
               </button>
             </div>
             {foundPatient && (
@@ -445,7 +445,7 @@ export default function RegistriesDashboard() {
                   <div className="font-bold text-white">{foundPatient.fullName}</div>
                   <div className="text-xs text-sky-300 mt-1">MRN: {foundPatient.mrn}</div>
                 </div>
-                <div className="text-xs bg-slate-800 px-2 py-1 rounded">المريض محدد</div>
+                <div className="text-xs bg-slate-800 px-2 py-1 rounded">{t("registries.patientSelected", "المريض محدد")}</div>
               </div>
             )}
           </div>
@@ -456,18 +456,18 @@ export default function RegistriesDashboard() {
             <div className="flex items-center justify-between gap-4 mb-4">
               <h2 className="text-lg font-bold text-slate-200 flex items-center gap-2">
                 <Settings2 className="w-5 h-5 text-emerald-400" />
-                {selectedRegistry ? selectedRegistry.name : "تفاصيل السجل"}
+                {selectedRegistry ? selectedRegistry.name : t("registries.details.title", "تفاصيل السجل")}
               </h2>
               {selectedRegistryAnalytics && (
                 <div className="flex gap-3 text-xs">
                   <span className="bg-slate-950 px-3 py-2 rounded-xl border border-slate-800">
-                    الأعضاء:{" "}
+                    t("registries.analytics.members", "الأعضاء:") + " "
                     <span className="text-sky-400 font-bold">
                       {selectedRegistryAnalytics.totalMembers}
                     </span>
                   </span>
                   <span className="bg-slate-950 px-3 py-2 rounded-xl border border-slate-800">
-                    الفجوات المفتوحة:{" "}
+                    t("registries.analytics.openGaps", "الفجوات المفتوحة:") + " "
                     <span className="text-rose-400 font-bold">
                       {selectedRegistryAnalytics.openGaps}
                     </span>
@@ -478,20 +478,20 @@ export default function RegistriesDashboard() {
 
             {!selectedRegistry ? (
               <div className="text-sm text-slate-500 border border-dashed border-slate-700 rounded-xl p-5">
-                اختر سجلًا من القائمة لعرض معاييره وقواعد فجوات الرعاية الخاصة به.
+                {t("registries.details.emptyHint", "اختر سجلًا من القائمة لعرض معاييره وقواعد فجوات الرعاية الخاصة به.")}
               </div>
             ) : (
               <div className="space-y-5">
                 <div>
-                  <div className="text-sm text-slate-400 mb-2">الوصف</div>
+                  <div className="text-sm text-slate-400 mb-2">{t("common.description", "الوصف")}</div>
                   <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 text-sm text-slate-200">
-                    {selectedRegistry.description || "لا يوجد وصف لهذا السجل."}
+                    {selectedRegistry.description || t("registries.details.noDescription", "لا يوجد وصف لهذا السجل.")}
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
                   <div className="bg-slate-950 border border-slate-800 rounded-xl p-4">
-                    <h3 className="font-bold text-slate-200 mb-3">معايير الانضمام</h3>
+                    <h3 className="font-bold text-slate-200 mb-3">{t("registries.details.criteria", "معايير الانضمام")}</h3>
                     <div className="space-y-3">
                       {selectedRegistry.criteria?.length > 0 ? (
                         selectedRegistry.criteria.map((criteria: any) => (
@@ -507,14 +507,14 @@ export default function RegistriesDashboard() {
                         ))
                       ) : (
                         <div className="text-sm text-slate-500">
-                          لا توجد معايير معرفة.
+                          {t("registries.details.noCriteria", "لا توجد معايير معرفة.")}
                         </div>
                       )}
                     </div>
                   </div>
 
                   <div className="bg-slate-950 border border-slate-800 rounded-xl p-4">
-                    <h3 className="font-bold text-slate-200 mb-3">قواعد فجوات الرعاية</h3>
+                    <h3 className="font-bold text-slate-200 mb-3">{t("registries.details.careGapRules", "قواعد فجوات الرعاية")}</h3>
                     <div className="space-y-3">
                       {selectedRegistry.careGapRules?.length > 0 ? (
                         selectedRegistry.careGapRules.map((rule: any) => (
@@ -531,20 +531,20 @@ export default function RegistriesDashboard() {
                                     : "bg-slate-800 text-slate-400"
                                 }`}
                               >
-                                {rule.isActive ? "نشطة" : "متوقفة"}
+                                {rule.isActive ? t("common.active", "نشطة") : t("common.inactive", "متوقفة")}
                               </span>
                             </div>
                             <div className="text-slate-400 mt-1">
-                              {rule.description || "بدون وصف"}
+                              {rule.description || t("common.noDescription", "بدون وصف")}
                             </div>
                             <div className="text-xs text-slate-500 mt-2">
-                              {rule.targetType} / {rule.targetValue} / كل {rule.frequencyDays} يوم
+                              {rule.targetType} / {rule.targetValue} / {t("registries.details.everyDays", { days: rule.frequencyDays, defaultValue: `كل ${rule.frequencyDays} يوم` })}
                             </div>
                           </div>
                         ))
                       ) : (
                         <div className="text-sm text-slate-500">
-                          لا توجد قواعد فجوات معرفة.
+                          {t("registries.details.noRules", "لا توجد قواعد فجوات معرفة.")}
                         </div>
                       )}
                     </div>
@@ -556,24 +556,24 @@ export default function RegistriesDashboard() {
 
           <div>
             <h2 className="text-lg font-bold text-slate-200 mb-4 flex items-center gap-2">
-              فجوات الرعاية للمريض {activePatientId ? `#${activePatientId}` : ""}
+              {t("registries.patientGaps.title", { id: activePatientId ? `#${activePatientId}` : "", defaultValue: `فجوات الرعاية للمريض ${activePatientId ? `#${activePatientId}` : ""}` })}
             </h2>
 
             {!activePatientId ? (
               <div className="flex flex-col items-center justify-center py-20 text-slate-400 bg-slate-900/50 rounded-xl border border-dashed border-slate-700">
                 <Search className="w-16 h-16 text-slate-600 mb-4 opacity-50" />
-                <p>يرجى البحث عن مريض لعرض فجوات الرعاية الخاصة به.</p>
+                <p>{t("registries.patientGaps.searchHint", "يرجى البحث عن مريض لعرض فجوات الرعاية الخاصة به.")}</p>
               </div>
             ) : loadingGaps ? (
               <div className="flex flex-col items-center justify-center py-20 text-slate-400">
                 <div className="w-12 h-12 rounded-full border-4 border-emerald-500/30 border-t-emerald-500 animate-spin mb-4"></div>
-                <p className="animate-pulse">جاري التحميل...</p>
+                <p className="animate-pulse">{t("common.loading", "جاري التحميل...")}</p>
               </div>
             ) : careGaps.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 text-slate-400 bg-emerald-900/10 rounded-xl border border-dashed border-emerald-900/30">
                 <CheckCircle2 className="w-16 h-16 text-emerald-600 mb-4 opacity-50" />
                 <p className="text-emerald-400 font-bold">
-                  لا توجد فجوات رعاية مفتوحة لهذا المريض.
+                  {t("registries.patientGaps.noOpenGaps", "لا توجد فجوات رعاية مفتوحة لهذا المريض.")}
                 </p>
               </div>
             ) : (
@@ -624,7 +624,7 @@ export default function RegistriesDashboard() {
                       </span>
                     </div>
                     <div className="text-xs text-slate-500 mb-4">
-                      تاريخ الاكتشاف:{" "}
+                      t("registries.patientGaps.identifiedDate", "تاريخ الاكتشاف:") + " "
                       {new Date(gap.createdAt || gap.identifiedAt).toLocaleDateString(
                         "ar-LY",
                       )}
@@ -636,7 +636,7 @@ export default function RegistriesDashboard() {
                           onClick={() => setSelectedGap(gap)}
                           className="bg-slate-800 hover:bg-emerald-600 text-slate-300 hover:text-white px-4 py-2 rounded-lg text-xs font-bold transition-colors border border-slate-700 hover:border-emerald-500"
                         >
-                          معالجة الفجوة وإغلاقها
+                          {t("registries.patientGaps.closeGapBtn", "معالجة الفجوة وإغلاقها")}
                         </button>
                       </div>
                     )}
@@ -653,7 +653,7 @@ export default function RegistriesDashboard() {
           <div className="bg-slate-900 border border-emerald-500/50 rounded-2xl w-full max-w-4xl overflow-hidden shadow-[0_0_40px_-10px_rgba(16,185,129,0.3)]">
             <div className="p-4 border-b border-slate-800 flex items-center justify-between">
               <h3 className="text-lg font-bold text-emerald-400">
-                {editingRegistryId ? "تعديل السجل" : "إنشاء سجل جديد"}
+                {editingRegistryId ? t("registries.edit.editTitle", "تعديل السجل") : t("registries.edit.createTitle", "إنشاء سجل جديد")}
               </h3>
               <button
                 onClick={() => setShowRegistryModal(false)}
@@ -688,7 +688,7 @@ export default function RegistriesDashboard() {
                         }))
                       }
                     />
-                    السجل نشط
+                    {t("registries.edit.registryActive", "السجل نشط")}
                   </label>
                 </div>
               </div>
@@ -711,7 +711,7 @@ export default function RegistriesDashboard() {
 
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <h4 className="font-bold text-slate-200">معايير الانضمام</h4>
+                  <h4 className="font-bold text-slate-200">{t("registries.details.criteria", "معايير الانضمام")}</h4>
                   <button
                     onClick={() =>
                       setRegistryForm((prev) => ({
@@ -724,7 +724,7 @@ export default function RegistriesDashboard() {
                     }
                     className="text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-1.5 rounded-lg flex items-center gap-1"
                   >
-                    <Plus className="w-3.5 h-3.5" /> معيار
+                    <Plus className="w-3.5 h-3.5" /> {t("registries.edit.addCriteria", "معيار")}
                   </button>
                 </div>
                 {registryForm.criteria.map((criteria, index) => (
@@ -734,7 +734,7 @@ export default function RegistriesDashboard() {
                   >
                     <input
                       className="bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm"
-                      placeholder="النوع"
+                      placeholder={t("registries.placeholder.type", "النوع")}
                       value={criteria.type}
                       onChange={(e) =>
                         updateCriteriaField(index, "type", e.target.value)
@@ -742,7 +742,7 @@ export default function RegistriesDashboard() {
                     />
                     <input
                       className="bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm"
-                      placeholder="المعامل"
+                      placeholder={t("registries.placeholder.operator", "المعامل")}
                       value={criteria.operator}
                       onChange={(e) =>
                         updateCriteriaField(index, "operator", e.target.value)
@@ -750,7 +750,7 @@ export default function RegistriesDashboard() {
                     />
                     <input
                       className="bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm"
-                      placeholder="القيمة"
+                      placeholder={t("registries.placeholder.value", "القيمة")}
                       value={criteria.value}
                       onChange={(e) =>
                         updateCriteriaField(index, "value", e.target.value)
@@ -776,7 +776,7 @@ export default function RegistriesDashboard() {
 
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <h4 className="font-bold text-slate-200">قواعد فجوات الرعاية</h4>
+                  <h4 className="font-bold text-slate-200">{t("registries.details.careGapRules", "قواعد فجوات الرعاية")}</h4>
                   <button
                     onClick={() =>
                       setRegistryForm((prev) => ({
@@ -796,7 +796,7 @@ export default function RegistriesDashboard() {
                     }
                     className="text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-1.5 rounded-lg flex items-center gap-1"
                   >
-                    <Plus className="w-3.5 h-3.5" /> قاعدة
+                    <Plus className="w-3.5 h-3.5" /> {t("registries.edit.addRule", "قاعدة")}
                   </button>
                 </div>
                 {registryForm.careGapRules.map((rule, index) => (
@@ -807,7 +807,7 @@ export default function RegistriesDashboard() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       <input
                         className="bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm"
-                        placeholder="اسم القاعدة"
+                        placeholder={t("registries.placeholder.ruleName", "اسم القاعدة")}
                         value={rule.name}
                         onChange={(e) =>
                           updateRuleField(index, "name", e.target.value)
@@ -815,7 +815,7 @@ export default function RegistriesDashboard() {
                       />
                       <input
                         className="bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm"
-                        placeholder="نوع الهدف"
+                        placeholder={t("registries.placeholder.targetType", "نوع الهدف")}
                         value={rule.targetType}
                         onChange={(e) =>
                           updateRuleField(index, "targetType", e.target.value)
@@ -823,7 +823,7 @@ export default function RegistriesDashboard() {
                       />
                       <input
                         className="bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm"
-                        placeholder="القيمة المستهدفة"
+                        placeholder={t("registries.placeholder.targetValue", "القيمة المستهدفة")}
                         value={rule.targetValue}
                         onChange={(e) =>
                           updateRuleField(index, "targetValue", e.target.value)
@@ -832,7 +832,7 @@ export default function RegistriesDashboard() {
                       <input
                         type="number"
                         className="bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm"
-                        placeholder="عدد الأيام"
+                        placeholder={t("registries.placeholder.frequencyDays", "عدد الأيام")}
                         value={rule.frequencyDays}
                         onChange={(e) =>
                           updateRuleField(index, "frequencyDays", Number(e.target.value))
@@ -841,7 +841,7 @@ export default function RegistriesDashboard() {
                     </div>
                     <textarea
                       className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm min-h-[70px]"
-                      placeholder="وصف القاعدة"
+                      placeholder={t("registries.placeholder.ruleDescription", "وصف القاعدة")}
                       value={rule.description}
                       onChange={(e) =>
                         updateRuleField(index, "description", e.target.value)
@@ -856,7 +856,7 @@ export default function RegistriesDashboard() {
                             updateRuleField(index, "isActive", e.target.checked)
                           }
                         />
-                        القاعدة نشطة
+                        {t("registries.edit.ruleActive", "القاعدة نشطة")}
                       </label>
                       <button
                         onClick={() =>
@@ -891,7 +891,7 @@ export default function RegistriesDashboard() {
                 }
                 className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg text-sm shadow-lg transition-colors disabled:opacity-50 flex items-center gap-2"
               >
-                <Save className="w-4 h-4" /> حفظ
+                <Save className="w-4 h-4" /> {t("common.save", "حفظ")}
               </button>
             </div>
           </div>
@@ -902,16 +902,16 @@ export default function RegistriesDashboard() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
           <div className="bg-slate-900 border border-emerald-500/50 rounded-2xl w-full max-w-md overflow-hidden shadow-[0_0_40px_-10px_rgba(16,185,129,0.3)]">
             <div className="p-4 border-b border-slate-800">
-              <h3 className="text-lg font-bold text-emerald-400">إغلاق فجوة الرعاية</h3>
+              <h3 className="text-lg font-bold text-emerald-400">{t("registries.closeGap.title", "إغلاق فجوة الرعاية")}</h3>
             </div>
             <div className="p-6">
               <p className="text-sm text-slate-300 mb-4">
-                القاعدة:{" "}
+                t("registries.closeGap.ruleLabel", "القاعدة:") + " "
                 <span className="font-bold text-slate-200">{selectedGap.rule?.name}</span>
               </p>
               <textarea
                 className="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm focus:border-emerald-500 outline-none min-h-[100px]"
-                placeholder="أدخل سبب إغلاق الفجوة..."
+                placeholder={t("registries.placeholder.closeReason", "أدخل سبب إغلاق الفجوة...")}
                 value={closeNotes}
                 onChange={(e) => setCloseNotes(e.target.value)}
               ></textarea>
@@ -928,7 +928,7 @@ export default function RegistriesDashboard() {
                 disabled={!closeNotes.trim() || closeGapMutation.isPending}
                 className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg text-sm shadow-lg transition-colors disabled:opacity-50"
               >
-                تأكيد الإغلاق
+                t("registries.closeGap.confirmBtn", "تأكيد الإغلاق")
               </button>
             </div>
           </div>

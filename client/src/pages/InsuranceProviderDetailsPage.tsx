@@ -1,6 +1,7 @@
 // src/pages/insurance/InsuranceProviderDetailsPage.tsx
 
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useParams, useNavigate } from "react-router-dom";
 import { apiClient } from "../api/apiClient";
 import { toast } from "sonner";
@@ -19,6 +20,8 @@ type Policy = {
 };
 
 export default function InsuranceProviderDetailsPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.dir() === "rtl";
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const providerId = Number(id);
@@ -61,7 +64,7 @@ export default function InsuranceProviderDetailsPage() {
       }
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
-      toast.error("فشل تحميل البيانات");
+      toast.error(t("insuranceProviders.details.toast.loadFailed", "فشل تحميل البيانات"));
     } finally {
       setLoading(false);
     }
@@ -83,20 +86,20 @@ export default function InsuranceProviderDetailsPage() {
           ? Number(newPlan.maxCopayAmount)
           : null,
       });
-      toast.success("تم إنشاء الخطة");
+      toast.success(t("insuranceProviders.details.toast.planCreated", "تم إنشاء الخطة"));
       setShowPlanModal(false);
       setNewPlan({ name: "", defaultCopayRate: "0", maxCopayAmount: "" });
       loadData();
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
-      toast.error("فشل إنشاء الخطة");
+      toast.error(t("insuranceProviders.details.toast.planCreateFailed", "فشل إنشاء الخطة"));
     }
   };
 
   // ✅ إنشاء بوليصة
   const handleCreatePolicy = async () => {
     if (!newPolicy.name) {
-      toast.warning("اسم البوليصة مطلوب");
+      toast.warning(t("insuranceProviders.details.toast.policyNameRequired", "اسم البوليصة مطلوب"));
       return;
     }
     try {
@@ -110,7 +113,7 @@ export default function InsuranceProviderDetailsPage() {
           ? Number(newPolicy.maxCoverageAmount)
           : undefined,
       });
-      toast.success("تم إنشاء البوليصة");
+      toast.success(t("insuranceProviders.details.toast.policyCreated", "تم إنشاء البوليصة"));
       setShowPolicyModal(false);
       setNewPolicy({
         name: "",
@@ -123,7 +126,7 @@ export default function InsuranceProviderDetailsPage() {
       loadData();
     } catch (err) {
       console.error(err);
-      toast.error("فشل إنشاء البوليصة");
+      toast.error(t("insuranceProviders.details.toast.policyCreateFailed", "فشل إنشاء البوليصة"));
     }
   };
 
@@ -139,9 +142,9 @@ export default function InsuranceProviderDetailsPage() {
             onClick={() => navigate("/insurance/providers")}
             className="text-xs text-slate-400 hover:text-white mb-1"
           >
-            ➜ العودة لقائمة الشركات
+            {t("insuranceProviders.details.backBtn", "➜ العودة لقائمة الشركات")}
           </button>
-          <h1 className="text-2xl font-bold">إدارة: {providerName}</h1>
+          <h1 className="text-2xl font-bold">{t("insuranceProviders.details.manageLabel", "إدارة:")} {providerName}</h1>
         </div>
       </div>
 
@@ -149,22 +152,22 @@ export default function InsuranceProviderDetailsPage() {
       <section>
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-lg font-semibold text-emerald-400">
-            📋 البوالص / العقود السارية
+            {t("insuranceProviders.details.activePolicies", "📋 البوالص / العقود السارية")}
           </h2>
           <button
             onClick={() => setShowPolicyModal(true)}
             className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-xs font-bold shadow-lg"
           >
-            + عقد / بوليصة جديدة
+            {t("insuranceProviders.details.newPolicyBtn", "+ عقد / بوليصة جديدة")}
           </button>
         </div>
 
         <div className="bg-slate-900/40 border border-slate-800 rounded-xl overflow-hidden">
-          <table className="w-full text-sm text-right">
+          <table className="w-full text-sm text-start">
             <thead className="bg-slate-950 text-slate-400">
               <tr>
                 <th className="px-4 py-2">اسم البوليصة</th>
-                <th className="px-4 py-2">رقم البوليصة</th>
+                <th className="px-4 py-2">{t("insuranceProviders.details.policyNumberLabel", "رقم البوليصة")}</th>
                 <th className="px-4 py-2">الخطة المرتبطة</th>
                 <th className="px-4 py-2">الصلاحية</th>
                 <th className="px-4 py-2">الحالة</th>
@@ -174,7 +177,7 @@ export default function InsuranceProviderDetailsPage() {
               {policies.length === 0 && (
                 <tr>
                   <td colSpan={5} className="text-center py-4 text-slate-500">
-                    لا توجد بوالص. يجب إضافة بوليصة لربط المرضى.
+                    {t("insuranceProviders.details.emptyPolicies", "لا توجد بوالص. يجب إضافة بوليصة لربط المرضى.")}
                   </td>
                 </tr>
               )}
@@ -185,7 +188,7 @@ export default function InsuranceProviderDetailsPage() {
                     {pol.policyNumber || "—"}
                   </td>
                   <td className="px-4 py-2 text-sky-300">
-                    {pol.plan?.name || "بدون خطة (نقدي/عام)"}
+                    {pol.plan?.name || t("insuranceProviders.details.noPlan", "بدون خطة (نقدي/عام)")}
                   </td>
                   <td className="px-4 py-2 text-xs">
                     {pol.startDate
@@ -198,9 +201,9 @@ export default function InsuranceProviderDetailsPage() {
                   </td>
                   <td className="px-4 py-2">
                     {pol.isActive ? (
-                      <span className="text-emerald-400 text-xs">نشط</span>
+                      <span className="text-emerald-400 text-xs">{t("common.active", "نشط")}</span>
                     ) : (
-                      <span className="text-rose-400 text-xs">منتهي</span>
+                      <span className="text-rose-400 text-xs">{t("insuranceProviders.details.expired", "منتهي")}</span>
                     )}
                   </td>
                 </tr>
@@ -214,13 +217,13 @@ export default function InsuranceProviderDetailsPage() {
       <section>
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-lg font-semibold text-sky-400">
-            ⚙️ خطط التغطية (Plans)
+            {t("insuranceProviders.details.coveragePlans", "⚙️ خطط التغطية (Plans)")}
           </h2>
           <button
             onClick={() => setShowPlanModal(true)}
             className="px-3 py-1.5 bg-sky-600 hover:bg-sky-500 rounded-lg text-xs font-bold shadow-lg"
           >
-            + خطة جديدة
+            {t("insuranceProviders.details.newPlanBtn", "+ خطة جديدة")}
           </button>
         </div>
 
@@ -236,7 +239,7 @@ export default function InsuranceProviderDetailsPage() {
 
               <div className="text-xs text-slate-400 space-y-1 mb-3">
                 <div>
-                  التحمل الافتراضي:{" "}
+                  t("insuranceProviders.details.defaultCopay", "التحمل الافتراضي:") + " "
                   <span className="text-slate-200">
                     {(plan.defaultCopayRate * 100).toFixed(0)}%
                   </span>
@@ -248,14 +251,14 @@ export default function InsuranceProviderDetailsPage() {
                   onClick={() => navigate(`/insurance/plans/${plan.id}`)}
                   className="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-sky-300 rounded text-xs transition"
                 >
-                  إدارة القواعد ⚙️
+                  {t("insuranceProviders.details.manageRules", "إدارة القواعد ⚙️")}
                 </button>
               </div>
             </div>
           ))}
           {plans.length === 0 && (
             <div className="col-span-3 text-center py-6 text-slate-500 border border-dashed border-slate-700 rounded-xl">
-              لا توجد خطط تأمينية. قم بإنشاء خطة أولاً ثم اربطها ببوليصة.
+              {t("insuranceProviders.details.emptyPlans", "لا توجد خطط تأمينية. قم بإنشاء خطة أولاً ثم اربطها ببوليصة.")}
             </div>
           )}
         </div>
@@ -265,10 +268,10 @@ export default function InsuranceProviderDetailsPage() {
       {showPlanModal && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
           <div className="bg-slate-950 border border-slate-700 rounded-2xl p-6 w-full max-w-sm space-y-4">
-            <h3 className="text-lg font-bold">إضافة خطة تأمين جديدة</h3>
+            <h3 className="text-lg font-bold">{t("insuranceProviders.details.newPlanModalTitle", "إضافة خطة تأمين جديدة")}</h3>
             <div className="space-y-3 text-xs">
               <div>
-                <label className="block text-slate-400 mb-1">اسم الخطة</label>
+                <label className="block text-slate-400 mb-1">{t("insuranceProviders.details.planNameLabel", "اسم الخطة")}</label>
                 <input
                   className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2"
                   placeholder="مثال: الفئة الذهبية (Gold)"
@@ -280,7 +283,7 @@ export default function InsuranceProviderDetailsPage() {
               </div>
               <div>
                 <label className="block text-slate-400 mb-1">
-                  نسبة التحمل الافتراضية (%)
+                  {t("insuranceProviders.details.defaultCopayLabel", "نسبة التحمل الافتراضية (%)")}
                 </label>
                 <div className="flex gap-2 items-center">
                   <input
@@ -321,12 +324,12 @@ export default function InsuranceProviderDetailsPage() {
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
           <div className="bg-slate-950 border border-slate-700 rounded-2xl p-6 w-full max-w-sm space-y-4">
             <h3 className="text-lg font-bold text-emerald-400">
-              إضافة عقد / بوليصة جديدة
+              t("insuranceProviders.details.newPolicyModalTitle", "إضافة عقد / بوليصة جديدة")
             </h3>
             <div className="space-y-3 text-xs">
               <div>
                 <label className="block text-slate-400 mb-1">
-                  اسم البوليصة / العقد *
+                  {t("insuranceProviders.details.policyNameRequiredLabel", "اسم البوليصة / العقد *")}
                 </label>
                 <input
                   className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2"
@@ -351,7 +354,7 @@ export default function InsuranceProviderDetailsPage() {
               </div>
               <div>
                 <label className="block text-slate-400 mb-1">
-                  الخطة المرتبطة (Plan)
+                  {t("insuranceProviders.details.linkedPlanLabel", "الخطة المرتبطة (Plan)")}
                 </label>
                 <select
                   className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2"
@@ -360,7 +363,7 @@ export default function InsuranceProviderDetailsPage() {
                     setNewPolicy({ ...newPolicy, planId: e.target.value })
                   }
                 >
-                  <option value="">-- بدون خطة (تغطية عامة) --</option>
+                  <option value="">-- {t("insuranceProviders.details.noPlanOption", "بدون خطة (تغطية عامة)")} --</option>
                   {plans.map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.name}
@@ -371,7 +374,7 @@ export default function InsuranceProviderDetailsPage() {
               <div className="flex gap-2">
                 <div className="flex-1">
                   <label className="block text-slate-400 mb-1">
-                    تاريخ البدء
+                    {t("insuranceProviders.details.startDateLabel", "تاريخ البدء")}
                   </label>
                   <DatePicker
                     date={newPolicy.startDate ? new Date(newPolicy.startDate) : undefined}
@@ -383,7 +386,7 @@ export default function InsuranceProviderDetailsPage() {
                 </div>
                 <div className="flex-1">
                   <label className="block text-slate-400 mb-1">
-                    تاريخ الانتهاء
+                    {t("insuranceProviders.details.endDateLabel", "تاريخ الانتهاء")}
                   </label>
                   <DatePicker
                     date={newPolicy.endDate ? new Date(newPolicy.endDate) : undefined}
@@ -406,7 +409,7 @@ export default function InsuranceProviderDetailsPage() {
                 onClick={handleCreatePolicy}
                 className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-sm font-bold"
               >
-                حفظ البوليصة
+                t("insuranceProviders.details.savePolicyBtn", "حفظ البوليصة")
               </button>
             </div>
           </div>

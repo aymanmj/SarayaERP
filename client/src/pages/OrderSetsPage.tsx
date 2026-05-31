@@ -366,14 +366,14 @@ export default function OrderSetsPage() {
         <div>
           <h1 className="text-2xl font-bold mb-1">{t("orderSets.title", "مجموعات الطلبات الطبية")}</h1>
           <p className="text-sm text-slate-400">
-            إنشاء، مراجعة، اعتماد، ونشر البروتوكولات السريرية قبل استخدامها تشغيليًا
+            {t("orderSets.subtitle", "إنشاء، مراجعة، اعتماد، ونشر البروتوكولات السريرية قبل استخدامها تشغيليًا")}
           </p>
         </div>
         <button
           onClick={() => openBuilder()}
           className="px-6 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold shadow-lg shadow-sky-500/20 transition-all"
         >
-          + إنشاء مجموعة جديدة
+          {t("orderSets.createNew", "+ إنشاء مجموعة جديدة")}
         </button>
       </div>
 
@@ -457,7 +457,7 @@ export default function OrderSetsPage() {
                 ))}
                 {set.items.length > 6 && (
                   <span className="px-2 py-0.5 rounded-full text-[10px] bg-slate-700/50 text-slate-400">
-                    +{set.items.length - 6} أخرى
+                    {t("orderSets.moreCount", { count: set.items.length - 6, defaultValue: "+{{count}} أخرى" })}
                   </span>
                 )}
               </div>
@@ -475,19 +475,19 @@ export default function OrderSetsPage() {
                       }}
                       className="px-3 py-1 bg-green-600 hover:bg-green-500 rounded-lg text-xs font-bold transition-colors"
                     >
-                      ▶ تنفيذ
+                      t("orderSets.btn.execute", "▶ تنفيذ")
                     </button>
                   )}
                   <button
                     onClick={() => openBuilder(set)}
                     className="px-3 py-1 bg-slate-600 hover:bg-slate-500 rounded-lg text-xs transition-colors"
                   >
-                    {set.status === 'DRAFT' ? 'تعديل' : 'إصدار جديد'}
+                    {set.status === 'DRAFT' ? t("orderSets.btn.edit", "تعديل") : t("orderSets.btn.newVersion", "إصدار جديد")}
                   </button>
                   {set.status === 'DRAFT' && (
                     <button
                       disabled={workflowBusyId === set.id}
-                      onClick={() => runWorkflowAction(set, 'submit-review', 'تم إرسال المسودة للمراجعة')}
+                      onClick={() => runWorkflowAction(set, 'submit-review', t("orderSets.toast.submittedReview", "تم إرسال المسودة للمراجعة"))}
                       className="px-3 py-1 bg-sky-600 hover:bg-sky-500 disabled:opacity-50 rounded-lg text-xs transition-colors"
                     >
                       للمراجعة
@@ -497,14 +497,14 @@ export default function OrderSetsPage() {
                     <>
                       <button
                         disabled={workflowBusyId === set.id}
-                        onClick={() => runWorkflowAction(set, 'approve', 'تم اعتماد الإصدار')}
+                        onClick={() => runWorkflowAction(set, 'approve', t("orderSets.toast.approved", "تم اعتماد الإصدار"))}
                         className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 rounded-lg text-xs transition-colors"
                       >
                         اعتماد
                       </button>
                       <button
                         disabled={workflowBusyId === set.id}
-                        onClick={() => runWorkflowAction(set, 'reject', 'تمت إعادة الإصدار إلى مسودة')}
+                        onClick={() => runWorkflowAction(set, 'reject', t("orderSets.toast.rejected", "تمت إعادة الإصدار إلى مسودة"))}
                         className="px-3 py-1 bg-amber-600 hover:bg-amber-500 disabled:opacity-50 rounded-lg text-xs transition-colors"
                       >
                         إرجاع
@@ -515,7 +515,7 @@ export default function OrderSetsPage() {
                     <>
                       <button
                         disabled={workflowBusyId === set.id}
-                        onClick={() => runWorkflowAction(set, 'publish', 'تم نشر الإصدار للاستخدام')}
+                        onClick={() => runWorkflowAction(set, 'publish', t("orderSets.toast.published", "تم نشر الإصدار للاستخدام"))}
                         className="px-3 py-1 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 rounded-lg text-xs transition-colors"
                       >
                         نشر
@@ -532,7 +532,7 @@ export default function OrderSetsPage() {
                   {set.status === 'PUBLISHED' && (
                     <button
                       disabled={workflowBusyId === set.id}
-                      onClick={() => runWorkflowAction(set, 'retire', 'تم تقاعد الإصدار المنشور')}
+                      onClick={() => runWorkflowAction(set, 'retire', t("orderSets.toast.retired", "تم تقاعد الإصدار المنشور"))}
                       className="px-3 py-1 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 rounded-lg text-xs transition-colors"
                     >
                       تقاعد
@@ -594,7 +594,7 @@ export default function OrderSetsPage() {
             <div className="w-full md:w-1/3 min-w-[320px] bg-slate-900/50 border-l border-slate-800 overflow-y-auto p-6 custom-scrollbar shrink-0">
               <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
                 <span className="w-8 h-8 rounded-lg bg-sky-500/20 text-sky-400 flex items-center justify-center">⚙️</span>
-                الإعدادات الأساسية
+                {t("orderSets.builder.basicSettings", "الإعدادات الأساسية")}
               </h3>
               <div className="space-y-5">
                 <div>
@@ -612,7 +612,7 @@ export default function OrderSetsPage() {
                     value={builderNameAr}
                     onChange={(e) => setBuilderNameAr(e.target.value)}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm focus:border-sky-500 transition-all outline-none"
-                    placeholder="بروتوكول ألم الصدر"
+                    placeholder={t("orderSets.placeholder.chestPain", "بروتوكول ألم الصدر")}
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
@@ -622,7 +622,7 @@ export default function OrderSetsPage() {
                       value={builderCategory}
                       onChange={(e) => setBuilderCategory(e.target.value)}
                       className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm focus:border-sky-500 transition-all outline-none"
-                      placeholder="القلبية"
+                      placeholder={t("orderSets.placeholder.cardiology", "القلبية")}
                     />
                   </div>
                   <div>
@@ -631,7 +631,7 @@ export default function OrderSetsPage() {
                       value={builderSpecialty}
                       onChange={(e) => setBuilderSpecialty(e.target.value)}
                       className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm focus:border-sky-500 transition-all outline-none"
-                      placeholder="الباطنة"
+                      placeholder={t("orderSets.placeholder.internalMedicine", "الباطنة")}
                     />
                   </div>
                 </div>
@@ -665,7 +665,7 @@ export default function OrderSetsPage() {
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-bold flex items-center gap-2">
                     <span className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center">📦</span>
-                    عناصر البروتوكول
+                    {t("orderSets.builder.protocolItems", "عناصر البروتوكول")}
                   </h3>
                   <span className="px-3 py-1 bg-slate-800 border border-slate-700 rounded-full text-xs font-mono">
                     {t("orderSets.itemsCount", { count: builderItems.length, defaultValue: `${builderItems.length} عنصر` })}
@@ -739,7 +739,7 @@ export default function OrderSetsPage() {
                     onClick={addBuilderItem}
                     className="px-6 py-2.5 bg-sky-600 hover:bg-sky-500 text-white rounded-xl font-bold transition-all whitespace-nowrap shadow-md h-[42px] shrink-0"
                   >
-                    + إدراج
+                    {t("orderSets.btn.insert", "+ إدراج")}
                   </button>
                 </div>
               </div>
@@ -795,7 +795,7 @@ export default function OrderSetsPage() {
 
             <h3 className="text-2xl font-black mb-2 text-white">{t("orderSets.execute.title", { name: selectedSet.nameAr || selectedSet.name, defaultValue: `تنفيذ: ${selectedSet.nameAr || selectedSet.name}` })}</h3>
             <p className="text-sm text-slate-400 mb-6">
-              سيتم إصدار {selectedSet.items.length} طلب من النسخة المنشورة v{selectedSet.version}
+              {t("orderSets.execute.desc", { count: selectedSet.items.length, version: selectedSet.version, defaultValue: "سيتم إصدار {{count}} طلب من النسخة المنشورة v{{version}}" })}
             </p>
 
             <div className="space-y-1.5 mb-5 max-h-40 overflow-y-auto">
@@ -810,7 +810,7 @@ export default function OrderSetsPage() {
             </div>
 
             <div className="mb-8">
-              <label className="block text-sm font-bold mb-3 text-slate-300">اختر الحالة النشطة للمريض</label>
+              <label className="block text-sm font-bold mb-3 text-slate-300">{t("orderSets.execute.selectActiveEncounter", "اختر الحالة النشطة للمريض")}</label>
               <div className="relative z-10">
                 <input
                   type="text"
@@ -821,7 +821,7 @@ export default function OrderSetsPage() {
                     searchEncounters(e.target.value);
                   }}
                   className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3.5 text-sm focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition-all placeholder-slate-500"
-                  placeholder="ابحث بالاسم أو رقم MRN..."
+                  placeholder={t("patients.searchPlaceholder", "ابحث بالاسم أو رقم MRN...")}
                 />
 
                 {activeEncounters.length > 0 && !selectedEncounter && (
@@ -831,18 +831,18 @@ export default function OrderSetsPage() {
                         key={enc.id}
                         onClick={() => {
                           setSelectedEncounter(enc);
-                          setEncounterSearchTerm(`${enc.patient?.fullName || 'غير معروف'} - ${enc.patient?.mrn || ''}`);
+                          setEncounterSearchTerm(`${enc.patient?.fullName || t("common.unknown", "غير معروف")} - ${enc.patient?.mrn || ''}`);
                           setActiveEncounters([]);
                         }}
                         className="w-full px-4 py-3 hover:bg-slate-700/50 transition-colors flex justify-between items-center border-b border-slate-700/30 last:border-0 rounded-lg mx-1 w-[calc(100%-8px)]"
                       >
                         <div className="text-right">
-                          <div className="font-bold text-sm text-slate-100">{enc.patient?.fullName || 'مريض غير معروف'}</div>
+                          <div className="font-bold text-sm text-slate-100">{enc.patient?.fullName || t("common.unknownPatient", "مريض غير معروف")}</div>
                           <div className="text-xs text-sky-400 font-mono mt-0.5">#{enc.patient?.mrn}</div>
                         </div>
                         <div className="text-left bg-slate-900/50 px-2 py-1.5 rounded-lg border border-slate-700/50">
-                          <div className="text-[10px] text-slate-300 font-bold">{enc.department?.name || 'بدون قسم'} • {enc.type}</div>
-                          <div className="text-[10px] text-slate-400 mt-0.5">🩺 {enc.doctor?.fullName || 'بدون طبيب'}</div>
+                          <div className="text-[10px] text-slate-300 font-bold">{enc.department?.name || t("common.noDepartment", "بدون قسم")} • {enc.type}</div>
+                          <div className="text-[10px] text-slate-400 mt-0.5">🩺 {enc.doctor?.fullName || t("common.noDoctor", "بدون طبيب")}</div>
                         </div>
                       </button>
                     ))}
@@ -857,7 +857,7 @@ export default function OrderSetsPage() {
                 disabled={executing || !selectedEncounter}
                 className="flex-1 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 disabled:from-slate-700 disabled:to-slate-800 disabled:text-slate-500 disabled:cursor-not-allowed rounded-xl font-bold transition-all shadow-lg shadow-green-900/20 text-white border border-green-500/30"
               >
-                {executing ? 'جاري التنفيذ...' : '▶ تنفيذ البروتوكول الآن'}
+                {executing ? t("orderSets.executing", "جاري التنفيذ...") : t("orderSets.executeNow", "▶ تنفيذ البروتوكول الآن")}
               </button>
               <button
                 onClick={() => {

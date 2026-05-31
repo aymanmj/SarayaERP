@@ -3667,98 +3667,146 @@
   "registries": {
     "toast": {
       "evalMembershipSuccess": "Evaluated {{evaluated}} patients and added {{added}} to registries",
-      "evalMembershipFailed": "Failed to run registry membership evaluation",
-      "evalGapsSuccess": "Evaluated {{evaluated}} gaps and discovered {{opened}} new care gaps",
-      "evalGapsFailed": "Failed to run care gap evaluation",
-      "created": "Registry and its rules created successfully.",
+      "evalMembershipFailed": "Failed to evaluate registry memberships",
+      "evalGapsSuccess": "Evaluated {{evaluated}} gaps and identified {{opened}} new care gaps",
+      "evalGapsFailed": "Failed to evaluate care gaps",
+      "created": "Registry and rules created successfully.",
       "createFailed": "Failed to create registry.",
-      "updated": "Registry and rules updated.",
+      "updated": "Registry and rules updated successfully.",
       "updateFailed": "Failed to update registry.",
-      "gapClosed": "Care gap closed manually.",
-      "gapCloseFailed": "Failed to close care gap."
+      "closeSuccess": "Care gap closed successfully.",
+      "closeFailed": "Failed to close care gap.",
+      "nameRequired": "Please enter registry name.",
+      "criteriaRequired": "At least one criteria is required.",
+      "rulesRequired": "At least one care gap rule is required."
     },
-    "title": "Disease Registries & Care Gaps",
-    "subtitle": "Manage clinical registries and identify preventive care gaps automatically.",
+    "title": "Patient Registries & Care Gaps",
+    "subtitle": "Manage patient registries, enrollment criteria, and care gap rules in one place.",
     "btn": {
-      "evaluateMembers": "Evaluate Members",
-      "evaluateGaps": "Evaluate Care Gaps",
-      "new": "Create New Registry",
-      "closeGap": "Address Gap"
+      "newRegistry": "New Registry",
+      "updateRegistries": "Update Registries",
+      "evaluateGaps": "Evaluate Gaps"
     },
-    "listTitle": "Defined Disease Registries",
-    "statsTitle": "Active Registry Statistics",
-    "stats": {
-      "totalEnrolled": "Total Enrolled",
-      "activeGaps": "Active Care Gaps",
-      "patientsNoGaps": "Patients without Gaps"
-    },
-    "criteriaTitle": "Clinical Registry Inclusion Criteria",
-    "criteriaSubtitle": "Define target population based on clinical database filters:",
-    "rulesTitle": "Preventive Care Gap Rules",
-    "rules": {
-      "everyDays": "Every {{days}} days"
-    },
-    "enrolledListTitle": "Enrolled Patients List",
+    "definedRegistries": "Defined Registries",
+    "emptyRegistries": "No registries defined yet. Start by creating a new registry.",
+    "criteriaUnit": "criteria",
+    "ruleUnit": "rule",
+    "memberUnit": "member",
+    "searchPatient": "Search Patient",
     "placeholder": {
-      "searchEnrolled": "Search by MRN or name..."
+      "searchPatient": "Name, MRN, or phone...",
+      "type": "Type",
+      "operator": "Operator",
+      "value": "Value",
+      "ruleName": "Rule Name",
+      "targetType": "Target Type",
+      "targetValue": "Target Value",
+      "frequencyDays": "Days",
+      "ruleDescription": "Rule Description",
+      "closeReason": "Enter reason for closing this gap..."
     },
-    "gapsTitle": "Care Gaps for Patient",
-    "table": {
-      "targetItem": "Required Document/Service",
-      "detectedAt": "Detection Date"
+    "patientSelected": "Patient Selected",
+    "details": {
+      "title": "Registry Details",
+      "emptyHint": "Select a registry from the list to view its criteria and care gap rules.",
+      "noDescription": "No description for this registry.",
+      "criteria": "Enrollment Criteria",
+      "noCriteria": "No criteria defined.",
+      "careGapRules": "Care Gap Rules",
+      "everyDays": "Every {{days}} days",
+      "noRules": "No care gap rules defined."
     },
-    "emptyGaps": "No active care gaps for this patient.",
+    "analytics": {
+      "members": "Members:",
+      "openGaps": "Open Gaps:"
+    },
+    "patientGaps": {
+      "title": "Care Gaps for Patient {{id}}",
+      "searchHint": "Please search for a patient to view their care gaps.",
+      "noOpenGaps": "No open care gaps for this patient.",
+      "identifiedDate": "Identified Date:",
+      "closeGapBtn": "Resolve & Close Gap"
+    },
+    "edit": {
+      "editTitle": "Edit Registry",
+      "createTitle": "Create New Registry",
+      "registryName": "Registry Name",
+      "registryActive": "Registry Active",
+      "addCriteria": "Criteria",
+      "addRule": "Rule",
+      "ruleActive": "Rule Active"
+    },
     "closeGap": {
-      "title": "Confirm Closing Care Gap",
-      "subtitle": "Please enter justification or notes for closing the gap manually:",
-      "placeholder": "Service provided externally / clinical justification...",
-      "btnConfirm": "Close Gap"
+      "title": "Close Care Gap",
+      "ruleLabel": "Rule:",
+      "confirmBtn": "Confirm Close"
     }
   },
   "scheduler": {
-    "toast": {
-      "bookedSuccess": "Resource booked successfully.",
-      "bookedFailed": "Failed to book or conflict exists.",
-      "resourceCreated": "Resource added successfully.",
-      "resourceCreateFailed": "Failed to add resource.",
-      "cancelledSuccess": "Booking cancelled successfully.",
-      "cancelledFailed": "Failed to cancel."
-    },
-    "title": "Advanced Resource Scheduler",
-    "subtitle": "Manage and book clinical resources like rooms and equipment with conflict prevention.",
-    "btn": {
-      "addPatient": "Add Patient",
-      "addResource": "Add Resource",
-      "waitlist": "Waitlists",
-      "bookResource": "Book Resource"
-    },
     "availableResources": "Available Resources",
     "placeholder": {
-      "search": "Search for resource..."
+      "search": "Search resource..."
     },
+    "upcomingBookings": "Upcoming Bookings",
+    "sevenDays": "(7 days)",
+    "btn": {
+      "addResource": "Add Resource",
+      "waitlist": "Waitlists",
+      "bookResource": "Book Resource",
+      "cancelBooking": "Cancel Booking",
+      "saveResource": "Save Resource",
+      "confirmBooking": "Confirm Booking"
+    },
+    "title": "Advanced Resource Scheduling",
+    "subtitle": "Manage and book clinical resources like rooms and equipment with conflict prevention.",
     "emptyResources": "No matching resources.",
-    "upcomingBookings": "Upcoming Bookings {{days}}",
-    "promptSelectResource": "Please select a resource from list to view its schedule.",
     "loadingBookings": "Loading bookings...",
     "emptyBookings": "No upcoming bookings for this resource.",
-    "confirmCancel": "Do you want to cancel this booking?",
+    "confirmCancel": "Are you sure you want to cancel this booking?",
+    "promptSelectResource": "Please select a resource from the list to view its schedule.",
     "book": {
       "title": "Book New Resource",
+      "patientId": "Patient ID",
       "startTime": "Start Time",
-      "endTime": "End Time",
-      "btnConfirm": "Confirm Booking"
+      "endTime": "End Time"
     },
     "create": {
       "title": "Add New Resource",
       "resourceName": "Resource Name",
-      "resourceType": "Resource Type",
-      "btnSave": "Save Resource"
+      "resourceType": "Resource Type"
+    },
+    "toast": {
+      "bookedSuccess": "Resource booked successfully.",
+      "bookedFailed": "Booking failed or conflict exists.",
+      "resourceCreated": "Resource added successfully.",
+      "resourceCreateFailed": "Failed to add resource.",
+      "cancelledSuccess": "Booking cancelled.",
+      "cancelledFailed": "Cancellation failed."
     }
   },
   "waitlist": {
-    "toast": {
-      "addedSuccess": "Patient added to waitlist successfully.",
-      "addedFailed": "Failed to add patient to waitlist."
+    "title": "Smart Waitlists",
+    "subtitle": "Monitor patients waiting for clinical resources prioritized by urgency and department.",
+    "btn": {
+      "addPatient": "Add Patient",
+      "addToList": "Add to List"
+    },
+    "empty": "Waitlist is currently empty.",
+    "addedLabel": "Added:",
+    "loading": "Loading waitlist...",
+    "add": {
+      "title": "Add Patient to Waitlist",
+      "resourceRequired": "Required Resource",
+      "linkDept": "Request will be linked to department:"
+    },
+    "priorityLabel": "Priority",
+    "placeholder": {
+      "search": "Name, MRN, or phone..."
+    },
+    "priority": {
+      "urgent": "Urgent",
+      "high": "High",
+      "normal": "Normal"
     },
     "status": {
       "notified": "Notified",
@@ -3766,25 +3814,12 @@
       "cancelled": "Cancelled",
       "waiting": "Waiting"
     },
-    "priority": {
-      "high": "High"
+    "toast": {
+      "addedSuccess": "Patient added to waitlist successfully.",
+      "addedFailed": "Failed to add patient to waitlist."
     },
-    "title": "Smart Waitlists",
-    "subtitle": "Track patients waiting for clinical resources ordered by priority and department.",
-    "btn": {
-      "addPatient": "Add Patient",
-      "addConfirm": "Add to List"
-    },
-    "loading": "Loading waitlist...",
-    "empty": "Waitlist is currently empty.",
-    "addedLabel": "Added:",
-    "add": {
-      "title": "Add Patient to Waitlist",
-      "searchPatient": "Search Patient",
-      "requestedResource": "Requested Resource"
-    },
-    "placeholder": {
-      "search": "Name, MRN, or phone..."
+    "notes": {
+      "requiredResource": "Required Resource:"
     }
   },
   "treasury": {
@@ -4490,6 +4525,308 @@
       "pacuNotesLabel": "PACU Recovery Notes",
       "pacuNotesPh": "Additional notes, pain level, nausea, etc...",
       "savePacuBtn": "💾 Save PACU Assessment"
+    }
+  },
+  "clinicalPathways": {
+    "toast": {
+      "newDraftCreated": "Created new draft v{{version}} instead of modifying the active version directly",
+      "draftUpdated": "Pathway draft updated successfully",
+      "draftCreated": "Pathway draft created successfully",
+      "saveFailed": "Failed to save clinical pathway",
+      "enrollSuccess": "Patient successfully enrolled in \"{{name}}\"",
+      "enrollFailed": "Enrollment failed",
+      "disableFailed": "Failed to disable pathway",
+      "workflowFailed": "Failed to execute action",
+      "submittedReview": "Draft submitted for review",
+      "approved": "Version approved",
+      "rejected": "Version reverted to draft",
+      "published": "Version published for use",
+      "retired": "Published version retired"
+    },
+    "confirmDisable": "Do you want to disable this clinical pathway?",
+    "title": "Clinical Pathways",
+    "subtitle": "Manage clinical pathways through draft, review, approval, and publishing stages",
+    "createNew": "+ New Clinical Pathway",
+    "tabs": {
+      "pathways": "Clinical Pathways",
+      "enrollments": "Patient Enrollments"
+    },
+    "placeholder": {
+      "search": "Search by name or diagnosis...",
+      "pneumonia": "Pneumonia Pathway",
+      "description": "Scope and general objectives...",
+      "changeSummary": "What has changed in this version?",
+      "outcome": "Vital signs stabilization"
+    },
+    "stepsLabel": "step",
+    "enrollmentsLabel": "enrollment",
+    "btn": {
+      "details": "View Details",
+      "enroll": "📋 Enroll Patient",
+      "edit": "Edit",
+      "newVersion": "New Version",
+      "submitReview": "Submit for Review",
+      "approve": "Approve",
+      "reject": "Revert",
+      "publish": "Publish",
+      "retire": "Retire",
+      "cancelChanges": "Cancel Changes",
+      "saveDraft": "💾 Save Draft",
+      "addStep": "+ New Step"
+    },
+    "empty": "No clinical pathways found",
+    "emptyHint": "Start by creating your first pathway, then pass it through review, approval, and publishing stages",
+    "enrollmentsEmpty": "Patient Enrollments",
+    "enrollmentsEmptyHint": "To view enrollment details, go to the patient encounter or launch a separate dashboard later",
+    "builder": {
+      "editTitle": "Manage Clinical Pathway Version",
+      "newTitle": "Build New Clinical Pathway",
+      "draftHint": "You can edit this draft directly before submitting it for review",
+      "versionHint": "A new draft will be created from the current version v{{version}} instead of modifying the active version directly",
+      "newHint": "Build a standardized clinical journey before approval and publishing",
+      "basicSettings": "Basic Settings",
+      "nameEn": "English Name (EN)",
+      "nameAr": "Arabic Name (AR)",
+      "expectedLos": "Expected Length of Stay",
+      "description": "Scientific Description",
+      "changeSummary": "Change Summary",
+      "steps": "Steps & Timelines",
+      "stepsSubtitle": "Add actions and order sets distributed by days and clinical phases.",
+      "emptySteps": "Pathway has not started yet",
+      "emptyStepsHint": "Add the first day and basic steps to start building the clinical pathway",
+      "linkOrderSet": "Link to Published Order Set",
+      "stepName": "Step Name",
+      "expectedOutcome": "Expected Outcome"
+    },
+    "phase": {
+      "none": "No specific phase",
+      "assessment": "Assessment",
+      "treatment": "Treatment",
+      "monitoring": "Monitoring",
+      "discharge": "Discharge"
+    },
+    "goal": "Goal:",
+    "linkedOrderSet": "Order Set:",
+    "pathwayLabel": "Pathway:",
+    "enroll": {
+      "title": "Enroll Case in Clinical Pathway",
+      "searchEncounter": "Search for Active Encounter",
+      "clinicalNotes": "Clinical Notes (Optional)"
+    },
+    "enrolling": "Enrolling...",
+    "enrollStart": "📋 Enroll & Start Pathway"
+  },
+  "patientsAging": {
+    "title": "Patients Aging Report",
+    "subtitle": "Review patient outstanding balances grouped by aging periods (0-30, 31-60, 61-90, 91-120, 120+ days).",
+    "reportDate": "Report Date",
+    "totalBalance": "Total Patients Balance",
+    "quickDistribution": "Quick Aging Distribution",
+    "empty": "No outstanding patient balances at this time.",
+    "days": {
+      "0_30": "0 - 30 Days",
+      "31_60": "31 - 60 Days",
+      "61_90": "61 - 90 Days",
+      "91_120": "91 - 120 Days",
+      "121_plus": "120+ Days"
+    },
+    "totalBalanceHeader": "Total Balance",
+    "statementBtn": "Account Statement"
+  },
+  "insuranceProviders": {
+    "title": "Insurance Providers",
+    "subtitle": "Manage insurance company contracts, policies, and coverage plans.",
+    "btn": {
+      "newProvider": "New Provider",
+      "managePlans": "Manage Plans"
+    },
+    "empty": "No insurance providers added yet.",
+    "confirmArchive": "Are you sure you want to archive (disable) provider \"{{name}}\"?",
+    "toast": {
+      "loadFailed": "Failed to load insurance providers",
+      "requiredFields": "Name and code are required",
+      "updatedSuccess": "Provider updated successfully",
+      "createdSuccess": "Provider added successfully",
+      "archivedSuccess": "Provider archived successfully",
+      "archiveFailed": "Failed to archive provider"
+    },
+    "edit": {
+      "editTitle": "Edit Insurance Provider",
+      "createTitle": "Add Insurance Provider",
+      "providerName": "Provider Name",
+      "code": "Provider Code",
+      "activeLabel": "Provider Active (Active)"
+    },
+    "details": {
+      "backBtn": "➜ Back to Providers List",
+      "manageLabel": "Manage:",
+      "activePolicies": "📋 Active Policies / Contracts",
+      "newPolicyBtn": "+ New Policy / Contract",
+      "policyName": "Policy Name",
+      "policyNumber": "Policy Number",
+      "linkedPlan": "Linked Plan",
+      "validity": "Validity",
+      "emptyPolicies": "No policies found. A policy is required to link patients.",
+      "noPlan": "No specific plan (cash/general)",
+      "expired": "Expired",
+      "coveragePlans": "⚙️ Coverage Plans (Plans)",
+      "newPlanBtn": "+ New Plan",
+      "defaultCopay": "Default Copay Rate:",
+      "manageRules": "Manage Rules ⚙️",
+      "emptyPlans": "No insurance plans. Create a plan first, then link it to a policy.",
+      "newPlanModalTitle": "Add New Coverage Plan",
+      "planNameLabel": "Plan Name",
+      "defaultCopayLabel": "Default Copay Rate (%)",
+      "newPolicyModalTitle": "Add New Contract / Policy",
+      "policyNameRequiredLabel": "Policy Name / Contract *",
+      "policyNumberLabel": "Policy Number",
+      "linkedPlanLabel": "Linked Plan (Plan)",
+      "noPlanOption": "No Plan (General Coverage)",
+      "startDateLabel": "Start Date",
+      "endDateLabel": "End Date",
+      "savePolicyBtn": "Save Policy",
+      "toast": {
+        "loadFailed": "Failed to load details",
+        "planCreated": "Plan created successfully",
+        "planCreateFailed": "Failed to create plan",
+        "policyNameRequired": "Policy name is required",
+        "policyCreated": "Policy created successfully",
+        "policyCreateFailed": "Failed to create policy"
+      }
+    }
+  },
+  "preAuth": {
+    "title": "Pre-Authorizations",
+    "subtitle": "Track incoming and outgoing pre-authorization requests for insurance companies.",
+    "btn": {
+      "newRequest": "+ New Request",
+      "nphies": "Nphies"
+    },
+    "table": {
+      "providerPolicy": "Provider & Policy",
+      "requestedAmount": "Requested Amount",
+      "status": "Request Status",
+      "authCode": "Approval Code"
+    },
+    "empty": "No active requests.",
+    "noMemberId": "No insurance ID",
+    "provider": "Provider:",
+    "status": {
+      "pending": "Pending",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "submitted": "Submitted",
+      "paid": "Paid"
+    },
+    "toast": {
+      "noActivePolicy": "This patient does not have an active insurance policy.",
+      "createdSuccess": "Pre-authorization request registered successfully",
+      "nphiesEligible": "✅ Patient is insurance eligible via NPHIES",
+      "nphiesEligibilityFailed": "Failed to verify eligibility via NPHIES",
+      "cptCodeRequired": "Please enter CPT code for each service",
+      "icdCodeRequired": "Please enter ICD-10 code for each diagnosis",
+      "nphiesAccepted": "✅ Pre-authorization accepted — NPHIES ID: {{claimId}}",
+      "nphiesSubmitFailed": "Failed to submit to NPHIES",
+      "authCodeRequired": "Approval code is required upon approval",
+      "updatedSuccess": "Pre-authorization status updated successfully",
+      "updateFailed": "Failed to update"
+    },
+    "add": {
+      "modalTitle": "Create Pre-Auth Request",
+      "searchLabel": "Search Patient (Name, MRN, Phone)",
+      "nphiesEligibility": "NPHIES Eligibility",
+      "insuranceMemberId": "Insurance Member ID:",
+      "requestedAmountLabel": "Requested Amount (Optional)",
+      "notesLabel": "Notes / Description of Requested Service"
+    },
+    "placeholder": {
+      "notes": "Medical report details and treating doctor name...",
+      "cptCode": "CPT Code",
+      "serviceName": "Service Name",
+      "quantity": "Quantity",
+      "price": "Price",
+      "icdCode": "ICD-10 Code",
+      "diagnosisDesc": "Diagnosis Description"
+    },
+    "action": {
+      "approveTitle": "Record Approval",
+      "rejectTitle": "Record Rejection",
+      "authCodeLabel": "Assigned Approval Code (Auth Code)",
+      "approvedAmountLabel": "Approved Amount (Optional)",
+      "endDateLabel": "Expiry Date",
+      "rejectWarning": "The request status will be updated to Rejected. You can add additional reason notes later. Are you sure you want to reject?",
+      "confirmApprove": "Confirm Approval",
+      "confirmReject": "Confirm Rejection"
+    },
+    "nphies": {
+      "modalTitle": "Submit to NPHIES Platform",
+      "subtitle": "Pre-Authorization",
+      "servicesLabel": "Requested Services (CPT Codes)",
+      "addServiceBtn": "+ Add Service",
+      "diagnosesLabel": "Diagnoses (ICD-10)",
+      "isPrimary": "Primary",
+      "addDiagnosisBtn": "+ Add Diagnosis",
+      "attachmentsLabel": "Clinical Attachments (Optional)",
+      "uploadHint": "Click to upload medical reports or radiology images (PDF, JPG, PNG)",
+      "submitBtn": "Submit to NPHIES"
+    }
+  },
+  "insuranceClaims": {
+    "title": "Insurance Claims Management (RCM)",
+    "subtitle": "Monitor outstanding bills, manage rejected claims, and prepare NPHIES files.",
+    "filter": {
+      "provider": "Insurance Provider",
+      "allProviders": "View All Providers",
+      "status": "Claim Status"
+    },
+    "status": {
+      "pendingOption": "Pending (Unsent)",
+      "submittedOption": "Submitted",
+      "paidOption": "Paid",
+      "rejectedOption": "Rejected"
+    },
+    "stats": {
+      "totalClaims": "Total Visible Claims"
+    },
+    "action": {
+      "selectedPrefix": "Selected",
+      "selectedClaims": "claims",
+      "selectedClaimsValue": "with a total value of",
+      "submitBtn": "Submit Claim",
+      "payBtn": "Settle Payment",
+      "rejectBtn": "Reject Claims",
+      "resubmitBtn": "Resubmit Claim",
+      "printBtn": "Print Claims Sheet"
+    },
+    "table": {
+      "invoiceNumber": "Invoice Number",
+      "memberId": "Insurance Member ID",
+      "insuranceShare": "Claim (Provider Share)",
+      "patientShare": "Patient Share",
+      "rcmStatus": "RCM Status"
+    },
+    "loading": "Fetching claims data...",
+    "empty": "No insurance claims match the search criteria.",
+    "notRegistered": "Unregistered",
+    "rejectionReasonLabel": "Reason:",
+    "rejectModal": {
+      "title": "Reject Insurance Claims",
+      "warningPrefix": "The status of",
+      "claimsTo": "claims will be changed to",
+      "warningSuffix": "Please write down the rejection reason received from the insurance provider for RCM review.",
+      "reasonLabel": "Rejection Reason (Required)",
+      "placeholder": "Enter code or justification (e.g., Service not covered under policy)..."
+    },
+    "toast": {
+      "loadFailed": "Failed to load claims.",
+      "statusUpdated": "Status updated successfully.",
+      "reasonRequired": "Please enter a rejection reason.",
+      "rejectRecorded": "Rejection recorded successfully.",
+      "nphiesSuccess": "✅ Uploaded {{count}} claims successfully to NPHIES",
+      "nphiesPartial": "⚠️ Accepted {{accepted}} and rejected {{rejected}} claims",
+      "nphiesFailedAll": "❌ Failed to upload all claims ({{count}})",
+      "noInvoicesToPrint": "No invoices to print.",
+      "allowPopups": "Please allow popups to print."
     }
   }
 }
