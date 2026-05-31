@@ -1,8 +1,9 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { toast } from "sonner";
 import { apiClient } from "../../../api/apiClient";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLicenseStore } from "../../../stores/licenseStore";
+import { useTranslation } from "react-i18next";
 
 interface ConsentFormDialogProps {
   isOpen: boolean;
@@ -11,7 +12,6 @@ interface ConsentFormDialogProps {
   hospitalId: number;
   encounterId?: number;
   doctorId?: number; // the current logged in user (doctor)
-   
   existingForm?: any; // If we are opening a pending form to sign it
 }
 
@@ -24,17 +24,27 @@ export function ConsentFormDialog({
   doctorId,
   existingForm,
 }: ConsentFormDialogProps) {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
   const queryClient = useQueryClient();
   const { details: licenseDetails } = useLicenseStore();
   const hospitalName = licenseDetails?.hospitalName;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
-  const [signedByRef, setSignedByRef] = useState("المريض نفسه");
+  const [signedByRef, setSignedByRef] = useState(t("consents.dialog.selfPatient", "المريض نفسه"));
   const [formType, setFormType] = useState<string>(existingForm?.formType || "GENERAL");
   const [title, setTitle] = useState(existingForm?.title || "");
   const [content, setContent] = useState(
-    existingForm?.content || "أقر أنا الموقع أدناه بموافقتي الكاملة على الإجراء الطبي..."
+    existingForm?.content || t("consents.dialog.defaultContent", "أقر أنا الموقع أدناه بموافقتي الكاملة على الإجراء الطبي...")
   );
+
+  // Sync state if translation changes or existingForm changes
+  useEffect(() => {
+    if (!existingForm) {
+      setSignedByRef(t("consents.dialog.selfPatient", "المريض نفسه"));
+      setContent(t("consents.dialog.defaultContent", "أقر أنا الموقع أدناه بموافقتي الكاملة على الإجراء الطبي..."));
+    }
+  }, [t, existingForm]);
 
   const isSignMode = !!existingForm && existingForm.status === "DRAFT";
   const isViewMode = !!existingForm && existingForm.status !== "DRAFT";
@@ -101,10 +111,10 @@ export function ConsentFormDialog({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["consentForms", String(patientId)] });
-      toast.success("تم تدوين النموذج بنجاح");
+      toast.success(t("consents.dialog.toastCreateSuccess", "تم تدوين النموذج بنجاح"));
       onClose();
     },
-    onError: () => toast.error("حدث خطأ أثناء حفظ النموذج"),
+    onError: () => toast.error(t("consents.dialog.toastCreateError", "حدث خطأ أثناء حفظ النموذج")),
   });
 
   const signMutation = useMutation({
@@ -124,15 +134,15 @@ export function ConsentFormDialog({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["consentForms", String(patientId)] });
-      toast.success("تم توقيع النموذج وحفظه");
+      toast.success(t("consents.dialog.toastSignSuccess", "تم توقيع النموذج وحفظه"));
       onClose();
     },
-    onError: () => toast.error("حدث خطأ أثناء التوقيع"),
+    onError: () => toast.error(t("consents.dialog.toastSignError", "حدث خطأ أثناء التوقيع")),
   });
 
   const handleSubmit = () => {
     if (!existingForm) {
-      if (!title) return toast.error("الرجاء إدخال عنوان للنموذج");
+      if (!title) return toast.error(t("consents.dialog.toastEnterTitle", "الرجاء إدخال عنوان للنموذج"));
       createMutation.mutate();
     } else if (isSignMode) {
       signMutation.mutate();
@@ -142,24 +152,44 @@ export function ConsentFormDialog({
   // --- Print ---
   const handlePrint = () => {
     const formData = existingForm || { formType, title, content, status: "DRAFT", signedAt: null, signature: null, signedByRef: null };
-    const typeLabel = formData.formType === "SURGERY" ? "عملية جراحية" : formData.formType === "ANESTHESIA" ? "تخدير" : formData.formType === "PROCEDURE" ? "إجراء طبي" : formData.formType === "DATA_SHARING" ? "مشاركة بيانات (MPI)" : "موافقة عامة";
-    const statusLabel = formData.status === "SIGNED" ? "موقّع" : formData.status === "REVOKED" ? "ملغى" : "مسودة - بانتظار التوقيع";
-    const createdDate = formData.createdAt ? new Date(formData.createdAt).toLocaleDateString("ar-LY", { year: "numeric", month: "long", day: "numeric" }) : new Date().toLocaleDateString("ar-LY", { year: "numeric", month: "long", day: "numeric" });
-    const signedDate = formData.signedAt ? new Date(formData.signedAt).toLocaleDateString("ar-LY", { year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" }) : null;
+    
+    // Label translations for print
+    const typeLabel = 
+      formData.formType === "SURGERY" ? t("consents.dialog.surgery", "عملية جراحية") :
+      formData.formType === "ANESTHESIA" ? t("consents.dialog.anesthesia", "تخدير") :
+      formData.formType === "PROCEDURE" ? t("consents.dialog.procedure", "إجراء طبي") :
+      formData.formType === "DATA_SHARING" ? t("consents.dialog.dataSharing", "مشاركة بيانات (MPI)") :
+      formData.formType === "OTHER" ? t("consents.dialog.other", "أخرى") :
+      t("consents.dialog.general", "موافقة عامة");
+
+    const statusLabel = 
+      formData.status === "SIGNED" ? t("consents.dialog.statusSigned", "موقّع") :
+      formData.status === "REVOKED" ? t("consents.dialog.statusRevoked", "ملغى") :
+      t("consents.dialog.statusDraft", "مسودة - بانتظار التوقيع");
+
+    const createdDate = formData.createdAt 
+      ? new Date(formData.createdAt).toLocaleDateString(isRtl ? "ar-LY" : "en-US", { year: "numeric", month: "long", day: "numeric" }) 
+      : new Date().toLocaleDateString(isRtl ? "ar-LY" : "en-US", { year: "numeric", month: "long", day: "numeric" });
+      
+    const signedDate = formData.signedAt 
+      ? new Date(formData.signedAt).toLocaleDateString(isRtl ? "ar-LY" : "en-US", { year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" }) 
+      : null;
 
     const printWindow = window.open("", "_blank", "width=800,height=1000");
-    if (!printWindow) { toast.error("الرجاء السماح بالنوافذ المنبثقة للطباعة"); return; }
+    if (!printWindow) { 
+      toast.error(t("consents.dialog.toastAllowPopups", "الرجاء السماح بالنوافذ المنبثقة للطباعة")); 
+      return; 
+    }
 
     printWindow.document.write(`
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="${i18n.language}" dir="${isRtl ? "rtl" : "ltr"}">
 <head>
   <meta charset="UTF-8">
-  <title>نموذج موافقة - ${formData.title}</title>
+  <title>${t("consents.dialog.printTitle", "نموذج موافقة")} - ${formData.title}</title>
   <style>
-
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Cairo', sans-serif; direction: rtl; color: #1a1a2e; padding: 30px 40px; max-width: 800px; margin: 0 auto; }
+    body { font-family: 'Cairo', sans-serif; direction: ${isRtl ? "rtl" : "ltr"}; color: #1a1a2e; padding: 30px 40px; max-width: 800px; margin: 0 auto; }
     .header { text-align: center; border-bottom: 3px double #1a1a2e; padding-bottom: 16px; margin-bottom: 20px; }
     .header h1 { font-size: 22px; font-weight: 800; color: #0f172a; margin-bottom: 4px; }
     .header .subtitle { font-size: 13px; color: #475569; }
@@ -168,7 +198,7 @@ export function ConsentFormDialog({
     .info-item { font-size: 13px; }
     .info-item .label { color: #64748b; font-weight: 600; }
     .info-item .value { color: #0f172a; font-weight: 700; }
-    .consent-text { border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin-bottom: 24px; line-height: 2; font-size: 14px; background: #fff; min-height: 120px; white-space: pre-wrap; }
+    .consent-text { border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin-bottom: 24px; line-height: 2; font-size: 14px; background: #fff; min-height: 120px; white-space: pre-wrap; text-align: justify; }
     .consent-text-title { font-size: 15px; font-weight: 700; margin-bottom: 10px; color: #334155; }
     .signature-section { border: 1px solid #cbd5e1; border-radius: 8px; padding: 18px; margin-bottom: 20px; }
     .signature-section h3 { font-size: 14px; font-weight: 700; margin-bottom: 12px; color: #334155; }
@@ -187,35 +217,35 @@ export function ConsentFormDialog({
 <body>
   <div class="header">
     <img src="/sarayalogo.png" alt="" style="width:60px;height:60px;border-radius:10px;margin:0 auto 8px;display:block;object-fit:contain;" />
-    <h1>${hospitalName || "المستشفى"}</h1>
-    <div class="subtitle">نموذج موافقة / تفويض طبي</div>
+    <h1>${hospitalName || t("consents.dialog.printHospital", "المستشفى")}</h1>
+    <div class="subtitle">${t("consents.dialog.printSubtitle", "نموذج موافقة / تفويض طبي")}</div>
     <div class="form-type-badge">${typeLabel}</div>
   </div>
 
   <div class="info-grid">
-    <div class="info-item"><span class="label">عنوان النموذج: </span><span class="value">${formData.title}</span></div>
-    <div class="info-item"><span class="label">رقم النموذج: </span><span class="value">#${formData.id || "جديد"}</span></div>
-    <div class="info-item"><span class="label">تاريخ الإنشاء: </span><span class="value">${createdDate}</span></div>
-    <div class="info-item"><span class="label">الحالة: </span><span class="status-badge ${formData.status === "SIGNED" ? "status-signed" : formData.status === "REVOKED" ? "status-revoked" : "status-draft"}">${statusLabel}</span></div>
-    ${formData.doctor?.fullName ? `<div class="info-item"><span class="label">الطبيب المسئول: </span><span class="value">${formData.doctor.fullName}</span></div>` : ""}
+    <div class="info-item"><span class="label">${t("consents.dialog.printFormTitle", "عنوان النموذج: ")}</span><span class="value">${formData.title}</span></div>
+    <div class="info-item"><span class="label">${t("consents.dialog.printFormId", "رقم النموذج: ")}</span><span class="value">#${formData.id || t("consents.dialog.printNew", "جديد")}</span></div>
+    <div class="info-item"><span class="label">${t("consents.dialog.printCreatedAt", "تاريخ الإنشاء: ")}</span><span class="value">${createdDate}</span></div>
+    <div class="info-item"><span class="label">${t("consents.dialog.printStatus", "الحالة: ")}</span><span class="status-badge ${formData.status === "SIGNED" ? "status-signed" : formData.status === "REVOKED" ? "status-revoked" : "status-draft"}">${statusLabel}</span></div>
+    ${formData.doctor?.fullName ? `<div class="info-item"><span class="label">${t("consents.dialog.printDoctor", "الطبيب المسئول: ")}</span><span class="value">${formData.doctor.fullName}</span></div>` : ""}
   </div>
 
-  <div class="consent-text-title">📝 نص الموافقة / التفويض:</div>
+  <div class="consent-text-title">${t("consents.dialog.printContentTitle", "📝 نص الموافقة / التفويض:")}</div>
   <div class="consent-text">${formData.content}</div>
 
   <div class="signature-section">
-    <h3>✉️ التوقيع:</h3>
+    <h3>${t("consents.dialog.printSignatureTitle", "✉️ التوقيع:")}</h3>
     <div class="signature-box">
-      ${formData.signature ? `<img src="${formData.signature}" alt="توقيع" />` : `<span class="placeholder">مساحة التوقيع</span>`}
+      ${formData.signature ? `<img src="${formData.signature}" alt="توقيع" />` : `<span class="placeholder">${t("consents.dialog.noSignature", "لا يوجد توقيع")}</span>`}
     </div>
     <div class="signature-meta">
-      <span>صاحب التوقيع: ${formData.signedByRef || "________________"}</span>
-      <span>تاريخ التوقيع: ${signedDate || "____/____/________"}</span>
+      <span>${t("consents.dialog.printSignee", "صاحب التوقيع: ")}${formData.signedByRef || "________________"}</span>
+      <span>${t("consents.dialog.printSignedDate", "تاريخ التوقيع: ")}${signedDate || "____/____/________"}</span>
     </div>
   </div>
 
   <div class="footer">
-    تم إنشاء هذا النموذج إلكترونياً بواسطة نظام السرايا الطبي &bull; ${new Date().toLocaleDateString("ar-LY")}
+    ${t("consents.dialog.printFooter", "تم إنشاء هذا النموذج إلكترونياً بواسطة نظام السرايا الطبي")} &bull; ${new Date().toLocaleDateString(isRtl ? "ar-LY" : "en-US")}
   </div>
 </body>
 </html>
@@ -227,12 +257,16 @@ export function ConsentFormDialog({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4" dir="rtl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4" dir={isRtl ? "rtl" : "ltr"}>
       <div className="bg-slate-950 border border-slate-700 rounded-2xl w-full max-w-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}
         <div className="bg-slate-900 border-b border-slate-800 p-4 flex justify-between items-center text-slate-100">
           <h2 className="text-xl font-bold">
-            {isViewMode ? "عرض التفويض الطبي" : isSignMode ? "توقيع التفويض الطبي" : "إنشاء تفويض طبي جديد"}
+            {isViewMode 
+              ? t("consents.dialog.titleView", "عرض التفويض الطبي") 
+              : isSignMode 
+                ? t("consents.dialog.titleSign", "توقيع التفويض الطبي") 
+                : t("consents.dialog.titleNew", "إنشاء تفويض طبي جديد")}
           </h2>
           <button onClick={onClose} className="text-slate-400 hover:text-white transition">✖</button>
         </div>
@@ -241,35 +275,35 @@ export function ConsentFormDialog({
         <div className="p-6 overflow-y-auto space-y-6 flex-1 text-sm text-slate-300">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1">
-              <label className="text-slate-400 text-xs font-bold">نوع النموذج</label>
+              <label className="text-slate-400 text-xs font-bold">{t("consents.dialog.formType", "نوع النموذج")}</label>
               <select
                 disabled={!!existingForm}
                 className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-white disabled:opacity-50 outline-none"
                 value={formType}
                 onChange={(e) => setFormType(e.target.value)}
               >
-                <option value="GENERAL">موافقة عامة</option>
-                <option value="SURGERY">عملية جراحية</option>
-                <option value="ANESTHESIA">تخدير</option>
-                <option value="PROCEDURE">إجراء طبي</option>
-                <option value="DATA_SHARING">مشاركة بيانات (MPI)</option>
-                <option value="OTHER">أخرى</option>
+                <option value="GENERAL">{t("consents.dialog.general", "موافقة عامة")}</option>
+                <option value="SURGERY">{t("consents.dialog.surgery", "عملية جراحية")}</option>
+                <option value="ANESTHESIA">{t("consents.dialog.anesthesia", "تخدير")}</option>
+                <option value="PROCEDURE">{t("consents.dialog.procedure", "إجراء طبي")}</option>
+                <option value="DATA_SHARING">{t("consents.dialog.dataSharing", "مشاركة بيانات (MPI)")}</option>
+                <option value="OTHER">{t("consents.dialog.other", "أخرى")}</option>
               </select>
             </div>
             <div className="space-y-1">
-              <label className="text-slate-400 text-xs font-bold">العنوان / الإجراء</label>
+              <label className="text-slate-400 text-xs font-bold">{t("consents.dialog.titleLabel", "العنوان / الإجراء")}</label>
               <input
                 disabled={!!existingForm}
                 className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-white disabled:opacity-50 outline-none"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="مثال: عملية استئصال الزائدة"
+                placeholder={t("consents.dialog.titlePlaceholder", "مثال: عملية استئصال الزائدة")}
               />
             </div>
           </div>
 
           <div className="space-y-1">
-            <label className="text-slate-400 text-xs font-bold">نص الموافقة</label>
+            <label className="text-slate-400 text-xs font-bold">{t("consents.dialog.consentText", "نص الموافقة")}</label>
             <textarea
               disabled={!!existingForm}
               rows={5}
@@ -282,21 +316,21 @@ export function ConsentFormDialog({
           {(isSignMode || isViewMode) && (
             <div className="border border-slate-700 p-5 rounded-xl bg-slate-900/50 space-y-4">
               <div className="flex items-center gap-4">
-                <label className="text-slate-400 font-bold">صاحب التوقيع:</label>
+                <label className="text-slate-400 font-bold">{t("consents.dialog.signedByRef", "صاحب التوقيع")}:</label>
                 <input
                   disabled={isViewMode}
-                  className="bg-slate-800 border-none rounded px-3 py-1 text-white disabled:opacity-50"
+                  className="bg-slate-800 border-none rounded px-3 py-1 text-white disabled:opacity-50 outline-none"
                   value={isViewMode ? existingForm.signedByRef : signedByRef}
                   onChange={(e) => setSignedByRef(e.target.value)}
                 />
               </div>
 
               <div>
-                <label className="block text-slate-400 font-bold mb-2">توقيع المريض / الوصي:</label>
+                <label className="block text-slate-400 font-bold mb-2">{t("consents.dialog.patientSignature", "توقيع المريض / الوصي")}:</label>
                 {isViewMode && existingForm.signature ? (
                   <img src={existingForm.signature} alt="Signature" className="max-w-xs bg-white rounded border border-slate-700 p-2" />
                 ) : isViewMode ? (
-                  <div className="text-rose-400 italic">لا يوجد توقيع</div>
+                  <div className="text-rose-400 italic">{t("consents.dialog.noSignature", "لا يوجد توقيع")}</div>
                 ) : (
                   <div className="space-y-2">
                     <canvas
@@ -316,7 +350,7 @@ export function ConsentFormDialog({
                       onClick={clearCanvas}
                       className="text-xs text-rose-400 hover:text-rose-300 underline"
                     >
-                      مسح التوقيع
+                      {t("consents.dialog.clearSignature", "مسح التوقيع")}
                     </button>
                   </div>
                 )}
@@ -329,16 +363,16 @@ export function ConsentFormDialog({
         <div className="bg-slate-900 border-t border-slate-800 p-4 flex justify-end gap-3 rounded-b-2xl">
           <button
             onClick={handlePrint}
-            className="px-5 py-2 rounded-xl text-slate-300 font-bold hover:bg-slate-800 transition border border-slate-700"
-            title="طباعة النموذج"
+            className="px-5 py-2 rounded-xl text-slate-300 font-bold hover:bg-slate-800 transition border border-slate-700 flex items-center gap-1"
+            title={t("consents.dialog.print", "طباعة")}
           >
-            🖨️ طباعة
+            🖨️ {t("consents.dialog.print", "طباعة")}
           </button>
           <button
             onClick={onClose}
             className="px-5 py-2 rounded-xl text-slate-300 font-bold hover:bg-slate-800 transition"
           >
-            إغلاق
+            {t("consents.dialog.close", "إغلاق")}
           </button>
           {!isViewMode && (
             <button
@@ -346,7 +380,11 @@ export function ConsentFormDialog({
               disabled={createMutation.isPending || signMutation.isPending}
               className="px-6 py-2 rounded-xl text-white font-bold bg-sky-600 hover:bg-sky-500 transition shadow-lg disabled:opacity-50"
             >
-              {createMutation.isPending || signMutation.isPending ? "جاري الحفظ..." : existingForm ? "اعتماد التوقيع" : "حفظ كمسودة للتوقيع"}
+              {createMutation.isPending || signMutation.isPending 
+                ? t("consents.dialog.saving", "جاري الحفظ...") 
+                : existingForm 
+                  ? t("consents.dialog.approveSignature", "اعتماد التوقيع") 
+                  : t("consents.dialog.saveAsDraft", "حفظ كمسودة للتوقيع")}
             </button>
           )}
         </div>

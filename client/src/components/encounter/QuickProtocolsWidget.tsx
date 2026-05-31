@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { apiClient } from "../../api/apiClient";
@@ -8,7 +9,7 @@ export default function QuickProtocolsWidget({
 }: {
   encounterId: number;
 }) {
-   
+  const { t } = useTranslation();
   const [orderSets, setOrderSets] = useState<any[]>([]);
    
   const [pathways, setPathways] = useState<any[]>([]);
@@ -24,34 +25,34 @@ export default function QuickProtocolsWidget({
   }, []);
 
   const executeOrderSet = async (setId: number, name: string) => {
-    if (!confirm(`تأكيد تنفيذ بروتوكول "${name}" بجميع طلباته السريرية لهذه الحالة؟`)) {
+    if (!confirm(t("encounter.protocols.confirmExecute", { name, defaultValue: `تأكيد تنفيذ بروتوكول "${name}" بجميع طلباته السريرية لهذه الحالة؟` }))) {
       return;
     }
 
     setExecutingId(setId);
     try {
       await apiClient.post(`/order-sets/${setId}/execute`, { encounterId });
-      toast.success("تم الاعتماد وإرسال الطلبات بنجاح");
+      toast.success(t("encounter.protocols.executeSuccess", "تم الاعتماد وإرسال الطلبات بنجاح"));
      
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || "تعذر تنفيذ البروتوكول");
+      toast.error(error?.response?.data?.message || t("encounter.protocols.executeFailed", "تعذر تنفيذ البروتوكول"));
     } finally {
       setExecutingId(null);
     }
   };
 
   const enrollPathway = async (pathwayId: number, name: string) => {
-    if (!confirm(`تأكيد إدراج الحالة في المسار العلاجي "${name}"؟`)) {
+    if (!confirm(t("encounter.protocols.confirmEnroll", { name, defaultValue: `تأكيد إدراج الحالة في المسار العلاجي "${name}"؟` }))) {
       return;
     }
 
     setEnrollingId(pathwayId);
     try {
       await apiClient.post(`/clinical-pathways/${pathwayId}/enroll`, { encounterId });
-      toast.success("تم إدراج المريض وبدء المسار العلاجي");
+      toast.success(t("encounter.protocols.enrollSuccess", "تم إدراج المريض وبدء المسار العلاجي"));
      
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || "تعذر الإدراج في المسار");
+      toast.error(error?.response?.data?.message || t("encounter.protocols.enrollFailed", "تعذر الإدراج في المسار"));
     } finally {
       setEnrollingId(null);
     }
@@ -68,7 +69,7 @@ export default function QuickProtocolsWidget({
       {orderSets.length > 0 && (
         <div className="mb-4">
           <h3 className="text-xs font-black text-sky-400 mb-3 border-b border-slate-800 pb-2 flex items-center gap-1.5 relative z-10">
-            ⚡ أوامر المجموعات (Order Sets)
+            ⚡ {t("encounter.protocols.orderSets", "أوامر المجموعات (Order Sets)")}
           </h3>
           <div className="space-y-2 relative z-10 max-h-48 overflow-y-auto custom-scrollbar pr-1">
             {orderSets.map((orderSet) => (
@@ -83,11 +84,11 @@ export default function QuickProtocolsWidget({
                     {orderSet.nameAr || orderSet.name}
                   </div>
                   <span className="text-[9px] px-1.5 py-0.5 rounded border border-slate-700 text-slate-400">
-                    {orderSet.category || "عام"}
+                    {t("encounter.protocols.category." + (orderSet.category || "general").toLowerCase(), orderSet.category || "عام") as string}
                   </span>
                 </div>
                 <div className="text-[10px] text-slate-500 truncate max-w-[85%]">
-                  {orderSet.description || "تنفيذ الإجراءات المرفقة تلقائيًا"}
+                  {orderSet.description || t("encounter.protocols.defaultOrderDesc", "تنفيذ الإجراءات المرفقة تلقائيًا")}
                 </div>
 
                 <div className="absolute left-3 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -102,7 +103,7 @@ export default function QuickProtocolsWidget({
       {pathways.length > 0 && (
         <div>
           <h3 className="text-xs font-black text-pink-400 mb-3 border-b border-slate-800 pb-2 flex items-center gap-1.5 relative z-10">
-            🛤️ مسارات العلاج (Pathways)
+            🛤️ {t("encounter.protocols.pathways", "مسارات العلاج (Pathways)")}
           </h3>
           <div className="space-y-2 relative z-10 max-h-48 overflow-y-auto custom-scrollbar pr-1">
             {pathways.map((pathway) => (
@@ -121,7 +122,7 @@ export default function QuickProtocolsWidget({
                   </span>
                 </div>
                 <div className="text-[10px] text-slate-500 truncate max-w-[85%]">
-                  {pathway.targetDiagnosis || "خطة علاجية مقسمة على الأيام"}
+                  {pathway.targetDiagnosis || t("encounter.protocols.defaultPathwayDesc", "خطة علاجية مقسمة على الأيام")}
                 </div>
 
                 <div className="absolute left-3 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -138,13 +139,13 @@ export default function QuickProtocolsWidget({
           to="/order-sets"
           className="text-[10px] text-sky-500 hover:text-sky-400 font-bold transition-colors"
         >
-          إدارة محتوى البروتوكولات ←
+          {t("encounter.protocols.manageOrderSets", "إدارة محتوى البروتوكولات ←")}
         </Link>
         <Link
           to="/clinical-pathways"
           className="text-[10px] text-pink-500 hover:text-pink-400 font-bold transition-colors"
         >
-          إدارة المسارات السريرية ←
+          {t("encounter.protocols.managePathways", "إدارة المسارات السريرية ←")}
         </Link>
       </div>
     </div>

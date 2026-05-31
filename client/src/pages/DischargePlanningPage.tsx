@@ -153,11 +153,11 @@ export default function DischargePlanningPage() {
           expectedDischargeDate: item.admission?.expectedDischargeDate,
           lengthOfStay: item.admission?.lengthOfStay,
           primaryDiagnosis: item.admission?.primaryDiagnosis,
-          admittingDoctor: item.admission?.admittingDoctor?.fullName || 'غير محدد',
-          department: item.admission?.department?.name || 'غير محدد',
+          admittingDoctor: item.admission?.admittingDoctor?.fullName || t("common.notSpecified", "غير محدد"),
+          department: item.admission?.department?.name || t("common.notSpecified", "غير محدد"),
           bed: {
-            bedNumber: item.admission?.bed?.bedNumber || 'غير محدد',
-            ward: item.admission?.ward?.name || 'غير محدد'
+            bedNumber: item.admission?.bed?.bedNumber || t("common.notSpecified", "غير محدد"),
+            ward: item.admission?.ward?.name || t("common.notSpecified", "غير محدد")
           }
         },
         plannedDischargeDate: item.plannedDischargeDate,
@@ -452,13 +452,13 @@ export default function DischargePlanningPage() {
               {loading ? (
                 <tr>
                   <td colSpan={7} className="px-4 py-8 text-center text-slate-500">
-                    جاري التحميل...
+                    {t("common.loading", "جاري التحميل...")}
                   </td>
                 </tr>
               ) : plans.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-4 py-8 text-center text-slate-500">
-                    لا توجد خطط خروج
+                    {t("dischargePlanning.emptyList", "لا توجد خطط خروج")}
                   </td>
                 </tr>
               ) : (
@@ -604,14 +604,14 @@ export default function DischargePlanningPage() {
                     onChange={(e) => setFormData({...formData, dischargeDisposition: e.target.value})}
                     className="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-sky-500"
                   >
-                    <option value="HOME">العودة للمنزل</option>
-                    <option value="TRANSFER_TO_ANOTHER_FACILITY">نقل لمستشفى آخر</option>
-                    <option value="REHABILITATION">مركز تأهيل</option>
-                    <option value="LONG_TERM_CARE">رعاية طويلة الأمد</option>
+                    <option value="HOME">{t("dischargePlanning.modal.dispositions.home", "العودة للمنزل")}</option>
+                    <option value="TRANSFER_TO_ANOTHER_FACILITY">{t("dischargePlanning.modal.dispositions.transfer", "نقل لمستشفى آخر")}</option>
+                    <option value="REHABILITATION">{t("dischargePlanning.modal.dispositions.rehab", "مركز تأهيل")}</option>
+                    <option value="LONG_TERM_CARE">{t("dischargePlanning.modal.dispositions.ltc", "رعاية طويلة الأمد")}</option>
                     <option value="HOME_HEALTH_CARE">{t("dischargePlanning.dispositions.homeHealth")}</option>
                     <option value="HOSPICE">{t("dischargePlanning.dispositions.hospice")}</option>
                     <option value="LEFT_AGAINST_MEDICAL_ADVICE">{t("dischargePlanning.dispositions.ama")}</option>
-                    <option value="EXPIRED">وفاة</option>
+                    <option value="EXPIRED">{t("dischargePlanning.modal.dispositions.expired", "وفاة")}</option>
                   </select>
                 </div>
               </div>
@@ -725,10 +725,10 @@ export default function DischargePlanningPage() {
               <div className="bg-slate-700/50 rounded-lg p-4">
                 <h4 className="font-semibold mb-3">{t("dischargePlanning.detailsModal.patientInfo")}</h4>
                 <div className="space-y-2 text-sm">
-                  <div><span className="text-slate-400">الاسم:</span> {selectedPlan.patient.fullName}</div>
-                  <div><span className="text-slate-400">الرقم الطبي:</span> {selectedPlan.patient.mrn}</div>
-                  <div><span className="text-slate-400">العمر:</span> {selectedPlan.patient.age} سنة</div>
-                  <div><span className="text-slate-400">الجنس:</span> {selectedPlan.patient.gender}</div>
+                  <div><span className="text-slate-400">{t("admissions.detailsPage.fullName", "الاسم:")}</span> {selectedPlan.patient.fullName}</div>
+                  <div><span className="text-slate-400">{t("admissions.detailsPage.mrn", "الرقم الطبي:")}</span> {selectedPlan.patient.mrn}</div>
+                  <div><span className="text-slate-400">{t("common.age", "العمر:")}</span> {selectedPlan.patient.age} {t("common.yearsCount", { defaultValue: "سنة", count: selectedPlan.patient.age })}</div>
+                  <div><span className="text-slate-400">{t("admissions.detailsPage.gender", "الجنس:")}</span> {selectedPlan.patient.gender}</div>
                 </div>
               </div>
               
@@ -736,11 +736,11 @@ export default function DischargePlanningPage() {
               <div className="bg-slate-700/50 rounded-lg p-4">
                 <h4 className="font-semibold mb-3">{t("dischargePlanning.detailsModal.admissionInfo")}</h4>
                 <div className="space-y-2 text-sm">
-                  <div><span className="text-slate-400">رقم الإدخال:</span> {selectedPlan.admission.id}</div>
-                  <div><span className="text-slate-400">تاريخ الإدخال:</span> {format(new Date(selectedPlan.admission.admissionDate), 'dd/MM/yyyy', { locale: isRtl ? ar : undefined })}</div>
-                  <div><span className="text-slate-400">القسم:</span> {selectedPlan.admission.department}</div>
-                  <div><span className="text-slate-400">السرير:</span> {selectedPlan.admission.bed.bedNumber} - {selectedPlan.admission.bed.ward}</div>
-                  <div><span className="text-slate-400">الطبيب المعالج:</span> {selectedPlan.admission.admittingDoctor}</div>
+                  <div><span className="text-slate-400">{t("dischargePlanning.detailsModal.admissionId", "رقم الإدخال:")}</span> {selectedPlan.admission.id}</div>
+                  <div><span className="text-slate-400">{t("admissions.detailsPage.admissionDate", "تاريخ الإدخال:")}</span> {format(new Date(selectedPlan.admission.admissionDate), 'dd/MM/yyyy', { locale: isRtl ? ar : undefined })}</div>
+                  <div><span className="text-slate-400">{t("admissions.detailsPage.department", "القسم:")}</span> {selectedPlan.admission.department}</div>
+                  <div><span className="text-slate-400">{t("admissions.detailsPage.bed", "السرير:")}</span> {selectedPlan.admission.bed.bedNumber} - {selectedPlan.admission.bed.ward}</div>
+                  <div><span className="text-slate-400">{t("admissions.detailsPage.doctor", "الطبيب المعالج:")}</span> {selectedPlan.admission.admittingDoctor}</div>
                 </div>
               </div>
               
@@ -763,11 +763,11 @@ export default function DischargePlanningPage() {
                   </div>
                   <div>
                     <span className="text-slate-400">{t("dischargePlanning.modal.followupLabel")}:</span>
-                    <div className="font-medium">{selectedPlan.followUpRequired ? 'نعم' : 'لا'}</div>
+                    <div className="font-medium">{selectedPlan.followUpRequired ? t("common.yes", "نعم") : t("common.no", "لا")}</div>
                   </div>
                   <div>
                     <span className="text-slate-400">{t("dischargePlanning.modal.homeHealthLabel")}:</span>
-                    <div className="font-medium">{selectedPlan.homeHealthServices ? 'نعم' : 'لا'}</div>
+                    <div className="font-medium">{selectedPlan.homeHealthServices ? t("common.yes", "نعم") : t("common.no", "لا")}</div>
                   </div>
                 </div>
                 
@@ -811,14 +811,14 @@ export default function DischargePlanningPage() {
                   }}
                   className="px-4 py-2 bg-green-600 hover:bg-green-500 rounded-lg"
                 >
-                  إكمال الخطة
+                  {t("dischargePlanning.actions.complete", "إكمال الخطة")}
                 </button>
               )}
               <button
                 onClick={() => setShowDetailsModal(false)}
                 className="px-4 py-2 bg-slate-600 hover:bg-slate-500 rounded-lg"
               >
-                إغلاق
+                {t("common.close", "إغلاق")}
               </button>
             </div>
           </div>

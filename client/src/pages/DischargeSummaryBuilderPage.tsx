@@ -122,12 +122,12 @@ export const DischargeSummaryBuilderPage = () => {
              </button>
              {!isSigned && (
                <button onClick={() => handleSave(false)} className="px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-500 transition shadow cursor-pointer">
-                 حفظ كمسودة
+                 {t("dischargeSummary.saveDraftBtn", "حفظ كمسودة")}
                </button>
              )}
              {!isSigned && cdiScore >= 80 && (
                <button onClick={() => handleSave(true)} className="px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-500 font-bold transition shadow cursor-pointer">
-                 اعتماد وتوقيع (Sign Off)
+                 {t("dischargeSummary.signOffBtn", "اعتماد وتوقيع (Sign Off)")}
                </button>
              )}
           </div>

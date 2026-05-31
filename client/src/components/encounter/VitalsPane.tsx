@@ -1,6 +1,7 @@
 // src/components/encounter/VitalsPane.tsx
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { apiClient } from "../../api/apiClient";
 import { toast } from "sonner";
 import {
@@ -23,7 +24,7 @@ interface VitalConfig {
 }
 
 const vitalConfigs: VitalConfig[] = [
-  { key: 'bpSystolic', label: 'الضغط العالي', icon: '💓', unit: 'mmHg', color: 'text-sky-400', bgColor: 'bg-sky-950/30', borderColor: 'border-sky-800/40', placeholder: 'Sys', normalRange: '90-140' },
+  { key: 'bpSystolic', label: 'bpSystolic', icon: '💓', unit: 'mmHg', color: 'text-sky-400', bgColor: 'bg-sky-950/30', borderColor: 'border-sky-800/40', placeholder: 'Sys', normalRange: '90-140' },
   { key: 'bpDiastolic', label: 'الضغط المنخفض', icon: '💓', unit: 'mmHg', color: 'text-sky-300', bgColor: 'bg-sky-950/20', borderColor: 'border-sky-800/30', placeholder: 'Dia', normalRange: '60-90' },
   { key: 'pulse', label: 'النبض', icon: '❤️', unit: 'bpm', color: 'text-rose-400', bgColor: 'bg-rose-950/30', borderColor: 'border-rose-800/40', placeholder: '72', normalRange: '60-100' },
   { key: 'temperature', label: 'الحرارة', icon: '🌡️', unit: '°C', color: 'text-amber-400', bgColor: 'bg-amber-950/30', borderColor: 'border-amber-800/40', placeholder: '37.0', step: '0.1', normalRange: '36.1-37.2' },
@@ -50,6 +51,7 @@ function getVitalFlag(key: string, value: number): { flag: string; className: st
 }
 
 export function VitalsPane({ encounterId }: { encounterId: number }) {
+  const { t } = useTranslation();
    
   const [vitalsList, setVitalsList] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -68,10 +70,10 @@ export function VitalsPane({ encounterId }: { encounterId: number }) {
   const bmiCategory = useMemo(() => {
     if (bmi === "—") return { label: "—", color: "text-slate-500" };
     const v = Number(bmi);
-    if (v < 18.5) return { label: "نقص وزن", color: "text-sky-400" };
-    if (v < 25) return { label: "طبيعي", color: "text-emerald-400" };
-    if (v < 30) return { label: "زيادة وزن", color: "text-amber-400" };
-    return { label: "سمنة", color: "text-rose-400" };
+    if (v < 18.5) return { label: t("vitals.bmi.underweight", "نقص وزن"), color: "text-sky-400" };
+    if (v < 25) return { label: t("vitals.bmi.normal", "طبيعي"), color: "text-emerald-400" };
+    if (v < 30) return { label: t("vitals.bmi.overweight", "زيادة وزن"), color: "text-amber-400" };
+    return { label: t("vitals.bmi.obese", "سمنة"), color: "text-rose-400" };
   }, [bmi]);
 
   const loadVitals = async () => {
@@ -88,7 +90,7 @@ export function VitalsPane({ encounterId }: { encounterId: number }) {
 
   const handleSubmit = async () => {
     if (!form.bpSystolic && !form.temperature && !form.pulse && !form.o2Sat) {
-      toast.warning("يرجى إدخال قيمة واحدة على الأقل.");
+      toast.warning(t("vitals.enterOne", "يرجى إدخال قيمة واحدة على الأقل."));
       return;
     }
     try {
@@ -104,11 +106,11 @@ export function VitalsPane({ encounterId }: { encounterId: number }) {
         bmi: bmi !== "—" ? Number(bmi) : undefined,
         note: form.note || undefined,
       });
-      toast.success("تم تسجيل العلامات الحيوية");
+      toast.success(t("vitals.saveSuccess", "تم تسجيل العلامات الحيوية"));
       setForm({ temperature: "", bpSystolic: "", bpDiastolic: "", pulse: "", respRate: "", o2Sat: "", weight: "", height: "", note: "" });
       setShowForm(false);
       loadVitals();
-    } catch { toast.error("فشل الحفظ"); }
+    } catch { toast.error(t("common.saveFailed", "فشل الحفظ")); }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -184,7 +186,7 @@ export function VitalsPane({ encounterId }: { encounterId: number }) {
                 : "bg-sky-600 hover:bg-sky-500 text-white shadow-lg shadow-sky-900/30"
             }`}
           >
-            {showForm ? "✕ إغلاق" : "+ قراءة جديدة"}
+            {showForm ? t("common.close", "✕ إغلاق") : t("vitals.newReading", "+ قراءة جديدة")}
           </button>
         )}
       </div>
@@ -195,18 +197,18 @@ export function VitalsPane({ encounterId }: { encounterId: number }) {
           {latest && (() => {
             const cards = [
               { label: 'ضغط الدم', value: latest.bpSystolic ? `${latest.bpSystolic}/${latest.bpDiastolic}` : null, icon: '💓', color: 'text-sky-400', bg: 'bg-sky-950/20 border-sky-800/30', suffix: 'mmHg' },
-              { label: 'النبض', value: latest.pulse, icon: '❤️', color: 'text-rose-400', bg: 'bg-rose-950/20 border-rose-800/30', suffix: 'bpm' },
-              { label: 'الحرارة', value: latest.temperature, icon: '🌡️', color: 'text-amber-400', bg: 'bg-amber-950/20 border-amber-800/30', suffix: '°C' },
-              { label: 'الأكسجين', value: latest.o2Sat, icon: '🫁', color: 'text-emerald-400', bg: 'bg-emerald-950/20 border-emerald-800/30', suffix: '%' },
-              { label: 'التنفس', value: latest.respRate, icon: '🌬️', color: 'text-cyan-400', bg: 'bg-cyan-950/20 border-cyan-800/30', suffix: '/min' },
-              { label: 'الوزن', value: latest.weight, icon: '⚖️', color: 'text-violet-400', bg: 'bg-violet-950/20 border-violet-800/30', suffix: 'kg' },
+              { key: 'pulse', label: 'النبض', value: latest.pulse, icon: '❤️', color: 'text-rose-400', bg: 'bg-rose-950/20 border-rose-800/30', suffix: 'bpm' },
+              { key: 'temperature', label: 'الحرارة', value: latest.temperature, icon: '🌡️', color: 'text-amber-400', bg: 'bg-amber-950/20 border-amber-800/30', suffix: '°C' },
+              { key: 'o2Sat', label: 'الأكسجين', value: latest.o2Sat, icon: '🫁', color: 'text-emerald-400', bg: 'bg-emerald-950/20 border-emerald-800/30', suffix: '%' },
+              { key: 'respRate', label: 'التنفس', value: latest.respRate, icon: '🌬️', color: 'text-cyan-400', bg: 'bg-cyan-950/20 border-cyan-800/30', suffix: '/min' },
+              { key: 'weight', label: 'الوزن', value: latest.weight, icon: '⚖️', color: 'text-violet-400', bg: 'bg-violet-950/20 border-violet-800/30', suffix: 'kg' },
             ].filter(c => c.value != null);
             return cards.length > 0 ? (
               <div className="flex flex-wrap gap-2">
                 {cards.map((card, i) => (
                   <div key={i} className={`rounded-xl border px-4 py-2.5 text-center flex-1 min-w-[100px] max-w-[160px] ${card.bg}`}>
                     <div className="text-[10px] text-slate-500 mb-0.5 flex items-center justify-center gap-1">
-                      <span>{card.icon}</span> {card.label}
+                      <span>{card.icon}</span> {t("vitals.label." + card.key, card.label)}
                     </div>
                     <div className={`text-xl font-bold font-mono ${card.color}`}>
                       {card.value}
@@ -232,7 +234,7 @@ export function VitalsPane({ encounterId }: { encounterId: number }) {
                 {vitalConfigs.map(vc => (
                   <div key={vc.key} className={`rounded-xl border p-3 ${vc.bgColor} ${vc.borderColor}`}>
                     <label className="text-[10px] text-slate-400 block mb-1 font-bold flex items-center gap-1">
-                      <span>{vc.icon}</span> {vc.label}
+                      <span>{vc.icon}</span> {t("vitals.label." + vc.key, vc.label)}
                       <span className="mr-auto text-[8px] text-slate-600 font-normal">{vc.unit}</span>
                     </label>
                     <input
@@ -247,7 +249,7 @@ export function VitalsPane({ encounterId }: { encounterId: number }) {
                     />
                     {vc.normalRange && (
                       <div className="text-[8px] text-slate-600 text-center mt-1">
-                        الطبيعي: {vc.normalRange}
+                        t("vitals.normal", "الطبيعي:") + " " + vc.normalRange
                       </div>
                     )}
                   </div>
@@ -259,7 +261,7 @@ export function VitalsPane({ encounterId }: { encounterId: number }) {
                 {bodyConfigs.map(bc => (
                   <div key={bc.key} className={`rounded-xl border p-3 ${bc.bgColor} ${bc.borderColor}`}>
                     <label className="text-[10px] text-slate-400 block mb-1 font-bold flex items-center gap-1">
-                      <span>{bc.icon}</span> {bc.label}
+                      <span>{bc.icon}</span> {t("vitals.label." + bc.key, bc.label)}
                       <span className="mr-auto text-[8px] text-slate-600 font-normal">{bc.unit}</span>
                     </label>
                     <input
@@ -278,7 +280,7 @@ export function VitalsPane({ encounterId }: { encounterId: number }) {
                 <div className="rounded-xl border p-3 bg-slate-800/30 border-slate-700/40">
                   <label className="text-[10px] text-slate-400 block mb-1 font-bold flex items-center gap-1">
                     <span>📊</span> BMI
-                    <span className="mr-auto text-[8px] text-slate-600 font-normal">تلقائي</span>
+                    <span className="mr-auto text-[8px] text-slate-600 font-normal">{t("vitals.auto", "تلقائي")}</span>
                   </label>
                   <div className={`w-full bg-slate-950/50 border border-slate-700 rounded-lg px-3 py-2.5 text-base font-mono font-bold text-center ${bmiCategory.color}`}>
                     {bmi}
@@ -296,7 +298,7 @@ export function VitalsPane({ encounterId }: { encounterId: number }) {
                 name="note"
                 value={form.note}
                 onChange={handleChange}
-                placeholder="ملاحظات (اختياري)..."
+                placeholder={t("common.notesOptional", "ملاحظات (اختياري)...")}
                 className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-sky-500 text-slate-300 placeholder:text-slate-600 transition-all"
               />
 
@@ -313,17 +315,17 @@ export function VitalsPane({ encounterId }: { encounterId: number }) {
           {/* ── Vitals History ── */}
           <div className="space-y-2">
             <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider px-1 flex items-center gap-2">
-              📋 سجل القراءات
+              {t("vitals.historyTitle", "📋 سجل القراءات")}
               {vitalsList.length > 0 && (
                 <span className="text-[10px] text-slate-600 bg-slate-800 px-2 py-0.5 rounded normal-case">
-                  {vitalsList.length} قراءة
+                  {vitalsList.length} {t("vitals.readingsCount", "قراءة")}
                 </span>
               )}
             </h3>
 
             {vitalsList.length === 0 && (
               <div className="text-center py-8 text-slate-600 text-xs border border-dashed border-slate-800 rounded-2xl">
-                لا توجد قراءات مسجلة — اضغط "+ قراءة جديدة" لتسجيل أول قراءة
+                {t("vitals.empty", "لا توجد قراءات مسجلة — اضغط \"+ قراءة جديدة\" لتسجيل أول قراءة")}
               </div>
             )}
 
@@ -421,13 +423,13 @@ export function VitalsPane({ encounterId }: { encounterId: number }) {
               onClick={() => setChartType("TRENDS")}
               className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all ${chartType === "TRENDS" ? "bg-sky-600 text-white shadow-lg" : "bg-slate-800 text-slate-400 hover:bg-slate-700"}`}
             >
-              📊 مؤشرات الحيوية
+              📊 {t("vitals.trends", "مؤشرات الحيوية")}
             </button>
             <button
               onClick={() => setChartType("GROWTH")}
               className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all ${chartType === "GROWTH" ? "bg-emerald-600 text-white shadow-lg" : "bg-slate-800 text-slate-400 hover:bg-slate-700"}`}
             >
-              📏 الوزن والنمو
+              📏 {t("vitals.weightGrowth", "الوزن والنمو")}
             </button>
           </div>
 
@@ -444,18 +446,18 @@ export function VitalsPane({ encounterId }: { encounterId: number }) {
                       labelStyle={{ color: "#e2e8f0" }}
                     />
                     <Legend />
-                    <Line type="monotone" dataKey="systolic" name="الضغط العالي" stroke="#38bdf8" strokeWidth={2} dot={{ r: 3 }} connectNulls />
-                    <Line type="monotone" dataKey="diastolic" name="الضغط المنخفض" stroke="#0284c7" strokeWidth={2} dot={{ r: 3 }} connectNulls />
-                    <Line type="monotone" dataKey="pulse" name="النبض" stroke="#f43f5e" strokeWidth={2} dot={{ r: 3 }} connectNulls />
-                    <Line type="monotone" dataKey="temp" name="الحرارة" stroke="#f59e0b" strokeWidth={2} connectNulls />
+                    <Line type="monotone" dataKey="systolic" name={t("vitals.label.bpSystolic", "الضغط العالي")} stroke="#38bdf8" strokeWidth={2} dot={{ r: 3 }} connectNulls />
+                    <Line type="monotone" dataKey="diastolic" name={t("vitals.label.bpDiastolic", "الضغط المنخفض")} stroke="#0284c7" strokeWidth={2} dot={{ r: 3 }} connectNulls />
+                    <Line type="monotone" dataKey="pulse" name={t("vitals.label.pulse", "النبض")} stroke="#f43f5e" strokeWidth={2} dot={{ r: 3 }} connectNulls />
+                    <Line type="monotone" dataKey="temp" name={t("vitals.label.temperature", "الحرارة")} stroke="#f59e0b" strokeWidth={2} connectNulls />
                     <Line type="monotone" dataKey="o2Sat" name="O₂ %" stroke="#10b981" strokeWidth={2} connectNulls />
                   </LineChart>
                 </ResponsiveContainer>
               ) : (
                 <div className="flex flex-col items-center justify-center h-full text-slate-500 gap-3">
                   <span className="text-4xl">📊</span>
-                  <p className="text-sm">لا توجد بيانات لعرض الرسوم البيانية.</p>
-                  <p className="text-xs text-slate-600">سجّل علامات حيوية أولاً.</p>
+                  <p className="text-sm">{t("vitals.noData", "لا توجد بيانات لعرض الرسوم البيانية.")}</p>
+                  <p className="text-xs text-slate-600">{t("vitals.noDataHint", "سجّل علامات حيوية أولاً.")}</p>
                 </div>
               )
             ) : (
@@ -470,7 +472,7 @@ export function VitalsPane({ encounterId }: { encounterId: number }) {
                       labelStyle={{ color: "#e2e8f0" }}
                     />
                     <Legend />
-                    <Line type="monotone" dataKey="weight" stroke="#10b981" strokeWidth={3} name="وزن المريض"
+                    <Line type="monotone" dataKey="weight" stroke="#10b981" strokeWidth={3} name={t("vitals.label.weight", "وزن المريض")}
                       dot={{ r: 5, strokeWidth: 2, fill: "#0f172a" }} activeDot={{ r: 7 }} />
                     {growthData.some(d => d.bmi) && (
                       <Line type="monotone" dataKey="bmi" stroke="#8b5cf6" strokeWidth={2} strokeDasharray="5 5"
@@ -481,7 +483,7 @@ export function VitalsPane({ encounterId }: { encounterId: number }) {
               ) : (
                 <div className="flex flex-col items-center justify-center h-full text-slate-500 gap-3">
                   <span className="text-4xl">📏</span>
-                  <p className="text-sm">لا توجد قياسات وزن.</p>
+                  <p className="text-sm">{t("vitals.noWeight", "لا توجد قياسات وزن.")}</p>
                 </div>
               )
             )}

@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import {
   ShieldCheck,
   Server,
@@ -11,6 +12,8 @@ import {
 } from "lucide-react";
 
 export const AboutPage = () => {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.dir() === "rtl";
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 overflow-hidden relative">
       {/* Background Decor */}
@@ -34,8 +37,7 @@ export const AboutPage = () => {
             Saraya ERP
           </h1>
           <p className="text-lg md:text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed">
-            نظام إدارة مستشفيات متكامل، صُمم بمعايير عالمية ليوفر دقة مالية،
-            كفاءة تشغيلية، وتجربة مستخدم لا تضاهى.
+            {t("about.description", "نظام إدارة مستشفيات متكامل، صُمم بمعايير عالمية ليوفر دقة مالية، كفاءة تشغيلية، وتجربة مستخدم لا تضاهى.")}
           </p>
         </div>
 
@@ -43,18 +45,18 @@ export const AboutPage = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-20">
           <FeatureCard
             icon={<Activity className="w-6 h-6 text-emerald-400" />}
-            title="دقة سريرية"
-            desc="إدارة كاملة للمرضى، التمريض، والأطباء مع دعم Triage و ADT."
+            title={t("about.features.clinical.title", "دقة سريرية")}
+            desc={t("about.features.clinical.desc", "إدارة كاملة للمرضى، التمريض، والأطباء مع دعم Triage و ADT.")}
           />
           <FeatureCard
             icon={<ShieldCheck className="w-6 h-6 text-sky-400" />}
-            title="أمان وموثوقية"
-            desc="حماية بيانات متقدمة، صلاحيات دقيقة (RBAC)، وسجلات تدقيق شاملة."
+            title={t("about.features.security.title", "أمان وموثوقية")}
+            desc={t("about.features.security.desc", "حماية بيانات متقدمة، صلاحيات دقيقة (RBAC)، وسجلات تدقيق شاملة.")}
           />
           <FeatureCard
             icon={<Server className="w-6 h-6 text-indigo-400" />}
-            title="قوة مالية"
-            desc="محاسبة مزدوجة القيد، فوترة تأمين معقدة، وإدارة مخزون صارمة."
+            title={t("about.features.finance.title", "قوة مالية")}
+            desc={t("about.features.finance.desc", "محاسبة مزدوجة القيد، فوترة تأمين معقدة، وإدارة مخزون صارمة.")}
           />
         </div>
 
@@ -62,7 +64,7 @@ export const AboutPage = () => {
         <div className="mb-20">
           <div className="text-center mb-10">
             <h2 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-sky-300 to-purple-300 inline-block">
-              البنية التقنية - Technical Architecture
+              {t("about.architecture.title", "البنية التقنية - Technical Architecture")}
             </h2>
           </div>
 
@@ -109,11 +111,10 @@ export const AboutPage = () => {
 
             <div className="flex-1 text-center md:text-right space-y-4">
               <h3 className="text-3xl font-bold text-white">
-                شركة السرايا للتقنية
+                {t("about.company.name", "شركة السرايا للتقنية")}
               </h3>
               <p className="text-slate-400">
-                نبتكر حلولاً برمجية ذكية تعيد تعريف طريقة إدارة المؤسسات الصحية.
-                نلتزم بالجودة، السرعة، والدعم المستمر.
+                {t("about.company.desc", "نبتكر حلولاً برمجية ذكية تعيد تعريف طريقة إدارة المؤسسات الصحية. نلتزم بالجودة، السرعة، والدعم المستمر.")}
               </p>
 
               <div className="flex flex-wrap items-center justify-center md:justify-start gap-6 pt-4">
@@ -141,9 +142,8 @@ export const AboutPage = () => {
 
         {/* Footer */}
         <div className="text-center mt-16 text-slate-600 text-sm">
-          Developed with <span className="text-rose-500">❤</span> by Eng. Ayman
-          Jaballa & Saraya Team <br />© {new Date().getFullYear()} All Rights
-          Reserved.
+          {t("about.footer.developedWith", "Developed with")} <span className="text-rose-500">❤</span> by Eng. Ayman
+          Jaballa & Saraya Team <br />© {new Date().getFullYear()} {t("about.footer.rights", "All Rights Reserved.")}
         </div>
       </div>
     </div>

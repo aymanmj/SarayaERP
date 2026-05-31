@@ -120,7 +120,7 @@ export default function DoctorRoundsPage() {
       loadCarePlan(selectedPatient.id);
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (e) {
-      toast.error("فشل الحفظ");
+      toast.error(t("rounds.saveFailed", "فشل الحفظ"));
     }
   };
 
@@ -265,7 +265,7 @@ export default function DoctorRoundsPage() {
                                 )}
                                 {item.executions.length > 1 && (
                                   <div className="text-[10px] text-emerald-500 mt-1">
-                                    + {item.executions.length - 1} تنفيذات أخرى
+                                    {t("rounds.otherExecutionsCount", { defaultValue: "+ {{count}} تنفيذات أخرى", count: item.executions.length - 1 })}
                                   </div>
                                 )}
                               </div>
@@ -273,7 +273,7 @@ export default function DoctorRoundsPage() {
                             
                             {!hasExecutions && item.status === 'ACTIVE' && (
                               <div className="mt-2 text-[10px] text-amber-400 flex items-center gap-1">
-                                <span>⏳</span> في انتظار التنفيذ
+                                <span>⏳</span> {t("rounds.waitingExecution", "في انتظار التنفيذ")}
                               </div>
                             )}
                           </div>
@@ -301,7 +301,7 @@ export default function DoctorRoundsPage() {
                      onClick={handleAddInstruction}
                      className="px-4 py-2 bg-emerald-700 hover:bg-emerald-600 rounded-lg text-white font-bold"
                    >
-                     + أضف
+                     {t("rounds.addBtn", "+ أضف")}
                    </button>
                 </div>
               </div>

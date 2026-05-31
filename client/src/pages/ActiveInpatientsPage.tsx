@@ -324,7 +324,7 @@ export default function ActiveInpatientsPage() {
                            onClick={() => handleDischarge(p.id, p.patient.fullName, p.admission?.id)}
                            className="flex-1 px-3 py-1.5 bg-rose-600 hover:bg-rose-500 rounded-lg text-xs text-white font-bold shadow-lg shadow-rose-900/20"
                          >
-                           استخراج
+                           {t("inpatients.dischargeBtn", "استخراج")}
                          </button>
                       </div>
                       

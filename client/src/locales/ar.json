@@ -49,18 +49,33 @@
     "loadingContent": "تحميل المحتوى..."
   },
   "cdss": {
-    "alerts": "التنبيهات السريرية الذكية",
+    "alerts": "التدقيق السريري الذكي (CDSS)",
     "noAlerts": "لا توجد تنبيهات نشطة للمريض.",
     "passiveAlerts": "تنبيهات غير معطلة (تثقيفية)",
     "criticalAlerts": "تنبيهات حرجة (مخاطر عالية)",
     "overrideReason": "سبب التجاوز (مطلوب)",
-    "overridePlaceholder": "يرجى كتابة سبب التجاوز سريرياً (10 أحرف على الأقل)...",
+    "overridePlaceholder": "مثال: تم إبلاغ المريض بالمخاطر وسيتم مراقبة وظائف الكلى دورياً...",
     "autoSuppressed": "تم الإخماد تلقائياً بناءً على تجاوز سابق خلال 24 ساعة",
     "originalReason": "السبب الأصلي بالتجاوز:",
     "requiresOverrideText": "يتطلب مبرراً سريرياً للتجاوز والمتابعة",
     "panicHigh": "قيمة حرجة مرتفعة جداً",
     "criticalLow": "قيمة منخفضة حرجة",
-    "criticalHigh": "قيمة مرتفعة حرجة"
+    "criticalHigh": "قيمة مرتفعة حرجة",
+    "checking": "جاري تدقيق الملاءمة الطبية والسلامة...",
+    "prompt": "قم باختيار الأدوية والجرعات لمراقبة تفاعل وتطابق السلامة الطبية فوراً.",
+    "criticalWarning": "تحذير حرج:",
+    "criticalAlertsCount": "يوجد {{count}} تنبيهات حرجة تمنع إقرار الوصفة دون تبرير طبي موثق.",
+    "safePrescription": "الوصفة آمنة تماماً",
+    "noConflicts": "لم يتم الكشف عن أي تعارضات أو حساسيات مع الحالة.",
+    "recommendation": "توصية: ",
+    "autoSuppressedLabel": "تم الإخماد سريرياً (Auto-Suppressed)",
+    "previousOverride": "تجاوز مسبق معتمد:",
+    "overrideTitle": "تجاوز التنبيهات السريرية الحرجة",
+    "overrideDescLine1": "الرجاء تدوين تبرير طبي معتمد لتجاوز التحذيرات الحرجة التالية. سيتم توثيق",
+    "overrideDescLine2": "هذا المبرر في السجل الطبي وقاعدة بيانات CDSS لأغراض المسؤولية القانونية ومتابعة السلامة.",
+    "overrideReasonRequired": "المبرر الطبي (مطلوب - 4 حروف على الأقل)",
+    "cancelAndEdit": "إلغاء وتعديل الأدوية",
+    "overrideAndApprove": "تجاوز واعتماد الوصفة"
   },
   "menu": {
     "home": "الرئيسية",
@@ -603,7 +618,213 @@
       "cleaning": "تنظيف",
       "maintenance": "صيانة"
     },
-    "legendTitle": "🔑 مفتاح الأسرة"
+    "legendTitle": "🔑 مفتاح الأسرة",
+    "advancedTitle": "إدارة الإيواء المتقدمة",
+    "advancedSubtitle": "إدارة شاملة للمرضى المنومين والأسرة والإحصائيات",
+    "quickEmergencyAdmit": "إيواء سريع للطوارئ",
+    "tabs": {
+      "overview": "نظرة عامة",
+      "admissions": "الإيواءات",
+      "beds": "الأسرة",
+      "statistics": "الإحصائيات"
+    },
+    "filters": {
+      "allStatuses": "جميع الحالات",
+      "allWards": "جميع العنابر",
+      "today": "اليوم",
+      "week": "الأسبوع",
+      "month": "الشهر"
+    },
+    "recentAdmissions": "آخر الإيواءات",
+    "bedOccupancySummary": "ملخص إشغال الأسرة",
+    "occupiedBedsCount": "{{occupied}} / {{total}} مشغول",
+    "occupancyRate": "الإشغال: ",
+    "table": {
+      "patient": "المريض",
+      "bed": "السرير",
+      "doctor": "الطبيب",
+      "status": "الحالة",
+      "isolation": "العزل",
+      "priority": "الأولوية",
+      "admissionDate": "تاريخ الإدخال",
+      "lengthOfStay": "مدة الإقامة",
+      "actions": "إجراءات"
+    },
+    "actions": {
+      "dischargeClinical": "📝 التخريج الطبي",
+      "dischargeClinicalTitle": "تعبئة ملخص الخروج الطبي",
+      "dischargeAndVacate": "🚪 تسريح وإخلاء",
+      "dischargeAndVacateTitle": "إخلاء السرير وإنهاء الإيواء وتسوية الرصيد",
+      "details": "تفاصيل",
+      "edit": "تعديل",
+      "isolation": "العزل",
+      "dischargePlanning": "تخطيط خروج",
+      "bedTransfer": "نقل سرير"
+    },
+    "performanceAnalysis": "تحليل الأداء",
+    "performanceAnalysisPlaceholder": "البيانات الحالية ممتازة، سيتم دمج المزيد من المؤشرات التحليلية لاحقاً لدعم اتخاذ القرار.",
+    "isolationTypes": {
+      "NONE": "بدون عزل",
+      "STANDARD": "عزل قياسي",
+      "DROPLET": "عزل القطيرات",
+      "AIRBORNE": "عزل الهواء",
+      "CONTACT": "عزل التلامس",
+      "PROTECTIVE": "عزل وقائي",
+      "NEUTROPENIC": "عزل قلة الكريات البيض",
+      "REVERSE": "عزل عكسي",
+      "UNKNOWN": "غير محدد"
+    },
+    "admissionStatus": {
+      "ADMITTED": "منوم",
+      "IN_PROGRESS": "قيد العلاج",
+      "DISCHARGE_PENDING": "انتظار الخروج",
+      "DISCHARGED": "مُسرح"
+    },
+    "priorityLabels": {
+      "CRITICAL": "حرجة",
+      "URGENT": "عاجلة",
+      "HIGH": "عالية",
+      "MEDIUM": "متوسطة",
+      "LOW": "منخفضة"
+    },
+    "precautions": {
+      "handwashing": "غسل اليدين المتكرر",
+      "gloves": "استخدام القفازات",
+      "mask": "استخدام الكمامة",
+      "gown": "روب الحماية",
+      "eyewear": "حماية العين",
+      "disinfection": "تطهير المعدات",
+      "ventilation": "التهوية الجيدة"
+    },
+    "modals": {
+      "loadFailed": "فشل تحميل البيانات",
+      "editSuccess": "تم تحديث بيانات الإيواء بنجاح",
+      "editFailed": "فشل تحديث بيانات الإيواء",
+      "confirmDischarge": "هل أنت متأكد من تسريح المريض عملياً وإخلاء السرير؟\n\nتأكد انه تم توثيق 'ملخص الخروج' طبياً وتخليص الفواتير مالياً.",
+      "dischargeSuccess": "تم تسريح المريض بنجاح، السرير الآن متاح للتنظيف.",
+      "printInvoice": "طباعة الفاتورة الشاملة والنتائج",
+      "dischargeFailed": "فشل تسريح المريض",
+      "planningSuccess": "تم إنشاء خطة التسريح بنجاح",
+      "planningFailed": "فشل إنشاء خطة التسريح",
+      "transferRequestSuccess": "تم طلب نقل السرير بنجاح",
+      "transferRequestFailed": "فشل طلب نقل السرير",
+      "transferCompleteSuccess": "تم إتمام نقل السرير بنجاح",
+      "transferCompleteFailed": "فشل إتمام نقل السرير",
+      "isolationSuccess": "تم تحديث إعدادات العزل بنجاح",
+      "isolationFailed": "فشل تحديث إعدادات العزل",
+      "edit": {
+        "title": "تعديل بيانات الإيواء",
+        "type": "نوع الإيواء",
+        "priority": "الأولوية",
+        "expectedDischarge": "تاريخ التسريح المتوقع",
+        "estimatedCost": "التكلفة المقدرة",
+        "save": "حفظ التعديلات",
+        "cancel": "إلغاء",
+        "elective": "اختياري",
+        "emergency": "طوارئ",
+        "urgent": "عاجل"
+      },
+      "dischargePlanning": {
+        "title": "تخطيط التسريح",
+        "plannedDate": "تاريخ التسريح المخطط",
+        "disposition": "وجهة التخريج",
+        "home": "المنزل",
+        "transfer": "نقل مستشفى آخر",
+        "rehab": "تأهيل طبي",
+        "ltc": "رعاية طويلة الأمد",
+        "ama": "خروج على غير مشورة",
+        "expired": "وفاة",
+        "notes": "ملاحظات التخطيط",
+        "notesPlaceholder": "أدخل ملاحظات تخطيط التسريح...",
+        "create": "إنشاء خطة التسريح"
+      },
+      "bedTransfer": {
+        "title": "طلب نقل السرير",
+        "currentBed": "السرير الحالي",
+        "reason": "سبب النقل",
+        "medical": "أسباب طبية",
+        "patientRequest": "طلب المريض",
+        "infectionControl": "مكافحة العدوى",
+        "bedAvailability": "توفر سرير أفضل",
+        "notes": "ملاحظات النقل",
+        "notesPlaceholder": "أدخل ملاحظات النقل..."
+      },
+      "quick": {
+        "title": "إيواء سريع للطوارئ",
+        "loading": "جاري تحميل البيانات...",
+        "patient": "المريض",
+        "selectPatient": "اختر المريض...",
+        "noPatients": "لا يوجد مرضى متاحون",
+        "bed": "السرير المتاح",
+        "selectBed": "اختر سريراً متاحاً...",
+        "noBeds": "لا توجد أسرة متاحة حالياً",
+        "doctor": "الطبيب المعالج",
+        "selectDoctor": "اختر الطبيب...",
+        "noDoctors": "لا يوجد أطباء متاحون",
+        "reason": "سبب الإدخال الطارئ",
+        "reasonPlaceholder": "أدخل سبب الإدخال الطارئ...",
+        "diagnosis": "التشخيص الأولي",
+        "diagnosisPlaceholder": "التشخيص الأولي...",
+        "isolation": "نوع العزل المطلوب",
+        "submit": "إيواء طارئ",
+        "fillRequired": "يرجى ملء جميع الحقول المطلوبة",
+        "success": "تم الإيواء السريع بنجاح",
+        "failed": "فشل الإيواء السريع"
+      },
+      "isolation": {
+        "title": "إدارة العزل - {{name}}",
+        "required": "تطلب عزل",
+        "type": "نوع العزل",
+        "reason": "سبب العزل",
+        "reasonPlaceholder": "أدخل سبب العزل...",
+        "precautions": "إجراءات الوقاية",
+        "selectedInfo": "معلومات العزل المحدد:",
+        "selectedType": "النوع:",
+        "selectedBed": "السرير الحالي:",
+        "selectedPrecautions": "إجراءات:",
+        "save": "حفظ إعدادات العزل"
+      }
+    },
+    "detailsPage": {
+      "loadFailed": "فشل تحميل تفاصيل الإيواء",
+      "confirmDischarge": "هل أنت متأكد من تسريح المريض؟",
+      "dischargeReason": "تسريح من صفحة التفاصيل",
+      "dischargeSuccess": "تم تسريح المريض بنجاح",
+      "dischargeFailed": "فشل تسريح المريض",
+      "notFound": "لم يتم العثور على بيانات الإيواء",
+      "backToList": "العودة إلى قائمة الإيواءات",
+      "backBtn": "← العودة",
+      "title": "تفاصيل الإيواء #",
+      "dischargePatient": "تسريح المريض",
+      "stayDuration": "مدة الإقامة",
+      "bed": "السرير",
+      "tabs": {
+        "overview": "نظرة عامة",
+        "vitals": "العلامات الحيوية",
+        "medications": "الأدوية",
+        "procedures": "الإجراءات",
+        "notes": "الملاحظات",
+        "transfers": "نقلات السرير"
+      },
+      "patientInfo": "معلومات المريض",
+      "fullName": "الاسم الكامل:",
+      "mrn": "الرقم الطبي:",
+      "dob": "تاريخ الميلاد:",
+      "gender": "الجنس:",
+      "phone": "رقم الهاتف:",
+      "address": "العنوان:",
+      "admissionInfo": "معلومات الإيواء",
+      "admissionDate": "تاريخ الإدخال:",
+      "expectedDischarge": "تاريخ التسريح المتوقع:",
+      "reason": "سبب الإدخال:",
+      "diagnosis": "التشخيص الرئيسي:",
+      "doctor": "الطبيب المعالج:",
+      "department": "القسم:",
+      "costInfo": "معلومات التكلفة",
+      "estimatedCost": "التكلفة المقدرة:",
+      "actualCost": "التكلفة الفعلية:",
+      "tabDeveloping": "محتوى {{tab}} قيد التطوير..."
+    }
   },
   "inpatients": {
     "title": "حالات الإيواء (Inpatients)",
@@ -702,6 +923,7 @@
     "noTasks": "لا توجد مهام نشطة",
     "nurseExecuted": "تم التنفيذ بواسطة التمريض",
     "waitingExecution": "في انتظار التنفيذ",
+    "otherExecutionsCount": "+ {{count}} تنفيذات أخرى",
     "newOrderPlaceholder": "أمر جديد (مثال: صيام، تحليل صباحي...)",
     "addBtn": "+ أضف",
     "vitalsTitle": "آخر العلامات الحيوية (Vitals)",
@@ -947,24 +1169,47 @@
     "startSuccess": "✅ تم بدء التصوير وإرسال الطلب (HL7).",
     "startFailed": "فشل بدء التصوير.",
     "reportSaved": "تم حفظ التقرير وإكمال الطلب.",
-    "empty": "لا توجد طلبات.",
+    "empty": "لا توجد طلبات أشعة سابقة.",
     "orderDate": "تاريخ الطلب:",
     "statusLabel": "الحالة:",
     "prompt": {
       "enterReport": "أدخل تقرير الأشعة للمريض"
     },
     "status": {
-      "pending": "قيد الانتظار",
+      "pending": "⏳ قيد الإجراء",
       "scheduled": "مجدول",
       "inProgress": "جاري التصوير...",
-      "completed": "مكتمل"
+      "completed": "✅ مكتمل"
     },
     "actions": {
       "start": "⚡ بدء الفحص",
       "editReport": "تعديل التقرير",
       "enterReport": "إدخال التقرير",
-      "print": "طباعة"
-    }
+      "print": "طباعة",
+      "viewImage": "📷 معاينة الصورة"
+    },
+    "modality": {
+      "ultrasound": "سونار",
+      "fluoroscopy": "فلوروسكوبي",
+      "mammography": "ماموغرام"
+    },
+    "toast": {
+      "loadFailed": "فشل تحميل بيانات الأشعة",
+      "assignDoctorFirst": "يجب تعيين طبيب أولاً.",
+      "selectOneFirst": "اختر فحص أشعة واحد على الأقل.",
+      "sentSuccess": "تم إنشاء طلب الأشعة بنجاح",
+      "sentFailed": "فشل إنشاء طلب الأشعة"
+    },
+    "loadingViewer": "يجري تحميل عارض الأشعة...",
+    "newRequestTitle": "طلب فحوصات أشعة جديدة",
+    "assignDoctorRequired": "يجب تعيين طبيب أولاً",
+    "searchPlaceholder": "ابحث عن فحص أشعة... (الاسم، الكود، منطقة الجسم)",
+    "placeholder": {
+      "notes": "ملاحظات لقسم الأشعة (مثال: آلام أسفل الظهر، ما قبل العملية)..."
+    },
+    "historyTitle": "سجل طلبات الأشعة والتقارير",
+    "regionLabel": "المنطقة:",
+    "reportLabel": "📋 تقرير الأشعة:"
   },
   "pharmacy": {
     "title": "صرف الوصفات (الصيدلية)",
@@ -1077,7 +1322,8 @@
       "noReadings": "لا توجد قراءات",
       "primaryDiagnosis": "التشخيص المبدئي:",
       "unavailable": "غير متوفر",
-      "fileStatus": "حالة الملف:"
+      "fileStatus": "حالة الملف:",
+      "notAvailable": "غير متوفر"
     },
     "status": {
       "open": "🟢 مفتوح",
@@ -1085,10 +1331,10 @@
       "cancelled": "❌ ملغي"
     },
     "protocols": {
-      "confirmExecute": "تأكيد تنفيذ بروتوكول بجميع طلباته السريرية لهذه الحالة؟",
+      "confirmExecute": "تأكيد تنفيذ بروتوكول \"{{name}}\" بجميع طلباته السريرية لهذه الحالة؟",
       "executeSuccess": "تم الاعتماد وإرسال الطلبات بنجاح",
       "executeFailed": "تعذر تنفيذ البروتوكول",
-      "confirmEnroll": "تأكيد إدراج الحالة في المسار العلاجي؟",
+      "confirmEnroll": "تأكيد إدراج الحالة في المسار العلاجي \"{{name}}\"؟",
       "enrollSuccess": "تم إدراج المريض وبدء المسار العلاجي",
       "enrollFailed": "تعذر الإدراج في المسار",
       "orderSetsTitle": "⚡ أوامر المجموعات (Order Sets)",
@@ -1098,7 +1344,14 @@
       "losLabel": "LOS:",
       "defaultPathwayDesc": "خطة علاجية مقسمة على الأيام",
       "manageProtocols": "إدارة محتوى البروتوكولات ←",
-      "managePathways": "إدارة المسارات السريرية ←"
+      "managePathways": "إدارة المسارات السريرية ←",
+      "orderSets": "أوامر المجموعات (Order Sets)",
+      "category": {
+        "general": "عام"
+      },
+      "defaultOrderDesc": "تنفيذ الإجراءات المرفقة تلقائيًا",
+      "pathways": "مسارات العلاج (Pathways)",
+      "manageOrderSets": "إدارة محتوى البروتوكولات ←"
     },
     "header": {
       "mpiBadge": "🌐 MPI",
@@ -2687,6 +2940,851 @@
       "stopConfirm": "هل أنت متأكد من إيقاف هذا الحقن الوريدي؟",
       "stopReason": "سبب الإيقاف (اختياري)",
       "stopFailed": "فشل إيقاف الحقن"
+    }
+  },
+  "about": {
+    "description": "نظام إدارة مستشفيات متكامل، صُمم بمعايير عالمية ليوفر دقة مالية، كفاءة تشغيلية، وتجربة مستخدم لا تضاهى.",
+    "features": {
+      "clinical": {
+        "title": "دقة سريرية",
+        "desc": "إدارة كاملة للمرضى، التمريض، والأطباء مع دعم Triage و ADT."
+      },
+      "security": {
+        "title": "أمان وموثوقية",
+        "desc": "حماية بيانات متقدمة، صلاحيات دقيقة (RBAC)، وسجلات تدقيق شاملة."
+      },
+      "finance": {
+        "title": "قوة مالية",
+        "desc": "محاسبة مزدوجة القيد، فوترة تأمين معقدة، وإدارة مخزون صارمة."
+      }
+    },
+    "architecture": {
+      "title": "البنية التقنية - Technical Architecture"
+    },
+    "company": {
+      "name": "شركة السرايا للتقنية",
+      "desc": "نبتكر حلولاً برمجية ذكية تعيد تعريف طريقة إدارة المؤسسات الصحية. نلتزم بالجودة، السرعة، والدعم المستمر."
+    },
+    "footer": {
+      "developedWith": "تم التطوير بـ",
+      "rights": "جميع الحقوق محفوظة."
+    }
+  },
+  "doctorPerformance": {
+    "title": "تقرير أداء الأطباء",
+    "subtitle": "تحليل شامل لإنتاجية وأداء الطاقم الطبي حسب الفترة الزمنية",
+    "sort": {
+      "encounters": "الحالات",
+      "admissions": "الإيواء",
+      "surgeries": "العمليات",
+      "revenue": "الإيرادات",
+      "commission": "حصة الطبيب",
+      "avgConsultation": "متوسط الاستشارة"
+    },
+    "kpis": {
+      "totalEncounters": "إجمالي الحالات",
+      "totalRevenue": "الإيرادات المُولّدة",
+      "totalSurgeries": "العمليات الجراحية",
+      "activeDoctors": "الأطباء النشطين"
+    },
+    "chart": {
+      "compare": "مقارنة الأطباء"
+    },
+    "table": {
+      "encounters": "الحالات",
+      "admissions": "الإيواء",
+      "surgeries": "العمليات",
+      "revenue": "الإيرادات",
+      "commissionRate": "نسبة العمولة",
+      "doctorCommission": "حصة الطبيب",
+      "avgConsultation": "متوسط الاستشارة (دقائق)"
+    }
+  },
+  "commissionSettings": {
+    "title": "إعدادات العمولات وتوزيع الإيرادات",
+    "subtitle": "تحديد نسب توزيع الإيرادات بين المستشفى والأطباء حسب نوع الخدمة",
+    "defaults": {
+      "title": "النسب الافتراضية (لجميع الأطباء)",
+      "desc": "هذه النسب تُطبّق على جميع الأطباء ما لم يتم تحديد نسبة مخصصة"
+    },
+    "doctorRate": "حصة الطبيب %",
+    "hospitalRate": "حصة المستشفى %",
+    "btn": {
+      "saveDefaults": "💾 حفظ النسب الافتراضية",
+      "saveCustom": "💾 حفظ النسب المخصصة"
+    },
+    "custom": {
+      "title": "نسب مخصصة لطبيب معين",
+      "desc": "تجاوز النسب الافتراضية لطبيب محدد (الأولوية الأعلى)"
+    },
+    "selectDoctor": "اختر طبيباً",
+    "usingDefault": "يستخدم النسبة الافتراضية",
+    "customized": "مخصص:",
+    "currentOverrides": "القواعد المخصصة الحالية:"
+  },
+  "inventory": {
+    "count": {
+      "title": "عمليات جرد المخزون",
+      "subtitle": "إدارة عمليات الجرد الفعلي للمخزون والتسويات المخزنية.",
+      "btn": {
+        "new": "جرد جديد"
+      },
+      "searchPlaceholder": "بحث باسم المخزن...",
+      "empty": "لا توجد عمليات جرد.",
+      "status": {
+        "posted": "مرحل",
+        "draft": "مسودة",
+        "review": "مراجعة",
+        "inProgress": "قيد التنفيذ"
+      },
+      "type": {
+        "full": "جرد شامل",
+        "quarterly": "ربع سنوي",
+        "spotCheck": "جرد مفاجئ"
+      }
+    },
+    "materialRequest": {
+      "title": "طلبات المواد",
+      "subtitle": "إدارة طلبات صرف المواد من المستودعات للأقسام والمستودعات الفرعية.",
+      "btn": {
+        "new": "طلب مواد جديد"
+      },
+      "searchPlaceholder": "بحث برقم الطلب أو اسم المستودع...",
+      "empty": "لا توجد طلبات مواد.",
+      "status": {
+        "pending": "بانتظار الاعتماد",
+        "approved": "معتمد - بانتظار الصرف",
+        "rejected": "مرفوض",
+        "partial": "مصروف جزئياً",
+        "completed": "مكتمل",
+        "cancelled": "ملغى"
+      },
+      "table": {
+        "number": "رقم الطلب",
+        "requestingWarehouse": "المستودع الطالب",
+        "fulfillingWarehouse": "المستودع المصرف",
+        "itemCount": "عدد الأصناف",
+        "requestedBy": "طالب المواد"
+      }
+    },
+    "categories": {
+      "title": "إدارة فئات الأصناف (Item Categories)",
+      "subtitle": "ضبط فئات المخزون وطرق التقييم المحاسبية (Valuation Methods)",
+      "new": "إضافة فئة جديدة",
+      "name": "اسم الفئة",
+      "code": "كود الفئة",
+      "parent": "الفئة الأب",
+      "mainCategory": "فئة رئيسية",
+      "valuationMethod": "طريقة تقييم المخزون",
+      "valuation": {
+        "weighted": "المتوسط المرجح (Weighted Average)",
+        "fifo": "الوارد أولاً يصرف أولاً (FIFO)",
+        "lifo": "الوارد أخيراً يصرف أولاً (LIFO)"
+      },
+      "assetAccount": "حساب المخزون (Asset Account)",
+      "selectAsset": "اختر حساب المخزون",
+      "expenseAccount": "حساب التكلفة / المصروف (Expense Account)",
+      "selectExpense": "اختر حساب التكلفة",
+      "btn": {
+        "save": "حفظ الفئة"
+      },
+      "current": "الفئات الحالية",
+      "valuationLabel": "طريقة التقييم",
+      "inventoryAccountLabel": "حساب المخزون",
+      "expenseAccountLabel": "حساب التكلفة"
+    },
+    "products": {
+      "title": "الأصناف الرئيسية (Products Master Data)",
+      "subtitle": "إدارة بيانات الأصناف الأساسية وتحديد سياسات المخزون والتكلفة المعيارية.",
+      "btn": {
+        "new": "صنف جديد",
+        "save": "حفظ الصنف"
+      },
+      "newForm": {
+        "title": "بيانات الصنف الجديد"
+      },
+      "name": "اسم الصنف",
+      "code": "كود الصنف (الباركود أو المعرف)",
+      "type": {
+        "consumable": "مستهلكات طبية",
+        "drug": "دواء",
+        "service": "خدمة",
+        "asset": "أصل ثابت"
+      },
+      "category": "فئة الصنف (لتحديد التقييم المحاسبي)",
+      "selectCategory": "اختر الفئة",
+      "baseUom": "الوحدة الأساسية (الصغرى)",
+      "selectUom": "اختر الوحدة",
+      "costPrice": "التكلفة المعيارية (الافتراضية)",
+      "minStock": "الحد الأدنى للمخزون (Min)",
+      "maxStock": "الحد الأعلى للمخزون (Max)",
+      "log": "سجل الأصناف",
+      "table": {
+        "code": "كود الصنف",
+        "uom": "الوحدة الأساسية",
+        "cost": "التكلفة الحالية",
+        "stock": "الرصيد الكلي"
+      }
+    }
+  },
+  "consents": {
+    "title": "نماذج الموافقة الإلكترونية",
+    "subtitle": "إدارة التفويضات والموافقات الطبية للمريض للعمليات والإجراءات التخديرية",
+    "btn": {
+      "new": "إنشاء نموذج جديد"
+    },
+    "table": {
+      "signedDate": "تاريخ التوقيع"
+    },
+    "actions": {
+      "sign": "توقيع ✍️"
+    },
+    "status": {
+      "signed": "موقع",
+      "pendingSign": "بانتظار التوقيع",
+      "cancelled": "ملغى"
+    },
+    "type": {
+      "anesthesia": "تخدير",
+      "general": "عام"
+    },
+    "dialog": {
+      "titleNew": "إنشاء تفويض طبي جديد",
+      "titleSign": "توقيع التفويض الطبي",
+      "titleView": "عرض التفويض الطبي",
+      "formType": "نوع النموذج",
+      "general": "موافقة عامة",
+      "surgery": "عملية جراحية",
+      "anesthesia": "تخدير",
+      "procedure": "إجراء طبي",
+      "dataSharing": "مشاركة بيانات (MPI)",
+      "other": "أخرى",
+      "titleLabel": "العنوان / الإجراء",
+      "titlePlaceholder": "مثال: عملية استئصال الزائدة",
+      "consentText": "نص الموافقة",
+      "signedByRef": "صاحب التوقيع",
+      "patientSignature": "توقيع المريض / الوصي",
+      "noSignature": "لا يوجد توقيع",
+      "clearSignature": "مسح التوقيع",
+      "print": "طباعة",
+      "close": "إغلاق",
+      "saving": "جاري الحفظ...",
+      "approveSignature": "اعتماد التوقيع",
+      "saveAsDraft": "حفظ كمسودة للتوقيع",
+      "selfPatient": "المريض نفسه",
+      "defaultContent": "أقر أنا الموقع أدناه بموافقتي الكاملة على الإجراء الطبي...",
+      "toastCreateSuccess": "تم تدوين النموذج بنجاح",
+      "toastCreateError": "حدث خطأ أثناء حفظ النموذج",
+      "toastSignSuccess": "تم توقيع النموذج وحفظه",
+      "toastSignError": "حدث خطأ أثناء التوقيع",
+      "toastEnterTitle": "الرجاء إدخال عنوان للنموذج",
+      "toastAllowPopups": "الرجاء السماح بالنوافذ المنبثقة للطباعة",
+      "printTitle": "نموذج موافقة",
+      "printSubtitle": "نموذج موافقة / تفويض طبي",
+      "printHospital": "المستشفى",
+      "printFormTitle": "عنوان النموذج: ",
+      "printFormId": "رقم النموذج: ",
+      "printNew": "جديد",
+      "printCreatedAt": "تاريخ الإنشاء: ",
+      "printStatus": "الحالة: ",
+      "printDoctor": "الطبيب المسئول: ",
+      "printContentTitle": "📝 نص الموافقة / التفويض:",
+      "printSignatureTitle": "✉️ التوقيع:",
+      "printSignee": "صاحب التوقيع: ",
+      "printSignedDate": "تاريخ التوقيع: ",
+      "printFooter": "تم إنشاء هذا النموذج إلكترونياً بواسطة نظام السرايا الطبي",
+      "statusDraft": "مسودة - بانتظار التوقيع",
+      "statusSigned": "موقع",
+      "statusRevoked": "ملغى"
+    }
+  },
+  "medicalHistory": {
+    "title": "التاريخ المرضي الشامل (Medical History)",
+    "pastMedical": "الأمراض السابقة",
+    "pastSurgical": "العمليات الجراحية"
+  },
+  "problems": {
+    "status": {
+      "active": "نشط",
+      "chronic": "مزمن",
+      "resolved": "تم حله",
+      "inactive": "غير نشط"
+    },
+    "severity": {
+      "mild": "خفيفة",
+      "moderate": "متوسطة",
+      "severe": "شديدة",
+      "lifeThreatening": "مهددة للحياة"
+    },
+    "toast": {
+      "added": "تمت إضافة المشكلة الصحية",
+      "addFailed": "فشل في إضافة المشكلة",
+      "updated": "تم تحديث حالة المشكلة",
+      "updateFailed": "فشل في التحديث",
+      "deleted": "تم حذف المشكلة",
+      "deleteFailed": "فشل في الحذف"
+    },
+    "title": "قائمة المشاكل الصحية (Problem List)",
+    "addBtn": "+ إضافة مشكلة",
+    "newTitle": "مشكلة صحية جديدة",
+    "descriptionRequired": "وصف المشكلة *",
+    "placeholder": {
+      "desc": "مثال: Diabetes Mellitus Type 2 — سكري النوع الثاني"
+    },
+    "onsetDate": "تاريخ البداية",
+    "chronic": "مشكلة مزمنة (Chronic)",
+    "activeCount": "نشط ({{count}})",
+    "chronicCount": "مزمن ({{count}})",
+    "resolvedCount": "تم حله ({{count}})",
+    "empty": "لا توجد مشاكل صحية مسجّلة",
+    "emptyHint": "اضغط \"+ إضافة مشكلة\" لبدء توثيق المشاكل الصحية",
+    "onsetDateLabel": "البداية:",
+    "resolvedDateLabel": "الحل:",
+    "resolveBtn": "حل",
+    "confirmDelete": "هل أنت متأكد من حذف هذه المشكلة؟"
+  },
+  "homeMeds": {
+    "source": {
+      "patient": "إفادة المريض",
+      "pharmacy": "سجل الصيدلية",
+      "referral": "خطاب إحالة",
+      "previousAdmission": "إيواء سابق"
+    },
+    "toast": {
+      "verified": "تم التحقق من الدواء",
+      "verifyFailed": "فشل في التحقق"
+    },
+    "title": "الأدوية المنزلية (Medication Reconciliation)",
+    "subtitle": "الأدوية التي يتناولها المريض حالياً من مصادر خارجية",
+    "addBtn": "+ إضافة دواء",
+    "unverifiedCountWarning": "يوجد {{count}} دواء غير محقّق — يجب أن يتحقق الطبيب من صحة المعلومات",
+    "newTitle": "إضافة دواء منزلي",
+    "medNameRequired": "اسم الدواء *",
+    "placeholder": {
+      "name": "مثال: Metformin 500mg",
+      "dose": "500mg",
+      "frequency": "مرتين يومياً",
+      "doctor": "اسم الطبيب أو المصدر",
+      "reason": "مثال: ارتفاع ضغط الدم"
+    },
+    "dose": "الجرعة",
+    "frequency": "التكرار",
+    "route": {
+      "po": "فموي (PO)",
+      "iv": "وريدي (IV)",
+      "im": "عضلي (IM)",
+      "sc": "تحت الجلد (SC)",
+      "topical": "موضعي",
+      "inhaled": "استنشاق",
+      "rectal": "شرجي",
+      "sublingual": "تحت اللسان"
+    },
+    "prescribedBy": "الطبيب الواصف",
+    "reason": "السبب / التشخيص",
+    "empty": "لا توجد أدوية منزلية مسجّلة",
+    "emptyHint": "اضغط \"+ إضافة دواء\" لتوثيق الأدوية المنزلية",
+    "activeList": "الأدوية النشطة ({{count}})",
+    "inactiveList": "أدوية متوقفة ({{count}})",
+    "confirmDelete": "هل أنت متأكد من حذف هذا الدواء؟",
+    "verified": "محقّق",
+    "verifyBtn": "تحقّق"
+  },
+  "soapNote": {
+    "clinicalNote": "الملاحظة السريرية",
+    "freeText": "نص حر",
+    "structuredSOAP": "مهيكل (SOAP)",
+    "subjectivePlaceholder": "شكوى المريض وما يذكره...",
+    "objectivePlaceholder": "العلامات الحيوية، الفحص السريري، نتائج المختبر...",
+    "assessmentPlaceholder": "التقييم الطبي والمشكلة...",
+    "planPlaceholder": "الأدوية، التحاليل المطلوبة، المتابعة...",
+    "openNoteDetails": "تفاصيل الملاحظة المفتوحة",
+    "freeTextPlaceholder": "اكتب ملاحظاتك بحرية هنا...",
+    "signedByDoctor": "وقعها الطبيب المعالج",
+    "cannotEditAfterSign": "يمنع تعديل الملاحظة نهائياً بعد التوقيع",
+    "signElectronically": "توقيع إلكتروني (Sign)",
+    "coSigned": "توقيع مشترك",
+    "analyzing": "جاري التحليل...",
+    "aiAnalyze": "تحليل بواسطة الذكاء الاصطناعي 🧠",
+    "saveNote": "حفظ الملاحظة",
+    "coSign": "توقيع مشترك (Co-Sign)"
+  },
+  "vitals": {
+    "label": {
+      "bpSystolic": "الضغط العالي",
+      "bpDiastolic": "الضغط المنخفض",
+      "pulse": "النبض",
+      "temperature": "الحرارة",
+      "o2Sat": "الأكسجين",
+      "respRate": "التنفس",
+      "weight": "الوزن"
+    },
+    "bmi": {
+      "underweight": "نقص وزن",
+      "normal": "طبيعي",
+      "overweight": "زيادة وزن",
+      "obese": "سمنة"
+    },
+    "enterOne": "يرجى إدخال قيمة واحدة على الأقل.",
+    "saveSuccess": "تم تسجيل العلامات الحيوية",
+    "tabs": {
+      "readings": "📝 القراءات",
+      "charts": "📈 الرسوم البيانية"
+    },
+    "newReading": "+ قراءة جديدة",
+    "newReadingTitle": "📝 تسجيل قراءة جديدة",
+    "normal": "الطبيعي:",
+    "auto": "تلقائي",
+    "saveBtn": "💾 حفظ العلامات الحيوية",
+    "historyTitle": "📋 سجل القراءات",
+    "readingsCount": "قراءة",
+    "empty": "لا توجد قراءات مسجلة — اضغط \"+ قراءة جديدة\" لتسجيل أول قراءة",
+    "trends": "مؤشرات الحيوية",
+    "weightGrowth": "الوزن والنمو",
+    "noData": "لا توجد بيانات لعرض الرسوم البيانية.",
+    "noDataHint": "سجّل علامات حيوية أولاً.",
+    "noWeight": "لا توجد قياسات وزن."
+  },
+  "diagnosis": {
+    "toast": {
+      "loadFailed": "فشل تحميل التشخيصات",
+      "added": "تم إضافة التشخيص",
+      "addFailed": "فشل الإضافة"
+    },
+    "confirmDelete": "هل أنت متأكد من حذف هذا التشخيص؟",
+    "addTitle": "إضافة تشخيص (ICD-10)",
+    "searchPlaceholder": "ابحث عن المرض (الاسم أو الكود)... مثال: Diabetes, E11",
+    "type": {
+      "primary": "رئيسي",
+      "secondary": "ثانوي",
+      "ruleOut": "اشتباه"
+    },
+    "confirmBtn": "تأكيد الإضافة",
+    "empty": "لا توجد تشخيصات مسجلة بعد. ابدأ بالبحث أعلاه.",
+    "deleteTitle": "حذف التشخيص"
+  },
+  "allergies": {
+    "toast": {
+      "loadFailed": "فشل تحميل سجل الحساسية.",
+      "added": "تم إضافة الحساسية بنجاح."
+    },
+    "confirmDelete": "هل أنت متأكد من حذف هذا السجل؟",
+    "newTitle": "تسجيل حساسية جديدة",
+    "allergen": "مادة التحسس (الدواء/الطعام)",
+    "placeholder": {
+      "allergen": "مثال: Penicillin, Eggs...",
+      "reaction": "مثال: طفح جلدي، ضيق تنفس..."
+    },
+    "severity": {
+      "mild": "خفيفة (Mild)",
+      "moderate": "متوسطة (Moderate)",
+      "severe": "خطيرة (Severe)"
+    },
+    "reaction": "الأعراض / رد الفعل (اختياري)",
+    "addBtn": "إضافة للتحذيرات",
+    "historyTitle": "سجل الحساسيات المسجلة",
+    "empty": "لا توجد حساسيات مسجلة لهذا المريض."
+  },
+  "billing": {
+    "toast": {
+      "loadFailed": "حدث خطأ أثناء تحميل بيانات الفوترة.",
+      "chargeDeleted": "تم حذف البند بنجاح.",
+      "deleteChargeFailed": "حدث خطأ أثناء حذف البند."
+    },
+    "confirmDeleteCharge": "هل أنت متأكد من رغبتك في حذف هذا البند؟",
+    "totalCharges": "إجمالي البنود (Charges)",
+    "totalInvoiced": "المبلغ المفوتر (Invoices)",
+    "totalPaid": "المبلغ المدفوع (Payments)",
+    "outstandingBalance": "الرصيد على هذه الحالة",
+    "readOnlyWarning": "هذا الملخص للقراءة فقط. لإتمام الدفع أو إنشاء فاتورة، يرجى التوجه للخزينة.",
+    "goToCashier": "💳 الذهاب للخزينة",
+    "chargesDetails": "تفاصيل البنود (Charges)",
+    "noCharges": "لا توجد بنود فوترة مسجلة لهذه الحالة حتى الآن.",
+    "service": "الخدمة",
+    "invoice": "الفاتورة",
+    "uninvoiced": "غير مفوتر",
+    "deleteCharge": "حذف هذا البند",
+    "invoicesAndPaymentsLog": "سجل الفواتير والمدفوعات",
+    "noInvoices": "لم يتم إنشاء أي فاتورة بعد لهذه الحالة.",
+    "invoiceLabel": "فاتورة: ",
+    "invoiceStatus": {
+      "paid": "مدفوعة",
+      "partiallyPaid": "مدفوعة جزئياً",
+      "cancelled": "ملغاة",
+      "draft": "مسودة"
+    },
+    "paidLabel": "المدفوع: ",
+    "remainingLabel": "المتبقي: ",
+    "paymentsLog": "سجل الدفعات:",
+    "noPayments": "لا توجد مدفوعات مسجلة."
+  },
+  "prescriptions": {
+    "toast": {
+      "assignDoctorFirst": "لا يمكن إنشاء وصفة. يرجى تعيين طبيب للحالة أولاً.",
+      "addMedicationFirst": "أضف دواء واحداً على الأقل.",
+      "savedWithOverride": "تم حفظ الوصفة (مع تجاوز التحذيرات ومبرر طبي)",
+      "savedSuccess": "تم حفظ الوصفة بنجاح",
+      "saveFailed": "فشل حفظ الوصفة."
+    },
+    "cdss": {
+      "drugDrugInteraction": "تفاعل دواء-دواء",
+      "drugAllergy": "حساسية الدواء",
+      "therapeuticDuplication": "تكرار علاجي مفرط",
+      "renalAdjustment": "قصور كلوي / تعديل جرعة",
+      "hepaticContraindication": "تعارض دواء-مرض (كبدي)",
+      "dosageWarning": "تحذير جرعة زائدة / منخفضة",
+      "clinicalAlert": "تنبيه سريري"
+    },
+    "newPrescription": "وصفة طبية جديدة",
+    "assignDoctorRequired": "يجب تعيين طبيب للحالة أولاً",
+    "drugItem": "الصنف الدوائي",
+    "selectDrugPlaceholder": "اختر الدواء من الدليل",
+    "addAnotherMed": "إضافة دواء آخر",
+    "pharmacistNotes": "ملاحظات عامة للصيدلي (اختياري)",
+    "placeholder": {
+      "pharmacistNotes": "مثال: صرف البديل في حال عدم التوفر..."
+    },
+    "saveAndSend": "حفظ وإرسال الوصفة",
+    "historyTitle": "سجل الوصفات المعتمدة لهذه الحالة",
+    "empty": "لا توجد وصفات مسجلة لهذه الحالة حتى الآن.",
+    "prescriptionLabel": "وصفة #",
+    "pharmacistNotesLabel": "ملاحظات الصيدلي:"
+  },
+  "labs": {
+    "toast": {
+      "loadFailed": "فشل تحميل بيانات المختبر",
+      "assignDoctorFirst": "يجب تعيين طبيب أولاً.",
+      "selectOneFirst": "اختر تحليلاً واحداً على الأقل.",
+      "sentSuccess": "تم إرسال الطلب للمختبر",
+      "sentFailed": "فشل إرسال الطلب"
+    },
+    "newRequestTitle": "طلب تحاليل جديدة",
+    "assignDoctorRequired": "يجب تعيين طبيب أولاً",
+    "searchPlaceholder": "ابحث عن تحليل... (بالعربي أو الإنجليزي أو الكود)",
+    "placeholder": {
+      "notes": "ملاحظات للمختبر (مثال: مستعجل، صائم)..."
+    },
+    "sendRequestBtn": "إرسال الطلب",
+    "historyTitle": "سجل التحاليل السابقة",
+    "empty": "لا توجد طلبات سابقة.",
+    "status": {
+      "completed": "✅ مكتمل",
+      "pending": "⏳ قيد الإجراء"
+    },
+    "table": {
+      "parameter": "المعيار",
+      "result": "النتيجة",
+      "unit": "الوحدة"
+    },
+    "result": "النتيجة:"
+  },
+  "orderSets": {
+    "itemType": {
+      "lab": "مختبر",
+      "radiology": "أشعة",
+      "medication": "دواء",
+      "procedure": "إجراء",
+      "nursing": "تمريض"
+    },
+    "priority": {
+      "stat": "طارئ",
+      "urgent": "عاجل",
+      "routine": "عادي"
+    },
+    "status": {
+      "draft": "مسودة",
+      "inReview": "قيد المراجعة",
+      "approved": "معتمد",
+      "published": "منشور",
+      "retired": "متقاعد"
+    },
+    "toast": {
+      "loadFailed": "فشل تحميل مجموعات الطلبات",
+      "loadResourcesFailed": "تعذر تحميل مصادر البناء",
+      "selectItemRequired": "يرجى تحديد العنصر المطلوب",
+      "nameRequired": "يرجى إدخال اسم المجموعة",
+      "minOneItem": "يرجى إضافة عنصر واحد على الأقل",
+      "newDraftCreated": "تم إنشاء مسودة جديدة v{{version}} بدل تعديل النسخة الحالية مباشرة",
+      "draftUpdated": "تم تحديث المسودة بنجاح",
+      "draftCreated": "تم إنشاء مسودة مجموعة الطلبات بنجاح",
+      "saveFailed": "فشل حفظ مجموعة الطلبات",
+      "executeSuccess": "تم تنفيذ \"{{name}}\" بنجاح",
+      "executeFailed": "فشل تنفيذ مجموعة الطلبات",
+      "disabledSuccess": "تم تعطيل المجموعة",
+      "disableFailed": "فشل تعطيل المجموعة",
+      "workflowActionFailed": "فشل تنفيذ الإجراء"
+    },
+    "confirmDisable": "هل تريد تعطيل هذه المجموعة؟",
+    "promptWorkflowNotes": "أضف ملاحظة مختصرة لهذا الإجراء (اختياري):",
+    "title": "مجموعات الطلبات الطبية",
+    "subtitle": "إنشاء، مراجعة، اعتماد، ونشر البروتوكولات السريرية قبل استخدامها تشغيليًا",
+    "btn": {
+      "new": "+ إنشاء مجموعة جديدة",
+      "newVersion": "إصدار جديد",
+      "submitReview": "للمراجعة",
+      "saveDraft": "حفظ المسودة",
+      "addItem": "إدراج",
+      "confirmExecute": "اعتماد الطلبات وإرسالها للأقسام"
+    },
+    "placeholder": {
+      "search": "بحث بالاسم..."
+    },
+    "filters": {
+      "allCategories": "جميع الفئات",
+      "allStatuses": "كل الحالات"
+    },
+    "count": "{{count}} مجموعة",
+    "lastChange": "آخر تغيير: {{summary}}",
+    "itemsMore": "+{{count}} أخرى",
+    "footerSummary": "{{count}} عنصر • {{creator}}",
+    "empty": "لا توجد مجموعات طلبات",
+    "emptyHint": "ابدأ بإنشاء أول مسودة ثم مررها عبر الاعتماد والنشر",
+    "builder": {
+      "editTitle": "إدارة إصدار مجموعة الطلبات",
+      "newTitle": "بناء مجموعة طلبات جديدة",
+      "draftHint": "يمكنك تعديل هذه المسودة مباشرة قبل إرسالها للمراجعة",
+      "versionHint": "سيتم إنشاء مسودة جديدة من الإصدار الحالي v{{version}} بدل تعديل النسخة الحالية مباشرة",
+      "newHint": "قم ببناء بروتوكول متكامل يضم التحاليل، الأشعة، الأدوية وغيرها قبل اعتماده ونشره",
+      "basicSettings": "الإعدادات الأساسية",
+      "nameEn": "الاسم الإنجليزي (EN)",
+      "nameAr": "الاسم العربي (AR)",
+      "category": "الفئة التصنيفية",
+      "description": "وصف البروتوكول",
+      "descPlaceholder": "وصف مبسط للحالات المستهدفة...",
+      "changeSummary": "ملخص التغيير",
+      "changeSummaryPlaceholder": "ما الذي تغير في هذه النسخة؟",
+      "itemsTitle": "عناصر البروتوكول",
+      "catalogItem": "العنصر من الدليل الطبي",
+      "nursingPlaceholder": "اكتب إجراء تمريضيًا...",
+      "selectItem": "اختر عنصرًا",
+      "instructions": "ملاحظات التنفيذ",
+      "emptyWorkspace": "مساحة عمل خالية",
+      "emptyWorkspaceHint": "أضف عناصر المختبر أو الأشعة أو الأدوية لبناء المسودة الحالية"
+    },
+    "itemsCount": "{{count}} عنصر",
+    "execute": {
+      "title": "تنفيذ: {{name}}",
+      "subtitle": "سيتم إصدار {{count}} طلب من النسخة المنشورة v{{version}}",
+      "searchEncounter": "البحث عن حالة طبية نشطة للمريض...",
+      "selectEncounter": "يرجى اختيار حالة طبية لاعتماد الطلبات عليها:",
+      "noOpenEncounters": "لا توجد حالات مفتوحة مطابقة للبحث"
+    }
+  },
+  "pathways": {
+    "status": {
+      "draft": "مسودة",
+      "inReview": "قيد المراجعة",
+      "approved": "معتمد",
+      "published": "منشور",
+      "retired": "متقاعد"
+    },
+    "toast": {
+      "loadFailed": "فشل تحميل المسارات العلاجية",
+      "loadPathwayFailed": "تعذر تحميل المسار العلاجي",
+      "loadEnrollmentFailed": "فشل تحميل تفاصيل الإدراج",
+      "selectEncounterFirst": "يرجى تحديد الحالة أولاً",
+      "enrollSuccess": "تم إدراج الحالة في المسار بنجاح",
+      "enrollFailed": "فشل إدراج الحالة",
+      "varianceRecorded": "تم تسجيل الحيود بنجاح",
+      "varianceFailed": "فشل تسجيل الحيود",
+      "progressed": "تم التقدم في المسار العلاجي",
+      "completed": "تم إكمال المسار بنجاح",
+      "progressFailed": "فشل التقدم في المسار",
+      "nameRequired": "يرجى إدخال اسم المسار العلاجي",
+      "minOneStep": "يرجى إضافة خطوة واحدة على الأقل",
+      "updated": "تم تحديث المسار العلاجي بنجاح",
+      "created": "تم إنشاء المسار العلاجي بنجاح",
+      "submittedReview": "تم إرسال المسار للمراجعة",
+      "approved": "تم اعتماد المسار العلاجي",
+      "published": "تم نشر المسار العلاجي",
+      "returnedDraft": "تم إرجاع المسار للمسودة",
+      "retired": "تم إخماد المسار العلاجي",
+      "saveFailed": "فشل حفظ المسار",
+      "deleted": "تم تعطيل المسار",
+      "deleteFailed": "تعذر التعطيل"
+    },
+    "confirmDelete": "هل تريد حذف/تعطيل هذا المسار؟",
+    "title": "المسارات العلاجية والبروتوكولات",
+    "subtitle": "إدارة خطط العلاج القائمة على الأدلة العلمية، تتبع الحالات المدرجة ومراقبة الحيود",
+    "btn": {
+      "new": "+ مسار علاجي جديد",
+      "enroll": "إدراج حالة",
+      "confirmEnroll": "تأكيد إدراج الحالة في المسار"
+    },
+    "tabs": {
+      "available": "المسارات المتاحة",
+      "enrollments": "الحالات المدرجة ({{count}})"
+    },
+    "placeholder": {
+      "search": "بحث بالاسم..."
+    },
+    "filters": {
+      "allStatuses": "كل الحالات"
+    },
+    "empty": "لا توجد مسارات علاجية معرفة",
+    "enroll": {
+      "title": "إدراج مريض في: {{name}}",
+      "searchPlaceholder": "البحث عن حالة طبية مفتوحة للمريض..."
+    },
+    "detail": {
+      "title": "متابعة المسار العلاجي للمريض",
+      "startDate": "تاريخ البدء",
+      "currentDay": "اليوم الحالي في المسار",
+      "activePathway": "المسار العلاجي النشط",
+      "variances": "الحيود والتباينات السريرية المسجلة (Variances)",
+      "noVariances": "لم تسجل أي انحرافات عن المسار العلاجي حتى الآن.",
+      "newVariance": "تسجيل حيود/انحراف سريري جديد",
+      "varianceReason": "سبب الانحراف عن البروتوكول",
+      "btn": {
+        "saveVariance": "حفظ الحيود",
+        "nextDay": "تجاوز إلى اليوم التالي",
+        "complete": "إنهاء الخطة بنجاح"
+      },
+      "stepsTitle": "خطوات الخطة العلاجية والتقدم اليومي",
+      "expectedOutcomes": "المخرجات المتوقعة",
+      "milestones": "المؤشرات السريرية",
+      "orderSet": "مجموعة الأوامر الطبية (Order Set)",
+      "futureDayHint": "هذا اليوم لم يحن بعد وفق التقدم الطبي المعتمد."
+    },
+    "builder": {
+      "title": "إدارة وتعديل خطوات المسار",
+      "nameAr": "الاسم العربي للمسار",
+      "nameEn": "الاسم الإنجليزي للمسار",
+      "targetDiagnosis": "التشخيص المستهدف",
+      "los": "مدة البقاء المتوقعة بالوجيز (LOS - Days)",
+      "description": "وصف المسار العلاجي",
+      "changeSummary": "ملخص التغيير في هذا الإصدار",
+      "steps": "خطوات المسار التفصيلية",
+      "btnAddStep": "إضافة خطوة",
+      "stepTitleAr": "اسم الخطوة (عربي) *",
+      "stepTitleEn": "اسم الخطوة (إنجليزي) *",
+      "stepOutcomes": "الأهداف السريرية المتوقعة",
+      "stepMilestones": "مؤشرات الخروج والمستهدفات",
+      "stepDesc": "وصف الخطوة بالتفصيل",
+      "linkOrderSet": "ربط بمجموعة طلبات طبية (اختياري)",
+      "btnDeleteStep": "حذف الخطوة"
+    }
+  },
+  "registries": {
+    "toast": {
+      "evalMembershipSuccess": "تم تقييم {{evaluated}} مريض وإضافة {{added}} مريض للسجلات",
+      "evalMembershipFailed": "فشل تشغيل تقييم السجلات",
+      "evalGapsSuccess": "تم تقييم {{evaluated}} فجوة واكتشاف {{opened}} فجوة رعاية جديدة",
+      "evalGapsFailed": "فشل تشغيل تقييم الفجوات",
+      "created": "تم إنشاء السجل وقواعده بنجاح.",
+      "createFailed": "فشل إنشاء السجل.",
+      "updated": "تم تحديث السجل وقواعده.",
+      "updateFailed": "فشل تحديث السجل.",
+      "gapClosed": "تم إغلاق الفجوة يدوياً.",
+      "gapCloseFailed": "فشل في إغلاق الفجوة."
+    },
+    "title": "سجل الأمراض وفجوات الرعاية",
+    "subtitle": "إدارة السجلات الإكلينيكية وتحديد فجوات الرعاية الوقائية للمرضى بشكل مؤتمت.",
+    "btn": {
+      "evaluateMembers": "تقييم الأعضاء",
+      "evaluateGaps": "تقييم الفجوات",
+      "new": "إنشاء سجل جديد",
+      "closeGap": "معالجة الفجوة"
+    },
+    "listTitle": "سجل الأمراض المعرف",
+    "statsTitle": "إحصائيات السجل النشط",
+    "stats": {
+      "totalEnrolled": "إجمالي المسجلين",
+      "activeGaps": "فجوات رعاية نشطة",
+      "patientsNoGaps": "مرضى بدون فجوات"
+    },
+    "criteriaTitle": "معايير إدراج السجل الإكلينيكي",
+    "criteriaSubtitle": "تحديد الفئة المستهدفة للسجل بناء على تصفية قواعد البيانات السريرية:",
+    "rulesTitle": "قواعد فجوات الرعاية الوقائية",
+    "rules": {
+      "everyDays": "كل {{days}} يوم"
+    },
+    "enrolledListTitle": "قائمة المرضى المسجلين",
+    "placeholder": {
+      "searchEnrolled": "ابحث برقم الملف أو الاسم..."
+    },
+    "gapsTitle": "فجوات الرعاية للمريض",
+    "table": {
+      "targetItem": "المستند المطلوبة",
+      "detectedAt": "تاريخ الاكتشاف"
+    },
+    "emptyGaps": "لا توجد فجوات رعاية نشطة لهذا المريض.",
+    "closeGap": {
+      "title": "تأكيد إغلاق فجوة الرعاية",
+      "subtitle": "يرجى إدخال مبرر أو ملاحظات إغلاق الفجوة يدوياً:",
+      "placeholder": "تم توفير الخدمة للمريض خارجياً / مبرر طبي...",
+      "btnConfirm": "إغلاق الفجوة"
+    }
+  },
+  "scheduler": {
+    "toast": {
+      "bookedSuccess": "تم حجز المورد بنجاح.",
+      "bookedFailed": "فشل الحجز أو يوجد تعارض.",
+      "resourceCreated": "تمت إضافة المورد بنجاح.",
+      "resourceCreateFailed": "فشل إضافة المورد.",
+      "cancelledSuccess": "تم إلغاء الحجز.",
+      "cancelledFailed": "فشل الإلغاء."
+    },
+    "title": "جدولة الموارد المتقدمة",
+    "subtitle": "إدارة وحجز الموارد السريرية مثل الغرف والمعدات مع منع التعارض.",
+    "btn": {
+      "addPatient": "إضافة مريض",
+      "addResource": "إضافة مورد",
+      "waitlist": "قوائم الانتظار",
+      "bookResource": "حجز المورد"
+    },
+    "availableResources": "الموارد المتاحة",
+    "placeholder": {
+      "search": "ابحث عن مورد..."
+    },
+    "emptyResources": "لا توجد موارد مطابقة.",
+    "upcomingBookings": "الحجوزات القادمة {{days}}",
+    "promptSelectResource": "يرجى تحديد مورد من القائمة لعرض جدول حجوزاته.",
+    "loadingBookings": "جاري تحميل الحجوزات...",
+    "emptyBookings": "لا توجد حجوزات قادمة لهذا المورد.",
+    "confirmCancel": "هل تريد إلغاء هذا الحجز؟",
+    "book": {
+      "title": "حجز مورد جديد",
+      "startTime": "وقت البداية",
+      "endTime": "وقت النهاية",
+      "btnConfirm": "تأكيد الحجز"
+    },
+    "create": {
+      "title": "إضافة مورد جديد",
+      "resourceName": "اسم المورد",
+      "resourceType": "نوع المورد",
+      "btnSave": "حفظ المورد"
+    }
+  },
+  "waitlist": {
+    "toast": {
+      "addedSuccess": "تمت إضافة المريض لقائمة الانتظار.",
+      "addedFailed": "فشل إضافة المريض لقائمة الانتظار."
+    },
+    "status": {
+      "notified": "تم الإشعار",
+      "booked": "تم الحجز",
+      "cancelled": "ملغى",
+      "waiting": "قيد الانتظار"
+    },
+    "priority": {
+      "high": "عالي"
+    },
+    "title": "قوائم الانتظار الذكية",
+    "subtitle": "متابعة المرضى بانتظار الموارد السريرية مع ترتيب حسب الأولوية والقسم.",
+    "btn": {
+      "addPatient": "إضافة مريض",
+      "addConfirm": "إضافة للقائمة"
+    },
+    "loading": "جاري تحميل قائمة الانتظار...",
+    "empty": "قائمة الانتظار فارغة حالياً.",
+    "addedLabel": "أضيف:",
+    "add": {
+      "title": "إضافة مريض لقائمة الانتظار",
+      "searchPatient": "البحث عن مريض",
+      "requestedResource": "المورد المطلوب"
+    },
+    "placeholder": {
+      "search": "الاسم، رقم الملف، أو الهاتف..."
     }
   }
 }

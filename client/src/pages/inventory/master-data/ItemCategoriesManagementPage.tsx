@@ -1,5 +1,6 @@
 // src/pages/inventory/master-data/ItemCategoriesManagementPage.tsx
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { apiClient as api } from '../../../api/apiClient';
@@ -9,6 +10,8 @@ const BoxIcon = () => (
 );
 
 export function ItemCategoriesManagementPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.dir() === "rtl";
   const queryClient = useQueryClient();
   const [formData, setFormData] = useState({
     name: '',
@@ -50,62 +53,62 @@ export function ItemCategoriesManagementPage() {
       queryClient.invalidateQueries({ queryKey: ['item-categories'] });
       setFormData({ name: '', code: '', valuationMethod: 'WEIGHTED_AVERAGE', inventoryAccountId: '', expenseAccountId: '', parentId: '' });
     },
-    onError: () => toast.error('فشل في حفظ الفئة')
+    onError: () => toast.error(t("common.saveFailed", "فشل حفظ الفئة"))
   });
 
   return (
-    <div className="space-y-6 p-1">
+    <div className="space-y-6 p-1" dir={isRtl ? "rtl" : "ltr"}>
       <div>
         <h1 className="text-2xl font-bold text-slate-100 flex items-center gap-3">
           <span className="p-2 bg-gradient-to-br from-indigo-500/20 to-purple-500/20 rounded-xl text-indigo-400">
             <BoxIcon />
           </span>
-          إدارة فئات الأصناف (Item Categories)
+          {t("inventory.categories.title", "إدارة فئات الأصناف (Item Categories)")}
         </h1>
-        <p className="text-sm text-slate-500 mt-1">ضبط فئات المخزون وطرق التقييم المحاسبية (Valuation Methods)</p>
+        <p className="text-sm text-slate-500 mt-1">{t("inventory.categories.subtitle", "ضبط فئات المخزون وطرق التقييم المحاسبية (Valuation Methods)")}</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="bg-slate-800/30 border border-slate-700/50 rounded-2xl p-5">
-          <h3 className="font-semibold text-slate-200 mb-4">إضافة فئة جديدة</h3>
+          <h3 className="font-semibold text-slate-200 mb-4">{t("inventory.categories.new", "إضافة فئة جديدة")}</h3>
           <div className="space-y-4">
             <div>
-              <label className="block text-xs text-slate-400 mb-1">اسم الفئة</label>
+              <label className="block text-xs text-slate-400 mb-1">{t("inventory.categories.name", "اسم الفئة")}</label>
               <input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200" placeholder="مثال: أدوية، مستهلكات" />
             </div>
             <div>
-              <label className="block text-xs text-slate-400 mb-1">كود الفئة</label>
+              <label className="block text-xs text-slate-400 mb-1">{t("inventory.categories.code", "كود الفئة")}</label>
               <input value={formData.code} onChange={e => setFormData({...formData, code: e.target.value})} className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200" />
             </div>
             <div>
-              <label className="block text-xs text-slate-400 mb-1">الفئة الأب</label>
+              <label className="block text-xs text-slate-400 mb-1">{t("inventory.categories.parent", "الفئة الأب")}</label>
               <select value={formData.parentId} onChange={e => setFormData({...formData, parentId: e.target.value})} className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200">
-                <option value="">-- فئة رئيسية --</option>
+                <option value="">-- {t("inventory.categories.mainCategory", "فئة رئيسية")} --</option>
                 { }
                 {categories?.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
             <hr className="border-slate-700 my-2" />
             <div>
-              <label className="block text-xs text-indigo-400 font-medium mb-1">طريقة تقييم المخزون</label>
+              <label className="block text-xs text-indigo-400 font-medium mb-1">{t("inventory.categories.valuationMethod", "طريقة تقييم المخزون")}</label>
               <select value={formData.valuationMethod} onChange={e => setFormData({...formData, valuationMethod: e.target.value})} className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200">
-                <option value="WEIGHTED_AVERAGE">المتوسط المرجح (Weighted Average)</option>
-                <option value="FIFO">الوارد أولاً يصرف أولاً (FIFO)</option>
-                <option value="LIFO">الوارد أخيراً يصرف أولاً (LIFO)</option>
+                <option value="WEIGHTED_AVERAGE">{t("inventory.categories.valuation.weighted", "المتوسط المرجح (Weighted Average)")}</option>
+                <option value="FIFO">{t("inventory.categories.valuation.fifo", "الوارد أولاً يصرف أولاً (FIFO)")}</option>
+                <option value="LIFO">{t("inventory.categories.valuation.lifo", "الوارد أخيراً يصرف أولاً (LIFO)")}</option>
               </select>
             </div>
             <div>
-              <label className="block text-xs text-slate-400 mb-1">حساب المخزون (Asset Account)</label>
+              <label className="block text-xs text-slate-400 mb-1">{t("inventory.categories.assetAccount", "حساب المخزون (Asset Account)")}</label>
               <select value={formData.inventoryAccountId} onChange={e => setFormData({...formData, inventoryAccountId: e.target.value})} className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200">
-                <option value="">-- اختر حساب المخزون --</option>
+                <option value="">-- {t("inventory.categories.selectAsset", "اختر حساب المخزون")} --</option>
                 { }
                 {accounts?.filter((a: any) => a.type === 'ASSET').map((a: any) => <option key={a.id} value={a.id}>{a.code} - {a.name}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-xs text-slate-400 mb-1">حساب التكلفة / المصروف (Expense Account)</label>
+              <label className="block text-xs text-slate-400 mb-1">{t("inventory.categories.expenseAccount", "حساب التكلفة / المصروف (Expense Account)")}</label>
               <select value={formData.expenseAccountId} onChange={e => setFormData({...formData, expenseAccountId: e.target.value})} className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200">
-                <option value="">-- اختر حساب التكلفة --</option>
+                <option value="">-- {t("inventory.categories.selectExpense", "اختر حساب التكلفة")} --</option>
                 { }
                 {accounts?.filter((a: any) => a.type === 'EXPENSE').map((a: any) => <option key={a.id} value={a.id}>{a.code} - {a.name}</option>)}
               </select>
@@ -115,14 +118,14 @@ export function ItemCategoriesManagementPage() {
               disabled={!formData.name || addCategoryMut.isPending}
               className="w-full bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg px-4 py-2 text-sm font-medium transition-colors"
             >
-              حفظ الفئة
+              {t("inventory.categories.btn.save", "حفظ الفئة")}
             </button>
           </div>
         </div>
 
         <div className="lg:col-span-2 bg-slate-800/30 border border-slate-700/50 rounded-2xl overflow-hidden">
           <div className="p-4 border-b border-slate-700/50 bg-slate-800/50">
-            <h3 className="font-semibold text-slate-200">الفئات الحالية</h3>
+            <h3 className="font-semibold text-slate-200">{t("inventory.categories.current", "الفئات الحالية")}</h3>
           </div>
           <div className="p-4">
             {isLoading ? (
@@ -132,11 +135,11 @@ export function ItemCategoriesManagementPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-slate-700 text-slate-400 text-right">
-                      <th className="py-3 px-2 font-medium">الاسم</th>
-                      <th className="py-3 px-2 font-medium">الكود</th>
-                      <th className="py-3 px-2 font-medium">طريقة التقييم</th>
-                      <th className="py-3 px-2 font-medium">حساب المخزون</th>
-                      <th className="py-3 px-2 font-medium">حساب التكلفة</th>
+                      <th className="py-3 px-2 font-medium">{t("common.name", "الاسم")}</th>
+                      <th className="py-3 px-2 font-medium">{t("common.code", "الكود")}</th>
+                      <th className="py-3 px-2 font-medium">{t("inventory.categories.valuationLabel", "طريقة التقييم")}</th>
+                      <th className="py-3 px-2 font-medium">{t("inventory.categories.inventoryAccountLabel", "حساب المخزون")}</th>
+                      <th className="py-3 px-2 font-medium">{t("inventory.categories.expenseAccountLabel", "حساب التكلفة")}</th>
                     </tr>
                   </thead>
                   <tbody>

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { apiClient } from "../api/apiClient";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 
 // Types
 type Admission = {
@@ -68,6 +69,8 @@ type AdmissionStats = {
 };
 
 export default function AdvancedAdmissionManagement() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
   const navigate = useNavigate();
 
   // State Management
@@ -83,11 +86,9 @@ export default function AdvancedAdmissionManagement() {
   const [showQuickAdmissionModal, setShowQuickAdmissionModal] = useState(false);
   const [showIsolationModal, setShowIsolationModal] = useState(false);
   const [selectedAdmission, setSelectedAdmission] = useState<Admission | null>(null);
-   
+  
   const [patients, setPatients] = useState<any[]>([]);
-   
   const [doctors, setDoctors] = useState<any[]>([]);
-   
   const [availableBeds, setAvailableBeds] = useState<any[]>([]);
 
   // Filters
@@ -107,19 +108,15 @@ export default function AdvancedAdmissionManagement() {
       const [patientsRes, doctorsRes, bedsRes] = await Promise.all([
         apiClient.get("/patients?limit=100"),
         apiClient.get("/users/doctors-list"),
-        apiClient.get("/beds/tree") // Changed from /beds/available to /beds/tree
+        apiClient.get("/beds/tree")
       ]);
       setPatients(patientsRes.data.items || []);
       setDoctors(doctorsRes.data);
       
       // Extract available beds from the tree structure
-       
       const allBeds: any[] = [];
-       
       bedsRes.data.forEach((ward: any) => {
-         
         ward.rooms.forEach((room: any) => {
-           
           room.beds.forEach((bed: any) => {
             if (bed.status === 'AVAILABLE') {
               allBeds.push({
@@ -143,7 +140,6 @@ export default function AdvancedAdmissionManagement() {
   const loadData = async () => {
     setLoading(true);
     try {
-       
       const promises: Promise<any>[] = [];
 
       if (activeTab === 'overview' || activeTab === 'admissions') {
@@ -173,7 +169,7 @@ export default function AdvancedAdmissionManagement() {
       const results = await Promise.all(promises);
 
       if (activeTab === 'overview' || activeTab === 'admissions') {
-        const admissionsIndex = activeTab === 'overview' ? 0 : 0;
+        const admissionsIndex = 0;
         setAdmissions(results[admissionsIndex].data.admissions || []);
       }
 
@@ -188,7 +184,7 @@ export default function AdvancedAdmissionManagement() {
       }
     } catch (err) {
       console.error(err);
-      toast.error("فشل تحميل البيانات");
+      toast.error(t("admissions.modals.loadFailed", "فشل تحميل البيانات"));
     } finally {
       setLoading(false);
     }
@@ -205,18 +201,17 @@ export default function AdvancedAdmissionManagement() {
 
     try {
       await apiClient.put(`/admissions/${editingAdmission.id}`, updatedData);
-      toast.success("تم تحديث بيانات الإيواء بنجاح");
+      toast.success(t("admissions.modals.editSuccess", "تم تحديث بيانات الإيواء بنجاح"));
       setShowEditModal(false);
       setEditingAdmission(null);
       loadData();
-     
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || "فشل تحديث بيانات الإيواء");
+      toast.error(err?.response?.data?.message || t("admissions.modals.editFailed", "فشل تحديث بيانات الإيواء"));
     }
   };
 
   const handleDischargePatient = async (admission: Admission) => {
-    if (!confirm("هل أنت متأكد من تسريح المريض عملياً وإخلاء السرير؟\n\nتأكد انه تم توثيق 'ملخص الخروج' طبياً وتخليص الفواتير مالياً.")) return;
+    if (!confirm(t("admissions.modals.confirmDischarge", "هل أنت متأكد من تسريح المريض عملياً وإخلاء السرير؟\n\nتأكد انه تم توثيق 'ملخص الخروج' طبياً وتخليص الفواتير مالياً."))) return;
 
     try {
       await apiClient.post(`/admissions/${admission.id}/discharge`, {
@@ -225,17 +220,16 @@ export default function AdvancedAdmissionManagement() {
         notes: "تسريح عادي",
       });
 
-      toast.success("تم تسريح المريض بنجاح، السرير الآن متاح للتنظيف.", {
+      toast.success(t("admissions.modals.dischargeSuccess", "تم تسريح المريض بنجاح، السرير الآن متاح للتنظيف."), {
         action: {
-          label: "طباعة الفاتورة الشاملة والنتائج",
+          label: t("admissions.modals.printInvoice", "طباعة الفاتورة الشاملة والنتائج"),
           onClick: () => navigate(`/encounters/${admission.encounterId}`)
         },
         duration: 10000
       });
       loadData();
-     
     } catch (err: any) {
-      const msg = err?.response?.data?.message || "فشل تسريح المريض";
+      const msg = err?.response?.data?.message || t("admissions.modals.dischargeFailed", "فشل تسريح المريض");
       toast.error(msg, { duration: 10000 });
     }
   };
@@ -245,19 +239,17 @@ export default function AdvancedAdmissionManagement() {
     setShowDischargePlanningModal(true);
   };
 
-   
   const handleCreateDischargePlanning = async (planningData: any) => {
     if (!selectedAdmission) return;
 
     try {
       await apiClient.post(`/admissions/${selectedAdmission.id}/discharge-planning`, planningData);
-      toast.success("تم إنشاء خطة التسريح بنجاح");
+      toast.success(t("admissions.modals.planningSuccess", "تم إنشاء خطة التسريح بنجاح"));
       setShowDischargePlanningModal(false);
       setSelectedAdmission(null);
       loadData();
-     
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || "فشل إنشاء خطة التسريح");
+      toast.error(err?.response?.data?.message || t("admissions.modals.planningFailed", "فشل إنشاء خطة التسريح"));
     }
   };
 
@@ -266,19 +258,17 @@ export default function AdvancedAdmissionManagement() {
     setShowBedTransferModal(true);
   };
 
-   
   const handleRequestBedTransfer = async (transferData: any) => {
     if (!selectedAdmission) return;
 
     try {
       await apiClient.post(`/admissions/${selectedAdmission.id}/bed-transfer/request`, transferData);
-      toast.success("تم طلب نقل السرير بنجاح");
+      toast.success(t("admissions.modals.transferRequestSuccess", "تم طلب نقل السرير بنجاح"));
       setShowBedTransferModal(false);
       setSelectedAdmission(null);
       loadData();
-     
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || "فشل طلب نقل السرير");
+      toast.error(err?.response?.data?.message || t("admissions.modals.transferRequestFailed", "فشل طلب نقل السرير"));
     }
   };
 
@@ -286,42 +276,34 @@ export default function AdvancedAdmissionManagement() {
   const handleCompleteBedTransfer = async (transferId: number) => {
     try {
       await apiClient.post(`/admissions/bed-transfer/${transferId}/complete`);
-      toast.success("تم إتمام نقل السرير بنجاح");
+      toast.success(t("admissions.modals.transferCompleteSuccess", "تم إتمام نقل السرير بنجاح"));
       loadData();
-     
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || "فشل إتمام نقل السرير");
+      toast.error(err?.response?.data?.message || t("admissions.modals.transferCompleteFailed", "فشل إتمام نقل السرير"));
     }
   };
 
   const handleQuickAdmission = () => {
     setShowQuickAdmissionModal(true);
-    // Reload basic data when opening the modal to ensure fresh data
     loadBasicData();
   };
 
-   
   const handleEmergencyAdmission = async (admissionData: any) => {
     try {
       await apiClient.post("/admissions/quick-admission", admissionData);
-      toast.success("تم الإيواء السريع بنجاح");
+      toast.success(t("admissions.modals.quick.success", "تم الإيواء السريع بنجاح"));
       setShowQuickAdmissionModal(false);
       loadData();
-     
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || "فشل الإيواء السريع");
+      toast.error(err?.response?.data?.message || t("admissions.modals.quick.failed", "فشل الإيواء السريع"));
     }
   };
 
   const handleViewAdmissionDetails = async (admissionId: number) => {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const response = await apiClient.get(`/admissions/${admissionId}`);
-      // Navigate to details page or show modal
       navigate(`/admissions/${admissionId}`);
-     
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || "فشل تحميل تفاصيل الإيواء");
+      toast.error(err?.response?.data?.message || t("admissions.modals.loadFailed", "فشل تحميل التفاصيل"));
     }
   };
 
@@ -330,7 +312,6 @@ export default function AdvancedAdmissionManagement() {
     setShowIsolationModal(true);
   };
 
-   
   const handleUpdateIsolation = async (isolationData: any) => {
     if (!selectedAdmission) return;
 
@@ -342,40 +323,39 @@ export default function AdvancedAdmissionManagement() {
         isolationPrecautions: isolationData.isolationPrecautions
       });
       
-      toast.success("تم تحديث إعدادات العزل بنجاح");
+      toast.success(t("admissions.modals.isolationSuccess", "تم تحديث إعدادات العزل بنجاح"));
       setShowIsolationModal(false);
       setSelectedAdmission(null);
       loadData();
-     
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || "فشل تحديث إعدادات العزل");
+      toast.error(err?.response?.data?.message || t("admissions.modals.isolationFailed", "فشل تحديث إعدادات العزل"));
     }
   };
 
   const getIsolationTypeLabel = (type?: string) => {
     switch (type) {
-      case 'NONE': return 'بدون عزل';
-      case 'STANDARD': return 'عزل قياسي';
-      case 'DROPLET': return 'عزل القطيرات';
-      case 'AIRBORNE': return 'عزل الهواء';
-      case 'CONTACT': return 'عزل التلامس';
-      case 'PROTECTIVE': return 'عزل وقائي';
-      case 'NEUTROPENIC': return 'عزل قلة الكريات البيض';
-      case 'REVERSE': return 'عزل عكسي';
-      default: return 'غير محدد';
+      case 'NONE': return t("admissions.isolationTypes.NONE", 'بدون عزل');
+      case 'STANDARD': return t("admissions.isolationTypes.STANDARD", 'عزل قياسي');
+      case 'DROPLET': return t("admissions.isolationTypes.DROPLET", 'عزل القطيرات');
+      case 'AIRBORNE': return t("admissions.isolationTypes.AIRBORNE", 'عزل الهواء');
+      case 'CONTACT': return t("admissions.isolationTypes.CONTACT", 'عزل التلامس');
+      case 'PROTECTIVE': return t("admissions.isolationTypes.PROTECTIVE", 'عزل وقائي');
+      case 'NEUTROPENIC': return t("admissions.isolationTypes.NEUTROPENIC", 'عزل قلة الكريات البيض');
+      case 'REVERSE': return t("admissions.isolationTypes.REVERSE", 'عزل عكسي');
+      default: return t("admissions.isolationTypes.UNKNOWN", 'غير محدد');
     }
   };
 
   const getIsolationColor = (type?: string) => {
     switch (type) {
-      case 'NONE': return 'bg-gray-100 text-gray-800';
-      case 'STANDARD': return 'bg-blue-100 text-blue-800';
-      case 'DROPLET': return 'bg-yellow-100 text-yellow-800';
-      case 'AIRBORNE': return 'bg-red-100 text-red-800';
-      case 'CONTACT': return 'bg-orange-100 text-orange-800';
-      case 'PROTECTIVE': return 'bg-green-100 text-green-800';
-      case 'NEUTROPENIC': return 'bg-purple-100 text-purple-800';
-      case 'REVERSE': return 'bg-indigo-100 text-indigo-800';
+      case 'NONE': return 'bg-gray-100 text-gray-800 dark:bg-slate-800 dark:text-slate-300';
+      case 'STANDARD': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300';
+      case 'DROPLET': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300';
+      case 'AIRBORNE': return 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300';
+      case 'CONTACT': return 'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300';
+      case 'PROTECTIVE': return 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300';
+      case 'NEUTROPENIC': return 'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300';
+      case 'REVERSE': return 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-300';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -384,13 +364,13 @@ export default function AdvancedAdmissionManagement() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "ADMITTED":
-        return "bg-blue-100 text-blue-800";
+        return "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300";
       case "IN_PROGRESS":
-        return "bg-green-100 text-green-800";
+        return "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300";
       case "DISCHARGE_PENDING":
-        return "bg-yellow-100 text-yellow-800";
+        return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300";
       case "DISCHARGED":
-        return "bg-gray-100 text-gray-800";
+        return "bg-gray-100 text-gray-800 dark:bg-slate-800 dark:text-slate-400";
       default:
         return "bg-gray-100 text-gray-800";
     }
@@ -398,21 +378,21 @@ export default function AdvancedAdmissionManagement() {
 
   const getStatusLabel = (status: string) => {
     switch (status) {
-      case "ADMITTED": return "منوم";
-      case "IN_PROGRESS": return "قيد العلاج";
-      case "DISCHARGE_PENDING": return "انتظار الخروج";
-      case "DISCHARGED": return "مُسرح";
+      case "ADMITTED": return t("admissions.admissionStatus.ADMITTED", "منوم");
+      case "IN_PROGRESS": return t("admissions.admissionStatus.IN_PROGRESS", "قيد العلاج");
+      case "DISCHARGE_PENDING": return t("admissions.admissionStatus.DISCHARGE_PENDING", "انتظار الخروج");
+      case "DISCHARGED": return t("admissions.admissionStatus.DISCHARGED", "مُسرح");
       default: return status;
     }
   };
 
   const getPriorityLabel = (priority: string) => {
     switch (priority) {
-      case "CRITICAL": return "حرجة";
-      case "URGENT": return "عاجلة";
-      case "HIGH": return "عالية";
-      case "MEDIUM": return "متوسطة";
-      case "LOW": return "منخفضة";
+      case "CRITICAL": return t("admissions.priorityLabels.CRITICAL", "حرجة");
+      case "URGENT": return t("admissions.priorityLabels.URGENT", "عاجلة");
+      case "HIGH": return t("admissions.priorityLabels.HIGH", "عالية");
+      case "MEDIUM": return t("admissions.priorityLabels.MEDIUM", "متوسطة");
+      case "LOW": return t("admissions.priorityLabels.LOW", "منخفضة");
       default: return priority;
     }
   };
@@ -420,55 +400,54 @@ export default function AdvancedAdmissionManagement() {
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case "CRITICAL":
-        return "bg-red-100 text-red-800";
+        return "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300";
       case "URGENT":
-        return "bg-orange-100 text-orange-800";
+        return "bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300";
       case "HIGH":
-        return "bg-yellow-100 text-yellow-800";
+        return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300";
       case "MEDIUM":
-        return "bg-blue-100 text-blue-800";
+        return "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300";
       case "LOW":
-        return "bg-gray-100 text-gray-800";
+        return "bg-gray-100 text-gray-800 dark:bg-slate-800 dark:text-slate-400";
       default:
         return "bg-gray-100 text-gray-800";
     }
   };
 
   const getOccupancyColor = (rate: number) => {
-    if (rate >= 90) return "text-red-600";
-    if (rate >= 75) return "text-yellow-600";
-    return "text-green-600";
+    if (rate >= 90) return "text-rose-500";
+    if (rate >= 75) return "text-amber-500";
+    return "text-emerald-500";
   };
 
   return (
-    <div className="flex flex-col h-full text-slate-100 p-6 space-y-6" dir="rtl">
+    <div className="flex flex-col h-full text-slate-100 p-6 space-y-6" dir={isRtl ? "rtl" : "ltr"}>
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold mb-1">إدارة الإيواء المتقدمة</h1>
+          <h1 className="text-2xl font-bold mb-1">{t("admissions.advancedTitle", "إدارة الإيواء المتقدمة")}</h1>
           <p className="text-sm text-slate-400">
-            إدارة شاملة للمرضى المنومين والأسرة والإحصائيات
+            {t("admissions.advancedSubtitle", "إدارة شاملة للمرضى المنومين والأسرة والإحصائيات")}
           </p>
         </div>
         <button
           onClick={handleQuickAdmission}
           className="px-6 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold shadow-lg shadow-sky-500/20 transition-all"
         >
-          إيواء سريع للطوارئ
+          {t("admissions.quickEmergencyAdmit", "إيواء سريع للطوارئ")}
         </button>
       </div>
 
       {/* Tabs */}
       <div className="flex space-x-1 space-x-reverse border-b border-slate-700">
         {[
-          { id: 'overview', label: 'نظرة عامة' },
-          { id: 'admissions', label: 'الإيواءات' },
-          { id: 'beds', label: 'الأسرة' },
-          { id: 'statistics', label: 'الإحصائيات' },
+          { id: 'overview', label: t("admissions.tabs.overview", 'نظرة عامة') },
+          { id: 'admissions', label: t("admissions.tabs.admissions", 'الإيواءات') },
+          { id: 'beds', label: t("admissions.tabs.beds", 'الأسرة') },
+          { id: 'statistics', label: t("admissions.tabs.statistics", 'الإحصائيات') },
         ].map((tab) => (
           <button
             key={tab.id}
-             
             onClick={() => setActiveTab(tab.id as any)}
             className={`px-4 py-2 text-sm font-medium transition-colors ${
               activeTab === tab.id
@@ -491,10 +470,10 @@ export default function AdvancedAdmissionManagement() {
                 onChange={(e) => setStatusFilter(e.target.value)}
                 className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"
               >
-                <option value="">جميع الحالات</option>
-                <option value="ADMITTED">منوم</option>
-                <option value="IN_PROGRESS">قيد العلاج</option>
-                <option value="DISCHARGE_PENDING">في انتظار التسريح</option>
+                <option value="">{t("admissions.filters.allStatuses", "جميع الحالات")}</option>
+                <option value="ADMITTED">{t("admissions.admissionStatus.ADMITTED", "منوم")}</option>
+                <option value="IN_PROGRESS">{t("admissions.admissionStatus.IN_PROGRESS", "قيد العلاج")}</option>
+                <option value="DISCHARGE_PENDING">{t("admissions.admissionStatus.DISCHARGE_PENDING", "في انتظار التسريح")}</option>
               </select>
 
               <select
@@ -502,7 +481,7 @@ export default function AdvancedAdmissionManagement() {
                 onChange={(e) => setWardFilter(e.target.value)}
                 className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"
               >
-                <option value="">جميع العنابر</option>
+                <option value="">{t("admissions.filters.allWards", "جميع العنابر")}</option>
                 {bedOccupancyReport.map((ward) => (
                   <option key={ward.wardId} value={ward.wardId}>
                     {ward.wardName}
@@ -518,9 +497,9 @@ export default function AdvancedAdmissionManagement() {
               onChange={(e) => setPeriodFilter(e.target.value)}
               className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"
             >
-              <option value="today">اليوم</option>
-              <option value="week">الأسبوع</option>
-              <option value="month">الشهر</option>
+              <option value="today">{t("admissions.filters.today", "اليوم")}</option>
+              <option value="week">{t("admissions.filters.week", "الأسبوع")}</option>
+              <option value="month">{t("admissions.filters.month", "الشهر")}</option>
             </select>
           )}
         </div>
@@ -542,38 +521,38 @@ export default function AdvancedAdmissionManagement() {
               {/* Statistics Cards */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                 <div className="bg-slate-900/50 rounded-xl p-4 border border-slate-700">
-                  <div className="text-sm text-slate-400 mb-1">إجمالي الإيواءات</div>
+                  <div className="text-sm text-slate-400 mb-1">{t("admissions.stats.totalAdmissions", "إجمالي الإيواءات")}</div>
                   <div className="text-2xl font-bold">{admissionStats.totalAdmissions}</div>
                 </div>
                 <div className="bg-slate-900/50 rounded-xl p-4 border border-slate-700">
-                  <div className="text-sm text-slate-400 mb-1">الإيواءات النشطة</div>
+                  <div className="text-sm text-slate-400 mb-1">{t("admissions.stats.activeAdmissions", "الإيواءات النشطة")}</div>
                   <div className="text-2xl font-bold text-green-400">
                     {admissionStats.activeAdmissions}
                   </div>
                 </div>
                 <div className="bg-slate-900/50 rounded-xl p-4 border border-slate-700">
-                  <div className="text-sm text-slate-400 mb-1">حالات الطوارئ</div>
+                  <div className="text-sm text-slate-400 mb-1">{t("admissions.stats.emergencyAdmissions", "حالات الطوارئ")}</div>
                   <div className="text-2xl font-bold text-red-400">
                     {admissionStats.emergencyAdmissions}
                   </div>
                 </div>
                 <div className="bg-slate-900/50 rounded-xl p-4 border border-slate-700">
-                  <div className="text-sm text-slate-400 mb-1">إعادة الإيواء</div>
+                  <div className="text-sm text-slate-400 mb-1">{t("admissions.stats.readmissions", "إعادة الإيواء")}</div>
                   <div className="text-2xl font-bold text-yellow-400">
                     {admissionStats.readmissions}
                   </div>
                 </div>
                 <div className="bg-slate-900/50 rounded-xl p-4 border border-slate-700">
-                  <div className="text-sm text-slate-400 mb-1">متوسط مدة الإقامة</div>
+                  <div className="text-sm text-slate-400 mb-1">{t("admissions.stats.averageLengthOfStay", "متوسط مدة الإقامة")}</div>
                   <div className="text-2xl font-bold text-blue-400">
-                    {admissionStats.averageLengthOfStay.toFixed(1)} يوم
+                    {t("admissions.stats.averageDays", { defaultValue: "{{count}} يوم", count: parseFloat(admissionStats.averageLengthOfStay.toFixed(1)) })}
                   </div>
                 </div>
               </div>
 
               {/* Recent Admissions */}
               <div className="bg-slate-900/50 rounded-xl p-6 border border-slate-700">
-                <h3 className="text-lg font-semibold mb-4">آخر الإيواءات</h3>
+                <h3 className="text-lg font-semibold mb-4">{t("admissions.recentAdmissions", "آخر الإيواءات")}</h3>
                 <div className="space-y-3">
                   {admissions.slice(0, 5).map((admission) => (
                     <div
@@ -603,14 +582,14 @@ export default function AdvancedAdmissionManagement() {
 
               {/* Bed Occupancy Summary */}
               <div className="bg-slate-900/50 rounded-xl p-6 border border-slate-700">
-                <h3 className="text-lg font-semibold mb-4">ملخص إشغال الأسرة</h3>
+                <h3 className="text-lg font-semibold mb-4">{t("admissions.bedOccupancySummary", "ملخص إشغال الأسرة")}</h3>
                 <div className="space-y-3">
                   {bedOccupancyReport.slice(0, 3).map((ward) => (
                     <div key={ward.wardId} className="flex items-center justify-between">
                       <div>
                         <div className="font-medium">{ward.wardName}</div>
                         <div className="text-sm text-slate-400">
-                          {ward.occupiedBeds} / {ward.totalBeds} أسرة مشغولة
+                          {t("admissions.occupiedBedsCount", { defaultValue: "{{occupied}} / {{total}} أسرة مشغولة", occupied: ward.occupiedBeds, total: ward.totalBeds })}
                         </div>
                       </div>
                       <div className={`font-bold ${getOccupancyColor(ward.occupancyRate)}`}>
@@ -630,15 +609,15 @@ export default function AdvancedAdmissionManagement() {
                 <table className="w-full">
                   <thead className="bg-slate-800/50">
                     <tr>
-                      <th className="px-4 py-3 text-right text-sm font-medium">المريض</th>
-                      <th className="px-4 py-3 text-right text-sm font-medium">السرير</th>
-                      <th className="px-4 py-3 text-right text-sm font-medium">الطبيب</th>
-                      <th className="px-4 py-3 text-right text-sm font-medium">الحالة</th>
-                      <th className="px-4 py-3 text-right text-sm font-medium">العزل</th>
-                      <th className="px-4 py-3 text-right text-sm font-medium">الأولوية</th>
-                      <th className="px-4 py-3 text-right text-sm font-medium">تاريخ الإدخال</th>
-                      <th className="px-4 py-3 text-right text-sm font-medium">مدة الإقامة</th>
-                      <th className="px-4 py-3 text-right text-sm font-medium">إجراءات</th>
+                      <th className="px-4 py-3 text-right text-sm font-medium">{t("admissions.table.patient", "المريض")}</th>
+                      <th className="px-4 py-3 text-right text-sm font-medium">{t("admissions.table.bed", "السرير")}</th>
+                      <th className="px-4 py-3 text-right text-sm font-medium">{t("admissions.table.doctor", "الطبيب")}</th>
+                      <th className="px-4 py-3 text-right text-sm font-medium">{t("admissions.table.status", "الحالة")}</th>
+                      <th className="px-4 py-3 text-right text-sm font-medium">{t("admissions.table.isolation", "العزل")}</th>
+                      <th className="px-4 py-3 text-right text-sm font-medium">{t("admissions.table.priority", "الأولوية")}</th>
+                      <th className="px-4 py-3 text-right text-sm font-medium">{t("admissions.table.admissionDate", "تاريخ الإدخال")}</th>
+                      <th className="px-4 py-3 text-right text-sm font-medium">{t("admissions.table.lengthOfStay", "مدة الإقامة")}</th>
+                      <th className="px-4 py-3 text-right text-sm font-medium">{t("admissions.table.actions", "إجراءات")}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-700">
@@ -684,10 +663,10 @@ export default function AdvancedAdmissionManagement() {
                           </span>
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-right">
-                          {new Date(admission.actualAdmissionDate).toLocaleDateString('en-GB')}
+                          {new Date(admission.actualAdmissionDate).toLocaleDateString(isRtl ? 'ar-LY' : 'en-US')}
                         </td>
                         <td className="px-4 py-3">
-                          {admission.lengthOfStay ? `${admission.lengthOfStay} يوم` : '-'}
+                          {admission.lengthOfStay ? `${admission.lengthOfStay} ${t("admissions.stats.days", "يوم")}` : '-'}
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex flex-col gap-2">
@@ -698,16 +677,16 @@ export default function AdvancedAdmissionManagement() {
                                   <button
                                     onClick={() => navigate(`/discharge-summary/${admission.id}`)}
                                     className="flex-1 px-3 py-1 bg-amber-600 hover:bg-amber-500 rounded text-xs transition-colors shadow-sm font-semibold flex justify-center items-center gap-1"
-                                    title="تعبئة ملخص الخروج الطبي"
+                                    title={t("admissions.actions.dischargeClinicalTitle", "تعبئة ملخص الخروج الطبي")}
                                   >
-                                    📝 التخريج الطبي 
+                                    {t("admissions.actions.dischargeClinical", "📝 التخريج الطبي")}
                                   </button>
                                   <button
                                     onClick={() => handleDischargePatient(admission)}
                                     className="flex-1 px-3 py-1 bg-green-600 hover:bg-green-500 rounded text-xs transition-colors shadow-lg font-bold flex justify-center items-center gap-1"
-                                    title="إخلاء السرير وإنهاء الإيواء وتسوية الرصيد"
+                                    title={t("admissions.actions.dischargeAndVacateTitle", "إخلاء السرير وإنهاء الإيواء وتسوية الرصيد")}
                                   >
-                                    🚪 تسريح وإخلاء
+                                    {t("admissions.actions.dischargeAndVacate", "🚪 تسريح وإخلاء")}
                                   </button>
                                 </>
                               )}
@@ -718,19 +697,19 @@ export default function AdvancedAdmissionManagement() {
                                 onClick={() => handleViewAdmissionDetails(admission.id)}
                                 className="px-3 py-1 bg-sky-600 hover:bg-sky-500 rounded text-xs transition-colors"
                               >
-                                تفاصيل
+                                {t("admissions.actions.details", "تفاصيل")}
                               </button>
                               <button
                                 onClick={() => handleEditAdmission(admission)}
                                 className="px-3 py-1 bg-slate-600 hover:bg-slate-500 rounded text-xs transition-colors"
                               >
-                                تعديل
+                                {t("admissions.actions.edit", "تعديل")}
                               </button>
                               <button
                                 onClick={() => handleManageIsolation(admission)}
                                 className="px-3 py-1 bg-orange-600 hover:bg-orange-500 rounded text-xs transition-colors"
                               >
-                                العزل
+                                {t("admissions.actions.isolation", "العزل")}
                               </button>
                               {admission.admissionStatus !== 'DISCHARGED' && (
                                 <>
@@ -738,13 +717,13 @@ export default function AdvancedAdmissionManagement() {
                                     onClick={() => handleDischargePlanning(admission)}
                                     className="px-3 py-1 bg-blue-600 hover:bg-blue-500 rounded text-xs transition-colors"
                                   >
-                                    تخطيط خروج
+                                    {t("admissions.actions.dischargePlanning", "تخطيط خروج")}
                                   </button>
                                   <button
                                     onClick={() => handleBedTransfer(admission)}
                                     className="px-3 py-1 bg-purple-600 hover:bg-purple-500 rounded text-xs transition-colors"
                                   >
-                                    نقل سرير
+                                    {t("admissions.actions.bedTransfer", "نقل سرير")}
                                   </button>
                                 </>
                               )}
@@ -768,12 +747,12 @@ export default function AdvancedAdmissionManagement() {
                     <h3 className="text-lg font-semibold">{ward.wardName}</h3>
                     <div className="flex items-center gap-4">
                       <div className="text-sm text-slate-400">
-                        الإشغال: <span className={`font-bold ${getOccupancyColor(ward.occupancyRate)}`}>
+                        {t("admissions.occupancyRate", "الإشغال: ")} <span className={`font-bold ${getOccupancyColor(ward.occupancyRate)}`}>
                           {ward.occupancyRate.toFixed(1)}%
                         </span>
                       </div>
                       <div className="text-sm text-slate-400">
-                        {ward.occupiedBeds} / {ward.totalBeds} مشغول
+                        {t("admissions.occupiedBedsCount", { defaultValue: "{{occupied}} / {{total}} مشغول", occupied: ward.occupiedBeds, total: ward.totalBeds })}
                       </div>
                     </div>
                   </div>
@@ -782,7 +761,7 @@ export default function AdvancedAdmissionManagement() {
                     {ward.rooms.map((room) => (
                       <div key={room.roomId} className="bg-slate-800/50 rounded-lg p-4">
                         <div className="flex items-center justify-between mb-3">
-                          <h4 className="font-medium">غرفة {room.roomNumber}</h4>
+                          <h4 className="font-medium">{t("admissions.room", "غرفة")} {room.roomNumber}</h4>
                           <span className="text-sm text-slate-400">
                             {room.occupiedBeds}/{room.totalBeds}
                           </span>
@@ -801,8 +780,8 @@ export default function AdvancedAdmissionManagement() {
                             >
                               <div className="font-medium">{bed.bedNumber}</div>
                               <div className="text-slate-400">
-                                {bed.status === 'OCCUPIED' ? 'مشغول' : 
-                                 bed.status === 'AVAILABLE' ? 'متاح' : bed.status}
+                                {bed.status === 'OCCUPIED' ? t("admissions.status.occupied", 'مشغول') : 
+                                 bed.status === 'AVAILABLE' ? t("admissions.status.available", 'متاح') : bed.status}
                               </div>
                               {bed.patient && (
                                 <div className="text-xs mt-1 truncate">
@@ -825,49 +804,49 @@ export default function AdvancedAdmissionManagement() {
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="bg-slate-900/50 rounded-xl p-6 border border-slate-700">
-                  <h3 className="text-lg font-semibold mb-2">إجمالي الإيواءات</h3>
+                  <h3 className="text-lg font-semibold mb-2">{t("admissions.stats.totalAdmissions", "إجمالي الإيواءات")}</h3>
                   <div className="text-3xl font-bold text-sky-400">
                     {admissionStats.totalAdmissions}
                   </div>
                   <div className="text-sm text-slate-400 mt-1">
-                    خلال {periodFilter === 'today' ? 'اليوم' : periodFilter === 'week' ? 'الأسبوع' : 'الشهر'}
+                    {t("admissions.filters." + periodFilter)}
                   </div>
                 </div>
 
                 <div className="bg-slate-900/50 rounded-xl p-6 border border-slate-700">
-                  <h3 className="text-lg font-semibold mb-2">حالات الطوارئ</h3>
+                  <h3 className="text-lg font-semibold mb-2">{t("admissions.stats.emergencyAdmissions", "حالات الطوارئ")}</h3>
                   <div className="text-3xl font-bold text-red-400">
                     {admissionStats.emergencyAdmissions}
                   </div>
                   <div className="text-sm text-slate-400 mt-1">
-                    {((admissionStats.emergencyAdmissions / admissionStats.totalAdmissions) * 100).toFixed(1)}% من الإجمالي
+                    {((admissionStats.emergencyAdmissions / admissionStats.totalAdmissions) * 100).toFixed(1)}% {t("admissions.stats.ofTotal", "من الإجمالي")}
                   </div>
                 </div>
 
                 <div className="bg-slate-900/50 rounded-xl p-6 border border-slate-700">
-                  <h3 className="text-lg font-semibold mb-2">إعادة الإيواء</h3>
+                  <h3 className="text-lg font-semibold mb-2">{t("admissions.stats.readmissions", "إعادة الإيواء")}</h3>
                   <div className="text-3xl font-bold text-yellow-400">
                     {admissionStats.readmissions}
                   </div>
                   <div className="text-sm text-slate-400 mt-1">
-                    خلال 30 يوم
+                    {t("admissions.stats.within30Days", "خلال 30 يوم")}
                   </div>
                 </div>
 
                 <div className="bg-slate-900/50 rounded-xl p-6 border border-slate-700">
-                  <h3 className="text-lg font-semibold mb-2">متوسط مدة الإقامة</h3>
+                  <h3 className="text-lg font-semibold mb-2">{t("admissions.stats.averageLengthOfStay", "متوسط مدة الإقامة")}</h3>
                   <div className="text-3xl font-bold text-green-400">
                     {admissionStats.averageLengthOfStay.toFixed(1)}
                   </div>
-                  <div className="text-sm text-slate-400 mt-1">يوم</div>
+                  <div className="text-sm text-slate-400 mt-1">{t("admissions.stats.days", "يوم")}</div>
                 </div>
               </div>
 
-              {/* Additional statistics can be added here */}
+              {/* Performance Analysis */}
               <div className="bg-slate-900/50 rounded-xl p-6 border border-slate-700">
-                <h3 className="text-lg font-semibold mb-4">تحليل الأداء</h3>
+                <h3 className="text-lg font-semibold mb-4">{t("admissions.performanceAnalysis", "تحليل الأداء")}</h3>
                 <div className="text-center py-8 text-slate-400">
-                  <p>البيانات الحالية ممتازة، سيتم دمج المزيد من المؤشرات التحليلية لاحقاً لدعم اتخاذ القرار.</p>
+                  <p>{t("admissions.performanceAnalysisPlaceholder", "البيانات الحالية ممتازة، سيتم دمج المزيد من المؤشرات التحليلية لاحقاً لدعم اتخاذ القرار.")}</p>
                 </div>
               </div>
             </div>
@@ -878,37 +857,37 @@ export default function AdvancedAdmissionManagement() {
       {/* Edit Admission Modal */}
       {showEditModal && editingAdmission && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-slate-800 rounded-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <h3 className="text-xl font-bold mb-4">تعديل بيانات الإيواء</h3>
+          <div className="bg-slate-800 rounded-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto" dir={isRtl ? "rtl" : "ltr"}>
+            <h3 className="text-xl font-bold mb-4">{t("admissions.modals.edit.title", "تعديل بيانات الإيواء")}</h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-2">نوع الإيواء</label>
+                <label className="block text-sm font-medium mb-2">{t("admissions.modals.edit.type", "نوع الإيواء")}</label>
                 <select
                   value={editingAdmission.admissionType}
                   onChange={(e) => setEditingAdmission({...editingAdmission, admissionType: e.target.value})}
                   className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2"
                 >
-                  <option value="ELECTIVE">اختياري</option>
-                  <option value="EMERGENCY">طوارئ</option>
-                  <option value="URGENT">عاجل</option>
+                  <option value="ELECTIVE">{t("admissions.modals.edit.elective", "اختياري")}</option>
+                  <option value="EMERGENCY">{t("admissions.modals.edit.emergency", "طوارئ")}</option>
+                  <option value="URGENT">{t("admissions.modals.edit.urgent", "عاجل")}</option>
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2">الأولوية</label>
+                <label className="block text-sm font-medium mb-2">{t("admissions.modals.edit.priority", "الأولوية")}</label>
                 <select
                   value={editingAdmission.priority}
                   onChange={(e) => setEditingAdmission({...editingAdmission, priority: e.target.value})}
                   className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2"
                 >
-                  <option value="LOW">منخفضة</option>
-                  <option value="MEDIUM">متوسطة</option>
-                  <option value="HIGH">عالية</option>
-                  <option value="URGENT">عاجلة</option>
-                  <option value="CRITICAL">حرجة</option>
+                  <option value="LOW">{t("admissions.priorityLabels.LOW", "منخفضة")}</option>
+                  <option value="MEDIUM">{t("admissions.priorityLabels.MEDIUM", "متوسطة")}</option>
+                  <option value="HIGH">{t("admissions.priorityLabels.HIGH", "عالية")}</option>
+                  <option value="URGENT">{t("admissions.priorityLabels.URGENT", "عاجلة")}</option>
+                  <option value="CRITICAL">{t("admissions.priorityLabels.CRITICAL", "حرجة")}</option>
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2">تاريخ التسريح المتوقع</label>
+                <label className="block text-sm font-medium mb-2">{t("admissions.modals.edit.expectedDischarge", "تاريخ التسريح المتوقع")}</label>
                 <input
                   type="date"
                   value={editingAdmission.expectedDischargeDate?.split('T')[0] || ''}
@@ -917,7 +896,7 @@ export default function AdvancedAdmissionManagement() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2">التكلفة المقدرة</label>
+                <label className="block text-sm font-medium mb-2">{t("admissions.modals.edit.estimatedCost", "التكلفة المقدرة")}</label>
                 <input
                   type="number"
                   value={editingAdmission.estimatedCost || ''}
@@ -931,7 +910,7 @@ export default function AdvancedAdmissionManagement() {
                 onClick={() => handleUpdateAdmission(editingAdmission)}
                 className="px-4 py-2 bg-sky-600 hover:bg-sky-500 rounded-lg"
               >
-                حفظ التعديلات
+                {t("admissions.modals.edit.save", "حفظ التعديلات")}
               </button>
               <button
                 onClick={() => {
@@ -940,7 +919,7 @@ export default function AdvancedAdmissionManagement() {
                 }}
                 className="px-4 py-2 bg-slate-600 hover:bg-slate-500 rounded-lg"
               >
-                إلغاء
+                {t("admissions.modals.edit.cancel", "إلغاء")}
               </button>
             </div>
           </div>
@@ -950,11 +929,11 @@ export default function AdvancedAdmissionManagement() {
       {/* Discharge Planning Modal */}
       {showDischargePlanningModal && selectedAdmission && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-slate-800 rounded-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <h3 className="text-xl font-bold mb-4">تخطيط التسريح</h3>
+          <div className="bg-slate-800 rounded-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto" dir={isRtl ? "rtl" : "ltr"}>
+            <h3 className="text-xl font-bold mb-4">{t("admissions.modals.dischargePlanning.title", "تخطيط التسريح")}</h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-2">تاريخ التسريح المخطط</label>
+                <label className="block text-sm font-medium mb-2">{t("admissions.modals.dischargePlanning.plannedDate", "تاريخ التسريح المخطط")}</label>
                 <input
                   type="date"
                   onChange={(e) => setSelectedAdmission({...selectedAdmission, expectedDischargeDate: e.target.value})}
@@ -962,26 +941,26 @@ export default function AdvancedAdmissionManagement() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2">وجهة التخريج</label>
+                <label className="block text-sm font-medium mb-2">{t("admissions.modals.dischargePlanning.disposition", "وجهة التخريج")}</label>
                 <select
                   id="dischargeDispositionSelect"
                   className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2"
                   defaultValue="HOME"
                 >
-                  <option value="HOME">المنزل</option>
-                  <option value="TRANSFER">نقل مستشفى آخر</option>
-                  <option value="REHAB">تأهيل طبي</option>
-                  <option value="LTC">رعاية طويلة الأمد</option>
-                  <option value="AMA">خروج على غير مشورة</option>
-                  <option value="EXPIRED">وفاة</option>
+                  <option value="HOME">{t("admissions.modals.dischargePlanning.home", "المنزل")}</option>
+                  <option value="TRANSFER">{t("admissions.modals.dischargePlanning.transfer", "نقل مستشفى آخر")}</option>
+                  <option value="REHAB">{t("admissions.modals.dischargePlanning.rehab", "تأهيل طبي")}</option>
+                  <option value="LTC">{t("admissions.modals.dischargePlanning.ltc", "رعاية طويلة الأمد")}</option>
+                  <option value="AMA">{t("admissions.modals.dischargePlanning.ama", "خروج على غير مشورة")}</option>
+                  <option value="EXPIRED">{t("admissions.modals.dischargePlanning.expired", "وفاة")}</option>
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2">ملاحظات التخطيط</label>
+                <label className="block text-sm font-medium mb-2">{t("admissions.modals.dischargePlanning.notes", "ملاحظات التخطيط")}</label>
                 <textarea
                   id="dischargeNotesInput"
                   rows={4}
-                  placeholder="أدخل ملاحظات تخطيط التسريح..."
+                  placeholder={t("admissions.modals.dischargePlanning.notesPlaceholder", "أدخل ملاحظات تخطيط التسريح...")}
                   className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2"
                 />
               </div>
@@ -999,7 +978,7 @@ export default function AdvancedAdmissionManagement() {
                 }}
                 className="px-4 py-2 bg-sky-600 hover:bg-sky-500 rounded-lg"
               >
-                إنشاء خطة التسريح
+                {t("admissions.modals.dischargePlanning.create", "إنشاء خطة التسريح")}
               </button>
               <button
                 onClick={() => {
@@ -1008,7 +987,7 @@ export default function AdvancedAdmissionManagement() {
                 }}
                 className="px-4 py-2 bg-slate-600 hover:bg-slate-500 rounded-lg"
               >
-                إلغاء
+                {t("admissions.modals.edit.cancel", "إلغاء")}
               </button>
             </div>
           </div>
@@ -1018,42 +997,47 @@ export default function AdvancedAdmissionManagement() {
       {/* Bed Transfer Modal */}
       {showBedTransferModal && selectedAdmission && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-slate-800 rounded-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <h3 className="text-xl font-bold mb-4">طلب نقل السرير</h3>
+          <div className="bg-slate-800 rounded-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto" dir={isRtl ? "rtl" : "ltr"}>
+            <h3 className="text-xl font-bold mb-4">{t("admissions.modals.bedTransfer.title", "طلب نقل السرير")}</h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-2">السرير الحالي</label>
+                <label className="block text-sm font-medium mb-2">{t("admissions.modals.bedTransfer.currentBed", "السرير الحالي")}</label>
                 <div className="bg-slate-700 p-3 rounded-lg">
                   {selectedAdmission.bed?.bedNumber} - {selectedAdmission.ward?.name}
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2">سبب النقل</label>
-                <select className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2">
-                  <option value="MEDICAL">أسباب طبية</option>
-                  <option value="PATIENT_REQUEST">طلب المريض</option>
-                  <option value="INFECTION_CONTROL">مكافحة العدوى</option>
-                  <option value="BED_AVAILABILITY">توفر سرير أفضل</option>
+                <label className="block text-sm font-medium mb-2">{t("admissions.modals.bedTransfer.reason", "سبب النقل")}</label>
+                <select id="transferReasonSelect" className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2">
+                  <option value="MEDICAL">{t("admissions.modals.bedTransfer.medical", "أسباب طبية")}</option>
+                  <option value="PATIENT_REQUEST">{t("admissions.modals.bedTransfer.patientRequest", "طلب المريض")}</option>
+                  <option value="INFECTION_CONTROL">{t("admissions.modals.bedTransfer.infectionControl", "مكافحة العدوى")}</option>
+                  <option value="BED_AVAILABILITY">{t("admissions.modals.bedTransfer.bedAvailability", "توفر سرير أفضل")}</option>
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2">ملاحظات النقل</label>
+                <label className="block text-sm font-medium mb-2">{t("admissions.modals.bedTransfer.notes", "ملاحظات النقل")}</label>
                 <textarea
+                  id="transferNotesInput"
                   rows={3}
-                  placeholder="أدخل ملاحظات النقل..."
+                  placeholder={t("admissions.modals.bedTransfer.notesPlaceholder", "أدخل ملاحظات النقل...")}
                   className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2"
                 />
               </div>
             </div>
             <div className="flex gap-3 mt-6">
               <button
-                onClick={() => handleRequestBedTransfer({
-                  reason: "MEDICAL",
-                  notes: "ملاحظات النقل"
-                })}
+                onClick={() => {
+                  const reasonSelect = document.getElementById('transferReasonSelect') as HTMLSelectElement;
+                  const notesInput = document.getElementById('transferNotesInput') as HTMLTextAreaElement;
+                  handleRequestBedTransfer({
+                    reason: reasonSelect?.value || "MEDICAL",
+                    notes: notesInput?.value || "ملاحظات النقل"
+                  });
+                }}
                 className="px-4 py-2 bg-sky-600 hover:bg-sky-500 rounded-lg"
               >
-                طلب النقل
+                {t("admissions.modals.bedTransfer.submit", "طلب النقل")}
               </button>
               <button
                 onClick={() => {
@@ -1062,7 +1046,7 @@ export default function AdvancedAdmissionManagement() {
                 }}
                 className="px-4 py-2 bg-slate-600 hover:bg-slate-500 rounded-lg"
               >
-                إلغاء
+                {t("admissions.modals.edit.cancel", "إلغاء")}
               </button>
             </div>
           </div>
@@ -1072,23 +1056,23 @@ export default function AdvancedAdmissionManagement() {
       {/* Quick Admission Modal */}
       {showQuickAdmissionModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-slate-800 rounded-xl p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto">
-            <h3 className="text-xl font-bold mb-4">إيواء سريع للطوارئ</h3>
+          <div className="bg-slate-800 rounded-xl p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto" dir={isRtl ? "rtl" : "ltr"}>
+            <h3 className="text-xl font-bold mb-4">{t("admissions.modals.quick.title", "إيواء سريع للطوارئ")}</h3>
             
             {patients.length === 0 || doctors.length === 0 || availableBeds.length === 0 ? (
               <div className="flex justify-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-sky-500"></div>
-                <span className="mr-3 text-slate-400">جاري تحميل البيانات...</span>
+                <span className="mr-3 text-slate-400">{t("admissions.modals.quick.loading", "جاري تحميل البيانات...")}</span>
               </div>
             ) : (
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium mb-2">المريض</label>
+                  <label className="block text-sm font-medium mb-2">{t("admissions.modals.quick.patient", "المريض")}</label>
                   <select
                     id="quickPatientSelect"
                     className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2"
                   >
-                    <option value="">اختر المريض...</option>
+                    <option value="">{t("admissions.modals.quick.selectPatient", "اختر المريض...")}</option>
                     {patients.map((patient) => (
                       <option key={patient.id} value={patient.id}>
                         {patient.fullName} - {patient.mrn}
@@ -1096,80 +1080,80 @@ export default function AdvancedAdmissionManagement() {
                     ))}
                   </select>
                   {patients.length === 0 && (
-                    <p className="text-xs text-red-400 mt-1">لا يوجد مرضى متاحون</p>
+                    <p className="text-xs text-red-400 mt-1">{t("admissions.modals.quick.noPatients", "لا يوجد مرضى متاحون")}</p>
                   )}
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium mb-2">السرير المتاح</label>
+                  <label className="block text-sm font-medium mb-2">{t("admissions.modals.quick.bed", "السرير المتاح")}</label>
                   <select
                     id="quickBedSelect"
                     className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2"
                   >
-                    <option value="">اختر سريراً متاحاً...</option>
+                    <option value="">{t("admissions.modals.quick.selectBed", "اختر سريراً متاحاً...")}</option>
                     {availableBeds.map((bed) => (
                       <option key={bed.id} value={bed.id}>
-                        سرير {bed.bedNumber} - {bed.wardName} - غرفة {bed.roomNumber}
+                        {t("admissions.room", "غرفة")} {bed.roomNumber} - {bed.wardName} - {t("admissions.table.bed", "السرير")} {bed.bedNumber}
                       </option>
                     ))}
                   </select>
                   {availableBeds.length === 0 && (
-                    <p className="text-xs text-red-400 mt-1">لا توجد أسرة متاحة حالياً</p>
+                    <p className="text-xs text-red-400 mt-1">{t("admissions.modals.quick.noBeds", "لا توجد أسرة متاحة حالياً")}</p>
                   )}
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium mb-2">الطبيب المعالج</label>
+                  <label className="block text-sm font-medium mb-2">{t("admissions.modals.quick.doctor", "الطبيب المعالج")}</label>
                   <select
                     id="quickDoctorSelect"
                     className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2"
                   >
-                    <option value="">اختر الطبيب...</option>
+                    <option value="">{t("admissions.modals.quick.selectDoctor", "اختر الطبيب...")}</option>
                     {doctors.map((doctor) => (
                       <option key={doctor.id} value={doctor.id}>
-                        د. {doctor.fullName} - {doctor.specialization || 'طبيب'}
+                        {doctor.fullName} - {doctor.specialization || t("admissions.table.doctor", "طبيب")}
                       </option>
                     ))}
                   </select>
                   {doctors.length === 0 && (
-                    <p className="text-xs text-red-400 mt-1">لا يوجد أطباء متاحون</p>
+                    <p className="text-xs text-red-400 mt-1">{t("admissions.modals.quick.noDoctors", "لا يوجد أطباء متاحون")}</p>
                   )}
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium mb-2">سبب الإدخال الطارئ</label>
+                  <label className="block text-sm font-medium mb-2">{t("admissions.modals.quick.reason", "سبب الإدخال الطارئ")}</label>
                   <textarea
                     id="quickReasonInput"
                     rows={3}
-                    placeholder="أدخل سبب الإدخال الطارئ..."
+                    placeholder={t("admissions.modals.quick.reasonPlaceholder", "أدخل سبب الإدخال الطارئ...")}
                     className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2"
                   />
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium mb-2">التشخيص الأولي</label>
+                  <label className="block text-sm font-medium mb-2">{t("admissions.modals.quick.diagnosis", "التشخيص الأولي")}</label>
                   <input
                     id="quickDiagnosisInput"
                     type="text"
-                    placeholder="التشخيص الأولي..."
+                    placeholder={t("admissions.modals.quick.diagnosisPlaceholder", "التشخيص الأولي...")}
                     className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-2">نوع العزل المطلوب</label>
+                  <label className="block text-sm font-medium mb-2">{t("admissions.modals.quick.isolation", "نوع العزل المطلوب")}</label>
                   <select
                     id="quickIsolationSelect"
                     className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2"
                   >
-                    <option value="NONE">بدون عزل</option>
-                    <option value="STANDARD">عزل قياسي</option>
-                    <option value="DROPLET">عزل القطيرات</option>
-                    <option value="AIRBORNE">عزل الهواء</option>
-                    <option value="CONTACT">عزل التلامس</option>
-                    <option value="PROTECTIVE">عزل وقائي</option>
-                    <option value="NEUTROPENIC">عزل قلة الكريات البيض</option>
-                    <option value="REVERSE">عزل عكسي</option>
+                    <option value="NONE">{t("admissions.isolationTypes.NONE", "بدون عزل")}</option>
+                    <option value="STANDARD">{t("admissions.isolationTypes.STANDARD", "عزل قياسي")}</option>
+                    <option value="DROPLET">{t("admissions.isolationTypes.DROPLET", "عزل القطيرات")}</option>
+                    <option value="AIRBORNE">{t("admissions.isolationTypes.AIRBORNE", "عزل الهواء")}</option>
+                    <option value="CONTACT">{t("admissions.isolationTypes.CONTACT", "عزل التلامس")}</option>
+                    <option value="PROTECTIVE">{t("admissions.isolationTypes.PROTECTIVE", "عزل وقائي")}</option>
+                    <option value="NEUTROPENIC">{t("admissions.isolationTypes.NEUTROPENIC", "عزل قلة الكريات البيض")}</option>
+                    <option value="REVERSE">{t("admissions.isolationTypes.REVERSE", "عزل عكسي")}</option>
                   </select>
                 </div>
               </div>
@@ -1193,7 +1177,7 @@ export default function AdvancedAdmissionManagement() {
                   const isolationType = isolationSelect.value;
 
                   if (!patientId || !bedId || !doctorId || !admissionReason) {
-                    toast.error("يرجى ملء جميع الحقول المطلوبة");
+                    toast.error(t("admissions.modals.quick.fillRequired", "يرجى ملء جميع الحقول المطلوبة"));
                     return;
                   }
 
@@ -1209,25 +1193,26 @@ export default function AdvancedAdmissionManagement() {
                   handleEmergencyAdmission(admissionData);
                 }}
                 disabled={patients.length === 0 || doctors.length === 0 || availableBeds.length === 0}
-                className="px-4 py-2 bg-red-600 hover:bg-red-500 disabled:bg-slate-600 disabled:cursor-not-allowed rounded-lg"
+                className="px-4 py-2 bg-red-600 hover:bg-red-500 disabled:bg-slate-600 disabled:cursor-not-allowed rounded-lg font-bold"
               >
-                إيواء طارئ
+                {t("admissions.modals.quick.submit", "إيواء طارئ")}
               </button>
               <button
                 onClick={() => setShowQuickAdmissionModal(false)}
                 className="px-4 py-2 bg-slate-600 hover:bg-slate-500 rounded-lg"
               >
-                إلغاء
+                {t("admissions.modals.edit.cancel", "إلغاء")}
               </button>
             </div>
           </div>
         </div>
       )}
+      
       {/* Isolation Management Modal */}
       {showIsolationModal && selectedAdmission && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-slate-800 rounded-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <h3 className="text-xl font-bold mb-4">إدارة العزل - {selectedAdmission.patient.fullName}</h3>
+          <div className="bg-slate-800 rounded-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto" dir={isRtl ? "rtl" : "ltr"}>
+            <h3 className="text-xl font-bold mb-4">{t("admissions.modals.isolation.title", { defaultValue: "إدارة العزل - {{name}}", name: selectedAdmission.patient.fullName })}</h3>
             <div className="space-y-4">
               <div>
                 <label className="flex items-center gap-2">
@@ -1240,36 +1225,35 @@ export default function AdvancedAdmissionManagement() {
                     })}
                     className="w-4 h-4 text-sky-600 bg-slate-700 border-slate-600 rounded"
                   />
-                  <span className="text-sm font-medium">تطلب عزل</span>
+                  <span className="text-sm font-medium">{t("admissions.modals.isolation.required", "تطلب عزل")}</span>
                 </label>
               </div>
 
               {selectedAdmission.isolationRequired && (
                 <>
                   <div>
-                    <label className="block text-sm font-medium mb-2">نوع العزل</label>
+                    <label className="block text-sm font-medium mb-2">{t("admissions.modals.isolation.type", "نوع العزل")}</label>
                     <select
                       value={selectedAdmission.isolationType || 'NONE'}
                       onChange={(e) => setSelectedAdmission({
                         ...selectedAdmission,
-                         
                         isolationType: e.target.value as any
                       })}
                       className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2"
                     >
-                      <option value="NONE">بدون عزل</option>
-                      <option value="STANDARD">عزل قياسي</option>
-                      <option value="DROPLET">عزل القطيرات</option>
-                      <option value="AIRBORNE">عزل الهواء</option>
-                      <option value="CONTACT">عزل التلامس</option>
-                      <option value="PROTECTIVE">عزل وقائي</option>
-                      <option value="NEUTROPENIC">عزل قلة الكريات البيض</option>
-                      <option value="REVERSE">عزل عكسي</option>
+                      <option value="NONE">{t("admissions.isolationTypes.NONE", "بدون عزل")}</option>
+                      <option value="STANDARD">{t("admissions.isolationTypes.STANDARD", "عزل قياسي")}</option>
+                      <option value="DROPLET">{t("admissions.isolationTypes.DROPLET", "عزل القطيرات")}</option>
+                      <option value="AIRBORNE">{t("admissions.isolationTypes.AIRBORNE", "عزل الهواء")}</option>
+                      <option value="CONTACT">{t("admissions.isolationTypes.CONTACT", "عزل التلامس")}</option>
+                      <option value="PROTECTIVE">{t("admissions.isolationTypes.PROTECTIVE", "عزل وقائي")}</option>
+                      <option value="NEUTROPENIC">{t("admissions.isolationTypes.NEUTROPENIC", "عزل قلة الكريات البيض")}</option>
+                      <option value="REVERSE">{t("admissions.isolationTypes.REVERSE", "عزل عكسي")}</option>
                     </select>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium mb-2">سبب العزل</label>
+                    <label className="block text-sm font-medium mb-2">{t("admissions.modals.isolation.reason", "سبب العزل")}</label>
                     <textarea
                       rows={3}
                       value={selectedAdmission.isolationReason || ''}
@@ -1277,56 +1261,56 @@ export default function AdvancedAdmissionManagement() {
                         ...selectedAdmission,
                         isolationReason: e.target.value
                       })}
-                      placeholder="أدخل سبب العزل..."
+                      placeholder={t("admissions.modals.isolation.reasonPlaceholder", "أدخل سبب العزل...")}
                       className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium mb-2">إجراءات الوقاية</label>
+                    <label className="block text-sm font-medium mb-2">{t("admissions.modals.isolation.precautions", "إجراءات الوقاية")}</label>
                     <div className="space-y-2">
                       {[
-                        'غسل اليدين المتكرر',
-                        'استخدام القفازات',
-                        'استخدام الكمامة',
-                        'روب الحماية',
-                        'حماية العين',
-                        'تطهير المعدات',
-                        'التهوية الجيدة'
+                        { label: t("admissions.precautions.handwashing", 'غسل اليدين المتكرر'), value: 'غسل اليدين المتكرر' },
+                        { label: t("admissions.precautions.gloves", 'استخدام القفازات'), value: 'استخدام القفازات' },
+                        { label: t("admissions.precautions.mask", 'استخدام الكمامة'), value: 'استخدام الكمامة' },
+                        { label: t("admissions.precautions.gown", 'روب الحماية'), value: 'روب الحماية' },
+                        { label: t("admissions.precautions.eyewear", 'حماية العين'), value: 'حماية العين' },
+                        { label: t("admissions.precautions.disinfection", 'تطهير المعدات'), value: 'تطهير المعدات' },
+                        { label: t("admissions.precautions.ventilation", 'التهوية الجيدة'), value: 'التهوية الجيدة' }
                       ].map((precaution) => (
-                        <label key={precaution} className="flex items-center gap-2">
+                        <label key={precaution.value} className="flex items-center gap-2">
                           <input
                             type="checkbox"
-                            checked={selectedAdmission.isolationPrecautions?.includes(precaution) || false}
+                            checked={selectedAdmission.isolationPrecautions?.includes(precaution.value) || false}
                             onChange={(e) => {
                               const precautions = selectedAdmission.isolationPrecautions || [];
                               if (e.target.checked) {
                                 setSelectedAdmission({
                                   ...selectedAdmission,
-                                  isolationPrecautions: [...precautions, precaution]
+                                  isolationPrecautions: [...precautions, precaution.value]
                                 });
                               } else {
                                 setSelectedAdmission({
                                   ...selectedAdmission,
-                                  isolationPrecautions: precautions.filter(p => p !== precaution)
+                                  isolationPrecautions: precautions.filter(p => p !== precaution.value)
                                 });
                               }
                             }}
                             className="w-4 h-4 text-sky-600 bg-slate-700 border-slate-600 rounded"
                           />
-                          <span className="text-sm">{precaution}</span>
+                          <span className="text-sm">{precaution.label}</span>
                         </label>
                       ))}
                     </div>
                   </div>
 
                   <div className="bg-slate-700 rounded-lg p-4">
-                    <h4 className="font-medium mb-2">معلومات العزل المحدد:</h4>
+                    <h4 className="font-medium mb-2">{t("admissions.modals.isolation.selectedInfo", "معلومات العزل المحدد:")}</h4>
                     <div className="text-sm space-y-1">
-                      <p><span className="text-slate-400">النوع:</span> {getIsolationTypeLabel(selectedAdmission.isolationType)}</p>
-                      <p><span className="text-slate-400">السرير الحالي:</span> {selectedAdmission.bed?.bedNumber} - {selectedAdmission.ward?.name}</p>
+                      <p><span className="text-slate-400">{t("admissions.modals.isolation.selectedType", "النوع:")}</span> {getIsolationTypeLabel(selectedAdmission.isolationType)}</p>
+                      <p><span className="text-slate-400">{t("admissions.modals.isolation.selectedBed", "السرير الحالي:")}</span> {selectedAdmission.bed?.bedNumber} - {selectedAdmission.ward?.name}</p>
                       {selectedAdmission.isolationPrecautions && selectedAdmission.isolationPrecautions.length > 0 && (
-                        <p><span className="text-slate-400">إجراءات:</span> {selectedAdmission.isolationPrecautions.join(', ')}</p>
+                        <p><span className="text-slate-400">{t("admissions.modals.isolation.selectedPrecautions", "إجراءات:")}</span> {selectedAdmission.isolationPrecautions.join(', ')}</p>
                       )}
                     </div>
                   </div>
@@ -1343,7 +1327,7 @@ export default function AdvancedAdmissionManagement() {
                 })}
                 className="px-4 py-2 bg-sky-600 hover:bg-sky-500 rounded-lg"
               >
-                حفظ إعدادات العزل
+                {t("admissions.modals.isolation.save", "حفظ إعدادات العزل")}
               </button>
               <button
                 onClick={() => {
@@ -1352,7 +1336,7 @@ export default function AdvancedAdmissionManagement() {
                 }}
                 className="px-4 py-2 bg-slate-600 hover:bg-slate-500 rounded-lg"
               >
-                إلغاء
+                {t("admissions.modals.edit.cancel", "إلغاء")}
               </button>
             </div>
           </div>

@@ -90,9 +90,9 @@ const statusClasses: Record<AppointmentStatus, string> = {
   NO_SHOW: "bg-slate-700/60 text-slate-200 border border-slate-500/40",
 };
 
-function formatTime(iso: string) {
+function formatTimeOuter(iso: string, isRtl = true) {
   const d = new Date(iso);
-  return d.toLocaleTimeString("ar-LY", { hour: "2-digit", minute: "2-digit" });
+  return d.toLocaleTimeString(isRtl ? "ar-LY" : "en-US", { hour: "2-digit", minute: "2-digit" });
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -103,6 +103,7 @@ function formatDateInput(d: Date) {
 export default function AppointmentsPage() {
   const { t, i18n } = useTranslation();
   const isRtl = i18n.language === "ar";
+  const formatTime = (iso: string) => formatTimeOuter(iso, isRtl);
   const user = useAuthStore((s) => s.user);
   const roles = user?.roles ?? [];
   const navigate = useNavigate();
@@ -442,7 +443,13 @@ export default function AppointmentsPage() {
 
     if (conflictingAppointment) {
       const conflictingTime = `${formatTime(conflictingAppointment.scheduledStart)} - ${formatTime(conflictingAppointment.scheduledEnd)}`;
-      toast.error(`المريض لديه موعد محجوز بالفعل في هذا الوقت (${conflictingTime}). يرجى اختيار وقت آخر أو إلغاء الموعد السابق.`);
+      toast.error(
+        t(
+          "appointments.error.doubleBooking",
+          "المريض لديه موعد محجوز بالفعل في هذا الوقت ({{time}}). يرجى اختيار وقت آخر أو إلغاء الموعد السابق.",
+          { time: conflictingTime }
+        )
+      );
       return;
     }
 
@@ -473,7 +480,7 @@ export default function AppointmentsPage() {
     registerERMutation.mutate({
         patientId: Number(erForm.patientId),
         type: "ER",
-        chiefComplaint: erForm.complaint || "حالة طوارئ",
+        chiefComplaint: erForm.complaint || t("appointments.er.emergencyDefaultComplaint", "حالة طوارئ"),
     });
   }
 
@@ -586,7 +593,7 @@ export default function AppointmentsPage() {
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
                 className="block w-full px-3 py-2.5 bg-slate-800 border border-slate-600 text-slate-100 text-sm rounded-lg focus:ring-sky-500 focus:border-sky-500 shadow-sm placeholder:text-slate-400 [&::-webkit-calendar-picker-indicator]:w-5 [&::-webkit-calendar-picker-indicator]:h-5 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:filter [&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:sepia-0 [&::-webkit-calendar-picker-indicator]:saturate-0 [&::-webkit-calendar-picker-indicator]:hue-rotate-180 [&::-webkit-calendar-picker-indicator]:brightness-200 [&::-webkit-calendar-picker-indicator]:contrast-100"
-                placeholder="اختر التاريخ"
+                placeholder={t("appointments.selectDatePlaceholder", "اختر التاريخ")}
               />
             </div>
           </div>
@@ -600,7 +607,7 @@ export default function AppointmentsPage() {
             </button>
             
             <h2 className="text-xl font-semibold min-w-[200px] text-center">
-              {format(currentMonth, 'MMMM yyyy', { locale: ar })}
+              {format(currentMonth, 'MMMM yyyy', { locale: isRtl ? ar : undefined })}
             </h2>
             
             <button
@@ -724,7 +731,7 @@ export default function AppointmentsPage() {
                             </span>
                             {appt.isEmergency && (
                               <span className="px-2 py-0.5 bg-amber-600/20 text-amber-300 border border-amber-600/40 rounded-full text-xs font-medium">
-                                ⚠️ خاص
+                                {t("appointments.specialBadge", "⚠️ خاص")}
                               </span>
                             )}
                           </div>
@@ -1121,7 +1128,15 @@ export default function AppointmentsPage() {
                   if (doc?.schedule) {
                       let dayMsg = null;
                       if (doc.schedule.workDays) {
-                          const daysMap = ["الأحد", "الاثنين", "الثلاثاء", "الاربعاء", "الخميس", "الجمعة", "السبت"];
+                          const daysMap = [
+                            t("appointments.calendar.sun", "الأحد"),
+                            t("appointments.calendar.mon", "الاثنين"),
+                            t("appointments.calendar.tue", "الثلاثاء"),
+                            t("appointments.calendar.wed", "الأربعاء"),
+                            t("appointments.calendar.thu", "الخميس"),
+                            t("appointments.calendar.fri", "الجمعة"),
+                            t("appointments.calendar.sat", "السبت")
+                          ];
                           const allowedIndices = doc.schedule.workDays.split(',').map(Number);
                           const allowedNames = allowedIndices.map(i => daysMap[i]).join("، ");
                           
@@ -1250,10 +1265,10 @@ export default function AppointmentsPage() {
                               <div className="flex flex-col items-center gap-1">
                                 <span className="text-lg">{num}</span>
                                 {isAvailable && (
-                                  <span className="text-xs text-emerald-400">متاح</span>
+                                  <span className="text-xs text-emerald-400">{t("appointments.statusAvailable", "متاح")}</span>
                                 )}
                                 {isUsed && (
-                                  <span className="text-xs text-rose-400">محجوز</span>
+                                  <span className="text-xs text-rose-400">{t("appointments.statusReserved", "محجوز")}</span>
                                 )}
                               </div>
                             </div>

@@ -100,11 +100,11 @@ export function TriageAssessmentForm() {
   }
 
   const levels = [
-    { id: "RESUSCITATION", label: "مستوى 1 - إنعاش (Resuscitation)", color: "bg-red-600" },
-    { id: "EMERGENT", label: "مستوى 2 - طارئ جداً (Emergent)", color: "bg-orange-500" },
-    { id: "URGENT", label: "مستوى 3 - عاجل (Urgent)", color: "bg-yellow-500 text-black" },
-    { id: "LESS_URGENT", label: "مستوى 4 - أقل استعجالاً", color: "bg-green-600" },
-    { id: "NON_URGENT", label: "مستوى 5 - غير عاجل", color: "bg-blue-600" },
+    { id: "RESUSCITATION", label: t("triage.levels.resuscitation.label", "مستوى 1 - إنعاش (Resuscitation)"), color: "bg-red-600" },
+    { id: "EMERGENT", label: t("triage.levels.emergent.label", "مستوى 2 - طارئ جداً (Emergent)"), color: "bg-orange-500" },
+    { id: "URGENT", label: t("triage.levels.urgent.label", "مستوى 3 - عاجل (Urgent)"), color: "bg-yellow-500 text-black" },
+    { id: "LESS_URGENT", label: t("triage.levels.lessUrgent.label", "مستوى 4 - أقل استعجالاً"), color: "bg-green-600" },
+    { id: "NON_URGENT", label: t("triage.levels.nonUrgent.label", "مستوى 5 - غير عاجل"), color: "bg-blue-600" },
   ];
 
   return (
@@ -257,7 +257,7 @@ export function TriageAssessmentForm() {
                     `}
                   >
                     <span>
-                      {isRtl ? lvl.label : `Level ${idx + 1} - ${t(`triage.levels.${lvl.id.toLowerCase()}.label`)}`}
+                      {isRtl ? lvl.label : `Level ${idx + 1} - ${lvl.label}`}
                     </span>
                     {selectedLevel === lvl.id && <CheckBadgeIcon className="w-5 h-5" />}
                   </button>

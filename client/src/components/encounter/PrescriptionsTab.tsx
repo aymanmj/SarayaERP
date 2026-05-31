@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { apiClient } from "../../api/apiClient";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 import {
   AlertTriangle,
   Info,
@@ -91,31 +92,32 @@ type PrescriptionsTabProps = {
   patientId?: number;
 };
 
-const ROUTE_OPTIONS = [
-  { value: "ORAL", label: "فموي (Oral)" },
-  { value: "IV", label: "وريدي (IV)" },
-  { value: "IM", label: "عضلي (IM)" },
-  { value: "SC", label: "تحت الجلد (Subcutaneous)" },
-  { value: "TOPICAL", label: "موضعي (Topical)" },
-  { value: "INHALATION", label: "استنشاق (Inhalation)" },
-  { value: "OTHER", label: "أخرى (Other)" },
-];
-
-const FREQ_OPTIONS = [
-  { value: "ONCE", label: "مرة واحدة (Once)" },
-  { value: "DAILY", label: "مرة يومياً (Daily)" },
-  { value: "BID", label: "مرتان يومياً (BID)" },
-  { value: "TID", label: "3 مرات يومياً (TID)" },
-  { value: "QID", label: "4 مرات يومياً (QID)" },
-  { value: "QHS", label: "قبل النوم (QHS)" },
-  { value: "PRN", label: "عند اللزوم (PRN)" },
-];
-
 export function PrescriptionsTab({
   encounterId,
   doctorId,
   patientId,
 }: PrescriptionsTabProps) {
+  const { t } = useTranslation();
+
+  const ROUTE_OPTIONS = [
+    { value: "ORAL", label: t("homeMeds.route.oral", "فموي (Oral)") },
+    { value: "IV", label: t("homeMeds.route.iv", "وريدي (IV)") },
+    { value: "IM", label: t("homeMeds.route.im", "عضلي (IM)") },
+    { value: "SC", label: t("homeMeds.route.sc", "تحت الجلد (Subcutaneous)") },
+    { value: "TOPICAL", label: t("homeMeds.route.topical", "موضعي (Topical)") },
+    { value: "INHALATION", label: t("homeMeds.route.inhaled", "استنشاق (Inhalation)") },
+    { value: "OTHER", label: t("common.other", "أخرى (Other)") },
+  ];
+
+  const FREQ_OPTIONS = [
+    { value: "ONCE", label: t("prescriptions.frequency.once", "مرة واحدة (Once)") },
+    { value: "DAILY", label: t("prescriptions.frequency.daily", "مرة يومياً (Daily)") },
+    { value: "BID", label: t("prescriptions.frequency.bid", "مرتان يومياً (BID)") },
+    { value: "TID", label: t("prescriptions.frequency.tid", "3 مرات يومياً (TID)") },
+    { value: "QID", label: t("prescriptions.frequency.qid", "4 مرات يومياً (QID)") },
+    { value: "QHS", label: t("prescriptions.frequency.qhs", "قبل النوم (QHS)") },
+    { value: "PRN", label: t("prescriptions.frequency.prn", "عند اللزوم (PRN)") },
+  ];
   const [catalog, setCatalog] = useState<ProductItemLite[]>([]);
   const [prescriptions, setPrescriptions] = useState<PrescriptionDto[]>([]);
 
@@ -237,13 +239,13 @@ export function PrescriptionsTab({
   // Submit Logic
   const handleSavePrescription = async (forcedOverride = false) => {
     if (!canOrder) {
-      toast.error("لا يمكن إنشاء وصفة. يرجى تعيين طبيب للحالة أولاً.");
+      toast.error(t("prescriptions.toast.assignDoctorFirst", "لا يمكن إنشاء وصفة. يرجى تعيين طبيب للحالة أولاً."));
       return;
     }
 
     const validItems = items.filter((i) => i.drugItemId);
     if (validItems.length === 0) {
-      toast.warning("أضف دواء واحداً على الأقل.");
+      toast.warning(t("prescriptions.toast.addMedicationFirst", "أضف دواء واحداً على الأقل."));
       return;
     }
 
@@ -280,8 +282,8 @@ export function PrescriptionsTab({
 
       toast.success(
         forcedOverride
-          ? "تم حفظ الوصفة (مع تجاوز التحذيرات ومبرر طبي)"
-          : "تم حفظ الوصفة بنجاح",
+          ? t("prescriptions.toast.savedWithOverride", "تم حفظ الوصفة (مع تجاوز التحذيرات ومبرر طبي)")
+          : t("prescriptions.toast.savedSuccess", "تم حفظ الوصفة بنجاح"),
       );
 
       // Reset
@@ -310,7 +312,7 @@ export function PrescriptionsTab({
       if (e.response?.data?.code === "SAFETY_WARNING") {
         setShowOverrideModal(true);
       } else {
-        toast.error(e.response?.data?.message || "فشل حفظ الوصفة.");
+        toast.error(e.response?.data?.message || t("prescriptions.toast.saveFailed", "فشل حفظ الوصفة."));
       }
     } finally {
       setSubmittingWithOverride(false);
@@ -346,19 +348,19 @@ export function PrescriptionsTab({
   const getAlertLabelAr = (type: string) => {
     switch (type) {
       case "DRUG_INTERACTION":
-        return "تفاعل دواء-دواء";
+        return t("prescriptions.cdss.drugDrugInteraction", "تفاعل دواء-دواء");
       case "DRUG_ALLERGY":
-        return "حساسية الدواء";
+        return t("prescriptions.cdss.drugAllergy", "حساسية الدواء");
       case "DUPLICATE_THERAPY":
-        return "تكرار علاجي مفرط";
+        return t("prescriptions.cdss.therapeuticDuplication", "تكرار علاجي مفرط");
       case "RENAL_DOSE_ADJUST":
-        return "قصور كلوي / تعديل جرعة";
+        return t("prescriptions.cdss.renalAdjustment", "قصور كلوي / تعديل جرعة");
       case "DRUG_DISEASE":
-        return "تعارض دواء-مرض (كبدي)";
+        return t("prescriptions.cdss.hepaticContraindication", "تعارض دواء-مرض (كبدي)");
       case "DOSAGE_WARNING":
-        return "تحذير جرعة زائدة / منخفضة";
+        return t("prescriptions.cdss.dosageWarning", "تحذير جرعة زائدة / منخفضة");
       default:
-        return "تنبيه سريري";
+        return t("prescriptions.cdss.clinicalAlert", "تنبيه سريري");
     }
   };
 
@@ -384,12 +386,12 @@ export function PrescriptionsTab({
           <div className="flex justify-between items-center mb-4 pb-2 border-b border-slate-800/50">
             <h3 className="font-bold text-sm text-slate-200 flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-              وصفة طبية جديدة
+              {t("prescriptions.newPrescription", "وصفة طبية جديدة")}
             </h3>
             {!canOrder && (
               <span className="text-[10px] text-rose-300 font-bold bg-rose-950/60 px-3 py-1 rounded-xl border border-rose-900 flex items-center gap-1">
                 <Lock className="w-3 h-3" />
-                يجب تعيين طبيب للحالة أولاً
+                {t("prescriptions.assignDoctorRequired", "يجب تعيين طبيب للحالة أولاً")}
               </span>
             )}
           </div>
@@ -416,10 +418,10 @@ export function PrescriptionsTab({
                       )
                     }
                   >
-                    <option value="">-- اختر الدواء من الدليل --</option>
+                    <option value="">-- {t("prescriptions.selectDrugPlaceholder", "اختر الدواء من الدليل")} --</option>
                     {catalog.map((d) => (
                       <option key={d.id} value={d.id}>
-                        {renderDrugName(d)} (المخزون: {d.stockOnHand})
+                        {renderDrugName(d)} ("(" + t("inventory.stock", "المخزون:") + ` ${d.stockOnHand})`)
                       </option>
                     ))}
                   </select>
@@ -510,7 +512,7 @@ export function PrescriptionsTab({
                 <button
                   onClick={() => removeRow(item.tempId)}
                   className="mt-6 p-2 text-slate-500 hover:text-rose-400 hover:bg-rose-950/25 rounded-lg transition"
-                  title="حذف السطر"
+                  title={t("common.deleteRow", "حذف السطر")}
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
@@ -535,7 +537,7 @@ export function PrescriptionsTab({
               </label>
               <input
                 className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2.5 text-xs outline-none focus:border-emerald-500 transition-all text-slate-100"
-                placeholder="مثال: صرف البديل في حال عدم التوفر..."
+                placeholder={t("prescriptions.placeholder.pharmacistNotes", "مثال: صرف البديل في حال عدم التوفر...")}
                 value={globalNotes}
                 onChange={(e) => setGlobalNotes(e.target.value)}
               />
@@ -553,12 +555,12 @@ export function PrescriptionsTab({
         {/* List Area */}
         <div className="space-y-4">
           <h3 className="text-xs font-bold text-slate-400 px-1 uppercase tracking-wider flex items-center gap-2">
-            <span>سجل الوصفات المعتمدة لهذه الحالة</span>
+            <span>{t("prescriptions.historyTitle", "سجل الوصفات المعتمدة لهذه الحالة")}</span>
             <span className="h-px bg-slate-800/40 flex-1" />
           </h3>
           {prescriptions.length === 0 && (
             <div className="text-center text-xs text-slate-500 py-8 border border-dashed border-slate-800 rounded-2xl bg-slate-900/10">
-              لا توجد وصفات مسجلة لهذه الحالة حتى الآن.
+              {t("prescriptions.empty", "لا توجد وصفات مسجلة لهذه الحالة حتى الآن.")}
             </div>
           )}
 
@@ -570,7 +572,7 @@ export function PrescriptionsTab({
               <div className="flex justify-between items-center mb-3 pb-2 border-b border-slate-800/40">
                 <div className="flex items-center gap-2.5">
                   <span className="text-emerald-400 font-mono text-xs font-bold bg-emerald-950/30 px-2 py-0.5 rounded border border-emerald-900/30">
-                    وصفة #{pres.id}
+                    t("prescriptions.prescriptionLabel", "وصفة #"){pres.id}
                   </span>
                   <span className="text-[10px] text-slate-500 font-mono">
                     {new Date(pres.createdAt).toLocaleString("ar-LY")}
@@ -595,7 +597,7 @@ export function PrescriptionsTab({
                       <span className="text-slate-700">|</span>
                       <span>{it.frequency}</span>
                       <span className="text-slate-700">|</span>
-                      <span>{it.durationDays} يوم</span>
+                      <span>{it.durationDays} {t("common.days", "يوم")}</span>
                     </div>
                     <div className="font-mono text-emerald-400 font-bold bg-emerald-950/20 px-2.5 py-0.5 rounded">
                       x{it.quantity}
@@ -605,7 +607,7 @@ export function PrescriptionsTab({
               </div>
               {pres.notes && (
                 <div className="mt-3 text-[10px] text-amber-200/80 bg-amber-950/10 p-2 rounded-lg border border-amber-900/20 font-medium">
-                  ملاحظات الصيدلي: {pres.notes}
+                  t("prescriptions.pharmacistNotesLabel", "ملاحظات الصيدلي:") + " " + pres.notes
                 </div>
               )}
             </div>
@@ -619,7 +621,7 @@ export function PrescriptionsTab({
           <div className="flex justify-between items-center pb-3 border-b border-slate-800/60 mb-4">
             <h3 className="font-bold text-xs text-slate-200 flex items-center gap-1.5 uppercase tracking-wider">
               <ShieldCheck className="w-4 h-4 text-sky-400" />
-              التدقيق السريري الذكي (CDSS)
+              {t("cdss.alerts", "التدقيق السريري الذكي (CDSS)")}
             </h3>
             {checkingSafety && (
               <span className="flex h-2 w-2 relative">
@@ -631,13 +633,13 @@ export function PrescriptionsTab({
 
           {checkingSafety && !cdssResult && (
             <div className="py-6 text-center text-slate-500 text-xs animate-pulse">
-              جاري تدقيق الملاءمة الطبية والسلامة...
+              {t("cdss.checking", "جاري تدقيق الملاءمة الطبية والسلامة...")}
             </div>
           )}
 
           {!cdssResult && !checkingSafety && (
             <div className="py-6 text-center text-slate-500 text-xs">
-              قم باختيار الأدوية والجرعات لمراقبة تفاعل وتطابق السلامة الطبية فوراً.
+              {t("cdss.prompt", "قم باختيار الأدوية والجرعات لمراقبة تفاعل وتطابق السلامة الطبية فوراً.")}
             </div>
           )}
 
@@ -648,8 +650,8 @@ export function PrescriptionsTab({
                 <div className="p-3 rounded-xl border border-rose-955 bg-rose-950/15 text-rose-300 text-xs flex gap-2">
                   <ShieldAlert className="w-5 h-5 text-rose-500 shrink-0 animate-pulse" />
                   <div>
-                    <span className="font-bold block mb-0.5">⚠️ تحذير حرج:</span>
-                    يوجد {blockers.length} تنبيهات حرجة تمنع إقرار الوصفة دون تبرير طبي موثق.
+                    <span className="font-bold block mb-0.5">⚠️ {t("cdss.criticalWarning", "تحذير حرج:")}</span>
+                    {t("cdss.criticalAlertsCount", { count: blockers.length, defaultValue: `يوجد ${blockers.length} تنبيهات حرجة تمنع إقرار الوصفة دون تبرير طبي موثق.` })}
                   </div>
                 </div>
               )}
@@ -659,8 +661,8 @@ export function PrescriptionsTab({
                 <div className="p-4 rounded-xl border border-emerald-950 bg-emerald-950/10 text-emerald-400 text-xs flex gap-2.5 items-center">
                   <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
                   <div>
-                    <span className="font-bold block">الوصفة آمنة تماماً</span>
-                    لم يتم الكشف عن أي تعارضات أو حساسيات مع الحالة.
+                    <span className="font-bold block">{t("cdss.safePrescription", "الوصفة آمنة تماماً")}</span>
+                    {t("cdss.noConflicts", "لم يتم الكشف عن أي تعارضات أو حساسيات مع الحالة.")}
                   </div>
                 </div>
               )}
@@ -699,7 +701,7 @@ export function PrescriptionsTab({
 
                       {alert.context?.recommendation && (
                         <div className="text-[10px] text-sky-405/90 pt-1 border-t border-slate-800/40">
-                          <span className="font-semibold">💡 توصية: </span>
+                          <span className="font-semibold">💡 {t("cdss.recommendation", "توصية: ")}</span>
                           {alert.context.recommendation}
                         </div>
                       )}
@@ -709,7 +711,7 @@ export function PrescriptionsTab({
                         <div className="flex flex-col gap-1 text-[9px] text-emerald-400 bg-emerald-950/20 p-2 rounded border border-emerald-900/20 mt-1.5">
                           <div className="flex items-center gap-1 font-bold">
                             <Clock className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                            <span>تم الإخماد سريرياً (Auto-Suppressed)</span>
+                            <span>{t("cdss.autoSuppressedLabel", "تم الإخماد سريرياً (Auto-Suppressed)")}</span>
                           </div>
                           <span className="text-[10px] text-slate-300 block">
                             تجاوز مسبق معتمد: "{alert.context?.originalOverrideReason}"
@@ -734,13 +736,13 @@ export function PrescriptionsTab({
             <div className="p-5">
               <div className="flex items-center gap-2 pb-3 border-b border-slate-800 mb-4 text-rose-400 font-bold">
                 <ShieldAlert className="w-5 h-5 text-rose-500" />
-                <h4>تجاوز التنبيهات السريرية الحرجة</h4>
+                <h4>{t("cdss.overrideTitle", "تجاوز التنبيهات السريرية الحرجة")}</h4>
               </div>
 
               <div className="space-y-3 mb-5">
                 <p className="text-xs text-slate-300 leading-relaxed">
-                  الرجاء تدوين تبرير طبي معتمد لتجاوز التحذيرات الحرجة التالية. سيتم توثيق
-                  هذا المبرر في السجل الطبي وقاعدة بيانات CDSS لأغراض المسؤولية القانونية ومتابعة السلامة.
+                  {t("cdss.overrideDescLine1", "الرجاء تدوين تبرير طبي معتمد لتجاوز التحذيرات الحرجة التالية. سيتم توثيق")}
+                  {t("cdss.overrideDescLine2", "هذا المبرر في السجل الطبي وقاعدة بيانات CDSS لأغراض المسؤولية القانونية ومتابعة السلامة.")}
                 </p>
 
                 <div className="space-y-2 max-h-36 overflow-y-auto bg-slate-950/50 p-2.5 rounded-lg border border-slate-850">
@@ -761,11 +763,11 @@ export function PrescriptionsTab({
 
               <div className="space-y-2">
                 <label className="text-[10px] text-slate-400 font-bold block">
-                  المبرر الطبي (مطلوب - 4 حروف على الأقل)
+                  {t("cdss.overrideReasonRequired", "المبرر الطبي (مطلوب - 4 حروف على الأقل)")}
                 </label>
                 <textarea
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs outline-none focus:border-rose-500 text-slate-100 transition min-h-[80px]"
-                  placeholder="مثال: تم إبلاغ المريض بالمخاطر وسيتم مراقبة وظائف الكلى دورياً..."
+                  placeholder={t("cdss.overridePlaceholder", "مثال: تم إبلاغ المريض بالمخاطر وسيتم مراقبة وظائف الكلى دورياً...")}
                   value={overrideReason}
                   onChange={(e) => setOverrideReason(e.target.value)}
                 />

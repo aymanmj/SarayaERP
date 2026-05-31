@@ -90,9 +90,9 @@ function calculateAge(dob: string | null) {
   return Math.abs(new Date(diff).getUTCFullYear() - 1970);
 }
 
-function formatDate(iso: string | null | undefined) {
+function formatDateOuter(iso: string | null | undefined, isRtl = true) {
   if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("ar-LY", {
+  return new Date(iso).toLocaleDateString(isRtl ? "ar-LY" : "en-US", {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -104,6 +104,7 @@ function formatDate(iso: string | null | undefined) {
 export default function PatientChartPage() {
   const { t, i18n } = useTranslation();
   const isRtl = i18n.language === "ar";
+  const formatDate = (iso: string | null | undefined) => formatDateOuter(iso, isRtl);
   const { id } = useParams();
   const navigate = useNavigate();
   const patientId = Number(id);
@@ -285,7 +286,7 @@ export default function PatientChartPage() {
             }`}
           >
             <span>{tab.icon}</span>
-            {tab.key === "HOME_MEDS" ? t("patients.chart.tabs.homeMeds") : t("patients.chart.tabs." + tab.key.toLowerCase())}
+            {t("patients.chart.tabs." + tab.key.toLowerCase())}
             {/* Notification badges */}
             {tab.key === "ALLERGIES" && allergies.length > 0 && (
               <span className="bg-red-500/20 text-red-400 text-[10px] px-1.5 py-0.5 rounded-full font-bold">
@@ -492,7 +493,7 @@ export default function PatientChartPage() {
               {/* Quick Navigation Links */}
               <div className="mt-4 pt-3 border-t border-slate-800 space-y-2">
                 <h4 className="text-[10px] text-slate-500 uppercase tracking-wider mb-2">
-                  وصول سريع
+                  {t("patients.chart.quickAccess", "وصول سريع")}
                 </h4>
                 <Link
                   to={`/patients/${patientId}/consents`}
@@ -590,10 +591,10 @@ export default function PatientChartPage() {
                           }`}
                         >
                           {a.severity === "SEVERE"
-                            ? "شديدة الخطورة"
+                            ? t("patients.chart.severitySevere", "شديدة الخطورة")
                             : a.severity === "MODERATE"
-                              ? "متوسطة"
-                              : "خفيفة"}
+                              ? t("patients.chart.severityModerate", "متوسطة")
+                              : t("patients.chart.severityMild", "خفيفة")}
                         </span>
                       </div>
                       {a.reaction && (
@@ -630,7 +631,7 @@ export default function PatientChartPage() {
               {activeEncounters.length > 0 && (
                 <div className="mb-4">
                   <h4 className="text-xs text-emerald-400 font-bold mb-2">
-                    الحالات النشطة
+                    {t("patients.chart.activeEncounters", "الحالات النشطة")}
                   </h4>
                   <div className="space-y-2">
                     {activeEncounters.map((enc) => (

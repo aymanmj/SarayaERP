@@ -1,6 +1,7 @@
 // src/components/encounter/RadiologyTab.tsx
 
 import { Suspense, lazy, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { apiClient } from "../../api/apiClient";
 import { toast } from "sonner";
 const DicomViewer = lazy(() =>
@@ -41,18 +42,6 @@ type RadiologyTabProps = {
   doctorId?: number | null;
 };
 
-// Modality icons/styles
-const modalityStyle: Record<string, { icon: string; color: string; bg: string; border: string; label: string }> = {
-  'X-RAY':       { icon: '📷', color: 'text-amber-400',   bg: 'bg-amber-950/30',   border: 'border-amber-800/30', label: 'X-Ray' },
-  'ULTRASOUND':  { icon: '📡', color: 'text-sky-400',     bg: 'bg-sky-950/30',     border: 'border-sky-800/30',   label: 'سونار' },
-  'CT':          { icon: '🖥️', color: 'text-violet-400',  bg: 'bg-violet-950/30',  border: 'border-violet-800/30', label: 'CT' },
-  'MRI':         { icon: '🧲', color: 'text-emerald-400', bg: 'bg-emerald-950/30', border: 'border-emerald-800/30', label: 'MRI' },
-  'FLUOROSCOPY': { icon: '🎬', color: 'text-orange-400',  bg: 'bg-orange-950/30',  border: 'border-orange-800/30', label: 'فلوروسكوبي' },
-  'MAMMOGRAPHY': { icon: '🩻', color: 'text-pink-400',    bg: 'bg-pink-950/30',    border: 'border-pink-800/30',   label: 'ماموغرام' },
-  'DEXA':        { icon: '🦴', color: 'text-yellow-400',  bg: 'bg-yellow-950/30',  border: 'border-yellow-800/30', label: 'DEXA' },
-};
-const defaultModStyle = { icon: '📋', color: 'text-slate-400', bg: 'bg-slate-950/30', border: 'border-slate-800/30', label: 'أخرى' };
-
 function formatDateTime(iso: string) {
   const d = new Date(iso);
   return d.toLocaleString("ar-LY", {
@@ -62,6 +51,19 @@ function formatDateTime(iso: string) {
 }
 
 export function RadiologyTab({ encounterId, hospitalId, doctorId }: RadiologyTabProps) {
+  const { t } = useTranslation();
+
+  // Modality icons/styles
+  const modalityStyle: Record<string, { icon: string; color: string; bg: string; border: string; label: string }> = {
+    'X-RAY':       { icon: '📷', color: 'text-amber-400',   bg: 'bg-amber-950/30',   border: 'border-amber-800/30', label: 'X-Ray' },
+    'ULTRASOUND':  { icon: '📡', color: 'text-sky-400',     bg: 'bg-sky-950/30',     border: 'border-sky-800/30',   label: t('radiology.modality.ultrasound', 'سونار') },
+    'CT':          { icon: '🖥️', color: 'text-violet-400',  bg: 'bg-violet-950/30',  border: 'border-violet-800/30', label: 'CT' },
+    'MRI':         { icon: '🧲', color: 'text-emerald-400', bg: 'bg-emerald-950/30', border: 'border-emerald-800/30', label: 'MRI' },
+    'FLUOROSCOPY': { icon: '🎬', color: 'text-orange-400',  bg: 'bg-orange-950/30',  border: 'border-orange-800/30', label: t('radiology.modality.fluoroscopy', 'فلوروسكوبي') },
+    'MAMMOGRAPHY': { icon: '🩻', color: 'text-pink-400',    bg: 'bg-pink-950/30',    border: 'border-pink-800/30',   label: t('radiology.modality.mammography', 'ماموغرام') },
+    'DEXA':        { icon: '🦴', color: 'text-yellow-400',  bg: 'bg-yellow-950/30',  border: 'border-yellow-800/30', label: 'DEXA' },
+  };
+  const defaultModStyle = { icon: '📋', color: 'text-slate-400', bg: 'bg-slate-950/30', border: 'border-slate-800/30', label: t('common.other', 'أخرى') };
   const [loading, setLoading] = useState(false);
   const [studiesCatalog, setStudiesCatalog] = useState<RadiologyStudy[]>([]);
   const [orders, setOrders] = useState<RadiologyOrderDto[]>([]);
@@ -84,7 +86,7 @@ export function RadiologyTab({ encounterId, hospitalId, doctorId }: RadiologyTab
       setStudiesCatalog(catalogRes.data);
     } catch (err) {
       console.error(err);
-      toast.error("فشل تحميل بيانات الأشعة");
+      toast.error(t("radiology.toast.loadFailed", "فشل تحميل بيانات الأشعة"));
     } finally {
       setLoading(false);
     }
@@ -127,22 +129,22 @@ export function RadiologyTab({ encounterId, hospitalId, doctorId }: RadiologyTab
   };
 
   const submitOrder = async () => {
-    if (!canOrder) { toast.error("يجب تعيين طبيب أولاً."); return; }
-    if (selectedStudyIds.length === 0) { toast.warning("اختر فحص أشعة واحد على الأقل."); return; }
+    if (!canOrder) { toast.error(t("radiology.toast.assignDoctorFirst", "يجب تعيين طبيب أولاً.")); return; }
+    if (selectedStudyIds.length === 0) { toast.warning(t("radiology.toast.selectOneFirst", "اختر فحص أشعة واحد على الأقل.")); return; }
     try {
       await apiClient.post(`/radiology/encounters/${encounterId}/orders`, {
         doctorId,
         studyIds: selectedStudyIds,
         notes: notes || undefined,
       });
-      toast.success("تم إنشاء طلب الأشعة بنجاح");
+      toast.success(t("radiology.toast.sentSuccess", "تم إنشاء طلب الأشعة بنجاح"));
       setSelectedStudyIds([]);
       setNotes("");
       setSearch("");
       fetchData();
     } catch (err) {
       console.error(err);
-      toast.error("فشل إنشاء طلب الأشعة");
+      toast.error(t("radiology.toast.sentFailed", "فشل إنشاء طلب الأشعة"));
     }
   };
 
@@ -153,7 +155,7 @@ export function RadiologyTab({ encounterId, hospitalId, doctorId }: RadiologyTab
         <Suspense
           fallback={
             <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black text-sky-400">
-              يجري تحميل عارض الأشعة...
+              {t("radiology.loadingViewer", "يجري تحميل عارض الأشعة...")}
             </div>
           }
         >
@@ -168,16 +170,16 @@ export function RadiologyTab({ encounterId, hospitalId, doctorId }: RadiologyTab
       <div className={`border border-slate-800 rounded-2xl p-5 bg-slate-900/60 shadow-sm ${!canOrder ? "opacity-70 pointer-events-none grayscale" : ""}`}>
         <div className="flex justify-between items-center mb-4">
           <h3 className="font-bold text-sm text-slate-200 flex items-center gap-2">
-            📡 طلب فحوصات أشعة جديدة
+            📡 {t("radiology.newRequestTitle", "طلب فحوصات أشعة جديدة")}
           </h3>
           {!canOrder && (
             <span className="text-[10px] text-rose-300 font-bold bg-rose-950/40 border border-rose-800/50 px-2 py-1 rounded">
-              ⛔ يجب تعيين طبيب أولاً
+              ⛔ {t("radiology.assignDoctorRequired", "يجب تعيين طبيب أولاً")}
             </span>
           )}
           {selectedStudyIds.length > 0 && (
             <span className="text-[10px] text-emerald-400 font-bold bg-emerald-950/40 border border-emerald-800/50 px-2 py-1 rounded">
-              ✓ {selectedStudyIds.length} محدد
+              ✓ {selectedStudyIds.length} {t("common.selectedCount", "محدد")}
             </span>
           )}
         </div>
@@ -186,7 +188,7 @@ export function RadiologyTab({ encounterId, hospitalId, doctorId }: RadiologyTab
         <div className="relative mb-3">
           <input
             className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-sky-500 placeholder:text-slate-600 pr-10 transition-all"
-            placeholder="ابحث عن فحص أشعة... (الاسم، الكود، منطقة الجسم)"
+            placeholder={t("radiology.searchPlaceholder", "ابحث عن فحص أشعة... (الاسم، الكود، منطقة الجسم)")}
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
@@ -203,7 +205,7 @@ export function RadiologyTab({ encounterId, hospitalId, doctorId }: RadiologyTab
                 : "bg-slate-950 border-slate-700 text-slate-400 hover:bg-slate-800"
             }`}
           >
-            الكل ({studiesCatalog.length})
+            {t("common.allCount", { count: studiesCatalog.length, defaultValue: `الكل (${studiesCatalog.length})` })}
           </button>
           {modalities.map(mod => {
             const s = modalityStyle[mod] || defaultModStyle;
@@ -228,7 +230,7 @@ export function RadiologyTab({ encounterId, hospitalId, doctorId }: RadiologyTab
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-52 overflow-y-auto pr-1 mb-4 custom-scrollbar">
           {filteredStudies.length === 0 && (
             <div className="col-span-full text-center text-xs text-slate-600 py-4">
-              لا توجد نتائج — حاول بكلمات بحث مختلفة
+              {t("common.noResultsTryDifferent", "لا توجد نتائج — حاول بكلمات بحث مختلفة")}
             </div>
           )}
           {filteredStudies.map(s => {
@@ -265,14 +267,14 @@ export function RadiologyTab({ encounterId, hospitalId, doctorId }: RadiologyTab
             className="bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-xs flex-1 outline-none focus:border-sky-500 transition-all"
             value={notes}
             onChange={e => setNotes(e.target.value)}
-            placeholder="ملاحظات لقسم الأشعة (مثال: آلام أسفل الظهر، ما قبل العملية)..."
+            placeholder={t("radiology.placeholder.notes", "ملاحظات لقسم الأشعة (مثال: آلام أسفل الظهر، ما قبل العملية)...")}
           />
           <button
             onClick={submitOrder}
             disabled={!canOrder || selectedStudyIds.length === 0}
             className="bg-sky-600 hover:bg-sky-500 text-white px-6 py-2.5 rounded-xl text-xs font-bold shadow-lg disabled:opacity-50 transition-all active:scale-95"
           >
-            إرسال ({selectedStudyIds.length})
+            {t("common.send", "إرسال")} ({selectedStudyIds.length})
           </button>
         </div>
       </div>
@@ -280,7 +282,7 @@ export function RadiologyTab({ encounterId, hospitalId, doctorId }: RadiologyTab
       {/* 2. Orders History */}
       <div className="space-y-4">
         <h3 className="text-sm font-semibold text-slate-400 px-1 flex items-center gap-2">
-          📊 طلبات الأشعة والتقارير
+          📊 {t("radiology.historyTitle", "طلبات الأشعة والتقارير")}
           {orders.length > 0 && (
             <span className="text-[10px] text-slate-500 bg-slate-800 px-2 py-0.5 rounded">{orders.length}</span>
           )}
@@ -288,7 +290,7 @@ export function RadiologyTab({ encounterId, hospitalId, doctorId }: RadiologyTab
 
         {orders.length === 0 && !loading && (
           <div className="text-center text-xs text-slate-500 py-8 border border-dashed border-slate-800 rounded-2xl">
-            لا توجد طلبات أشعة سابقة.
+            {t("radiology.empty", "لا توجد طلبات أشعة سابقة.")}
           </div>
         )}
 
@@ -319,7 +321,7 @@ export function RadiologyTab({ encounterId, hospitalId, doctorId }: RadiologyTab
                       ? "bg-emerald-900/30 text-emerald-300 border border-emerald-500/20"
                       : "bg-amber-900/30 text-amber-300 border border-amber-500/20"
                   }`}>
-                    {o.status === "COMPLETED" ? "✅ مكتمل" : "⏳ قيد الإجراء"}
+                    {o.status === "COMPLETED" ? t("radiology.status.completed", "✅ مكتمل") : t("radiology.status.pending", "⏳ قيد الإجراء")}
                   </span>
                 </div>
               </div>
@@ -329,7 +331,7 @@ export function RadiologyTab({ encounterId, hospitalId, doctorId }: RadiologyTab
                 <div className="space-y-2 text-xs">
                   {o.study.bodyPart && (
                     <div>
-                      <span className="text-slate-500">المنطقة: </span>
+                      <span className="text-slate-500">{t("radiology.regionLabel", "المنطقة:")} </span>
                       <span className="text-slate-300">{o.study.bodyPart}</span>
                     </div>
                   )}

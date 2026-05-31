@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import {
@@ -17,6 +18,8 @@ import { apiClient } from "../../../api/apiClient";
 import { useAuthStore } from "../../../stores/authStore";
 
 export default function ResourceSchedulerPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.dir() === "rtl";
   const { user } = useAuthStore();
   const hospitalId = user?.hospitalId || 1;
   const queryClient = useQueryClient();
@@ -77,7 +80,7 @@ export default function ResourceSchedulerPage() {
       });
     },
     onSuccess: () => {
-      toast.success("تم حجز المورد بنجاح.");
+      toast.success(t('scheduler.toast.bookedSuccess', 'تم حجز المورد بنجاح.'));
       setShowBookingModal(false);
       setPatientId("");
       setStartTime("");
@@ -87,7 +90,7 @@ export default function ResourceSchedulerPage() {
     },
      
     onError: (err: any) =>
-      toast.error(err.response?.data?.message || "فشل الحجز أو يوجد تعارض."),
+      toast.error(err.response?.data?.message || t('scheduler.toast.bookedFailed', 'فشل الحجز أو يوجد تعارض.')),
   });
 
   const createResourceMutation = useMutation({
@@ -100,7 +103,7 @@ export default function ResourceSchedulerPage() {
       });
     },
     onSuccess: () => {
-      toast.success("تمت إضافة المورد بنجاح.");
+      toast.success(t('scheduler.toast.resourceCreated', 'تمت إضافة المورد بنجاح.'));
       setShowCreateResourceModal(false);
       setResourceName("");
       setResourceType("ROOM");
@@ -109,16 +112,16 @@ export default function ResourceSchedulerPage() {
     },
      
     onError: (err: any) =>
-      toast.error(err.response?.data?.message || "فشل إضافة المورد."),
+      toast.error(err.response?.data?.message || t('scheduler.toast.resourceCreateFailed', 'فشل إضافة المورد.')),
   });
 
   const cancelMutation = useMutation({
     mutationFn: (bookingId: number) => clinicalServices.cancelBooking(bookingId),
     onSuccess: () => {
-      toast.success("تم إلغاء الحجز.");
+      toast.success(t('scheduler.toast.cancelledSuccess', 'تم إلغاء الحجز.'));
       refetchBookings();
     },
-    onError: () => toast.error("فشل الإلغاء."),
+    onError: () => toast.error(t('scheduler.toast.cancelledFailed', 'فشل الإلغاء.')),
   });
 
    
@@ -166,14 +169,14 @@ export default function ResourceSchedulerPage() {
       <div className="flex flex-col lg:flex-row gap-6 flex-1 overflow-hidden">
         <div className="w-full lg:w-1/3 bg-slate-900/60 border border-slate-800 rounded-2xl p-4 overflow-y-auto custom-scrollbar">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-bold text-slate-200">الموارد المتاحة</h3>
+            <h3 className="text-lg font-bold text-slate-200">{t("scheduler.availableResources", "الموارد المتاحة")}</h3>
           </div>
 
           <div className="relative mb-4">
             <Search className="w-4 h-4 absolute right-3 top-3 text-slate-500" />
             <input
               type="text"
-              placeholder="ابحث عن مورد..."
+              placeholder={t("scheduler.placeholder.search", "ابحث عن مورد...")}
               className="w-full bg-slate-950 border border-slate-700 rounded-xl py-2 pr-9 pl-3 text-sm focus:border-indigo-500 outline-none"
               value={resourceSearch}
               onChange={(e) => setResourceSearch(e.target.value)}
@@ -182,7 +185,7 @@ export default function ResourceSchedulerPage() {
 
           <div className="space-y-3">
             {loadingResources ? (
-              <p className="text-center text-slate-500 py-4">جاري التحميل...</p>
+              <p className="text-center text-slate-500 py-4">{t("common.loading", "جاري التحميل...")}</p>
             ) : filteredResources.length === 0 ? (
               <div className="text-center text-slate-500 py-8 border border-dashed border-slate-700 rounded-xl">
                 لا توجد موارد مطابقة.
@@ -235,7 +238,7 @@ export default function ResourceSchedulerPage() {
           {!activeResource ? (
             <div className="flex flex-col items-center justify-center py-32 text-slate-500 border border-dashed border-slate-800 rounded-xl bg-slate-900/20">
               <Server className="w-16 h-16 mb-4 opacity-30" />
-              <p>يرجى تحديد مورد من القائمة لعرض جدول حجوزاته.</p>
+              <p>{t("scheduler.promptSelectResource", "يرجى تحديد مورد من القائمة لعرض جدول حجوزاته.")}</p>
             </div>
           ) : loadingBookings ? (
             <div className="flex justify-center py-20 text-slate-400">
@@ -244,7 +247,7 @@ export default function ResourceSchedulerPage() {
           ) : bookings.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-slate-400 bg-slate-900/30 rounded-xl border border-slate-800">
               <Calendar className="w-12 h-12 text-slate-600 mb-4 opacity-50" />
-              <p>لا توجد حجوزات قادمة لهذا المورد.</p>
+              <p>{t("scheduler.emptyBookings", "لا توجد حجوزات قادمة لهذا المورد.")}</p>
             </div>
           ) : (
             <div className="grid gap-3">
@@ -273,7 +276,7 @@ export default function ResourceSchedulerPage() {
                     </span>
                     <button
                       onClick={() => {
-                        if (confirm("هل تريد إلغاء هذا الحجز؟")) {
+                        if (confirm(t('scheduler.confirmCancel', 'هل تريد إلغاء هذا الحجز؟'))) {
                           cancelMutation.mutate(booking.id);
                         }
                       }}
@@ -294,7 +297,7 @@ export default function ResourceSchedulerPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
           <div className="bg-slate-900 border border-indigo-500/50 rounded-2xl w-full max-w-md overflow-hidden shadow-[0_0_40px_-10px_rgba(99,102,241,0.3)]">
             <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
-              <h3 className="text-lg font-bold text-indigo-400">حجز مورد جديد</h3>
+              <h3 className="text-lg font-bold text-indigo-400">{t("scheduler.book.title", "حجز مورد جديد")}</h3>
               <button
                 onClick={() => setShowBookingModal(false)}
                 className="text-slate-400 hover:text-white"
@@ -370,7 +373,7 @@ export default function ResourceSchedulerPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
           <div className="bg-slate-900 border border-emerald-500/50 rounded-2xl w-full max-w-md overflow-hidden shadow-[0_0_40px_-10px_rgba(16,185,129,0.25)]">
             <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
-              <h3 className="text-lg font-bold text-emerald-400">إضافة مورد جديد</h3>
+              <h3 className="text-lg font-bold text-emerald-400">{t("scheduler.create.title", "إضافة مورد جديد")}</h3>
               <button
                 onClick={() => setShowCreateResourceModal(false)}
                 className="text-slate-400 hover:text-white"
@@ -414,7 +417,7 @@ export default function ResourceSchedulerPage() {
                   value={resourceDepartmentId}
                   onChange={(e) => setResourceDepartmentId(e.target.value)}
                 >
-                  <option value="">-- بدون قسم --</option>
+                  <option value="">-- {t("common.noDepartment", "بدون قسم")} --</option>
                   // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   {departments.map((dept: any) => (
                     <option key={dept.id} value={dept.id}>

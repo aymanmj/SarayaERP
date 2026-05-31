@@ -3,8 +3,11 @@ import { useParams } from 'react-router-dom';
 import { apiClient } from '../api/apiClient';
 import { useQuery } from '@tanstack/react-query';
 import { Loader2, Download } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 export default function InvoicePrintPDFPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.dir() === "rtl";
   const { id } = useParams();
   const invoiceId = Number(id);
 

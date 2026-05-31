@@ -1,9 +1,9 @@
 // src/components/encounter/LabsTab.tsx
 
 import { useEffect, useState, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { apiClient } from "../../api/apiClient";
 import { toast } from "sonner";
-
 // Types
 type LabOrderResult = {
   id: number;
@@ -63,6 +63,7 @@ const defaultCatStyle = { icon: '📋', color: 'text-slate-400', bg: 'bg-slate-9
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function LabsTab({ encounterId, hospitalId, doctorId }: LabsTabProps) {
+  const { t } = useTranslation();
   const [labOrders, setLabOrders] = useState<LabOrderDto[]>([]);
   const [testsCatalog, setTestsCatalog] = useState<LabTest[]>([]);
   const [selectedTestIds, setSelectedTestIds] = useState<number[]>([]);
@@ -84,7 +85,7 @@ export function LabsTab({ encounterId, hospitalId, doctorId }: LabsTabProps) {
       setTestsCatalog(catalogRes.data);
     } catch (err) {
       console.error(err);
-      toast.error("فشل تحميل بيانات المختبر");
+      toast.error(t("labs.toast.loadFailed", "فشل تحميل بيانات المختبر"));
     } finally {
       setLoading(false);
     }
@@ -126,22 +127,22 @@ export function LabsTab({ encounterId, hospitalId, doctorId }: LabsTabProps) {
   };
 
   const submitOrder = async () => {
-    if (!canOrder) { toast.error("يجب تعيين طبيب أولاً."); return; }
-    if (selectedTestIds.length === 0) { toast.warning("اختر تحليلاً واحداً على الأقل."); return; }
+    if (!canOrder) { toast.error(t("labs.toast.assignDoctorFirst", "يجب تعيين طبيب أولاً.")); return; }
+    if (selectedTestIds.length === 0) { toast.warning(t("labs.toast.selectOneFirst", "اختر تحليلاً واحداً على الأقل.")); return; }
     try {
       await apiClient.post(`/lab/encounters/${encounterId}/orders`, {
         doctorId,
         testIds: selectedTestIds,
         notes: notes || undefined,
       });
-      toast.success("تم إرسال الطلب للمختبر");
+      toast.success(t("labs.toast.sentSuccess", "تم إرسال الطلب للمختبر"));
       setSelectedTestIds([]);
       setNotes("");
       setSearch("");
       fetchData();
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (e) {
-      toast.error("فشل إرسال الطلب");
+      toast.error(t("labs.toast.sentFailed", "فشل إرسال الطلب"));
     }
   };
 
@@ -151,16 +152,16 @@ export function LabsTab({ encounterId, hospitalId, doctorId }: LabsTabProps) {
       <div className={`border border-slate-800 rounded-2xl p-5 bg-slate-900/60 shadow-sm ${!canOrder ? "opacity-70 pointer-events-none grayscale" : ""}`}>
         <div className="flex justify-between items-center mb-4">
           <h3 className="font-bold text-sm text-slate-200 flex items-center gap-2">
-            🧪 طلب تحاليل جديدة
+            🧪 {t("labs.newRequestTitle", "طلب تحاليل جديدة")}
           </h3>
           {!canOrder && (
             <span className="text-[10px] text-rose-300 font-bold bg-rose-950/40 border border-rose-800/50 px-2 py-1 rounded">
-              ⛔ يجب تعيين طبيب أولاً
+              ⛔ {t("labs.assignDoctorRequired", "يجب تعيين طبيب أولاً")}
             </span>
           )}
           {selectedTestIds.length > 0 && (
             <span className="text-[10px] text-emerald-400 font-bold bg-emerald-950/40 border border-emerald-800/50 px-2 py-1 rounded">
-              ✓ {selectedTestIds.length} محدد
+              ✓ {selectedTestIds.length} {t("common.selectedCount", "محدد")}
             </span>
           )}
         </div>
@@ -169,7 +170,7 @@ export function LabsTab({ encounterId, hospitalId, doctorId }: LabsTabProps) {
         <div className="relative mb-3">
           <input
             className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-sky-500 placeholder:text-slate-600 pr-10 transition-all"
-            placeholder="ابحث عن تحليل... (بالعربي أو الإنجليزي أو الكود)"
+            placeholder={t("labs.searchPlaceholder", "ابحث عن تحليل... (بالعربي أو الإنجليزي أو الكود")}
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
@@ -186,7 +187,7 @@ export function LabsTab({ encounterId, hospitalId, doctorId }: LabsTabProps) {
                 : "bg-slate-950 border-slate-700 text-slate-400 hover:bg-slate-800"
             }`}
           >
-            الكل ({testsCatalog.length})
+            {t("common.allCount", { count: testsCatalog.length, defaultValue: `الكل (${testsCatalog.length})` })}
           </button>
           {categories.map(cat => {
             const s = catStyle[cat] || defaultCatStyle;
@@ -211,7 +212,7 @@ export function LabsTab({ encounterId, hospitalId, doctorId }: LabsTabProps) {
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-1.5 max-h-52 overflow-y-auto pr-1 mb-4 custom-scrollbar">
           {filteredTests.length === 0 && (
             <div className="col-span-full text-center text-xs text-slate-600 py-4">
-              لا توجد نتائج — حاول بكلمات بحث مختلفة
+              {t("common.noResultsTryDifferent", "لا توجد نتائج — حاول بكلمات بحث مختلفة")}
             </div>
           )}
           {filteredTests.map(t => {
@@ -243,14 +244,14 @@ export function LabsTab({ encounterId, hospitalId, doctorId }: LabsTabProps) {
             className="bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-xs flex-1 outline-none focus:border-sky-500 transition-all"
             value={notes}
             onChange={e => setNotes(e.target.value)}
-            placeholder="ملاحظات للمختبر (مثال: مستعجل، صائم)..."
+            placeholder={t("labs.placeholder.notes", "ملاحظات للمختبر (مثال: مستعجل، صائم)...")}
           />
           <button
             onClick={submitOrder}
             disabled={!canOrder || selectedTestIds.length === 0}
             className="bg-sky-600 hover:bg-sky-500 text-white px-6 py-2.5 rounded-xl text-xs font-bold shadow-lg disabled:opacity-50 transition-all active:scale-95"
           >
-            إرسال الطلب ({selectedTestIds.length})
+            {t("labs.sendRequestBtn", "إرسال الطلب")} ({selectedTestIds.length})
           </button>
         </div>
       </div>
@@ -258,7 +259,7 @@ export function LabsTab({ encounterId, hospitalId, doctorId }: LabsTabProps) {
       {/* 2. Results History */}
       <div className="space-y-4">
         <h3 className="text-sm font-semibold text-slate-400 px-1 flex items-center gap-2">
-          📊 سجل التحاليل السابقة
+          📊 {t("labs.historyTitle", "سجل التحاليل السابقة")}
           {labOrders.length > 0 && (
             <span className="text-[10px] text-slate-500 bg-slate-800 px-2 py-0.5 rounded">{labOrders.length}</span>
           )}
@@ -266,7 +267,7 @@ export function LabsTab({ encounterId, hospitalId, doctorId }: LabsTabProps) {
 
         {labOrders.length === 0 && !loading && (
           <div className="text-center text-xs text-slate-500 py-8 border border-dashed border-slate-800 rounded-2xl">
-            لا توجد طلبات سابقة.
+            {t("labs.empty", "لا توجد طلبات سابقة.")}
           </div>
         )}
 
@@ -284,7 +285,7 @@ export function LabsTab({ encounterId, hospitalId, doctorId }: LabsTabProps) {
                   ? "bg-emerald-900/30 text-emerald-300 border border-emerald-500/20"
                   : "bg-amber-900/30 text-amber-300 border border-amber-500/20"
               }`}>
-                {lo.resultStatus === "COMPLETED" ? "✅ مكتمل" : "⏳ قيد الإجراء"}
+                {lo.resultStatus === "COMPLETED" ? t("labs.status.completed", "✅ مكتمل") : t("labs.status.pending", "⏳ قيد الإجراء")}
               </span>
             </div>
 
@@ -293,9 +294,9 @@ export function LabsTab({ encounterId, hospitalId, doctorId }: LabsTabProps) {
                 <table className="w-full text-xs text-right">
                   <thead className="bg-slate-800/50 text-slate-400">
                     <tr>
-                      <th className="p-2 font-normal">المعيار</th>
-                      <th className="p-2 font-normal">النتيجة</th>
-                      <th className="p-2 font-normal">الوحدة</th>
+                      <th className="p-2 font-normal">{t("labs.table.parameter", "المعيار")}</th>
+                      <th className="p-2 font-normal">{t("labs.table.result", "النتيجة")}</th>
+                      <th className="p-2 font-normal">{t("labs.table.unit", "الوحدة")}</th>
                       <th className="p-2 font-normal text-left" dir="ltr">Range</th>
                     </tr>
                   </thead>
@@ -321,7 +322,7 @@ export function LabsTab({ encounterId, hospitalId, doctorId }: LabsTabProps) {
             ) : (
               lo.resultValue && (
                 <div className="mt-2 bg-slate-950/50 p-3 rounded-xl border border-slate-800 text-sm flex items-center gap-2">
-                  <span className="text-slate-400 text-xs">النتيجة:</span>
+                  <span className="text-slate-400 text-xs">{t("labs.result", "النتيجة:")}</span>
                   <span className="text-emerald-400 font-bold font-mono text-lg">{lo.resultValue}</span>
                   <span className="text-slate-500 text-xs">{lo.resultUnit}</span>
                   {lo.referenceRange && (
@@ -335,7 +336,7 @@ export function LabsTab({ encounterId, hospitalId, doctorId }: LabsTabProps) {
 
             {lo.order.notes && (
               <div className="mt-2 text-[10px] text-amber-200/60 bg-amber-900/10 p-2 rounded border border-amber-900/20">
-                ملاحظة: {lo.order.notes}
+                {t("common.note", "ملاحظة:")} {lo.order.notes}
               </div>
             )}
           </div>

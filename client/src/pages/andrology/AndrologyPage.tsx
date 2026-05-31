@@ -500,7 +500,7 @@ export default function AndrologyPage() {
                         <div className="flex justify-between items-start mb-5 pb-4 border-b border-slate-800/60">
                           <div>
                             <div className="flex items-center gap-3">
-                              <h4 className="text-base font-bold text-white">t("andrology.semen.testDate", "t("andrology.investigation.fields.date", "تاريخ الفحص: ")"){fmtDate(a.sampleDate)}</h4>
+                              <h4 className="text-base font-bold text-white">{t("andrology.semen.testDate", "تاريخ الفحص: ")}{fmtDate(a.sampleDate)}</h4>
                               {a.autoClassification && (
                                 <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2.5 py-0.5 rounded-full text-xs font-bold font-mono">
                                   {a.autoClassification}
@@ -508,8 +508,8 @@ export default function AndrologyPage() {
                               )}
                             </div>
                             <div className="text-xs text-slate-400 mt-1.5 flex gap-3">
-                              {a.abstinenceDays && <span>t("andrology.semen.abstinencePeriod", "فترة امتناع: "){a.abstinenceDays}t("andrology.semen.days", " أيام")</span>}
-                              {a.collectionMethod && <span>t("andrology.semen.collectionMethod", "طريقة الجمع: "){a.collectionMethod}</span>}
+                              {a.abstinenceDays && <span>{t("andrology.semen.abstinencePeriod", "فترة امتناع: ")}{a.abstinenceDays}{t("andrology.semen.days", " أيام")}</span>}
+                              {a.collectionMethod && <span>{t("andrology.semen.collectionMethod", "طريقة الجمع: ")}{a.collectionMethod}</span>}
                             </div>
                           </div>
                         </div>
@@ -594,7 +594,7 @@ export default function AndrologyPage() {
                     {visits.map(v => (
                       <div key={v.id} className="bg-slate-900/60 border border-slate-700/60 rounded-2xl p-6">
                         <div className="mb-4 pb-3 border-b border-slate-800">
-                          <h4 className="text-base font-bold text-white">t("andrology.visits.visitDate", "📅 زيارة بتاريخ "){fmtDate(v.createdAt)}</h4>
+                          <h4 className="text-base font-bold text-white">{t("andrology.visits.visitDate", "📅 زيارة بتاريخ ")}{fmtDate(v.createdAt)}</h4>
                         </div>
                         {v.chiefComplaint && (
                           <div className="mb-4">
@@ -638,9 +638,9 @@ export default function AndrologyPage() {
                               {s.procedure} 
                               {s.spermRetrieved && <span className="bg-emerald-500/20 text-emerald-400 px-2 py-0.5 text-[10px] rounded border border-emerald-500/30">✅ {t("andrology.print.fields.successfulRetrieval", "نجاح الاستخراج")}</span>}
                             </h4>
-                            <div className="text-xs text-orange-200 mt-1">t("andrology.surgery.fields.date", "تاريخ العملية: ")<span className="font-mono">{fmtDate(s.surgeryDate)}</span></div>
+                            <div className="text-xs text-orange-200 mt-1">{t("andrology.surgery.fields.date", "تاريخ العملية: ")}<span className="font-mono">{fmtDate(s.surgeryDate)}</span></div>
                           </div>
-                          {s.surgeonName && <div className="text-xs text-slate-400 bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800">t("andrology.surgery.fields.surgeonName", "الجراح: "){s.surgeonName}</div>}
+                          {s.surgeonName && <div className="text-xs text-slate-400 bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800">{t("andrology.surgery.fields.surgeonName", "الجراح: ")}{s.surgeonName}</div>}
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm mt-3">
                           {s.technique && <div><span className="text-slate-500 text-xs">{t("andrology.print.fields.technique", "التقنية الجراحية:")}</span> <span className="text-slate-200 block mt-1">{s.technique}</span></div>}
@@ -679,8 +679,8 @@ export default function AndrologyPage() {
                             <div className="text-xs text-violet-300 mt-1">{m.category || "دواء عام"}</div>
                           </div>
                           <div className="text-right">
-                            <div className="text-xs text-slate-400">t("andrology.print.fields.started", "البدء: ")<span className="text-white font-mono">{fmtDate(m.startDate)}</span></div>
-                            {m.endDate && <div className="text-xs text-slate-400 mt-1">t("andrology.medication.fields.endDate", "الانتهاء: ")<span className="text-white font-mono">{fmtDate(m.endDate)}</span></div>}
+                            <div className="text-xs text-slate-400">{t("andrology.print.fields.started", "البدء: ")}<span className="text-white font-mono">{fmtDate(m.startDate)}</span></div>
+                            {m.endDate && <div className="text-xs text-slate-400 mt-1">{t("andrology.medication.fields.endDate", "الانتهاء: ")}<span className="text-white font-mono">{fmtDate(m.endDate)}</span></div>}
                           </div>
                         </div>
                         <div className="mt-4 flex flex-wrap gap-2 text-xs">

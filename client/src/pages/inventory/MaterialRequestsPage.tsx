@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -6,6 +7,8 @@ import { inventoryApi } from "@/api/inventoryApi";
 import { formatDate } from "@/lib/utils";
 
 export function MaterialRequestsPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.dir() === "rtl";
   const navigate = useNavigate();
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
@@ -28,12 +31,12 @@ export function MaterialRequestsPage() {
 
   const getStatusLabel = (status: string) => {
     switch(status) {
-      case "PENDING_APPROVAL": return "بانتظار الاعتماد";
-      case "APPROVED": return "معتمد - بانتظار الصرف";
-      case "REJECTED": return "مرفوض";
-      case "PARTIALLY_ISSUED": return "مصروف جزئياً";
-      case "COMPLETED": return "مكتمل";
-      case "CANCELLED": return "ملغى";
+      case "PENDING_APPROVAL": return t("inventory.materialRequest.status.pending", "بانتظار الاعتماد");
+      case "APPROVED": return t("inventory.materialRequest.status.approved", "معتمد - بانتظار الصرف");
+      case "REJECTED": return t("inventory.materialRequest.status.rejected", "مرفوض");
+      case "PARTIALLY_ISSUED": return t("inventory.materialRequest.status.partial", "مصروف جزئياً");
+      case "COMPLETED": return t("inventory.materialRequest.status.completed", "مكتمل");
+      case "CANCELLED": return t("inventory.materialRequest.status.cancelled", "ملغى");
       default: return status;
     }
   };
@@ -51,23 +54,23 @@ export function MaterialRequestsPage() {
   };
 
   return (
-    <div className="flex flex-col h-full text-slate-100 p-4 md:p-6 space-y-6" dir="rtl">
+    <div className="flex flex-col h-full text-slate-100 p-4 md:p-6 space-y-6" dir={isRtl ? "rtl" : "ltr"}>
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-black text-white tracking-tight flex items-center gap-3">
             <span className="p-2 bg-amber-500/20 text-amber-400 rounded-xl">📦</span>
-            طلبات المواد
+            {t("inventory.materialRequest.title", "طلبات المواد")}
           </h1>
           <p className="text-sm text-slate-400 mt-2">
-            إدارة طلبات صرف المواد من المستودعات للأقسام والمستودعات الفرعية.
+            {t("inventory.materialRequest.subtitle", "إدارة طلبات صرف المواد من المستودعات للأقسام والمستودعات الفرعية.")}
           </p>
         </div>
         <button 
           onClick={() => navigate("/inventory/material-requests/new")}
           className="px-6 py-2.5 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-sm font-bold shadow-lg shadow-amber-900/20 transition-all flex items-center gap-2"
         >
-          <span>+</span> طلب مواد جديد
+          <span>+</span> {t("inventory.materialRequest.btn.new", "طلب مواد جديد")}
         </button>
       </div>
 
@@ -79,7 +82,7 @@ export function MaterialRequestsPage() {
           </span>
           <input
             className="w-full bg-slate-950 border border-slate-800 rounded-xl pr-12 pl-4 py-2.5 text-sm focus:border-amber-500 outline-none transition-all"
-            placeholder="بحث برقم الطلب أو اسم المستودع..."
+            placeholder={t("inventory.materialRequest.searchPlaceholder", "بحث برقم الطلب أو اسم المستودع...")}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -91,12 +94,12 @@ export function MaterialRequestsPage() {
             onChange={(e) => setStatusFilter(e.target.value)}
             className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm focus:border-amber-500 outline-none transition-all text-slate-300"
           >
-            <option value="">جميع الحالات</option>
-            <option value="PENDING_APPROVAL">بانتظار الاعتماد</option>
-            <option value="APPROVED">معتمد - بانتظار الصرف</option>
-            <option value="PARTIALLY_ISSUED">مصروف جزئياً</option>
-            <option value="COMPLETED">مكتمل</option>
-            <option value="REJECTED">مرفوض</option>
+            <option value="">{t("common.allStatus", "جميع الحالات")}</option>
+            <option value="PENDING_APPROVAL">{t("inventory.materialRequest.status.pending", "بانتظار الاعتماد")}</option>
+            <option value="APPROVED">{t("inventory.materialRequest.status.approved", "معتمد - بانتظار الصرف")}</option>
+            <option value="PARTIALLY_ISSUED">{t("inventory.materialRequest.status.partial", "مصروف جزئياً")}</option>
+            <option value="COMPLETED">{t("inventory.materialRequest.status.completed", "مكتمل")}</option>
+            <option value="REJECTED">{t("inventory.materialRequest.status.rejected", "مرفوض")}</option>
           </select>
         </div>
 
@@ -104,7 +107,7 @@ export function MaterialRequestsPage() {
           onClick={() => fetchRequests()}
           className="px-6 py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-sm font-bold border border-slate-700 transition-all"
         >
-          تحديث
+          {t("common.refresh", "تحديث")}
         </button>
       </div>
 
@@ -114,14 +117,14 @@ export function MaterialRequestsPage() {
           <table className="w-full text-sm text-right">
             <thead className="bg-slate-950/50 text-slate-500 sticky top-0 backdrop-blur z-10">
               <tr className="text-[10px] uppercase tracking-widest border-b border-slate-800">
-                <th className="px-6 py-4 font-bold">رقم الطلب</th>
-                <th className="px-6 py-4 font-bold">التاريخ</th>
-                <th className="px-6 py-4 font-bold">المستودع الطالب</th>
-                <th className="px-6 py-4 font-bold">المستودع المصرف</th>
-                <th className="px-6 py-4 font-bold">عدد الأصناف</th>
-                <th className="px-6 py-4 font-bold">طالب المواد</th>
-                <th className="px-6 py-4 font-bold text-center">الحالة</th>
-                <th className="px-6 py-4 font-bold text-center">إجراءات</th>
+                <th className="px-6 py-4 font-bold">{t("inventory.materialRequest.table.number", "رقم الطلب")}</th>
+                <th className="px-6 py-4 font-bold">{t("common.date", "التاريخ")}</th>
+                <th className="px-6 py-4 font-bold">{t("inventory.materialRequest.table.requestingWarehouse", "المستودع الطالب")}</th>
+                <th className="px-6 py-4 font-bold">{t("inventory.materialRequest.table.fulfillingWarehouse", "المستودع المصرف")}</th>
+                <th className="px-6 py-4 font-bold">{t("inventory.materialRequest.table.itemCount", "عدد الأصناف")}</th>
+                <th className="px-6 py-4 font-bold">{t("inventory.materialRequest.table.requestedBy", "طالب المواد")}</th>
+                <th className="px-6 py-4 font-bold text-center">{t("common.status", "الحالة")}</th>
+                <th className="px-6 py-4 font-bold text-center">{t("common.actions", "إجراءات")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/50 text-xs">
@@ -134,7 +137,7 @@ export function MaterialRequestsPage() {
               ) : filteredRequests.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="text-center py-20 text-slate-500">
-                    لا توجد طلبات مواد.
+                    {t("inventory.materialRequest.empty", "لا توجد طلبات مواد.")}
                   </td>
                 </tr>
               ) : (
@@ -159,7 +162,7 @@ export function MaterialRequestsPage() {
                                 onClick={() => navigate(`/inventory/material-requests/${req.id}`)}
                                 className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-[10px] transition-all border border-slate-700 hover:border-amber-500/50"
                             >
-                                عرض التفاصيل
+                                {t("common.viewDetails", "عرض التفاصيل")}
                             </button>
                         </div>
                     </td>

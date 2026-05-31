@@ -3,7 +3,8 @@
 // الأدوية المنزلية — Home Medications / Medication Reconciliation
 // =====================================================================
 
-import { useState } from "react";
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "../../api/apiClient";
 import { toast } from "sonner";
@@ -26,14 +27,14 @@ type HomeMed = {
   verifiedBy: { id: number; fullName: string } | null;
 };
 
-const SOURCE_LABELS: Record<string, { label: string; icon: string }> = {
-  PATIENT_REPORTED: { label: "إفادة المريض", icon: "🗣️" },
-  PHARMACY_RECORD: { label: "سجل الصيدلية", icon: "🏪" },
-  REFERRAL_LETTER: { label: "خطاب إحالة", icon: "📄" },
-  PREVIOUS_ADMISSION: { label: "إيواء سابق", icon: "🏥" },
-};
-
 export function HomeMedicationsPanel({ patientId, onUpdate }: { patientId: number; onUpdate?: () => void }) {
+  const { t } = useTranslation();
+  const SOURCE_LABELS: Record<string, { label: string; icon: string }> = {
+    PATIENT_REPORTED: { label: t("homeMeds.source.patient", "إفادة المريض"), icon: "🗣️" },
+    PHARMACY_RECORD: { label: t("homeMeds.source.pharmacy", "سجل الصيدلية"), icon: "🏪" },
+    REFERRAL_LETTER: { label: t("homeMeds.source.referral", "خطاب إحالة"), icon: "📄" },
+    PREVIOUS_ADMISSION: { label: t("homeMeds.source.previousAdmission", "إيواء سابق"), icon: "🏥" },
+  };
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
 
@@ -71,11 +72,11 @@ export function HomeMedicationsPanel({ patientId, onUpdate }: { patientId: numbe
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["home-medications", patientId] });
       queryClient.invalidateQueries({ queryKey: ["patient-chart", patientId] });
-      toast.success("تمت الإضافة");
+      toast.success(t("common.added", "تمت الإضافة"));
       resetForm();
       onUpdate?.();
     },
-    onError: () => toast.error("فشل في الإضافة"),
+    onError: () => toast.error(t("common.addFailed", "فشل في الإضافة")),
   });
 
   const verifyMutation = useMutation({
@@ -85,10 +86,10 @@ export function HomeMedicationsPanel({ patientId, onUpdate }: { patientId: numbe
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["home-medications", patientId] });
       queryClient.invalidateQueries({ queryKey: ["patient-chart", patientId] });
-      toast.success("تم التحقق من الدواء");
+      toast.success(t("homeMeds.toast.verified", "تم التحقق من الدواء"));
       onUpdate?.();
     },
-    onError: () => toast.error("فشل في التحقق"),
+    onError: () => toast.error(t("homeMeds.toast.verifyFailed", "فشل في التحقق")),
   });
 
   const deleteMutation = useMutation({
@@ -98,10 +99,10 @@ export function HomeMedicationsPanel({ patientId, onUpdate }: { patientId: numbe
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["home-medications", patientId] });
       queryClient.invalidateQueries({ queryKey: ["patient-chart", patientId] });
-      toast.success("تم الحذف");
+      toast.success(t("common.deleted", "تم الحذف"));
       onUpdate?.();
     },
-    onError: () => toast.error("فشل في الحذف"),
+    onError: () => toast.error(t("common.deleteFailed", "فشل في الحذف")),
   });
 
   const resetForm = () => {
@@ -126,17 +127,17 @@ export function HomeMedicationsPanel({ patientId, onUpdate }: { patientId: numbe
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-bold text-white flex items-center gap-2">
-            💊 الأدوية المنزلية (Medication Reconciliation)
+            💊 {t("homeMeds.title", "الأدوية المنزلية (Medication Reconciliation)")}
           </h2>
           <p className="text-xs text-slate-500 mt-1">
-            الأدوية التي يتناولها المريض حالياً من مصادر خارجية
+            {t("homeMeds.subtitle", "الأدوية التي يتناولها المريض حالياً من مصادر خارجية")}
           </p>
         </div>
         <button
           onClick={() => setShowForm(!showForm)}
           className="bg-sky-600 hover:bg-sky-500 text-white px-4 py-2 rounded-xl text-xs font-bold transition-colors"
         >
-          {showForm ? "✕ إلغاء" : "+ إضافة دواء"}
+          {showForm ? t("common.cancel", "✕ إلغاء") : t("homeMeds.addBtn", "+ إضافة دواء")}
         </button>
       </div>
 
@@ -145,7 +146,7 @@ export function HomeMedicationsPanel({ patientId, onUpdate }: { patientId: numbe
         <div className="bg-amber-950/30 border border-amber-500/30 rounded-xl p-3 flex items-center gap-3 text-xs text-amber-300">
           <span className="text-lg">⚡</span>
           <span>
-            يوجد <strong>{unverifiedCount}</strong> دواء غير محقّق — يجب أن يتحقق الطبيب من صحة المعلومات
+            {t("homeMeds.unverifiedCountWarning", { count: unverifiedCount, defaultValue: `يوجد ${unverifiedCount} دواء غير محقّق — يجب أن يتحقق الطبيب من صحة المعلومات` })}
           </span>
         </div>
       )}
@@ -153,20 +154,20 @@ export function HomeMedicationsPanel({ patientId, onUpdate }: { patientId: numbe
       {/* Add Form */}
       {showForm && (
         <div className="bg-slate-900 border border-sky-800/30 rounded-2xl p-5 space-y-4">
-          <h3 className="text-sm font-bold text-sky-400">➕ إضافة دواء منزلي</h3>
+          <h3 className="text-sm font-bold text-sky-400">➕ {t("homeMeds.newTitle", "إضافة دواء منزلي")}</h3>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="md:col-span-2">
-              <label className="text-[10px] text-slate-500 block mb-1">اسم الدواء *</label>
+              <label className="text-[10px] text-slate-500 block mb-1">{t("homeMeds.medNameRequired", "اسم الدواء *")}</label>
               <input
                 className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm outline-none focus:border-sky-500"
-                placeholder="مثال: Metformin 500mg"
+                placeholder={t("homeMeds.placeholder.name", "مثال: Metformin 500mg")}
                 value={medicationName}
                 onChange={(e) => setMedicationName(e.target.value)}
               />
             </div>
             <div>
-              <label className="text-[10px] text-slate-500 block mb-1">المصدر</label>
+              <label className="text-[10px] text-slate-500 block mb-1">{t("common.source", "المصدر")}</label>
               <select
                 className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm outline-none focus:border-sky-500"
                 value={source}
@@ -179,66 +180,66 @@ export function HomeMedicationsPanel({ patientId, onUpdate }: { patientId: numbe
             </div>
 
             <div>
-              <label className="text-[10px] text-slate-500 block mb-1">الجرعة</label>
+              <label className="text-[10px] text-slate-500 block mb-1">{t("homeMeds.dose", "الجرعة")}</label>
               <input
                 className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm outline-none focus:border-sky-500"
-                placeholder="500mg"
+                placeholder={t("homeMeds.placeholder.dose", "500mg")}
                 value={dose}
                 onChange={(e) => setDose(e.target.value)}
               />
             </div>
             <div>
-              <label className="text-[10px] text-slate-500 block mb-1">التكرار</label>
+              <label className="text-[10px] text-slate-500 block mb-1">{t("homeMeds.frequency", "التكرار")}</label>
               <input
                 className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm outline-none focus:border-sky-500"
-                placeholder="مرتين يومياً"
+                placeholder={t("homeMeds.placeholder.frequency", "مرتين يومياً")}
                 value={frequency}
                 onChange={(e) => setFrequency(e.target.value)}
               />
             </div>
             <div>
-              <label className="text-[10px] text-slate-500 block mb-1">طريقة الإعطاء</label>
+              <label className="text-[10px] text-slate-500 block mb-1">{t("homeMeds.route", "طريقة الإعطاء")}</label>
               <select
                 className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm outline-none focus:border-sky-500"
                 value={route}
                 onChange={(e) => setRoute(e.target.value)}
               >
-                <option value="">— غير محدد —</option>
-                <option value="PO">فموي (PO)</option>
-                <option value="IV">وريدي (IV)</option>
-                <option value="IM">عضلي (IM)</option>
-                <option value="SC">تحت الجلد (SC)</option>
-                <option value="TOPICAL">موضعي</option>
-                <option value="INHALED">استنشاق</option>
-                <option value="RECTAL">شرجي</option>
-                <option value="SUBLINGUAL">تحت اللسان</option>
+                <option value="">— {t("common.unspecified", "غير محدد")} —</option>
+                <option value="PO">{t("homeMeds.route.po", "فموي (PO)")}</option>
+                <option value="IV">{t("homeMeds.route.iv", "وريدي (IV)")}</option>
+                <option value="IM">{t("homeMeds.route.im", "عضلي (IM)")}</option>
+                <option value="SC">{t("homeMeds.route.sc", "تحت الجلد (SC)")}</option>
+                <option value="TOPICAL">{t("homeMeds.route.topical", "موضعي")}</option>
+                <option value="INHALED">{t("homeMeds.route.inhaled", "استنشاق")}</option>
+                <option value="RECTAL">{t("homeMeds.route.rectal", "شرجي")}</option>
+                <option value="SUBLINGUAL">{t("homeMeds.route.sublingual", "تحت اللسان")}</option>
               </select>
             </div>
 
             <div>
-              <label className="text-[10px] text-slate-500 block mb-1">الطبيب الواصف</label>
+              <label className="text-[10px] text-slate-500 block mb-1">{t("homeMeds.prescribedBy", "الطبيب الواصف")}</label>
               <input
                 className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm outline-none focus:border-sky-500"
-                placeholder="اسم الطبيب أو المصدر"
+                placeholder={t("homeMeds.placeholder.doctor", "اسم الطبيب أو المصدر")}
                 value={prescribedBy}
                 onChange={(e) => setPrescribedBy(e.target.value)}
               />
             </div>
             <div className="md:col-span-2">
-              <label className="text-[10px] text-slate-500 block mb-1">السبب / التشخيص</label>
+              <label className="text-[10px] text-slate-500 block mb-1">{t("homeMeds.reason", "السبب / التشخيص")}</label>
               <input
                 className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm outline-none focus:border-sky-500"
-                placeholder="مثال: ارتفاع ضغط الدم"
+                placeholder={t("homeMeds.placeholder.reason", "مثال: ارتفاع ضغط الدم")}
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
               />
             </div>
 
             <div className="md:col-span-3">
-              <label className="text-[10px] text-slate-500 block mb-1">ملاحظات</label>
+              <label className="text-[10px] text-slate-500 block mb-1">{t("common.notes", "ملاحظات")}</label>
               <input
                 className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm outline-none focus:border-sky-500"
-                placeholder="ملاحظات إضافية..."
+                placeholder={t("common.notesOptional", "ملاحظات إضافية...")}
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
               />
@@ -246,13 +247,13 @@ export function HomeMedicationsPanel({ patientId, onUpdate }: { patientId: numbe
           </div>
 
           <div className="flex justify-end gap-2 pt-2">
-            <button onClick={resetForm} className="px-4 py-2 bg-slate-800 text-slate-300 rounded-xl text-xs">إلغاء</button>
+            <button onClick={resetForm} className="px-4 py-2 bg-slate-800 text-slate-300 rounded-xl text-xs">{t("common.cancel", "إلغاء")}</button>
             <button
               onClick={() => createMutation.mutate()}
               disabled={!medicationName.trim() || createMutation.isPending}
               className="px-6 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-xs font-bold disabled:opacity-50 transition-colors"
             >
-              {createMutation.isPending ? "جارِ الحفظ..." : "حفظ"}
+              {createMutation.isPending ? t("common.saving", "جارِ الحفظ...") : t("common.save", "حفظ")}
             </button>
           </div>
         </div>
@@ -260,11 +261,11 @@ export function HomeMedicationsPanel({ patientId, onUpdate }: { patientId: numbe
 
       {/* Medications List */}
       {isLoading ? (
-        <div className="text-center py-8 text-slate-500 text-sm">جارِ التحميل...</div>
+        <div className="text-center py-8 text-slate-500 text-sm">{t("common.loading", "جارِ التحميل...")}</div>
       ) : medications.length === 0 ? (
         <div className="text-center py-12 bg-slate-900/40 border border-slate-800 rounded-2xl">
-          <p className="text-slate-500 text-sm">لا توجد أدوية منزلية مسجّلة</p>
-          <p className="text-slate-600 text-xs mt-1">اضغط "+ إضافة دواء" لتوثيق الأدوية المنزلية</p>
+          <p className="text-slate-500 text-sm">{t("homeMeds.empty", "لا توجد أدوية منزلية مسجّلة")}</p>
+          <p className="text-slate-600 text-xs mt-1">{t("homeMeds.emptyHint", "اضغط \"+ إضافة دواء\" لتوثيق الأدوية المنزلية")}</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -281,7 +282,7 @@ export function HomeMedicationsPanel({ patientId, onUpdate }: { patientId: numbe
                     med={med}
                     onVerify={() => verifyMutation.mutate(med.id)}
                     onDelete={() => {
-                      if (confirm("هل أنت متأكد من حذف هذا الدواء؟")) {
+                      if (confirm(t("homeMeds.confirmDelete", "هل أنت متأكد من حذف هذا الدواء؟"))) {
                         deleteMutation.mutate(med.id);
                       }
                     }}
@@ -305,7 +306,7 @@ export function HomeMedicationsPanel({ patientId, onUpdate }: { patientId: numbe
                     med={med}
                     onVerify={() => {}}
                     onDelete={() => {
-                      if (confirm("هل أنت متأكد من حذف هذا الدواء؟")) {
+                      if (confirm(t("homeMeds.confirmDelete", "هل أنت متأكد من حذف هذا الدواء؟"))) {
                         deleteMutation.mutate(med.id);
                       }
                     }}
@@ -333,6 +334,13 @@ function MedicationCard({
   onDelete: () => void;
   isVerifying?: boolean;
 }) {
+  const { t } = useTranslation();
+  const SOURCE_LABELS: Record<string, { label: string; icon: string }> = {
+    PATIENT_REPORTED: { label: t("homeMeds.source.patient", "إفادة المريض"), icon: "🗣️" },
+    PHARMACY_RECORD: { label: t("homeMeds.source.pharmacy", "سجل الصيدلية"), icon: "🏪" },
+    REFERRAL_LETTER: { label: t("homeMeds.source.referral", "خطاب إحالة"), icon: "📄" },
+    PREVIOUS_ADMISSION: { label: t("homeMeds.source.previousAdmission", "إيواء سابق"), icon: "🏥" },
+  };
   const sourceInfo = SOURCE_LABELS[med.source] || SOURCE_LABELS.PATIENT_REPORTED;
   const isVerified = !!med.verifiedById;
 
@@ -367,7 +375,7 @@ function MedicationCard({
             </span>
             {med.prescribedBy && <span>👨‍⚕️ {med.prescribedBy}</span>}
             {med.reason && <span>📋 {med.reason}</span>}
-            <span>أُضيف بواسطة: {med.createdBy.fullName}</span>
+            <span>{t("common.addedBy", "أُضيف بواسطة:")} {med.createdBy.fullName}</span>
           </div>
 
           {med.notes && (
@@ -379,7 +387,7 @@ function MedicationCard({
           {/* Verification Status */}
           {isVerified ? (
             <div className="text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-lg flex items-center gap-1">
-              ✅ محقّق
+              ✅ {t("homeMeds.verified", "محقّق")}
               <span className="text-slate-500">({med.verifiedBy?.fullName})</span>
             </div>
           ) : (
@@ -388,7 +396,7 @@ function MedicationCard({
               disabled={isVerifying}
               className="text-[10px] text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 px-2.5 py-1 rounded-lg transition-colors"
             >
-              ✓ تحقّق
+              ✓ {t("homeMeds.verifyBtn", "تحقّق")}
             </button>
           )}
 

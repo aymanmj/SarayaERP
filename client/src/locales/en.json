@@ -49,18 +49,33 @@
     "loadingContent": "Loading content..."
   },
   "cdss": {
-    "alerts": "Smart Clinical Alerts",
+    "alerts": "Clinical Decision Support System (CDSS)",
     "noAlerts": "No active clinical alerts for this patient.",
     "passiveAlerts": "Passive Alerts (Educational)",
     "criticalAlerts": "Critical Alerts (High Risk)",
     "overrideReason": "Override Reason (Required)",
-    "overridePlaceholder": "Please enter clinical override reason (at least 10 characters)...",
+    "overridePlaceholder": "e.g., Patient informed of risks, renal function will be monitored...",
     "autoSuppressed": "Auto-Suppressed based on a recent override in the past 24 hours",
     "originalReason": "Original Override Reason:",
     "requiresOverrideText": "Requires clinical justification to override and proceed",
     "panicHigh": "Panic High Value",
     "criticalLow": "Critical Low Value",
-    "criticalHigh": "Critical High Value"
+    "criticalHigh": "Critical High Value",
+    "checking": "Checking clinical appropriateness and safety...",
+    "prompt": "Select medications and doses to check safety interactions.",
+    "criticalWarning": "Critical Warning:",
+    "criticalAlertsCount": "There are {{count}} critical warnings preventing prescription without documented justification.",
+    "safePrescription": "Prescription is fully safe",
+    "noConflicts": "No drug conflicts or allergies detected.",
+    "recommendation": "Recommendation: ",
+    "autoSuppressedLabel": "Auto-Suppressed",
+    "previousOverride": "Previously approved override:",
+    "overrideTitle": "Override Critical Clinical Warnings",
+    "overrideDescLine1": "Please document a valid clinical justification to override critical warnings.",
+    "overrideDescLine2": "This justification will be logged for medical records and CDSS safety audit.",
+    "overrideReasonRequired": "Clinical Justification (Required - min 4 characters)",
+    "cancelAndEdit": "Cancel & Edit Medications",
+    "overrideAndApprove": "Override & Approve Prescription"
   },
   "menu": {
     "home": "Home",
@@ -603,7 +618,213 @@
       "cleaning": "Cleaning",
       "maintenance": "Maintenance"
     },
-    "legendTitle": "🔑 Bed Status Legend"
+    "legendTitle": "🔑 Bed Status Legend",
+    "advancedTitle": "Advanced Admission Management",
+    "advancedSubtitle": "Comprehensive management of inpatients, beds, and statistics",
+    "quickEmergencyAdmit": "Quick Emergency Admission",
+    "tabs": {
+      "overview": "Overview",
+      "admissions": "Admissions",
+      "beds": "Beds",
+      "statistics": "Statistics"
+    },
+    "filters": {
+      "allStatuses": "All Statuses",
+      "allWards": "All Wards",
+      "today": "Today",
+      "week": "This Week",
+      "month": "This Month"
+    },
+    "recentAdmissions": "Recent Admissions",
+    "bedOccupancySummary": "Bed Occupancy Summary",
+    "occupiedBedsCount": "{{occupied}} / {{total}} Occupied",
+    "occupancyRate": "Occupancy: ",
+    "table": {
+      "patient": "Patient",
+      "bed": "Bed",
+      "doctor": "Doctor",
+      "status": "Status",
+      "isolation": "Isolation",
+      "priority": "Priority",
+      "admissionDate": "Admission Date",
+      "lengthOfStay": "Length of Stay",
+      "actions": "Actions"
+    },
+    "actions": {
+      "dischargeClinical": "📝 Medical Discharge",
+      "dischargeClinicalTitle": "Fill medical discharge summary",
+      "dischargeAndVacate": "🚪 Discharge & Vacate",
+      "dischargeAndVacateTitle": "Vacate bed, end admission, and settle balance",
+      "details": "Details",
+      "edit": "Edit",
+      "isolation": "Isolation",
+      "dischargePlanning": "Discharge Planning",
+      "bedTransfer": "Bed Transfer"
+    },
+    "performanceAnalysis": "Performance Analysis",
+    "performanceAnalysisPlaceholder": "Current data is excellent. More analytical indicators will be integrated later to support decision-making.",
+    "isolationTypes": {
+      "NONE": "No Isolation",
+      "STANDARD": "Standard Isolation",
+      "DROPLET": "Droplet Isolation",
+      "AIRBORNE": "Airborne Isolation",
+      "CONTACT": "Contact Isolation",
+      "PROTECTIVE": "Protective Isolation",
+      "NEUTROPENIC": "Neutropenic Isolation",
+      "REVERSE": "Reverse Isolation",
+      "UNKNOWN": "Not Specified"
+    },
+    "admissionStatus": {
+      "ADMITTED": "Admitted",
+      "IN_PROGRESS": "In Treatment",
+      "DISCHARGE_PENDING": "Discharge Pending",
+      "DISCHARGED": "Discharged"
+    },
+    "priorityLabels": {
+      "CRITICAL": "Critical",
+      "URGENT": "Urgent",
+      "HIGH": "High",
+      "MEDIUM": "Medium",
+      "LOW": "Low"
+    },
+    "precautions": {
+      "handwashing": "Frequent Handwashing",
+      "gloves": "Wear Gloves",
+      "mask": "Wear Mask",
+      "gown": "Protective Gown",
+      "eyewear": "Eye Protection",
+      "disinfection": "Equipment Disinfection",
+      "ventilation": "Good Ventilation"
+    },
+    "modals": {
+      "loadFailed": "Failed to load data",
+      "editSuccess": "Admission details updated successfully",
+      "editFailed": "Failed to update admission details",
+      "confirmDischarge": "Are you sure you want to clinically discharge the patient and vacate the bed?\n\nMake sure the 'Discharge Summary' has been documented and billing is cleared.",
+      "dischargeSuccess": "Patient discharged successfully. The bed is now available for cleaning.",
+      "printInvoice": "Print Invoice & Results",
+      "dischargeFailed": "Discharge failed",
+      "planningSuccess": "Discharge plan created successfully",
+      "planningFailed": "Failed to create discharge plan",
+      "transferRequestSuccess": "Bed transfer requested successfully",
+      "transferRequestFailed": "Failed to request bed transfer",
+      "transferCompleteSuccess": "Bed transfer completed successfully",
+      "transferCompleteFailed": "Failed to complete bed transfer",
+      "isolationSuccess": "Isolation settings updated successfully",
+      "isolationFailed": "Failed to update isolation settings",
+      "edit": {
+        "title": "Edit Admission Details",
+        "type": "Admission Type",
+        "priority": "Priority",
+        "expectedDischarge": "Expected Discharge Date",
+        "estimatedCost": "Estimated Cost",
+        "save": "Save Changes",
+        "cancel": "Cancel",
+        "elective": "Elective",
+        "emergency": "Emergency",
+        "urgent": "Urgent"
+      },
+      "dischargePlanning": {
+        "title": "Discharge Planning",
+        "plannedDate": "Planned Discharge Date",
+        "disposition": "Discharge Disposition",
+        "home": "Home",
+        "transfer": "Transfer to another hospital",
+        "rehab": "Medical Rehabilitation",
+        "ltc": "Long-Term Care",
+        "ama": "Against Medical Advice (AMA)",
+        "expired": "Expired",
+        "notes": "Planning Notes",
+        "notesPlaceholder": "Enter discharge planning notes...",
+        "create": "Create Discharge Plan"
+      },
+      "bedTransfer": {
+        "title": "Bed Transfer Request",
+        "currentBed": "Current Bed",
+        "reason": "Transfer Reason",
+        "medical": "Medical Reasons",
+        "patientRequest": "Patient Request",
+        "infectionControl": "Infection Control",
+        "bedAvailability": "Better Bed Availability",
+        "notes": "Transfer Notes",
+        "notesPlaceholder": "Enter transfer notes..."
+      },
+      "quick": {
+        "title": "Quick Emergency Admission",
+        "loading": "Loading data...",
+        "patient": "Patient",
+        "selectPatient": "Select Patient...",
+        "noPatients": "No patients available",
+        "bed": "Available Bed",
+        "selectBed": "Select Available Bed...",
+        "noBeds": "No beds currently available",
+        "doctor": "Admitting Doctor",
+        "selectDoctor": "Select Doctor...",
+        "noDoctors": "No doctors available",
+        "reason": "Emergency Admission Reason",
+        "reasonPlaceholder": "Enter emergency admission reason...",
+        "diagnosis": "Initial Diagnosis",
+        "diagnosisPlaceholder": "Initial Diagnosis...",
+        "isolation": "Required Isolation Type",
+        "submit": "Emergency Admit",
+        "fillRequired": "Please fill in all required fields",
+        "success": "Quick admission completed successfully",
+        "failed": "Quick admission failed"
+      },
+      "isolation": {
+        "title": "Isolation Management - {{name}}",
+        "required": "Isolation Required",
+        "type": "Isolation Type",
+        "reason": "Isolation Reason",
+        "reasonPlaceholder": "Enter isolation reason...",
+        "precautions": "Precautionary Measures",
+        "selectedInfo": "Selected Isolation Info:",
+        "selectedType": "Type:",
+        "selectedBed": "Current Bed:",
+        "selectedPrecautions": "Precautions:",
+        "save": "Save Isolation Settings"
+      }
+    },
+    "detailsPage": {
+      "loadFailed": "Failed to load admission details",
+      "confirmDischarge": "Are you sure you want to discharge the patient?",
+      "dischargeReason": "Discharge from details page",
+      "dischargeSuccess": "Patient discharged successfully",
+      "dischargeFailed": "Failed to discharge patient",
+      "notFound": "Admission details not found",
+      "backToList": "Back to admissions list",
+      "backBtn": "← Back",
+      "title": "Admission Details #",
+      "dischargePatient": "Discharge Patient",
+      "stayDuration": "Length of Stay",
+      "bed": "Bed",
+      "tabs": {
+        "overview": "Overview",
+        "vitals": "Vital Signs",
+        "medications": "Medications",
+        "procedures": "Procedures",
+        "notes": "Clinical Notes",
+        "transfers": "Bed Transfers"
+      },
+      "patientInfo": "Patient Information",
+      "fullName": "Full Name:",
+      "mrn": "MRN:",
+      "dob": "Date of Birth:",
+      "gender": "Gender:",
+      "phone": "Phone Number:",
+      "address": "Address:",
+      "admissionInfo": "Admission Information",
+      "admissionDate": "Admission Date:",
+      "expectedDischarge": "Expected Discharge:",
+      "reason": "Admission Reason:",
+      "diagnosis": "Primary Diagnosis:",
+      "doctor": "Attending Doctor:",
+      "department": "Department:",
+      "costInfo": "Cost Information",
+      "estimatedCost": "Estimated Cost:",
+      "actualCost": "Actual Cost:",
+      "tabDeveloping": "{{tab}} content is under development..."
+    }
   },
   "inpatients": {
     "title": "Active Inpatients",
@@ -702,6 +923,7 @@
     "noTasks": "No active tasks",
     "nurseExecuted": "Executed by nursing",
     "waitingExecution": "Awaiting execution",
+    "otherExecutionsCount": "+ {{count}} other executions",
     "newOrderPlaceholder": "New order (e.g. NPO, morning labs...)",
     "addBtn": "+ Add",
     "vitalsTitle": "Latest Vital Signs (Vitals)",
@@ -947,24 +1169,47 @@
     "startSuccess": "✅ Imaging started and order sent (HL7).",
     "startFailed": "Failed to start imaging.",
     "reportSaved": "Report saved and order completed.",
-    "empty": "No orders found.",
+    "empty": "No previous radiology requests.",
     "orderDate": "Order Date:",
     "statusLabel": "Status:",
     "prompt": {
       "enterReport": "Enter radiology report for patient"
     },
     "status": {
-      "pending": "Pending",
+      "pending": "⏳ Pending",
       "scheduled": "Scheduled",
       "inProgress": "Imaging in Progress...",
-      "completed": "Completed"
+      "completed": "✅ Completed"
     },
     "actions": {
       "start": "⚡ Start Exam",
       "editReport": "Edit Report",
       "enterReport": "Enter Report",
-      "print": "Print"
-    }
+      "print": "Print",
+      "viewImage": "📷 View Image"
+    },
+    "modality": {
+      "ultrasound": "Ultrasound",
+      "fluoroscopy": "Fluoroscopy",
+      "mammography": "Mammography"
+    },
+    "toast": {
+      "loadFailed": "Failed to load radiology data",
+      "assignDoctorFirst": "Please assign a doctor first.",
+      "selectOneFirst": "Select at least one radiology exam.",
+      "sentSuccess": "Radiology request created successfully",
+      "sentFailed": "Failed to create radiology request"
+    },
+    "loadingViewer": "Loading DICOM viewer...",
+    "newRequestTitle": "New Radiology Request",
+    "assignDoctorRequired": "Physician must be assigned first",
+    "searchPlaceholder": "Search for radiology exam... (Name, Code, Region)",
+    "placeholder": {
+      "notes": "Notes to radiology department (e.g. lower back pain, pre-op)..."
+    },
+    "historyTitle": "Radiology Requests & Reports History",
+    "regionLabel": "Region:",
+    "reportLabel": "📋 Radiology Report:"
   },
   "pharmacy": {
     "title": "Pharmacy Dispensing",
@@ -1072,12 +1317,13 @@
     },
     "quickSummary": {
       "title": "Quick Summary",
-      "vitals": "Vital Signs:",
-      "recorded": "recorded",
-      "noReadings": "No readings",
+      "vitals": "Vitals:",
+      "recorded": "Recorded",
+      "noReadings": "No Readings",
       "primaryDiagnosis": "Primary Diagnosis:",
       "unavailable": "Not available",
-      "fileStatus": "File Status:"
+      "fileStatus": "File Status:",
+      "notAvailable": "N/A"
     },
     "status": {
       "open": "🟢 Open",
@@ -1085,10 +1331,10 @@
       "cancelled": "❌ Cancelled"
     },
     "protocols": {
-      "confirmExecute": "Confirm executing protocol with all its clinical orders for this case?",
+      "confirmExecute": "Are you sure you want to execute protocol \"{{name}}\" with all its orders?",
       "executeSuccess": "Orders approved and sent successfully",
       "executeFailed": "Failed to execute protocol",
-      "confirmEnroll": "Confirm enrolling the patient in this clinical pathway?",
+      "confirmEnroll": "Confirm enrolling this patient in pathway \"{{name}}\"?",
       "enrollSuccess": "Patient enrolled and pathway started",
       "enrollFailed": "Failed to enroll in pathway",
       "orderSetsTitle": "⚡ Order Sets",
@@ -1096,9 +1342,16 @@
       "defaultDescription": "Auto-execute attached orders",
       "pathwaysTitle": "🛤️ Clinical Pathways",
       "losLabel": "LOS:",
-      "defaultPathwayDesc": "Day-by-day treatment plan",
+      "defaultPathwayDesc": "Clinical plan divided by days",
       "manageProtocols": "Manage Protocols ←",
-      "managePathways": "Manage Clinical Pathways ←"
+      "managePathways": "Manage Clinical Pathways ←",
+      "orderSets": "Order Sets",
+      "category": {
+        "general": "General"
+      },
+      "defaultOrderDesc": "Automatically execute attached actions",
+      "pathways": "Clinical Pathways",
+      "manageOrderSets": "Manage Order Sets ←"
     },
     "header": {
       "mpiBadge": "🌐 MPI",
@@ -2687,6 +2940,851 @@
       "stopConfirm": "Are you sure you want to stop this infusion?",
       "stopReason": "Reason for stopping? (optional)",
       "stopFailed": "Failed to stop"
+    }
+  },
+  "about": {
+    "description": "An integrated hospital management system, designed to international standards to provide financial accuracy, operational efficiency, and an unmatched user experience.",
+    "features": {
+      "clinical": {
+        "title": "Clinical Accuracy",
+        "desc": "Full management of patients, nursing, and doctors with Triage and ADT support."
+      },
+      "security": {
+        "title": "Security & Reliability",
+        "desc": "Advanced data protection, precise access control (RBAC), and comprehensive audit logs."
+      },
+      "finance": {
+        "title": "Financial Strength",
+        "desc": "Double-entry accounting, complex insurance billing, and strict inventory control."
+      }
+    },
+    "architecture": {
+      "title": "Technical Architecture"
+    },
+    "company": {
+      "name": "Saraya Tech Company",
+      "desc": "We innovate smart software solutions that redefine how health institutions are managed. Committed to quality, speed, and continuous support."
+    },
+    "footer": {
+      "developedWith": "Developed with",
+      "rights": "All Rights Reserved."
+    }
+  },
+  "doctorPerformance": {
+    "title": "Doctor Performance Report",
+    "subtitle": "Comprehensive analysis of medical staff productivity and performance by time period",
+    "sort": {
+      "encounters": "Encounters",
+      "admissions": "Admissions",
+      "surgeries": "Surgeries",
+      "revenue": "Revenue",
+      "commission": "Doctor Commission",
+      "avgConsultation": "Avg Consultation"
+    },
+    "kpis": {
+      "totalEncounters": "Total Encounters",
+      "totalRevenue": "Generated Revenue",
+      "totalSurgeries": "Surgeries",
+      "activeDoctors": "Active Doctors"
+    },
+    "chart": {
+      "compare": "Doctors Comparison"
+    },
+    "table": {
+      "encounters": "Encounters",
+      "admissions": "Admissions",
+      "surgeries": "Surgeries",
+      "revenue": "Revenue",
+      "commissionRate": "Commission Rate",
+      "doctorCommission": "Doctor Commission",
+      "avgConsultation": "Avg Consultation (Mins)"
+    }
+  },
+  "commissionSettings": {
+    "title": "Commission & Revenue Distribution Settings",
+    "subtitle": "Define revenue distribution rates between hospital and doctors by service type",
+    "defaults": {
+      "title": "Default Rates (For All Doctors)",
+      "desc": "These rates apply to all doctors unless a custom rate is specified"
+    },
+    "doctorRate": "Doctor Rate %",
+    "hospitalRate": "Hospital Rate %",
+    "btn": {
+      "saveDefaults": "💾 Save Default Rates",
+      "saveCustom": "💾 Save Custom Rates"
+    },
+    "custom": {
+      "title": "Custom Rates for a Specific Doctor",
+      "desc": "Override default rates for a specific doctor (highest priority)"
+    },
+    "selectDoctor": "Select a Doctor",
+    "usingDefault": "Uses default rate",
+    "customized": "Custom:",
+    "currentOverrides": "Current Custom Rules:"
+  },
+  "inventory": {
+    "count": {
+      "title": "Stock Counts",
+      "subtitle": "Manage physical stock counting and inventory adjustments.",
+      "btn": {
+        "new": "New Count"
+      },
+      "searchPlaceholder": "Search by warehouse name...",
+      "empty": "No stock counts found.",
+      "status": {
+        "posted": "Posted",
+        "draft": "Draft",
+        "review": "Review",
+        "inProgress": "In Progress"
+      },
+      "type": {
+        "full": "Full Stock Count",
+        "quarterly": "Quarterly Count",
+        "spotCheck": "Spot Check"
+      }
+    },
+    "materialRequest": {
+      "title": "Material Requests",
+      "subtitle": "Manage material requests from warehouses to departments and sub-warehouses.",
+      "btn": {
+        "new": "New Material Request"
+      },
+      "searchPlaceholder": "Search by request number or warehouse...",
+      "empty": "No material requests found.",
+      "status": {
+        "pending": "Pending Approval",
+        "approved": "Approved - Awaiting Issuance",
+        "rejected": "Rejected",
+        "partial": "Partially Issued",
+        "completed": "Completed",
+        "cancelled": "Cancelled"
+      },
+      "table": {
+        "number": "Request No.",
+        "requestingWarehouse": "Requesting Warehouse",
+        "fulfillingWarehouse": "Fulfilling Warehouse",
+        "itemCount": "Items Count",
+        "requestedBy": "Requested By"
+      }
+    },
+    "categories": {
+      "title": "Item Categories Management",
+      "subtitle": "Setup stock categories and accounting valuation methods.",
+      "new": "Add New Category",
+      "name": "Category Name",
+      "code": "Category Code",
+      "parent": "Parent Category",
+      "mainCategory": "Main Category",
+      "valuationMethod": "Stock Valuation Method",
+      "valuation": {
+        "weighted": "Weighted Average",
+        "fifo": "First In First Out (FIFO)",
+        "lifo": "Last In First Out (LIFO)"
+      },
+      "assetAccount": "Inventory (Asset) Account",
+      "selectAsset": "Select Asset Account",
+      "expenseAccount": "Cost of Goods Sold (Expense) Account",
+      "selectExpense": "Select Expense Account",
+      "btn": {
+        "save": "Save Category"
+      },
+      "current": "Current Categories",
+      "valuationLabel": "Valuation Method",
+      "inventoryAccountLabel": "Inventory Account",
+      "expenseAccountLabel": "Cost Account"
+    },
+    "products": {
+      "title": "Products Master Data",
+      "subtitle": "Manage base product item data, stock policies, and standard costs.",
+      "btn": {
+        "new": "New Product",
+        "save": "Save Product"
+      },
+      "newForm": {
+        "title": "New Product Details"
+      },
+      "name": "Product Name",
+      "code": "Product Code / Barcode",
+      "type": {
+        "consumable": "Medical Consumables",
+        "drug": "Medication / Drug",
+        "service": "Service",
+        "asset": "Fixed Asset"
+      },
+      "category": "Product Category",
+      "selectCategory": "Select Category",
+      "baseUom": "Base Unit of Measure (UOM)",
+      "selectUom": "Select UOM",
+      "costPrice": "Standard Cost Price",
+      "minStock": "Minimum Stock Level (Min)",
+      "maxStock": "Maximum Stock Level (Max)",
+      "log": "Products Register",
+      "table": {
+        "code": "Item Code",
+        "uom": "Base UOM",
+        "cost": "Current Cost",
+        "stock": "Total Stock"
+      }
+    }
+  },
+  "consents": {
+    "title": "Electronic Consent Forms",
+    "subtitle": "Manage patient authorizations and medical consents for surgeries and anesthesia procedures",
+    "btn": {
+      "new": "Create New Consent"
+    },
+    "table": {
+      "signedDate": "Signed Date"
+    },
+    "actions": {
+      "sign": "Sign ✍️"
+    },
+    "status": {
+      "signed": "Signed",
+      "pendingSign": "Awaiting Signature",
+      "cancelled": "Cancelled"
+    },
+    "type": {
+      "anesthesia": "Anesthesia",
+      "general": "General"
+    },
+    "dialog": {
+      "titleNew": "Create New Consent Form",
+      "titleSign": "Sign Medical Consent",
+      "titleView": "View Medical Consent",
+      "formType": "Form Type",
+      "general": "General Consent",
+      "surgery": "Surgical Procedure",
+      "anesthesia": "Anesthesia",
+      "procedure": "Medical Procedure",
+      "dataSharing": "Data Sharing (MPI)",
+      "other": "Other",
+      "titleLabel": "Title / Procedure",
+      "titlePlaceholder": "e.g., Appendectomy Procedure",
+      "consentText": "Consent Text",
+      "signedByRef": "Signee Name",
+      "patientSignature": "Patient / Guardian Signature",
+      "noSignature": "No signature on file",
+      "clearSignature": "Clear Signature",
+      "print": "Print",
+      "close": "Close",
+      "saving": "Saving...",
+      "approveSignature": "Confirm Signature",
+      "saveAsDraft": "Save Draft for Signature",
+      "selfPatient": "Patient themselves",
+      "defaultContent": "I, the undersigned, hereby declare my full consent to the medical procedure...",
+      "toastCreateSuccess": "Consent form saved successfully",
+      "toastCreateError": "An error occurred while saving the form",
+      "toastSignSuccess": "Consent form signed and saved",
+      "toastSignError": "An error occurred during signing",
+      "toastEnterTitle": "Please enter a title for the form",
+      "toastAllowPopups": "Please allow popups to print the form",
+      "printTitle": "Consent Form",
+      "printSubtitle": "Medical Consent / Authorization Form",
+      "printHospital": "Hospital",
+      "printFormTitle": "Form Title: ",
+      "printFormId": "Form ID: ",
+      "printNew": "New",
+      "printCreatedAt": "Date Created: ",
+      "printStatus": "Status: ",
+      "printDoctor": "Responsible Doctor: ",
+      "printContentTitle": "📝 Consent / Authorization Text:",
+      "printSignatureTitle": "✉️ Signature:",
+      "printSignee": "Signee Name: ",
+      "printSignedDate": "Signed Date: ",
+      "printFooter": "This form was generated electronically by Al-Saraya Medical System",
+      "statusDraft": "Draft - Awaiting Signature",
+      "statusSigned": "Signed",
+      "statusRevoked": "Revoked"
+    }
+  },
+  "medicalHistory": {
+    "title": "Comprehensive Medical History",
+    "pastMedical": "Past Medical History (PMH)",
+    "pastSurgical": "Past Surgical History (PSH)"
+  },
+  "problems": {
+    "status": {
+      "active": "Active",
+      "chronic": "Chronic",
+      "resolved": "Resolved",
+      "inactive": "Inactive"
+    },
+    "severity": {
+      "mild": "Mild",
+      "moderate": "Moderate",
+      "severe": "Severe",
+      "lifeThreatening": "Life Threatening"
+    },
+    "toast": {
+      "added": "Problem added successfully",
+      "addFailed": "Failed to add problem",
+      "updated": "Problem status updated",
+      "updateFailed": "Failed to update",
+      "deleted": "Problem deleted",
+      "deleteFailed": "Failed to delete"
+    },
+    "title": "Problems List",
+    "addBtn": "+ Add Problem",
+    "newTitle": "New Health Problem",
+    "descriptionRequired": "Problem Description *",
+    "placeholder": {
+      "desc": "e.g., Diabetes Mellitus Type 2"
+    },
+    "onsetDate": "Onset Date",
+    "chronic": "Chronic Problem",
+    "activeCount": "Active ({{count}})",
+    "chronicCount": "Chronic ({{count}})",
+    "resolvedCount": "Resolved ({{count}})",
+    "empty": "No health problems recorded",
+    "emptyHint": "Press '+ Add Problem' to start documenting health problems",
+    "onsetDateLabel": "Onset:",
+    "resolvedDateLabel": "Resolution:",
+    "resolveBtn": "Resolve",
+    "confirmDelete": "Are you sure you want to delete this problem?"
+  },
+  "homeMeds": {
+    "source": {
+      "patient": "Patient Report",
+      "pharmacy": "Pharmacy Record",
+      "referral": "Referral Letter",
+      "previousAdmission": "Previous Admission"
+    },
+    "toast": {
+      "verified": "Medication verified",
+      "verifyFailed": "Verification failed"
+    },
+    "title": "Home Medications (Medication Reconciliation)",
+    "subtitle": "Medications the patient is currently taking from external sources",
+    "addBtn": "+ Add Medication",
+    "unverifiedCountWarning": "There is {{count}} unverified medication - physician must verify information",
+    "newTitle": "Add Home Medication",
+    "medNameRequired": "Medication Name *",
+    "placeholder": {
+      "name": "e.g., Metformin 500mg",
+      "dose": "500mg",
+      "frequency": "Twice daily",
+      "doctor": "Prescribing doctor or source",
+      "reason": "e.g., Hypertension"
+    },
+    "dose": "Dose",
+    "frequency": "Frequency",
+    "route": {
+      "po": "Oral (PO)",
+      "iv": "Intravenous (IV)",
+      "im": "Intramuscular (IM)",
+      "sc": "Subcutaneous (SC)",
+      "topical": "Topical",
+      "inhaled": "Inhaled",
+      "rectal": "Rectal",
+      "sublingual": "Sublingual"
+    },
+    "prescribedBy": "Prescribing Doctor",
+    "reason": "Reason / Diagnosis",
+    "empty": "No home medications recorded",
+    "emptyHint": "Press '+ Add Medication' to document home medications",
+    "activeList": "Active Medications ({{count}})",
+    "inactiveList": "Discontinued Medications ({{count}})",
+    "confirmDelete": "Are you sure you want to delete this medication?",
+    "verified": "Verified",
+    "verifyBtn": "Verify"
+  },
+  "soapNote": {
+    "clinicalNote": "Clinical Note",
+    "freeText": "Free Text",
+    "structuredSOAP": "Structured SOAP",
+    "subjectivePlaceholder": "Patient complaints and reports...",
+    "objectivePlaceholder": "Vitals, physical exam, lab results...",
+    "assessmentPlaceholder": "Medical assessment and problem...",
+    "planPlaceholder": "Medications, ordered tests, follow-up...",
+    "openNoteDetails": "Open Note Details",
+    "freeTextPlaceholder": "Write your notes freely here...",
+    "signedByDoctor": "Signed by treating physician",
+    "cannotEditAfterSign": "Editing is strictly prohibited after signing",
+    "signElectronically": "Electronic Signature",
+    "coSigned": "Co-signed",
+    "analyzing": "Analyzing...",
+    "aiAnalyze": "AI Analysis 🧠",
+    "saveNote": "Save Note",
+    "coSign": "Co-Sign"
+  },
+  "vitals": {
+    "label": {
+      "bpSystolic": "Systolic BP",
+      "bpDiastolic": "Diastolic BP",
+      "pulse": "Pulse",
+      "temperature": "Temperature",
+      "o2Sat": "O2 Saturation",
+      "respRate": "Respiratory Rate",
+      "weight": "Weight"
+    },
+    "bmi": {
+      "underweight": "Underweight",
+      "normal": "Normal",
+      "overweight": "Overweight",
+      "obese": "Obese"
+    },
+    "enterOne": "Please enter at least one value.",
+    "saveSuccess": "Vitals recorded successfully",
+    "tabs": {
+      "readings": "📝 Readings",
+      "charts": "📈 Charts"
+    },
+    "newReading": "+ New Reading",
+    "newReadingTitle": "📝 Record New Reading",
+    "normal": "Normal:",
+    "auto": "Auto",
+    "saveBtn": "💾 Save Vitals",
+    "historyTitle": "📋 Readings History",
+    "readingsCount": "Readings",
+    "empty": "No recorded readings — click '+ New Reading' to record",
+    "trends": "Vitals Trends",
+    "weightGrowth": "Weight & Growth",
+    "noData": "No data to display charts.",
+    "noDataHint": "Record vital signs first.",
+    "noWeight": "No weight measurements."
+  },
+  "diagnosis": {
+    "toast": {
+      "loadFailed": "Failed to load diagnoses",
+      "added": "Diagnosis added",
+      "addFailed": "Failed to add"
+    },
+    "confirmDelete": "Are you sure you want to delete this diagnosis?",
+    "addTitle": "Add Diagnosis (ICD-10)",
+    "searchPlaceholder": "Search for disease (name or code)... e.g. Diabetes, E11",
+    "type": {
+      "primary": "Primary",
+      "secondary": "Secondary",
+      "ruleOut": "Rule Out"
+    },
+    "confirmBtn": "Confirm Add",
+    "empty": "No diagnoses recorded yet. Start by searching above.",
+    "deleteTitle": "Delete Diagnosis"
+  },
+  "allergies": {
+    "toast": {
+      "loadFailed": "Failed to load allergy record.",
+      "added": "Allergy added successfully."
+    },
+    "confirmDelete": "Are you sure you want to delete this record?",
+    "newTitle": "Record New Allergy",
+    "allergen": "Allergen (Drug/Food)",
+    "placeholder": {
+      "allergen": "e.g., Penicillin, Eggs...",
+      "reaction": "e.g., Skin rash, shortness of breath..."
+    },
+    "severity": {
+      "mild": "Mild",
+      "moderate": "Moderate",
+      "severe": "Severe"
+    },
+    "reaction": "Symptoms / Reaction (Optional)",
+    "addBtn": "Add to Alerts",
+    "historyTitle": "Recorded Allergies History",
+    "empty": "No registered allergies for this patient."
+  },
+  "billing": {
+    "toast": {
+      "loadFailed": "An error occurred while loading billing data.",
+      "chargeDeleted": "Charge deleted successfully.",
+      "deleteChargeFailed": "An error occurred while deleting charge."
+    },
+    "confirmDeleteCharge": "Are you sure you want to delete this charge?",
+    "totalCharges": "Total Charges",
+    "totalInvoiced": "Total Invoiced",
+    "totalPaid": "Total Paid",
+    "outstandingBalance": "Outstanding Balance",
+    "readOnlyWarning": "This summary is read-only. To complete payment or generate an invoice, please go to cashier.",
+    "goToCashier": "💳 Go to Cashier",
+    "chargesDetails": "Charges Details",
+    "noCharges": "No billing charges recorded for this encounter yet.",
+    "service": "Service",
+    "invoice": "Invoice",
+    "uninvoiced": "Uninvoiced",
+    "deleteCharge": "Delete this Charge",
+    "invoicesAndPaymentsLog": "Invoices & Payments Log",
+    "noInvoices": "No invoices generated for this encounter yet.",
+    "invoiceLabel": "Invoice: ",
+    "invoiceStatus": {
+      "paid": "Paid",
+      "partiallyPaid": "Partially Paid",
+      "cancelled": "Cancelled",
+      "draft": "Draft"
+    },
+    "paidLabel": "Paid: ",
+    "remainingLabel": "Remaining: ",
+    "paymentsLog": "Payments Log:",
+    "noPayments": "No recorded payments."
+  },
+  "prescriptions": {
+    "toast": {
+      "assignDoctorFirst": "Cannot create prescription. Please assign doctor to encounter first.",
+      "addMedicationFirst": "Add at least one medication.",
+      "savedWithOverride": "Prescription saved (with clinical warning override and reason)",
+      "savedSuccess": "Prescription saved successfully",
+      "saveFailed": "Failed to save prescription."
+    },
+    "cdss": {
+      "drugDrugInteraction": "Drug-Drug Interaction",
+      "drugAllergy": "Drug Allergy",
+      "therapeuticDuplication": "Therapeutic Duplication",
+      "renalAdjustment": "Renal Adjustment",
+      "hepaticContraindication": "Hepatic Contraindication",
+      "dosageWarning": "Dosage Warning",
+      "clinicalAlert": "Clinical Alert"
+    },
+    "newPrescription": "New Prescription",
+    "assignDoctorRequired": "Treating physician must be assigned first",
+    "drugItem": "Drug Item",
+    "selectDrugPlaceholder": "Select drug from formulary",
+    "addAnotherMed": "+ Add another medication",
+    "pharmacistNotes": "General notes to pharmacist (optional)",
+    "placeholder": {
+      "pharmacistNotes": "e.g., Dispense alternative if not available..."
+    },
+    "saveAndSend": "Save and Send Prescription",
+    "historyTitle": "Approved Prescriptions History",
+    "empty": "No prescriptions recorded for this encounter yet.",
+    "prescriptionLabel": "Prescription #",
+    "pharmacistNotesLabel": "Pharmacist Notes:"
+  },
+  "labs": {
+    "toast": {
+      "loadFailed": "Failed to load laboratory data",
+      "assignDoctorFirst": "Please assign a doctor first.",
+      "selectOneFirst": "Select at least one laboratory test.",
+      "sentSuccess": "Lab request sent successfully",
+      "sentFailed": "Failed to send lab request"
+    },
+    "newRequestTitle": "New Lab Request",
+    "assignDoctorRequired": "Physician must be assigned first",
+    "searchPlaceholder": "Search for test... (Arabic, English, or Code)",
+    "placeholder": {
+      "notes": "Notes to laboratory (e.g. urgent, fasting)..."
+    },
+    "sendRequestBtn": "Send Lab Request",
+    "historyTitle": "Previous Lab Results History",
+    "empty": "No previous laboratory requests.",
+    "status": {
+      "completed": "✅ Completed",
+      "pending": "⏳ Pending"
+    },
+    "table": {
+      "parameter": "Parameter",
+      "result": "Result",
+      "unit": "Unit"
+    },
+    "result": "Result:"
+  },
+  "orderSets": {
+    "itemType": {
+      "lab": "Lab",
+      "radiology": "Radiology",
+      "medication": "Medication",
+      "procedure": "Procedure",
+      "nursing": "Nursing"
+    },
+    "priority": {
+      "stat": "STAT",
+      "urgent": "Urgent",
+      "routine": "Routine"
+    },
+    "status": {
+      "draft": "Draft",
+      "inReview": "In Review",
+      "approved": "Approved",
+      "published": "Published",
+      "retired": "Retired"
+    },
+    "toast": {
+      "loadFailed": "Failed to load order sets",
+      "loadResourcesFailed": "Failed to load build resources",
+      "selectItemRequired": "Please select required item",
+      "nameRequired": "Please enter set name",
+      "minOneItem": "Please add at least one item",
+      "newDraftCreated": "A new draft version v{{version}} has been created instead of modifying the current version directly",
+      "draftUpdated": "Draft updated successfully",
+      "draftCreated": "Order set draft created successfully",
+      "saveFailed": "Failed to save order set",
+      "executeSuccess": "Order set \"{{name}}\" executed successfully",
+      "executeFailed": "Failed to execute order set",
+      "disabledSuccess": "Set disabled successfully",
+      "disableFailed": "Failed to disable set",
+      "workflowActionFailed": "Failed to execute workflow action"
+    },
+    "confirmDisable": "Do you want to disable this set?",
+    "promptWorkflowNotes": "Add a short note for this action (optional):",
+    "title": "Medical Order Sets",
+    "subtitle": "Create, review, approve, and publish clinical protocols before operational use",
+    "btn": {
+      "new": "+ Create New Set",
+      "newVersion": "New Version",
+      "submitReview": "Submit for Review",
+      "saveDraft": "Save Draft",
+      "addItem": "Add Item",
+      "confirmExecute": "Authorize Orders & Send to Departments"
+    },
+    "placeholder": {
+      "search": "Search by name..."
+    },
+    "filters": {
+      "allCategories": "All Categories",
+      "allStatuses": "All Statuses"
+    },
+    "count": "{{count}} sets",
+    "lastChange": "Last change: {{summary}}",
+    "itemsMore": "+{{count}} more",
+    "footerSummary": "{{count}} items • {{creator}}",
+    "empty": "No order sets found",
+    "emptyHint": "Start by creating the first draft then move it through approval and publishing",
+    "builder": {
+      "editTitle": "Manage Order Set Version",
+      "newTitle": "Build New Order Set",
+      "draftHint": "You can edit this draft directly before submitting for review",
+      "versionHint": "A new draft will be created from the current version v{{version}} instead of modifying the current version directly",
+      "newHint": "Build an integrated protocol including laboratory, radiology, medications, and others before approving and publishing it",
+      "basicSettings": "Basic Settings",
+      "nameEn": "English Name (EN)",
+      "nameAr": "Arabic Name (AR)",
+      "category": "Category",
+      "description": "Protocol Description",
+      "descPlaceholder": "Simple description of target cases...",
+      "changeSummary": "Change Summary",
+      "changeSummaryPlaceholder": "What changed in this version?",
+      "itemsTitle": "Protocol Items",
+      "catalogItem": "Catalog Item",
+      "nursingPlaceholder": "Write nursing action...",
+      "selectItem": "Select item",
+      "instructions": "Implementation Instructions",
+      "emptyWorkspace": "Empty Workspace",
+      "emptyWorkspaceHint": "Add laboratory, radiology, or medication items to build the current draft"
+    },
+    "itemsCount": "{{count}} items",
+    "execute": {
+      "title": "Execute: {{name}}",
+      "subtitle": "{{count}} orders will be issued from the published version v{{version}}",
+      "searchEncounter": "Search for active patient encounter...",
+      "selectEncounter": "Please select an encounter to authorize orders on:",
+      "noOpenEncounters": "No open encounters matching search"
+    }
+  },
+  "pathways": {
+    "status": {
+      "draft": "Draft",
+      "inReview": "In Review",
+      "approved": "Approved",
+      "published": "Published",
+      "retired": "Retired"
+    },
+    "toast": {
+      "loadFailed": "Failed to load clinical pathways",
+      "loadPathwayFailed": "Failed to load clinical pathway details",
+      "loadEnrollmentFailed": "Failed to load enrollment details",
+      "selectEncounterFirst": "Please select an encounter first",
+      "enrollSuccess": "Encounter enrolled in pathway successfully",
+      "enrollFailed": "Failed to enroll encounter",
+      "varianceRecorded": "Variance recorded successfully",
+      "varianceFailed": "Failed to record variance",
+      "progressed": "Pathway progressed",
+      "completed": "Pathway completed successfully",
+      "progressFailed": "Failed to progress pathway",
+      "nameRequired": "Please enter pathway name",
+      "minOneStep": "Please add at least one step",
+      "updated": "Pathway updated successfully",
+      "created": "Pathway created successfully",
+      "submittedReview": "Pathway submitted for review",
+      "approved": "Pathway approved",
+      "published": "Pathway published",
+      "returnedDraft": "Pathway returned to draft",
+      "retired": "Pathway retired",
+      "saveFailed": "Failed to save pathway",
+      "deleted": "Pathway disabled successfully",
+      "deleteFailed": "Failed to disable"
+    },
+    "confirmDelete": "Do you want to delete/disable this pathway?",
+    "title": "Clinical Pathways & Protocols",
+    "subtitle": "Manage evidence-based treatment plans, track enrolled encounters, and monitor variances",
+    "btn": {
+      "new": "+ New Clinical Pathway",
+      "enroll": "Enroll Encounter",
+      "confirmEnroll": "Confirm Enrollment in Pathway"
+    },
+    "tabs": {
+      "available": "Available Pathways",
+      "enrollments": "Enrolled Encounters ({{count}})"
+    },
+    "placeholder": {
+      "search": "Search by name..."
+    },
+    "filters": {
+      "allStatuses": "All Statuses"
+    },
+    "empty": "No clinical pathways defined",
+    "enroll": {
+      "title": "Enroll Patient in: {{name}}",
+      "searchPlaceholder": "Search for open patient encounter..."
+    },
+    "detail": {
+      "title": "Patient Clinical Pathway Progress",
+      "startDate": "Start Date",
+      "currentDay": "Current Day in Pathway",
+      "activePathway": "Active Pathway",
+      "variances": "Recorded Clinical Variances",
+      "noVariances": "No deviations from clinical pathway recorded yet.",
+      "newVariance": "Record New Clinical Variance",
+      "varianceReason": "Reason for protocol deviation",
+      "btn": {
+        "saveVariance": "Save Variance",
+        "nextDay": "Advance to Next Day",
+        "complete": "Complete Pathway Successfully"
+      },
+      "stepsTitle": "Treatment Steps & Daily Progress",
+      "expectedOutcomes": "Expected Outcomes",
+      "milestones": "Clinical Milestones",
+      "orderSet": "Medical Order Set",
+      "futureDayHint": "This day has not yet been reached under approved progress."
+    },
+    "builder": {
+      "title": "Manage Pathway Steps",
+      "nameAr": "Arabic Pathway Name",
+      "nameEn": "English Pathway Name",
+      "targetDiagnosis": "Target Diagnosis",
+      "los": "Expected Length of Stay (LOS - Days)",
+      "description": "Pathway Description",
+      "changeSummary": "Change Summary in this Version",
+      "steps": "Detailed Pathway Steps",
+      "btnAddStep": "Add Step",
+      "stepTitleAr": "Step Title (Arabic) *",
+      "stepTitleEn": "Step Title (English) *",
+      "stepOutcomes": "Expected Clinical Outcomes",
+      "stepMilestones": "Discharge Milestones & Targets",
+      "stepDesc": "Detailed Step Description",
+      "linkOrderSet": "Link with Order Set (Optional)",
+      "btnDeleteStep": "Delete Step"
+    }
+  },
+  "registries": {
+    "toast": {
+      "evalMembershipSuccess": "Evaluated {{evaluated}} patients and added {{added}} to registries",
+      "evalMembershipFailed": "Failed to run registry membership evaluation",
+      "evalGapsSuccess": "Evaluated {{evaluated}} gaps and discovered {{opened}} new care gaps",
+      "evalGapsFailed": "Failed to run care gap evaluation",
+      "created": "Registry and its rules created successfully.",
+      "createFailed": "Failed to create registry.",
+      "updated": "Registry and rules updated.",
+      "updateFailed": "Failed to update registry.",
+      "gapClosed": "Care gap closed manually.",
+      "gapCloseFailed": "Failed to close care gap."
+    },
+    "title": "Disease Registries & Care Gaps",
+    "subtitle": "Manage clinical registries and identify preventive care gaps automatically.",
+    "btn": {
+      "evaluateMembers": "Evaluate Members",
+      "evaluateGaps": "Evaluate Care Gaps",
+      "new": "Create New Registry",
+      "closeGap": "Address Gap"
+    },
+    "listTitle": "Defined Disease Registries",
+    "statsTitle": "Active Registry Statistics",
+    "stats": {
+      "totalEnrolled": "Total Enrolled",
+      "activeGaps": "Active Care Gaps",
+      "patientsNoGaps": "Patients without Gaps"
+    },
+    "criteriaTitle": "Clinical Registry Inclusion Criteria",
+    "criteriaSubtitle": "Define target population based on clinical database filters:",
+    "rulesTitle": "Preventive Care Gap Rules",
+    "rules": {
+      "everyDays": "Every {{days}} days"
+    },
+    "enrolledListTitle": "Enrolled Patients List",
+    "placeholder": {
+      "searchEnrolled": "Search by MRN or name..."
+    },
+    "gapsTitle": "Care Gaps for Patient",
+    "table": {
+      "targetItem": "Required Document/Service",
+      "detectedAt": "Detection Date"
+    },
+    "emptyGaps": "No active care gaps for this patient.",
+    "closeGap": {
+      "title": "Confirm Closing Care Gap",
+      "subtitle": "Please enter justification or notes for closing the gap manually:",
+      "placeholder": "Service provided externally / clinical justification...",
+      "btnConfirm": "Close Gap"
+    }
+  },
+  "scheduler": {
+    "toast": {
+      "bookedSuccess": "Resource booked successfully.",
+      "bookedFailed": "Failed to book or conflict exists.",
+      "resourceCreated": "Resource added successfully.",
+      "resourceCreateFailed": "Failed to add resource.",
+      "cancelledSuccess": "Booking cancelled successfully.",
+      "cancelledFailed": "Failed to cancel."
+    },
+    "title": "Advanced Resource Scheduler",
+    "subtitle": "Manage and book clinical resources like rooms and equipment with conflict prevention.",
+    "btn": {
+      "addPatient": "Add Patient",
+      "addResource": "Add Resource",
+      "waitlist": "Waitlists",
+      "bookResource": "Book Resource"
+    },
+    "availableResources": "Available Resources",
+    "placeholder": {
+      "search": "Search for resource..."
+    },
+    "emptyResources": "No matching resources.",
+    "upcomingBookings": "Upcoming Bookings {{days}}",
+    "promptSelectResource": "Please select a resource from list to view its schedule.",
+    "loadingBookings": "Loading bookings...",
+    "emptyBookings": "No upcoming bookings for this resource.",
+    "confirmCancel": "Do you want to cancel this booking?",
+    "book": {
+      "title": "Book New Resource",
+      "startTime": "Start Time",
+      "endTime": "End Time",
+      "btnConfirm": "Confirm Booking"
+    },
+    "create": {
+      "title": "Add New Resource",
+      "resourceName": "Resource Name",
+      "resourceType": "Resource Type",
+      "btnSave": "Save Resource"
+    }
+  },
+  "waitlist": {
+    "toast": {
+      "addedSuccess": "Patient added to waitlist successfully.",
+      "addedFailed": "Failed to add patient to waitlist."
+    },
+    "status": {
+      "notified": "Notified",
+      "booked": "Booked",
+      "cancelled": "Cancelled",
+      "waiting": "Waiting"
+    },
+    "priority": {
+      "high": "High"
+    },
+    "title": "Smart Waitlists",
+    "subtitle": "Track patients waiting for clinical resources ordered by priority and department.",
+    "btn": {
+      "addPatient": "Add Patient",
+      "addConfirm": "Add to List"
+    },
+    "loading": "Loading waitlist...",
+    "empty": "Waitlist is currently empty.",
+    "addedLabel": "Added:",
+    "add": {
+      "title": "Add Patient to Waitlist",
+      "searchPatient": "Search Patient",
+      "requestedResource": "Requested Resource"
+    },
+    "placeholder": {
+      "search": "Name, MRN, or phone..."
     }
   }
 }

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { apiClient } from "../api/apiClient";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 
 type AdmissionDetails = {
   id: number;
@@ -125,6 +126,8 @@ type AdmissionDetails = {
 };
 
 export default function AdmissionDetailsPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [admission, setAdmission] = useState<AdmissionDetails | null>(null);
@@ -142,9 +145,8 @@ export default function AdmissionDetailsPage() {
     try {
       const response = await apiClient.get(`/admissions/${admissionId}`);
       setAdmission(response.data);
-     
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || "فشل تحميل تفاصيل الإيواء");
+      toast.error(err?.response?.data?.message || t("admissions.detailsPage.loadFailed", "فشل تحميل تفاصيل الإيواء"));
       navigate('/admissions/advanced');
     } finally {
       setLoading(false);
@@ -152,33 +154,32 @@ export default function AdmissionDetailsPage() {
   };
 
   const handleDischargePatient = async () => {
-    if (!admission || !confirm("هل أنت متأكد من تسريح المريض؟")) return;
+    if (!admission || !confirm(t("admissions.detailsPage.confirmDischarge", "هل أنت متأكد من تسريح المريض؟"))) return;
 
     try {
       await apiClient.post(`/admissions/${admission.id}/discharge`, {
         dischargeDisposition: "HOME",
         followUpRequired: false,
-        notes: "تسريح من صفحة التفاصيل",
+        notes: t("admissions.detailsPage.dischargeReason", "تسريح من صفحة التفاصيل"),
       });
 
-      toast.success("تم تسريح المريض بنجاح");
+      toast.success(t("admissions.detailsPage.dischargeSuccess", "تم تسريح المريض بنجاح"));
       loadAdmissionDetails(admission.id);
-     
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || "فشل تسريح المريض");
+      toast.error(err?.response?.data?.message || t("admissions.detailsPage.dischargeFailed", "فشل تسريح المريض"));
     }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case "ADMITTED":
-        return "bg-blue-100 text-blue-800";
+        return "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300";
       case "IN_PROGRESS":
-        return "bg-green-100 text-green-800";
+        return "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300";
       case "DISCHARGE_PENDING":
-        return "bg-yellow-100 text-yellow-800";
+        return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300";
       case "DISCHARGED":
-        return "bg-gray-100 text-gray-800";
+        return "bg-gray-100 text-gray-800 dark:bg-slate-800 dark:text-slate-400";
       default:
         return "bg-gray-100 text-gray-800";
     }
@@ -187,23 +188,35 @@ export default function AdmissionDetailsPage() {
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case "CRITICAL":
-        return "bg-red-100 text-red-800";
+        return "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300";
       case "URGENT":
-        return "bg-orange-100 text-orange-800";
+        return "bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300";
       case "HIGH":
-        return "bg-yellow-100 text-yellow-800";
+        return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300";
       case "MEDIUM":
-        return "bg-blue-100 text-blue-800";
+        return "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300";
       case "LOW":
-        return "bg-gray-100 text-gray-800";
+        return "bg-gray-100 text-gray-800 dark:bg-slate-800 dark:text-slate-400";
       default:
         return "bg-gray-100 text-gray-800";
     }
   };
 
+  const getTabLabel = (tabId: string) => {
+    switch (tabId) {
+      case 'overview': return t("admissions.detailsPage.tabs.overview", 'نظرة عامة');
+      case 'vitals': return t("admissions.detailsPage.tabs.vitals", 'العلامات الحيوية');
+      case 'medications': return t("admissions.detailsPage.tabs.medications", 'الأدوية');
+      case 'procedures': return t("admissions.detailsPage.tabs.procedures", 'الإجراءات');
+      case 'notes': return t("admissions.detailsPage.tabs.notes", 'الملاحظات');
+      case 'transfers': return t("admissions.detailsPage.tabs.transfers", 'نقلات السرير');
+      default: return tabId;
+    }
+  };
+
   if (loading) {
     return (
-      <div className="flex flex-col h-full text-slate-100 p-6 space-y-6" dir="rtl">
+      <div className="flex flex-col h-full text-slate-100 p-6 space-y-6" dir={isRtl ? "rtl" : "ltr"}>
         <div className="flex justify-center items-center h-64">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-sky-500"></div>
         </div>
@@ -213,14 +226,14 @@ export default function AdmissionDetailsPage() {
 
   if (!admission) {
     return (
-      <div className="flex flex-col h-full text-slate-100 p-6 space-y-6" dir="rtl">
+      <div className="flex flex-col h-full text-slate-100 p-6 space-y-6" dir={isRtl ? "rtl" : "ltr"}>
         <div className="text-center">
-          <h2 className="text-xl font-bold mb-4">لم يتم العثور على بيانات الإيواء</h2>
+          <h2 className="text-xl font-bold mb-4">{t("admissions.detailsPage.notFound", "لم يتم العثور على بيانات الإيواء")}</h2>
           <button
             onClick={() => navigate('/admissions/advanced')}
             className="px-4 py-2 bg-sky-600 hover:bg-sky-500 rounded-lg"
           >
-            العودة إلى قائمة الإيواءات
+            {t("admissions.detailsPage.backToList", "العودة إلى قائمة الإيواءات")}
           </button>
         </div>
       </div>
@@ -228,7 +241,7 @@ export default function AdmissionDetailsPage() {
   }
 
   return (
-    <div className="flex flex-col h-full text-slate-100 p-6 space-y-6" dir="rtl">
+    <div className="flex flex-col h-full text-slate-100 p-6 space-y-6" dir={isRtl ? "rtl" : "ltr"}>
       {/* Header */}
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-4">
@@ -236,10 +249,10 @@ export default function AdmissionDetailsPage() {
             onClick={() => navigate('/admissions/advanced')}
             className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-all"
           >
-            ← العودة
+            {t("admissions.detailsPage.backBtn", "← العودة")}
           </button>
           <div>
-            <h1 className="text-2xl font-bold mb-1">تفاصيل الإيواء #{admission.id}</h1>
+            <h1 className="text-2xl font-bold mb-1">{t("admissions.detailsPage.title", "تفاصيل الإيواء #")}{admission.id}</h1>
             <p className="text-sm text-slate-400">
               {admission.patient.fullName} - {admission.patient.mrn}
             </p>
@@ -250,7 +263,7 @@ export default function AdmissionDetailsPage() {
             onClick={handleDischargePatient}
             className="px-6 py-2 bg-green-600 hover:bg-green-500 text-white font-bold rounded-lg transition-all"
           >
-            تسريح المريض
+            {t("admissions.detailsPage.dischargePatient", "تسريح المريض")}
           </button>
         )}
       </div>
@@ -258,25 +271,25 @@ export default function AdmissionDetailsPage() {
       {/* Status Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-slate-900/50 rounded-xl p-4 border border-slate-700">
-          <div className="text-sm text-slate-400 mb-1">حالة الإيواء</div>
+          <div className="text-sm text-slate-400 mb-1">{t("admissions.table.status", "الحالة")}</div>
           <span className={`px-3 py-1 rounded-full text-sm ${getStatusColor(admission.admissionStatus)}`}>
-            {admission.admissionStatus}
+            {t("admissions.admissionStatus." + admission.admissionStatus, admission.admissionStatus)}
           </span>
         </div>
         <div className="bg-slate-900/50 rounded-xl p-4 border border-slate-700">
-          <div className="text-sm text-slate-400 mb-1">الأولوية</div>
+          <div className="text-sm text-slate-400 mb-1">{t("admissions.table.priority", "الأولوية")}</div>
           <span className={`px-3 py-1 rounded-full text-sm ${getPriorityColor(admission.priority)}`}>
-            {admission.priority}
+            {t("admissions.priorityLabels." + admission.priority, admission.priority)}
           </span>
         </div>
         <div className="bg-slate-900/50 rounded-xl p-4 border border-slate-700">
-          <div className="text-sm text-slate-400 mb-1">مدة الإقامة</div>
+          <div className="text-sm text-slate-400 mb-1">{t("admissions.detailsPage.stayDuration", "مدة الإقامة")}</div>
           <div className="text-lg font-bold">
-            {admission.lengthOfStay ? `${admission.lengthOfStay} يوم` : '-'}
+            {admission.lengthOfStay ? `${admission.lengthOfStay} ${t("admissions.stats.days", "يوم")}` : '-'}
           </div>
         </div>
         <div className="bg-slate-900/50 rounded-xl p-4 border border-slate-700">
-          <div className="text-sm text-slate-400 mb-1">السرير</div>
+          <div className="text-sm text-slate-400 mb-1">{t("admissions.detailsPage.bed", "السرير")}</div>
           <div className="text-lg font-bold">
             {admission.bed?.bedNumber || '-'}
           </div>
@@ -286,16 +299,15 @@ export default function AdmissionDetailsPage() {
       {/* Tabs */}
       <div className="flex space-x-1 space-x-reverse border-b border-slate-700">
         {[
-          { id: 'overview', label: 'نظرة عامة' },
-          { id: 'vitals', label: 'العلامات الحيوية' },
-          { id: 'medications', label: 'الأدوية' },
-          { id: 'procedures', label: 'الإجراءات' },
-          { id: 'notes', label: 'الملاحظات' },
-          { id: 'transfers', label: 'نقلات السرير' },
+          { id: 'overview' },
+          { id: 'vitals' },
+          { id: 'medications' },
+          { id: 'procedures' },
+          { id: 'notes' },
+          { id: 'transfers' },
         ].map((tab) => (
           <button
             key={tab.id}
-             
             onClick={() => setActiveTab(tab.id as any)}
             className={`px-4 py-2 text-sm font-medium transition-colors ${
               activeTab === tab.id
@@ -303,7 +315,7 @@ export default function AdmissionDetailsPage() {
                 : "text-slate-400 hover:text-slate-200"
             }`}
           >
-            {tab.label}
+            {getTabLabel(tab.id)}
           </button>
         ))}
       </div>
@@ -315,30 +327,30 @@ export default function AdmissionDetailsPage() {
           <div className="space-y-6">
             {/* Patient Information */}
             <div className="bg-slate-900/50 rounded-xl p-6 border border-slate-700">
-              <h3 className="text-lg font-semibold mb-4">معلومات المريض</h3>
+              <h3 className="text-lg font-semibold mb-4">{t("admissions.detailsPage.patientInfo", "معلومات المريض")}</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <span className="text-sm text-slate-400">الاسم الكامل:</span>
+                  <span className="text-sm text-slate-400">{t("admissions.detailsPage.fullName", "الاسم الكامل:")}</span>
                   <div className="font-medium">{admission.patient.fullName}</div>
                 </div>
                 <div>
-                  <span className="text-sm text-slate-400">الرقم الطبي:</span>
+                  <span className="text-sm text-slate-400">{t("admissions.detailsPage.mrn", "الرقم الطبي:")}</span>
                   <div className="font-medium">{admission.patient.mrn}</div>
                 </div>
                 <div>
-                  <span className="text-sm text-slate-400">تاريخ الميلاد:</span>
-                  <div className="font-medium">{new Date(admission.patient.dateOfBirth).toLocaleDateString('ar-SA')}</div>
+                  <span className="text-sm text-slate-400">{t("admissions.detailsPage.dob", "تاريخ الميلاد:")}</span>
+                  <div className="font-medium">{new Date(admission.patient.dateOfBirth).toLocaleDateString(isRtl ? 'ar-LY' : 'en-US')}</div>
                 </div>
                 <div>
-                  <span className="text-sm text-slate-400">الجنس:</span>
+                  <span className="text-sm text-slate-400">{t("admissions.detailsPage.gender", "الجنس:")}</span>
                   <div className="font-medium">{admission.patient.gender}</div>
                 </div>
                 <div>
-                  <span className="text-sm text-slate-400">رقم الهاتف:</span>
+                  <span className="text-sm text-slate-400">{t("admissions.detailsPage.phone", "رقم الهاتف:")}</span>
                   <div className="font-medium">{admission.patient.contactNumber}</div>
                 </div>
                 <div>
-                  <span className="text-sm text-slate-400">العنوان:</span>
+                  <span className="text-sm text-slate-400">{t("admissions.detailsPage.address", "العنوان:")}</span>
                   <div className="font-medium">{admission.patient.address}</div>
                 </div>
               </div>
@@ -346,35 +358,35 @@ export default function AdmissionDetailsPage() {
 
             {/* Admission Information */}
             <div className="bg-slate-900/50 rounded-xl p-6 border border-slate-700">
-              <h3 className="text-lg font-semibold mb-4">معلومات الإيواء</h3>
+              <h3 className="text-lg font-semibold mb-4">{t("admissions.detailsPage.admissionInfo", "معلومات الإيواء")}</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <span className="text-sm text-slate-400">تاريخ الإدخال:</span>
-                  <div className="font-medium">{new Date(admission.actualAdmissionDate).toLocaleDateString('ar-SA')}</div>
+                  <span className="text-sm text-slate-400">{t("admissions.detailsPage.admissionDate", "تاريخ الإدخال:")}</span>
+                  <div className="font-medium">{new Date(admission.actualAdmissionDate).toLocaleDateString(isRtl ? 'ar-LY' : 'en-US')}</div>
                 </div>
                 <div>
-                  <span className="text-sm text-slate-400">تاريخ التسريح المتوقع:</span>
+                  <span className="text-sm text-slate-400">{t("admissions.detailsPage.expectedDischarge", "تاريخ التسريح المتوقع:")}</span>
                   <div className="font-medium">
                     {admission.expectedDischargeDate 
-                      ? new Date(admission.expectedDischargeDate).toLocaleDateString('ar-SA')
+                      ? new Date(admission.expectedDischargeDate).toLocaleDateString(isRtl ? 'ar-LY' : 'en-US')
                       : '-'
                     }
                   </div>
                 </div>
                 <div>
-                  <span className="text-sm text-slate-400">سبب الإدخال:</span>
+                  <span className="text-sm text-slate-400">{t("admissions.detailsPage.reason", "سبب الإدخال:")}</span>
                   <div className="font-medium">{admission.admissionReason}</div>
                 </div>
                 <div>
-                  <span className="text-sm text-slate-400">التشخيص الرئيسي:</span>
+                  <span className="text-sm text-slate-400">{t("admissions.detailsPage.diagnosis", "التشخيص الرئيسي:")}</span>
                   <div className="font-medium">{admission.primaryDiagnosis || '-'}</div>
                 </div>
                 <div>
-                  <span className="text-sm text-slate-400">الطبيب المعالج:</span>
+                  <span className="text-sm text-slate-400">{t("admissions.detailsPage.doctor", "الطبيب المعالج:")}</span>
                   <div className="font-medium">{admission.admittingDoctor.fullName}</div>
                 </div>
                 <div>
-                  <span className="text-sm text-slate-400">القسم:</span>
+                  <span className="text-sm text-slate-400">{t("admissions.detailsPage.department", "القسم:")}</span>
                   <div className="font-medium">{admission.department?.name || '-'}</div>
                 </div>
               </div>
@@ -382,26 +394,26 @@ export default function AdmissionDetailsPage() {
 
             {/* Cost Information */}
             <div className="bg-slate-900/50 rounded-xl p-6 border border-slate-700">
-              <h3 className="text-lg font-semibold mb-4">معلومات التكلفة</h3>
+              <h3 className="text-lg font-semibold mb-4">{t("admissions.detailsPage.costInfo", "معلومات التكلفة")}</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <span className="text-sm text-slate-400">التكلفة المقدرة:</span>
-                  <div className="font-medium">{admission.estimatedCost ? `${admission.estimatedCost} ريال` : '-'}</div>
+                  <span className="text-sm text-slate-400">{t("admissions.detailsPage.estimatedCost", "التكلفة المقدرة:")}</span>
+                  <div className="font-medium">{admission.estimatedCost ? `${admission.estimatedCost.toLocaleString(isRtl ? 'ar-LY' : 'en-US')} ${t("billing.currencyLYD", "د.ل")}` : '-'}</div>
                 </div>
                 <div>
-                  <span className="text-sm text-slate-400">التكلفة الفعلية:</span>
-                  <div className="font-medium">{admission.actualCost ? `${admission.actualCost} ريال` : '-'}</div>
+                  <span className="text-sm text-slate-400">{t("admissions.detailsPage.actualCost", "التكلفة الفعلية:")}</span>
+                  <div className="font-medium">{admission.actualCost ? `${admission.actualCost.toLocaleString(isRtl ? 'ar-LY' : 'en-US')} ${t("billing.currencyLYD", "د.ل")}` : '-'}</div>
                 </div>
               </div>
             </div>
           </div>
         )}
 
-        {/* Other tabs would be implemented similarly */}
+        {/* Other tabs */}
         {activeTab !== 'overview' && (
           <div className="bg-slate-900/50 rounded-xl p-6 border border-slate-700">
             <div className="text-center py-8 text-slate-400">
-              <p>محتوى {activeTab} قيد التطوير...</p>
+              <p>{t("admissions.detailsPage.tabDeveloping", { defaultValue: "محتوى {{tab}} قيد التطوير...", tab: getTabLabel(activeTab) })}</p>
             </div>
           </div>
         )}

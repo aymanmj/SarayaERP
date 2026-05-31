@@ -557,8 +557,8 @@ export default function FertilityDashboardPage() {
         </div>
       ) : !showNewCaseForm ? (
         <div className="text-center py-12 text-slate-500">
-          <p className="text-lg mb-2">{patientId ? 'لا توجد ملفات عقم لهذه المريضة.' : 'لا توجد حالات نشطة.'}</p>
-          {patientId && <Button onClick={() => setShowNewCaseForm(true)} className="bg-violet-600 hover:bg-violet-500 text-white">فتح ملف عقم جديد</Button>}
+          <p className="text-lg mb-2">{patientId ? t('obgyn.fertility.list.noCases', 'لا توجد ملفات عقم لهذه المريضة.') : t('obgyn.fertility.list.noActiveCases', 'لا توجد حالات نشطة.')}</p>
+          {patientId && <Button onClick={() => setShowNewCaseForm(true)} className="bg-violet-600 hover:bg-violet-500 text-white">{t('obgyn.fertility.btn.openNewCaseSimple', 'فتح ملف عقم جديد')}</Button>}
         </div>
       ) : null}
     </div>

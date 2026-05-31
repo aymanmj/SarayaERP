@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { apiClient } from '../api/apiClient';
 import { toast } from 'sonner';
 
@@ -43,13 +44,7 @@ type OrderSet = {
   _count?: { items: number };
 };
 
-const ITEM_TYPE_LABELS: Record<OrderSetItemType, string> = {
-  LAB: '🧪 مختبر',
-  RADIOLOGY: '📡 أشعة',
-  MEDICATION: '💊 دواء',
-  PROCEDURE: '🔧 إجراء',
-  NURSING: '👩‍⚕️ تمريض',
-};
+
 
 const ITEM_TYPE_COLORS: Record<OrderSetItemType, string> = {
   LAB: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
@@ -59,21 +54,35 @@ const ITEM_TYPE_COLORS: Record<OrderSetItemType, string> = {
   NURSING: 'bg-pink-500/20 text-pink-300 border-pink-500/30',
 };
 
-const PRIORITY_LABELS: Record<string, string> = {
-  STAT: '🔴 طارئ',
-  URGENT: '🟠 عاجل',
-  ROUTINE: '🟢 عادي',
-};
 
-const STATUS_META: Record<OrderSetStatus, { label: string; className: string }> = {
-  DRAFT: { label: 'مسودة', className: 'bg-amber-500/15 text-amber-300 border-amber-500/30' },
-  IN_REVIEW: { label: 'قيد المراجعة', className: 'bg-sky-500/15 text-sky-300 border-sky-500/30' },
-  APPROVED: { label: 'معتمد', className: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30' },
-  PUBLISHED: { label: 'منشور', className: 'bg-violet-500/15 text-violet-300 border-violet-500/30' },
-  RETIRED: { label: 'متقاعد', className: 'bg-slate-500/20 text-slate-300 border-slate-500/30' },
-};
+
+
 
 export default function OrderSetsPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.dir() === "rtl";
+
+  const ITEM_TYPE_LABELS: Record<OrderSetItemType, string> = {
+    LAB: '🧪 ' + t('orderSets.itemType.lab', 'مختبر'),
+    RADIOLOGY: '📡 ' + t('orderSets.itemType.radiology', 'أشعة'),
+    MEDICATION: '💊 ' + t('orderSets.itemType.medication', 'دواء'),
+    PROCEDURE: '🔧 ' + t('orderSets.itemType.procedure', 'إجراء'),
+    NURSING: '👩‍⚕️ ' + t('orderSets.itemType.nursing', 'تمريض'),
+  };
+
+  const PRIORITY_LABELS: Record<string, string> = {
+    STAT: '🔴 ' + t('orderSets.priority.stat', 'طارئ'),
+    URGENT: '🟠 ' + t('orderSets.priority.urgent', 'عاجل'),
+    ROUTINE: '🟢 ' + t('orderSets.priority.routine', 'عادي'),
+  };
+
+  const STATUS_META: Record<OrderSetStatus, { label: string; className: string }> = {
+    DRAFT: { label: t('orderSets.status.draft', 'مسودة'), className: 'bg-amber-500/15 text-amber-300 border-amber-500/30' },
+    IN_REVIEW: { label: t('orderSets.status.inReview', 'قيد المراجعة'), className: 'bg-sky-500/15 text-sky-300 border-sky-500/30' },
+    APPROVED: { label: t('orderSets.status.approved', 'معتمد'), className: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30' },
+    PUBLISHED: { label: t('orderSets.status.published', 'منشور'), className: 'bg-violet-500/15 text-violet-300 border-violet-500/30' },
+    RETIRED: { label: t('orderSets.status.retired', 'متقاعد'), className: 'bg-slate-500/20 text-slate-300 border-slate-500/30' },
+  };
   const [orderSets, setOrderSets] = useState<OrderSet[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedSet, setSelectedSet] = useState<OrderSet | null>(null);
@@ -146,7 +155,7 @@ export default function OrderSetsPage() {
       setOrderSets(setsRes.data);
       setCategories(catsRes.data);
     } catch {
-      toast.error('فشل تحميل مجموعات الطلبات');
+      toast.error(t('orderSets.toast.loadFailed', 'فشل تحميل مجموعات الطلبات'));
     } finally {
       setLoading(false);
     }
@@ -163,7 +172,7 @@ export default function OrderSetsPage() {
       setRadiologyStudies(radRes.data?.items || radRes.data || []);
       setProducts(prodRes.data?.items || prodRes.data || []);
     } catch {
-      toast.error('تعذر تحميل مصادر البناء');
+      toast.error(t('orderSets.toast.loadResourcesFailed', 'تعذر تحميل مصادر البناء'));
     }
   };
 
@@ -174,7 +183,7 @@ export default function OrderSetsPage() {
     if (item.product) return item.product.name;
     if (item.serviceItem) return item.serviceItem.name;
     if (item.nursingAction) return item.nursingAction;
-    return item._label || 'غير محدد';
+    return item._label || t('common.unspecified', 'غير محدد');
   };
 
   const resetBuilder = () => {
@@ -243,7 +252,7 @@ export default function OrderSetsPage() {
       item.nursingAction = newItemNursingAction;
       item._label = newItemNursingAction;
     } else {
-      toast.error('يرجى تحديد العنصر المطلوب');
+      toast.error(t('orderSets.toast.selectItemRequired', 'يرجى تحديد العنصر المطلوب'));
       return;
     }
 
@@ -259,11 +268,11 @@ export default function OrderSetsPage() {
 
   const saveOrderSet = async () => {
     if (!builderName.trim()) {
-      toast.error('يرجى إدخال اسم المجموعة');
+      toast.error(t('orderSets.toast.nameRequired', 'يرجى إدخال اسم المجموعة'));
       return;
     }
     if (builderItems.length === 0) {
-      toast.error('يرجى إضافة عنصر واحد على الأقل');
+      toast.error(t('orderSets.toast.minOneItem', 'يرجى إضافة عنصر واحد على الأقل'));
       return;
     }
 
@@ -283,20 +292,20 @@ export default function OrderSetsPage() {
       if (selectedSet) {
         response = await apiClient.put(`/order-sets/${selectedSet.id}`, payload);
         if (response.data?.id !== selectedSet.id) {
-          toast.success(`تم إنشاء مسودة جديدة v${response.data?.version ?? '?'} بدل تعديل النسخة الحالية مباشرة`);
+          toast.success(t('orderSets.toast.newDraftCreated', { version: response.data?.version ?? '؟', defaultValue: `تم إنشاء مسودة جديدة v${response.data?.version ?? '؟'} بدل تعديل النسخة الحالية مباشرة` }));
         } else {
-          toast.success('تم تحديث المسودة بنجاح');
+          toast.success(t('orderSets.toast.draftUpdated', 'تم تحديث المسودة بنجاح'));
         }
       } else {
         response = await apiClient.post('/order-sets', payload);
-        toast.success('تم إنشاء مسودة مجموعة الطلبات بنجاح');
+        toast.success(t('orderSets.toast.draftCreated', 'تم إنشاء مسودة مجموعة الطلبات بنجاح'));
       }
       setShowBuilder(false);
       resetBuilder();
       await loadData();
      
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'فشل حفظ مجموعة الطلبات');
+      toast.error(err?.response?.data?.message || t('orderSets.toast.saveFailed', 'فشل حفظ مجموعة الطلبات'));
     }
   };
 
@@ -307,28 +316,28 @@ export default function OrderSetsPage() {
       await apiClient.post(`/order-sets/${selectedSet.id}/execute`, {
         encounterId: selectedEncounter.id,
       });
-      toast.success(`تم تنفيذ "${selectedSet.nameAr || selectedSet.name}" بنجاح`, { duration: 8000 });
+      toast.success(t('orderSets.toast.executeSuccess', { name: selectedSet.nameAr || selectedSet.name, defaultValue: `تم تنفيذ "${selectedSet.nameAr || selectedSet.name}" بنجاح` }), { duration: 8000 });
       setShowExecuteModal(false);
       setSelectedEncounter(null);
       setEncounterSearchTerm('');
       setActiveEncounters([]);
      
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'فشل تنفيذ مجموعة الطلبات', { duration: 8000 });
+      toast.error(err?.response?.data?.message || t('orderSets.toast.executeFailed', 'فشل تنفيذ مجموعة الطلبات'), { duration: 8000 });
     } finally {
       setExecuting(false);
     }
   };
 
   const deleteOrderSet = async (id: number) => {
-    if (!confirm('هل تريد تعطيل هذه المجموعة؟')) return;
+    if (!confirm(t('orderSets.confirmDisable', 'هل تريد تعطيل هذه المجموعة؟'))) return;
     try {
       await apiClient.delete(`/order-sets/${id}`);
-      toast.success('تم تعطيل المجموعة');
+      toast.success(t('orderSets.toast.disabledSuccess', 'تم تعطيل المجموعة'));
       await loadData();
      
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'فشل تعطيل المجموعة');
+      toast.error(err?.response?.data?.message || t('orderSets.toast.disableFailed', 'فشل تعطيل المجموعة'));
     }
   };
 
@@ -337,7 +346,7 @@ export default function OrderSetsPage() {
     endpoint: 'submit-review' | 'approve' | 'reject' | 'publish' | 'retire',
     successMessage: string,
   ) => {
-    const notes = window.prompt('أضف ملاحظة مختصرة لهذا الإجراء (اختياري):', '') || undefined;
+    const notes = window.prompt(t('orderSets.promptWorkflowNotes', 'أضف ملاحظة مختصرة لهذا الإجراء (اختياري):'), '') || undefined;
     setWorkflowBusyId(set.id);
     try {
       await apiClient.post(`/order-sets/${set.id}/${endpoint}`, { notes });
@@ -345,17 +354,17 @@ export default function OrderSetsPage() {
       await loadData();
      
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'فشل تنفيذ الإجراء');
+      toast.error(err?.response?.data?.message || t('orderSets.toast.workflowActionFailed', 'فشل تنفيذ الإجراء'));
     } finally {
       setWorkflowBusyId(null);
     }
   };
 
   return (
-    <div className="flex flex-col h-full text-slate-100 p-6 space-y-6" dir="rtl">
+    <div className="flex flex-col h-full text-slate-100 p-6 space-y-6" dir={isRtl ? "rtl" : "ltr"}>
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold mb-1">مجموعات الطلبات الطبية</h1>
+          <h1 className="text-2xl font-bold mb-1">{t("orderSets.title", "مجموعات الطلبات الطبية")}</h1>
           <p className="text-sm text-slate-400">
             إنشاء، مراجعة، اعتماد، ونشر البروتوكولات السريرية قبل استخدامها تشغيليًا
           </p>
@@ -371,7 +380,7 @@ export default function OrderSetsPage() {
       <div className="flex gap-4 items-center flex-wrap">
         <input
           type="text"
-          placeholder="بحث بالاسم..."
+          placeholder={t("orderSets.placeholder.search", "بحث بالاسم...")}
           value={searchFilter}
           onChange={(e) => setSearchFilter(e.target.value)}
           className="bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-sm w-64 focus:border-sky-500 focus:outline-none transition-colors"
@@ -381,7 +390,7 @@ export default function OrderSetsPage() {
           onChange={(e) => setCategoryFilter(e.target.value)}
           className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"
         >
-          <option value="">جميع الفئات</option>
+          <option value="">{t("orderSets.filters.allCategories", "جميع الفئات")}</option>
           {categories.map((category) => (
             <option key={category} value={category}>{category}</option>
           ))}
@@ -391,12 +400,12 @@ export default function OrderSetsPage() {
           onChange={(e) => setStatusFilter(e.target.value)}
           className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"
         >
-          <option value="">كل الحالات</option>
+          <option value="">{t("orderSets.filters.allStatuses", "كل الحالات")}</option>
           {Object.entries(STATUS_META).map(([status, meta]) => (
             <option key={status} value={status}>{meta.label}</option>
           ))}
         </select>
-        <span className="text-sm text-slate-400">{orderSets.length} مجموعة</span>
+        <span className="text-sm text-slate-400">{t("orderSets.count", { count: orderSets.length, defaultValue: `${orderSets.length} مجموعة` })}</span>
       </div>
 
       {loading && (
@@ -437,7 +446,7 @@ export default function OrderSetsPage() {
                 <p className="text-xs text-slate-400 mb-3 line-clamp-2">{set.description}</p>
               )}
               {set.changeSummary && (
-                <p className="text-[11px] text-slate-500 mb-3 line-clamp-2">آخر تغيير: {set.changeSummary}</p>
+                <p className="text-[11px] text-slate-500 mb-3 line-clamp-2">{t("orderSets.lastChange", { summary: set.changeSummary, defaultValue: `آخر تغيير: ${set.changeSummary}` })}</p>
               )}
 
               <div className="flex flex-wrap gap-1.5 mb-4">
@@ -455,7 +464,7 @@ export default function OrderSetsPage() {
 
               <div className="flex items-center justify-between pt-3 border-t border-slate-700/50 gap-3">
                 <span className="text-[11px] text-slate-500">
-                  {set.items.length} عنصر • {set.createdBy.fullName}
+                  {t("orderSets.footerSummary", { count: set.items.length, creator: set.createdBy.fullName, defaultValue: `${set.items.length} عنصر • ${set.createdBy.fullName}` })}
                 </span>
                 <div className="flex gap-2 flex-wrap justify-end">
                   {set.status === 'PUBLISHED' && (
@@ -544,8 +553,8 @@ export default function OrderSetsPage() {
 
           {orderSets.length === 0 && (
             <div className="col-span-full text-center py-16 text-slate-400">
-              <p className="text-xl mb-2">لا توجد مجموعات طلبات</p>
-              <p className="text-sm">ابدأ بإنشاء أول مسودة ثم مررها عبر الاعتماد والنشر</p>
+              <p className="text-xl mb-2">{t("orderSets.empty", "لا توجد مجموعات طلبات")}</p>
+              <p className="text-sm">{t("orderSets.emptyHint", "ابدأ بإنشاء أول مسودة ثم مررها عبر الاعتماد والنشر")}</p>
             </div>
           )}
         </div>
@@ -556,14 +565,10 @@ export default function OrderSetsPage() {
           <div className="bg-slate-900 border-b border-slate-800 px-6 py-4 flex items-center justify-between shadow-sm shrink-0">
             <div>
               <h2 className="text-xl font-black text-white">
-                {selectedSet ? 'إدارة إصدار مجموعة الطلبات' : 'بناء مجموعة طلبات جديدة'}
+                {selectedSet ? t('orderSets.builder.editTitle', 'إدارة إصدار مجموعة الطلبات') : t('orderSets.builder.newTitle', 'بناء مجموعة طلبات جديدة')}
               </h2>
               <p className="text-xs text-slate-400 mt-1">
-                {selectedSet
-                  ? selectedSet.status === 'DRAFT'
-                    ? 'يمكنك تعديل هذه المسودة مباشرة قبل إرسالها للمراجعة'
-                    : `سيتم إنشاء مسودة جديدة من الإصدار الحالي v${selectedSet.version} بدل تعديل النسخة الحالية مباشرة`
-                  : 'قم ببناء بروتوكول متكامل يضم التحاليل، الأشعة، الأدوية وغيرها قبل اعتماده ونشره'}
+                {selectedSet ? (selectedSet.status === 'DRAFT' ? t('orderSets.builder.draftHint', 'يمكنك تعديل هذه المسودة مباشرة قبل إرسالها للمراجعة') : t('orderSets.builder.versionHint', { version: selectedSet.version, defaultValue: `سيتم إنشاء مسودة جديدة من الإصدار الحالي v${selectedSet.version} بدل تعديل النسخة الحالية مباشرة` })) : t('orderSets.builder.newHint', 'قم ببناء بروتوكول متكامل يضم التحاليل، الأشعة، الأدوية وغيرها قبل اعتماده ونشره')}
               </p>
             </div>
             <div className="flex gap-3">
@@ -593,7 +598,7 @@ export default function OrderSetsPage() {
               </h3>
               <div className="space-y-5">
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 mb-1.5">الاسم الإنجليزي (EN)</label>
+                  <label className="block text-xs font-bold text-slate-400 mb-1.5">{t("orderSets.builder.nameEn", "الاسم الإنجليزي (EN)")}</label>
                   <input
                     value={builderName}
                     onChange={(e) => setBuilderName(e.target.value)}
@@ -602,7 +607,7 @@ export default function OrderSetsPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 mb-1.5">الاسم العربي (AR)</label>
+                  <label className="block text-xs font-bold text-slate-400 mb-1.5">{t("orderSets.builder.nameAr", "الاسم العربي (AR)")}</label>
                   <input
                     value={builderNameAr}
                     onChange={(e) => setBuilderNameAr(e.target.value)}
@@ -612,7 +617,7 @@ export default function OrderSetsPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-slate-400 mb-1.5">الفئة التصنيفية</label>
+                    <label className="block text-xs font-bold text-slate-400 mb-1.5">{t("orderSets.builder.category", "الفئة التصنيفية")}</label>
                     <input
                       value={builderCategory}
                       onChange={(e) => setBuilderCategory(e.target.value)}
@@ -621,7 +626,7 @@ export default function OrderSetsPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-400 mb-1.5">التخصص</label>
+                    <label className="block text-xs font-bold text-slate-400 mb-1.5">{t("common.specialty", "التخصص")}</label>
                     <input
                       value={builderSpecialty}
                       onChange={(e) => setBuilderSpecialty(e.target.value)}
@@ -631,23 +636,23 @@ export default function OrderSetsPage() {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 mb-1.5">وصف البروتوكول</label>
+                  <label className="block text-xs font-bold text-slate-400 mb-1.5">{t("orderSets.builder.description", "وصف البروتوكول")}</label>
                   <textarea
                     value={builderDescription}
                     onChange={(e) => setBuilderDescription(e.target.value)}
                     rows={4}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm focus:border-sky-500 transition-all outline-none resize-none"
-                    placeholder="وصف مبسط للحالات المستهدفة..."
+                    placeholder={t("orderSets.builder.descPlaceholder", "وصف مبسط للحالات المستهدفة...")}
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 mb-1.5">ملخص التغيير</label>
+                  <label className="block text-xs font-bold text-slate-400 mb-1.5">{t("orderSets.builder.changeSummary", "ملخص التغيير")}</label>
                   <textarea
                     value={builderChangeSummary}
                     onChange={(e) => setBuilderChangeSummary(e.target.value)}
                     rows={3}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm focus:border-sky-500 transition-all outline-none resize-none"
-                    placeholder="ما الذي تغير في هذه النسخة؟"
+                    placeholder={t("orderSets.builder.changeSummaryPlaceholder", "ما الذي تغير في هذه النسخة؟")}
                   />
                 </div>
               </div>
@@ -663,14 +668,14 @@ export default function OrderSetsPage() {
                     عناصر البروتوكول
                   </h3>
                   <span className="px-3 py-1 bg-slate-800 border border-slate-700 rounded-full text-xs font-mono">
-                    {builderItems.length} عنصر
+                    {t("orderSets.itemsCount", { count: builderItems.length, defaultValue: `${builderItems.length} عنصر` })}
                   </span>
                 </div>
 
                 <div className="bg-slate-900 border border-slate-700/50 rounded-2xl p-4 shadow-lg flex flex-col lg:flex-row gap-4 items-end">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 flex-1 w-full">
                     <div>
-                      <label className="block text-xs font-bold text-slate-400 mb-1.5">النوع</label>
+                      <label className="block text-xs font-bold text-slate-400 mb-1.5">{t("common.type", "النوع")}</label>
                       <select
                         value={newItemType}
                         onChange={(e) => {
@@ -685,13 +690,13 @@ export default function OrderSetsPage() {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-slate-400 mb-1.5">العنصر من الدليل الطبي</label>
+                      <label className="block text-xs font-bold text-slate-400 mb-1.5">{t("orderSets.builder.catalogItem", "العنصر من الدليل الطبي")}</label>
                       {newItemType === 'NURSING' ? (
                         <input
                           value={newItemNursingAction}
                           onChange={(e) => setNewItemNursingAction(e.target.value)}
                           className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-sky-500"
-                          placeholder="اكتب إجراء تمريضيًا..."
+                          placeholder={t("orderSets.builder.nursingPlaceholder", "اكتب إجراء تمريضيًا...")}
                         />
                       ) : (
                         <select
@@ -699,7 +704,7 @@ export default function OrderSetsPage() {
                           onChange={(e) => setNewItemRefId(e.target.value)}
                           className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-sky-500"
                         >
-                          <option value="">-- اختر عنصرًا --</option>
+                          <option value="">-- {t("orderSets.builder.selectItem", "اختر عنصرًا")} --</option>
                           {newItemType === 'LAB' && labTests.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
                           {newItemType === 'RADIOLOGY' && radiologyStudies.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
                           {newItemType === 'MEDICATION' && products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -707,7 +712,7 @@ export default function OrderSetsPage() {
                       )}
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-slate-400 mb-1.5">الأولوية</label>
+                      <label className="block text-xs font-bold text-slate-400 mb-1.5">{t("common.priority", "الأولوية")}</label>
                       <select
                         value={newItemPriority}
                         onChange={(e) => setNewItemPriority(e.target.value)}
@@ -721,12 +726,12 @@ export default function OrderSetsPage() {
                   </div>
 
                   <div className="w-full lg:w-48 xl:w-64">
-                    <label className="block text-xs font-bold text-slate-400 mb-1.5">ملاحظات التنفيذ</label>
+                    <label className="block text-xs font-bold text-slate-400 mb-1.5">{t("orderSets.builder.instructions", "ملاحظات التنفيذ")}</label>
                     <input
                       value={newItemInstructions}
                       onChange={(e) => setNewItemInstructions(e.target.value)}
                       className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-sky-500"
-                      placeholder="اختياري..."
+                      placeholder={t("common.optional", "اختياري...")}
                     />
                   </div>
 
@@ -773,8 +778,8 @@ export default function OrderSetsPage() {
                 {builderItems.length === 0 && (
                   <div className="h-full flex flex-col items-center justify-center text-slate-500 py-20">
                     <div className="text-5xl mb-4 opacity-50">📋</div>
-                    <p className="text-lg font-bold">مساحة عمل خالية</p>
-                    <p className="text-sm max-w-sm text-center mt-2">أضف عناصر المختبر أو الأشعة أو الأدوية لبناء المسودة الحالية</p>
+                    <p className="text-lg font-bold">{t("orderSets.builder.emptyWorkspace", "مساحة عمل خالية")}</p>
+                    <p className="text-sm max-w-sm text-center mt-2">{t("orderSets.builder.emptyWorkspaceHint", "أضف عناصر المختبر أو الأشعة أو الأدوية لبناء المسودة الحالية")}</p>
                   </div>
                 )}
               </div>
@@ -788,7 +793,7 @@ export default function OrderSetsPage() {
           <div className="bg-slate-900 border border-slate-700/60 rounded-3xl p-6 md:p-8 w-full max-w-lg shadow-[0_0_50px_-12px_rgba(14,165,233,0.15)] relative overflow-hidden">
             <div className="absolute top-0 right-0 w-32 h-32 bg-sky-500/10 rounded-full blur-3xl -mx-10 -my-10" />
 
-            <h3 className="text-2xl font-black mb-2 text-white">تنفيذ: {selectedSet.nameAr || selectedSet.name}</h3>
+            <h3 className="text-2xl font-black mb-2 text-white">{t("orderSets.execute.title", { name: selectedSet.nameAr || selectedSet.name, defaultValue: `تنفيذ: ${selectedSet.nameAr || selectedSet.name}` })}</h3>
             <p className="text-sm text-slate-400 mb-6">
               سيتم إصدار {selectedSet.items.length} طلب من النسخة المنشورة v{selectedSet.version}
             </p>

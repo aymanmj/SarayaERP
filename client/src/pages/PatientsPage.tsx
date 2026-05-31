@@ -232,7 +232,7 @@ export function PatientsPage() {
           gender: prev.gender || gp.gender,
           identityType: prev.identityType || gp.identityType || "PERSONAL_ID",
         }));
-        toast.info(`✨ تم العثور على المريض في الشبكة الوطنية: ${gp.fullName}`);
+        toast.info(t("patients.mpi.foundInNational", "✨ تم العثور على المريض في الشبكة الوطنية: {{name}}", { name: gp.fullName }));
       }
     } catch {
       // Silent fail - network search is optional
@@ -256,7 +256,7 @@ export function PatientsPage() {
   };
 
   const handleSoftDelete = async (p: Patient) => {
-    if (!confirm(`${t("patients.confirmArchive")} "${p.fullName}"؟`)) return;
+    if (!confirm(`${t("patients.confirmArchive")} "${p.fullName}"${isRtl ? "؟" : "?"}`)) return;
     deleteMutation.mutate(p.id);
   };
 

@@ -1,6 +1,7 @@
 // src/components/encounter/AllergiesPane.tsx
 
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { apiClient } from "../../api/apiClient";
 import { toast } from "sonner";
 
@@ -14,12 +15,6 @@ type Allergy = {
   createdAt: string;
 };
 
-const SEVERITY_LABELS: Record<Severity, string> = {
-  MILD: "خفيفة",
-  MODERATE: "متوسطة",
-  SEVERE: "شديدة/خطيرة",
-};
-
 const SEVERITY_COLORS: Record<Severity, string> = {
   MILD: "bg-yellow-500/10 text-yellow-400 border-yellow-500/20",
   MODERATE: "bg-orange-500/10 text-orange-400 border-orange-500/20",
@@ -27,6 +22,14 @@ const SEVERITY_COLORS: Record<Severity, string> = {
 };
 
 export function AllergiesPane({ patientId }: { patientId: number }) {
+  const { t } = useTranslation();
+
+  const SEVERITY_LABELS: Record<Severity, string> = {
+    MILD: t("problems.severity.mild", "خفيفة"),
+    MODERATE: t("problems.severity.moderate", "متوسطة"),
+    SEVERE: t("problems.severity.severe", "شديدة/خطيرة"),
+  };
+
   const [allergies, setAllergies] = useState<Allergy[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -45,7 +48,7 @@ export function AllergiesPane({ patientId }: { patientId: number }) {
       setAllergies(res.data);
     } catch (err) {
       console.error(err);
-      toast.error("فشل تحميل سجل الحساسية.");
+      toast.error(t("allergies.toast.loadFailed", "فشل تحميل سجل الحساسية."));
     } finally {
       setLoading(false);
     }
@@ -67,28 +70,28 @@ export function AllergiesPane({ patientId }: { patientId: number }) {
         severity,
         reaction: reaction || undefined,
       });
-      toast.success("تم إضافة الحساسية بنجاح.");
+      toast.success(t("allergies.toast.added", "تم إضافة الحساسية بنجاح."));
       setAllergen("");
       setReaction("");
       setSeverity("MODERATE");
       loadAllergies();
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err: any) {
-      toast.error("فشل الحفظ.");
+      toast.error(t("common.saveFailed", "فشل الحفظ."));
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm("هل أنت متأكد من حذف هذا السجل؟")) return;
+    if (!confirm(t("allergies.confirmDelete", "هل أنت متأكد من حذف هذا السجل؟"))) return;
     try {
       await apiClient.delete(`/patients/allergies/${id}`);
-      toast.success("تم الحذف.");
+      toast.success(t("common.deleted", "تم الحذف."));
       loadAllergies();
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
-      toast.error("فشل الحذف.");
+      toast.error(t("common.deleteFailed", "فشل الحذف."));
     }
   };
 
@@ -97,7 +100,7 @@ export function AllergiesPane({ patientId }: { patientId: number }) {
       {/* Form */}
       <div className="bg-rose-950/20 border border-rose-900/30 p-4 rounded-2xl">
         <h3 className="text-sm font-bold text-rose-300 mb-3 flex items-center gap-2">
-          <span>⚠️</span> تسجيل حساسية جديدة
+          <span>⚠️</span> {t("allergies.newTitle", "تسجيل حساسية جديدة")}
         </h3>
 
         <form onSubmit={handleAdd} className="flex flex-col gap-3">
@@ -108,7 +111,7 @@ export function AllergiesPane({ patientId }: { patientId: number }) {
               </label>
               <input
                 className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:border-rose-500 outline-none"
-                placeholder="مثال: Penicillin, Eggs..."
+                placeholder={t("allergies.placeholder.allergen", "مثال: Penicillin, Eggs...")}
                 value={allergen}
                 onChange={(e) => setAllergen(e.target.value)}
                 required
@@ -124,9 +127,9 @@ export function AllergiesPane({ patientId }: { patientId: number }) {
                 value={severity}
                 onChange={(e) => setSeverity(e.target.value as Severity)}
               >
-                <option value="MILD">خفيفة (Mild)</option>
-                <option value="MODERATE">متوسطة (Moderate)</option>
-                <option value="SEVERE">خطيرة (Severe)</option>
+                <option value="MILD">{t("allergies.severity.mild", "خفيفة (Mild)")}</option>
+                <option value="MODERATE">{t("allergies.severity.moderate", "متوسطة (Moderate)")}</option>
+                <option value="SEVERE">{t("allergies.severity.severe", "خطيرة (Severe)")}</option>
               </select>
             </div>
           </div>
@@ -137,7 +140,7 @@ export function AllergiesPane({ patientId }: { patientId: number }) {
             </label>
             <input
               className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:border-rose-500 outline-none"
-              placeholder="مثال: طفح جلدي، ضيق تنفس..."
+              placeholder={t("allergies.placeholder.reaction", "مثال: طفح جلدي، ضيق تنفس...")}
               value={reaction}
               onChange={(e) => setReaction(e.target.value)}
             />
@@ -148,7 +151,7 @@ export function AllergiesPane({ patientId }: { patientId: number }) {
             disabled={submitting}
             className="self-end px-6 py-2 bg-rose-700 hover:bg-rose-600 text-white rounded-xl text-xs font-bold shadow-lg disabled:opacity-50"
           >
-            {submitting ? "جاري الحفظ..." : "إضافة للتحذيرات"}
+            {submitting ? t("common.saving", "جاري الحفظ...") : t("allergies.addBtn", "إضافة للتحذيرات")}
           </button>
         </form>
       </div>
@@ -167,7 +170,7 @@ export function AllergiesPane({ patientId }: { patientId: number }) {
 
         {!loading && allergies.length === 0 && (
           <div className="text-center py-6 border border-dashed border-slate-800 rounded-2xl text-slate-500 text-xs">
-            لا توجد حساسيات مسجلة لهذا المريض.
+            {t("allergies.empty", "لا توجد حساسيات مسجلة لهذا المريض.")}
           </div>
         )}
 

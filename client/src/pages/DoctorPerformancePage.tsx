@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "../api/apiClient";
 import {
@@ -43,6 +44,8 @@ const CHART_COLORS = [
 ];
 
 export default function DoctorPerformancePage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.dir() === "rtl";
   // Date filters
   const today = new Date();
   const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
@@ -83,12 +86,12 @@ export default function DoctorPerformancePage() {
   }));
 
   const sortLabel: Record<SortKey, string> = {
-    totalEncounters: "الحالات",
-    totalAdmissions: "الإيواء",
-    totalSurgeries: "العمليات",
-    totalRevenue: "الإيرادات",
-    doctorCommission: "حصة الطبيب",
-    avgConsultationMins: "متوسط الاستشارة",
+    totalEncounters: t("doctorPerformance.sort.encounters", "الحالات"),
+    totalAdmissions: t("doctorPerformance.sort.admissions", "الإيواء"),
+    totalSurgeries: t("doctorPerformance.sort.surgeries", "العمليات"),
+    totalRevenue: t("doctorPerformance.sort.revenue", "الإيرادات"),
+    doctorCommission: t("doctorPerformance.sort.commission", "حصة الطبيب"),
+    avgConsultationMins: t("doctorPerformance.sort.avgConsultation", "متوسط الاستشارة"),
   };
 
   // Quick date presets
@@ -117,15 +120,15 @@ export default function DoctorPerformancePage() {
   const summary = data?.summary;
 
   return (
-    <div className="flex flex-col gap-6 text-slate-100" dir="rtl">
+    <div className="flex flex-col gap-6 text-slate-100" dir={isRtl ? "rtl" : "ltr"}>
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-3xl font-black text-white tracking-tight">
-            📊 تقرير أداء الأطباء
+            📊 {t("doctorPerformance.title", "تقرير أداء الأطباء")}
           </h1>
           <p className="text-sm text-slate-400 mt-1">
-            تحليل شامل لإنتاجية وأداء الطاقم الطبي حسب الفترة الزمنية
+            {t("doctorPerformance.subtitle", "تحليل شامل لإنتاجية وأداء الطاقم الطبي حسب الفترة الزمنية")}
           </p>
         </div>
       </div>
@@ -133,7 +136,7 @@ export default function DoctorPerformancePage() {
       {/* Date Filters */}
       <div className="flex flex-wrap items-center gap-3 bg-slate-900/50 border border-slate-800 rounded-2xl p-4">
         <div className="flex items-center gap-2">
-          <label className="text-xs text-slate-500 font-bold">من:</label>
+          <label className="text-xs text-slate-500 font-bold">{t("common.from", "من:")}</label>
           <input
             type="date"
             className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-sky-500"
@@ -142,7 +145,7 @@ export default function DoctorPerformancePage() {
           />
         </div>
         <div className="flex items-center gap-2">
-          <label className="text-xs text-slate-500 font-bold">إلى:</label>
+          <label className="text-xs text-slate-500 font-bold">{t("common.to", "إلى:")}</label>
           <input
             type="date"
             className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-sky-500"
@@ -152,10 +155,10 @@ export default function DoctorPerformancePage() {
         </div>
         <div className="flex gap-1.5 mr-auto">
           {([
-            ["today", "اليوم"],
-            ["week", "أسبوع"],
-            ["month", "شهر"],
-            ["year", "سنة"],
+            ["today", t("common.today", "اليوم")],
+            ["week", t("common.week", "أسبوع")],
+            ["month", t("common.month", "شهر")],
+            ["year", t("common.year", "سنة")],
           ] as const).map(([key, label]) => (
             <button
               key={key}
@@ -170,7 +173,7 @@ export default function DoctorPerformancePage() {
 
       {isLoading ? (
         <div className="text-center py-20 text-slate-500 animate-pulse text-lg">
-          جارِ تحليل البيانات...
+          {t("common.analyzing", "جارِ تحليل البيانات...")}
         </div>
       ) : (
         <>
@@ -178,28 +181,28 @@ export default function DoctorPerformancePage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
               {
-                label: "إجمالي الحالات",
+                label: t("doctorPerformance.kpis.totalEncounters", "إجمالي الحالات"),
                 value: summary?.totalEncounters || 0,
                 icon: "👥",
                 color: "from-sky-500/20 to-sky-900/10 border-sky-800/40",
                 textColor: "text-sky-400",
               },
               {
-                label: "الإيرادات المُولّدة",
+                label: t("doctorPerformance.kpis.totalRevenue", "الإيرادات المُولّدة"),
                 value: `${((summary?.totalRevenue || 0) / 1000).toFixed(1)}K`,
                 icon: "💰",
                 color: "from-emerald-500/20 to-emerald-900/10 border-emerald-800/40",
                 textColor: "text-emerald-400",
               },
               {
-                label: "العمليات الجراحية",
+                label: t("doctorPerformance.kpis.totalSurgeries", "العمليات الجراحية"),
                 value: summary?.totalSurgeries || 0,
                 icon: "🔪",
                 color: "from-purple-500/20 to-purple-900/10 border-purple-800/40",
                 textColor: "text-purple-400",
               },
               {
-                label: "الأطباء النشطين",
+                label: t("doctorPerformance.kpis.activeDoctors", "الأطباء النشطين"),
                 value: summary?.activeDoctors || 0,
                 icon: "🩺",
                 color: "from-amber-500/20 to-amber-900/10 border-amber-800/40",
@@ -229,7 +232,7 @@ export default function DoctorPerformancePage() {
             <div className="xl:col-span-2 bg-slate-900/50 border border-slate-800 rounded-2xl p-5">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-sm font-bold text-slate-300">
-                  📊 مقارنة الأطباء — {sortLabel[sortKey]}
+                  📊 {t("doctorPerformance.chart.compare", "مقارنة الأطباء")} — {sortLabel[sortKey]}
                 </h3>
                 <select
                   className="bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-[11px] text-slate-400 outline-none"
@@ -268,7 +271,7 @@ export default function DoctorPerformancePage() {
                       }}
                       formatter={(value: number) => [
                         sortKey === "totalRevenue"
-                          ? `${value.toLocaleString()} د.ل`
+                          ? `${value.toLocaleString()} ${t("common.currency", "د.ل")}`
                           : sortKey === "avgConsultationMins"
                           ? `${value} دقيقة`
                           : value,
@@ -291,7 +294,7 @@ export default function DoctorPerformancePage() {
                 </ResponsiveContainer>
               ) : (
                 <div className="text-center py-16 text-slate-600">
-                  لا توجد بيانات في الفترة المحددة
+                  {t("common.noData", "لا توجد بيانات في الفترة المحددة")}
                 </div>
               )}
             </div>
@@ -302,45 +305,45 @@ export default function DoctorPerformancePage() {
                 <table className="w-full text-sm text-right">
                   <thead className="bg-slate-950/60 text-slate-500">
                     <tr className="text-[10px] uppercase tracking-widest border-b border-slate-800">
-                      <th className="px-4 py-3 font-bold">#</th>
-                      <th className="px-4 py-3 font-bold min-w-[140px]">الطبيب</th>
-                      <th className="px-4 py-3 font-bold">التخصص</th>
+                      <th className="px-4 py-3 font-bold">{t("common.number", "#")}</th>
+                      <th className="px-4 py-3 font-bold min-w-[140px]">{t("common.doctor", "الطبيب")}</th>
+                      <th className="px-4 py-3 font-bold">{t("common.specialty", "التخصص")}</th>
                       <th
                         className="px-4 py-3 font-bold cursor-pointer hover:text-sky-400 transition"
                         onClick={() => handleSort("totalEncounters")}
                       >
-                        الحالات {sortKey === "totalEncounters" ? (sortAsc ? "↑" : "↓") : ""}
+                        {t("doctorPerformance.table.encounters", t("doctorPerformance.sort.encounters", "الحالات"))} {sortKey === "totalEncounters" ? (sortAsc ? "↑" : "↓") : ""}
                       </th>
                       <th
                         className="px-4 py-3 font-bold cursor-pointer hover:text-sky-400 transition"
                         onClick={() => handleSort("totalAdmissions")}
                       >
-                        الإيواء {sortKey === "totalAdmissions" ? (sortAsc ? "↑" : "↓") : ""}
+                        {t("doctorPerformance.table.admissions", t("doctorPerformance.sort.admissions", "الإيواء"))} {sortKey === "totalAdmissions" ? (sortAsc ? "↑" : "↓") : ""}
                       </th>
                       <th
                         className="px-4 py-3 font-bold cursor-pointer hover:text-sky-400 transition"
                         onClick={() => handleSort("totalSurgeries")}
                       >
-                        العمليات {sortKey === "totalSurgeries" ? (sortAsc ? "↑" : "↓") : ""}
+                        {t("doctorPerformance.table.surgeries", t("doctorPerformance.sort.surgeries", "العمليات"))} {sortKey === "totalSurgeries" ? (sortAsc ? "↑" : "↓") : ""}
                       </th>
                       <th
                         className="px-4 py-3 font-bold cursor-pointer hover:text-sky-400 transition"
                         onClick={() => handleSort("totalRevenue")}
                       >
-                        الإيرادات {sortKey === "totalRevenue" ? (sortAsc ? "↑" : "↓") : ""}
+                        {t("doctorPerformance.table.revenue", t("doctorPerformance.sort.revenue", "الإيرادات"))} {sortKey === "totalRevenue" ? (sortAsc ? "↑" : "↓") : ""}
                       </th>
-                      <th className="px-4 py-3 font-bold">نسبة العمولة</th>
+                      <th className="px-4 py-3 font-bold">{t("doctorPerformance.table.commissionRate", "نسبة العمولة")}</th>
                       <th
                         className="px-4 py-3 font-bold cursor-pointer hover:text-sky-400 transition"
                         onClick={() => handleSort("doctorCommission")}
                       >
-                        حصة الطبيب {sortKey === "doctorCommission" ? (sortAsc ? "↑" : "↓") : ""}
+                        {t("doctorPerformance.table.doctorCommission", t("doctorPerformance.sort.commission", "حصة الطبيب"))} {sortKey === "doctorCommission" ? (sortAsc ? "↑" : "↓") : ""}
                       </th>
                       <th
                         className="px-4 py-3 font-bold cursor-pointer hover:text-sky-400 transition"
                         onClick={() => handleSort("avgConsultationMins")}
                       >
-                        متوسط الاستشارة {sortKey === "avgConsultationMins" ? (sortAsc ? "↑" : "↓") : ""}
+                        {t("doctorPerformance.table.avgConsultation", t("doctorPerformance.sort.avgConsultation", "متوسط الاستشارة"))} {sortKey === "avgConsultationMins" ? (sortAsc ? "↑" : "↓") : ""}
                       </th>
                     </tr>
                   </thead>
@@ -348,7 +351,7 @@ export default function DoctorPerformancePage() {
                     {sortedDoctors.length === 0 ? (
                       <tr>
                         <td colSpan={8} className="text-center py-12 text-slate-600">
-                          لا توجد بيانات في الفترة المحددة
+                          {t("common.noData", "لا توجد بيانات في الفترة المحددة")}
                         </td>
                       </tr>
                     ) : (
@@ -388,14 +391,14 @@ export default function DoctorPerformancePage() {
                             {doc.totalSurgeries}
                           </td>
                           <td className="px-4 py-3 text-center font-mono text-xs text-emerald-400">
-                            {doc.totalRevenue.toLocaleString()} <span className="text-slate-600">د.ل</span>
+                            {doc.totalRevenue.toLocaleString()} <span className="text-slate-600">{t("common.currency", "د.ل")}</span>
                           </td>
                           <td className="px-4 py-3 text-center font-mono text-xs text-slate-400">
                             {doc.commissionRate > 0 ? `${doc.commissionRate}%` : "—"}
                           </td>
                           <td className="px-4 py-3 text-center font-mono text-xs text-cyan-400">
                             {doc.doctorCommission > 0
-                              ? <>{doc.doctorCommission.toLocaleString()} <span className="text-slate-600">د.ل</span></>
+                              ? <>{doc.doctorCommission.toLocaleString()} <span className="text-slate-600">{t("common.currency", "د.ل")}</span></>
                               : "—"}
                           </td>
                           <td className="px-4 py-3 text-center font-mono text-xs text-amber-400">

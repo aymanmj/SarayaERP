@@ -1,6 +1,7 @@
 // src/components/encounter/DiagnosisPane.tsx
 
 import { useEffect, useState, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { apiClient } from "../../api/apiClient";
 import { toast } from "sonner";
 import { SmartCombobox } from "../ui/SmartCombobox"; // ✅ التأكد من الاستيراد
@@ -23,6 +24,7 @@ type EncounterDiagnosis = {
 };
 
 export function DiagnosisPane({ encounterId }: { encounterId: number }) {
+  const { t } = useTranslation();
   const [diagnoses, setDiagnoses] = useState<EncounterDiagnosis[]>([]);
   const [selectedCode, setSelectedCode] = useState<DiagnosisCode | null>(null);
 
@@ -40,7 +42,7 @@ export function DiagnosisPane({ encounterId }: { encounterId: number }) {
       setDiagnoses(res.data);
     } catch (err) {
       console.error(err);
-      toast.error("فشل تحميل التشخيصات");
+      toast.error(t("diagnosis.toast.loadFailed", "فشل تحميل التشخيصات"));
     }
   }, [encounterId]);
 
@@ -80,7 +82,7 @@ export function DiagnosisPane({ encounterId }: { encounterId: number }) {
         type,
         note: note || undefined,
       });
-      toast.success("تم إضافة التشخيص");
+      toast.success(t("diagnosis.toast.added", "تم إضافة التشخيص"));
 
       // Reset Form
       setSelectedCode(null);
@@ -88,19 +90,19 @@ export function DiagnosisPane({ encounterId }: { encounterId: number }) {
       loadDiagnoses();
     } catch (err) {
       console.error(err);
-      toast.error("فشل الإضافة");
+      toast.error(t("diagnosis.toast.addFailed", "فشل الإضافة"));
     }
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm("هل أنت متأكد من حذف هذا التشخيص؟")) return;
+    if (!confirm(t("diagnosis.confirmDelete", "هل أنت متأكد من حذف هذا التشخيص؟"))) return;
     try {
       await apiClient.delete(`/diagnosis/${id}`);
-      toast.success("تم الحذف");
+      toast.success(t("common.deleted", "تم الحذف"));
       loadDiagnoses();
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
-      toast.error("فشل الحذف");
+      toast.error(t("common.deleteFailed", "فشل الحذف"));
     }
   };
 
@@ -109,14 +111,14 @@ export function DiagnosisPane({ encounterId }: { encounterId: number }) {
       {/* منطقة البحث والإضافة */}
       <div className="bg-slate-900/60 border border-slate-700 p-5 rounded-2xl relative shadow-sm transition-all hover:border-slate-600">
         <h3 className="text-sm font-semibold text-slate-200 mb-4 flex items-center gap-2">
-          🔎 إضافة تشخيص (ICD-10)
+          🔎 {t("diagnosis.addTitle", "إضافة تشخيص (ICD-10)")}
         </h3>
 
         {!selectedCode ? (
           <div className="w-full">
             {/* ✅ استخدام المكون الذكي */}
             <SmartCombobox
-              placeholder="ابحث عن المرض (الاسم أو الكود)... مثال: Diabetes, E11"
+              placeholder={t("diagnosis.searchPlaceholder", "ابحث عن المرض (الاسم أو الكود)... مثال: Diabetes, E11")}
               onSearch={searchDiagnosis}
               onSelect={handleSelect}
             />
@@ -152,14 +154,14 @@ export function DiagnosisPane({ encounterId }: { encounterId: number }) {
                  
                 onChange={(e) => setType(e.target.value as any)}
               >
-                <option value="PRIMARY">رئيسي</option>
-                <option value="SECONDARY">ثانوي</option>
-                <option value="RULE_OUT">اشتباه</option>
+                <option value="PRIMARY">{t("diagnosis.type.primary", "رئيسي")}</option>
+                <option value="SECONDARY">{t("diagnosis.type.secondary", "ثانوي")}</option>
+                <option value="RULE_OUT">{t("diagnosis.type.ruleOut", "اشتباه")}</option>
               </select>
 
               <input
                 className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-xs outline-none focus:border-emerald-500"
-                placeholder="ملاحظات إضافية (اختياري)"
+                placeholder={t("common.notesOptional", "ملاحظات إضافية (اختياري)")}
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleAdd()}
@@ -180,7 +182,7 @@ export function DiagnosisPane({ encounterId }: { encounterId: number }) {
       <div className="space-y-2">
         {diagnoses.length === 0 && (
           <div className="text-center text-xs text-slate-500 py-6 border border-dashed border-slate-800 rounded-2xl">
-            لا توجد تشخيصات مسجلة بعد. ابدأ بالبحث أعلاه.
+            {t("diagnosis.empty", "لا توجد تشخيصات مسجلة بعد. ابدأ بالبحث أعلاه.")}
           </div>
         )}
 
@@ -228,7 +230,7 @@ export function DiagnosisPane({ encounterId }: { encounterId: number }) {
             <button
               onClick={() => handleDelete(d.id)}
               className="text-slate-600 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all p-2 hover:bg-rose-900/20 rounded-lg"
-              title="حذف التشخيص"
+              title={t("diagnosis.deleteTitle", "حذف التشخيص")}
             >
               🗑️
             </button>
@@ -320,7 +322,7 @@ export function DiagnosisPane({ encounterId }: { encounterId: number }) {
 //         type,
 //         note: note || undefined,
 //       });
-//       toast.success("تم إضافة التشخيص");
+//       toast.success(t("diagnosis.toast.added", "تم إضافة التشخيص"));
 //       // Reset
 //       setQuery("");
 //       setResults([]);
@@ -329,19 +331,19 @@ export function DiagnosisPane({ encounterId }: { encounterId: number }) {
 //       loadDiagnoses();
 //     } catch (err) {
 //       console.error(err);
-//       toast.error("فشل الإضافة");
+//       toast.error(t("diagnosis.toast.addFailed", "فشل الإضافة"));
 //     }
 //   };
 
 //   const handleDelete = async (id: number) => {
-//     if (!confirm("هل أنت متأكد من حذف هذا التشخيص؟")) return;
+//     if (!confirm(t("diagnosis.confirmDelete", "هل أنت متأكد من حذف هذا التشخيص؟"))) return;
 //     try {
 //       await apiClient.delete(`/diagnosis/${id}`);
-//       toast.success("تم الحذف");
+//       toast.success(t("common.deleted", "تم الحذف"));
 //       loadDiagnoses();
 //     } catch (err) {
 //       console.error(err);
-//       toast.error("فشل الحذف");
+//       toast.error(t("common.deleteFailed", "فشل الحذف"));
 //     }
 //   };
 
@@ -431,7 +433,7 @@ export function DiagnosisPane({ encounterId }: { encounterId: number }) {
 //               </select>
 //               <input
 //                 className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs outline-none focus:border-emerald-500"
-//                 placeholder="ملاحظات إضافية (اختياري)"
+//                 placeholder={t("common.notesOptional", "ملاحظات إضافية (اختياري)")}
 //                 value={note}
 //                 onChange={(e) => setNote(e.target.value)}
 //               />
@@ -497,7 +499,7 @@ export function DiagnosisPane({ encounterId }: { encounterId: number }) {
 //             <button
 //               onClick={() => handleDelete(d.id)}
 //               className="text-slate-600 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all p-2 hover:bg-rose-900/20 rounded-lg"
-//               title="حذف التشخيص"
+//               title={t("diagnosis.deleteTitle", "حذف التشخيص")}
 //             >
 //               🗑️
 //             </button>
@@ -589,7 +591,7 @@ export function DiagnosisPane({ encounterId }: { encounterId: number }) {
 //         type,
 //         note: note || undefined,
 //       });
-//       toast.success("تم إضافة التشخيص");
+//       toast.success(t("diagnosis.toast.added", "تم إضافة التشخيص"));
 //       // Reset
 //       setQuery("");
 //       setResults([]);
@@ -598,19 +600,19 @@ export function DiagnosisPane({ encounterId }: { encounterId: number }) {
 //       loadDiagnoses();
 //     } catch (err) {
 //       console.error(err);
-//       toast.error("فشل الإضافة");
+//       toast.error(t("diagnosis.toast.addFailed", "فشل الإضافة"));
 //     }
 //   };
 
 //   const handleDelete = async (id: number) => {
-//     if (!confirm("هل أنت متأكد من حذف هذا التشخيص؟")) return;
+//     if (!confirm(t("diagnosis.confirmDelete", "هل أنت متأكد من حذف هذا التشخيص؟"))) return;
 //     try {
 //       await apiClient.delete(`/diagnosis/${id}`);
-//       toast.success("تم الحذف");
+//       toast.success(t("common.deleted", "تم الحذف"));
 //       loadDiagnoses();
 //     } catch (err) {
 //       console.error(err);
-//       toast.error("فشل الحذف");
+//       toast.error(t("common.deleteFailed", "فشل الحذف"));
 //     }
 //   };
 
@@ -700,7 +702,7 @@ export function DiagnosisPane({ encounterId }: { encounterId: number }) {
 //               </select>
 //               <input
 //                 className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs outline-none focus:border-emerald-500"
-//                 placeholder="ملاحظات إضافية (اختياري)"
+//                 placeholder={t("common.notesOptional", "ملاحظات إضافية (اختياري)")}
 //                 value={note}
 //                 onChange={(e) => setNote(e.target.value)}
 //               />
@@ -766,7 +768,7 @@ export function DiagnosisPane({ encounterId }: { encounterId: number }) {
 //             <button
 //               onClick={() => handleDelete(d.id)}
 //               className="text-slate-600 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all p-2 hover:bg-rose-900/20 rounded-lg"
-//               title="حذف التشخيص"
+//               title={t("diagnosis.deleteTitle", "حذف التشخيص")}
 //             >
 //               🗑️
 //             </button>

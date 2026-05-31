@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { apiClient } from '../api/apiClient';
 import { toast } from 'sonner';
 
@@ -67,15 +68,20 @@ const PHASE_COLORS: Record<string, string> = {
   Discharge: 'bg-violet-500/20 text-violet-300 border-violet-500/40',
 };
 
-const STATUS_META: Record<ClinicalContentStatus, { label: string; className: string }> = {
-  DRAFT: { label: 'مسودة', className: 'bg-amber-500/15 text-amber-300 border-amber-500/30' },
-  IN_REVIEW: { label: 'قيد المراجعة', className: 'bg-sky-500/15 text-sky-300 border-sky-500/30' },
-  APPROVED: { label: 'معتمد', className: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30' },
-  PUBLISHED: { label: 'منشور', className: 'bg-violet-500/15 text-violet-300 border-violet-500/30' },
-  RETIRED: { label: 'متقاعد', className: 'bg-slate-500/20 text-slate-300 border-slate-500/30' },
-};
+
 
 export default function ClinicalPathwaysPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.dir() === "rtl";
+
+  const STATUS_META: Record<ClinicalContentStatus, { label: string; className: string }> = {
+    DRAFT: { label: t('pathways.status.draft', 'مسودة'), className: 'bg-amber-500/15 text-amber-300 border-amber-500/30' },
+    IN_REVIEW: { label: t('pathways.status.inReview', 'قيد المراجعة'), className: 'bg-sky-500/15 text-sky-300 border-sky-500/30' },
+    APPROVED: { label: t('pathways.status.approved', 'معتمد'), className: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30' },
+    PUBLISHED: { label: t('pathways.status.published', 'منشور'), className: 'bg-violet-500/15 text-violet-300 border-violet-500/30' },
+    RETIRED: { label: t('pathways.status.retired', 'متقاعد'), className: 'bg-slate-500/20 text-slate-300 border-slate-500/30' },
+  };
+
   const [pathways, setPathways] = useState<ClinicalPathway[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'pathways' | 'enrollments'>('pathways');
@@ -137,7 +143,7 @@ export default function ClinicalPathwaysPage() {
       const res = await apiClient.get('/clinical-pathways', { params });
       setPathways(res.data);
     } catch {
-      toast.error('فشل تحميل المسارات العلاجية');
+      toast.error(t('pathways.toast.loadFailed', t('pathways.toast.loadFailed', t('pathways.toast.loadFailed', t('pathways.toast.loadFailed', 'فشل تحميل المسارات العلاجية')))));
     } finally {
       setLoading(false);
     }
@@ -221,11 +227,11 @@ export default function ClinicalPathwaysPage() {
 
   const savePathway = async () => {
     if (!bName.trim()) {
-      toast.error('يرجى إدخال اسم المسار العلاجي');
+      toast.error(t('pathways.toast.nameRequired', t('pathways.toast.nameRequired', t('pathways.toast.nameRequired', t('pathways.toast.nameRequired', 'يرجى إدخال اسم المسار العلاجي')))));
       return;
     }
     if (bSteps.length === 0) {
-      toast.error('يرجى إضافة خطوة واحدة على الأقل');
+      toast.error(t('pathways.toast.minOneStep', t('pathways.toast.minOneStep', t('pathways.toast.minOneStep', t('pathways.toast.minOneStep', 'يرجى إضافة خطوة واحدة على الأقل')))));
       return;
     }
 
@@ -291,7 +297,7 @@ export default function ClinicalPathwaysPage() {
     if (!confirm('هل تريد تعطيل هذا المسار العلاجي؟')) return;
     try {
       await apiClient.delete(`/clinical-pathways/${id}`);
-      toast.success('تم تعطيل المسار');
+      toast.success(t('pathways.toast.deleted', t('pathways.toast.deleted', t('pathways.toast.deleted', t('pathways.toast.deleted', 'تم تعطيل المسار')))));
       await loadData();
      
     } catch (err: any) {
@@ -333,7 +339,7 @@ export default function ClinicalPathwaysPage() {
   };
 
   return (
-    <div className="flex flex-col h-full text-slate-100 p-6 space-y-6" dir="rtl">
+    <div className="flex flex-col h-full text-slate-100 p-6 space-y-6" dir={isRtl ? "rtl" : "ltr"}>
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold mb-1">المسارات العلاجية</h1>
@@ -377,7 +383,7 @@ export default function ClinicalPathwaysPage() {
           onChange={(e) => setStatusFilter(e.target.value)}
           className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"
         >
-          <option value="">كل الحالات</option>
+          <option value="">{t("pathways.filters.allStatuses", "كل الحالات")}</option>
           {Object.entries(STATUS_META).map(([status, meta]) => (
             <option key={status} value={status}>{meta.label}</option>
           ))}
@@ -413,7 +419,7 @@ export default function ClinicalPathwaysPage() {
                   )}
                   {pathway.expectedLOS && (
                     <span className="px-3 py-1 bg-amber-500/20 text-amber-300 rounded-full text-xs border border-amber-500/30">
-                      🗓 {pathway.expectedLOS} يوم
+                      🗓 {pathway.expectedLOS} {t("common.day", "يوم")}
                     </span>
                   )}
                 </div>
@@ -619,7 +625,7 @@ export default function ClinicalPathwaysPage() {
 
                 <div className="bg-rose-900/10 border border-rose-500/20 rounded-2xl p-5">
                   <div className="mb-4">
-                    <label className="block text-xs font-bold text-slate-400 mb-1.5">التشخيص المستهدف</label>
+                    <label className="block text-xs font-bold text-slate-400 mb-1.5">{t("pathways.builder.targetDiagnosis", "التشخيص المستهدف")}</label>
                     <input
                       value={bDiagnosis}
                       onChange={(e) => setBDiagnosis(e.target.value)}
@@ -719,7 +725,7 @@ export default function ClinicalPathwaysPage() {
 
                         <div className="grid grid-cols-1 md:grid-cols-12 gap-5 ml-4 pl-4 border-l-2 border-slate-800">
                           <div className="md:col-span-2">
-                            <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase">اليوم</label>
+                            <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase">{t("common.day", "اليوم")}</label>
                             <input
                               type="number"
                               value={step.dayNumber}
@@ -729,7 +735,7 @@ export default function ClinicalPathwaysPage() {
                           </div>
 
                           <div className="md:col-span-4">
-                            <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase">المرحلة</label>
+                            <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase">{t("common.phase", "المرحلة")}</label>
                             <select
                               value={step.phase}
                               onChange={(e) => updateStep(idx, 'phase', e.target.value)}
@@ -812,7 +818,7 @@ export default function ClinicalPathwaysPage() {
               )}
               {selectedPathway.expectedLOS && (
                 <span className="px-3 py-1 bg-amber-500/20 text-amber-300 rounded-full text-xs border border-amber-500/30">
-                  🗓 مدة الإقامة المتوقعة: {selectedPathway.expectedLOS} يوم
+                  🗓 مدة الإقامة المتوقعة: {selectedPathway.expectedLOS} {t("common.day", "يوم")}
                 </span>
               )}
             </div>

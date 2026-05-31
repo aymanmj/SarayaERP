@@ -1,8 +1,11 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 export default function TestPrintPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.dir() === "rtl";
   return (
-    <div id="print-container" className="min-h-screen bg-gray-100 p-8">
+    <div id="print-container" className="min-h-screen bg-gray-100 p-8" dir={isRtl ? "rtl" : "ltr"}>
       <h1 className="text-2xl font-bold mb-4">Test Print Page</h1>
       <p>This is a test to see if content appears in print preview.</p>
       <div className="bg-white p-4 rounded shadow">

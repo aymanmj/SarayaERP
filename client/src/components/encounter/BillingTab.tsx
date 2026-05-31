@@ -1,6 +1,7 @@
 // src/components/encounter/BillingTab.tsx
 
 import { useEffect, useState, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { apiClient } from "../../api/apiClient";
 import { toast } from "sonner";
 import { HasPermission } from "../HasPermission";
@@ -79,6 +80,7 @@ function formatMoney(val: number | string | null | undefined) {
 }
 
 export function BillingTab({ encounterId, hospitalId }: BillingTabProps) {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [summary, setSummary] = useState<BillingSummary | null>(null);
   const [deletingChargeId, setDeletingChargeId] = useState<number | null>(null);
@@ -92,26 +94,26 @@ export function BillingTab({ encounterId, hospitalId }: BillingTabProps) {
       setSummary(res.data);
     } catch (err) {
       console.error(err);
-      toast.error("حدث خطأ أثناء تحميل بيانات الفوترة.");
+      toast.error(t("billing.toast.loadFailed", "حدث خطأ أثناء تحميل بيانات الفوترة."));
     } finally {
       setLoading(false);
     }
   };
 
   const handleDeleteCharge = async (chargeId: number) => {
-    if (!window.confirm("هل أنت متأكد من رغبتك في حذف هذا البند؟")) {
+    if (!window.confirm(t("billing.confirmDeleteCharge", "هل أنت متأكد من رغبتك في حذف هذا البند؟"))) {
       return;
     }
 
     setDeletingChargeId(chargeId);
     try {
       await apiClient.delete(`/billing/charges/${chargeId}`);
-      toast.success("تم حذف البند بنجاح.");
+      toast.success(t("billing.toast.chargeDeleted", "تم حذف البند بنجاح."));
       fetchSummary();
      
     } catch (err: any) {
       console.error(err);
-      const errMsg = err.response?.data?.message || "حدث خطأ أثناء حذف البند.";
+      const errMsg = err.response?.data?.message || t("billing.toast.deleteChargeFailed", "حدث خطأ أثناء حذف البند.");
       toast.error(errMsg);
     } finally {
       setDeletingChargeId(null);
@@ -219,7 +221,7 @@ export function BillingTab({ encounterId, hospitalId }: BillingTabProps) {
       {/* إشعار + رابط للخزينة */}
       <div className="flex items-center justify-between bg-slate-800/50 p-3 rounded-xl border border-slate-700">
         <div className="text-[11px] text-slate-400">
-          ℹ️ هذا الملخص للقراءة فقط. لإتمام الدفع أو إنشاء فاتورة، يرجى التوجه للخزينة.
+          ℹ️ {t("billing.readOnlyWarning", "هذا الملخص للقراءة فقط. لإتمام الدفع أو إنشاء فاتورة، يرجى التوجه للخزينة.")}
         </div>
         <a
           href="/cashier"
@@ -244,7 +246,7 @@ export function BillingTab({ encounterId, hospitalId }: BillingTabProps) {
 
         {(!summary || summary.charges.length === 0) && (
           <div className="py-4 text-center text-[11px] text-slate-500">
-            لا توجد بنود فوترة مسجلة لهذه الحالة حتى الآن.
+            {t("billing.noCharges", "لا توجد بنود فوترة مسجلة لهذه الحالة حتى الآن.")}
           </div>
         )}
 
@@ -253,13 +255,13 @@ export function BillingTab({ encounterId, hospitalId }: BillingTabProps) {
             <table className="w-full text-[11px] text-right border-separate border-spacing-y-1">
               <thead>
                 <tr className="text-slate-400">
-                  <th className="px-2 py-1 text-right">التاريخ</th>
-                  <th className="px-2 py-1 text-right">الخدمة</th>
-                  <th className="px-2 py-1 text-right">الكمية</th>
-                  <th className="px-2 py-1 text-right">السعر</th>
-                  <th className="px-2 py-1 text-right">الإجمالي</th>
-                  <th className="px-2 py-1 text-right">المصدر</th>
-                  <th className="px-2 py-1 text-right">الفاتورة</th>
+                  <th className="px-2 py-1 text-right">{t("common.date", "التاريخ")}</th>
+                  <th className="px-2 py-1 text-right">{t("billing.service", "الخدمة")}</th>
+                  <th className="px-2 py-1 text-right">{t("common.quantity", "الكمية")}</th>
+                  <th className="px-2 py-1 text-right">{t("common.price", "السعر")}</th>
+                  <th className="px-2 py-1 text-right">{t("common.total", "الإجمالي")}</th>
+                  <th className="px-2 py-1 text-right">{t("common.source", "المصدر")}</th>
+                  <th className="px-2 py-1 text-right">{t("billing.invoice", "الفاتورة")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -315,9 +317,9 @@ export function BillingTab({ encounterId, hospitalId }: BillingTabProps) {
                               onClick={() => handleDeleteCharge(c.id)}
                               disabled={deletingChargeId === c.id}
                               className="text-rose-500 hover:text-rose-400 font-bold hover:underline transition-colors px-1 py-0.5 rounded hover:bg-rose-950/20 disabled:opacity-50"
-                              title="حذف هذا البند"
+                              title={t("billing.deleteCharge", "حذف هذا البند")}
                             >
-                              {deletingChargeId === c.id ? "جاري الحذف..." : "❌ حذف"}
+                              {deletingChargeId === c.id ? t("common.deleting", "جاري الحذف...") : "❌ " + t("common.delete", "حذف")}
                             </button>
                           </HasPermission>
                         </div>
@@ -339,7 +341,7 @@ export function BillingTab({ encounterId, hospitalId }: BillingTabProps) {
 
         {(!summary || summary.invoices.length === 0) && (
           <div className="py-3 text-center text-[11px] text-slate-500">
-            لم يتم إنشاء أي فاتورة بعد لهذه الحالة.
+            {t("billing.noInvoices", "لم يتم إنشاء أي فاتورة بعد لهذه الحالة.")}
           </div>
         )}
 
@@ -353,13 +355,13 @@ export function BillingTab({ encounterId, hospitalId }: BillingTabProps) {
                 {/* رأس الفاتورة */}
                 <div className="flex flex-wrap justify-between gap-2 mb-2 pb-2 border-b border-slate-800/50">
                   <div className="flex items-center gap-2">
-                    <span className="text-slate-400">فاتورة: </span>
+                    <span className="text-slate-400">{t("billing.invoiceLabel", "فاتورة: ")}</span>
                     <span className="text-emerald-300 font-mono text-sm">
                       #{inv.id}
                     </span>
                   </div>
                   <div>
-                    <span className="text-slate-400">التاريخ: </span>
+                    <span className="text-slate-400">{t("common.dateLabel", "التاريخ: ")}</span>
                     <span className="text-slate-100">
                       {formatDateTime(inv.createdAt)}
                     </span>
@@ -442,7 +444,7 @@ export function BillingTab({ encounterId, hospitalId }: BillingTabProps) {
                   </div>
                 ) : (
                   <div className="text-[10px] text-slate-500 italic mt-1">
-                    لا توجد مدفوعات مسجلة.
+                    {t("billing.noPayments", "لا توجد مدفوعات مسجلة.")}
                   </div>
                 )}
               </div>

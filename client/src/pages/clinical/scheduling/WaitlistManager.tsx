@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import {
@@ -21,6 +22,8 @@ const PRIORITY_MAP: Record<string, number> = {
 };
 
 export default function WaitlistManager() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.dir() === "rtl";
   const { user } = useAuthStore();
   const hospitalId = user?.hospitalId || 1;
 
@@ -66,7 +69,7 @@ export default function WaitlistManager() {
       });
     },
     onSuccess: () => {
-      toast.success("تمت إضافة المريض لقائمة الانتظار.");
+      toast.success(t('waitlist.toast.addedSuccess', 'تمت إضافة المريض لقائمة الانتظار.'));
       setShowAddModal(false);
       setFoundPatient(null);
       setSearchQuery("");
@@ -77,7 +80,7 @@ export default function WaitlistManager() {
     },
      
     onError: (err: any) =>
-      toast.error(err.response?.data?.message || "فشل إضافة المريض لقائمة الانتظار."),
+      toast.error(err.response?.data?.message || t('waitlist.toast.addedFailed', 'فشل إضافة المريض لقائمة الانتظار.')),
   });
 
   const searchPatient = async () => {
@@ -89,13 +92,13 @@ export default function WaitlistManager() {
       );
       if (res.data.length > 0) {
         setFoundPatient(res.data[0]);
-        toast.success("تم العثور على المريض");
+        toast.success(t('common.patientFound', 'تم العثور على المريض'));
       } else {
-        toast.error("لم يتم العثور على المريض");
+        toast.error(t('common.patientNotFound', 'لم يتم العثور على المريض'));
         setFoundPatient(null);
       }
     } catch {
-      toast.error("خطأ في البحث");
+      toast.error(t('common.searchError', 'خطأ في البحث'));
       setFoundPatient(null);
     } finally {
       setIsSearching(false);
@@ -103,16 +106,16 @@ export default function WaitlistManager() {
   };
 
   const statusLabel = (status: string) => {
-    if (status === "NOTIFIED") return "تم الإشعار";
-    if (status === "BOOKED") return "تم الحجز";
-    if (status === "CANCELLED") return "ملغى";
-    return "قيد الانتظار";
+    if (status === "NOTIFIED") return t("waitlist.status.notified", "تم الإشعار");
+    if (status === "BOOKED") return t("waitlist.status.booked", "تم الحجز");
+    if (status === "CANCELLED") return t("waitlist.status.cancelled", "ملغى");
+    return t("waitlist.status.waiting", "قيد الانتظار");
   };
 
   const priorityLabel = (value: number) => {
-    if (value === 1) return "عاجل";
-    if (value === 2) return "عالي";
-    return "عادي";
+    if (value === 1) return t("waitlist.priority.urgent", "عاجل");
+    if (value === 2) return t("waitlist.priority.high", "عالي");
+    return t("waitlist.priority.normal", "عادي");
   };
 
   return (
@@ -150,7 +153,7 @@ export default function WaitlistManager() {
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-20 text-slate-400">
             <div className="w-12 h-12 rounded-full border-4 border-amber-500/30 border-t-amber-500 animate-spin mb-4"></div>
-            <p className="animate-pulse">جاري تحميل قائمة الانتظار...</p>
+            <p className="animate-pulse">{t("waitlist.loading", "جاري تحميل قائمة الانتظار...")}</p>
           </div>
         ) : waitlist.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-slate-400 bg-slate-900/50 rounded-xl border border-dashed border-slate-700">
@@ -238,7 +241,7 @@ export default function WaitlistManager() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
           <div className="bg-slate-900 border border-amber-500/50 rounded-2xl w-full max-w-md overflow-hidden shadow-[0_0_40px_-10px_rgba(245,158,11,0.2)]">
             <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
-              <h3 className="text-lg font-bold text-amber-400">إضافة مريض لقائمة الانتظار</h3>
+              <h3 className="text-lg font-bold text-amber-400">{t("waitlist.add.title", "إضافة مريض لقائمة الانتظار")}</h3>
             </div>
             <div className="p-6 space-y-4">
               <div>
@@ -249,7 +252,7 @@ export default function WaitlistManager() {
                   <input
                     type="text"
                     className="flex-1 bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm focus:border-amber-500 outline-none"
-                    placeholder="الاسم، رقم الملف، أو الهاتف..."
+                    placeholder={t("waitlist.placeholder.search", "الاسم، رقم الملف، أو الهاتف...")}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && searchPatient()}
@@ -281,7 +284,7 @@ export default function WaitlistManager() {
                   value={resourceId}
                   onChange={(e) => setResourceId(e.target.value)}
                 >
-                  <option value="">-- اختر المورد --</option>
+                  <option value="">-- {t("scheduler.builder.selectItem", "اختر المورد")} --</option>
                   { }
                   {resources.map((resource: any) => (
                     <option key={resource.id} value={resource.id}>
@@ -305,9 +308,9 @@ export default function WaitlistManager() {
                   value={priority}
                   onChange={(e) => setPriority(e.target.value)}
                 >
-                  <option value="NORMAL">عادي</option>
-                  <option value="HIGH">عالي</option>
-                  <option value="URGENT">عاجل</option>
+                  <option value="NORMAL">{t("waitlist.priority.normal", "عادي")}</option>
+                  <option value="HIGH">{t("waitlist.priority.high", "عالي")}</option>
+                  <option value="URGENT">{t("waitlist.priority.urgent", "عاجل")}</option>
                 </select>
               </div>
 

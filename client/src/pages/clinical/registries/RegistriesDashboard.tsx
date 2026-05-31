@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -57,6 +58,8 @@ const createEmptyRegistryForm = (): RegistryFormState => ({
 });
 
 export default function RegistriesDashboard() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.dir() === "rtl";
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const [activePatientId, setActivePatientId] = useState<number | null>(null);
@@ -99,21 +102,21 @@ export default function RegistriesDashboard() {
   const triggerMembershipMutation = useMutation({
     mutationFn: clinicalServices.triggerMembershipEval,
     onSuccess: (data) =>
-      toast.success(`تم تقييم ${data.evaluated} مريض وإضافة ${data.added} مريض للسجلات`),
-    onError: () => toast.error("فشل تشغيل تقييم السجلات"),
+      toast.success(t('registries.toast.evalMembershipSuccess', { evaluated: data.evaluated, added: data.added, defaultValue: t('registries.toast.evalMembershipSuccess', { evaluated: data.evaluated, added: data.added, defaultValue: t('registries.toast.evalMembershipSuccess', { evaluated: data.evaluated, added: data.added, defaultValue: t('registries.toast.evalMembershipSuccess', { evaluated: data.evaluated, added: data.added, defaultValue: `تم تقييم ${data.evaluated} مريض وإضافة ${data.added} مريض للسجلات` }) }) }) })),
+    onError: () => toast.error(t('registries.toast.evalMembershipFailed', 'فشل تشغيل تقييم السجلات')),
   });
 
   const triggerGapsMutation = useMutation({
     mutationFn: clinicalServices.triggerGapsEval,
     onSuccess: (data) =>
-      toast.success(`تم تقييم ${data.evaluated} فجوة واكتشاف ${data.opened} فجوة رعاية جديدة`),
-    onError: () => toast.error("فشل تشغيل تقييم الفجوات"),
+      toast.success(t('registries.toast.evalGapsSuccess', { evaluated: data.evaluated, opened: data.opened, defaultValue: t('registries.toast.evalGapsSuccess', { evaluated: data.evaluated, opened: data.opened, defaultValue: t('registries.toast.evalGapsSuccess', { evaluated: data.evaluated, opened: data.opened, defaultValue: t('registries.toast.evalGapsSuccess', { evaluated: data.evaluated, opened: data.opened, defaultValue: `تم تقييم ${data.evaluated} فجوة واكتشاف ${data.opened} فجوة رعاية جديدة` }) }) }) })),
+    onError: () => toast.error(t('registries.toast.evalGapsFailed', 'فشل تشغيل تقييم الفجوات')),
   });
 
   const createRegistryMutation = useMutation({
     mutationFn: (payload: RegistryFormState) => clinicalServices.createRegistry(payload),
     onSuccess: () => {
-      toast.success("تم إنشاء السجل وقواعده بنجاح.");
+      toast.success(t('registries.toast.created', 'تم إنشاء السجل وقواعده بنجاح.'));
       setShowRegistryModal(false);
       setEditingRegistryId(null);
       setRegistryForm(createEmptyRegistryForm());
@@ -121,14 +124,14 @@ export default function RegistriesDashboard() {
     },
      
     onError: (err: any) =>
-      toast.error(err.response?.data?.message || "فشل إنشاء السجل."),
+      toast.error(err.response?.data?.message || t('registries.toast.createFailed', 'فشل إنشاء السجل.')),
   });
 
   const updateRegistryMutation = useMutation({
     mutationFn: (payload: RegistryFormState) =>
       clinicalServices.updateRegistry(editingRegistryId!, payload),
     onSuccess: () => {
-      toast.success("تم تحديث السجل وقواعده.");
+      toast.success(t('registries.toast.updated', 'تم تحديث السجل وقواعده.'));
       setShowRegistryModal(false);
       queryClient.invalidateQueries({ queryKey: ["clinical-registries"] });
       queryClient.invalidateQueries({
@@ -140,7 +143,7 @@ export default function RegistriesDashboard() {
     },
      
     onError: (err: any) =>
-      toast.error(err.response?.data?.message || "فشل تحديث السجل."),
+      toast.error(err.response?.data?.message || t('registries.toast.updateFailed', 'فشل تحديث السجل.')),
   });
 
   const openCreateRegistryModal = () => {
@@ -279,14 +282,14 @@ export default function RegistriesDashboard() {
         const patient = res.data[0];
         setFoundPatient(patient);
         setActivePatientId(patient.id);
-        toast.success("تم العثور على المريض");
+        toast.success(t('common.patientFound', 'تم العثور على المريض'));
       } else {
-        toast.error("لم يتم العثور على المريض");
+        toast.error(t('common.patientNotFound', 'لم يتم العثور على المريض'));
         setFoundPatient(null);
         setActivePatientId(null);
       }
     } catch {
-      toast.error("خطأ في البحث");
+      toast.error(t('common.searchError', 'خطأ في البحث'));
       setFoundPatient(null);
       setActivePatientId(null);
     } finally {

@@ -130,14 +130,14 @@ const getTabs = (t: any): {
   alert?: boolean;
   gender?: "MALE" | "FEMALE";
 }[] => [
-  { key: "VISITS", label: "التشخيص والزيارة", icon: "🩺" },
-  { key: "ALLERGIES", label: "الحساسية والمخاطر", icon: "⚠️", alert: true },
-  { key: "OBGYN", label: "النساء والولادة", icon: "🤰", gender: "FEMALE" },
-  { key: "ANDROLOGY", label: "أمراض الذكورة", icon: "🧬", gender: "MALE" },
-  { key: "LABS", label: "المختبر", icon: "🧪" },
-  { key: "RADIOLOGY", label: "الأشعة", icon: "☢️" },
-  { key: "PRESCRIPTIONS", label: "الأدوية", icon: "💊" },
-  { key: "BILLING", label: "الفوترة", icon: "💰" },
+  { key: "VISITS", label: t("encounter.tabs.visits", "التشخيص والزيارة"), icon: "🩺" },
+  { key: "ALLERGIES", label: t("encounter.tabs.allergies", "الحساسية والمخاطر"), icon: "⚠️", alert: true },
+  { key: "OBGYN", label: t("encounter.tabs.obgyn", "النساء والولادة"), icon: "🤰", gender: "FEMALE" },
+  { key: "ANDROLOGY", label: t("encounter.tabs.andrology", "أمراض الذكورة"), icon: "🧬", gender: "MALE" },
+  { key: "LABS", label: t("encounter.tabs.labs", "المختبر"), icon: "🧪" },
+  { key: "RADIOLOGY", label: t("encounter.tabs.radiology", "الأشعة"), icon: "☢️" },
+  { key: "PRESCRIPTIONS", label: t("encounter.tabs.prescriptions", "الأدوية"), icon: "💊" },
+  { key: "BILLING", label: t("encounter.tabs.billing", "الفوترة"), icon: "💰" },
 ];
 
 const tabPreloaders: Partial<Record<TabKey, () => Promise<unknown>>> = {
@@ -149,12 +149,14 @@ const tabPreloaders: Partial<Record<TabKey, () => Promise<unknown>>> = {
   OBGYN: loadObstetricHistoryCard,
 };
 
-function LazyPanelFallback({ label = "تحميل المحتوى..." }: { label?: string }) {
+function LazyPanelFallback({ label }: { label?: string }) {
+  const { t } = useTranslation();
+  const displayLabel = label || t("common.loading", "تحميل المحتوى...");
   return (
     <div className="min-h-[220px] rounded-2xl border border-slate-800 bg-slate-950/40 flex items-center justify-center text-sm text-slate-500">
       <div className="flex items-center gap-3">
         <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-700 border-t-sky-500" />
-        <span>{label}</span>
+        <span>{displayLabel}</span>
       </div>
     </div>
   );
@@ -187,7 +189,7 @@ function LegacyQuickSummaryCard({
   encounterId: number;
   status: EncounterStatus;
 }) {
-   
+  const { t } = useTranslation();
   const [vitals, setVitals] = useState<any[]>([]);
    
   const [diagnoses, setDiagnoses] = useState<any[]>([]);
@@ -214,7 +216,7 @@ function LegacyQuickSummaryCard({
       </h3>
       <div className="space-y-3 text-xs">
         <div className="flex justify-between">
-          <span className="text-slate-500">العلامات الحيوية:</span>
+          <span className="text-slate-500">{t("encounter.quickSummary.vitals", "العلامات الحيوية:")}</span>
           {latestVital ? (
             <span className="text-emerald-400 font-mono">
               {latestVital.bpSystolic &&
@@ -226,14 +228,14 @@ function LegacyQuickSummaryCard({
                 !latestVital.pulse &&
                 !latestVital.temperature &&
                 !latestVital.o2Sat &&
-                "مسجلة"}
+                t("encounter.quickSummary.recorded", "مسجلة")}
             </span>
           ) : (
-            <span className="text-red-400">لا توجد قراءات</span>
+            <span className="text-red-400">{t("encounter.quickSummary.noReadings", "لا توجد قراءات")}</span>
           )}
         </div>
         <div className="flex justify-between">
-          <span className="text-slate-500">التشخيص المبدئي:</span>
+          <span className="text-slate-500">{t("encounter.quickSummary.primaryDiagnosis", "التشخيص المبدئي:")}</span>
           {primaryDx ? (
             <span
               className="text-emerald-400 truncate max-w-[180px]"
@@ -244,11 +246,11 @@ function LegacyQuickSummaryCard({
                 primaryDx.diagnosisCode?.nameEn}
             </span>
           ) : (
-            <span className="text-red-400">غير متوفر</span>
+            <span className="text-red-400">{t("encounter.quickSummary.notAvailable", "غير متوفر")}</span>
           )}
         </div>
         <div className="flex justify-between">
-          <span className="text-slate-500">حالة الملف:</span>
+          <span className="text-slate-500">{t("encounter.quickSummary.fileStatus", "حالة الملف:")}</span>
           <span
             className={
               status === "OPEN"
@@ -259,10 +261,10 @@ function LegacyQuickSummaryCard({
             }
           >
             {status === "OPEN"
-              ? "🟢 مفتوح"
+              ? t("encounter.status.open", "🟢 مفتوح")
               : status === "CLOSED"
-                ? "🔒 مغلق"
-                : "❌ ملغي"}
+                ? t("encounter.status.closed", "🔒 مغلق")
+                : t("encounter.status.cancelled", "❌ ملغي")}
           </span>
         </div>
       </div>
@@ -272,7 +274,7 @@ function LegacyQuickSummaryCard({
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function LegacyQuickProtocolsWidget({ encounterId }: { encounterId: number }) {
-   
+  const { t } = useTranslation();
   const [orderSets, setOrderSets] = useState<any[]>([]);
    
   const [pathways, setPathways] = useState<any[]>([]);
@@ -293,33 +295,33 @@ function LegacyQuickProtocolsWidget({ encounterId }: { encounterId: number }) {
   const executeOrderSet = async (setId: number, name: string) => {
     if (
       !confirm(
-        `تأكيد تنفيذ بروتوكول "${name}" بجميع طلباته السريرية لهذه الحالة؟`,
+        t("encounter.protocols.confirmExecute", { name, defaultValue: `تأكيد تنفيذ بروتوكول "${name}" بجميع طلباته السريرية لهذه الحالة؟` }),
       )
     )
       return;
     setExecutingId(setId);
     try {
       await apiClient.post(`/order-sets/${setId}/execute`, { encounterId });
-      toast.success("تم الاعتماد وإرسال الطلبات بنجاح");
+      toast.success(t("encounter.protocols.executeSuccess", "تم الاعتماد وإرسال الطلبات بنجاح"));
        
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || "تعذر تنفيذ البروتوكول");
+      toast.error(err?.response?.data?.message || t("encounter.protocols.executeFailed", "تعذر تنفيذ البروتوكول"));
     } finally {
       setExecutingId(null);
     }
   };
 
   const enrollPathway = async (pathwayId: number, name: string) => {
-    if (!confirm(`تأكيد إدراج الحالة في المسار العلاجي "${name}"؟`)) return;
+    if (!confirm(t("encounter.protocols.confirmEnroll", { name, defaultValue: `تأكيد إدراج الحالة في المسار العلاجي "${name}"؟` }))) return;
     setEnrollingId(pathwayId);
     try {
       await apiClient.post(`/clinical-pathways/${pathwayId}/enroll`, {
         encounterId,
       });
-      toast.success("تم إدراج المريض وبدء المسار العلاجي");
+      toast.success(t("encounter.protocols.enrollSuccess", "تم إدراج المريض وبدء المسار العلاجي"));
        
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || "تعذر الإدراج في المسار");
+      toast.error(err?.response?.data?.message || t("encounter.protocols.enrollFailed", "تعذر الإدراج في المسار"));
     } finally {
       setEnrollingId(null);
     }
@@ -349,11 +351,11 @@ function LegacyQuickProtocolsWidget({ encounterId }: { encounterId: number }) {
                     {set.nameAr || set.name}
                   </div>
                   <span className="text-[9px] px-1.5 py-0.5 rounded border border-slate-700 text-slate-400">
-                    {set.category || "عام"}
+                    {set.category || t("encounter.protocols.general", "عام")}
                   </span>
                 </div>
                 <div className="text-[10px] text-slate-500 truncate max-w-[85%]">
-                  {set.description || "تنفيذ الإجراءات المرفقة تلقائياً"}
+                  {set.description || t("encounter.protocols.defaultOrderDesc", "تنفيذ الإجراءات المرفقة تلقائياً")}
                 </div>
 
                 <div className="absolute left-3 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -391,7 +393,7 @@ function LegacyQuickProtocolsWidget({ encounterId }: { encounterId: number }) {
                   </span>
                 </div>
                 <div className="text-[10px] text-slate-500 truncate max-w-[85%]">
-                  {pw.targetDiagnosis || "خطة علاجية مقسمة على الأيام"}
+                  {pw.targetDiagnosis || t("encounter.protocols.defaultPathwayDesc", "خطة علاجية مقسمة على الأيام")}
                 </div>
 
                 <div className="absolute left-3 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
