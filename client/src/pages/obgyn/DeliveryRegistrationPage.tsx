@@ -49,7 +49,7 @@ export default function DeliveryRegistrationPage() {
     try {
       const res = await apiClient.get(`/encounters/${id}`);
       setEncounter(res.data);
-    } catch (err) {
+    } catch (_err) {
       toast.error(t('obgyn.delivery.toast.loadEncounterError', 'فشل تحميل بيانات الزيارة'));
     }
   };
@@ -109,7 +109,7 @@ export default function DeliveryRegistrationPage() {
         await apiClient.post('/obgyn/deliveries', payload);
         toast.success(t('obgyn.delivery.toast.success', 'تم تسجيل الولادة بنجاح'));
         navigate(`/encounters/${encounterId}`);
-    } catch (err: any) {
+    } catch (_err: any) {
         toast.error(err.response?.data?.message || t('obgyn.delivery.toast.error', 'فشل تسجيل الولادة'));
     } finally {
         setLoading(false);

@@ -144,7 +144,7 @@ export default function TriageDashboardPage() {
     loadData();
     const interval = setInterval(loadData, 30000); // تحديث كل 30 ثانية
     return () => clearInterval(interval);
-  }, []);
+  }, [loadData]);
 
   const openAssessment = (p: ERPatient) => {
     setSelectedEncounter(p);

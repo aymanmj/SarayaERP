@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 import { apiClient as api } from '../../../api/apiClient';
 import { Activity, Wind, Droplets, BrainCircuit, PlusCircle } from 'lucide-react';
@@ -6,6 +7,8 @@ import { FlowsheetEntryModal } from './components/FlowsheetEntryModal';
 
 export const IcuFlowsheet = () => {
   const { encounterId } = useParams<{ encounterId: string }>();
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === 'ar';
    
   const [entries, setEntries] = useState<any[]>([]);
   const [ioBalance, setIoBalance] = useState({ totalIntake: 0, totalOutput: 0, balance: 0 });
@@ -48,23 +51,23 @@ export const IcuFlowsheet = () => {
   if (loading) return <div className="flex justify-center items-center h-[calc(100vh-200px)]"><Activity className="w-10 h-10 animate-spin text-sky-600" /></div>;
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6" dir="rtl">
+    <div className="p-6 max-w-7xl mx-auto space-y-6" dir={isRtl ? 'rtl' : 'ltr'}>
       
       {/* Header */}
       <div className="flex justify-between items-center bg-slate-900 p-6 rounded-2xl shadow-xl border border-slate-800">
         <div>
           <h1 className="text-2xl font-bold text-white flex items-center gap-3">
-            <Activity className="w-8 h-8 text-sky-400" /> السجل السريري (Flowsheet)
+            <Activity className="w-8 h-8 text-sky-400" /> {t('icu.flowsheet.title', 'السجل السريري (Flowsheet)')}
           </h1>
           <p className="text-slate-400 text-sm mt-2 flex items-center gap-2 flex-wrap">
-            <span className="text-white font-bold">{patientData?.patient?.fullName || `مريض #${encounterId}`}</span>
+            <span className="text-white font-bold">{patientData?.patient?.fullName || (t('icu.flowsheet.patientLabel', 'مريض') + ' #' + encounterId)}</span>
             {patientData?.patient?.mrn && <span className="text-slate-500 font-mono text-xs bg-slate-800 px-2 py-0.5 rounded border border-slate-700" dir="ltr">MRN: {patientData.patient.mrn}</span>}
-            {patientData?.bed && <span className="text-sky-400 text-xs bg-sky-500/10 px-2 py-0.5 rounded border border-sky-500/20">سرير {patientData.bed.bedNumber} · {patientData.bed.ward?.name}</span>}
+            {patientData?.bed && <span className="text-sky-400 text-xs bg-sky-500/10 px-2 py-0.5 rounded border border-sky-500/20">{t('icu.flowsheet.bed', 'سرير')} {patientData.bed.bedNumber} · {patientData.bed.ward?.name}</span>}
           </p>
         </div>
         <div className="flex items-center gap-6">
           <div className="text-center hidden md:block border-l border-slate-800 pl-6">
-             <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">توازن السوائل (I/O)</p>
+             <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">{t('icu.flowsheet.ioBalance', 'توازن السوائل (I/O)')}</p>
              <p className={`text-2xl font-black ${ioBalance.balance < 0 ? 'text-amber-500 drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]' : 'text-sky-400 drop-shadow-[0_0_8px_rgba(56,189,248,0.5)]'}`}>
                <span dir="ltr">{ioBalance.balance > 0 ? '+' : ''}{ioBalance.balance} ml</span>
              </p>
@@ -73,7 +76,7 @@ export const IcuFlowsheet = () => {
             onClick={() => setShowEntryModal(true)} 
             className="px-6 py-3 bg-sky-600 font-bold text-white rounded-xl hover:bg-sky-500 transition-colors flex items-center gap-2 shadow-lg shadow-sky-900/40"
           >
-            <PlusCircle className="w-5 h-5" /> إدراج قراءة جديدة
+            <PlusCircle className="w-5 h-5" /> {t('icu.flowsheet.newEntry', 'إدراج قراءة جديدة')}
           </button>
         </div>
       </div>
@@ -84,43 +87,43 @@ export const IcuFlowsheet = () => {
           onClick={() => setActiveTab('vitals')}
           className={`px-5 py-3 flex items-center gap-2 font-bold rounded-t-xl transition-colors ${activeTab === 'vitals' ? 'bg-slate-900 border-t border-l border-r border-slate-800 text-sky-400' : 'text-slate-500 hover:bg-slate-900/50 hover:text-slate-300'}`}
         >
-          <Activity className="w-4 h-4" /> العلامات الحيوية
+          <Activity className="w-4 h-4" /> {t('icu.flowsheet.tabs.vitals', 'العلامات الحيوية')}
         </button>
         <button 
           onClick={() => setActiveTab('io')}
           className={`px-5 py-3 flex items-center gap-2 font-bold rounded-t-xl transition-colors ${activeTab === 'io' ? 'bg-slate-900 border-t border-l border-r border-slate-800 text-blue-400' : 'text-slate-500 hover:bg-slate-900/50 hover:text-slate-300'}`}
         >
-          <Droplets className="w-4 h-4" /> توازن السوائل
+          <Droplets className="w-4 h-4" /> {t('icu.flowsheet.tabs.io', 'توازن السوائل')}
         </button>
         <button 
           onClick={() => setActiveTab('vent')}
           className={`px-5 py-3 flex items-center gap-2 font-bold rounded-t-xl transition-colors ${activeTab === 'vent' ? 'bg-slate-900 border-t border-l border-r border-slate-800 text-emerald-400' : 'text-slate-500 hover:bg-slate-900/50 hover:text-slate-300'}`}
         >
-          <Wind className="w-4 h-4" /> التنفس الصناعي
+          <Wind className="w-4 h-4" /> {t('icu.flowsheet.tabs.vent', 'التنفس الصناعي')}
         </button>
         <button 
           onClick={() => setActiveTab('neuro')}
           className={`px-5 py-3 flex items-center gap-2 font-bold rounded-t-xl transition-colors ${activeTab === 'neuro' ? 'bg-slate-900 border-t border-l border-r border-slate-800 text-purple-400' : 'text-slate-500 hover:bg-slate-900/50 hover:text-slate-300'}`}
         >
-          <BrainCircuit className="w-4 h-4" /> الأعصاب
+          <BrainCircuit className="w-4 h-4" /> {t('icu.flowsheet.tabs.neuro', 'الأعصاب')}
         </button>
       </div>
 
       {/* Grid Container */}
       <div className="bg-slate-900 rounded-b-xl rounded-tl-xl shadow-xl border border-slate-800 overflow-x-auto custom-scrollbar">
-        <table className="w-full text-right text-sm whitespace-nowrap">
+        <table className={`w-full ${isRtl ? 'text-right' : 'text-left'} text-sm whitespace-nowrap`}>
           <thead className="bg-slate-950 text-slate-300 font-bold sticky top-0 border-b border-slate-800">
             <tr>
-              <th className="p-4 w-40 bg-slate-950 sticky right-0 z-10 border-l border-slate-800 border-b border-slate-800 drop-shadow-md">المؤشر / الوقت</th>
+              <th className="p-4 w-40 bg-slate-950 sticky right-0 z-10 border-l border-slate-800 border-b border-slate-800 drop-shadow-md">{t('icu.flowsheet.indicator', 'المؤشر / الوقت')}</th>
               {entries.map((entry, idx) => (
                 <th key={idx} className="p-4 min-w-[120px] text-center border-l border-slate-800 border-b border-slate-800">
                   <div className="flex items-center justify-center flex-col gap-1">
-                    <span className="text-xs text-slate-500 font-bold">{new Date(entry.recordedAt).toLocaleDateString('ar-LY', { month: 'short', day: 'numeric' })}</span>
-                    <span className="text-sky-400 text-base drop-shadow-[0_0_8px_rgba(56,189,248,0.5)] bg-slate-900/50 px-3 py-1 rounded-lg border border-slate-800">{new Date(entry.recordedAt).toLocaleTimeString('ar-LY', {hour: '2-digit', minute:'2-digit'})}</span>
+                    <span className="text-xs text-slate-500 font-bold">{new Date(entry.recordedAt).toLocaleDateString(isRtl ? 'ar-LY' : 'en-US', { month: 'short', day: 'numeric' })}</span>
+                    <span className="text-sky-400 text-base drop-shadow-[0_0_8px_rgba(56,189,248,0.5)] bg-slate-900/50 px-3 py-1 rounded-lg border border-slate-800">{new Date(entry.recordedAt).toLocaleTimeString(isRtl ? 'ar-LY' : 'en-US', {hour: '2-digit', minute:'2-digit'})}</span>
                   </div>
                 </th>
               ))}
-              {entries.length === 0 && <th className="p-4 text-center text-slate-500 font-bold border-b border-slate-800">لا توجد قراءات حتى الآن</th>}
+              {entries.length === 0 && <th className="p-4 text-center text-slate-500 font-bold border-b border-slate-800">{t('icu.flowsheet.noEntries', 'لا توجد قراءات حتى الآن')}</th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800">
@@ -128,7 +131,7 @@ export const IcuFlowsheet = () => {
             {activeTab === 'vitals' && (
               <>
                 <tr className="hover:bg-slate-800/50 transition-colors">
-                  <td className="p-4 font-bold text-slate-300 bg-slate-950 sticky right-0 z-10 border-l border-slate-800">نبض القلب (HR)</td>
+                  <td className="p-4 font-bold text-slate-300 bg-slate-950 sticky right-0 z-10 border-l border-slate-800">{t('icu.flowsheet.vitals.heartRate', 'نبض القلب (HR)')}</td>
                   {entries.map((e, idx) => (
                     <td key={idx} className={`p-4 text-center border-l border-slate-800 font-bold text-lg ${e.heartRate < 60 || e.heartRate > 100 ? 'text-rose-400 bg-rose-950/20' : 'text-slate-300'}`}>
                       {e.heartRate || '-'}
@@ -137,7 +140,7 @@ export const IcuFlowsheet = () => {
                   {entries.length === 0 && <td></td>}
                 </tr>
                 <tr className="hover:bg-slate-800/50 transition-colors">
-                  <td className="p-4 font-bold text-slate-300 bg-slate-950 sticky right-0 z-10 border-l border-slate-800">ضغط الدم الانقباضي</td>
+                  <td className="p-4 font-bold text-slate-300 bg-slate-950 sticky right-0 z-10 border-l border-slate-800">{t('icu.flowsheet.vitals.bpSystolic', 'ضغط الدم الانقباضي')}</td>
                   {entries.map((e, idx) => (
                     <td key={idx} className={`p-4 text-center border-l border-slate-800 font-bold text-lg ${e.bpSystolic < 90 || e.bpSystolic > 140 ? 'text-amber-400 bg-amber-950/20' : 'text-slate-300'}`}>
                       {e.bpSystolic || '-'}
@@ -146,7 +149,7 @@ export const IcuFlowsheet = () => {
                   {entries.length === 0 && <td></td>}
                 </tr>
                 <tr className="hover:bg-slate-800/50 transition-colors">
-                  <td className="p-4 font-bold text-slate-300 bg-slate-950 sticky right-0 z-10 border-l border-slate-800">ضغط الدم الانبساطي</td>
+                  <td className="p-4 font-bold text-slate-300 bg-slate-950 sticky right-0 z-10 border-l border-slate-800">{t('icu.flowsheet.vitals.bpDiastolic', 'ضغط الدم الانبساطي')}</td>
                   {entries.map((e, idx) => (
                     <td key={idx} className="p-4 text-center border-l border-slate-800 font-bold text-lg text-slate-300">
                       {e.bpDiastolic || '-'}
@@ -155,7 +158,7 @@ export const IcuFlowsheet = () => {
                   {entries.length === 0 && <td></td>}
                 </tr>
                 <tr className="hover:bg-slate-800/50 transition-colors">
-                  <td className="p-4 font-bold text-slate-300 bg-slate-950 sticky right-0 z-10 border-l border-slate-800">الأكسجين (SpO2 %)</td>
+                  <td className="p-4 font-bold text-slate-300 bg-slate-950 sticky right-0 z-10 border-l border-slate-800">{t('icu.flowsheet.vitals.o2Sat', 'الأكسجين (SpO2 %)')}</td>
                   {entries.map((e, idx) => (
                     <td key={idx} className={`p-4 text-center border-l border-slate-800 font-bold text-lg ${e.o2Sat < 90 ? 'text-rose-400 bg-rose-950/20 drop-shadow-[0_0_8px_rgba(244,63,94,0.5)]' : 'text-sky-400'}`}>
                       {e.o2Sat || '-'}
@@ -164,7 +167,7 @@ export const IcuFlowsheet = () => {
                   {entries.length === 0 && <td></td>}
                 </tr>
                 <tr className="hover:bg-slate-800/50 transition-colors">
-                  <td className="p-4 font-bold text-slate-300 bg-slate-950 sticky right-0 z-10 border-l border-slate-800">الحرارة (Temp)</td>
+                  <td className="p-4 font-bold text-slate-300 bg-slate-950 sticky right-0 z-10 border-l border-slate-800">{t('icu.flowsheet.vitals.temperature', 'الحرارة (Temp)')}</td>
                   {entries.map((e, idx) => (
                     <td key={idx} className={`p-4 text-center border-l border-slate-800 font-bold text-lg ${e.temperature > 37.5 ? 'text-amber-400 bg-amber-950/20' : 'text-slate-300'}`}>
                       {e.temperature || '-'}
@@ -173,7 +176,7 @@ export const IcuFlowsheet = () => {
                   {entries.length === 0 && <td></td>}
                 </tr>
                 <tr className="hover:bg-slate-800/50 transition-colors">
-                  <td className="p-4 font-bold text-slate-300 bg-slate-950 sticky right-0 z-10 border-l border-slate-800">معدل التنفس (RR)</td>
+                  <td className="p-4 font-bold text-slate-300 bg-slate-950 sticky right-0 z-10 border-l border-slate-800">{t('icu.flowsheet.vitals.respRate', 'معدل التنفس (RR)')}</td>
                   {entries.map((e, idx) => (
                     <td key={idx} className="p-4 text-center border-l border-slate-800 font-bold text-lg text-slate-300">
                       {e.respRate || '-'}
@@ -187,10 +190,10 @@ export const IcuFlowsheet = () => {
             {activeTab === 'io' && (
               <>
                 <tr className="bg-sky-950/20">
-                  <td colSpan={entries.length + 1} className="p-3 px-5 text-sm font-bold text-sky-400 sticky right-0">المدخلات (Intake)</td>
+                  <td colSpan={entries.length + 1} className="p-3 px-5 text-sm font-bold text-sky-400 sticky right-0">{t('icu.flowsheet.io.intakeTitle', 'المدخلات (Intake)')}</td>
                 </tr>
                 <tr className="hover:bg-slate-800/50 transition-colors border-t border-slate-800">
-                  <td className="p-4 font-bold text-slate-400 bg-slate-950 sticky right-0 z-10 border-l border-slate-800 pr-10">النوع</td>
+                  <td className="p-4 font-bold text-slate-400 bg-slate-950 sticky right-0 z-10 border-l border-slate-800 pr-10">{t('icu.flowsheet.io.type', 'النوع')}</td>
                   {entries.map((e, idx) => (
                     <td key={idx} className="p-4 text-center border-l border-slate-800 text-slate-300">
                       {e.intakeType || '-'}
@@ -199,7 +202,7 @@ export const IcuFlowsheet = () => {
                   {entries.length === 0 && <td></td>}
                 </tr>
                 <tr className="hover:bg-slate-800/50 transition-colors">
-                  <td className="p-4 font-bold text-slate-400 bg-slate-950 sticky right-0 z-10 border-l border-slate-800 pr-10">الكمية (ml)</td>
+                  <td className="p-4 font-bold text-slate-400 bg-slate-950 sticky right-0 z-10 border-l border-slate-800 pr-10">{t('icu.flowsheet.io.amount', 'الكمية (ml)')}</td>
                   {entries.map((e, idx) => (
                     <td key={idx} className="p-4 text-center border-l border-slate-800 font-bold text-lg text-sky-400">
                       {e.intakeAmount || '-'}
@@ -209,10 +212,10 @@ export const IcuFlowsheet = () => {
                 </tr>
 
                 <tr className="bg-amber-950/20 border-t border-b border-slate-800">
-                   <td colSpan={entries.length + 1} className="p-3 px-5 text-sm font-bold text-amber-500 sticky right-0">المخرجات (Output)</td>
+                   <td colSpan={entries.length + 1} className="p-3 px-5 text-sm font-bold text-amber-500 sticky right-0">{t('icu.flowsheet.io.outputTitle', 'المخرجات (Output)')}</td>
                 </tr>
                 <tr className="hover:bg-slate-800/50 transition-colors">
-                  <td className="p-4 font-bold text-slate-400 bg-slate-950 sticky right-0 z-10 border-l border-slate-800 pr-10">النوع</td>
+                  <td className="p-4 font-bold text-slate-400 bg-slate-950 sticky right-0 z-10 border-l border-slate-800 pr-10">{t('icu.flowsheet.io.type', 'النوع')}</td>
                   {entries.map((e, idx) => (
                     <td key={idx} className="p-4 text-center border-l border-slate-800 text-slate-300">
                       {e.outputType || '-'}
@@ -221,7 +224,7 @@ export const IcuFlowsheet = () => {
                   {entries.length === 0 && <td></td>}
                 </tr>
                 <tr className="hover:bg-slate-800/50 transition-colors border-b-2 border-slate-800">
-                  <td className="p-4 font-bold text-slate-400 bg-slate-950 sticky right-0 z-10 border-l border-slate-800 pr-10">الكمية (ml)</td>
+                  <td className="p-4 font-bold text-slate-400 bg-slate-950 sticky right-0 z-10 border-l border-slate-800 pr-10">{t('icu.flowsheet.io.amount', 'الكمية (ml)')}</td>
                   {entries.map((e, idx) => (
                     <td key={idx} className="p-4 text-center border-l border-slate-800 font-bold text-lg text-amber-500">
                       {e.outputAmount || '-'}
@@ -235,7 +238,7 @@ export const IcuFlowsheet = () => {
             {activeTab === 'vent' && (
                <>
                 <tr className="hover:bg-slate-800/50 transition-colors">
-                  <td className="p-4 font-bold text-slate-300 bg-slate-950 sticky right-0 z-10 border-l border-slate-800">وضع التنفس (Mode)</td>
+                  <td className="p-4 font-bold text-slate-300 bg-slate-950 sticky right-0 z-10 border-l border-slate-800">{t('icu.flowsheet.vent.mode', 'وضع التنفس (Mode)')}</td>
                   {entries.map((e, idx) => (
                     <td key={idx} className="p-4 text-center border-l border-slate-800 font-bold text-lg text-emerald-400 uppercase tracking-wider">
                       {e.ventilatorLog?.mode || '-'}
@@ -267,7 +270,7 @@ export const IcuFlowsheet = () => {
             {activeTab === 'neuro' && (
               <>
                 <tr className="hover:bg-slate-800/50 transition-colors border-b-2 border-slate-800">
-                  <td className="p-4 font-bold text-slate-300 bg-slate-950 sticky right-0 z-10 border-l border-slate-800">مقياس الغيبوبة (GCS Score)</td>
+                  <td className="p-4 font-bold text-slate-300 bg-slate-950 sticky right-0 z-10 border-l border-slate-800">{t('icu.flowsheet.neuro.gcs', 'مقياس الغيبوبة (GCS Score)')}</td>
                   {entries.map((e, idx) => (
                     <td key={idx} className={`p-4 text-center border-l border-slate-800 font-bold text-lg ${e.gcsScore < 8 ? 'text-rose-400 drop-shadow-[0_0_8px_rgba(244,63,94,0.5)]' : 'text-purple-400 drop-shadow-[0_0_8px_rgba(192,132,252,0.5)]'}`}>
                       {e.gcsScore || '-'}
@@ -280,7 +283,7 @@ export const IcuFlowsheet = () => {
 
              {/* Bottom row for Notes across all tabs */}
              <tr className="bg-slate-950">
-               <td className="p-4 font-bold text-slate-500 sticky right-0 z-10 border-l border-slate-800">ملاحظات</td>
+               <td className="p-4 font-bold text-slate-500 sticky right-0 z-10 border-l border-slate-800">{t('icu.flowsheet.notes', 'ملاحظات')}</td>
                {entries.map((e, idx) => (
                  <td key={idx} className="p-4 text-xs font-medium text-slate-400 border-l border-slate-800 whitespace-pre-wrap leading-relaxed max-w-[200px]" title={e.notes}>
                    {e.notes || '-'}

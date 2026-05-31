@@ -68,7 +68,7 @@ export default function RadiologyWorklistPage() {
 
   useEffect(() => {
     load();
-  }, []);
+  }, [load]);
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const filtered = useMemo(() => {

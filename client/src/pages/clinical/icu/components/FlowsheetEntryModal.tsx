@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { apiClient } from '../../../../api/apiClient';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { X, Save, Activity, HeartPulse, Droplets, Wind, FileText } from 'lucide-react';
@@ -11,6 +12,8 @@ interface Props {
 }
 
 export const FlowsheetEntryModal = ({ isOpen, onClose, encounterId, onSuccess }: Props) => {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === 'ar';
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     shiftName: 'MORNING',
@@ -53,7 +56,7 @@ export const FlowsheetEntryModal = ({ isOpen, onClose, encounterId, onSuccess }:
       onSuccess();
     } catch (err) {
       console.error(err);
-      alert('Failed to save flowsheet entry');
+      alert(t('icu.flowsheetEntry.saveFailed', 'فشل حفظ القراءة'));
     } finally {
       setLoading(false);
     }
@@ -65,13 +68,13 @@ export const FlowsheetEntryModal = ({ isOpen, onClose, encounterId, onSuccess }:
   const labelCls = "block text-xs font-bold text-slate-400 mb-1.5";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4" dir="rtl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4" dir={isRtl ? 'rtl' : 'ltr'}>
       <div className="bg-slate-900 border border-slate-700 w-full max-w-4xl rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
 
         {/* Header */}
         <div className="flex justify-between items-center px-6 py-4 border-b border-slate-800 bg-slate-950 shrink-0">
           <h2 className="text-lg font-extrabold text-white flex items-center gap-2">
-            <Activity className="w-5 h-5 text-sky-400" /> New Clinical Charting Entry
+            <Activity className="w-5 h-5 text-sky-400" /> {t('icu.flowsheetEntry.title', 'إدراج قراءة سريرية جديدة')}
           </h2>
           <button onClick={onClose} className="p-2 text-slate-500 hover:text-white hover:bg-slate-800 rounded-xl transition">
             <X className="w-5 h-5" />
@@ -84,11 +87,11 @@ export const FlowsheetEntryModal = ({ isOpen, onClose, encounterId, onSuccess }:
 
             {/* Shift */}
             <div className="max-w-xs">
-              <label className={labelCls}>Shift Name</label>
+              <label className={labelCls}>{t('icu.flowsheetEntry.shift', 'الوردية')}</label>
               <select name="shiftName" value={formData.shiftName} onChange={handleChange} className={inputCls}>
-                <option value="MORNING">Morning (08:00 – 16:00)</option>
-                <option value="EVENING">Evening (16:00 – 00:00)</option>
-                <option value="NIGHT">Night (00:00 – 08:00)</option>
+                <option value="MORNING">{t('icu.flowsheetEntry.shiftMorning', 'صباحية (08:00 – 16:00)')}</option>
+                <option value="EVENING">{t('icu.flowsheetEntry.shiftEvening', 'مسائية (16:00 – 00:00)')}</option>
+                <option value="NIGHT">{t('icu.flowsheetEntry.shiftNight', 'ليلية (00:00 – 08:00)')}</option>
               </select>
             </div>
 
@@ -97,35 +100,35 @@ export const FlowsheetEntryModal = ({ isOpen, onClose, encounterId, onSuccess }:
             {/* Vital Signs */}
             <div>
               <h3 className="text-base font-extrabold text-white flex items-center gap-2 mb-4">
-                <HeartPulse className="w-5 h-5 text-rose-400" /> Vital Signs
+                <HeartPulse className="w-5 h-5 text-rose-400" /> {t('icu.flowsheetEntry.vitals.title', 'العلامات الحيوية')}
               </h3>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
                 <div>
-                  <label className={labelCls}>Heart Rate (bpm)</label>
+                  <label className={labelCls}>{t('icu.flowsheetEntry.vitals.heartRate', 'نبض القلب (bpm)')}</label>
                   <input type="number" name="heartRate" value={formData.heartRate} onChange={handleChange} className={inputCls} placeholder="80" dir="ltr" />
                 </div>
                 <div>
-                  <label className={labelCls}>BP Systolic</label>
+                  <label className={labelCls}>{t('icu.flowsheetEntry.vitals.bpSystolic', 'الضغط الانقباضي')}</label>
                   <input type="number" name="bpSystolic" value={formData.bpSystolic} onChange={handleChange} className={inputCls} placeholder="120" dir="ltr" />
                 </div>
                 <div>
-                  <label className={labelCls}>BP Diastolic</label>
+                  <label className={labelCls}>{t('icu.flowsheetEntry.vitals.bpDiastolic', 'الضغط الانبساطي')}</label>
                   <input type="number" name="bpDiastolic" value={formData.bpDiastolic} onChange={handleChange} className={inputCls} placeholder="80" dir="ltr" />
                 </div>
                 <div>
-                  <label className={labelCls}>SpO2 (%)</label>
+                  <label className={labelCls}>{t('icu.flowsheetEntry.vitals.spo2', 'SpO2 (%)')}</label>
                   <input type="number" name="o2Sat" value={formData.o2Sat} onChange={handleChange} className={inputCls} placeholder="98" dir="ltr" />
                 </div>
                 <div>
-                  <label className={labelCls}>Temp (°C)</label>
+                  <label className={labelCls}>{t('icu.flowsheetEntry.vitals.temp', 'الحرارة (°C)')}</label>
                   <input type="number" step="0.1" name="temperature" value={formData.temperature} onChange={handleChange} className={inputCls} placeholder="37.2" dir="ltr" />
                 </div>
                 <div>
-                  <label className={labelCls}>Resp Rate</label>
+                  <label className={labelCls}>{t('icu.flowsheetEntry.vitals.respRate', 'معدل التنفس')}</label>
                   <input type="number" name="respRate" value={formData.respRate} onChange={handleChange} className={inputCls} placeholder="16" dir="ltr" />
                 </div>
                 <div>
-                  <label className={labelCls}>GCS Score (3-15)</label>
+                  <label className={labelCls}>{t('icu.flowsheetEntry.vitals.gcs', 'مقياس غلاسكو (3-15)')}</label>
                   <input type="number" min="3" max="15" name="gcsScore" value={formData.gcsScore} onChange={handleChange} className={inputCls} placeholder="15" dir="ltr" />
                 </div>
               </div>
@@ -136,33 +139,33 @@ export const FlowsheetEntryModal = ({ isOpen, onClose, encounterId, onSuccess }:
             {/* Fluid Balance */}
             <div>
               <h3 className="text-base font-extrabold text-white flex items-center gap-2 mb-4">
-                <Droplets className="w-5 h-5 text-blue-400" /> Fluid Balance (I/O)
+                <Droplets className="w-5 h-5 text-blue-400" /> {t('icu.flowsheetEntry.fluidBalance.title', 'توازن السوائل (I/O)')}
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Intake */}
                 <div className="bg-slate-950/50 p-5 rounded-xl border border-slate-800">
-                  <h4 className="font-bold text-sky-400 mb-4 pb-2 border-b border-sky-500/20 text-sm">Intake</h4>
+                  <h4 className="font-bold text-sky-400 mb-4 pb-2 border-b border-sky-500/20 text-sm">{t('icu.flowsheetEntry.fluidBalance.intake', 'المدخلات')}</h4>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className={labelCls}>Type</label>
+                      <label className={labelCls}>{t('icu.flowsheetEntry.fluidBalance.type', 'النوع')}</label>
                       <input type="text" name="intakeType" value={formData.intakeType} onChange={handleChange} className={inputCls} placeholder="IV, PO" dir="ltr" />
                     </div>
                     <div>
-                      <label className={labelCls}>Amount (ml)</label>
+                      <label className={labelCls}>{t('icu.flowsheetEntry.fluidBalance.amount', 'الكمية (ml)')}</label>
                       <input type="number" name="intakeAmount" value={formData.intakeAmount} onChange={handleChange} className={inputCls} placeholder="0" dir="ltr" />
                     </div>
                   </div>
                 </div>
                 {/* Output */}
                 <div className="bg-slate-950/50 p-5 rounded-xl border border-slate-800">
-                  <h4 className="font-bold text-amber-400 mb-4 pb-2 border-b border-amber-500/20 text-sm">Output</h4>
+                  <h4 className="font-bold text-amber-400 mb-4 pb-2 border-b border-amber-500/20 text-sm">{t('icu.flowsheetEntry.fluidBalance.output', 'المخرجات')}</h4>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className={labelCls}>Type</label>
+                      <label className={labelCls}>{t('icu.flowsheetEntry.fluidBalance.type', 'النوع')}</label>
                       <input type="text" name="outputType" value={formData.outputType} onChange={handleChange} className={inputCls} placeholder="Urine, Drain" dir="ltr" />
                     </div>
                     <div>
-                      <label className={labelCls}>Amount (ml)</label>
+                      <label className={labelCls}>{t('icu.flowsheetEntry.fluidBalance.amount', 'الكمية (ml)')}</label>
                       <input type="number" name="outputAmount" value={formData.outputAmount} onChange={handleChange} className={inputCls} placeholder="0" dir="ltr" />
                     </div>
                   </div>
@@ -175,13 +178,13 @@ export const FlowsheetEntryModal = ({ isOpen, onClose, encounterId, onSuccess }:
             {/* Ventilator */}
             <div>
               <h3 className="text-base font-extrabold text-white flex items-center gap-2 mb-4">
-                <Wind className="w-5 h-5 text-emerald-400" /> Ventilator Settings (Optional)
+                <Wind className="w-5 h-5 text-emerald-400" /> {t('icu.flowsheetEntry.ventilator.title', 'إعدادات التنفس الصناعي (اختياري)')}
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label className={labelCls}>Vent Mode</label>
+                  <label className={labelCls}>{t('icu.flowsheetEntry.ventilator.mode', 'وضع التنفس')}</label>
                   <select name="ventMode" value={formData.ventMode} onChange={handleChange} className={inputCls}>
-                    <option value="">-- None --</option>
+                    <option value="">{t('icu.flowsheetEntry.ventilator.nonePlaceholder', '-- لا يوجد --')}</option>
                     <option value="SIMV">SIMV</option>
                     <option value="AC">A/C</option>
                     <option value="CPAP">CPAP</option>
@@ -190,11 +193,11 @@ export const FlowsheetEntryModal = ({ isOpen, onClose, encounterId, onSuccess }:
                   </select>
                 </div>
                 <div>
-                  <label className={labelCls}>FiO2 (%)</label>
+                  <label className={labelCls}>{t('icu.flowsheetEntry.ventilator.fio2', 'FiO2 (%)')}</label>
                   <input type="number" name="ventFio2" value={formData.ventFio2} onChange={handleChange} className={inputCls} placeholder="40" dir="ltr" />
                 </div>
                 <div>
-                  <label className={labelCls}>PEEP (cmH2O)</label>
+                  <label className={labelCls}>{t('icu.flowsheetEntry.ventilator.peep', 'PEEP (cmH2O)')}</label>
                   <input type="number" name="ventPeep" value={formData.ventPeep} onChange={handleChange} className={inputCls} placeholder="5" dir="ltr" />
                 </div>
               </div>
@@ -202,14 +205,14 @@ export const FlowsheetEntryModal = ({ isOpen, onClose, encounterId, onSuccess }:
 
             {/* Clinical Notes */}
             <div>
-              <label className={labelCls}>Nursing / Clinical Notes</label>
+              <label className={labelCls}>{t('icu.flowsheetEntry.notes', 'ملاحظات تمريضية / سريرية')}</label>
               <textarea
                 name="notes"
                 value={formData.notes}
                 onChange={handleChange}
                 rows={3}
                 className={`${inputCls} resize-none`}
-                placeholder="Enter any additional observations..."
+                placeholder={t('icu.flowsheetEntry.notesPlaceholder', 'أدخل أي ملاحظات إضافية...')}
               />
             </div>
 
@@ -225,10 +228,10 @@ export const FlowsheetEntryModal = ({ isOpen, onClose, encounterId, onSuccess }:
             className="px-6 py-2.5 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded-xl shadow-lg shadow-sky-900/30 transition flex items-center gap-2 text-sm disabled:opacity-50"
           >
             {loading ? <Activity className="w-5 h-5 animate-pulse" /> : <Save className="w-5 h-5" />}
-            Save Entry
+            {t('icu.flowsheetEntry.save', 'حفظ القراءة')}
           </button>
           <button onClick={onClose} className="px-5 py-2.5 text-slate-400 bg-slate-800 hover:bg-slate-700 border border-slate-700 font-bold rounded-xl transition text-sm">
-            Cancel
+            {t('icu.flowsheetEntry.cancel', 'إلغاء')}
           </button>
         </div>
 

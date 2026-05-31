@@ -166,7 +166,7 @@ export default function BedManagementDashboard() {
     }
   };
 
-  const handleMarkBedMaintenance = async (bedId: number, notes: string) => {
+  const handleMarkBedMaintenance = async (bedId: number, _notes: string) => {
     try {
       await apiClient.post('/beds/mark-clean', { bedId });
       toast.success(t("beds.updateSuccess", "تم تحديث السرير بنجاح"));

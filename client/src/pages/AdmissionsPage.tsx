@@ -89,7 +89,7 @@ export default function AdmissionsPage() {
       }
     };
     loadData();
-  }, []);
+  }, [t]);
 
   // 2. دالة التنويم (Admission Logic) - Updated to use new Admission API
   const handleAdmission = async () => {

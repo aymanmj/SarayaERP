@@ -2258,5 +2258,435 @@
         "canisterCode": "Canister Code *"
       }
     }
+  },
+  "icu": {
+    "dashboard": {
+      "title": "ICU Dashboard",
+      "subtitle": "Live monitoring of patients, beds, and incoming transfers",
+      "refresh": "Refresh Data",
+      "loading": "Loading ICU data...",
+      "stats": {
+        "admitted": "Admitted Patients",
+        "bedsAvailable": "Available Beds",
+        "activeVentilators": "Active Ventilators",
+        "pendingTransfers": "Pending Transfers"
+      },
+      "patients": {
+        "title": "Current ICU Patients",
+        "empty": "No patients currently admitted to ICU.",
+        "bed": "Bed",
+        "stable": "Stable",
+        "medicalFile": "Medical File",
+        "flowsheet": "Flowsheet"
+      },
+      "transfers": {
+        "title": "Incoming Transfers",
+        "pending": "Pending",
+        "empty": "No pending transfer requests.",
+        "reason": "Transfer reason:",
+        "statusRequested": "New Request - Awaiting Bed",
+        "statusAllocated": "Bed Allocated - Awaiting Patient",
+        "statusHandover": "Handover Completed",
+        "selectBed": "Select an available bed:",
+        "bedPlaceholder": "-- Select Bed --",
+        "bedLabel": "Bed",
+        "roomLabel": "Room",
+        "cancel": "Cancel",
+        "confirmAllocation": "Confirm Allocation",
+        "allocateBed": "Allocate Bed for Case",
+        "handoverDrafted": "Continue SBAR Handover Report",
+        "handoverReview": "Receive Patient & Review SBAR",
+        "confirmArrival": "Confirm Patient Arrival to ICU",
+        "allocateFailed": "Failed to allocate bed",
+        "arrivalFailed": "Failed to confirm arrival",
+        "selectBedAlert": "Please select an available bed"
+      },
+      "bedSummary": {
+        "title": "Bed Summary",
+        "total": "Total ICU Beds",
+        "occupied": "Occupied",
+        "available": "Available"
+      }
+    },
+    "flowsheet": {
+      "title": "Clinical Flowsheet",
+      "patientLabel": "Patient",
+      "bed": "Bed",
+      "ioBalance": "Fluid Balance (I/O)",
+      "newEntry": "New Entry",
+      "tabs": {
+        "vitals": "Vital Signs",
+        "io": "Fluid Balance",
+        "vent": "Ventilator",
+        "neuro": "Neurology"
+      },
+      "indicator": "Indicator / Time",
+      "noEntries": "No entries recorded yet",
+      "vitals": {
+        "heartRate": "Heart Rate (HR)",
+        "bpSystolic": "BP Systolic",
+        "bpDiastolic": "BP Diastolic",
+        "o2Sat": "SpO2 (%)",
+        "temperature": "Temperature (Temp)",
+        "respRate": "Respiratory Rate (RR)"
+      },
+      "io": {
+        "intakeTitle": "Intake",
+        "outputTitle": "Output",
+        "type": "Type",
+        "amount": "Amount (ml)"
+      },
+      "vent": {
+        "mode": "Vent Mode",
+        "fio2": "FiO2 (%)",
+        "peep": "PEEP"
+      },
+      "neuro": {
+        "gcs": "Glasgow Coma Scale (GCS)"
+      },
+      "notes": "Notes"
+    },
+    "patientDetail": {
+      "patientLabel": "Patient",
+      "bed": "Bed",
+      "admission": "Admission:",
+      "dailyAssessment": "Daily Assessment",
+      "flowsheet": "Flowsheet",
+      "stepDown": "Step-down Transfer",
+      "assessments": {
+        "title": "Previous Assessments",
+        "empty": "No daily assessments recorded yet.",
+        "respiratorySupport": "Respiratory Support",
+        "sedationTarget": "Sedation Target",
+        "dailyGoals": "Daily Goals",
+        "unspecified": "Not specified"
+      },
+      "equipment": {
+        "title": "Connected Equipment",
+        "inUse": "In Use",
+        "add": "Add",
+        "empty": "No equipment currently connected.",
+        "connected": "Currently Connected",
+        "disconnected": "Disconnected:",
+        "disconnect": "Disconnect"
+      },
+      "drips": {
+        "title": "Continuous IV Medications",
+        "add": "Add",
+        "empty": "No active IV medications.",
+        "standardConc": "Standard concentration",
+        "startedAt": "Started:",
+        "titrate": "Titrate",
+        "stop": "Stop"
+      },
+      "addDripModal": {
+        "title": "Add IV Medication",
+        "medicationName": "Medication Name",
+        "medicationPlaceholder": "e.g., Norepinephrine",
+        "concentration": "Concentration (optional)",
+        "concentrationPlaceholder": "e.g., 4mg/250ml",
+        "initialDose": "Initial Dose",
+        "unit": "Unit",
+        "cancel": "Cancel",
+        "startInfusion": "Start Infusion",
+        "startFailed": "Failed to start IV infusion"
+      },
+      "addEquipModal": {
+        "title": "Add Equipment",
+        "equipmentType": "Equipment Type",
+        "equipmentName": "Device Name / Number (optional)",
+        "equipmentNamePlaceholder": "e.g., Vent #3",
+        "dailyRate": "Daily Rate (optional)",
+        "cancel": "Cancel",
+        "connect": "Connect Device",
+        "connectFailed": "Failed to add equipment",
+        "ventilator": "Ventilator",
+        "cardiacMonitor": "Cardiac Monitor",
+        "infusionPump": "Infusion Pump",
+        "feedingPump": "Feeding Pump",
+        "dialysis": "Dialysis (CRRT)",
+        "ecmo": "ECMO"
+      },
+      "dripActions": {
+        "enterNewDose": "Enter new dose (current:",
+        "invalidValue": "Invalid value",
+        "titrateReason": "Reason for titration (optional):",
+        "titrateFailed": "Titration failed",
+        "confirmStop": "Do you want to stop this IV infusion?",
+        "stopFailed": "Failed to stop"
+      },
+      "equipActions": {
+        "confirmDisconnect": "Disconnect this device? This will stop billing calculation.",
+        "disconnectFailed": "Failed to disconnect"
+      }
+    },
+    "nicu": {
+      "title": "🍼 Open Separate Newborn Record (NICU Separation)",
+      "description": "A new medical record will be created for the newborn, linked to mother:",
+      "insuranceCopy": "Insurance information will be copied from mother's record (if available).",
+      "guarantorFallback": "If no insurance, the mother will be assigned as financial guarantor.",
+      "mrnInfo": "Medical record number will be generated automatically, prefixed with NB (Newborn).",
+      "cancel": "Cancel",
+      "creating": "Creating...",
+      "confirm": "👶 Confirm & Separate Record",
+      "success": "Newborn record created successfully with MRN:",
+      "failed": "Failed to separate newborn record"
+    },
+    "assessment": {
+      "title": "Daily Clinical Assessment",
+      "scores": {
+        "sofa": "SOFA Score",
+        "apache": "APACHE II Score",
+        "rass": "RASS Score",
+        "pain": "Pain Score (NRS)"
+      },
+      "neuro": {
+        "title": "Neurological Exam",
+        "pupilLeft": "Left Pupil",
+        "pupilRight": "Right Pupil",
+        "reactive": "Reactive",
+        "sluggish": "Sluggish",
+        "fixed": "Fixed",
+        "pinpoint": "Pinpoint",
+        "sedationGoal": "Sedation Target (Sedation Goal)",
+        "sedationPlaceholder": "e.g., RASS -2 to -1"
+      },
+      "respiratory": {
+        "title": "Respiratory Support",
+        "device": "Device",
+        "fio2": "FiO2 (%)",
+        "roomAir": "Room Air",
+        "nasalCannula": "Nasal Cannula",
+        "faceMask": "Face Mask",
+        "nonRebreather": "Non-Rebreather",
+        "highFlow": "High Flow Nasal",
+        "cpap": "CPAP",
+        "bipap": "BiPAP",
+        "ventilator": "Ventilator",
+        "tracheostomy": "Tracheostomy"
+      },
+      "lines": {
+        "title": "Lines & Drains",
+        "cvc": "Central Venous Catheter (CVC)",
+        "arterial": "Arterial Line",
+        "absent": "Absent",
+        "presentClean": "Present & Clean",
+        "needsDressing": "Needs Dressing",
+        "radialLeft": "Radial Left",
+        "radialRight": "Radial Right",
+        "femoral": "Femoral",
+        "foley": "Foley Catheter Present"
+      },
+      "skin": {
+        "title": "Skin & Pressure Ulcers",
+        "integrity": "Skin Integrity",
+        "intact": "Intact",
+        "fragile": "Fragile/Tears",
+        "edematous": "Edematous",
+        "jaundice": "Jaundice",
+        "pressureUlcer": "Pressure Ulcers",
+        "none": "None",
+        "stage1": "Stage 1",
+        "stage2": "Stage 2",
+        "stage3": "Stage 3",
+        "stage4": "Stage 4",
+        "unstageable": "Unstageable",
+        "woundNotes": "Additional wound notes..."
+      },
+      "plan": {
+        "title": "Plan of Care",
+        "dailyGoals": "Today's Main Goals",
+        "dailyGoalsPlaceholder": "e.g., Wean ventilator, reduce sedation...",
+        "nutritionPlan": "Nutrition Plan",
+        "nutritionPlaceholder": "e.g., NPO, TPN, Tube feeding...",
+        "mobilityPlan": "Mobility Plan",
+        "mobilityPlaceholder": "e.g., Bed rest, sitting up..."
+      },
+      "cancel": "Cancel",
+      "submit": "Approve & Save Assessment",
+      "saveFailed": "Failed to save assessment"
+    },
+    "gcs": {
+      "title": "Glasgow Coma Scale (GCS)",
+      "incomplete": "INCOMPLETE",
+      "severe": "Severe (Coma)",
+      "moderate": "Moderate",
+      "minor": "Minor",
+      "eye": {
+        "title": "Eye Opening (E)",
+        "spontaneous": "Spontaneous",
+        "spontaneousDesc": "Opens eyes on own",
+        "toSpeech": "To Speech",
+        "toSpeechDesc": "Opens eyes when asked",
+        "toPain": "To Pain",
+        "toPainDesc": "Opens eyes on pain",
+        "none": "None",
+        "noneDesc": "Does not open eyes"
+      },
+      "verbal": {
+        "title": "Verbal Response (V)",
+        "oriented": "Oriented",
+        "orientedDesc": "Converses normally",
+        "confused": "Confused",
+        "confusedDesc": "Disoriented conversation",
+        "inappropriate": "Inappropriate",
+        "inappropriateDesc": "Words but no conversation",
+        "incomprehensible": "Incomprehensible",
+        "incomprehensibleDesc": "Sounds only",
+        "none": "None",
+        "noneDesc": "No sounds"
+      },
+      "motor": {
+        "title": "Motor Response (M)",
+        "obeysCommands": "Obeys Commands",
+        "obeysCommandsDesc": "Follows instructions",
+        "localizesPain": "Localizes Pain",
+        "localizesPainDesc": "Moves to pain stimulus",
+        "withdraws": "Withdraws",
+        "withdrawsDesc": "Pulls away from pain",
+        "abnormalFlexion": "Abnormal Flexion",
+        "abnormalFlexionDesc": "Decorticate posturing",
+        "extension": "Extension",
+        "extensionDesc": "Decerebrate posturing",
+        "none": "None",
+        "noneDesc": "No movement"
+      }
+    },
+    "flowsheetEntry": {
+      "title": "New Clinical Charting Entry",
+      "shift": "Shift Name",
+      "shiftMorning": "Morning (08:00 – 16:00)",
+      "shiftEvening": "Evening (16:00 – 00:00)",
+      "shiftNight": "Night (00:00 – 08:00)",
+      "vitals": {
+        "title": "Vital Signs",
+        "heartRate": "Heart Rate (bpm)",
+        "bpSystolic": "BP Systolic",
+        "bpDiastolic": "BP Diastolic",
+        "spo2": "SpO2 (%)",
+        "temp": "Temp (°C)",
+        "respRate": "Resp Rate",
+        "gcs": "GCS Score (3-15)"
+      },
+      "fluidBalance": {
+        "title": "Fluid Balance (I/O)",
+        "intake": "Intake",
+        "output": "Output",
+        "type": "Type",
+        "amount": "Amount (ml)"
+      },
+      "ventilator": {
+        "title": "Ventilator Settings (Optional)",
+        "mode": "Vent Mode",
+        "nonePlaceholder": "-- None --",
+        "fio2": "FiO2 (%)",
+        "peep": "PEEP (cmH2O)"
+      },
+      "notes": "Nursing / Clinical Notes",
+      "notesPlaceholder": "Enter any additional observations...",
+      "save": "Save Entry",
+      "cancel": "Cancel",
+      "saveFailed": "Failed to save flowsheet entry"
+    },
+    "stepDown": {
+      "title": "ICU Step-Down Transfer",
+      "currentLocation": "Current Location:",
+      "icuDefault": "ICU",
+      "bed": "Bed",
+      "selectBed": "Select target bed",
+      "selectBedPlaceholder": "— Select Bed —",
+      "noBeds": "No available beds in regular wards currently.",
+      "bedLabel": "Bed",
+      "roomLabel": "Room",
+      "reason": "Transfer Reason",
+      "reasonPlaceholder": "e.g., Stable condition, able to breathe independently...",
+      "reasonRequired": "Transfer reason is required",
+      "bedRequired": "Please select a target bed",
+      "notes": "Additional Notes (optional)",
+      "notesPlaceholder": "Instructions for receiving ward...",
+      "cancel": "Cancel",
+      "execute": "Execute Transfer",
+      "processing": {
+        "creating": "Creating transfer request...",
+        "allocating": "Allocating bed in new ward...",
+        "confirming": "Confirming transfer and updating records...",
+        "wait": "Please wait..."
+      },
+      "success": {
+        "title": "Transfer Completed Successfully ✓",
+        "message": "Patient {patientName} has been transferred from ICU to the new ward successfully.",
+        "recordsUpdated": "Bed and records have been updated automatically.",
+        "backToDashboard": "Back to ICU Dashboard"
+      },
+      "error": {
+        "title": "Operation Failed",
+        "defaultMessage": "Transfer failed. Please try again.",
+        "close": "Close",
+        "retry": "Try Again"
+      }
+    },
+    "equipmentPanel": {
+      "title": "Connected Equipment",
+      "inUse": "In Use",
+      "addEquipment": "Add Equipment",
+      "empty": "No equipment currently connected.",
+      "loading": "Loading data...",
+      "table": {
+        "type": "Equipment Type",
+        "details": "Details",
+        "connectedAt": "Connected At",
+        "disconnectedAt": "Disconnected At",
+        "actions": "Actions"
+      },
+      "connected": "Currently Connected",
+      "disconnect": "Disconnect",
+      "addModal": {
+        "title": "Add Equipment",
+        "type": "Equipment Type",
+        "name": "Device Name/Number (optional)",
+        "namePlaceholder": "e.g., Vent #12",
+        "cancel": "Cancel",
+        "confirm": "Confirm Addition",
+        "ventilator": "Ventilator",
+        "cardiacMonitor": "Cardiac Monitor",
+        "infusionPump": "Infusion Pump",
+        "feedingPump": "Feeding Pump",
+        "dialysis": "Dialysis (CRRT)",
+        "ecmo": "ECMO",
+        "heaterCooler": "Heater/Cooler"
+      },
+      "startFailed": "Failed to start equipment tracking",
+      "stopConfirm": "Stop tracking this equipment? This stops billing.",
+      "stopFailed": "Failed to stop"
+    },
+    "dripPanel": {
+      "title": "Continuous IV Medications",
+      "addMedication": "Add Medication",
+      "empty": "No continuous IV medications.",
+      "loading": "Loading data...",
+      "standardConc": "Standard concentration",
+      "startedAt": "Started:",
+      "titrate": "Titrate",
+      "stop": "Stop",
+      "addModal": {
+        "title": "Add Continuous IV Medication",
+        "medicationName": "Medication Name",
+        "medicationPlaceholder": "e.g., Norepinephrine, Propofol...",
+        "concentration": "Concentration (optional)",
+        "concentrationPlaceholder": "e.g., 4mg/250ml",
+        "doseUnit": "Dose Unit",
+        "initialDose": "Initial Dose",
+        "cancel": "Cancel",
+        "startInfusion": "Start Infusion"
+      },
+      "startFailed": "Failed to start drip",
+      "titratePrompt": "Enter new rate (current:",
+      "titrateInvalid": "Invalid rate",
+      "titrateReason": "Reason for titration? (optional)",
+      "titrateFailed": "Failed to titrate",
+      "stopConfirm": "Are you sure you want to stop this infusion?",
+      "stopReason": "Reason for stopping? (optional)",
+      "stopFailed": "Failed to stop"
+    }
   }
 }

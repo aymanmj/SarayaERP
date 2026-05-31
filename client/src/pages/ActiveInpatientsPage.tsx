@@ -101,7 +101,7 @@ export default function ActiveInpatientsPage() {
   useEffect(() => {
     loadData();
     loadWardTree();
-  }, []);
+  }, [loadData]);
 
   const handleDischarge = async (encounterId: number, patientName: string, admissionId?: number) => {
     if (!admissionId) {

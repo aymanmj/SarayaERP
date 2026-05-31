@@ -65,7 +65,7 @@ export default function LabWorklistPage() {
 
   useEffect(() => {
     load();
-  }, []);
+  }, [load]);
 
   const filtered = useMemo(() => {
     const s = search.trim();

@@ -2258,5 +2258,435 @@
         "canisterCode": "كود الحاوية *"
       }
     }
+  },
+  "icu": {
+    "dashboard": {
+      "title": "لوحة تحكم العناية المركزة (ICU)",
+      "subtitle": "مراقبة حية للمرضى، الأسرة، والتحويلات القادمة للعناية الفائقة",
+      "refresh": "تحديث البيانات",
+      "loading": "جارِ تحميل بيانات العناية المركزة...",
+      "stats": {
+        "admitted": "المرضى المنومين",
+        "bedsAvailable": "الأسرة المتاحة",
+        "activeVentilators": "أجهزة التنفس النشطة",
+        "pendingTransfers": "طلبات نقل معلقة"
+      },
+      "patients": {
+        "title": "مرضى العناية المركزة حالياً",
+        "empty": "لا يوجد مرضى منومين في العناية المركزة حالياً.",
+        "bed": "سرير",
+        "stable": "مستقر",
+        "medicalFile": "الملف الطبي",
+        "flowsheet": "المخطط السريري"
+      },
+      "transfers": {
+        "title": "تحويلات قادمة",
+        "pending": "معلق",
+        "empty": "لا توجد طلبات نقل معلقة حالياً.",
+        "reason": "سبب تحويل الحالة:",
+        "statusRequested": "طلب جديد - في انتظار سرير",
+        "statusAllocated": "تم تعيين سرير - بانتظار المريض",
+        "statusHandover": "اكتمل تسليم الحالة",
+        "selectBed": "اختر سريراً متاحاً:",
+        "bedPlaceholder": "-- اختر السرير --",
+        "bedLabel": "السرير",
+        "roomLabel": "غرفة",
+        "cancel": "إلغاء",
+        "confirmAllocation": "تأكيد الحجز",
+        "allocateBed": "تخصيص سرير لاستقبال الحالة",
+        "handoverDrafted": "متابعة تقرير التسليم SBAR",
+        "handoverReview": "استلام المريض ومراجعة SBAR",
+        "confirmArrival": "تأكيد وصول المريض للعناية",
+        "allocateFailed": "فشل تعيين السرير",
+        "arrivalFailed": "فشل تأكيد الوصول",
+        "selectBedAlert": "يرجى اختيار السرير المتاح من القائمة"
+      },
+      "bedSummary": {
+        "title": "ملخص الأسرة",
+        "total": "إجمالي أسرة العناية",
+        "occupied": "مشغول",
+        "available": "متاح (Available)"
+      }
+    },
+    "flowsheet": {
+      "title": "السجل السريري (Flowsheet)",
+      "patientLabel": "مريض",
+      "bed": "سرير",
+      "ioBalance": "توازن السوائل (I/O)",
+      "newEntry": "إدراج قراءة جديدة",
+      "tabs": {
+        "vitals": "العلامات الحيوية",
+        "io": "توازن السوائل",
+        "vent": "التنفس الصناعي",
+        "neuro": "الأعصاب"
+      },
+      "indicator": "المؤشر / الوقت",
+      "noEntries": "لا توجد قراءات حتى الآن",
+      "vitals": {
+        "heartRate": "نبض القلب (HR)",
+        "bpSystolic": "ضغط الدم الانقباضي",
+        "bpDiastolic": "ضغط الدم الانبساطي",
+        "o2Sat": "الأكسجين (SpO2 %)",
+        "temperature": "الحرارة (Temp)",
+        "respRate": "معدل التنفس (RR)"
+      },
+      "io": {
+        "intakeTitle": "المدخلات (Intake)",
+        "outputTitle": "المخرجات (Output)",
+        "type": "النوع",
+        "amount": "الكمية (ml)"
+      },
+      "vent": {
+        "mode": "وضع التنفس (Mode)",
+        "fio2": "FiO2 (%)",
+        "peep": "PEEP"
+      },
+      "neuro": {
+        "gcs": "مقياس الغيبوبة (GCS Score)"
+      },
+      "notes": "ملاحظات"
+    },
+    "patientDetail": {
+      "patientLabel": "مريض",
+      "bed": "سرير",
+      "admission": "الدخول:",
+      "dailyAssessment": "التقييم اليومي",
+      "flowsheet": "المخطط السريري",
+      "stepDown": "نقل (Step-down)",
+      "assessments": {
+        "title": "التقييمات السابقة",
+        "empty": "لا توجد تقييمات يومية مسجلة بعد.",
+        "respiratorySupport": "دعم التنفس",
+        "sedationTarget": "هدف التخدير",
+        "dailyGoals": "الأهداف اليومية",
+        "unspecified": "غير محدد"
+      },
+      "equipment": {
+        "title": "الأجهزة الموصولة",
+        "inUse": "قيد الاستخدام",
+        "add": "إضافة",
+        "empty": "لا يوجد أجهزة موصولة حالياً.",
+        "connected": "متصل حالياً",
+        "disconnected": "تم الفصل:",
+        "disconnect": "فصل"
+      },
+      "drips": {
+        "title": "الأدوية الوريدية المستمرة",
+        "add": "إضافة",
+        "empty": "لا توجد أدوية وريدية نشطة.",
+        "standardConc": "تركيز اعتيادي",
+        "startedAt": "البداية:",
+        "titrate": "تعديل الجرعة",
+        "stop": "إيقاف"
+      },
+      "addDripModal": {
+        "title": "إضافة دواء وريدي",
+        "medicationName": "اسم الدواء",
+        "medicationPlaceholder": "مثال: Norepinephrine",
+        "concentration": "التركيز (اختياري)",
+        "concentrationPlaceholder": "مثال: 4mg/250ml",
+        "initialDose": "الجرعة المبدئية",
+        "unit": "الوحدة",
+        "cancel": "إلغاء",
+        "startInfusion": "بدء الحقن",
+        "startFailed": "فشل بدء الحقن الوريدي"
+      },
+      "addEquipModal": {
+        "title": "إضافة جهاز",
+        "equipmentType": "نوع الجهاز",
+        "equipmentName": "اسم / رقم الجهاز (اختياري)",
+        "equipmentNamePlaceholder": "مثال: Vent #3",
+        "dailyRate": "التعرفة اليومية (اختياري)",
+        "cancel": "إلغاء",
+        "connect": "توصيل الجهاز",
+        "connectFailed": "فشل إضافة الجهاز",
+        "ventilator": "تنفّس صناعي (Ventilator)",
+        "cardiacMonitor": "مراقب قلب (Cardiac Monitor)",
+        "infusionPump": "مضخة تسريب (Infusion Pump)",
+        "feedingPump": "مضخة تغذية (Feeding Pump)",
+        "dialysis": "غسيل كلوي (CRRT)",
+        "ecmo": "جهاز أكسجة (ECMO)"
+      },
+      "dripActions": {
+        "enterNewDose": "أدخل الجرعة الجديدة (الحالية:",
+        "invalidValue": "قيمة غير صالحة",
+        "titrateReason": "سبب التعديل (اختياري):",
+        "titrateFailed": "فشل التعديل",
+        "confirmStop": "هل تريد إيقاف هذا الحقن الوريدي؟",
+        "stopFailed": "فشل الإيقاف"
+      },
+      "equipActions": {
+        "confirmDisconnect": "هل تريد فصل هذا الجهاز؟ سيتم إيقاف احتساب الفوترة.",
+        "disconnectFailed": "فشل فصل الجهاز"
+      }
+    },
+    "nicu": {
+      "title": "🍼 فتح ملف طبي منفصل لمولود (NICU Separation)",
+      "description": "سيتم إنشاء ملف طبي جديد للمولود وربطه بالأم:",
+      "insuranceCopy": "سيتم نسخ معلومات التأمين من ملف الأم تلقائياً (إن وجدت).",
+      "guarantorFallback": "إذا لم يكن هناك تأمين، سيتم تعيين الأم كضامن مالي للمولود.",
+      "mrnInfo": "رقم الملف الطبي سينشأ تلقائياً ويبدأ بـ NB (Newborn).",
+      "cancel": "إلغاء",
+      "creating": "يتم الإنشاء...",
+      "confirm": "👶 تأكيد وفصل الملف",
+      "success": "تم فتح ملف مستقل للمولود بنجاح برقم:",
+      "failed": "فشل عملية فصل ملف المولود"
+    },
+    "assessment": {
+      "title": "التقييم السريري اليومي",
+      "scores": {
+        "sofa": "مؤشر SOFA",
+        "apache": "مؤشر APACHE II",
+        "rass": "مؤشر RASS",
+        "pain": "درجة الألم (NRS)"
+      },
+      "neuro": {
+        "title": "الفحص العصبي (Neurological)",
+        "pupilLeft": "حدقة العين اليسرى",
+        "pupilRight": "حدقة العين اليمنى",
+        "reactive": "متفاعلة (Reactive)",
+        "sluggish": "بطيئة (Sluggish)",
+        "fixed": "ثابتة (Fixed)",
+        "pinpoint": "نقطية (Pinpoint)",
+        "sedationGoal": "مستوى التخدير المستهدف (Sedation Goal)",
+        "sedationPlaceholder": "مثال: RASS -2 إلى -1"
+      },
+      "respiratory": {
+        "title": "دعم التنفس (Respiratory)",
+        "device": "الوسيلة",
+        "fio2": "نسبة الأكسجين - FiO2 (%)",
+        "roomAir": "هواء الغرفة (Room Air)",
+        "nasalCannula": "قنية أنفية (Nasal Cannula)",
+        "faceMask": "قناع وجه (Face Mask)",
+        "nonRebreather": "كمامة خزان (Non-Rebreather)",
+        "highFlow": "تدفق عالي (High Flow Nasal)",
+        "cpap": "CPAP",
+        "bipap": "BiPAP",
+        "ventilator": "تنفّس تنبيب (Ventilator)",
+        "tracheostomy": "شق حنجري (Tracheostomy)"
+      },
+      "lines": {
+        "title": "الخطوط والوصلات (Lines & Drains)",
+        "cvc": "القسطرة المركزية (CVC)",
+        "arterial": "القسطرة الشريانية",
+        "absent": "غير موجودة (Absent)",
+        "presentClean": "نظيفة (Present & Clean)",
+        "needsDressing": "تحتاج غيار (Needs Dressing)",
+        "radialLeft": "رسغي أيسر (Radial L)",
+        "radialRight": "رسغي أيمن (Radial R)",
+        "femoral": "فخذي (Femoral)",
+        "foley": "يوجد قسطرة بولية (Foley Catheter)"
+      },
+      "skin": {
+        "title": "الجلد وتقرحات الفراش (Skin & Ulcers)",
+        "integrity": "الحالة العامة للجلد",
+        "intact": "سليم (Intact)",
+        "fragile": "متهتك (Fragile/Tears)",
+        "edematous": "متورم (Edematous)",
+        "jaundice": "يرقان (Jaundice)",
+        "pressureUlcer": "تقرحات الفراش",
+        "none": "لا توجد",
+        "stage1": "المرحلة الأولى",
+        "stage2": "المرحلة الثانية",
+        "stage3": "المرحلة الثالثة",
+        "stage4": "المرحلة الرابعة",
+        "unstageable": "غير قابلة والتصنيف",
+        "woundNotes": "ملاحظات إضافية حول الجروح..."
+      },
+      "plan": {
+        "title": "خطة العناية اليومية (Plan of Care)",
+        "dailyGoals": "الأهداف الأساسية اليوم",
+        "dailyGoalsPlaceholder": "مثال: فصل جهاز التنفس، التخفيف من التخدير...",
+        "nutritionPlan": "خطة التغذية",
+        "nutritionPlaceholder": "مثال: NPO, TPN, تغذية أنبوبية...",
+        "mobilityPlan": "خطة الحركة (Mobility)",
+        "mobilityPlaceholder": "مثال: راحة سريرية، الجلوس..."
+      },
+      "cancel": "إلغاء",
+      "submit": "اعتماد وحفظ التقييم",
+      "saveFailed": "فشل حفظ التقييم"
+    },
+    "gcs": {
+      "title": "Glasgow Coma Scale (GCS)",
+      "incomplete": "INCOMPLETE",
+      "severe": "Severe (Coma)",
+      "moderate": "Moderate",
+      "minor": "Minor",
+      "eye": {
+        "title": "Eye Opening (E)",
+        "spontaneous": "Spontaneous",
+        "spontaneousDesc": "Opens eyes on own",
+        "toSpeech": "To Speech",
+        "toSpeechDesc": "Opens eyes when asked",
+        "toPain": "To Pain",
+        "toPainDesc": "Opens eyes on pain",
+        "none": "None",
+        "noneDesc": "Does not open eyes"
+      },
+      "verbal": {
+        "title": "Verbal Response (V)",
+        "oriented": "Oriented",
+        "orientedDesc": "Converses normally",
+        "confused": "Confused",
+        "confusedDesc": "Disoriented conversation",
+        "inappropriate": "Inappropriate",
+        "inappropriateDesc": "Words but no conversation",
+        "incomprehensible": "Incomprehensible",
+        "incomprehensibleDesc": "Sounds only",
+        "none": "None",
+        "noneDesc": "No sounds"
+      },
+      "motor": {
+        "title": "Motor Response (M)",
+        "obeysCommands": "Obeys Commands",
+        "obeysCommandsDesc": "Follows instructions",
+        "localizesPain": "Localizes Pain",
+        "localizesPainDesc": "Moves to pain stimulus",
+        "withdraws": "Withdraws",
+        "withdrawsDesc": "Pulls away from pain",
+        "abnormalFlexion": "Abnormal Flexion",
+        "abnormalFlexionDesc": "Decorticate posturing",
+        "extension": "Extension",
+        "extensionDesc": "Decerebrate posturing",
+        "none": "None",
+        "noneDesc": "No movement"
+      }
+    },
+    "flowsheetEntry": {
+      "title": "إدراج قراءة سريرية جديدة",
+      "shift": "الوردية",
+      "shiftMorning": "صباحية (08:00 – 16:00)",
+      "shiftEvening": "مسائية (16:00 – 00:00)",
+      "shiftNight": "ليلية (00:00 – 08:00)",
+      "vitals": {
+        "title": "العلامات الحيوية",
+        "heartRate": "نبض القلب (bpm)",
+        "bpSystolic": "الضغط الانقباضي",
+        "bpDiastolic": "الضغط الانبساطي",
+        "spo2": "SpO2 (%)",
+        "temp": "الحرارة (°C)",
+        "respRate": "معدل التنفس",
+        "gcs": "مقياس غلاسكو (3-15)"
+      },
+      "fluidBalance": {
+        "title": "توازن السوائل (I/O)",
+        "intake": "المدخلات",
+        "output": "المخرجات",
+        "type": "النوع",
+        "amount": "الكمية (ml)"
+      },
+      "ventilator": {
+        "title": "إعدادات التنفس الصناعي (اختياري)",
+        "mode": "وضع التنفس",
+        "nonePlaceholder": "-- لا يوجد --",
+        "fio2": "FiO2 (%)",
+        "peep": "PEEP (cmH2O)"
+      },
+      "notes": "ملاحظات تمريضية / سريرية",
+      "notesPlaceholder": "أدخل أي ملاحظات إضافية...",
+      "save": "حفظ القراءة",
+      "cancel": "إلغاء",
+      "saveFailed": "فشل حفظ القراءة"
+    },
+    "stepDown": {
+      "title": "نقل المريض من العناية (Step-down)",
+      "currentLocation": "الموقع الحالي:",
+      "icuDefault": "العناية المركزة",
+      "bed": "سرير",
+      "selectBed": "اختر السرير في القسم المستقبل",
+      "selectBedPlaceholder": "— اختر السرير —",
+      "noBeds": "لا توجد أسرّة متاحة في الأقسام العادية حالياً.",
+      "bedLabel": "سرير",
+      "roomLabel": "غرفة",
+      "reason": "سبب النقل",
+      "reasonPlaceholder": "مثال: استقرار الحالة، إمكانية التنفس التلقائي...",
+      "reasonRequired": "يجب إدخال سبب النقل",
+      "bedRequired": "يجب اختيار سرير في القسم المستقبل",
+      "notes": "ملاحظات إضافية (اختياري)",
+      "notesPlaceholder": "تعليمات للقسم المستقبل...",
+      "cancel": "إلغاء",
+      "execute": "تنفيذ النقل",
+      "processing": {
+        "creating": "إنشاء طلب النقل...",
+        "allocating": "تخصيص السرير في القسم الجديد...",
+        "confirming": "تأكيد النقل وتحديث السجلات...",
+        "wait": "الرجاء الانتظار..."
+      },
+      "success": {
+        "title": "تم النقل بنجاح ✓",
+        "message": "تم نقل المريض {patientName} من العناية المركزة إلى القسم الجديد بنجاح.",
+        "recordsUpdated": "تم تحديث السرير والسجلات تلقائياً.",
+        "backToDashboard": "العودة للوحة العناية"
+      },
+      "error": {
+        "title": "فشلت العملية",
+        "defaultMessage": "فشلت عملية النقل. يرجى المحاولة مرة أخرى.",
+        "close": "إغلاق",
+        "retry": "المحاولة مرة أخرى"
+      }
+    },
+    "equipmentPanel": {
+      "title": "الأجهزة الموصولة",
+      "inUse": "قيد الاستخدام",
+      "addEquipment": "إضافة جهاز",
+      "empty": "لا يوجد أجهزة موصولة حالياً.",
+      "loading": "جاري تحميل البيانات...",
+      "table": {
+        "type": "نوع الجهاز",
+        "details": "التفاصيل",
+        "connectedAt": "وقت التوصيل",
+        "disconnectedAt": "وقت الفصل",
+        "actions": "الإجراءات"
+      },
+      "connected": "متصل حالياً",
+      "disconnect": "فصل الجهاز",
+      "addModal": {
+        "title": "إضافة جهاز",
+        "type": "نوع الجهاز",
+        "name": "اسم/رقم الجهاز (اختياري)",
+        "namePlaceholder": "مثال: Vent #12",
+        "cancel": "إلغاء",
+        "confirm": "تأكيد الإضافة",
+        "ventilator": "تنفّس صناعي (Ventilator)",
+        "cardiacMonitor": "مراقب قلب (Cardiac Monitor)",
+        "infusionPump": "مضخة تسريب (Infusion Pump)",
+        "feedingPump": "مضخة تغذية (Feeding Pump)",
+        "dialysis": "غسيل كلوي (CRRT / Dialysis)",
+        "ecmo": "إيكمو (ECMO)",
+        "heaterCooler": "جهاز تدفئة/تبريد"
+      },
+      "startFailed": "فشل توصيل الجهاز",
+      "stopConfirm": "هل تريد إيقاف تتبع هذا الجهاز؟ سيتم إيقاف احتساب الفوترة.",
+      "stopFailed": "فشل فصل الجهاز"
+    },
+    "dripPanel": {
+      "title": "الأدوية الوريدية المستمرة",
+      "addMedication": "إضافة دواء",
+      "empty": "لا توجد أدوية وريدية مستمرة.",
+      "loading": "جاري تحميل البيانات...",
+      "standardConc": "تركيز اعتيادي",
+      "startedAt": "لبداية:",
+      "titrate": "تعديل الجرعة",
+      "stop": "إيقاف",
+      "addModal": {
+        "title": "إضافة دواء وريدي مستمر",
+        "medicationName": "اسم الدواء",
+        "medicationPlaceholder": "مثال: Norepinephrine, Propofol...",
+        "concentration": "التركيز (اختياري)",
+        "concentrationPlaceholder": "مثال: 4mg/250ml",
+        "doseUnit": "وحدة الجرعة",
+        "initialDose": "الجرعة المبدئية",
+        "cancel": "إلغاء",
+        "startInfusion": "بدء الحقن"
+      },
+      "startFailed": "فشل بدء الحقن",
+      "titratePrompt": "أدخل الجرعة الجديدة (الحالية:",
+      "titrateInvalid": "قيمة غير صالحة",
+      "titrateReason": "سبب التعديل (اختياري)",
+      "titrateFailed": "فشل تعديل الجرعة",
+      "stopConfirm": "هل أنت متأكد من إيقاف هذا الحقن الوريدي؟",
+      "stopReason": "سبب الإيقاف (اختياري)",
+      "stopFailed": "فشل إيقاف الحقن"
+    }
   }
 }

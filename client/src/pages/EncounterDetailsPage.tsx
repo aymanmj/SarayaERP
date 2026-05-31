@@ -123,13 +123,13 @@ type TabKey =
   | "ANDROLOGY";
 
 // ✅ إضافة التبويب للقائمة
-const tabs: {
+const getTabs = (t: any): {
   key: TabKey;
   label: string;
   icon: string;
   alert?: boolean;
   gender?: "MALE" | "FEMALE";
-}[] = [
+}[] => [
   { key: "VISITS", label: "التشخيص والزيارة", icon: "🩺" },
   { key: "ALLERGIES", label: "الحساسية والمخاطر", icon: "⚠️", alert: true },
   { key: "OBGYN", label: "النساء والولادة", icon: "🤰", gender: "FEMALE" },

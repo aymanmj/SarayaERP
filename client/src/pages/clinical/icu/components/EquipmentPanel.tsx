@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { Monitor, PlusCircle, StopCircle, Receipt } from 'lucide-react';
 import { apiClient } from '../../../../api/apiClient';
@@ -8,6 +9,8 @@ interface Props {
 }
 
 export const EquipmentPanel = ({ encounterId }: Props) => {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === 'ar';
    
   const [equipmentList, setEquipmentList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,37 +53,37 @@ export const EquipmentPanel = ({ encounterId }: Props) => {
       fetchEquipment();
     } catch (err) {
       console.error(err);
-      alert('Failed to start equipment tracking');
+      alert(t('icu.equipmentPanel.startFailed', 'فشل توصيل الجهاز'));
     }
   };
 
   const stopEquipment = async (usageId: number) => {
-    if (!window.confirm('Stop tracking this equipment? This stops billing counting.')) return;
+    if (!window.confirm(t('icu.equipmentPanel.stopConfirm', 'هل تريد إيقاف تتبع هذا الجهاز؟ سيتم إيقاف احتساب الفوترة.'))) return;
     try {
       await apiClient.put(`/icu/equipment/${usageId}/stop`);
       fetchEquipment();
     } catch (err) {
       console.error(err);
-      alert('Failed to stop');
+      alert(t('icu.equipmentPanel.stopFailed', 'فشل فصل الجهاز'));
     }
   };
 
-  if (loading) return <div className="p-4 text-center text-slate-500">جاري تحميل البيانات...</div>;
+  if (loading) return <div className="p-4 text-center text-slate-500">{t('icu.equipmentPanel.loading', 'جاري تحميل البيانات...')}</div>;
 
   const activeCount = equipmentList.filter(e => !e.stoppedAt).length;
 
   return (
-    <div className="bg-slate-900 rounded-2xl shadow-sm border border-slate-800 overflow-hidden" dir="rtl">
+    <div className="bg-slate-900 rounded-2xl shadow-sm border border-slate-800 overflow-hidden" dir={isRtl ? 'rtl' : 'ltr'}>
       <div className="flex justify-between items-center p-5 border-b border-slate-800 bg-slate-950/50">
         <h3 className="text-lg font-bold text-white flex items-center gap-2">
-          <Monitor className="w-5 h-5 text-indigo-400" /> الأجهزة الموصولة
-          {activeCount > 0 && <span className="mr-2 bg-indigo-900/40 text-indigo-300 border border-indigo-500/30 text-[10px] px-2.5 py-1 rounded-lg font-bold tracking-wide">{activeCount} قيد الاستخدام</span>}
+          <Monitor className="w-5 h-5 text-indigo-400" /> {t('icu.equipmentPanel.title', 'الأجهزة الموصولة')}
+          {activeCount > 0 && <span className="mr-2 bg-indigo-900/40 text-indigo-300 border border-indigo-500/30 text-[10px] px-2.5 py-1 rounded-lg font-bold tracking-wide">{activeCount} {t('icu.equipmentPanel.inUse', 'قيد الاستخدام')}</span>}
         </h3>
         <button 
           onClick={() => setShowAddModal(true)} 
           className="px-4 py-2 bg-indigo-900/30 text-indigo-400 border border-indigo-500/30 font-semibold rounded-xl hover:bg-indigo-900/50 transition-colors flex items-center gap-2 text-sm shadow-inner"
         >
-          <PlusCircle className="w-4 h-4" /> إضافة جهاز
+          <PlusCircle className="w-4 h-4" /> {t('icu.equipmentPanel.addEquipment', 'إضافة جهاز')}
         </button>
       </div>
 
@@ -88,17 +91,17 @@ export const EquipmentPanel = ({ encounterId }: Props) => {
         {equipmentList.length === 0 ? (
           <div className="text-center p-8 text-slate-500 flex flex-col items-center bg-slate-950/30 m-4 rounded-xl border border-dashed border-slate-800">
              <Monitor className="w-12 h-12 text-slate-700 mb-3" />
-             <p>لا يوجد أجهزة موصولة حالياً.</p>
+             <p>{t('icu.equipmentPanel.empty', 'لا يوجد أجهزة موصولة حالياً.')}</p>
           </div>
         ) : (
-          <table className="w-full text-right text-sm">
+          <table className={`w-full ${isRtl ? 'text-right' : 'text-left'} text-sm`}>
             <thead className="bg-slate-950 text-slate-400 font-bold text-sm border-b border-slate-800">
               <tr>
-                <th className="p-5 text-right font-bold text-slate-300">نوع الجهاز</th>
-                <th className="p-5 text-right font-bold text-slate-300">التفاصيل</th>
-                <th className="p-5 text-right font-bold text-slate-300">وقت التوصيل</th>
-                <th className="p-5 text-right font-bold text-slate-300">وقت الفصل</th>
-                <th className="p-5 text-center font-bold text-slate-300">الإجراءات</th>
+                <th className="p-5 text-right font-bold text-slate-300">{t('icu.equipmentPanel.table.type', 'نوع الجهاز')}</th>
+                <th className="p-5 text-right font-bold text-slate-300">{t('icu.equipmentPanel.table.details', 'التفاصيل')}</th>
+                <th className="p-5 text-right font-bold text-slate-300">{t('icu.equipmentPanel.table.connectedAt', 'وقت التوصيل')}</th>
+                <th className="p-5 text-right font-bold text-slate-300">{t('icu.equipmentPanel.table.disconnectedAt', 'وقت الفصل')}</th>
+                <th className="p-5 text-center font-bold text-slate-300">{t('icu.equipmentPanel.table.actions', 'الإجراءات')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/50">
@@ -109,9 +112,9 @@ export const EquipmentPanel = ({ encounterId }: Props) => {
                     {eq.equipmentType.replace('_', ' ')}
                   </td>
                   <td className="p-5 text-slate-300 font-medium text-sm">{eq.equipmentName || '-'}</td>
-                  <td className="p-5 text-slate-400 text-sm font-mono tracking-tight">{new Date(eq.startedAt).toLocaleString('ar-LY', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'})}</td>
+                  <td className="p-5 text-slate-400 text-sm font-mono tracking-tight">{new Date(eq.startedAt).toLocaleString(isRtl ? 'ar-LY' : 'en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'})}</td>
                   <td className="p-5 text-slate-400 text-sm font-mono tracking-tight">
-                    {eq.stoppedAt ? new Date(eq.stoppedAt).toLocaleString('ar-LY', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'}) : <span className="text-emerald-400 font-bold bg-emerald-900/20 px-3 py-1.5 rounded-lg tracking-wide border border-emerald-500/20 text-xs">متصل حالياً</span>}
+                    {eq.stoppedAt ? new Date(eq.stoppedAt).toLocaleString(isRtl ? 'ar-LY' : 'en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'}) : <span className="text-emerald-400 font-bold bg-emerald-900/20 px-3 py-1.5 rounded-lg tracking-wide border border-emerald-500/20 text-xs">{t('icu.equipmentPanel.connected', 'متصل حالياً')}</span>}
                   </td>
                   <td className="p-5 text-center">
                     {!eq.stoppedAt && (
@@ -119,7 +122,7 @@ export const EquipmentPanel = ({ encounterId }: Props) => {
                         onClick={() => stopEquipment(eq.id)}
                         className="px-4 py-2 bg-transparent border border-rose-500/50 text-rose-400 hover:bg-rose-900/30 hover:border-rose-400 rounded-xl flex items-center justify-center gap-2 font-bold transition-all mx-auto text-sm"
                       >
-                        <StopCircle className="w-4 h-4" /> فصل الجهاز
+                        <StopCircle className="w-4 h-4" /> {t('icu.equipmentPanel.disconnect', 'فصل الجهاز')}
                       </button>
                     )}
                   </td>
@@ -132,31 +135,31 @@ export const EquipmentPanel = ({ encounterId }: Props) => {
 
       {/* ADD EQUIPMENT MODAL */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4" dir="rtl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4" dir={isRtl ? 'rtl' : 'ltr'}>
           <div className="bg-slate-900 border border-slate-700 max-w-sm w-full rounded-2xl shadow-2xl overflow-hidden">
             <div className="flex justify-between items-center p-5 border-b border-slate-800 bg-slate-950">
-              <h3 className="font-bold text-lg text-white">إضافة جهاز</h3>
+              <h3 className="font-bold text-lg text-white">{t('icu.equipmentPanel.addModal.title', 'إضافة جهاز')}</h3>
               <button onClick={() => setShowAddModal(false)} className="text-slate-500 hover:text-white transition-colors">✕</button>
             </div>
             <form onSubmit={startEquipment} className="p-6 space-y-5">
               <div>
-                <label className="block text-xs font-bold text-slate-400 mb-1.5">نوع الجهاز</label>
+                <label className="block text-xs font-bold text-slate-400 mb-1.5">{t('icu.equipmentPanel.addModal.type', 'نوع الجهاز')}</label>
                 <select 
                   value={newEq.equipmentType} 
                   onChange={e => setNewEq({...newEq, equipmentType: e.target.value})}
                   className="w-full p-2.5 bg-slate-950 border border-slate-700 text-white rounded-xl focus:outline-none focus:border-indigo-500 transition-colors"
                 >
-                  <option value="VENTILATOR">تنفّس صناعي (Ventilator)</option>
-                  <option value="CARDIAC_MONITOR">مراقب قلب (Cardiac Monitor)</option>
-                  <option value="INFUSION_PUMP">مضخة تسريب (Infusion Pump)</option>
-                  <option value="FEEDING_PUMP">مضخة تغذية (Feeding Pump)</option>
-                  <option value="DIALYSIS_CRRT">غسيل كلوي (CRRT / Dialysis)</option>
-                  <option value="ECMO">إيكمو (ECMO)</option>
-                  <option value="HEATER_COOLER">جهاز تدفئة/تبريد</option>
+                  <option value="VENTILATOR">{t('icu.equipmentPanel.addModal.ventilator', 'تنفّس صناعي (Ventilator)')}</option>
+                  <option value="CARDIAC_MONITOR">{t('icu.equipmentPanel.addModal.cardiacMonitor', 'مراقب قلب (Cardiac Monitor)')}</option>
+                  <option value="INFUSION_PUMP">{t('icu.equipmentPanel.addModal.infusionPump', 'مضخة تسريب (Infusion Pump)')}</option>
+                  <option value="FEEDING_PUMP">{t('icu.equipmentPanel.addModal.feedingPump', 'مضخة تغذية (Feeding Pump)')}</option>
+                  <option value="DIALYSIS_CRRT">{t('icu.equipmentPanel.addModal.dialysis', 'غسيل كلوي (CRRT / Dialysis)')}</option>
+                  <option value="ECMO">{t('icu.equipmentPanel.addModal.ecmo', 'إيكمو (ECMO)')}</option>
+                  <option value="HEATER_COOLER">{t('icu.equipmentPanel.addModal.heaterCooler', 'جهاز تدفئة/تبريد')}</option>
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-400 mb-1.5">اسم/رقم الجهاز (اختياري)</label>
+                <label className="block text-xs font-bold text-slate-400 mb-1.5">{t('icu.equipmentPanel.addModal.name', 'اسم/رقم الجهاز (اختياري)')}</label>
                 <input 
                   type="text" 
                   value={newEq.equipmentName} 
@@ -167,8 +170,8 @@ export const EquipmentPanel = ({ encounterId }: Props) => {
               </div>
               
               <div className="pt-6 flex gap-3 border-t border-slate-800 mt-2">
-                <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 py-2.5 text-slate-300 bg-slate-800 hover:bg-slate-700 rounded-xl font-bold transition-colors">إلغاء</button>
-                <button type="submit" className="flex-[2] py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-500 font-bold transition-colors shadow-lg shadow-indigo-900/40 flex items-center justify-center gap-2">تأكيد الإضافة</button>
+                <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 py-2.5 text-slate-300 bg-slate-800 hover:bg-slate-700 rounded-xl font-bold transition-colors">{t('icu.equipmentPanel.addModal.cancel', 'إلغاء')}</button>
+                <button type="submit" className="flex-[2] py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-500 font-bold transition-colors shadow-lg shadow-indigo-900/40 flex items-center justify-center gap-2">{t('icu.equipmentPanel.addModal.confirm', 'تأكيد الإضافة')}</button>
               </div>
             </form>
           </div>

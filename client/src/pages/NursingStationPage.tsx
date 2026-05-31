@@ -105,7 +105,7 @@ export default function NursingStationPage() {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [loadData]);
 
   const handleSelectPatient = async (enc: InpatientEncounter) => {
     // Reload care plan for this encounter

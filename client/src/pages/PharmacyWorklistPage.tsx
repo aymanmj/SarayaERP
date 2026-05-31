@@ -111,7 +111,7 @@ export default function PharmacyWorklistPage() {
   useEffect(() => {
     loadData();
     loadCatalog();
-  }, []);
+  }, [loadData]);
 
   // فتح المودال وتجهيز القيم
   const openDispenseModal = (p: WorklistPrescription) => {

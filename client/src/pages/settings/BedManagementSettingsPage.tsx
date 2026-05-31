@@ -70,7 +70,7 @@ export default function BedManagementSettingsPage() {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [loadData]);
 
   // --- WARDS ---
   const handleOpenWardModal = (ward?: Ward) => {
