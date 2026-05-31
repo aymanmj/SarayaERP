@@ -107,6 +107,48 @@ export class SurgeryController {
     return this.surgeryService.updateNotes(req.user.hospitalId, id, body);
   }
 
+  @Post('cases/:id/preop-checklist')
+  async recordPreOpChecklist(
+    @Req() req: any,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: any,
+  ) {
+    return this.surgeryService.recordPreOpChecklist(
+      req.user.hospitalId,
+      id,
+      body,
+      req.user.sub,
+    );
+  }
+
+  @Post('cases/:id/intraop-log')
+  async recordIntraOpLog(
+    @Req() req: any,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: any,
+  ) {
+    return this.surgeryService.recordIntraOpLog(
+      req.user.hospitalId,
+      id,
+      body,
+      req.user.sub,
+    );
+  }
+
+  @Post('cases/:id/postop-pacu')
+  async recordPostOpPACU(
+    @Req() req: any,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: any,
+  ) {
+    return this.surgeryService.recordPostOpPACU(
+      req.user.hospitalId,
+      id,
+      body,
+      req.user.sub,
+    );
+  }
+
   // ── إدارة الطاقم ──
   @Post('cases/:id/team')
   async addTeamMember(

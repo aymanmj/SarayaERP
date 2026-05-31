@@ -103,4 +103,25 @@ describe('LocalizationInterceptor', () => {
       },
     ]);
   });
+
+  it('should preserve Decimal instances as is', async () => {
+    class Decimal {
+      constructor(public s: number, public e: number, public d: number[]) {}
+    }
+    const mockDecimal = new Decimal(1, 2, [2, 5, 0]);
+    const mockData = {
+      price: mockDecimal,
+      nameAr: 'اسم الخدمة',
+      nameEn: 'Service Name',
+    };
+
+    const context = createMockContext('ar');
+    const handler = createMockCallHandler(mockData);
+
+    const result = await interceptor.intercept(context, handler).toPromise();
+
+    expect(result.price).toBeInstanceOf(Decimal);
+    expect(result.price).toBe(mockDecimal);
+    expect(result.name).toBe('اسم الخدمة');
+  });
 });

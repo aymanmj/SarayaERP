@@ -6,6 +6,7 @@ import { apiClient } from "../api/apiClient";
 import { toast } from "sonner";
 import { DatePicker } from "@/components/ui/date-picker";
 import { useAuthStore } from "../stores/authStore";
+import { useTranslation } from "react-i18next";
 
 type SurgeryStatus =
   | "SCHEDULED"
@@ -63,6 +64,8 @@ function getStatusColor(s: SurgeryStatus) {
 }
 
 export default function SurgerySchedulePage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const [cases, setCases] = useState<SurgeryCaseLite[]>([]);
@@ -107,7 +110,7 @@ export default function SurgerySchedulePage() {
       });
       setCases(res.data);
     } catch {
-      toast.error("فشل تحميل جدول العمليات");
+      toast.error(t("surgery.toast.loadFailed", "فشل تحميل جدول العمليات"));
     } finally {
       setLoading(false);
     }
@@ -153,7 +156,7 @@ export default function SurgerySchedulePage() {
 
   const handleBook = async () => {
     if (!form.encounterId || !form.theatreId || !form.serviceItemId) {
-      toast.warning("يرجى اختيار المريض وغرفة العمليات ونوع العملية");
+      toast.warning(t("surgery.toast.selectRequired", "يرجى اختيار المريض وغرفة العمليات ونوع العملية"));
       return;
     }
 
@@ -198,12 +201,12 @@ export default function SurgerySchedulePage() {
         scheduledEnd: end.toISOString(),
         teamMembers,
       });
-      toast.success("تم حجز العملية بنجاح");
+      toast.success(t("surgery.toast.bookSuccess", "تم حجز العملية بنجاح"));
       setShowModal(false);
       loadData();
      
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || "فشل الحجز");
+      toast.error(err?.response?.data?.message || t("surgery.toast.bookFailed", "فشل الحجز"));
     }
   };
 
@@ -211,28 +214,28 @@ export default function SurgerySchedulePage() {
     if (!newOTName.trim()) return;
     try {
       await apiClient.post("/surgery/theatres", { name: newOTName });
-      toast.success("تم إضافة غرفة العمليات بنجاح");
+      toast.success(t("surgery.toast.otAdded", "تم إضافة غرفة العمليات بنجاح"));
       setShowOTModal(false);
       setNewOTName("");
       loadResources();
      
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || "فشل إضافة الغرفة");
+      toast.error(err?.response?.data?.message || t("surgery.toast.otAddFailed", "فشل إضافة الغرفة"));
     }
   };
 
   return (
     <div
       className="p-6 text-slate-100 h-full flex flex-col space-y-6"
-      dir="rtl"
+      dir={isRtl ? "rtl" : "ltr"}
     >
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold mb-1">
-            جدول العمليات الجراحية (OT)
+            {t("surgery.schedule.title", "جدول العمليات الجراحية (OT)")}
           </h1>
           <p className="text-sm text-slate-400">
-            إدارة الحجوزات وغرف العمليات.
+            {t("surgery.schedule.subtitle", "إدارة الحجوزات وغرف العمليات.")}
           </p>
         </div>
         <div className="flex gap-2">
@@ -241,21 +244,21 @@ export default function SurgerySchedulePage() {
               onClick={() => setShowOTModal(true)}
               className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-xl text-sm shadow-lg"
             >
-              ⚙️ إدارة غرف العمليات
+              {t("surgery.schedule.manageOT", "⚙️ إدارة غرف العمليات")}
             </button>
           )}
           <button
             onClick={() => setShowModal(true)}
             className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-sm font-bold shadow-lg"
           >
-            + حجز عملية جديدة
+            {t("surgery.schedule.newBooking", "+ حجز عملية جديدة")}
           </button>
         </div>
       </div>
 
       {/* Date Filter */}
       <div className="flex items-center gap-2 bg-slate-900/60 p-3 rounded-2xl border border-slate-800 w-fit">
-        <span className="text-sm text-slate-400">تاريخ العرض:</span>
+        <span className="text-sm text-slate-400">{t("surgery.schedule.viewDate", "تاريخ العرض:")}</span>
         <DatePicker
             date={date ? new Date(date) : undefined}
             onChange={(d: Date | undefined) => setDate(d ? d.toISOString().slice(0, 10) : "")}
@@ -267,12 +270,12 @@ export default function SurgerySchedulePage() {
       <div className="flex-1 overflow-auto space-y-3">
         {loading && (
           <div className="text-center text-slate-500 py-10">
-            جارِ التحميل...
+            {t("common.loading", "جارِ التحميل...")}
           </div>
         )}
         {!loading && cases.length === 0 && (
           <div className="text-center text-slate-500 py-10">
-            لا توجد عمليات مجدولة لهذا اليوم.
+            {t("surgery.schedule.noCases", "لا توجد عمليات مجدولة لهذا اليوم.")}
           </div>
         )}
 
@@ -302,18 +305,18 @@ export default function SurgerySchedulePage() {
                 >
                   {
                     {
-                      SCHEDULED: "مجدولة",
-                      IN_PROGRESS: "جارية الآن",
-                      RECOVERY: "إفاقة",
-                      COMPLETED: "مكتملة",
-                      CANCELLED: "ملغاة",
+                      SCHEDULED: t("surgery.status.scheduled", "مجدولة"),
+                      IN_PROGRESS: t("surgery.status.inProgress", "جارية الآن"),
+                      RECOVERY: t("surgery.status.recovery", "إفاقة"),
+                      COMPLETED: t("surgery.status.completed", "مكتملة"),
+                      CANCELLED: t("surgery.status.cancelled", "ملغاة"),
                     }[c.status]
                   }
                 </div>
                 {/* سعر العملية */}
                 {c.serviceItem && (
                   <span className="text-[10px] text-emerald-400 bg-emerald-950/30 px-2 py-1 rounded border border-emerald-800/40 font-mono">
-                    {Number(c.serviceItem.defaultPrice).toLocaleString()} د.ل
+                    {Number(c.serviceItem.defaultPrice).toLocaleString()} {t("common.lyd", "د.ل")}
                   </span>
                 )}
               </div>
@@ -325,7 +328,7 @@ export default function SurgerySchedulePage() {
                     {formatTime(c.scheduledStart)}
                   </span>
                   <span className="text-xs text-slate-500 mb-2">
-                    إلى {formatTime(c.scheduledEnd)}
+                    {t("common.to", "إلى")} {formatTime(c.scheduledEnd)}
                   </span>
                   <span className="text-[10px] text-sky-400 bg-sky-950/30 px-2 py-0.5 rounded border border-sky-900/50">
                     {c.theatre.name}
@@ -344,9 +347,9 @@ export default function SurgerySchedulePage() {
                       </span>
                     )}
                     <div className="text-sm text-slate-400 flex items-center gap-2 mt-1">
-                      <span>👤 المريض: {c.encounter.patient.fullName}</span>
+                      <span>{t("surgery.schedule.patient", "👤 المريض:")} {c.encounter.patient.fullName}</span>
                       <span className="text-slate-600">|</span>
-                      <span>🔢 الملف: {c.encounter.patient.mrn}</span>
+                      <span>{t("surgery.schedule.mrn", "🔢 الملف:")} {c.encounter.patient.mrn}</span>
                     </div>
                   </div>
 
@@ -355,24 +358,24 @@ export default function SurgerySchedulePage() {
                     {/* Surgeons */}
                     <div className="space-y-1">
                       <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">
-                        فريق الجراحة
+                        {t("surgery.team.surgeonTeam", "فريق الجراحة")}
                       </p>
                       {surgeons.length > 0 ? (
-                        surgeons.map((t, idx) => (
+                        surgeons.map((member, idx) => (
                           <div key={idx} className="text-xs text-slate-300">
-                            • {t.user.fullName}
+                            • {member.user.fullName}
                             <span className="text-[10px] text-slate-500 mr-1">
                               (
-                              {t.role === "SURGEON"
-                                ? "جراح رئيسي"
-                                : "مساعد جراح"}
+                              {member.role === "SURGEON"
+                                ? t("surgery.role.surgeon", "جراح رئيسي")
+                                : t("surgery.role.assistantSurgeon", "مساعد جراح")}
                               )
                             </span>
                           </div>
                         ))
                       ) : (
                         <span className="text-[10px] text-slate-600 italic">
-                          -- غير محدد --
+                          {t("common.unspecified", "-- غير محدد --")}
                         </span>
                       )}
                     </div>
@@ -380,24 +383,24 @@ export default function SurgerySchedulePage() {
                     {/* Anesthesia */}
                     <div className="space-y-1">
                       <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">
-                        فريق التخدير
+                        {t("surgery.team.anesthesiaTeam", "فريق التخدير")}
                       </p>
                       {anesthesia.length > 0 ? (
-                        anesthesia.map((t, idx) => (
+                        anesthesia.map((member, idx) => (
                           <div key={idx} className="text-xs text-slate-300">
-                            • {t.user.fullName}
+                            • {member.user.fullName}
                             <span className="text-[10px] text-slate-500 mr-1">
                               (
-                              {t.role === "ANESTHETIST"
-                                ? "طبيب تخدير"
-                                : "فني تخدير"}
+                              {member.role === "ANESTHETIST"
+                                ? t("surgery.role.anesthetist", "طبيب تخدير")
+                                : t("surgery.role.anesthetistTech", "فني تخدير")}
                               )
                             </span>
                           </div>
                         ))
                       ) : (
                         <span className="text-[10px] text-slate-600 italic">
-                          -- غير محدد --
+                          {t("common.unspecified", "-- غير محدد --")}
                         </span>
                       )}
                     </div>
@@ -405,24 +408,24 @@ export default function SurgerySchedulePage() {
                     {/* Nursing */}
                     <div className="space-y-1">
                       <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">
-                        فريق التمريض
+                        {t("surgery.team.nursingTeam", "فريق التمريض")}
                       </p>
                       {nursing.length > 0 ? (
-                        nursing.map((t, idx) => (
+                        nursing.map((member, idx) => (
                           <div key={idx} className="text-xs text-slate-300">
-                            • {t.user.fullName}
+                            • {member.user.fullName}
                             <span className="text-[10px] text-slate-500 mr-1">
                               (
-                              {t.role === "SCRUB_NURSE"
-                                ? "Scrub"
-                                : "Circulating"}
+                              {member.role === "SCRUB_NURSE"
+                                ? t("surgery.role.scrub", "تعقيم")
+                                : t("surgery.role.circulating", "متجولة")}
                               )
                             </span>
                           </div>
                         ))
                       ) : (
                         <span className="text-[10px] text-slate-600 italic">
-                          -- غير محدد --
+                          {t("common.unspecified", "-- غير محدد --")}
                         </span>
                       )}
                     </div>
@@ -438,12 +441,12 @@ export default function SurgerySchedulePage() {
       {showModal && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
           <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 w-full max-w-lg space-y-4 max-h-[90vh] overflow-y-auto">
-            <h2 className="text-lg font-bold text-white">حجز غرفة عمليات</h2>
+            <h2 className="text-lg font-bold text-white">{t("surgery.booking.title", "حجز غرفة عمليات")}</h2>
 
             <div className="space-y-3">
               <div>
                 <label className="text-xs text-slate-400 block mb-1">
-                  المريض (من قائمة المنومين)
+                  {t("surgery.booking.patient", "المريض (من قائمة المنومين)")}
                 </label>
                 <select
                   className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm"
@@ -452,7 +455,7 @@ export default function SurgerySchedulePage() {
                     setForm({ ...form, encounterId: e.target.value })
                   }
                 >
-                  <option value="">-- اختر مريضاً --</option>
+                  <option value="">{t("surgery.booking.selectPatient", "-- اختر مريضاً --")}</option>
                   {inpatients.map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.patient.fullName} ({p.patient.mrn})
@@ -463,7 +466,7 @@ export default function SurgerySchedulePage() {
 
               <div>
                 <label className="text-xs text-slate-400 block mb-1">
-                  غرفة العمليات
+                  {t("surgery.booking.theatre", "غرفة العمليات")}
                 </label>
                 <select
                   className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm"
@@ -472,7 +475,7 @@ export default function SurgerySchedulePage() {
                     setForm({ ...form, theatreId: e.target.value })
                   }
                 >
-                  <option value="">-- اختر الغرفة --</option>
+                  <option value="">{t("surgery.booking.selectTheatre", "-- اختر الغرفة --")}</option>
                   {theatres.map((th) => (
                     <option key={th.id} value={th.id}>
                       {th.name}
@@ -484,7 +487,7 @@ export default function SurgerySchedulePage() {
               {/* ✅ اختيار نوع العملية من كتالوج الخدمات */}
               <div>
                 <label className="text-xs text-slate-400 block mb-1">
-                  نوع العملية / الإجراء الجراحي
+                  {t("surgery.booking.surgeryType", "نوع العملية / الإجراء الجراحي")}
                 </label>
                 <select
                   className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm"
@@ -493,7 +496,7 @@ export default function SurgerySchedulePage() {
                     setForm({ ...form, serviceItemId: e.target.value })
                   }
                 >
-                  <option value="">-- اختر العملية --</option>
+                  <option value="">{t("surgery.booking.selectSurgery", "-- اختر العملية --")}</option>
                   {surgeryItems.map((s) => (
                     <option key={s.id} value={s.id}>
                       {s.name} ({s.code})
@@ -504,16 +507,16 @@ export default function SurgerySchedulePage() {
                 {selectedSurgery && (
                   <div className="mt-1 flex items-center gap-2">
                     <span className="text-[10px] text-emerald-400 bg-emerald-950/30 px-2 py-1 rounded border border-emerald-800/40">
-                      💰 السعر: {Number(selectedSurgery.defaultPrice).toLocaleString()} د.ل
+                      {t("surgery.booking.price", { price: Number(selectedSurgery.defaultPrice).toLocaleString(), defaultValue: `💰 السعر: ${Number(selectedSurgery.defaultPrice).toLocaleString()} د.ل` })}
                     </span>
                     <span className="text-[10px] text-slate-500">
-                      (سيُضاف للفاتورة تلقائياً عند اكتمال العملية)
+                      {t("surgery.booking.priceNote", "(سيُضاف للفاتورة تلقائياً عند اكتمال العملية)")}
                     </span>
                   </div>
                 )}
                 {surgeryItems.length === 0 && (
                   <p className="text-[10px] text-amber-400 mt-1">
-                    ⚠️ لا توجد عمليات معرفة. أضف خدمات من نوع "عملية جراحية" في الإعدادات → الخدمات والأسعار
+                    {t("surgery.booking.noServicesWarning", "⚠️ لا توجد عمليات معرفة. أضف خدمات من نوع \"عملية جراحية\" في الإعدادات → الخدمات والأسعار")}
                   </p>
                 )}
               </div>
@@ -521,7 +524,7 @@ export default function SurgerySchedulePage() {
               <div className="flex gap-4">
                 <div className="flex-1">
                   <label className="text-xs text-slate-400 block mb-1">
-                    وقت البدء
+                    {t("surgery.booking.startTime", "وقت البدء")}
                   </label>
                   <input
                     type="time"
@@ -534,7 +537,7 @@ export default function SurgerySchedulePage() {
                 </div>
                 <div className="flex-1">
                   <label className="text-xs text-slate-400 block mb-1">
-                    المدة المتوقعة (دقيقة)
+                    {t("surgery.booking.duration", "المدة المتوقعة (دقيقة)")}
                   </label>
                   <input
                     type="number"
@@ -553,12 +556,12 @@ export default function SurgerySchedulePage() {
               {/* Team Selection */}
               <div className="border-t border-slate-800 pt-3 space-y-3">
                 <h3 className="text-sm font-semibold text-slate-300">
-                  الطاقم الطبي (اختياري)
+                  {t("surgery.booking.staffOptional", "الطاقم الطبي (اختياري)")}
                 </h3>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="text-[10px] text-sky-400 block mb-1">
-                      الجراح الرئيسي
+                      {t("surgery.role.surgeon", "جراح رئيسي")}
                     </label>
                     <select
                       className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 text-xs"
@@ -567,7 +570,7 @@ export default function SurgerySchedulePage() {
                         setForm({ ...form, surgeonId: e.target.value })
                       }
                     >
-                      <option value="">-- اختر --</option>
+                      <option value="">-- {t("common.select", "اختر")} --</option>
                       {users.map((u) => (
                         <option key={u.id} value={u.id}>
                           {u.fullName}
@@ -577,7 +580,7 @@ export default function SurgerySchedulePage() {
                   </div>
                   <div>
                     <label className="text-[10px] text-sky-400 block mb-1">
-                      مساعد جراح
+                      {t("surgery.role.assistantSurgeon", "مساعد جراح")}
                     </label>
                     <select
                       className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 text-xs"
@@ -586,7 +589,7 @@ export default function SurgerySchedulePage() {
                         setForm({ ...form, assistantId: e.target.value })
                       }
                     >
-                      <option value="">-- اختر --</option>
+                      <option value="">-- {t("common.select", "اختر")} --</option>
                       {users.map((u) => (
                         <option key={u.id} value={u.id}>
                           {u.fullName}
@@ -596,7 +599,7 @@ export default function SurgerySchedulePage() {
                   </div>
                   <div>
                     <label className="text-[10px] text-amber-400 block mb-1">
-                      طبيب التخدير
+                      {t("surgery.role.anesthetist", "طبيب تخدير")}
                     </label>
                     <select
                       className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 text-xs"
@@ -605,7 +608,7 @@ export default function SurgerySchedulePage() {
                         setForm({ ...form, anesthetistId: e.target.value })
                       }
                     >
-                      <option value="">-- اختر --</option>
+                      <option value="">-- {t("common.select", "اختر")} --</option>
                       {users.map((u) => (
                         <option key={u.id} value={u.id}>
                           {u.fullName}
@@ -615,7 +618,7 @@ export default function SurgerySchedulePage() {
                   </div>
                   <div>
                     <label className="text-[10px] text-amber-400 block mb-1">
-                      فني تخدير
+                      {t("surgery.role.anesthetistTech", "فني تخدير")}
                     </label>
                     <select
                       className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 text-xs"
@@ -624,7 +627,7 @@ export default function SurgerySchedulePage() {
                         setForm({ ...form, anesthesiaTechId: e.target.value })
                       }
                     >
-                      <option value="">-- اختر --</option>
+                      <option value="">-- {t("common.select", "اختر")} --</option>
                       {users.map((u) => (
                         <option key={u.id} value={u.id}>
                           {u.fullName}
@@ -634,7 +637,7 @@ export default function SurgerySchedulePage() {
                   </div>
                   <div>
                     <label className="text-[10px] text-emerald-400 block mb-1">
-                      ممرضة تعقيم (Scrub)
+                      {t("surgery.role.scrubNurse", "ممرضة تعقيم (Scrub)")}
                     </label>
                     <select
                       className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 text-xs"
@@ -643,7 +646,7 @@ export default function SurgerySchedulePage() {
                         setForm({ ...form, scrubNurseId: e.target.value })
                       }
                     >
-                      <option value="">-- اختر --</option>
+                      <option value="">-- {t("common.select", "اختر")} --</option>
                       {users.map((u) => (
                         <option key={u.id} value={u.id}>
                           {u.fullName}
@@ -653,7 +656,7 @@ export default function SurgerySchedulePage() {
                   </div>
                   <div>
                     <label className="text-[10px] text-emerald-400 block mb-1">
-                      ممرضة متجولة (Circulating)
+                      {t("surgery.role.circulatingNurse", "ممرضة متجولة (Circulating)")}
                     </label>
                     <select
                       className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 text-xs"
@@ -665,7 +668,7 @@ export default function SurgerySchedulePage() {
                         })
                       }
                     >
-                      <option value="">-- اختر --</option>
+                      <option value="">-- {t("common.select", "اختر")} --</option>
                       {users.map((u) => (
                         <option key={u.id} value={u.id}>
                           {u.fullName}
@@ -682,13 +685,13 @@ export default function SurgerySchedulePage() {
                 onClick={() => setShowModal(false)}
                 className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 text-sm hover:bg-slate-700"
               >
-                إلغاء
+                {t("common.cancel", "إلغاء")}
               </button>
               <button
                 onClick={handleBook}
                 className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-sm font-bold hover:bg-emerald-500"
               >
-                تأكيد الحجز
+                {t("surgery.booking.confirm", "تأكيد الحجز")}
               </button>
             </div>
           </div>
@@ -698,14 +701,14 @@ export default function SurgerySchedulePage() {
       {showOTModal && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
           <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-sm p-6">
-            <h2 className="text-lg font-bold text-white mb-4">إضافة غرفة عمليات (OT)</h2>
+            <h2 className="text-lg font-bold text-white mb-4">{t("surgery.ot.title", "إضافة غرفة عمليات (OT)")}</h2>
             <div className="space-y-4">
               <div>
-                <label className="text-xs text-slate-400 mb-1 block">اسم الغرفة</label>
+                <label className="text-xs text-slate-400 mb-1 block">{t("surgery.ot.name", "اسم الغرفة")}</label>
                 <input
                   type="text"
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-sm"
-                  placeholder="مثال: الغرفة الرئيسية، Theatre A"
+                  placeholder={t("surgery.ot.namePlaceholder", "مثال: الغرفة الرئيسية، Theatre A")}
                   value={newOTName}
                   onChange={(e) => setNewOTName(e.target.value)}
                 />
@@ -717,13 +720,13 @@ export default function SurgerySchedulePage() {
                 onClick={() => setShowOTModal(false)}
                 className="px-6 py-2 bg-slate-800 text-slate-300 rounded-xl text-sm hover:bg-slate-700"
               >
-                إلغاء
+                {t("common.cancel", "إلغاء")}
               </button>
               <button
                 onClick={handleAddOT}
                 className="px-6 py-2 bg-sky-600 text-white font-bold rounded-xl text-sm"
               >
-                حفظ
+                {t("common.save", "حفظ")}
               </button>
             </div>
           </div>

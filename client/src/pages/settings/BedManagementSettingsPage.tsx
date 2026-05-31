@@ -227,7 +227,7 @@ export default function BedManagementSettingsPage() {
                     <span>{t("beds.typeLabel")} {ward.type === "General" ? t("beds.wardTypeGeneral") : ward.type === "ICU" ? t("beds.wardTypeIcu") : ward.type === "Private" ? t("beds.wardTypePrivate") : ward.type}</span>
                     <span>•</span>
                     <span>
-                      {t("beds.rateLabel")} {ward.serviceItem ? <span className="text-emerald-400 font-bold">{ward.serviceItem.defaultPrice} LYD</span> : <span className="text-rose-400">{t("beds.unpriced")}</span>}
+                      {t("beds.rateLabel")} {ward.serviceItem ? <span className="text-emerald-400 font-bold">{Number(ward.serviceItem.defaultPrice).toFixed(3)} LYD</span> : <span className="text-rose-400">{t("beds.unpriced")}</span>}
                     </span>
                     {ward.department && <><span>•</span><span>{t("beds.deptLabel")} {ward.department.name}</span></>}
                   </div>
@@ -346,7 +346,7 @@ export default function BedManagementSettingsPage() {
                 <label className="text-xs text-slate-400 block mb-1">{t("beds.pricingService")}</label>
                 <select className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-sm focus:outline-none focus:border-sky-500 transition text-white" value={wardForm.serviceItemId} onChange={(e) => setWardForm({ ...wardForm, serviceItemId: e.target.value })}>
                   <option value="">{t("beds.selectPricingService")}</option>
-                  {services.map((s) => <option key={s.id} value={s.id}>{s.name} ({s.defaultPrice} د.ل)</option>)}
+                   {services.map((s) => <option key={s.id} value={s.id}>{s.name} ({Number(s.defaultPrice).toFixed(3)} د.ل)</option>)}
                 </select>
                 <p className="text-[10px] text-slate-500 mt-1">{t("beds.pricingNote")}</p>
               </div>

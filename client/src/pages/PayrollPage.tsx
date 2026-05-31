@@ -11,17 +11,24 @@ import {
   CalculatorIcon,
   DocumentTextIcon,
 } from "@heroicons/react/24/outline";
+import { useTranslation } from "react-i18next";
 
 export default function PayrollPage() {
-   
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
   const [runs, setRuns] = useState<any[]>([]);
-   
   const [selectedRun, setSelectedRun] = useState<any | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [loading, setLoading] = useState(false);
   const [approving, setApproving] = useState(false);
   const [month, setMonth] = useState(new Date().getMonth() + 1);
   const [year, setYear] = useState(new Date().getFullYear());
+
+  const getStatusLabel = (s: string) => {
+    if (s === "APPROVED") return t("hr.payroll.statusApproved", "معتمد");
+    if (s === "DRAFT") return t("hr.payroll.statusDraft", "مسودة");
+    return s;
+  };
 
   const loadRuns = async () => {
     setLoading(true);
@@ -39,7 +46,7 @@ export default function PayrollPage() {
       const res = await apiClient.get(`/payroll/${id}`);
       setSelectedRun(res.data);
     } catch {
-      toast.error("فشل تحميل تفاصيل كشف المرتبات");
+      toast.error(t("hr.payroll.loadDetailsFailed", "فشل تحميل تفاصيل كشف المرتبات"));
     } finally {
       setLoading(false);
     }
@@ -47,63 +54,64 @@ export default function PayrollPage() {
 
   useEffect(() => {
     loadRuns();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleGenerate = async () => {
     try {
       await apiClient.post("/payroll/generate", { month, year });
-      toast.success("تم إنشاء مسودة كشف المرتبات بنجاح");
+      toast.success(t("hr.payroll.draftCreated", "تم إنشاء مسودة كشف المرتبات بنجاح"));
       loadRuns();
      
     } catch (e: any) {
-      toast.error(e.response?.data?.message || "فشل الإنشاء");
+      toast.error(e.response?.data?.message || t("hr.payroll.createFailed", "فشل الإنشاء"));
     }
   };
 
   const handleApprove = async () => {
     if (!selectedRun) return;
-    if (!confirm("هل أنت متأكد من اعتماد كشف المرتبات وترحيل القيد المحاسبي؟"))
+    if (!confirm(t("hr.payroll.confirmApprove", "هل أنت متأكد من اعتماد كشف المرتبات وترحيل القيد المحاسبي؟")))
       return;
     setApproving(true);
     try {
       await apiClient.post(`/payroll/${selectedRun.id}/approve`);
-      toast.success("تم اعتماد كشف المرتبات والترحيل للمالية بنجاح");
+      toast.success(t("hr.payroll.approveSuccess", "تم اعتماد كشف المرتبات والترحيل للمالية بنجاح"));
       loadRuns();
       handleViewDetails(selectedRun.id);
     } catch {
-      toast.error("فشل اعتماد كشف المرتبات");
+      toast.error(t("hr.payroll.approveFailed", "فشل اعتماد كشف المرتبات"));
     } finally {
       setApproving(false);
     }
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm("حذف المسودة نهائياً؟")) return;
+    if (!confirm(t("hr.payroll.confirmDelete", "حذف المسودة نهائياً؟"))) return;
     try {
       await apiClient.delete(`/payroll/${id}`);
-      toast.success("تم الحذف");
+      toast.success(t("hr.payroll.deleteSuccess", "تم الحذف"));
       setSelectedRun(null);
       loadRuns();
     } catch {
-      toast.error("لا يمكن حذف كشف مرتبات معتمد");
+      toast.error(t("hr.payroll.deleteFailed", "لا يمكن حذف كشف مرتبات معتمد"));
     }
   };
 
   return (
     <div
       className="p-6 h-full flex flex-col space-y-6 text-slate-100"
-      dir="rtl"
+      dir={isRtl ? "rtl" : "ltr"}
     >
       {/* 📊 Summary Row */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-xl flex items-center justify-between">
           <div>
             <div className="text-xs text-slate-500 font-bold uppercase mb-1">
-              إجمالي آخر كشف مرتبات
+              {t("hr.payroll.lastTotalNetLabel", "إجمالي آخر كشف مرتبات")}
             </div>
             <div className="text-2xl font-black text-emerald-400">
               {formatMoney(runs[0]?.totalNet || 0)}{" "}
-              <span className="text-xs">LYD</span>
+              <span className="text-xs">{t("common.lyd", "د.ل")}</span>
             </div>
           </div>
           <BanknotesIcon className="w-10 h-10 text-slate-700 opacity-50" />
@@ -115,7 +123,7 @@ export default function PayrollPage() {
         <div className="w-80 flex flex-col gap-4">
           <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 space-y-4 shadow-lg">
             <h3 className="text-sm font-bold flex items-center gap-2">
-              <CalculatorIcon className="w-5 h-5 text-sky-500" /> كشف مرتبات جديد
+              <CalculatorIcon className="w-5 h-5 text-sky-500" /> {t("hr.payroll.newPayrollTitle", "كشف مرتبات جديد")}
             </h3>
             <div className="grid grid-cols-2 gap-2">
               <select
@@ -140,13 +148,13 @@ export default function PayrollPage() {
               onClick={handleGenerate}
               className="w-full py-3 bg-sky-600 hover:bg-sky-500 rounded-2xl text-xs font-black shadow-lg shadow-sky-900/20 transition-all active:scale-95"
             >
-              بدء التوليد
+              {t("hr.payroll.generateBtn", "بدء التوليد")}
             </button>
           </div>
 
           <div className="flex-1 bg-slate-900/50 border border-slate-800 rounded-3xl p-5 overflow-y-auto custom-scrollbar">
             <h3 className="text-xs font-bold text-slate-500 uppercase mb-4">
-              السجل التاريخي
+              {t("hr.payroll.historyTitle", "السجل التاريخي")}
             </h3>
             <div className="space-y-3">
               {runs.map((run) => (
@@ -160,13 +168,13 @@ export default function PayrollPage() {
                       {run.month} / {run.year}
                     </span>
                     <span
-                      className={`text-[8px] px-2 py-0.5 rounded-full border ${run.status === "APPROVED" ? "bg-emerald-900 text-emerald-400" : "bg-amber-900 text-amber-400"}`}
+                      className={`text-[8px] px-2 py-0.5 rounded-full border ${run.status === "APPROVED" ? "bg-emerald-900 text-emerald-400 border-emerald-800/30" : "bg-amber-900 text-amber-400 border-amber-800/30"}`}
                     >
-                      {run.status}
+                      {getStatusLabel(run.status)}
                     </span>
                   </div>
                   <div className="text-xs text-slate-500">
-                    {formatMoney(run.totalNet)} LYD
+                    {formatMoney(run.totalNet)} {t("common.lyd", "د.ل")}
                   </div>
                 </div>
               ))}
@@ -179,18 +187,17 @@ export default function PayrollPage() {
           {!selectedRun ? (
             <div className="flex-1 flex flex-col items-center justify-center text-slate-600">
               <DocumentTextIcon className="w-16 h-16 opacity-10 mb-4" />
-              <p>اختر كشف مرتبات للمراجعة</p>
+              <p>{t("hr.payroll.selectPayrollPrompt", "اختر كشف مرتبات للمراجعة")}</p>
             </div>
           ) : (
             <>
               <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900/20">
                 <div>
                   <h2 className="text-xl font-black">
-                    تفاصيل كشف المرتبات {selectedRun.month} / {selectedRun.year}
+                    {t("hr.payroll.detailsTitle", "تفاصيل كشف المرتبات {{month}} / {{year}}", { month: selectedRun.month, year: selectedRun.year })}
                   </h2>
                   <div className="text-[10px] text-slate-500">
-                    الحالة: {selectedRun.status} | إجمالي كشف المرتبات:{" "}
-                    {formatMoney(selectedRun.totalNet)}
+                    {t("hr.payroll.detailsSubtitle", "الحالة: {{status}} | إجمالي كشف المرتبات: {{total}}", { status: getStatusLabel(selectedRun.status), total: `${formatMoney(selectedRun.totalNet)} ${t("common.lyd", "د.ل")}` })}
                   </div>
                 </div>
                 <div className="flex gap-2">
@@ -207,13 +214,13 @@ export default function PayrollPage() {
                         disabled={approving}
                         className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-black shadow-lg"
                       >
-                        ✔ اعتماد وترحيل مالي
+                        {t("hr.payroll.approveBtn", "✔ اعتماد وترحيل مالي")}
                       </button>
                     </>
                   )}
                   {selectedRun.status === "APPROVED" && (
                     <div className="flex items-center gap-2 px-4 py-2 bg-emerald-900/20 text-emerald-400 border border-emerald-500/30 rounded-xl text-xs font-bold">
-                      <CheckBadgeIcon className="w-5 h-5" /> تم الترحيل للمالية
+                      <CheckBadgeIcon className="w-5 h-5" /> {t("hr.payroll.approvedBadge", "تم الترحيل للمالية")}
                     </div>
                   )}
                 </div>
@@ -223,12 +230,12 @@ export default function PayrollPage() {
                 <table className="w-full text-sm text-right">
                   <thead className="bg-slate-950/50 text-slate-500 sticky top-0 backdrop-blur z-10">
                     <tr className="text-[10px] uppercase tracking-widest border-b border-slate-800">
-                      <th className="px-6 py-4">الموظف</th>
-                      <th className="px-6 py-4">الأساسي</th>
-                      <th className="px-6 py-4">علاوات/عمولات</th>
-                      <th className="px-6 py-4 text-rose-400">خصومات</th>
+                      <th className="px-6 py-4">{t("hr.payroll.employeeHeader", "الموظف")}</th>
+                      <th className="px-6 py-4">{t("hr.payroll.basicHeader", "الأساسي")}</th>
+                      <th className="px-6 py-4">{t("hr.payroll.allowanceHeader", "علاوات/عمولات")}</th>
+                      <th className="px-6 py-4 text-rose-400">{t("hr.payroll.deductionsHeader", "خصومات")}</th>
                       <th className="px-6 py-4 text-emerald-400 font-black">
-                        الصافي
+                        {t("hr.payroll.netHeader", "الصافي")}
                       </th>
                     </tr>
                   </thead>
@@ -271,4 +278,3 @@ export default function PayrollPage() {
     </div>
   );
 }
-

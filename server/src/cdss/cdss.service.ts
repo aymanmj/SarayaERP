@@ -466,7 +466,14 @@ export class CDSSService {
     const creaValue = parseFloat(latestCrea.value);
     if (isNaN(creaValue) || creaValue === 0) return alerts;
 
-    const egfr = this.calculateEGFR(creaValue, age, gender);
+    // جلب أحدث وزن للمريض لحساب الكلى بدقة
+    const latestVital = await this.prisma.vitalSign.findFirst({
+      where: { encounter: { patientId } },
+      orderBy: { createdAt: 'desc' },
+    });
+    const weight = latestVital?.weight ? Number(latestVital.weight) : 70;
+
+    const egfr = this.calculateEGFR(creaValue, age, gender, weight);
 
     for (const drug of drugs) {
       const name = drug.genericName.toLowerCase();
@@ -667,8 +674,27 @@ export class CDSSService {
     return alerts;
   }
 
-  async checkDoseRange(drugs: DrugCheckInput[]): Promise<CDSSAlertResult[]> {
+  async checkDoseRange(
+    patientId: number,
+    drugs: DrugCheckInput[],
+  ): Promise<CDSSAlertResult[]> {
     const alerts: CDSSAlertResult[] = [];
+
+    const patient = await this.prisma.patient.findUnique({
+      where: { id: patientId },
+    });
+    if (!patient || !patient.dateOfBirth) return alerts;
+    const ageInDays = Math.floor(
+      (Date.now() - new Date(patient.dateOfBirth).getTime()) /
+        (1000 * 60 * 60 * 24),
+    );
+
+    // جلب أحدث وزن للمريض لفحص الجرعات بالوزن (mg/kg)
+    const latestVital = await this.prisma.vitalSign.findFirst({
+      where: { encounter: { patientId } },
+      orderBy: { createdAt: 'desc' },
+    });
+    const weight = latestVital?.weight ? Number(latestVital.weight) : 70;
 
     // Fetch dose rules for these drugs from DB
     const genericNames = drugs.map((d) => d.genericName.toLowerCase());
@@ -686,34 +712,49 @@ export class CDSSService {
       if (!doseMatch) continue;
       const numDose = parseFloat(doseMatch[0]);
 
-      const rule = doseRules.find(
+      // فلترة القواعد المطبقة بناءً على وزن وعمر المريض
+      const rules = doseRules.filter(
         (r) => r.drugName.toLowerCase() === drug.genericName.toLowerCase(),
       );
 
+      const rule = rules.find((r) => {
+        if (r.weightMin !== null && weight < r.weightMin) return false;
+        if (r.weightMax !== null && weight > r.weightMax) return false;
+        if (r.ageMin !== null && ageInDays < r.ageMin) return false;
+        if (r.ageMax !== null && ageInDays > r.ageMax) return false;
+        return true;
+      });
+
       if (rule) {
-        if (rule.maxDoseValue && numDose > Number(rule.maxDoseValue)) {
+        const isPerKg = rule.doseUnit.toLowerCase().includes('/kg');
+        const minLimit = isPerKg ? rule.minDoseValue * weight : rule.minDoseValue;
+        const maxLimit = isPerKg ? rule.maxDoseValue * weight : rule.maxDoseValue;
+
+        if (numDose > maxLimit) {
           alerts.push({
             type: CDSSAlertType.DOSAGE_WARNING,
             severity: CDSSAlertSeverity.CRITICAL,
-            message: `Dose exceeds maximum limit! ${numDose}mg given, Max is ${rule.maxDoseValue}mg per dose.`,
-            messageAr: `الجرعة تتجاوز الحد الأقصى! الجرعة الموصوفة ${numDose} لدواء ${drug.genericName}. الحد الأقصى: ${rule.maxDoseValue}mg`,
+            message: `Dose exceeds maximum limit! ${numDose}mg given, Max is ${maxLimit}mg (${rule.maxDoseValue} ${rule.doseUnit}) for weight ${weight}kg.`,
+            messageAr: `الجرعة تتجاوز الحد الأقصى! الجرعة الموصوفة ${numDose} لدواء ${drug.genericName}. الحد الأقصى: ${maxLimit} ملغ (${rule.maxDoseValue} ${rule.doseUnit}) لوزن ${weight} كجم.`,
             context: {
               drug: drug.genericName,
               inputDose: numDose,
-              maxDose: Number(rule.maxDoseValue),
+              maxDose: maxLimit,
+              weight,
             },
             requiresOverride: true,
           });
-        } else if (rule.minDoseValue && numDose < Number(rule.minDoseValue)) {
+        } else if (numDose < minLimit) {
           alerts.push({
             type: CDSSAlertType.DOSAGE_WARNING,
             severity: CDSSAlertSeverity.MODERATE,
-            message: `Dose is below minimum recommended limit! ${numDose}mg given, Min is ${rule.minDoseValue}mg per dose.`,
-            messageAr: `الجرعة أقل من الحد الأدنى الموصى به! الجرعة الموصوفة ${numDose} لدواء ${drug.genericName}. الحد الأدنى: ${rule.minDoseValue}mg`,
+            message: `Dose is below minimum recommended limit! ${numDose}mg given, Min is ${minLimit}mg (${rule.minDoseValue} ${rule.doseUnit}) for weight ${weight}kg.`,
+            messageAr: `الجرعة أقل من الحد الأدنى الموصى به! الجرعة الموصوفة ${numDose} لدواء ${drug.genericName}. الحد الأدنى: ${minLimit} ملغ (${rule.minDoseValue} ${rule.doseUnit}) لوزن ${weight} كجم.`,
             context: {
               drug: drug.genericName,
               inputDose: numDose,
-              minDose: Number(rule.minDoseValue),
+              minDose: minLimit,
+              weight,
             },
             requiresOverride: false,
           });
@@ -896,7 +937,7 @@ export class CDSSService {
     allAlerts.push(...hepaticAlerts);
 
     // 5. فحص نطاق الجرعات (Dose Range)
-    const doseAlerts = await this.checkDoseRange(input.drugs);
+    const doseAlerts = await this.checkDoseRange(input.patientId, input.drugs);
     allAlerts.push(...doseAlerts);
 
     // تطبيق آلية إخماد التكرار القريب

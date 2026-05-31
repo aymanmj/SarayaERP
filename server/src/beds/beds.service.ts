@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { BedStatus, EncounterType } from '@prisma/client';
+import { Money } from '../common/utils/money.util';
 
 @Injectable()
 export class BedsService {
@@ -51,7 +52,7 @@ export class BedsService {
 
   // 🔹 شجرة: عنابر -> غرف -> أسِرّة
   async listTree(hospitalId: number) {
-    return this.prisma.ward.findMany({
+    const wards = await this.prisma.ward.findMany({
       where: { hospitalId, isActive: true },
       include: {
         department: { select: { id: true, name: true } },
@@ -68,6 +69,16 @@ export class BedsService {
       },
       orderBy: { name: 'asc' },
     });
+
+    return wards.map((ward) => ({
+      ...ward,
+      serviceItem: ward.serviceItem
+        ? {
+            ...ward.serviceItem,
+            defaultPrice: Money.fromPrisma(ward.serviceItem.defaultPrice),
+          }
+        : null,
+    }));
   }
 
   // 🔹 ربط Encounter (IPD) بسرير (تنويم)
@@ -376,7 +387,7 @@ export class BedsService {
 
   // جلب خدمات الإقامة فقط (للقائمة المنسدلة)
   async getBedServices(hospitalId: number) {
-    return this.prisma.serviceItem.findMany({
+    const services = await this.prisma.serviceItem.findMany({
       where: {
         hospitalId,
         type: 'BED',
@@ -384,5 +395,10 @@ export class BedsService {
       },
       select: { id: true, name: true, defaultPrice: true },
     });
+
+    return services.map((s) => ({
+      ...s,
+      defaultPrice: Money.fromPrisma(s.defaultPrice),
+    }));
   }
 }

@@ -13,6 +13,7 @@ import {
 } from "date-fns";
 import { ar } from "date-fns/locale";
 import { DatePicker } from "@/components/ui/date-picker";
+import { useTranslation } from "react-i18next";
 
 // --- Types ---
 type UserLite = { id: number; fullName: string };
@@ -34,6 +35,8 @@ type RosterEntry = {
 };
 
 export default function RosterPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
   const [users, setUsers] = useState<UserLite[]>([]);
   const [shifts, setShifts] = useState<WorkShift[]>([]);
   const [rosterData, setRosterData] = useState<RosterEntry[]>([]);
@@ -79,10 +82,11 @@ export default function RosterPage() {
         setShifts(sRes.data);
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       } catch (e) {
-        toast.error("فشل تحميل الموارد الأساسية");
+        toast.error(t("hr.roster.loadResourcesFailed", "فشل تحميل الموارد الأساسية"));
       }
     };
     loadResources();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // 2. Load Roster for current month
@@ -98,7 +102,7 @@ export default function RosterPage() {
       setRosterData(res.data);
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
-      toast.error("فشل تحميل الجدول");
+      toast.error(t("hr.roster.loadRosterFailed", "فشل تحميل الجدول"));
     } finally {
       setLoading(false);
     }
@@ -112,7 +116,7 @@ export default function RosterPage() {
   // 3. Handlers
   const handleAssign = async () => {
     if (!form.userId || (!form.isOffDay && !form.workShiftId)) {
-      toast.warning("يرجى إكمال بيانات التوزيع.");
+      toast.warning(t("hr.roster.fillRequired", "يرجى إكمال بيانات التوزيع."));
       return;
     }
 
@@ -124,12 +128,12 @@ export default function RosterPage() {
         toDate: form.toDate,
         isOffDay: form.isOffDay,
       });
-      toast.success("تم تحديث الجدول بنجاح");
+      toast.success(t("hr.roster.rosterUpdated", "تم تحديث الجدول بنجاح"));
       setShowAssignModal(false);
       loadRoster();
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
-      toast.error("فشل عملية التوزيع");
+      toast.error(t("hr.roster.rosterUpdateFailed", "فشل عملية التوزيع"));
     }
   };
 
@@ -147,7 +151,7 @@ export default function RosterPage() {
   const handleUpdate = async () => {
     if (!selectedEntry) return;
     if (!editForm.isOffDay && !editForm.workShiftId) {
-      toast.warning("يرجى اختيار وردية أو تحديد يوم راحة");
+      toast.warning(t("hr.roster.selectShiftOrOffDay", "يرجى اختيار وردية أو تحديد يوم راحة"));
       return;
     }
 
@@ -157,13 +161,13 @@ export default function RosterPage() {
         workShiftId: editForm.isOffDay ? null : Number(editForm.workShiftId),
         isOffDay: editForm.isOffDay,
       });
-      toast.success("تم تحديث الإدخال بنجاح");
+      toast.success(t("hr.roster.entryUpdated", "تم تحديث الإدخال بنجاح"));
       setShowEditModal(false);
       setSelectedEntry(null);
       loadRoster();
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
-      toast.error("فشل تحديث الإدخال");
+      toast.error(t("hr.roster.entryUpdateFailed", "فشل تحديث الإدخال"));
     } finally {
       setIsSubmitting(false);
     }
@@ -175,20 +179,20 @@ export default function RosterPage() {
     setIsSubmitting(true);
     try {
       await apiClient.delete(`/hr/roster/${selectedEntry.id}`);
-      toast.success("تم حذف الإدخال بنجاح");
+      toast.success(t("hr.roster.entryDeleted", "تم حذف الإدخال بنجاح"));
       setShowEditModal(false);
       setShowDeleteConfirm(false);
       setSelectedEntry(null);
       loadRoster();
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
-      toast.error("فشل حذف الإدخال");
+      toast.error(t("hr.roster.entryDeleteFailed", "فشل حذف الإدخال"));
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // المساعدة في تنظيم البيانات للجدول: تجميع حسب المستخدم
+  // organizar
   const rosterGrid = useMemo(() => {
     const grid: Record<number, Record<string, RosterEntry>> = {};
     rosterData.forEach((entry) => {
@@ -202,27 +206,27 @@ export default function RosterPage() {
   return (
     <div
       className="p-6 text-slate-100 h-full flex flex-col space-y-6"
-      dir="rtl"
+      dir={isRtl ? "rtl" : "ltr"}
     >
       {/* Header */}
       <div className="flex justify-between items-center bg-slate-900/50 p-4 rounded-3xl border border-slate-800">
         <div>
-          <h1 className="text-2xl font-bold">جدول المناوبات الشهري</h1>
+          <h1 className="text-2xl font-bold">{t("hr.roster.title", "جدول المناوبات الشهري")}</h1>
           <div className="flex items-center gap-4 mt-2">
             <button
               onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
               className="p-1 hover:text-sky-400"
             >
-              ◀
+              {isRtl ? "◀" : "▶"}
             </button>
             <span className="text-sky-400 font-bold min-w-[120px] text-center uppercase">
-              {format(currentMonth, "MMMM yyyy", { locale: ar })}
+              {format(currentMonth, "MMMM yyyy", { locale: isRtl ? ar : undefined })}
             </span>
             <button
               onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
               className="p-1 hover:text-sky-400"
             >
-              ▶
+              {isRtl ? "▶" : "◀"}
             </button>
           </div>
         </div>
@@ -231,7 +235,7 @@ export default function RosterPage() {
           onClick={() => setShowAssignModal(true)}
           className="px-6 py-2.5 bg-sky-600 hover:bg-sky-500 text-white rounded-2xl font-bold shadow-lg shadow-sky-900/20 transition-all"
         >
-          + توزيع ورديات (Bulk Assign)
+          {t("hr.roster.bulkAssignBtn", "+ توزيع ورديات (Bulk Assign)")}
         </button>
       </div>
 
@@ -241,8 +245,8 @@ export default function RosterPage() {
           <table className="w-full border-collapse text-[11px]">
             <thead className="bg-slate-900 sticky top-0 z-20">
               <tr>
-                <th className="p-3 text-right border-b border-slate-800 sticky right-0 bg-slate-900 z-30 min-w-[150px]">
-                  الموظف
+                <th className={`p-3 text-right border-b border-slate-800 sticky ${isRtl ? "right-0" : "left-0"} bg-slate-900 z-30 min-w-[150px]`}>
+                  {t("hr.roster.employeeHeader", "الموظف")}
                 </th>
                 {daysInMonth.map((day) => (
                   <th
@@ -250,7 +254,7 @@ export default function RosterPage() {
                     className={`p-2 border-b border-slate-800 text-center min-w-[45px] ${[0, 6].includes(day.getDay()) ? "bg-slate-800/50" : ""}`}
                   >
                     <div className="text-slate-500">
-                      {format(day, "E", { locale: ar })}
+                      {format(day, "E", { locale: isRtl ? ar : undefined })}
                     </div>
                     <div className="text-sm font-bold">{format(day, "d")}</div>
                   </th>
@@ -263,7 +267,7 @@ export default function RosterPage() {
                   key={user.id}
                   className="hover:bg-slate-900/30 border-b border-slate-900"
                 >
-                  <td className="p-3 font-bold border-l border-slate-800 sticky right-0 bg-slate-950 z-10">
+                  <td className={`p-3 font-bold border-l border-slate-800 sticky ${isRtl ? "right-0" : "left-0"} bg-slate-950 z-10`}>
                     {user.fullName}
                   </td>
                   {daysInMonth.map((day) => {
@@ -285,7 +289,7 @@ export default function RosterPage() {
                             }`}
                           >
                             {entry.isOffDay
-                              ? "OFF"
+                              ? t("hr.roster.off", "OFF")
                               : entry.shift?.name.substring(0, 3)}
                           </div>
                         ) : (
@@ -306,21 +310,21 @@ export default function RosterPage() {
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
           <div className="bg-slate-900 border border-slate-700 rounded-3xl p-6 w-full max-w-lg space-y-6 animate-in zoom-in-95 duration-200">
             <h3 className="text-xl font-bold text-white border-b border-slate-800 pb-3">
-              توزيع ورديات العمل
+              {t("hr.roster.assignModalTitle", "توزيع ورديات العمل")}
             </h3>
 
             <div className="space-y-4">
               {/* اختيار الموظف */}
               <div>
                 <label className="text-xs text-slate-400 block mb-1">
-                  الموظف المستهدف
+                  {t("hr.roster.targetEmployeeLabel", "الموظف المستهدف")}
                 </label>
                 <select
                   className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm focus:border-sky-500 outline-none"
                   value={form.userId}
                   onChange={(e) => setForm({ ...form, userId: e.target.value })}
                 >
-                  <option value="">-- اختر الموظف --</option>
+                  <option value="">{t("hr.roster.selectEmployeePlaceholder", "-- اختر الموظف --")}</option>
                   {users.map((u) => (
                     <option key={u.id} value={u.id}>
                       {u.fullName}
@@ -333,7 +337,7 @@ export default function RosterPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-xs text-slate-400 block mb-1">
-                    من تاريخ
+                    {t("hr.roster.fromDateLabel", "من تاريخ")}
                   </label>
                   <DatePicker
                     date={form.fromDate}
@@ -343,7 +347,7 @@ export default function RosterPage() {
                 </div>
                 <div>
                   <label className="text-xs text-slate-400 block mb-1">
-                    إلى تاريخ
+                    {t("hr.roster.toDateLabel", "إلى تاريخ")}
                   </label>
                   <DatePicker
                     date={form.toDate}
@@ -365,14 +369,14 @@ export default function RosterPage() {
                     className="w-5 h-5 rounded accent-rose-500"
                   />
                   <span className="text-sm font-bold text-rose-400">
-                    تحديد كأيام راحة (Off Days)
+                    {t("hr.roster.setOffDaysLabel", "تحديد كأيام راحة (Off Days)")}
                   </span>
                 </label>
 
                 {!form.isOffDay && (
                   <div className="animate-in fade-in slide-in-from-top-2">
                     <label className="text-xs text-slate-400 block mb-1">
-                      الوردية المخصصة
+                      {t("hr.roster.assignedShiftLabel", "الوردية المخصصة")}
                     </label>
                     <select
                       className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm outline-none focus:border-emerald-500"
@@ -381,7 +385,7 @@ export default function RosterPage() {
                         setForm({ ...form, workShiftId: e.target.value })
                       }
                     >
-                      <option value="">-- اختر الوردية --</option>
+                      <option value="">{t("hr.roster.selectShiftPlaceholder", "-- اختر الوردية --")}</option>
                       {shifts.map((s) => (
                         <option key={s.id} value={s.id}>
                           {s.name} ({s.startTime}-{s.endTime})
@@ -398,13 +402,13 @@ export default function RosterPage() {
                 onClick={() => setShowAssignModal(false)}
                 className="px-6 py-2 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 transition"
               >
-                إلغاء
+                {t("common.cancel", "إلغاء")}
               </button>
               <button
                 onClick={handleAssign}
                 className="px-8 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold shadow-lg shadow-sky-900/20 transition"
               >
-                تطبيق الجدول
+                {t("hr.roster.applyRosterBtn", "تطبيق الجدول")}
               </button>
             </div>
           </div>
@@ -417,7 +421,7 @@ export default function RosterPage() {
           <div className="bg-slate-900 border border-slate-700 rounded-3xl p-6 w-full max-w-md space-y-5 animate-in zoom-in-95 duration-200">
             <div className="flex justify-between items-center border-b border-slate-800 pb-3">
               <h3 className="text-xl font-bold text-white">
-                تعديل وردية الموظف
+                {t("hr.roster.editModalTitle", "تعديل وردية الموظف")}
               </h3>
               <button
                 onClick={() => {
@@ -435,15 +439,15 @@ export default function RosterPage() {
             <div className="bg-slate-950 rounded-2xl p-4 border border-slate-800">
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <span className="text-slate-500 block mb-1">الموظف</span>
+                  <span className="text-slate-500 block mb-1">{t("hr.roster.employeeLabel", "الموظف")}</span>
                   <span className="font-bold text-white">
                     {selectedEntry.user.fullName}
                   </span>
                 </div>
                 <div>
-                  <span className="text-slate-500 block mb-1">التاريخ</span>
+                  <span className="text-slate-500 block mb-1">{t("hr.roster.dateLabel", "التاريخ")}</span>
                   <span className="font-bold text-sky-400">
-                    {format(new Date(selectedEntry.date), "EEEE d MMMM", { locale: ar })}
+                    {format(new Date(selectedEntry.date), "EEEE d MMMM", { locale: isRtl ? ar : undefined })}
                   </span>
                 </div>
               </div>
@@ -461,14 +465,14 @@ export default function RosterPage() {
                   className="w-5 h-5 rounded accent-rose-500"
                 />
                 <span className="text-sm font-bold text-rose-400">
-                  يوم راحة (Off Day)
+                  {t("hr.roster.offDayLabel", "يوم راحة (Off Day)")}
                 </span>
               </label>
 
               {!editForm.isOffDay && (
                 <div className="animate-in fade-in slide-in-from-top-2">
                   <label className="text-xs text-slate-400 block mb-2">
-                    الوردية
+                    {t("hr.roster.shiftLabel", "الوردية")}
                   </label>
                   <select
                     className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-sm outline-none focus:border-emerald-500"
@@ -477,7 +481,7 @@ export default function RosterPage() {
                       setEditForm({ ...editForm, workShiftId: e.target.value })
                     }
                   >
-                    <option value="">-- اختر الوردية --</option>
+                    <option value="">{t("hr.roster.selectShiftPlaceholder", "-- اختر الوردية --")}</option>
                     {shifts.map((s) => (
                       <option key={s.id} value={s.id}>
                         {s.name} ({s.startTime} - {s.endTime})
@@ -492,7 +496,7 @@ export default function RosterPage() {
             {showDeleteConfirm ? (
               <div className="bg-rose-950/30 border border-rose-900/50 rounded-xl p-4 animate-in fade-in">
                 <p className="text-rose-400 text-sm mb-3">
-                  هل أنت متأكد من حذف هذا الإدخال؟
+                  {t("hr.roster.deleteConfirmMsg", "هل أنت متأكد من حذف هذا الإدخال؟")}
                 </p>
                 <div className="flex gap-2">
                   <button
@@ -500,13 +504,13 @@ export default function RosterPage() {
                     disabled={isSubmitting}
                     className="flex-1 px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-sm font-bold disabled:opacity-50"
                   >
-                    {isSubmitting ? "جارِ الحذف..." : "نعم، احذف"}
+                    {isSubmitting ? t("common.deleting", "جارِ الحذف...") : t("common.deleteConfirmBtn", "نعم، احذف")}
                   </button>
                   <button
                     onClick={() => setShowDeleteConfirm(false)}
                     className="px-4 py-2 bg-slate-800 text-slate-300 hover:bg-slate-700 rounded-xl text-sm"
                   >
-                    إلغاء
+                    {t("common.cancel", "إلغاء")}
                   </button>
                 </div>
               </div>
@@ -515,7 +519,7 @@ export default function RosterPage() {
                 onClick={() => setShowDeleteConfirm(true)}
                 className="w-full px-4 py-2.5 bg-rose-950/30 border border-rose-900/50 text-rose-400 hover:bg-rose-900/30 rounded-xl text-sm font-bold transition"
               >
-                🗑️ حذف هذا الإدخال
+                {t("hr.roster.deleteEntryBtn", "🗑️ حذف هذا الإدخال")}
               </button>
             )}
 
@@ -529,14 +533,14 @@ export default function RosterPage() {
                 }}
                 className="px-6 py-2.5 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 transition"
               >
-                إلغاء
+                {t("common.cancel", "إلغاء")}
               </button>
               <button
                 onClick={handleUpdate}
                 disabled={isSubmitting}
                 className="px-8 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold shadow-lg shadow-emerald-900/20 transition disabled:opacity-50"
               >
-                {isSubmitting ? "جارِ الحفظ..." : "حفظ التعديلات"}
+                {isSubmitting ? t("common.saving", "جارِ الحفظ...") : t("common.saveChanges", "حفظ التعديلات")}
               </button>
             </div>
           </div>
@@ -545,235 +549,3 @@ export default function RosterPage() {
     </div>
   );
 }
-
-// // src/pages/RosterPage.tsx
-
-// import { useEffect, useState } from "react";
-// import { apiClient } from "../api/apiClient";
-// import { toast } from "sonner";
-// import { formatDate } from "@/lib/utils";
-// import { DatePicker } from "@/components/ui/date-picker";
-
-// type UserLite = { id: number; fullName: string };
-// type WorkShift = {
-//   id: number;
-//   name: string;
-//   startTime: string;
-//   endTime: string;
-// };
-// type RosterEntry = {
-//   id: number;
-//   date: string;
-//   user: { fullName: string };
-//   shift: WorkShift;
-//   isOffDay: boolean;
-// };
-
-// export default function RosterPage() {
-//   const [users, setUsers] = useState<UserLite[]>([]);
-//   const [shifts, setShifts] = useState<WorkShift[]>([]);
-//   const [roster, setRoster] = useState<RosterEntry[]>([]);
-
-//   // Filters
-//   const today = new Date();
-//   const [viewFrom, setViewFrom] = useState(
-//     new Date(today.getFullYear(), today.getMonth(), 1)
-//       .toISOString()
-//       .slice(0, 10)
-//   );
-//   const [viewTo, setViewTo] = useState(
-//     new Date(today.getFullYear(), today.getMonth() + 1, 0)
-//       .toISOString()
-//       .slice(0, 10)
-//   );
-
-//   // Assign Form
-//   const [targetUser, setTargetUser] = useState("");
-//   const [targetShift, setTargetShift] = useState("");
-//   const [assignFrom, setAssignFrom] = useState(viewFrom);
-//   const [assignTo, setAssignTo] = useState(viewTo);
-//   const [isOff, setIsOff] = useState(false);
-//   const [assigning, setAssigning] = useState(false);
-
-//   useEffect(() => {
-//     apiClient
-//       .get<UserLite[]>("/cashier/users")
-//       .then((res) => setUsers(res.data));
-//     apiClient.get<WorkShift[]>("/hr/shifts").then((res) => setShifts(res.data));
-//   }, []);
-
-//   const loadRoster = async () => {
-//     try {
-//       const res = await apiClient.get<RosterEntry[]>("/hr/roster", {
-//         params: { from: viewFrom, to: viewTo },
-//       });
-//       setRoster(res.data);
-//     } catch (err) {
-//       toast.error("فشل تحميل الجدول");
-//     }
-//   };
-
-//   useEffect(() => {
-//     if (viewFrom && viewTo) loadRoster();
-//   }, [viewFrom, viewTo]);
-
-//   const handleAssign = async () => {
-//     if (!targetUser || !targetShift) {
-//       toast.warning("اختر الموظف والوردية.");
-//       return;
-//     }
-//     setAssigning(true);
-//     try {
-//       await apiClient.post("/hr/roster/assign", {
-//         userId: targetUser,
-//         workShiftId: targetShift,
-//         fromDate: assignFrom,
-//         toDate: assignTo,
-//         isOffDay: isOff,
-//       });
-//       toast.success("تم توزيع الجدول بنجاح.");
-//       loadRoster();
-//     } catch (err) {
-//       toast.error("فشل التوزيع.");
-//     } finally {
-//       setAssigning(false);
-//     }
-//   };
-
-//   return (
-//     <div
-//       className="p-6 text-slate-100 h-full flex flex-col space-y-6"
-//       dir="rtl"
-//     >
-//       <div className="flex justify-between items-end">
-//         <div>
-//           <h1 className="text-2xl font-bold mb-1">جدول المناوبات (Roster)</h1>
-//           <p className="text-sm text-slate-400">
-//             توزيع الموظفين على الورديات خلال الشهر.
-//           </p>
-//         </div>
-//       </div>
-
-//       {/* Assign Box */}
-//       <div className="bg-slate-900/60 border border-slate-800 p-4 rounded-2xl flex flex-wrap items-end gap-4">
-//         <div className="flex flex-col gap-1 w-48">
-//           <label className="text-xs text-slate-400">الموظف</label>
-//           <select
-//             value={targetUser}
-//             onChange={(e) => setTargetUser(e.target.value)}
-//             className="bg-slate-950 border border-slate-700 rounded-xl px-2 py-2 text-sm"
-//           >
-//             <option value="">-- اختر --</option>
-//             {users.map((u) => (
-//               <option key={u.id} value={u.id}>
-//                 {u.fullName}
-//               </option>
-//             ))}
-//           </select>
-//         </div>
-//         <div className="flex flex-col gap-1 w-40">
-//           <label className="text-xs text-slate-400">الوردية</label>
-//           <select
-//             value={targetShift}
-//             onChange={(e) => setTargetShift(e.target.value)}
-//             className="bg-slate-950 border border-slate-700 rounded-xl px-2 py-2 text-sm"
-//           >
-//             <option value="">-- اختر --</option>
-//             {shifts.map((s) => (
-//               <option key={s.id} value={s.id}>
-//                 {s.name} ({s.startTime})
-//               </option>
-//             ))}
-//           </select>
-//         </div>
-//         <div className="flex flex-col gap-1">
-//           <label className="text-xs text-slate-400">من تاريخ</label>
-//           <DatePicker
-//             date={assignFrom ? new Date(assignFrom) : undefined}
-//             onChange={(d) => setAssignFrom(d ? d.toISOString().slice(0, 10) : "")}
-//             className="bg-slate-950 border-slate-700 h-9 text-sm w-36"
-//           />
-//         </div>
-//         <div className="flex flex-col gap-1">
-//           <label className="text-xs text-slate-400">إلى تاريخ</label>
-//           <DatePicker
-//             date={assignTo ? new Date(assignTo) : undefined}
-//             onChange={(d) => setAssignTo(d ? d.toISOString().slice(0, 10) : "")}
-//             className="bg-slate-950 border-slate-700 h-9 text-sm w-36"
-//           />
-//         </div>
-//         <div className="flex items-center gap-2 mb-2">
-//           <input
-//             type="checkbox"
-//             checked={isOff}
-//             onChange={(e) => setIsOff(e.target.checked)}
-//             className="w-4 h-4 bg-slate-800"
-//           />
-//           <label className="text-sm text-slate-300">يوم راحة (Off)</label>
-//         </div>
-//         <button
-//           onClick={handleAssign}
-//           disabled={assigning}
-//           className="px-6 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-sm font-bold disabled:opacity-50"
-//         >
-//           {assigning ? "جارِ الحفظ..." : "تطبيق الجدول"}
-//         </button>
-//       </div>
-
-//       {/* View Filters */}
-//       <div className="flex gap-4 items-center bg-slate-900/30 p-2 rounded-xl w-fit border border-slate-800/50">
-//         <span className="text-xs text-slate-400">عرض الجدول من:</span>
-//         <span className="text-xs text-slate-400">عرض الجدول من:</span>
-//         <DatePicker
-//           date={viewFrom ? new Date(viewFrom) : undefined}
-//           onChange={(d) => setViewFrom(d ? d.toISOString().slice(0, 10) : "")}
-//           className="bg-transparent border-0 border-b border-slate-700 rounded-none h-auto p-0 text-sm focus:ring-0 w-32"
-//         />
-//         <span className="text-xs text-slate-400">إلى:</span>
-//         <DatePicker
-//           date={viewTo ? new Date(viewTo) : undefined}
-//           onChange={(d) => setViewTo(d ? d.toISOString().slice(0, 10) : "")}
-//           className="bg-transparent border-0 border-b border-slate-700 rounded-none h-auto p-0 text-sm focus:ring-0 w-32"
-//         />
-//       </div>
-
-//       {/* Roster Table */}
-//       <div className="flex-1 bg-slate-900/50 border border-slate-800 rounded-2xl overflow-auto p-4">
-//         <table className="w-full text-sm text-right">
-//           <thead className="text-slate-400 border-b border-slate-800">
-//             <tr>
-//               <th className="px-4 py-2">التاريخ</th>
-//               <th className="px-4 py-2">الموظف</th>
-//               <th className="px-4 py-2">الوردية</th>
-//               <th className="px-4 py-2">التوقيت</th>
-//               <th className="px-4 py-2">الحالة</th>
-//             </tr>
-//           </thead>
-//           <tbody className="divide-y divide-slate-800">
-//             {roster.map((r) => (
-//               <tr key={r.id} className="hover:bg-slate-800/40">
-//                 <td className="px-4 py-2 text-slate-300">
-//                   {formatDate(r.date)}
-//                 </td>
-//                 <td className="px-4 py-2 font-semibold">{r.user.fullName}</td>
-//                 <td className="px-4 py-2 text-sky-300">{r.shift.name}</td>
-//                 <td className="px-4 py-2 font-mono text-xs text-slate-400">
-//                   {r.shift.startTime} - {r.shift.endTime}
-//                 </td>
-//                 <td className="px-4 py-2">
-//                   {r.isOffDay ? (
-//                     <span className="text-amber-400 text-xs font-bold">
-//                       راحة أسبوعية
-//                     </span>
-//                   ) : (
-//                     <span className="text-emerald-400 text-xs">دوام</span>
-//                   )}
-//                 </td>
-//               </tr>
-//             ))}
-//           </tbody>
-//         </table>
-//       </div>
-//     </div>
-//   );
-// }

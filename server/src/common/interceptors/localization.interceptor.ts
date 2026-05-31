@@ -33,8 +33,12 @@ export class LocalizationInterceptor implements NestInterceptor {
     }
 
     if (data !== null && typeof data === 'object') {
-      // الحفاظ على كائنات التواريخ والتعابير النمطية دون تعديل
-      if (data instanceof Date || data instanceof RegExp) {
+      // الحفاظ على كائنات التواريخ والتعابير النمطية والكسور العشرية دون تعديل
+      if (
+        data instanceof Date ||
+        data instanceof RegExp ||
+        (data.constructor && data.constructor.name === 'Decimal')
+      ) {
         return data;
       }
 
