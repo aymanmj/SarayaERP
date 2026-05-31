@@ -257,7 +257,7 @@ export default function CashierPage() {
         <div>
           <h1 className="text-2xl font-bold mb-1">{t("treasury.cashier.title", "خزينة / الكاشير")}</h1>
           <p className="text-sm text-slate-400">
-            تحصيل الفواتير والخدمات (كشف، مختبر، أشعة).
+            {t("treasury.cashier.subtitle", "تحصيل الفواتير والخدمات (كشف، مختبر، أشعة).")}
           </p>
         </div>
         <div className="flex gap-2">
@@ -265,13 +265,13 @@ export default function CashierPage() {
             onClick={loadWorklist}
             className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-sm"
           >
-            تحديث
+            {t("treasury.common.refresh", "تحديث")}
           </button>
           <button
             onClick={() => window.open("/cashier/reports/daily", "_blank")}
             className="px-4 py-2 rounded-xl bg-sky-700 hover:bg-sky-600 text-sm text-white"
           >
-            التقرير اليومي
+            {t("treasury.cashier.dailyReportBtn", "التقرير اليومي")}
           </button>
         </div>
       </div>
@@ -281,11 +281,11 @@ export default function CashierPage() {
         <div className="xl:col-span-2 rounded-2xl border border-slate-800 bg-slate-950/80 p-4 flex flex-col overflow-hidden">
           <div className="flex justify-between items-center mb-3">
             <h2 className="text-sm font-semibold text-slate-200">
-              الفواتير المستحقة للدفع
+              {t("treasury.cashier.invoicesDue", "الفواتير المستحقة للدفع")}
             </h2>
             {loading && (
               <span className="text-[10px] text-slate-500">
-                جارِ التحميل...
+                {t("treasury.common.loading", "جارِ التحميل...")}
               </span>
             )}
           </div>
@@ -308,7 +308,7 @@ export default function CashierPage() {
                 {invoices.length === 0 && !loading && (
                   <tr>
                     <td colSpan={8} className="text-center py-8 text-slate-500">
-                      لا توجد فواتير معلقة.
+                      {t("treasury.cashier.noPending", "لا توجد فواتير معلقة.")}
                     </td>
                   </tr>
                 )}
@@ -338,11 +338,11 @@ export default function CashierPage() {
                       <td className="px-3 py-3 text-center">
                         {vals.isInsurance ? (
                           <span className="px-2 py-0.5 rounded bg-purple-900/30 text-purple-300 border border-purple-500/30 text-[10px]">
-                            تأمين
+                            {t("treasury.cashier.insurance", "تأمين")}
                           </span>
                         ) : (
                           <span className="text-slate-500 text-[10px]">
-                            نقدي
+                            {t("treasury.cashier.cash", "نقدي")}
                           </span>
                         )}
                       </td>
@@ -364,7 +364,7 @@ export default function CashierPage() {
                           }}
                           className="text-sky-400 hover:text-sky-300 underline"
                         >
-                          طباعة
+                          {t("treasury.common.print", "طباعة")}
                         </button>
                       </td>
                     </tr>
@@ -378,12 +378,12 @@ export default function CashierPage() {
         {/* نموذج الدفع */}
         <div className="xl:col-span-1 rounded-2xl border border-slate-800 bg-slate-900/50 p-5 h-fit">
           <h2 className="text-base font-bold text-slate-100 mb-4 border-b border-slate-800 pb-2">
-            تحصيل دفعة
+            {t("treasury.cashier.collectPayment", "تحصيل دفعة")}
           </h2>
 
           {!selectedValues ? (
             <div className="text-sm text-slate-500 py-10 text-center">
-              اختر فاتورة.
+              {t("treasury.cashier.selectInvoicePrompt", "اختر فاتورة.")}
             </div>
           ) : (
             <div className="space-y-4">
@@ -404,7 +404,7 @@ export default function CashierPage() {
                 )}
                 <div className="flex justify-between border-t border-slate-800 pt-2">
                   <span className="text-slate-400 font-semibold">
-                    حصة المريض (المطلوب):
+                    {t("treasury.cashier.patientShareLabel", "حصة المريض (المطلوب):")}
                   </span>
                   <span className="text-emerald-400 font-bold text-sm font-mono">
                     {formatMoney(selectedValues.patient)}
@@ -434,7 +434,7 @@ export default function CashierPage() {
               <div className="flex flex-col gap-3 text-sm">
                 <div className="flex flex-col gap-1">
                   <label className="text-slate-300 text-xs">
-                    قيمة الدفعة (LYD)
+                    {t("treasury.cashier.paymentAmountLabel", "قيمة الدفعة (LYD)")}
                   </label>
                   <input
                     type="number"
@@ -462,7 +462,7 @@ export default function CashierPage() {
                 </div>
                 <div className="flex flex-col gap-1">
                   <label className="text-slate-300 text-xs">
-                    مرجع / ملاحظات
+                    {t("treasury.cashier.referenceNotesLabel", "مرجع / ملاحظات")}
                   </label>
                   <input
                     type="text"
@@ -480,8 +480,8 @@ export default function CashierPage() {
                 className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm shadow-lg shadow-emerald-500/20 transition-all mt-2"
               >
                 {Number(amount) === 0
-                  ? "تأكيد (تغطية كاملة)"
-                  : "تأكيد واستلام النقدية"}
+                  ? t("treasury.cashier.confirmFullCoverage", "تأكيد (تغطية كاملة)")
+                  : t("treasury.cashier.confirmAndReceive", "تأكيد واستلام النقدية")}
               </button>
 
               <HasPermission access="billing:manage">
@@ -491,7 +491,7 @@ export default function CashierPage() {
                     disabled={cancelling}
                     className="w-full py-2.5 rounded-xl border border-rose-500/30 bg-rose-950/20 hover:bg-rose-950/40 text-rose-400 font-bold text-sm transition-all mt-2"
                   >
-                    {cancelling ? "جارِ إلغاء الفاتورة..." : "إلغاء الفاتورة بالكامل"}
+                    {cancelling ? t("treasury.cashier.cancellingInvoice", "جارِ إلغاء الفاتورة...") : t("treasury.cashier.cancelInvoiceFull", "إلغاء الفاتورة بالكامل")}
                   </button>
                 )}
               </HasPermission>

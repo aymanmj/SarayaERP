@@ -115,8 +115,7 @@ export default function CashierClosedShiftsPage() {
         <div>
           <h1 className="text-2xl font-semibold">{t("treasury.shifts.title", "الشفتات المقفولة للكاشير")}</h1>
           <p className="text-sm text-slate-400">
-            استعراض الشفتات التي تم إقفالها، مع الفروق بين الرصيد الفعلي ورصيد
-            النظام لكل شفت.
+            {t("treasury.closedShifts.subtitle", "استعراض الشفتات التي تم إقفالها، مع الفروق بين الرصيد الفعلي ورصيد النظام لكل شفت.")}
           </p>
         </div>
       </div>
@@ -148,7 +147,7 @@ export default function CashierClosedShiftsPage() {
           disabled={loading}
           className="inline-flex items-center justify-center rounded-xl bg-emerald-500 px-4 py-2 text-sm font-medium text-slate-950 hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {loading ? "جاري التحديث..." : "تحديث الفترة"}
+          {loading ? t("treasury.closedShifts.updating", "جاري التحديث...") : t("treasury.closedShifts.updatePeriod", "تحديث الفترة")}
         </button>
       </div>
 
@@ -163,14 +162,14 @@ export default function CashierClosedShiftsPage() {
         <div className="rounded-2xl border border-slate-700/70 bg-slate-900/70 p-4 shadow">
           <div className="text-xs text-slate-400">{t("treasury.shifts.totalSystem", "إجمالي النقد حسب النظام")}</div>
           <div className="mt-1 text-lg font-semibold text-emerald-400">
-            LYD {summary.totalSystem.toFixed(3)}
+            {t("treasury.common.lyd", "د.ل")} {summary.totalSystem.toFixed(3)}
           </div>
         </div>
 
         <div className="rounded-2xl border border-slate-700/70 bg-slate-900/70 p-4 shadow">
           <div className="text-xs text-slate-400">{t("treasury.shifts.totalActual", "إجمالي النقد الفعلي")}</div>
           <div className="mt-1 text-lg font-semibold text-yellow-300">
-            LYD {summary.totalActual.toFixed(3)}
+            {t("treasury.common.lyd", "د.ل")} {summary.totalActual.toFixed(3)}
           </div>
         </div>
 
@@ -186,7 +185,7 @@ export default function CashierClosedShiftsPage() {
                 : "text-red-400")
             }
           >
-            LYD {summary.totalDiff.toFixed(3)}
+            {t("treasury.common.lyd", "د.ل")} {summary.totalDiff.toFixed(3)}
           </div>
         </div>
       </div>
@@ -194,7 +193,7 @@ export default function CashierClosedShiftsPage() {
       {/* جدول الشفتات */}
       <div className="rounded-2xl border border-slate-700/70 bg-slate-900/70 p-4 shadow">
         <div className="mb-3 text-sm font-medium text-slate-200">
-          الشفتات المقفولة في الفترة المحددة
+          {t("treasury.closedShifts.listTitle", "الشفتات المقفولة في الفترة المحددة")}
         </div>
 
         <div className="overflow-x-auto">
@@ -202,24 +201,24 @@ export default function CashierClosedShiftsPage() {
             <thead>
               <tr className="border-b border-slate-700/60 text-xs text-slate-400">
                 <th className="whitespace-nowrap px-3 py-2 text-right">
-                  التاريخ
+                  {t("treasury.shifts.table.date", "التاريخ")}
                 </th>
                 <th className="whitespace-nowrap px-3 py-2 text-right">{t("treasury.closedShifts.table.from", "من")}</th>
                 <th className="whitespace-nowrap px-3 py-2 text-right">{t("treasury.closedShifts.table.to", "إلى")}</th>
                 <th className="whitespace-nowrap px-3 py-2 text-right">
-                  الكاشير
+                  {t("treasury.shifts.table.cashier", "الكاشير")}
                 </th>
                 <th className="whitespace-nowrap px-3 py-2 text-right">
-                  إجمالي النظام
+                  {t("treasury.shifts.table.system", "إجمالي النظام")}
                 </th>
                 <th className="whitespace-nowrap px-3 py-2 text-right">
-                  النقد الفعلي
+                  {t("treasury.shifts.table.actual", "النقد الفعلي")}
                 </th>
                 <th className="whitespace-nowrap px-3 py-2 text-right">
-                  الفرق
+                  {t("treasury.shifts.table.diff", "الفرق")}
                 </th>
                 <th className="whitespace-nowrap px-3 py-2 text-right">
-                  ملاحظات
+                  {t("treasury.shifts.table.note", "ملاحظات")}
                 </th>
               </tr>
             </thead>
@@ -230,7 +229,7 @@ export default function CashierClosedShiftsPage() {
                     colSpan={8}
                     className="px-3 py-6 text-center text-xs text-slate-400"
                   >
-                    لا توجد شفتات مقفولة في الفترة المحددة.
+                    {t("treasury.closedShifts.empty", "لا توجد شفتات مقفولة في الفترة المحددة.")}
                   </td>
                 </tr>
               )}

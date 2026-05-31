@@ -41,8 +41,8 @@ type SurgeryServiceItem = {
   defaultPrice: string;
 };
 
-function formatTime(iso: string) {
-  return new Date(iso).toLocaleTimeString("ar-LY", {
+function formatTime(iso: string, locale: string = "ar") {
+  return new Date(iso).toLocaleTimeString(locale === "ar" ? "ar-LY" : "en-US", {
     hour: "2-digit",
     minute: "2-digit",
   });
@@ -325,10 +325,10 @@ export default function SurgerySchedulePage() {
                 {/* Time & Room */}
                 <div className="flex flex-col items-center justify-center bg-slate-950 p-4 rounded-xl border border-slate-800 min-w-[100px] text-center h-fit">
                   <span className="text-xl font-bold text-slate-200">
-                    {formatTime(c.scheduledStart)}
+                    {formatTime(c.scheduledStart, i18n.language)}
                   </span>
                   <span className="text-xs text-slate-500 mb-2">
-                    {t("common.to", "إلى")} {formatTime(c.scheduledEnd)}
+                    {t("common.to", "إلى")} {formatTime(c.scheduledEnd, i18n.language)}
                   </span>
                   <span className="text-[10px] text-sky-400 bg-sky-950/30 px-2 py-0.5 rounded border border-sky-900/50">
                     {c.theatre.name}
@@ -417,8 +417,8 @@ export default function SurgerySchedulePage() {
                             <span className="text-[10px] text-slate-500 mr-1">
                               (
                               {member.role === "SCRUB_NURSE"
-                                ? t("surgery.role.scrub", "تعقيم")
-                                : t("surgery.role.circulating", "متجولة")}
+                                ? t("surgery.role.scrubNurse", "تعقيم")
+                                : t("surgery.role.circulatingNurse", "متجولة")}
                               )
                             </span>
                           </div>

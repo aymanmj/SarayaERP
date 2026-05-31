@@ -136,7 +136,7 @@ export default function InvoicesListPage() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-black text-white tracking-tight">
-            سجل الفواتير
+            {t("treasury.invoicesList.title", "سجل الفواتير")}
           </h1>
           <p className="text-sm text-slate-400">
             {t("treasury.invoicesList.subtitle", "إدارة المطالبات المالية، التحصيل، وحالات التأمين.")}
@@ -182,7 +182,7 @@ export default function InvoicesListPage() {
           onClick={() => refetch()}
           className="px-6 py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-sm font-bold border border-slate-700 transition-all"
         >
-          تحديث
+          {t("treasury.invoicesList.updateBtn", "تحديث")}
         </button>
       </div>
 
@@ -275,13 +275,13 @@ export default function InvoicesListPage() {
                           }
                           className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-[10px] transition-all border border-slate-700"
                         >
-                          التفاصيل
+                          {t("treasury.invoicesList.detailsBtn", "التفاصيل")}
                         </button>
                         <button
                           onClick={() => handlePrintPdf(inv.id)}
                           className="px-3 py-1.5 bg-sky-600 hover:bg-sky-500 text-white rounded-lg text-[10px] font-bold shadow-lg transition-all"
                         >
-                          طباعة ⎙
+                          {t("treasury.invoicesList.printBtn", "طباعة ⎙")}
                         </button>
                       </div>
                     </td>
@@ -307,7 +307,7 @@ export default function InvoicesListPage() {
                 onClick={() => setPage((p) => p - 1)}
                 className="px-4 py-1.5 bg-slate-900 border border-slate-800 rounded-xl disabled:opacity-20 hover:text-sky-400 transition-colors"
               >
-                السابق
+                {t("treasury.common.previous", "السابق")}
               </button>
 
               <div className="flex items-center px-4 text-slate-400">
@@ -323,7 +323,7 @@ export default function InvoicesListPage() {
                 onClick={() => setPage((p) => p + 1)}
                 className="px-4 py-1.5 bg-slate-900 border border-slate-800 rounded-xl disabled:opacity-20 hover:text-sky-400 transition-colors"
               >
-                التالي
+                {t("treasury.common.next", "التالي")}
               </button>
             </div>
           </div>

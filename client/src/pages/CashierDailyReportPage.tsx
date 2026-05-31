@@ -28,10 +28,10 @@ type CashierDailyReport = {
   };
 };
 
-function formatDateTime(iso?: string | null) {
+function formatDateTime(iso?: string | null, locale: string = "ar") {
   if (!iso) return "—";
   const d = new Date(iso);
-  return d.toLocaleString("ar-LY", {
+  return d.toLocaleString(locale === "ar" ? "ar-LY" : "en-US", {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -105,10 +105,10 @@ export default function CashierDailyReportPage() {
         <div className="no-print flex justify-between items-center mb-6">
           <div>
             <h1 className="text-2xl font-bold mb-1">
-              تقرير يومي للكاشير (Daily Cashier Report)
+              {t("treasury.dailyReport.title", "تقرير يومي للكاشير (Daily Cashier Report)")}
             </h1>
             <p className="text-sm text-slate-400">
-              ملخص الدفعات والفواتير لليوم المختار.
+              {t("treasury.dailyReport.subtitle", "ملخص الدفعات والفواتير لليوم المختار.")}
             </p>
           </div>
           <div className="flex gap-2">
@@ -117,14 +117,14 @@ export default function CashierDailyReportPage() {
               onClick={() => window.print()}
               className="px-4 py-1.5 rounded-full text-sm bg-emerald-600 hover:bg-emerald-500 text-white"
             >
-              🖨 طباعة التقرير
+              {t("treasury.dailyReport.printReport", "🖨 طباعة التقرير")}
             </button>
             <button
               type="button"
               onClick={handleRefresh}
               className="px-3 py-1.5 rounded-full text-xs bg-slate-800 hover:bg-slate-700 text-slate-100"
             >
-              تحديث
+              {t("treasury.common.refresh", "تحديث")}
             </button>
           </div>
         </div>
@@ -143,7 +143,7 @@ export default function CashierDailyReportPage() {
               onClick={handleRefresh}
               className="px-3 py-1.5 rounded-full text-xs bg-sky-600 hover:bg-sky-500 text-white"
             >
-              عرض التقرير
+              {t("treasury.dailyReport.viewReport", "عرض التقرير")}
             </button>
           </div>
           <div className="text-[11px] text-slate-400">
@@ -151,11 +151,11 @@ export default function CashierDailyReportPage() {
             {report ? (
               <>
                 <span className="text-sky-300">
-                  {formatDateTime(report.dateFrom)}
+                  {formatDateTime(report.dateFrom, i18n.language)}
                 </span>{" "}
                 -{" "}
                 <span className="text-sky-300">
-                  {formatDateTime(report.dateTo)}
+                  {formatDateTime(report.dateTo, i18n.language)}
                 </span>
               </>
             ) : (
@@ -167,7 +167,7 @@ export default function CashierDailyReportPage() {
         {/* حالة التحميل / الخطأ */}
         {loading && (
           <div className="mb-4 text-center text-xs text-slate-400">
-            جارِ تحميل تقرير الكاشير...
+            {t("treasury.dailyReport.loading", "جارِ تحميل تقرير الكاشير...")}
           </div>
         )}
         {error && (
@@ -176,7 +176,7 @@ export default function CashierDailyReportPage() {
 
         {!report && !loading && !error && (
           <div className="text-center text-xs text-slate-500">
-            لا توجد بيانات لعرضها بعد. اختر تاريخًا واضغط "عرض التقرير".
+            {t("treasury.dailyReport.noData", "لا توجد بيانات لعرضها بعد. اختر تاريخًا واضغط \"عرض التقرير\".")}
           </div>
         )}
 
@@ -192,10 +192,10 @@ export default function CashierDailyReportPage() {
               </div>
               <div className="border border-slate-800 rounded-2xl bg-slate-900/70 p-3">
                 <div className="text-slate-400 mb-1">
-                  إجمالي المبالغ المحصلة
+                  {t("treasury.dailyReport.totalAmount", "إجمالي المبالغ المحصلة")}
                 </div>
                 <div className="text-2xl font-bold text-emerald-300">
-                  {formatMoney(report.paymentsSummary.totalAmount)} LYD
+                  {formatMoney(report.paymentsSummary.totalAmount)} {t("treasury.common.lyd", "LYD")}
                 </div>
               </div>
               <div className="border border-slate-800 rounded-2xl bg-slate-900/70 p-3">
@@ -210,24 +210,24 @@ export default function CashierDailyReportPage() {
             <section className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
               <div className="border border-slate-800 rounded-2xl bg-slate-900/70 p-3">
                 <h2 className="text-sm font-semibold mb-2">
-                  الدفعات حسب طريقة الدفع
+                  {t("treasury.dailyReport.paymentsByMethod", "الدفعات حسب طريقة الدفع")}
                 </h2>
                 {report.paymentsByMethod.length === 0 ? (
                   <div className="text-slate-500 text-[11px]">
-                    لا توجد دفعات مسجلة في هذا اليوم.
+                    {t("treasury.dailyReport.emptyPayments", "لا توجد دفعات مسجلة في هذا اليوم.")}
                   </div>
                 ) : (
                   <table className="w-full text-[11px] border border-slate-800 border-collapse">
                     <thead className="bg-slate-800/70">
                       <tr>
                         <th className="px-2 py-1 border border-slate-800 text-right">
-                          طريقة الدفع
+                          {t("treasury.dailyReport.table.method", "طريقة الدفع")}
                         </th>
                         <th className="px-2 py-1 border border-slate-800 text-right">
-                          عدد الدفعات
+                          {t("treasury.dailyReport.table.count", "عدد الدفعات")}
                         </th>
                         <th className="px-2 py-1 border border-slate-800 text-right">
-                          الإجمالي
+                          {t("treasury.dailyReport.table.total", "الإجمالي")}
                         </th>
                       </tr>
                     </thead>
@@ -241,7 +241,7 @@ export default function CashierDailyReportPage() {
                             {row.count}
                           </td>
                           <td className="px-2 py-1 border border-slate-800">
-                            {formatMoney(row.totalAmount)} LYD
+                            {formatMoney(row.totalAmount)} {t("treasury.common.lyd", "LYD")}
                           </td>
                         </tr>
                       ))}
@@ -253,27 +253,27 @@ export default function CashierDailyReportPage() {
               {/* ملخص الفواتير */}
               <div className="border border-slate-800 rounded-2xl bg-slate-900/70 p-3">
                 <h2 className="text-sm font-semibold mb-2">
-                  ملخص الفواتير لليوم
+                  {t("treasury.dailyReport.invoicesSummary", "ملخص الفواتير لليوم")}
                 </h2>
                 <div className="space-y-1">
                   <div className="flex justify-between">
                     <span className="text-slate-400">{t("treasury.dailyReport.totalInvoiced", "إجمالي الفواتير:")}</span>
                     <span>
-                      {formatMoney(report.invoicesSummary.totalInvoiced)} LYD
+                      {formatMoney(report.invoicesSummary.totalInvoiced)} {t("treasury.common.lyd", "LYD")}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-400">{t("treasury.dailyReport.totalDiscounts", "إجمالي الخصومات:")}</span>
                     <span>
-                      {formatMoney(report.invoicesSummary.totalDiscount)} LYD
+                      {formatMoney(report.invoicesSummary.totalDiscount)} {t("treasury.common.lyd", "LYD")}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-400">
-                      إجمالي المدفوع على الفواتير:
+                      {t("treasury.dailyReport.totalPaid", "إجمالي المدفوع على الفواتير:")}
                     </span>
                     <span className="text-emerald-300 font-semibold">
-                      {formatMoney(report.invoicesSummary.totalPaid)} LYD
+                      {formatMoney(report.invoicesSummary.totalPaid)} {t("treasury.common.lyd", "LYD")}
                     </span>
                   </div>
                   <div className="flex justify-between">
@@ -285,7 +285,7 @@ export default function CashierDailyReportPage() {
                           : "text-emerald-300 font-semibold"
                       }
                     >
-                      {formatMoney(report.invoicesSummary.totalRemaining)} LYD
+                      {formatMoney(report.invoicesSummary.totalRemaining)} {t("treasury.common.lyd", "LYD")}
                     </span>
                   </div>
                 </div>

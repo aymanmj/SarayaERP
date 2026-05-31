@@ -59,10 +59,10 @@ type ClosedShiftInfo = {
   note?: string | null;
 };
 
-function formatDateTime(iso?: string | null) {
+function formatDateTime(iso?: string | null, locale: string = "ar") {
   if (!iso) return "—";
   const d = new Date(iso);
-  return d.toLocaleString("ar-LY", {
+  return d.toLocaleString(locale === "ar" ? "ar-LY" : "en-US", {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -136,7 +136,7 @@ export default function CashierUserReportPage() {
       console.error(err);
       const msg = err?.response?.data?.message;
       if (typeof msg === "string") setError(msg);
-      else setError("حدث خطأ أثناء تحميل تقرير الكاشير.");
+      else setError(t("treasury.userReport.toast.loadError", "حدث خطأ أثناء تحميل تقرير الكاشير."));
     } finally {
       setLoading(false);
     }
@@ -177,15 +177,17 @@ export default function CashierUserReportPage() {
           const from = new Date(report.dateFrom);
           const to = new Date(report.dateTo);
           const datePart = formatDate(report.dateFrom);
-          const fromPart = from.toLocaleTimeString("ar-LY", {
+          const fromPart = from.toLocaleTimeString(isRtl ? "ar-LY" : "en-US", {
             hour: "2-digit",
             minute: "2-digit",
           });
-          const toPart = to.toLocaleTimeString("ar-LY", {
+          const toPart = to.toLocaleTimeString(isRtl ? "ar-LY" : "en-US", {
             hour: "2-digit",
             minute: "2-digit",
           });
-          return `${datePart} من ${fromPart} إلى ${toPart}`;
+          return isRtl 
+            ? `${datePart} من ${fromPart} إلى ${toPart}` 
+            : `${datePart} from ${fromPart} to ${toPart}`;
         })()
       : null;
 
@@ -199,18 +201,18 @@ export default function CashierUserReportPage() {
 
   const handleCloseShift = async () => {
     if (!report) {
-      toast.warning("لا يوجد تقرير حالي لإقفاله.");
+      toast.warning(t("treasury.userReport.toast.noReport", "لا يوجد تقرير حالي لإقفاله."));
       return;
     }
 
     const actual = Number(actualCash || 0);
     if (!actual || actual < 0) {
-      toast.warning("أدخل قيمة نقدية فعلية صحيحة قبل إقفال الشفت.");
+      toast.warning(t("treasury.userReport.toast.invalidCash", "أدخل قيمة نقدية فعلية صحيحة قبل إقفال الشفت."));
       return;
     }
 
     const ok = window.confirm(
-      "هل أنت متأكد من إقفال الشفت الحالي وتسجيل هذه القيم؟\nلن يمكنك تعديل هذا الشفت بعد الإقفال."
+      t("treasury.userReport.toast.confirmCloseShift", "هل أنت متأكد من إقفال الشفت الحالي وتسجيل هذه القيم؟\nلن يمكنك تعديل هذا الشفت بعد الإقفال.")
     );
     if (!ok) return;
 
@@ -234,10 +236,10 @@ export default function CashierUserReportPage() {
       setLastClosedShift(closed);
 
       toast.success(
-        `✅ تم إقفال الشفت بنجاح.\n` +
-          `إجمالي النظام: ${formatMoney(closed.systemCashTotal)} LYD\n` +
-          `النقدية الفعلية: ${formatMoney(closed.actualCashTotal)} LYD\n` +
-          `الفرق: ${formatMoney(closed.difference)} LYD`
+        t("treasury.userReport.toast.closeSuccess", "✅ تم إقفال الشفت بنجاح.") + "\n" +
+        t("treasury.userReport.toast.systemTotal", "إجمالي النظام: {{amount}} LYD", { amount: formatMoney(closed.systemCashTotal) }) + "\n" +
+        t("treasury.userReport.toast.actualTotal", "النقدية الفعلية: {{amount}} LYD", { amount: formatMoney(closed.actualCashTotal) }) + "\n" +
+        t("treasury.userReport.toast.difference", "الفرق: {{amount}} LYD", { amount: formatMoney(closed.difference) })
       );
 
       // تنظيف الحقول بعد الإقفال
@@ -254,8 +256,8 @@ export default function CashierUserReportPage() {
         toast.error(msg);
         setError(msg);
       } else {
-        toast.error("حدث خطأ أثناء إقفال الشفت.");
-        setError("حدث خطأ أثناء إقفال الشفت.");
+        toast.error(t("treasury.userReport.toast.closeError", "حدث خطأ أثناء إقفال الشفت."));
+        setError(t("treasury.userReport.toast.closeError", "حدث خطأ أثناء إقفال الشفت."));
       }
     } finally {
       setClosing(false);
@@ -263,16 +265,15 @@ export default function CashierUserReportPage() {
   };
 
   return (
-    <div className="flex flex-col h-full text-slate-100">
+    <div className="flex flex-col h-full text-slate-100" dir={isRtl ? "rtl" : "ltr"}>
       {/* العنوان */}
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold mb-1">
-            تقرير الكاشير حسب المستخدم
+            {t("treasury.userReport.title", "تقرير الكاشير حسب المستخدم")}
           </h1>
           <p className="text-sm text-slate-400">
-            مراجعة الدفعات المسجّلة بواسطة المستخدم (الكاشير) خلال فترة معينة
-            (تاريخ + شفت من/إلى) مع إمكانية إقفال الشفت.
+            {t("treasury.userReport.subtitle", "مراجعة الدفعات المسجّلة بواسطة المستخدم (الكاشير) خلال فترة معينة (تاريخ + شفت من/إلى) مع إمكانية إقفال الشفت.")}
           </p>
         </div>
         <button
@@ -280,7 +281,7 @@ export default function CashierUserReportPage() {
           onClick={() => loadReport()}
           className="px-3 py-1.5 rounded-full text-xs bg-slate-800 hover:bg-slate-700 text-slate-100"
         >
-          تحديث التقرير
+          {t("treasury.common.refresh", "تحديث التقرير")}
         </button>
       </div>
 
@@ -289,7 +290,7 @@ export default function CashierUserReportPage() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-xs">
           {/* التاريخ */}
           <div className="flex flex-col gap-1">
-            <label className="text-slate-300">تاريخ الشفت</label>
+            <label className="text-slate-300">{t("treasury.userReport.shiftDate", "تاريخ الشفت")}</label>
             <DatePicker
               date={reportDate ? new Date(reportDate) : undefined}
               onChange={(d) => setReportDate(d ? d.toISOString().slice(0, 10) : "")}
@@ -326,11 +327,11 @@ export default function CashierUserReportPage() {
               onClick={() => loadReport()}
               className="w-full px-3 py-2 rounded-2xl text-xs bg-emerald-600 hover:bg-emerald-500 text-white"
             >
-              تطبيق الفلترة
+              {t("treasury.shifts.applyFilter", "تطبيق الفلترة")}
             </button>
             {loading && (
               <span className="mt-1 text-[11px] text-slate-500">
-                جارِ تحميل التقرير...
+                {t("treasury.common.loading", "جارِ تحميل التقرير...")}
               </span>
             )}
             {error && (
@@ -343,14 +344,14 @@ export default function CashierUserReportPage() {
       {/* محتوى التقرير */}
       {!report ? (
         <div className="flex-1 flex items-center justify-center text-xs text-slate-500">
-          لا يوجد تقرير للعرض حالياً.
+          {t("treasury.userReport.noReportData", "لا يوجد تقرير للعرض حالياً.")}
         </div>
       ) : (
         <div className="flex-1 flex flex-col gap-4 overflow-auto pb-4">
           {/* معلومات الكاشير والشفت */}
           <div className="rounded-3xl border border-slate-800 bg-slate-950/80 p-4 text-xs flex flex-col md:flex-row md:items-center md:justify-between gap-2">
             <div>
-              <div className="text-slate-400">الكاشير</div>
+              <div className="text-slate-400">{t("treasury.shifts.cashier", "الكاشير")}</div>
               <div className="text-sm font-semibold text-slate-100">
                 {report.cashier.fullName}{" "}
                 <span className="text-[11px] text-slate-400">
@@ -359,7 +360,7 @@ export default function CashierUserReportPage() {
               </div>
             </div>
             <div>
-              <div className="text-slate-400">الفترة الزمنية</div>
+              <div className="text-slate-400">{t("treasury.userReport.periodLabel", "الفترة الزمنية")}</div>
               <div className="text-sm text-slate-100">{shiftLabel ?? "—"}</div>
             </div>
           </div>
@@ -367,36 +368,36 @@ export default function CashierUserReportPage() {
           {/* ملخص الأرقام + كرت إقفال الشفت */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="rounded-3xl border border-slate-800 bg-slate-950/80 p-4 text-xs">
-              <div className="text-slate-400 mb-1">عدد الدفعات</div>
+              <div className="text-slate-400 mb-1">{t("treasury.dailyReport.table.count", "عدد الدفعات")}</div>
               <div className="text-2xl font-bold text-slate-100">
                 {report.paymentsSummary.totalCount}
               </div>
             </div>
 
             <div className="rounded-3xl border border-slate-800 bg-slate-950/80 p-4 text-xs">
-              <div className="text-slate-400 mb-1">إجمالي جميع الدفعات</div>
+              <div className="text-slate-400 mb-1">{t("treasury.userReport.totalPaymentsLabel", "إجمالي جميع الدفعات")}</div>
               <div className="text-2xl font-bold text-emerald-300">
-                {formatMoney(report.paymentsSummary.totalAmount)} LYD
+                {formatMoney(report.paymentsSummary.totalAmount)} {t("treasury.common.lyd", "LYD")}
               </div>
             </div>
 
             <div className="rounded-3xl border border-slate-800 bg-slate-950/80 p-4 text-xs">
               <div className="text-slate-400 mb-1">
-                إجمالي النقدية (حسب النظام)
+                {t("treasury.shifts.totalSystem", "إجمالي النقدية (حسب النظام)")}
               </div>
               <div className="text-2xl font-bold text-amber-300">
-                {formatMoney(systemCash)} LYD
+                {formatMoney(systemCash)} {t("treasury.common.lyd", "LYD")}
               </div>
             </div>
 
             {/* كرت إقفال الشفت */}
             <div className="rounded-3xl border border-emerald-700 bg-emerald-950/40 p-4 text-xs flex flex-col gap-2">
               <div className="text-emerald-200 font-semibold mb-1">
-                إقفال الشفت الحالي
+                {t("treasury.userReport.closeShiftTitle", "إقفال الشفت الحالي")}
               </div>
               <label className="flex flex-col gap-1 text-[11px]">
                 <span className="text-emerald-100">
-                  النقدية الفعلية في الخزينة (عند التسليم)
+                  {t("treasury.userReport.actualCash", "النقدية الفعلية في الخزينة (عند التسليم)")}
                 </span>
                 <input
                   type="number"
@@ -405,24 +406,24 @@ export default function CashierUserReportPage() {
                   value={actualCash}
                   onChange={(e) => setActualCash(e.target.value)}
                   className="bg-slate-900 border border-emerald-700/70 rounded-2xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/80"
-                  placeholder="مثال: 1234.500"
+                  placeholder={t("treasury.userReport.actualCashPlaceholder", "مثال: 1234.500")}
                 />
               </label>
 
               <label className="flex flex-col gap-1 text-[11px] mt-1">
                 <span className="text-emerald-100">
-                  ملاحظات الشفت (اختياري)
+                  {t("treasury.userReport.closingNote", "ملاحظات الشفت (اختياري)")}
                 </span>
                 <textarea
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
                   className="bg-slate-900 border border-emerald-700/70 rounded-2xl px-3 py-2 text-xs min-h-[60px] focus:outline-none focus:ring-2 focus:ring-emerald-500/80"
-                  placeholder="مثال: تم تسليم الخزينة إلى مشرف الصندوق، مع فرق بسيط بسبب فكة مفقودة..."
+                  placeholder={t("treasury.userReport.closingNotePlaceholder", "مثال: تم تسليم الخزينة إلى مشرف الصندوق...")}
                 />
               </label>
 
               <div className="flex justify-between text-[11px] text-emerald-100 mt-1">
-                <span>الفرق (فعلي - نظام):</span>
+                <span>{t("treasury.userReport.differenceLabel", "الفرق (فعلي - نظام):")}</span>
                 <span
                   className={
                     cashDiff > 0
@@ -432,16 +433,16 @@ export default function CashierUserReportPage() {
                       : "text-slate-100 font-semibold"
                   }
                 >
-                  {formatMoney(cashDiff)} LYD
+                  {formatMoney(cashDiff)} {t("treasury.common.lyd", "LYD")}
                 </span>
               </div>
               <button
                 type="button"
                 onClick={handleCloseShift}
                 disabled={closing}
-                className="mt-2 px-3 py-2 rounded-2xl text-xs bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed text-white"
+                className="mt-2 px-3 py-2 rounded-2xl text-xs bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed text-white font-bold"
               >
-                {closing ? "جارِ إقفال الشفت..." : "إقفال الشفت وتسجيل التسوية"}
+                {closing ? t("treasury.userReport.closingShift", "جارِ إقفال الشفت...") : t("treasury.userReport.confirmAndClose", "إقفال الشفت وتسجيل التسوية")}
               </button>
             </div>
           </div>
@@ -449,11 +450,11 @@ export default function CashierUserReportPage() {
           {/* تجميع حسب طريقة الدفع */}
           <div className="rounded-3xl border border-slate-800 bg-slate-950/80 p-4 text-xs">
             <h2 className="text-sm font-semibold text-slate-200 mb-3">
-              إجمالي حسب طريقة الدفع
+              {t("treasury.dailyReport.paymentsByMethod", "إجمالي حسب طريقة الدفع")}
             </h2>
             {report.paymentsByMethod.length === 0 ? (
               <div className="text-slate-500 text-xs">
-                لا توجد دفعات في هذه الفترة.
+                {t("treasury.dailyReport.emptyPayments", "لا توجد دفعات في هذه الفترة.")}
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -461,8 +462,8 @@ export default function CashierUserReportPage() {
                   <thead className="text-slate-400">
                     <tr>
                       <th className="px-2 py-1 text-right">{t("treasury.userReport.method", "طريقة الدفع")}</th>
-                      <th className="px-2 py-1 text-right">عدد الدفعات</th>
-                      <th className="px-2 py-1 text-right">الإجمالي</th>
+                      <th className="px-2 py-1 text-right">{t("treasury.dailyReport.table.count", "عدد الدفعات")}</th>
+                      <th className="px-2 py-1 text-right">{t("treasury.dailyReport.table.total", "الإجمالي")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -472,11 +473,11 @@ export default function CashierUserReportPage() {
                         className="border-t border-slate-800"
                       >
                         <td className="px-2 py-1 align-top">
-                          <span className="uppercase">{row.method}</span>
+                          <span className="uppercase">{row.method === "CASH" ? t("treasury.methods.CASH", "CASH") : row.method === "CARD" ? t("treasury.methods.CARD", "CARD") : row.method === "TRANSFER" ? t("treasury.methods.TRANSFER", "TRANSFER") : row.method === "INSURANCE" ? t("treasury.methods.INSURANCE", "INSURANCE") : t("treasury.methods.OTHER", "OTHER")}</span>
                         </td>
                         <td className="px-2 py-1 align-top">{row.count}</td>
                         <td className="px-2 py-1 align-top text-emerald-300">
-                          {formatMoney(row.totalAmount)} LYD
+                          {formatMoney(row.totalAmount)} {t("treasury.common.lyd", "LYD")}
                         </td>
                       </tr>
                     ))}
@@ -489,20 +490,20 @@ export default function CashierUserReportPage() {
           {/* جدول تفصيلي بكل الدفعات */}
           <div className="rounded-3xl border border-slate-800 bg-slate-950/80 p-4 text-xs">
             <h2 className="text-sm font-semibold text-slate-200 mb-3">
-              الدفعات التفصيلية خلال الفترة
+              {t("treasury.userReport.detailedPayments", "الدفعات التفصيلية خلال الفترة")}
             </h2>
             {report.payments.length === 0 ? (
               <div className="text-slate-500 text-xs">
-                لا توجد دفعات مسجّلة لهذا الكاشير في هذه الفترة.
+                {t("treasury.userReport.noPaymentsForCashier", "لا توجد دفعات مسجّلة لهذا الكاشير في هذه الفترة.")}
               </div>
             ) : (
               <div className="overflow-x-auto max-h-[400px]">
                 <table className="w-full text-[11px] text-right border-separate border-spacing-y-1">
                   <thead className="text-slate-400">
                     <tr>
-                      <th className="px-2 py-1 text-right">الوقت</th>
+                      <th className="px-2 py-1 text-right">{t("treasury.userReport.timeHeader", "الوقت")}</th>
                       <th className="px-2 py-1 text-right">{t("treasury.userReport.patient", "المريض")}</th>
-                      <th className="px-2 py-1 text-right">رقم الملف</th>
+                      <th className="px-2 py-1 text-right">{t("treasury.userReport.mrnHeader", "رقم الملف")}</th>
                       <th className="px-2 py-1 text-right">{t("treasury.userReport.invoiceId", "رقم الفاتورة")}</th>
                       <th className="px-2 py-1 text-right">{t("treasury.userReport.method", "طريقة الدفع")}</th>
                       <th className="px-2 py-1 text-right">{t("treasury.userReport.amount", "المبلغ")}</th>
@@ -516,7 +517,7 @@ export default function CashierUserReportPage() {
                         className="bg-slate-950/70 border border-slate-800 rounded-xl"
                       >
                         <td className="px-2 py-1 align-top">
-                          {formatDateTime(p.paidAt)}
+                          {formatDateTime(p.paidAt, i18n.language)}
                         </td>
                         <td className="px-2 py-1 align-top">
                           {p.patient?.fullName ?? "—"}
@@ -526,10 +527,10 @@ export default function CashierUserReportPage() {
                         </td>
                         <td className="px-2 py-1 align-top">#{p.invoiceId}</td>
                         <td className="px-2 py-1 align-top">
-                          <span className="uppercase">{p.method}</span>
+                          <span className="uppercase">{p.method === "CASH" ? t("treasury.methods.CASH", "CASH") : p.method === "CARD" ? t("treasury.methods.CARD", "CARD") : p.method === "TRANSFER" ? t("treasury.methods.TRANSFER", "TRANSFER") : p.method === "INSURANCE" ? t("treasury.methods.INSURANCE", "INSURANCE") : t("treasury.methods.OTHER", "OTHER")}</span>
                         </td>
                         <td className="px-2 py-1 align-top text-emerald-300">
-                          {formatMoney(p.amount)} LYD
+                          {formatMoney(p.amount)} {t("treasury.common.lyd", "LYD")}
                         </td>
                         <td className="px-2 py-1 align-top">
                           {p.reference ?? "—"}
@@ -547,41 +548,41 @@ export default function CashierUserReportPage() {
             <div className="rounded-3xl border border-emerald-700/60 bg-emerald-950/30 p-4 text-xs flex flex-col gap-2">
               <div className="flex justify-between items-center">
                 <div className="text-emerald-200 font-semibold">
-                  آخر شفت تم إقفاله في هذه الجلسة
+                  {t("treasury.userReport.lastClosedTitle", "آخر شفت تم إقفاله في هذه الجلسة")}
                 </div>
                 <div className="text-[11px] text-emerald-300">
-                  رقم الشفت: #{lastClosedShift.id}
+                  {t("treasury.userReport.shiftNumberLabel", "رقم الشفت: #")}{lastClosedShift.id}
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mt-2">
                 <div>
-                  <div className="text-emerald-100/80">الفترة الزمنية</div>
+                  <div className="text-emerald-100/80">{t("treasury.userReport.period", "الفترة الزمنية")}</div>
                   <div className="text-[11px] text-slate-100">
-                    من {formatDateTime(lastClosedShift.rangeStart)} إلى{" "}
-                    {formatDateTime(lastClosedShift.rangeEnd)}
+                    من {formatDateTime(lastClosedShift.rangeStart, i18n.language)} إلى{" "}
+                    {formatDateTime(lastClosedShift.rangeEnd, i18n.language)}
                   </div>
                 </div>
                 <div>
                   <div className="text-emerald-100/80">
-                    إجمالي النظام (نقداً)
+                    {t("treasury.shifts.totalSystem", "إجمالي النظام (نقداً)")}
                   </div>
                   <div className="text-[11px] text-amber-200 font-semibold">
-                    {formatMoney(lastClosedShift.systemCashTotal)} LYD
+                    {formatMoney(lastClosedShift.systemCashTotal)} {t("treasury.common.lyd", "LYD")}
                   </div>
                 </div>
                 <div>
                   <div className="text-emerald-100/80">
-                    النقدية الفعلية (عند التسليم)
+                    {t("treasury.userReport.actualCash", "النقدية الفعلية (عند التسليم)")}
                   </div>
                   <div className="text-[11px] text-emerald-200 font-semibold">
-                    {formatMoney(lastClosedShift.actualCashTotal)} LYD
+                    {formatMoney(lastClosedShift.actualCashTotal)} {t("treasury.common.lyd", "LYD")}
                   </div>
                 </div>
               </div>
 
               <div className="flex justify-between items-center mt-2">
-                <div className="text-emerald-100/80">الفرق (فعلي - نظام)</div>
+                <div className="text-emerald-100/80">{t("treasury.userReport.differenceLabel", "الفرق (فعلي - نظام)")}</div>
                 <div
                   className={
                     lastClosedShift.difference > 0
@@ -591,14 +592,14 @@ export default function CashierUserReportPage() {
                       : "text-slate-100 font-semibold"
                   }
                 >
-                  {formatMoney(lastClosedShift.difference)} LYD
+                  {formatMoney(lastClosedShift.difference)} {t("treasury.common.lyd", "LYD")}
                 </div>
               </div>
 
               {lastClosedShift.note && (
                 <div className="mt-2 text-[11px]">
                   <div className="text-emerald-100/80 mb-0.5">
-                    ملاحظة الشفت:
+                    {t("treasury.userReport.shiftNoteLabel", "ملاحظة الشفت:")}
                   </div>
                   <div className="text-slate-100">{lastClosedShift.note}</div>
                 </div>

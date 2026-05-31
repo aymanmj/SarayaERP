@@ -403,7 +403,7 @@ export default function SurgeryCaseDetailsPage() {
 
   const formatDate = (iso?: string) => {
     if (!iso) return "--";
-    return new Date(iso).toLocaleString("ar-LY", {
+    return new Date(iso).toLocaleString(i18n.language === "ar" ? "ar-LY" : "en-US", {
       hour: "2-digit",
       minute: "2-digit",
       second: "2-digit",
