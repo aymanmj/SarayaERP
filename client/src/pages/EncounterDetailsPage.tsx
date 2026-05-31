@@ -889,15 +889,14 @@ export default function EncounterDetailsPage() {
         <div className="flex-1 flex flex-col gap-4 overflow-hidden">
           {/* Custom Tab Navigation */}
           <div className="flex gap-2 border-b border-slate-800 pb-1 overflow-x-auto">
-            {tabs
+            {getTabs(t)
               .filter(
                 (tab) =>
                   !tab.gender || tab.gender === encounter.patient?.gender,
               ) // ✅ فلترة حسب الجنس
               .map((tab) => (
-                <button
-                  key={tab.key}
-                  onClick={() => setActiveTab(tab.key)}
+                <button key={tab.key}
+            onClick={() => setActiveTab(tab.key as any)}
                   onMouseEnter={() => tabPreloaders[tab.key]?.()}
                   onFocus={() => tabPreloaders[tab.key]?.()}
                   className={`px-4 py-2.5 rounded-t-xl text-xs font-medium transition-all flex items-center gap-2
@@ -910,7 +909,7 @@ export default function EncounterDetailsPage() {
                             ${tab.key === "OBGYN" ? "text-pink-400 hover:text-pink-200" : ""} 
                             `}
                 >
-                  <span>{tab.icon}</span> {t(`encounter.tabs.${tab.key.toLowerCase()}`, tab.label)}
+                  <span>{tab.icon}</span> {t(`encounter.getTabs(t).${tab.key.toLowerCase()}`, tab.label)}
                 </button>
               ))}
           </div>

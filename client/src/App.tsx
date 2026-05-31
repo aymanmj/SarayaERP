@@ -4,7 +4,7 @@ import { useAuthStore } from './stores/authStore'
 import './App.css'
 
 function App() {
-  // const navigate = useNavigate();
+  const navigate = useNavigate();
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { user, isAuthenticated } = useAuthStore();
   const [loading, setLoading] = useState(true);
