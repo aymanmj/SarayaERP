@@ -55,29 +55,41 @@ export default function InvoicesListPage() {
   const isRtl = i18n.dir() === "rtl";
   const navigate = useNavigate();
 
-  // دالة طباعة PDF باستخدام نفس الطريقة المستخدمة في InvoiceDetailsPage
+  // دالة طباعة PDF بطريقة تتجنب حظر النوافذ المنبثقة
   const handlePrintPdf = async (invoiceId: number) => {
+    // 1. فتح نافذة فارغة فوراً بشكل متزامن مع ضغطة المستخدم لتجنب حظر الـ Popup Blocker
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write('<html dir="rtl"><body style="font-family: sans-serif; padding: 2rem; text-align: center;">جاري تجهيز الفاتورة...</body></html>');
+    }
+
     try {
-      // طلب الملف كـ Blob من نفس endpoint المستخدم في InvoiceDetailsPage
+      // 2. طلب الملف كـ Blob من نفس endpoint المستخدم في InvoiceDetailsPage
       const response = await apiClient.get(`/billing/invoices/${invoiceId}/pdf`, {
         responseType: "blob",
       });
 
-      // إنشاء رابط مؤقت للملف في المتصفح
+      // 3. إنشاء رابط مؤقت للملف في المتصفح
       const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
 
-      // فتح الملف في نافذة جديدة
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("target", "_blank");
-      document.body.appendChild(link);
-      link.click();
+      // 4. توجيه النافذة المفتوحة إلى الرابط
+      if (printWindow) {
+        printWindow.location.href = url;
+      } else {
+        // في حال تم الحظر تماماً (لا يفترض أن يحدث الآن)
+        const link = document.createElement("a");
+        link.href = url;
+        link.setAttribute("target", "_blank");
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+      }
 
-      // تنظيف الذاكرة
-      link.remove();
-      window.URL.revokeObjectURL(url);
+      // تنظيف الذاكرة بعد فترة لضمان تحميل الملف في النافذة الجديدة
+      setTimeout(() => window.URL.revokeObjectURL(url), 60000);
     } catch (err) {
       console.error('Error generating PDF:', err);
+      if (printWindow) printWindow.close();
       toast.error(t("treasury.invoicesList.toast.pdfLoadError", "فشل تحميل ملف الـ PDF. تأكد من إعدادات السيرفر."));
     }
   };

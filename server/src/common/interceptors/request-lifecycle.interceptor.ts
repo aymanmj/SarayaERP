@@ -51,7 +51,7 @@ export class RequestLifecycleInterceptor implements NestInterceptor {
         const statusCode = res.statusCode;
 
         // Always set response time header
-        if (typeof res.setHeader === 'function') {
+        if (typeof res.setHeader === 'function' && !res.headersSent) {
           res.setHeader('X-Response-Time', `${duration}ms`);
         }
 
@@ -76,7 +76,7 @@ export class RequestLifecycleInterceptor implements NestInterceptor {
         const statusCode = err?.status || err?.getStatus?.() || 500;
 
         // Set response time even on errors
-        if (typeof res.setHeader === 'function') {
+        if (typeof res.setHeader === 'function' && !res.headersSent) {
           res.setHeader('X-Response-Time', `${duration}ms`);
         }
 

@@ -6,7 +6,9 @@ export function LanguageSwitcher() {
 
   const toggleLanguage = () => {
     const nextLang = i18n.language === "ar" ? "en" : "ar";
-    i18n.changeLanguage(nextLang);
+    i18n.changeLanguage(nextLang).then(() => {
+      window.location.reload();
+    });
   };
 
   return (

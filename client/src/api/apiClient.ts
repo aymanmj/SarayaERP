@@ -23,6 +23,10 @@ apiClient.interceptors.request.use((config) => {
   const currentLang = localStorage.getItem("language") || "ar";
   if (config.headers) {
     config.headers["Accept-Language"] = currentLang;
+    // Prevent browser from caching API GET requests (fixes language switch caching)
+    config.headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
+    config.headers["Pragma"] = "no-cache";
+    config.headers["Expires"] = "0";
   }
   return config;
 });
