@@ -91,7 +91,7 @@ export default function IncomeStatementPage() {
 
       if (!targetYear) {
         setYear(null);
-        setError("لا توجد سنوات مالية معرفة.");
+        setError(t("accounting.incomeStatement.noFiscalYearsDefined", "لا توجد سنوات مالية معرفة."));
         setLoading(false);
         return;
       }
@@ -119,7 +119,7 @@ export default function IncomeStatementPage() {
     } catch (err: any) {
       console.error(err);
       const msg =
-        err?.response?.data?.message || "حدث خطأ أثناء تحميل القائمة.";
+        err?.response?.data?.message || t("accounting.incomeStatement.errorLoadingData", "حدث خطأ أثناء تحميل القائمة.");
       setError(msg);
     } finally {
       setLoading(false);
@@ -150,10 +150,9 @@ export default function IncomeStatementPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold mb-1">{t("accounting.incomeStatement.incomeAndProfitabilityStatement", t("accounting.incomeStatement.incomeAndProfitabilityStatement", "قائمة الدخل والربحية"))}</h1>
+          <h1 className="text-2xl font-bold mb-1">{t("accounting.incomeStatement.incomeAndProfitabilityStatement", "قائمة الدخل والربحية")}</h1>
           <p className="text-sm text-slate-400">
-            تحليل الإيرادات والمصروفات وصافي الربح (P&L) على مستوى المستشفى أو
-            الأقسام.
+            {t("accounting.incomeStatement.description", "تحليل الإيرادات والمصروفات وصافي الربح (P&L) على مستوى المستشفى أو الأقسام.")}
           </p>
         </div>
 
@@ -171,14 +170,14 @@ export default function IncomeStatementPage() {
             onClick={load}
             className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold transition"
           >
-            تحديث
+            {t("accounting.incomeStatement.refresh", "تحديث")}
           </button>
           {data && (
             <button
               onClick={() => window.print()}
               className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-lg"
             >
-              طباعة التقرير
+              {t("accounting.incomeStatement.printReport", "طباعة التقرير")}
             </button>
           )}
         </div>
@@ -187,7 +186,7 @@ export default function IncomeStatementPage() {
       {/* Filters */}
       <div className="bg-slate-900/60 border border-slate-800 p-4 rounded-2xl flex flex-wrap gap-4 items-end shadow-sm">
         <div className="flex flex-col gap-1">
-          <label className="text-xs text-slate-400 font-bold">{t("accounting.incomeStatement.fromHistory", t("accounting.incomeStatement.fromHistory", "من تاريخ"))}</label>
+          <label className="text-xs text-slate-400 font-bold">{t("accounting.incomeStatement.fromHistory", "من تاريخ")}</label>
           <DatePicker
             date={fromFilter ? new Date(fromFilter) : undefined}
             onChange={(d) => setFromFilter(d ? d.toISOString().slice(0, 10) : "")}
@@ -195,7 +194,7 @@ export default function IncomeStatementPage() {
           />
         </div>
         <div className="flex flex-col gap-1">
-          <label className="text-xs text-slate-400 font-bold">{t("accounting.incomeStatement.toDate", t("accounting.incomeStatement.toDate", "إلى تاريخ"))}</label>
+          <label className="text-xs text-slate-400 font-bold">{t("accounting.incomeStatement.toDate", "إلى تاريخ")}</label>
           <DatePicker
             date={toFilter ? new Date(toFilter) : undefined}
             onChange={(d) => setToFilter(d ? d.toISOString().slice(0, 10) : "")}
@@ -206,14 +205,14 @@ export default function IncomeStatementPage() {
         {/* ✅ فلتر مركز التكلفة */}
         <div className="flex flex-col gap-1 w-56">
           <label className="text-xs text-slate-400 font-bold">
-            مركز التكلفة / القسم
+            {t("accounting.incomeStatement.costCenterOrDepartment", "مركز التكلفة / القسم")}
           </label>
           <select
             value={selectedCostCenter}
             onChange={(e) => setSelectedCostCenter(e.target.value)}
             className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:border-sky-500 outline-none"
           >
-            <option value="">{t("accounting.incomeStatement.theEntireOrganizationAll", t("accounting.incomeStatement.theEntireOrganizationAll", "-- المؤسسة بالكامل (All) --"))}</option>
+            <option value="">{t("accounting.incomeStatement.theEntireOrganizationAll", "-- المؤسسة بالكامل (All) --")}</option>
             {costCenters.map((cc) => (
               <option key={cc.id} value={cc.id}>
                 {cc.name} ({cc.code})
@@ -228,7 +227,7 @@ export default function IncomeStatementPage() {
             className="px-6 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg transition"
             disabled={loading}
           >
-            عرض التقرير
+            {t("accounting.incomeStatement.viewReport", "عرض التقرير")}
           </button>
           {(fromFilter || toFilter || selectedCostCenter) && (
             <button
@@ -240,7 +239,7 @@ export default function IncomeStatementPage() {
               }}
               className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 text-xs transition"
             >
-              مسح
+              {t("accounting.incomeStatement.clear", "مسح")}
             </button>
           )}
         </div>
@@ -254,14 +253,14 @@ export default function IncomeStatementPage() {
             onClick={() => navigate("/financial-years")}
             className="underline hover:text-white"
           >
-            إعداد السنوات
+            {t("accounting.incomeStatement.configureYears", "إعداد السنوات")}
           </button>
         </div>
       )}
 
       {loading && (
         <div className="flex-1 flex items-center justify-center text-slate-500 animate-pulse">
-          جاري تحليل البيانات المالية...
+          {t("accounting.incomeStatement.analyzingFinancialData", "جاري تحليل البيانات المالية...")}
         </div>
       )}
 
@@ -272,19 +271,19 @@ export default function IncomeStatementPage() {
             {/* الإيرادات */}
             <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-4">
               <h3 className="text-sm font-bold text-emerald-400 mb-3 border-b border-slate-800 pb-2">
-                الإيرادات (Revenues)
+                {t("accounting.incomeStatement.revenues", "الإيرادات (Revenues)")}
               </h3>
               {data.revenues.length === 0 ? (
                 <p className="text-center text-slate-500 text-xs py-4">
-                  لا توجد إيرادات في هذه الفترة.
+                  {t("accounting.incomeStatement.noRevenuesInPeriod", "لا توجد إيرادات في هذه الفترة.")}
                 </p>
               ) : (
                 <table className="w-full text-xs text-right">
                   <thead className="text-slate-500">
                     <tr>
-                      <th className="pb-2">{t("accounting.incomeStatement.code", t("accounting.incomeStatement.code", "الكود"))}</th>
-                      <th className="pb-2">{t("accounting.incomeStatement.theAccount", t("accounting.incomeStatement.theAccount", "الحساب"))}</th>
-                      <th className="pb-2">{t("accounting.incomeStatement.net", t("accounting.incomeStatement.net", "الصافي"))}</th>
+                      <th className="pb-2">{t("accounting.incomeStatement.code", "الكود")}</th>
+                      <th className="pb-2">{t("accounting.incomeStatement.theAccount", "الحساب")}</th>
+                      <th className="pb-2">{t("accounting.incomeStatement.net", "الصافي")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -311,19 +310,19 @@ export default function IncomeStatementPage() {
             {/* المصروفات */}
             <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-4">
               <h3 className="text-sm font-bold text-rose-400 mb-3 border-b border-slate-800 pb-2">
-                المصروفات (Expenses)
+                {t("accounting.incomeStatement.expenses", "المصروفات (Expenses)")}
               </h3>
               {data.expenses.length === 0 ? (
                 <p className="text-center text-slate-500 text-xs py-4">
-                  لا توجد مصروفات في هذه الفترة.
+                  {t("accounting.incomeStatement.noExpensesInPeriod", "لا توجد مصروفات في هذه الفترة.")}
                 </p>
               ) : (
                 <table className="w-full text-xs text-right">
                   <thead className="text-slate-500">
                     <tr>
-                      <th className="pb-2">{t("accounting.incomeStatement.code", t("accounting.incomeStatement.code", "الكود"))}</th>
-                      <th className="pb-2">{t("accounting.incomeStatement.theAccount", t("accounting.incomeStatement.theAccount", "الحساب"))}</th>
-                      <th className="pb-2">{t("accounting.incomeStatement.net", t("accounting.incomeStatement.net", "الصافي"))}</th>
+                      <th className="pb-2">{t("accounting.incomeStatement.code", "الكود")}</th>
+                      <th className="pb-2">{t("accounting.incomeStatement.theAccount", "الحساب")}</th>
+                      <th className="pb-2">{t("accounting.incomeStatement.net", "الصافي")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -352,13 +351,13 @@ export default function IncomeStatementPage() {
           <div className="lg:w-80 flex flex-col gap-4">
             <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-lg">
               <h2 className="text-lg font-bold text-white mb-6 text-center">
-                ملخص النتائج
+                {t("accounting.incomeStatement.resultsSummary", "ملخص النتائج")}
               </h2>
 
               <div className="space-y-4">
                 <div className="flex justify-between items-center border-b border-slate-800 pb-3">
                   <span className="text-slate-400 text-xs">
-                    إجمالي الإيرادات
+                    {t("accounting.incomeStatement.totalRevenues", "إجمالي الإيرادات")}
                   </span>
                   <span className="text-emerald-400 font-bold text-lg">
                     {fmtMoney(data.totalRevenue)}
@@ -366,7 +365,7 @@ export default function IncomeStatementPage() {
                 </div>
                 <div className="flex justify-between items-center border-b border-slate-800 pb-3">
                   <span className="text-slate-400 text-xs">
-                    إجمالي المصروفات
+                    {t("accounting.incomeStatement.totalExpenses", "إجمالي المصروفات")}
                   </span>
                   <span className="text-rose-400 font-bold text-lg">
                     ({fmtMoney(data.totalExpense)})
@@ -375,7 +374,7 @@ export default function IncomeStatementPage() {
 
                 <div className="pt-2">
                   <div className="text-slate-300 text-sm mb-1 text-center font-bold">
-                    صافي الربح / الخسارة
+                    {t("accounting.incomeStatement.netProfitLoss", "صافي الربح / الخسارة")}
                   </div>
                   <div
                     className={`text-3xl font-black text-center ${data.netProfit >= 0 ? "text-sky-400" : "text-rose-500"}`}
@@ -390,11 +389,9 @@ export default function IncomeStatementPage() {
             </div>
 
             <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-4 text-xs text-slate-400 leading-relaxed">
-              ℹ️ <strong>{t("accounting.incomeStatement.note", t("accounting.incomeStatement.note", "ملاحظة:"))}</strong>
+              ℹ️ <strong>{t("accounting.incomeStatement.note", "ملاحظة:")}</strong>
               <br />
-              هذا التقرير يعكس الأداء المالي بناءً على الاستحقاق (Accrual
-              Basis). للاطلاع على التدفق النقدي الفعلي، يرجى مراجعة تقرير
-              الخزينة.
+              {t("accounting.incomeStatement.accrualNote", "هذا التقرير يعكس الأداء المالي بناءً على الاستحقاق (Accrual Basis). للاطلاع على التدفق النقدي الفعلي، يرجى مراجعة تقرير الخزينة.")}
             </div>
           </div>
         </div>

@@ -94,17 +94,17 @@ export default function AccountingEntriesPage() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-black text-white">
-            سجل القيود المحاسبية (دفتر اليومية)
+            {t("accounting.entries.title", "سجل القيود المحاسبية (دفتر اليومية)")}
           </h1>
           <p className="text-sm text-slate-400 mt-1">
-            مراجعة وتدقيق القيود المحاسبية من جميع الأقسام.
+            {t("accounting.entries.subtitle", "مراجعة وتدقيق القيود المحاسبية من جميع الأقسام.")}
           </p>
         </div>
         <button
           onClick={() => navigate("/accounting/manual-entry")}
           className="px-6 py-2.5 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded-2xl text-sm shadow-lg transition-all"
         >
-          + قيد يدوي جديد
+          {t("accounting.entries.newManualEntry", "+ قيد يدوي جديد")}
         </button>
       </div>
 
@@ -112,7 +112,7 @@ export default function AccountingEntriesPage() {
       <div className="bg-slate-900/60 border border-slate-800 p-5 rounded-3xl flex flex-wrap gap-4 items-end shadow-sm">
         <div className="flex flex-col gap-1.5">
           <label className="text-[10px] text-slate-500 font-bold mr-2">
-            من تاريخ
+            {t("accounting.entries.fromDate", "من تاريخ")}
           </label>
           <DatePicker
             date={fromDate ? new Date(fromDate) : undefined}
@@ -125,7 +125,7 @@ export default function AccountingEntriesPage() {
         </div>
         <div className="flex flex-col gap-1.5">
           <label className="text-[10px] text-slate-500 font-bold mr-2">
-            إلى تاريخ
+            {t("accounting.entries.toDate", "إلى تاريخ")}
           </label>
           <DatePicker
             date={toDate ? new Date(toDate) : undefined}
@@ -138,7 +138,7 @@ export default function AccountingEntriesPage() {
         </div>
         <div className="w-48 flex flex-col gap-1.5">
           <label className="text-[10px] text-slate-500 font-bold mr-2">
-            مصدر العملية
+            {t("accounting.entries.processSource", "مصدر العملية")}
           </label>
           <select
             className="bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-xs focus:border-sky-500 outline-none"
@@ -148,12 +148,12 @@ export default function AccountingEntriesPage() {
               setPage(1);
             }}
           >
-            <option value="">{t("accounting.entries.allSources", t("accounting.entries.allSources", "كل المصادر"))}</option>
-            <option value="BILLING">{t("accounting.entries.billingAndClinics", t("accounting.entries.billingAndClinics", "الفوترة والعيادات"))}</option>
-            <option value="CASHIER">{t("accounting.entries.treasuryAndCollection", t("accounting.entries.treasuryAndCollection", "الخزينة والتحصيل"))}</option>
-            <option value="INVENTORY">{t("accounting.entries.inventoryAndPurchases", t("accounting.entries.inventoryAndPurchases", "المخزون والمشتريات"))}</option>
-            <option value="PAYROLL">{t("accounting.entries.salariesAndWages", t("accounting.entries.salariesAndWages", "الرواتب والأجور"))}</option>
-            <option value="MANUAL">{t("accounting.entries.manualRestrictions", t("accounting.entries.manualRestrictions", "القيود اليدوية"))}</option>
+            <option value="">{t("accounting.entries.allSources", "كل المصادر")}</option>
+            <option value="BILLING">{t("accounting.entries.billingAndClinics", "الفوترة والعيادات")}</option>
+            <option value="CASHIER">{t("accounting.entries.treasuryAndCollection", "الخزينة والتحصيل")}</option>
+            <option value="INVENTORY">{t("accounting.entries.inventoryAndPurchases", "المخزون والمشتريات")}</option>
+            <option value="PAYROLL">{t("accounting.entries.salariesAndWages", "الرواتب والأجور")}</option>
+            <option value="MANUAL">{t("accounting.entries.manualRestrictions", "القيود اليدوية")}</option>
           </select>
         </div>
         <button
@@ -163,7 +163,7 @@ export default function AccountingEntriesPage() {
           }}
           className="px-6 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold border border-slate-700 transition-all mr-auto"
         >
-          تحديث النتائج
+          {t("accounting.entries.refreshResults", "تحديث النتائج")}
         </button>
       </div>
 
@@ -171,11 +171,11 @@ export default function AccountingEntriesPage() {
       <div className="flex-1 overflow-y-auto custom-scrollbar space-y-4 pr-1">
         {loading ? (
           <div className="text-center py-20 text-slate-500 animate-pulse">
-            جارِ جلب البيانات المالية...
+            {t("accounting.entries.fetchingFinancialData", "جارِ جلب البيانات المالية...")}
           </div>
         ) : entries.length === 0 ? (
           <div className="text-center py-20 text-slate-600 bg-slate-900/20 border border-dashed border-slate-800 rounded-3xl">
-            لا توجد قيود مطابقة.
+            {t("accounting.entries.noMatchingEntries", "لا توجد قيود مطابقة.")}
           </div>
         ) : (
           entries.map((entry) => (
@@ -207,9 +207,9 @@ export default function AccountingEntriesPage() {
                 <table className="w-full text-xs text-right">
                   <thead className="bg-slate-900/80 text-slate-500 font-bold">
                     <tr>
-                      <th className="px-4 py-2">{t("accounting.entries.theAccount", t("accounting.entries.theAccount", "الحساب"))}</th>
-                      <th className="px-4 py-2 text-center">{t("accounting.entries.debit", t("accounting.entries.debit", "مدين (Debit)"))}</th>
-                      <th className="px-4 py-2 text-center">{t("accounting.entries.credit", t("accounting.entries.credit", "دائن (Credit)"))}</th>
+                      <th className="px-4 py-2">{t("accounting.entries.theAccount", "الحساب")}</th>
+                      <th className="px-4 py-2 text-center">{t("accounting.entries.debit", "مدين (Debit)")}</th>
+                      <th className="px-4 py-2 text-center">{t("accounting.entries.credit", "دائن (Credit)")}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800/50">
@@ -246,7 +246,7 @@ export default function AccountingEntriesPage() {
       {/* Pagination Footer */}
       <div className="bg-slate-950/80 border-t border-slate-800 px-6 py-4 rounded-3xl flex justify-between items-center shadow-2xl">
         <div className="text-xs text-slate-500">
-          إجمالي القيود:{" "}
+          {t("accounting.entries.totalEntries", "إجمالي القيود:")}{" "}
           <span className="text-white font-black">{meta?.totalCount ?? 0}</span>
         </div>
         <div className="flex items-center gap-4">
@@ -256,12 +256,12 @@ export default function AccountingEntriesPage() {
               onClick={() => setPage((p) => p - 1)}
               className="px-4 py-1.5 bg-slate-900 border border-slate-800 rounded-xl disabled:opacity-20 hover:text-sky-400 transition-colors"
             >
-              السابق
+              {t("accounting.entries.previous", "السابق")}
             </button>
 
             <div className="flex items-center px-4 text-slate-400">
-              صفحة <span className="text-sky-400 font-bold mx-2">{page}</span>{" "}
-              من{" "}
+              {t("accounting.entries.pageLabel", "صفحة")} <span className="text-sky-400 font-bold mx-2">{page}</span>{" "}
+              {t("accounting.entries.ofLabel", "من")}{" "}
               <span className="text-white font-bold mx-2">
                 {meta?.totalPages || 1}
               </span>
@@ -272,7 +272,7 @@ export default function AccountingEntriesPage() {
               onClick={() => setPage((p) => p + 1)}
               className="px-4 py-1.5 bg-slate-900 border border-slate-800 rounded-xl disabled:opacity-20 hover:text-sky-400 transition-colors"
             >
-              التالي
+              {t("accounting.entries.next", "التالي")}
             </button>
           </div>
         </div>

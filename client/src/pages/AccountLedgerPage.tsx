@@ -60,7 +60,7 @@ export default function AccountLedgerPage() {
 
   useEffect(() => {
     if (!accountId || Number.isNaN(accountId)) {
-      setError("لم يتم تحديد حساب بشكل صحيح.");
+      setError(t("accounting.accountLedger.invalidAccountSelected", "لم يتم تحديد حساب بشكل صحيح."));
       return;
     }
 
@@ -86,7 +86,7 @@ export default function AccountLedgerPage() {
         const msg =
           err?.response?.data?.message ||
           err?.response?.data?.error?.message ||
-          "حدث خطأ أثناء تحميل دفتر الأستاذ.";
+          t("accounting.accountLedger.errorLoadingLedger", "حدث خطأ أثناء تحميل دفتر الأستاذ.");
         setError(msg);
       } finally {
         setLoading(false);
@@ -108,12 +108,12 @@ export default function AccountLedgerPage() {
             onClick={() => navigate(-1)}
             className="px-3 py-1.5 rounded-full bg-slate-800/80 hover:bg-slate-700 text-slate-100 text-xs"
           >
-            ← رجوع
+            {t("back", "← رجوع")}
           </button>
           <div>
-            <h1 className="text-2xl font-bold mb-1">{t("accounting.accountLedger.ledger", t("accounting.accountLedger.ledger", "دفتر الأستاذ"))}</h1>
+            <h1 className="text-2xl font-bold mb-1">{t("accounting.accountLedger.ledger", "دفتر الأستاذ")}</h1>
             <p className="text-sm text-slate-400">
-              استعراض الحركات المحاسبية على حساب محدد مع الرصيد التراكمي.
+              {t("accounting.accountLedger.viewTransactionsDesc", "استعراض الحركات المحاسبية على حساب محدد مع الرصيد التراكمي.")}
             </p>
           </div>
         </div>
@@ -122,7 +122,7 @@ export default function AccountLedgerPage() {
           <div className="text-right text-sm">
             <div className="font-semibold text-slate-100">{account.name}</div>
             <div className="text-slate-400">
-              الكود: {account.code} — النوع: {account.type}
+              {t("accounting.accountLedger.codeLabel", "الكود")}: {account.code} — {t("accounting.accountLedger.typeLabel", "النوع")}: {account.type}
             </div>
           </div>
         )}
@@ -133,14 +133,14 @@ export default function AccountLedgerPage() {
           className="print:hidden inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs bg-emerald-500 hover:bg-emerald-400 text-white shadow-md shadow-emerald-500/40"
         >
           <span>🖨️</span>
-          <span>{t("accounting.accountLedger.ledgerPrinting", t("accounting.accountLedger.ledgerPrinting", "طباعة دفتر الأستاذ"))}</span>
+          <span>{t("accounting.accountLedger.ledgerPrinting", "طباعة دفتر الأستاذ")}</span>
         </button>
       </div>
 
       {/* Filters */}
       <div className="mb-4 rounded-3xl border border-slate-800 bg-slate-950/80 p-4 flex flex-wrap items-end gap-4 text-sm">
         <div className="flex flex-col gap-1">
-          <label className="text-xs text-slate-400">{t("accounting.accountLedger.fromHistory", t("accounting.accountLedger.fromHistory", "من تاريخ"))}</label>
+          <label className="text-xs text-slate-400">{t("accounting.accountLedger.fromHistory", "من تاريخ")}</label>
           <DatePicker
             date={from ? new Date(from) : undefined}
             onChange={(d) => setFrom(d ? d.toISOString().slice(0, 10) : undefined)}
@@ -148,7 +148,7 @@ export default function AccountLedgerPage() {
           />
         </div>
         <div className="flex flex-col gap-1">
-          <label className="text-xs text-slate-400">{t("accounting.accountLedger.toDate", t("accounting.accountLedger.toDate", "إلى تاريخ"))}</label>
+          <label className="text-xs text-slate-400">{t("accounting.accountLedger.toDate", "إلى تاريخ")}</label>
           <DatePicker
             date={to ? new Date(to) : undefined}
             onChange={(d) => setTo(d ? d.toISOString().slice(0, 10) : undefined)}
@@ -165,7 +165,7 @@ export default function AccountLedgerPage() {
           }}
           className="px-4 py-1.5 rounded-full bg-sky-600 hover:bg-sky-500 text-xs text-white"
         >
-          تطبيق الفلتر
+          {t("accounting.accountLedger.applyFilter", "تطبيق الفلتر")}
         </button>
 
         <button
@@ -177,7 +177,7 @@ export default function AccountLedgerPage() {
           }}
           className="px-3 py-1.5 rounded-full bg-slate-800 hover:bg-slate-700 text-xs text-slate-200"
         >
-          مسح الفلاتر
+          {t("accounting.accountLedger.clearFilters", "مسح الفلاتر")}
         </button>
       </div>
 
@@ -190,13 +190,13 @@ export default function AccountLedgerPage() {
 
       {loading && (
         <div className="flex-1 flex items-center justify-center text-slate-400">
-          جارِ تحميل البيانات...
+          {t("accounting.accountLedger.loadingData", "جارِ تحميل البيانات...")}
         </div>
       )}
 
       {!loading && !data && !error && (
         <div className="flex-1 flex items-center justify-center text-slate-400">
-          لا توجد بيانات متاحة.
+          {t("accounting.accountLedger.noDataAvailable", "لا توجد بيانات متاحة.")}
         </div>
       )}
 
@@ -206,35 +206,35 @@ export default function AccountLedgerPage() {
           <div className="space-y-4 xl:col-span-1">
             <div className="rounded-3xl border border-slate-800 bg-slate-950/80 p-4">
               <h2 className="text-sm font-semibold text-slate-200 mb-3">
-                ملخص الحساب
+                {t("accounting.accountLedger.accountSummary", "ملخص الحساب")}
               </h2>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-slate-400">{t("accounting.accountLedger.period", t("accounting.accountLedger.period", "الفترة:"))}</span>
+                  <span className="text-slate-400">{t("accounting.accountLedger.period", "الفترة:")}</span>
                   <span className="text-slate-100">
                     {formatDate(data.fromDate)} — {formatDate(data.toDate)}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">{t("accounting.accountLedger.openingBalance", t("accounting.accountLedger.openingBalance", "الرصيد الافتتاحي:"))}</span>
+                  <span className="text-slate-400">{t("accounting.accountLedger.openingBalance", "الرصيد الافتتاحي:")}</span>
                   <span className="text-sky-300">
                     LYD {formatNumber(data.openingBalance)}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">{t("accounting.accountLedger.totalDebit", t("accounting.accountLedger.totalDebit", "إجمالي المدين:"))}</span>
+                  <span className="text-slate-400">{t("accounting.accountLedger.totalDebit", "إجمالي المدين:")}</span>
                   <span className="text-emerald-300">
                     LYD {formatNumber(data.totalDebit)}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">{t("accounting.accountLedger.totalCredit", t("accounting.accountLedger.totalCredit", "إجمالي الدائن:"))}</span>
+                  <span className="text-slate-400">{t("accounting.accountLedger.totalCredit", "إجمالي الدائن:")}</span>
                   <span className="text-rose-300">
                     LYD {formatNumber(data.totalCredit)}
                   </span>
                 </div>
                 <div className="flex justify-between border-t border-slate-800 pt-2 mt-2">
-                  <span className="text-slate-400">{t("accounting.accountLedger.closingBalance", t("accounting.accountLedger.closingBalance", "الرصيد الختامي:"))}</span>
+                  <span className="text-slate-400">{t("accounting.accountLedger.closingBalance", "الرصيد الختامي:")}</span>
                   <span className="text-sky-300 font-semibold">
                     LYD {formatNumber(data.closingBalance)}
                   </span>
@@ -247,24 +247,24 @@ export default function AccountLedgerPage() {
           <div className="space-y-4 xl:col-span-2">
             <div className="rounded-3xl border border-slate-800 bg-slate-950/80 p-4">
               <h2 className="text-sm font-semibold text-slate-200 mb-3">
-                حركات الحساب (دفتر الأستاذ)
+                {t("accounting.accountLedger.accountTransactionsLedger", "حركات الحساب (دفتر الأستاذ)")}
               </h2>
 
               {data.lines.length === 0 ? (
                 <div className="py-4 text-xs text-slate-500 text-center">
-                  لا توجد حركات في هذه الفترة لهذا الحساب.
+                  {t("accounting.accountLedger.noTransactionsInPeriod", "لا توجد حركات في هذه الفترة لهذا الحساب.")}
                 </div>
               ) : (
                 <div className="overflow-x-auto text-xs">
                   <table className="min-w-full text-right">
                     <thead className="text-[11px] text-slate-400 border-b border-slate-800">
                       <tr>
-                        <th className="py-2 px-2">{t("accounting.accountLedger.theDate", t("accounting.accountLedger.theDate", "التاريخ"))}</th>
-                        <th className="py-2 px-2">{t("accounting.accountLedger.registrationNumber", t("accounting.accountLedger.registrationNumber", "رقم القيد"))}</th>
-                        <th className="py-2 px-2">{t("accounting.accountLedger.description", t("accounting.accountLedger.description", "الوصف"))}</th>
-                        <th className="py-2 px-2">{t("accounting.accountLedger.debtor", t("accounting.accountLedger.debtor", "مدين"))}</th>
-                        <th className="py-2 px-2">{t("accounting.accountLedger.creditor", t("accounting.accountLedger.creditor", "دائن"))}</th>
-                        <th className="py-2 px-2">{t("accounting.accountLedger.balance", t("accounting.accountLedger.balance", "الرصيد"))}</th>
+                        <th className="py-2 px-2">{t("accounting.accountLedger.theDate", "التاريخ")}</th>
+                        <th className="py-2 px-2">{t("accounting.accountLedger.registrationNumber", "رقم القيد")}</th>
+                        <th className="py-2 px-2">{t("accounting.accountLedger.description", "الوصف")}</th>
+                        <th className="py-2 px-2">{t("accounting.accountLedger.debtor", "مدين")}</th>
+                        <th className="py-2 px-2">{t("accounting.accountLedger.creditor", "دائن")}</th>
+                        <th className="py-2 px-2">{t("accounting.accountLedger.balance", "الرصيد")}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -274,7 +274,7 @@ export default function AccountLedgerPage() {
                           className="border-b border-slate-900/80 hover:bg-slate-900/60"
                         >
                           <td className="py-2 px-2">{formatDate(line.date)}</td>
-                          <td className="py-2 px-2">قيد #{line.entryId}</td>
+                          <td className="py-2 px-2">{t("accounting.accountLedger.entryHash", "قيد #")}{line.entryId}</td>
                           <td className="py-2 px-2 text-slate-200 truncate max-w-xs">
                             {line.description || "—"}
                           </td>

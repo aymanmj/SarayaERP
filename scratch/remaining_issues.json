@@ -1,0 +1,367 @@
+{
+  "doubleWrapped": {},
+  "hardcoded": {
+    "client/src/pages/FinancialYearsPage.tsx": [
+      {
+        "line": 70,
+        "content": "// قائمة السنوات"
+      },
+      {
+        "line": 74,
+        "content": "// الفترات للسنة المختارة"
+      },
+      {
+        "line": 80,
+        "content": "// نموذج إنشاء سنة جديدة"
+      },
+      {
+        "line": 113,
+        "content": "// لو حاب تمرر entryDate واضح:"
+      },
+      {
+        "line": 141,
+        "content": "// 🔄 إعادة تحميل السنوات (في حال تغيّر شيء في الحالة مستقبلاً)"
+      },
+      {
+        "line": 156,
+        "content": "// ----- تحميل السنوات -----"
+      },
+      {
+        "line": 163,
+        "content": "// لو ما فيش سنة مختارة، نختار الحالية أو أول سنة"
+      },
+      {
+        "line": 191,
+        "content": "// ----- تحميل الفترات لسنة معينة -----"
+      },
+      {
+        "line": 207,
+        "content": "// عند تغيير السنة المختارة"
+      },
+      {
+        "line": 216,
+        "content": "// ----- إنشاء سنة مالية جديدة -----"
+      },
+      {
+        "line": 251,
+        "content": "// ----- تعيين سنة حالية -----"
+      },
+      {
+        "line": 268,
+        "content": "// ----- إغلاق سنة مالية -----"
+      },
+      {
+        "line": 285,
+        "content": "// ----- توليد الفترات للشهور -----"
+      },
+      {
+        "line": 309,
+        "content": "// ----- فتح / إغلاق فترة -----"
+      },
+      {
+        "line": 328,
+        "content": "// ================== واجهة المستخدم =================="
+      },
+      {
+        "line": 336,
+        "content": "{t(\"accounting.financialYears.managingFinancialyearsAndAssociatedPerio\", \"إدارة السنوات المالية والفترات (الأشهر) المرتبطة بها، كأساس للجرد\")}"
+      },
+      {
+        "line": 427,
+        "content": "{t(\"accounting.financialYears.byFinancialyearAndPeriodsMonthsToEnsureA\", \"بالسنة المالية والفترات (الأشهر) لضمان دورة محاسبية مكتملة.\")}"
+      },
+      {
+        "line": 582,
+        "content": "{t(\"accounting.financialYears.periodsMonthsOfTheFinancialyear\", \"الفترات (الأشهر) للسنة المالية\")}"
+      }
+    ],
+    "client/src/pages/GeneralLedgerPage.tsx": [
+      {
+        "line": 84,
+        "content": "// تنسيق الرصيد الموقَّع (مدين/دائن)"
+      },
+      {
+        "line": 102,
+        "content": "// ✅ تخمين نوع المستند من الوصف (عشان يعالج البيانات القديمة/الملخبطة)"
+      },
+      {
+        "line": 106,
+        "content": "// كلمات عربية شائعة"
+      },
+      {
+        "line": 118,
+        "content": "// ✅ fallback محترم: نفتح شاشة القيود (دفتر اليومية/القيود)"
+      },
+      {
+        "line": 122,
+        "content": "// ✅ خريطة موحدة للمسارات (مطابقة لـ Router عندك)"
+      },
+      {
+        "line": 129,
+        "content": "// 1) لو نعرف نوعه من الوصف → نعطيه أولوية (يعالج البيانات القديمة)"
+      },
+      {
+        "line": 134,
+        "content": "// 2) وإلا نعتمد على sourceModule كافتراضي"
+      },
+      {
+        "line": 143,
+        "content": "// لو عندك لاحقاً فلترة بالسنة المالية استخدم query"
+      },
+      {
+        "line": 150,
+        "content": "// حالياً عندك صفحة مشتريات فقط"
+      },
+      {
+        "line": 179,
+        "content": "const [fromDate, setFromDate] = useState<string>(today.slice(0, 8) + \"01\"); // أول الشهر"
+      },
+      {
+        "line": 188,
+        "content": "// // أسماء ودية للمصادر"
+      },
+      {
+        "line": 193,
+        "content": "//   CASHIER_REFUND: \"سند صرف\","
+      },
+      {
+        "line": 197,
+        "content": "// // خريطة مسارات المستندات حسب الـ sourceModule (عدّل المسارات حسب الـ Router عندك)"
+      },
+      {
+        "line": 199,
+        "content": "//   // فاتورة مشتريات / حركة مخزون"
+      },
+      {
+        "line": 201,
+        "content": "//   // فاتورة مريض / فوترة"
+      },
+      {
+        "line": 203,
+        "content": "//   // أمثلة أخرى"
+      },
+      {
+        "line": 215,
+        "content": "// تحميل الحسابات (نفس مصدر شاشة القيد اليدوي)"
+      },
+      {
+        "line": 268,
+        "content": "// قراءة بارامترات من روابط أخرى (مثلاً من ميزان المراجعة)"
+      }
+    ],
+    "client/src/pages/YearClosingPage.tsx": [
+      {
+        "line": 51,
+        "content": "// --- 1) جلب السنة الحالية (قد تكون null بعد الإقفال) ---"
+      },
+      {
+        "line": 60,
+        "content": "// مافيش سنة حالية مفتوحة"
+      },
+      {
+        "line": 61,
+        "content": "// تقدر تظهر رسالة في أعلى الصفحة أو Toast"
+      },
+      {
+        "line": 62,
+        "content": "// مثال:"
+      },
+      {
+        "line": 66,
+        "content": "// --- 2) حسابات حقوق الملكية (تعمل سواء فيه سنة أو لا) ---"
+      },
+      {
+        "line": 75,
+        "content": "// اختيار افتراضي لحساب الأرباح المحتجزة (لو فيه سنة حالية فقط)"
+      },
+      {
+        "line": 79,
+        "content": "(a) => /p&l|أرباح|الخسائر/i.test(a.name + \" \" + (a.code ?? \"\")), // ✅ الأقواس هنا"
+      },
+      {
+        "line": 83,
+        "content": "//     /p&l|أرباح|الخسائر/i.test(a.name + \" \" + (a.code ?? \"\")),"
+      },
+      {
+        "line": 139,
+        "content": "// تحديث البيانات بعد الإقفال"
+      }
+    ],
+    "client/src/pages/OpeningBalancesPage.tsx": [
+      {
+        "line": 32,
+        "content": "// ✅ ما يرجع من الـ API عند جلب الأرصدة الافتتاحية"
+      },
+      {
+        "line": 60,
+        "content": "const [loading, setLoading] = useState(false); // تحميل السنوات + الحسابات"
+      },
+      {
+        "line": 61,
+        "content": "const [balancesLoading, setBalancesLoading] = useState(false); // تحميل أرصدة سنة معينة"
+      },
+      {
+        "line": 66,
+        "content": "// 🧮 إجمالي المدين/الدائن والفرق"
+      },
+      {
+        "line": 76,
+        "content": "// ✅ تحميل أرصدة افتتاحية لسنة معيّنة"
+      },
+      {
+        "line": 115,
+        "content": "// 404 أو لا توجد بيانات = لا نعرض خطأ، بل نعتبرها فارغة"
+      },
+      {
+        "line": 131,
+        "content": "// تحميل السنوات المالية والحسابات"
+      },
+      {
+        "line": 165,
+        "content": "// عند تغيير السنة المختارة → تحميل أرصدتها الافتتاحية (إن وجدت)"
+      },
+      {
+        "line": 175,
+        "content": "// إضافة سطر جديد"
+      },
+      {
+        "line": 266,
+        "content": "// إعادة تحميل الأرصدة من الـ backend بعد الحفظ"
+      }
+    ],
+    "client/src/pages/ChartOfAccountsPage.tsx": [
+      {
+        "line": 55,
+        "content": "// نموذج إنشاء/تعديل"
+      }
+    ],
+    "client/src/pages/IncomeStatementPage.tsx": [
+      {
+        "line": 63,
+        "content": "const [selectedCostCenter, setSelectedCostCenter] = useState<string>(\"\"); // ✅ الفلتر الجديد"
+      },
+      {
+        "line": 67,
+        "content": "// تحميل البيانات الأولية"
+      },
+      {
+        "line": 82,
+        "content": "// 1️⃣ جلب السنوات المالية"
+      },
+      {
+        "line": 87,
+        "content": "// تحديد السنة المستهدفة"
+      },
+      {
+        "line": 101,
+        "content": "// 2️⃣ إعداد الباراميترات"
+      },
+      {
+        "line": 109,
+        "content": "if (selectedCostCenter) params.costCenterId = selectedCostCenter; // ✅ إرسال الفلتر"
+      },
+      {
+        "line": 111,
+        "content": "// 3️⃣ جلب التقرير"
+      },
+      {
+        "line": 135,
+        "content": "// لا نمرر مركز التكلفة لدفتر الأستاذ حالياً، إلا إذا قمت بتحديث صفحة دفتر الأستاذ لدعمه"
+      },
+      {
+        "line": 155,
+        "content": "{t(\"accounting.incomeStatement.description\", \"تحليل الإيرادات والمصروفات وصافي الربح (P&L) على مستوى المستشفى أو الأقسام.\")}"
+      },
+      {
+        "line": 394,
+        "content": "{t(\"accounting.incomeStatement.accrualNote\", \"هذا التقرير يعكس الأداء المالي بناءً على الاستحقاق (Accrual Basis). للاطلاع على التدفق النقدي الفعلي، يرجى مراجعة تقرير الخزينة.\")}"
+      }
+    ],
+    "client/src/pages/ManualEntryPage.tsx": [
+      {
+        "line": 25,
+        "content": "costCenterId?: number | \"\"; // ✅ حقل جديد"
+      },
+      {
+        "line": 51,
+        "content": "const [costCenters, setCostCenters] = useState<CostCenterLite[]>([]); // ✅ قائمة مراكز التكلفة"
+      },
+      {
+        "line": 70,
+        "content": "// تحميل الحسابات ومراكز التكلفة"
+      },
+      {
+        "line": 169,
+        "content": "costCenterId: l.costCenterId ? Number(l.costCenterId) : undefined, // ✅ إرسال مركز التكلفة"
+      },
+      {
+        "line": 203,
+        "content": "// تصفير النموذج"
+      },
+      {
+        "line": 241,
+        "content": "{t(\"accounting.manualEntry.desc\", \"تسجيل العمليات المحاسبية (تسويات، مصاريف، عهد) مع توجيه مراكز التكلفة.\")}"
+      }
+    ],
+    "client/src/pages/BalanceSheetPage.tsx": [
+      {
+        "line": 22,
+        "content": "balance: number; // مدين - دائن"
+      },
+      {
+        "line": 91,
+        "content": "// تحميل أولي"
+      },
+      {
+        "line": 100,
+        "content": "// 🔗 فتح دفتر الأستاذ لحساب من داخل الميزانية"
+      },
+      {
+        "line": 106,
+        "content": "// من بداية السنة نفسها (1/1) إلى تاريخ الميزانية"
+      }
+    ],
+    "client/src/pages/TrialBalancePage.tsx": [
+      {
+        "line": 27,
+        "content": "// نفس DTO المستخدم في شاشات أخرى"
+      },
+      {
+        "line": 45,
+        "content": "// 🔗 دالة مساعدة لبناء رابط دفتر الأستاذ"
+      },
+      {
+        "line": 70,
+        "content": "// تحميل ميزان المراجعة"
+      },
+      {
+        "line": 100,
+        "content": "// أول تحميل للميزان (بدون فلاتر أو حسب ما يدعمه الـ backend)"
+      },
+      {
+        "line": 106,
+        "content": "// تحميل السنوات المالية وضبط السنة المفتوحة كافتراضي"
+      },
+      {
+        "line": 121,
+        "content": "// ممكن لاحقاً نعرض رسالة لو حبيت"
+      }
+    ],
+    "client/src/pages/AccountLedgerPage.tsx": [
+      {
+        "line": 81,
+        "content": "// تأكيد تزامن الـ URL مع الفلاتر"
+      },
+      {
+        "line": 162,
+        "content": "// مجرد إعادة setFrom/setTo تكفي لأن useEffect يعتمد عليهم"
+      }
+    ],
+    "client/src/pages/IntegrationPage.tsx": [
+      {
+        "line": 199,
+        "content": "loadDevices(); // لتحديث العداد"
+      }
+    ]
+  }
+}

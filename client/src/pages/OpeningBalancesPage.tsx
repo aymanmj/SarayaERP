@@ -121,7 +121,7 @@ export default function OpeningBalancesPage() {
         setLines([]);
       } else {
         console.error(err);
-        setError("حدث خطأ أثناء تحميل الأرصدة الافتتاحية لهذه السنة.");
+        setError(t("accounting.openingBalances.errorLoadingBalancesForThisYear", "حدث خطأ أثناء تحميل الأرصدة الافتتاحية لهذه السنة."));
       }
     } finally {
       setBalancesLoading(false);
@@ -153,7 +153,7 @@ export default function OpeningBalancesPage() {
        
       } catch (err: any) {
         console.error(err);
-        setError("حدث خطأ أثناء تحميل البيانات.");
+        setError(t("accounting.openingBalances.errorLoadingData", "حدث خطأ أثناء تحميل البيانات."));
       } finally {
         setLoading(false);
       }
@@ -214,33 +214,33 @@ export default function OpeningBalancesPage() {
 
   const handleSave = async () => {
     if (!selectedYearId) {
-      setError("يرجى اختيار السنة المالية أولاً.");
+      setError(t("accounting.openingBalances.pleaseSelectYearFirst", "يرجى اختيار السنة المالية أولاً."));
       return;
     }
 
     if (!entryDate) {
-      setError("يرجى تحديد تاريخ القيد.");
+      setError(t("accounting.openingBalances.pleaseSelectEntryDate", "يرجى تحديد تاريخ القيد."));
       return;
     }
 
     if (!lines.length) {
-      setError("يجب إضافة سطر واحد على الأقل.");
+      setError(t("accounting.openingBalances.mustAddAtLeastOneLine", "يجب إضافة سطر واحد على الأقل."));
       return;
     }
 
     if (selectedYear && selectedYear.status !== "OPEN") {
-      setError("لا يمكن تعديل الأرصدة الافتتاحية إلا لسنة مالية مفتوحة.");
+      setError(t("accounting.openingBalances.cannotModifyUnlessOpenYear", "لا يمكن تعديل الأرصدة الافتتاحية إلا لسنة مالية مفتوحة."));
       return;
     }
 
     const hasMissingAccount = lines.some((l) => !l.accountId);
     if (hasMissingAccount) {
-      setError("يرجى اختيار حساب لكل سطر قبل الحفظ.");
+      setError(t("accounting.openingBalances.pleaseSelectAccountForEachLine", "يرجى اختيار حساب لكل سطر قبل الحفظ."));
       return;
     }
 
     if (Math.abs(diff) > 0.0001) {
-      setError("إجمالي المدين يجب أن يساوي إجمالي الدائن.");
+      setError(t("accounting.openingBalances.debitMustEqualCredit", "إجمالي المدين يجب أن يساوي إجمالي الدائن."));
       return;
     }
 
@@ -261,7 +261,7 @@ export default function OpeningBalancesPage() {
 
       await apiClient.post("/accounting/opening-balances", payload);
 
-      setMessage("تم حفظ الأرصدة الافتتاحية بنجاح.");
+      setMessage(t("accounting.openingBalances.openingBalancesSavedSuccessfully", "تم حفظ الأرصدة الافتتاحية بنجاح."));
 
       // إعادة تحميل الأرصدة من الـ backend بعد الحفظ
       await loadBalancesForYear(selectedYearId);
@@ -270,8 +270,7 @@ export default function OpeningBalancesPage() {
       console.error(err);
       const msg =
         err?.response?.data?.message ||
-        err?.response?.data?.error?.message ||
-        "حدث خطأ أثناء حفظ الأرصدة الافتتاحية.";
+        t("accounting.openingBalances.errorSavingOpeningBalances", "حدث خطأ أثناء حفظ الأرصدة الافتتاحية.");
       setError(msg);
     } finally {
       setSaving(false);
@@ -288,12 +287,12 @@ export default function OpeningBalancesPage() {
             onClick={() => navigate(-1)}
             className="px-3 py-1.5 rounded-full bg-slate-800/80 hover:bg-slate-700 text-slate-100 text-xs"
           >
-            ← رجوع
+            &larr; {t("common.back", "رجوع")}
           </button>
           <div>
-            <h1 className="text-2xl font-bold mb-1">{t("accounting.openingBalances.openingBalances", t("accounting.openingBalances.openingBalances", "الأرصدة الافتتاحية"))}</h1>
+            <h1 className="text-2xl font-bold mb-1">{t("accounting.openingBalances.openingBalances", "الأرصدة الافتتاحية")}</h1>
             <p className="text-sm text-slate-400">
-              إعداد رصيد أول المدة للحسابات حسب السنة المالية.
+              {t("accounting.openingBalances.setupOpeningBalanceDesc", "إعداد رصيد أول المدة للحسابات حسب السنة المالية.")}
             </p>
           </div>
         </div>
@@ -301,7 +300,7 @@ export default function OpeningBalancesPage() {
 
       {loading ? (
         <div className="flex-1 flex items-center justify-center text-slate-400">
-          جارِ تحميل البيانات...
+          {t("common.loadingData", "جارِ تحميل البيانات...")}
         </div>
       ) : (
         <>
@@ -320,7 +319,7 @@ export default function OpeningBalancesPage() {
           {/* اختيارات السنة والتاريخ + حالة الميزان */}
           <div className="mb-4 rounded-3xl border border-slate-800 bg-slate-950/80 p-4 flex flex-wrap items-end gap-4 text-sm">
             <div className="flex flex-col gap-1">
-              <label className="text-xs text-slate-400">{t("accounting.openingBalances.fiscalYear", t("accounting.openingBalances.fiscalYear", "السنة المالية"))}</label>
+              <label className="text-xs text-slate-400">{t("accounting.openingBalances.fiscalYear", "السنة المالية")}</label>
               <select
                 className="bg-slate-900/70 border border-slate-700/60 rounded-xl px-3 py-1.5 text-xs"
                 value={selectedYearId ?? ""}
@@ -333,23 +332,23 @@ export default function OpeningBalancesPage() {
                   }
                 }}
               >
-                <option value="">{t("accounting.openingBalances.selectYear", t("accounting.openingBalances.selectYear", "— اختر السنة —"))}</option>
+                <option value="">{t("accounting.openingBalances.selectYear", "— اختر السنة —")}</option>
                 {years.map((y) => (
                   <option key={y.id} value={y.id}>
-                    {y.code} — {y.name} ({formatDate(y.startDate)} إلى{" "}
+                    {y.code} — {y.name} ({formatDate(y.startDate)} {t("common.to", "إلى")}{" "}
                     {formatDate(y.endDate)}){" "}
                     {y.status === "OPEN"
-                      ? " (مفتوحة)"
+                      ? ` (${t("accounting.openingBalances.openStatus", "مفتوحة")})`
                       : y.status === "CLOSED"
-                      ? " (مقفلة)"
-                      : " (مؤرشفة)"}
+                      ? ` (${t("accounting.openingBalances.closedStatus", "مقفلة")})`
+                      : ` (${t("accounting.openingBalances.archivedStatus", "مؤرشفة")})`}
                   </option>
                 ))}
               </select>
             </div>
 
             <div className="flex flex-col gap-1">
-              <label className="text-xs text-slate-400">{t("accounting.openingBalances.registrationDate", t("accounting.openingBalances.registrationDate", "تاريخ القيد"))}</label>
+              <label className="text-xs text-slate-400">{t("accounting.openingBalances.registrationDate", "تاريخ القيد")}</label>
               <DatePicker
                 date={entryDate ? new Date(entryDate) : undefined}
                 onChange={(d) => setEntryDate(d ? d.toISOString().slice(0, 10) : "")}
@@ -359,7 +358,7 @@ export default function OpeningBalancesPage() {
 
             {/* حالة الميزان */}
             <div className="flex flex-col gap-1 mr-auto">
-              <span className="text-xs text-slate-400">{t("accounting.openingBalances.balanceStatus", t("accounting.openingBalances.balanceStatus", "حالة الميزان"))}</span>
+              <span className="text-xs text-slate-400">{t("accounting.openingBalances.balanceStatus", "حالة الميزان")}</span>
               <div
                 className={`px-3 py-1.5 rounded-full border text-xs font-semibold flex flex-wrap gap-2 items-center
                   ${
@@ -372,7 +371,7 @@ export default function OpeningBalancesPage() {
                   {isBalanced ? t("accounting.openingBalances.theScaleIsBalanced", "✅ الميزان متزن") : t("accounting.openingBalances.theScaleIsOutOfBalance", "⚠️ الميزان غير متزن")}
                 </span>
                 <span className="text-[11px]">
-                  مـدين: {formatNumber(totalDebit)} | دائـن:{" "}
+                  {t("accounting.openingBalances.debitAbrev", "مـدين:")} {formatNumber(totalDebit)} | {t("accounting.openingBalances.creditAbrev", "دائـن:")}{" "}
                   {formatNumber(totalCredit)}
                 </span>
               </div>
@@ -384,7 +383,7 @@ export default function OpeningBalancesPage() {
                 onClick={addLine}
                 className="px-4 py-1.5 rounded-full bg-sky-600 hover:bg-sky-500 text-xs text-white"
               >
-                + إضافة سطر
+                + {t("accounting.openingBalances.addLine", "إضافة سطر")}
               </button>
               <button
                 type="button"
@@ -392,7 +391,7 @@ export default function OpeningBalancesPage() {
                 disabled={saving}
                 className="px-4 py-1.5 rounded-full bg-emerald-600 hover:bg-emerald-500 text-xs text-white disabled:opacity-50"
               >
-                {saving ? "جارِ الحفظ..." : t("accounting.openingBalances.saveOpeningBalances", "حفظ الأرصدة الافتتاحية")}
+                {saving ? t("accounting.openingBalances.saving", "جارِ الحفظ...") : t("accounting.openingBalances.saveOpeningBalances", "حفظ الأرصدة الافتتاحية")}
               </button>
             </div>
           </div>
@@ -401,11 +400,11 @@ export default function OpeningBalancesPage() {
           <div className="rounded-3xl border border-slate-800 bg-slate-950/80 p-4 flex-1 flex flex-col">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-sm font-semibold text-slate-200">
-                سطور الأرصدة الافتتاحية
+                {t("accounting.openingBalances.openingBalancesLines", "سطور الأرصدة الافتتاحية")}
               </h2>
               {balancesLoading && (
                 <span className="text-[11px] text-slate-500">
-                  جارِ تحميل الأرصدة لهذه السنة...
+                  {t("accounting.openingBalances.loadingBalancesForYear", "جارِ تحميل الأرصدة لهذه السنة...")}
                 </span>
               )}
             </div>
@@ -414,9 +413,9 @@ export default function OpeningBalancesPage() {
               <table className="min-w-full text-right">
                 <thead className="text-[11px] text-slate-400 border-b border-slate-800">
                   <tr>
-                    <th className="py-2 px-2 w-64">{t("accounting.openingBalances.theAccount", t("accounting.openingBalances.theAccount", "الحساب"))}</th>
-                    <th className="py-2 px-2 w-32">{t("accounting.openingBalances.debtor", t("accounting.openingBalances.debtor", "مدين"))}</th>
-                    <th className="py-2 px-2 w-32">{t("accounting.openingBalances.creditor", t("accounting.openingBalances.creditor", "دائن"))}</th>
+                    <th className="py-2 px-2 w-64">{t("accounting.openingBalances.theAccount", "الحساب")}</th>
+                    <th className="py-2 px-2 w-32">{t("accounting.openingBalances.debtor", "مدين")}</th>
+                    <th className="py-2 px-2 w-32">{t("accounting.openingBalances.creditor", "دائن")}</th>
                     <th className="py-2 px-2 w-16"></th>
                   </tr>
                 </thead>
@@ -427,8 +426,7 @@ export default function OpeningBalancesPage() {
                         className="py-4 px-2 text-center text-slate-500"
                         colSpan={4}
                       >
-                        لا توجد سطور بعد. اضغط على &quot;إضافة سطر&quot; أو حمّل
-                        الأرصدة الافتتاحية لسنة أخرى.
+                        {t("accounting.openingBalances.noLinesYet", "لا توجد سطور بعد. اضغط على \"إضافة سطر\" أو حمّل الأرصدة الافتتاحية لسنة أخرى.")}
                       </td>
                     </tr>
                   )}
@@ -446,7 +444,7 @@ export default function OpeningBalancesPage() {
                             updateLine(line.tempId, "accountId", e.target.value)
                           }
                         >
-                          <option value="">{t("accounting.openingBalances.chooseAccount", t("accounting.openingBalances.chooseAccount", "— اختر الحساب —"))}</option>
+                          <option value="">{t("accounting.openingBalances.chooseAccount", "— اختر الحساب —")}</option>
                           {accounts.map((a) => (
                             <option key={a.id} value={a.id}>
                               {a.code} — {a.name}
@@ -494,19 +492,19 @@ export default function OpeningBalancesPage() {
             {/* ملخص تحت الجدول (إجمالي مدين/دائن/فرق) */}
             <div className="mt-4 grid grid-cols-3 gap-4 text-xs">
               <div className="rounded-2xl bg-slate-900/70 border border-slate-700/60 p-3">
-                <div className="text-slate-400 mb-1">{t("accounting.openingBalances.totalDebit", t("accounting.openingBalances.totalDebit", "إجمالي المدين"))}</div>
+                <div className="text-slate-400 mb-1">{t("accounting.openingBalances.totalDebit", "إجمالي المدين")}</div>
                 <div className="text-emerald-300 font-semibold">
                   LYD {formatNumber(totalDebit)}
                 </div>
               </div>
               <div className="rounded-2xl bg-slate-900/70 border border-slate-700/60 p-3">
-                <div className="text-slate-400 mb-1">{t("accounting.openingBalances.totalCredit", t("accounting.openingBalances.totalCredit", "إجمالي الدائن"))}</div>
+                <div className="text-slate-400 mb-1">{t("accounting.openingBalances.totalCredit", "إجمالي الدائن")}</div>
                 <div className="text-rose-300 font-semibold">
                   LYD {formatNumber(totalCredit)}
                 </div>
               </div>
               <div className="rounded-2xl bg-slate-900/70 border border-slate-700/60 p-3">
-                <div className="text-slate-400 mb-1">{t("accounting.openingBalances.differenceDebitCredit", t("accounting.openingBalances.differenceDebitCredit", "الفرق (مدين - دائن)"))}</div>
+                <div className="text-slate-400 mb-1">{t("accounting.openingBalances.differenceDebitCredit", "الفرق (مدين - دائن)")}</div>
                 <div
                   className={
                     isBalanced

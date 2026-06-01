@@ -80,7 +80,7 @@ export default function BalanceSheetPage() {
       setError(
         typeof msg === "string"
           ? msg
-          : "حدث خطأ أثناء جلب بيانات الميزانية العمومية."
+          : t("accounting.balanceSheet.errorLoadingBalanceSheet", "حدث خطأ أثناء جلب بيانات الميزانية العمومية.")
       );
     } finally {
       setLoading(false);
@@ -118,12 +118,12 @@ export default function BalanceSheetPage() {
       {/* العنوان والشريط العلوي */}
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white">{t("accounting.balanceSheet.balanceSheet", t("accounting.balanceSheet.balanceSheet", "الميزانية العمومية"))}</h1>
+          <h1 className="text-2xl font-bold text-white">{t("accounting.balanceSheet.balanceSheet", "الميزانية العمومية")}</h1>
           <p className="text-sm text-gray-400">
-            استعراض المركز المالي للمنشأة حتى تاريخ معيّن.
+            {t("accounting.balanceSheet.desc", "استعراض المركز المالي للمنشأة حتى تاريخ معيّن.")}
           </p>
           <p className="mt-1 text-xs text-gray-500">
-            حتى تاريخ:{" "}
+            {t("accounting.balanceSheet.asOfDateLabel", "حتى تاريخ:")}{" "}
             <span className="font-semibold">
               {formatDate(asOfDate)}
             </span>
@@ -132,7 +132,7 @@ export default function BalanceSheetPage() {
 
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
-            <label className="text-sm text-gray-300">{t("accounting.balanceSheet.toDate", t("accounting.balanceSheet.toDate", "حتى تاريخ:"))}</label>
+            <label className="text-sm text-gray-300">{t("accounting.balanceSheet.toDate", "حتى تاريخ:")}</label>
             <DatePicker
               date={asOfDate ? new Date(asOfDate) : undefined}
               onChange={(d) => setAsOfDate(d ? d.toISOString().slice(0, 10) : "")}
@@ -145,7 +145,7 @@ export default function BalanceSheetPage() {
             disabled={loading}
             className="px-4 py-2 rounded bg-emerald-600 hover:bg-emerald-700 text-sm text-white disabled:opacity-60"
           >
-            {loading ? "جارِ التحديث..." : t("accounting.balanceSheet.toUpdate", "تحديث")}
+            {loading ? t("accounting.balanceSheet.updating", "جارِ التحديث...") : t("accounting.balanceSheet.toUpdate", "تحديث")}
           </button>
 
           <button
@@ -154,7 +154,7 @@ export default function BalanceSheetPage() {
             className="print:hidden inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs bg-emerald-500 hover:bg-emerald-400 text-white shadow-md shadow-emerald-500/40"
           >
             <span>🖨️</span>
-            <span>{t("accounting.balanceSheet.budgetPrinting", t("accounting.balanceSheet.budgetPrinting", "طباعة الميزانية"))}</span>
+            <span>{t("accounting.balanceSheet.budgetPrinting", "طباعة الميزانية")}</span>
           </button>
         </div>
       </div>
@@ -162,7 +162,7 @@ export default function BalanceSheetPage() {
       {/* كروت الملخص */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="rounded-2xl bg-gray-900 border border-gray-800 p-4">
-          <p className="text-sm text-gray-400">{t("accounting.balanceSheet.totalAssets", t("accounting.balanceSheet.totalAssets", "إجمالي الأصول"))}</p>
+          <p className="text-sm text-gray-400">{t("accounting.balanceSheet.totalAssets", "إجمالي الأصول")}</p>
           <p className="mt-2 text-xl font-semibold text-emerald-400">
             {formatMoney(assetsTotal)}
           </p>
@@ -170,7 +170,7 @@ export default function BalanceSheetPage() {
 
         <div className="rounded-2xl bg-gray-900 border border-gray-800 p-4">
           <p className="text-sm text-gray-400">
-            إجمالي الالتزامات + حقوق الملكية
+            t("accounting.balanceSheet.totalLiabilitiesAndEquity", "إجمالي الالتزامات + حقوق الملكية")
           </p>
           <p className="mt-2 text-xl font-semibold text-emerald-400">
             {formatMoney(liabEqTotal)}
@@ -178,7 +178,7 @@ export default function BalanceSheetPage() {
         </div>
 
         <div className="rounded-2xl bg-gray-900 border border-gray-800 p-4">
-          <p className="text-sm text-gray-400">{t("accounting.balanceSheet.differenceMustBe0", t("accounting.balanceSheet.differenceMustBe0", "الفرق (يجب أن يكون 0)"))}</p>
+          <p className="text-sm text-gray-400">{t("accounting.balanceSheet.differenceMustBe0", "الفرق (يجب أن يكون 0)")}</p>
           <p
             className={
               "mt-2 text-xl font-semibold " +
@@ -201,7 +201,7 @@ export default function BalanceSheetPage() {
         {/* الأصول */}
         <div className="rounded-2xl bg-gray-900 border border-gray-800">
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
-            <h2 className="font-semibold text-gray-100">{t("accounting.balanceSheet.assets", t("accounting.balanceSheet.assets", "الأصول"))}</h2>
+            <h2 className="font-semibold text-gray-100">{t("accounting.balanceSheet.assets", "الأصول")}</h2>
             <span className="text-sm text-emerald-400 font-semibold">
               {formatMoney(assetsTotal)}
             </span>
@@ -212,12 +212,12 @@ export default function BalanceSheetPage() {
               <thead className="bg-gray-900/60 border-b border-gray-800">
                 <tr>
                   <th className="px-4 py-2 text-right text-gray-400">
-                    رقم الحساب
+                    t("accounting.balanceSheet.accountNumber", "رقم الحساب")
                   </th>
                   <th className="px-4 py-2 text-right text-gray-400">
-                    اسم الحساب
+                    t("accounting.balanceSheet.accountName", "اسم الحساب")
                   </th>
-                  <th className="px-4 py-2 text-right text-gray-400">{t("accounting.balanceSheet.balance", t("accounting.balanceSheet.balance", "الرصيد"))}</th>
+                  <th className="px-4 py-2 text-right text-gray-400">{t("accounting.balanceSheet.balance", "الرصيد")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -244,7 +244,7 @@ export default function BalanceSheetPage() {
                       colSpan={3}
                       className="px-4 py-4 text-center text-gray-500"
                     >
-                      لا توجد أرصدة أصول مسجلة حتى هذا التاريخ.
+                      t("accounting.balanceSheet.noAssets", "لا توجد أرصدة أصول مسجلة حتى هذا التاريخ.")
                     </td>
                   </tr>
                 )}
@@ -258,7 +258,7 @@ export default function BalanceSheetPage() {
           {/* الالتزامات */}
           <div className="rounded-2xl bg-gray-900 border border-gray-800">
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
-              <h2 className="font-semibold text-gray-100">{t("accounting.balanceSheet.commitments", t("accounting.balanceSheet.commitments", "الالتزامات"))}</h2>
+              <h2 className="font-semibold text-gray-100">{t("accounting.balanceSheet.commitments", "الالتزامات")}</h2>
               <span className="text-sm text-emerald-400 font-semibold">
                 {formatMoney(-(data?.liabilities.total ?? 0))}
               </span>
@@ -268,13 +268,13 @@ export default function BalanceSheetPage() {
                 <thead className="bg-gray-900/60 border-b border-gray-800">
                   <tr>
                     <th className="px-4 py-2 text-right text-gray-400">
-                      رقم الحساب
+                      t("accounting.balanceSheet.accountNumber", "رقم الحساب")
                     </th>
                     <th className="px-4 py-2 text-right text-gray-400">
-                      اسم الحساب
+                      t("accounting.balanceSheet.accountName", "اسم الحساب")
                     </th>
                     <th className="px-4 py-2 text-right text-gray-400">
-                      {t("accounting.balanceSheet.balance", t("accounting.balanceSheet.balance", "الرصيد"))}
+                      {t("accounting.balanceSheet.balance", "الرصيد")}
                     </th>
                   </tr>
                 </thead>
@@ -302,7 +302,7 @@ export default function BalanceSheetPage() {
                         colSpan={3}
                         className="px-4 py-4 text-center text-gray-500"
                       >
-                        لا توجد التزامات مسجلة حتى هذا التاريخ.
+                        t("accounting.balanceSheet.noLiabilities", "لا توجد التزامات مسجلة حتى هذا التاريخ.")
                       </td>
                     </tr>
                   )}
@@ -314,7 +314,7 @@ export default function BalanceSheetPage() {
           {/* حقوق الملكية */}
           <div className="rounded-2xl bg-gray-900 border border-gray-800">
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
-              <h2 className="font-semibold text-gray-100">{t("accounting.balanceSheet.propertyRights", t("accounting.balanceSheet.propertyRights", "حقوق الملكية"))}</h2>
+              <h2 className="font-semibold text-gray-100">{t("accounting.balanceSheet.propertyRights", "حقوق الملكية")}</h2>
               <span className="text-sm text-emerald-400 font-semibold">
                 {formatMoney(-(data?.equity.total ?? 0))}
               </span>
@@ -324,13 +324,13 @@ export default function BalanceSheetPage() {
                 <thead className="bg-gray-900/60 border-b border-gray-800">
                   <tr>
                     <th className="px-4 py-2 text-right text-gray-400">
-                      رقم الحساب
+                      t("accounting.balanceSheet.accountNumber", "رقم الحساب")
                     </th>
                     <th className="px-4 py-2 text-right text-gray-400">
-                      اسم الحساب
+                      t("accounting.balanceSheet.accountName", "اسم الحساب")
                     </th>
                     <th className="px-4 py-2 text-right text-gray-400">
-                      {t("accounting.balanceSheet.balance", t("accounting.balanceSheet.balance", "الرصيد"))}
+                      {t("accounting.balanceSheet.balance", "الرصيد")}
                     </th>
                   </tr>
                 </thead>
@@ -358,7 +358,7 @@ export default function BalanceSheetPage() {
                         colSpan={3}
                         className="px-4 py-4 text-center text-gray-500"
                       >
-                        لا توجد أرصدة لحقوق الملكية حتى هذا التاريخ.
+                        t("accounting.balanceSheet.noEquity", "لا توجد أرصدة لحقوق الملكية حتى هذا التاريخ.")
                       </td>
                     </tr>
                   )}
@@ -367,10 +367,10 @@ export default function BalanceSheetPage() {
             </div>
           </div>
 
-          {/* إجمالي الالتزامات + حقوق الملكية */}
+          {/* t("accounting.balanceSheet.totalLiabilitiesAndEquity", "إجمالي الالتزامات + حقوق الملكية") */}
           <div className="rounded-2xl bg-gray-900 border border-gray-800 px-4 py-3 flex items-center justify-between">
             <span className="text-sm text-gray-300">
-              إجمالي الالتزامات + حقوق الملكية
+              t("accounting.balanceSheet.totalLiabilitiesAndEquity", "إجمالي الالتزامات + حقوق الملكية")
             </span>
             <span className="text-sm font-semibold text-emerald-400">
               {formatMoney(liabEqTotal)}

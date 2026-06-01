@@ -170,7 +170,7 @@ export default function IntegrationPage() {
   const handleDeleteDevice = async (id: number) => {
     if (
       !confirm(
-        "هل أنت متأكد من حذف هذا الجهاز؟ سيتم حذف جميع الإعدادات المرتبطة.",
+        t("integration.confirmDeleteDevice", "هل أنت متأكد من حذف هذا الجهاز؟ سيتم حذف جميع الإعدادات المرتبطة."),
       )
     )
       return;
@@ -223,10 +223,10 @@ export default function IntegrationPage() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold mb-1">
-            الربط والتكامل (LIS/PACS Integration)
+            {t("integration.title", "الربط والتكامل (LIS/PACS Integration)")}
           </h1>
           <p className="text-sm text-slate-400">
-            إدارة أجهزة المختبر والأشعة وربط الأكواد ومراقبة الرسائل (HL7).
+            {t("integration.desc", "إدارة أجهزة المختبر والأشعة وربط الأكواد ومراقبة الرسائل (HL7).")}
           </p>
         </div>
         <div className="flex bg-slate-800 rounded-lg p-1">
@@ -234,13 +234,13 @@ export default function IntegrationPage() {
             onClick={() => setActiveTab("DEVICES")}
             className={`px-4 py-1.5 rounded-md text-sm transition ${activeTab === "DEVICES" ? "bg-slate-600 text-white shadow" : "text-slate-400 hover:text-slate-200"}`}
           >
-            الأجهزة والإعدادات
+            {t("integration.devicesAndSettings", "الأجهزة والإعدادات")}
           </button>
           <button
             onClick={() => setActiveTab("LOGS")}
             className={`px-4 py-1.5 rounded-md text-sm transition ${activeTab === "LOGS" ? "bg-slate-600 text-white shadow" : "text-slate-400 hover:text-slate-200"}`}
           >
-            سجل الرسائل (Logs)
+            {t("integration.messageLogs", "سجل الرسائل (Logs)")}
           </button>
         </div>
       </div>
@@ -250,19 +250,19 @@ export default function IntegrationPage() {
           {/* قائمة الأجهزة */}
           <div className="lg:col-span-1 bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex flex-col">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="font-semibold text-slate-200">{t("integration.knowledgeDevices", t("integration.knowledgeDevices", "الأجهزة المعرفة"))}</h3>
+              <h3 className="font-semibold text-slate-200">{t("integration.knowledgeDevices", "الأجهزة المعرفة")}</h3>
               <button
                 onClick={openCreateModal}
                 className="text-xs bg-emerald-600 px-3 py-1.5 rounded-lg hover:bg-emerald-500 font-bold transition text-white"
               >
-                + جديد
+                {t("integration.newDeviceButton", "+ جديد")}
               </button>
             </div>
 
             <div className="flex-1 overflow-auto space-y-3">
               {devices.length === 0 && (
                 <div className="text-center text-slate-500 text-xs py-10">
-                  لا توجد أجهزة مضافة.
+                  {t("integration.noDevicesAdded", "لا توجد أجهزة مضافة.")}
                 </div>
               )}
 
@@ -301,7 +301,7 @@ export default function IntegrationPage() {
 
                   <div className="flex justify-between items-center mt-3 pt-2 border-t border-slate-800/50">
                     <span className="text-[10px] text-slate-500">
-                      عدد التحاليل المربوطة: {dev._count?.mappings ?? 0}
+                      {t("integration.mappingsCount", "عدد التحاليل المربوطة:")} {dev._count?.mappings ?? 0}
                     </span>
 
                     <div className="flex gap-2">
@@ -312,7 +312,7 @@ export default function IntegrationPage() {
                         }}
                         className="text-xs text-sky-400 hover:text-sky-300"
                       >
-                        تعديل
+                        {t("integration.edit", "تعديل")}
                       </button>
                       <button
                         onClick={(e) => {
@@ -321,7 +321,7 @@ export default function IntegrationPage() {
                         }}
                         className="text-xs text-rose-400 hover:text-rose-300"
                       >
-                        حذف
+                        {t("integration.delete", "حذف")}
                       </button>
                     </div>
                   </div>
@@ -335,12 +335,12 @@ export default function IntegrationPage() {
             {!selectedDeviceId ? (
               <div className="flex-1 flex flex-col items-center justify-center text-slate-500 gap-2">
                 <div className="text-4xl opacity-20">🖥️</div>
-                <div>{t("integration.selectADeviceFromTheListToManageItsCodes", t("integration.selectADeviceFromTheListToManageItsCodes", "اختر جهازاً من القائمة لإدارة الأكواد الخاصة به."))}</div>
+                <div>{t("integration.selectADeviceFromTheListToManageItsCodes", "اختر جهازاً من القائمة لإدارة الأكواد الخاصة به.")}</div>
               </div>
             ) : (
               <>
                 <h3 className="font-semibold mb-4 text-sky-400 flex items-center gap-2">
-                  <span>{t("integration.codeMapping", t("integration.codeMapping", "ربط الأكواد (Code Mapping)"))}</span>
+                  <span>{t("integration.codeMapping", "ربط الأكواد (Code Mapping)")}</span>
                   <span className="text-xs text-slate-500 font-normal">
                     - {devices.find((d) => d.id === selectedDeviceId)?.name}
                   </span>
@@ -350,7 +350,7 @@ export default function IntegrationPage() {
                 <div className="flex flex-wrap gap-3 mb-4 bg-slate-950 p-4 rounded-xl border border-slate-800 items-end">
                   <div className="flex-1 min-w-[200px]">
                     <label className="text-[11px] text-slate-400 block mb-1">
-                      التحليل في النظام
+                      {t("integration.systemAnalysis", "التحليل في النظام")}
                     </label>
                     <select
                       className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:border-sky-500 outline-none"
@@ -362,7 +362,7 @@ export default function IntegrationPage() {
                         })
                       }
                     >
-                      <option value="">{t("integration.chooseAnalysis", t("integration.chooseAnalysis", "-- اختر التحليل --"))}</option>
+                      <option value="">{t("integration.chooseAnalysis", "-- اختر التحليل --")}</option>
                       {labTests.map((t) => (
                         <option key={t.id} value={t.id}>
                           {t.name} ({t.code})
@@ -372,7 +372,7 @@ export default function IntegrationPage() {
                   </div>
                   <div className="w-48">
                     <label className="text-[11px] text-slate-400 block mb-1">
-                      كود الجهاز (Device Code)
+                      {t("integration.deviceTestCodeLabel", "كود الجهاز (Device Code)")}
                     </label>
                     <input
                       className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:border-sky-500 outline-none"
@@ -390,7 +390,7 @@ export default function IntegrationPage() {
                     onClick={handleAddMapping}
                     className="bg-sky-600 hover:bg-sky-500 text-white px-6 py-2 rounded-lg text-sm font-bold shadow-lg shadow-sky-500/20"
                   >
-                    ربط
+                    {t("integration.linkButton", "ربط")}
                   </button>
                 </div>
 
@@ -399,9 +399,9 @@ export default function IntegrationPage() {
                   <table className="w-full text-sm text-right">
                     <thead className="text-slate-400 bg-slate-900/80 sticky top-0">
                       <tr>
-                        <th className="p-3 font-medium">{t("integration.analysis", t("integration.analysis", "التحليل (System)"))}</th>
-                        <th className="p-3 font-medium">{t("integration.deviceCode", t("integration.deviceCode", "كود الجهاز (Device)"))}</th>
-                        <th className="p-3 w-20 text-center">{t("integration.procedure", t("integration.procedure", "إجراء"))}</th>
+                        <th className="p-3 font-medium">{t("integration.analysis", "التحليل (System)")}</th>
+                        <th className="p-3 font-medium">{t("integration.deviceCode", "كود الجهاز (Device)")}</th>
+                        <th className="p-3 w-20 text-center">{t("integration.procedure", "إجراء")}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800">
@@ -411,7 +411,7 @@ export default function IntegrationPage() {
                             colSpan={3}
                             className="p-8 text-center text-slate-500 text-xs"
                           >
-                            لا توجد أكواد مربوطة لهذا الجهاز.
+                            {t("integration.noMappingsForDevice", "لا توجد أكواد مربوطة لهذا الجهاز.")}
                           </td>
                         </tr>
                       )}
@@ -434,7 +434,7 @@ export default function IntegrationPage() {
                               onClick={() => handleDeleteMapping(m.id)}
                               className="text-rose-400 hover:text-rose-300 text-xs bg-rose-900/10 px-2 py-1 rounded hover:bg-rose-900/20"
                             >
-                              حذف
+                              {t("integration.delete", "حذف")}
                             </button>
                           </td>
                         </tr>
@@ -509,11 +509,11 @@ export default function IntegrationPage() {
             <div className="space-y-3">
               <div>
                 <label className="text-xs text-slate-400 block mb-1">
-                  اسم الجهاز
+                  {t("integration.deviceName", "اسم الجهاز")}
                 </label>
                 <input
                   className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:border-sky-500 outline-none"
-                  placeholder={t("integration.exampleCobas6000", t("integration.exampleCobas6000", "مثال: Cobas 6000"))}
+                  placeholder={t("integration.exampleCobas6000", "مثال: Cobas 6000")}
                   value={deviceForm.name}
                   onChange={(e) =>
                     setDeviceForm({ ...deviceForm, name: e.target.value })
@@ -523,7 +523,7 @@ export default function IntegrationPage() {
 
               <div>
                 <label className="text-xs text-slate-400 block mb-1">
-                  النوع
+                  {t("integration.deviceType", "النوع")}
                 </label>
                 <select
                   className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:border-sky-500 outline-none"
@@ -535,8 +535,8 @@ export default function IntegrationPage() {
                     })
                   }
                 >
-                  <option value="LAB">{t("integration.laboratory", t("integration.laboratory", "مختبر (Lab)"))}</option>
-                  <option value="RADIOLOGY">{t("integration.radiology", t("integration.radiology", "أشعة (Radiology)"))}</option>
+                  <option value="LAB">{t("integration.laboratory", "مختبر (Lab)")}</option>
+                  <option value="RADIOLOGY">{t("integration.radiology", "أشعة (Radiology)")}</option>
                 </select>
               </div>
 
@@ -587,7 +587,7 @@ export default function IntegrationPage() {
                   className="w-4 h-4 bg-slate-800 border-slate-600 rounded"
                 />
                 <label htmlFor="isActive" className="text-sm text-slate-300">
-                  الجهاز نشط (Active)
+                  {t("integration.deviceIsActive", "الجهاز نشط (Active)")}
                 </label>
               </div>
             </div>
@@ -597,13 +597,13 @@ export default function IntegrationPage() {
                 onClick={() => setShowDeviceModal(false)}
                 className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-sm transition"
               >
-                إلغاء
+                {t("cancel", "إلغاء")}
               </button>
               <button
                 onClick={handleSaveDevice}
                 className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-sm font-bold shadow-lg shadow-emerald-500/20 transition"
               >
-                حفظ
+                {t("save", "حفظ")}
               </button>
             </div>
           </div>

@@ -82,7 +82,7 @@ export default function FinancialYearsPage() {
     new Date().getFullYear(),
   );
   const [yearName, setYearName] = useState<string>(
-    "السنة المالية " + new Date().getFullYear(),
+    t("accounting.financialYears.fiscalYearTitlePrefix", "السنة المالية") + " " + new Date().getFullYear(),
   );
   const [description, setDescription] = useState<string>("");
   const [startDate, setStartDate] = useState<string>("");
@@ -95,7 +95,7 @@ export default function FinancialYearsPage() {
 
   async function handleGenerateOpeningForYear(fy: FinancialYearLite) {
     if (fy.status !== "OPEN") {
-      toast.error("يمكن توليد الأرصدة الافتتاحية فقط لسنة مالية مفتوحة.");
+      toast.error(t("accounting.financialYears.openingBalancesCanOnlyBeGeneratedForAnOp", "يمكن توليد الأرصدة الافتتاحية فقط لسنة مالية مفتوحة."));
       return;
     }
 
@@ -103,7 +103,7 @@ export default function FinancialYearsPage() {
       (fy.code && fy.code.trim().length > 0 ? fy.code : fy.name) || `#${fy.id}`;
 
     const ok = window.confirm(
-      `هل أنت متأكد أنك تريد توليد الأرصدة الافتتاحية تلقائيًا للسنة ${label} من آخر سنة مغلقة قبلها؟`,
+      t("accounting.financialYears.confirmGenerateOpeningBalances", "هل أنت متأكد أنك تريد توليد الأرصدة الافتتاحية تلقائيًا للسنة {{label}} من آخر سنة مغلقة قبلها؟", { label }),
     );
     if (!ok) return;
 
@@ -122,7 +122,7 @@ export default function FinancialYearsPage() {
       if (!res.data.success || !res.data.data) {
         const msg =
           res.data.error?.message ||
-          "فشل في توليد الأرصدة الافتتاحية تلقائيًا.";
+          t("accounting.financialYears.failedToAutomaticallyGenerateOpeningBala", "فشل في توليد الأرصدة الافتتاحية تلقائيًا.");
         toast.error(msg);
         return;
       }
@@ -130,15 +130,12 @@ export default function FinancialYearsPage() {
       const r = res.data.data;
 
       const fromLabel =
-        r.fromFinancialYearCode || `السنة #${r.fromFinancialYearId.toString()}`;
+        r.fromFinancialYearCode || t("accounting.financialYears.yearHash", "السنة #{{id}}", { id: r.fromFinancialYearId });
       const toLabel =
-        r.toFinancialYearCode || `السنة #${r.toFinancialYearId.toString()}`;
+        r.toFinancialYearCode || t("accounting.financialYears.yearHash", "السنة #{{id}}", { id: r.toFinancialYearId });
 
       toast.success(
-        `تم توليد الأرصدة الافتتاحية بنجاح من ${fromLabel} إلى ${toLabel}.
-رقم القيد الافتتاحي: ${r.openingEntryId}
-إجمالي مدين: ${r.totalDebit.toFixed(3)}
-إجمالي دائن: ${r.totalCredit.toFixed(3)}`,
+        t("accounting.financialYears.generateOpeningBalancesSuccessDetail", "تم توليد الأرصدة الافتتاحية بنجاح من {{fromLabel}} إلى {{toLabel}}.\nرقم القيد الافتتاحي: {{openingEntryId}}\nإجمالي مدين: {{debit}}\nإجمالي دائن: {{credit}}", { fromLabel, toLabel, openingEntryId: r.openingEntryId, debit: r.totalDebit.toFixed(3), credit: r.totalCredit.toFixed(3) }),
       );
 
       // 🔄 إعادة تحميل السنوات (في حال تغيّر شيء في الحالة مستقبلاً)
@@ -149,7 +146,7 @@ export default function FinancialYearsPage() {
       const msg =
         err?.response?.data?.error?.message ||
         err?.response?.data?.message ||
-        "حدث خطأ أثناء توليد الأرصدة الافتتاحية.";
+        t("accounting.financialYears.anErrorOccurredWhileGeneratingOpeningBal", "حدث خطأ أثناء توليد الأرصدة الافتتاحية.");
       toast.error(msg);
     } finally {
       setOpeningLoadingId(null);
@@ -170,7 +167,7 @@ export default function FinancialYearsPage() {
       }
     } catch (err) {
       console.error(err);
-      toast.error("حدث خطأ أثناء تحميل السنوات المالية.");
+      toast.error(t("accounting.financialYears.anErrorOccurredWhileLoadingFinancialyear", "حدث خطأ أثناء تحميل السنوات المالية."));
     } finally {
       setLoadingYears(false);
     }
@@ -201,7 +198,7 @@ export default function FinancialYearsPage() {
       setPeriods(res.data);
     } catch (err) {
       console.error(err);
-      toast.error("حدث خطأ أثناء تحميل الفترات المالية.");
+      toast.error(t("accounting.financialYears.anErrorOccurredWhileLoadingFiscalPeriods", "حدث خطأ أثناء تحميل الفترات المالية."));
     } finally {
       setLoadingPeriods(false);
     }
@@ -220,7 +217,7 @@ export default function FinancialYearsPage() {
   const handleCreateYear = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!startDate || !endDate) {
-      toast.error("يجب تحديد تاريخ البداية والنهاية للسنة المالية.");
+      toast.error(t("accounting.financialYears.youMustSpecifyTheStartAndEndDatesForTheF", "يجب تحديد تاريخ البداية والنهاية للسنة المالية."));
       return;
     }
 
@@ -234,7 +231,7 @@ export default function FinancialYearsPage() {
         endDate,
       });
 
-      toast.success("تم حفظ السنة المالية بنجاح.");
+      toast.success(t("accounting.financialYears.theFinancialyearHasBeenSavedSuccessfully", "تم حفظ السنة المالية بنجاح."));
       setDescription("");
       setStartDate("");
       setEndDate("");
@@ -245,7 +242,7 @@ export default function FinancialYearsPage() {
       const msg = err?.response?.data?.message;
       if (Array.isArray(msg)) toast.error(msg.join("\n"));
       else if (typeof msg === "string") toast.error(msg);
-      else toast.error("حدث خطأ أثناء حفظ السنة المالية.");
+      else toast.error(t("accounting.financialYears.anErrorOccurredWhileSavingTheFinancialye", "حدث خطأ أثناء حفظ السنة المالية."));
     } finally {
       setCreating(false);
     }
@@ -258,11 +255,11 @@ export default function FinancialYearsPage() {
       await apiClient.patch(`/financial-years/${yearId}/status`, {
         isCurrent: true,
       });
-      toast.success("تم تعيين السنة الحالية بنجاح.");
+      toast.success(t("accounting.financialYears.theCurrentYearHasBeenSetSuccessfully", "تم تعيين السنة الحالية بنجاح."));
       await fetchYears();
     } catch (err) {
       console.error(err);
-      toast.error("حدث خطأ أثناء تعيين السنة الحالية.");
+      toast.error(t("accounting.financialYears.anErrorOccurredWhileSettingTheCurrentYea", "حدث خطأ أثناء تعيين السنة الحالية."));
     } finally {
       setUpdatingYear(false);
     }
@@ -275,11 +272,11 @@ export default function FinancialYearsPage() {
       await apiClient.patch(`/financial-years/${yearId}/status`, {
         status: "CLOSED",
       });
-      toast.success("تم إغلاق السنة المالية.");
+      toast.success(t("accounting.financialYears.theFinancialyearHasClosed", "تم إغلاق السنة المالية."));
       await fetchYears();
     } catch (err) {
       console.error(err);
-      toast.error("حدث خطأ أثناء إغلاق السنة المالية.");
+      toast.error(t("accounting.financialYears.anErrorOccurredWhileClosingTheFinancialy", "حدث خطأ أثناء إغلاق السنة المالية."));
     } finally {
       setUpdatingYear(false);
     }
@@ -288,7 +285,7 @@ export default function FinancialYearsPage() {
   // ----- توليد الفترات للشهور -----
   const handleGeneratePeriods = async () => {
     if (!selectedYear) {
-      toast.error("اختر سنة مالية أولاً.");
+      toast.error(t("accounting.financialYears.chooseAFinancialyearFirst", "اختر سنة مالية أولاً."));
       return;
     }
     setGeneratingPeriods(true);
@@ -296,14 +293,14 @@ export default function FinancialYearsPage() {
       await apiClient.post(
         `/financial-years/${selectedYear.id}/generate-periods`,
       );
-      toast.success("تم إنشاء الفترات (الأشهر) بنجاح.");
+      toast.success(t("accounting.financialYears.periodsMonthsHaveBeenCreatedSuccessfully", "تم إنشاء الفترات (الأشهر) بنجاح."));
       await fetchPeriods(selectedYear.id);
      
     } catch (err: any) {
       console.error(err);
       const msg = err?.response?.data?.message;
       if (typeof msg === "string") toast.error(msg);
-      else toast.error("حدث خطأ أثناء إنشاء الفترات.");
+      else toast.error(t("accounting.financialYears.anErrorOccurredWhileCreatingPeriods", "حدث خطأ أثناء إنشاء الفترات."));
     } finally {
       setGeneratingPeriods(false);
     }
@@ -314,17 +311,17 @@ export default function FinancialYearsPage() {
     try {
       if (p.isOpen) {
         await apiClient.patch(`/financial-years/periods/${p.id}/close`);
-        toast.success("تم إغلاق الفترة المالية.");
+        toast.success(t("accounting.financialYears.theFinancialPeriodHasBeenClosed", "تم إغلاق الفترة المالية."));
       } else {
         await apiClient.patch(`/financial-years/periods/${p.id}/open`);
-        toast.success("تم فتح الفترة المالية.");
+        toast.success(t("accounting.financialYears.theFiscalPeriodHasOpened", "تم فتح الفترة المالية."));
       }
       if (selectedYear) {
         await fetchPeriods(selectedYear.id);
       }
     } catch (err) {
       console.error(err);
-      toast.error("حدث خطأ أثناء تحديث حالة الفترة.");
+      toast.error(t("accounting.financialYears.anErrorOccurredWhileUpdatingThePeriodSta", "حدث خطأ أثناء تحديث حالة الفترة."));
     }
   };
 
@@ -334,16 +331,16 @@ export default function FinancialYearsPage() {
       {/* العنوان العلوي */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold mb-1">{t("accounting.financialYears.fiscalYears", t("accounting.financialYears.fiscalYears", "السنوات المالية"))}</h1>
+          <h1 className="text-2xl font-bold mb-1">{t("accounting.financialYears.fiscalYears", "السنوات المالية")}</h1>
           <p className="text-sm text-slate-400">
-            إدارة السنوات المالية والفترات (الأشهر) المرتبطة بها، كأساس للجرد
-            والمرتبات والتقارير المالية.
+            {t("accounting.financialYears.managingFinancialyearsAndAssociatedPerio", "إدارة السنوات المالية والفترات (الأشهر) المرتبطة بها، كأساس للجرد")}
+            {t("accounting.financialYears.payrollAndFinancialReports", "والمرتبات والتقارير المالية.")}
           </p>
         </div>
 
         {currentYear && (
           <div className="hidden md:flex items-center gap-2">
-            <span className="text-xs text-slate-400">{t("accounting.financialYears.currentYear", t("accounting.financialYears.currentYear", "السنة الحالية:"))}</span>
+            <span className="text-xs text-slate-400">{t("accounting.financialYears.currentYear", "السنة الحالية:")}</span>
             <span className="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/70 text-xs text-emerald-300">
               {formatDate(currentYear.startDate)} –{" "}
               {formatDate(currentYear.endDate)}
@@ -356,12 +353,12 @@ export default function FinancialYearsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1">
         {/* عمود إنشاء سنة جديدة */}
         <div className="rounded-3xl border border-slate-800 bg-slate-950/80 p-5 flex flex-col">
-          <h2 className="text-lg font-semibold mb-4">{t("accounting.financialYears.createANewFiscalYear", t("accounting.financialYears.createANewFiscalYear", "إنشاء سنة مالية جديدة"))}</h2>
+          <h2 className="text-lg font-semibold mb-4">{t("accounting.financialYears.createANewFiscalYear", "إنشاء سنة مالية جديدة")}</h2>
 
           <form onSubmit={handleCreateYear} className="space-y-3 text-sm">
             {/* السنة */}
             <div className="flex flex-col gap-1">
-              <label className="text-xs text-slate-300">{t("accounting.financialYears.sunnah", t("accounting.financialYears.sunnah", "السنة"))}</label>
+              <label className="text-xs text-slate-300">{t("accounting.financialYears.sunnah", "السنة")}</label>
               <input
                 type="number"
                 min={1900}
@@ -370,7 +367,7 @@ export default function FinancialYearsPage() {
                 onChange={(e) => {
                   const val = Number(e.target.value);
                   setYearNumber(val);
-                  setYearName(`السنة المالية ${val}`);
+                  setYearName(`${t("accounting.financialYears.fiscalYearTitlePrefix", "السنة المالية")} ${val}`);
                 }}
                 className="bg-slate-900/70 border border-slate-700 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/60"
               />
@@ -379,13 +376,13 @@ export default function FinancialYearsPage() {
             {/* اسم السنة */}
             <div className="flex flex-col gap-1">
               <label className="text-xs text-slate-300">
-                اسم السنة (اختياري)
+                {t("accounting.financialYears.yearNameOptional", "اسم السنة (اختياري)")}
               </label>
               <input
                 type="text"
                 value={yearName}
                 onChange={(e) => setYearName(e.target.value)}
-                placeholder={t("accounting.financialYears.exampleFiscalYear2025", t("accounting.financialYears.exampleFiscalYear2025", "مثال: السنة المالية 2025"))}
+                placeholder={t("accounting.financialYears.exampleFiscalYear2025", "مثال: السنة المالية 2025")}
                 className="bg-slate-900/70 border border-slate-700 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/60"
               />
             </div>
@@ -393,13 +390,13 @@ export default function FinancialYearsPage() {
             {/* الوصف */}
             <div className="flex flex-col gap-1">
               <label className="text-xs text-slate-300">
-                وصف / ملاحظات (اختياري)
+                {t("accounting.financialYears.descriptionremarksOptional", "وصف / ملاحظات (اختياري)")}
               </label>
               <textarea
                 rows={2}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="مثال: بداية تطبيق النظام الجديد، ملاحظات خاصة بالجرد..."
+                placeholder={t("accounting.financialYears.exampleBeginningOfImplementationOfTheNew", "مثال: بداية تطبيق النظام الجديد، ملاحظات خاصة بالجرد...")}
                 className="bg-slate-900/70 border border-slate-700 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/60"
               />
             </div>
@@ -407,7 +404,7 @@ export default function FinancialYearsPage() {
             {/* التواريخ */}
             <div className="grid grid-cols-2 gap-3">
               <div className="flex flex-col gap-1">
-                <label className="text-xs text-slate-300">{t("accounting.financialYears.startDate", t("accounting.financialYears.startDate", "تاريخ البداية"))}</label>
+                <label className="text-xs text-slate-300">{t("accounting.financialYears.startDate", "تاريخ البداية")}</label>
                 <DatePicker
                   date={startDate ? new Date(startDate) : undefined}
                   onChange={(d) => setStartDate(d ? d.toISOString().slice(0, 10) : "")}
@@ -415,7 +412,7 @@ export default function FinancialYearsPage() {
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-xs text-slate-300">{t("accounting.financialYears.endDate", t("accounting.financialYears.endDate", "تاريخ النهاية"))}</label>
+                <label className="text-xs text-slate-300">{t("accounting.financialYears.endDate", "تاريخ النهاية")}</label>
                 <DatePicker
                   date={endDate ? new Date(endDate) : undefined}
                   onChange={(d) => setEndDate(d ? d.toISOString().slice(0, 10) : "")}
@@ -426,15 +423,15 @@ export default function FinancialYearsPage() {
 
             <div className="pt-2 flex justify-between items-center">
               <p className="text-[11px] text-slate-500 max-w-xs">
-                لاحقًا يمكن ربط كل الحركات المالية (فواتير، مرتبات، جرد...)
-                بالسنة المالية والفترات (الأشهر) لضمان دورة محاسبية مكتملة.
+                {t("accounting.financialYears.laterAllFinancialTransactionsInvoicesSal", "لاحقًا يمكن ربط كل الحركات المالية (فواتير، مرتبات، جرد...)")}
+                {t("accounting.financialYears.byFinancialyearAndPeriodsMonthsToEnsureA", "بالسنة المالية والفترات (الأشهر) لضمان دورة محاسبية مكتملة.")}
               </p>
               <button
                 type="submit"
                 disabled={creating}
                 className="px-4 py-2 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white text-sm disabled:opacity-60"
               >
-                {creating ? "جارِ الحفظ..." : t("accounting.financialYears.saveTheFiscalYear", "حفظ السنة المالية")}
+                {creating ? t("accounting.financialYears.saving", "جارِ الحفظ...") : t("accounting.financialYears.saveTheFiscalYear", "حفظ السنة المالية")}
               </button>
             </div>
           </form>
@@ -446,18 +443,18 @@ export default function FinancialYearsPage() {
           <div className="rounded-3xl border border-slate-800 bg-slate-950/80 p-5">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-lg font-semibold">
-                السنوات المالية المسجّلة
+                {t("accounting.financialYears.recordedFinancialyears", "السنوات المالية المسجّلة")}
               </h2>
               {loadingYears && (
                 <span className="text-[11px] text-slate-500">
-                  جارِ تحميل السنوات...
+                  {t("accounting.financialYears.loadingYears", "جارِ تحميل السنوات...")}
                 </span>
               )}
             </div>
 
             {years.length === 0 ? (
               <div className="py-8 text-sm text-slate-500 text-center">
-                لا توجد سنوات مالية مسجلة بعد.
+                {t("accounting.financialYears.thereAreNoFinancialyearsRecordedYet", "لا توجد سنوات مالية مسجلة بعد.")}
               </div>
             ) : (
               <div className="space-y-2 text-xs">
@@ -506,7 +503,7 @@ export default function FinancialYearsPage() {
 
                         {y.isCurrent && (
                           <span className="px-2 py-0.5 rounded-full text-[11px] bg-sky-500/10 text-sky-300 border border-sky-500/70">
-                            سنة حالية
+                            {t("accounting.financialYears.currentYear", "سنة حالية")}
                           </span>
                         )}
 
@@ -520,7 +517,7 @@ export default function FinancialYearsPage() {
                             }}
                             className="px-2 py-1 rounded-full bg-slate-800 text-[11px] hover:bg-slate-700"
                           >
-                            الفترات / الأشهر
+                            {t("accounting.financialYears.periodsmonths", "الفترات / الأشهر")}
                           </button>
 
                           {!y.isCurrent && (
@@ -533,7 +530,7 @@ export default function FinancialYearsPage() {
                               }}
                               className="px-2 py-1 rounded-full bg-emerald-600 text-[11px] hover:bg-emerald-500 disabled:opacity-50"
                             >
-                              تعيين سنة حالية
+                              {t("accounting.financialYears.setACurrentYear", "تعيين سنة حالية")}
                             </button>
                           )}
 
@@ -550,7 +547,7 @@ export default function FinancialYearsPage() {
                                 className="px-2 py-1 rounded-full bg-sky-600 text-[11px] hover:bg-sky-500 disabled:opacity-50"
                               >
                                 {openingLoadingId === y.id
-                                  ? "جارِ توليد الأرصدة..."
+                                  ? t("accounting.financialYears.generatingBalances", "جارِ توليد الأرصدة...")
                                   : t("accounting.financialYears.generateOpeningBalances", "توليد أرصدة افتتاحية")}
                               </button>
 
@@ -564,7 +561,7 @@ export default function FinancialYearsPage() {
                                 }}
                                 className="px-2 py-1 rounded-full bg-rose-600 text-[11px] hover:bg-rose-500 disabled:opacity-50"
                               >
-                                إغلاق السنة
+                                {t("accounting.financialYears.closeOfTheYear", "إغلاق السنة")}
                               </button>
                             </>
                           )}
@@ -582,14 +579,12 @@ export default function FinancialYearsPage() {
             <div className="flex items-center justify-between mb-3">
               <div>
                 <h2 className="text-lg font-semibold">
-                  الفترات (الأشهر) للسنة المالية
+                  {t("accounting.financialYears.periodsMonthsOfTheFinancialyear", "الفترات (الأشهر) للسنة المالية")}
                 </h2>
                 <p className="text-[12px] text-slate-400 mt-0.5">
                   {selectedYear
-                    ? `السنة المختارة: ${selectedYear.name} (${formatDate(
-                        selectedYear.startDate,
-                      )} – ${formatDate(selectedYear.endDate)})`
-                    : "اختر سنة مالية من الجدول أعلاه لعرض الفترات."}
+                    ? t("accounting.financialYears.selectedYearDetail", "السنة المختارة: {{name}} ({{start}} - {{end}})", { name: selectedYear.name, start: formatDate(selectedYear.startDate), end: formatDate(selectedYear.endDate) })
+                    : t("accounting.financialYears.selectAFinancialyearFromTheTableAboveToV", "اختر سنة مالية من الجدول أعلاه لعرض الفترات.")}
                 </p>
               </div>
 
@@ -601,7 +596,7 @@ export default function FinancialYearsPage() {
                   className="px-4 py-1.5 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white text-xs disabled:opacity-50"
                 >
                   {generatingPeriods
-                    ? "جارِ إنشاء الفترات..."
+                    ? t("accounting.financialYears.creatingPeriods", "جارِ إنشاء الفترات...")
                     : periods.length === 0
                       ? t("accounting.financialYears.generateYearPeriods", "توليد فترات السنة")
                       : t("accounting.financialYears.periodsHaveBeenCreated", "تم إنشاء الفترات")}
@@ -611,15 +606,15 @@ export default function FinancialYearsPage() {
 
             {!selectedYear ? (
               <div className="flex-1 flex items-center justify-center text-sm text-slate-500">
-                لم يتم اختيار سنة مالية بعد.
+                {t("accounting.financialYears.noFinancialyearHasBeenSelectedYet", "لم يتم اختيار سنة مالية بعد.")}
               </div>
             ) : loadingPeriods ? (
               <div className="flex-1 flex items-center justify-center text-sm text-slate-400">
-                جارِ تحميل الفترات المالية...
+                {t("accounting.financialYears.loadingFinancialPeriods", "جارِ تحميل الفترات المالية...")}
               </div>
             ) : periods.length === 0 ? (
               <div className="flex-1 flex items-center justify-center text-sm text-slate-500">
-                لم يتم إنشاء أي فترات بعد لهذه السنة المالية.
+                {t("accounting.financialYears.noPeriodsHaveBeenCreatedYetForThisFinanc", "لم يتم إنشاء أي فترات بعد لهذه السنة المالية.")}
               </div>
             ) : (
               <div className="flex-1 overflow-auto mt-2">
@@ -627,12 +622,12 @@ export default function FinancialYearsPage() {
                   <thead className="text-slate-400">
                     <tr>
                       <th className="text-right px-2 py-1">#</th>
-                      <th className="text-right px-2 py-1">{t("accounting.financialYears.period", t("accounting.financialYears.period", "الفترة"))}</th>
-                      <th className="text-right px-2 py-1">{t("accounting.financialYears.theDate", t("accounting.financialYears.theDate", "التاريخ"))}</th>
-                      <th className="text-right px-2 py-1">{t("accounting.financialYears.days", t("accounting.financialYears.days", "أيام"))}</th>
-                      <th className="text-right px-2 py-1">{t("accounting.financialYears.payrollfootprint", t("accounting.financialYears.payrollfootprint", "الرواتب / البصمة"))}</th>
-                      <th className="text-right px-2 py-1">{t("accounting.financialYears.theCondition", t("accounting.financialYears.theCondition", "الحالة"))}</th>
-                      <th className="text-right px-2 py-1">{t("accounting.financialYears.procedure", t("accounting.financialYears.procedure", "إجراء"))}</th>
+                      <th className="text-right px-2 py-1">{t("accounting.financialYears.period", "الفترة")}</th>
+                      <th className="text-right px-2 py-1">{t("accounting.financialYears.theDate", "التاريخ")}</th>
+                      <th className="text-right px-2 py-1">{t("accounting.financialYears.days", "أيام")}</th>
+                      <th className="text-right px-2 py-1">{t("accounting.financialYears.payrollfootprint", "الرواتب / البصمة")}</th>
+                      <th className="text-right px-2 py-1">{t("accounting.financialYears.theCondition", "الحالة")}</th>
+                      <th className="text-right px-2 py-1">{t("accounting.financialYears.procedure", "إجراء")}</th>
                     </tr>
                   </thead>
                   <tbody>

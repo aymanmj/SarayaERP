@@ -187,11 +187,11 @@ export default function GeneralLedgerPage() {
 
   // // أسماء ودية للمصادر
   // const sourceLabels: Record<string, string> = {
-  //   INVENTORY: "المخزون",
-  //   BILLING: "الفوترة",
-  //   CASHIER_RECEIPT: "سند قبض",
+  //   INVENTORY: t("accounting.ledger.inventory", "المخزون"),
+  //   BILLING: t("accounting.ledger.billing", "الفوترة"),
+  //   CASHIER_RECEIPT: t("accounting.ledger.receiptVoucher", "سند قبض"),
   //   CASHIER_REFUND: "سند صرف",
-  //   MANUAL_JOURNAL: "قيد يدوي",
+  //   MANUAL_JOURNAL: t("accounting.ledger.manualEntry", "قيد يدوي"),
   // };
 
   // // خريطة مسارات المستندات حسب الـ sourceModule (عدّل المسارات حسب الـ Router عندك)
@@ -220,18 +220,18 @@ export default function GeneralLedgerPage() {
      
     } catch (err: any) {
       console.error(err);
-      toast.error("تعذر تحميل قائمة الحسابات.");
+      toast.error(t("accounting.ledger.unableToLoadAccountList", "تعذر تحميل قائمة الحسابات."));
     }
   };
 
   const loadLedger = async () => {
     if (!accountId) {
-      toast.warning("اختر حساباً أولاً.");
+      toast.warning(t("accounting.ledger.chooseAnAccountFirst", "اختر حساباً أولاً."));
       return;
     }
 
     if (!fromDate || !toDate) {
-      toast.warning("يرجى تحديد تاريخي البداية والنهاية.");
+      toast.warning(t("accounting.ledger.pleaseSpecifyStartAndEndDates", "يرجى تحديد تاريخي البداية والنهاية."));
       return;
     }
 
@@ -257,8 +257,8 @@ export default function GeneralLedgerPage() {
         setError(msg);
         toast.error(msg);
       } else {
-        setError("حدث خطأ أثناء تحميل دفتر الأستاذ.");
-        toast.error("حدث خطأ أثناء تحميل دفتر الأستاذ.");
+        setError(t("accounting.ledger.anErrorOccurredWhileLoadingTheLedger", "حدث خطأ أثناء تحميل دفتر الأستاذ."));
+        toast.error(t("accounting.ledger.anErrorOccurredWhileLoadingTheLedger", "حدث خطأ أثناء تحميل دفتر الأستاذ."));
       }
     } finally {
       setLoading(false);
@@ -299,10 +299,10 @@ export default function GeneralLedgerPage() {
       {/* العنوان */}
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold mb-1">دفتر الأستاذ العام</h1>
+          <h1 className="text-2xl font-bold mb-1">{t("accounting.ledger.generalLedger", "دفتر الأستاذ العام")}</h1>
           <p className="text-sm text-slate-400">
-            استعراض حركة حساب محدد خلال فترة زمنية مع رصيد افتتاحي ورصيد تراكمي
-            لكل قيد.
+            {t("accounting.ledger.reviewTheMovementOfASpecificAccountOverA", "استعراض حركة حساب محدد خلال فترة زمنية مع رصيد افتتاحي ورصيد تراكمي")}
+            {t("accounting.ledger.forEveryRestriction", "لكل قيد.")}
           </p>
         </div>
         <button
@@ -310,7 +310,7 @@ export default function GeneralLedgerPage() {
           onClick={loadLedger}
           className="px-3 py-1.5 rounded-full text-xs bg-slate-800 hover:bg-slate-700 text-slate-100"
         >
-          تحديث
+          {t("accounting.ledger.toUpdate", "تحديث")}
         </button>
       </div>
 
@@ -319,13 +319,13 @@ export default function GeneralLedgerPage() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
           {/* اختيار الحساب */}
           <div className="flex flex-col gap-1">
-            <label className="text-slate-300">الحساب</label>
+            <label className="text-slate-300">{t("accounting.ledger.theAccount", "الحساب")}</label>
             <select
               value={accountId}
               onChange={(e) => setAccountId(e.target.value)}
               className="bg-slate-900 border border-slate-700 rounded-2xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/60"
             >
-              <option value="">اختر الحساب...</option>
+              <option value="">{t("accounting.ledger.chooseAccount", "اختر الحساب...")}</option>
               {accounts.map((a) => (
                 <option key={a.id} value={a.id}>
                   {a.code} – {a.name}
@@ -336,7 +336,7 @@ export default function GeneralLedgerPage() {
 
           {/* من تاريخ */}
           <div className="flex flex-col gap-1">
-            <label className="text-slate-300">من تاريخ</label>
+            <label className="text-slate-300">{t("accounting.ledger.fromHistory", "من تاريخ")}</label>
             <DatePicker
               date={fromDate ? new Date(fromDate) : undefined}
               onChange={(d) => setFromDate(d ? d.toISOString().slice(0, 10) : "")}
@@ -346,7 +346,7 @@ export default function GeneralLedgerPage() {
 
           {/* إلى تاريخ */}
           <div className="flex flex-col gap-1">
-            <label className="text-slate-300">إلى تاريخ</label>
+            <label className="text-slate-300">{t("accounting.ledger.toDate", "إلى تاريخ")}</label>
             <DatePicker
               date={toDate ? new Date(toDate) : undefined}
               onChange={(d) => setToDate(d ? d.toISOString().slice(0, 10) : "")}
@@ -361,11 +361,11 @@ export default function GeneralLedgerPage() {
               onClick={loadLedger}
               className="w-full px-3 py-2 rounded-2xl text-xs bg-emerald-600 hover:bg-emerald-500 text-white"
             >
-              تطبيق الفلترة
+              {t("accounting.ledger.filterApplication", "تطبيق الفلترة")}
             </button>
             {loading && (
               <span className="mt-1 text-[11px] text-slate-500">
-                جارِ تحميل البيانات...
+                {t("accounting.ledger.loadingData", "جارِ تحميل البيانات...")}
               </span>
             )}
             {error && (
@@ -378,20 +378,20 @@ export default function GeneralLedgerPage() {
       {/* محتوى */}
       {!ledger ? (
         <div className="flex-1 flex items-center justify-center text-xs text-slate-500">
-          اختر حساباً وحدد الفترة الزمنية، ثم اضغط على &quot;تطبيق
-          الفلترة&quot;.
+          {t("accounting.ledger.chooseAnAccountSelectTheTimePeriodThenCl", "اختر حساباً وحدد الفترة الزمنية، ثم اضغط على &quot;تطبيق")}
+          {t("accounting.ledger.filtering", "الفلترة&quot;.")}
         </div>
       ) : (
         <div className="flex-1 flex flex-col gap-4 overflow-auto pb-4 text-xs">
           {/* ملخص أعلى */}
           <div className="rounded-3xl border border-slate-800 bg-slate-950/80 p-4 flex flex-col md:flex-row md:justify-between gap-3">
             <div>
-              <div className="text-slate-400 mb-1">الحساب</div>
+              <div className="text-slate-400 mb-1">{t("accounting.ledger.theAccount", "الحساب")}</div>
               <div className="text-sm font-semibold text-slate-100">
                 {accountInfo}
               </div>
               <div className="text-[11px] text-slate-400 mt-1">
-                الفترة: من {formatDate(ledger.from)} إلى {formatDate(ledger.to)}
+                {t("accounting.ledger.periodFromTo", "الفترة: من {{from}} إلى {{to}}", { from: formatDate(ledger.from), to: formatDate(ledger.to) })}
               </div>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-[11px]">
@@ -402,13 +402,13 @@ export default function GeneralLedgerPage() {
                 </div>
               </div>
               <div className="rounded-2xl border border-slate-700 bg-slate-900/70 px-3 py-2">
-                <div className="text-slate-400">إجمالي المدين</div>
+                <div className="text-slate-400">{t("accounting.ledger.totalDebit", "إجمالي المدين")}</div>
                 <div className="text-sm font-semibold text-emerald-300">
                   {formatMoney(ledger.totalDebit)} LYD
                 </div>
               </div>
               <div className="rounded-2xl border border-slate-700 bg-slate-900/70 px-3 py-2">
-                <div className="text-slate-400">إجمالي الدائن</div>
+                <div className="text-slate-400">{t("accounting.ledger.totalCredit", "إجمالي الدائن")}</div>
                 <div className="text-sm font-semibold text-amber-300">
                   {formatMoney(ledger.totalCredit)} LYD
                 </div>
@@ -425,19 +425,19 @@ export default function GeneralLedgerPage() {
           {/* جدول الحركة */}
           <div className="rounded-3xl border border-slate-800 bg-slate-950/80 p-4">
             <h2 className="text-sm font-semibold text-slate-200 mb-3">
-              حركة الحساب خلال الفترة
+              {t("accounting.ledger.accountMovementDuringThePeriod", "حركة الحساب خلال الفترة")}
             </h2>
 
             <div className="overflow-x-auto max-h-[480px]">
               <table className="w-full text-[11px] text-right border-separate border-spacing-y-1">
                 <thead className="text-slate-400">
                   <tr>
-                    <th className="px-2 py-1 text-right">التاريخ</th>
-                    <th className="px-2 py-1 text-right">الوصف / البيان</th>
-                    <th className="px-2 py-1 text-right">المرجع</th>
-                    <th className="px-2 py-1 text-right">مدين</th>
-                    <th className="px-2 py-1 text-right">دائن</th>
-                    <th className="px-2 py-1 text-right">الرصيد</th>
+                    <th className="px-2 py-1 text-right">{t("accounting.ledger.theDate", "التاريخ")}</th>
+                    <th className="px-2 py-1 text-right">{t("accounting.ledger.descriptionstatement", "الوصف / البيان")}</th>
+                    <th className="px-2 py-1 text-right">{t("accounting.ledger.ref", "المرجع")}</th>
+                    <th className="px-2 py-1 text-right">{t("accounting.ledger.debtor", "مدين")}</th>
+                    <th className="px-2 py-1 text-right">{t("accounting.ledger.creditor", "دائن")}</th>
+                    <th className="px-2 py-1 text-right">{t("accounting.ledger.balance", "الرصيد")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -447,7 +447,7 @@ export default function GeneralLedgerPage() {
                       {formatDate(ledger.from)}
                     </td>
                     <td className="px-2 py-1 align-top text-slate-300">
-                      رصيد افتتاحي
+                      {t("accounting.ledger.openingCredit", "رصيد افتتاحي")}
                     </td>
                     <td className="px-2 py-1 align-top">—</td>
                     <td className="px-2 py-1 align-top">—</td>
@@ -503,7 +503,7 @@ export default function GeneralLedgerPage() {
                         colSpan={6}
                         className="px-2 py-4 text-center text-slate-500"
                       >
-                        لا توجد قيود مسجّلة لهذا الحساب في الفترة المحددة.
+                        {t("accounting.ledger.thereAreNoEntriesRecordedForThisAccountI", "لا توجد قيود مسجّلة لهذا الحساب في الفترة المحددة.")}
                       </td>
                     </tr>
                   )}

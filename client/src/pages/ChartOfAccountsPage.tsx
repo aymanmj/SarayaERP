@@ -91,7 +91,7 @@ export default function ChartOfAccountsPage() {
       const msg =
         err?.response?.data?.message ||
         err?.response?.data?.error?.message ||
-        "حدث خطأ أثناء تحميل دليل الحسابات.";
+        t("accounting.chartOfAccounts.loadError", "حدث خطأ أثناء تحميل دليل الحسابات.");
       setError(msg);
     } finally {
       setLoading(false);
@@ -105,7 +105,7 @@ export default function ChartOfAccountsPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!code.trim() || !name.trim()) {
-      setError("الرجاء إدخال كود الحساب واسم الحساب.");
+      setError(t("accounting.chartOfAccounts.inputRequiredError", "الرجاء إدخال كود الحساب واسم الحساب."));
       return;
     }
 
@@ -132,7 +132,7 @@ export default function ChartOfAccountsPage() {
       const msg =
         err?.response?.data?.message ||
         err?.response?.data?.error?.message ||
-        "حدث خطأ أثناء حفظ الحساب.";
+        t("accounting.chartOfAccounts.saveError", "حدث خطأ أثناء حفظ الحساب.");
       setError(msg);
     } finally {
       setSaving(false);
@@ -150,7 +150,7 @@ export default function ChartOfAccountsPage() {
       const msg =
         err?.response?.data?.message ||
         err?.response?.data?.error?.message ||
-        "تعذر تغيير حالة الحساب.";
+        t("accounting.chartOfAccounts.statusError", "تعذر تغيير حالة الحساب.");
       setError(msg);
     }
   };
@@ -172,7 +172,7 @@ export default function ChartOfAccountsPage() {
             onClick={() => navigate(-1)}
             className="px-3 py-1.5 rounded-full bg-slate-800/80 hover:bg-slate-700 text-slate-100 text-xs"
           >
-            {isRtl ? "← رجوع" : "← Back"}
+            {t("back", "← رجوع")}
           </button>
           <div>
             <h1 className="text-2xl font-bold mb-1">{t("accounting.chartOfAccounts.chartOfAccounts", "دليل الحسابات")}</h1>

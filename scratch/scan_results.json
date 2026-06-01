@@ -1,0 +1,459 @@
+{
+  "client/src/pages/FinancialYearsPage.tsx": [
+    {
+      "lineNum": 70,
+      "type": "HARDCODED",
+      "content": "// قائمة السنوات"
+    },
+    {
+      "lineNum": 74,
+      "type": "HARDCODED",
+      "content": "// الفترات للسنة المختارة"
+    },
+    {
+      "lineNum": 80,
+      "type": "HARDCODED",
+      "content": "// نموذج إنشاء سنة جديدة"
+    },
+    {
+      "lineNum": 113,
+      "type": "HARDCODED",
+      "content": "// لو حاب تمرر entryDate واضح:"
+    },
+    {
+      "lineNum": 141,
+      "type": "HARDCODED",
+      "content": "// 🔄 إعادة تحميل السنوات (في حال تغيّر شيء في الحالة مستقبلاً)"
+    },
+    {
+      "lineNum": 156,
+      "type": "HARDCODED",
+      "content": "// ----- تحميل السنوات -----"
+    },
+    {
+      "lineNum": 163,
+      "type": "HARDCODED",
+      "content": "// لو ما فيش سنة مختارة، نختار الحالية أو أول سنة"
+    },
+    {
+      "lineNum": 191,
+      "type": "HARDCODED",
+      "content": "// ----- تحميل الفترات لسنة معينة -----"
+    },
+    {
+      "lineNum": 207,
+      "type": "HARDCODED",
+      "content": "// عند تغيير السنة المختارة"
+    },
+    {
+      "lineNum": 216,
+      "type": "HARDCODED",
+      "content": "// ----- إنشاء سنة مالية جديدة -----"
+    },
+    {
+      "lineNum": 251,
+      "type": "HARDCODED",
+      "content": "// ----- تعيين سنة حالية -----"
+    },
+    {
+      "lineNum": 268,
+      "type": "HARDCODED",
+      "content": "// ----- إغلاق سنة مالية -----"
+    },
+    {
+      "lineNum": 285,
+      "type": "HARDCODED",
+      "content": "// ----- توليد الفترات للشهور -----"
+    },
+    {
+      "lineNum": 296,
+      "type": "HARDCODED",
+      "content": "toast.success(t(\"accounting.financialYears.periodsMonthsHaveBeenCreatedSuccessfully\", \"تم إنشاء الفترات (الأشهر) بنجاح.\"));"
+    },
+    {
+      "lineNum": 309,
+      "type": "HARDCODED",
+      "content": "// ----- فتح / إغلاق فترة -----"
+    },
+    {
+      "lineNum": 328,
+      "type": "HARDCODED",
+      "content": "// ================== واجهة المستخدم =================="
+    },
+    {
+      "lineNum": 336,
+      "type": "HARDCODED",
+      "content": "{t(\"accounting.financialYears.managingFinancialyearsAndAssociatedPerio\", \"إدارة السنوات المالية والفترات (الأشهر) المرتبطة بها، كأساس للجرد\")}"
+    },
+    {
+      "lineNum": 427,
+      "type": "HARDCODED",
+      "content": "{t(\"accounting.financialYears.byFinancialyearAndPeriodsMonthsToEnsureA\", \"بالسنة المالية والفترات (الأشهر) لضمان دورة محاسبية مكتملة.\")}"
+    },
+    {
+      "lineNum": 582,
+      "type": "HARDCODED",
+      "content": "{t(\"accounting.financialYears.periodsMonthsOfTheFinancialyear\", \"الفترات (الأشهر) للسنة المالية\")}"
+    }
+  ],
+  "client/src/pages/GeneralLedgerPage.tsx": [
+    {
+      "lineNum": 84,
+      "type": "HARDCODED",
+      "content": "// تنسيق الرصيد الموقَّع (مدين/دائن)"
+    },
+    {
+      "lineNum": 102,
+      "type": "HARDCODED",
+      "content": "// ✅ تخمين نوع المستند من الوصف (عشان يعالج البيانات القديمة/الملخبطة)"
+    },
+    {
+      "lineNum": 106,
+      "type": "HARDCODED",
+      "content": "// كلمات عربية شائعة"
+    },
+    {
+      "lineNum": 118,
+      "type": "HARDCODED",
+      "content": "// ✅ fallback محترم: نفتح شاشة القيود (دفتر اليومية/القيود)"
+    },
+    {
+      "lineNum": 122,
+      "type": "HARDCODED",
+      "content": "// ✅ خريطة موحدة للمسارات (مطابقة لـ Router عندك)"
+    },
+    {
+      "lineNum": 129,
+      "type": "HARDCODED",
+      "content": "// 1) لو نعرف نوعه من الوصف → نعطيه أولوية (يعالج البيانات القديمة)"
+    },
+    {
+      "lineNum": 134,
+      "type": "HARDCODED",
+      "content": "// 2) وإلا نعتمد على sourceModule كافتراضي"
+    },
+    {
+      "lineNum": 143,
+      "type": "HARDCODED",
+      "content": "// لو عندك لاحقاً فلترة بالسنة المالية استخدم query"
+    },
+    {
+      "lineNum": 150,
+      "type": "HARDCODED",
+      "content": "// حالياً عندك صفحة مشتريات فقط"
+    },
+    {
+      "lineNum": 179,
+      "type": "HARDCODED",
+      "content": "const [fromDate, setFromDate] = useState<string>(today.slice(0, 8) + \"01\"); // أول الشهر"
+    },
+    {
+      "lineNum": 188,
+      "type": "HARDCODED",
+      "content": "// // أسماء ودية للمصادر"
+    },
+    {
+      "lineNum": 193,
+      "type": "HARDCODED",
+      "content": "//   CASHIER_REFUND: \"سند صرف\","
+    },
+    {
+      "lineNum": 197,
+      "type": "HARDCODED",
+      "content": "// // خريطة مسارات المستندات حسب الـ sourceModule (عدّل المسارات حسب الـ Router عندك)"
+    },
+    {
+      "lineNum": 199,
+      "type": "HARDCODED",
+      "content": "//   // فاتورة مشتريات / حركة مخزون"
+    },
+    {
+      "lineNum": 201,
+      "type": "HARDCODED",
+      "content": "//   // فاتورة مريض / فوترة"
+    },
+    {
+      "lineNum": 203,
+      "type": "HARDCODED",
+      "content": "//   // أمثلة أخرى"
+    },
+    {
+      "lineNum": 215,
+      "type": "HARDCODED",
+      "content": "// تحميل الحسابات (نفس مصدر شاشة القيد اليدوي)"
+    },
+    {
+      "lineNum": 268,
+      "type": "HARDCODED",
+      "content": "// قراءة بارامترات من روابط أخرى (مثلاً من ميزان المراجعة)"
+    }
+  ],
+  "client/src/pages/YearClosingPage.tsx": [
+    {
+      "lineNum": 51,
+      "type": "HARDCODED",
+      "content": "// --- 1) جلب السنة الحالية (قد تكون null بعد الإقفال) ---"
+    },
+    {
+      "lineNum": 60,
+      "type": "HARDCODED",
+      "content": "// مافيش سنة حالية مفتوحة"
+    },
+    {
+      "lineNum": 61,
+      "type": "HARDCODED",
+      "content": "// تقدر تظهر رسالة في أعلى الصفحة أو Toast"
+    },
+    {
+      "lineNum": 62,
+      "type": "HARDCODED",
+      "content": "// مثال:"
+    },
+    {
+      "lineNum": 63,
+      "type": "HARDCODED",
+      "content": "// toast.info(\"لا توجد سنة مالية حالية مفتوحة. يرجى إنشاء سنة جديدة وفتحها.\");"
+    },
+    {
+      "lineNum": 66,
+      "type": "HARDCODED",
+      "content": "// --- 2) حسابات حقوق الملكية (تعمل سواء فيه سنة أو لا) ---"
+    },
+    {
+      "lineNum": 75,
+      "type": "HARDCODED",
+      "content": "// اختيار افتراضي لحساب الأرباح المحتجزة (لو فيه سنة حالية فقط)"
+    },
+    {
+      "lineNum": 79,
+      "type": "HARDCODED",
+      "content": "(a) => /p&l|أرباح|الخسائر/i.test(a.name + \" \" + (a.code ?? \"\")), // ✅ الأقواس هنا"
+    },
+    {
+      "lineNum": 83,
+      "type": "HARDCODED",
+      "content": "//     /p&l|أرباح|الخسائر/i.test(a.name + \" \" + (a.code ?? \"\")),"
+    },
+    {
+      "lineNum": 139,
+      "type": "HARDCODED",
+      "content": "// تحديث البيانات بعد الإقفال"
+    }
+  ],
+  "client/src/pages/OpeningBalancesPage.tsx": [
+    {
+      "lineNum": 32,
+      "type": "HARDCODED",
+      "content": "// ✅ ما يرجع من الـ API عند جلب الأرصدة الافتتاحية"
+    },
+    {
+      "lineNum": 60,
+      "type": "HARDCODED",
+      "content": "const [loading, setLoading] = useState(false); // تحميل السنوات + الحسابات"
+    },
+    {
+      "lineNum": 61,
+      "type": "HARDCODED",
+      "content": "const [balancesLoading, setBalancesLoading] = useState(false); // تحميل أرصدة سنة معينة"
+    },
+    {
+      "lineNum": 66,
+      "type": "HARDCODED",
+      "content": "// 🧮 إجمالي المدين/الدائن والفرق"
+    },
+    {
+      "lineNum": 76,
+      "type": "HARDCODED",
+      "content": "// ✅ تحميل أرصدة افتتاحية لسنة معيّنة"
+    },
+    {
+      "lineNum": 115,
+      "type": "HARDCODED",
+      "content": "// 404 أو لا توجد بيانات = لا نعرض خطأ، بل نعتبرها فارغة"
+    },
+    {
+      "lineNum": 131,
+      "type": "HARDCODED",
+      "content": "// تحميل السنوات المالية والحسابات"
+    },
+    {
+      "lineNum": 165,
+      "type": "HARDCODED",
+      "content": "// عند تغيير السنة المختارة → تحميل أرصدتها الافتتاحية (إن وجدت)"
+    },
+    {
+      "lineNum": 175,
+      "type": "HARDCODED",
+      "content": "// إضافة سطر جديد"
+    },
+    {
+      "lineNum": 266,
+      "type": "HARDCODED",
+      "content": "// إعادة تحميل الأرصدة من الـ backend بعد الحفظ"
+    }
+  ],
+  "client/src/pages/ChartOfAccountsPage.tsx": [
+    {
+      "lineNum": 55,
+      "type": "HARDCODED",
+      "content": "// نموذج إنشاء/تعديل"
+    }
+  ],
+  "client/src/pages/IncomeStatementPage.tsx": [
+    {
+      "lineNum": 63,
+      "type": "HARDCODED",
+      "content": "const [selectedCostCenter, setSelectedCostCenter] = useState<string>(\"\"); // ✅ الفلتر الجديد"
+    },
+    {
+      "lineNum": 67,
+      "type": "HARDCODED",
+      "content": "// تحميل البيانات الأولية"
+    },
+    {
+      "lineNum": 82,
+      "type": "HARDCODED",
+      "content": "// 1️⃣ جلب السنوات المالية"
+    },
+    {
+      "lineNum": 87,
+      "type": "HARDCODED",
+      "content": "// تحديد السنة المستهدفة"
+    },
+    {
+      "lineNum": 101,
+      "type": "HARDCODED",
+      "content": "// 2️⃣ إعداد الباراميترات"
+    },
+    {
+      "lineNum": 109,
+      "type": "HARDCODED",
+      "content": "if (selectedCostCenter) params.costCenterId = selectedCostCenter; // ✅ إرسال الفلتر"
+    },
+    {
+      "lineNum": 111,
+      "type": "HARDCODED",
+      "content": "// 3️⃣ جلب التقرير"
+    },
+    {
+      "lineNum": 135,
+      "type": "HARDCODED",
+      "content": "// لا نمرر مركز التكلفة لدفتر الأستاذ حالياً، إلا إذا قمت بتحديث صفحة دفتر الأستاذ لدعمه"
+    },
+    {
+      "lineNum": 155,
+      "type": "HARDCODED",
+      "content": "{t(\"accounting.incomeStatement.description\", \"تحليل الإيرادات والمصروفات وصافي الربح (P&L) على مستوى المستشفى أو الأقسام.\")}"
+    },
+    {
+      "lineNum": 394,
+      "type": "HARDCODED",
+      "content": "{t(\"accounting.incomeStatement.accrualNote\", \"هذا التقرير يعكس الأداء المالي بناءً على الاستحقاق (Accrual Basis). للاطلاع على التدفق النقدي الفعلي، يرجى مراجعة تقرير الخزينة.\")}"
+    }
+  ],
+  "client/src/pages/ManualEntryPage.tsx": [
+    {
+      "lineNum": 25,
+      "type": "HARDCODED",
+      "content": "costCenterId?: number | \"\"; // ✅ حقل جديد"
+    },
+    {
+      "lineNum": 51,
+      "type": "HARDCODED",
+      "content": "const [costCenters, setCostCenters] = useState<CostCenterLite[]>([]); // ✅ قائمة مراكز التكلفة"
+    },
+    {
+      "lineNum": 70,
+      "type": "HARDCODED",
+      "content": "// تحميل الحسابات ومراكز التكلفة"
+    },
+    {
+      "lineNum": 169,
+      "type": "HARDCODED",
+      "content": "costCenterId: l.costCenterId ? Number(l.costCenterId) : undefined, // ✅ إرسال مركز التكلفة"
+    },
+    {
+      "lineNum": 203,
+      "type": "HARDCODED",
+      "content": "// تصفير النموذج"
+    },
+    {
+      "lineNum": 241,
+      "type": "HARDCODED",
+      "content": "{t(\"accounting.manualEntry.desc\", \"تسجيل العمليات المحاسبية (تسويات، مصاريف، عهد) مع توجيه مراكز التكلفة.\")}"
+    }
+  ],
+  "client/src/pages/BalanceSheetPage.tsx": [
+    {
+      "lineNum": 22,
+      "type": "HARDCODED",
+      "content": "balance: number; // مدين - دائن"
+    },
+    {
+      "lineNum": 91,
+      "type": "HARDCODED",
+      "content": "// تحميل أولي"
+    },
+    {
+      "lineNum": 100,
+      "type": "HARDCODED",
+      "content": "// 🔗 فتح دفتر الأستاذ لحساب من داخل الميزانية"
+    },
+    {
+      "lineNum": 106,
+      "type": "HARDCODED",
+      "content": "// من بداية السنة نفسها (1/1) إلى تاريخ الميزانية"
+    }
+  ],
+  "client/src/pages/TrialBalancePage.tsx": [
+    {
+      "lineNum": 27,
+      "type": "HARDCODED",
+      "content": "// نفس DTO المستخدم في شاشات أخرى"
+    },
+    {
+      "lineNum": 45,
+      "type": "HARDCODED",
+      "content": "// 🔗 دالة مساعدة لبناء رابط دفتر الأستاذ"
+    },
+    {
+      "lineNum": 70,
+      "type": "HARDCODED",
+      "content": "// تحميل ميزان المراجعة"
+    },
+    {
+      "lineNum": 100,
+      "type": "HARDCODED",
+      "content": "// أول تحميل للميزان (بدون فلاتر أو حسب ما يدعمه الـ backend)"
+    },
+    {
+      "lineNum": 106,
+      "type": "HARDCODED",
+      "content": "// تحميل السنوات المالية وضبط السنة المفتوحة كافتراضي"
+    },
+    {
+      "lineNum": 121,
+      "type": "HARDCODED",
+      "content": "// ممكن لاحقاً نعرض رسالة لو حبيت"
+    }
+  ],
+  "client/src/pages/AccountLedgerPage.tsx": [
+    {
+      "lineNum": 81,
+      "type": "HARDCODED",
+      "content": "// تأكيد تزامن الـ URL مع الفلاتر"
+    },
+    {
+      "lineNum": 162,
+      "type": "HARDCODED",
+      "content": "// مجرد إعادة setFrom/setTo تكفي لأن useEffect يعتمد عليهم"
+    }
+  ],
+  "client/src/pages/IntegrationPage.tsx": [
+    {
+      "lineNum": 199,
+      "type": "HARDCODED",
+      "content": "loadDevices(); // لتحديث العداد"
+    }
+  ]
+}

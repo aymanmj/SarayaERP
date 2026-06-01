@@ -178,8 +178,8 @@ export default function QualityAndSafetyPage() {
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-red-600/20 border border-red-500/40 rounded-xl flex items-center justify-center text-2xl">🛡️</div>
             <div>
-              <h1 className="text-2xl font-bold text-white">{t("quality.qualityAndPatientSafety", t("quality.qualityAndPatientSafety", "الجودة وسلامة المريض"))}</h1>
-              <p className="text-slate-400 text-sm">{t("quality.clinicalIncidentManagementAndCapa", t("quality.clinicalIncidentManagementAndCapa", "إدارة الحوادث السريرية والـ CAPA"))}</p>
+              <h1 className="text-2xl font-bold text-white">{t("quality.qualityAndPatientSafety", "الجودة وسلامة المريض")}</h1>
+              <p className="text-slate-400 text-sm">{t("quality.clinicalIncidentManagementAndCapa", "إدارة الحوادث السريرية والـ CAPA")}</p>
             </div>
           </div>
           <button
@@ -187,7 +187,7 @@ export default function QualityAndSafetyPage() {
             onClick={() => setTab('report')}
             className="flex items-center gap-2 px-5 py-2.5 bg-red-600 hover:bg-red-500 rounded-xl font-semibold transition-all shadow-lg shadow-red-900/30"
           >
-            <span>＋</span> الإبلاغ عن حادثة
+            <span>＋</span> {t("quality.reportIncident", "الإبلاغ عن حادثة")}
           </button>
         </div>
       </div>
@@ -224,25 +224,25 @@ export default function QualityAndSafetyPage() {
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                   <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
                     <div className="text-3xl font-bold text-white">{totalIncidents}</div>
-                    <div className="text-slate-400 text-sm mt-1">{t("quality.totalAccidents", t("quality.totalAccidents", "إجمالي الحوادث"))}</div>
+                    <div className="text-slate-400 text-sm mt-1">{t("quality.totalAccidents", "إجمالي الحوادث")}</div>
                   </div>
                   <div className={`border rounded-2xl p-5 ${(stats.byStatus['REPORTED'] || 0) > 0 ? 'bg-yellow-900/20 border-yellow-800' : 'bg-slate-900 border-slate-800'}`}>
                     <div className="text-3xl font-bold text-yellow-400">{stats.byStatus['REPORTED'] ?? 0}</div>
-                    <div className="text-slate-400 text-sm mt-1">{t("quality.awaitingReview", t("quality.awaitingReview", "تنتظر المراجعة"))}</div>
+                    <div className="text-slate-400 text-sm mt-1">{t("quality.awaitingReview", "تنتظر المراجعة")}</div>
                   </div>
                   <div className={`border rounded-2xl p-5 ${stats.openCapas > 0 ? 'bg-orange-900/20 border-orange-800' : 'bg-slate-900 border-slate-800'}`}>
                     <div className="text-3xl font-bold text-orange-400">{stats.openCapas}</div>
-                    <div className="text-slate-400 text-sm mt-1">{t("quality.capaIsOpen", t("quality.capaIsOpen", "CAPA مفتوحة"))}</div>
+                    <div className="text-slate-400 text-sm mt-1">{t("quality.capaIsOpen", "CAPA مفتوحة")}</div>
                   </div>
                   <div className={`border rounded-2xl p-5 ${stats.overdueCapas > 0 ? 'bg-red-900/30 border-red-700' : 'bg-slate-900 border-slate-800'}`}>
                     <div className="text-3xl font-bold text-red-400">{stats.overdueCapas}</div>
-                    <div className="text-slate-400 text-sm mt-1">{t("quality.capaIsLate", t("quality.capaIsLate", "CAPA متأخرة"))}</div>
+                    <div className="text-slate-400 text-sm mt-1">{t("quality.capaIsLate", "CAPA متأخرة")}</div>
                   </div>
                 </div>
 
                 {/* Severity Breakdown */}
                 <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-                  <h3 className="text-lg font-semibold mb-4">{t("quality.distributionOfAccidentsAccordingToSeveri", t("quality.distributionOfAccidentsAccordingToSeveri", "توزيع الحوادث حسب الخطورة"))}</h3>
+                  <h3 className="text-lg font-semibold mb-4">{t("quality.distributionOfAccidentsAccordingToSeveri", "توزيع الحوادث حسب الخطورة")}</h3>
                   <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                     {(Object.entries(SEVERITY_CONFIG) as [IncidentSeverity, typeof SEVERITY_CONFIG[IncidentSeverity]][]).map(([sev, cfg]) => (
                       <div key={sev} className={`border rounded-xl p-4 text-center ${cfg.bg}`}>
@@ -255,10 +255,10 @@ export default function QualityAndSafetyPage() {
 
                 {/* Recent Incidents */}
                 <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-                  <h3 className="text-lg font-semibold mb-4">{t("quality.latestReportedIncidents", t("quality.latestReportedIncidents", "آخر الحوادث المُبلَّغ عنها"))}</h3>
+                  <h3 className="text-lg font-semibold mb-4">{t("quality.latestReportedIncidents", "آخر الحوادث المُبلَّغ عنها")}</h3>
                   <div className="space-y-3">
                     {stats.recentIncidents.length === 0 && (
-                      <p className="text-slate-500 text-center py-8">{t("quality.noAccidentsYet", t("quality.noAccidentsYet", "لا توجد حوادث حتى الآن"))}</p>
+                      <p className="text-slate-500 text-center py-8">{t("quality.noAccidentsYet", "لا توجد حوادث حتى الآن")}</p>
                     )}
                     {stats.recentIncidents.map(i => (
                       <div key={i.id} className="flex items-center justify-between p-4 bg-slate-800/50 rounded-xl border border-slate-700/50">
@@ -294,7 +294,7 @@ export default function QualityAndSafetyPage() {
                 onChange={e => setFilterStatus(e.target.value)}
                 className="bg-slate-800 border border-slate-700 rounded-xl px-4 py-2 text-sm text-white"
               >
-                <option value="">{t("quality.allCases", t("quality.allCases", "جميع الحالات"))}</option>
+                <option value="">{t("quality.allCases", "جميع الحالات")}</option>
                 {Object.entries(STATUS_CONFIG).map(([k, v]) => (
                   <option key={k} value={k}>{v.labelAr}</option>
                 ))}
@@ -305,7 +305,7 @@ export default function QualityAndSafetyPage() {
                 onChange={e => setFilterSeverity(e.target.value)}
                 className="bg-slate-800 border border-slate-700 rounded-xl px-4 py-2 text-sm text-white"
               >
-                <option value="">{t("quality.allDegreesOfDanger", t("quality.allDegreesOfDanger", "جميع درجات الخطورة"))}</option>
+                <option value="">{t("quality.allDegreesOfDanger", "جميع درجات الخطورة")}</option>
                 {Object.entries(SEVERITY_CONFIG).map(([k, v]) => (
                   <option key={k} value={k}>{v.labelAr}</option>
                 ))}
@@ -316,7 +316,7 @@ export default function QualityAndSafetyPage() {
               <div className="flex justify-center py-20"><div className="w-8 h-8 border-2 border-red-500 border-t-transparent rounded-full animate-spin" /></div>
             ) : (
               <div className="space-y-3">
-                {incidents.length === 0 && <p className="text-slate-500 text-center py-16">{t("quality.thereAreNoMatchingIncidents", t("quality.thereAreNoMatchingIncidents", "لا توجد حوادث مطابقة"))}</p>}
+                {incidents.length === 0 && <p className="text-slate-500 text-center py-16">{t("quality.thereAreNoMatchingIncidents", "لا توجد حوادث مطابقة")}</p>}
                 {incidents.map(incident => (
                   <div key={incident.id} className="bg-slate-900 border border-slate-800 rounded-2xl p-5 hover:border-slate-700 transition-all">
                     <div className="flex flex-wrap items-start justify-between gap-3">
@@ -326,7 +326,7 @@ export default function QualityAndSafetyPage() {
                         </span>
                         <span className="font-mono font-bold text-white">{incident.incidentNumber}</span>
                         <span className="text-slate-400 text-sm">{TYPE_LABELS[incident.incidentType]}</span>
-                        {incident.isAnonymous && <span className="text-xs text-slate-500 bg-slate-800 px-2 py-0.5 rounded-lg">{t("quality.unknown", t("quality.unknown", "مجهول"))}</span>}
+                        {incident.isAnonymous && <span className="text-xs text-slate-500 bg-slate-800 px-2 py-0.5 rounded-lg">{t("quality.unknown", "مجهول")}</span>}
                       </div>
                       <div className="flex items-center gap-2">
                         <span className={`text-xs px-2 py-1 rounded-lg ${STATUS_CONFIG[incident.status].color}`}>
@@ -360,7 +360,7 @@ export default function QualityAndSafetyPage() {
               <div className="flex justify-center py-20"><div className="w-8 h-8 border-2 border-red-500 border-t-transparent rounded-full animate-spin" /></div>
             ) : (
               <div className="space-y-3">
-                {myCapas.length === 0 && <p className="text-slate-500 text-center py-16">{t("quality.thereAreNoCapaTasksAssignedToYou", t("quality.thereAreNoCapaTasksAssignedToYou", "لا توجد مهام CAPA مسندة إليك"))}</p>}
+                {myCapas.length === 0 && <p className="text-slate-500 text-center py-16">{t("quality.thereAreNoCapaTasksAssignedToYou", "لا توجد مهام CAPA مسندة إليك")}</p>}
                 {myCapas.map(capa => (
                   <div key={capa.id} className={`bg-slate-900 border rounded-2xl p-5 hover:border-slate-700 transition-all ${capa.isOverdue ? 'border-red-900/50' : 'border-slate-800'}`}>
                     <div className="flex flex-wrap items-start justify-between gap-3">
@@ -369,7 +369,7 @@ export default function QualityAndSafetyPage() {
                         <span className="text-xs bg-slate-800 px-2 py-1 rounded-lg text-slate-300">
                           {capa.actionType === 'CORRECTIVE' ? t("quality.correctiveAction", "إجراء تصحيحي") : t("quality.preventiveMeasure", "إجراء وقائي")}
                         </span>
-                        {capa.isOverdue && <span className="text-xs bg-red-900/50 text-red-300 px-2 py-1 rounded-lg">{t("quality.late", t("quality.late", "متأخر"))}</span>}
+                        {capa.isOverdue && <span className="text-xs bg-red-900/50 text-red-300 px-2 py-1 rounded-lg">{t("quality.late", "متأخر")}</span>}
                       </div>
                       <span className={`text-xs px-2 py-1 rounded-lg ${
                         capa.status === 'OPEN' ? 'bg-yellow-900 text-yellow-300' :
@@ -381,7 +381,7 @@ export default function QualityAndSafetyPage() {
                     </div>
                     <p className="text-slate-300 text-sm mt-3 leading-relaxed">{capa.description}</p>
                     <div className="flex flex-wrap gap-4 mt-3 text-xs text-slate-500">
-                      <span>🎯 تاريخ الاستحقاق: {new Date(capa.dueDate).toLocaleDateString('ar-SA')}</span>
+                      <span>🎯 {t("quality.dueDate", "تاريخ الاستحقاق:")} {new Date(capa.dueDate).toLocaleDateString(isRtl ? "ar-SA" : "en-US")}</span>
                     </div>
                   </div>
                 ))}
@@ -395,19 +395,19 @@ export default function QualityAndSafetyPage() {
           <div className="max-w-2xl mx-auto">
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
               <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
-                <span className="text-2xl">📝</span> الإبلاغ عن حادثة / near miss
+                <span className="text-2xl">📝</span> {t("quality.reportIncidentNearMiss", "الإبلاغ عن حادثة / near miss")}
               </h2>
               <form id="form-report-incident" onSubmit={handleSubmit} className="space-y-5">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm text-slate-400 mb-1">{t("quality.dateOfIncident", t("quality.dateOfIncident", "تاريخ الحادثة *"))}</label>
+                    <label className="block text-sm text-slate-400 mb-1">{t("quality.dateOfIncident", "تاريخ الحادثة *")}</label>
                     <input id="input-incident-date" type="date" required value={form.incidentDate}
                       onChange={e => setForm(f => ({ ...f, incidentDate: e.target.value }))}
                       className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-white text-sm" />
                   </div>
                   <div>
-                    <label className="block text-sm text-slate-400 mb-1">{t("quality.theSite", t("quality.theSite", "الموقع"))}</label>
-                    <input id="input-incident-location" type="text" placeholder="الجناح / غرفة العمليات..." value={form.location}
+                    <label className="block text-sm text-slate-400 mb-1">{t("quality.theSite", "الموقع")}</label>
+                    <input id="input-incident-location" type="text" placeholder={t("quality.locationPlaceholder", "الجناح / غرفة العمليات...")} value={form.location}
                       onChange={e => setForm(f => ({ ...f, location: e.target.value }))}
                       className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-white text-sm" />
                   </div>
@@ -415,7 +415,7 @@ export default function QualityAndSafetyPage() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm text-slate-400 mb-1">{t("quality.incidentType", t("quality.incidentType", "نوع الحادثة *"))}</label>
+                    <label className="block text-sm text-slate-400 mb-1">{t("quality.incidentType", "نوع الحادثة *")}</label>
                     <select id="select-incident-type" required value={form.incidentType}
                       onChange={e => setForm(f => ({ ...f, incidentType: e.target.value as IncidentType }))}
                       className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-white text-sm">
@@ -423,7 +423,7 @@ export default function QualityAndSafetyPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm text-slate-400 mb-1">{t("quality.severityLevel", t("quality.severityLevel", "درجة الخطورة *"))}</label>
+                    <label className="block text-sm text-slate-400 mb-1">{t("quality.severityLevel", "درجة الخطورة *")}</label>
                     <select id="select-incident-severity" required value={form.severity}
                       onChange={e => setForm(f => ({ ...f, severity: e.target.value as IncidentSeverity }))}
                       className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-white text-sm">
@@ -435,27 +435,27 @@ export default function QualityAndSafetyPage() {
                 {/* Severity preview */}
                 <div className={`border rounded-xl p-3 text-sm ${SEVERITY_CONFIG[form.severity].bg} ${SEVERITY_CONFIG[form.severity].color}`}>
                   <strong>{SEVERITY_CONFIG[form.severity].labelAr}</strong>
-                  {form.severity === 'SENTINEL' && ' — يتطلب تحقيقاً فورياً خلال 24 ساعة'}
-                  {form.severity === 'MAJOR' && ' — يتطلب مراجعة خلال 24 ساعة'}
-                  {form.severity === 'MODERATE' && ' — يتطلب مراجعة خلال 3 أيام'}
-                  {form.severity === 'MINOR' && ' — يتطلب مراجعة خلال أسبوع'}
-                  {form.severity === 'NEAR_MISS' && ' — يتطلب مراجعة خلال أسبوعين'}
+                  {form.severity === 'SENTINEL' && t("quality.requiresImmediateInvestigationWithin24Ho", "— يتطلب تحقيقاً فورياً خلال 24 ساعة")}
+                  {form.severity === 'MAJOR' && t("quality.requiresReviewWithin24Hours", "— يتطلب مراجعة خلال 24 ساعة")}
+                  {form.severity === 'MODERATE' && t("quality.requiresReviewWithin3Days", "— يتطلب مراجعة خلال 3 أيام")}
+                  {form.severity === 'MINOR' && t("quality.requiresReviewWithinAWeek", "— يتطلب مراجعة خلال أسبوع")}
+                  {form.severity === 'NEAR_MISS' && t("quality.requiresReviewWithinTwoWeeks", "— يتطلب مراجعة خلال أسبوعين")}
                 </div>
 
                 <div>
-                  <label className="block text-sm text-slate-400 mb-1">{t("quality.descriptionOfTheIncidentAtLeast20Charact", t("quality.descriptionOfTheIncidentAtLeast20Charact", "وصف الحادثة * (20 حرفاً على الأقل)"))}</label>
+                  <label className="block text-sm text-slate-400 mb-1">{t("quality.descriptionOfTheIncidentAtLeast20Charact", "وصف الحادثة * (20 حرفاً على الأقل)")}</label>
                   <textarea id="textarea-incident-description" required rows={4} value={form.description}
                     onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-                    placeholder="اشرح ما حدث بدقة — من، ماذا، متى، وكيف..."
+                    placeholder={t("quality.descriptionPlaceholder", "اشرح ما حدث بدقة — من، ماذا، متى، وكيف...")}
                     className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm resize-none" />
-                  <div className="text-xs text-slate-500 mt-1">{form.description.length} / 20 حرف كحد أدنى</div>
+                  <div className="text-xs text-slate-500 mt-1">{form.description.length} / {t("quality.minimumCharacters", "20 حرف كحد أدنى")}</div>
                 </div>
 
                 <div>
-                  <label className="block text-sm text-slate-400 mb-1">{t("quality.immediateActionTaken", t("quality.immediateActionTaken", "الإجراء الفوري المُتخذ"))}</label>
+                  <label className="block text-sm text-slate-400 mb-1">{t("quality.immediateActionTaken", "الإجراء الفوري المُتخذ")}</label>
                   <textarea id="textarea-immediate-action" rows={2} value={form.immediateAction}
                     onChange={e => setForm(f => ({ ...f, immediateAction: e.target.value }))}
-                    placeholder={t("quality.whatWasDoneImmediatelyAfterDiscoveringTh", t("quality.whatWasDoneImmediatelyAfterDiscoveringTh", "ما الذي تم فعله فور اكتشاف الحادثة؟"))}
+                    placeholder={t("quality.whatWasDoneImmediatelyAfterDiscoveringTh", "ما الذي تم فعله فور اكتشاف الحادثة؟")}
                     className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm resize-none" />
                 </div>
 
@@ -463,17 +463,17 @@ export default function QualityAndSafetyPage() {
                   <input id="checkbox-anonymous" type="checkbox" checked={form.isAnonymous}
                     onChange={e => setForm(f => ({ ...f, isAnonymous: e.target.checked }))}
                     className="w-4 h-4 rounded border-slate-600 bg-slate-800" />
-                  <span className="text-sm text-slate-300">{t("quality.reportAnonymously", t("quality.reportAnonymously", "الإبلاغ بشكل مجهول الهوية"))}</span>
+                  <span className="text-sm text-slate-300">{t("quality.reportAnonymously", "الإبلاغ بشكل مجهول الهوية")}</span>
                 </label>
 
                 <div className="flex gap-3 pt-2">
                   <button type="submit" id="btn-submit-incident" disabled={submitting}
                     className="flex-1 py-3 bg-red-600 hover:bg-red-500 disabled:opacity-50 rounded-xl font-semibold transition-all">
-                    {submitting ? 'جارٍ الإرسال...' : t("quality.sendTheReport", "إرسال البلاغ")}
+                    {submitting ? t("quality.submitting", "جارِ الإرسال...") : t("quality.sendTheReport", "إرسال البلاغ")}
                   </button>
                   <button type="button" onClick={() => setTab('dashboard')}
                     className="px-6 py-3 bg-slate-800 hover:bg-slate-700 rounded-xl font-semibold transition-all">
-                    إلغاء
+                    {t("cancel", "إلغاء")}
                   </button>
                 </div>
               </form>

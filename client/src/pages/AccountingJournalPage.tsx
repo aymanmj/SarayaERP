@@ -67,7 +67,7 @@ const AccountingJournalPage = () => {
       }
     } catch (err) {
       console.error(err);
-      toast.error("حدث خطأ أثناء تحميل دفتر اليومية.");
+      toast.error(t("accounting.journal.anErrorOccurredWhileLoadingTheJournal", "حدث خطأ أثناء تحميل دفتر اليومية."));
     } finally {
       setLoading(false);
     }
@@ -99,7 +99,7 @@ const AccountingJournalPage = () => {
       }
     } catch (err) {
       console.error(err);
-      toast.error("حدث خطأ أثناء تحميل تفاصيل القيد.");
+      toast.error(t("accounting.journal.anErrorOccurredWhileLoadingRegistrationD", "حدث خطأ أثناء تحميل تفاصيل القيد."));
     } finally {
       setDetailLoading(false);
     }
@@ -107,19 +107,19 @@ const AccountingJournalPage = () => {
 
   const handleExportCsv = () => {
     if (!entries.length) {
-      toast.info("لا توجد بيانات لتصديرها.");
+      toast.info(t("accounting.journal.thereIsNoDataToExport", "لا توجد بيانات لتصديرها."));
       return;
     }
 
     const header = [
-      "رقم القيد",
-      "التاريخ",
-      "الوصف",
-      "المصدر",
-      "المرجع",
-      "إجمالي مدين",
-      "إجمالي دائن",
-      "المستخدم",
+      t("accounting.journal.registrationNumber", "رقم القيد"),
+      t("accounting.journal.theDate", "التاريخ"),
+      t("accounting.journal.description", "الوصف"),
+      t("accounting.journal.source", "المصدر"),
+      t("accounting.journal.ref", "المرجع"),
+      t("accounting.journal.totalDebit", "إجمالي مدين"),
+      t("accounting.journal.totalCredit", "إجمالي دائن"),
+      t("accounting.journal.user", "المستخدم"),
     ];
 
     const rows = entries.map((e) => [
@@ -150,7 +150,7 @@ const AccountingJournalPage = () => {
     <div className="p-6 space-y-4">
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-xl font-semibold text-white">
-          دفتر اليومية العامة
+          {t("accounting.journal.generalJournal", "دفتر اليومية العامة")}
         </h1>
 
         <div className="flex gap-2">
@@ -158,7 +158,7 @@ const AccountingJournalPage = () => {
             className="px-3 py-1 rounded bg-slate-700 text-sm text-white"
             onClick={handleExportCsv}
           >
-            تصدير CSV
+            {t("accounting.journal.csvExport", "تصدير CSV")}
           </button>
         </div>
       </div>
@@ -166,7 +166,7 @@ const AccountingJournalPage = () => {
       {/* الفلاتر */}
       <div className="bg-slate-900/60 rounded-xl p-4 flex flex-wrap gap-4 items-end">
         <div>
-          <label className="block text-xs mb-1 text-slate-300">من تاريخ</label>
+          <label className="block text-xs mb-1 text-slate-300">{t("accounting.journal.fromHistory", "من تاريخ")}</label>
           <DatePicker
             date={fromDate ? new Date(fromDate) : undefined}
             onChange={(d) => {
@@ -182,7 +182,7 @@ const AccountingJournalPage = () => {
         </div>
 
         <div>
-          <label className="block text-xs mb-1 text-slate-300">إلى تاريخ</label>
+          <label className="block text-xs mb-1 text-slate-300">{t("accounting.journal.toDate", "إلى تاريخ")}</label>
           <DatePicker
             date={toDate ? new Date(toDate) : undefined}
             onChange={(d) => {
@@ -198,25 +198,25 @@ const AccountingJournalPage = () => {
         </div>
 
         <div>
-          <label className="block text-xs mb-1 text-slate-300">المصدر</label>
+          <label className="block text-xs mb-1 text-slate-300">{t("accounting.journal.source", "المصدر")}</label>
           <select
             className="bg-slate-800 text-slate-100 rounded px-3 py-2 text-sm min-w-[160px]"
             value={sourceModule}
             onChange={(e) => setSourceModule(e.target.value)}
           >
-            <option value="">الكل</option>
-            <option value="BILLING">الفوترة</option>
-            <option value="PHARMACY">الصيدلية</option>
-            <option value="CASHIER">الخزينة</option>
-            <option value="INVENTORY">المخزون</option>
-            <option value="MANUAL">قيود يدوية</option>
+            <option value="">{t("accounting.journal.everyone", "الكل")}</option>
+            <option value="BILLING">{t("accounting.journal.billing", "الفوترة")}</option>
+            <option value="PHARMACY">{t("accounting.journal.pharmacy", "الصيدلية")}</option>
+            <option value="CASHIER">{t("accounting.journal.treasury", "الخزينة")}</option>
+            <option value="INVENTORY">{t("accounting.journal.inventory", "المخزون")}</option>
+            <option value="MANUAL">{t("accounting.journal.manualRestrictions", "قيود يدوية")}</option>
             {/* أضف باقي الـ enums الموجودة عندك */}
           </select>
         </div>
 
         <div>
           <label className="block text-xs mb-1 text-slate-300">
-            المستخدم (اختياري)
+            {t("accounting.journal.userOptional", "المستخدم (اختياري)")}
           </label>
           <input
             type="number"
@@ -232,7 +232,7 @@ const AccountingJournalPage = () => {
           onClick={handleApplyFilter}
           disabled={loading}
         >
-          {loading ? "جاري التحميل..." : "تطبيق الفلتر"}
+          {loading ? t("accounting.journal.loading", "جاري التحميل...") : t("accounting.journal.applyFilter", "تطبيق الفلتر")}
         </button>
       </div>
 
@@ -241,14 +241,14 @@ const AccountingJournalPage = () => {
         <table className="w-full text-sm text-right text-slate-200">
           <thead className="bg-slate-800 text-xs uppercase">
             <tr>
-              <th className="px-3 py-2">رقم القيد</th>
-              <th className="px-3 py-2">التاريخ</th>
-              <th className="px-3 py-2">الوصف</th>
-              <th className="px-3 py-2">المصدر</th>
-              <th className="px-3 py-2">المرجع</th>
-              <th className="px-3 py-2">إجمالي مدين</th>
-              <th className="px-3 py-2">إجمالي دائن</th>
-              <th className="px-3 py-2">المستخدم</th>
+              <th className="px-3 py-2">{t("accounting.journal.registrationNumber", "رقم القيد")}</th>
+              <th className="px-3 py-2">{t("accounting.journal.theDate", "التاريخ")}</th>
+              <th className="px-3 py-2">{t("accounting.journal.description", "الوصف")}</th>
+              <th className="px-3 py-2">{t("accounting.journal.source", "المصدر")}</th>
+              <th className="px-3 py-2">{t("accounting.journal.ref", "المرجع")}</th>
+              <th className="px-3 py-2">{t("accounting.journal.totalDebit", "إجمالي مدين")}</th>
+              <th className="px-3 py-2">{t("accounting.journal.totalCredit", "إجمالي دائن")}</th>
+              <th className="px-3 py-2">{t("accounting.journal.user", "المستخدم")}</th>
             </tr>
           </thead>
           <tbody>
@@ -258,7 +258,7 @@ const AccountingJournalPage = () => {
                   colSpan={8}
                   className="text-center text-slate-400 py-6 text-sm"
                 >
-                  لا توجد قيود في الفترة المحددة.
+                  {t("accounting.journal.thereAreNoRestrictionsInTheSpecifiedPeri", "لا توجد قيود في الفترة المحددة.")}
                 </td>
               </tr>
             )}
@@ -266,7 +266,7 @@ const AccountingJournalPage = () => {
             {loading && (
               <tr>
                 <td colSpan={8} className="text-center py-6 text-slate-400">
-                  جاري التحميل...
+                  {t("accounting.journal.loading", "جاري التحميل...")}
                 </td>
               </tr>
             )}
@@ -302,7 +302,7 @@ const AccountingJournalPage = () => {
       {/* الباجينغ */}
       <div className="flex items-center justify-between text-sm text-slate-300">
         <span>
-          الصفحة {page} من {totalPages} (إجمالي {total} قيد)
+          {t("accounting.journal.pageOfTotal", "الصفحة {{page}} من {{totalPages}} (إجمالي {{total}} قيد)", { page, totalPages, total })}
         </span>
         <div className="flex gap-2">
           <button
@@ -310,14 +310,14 @@ const AccountingJournalPage = () => {
             disabled={page <= 1}
             onClick={() => setPage((p) => Math.max(1, p - 1))}
           >
-            السابق
+            {t("accounting.journal.thePrevious", "السابق")}
           </button>
           <button
             className="px-3 py-1 rounded bg-slate-800 disabled:opacity-40"
             disabled={page >= totalPages}
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
           >
-            التالي
+            {t("accounting.journal.theNext", "التالي")}
           </button>
         </div>
       </div>
@@ -327,7 +327,7 @@ const AccountingJournalPage = () => {
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
           <div className="bg-slate-900 rounded-2xl w-full max-w-3xl max-h-[80vh] overflow-hidden flex flex-col">
             <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800">
-              <h2 className="text-lg font-semibold text-white">تفاصيل القيد</h2>
+              <h2 className="text-lg font-semibold text-white">{t("accounting.journal.registrationDetails", "تفاصيل القيد")}</h2>
               <button
                 className="text-slate-400 hover:text-white"
                 onClick={() => setDetailOpen(false)}
@@ -339,7 +339,7 @@ const AccountingJournalPage = () => {
             <div className="p-4 overflow-auto">
               {detailLoading && (
                 <div className="text-center text-slate-400 py-4">
-                  جاري تحميل تفاصيل القيد...
+                  {t("accounting.journal.loadingRegistrationDetails", "جاري تحميل تفاصيل القيد...")}
                 </div>
               )}
 
@@ -347,29 +347,29 @@ const AccountingJournalPage = () => {
                 <>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4 text-sm text-slate-200">
                     <div>
-                      <div className="text-xs text-slate-400">رقم القيد</div>
+                      <div className="text-xs text-slate-400">{t("accounting.journal.registrationNumber", "رقم القيد")}</div>
                       <div className="font-mono text-emerald-300">
                         {selectedEntry.entryNo}
                       </div>
                     </div>
                     <div>
-                      <div className="text-xs text-slate-400">التاريخ</div>
+                      <div className="text-xs text-slate-400">{t("accounting.journal.theDate", "التاريخ")}</div>
                       <div>{new Date(selectedEntry.date).toLocaleString()}</div>
                     </div>
                     <div>
-                      <div className="text-xs text-slate-400">المصدر</div>
+                      <div className="text-xs text-slate-400">{t("accounting.journal.source", "المصدر")}</div>
                       <div>{selectedEntry.sourceModule}</div>
                     </div>
                     <div>
-                      <div className="text-xs text-slate-400">المرجع</div>
+                      <div className="text-xs text-slate-400">{t("accounting.journal.ref", "المرجع")}</div>
                       <div>{selectedEntry.reference}</div>
                     </div>
                     <div>
-                      <div className="text-xs text-slate-400">المستخدم</div>
+                      <div className="text-xs text-slate-400">{t("accounting.journal.user", "المستخدم")}</div>
                       <div>{selectedEntry.createdByName}</div>
                     </div>
                     <div>
-                      <div className="text-xs text-slate-400">الوصف العام</div>
+                      <div className="text-xs text-slate-400">{t("accounting.journal.generalDescription", "الوصف العام")}</div>
                       <div>{selectedEntry.description}</div>
                     </div>
                   </div>
@@ -378,11 +378,11 @@ const AccountingJournalPage = () => {
                     <thead className="bg-slate-800">
                       <tr>
                         <th className="px-2 py-1">#</th>
-                        <th className="px-2 py-1">رقم الحساب</th>
-                        <th className="px-2 py-1">اسم الحساب</th>
-                        <th className="px-2 py-1">مدين</th>
-                        <th className="px-2 py-1">دائن</th>
-                        <th className="px-2 py-1">ملاحظة</th>
+                        <th className="px-2 py-1">{t("accounting.journal.accountNumber", "رقم الحساب")}</th>
+                        <th className="px-2 py-1">{t("accounting.journal.accountName", "اسم الحساب")}</th>
+                        <th className="px-2 py-1">{t("accounting.journal.debtor", "مدين")}</th>
+                        <th className="px-2 py-1">{t("accounting.journal.creditor", "دائن")}</th>
+                        <th className="px-2 py-1">{t("accounting.journal.note", "ملاحظة")}</th>
                       </tr>
                     </thead>
                     <tbody>

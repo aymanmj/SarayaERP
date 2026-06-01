@@ -83,7 +83,7 @@ export default function ManualEntryPage() {
       } catch (err: any) {
         console.error(err);
         const msg =
-          err?.response?.data?.message || "حدث خطأ أثناء تحميل البيانات.";
+          err?.response?.data?.message || t("accounting.manualEntry.errorLoadingData", "حدث خطأ أثناء تحميل البيانات.");
         setError(msg);
       } finally {
         setLoadingResources(false);
@@ -143,7 +143,7 @@ export default function ManualEntryPage() {
     setSuccessMsg(null);
 
     if (!entryDate) {
-      setError("يرجى اختيار تاريخ القيد.");
+      setError(t("accounting.manualEntry.errorSelectDate", "يرجى اختيار تاريخ القيد."));
       return;
     }
 
@@ -151,7 +151,7 @@ export default function ManualEntryPage() {
 
     for (const l of lines) {
       if (!l.accountId) {
-        setError("يرجى اختيار الحساب لكل سطر.");
+        setError(t("accounting.manualEntry.errorSelectAccount", "يرجى اختيار الحساب لكل سطر."));
         return;
       }
       const debit = parseFloat(l.debit || "0") || 0;
@@ -160,7 +160,7 @@ export default function ManualEntryPage() {
       if (debit === 0 && credit === 0) continue;
 
       if (debit < 0 || credit < 0) {
-        setError("لا يمكن إدخال مبالغ سالبة.");
+        setError(t("accounting.manualEntry.errorNegativeAmount", "لا يمكن إدخال مبالغ سالبة."));
         return;
       }
 
@@ -174,12 +174,12 @@ export default function ManualEntryPage() {
     }
 
     if (payloadLines.length === 0) {
-      setError("يجب إدخال سطر واحد على الأقل بمبلغ مدين أو دائن.");
+      setError(t("accounting.manualEntry.errorEmptyLines", "يجب إدخال سطر واحد على الأقل بمبلغ مدين أو دائن."));
       return;
     }
 
     if (Math.abs(totals.diff) > 0.0001) {
-      setError("إجمالي المدين يجب أن يساوي إجمالي الدائن قبل الحفظ.");
+      setError(t("accounting.manualEntry.errorUnbalanced", "إجمالي المدين يجب أن يساوي إجمالي الدائن قبل الحفظ."));
       return;
     }
 
@@ -197,7 +197,7 @@ export default function ManualEntryPage() {
       );
       if (res.data?.success) {
         setSuccessMsg(
-          `تم حفظ القيد اليدوي بنجاح (رقم القيد ${res.data.entryId}).`,
+          t("accounting.manualEntry.entrySavedSuccess", "تم حفظ القيد اليدوي بنجاح (رقم القيد {{id}}).", { id: res.data.entryId }),
         );
         toast.success(t("accounting.manualEntry.theEntryWasPostedSuccessfully", "تم ترحيل القيد بنجاح"));
         // تصفير النموذج
@@ -216,7 +216,7 @@ export default function ManualEntryPage() {
      
     } catch (err: any) {
       console.error(err);
-      const msg = err?.response?.data?.message || "حدث خطأ أثناء حفظ القيد.";
+      const msg = err?.response?.data?.message || t("accounting.manualEntry.errorSavingEntry", "حدث خطأ أثناء حفظ القيد.");
       setError(msg);
     } finally {
       setSaving(false);
@@ -233,13 +233,12 @@ export default function ManualEntryPage() {
             onClick={() => navigate(-1)}
             className="px-3 py-1.5 rounded-full bg-slate-800/80 hover:bg-slate-700 text-slate-100 text-xs"
           >
-            ← رجوع
+            {t("back", "← رجوع")}
           </button>
           <div>
-            <h1 className="text-2xl font-bold mb-1">{t("accounting.manualEntry.manualJournalEntry", t("accounting.manualEntry.manualJournalEntry", "قيد يومية يدوي"))}</h1>
+            <h1 className="text-2xl font-bold mb-1">{t("accounting.manualEntry.manualJournalEntry", "قيد يومية يدوي")}</h1>
             <p className="text-sm text-slate-400">
-              تسجيل العمليات المحاسبية (تسويات، مصاريف، عهد) مع توجيه مراكز
-              التكلفة.
+              {t("accounting.manualEntry.desc", "تسجيل العمليات المحاسبية (تسويات، مصاريف، عهد) مع توجيه مراكز التكلفة.")}
             </p>
           </div>
         </div>
@@ -265,7 +264,7 @@ export default function ManualEntryPage() {
         {/* الصف العلوي: تاريخ + وصف مختصر */}
         <div className="flex flex-wrap gap-4 items-end text-sm border-b border-slate-800 pb-4">
           <div className="flex flex-col gap-1 w-48">
-            <label className="text-xs text-slate-400">{t("accounting.manualEntry.registrationDate", t("accounting.manualEntry.registrationDate", "تاريخ القيد"))}</label>
+            <label className="text-xs text-slate-400">{t("accounting.manualEntry.registrationDate", "تاريخ القيد")}</label>
             <DatePicker
               date={entryDate ? new Date(entryDate) : undefined}
               onChange={(d) => setEntryDate(d ? d.toISOString().slice(0, 10) : "")}
@@ -275,13 +274,13 @@ export default function ManualEntryPage() {
 
           <div className="flex flex-col gap-1 flex-1 min-w-[200px]">
             <label className="text-xs text-slate-400">
-              وصف القيد (شرح عام)
+              {t("accounting.manualEntry.descriptionLabel", "وصف القيد (شرح عام)")}
             </label>
             <input
               className="bg-slate-900/70 border border-slate-700/60 rounded-xl px-3 py-2 text-xs focus:border-sky-500 outline-none"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="مثال: تسوية عهدة نقدية للموظف..."
+              placeholder={t("accounting.manualEntry.descriptionPlaceholder", "مثال: تسوية عهدة نقدية للموظف...")}
             />
           </div>
 
@@ -290,7 +289,7 @@ export default function ManualEntryPage() {
             disabled={saving || loadingResources}
             className="ml-auto px-6 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-xs font-bold text-white disabled:opacity-50 shadow-lg shadow-emerald-900/20"
           >
-            {saving ? "جارِ الترحيل..." : t("accounting.manualEntry.saveAndTransferTheRegistration", "حفظ وترحيل القيد")}
+            {saving ? t("accounting.manualEntry.posting", "جارِ الترحيل...") : t("accounting.manualEntry.saveAndTransferTheRegistration", "حفظ وترحيل القيد")}
           </button>
         </div>
 
@@ -300,11 +299,11 @@ export default function ManualEntryPage() {
             <thead className="text-[11px] text-slate-400 bg-slate-900/80">
               <tr>
                 <th className="py-2 px-2 w-10 text-center">#</th>
-                <th className="py-2 px-2 w-64">{t("accounting.manualEntry.glAccount", t("accounting.manualEntry.glAccount", "الحساب (GL Account)"))}</th>
-                <th className="py-2 px-2 w-48">{t("accounting.manualEntry.costCenter", t("accounting.manualEntry.costCenter", "مركز التكلفة (Cost Center)"))}</th>
-                <th className="py-2 px-2 w-32">{t("accounting.manualEntry.debit", t("accounting.manualEntry.debit", "مدين (Debit)"))}</th>
-                <th className="py-2 px-2 w-32">{t("accounting.manualEntry.credit", t("accounting.manualEntry.credit", "دائن (Credit)"))}</th>
-                <th className="py-2 px-2">{t("accounting.manualEntry.statementexplanation", t("accounting.manualEntry.statementexplanation", "البيان / الشرح"))}</th>
+                <th className="py-2 px-2 w-64">{t("accounting.manualEntry.glAccount", "الحساب (GL Account)")}</th>
+                <th className="py-2 px-2 w-48">{t("accounting.manualEntry.costCenter", "مركز التكلفة (Cost Center)")}</th>
+                <th className="py-2 px-2 w-32">{t("accounting.manualEntry.debit", "مدين (Debit)")}</th>
+                <th className="py-2 px-2 w-32">{t("accounting.manualEntry.credit", "دائن (Credit)")}</th>
+                <th className="py-2 px-2">{t("accounting.manualEntry.statementexplanation", "البيان / الشرح")}</th>
                 <th className="py-2 px-2 w-10"></th>
               </tr>
             </thead>
@@ -330,7 +329,7 @@ export default function ManualEntryPage() {
                         })
                       }
                     >
-                      <option value="">{t("accounting.manualEntry.selectAccount", t("accounting.manualEntry.selectAccount", "-- اختر الحساب --"))}</option>
+                      <option value="">{t("accounting.manualEntry.selectAccount", "-- اختر الحساب --")}</option>
                       {accounts.map((acc) => (
                         <option key={acc.id} value={acc.id}>
                           {acc.code} — {acc.name}
@@ -351,7 +350,7 @@ export default function ManualEntryPage() {
                         })
                       }
                     >
-                      <option value="">{t("accounting.manualEntry.generalnoPosition", t("accounting.manualEntry.generalnoPosition", "(عام / بدون مركز)"))}</option>
+                      <option value="">{t("accounting.manualEntry.generalnoPosition", "(عام / بدون مركز)")}</option>
                       {costCenters.map((cc) => (
                         <option key={cc.id} value={cc.id}>
                           {cc.code} — {cc.name}
@@ -393,7 +392,7 @@ export default function ManualEntryPage() {
                     <input
                       className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 text-[11px] focus:border-sky-500 outline-none"
                       value={l.description}
-                      placeholder="شرح البند..."
+                      placeholder={t("accounting.manualEntry.lineDescriptionPlaceholder", "شرح البند...")}
                       onChange={(e) =>
                         updateLine(l.tempId, { description: e.target.value })
                       }
@@ -420,20 +419,20 @@ export default function ManualEntryPage() {
             onClick={addLine}
             className="mt-2 mx-2 mb-2 px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] text-sky-400 transition"
           >
-            + إضافة سطر جديد
+            {t("accounting.manualEntry.addLine", "+ إضافة سطر جديد")}
           </button>
         </div>
 
         {/* الملخص السفلي */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm pt-2">
           <div className="rounded-2xl bg-emerald-900/10 border border-emerald-500/20 p-3 flex justify-between items-center">
-            <span className="text-slate-400 text-xs">{t("accounting.manualEntry.totalDebit", t("accounting.manualEntry.totalDebit", "إجمالي المدين"))}</span>
+            <span className="text-slate-400 text-xs">{t("accounting.manualEntry.totalDebit", "إجمالي المدين")}</span>
             <span className="text-lg font-mono font-bold text-emerald-400">
               {totals.totalDebit.toFixed(3)}
             </span>
           </div>
           <div className="rounded-2xl bg-rose-900/10 border border-rose-500/20 p-3 flex justify-between items-center">
-            <span className="text-slate-400 text-xs">{t("accounting.manualEntry.totalCredit", t("accounting.manualEntry.totalCredit", "إجمالي الدائن"))}</span>
+            <span className="text-slate-400 text-xs">{t("accounting.manualEntry.totalCredit", "إجمالي الدائن")}</span>
             <span className="text-lg font-mono font-bold text-rose-400">
               {totals.totalCredit.toFixed(3)}
             </span>
@@ -441,7 +440,7 @@ export default function ManualEntryPage() {
           <div
             className={`rounded-2xl border p-3 flex justify-between items-center transition-colors ${Math.abs(totals.diff) < 0.0001 ? "bg-sky-900/10 border-sky-500/20" : "bg-amber-900/10 border-amber-500/40"}`}
           >
-            <span className="text-slate-400 text-xs">{t("accounting.manualEntry.differenceBudget", t("accounting.manualEntry.differenceBudget", "الفرق (الموازنة)"))}</span>
+            <span className="text-slate-400 text-xs">{t("accounting.manualEntry.differenceBudget", "الفرق (الموازنة)")}</span>
             <span
               className={`text-lg font-mono font-bold ${Math.abs(totals.diff) < 0.0001 ? "text-sky-400" : "text-amber-400"}`}
             >

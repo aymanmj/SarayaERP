@@ -90,7 +90,7 @@ export default function TrialBalancePage() {
       const msg =
         err?.response?.data?.message ||
         err?.response?.data?.error?.message ||
-        "حدث خطأ أثناء تحميل ميزان المراجعة.";
+        t("accounting.trialBalance.errorLoadingTrialBalance", "حدث خطأ أثناء تحميل ميزان المراجعة.");
       setError(msg);
     } finally {
       setLoading(false);
@@ -134,10 +134,9 @@ export default function TrialBalancePage() {
       {/* الهيدر */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold mb-1">{t("accounting.trialBalance.trialBalance", t("accounting.trialBalance.trialBalance", "ميزان المراجعة"))}</h1>
+          <h1 className="text-2xl font-bold mb-1">{t("accounting.trialBalance.trialBalance", "ميزان المراجعة")}</h1>
           <p className="text-sm text-slate-400">
-            استعراض أرصدة الحسابات حسب الفترة الزمنية، مع إمكانية فتح دفتر
-            الأستاذ لكل حساب.
+            {t("accounting.trialBalance.desc", "استعراض أرصدة الحسابات حسب الفترة الزمنية، مع إمكانية فتح دفتر الأستاذ لكل حساب.")}
           </p>
         </div>
         <button
@@ -145,7 +144,7 @@ export default function TrialBalancePage() {
           onClick={loadData}
           className="px-3 py-1.5 rounded-full bg-slate-800/80 hover:bg-slate-700 text-xs"
         >
-          تحديث
+          {t("accounting.trialBalance.refresh", "تحديث")}
         </button>
       </div>
 
@@ -161,7 +160,7 @@ export default function TrialBalancePage() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-xs items-end">
           {/* السنة المالية */}
           <div className="flex flex-col gap-1">
-            <label className="text-slate-300">{t("accounting.trialBalance.fiscalYear", t("accounting.trialBalance.fiscalYear", "السنة المالية"))}</label>
+            <label className="text-slate-300">{t("accounting.trialBalance.fiscalYear", "السنة المالية")}</label>
             <select
               value={selectedYearId ?? ""}
               onChange={(e) => {
@@ -175,7 +174,7 @@ export default function TrialBalancePage() {
               }}
               className="bg-slate-900/80 border border-slate-700 rounded-2xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500/60"
             >
-              <option value="">{t("accounting.trialBalance.allYears", t("accounting.trialBalance.allYears", "كل السنوات"))}</option>
+              <option value="">{t("accounting.trialBalance.allYears", "كل السنوات")}</option>
               {years.map((y) => (
                 <option key={y.id} value={y.id}>
                   {y.code} — {y.name}
@@ -186,7 +185,7 @@ export default function TrialBalancePage() {
 
           {/* من تاريخ */}
           <div className="flex flex-col gap-1">
-            <label className="text-slate-300">{t("accounting.trialBalance.fromHistory", t("accounting.trialBalance.fromHistory", "من تاريخ"))}</label>
+            <label className="text-slate-300">{t("accounting.trialBalance.fromHistory", "من تاريخ")}</label>
             <DatePicker
               date={fromDate ? new Date(fromDate) : undefined}
               onChange={(d) => setFromDate(d ? d.toISOString().slice(0, 10) : "")}
@@ -196,7 +195,7 @@ export default function TrialBalancePage() {
 
           {/* إلى تاريخ */}
           <div className="flex flex-col gap-1">
-            <label className="text-slate-300">{t("accounting.trialBalance.toDate", t("accounting.trialBalance.toDate", "إلى تاريخ"))}</label>
+            <label className="text-slate-300">{t("accounting.trialBalance.toDate", "إلى تاريخ")}</label>
             <DatePicker
               date={toDate ? new Date(toDate) : undefined}
               onChange={(d) => setToDate(d ? d.toISOString().slice(0, 10) : "")}
@@ -204,14 +203,14 @@ export default function TrialBalancePage() {
             />
           </div>
 
-          {/* زر تطبيق الفلتر */}
+          {/* زر {t("accounting.trialBalance.applyFilter", "تطبيق الفلتر")} */}
           <div className="flex gap-2">
             <button
               type="button"
               onClick={loadData}
               className="mt-auto px-4 py-2 rounded-full text-xs bg-emerald-600 hover:bg-emerald-500 text-white"
             >
-              تطبيق الفلتر
+              {t("accounting.trialBalance.applyFilter", "تطبيق الفلتر")}
             </button>
           </div>
         </div>
@@ -221,20 +220,20 @@ export default function TrialBalancePage() {
       {data && data.rows.length > 0 && (
         <div className="mb-4 grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
           <div className="rounded-3xl border border-slate-800 bg-slate-950/80 p-3">
-            <div className="text-slate-400 mb-1">{t("accounting.trialBalance.totalDebit", t("accounting.trialBalance.totalDebit", "إجمالي المدين"))}</div>
+            <div className="text-slate-400 mb-1">{t("accounting.trialBalance.totalDebit", "إجمالي المدين")}</div>
             <div className="text-lg font-semibold text-emerald-300">
               LYD {formatMoney(totalsDebit)}
             </div>
           </div>
           <div className="rounded-3xl border border-slate-800 bg-slate-950/80 p-3">
-            <div className="text-slate-400 mb-1">{t("accounting.trialBalance.totalCredit", t("accounting.trialBalance.totalCredit", "إجمالي الدائن"))}</div>
+            <div className="text-slate-400 mb-1">{t("accounting.trialBalance.totalCredit", "إجمالي الدائن")}</div>
             <div className="text-lg font-semibold text-rose-300">
               LYD {formatMoney(totalsCredit)}
             </div>
           </div>
           <div className="rounded-3xl border border-slate-800 bg-slate-950/80 p-3">
             <div className="text-slate-400 mb-1">
-              الفرق (يُفضّل أن يكون 0.000)
+              {t("accounting.trialBalance.difference", "الفرق (يُفضّل أن يكون 0.000)")}
             </div>
             <div
               className={
@@ -252,24 +251,24 @@ export default function TrialBalancePage() {
       <div className="flex-1 rounded-3xl border border-slate-800 bg-slate-950/80 p-4 overflow-auto">
         {loading && (
           <div className="text-xs text-slate-400 mb-3">
-            جارِ تحميل ميزان المراجعة...
+            {t("accounting.trialBalance.loading", "جارِ تحميل ميزان المراجعة...")}
           </div>
         )}
 
         {!loading && (!data || data.rows.length === 0) ? (
           <div className="py-8 text-center text-xs text-slate-500">
-            لا توجد حركات في الفترة المحددة.
+            {t("accounting.trialBalance.noTransactions", "لا توجد حركات في الفترة المحددة.")}
           </div>
         ) : (
           data && (
             <table className="w-full text-[11px] text-right border-separate border-spacing-y-1">
               <thead>
                 <tr className="text-slate-400">
-                  <th className="px-2 py-1 text-right">{t("accounting.trialBalance.code", t("accounting.trialBalance.code", "الكود"))}</th>
-                  <th className="px-2 py-1 text-right">{t("accounting.trialBalance.accountName", t("accounting.trialBalance.accountName", "اسم الحساب"))}</th>
-                  <th className="px-2 py-1 text-right">{t("accounting.trialBalance.debtor", t("accounting.trialBalance.debtor", "مدين"))}</th>
-                  <th className="px-2 py-1 text-right">{t("accounting.trialBalance.creditor", t("accounting.trialBalance.creditor", "دائن"))}</th>
-                  <th className="px-2 py-1 text-right">{t("accounting.trialBalance.balanceDebitCredit", t("accounting.trialBalance.balanceDebitCredit", "الرصيد (مدين - دائن)"))}</th>
+                  <th className="px-2 py-1 text-right">{t("accounting.trialBalance.code", "الكود")}</th>
+                  <th className="px-2 py-1 text-right">{t("accounting.trialBalance.accountName", "اسم الحساب")}</th>
+                  <th className="px-2 py-1 text-right">{t("accounting.trialBalance.debtor", "مدين")}</th>
+                  <th className="px-2 py-1 text-right">{t("accounting.trialBalance.creditor", "دائن")}</th>
+                  <th className="px-2 py-1 text-right">{t("accounting.trialBalance.balanceDebitCredit", "الرصيد (مدين - دائن)")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -323,7 +322,7 @@ export default function TrialBalancePage() {
               <tfoot>
                 <tr className="text-slate-200 font-semibold">
                   <td className="px-2 py-2" colSpan={2}>
-                    الإجمالي
+                    {t("accounting.trialBalance.total", "الإجمالي")}
                   </td>
                   <td className="px-2 py-2 text-emerald-300">
                     {formatMoney(totalsDebit)}
