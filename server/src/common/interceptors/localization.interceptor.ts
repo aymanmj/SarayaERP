@@ -58,7 +58,7 @@ export class LocalizationInterceptor implements NestInterceptor {
       if (
         data instanceof Date ||
         data instanceof RegExp ||
-        (data.constructor && data.constructor.name === 'Decimal')
+        (data.constructor && typeof data.constructor.isDecimal === 'function' && data.constructor.isDecimal(data))
       ) {
         return data;
       }
