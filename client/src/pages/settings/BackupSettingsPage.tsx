@@ -65,12 +65,14 @@ function StoragePathDropdown({
   onSelect,
   loading,
   label,
+  t,
 }: {
   paths: StoragePath[];
   selected: string;
   onSelect: (path: string) => void;
   loading: boolean;
   label: string;
+  t: any;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -162,7 +164,7 @@ function StoragePathDropdown({
                 </div>
                 {p.path === selected && <Check className="w-4 h-4 text-sky-500 shrink-0" />}
                 {!p.isWritable && (
-                  <span className="text-[10px] text-rose-400">{t("settings.backup.readonly", t("settings.backup.readonly", "للقراءة فقط"))}</span>
+                  <span className="text-[10px] text-rose-400">{t("settings.backup.readonly", "للقراءة فقط")}</span>
                 )}
               </button>
             ))
@@ -493,7 +495,8 @@ export default function BackupSettingsPage() {
                 setConfigDirty(true);
               }}
               loading={loadingPaths}
-              label={t("settings.backup.primaryPath", t("settings.backup.primaryPath", "المسار الأساسي"))}
+              label={t("settings.backup.primaryPath", "المسار الأساسي")}
+              t={t}
             />
           </div>
 
@@ -535,7 +538,8 @@ export default function BackupSettingsPage() {
                     setConfigDirty(true);
                   }}
                   loading={loadingPaths}
-                  label={t("settings.backup.secondaryPathExternalDiskusb", t("settings.backup.secondaryPathExternalDiskusb", "المسار الثانوي (قرص خارجي / USB)"))}
+                  label={t("settings.backup.secondaryPathExternalDiskusb", "المسار الثانوي (قرص خارجي / USB)")}
+                  t={t}
                 />
                 {!secondaryPath && storagePaths.length <= 1 && (
                   <p className="mt-2 text-xs text-amber-400/80 flex items-center gap-1">
@@ -551,11 +555,11 @@ export default function BackupSettingsPage() {
           <div className="flex justify-end">
             <button
               onClick={handleSaveConfig}
-              disabled={!configDirty || savingConfig}
+              disabled={!configDirty || saveConfigMutation.isPending}
               className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700 disabled:opacity-50 text-white rounded-xl shadow-lg transition-all text-sm font-medium"
             >
               <Save className="w-4 h-4" />
-              {savingConfig ? t("settings.backup.save", "حفظ...") : t("settings.backup.saveSettings", "حفظ الإعدادات")}
+              {saveConfigMutation.isPending ? t("settings.backup.save", "حفظ...") : t("settings.backup.saveSettings", "حفظ الإعدادات")}
             </button>
           </div>
         </div>
@@ -611,12 +615,13 @@ export default function BackupSettingsPage() {
               selected={manualPath}
               onSelect={setManualPath}
               loading={loadingPaths}
-              label={t("settings.backup.savePath", t("settings.backup.savePath", "مسار الحفظ"))}
+              label={t("settings.backup.savePath", "مسار الحفظ")}
+              t={t}
             />
           </div>
           <button
             onClick={handleCreateBackup}
-            disabled={loading || status.status === "busy"}
+            disabled={createBackupMutation.isPending || status.status === "busy"}
             className="flex items-center gap-2 px-6 py-2.5 bg-sky-600 hover:bg-sky-500 disabled:bg-slate-700 disabled:opacity-50 text-white rounded-xl shadow-lg transition-all font-medium"
           >
             <HardDriveDownload className="w-5 h-5" />
@@ -635,16 +640,16 @@ export default function BackupSettingsPage() {
           <div className="flex items-center gap-2">
             <button
               onClick={handleScanAll}
-              disabled={loading}
+              disabled={scanMutation.isPending || loadingBackups}
               className="flex items-center gap-2 px-3 py-1.5 text-sm bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg transition-colors"
             >
               <Search className="w-4 h-4" />
-              {t("settings.backup.searchDisks", t("settings.backup.searchDisks", "بحث في الأقراص"))}
+              {t("settings.backup.searchDisks", "بحث في الأقراص")}
             </button>
             <button
               onClick={() => {
-                fetchBackups();
-                fetchStoragePaths();
+                refetchBackups();
+                refetchPaths();
               }}
               className="flex items-center gap-2 px-3 py-1.5 text-sm bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg transition-colors"
             >
