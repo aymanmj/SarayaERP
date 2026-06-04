@@ -1,9 +1,8 @@
 import { useTranslation } from "react-i18next";
-// src/pages/settings/NoteTemplatesPage.tsx
-
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { apiClient } from "../../api/apiClient";
 import { toast } from "sonner";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 interface NoteTemplate {
   id: number;
@@ -16,38 +15,38 @@ interface NoteTemplate {
   createdAt: string;
 }
 
-const NOTE_TYPES = [
-  { value: "NURSING_ROUTINE", label: "تمريض روتيني" },
-  { value: "NURSING_HANDOVER", label: "تسليم تمريض" },
-  { value: "DOCTOR_ROUND", label: "جولة طبيب" },
-  { value: "DOCTOR_ADMISSION", label: "ملاحظة إدخال" },
-  { value: "DOCTOR_DISCHARGE", label: "ملاحظة خروج" },
-  { value: "CONSULTATION", label: "استشارة" },
-];
-
-const SPECIALTIES = [
-  "طب عام",
-  "باطنية",
-  "جراحة",
-  "عيون",
-  "أنف وأذن وحنجرة",
-  "أطفال",
-  "نساء وتوليد",
-  "عظام",
-  "جلدية",
-  "قلب",
-  "مسالك بولية",
-  "أمراض عصبية",
-  "طب أسنان",
-  "أخرى",
-];
-
 export default function NoteTemplatesPage() {
   const { t, i18n } = useTranslation();
   const isRtl = i18n.language === "ar";
+  const queryClient = useQueryClient();
 
-  const [templates, setTemplates] = useState<NoteTemplate[]>([]);
-  const [loading, setLoading] = useState(false);
+  // Moved inside component to fix module-level t() bug
+  const NOTE_TYPES = [
+    { value: "NURSING_ROUTINE", label: t("settings.noteTemplates.routineNursing", "تمريض روتيني") },
+    { value: "NURSING_HANDOVER", label: t("settings.noteTemplates.nursingDelivery", "تسليم تمريض") },
+    { value: "DOCTOR_ROUND", label: t("settings.noteTemplates.doctorTour", "جولة طبيب") },
+    { value: "DOCTOR_ADMISSION", label: t("settings.noteTemplates.entryNote", "ملاحظة إدخال") },
+    { value: "DOCTOR_DISCHARGE", label: t("settings.noteTemplates.exitNote", "ملاحظة خروج") },
+    { value: "CONSULTATION", label: t("settings.noteTemplates.consultation", "استشارة") },
+  ];
+
+  const SPECIALTIES = [
+    t("settings.noteTemplates.generalMedicine", "طب عام"),
+    t("settings.noteTemplates.esotericism", "باطنية"),
+    t("settings.noteTemplates.surgery", "جراحة"),
+    t("settings.noteTemplates.eyes", "عيون"),
+    t("settings.noteTemplates.earNoseAndThroat", "أنف وأذن وحنجرة"),
+    t("settings.noteTemplates.children", "أطفال"),
+    t("settings.noteTemplates.gynecologyAndObstetrics", "نساء وتوليد"),
+    t("settings.noteTemplates.bones", "عظام"),
+    t("settings.noteTemplates.leather", "جلدية"),
+    t("settings.noteTemplates.heart", "قلب"),
+    t("settings.noteTemplates.urinaryTract", "مسالك بولية"),
+    t("settings.noteTemplates.neurologicalDiseases", "أمراض عصبية"),
+    t("settings.noteTemplates.dentistry", "طب أسنان"),
+    t("settings.noteTemplates.other", "أخرى"),
+  ];
+
   const [showModal, setShowModal] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
   const [filterSpecialty, setFilterSpecialty] = useState("");
@@ -59,66 +58,69 @@ export default function NoteTemplatesPage() {
     content: "",
   });
 
-  const loadTemplates = async () => {
-    setLoading(true);
-    try {
-       
+  const { data: templates = [], isLoading: loading } = useQuery({
+    queryKey: ["noteTemplates", filterSpecialty],
+    queryFn: async () => {
       const params: any = {};
       if (filterSpecialty) params.specialty = filterSpecialty;
       const res = await apiClient.get<NoteTemplate[]>("/note-templates", { params });
-      setTemplates(res.data);
-    } catch {
-      toast.error("فشل تحميل القوالب");
-    } finally {
-      setLoading(false);
-    }
-  };
+      return res.data;
+    },
+  });
 
-  useEffect(() => {
-    loadTemplates();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterSpecialty]);
-
-  const handleSave = async () => {
-    if (!form.name || !form.content) {
-      toast.error("يرجى ملء اسم القالب والمحتوى");
-      return;
-    }
-    try {
+  const saveMutation = useMutation({
+    mutationFn: async () => {
       if (editId) {
-        await apiClient.patch(`/note-templates/${editId}`, form);
-        toast.success("تم تحديث القالب بنجاح");
+        return apiClient.patch(`/note-templates/${editId}`, form);
       } else {
-        await apiClient.post("/note-templates", form);
-        toast.success("تم إنشاء القالب بنجاح");
+        return apiClient.post("/note-templates", form);
       }
+    },
+    onSuccess: () => {
+      toast.success(editId
+        ? t("settings.noteTemplates.theTemplateHasBeenUpdatedSuccessfully", "تم تحديث القالب بنجاح")
+        : t("settings.noteTemplates.theTemplateWasCreatedSuccessfully", "تم إنشاء القالب بنجاح"));
       setShowModal(false);
       setEditId(null);
       setForm({ name: "", specialty: "", noteType: "CONSULTATION", content: "" });
-      loadTemplates();
-    } catch {
-      toast.error("فشل حفظ القالب");
+      queryClient.invalidateQueries({ queryKey: ["noteTemplates"] });
+    },
+    onError: () => {
+      toast.error(t("settings.noteTemplates.failedToSaveTemplate", "فشل حفظ القالب"));
+    },
+  });
+
+  const handleSave = () => {
+    if (!form.name || !form.content) {
+      toast.error(t("settings.noteTemplates.pleaseFillInTheTemplateNameAndContent", "يرجى ملء اسم القالب والمحتوى"));
+      return;
     }
+    saveMutation.mutate();
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm("هل أنت متأكد من حذف هذا القالب؟")) return;
-    try {
-      await apiClient.delete(`/note-templates/${id}`);
-      toast.success("تم حذف القالب");
-      loadTemplates();
-    } catch {
-      toast.error("فشل حذف القالب");
-    }
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => apiClient.delete(`/note-templates/${id}`),
+    onSuccess: () => {
+      toast.success(t("settings.noteTemplates.theTemplateHasBeenDeleted", "تم حذف القالب"));
+      queryClient.invalidateQueries({ queryKey: ["noteTemplates"] });
+    },
+    onError: () => {
+      toast.error(t("settings.noteTemplates.failedToDeleteTemplate", "فشل حذف القالب"));
+    },
+  });
+
+  const handleDelete = (id: number) => {
+    if (!confirm(t("settings.noteTemplates.areYouSureYouWantToDeleteThisTemplate", "هل أنت متأكد من حذف هذا القالب؟"))) return;
+    deleteMutation.mutate(id);
   };
 
-  const openEdit = (t: NoteTemplate) => {
-    setEditId(t.id);
+  const openEdit = (tmpl: NoteTemplate) => {
+    setEditId(tmpl.id);
     setForm({
-      name: t.name,
-      specialty: t.specialty || "",
-      noteType: t.noteType,
-      content: t.content,
+      name: tmpl.name,
+      specialty: tmpl.specialty || "",
+      noteType: tmpl.noteType,
+      content: tmpl.content,
     });
     setShowModal(true);
   };
@@ -128,9 +130,9 @@ export default function NoteTemplatesPage() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold">قوالب الملاحظات الطبية</h1>
+          <h1 className="text-2xl font-bold">{t("settings.noteTemplates.medicalNotesTemplates", "قوالب الملاحظات الطبية")}</h1>
           <p className="text-slate-400 text-sm mt-1">
-            قوالب جاهزة لكل تخصص يملأها الطبيب بسرعة
+            {t("settings.noteTemplates.subtitle", "قوالب جاهزة لكل تخصص يملأها الطبيب بسرعة")}
           </p>
         </div>
         <button
@@ -141,19 +143,19 @@ export default function NoteTemplatesPage() {
           }}
           className="px-5 py-2.5 bg-sky-600 text-white rounded-xl font-bold hover:bg-sky-500 transition shadow-lg shadow-sky-900/30"
         >
-          + قالب جديد
+          {t("settings.noteTemplates.newTemplateBtn", "+ قالب جديد")}
         </button>
       </div>
 
       {/* Filter */}
       <div className="flex gap-3 items-center">
-        <label className="text-sm text-slate-400">فلترة بالتخصص:</label>
+        <label className="text-sm text-slate-400">{t("settings.noteTemplates.filterBySpecialty", "فلترة بالتخصص:")}</label>
         <select
           value={filterSpecialty}
           onChange={(e) => setFilterSpecialty(e.target.value)}
           className="bg-slate-800 border border-slate-700 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-sky-600 outline-none"
         >
-          <option value="">الكل</option>
+          <option value="">{t("settings.noteTemplates.everyone", "الكل")}</option>
           {SPECIALTIES.map((s) => (
             <option key={s} value={s}>{s}</option>
           ))}
@@ -162,55 +164,55 @@ export default function NoteTemplatesPage() {
 
       {/* Templates Grid */}
       {loading ? (
-        <div className="text-center py-16 text-slate-500 animate-pulse">جاري التحميل...</div>
+        <div className="text-center py-16 text-slate-500 animate-pulse">{t("settings.noteTemplates.loading", "جاري التحميل...")}</div>
       ) : templates.length === 0 ? (
         <div className="text-center py-16 text-slate-500">
-          لا توجد قوالب {filterSpecialty ? `للتخصص: ${filterSpecialty}` : ""}
+          {t("settings.noteTemplates.noTemplates", "لا توجد قوالب")} {filterSpecialty ? t("settings.noteTemplates.forSpecializationFilterspecialty", `للتخصص: ${filterSpecialty}`) : ""}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {templates.map((t) => (
+          {templates.map((tmpl) => (
             <div
-              key={t.id}
+              key={tmpl.id}
               className="bg-slate-900/70 border border-slate-800 rounded-2xl p-5 hover:border-slate-600 transition group"
             >
               <div className="flex justify-between items-start mb-3">
                 <div>
-                  <h3 className="font-bold text-white">{t.name}</h3>
+                  <h3 className="font-bold text-white">{tmpl.name}</h3>
                   <div className="flex gap-2 mt-1">
-                    {t.specialty && (
+                    {tmpl.specialty && (
                       <span className="text-xs px-2 py-0.5 bg-purple-900/30 text-purple-400 rounded-full border border-purple-800">
-                        {t.specialty}
+                        {tmpl.specialty}
                       </span>
                     )}
                     <span className="text-xs px-2 py-0.5 bg-sky-900/30 text-sky-400 rounded-full border border-sky-800">
-                      {NOTE_TYPES.find((n) => n.value === t.noteType)?.label || t.noteType}
+                      {NOTE_TYPES.find((n) => n.value === tmpl.noteType)?.label || tmpl.noteType}
                     </span>
                   </div>
                 </div>
                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition">
                   <button
-                    onClick={() => openEdit(t)}
+                    onClick={() => openEdit(tmpl)}
                     className="p-1.5 text-slate-400 hover:text-sky-400 transition"
-                    title="تعديل"
+                    title={t("settings.noteTemplates.amendment", "تعديل")}
                   >
                     ✏️
                   </button>
                   <button
-                    onClick={() => handleDelete(t.id)}
+                    onClick={() => handleDelete(tmpl.id)}
                     className="p-1.5 text-slate-400 hover:text-red-400 transition"
-                    title="حذف"
+                    title={t("settings.noteTemplates.delete", "حذف")}
                   >
                     🗑️
                   </button>
                 </div>
               </div>
               <div className="text-sm text-slate-400 line-clamp-3 mb-3 whitespace-pre-wrap">
-                {t.content}
+                {tmpl.content}
               </div>
               <div className="text-xs text-slate-500 flex justify-between">
-                <span>بواسطة: {t.createdBy?.fullName}</span>
-                <span>{new Date(t.createdAt).toLocaleDateString("ar-LY")}</span>
+                <span>{t("settings.noteTemplates.createdBy", "بواسطة:")} {tmpl.createdBy?.fullName}</span>
+                <span>{new Date(tmpl.createdAt).toLocaleDateString("ar-LY")}</span>
               </div>
             </div>
           ))}
@@ -222,38 +224,38 @@ export default function NoteTemplatesPage() {
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center backdrop-blur-sm">
           <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 w-full max-w-xl shadow-2xl">
             <h2 className="text-xl font-bold mb-5">
-              {editId ? "تعديل القالب" : "قالب جديد"}
+              {editId ? t("settings.noteTemplates.modifyTheTemplate", "تعديل القالب") : t("settings.noteTemplates.newTemplate", "قالب جديد")}
             </h2>
 
             {/* Name */}
             <div className="mb-4">
-              <label className="text-sm text-slate-400 mb-1 block">اسم القالب *</label>
+              <label className="text-sm text-slate-400 mb-1 block">{t("settings.noteTemplates.templateName", "اسم القالب *")}</label>
               <input
                 type="text"
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-sky-600 outline-none"
-                placeholder="مثال: قالب فحص عيون شامل"
+                placeholder={t("settings.noteTemplates.exampleComprehensiveEyeExaminationTempla", "مثال: قالب فحص عيون شامل")}
               />
             </div>
 
             {/* Specialty + NoteType */}
             <div className="grid grid-cols-2 gap-4 mb-4">
               <div>
-                <label className="text-sm text-slate-400 mb-1 block">التخصص</label>
+                <label className="text-sm text-slate-400 mb-1 block">{t("settings.noteTemplates.specialization", "التخصص")}</label>
                 <select
                   value={form.specialty}
                   onChange={(e) => setForm({ ...form, specialty: e.target.value })}
                   className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-sky-600 outline-none"
                 >
-                  <option value="">عام (بدون تخصص)</option>
+                  <option value="">{t("settings.noteTemplates.generalNoSpecialization", "عام (بدون تخصص)")}</option>
                   {SPECIALTIES.map((s) => (
                     <option key={s} value={s}>{s}</option>
                   ))}
                 </select>
               </div>
               <div>
-                <label className="text-sm text-slate-400 mb-1 block">نوع الملاحظة</label>
+                <label className="text-sm text-slate-400 mb-1 block">{t("settings.noteTemplates.noteType", "نوع الملاحظة")}</label>
                 <select
                   value={form.noteType}
                   onChange={(e) => setForm({ ...form, noteType: e.target.value })}
@@ -268,16 +270,16 @@ export default function NoteTemplatesPage() {
 
             {/* Content */}
             <div className="mb-5">
-              <label className="text-sm text-slate-400 mb-1 block">محتوى القالب *</label>
+              <label className="text-sm text-slate-400 mb-1 block">{t("settings.noteTemplates.templateContent", "محتوى القالب *")}</label>
               <p className="text-xs text-slate-500 mb-2">
-                يمكنك استخدام العناصر النائبة: {"{{patientName}}"}, {"{{date}}"}, {"{{doctorName}}"}
+                {t("settings.noteTemplates.placeholdersNote", "يمكنك استخدام العناصر النائبة:")} {"{{patientName}}"}, {"{{date}}"}, {"{{doctorName}}"}
               </p>
               <textarea
                 value={form.content}
                 onChange={(e) => setForm({ ...form, content: e.target.value })}
                 rows={8}
                 className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-sky-600 outline-none resize-none font-mono"
-                placeholder={"الشكوى الرئيسية:\n\nالتاريخ المرضي:\n\nالفحص السريري:\n- حدة البصر:\n- ضغط العين:\n- فحص قاع العين:\n\nالتشخيص:\n\nالخطة العلاجية:"}
+                placeholder={t("settings.noteTemplates.chiefComplaintnnsickHistorynnclinicalExa", "الشكوى الرئيسية:\n\nالتاريخ المرضي:\n\nالفحص السريري:\n- حدة البصر:\n- ضغط العين:\n- فحص قاع العين:\n\nالتشخيص:\n\nالخطة العلاجية:")}
               />
             </div>
 
@@ -287,13 +289,17 @@ export default function NoteTemplatesPage() {
                 onClick={() => { setShowModal(false); setEditId(null); }}
                 className="px-5 py-2.5 bg-slate-700 text-slate-300 rounded-xl hover:bg-slate-600 transition"
               >
-                إلغاء
+                {t("settings.noteTemplates.cancel", "إلغاء")}
               </button>
               <button
                 onClick={handleSave}
-                className="px-5 py-2.5 bg-sky-600 text-white rounded-xl font-bold hover:bg-sky-500 transition"
+                disabled={saveMutation.isPending}
+                className="px-5 py-2.5 bg-sky-600 text-white rounded-xl font-bold hover:bg-sky-500 transition flex items-center gap-2"
               >
-                {editId ? "تحديث" : "إنشاء القالب"}
+                {saveMutation.isPending && (
+                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                )}
+                {editId ? t("settings.noteTemplates.toUpdate", "تحديث") : t("settings.noteTemplates.textKey", "إنشاء القالب")}
               </button>
             </div>
           </div>

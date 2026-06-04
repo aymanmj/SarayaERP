@@ -3,17 +3,6 @@ import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "../../api/apiClient";
 
-const SERVICE_TYPES = [
-  { key: "CONSULTATION", label: "استشارة طبية", icon: "🩺" },
-  { key: "SURGERY", label: "عملية جراحية", icon: "🏥" },
-  { key: "PROCEDURE", label: "إجراء طبي", icon: "🔪" },
-  { key: "LAB", label: "مختبر", icon: "🧪" },
-  { key: "RADIOLOGY", label: "أشعة", icon: "📡" },
-  { key: "PHARMACY", label: "صيدلية", icon: "💊" },
-  { key: "BED", label: "إيواء / أسرّة", icon: "🛏️" },
-  { key: "OTHER", label: "أخرى", icon: "📋" },
-];
-
 type CommissionRule = {
   id: number;
   serviceType: string;
@@ -29,6 +18,18 @@ export default function CommissionSettingsPage() {
   const { t, i18n } = useTranslation();
   const isRtl = i18n.dir() === "rtl";
   const qc = useQueryClient();
+
+  // Moved inside component to fix module-level t() bug
+  const SERVICE_TYPES = [
+    { key: "CONSULTATION", label: t("settings.commission.medicalAdvice", "استشارة طبية"), icon: "🩺" },
+    { key: "SURGERY", label: t("settings.commission.surgery", "عملية جراحية"), icon: "🏥" },
+    { key: "PROCEDURE", label: t("settings.commission.medicalProcedure", "إجراء طبي"), icon: "🔪" },
+    { key: "LAB", label: t("settings.commission.laboratory", "مختبر"), icon: "🧪" },
+    { key: "RADIOLOGY", label: t("settings.commission.rays", "أشعة"), icon: "📡" },
+    { key: "PHARMACY", label: t("settings.commission.pharmacy", "صيدلية"), icon: "💊" },
+    { key: "BED", label: t("settings.commission.accommodationbeds", "إيواء / أسرّة"), icon: "🛏️" },
+    { key: "OTHER", label: t("settings.commission.other", "أخرى"), icon: "📋" },
+  ];
 
   // Default rates (doctorId = null)
   const [defaults, setDefaults] = useState<Record<string, number>>({});
@@ -139,17 +140,17 @@ export default function CommissionSettingsPage() {
           ⚙️ {t("commissionSettings.title", "إعدادات العمولات وتوزيع الإيرادات")}
         </h1>
         <p className="text-sm text-slate-400 mt-1">
-          {t("commissionSettings.subtitle", "تحديد نسب توزيع الإيرادات بين المستشفى والأطباء حسب نوع الخدمة")}
+          {t("commissionSettings.subtitle", t("settings.commission.determineRevenueDistributionRatiosBetwee", "تحديد نسب توزيع الإيرادات بين المستشفى والأطباء حسب نوع الخدمة"))}
         </p>
       </div>
 
       {/* Default Rates Section */}
       <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-6">
         <h2 className="text-lg font-bold text-white mb-1">
-          📊 {t("commissionSettings.defaults.title", "النسب الافتراضية (لجميع الأطباء)")}
+          📊 {t("commissionSettings.defaults.title", t("settings.commission.defaultRatiosForAllDoctors", "النسب الافتراضية (لجميع الأطباء)"))}
         </h2>
         <p className="text-xs text-slate-500 mb-5">
-          {t("commissionSettings.defaults.desc", "هذه النسب تُطبّق على جميع الأطباء ما لم يتم تحديد نسبة مخصصة")}
+          {t("commissionSettings.defaults.desc", t("settings.commission.thesePercentagesApplyToAllDoctorsUnlessA", "هذه النسب تُطبّق على جميع الأطباء ما لم يتم تحديد نسبة مخصصة"))}
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -172,7 +173,7 @@ export default function CommissionSettingsPage() {
                 <div className="flex items-center gap-3">
                   <div className="flex-1">
                     <label className="text-[10px] text-slate-500 font-bold block mb-1">
-                      {t("commissionSettings.doctorRate", "حصة الطبيب %")}
+                      {t("commissionSettings.doctorRate", t("settings.commission.doctorShare", "حصة الطبيب %"))}
                     </label>
                     <input
                       type="number"
@@ -191,7 +192,7 @@ export default function CommissionSettingsPage() {
                   </div>
                   <div className="flex-1">
                     <label className="text-[10px] text-slate-500 font-bold block mb-1">
-                      {t("commissionSettings.hospitalRate", "حصة المستشفى %")}
+                      {t("commissionSettings.hospitalRate", t("settings.commission.hospitalShare", "حصة المستشفى %"))}
                     </label>
                     <div className="w-full bg-slate-900/40 border border-slate-800 rounded-lg px-3 py-2 text-sm text-sky-400 font-mono">
                       {hospitalPct}%
@@ -224,7 +225,7 @@ export default function CommissionSettingsPage() {
           disabled={saving}
           className="mt-5 px-6 py-2.5 bg-sky-600 hover:bg-sky-500 text-white font-bold text-sm rounded-xl transition-all disabled:opacity-50"
         >
-          {saving ? t("common.saving", "جارِ الحفظ...") : t("commissionSettings.btn.saveDefaults", "💾 حفظ النسب الافتراضية")}
+          {saving ? t("common.saving", "جارِ الحفظ...") : t("commissionSettings.btn.saveDefaults", t("settings.commission.saveTheDefaultProportions", "💾 حفظ النسب الافتراضية"))}
         </button>
       </div>
 
@@ -233,17 +234,17 @@ export default function CommissionSettingsPage() {
         <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className="text-lg font-bold text-white mb-1">
-              👨‍⚕️ {t("commissionSettings.custom.title", "نسب مخصصة لطبيب معين")}
+              👨‍⚕️ {t("commissionSettings.custom.title", t("settings.commission.customizedRatesForASpecificDoctor", "نسب مخصصة لطبيب معين"))}
             </h2>
             <p className="text-xs text-slate-500">
-              {t("commissionSettings.custom.desc", "تجاوز النسب الافتراضية لطبيب محدد (الأولوية الأعلى)")}
+              {t("commissionSettings.custom.desc", t("settings.commission.overrideDefaultRatiosForASpecificDoctorH", "تجاوز النسب الافتراضية لطبيب محدد (الأولوية الأعلى)"))}
             </p>
           </div>
           <button
             onClick={() => setShowDoctorSection(!showDoctorSection)}
             className="px-4 py-2 text-xs font-bold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 border border-slate-700 transition"
           >
-            {showDoctorSection ? t("common.hide", "إخفاء") : t("commissionSettings.addCustom", "+ إضافة نسبة مخصصة")}
+            {showDoctorSection ? t("common.hide", "إخفاء") : t("commissionSettings.addCustom", t("settings.commission.addCustomRatio", "+ إضافة نسبة مخصصة"))}
           </button>
         </div>
 
@@ -257,7 +258,7 @@ export default function CommissionSettingsPage() {
                 setSelectedDoctorId(Number(e.target.value) || null)
               }
             >
-              <option value="">-- {t("commissionSettings.selectDoctor", "اختر طبيباً")} --</option>
+              <option value="">-- {t("commissionSettings.selectDoctor", t("settings.commission.chooseADoctor", "اختر طبيباً"))} --</option>
               {doctors.map((doc) => (
                 <option key={doc.id} value={doc.id}>
                   {doc.fullName}
@@ -326,7 +327,7 @@ export default function CommissionSettingsPage() {
                           }
                         />
                         <span className="text-[9px] text-slate-600">
-                          {isUsingDefault ? t("commissionSettings.usingDefault", "يستخدم النسبة الافتراضية") : (t("commissionSettings.customized", "مخصص:") + ` ${effectiveRate}% ` + t("common.doctor", "طبيب") + " / " + `${100 - effectiveRate}% ` + t("common.hospital", "مستشفى"))}
+                          {isUsingDefault ? t("commissionSettings.usingDefault", t("settings.commission.usesTheDefaultRatio", "يستخدم النسبة الافتراضية")) : (t("commissionSettings.customized", t("settings.commission.custom", "مخصص:")) + ` ${effectiveRate}% ` + t("common.doctor", "طبيب") + " / " + `${100 - effectiveRate}% ` + t("common.hospital", "مستشفى"))}
                         </span>
                       </div>
                     );
@@ -338,7 +339,7 @@ export default function CommissionSettingsPage() {
                   disabled={saving}
                   className="px-6 py-2.5 bg-amber-600 hover:bg-amber-500 text-white font-bold text-sm rounded-xl transition-all disabled:opacity-50"
                 >
-                  {saving ? t("common.saving", "جارِ الحفظ...") : t("commissionSettings.btn.saveCustom", "💾 حفظ النسب المخصصة")}
+                  {saving ? t("common.saving", "جارِ الحفظ...") : t("commissionSettings.btn.saveCustom", t("settings.commission.saveCustomRatios", "💾 حفظ النسب المخصصة"))}
                 </button>
               </>
             )}
@@ -349,7 +350,7 @@ export default function CommissionSettingsPage() {
         {rules.filter((r) => r.doctorId !== null).length > 0 && (
           <div className="mt-5 border-t border-slate-800 pt-4">
             <h3 className="text-sm font-bold text-slate-400 mb-3">
-              {t("commissionSettings.currentOverrides", "القواعد المخصصة الحالية:")}
+              {t("commissionSettings.currentOverrides", t("settings.commission.currentCustomRules", "القواعد المخصصة الحالية:"))}
             </h3>
             <div className="space-y-2">
               {rules

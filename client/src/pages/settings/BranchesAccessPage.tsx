@@ -111,11 +111,11 @@ export default function BranchesAccessPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["user-branches", selectedUserId] });
-      toast.success("تم تعيين المستخدم في الفرع بنجاح");
+      toast.success(t("settings.branches.theUserHasBeenAssignedToTheBranchSuccess", "تم تعيين المستخدم في الفرع بنجاح"));
       setShowAssignModal(false);
       setAssignForm({ userId: null, hospitalId: null, isDefault: false });
     },
-    onError: () => toast.error("حدث خطأ أثناء تعيين المستخدم"),
+    onError: () => toast.error(t("settings.branches.anErrorOccurredWhileAssigningTheUser", "حدث خطأ أثناء تعيين المستخدم")),
   });
 
   const removeMutation = useMutation({
@@ -125,9 +125,9 @@ export default function BranchesAccessPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["user-branches", selectedUserId] });
-      toast.success("تم إلغاء وصول المستخدم من الفرع");
+      toast.success(t("settings.branches.userAccessHasBeenRevokedFromTheBranch", "تم إلغاء وصول المستخدم من الفرع"));
     },
-    onError: () => toast.error("حدث خطأ أثناء إلغاء الوصول"),
+    onError: () => toast.error(t("settings.branches.anErrorOccurredWhileRevokingAccess", "حدث خطأ أثناء إلغاء الوصول")),
   });
 
   // ============================================
@@ -160,10 +160,10 @@ export default function BranchesAccessPage() {
             <div className="p-2 bg-sky-500/20 text-sky-400 rounded-xl shadow-[0_0_15px_-3px_rgba(14,165,233,0.3)]">
               <GitBranch className="w-6 h-6" />
             </div>
-            إدارة وصول الفروع (Branch Access)
+            {t("settings.branches.branchAccessManagement", "إدارة وصول الفروع (Branch Access)")}
           </h1>
           <p className="text-sm text-slate-400 mt-1">
-            تعيين الموظفين في الفروع المختلفة — يتيح لهم التبديل بين الفروع أثناء العمل
+            {t("settings.branches.branchAccessDesc", "تعيين الموظفين في الفروع المختلفة — يتيح لهم التبديل بين الفروع أثناء العمل")}
           </p>
         </div>
         <button
@@ -178,7 +178,7 @@ export default function BranchesAccessPage() {
           className="relative z-10 flex items-center gap-2 px-5 py-2.5 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-sm font-bold shadow-lg transition-all duration-200 hover:shadow-sky-500/25"
         >
           <UserPlus className="w-4 h-4" />
-          تعيين مستخدم في فرع
+          {t("settings.branches.assignUserToBranch", "تعيين مستخدم في فرع")}
         </button>
       </div>
 
@@ -195,7 +195,7 @@ export default function BranchesAccessPage() {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full bg-slate-950 border border-slate-700 rounded-xl py-2 pr-10 pl-3 text-sm focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition-all"
-                placeholder="ابحث عن موظف..."
+                placeholder={t("settings.branches.iAmLookingForAnEmployee", t("settings.branches.iAmLookingForAnEmployee", "ابحث عن موظف..."))}
               />
               {searchTerm && (
                 <button
@@ -216,7 +216,7 @@ export default function BranchesAccessPage() {
             ) : filteredUsers.length === 0 ? (
               <div className="text-center py-16 text-slate-600">
                 <Users className="w-8 h-8 mx-auto mb-2 opacity-40" />
-                <p className="text-sm">لا يوجد موظفون</p>
+                <p className="text-sm">{t("settings.branches.thereAreNoEmployees", t("settings.branches.thereAreNoEmployees", "لا يوجد موظفون"))}</p>
               </div>
             ) : (
               <div className="p-2 space-y-1">
@@ -253,7 +253,7 @@ export default function BranchesAccessPage() {
                         ? "bg-emerald-900/30 text-emerald-400"
                         : "bg-rose-900/30 text-rose-400"
                     }`}>
-                      {user.isActive ? "نشط" : "موقف"}
+                      {user.isActive ? t("settings.branches.active", "نشط") : t("settings.branches.position", "موقف")}
                     </span>
                   </button>
                 ))}
@@ -262,7 +262,7 @@ export default function BranchesAccessPage() {
           </div>
 
           <div className="px-4 py-2 border-t border-slate-800 text-[10px] text-slate-600 text-center font-mono">
-            {filteredUsers.length} موظف
+            {filteredUsers.length} {t("settings.branches.employee", "موظف")}
           </div>
         </div>
 
@@ -272,8 +272,8 @@ export default function BranchesAccessPage() {
             <h2 className="text-base font-bold text-slate-200 flex items-center gap-2">
               <Shield className="w-5 h-5 text-sky-400" />
               {selectedUser
-                ? `فروع ${selectedUser.fullName}`
-                : "الفروع المتاحة"}
+                ? t("settings.branches.selecteduserfullnameBranches", "فروع ${selectedUser.fullName}")
+                : t("settings.branches.availableBranches", "الفروع المتاحة")}
             </h2>
             {selectedUser && (
               <button
@@ -288,7 +288,7 @@ export default function BranchesAccessPage() {
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sky-600/20 hover:bg-sky-600/30 text-sky-400 text-xs font-bold border border-sky-700/30 transition-colors"
               >
                 <Plus className="w-3.5 h-3.5" />
-                إضافة فرع
+                {t("settings.branches.addBranch", "إضافة فرع")}
               </button>
             )}
           </div>
@@ -297,9 +297,9 @@ export default function BranchesAccessPage() {
             {!selectedUserId ? (
               <div className="text-center py-20 text-slate-600">
                 <div className="text-4xl mb-3">👈</div>
-                <p className="text-sm font-bold">اختر موظفاً من القائمة</p>
+                <p className="text-sm font-bold">{t("settings.branches.selectAnEmployeeFromTheList", t("settings.branches.selectAnEmployeeFromTheList", "اختر موظفاً من القائمة"))}</p>
                 <p className="text-xs mt-1 text-slate-700">
-                  لعرض وإدارة الفروع التي يملك الوصول إليها
+                  {t("settings.branches.toViewAndManageBranches", "لعرض وإدارة الفروع التي يملك الوصول إليها")}
                 </p>
               </div>
             ) : loadingBranches ? (
@@ -312,12 +312,12 @@ export default function BranchesAccessPage() {
                   🏥
                 </div>
                 <p className="text-sm font-bold text-slate-400 mb-1">
-                  لم يتم تعيين فروع إضافية
+                  {t("settings.branches.noBranchesAssigned", "لم يتم تعيين فروع إضافية")}
                 </p>
                 <p className="text-xs text-slate-600 mb-4">
-                  هذا المستخدم يعمل حالياً في فرعه الافتراضي فقط.
+                  {t("settings.branches.userWorksInDefaultBranch", "هذا المستخدم يعمل حالياً في فرعه الافتراضي فقط.")}
                   <br />
-                  أضف فروعاً لتمكينه من التبديل بينها.
+                  {t("settings.branches.addBranchesToSwitch", "أضف فروعاً لتمكينه من التبديل بينها.")}
                 </p>
                 <button
                   onClick={() => {
@@ -331,7 +331,7 @@ export default function BranchesAccessPage() {
                   className="inline-flex items-center gap-2 px-5 py-2.5 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-sm font-bold shadow-lg transition-all"
                 >
                   <UserPlus className="w-4 h-4" />
-                  تعيين في فرع جديد
+                  {t("settings.branches.assignToNewBranch", "تعيين في فرع جديد")}
                 </button>
               </div>
             ) : (
@@ -340,14 +340,12 @@ export default function BranchesAccessPage() {
                 <div className="flex items-start gap-3 bg-sky-500/5 border border-sky-800/30 rounded-xl p-4 mb-4">
                   <AlertCircle className="w-5 h-5 text-sky-400 flex-shrink-0 mt-0.5" />
                   <div className="text-xs text-slate-400 leading-relaxed">
-                    <strong className="text-sky-300">تبديل الفروع:</strong> عند
-                    تسجيل الدخول، سيظهر للمستخدم زر "تبديل الفرع" في الشريط
-                    العلوي يتيح له الانتقال بين الفروع المدرجة أدناه. الفرع
-                    المميز بـ{" "}
+                    <strong className="text-sky-300">{t("settings.branches.switchingBranches", "تبديل الفروع:")}</strong>{" "}
+                    {t("settings.branches.switchBranchExplanation", "عند تسجيل الدخول، سيظهر للمستخدم زر تبديل الفرع في الشريط العلوي يتيح له الانتقال بين الفروع المدرجة أدناه. الفرع المميز بـ")}{" "}
                     <span className="text-emerald-400 font-bold">
-                      ★ افتراضي
+                      {t("settings.branches.defaultStar", "★ افتراضي")}
                     </span>{" "}
-                    سيتم تحديده تلقائياً عند الدخول.
+                    {t("settings.branches.willBeAutoSelected", "سيتم تحديده تلقائياً عند الدخول.")}
                   </div>
                 </div>
 
@@ -378,12 +376,12 @@ export default function BranchesAccessPage() {
                         </span>
                         {branch.isDefault && (
                           <span className="text-[9px] px-2 py-0.5 rounded-full bg-emerald-900/30 text-emerald-400 font-bold border border-emerald-800/40">
-                            ★ افتراضي
+                            {t("settings.branches.defaultStar", "★ افتراضي")}
                           </span>
                         )}
                       </div>
                       <div className="text-[10px] text-slate-500 font-mono">
-                        كود: {branch.code} | ID: {branch.id}
+                        {t("settings.branches.code", "كود:")} {branch.code} | ID: {branch.id}
                       </div>
                     </div>
 
@@ -392,7 +390,7 @@ export default function BranchesAccessPage() {
                       onClick={() => {
                         if (
                           window.confirm(
-                            `هل تريد إلغاء وصول ${selectedUser?.fullName} من فرع ${branch.name}؟`,
+                            t("settings.branches.doYouWantToRevokeAccessForSelecteduserfu", "هل تريد إلغاء وصول ${selectedUser?.fullName} من فرع ${branch.name}؟"),
                           )
                         ) {
                           removeMutation.mutate({
@@ -403,7 +401,7 @@ export default function BranchesAccessPage() {
                       }}
                       disabled={removeMutation.isPending}
                       className="p-2 rounded-lg hover:bg-rose-500/20 text-slate-500 hover:text-rose-400 transition-all"
-                      title="إلغاء الوصول"
+                      title={t("settings.branches.revokeAccess", t("settings.branches.revokeAccess", "إلغاء الوصول"))}
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -424,7 +422,7 @@ export default function BranchesAccessPage() {
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-bold text-white flex items-center gap-2">
                 <UserPlus className="w-5 h-5 text-sky-400" />
-                تعيين مستخدم في فرع
+                {t("settings.branches.assignUserToBranch", "تعيين مستخدم في فرع")}
               </h3>
               <button
                 onClick={() => setShowAssignModal(false)}
@@ -456,8 +454,8 @@ export default function BranchesAccessPage() {
                     badgeColor: u.isActive ? "green" : "red",
                   }));
                 }}
-                label="\u0627\u062e\u062a\u0631 \u0627\u0644\u0645\u0633\u062a\u062e\u062f\u0645"
-                placeholder="\u0627\u0628\u062d\u062b \u0628\u0627\u0644\u0627\u0633\u0645 \u0623\u0648 \u0627\u0633\u0645 \u0627\u0644\u0645\u0633\u062a\u062e\u062f\u0645..."
+                label={t("settings.branches.selectUser", "اختر المستخدم")}
+                placeholder={t("settings.branches.searchByNameOrUsername", "ابحث بالاسم أو اسم المستخدم...")}
                 icon={<Users className="w-4 h-4" />}
                 required
               />
@@ -479,8 +477,8 @@ export default function BranchesAccessPage() {
                     badgeColor: h.isActive ? "green" : "red",
                   }));
                 }}
-                label="\u0627\u062e\u062a\u0631 \u0627\u0644\u0641\u0631\u0639 / \u0627\u0644\u0645\u0633\u062a\u0634\u0641\u0649"
-                placeholder="\u0627\u0628\u062d\u062b \u0628\u0627\u0644\u0627\u0633\u0645 \u0623\u0648 \u0627\u0644\u0643\u0648\u062f \u0623\u0648 \u0627\u0644\u0645\u062f\u064a\u0646\u0629..."
+                label={t("settings.branches.selectBranchOrHospital", "اختر الفرع / المستشفى")}
+                placeholder={t("settings.branches.searchByNameCodeOrCity", "ابحث بالاسم أو الكود أو المدينة...")}
                 icon={<Building2 className="w-4 h-4" />}
                 required
               />
@@ -500,10 +498,10 @@ export default function BranchesAccessPage() {
                 </div>
                 <div className="flex-1">
                   <span className="text-sm font-bold text-slate-200 group-hover:text-white">
-                    فرع افتراضي
+                    {t("settings.branches.defaultBranch", "فرع افتراضي")}
                   </span>
                   <p className="text-[10px] text-slate-500 mt-0.5">
-                    سيتم تسجيل دخول المستخدم تلقائياً إلى هذا الفرع
+                    {t("settings.branches.autoLoginToBranch", "سيتم تسجيل دخول المستخدم تلقائياً إلى هذا الفرع")}
                   </p>
                 </div>
               </label>
@@ -514,12 +512,12 @@ export default function BranchesAccessPage() {
                   onClick={() => setShowAssignModal(false)}
                   className="flex-1 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-bold transition-colors"
                 >
-                  إلغاء
+                  {t("settings.branches.cancel", "إلغاء")}
                 </button>
                 <button
                   onClick={() => {
                     if (!assignForm.userId || !assignForm.hospitalId) {
-                      toast.warning("يرجى تعبئة جميع الحقول المطلوبة");
+                      toast.warning(t("settings.branches.pleaseFillOutAllRequiredFields", "يرجى تعبئة جميع الحقول المطلوبة"));
                       return;
                     }
                     assignMutation.mutate({
@@ -536,7 +534,7 @@ export default function BranchesAccessPage() {
                   ) : (
                     <Check className="w-4 h-4" />
                   )}
-                  تعيين في الفرع
+                  {t("settings.branches.assignToBranch", "تعيين في الفرع")}
                 </button>
               </div>
             </div>

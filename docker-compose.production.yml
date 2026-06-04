@@ -36,8 +36,17 @@ services:
   redis:
     image: redis:7-alpine
     container_name: saraya_redis
-    restart: always
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    restart: unless-stopped
+    stop_grace_period: 30s
+    command: >
+      redis-server
+      --appendonly yes
+      --appendfsync everysec
+      --no-appendfsync-on-rewrite no
+      --save "900 1"
+      --save "300 10"
+      --save "60 10000"
+      --requirepass ${REDIS_PASSWORD}
     volumes:
       - redis_data:/data
     networks:
@@ -45,8 +54,9 @@ services:
     healthcheck:
       test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 10s
-      timeout: 3s
+      timeout: 5s
       retries: 5
+      start_period: 10s
     logging: *default_logging
 
   # ==========================================

@@ -1,51 +1,65 @@
 import { useTranslation } from "react-i18next";
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { SystemSetting, systemSettingsApi } from '../../api/systemSettings';
 import { toast } from 'sonner';
-
-// Group metadata for Arabic labels and icons
-const GROUP_META: Record<string, { label: string; icon: string; color: string }> = {
-  BILLING: { label: 'الفوترة والمحاسبة', icon: '💰', color: 'text-emerald-400' },
-  INVENTORY: { label: 'المخزون', icon: '📦', color: 'text-amber-400' },
-  MEDICAL: { label: 'الإعدادات الطبية', icon: '🩺', color: 'text-sky-400' },
-  MPI: { label: 'السجل الوطني الموحد (MPI)', icon: '🌐', color: 'text-violet-400' },
-  OTP: { label: 'رسائل التحقق (OTP)', icon: '🔐', color: 'text-rose-400' },
-  OTHER: { label: 'إعدادات أخرى', icon: '⚙️', color: 'text-slate-400' },
-};
-
-const KEY_LABELS: Record<string, string> = {
-  'billing.debtLimit': 'حد المديونية المسموح',
-  'billing.currency': 'العملة الافتراضية',
-  'accounting.allowNegativeStock': 'السحب بالسالب من المخزون',
-  'inventory.enableServiceExplosion': 'تفصيل الخدمات المجمعة (Service Bundles)',
-  'medical.defaultLanguage': 'لغة التقارير الطبية',
-  'mpi.autoLinkEnabled': 'الربط التلقائي بالسجل الوطني',
-  'mpi.searchOnRegister': 'البحث عند التسجيل',
-  'mpi.shareDataConsent': 'مشاركة البيانات الديموغرافية',
-  'otp.enabled': 'تفعيل OTP',
-  'otp.channel': 'قناة الإرسال',
-  'otp.expiryMinutes': 'مدة الصلاحية (دقائق)',
-  'otp.maxAttempts': 'الحد الأقصى للمحاولات',
-  'inventory.requireMaterialRequestApproval': 'إلزامية اعتماد طلبات المواد',
-  'inventory.autoFefoAllocation': 'السحب التلقائي بنظام (FEFO)',
-  'purchases.requirePoApproval': 'إلزامية اعتماد أوامر الشراء',
-};
-
-const KEY_DESCRIPTIONS: Record<string, string> = {
-  'inventory.requireMaterialRequestApproval': 'عند التفعيل، ستحتاج طلبات صرف المواد من المخزن إلى موافقة مدير المخزن قبل عملية الصرف.',
-  'inventory.autoFefoAllocation': 'عند التفعيل، سيقوم النظام تلقائياً بتحديد وصرف التشغيلات (Batches) الأقرب لانتهاء الصلاحية دون تدخّل يدوي.',
-  'accounting.allowNegativeStock': 'السماح بصرف كميات غير متوفرة دفترياً، مما ينتج عنه أرصدة سالبة تُسوّى لاحقاً.',
-  'purchases.requirePoApproval': 'عند التفعيل، لن يكون من الممكن استلام البضائع لأوامر الشراء إلا بعد اعتمادها من قبل الإدارة.',
-};
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 export const SystemSettingsPage = () => {
   const { t, i18n } = useTranslation();
   const isRtl = i18n.language === "ar";
+  const queryClient = useQueryClient();
 
-  const [settings, setSettings] = useState<SystemSetting[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Moved inside component to fix module-level t() bug
+  const GROUP_META: Record<string, { label: string; icon: string; color: string }> = {
+    BILLING: { label: t("settings.system.billingAndAccounting", "الفوترة والمحاسبة"), icon: '💰', color: 'text-emerald-400' },
+    INVENTORY: { label: t("settings.system.inventory", "المخزون"), icon: '📦', color: 'text-amber-400' },
+    MEDICAL: { label: t("settings.system.medicalSettings", "الإعدادات الطبية"), icon: '🩺', color: 'text-sky-400' },
+    MPI: { label: t("settings.system.unifiedNationalRegisterMpi", "السجل الوطني الموحد (MPI)"), icon: '🌐', color: 'text-violet-400' },
+    OTP: { label: t("settings.system.verificationMessagesOtp", "رسائل التحقق (OTP)"), icon: '🔐', color: 'text-rose-400' },
+    OTHER: { label: t("settings.system.otherSettings", "إعدادات أخرى"), icon: '⚙️', color: 'text-slate-400' },
+  };
+
+  const KEY_LABELS: Record<string, string> = {
+    'billing.debtLimit': t("settings.system.permissibleDebtLimit", "حد المديونية المسموح"),
+    'billing.currency': t("settings.system.virtualCurrency", "العملة الافتراضية"),
+    'accounting.allowNegativeStock': t("settings.system.negativeWithdrawalFromStock", "السحب بالسالب من المخزون"),
+    'inventory.enableServiceExplosion': t("settings.system.detailOfServiceBundles", "تفصيل الخدمات المجمعة (Service Bundles)"),
+    'medical.defaultLanguage': t("settings.system.theLanguageOfMedicalReports", "لغة التقارير الطبية"),
+    'mpi.autoLinkEnabled': t("settings.system.automaticLinkingToTheNationalRegistry", "الربط التلقائي بالسجل الوطني"),
+    'mpi.searchOnRegister': t("settings.system.searchWhenRegistering", "البحث عند التسجيل"),
+    'mpi.shareDataConsent': t("settings.system.shareDemographicData", "مشاركة البيانات الديموغرافية"),
+    'otp.enabled': t("settings.system.activateOtp", "تفعيل OTP"),
+    'otp.channel': t("settings.system.transmissionChannel", "قناة الإرسال"),
+    'otp.expiryMinutes': t("settings.system.shelfLifeMinutes", "مدة الصلاحية (دقائق)"),
+    'otp.maxAttempts': t("settings.system.maximumAttempts", "الحد الأقصى للمحاولات"),
+    'inventory.requireMaterialRequestApproval': t("settings.system.mandatoryApprovalOfMaterialRequests", "إلزامية اعتماد طلبات المواد"),
+    'inventory.autoFefoAllocation': t("settings.system.fefoAutomaticWithdrawal", "السحب التلقائي بنظام (FEFO)"),
+    'purchases.requirePoApproval': t("settings.system.mandatoryApprovalOfPurchaseOrders", "إلزامية اعتماد أوامر الشراء"),
+  };
+
+  const KEY_DESCRIPTIONS: Record<string, string> = {
+    'inventory.requireMaterialRequestApproval': t("settings.system.whenActivatedRequestsToDisburseMaterials", "عند التفعيل، ستحتاج طلبات صرف المواد من المخزن إلى موافقة مدير المخزن قبل عملية الصرف."),
+    'inventory.autoFefoAllocation': t("settings.system.whenActivatedTheSystemWillAutomaticallyI", "عند التفعيل، سيقوم النظام تلقائياً بتحديد وصرف التشغيلات (Batches) الأقرب لانتهاء الصلاحية دون تدخّل يدوي."),
+    'accounting.allowNegativeStock': t("settings.system.allowingTheDisbursementOfUnavailableBook", "السماح بصرف كميات غير متوفرة دفترياً، مما ينتج عنه أرصدة سالبة تُسوّى لاحقاً."),
+    'purchases.requirePoApproval': t("settings.system.uponActivationItWillNotBePossibleToRecei", "عند التفعيل، لن يكون من الممكن استلام البضائع لأوامر الشراء إلا بعد اعتمادها من قبل الإدارة."),
+  };
+
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [activeGroup, setActiveGroup] = useState<string>('MPI');
+
+  const { data: settings = [], isLoading: loading } = useQuery({
+    queryKey: ["systemSettings"],
+    queryFn: async () => {
+      const data = await systemSettingsApi.findAll();
+      if (data.length > 0) {
+        const groupOrder = ['MPI', 'OTP', 'BILLING', 'INVENTORY', 'MEDICAL', 'OTHER'];
+        const groups = Object.keys(data.reduce((acc: any, s: SystemSetting) => ({ ...acc, [s.group || 'OTHER']: true }), {}));
+        const firstGroup = groupOrder.find(g => groups.includes(g)) || groups[0];
+        if (firstGroup) setActiveGroup(firstGroup);
+      }
+      return data;
+    },
+  });
 
   const groupedSettings = settings.reduce((acc, setting) => {
     const group = setting.group || 'OTHER';
@@ -54,50 +68,31 @@ export const SystemSettingsPage = () => {
     return acc;
   }, {} as Record<string, SystemSetting[]>);
 
-  // Sort groups in desired order
   const groupOrder = ['MPI', 'OTP', 'BILLING', 'INVENTORY', 'MEDICAL', 'OTHER'];
   const sortedGroups = Object.entries(groupedSettings).sort(
     ([a], [b]) => (groupOrder.indexOf(a) === -1 ? 99 : groupOrder.indexOf(a)) - (groupOrder.indexOf(b) === -1 ? 99 : groupOrder.indexOf(b))
   );
 
-  const fetchSettings = async () => {
-    setLoading(true);
-    try {
-      const data = await systemSettingsApi.findAll();
-      setSettings(data);
-      if (data.length > 0) {
-        // Set first available group as active
-        const groups = Object.keys(data.reduce((acc, s) => ({ ...acc, [s.group || 'OTHER']: true }), {}));
-        const firstGroup = groupOrder.find(g => groups.includes(g)) || groups[0];
-        if (firstGroup) setActiveGroup(firstGroup);
-      }
-    } catch (error) {
-      toast.error('فشل في تحميل الإعدادات');
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchSettings();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const handleUpdate = async (key: string, value: string) => {
-    setSavingKey(key);
-    try {
-      await systemSettingsApi.update(key, value);
-      toast.success('تم تحديث الإعداد بنجاح');
-      setSettings((prev) =>
-        prev.map((s) => (s.key === key ? { ...s, value } : s))
+  const updateMutation = useMutation({
+    mutationFn: async ({ key, value }: { key: string; value: string }) => {
+      setSavingKey(key);
+      return systemSettingsApi.update(key, value);
+    },
+    onSuccess: (_, variables) => {
+      toast.success(t("settings.system.theSettingHasBeenUpdatedSuccessfully", "تم تحديث الإعداد بنجاح"));
+      queryClient.setQueryData(["systemSettings"], (prev: SystemSetting[] | undefined) =>
+        (prev || []).map((s) => (s.key === variables.key ? { ...s, value: variables.value } : s))
       );
-    } catch (error) {
-      toast.error('فشل في تحديث الإعداد');
-      console.error(error);
-    } finally {
       setSavingKey(null);
-    }
+    },
+    onError: () => {
+      toast.error(t("settings.system.failedToUpdateSetting", "فشل في تحديث الإعداد"));
+      setSavingKey(null);
+    },
+  });
+
+  const handleUpdate = (key: string, value: string) => {
+    updateMutation.mutate({ key, value });
   };
 
   const renderInput = (setting: SystemSetting) => {
@@ -113,7 +108,7 @@ export const SystemSettingsPage = () => {
           />
           <div className="w-11 h-6 bg-slate-700/50 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-sky-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sky-600"></div>
           <span className="mr-3 text-sm font-medium text-slate-300">
-            {setting.value === 'true' ? 'مُفعّل' : 'مُعطّل'}
+            {setting.value === 'true' ? t("settings.system.activated", "مُفعّل") : t("settings.system.disabled", "مُعطّل")}
           </span>
         </label>
       );
@@ -155,7 +150,7 @@ export const SystemSettingsPage = () => {
       <div className="flex justify-center items-center h-64 text-slate-400">
         <div className="animate-pulse text-xl font-semibold flex items-center gap-3">
           <span className="w-6 h-6 border-2 border-sky-500 border-t-transparent rounded-full animate-spin"></span>
-          جارِ تحميل الإعدادات...
+          {t("settings.system.loadingSettings", "جارِ تحميل الإعدادات...")}
         </div>
       </div>
     );
@@ -170,15 +165,15 @@ export const SystemSettingsPage = () => {
         <div>
           <h1 className="text-3xl font-black text-white mb-2 tracking-tight flex items-center gap-3">
             <span className="p-2 bg-sky-500/10 text-sky-400 rounded-xl">⚙️</span>
-            إعدادات النظام
+            {t("settings.system.systemSettings", "إعدادات النظام")}
           </h1>
-          <p className="text-slate-400 text-sm font-medium px-1">إدارة الإعدادات العامة للنظام والتكوينات المتقدمة للمؤسسة</p>
+          <p className="text-slate-400 text-sm font-medium px-1">{t("settings.system.manageGeneralSystemSettingsAndAdvancedCo", "إدارة الإعدادات العامة للنظام والتكوينات المتقدمة للمؤسسة")}</p>
         </div>
         <button
-          onClick={fetchSettings}
+          onClick={() => queryClient.invalidateQueries({ queryKey: ["systemSettings"] })}
           className="px-6 py-2.5 bg-sky-600 hover:bg-sky-500 text-white rounded-xl transition-all shadow-lg shadow-sky-900/20 text-sm font-bold border border-sky-500/50 flex items-center gap-2"
         >
-          <span>🔄</span> تحديث
+          <span>🔄</span> {t("settings.system.refresh", "تحديث")}
         </button>
       </div>
 
@@ -210,7 +205,7 @@ export const SystemSettingsPage = () => {
           {settings.length === 0 ? (
             <div className="text-center py-16 bg-slate-900/40 rounded-3xl border border-dashed border-slate-700">
               <span className="text-4xl mb-4 block">🛠️</span>
-              <p className="text-slate-400 text-lg font-medium">لا توجد إعدادات — يرجى تشغيل سكربت البذور أولاً</p>
+              <p className="text-slate-400 text-lg font-medium">{t("settings.system.thereAreNoSettingsPleaseRunTheSeedScript", "لا توجد إعدادات — يرجى تشغيل سكربت البذور أولاً")}</p>
             </div>
           ) : (
             <div className="bg-slate-900/50 backdrop-blur-md border border-slate-800 rounded-3xl p-8 shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -220,7 +215,7 @@ export const SystemSettingsPage = () => {
                 </div>
                 <div>
                   <h2 className="text-2xl font-black text-white">{activeMeta.label}</h2>
-                  <p className="text-slate-400 text-sm mt-1">تخصيص الخيارات المتعلقة بـ {activeMeta.label}</p>
+                  <p className="text-slate-400 text-sm mt-1">{t("settings.system.customizeOptionsRelatedTo", "تخصيص الخيارات المتعلقة بـ")} {activeMeta.label}</p>
                 </div>
               </div>
 
@@ -240,7 +235,7 @@ export const SystemSettingsPage = () => {
                       </div>
                       <div className="flex items-center gap-3 w-full md:w-auto shrink-0 justify-end">
                         {savingKey === setting.key && (
-                          <span className="text-xs text-amber-400 animate-pulse font-bold bg-amber-400/10 px-2 py-1 rounded-md">جارِ الحفظ...</span>
+                          <span className="text-xs text-amber-400 animate-pulse font-bold bg-amber-400/10 px-2 py-1 rounded-md">{t("settings.system.saving", "جارِ الحفظ...")}</span>
                         )}
                         <div className="w-full md:w-auto">{renderInput(setting)}</div>
                       </div>

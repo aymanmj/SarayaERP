@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 
 import { useEffect, useState, useCallback } from "react";
 import { apiClient } from "../../api/apiClient";
@@ -99,7 +100,7 @@ function StoragePathDropdown({
         <div className="flex items-center gap-2 flex-1">
           {selectedInfo ? getTypeIcon(selectedInfo.type) : <FolderOpen className="w-4 h-4" />}
           <span className="text-sm truncate">
-            {selectedInfo?.label || selected || "المسار الافتراضي"}
+            {selectedInfo?.label || selected || t("settings.backup.defaultPath", "المسار الافتراضي")}
           </span>
           {selectedInfo && (
             <span className="text-xs text-slate-500 mr-auto" dir="ltr">
@@ -161,7 +162,7 @@ function StoragePathDropdown({
                 </div>
                 {p.path === selected && <Check className="w-4 h-4 text-sky-500 shrink-0" />}
                 {!p.isWritable && (
-                  <span className="text-[10px] text-rose-400">للقراءة فقط</span>
+                  <span className="text-[10px] text-rose-400">{t("settings.backup.readonly", t("settings.backup.readonly", "للقراءة فقط"))}</span>
                 )}
               </button>
             ))
@@ -194,20 +195,20 @@ function formatTime(seconds: number) {
 // Main Page
 // ==========================================
 
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+
 export default function BackupSettingsPage() {
-  const [backups, setBackups] = useState<BackupFile[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [status, setStatus] = useState<WorkerStatus>({ status: "idle" });
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.language === "ar";
+  const queryClient = useQueryClient();
+
   const [polling, setPolling] = useState(true);
-  const [storagePaths, setStoragePaths] = useState<StoragePath[]>([]);
-  const [loadingPaths, setLoadingPaths] = useState(false);
 
   // إعدادات المسار التلقائي
   const [autoPath, setAutoPath] = useState("/backups");
   const [secondaryPath, setSecondaryPath] = useState<string | null>(null);
   const [dualBackupEnabled, setDualBackupEnabled] = useState(false);
   const [configDirty, setConfigDirty] = useState(false);
-  const [savingConfig, setSavingConfig] = useState(false);
 
   // مسار النسخ اليدوي
   const [manualPath, setManualPath] = useState("/backups");
@@ -216,82 +217,68 @@ export default function BackupSettingsPage() {
   const [elapsed, setElapsed] = useState(0);
 
   // ==========================================
-  // Fetch Functions
+  // Queries
   // ==========================================
 
-  const fetchBackups = useCallback(async () => {
-    try {
+  const { data: backups = [], isLoading: loadingBackups, refetch: refetchBackups } = useQuery({
+    queryKey: ["backups"],
+    queryFn: async () => {
       const res = await apiClient.get<BackupFile[]>("/backup");
-      setBackups(res.data);
-    } catch (err) {
-      console.error(err);
-    }
-  }, []);
+      return res.data;
+    },
+    refetchInterval: polling ? 5000 : false,
+  });
 
-  const fetchStatus = useCallback(async () => {
-    try {
+  const { data: status = { status: "idle" as const } } = useQuery({
+    queryKey: ["backupStatus"],
+    queryFn: async () => {
       const res = await apiClient.get<WorkerStatus>("/backup/status");
-      setStatus(res.data);
       if (res.data.status === "busy") setPolling(true);
-    } catch (err) {
-      console.error(err);
-    }
-  }, []);
+      else if (res.data.status === "idle" || res.data.status === "error") setPolling(false);
+      return res.data;
+    },
+    refetchInterval: polling ? 5000 : false,
+  });
 
-  const fetchStoragePaths = useCallback(async () => {
-    setLoadingPaths(true);
-    try {
-      const res = await apiClient.get<StoragePath[]>("/backup/storage-paths");
-      setStoragePaths(res.data);
-    } catch (err) {
-      console.error(err);
-      // في حالة الفشل، استخدم المسار الافتراضي
-      setStoragePaths([{
-        path: "/backups",
-        label: "المسار الافتراضي",
-        type: "default",
-        totalSpace: 0,
-        freeSpace: 0,
-        usedPercent: 0,
-        isWritable: true,
-        backupCount: 0,
-      }]);
-    } finally {
-      setLoadingPaths(false);
+  const { data: storagePaths = [], isLoading: loadingPaths, refetch: refetchPaths } = useQuery({
+    queryKey: ["storagePaths"],
+    queryFn: async () => {
+      try {
+        const res = await apiClient.get<StoragePath[]>("/backup/storage-paths");
+        return res.data;
+      } catch (err) {
+        return [{
+          path: "/backups",
+          label: t("settings.backup.defaultPath", "المسار الافتراضي"),
+          type: "default",
+          totalSpace: 0,
+          freeSpace: 0,
+          usedPercent: 0,
+          isWritable: true,
+          backupCount: 0,
+        } as StoragePath];
+      }
     }
-  }, []);
+  });
 
-  const fetchConfig = useCallback(async () => {
-    try {
+  useQuery({
+    queryKey: ["backupConfig"],
+    queryFn: async () => {
       const res = await apiClient.get<{
         autoBackupPath: string;
         secondaryPath: string | null;
         dualBackupEnabled: boolean;
       }>("/backup/auto-path");
+      
       setAutoPath(res.data.autoBackupPath);
       setManualPath(res.data.autoBackupPath);
       setSecondaryPath(res.data.secondaryPath);
       setDualBackupEnabled(res.data.dualBackupEnabled);
-    } catch (err) {
-      console.error(err);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchBackups();
-    fetchStatus();
-    fetchStoragePaths();
-    fetchConfig();
-
-    const interval = setInterval(() => {
-      if (polling) {
-        fetchStatus();
-        fetchBackups();
-      }
-    }, 5000);
-
-    return () => clearInterval(interval);
-  }, [polling, fetchBackups, fetchStatus, fetchStoragePaths, fetchConfig]);
+      
+      return res.data;
+    },
+    refetchOnWindowFocus: false, // Don't override local un-saved state when refocusing
+  });
 
   // مؤقت العملية الجارية
   useEffect(() => {
@@ -305,42 +292,57 @@ export default function BackupSettingsPage() {
   }, [status.status]);
 
   // ==========================================
-  // Actions
+  // Mutations
   // ==========================================
 
-  const handleCreateBackup = async () => {
+  const createBackupMutation = useMutation({
+    mutationFn: async (body: any) => apiClient.post("/backup", body),
+    onSuccess: (_, variables) => {
+      const msg = variables.secondaryPath
+        ? t("settings.backup.duplexStartedManualpathSecondarypath", "تم بدء النسخ المزدوج: ${manualPath} + ${secondaryPath}")
+        : t("settings.backup.backupStartedToManualpath", "تم بدء النسخ الاحتياطي إلى: ${manualPath}");
+      toast.success(msg);
+      setPolling(true);
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ["backups"] });
+        queryClient.invalidateQueries({ queryKey: ["backupStatus"] });
+      }, 3000);
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || t("settings.backup.backupFailedToStart", "فشل بدء النسخ الاحتياطي"));
+    }
+  });
+
+  const handleCreateBackup = () => {
     if (status.status === "busy") {
-      toast.error("هناك عملية جارية بالفعل");
+      toast.error(t("settings.backup.thereIsAProcessAlreadyUnderway", "هناك عملية جارية بالفعل"));
       return;
     }
 
-    try {
-      setLoading(true);
-       
-      const body: any = { targetPath: manualPath };
-      // إذا النسخ المزدوج مفعل وهناك مسار ثانوي، أرسله
-      if (dualBackupEnabled && secondaryPath && secondaryPath !== manualPath) {
-        body.secondaryPath = secondaryPath;
-      }
-      await apiClient.post("/backup", body);
-      const msg = body.secondaryPath
-        ? `تم بدء النسخ المزدوج: ${manualPath} + ${secondaryPath}`
-        : `تم بدء النسخ الاحتياطي إلى: ${manualPath}`;
-      toast.success(msg);
-      setPolling(true);
-      setTimeout(fetchBackups, 3000);
-     
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || "فشل بدء النسخ الاحتياطي");
-    } finally {
-      setLoading(false);
+    const body: any = { targetPath: manualPath };
+    if (dualBackupEnabled && secondaryPath && secondaryPath !== manualPath) {
+      body.secondaryPath = secondaryPath;
     }
+    createBackupMutation.mutate(body);
   };
 
-  const handleRestore = async (backup: BackupFile) => {
+  const restoreMutation = useMutation({
+    mutationFn: async (backup: BackupFile) => apiClient.post(`/backup/${backup.filename}/restore`, {
+      storagePath: backup.storagePath,
+    }),
+    onSuccess: () => {
+      toast.success(t("settings.backup.theRestoreProcessHasBeenStarted", "تم بدء عملية الاستعادة. النظام قد يتوقف قليلاً."));
+      setPolling(true);
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || t("settings.backup.failedToStartRestore", "فشل بدء الاستعادة"));
+    }
+  });
+
+  const handleRestore = (backup: BackupFile) => {
     if (
       !confirm(
-        `⚠️ تحذير خطير!\n\nهل أنت متأكد من استعادة النسخة: ${backup.filename}؟\n\nالمسار: ${backup.storagePath}\n\nسيتم مسح جميع البيانات الحالية واستبدالها بالنسخة الاحتياطية!\nلا يمكن التراجع عن هذا الإجراء!`
+        t("settings.backup.dangerousWarningnnareYouSureToRestoreThe", "⚠️ تحذير خطير!\n\nهل أنت متأكد من استعادة النسخة: ${backup.filename}؟\n\nالمسار: ${backup.storagePath}\n\nسيتم مسح جميع البيانات الحالية واستبدالها بالنسخة الاحتياطية!\nلا يمكن التراجع عن هذا الإجراء!")
       )
     )
       return;
@@ -348,64 +350,56 @@ export default function BackupSettingsPage() {
     const input = prompt('للتأكيد، اكتب "RESTORE" في المربع أدناه:');
     if (input !== "RESTORE") return;
 
-    try {
-      await apiClient.post(`/backup/${backup.filename}/restore`, {
-        storagePath: backup.storagePath,
-      });
-      toast.success("تم بدء عملية الاستعادة. النظام قد يتوقف قليلاً.");
-      setPolling(true);
-     
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || "فشل بدء الاستعادة");
-    }
+    restoreMutation.mutate(backup);
   };
 
-  const handleDelete = async (backup: BackupFile) => {
-    if (!confirm(`هل أنت متأكد من حذف النسخة: ${backup.filename}؟`)) return;
-
-    try {
-      await apiClient.delete(`/backup/${backup.filename}`, {
-        data: { storagePath: backup.storagePath },
-      });
-      toast.success("تم الحذف بنجاح");
-      setBackups((prev) => prev.filter((b) => !(b.filename === backup.filename && b.storagePath === backup.storagePath)));
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch (err) {
-      toast.error("فشل الحذف");
+  const deleteMutation = useMutation({
+    mutationFn: async (backup: BackupFile) => apiClient.delete(`/backup/${backup.filename}`, {
+      data: { storagePath: backup.storagePath },
+    }),
+    onSuccess: () => {
+      toast.success(t("settings.backup.deletedSuccessfully", "تم الحذف بنجاح"));
+      queryClient.invalidateQueries({ queryKey: ["backups"] });
+    },
+    onError: () => {
+      toast.error(t("settings.backup.deletionFailed", "فشل الحذف"));
     }
+  });
+
+  const handleDelete = (backup: BackupFile) => {
+    if (!confirm(t("settings.backup.areYouSureYouWantToDeleteTheCopyBackupfi", "هل أنت متأكد من حذف النسخة: ${backup.filename}؟"))) return;
+    deleteMutation.mutate(backup);
   };
 
-  const handleScanAll = async () => {
-    try {
-      setLoading(true);
-      const res = await apiClient.post<BackupFile[]>("/backup/scan");
-      setBackups(res.data);
-      toast.success(`تم العثور على ${res.data.length} نسخة احتياطية`);
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch (err) {
-      toast.error("فشل البحث");
-    } finally {
-      setLoading(false);
+  const scanMutation = useMutation({
+    mutationFn: async () => apiClient.post<BackupFile[]>("/backup/scan"),
+    onSuccess: (res) => {
+      queryClient.setQueryData(["backups"], res.data);
+      toast.success(t("settings.backup.resdatalengthBackupFound", "تم العثور على ${res.data.length} نسخة احتياطية"));
+    },
+    onError: () => {
+      toast.error(t("settings.backup.searchFailed", "فشل البحث"));
     }
-  };
+  });
 
-  const handleSaveConfig = async () => {
-    setSavingConfig(true);
-    try {
-      await apiClient.post("/backup/config", {
-        autoBackupPath: autoPath,
-        secondaryPath: dualBackupEnabled ? secondaryPath : null,
-        dualBackupEnabled,
-      });
-      toast.success("تم حفظ إعدادات النسخ الاحتياطي بنجاح");
+  const handleScanAll = () => scanMutation.mutate();
+
+  const saveConfigMutation = useMutation({
+    mutationFn: async () => apiClient.post("/backup/config", {
+      autoBackupPath: autoPath,
+      secondaryPath: dualBackupEnabled ? secondaryPath : null,
+      dualBackupEnabled,
+    }),
+    onSuccess: () => {
+      toast.success(t("settings.backup.yourBackupSettingsHaveBeenSavedSuccessfu", "تم حفظ إعدادات النسخ الاحتياطي بنجاح"));
       setConfigDirty(false);
-     
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || "فشل حفظ الإعدادات");
-    } finally {
-      setSavingConfig(false);
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || t("settings.backup.failedToSaveSettings", "فشل حفظ الإعدادات"));
     }
-  };
+  });
+
+  const handleSaveConfig = () => saveConfigMutation.mutate();
 
   const getPathLabel = (storagePath: string) => {
     const found = storagePaths.find((p) => p.path === storagePath);
@@ -415,6 +409,7 @@ export default function BackupSettingsPage() {
   // ==========================================
   // Render
   // ==========================================
+
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
@@ -434,7 +429,7 @@ export default function BackupSettingsPage() {
           <div className="flex items-center gap-3 px-6 py-3 bg-amber-500/10 text-amber-500 rounded-xl border border-amber-500/20 shadow-lg animate-pulse">
             <RefreshCw className="w-5 h-5 animate-spin" />
             <div className="flex flex-col">
-              <span className="text-sm font-bold">{status.message || "جارِ المعالجة..."}</span>
+              <span className="text-sm font-bold">{status.message || t("settings.backup.processing", "جارِ المعالجة...")}</span>
               <span className="text-xs opacity-80 font-mono" dir="ltr">
                 {formatTime(elapsed)} elapsed
               </span>
@@ -455,7 +450,7 @@ export default function BackupSettingsPage() {
             </div>
             <div>
               <h3 className="text-lg font-bold text-slate-100">
-                {status.operation === "backup" ? "جاري إنشاء نسخة احتياطية..." : "جاري استعادة النظام..."}
+                {status.operation === "backup" ? t("settings.backup.creatingABackup", "جاري إنشاء نسخة احتياطية...") : t("settings.backup.systemIsBeingRestored", "جاري استعادة النظام...")}
               </h3>
               <p className="text-slate-400 text-sm">
                 يرجى الانتظار، هذه العملية قد تستغرق عدة دقائق حسب حجم البيانات.
@@ -464,7 +459,7 @@ export default function BackupSettingsPage() {
           </div>
           <div className="space-y-2">
             <div className="flex justify-between text-xs text-slate-400">
-              <span>التقدم</span>
+              <span>{t("settings.backup.progress", t("settings.backup.progress", "التقدم"))}</span>
               <span>{formatTime(elapsed)}</span>
             </div>
             <div className="w-full bg-slate-700/50 rounded-full h-3 overflow-hidden">
@@ -483,8 +478,8 @@ export default function BackupSettingsPage() {
               <Settings2 className="w-5 h-5" />
             </div>
             <div className="flex-1">
-              <h3 className="text-slate-200 font-semibold">إعدادات النسخ التلقائي</h3>
-              <p className="text-xs text-slate-500">يتم النسخ تلقائياً كل يوم الساعة 03:00 صباحاً</p>
+              <h3 className="text-slate-200 font-semibold">{t("settings.backup.autoCopySettings", t("settings.backup.autoCopySettings", "إعدادات النسخ التلقائي"))}</h3>
+              <p className="text-xs text-slate-500">{t("settings.backup.copyingIsDoneAutomaticallyEveryDayAt0300", t("settings.backup.copyingIsDoneAutomaticallyEveryDayAt0300", "يتم النسخ تلقائياً كل يوم الساعة 03:00 صباحاً"))}</p>
             </div>
           </div>
 
@@ -498,7 +493,7 @@ export default function BackupSettingsPage() {
                 setConfigDirty(true);
               }}
               loading={loadingPaths}
-              label="المسار الأساسي"
+              label={t("settings.backup.primaryPath", t("settings.backup.primaryPath", "المسار الأساسي"))}
             />
           </div>
 
@@ -510,7 +505,7 @@ export default function BackupSettingsPage() {
                   <HardDrive className="w-4 h-4" />
                 </div>
                 <div>
-                  <h4 className="text-sm text-slate-200 font-medium">النسخ المزدوج (Dual Backup)</h4>
+                  <h4 className="text-sm text-slate-200 font-medium">{t("settings.backup.dualBackup", t("settings.backup.dualBackup", "النسخ المزدوج (Dual Backup)"))}</h4>
                   <p className="text-[11px] text-slate-500">
                     حفظ النسخة في مكانين مختلفين لضمان الأمان
                   </p>
@@ -540,7 +535,7 @@ export default function BackupSettingsPage() {
                     setConfigDirty(true);
                   }}
                   loading={loadingPaths}
-                  label="المسار الثانوي (قرص خارجي / USB)"
+                  label={t("settings.backup.secondaryPathExternalDiskusb", t("settings.backup.secondaryPathExternalDiskusb", "المسار الثانوي (قرص خارجي / USB)"))}
                 />
                 {!secondaryPath && storagePaths.length <= 1 && (
                   <p className="mt-2 text-xs text-amber-400/80 flex items-center gap-1">
@@ -560,7 +555,7 @@ export default function BackupSettingsPage() {
               className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700 disabled:opacity-50 text-white rounded-xl shadow-lg transition-all text-sm font-medium"
             >
               <Save className="w-4 h-4" />
-              {savingConfig ? "حفظ..." : "حفظ الإعدادات"}
+              {savingConfig ? t("settings.backup.save", "حفظ...") : t("settings.backup.saveSettings", "حفظ الإعدادات")}
             </button>
           </div>
         </div>
@@ -572,11 +567,11 @@ export default function BackupSettingsPage() {
               <Clock className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-slate-400 text-xs">آخر عملية نسخ</h3>
+              <h3 className="text-slate-400 text-xs">{t("settings.backup.lastCopyOperation", t("settings.backup.lastCopyOperation", "آخر عملية نسخ"))}</h3>
               <p className="text-slate-200 font-semibold text-sm">
                 {status.lastOperation === "backup" && status.lastResult === "success"
                   ? new Date(parseInt(status.timestamp || "0") * 1000).toLocaleString("ar-LY")
-                  : "غير متوفر"}
+                  : t("settings.backup.unavailable", "غير متوفر")}
               </p>
             </div>
           </div>
@@ -586,7 +581,7 @@ export default function BackupSettingsPage() {
               <Database className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-slate-400 text-xs">إجمالي النسخ</h3>
+              <h3 className="text-slate-400 text-xs">{t("settings.backup.totalCopies", t("settings.backup.totalCopies", "إجمالي النسخ"))}</h3>
               <p className="text-slate-200 font-semibold text-sm">{backups.length} نسخة</p>
             </div>
           </div>
@@ -596,7 +591,7 @@ export default function BackupSettingsPage() {
               <HardDrive className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-slate-400 text-xs">أماكن التخزين</h3>
+              <h3 className="text-slate-400 text-xs">{t("settings.backup.storagePlaces", t("settings.backup.storagePlaces", "أماكن التخزين"))}</h3>
               <p className="text-slate-200 font-semibold text-sm">{storagePaths.length} مكان</p>
             </div>
           </div>
@@ -616,7 +611,7 @@ export default function BackupSettingsPage() {
               selected={manualPath}
               onSelect={setManualPath}
               loading={loadingPaths}
-              label="مسار الحفظ"
+              label={t("settings.backup.savePath", t("settings.backup.savePath", "مسار الحفظ"))}
             />
           </div>
           <button
@@ -625,7 +620,7 @@ export default function BackupSettingsPage() {
             className="flex items-center gap-2 px-6 py-2.5 bg-sky-600 hover:bg-sky-500 disabled:bg-slate-700 disabled:opacity-50 text-white rounded-xl shadow-lg transition-all font-medium"
           >
             <HardDriveDownload className="w-5 h-5" />
-            {status.status === "busy" ? "العملية جارية..." : "نسخ احتياطي فوراً"}
+            {status.status === "busy" ? t("settings.backup.theProcessIsInProgress", "العملية جارية...") : t("settings.backup.backUpInstantly", "نسخ احتياطي فوراً")}
           </button>
         </div>
       </div>
@@ -644,7 +639,7 @@ export default function BackupSettingsPage() {
               className="flex items-center gap-2 px-3 py-1.5 text-sm bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg transition-colors"
             >
               <Search className="w-4 h-4" />
-              بحث في الأقراص
+              {t("settings.backup.searchDisks", t("settings.backup.searchDisks", "بحث في الأقراص"))}
             </button>
             <button
               onClick={() => {
@@ -663,18 +658,18 @@ export default function BackupSettingsPage() {
           <table className="w-full text-right">
             <thead className="bg-slate-800/60 text-slate-300 text-sm">
               <tr>
-                <th className="p-4 font-medium">اسم الملف</th>
-                <th className="p-4 font-medium">مكان التخزين</th>
-                <th className="p-4 font-medium">الحجم</th>
-                <th className="p-4 font-medium">تاريخ الإنشاء</th>
-                <th className="p-4 font-medium text-center">إجراءات</th>
+                <th className="p-4 font-medium">{t("settings.backup.fileName", t("settings.backup.fileName", "اسم الملف"))}</th>
+                <th className="p-4 font-medium">{t("settings.backup.storagePlace", t("settings.backup.storagePlace", "مكان التخزين"))}</th>
+                <th className="p-4 font-medium">{t("settings.backup.size", t("settings.backup.size", "الحجم"))}</th>
+                <th className="p-4 font-medium">{t("settings.backup.creationDate", t("settings.backup.creationDate", "تاريخ الإنشاء"))}</th>
+                <th className="p-4 font-medium text-center">{t("settings.backup.procedures", t("settings.backup.procedures", "إجراءات"))}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-700/50">
               {backups.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="p-8 text-center text-slate-500">
-                    لا توجد نسخ احتياطية. اضغط "بحث في الأقراص" للبحث في جميع الأماكن.
+                    لا توجد نسخ احتياطية. اضغط t("settings.backup.searchDisks", "بحث في الأقراص") للبحث في جميع الأماكن.
                   </td>
                 </tr>
               ) : (
@@ -711,14 +706,14 @@ export default function BackupSettingsPage() {
                       <div className="flex items-center justify-center gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
                         <button
                           onClick={() => handleRestore(backup)}
-                          title="استعادة (Restore)"
+                          title={t("settings.backup.restore", t("settings.backup.restore", "استعادة (Restore)"))}
                           className="p-2 hover:bg-amber-500/10 text-slate-400 hover:text-amber-500 rounded-lg transition-colors"
                         >
                           <RotateCcw className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleDelete(backup)}
-                          title="حذف"
+                          title={t("settings.backup.delete", t("settings.backup.delete", "حذف"))}
                           className="p-2 hover:bg-rose-500/10 text-slate-400 hover:text-rose-500 rounded-lg transition-colors"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -737,7 +732,7 @@ export default function BackupSettingsPage() {
       <div className="bg-amber-900/10 border border-amber-900/20 p-4 rounded-xl flex gap-3">
         <AlertTriangle className="w-6 h-6 text-amber-500 shrink-0" />
         <div className="space-y-1">
-          <h4 className="text-amber-500 font-semibold text-sm">تنبيه هام</h4>
+          <h4 className="text-amber-500 font-semibold text-sm">{t("settings.backup.importantWarning", t("settings.backup.importantWarning", "تنبيه هام"))}</h4>
           <p className="text-amber-400/80 text-xs leading-relaxed">
             • عملية الاستعادة ستمسح قاعدة البيانات الحالية بالكامل واستبدالها بالنسخة المختارة.
             <br />

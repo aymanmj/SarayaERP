@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { apiClient } from "../../api/apiClient";
 import { toast } from "sonner";
 import { Edit2, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 // Types
 type ServiceItemLite = { id: number; name: string; defaultPrice: number };
@@ -24,11 +25,7 @@ type DepartmentLite = { id: number; name: string };
 export default function BedManagementSettingsPage() {
   const { t, i18n } = useTranslation();
   const isRtl = i18n.language === "ar";
-  const [wards, setWards] = useState<Ward[]>([]);
-  const [services, setServices] = useState<ServiceItemLite[]>([]);
-  const [departments, setDepartments] = useState<DepartmentLite[]>([]);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [loading, setLoading] = useState(false);
+  const queryClient = useQueryClient();
 
   // Modals specific state
   const [showWardModal, setShowWardModal] = useState(false);
@@ -50,27 +47,29 @@ export default function BedManagementSettingsPage() {
   const [editBedId, setEditBedId] = useState<number | null>(null);
   const [editBedNumber, setEditBedNumber] = useState("");
 
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      const [wRes, sRes, dRes] = await Promise.all([
-        apiClient.get<Ward[]>("/beds/tree"),
-        apiClient.get<ServiceItemLite[]>("/beds/services"),
-        apiClient.get<DepartmentLite[]>("/departments"),
-      ]);
-      setWards(wRes.data);
-      setServices(sRes.data);
-      setDepartments(dRes.data);
-    } catch {
-      toast.error(t("beds.loadFailed", "فشل تحميل البيانات"));
-    } finally {
-      setLoading(false);
+  const { data: wards = [], isLoading: isLoadingWards } = useQuery({
+    queryKey: ["wards"],
+    queryFn: async () => {
+      const res = await apiClient.get<Ward[]>("/beds/tree");
+      return res.data;
     }
-  };
+  });
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  const { data: services = [] } = useQuery({
+    queryKey: ["servicesLite"],
+    queryFn: async () => {
+      const res = await apiClient.get<ServiceItemLite[]>("/beds/services");
+      return res.data;
+    }
+  });
+
+  const { data: departments = [] } = useQuery({
+    queryKey: ["departmentsLite"],
+    queryFn: async () => {
+      const res = await apiClient.get<DepartmentLite[]>("/departments");
+      return res.data;
+    }
+  });
 
   // --- WARDS ---
   const handleOpenWardModal = (ward?: Ward) => {
@@ -89,114 +88,154 @@ export default function BedManagementSettingsPage() {
     setShowWardModal(true);
   };
 
-  const handleSaveWard = async () => {
-    if (!wardForm.name) return;
-    try {
-      const payload = {
-        name: wardForm.name,
-        type: wardForm.type,
-        gender: "Mixed",
-        serviceItemId: wardForm.serviceItemId ? Number(wardForm.serviceItemId) : null,
-        departmentId: wardForm.departmentId ? Number(wardForm.departmentId) : null,
-      };
-
+  const saveWardMutation = useMutation({
+    mutationFn: async (payload: any) => {
       if (editWardId) {
-        await apiClient.patch(`/beds/wards/${editWardId}`, payload);
-        toast.success(t("beds.updateSuccess", "تم التعديل بنجاح"));
+        return apiClient.patch(`/beds/wards/${editWardId}`, payload);
       } else {
-        await apiClient.post("/beds/wards", payload);
-        toast.success(t("beds.wardCreated", "تم إنشاء العنبر"));
+        return apiClient.post("/beds/wards", payload);
       }
+    },
+    onSuccess: () => {
+      toast.success(editWardId ? t("beds.updateSuccess", "تم التعديل بنجاح") : t("beds.wardCreated", "تم إنشاء العنبر"));
       setShowWardModal(false);
-      loadData();
-    } catch {
+      queryClient.invalidateQueries({ queryKey: ["wards"] });
+    },
+    onError: () => {
       toast.error(t("beds.opFailed", "فشلت العملية"));
     }
+  });
+
+  const handleSaveWard = () => {
+    if (!wardForm.name) return;
+    const payload = {
+      name: wardForm.name,
+      type: wardForm.type,
+      gender: "Mixed",
+      serviceItemId: wardForm.serviceItemId ? Number(wardForm.serviceItemId) : null,
+      departmentId: wardForm.departmentId ? Number(wardForm.departmentId) : null,
+    };
+    saveWardMutation.mutate(payload);
   };
 
-  const handleDeleteWard = async (id: number) => {
-    if (!confirm(t("beds.confirmDeleteWard", "هل أنت متأكد من حذف هذا العنبر؟ (يجب ألا يحتوي على غرف)"))) return;
-    try {
-      await apiClient.delete(`/beds/wards/${id}`);
+  const deleteWardMutation = useMutation({
+    mutationFn: async (id: number) => apiClient.delete(`/beds/wards/${id}`),
+    onSuccess: () => {
       toast.success(t("beds.deleteSuccess", "تم الحذف بنجاح"));
-      loadData();
-    } catch (err: any) {
+      queryClient.invalidateQueries({ queryKey: ["wards"] });
+    },
+    onError: (err: any) => {
       toast.error(err.response?.data?.message || t("beds.deleteFailed", "فشل الحذف"));
     }
+  });
+
+  const handleDeleteWard = (id: number) => {
+    if (!confirm(t("beds.confirmDeleteWard", "هل أنت متأكد من حذف هذا العنبر؟ (يجب ألا يحتوي على غرف)"))) return;
+    deleteWardMutation.mutate(id);
   };
 
   // --- ROOMS ---
-  const handleCreateRoom = async (wardId: number) => {
-    if (!newRoomNumber) return;
-    try {
-      await apiClient.post("/beds/rooms", { wardId, roomNumber: newRoomNumber });
+  const createRoomMutation = useMutation({
+    mutationFn: async (payload: { wardId: number; roomNumber: string }) => apiClient.post("/beds/rooms", payload),
+    onSuccess: () => {
       toast.success(t("beds.roomAdded", "تمت إضافة الغرفة"));
       setNewRoomNumber("");
       setActiveWardId(null);
-      loadData();
-    } catch {
+      queryClient.invalidateQueries({ queryKey: ["wards"] });
+    },
+    onError: () => {
       toast.error(t("beds.roomAddFailed", "فشل إضافة الغرفة"));
     }
+  });
+
+  const handleCreateRoom = (wardId: number) => {
+    if (!newRoomNumber) return;
+    createRoomMutation.mutate({ wardId, roomNumber: newRoomNumber });
   };
 
-  const handleUpdateRoom = async (roomId: number) => {
-    if (!editRoomNumber) return;
-    try {
-      await apiClient.patch(`/beds/rooms/${roomId}`, { roomNumber: editRoomNumber });
+  const updateRoomMutation = useMutation({
+    mutationFn: async (payload: { roomId: number; roomNumber: string }) => apiClient.patch(`/beds/rooms/${payload.roomId}`, { roomNumber: payload.roomNumber }),
+    onSuccess: () => {
       toast.success(t("beds.updateSuccess", "تم التعديل بنجاح"));
       setEditRoomId(null);
-      loadData();
-    } catch {
+      queryClient.invalidateQueries({ queryKey: ["wards"] });
+    },
+    onError: () => {
       toast.error(t("beds.updateFailed", "فشل التعديل"));
     }
+  });
+
+  const handleUpdateRoom = (roomId: number) => {
+    if (!editRoomNumber) return;
+    updateRoomMutation.mutate({ roomId, roomNumber: editRoomNumber });
   };
 
-  const handleDeleteRoom = async (id: number) => {
-    if (!confirm(t("beds.confirmDeleteRoom", "هل أنت متأكد من حذف هذه الغرفة؟ (يجب ألا تحتوي على أسِرة)"))) return;
-    try {
-      await apiClient.delete(`/beds/rooms/${id}`);
+  const deleteRoomMutation = useMutation({
+    mutationFn: async (id: number) => apiClient.delete(`/beds/rooms/${id}`),
+    onSuccess: () => {
       toast.success(t("beds.deleteSuccess", "تم الحذف بنجاح"));
-      loadData();
-    } catch (err: any) {
+      queryClient.invalidateQueries({ queryKey: ["wards"] });
+    },
+    onError: (err: any) => {
       toast.error(err.response?.data?.message || t("beds.deleteFailed", "فشل الحذف"));
     }
+  });
+
+  const handleDeleteRoom = (id: number) => {
+    if (!confirm(t("beds.confirmDeleteRoom", "هل أنت متأكد من حذف هذه الغرفة؟ (يجب ألا تحتوي على أسِرة)"))) return;
+    deleteRoomMutation.mutate(id);
   };
 
   // --- BEDS ---
-  const handleCreateBed = async (roomId: number) => {
-    if (!newBedNumber) return;
-    try {
-      await apiClient.post("/beds/beds", { roomId, bedNumber: newBedNumber });
+  const createBedMutation = useMutation({
+    mutationFn: async (payload: { roomId: number; bedNumber: string }) => apiClient.post("/beds/beds", payload),
+    onSuccess: () => {
       toast.success(t("beds.bedAdded", "تمت إضافة السرير"));
       setNewBedNumber("");
       setActiveRoomId(null);
-      loadData();
-    } catch {
+      queryClient.invalidateQueries({ queryKey: ["wards"] });
+    },
+    onError: () => {
       toast.error(t("beds.bedAddFailed", "فشل إضافة السرير"));
     }
+  });
+
+  const handleCreateBed = (roomId: number) => {
+    if (!newBedNumber) return;
+    createBedMutation.mutate({ roomId, bedNumber: newBedNumber });
   };
 
-  const handleUpdateBed = async (bedId: number, currentStatus: string) => {
-    if (!editBedNumber) return;
-    try {
-      await apiClient.patch(`/beds/beds/${bedId}`, { bedNumber: editBedNumber, status: currentStatus });
+  const updateBedMutation = useMutation({
+    mutationFn: async (payload: { bedId: number; bedNumber: string; status: string }) => apiClient.patch(`/beds/beds/${payload.bedId}`, { bedNumber: payload.bedNumber, status: payload.status }),
+    onSuccess: () => {
       toast.success(t("beds.updateSuccess", "تم التعديل بنجاح"));
       setEditBedId(null);
-      loadData();
-    } catch {
+      queryClient.invalidateQueries({ queryKey: ["wards"] });
+    },
+    onError: () => {
       toast.error(t("beds.updateFailed", "فشل التعديل"));
     }
+  });
+
+  const handleUpdateBed = (bedId: number, currentStatus: string) => {
+    if (!editBedNumber) return;
+    updateBedMutation.mutate({ bedId, bedNumber: editBedNumber, status: currentStatus });
   };
 
-  const handleDeleteBed = async (id: number) => {
-    if (!confirm(t("beds.confirmDeleteBed", "هل أنت متأكد من حذف هذا السرير؟ (لا يمكن الحذف إذا كان مريض منوماً فيه)"))) return;
-    try {
-      await apiClient.delete(`/beds/beds/${id}`);
+  const deleteBedMutation = useMutation({
+    mutationFn: async (id: number) => apiClient.delete(`/beds/beds/${id}`),
+    onSuccess: () => {
       toast.success(t("beds.deleteSuccess", "تم الحذف بنجاح"));
-      loadData();
-    } catch (err: any) {
+      queryClient.invalidateQueries({ queryKey: ["wards"] });
+    },
+    onError: (err: any) => {
       toast.error(err.response?.data?.message || t("beds.deleteFailed", "فشل الحذف"));
     }
+  });
+
+  const handleDeleteBed = (id: number) => {
+    if (!confirm(t("beds.confirmDeleteBed", "هل أنت متأكد من حذف هذا السرير؟ (لا يمكن الحذف إذا كان مريض منوماً فيه)"))) return;
+    deleteBedMutation.mutate(id);
   };
 
   return (
@@ -215,7 +254,9 @@ export default function BedManagementSettingsPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-6 overflow-y-auto pb-10">
-        {wards.map((ward) => (
+        {isLoadingWards ? (
+          <div className="text-slate-400">{t("settings.departments.loading", "جاري التحميل...")}</div>
+        ) : wards.map((ward) => (
           <div key={ward.id} className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4">
             
             {/* Ward Header */}
@@ -249,7 +290,7 @@ export default function BedManagementSettingsPage() {
             {activeWardId === ward.id && (
               <div className="mb-4 flex gap-2 bg-slate-950 p-2 rounded-lg border border-slate-700">
                 <input placeholder={t("beds.roomPh")} className="bg-transparent text-sm px-2 outline-none flex-1 focus:ring-1 focus:ring-emerald-500 rounded text-white" value={newRoomNumber} onChange={(e) => setNewRoomNumber(e.target.value)} />
-                <button onClick={() => handleCreateRoom(ward.id)} className="text-xs bg-emerald-600 hover:bg-emerald-500 px-3 rounded text-white font-bold transition">{t("beds.saveBtn")}</button>
+                <button onClick={() => handleCreateRoom(ward.id)} className="text-xs bg-emerald-600 hover:bg-emerald-500 px-3 rounded text-white font-bold transition" disabled={createRoomMutation.isPending}>{t("beds.saveBtn")}</button>
               </div>
             )}
 
@@ -262,7 +303,7 @@ export default function BedManagementSettingsPage() {
                     {editRoomId === room.id ? (
                       <div className="flex gap-1 w-full max-w-[150px]">
                         <input className="bg-slate-900 border border-slate-600 rounded px-1 py-0.5 text-xs w-20 outline-none text-white focus:border-sky-500" value={editRoomNumber} onChange={e => setEditRoomNumber(e.target.value)} />
-                        <button onClick={() => handleUpdateRoom(room.id)} className="text-[10px] bg-emerald-600 px-2 rounded font-bold">{t("beds.saveBtn")}</button>
+                        <button onClick={() => handleUpdateRoom(room.id)} className="text-[10px] bg-emerald-600 px-2 rounded font-bold" disabled={updateRoomMutation.isPending}>{t("beds.saveBtn")}</button>
                         <button onClick={() => setEditRoomId(null)} className="text-[10px] bg-slate-700 px-2 rounded">✕</button>
                       </div>
                     ) : (
@@ -284,7 +325,7 @@ export default function BedManagementSettingsPage() {
                   {activeRoomId === room.id && (
                     <div className="mb-2 flex gap-1 animate-in fade-in zoom-in duration-200">
                       <input placeholder={t("beds.bedPh")} className="bg-slate-900 border border-slate-600 rounded px-1 py-0.5 text-xs w-20 outline-none focus:border-emerald-500 text-white" value={newBedNumber} onChange={(e) => setNewBedNumber(e.target.value)} />
-                      <button onClick={() => handleCreateBed(room.id)} className="text-[10px] bg-emerald-600 px-2 rounded font-bold">{t("beds.createBtn")}</button>
+                      <button onClick={() => handleCreateBed(room.id)} className="text-[10px] bg-emerald-600 px-2 rounded font-bold" disabled={createBedMutation.isPending}>{t("beds.createBtn")}</button>
                     </div>
                   )}
 
@@ -294,7 +335,7 @@ export default function BedManagementSettingsPage() {
                         {editBedId === bed.id ? (
                            <div className="flex gap-1 absolute inset-0 bg-slate-800 border-sky-500 border rounded z-10 px-1 items-center">
                              <input className="bg-slate-900 border border-slate-600 rounded px-1 py-0.5 text-xs w-12 outline-none text-white" value={editBedNumber} onChange={e => setEditBedNumber(e.target.value)} autoFocus />
-                             <button onClick={() => handleUpdateBed(bed.id, bed.status)} className="text-[10px] bg-emerald-600 text-white px-1.5 py-0.5 rounded">✓</button>
+                             <button onClick={() => handleUpdateBed(bed.id, bed.status)} className="text-[10px] bg-emerald-600 text-white px-1.5 py-0.5 rounded" disabled={updateBedMutation.isPending}>✓</button>
                              <button onClick={() => setEditBedId(null)} className="text-[10px] bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded">✕</button>
                            </div>
                         ) : (
@@ -352,8 +393,13 @@ export default function BedManagementSettingsPage() {
               </div>
             </div>
             <div className="flex justify-end gap-2 pt-4">
-              <button onClick={() => setShowWardModal(false)} className="px-4 py-2.5 hover:bg-slate-800 rounded-xl text-sm font-medium transition text-slate-300 border border-transparent hover:border-slate-700">{t("beds.cancel")}</button>
-              <button onClick={handleSaveWard} className="px-5 py-2.5 bg-sky-600 hover:bg-sky-500 rounded-xl text-sm font-bold shadow-lg shadow-sky-900/40 transition">{t("beds.saveChanges")}</button>
+              <button onClick={() => setShowWardModal(false)} className="px-4 py-2.5 hover:bg-slate-800 rounded-xl text-sm font-medium transition text-slate-300 border border-transparent hover:border-slate-700" disabled={saveWardMutation.isPending}>{t("beds.cancel")}</button>
+              <button onClick={handleSaveWard} className="px-5 py-2.5 bg-sky-600 hover:bg-sky-500 rounded-xl text-sm font-bold shadow-lg shadow-sky-900/40 transition flex items-center gap-2" disabled={saveWardMutation.isPending}>
+                {saveWardMutation.isPending && (
+                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                )}
+                {t("beds.saveChanges")}
+              </button>
             </div>
           </div>
         </div>

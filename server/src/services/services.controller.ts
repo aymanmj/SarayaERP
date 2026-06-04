@@ -27,6 +27,20 @@ export class ServicesController {
     return this.servicesService.findAll(req.user.hospitalId, type);
   }
 
+  @Get('categories')
+  async listCategories(@Req() req: any) {
+    return this.servicesService.findAllCategories(req.user.hospitalId);
+  }
+
+  @Post('categories')
+  @Permissions('services:manage')
+  async createCategory(@Req() req: any, @Body() body: any) {
+    return this.servicesService.createCategory(req.user.hospitalId, {
+      name: body.name,
+      description: body.description,
+    });
+  }
+
   @Get(':id')
   async findOne(@Req() req: any, @Param('id', ParseIntPipe) id: number) {
     return this.servicesService.findOne(req.user.hospitalId, id);
@@ -41,20 +55,6 @@ export class ServicesController {
       type: body.type,
       defaultPrice: Number(body.defaultPrice),
       categoryId: body.categoryId ? Number(body.categoryId) : undefined,
-    });
-  }
-
-  @Get('categories')
-  async listCategories(@Req() req: any) {
-    return this.servicesService.findAllCategories(req.user.hospitalId);
-  }
-
-  @Post('categories')
-  @Permissions('services:manage')
-  async createCategory(@Req() req: any, @Body() body: any) {
-    return this.servicesService.createCategory(req.user.hospitalId, {
-      name: body.name,
-      description: body.description,
     });
   }
 
