@@ -195,7 +195,7 @@ export default function BranchesAccessPage() {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full bg-slate-950 border border-slate-700 rounded-xl py-2 pr-10 pl-3 text-sm focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition-all"
-                placeholder={t("settings.branches.iAmLookingForAnEmployee", t("settings.branches.iAmLookingForAnEmployee", "ابحث عن موظف..."))}
+                placeholder={t("settings.branches.iAmLookingForAnEmployee", "ابحث عن موظف...")}
               />
               {searchTerm && (
                 <button
@@ -216,7 +216,7 @@ export default function BranchesAccessPage() {
             ) : filteredUsers.length === 0 ? (
               <div className="text-center py-16 text-slate-600">
                 <Users className="w-8 h-8 mx-auto mb-2 opacity-40" />
-                <p className="text-sm">{t("settings.branches.thereAreNoEmployees", t("settings.branches.thereAreNoEmployees", "لا يوجد موظفون"))}</p>
+                <p className="text-sm">{t("settings.branches.thereAreNoEmployees", "لا يوجد موظفون")}</p>
               </div>
             ) : (
               <div className="p-2 space-y-1">
@@ -297,7 +297,7 @@ export default function BranchesAccessPage() {
             {!selectedUserId ? (
               <div className="text-center py-20 text-slate-600">
                 <div className="text-4xl mb-3">👈</div>
-                <p className="text-sm font-bold">{t("settings.branches.selectAnEmployeeFromTheList", t("settings.branches.selectAnEmployeeFromTheList", "اختر موظفاً من القائمة"))}</p>
+                <p className="text-sm font-bold">{t("settings.branches.selectAnEmployeeFromTheList", "اختر موظفاً من القائمة")}</p>
                 <p className="text-xs mt-1 text-slate-700">
                   {t("settings.branches.toViewAndManageBranches", "لعرض وإدارة الفروع التي يملك الوصول إليها")}
                 </p>
@@ -401,7 +401,7 @@ export default function BranchesAccessPage() {
                       }}
                       disabled={removeMutation.isPending}
                       className="p-2 rounded-lg hover:bg-rose-500/20 text-slate-500 hover:text-rose-400 transition-all"
-                      title={t("settings.branches.revokeAccess", t("settings.branches.revokeAccess", "إلغاء الوصول"))}
+                      title={t("settings.branches.revokeAccess", "إلغاء الوصول")}
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -450,7 +450,7 @@ export default function BranchesAccessPage() {
                     id: u.id,
                     label: u.fullName,
                     sublabel: `@${u.username}`,
-                    badge: u.isActive ? "\u0646\u0634\u0637" : "\u0645\u0648\u0642\u0641",
+                    badge: u.isActive ? t("settings.branchesAccess.key_1594185", "نشط") : t("settings.branchesAccess.key_49411106", "موقف"),
                     badgeColor: u.isActive ? "green" : "red",
                   }));
                 }}
@@ -473,7 +473,7 @@ export default function BranchesAccessPage() {
                     id: h.id,
                     label: h.displayName || h.name,
                     sublabel: `${h.code}${h.city ? ` \u2014 ${h.city}` : ""}`,
-                    badge: h.isActive ? "\u0646\u0634\u0637" : "\u0645\u062a\u0648\u0642\u0641",
+                    badge: h.isActive ? t("settings.branchesAccess.key_1594185", "نشط") : t("settings.branchesAccess.key_1530857954", "متوقف"),
                     badgeColor: h.isActive ? "green" : "red",
                   }));
                 }}

@@ -67,7 +67,7 @@ export default function AuditLogsPage() {
         setMeta(res.data.meta);
       }
     } catch {
-      toast.error("فشل تحميل السجلات");
+      toast.error(t("settings.auditLogs.key_169718018", "فشل تحميل السجلات"));
     } finally {
       setLoading(false);
     }
@@ -102,7 +102,7 @@ export default function AuditLogsPage() {
     };
 
     const csvContent = [
-      "الوقت,المستخدم,العملية,الكيان,المعرف,عنوان IP",
+      t("settings.auditLogs.key_2049231409", "الوقت,المستخدم,العملية,الكيان,المعرف,عنوان IP"),
       // eslint-disable-next-line no-unsafe-optional-chaining
       ...logs?.map((log) =>
         [
@@ -121,7 +121,7 @@ export default function AuditLogsPage() {
     link.href = URL.createObjectURL(blob);
     link.download = `سجل-التدقيق-${new Date().toISOString().split("T")[0]}.csv`;
     link.click();
-    toast.success("تم تصدير السجلات بنجاح");
+    toast.success(t("settings.auditLogs.key_218738795", "تم تصدير السجلات بنجاح"));
   };
 
   const getActionColor = (action: string) => {
@@ -169,10 +169,10 @@ export default function AuditLogsPage() {
             <div className="p-2 bg-indigo-500/20 text-indigo-400 rounded-xl shadow-[0_0_15px_-3px_rgba(99,102,241,0.3)]">
               <Shield className="w-6 h-6" />
             </div>
-            سجل التدقيق (Audit Trail)
+           {t("settings.auditLogs.key_1233599091", "سجل التدقيق (Audit Trail)")}
           </h1>
           <p className="text-sm text-slate-400 mt-1">
-            مراقبة شاملة لحركات النظام، وتعديلات البيانات الحساسة (ISO 27001 Compliance).
+           {t("settings.auditLogs.key_265524261", "مراقبة شاملة لحركات النظام، وتعديلات البيانات الحساسة (ISO 27001 Compliance).")}
           </p>
         </div>
         <div className="relative z-10">
@@ -180,7 +180,7 @@ export default function AuditLogsPage() {
             onClick={() => loadLogs(meta.page)}
             className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded-xl text-sm font-bold transition-colors border border-slate-700"
           >
-            <RefreshCw className="w-4 h-4" /> تحديث السجل
+            <RefreshCw className="w-4 h-4" /> {t("settings.auditLogs.key_1826776699", "تحديث السجل")}
           </button>
         </div>
       </div>
@@ -189,46 +189,46 @@ export default function AuditLogsPage() {
       <div className="bg-slate-900/60 border border-slate-800 p-5 rounded-2xl relative overflow-hidden">
         <div className="flex flex-wrap gap-4 items-end">
           <div className="flex flex-col gap-1 flex-1 min-w-[200px]">
-             <label className="text-xs font-bold text-slate-400">البحث الشامل</label>
+             <label className="text-xs font-bold text-slate-400">{t("settings.auditLogs.key_14727898", "البحث الشامل")}</label>
              <div className="relative">
                <Search className="w-4 h-4 absolute right-3 top-3 text-slate-500" />
                <input 
                  value={searchQuery} 
                  onChange={(e) => setSearchQuery(e.target.value)} 
-                 placeholder="ابحث برقم المعرف، اسم الكيان، الخ..." 
+                 placeholder={t("settings.auditLogs.key_429667357", "ابحث برقم المعرف، اسم الكيان، الخ...")} 
                  className="w-full bg-slate-950 border border-slate-700 rounded-xl py-2.5 pr-10 pl-3 text-sm focus:border-indigo-500 outline-none transition-colors" 
                />
              </div>
           </div>
           <div className="flex flex-col gap-1 w-40">
-            <label className="text-xs font-bold text-slate-400">نوع العملية</label>
+            <label className="text-xs font-bold text-slate-400">{t("settings.auditLogs.key_1707457679", "نوع العملية")}</label>
             <select value={actionType} onChange={(e) => setActionType(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm focus:border-indigo-500 outline-none">
-              <option value="">كل العمليات</option>
-              <option value="VIEW">اطلاع (View)</option>
-              <option value="CREATE">إنشاء (Create)</option>
-              <option value="UPDATE">تعديل (Update)</option>
-              <option value="DELETE">حذف (Delete)</option>
+              <option value="">{t("settings.auditLogs.key_11854543", "كل العمليات")}</option>
+              <option value="VIEW">{t("settings.auditLogs.key_895897354", "اطلاع (View)")}</option>
+              <option value="CREATE">{t("settings.auditLogs.key_2128443784", "إنشاء (Create)")}</option>
+              <option value="UPDATE">{t("settings.auditLogs.key_492777630", "تعديل (Update)")}</option>
+              <option value="DELETE">{t("settings.auditLogs.key_232289144", "حذف (Delete)")}</option>
             </select>
           </div>
           <div className="flex flex-col gap-1 w-40">
-            <label className="text-xs font-bold text-slate-400">الكيان (Entity)</label>
-            <input value={entity} onChange={(e) => setEntity(e.target.value)} placeholder="مثال: patients" className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm focus:border-indigo-500 outline-none" />
+            <label className="text-xs font-bold text-slate-400">{t("settings.auditLogs.key_1074871483", "الكيان (Entity)")}</label>
+            <input value={entity} onChange={(e) => setEntity(e.target.value)} placeholder={t("settings.auditLogs.key_1620733065", "مثال: patients")} className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm focus:border-indigo-500 outline-none" />
           </div>
           <div className="flex flex-col gap-1 w-36">
-            <label className="text-xs font-bold text-slate-400">من تاريخ</label>
+            <label className="text-xs font-bold text-slate-400">{t("settings.auditLogs.key_1284375431", "من تاريخ")}</label>
             <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-full bg-slate-950 border border-slate-700 text-slate-300 rounded-xl px-3 py-2.5 text-sm focus:border-indigo-500 outline-none [&::-webkit-calendar-picker-indicator]:filter [&::-webkit-calendar-picker-indicator]:invert" />
           </div>
           <div className="flex flex-col gap-1 w-36">
-            <label className="text-xs font-bold text-slate-400">إلى تاريخ</label>
+            <label className="text-xs font-bold text-slate-400">{t("settings.auditLogs.key_222195070", "إلى تاريخ")}</label>
             <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-full bg-slate-950 border border-slate-700 text-slate-300 rounded-xl px-3 py-2.5 text-sm focus:border-indigo-500 outline-none [&::-webkit-calendar-picker-indicator]:filter [&::-webkit-calendar-picker-indicator]:invert" />
           </div>
           
           <div className="flex gap-2 mr-auto">
             <button onClick={handleSearch} className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-sm font-bold shadow-lg transition-colors">
-              تصفية
+             {t("settings.auditLogs.key_1506244085", "تصفية")}
             </button>
             <button onClick={handleReset} className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-sm transition-colors border border-slate-700 hover:border-slate-500">
-              إعادة تعيين
+             {t("settings.auditLogs.key_145609596", "إعادة تعيين")}
             </button>
             <button onClick={handleExport} className="px-4 py-2.5 bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-400 border border-emerald-500/30 hover:border-emerald-500 rounded-xl text-sm font-bold transition-colors flex items-center gap-2">
               <Download className="w-4 h-4" /> CSV
@@ -242,7 +242,7 @@ export default function AuditLogsPage() {
         {loading ? (
           <div className="flex-1 flex flex-col items-center justify-center">
              <div className="w-12 h-12 rounded-full border-4 border-indigo-500/30 border-t-indigo-500 animate-spin mb-4"></div>
-             <p className="animate-pulse text-slate-400">جاري تحميل السجلات الأمنية...</p>
+             <p className="animate-pulse text-slate-400">{t("settings.auditLogs.key_1240749255", "جاري تحميل السجلات الأمنية...")}</p>
           </div>
         ) : (
           <>
@@ -250,12 +250,12 @@ export default function AuditLogsPage() {
               <table className="w-full text-right text-sm">
                 <thead className="text-slate-400 bg-slate-900/80 sticky top-0 z-10 backdrop-blur-md border-b border-slate-800">
                   <tr>
-                    <th className="p-4 font-bold">الوقت</th>
-                    <th className="p-4 font-bold">المستخدم</th>
-                    <th className="p-4 font-bold">العملية</th>
-                    <th className="p-4 font-bold">الكيان</th>
-                    <th className="p-4 font-bold">المعرف (ID)</th>
-                    <th className="p-4 font-bold">عنوان IP</th>
+                    <th className="p-4 font-bold">{t("settings.auditLogs.key_1503926867", "الوقت")}</th>
+                    <th className="p-4 font-bold">{t("settings.auditLogs.key_1711706363", "المستخدم")}</th>
+                    <th className="p-4 font-bold">{t("settings.auditLogs.key_2143946534", "العملية")}</th>
+                    <th className="p-4 font-bold">{t("settings.auditLogs.key_623047133", "الكيان")}</th>
+                    <th className="p-4 font-bold">{t("settings.auditLogs.key_743013947", "المعرف (ID)")}</th>
+                    <th className="p-4 font-bold">{t("settings.auditLogs.key_1443217421", "عنوان IP")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/50">
@@ -264,7 +264,7 @@ export default function AuditLogsPage() {
                       <td colSpan={6} className="text-center py-20 text-slate-500">
                         <div className="flex flex-col items-center justify-center">
                           <ShieldAlert className="w-12 h-12 text-slate-700 mb-4 opacity-50" />
-                          <p>لا توجد سجلات تدقيق تطابق معايير البحث.</p>
+                          <p>{t("settings.auditLogs.key_698339676", "لا توجد سجلات تدقيق تطابق معايير البحث.")}</p>
                         </div>
                       </td>
                     </tr>
@@ -297,7 +297,7 @@ export default function AuditLogsPage() {
                             {log.entity}
                             {(log.oldValues || log.newValues) && (
                               <span className="text-[9px] bg-slate-800 text-sky-400 px-1.5 py-0.5 rounded shadow-sm border border-slate-700 opacity-0 group-hover:opacity-100 transition-opacity">
-                                🔍 تفاصيل
+                               {t("settings.auditLogs.key_950979119", "🔍 تفاصيل")}
                               </span>
                             )}
                           </div>
@@ -314,7 +314,7 @@ export default function AuditLogsPage() {
             {/* Pagination */}
             <div className="border-t border-slate-800 p-4 bg-slate-900/80 backdrop-blur-sm flex justify-between items-center text-sm">
               <div className="text-slate-400 font-bold">
-                إجمالي السجلات: <span className="text-white">{meta.total}</span> <span className="mx-2 text-slate-700">|</span> صفحة <span className="text-indigo-400">{meta.page}</span> من {meta.totalPages}
+               {t("settings.auditLogs.key_431948634", "إجمالي السجلات:")} <span className="text-white">{meta.total}</span> <span className="mx-2 text-slate-700">|</span> {t("settings.auditLogs.key_48927048", "صفحة")} <span className="text-indigo-400">{meta.page}</span> {t("settings.auditLogs.key_51361", "من")} {meta.totalPages}
               </div>
               <div className="flex gap-2">
                 <button 
@@ -343,7 +343,7 @@ export default function AuditLogsPage() {
           <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-3xl max-h-[85vh] overflow-hidden flex flex-col shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="p-5 border-b border-slate-800 bg-slate-900/80 flex justify-between items-center">
               <h2 className="text-xl font-bold flex items-center gap-2 text-white">
-                تفاصيل السجل <span className="text-slate-500 font-mono">#{selectedLog.id}</span>
+               {t("settings.auditLogs.key_617713165", "تفاصيل السجل")} <span className="text-slate-500 font-mono">#{selectedLog.id}</span>
               </h2>
               <button onClick={() => setSelectedLog(null)} className="p-2 hover:bg-slate-800 rounded-xl text-slate-400 hover:text-white transition-colors">
                 <X className="w-5 h-5" />
@@ -353,29 +353,29 @@ export default function AuditLogsPage() {
             <div className="p-6 overflow-auto custom-scrollbar flex-1 space-y-6">
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4 bg-slate-950 p-5 rounded-xl border border-slate-800">
                 <div>
-                  <div className="text-[10px] text-slate-500 font-bold mb-1">العملية</div>
+                  <div className="text-[10px] text-slate-500 font-bold mb-1">{t("settings.auditLogs.key_2143946534", "العملية")}</div>
                   <div className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-bold border ${getActionColor(selectedLog.action)}`}>
                     {selectedLog.action}
                   </div>
                 </div>
                 <div>
-                  <div className="text-[10px] text-slate-500 font-bold mb-1">الكيان</div>
+                  <div className="text-[10px] text-slate-500 font-bold mb-1">{t("settings.auditLogs.key_623047133", "الكيان")}</div>
                   <div className="font-mono text-indigo-300 text-sm">{selectedLog.entity}</div>
                 </div>
                 <div>
-                  <div className="text-[10px] text-slate-500 font-bold mb-1">المعرف</div>
+                  <div className="text-[10px] text-slate-500 font-bold mb-1">{t("settings.auditLogs.key_623003583", "المعرف")}</div>
                   <div className="font-mono text-slate-300 text-sm">{selectedLog.entityId || "N/A"}</div>
                 </div>
                 <div>
-                  <div className="text-[10px] text-slate-500 font-bold mb-1">الوقت</div>
+                  <div className="text-[10px] text-slate-500 font-bold mb-1">{t("settings.auditLogs.key_1503926867", "الوقت")}</div>
                   <div className="font-mono text-slate-300 text-sm">{new Date(selectedLog.createdAt).toLocaleString("ar-LY")}</div>
                 </div>
                 <div>
-                  <div className="text-[10px] text-slate-500 font-bold mb-1">المستخدم</div>
+                  <div className="text-[10px] text-slate-500 font-bold mb-1">{t("settings.auditLogs.key_1711706363", "المستخدم")}</div>
                   <div className="text-slate-300 text-sm font-bold">{selectedLog.user?.fullName || 'System'}</div>
                 </div>
                 <div>
-                  <div className="text-[10px] text-slate-500 font-bold mb-1">عنوان IP</div>
+                  <div className="text-[10px] text-slate-500 font-bold mb-1">{t("settings.auditLogs.key_1443217421", "عنوان IP")}</div>
                   <div className="font-mono text-slate-300 text-sm">{selectedLog.ipAddress || 'Unknown'}</div>
                 </div>
               </div>
@@ -384,11 +384,11 @@ export default function AuditLogsPage() {
               {(selectedLog.oldValues || selectedLog.newValues) && (
                 <div className="border border-slate-700 bg-slate-950 rounded-xl overflow-hidden">
                   <div className="bg-slate-800 p-4 font-bold border-b border-slate-700 text-slate-200 flex items-center gap-2">
-                    <Database className="w-4 h-4 text-sky-400" /> تغييرات البيانات (Data Diff)
+                    <Database className="w-4 h-4 text-sky-400" /> {t("settings.auditLogs.key_606068941", "تغييرات البيانات (Data Diff)")}
                   </div>
                   <div className="p-4 space-y-4">
                     {getChanges(selectedLog.oldValues, selectedLog.newValues).length === 0 ? (
-                      <div className="text-slate-500 text-center py-6">لم يتم رصد تغييرات فعلية في الحقول.</div>
+                      <div className="text-slate-500 text-center py-6">{t("settings.auditLogs.key_1711204905", "لم يتم رصد تغييرات فعلية في الحقول.")}</div>
                     ) : (
                       getChanges(selectedLog.oldValues, selectedLog.newValues).map((change: any, index: number) => (
                         <div key={index} className="flex flex-col border-b border-slate-800 pb-4 last:border-0 last:pb-0">
@@ -398,24 +398,24 @@ export default function AuditLogsPage() {
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {/* القديم */}
                             <div className="flex flex-col bg-slate-900/50 rounded-xl p-3 border border-slate-800">
-                              <span className="text-[10px] text-rose-400/80 mb-2 font-bold uppercase tracking-wider">البيانات السابقة</span>
+                              <span className="text-[10px] text-rose-400/80 mb-2 font-bold uppercase tracking-wider">{t("settings.auditLogs.key_250078975", "البيانات السابقة")}</span>
                               {change.old !== undefined ? (
                                 <div className="bg-rose-950/30 text-rose-300 p-3 rounded-lg text-xs font-mono break-all line-through decoration-rose-500/50">
                                   {typeof change.old === 'object' ? JSON.stringify(change.old, null, 2) : String(change.old)}
                                 </div>
                               ) : (
-                                <div className="bg-slate-900 text-slate-600 p-3 rounded-lg text-xs italic text-center">لا توجد قيمة سابقة</div>
+                                <div className="bg-slate-900 text-slate-600 p-3 rounded-lg text-xs italic text-center">{t("settings.auditLogs.key_712455287", "لا توجد قيمة سابقة")}</div>
                               )}
                             </div>
                             {/* الجديد */}
                             <div className="flex flex-col bg-slate-900/50 rounded-xl p-3 border border-slate-800">
-                              <span className="text-[10px] text-emerald-400/80 mb-2 font-bold uppercase tracking-wider">البيانات الجديدة</span>
+                              <span className="text-[10px] text-emerald-400/80 mb-2 font-bold uppercase tracking-wider">{t("settings.auditLogs.key_243884741", "البيانات الجديدة")}</span>
                               {change.new !== undefined ? (
                                 <div className="bg-emerald-950/30 text-emerald-300 p-3 rounded-lg text-xs font-mono break-all">
                                   {typeof change.new === 'object' ? JSON.stringify(change.new, null, 2) : String(change.new)}
                                 </div>
                               ) : (
-                                <div className="bg-slate-900 text-slate-600 p-3 rounded-lg text-xs italic text-center">تم حذف القيمة</div>
+                                <div className="bg-slate-900 text-slate-600 p-3 rounded-lg text-xs italic text-center">{t("settings.auditLogs.key_1020940944", "تم حذف القيمة")}</div>
                               )}
                             </div>
                           </div>

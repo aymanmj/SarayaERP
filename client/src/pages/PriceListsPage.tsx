@@ -35,7 +35,7 @@ export default function PriceListsPage() {
       setLists(res.data);
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
-      toast.error("فشل تحميل قوائم الأسعار");
+      toast.error(t("settings.priceLists.key_1696388701", "فشل تحميل قوائم الأسعار"));
     } finally {
       setLoading(false);
     }
@@ -47,7 +47,7 @@ export default function PriceListsPage() {
 
   const handleCreate = async () => {
     if (!newName) {
-      toast.warning("يجب إدخال اسم القائمة");
+      toast.warning(t("settings.priceLists.key_982452600", "يجب إدخال اسم القائمة"));
       return;
     }
     try {
@@ -56,14 +56,14 @@ export default function PriceListsPage() {
         code: newCode || undefined,
         isDefault: false,
       });
-      toast.success("تم إنشاء القائمة بنجاح");
+      toast.success(t("settings.priceLists.key_1065455452", "تم إنشاء القائمة بنجاح"));
       setShowModal(false);
       setNewName("");
       setNewCode("");
       loadLists();
      
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || "فشل الإنشاء");
+      toast.error(err?.response?.data?.message || t("settings.priceLists.key_102952383", "فشل الإنشاء"));
     }
   };
 
@@ -75,25 +75,24 @@ export default function PriceListsPage() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold mb-1">
-            قوائم الأسعار (Price Lists)
+           {t("settings.priceLists.key_1848364649", "قوائم الأسعار (Price Lists)")}
           </h1>
           <p className="text-sm text-slate-400">
-            إدارة لوائح الأسعار المختلفة (نقدي، تأمين، شركات) وتخصيص أسعار
-            الخدمات.
+           {t("settings.priceLists.key_302596035", "إدارة لوائح الأسعار المختلفة (نقدي، تأمين، شركات) وتخصيص أسعار             الخدمات.")}
           </p>
         </div>
         <button
           onClick={() => setShowModal(true)}
           className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-xl text-sm font-bold shadow-lg"
         >
-          + قائمة جديدة
+         {t("settings.priceLists.key_125061073", "+ قائمة جديدة")}
         </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {loading && (
           <div className="col-span-3 text-center text-slate-500">
-            جارِ التحميل...
+           {t("settings.priceLists.key_397509045", "جارِ التحميل...")}
           </div>
         )}
 
@@ -107,25 +106,25 @@ export default function PriceListsPage() {
                 <h3 className="font-bold text-lg text-white">{list.name}</h3>
                 {list.isDefault && (
                   <span className="bg-sky-900/30 text-sky-300 text-[10px] px-2 py-0.5 rounded border border-sky-500/30">
-                    افتراضي
+                   {t("settings.priceLists.key_2050656218", "افتراضي")}
                   </span>
                 )}
               </div>
 
               <div className="text-sm text-slate-400 mb-4">
-                الكود:{" "}
+               {t("settings.priceLists.key_623050355", "الكود:")}{" "}
                 <span className="font-mono text-slate-300">
                   {list.code || "—"}
                 </span>
               </div>
 
               <div className="flex justify-between items-center text-xs text-slate-500 border-t border-slate-800 pt-3">
-                <span>عدد الخدمات المسعرة: {list._count?.items ?? 0}</span>
+                <span>{t("settings.priceLists.key_1559779889", "عدد الخدمات المسعرة:")} {list._count?.items ?? 0}</span>
                 <button
                   onClick={() => navigate(`/price-lists/${list.id}`)}
                   className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg transition"
                 >
-                  إدارة الأسعار ➜
+                 {t("settings.priceLists.key_873661639", "إدارة الأسعار ➜")}
                 </button>
               </div>
             </div>
@@ -136,26 +135,26 @@ export default function PriceListsPage() {
       {showModal && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
           <div className="bg-slate-950 border border-slate-700 rounded-2xl p-6 w-full max-w-sm space-y-4">
-            <h3 className="text-lg font-bold">إضافة قائمة أسعار</h3>
+            <h3 className="text-lg font-bold">{t("settings.priceLists.key_1086702198", "إضافة قائمة أسعار")}</h3>
             <div className="space-y-3">
               <div>
                 <label className="text-xs text-slate-400 block mb-1">
-                  اسم القائمة
+                 {t("settings.priceLists.key_2083015105", "اسم القائمة")}
                 </label>
                 <input
                   className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm"
-                  placeholder="مثال: شركة ليبيا للتأمين - فئة أ"
+                  placeholder={t("settings.priceLists.key_1043756295", "مثال: شركة ليبيا للتأمين - فئة أ")}
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
                 />
               </div>
               <div>
                 <label className="text-xs text-slate-400 block mb-1">
-                  الكود (اختياري)
+                 {t("settings.priceLists.key_541298341", "الكود (اختياري)")}
                 </label>
                 <input
                   className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm"
-                  placeholder="مثال: INS-A"
+                  placeholder={t("settings.priceLists.key_2052888263", "مثال: INS-A")}
                   value={newCode}
                   onChange={(e) => setNewCode(e.target.value)}
                 />
@@ -166,13 +165,13 @@ export default function PriceListsPage() {
                 onClick={() => setShowModal(false)}
                 className="px-4 py-2 bg-slate-800 rounded-xl text-sm"
               >
-                إلغاء
+               {t("settings.priceLists.key_1502065525", "إلغاء")}
               </button>
               <button
                 onClick={handleCreate}
                 className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-sm font-bold"
               >
-                حفظ
+               {t("settings.priceLists.key_1570564", "حفظ")}
               </button>
             </div>
           </div>

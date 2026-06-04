@@ -105,24 +105,24 @@ const roleColors: Record<string, string> = {
 };
 
 // ===== PERMISSION GROUP LABELS =====
-const permissionGroupLabels: Record<string, { label: string; icon: string }> = {
-  admin: { label: "الإدارة العامة", icon: "⚙️" },
-  clinical: { label: "العيادات والاستقبال", icon: "🩺" },
-  nursing: { label: "التمريض", icon: "💉" },
-  adt: { label: "الدخول والخروج (ADT)", icon: "🏥" },
-  lab: { label: "المختبر", icon: "🧪" },
-  rad: { label: "الأشعة", icon: "💀" },
-  pharmacy: { label: "الصيدلية", icon: "💊" },
-  surgery: { label: "العمليات", icon: "🔪" },
-  hr: { label: "الموارد البشرية", icon: "👥" },
-  billing: { label: "الفوترة", icon: "💰" },
-  acc: { label: "المحاسبة", icon: "🧮" },
-  purchases: { label: "المشتريات", icon: "📦" },
-  inventory: { label: "المخزون", icon: "🏭" },
-  assets: { label: "الأصول والصيانة", icon: "🏗️" },
-  integration: { label: "الربط والأنظمة", icon: "🔌" },
-  system: { label: "النظام", icon: "🖥️" },
-};
+const getPermissionGroupLabels = (t: any): Record<string, { label: string; icon: string }> => ({
+  admin: { label: t("settings.usersAndRoles.key_1316600055", "الإدارة العامة"), icon: "⚙️" },
+  clinical: { label: t("settings.usersAndRoles.key_1448491843", "العيادات والاستقبال"), icon: "🩺" },
+  nursing: { label: t("settings.usersAndRoles.key_2137149701", "التمريض"), icon: "💉" },
+  adt: { label: t("settings.usersAndRoles.key_25913116", "الدخول والخروج (ADT)"), icon: "🏥" },
+  lab: { label: t("settings.usersAndRoles.key_2133575507", "المختبر"), icon: "🧪" },
+  rad: { label: t("settings.usersAndRoles.key_624021058", "الأشعة"), icon: "💀" },
+  pharmacy: { label: t("settings.usersAndRoles.key_2146606406", "الصيدلية"), icon: "💊" },
+  surgery: { label: t("settings.usersAndRoles.key_2037831598", "العمليات"), icon: "🔪" },
+  hr: { label: t("settings.usersAndRoles.key_1977086292", "الموارد البشرية"), icon: "👥" },
+  billing: { label: t("settings.usersAndRoles.key_2136494754", "الفوترة"), icon: "💰" },
+  acc: { label: t("settings.usersAndRoles.key_1717332302", "المحاسبة"), icon: "🧮" },
+  purchases: { label: t("settings.usersAndRoles.key_1494544582", "المشتريات"), icon: "📦" },
+  inventory: { label: t("settings.usersAndRoles.key_2133566806", "المخزون"), icon: "🏭" },
+  assets: { label: t("settings.usersAndRoles.key_706667227", "الأصول والصيانة"), icon: "🏗️" },
+  integration: { label: t("settings.usersAndRoles.key_94601681", "الربط والأنظمة"), icon: "🔌" },
+  system: { label: t("settings.usersAndRoles.key_622975059", "النظام"), icon: "🖥️" },
+});
 
 export default function UsersAndRolesPage() {
   const { t, i18n } = useTranslation();
@@ -179,7 +179,7 @@ export default function UsersAndRolesPage() {
       setSpecialties(specsRes.data);
       setAvailableRoles(rolesRes.data);
     } catch {
-      toast.error("فشل تحميل بيانات المستخدمين");
+      toast.error(t("settings.usersAndRoles.key_663549642", "فشل تحميل بيانات المستخدمين"));
     } finally {
       setLoading(false);
     }
@@ -195,7 +195,7 @@ export default function UsersAndRolesPage() {
       setRoles(rolesRes.data);
       setAllPermissions(permsRes.data);
     } catch {
-      toast.error("فشل تحميل بيانات الأدوار");
+      toast.error(t("settings.usersAndRoles.key_711151424", "فشل تحميل بيانات الأدوار"));
     } finally {
       setLoading(false);
     }
@@ -266,11 +266,11 @@ export default function UsersAndRolesPage() {
 
   const handleSubmitUser = async () => {
     if (!userFormData.fullName || !userFormData.username) {
-      toast.warning("الاسم واسم المستخدم مطلوبان");
+      toast.warning(t("settings.usersAndRoles.key_413724417", "الاسم واسم المستخدم مطلوبان"));
       return;
     }
     if (userFormData.roles.length === 0) {
-      toast.warning("يجب تعيين دور واحد على الأقل");
+      toast.warning(t("settings.usersAndRoles.key_1175258222", "يجب تعيين دور واحد على الأقل"));
       return;
     }
 
@@ -287,16 +287,16 @@ export default function UsersAndRolesPage() {
 
       if (editingUserId) {
         await apiClient.patch(`/users/${editingUserId}`, payload);
-        toast.success("تم تحديث المستخدم بنجاح");
+        toast.success(t("settings.usersAndRoles.key_2119224337", "تم تحديث المستخدم بنجاح"));
       } else {
         await apiClient.post("/users", payload);
-        toast.success("تم إنشاء المستخدم بنجاح");
+        toast.success(t("settings.usersAndRoles.key_230198737", "تم إنشاء المستخدم بنجاح"));
       }
       setShowUserModal(false);
       loadUsersData();
      
     } catch (err: any) {
-      toast.error(err.response?.data?.message || "حدث خطأ");
+      toast.error(err.response?.data?.message || t("settings.usersAndRoles.key_1774916189", "حدث خطأ"));
     }
   };
 
@@ -332,7 +332,7 @@ export default function UsersAndRolesPage() {
       loadRolesData();
      
     } catch (err: any) {
-      toast.error(err.response?.data?.message || "حدث خطأ");
+      toast.error(err.response?.data?.message || t("settings.usersAndRoles.key_1774916189", "حدث خطأ"));
     } finally {
       setSaving(false);
     }
@@ -365,10 +365,10 @@ export default function UsersAndRolesPage() {
       <div className="flex justify-between items-start mb-6">
         <div>
           <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
-            إدارة المستخدمين والصلاحيات
+           {t("settings.usersAndRoles.key_2123066873", "إدارة المستخدمين والصلاحيات")}
           </h1>
           <p className="text-sm text-slate-400 mt-1">
-            إدارة حسابات المستخدمين، الأدوار، والصلاحيات التفصيلية
+           {t("settings.usersAndRoles.key_1884731562", "إدارة حسابات المستخدمين، الأدوار، والصلاحيات التفصيلية")}
           </p>
         </div>
 
@@ -378,7 +378,7 @@ export default function UsersAndRolesPage() {
             className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white rounded-xl font-bold shadow-lg shadow-emerald-900/30 transition-all"
           >
             {Icons.add}
-            <span>مستخدم جديد</span>
+            <span>{t("settings.usersAndRoles.key_1818744000", "مستخدم جديد")}</span>
           </button>
         )}
       </div>
@@ -394,7 +394,7 @@ export default function UsersAndRolesPage() {
           }`}
         >
           {Icons.users}
-          <span>المستخدمون</span>
+          <span>{t("settings.usersAndRoles.key_22710979", "المستخدمون")}</span>
           <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded-full">{users.length}</span>
         </button>
         <button
@@ -406,7 +406,7 @@ export default function UsersAndRolesPage() {
           }`}
         >
           {Icons.shield}
-          <span>الأدوار والصلاحيات</span>
+          <span>{t("settings.usersAndRoles.key_311835158", "الأدوار والصلاحيات")}</span>
           <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded-full">{roles.length}</span>
         </button>
       </div>
@@ -421,7 +421,7 @@ export default function UsersAndRolesPage() {
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">{Icons.search}</span>
               <input
                 type="text"
-                placeholder="البحث بالاسم، اسم المستخدم، البريد، أو الهاتف..."
+                placeholder={t("settings.usersAndRoles.key_1823887933", "البحث بالاسم، اسم المستخدم، البريد، أو الهاتف...")}
                 className="w-full bg-slate-900/50 border border-slate-800 rounded-xl pl-12 pr-4 py-3 outline-none focus:border-sky-500 transition"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -500,7 +500,7 @@ export default function UsersAndRolesPage() {
                     {/* Status Badge */}
                     {!user.isActive && (
                       <div className="mt-3 text-[10px] text-rose-400 bg-rose-500/10 border border-rose-500/20 px-2 py-1 rounded-lg inline-block">
-                        ⛔ حساب معطّل
+                       {t("settings.usersAndRoles.key_2107878889", "⛔ حساب معطّل")}
                       </div>
                     )}
                   </div>
@@ -510,7 +510,7 @@ export default function UsersAndRolesPage() {
               {filteredUsers.length === 0 && !loading && (
                 <div className="flex flex-col items-center justify-center py-16 text-slate-500">
                   <div className="text-5xl mb-4">🔍</div>
-                  <div>لا يوجد مستخدمون مطابقون للبحث</div>
+                  <div>{t("settings.usersAndRoles.key_578658811", "لا يوجد مستخدمون مطابقون للبحث")}</div>
                 </div>
               )}
             </div>
@@ -523,7 +523,7 @@ export default function UsersAndRolesPage() {
             {/* Roles Sidebar */}
             <div className="w-72 flex-shrink-0 bg-slate-900/50 border border-slate-800 rounded-2xl p-4 overflow-y-auto custom-scrollbar">
               <div className="text-xs text-slate-500 uppercase tracking-wider mb-4 flex items-center justify-between">
-                <span>الأدوار المتاحة</span>
+                <span>{t("settings.usersAndRoles.key_316572214", "الأدوار المتاحة")}</span>
                 <span className="bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded-full">{roles.length}</span>
               </div>
               <div className="space-y-2">
@@ -540,7 +540,7 @@ export default function UsersAndRolesPage() {
                     <div className="flex items-center justify-between mb-1">
                       <span className="font-bold">{role.name}</span>
                       {role.isSystem && (
-                        <span className="text-[9px] bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded">نظام</span>
+                        <span className="text-[9px] bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded">{t("settings.usersAndRoles.key_49424688", "نظام")}</span>
                       )}
                     </div>
                     <div className="text-[11px] opacity-70 mb-2">{role.description || "---"}</div>
@@ -548,7 +548,7 @@ export default function UsersAndRolesPage() {
                       <span className={`px-2 py-0.5 rounded ${
                         selectedRole?.id === role.id ? "bg-white/20" : "bg-slate-800"
                       }`}>
-                        🔐 {role.rolePermissions?.length || 0} صلاحية
+                        🔐 {role.rolePermissions?.length || 0} {t("settings.usersAndRoles.key_223099980", "صلاحية")}
                       </span>
                     </div>
                   </button>
@@ -562,9 +562,9 @@ export default function UsersAndRolesPage() {
                 <div className="flex-1 flex items-center justify-center text-slate-500">
                   <div className="text-center">
                     <div className="text-6xl mb-4">🔐</div>
-                    <div className="text-lg">اختر دوراً لإدارة صلاحياته</div>
+                    <div className="text-lg">{t("settings.usersAndRoles.key_1889008120", "اختر دوراً لإدارة صلاحياته")}</div>
                     <div className="text-sm mt-2 opacity-70">
-                      يمكنك تحديد الصلاحيات التي يمتلكها كل دور
+                     {t("settings.usersAndRoles.key_72105503", "يمكنك تحديد الصلاحيات التي يمتلكها كل دور")}
                     </div>
                   </div>
                 </div>
@@ -586,18 +586,18 @@ export default function UsersAndRolesPage() {
                       disabled={saving}
                       className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 disabled:from-slate-700 disabled:to-slate-700 text-white rounded-xl font-bold shadow-lg transition-all"
                     >
-                      {saving ? "جاري الحفظ..." : "💾 حفظ التغييرات"}
+                      {saving ? t("settings.usersAndRoles.key_1833166381", "جاري الحفظ...") : t("settings.usersAndRoles.key_34990796", "💾 حفظ التغييرات")}
                     </button>
                   </div>
 
                   {/* Stats Bar */}
                   <div className="flex items-center gap-6 bg-slate-950 rounded-xl p-3 mb-4">
                     <div className="text-sm">
-                      <span className="text-slate-500">محدد: </span>
+                      <span className="text-slate-500">{t("settings.usersAndRoles.key_1530921170", "محدد:")} </span>
                       <span className="text-emerald-400 font-bold">{selectedPermissionIds.length}</span>
                     </div>
                     <div className="text-sm">
-                      <span className="text-slate-500">إجمالي: </span>
+                      <span className="text-slate-500">{t("settings.usersAndRoles.key_300899221", "إجمالي:")} </span>
                       <span className="text-slate-300">{allPermissions.length}</span>
                     </div>
                     <div className="h-2 flex-1 bg-slate-800 rounded-full overflow-hidden">
@@ -611,7 +611,7 @@ export default function UsersAndRolesPage() {
                   {/* Permissions Grid */}
                   <div className="flex-1 overflow-y-auto custom-scrollbar space-y-6">
                     {Object.entries(groupedPermissions).map(([prefix, perms]) => {
-                      const groupInfo = permissionGroupLabels[prefix] || { label: prefix, icon: "📌" };
+                      const groupInfo = getPermissionGroupLabels(t)[prefix] || { label: prefix, icon: "📌" };
                       const selectedInGroup = perms.filter((p) => selectedPermissionIds.includes(p.id)).length;
                       // eslint-disable-next-line @typescript-eslint/no-unused-vars
                       const allSelected = selectedInGroup === perms.length;
@@ -629,13 +629,13 @@ export default function UsersAndRolesPage() {
                                 onClick={() => selectAllInGroup(perms)}
                                 className="text-[10px] px-2 py-1 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 rounded transition"
                               >
-                                تحديد الكل
+                               {t("settings.usersAndRoles.key_311992685", "تحديد الكل")}
                               </button>
                               <button
                                 onClick={() => deselectAllInGroup(perms)}
                                 className="text-[10px] px-2 py-1 bg-slate-700 text-slate-400 hover:bg-slate-600 rounded transition"
                               >
-                                إلغاء الكل
+                               {t("settings.usersAndRoles.key_1029808151", "إلغاء الكل")}
                               </button>
                             </div>
                           </div>
@@ -686,7 +686,7 @@ export default function UsersAndRolesPage() {
           <div className="bg-slate-950 border border-slate-700 rounded-3xl p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto space-y-6 shadow-2xl animate-in zoom-in-95 duration-200 custom-scrollbar">
             <div className="flex justify-between items-center border-b border-slate-800 pb-4">
               <h3 className="text-xl font-bold text-white">
-                {editingUserId ? "تعديل بيانات المستخدم" : "إضافة مستخدم جديد"}
+                {editingUserId ? t("settings.usersAndRoles.key_269451973", "تعديل بيانات المستخدم") : t("settings.usersAndRoles.key_744641474", "إضافة مستخدم جديد")}
               </h3>
               <button onClick={() => setShowUserModal(false)} className="text-slate-500 hover:text-white text-2xl">
                 ✕
@@ -697,11 +697,11 @@ export default function UsersAndRolesPage() {
               {/* Right Column */}
               <div className="space-y-4">
                 <div className="text-sky-400 font-bold text-xs uppercase tracking-wider border-b border-slate-800 pb-2">
-                  بيانات الحساب
+                 {t("settings.usersAndRoles.key_1144856800", "بيانات الحساب")}
                 </div>
 
                 <div>
-                  <label className="text-slate-400 text-xs block mb-1">الاسم الكامل *</label>
+                  <label className="text-slate-400 text-xs block mb-1">{t("settings.usersAndRoles.key_320557390", "الاسم الكامل *")}</label>
                   <input
                     className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 outline-none focus:border-sky-500 transition"
                     value={userFormData.fullName}
@@ -711,7 +711,7 @@ export default function UsersAndRolesPage() {
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-slate-400 text-xs block mb-1">اسم المستخدم *</label>
+                    <label className="text-slate-400 text-xs block mb-1">{t("settings.usersAndRoles.key_209104246", "اسم المستخدم *")}</label>
                     <input
                       className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 outline-none focus:border-sky-500 transition font-mono"
                       value={userFormData.username}
@@ -721,19 +721,19 @@ export default function UsersAndRolesPage() {
                     />
                   </div>
                   <div>
-                    <label className="text-slate-400 text-xs block mb-1">كلمة المرور</label>
+                    <label className="text-slate-400 text-xs block mb-1">{t("settings.usersAndRoles.key_486378291", "كلمة المرور")}</label>
                     <input
                       type="password"
                       className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 outline-none focus:border-sky-500 transition"
                       value={userFormData.password}
                       onChange={(e) => setUserFormData({ ...userFormData, password: e.target.value })}
-                      placeholder={editingUserId ? "اتركه فارغاً للإبقاء" : ""}
+                      placeholder={editingUserId ? t("settings.usersAndRoles.key_1286811834", "اتركه فارغاً للإبقاء") : ""}
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="text-slate-400 text-xs block mb-2">الأدوار *</label>
+                  <label className="text-slate-400 text-xs block mb-2">{t("settings.usersAndRoles.key_1720710093", "الأدوار *")}</label>
                   <div className="flex flex-wrap gap-2 bg-slate-900/50 p-3 rounded-xl border border-slate-800 min-h-[80px] content-start">
                     {availableRoles.map((role) => {
                       const isSelected = userFormData.roles.includes(role.name);
@@ -763,7 +763,7 @@ export default function UsersAndRolesPage() {
                       onChange={(e) => setUserFormData({ ...userFormData, isActive: e.target.checked })}
                       className="w-4 h-4 rounded accent-emerald-500"
                     />
-                    <span className="text-slate-300 text-xs">حساب نشط</span>
+                    <span className="text-slate-300 text-xs">{t("settings.usersAndRoles.key_1332460720", "حساب نشط")}</span>
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
@@ -772,7 +772,7 @@ export default function UsersAndRolesPage() {
                       onChange={(e) => setUserFormData({ ...userFormData, isDoctor: e.target.checked })}
                       className="w-4 h-4 rounded accent-purple-500"
                     />
-                    <span className="text-slate-300 text-xs">طبيب</span>
+                    <span className="text-slate-300 text-xs">{t("settings.usersAndRoles.key_48963503", "طبيب")}</span>
                   </label>
                 </div>
               </div>
@@ -780,32 +780,32 @@ export default function UsersAndRolesPage() {
               {/* Left Column */}
               <div className="space-y-4">
                 <div className="text-emerald-400 font-bold text-xs uppercase tracking-wider border-b border-slate-800 pb-2">
-                  البيانات الوظيفية
+                 {t("settings.usersAndRoles.key_219559806", "البيانات الوظيفية")}
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-slate-400 text-xs block mb-1">القسم</label>
+                    <label className="text-slate-400 text-xs block mb-1">{t("settings.usersAndRoles.key_1503920663", "القسم")}</label>
                     <select
                       className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 outline-none focus:border-emerald-500 text-xs"
                       value={userFormData.departmentId}
                       onChange={(e) => setUserFormData({ ...userFormData, departmentId: e.target.value })}
                     >
-                      <option value="">-- بدون --</option>
+                      <option value="">{t("settings.usersAndRoles.key_1894222629", "-- بدون --")}</option>
                       {departments.map((d) => (
                         <option key={d.id} value={d.id}>{d.name}</option>
                       ))}
                     </select>
                   </div>
                   <div className={userFormData.isDoctor ? "" : "opacity-50 pointer-events-none"}>
-                    <label className="text-slate-400 text-xs block mb-1">التخصص</label>
+                    <label className="text-slate-400 text-xs block mb-1">{t("settings.usersAndRoles.key_623818399", "التخصص")}</label>
                     <select
                       className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 outline-none focus:border-emerald-500 text-xs"
                       value={userFormData.specialtyId}
                       onChange={(e) => setUserFormData({ ...userFormData, specialtyId: e.target.value })}
                       disabled={!userFormData.isDoctor}
                     >
-                      <option value="">-- بدون --</option>
+                      <option value="">{t("settings.usersAndRoles.key_1894222629", "-- بدون --")}</option>
                       {specialties.map((s) => (
                         <option key={s.id} value={s.id}>{s.name}</option>
                       ))}
@@ -815,24 +815,24 @@ export default function UsersAndRolesPage() {
 
                 {/* 🏷️ الرتبة الوظيفية (للأطباء فقط) */}
                 <div className={userFormData.isDoctor ? "" : "hidden"}>
-                  <label className="text-slate-400 text-xs block mb-1">الرتبة الوظيفية (لتسعير الكشف)</label>
+                  <label className="text-slate-400 text-xs block mb-1">{t("settings.usersAndRoles.key_1637438993", "الرتبة الوظيفية (لتسعير الكشف)")}</label>
                   <select
                     className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 outline-none focus:border-purple-500 text-xs"
                     value={userFormData.jobRank}
                     onChange={(e) => setUserFormData({ ...userFormData, jobRank: e.target.value })}
                     disabled={!userFormData.isDoctor}
                   >
-                    <option value="">-- اختر الرتبة --</option>
-                    <option value="CONSULTANT">استشاري</option>
-                    <option value="SPECIALIST">اخصائي</option>
-                    <option value="GENERAL_PRACTITIONER">طبيب عام</option>
-                    <option value="RESIDENT">مقيم / طبيب تدريب</option>
+                    <option value="">{t("settings.usersAndRoles.key_554471337", "-- اختر الرتبة --")}</option>
+                    <option value="CONSULTANT">{t("settings.usersAndRoles.key_1649937322", "استشاري")}</option>
+                    <option value="SPECIALIST">{t("settings.usersAndRoles.key_643815331", "اخصائي")}</option>
+                    <option value="GENERAL_PRACTITIONER">{t("settings.usersAndRoles.key_1410096390", "طبيب عام")}</option>
+                    <option value="RESIDENT">{t("settings.usersAndRoles.key_714796782", "مقيم / طبيب تدريب")}</option>
                   </select>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-slate-400 text-xs block mb-1">الراتب الأساسي</label>
+                    <label className="text-slate-400 text-xs block mb-1">{t("settings.usersAndRoles.key_1015255870", "الراتب الأساسي")}</label>
                     <input
                       type="number"
                       className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 outline-none focus:border-emerald-500"
@@ -841,7 +841,7 @@ export default function UsersAndRolesPage() {
                     />
                   </div>
                   <div>
-                    <label className="text-slate-400 text-xs block mb-1">رصيد الإجازات</label>
+                    <label className="text-slate-400 text-xs block mb-1">{t("settings.usersAndRoles.key_1591325545", "رصيد الإجازات")}</label>
                     <input
                       type="number"
                       className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 outline-none focus:border-emerald-500 text-center"
@@ -852,7 +852,7 @@ export default function UsersAndRolesPage() {
                 </div>
 
                 <div>
-                  <label className="text-slate-400 text-xs block mb-1">نسبة العمولة</label>
+                  <label className="text-slate-400 text-xs block mb-1">{t("settings.usersAndRoles.key_71265138", "نسبة العمولة")}</label>
                   <div className="flex items-center gap-3">
                     <input
                       type="number"
@@ -870,7 +870,7 @@ export default function UsersAndRolesPage() {
 
                 <div className="grid grid-cols-2 gap-3 pt-2">
                   <div>
-                    <label className="text-slate-400 text-xs block mb-1">الهاتف</label>
+                    <label className="text-slate-400 text-xs block mb-1">{t("settings.usersAndRoles.key_622961516", "الهاتف")}</label>
                     <input
                       className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 outline-none focus:border-slate-500"
                       value={userFormData.phone}
@@ -878,7 +878,7 @@ export default function UsersAndRolesPage() {
                     />
                   </div>
                   <div>
-                    <label className="text-slate-400 text-xs block mb-1">البريد الإلكتروني</label>
+                    <label className="text-slate-400 text-xs block mb-1">{t("settings.usersAndRoles.key_520479827", "البريد الإلكتروني")}</label>
                     <input
                       className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 outline-none focus:border-slate-500"
                       value={userFormData.email}
@@ -894,13 +894,13 @@ export default function UsersAndRolesPage() {
                 onClick={() => setShowUserModal(false)}
                 className="px-6 py-2.5 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 text-sm transition"
               >
-                إلغاء
+               {t("settings.usersAndRoles.key_1502065525", "إلغاء")}
               </button>
               <button
                 onClick={handleSubmitUser}
                 className="px-8 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-500 text-white hover:from-emerald-500 hover:to-emerald-400 text-sm font-bold shadow-lg transition"
               >
-                {editingUserId ? "حفظ التعديلات" : "إنشاء المستخدم"}
+                {editingUserId ? t("settings.usersAndRoles.key_1341330268", "حفظ التعديلات") : t("settings.usersAndRoles.key_1063640088", "إنشاء المستخدم")}
               </button>
             </div>
           </div>

@@ -17,15 +17,15 @@ type ServiceItem = {
   category?: { id: number; name: string };
 };
 
-const SERVICE_TYPES = [
-  { label: "كشف (Consultation)", value: "CONSULTATION" },
-  { label: "عملية جراحية (Surgery)", value: "SURGERY" },
-  { label: "مختبر (Lab)", value: "LAB" },
-  { label: "أشعة (Radiology)", value: "RADIOLOGY" },
-  { label: "إجراء طبي (Procedure)", value: "PROCEDURE" },
-  { label: "إقامة (Bed)", value: "BED" },
-  { label: "صيدلية (Pharmacy)", value: "PHARMACY" },
-  { label: "أخرى", value: "OTHER" },
+const getServiceTypes = (t: any) => [
+  { label: t("settings.servicesMaster.key_650644872", "كشف (Consultation)"), value: "CONSULTATION" },
+  { label: t("settings.servicesMaster.key_493695665", "عملية جراحية (Surgery)"), value: "SURGERY" },
+  { label: t("settings.servicesMaster.key_1243995246", "مختبر (Lab)"), value: "LAB" },
+  { label: t("settings.servicesMaster.key_449507810", "أشعة (Radiology)"), value: "RADIOLOGY" },
+  { label: t("settings.servicesMaster.key_211429019", "إجراء طبي (Procedure)"), value: "PROCEDURE" },
+  { label: t("settings.servicesMaster.key_600493182", "إقامة (Bed)"), value: "BED" },
+  { label: t("settings.servicesMaster.key_1319125755", "صيدلية (Pharmacy)"), value: "PHARMACY" },
+  { label: t("settings.servicesMaster.key_48372707", "أخرى"), value: "OTHER" },
 ];
 
 export default function ServicesMasterPage() {
@@ -73,7 +73,7 @@ export default function ServicesMasterPage() {
       setCategories(resCat.data);
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
-      toast.error("فشل تحميل البيانات");
+      toast.error(t("settings.servicesMaster.key_1254338956", "فشل تحميل البيانات"));
     } finally {
       setLoading(false);
     }
@@ -90,18 +90,18 @@ export default function ServicesMasterPage() {
         defaultPrice: editPrice,
         categoryId: editCategoryId ? Number(editCategoryId) : null,
       });
-      toast.success("تم تحديث بيانات الخدمة");
+      toast.success(t("settings.servicesMaster.key_20537306", "تم تحديث بيانات الخدمة"));
       setEditingId(null);
       loadData();
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
-      toast.error("فشل التحديث");
+      toast.error(t("settings.servicesMaster.key_99083263", "فشل التحديث"));
     }
   };
 
   const handleCreate = async () => {
     if (!newService.code || !newService.name || !newService.defaultPrice) {
-      toast.warning("يرجى ملء الحقول الإجبارية");
+      toast.warning(t("settings.servicesMaster.key_1305988277", "يرجى ملء الحقول الإجبارية"));
       return;
     }
     try {
@@ -109,7 +109,7 @@ export default function ServicesMasterPage() {
         ...newService,
         categoryId: newService.categoryId ? Number(newService.categoryId) : undefined
       });
-      toast.success("تمت إضافة الخدمة");
+      toast.success(t("settings.servicesMaster.key_2009391381", "تمت إضافة الخدمة"));
       setShowCreate(false);
       setNewService({
         code: "",
@@ -121,7 +121,7 @@ export default function ServicesMasterPage() {
       loadData();
      
     } catch (err: any) {
-      toast.error(err.response?.data?.message || "فشل الإضافة");
+      toast.error(err.response?.data?.message || t("settings.servicesMaster.key_103440718", "فشل الإضافة"));
     }
   };
 
@@ -129,14 +129,14 @@ export default function ServicesMasterPage() {
     if (!newCategoryName.trim()) return;
     try {
       await apiClient.post("/services/categories", { name: newCategoryName });
-      toast.success("تم إضافة الفئة بنجاح");
+      toast.success(t("settings.servicesMaster.key_323055348", "تم إضافة الفئة بنجاح"));
       setNewCategoryName("");
       // Refresh categories
       const resCat = await apiClient.get<ServiceCategory[]>("/services/categories");
       setCategories(resCat.data);
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
-      toast.error("فشل إضافة الفئة");
+      toast.error(t("settings.servicesMaster.key_733401322", "فشل إضافة الفئة"));
     }
   };
 
@@ -153,9 +153,9 @@ export default function ServicesMasterPage() {
     >
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold">دليل الخدمات والأسعار</h1>
+          <h1 className="text-2xl font-bold">{t("settings.servicesMaster.key_1795928085", "دليل الخدمات والأسعار")}</h1>
           <p className="text-sm text-slate-400">
-            إدارة قائمة الخدمات الطبية وتصنيفاتها وأسعارها.
+           {t("settings.servicesMaster.key_19912825", "إدارة قائمة الخدمات الطبية وتصنيفاتها وأسعارها.")}
           </p>
         </div>
         <div className="flex gap-2">
@@ -163,13 +163,13 @@ export default function ServicesMasterPage() {
             onClick={() => setShowCategoriesModal(true)}
             className="px-4 py-2 bg-purple-600/20 hover:bg-purple-600/40 text-purple-300 border border-purple-500/30 rounded-xl text-sm transition"
           >
-            إدارة الفئات (Categories)
+           {t("settings.servicesMaster.key_1649007787", "إدارة الفئات (Categories)")}
           </button>
           <button
             onClick={() => setShowCreate(true)}
             className="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-sm shadow-lg transition"
           >
-            + إضافة خدمة جديدة
+           {t("settings.servicesMaster.key_1658516995", "+ إضافة خدمة جديدة")}
           </button>
         </div>
       </div>
@@ -178,7 +178,7 @@ export default function ServicesMasterPage() {
       <div className="flex gap-4 bg-slate-900/50 p-4 rounded-2xl border border-slate-800">
         <input
           type="text"
-          placeholder="بحث بالاسم أو الكود..."
+          placeholder={t("settings.servicesMaster.key_1224888758", "بحث بالاسم أو الكود...")}
           className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm flex-1 focus:border-sky-500 outline-none transition"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -188,8 +188,8 @@ export default function ServicesMasterPage() {
           value={filterType}
           onChange={(e) => setFilterType(e.target.value)}
         >
-          <option value="">كل الأنواع</option>
-          {SERVICE_TYPES.map((t) => (
+          <option value="">{t("settings.servicesMaster.key_533521979", "كل الأنواع")}</option>
+          {getServiceTypes(t).map((t) => (
             <option key={t.value} value={t.value}>
               {t.label}
             </option>
@@ -202,13 +202,13 @@ export default function ServicesMasterPage() {
         <table className="w-full text-sm text-right">
           <thead className="text-slate-400 border-b border-slate-800">
             <tr>
-              <th className="pb-3 px-2">الكود</th>
-              <th className="pb-3 px-2">الاسم</th>
-              <th className="pb-3 px-2">النوع</th>
-              <th className="pb-3 px-2">التصنيف</th>
-              <th className="pb-3 px-2">السعر (د.ل)</th>
-              <th className="pb-3 px-2">الحالة</th>
-              <th className="pb-3 px-2">إجراء</th>
+              <th className="pb-3 px-2">{t("settings.servicesMaster.key_1503922253", "الكود")}</th>
+              <th className="pb-3 px-2">{t("settings.servicesMaster.key_1503894716", "الاسم")}</th>
+              <th className="pb-3 px-2">{t("settings.servicesMaster.key_1503925146", "النوع")}</th>
+              <th className="pb-3 px-2">{t("settings.servicesMaster.key_2136693237", "التصنيف")}</th>
+              <th className="pb-3 px-2">{t("settings.servicesMaster.key_189692294", "السعر (د.ل)")}</th>
+              <th className="pb-3 px-2">{t("settings.servicesMaster.key_623735300", "الحالة")}</th>
+              <th className="pb-3 px-2">{t("settings.servicesMaster.key_1501341892", "إجراء")}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800">
@@ -230,7 +230,7 @@ export default function ServicesMasterPage() {
                       value={editCategoryId}
                       onChange={(e) => setEditCategoryId(e.target.value)}
                     >
-                      <option value="">-- بدون فئة --</option>
+                      <option value="">{t("settings.servicesMaster.key_1744368183", "-- بدون فئة --")}</option>
                       {categories.map((c) => (
                         <option key={c.id} value={c.id}>
                           {c.name}
@@ -267,7 +267,7 @@ export default function ServicesMasterPage() {
                         : "bg-rose-900/30 text-rose-400"
                     }`}
                   >
-                    {s.isActive ? "نشط" : "معطل"}
+                    {s.isActive ? t("settings.servicesMaster.key_1594185", "نشط") : t("settings.servicesMaster.key_49396353", "معطل")}
                   </span>
                 </td>
                 <td className="py-3 px-2">
@@ -277,13 +277,13 @@ export default function ServicesMasterPage() {
                         onClick={() => handleUpdateInline(s.id)}
                         className="text-emerald-400 font-bold bg-emerald-900/30 px-2 py-1 rounded hover:scale-105 transition"
                       >
-                        حفظ ✔
+                       {t("settings.servicesMaster.key_1509323000", "حفظ ✔")}
                       </button>
                       <button
                         onClick={() => setEditingId(null)}
                         className="text-rose-400 font-bold bg-rose-900/30 px-2 py-1 rounded hover:scale-105 transition"
                       >
-                        إلغاء ✕
+                       {t("settings.servicesMaster.key_375969066", "إلغاء ✕")}
                       </button>
                     </div>
                   ) : (
@@ -295,17 +295,17 @@ export default function ServicesMasterPage() {
                       }}
                       className="text-sky-400 hover:text-sky-300 text-xs bg-slate-800 px-3 py-1.5 rounded-lg"
                     >
-                      تعديل ⚙️
+                     {t("settings.servicesMaster.key_1735124092", "تعديل ⚙️")}
                     </button>
                   )}
                 </td>
               </tr>
             ))}
             {loading && (
-              <tr><td colSpan={7} className="text-center py-6 text-slate-500">جارِ التحميل...</td></tr>
+              <tr><td colSpan={7} className="text-center py-6 text-slate-500">{t("settings.servicesMaster.key_397509045", "جارِ التحميل...")}</td></tr>
             )}
             {!loading && filteredServices.length === 0 && (
-              <tr><td colSpan={7} className="text-center py-6 text-slate-500">لا توجد خدمات مطابقة.</td></tr>
+              <tr><td colSpan={7} className="text-center py-6 text-slate-500">{t("settings.servicesMaster.key_1826388775", "لا توجد خدمات مطابقة.")}</td></tr>
             )}
           </tbody>
         </table>
@@ -315,36 +315,36 @@ export default function ServicesMasterPage() {
       {showCreate && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 backdrop-blur-sm shadow-2xl">
           <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 w-full max-w-md space-y-4 animate-in zoom-in-95">
-            <h3 className="text-lg font-bold">إضافة خدمة جديدة</h3>
+            <h3 className="text-lg font-bold">{t("settings.servicesMaster.key_2090316120", "إضافة خدمة جديدة")}</h3>
 
             <div>
-              <label className="block text-xs text-slate-400 mb-1">الكود <span className="text-rose-500">*</span></label>
+              <label className="block text-xs text-slate-400 mb-1">{t("settings.servicesMaster.key_1503922253", "الكود")} <span className="text-rose-500">*</span></label>
               <input
                 className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 outline-none focus:border-sky-500"
                 value={newService.code}
                 onChange={(e) =>
                   setNewService({ ...newService, code: e.target.value })
                 }
-                placeholder="مثال: LAB-001"
+                placeholder={t("settings.servicesMaster.key_838985544", "مثال: LAB-001")}
               />
             </div>
 
             <div>
-              <label className="block text-xs text-slate-400 mb-1">الاسم <span className="text-rose-500">*</span></label>
+              <label className="block text-xs text-slate-400 mb-1">{t("settings.servicesMaster.key_1503894716", "الاسم")} <span className="text-rose-500">*</span></label>
               <input
                 className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 outline-none focus:border-sky-500"
                 value={newService.name}
                 onChange={(e) =>
                   setNewService({ ...newService, name: e.target.value })
                 }
-                placeholder="اسم الخدمة..."
+                placeholder={t("settings.servicesMaster.key_7909925", "اسم الخدمة...")}
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs text-slate-400 mb-1">
-                  النوع
+                 {t("settings.servicesMaster.key_1503925146", "النوع")}
                 </label>
                 <select
                   className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 outline-none focus:border-sky-500"
@@ -353,7 +353,7 @@ export default function ServicesMasterPage() {
                     setNewService({ ...newService, type: e.target.value })
                   }
                 >
-                  {SERVICE_TYPES.map((t) => (
+                  {getServiceTypes(t).map((t) => (
                     <option key={t.value} value={t.value}>
                       {t.label}
                     </option>
@@ -363,7 +363,7 @@ export default function ServicesMasterPage() {
               
               <div>
                 <label className="block text-xs text-slate-400 mb-1">
-                  الفئة (التصنيف)
+                 {t("settings.servicesMaster.key_1257830595", "الفئة (التصنيف)")}
                 </label>
                 <select
                   className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 outline-none focus:border-sky-500"
@@ -372,7 +372,7 @@ export default function ServicesMasterPage() {
                     setNewService({ ...newService, categoryId: e.target.value })
                   }
                 >
-                  <option value="">-- بدون فئة --</option>
+                  <option value="">{t("settings.servicesMaster.key_1744368183", "-- بدون فئة --")}</option>
                   {categories.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.name}
@@ -384,7 +384,7 @@ export default function ServicesMasterPage() {
 
             <div>
               <label className="block text-xs text-slate-400 mb-1">
-                السعر (د.ل) <span className="text-rose-500">*</span>
+               {t("settings.servicesMaster.key_189692294", "السعر (د.ل)")} <span className="text-rose-500">*</span>
               </label>
               <input
                 type="number"
@@ -405,13 +405,13 @@ export default function ServicesMasterPage() {
                 onClick={() => setShowCreate(false)}
                 className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 mt-2"
               >
-                إلغاء
+               {t("settings.servicesMaster.key_1502065525", "إلغاء")}
               </button>
               <button
                 onClick={handleCreate}
                 className="px-4 py-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-500 mt-2 shadow-lg"
               >
-                حفظ الخدمة
+               {t("settings.servicesMaster.key_1634952478", "حفظ الخدمة")}
               </button>
             </div>
           </div>
@@ -423,14 +423,14 @@ export default function ServicesMasterPage() {
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 backdrop-blur-sm shadow-2xl">
           <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 flex flex-col max-h-[80vh]">
             <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-950">
-              <h3 className="font-bold text-lg text-purple-300">إدارة فئات الخدمات</h3>
+              <h3 className="font-bold text-lg text-purple-300">{t("settings.servicesMaster.key_607194659", "إدارة فئات الخدمات")}</h3>
               <button onClick={() => setShowCategoriesModal(false)} className="text-slate-400 hover:text-white">✕</button>
             </div>
             
             <div className="p-4 flex-1 overflow-auto bg-slate-900/50">
               {categories.length === 0 ? (
                 <div className="text-center text-slate-500 py-6 text-sm">
-                  لا توجد فئات حالياً.
+                 {t("settings.servicesMaster.key_1450966900", "لا توجد فئات حالياً.")}
                 </div>
               ) : (
                 <ul className="space-y-2">
@@ -445,14 +445,14 @@ export default function ServicesMasterPage() {
             </div>
 
             <div className="p-4 border-t border-slate-800 bg-slate-950">
-              <label className="block text-xs text-slate-400 mb-1">إضافة فئة جديدة</label>
+              <label className="block text-xs text-slate-400 mb-1">{t("settings.servicesMaster.key_1644109469", "إضافة فئة جديدة")}</label>
               <div className="flex gap-2">
                 <input 
                   type="text" 
                   value={newCategoryName}
                   onChange={(e) => setNewCategoryName(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleCreateCategory()}
-                  placeholder="اسم الفئة (مثال: فحوصات مخبرية، أشعة سينية...)"
+                  placeholder={t("settings.servicesMaster.key_2055548542", "اسم الفئة (مثال: فحوصات مخبرية، أشعة سينية...)")}
                   className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 outline-none focus:border-purple-500 text-sm"
                 />
                 <button 
@@ -460,7 +460,7 @@ export default function ServicesMasterPage() {
                   onClick={handleCreateCategory}
                   className="px-4 py-2 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-bold rounded-lg text-sm transition"
                 >
-                  إضافة
+                 {t("settings.servicesMaster.key_1501631006", "إضافة")}
                 </button>
               </div>
             </div>

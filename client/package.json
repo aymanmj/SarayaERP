@@ -49,6 +49,8 @@
     "zustand": "^5.0.8"
   },
   "devDependencies": {
+    "@babel/parser": "^7.29.7",
+    "@babel/traverse": "^7.29.7",
     "@eslint/js": "^9.39.1",
     "@tailwindcss/vite": "^4.1.17",
     "@testing-library/jest-dom": "^6.4.2",

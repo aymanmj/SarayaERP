@@ -106,7 +106,7 @@ function StoragePathDropdown({
           </span>
           {selectedInfo && (
             <span className="text-xs text-slate-500 mr-auto" dir="ltr">
-              {formatBytesStatic(selectedInfo.freeSpace)} متاح
+              {formatBytesStatic(selectedInfo.freeSpace)} {t("settings.backupSettings.key_49381419", "متاح")}
             </span>
           )}
         </div>
@@ -117,7 +117,7 @@ function StoragePathDropdown({
         <div className="absolute z-50 top-full mt-1 w-full bg-slate-800 border border-slate-700 rounded-xl shadow-2xl overflow-hidden">
           {paths.length === 0 ? (
             <div className="p-4 text-center text-slate-500 text-sm">
-              لا توجد أماكن تخزين متاحة
+             {t("settings.backupSettings.key_2016078546", "لا توجد أماكن تخزين متاحة")}
             </div>
           ) : (
             paths.map((p) => (
@@ -138,7 +138,7 @@ function StoragePathDropdown({
                   <div className="text-xs text-slate-500 flex items-center gap-2" dir="ltr">
                     <span>{p.path}</span>
                     {p.backupCount > 0 && (
-                      <span className="text-sky-500">• {p.backupCount} نسخة</span>
+                      <span className="text-sky-500">• {p.backupCount} {t("settings.backupSettings.key_49420072", "نسخة")}</span>
                     )}
                   </div>
                   {/* شريط المساحة */}
@@ -349,7 +349,7 @@ export default function BackupSettingsPage() {
     )
       return;
 
-    const input = prompt('للتأكيد، اكتب "RESTORE" في المربع أدناه:');
+    const input = prompt(t("settings.backupSettings.key_1285058332", "للتأكيد، اكتب \"RESTORE\" في المربع أدناه:"));
     if (input !== "RESTORE") return;
 
     restoreMutation.mutate(backup);
@@ -420,10 +420,10 @@ export default function BackupSettingsPage() {
         <div>
           <h1 className="text-2xl font-bold text-slate-100 flex items-center gap-2">
             <Archive className="text-sky-500 w-8 h-8" />
-            النسخ الاحتياطي والاستعادة
+           {t("settings.backupSettings.key_192885658", "النسخ الاحتياطي والاستعادة")}
           </h1>
           <p className="text-slate-400 mt-1">
-            إدارة النسخ الاحتياطية لقاعدة البيانات وأماكن التخزين
+           {t("settings.backupSettings.key_692550525", "إدارة النسخ الاحتياطية لقاعدة البيانات وأماكن التخزين")}
           </p>
         </div>
 
@@ -455,13 +455,13 @@ export default function BackupSettingsPage() {
                 {status.operation === "backup" ? t("settings.backup.creatingABackup", "جاري إنشاء نسخة احتياطية...") : t("settings.backup.systemIsBeingRestored", "جاري استعادة النظام...")}
               </h3>
               <p className="text-slate-400 text-sm">
-                يرجى الانتظار، هذه العملية قد تستغرق عدة دقائق حسب حجم البيانات.
+               {t("settings.backupSettings.key_746981527", "يرجى الانتظار، هذه العملية قد تستغرق عدة دقائق حسب حجم البيانات.")}
               </p>
             </div>
           </div>
           <div className="space-y-2">
             <div className="flex justify-between text-xs text-slate-400">
-              <span>{t("settings.backup.progress", t("settings.backup.progress", "التقدم"))}</span>
+              <span>{t("settings.backup.progress", "التقدم")}</span>
               <span>{formatTime(elapsed)}</span>
             </div>
             <div className="w-full bg-slate-700/50 rounded-full h-3 overflow-hidden">
@@ -480,8 +480,8 @@ export default function BackupSettingsPage() {
               <Settings2 className="w-5 h-5" />
             </div>
             <div className="flex-1">
-              <h3 className="text-slate-200 font-semibold">{t("settings.backup.autoCopySettings", t("settings.backup.autoCopySettings", "إعدادات النسخ التلقائي"))}</h3>
-              <p className="text-xs text-slate-500">{t("settings.backup.copyingIsDoneAutomaticallyEveryDayAt0300", t("settings.backup.copyingIsDoneAutomaticallyEveryDayAt0300", "يتم النسخ تلقائياً كل يوم الساعة 03:00 صباحاً"))}</p>
+              <h3 className="text-slate-200 font-semibold">{t("settings.backup.autoCopySettings", "إعدادات النسخ التلقائي")}</h3>
+              <p className="text-xs text-slate-500">{t("settings.backup.copyingIsDoneAutomaticallyEveryDayAt0300", "يتم النسخ تلقائياً كل يوم الساعة 03:00 صباحاً")}</p>
             </div>
           </div>
 
@@ -508,9 +508,9 @@ export default function BackupSettingsPage() {
                   <HardDrive className="w-4 h-4" />
                 </div>
                 <div>
-                  <h4 className="text-sm text-slate-200 font-medium">{t("settings.backup.dualBackup", t("settings.backup.dualBackup", "النسخ المزدوج (Dual Backup)"))}</h4>
+                  <h4 className="text-sm text-slate-200 font-medium">{t("settings.backup.dualBackup", "النسخ المزدوج (Dual Backup)")}</h4>
                   <p className="text-[11px] text-slate-500">
-                    حفظ النسخة في مكانين مختلفين لضمان الأمان
+                   {t("settings.backupSettings.key_758057121", "حفظ النسخة في مكانين مختلفين لضمان الأمان")}
                   </p>
                 </div>
               </div>
@@ -544,7 +544,7 @@ export default function BackupSettingsPage() {
                 {!secondaryPath && storagePaths.length <= 1 && (
                   <p className="mt-2 text-xs text-amber-400/80 flex items-center gap-1">
                     <AlertTriangle className="w-3 h-3" />
-                    لا توجد أقراص خارجية متصلة. قم بتوصيل قرص USB ثم اضغط تحديث.
+                   {t("settings.backupSettings.key_1370866011", "لا توجد أقراص خارجية متصلة. قم بتوصيل قرص USB ثم اضغط تحديث.")}
                   </p>
                 )}
               </div>
@@ -571,7 +571,7 @@ export default function BackupSettingsPage() {
               <Clock className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-slate-400 text-xs">{t("settings.backup.lastCopyOperation", t("settings.backup.lastCopyOperation", "آخر عملية نسخ"))}</h3>
+              <h3 className="text-slate-400 text-xs">{t("settings.backup.lastCopyOperation", "آخر عملية نسخ")}</h3>
               <p className="text-slate-200 font-semibold text-sm">
                 {status.lastOperation === "backup" && status.lastResult === "success"
                   ? new Date(parseInt(status.timestamp || "0") * 1000).toLocaleString("ar-LY")
@@ -585,8 +585,8 @@ export default function BackupSettingsPage() {
               <Database className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-slate-400 text-xs">{t("settings.backup.totalCopies", t("settings.backup.totalCopies", "إجمالي النسخ"))}</h3>
-              <p className="text-slate-200 font-semibold text-sm">{backups.length} نسخة</p>
+              <h3 className="text-slate-400 text-xs">{t("settings.backup.totalCopies", "إجمالي النسخ")}</h3>
+              <p className="text-slate-200 font-semibold text-sm">{backups.length} {t("settings.backupSettings.key_49420072", "نسخة")}</p>
             </div>
           </div>
 
@@ -595,8 +595,8 @@ export default function BackupSettingsPage() {
               <HardDrive className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-slate-400 text-xs">{t("settings.backup.storagePlaces", t("settings.backup.storagePlaces", "أماكن التخزين"))}</h3>
-              <p className="text-slate-200 font-semibold text-sm">{storagePaths.length} مكان</p>
+              <h3 className="text-slate-400 text-xs">{t("settings.backup.storagePlaces", "أماكن التخزين")}</h3>
+              <p className="text-slate-200 font-semibold text-sm">{storagePaths.length} {t("settings.backupSettings.key_49405469", "مكان")}</p>
             </div>
           </div>
         </div>
@@ -606,7 +606,7 @@ export default function BackupSettingsPage() {
       <div className="bg-slate-800/50 p-5 rounded-2xl border border-slate-700">
         <h3 className="text-slate-200 font-semibold mb-4 flex items-center gap-2">
           <HardDriveDownload className="w-5 h-5 text-sky-500" />
-          نسخ احتياطي يدوي
+         {t("settings.backupSettings.key_2079232850", "نسخ احتياطي يدوي")}
         </h3>
         <div className="flex items-end gap-3 flex-wrap">
           <div className="flex-1 min-w-[250px]">
@@ -635,7 +635,7 @@ export default function BackupSettingsPage() {
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-700">
           <h3 className="text-slate-200 font-semibold flex items-center gap-2">
             <Archive className="w-5 h-5 text-sky-500" />
-            النسخ المتوفرة
+           {t("settings.backupSettings.key_312162735", "النسخ المتوفرة")}
           </h3>
           <div className="flex items-center gap-2">
             <button
@@ -654,7 +654,7 @@ export default function BackupSettingsPage() {
               className="flex items-center gap-2 px-3 py-1.5 text-sm bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg transition-colors"
             >
               <RefreshCw className="w-4 h-4" />
-              تحديث
+             {t("settings.backupSettings.key_1505988461", "تحديث")}
             </button>
           </div>
         </div>
@@ -663,18 +663,18 @@ export default function BackupSettingsPage() {
           <table className="w-full text-right">
             <thead className="bg-slate-800/60 text-slate-300 text-sm">
               <tr>
-                <th className="p-4 font-medium">{t("settings.backup.fileName", t("settings.backup.fileName", "اسم الملف"))}</th>
-                <th className="p-4 font-medium">{t("settings.backup.storagePlace", t("settings.backup.storagePlace", "مكان التخزين"))}</th>
-                <th className="p-4 font-medium">{t("settings.backup.size", t("settings.backup.size", "الحجم"))}</th>
-                <th className="p-4 font-medium">{t("settings.backup.creationDate", t("settings.backup.creationDate", "تاريخ الإنشاء"))}</th>
-                <th className="p-4 font-medium text-center">{t("settings.backup.procedures", t("settings.backup.procedures", "إجراءات"))}</th>
+                <th className="p-4 font-medium">{t("settings.backup.fileName", "اسم الملف")}</th>
+                <th className="p-4 font-medium">{t("settings.backup.storagePlace", "مكان التخزين")}</th>
+                <th className="p-4 font-medium">{t("settings.backup.size", "الحجم")}</th>
+                <th className="p-4 font-medium">{t("settings.backup.creationDate", "تاريخ الإنشاء")}</th>
+                <th className="p-4 font-medium text-center">{t("settings.backup.procedures", "إجراءات")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-700/50">
               {backups.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="p-8 text-center text-slate-500">
-                    لا توجد نسخ احتياطية. اضغط t("settings.backup.searchDisks", "بحث في الأقراص") للبحث في جميع الأماكن.
+                   {t("settings.backupSettings.key_1395305350", "لا توجد نسخ احتياطية. اضغط t(\"settings.backup.searchDisks\", \"بحث في الأقراص\") للبحث في جميع الأماكن.")}
                   </td>
                 </tr>
               ) : (
@@ -691,7 +691,7 @@ export default function BackupSettingsPage() {
                         {backup.storagePath === "/backups" ? (
                           <>
                             <FolderOpen className="w-3 h-3" />
-                            افتراضي
+                           {t("settings.backupSettings.key_2050656218", "افتراضي")}
                           </>
                         ) : (
                           <>
@@ -711,14 +711,14 @@ export default function BackupSettingsPage() {
                       <div className="flex items-center justify-center gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
                         <button
                           onClick={() => handleRestore(backup)}
-                          title={t("settings.backup.restore", t("settings.backup.restore", "استعادة (Restore)"))}
+                          title={t("settings.backup.restore", "استعادة (Restore)")}
                           className="p-2 hover:bg-amber-500/10 text-slate-400 hover:text-amber-500 rounded-lg transition-colors"
                         >
                           <RotateCcw className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleDelete(backup)}
-                          title={t("settings.backup.delete", t("settings.backup.delete", "حذف"))}
+                          title={t("settings.backup.delete", "حذف")}
                           className="p-2 hover:bg-rose-500/10 text-slate-400 hover:text-rose-500 rounded-lg transition-colors"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -737,13 +737,13 @@ export default function BackupSettingsPage() {
       <div className="bg-amber-900/10 border border-amber-900/20 p-4 rounded-xl flex gap-3">
         <AlertTriangle className="w-6 h-6 text-amber-500 shrink-0" />
         <div className="space-y-1">
-          <h4 className="text-amber-500 font-semibold text-sm">{t("settings.backup.importantWarning", t("settings.backup.importantWarning", "تنبيه هام"))}</h4>
+          <h4 className="text-amber-500 font-semibold text-sm">{t("settings.backup.importantWarning", "تنبيه هام")}</h4>
           <p className="text-amber-400/80 text-xs leading-relaxed">
-            • عملية الاستعادة ستمسح قاعدة البيانات الحالية بالكامل واستبدالها بالنسخة المختارة.
+           {t("settings.backupSettings.key_2096262403", "• عملية الاستعادة ستمسح قاعدة البيانات الحالية بالكامل واستبدالها بالنسخة المختارة.")}
             <br />
-            • عند النسخ إلى قرص خارجي، يتم حفظ نسخة ثانية في المسار الافتراضي تلقائياً (للأمان).
+           {t("settings.backupSettings.key_80341442", "• عند النسخ إلى قرص خارجي، يتم حفظ نسخة ثانية في المسار الافتراضي تلقائياً (للأمان).")}
             <br />
-            • لاستخدام أقراص خارجية، تأكد من توصيلها وتركيبها (mount) على السيرفر أولاً.
+           {t("settings.backupSettings.key_163834957", "• لاستخدام أقراص خارجية، تأكد من توصيلها وتركيبها (mount) على السيرفر أولاً.")}
           </p>
         </div>
       </div>

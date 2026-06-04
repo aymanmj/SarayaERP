@@ -256,7 +256,7 @@ export default function OrganizationsPage() {
                 setShowLinkModal(true);
               }}
               className="p-1.5 rounded-lg hover:bg-sky-500/20 text-slate-500 hover:text-sky-400 transition-colors"
-              title={t("settings.organizations.hospitalConnection", t("settings.organizations.hospitalConnection", "ربط مستشفى"))}
+              title={t("settings.organizations.hospitalConnection", "ربط مستشفى")}
             >
               <Link2 className="w-3.5 h-3.5" />
             </button>
@@ -330,7 +330,7 @@ export default function OrganizationsPage() {
             ) : orgTree.length === 0 ? (
               <div className="text-center py-20 text-slate-600">
                 <div className="text-4xl mb-3">🏗️</div>
-                <p className="text-sm font-bold">{t("settings.organizations.thereAreNoInstitutionsYet", t("settings.organizations.thereAreNoInstitutionsYet", "لا توجد مؤسسات بعد"))}</p>
+                <p className="text-sm font-bold">{t("settings.organizations.thereAreNoInstitutionsYet", "لا توجد مؤسسات بعد")}</p>
                 <p className="text-xs mt-1">
                   {t("settings.organizations.startByCreatingParent", "ابدأ بإنشاء المؤسسة الأم (مثل: وزارة الصحة)")}
                 </p>
@@ -426,7 +426,7 @@ export default function OrganizationsPage() {
             ) : (
               <div className="text-center py-20 text-slate-600">
                 <div className="text-3xl mb-3">👆</div>
-                <p className="text-sm">{t("settings.organizations.selectAnOrganizationFromTheTreeToViewDet", t("settings.organizations.selectAnOrganizationFromTheTreeToViewDet", "اختر مؤسسة من الشجرة لعرض التفاصيل"))}</p>
+                <p className="text-sm">{t("settings.organizations.selectAnOrganizationFromTheTreeToViewDet", "اختر مؤسسة من الشجرة لعرض التفاصيل")}</p>
               </div>
             )}
           </div>
@@ -481,8 +481,8 @@ export default function OrganizationsPage() {
                     badgeColor: h.isActive ? "green" : "red",
                   }));
                 }}
-                label={t("settings.organizations.selectTheHospitalOrBranch", t("settings.organizations.selectTheHospitalOrBranch", "اختر المستشفى أو الفرع"))}
-                placeholder={t("settings.organizations.searchByNameCodeOrCity", t("settings.organizations.searchByNameCodeOrCity", "ابحث بالاسم أو الكود أو المدينة..."))}
+                label={t("settings.organizations.selectTheHospitalOrBranch", "اختر المستشفى أو الفرع")}
+                placeholder={t("settings.organizations.searchByNameCodeOrCity", "ابحث بالاسم أو الكود أو المدينة...")}
                 icon={<Building2 className="w-4 h-4" />}
                 required
               />
@@ -599,17 +599,17 @@ function CreateOrgModal({
           </div>
           <div className="flex flex-col gap-2">
             <label className="text-xs font-bold text-slate-400">
-              {t("settings.organizations.type", t("settings.organizations.type", "النوع"))}
+              {t("settings.organizations.type", "النوع")}
             </label>
             <select
               value={form.type}
               onChange={(e) => setForm((p) => ({ ...p, type: e.target.value }))}
               className="w-full bg-slate-950 border border-slate-700 rounded-xl py-2.5 px-3 text-sm focus:border-violet-500 outline-none transition-all"
             >
-              <option value="NETWORK">{t("settings.organizations.hospitalNetwork", t("settings.organizations.hospitalNetwork", "شبكة مستشفيات"))}</option>
-              <option value="MEDICAL_CITY">{t("settings.organizations.medicalCity", t("settings.organizations.medicalCity", "مدينة طبية"))}</option>
-              <option value="HOSPITAL">{t("settings.organizations.hospital", t("settings.organizations.hospital", "مستشفى"))}</option>
-              <option value="CLINIC">{t("settings.organizations.cliniccenter", t("settings.organizations.cliniccenter", "عيادة / مركز"))}</option>
+              <option value="NETWORK">{t("settings.organizations.hospitalNetwork", "شبكة مستشفيات")}</option>
+              <option value="MEDICAL_CITY">{t("settings.organizations.medicalCity", "مدينة طبية")}</option>
+              <option value="HOSPITAL">{t("settings.organizations.hospital", "مستشفى")}</option>
+              <option value="CLINIC">{t("settings.organizations.cliniccenter", "عيادة / مركز")}</option>
             </select>
           </div>
         </div>
@@ -625,7 +625,7 @@ function CreateOrgModal({
               setForm((p) => ({ ...p, name: e.target.value }))
             }
             className="w-full bg-slate-950 border border-slate-700 rounded-xl py-2.5 px-3 text-sm focus:border-violet-500 focus:ring-1 focus:ring-violet-500 outline-none transition-all"
-            placeholder={t("settings.organizations.exampleMinistryOfHealthLibya", t("settings.organizations.exampleMinistryOfHealthLibya", "مثال: وزارة الصحة — ليبيا"))}
+            placeholder={t("settings.organizations.exampleMinistryOfHealthLibya", "مثال: وزارة الصحة — ليبيا")}
           />
         </div>
 
@@ -640,7 +640,7 @@ function CreateOrgModal({
             }
             className="w-full bg-slate-950 border border-slate-700 rounded-xl py-2.5 px-3 text-sm focus:border-violet-500 outline-none transition-all"
           >
-            <option value="">{t("settings.organizations.withoutIndependentInstitution", t("settings.organizations.withoutIndependentInstitution", "— بدون (مؤسسة مستقلة) —"))}</option>
+            <option value="">{t("settings.organizations.withoutIndependentInstitution", "— بدون (مؤسسة مستقلة) —")}</option>
             {organizations.map((org) => (
               <option key={org.id} value={org.id}>
                 {org.name} ({org.code})
@@ -651,7 +651,7 @@ function CreateOrgModal({
 
         <div className="grid grid-cols-2 gap-4 mb-6">
           <div className="flex flex-col gap-2">
-            <label className="text-xs font-bold text-slate-400">{t("settings.organizations.state", t("settings.organizations.state", "الدولة"))}</label>
+            <label className="text-xs font-bold text-slate-400">{t("settings.organizations.state", "الدولة")}</label>
             <input
               type="text"
               value={form.country}
@@ -663,7 +663,7 @@ function CreateOrgModal({
             />
           </div>
           <div className="flex flex-col gap-2">
-            <label className="text-xs font-bold text-slate-400">{t("settings.organizations.currency", t("settings.organizations.currency", "العملة"))}</label>
+            <label className="text-xs font-bold text-slate-400">{t("settings.organizations.currency", "العملة")}</label>
             <input
               type="text"
               value={form.currency}
