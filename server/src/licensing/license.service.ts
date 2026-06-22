@@ -284,6 +284,9 @@ export class LicenseService implements OnModuleInit {
       if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
       fs.writeFileSync(this.licenseFilePath, key, 'utf8');
 
+      // Clear any old bonus metadata to prevent overriding the new expiry date
+      this._clearBonusMetadata();
+
       // Invalidate cache to force re-validation
       this._cachedStatus = null;
       this._lastValidationTime = 0;
