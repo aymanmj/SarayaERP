@@ -245,15 +245,6 @@ services:
       - attempts:2
     networks:
       - saraya_net
-    # 🔄 OFFLINE-FIX: healthcheck ذكي يكتشف حالة zombie ويفرض إعادة التشغيل
-    # يتحقق من وجود اتصال مسجل حديثاً في السجلات (ليس فقط العملية)
-    healthcheck:
-      # 🔄 OFFLINE-FIX: If ready endpoint fails (disconnected), kill PID 1 to trigger Docker auto-restart
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:20241/ready || kill 1"]
-      interval: 45s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
     logging: *default_logging
 
   # 🌐 Tailscale (Secure VPN access)
