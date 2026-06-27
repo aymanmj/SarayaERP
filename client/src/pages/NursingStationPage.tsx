@@ -4,6 +4,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "../api/apiClient";
 import { toast } from "sonner";
 import { formatDate } from "@/lib/utils";
@@ -56,9 +57,7 @@ export default function NursingStationPage() {
   const { t, i18n } = useTranslation();
   const isRtl = i18n.language === "ar";
   const navigate = useNavigate();
-  const [encounters, setEncounters] = useState<InpatientEncounter[]>([]);
   const [selectedEncounter, setSelectedEncounter] = useState<InpatientEncounter | null>(null);
-  const [loading, setLoading] = useState(false);
   const [showExecuteModal, setShowExecuteModal] = useState(false);
   const [selectedItem, setSelectedItem] = useState<CarePlanItem | null>(null);
   const [executeForm, setExecuteForm] = useState({ resultValue: "", note: "" });
@@ -79,33 +78,24 @@ export default function NursingStationPage() {
     reportVitalsUpdated,
   } = useNursingWebSocket();
 
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      // Get all inpatients for nursing view
-       
-      const res = await apiClient.get<any>("/clinical/inpatient/all-patients");
-      const listA = Array.isArray(res.data) ? res.data : (res.data.data || []);
-      setEncounters(listA);
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch (err) {
-      // Fallback: try getting via my-rotation (for testing)
+  const {
+    data: encounters = [],
+    isLoading: loading,
+  } = useQuery({
+    queryKey: ["nursing-inpatients"],
+    queryFn: async () => {
       try {
-         
+        const res = await apiClient.get<any>("/clinical/inpatient/all-patients");
+        return Array.isArray(res.data) ? res.data : (res.data.data || []);
+      } catch (err) {
         const res = await apiClient.get<any>("/clinical/inpatient/my-rotation?doctorId=1");
-        const listB = Array.isArray(res.data) ? res.data : (res.data.data || []);
-        setEncounters(listB);
-      } catch {
-        toast.error(t("nursing.loadFailed", "فشل تحميل قائمة مرضى الإيواء"));
+        return Array.isArray(res.data) ? res.data : (res.data.data || []);
       }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+    },
+    meta: {
+      errorMessage: t("nursing.loadFailed", "فشل تحميل قائمة مرضى الإيواء"),
+    },
+  });
 
   const handleSelectPatient = async (enc: InpatientEncounter) => {
     // Reload care plan for this encounter

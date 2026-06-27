@@ -1,7 +1,8 @@
 import { useTranslation } from "react-i18next";
 // src/pages/AccountingEntriesPage.tsx
 
-import { useEffect, useState, useCallback } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "../api/apiClient";
 import { toast } from "sonner";
 import { formatDate } from "@/lib/utils";
@@ -45,9 +46,6 @@ export default function AccountingEntriesPage() {
   const isRtl = i18n.language === "ar";
 
   const navigate = useNavigate();
-  const [entries, setEntries] = useState<AccountingEntry[]>([]);
-  const [meta, setMeta] = useState<PaginationMeta | null>(null);
-  const [loading, setLoading] = useState(true);
 
   // Filters
   const [page, setPage] = useState(1);
@@ -55,9 +53,13 @@ export default function AccountingEntriesPage() {
   const [toDate, setToDate] = useState("");
   const [sourceModule, setSourceModule] = useState("");
 
-  const loadEntries = useCallback(async () => {
-    setLoading(true);
-    try {
+  const {
+    data,
+    isLoading: loading,
+    refetch: loadEntries,
+  } = useQuery({
+    queryKey: ["accounting-entries", page, fromDate, toDate, sourceModule],
+    queryFn: async () => {
       const res = await apiClient.get("/accounting/entries", {
         params: {
           page,
@@ -66,22 +68,16 @@ export default function AccountingEntriesPage() {
           sourceModule: sourceModule || undefined,
         },
       });
-      setEntries(res.data.items);
-      setMeta(res.data.meta);
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch (err) {
-      toast.error(t("accounting.entries.failedToLoadJournal", "فشل تحميل دفتر اليومية"));
-    } finally {
-      setLoading(false);
+      return res.data;
+    },
+    meta: {
+      errorMessage: t("accounting.entries.failedToLoadJournal", "فشل تحميل دفتر اليومية"),
     }
-  }, [page, fromDate, toDate, sourceModule]);
+  });
 
-  useEffect(() => {
-    const timer = setTimeout(() => loadEntries(), 300);
-    return () => clearTimeout(timer);
-  }, [loadEntries]);
+  const entries: AccountingEntry[] = data?.items || [];
+  const meta: PaginationMeta | null = data?.meta || null;
 
-   
   const formatMoney = (val: any) =>
     Number(val || 0).toLocaleString("en-US", { minimumFractionDigits: 3 });
 

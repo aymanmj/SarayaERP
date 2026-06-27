@@ -5,6 +5,7 @@ import { apiClient } from "../api/apiClient";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { useQuery } from "@tanstack/react-query";
 
 // أنواع البيانات
 type TriageLevel =
@@ -106,8 +107,6 @@ export default function TriageDashboardPage() {
     };
   });
 
-  const [patients, setPatients] = useState<ERPatient[]>([]);
-  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   // Modal & Form State
@@ -127,24 +126,21 @@ export default function TriageDashboardPage() {
     notes: "",
   });
 
-  const loadData = async () => {
-    setLoading(true);
-    try {
+  const {
+    data: patients = [],
+    isLoading: loading,
+    refetch: loadData,
+  } = useQuery({
+    queryKey: ["triage-waiting"],
+    queryFn: async () => {
       const res = await apiClient.get<ERPatient[]>("/triage/waiting");
-      setPatients(res.data);
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch (err) {
-      toast.error(t("triage.loadFailed", "فشل تحميل قائمة الانتظار"));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadData();
-    const interval = setInterval(loadData, 30000); // تحديث كل 30 ثانية
-    return () => clearInterval(interval);
-  }, [loadData]);
+      return res.data;
+    },
+    refetchInterval: 30000,
+    meta: {
+      errorMessage: t("triage.loadFailed", "فشل تحميل قائمة الانتظار"),
+    },
+  });
 
   const openAssessment = (p: ERPatient) => {
     setSelectedEncounter(p);

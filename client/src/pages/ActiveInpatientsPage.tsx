@@ -5,6 +5,7 @@ import { apiClient } from "../api/apiClient";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatDate } from "@/lib/utils";
 import { RequestTransferModal } from "./clinical/transfers/RequestTransferModal";
 import { NicuSeparationModal } from "./clinical/icu/NicuSeparationModal";
@@ -53,14 +54,12 @@ type WardTree = {
 export default function ActiveInpatientsPage() {
   const { t, i18n } = useTranslation();
   const isRtl = i18n.language === "ar";
-  const [patients, setPatients] = useState<ActiveInpatient[]>([]);
-  const [loading, setLoading] = useState(false);
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
 
   // Bed Assignment Modal
   const [showBedModal, setShowBedModal] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<ActiveInpatient | null>(null);
-  const [wardTree, setWardTree] = useState<WardTree[]>([]);
   const [selectedWard, setSelectedWard] = useState("");
   const [selectedBed, setSelectedBed] = useState("");
   const [assigningBed, setAssigningBed] = useState(false);
@@ -74,34 +73,28 @@ export default function ActiveInpatientsPage() {
   const [nicuMother, setNicuMother] = useState<{ id: number; name: string }>({ id: 0, name: '' });
 
 
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      const res = await apiClient.get<ActiveInpatient[]>(
-        "/encounters/list/active-inpatients",
-      );
-      setPatients(res.data);
-    } catch (err) {
-      console.error(err);
-      toast.error(t("inpatients.loadFailed", "فشل تحميل قائمة المنومين."));
-    } finally {
-      setLoading(false);
-    }
-  };
+  const {
+    data: patients = [],
+    isLoading: loading,
+    refetch: loadData,
+  } = useQuery({
+    queryKey: ["active-inpatients"],
+    queryFn: async () => {
+      const res = await apiClient.get<ActiveInpatient[]>("/encounters/list/active-inpatients");
+      return res.data;
+    },
+    meta: {
+      errorMessage: t("inpatients.loadFailed", "فشل تحميل قائمة المنومين."),
+    },
+  });
 
-  const loadWardTree = async () => {
-    try {
+  const { data: wardTree = [], refetch: loadWardTree } = useQuery({
+    queryKey: ["beds-tree"],
+    queryFn: async () => {
       const res = await apiClient.get<WardTree[]>("/beds/tree");
-      setWardTree(res.data);
-    } catch (err) {
-      console.error("Failed to load ward tree", err);
-    }
-  };
-
-  useEffect(() => {
-    loadData();
-    loadWardTree();
-  }, [loadData]);
+      return res.data;
+    },
+  });
 
   const handleDischarge = async (encounterId: number, patientName: string, admissionId?: number) => {
     if (!admissionId) {
@@ -213,7 +206,7 @@ export default function ActiveInpatientsPage() {
             {t("inpatients.roundsBtn")}
           </button>
           <button
-            onClick={loadData}
+            onClick={() => loadData()}
             className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-sm"
           >
             {t("inpatients.refreshBtn")}

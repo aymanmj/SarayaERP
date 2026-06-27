@@ -120,9 +120,6 @@ services:
         condition: service_healthy
       vault:
         condition: service_started
-    dns:
-      - 1.1.1.1
-      - 8.8.8.8
     networks:
       - saraya_net
     healthcheck:

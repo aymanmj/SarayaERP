@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo } from "react";
 import { apiClient } from "../api/apiClient";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 // Enums & Types
 type PrescriptionStatus =
@@ -64,11 +65,7 @@ export default function PharmacyWorklistPage() {
   const dateLocale = isRtl ? "ar-LY" : "en-US";
   const currencyLabel = t("common.currency.lyd", "LYD");
 
-  const [data, setData] = useState<WorklistPrescription[]>([]);
-  const [loading, setLoading] = useState(false);
-
-  // Catalog Data
-  const [catalog, setCatalog] = useState<ProductItemLite[]>([]);
+  const queryClient = useQueryClient();
 
   // Selection & Modal State
   const [selectedPrescription, setSelectedPrescription] =
@@ -83,35 +80,30 @@ export default function PharmacyWorklistPage() {
   const [processing, setProcessing] = useState(false);
 
   // Load Data
-  async function loadData() {
-    try {
-      setLoading(true);
-      const res =
-         
-        await apiClient.get<any>("/pharmacy/worklist");
-      const listA = Array.isArray(res.data) ? res.data : (res.data.data || []);
-      setData(listA);
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch (err) {
-      toast.error(t("pharmacy.loadFailed", "فشل تحميل القائمة."));
-    } finally {
-      setLoading(false);
-    }
-  }
+  const {
+    data: dataRaw,
+    isLoading: loading,
+    refetch: loadData,
+  } = useQuery({
+    queryKey: ["pharmacy-worklist"],
+    queryFn: async () => {
+      const res = await apiClient.get<any>("/pharmacy/worklist");
+      return Array.isArray(res.data) ? res.data : (res.data.data || []);
+    },
+    meta: {
+      errorMessage: t("pharmacy.loadFailed", "فشل تحميل القائمة."),
+    },
+  });
+  const data = dataRaw || [];
 
-  async function loadCatalog() {
-    try {
+  // Catalog Data
+  const { data: catalog = [] } = useQuery({
+    queryKey: ["pharmacy-stock"],
+    queryFn: async () => {
       const res = await apiClient.get<ProductItemLite[]>("/pharmacy/stock");
-      setCatalog(res.data);
-    } catch (err) {
-      console.error(err);
-    }
-  }
-
-  useEffect(() => {
-    loadData();
-    loadCatalog();
-  }, [loadData]);
+      return res.data;
+    },
+  });
 
   // فتح المودال وتجهيز القيم
   const openDispenseModal = (p: WorklistPrescription) => {
@@ -195,7 +187,9 @@ export default function PharmacyWorklistPage() {
       setSelectedPrescription(null);
 
       // تحديث القائمة
-      setData((prev) => prev.filter((x) => x.id !== pId));
+      queryClient.setQueryData<WorklistPrescription[]>(["pharmacy-worklist"], (prev) =>
+        prev ? prev.filter((x) => x.id !== pId) : []
+      );
      
     } catch (err: any) {
       console.error(err);
@@ -222,7 +216,7 @@ export default function PharmacyWorklistPage() {
         </div>
         <div className="flex gap-2">
           <button
-            onClick={loadData}
+            onClick={() => loadData()}
             className="px-4 py-2 rounded bg-slate-800 hover:bg-slate-700 text-sm"
           >
             {t("common.refresh", "تحديث")}

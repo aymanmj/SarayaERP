@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { apiClient } from "../api/apiClient";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
+import { useQuery } from "@tanstack/react-query";
 
 type PatientLite = { id: number; fullName: string; mrn: string };
 type StudyLite = {
@@ -47,28 +48,22 @@ export default function RadiologyWorklistPage() {
   const isRtl = i18n.language === "ar";
   const dateLocale = isRtl ? "ar-LY" : "en-US";
 
-  const [loading, setLoading] = useState(false);
-  const [items, setItems] = useState<RadiologyWorklistItem[]>([]);
   const [search, setSearch] = useState("");
 
-  const load = async () => {
-    setLoading(true);
-    try {
-      const res = await apiClient.get<RadiologyWorklistItem[]>(
-        "/radiology/worklist",
-      );
-      setItems(res.data);
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch (err) {
-      toast.error(t("radiology.loadFailed", "حدث خطأ أثناء تحميل القائمة."));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    load();
-  }, [load]);
+  const {
+    data: items = [],
+    isLoading: loading,
+    refetch: load,
+  } = useQuery({
+    queryKey: ["radiology-worklist"],
+    queryFn: async () => {
+      const res = await apiClient.get<RadiologyWorklistItem[]>("/radiology/worklist");
+      return res.data;
+    },
+    meta: {
+      errorMessage: t("radiology.loadFailed", "حدث خطأ أثناء تحميل القائمة."),
+    },
+  });
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const filtered = useMemo(() => {
@@ -151,7 +146,7 @@ export default function RadiologyWorklistPage() {
             className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-sm"
           />
           <button
-            onClick={load}
+            onClick={() => load()}
             className="px-4 py-1.5 rounded-xl bg-slate-800 text-sm hover:bg-slate-700"
           >
             {t("common.refresh", "تحديث")}
