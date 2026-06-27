@@ -258,7 +258,7 @@ export default function TriageDashboardPage() {
           </p>
         </div>
         <button
-          onClick={loadData}
+          onClick={() => loadData()}
           className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-sm"
         >
           {t("triage.refreshBtn")}
