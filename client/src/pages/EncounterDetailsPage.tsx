@@ -920,7 +920,38 @@ export default function EncounterDetailsPage() {
           <div className="flex-1 bg-slate-900/40 border border-slate-800 rounded-b-xl rounded-tr-xl p-5 overflow-y-auto custom-scrollbar">
             {activeTab === "VISITS" && (
               <div className="grid grid-cols-1 gap-6">
-                {/* Clinical Notes Section */}
+                {/* Previous Clinical Notes Section */}
+                {encounter.clinicalNotes && encounter.clinicalNotes.length > 0 && (
+                  <div className="space-y-4">
+                    <h4 className="text-lg font-bold text-slate-100 border-b border-slate-700 pb-2">
+                      {t("encounter.previousNotes", "الملاحظات السريرية السابقة")}
+                    </h4>
+                    {encounter.clinicalNotes.map((note: any) => (
+                      <div key={note.id} className="bg-slate-800 border border-slate-700 rounded-xl p-4 shadow-sm">
+                        <div className="flex justify-between items-center mb-3">
+                          <span className="text-sm font-bold text-sky-400">
+                            {note.createdBy?.fullName || "غير معروف"}
+                          </span>
+                          <span className="text-xs text-slate-400">
+                            {new Date(note.createdAt).toLocaleString()} - {note.type}
+                          </span>
+                        </div>
+                        {note.subjective || note.objective || note.assessment || note.plan ? (
+                          <div className="space-y-3 text-sm text-slate-200">
+                            {note.subjective && <div><strong className="text-sky-400">S:</strong> {note.subjective}</div>}
+                            {note.objective && <div><strong className="text-emerald-400">O:</strong> {note.objective}</div>}
+                            {note.assessment && <div><strong className="text-amber-400">A:</strong> {note.assessment}</div>}
+                            {note.plan && <div><strong className="text-purple-400">P:</strong> {note.plan}</div>}
+                          </div>
+                        ) : (
+                          <div className="text-sm text-slate-200 whitespace-pre-wrap">{note.content}</div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Add New Clinical Note Section */}
                 <StructuredSOAPNote
                   key={formKey}
                   note={{}}

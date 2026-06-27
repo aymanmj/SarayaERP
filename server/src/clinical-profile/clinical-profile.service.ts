@@ -423,6 +423,7 @@ export class ClinicalProfileService {
       allergies,
       activeEncounters,
       recentDiagnoses,
+      clinicalNotes,
     ] = await Promise.all([
       // بيانات المريض الأساسية
       this.prisma.patient.findUnique({
@@ -491,6 +492,16 @@ export class ClinicalProfileService {
         orderBy: { createdAt: 'desc' },
         take: 10,
       }),
+
+      // الملاحظات السريرية
+      this.prisma.clinicalNote.findMany({
+        where: { encounter: { patientId, hospitalId } },
+        include: {
+          createdBy: { select: { id: true, fullName: true } },
+          encounter: { select: { id: true, type: true, createdAt: true, department: { select: { name: true } } } },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
     ]);
 
     if (!patient) throw new NotFoundException('المريض غير موجود');
@@ -521,6 +532,7 @@ export class ClinicalProfileService {
       allergies,
       activeEncounters,
       recentDiagnoses,
+      clinicalNotes,
       stats: {
         totalEncounters,
         totalAdmissions,

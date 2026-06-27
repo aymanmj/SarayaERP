@@ -63,6 +63,7 @@ type ClinicalSummary = {
     allergiesCount: number;
     unverifiedMedications: number;
   };
+  clinicalNotes?: any[];
 };
 
 type ChartTab =
@@ -71,7 +72,8 @@ type ChartTab =
   | "HISTORY"
   | "HOME_MEDS"
   | "ALLERGIES"
-  | "ENCOUNTERS";
+  | "ENCOUNTERS"
+  | "NOTES";
 
 const tabs: { key: ChartTab; label: string; icon: string }[] = [
   { key: "OVERVIEW", label: "الملخص", icon: "📊" },
@@ -80,6 +82,7 @@ const tabs: { key: ChartTab; label: string; icon: string }[] = [
   { key: "HOME_MEDS", label: "الأدوية المنزلية", icon: "💊" },
   { key: "ALLERGIES", label: "الحساسية", icon: "⚠️" },
   { key: "ENCOUNTERS", label: "الزيارات", icon: "🩺" },
+  { key: "NOTES", label: "الملاحظات السريرية", icon: "📝" },
 ];
 
 // ---------- Helpers ----------
@@ -671,6 +674,59 @@ export default function PatientChartPage() {
                   🗂️ {t("patients.chart.viewFullHistory")}
                 </Link>
               </div>
+            </div>
+          </div>
+        {/* NOTES Tab */}
+        {activeTab === "NOTES" && (
+          <div className="space-y-6">
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+              <h3 className="text-sm font-bold text-slate-100 border-b border-slate-800 pb-3 mb-6">
+                📝 الملاحظات السريرية
+              </h3>
+
+              {!summary.clinicalNotes || summary.clinicalNotes.length === 0 ? (
+                <div className="text-center py-12">
+                  <div className="text-4xl mb-3 opacity-20">📝</div>
+                  <p className="text-slate-500 text-sm">لا توجد ملاحظات سريرية سابقة</p>
+                </div>
+              ) : (
+                <div className="grid gap-4">
+                  {summary.clinicalNotes.map((note) => (
+                    <div
+                      key={note.id}
+                      className="bg-slate-800 border border-slate-700 rounded-xl p-4 shadow-sm"
+                    >
+                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-bold text-sky-400">
+                            {note.createdBy?.fullName || "غير معروف"}
+                          </span>
+                          <span className="px-2 py-0.5 rounded-full bg-slate-700 text-[10px] text-slate-300">
+                            {note.type}
+                          </span>
+                        </div>
+                        <div className="text-xs text-slate-400 mt-2 sm:mt-0 flex gap-2">
+                          <span>{new Date(note.createdAt).toLocaleString()}</span>
+                          {note.encounter?.department?.name && (
+                            <span className="text-emerald-400">({note.encounter.department.name})</span>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {note.subjective || note.objective || note.assessment || note.plan ? (
+                        <div className="space-y-3 text-sm text-slate-200">
+                          {note.subjective && <div><strong className="text-sky-400">S:</strong> {note.subjective}</div>}
+                          {note.objective && <div><strong className="text-emerald-400">O:</strong> {note.objective}</div>}
+                          {note.assessment && <div><strong className="text-amber-400">A:</strong> {note.assessment}</div>}
+                          {note.plan && <div><strong className="text-purple-400">P:</strong> {note.plan}</div>}
+                        </div>
+                      ) : (
+                        <div className="text-sm text-slate-200 whitespace-pre-wrap">{note.content}</div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}
