@@ -127,9 +127,9 @@ export default function AdmissionsPage() {
 
   const nextStep = () => {
     // Validation
-    if (step === 1 && !formData.patientId) return toast.warning("يجب اختيار المريض");
-    if (step === 2 && (!formData.admittingDoctorId || !formData.primaryPhysicianId)) return toast.warning("يجب اختيار الطاقم الطبي");
-    if (step === 3 && !formData.bedId) return toast.warning("يجب تخصيص سرير للمريض");
+    if (step === 1 && !formData.patientId) return toast.warning(t("admissions.wizard.warnings.selectPatient"));
+    if (step === 2 && (!formData.admittingDoctorId || !formData.primaryPhysicianId)) return toast.warning(t("admissions.wizard.warnings.selectTeam"));
+    if (step === 3 && !formData.bedId) return toast.warning(t("admissions.wizard.warnings.selectBed"));
     
     setStep(s => Math.min(s + 1, 4));
   };
@@ -150,7 +150,7 @@ export default function AdmissionsPage() {
 
   const handleAdmission = async () => {
     if (!formData.patientId || !formData.bedId || !formData.admittingDoctorId) {
-      toast.warning(t("admissions.warnings.missingData", "البيانات غير مكتملة"));
+      toast.warning(t("admissions.wizard.warnings.missingData"));
       return;
     }
 
@@ -182,7 +182,7 @@ export default function AdmissionsPage() {
       const admissionRes = await apiClient.post("/admissions", admissionData);
       
       if (admissionRes.data.id) {
-        toast.success(t("admissions.admitSuccess", "تم الدخول بنجاح."));
+        toast.success(t("admissions.wizard.success.admit"));
         resetForm();
         const wardsRes = await apiClient.get<Ward[]>("/beds/tree");
         setWards(wardsRes.data);
@@ -197,7 +197,7 @@ export default function AdmissionsPage() {
 
   const handleQuickEmergencyAdmission = async () => {
     if (!formData.patientId || !formData.bedId || !formData.admittingDoctorId) {
-      toast.warning("يجب تحديد المريض، السرير، والطبيب للطوارئ");
+      toast.warning(t("admissions.wizard.warnings.quickMissing"));
       return;
     }
     
@@ -209,13 +209,13 @@ export default function AdmissionsPage() {
         bedId: Number(formData.bedId),
         admittingDoctorId: Number(formData.admittingDoctorId),
         departmentId: selectedDoctor?.departmentId || 1,
-        admissionReason: formData.admissionReason || "حالة طارئة - إيواء سريع",
-        primaryDiagnosis: formData.primaryDiagnosis || "حالة طارئة",
+        admissionReason: formData.admissionReason || t("admissions.admitReasonQuick", "حالة طارئة - إيواء سريع"),
+        primaryDiagnosis: formData.primaryDiagnosis || t("admissions.wizard.form.typeEmergency"),
       };
 
       const admissionRes = await apiClient.post("/admissions/quick-admission", quickAdmissionData);
       if (admissionRes.data.id) {
-        toast.success("تم الإيواء السريع للطوارئ بنجاح.");
+        toast.success(t("admissions.wizard.success.quickAdmit"));
         setShowQuickModal(false);
         resetForm();
         const wardsRes = await apiClient.get<Ward[]>("/beds/tree");
@@ -223,7 +223,7 @@ export default function AdmissionsPage() {
       }
     } catch (err: any) {
       console.error(err);
-      toast.error(err?.response?.data?.message || "فشل الإيواء السريع.");
+      toast.error(err?.response?.data?.message || t("admissions.admitErrorMsg", "فشل الإيواء السريع."));
     } finally {
       setSubmitting(false);
     }
@@ -250,7 +250,7 @@ export default function AdmissionsPage() {
     return (
       <div className="flex flex-col h-full items-center justify-center text-slate-100">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-sky-500 mb-4"></div>
-        <p>جاري التحميل...</p>
+        <p>{t("admissions.wizard.loading")}</p>
       </div>
     );
   }
@@ -261,10 +261,10 @@ export default function AdmissionsPage() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-slate-900/60 p-5 rounded-2xl border border-slate-700/50 shadow-sm backdrop-blur-xl">
         <div>
           <h1 className="text-2xl font-bold bg-gradient-to-r from-sky-400 to-blue-500 bg-clip-text text-transparent mb-1">
-             تسجيل دخول مريض (إيواء)
+             {t("admissions.wizard.title")}
           </h1>
           <p className="text-sm text-slate-400">
-            إدارة عملية الإيواء وتسكين المرضى في الأقسام الداخلية
+            {t("admissions.wizard.subtitle")}
           </p>
         </div>
         <div className="flex flex-wrap gap-3">
@@ -273,14 +273,14 @@ export default function AdmissionsPage() {
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-rose-600/10 text-rose-500 hover:bg-rose-600 hover:text-white border border-rose-600/20 font-semibold transition-all duration-300"
           >
             <AlertCircle className="w-5 h-5" />
-            إيواء طوارئ سريع
+            {t("admissions.wizard.btnQuickAdmit")}
           </button>
           <button
             onClick={() => navigate('/admissions/advanced')}
             className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-semibold shadow-lg shadow-sky-500/20 transition-all duration-300"
           >
             <Activity className="w-5 h-5" />
-            الإدارة المتقدمة للأسرّة
+            {t("admissions.wizard.btnAdvanced")}
           </button>
         </div>
       </div>
@@ -288,10 +288,10 @@ export default function AdmissionsPage() {
       {/* Quick Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: "إجمالي الأقسام", value: wards.length, icon: Activity, color: "text-blue-400", bg: "bg-blue-500/10" },
-          { label: "مرضى مسجلين", value: patients.length, icon: Users, color: "text-purple-400", bg: "bg-purple-500/10" },
-          { label: "أطباء متاحين", value: doctors.length, icon: Stethoscope, color: "text-emerald-400", bg: "bg-emerald-500/10" },
-          { label: "أسرّة شاغرة", 
+          { label: t("admissions.wizard.stats.wards"), value: wards.length, icon: Activity, color: "text-blue-400", bg: "bg-blue-500/10" },
+          { label: t("admissions.wizard.stats.patients"), value: patients.length, icon: Users, color: "text-purple-400", bg: "bg-purple-500/10" },
+          { label: t("admissions.wizard.stats.doctors"), value: doctors.length, icon: Stethoscope, color: "text-emerald-400", bg: "bg-emerald-500/10" },
+          { label: t("admissions.wizard.stats.beds"), 
             value: wards.reduce((sum, ward) => sum + ward.rooms.reduce((rs, r) => rs + r.beds.filter(b => b.status === 'AVAILABLE').length, 0), 0), 
             icon: BedIcon, color: "text-sky-400", bg: "bg-sky-500/10" 
           },
@@ -313,16 +313,12 @@ export default function AdmissionsPage() {
         
         {/* Sidebar Stepper */}
         <div className="w-full md:w-64 bg-slate-900 border-b md:border-b-0 md:border-l border-slate-700/50 p-6">
-          <h2 className="text-lg font-bold text-slate-200 mb-6 flex items-center gap-2">
-            <Shield className="w-5 h-5 text-sky-500" />
-            مراحل الإيواء
-          </h2>
           <div className="flex md:flex-col gap-4 overflow-x-auto md:overflow-visible pb-4 md:pb-0">
             {[
-              { num: 1, title: "بيانات المريض", icon: User },
-              { num: 2, title: "الطاقم الطبي", icon: Stethoscope },
-              { num: 3, title: "اختيار السرير", icon: BedIcon },
-              { num: 4, title: "متطلبات إضافية", icon: AlertTriangle }
+              { num: 1, title: t("admissions.wizard.steps.patient"), icon: User },
+              { num: 2, title: t("admissions.wizard.steps.medical"), icon: Stethoscope },
+              { num: 3, title: t("admissions.wizard.steps.bed"), icon: BedIcon },
+              { num: 4, title: t("admissions.wizard.steps.additional"), icon: AlertTriangle }
             ].map((s) => {
               const isActive = step === s.num;
               const isCompleted = step > s.num;
@@ -332,8 +328,7 @@ export default function AdmissionsPage() {
                     {isCompleted ? <CheckCircle2 className="w-5 h-5" /> : s.num}
                   </div>
                   <div>
-                    <div className={`text-sm font-bold ${isActive ? 'text-sky-400' : isCompleted ? 'text-emerald-400' : 'text-slate-400'}`}>الخطوة {s.num}</div>
-                    <div className={`text-xs ${isActive ? 'text-slate-200' : 'text-slate-500'}`}>{s.title}</div>
+                    <div className={`text-sm font-bold ${isActive ? 'text-sky-400' : isCompleted ? 'text-emerald-400' : 'text-slate-400'}`}>{s.title}</div>
                   </div>
                 </div>
               );
@@ -348,31 +343,31 @@ export default function AdmissionsPage() {
           {step === 1 && (
             <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
               <div>
-                <h3 className="text-xl font-bold mb-1">الخطوة الأولى: تحديد المريض ومعلومات الدخول</h3>
-                <p className="text-slate-400 text-sm mb-6">قم بالبحث عن المريض وتحديد سبب ونوع الإيواء</p>
+                <h3 className="text-xl font-bold mb-1">{t("admissions.wizard.steps.s1")}</h3>
+                <p className="text-slate-400 text-sm mb-6">{t("admissions.wizard.steps.s1Desc")}</p>
               </div>
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">البحث عن مريض <span className="text-rose-500">*</span></label>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">{t("admissions.wizard.form.searchPatient")} <span className="text-rose-500">*</span></label>
                   <div className="relative">
-                    <Search className="absolute right-3 top-2.5 w-5 h-5 text-slate-500" />
+                    <Search className={`absolute ${isRtl ? 'left-3' : 'right-3'} top-2.5 w-5 h-5 text-slate-500`} />
                     <input
                       type="text"
-                      placeholder="ابحث بالاسم أو الرقم الطبي MRN..."
+                      placeholder={t("admissions.wizard.form.searchPlaceholder")}
                       value={patientSearch}
                       onChange={(e) => {
                         setPatientSearch(e.target.value);
                         setFormData(prev => ({...prev, patientId: ""})); // reset selection if searching again
                       }}
-                      className="w-full bg-slate-800 border border-slate-700 rounded-xl pr-10 pl-4 py-2.5 text-slate-100 focus:outline-none focus:border-sky-500 transition-colors"
+                      className={`w-full bg-slate-800 border border-slate-700 rounded-xl ${isRtl ? 'pl-10 pr-4' : 'pr-10 pl-4'} py-2.5 text-slate-100 focus:outline-none focus:border-sky-500 transition-colors`}
                     />
                   </div>
                   {/* Results Dropdown if not selected */}
                   {patientSearch && !formData.patientId && (
                     <div className="mt-2 bg-slate-800 border border-slate-700 rounded-xl max-h-48 overflow-y-auto shadow-xl">
                       {filteredPatients.length === 0 ? (
-                        <div className="p-3 text-sm text-slate-400 text-center">لا توجد نتائج</div>
+                        <div className="p-3 text-sm text-slate-400 text-center">{t("admissions.wizard.form.noResults")}</div>
                       ) : (
                         filteredPatients.map(p => (
                           <div
@@ -393,8 +388,8 @@ export default function AdmissionsPage() {
                   {formData.patientId && (
                      <div className="mt-2 inline-flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-3 py-1.5 rounded-lg text-sm">
                         <CheckCircle2 className="w-4 h-4" />
-                        تم اختيار المريض
-                        <button onClick={() => {setFormData(prev=>({...prev, patientId:""})); setPatientSearch("");}} className="hover:text-emerald-300 mr-2">
+                        {t("admissions.wizard.form.patientSelected")}
+                        <button onClick={() => {setFormData(prev=>({...prev, patientId:""})); setPatientSearch("");}} className={`hover:text-emerald-300 ${isRtl ? 'mr-2' : 'ml-2'}`}>
                           <X className="w-4 h-4"/>
                         </button>
                      </div>
@@ -403,32 +398,32 @@ export default function AdmissionsPage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
                   <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">نوع الدخول</label>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">{t("admissions.wizard.form.admissionType")}</label>
                     <select name="admissionType" value={formData.admissionType} onChange={handleChange} className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-slate-100 focus:outline-none focus:border-sky-500 transition-colors appearance-none">
-                      <option value="ELECTIVE">مجدول / اختياري (Elective)</option>
-                      <option value="EMERGENCY">طوارئ (Emergency)</option>
-                      <option value="TRANSFER">نقل من مستشفى آخر (Transfer)</option>
+                      <option value="ELECTIVE">{t("admissions.wizard.form.typeElective")}</option>
+                      <option value="EMERGENCY">{t("admissions.wizard.form.typeEmergency")}</option>
+                      <option value="TRANSFER">{t("admissions.wizard.form.typeTransfer")}</option>
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">الأولوية</label>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">{t("admissions.wizard.form.priority")}</label>
                     <select name="priority" value={formData.priority} onChange={handleChange} className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-slate-100 focus:outline-none focus:border-sky-500 transition-colors appearance-none">
-                      <option value="LOW">عادية (Low)</option>
-                      <option value="MEDIUM">متوسطة (Medium)</option>
-                      <option value="HIGH">عالية (High)</option>
-                      <option value="URGENT">عاجلة (Urgent)</option>
+                      <option value="LOW">{t("admissions.wizard.form.pLow")}</option>
+                      <option value="MEDIUM">{t("admissions.wizard.form.pMedium")}</option>
+                      <option value="HIGH">{t("admissions.wizard.form.pHigh")}</option>
+                      <option value="URGENT">{t("admissions.wizard.form.pUrgent")}</option>
                     </select>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">سبب الدخول الرئيسي</label>
-                    <input type="text" name="admissionReason" value={formData.admissionReason} onChange={handleChange} placeholder="مثال: إجراء عملية جراحية..." className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-slate-100 focus:outline-none focus:border-sky-500" />
+                    <label className="block text-sm font-medium text-slate-300 mb-2">{t("admissions.wizard.form.reason")}</label>
+                    <input type="text" name="admissionReason" value={formData.admissionReason} onChange={handleChange} placeholder={t("admissions.wizard.form.reasonPlaceholder")} className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-slate-100 focus:outline-none focus:border-sky-500" />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">التشخيص المبدئي (اختياري)</label>
-                    <input type="text" name="primaryDiagnosis" value={formData.primaryDiagnosis} onChange={handleChange} placeholder="مثال: التهاب الزائدة الدودية" className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-slate-100 focus:outline-none focus:border-sky-500" />
+                    <label className="block text-sm font-medium text-slate-300 mb-2">{t("admissions.wizard.form.diagnosis")}</label>
+                    <input type="text" name="primaryDiagnosis" value={formData.primaryDiagnosis} onChange={handleChange} placeholder={t("admissions.wizard.form.diagnosisPlaceholder")} className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-slate-100 focus:outline-none focus:border-sky-500" />
                   </div>
                 </div>
               </div>
@@ -439,33 +434,33 @@ export default function AdmissionsPage() {
           {step === 2 && (
             <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
               <div>
-                <h3 className="text-xl font-bold mb-1">الخطوة الثانية: الطاقم الطبي المشرف</h3>
-                <p className="text-slate-400 text-sm mb-6">حدد الطبيب المعالج والمسؤول عن حالة المريض</p>
+                <h3 className="text-xl font-bold mb-1">{t("admissions.wizard.steps.s2")}</h3>
+                <p className="text-slate-400 text-sm mb-6">{t("admissions.wizard.steps.s2Desc")}</p>
               </div>
 
               <div className="space-y-5">
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">الطبيب المدخل (Admitting Doctor) <span className="text-rose-500">*</span></label>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">{t("admissions.wizard.form.admittingDoctor")} <span className="text-rose-500">*</span></label>
                   <select name="admittingDoctorId" value={formData.admittingDoctorId} onChange={handleChange} className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-sky-500 appearance-none">
-                    <option value="">-- اختر الطبيب --</option>
+                    <option value="">{t("admissions.wizard.form.selectDoctor")}</option>
                     {doctors.map(d => <option key={d.id} value={d.id}>{d.fullName}</option>)}
                   </select>
                 </div>
                 
                 <div className="p-4 bg-sky-900/10 border border-sky-500/20 rounded-xl flex items-start gap-3">
                     <ShieldAlert className="w-5 h-5 text-sky-400 mt-0.5" />
-                    <div>
-                        <h4 className="text-sm font-semibold text-sky-400 mb-1">الطبيب الرئيسي (Primary Physician)</h4>
-                        <p className="text-xs text-slate-400 mb-3">غالباً ما يكون الطبيب المدخل هو نفسه الطبيب الرئيسي. في حال كان طبيباً آخر يرجى تحديده أدناه.</p>
+                    <div className="w-full">
+                        <h4 className="text-sm font-semibold text-sky-400 mb-1">{t("admissions.wizard.form.primaryPhysician")}</h4>
+                        <p className="text-xs text-slate-400 mb-3">{t("admissions.wizard.form.primaryPhysicianDesc")}</p>
                         <select name="primaryPhysicianId" value={formData.primaryPhysicianId} onChange={handleChange} className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2 text-slate-100 focus:outline-none focus:border-sky-500 appearance-none">
-                          <option value="">-- اختر الطبيب الرئيسي --</option>
+                          <option value="">{t("admissions.wizard.form.selectDoctor")}</option>
                           {doctors.map(d => <option key={d.id} value={d.id}>{d.fullName}</option>)}
                         </select>
                         <button 
                           onClick={() => setFormData(p => ({...p, primaryPhysicianId: p.admittingDoctorId}))}
                           className="mt-2 text-xs text-sky-400 hover:text-sky-300 underline"
                         >
-                          تعيين الطبيب المدخل كطبيب رئيسي
+                          {t("admissions.wizard.form.setAsPrimary")}
                         </button>
                     </div>
                 </div>
@@ -477,8 +472,8 @@ export default function AdmissionsPage() {
           {step === 3 && (
             <div className="space-y-6 flex-1 flex flex-col animate-in fade-in slide-in-from-right-4 duration-500">
               <div>
-                <h3 className="text-xl font-bold mb-1">الخطوة الثالثة: تخصيص السرير</h3>
-                <p className="text-slate-400 text-sm mb-4">اختر القسم ثم حدد السرير المناسب لحالة المريض</p>
+                <h3 className="text-xl font-bold mb-1">{t("admissions.wizard.steps.s3")}</h3>
+                <p className="text-slate-400 text-sm mb-4">{t("admissions.wizard.steps.s3Desc")}</p>
               </div>
 
               {/* Ward Filter */}
@@ -506,7 +501,7 @@ export default function AdmissionsPage() {
                       <div key={room.id}>
                         <h4 className="text-sm font-bold text-slate-400 mb-3 flex items-center gap-2">
                           <span className="w-2 h-2 rounded-full bg-slate-600"></span>
-                          غرفة {room.roomNumber}
+                          {t("admissions.wizard.form.room")} {room.roomNumber}
                         </h4>
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
                           {room.beds.map(bed => {
@@ -523,7 +518,7 @@ export default function AdmissionsPage() {
                                 className={`relative p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 ${getBedColor(bed.status)} ${isSelected ? 'border-sky-500 ring-4 ring-sky-500/20 bg-sky-900/40 transform scale-105' : ''}`}
                               >
                                 {isSelected && (
-                                  <div className="absolute -top-2 -right-2 bg-sky-500 text-white rounded-full p-1">
+                                  <div className={`absolute -top-2 ${isRtl ? '-left-2' : '-right-2'} bg-sky-500 text-white rounded-full p-1`}>
                                     <CheckCircle2 className="w-4 h-4" />
                                   </div>
                                 )}
@@ -531,7 +526,7 @@ export default function AdmissionsPage() {
                                 <div className="text-center">
                                   <div className="font-bold text-lg leading-tight">{bed.bedNumber}</div>
                                   <div className="text-[10px] uppercase font-semibold tracking-wider opacity-70 mt-1">
-                                    {bed.status === 'AVAILABLE' ? 'متاح' : bed.status === 'OCCUPIED' ? 'مشغول' : 'غير متاح'}
+                                    {bed.status === 'AVAILABLE' ? t("admissions.wizard.form.bedStatus.available") : bed.status === 'OCCUPIED' ? t("admissions.wizard.form.bedStatus.occupied") : t("admissions.wizard.form.bedStatus.unavailable")}
                                   </div>
                                 </div>
                               </div>
@@ -544,7 +539,7 @@ export default function AdmissionsPage() {
                 ) : (
                   <div className="flex flex-col items-center justify-center h-full text-slate-500">
                     <BedIcon className="w-12 h-12 mb-3 opacity-20" />
-                    <p>يرجى اختيار القسم لعرض الأسرّة</p>
+                    <p>{t("admissions.wizard.form.selectWardToView")}</p>
                   </div>
                 )}
               </div>
@@ -555,8 +550,8 @@ export default function AdmissionsPage() {
           {step === 4 && (
             <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
               <div>
-                <h3 className="text-xl font-bold mb-1">الخطوة الرابعة: متطلبات العزل والمراجعة</h3>
-                <p className="text-slate-400 text-sm mb-6">أكمل البيانات الإضافية وراجع ملخص الدخول قبل التأكيد</p>
+                <h3 className="text-xl font-bold mb-1">{t("admissions.wizard.steps.s4")}</h3>
+                <p className="text-slate-400 text-sm mb-6">{t("admissions.wizard.steps.s4Desc")}</p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
@@ -564,14 +559,14 @@ export default function AdmissionsPage() {
                 <div className="bg-slate-800 p-5 rounded-2xl border border-slate-700/50">
                   <label className="flex items-center gap-3 cursor-pointer mb-4">
                     <input type="checkbox" name="isolationRequired" checked={formData.isolationRequired} onChange={handleChange} className="w-5 h-5 rounded border-slate-600 text-sky-500 focus:ring-sky-500 bg-slate-900" />
-                    <span className="font-medium text-slate-200">يتطلب عزل صحي؟</span>
+                    <span className="font-medium text-slate-200">{t("admissions.wizard.form.isolationRequired")}</span>
                   </label>
                   {formData.isolationRequired && (
                     <select name="isolationType" value={formData.isolationType} onChange={handleChange} className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-slate-100 focus:outline-none focus:border-sky-500">
-                      <option value="STANDARD">عزل قياسي (Standard)</option>
-                      <option value="DROPLET">عزل رذاذي (Droplet)</option>
-                      <option value="AIRBORNE">عزل هوائي (Airborne)</option>
-                      <option value="CONTACT">عزل تلامسي (Contact)</option>
+                      <option value="STANDARD">{t("admissions.wizard.form.isoStandard")}</option>
+                      <option value="DROPLET">{t("admissions.wizard.form.isoDroplet")}</option>
+                      <option value="AIRBORNE">{t("admissions.wizard.form.isoAirborne")}</option>
+                      <option value="CONTACT">{t("admissions.wizard.form.isoContact")}</option>
                     </select>
                   )}
                 </div>
@@ -580,7 +575,7 @@ export default function AdmissionsPage() {
                 <div className="bg-slate-800 p-5 rounded-2xl border border-slate-700/50">
                   <label className="block text-sm font-medium text-slate-300 mb-2 flex items-center gap-2">
                     <Calendar className="w-4 h-4 text-slate-400" />
-                    تاريخ الخروج المتوقع (اختياري)
+                    {t("admissions.wizard.form.expDischarge")}
                   </label>
                   <input type="date" name="expectedDischargeDate" value={formData.expectedDischargeDate} onChange={handleChange} className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-slate-100 focus:outline-none focus:border-sky-500" style={{ colorScheme: 'dark' }} />
                 </div>
@@ -590,36 +585,36 @@ export default function AdmissionsPage() {
               <div className="bg-slate-800/50 p-5 rounded-2xl border border-slate-700/50 mb-8">
                 <div className="flex items-center gap-2 mb-4">
                   <Users className="w-5 h-5 text-emerald-500" />
-                  <h4 className="font-bold text-slate-200">معلومات التواصل في الطوارئ (اختياري)</h4>
+                  <h4 className="font-bold text-slate-200">{t("admissions.wizard.form.emergencyContact")}</h4>
                 </div>
                 <p className="text-xs text-slate-400 mb-4">
-                  يتم إدخال بيانات قريب أو مرافق للمريض للاتصال به عند الحاجة أثناء فترة الإيواء. إذا كانت مسجلة مسبقاً في ملف المريض، يمكنك تركها فارغة.
+                  {t("admissions.wizard.form.emergencyContactDesc")}
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-xs text-slate-400 mb-1">الاسم</label>
-                    <input type="text" name="emergencyContactName" value={formData.emergencyContactName} onChange={handleChange} placeholder="اسم المرافق..." className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-sky-500" />
+                    <label className="block text-xs text-slate-400 mb-1">{t("admissions.wizard.form.ecName")}</label>
+                    <input type="text" name="emergencyContactName" value={formData.emergencyContactName} onChange={handleChange} className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-sky-500" />
                   </div>
                   <div>
-                    <label className="block text-xs text-slate-400 mb-1">القرابة</label>
-                    <input type="text" name="emergencyContactRelation" value={formData.emergencyContactRelation} onChange={handleChange} placeholder="مثال: أب، زوجة..." className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-sky-500" />
+                    <label className="block text-xs text-slate-400 mb-1">{t("admissions.wizard.form.ecRelation")}</label>
+                    <input type="text" name="emergencyContactRelation" value={formData.emergencyContactRelation} onChange={handleChange} className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-sky-500" />
                   </div>
                   <div>
-                    <label className="block text-xs text-slate-400 mb-1">رقم الهاتف</label>
-                    <input type="text" name="emergencyContactPhone" value={formData.emergencyContactPhone} onChange={handleChange} placeholder="رقم الجوال..." className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-sky-500" />
+                    <label className="block text-xs text-slate-400 mb-1">{t("admissions.wizard.form.ecPhone")}</label>
+                    <input type="text" name="emergencyContactPhone" value={formData.emergencyContactPhone} onChange={handleChange} className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-sky-500" />
                   </div>
                 </div>
               </div>
 
               {/* Summary */}
               <div className="bg-sky-900/10 p-5 rounded-2xl border border-sky-500/20">
-                <h4 className="font-bold text-sky-400 mb-4 border-b border-sky-500/20 pb-2">مراجعة بيانات الدخول</h4>
+                <h4 className="font-bold text-sky-400 mb-4 border-b border-sky-500/20 pb-2">{t("admissions.wizard.form.review")}</h4>
                 <div className="grid grid-cols-2 gap-y-3 text-sm">
-                  <div className="text-slate-400">المريض: <span className="text-slate-100 font-medium ml-2">{patientSearch || 'غير محدد'}</span></div>
-                  <div className="text-slate-400">السرير: <span className="text-slate-100 font-medium ml-2">{selectedBedObj ? `${selectedBedObj.bedNumber} - ${selectedBedObj.wardName}` : 'غير محدد'}</span></div>
-                  <div className="text-slate-400">نوع الدخول: <span className="text-slate-100 font-medium ml-2">{formData.admissionType}</span></div>
-                  <div className="text-slate-400">الأولوية: <span className="text-slate-100 font-medium ml-2">{formData.priority}</span></div>
-                  <div className="text-slate-400">العزل: <span className={`${formData.isolationRequired ? 'text-rose-400 font-bold' : 'text-slate-100'} ml-2`}>{formData.isolationRequired ? `نعم (${formData.isolationType})` : 'لا'}</span></div>
+                  <div className="text-slate-400">{t("admissions.wizard.form.revPatient")} <span className="text-slate-100 font-medium ml-2">{patientSearch || t("admissions.wizard.form.notSelected")}</span></div>
+                  <div className="text-slate-400">{t("admissions.wizard.form.revBed")} <span className="text-slate-100 font-medium ml-2">{selectedBedObj ? `${selectedBedObj.bedNumber} - ${selectedBedObj.wardName}` : t("admissions.wizard.form.notSelected")}</span></div>
+                  <div className="text-slate-400">{t("admissions.wizard.form.revType")} <span className="text-slate-100 font-medium ml-2">{formData.admissionType}</span></div>
+                  <div className="text-slate-400">{t("admissions.wizard.form.revPriority")} <span className="text-slate-100 font-medium ml-2">{formData.priority}</span></div>
+                  <div className="text-slate-400">{t("admissions.wizard.form.revIsolation")} <span className={`${formData.isolationRequired ? 'text-rose-400 font-bold' : 'text-slate-100'} ml-2`}>{formData.isolationRequired ? `${t("admissions.wizard.form.yes")} (${formData.isolationType})` : t("admissions.wizard.form.no")}</span></div>
                 </div>
               </div>
             </div>
@@ -632,7 +627,8 @@ export default function AdmissionsPage() {
               disabled={step === 1 || submitting}
               className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium transition-colors ${step === 1 ? 'opacity-0 cursor-default' : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600'}`}
             >
-              <ArrowRight className="w-4 h-4" /> السابق
+               {isRtl ? <ArrowRight className="w-4 h-4" /> : <ArrowLeft className="w-4 h-4" />} 
+               {t("admissions.wizard.form.prev")}
             </button>
             
             {step < 4 ? (
@@ -640,7 +636,7 @@ export default function AdmissionsPage() {
                 onClick={nextStep}
                 className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold shadow-lg shadow-sky-500/20 transition-all"
               >
-                التالي <ArrowLeft className="w-4 h-4" />
+                {t("admissions.wizard.form.next")} {isRtl ? <ArrowLeft className="w-4 h-4" /> : <ArrowRight className="w-4 h-4" />}
               </button>
             ) : (
               <button
@@ -649,9 +645,9 @@ export default function AdmissionsPage() {
                 className="flex items-center gap-2 px-8 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold shadow-lg shadow-emerald-500/20 transition-all"
               >
                 {submitting ? (
-                   <span className="flex items-center gap-2">جاري المعالجة... <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div></span>
+                   <span className="flex items-center gap-2">{t("admissions.wizard.form.processing")} <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div></span>
                 ) : (
-                   <><CheckCircle2 className="w-5 h-5" /> تأكيد الدخول وتسكين المريض</>
+                   <><CheckCircle2 className="w-5 h-5" /> {t("admissions.wizard.form.confirm")}</>
                 )}
               </button>
             )}
@@ -666,52 +662,52 @@ export default function AdmissionsPage() {
             <div className="bg-rose-600/10 border-b border-rose-500/20 p-5 flex justify-between items-center">
               <div className="flex items-center gap-3">
                 <div className="bg-rose-500/20 p-2 rounded-full"><AlertCircle className="w-6 h-6 text-rose-500" /></div>
-                <h2 className="text-xl font-bold text-rose-500">إيواء طوارئ سريع</h2>
+                <h2 className="text-xl font-bold text-rose-500">{t("admissions.wizard.quickModal.title")}</h2>
               </div>
               <button onClick={() => setShowQuickModal(false)} className="text-slate-400 hover:text-white bg-slate-800 p-1.5 rounded-full"><X className="w-5 h-5" /></button>
             </div>
             
             <div className="p-6 space-y-5">
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">المريض <span className="text-rose-500">*</span></label>
+                <label className="block text-sm font-medium text-slate-300 mb-2">{t("admissions.wizard.quickModal.patient")} <span className="text-rose-500">*</span></label>
                 <select name="patientId" value={formData.patientId} onChange={handleChange} className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-sky-500 appearance-none">
-                  <option value="">-- اختر المريض --</option>
+                  <option value="">{t("admissions.wizard.form.selectDoctor")}</option>
                   {patients.map(p => <option key={p.id} value={p.id}>{p.fullName} - {p.mrn}</option>)}
                 </select>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">الطبيب المسعف / المدخل <span className="text-rose-500">*</span></label>
+                <label className="block text-sm font-medium text-slate-300 mb-2">{t("admissions.wizard.quickModal.doctor")} <span className="text-rose-500">*</span></label>
                 <select name="admittingDoctorId" value={formData.admittingDoctorId} onChange={handleChange} className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-sky-500 appearance-none">
-                  <option value="">-- اختر الطبيب --</option>
+                  <option value="">{t("admissions.wizard.form.selectDoctor")}</option>
                   {doctors.map(d => <option key={d.id} value={d.id}>{d.fullName}</option>)}
                 </select>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">تخصيص سرير متاح <span className="text-rose-500">*</span></label>
+                <label className="block text-sm font-medium text-slate-300 mb-2">{t("admissions.wizard.quickModal.bed")} <span className="text-rose-500">*</span></label>
                 <select name="bedId" value={formData.bedId} onChange={handleChange} className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-sky-500 appearance-none">
-                  <option value="">-- اختر السرير --</option>
+                  <option value="">{t("admissions.wizard.form.selectDoctor")}</option>
                   {wards.map(w => 
                     <optgroup key={w.id} label={w.name}>
                       {w.rooms.flatMap(r => r.beds.filter(b => b.status === "AVAILABLE").map(b => (
-                        <option key={b.id} value={b.id}>سرير {b.bedNumber} (غرفة {r.roomNumber})</option>
+                        <option key={b.id} value={b.id}>{b.bedNumber} ({r.roomNumber})</option>
                       )))}
                     </optgroup>
                   )}
                 </select>
-                <p className="text-xs text-slate-500 mt-2">تظهر فقط الأسرة المتاحة (AVAILABLE).</p>
+                <p className="text-xs text-slate-500 mt-2">{t("admissions.wizard.quickModal.bedHint")}</p>
               </div>
             </div>
 
             <div className="p-5 border-t border-slate-700/50 bg-slate-900/50 flex justify-end gap-3">
-              <button onClick={() => setShowQuickModal(false)} className="px-5 py-2.5 rounded-xl font-medium text-slate-300 hover:bg-slate-800 transition-colors">إلغاء</button>
+              <button onClick={() => setShowQuickModal(false)} className="px-5 py-2.5 rounded-xl font-medium text-slate-300 hover:bg-slate-800 transition-colors">{t("admissions.wizard.quickModal.cancel")}</button>
               <button 
                 onClick={handleQuickEmergencyAdmission} 
                 disabled={submitting || !formData.patientId || !formData.bedId || !formData.admittingDoctorId}
                 className="px-6 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold shadow-lg shadow-rose-500/20 transition-all flex items-center gap-2"
               >
-                {submitting ? 'جاري المعالجة...' : 'تنفيذ الإيواء فوراً'}
+                {submitting ? t("admissions.wizard.form.processing") : t("admissions.wizard.quickModal.submit")}
               </button>
             </div>
           </div>
