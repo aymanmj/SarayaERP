@@ -550,7 +550,7 @@ export default function EncounterDetailsPage() {
       const res = await apiClient.post("/clinical-notes", {
         ...data,
         encounterId: encId,
-        type: "VISIT",
+        type: encounter?.type === "IPD" ? "DOCTOR_ROUND" : "CONSULTATION",
       });
       return res.data;
     },
