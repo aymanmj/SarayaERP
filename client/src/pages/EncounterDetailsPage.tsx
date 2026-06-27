@@ -920,6 +920,16 @@ export default function EncounterDetailsPage() {
           <div className="flex-1 bg-slate-900/40 border border-slate-800 rounded-b-xl rounded-tr-xl p-5 overflow-y-auto custom-scrollbar">
             {activeTab === "VISITS" && (
               <div className="grid grid-cols-1 gap-6">
+                {/* Add New Clinical Note Section */}
+                <StructuredSOAPNote
+                  key={formKey}
+                  note={{}}
+                  onSave={handleAddVisitNote}
+                  isSaving={savingVisit}
+                  onAiAnalyze={handleAiCoding}
+                  isAnalyzing={aiCodingMutation.isPending}
+                />
+
                 {/* Previous Clinical Notes Section */}
                 {encounter.clinicalNotes && encounter.clinicalNotes.length > 0 && (
                   <div className="space-y-4">
@@ -950,16 +960,6 @@ export default function EncounterDetailsPage() {
                     ))}
                   </div>
                 )}
-
-                {/* Add New Clinical Note Section */}
-                <StructuredSOAPNote
-                  key={formKey}
-                  note={{}}
-                  onSave={handleAddVisitNote}
-                  isSaving={savingVisit}
-                  onAiAnalyze={handleAiCoding}
-                  isAnalyzing={aiCodingMutation.isPending}
-                />
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   <Suspense

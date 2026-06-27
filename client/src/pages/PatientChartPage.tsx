@@ -289,7 +289,7 @@ export default function PatientChartPage() {
             }`}
           >
             <span>{tab.icon}</span>
-            {t("patients.chart.tabs." + tab.key.toLowerCase())}
+            {t("patients.chart.tabs." + tab.key.toLowerCase(), tab.label)}
             {/* Notification badges */}
             {tab.key === "ALLERGIES" && allergies.length > 0 && (
               <span className="bg-red-500/20 text-red-400 text-[10px] px-1.5 py-0.5 rounded-full font-bold">
