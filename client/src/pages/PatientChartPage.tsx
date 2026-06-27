@@ -676,6 +676,8 @@ export default function PatientChartPage() {
               </div>
             </div>
           </div>
+        )}
+
         {/* NOTES Tab */}
         {activeTab === "NOTES" && (
           <div className="space-y-6">
