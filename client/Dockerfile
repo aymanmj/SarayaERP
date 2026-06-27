@@ -32,7 +32,7 @@ COPY . .
 # Build Arguments for Vite
 # متغيرات البناء للواجهة الأمامية
 # ==========================================
-ARG VITE_API_URL=http://localhost:3000
+ARG VITE_API_URL=/api
 ARG VITE_APP_NAME=Saraya\ ERP
 ARG VITE_APP_VERSION=1.0.1
 
