@@ -1818,7 +1818,12 @@
     "wardType": "Type",
     "wardTypeGeneral": "General",
     "wardTypeIcu": "Intensive Care (ICU)",
-    "wardTypePrivate": "Private"
+    "wardTypePrivate": "Private",
+    "genderLabel": "Gender:",
+    "genderMixed": "Mixed",
+    "genderMen": "Men",
+    "genderWomen": "Women",
+    "wardGender": "Ward Allocation (Gender)"
   },
   "housekeeping": {
     "title": "Housekeeping Management",

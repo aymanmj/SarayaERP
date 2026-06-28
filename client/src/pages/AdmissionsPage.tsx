@@ -488,7 +488,7 @@ export default function AdmissionsPage() {
                         : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
                     }`}
                   >
-                    {ward.name} {ward.gender ? `(${ward.gender})` : ''}
+                    {ward.name} {ward.gender && ward.gender !== "Mixed" ? `(${ward.gender === "Men" ? t("beds.genderMen") : ward.gender === "Women" ? t("beds.genderWomen") : ward.gender})` : ''}
                   </button>
                 ))}
               </div>

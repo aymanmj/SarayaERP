@@ -13,6 +13,7 @@ type Ward = {
   id: number;
   name: string;
   type: string;
+  gender?: string;
   rooms: Room[];
   serviceItemId?: number;
   serviceItem?: ServiceItemLite;
@@ -33,6 +34,7 @@ export default function BedManagementSettingsPage() {
   const [wardForm, setWardForm] = useState({
     name: "",
     type: "General",
+    gender: "Mixed",
     serviceItemId: "",
     departmentId: "",
   });
@@ -78,12 +80,13 @@ export default function BedManagementSettingsPage() {
       setWardForm({
         name: ward.name,
         type: ward.type,
+        gender: ward.gender || "Mixed",
         serviceItemId: ward.serviceItemId?.toString() || "",
         departmentId: ward.departmentId?.toString() || "",
       });
     } else {
       setEditWardId(null);
-      setWardForm({ name: "", type: "General", serviceItemId: "", departmentId: "" });
+      setWardForm({ name: "", type: "General", gender: "Mixed", serviceItemId: "", departmentId: "" });
     }
     setShowWardModal(true);
   };
@@ -111,7 +114,7 @@ export default function BedManagementSettingsPage() {
     const payload = {
       name: wardForm.name,
       type: wardForm.type,
-      gender: "Mixed",
+      gender: wardForm.gender,
       serviceItemId: wardForm.serviceItemId ? Number(wardForm.serviceItemId) : null,
       departmentId: wardForm.departmentId ? Number(wardForm.departmentId) : null,
     };
@@ -267,6 +270,8 @@ export default function BedManagementSettingsPage() {
                   <div className="text-xs text-slate-400 flex gap-2 mt-1">
                     <span>{t("beds.typeLabel")} {ward.type === "General" ? t("beds.wardTypeGeneral") : ward.type === "ICU" ? t("beds.wardTypeIcu") : ward.type === "Private" ? t("beds.wardTypePrivate") : ward.type}</span>
                     <span>•</span>
+                    <span>{t("beds.genderLabel")} {ward.gender === "Men" ? t("beds.genderMen") : ward.gender === "Women" ? t("beds.genderWomen") : t("beds.genderMixed")}</span>
+                    <span>•</span>
                     <span>
                       {t("beds.rateLabel")} {ward.serviceItem ? <span className="text-emerald-400 font-bold">{Number(ward.serviceItem.defaultPrice).toFixed(3)} LYD</span> : <span className="text-rose-400">{t("beds.unpriced")}</span>}
                     </span>
@@ -374,6 +379,14 @@ export default function BedManagementSettingsPage() {
                   <option value="General">{t("beds.wardTypeGeneral")}</option>
                   <option value="ICU">{t("beds.wardTypeIcu")}</option>
                   <option value="Private">{t("beds.wardTypePrivate")}</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-slate-400 block mb-1">{t("beds.wardGender")}</label>
+                <select className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-sm focus:outline-none focus:border-sky-500 transition text-white" value={wardForm.gender} onChange={(e) => setWardForm({ ...wardForm, gender: e.target.value })}>
+                  <option value="Mixed">{t("beds.genderMixed")}</option>
+                  <option value="Men">{t("beds.genderMen")}</option>
+                  <option value="Women">{t("beds.genderWomen")}</option>
                 </select>
               </div>
               <div>

@@ -1818,7 +1818,12 @@
     "wardType": "النوع",
     "wardTypeGeneral": "عام (General)",
     "wardTypeIcu": "عناية مركزة (ICU)",
-    "wardTypePrivate": "خاص (Private)"
+    "wardTypePrivate": "خاص (Private)",
+    "genderLabel": "الجنس:",
+    "genderMixed": "مختلط",
+    "genderMen": "رجال",
+    "genderWomen": "نساء",
+    "wardGender": "تخصيص العنبر (الجنس)"
   },
   "housekeeping": {
     "title": "إدارة النظافة (Housekeeping)",
