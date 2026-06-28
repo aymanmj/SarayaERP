@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { apiClient } from '../api/apiClient';
 import { toast } from 'sonner';
+import { IncidentDetailsModal } from '../components/quality/IncidentDetailsModal';
 
 type IncidentSeverity = 'NEAR_MISS' | 'MINOR' | 'MODERATE' | 'MAJOR' | 'SENTINEL';
 type IncidentStatus = 'REPORTED' | 'UNDER_REVIEW' | 'INVESTIGATED' | 'CAPA_OPEN' | 'CAPA_VERIFIED' | 'CLOSED';
@@ -103,6 +104,10 @@ export default function QualityAndSafetyPage() {
   const [form, setForm] = useState<ReportForm>(defaultForm);
   const [filterStatus, setFilterStatus] = useState<string>('');
   const [filterSeverity, setFilterSeverity] = useState<string>('');
+
+  // Modal State
+  const [selectedIncidentId, setSelectedIncidentId] = useState<number | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const loadDashboard = async () => {
     try {
@@ -318,7 +323,14 @@ export default function QualityAndSafetyPage() {
               <div className="space-y-3">
                 {incidents.length === 0 && <p className="text-slate-500 text-center py-16">{t("quality.thereAreNoMatchingIncidents", "لا توجد حوادث مطابقة")}</p>}
                 {incidents.map(incident => (
-                  <div key={incident.id} className="bg-slate-900 border border-slate-800 rounded-2xl p-5 hover:border-slate-700 transition-all">
+                  <div 
+                    key={incident.id} 
+                    onClick={() => {
+                      setSelectedIncidentId(incident.id);
+                      setIsModalOpen(true);
+                    }}
+                    className="bg-slate-900 border border-slate-800 rounded-2xl p-5 hover:border-slate-700 transition-all cursor-pointer"
+                  >
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div className="flex items-center gap-3 flex-wrap">
                         <span className={`text-xs font-bold px-2 py-1 rounded-lg border ${SEVERITY_CONFIG[incident.severity].bg} ${SEVERITY_CONFIG[incident.severity].color}`}>
@@ -481,6 +493,17 @@ export default function QualityAndSafetyPage() {
           </div>
         )}
       </div>
+
+      <IncidentDetailsModal
+        isOpen={isModalOpen}
+        incidentId={selectedIncidentId}
+        onClose={() => setIsModalOpen(false)}
+        onUpdate={() => {
+          if (tab === 'dashboard') loadDashboard();
+          if (tab === 'incidents') loadIncidents();
+          if (tab === 'my-capa') loadMyCapas();
+        }}
+      />
     </div>
   );
 }
