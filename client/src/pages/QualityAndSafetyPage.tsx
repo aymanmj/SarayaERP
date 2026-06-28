@@ -109,6 +109,11 @@ export default function QualityAndSafetyPage() {
   const [selectedIncidentId, setSelectedIncidentId] = useState<number | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  // CAPA Completion State
+  const [completingCapaId, setCompletingCapaId] = useState<number | null>(null);
+  const [completedNotes, setCompletedNotes] = useState('');
+  const [isCompletingCapa, setIsCompletingCapa] = useState(false);
+
   const loadDashboard = async () => {
     try {
       const res = await apiClient.get('/quality/dashboard');
@@ -141,9 +146,31 @@ export default function QualityAndSafetyPage() {
       const res = await apiClient.get('/quality/my-capa-tasks');
       setMyCapas(res.data);
     } catch {
-      toast.error(t("quality.capaAssignmentsCouldNotBeLoaded", "تعذّر تحميل مهام CAPA"));
+      toast.error(t("quality.unableToLoadMyCapas", "تعذّر تحميل مهام CAPA الخاصة بك"));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCompleteCapa = async (capaId: number) => {
+    if (!completedNotes.trim()) {
+      toast.error(t("quality.pleaseEnterNotes", "الرجاء إدخال ملاحظات الإنجاز"));
+      return;
+    }
+    setIsCompletingCapa(true);
+    try {
+      await apiClient.patch(`/quality/capa/${capaId}`, {
+        status: 'COMPLETED',
+        completedNotes
+      });
+      toast.success(t("quality.capaCompletedSuccessfully", "تم إغلاق المهمة بنجاح"));
+      setCompletingCapaId(null);
+      setCompletedNotes('');
+      loadMyCapas();
+    } catch {
+      toast.error(t("quality.errorCompletingCapa", "حدث خطأ أثناء إغلاق المهمة"));
+    } finally {
+      setIsCompletingCapa(false);
     }
   };
 
@@ -395,6 +422,58 @@ export default function QualityAndSafetyPage() {
                     <div className="flex flex-wrap gap-4 mt-3 text-xs text-slate-500">
                       <span>🎯 {t("quality.dueDate", "تاريخ الاستحقاق:")} {new Date(capa.dueDate).toLocaleDateString(isRtl ? "ar-SA" : "en-US")}</span>
                     </div>
+
+                    {/* Completion Action */}
+                    {(capa.status === 'OPEN' || capa.status === 'IN_PROGRESS') && (
+                      <div className="mt-4 pt-4 border-t border-slate-700/50">
+                        {completingCapaId === capa.id ? (
+                          <div className="space-y-3">
+                            <textarea
+                              value={completedNotes}
+                              onChange={(e) => setCompletedNotes(e.target.value)}
+                              placeholder={t("quality.enterCompletionNotes", "أدخل ملاحظات وملخص ما تم إنجازه...")}
+                              className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-sm text-white resize-none h-24 focus:border-emerald-500 outline-none"
+                            />
+                            <div className="flex gap-2 justify-end">
+                              <button
+                                onClick={() => {
+                                  setCompletingCapaId(null);
+                                  setCompletedNotes('');
+                                }}
+                                className="px-3 py-1.5 text-xs font-medium text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors"
+                              >
+                                {t("cancel", "إلغاء")}
+                              </button>
+                              <button
+                                onClick={() => handleCompleteCapa(capa.id)}
+                                disabled={isCompletingCapa}
+                                className="px-3 py-1.5 text-xs font-medium text-white bg-emerald-600 hover:bg-emerald-500 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-1"
+                              >
+                                {isCompletingCapa ? t("quality.saving", "جاري الحفظ...") : t("quality.completeTask", "تأكيد الإنجاز")}
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setCompletingCapaId(capa.id)}
+                            className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-emerald-400 text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
+                          >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                            {t("quality.markAsCompleted", "إغلاق المهمة كمنجزة")}
+                          </button>
+                        )}
+                      </div>
+                    )}
+                    
+                    {/* Display Completion Notes if any */}
+                    {capa.status === 'COMPLETED' && capa.completedNotes && (
+                      <div className="mt-4 pt-4 border-t border-slate-700/50">
+                        <h4 className="text-xs font-medium text-slate-400 mb-1">{t("quality.completionNotes", "ملاحظات الإنجاز:")}</h4>
+                        <p className="text-sm text-emerald-300 bg-emerald-900/20 p-3 rounded-lg border border-emerald-900/30">
+                          {capa.completedNotes}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
