@@ -44,7 +44,7 @@ type PreAuthorization = {
 
 export default function PreAuthPage() {
   const { t, i18n } = useTranslation();
-  const isRtl = i18n.dir() === "rtl";
+  const isRtl = i18n.dir?.() === "rtl" || i18n.language === "ar";
   const [auths, setAuths] = useState<PreAuthorization[]>([]);
   const [loading, setLoading] = useState(false);
 

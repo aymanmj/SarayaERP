@@ -181,6 +181,18 @@ export default function QualityAndSafetyPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, filterStatus, filterSeverity]);
 
+  useEffect(() => {
+    const incId = searchParams.get('incidentId');
+    if (incId) {
+      setSelectedIncidentId(Number(incId));
+      setIsModalOpen(true);
+      
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('incidentId');
+      setSearchParams(newParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (form.description.length < 20) {

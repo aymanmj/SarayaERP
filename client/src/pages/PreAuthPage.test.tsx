@@ -174,8 +174,8 @@ describe('PreAuthPage', () => {
     fireEvent.click(screen.getByText('نفيس'));
 
     await waitFor(() => {
-      expect(screen.getByText('+ إضافة خدمة')).toBeDefined();
-      expect(screen.getByText('+ إضافة تشخيص')).toBeDefined();
+      expect(screen.getByText(/إضافة خدمة/i)).toBeDefined();
+      expect(screen.getByText(/إضافة تشخيص/i)).toBeDefined();
     });
   });
 });

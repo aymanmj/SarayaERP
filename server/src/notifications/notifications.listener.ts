@@ -61,7 +61,7 @@ export class NotificationListener {
       ['QUALITY_MANAGER', 'ADMIN'],
       'حادثة سريرية جديدة',
       `تم الإبلاغ عن حادثة (${event.incidentNumber}) بخطورة ${event.severity} بواسطة ${event.reporterName}`,
-      '/quality?tab=incidents',
+      '/quality?tab=incidents&incidentId=' + event.incidentId,
     );
   }
 
@@ -73,7 +73,7 @@ export class NotificationListener {
       ['QUALITY_MANAGER', 'ADMIN'],
       'إجراء CAPA جديد',
       `تم تكليف ${event.assignedToName} بإجراء تصحيحي لحادثة ${event.incidentId}`,
-      '/quality?tab=my-capa',
+      '/quality?tab=my-capa&incidentId=' + event.incidentId,
     );
   }
 }

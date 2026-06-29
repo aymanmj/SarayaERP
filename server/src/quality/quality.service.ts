@@ -390,12 +390,10 @@ export class QualityService {
     });
 
     // تحديث حالة الحادثة إلى CAPA_OPEN
-    if (incident.status === IncidentStatus.INVESTIGATED) {
-      await this.prisma.clinicalIncident.update({
-        where: { id: dto.incidentId },
-        data: { status: IncidentStatus.CAPA_OPEN },
-      });
-    }
+    await this.prisma.clinicalIncident.update({
+      where: { id: dto.incidentId },
+      data: { status: IncidentStatus.CAPA_OPEN },
+    });
 
     this.eventEmitter.emit('quality.capa_added', {
       hospitalId,

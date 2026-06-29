@@ -23,6 +23,8 @@ export function IncidentDetailsModal({ isOpen, incidentId, onClose, onUpdate }: 
   // CAPA Form state
   const [showCapaForm, setShowCapaForm] = useState(false);
   const [submittingCapa, setSubmittingCapa] = useState(false);
+  const [completingCapaId, setCompletingCapaId] = useState<number | null>(null);
+  const [completedNotes, setCompletedNotes] = useState('');
   const [capaForm, setCapaForm] = useState({
     actionType: 'CORRECTIVE',
     description: '',
@@ -96,6 +98,29 @@ export function IncidentDetailsModal({ isOpen, incidentId, onClose, onUpdate }: 
       onUpdate();
     } catch (err) {
       toast.error(t("quality.failedToAddCapa", "فشل إضافة مهمة CAPA"));
+    } finally {
+      setSubmittingCapa(false);
+    }
+  };
+
+  const handleCompleteCapa = async (capaId: number) => {
+    if (!completedNotes.trim()) {
+      toast.error(t("quality.pleaseEnterNotes", "الرجاء إدخال ملاحظات وملخص ما تم إنجازه"));
+      return;
+    }
+    setSubmittingCapa(true);
+    try {
+      await apiClient.patch(`/quality/capa/${capaId}`, {
+        status: 'COMPLETED',
+        completedNotes
+      });
+      toast.success(t("quality.capaCompletedSuccessfully", "تم إغلاق المهمة بنجاح"));
+      setCompletingCapaId(null);
+      setCompletedNotes('');
+      await loadIncident();
+      onUpdate();
+    } catch {
+      toast.error(t("quality.errorCompletingCapa", "حدث خطأ أثناء إغلاق المهمة"));
     } finally {
       setSubmittingCapa(false);
     }
@@ -277,15 +302,62 @@ export function IncidentDetailsModal({ isOpen, incidentId, onClose, onUpdate }: 
                               </span>
                             </div>
                             <span className="text-xs text-slate-400 flex items-center gap-1">
-                              <Calendar className="w-3 h-3" />
-                              {new Date(capa.dueDate).toLocaleDateString(isRtl ? 'ar-SA' : 'en-US')}
+                              👤 {capa.assignedTo?.fullName}
                             </span>
                           </div>
-                          <p className="text-sm text-slate-300 mb-3">{capa.description}</p>
-                          <div className="flex items-center gap-2 text-xs text-slate-400">
-                            <User className="w-3 h-3" />
-                            {t("quality.assignedTo", "مسند إلى")}: <span className="text-slate-200">{capa.assignedTo?.fullName}</span>
+                          <p className="text-sm text-slate-300 mt-2">{capa.description}</p>
+                          <div className="text-xs text-slate-500 mt-2">
+                            📅 {t("quality.dueDate", "تاريخ الاستحقاق")}: {new Date(capa.dueDate).toLocaleDateString(isRtl ? 'ar-SA' : 'en-US')}
                           </div>
+
+                          {(capa.status === 'OPEN' || capa.status === 'IN_PROGRESS') && (
+                            <div className="mt-4 pt-4 border-t border-slate-700/50">
+                              {completingCapaId === capa.id ? (
+                                <div className="space-y-3">
+                                  <textarea
+                                    value={completedNotes}
+                                    onChange={(e) => setCompletedNotes(e.target.value)}
+                                    placeholder={t("quality.enterCompletionNotes", "أدخل ملاحظات وملخص ما تم إنجازه...")}
+                                    className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-sm text-white resize-none h-24 focus:border-emerald-500 outline-none"
+                                  />
+                                  <div className="flex gap-2 justify-end">
+                                    <button
+                                      onClick={() => {
+                                        setCompletingCapaId(null);
+                                        setCompletedNotes('');
+                                      }}
+                                      className="px-3 py-1.5 text-xs font-medium text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors"
+                                    >
+                                      {t("cancel", "إلغاء")}
+                                    </button>
+                                    <button
+                                      onClick={() => handleCompleteCapa(capa.id)}
+                                      disabled={submittingCapa}
+                                      className="px-3 py-1.5 text-xs font-medium text-white bg-emerald-600 hover:bg-emerald-500 rounded-lg transition-colors disabled:opacity-50"
+                                    >
+                                      {submittingCapa ? t("quality.saving", "جاري الحفظ...") : t("quality.completeTask", "إغلاق المهمة كمنجزة")}
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="flex justify-end">
+                                  <button
+                                    onClick={() => setCompletingCapaId(capa.id)}
+                                    className="px-4 py-2 text-sm font-medium text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors border border-slate-700"
+                                  >
+                                    {t("quality.closeTaskAsDone", "إغلاق المهمة كمنجزة")}
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {capa.completedNotes && (
+                            <div className="mt-3 p-3 bg-emerald-950/20 border border-emerald-900/30 rounded-lg">
+                              <h5 className="text-xs font-semibold text-emerald-400 mb-1">{t("quality.completionNotes", "ملاحظات الإنجاز")}</h5>
+                              <p className="text-sm text-slate-300">{capa.completedNotes}</p>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
