@@ -58,7 +58,7 @@ export class StartupSecurityValidator implements OnModuleInit {
     for (const secret of criticalSecrets) {
       const value = this.config.get<string>(secret.key);
 
-      if (!value) {
+      if (!value || !value.trim()) {
         if (isProduction) {
           this.logger.error(
             `🚨 CRITICAL: ${secret.key} is NOT SET! ${secret.description}. ` +
@@ -76,10 +76,18 @@ export class StartupSecurityValidator implements OnModuleInit {
       }
 
       // Check for dangerous default values
-      if (secret.dangerousDefaults.includes(value)) {
+      const isPlaceholder =
+        /change[_ -]?me|change[_ -]?in[_ -]?production|your[_ -].*(?:secret|key|password)/i.test(
+          value,
+        );
+      if (
+        secret.dangerousDefaults.includes(value) ||
+        isPlaceholder ||
+        value.trim().length < 32
+      ) {
         if (isProduction) {
           this.logger.error(
-            `🚨 CRITICAL: ${secret.key} is set to a known DEFAULT value! ` +
+            `🚨 CRITICAL: ${secret.key} is a placeholder or is shorter than 32 characters! ` +
               `This is a severe security risk. Generate a proper secret: ` +
               `node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"`,
           );
