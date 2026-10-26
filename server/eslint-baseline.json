@@ -1246,19 +1246,6 @@
       "@typescript-eslint/no-unsafe-call": 3,
       "@typescript-eslint/no-unsafe-member-access": 48
     },
-    "test/e2e/multi-tenant-isolation.e2e-spec.ts": {
-      "@typescript-eslint/no-unsafe-assignment": 22,
-      "@typescript-eslint/no-unsafe-call": 31,
-      "@typescript-eslint/no-unsafe-member-access": 44,
-      "prettier/prettier": 2
-    },
-    "test/e2e/procurement.e2e-spec.ts": {
-      "@typescript-eslint/no-unsafe-assignment": 6,
-      "@typescript-eslint/no-unsafe-call": 6,
-      "@typescript-eslint/no-unsafe-member-access": 4,
-      "@typescript-eslint/no-unused-vars": 3,
-      "no-empty": 1
-    },
     "test/fhir.e2e-spec.ts": {
       "@typescript-eslint/no-unsafe-assignment": 2,
       "@typescript-eslint/no-unsafe-call": 1,

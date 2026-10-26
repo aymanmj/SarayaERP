@@ -62,7 +62,13 @@ jobs:
 
       - name: Build server
         working-directory: ./server
-        run: npm run build
+        run: |
+          npm run typecheck
+          npm run build
+
+      - name: Test database reset safety
+        working-directory: ./server
+        run: npm run test:helpers
 
       - name: Run server tests
         working-directory: ./server

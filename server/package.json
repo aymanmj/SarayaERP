@@ -7,6 +7,7 @@
   "license": "UNLICENSED",
   "scripts": {
     "build": "nest build",
+    "typecheck": "tsc --noEmit",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
     "start:dev": "nest start --watch",
@@ -18,6 +19,7 @@
     "lint:ci": "node scripts/check-lint-baseline.cjs",
     "audit:check": "node ../generate-audit-report.cjs --check",
     "test": "jest",
+    "test:helpers": "jest --rootDir . --runInBand --runTestsByPath test/db-reset.spec.ts",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",

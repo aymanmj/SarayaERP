@@ -12,11 +12,18 @@ export class AuthHelper {
   async createTestUser(
     username = 'testuser',
     password = 'password123',
+    options: {
+      hospitalId?: number;
+      roles?: string[];
+      permissions?: string[];
+    } = {},
   ): Promise<{ user: User; accessToken: string }> {
     // 1. Ensure Hospital exists
-    let hospital = await this.prisma.hospital.findFirst({
-      where: { code: 'TEST_HOSP' },
-    });
+    let hospital = options.hospitalId
+      ? await this.prisma.hospital.findUniqueOrThrow({
+          where: { id: options.hospitalId },
+        })
+      : await this.prisma.hospital.findFirst({ where: { code: 'TEST_HOSP' } });
 
     if (!hospital) {
       hospital = await this.prisma.hospital.create({
@@ -49,13 +56,15 @@ export class AuthHelper {
     const payload = {
       sub: user.id,
       username: user.username,
-      roles: [],
+      roles: options.roles ?? [],
+      permissions: options.permissions ?? [],
       hospitalId: user.hospitalId,
     };
 
     const accessToken = await this.jwt.signAsync(payload, {
       secret: process.env.JWT_SECRET || 'PRODUCTION_SECRET_KEY_CHANGE_ME',
       expiresIn: '15m',
+      issuer: 'saraya-staff',
     });
 
     return { user, accessToken };
