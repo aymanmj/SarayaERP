@@ -3,6 +3,8 @@ name: Build and Publish Docker Images
 on:
   push:
     branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
   workflow_dispatch:
 
 env:
@@ -15,6 +17,7 @@ jobs:
   # ==========================================
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -31,17 +34,39 @@ jobs:
       - name: Verify i18n keys are balanced
         run: node scripts/check-i18n.js
 
+      - name: Verify controller security declarations
+        run: node scripts/verify-tenant-isolation.js
+
+      - name: Verify safe migration startup
+        run: bash tests/entrypoint-migrations.test.sh
+
       - name: Install server dependencies
         working-directory: ./server
         run: npm ci
 
+      - name: Generate and validate Prisma schema
+        working-directory: ./server
+        run: |
+          npx prisma generate
+          npx prisma validate
+        env:
+          DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
+
       - name: Lint server
         working-directory: ./server
-        run: npm run lint || true
+        run: npm run lint:ci
+
+      - name: Test lint regression gate
+        working-directory: ./server
+        run: node --test scripts/check-lint-baseline.test.cjs
+
+      - name: Build server
+        working-directory: ./server
+        run: npm run build
 
       - name: Run server tests
         working-directory: ./server
-        run: npm test -- --passWithNoTests
+        run: npm test -- --runInBand
         env:
           DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
           JWT_SECRET: "test-secret-key-for-ci"
@@ -57,10 +82,15 @@ jobs:
         env:
           VITE_API_URL: /api
 
+      - name: Run client tests
+        working-directory: ./client
+        run: npm test -- --run --maxWorkers=2
+
   # ==========================================
   # 2. بناء ونشر الصور (Build & Push)
   # ==========================================
   build-and-push:
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     needs: test
     permissions:
