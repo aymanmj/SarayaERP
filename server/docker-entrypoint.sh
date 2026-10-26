@@ -32,70 +32,12 @@ while [ $RETRIES -gt 0 ]; do
     break
   fi
 
-  # ── Detect P3005: Database not empty (Baselining required) ──
-  if echo "$OUTPUT" | grep -q "P3005"; then
-    echo "⚠️  P3005 detected: Database has tables but no migration history."
-    echo "🛠️  Auto-baselining database with initial migration..."
-    
-    # Resolve the init migration to mark it as applied
-    npx prisma migrate resolve --applied 00000000000000_init
-    
-    if [ $? -eq 0 ]; then
-      echo "✅ Database successfully baselined! Retrying deploy..."
-      RETRIES=$((RETRIES-1))
-      continue
-    else
-      echo "❌ Fatal: Failed to baseline database."
-      exit 1
-    fi
-  fi
-
-  # ── Detect persistent migration errors (P3009, P3018, P3014, P3004) ──
-  if echo "$OUTPUT" | grep -qE "P3009|P3018|P3014|P3004"; then
-    echo "⚠️  Prisma Migration Error detected. Checking if safe to apply RADICAL RESOLUTION..."
-
-    # Check if the database has real users (0 or 1 admin means fresh/dev DB)
-    USER_COUNT=$(node -e "
-      const { PrismaClient } = require('@prisma/client');
-      const p = new PrismaClient();
-      p.user.count()
-        .then(c => { console.log(c); p.\$disconnect(); })
-        .catch(() => { console.log('0'); });
-    " 2>/dev/null)
-    USER_COUNT=${USER_COUNT:-"0"}
-
-    # Radical Solution: If it's a new installation, broken migration files shouldn't block us.
-    if [ "$USER_COUNT" -le 1 ]; then
-      echo "🛠️  Fresh installation detected (Users: $USER_COUNT). Applying RADICAL SOLUTION..."
-      echo "🗑️  Dropping migration state and forcefully pushing schema directly to database..."
-      
-      node -e "
-        const { PrismaClient } = require('@prisma/client');
-        const p = new PrismaClient();
-        p.\$executeRawUnsafe('DROP TABLE IF EXISTS \"_prisma_migrations\" CASCADE')
-          .then(() => p.\$disconnect())
-          .catch(() => p.\$disconnect());
-      " 2>/dev/null
-      
-      npx prisma db push --accept-data-loss
-      
-      if [ $? -eq 0 ]; then
-        echo "✅ Schema forcefully synchronized! Bypassed corrupted migration files successfully."
-        
-        # Now baseline it so it doesn't throw P3005 on next restart
-        npx prisma migrate resolve --applied 00000000000000_init >/dev/null 2>&1
-        
-        MIGRATE_SUCCESS=true
-        break
-      else
-        echo "❌ Fatal: Force sync failed. Please check schema validity."
-        exit 1
-      fi
-    else
-      echo "❌ Migration error on populated database (Users: $USER_COUNT). Manual fix needed:"
-      echo "   docker exec saraya_backend npx prisma migrate resolve --rolled-back <migration_name>"
-      exit 1
-    fi
+  # A non-empty database or a failed migration requires an operator review.
+  # Never infer that it is disposable from user count or rewrite migration history.
+  if echo "$OUTPUT" | grep -qE "P3005|P3009|P3018|P3014|P3004"; then
+    echo "❌ Migration requires manual review. Startup stopped without automatic schema repair."
+    echo "   Back up the database, inspect the failed migration and follow docs/deployment/migration-recovery.md."
+    exit 1
   fi
 
   # ── Transient failure (DB not ready yet) ──
