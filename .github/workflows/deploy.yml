@@ -18,6 +18,25 @@ jobs:
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: saraya_ci_test
+          POSTGRES_USER: saraya_test
+          POSTGRES_PASSWORD: synthetic_ci_test_only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U saraya_test -d saraya_ci_test"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 12
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -25,7 +44,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
           cache: 'npm'
           cache-dependency-path: |
             server/package-lock.json
@@ -36,6 +55,9 @@ jobs:
 
       - name: Verify controller security declarations
         run: node scripts/verify-tenant-isolation.js
+
+      - name: Verify every controller route permission declaration
+        run: node generate-audit-report.cjs --check
 
       - name: Verify safe migration startup
         run: bash tests/entrypoint-migrations.test.sh
@@ -82,6 +104,24 @@ jobs:
         working-directory: ./client
         run: npm ci
 
+      - name: Verify fresh migrations and real database workflows
+        working-directory: ./server
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://saraya_test:synthetic_ci_test_only@127.0.0.1:5432/saraya_ci_test?schema=public
+          REDIS_HOST: 127.0.0.1
+          REDIS_PORT: '6379'
+          REDIS_PASSWORD: ''
+          REDIS_MOCK: 'false'
+          JWT_SECRET: synthetic_isolated_ci_jwt_key_for_test_only
+          ENCRYPTION_KEY: synthetic_isolated_ci_encryption_key_for_test_only
+          ENCRYPTION_SALT: synthetic_isolated_ci_salt
+          DISABLE_THROTTLER: 'true'
+        run: |
+          npx prisma migrate deploy
+          npx prisma migrate diff --from-url "$DATABASE_URL" --to-schema-datamodel prisma/schema.prisma --exit-code
+          npm run test:e2e -- --runInBand
+
       - name: Build client (type check)
         working-directory: ./client
         run: npm run build
@@ -91,6 +131,10 @@ jobs:
       - name: Run client tests
         working-directory: ./client
         run: npm test -- --run --maxWorkers=2
+
+      - name: Lint client
+        working-directory: ./client
+        run: npm run lint
 
   # ==========================================
   # 2. بناء ونشر الصور (Build & Push)
