@@ -15,6 +15,9 @@ import { Permissions } from '../auth/permissions.decorator';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { JwtPayload } from '../auth/jwt-payload.type';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuditInTransaction } from '../audit/audit.decorator';
+import { appendChainedAuditInTransaction } from '../audit/audit-chain';
+import { publishCommittedCriticalAudit } from '../audit/siem.logger';
 import { UpdateOrganizationSettingsDto } from './dto/update-organization-settings.dto';
 
 @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -203,6 +206,7 @@ export class SettingsController {
 
   @Permissions('admin:manage')
   @Put('organization')
+  @AuditInTransaction()
   async updateOrganization(
     @CurrentUser() user: JwtPayload,
     @Body() dto: UpdateOrganizationSettingsDto,
@@ -237,106 +241,125 @@ export class SettingsController {
         : dto.mpiRequirePatientOTP,
     );
 
-    const hospital = await this.prisma.hospital.update({
-      where: { id: user.hospitalId },
-      data: {
-        displayName: dto.displayName?.trim() || null,
-        legalName: dto.legalName?.trim() || null,
-        addressLine1,
-        phone: dto.phone?.trim() || null,
-        email: dto.email?.trim() || null,
-        website: dto.website?.trim() || null,
-        logoUrl: dto.logoUrl?.trim() || null,
-        printHeaderFooter: printHeaderFooter,
-      },
-      select: {
-        id: true,
-        name: true,
-        displayName: true,
-        legalName: true,
-        addressLine1: true,
-        addressLine2: true,
-        city: true,
-        phone: true,
-        email: true,
-        website: true,
-        logoUrl: true,
-        printHeaderFooter: true,
-        organizationId: true,
-      },
+    let committedAudit: Record<string, unknown> | null = null;
+    await this.prisma.$transaction(async (tx) => {
+      const hospital = await tx.hospital.update({
+        where: { id: user.hospitalId },
+        data: {
+          displayName: dto.displayName?.trim() || null,
+          legalName: dto.legalName?.trim() || null,
+          addressLine1,
+          phone: dto.phone?.trim() || null,
+          email: dto.email?.trim() || null,
+          website: dto.website?.trim() || null,
+          logoUrl: dto.logoUrl?.trim() || null,
+          printHeaderFooter: printHeaderFooter,
+        },
+        select: {
+          id: true,
+          name: true,
+          displayName: true,
+          legalName: true,
+          addressLine1: true,
+          addressLine2: true,
+          city: true,
+          phone: true,
+          email: true,
+          website: true,
+          logoUrl: true,
+          printHeaderFooter: true,
+          organizationId: true,
+        },
+      });
+
+      if (hospital.organizationId) {
+        if (mpiEnableFederation !== undefined) {
+          await tx.orgSetting.upsert({
+            where: {
+              organizationId_key: {
+                organizationId: hospital.organizationId,
+                key: 'mpi.enableFederation',
+              },
+            },
+            update: { value: mpiEnableFederation ? 'true' : 'false' },
+            create: {
+              organizationId: hospital.organizationId,
+              key: 'mpi.enableFederation',
+              value: mpiEnableFederation ? 'true' : 'false',
+              description: 'Enable MPI Federation',
+            },
+          });
+        }
+        if (mpiRequirePatientOTP !== undefined) {
+          await tx.orgSetting.upsert({
+            where: {
+              organizationId_key: {
+                organizationId: hospital.organizationId,
+                key: 'mpi.requirePatientOTP',
+              },
+            },
+            update: { value: mpiRequirePatientOTP ? 'true' : 'false' },
+            create: {
+              organizationId: hospital.organizationId,
+              key: 'mpi.requirePatientOTP',
+              value: mpiRequirePatientOTP ? 'true' : 'false',
+              description: 'Require OTP for Federation',
+            },
+          });
+        }
+      } else {
+        if (mpiEnableFederation !== undefined) {
+          await tx.systemSetting.upsert({
+            where: {
+              hospitalId_key: {
+                hospitalId: hospital.id,
+                key: 'mpi.enableFederation',
+              },
+            },
+            update: { value: mpiEnableFederation ? 'true' : 'false' },
+            create: {
+              hospitalId: hospital.id,
+              key: 'mpi.enableFederation',
+              value: mpiEnableFederation ? 'true' : 'false',
+              description: 'Enable MPI Federation',
+            },
+          });
+        }
+        if (mpiRequirePatientOTP !== undefined) {
+          await tx.systemSetting.upsert({
+            where: {
+              hospitalId_key: {
+                hospitalId: hospital.id,
+                key: 'mpi.requirePatientOTP',
+              },
+            },
+            update: { value: mpiRequirePatientOTP ? 'true' : 'false' },
+            create: {
+              hospitalId: hospital.id,
+              key: 'mpi.requirePatientOTP',
+              value: mpiRequirePatientOTP ? 'true' : 'false',
+              description: 'Require OTP for Federation',
+            },
+          });
+        }
+      }
+
+      committedAudit = await appendChainedAuditInTransaction(tx, {
+        hospitalId: user.hospitalId,
+        userId: user.sub,
+        action: 'UPDATE_ORGANIZATION_SETTINGS',
+        entity: 'Hospital',
+        entityId: hospital.id,
+        details: {
+          displayName: hospital.displayName,
+          printHeaderFooter,
+          mpiEnableFederation: mpiEnableFederation ?? null,
+          mpiRequirePatientOTP: mpiRequirePatientOTP ?? null,
+        },
+      });
     });
 
-    if (hospital.organizationId) {
-      if (mpiEnableFederation !== undefined) {
-        await this.prisma.orgSetting.upsert({
-          where: {
-            organizationId_key: {
-              organizationId: hospital.organizationId,
-              key: 'mpi.enableFederation',
-            },
-          },
-          update: { value: mpiEnableFederation ? 'true' : 'false' },
-          create: {
-            organizationId: hospital.organizationId,
-            key: 'mpi.enableFederation',
-            value: mpiEnableFederation ? 'true' : 'false',
-            description: 'Enable MPI Federation',
-          },
-        });
-      }
-      if (mpiRequirePatientOTP !== undefined) {
-        await this.prisma.orgSetting.upsert({
-          where: {
-            organizationId_key: {
-              organizationId: hospital.organizationId,
-              key: 'mpi.requirePatientOTP',
-            },
-          },
-          update: { value: mpiRequirePatientOTP ? 'true' : 'false' },
-          create: {
-            organizationId: hospital.organizationId,
-            key: 'mpi.requirePatientOTP',
-            value: mpiRequirePatientOTP ? 'true' : 'false',
-            description: 'Require OTP for Federation',
-          },
-        });
-      }
-    } else {
-      if (mpiEnableFederation !== undefined) {
-        await this.prisma.systemSetting.upsert({
-          where: {
-            hospitalId_key: {
-              hospitalId: hospital.id,
-              key: 'mpi.enableFederation',
-            },
-          },
-          update: { value: mpiEnableFederation ? 'true' : 'false' },
-          create: {
-            hospitalId: hospital.id,
-            key: 'mpi.enableFederation',
-            value: mpiEnableFederation ? 'true' : 'false',
-            description: 'Enable MPI Federation',
-          },
-        });
-      }
-      if (mpiRequirePatientOTP !== undefined) {
-        await this.prisma.systemSetting.upsert({
-          where: {
-            hospitalId_key: {
-              hospitalId: hospital.id,
-              key: 'mpi.requirePatientOTP',
-            },
-          },
-          update: { value: mpiRequirePatientOTP ? 'true' : 'false' },
-          create: {
-            hospitalId: hospital.id,
-            key: 'mpi.requirePatientOTP',
-            value: mpiRequirePatientOTP ? 'true' : 'false',
-            description: 'Require OTP for Federation',
-          },
-        });
-      }
-    }
+    if (committedAudit) publishCommittedCriticalAudit(committedAudit);
 
     return this.getOrganization(user);
   }

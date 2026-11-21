@@ -29,7 +29,11 @@ export class TelehealthController {
   }
 
   @Post('session/:appointmentId/waiting-room')
-  @Permissions('appointments:view') // Patient permission
+  @Permissions(
+    'telehealth:waiting-room:enter',
+    'telehealth:manage',
+    'telehealth:start',
+  )
   async enterWaitingRoom(
     @Param('appointmentId', ParseIntPipe) appointmentId: number,
     @CurrentUser() user: JwtPayload,

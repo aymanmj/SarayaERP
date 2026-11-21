@@ -8,6 +8,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { ShiftType, LeaveType, LeaveStatus, Prisma } from '@prisma/client';
 import { appendChainedAuditInTransaction } from '../audit/audit-chain';
+import { publishCommittedCriticalAudit } from '../audit/siem.logger';
 
 function toUtcDayStart(date: Date): Date {
   return new Date(
@@ -314,7 +315,8 @@ export class HrService {
       );
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    let committedAudit: Record<string, unknown> | null = null;
+    const result = await this.prisma.$transaction(async (tx) => {
       const lockedLeaves = await tx.$queryRaw<
         Array<{
           id: number;
@@ -381,7 +383,7 @@ export class HrService {
         data: { status, approvedById: approverId },
       });
 
-      await appendChainedAuditInTransaction(tx, {
+      committedAudit = await appendChainedAuditInTransaction(tx, {
         hospitalId,
         userId: approverId,
         action:
@@ -401,6 +403,8 @@ export class HrService {
 
       return updated;
     });
+    if (committedAudit) publishCommittedCriticalAudit(committedAudit);
+    return result;
   }
 
   async getLeaves(hospitalId: number, status?: LeaveStatus) {

@@ -17,6 +17,7 @@ import { HrService } from './hr.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/permissions.guard';
 import { Permissions } from '../auth/permissions.decorator';
+import { AuditInTransaction } from '../audit/audit.decorator';
 import { ShiftType, LeaveType, LeaveStatus } from '@prisma/client';
 import { RequireFeature } from '../licensing/license.decorator';
 
@@ -89,7 +90,7 @@ export class HrController {
   }
 
   // --- Leaves ---
-  @Permissions('hr:view', 'hr:manage')
+  @Permissions('hr:manage', 'hr:leaves:request')
   @Post('leaves')
   async requestLeave(@Req() req: any, @Body() body: any) {
     return this.hrService.requestLeave({
@@ -104,6 +105,7 @@ export class HrController {
 
   @Patch('leaves/:id/status')
   @Permissions('hr:manage')
+  @AuditInTransaction()
   async updateLeaveStatus(
     @Req() req: any,
     @Param('id', ParseIntPipe) id: number,

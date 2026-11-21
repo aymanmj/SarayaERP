@@ -249,6 +249,7 @@ async function main() {
     { code: 'hr:employees:manage', description: 'إدارة بيانات الموظفين' },
     { code: 'hr:shifts:manage', description: 'إدارة الورديات والمناوبات' },
     { code: 'hr:leave:manage', description: 'إدارة الإجازات' },
+    { code: 'hr:leaves:request', description: 'تقديم طلب إجازة للموظف' },
     { code: 'hr:payroll:manage', description: 'إدارة الرواتب' },
     { code: 'hr:attendance:manage', description: 'إدارة الحضور والانصراف' },
 
@@ -344,6 +345,10 @@ async function main() {
     { code: 'clinical-profile:manage', description: 'إدارة السجل السريري' },
     { code: 'discharge:view', description: 'عرض ملخص الخروج' },
     { code: 'discharge:manage', description: 'إدارة ملخص الخروج' },
+    {
+      code: 'telehealth:waiting-room:enter',
+      description: 'دخول غرفة انتظار الطب الاتصالي',
+    },
     { code: 'patients:manage', description: 'إدارة السجل الوطني للمرضى (MPI)' },
 
     // --- المطالبات المالية (RCM) ---
