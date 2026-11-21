@@ -303,14 +303,15 @@ const extendedApi = {
     }
   },
 
-  createVitals: async (encounterId: number, data: any) => {
+  createVitals: async (encounterId: number, data: Record<string, number | string>, actorScope: string) => {
     if (await StorageService.isOnline()) {
         return extendedApi.post(`/vitals/encounter/${encounterId}`, data).then((res: any) => res.data);
     } else {
-        await StorageService.queueAction({
+        const queued = await StorageService.queueAction({
             type: 'CREATE_VITALS',
-            payload: { encounterId, ...data }
+            payload: { encounterId, ...data, actorScope }
         });
+        if (!queued) throw new Error('تعذر حفظ القراءة على الجهاز');
         return { success: true, offline: true, message: 'Vitals saved offline' };
     }
   },
@@ -347,20 +348,22 @@ const extendedApi = {
     }
   },
 
-  administerMedication: async (encounterId: number, prescriptionItemId: number, status: string, notes?: string) => {
-    if (await StorageService.isOnline()) {
-        return extendedApi.post(`/nursing/encounters/${encounterId}/administer-med`, {
-          prescriptionItemId,
-          status, 
-          notes
-        }).then((res: any) => res.data);
-    } else {
-        await StorageService.queueAction({
-            type: 'ADMINISTER_MED',
-            payload: { encounterId, prescriptionItemId, status, notes }
-        });
-        return { success: true, offline: true, message: 'Administration queued offline' };
-    }
+  getMedicationSchedule: async (encounterId: number) => {
+    const response = await extendedApi.get(`/nursing/encounters/${encounterId}/mar-schedule`);
+    return response.data as {
+      prescriptionItemId: number;
+      scheduledSlot: string;
+      status: string;
+    }[];
+  },
+
+  administerMedication: async (encounterId: number, prescriptionItemId: number, status: string, notes?: string, requestId?: string, scheduledSlot?: string) => {
+    if (!requestId) throw new Error('يلزم معرف تنفيذ ثابت؛راجع العملية القديمة يدويًا ولا تعد إرسالها تلقائيًا');
+    if (!(await StorageService.isOnline())) throw new Error('إعطاء الدواء يتطلب اتصالًا مباشرًا للتحقق من الوصفة والصلاحيات؛لم يسجل إعطاء');
+    const res = await extendedApi.post(`/nursing/encounters/${encounterId}/administer-med`, {
+      requestId, prescriptionItemId, status, notes, scheduledSlot,
+    });
+    return res.data;
   },
 
   // Push Notifications

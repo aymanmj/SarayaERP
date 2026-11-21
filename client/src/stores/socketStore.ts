@@ -16,16 +16,15 @@ export const useSocketStore = create<SocketState>((set, get) => ({
   socket: null,
 
   connect: () => {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { token, user } = useAuthStore.getState();
-    if (!token || get().socket) return;
+    const { isAuthenticated, user, currentBranchId } = useAuthStore.getState();
+    if (!isAuthenticated || !user || !currentBranchId || get().socket) return;
 
     // Use automatic URL detection - works in any environment
     const wsUrl = getSocketUrl();
     console.log('🔌 Connecting to socket at:', wsUrl);
 
     const socket = io(wsUrl, {
-      auth: { token: `Bearer ${token}` },
+      auth: { staffScope: { userId: user.id, hospitalId: currentBranchId } },
       reconnectionAttempts: 5,
       withCredentials: true,
     });

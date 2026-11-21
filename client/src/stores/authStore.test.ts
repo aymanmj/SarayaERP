@@ -16,13 +16,14 @@ vi.mock('./licenseStore', () => ({
 import { useAuthStore } from './authStore';
 import { apiClient } from '../api/apiClient';
 import { useLicenseStore } from './licenseStore';
+import { useSocketStore } from './socketStore';
 
 describe('authStore', () => {
   beforeEach(() => {
     // Reset store to initial state
     useAuthStore.setState({
       user: null,
-      token: null,
+      sessionRevision: 0,
       isAuthenticated: false,
     });
 
@@ -45,8 +46,8 @@ describe('authStore', () => {
       expect(useAuthStore.getState().isAuthenticated).toBe(false);
     });
 
-    it('should have null token by default', () => {
-      expect(useAuthStore.getState().token).toBeNull();
+    it('does not keep an access token in the store', () => {
+      expect(useAuthStore.getState()).not.toHaveProperty('token');
     });
   });
 
@@ -61,6 +62,23 @@ describe('authStore', () => {
       permissions: ['encounter:create'],
     };
 
+    it('reconnects sockets after renewal for the same staff member and branch', () => {
+      const disconnect = vi.fn();
+      const connect = vi.fn();
+      vi.spyOn(useSocketStore, 'getState').mockReturnValue({
+        socket: {} as NonNullable<ReturnType<typeof useSocketStore.getState>['socket']>, disconnect, connect,
+      });
+      useAuthStore.getState().setAuth({ user: mockUser });
+      expect(useAuthStore.getState().acceptRefreshedSession(2, mockUser.id)).toBe(false);
+      expect(useAuthStore.getState().acceptRefreshedSession(mockUser.hospitalId, 2)).toBe(false);
+      expect(disconnect).not.toHaveBeenCalled();
+      expect(useAuthStore.getState().acceptRefreshedSession(mockUser.hospitalId, mockUser.id)).toBe(true);
+      expect(useAuthStore.getState().sessionRevision).toBe(1);
+      expect(localStorage.getItem('auth_token')).toBeNull();
+      expect(disconnect).toHaveBeenCalledOnce();
+      expect(connect).toHaveBeenCalledOnce();
+    });
+
     it('should login successfully and update state', async () => {
       (apiClient.post as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
         data: { user: mockUser, token: 'jwt-token-123', success: true },
@@ -71,7 +89,7 @@ describe('authStore', () => {
       const state = useAuthStore.getState();
       expect(state.isAuthenticated).toBe(true);
       expect(state.user).toEqual(mockUser);
-      expect(state.token).toBe('jwt-token-123');
+      expect(state).not.toHaveProperty('token');
     });
 
     it('should persist auth state to localStorage', async () => {
@@ -83,7 +101,7 @@ describe('authStore', () => {
 
       expect(localStorage.getItem('auth_status')).toBe('true');
       expect(localStorage.getItem('user_info')).toBe(JSON.stringify(mockUser));
-      expect(localStorage.getItem('auth_token')).toBe('jwt-token-123');
+      expect(localStorage.getItem('auth_token')).toBeNull();
     });
 
     it('should reset license store on login', async () => {
@@ -108,8 +126,7 @@ describe('authStore', () => {
 
       const state = useAuthStore.getState();
       expect(state.isAuthenticated).toBe(true);
-      expect(state.token).toBeNull(); // token not provided
-      expect(localStorage.getItem('auth_token')).toBe('');
+      expect(localStorage.getItem('auth_token')).toBeNull();
     });
 
     it('should throw on API failure', async () => {
@@ -129,7 +146,6 @@ describe('authStore', () => {
       // Set up authenticated state
       useAuthStore.setState({
         user: { id: 1, fullName: 'Test', username: 'test', hospitalId: 1, roles: ['DOCTOR'], permissions: [] },
-        token: 'some-token',
         isAuthenticated: true,
       });
 
@@ -139,7 +155,6 @@ describe('authStore', () => {
 
       const state = useAuthStore.getState();
       expect(state.user).toBeNull();
-      expect(state.token).toBeNull();
       expect(state.isAuthenticated).toBe(false);
     });
 
@@ -160,7 +175,6 @@ describe('authStore', () => {
     it('should not throw if API logout fails (fire & forget)', async () => {
       useAuthStore.setState({
         user: { id: 1, fullName: 'Test', username: 'test', hospitalId: 1, roles: [], permissions: [] },
-        token: 'token',
         isAuthenticated: true,
       });
 
@@ -179,11 +193,13 @@ describe('authStore', () => {
   describe('hydrateFromStorage', () => {
     it('should remove legacy storage keys', () => {
       localStorage.setItem('token', 'old-token');
+      localStorage.setItem('auth_token', 'old-access-token');
       localStorage.setItem('refreshToken', 'old-refresh');
       localStorage.setItem('user', '{}');
       localStorage.setItem('auth-storage', '{}');
 
       useAuthStore.getState().hydrateFromStorage();
+      expect(localStorage.getItem('auth_token')).toBeNull();
 
       expect(localStorage.getItem('token')).toBeNull();
       expect(localStorage.getItem('refreshToken')).toBeNull();

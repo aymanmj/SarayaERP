@@ -55,17 +55,22 @@ describe('Authentication (e2e)', () => {
       const response = await request(app.getHttpServer())
         .post('/auth/login')
         .send({ username: 'doctor1', password: 'pass123' })
-        .expect(201); // Default POST status in Nest is 201
+        .expect(200);
 
       expect(response.body).toHaveProperty('accessToken');
-      expect(response.body).toHaveProperty('refreshToken');
+      expect(response.body).not.toHaveProperty('refreshToken');
+      expect(response.headers['set-cookie']).toEqual(
+        expect.arrayContaining([
+          expect.stringMatching(/^Refresh=.*; HttpOnly/),
+        ]),
+      );
       expect(response.body.user).toHaveProperty('username', 'doctor1');
     });
   });
 
-  describe('GET /users/me (Protected Route)', () => {
+  describe('GET /users (Protected Route)', () => {
     it('should reject unauthenticated requests', async () => {
-      return request(app.getHttpServer()).get('/users/me').expect(401);
+      return request(app.getHttpServer()).get('/users').expect(401);
     });
 
     // Uncomment this when we have a route to test

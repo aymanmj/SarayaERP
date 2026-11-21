@@ -1,3 +1,8 @@
+import { PatientDepositService } from '../billing/patient-deposit.service';
+import {
+  effectivePatientShare,
+  netPaidAmount,
+} from '../billing/invoice-snapshot';
 import {
   Injectable,
   BadRequestException,
@@ -10,18 +15,35 @@ import {
   EncounterType,
   AdmissionStatus,
   DischargeDisposition,
+  Prisma,
 } from '@prisma/client';
 import { CreateAdmissionDto } from './dto/create-admission.dto';
 import { UpdateAdmissionDto } from './dto/update-admission.dto';
 import { CreateDischargePlanningDto } from './dto/create-discharge-planning.dto';
 import { CreateBedTransferDto } from './dto/create-bed-transfer.dto';
+import { Money } from '../common/utils/money.util';
+import { pendingRoomCharges } from './room-charge';
+import { roomBillingConfiguration } from './room-billing-policy';
+import {
+  ACTIVE_ADMISSIONS,
+  ACTIVE_BED_TRANSFERS,
+  assertNoPendingBedMovement,
+  bedLocation,
+  lockActiveAdmission,
+  lockBedEncounter,
+  moveBed,
+} from '../beds/bed-allocation';
+import { validateAdmissionReferences } from './admission-references';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
+import { AccountingService } from '../accounting/accounting.service';
 
 @Injectable()
 export class AdmissionService {
   constructor(
     private prisma: PrismaService,
     private systemSettings: SystemSettingsService,
+    private accounting: AccountingService,
+    private patientDeposit: PatientDepositService,
   ) {}
 
   // ==================== ADMISSION MANAGEMENT ====================
@@ -34,210 +56,203 @@ export class AdmissionService {
     dto: CreateAdmissionDto,
     userId: number,
   ) {
-    // 1. Validate patient exists
-    const patient = await this.prisma.patient.findFirst({
-      where: { id: dto.patientId, hospitalId },
-    });
-    if (!patient) {
-      throw new NotFoundException('Patient not found in this hospital');
-    }
+    return this.prisma.$transaction(
+      async (tx) => {
+        if (
+          !Number.isInteger(dto.patientId) ||
+          dto.patientId <= 0 ||
+          (dto.encounterId !== undefined &&
+            (!Number.isInteger(dto.encounterId) || dto.encounterId <= 0))
+        )
+          throw new BadRequestException('مرجع المريض أو الحالة غير صالح');
+        // 1. Validate patient exists
+        const patient = await tx.patient.findFirst({
+          where: { id: dto.patientId, hospitalId, isDeleted: false },
+        });
+        if (!patient || patient.hospitalId !== hospitalId) {
+          throw new NotFoundException('Patient not found in this hospital');
+        }
 
-    // 2. Check for active admission
-    const activeAdmission = await this.prisma.admission.findFirst({
-      where: {
-        hospitalId,
-        patientId: dto.patientId,
-        admissionStatus: {
-          in: [AdmissionStatus.ADMITTED, AdmissionStatus.IN_PROGRESS],
-        },
-      },
-    });
-
-    if (activeAdmission) {
-      console.warn(
-        `[CREATE_ADMISSION] Active admission found for patient ${dto.patientId}: ID=${activeAdmission.id}, Status=${activeAdmission.admissionStatus}`,
-      );
-      throw new BadRequestException(
-        `المريض يمتلك حالياً دخول نشط! (ID: ${activeAdmission.id}, Status: ${activeAdmission.admissionStatus})`,
-      );
-    }
-
-    // 3. Validate medical team
-    const [admittingDoctor, primaryPhysician] = await Promise.all([
-      this.prisma.user.findFirst({
-        where: { id: dto.admittingDoctorId, hospitalId },
-      }),
-      this.prisma.user.findFirst({
-        where: { id: dto.primaryPhysicianId, hospitalId },
-      }),
-    ]);
-
-    if (!admittingDoctor || !primaryPhysician) {
-      throw new NotFoundException(
-        'One or more medical staff members not found',
-      );
-    }
-
-    // 4. Create or validate encounter
-    let encounterId = dto.encounterId;
-    if (encounterId) {
-      const encounter = await this.prisma.encounter.findFirst({
-        where: { id: encounterId, hospitalId, patientId: dto.patientId },
-      });
-      if (!encounter) {
-        throw new NotFoundException('Encounter not found');
-      }
-
-      // Ensure encounter is IPD
-      if (encounter.type !== EncounterType.IPD) {
-        await this.prisma.encounter.update({
-          where: { id: encounterId },
-          data: {
-            type: EncounterType.IPD,
-            // Ensure department is set if provided in DTO update
-            ...(dto.departmentId ? { departmentId: dto.departmentId } : {}),
+        await tx.$queryRaw`SELECT "id" FROM "Patient" WHERE "id" = ${dto.patientId} AND "hospitalId" = ${hospitalId} FOR UPDATE`;
+        // 2. Check for active admission
+        const activeAdmission = await tx.admission.findFirst({
+          where: {
+            hospitalId,
+            patientId: dto.patientId,
+            admissionStatus: {
+              in: [...ACTIVE_ADMISSIONS],
+            },
           },
         });
-      }
-    } else {
-      // Create new encounter
-      // ✅ [ROBUST] Department ID is now mandatory in DTO, no fallback needed
-      const encounter = await this.prisma.encounter.create({
-        data: {
-          hospitalId,
-          patientId: dto.patientId,
-          type: EncounterType.IPD,
-          departmentId: dto.departmentId,
-          doctorId: dto.admittingDoctorId,
-          chiefComplaint: dto.admissionReason,
-          status: 'OPEN',
-        },
-      });
-      encounterId = encounter.id;
-    }
 
-    // 5. Check for readmission within 30 days
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        if (activeAdmission) {
+          console.warn(
+            `[CREATE_ADMISSION] Active admission found for patient ${dto.patientId}: ID=${activeAdmission.id}, Status=${activeAdmission.admissionStatus}`,
+          );
+          throw new BadRequestException(
+            `المريض يمتلك حالياً دخول نشط! (ID: ${activeAdmission.id}, Status: ${activeAdmission.admissionStatus})`,
+          );
+        }
 
-    const recentAdmission = await this.prisma.admission.findFirst({
-      where: {
-        hospitalId,
-        patientId: dto.patientId,
-        actualAdmissionDate: {
-          gte: thirtyDaysAgo,
-        },
-        admissionStatus: 'DISCHARGED',
+        const location = await validateAdmissionReferences(tx, hospitalId, dto);
+
+        // 4. Create or validate encounter
+        let encounterId = dto.encounterId;
+        if (encounterId) {
+          const identity = await tx.encounter.findFirst({
+            where: {
+              id: encounterId,
+              patientId: dto.patientId,
+              hospitalId,
+              isDeleted: false,
+            },
+          });
+          if (!identity) throw new NotFoundException('Encounter not found');
+          const encounter = await lockBedEncounter(tx, hospitalId, encounterId);
+          if (encounter.patientId !== dto.patientId) {
+            throw new NotFoundException('Encounter not found');
+          }
+
+          // Ensure encounter is IPD
+          if (encounter.type !== EncounterType.IPD) {
+            await tx.encounter.update({
+              where: { id: encounterId },
+              data: {
+                type: EncounterType.IPD,
+                // Ensure department is set if provided in DTO update
+                ...(dto.departmentId ? { departmentId: dto.departmentId } : {}),
+              },
+            });
+          }
+        } else {
+          // Create new encounter
+          // ✅ [ROBUST] Department ID is now mandatory in DTO, no fallback needed
+          const encounter = await tx.encounter.create({
+            data: {
+              hospitalId,
+              patientId: dto.patientId,
+              type: EncounterType.IPD,
+              departmentId: dto.departmentId,
+              doctorId: dto.admittingDoctorId,
+              chiefComplaint: dto.admissionReason,
+              status: 'OPEN',
+            },
+          });
+          encounterId = encounter.id;
+        }
+
+        // 5. Check for readmission within 30 days
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+        const recentAdmission = await tx.admission.findFirst({
+          where: {
+            hospitalId,
+            patientId: dto.patientId,
+            actualAdmissionDate: {
+              gte: thirtyDaysAgo,
+            },
+            admissionStatus: 'DISCHARGED',
+          },
+          orderBy: { actualAdmissionDate: 'desc' },
+        });
+
+        const isReadmission = !!recentAdmission;
+        const previousAdmissionId = recentAdmission?.id;
+
+        // 6. Validate bed availability if bed is assigned
+        if (dto.bedId) {
+          const bed = await tx.bed.findFirst({
+            where: { id: dto.bedId, hospitalId, status: BedStatus.AVAILABLE },
+          });
+          if (!bed) {
+            throw new BadRequestException('Selected bed is not available');
+          }
+        }
+
+        // 7. Create admission record
+        const roomBilling = await roomBillingConfiguration(tx, hospitalId);
+        const admission = await tx.admission.create({
+          data: {
+            ...roomBilling,
+            hospitalId,
+            patientId: dto.patientId,
+            encounterId: encounterId,
+            admissionType: dto.admissionType,
+            admissionStatus: AdmissionStatus.ADMITTED,
+            priority: dto.priority,
+            scheduledAdmissionDate: dto.scheduledAdmissionDate,
+            actualAdmissionDate: new Date(),
+            expectedDischargeDate: dto.expectedDischargeDate,
+            bedId: dto.bedId,
+            roomId: location.roomId,
+            wardId: location.wardId,
+            departmentId: dto.departmentId,
+            admittingDoctorId: dto.admittingDoctorId,
+            primaryPhysicianId: dto.primaryPhysicianId,
+            referringDoctorId: dto.referringDoctorId,
+            attendingNurseId: dto.attendingNurseId,
+            insuranceProviderId: dto.insuranceProviderId,
+            insurancePolicyId: dto.insurancePolicyId,
+            preAuthNumber: dto.preAuthNumber,
+            admissionReason: dto.admissionReason,
+            primaryDiagnosis: dto.primaryDiagnosis,
+            secondaryDiagnoses: dto.secondaryDiagnoses,
+            procedures: dto.procedures,
+            medications: dto.medications,
+            allergies: dto.allergies,
+            specialInstructions: dto.specialInstructions,
+            fallRisk: dto.fallRisk,
+            pressureUlcerRisk: dto.pressureUlcerRisk,
+            nutritionRisk: dto.nutritionRisk,
+            infectionRisk: dto.infectionRisk,
+            isolationRequired: dto.isolationRequired,
+            isolationType: dto.isolationType,
+            isolationStartDate: dto.isolationRequired ? new Date() : null,
+            isEmergency: dto.admissionType === 'EMERGENCY',
+            emergencyContact: dto.emergencyContact,
+            emergencyNotes: dto.emergencyNotes,
+            isReadmission,
+            previousAdmissionId,
+            readmissionReason: isReadmission ? dto.readmissionReason : null,
+            readmissionWithin30Days: isReadmission,
+            estimatedCost: dto.estimatedCost,
+            createdBy: userId,
+          },
+          include: {
+            patient: true,
+            encounter: true,
+            bed: true,
+            room: true,
+            ward: true,
+            department: true,
+            admittingDoctor: {
+              select: { id: true, fullName: true },
+            },
+            primaryPhysician: {
+              select: { id: true, fullName: true },
+            },
+          },
+        });
+
+        if (dto.bedId) await moveBed(tx, hospitalId, encounterId, dto.bedId);
+
+        // 9. Create initial admission note
+        await tx.admissionNote.create({
+          data: {
+            admissionId: admission.id,
+            hospitalId,
+            type: 'ADMISSION',
+            content: `Patient admitted for: ${dto.admissionReason}`,
+            isCritical: dto.admissionType === 'EMERGENCY',
+            createdBy: userId,
+          },
+        });
+
+        return admission;
       },
-      orderBy: { actualAdmissionDate: 'desc' },
-    });
-
-    const isReadmission = !!recentAdmission;
-    const previousAdmissionId = recentAdmission?.id;
-
-    // 6. Validate bed availability if bed is assigned
-    if (dto.bedId) {
-      const bed = await this.prisma.bed.findFirst({
-        where: { id: dto.bedId, hospitalId, status: BedStatus.AVAILABLE },
-      });
-      if (!bed) {
-        throw new BadRequestException('Selected bed is not available');
-      }
-    }
-
-    // 7. Create admission record
-    const admission = await this.prisma.admission.create({
-      data: {
-        hospitalId,
-        patientId: dto.patientId,
-        encounterId: encounterId,
-        admissionType: dto.admissionType,
-        admissionStatus: AdmissionStatus.ADMITTED,
-        priority: dto.priority,
-        scheduledAdmissionDate: dto.scheduledAdmissionDate,
-        actualAdmissionDate: new Date(),
-        expectedDischargeDate: dto.expectedDischargeDate,
-        bedId: dto.bedId,
-        roomId: dto.roomId,
-        wardId: dto.wardId,
-        departmentId: dto.departmentId,
-        admittingDoctorId: dto.admittingDoctorId,
-        primaryPhysicianId: dto.primaryPhysicianId,
-        referringDoctorId: dto.referringDoctorId,
-        attendingNurseId: dto.attendingNurseId,
-        insuranceProviderId: dto.insuranceProviderId,
-        insurancePolicyId: dto.insurancePolicyId,
-        preAuthNumber: dto.preAuthNumber,
-        admissionReason: dto.admissionReason,
-        primaryDiagnosis: dto.primaryDiagnosis,
-        secondaryDiagnoses: dto.secondaryDiagnoses,
-        procedures: dto.procedures,
-        medications: dto.medications,
-        allergies: dto.allergies,
-        specialInstructions: dto.specialInstructions,
-        fallRisk: dto.fallRisk,
-        pressureUlcerRisk: dto.pressureUlcerRisk,
-        nutritionRisk: dto.nutritionRisk,
-        infectionRisk: dto.infectionRisk,
-        isolationRequired: dto.isolationRequired,
-        isolationType: dto.isolationType,
-        isolationStartDate: dto.isolationRequired ? new Date() : null,
-        isEmergency: dto.admissionType === 'EMERGENCY',
-        emergencyContact: dto.emergencyContact,
-        emergencyNotes: dto.emergencyNotes,
-        isReadmission,
-        previousAdmissionId,
-        readmissionReason: isReadmission ? dto.readmissionReason : null,
-        readmissionWithin30Days: isReadmission,
-        estimatedCost: dto.estimatedCost,
-        createdBy: userId,
-      },
-      include: {
-        patient: true,
-        encounter: true,
-        bed: true,
-        room: true,
-        ward: true,
-        department: true,
-        admittingDoctor: {
-          select: { id: true, fullName: true },
-        },
-        primaryPhysician: {
-          select: { id: true, fullName: true },
-        },
-      },
-    });
-
-    // 8. Update bed status if bed is assigned
-    if (dto.bedId) {
-      await this.prisma.bed.update({
-        where: { id: dto.bedId },
-        data: { status: BedStatus.OCCUPIED },
-      });
-
-      // Create bed assignment
-      await this.prisma.bedAssignment.create({
-        data: {
-          hospitalId,
-          encounterId: encounterId,
-          bedId: dto.bedId,
-        },
-      });
-    }
-
-    // 9. Create initial admission note
-    await this.prisma.admissionNote.create({
-      data: {
-        admissionId: admission.id,
-        hospitalId,
-        type: 'ADMISSION',
-        content: `Patient admitted for: ${dto.admissionReason}`,
-        isCritical: dto.admissionType === 'EMERGENCY',
-        createdBy: userId,
-      },
-    });
-
-    return admission;
+      { maxWait: 10000, timeout: 20000 },
+    );
   }
 
   /**
@@ -381,77 +396,202 @@ export class AdmissionService {
     dto: UpdateAdmissionDto,
     userId: number,
   ) {
-    const admission = await this.prisma.admission.findFirst({
-      where: { id: admissionId, hospitalId },
-    });
-
-    if (!admission) {
-      throw new NotFoundException('Admission not found');
-    }
-
-    // Validate bed change if bed is being updated
-    if (dto.bedId && dto.bedId !== admission.bedId) {
-      const newBed = await this.prisma.bed.findFirst({
-        where: { id: dto.bedId, hospitalId, status: BedStatus.AVAILABLE },
-      });
-
-      if (!newBed) {
-        throw new BadRequestException('New bed is not available');
+    return this.prisma.$transaction(async (tx) => {
+      const { admission } = await lockActiveAdmission(
+        tx,
+        hospitalId,
+        admissionId,
+      );
+      const { patientId, encounterId, bedId, roomId, wardId, ...changes } = dto;
+      if (
+        (patientId !== undefined && patientId !== admission.patientId) ||
+        (encounterId !== undefined && encounterId !== admission.encounterId)
+      ) {
+        throw new BadRequestException(
+          'لا يمكن تغيير المريض أو الحالة المرتبطة بالدخول',
+        );
       }
-
-      // Release old bed
-      if (admission.bedId) {
-        await this.prisma.bed.update({
-          where: { id: admission.bedId },
-          data: { status: BedStatus.CLEANING },
-        });
-
-        await this.prisma.bedAssignment.updateMany({
-          where: {
-            encounterId: admission.encounterId,
-            to: null,
-          },
-          data: { to: new Date() },
-        });
-      }
-
-      // Assign new bed
-      await this.prisma.bed.update({
-        where: { id: dto.bedId },
-        data: { status: BedStatus.OCCUPIED },
+      const current = await tx.bedAssignment.findFirst({
+        where: { hospitalId, encounterId: admission.encounterId, to: null },
       });
-
-      await this.prisma.bedAssignment.create({
+      const selectedBedId = bedId ?? current?.bedId;
+      if (bedId === null)
+        throw new BadRequestException(
+          'استخدم إجراء إخلاء السرير بدل إزالة الحجز من بيانات الدخول',
+        );
+      const location = await validateAdmissionReferences(tx, hospitalId, {
+        ...changes,
+        bedId: selectedBedId,
+        roomId,
+        wardId,
+      });
+      if (selectedBedId && selectedBedId !== current?.bedId)
+        await moveBed(tx, hospitalId, admission.encounterId, selectedBedId);
+      const updated = await tx.admission.update({
+        where: { id: admissionId, hospitalId },
+        data: {
+          ...changes,
+          bedId: selectedBedId ?? null,
+          roomId: location.roomId,
+          wardId: location.wardId,
+          updatedAt: new Date(),
+        },
+        include: {
+          patient: true,
+          bed: true,
+          ward: true,
+          admittingDoctor: { select: { id: true, fullName: true } },
+        },
+      });
+      await tx.admissionNote.create({
         data: {
           hospitalId,
-          encounterId: admission.encounterId,
-          bedId: dto.bedId,
+          admissionId,
+          type: 'ADMINISTRATIVE',
+          content:
+            'تم تحديث بيانات الدخول' +
+            (selectedBedId !== current?.bedId ? ' وتغيير موقع السرير' : ''),
+          createdBy: userId,
+          isCritical: false,
         },
       });
-    }
-
-    const updatedAdmission = await this.prisma.admission.update({
-      where: { id: admissionId },
-      data: {
-        ...dto,
-        updatedAt: new Date(),
-      },
-      include: {
-        patient: true,
-        bed: true,
-        ward: true,
-        admittingDoctor: {
-          select: { id: true, fullName: true },
-        },
-      },
+      return updated;
     });
-
-    return updatedAdmission;
   }
 
-  /**
-   * Discharge patient with comprehensive discharge planning
-   */
+  async checkDischargeReadiness(hospitalId: number, admissionId: number) {
+    return this.prisma.$transaction(async (tx) => {
+      const admission = await tx.admission.findFirst({
+        where: { id: admissionId, hospitalId },
+        include: {
+          dischargePlanning: true,
+          dischargeSummary: true,
+          encounter: {
+            include: {
+              invoices: {
+                include: {
+                  refunds: {
+                    where: { status: 'EXECUTED' },
+                    select: { amount: true },
+                  },
+                  adjustments: {
+                    where: { status: 'POSTED' },
+                    select: { delta: true },
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+      if (!admission) throw new NotFoundException('Admission not found');
+      const debtLimit = await this.systemSettings.getNumber(
+        hospitalId,
+        'billing.debtLimit',
+        0.01,
+      );
+      if (!Number.isFinite(debtLimit) || debtLimit < 0)
+        throw new BadRequestException('حد المديونية المهيأ غير صالح');
+      const debts = admission.encounter.invoices
+        .filter(
+          (invoice) =>
+            invoice.status !== 'CANCELLED' && invoice.type !== 'CREDIT_NOTE',
+        )
+        .map((invoice) => {
+          const balance = Money.subtractDecimal(
+            effectivePatientShare(invoice),
+            netPaidAmount(invoice),
+          );
+          return balance.isPositive() ? balance : Money.decimal(0);
+        });
+      const debt = Money.sumDecimal(...debts);
+      const unbilled = await tx.encounterCharge.count({
+        where: {
+          hospitalId,
+          encounterId: admission.encounterId,
+          sourceType: { not: 'PHARMACY_PRESCRIPTION' },
+          OR: [{ invoiceId: null }, { invoice: { status: 'CANCELLED' } }],
+        },
+      });
+      const pendingRoom = await pendingRoomCharges(
+        tx,
+        hospitalId,
+        admission.encounterId,
+        new Date(),
+      );
+      const medicalClearance = !!admission.dischargeSummary?.completedAt;
+      const pendingBedTransfers = await tx.bedTransfer.count({
+        where: {
+          hospitalId,
+          admissionId,
+          status: { in: ACTIVE_BED_TRANSFERS },
+        },
+      });
+      const pendingTransfers = await tx.transferOrder.count({
+        where: {
+          hospitalId,
+          encounterId: admission.encounterId,
+          status: {
+            in: [
+              'REQUESTED',
+              'BED_ALLOCATED',
+              'HANDOVER_DRAFTED',
+              'HANDOVER_SIGNED',
+            ],
+          },
+        },
+      });
+      const { availableBalance: availableDeposit } =
+        await this.patientDeposit.getPatientDepositBalanceInternal(
+          tx,
+          hospitalId,
+          admission.patientId,
+        );
+
+      const depositBalance = availableDeposit.isPositive()
+        ? availableDeposit
+        : Money.decimal(0);
+      const hasSurplusDeposit = depositBalance.gt(debt);
+      const surplusDepositAmount = hasSurplusDeposit
+        ? depositBalance.minus(debt)
+        : Money.decimal(0);
+
+      const financialClearance =
+        Money.lte(debt, debtLimit) &&
+        unbilled === 0 &&
+        pendingRoom.charges.length === 0 &&
+        !pendingRoom.reviewReason;
+      return {
+        admissionId,
+        hasDischargePlan: !!admission.dischargePlanning,
+        hasDischargeSummary: medicalClearance,
+        medicalClearance,
+        financialClearance,
+        unpaidInvoicesCount: debts.filter((value) => Money.isPositive(value))
+          .length,
+        patientDebt: Money.toDbString(debt),
+        patientDepositBalance: Money.toDbString(depositBalance),
+        hasSurplusDeposit,
+        surplusDepositAmount: Money.toDbString(surplusDepositAmount),
+        uninvoicedChargesCount: unbilled,
+        pendingRoomDays: pendingRoom.pendingDays,
+        roomBillingReviewReason: pendingRoom.reviewReason,
+        roomBillingPolicy: admission.roomBillingPolicy,
+        roomBillingTimeZone: admission.roomBillingTimeZone,
+        pendingTransfersCount: pendingTransfers + pendingBedTransfers,
+        pendingBedTransfersCount: pendingBedTransfers,
+        ready:
+          ['ADMITTED', 'IN_PROGRESS', 'DISCHARGE_PENDING'].includes(
+            admission.admissionStatus,
+          ) &&
+          !!admission.dischargePlanning &&
+          pendingTransfers + pendingBedTransfers === 0 &&
+          medicalClearance &&
+          financialClearance,
+      };
+    });
+  }
+
   async dischargePatient(
     hospitalId: number,
     admissionId: number,
@@ -461,179 +601,263 @@ export class AdmissionService {
       followUpRequired?: boolean;
       followUpInstructions?: any;
       actualCost?: number;
+      autoSettleDeposits?: boolean;
       notes?: string;
     },
     userId: number,
   ) {
-    const admission = await this.prisma.admission.findFirst({
-      where: { id: admissionId, hospitalId },
-      include: {
-        bed: { include: { ward: true } },
-        encounter: { include: { invoices: true } },
-        dischargePlanning: true,
-      },
-    });
-
-    if (!admission) {
-      throw new NotFoundException('Admission not found');
-    }
-
-    if (admission.admissionStatus === 'DISCHARGED') {
-      throw new BadRequestException('Patient is already discharged');
-    }
-
-    if (!admission.dischargePlanning) {
-      throw new BadRequestException(
-        'لا يمكن إجراء الخروج: خطة التخريج (Discharge Plan) التشغيلية غير موجودة.',
-      );
-    }
-
-    // 1.5 Medical Summary Clearance (Phase 2 Requirement)
-    const dischargeSummary = await this.prisma.dischargeSummary.findFirst({
-      where: { admissionId: admissionId, completedAt: { not: null } },
-    });
-
-    if (!dischargeSummary) {
-      throw new BadRequestException(
-        "لا يمكن إجراء الخروج: 'ملخص الخروج' الطبي (Discharge Summary) لم يُعتمد أو لم يُوقع بعد من الطبيب المعالج.",
-      );
-    }
-
-    // Calculate length of stay
-    const lengthOfStay = Math.floor(
-      (new Date().getTime() - admission.actualAdmissionDate.getTime()) /
-        (1000 * 60 * 60 * 24),
-    );
-    const daysToCharge = Math.max(1, lengthOfStay);
-
-    // 2. Room Service Generation
-    if (admission.bed?.ward?.serviceItemId) {
-      const wardServiceId = admission.bed.ward.serviceItemId;
-      const existingCharges = await this.prisma.encounterCharge.findMany({
-        where: {
-          encounterId: admission.encounterId,
-          serviceItemId: wardServiceId,
+    return this.prisma.$transaction(async (tx) => {
+      const identity = await tx.admission.findFirst({
+        where: { id: admissionId, hospitalId },
+        select: { patientId: true, encounterId: true },
+      });
+      if (!identity) throw new NotFoundException('Admission not found');
+      await tx.$queryRaw`SELECT "id" FROM "Patient" WHERE "id" = ${identity.patientId} AND "hospitalId" = ${hospitalId} FOR UPDATE`;
+      await tx.$queryRaw`SELECT "id" FROM "Encounter" WHERE "id" = ${identity.encounterId} AND "hospitalId" = ${hospitalId} FOR UPDATE`;
+      await tx.$queryRaw`SELECT "id" FROM "admissions" WHERE "id" = ${admissionId} AND "hospitalId" = ${hospitalId} FOR UPDATE`;
+      const admission = await tx.admission.findFirst({
+        where: { id: admissionId, hospitalId },
+        include: {
+          bed: { include: { ward: true } },
+          encounter: {
+            include: {
+              invoices: {
+                include: {
+                  refunds: {
+                    where: { status: 'EXECUTED' },
+                    select: { amount: true },
+                  },
+                  adjustments: {
+                    where: { status: 'POSTED' },
+                    select: { delta: true },
+                  },
+                },
+              },
+            },
+          },
+          dischargePlanning: true,
+          dischargeSummary: true,
         },
       });
-      const billedDays = existingCharges.reduce(
-        (sum, c) => sum + Number(c.quantity),
-        0,
-      );
-      const remainingDays = daysToCharge - billedDays;
 
-      if (remainingDays > 0) {
-        const wardService = await this.prisma.serviceItem.findUnique({
-          where: { id: wardServiceId },
-        });
-        if (wardService) {
-          await this.prisma.encounterCharge.create({
-            data: {
-              hospitalId,
-              encounterId: admission.encounterId,
-              serviceItemId: wardServiceId,
-              sourceType: 'BED',
-              quantity: remainingDays,
-              unitPrice: wardService.defaultPrice,
-              totalAmount: Number(wardService.defaultPrice) * remainingDays,
-              createdAt: new Date(),
-            },
+      if (!admission) {
+        throw new NotFoundException('Admission not found');
+      }
+
+      if (admission.admissionStatus === 'DISCHARGED') {
+        throw new BadRequestException('Patient is already discharged');
+      }
+
+      if (!admission.dischargePlanning) {
+        throw new BadRequestException(
+          'لا يمكن إجراء الخروج: خطة التخريج (Discharge Plan) التشغيلية غير موجودة.',
+        );
+      }
+
+      // 1.5 Medical Summary Clearance (Phase 2 Requirement)
+      const hasDischargeSummary = !!admission.dischargeSummary?.completedAt;
+      const dischargeSummary = hasDischargeSummary
+        ? admission.dischargeSummary
+        : await tx.dischargeSummary.findFirst({
+            where: { admissionId: admissionId, completedAt: { not: null } },
           });
+
+      if (!dischargeSummary) {
+        throw new BadRequestException(
+          "لا يمكن إجراء الخروج: 'ملخص الخروج' الطبي (Discharge Summary) لم يُعتمد أو لم يُوقع بعد من الطبيب المعالج.",
+        );
+      }
+
+      // Calculate length of stay
+      const lengthOfStay = Math.floor(
+        (new Date().getTime() - admission.actualAdmissionDate.getTime()) /
+          (1000 * 60 * 60 * 24),
+      );
+
+      // 3. Financial Clearance Settings
+      const debtLimit = await this.systemSettings.getNumber(
+        hospitalId,
+        'billing.debtLimit',
+        0.01,
+      );
+
+      if (
+        !['ADMITTED', 'IN_PROGRESS', 'DISCHARGE_PENDING'].includes(
+          admission.admissionStatus,
+        )
+      ) {
+        throw new BadRequestException('حالة الدخول لا تسمح بالخروج');
+      }
+      if (!Number.isFinite(debtLimit) || debtLimit < 0)
+        throw new BadRequestException('حد المديونية المهيأ غير صالح');
+      const pendingRoom = await pendingRoomCharges(
+        tx,
+        hospitalId,
+        admission.encounterId,
+        new Date(),
+      );
+      if (pendingRoom.reviewReason)
+        throw new BadRequestException(pendingRoom.reviewReason);
+      if (pendingRoom.charges.length)
+        throw new BadRequestException(
+          'توجد أيام إقامة غير مفوترة. يرجى إصدار فاتورة للحالة من الحسابات أولاً ثم تسويتها',
+        );
+      if (dischargeData.autoSettleDeposits) {
+        for (const invoice of admission.encounter.invoices) {
+          if (
+            invoice.type === 'CREDIT_NOTE' ||
+            !['ISSUED', 'PARTIALLY_PAID'].includes(invoice.status)
+          )
+            continue;
+          const wallet =
+            await this.patientDeposit.getPatientDepositBalanceInternal(
+              tx,
+              hospitalId,
+              admission.patientId,
+            );
+          if (wallet.availableBalance.lte(0)) break;
+          const balance = Money.subtractDecimal(
+            effectivePatientShare(invoice),
+            netPaidAmount(invoice),
+          );
+          if (balance.lte(0)) continue;
+          const result = await this.patientDeposit.applyDepositToInvoice(
+            hospitalId,
+            userId,
+            { invoiceId: invoice.id, requestId: '' },
+            tx,
+            `discharge:${admissionId}:${invoice.id}:${invoice.paidAmount.toString()}`,
+          );
+          invoice.paidAmount = Money.sumDecimal(
+            invoice.paidAmount,
+            result.appliedAmount,
+          );
         }
       }
-    }
 
-    // 3. Financial Clearance
-    const debtLimit = await this.systemSettings.getNumber(
-      hospitalId,
-      'billing.debtLimit',
-      0.01,
-    );
+      let totalPatientDebt = Money.decimal(0);
+      for (const invoice of admission.encounter.invoices) {
+        if (invoice.status === 'CANCELLED' || invoice.type === 'CREDIT_NOTE')
+          continue;
+        const balance = Money.subtractDecimal(
+          effectivePatientShare(invoice),
+          netPaidAmount(invoice),
+        );
+        if (balance.isPositive())
+          totalPatientDebt = totalPatientDebt.plus(balance);
+      }
+      if (Money.gt(totalPatientDebt, debtLimit))
+        throw new BadRequestException(
+          'يوجد رصيد مستحق على المريض بقيمة ' +
+            Money.toDbString(totalPatientDebt) +
+            ' د.ل. يرجى تسوية الفواتير أولاً',
+        );
+      const unbilled = await tx.encounterCharge.count({
+        where: {
+          hospitalId,
+          encounterId: admission.encounterId,
+          sourceType: { not: 'PHARMACY_PRESCRIPTION' },
+          OR: [{ invoiceId: null }, { invoice: { status: 'CANCELLED' } }],
+        },
+      });
+      if (unbilled)
+        throw new BadRequestException(
+          'توجد خدمات غير مفوترة أو مرتبطة بفواتير ملغاة. يرجى إصدار التسوية المالية أولاً',
+        );
 
-    let totalPatientDebt = 0;
-    for (const inv of admission.encounter.invoices) {
-      if (inv.status === 'CANCELLED') continue;
-      const patientShare = Number(inv.patientShare);
-      const paid = Number(inv.paidAmount);
-      const remaining = patientShare - paid;
-      if (remaining > debtLimit) totalPatientDebt += remaining;
-    }
-
-    if (totalPatientDebt > debtLimit) {
-      throw new BadRequestException(
-        `لا يمكن إجراء الخروج. يوجد مستحقات مالية على المريض بقيمة ${totalPatientDebt.toFixed(3)} د.ل. الحد المسموح به هو ${debtLimit} د.ل. يرجى تسوية الفواتير أولاً.`,
-      );
-    }
-
-    const uninvoicedCharges = await this.prisma.encounterCharge.count({
-      where: { encounterId: admission.encounterId, invoiceId: null },
-    });
-
-    if (uninvoicedCharges > 0) {
-      throw new BadRequestException(
-        `لا يمكن الخروج وجود مستحقات ومطالبات غير مسددة (${uninvoicedCharges} بند). يرجى مراجعة الاستقبال أو الحسابات لإصدار التسوية المالية أولاً.`,
-      );
-    }
-
-    // Update admission
-    const updatedAdmission = await this.prisma.admission.update({
-      where: { id: admissionId },
-      data: {
-        admissionStatus: AdmissionStatus.DISCHARGED,
-        dischargeDate: new Date(),
-        dischargeDisposition:
-          dischargeData?.dischargeDisposition ||
-          admission.dischargePlanning?.dischargeDisposition ||
-          'HOME',
-        dischargeInstructions:
-          dischargeData?.dischargeInstructions ||
-          admission.dischargePlanning?.followUpInstructions,
-        followUpRequired:
-          dischargeData?.followUpRequired ??
-          admission.followUpRequired ??
-          false,
-        followUpInstructions:
-          dischargeData?.followUpInstructions ??
-          admission.dischargePlanning?.followUpInstructions,
-        actualCost: dischargeData.actualCost,
-        lengthOfStay,
-      },
-    });
-
-    // Release bed
-    if (admission.bedId) {
-      await this.prisma.bed.update({
-        where: { id: admission.bedId },
-        data: { status: BedStatus.CLEANING },
+      // Update admission
+      await assertNoPendingBedMovement(tx, hospitalId, admission.encounterId);
+      const pendingTransfers = await tx.transferOrder.count({
+        where: {
+          hospitalId,
+          encounterId: admission.encounterId,
+          status: {
+            in: [
+              'REQUESTED',
+              'BED_ALLOCATED',
+              'HANDOVER_DRAFTED',
+              'HANDOVER_SIGNED',
+            ],
+          },
+        },
+      });
+      if (pendingTransfers)
+        throw new BadRequestException(
+          'يوجد طلب نقل نشط. يجب استكماله أو إلغاؤه قبل الخروج',
+        );
+      const updatedAdmission = await tx.admission.update({
+        where: { id: admissionId },
+        data: {
+          admissionStatus: AdmissionStatus.DISCHARGED,
+          medicalClearance: true,
+          financialClearance: true,
+          dischargeDate: new Date(),
+          dischargeDisposition:
+            dischargeData?.dischargeDisposition ||
+            admission.dischargePlanning?.dischargeDisposition ||
+            'HOME',
+          dischargeInstructions:
+            dischargeData?.dischargeInstructions ||
+            admission.dischargePlanning?.followUpInstructions,
+          followUpRequired:
+            dischargeData?.followUpRequired ??
+            admission.followUpRequired ??
+            false,
+          followUpInstructions:
+            dischargeData?.followUpInstructions ??
+            admission.dischargePlanning?.followUpInstructions,
+          actualCost: dischargeData.actualCost,
+          lengthOfStay,
+        },
       });
 
-      await this.prisma.bedAssignment.updateMany({
-        where: {
-          encounterId: admission.encounterId,
-          to: null,
-        },
+      // The live assignment owns the bed; stale admission location fields cannot release another patient's bed.
+      const assignments = await tx.bedAssignment.findMany({
+        where: { hospitalId, encounterId: admission.encounterId, to: null },
+      });
+      for (const assignment of assignments) {
+        const conflicting = await tx.bedAssignment.count({
+          where: {
+            hospitalId,
+            bedId: assignment.bedId,
+            to: null,
+            encounterId: { not: admission.encounterId },
+          },
+        });
+        if (conflicting)
+          throw new BadRequestException(
+            'يوجد تعارض في حجز السرير. تجب مراجعته قبل الخروج',
+          );
+        await tx.bed.update({
+          where: { id: assignment.bedId, hospitalId },
+          data: { status: BedStatus.CLEANING },
+        });
+      }
+      await tx.bedAssignment.updateMany({
+        where: { hospitalId, encounterId: admission.encounterId, to: null },
         data: { to: new Date() },
       });
-    }
 
-    // Close encounter
-    await this.prisma.encounter.update({
-      where: { id: admission.encounterId },
-      data: { status: 'CLOSED', dischargeDate: new Date() },
+      // Close encounter
+      await tx.encounter.update({
+        where: { id: admission.encounterId },
+        data: { status: 'CLOSED', dischargeDate: new Date() },
+      });
+
+      // Create discharge note
+      await tx.admissionNote.create({
+        data: {
+          admissionId,
+          hospitalId,
+          type: 'DISCHARGE',
+          content: `Patient discharged to ${dischargeData.dischargeDisposition}. ${dischargeData.notes || ''}`,
+          isCritical: false,
+          createdBy: userId,
+        },
+      });
+
+      return updatedAdmission;
     });
-
-    // Create discharge note
-    await this.prisma.admissionNote.create({
-      data: {
-        admissionId,
-        hospitalId,
-        type: 'DISCHARGE',
-        content: `Patient discharged to ${dischargeData.dischargeDisposition}. ${dischargeData.notes || ''}`,
-        isCritical: false,
-        createdBy: userId,
-      },
-    });
-
-    return updatedAdmission;
   }
 
   // ==================== DISCHARGE PLANNING ====================
@@ -846,128 +1070,130 @@ export class AdmissionService {
     dto: CreateBedTransferDto,
     userId: number,
   ) {
-    const admission = await this.prisma.admission.findFirst({
-      where: { id: admissionId, hospitalId },
-      include: { bed: true, room: true, ward: true },
-    });
-
-    if (!admission) {
-      throw new NotFoundException('Admission not found');
-    }
-
-    if (!admission.bedId) {
-      throw new BadRequestException(
-        'Patient is not currently assigned to a bed',
-      );
-    }
-
-    // Validate destination bed
-    const toBed = await this.prisma.bed.findFirst({
-      where: { id: dto.toBedId, hospitalId, status: BedStatus.AVAILABLE },
-      include: { room: true, ward: true },
-    });
-
-    if (!toBed) {
-      throw new BadRequestException('Destination bed is not available');
-    }
-
-    const transfer = await this.prisma.bedTransfer.create({
-      data: {
-        admissionId,
+    return this.prisma.$transaction(async (tx) => {
+      const { admission } = await lockActiveAdmission(
+        tx,
         hospitalId,
-        fromBedId: admission.bedId,
-        fromRoomId: admission.roomId!,
-        fromWardId: admission.wardId!,
-        toBedId: dto.toBedId,
-        toRoomId: toBed.roomId,
-        toWardId: toBed.room.wardId,
-        transferReason: dto.transferReason,
-        transferType: dto.transferType,
-        priority: dto.priority,
-        requestedBy: userId,
-      },
-      include: {
-        fromBed: true,
-        toBed: true,
-      },
+        admissionId,
+      );
+      await assertNoPendingBedMovement(tx, hospitalId, admission.encounterId);
+      const current = await tx.bedAssignment.findFirst({
+        where: { hospitalId, encounterId: admission.encounterId, to: null },
+      });
+      if (!current)
+        throw new BadRequestException('لا يوجد حجز سرير نشط لهذه الحالة');
+      const source = await bedLocation(tx, hospitalId, current.bedId);
+      const target = await bedLocation(tx, hospitalId, dto.toBedId);
+      if (target.id === source.id || target.status !== BedStatus.AVAILABLE)
+        throw new BadRequestException('سرير الوجهة غير متاح');
+      return tx.bedTransfer.create({
+        data: {
+          hospitalId,
+          admissionId,
+          fromBedId: source.id,
+          fromRoomId: source.roomId,
+          fromWardId: source.wardId,
+          toBedId: target.id,
+          toRoomId: target.roomId,
+          toWardId: target.wardId,
+          transferReason: dto.transferReason,
+          transferType: dto.transferType,
+          priority: dto.priority,
+          requestedBy: userId,
+        },
+        include: { fromBed: true, toBed: true },
+      });
     });
-
-    return transfer;
   }
 
-  /**
-   * Complete bed transfer
-   */
+  private async executeBedTransfer(
+    hospitalId: number,
+    transferId: number,
+    userId: number,
+    approving: boolean,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const identity = await tx.bedTransfer.findFirst({
+        where: { id: transferId, hospitalId },
+      });
+      if (!identity)
+        throw new NotFoundException('طلب النقل غير موجود في هذه المنشأة');
+      const { admission } = await lockActiveAdmission(
+        tx,
+        hospitalId,
+        identity.admissionId,
+      );
+      await tx.$queryRaw`SELECT "id" FROM "bed_transfers" WHERE "id" = ${transferId} AND "hospitalId" = ${hospitalId} FOR UPDATE`;
+      const transfer = await tx.bedTransfer.findFirst({
+        where: { id: transferId, hospitalId },
+      });
+      if (!transfer) throw new NotFoundException('طلب النقل غير موجود');
+      if (
+        transfer.status !== (approving ? 'REQUESTED' : 'APPROVED') ||
+        (!approving && !transfer.approvedBy)
+      )
+        throw new BadRequestException(
+          'حالة طلب النقل لا تسمح بالتنفيذ أو لم يعتمد بعد',
+        );
+      const destination = await bedLocation(tx, hospitalId, transfer.toBedId);
+      if (
+        destination.roomId !== transfer.toRoomId ||
+        destination.wardId !== transfer.toWardId
+      )
+        throw new BadRequestException('تغير موقع سرير الوجهة منذ طلب النقل');
+      await moveBed(tx, hospitalId, admission.encounterId, transfer.toBedId, {
+        expectedFromBedId: transfer.fromBedId,
+        bedTransferId: transferId,
+      });
+      return tx.bedTransfer.update({
+        where: { id: transferId, hospitalId },
+        data: {
+          status: 'COMPLETED',
+          ...(approving ? { approvedBy: userId } : {}),
+          completedBy: userId,
+          completedAt: new Date(),
+        },
+        include: { fromBed: true, toBed: true },
+      });
+    });
+  }
+
+  async approveBedTransfer(
+    transferId: number,
+    hospitalId: number,
+    approvedById: number,
+  ) {
+    return this.executeBedTransfer(hospitalId, transferId, approvedById, true);
+  }
+
   async completeBedTransfer(
     hospitalId: number,
     transferId: number,
     userId: number,
   ) {
-    const transfer = await this.prisma.bedTransfer.findFirst({
-      where: { id: transferId, hospitalId },
-      include: { admission: true },
+    return this.executeBedTransfer(hospitalId, transferId, userId, false);
+  }
+
+  async cancelBedTransfer(hospitalId: number, transferId: number) {
+    return this.prisma.$transaction(async (tx) => {
+      const identity = await tx.bedTransfer.findFirst({
+        where: { id: transferId, hospitalId },
+      });
+      if (!identity)
+        throw new NotFoundException('طلب النقل غير موجود في هذه المنشأة');
+      await lockActiveAdmission(tx, hospitalId, identity.admissionId, false);
+      await tx.$queryRaw`SELECT "id" FROM "bed_transfers" WHERE "id" = ${transferId} AND "hospitalId" = ${hospitalId} FOR UPDATE`;
+      const transfer = await tx.bedTransfer.findFirstOrThrow({
+        where: { id: transferId, hospitalId },
+      });
+      if (transfer.status === 'CANCELLED') return transfer;
+      if (!ACTIVE_BED_TRANSFERS.includes(transfer.status))
+        throw new BadRequestException('لا يمكن إلغاء نقل مكتمل');
+      return tx.bedTransfer.update({
+        where: { id: transferId, hospitalId },
+        data: { status: 'CANCELLED' },
+      });
     });
-
-    if (!transfer) {
-      throw new NotFoundException('Transfer not found');
-    }
-
-    if (transfer.status !== 'APPROVED') {
-      throw new BadRequestException(
-        'Transfer must be approved before completion',
-      );
-    }
-
-    // Release old bed
-    await this.prisma.bed.update({
-      where: { id: transfer.fromBedId },
-      data: { status: BedStatus.CLEANING },
-    });
-
-    // Assign new bed
-    await this.prisma.bed.update({
-      where: { id: transfer.toBedId },
-      data: { status: BedStatus.OCCUPIED },
-    });
-
-    // Update bed assignments
-    await this.prisma.bedAssignment.updateMany({
-      where: {
-        encounterId: transfer.admission.encounterId,
-        to: null,
-      },
-      data: { to: new Date() },
-    });
-
-    await this.prisma.bedAssignment.create({
-      data: {
-        hospitalId,
-        encounterId: transfer.admission.encounterId,
-        bedId: transfer.toBedId,
-      },
-    });
-
-    // Update admission
-    await this.prisma.admission.update({
-      where: { id: transfer.admissionId },
-      data: {
-        bedId: transfer.toBedId,
-        roomId: transfer.toRoomId,
-        wardId: transfer.toWardId,
-      },
-    });
-
-    // Update transfer
-    const completedTransfer = await this.prisma.bedTransfer.update({
-      where: { id: transferId },
-      data: {
-        status: 'COMPLETED',
-        completedAt: new Date(),
-        completedBy: userId,
-      },
-    });
-
-    return completedTransfer;
   }
 
   // ==================== STATISTICS AND REPORTS ====================
@@ -1078,7 +1304,13 @@ export class AdmissionService {
                     encounter: {
                       include: {
                         patient: true,
-                        admission: true,
+                        admission: {
+                          select: {
+                            id: true,
+                            admissionType: true,
+                            primaryDiagnosis: true,
+                          },
+                        },
                       },
                     },
                   },
@@ -1102,7 +1334,7 @@ export class AdmissionService {
         let roomOccupied = 0;
         let roomAvailable = 0;
 
-        const bedsResult = room.beds.map((bed: any) => {
+        const bedsResult = room.beds.map((bed) => {
           roomTotal++;
           totalBeds++;
 
@@ -1132,7 +1364,7 @@ export class AdmissionService {
             activeAssignment.encounter.patient
           ) {
             patientInfo = {
-              admissionId: activeAssignment.encounter.admission?.[0]?.id || 0,
+              admissionId: activeAssignment.encounter.admission?.id || 0,
               patientName: activeAssignment.encounter.patient.fullName,
               patientMrn: activeAssignment.encounter.patient.mrn,
             };

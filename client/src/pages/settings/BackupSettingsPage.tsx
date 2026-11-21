@@ -288,7 +288,7 @@ export default function BackupSettingsPage() {
     if (status.status === "busy") {
       timer = setInterval(() => setElapsed((p) => p + 1), 1000);
     } else {
-      setElapsed(0);
+      timer = setTimeout(() => setElapsed(0), 0);
     }
     return () => clearInterval(timer);
   }, [status.status]);

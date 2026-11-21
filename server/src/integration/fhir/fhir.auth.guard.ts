@@ -4,7 +4,9 @@ import {
   ExecutionContext,
   UnauthorizedException,
   SetMetadata,
+  Optional,
 } from '@nestjs/common';
+import { ClsService } from 'nestjs-cls';
 import { Reflector } from '@nestjs/core';
 import { FhirAuthService } from './fhir.auth.service';
 import { Request } from 'express';
@@ -52,6 +54,7 @@ export class FhirAuthGuard implements CanActivate {
   constructor(
     private fhirAuthService: FhirAuthService,
     private reflector: Reflector,
+    @Optional() private cls?: ClsService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -85,6 +88,15 @@ export class FhirAuthGuard implements CanActivate {
       token,
       requiredScope,
     )) as Record<string, any>;
+
+    if (decoded.hospitalId && this.cls?.isActive()) {
+      this.cls.set('hospitalId', decoded.hospitalId);
+      this.cls.set('isSuperAdmin', false);
+    } else if (!decoded.patient && process.env.NODE_ENV === 'production') {
+      throw new UnauthorizedException(
+        'FHIR token is missing a hospital or patient context',
+      );
+    }
 
     // Inject the full SMART context into the request
     // Controllers MUST use this to enforce patient-level data isolation

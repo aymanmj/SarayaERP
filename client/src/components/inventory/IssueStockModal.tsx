@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/api/apiClient";
@@ -16,6 +16,7 @@ export function IssueStockModal({ request, onClose, onSuccess }: Props) {
   const isRtl = i18n.language === "ar";
 
   const [submitting, setSubmitting] = useState(false);
+  const operation = useRef<{ payload: string; key: string } | null>(null);
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<{ productId: number; quantity: number; batchNumber?: string }[]>([]);
 
@@ -67,17 +68,25 @@ export function IssueStockModal({ request, onClose, onSuccess }: Props) {
           batchNumber: item.batchNumber?.trim() || undefined
         }));
 
+      if (!payloadItems.length) throw new Error("يجب اختيار كمية موجبة واحدة على الأقل");
+      const fingerprint = JSON.stringify({ id: request.id, notes, items: payloadItems });
+      if (operation.current && operation.current.payload !== fingerprint) {
+        throw new Error("يلزم إعادة فتح الطلب ومراجعة الشحنات قبل تغيير عملية لم يتأكد تنفيذها");
+      }
+      operation.current ??= { payload: fingerprint, key: crypto.randomUUID() };
       await inventoryApi.issueMaterialRequest(request.id, {
+        requestKey: operation.current.key,
         notes,
         items: payloadItems.length > 0 ? payloadItems : undefined
       });
+      operation.current = null;
       
       toast.success("تم صرف المواد بنجاح وإصدار شحنة جديدة");
       onSuccess();
      
     } catch (error: any) {
       console.error(error);
-      toast.error(error.response?.data?.message || "حدث خطأ أثناء الصرف");
+      toast.error(error.response?.data?.message || error.message || "حدث خطأ أثناء الصرف");
     } finally {
       setSubmitting(false);
     }

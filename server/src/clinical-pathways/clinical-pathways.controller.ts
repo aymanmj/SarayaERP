@@ -147,14 +147,23 @@ export class ClinicalPathwaysController {
 
   @Get('enrollment/:enrollmentId')
   @Permissions('clinical-pathways:view')
-  getEnrollment(@Param('enrollmentId') enrollmentId: string) {
-    return this.service.getEnrollment(+enrollmentId);
+  getEnrollment(
+    @Param('enrollmentId') enrollmentId: string,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.service.getEnrollment(+enrollmentId, user.hospitalId);
   }
 
   @Get('enrollments/by-encounter/:encounterId')
   @Permissions('clinical-pathways:view')
-  getEnrollmentsByEncounter(@Param('encounterId') encounterId: string) {
-    return this.service.getEnrollmentsByEncounter(+encounterId);
+  getEnrollmentsByEncounter(
+    @Param('encounterId') encounterId: string,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.service.getEnrollmentsByEncounter(
+      +encounterId,
+      user.hospitalId,
+    );
   }
 
   @Post('enrollment/:id/advance')
@@ -164,18 +173,23 @@ export class ClinicalPathwaysController {
   }
 
   @Post('enrollment/:id/variance')
-  @Permissions('clinical-pathways:view')
+  @Permissions('clinical-pathways:manage')
   reportVariance(
     @Param('id') id: string,
     @Body() body: { stepId: number; varianceType: string; reason: string },
     @CurrentUser() user: JwtPayload,
   ) {
-    return this.service.reportVariance(+id, user.sub, body as any);
+    return this.service.reportVariance(
+      +id,
+      user.sub,
+      body as any,
+      user.hospitalId,
+    );
   }
 
   @Post('enrollment/:id/complete')
   @Permissions('clinical-pathways:manage')
-  completeEnrollment(@Param('id') id: string) {
-    return this.service.completeEnrollment(+id);
+  completeEnrollment(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
+    return this.service.completeEnrollment(+id, user.hospitalId);
   }
 }

@@ -9,6 +9,7 @@ import {
   Logger,
   NotFoundException,
   BadRequestException,
+  OnModuleDestroy,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
@@ -25,9 +26,13 @@ import {
 } from './dto/create-capa.dto';
 
 @Injectable()
-export class QualityService {
+export class QualityService implements OnModuleDestroy {
   private readonly logger = new Logger(QualityService.name);
   private redisClient: Redis;
+
+  onModuleDestroy() {
+    this.redisClient?.disconnect();
+  }
 
   constructor(
     private prisma: PrismaService,
@@ -70,6 +75,7 @@ export class QualityService {
           'Redis connection failed in QualityService. Switching to In-Memory Redis fallback.',
         );
         const { InMemoryRedis } = require('../common/in-memory-redis');
+        this.redisClient.disconnect();
         this.redisClient = new InMemoryRedis();
       });
     } catch (err) {
@@ -180,10 +186,12 @@ export class QualityService {
       incidentId: incident.id,
       incidentNumber: incident.incidentNumber,
       severity: incident.severity,
-      reporterName: incident.reporter?.fullName || 'Anonymous',
+      reporterName: incident.isAnonymous
+        ? 'Anonymous'
+        : incident.reporter?.fullName || 'Anonymous',
     });
 
-    return incident;
+    return this.redactReporter(incident);
   }
 
   // ======================== 2. List Incidents ========================
@@ -218,7 +226,7 @@ export class QualityService {
     ]);
 
     return {
-      items,
+      items: items.map((item) => this.redactReporter(item)),
       meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
     };
   }
@@ -243,7 +251,13 @@ export class QualityService {
     });
 
     if (!incident) throw new NotFoundException('الحادثة غير موجودة');
-    return incident;
+    return this.redactReporter(incident);
+  }
+
+  private redactReporter<T extends { isAnonymous: boolean }>(incident: T): T {
+    return incident.isAnonymous
+      ? { ...incident, reporter: null, reportedById: null }
+      : incident;
   }
 
   // ======================== 4. Update Incident (Investigation) ========================
@@ -256,13 +270,15 @@ export class QualityService {
   ) {
     await this.findOne(hospitalId, id);
 
-    return this.prisma.clinicalIncident.update({
-      where: { id },
-      data: {
-        ...dto,
-        investigatedById: dto.investigatedById ?? userId,
-      },
-    });
+    return this.redactReporter(
+      await this.prisma.clinicalIncident.update({
+        where: { id },
+        data: {
+          ...dto,
+          investigatedById: dto.investigatedById ?? userId,
+        },
+      }),
+    );
   }
 
   // ======================== 5. Close Incident ========================
@@ -284,14 +300,16 @@ export class QualityService {
       );
     }
 
-    return this.prisma.clinicalIncident.update({
-      where: { id },
-      data: {
-        status: IncidentStatus.CLOSED,
-        closedAt: new Date(),
-        closedById: userId,
-      },
-    });
+    return this.redactReporter(
+      await this.prisma.clinicalIncident.update({
+        where: { id },
+        data: {
+          status: IncidentStatus.CLOSED,
+          closedAt: new Date(),
+          closedById: userId,
+        },
+      }),
+    );
   }
 
   // ======================== 6. Dashboard Stats ========================

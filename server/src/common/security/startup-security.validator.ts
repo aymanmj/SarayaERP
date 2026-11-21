@@ -25,10 +25,19 @@ export class StartupSecurityValidator implements OnModuleInit {
 
     this.logger.log(`🔐 Running security validation (env: ${env})...`);
 
-    const criticalSecrets = [
+    const placeholderPattern =
+      /change[_ -]?me|change[_ -]?in[_ -]?production|your[_ -].*(?:secret|key|password|salt|token)/i;
+
+    const criticalSecrets: Array<{
+      key: string;
+      description: string;
+      minLength: number;
+      dangerousDefaults: string[];
+    }> = [
       {
         key: 'JWT_SECRET',
         description: 'JWT signing secret for authentication tokens',
+        minLength: 32,
         dangerousDefaults: [
           'dev_secret_change_me',
           'fallback_secret',
@@ -40,14 +49,13 @@ export class StartupSecurityValidator implements OnModuleInit {
         key: 'ENCRYPTION_KEY',
         description:
           'AES-256 encryption key for patient PII (nationalId, phone, email)',
+        minLength: 32,
         dangerousDefaults: ['your-secret-key-32-chars-long-!!!'],
       },
-    ];
-
-    const importantSecrets = [
       {
         key: 'ENCRYPTION_SALT',
         description: 'Salt for key derivation (scrypt)',
+        minLength: 16,
         dangerousDefaults: ['saraya-default-salt-123'],
       },
     ];
@@ -76,18 +84,15 @@ export class StartupSecurityValidator implements OnModuleInit {
       }
 
       // Check for dangerous default values
-      const isPlaceholder =
-        /change[_ -]?me|change[_ -]?in[_ -]?production|your[_ -].*(?:secret|key|password)/i.test(
-          value,
-        );
+      const isPlaceholder = placeholderPattern.test(value);
       if (
         secret.dangerousDefaults.includes(value) ||
         isPlaceholder ||
-        value.trim().length < 32
+        value.trim().length < secret.minLength
       ) {
         if (isProduction) {
           this.logger.error(
-            `🚨 CRITICAL: ${secret.key} is a placeholder or is shorter than 32 characters! ` +
+            `🚨 CRITICAL: ${secret.key} is a placeholder or is shorter than ${secret.minLength} characters! ` +
               `This is a severe security risk. Generate a proper secret: ` +
               `node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"`,
           );
@@ -101,14 +106,28 @@ export class StartupSecurityValidator implements OnModuleInit {
       }
     }
 
-    // Check important (non-critical) secrets
-    for (const secret of importantSecrets) {
-      const value = this.config.get<string>(secret.key);
-      if (!value || secret.dangerousDefaults.includes(value)) {
-        this.logger.warn(
-          `⚠️ WARNING: ${secret.key} ${!value ? 'is not set' : 'uses a default value'}. ` +
-            `${secret.description}. Consider setting a unique value.`,
-        );
+    // Validate VAULT_TOKEN whenever Vault authentication is configured
+    const vaultToken = this.config.get<string>('VAULT_TOKEN');
+    if (vaultToken !== undefined && vaultToken !== '') {
+      const trimmedVaultToken = vaultToken.trim();
+      const dangerousVaultTokens = ['saraya-root-token-dev', 'root', 'dev'];
+      if (
+        !trimmedVaultToken ||
+        dangerousVaultTokens.includes(trimmedVaultToken.toLowerCase()) ||
+        placeholderPattern.test(trimmedVaultToken)
+      ) {
+        if (isProduction) {
+          this.logger.error(
+            '🚨 CRITICAL: VAULT_TOKEN uses an unsafe or placeholder token! ' +
+              'Provide a production Vault token before starting.',
+          );
+          hasCriticalFailure = true;
+        } else {
+          this.logger.warn(
+            '⚠️ DEV WARNING: VAULT_TOKEN uses a non-production or placeholder token. ' +
+              'Replace it before deploying to production.',
+          );
+        }
       }
     }
 
@@ -125,6 +144,7 @@ export class StartupSecurityValidator implements OnModuleInit {
           `║  Required:                                           ║\n` +
           `║  • JWT_SECRET (authentication)                       ║\n` +
           `║  • ENCRYPTION_KEY (patient data encryption)          ║\n` +
+          `║  • ENCRYPTION_SALT (key derivation salt)             ║\n` +
           `║                                                      ║\n` +
           `║  See: vault-migration.ts for auto-setup              ║\n` +
           `╚══════════════════════════════════════════════════════╝`,

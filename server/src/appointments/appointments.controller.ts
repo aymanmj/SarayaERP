@@ -202,7 +202,7 @@ export class AppointmentsController {
   ) {}
 
   @Post()
-  @Permissions('appointments:view')
+  @Permissions('appointments:manage', 'clinical:appointments:manage')
   async create(
     @Body() dto: CreateAppointmentDto,
     @CurrentUser() user: JwtPayload,
@@ -232,7 +232,7 @@ export class AppointmentsController {
   }
 
   @Get()
-  @Permissions('appointments:view')
+  @Permissions('appointments:view', 'clinical:appointments:view')
   async list(
     @Query() query: ListAppointmentsQueryDto,
     @CurrentUser() user: JwtPayload,
@@ -265,7 +265,7 @@ export class AppointmentsController {
   }
 
   @Get('queue-status/:doctorId')
-  @Permissions('appointments:view')
+  @Permissions('appointments:view', 'clinical:appointments:view')
   async getQueueStatus(
     @Param('doctorId') doctorId: string,
     @Query('date') dateStr: string,
@@ -289,7 +289,7 @@ export class AppointmentsController {
   }
 
   @Get(':id')
-  @Permissions('appointments:view')
+  @Permissions('appointments:view', 'clinical:appointments:view')
   async getOne(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
     const apptId = Number(id);
     if (!apptId || Number.isNaN(apptId)) {
@@ -300,7 +300,11 @@ export class AppointmentsController {
   }
 
   @Patch(':id/status')
-  @Permissions('appointments:view')
+  @Permissions(
+    'appointments:manage',
+    'clinical:appointments:manage',
+    'clinical:appointments:status',
+  )
   async updateStatus(
     @Param('id') id: string,
     @Body() dto: UpdateAppointmentStatusDto,
@@ -332,13 +336,13 @@ export class AppointmentsController {
   }
 
   @Get('schedules/list')
-  @Permissions('appointments:view')
+  @Permissions('appointments:view', 'clinical:appointments:view')
   async listDoctorSchedules(@CurrentUser() user: JwtPayload) {
     return this.appointmentsService.listDoctorSchedules(user.hospitalId);
   }
 
   @Get('schedules/:doctorId')
-  @Permissions('appointments:view')
+  @Permissions('appointments:view', 'clinical:appointments:view')
   async getDoctorSchedule(
     @Param('doctorId') doctorId: string,
     @CurrentUser() user: JwtPayload,
@@ -352,7 +356,7 @@ export class AppointmentsController {
   }
 
   @Put('schedules/:doctorId')
-  @Permissions('appointments:manage')
+  @Permissions('appointments:manage', 'clinical:appointments:manage')
   async upsertDoctorSchedule(
     @Param('doctorId') doctorId: string,
     @Body() dto: UpsertDoctorScheduleDto,
@@ -371,7 +375,7 @@ export class AppointmentsController {
   }
 
   @Get(':id/print')
-  @Permissions('appointments:view')
+  @Permissions('appointments:view', 'clinical:appointments:view')
   async downloadReceipt(
     @Param('id') id: string,
     @CurrentUser() user: JwtPayload,

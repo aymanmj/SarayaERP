@@ -1,7 +1,10 @@
+import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { CareTaskStatus } from '@prisma/client';
 import { NursingService } from './nursing.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { TimeZoneUtils } from '../common/utils/date.util';
 
 /**
  * Unit tests for NursingService MAR scheduling logic.
@@ -19,9 +22,11 @@ describe('NursingService - MAR Schedule', () => {
   });
 
   const mockPrisma = {
+    hospital: { findUniqueOrThrow: jest.fn() },
     prescription: { findMany: jest.fn() },
     medicationAdministration: { findMany: jest.fn() },
-    encounter: { findMany: jest.fn() },
+    encounter: { findMany: jest.fn(), findFirst: jest.fn() },
+    careTask: { findMany: jest.fn(), findFirst: jest.fn(), update: jest.fn() },
   };
 
   const mockEventEmitter = {
@@ -39,6 +44,9 @@ describe('NursingService - MAR Schedule', () => {
 
     service = module.get<NursingService>(NursingService);
     jest.clearAllMocks();
+    mockPrisma.hospital.findUniqueOrThrow.mockResolvedValue({
+      organization: { timezone: 'Africa/Tripoli' },
+    });
   });
 
   it('should be defined', () => {
@@ -67,8 +75,10 @@ describe('NursingService - MAR Schedule', () => {
       );
 
       expect(schedule).toHaveLength(1);
-      expect(schedule[0].scheduledTime.getHours()).toBe(8);
-      expect(schedule[0].scheduledTime.getMinutes()).toBe(0);
+      expect(schedule[0].scheduledSlot).toBe('2026-05-04T08:00');
+      expect(schedule[0].scheduledTime.toISOString()).toBe(
+        '2026-05-04T06:00:00.000Z',
+      );
     });
 
     it('should generate 2 slots for BID frequency at 08:00 and 20:00', async () => {
@@ -85,8 +95,10 @@ describe('NursingService - MAR Schedule', () => {
       );
 
       expect(schedule).toHaveLength(2);
-      expect(schedule[0].scheduledTime.getHours()).toBe(8);
-      expect(schedule[1].scheduledTime.getHours()).toBe(20);
+      expect(schedule.map((slot) => slot.scheduledSlot.slice(11))).toEqual([
+        '08:00',
+        '20:00',
+      ]);
     });
 
     it('should generate 3 slots for TID frequency at 08:00, 14:00, 20:00', async () => {
@@ -103,8 +115,11 @@ describe('NursingService - MAR Schedule', () => {
       );
 
       expect(schedule).toHaveLength(3);
-      const hours = schedule.map((s: any) => s.scheduledTime.getHours());
-      expect(hours).toEqual([8, 14, 20]);
+      expect(schedule.map((slot) => slot.scheduledSlot.slice(11))).toEqual([
+        '08:00',
+        '14:00',
+        '20:00',
+      ]);
     });
 
     it('should generate 4 slots for QID frequency — all within the same calendar day', async () => {
@@ -121,14 +136,12 @@ describe('NursingService - MAR Schedule', () => {
 
       // ALL slots must be on the same day (May 4th)
       for (const slot of schedule) {
-        expect(slot.scheduledTime.getDate()).toBe(4);
-        expect(slot.scheduledTime.getMonth()).toBe(4); // May = 4 (0-indexed)
+        expect(slot.scheduledSlot.startsWith('2026-05-04T')).toBe(true);
       }
 
       // The last slot must NOT overflow to midnight of the next day
       const lastSlot = schedule[schedule.length - 1];
-      expect(lastSlot.scheduledTime.getHours()).toBe(23);
-      expect(lastSlot.scheduledTime.getMinutes()).toBe(59);
+      expect(lastSlot.scheduledSlot).toBe('2026-05-04T23:59');
     });
 
     it('should generate 1 slot for QHS frequency at 22:00', async () => {
@@ -145,7 +158,7 @@ describe('NursingService - MAR Schedule', () => {
       );
 
       expect(schedule).toHaveLength(1);
-      expect(schedule[0].scheduledTime.getHours()).toBe(22);
+      expect(schedule[0].scheduledSlot).toBe('2026-05-04T22:00');
     });
 
     it('should generate 0 slots for PRN (as-needed) frequency', async () => {
@@ -187,8 +200,7 @@ describe('NursingService - MAR Schedule', () => {
     });
 
     it('should map administration record status when matched to a slot', async () => {
-      const targetDate = new Date();
-      targetDate.setHours(0, 0, 0, 0);
+      const targetDate = '2026-05-04';
 
       mockPrisma.prescription.findMany.mockResolvedValue([
         {
@@ -196,11 +208,13 @@ describe('NursingService - MAR Schedule', () => {
         },
       ]);
 
-      // Admin record at 08:30 matches the 08:00 slot (within +/- 2 hour window)
+      // A recorded slot stays linked even if its action was documented the next day.
       mockPrisma.medicationAdministration.findMany.mockResolvedValue([
         {
           prescriptionItemId: 1,
-          administeredAt: new Date(targetDate.getTime() + 8.5 * 60 * 60 * 1000),
+          scheduledSlot: `${targetDate}T08:00`,
+          scheduledFor: TimeZoneUtils.fromLocal(targetDate, '08:00'),
+          administeredAt: new Date('2026-05-05T08:30:00Z'),
           status: 'GIVEN',
         },
       ]);
@@ -234,6 +248,77 @@ describe('NursingService - MAR Schedule', () => {
           schedule[i - 1].scheduledTime.getTime(),
         );
       }
+    });
+  });
+
+  // ============================================
+  // Care Tasks Tenant Isolation (SEC03)
+  // ============================================
+  describe('Care Tasks Tenant Isolation', () => {
+    it('rejects getCareTasks when encounter does not belong to hospitalId', async () => {
+      mockPrisma.encounter.findFirst.mockResolvedValue(null);
+
+      await expect(service.getCareTasks(2, 100)).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(mockPrisma.careTask.findMany).not.toHaveBeenCalled();
+    });
+
+    it('returns care tasks scoped by encounterId and hospitalId', async () => {
+      mockPrisma.encounter.findFirst.mockResolvedValue({ id: 100 });
+      mockPrisma.careTask.findMany.mockResolvedValue([{ id: 5 }]);
+
+      const tasks = await service.getCareTasks(1, 100);
+
+      expect(tasks).toEqual([{ id: 5 }]);
+      expect(mockPrisma.careTask.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            enrollment: { encounterId: 100, pathway: { hospitalId: 1 } },
+          },
+        }),
+      );
+    });
+
+    it('rejects updateCareTaskStatus when task does not belong to hospitalId', async () => {
+      mockPrisma.careTask.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.updateCareTaskStatus(2, 7, 55, CareTaskStatus.COMPLETED),
+      ).rejects.toThrow(NotFoundException);
+      expect(mockPrisma.careTask.update).not.toHaveBeenCalled();
+    });
+
+    it('updates care task status when task and encounter belong to hospitalId', async () => {
+      mockPrisma.careTask.findFirst.mockResolvedValue({
+        id: 55,
+        enrollment: { encounterId: 100 },
+      });
+      mockPrisma.encounter.findFirst.mockResolvedValue({ id: 100 });
+      mockPrisma.careTask.update.mockResolvedValue({
+        id: 55,
+        status: CareTaskStatus.COMPLETED,
+      });
+
+      const updated = await service.updateCareTaskStatus(
+        1,
+        7,
+        55,
+        CareTaskStatus.COMPLETED,
+        'done',
+      );
+
+      expect(updated).toEqual({ id: 55, status: CareTaskStatus.COMPLETED });
+      expect(mockPrisma.careTask.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 55 },
+          data: expect.objectContaining({
+            status: CareTaskStatus.COMPLETED,
+            notes: 'done',
+            completedById: 7,
+          }),
+        }),
+      );
     });
   });
 });

@@ -1,3 +1,4 @@
+import { CreateGoodsReceiptDto } from './dto/goods-receipt.dto';
 // src/purchases/purchases.controller.ts
 
 import {
@@ -12,6 +13,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { Permissions } from '../auth/permissions.decorator';
+import { AuditInTransaction } from '../audit/audit.decorator';
 import { PermissionsGuard } from '../auth/permissions.guard';
 import { PurchasesService } from './purchases.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -51,12 +53,25 @@ class PurchaseInvoiceLineDto {
   @IsOptional()
   @Type(() => Number)
   @IsNumber()
+  productId?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
   inventoryItemId?: number;
 
   @IsOptional()
   @Type(() => Number)
   @IsNumber()
   drugItemId?: number;
+
+  @IsOptional()
+  @IsString()
+  batchNumber?: string;
+
+  @IsOptional()
+  @IsDateString()
+  expiryDate?: string;
 }
 
 class CreatePurchaseInvoiceDto {
@@ -226,6 +241,7 @@ export class PurchasesController {
   }
 
   @Post('invoices/:id/approve')
+  @AuditInTransaction()
   @Permissions('purchases:invoice:approve')
   async approveInvoice(@Req() req: any, @Param('id', ParseIntPipe) id: number) {
     const hospitalId = req.user.hospitalId as number;
@@ -327,10 +343,12 @@ export class PurchasesController {
   }
 
   @Post('grn')
-  async createGRN(@Req() req: any, @Body() body: any) {
+  @Permissions('inventory:manage')
+  async createGRN(@Req() req: any, @Body() body: CreateGoodsReceiptDto) {
     return this.procurement.createGRN({
       hospitalId: req.user.hospitalId,
       userId: req.user.sub,
+      requestId: body.requestId,
       poId: body.poId,
       warehouseId: body.warehouseId,
       items: body.items, // { productId, quantity, batchNumber, expiryDate }

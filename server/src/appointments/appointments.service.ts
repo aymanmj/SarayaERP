@@ -1208,8 +1208,9 @@ export class AppointmentsService {
   async handleInvoiceCancellation(payload: {
     encounterId?: number;
     hospitalId: number;
+    affectsEncounter?: boolean;
   }) {
-    if (!payload.encounterId) return;
+    if (!payload.encounterId || payload.affectsEncounter === false) return;
 
     try {
       await this.prisma.$transaction(async (tx) => {

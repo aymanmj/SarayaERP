@@ -15,6 +15,8 @@ import { UpdateSystemSettingDto } from './dto/update-system-setting.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/permissions.guard';
 import { Permissions } from '../auth/permissions.decorator';
+import { CurrentUser } from '../auth/current-user.decorator';
+import type { JwtPayload } from '../auth/jwt-payload.type';
 
 @Controller('system-settings')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -41,14 +43,15 @@ export class SystemSettingsController {
   @Permissions('admin:manage')
   @Patch(':key')
   update(
-    @Request() req,
+    @CurrentUser() user: JwtPayload,
     @Param('key') key: string,
     @Body() updateSystemSettingDto: UpdateSystemSettingDto,
   ) {
     return this.systemSettingsService.update(
-      req.user.hospitalId,
+      user.hospitalId,
       key,
       updateSystemSettingDto,
+      user.sub,
     );
   }
 

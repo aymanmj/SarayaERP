@@ -1,0 +1,11 @@
+# Merge with docker-compose.production.yml after starting the separate PACS project.
+services:
+  backend:
+    environment:
+      RADIOLOGY_ORTHANC_URL: http://orthanc:8042
+    networks: [managed_pacs]
+
+networks:
+  managed_pacs:
+    external: true
+    name: ${PACS_API_NETWORK:?Set PACS_API_NETWORK to the archive project API network}

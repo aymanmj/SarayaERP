@@ -1,3 +1,5 @@
+import { SurgerySourcePolicy } from "../components/surgery/SurgerySourcePolicy";
+import { SurgeryConsumableForm } from "../components/surgery/SurgeryConsumableForm";
 // src/pages/SurgeryCaseDetailsPage.tsx
 
 import { useEffect, useState } from "react";
@@ -7,11 +9,7 @@ import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 
 type SurgeryStatus =
-  | "SCHEDULED"
-  | "IN_PROGRESS"
-  | "RECOVERY"
-  | "COMPLETED"
-  | "CANCELLED";
+  "SCHEDULED" | "IN_PROGRESS" | "RECOVERY" | "COMPLETED" | "CANCELLED";
 
 type SurgeryCaseDetails = {
   id: number;
@@ -24,7 +22,12 @@ type SurgeryCaseDetails = {
   anesthesiaNotes?: string;
   preOpDiagnosis?: string;
   postOpDiagnosis?: string;
-  serviceItem?: { id: number; name: string; code: string; defaultPrice: string };
+  serviceItem?: {
+    id: number;
+    name: string;
+    code: string;
+    defaultPrice: string;
+  };
   encounter: {
     patient: { fullName: string; mrn: string };
     department?: { name: string };
@@ -37,7 +40,18 @@ type SurgeryCaseDetails = {
     }[];
   };
   theatre: { name: string };
-  team: { id: number; role: string; commissionAmount?: string; user: { fullName: string } }[];
+  team: {
+    id: number;
+    role: string;
+    commissionAmount?: string;
+    user: { fullName: string };
+  }[];
+  financialPreview: {
+    cataloguePrice: string;
+    consumables: string;
+    estimatedTotal: string;
+    teamCommissions: string;
+  };
   consumables: {
     id: number;
     quantity: string;
@@ -46,9 +60,13 @@ type SurgeryCaseDetails = {
   }[];
 };
 
-
 type UserLite = { id: number; fullName: string };
-type ProductLite = { id: number; name: string; stockOnHand: string };
+type ProductLite = {
+  id: number;
+  name: string;
+  stockOnHand: string;
+  type: string;
+};
 
 const ROLES = [
   "SURGEON",
@@ -68,11 +86,26 @@ export default function SurgeryCaseDetailsPage() {
   const getRoleLabel = (role: string) => {
     const keys: Record<string, { key: string; defaultValue: string }> = {
       SURGEON: { key: "surgery.role.surgeon", defaultValue: "جراح رئيسي" },
-      ASSISTANT_SURGEON: { key: "surgery.role.assistantSurgeon", defaultValue: "مساعد جراح" },
-      ANESTHETIST: { key: "surgery.role.anesthetist", defaultValue: "طبيب تخدير" },
-      TECHNICIAN: { key: "surgery.role.anesthetistTech", defaultValue: "فني تخدير / عمليات" },
-      SCRUB_NURSE: { key: "surgery.role.scrubNurse", defaultValue: "ممرضة تعقيم" },
-      CIRCULATING_NURSE: { key: "surgery.role.circulatingNurse", defaultValue: "ممرضة متجولة" },
+      ASSISTANT_SURGEON: {
+        key: "surgery.role.assistantSurgeon",
+        defaultValue: "مساعد جراح",
+      },
+      ANESTHETIST: {
+        key: "surgery.role.anesthetist",
+        defaultValue: "طبيب تخدير",
+      },
+      TECHNICIAN: {
+        key: "surgery.role.anesthetistTech",
+        defaultValue: "فني تخدير / عمليات",
+      },
+      SCRUB_NURSE: {
+        key: "surgery.role.scrubNurse",
+        defaultValue: "ممرضة تعقيم",
+      },
+      CIRCULATING_NURSE: {
+        key: "surgery.role.circulatingNurse",
+        defaultValue: "ممرضة متجولة",
+      },
     };
     const item = keys[role];
     return item ? t(item.key, item.defaultValue) : role;
@@ -90,11 +123,6 @@ export default function SurgeryCaseDetailsPage() {
   const [selectedUser, setSelectedUser] = useState("");
   const [selectedRole, setSelectedRole] = useState(ROLES[0]);
 
-  // Consumables form
-  const [selectedProduct, setSelectedProduct] = useState("");
-  const [consumableQty, setConsumableQty] = useState(1);
-  const [addingConsumable, setAddingConsumable] = useState(false);
-
   // Surgical Notes form
   const [surgeonNotes, setSurgeonNotes] = useState("");
   const [anesthesiaNotes, setAnesthesiaNotes] = useState("");
@@ -103,7 +131,9 @@ export default function SurgeryCaseDetailsPage() {
   const [savingNotes, setSavingNotes] = useState(false);
 
   // Tab & workflow states
-  const [activeTab, setActiveTab] = useState<"operative" | "preop" | "intraop" | "pacu">("operative");
+  const [activeTab, setActiveTab] = useState<
+    "operative" | "preop" | "intraop" | "pacu"
+  >("operative");
 
   // Pre-Op states
   const [preopIdentity, setPreopIdentity] = useState(false);
@@ -142,7 +172,9 @@ export default function SurgeryCaseDetailsPage() {
 
   const parsePreOpNotes = (notes?: string) => {
     if (!notes) return null;
-    const match = notes.match(/--- PRE-OP CHECKLIST \(By User \d+\) ---\n([\s\S]+)/);
+    const match = notes.match(
+      /--- PRE-OP CHECKLIST \(By User \d+\) ---\n([\s\S]+)/,
+    );
     if (match) {
       try {
         return JSON.parse(match[1]);
@@ -155,7 +187,9 @@ export default function SurgeryCaseDetailsPage() {
 
   const parseIntraOpNotes = (notes?: string) => {
     if (!notes) return null;
-    const match = notes.match(/--- INTRA-OP LOG \(By User \d+\) ---\n([\s\S]+)/);
+    const match = notes.match(
+      /--- INTRA-OP LOG \(By User \d+\) ---\n([\s\S]+)/,
+    );
     if (match) {
       try {
         return JSON.parse(match[1]);
@@ -168,7 +202,9 @@ export default function SurgeryCaseDetailsPage() {
 
   const parsePacuNotes = (notes?: string) => {
     if (!notes) return null;
-    const match = notes.match(/--- PACU RECOVERY LOG \(By User \d+\) ---\n([\s\S]+)/);
+    const match = notes.match(
+      /--- PACU RECOVERY LOG \(By User \d+\) ---\n([\s\S]+)/,
+    );
     if (match) {
       try {
         return JSON.parse(match[1]);
@@ -183,7 +219,7 @@ export default function SurgeryCaseDetailsPage() {
     setLoading(true);
     try {
       const res = await apiClient.get<SurgeryCaseDetails>(
-        `/surgery/cases/${id}`
+        `/surgery/cases/${id}`,
       );
       setSurgery(res.data);
       // Populate notes from server
@@ -255,12 +291,21 @@ export default function SurgeryCaseDetailsPage() {
   useEffect(() => {
     loadCase();
     loadLists();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   // Actions
   const updateStatus = async (status: SurgeryStatus) => {
-    if (!confirm(t("surgery.details.confirmStatusChange", "هل أنت متأكد من تغيير الحالة إلى {{status}}؟", { status }))) return;
+    if (
+      !confirm(
+        t(
+          "surgery.details.confirmStatusChange",
+          "هل أنت متأكد من تغيير الحالة إلى {{status}}؟",
+          { status },
+        ),
+      )
+    )
+      return;
     try {
       await apiClient.post(`/surgery/cases/${id}/status`, { status });
       toast.success(t("surgery.details.statusUpdated", "تم تحديث الحالة"));
@@ -281,27 +326,6 @@ export default function SurgeryCaseDetailsPage() {
       loadCase();
     } catch {
       toast.error(t("surgery.details.addFailed", "فشل الإضافة"));
-    }
-  };
-
-  const addConsumable = async () => {
-    if (!selectedProduct || consumableQty <= 0) return;
-    setAddingConsumable(true);
-    try {
-      await apiClient.post(`/surgery/cases/${id}/consumables`, {
-        productId: selectedProduct,
-        quantity: consumableQty,
-      });
-      toast.success(t("surgery.details.consumableAdded", "تم صرف المستهلك وإضافته للفاتورة"));
-      loadCase();
-      setConsumableQty(1);
-     
-    } catch (err: any) {
-      toast.error(
-        err?.response?.data?.message || t("surgery.details.consumableAddFailed", "فشل الصرف (تحقق من رصيد مخزن العمليات)")
-      );
-    } finally {
-      setAddingConsumable(false);
     }
   };
 
@@ -339,7 +363,9 @@ export default function SurgeryCaseDetailsPage() {
         notes: preopNotes,
       };
       await apiClient.post(`/surgery/cases/${id}/preop-checklist`, checklist);
-      toast.success(t("surgery.details.preopSaved", "تم حفظ قائمة التحقق قبل الجراحة"));
+      toast.success(
+        t("surgery.details.preopSaved", "تم حفظ قائمة التحقق قبل الجراحة"),
+      );
       loadCase();
     } catch {
       toast.error(t("surgery.details.preopSaveFailed", "فشل حفظ قائمة التحقق"));
@@ -363,7 +389,9 @@ export default function SurgeryCaseDetailsPage() {
         notes: intraNotes,
       };
       await apiClient.post(`/surgery/cases/${id}/intraop-log`, log);
-      toast.success(t("surgery.details.intraopSaved", "تم حفظ السجل أثناء العملية"));
+      toast.success(
+        t("surgery.details.intraopSaved", "تم حفظ السجل أثناء العملية"),
+      );
       loadCase();
     } catch {
       toast.error(t("surgery.details.intraopSaveFailed", "فشل حفظ السجل"));
@@ -383,7 +411,12 @@ export default function SurgeryCaseDetailsPage() {
         oxygenSaturation: pacuOxygen,
         extubated: pacuExtubated,
         notes: pacuNotes,
-        aldreteScore: pacuActivity + pacuRespiration + pacuCirculation + pacuConsciousness + pacuOxygen,
+        aldreteScore:
+          pacuActivity +
+          pacuRespiration +
+          pacuCirculation +
+          pacuConsciousness +
+          pacuOxygen,
       };
       await apiClient.post(`/surgery/cases/${id}/postop-pacu`, pacuLog);
       toast.success(t("surgery.details.pacuSaved", "تم حفظ تقييم الإفاقة"));
@@ -396,21 +429,28 @@ export default function SurgeryCaseDetailsPage() {
   };
 
   if (!surgery)
-    return <div className="p-6 text-slate-400">{t("common.loading", "جارِ التحميل...")}</div>;
+    return (
+      <div className="p-6 text-slate-400">
+        {t("common.loading", "جارِ التحميل...")}
+      </div>
+    );
 
   const isCompleted =
     surgery.status === "COMPLETED" || surgery.status === "CANCELLED";
 
   const formatDate = (iso?: string) => {
     if (!iso) return "--";
-    return new Date(iso).toLocaleString(i18n.language === "ar" ? "ar-LY" : "en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    });
+    return new Date(iso).toLocaleString(
+      i18n.language === "ar" ? "ar-LY" : "en-US",
+      {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      },
+    );
   };
 
   return (
@@ -439,7 +479,8 @@ export default function SurgeryCaseDetailsPage() {
             <span className="text-sky-400">{surgery.theatre.name}</span>
           </div>
           {/* Patient Location Card */}
-          {(surgery.encounter.department || surgery.encounter.bedAssignments?.length) && (
+          {(surgery.encounter.department ||
+            surgery.encounter.bedAssignments?.length) && (
             <div className="flex items-center gap-3 mt-2 flex-wrap">
               {surgery.encounter.department && (
                 <span className="text-xs text-slate-500 bg-slate-950 px-2 py-1 rounded border border-slate-800">
@@ -448,11 +489,18 @@ export default function SurgeryCaseDetailsPage() {
               )}
               {surgery.encounter.bedAssignments?.[0]?.bed && (
                 <span className="text-xs text-emerald-400 bg-emerald-950/30 px-2 py-1 rounded border border-emerald-800/40">
-                  {t("surgery.details.bedAssigned", "🛏️ {{wardName}} — غرفة {{roomNumber}} — سرير {{bedNumber}}", {
-                    wardName: surgery.encounter.bedAssignments[0].bed.ward.name,
-                    roomNumber: surgery.encounter.bedAssignments[0].bed.room.roomNumber,
-                    bedNumber: surgery.encounter.bedAssignments[0].bed.bedNumber
-                  })}
+                  {t(
+                    "surgery.details.bedAssigned",
+                    "🛏️ {{wardName}} — غرفة {{roomNumber}} — سرير {{bedNumber}}",
+                    {
+                      wardName:
+                        surgery.encounter.bedAssignments[0].bed.ward.name,
+                      roomNumber:
+                        surgery.encounter.bedAssignments[0].bed.room.roomNumber,
+                      bedNumber:
+                        surgery.encounter.bedAssignments[0].bed.bedNumber,
+                    },
+                  )}
                 </span>
               )}
               {!surgery.encounter.bedAssignments?.length && (
@@ -465,9 +513,19 @@ export default function SurgeryCaseDetailsPage() {
           {/* Timestamps */}
           {surgery.actualStart && (
             <div className="text-xs text-slate-500 mt-2 space-y-1">
-              <div>{t("surgery.details.actualStartLabel", "⏱️ بداية العملية:")} <span className="text-emerald-400 font-mono">{formatDate(surgery.actualStart)}</span></div>
+              <div>
+                {t("surgery.details.actualStartLabel", "⏱️ بداية العملية:")}{" "}
+                <span className="text-emerald-400 font-mono">
+                  {formatDate(surgery.actualStart)}
+                </span>
+              </div>
               {surgery.actualEnd && (
-                <div>{t("surgery.details.actualEndLabel", "⏱️ نهاية العملية:")} <span className="text-rose-400 font-mono">{formatDate(surgery.actualEnd)}</span></div>
+                <div>
+                  {t("surgery.details.actualEndLabel", "⏱️ نهاية العملية:")}{" "}
+                  <span className="text-rose-400 font-mono">
+                    {formatDate(surgery.actualEnd)}
+                  </span>
+                </div>
               )}
             </div>
           )}
@@ -475,11 +533,16 @@ export default function SurgeryCaseDetailsPage() {
 
         <div className="flex gap-2 items-center flex-wrap">
           <span className="text-sm font-mono text-slate-500 bg-slate-950 px-3 py-1 rounded-lg border border-slate-800">
-            {surgery.status === "SCHEDULED" && t("surgery.status.scheduled", "مجدولة")}
-            {surgery.status === "IN_PROGRESS" && t("surgery.status.inProgress", "جارية الآن")}
-            {surgery.status === "COMPLETED" && t("surgery.status.completedChecked", "مكتملة ✅")}
-            {surgery.status === "CANCELLED" && t("surgery.status.cancelled", "ملغاة")}
-            {surgery.status === "RECOVERY" && t("surgery.status.recovery", "في الإفاقة")}
+            {surgery.status === "SCHEDULED" &&
+              t("surgery.status.scheduled", "مجدولة")}
+            {surgery.status === "IN_PROGRESS" &&
+              t("surgery.status.inProgress", "جارية الآن")}
+            {surgery.status === "COMPLETED" &&
+              t("surgery.status.completedChecked", "مكتملة ✅")}
+            {surgery.status === "CANCELLED" &&
+              t("surgery.status.cancelled", "ملغاة")}
+            {surgery.status === "RECOVERY" &&
+              t("surgery.status.recovery", "في الإفاقة")}
           </span>
 
           {surgery.status === "SCHEDULED" && (
@@ -506,9 +569,17 @@ export default function SurgeryCaseDetailsPage() {
         <div className="bg-emerald-950/40 border border-emerald-800/50 rounded-2xl p-4 flex items-center gap-3">
           <span className="text-2xl">✅</span>
           <div className="flex-1">
-            <p className="text-emerald-300 font-bold text-sm">{t("surgery.details.successMessageTitle", "تم إنهاء العملية بنجاح")}</p>
+            <p className="text-emerald-300 font-bold text-sm">
+              {t(
+                "surgery.details.successMessageTitle",
+                "تم إنهاء العملية بنجاح",
+              )}
+            </p>
             <p className="text-emerald-400/80 text-xs mt-1">
-              {t("surgery.details.successMessageDesc", "يُرجى كتابة التقرير الجراحي أدناه ثم نقل المريض إلى غرفة الإفاقة أو قسم الإيواء المناسب.")}
+              {t(
+                "surgery.details.successMessageDesc",
+                "يُرجى كتابة التقرير الجراحي أدناه ثم نقل المريض إلى غرفة الإفاقة أو قسم الإيواء المناسب.",
+              )}
             </p>
           </div>
           <button
@@ -524,14 +595,20 @@ export default function SurgeryCaseDetailsPage() {
       {surgery.serviceItem && (
         <div className="bg-gradient-to-l from-slate-900 to-sky-950/20 border border-slate-800 rounded-2xl p-5">
           <h3 className="text-sm font-bold text-sky-400 mb-3 flex items-center gap-2">
-            {t("surgery.details.financialSummaryTitle", "💰 الملخص المالي للعملية")}
+            {t(
+              "surgery.details.financialSummaryTitle",
+              "💰 الملخص المالي للعملية",
+            )}
           </h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {/* رسوم العملية */}
             <div className="bg-slate-950/50 rounded-xl p-3 border border-slate-800">
-              <div className="text-[10px] text-slate-500 mb-1">{t("surgery.details.surgeryFeeLabel", "رسوم العملية")}</div>
+              <div className="text-[10px] text-slate-500 mb-1">
+                {t("surgery.details.surgeryFeeLabel", "رسوم العملية")}
+              </div>
               <div className="text-lg font-bold text-emerald-400 font-mono">
-                {Number(surgery.serviceItem.defaultPrice).toLocaleString()} {t("common.lyd", "د.ل")}
+                {surgery.financialPreview.cataloguePrice}{" "}
+                {t("common.lyd", "د.ل")}
               </div>
               <div className="text-[10px] text-slate-600">
                 {surgery.serviceItem.code} — {surgery.serviceItem.name}
@@ -539,45 +616,55 @@ export default function SurgeryCaseDetailsPage() {
             </div>
             {/* إجمالي المستهلكات */}
             <div className="bg-slate-950/50 rounded-xl p-3 border border-slate-800">
-              <div className="text-[10px] text-slate-500 mb-1">{t("surgery.details.consumablesLabel", "المستهلكات")}</div>
-              <div className="text-lg font-bold text-amber-400 font-mono">
-                {surgery.consumables
-                  .reduce((sum, c) => sum + Number(c.totalPrice), 0)
-                  .toLocaleString()} {t("common.lyd", "د.ل")}
+              <div className="text-[10px] text-slate-500 mb-1">
+                {t("surgery.details.consumablesLabel", "المستهلكات")}
               </div>
-              <div className="text-[10px] text-slate-600">{t("surgery.details.itemCount", "{{count}} صنف", { count: surgery.consumables.length })}</div>
+              <div className="text-lg font-bold text-amber-400 font-mono">
+                {surgery.financialPreview.consumables} {t("common.lyd", "د.ل")}
+              </div>
+              <div className="text-[10px] text-slate-600">
+                {t("surgery.details.itemCount", "{{count}} صنف", {
+                  count: surgery.consumables.length,
+                })}
+              </div>
             </div>
             {/* الإجمالي */}
             <div className="bg-slate-950/50 rounded-xl p-3 border border-sky-900/30">
-              <div className="text-[10px] text-slate-500 mb-1">{t("surgery.details.totalLabel", "الإجمالي")}</div>
+              <div className="text-[10px] text-slate-500 mb-1">
+                {t("surgery.details.estimatedTotalLabel", "الإجمالي التقديري")}
+              </div>
               <div className="text-lg font-bold text-white font-mono">
-                {(
-                  Number(surgery.serviceItem.defaultPrice) +
-                  surgery.consumables.reduce((sum, c) => sum + Number(c.totalPrice), 0)
-                ).toLocaleString()} {t("common.lyd", "د.ل")}
+                {surgery.financialPreview.estimatedTotal}{" "}
+                {t("common.lyd", "د.ل")}
               </div>
             </div>
             {/* عمولة الجراح */}
-            {surgery.team.some((t) => t.commissionAmount && Number(t.commissionAmount) > 0) && (
+            {surgery.financialPreview.teamCommissions !== "0.000" && (
               <div className="bg-slate-950/50 rounded-xl p-3 border border-violet-900/30">
-                <div className="text-[10px] text-slate-500 mb-1">{t("surgery.details.surgeonCommissionLabel", "عمولة الجراح")}</div>
+                <div className="text-[10px] text-slate-500 mb-1">
+                  {t("surgery.details.surgeonCommissionLabel", "عمولة الجراح")}
+                </div>
                 <div className="text-lg font-bold text-violet-400 font-mono">
-                  {surgery.team
-                    .filter((t) => t.commissionAmount)
-                    .reduce((sum, t) => sum + Number(t.commissionAmount), 0)
-                    .toLocaleString()} {t("common.lyd", "د.ل")}
+                  {surgery.financialPreview.teamCommissions}{" "}
+                  {t("common.lyd", "د.ل")}
                 </div>
               </div>
             )}
           </div>
           {isCompleted && (
             <div className="mt-2 text-[10px] text-emerald-500 flex items-center gap-1">
-              {t("surgery.details.autoBilledMsg", "✅ تم تسجيل الرسوم في فاتورة المريض تلقائياً")}
+              {t(
+                "surgery.details.completedReviewBilling",
+                "اكتملت العملية؛راجع بنود الرسوم والفاتورة للتأكد من استكمال الفوترة",
+              )}
             </div>
           )}
           {!isCompleted && (
             <div className="mt-2 text-[10px] text-amber-500 flex items-center gap-1">
-              {t("surgery.details.pendingBillMsg", "⏳ سيتم تسجيل رسوم العملية عند اكتمالها")}
+              {t(
+                "surgery.details.pendingBillMsg",
+                "⏳ سيتم تسجيل رسوم العملية عند اكتمالها",
+              )}
             </div>
           )}
         </div>
@@ -594,11 +681,14 @@ export default function SurgeryCaseDetailsPage() {
             {/* Surgical Team */}
             <div className="space-y-2">
               <h3 className="text-xs font-bold text-sky-400 uppercase tracking-wider bg-sky-950/30 p-2 rounded border border-sky-900/50">
-                {t("surgery.details.surgeryTeamHeader", "فريق الجراحة - Surgical Team")}
+                {t(
+                  "surgery.details.surgeryTeamHeader",
+                  "فريق الجراحة - Surgical Team",
+                )}
               </h3>
               {surgery.team
                 .filter((t) =>
-                  ["SURGEON", "ASSISTANT_SURGEON"].includes(t.role)
+                  ["SURGEON", "ASSISTANT_SURGEON"].includes(t.role),
                 )
                 .map((t) => (
                   <div
@@ -614,7 +704,7 @@ export default function SurgeryCaseDetailsPage() {
                   </div>
                 ))}
               {surgery.team.filter((t) =>
-                ["SURGEON", "ASSISTANT_SURGEON"].includes(t.role)
+                ["SURGEON", "ASSISTANT_SURGEON"].includes(t.role),
               ).length === 0 && (
                 <div className="text-xs text-slate-600 italic px-2">
                   {t("common.none", "-- لا يوجد --")}
@@ -625,7 +715,10 @@ export default function SurgeryCaseDetailsPage() {
             {/* Anesthesia Team */}
             <div className="space-y-2">
               <h3 className="text-xs font-bold text-amber-400 uppercase tracking-wider bg-amber-950/30 p-2 rounded border border-amber-900/50">
-                {t("surgery.details.anesthesiaTeamHeader", "فريق التخدير - Anesthesia Team")}
+                {t(
+                  "surgery.details.anesthesiaTeamHeader",
+                  "فريق التخدير - Anesthesia Team",
+                )}
               </h3>
               {surgery.team
                 .filter((t) => ["ANESTHETIST", "TECHNICIAN"].includes(t.role))
@@ -647,11 +740,14 @@ export default function SurgeryCaseDetailsPage() {
             {/* Nursing Team */}
             <div className="space-y-2">
               <h3 className="text-xs font-bold text-emerald-400 uppercase tracking-wider bg-emerald-950/30 p-2 rounded border border-emerald-900/50">
-                {t("surgery.details.nursingTeamHeader", "فريق التمريض - Nursing Team")}
+                {t(
+                  "surgery.details.nursingTeamHeader",
+                  "فريق التمريض - Nursing Team",
+                )}
               </h3>
               {surgery.team
                 .filter((t) =>
-                  ["SCRUB_NURSE", "CIRCULATING_NURSE"].includes(t.role)
+                  ["SCRUB_NURSE", "CIRCULATING_NURSE"].includes(t.role),
                 )
                 .map((t) => (
                   <div
@@ -672,14 +768,24 @@ export default function SurgeryCaseDetailsPage() {
           {/* Add Team Member — with clear label */}
           {!isCompleted && (
             <div className="bg-slate-900 p-3 rounded-xl border border-slate-800">
-              <h3 className="text-xs font-bold text-slate-400 mb-2">{t("surgery.details.addTeamMemberTitle", "➕ إضافة عضو للطاقم الطبي")}</h3>
+              <h3 className="text-xs font-bold text-slate-400 mb-2">
+                {t(
+                  "surgery.details.addTeamMemberTitle",
+                  "➕ إضافة عضو للطاقم الطبي",
+                )}
+              </h3>
               <div className="flex flex-col gap-2">
                 <select
                   className="bg-slate-950 border border-slate-700 rounded-lg px-2 py-2 text-sm"
                   value={selectedUser}
                   onChange={(e) => setSelectedUser(e.target.value)}
                 >
-                  <option value="">{t("surgery.details.selectStaffPlaceholder", "اختر الطبيب / الممرض...")}</option>
+                  <option value="">
+                    {t(
+                      "surgery.details.selectStaffPlaceholder",
+                      "اختر الطبيب / الممرض...",
+                    )}
+                  </option>
                   {users.map((u) => (
                     <option key={u.id} value={u.id}>
                       {u.fullName}
@@ -720,9 +826,15 @@ export default function SurgeryCaseDetailsPage() {
             <table className="w-full text-sm text-right">
               <thead className="text-slate-500 border-b border-slate-800">
                 <tr>
-                  <th className="pb-2">{t("surgery.details.productHeader", "الصنف")}</th>
-                  <th className="pb-2">{t("surgery.details.qtyHeader", "الكمية")}</th>
-                  <th className="pb-2">{t("surgery.details.totalHeader", "الإجمالي")}</th>
+                  <th className="pb-2">
+                    {t("surgery.details.productHeader", "الصنف")}
+                  </th>
+                  <th className="pb-2">
+                    {t("surgery.details.qtyHeader", "الكمية")}
+                  </th>
+                  <th className="pb-2">
+                    {t("surgery.details.totalHeader", "الإجمالي")}
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -733,7 +845,7 @@ export default function SurgeryCaseDetailsPage() {
                       {Number(c.quantity).toFixed(2)}
                     </td>
                     <td className="py-2 font-mono text-emerald-400">
-                      {Number(c.totalPrice).toFixed(3)}
+                      {c.totalPrice}
                     </td>
                   </tr>
                 ))}
@@ -741,43 +853,16 @@ export default function SurgeryCaseDetailsPage() {
             </table>
           </div>
 
-          {!isCompleted && (
-            <div className="bg-slate-900 p-3 rounded-xl border border-slate-800">
-              <div className="flex flex-col gap-2">
-                <select
-                  className="bg-slate-950 border border-slate-700 rounded-lg px-2 py-2 text-sm"
-                  value={selectedProduct}
-                  onChange={(e) => setSelectedProduct(e.target.value)}
-                >
-                  <option value="">{t("surgery.details.selectProductPlaceholder", "اختر المستهلك / الدواء...")}</option>
-                  {products.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
-                </select>
-                <div className="flex gap-2">
-                  <input
-                    type="number"
-                    min="0.1"
-                    step="0.1"
-                    className="w-24 bg-slate-950 border border-slate-700 rounded-lg px-2 py-2 text-sm text-center"
-                    value={consumableQty}
-                    onChange={(e) => setConsumableQty(Number(e.target.value))}
-                  />
-                  <button
-                    onClick={addConsumable}
-                    disabled={addingConsumable}
-                    className="flex-1 px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-sm disabled:opacity-50"
-                  >
-                    {addingConsumable ? t("surgery.details.dispensingBtn", "جارِ الصرف...") : t("surgery.details.dispenseBtn", "صرف واستهلاك")}
-                  </button>
-                </div>
-                <p className="text-[10px] text-slate-500 mt-1">
-                  {t("surgery.details.dispenseNote", "* سيتم خصم الكمية من مخزون العمليات وإضافتها لفاتورة المريض فوراً.")}
-                </p>
-              </div>
-            </div>
+          <SurgerySourcePolicy />
+          {!isCompleted && surgery.status !== "CANCELLED" && (
+            <SurgeryConsumableForm
+              key={surgery.id}
+              caseId={surgery.id}
+              products={products}
+              onPosted={() => {
+                void loadCase();
+              }}
+            />
           )}
         </div>
       </div>
@@ -796,7 +881,10 @@ export default function SurgeryCaseDetailsPage() {
                 : "text-slate-400 hover:text-white"
             }`}
           >
-            {t("surgery.details.tabOperativeReport", "📋 التقرير الجراحي (Operative Report)")}
+            {t(
+              "surgery.details.tabOperativeReport",
+              "📋 التقرير الجراحي (Operative Report)",
+            )}
           </button>
           <button
             onClick={() => setActiveTab("preop")}
@@ -806,7 +894,10 @@ export default function SurgeryCaseDetailsPage() {
                 : "text-slate-400 hover:text-white"
             }`}
           >
-            {t("surgery.details.tabPreopChecklist", "🛡️ التحقق قبل العملية (Pre-op Checklist)")}
+            {t(
+              "surgery.details.tabPreopChecklist",
+              "🛡️ التحقق قبل العملية (Pre-op Checklist)",
+            )}
           </button>
           <button
             onClick={() => setActiveTab("intraop")}
@@ -816,7 +907,10 @@ export default function SurgeryCaseDetailsPage() {
                 : "text-slate-400 hover:text-white"
             }`}
           >
-            {t("surgery.details.tabIntraopLog", "⏱️ سجل الجراحة (Intra-op Log)")}
+            {t(
+              "surgery.details.tabIntraopLog",
+              "⏱️ سجل الجراحة (Intra-op Log)",
+            )}
           </button>
           <button
             onClick={() => setActiveTab("pacu")}
@@ -826,7 +920,10 @@ export default function SurgeryCaseDetailsPage() {
                 : "text-slate-400 hover:text-white"
             }`}
           >
-            {t("surgery.details.tabPacuRecovery", "🛌 تقييم الإفاقة (Aldrete Score / PACU)")}
+            {t(
+              "surgery.details.tabPacuRecovery",
+              "🛌 تقييم الإفاقة (Aldrete Score / PACU)",
+            )}
           </button>
         </div>
 
@@ -836,10 +933,18 @@ export default function SurgeryCaseDetailsPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Pre-Op Diagnosis */}
               <div>
-                <label className="text-xs text-slate-400 mb-1 block">{t("surgery.details.preOpDiagnosisLabel", "التشخيص قبل العملية (Pre-Op Diagnosis)")}</label>
+                <label className="text-xs text-slate-400 mb-1 block">
+                  {t(
+                    "surgery.details.preOpDiagnosisLabel",
+                    "التشخيص قبل العملية (Pre-Op Diagnosis)",
+                  )}
+                </label>
                 <textarea
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm min-h-[80px] resize-y"
-                  placeholder={t("surgery.details.preOpDiagnosisPh", "مثال: التهاب الزائدة الدودية الحاد...")}
+                  placeholder={t(
+                    "surgery.details.preOpDiagnosisPh",
+                    "مثال: التهاب الزائدة الدودية الحاد...",
+                  )}
                   value={preOpDiagnosis}
                   onChange={(e) => setPreOpDiagnosis(e.target.value)}
                   readOnly={isCompleted && !!surgery.preOpDiagnosis}
@@ -847,10 +952,18 @@ export default function SurgeryCaseDetailsPage() {
               </div>
               {/* Post-Op Diagnosis */}
               <div>
-                <label className="text-xs text-slate-400 mb-1 block">{t("surgery.details.postOpDiagnosisLabel", "التشخيص بعد العملية (Post-Op Diagnosis)")}</label>
+                <label className="text-xs text-slate-400 mb-1 block">
+                  {t(
+                    "surgery.details.postOpDiagnosisLabel",
+                    "التشخيص بعد العملية (Post-Op Diagnosis)",
+                  )}
+                </label>
                 <textarea
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm min-h-[80px] resize-y"
-                  placeholder={t("surgery.details.postOpDiagnosisPh", "مثال: استئصال الزائدة الدودية — بدون مضاعفات...")}
+                  placeholder={t(
+                    "surgery.details.postOpDiagnosisPh",
+                    "مثال: استئصال الزائدة الدودية — بدون مضاعفات...",
+                  )}
                   value={postOpDiagnosis}
                   onChange={(e) => setPostOpDiagnosis(e.target.value)}
                 />
@@ -859,10 +972,18 @@ export default function SurgeryCaseDetailsPage() {
 
             {/* Surgeon Notes */}
             <div>
-              <label className="text-xs text-slate-400 mb-1 block">{t("surgery.details.surgeonNotesLabel", "ملاحظات الجراح (Surgeon Notes)")}</label>
+              <label className="text-xs text-slate-400 mb-1 block">
+                {t(
+                  "surgery.details.surgeonNotesLabel",
+                  "ملاحظات الجراح (Surgeon Notes)",
+                )}
+              </label>
               <textarea
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm min-h-[120px] resize-y"
-                placeholder={t("surgery.details.surgeonNotesPh", "وصف تفصيلي لمجريات العملية، الإجراءات المتخذة، والملاحظات...")}
+                placeholder={t(
+                  "surgery.details.surgeonNotesPh",
+                  "وصف تفصيلي لمجريات العملية، الإجراءات المتخذة، والملاحظات...",
+                )}
                 value={surgeonNotes}
                 onChange={(e) => setSurgeonNotes(e.target.value)}
               />
@@ -870,10 +991,18 @@ export default function SurgeryCaseDetailsPage() {
 
             {/* Anesthesia Notes */}
             <div>
-              <label className="text-xs text-slate-400 mb-1 block">{t("surgery.details.anesthesiaNotesLabel", "ملاحظات التخدير (Anesthesia Notes)")}</label>
+              <label className="text-xs text-slate-400 mb-1 block">
+                {t(
+                  "surgery.details.anesthesiaNotesLabel",
+                  "ملاحظات التخدير (Anesthesia Notes)",
+                )}
+              </label>
               <textarea
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm min-h-[80px] resize-y"
-                placeholder={t("surgery.details.anesthesiaNotesPh", "نوع التخدير، الجرعة، ملاحظات خاصة...")}
+                placeholder={t(
+                  "surgery.details.anesthesiaNotesPh",
+                  "نوع التخدير، الجرعة، ملاحظات خاصة...",
+                )}
                 value={anesthesiaNotes}
                 onChange={(e) => setAnesthesiaNotes(e.target.value)}
               />
@@ -885,7 +1014,9 @@ export default function SurgeryCaseDetailsPage() {
                 disabled={savingNotes}
                 className="px-8 py-3 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded-xl shadow-lg disabled:opacity-50 transition-colors"
               >
-                {savingNotes ? t("surgery.details.savingReportBtn", "جارِ الحفظ...") : t("surgery.details.saveReportBtn", "💾 حفظ التقرير")}
+                {savingNotes
+                  ? t("surgery.details.savingReportBtn", "جارِ الحفظ...")
+                  : t("surgery.details.saveReportBtn", "💾 حفظ التقرير")}
               </button>
             </div>
           </div>
@@ -894,8 +1025,14 @@ export default function SurgeryCaseDetailsPage() {
         {/* Tab 2: Pre-Op Checklist */}
         {activeTab === "preop" && (
           <div className="space-y-5 animate-fadeIn">
-            <h3 className="text-sm font-bold text-sky-400">🛡️ {t("surgery.details.preopChecklistTitle", "قائمة التحقق قبل الجراحة - WHO Surgical Safety Checklist (Sign In)")}</h3>
-            
+            <h3 className="text-sm font-bold text-sky-400">
+              🛡️{" "}
+              {t(
+                "surgery.details.preopChecklistTitle",
+                "قائمة التحقق قبل الجراحة - WHO Surgical Safety Checklist (Sign In)",
+              )}
+            </h3>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-3 bg-slate-950/40 p-4 rounded-xl border border-slate-800/80">
                 <label className="flex items-center gap-3 p-2 hover:bg-slate-900/50 rounded-lg cursor-pointer transition-colors">
@@ -905,7 +1042,12 @@ export default function SurgeryCaseDetailsPage() {
                     onChange={(e) => setPreopIdentity(e.target.checked)}
                     className="w-4 h-4 accent-sky-500 rounded"
                   />
-                  <span className="text-sm text-slate-200">{t("surgery.details.checklist.identityVerified", "تأكيد هوية المريض وموقع الجراحة ونموذج الموافقة")}</span>
+                  <span className="text-sm text-slate-200">
+                    {t(
+                      "surgery.details.checklist.identityVerified",
+                      "تأكيد هوية المريض وموقع الجراحة ونموذج الموافقة",
+                    )}
+                  </span>
                 </label>
 
                 <label className="flex items-center gap-3 p-2 hover:bg-slate-900/50 rounded-lg cursor-pointer transition-colors">
@@ -915,7 +1057,12 @@ export default function SurgeryCaseDetailsPage() {
                     onChange={(e) => setPreopSite(e.target.checked)}
                     className="w-4 h-4 accent-sky-500 rounded"
                   />
-                  <span className="text-sm text-slate-200">{t("surgery.details.checklist.siteMarked", "تم تحديد موقع الشق الجراحي بوضوح (Surgical Site Marked)")}</span>
+                  <span className="text-sm text-slate-200">
+                    {t(
+                      "surgery.details.checklist.siteMarked",
+                      "تم تحديد موقع الشق الجراحي بوضوح (Surgical Site Marked)",
+                    )}
+                  </span>
                 </label>
 
                 <label className="flex items-center gap-3 p-2 hover:bg-slate-900/50 rounded-lg cursor-pointer transition-colors">
@@ -925,7 +1072,12 @@ export default function SurgeryCaseDetailsPage() {
                     onChange={(e) => setPreopConsent(e.target.checked)}
                     className="w-4 h-4 accent-sky-500 rounded"
                   />
-                  <span className="text-sm text-slate-200">{t("surgery.details.checklist.consentSigned", "توقيع الموافقة المستنيرة للعملية والتخدير")}</span>
+                  <span className="text-sm text-slate-200">
+                    {t(
+                      "surgery.details.checklist.consentSigned",
+                      "توقيع الموافقة المستنيرة للعملية والتخدير",
+                    )}
+                  </span>
                 </label>
 
                 <label className="flex items-center gap-3 p-2 hover:bg-slate-900/50 rounded-lg cursor-pointer transition-colors">
@@ -935,7 +1087,12 @@ export default function SurgeryCaseDetailsPage() {
                     onChange={(e) => setPreopAnesthesia(e.target.checked)}
                     className="w-4 h-4 accent-sky-500 rounded"
                   />
-                  <span className="text-sm text-slate-200">{t("surgery.details.checklist.anesthesiaSafetyCheck", "اكتمال فحص أمان أجهزة وأدوية التخدير")}</span>
+                  <span className="text-sm text-slate-200">
+                    {t(
+                      "surgery.details.checklist.anesthesiaSafetyCheck",
+                      "اكتمال فحص أمان أجهزة وأدوية التخدير",
+                    )}
+                  </span>
                 </label>
               </div>
 
@@ -947,7 +1104,12 @@ export default function SurgeryCaseDetailsPage() {
                     onChange={(e) => setPreopPulseOx(e.target.checked)}
                     className="w-4 h-4 accent-sky-500 rounded"
                   />
-                  <span className="text-sm text-slate-200">{t("surgery.details.checklist.pulseOximeterActive", "جهاز قياس الأكسجين (Pulse Oximeter) موصول ويعمل")}</span>
+                  <span className="text-sm text-slate-200">
+                    {t(
+                      "surgery.details.checklist.pulseOximeterActive",
+                      "جهاز قياس الأكسجين (Pulse Oximeter) موصول ويعمل",
+                    )}
+                  </span>
                 </label>
 
                 <label className="flex items-center gap-3 p-2 hover:bg-slate-900/50 rounded-lg cursor-pointer transition-colors">
@@ -957,7 +1119,12 @@ export default function SurgeryCaseDetailsPage() {
                     onChange={(e) => setPreopAirway(e.target.checked)}
                     className="w-4 h-4 accent-sky-500 rounded"
                   />
-                  <span className="text-sm text-slate-200">{t("surgery.details.checklist.airwayRisk", "تقييم مخاطر صعوبة مجرى الهواء أو الاستنشاق (Airway/Aspiration Risk)")}</span>
+                  <span className="text-sm text-slate-200">
+                    {t(
+                      "surgery.details.checklist.airwayRisk",
+                      "تقييم مخاطر صعوبة مجرى الهواء أو الاستنشاق (Airway/Aspiration Risk)",
+                    )}
+                  </span>
                 </label>
 
                 <label className="flex items-center gap-3 p-2 hover:bg-slate-900/50 rounded-lg cursor-pointer transition-colors">
@@ -967,7 +1134,12 @@ export default function SurgeryCaseDetailsPage() {
                     onChange={(e) => setPreopBloodLoss(e.target.checked)}
                     className="w-4 h-4 accent-sky-500 rounded"
                   />
-                  <span className="text-sm text-slate-200">{t("surgery.details.checklist.bloodLossRisk", "خطر فقدان كمية كبيرة من الدم (>500 مل للبالغين) متوقع وجاهز")}</span>
+                  <span className="text-sm text-slate-200">
+                    {t(
+                      "surgery.details.checklist.bloodLossRisk",
+                      "خطر فقدان كمية كبيرة من الدم (>500 مل للبالغين) متوقع وجاهز",
+                    )}
+                  </span>
                 </label>
 
                 <div className="pt-1">
@@ -978,14 +1150,22 @@ export default function SurgeryCaseDetailsPage() {
                       onChange={(e) => setPreopAllergies(e.target.checked)}
                       className="w-4 h-4 accent-sky-500 rounded"
                     />
-                    <span className="text-sm text-slate-200 font-bold text-rose-400">{t("surgery.details.checklist.allergiesKnown", "هل لدى المريض حساسية معروفة؟")}</span>
+                    <span className="text-sm text-slate-200 font-bold text-rose-400">
+                      {t(
+                        "surgery.details.checklist.allergiesKnown",
+                        "هل لدى المريض حساسية معروفة؟",
+                      )}
+                    </span>
                   </label>
                   {preopAllergies && (
                     <input
                       type="text"
                       value={preopAllergyDetails}
                       onChange={(e) => setPreopAllergyDetails(e.target.value)}
-                      placeholder={t("surgery.details.checklist.allergyDetailsPh", "اكتب مسببات وتفاصيل الحساسية...")}
+                      placeholder={t(
+                        "surgery.details.checklist.allergyDetailsPh",
+                        "اكتب مسببات وتفاصيل الحساسية...",
+                      )}
                       className="w-full mt-2 bg-slate-950 border border-rose-950 text-rose-200 placeholder-rose-900 rounded-lg px-3 py-2 text-xs"
                     />
                   )}
@@ -995,10 +1175,18 @@ export default function SurgeryCaseDetailsPage() {
 
             {/* Checklist general notes */}
             <div>
-              <label className="text-xs text-slate-400 mb-1 block">{t("surgery.details.preopNotesLabel", "ملاحظات إضافية قبل الجراحة (Pre-Op Notes)")}</label>
+              <label className="text-xs text-slate-400 mb-1 block">
+                {t(
+                  "surgery.details.preopNotesLabel",
+                  "ملاحظات إضافية قبل الجراحة (Pre-Op Notes)",
+                )}
+              </label>
               <textarea
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-sm min-h-[60px] resize-y"
-                placeholder={t("surgery.details.preopNotesPh", "ملاحظات سريرية، تجهيزات خاصة...")}
+                placeholder={t(
+                  "surgery.details.preopNotesPh",
+                  "ملاحظات سريرية، تجهيزات خاصة...",
+                )}
                 value={preopNotes}
                 onChange={(e) => setPreopNotes(e.target.value)}
               />
@@ -1010,7 +1198,12 @@ export default function SurgeryCaseDetailsPage() {
                 disabled={savingPreop}
                 className="px-8 py-3 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded-xl shadow-lg disabled:opacity-50 transition-colors"
               >
-                {savingPreop ? t("common.saving", "جارِ الحفظ...") : t("surgery.details.savePreopBtn", "💾 حفظ قائمة ما قبل الجراحة")}
+                {savingPreop
+                  ? t("common.saving", "جارِ الحفظ...")
+                  : t(
+                      "surgery.details.savePreopBtn",
+                      "💾 حفظ قائمة ما قبل الجراحة",
+                    )}
               </button>
             </div>
           </div>
@@ -1019,7 +1212,13 @@ export default function SurgeryCaseDetailsPage() {
         {/* Tab 3: Intra-Op Log */}
         {activeTab === "intraop" && (
           <div className="space-y-5 animate-fadeIn">
-            <h3 className="text-sm font-bold text-amber-400">⏱️ {t("surgery.details.intraopTitle", "سجل الجراحة أثناء العملية - WHO Surgical Safety Checklist (Time Out)")}</h3>
+            <h3 className="text-sm font-bold text-amber-400">
+              ⏱️{" "}
+              {t(
+                "surgery.details.intraopTitle",
+                "سجل الجراحة أثناء العملية - WHO Surgical Safety Checklist (Time Out)",
+              )}
+            </h3>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-3 bg-slate-950/40 p-4 rounded-xl border border-slate-800/80">
@@ -1030,7 +1229,12 @@ export default function SurgeryCaseDetailsPage() {
                     onChange={(e) => setIntraTimeOut(e.target.checked)}
                     className="w-4 h-4 accent-amber-500 rounded"
                   />
-                  <span className="text-sm text-slate-200">{t("surgery.details.checklist.timeOutCompleted", "إجراء الوقفة الزمنية (Time Out) والتأكد من بيانات المريض الشفوية")}</span>
+                  <span className="text-sm text-slate-200">
+                    {t(
+                      "surgery.details.checklist.timeOutCompleted",
+                      "إجراء الوقفة الزمنية (Time Out) والتأكد من بيانات المريض الشفوية",
+                    )}
+                  </span>
                 </label>
 
                 <label className="flex items-center gap-3 p-2 hover:bg-slate-900/50 rounded-lg cursor-pointer transition-colors">
@@ -1040,7 +1244,12 @@ export default function SurgeryCaseDetailsPage() {
                     onChange={(e) => setIntraTeamIntro(e.target.checked)}
                     className="w-4 h-4 accent-amber-500 rounded"
                   />
-                  <span className="text-sm text-slate-200">{t("surgery.details.checklist.teamIntroduced", "تأكيد تعريف جميع أعضاء الفريق بالاسم والصفة لوظائفهم")}</span>
+                  <span className="text-sm text-slate-200">
+                    {t(
+                      "surgery.details.checklist.teamIntroduced",
+                      "تأكيد تعريف جميع أعضاء الفريق بالاسم والصفة لوظائفهم",
+                    )}
+                  </span>
                 </label>
 
                 <label className="flex items-center gap-3 p-2 hover:bg-slate-900/50 rounded-lg cursor-pointer transition-colors">
@@ -1050,7 +1259,12 @@ export default function SurgeryCaseDetailsPage() {
                     onChange={(e) => setIntraCriticalEvents(e.target.checked)}
                     className="w-4 h-4 accent-amber-500 rounded"
                   />
-                  <span className="text-sm text-slate-200">{t("surgery.details.checklist.criticalEvents", "مناقشة الجراح والتخدير للأحداث والمخاطر الحرجة المتوقعة")}</span>
+                  <span className="text-sm text-slate-200">
+                    {t(
+                      "surgery.details.checklist.criticalEvents",
+                      "مناقشة الجراح والتخدير للأحداث والمخاطر الحرجة المتوقعة",
+                    )}
+                  </span>
                 </label>
               </div>
 
@@ -1062,7 +1276,12 @@ export default function SurgeryCaseDetailsPage() {
                     onChange={(e) => setIntraSterility(e.target.checked)}
                     className="w-4 h-4 accent-amber-500 rounded"
                   />
-                  <span className="text-sm text-slate-200">{t("surgery.details.checklist.sterilityVerified", "تم التحقق من تعقيم كافة الأدوات والمعدات ومؤشرات العقم")}</span>
+                  <span className="text-sm text-slate-200">
+                    {t(
+                      "surgery.details.checklist.sterilityVerified",
+                      "تم التحقق من تعقيم كافة الأدوات والمعدات ومؤشرات العقم",
+                    )}
+                  </span>
                 </label>
 
                 <label className="flex items-center gap-3 p-2 hover:bg-slate-900/50 rounded-lg cursor-pointer transition-colors">
@@ -1072,7 +1291,12 @@ export default function SurgeryCaseDetailsPage() {
                     onChange={(e) => setIntraCountsCorrect(e.target.checked)}
                     className="w-4 h-4 accent-amber-500 rounded"
                   />
-                  <span className="text-sm text-slate-200">{t("surgery.details.checklist.instrumentCountsCorrect", "تطابق عد الإبر والشاش والأدوات الجراحية قبل الإغلاق")}</span>
+                  <span className="text-sm text-slate-200">
+                    {t(
+                      "surgery.details.checklist.instrumentCountsCorrect",
+                      "تطابق عد الإبر والشاش والأدوات الجراحية قبل الإغلاق",
+                    )}
+                  </span>
                 </label>
 
                 <label className="flex items-center gap-3 p-2 hover:bg-slate-900/50 rounded-lg cursor-pointer transition-colors">
@@ -1082,7 +1306,12 @@ export default function SurgeryCaseDetailsPage() {
                     onChange={(e) => setIntraSpecimenLabeled(e.target.checked)}
                     className="w-4 h-4 accent-amber-500 rounded"
                   />
-                  <span className="text-sm text-slate-200">{t("surgery.details.checklist.specimenLabeled", "تعريف وتثبيت لصاقة العينات الجراحية بالاسم ورمز المريض بدقة")}</span>
+                  <span className="text-sm text-slate-200">
+                    {t(
+                      "surgery.details.checklist.specimenLabeled",
+                      "تعريف وتثبيت لصاقة العينات الجراحية بالاسم ورمز المريض بدقة",
+                    )}
+                  </span>
                 </label>
 
                 <div className="pt-1">
@@ -1093,14 +1322,24 @@ export default function SurgeryCaseDetailsPage() {
                       onChange={(e) => setIntraAntibiotics(e.target.checked)}
                       className="w-4 h-4 accent-amber-500 rounded"
                     />
-                    <span className="text-sm text-slate-200 font-bold text-amber-400">{t("surgery.details.checklist.antibiotics", "المضادات الحيوية الوقائية (Prophylaxis)")}</span>
+                    <span className="text-sm text-slate-200 font-bold text-amber-400">
+                      {t(
+                        "surgery.details.checklist.antibiotics",
+                        "المضادات الحيوية الوقائية (Prophylaxis)",
+                      )}
+                    </span>
                   </label>
                   {intraAntibiotics && (
                     <input
                       type="text"
                       value={intraAntibioticDetails}
-                      onChange={(e) => setIntraAntibioticDetails(e.target.value)}
-                      placeholder={t("surgery.details.checklist.antibioticsPh", "اسم المضاد، الجرعة، وتوقيت الإعطاء...")}
+                      onChange={(e) =>
+                        setIntraAntibioticDetails(e.target.value)
+                      }
+                      placeholder={t(
+                        "surgery.details.checklist.antibioticsPh",
+                        "اسم المضاد، الجرعة، وتوقيت الإعطاء...",
+                      )}
                       className="w-full mt-2 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-100"
                     />
                   )}
@@ -1110,10 +1349,18 @@ export default function SurgeryCaseDetailsPage() {
 
             {/* General notes during surgery */}
             <div>
-              <label className="text-xs text-slate-400 mb-1 block">{t("surgery.details.intraNotesLabel", "سجل الأحداث الجراحية والتخديرية (Intra-Op Notes)")}</label>
+              <label className="text-xs text-slate-400 mb-1 block">
+                {t(
+                  "surgery.details.intraNotesLabel",
+                  "سجل الأحداث الجراحية والتخديرية (Intra-Op Notes)",
+                )}
+              </label>
               <textarea
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-sm min-h-[60px] resize-y"
-                placeholder={t("surgery.details.intraNotesPh", "ملاحظات حول مجرى العملية، السوائل، والنزيف...")}
+                placeholder={t(
+                  "surgery.details.intraNotesPh",
+                  "ملاحظات حول مجرى العملية، السوائل، والنزيف...",
+                )}
                 value={intraNotes}
                 onChange={(e) => setIntraNotes(e.target.value)}
               />
@@ -1125,7 +1372,9 @@ export default function SurgeryCaseDetailsPage() {
                 disabled={savingIntra}
                 className="px-8 py-3 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded-xl shadow-lg disabled:opacity-50 transition-colors"
               >
-                {savingIntra ? t("common.saving", "جارِ الحفظ...") : t("surgery.details.saveIntraopBtn", "💾 حفظ سجل العملية")}
+                {savingIntra
+                  ? t("common.saving", "جارِ الحفظ...")
+                  : t("surgery.details.saveIntraopBtn", "💾 حفظ سجل العملية")}
               </button>
             </div>
           </div>
@@ -1136,22 +1385,60 @@ export default function SurgeryCaseDetailsPage() {
           <div className="space-y-5 animate-fadeIn">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
               <div>
-                <h3 className="text-sm font-bold text-emerald-400">🛌 {t("surgery.details.pacuTitle", "تقييم الإنعاش واستعادة الوعي بعد التخدير (PACU Aldrete Score)")}</h3>
-                <p className="text-xs text-slate-500 mt-1">{t("surgery.details.pacuDesc", "يساعد مقياس الدريد (Aldrete) في تحديد سلامة نقل المريض من وحدة الإفاقة إلى الجناح الطبي.")}</p>
+                <h3 className="text-sm font-bold text-emerald-400">
+                  🛌{" "}
+                  {t(
+                    "surgery.details.pacuTitle",
+                    "تقييم الإنعاش واستعادة الوعي بعد التخدير (PACU Aldrete Score)",
+                  )}
+                </h3>
+                <p className="text-xs text-slate-500 mt-1">
+                  {t(
+                    "surgery.details.pacuDesc",
+                    "يساعد مقياس الدريد (Aldrete) في تحديد سلامة نقل المريض من وحدة الإفاقة إلى الجناح الطبي.",
+                  )}
+                </p>
               </div>
-              
+
               {/* Dynamic Score Indicator */}
-              <div className={`px-5 py-3 rounded-2xl border flex flex-col items-center justify-center font-bold text-center transition-all shadow-lg ${
-                (pacuActivity + pacuRespiration + pacuCirculation + pacuConsciousness + pacuOxygen) >= 8
-                  ? "bg-emerald-950/60 border-emerald-500/50 text-emerald-300 shadow-emerald-500/10 animate-pulse"
-                  : "bg-amber-950/60 border-amber-500/50 text-amber-300 shadow-amber-500/10"
-              }`}>
-                <div className="text-[10px] text-slate-400 uppercase tracking-widest">{t("surgery.details.aldreteScoreTitle", "مجموع نقاط الدريد")}</div>
-                <div className="text-3xl font-mono mt-1">{(pacuActivity + pacuRespiration + pacuCirculation + pacuConsciousness + pacuOxygen)} / 10</div>
+              <div
+                className={`px-5 py-3 rounded-2xl border flex flex-col items-center justify-center font-bold text-center transition-all shadow-lg ${
+                  pacuActivity +
+                    pacuRespiration +
+                    pacuCirculation +
+                    pacuConsciousness +
+                    pacuOxygen >=
+                  8
+                    ? "bg-emerald-950/60 border-emerald-500/50 text-emerald-300 shadow-emerald-500/10 animate-pulse"
+                    : "bg-amber-950/60 border-amber-500/50 text-amber-300 shadow-amber-500/10"
+                }`}
+              >
+                <div className="text-[10px] text-slate-400 uppercase tracking-widest">
+                  {t("surgery.details.aldreteScoreTitle", "مجموع نقاط الدريد")}
+                </div>
+                <div className="text-3xl font-mono mt-1">
+                  {pacuActivity +
+                    pacuRespiration +
+                    pacuCirculation +
+                    pacuConsciousness +
+                    pacuOxygen}{" "}
+                  / 10
+                </div>
                 <div className="text-[10px] mt-1">
-                  {(pacuActivity + pacuRespiration + pacuCirculation + pacuConsciousness + pacuOxygen) >= 8 
-                    ? t("surgery.details.aldreteReady", "🟢 جاهز للنقل للجناح (Ready)")
-                    : t("surgery.details.aldreteStay", "🔴 غير جاهز - استمر في الملاحظة")}
+                  {pacuActivity +
+                    pacuRespiration +
+                    pacuCirculation +
+                    pacuConsciousness +
+                    pacuOxygen >=
+                  8
+                    ? t(
+                        "surgery.details.aldreteReady",
+                        "🟢 جاهز للنقل للجناح (Ready)",
+                      )
+                    : t(
+                        "surgery.details.aldreteStay",
+                        "🔴 غير جاهز - استمر في الملاحظة",
+                      )}
                 </div>
               </div>
             </div>
@@ -1160,8 +1447,19 @@ export default function SurgeryCaseDetailsPage() {
               {/* 1. Activity */}
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 p-3 bg-slate-950/60 rounded-xl border border-slate-900">
                 <div className="md:w-1/3">
-                  <span className="text-sm font-bold text-slate-200 block">1. {t("surgery.details.aldrete.activityName", "النشاط الحركي (Activity)")}</span>
-                  <span className="text-xs text-slate-500">{t("surgery.details.aldrete.activityDesc", "القدرة على تحريك الأطراف الأربعة")}</span>
+                  <span className="text-sm font-bold text-slate-200 block">
+                    1.{" "}
+                    {t(
+                      "surgery.details.aldrete.activityName",
+                      "النشاط الحركي (Activity)",
+                    )}
+                  </span>
+                  <span className="text-xs text-slate-500">
+                    {t(
+                      "surgery.details.aldrete.activityDesc",
+                      "القدرة على تحريك الأطراف الأربعة",
+                    )}
+                  </span>
                 </div>
                 <div className="flex-1 grid grid-cols-3 gap-2">
                   {[2, 1, 0].map((score) => (
@@ -1176,9 +1474,15 @@ export default function SurgeryCaseDetailsPage() {
                     >
                       <div className="font-mono text-sm">{score}</div>
                       <div className="mt-1 text-[10px] truncate">
-                        {score === 2 && t("surgery.details.aldrete.activity2", "يتحرك 4 أطراف")}
-                        {score === 1 && t("surgery.details.aldrete.activity1", "يتحرك طرفين")}
-                        {score === 0 && t("surgery.details.aldrete.activity0", "لا يتحرك")}
+                        {score === 2 &&
+                          t(
+                            "surgery.details.aldrete.activity2",
+                            "يتحرك 4 أطراف",
+                          )}
+                        {score === 1 &&
+                          t("surgery.details.aldrete.activity1", "يتحرك طرفين")}
+                        {score === 0 &&
+                          t("surgery.details.aldrete.activity0", "لا يتحرك")}
                       </div>
                     </button>
                   ))}
@@ -1188,8 +1492,19 @@ export default function SurgeryCaseDetailsPage() {
               {/* 2. Respiration */}
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 p-3 bg-slate-950/60 rounded-xl border border-slate-900">
                 <div className="md:w-1/3">
-                  <span className="text-sm font-bold text-slate-200 block">2. {t("surgery.details.aldrete.respName", "التنفس (Respiration)")}</span>
-                  <span className="text-xs text-slate-500">{t("surgery.details.aldrete.respDesc", "القدرة على التنفس بعمق وحرية")}</span>
+                  <span className="text-sm font-bold text-slate-200 block">
+                    2.{" "}
+                    {t(
+                      "surgery.details.aldrete.respName",
+                      "التنفس (Respiration)",
+                    )}
+                  </span>
+                  <span className="text-xs text-slate-500">
+                    {t(
+                      "surgery.details.aldrete.respDesc",
+                      "القدرة على التنفس بعمق وحرية",
+                    )}
+                  </span>
                 </div>
                 <div className="flex-1 grid grid-cols-3 gap-2">
                   {[2, 1, 0].map((score) => (
@@ -1204,9 +1519,12 @@ export default function SurgeryCaseDetailsPage() {
                     >
                       <div className="font-mono text-sm">{score}</div>
                       <div className="mt-1 text-[10px] truncate">
-                        {score === 2 && t("surgery.details.aldrete.resp2", "نفس عميق وسعال")}
-                        {score === 1 && t("surgery.details.aldrete.resp1", "نفس سطحي وضيق")}
-                        {score === 0 && t("surgery.details.aldrete.resp0", "انقطاع التنفس")}
+                        {score === 2 &&
+                          t("surgery.details.aldrete.resp2", "نفس عميق وسعال")}
+                        {score === 1 &&
+                          t("surgery.details.aldrete.resp1", "نفس سطحي وضيق")}
+                        {score === 0 &&
+                          t("surgery.details.aldrete.resp0", "انقطاع التنفس")}
                       </div>
                     </button>
                   ))}
@@ -1216,8 +1534,19 @@ export default function SurgeryCaseDetailsPage() {
               {/* 3. Circulation */}
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 p-3 bg-slate-950/60 rounded-xl border border-slate-900">
                 <div className="md:w-1/3">
-                  <span className="text-sm font-bold text-slate-200 block">3. {t("surgery.details.aldrete.circName", "الدورة الدموية (Circulation)")}</span>
-                  <span className="text-xs text-slate-500">{t("surgery.details.aldrete.circDesc", "ضغط الدم مقارنة بالمستوى الأساسي")}</span>
+                  <span className="text-sm font-bold text-slate-200 block">
+                    3.{" "}
+                    {t(
+                      "surgery.details.aldrete.circName",
+                      "الدورة الدموية (Circulation)",
+                    )}
+                  </span>
+                  <span className="text-xs text-slate-500">
+                    {t(
+                      "surgery.details.aldrete.circDesc",
+                      "ضغط الدم مقارنة بالمستوى الأساسي",
+                    )}
+                  </span>
                 </div>
                 <div className="flex-1 grid grid-cols-3 gap-2">
                   {[2, 1, 0].map((score) => (
@@ -1232,9 +1561,12 @@ export default function SurgeryCaseDetailsPage() {
                     >
                       <div className="font-mono text-sm">{score}</div>
                       <div className="mt-1 text-[10px] truncate">
-                        {score === 2 && t("surgery.details.aldrete.circ2", "تغير ±20% فقط")}
-                        {score === 1 && t("surgery.details.aldrete.circ1", "تغير ±20-50%")}
-                        {score === 0 && t("surgery.details.aldrete.circ0", "تغير >50%")}
+                        {score === 2 &&
+                          t("surgery.details.aldrete.circ2", "تغير ±20% فقط")}
+                        {score === 1 &&
+                          t("surgery.details.aldrete.circ1", "تغير ±20-50%")}
+                        {score === 0 &&
+                          t("surgery.details.aldrete.circ0", "تغير >50%")}
                       </div>
                     </button>
                   ))}
@@ -1244,8 +1576,19 @@ export default function SurgeryCaseDetailsPage() {
               {/* 4. Consciousness */}
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 p-3 bg-slate-950/60 rounded-xl border border-slate-900">
                 <div className="md:w-1/3">
-                  <span className="text-sm font-bold text-slate-200 block">4. {t("surgery.details.aldrete.consName", "مستوى الوعي (Consciousness)")}</span>
-                  <span className="text-xs text-slate-500">{t("surgery.details.aldrete.consDesc", "مدى استجابة ووعي المريض")}</span>
+                  <span className="text-sm font-bold text-slate-200 block">
+                    4.{" "}
+                    {t(
+                      "surgery.details.aldrete.consName",
+                      "مستوى الوعي (Consciousness)",
+                    )}
+                  </span>
+                  <span className="text-xs text-slate-500">
+                    {t(
+                      "surgery.details.aldrete.consDesc",
+                      "مدى استجابة ووعي المريض",
+                    )}
+                  </span>
                 </div>
                 <div className="flex-1 grid grid-cols-3 gap-2">
                   {[2, 1, 0].map((score) => (
@@ -1260,9 +1603,15 @@ export default function SurgeryCaseDetailsPage() {
                     >
                       <div className="font-mono text-sm">{score}</div>
                       <div className="mt-1 text-[10px] truncate">
-                        {score === 2 && t("surgery.details.aldrete.cons2", "مستيقظ بالكامل")}
-                        {score === 1 && t("surgery.details.aldrete.cons1", "يستجيب عند النداء")}
-                        {score === 0 && t("surgery.details.aldrete.cons0", "غير مستجيب")}
+                        {score === 2 &&
+                          t("surgery.details.aldrete.cons2", "مستيقظ بالكامل")}
+                        {score === 1 &&
+                          t(
+                            "surgery.details.aldrete.cons1",
+                            "يستجيب عند النداء",
+                          )}
+                        {score === 0 &&
+                          t("surgery.details.aldrete.cons0", "غير مستجيب")}
                       </div>
                     </button>
                   ))}
@@ -1272,8 +1621,19 @@ export default function SurgeryCaseDetailsPage() {
               {/* 5. Oxygen Saturation */}
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 p-3 bg-slate-950/60 rounded-xl border border-slate-900">
                 <div className="md:w-1/3">
-                  <span className="text-sm font-bold text-slate-200 block">5. {t("surgery.details.aldrete.o2Name", "تشبع الأكسجين (O2 Saturation)")}</span>
-                  <span className="text-xs text-slate-500">{t("surgery.details.aldrete.o2Desc", "نسبة تركيز الأكسجين بالدم")}</span>
+                  <span className="text-sm font-bold text-slate-200 block">
+                    5.{" "}
+                    {t(
+                      "surgery.details.aldrete.o2Name",
+                      "تشبع الأكسجين (O2 Saturation)",
+                    )}
+                  </span>
+                  <span className="text-xs text-slate-500">
+                    {t(
+                      "surgery.details.aldrete.o2Desc",
+                      "نسبة تركيز الأكسجين بالدم",
+                    )}
+                  </span>
                 </div>
                 <div className="flex-1 grid grid-cols-3 gap-2">
                   {[2, 1, 0].map((score) => (
@@ -1288,9 +1648,15 @@ export default function SurgeryCaseDetailsPage() {
                     >
                       <div className="font-mono text-sm">{score}</div>
                       <div className="mt-1 text-[10px] truncate">
-                        {score === 2 && t("surgery.details.aldrete.o2_2", "SpO2 >92% هواء")}
-                        {score === 1 && t("surgery.details.aldrete.o2_1", "يحتاج أكسجين SpO2>90%")}
-                        {score === 0 && t("surgery.details.aldrete.o2_0", "SpO2 <90%")}
+                        {score === 2 &&
+                          t("surgery.details.aldrete.o2_2", "SpO2 >92% هواء")}
+                        {score === 1 &&
+                          t(
+                            "surgery.details.aldrete.o2_1",
+                            "يحتاج أكسجين SpO2>90%",
+                          )}
+                        {score === 0 &&
+                          t("surgery.details.aldrete.o2_0", "SpO2 <90%")}
                       </div>
                     </button>
                   ))}
@@ -1302,8 +1668,18 @@ export default function SurgeryCaseDetailsPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="bg-slate-950/40 p-4 rounded-xl border border-slate-800/80 flex items-center justify-between">
                 <div>
-                  <span className="text-sm font-bold text-slate-200 block">{t("surgery.details.pacu.extubatedLabel", "تم إزالة أنبوب التنفس الصناعي (Extubated)")}</span>
-                  <span className="text-xs text-slate-500">{t("surgery.details.pacu.extubatedDesc", "إذا كان المريض تحت التخدير العام بمجرى تنفس اصطناعي")}</span>
+                  <span className="text-sm font-bold text-slate-200 block">
+                    {t(
+                      "surgery.details.pacu.extubatedLabel",
+                      "تم إزالة أنبوب التنفس الصناعي (Extubated)",
+                    )}
+                  </span>
+                  <span className="text-xs text-slate-500">
+                    {t(
+                      "surgery.details.pacu.extubatedDesc",
+                      "إذا كان المريض تحت التخدير العام بمجرى تنفس اصطناعي",
+                    )}
+                  </span>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input
@@ -1317,10 +1693,18 @@ export default function SurgeryCaseDetailsPage() {
               </div>
 
               <div>
-                <label className="text-xs text-slate-400 mb-1 block">{t("surgery.details.pacuNotesLabel", "ملاحظات سريرية لوحدة الإفاقة (PACU Notes)")}</label>
+                <label className="text-xs text-slate-400 mb-1 block">
+                  {t(
+                    "surgery.details.pacuNotesLabel",
+                    "ملاحظات سريرية لوحدة الإفاقة (PACU Notes)",
+                  )}
+                </label>
                 <textarea
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm min-h-[60px] resize-y"
-                  placeholder={t("surgery.details.pacuNotesPh", "ملاحظات إضافية، مستوى الألم، الغثيان، إلخ...")}
+                  placeholder={t(
+                    "surgery.details.pacuNotesPh",
+                    "ملاحظات إضافية، مستوى الألم، الغثيان، إلخ...",
+                  )}
                   value={pacuNotes}
                   onChange={(e) => setPacuNotes(e.target.value)}
                 />
@@ -1333,7 +1717,12 @@ export default function SurgeryCaseDetailsPage() {
                 disabled={savingPacu}
                 className="px-8 py-3 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded-xl shadow-lg disabled:opacity-50 transition-colors"
               >
-                {savingPacu ? t("common.saving", "جارِ الحفظ...") : t("surgery.details.savePacuBtn", "💾 حفظ تقييم الإفاقة والدريد")}
+                {savingPacu
+                  ? t("common.saving", "جارِ الحفظ...")
+                  : t(
+                      "surgery.details.savePacuBtn",
+                      "💾 حفظ تقييم الإفاقة والدريد",
+                    )}
               </button>
             </div>
           </div>

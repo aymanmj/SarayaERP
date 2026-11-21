@@ -9,7 +9,7 @@ interface HandoverNoteModalProps {
   onClose: () => void;
   transferId: number;
   patientName: string;
-  onSuccess: () => void;
+  onSuccess: (signed?: boolean) => void;
   existingData?: {
     situation: string;
     background: string;
@@ -26,7 +26,7 @@ export const HandoverNoteModal: React.FC<HandoverNoteModalProps> = ({
   onSuccess,
   existingData
 }) => {
-  const { t, i18n } = useTranslation();
+  const { i18n } = useTranslation();
   const isRtl = i18n.language === "ar";
 
   const [situation, setSituation] = useState(existingData?.situation || '');
@@ -53,7 +53,7 @@ export const HandoverNoteModal: React.FC<HandoverNoteModalProps> = ({
         isSigned
       });
       toast.success(isSigned ? 'تم توقيع ملاحظات التسليم بنجاح' : 'تم حفظ مسودة ملاحظات التسليم');
-      onSuccess();
+      onSuccess(isSigned);
       onClose();
      
     } catch (err: any) {

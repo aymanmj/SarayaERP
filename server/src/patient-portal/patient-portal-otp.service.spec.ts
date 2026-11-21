@@ -87,16 +87,13 @@ describe('PatientOtpService', () => {
       expect(mockPrisma.patientOtp.create).toHaveBeenCalled();
     });
 
-    it('should return deep link for unlinked patient', async () => {
+    it('does not issue account-binding tokens from MRN and phone knowledge', async () => {
       mockPrisma.patient.findFirst.mockResolvedValue(mockPatient);
       mockPrisma.patientOtp.count.mockResolvedValue(0);
-      mockPrisma.patientOtp.updateMany.mockResolvedValue({ count: 0 });
-      mockPrisma.patient.update.mockResolvedValue({ id: 1 });
-
+      mockPrisma.patientOtp.create.mockResolvedValue({ id: 1 });
       const result = await service.requestOtp('MRN-0001', '0912345678');
-
-      expect(result.requiresTelegramLinking).toBe(true);
-      expect(result.linkUrl).toBeDefined();
+      expect(result).not.toHaveProperty('linkUrl');
+      expect(mockPrisma.patient.update).not.toHaveBeenCalled();
     });
 
     it('should reject invalid MRN + phone combination', async () => {

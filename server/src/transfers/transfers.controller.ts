@@ -5,7 +5,6 @@ import {
   Param,
   Get,
   Patch,
-  Req,
   UseGuards,
   ParseIntPipe,
 } from '@nestjs/common';
@@ -18,6 +17,8 @@ import {
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/permissions.guard';
 import { Permissions } from '../auth/permissions.decorator';
+import { CurrentUser } from '../auth/current-user.decorator';
+import type { JwtPayload } from '../auth/jwt-payload.type';
 
 @Controller('transfers')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -26,48 +27,63 @@ export class TransfersController {
 
   @Permissions('transfers:manage')
   @Post('request')
-  async requestTransfer(@Req() req: any, @Body() dto: RequestTransferDto) {
-    const hospitalId = req.user.hospitalId || 1; // Adjust based on your Auth pattern
-    const userId = req.user.sub;
+  async requestTransfer(
+    @CurrentUser() user: JwtPayload,
+    @Body() dto: RequestTransferDto,
+  ) {
+    const hospitalId = user.hospitalId; // Adjust based on your Auth pattern
+    const userId = user.sub;
     return this.transfersService.requestTransfer(hospitalId, userId, dto);
   }
 
   @Permissions('transfers:view')
   @Get('pending')
-  async getPendingTransfers(@Req() req: any) {
-    const hospitalId = req.user.hospitalId || 1;
+  async getPendingTransfers(@CurrentUser() user: JwtPayload) {
+    const hospitalId = user.hospitalId;
     return this.transfersService.getPendingTransfers(hospitalId);
   }
 
   @Permissions('transfers:manage')
   @Patch(':id/allocate')
   async allocateBed(
-    @Req() req: any,
+    @CurrentUser() user: JwtPayload,
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: AllocateBedDto,
   ) {
-    const hospitalId = req.user.hospitalId || 1;
-    const userId = req.user.sub;
+    const hospitalId = user.hospitalId;
+    const userId = user.sub;
     return this.transfersService.allocateBed(hospitalId, id, userId, dto);
   }
 
   @Permissions('transfers:manage')
   @Post(':id/handover')
   async saveHandover(
-    @Req() req: any,
+    @CurrentUser() user: JwtPayload,
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: HandoverNoteDto,
   ) {
-    const hospitalId = req.user.hospitalId || 1;
-    const userId = req.user.sub;
+    const hospitalId = user.hospitalId;
+    const userId = user.sub;
     return this.transfersService.saveHandoverNote(hospitalId, id, userId, dto);
   }
 
   @Permissions('transfers:manage')
   @Patch(':id/arrive')
-  async confirmArrival(@Req() req: any, @Param('id', ParseIntPipe) id: number) {
-    const hospitalId = req.user.hospitalId || 1;
-    const userId = req.user.sub;
+  async confirmArrival(
+    @CurrentUser() user: JwtPayload,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    const hospitalId = user.hospitalId;
+    const userId = user.sub;
     return this.transfersService.confirmArrival(hospitalId, id, userId);
+  }
+
+  @Permissions('transfers:manage')
+  @Patch(':id/cancel')
+  cancelTransfer(
+    @CurrentUser() user: JwtPayload,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.transfersService.cancelTransfer(user.hospitalId, id);
   }
 }

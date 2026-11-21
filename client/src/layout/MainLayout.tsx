@@ -328,7 +328,8 @@ export function MainLayout() {
     }
 
     // 2. Admin sees everything (provided license allows it!)
-    if (user.roles.includes("ADMIN")) return true;
+    // 2. Admin sees everything (provided license allows it!)
+    if (user.roles?.includes("ADMIN")) return true;
 
     // 3. Role/Permission Check
     const permissionCode = item.access;
@@ -693,6 +694,7 @@ export function MainLayout() {
           requiredModule: "PHARMACY",
           translationKey: "stockReport",
         },
+        { label: i18n.language.startsWith('ar') ? 'متابعة استهلاك المواد' : 'Material consumption operations', path: '/inventory/consumption-operations', access: 'inventory:view', translationKey: 'consumptionOperations' },
         { label: "التحويلات المخزنية", path: "/inventory/transfers", access: "inventory:transfers:manage", translationKey: "transfers" },
         {
           label: "طلبات المواد",
@@ -1006,6 +1008,12 @@ export function MainLayout() {
               <div className="text-slate-500 text-[10px] truncate">
                 {user.roles?.join(" | ")}
               </div>
+              <NavLink
+                to="/account/sessions"
+                className="mt-2 inline-block text-xs text-sky-300 hover:text-sky-100 underline-offset-4 hover:underline"
+              >
+                {t("deviceSessions.title")}
+              </NavLink>
             </div>
           )}
           <button
@@ -1390,7 +1398,8 @@ export function MainLayout() {
 //   // --- دالة فحص الصلاحية ---
 //   const hasAccess = (permissionCode?: string) => {
 //     if (!user) return false;
-//     if (user.roles.includes("ADMIN")) return true; // الأدمن يرى كل شيء
+//     // 2. Admin sees everything (provided license allows it!)
+//     if (user.roles?.includes("ADMIN")) return true; // الأدمن يرى كل شيء
 //     if (!permissionCode) return true; // عنصر ليس له صلاحية محددة (متاح للجميع ضمن الدور)
 //     return user.permissions?.includes(permissionCode);
 //   };

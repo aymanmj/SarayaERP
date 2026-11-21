@@ -1,10 +1,11 @@
 // src/pages/RadiologyWorklistPage.tsx
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { apiClient } from "../api/apiClient";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
+import { useAuthStore } from "../stores/authStore";
 
 type PatientLite = { id: number; fullName: string; mrn: string };
 type StudyLite = {
@@ -27,6 +28,7 @@ type RadiologyWorklistItem = {
   status: RadiologyStatus;
   reportedAt?: string | null;
   reportText?: string | null;
+  viewerUrl?: string | null;
   order: OrderLite;
   patient?: PatientLite | null;
   study: StudyLite;
@@ -49,13 +51,16 @@ export default function RadiologyWorklistPage() {
   const dateLocale = isRtl ? "ar-LY" : "en-US";
 
   const [search, setSearch] = useState("");
+  const user = useAuthStore((state) => state.user);
 
   const {
     data: items = [],
     isLoading: loading,
     refetch: load,
   } = useQuery({
-    queryKey: ["radiology-worklist"],
+    queryKey: ["radiology-worklist", user?.hospitalId, user?.id],
+    enabled: Boolean(user),
+    refetchInterval: 15_000,
     queryFn: async () => {
       const res = await apiClient.get<RadiologyWorklistItem[]>("/radiology/worklist");
       return res.data;
@@ -65,7 +70,6 @@ export default function RadiologyWorklistPage() {
     },
   });
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const filtered = useMemo(() => {
     const s = search.trim();
     if (!s) return items;
@@ -80,7 +84,7 @@ export default function RadiologyWorklistPage() {
   const handleStart = async (item: RadiologyWorklistItem) => {
     try {
         await apiClient.post(`/radiology/orders/${item.id}/start`);
-        toast.success(t("radiology.startSuccess", "✅ تم بدء التصوير وإرسال الطلب (HL7)."));
+        toast.success(t("radiology.startSuccess", "تم تسجيل بدء الفحص."));
         load();
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
@@ -156,7 +160,7 @@ export default function RadiologyWorklistPage() {
 
       <div className="flex-1 rounded-2xl bg-slate-950/60 border border-slate-800 p-4 overflow-auto">
         <div className="space-y-3">
-          {items.map((it) => (
+          {filtered.map((it) => (
             <div
               key={it.id}
               className="border border-slate-800 bg-slate-900/60 rounded-xl p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4"
@@ -185,6 +189,11 @@ export default function RadiologyWorklistPage() {
               </div>
 
               <div className="flex gap-2 items-center">
+                {it.viewerUrl && (
+                  <a href={it.viewerUrl} target="_blank" rel="noreferrer" className="px-4 py-2 rounded-xl bg-sky-700 hover:bg-sky-600 text-xs text-white">
+                    {t("radiology.actions.openStudy", "فتح دراسة الأشعة")}
+                  </a>
+                )}
                  {/* Start Button */}
                  {(it.status === "PENDING" || it.status === "SCHEDULED") && (
                     <button

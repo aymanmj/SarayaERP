@@ -64,6 +64,7 @@ import { ConsentFormsModule } from './modules/clinical/consent-forms/consent-for
 import { CommissionModule } from './commission/commission.module'; // ✅ [NEW] Commission Rules
 import { AuditInterceptor } from './audit/audit.interceptor';
 import { APP_INTERCEPTOR, APP_GUARD } from '@nestjs/core';
+import { StaffRealtimeBus } from './websocket/staff-realtime.bus';
 import { ClsModule } from 'nestjs-cls';
 import { VaultModule } from './common/vault/vault.module';
 import { EncryptionModule } from './common/encryption/encryption.module';
@@ -100,6 +101,7 @@ import { QualityModule } from './quality/quality.module'; // ✅ [NEW] Quality &
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      ignoreEnvFile: process.env.NODE_ENV === 'test',
       load: [vaultLoader],
     }),
     ClsModule.forRoot({
@@ -270,6 +272,7 @@ import { QualityModule } from './quality/quality.module'; // ✅ [NEW] Quality &
       useClass: ThrottlerGuard,
     },
     EventsGateway,
+    StaffRealtimeBus,
     JwtService,
     StartupSecurityValidator, // ✅ Validates secrets on startup
   ],

@@ -5,6 +5,10 @@ import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { inventoryApi, Warehouse, WarehouseZone, WarehouseBin } from '../../api/inventoryApi';
 import { toast } from 'sonner';
+import { useAuth } from '@/hooks/useAuth';
+import type { InventoryBatchStatus, ProductStock } from '../../api/inventoryApi';
+import { RecallFollowupPanel } from '../../components/inventory/RecallFollowupPanel';
+import { RecallDisposals } from '../../components/inventory/RecallDisposals';
 
 // ─────────────────── Icons ───────────────────
 const WarehouseIcon = () => (
@@ -415,6 +419,24 @@ export function WarehouseManagementPage() {
   const [selectedWarehouseId, setSelectedWarehouseId] = useState<number | null>(null);
   const [showAddWarehouse, setShowAddWarehouse] = useState(false);
   const [editingWarehouse, setEditingWarehouse] = useState<Warehouse | null>(null);
+  const { user, hasPermission } = useAuth();
+  const canManage = hasPermission('inventory:manage') || user?.permissions.includes('ADMIN_FULL_ACCESS') === true || user?.roles.includes('ADMIN') === true;
+  const canReviewDisposal = hasPermission('inventory:recall-disposal:review') || hasPermission('inventory:recall-disposal:post');
+  const [stockSearch, setStockSearch] = useState('');
+  const [recallStock, setRecallStock] = useState<ProductStock | null>(null);
+  const [batchAction, setBatchAction] = useState<{ stock: ProductStock; status: InventoryBatchStatus } | null>(null);
+  const [batchReason, setBatchReason] = useState('');
+  const changeBatch = useMutation({
+    mutationFn: ({ stock, status, reason }: { stock: ProductStock; status: InventoryBatchStatus; reason: string }) =>
+      inventoryApi.changeBatchRestriction(stock.id, status, reason),
+    onSuccess: async () => {
+      setBatchAction(null);
+      setBatchReason('');
+      await queryClient.invalidateQueries({ queryKey: ['warehouse-stock'] });
+      toast.success(t('inventory.warehouse.batchSaved'));
+    },
+    onError: () => toast.error(t('inventory.warehouse.batchSaveFailed')),
+  });
 
   // Form state
   const [whName, setWhName] = useState('');
@@ -612,6 +634,43 @@ export function WarehouseManagementPage() {
                   <h4 className="text-sm font-semibold text-slate-300 mb-3 flex items-center gap-2">
                     <BinIcon /> {t("inventory.warehouse.storedItemsCount", "الأصناف المخزنة ({{count}})", { count: stockQuery.data.length })}
                   </h4>
+                  <input
+                    type="search"
+                    aria-label={t('inventory.warehouse.batchSearch')}
+                    placeholder={t('inventory.warehouse.batchSearch')}
+                    value={stockSearch}
+                    onChange={(event) => setStockSearch(event.target.value)}
+                    className="mb-3 w-full rounded border border-slate-700 bg-slate-900 p-2 text-sm"
+                  />
+                  {batchAction && batchAction.stock.warehouseId === selectedWarehouseId && (
+                    <form className="mb-3 space-y-2 rounded border border-slate-700 p-3" onSubmit={(event) => {
+                      event.preventDefault();
+                      if (batchReason.trim().length >= 5) changeBatch.mutate({ ...batchAction, reason: batchReason.trim() });
+                    }}>
+                      <p>{t(`inventory.warehouse.batchAction.${batchAction.status}`)} · {batchAction.stock.product?.name} · <bdi>{batchAction.stock.batchNumber}</bdi></p>
+                      <p className="text-sm text-slate-400">{t('inventory.warehouse.batchScope')}</p>
+                      <label className="block text-sm">
+                        {t('inventory.warehouse.batchReason')}
+                        <textarea required minLength={5} maxLength={1000} value={batchReason} disabled={changeBatch.isPending}
+                          onChange={(event) => setBatchReason(event.target.value)} className="mt-1 block w-full rounded border border-slate-700 bg-slate-900 p-2" />
+                      </label>
+                      <button type="submit" disabled={changeBatch.isPending || batchReason.trim().length < 5} className="rounded bg-sky-700 px-3 py-1 disabled:opacity-50">{t('common.save')}</button>
+                      <button type="button" disabled={changeBatch.isPending} onClick={() => setBatchAction(null)} className="px-3 py-1">{t('common.cancel')}</button>
+                    </form>
+                  )}
+                  {canManage && recallStock?.warehouseId === selectedWarehouseId && (
+                    <RecallFollowupPanel key={recallStock.id} stockId={recallStock.id} onClose={() => setRecallStock(null)} />
+                  )}
+                  {!canManage && canReviewDisposal && recallStock?.warehouseId === selectedWarehouseId && (
+                    <section className="space-y-2 rounded border border-slate-700 p-3 text-sm">
+                      <div className="flex justify-between">
+                        <p>{t('inventory.recall.disposal.title')} · {recallStock.product?.name} · <bdi>{recallStock.batchNumber}</bdi></p>
+                        <button type="button" className="underline" onClick={() => setRecallStock(null)}>{t('common.close')}</button>
+                      </div>
+                      <RecallDisposals key={recallStock.id} stockId={recallStock.id} isolationId={null}
+                        recallKey={['warehouse-disposal', user?.hospitalId, user?.id, recallStock.id]} />
+                    </section>
+                  )}
                   <div className="overflow-x-auto">
                     <table className={`w-full text-sm ${isRtl ? "text-right" : "text-left"}`}>
                       <thead>
@@ -622,10 +681,14 @@ export function WarehouseManagementPage() {
                           <th className="text-center py-2">{t("inventory.warehouse.tableMinStock", "الحد الأدنى")}</th>
                           <th className="text-center py-2">{t("inventory.warehouse.tableBatch", "التشغيلة")}</th>
                           <th className="text-center py-2">{t("inventory.warehouse.tableExpiry", "الصلاحية")}</th>
+                          <th className="text-center py-2">{t('inventory.warehouse.batchSafety')}</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {stockQuery.data.slice(0, 20).map(stock => (
+                        {stockQuery.data.filter((stock) =>
+                          [stock.product?.name, stock.product?.code, stock.batchNumber]
+                            .some((value) => value?.toLowerCase().includes(stockSearch.trim().toLowerCase())),
+                        ).slice(0, 20).map(stock => (
                           <tr key={stock.id} className="border-b border-slate-700/20 hover:bg-slate-700/10 transition-colors">
                             <td className="py-2 pr-3 text-slate-200">{stock.product?.name}</td>
                             <td className="py-2 text-slate-500 font-mono text-xs">{stock.product?.code || '-'}</td>
@@ -635,7 +698,31 @@ export function WarehouseManagementPage() {
                             <td className="py-2 text-center text-slate-500">{Number(stock.minStock).toLocaleString()}</td>
                             <td className="py-2 text-center text-slate-500 text-xs">{stock.batchNumber || '-'}</td>
                             <td className="py-2 text-center text-slate-500 text-xs">
-                              {stock.expiryDate ? new Date(stock.expiryDate).toLocaleDateString(isRtl ? 'ar-SA' : 'en-US') : '-'}
+                              {stock.expiryDate?.endsWith('T00:00:00.000Z')
+                                ? new Date(stock.expiryDate).toLocaleDateString(isRtl ? 'ar-SA' : 'en-US', { timeZone: 'UTC' })
+                                : stock.expiryDate ? new Date(stock.expiryDate).toLocaleString(isRtl ? 'ar-SA' : 'en-US') : '-'}
+                            </td>
+                            <td className="py-2 text-center text-xs">
+                              {stock.batchRestriction && (
+                                <p className="text-amber-300">{t(`inventory.warehouse.batchStatus.${stock.batchRestriction.status}`)} · {stock.batchRestriction.reason}</p>
+                              )}
+                              {(canManage || canReviewDisposal) && stock.batchRestriction?.status === 'RECALLED' && (
+                                <button type="button" className="px-2 py-1 text-sky-300 underline" onClick={() => setRecallStock(stock)}>
+                                  {t(canManage ? 'inventory.recall.title' : 'inventory.recall.disposal.title')}
+                                </button>
+                              )}
+                              {canManage && stock.batchNumber?.trim() && stock.batchNumber.trim() !== 'GENERAL' &&
+                                stock.batchRestriction?.status !== 'RECALLED' && (
+                                  (stock.batchRestriction?.status === 'QUARANTINED'
+                                    ? ['RELEASED', 'RECALLED'] as const
+                                    : ['QUARANTINED', 'RECALLED'] as const
+                                  ).map((status) => (
+                                    <button key={status} type="button" disabled={changeBatch.isPending}
+                                      className="px-2 py-1 text-sky-300 underline" onClick={() => { setBatchAction({ stock, status }); setBatchReason(''); }}>
+                                      {t(`inventory.warehouse.batchAction.${status}`)}
+                                    </button>
+                                  ))
+                                )}
                             </td>
                           </tr>
                         ))}

@@ -4,6 +4,7 @@ import {
   IsOptional,
   IsString,
   IsEnum,
+  IsBoolean,
 } from 'class-validator';
 import { NoteType } from '@prisma/client';
 
@@ -39,6 +40,7 @@ export class CreateClinicalNoteDto {
 
   // Metadata
   @IsOptional()
+  @IsBoolean()
   isAddendum?: boolean;
 
   @IsNumber()

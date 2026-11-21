@@ -15,12 +15,15 @@ import { PayrollService } from './payroll.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/permissions.guard';
 import { Permissions } from '../auth/permissions.decorator';
+import { AuditInTransaction } from '../audit/audit.decorator';
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('payroll')
 export class PayrollController {
   constructor(private readonly payrollService: PayrollService) {}
 
   @Post('generate')
+  @AuditInTransaction()
+  @Permissions('payroll:manage')
   async generate(
     @Req() req: any,
     @Body() body: { month: number; year: number },
@@ -34,16 +37,20 @@ export class PayrollController {
   }
 
   @Get()
+  @Permissions('payroll:view')
   async findAll(@Req() req: any) {
     return this.payrollService.findAll(req.user.hospitalId);
   }
 
   @Get(':id')
+  @Permissions('payroll:view')
   async findOne(@Req() req: any, @Param('id', ParseIntPipe) id: number) {
     return this.payrollService.findOne(req.user.hospitalId, id);
   }
 
   @Post(':id/approve')
+  @AuditInTransaction()
+  @Permissions('payroll:manage')
   async approve(@Req() req: any, @Param('id', ParseIntPipe) id: number) {
     return this.payrollService.approvePayroll(
       req.user.hospitalId,

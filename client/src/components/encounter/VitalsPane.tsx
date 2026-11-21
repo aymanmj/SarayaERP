@@ -1,7 +1,9 @@
 // src/components/encounter/VitalsPane.tsx
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useId, useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from "../../hooks/useAuth";
+import { useIdempotentPost } from "../../hooks/useIdempotentPost";
 import { apiClient } from "../../api/apiClient";
 import { toast } from "sonner";
 import {
@@ -50,8 +52,18 @@ function getVitalFlag(key: string, value: number): { flag: string; className: st
   return null;
 }
 
-export function VitalsPane({ encounterId }: { encounterId: number }) {
+export function VitalsPane({
+  encounterId,
+  onPendingChange,
+}: {
+  encounterId: number;
+  onPendingChange?: (hasPending: boolean) => void;
+}) {
   const { t } = useTranslation();
+  const formId = useId();
+  const { user } = useAuth();
+  const scope = `vitals:${user?.hospitalId}:${user?.id}:${encounterId}`;
+  const request = useIdempotentPost(scope, onPendingChange);
    
   const [vitalsList, setVitalsList] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -89,28 +101,33 @@ export function VitalsPane({ encounterId }: { encounterId: number }) {
   useEffect(() => { if (encounterId) loadVitals(); }, [encounterId]);
 
   const handleSubmit = async () => {
-    if (!form.bpSystolic && !form.temperature && !form.pulse && !form.o2Sat) {
-      toast.warning(t("vitals.enterOne", "يرجى إدخال قيمة واحدة على الأقل."));
-      return;
-    }
+    const retry = request.pending !== null;
     try {
-      await apiClient.post(`/vitals/encounter/${encounterId}`, {
-        temperature: form.temperature ? Number(form.temperature) : undefined,
-        bpSystolic: form.bpSystolic ? Number(form.bpSystolic) : undefined,
-        bpDiastolic: form.bpDiastolic ? Number(form.bpDiastolic) : undefined,
-        pulse: form.pulse ? Number(form.pulse) : undefined,
-        respRate: form.respRate ? Number(form.respRate) : undefined,
-        o2Sat: form.o2Sat ? Number(form.o2Sat) : undefined,
-        weight: form.weight ? Number(form.weight) : undefined,
-        height: form.height ? Number(form.height) : undefined,
-        bmi: bmi !== "—" ? Number(bmi) : undefined,
-        note: form.note || undefined,
-      });
+      if (retry) {
+        await request.retry();
+      } else {
+        if (!Object.entries(form).some(([field, value]) => field !== "note" && value.trim())) {
+          toast.warning(t("vitals.enterOne", "يرجى إدخال قيمة واحدة على الأقل."));
+          return;
+        }
+        await request.submit(`/vitals/encounter/${encounterId}`, {
+          temperature: form.temperature ? Number(form.temperature) : undefined,
+          bpSystolic: form.bpSystolic ? Number(form.bpSystolic) : undefined,
+          bpDiastolic: form.bpDiastolic ? Number(form.bpDiastolic) : undefined,
+          pulse: form.pulse ? Number(form.pulse) : undefined,
+          respRate: form.respRate ? Number(form.respRate) : undefined,
+          o2Sat: form.o2Sat ? Number(form.o2Sat) : undefined,
+          weight: form.weight ? Number(form.weight) : undefined,
+          height: form.height ? Number(form.height) : undefined,
+          bmi: bmi !== "—" ? Number(bmi) : undefined,
+          note: form.note || undefined,
+        });
+      }
       toast.success(t("vitals.saveSuccess", "تم تسجيل العلامات الحيوية"));
       setForm({ temperature: "", bpSystolic: "", bpDiastolic: "", pulse: "", respRate: "", o2Sat: "", weight: "", height: "", note: "" });
       setShowForm(false);
       loadVitals();
-    } catch { toast.error(t("common.saveFailed", "فشل الحفظ")); }
+    } catch { toast.error(t("vitals.saveUnconfirmed", "راجع حالة الحفظ قبل إدخال قراءة جديدة.")); }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -180,6 +197,7 @@ export function VitalsPane({ encounterId }: { encounterId: number }) {
         {activeTab === "LIST" && (
           <button
             onClick={() => setShowForm(!showForm)}
+            disabled={!!request.pending}
             className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all active:scale-95 ${
               showForm
                 ? "bg-slate-800 text-slate-400 border border-slate-700"
@@ -233,11 +251,13 @@ export function VitalsPane({ encounterId }: { encounterId: number }) {
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {vitalConfigs.map(vc => (
                   <div key={vc.key} className={`rounded-xl border p-3 ${vc.bgColor} ${vc.borderColor}`}>
-                    <label className="text-[10px] text-slate-400 block mb-1 font-bold flex items-center gap-1">
+                    <label htmlFor={`${formId}-${vc.key}`} className="text-[10px] text-slate-400 block mb-1 font-bold flex items-center gap-1">
                       <span>{vc.icon}</span> {t("vitals.label." + vc.key, vc.label)}
                       <span className="mr-auto text-[8px] text-slate-600 font-normal">{vc.unit}</span>
                     </label>
                     <input
+                      id={`${formId}-${vc.key}`}
+                      disabled={!!request.pending}
                       name={vc.key}
                       type="number"
                       step={vc.step || "1"}
@@ -249,7 +269,7 @@ export function VitalsPane({ encounterId }: { encounterId: number }) {
                     />
                     {vc.normalRange && (
                       <div className="text-[8px] text-slate-600 text-center mt-1">
-                        t("vitals.normal", "الطبيعي:") + " " + vc.normalRange
+                        {t("vitals.normal", "الطبيعي:")} {vc.normalRange}
                       </div>
                     )}
                   </div>
@@ -260,11 +280,13 @@ export function VitalsPane({ encounterId }: { encounterId: number }) {
               <div className="grid grid-cols-3 gap-3">
                 {bodyConfigs.map(bc => (
                   <div key={bc.key} className={`rounded-xl border p-3 ${bc.bgColor} ${bc.borderColor}`}>
-                    <label className="text-[10px] text-slate-400 block mb-1 font-bold flex items-center gap-1">
+                    <label htmlFor={`${formId}-${bc.key}`} className="text-[10px] text-slate-400 block mb-1 font-bold flex items-center gap-1">
                       <span>{bc.icon}</span> {t("vitals.label." + bc.key, bc.label)}
                       <span className="mr-auto text-[8px] text-slate-600 font-normal">{bc.unit}</span>
                     </label>
                     <input
+                      id={`${formId}-${bc.key}`}
+                      disabled={!!request.pending}
                       name={bc.key}
                       type="number"
                       step={bc.step || "1"}
@@ -295,6 +317,7 @@ export function VitalsPane({ encounterId }: { encounterId: number }) {
 
               {/* Note */}
               <input
+                disabled={!!request.pending}
                 name="note"
                 value={form.note}
                 onChange={handleChange}
@@ -305,10 +328,16 @@ export function VitalsPane({ encounterId }: { encounterId: number }) {
               {/* Submit */}
               <button
                 onClick={handleSubmit}
+                disabled={request.busy || (!!request.pending && request.pending.scope !== scope)}
                 className="w-full py-3 bg-sky-600 hover:bg-sky-500 text-white text-sm rounded-xl font-bold shadow-lg shadow-sky-900/30 transition-all active:scale-[0.98]"
               >
-                💾 حفظ العلامات الحيوية
+                {request.pending
+                  ? t("vitals.retrySameReading", "إعادة إرسال القراءة نفسها")
+                  : t("vitals.saveReading", "حفظ العلامات الحيوية")}
               </button>
+              {request.pending && (
+                <p role="status">{t("vitals.pendingReading", "انتظر تأكيد الحفظ. إعادة المحاولة ترسل القراءة الأصلية.")}</p>
+              )}
             </div>
           )}
 

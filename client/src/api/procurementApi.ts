@@ -13,14 +13,16 @@ export interface PurchaseRequestData {
 }
 
 export interface GoodsReceiptItem {
+  purchaseOrderItemId: number;
   productId: number;
   uomId: number;
-  quantity: number;
+  quantity: string;
   batchNumber: string;
   expiryDate: string;
 }
 
 export interface GoodsReceiptData {
+  requestId: string;
   poId: number;
   warehouseId: number;
   items: GoodsReceiptItem[];
@@ -41,7 +43,7 @@ export const procurementApi = {
   },
 
   createGRN: async (data: GoodsReceiptData) => {
-    const response = await apiClient.post('/purchases/grn', data);
+    const response = await apiClient.post('/procurement/receipts', data);
     return response.data;
   },
 

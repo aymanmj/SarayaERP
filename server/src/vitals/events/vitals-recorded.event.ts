@@ -1,4 +1,5 @@
 export class VitalsRecordedEvent {
+  vitalSignId: number;
   hospitalId: number;
   encounterId: number;
   patientId: number;

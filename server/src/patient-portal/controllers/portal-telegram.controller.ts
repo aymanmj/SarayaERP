@@ -28,7 +28,10 @@ import {
   HttpStatus,
   OnModuleInit,
   UseGuards,
+  Headers,
+  UnauthorizedException,
 } from '@nestjs/common';
+import { timingSafeEqual } from 'node:crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { EncryptionService } from '../../common/encryption/encryption.service';
 import { VaultService } from '../../common/vault/vault.service';
@@ -124,6 +127,7 @@ export class PortalTelegramController implements OnModuleInit {
         `https://api.telegram.org/bot${this.botToken}/setWebhook`,
         {
           url: webhookUrl,
+          secret_token: this.webhookSecret(),
           allowed_updates: ['message'], // Only message updates (not edits, etc.)
           drop_pending_updates: false,
         },
@@ -235,14 +239,48 @@ export class PortalTelegramController implements OnModuleInit {
    */
   @Post('webhook')
   @HttpCode(HttpStatus.OK)
-  async handleWebhook(@Body() update: any) {
+  async handleWebhook(
+    @Body()
+    update: {
+      message?: {
+        chat?: { id?: number | string };
+        contact?: unknown;
+        text?: string;
+      };
+    },
+    @Headers('x-telegram-bot-api-secret-token') suppliedSecret?: string,
+  ) {
+    const expected = Buffer.from(this.webhookSecret());
+    const supplied = Buffer.from(suppliedSecret || '');
+    if (
+      expected.length !== supplied.length ||
+      !timingSafeEqual(expected, supplied)
+    ) {
+      throw new UnauthorizedException('Invalid Telegram webhook credentials');
+    }
     this.logger.debug(`Received Telegram Webhook Update`);
 
     try {
-      if (update.message && update.message.contact) {
-        await this.handleContactSharing(update.message);
-      } else if (update.message?.text?.startsWith('/start')) {
-        await this.handleStartCommand(update.message);
+      const message = update.message;
+      const chatId = message?.chat?.id;
+      if (
+        !message ||
+        (typeof chatId !== 'string' && typeof chatId !== 'number')
+      )
+        return { ok: true };
+      if (message.contact) {
+        await this.sendTelegramMessage(
+          String(chatId),
+          'يرجى ربط حسابك باستخدام رابط التحقق الشخصي بعد تسجيل الدخول إلى بوابة المريض.',
+        );
+      } else if (
+        typeof message.text === 'string' &&
+        message.text.startsWith('/start')
+      ) {
+        await this.handleStartCommand({
+          chat: { id: chatId },
+          text: message.text,
+        });
       }
     } catch (error: any) {
       this.logger.error(`Error processing Telegram webhook: ${error.message}`);
@@ -255,17 +293,18 @@ export class PortalTelegramController implements OnModuleInit {
   // ===========================================
   //  Deep Linking: /start <UUID>
   // ===========================================
-  private async handleStartCommand(message: any) {
+  private async handleStartCommand(message: {
+    chat: { id: string | number };
+    text: string;
+  }) {
     const chatId = message.chat.id.toString();
     const text = message.text.trim();
     const parts = text.split(' ');
 
     // Deep linking flow: /start <UUID>
-    if (parts.length === 2 && parts[1].length > 10) {
+    if (parts.length === 2 && /^auth_[0-9a-f-]{36}$/.test(parts[1])) {
       const linkToken = parts[1];
-      this.logger.log(
-        `Received deep link /start from Chat ID: ${chatId} with token: ${linkToken}`,
-      );
+      this.logger.log(`Received authenticated account-link request`);
 
       const patient = await this.prisma.patient.findFirst({
         where: {
@@ -279,7 +318,11 @@ export class PortalTelegramController implements OnModuleInit {
       if (patient) {
         // Valid token found! Link the account.
         await this.prisma.patient.update({
-          where: { id: patient.id },
+          where: {
+            id: patient.id,
+            telegramLinkToken: linkToken,
+            telegramLinkExpiresAt: { gt: new Date() },
+          },
           data: {
             telegramChatId: chatId,
             telegramLinkToken: null,
@@ -311,7 +354,7 @@ export class PortalTelegramController implements OnModuleInit {
       }
 
       // Invalid or expired token
-      this.logger.warn(`Invalid or expired link token received: ${linkToken}`);
+      this.logger.warn('Invalid or expired account-link token');
       await this.sendTelegramMessage(
         chatId,
         'رابط التفعيل غير صالح أو منتهي الصلاحية. يرجى المحاولة مرة أخرى من بوابة المريض.',
@@ -335,57 +378,14 @@ export class PortalTelegramController implements OnModuleInit {
   // ===========================================
   //  Contact Sharing (Legacy Flow)
   // ===========================================
-  private async handleContactSharing(message: any) {
-    const chatId = message.chat.id.toString();
-    const phoneNumber = message.contact.phone_number;
-
-    // Clean phone number (e.g., removing +, handling local vs international)
-    let cleanPhone = phoneNumber.replace(/\D/g, '');
-    if (cleanPhone.startsWith('0'))
-      cleanPhone = '218' + cleanPhone.substring(1);
-    else if (cleanPhone.length === 9) cleanPhone = '218' + cleanPhone;
-
-    // Fetch patients to find a match.
-    // In a large db, phoneHash should be used. For now, we iterate active patients and decrypt.
-    const patients = await this.prisma.patient.findMany({
-      where: { isActive: true, isDeleted: false },
-      select: { id: true, mrn: true, phone: true },
-    });
-
-    const matchedPatient = patients.find((p) => {
-      if (!p.phone) return false;
-      try {
-        const decryptedPhone = this.encryptionService.decrypt(p.phone);
-        if (!decryptedPhone) return false;
-        const pPhone = decryptedPhone.replace(/\D/g, '');
-        return pPhone.endsWith(cleanPhone) || cleanPhone.endsWith(pPhone);
-      } catch (e) {
-        return false;
-      }
-    });
-
-    if (matchedPatient) {
-      await this.prisma.patient.update({
-        where: { id: matchedPatient.id },
-        data: { telegramChatId: chatId },
-      });
-
-      this.logger.log(
-        `Linked Telegram Chat ID ${chatId} to Patient ${matchedPatient.mrn}`,
-      );
-      await this.sendTelegramMessage(
-        chatId,
-        'تم تفعيل خدمة تلقي رموز التحقق (OTP) والإشعارات لحسابك بنجاح. ✅',
-      );
-    } else {
-      this.logger.warn(
-        `Received contact ${phoneNumber} but no matching patient found.`,
-      );
-      await this.sendTelegramMessage(
-        chatId,
-        'لم يتم العثور على ملف طبي مرتبط بهذا الرقم. يرجى التأكد من رقم هاتفك أو مراجعة قسم الاستقبال.',
+  private webhookSecret(): string {
+    const secret = process.env.TELEGRAM_WEBHOOK_SECRET;
+    if (!secret || !/^[A-Za-z0-9_-]{32,256}$/.test(secret)) {
+      throw new UnauthorizedException(
+        'Telegram webhook secret is not configured',
       );
     }
+    return secret;
   }
 
   // ===========================================

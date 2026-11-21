@@ -57,6 +57,7 @@ const defaultPermissions = [
 
   // ============ PHARMACY ============
   { code: 'PHARMACY_VIEW', description: 'عرض الصيدلية' },
+  { code: 'pharmacy:prescriptions:replace', description: 'إصدار وصفة بديلة بعد إلغاء الوصفة الأصلية' },
   { code: 'PHARMACY_DISPENSE', description: 'صرف وصفة' },
   { code: 'PHARMACY_STOCK', description: 'إدارة المخزون' },
 
@@ -119,6 +120,7 @@ const rolePermissionsMap: Record<string, string[]> = {
     'quality:manage', 'cdss:manage', 'icu:manage', 'transfers:manage', 'clinical-profile:manage', 'discharge:manage', 'patients:manage', 'note-templates:manage', 'order-sets:manage', 'clinical-pathways:manage', 'claims:update'
   ],
   DOCTOR: [
+    'pharmacy:prescriptions:replace',
     'PATIENT_VIEW', 'PATIENT_EDIT', 'ENCOUNTER_VIEW', 'ENCOUNTER_CREATE', 'ENCOUNTER_CLOSE',
     'INPATIENT_VIEW_MY_PATIENTS', 'INPATIENT_VIEW_NOTES', 'INPATIENT_ADD_NOTE', 'INPATIENT_VIEW_CARE_PLAN',
     'INPATIENT_ADD_ORDER', 'INPATIENT_COMPLETE_ORDER', 'INPATIENT_VIEW_EXECUTIONS', 'INPATIENT_ADMIT', 'INPATIENT_DISCHARGE',

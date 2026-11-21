@@ -22,6 +22,14 @@ import type { JwtPayload } from '../auth/jwt-payload.type';
 import { InvoiceStatus } from '@prisma/client';
 import { PdfService } from '../pdf/pdf.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { PatientDepositService } from './patient-deposit.service';
+import { AuditInTransaction } from '../audit/audit.decorator';
+import {
+  CreatePatientDepositDto,
+  ApplyDepositDto,
+  RefundDepositDto,
+  CreateInterimInvoiceDto,
+} from './dto/patient-deposit.dto';
 
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('billing')
@@ -30,8 +38,10 @@ export class BillingController {
     private readonly billingService: BillingService,
     private readonly pdfService: PdfService,
     private readonly prisma: PrismaService,
+    private readonly patientDepositService: PatientDepositService,
   ) {}
 
+  @Permissions('billing:view', 'billing:manage')
   @Get('encounters/:encounterId')
   async getForEncounter(
     @Param('encounterId', ParseIntPipe) encounterId: number,
@@ -53,6 +63,79 @@ export class BillingController {
       encounterId,
       user.hospitalId,
       user.sub,
+    );
+  }
+
+  @Post('encounters/:encounterId/interim-invoice')
+  @Permissions('billing:manage')
+  async createInterimInvoice(
+    @Param('encounterId', ParseIntPipe) encounterId: number,
+    @Body() dto: CreateInterimInvoiceDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.billingService.createInterimInvoice(
+      encounterId,
+      user.hospitalId,
+      dto,
+      user.sub,
+    );
+  }
+
+  @Post('deposits')
+  @AuditInTransaction()
+  @Permissions('billing:manage')
+  async createDeposit(
+    @Body() dto: CreatePatientDepositDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.patientDepositService.createDeposit(
+      user.hospitalId,
+      user.sub,
+      dto,
+    );
+  }
+
+  @Get('patients/:patientId/deposits')
+  @Permissions('billing:view', 'billing:manage')
+  async getPatientDeposits(
+    @Param('patientId', ParseIntPipe) patientId: number,
+    @Query('encounterId') encounterId: string | undefined,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.patientDepositService.getPatientDepositBalance(
+      user.hospitalId,
+      patientId,
+      encounterId ? Number(encounterId) : undefined,
+    );
+  }
+
+  @Post('invoices/:id/apply-deposit')
+  @AuditInTransaction()
+  @Permissions('billing:manage')
+  async applyDeposit(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: ApplyDepositDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    dto.invoiceId = id;
+    return this.patientDepositService.applyDepositToInvoice(
+      user.hospitalId,
+      user.sub,
+      dto,
+    );
+  }
+
+  @Post('deposits/refund')
+  @AuditInTransaction()
+  @Permissions('billing:manage')
+  async refundDeposit(
+    @Body() dto: RefundDepositDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.patientDepositService.refundDeposit(
+      user.hospitalId,
+      user.sub,
+      dto,
     );
   }
 
@@ -80,6 +163,7 @@ export class BillingController {
     );
   }
 
+  @Permissions('billing:view', 'billing:manage')
   @Get('invoices/:id/print')
   async getInvoicePrint(
     @Param('id', ParseIntPipe) id: number,
@@ -91,6 +175,7 @@ export class BillingController {
     });
   }
 
+  @Permissions('billing:view', 'billing:manage')
   @Get('invoices')
   async listInvoices(
     @CurrentUser() user: JwtPayload,
@@ -110,6 +195,7 @@ export class BillingController {
     });
   }
 
+  @Permissions('billing:view', 'billing:manage')
   @Get('payments/:id/receipt')
   async getPaymentReceipt(
     @Param('id', ParseIntPipe) id: number,

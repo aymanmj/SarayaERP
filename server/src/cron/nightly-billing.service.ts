@@ -1,14 +1,12 @@
 // src/cron/nightly-billing.service.ts
 
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { lockBedEncounter } from '../beds/bed-allocation';
+import { pendingRoomCharges } from '../admission/room-charge';
+import type { RoomAllocation } from '../admission/room-allocation';
 import { PrismaService } from '../prisma/prisma.service';
-import {
-  EncounterType,
-  EncounterStatus,
-  ChargeSource,
-  ServiceType,
-} from '@prisma/client';
+import { EncounterType, EncounterStatus, ChargeSource } from '@prisma/client';
 
 @Injectable()
 export class NightlyBillingService {
@@ -16,385 +14,155 @@ export class NightlyBillingService {
 
   constructor(private prisma: PrismaService) {}
 
-  @Cron(CronExpression.EVERY_DAY_AT_11PM) // Runs every day at 23:00
-  async runDailyBedCharges() {
-    this.logger.log('🔄 Starting Nightly Bed Charges Job (Dynamic Pricing)...');
+  @Cron(CronExpression.EVERY_DAY_AT_11PM)
+  async scheduledBedCharges() {
+    return this.runDailyBedCharges();
+  }
 
-    // 1. جلب الحالات
-    const activeAdmissions = await this.prisma.encounter.findMany({
+  async runDailyBedCharges(hospitalId?: number) {
+    const encounters = await this.prisma.encounter.findMany({
       where: {
+        hospitalId,
         type: EncounterType.IPD,
         status: EncounterStatus.OPEN,
-        bedAssignments: { some: { to: null } },
-      },
-      include: {
-        bedAssignments: {
-          where: { to: null },
-          include: {
-            bed: {
-              include: {
-                // ✅ الآن Prisma ستعرف هذا الحقل بعد تنفيذ الـ migrate
-                ward: { include: { serviceItem: true } },
+        isDeleted: false,
+        OR: [
+          { bedAssignments: { some: { to: null } } },
+          {
+            admission: {
+              is: {
+                admissionStatus: {
+                  in: ['ADMITTED', 'IN_PROGRESS', 'DISCHARGE_PENDING'],
+                },
               },
             },
           },
-        },
+        ],
       },
+      select: { id: true, hospitalId: true },
     });
-
     let count = 0;
+    let deferredCount = 0;
     const errors: string[] = [];
-
-    for (const encounter of activeAdmissions) {
-      // ✅ حل مشكلة TS2339: الآن TypeScript يعرف أن bedAssignments موجودة
-      const assignment = encounter.bedAssignments[0];
-      if (!assignment) continue;
-
-      const ward = assignment.bed.ward;
-      const serviceItem = ward.serviceItem;
-
-      if (!serviceItem) {
-        const msg = `⚠️ Ward "${ward.name}" has no linked Service Item. Cannot bill Encounter #${encounter.id}`;
-        this.logger.warn(msg);
-        errors.push(msg);
-        continue;
+    for (const encounter of encounters) {
+      try {
+        const result = await this.prisma.$transaction(
+          async (tx) => {
+            await lockBedEncounter(tx, encounter.hospitalId, encounter.id);
+            const admission = await tx.admission.findFirst({
+              where: {
+                hospitalId: encounter.hospitalId,
+                encounterId: encounter.id,
+                admissionStatus: {
+                  in: ['ADMITTED', 'IN_PROGRESS', 'DISCHARGE_PENDING'],
+                },
+              },
+            });
+            if (!admission)
+              throw new BadRequestException(
+                'توجد حالة تشغل سريرًا بلا سجل دخول نشط؛ يلزم استكمال بيانات الدخول قبل الفوترة',
+              );
+            const at = new Date();
+            const plan = await pendingRoomCharges(
+              tx,
+              encounter.hospitalId,
+              encounter.id,
+              at,
+            );
+            if (plan.reviewReason)
+              throw new BadRequestException(plan.reviewReason);
+            let posted = 0;
+            let deferred = 0;
+            for (const charge of plan.charges) {
+              // Invoice issuance handles legacy charges. Never freeze a partial/minimum day in a background job.
+              const allocation = charge.roomAllocation as
+                | RoomAllocation
+                | undefined;
+              if (
+                !charge.roomBillingKey ||
+                !allocation ||
+                Date.parse(allocation.periodEnd) > at.getTime()
+              ) {
+                deferred++;
+                continue;
+              }
+              await tx.encounterCharge.create({ data: charge });
+              posted++;
+            }
+            return { posted, deferred };
+          },
+          { maxWait: 10000, timeout: 20000 },
+        );
+        count += result.posted;
+        deferredCount += result.deferred;
+      } catch (error) {
+        const message =
+          'Encounter #' +
+          encounter.id +
+          ': ' +
+          (error instanceof Error ? error.message : 'Room billing failed');
+        errors.push(message);
+        this.logger.warn(message);
       }
-
-      // التحقق من التكرار
-      const todayStart = new Date();
-      todayStart.setHours(0, 0, 0, 0);
-      const todayEnd = new Date();
-      todayEnd.setHours(23, 59, 59, 999);
-
-      const existingCharge = await this.prisma.encounterCharge.findFirst({
-        where: {
-          encounterId: encounter.id,
-          serviceItemId: serviceItem.id,
-          createdAt: { gte: todayStart, lte: todayEnd },
-        },
-      });
-
-      if (existingCharge) continue;
-
-      // إنشاء التكلفة
-      await this.prisma.encounterCharge.create({
-        data: {
-          hospitalId: encounter.hospitalId,
-          encounterId: encounter.id,
-          serviceItemId: serviceItem.id,
-          sourceType: ChargeSource.BED,
-          sourceId: assignment.id,
-          quantity: 1,
-          unitPrice: serviceItem.defaultPrice,
-          totalAmount: serviceItem.defaultPrice,
-        },
-      });
-
-      count++;
     }
-
-    this.logger.log(
-      `✅ Finished. Charged ${count} beds using dynamic ward pricing.`,
-    );
-
-    // 2. ICU Ventilator Charges
-    await this.runVentilatorCharges();
-
-    return { success: true, chargedCount: count, errors };
+    await this.runVentilatorCharges(hospitalId);
+    return {
+      success: errors.length === 0,
+      chargedCount: count,
+      deferredCount,
+      errors,
+    };
   }
 
-  private async runVentilatorCharges() {
-    this.logger.log('🔄 Starting Nightly ICU Ventilator Charges Job...');
-
-    // Find a service item for Ventilator Usage
-    // Note: Assuming there is a service code like 'VENT-USAGE-DAY' or similar.
-    // For safety, we pull a general 'ICU Equipment' or 'Ventilator' service item, or create a placeholder logic if missing.
-    const ventService = await this.prisma.serviceItem.findFirst({
-      where: { code: 'VENT-USAGE-DAY', isActive: true },
-    });
-
-    if (!ventService) {
-      this.logger.warn(
-        '⚠️ No active service item found with code "VENT-USAGE-DAY". Skipping ventilator billing.',
-      );
-      return;
-    }
-
+  private async runVentilatorCharges(hospitalId?: number) {
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
     const todayEnd = new Date();
     todayEnd.setHours(23, 59, 59, 999);
-
-    // Find all patients who had a ventilator log today
-    const flowsheetsWithVent = await this.prisma.iCUFlowsheet.findMany({
+    const flowsheets = await this.prisma.iCUFlowsheet.findMany({
       where: {
+        hospitalId,
         shiftDate: { gte: todayStart, lte: todayEnd },
         entries: { some: { ventilatorLog: { isNot: null } } },
+        encounter: { status: EncounterStatus.OPEN, isDeleted: false },
       },
-      include: {
-        entries: {
-          where: { ventilatorLog: { isNot: null } },
-          include: { ventilatorLog: true },
-        },
-      },
+      select: { hospitalId: true, encounterId: true },
     });
-
-    let count = 0;
-
-    for (const flowsheet of flowsheetsWithVent) {
-      // Check if we already billed them today
-      const existingCharge = await this.prisma.encounterCharge.findFirst({
-        where: {
-          encounterId: flowsheet.encounterId,
-          serviceItemId: ventService.id,
-          createdAt: { gte: todayStart, lte: todayEnd },
-        },
+    for (const flowsheet of flowsheets) {
+      await this.prisma.$transaction(async (tx) => {
+        await lockBedEncounter(tx, flowsheet.hospitalId, flowsheet.encounterId);
+        const service = await tx.serviceItem.findFirst({
+          where: {
+            hospitalId: flowsheet.hospitalId,
+            code: 'VENT-USAGE-DAY',
+            isActive: true,
+            isDeleted: false,
+            isBillable: true,
+          },
+        });
+        if (!service) return;
+        const existing = await tx.encounterCharge.count({
+          where: {
+            hospitalId: flowsheet.hospitalId,
+            encounterId: flowsheet.encounterId,
+            serviceItemId: service.id,
+            sourceType: ChargeSource.MANUAL,
+            createdAt: { gte: todayStart, lte: todayEnd },
+          },
+        });
+        if (existing) return;
+        await tx.encounterCharge.create({
+          data: {
+            hospitalId: flowsheet.hospitalId,
+            encounterId: flowsheet.encounterId,
+            serviceItemId: service.id,
+            sourceType: ChargeSource.MANUAL,
+            quantity: 1,
+            unitPrice: service.defaultPrice,
+            totalAmount: service.defaultPrice,
+          },
+        });
       });
-
-      if (existingCharge) continue;
-
-      // Create charge
-      await this.prisma.encounterCharge.create({
-        data: {
-          hospitalId: flowsheet.hospitalId,
-          encounterId: flowsheet.encounterId,
-          serviceItemId: ventService.id,
-          sourceType: ChargeSource.MANUAL, // or EQUIPMENT if you have it in your enum
-          quantity: 1,
-          unitPrice: ventService.defaultPrice,
-          totalAmount: ventService.defaultPrice,
-        },
-      });
-
-      count++;
     }
-
-    this.logger.log(
-      `✅ Finished. Charged ${count} patients for Ventilator usage.`,
-    );
   }
 }
-
-// // src/cron/nightly-billing.service.ts
-
-// import { Injectable, Logger } from '@nestjs/common';
-// import { PrismaService } from '../prisma/prisma.service';
-// import {
-//   EncounterType,
-//   EncounterStatus,
-//   ChargeSource,
-//   ServiceType,
-// } from '@prisma/client';
-
-// @Injectable()
-// export class NightlyBillingService {
-//   private readonly logger = new Logger(NightlyBillingService.name);
-
-//   constructor(private prisma: PrismaService) {}
-
-//   // تشغيل الوظيفة يدوياً أو عبر الجدولة
-//   // async runDailyBedCharges() {
-//   //   this.logger.log('🔄 Starting Nightly Bed Charges Job...');
-
-//   //   // 1. البحث عن كل حالات التنويم (IPD) المفتوحة والتي لديها سرير مخصص حالياً
-//   //   const activeAdmissions = await this.prisma.encounter.findMany({
-//   //     where: {
-//   //       type: EncounterType.IPD,
-//   //       status: EncounterStatus.OPEN,
-//   //       // شرط: يوجد حجز سرير لم ينتهِ بعد (to: null)
-//   //       bedAssignments: {
-//   //         some: {
-//   //           to: null,
-//   //         },
-//   //       },
-//   //     },
-//   //     include: {
-//   //       bedAssignments: {
-//   //         where: { to: null },
-//   //         include: {
-//   //           bed: {
-//   //             include: {
-//   //               ward: true, // نحتاج معلومات العنبر لتحديد السعر
-//   //             },
-//   //           },
-//   //         },
-//   //       },
-//   //     },
-//   //   });
-
-//   //   let count = 0;
-//   //   const errors: string[] = [];
-
-//   //   for (const encounter of activeAdmissions) {
-//   //     // نأخذ آخر سرير مخصص للمريض
-//   //     const assignment = encounter.bedAssignments[0];
-//   //     if (!assignment) continue;
-
-//   //     const hospitalId = encounter.hospitalId;
-//   //     const wardType = assignment.bed.ward.type; // مثال: "General", "ICU", "Private"
-
-//   //     // 2. تحديد كود الخدمة بناءً على نوع العنبر
-//   //     // (يجب أن تتطابق هذه الأكواد مع ما تم زرعه في seed.services.ts)
-//   //     let serviceCode = 'BED-GEN-DAY'; // الافتراضي: سرير عام
-
-//   //     if (wardType && wardType.toUpperCase().includes('ICU')) {
-//   //       serviceCode = 'BED-ICU-DAY';
-//   //     } else if (wardType && wardType.toUpperCase().includes('NICU')) {
-//   //       serviceCode = 'BED-NICU-DAY';
-//   //     } else if (wardType && wardType.toUpperCase().includes('PRIVATE')) {
-//   //       serviceCode = 'BED-PRIV-DAY';
-//   //     } else if (wardType && wardType.toUpperCase().includes('SEMI')) {
-//   //       serviceCode = 'BED-SEMI-DAY';
-//   //     }
-
-//   //     // جلب تفاصيل الخدمة والسعر
-//   //     const serviceItem = await this.prisma.serviceItem.findFirst({
-//   //       where: {
-//   //         hospitalId,
-//   //         code: serviceCode,
-//   //         type: ServiceType.BED,
-//   //         isActive: true,
-//   //       },
-//   //     });
-
-//   //     if (!serviceItem) {
-//   //       const msg = `⚠️ No Bed Service found for code ${serviceCode} in hospital ${hospitalId}`;
-//   //       this.logger.warn(msg);
-//   //       errors.push(msg);
-//   //       continue;
-//   //     }
-
-//   //     // 3. التحقق من التكرار: هل تم الخصم لهذا اليوم بالفعل؟
-//   //     // نحدد بداية ونهاية اليوم الحالي
-//   //     const todayStart = new Date();
-//   //     todayStart.setHours(0, 0, 0, 0);
-//   //     const todayEnd = new Date();
-//   //     todayEnd.setHours(23, 59, 59, 999);
-
-//   //     const existingCharge = await this.prisma.encounterCharge.findFirst({
-//   //       where: {
-//   //         encounterId: encounter.id,
-//   //         serviceItemId: serviceItem.id,
-//   //         sourceType: ChargeSource.BED,
-//   //         createdAt: {
-//   //           gte: todayStart,
-//   //           lte: todayEnd,
-//   //         },
-//   //       },
-//   //     });
-
-//   //     if (existingCharge) {
-//   //       // تم الاحتساب مسبقاً لهذا اليوم، نتجاوز
-//   //       continue;
-//   //     }
-
-//   //     // 4. إنشاء بند الفوترة (Charge)
-//   //     await this.prisma.encounterCharge.create({
-//   //       data: {
-//   //         hospitalId,
-//   //         encounterId: encounter.id,
-//   //         serviceItemId: serviceItem.id,
-//   //         sourceType: ChargeSource.BED,
-//   //         sourceId: assignment.id, // نربطه بid حجز السرير
-//   //         quantity: 1,
-//   //         unitPrice: serviceItem.defaultPrice,
-//   //         totalAmount: serviceItem.defaultPrice, // 1 * price
-//   //       },
-//   //     });
-
-//   //     count++;
-//   //   }
-
-//   //   const message = `✅ Nightly Job Finished. Charged ${count} beds.`;
-//   //   this.logger.log(message);
-
-//   //   return {
-//   //     success: true,
-//   //     chargedCount: count,
-//   //     scannedCount: activeAdmissions.length,
-//   //     errors,
-//   //   };
-//   // }
-
-//   async runDailyBedCharges() {
-//     this.logger.log('🔄 Starting Nightly Bed Charges Job (Dynamic Pricing)...');
-
-//     const activeAdmissions = await this.prisma.encounter.findMany({
-//       where: {
-//         type: EncounterType.IPD,
-//         status: EncounterStatus.OPEN,
-//         bedAssignments: { some: { to: null } },
-//       },
-//       include: {
-//         bedAssignments: {
-//           where: { to: null },
-//           include: {
-//             bed: {
-//               include: {
-//                 // ✅ نضمن جلب خدمة التسعير المرتبطة بالعنبر
-//                 ward: { include: { serviceItem: true } },
-//               },
-//             },
-//           },
-//         },
-//       },
-//     });
-
-//     let count = 0;
-//     const errors: string[] = [];
-
-//     for (const encounter of activeAdmissions) {
-//       const assignment = encounter.bedAssignments[0];
-//       if (!assignment) continue;
-
-//       const ward = assignment.bed.ward;
-//       const serviceItem = ward.serviceItem; // ✅ السعر يأتي من العنبر مباشرة
-
-//       if (!serviceItem) {
-//         // حالة خطأ: العنبر ليس له تسعير
-//         const msg = `⚠️ Ward "${ward.name}" has no linked Service Item. Cannot bill Encounter #${encounter.id}`;
-//         this.logger.warn(msg);
-//         errors.push(msg);
-//         continue;
-//       }
-
-//       // التحقق من التكرار لليوم الحالي
-//       const todayStart = new Date();
-//       todayStart.setHours(0, 0, 0, 0);
-//       const todayEnd = new Date();
-//       todayEnd.setHours(23, 59, 59, 999);
-
-//       const existingCharge = await this.prisma.encounterCharge.findFirst({
-//         where: {
-//           encounterId: encounter.id,
-//           serviceItemId: serviceItem.id, // نستخدم نفس الخدمة
-//           createdAt: { gte: todayStart, lte: todayEnd },
-//         },
-//       });
-
-//       if (existingCharge) continue;
-
-//       // إنشاء التكلفة
-//       await this.prisma.encounterCharge.create({
-//         data: {
-//           hospitalId: encounter.hospitalId,
-//           encounterId: encounter.id,
-//           serviceItemId: serviceItem.id,
-//           sourceType: ChargeSource.BED,
-//           sourceId: assignment.id,
-//           quantity: 1,
-//           unitPrice: serviceItem.defaultPrice,
-//           totalAmount: serviceItem.defaultPrice,
-//           // يمكن إضافة note: `Nightly Charge: ${ward.name}`
-//         },
-//       });
-
-//       count++;
-//     }
-
-//     this.logger.log(
-//       `✅ Finished. Charged ${count} beds using dynamic ward pricing.`,
-//     );
-//     return { success: true, chargedCount: count, errors };
-//   }
-// }

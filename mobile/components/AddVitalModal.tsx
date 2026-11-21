@@ -1,4 +1,7 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
+import * as Crypto from 'expo-crypto';
+import { isAxiosError } from 'axios';
+import { useAuth } from '../context/AuthContext';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, TextInput, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../services/api';
@@ -33,6 +36,10 @@ interface AddVitalModalProps {
 
 const AddVitalModal: React.FC<AddVitalModalProps> = ({ visible, onClose, encounterId, onSuccess }) => {
   const [loading, setLoading] = useState(false);
+  const { user } = useAuth();
+  const scope = `${user?.hospitalId}:${user?.id}:${encounterId}`;
+  const pending = useRef<{ scope: string; body: Record<string, number | string> } | null>(null);
+  const flight = useRef(false);
   const queryClient = useQueryClient();
   const { control, handleSubmit, reset, formState: { errors } } = useForm<VitalFormValues>({
     resolver: zodResolver(vitalSchema),
@@ -42,9 +49,16 @@ const AddVitalModal: React.FC<AddVitalModalProps> = ({ visible, onClose, encount
   });
 
   const onSubmit = async (data: VitalFormValues) => {
+    if (flight.current || !user?.id) return;
+    const previous = pending.current;
+    if (previous && previous.scope !== scope) {
+      Alert.alert('قراءة غير محسومة', 'تخص المحاولة السابقة موظفًا أو حالة أخرى.');
+      return;
+    }
+    flight.current = true;
     setLoading(true);
     try {
-      const payload: any = {};
+      const payload: Record<string, string | number> = {};
       
       if (data.temperature) payload.temperature = parseFloat(data.temperature);
       if (data.bpSystolic) payload.bpSystolic = parseInt(data.bpSystolic);
@@ -56,37 +70,43 @@ const AddVitalModal: React.FC<AddVitalModalProps> = ({ visible, onClose, encount
       if (data.height) payload.height = parseFloat(data.height);
       if (data.note) payload.note = data.note;
 
-      if (Object.keys(payload).length === 0) {
+      if (!previous && Object.keys(payload).length === 0) {
         Alert.alert('تنبيه', 'يجب إدخال قيمة واحدة على الأقل');
         setLoading(false);
         return;
       }
 
-      // Optimistic Update
-      const tempVital = {
-        id: Date.now(),
-        ...payload,
-        createdAt: new Date().toISOString(),
-        createdBy: { id: 0, fullName: "You (Pending)" }
-      };
-
-      queryClient.setQueryData(['vitals', encounterId], (oldData: any) => {
-        if (!Array.isArray(oldData)) return [tempVital];
-        return [tempVital, ...oldData];
-      });
-
-      await api.createVitals(encounterId, payload);
+      const reading = previous ?? { scope, body: { ...payload, requestId: Crypto.randomUUID() } };
+      pending.current = reading;
+      const saved = await api.createVitals(encounterId, reading.body, scope);
+      pending.current = null;
+      void queryClient.invalidateQueries({ queryKey: ['vitals', encounterId] });
       
       reset();
       onSuccess();
       onClose();
-      Alert.alert('نجاح', 'تم تسجيل العلامات الحيوية بنجاح');
-    } catch (error: any) {
-      console.error('Failed to create vitals:', error);
-      Alert.alert('خطأ', error.message || 'فشل تسجيل العلامات الحيوية');
+      Alert.alert('العلامات الحيوية', saved?.offline
+        ? 'حُفظت القراءة على الجهاز وتنتظر المزامنة.'
+        : 'تم تسجيل العلامات الحيوية.');
+    } catch (error: unknown) {
+      if (!previous && isAxiosError(error) && error.response &&
+        [400, 401, 403, 404, 409, 422].includes(error.response.status)) {
+        pending.current = null;
+      }
+      Alert.alert('الحفظ', pending.current
+        ? 'لم يتأكد الحفظ. أعد إرسال القراءة الأصلية.'
+        : 'تعذر حفظ القراءة. راجع البيانات وحاول مرة أخرى.');
     } finally {
+      flight.current = false;
       setLoading(false);
     }
+  };
+  const handleClose = () => {
+    if (pending.current || flight.current) {
+      Alert.alert('قراءة غير محسومة', 'أعد إرسال القراءة الأصلية لتأكيد الحفظ قبل الإغلاق.');
+      return;
+    }
+    onClose();
   };
 
   return (
@@ -94,12 +114,12 @@ const AddVitalModal: React.FC<AddVitalModalProps> = ({ visible, onClose, encount
       visible={visible}
       animationType="slide"
       transparent={true}
-      onRequestClose={onClose}
+      onRequestClose={handleClose}
     >
       <View style={styles.modalOverlay}>
         <View style={styles.modalContent}>
           <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={onClose}>
+            <TouchableOpacity onPress={handleClose}>
               <Ionicons name="close" size={24} color="#64748b" />
             </TouchableOpacity>
             <Text style={styles.modalTitle}>تسجيل علامات حيوية</Text>

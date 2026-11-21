@@ -16,6 +16,9 @@ type PreAuthorization = {
   serviceItemId: number | null;
   authCode: string | null;
   status: string;
+  isPrescriptionRequest?: boolean;
+  decisionReason?: string | null;
+  prescription?: { id: number; encounterId: number; status: string; prepaidInvoiceId: number | null } | null;
   requestedAmount: number | null;
   approvedAmount: number | null;
   expiresAt: string | null;
@@ -39,7 +42,16 @@ type PreAuthorization = {
   serviceItem?: {
     id: number;
     name: string;
+    type: string;
   };
+};
+
+type PreAuthService = { id: number; name: string; code: string | null };
+type CoverageBalance = {
+  policyId: number;
+  cap: string | null;
+  remainingAmount: string | null;
+  requiresReconciliation: boolean;
 };
 
 export default function PreAuthPage() {
@@ -58,11 +70,16 @@ export default function PreAuthPage() {
    
   const [foundPatient, setFoundPatient] = useState<any>(null);
   const [requestedAmount, setRequestedAmount] = useState("");
+  const [services, setServices] = useState<PreAuthService[]>([]);
+  const [serviceItemId, setServiceItemId] = useState("");
+  const [loadingServices, setLoadingServices] = useState(false);
+  const [coverageBalance, setCoverageBalance] = useState<CoverageBalance | null>(null);
   const [requestNotes, setRequestNotes] = useState("");
 
   // Action State (Approve/Reject)
   const [actionType, setActionType] = useState<"APPROVED" | "REJECTED">("APPROVED");
   const [authCode, setAuthCode] = useState("");
+  const [decisionReason, setDecisionReason] = useState("");
   const [approvedAmount, setApprovedAmount] = useState("");
   const [expiresAt, setExpiresAt] = useState("");
 
@@ -90,6 +107,37 @@ export default function PreAuthPage() {
   useEffect(() => {
     loadData();
   }, []);
+
+  const patientIdForBalance = foundPatient?.id;
+  useEffect(() => {
+    setCoverageBalance(null);
+    if (!showAddModal || !patientIdForBalance) return;
+    const controller = new AbortController();
+    apiClient.get<CoverageBalance | null>(`/insurance/coverage-balance/${patientIdForBalance}`, {
+      signal: controller.signal,
+    }).then(({ data }) => {
+      if (!controller.signal.aborted) setCoverageBalance(data);
+    }).catch(() => {
+      if (!controller.signal.aborted)
+        toast.error(t("preAuth.coverage.loadFailed", "تعذر قراءة رصيد التغطية."));
+    });
+    return () => controller.abort();
+  }, [showAddModal, patientIdForBalance, t]);
+
+  useEffect(() => {
+    if (!showAddModal) return;
+    let active = true;
+    setLoadingServices(true);
+    setServices([]);
+    setServiceItemId("");
+    apiClient.get<PreAuthService[]>("/insurance/pre-auth/services")
+      .then(({ data }) => { if (active) setServices(data); })
+      .catch(() => {
+        if (active) toast.error(t("preAuth.add.serviceLoadFailed", "تعذر تحميل خدمات الموافقة."));
+      })
+      .finally(() => { if (active) setLoadingServices(false); });
+    return () => { active = false; };
+  }, [showAddModal, t]);
 
   const searchPatient = async () => {
     if (!searchMrn) return;
@@ -120,7 +168,8 @@ export default function PreAuthPage() {
       await apiClient.post("/insurance/pre-auth", {
         patientId: foundPatient.id,
         policyId: foundPatient.insurancePolicy.id,
-        requestedAmount: requestedAmount ? Number(requestedAmount) : undefined,
+        serviceItemId: serviceItemId ? Number(serviceItemId) : undefined,
+        requestedAmount: requestedAmount || undefined,
         notes: requestNotes,
       });
       toast.success(t("preAuth.toast.createdSuccess", "تم تسجيل طلب الموافقة بنجاح"));
@@ -139,6 +188,7 @@ export default function PreAuthPage() {
     setSelectedAuth(auth);
     setActionType(type);
     setAuthCode(auth.authCode || "");
+    setDecisionReason("");
     setApprovedAmount(auth.approvedAmount ? String(auth.approvedAmount) : "");
     // Default expiry 30 days from now if not set
     const defaultExpiry = new Date();
@@ -239,23 +289,33 @@ export default function PreAuthPage() {
 
   const handleActionSubmit = async () => {
     if (!selectedAuth) return;
-    if (actionType === "APPROVED" && !authCode) {
+    if (selectedAuth.isPrescriptionRequest && decisionReason.trim().length < 5) {
+      toast.warning(t("preAuth.prescription.reasonRequired", "أدخل سبب القرار بخمسة أحرف على الأقل."));
+      return;
+    }
+    if (actionType === "APPROVED" && !authCode.trim()) {
       toast.warning(t("preAuth.toast.authCodeRequired", "رقم الموافقة (Auth Code) إجباري عند القبول"));
+      return;
+    }
+    if (actionType === "APPROVED" && selectedAuth.serviceItem?.type === "PHARMACY" && !approvedAmount) {
+      toast.warning(t("preAuth.action.pharmacyAmountRequired", "أدخل المبلغ المعتمد الذي يغطي حصة التأمين."));
       return;
     }
 
     try {
       await apiClient.patch(`/insurance/pre-auth/${selectedAuth.id}`, {
         status: actionType,
-        authCode: actionType === "APPROVED" ? authCode : null,
-        approvedAmount: actionType === "APPROVED" && approvedAmount ? Number(approvedAmount) : null,
+        authCode: actionType === "APPROVED" ? authCode.trim() : null,
+        approvedAmount: actionType === "APPROVED" && approvedAmount ? approvedAmount : null,
         expiresAt: actionType === "APPROVED" && expiresAt ? new Date(expiresAt).toISOString() : null,
+        ...(selectedAuth.isPrescriptionRequest ? { decisionReason: decisionReason.trim() } : {}),
       });
       toast.success(t("preAuth.toast.updatedSuccess", "تم تحديث حالة الموافقة بنجاح"));
       setShowActionModal(false);
       loadData();
-    } catch {
-      toast.error(t("preAuth.toast.updateFailed", "فشل التحديث"));
+    } catch (error) {
+      const message = (error as { response?: { data?: { message?: unknown } } }).response?.data?.message;
+      toast.error(typeof message === "string" ? message : t("preAuth.toast.updateFailed", "فشل التحديث"));
     }
   };
 
@@ -325,6 +385,14 @@ export default function PreAuthPage() {
                   <td className="px-4 py-3 text-slate-300">
                     <div className="font-bold text-sky-400">{auth.policy.provider.name}</div>
                     <div className="text-xs">{auth.policy.name}</div>
+                    {auth.prescription && (
+                      <div className="text-xs text-slate-400">
+                        {t("preAuth.prescription.reference", { id: auth.prescription.id })}
+                        {auth.prescription.prepaidInvoiceId != null && (
+                          <span className="ms-2">{t("preAuth.prescription.invoice", { id: auth.prescription.prepaidInvoiceId })}</span>
+                        )}
+                      </div>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-orange-300 font-bold">
                     {auth.requestedAmount ? `${auth.requestedAmount} دينار` : "—"}
@@ -341,6 +409,11 @@ export default function PreAuthPage() {
                     >
                       {auth.status === "PENDING" ? t("preAuth.status.pending", "قيد الانتظار") : auth.status === "APPROVED" ? t("preAuth.status.approved", "موافق عليه") : t("preAuth.status.rejected", "مرفوض")}
                     </span>
+                    {auth.decisionReason && <p className="mt-1 text-xs text-slate-400">{auth.decisionReason}</p>}
+                    {auth.isPrescriptionRequest && auth.status === "APPROVED" && auth.expiresAt &&
+                      new Date(auth.expiresAt).getTime() <= Date.now() && (
+                        <p className="mt-1 text-xs text-amber-300">{t("preAuth.prescription.expired")}</p>
+                      )}
                   </td>
                   <td className="px-4 py-3">
                     {auth.authCode ? (
@@ -352,7 +425,7 @@ export default function PreAuthPage() {
                     )}
                   </td>
                   <td className="px-4 py-3 text-center">
-                    {auth.status === "PENDING" && (
+                    {(auth.status === "PENDING" || (auth.status === "REJECTED" && auth.prescription?.status === "DRAFT")) && (
                       <div className="flex items-center justify-center gap-2 flex-wrap">
                         <button
                           onClick={() => openActionModal(auth, "APPROVED")}
@@ -360,20 +433,20 @@ export default function PreAuthPage() {
                         >
                           {t("common.confirm", "تأكيد")}
                         </button>
-                        <button
+                        {auth.status === "PENDING" && <button
                           onClick={() => openActionModal(auth, "REJECTED")}
                           className="px-3 py-1 bg-rose-600/20 hover:bg-rose-600/40 text-rose-400 border border-rose-500/30 rounded text-xs transition"
                         >
                           رفض
-                        </button>
-                        <FeatureGuard feature="INSURANCE_INTEGRATION">
+                        </button>}
+                        {!auth.isPrescriptionRequest && <FeatureGuard feature="INSURANCE_INTEGRATION">
                           <button
                             onClick={() => openNphiesModal(auth)}
                             className="px-3 py-1 bg-violet-600/20 hover:bg-violet-600/40 text-violet-400 border border-violet-500/30 rounded text-xs transition flex items-center gap-1"
                           >
                             <Upload className="w-3 h-3" /> {t("preAuth.btn.nphies", "نفيس")}
                           </button>
-                        </FeatureGuard>
+                        </FeatureGuard>}
                       </div>
                     )}
                   </td>
@@ -424,6 +497,34 @@ export default function PreAuthPage() {
                 </div>
               )}
 
+              {coverageBalance?.cap != null && (
+                <p className="text-sm text-slate-300">
+                  {coverageBalance.requiresReconciliation
+                    ? t("preAuth.coverage.reconciliation", "تحتاج الفواتير السابقة إلى مطابقة قبل عرض الرصيد.")
+                    : <>
+                        {t("preAuth.coverage.remaining", "رصيد التغطية المتبقي")}{" "}
+                        <bdi>{coverageBalance.remainingAmount}</bdi>{" "}
+                        {t("preAuth.coverage.currency", "د.ل.")}
+                      </>}
+                </p>
+              )}
+
+              <label className="block text-xs text-slate-400">
+                {t("preAuth.add.serviceLabel", "الخدمة المطلوب اعتمادها")}
+                <select
+                  className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm"
+                  value={serviceItemId}
+                  disabled={loadingServices}
+                  onChange={(event) => setServiceItemId(event.target.value)}
+                >
+                  <option value="">{t("preAuth.add.generalRequest", "طلب عام")}</option>
+                  {services.map((service) => (
+                    <option key={service.id} value={service.id}>
+                      {service.name}{service.code ? ` · ${service.code}` : ""}
+                    </option>
+                  ))}
+                </select>
+              </label>
               <div>
                 <label className="block text-xs text-slate-400 mb-1">{t("preAuth.add.requestedAmountLabel", "المبلغ المطلوب (اختياري)")}</label>
                 <input
@@ -481,12 +582,16 @@ export default function PreAuthPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs text-slate-400 mb-1">{t("preAuth.action.approvedAmountLabel", "المبلغ الموافق عليه (اختياري)")}</label>
+                    <label className="block text-xs text-slate-400 mb-1">
+                      {selectedAuth.isPrescriptionRequest || selectedAuth.serviceItem?.type === "PHARMACY"
+                        ? t("preAuth.prescription.approvedAmount", "المبلغ الذي وافق التأمين على تغطيته")
+                        : t("preAuth.action.approvedAmountLabel", "المبلغ الموافق عليه (اختياري)")}
+                    </label>
                     <input
                       type="number"
+                      step="0.001"
                       value={approvedAmount}
                       onChange={(e) => setApprovedAmount(e.target.value)}
-                      placeholder="اختياري"
                       className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:border-emerald-500 outline-none"
                     />
                   </div>
@@ -503,10 +608,16 @@ export default function PreAuthPage() {
               </div>
             )}
 
-            {actionType === "REJECTED" && (
-              <p className="text-sm text-slate-300">
-                t("preAuth.action.rejectWarning", "سيتم تحديث حالة الطلب إلى "مرفوض". يمكنك إضافة ملاحظة إضافية للسبب من واجهة الملاحظات لاحقاً إذا احتجت لذلك. هل أنت متأكد من الرفض؟")
-              </p>
+            {selectedAuth.isPrescriptionRequest && (
+              <label className="mt-3 block text-sm text-slate-300">
+                {t("preAuth.prescription.reason", "سبب القرار")}
+                <textarea
+                  value={decisionReason}
+                  maxLength={1000}
+                  onChange={(event) => setDecisionReason(event.target.value)}
+                  className="mt-1 block w-full rounded-lg border border-slate-700 bg-slate-900 p-2"
+                />
+              </label>
             )}
 
             <div className="flex justify-end gap-3 mt-6">

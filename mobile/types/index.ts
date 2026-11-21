@@ -157,6 +157,8 @@ export interface CreateNotePayload {
 
 export interface CreateVitalsPayload {
   encounterId: number;
+  requestId?: string;
+  actorScope?: string;
   temperature?: number;
   bpSystolic?: number;
   bpDiastolic?: number;

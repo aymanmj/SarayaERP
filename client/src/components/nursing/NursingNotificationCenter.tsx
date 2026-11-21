@@ -19,6 +19,12 @@ interface NotificationCenterProps {
   className?: string;
 }
 
+const medicationStatusLabels: Record<string, string> = {
+  NOT_GIVEN: 'لم يُعطَ الدواء',
+  REFUSED: 'رفض المريض الدواء',
+  HELD: 'عُلّق إعطاء الدواء',
+};
+
 export function NursingNotificationCenter({ className = '' }: NotificationCenterProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [showCriticalOnly, setShowCriticalOnly] = useState(false);
@@ -44,7 +50,7 @@ export function NursingNotificationCenter({ className = '' }: NotificationCenter
 
   const allNotifications = [
     ...alerts.map(alert => ({
-      id: `alert-${alert.encounterId}-${alert.timestamp}`,
+      id: `alert-${alert.vitalSignId ?? `${alert.encounterId}-${alert.timestamp}`}`,
       type: 'alert' as const,
       priority: alert.type,
       title: `تنبيه مريض: ${alert.patientName}`,
@@ -53,18 +59,18 @@ export function NursingNotificationCenter({ className = '' }: NotificationCenter
       encounterId: alert.encounterId,
     })),
     ...medicationUpdates.map(update => ({
-      id: `med-${update.encounterId}-${update.timestamp}`,
+      id: `med-${update.administrationId ?? `${update.encounterId}-${update.timestamp}`}`,
       type: 'medication' as const,
-      priority: update.status === 'OVERDUE' ? 'CRITICAL' : update.status === 'ADMINISTERED' ? 'INFO' : 'WARNING',
+      priority: update.status === 'OVERDUE' ? 'CRITICAL' : update.type === 'administered' ? 'INFO' : 'WARNING',
       title: `تحديث دواء: ${update.medication}`,
-      message: update.administeredBy 
+      message: update.type === 'administered' && update.administeredBy
         ? `تم الإعطاء بواسطة: ${update.administeredBy}`
-        : `الحالة: ${update.status}`,
+        : medicationStatusLabels[update.status] ?? `الحالة: ${update.status}`,
       timestamp: update.timestamp,
       encounterId: update.encounterId,
     })),
     ...vitalsUpdates.map(update => ({
-      id: `vitals-${update.encounterId}-${update.timestamp}`,
+      id: `vitals-${update.vitalSignId ?? `${update.encounterId}-${update.timestamp}`}`,
       type: 'vitals' as const,
       priority: 'WARNING' as const,
       title: `تحديث العلامات الحيوية`,

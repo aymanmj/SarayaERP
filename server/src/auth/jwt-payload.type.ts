@@ -1,4 +1,8 @@
 export interface JwtPayload {
+  sid?: string;
+  branchVersion?: number;
+  authVersion?: number;
+  exp?: number;
   sub: number; // userId
   username: string;
   hospitalId: number;

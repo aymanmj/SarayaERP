@@ -22,13 +22,18 @@ export class TriageController {
   constructor(private readonly triageService: TriageService) {}
 
   @Get('waiting')
-  @Permissions('triage:view')
+  @Permissions(
+    'triage:view',
+    'nursing:triage:view',
+    'triage:manage',
+    'nursing:triage:manage',
+  )
   async getWaiting(@Req() req: any) {
     return this.triageService.getWaitingList(req.user.hospitalId);
   }
 
   @Post('assess')
-  @Permissions('triage:view')
+  @Permissions('triage:manage', 'nursing:triage:manage')
   async createAssessment(@Req() req: any, @Body() body: any) {
     return this.triageService.createAssessment({
       hospitalId: req.user.hospitalId,
@@ -41,7 +46,12 @@ export class TriageController {
     });
   }
   @Post('suggest')
-  @Permissions('triage:view')
+  @Permissions(
+    'triage:view',
+    'nursing:triage:view',
+    'triage:manage',
+    'nursing:triage:manage',
+  )
   suggestLevel(@Body() body: any) {
     return {
       suggestedLevel: this.triageService.suggestTriageLevel(body.vitals),

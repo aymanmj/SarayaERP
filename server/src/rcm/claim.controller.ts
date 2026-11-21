@@ -1,3 +1,5 @@
+import { ClaimPaymentDto } from './claim-payment.dto';
+import type { JwtPayload } from '../auth/jwt-payload.type';
 import {
   Controller,
   Get,
@@ -59,7 +61,7 @@ export class ClaimController {
   @Post('claims')
   @Permissions('claims:create')
   async createClaim(
-    @CurrentUser() user: any,
+    @CurrentUser() user: JwtPayload,
     @Body() data: { invoiceId: number },
   ) {
     return this.claimService.createClaim(user.hospitalId, data.invoiceId);
@@ -76,7 +78,7 @@ export class ClaimController {
   @Post('claims/batch')
   @Permissions('claims:create')
   async createBatchClaims(
-    @CurrentUser() user: any,
+    @CurrentUser() user: JwtPayload,
     @Body() data: { invoiceIds: number[] },
   ) {
     return this.claimService.createBatchClaims(
@@ -98,7 +100,7 @@ export class ClaimController {
   @Get('claims')
   @Permissions('claims:read')
   async findClaims(
-    @CurrentUser() user: any,
+    @CurrentUser() user: JwtPayload,
     @Query('status') status?: ClaimStatus,
     @Query('fromDate') fromDate?: string,
     @Query('toDate') toDate?: string,
@@ -125,8 +127,11 @@ export class ClaimController {
   })
   @Get('claims/:id')
   @Permissions('claims:read')
-  async getClaimById(@Param('id', ParseIntPipe) id: number) {
-    return this.claimService.getClaimById(id);
+  async getClaimById(
+    @CurrentUser() user: JwtPayload,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.claimService.getClaimById(id, user?.hospitalId);
   }
 
   // ============================================
@@ -144,8 +149,11 @@ export class ClaimController {
   })
   @Post('claims/:id/scrub')
   @Permissions('claims:update')
-  async scrubClaim(@Param('id', ParseIntPipe) id: number) {
-    return this.claimService.scrubClaim(id);
+  async scrubClaim(
+    @CurrentUser() user: JwtPayload,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.claimService.scrubClaim(id, user?.hospitalId);
   }
 
   // ============================================
@@ -165,7 +173,7 @@ export class ClaimController {
   @Permissions('claims:update')
   async updateStatus(
     @Param('id', ParseIntPipe) id: number,
-    @CurrentUser() user: any,
+    @CurrentUser() user: JwtPayload,
     @Body() data: { status: ClaimStatus; notes?: string },
   ) {
     return this.claimService.updateClaimStatus(
@@ -173,6 +181,7 @@ export class ClaimController {
       data.status,
       data.notes,
       user.sub,
+      user?.hospitalId,
     );
   }
 
@@ -185,15 +194,11 @@ export class ClaimController {
   @Post('claims/:id/payment')
   @Permissions('claims:update')
   async postPayment(
+    @CurrentUser() user: JwtPayload,
     @Param('id', ParseIntPipe) id: number,
-    @Body()
-    data: {
-      paidAmount: number;
-      adjustmentAmount?: number;
-      adjustmentReason?: string;
-    },
+    @Body() data: ClaimPaymentDto,
   ) {
-    return this.claimService.postPayment(id, data);
+    return this.claimService.postPayment(id, data, user.hospitalId, user.sub);
   }
 
   /**
@@ -205,6 +210,7 @@ export class ClaimController {
   @Post('claims/:id/deny')
   @Permissions('claims:update')
   async denyClaim(
+    @CurrentUser() user: JwtPayload,
     @Param('id', ParseIntPipe) id: number,
     @Body()
     data: {
@@ -213,12 +219,16 @@ export class ClaimController {
       appealDeadline?: string;
     },
   ) {
-    return this.claimService.denyClaim(id, {
-      ...data,
-      appealDeadline: data.appealDeadline
-        ? new Date(data.appealDeadline)
-        : undefined,
-    });
+    return this.claimService.denyClaim(
+      id,
+      {
+        ...data,
+        appealDeadline: data.appealDeadline
+          ? new Date(data.appealDeadline)
+          : undefined,
+      },
+      user?.hospitalId,
+    );
   }
 
   /**
@@ -231,10 +241,15 @@ export class ClaimController {
   @Permissions('claims:update')
   async appealClaim(
     @Param('id', ParseIntPipe) id: number,
-    @CurrentUser() user: any,
+    @CurrentUser() user: JwtPayload,
     @Body() data: { notes: string },
   ) {
-    return this.claimService.appealClaim(id, data.notes, user.sub);
+    return this.claimService.appealClaim(
+      id,
+      data.notes,
+      user.sub,
+      user?.hospitalId,
+    );
   }
 
   // ============================================
@@ -251,7 +266,7 @@ export class ClaimController {
   })
   @Get('dashboard')
   @Permissions('claims:read')
-  async getDashboard(@CurrentUser() user: any) {
+  async getDashboard(@CurrentUser() user: JwtPayload) {
     return this.claimService.getClaimsDashboard(user.hospitalId);
   }
 
@@ -266,7 +281,7 @@ export class ClaimController {
   @Get('denials/analytics')
   @Permissions('claims:read')
   async getDenialAnalytics(
-    @CurrentUser() user: any,
+    @CurrentUser() user: JwtPayload,
     @Query('fromDate') fromDate?: string,
     @Query('toDate') toDate?: string,
   ) {
@@ -289,7 +304,7 @@ export class ClaimController {
   @Get('denials/deadlines')
   @Permissions('claims:read')
   async getUpcomingDeadlines(
-    @CurrentUser() user: any,
+    @CurrentUser() user: JwtPayload,
     @Query('days') days?: string,
   ) {
     return this.denialService.getUpcomingAppealDeadlines(
@@ -309,7 +324,7 @@ export class ClaimController {
   @Get('kpi/first-pass-rate')
   @Permissions('claims:read')
   async getFirstPassRate(
-    @CurrentUser() user: any,
+    @CurrentUser() user: JwtPayload,
     @Query('fromDate') fromDate?: string,
     @Query('toDate') toDate?: string,
   ) {

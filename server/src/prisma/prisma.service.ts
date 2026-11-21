@@ -13,6 +13,7 @@ import { ClsService } from 'nestjs-cls';
 import { ConfigService } from '@nestjs/config';
 import { EncryptionService } from '../common/encryption/encryption.service';
 import { auditExtension } from './audit.extension';
+import { drainPendingAuditWrites } from '../audit/audit-chain';
 
 @Injectable()
 export class PrismaService
@@ -27,6 +28,7 @@ export class PrismaService
     private readonly encryptionService: EncryptionService,
   ) {
     super({
+      omit: { vitalSign: { requestKey: true, requestFingerprint: true } },
       datasources: {
         db: {
           url: config.get<string>('DATABASE_URL'),
@@ -78,6 +80,7 @@ export class PrismaService
   }
 
   async onModuleDestroy() {
+    await drainPendingAuditWrites();
     // تنظيف التايمر
     if (this.keepAliveTimer) {
       clearInterval(this.keepAliveTimer);

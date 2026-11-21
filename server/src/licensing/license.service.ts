@@ -1,6 +1,6 @@
 // server/src/licensing/license.service.ts
 // Professional Licensing System 4.0
-// Docker-safe • Host-bound • Smart Renewal • Grace Period Fix
+// Host-bound signed licenses; the issuer authorizes the effective expiry.
 
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import * as jwt from 'jsonwebtoken';
@@ -45,6 +45,20 @@ export interface RenewalResult {
   message: string;
   newExpiryDate?: string;
   bonusDays?: number;
+}
+
+function validatedExpiry(value: string): Date {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    throw new Error('Invalid signed license expiry date');
+  }
+  const date = new Date(`${value}T00:00:00.000Z`);
+  if (
+    !Number.isFinite(date.getTime()) ||
+    date.toISOString().slice(0, 10) !== value
+  ) {
+    throw new Error('Invalid signed license expiry date');
+  }
+  return date;
 }
 
 // ============================================================
@@ -266,6 +280,8 @@ export class LicenseService implements OnModuleInit {
         algorithms: ['RS256'],
       }) as LicensePayload;
 
+      validatedExpiry(decoded.expiryDate);
+
       if (decoded.hwId !== this._machineId) {
         return { success: false, message: 'Machine ID mismatch' };
       }
@@ -279,10 +295,7 @@ export class LicenseService implements OnModuleInit {
         return { success: false, message: 'License fingerprint mismatch' };
       }
 
-      // Write the new license file
-      const dir = path.dirname(this.licenseFilePath);
-      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-      fs.writeFileSync(this.licenseFilePath, key, 'utf8');
+      this._storeSignedLicense(key);
 
       // Clear any old bonus metadata to prevent overriding the new expiry date
       this._clearBonusMetadata();
@@ -333,51 +346,13 @@ export class LicenseService implements OnModuleInit {
         return { success: false, message: 'بصمة الترخيص غير مطابقة.' };
       }
 
-      // 4. Calculate bonus days from current license
-      let bonusDays = 0;
-      const currentStatus = this.getStatus(true);
-
-      if (
-        currentStatus.isValid &&
-        !currentStatus.isGracePeriod &&
-        !currentStatus.isExpired
-      ) {
-        // License is still active and not in grace period → add remaining days
-        const currentExpiry = new Date(currentStatus.expiryDate!);
-        currentExpiry.setHours(23, 59, 59, 999);
-        const now = new Date();
-        const remainingMs = currentExpiry.getTime() - now.getTime();
-
-        if (remainingMs > 0) {
-          bonusDays = Math.floor(remainingMs / 86400000);
-          this.logger.log(
-            `📅 Remaining days from current license: ${bonusDays}`,
-          );
-        }
-      }
-
-      // 5. Calculate new expiry date
-      const newExpiry = new Date(newLicense.expiryDate);
-      if (bonusDays > 0) {
-        newExpiry.setDate(newExpiry.getDate() + bonusDays);
-      }
-      const finalExpiryDate = newExpiry.toISOString().split('T')[0];
-
-      // 6. Create a modified payload with the adjusted expiry
-      //    We re-sign if we have remaining days (bonus), otherwise just use the new key as-is
-      if (bonusDays > 0) {
-        // We need to create a new JWT with the adjusted expiry
-        // But we only have the public key on server... so we store metadata separately
-        // Strategy: Store the new license + bonus days metadata
-        this._storeLicenseWithBonus(key, bonusDays, finalExpiryDate);
-      } else {
-        // No bonus days - just replace the license file
-        const dir = path.dirname(this.licenseFilePath);
-        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-        fs.writeFileSync(this.licenseFilePath, key, 'utf8');
-        // Clean up any bonus metadata
-        this._clearBonusMetadata();
-      }
+      // Only the issuer can authorize a new expiry. Carry-over must be included
+      // in the RS256-signed key; local metadata cannot grant additional days.
+      validatedExpiry(newLicense.expiryDate);
+      const finalExpiryDate = newLicense.expiryDate;
+      const bonusDays = 0;
+      this._storeSignedLicense(key);
+      this._clearBonusMetadata();
 
       // 7. Invalidate cache
       this._cachedStatus = null;
@@ -390,10 +365,7 @@ export class LicenseService implements OnModuleInit {
 
       return {
         success: true,
-        message:
-          bonusDays > 0
-            ? `تم تجديد الاشتراك بنجاح! تمت إضافة ${bonusDays} يوم متبقي من الاشتراك السابق. ينتهي في ${finalExpiryDate}`
-            : `تم تجديد الاشتراك بنجاح! ينتهي في ${finalExpiryDate}`,
+        message: `تم تجديد الاشتراك بنجاح وفق التاريخ المعتمد في المفتاح الموقّع. ينتهي في ${finalExpiryDate}`,
         newExpiryDate: finalExpiryDate,
         bonusDays,
       };
@@ -411,43 +383,23 @@ export class LicenseService implements OnModuleInit {
     return path.join(path.dirname(this.licenseFilePath), 'renewal.meta.json');
   }
 
-  private _storeLicenseWithBonus(
-    licenseKey: string,
-    bonusDays: number,
-    adjustedExpiry: string,
-  ) {
+  private _storeSignedLicense(key: string): void {
     const dir = path.dirname(this.licenseFilePath);
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-
-    // Save the license key
-    fs.writeFileSync(this.licenseFilePath, licenseKey, 'utf8');
-
-    // Save bonus metadata
-    const metadata = {
-      bonusDays,
-      adjustedExpiryDate: adjustedExpiry,
-      renewedAt: new Date().toISOString(),
-    };
-    fs.writeFileSync(
-      this._bonusMetadataPath,
-      JSON.stringify(metadata, null, 2),
-      'utf8',
-    );
-  }
-
-  private _loadBonusMetadata(): {
-    bonusDays: number;
-    adjustedExpiryDate: string;
-  } | null {
+    fs.mkdirSync(dir, { recursive: true });
+    const temporary = `${this.licenseFilePath}.${crypto.randomUUID()}.tmp`;
     try {
-      if (fs.existsSync(this._bonusMetadataPath)) {
-        const raw = fs.readFileSync(this._bonusMetadataPath, 'utf8');
-        return JSON.parse(raw);
+      const descriptor = fs.openSync(temporary, 'wx', 0o600);
+      try {
+        fs.writeFileSync(descriptor, key, 'utf8');
+        fs.fsyncSync(descriptor);
+      } finally {
+        fs.closeSync(descriptor);
       }
-    } catch {
-      // Ignore corrupt metadata
+      // Same-directory rename avoids truncating the current license in place.
+      fs.renameSync(temporary, this.licenseFilePath);
+    } finally {
+      if (fs.existsSync(temporary)) fs.unlinkSync(temporary);
     }
-    return null;
   }
 
   private _clearBonusMetadata() {
@@ -496,15 +448,9 @@ export class LicenseService implements OnModuleInit {
         return this._cache(base);
       }
 
-      // ── Determine effective expiry date ──
-      // Check for bonus days from renewal
-      const bonusMeta = this._loadBonusMetadata();
-      let effectiveExpiryStr = decoded.expiryDate;
-      if (bonusMeta?.adjustedExpiryDate) {
-        effectiveExpiryStr = bonusMeta.adjustedExpiryDate;
-      }
-
-      const expiry = new Date(effectiveExpiryStr);
+      // Never trust unsigned renewal.meta.json to extend an issuer-signed key.
+      const effectiveExpiryStr = decoded.expiryDate;
+      const expiry = validatedExpiry(effectiveExpiryStr);
       expiry.setHours(23, 59, 59, 999);
       const now = new Date();
 

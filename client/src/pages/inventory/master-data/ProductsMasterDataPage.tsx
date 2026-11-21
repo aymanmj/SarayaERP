@@ -19,7 +19,7 @@ export function ProductsMasterDataPage() {
   const [formData, setFormData] = useState({
     name: '',
     code: '',
-    type: 'CONSUMABLE',
+    type: 'SUPPLY',
     categoryId: '',
     baseUomId: '',
     costPrice: '0',
@@ -68,7 +68,7 @@ export function ProductsMasterDataPage() {
       toast.success(t("inventory.products.toast.saveSuccess", "تمت إضافة الصنف بنجاح"));
       queryClient.invalidateQueries({ queryKey: ['master-products'] });
       setShowAddForm(false);
-      setFormData({ name: '', code: '', type: 'CONSUMABLE', categoryId: '', baseUomId: '', costPrice: '0', sellPrice: '0', minStock: '0', maxStock: '0', reorderLevel: '0' });
+      setFormData({ name: '', code: '', type: 'SUPPLY', categoryId: '', baseUomId: '', costPrice: '0', sellPrice: '0', minStock: '0', maxStock: '0', reorderLevel: '0' });
     },
     onError: () => toast.error(t("common.saveFailed", "فشل حفظ الصنف"))
   });
@@ -108,10 +108,11 @@ export function ProductsMasterDataPage() {
             <div>
               <label className="block text-xs text-slate-400 mb-1">{t("inventory.products.type", "نوع الصنف")}</label>
               <select value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})} className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200">
-                <option value="CONSUMABLE">{t("inventory.products.type.consumable", "مستهلكات طبية")}</option>
-                <option value="DRUG">{t("inventory.products.type.drug", "دواء")}</option>
-                <option value="SERVICE">{t("inventory.products.type.service", "خدمة")}</option>
-                <option value="ASSET">{t("inventory.products.type.asset", "أصل ثابت")}</option>
+                <option value="SUPPLY">{t("inventory.products.type.consumable", "مستهلكات طبية (SUPPLY)")}</option>
+                <option value="DRUG">{t("inventory.products.type.drug", "دواء (DRUG)")}</option>
+                <option value="LAB_REAGENT">{t("inventory.products.type.labReagent", "كواشف معملية (LAB_REAGENT)")}</option>
+                <option value="ASSET">{t("inventory.products.type.asset", "أصل ثابت (ASSET)")}</option>
+                <option value="OTHER">{t("inventory.products.type.other", "أخرى (OTHER)")}</option>
               </select>
             </div>
             <div>

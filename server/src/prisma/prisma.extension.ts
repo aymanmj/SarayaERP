@@ -44,6 +44,34 @@ function handleDecryption(data: any, encryptionService: EncryptionService) {
   return decryptObject(data);
 }
 
+/** Decrypt only named patient relations; preserve Decimal/Date and unrelated JSON. */
+export function decryptPatientRelations<T>(
+  data: T,
+  encryptionService: EncryptionService,
+): T {
+  const walk = (value: unknown): void => {
+    if (Array.isArray(value)) {
+      value.forEach(walk);
+      return;
+    }
+    if (
+      !value ||
+      typeof value !== 'object' ||
+      Object.getPrototypeOf(value) !== Object.prototype
+    )
+      return;
+    const record = value as Record<string, unknown>;
+    for (const [key, child] of Object.entries(record)) {
+      if ((key === 'patient' || key === 'patients') && child) {
+        record[key] = handleDecryption(child, encryptionService);
+      }
+      walk(record[key]);
+    }
+  };
+  walk(data);
+  return data;
+}
+
 const TENANT_SCOPED_MODELS = new Set<string>();
 const SOFT_DELETABLE_MODELS = new Set<string>();
 
@@ -354,7 +382,10 @@ export const extendedPrisma = (
           const scopedArgs = applyTenantPolicy(model, 'findMany', args as any, {
             includeSoftDeleteFilter: model !== 'Patient',
           });
-          return query(scopedArgs);
+          return decryptPatientRelations(
+            await query(scopedArgs),
+            encryptionService,
+          );
         },
         async findFirst({ model, args, query }) {
           const scopedArgs = applyTenantPolicy(
@@ -365,7 +396,10 @@ export const extendedPrisma = (
               includeSoftDeleteFilter: model !== 'Patient',
             },
           );
-          return query(scopedArgs);
+          return decryptPatientRelations(
+            await query(scopedArgs),
+            encryptionService,
+          );
         },
         async findFirstOrThrow({ model, args, query }) {
           const scopedArgs = applyTenantPolicy(
@@ -376,7 +410,10 @@ export const extendedPrisma = (
               includeSoftDeleteFilter: model !== 'Patient',
             },
           );
-          return query(scopedArgs);
+          return decryptPatientRelations(
+            await query(scopedArgs),
+            encryptionService,
+          );
         },
         async findUnique({ model, args, query }) {
           const scopedArgs = applyTenantPolicy(
@@ -384,7 +421,10 @@ export const extendedPrisma = (
             'findUnique',
             args as any,
           );
-          return query(scopedArgs);
+          return decryptPatientRelations(
+            await query(scopedArgs),
+            encryptionService,
+          );
         },
         async findUniqueOrThrow({ model, args, query }) {
           const scopedArgs = applyTenantPolicy(
@@ -392,7 +432,10 @@ export const extendedPrisma = (
             'findUniqueOrThrow',
             args as any,
           );
-          return query(scopedArgs);
+          return decryptPatientRelations(
+            await query(scopedArgs),
+            encryptionService,
+          );
         },
         async count({ model, args, query }) {
           const scopedArgs = applyTenantPolicy(

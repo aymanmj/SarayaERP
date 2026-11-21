@@ -1,3 +1,23 @@
+import { ConsumptionFailure } from './consumption-failure';
+import {
+  readRecallSupplierReceipts,
+  recordRecallSupplierReceipt,
+  type SupplierReceiptInput,
+} from './recall-supplier-receipt';
+import { changeBatchRestriction, usableStockWhere } from './stock-batch-safety';
+import {
+  readRecallFollowup,
+  readRecallContacts,
+  recordRecallContact,
+  type RecallContactInput,
+  recordRecallIsolation,
+  type RecallIsolationInput,
+} from './recall-followup';
+import { Money } from '../common/utils/money.util';
+import {
+  captureConsumptionMaterials,
+  readConsumptionMaterials,
+} from './consumption-snapshot';
 // src/inventory/inventory.service.ts
 
 import {
@@ -9,11 +29,20 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import {
   StockTransactionType,
+  InventoryBatchStatus,
+  RecallContactAudience,
+  ProductType,
   MaterialRequestStatus,
-  StockIssueStatus,
   Prisma,
 } from '@prisma/client';
 import { AccountingService } from '../accounting/accounting.service';
+import {
+  issueMaterialTransfer,
+  directMaterialTransfer,
+  receiveMaterialTransfer,
+  transferWarehouses,
+  validateTransferRequest,
+} from './material-transfer';
 
 @Injectable()
 export class InventoryService {
@@ -29,6 +58,7 @@ export class InventoryService {
       where: {
         hospitalId,
         isActive: true,
+        isDeleted: false,
         minStock: { gt: 0 },
       },
       select: {
@@ -40,15 +70,19 @@ export class InventoryService {
     });
 
     const lowStockAlerts = lowStockProducts
-      .filter((p) => Number(p.stockOnHand) <= Number(p.minStock))
-      .map((p) => ({
-        type: 'LOW_STOCK',
-        productId: p.id,
-        productName: p.name,
-        currentStock: Number(p.stockOnHand),
-        minStock: Number(p.minStock),
-        message: `الرصيد الحالي (${Number(p.stockOnHand)}) أقل من أو يساوي حد الطلب (${Number(p.minStock)})`,
-      }));
+      .filter((p) => p.stockOnHand.lte(p.minStock))
+      .map((p) => {
+        const currentStock = Money.fromPrisma(p.stockOnHand);
+        const minStock = Money.fromPrisma(p.minStock);
+        return {
+          type: 'LOW_STOCK',
+          productId: p.id,
+          productName: p.name,
+          currentStock,
+          minStock,
+          message: `الرصيد الحالي (${currentStock}) أقل من أو يساوي حد الطلب (${minStock})`,
+        };
+      });
 
     // 2. فحص المواد قريبة انتهاء الصلاحية (خلال 3 أشهر)
     const threeMonthsFromNow = new Date();
@@ -124,7 +158,7 @@ export class InventoryService {
     warehouseId: number,
     search?: string,
   ) {
-    return this.prisma.productStock.findMany({
+    const stocks = await this.prisma.productStock.findMany({
       where: {
         hospitalId,
         warehouseId,
@@ -153,156 +187,172 @@ export class InventoryService {
       },
       orderBy: { product: { name: 'asc' } },
     });
+    const restrictions = await this.prisma.inventoryBatchRestriction.findMany({
+      where: {
+        hospitalId,
+        status: { not: 'RELEASED' },
+        productId: { in: [...new Set(stocks.map((stock) => stock.productId))] },
+      },
+      select: {
+        productId: true,
+        batchNumber: true,
+        status: true,
+        reason: true,
+      },
+    });
+    const byBatch = new Map(
+      restrictions.map((record) => [
+        `${record.productId}:${record.batchNumber}`,
+        record,
+      ]),
+    );
+    return stocks.map((stock) => ({
+      ...stock,
+      batchRestriction:
+        byBatch.get(`${stock.productId}:${stock.batchNumber?.trim()}`) ?? null,
+    }));
   }
 
-  // إجراء تحويل مخزني مع القفل التفاؤلي (Optimistic Locking)
+  changeBatchRestriction(
+    hospitalId: number,
+    actorId: number,
+    stockId: number,
+    status: InventoryBatchStatus,
+    reason: string,
+  ) {
+    return this.prisma.$transaction((tx) =>
+      changeBatchRestriction(tx, hospitalId, actorId, stockId, status, reason),
+    );
+  }
+
+  recallFollowup(
+    hospitalId: number,
+    actorId: number,
+    stockId: number,
+    showPatient: boolean,
+    before?: number,
+  ) {
+    return this.prisma.$transaction((tx) =>
+      readRecallFollowup(tx, hospitalId, actorId, stockId, showPatient, before),
+    );
+  }
+
+  recordRecallIsolation(
+    hospitalId: number,
+    actorId: number,
+    stockId: number,
+    input: RecallIsolationInput,
+  ) {
+    return this.prisma.$transaction((tx) =>
+      recordRecallIsolation(tx, hospitalId, actorId, stockId, input),
+    );
+  }
+
+  recallContacts(
+    hospitalId: number,
+    actorId: number,
+    stockId: number,
+    movementId: number,
+    audience: RecallContactAudience,
+    showPatient: boolean,
+    before?: number,
+  ) {
+    return this.prisma.$transaction((tx) =>
+      readRecallContacts(
+        tx,
+        hospitalId,
+        actorId,
+        stockId,
+        movementId,
+        audience,
+        showPatient,
+        before,
+      ),
+    );
+  }
+
+  recordRecallContact(
+    hospitalId: number,
+    actorId: number,
+    stockId: number,
+    movementId: number,
+    showPatient: boolean,
+    input: RecallContactInput,
+  ) {
+    return this.prisma.$transaction((tx) =>
+      recordRecallContact(
+        tx,
+        hospitalId,
+        actorId,
+        stockId,
+        movementId,
+        showPatient,
+        input,
+      ),
+    );
+  }
+
+  recallSupplierReceipts(
+    hospitalId: number,
+    stockId: number,
+    movementId: number,
+    before?: number,
+  ) {
+    return this.prisma.$transaction(
+      (tx) =>
+        readRecallSupplierReceipts(tx, hospitalId, stockId, movementId, before),
+      { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
+    );
+  }
+
+  recordRecallSupplierReceipt(
+    hospitalId: number,
+    actorId: number,
+    stockId: number,
+    movementId: number,
+    input: SupplierReceiptInput,
+  ) {
+    return this.prisma.$transaction((tx) =>
+      recordRecallSupplierReceipt(
+        tx,
+        hospitalId,
+        actorId,
+        stockId,
+        movementId,
+        input,
+      ),
+    );
+  }
+
   async transferStock(params: {
     hospitalId: number;
     userId: number;
     fromWarehouseId: number;
     toWarehouseId: number;
+    requestKey?: string;
     items: { productId: number; quantity: number }[];
     notes?: string;
   }) {
-    const { hospitalId, userId, fromWarehouseId, toWarehouseId, items, notes } =
-      params;
-
-    if (fromWarehouseId === toWarehouseId) {
-      throw new BadRequestException('لا يمكن التحويل لنفس المخزن.');
-    }
-
-    if (!items.length) {
-      throw new BadRequestException('يجب اختيار صنف واحد على الأقل.');
-    }
-
-    return this.prisma.$transaction(async (tx) => {
-      const fromWh = await tx.warehouse.findUnique({
-        where: { id: fromWarehouseId },
-      });
-      const toWh = await tx.warehouse.findUnique({
-        where: { id: toWarehouseId },
-      });
-
-      if (!fromWh || !toWh) {
-        throw new NotFoundException('أحد المخازن غير موجود.');
-      }
-
-      const transferRefId = Math.floor(Date.now() / 1000);
-
-      for (const item of items) {
-        const qty = Number(item.quantity);
-        if (qty <= 0) continue;
-
-        const batchNo = 'GENERAL';
-
-        const sourceStock = await tx.productStock.findUnique({
-          where: {
-            warehouseId_productId_batchNumber: {
-              warehouseId: fromWarehouseId,
-              productId: item.productId,
-              batchNumber: batchNo,
-            },
-          },
-          include: { product: true },
-        });
-
-        if (!sourceStock || Number(sourceStock.quantity) < qty) {
-          const prodName = sourceStock?.product?.name
-            ? sourceStock.product.name
-            : ((await tx.product.findUnique({ where: { id: item.productId } }))
-                ?.name ?? 'Unknown');
-
-          throw new BadRequestException(
-            `رصيد غير كافٍ للمنتج ${prodName} (تشغيلة: ${batchNo}) في المخزن المصدر.`,
-          );
-        }
-
-        const costPrice = Number(sourceStock.product.costPrice ?? 0);
-
-        // خصم من المصدر مع Optimistic Lock
-        const updateResult = await tx.productStock.updateMany({
-          where: {
-            id: sourceStock.id,
-            version: sourceStock.version,
-          },
-          data: {
-            quantity: { decrement: qty },
-            version: { increment: 1 },
-          },
-        });
-
-        if (updateResult.count === 0) {
-          throw new ConflictException(
-            `فشل التحويل: تغير رصيد المنتج "${sourceStock.product.name}" أثناء العملية.`,
-          );
-        }
-
-        // تسجيل حركة خروج (OUT) - Transfer Out
-        await tx.stockTransaction.create({
-          data: {
-            hospitalId,
-            warehouseId: fromWarehouseId,
-            productId: item.productId,
-            type: StockTransactionType.OUT,
-            quantity: qty,
-            unitCost: costPrice,
-            totalCost: costPrice * qty,
-            batchNumber: batchNo,
-            expiryDate: sourceStock.expiryDate,
-            referenceType: 'TRANSFER_OUT',
-            referenceId: transferRefId,
-            notes: `تحويل إلى ${toWh.name} - ${notes ?? ''}`,
-            createdById: userId,
-          },
-        });
-
-        // إضافة للمستلم (Upsert)
-        await tx.productStock.upsert({
-          where: {
-            warehouseId_productId_batchNumber: {
-              warehouseId: toWarehouseId,
-              productId: item.productId,
-              batchNumber: batchNo,
-            },
-          },
-          update: {
-            quantity: { increment: qty },
-          },
-          create: {
-            hospitalId,
-            warehouseId: toWarehouseId,
-            productId: item.productId,
-            batchNumber: batchNo,
-            expiryDate: sourceStock.expiryDate,
-            quantity: qty,
-            version: 1,
-          },
-        });
-
-        // تسجيل حركة دخول (IN) - Transfer In
-        await tx.stockTransaction.create({
-          data: {
-            hospitalId,
-            warehouseId: toWarehouseId,
-            productId: item.productId,
-            type: StockTransactionType.IN,
-            quantity: qty,
-            unitCost: costPrice,
-            totalCost: costPrice * qty,
-            batchNumber: batchNo,
-            expiryDate: sourceStock.expiryDate,
-            referenceType: 'TRANSFER_IN',
-            referenceId: transferRefId,
-            notes: `تحويل من ${fromWh.name} - ${notes ?? ''}`,
-            createdById: userId,
-          },
-        });
-      }
-
-      return { success: true, transferRefId };
-    });
+    return directMaterialTransfer(this.prisma, params);
   }
 
+  async getInTransit(hospitalId: number) {
+    return this.prisma.stockIssue.findMany({
+      where: { hospitalId, status: 'ISSUED', transferVersion: 1 },
+      include: {
+        items: true,
+        issuedFrom: { select: { id: true, name: true } },
+        materialRequest: {
+          select: {
+            id: true,
+            requestNumber: true,
+            requestingWarehouseId: true,
+          },
+        },
+      },
+      orderBy: { id: 'asc' },
+    });
+  }
   // ==========================================
   //  إعدادات الاعتماد وصلاحية وحدات القياس
   // ==========================================
@@ -331,14 +381,22 @@ export class InventoryService {
     qty: number,
     fromUomId: number | null,
     toUomId: number | null,
+    hospitalId?: number,
   ): Promise<number> {
+    if (!Number.isFinite(qty) || qty < 0) {
+      throw new BadRequestException('الكمية المطلوب تحويلها غير صالحة.');
+    }
     if (!fromUomId || !toUomId || fromUomId === toUomId) {
-      return qty;
+      return Number(new Prisma.Decimal(qty).toDecimalPlaces(3));
     }
 
-    const product = await this.prisma.product.findUnique({
-      where: { id: productId },
-      select: { baseUomId: true },
+    const product = await this.prisma.product.findFirst({
+      where: {
+        id: productId,
+        isDeleted: false,
+        ...(hospitalId !== undefined ? { hospitalId } : {}),
+      },
+      select: { baseUomId: true, hospitalId: true },
     });
 
     if (!product) {
@@ -346,31 +404,43 @@ export class InventoryService {
     }
 
     // التحويل من UOM المصدر إلى UOM الأساسي للـ product
-    let qtyInBase = qty;
+    let qtyInBase = new Prisma.Decimal(qty);
     if (fromUomId !== product.baseUomId) {
       const fromConv = await this.prisma.productUOM.findUnique({
         where: { productId_uomId: { productId, uomId: fromUomId } },
+        include: { uom: { select: { hospitalId: true, isActive: true } } },
       });
-      if (!fromConv) {
+      if (
+        !fromConv ||
+        fromConv.uom.hospitalId !== product.hospitalId ||
+        !fromConv.uom.isActive ||
+        fromConv.conversionRate.lte(0)
+      ) {
         throw new BadRequestException(
           'وحدة القياس المصدر غير صالحة لهذا الصنف.',
         );
       }
-      qtyInBase = qty * Number(fromConv.conversionRate);
+      qtyInBase = qtyInBase.mul(fromConv.conversionRate);
     }
 
     // التحويل من UOM الأساسي إلى UOM الهدف
     if (toUomId === product.baseUomId) {
-      return qtyInBase;
+      return Number(qtyInBase.toDecimalPlaces(3));
     }
 
     const toConv = await this.prisma.productUOM.findUnique({
       where: { productId_uomId: { productId, uomId: toUomId } },
+      include: { uom: { select: { hospitalId: true, isActive: true } } },
     });
-    if (!toConv) {
+    if (
+      !toConv ||
+      toConv.uom.hospitalId !== product.hospitalId ||
+      !toConv.uom.isActive ||
+      toConv.conversionRate.lte(0)
+    ) {
       throw new BadRequestException('وحدة القياس الهدف غير صالحة لهذا الصنف.');
     }
-    return qtyInBase / Number(toConv.conversionRate);
+    return Number(qtyInBase.div(toConv.conversionRate).toDecimalPlaces(3));
   }
 
   // ==========================================
@@ -415,6 +485,20 @@ export class InventoryService {
       : MaterialRequestStatus.APPROVED;
 
     return this.prisma.$transaction(async (tx) => {
+      await transferWarehouses(
+        tx,
+        hospitalId,
+        fulfillingWarehouseId,
+        requestingWarehouseId,
+      );
+      await validateTransferRequest(tx, hospitalId, items);
+      if (
+        fromDepartmentId &&
+        !(await tx.department.findFirst({
+          where: { id: fromDepartmentId, hospitalId },
+        }))
+      )
+        throw new BadRequestException('القسم خارج المنشأة');
       const reqNumber = await this.getNextSequence(tx, hospitalId, 'MR');
 
       return tx.materialRequest.create({
@@ -506,6 +590,7 @@ export class InventoryService {
         stockIssues: {
           include: {
             issuedBy: { select: { fullName: true } },
+            items: true,
           },
         },
       },
@@ -533,13 +618,18 @@ export class InventoryService {
       );
     }
 
-    return this.prisma.materialRequest.update({
-      where: { id },
+    const changed = await this.prisma.materialRequest.updateMany({
+      where: { id, hospitalId, status: MaterialRequestStatus.PENDING_APPROVAL },
       data: {
         status: MaterialRequestStatus.APPROVED,
         approvedById: userId,
         approvedAt: new Date(),
       },
+    });
+    if (changed.count !== 1)
+      throw new ConflictException('تغيرت حالة الطلب أثناء الاعتماد');
+    return this.prisma.materialRequest.findFirstOrThrow({
+      where: { id, hospitalId },
     });
   }
 
@@ -563,14 +653,19 @@ export class InventoryService {
       );
     }
 
-    return this.prisma.materialRequest.update({
-      where: { id },
+    const changed = await this.prisma.materialRequest.updateMany({
+      where: { id, hospitalId, status: MaterialRequestStatus.PENDING_APPROVAL },
       data: {
         status: MaterialRequestStatus.REJECTED,
         notes: notes
           ? `${request.notes || ''}\nتم الرفض بواسطة المستخدم ${userId}: ${notes}`
           : request.notes,
       },
+    });
+    if (changed.count !== 1)
+      throw new ConflictException('تغيرت حالة الطلب أثناء الرفض');
+    return this.prisma.materialRequest.findFirstOrThrow({
+      where: { id, hospitalId },
     });
   }
 
@@ -582,423 +677,16 @@ export class InventoryService {
     hospitalId: number;
     userId: number;
     materialRequestId: number;
+    requestKey?: string;
     notes?: string;
     items?: { productId: number; quantity: number; batchNumber?: string }[];
   }) {
-    const { hospitalId, userId, materialRequestId, notes, items } = params;
-
-    return this.prisma.$transaction(async (tx) => {
-      const mr = await tx.materialRequest.findFirst({
-        where: { id: materialRequestId, hospitalId },
-        include: {
-          items: {
-            include: {
-              product: {
-                select: {
-                  id: true,
-                  name: true,
-                  costPrice: true,
-                  baseUomId: true,
-                  category: {
-                    select: {
-                      valuationMethod: true,
-                      inventoryAccountId: true,
-                      expenseAccountId: true,
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-      });
-
-      if (!mr) {
-        throw new NotFoundException('طلب المواد غير موجود.');
-      }
-
-      if (
-        mr.status !== MaterialRequestStatus.APPROVED &&
-        mr.status !== MaterialRequestStatus.PARTIALLY_ISSUED
-      ) {
-        throw new BadRequestException(
-          'لا يمكن الصرف لطلب غير معتمد أو تم صرفه بالكامل.',
-        );
-      }
-
-      const issueNumber = `SI-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.floor(1000 + Math.random() * 9000)}`;
-
-      // إنشاء مستند إذن الصرف
-      const stockIssue = await tx.stockIssue.create({
-        data: {
-          hospitalId,
-          issueNumber,
-          materialRequestId,
-          issuedFromId: mr.fulfillingWarehouseId,
-          issuedById: userId,
-          status: StockIssueStatus.ISSUED,
-          notes,
-        },
-      });
-
-      let allCompleted = true;
-
-      // خريطة لتجميع التكاليف لكل فئة من حساب المخزون والمصروفات
-      const categoryCostMap = new Map<
-        string,
-        {
-          inventoryAccountId: number | null;
-          expenseAccountId: number | null;
-          totalCost: number;
-        }
-      >();
-
-      for (const reqItem of mr.items) {
-        const remainingToIssue =
-          Number(reqItem.requestedQty) - Number(reqItem.issuedQty);
-        if (remainingToIssue <= 0) continue;
-
-        let issueQty = remainingToIssue;
-        let chosenBatch: string | undefined = undefined;
-
-        if (items) {
-          const specific = items.find((i) => i.productId === reqItem.productId);
-          if (!specific) {
-            allCompleted = false;
-            continue;
-          }
-          issueQty = specific.quantity;
-          chosenBatch = specific.batchNumber;
-        }
-
-        if (issueQty <= 0) {
-          allCompleted = false;
-          continue;
-        }
-
-        const product = reqItem.product;
-        let issueQtyInBase = issueQty;
-
-        // التحويل إلى الوحدة الأساسية
-        if (reqItem.uomId && reqItem.uomId !== product.baseUomId) {
-          const uomConv = await tx.productUOM.findFirst({
-            where: { productId: reqItem.productId, uomId: reqItem.uomId },
-          });
-          if (!uomConv) {
-            throw new BadRequestException(
-              `وحدة القياس المحددة للصنف ${product.name} غير صالحة.`,
-            );
-          }
-          issueQtyInBase = issueQty * Number(uomConv.conversionRate);
-        }
-
-        // تخصيص التشغيلات (Batches Allocation)
-        let allocations: {
-          batchNumber: string | null;
-          quantity: number;
-          expiryDate: Date | null;
-          unitCost: number;
-        }[] = [];
-        if (chosenBatch) {
-          const stock = await tx.productStock.findFirst({
-            where: {
-              warehouseId: mr.fulfillingWarehouseId,
-              productId: reqItem.productId,
-              batchNumber: chosenBatch,
-            },
-          });
-          if (!stock || Number(stock.quantity) < issueQtyInBase) {
-            throw new BadRequestException(
-              `الرصيد غير كافٍ للصنف ${product.name} (التشغيلة: ${chosenBatch}) في المخزن المصدر. المتاح: ${stock?.quantity || 0}`,
-            );
-          }
-          const valuationMethod =
-            product.category?.valuationMethod || 'WEIGHTED_AVERAGE';
-          const costToUse =
-            valuationMethod === 'WEIGHTED_AVERAGE'
-              ? Number(product.costPrice || 0)
-              : Number(stock.unitCost || 0);
-
-          allocations = [
-            {
-              batchNumber: chosenBatch,
-              quantity: issueQtyInBase,
-              expiryDate: stock.expiryDate,
-              unitCost: costToUse,
-            },
-          ];
-        } else {
-          // Determine sorting order based on Valuation Method
-          const valuationMethod =
-            product.category?.valuationMethod || 'WEIGHTED_AVERAGE';
-
-          let orderByList: any[] = [];
-          if (valuationMethod === 'LIFO') {
-            orderByList = [{ createdAt: 'desc' }];
-          } else if (valuationMethod === 'FIFO') {
-            orderByList = [{ createdAt: 'asc' }];
-          } else {
-            // WEIGHTED_AVERAGE usually depletes FEFO (First Expired First Out) or FIFO for physical stock
-            orderByList = [{ expiryDate: 'asc' }, { createdAt: 'asc' }];
-          }
-
-          const stocks = await tx.productStock.findMany({
-            where: {
-              warehouseId: mr.fulfillingWarehouseId,
-              productId: reqItem.productId,
-              quantity: { gt: 0 },
-            },
-            orderBy: orderByList,
-          });
-
-          let rem = issueQtyInBase;
-          for (const st of stocks) {
-            if (rem <= 0) break;
-            const avail = Number(st.quantity);
-            const take = Math.min(avail, rem);
-
-            // For Weighted Average, we use the product's overall costPrice instead of batch's unitCost.
-            const costToUse =
-              valuationMethod === 'WEIGHTED_AVERAGE'
-                ? Number(product.costPrice || 0)
-                : Number(st.unitCost || 0);
-
-            allocations.push({
-              batchNumber: st.batchNumber,
-              quantity: take,
-              expiryDate: st.expiryDate,
-              unitCost: costToUse,
-            });
-            rem -= take;
-          }
-
-          if (rem > 0) {
-            throw new BadRequestException(
-              `رصيد غير كافٍ للصنف ${product.name} في المخزن المصدر. المطلوب: ${issueQtyInBase} (بالوحدة الأساسية).`,
-            );
-          }
-        }
-
-        // خصم المخزون وإنشاء الحركات
-        for (const alloc of allocations) {
-          const stock = await tx.productStock.findFirst({
-            where: {
-              warehouseId: mr.fulfillingWarehouseId,
-              productId: reqItem.productId,
-              batchNumber: alloc.batchNumber,
-            },
-          });
-
-          if (!stock) {
-            throw new BadRequestException('سجل المخزون غير موجود.');
-          }
-
-          const updateResult = await tx.productStock.updateMany({
-            where: {
-              id: stock.id,
-              version: stock.version,
-            },
-            data: {
-              quantity: { decrement: alloc.quantity },
-              version: { increment: 1 },
-            },
-          });
-
-          if (updateResult.count === 0) {
-            throw new ConflictException(
-              `فشل صرف الصنف "${product.name}": تضارب في المعاملة أثناء تعديل المخزون.`,
-            );
-          }
-
-          // تسجيل حركة خروج
-          // Ensure we use the cost calculated from the allocation
-          const costPrice =
-            (alloc as any).unitCost || Number(product.costPrice || 0);
-
-          await tx.stockTransaction.create({
-            data: {
-              hospitalId,
-              warehouseId: mr.fulfillingWarehouseId,
-              productId: reqItem.productId,
-              type: StockTransactionType.OUT,
-              quantity: alloc.quantity,
-              unitCost: costPrice,
-              totalCost: costPrice * alloc.quantity,
-              batchNumber: alloc.batchNumber,
-              expiryDate: alloc.expiryDate,
-              referenceType: 'MATERIAL_ISSUE',
-              referenceId: stockIssue.id,
-              notes: `صرف لطلب رقم ${mr.requestNumber} - ${notes || ''}`,
-              createdById: userId,
-            },
-          });
-
-          // إنشاء بند إذن الصرف المنصرف
-          await tx.stockIssueItem.create({
-            data: {
-              stockIssueId: stockIssue.id,
-              productId: reqItem.productId,
-              batchNumber: alloc.batchNumber,
-              expiryDate: alloc.expiryDate,
-              issuedQty: new Prisma.Decimal(alloc.quantity),
-            },
-          });
-
-          // تجميع تكاليف الصنف للفئة الخاصة به
-          const inventoryAccountId =
-            product.category?.inventoryAccountId || null;
-          const expenseAccountId = product.category?.expenseAccountId || null;
-          const key = `${inventoryAccountId || 'null'}-${expenseAccountId || 'null'}`;
-
-          const allocCost = costPrice * alloc.quantity;
-          const existing = categoryCostMap.get(key) || {
-            inventoryAccountId,
-            expenseAccountId,
-            totalCost: 0,
-          };
-          existing.totalCost += allocCost;
-          categoryCostMap.set(key, existing);
-        }
-
-        // تحديث الكمية المصروفة على بند الطلب الأصلي
-        await tx.materialRequestItem.update({
-          where: { id: reqItem.id },
-          data: {
-            issuedQty: { increment: issueQty },
-          },
-        });
-
-        const updatedReqItem = await tx.materialRequestItem.findUnique({
-          where: { id: reqItem.id },
-        });
-
-        if (
-          updatedReqItem &&
-          Number(updatedReqItem.issuedQty) < Number(updatedReqItem.requestedQty)
-        ) {
-          allCompleted = false;
-        }
-      }
-
-      // تحديث حالة طلب المواد
-      const nextStatus = allCompleted
-        ? MaterialRequestStatus.COMPLETED
-        : MaterialRequestStatus.PARTIALLY_ISSUED;
-
-      await tx.materialRequest.update({
-        where: { id: materialRequestId },
-        data: { status: nextStatus },
-      });
-
-      // تسجيل القيود المحاسبية للتكلفة
-      for (const [_, data] of categoryCostMap) {
-        if (data.totalCost > 0.0001) {
-          await this.accountingService.recordCogsEntry({
-            sourceId: stockIssue.id,
-            hospitalId,
-            userId,
-            totalCost: data.totalCost,
-            module: 'INVENTORY',
-            tx,
-            inventoryAccountId: data.inventoryAccountId,
-            expenseAccountId: data.expenseAccountId,
-          });
-        }
-      }
-
-      return { success: true, stockIssueId: stockIssue.id, issueNumber };
-    });
+    return issueMaterialTransfer(this.prisma, params);
   }
 
   async receiveStockIssue(hospitalId: number, issueId: number, userId: number) {
-    return this.prisma.$transaction(async (tx) => {
-      const issue = await tx.stockIssue.findFirst({
-        where: { id: issueId, hospitalId },
-        include: {
-          items: true,
-          materialRequest: true,
-        },
-      });
-
-      if (!issue) {
-        throw new NotFoundException('إذن الصرف غير موجود.');
-      }
-
-      if (issue.status !== StockIssueStatus.ISSUED) {
-        throw new BadRequestException('إذن الصرف مسبق الاستلام أو ملغي.');
-      }
-
-      for (const item of issue.items) {
-        const qty = Number(item.issuedQty);
-
-        // الحصول على تكلفة الشراء من إذن الصرف
-        const product = await tx.product.findUnique({
-          where: { id: item.productId },
-          select: { costPrice: true },
-        });
-        const costPrice = Number(product?.costPrice || 0);
-
-        // إضافة للمستلم (Upsert)
-        const existingStock = await tx.productStock.findFirst({
-          where: {
-            warehouseId: issue.materialRequest.requestingWarehouseId,
-            productId: item.productId,
-            batchNumber: item.batchNumber,
-          },
-        });
-
-        if (existingStock) {
-          await tx.productStock.update({
-            where: { id: existingStock.id },
-            data: { quantity: { increment: qty } },
-          });
-        } else {
-          await tx.productStock.create({
-            data: {
-              hospitalId,
-              warehouseId: issue.materialRequest.requestingWarehouseId,
-              productId: item.productId,
-              batchNumber: item.batchNumber,
-              expiryDate: item.expiryDate,
-              quantity: qty,
-              unitCost: new Prisma.Decimal(costPrice),
-              version: 1,
-            },
-          });
-        }
-
-        // تسجيل حركة دخول
-        await tx.stockTransaction.create({
-          data: {
-            hospitalId,
-            warehouseId: issue.materialRequest.requestingWarehouseId,
-            productId: item.productId,
-            type: StockTransactionType.IN,
-            quantity: qty,
-            unitCost: costPrice,
-            totalCost: costPrice * qty,
-            batchNumber: item.batchNumber,
-            expiryDate: item.expiryDate,
-            referenceType: 'MATERIAL_RECEIVE',
-            referenceId: issue.id,
-            notes: `استلام إذن صرف رقم ${issue.issueNumber}`,
-            createdById: userId,
-          },
-        });
-      }
-
-      // تحديث حالة إذن الصرف إلى RECEIVED
-      await tx.stockIssue.update({
-        where: { id: issueId },
-        data: {
-          status: StockIssueStatus.RECEIVED,
-        },
-      });
-
-      return { success: true };
-    });
+    return receiveMaterialTransfer(this.prisma, hospitalId, issueId, userId);
   }
-
   // --- Phase 3: Auto-deplete service materials ---
   async autoDepleteServiceMaterials(
     hospitalId: number,
@@ -1009,47 +697,129 @@ export class InventoryService {
     referenceId: number,
     referenceType: string,
   ) {
-    const mappings = await this.prisma.serviceItemProduct.findMany({
-      where: { serviceItemId, isMandatory: true },
-      include: {
-        product: {
-          include: {
-            category: {
-              select: {
-                inventoryAccountId: true,
-                expenseAccountId: true,
-              },
-            },
-          },
-        },
-      },
-    });
-
-    if (mappings.length === 0) return;
-
+    if (!Number.isFinite(multiplier) || multiplier <= 0)
+      throw new BadRequestException('معامل الاستهلاك يجب أن يكون موجبًا');
     await this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(27003, ${hospitalId}::integer)`;
+      const identity = {
+        hospitalId,
+        serviceItemId,
+        referenceType,
+        referenceId,
+      };
+      const existing = await tx.serviceMaterialConsumption.findUnique({
+        where: { hospitalId_serviceItemId_referenceType_referenceId: identity },
+      });
+      if (
+        existing &&
+        (existing.userId !== userId ||
+          (existing.warehouseId !== null &&
+            existing.warehouseId !== warehouseId) ||
+          !existing.multiplier.eq(multiplier))
+      )
+        throw new ConflictException('مرجع الاستهلاك مستخدم بحمولة مختلفة');
+      if (existing?.status === 'COMPLETED') return;
+      const operation =
+        existing ??
+        (await tx.serviceMaterialConsumption.create({
+          data: {
+            ...identity,
+            userId,
+            warehouseId,
+            multiplier,
+            materialsSnapshot: await captureConsumptionMaterials(
+              tx,
+              hospitalId,
+              serviceItemId,
+            ),
+            snapshotVersion: 1,
+          },
+        }));
+      if (
+        !(await tx.serviceItem.findFirst({
+          where: { id: serviceItemId, hospitalId },
+        }))
+      )
+        throw new BadRequestException('الخدمة خارج المنشأة');
+      if (
+        !(await tx.warehouse.findFirst({
+          where: { id: warehouseId, hospitalId, isActive: true },
+        }))
+      )
+        throw new ConsumptionFailure('WAREHOUSE_UNAVAILABLE');
+      if (operation.snapshotVersion !== 1)
+        throw new ConflictException('عملية دون تعريف مواد مثبت؛تلزم المراجعة');
+      const mappings = readConsumptionMaterials(operation.materialsSnapshot);
+
+      if (mappings.length === 0) {
+        await tx.serviceMaterialConsumption.update({
+          where: { id: operation.id },
+          data: {
+            status: 'COMPLETED',
+            completedAt: new Date(),
+            warehouseId,
+            error: null,
+          },
+        });
+        return;
+      }
+
+      for (const id of [...new Set(mappings.map((m) => m.productId))].sort(
+        (a, b) => a - b,
+      )) {
+        await tx.$queryRaw`SELECT id FROM "Product" WHERE id=${id} AND "hospitalId"=${hospitalId} FOR UPDATE`;
+      }
       // خريطة لتجميع التكاليف لكل فئة من حساب المخزون والمصروفات
       const categoryCostMap = new Map<
         string,
         {
           inventoryAccountId: number | null;
           expenseAccountId: number | null;
-          totalCost: number;
+          totalCost: Prisma.Decimal;
         }
       >();
 
       for (const map of mappings) {
-        const requiredQty = Number(map.quantity) * multiplier;
-        const product = map.product;
+        const requiredQty = map.quantity.mul(multiplier);
+        if (
+          !requiredQty.isFinite() ||
+          requiredQty.lte(0) ||
+          requiredQty.decimalPlaces() > 3
+        )
+          throw new BadRequestException('كمية الاستهلاك تتجاوز دقة المخزون');
+        const product = await tx.product.findFirst({
+          where: {
+            id: map.productId,
+            hospitalId,
+            isActive: true,
+            isDeleted: false,
+          },
+          include: { category: true },
+        });
+        if (!product)
+          throw new BadRequestException('الصنف خارج المنشأة أو غير نشط');
+        if (!product.costPrice.isFinite() || product.costPrice.lt(0))
+          throw new ConsumptionFailure('COST_INVALID');
         const inventoryAccountId = product.category?.inventoryAccountId || null;
         const expenseAccountId = product.category?.expenseAccountId || null;
+        for (const [id, type] of [
+          [inventoryAccountId, 'ASSET'],
+          [expenseAccountId, 'EXPENSE'],
+        ] as const) {
+          if (
+            id &&
+            !(await tx.account.findFirst({
+              where: { id, hospitalId, isActive: true, type },
+            }))
+          )
+            throw new ConsumptionFailure('ACCOUNT_MAPPING_INVALID');
+        }
         const key = `${inventoryAccountId || 'null'}-${expenseAccountId || 'null'}`;
 
         const stocks = await tx.productStock.findMany({
           where: {
-            hospitalId,
+            ...(await usableStockWhere(tx, hospitalId, map.productId)),
             warehouseId,
-            productId: map.productId,
             quantity: { gt: 0 },
           },
           orderBy: [{ expiryDate: 'asc' }, { createdAt: 'asc' }],
@@ -1057,17 +827,25 @@ export class InventoryService {
 
         let rem = requiredQty;
         for (const st of stocks) {
-          if (rem <= 0) break;
-          const avail = Number(st.quantity);
-          const take = Math.min(avail, rem);
+          if (rem.lte(0)) break;
+          const take = Prisma.Decimal.min(st.quantity, rem);
 
-          await tx.productStock.update({
-            where: { id: st.id },
-            data: { quantity: { decrement: take } },
+          const changed = await tx.productStock.updateMany({
+            where: {
+              id: st.id,
+              hospitalId,
+              version: st.version,
+              quantity: { gte: take },
+            },
+            data: { quantity: { decrement: take }, version: { increment: 1 } },
           });
+          if (changed.count !== 1)
+            throw new ConflictException('تغير رصيد التشغيلة أثناء الاستهلاك');
 
-          const unitCost = Number(product.costPrice || 0);
-          const totalCost = unitCost * take;
+          const unitCost = product.costPrice;
+          const totalCost = new Prisma.Decimal(
+            Money.toDbString(Money.multiply(product.costPrice, take)),
+          );
 
           await tx.stockTransaction.create({
             data: {
@@ -1076,6 +854,7 @@ export class InventoryService {
               productId: map.productId,
               type: StockTransactionType.OUT,
               quantity: take,
+              baseQuantity: take,
               unitCost,
               totalCost,
               batchNumber: st.batchNumber,
@@ -1091,36 +870,60 @@ export class InventoryService {
           const existing = categoryCostMap.get(key) || {
             inventoryAccountId,
             expenseAccountId,
-            totalCost: 0,
+            totalCost: new Prisma.Decimal(0),
           };
-          existing.totalCost += totalCost;
+          existing.totalCost = existing.totalCost.plus(totalCost);
           categoryCostMap.set(key, existing);
 
-          rem -= take;
+          rem = rem.minus(take);
         }
 
-        if (rem > 0) {
-          throw new BadRequestException(
-            `رصيد غير كافٍ للصنف ${product.name} (ID: ${product.id}) في المستودع لإتمام الخدمة. مطلوب ${rem} إضافية.`,
-          );
+        if (rem.gt(0)) {
+          throw new ConsumptionFailure('STOCK_INSUFFICIENT');
         }
+        const changedProduct = await tx.product.updateMany({
+          where: {
+            id: product.id,
+            hospitalId,
+            stockOnHand: { gte: requiredQty },
+          },
+          data: {
+            stockOnHand: { decrement: requiredQty },
+            version: { increment: 1 },
+          },
+        });
+        if (changedProduct.count !== 1)
+          throw new ConsumptionFailure('SUMMARY_INSUFFICIENT');
       }
 
       // تسجيل القيود المحاسبية للتكلفة
       for (const [_, data] of categoryCostMap) {
-        if (data.totalCost > 0.0001) {
-          await this.accountingService.recordCogsEntry({
-            sourceId: referenceId,
-            hospitalId,
-            userId,
-            totalCost: data.totalCost,
-            module: 'INVENTORY',
-            tx,
-            inventoryAccountId: data.inventoryAccountId,
-            expenseAccountId: data.expenseAccountId,
-          });
+        if (data.totalCost.gt(0)) {
+          try {
+            await this.accountingService.recordCogsEntry({
+              sourceId: referenceId,
+              hospitalId,
+              userId,
+              totalCost: data.totalCost,
+              module: 'INVENTORY',
+              tx,
+              inventoryAccountId: data.inventoryAccountId,
+              expenseAccountId: data.expenseAccountId,
+            });
+          } catch {
+            throw new ConsumptionFailure('ACCOUNTING_POSTING_FAILED');
+          }
         }
       }
+      await tx.serviceMaterialConsumption.update({
+        where: { id: operation.id },
+        data: {
+          status: 'COMPLETED',
+          completedAt: new Date(),
+          warehouseId,
+          error: null,
+        },
+      });
     });
   }
 
@@ -1140,37 +943,158 @@ export class InventoryService {
     });
   }
 
-  async addProductUom(productId: number, dto: any) {
-    return this.prisma.productUOM.upsert({
-      where: {
-        productId_uomId: {
-          productId,
-          uomId: dto.uomId,
+  async addProductUom(
+    hospitalId: number,
+    productId: number,
+    dto: {
+      uomId?: number | string;
+      conversionRate?: number | string;
+      isPurchasingUOM?: boolean;
+      isIssuingUOM?: boolean;
+    },
+  ) {
+    const uomId = Number(dto?.uomId);
+    const rateStr = String(dto?.conversionRate ?? '');
+    if (
+      !Number.isInteger(uomId) ||
+      uomId <= 0 ||
+      !/^(0|[1-9]\d{0,14})(\.\d{1,3})?$/.test(rateStr) ||
+      new Prisma.Decimal(rateStr).lte(0)
+    ) {
+      throw new BadRequestException(
+        'بيانات وحدة القياس أو معامل التحويل غير صالحة.',
+      );
+    }
+    const conversionRate = new Prisma.Decimal(rateStr);
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(27003, ${hospitalId}::integer)`;
+      await tx.$queryRaw`SELECT id FROM "Product" WHERE id=${productId} AND "hospitalId"=${hospitalId} FOR UPDATE`;
+
+      const product = await tx.product.findFirst({
+        where: { id: productId, hospitalId, isDeleted: false },
+      });
+      if (!product) {
+        throw new NotFoundException('الصنف غير موجود في هذه المنشأة.');
+      }
+
+      const uom = await tx.unitOfMeasure.findFirst({
+        where: { id: uomId, hospitalId, isActive: true },
+      });
+      if (!uom) {
+        throw new BadRequestException(
+          'وحدة القياس غير موجودة أو غير نشطة في هذه المنشأة.',
+        );
+      }
+
+      if (product.baseUomId === uomId && !conversionRate.eq(1)) {
+        throw new BadRequestException(
+          'معامل التحويل للوحدة الأساسية للصنف يجب أن يساوي 1.',
+        );
+      }
+
+      const existing = await tx.productUOM.findUnique({
+        where: { productId_uomId: { productId, uomId } },
+      });
+
+      if (existing && !existing.conversionRate.eq(conversionRate)) {
+        const [mrRefs, siRefs, prRefs, poRefs, grnRefs, stRefs] =
+          await Promise.all([
+            tx.materialRequestItem.count({ where: { productId, uomId } }),
+            tx.stockIssueItem.count({ where: { productId, uomId } }),
+            tx.purchaseRequestItem.count({ where: { productId, uomId } }),
+            tx.purchaseOrderItem.count({ where: { productId, uomId } }),
+            tx.goodsReceiptItem.count({ where: { productId, uomId } }),
+            tx.stockTransaction.count({ where: { productId, uomId } }),
+          ]);
+        if (mrRefs + siRefs + prRefs + poRefs + grnRefs + stRefs > 0) {
+          throw new ConflictException(
+            'لا يمكن تعديل معامل التحويل لوحدة مستخدمة في طلبات أو أوامر أو حركات مخزنية؛ أنشئ وحدة جديدة.',
+          );
+        }
+      }
+
+      const isPurchasingUOM = Boolean(dto?.isPurchasingUOM);
+      const isIssuingUOM = Boolean(dto?.isIssuingUOM);
+
+      if (isPurchasingUOM) {
+        await tx.productUOM.updateMany({
+          where: { productId, uomId: { not: uomId } },
+          data: { isPurchasingUOM: false },
+        });
+      }
+      if (isIssuingUOM) {
+        await tx.productUOM.updateMany({
+          where: { productId, uomId: { not: uomId } },
+          data: { isIssuingUOM: false },
+        });
+      }
+
+      return tx.productUOM.upsert({
+        where: {
+          productId_uomId: {
+            productId,
+            uomId,
+          },
         },
-      },
-      update: {
-        conversionRate: dto.conversionRate,
-        isPurchasingUOM: dto.isPurchasingUOM,
-        isIssuingUOM: dto.isIssuingUOM,
-      },
-      create: {
-        productId,
-        uomId: dto.uomId,
-        conversionRate: dto.conversionRate,
-        isPurchasingUOM: dto.isPurchasingUOM || false,
-        isIssuingUOM: dto.isIssuingUOM || false,
-      },
+        update: {
+          conversionRate: conversionRate.toFixed(3),
+          isPurchasingUOM,
+          isIssuingUOM,
+        },
+        create: {
+          productId,
+          uomId,
+          conversionRate: conversionRate.toFixed(3),
+          isPurchasingUOM,
+          isIssuingUOM,
+        },
+      });
     });
   }
 
-  async removeProductUom(productId: number, uomId: number) {
-    return this.prisma.productUOM.delete({
-      where: {
-        productId_uomId: {
-          productId,
-          uomId,
+  async removeProductUom(hospitalId: number, productId: number, uomId: number) {
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(27003, ${hospitalId}::integer)`;
+      await tx.$queryRaw`SELECT id FROM "Product" WHERE id=${productId} AND "hospitalId"=${hospitalId} FOR UPDATE`;
+
+      const product = await tx.product.findFirst({
+        where: { id: productId, hospitalId, isDeleted: false },
+      });
+      if (!product) {
+        throw new NotFoundException('الصنف غير موجود في هذه المنشأة.');
+      }
+
+      const existing = await tx.productUOM.findUnique({
+        where: { productId_uomId: { productId, uomId } },
+      });
+      if (!existing) {
+        throw new NotFoundException('معامل التحويل غير موجود لهذا الصنف.');
+      }
+
+      const [mrRefs, siRefs, prRefs, poRefs, grnRefs, stRefs] =
+        await Promise.all([
+          tx.materialRequestItem.count({ where: { productId, uomId } }),
+          tx.stockIssueItem.count({ where: { productId, uomId } }),
+          tx.purchaseRequestItem.count({ where: { productId, uomId } }),
+          tx.purchaseOrderItem.count({ where: { productId, uomId } }),
+          tx.goodsReceiptItem.count({ where: { productId, uomId } }),
+          tx.stockTransaction.count({ where: { productId, uomId } }),
+        ]);
+      if (mrRefs + siRefs + prRefs + poRefs + grnRefs + stRefs > 0) {
+        throw new ConflictException(
+          'لا يمكن حذف معامل التحويل لأنه مستخدم في طلبات أو أوامر أو حركات مخزنية.',
+        );
+      }
+
+      return tx.productUOM.delete({
+        where: {
+          productId_uomId: {
+            productId,
+            uomId,
+          },
         },
-      },
+      });
     });
   }
 
@@ -1188,17 +1112,114 @@ export class InventoryService {
     });
   }
 
-  async createItemCategory(hospitalId: number, dto: any) {
-    return this.prisma.itemCategory.create({
-      data: {
-        hospitalId,
-        name: dto.name,
-        code: dto.code,
-        valuationMethod: dto.valuationMethod || 'WEIGHTED_AVERAGE',
-        inventoryAccountId: dto.inventoryAccountId || null,
-        expenseAccountId: dto.expenseAccountId || null,
-        parentId: dto.parentId || null,
-      },
+  async createItemCategory(hospitalId: number, dto: Record<string, unknown>) {
+    const name = typeof dto?.name === 'string' ? dto.name.trim() : '';
+    const code =
+      typeof dto?.code === 'string' && dto.code.trim()
+        ? dto.code.trim().toUpperCase()
+        : null;
+    if (!name || name.length > 200) {
+      throw new BadRequestException('اسم الفئة مطلوب ويجب ألا يتجاوز 200 حرف.');
+    }
+
+    const valuationMethod = dto?.valuationMethod || 'WEIGHTED_AVERAGE';
+    if (valuationMethod !== 'WEIGHTED_AVERAGE') {
+      throw new BadRequestException(
+        'طريقة تقييم المخزون المعتمدة في النظام حالياً هي المتوسط المرجح (WEIGHTED_AVERAGE) فقط.',
+      );
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const existing = await tx.itemCategory.findUnique({
+        where: { hospitalId_name: { hospitalId, name } },
+      });
+      if (existing) {
+        throw new ConflictException(
+          'فئة بهذا الاسم موجودة مسبقاً في هذه المنشأة.',
+        );
+      }
+
+      const parentId =
+        dto?.parentId !== undefined &&
+        dto?.parentId !== null &&
+        dto?.parentId !== ''
+          ? Number(dto.parentId)
+          : null;
+      if (parentId !== null) {
+        if (!Number.isInteger(parentId) || parentId <= 0) {
+          throw new BadRequestException('معرف الفئة الأب غير صالح.');
+        }
+        const parent = await tx.itemCategory.findFirst({
+          where: { id: parentId, hospitalId, isActive: true },
+        });
+        if (!parent) {
+          throw new BadRequestException(
+            'الفئة الأب غير موجودة أو غير نشطة في هذه المنشأة.',
+          );
+        }
+      }
+
+      const inventoryAccountId =
+        dto?.inventoryAccountId !== undefined &&
+        dto?.inventoryAccountId !== null &&
+        dto?.inventoryAccountId !== ''
+          ? Number(dto.inventoryAccountId)
+          : null;
+      if (inventoryAccountId !== null) {
+        if (!Number.isInteger(inventoryAccountId) || inventoryAccountId <= 0) {
+          throw new BadRequestException('معرف حساب المخزون غير صالح.');
+        }
+        const invAccount = await tx.account.findFirst({
+          where: {
+            id: inventoryAccountId,
+            hospitalId,
+            isActive: true,
+            type: 'ASSET',
+          },
+        });
+        if (!invAccount) {
+          throw new BadRequestException(
+            'حساب المخزون يجب أن يكون حساب أصول (ASSET) نشطاً ضمن نفس المنشأة.',
+          );
+        }
+      }
+
+      const expenseAccountId =
+        dto?.expenseAccountId !== undefined &&
+        dto?.expenseAccountId !== null &&
+        dto?.expenseAccountId !== ''
+          ? Number(dto.expenseAccountId)
+          : null;
+      if (expenseAccountId !== null) {
+        if (!Number.isInteger(expenseAccountId) || expenseAccountId <= 0) {
+          throw new BadRequestException('معرف حساب التكلفة غير صالح.');
+        }
+        const expAccount = await tx.account.findFirst({
+          where: {
+            id: expenseAccountId,
+            hospitalId,
+            isActive: true,
+            type: 'EXPENSE',
+          },
+        });
+        if (!expAccount) {
+          throw new BadRequestException(
+            'حساب التكلفة/المصروف يجب أن يكون حساب مصروفات (EXPENSE) نشطاً ضمن نفس المنشأة.',
+          );
+        }
+      }
+
+      return tx.itemCategory.create({
+        data: {
+          hospitalId,
+          name,
+          code,
+          valuationMethod: 'WEIGHTED_AVERAGE',
+          inventoryAccountId,
+          expenseAccountId,
+          parentId,
+        },
+      });
     });
   }
 
@@ -1213,20 +1234,153 @@ export class InventoryService {
     });
   }
 
-  async createProduct(hospitalId: number, dto: any) {
-    return this.prisma.product.create({
-      data: {
-        hospitalId,
-        name: dto.name,
-        code: dto.code,
-        type: dto.type || 'CONSUMABLE',
-        categoryId: dto.categoryId || null,
-        baseUomId: dto.baseUomId || null,
-        costPrice: dto.costPrice || 0,
-        sellPrice: dto.sellPrice || 0,
-        minStock: dto.minStock || 0,
-        maxStock: dto.maxStock || null,
-      },
+  async createProduct(hospitalId: number, dto: Record<string, unknown>) {
+    const name = typeof dto?.name === 'string' ? dto.name.trim() : '';
+    const code =
+      typeof dto?.code === 'string' ? dto.code.trim().toUpperCase() : '';
+    if (!name || !code || name.length > 200 || code.length > 100) {
+      throw new BadRequestException('اسم وكود الصنف مطلوبان وبطول صالح.');
+    }
+
+    const rawType = typeof dto?.type === 'string' ? dto.type.trim() : 'SUPPLY';
+    const normalizedType = rawType === 'CONSUMABLE' ? 'SUPPLY' : rawType;
+    if (
+      !['DRUG', 'SUPPLY', 'ASSET', 'LAB_REAGENT', 'OTHER'].includes(
+        normalizedType,
+      )
+    ) {
+      throw new BadRequestException('نوع الصنف غير صالح.');
+    }
+
+    const decimalInput = (value: unknown) => {
+      if (value === undefined || value === null) return '0';
+      if (typeof value !== 'string' && typeof value !== 'number')
+        throw new BadRequestException('يلزم مقدار عشري صالح');
+      return String(value);
+    };
+    const costPriceStr = decimalInput(dto?.costPrice);
+    const sellPriceStr = decimalInput(dto?.sellPrice);
+    const minStockStr = decimalInput(dto?.minStock);
+    if (
+      !/^(0|[1-9]\d{0,14})(\.\d{1,3})?$/.test(costPriceStr) ||
+      !/^(0|[1-9]\d{0,14})(\.\d{1,3})?$/.test(sellPriceStr) ||
+      !/^(0|[1-9]\d{0,14})(\.\d{1,3})?$/.test(minStockStr)
+    ) {
+      throw new BadRequestException(
+        'التكلفة وسعر البيع والحد الأدنى للمخزون يجب أن تكون قيماً غير سالبة بدقة لا تتجاوز 3 منازل عشرية.',
+      );
+    }
+
+    const minStockDec = new Prisma.Decimal(minStockStr);
+    let maxStockDec: Prisma.Decimal | null = null;
+    if (
+      dto?.maxStock !== undefined &&
+      dto?.maxStock !== null &&
+      dto?.maxStock !== ''
+    ) {
+      const maxStockStr = decimalInput(dto.maxStock);
+      if (!/^(0|[1-9]\d{0,14})(\.\d{1,3})?$/.test(maxStockStr)) {
+        throw new BadRequestException('الحد الأعلى للمخزون غير صالح.');
+      }
+      const parsedMax = new Prisma.Decimal(maxStockStr);
+      if (parsedMax.gt(0)) {
+        if (parsedMax.lt(minStockDec)) {
+          throw new BadRequestException(
+            'الحد الأعلى للمخزون لا يمكن أن يكون أقل من الحد الأدنى.',
+          );
+        }
+        maxStockDec = parsedMax;
+      }
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const existing = await tx.product.findUnique({
+        where: { hospitalId_code: { hospitalId, code } },
+      });
+      if (existing) {
+        throw new ConflictException('كود الصنف مستخدم مسبقاً في هذه المنشأة.');
+      }
+
+      const categoryId =
+        dto?.categoryId !== undefined &&
+        dto?.categoryId !== null &&
+        dto?.categoryId !== ''
+          ? Number(dto.categoryId)
+          : null;
+      if (categoryId !== null) {
+        if (!Number.isInteger(categoryId) || categoryId <= 0) {
+          throw new BadRequestException('معرف فئة الصنف غير صالح.');
+        }
+        const category = await tx.itemCategory.findFirst({
+          where: { id: categoryId, hospitalId, isActive: true },
+        });
+        if (!category) {
+          throw new BadRequestException(
+            'فئة الصنف غير موجودة أو غير نشطة في هذه المنشأة.',
+          );
+        }
+      }
+
+      const baseUomId =
+        dto?.baseUomId !== undefined &&
+        dto?.baseUomId !== null &&
+        dto?.baseUomId !== ''
+          ? Number(dto.baseUomId)
+          : null;
+      if (baseUomId !== null) {
+        if (!Number.isInteger(baseUomId) || baseUomId <= 0) {
+          throw new BadRequestException('معرف الوحدة الأساسية غير صالح.');
+        }
+        const uom = await tx.unitOfMeasure.findFirst({
+          where: { id: baseUomId, hospitalId, isActive: true },
+        });
+        if (!uom) {
+          throw new BadRequestException(
+            'الوحدة الأساسية غير موجودة أو غير نشطة في هذه المنشأة.',
+          );
+        }
+      }
+
+      const expenseAccountId =
+        dto?.expenseAccountId !== undefined &&
+        dto?.expenseAccountId !== null &&
+        dto?.expenseAccountId !== ''
+          ? Number(dto.expenseAccountId)
+          : null;
+      if (expenseAccountId !== null) {
+        if (!Number.isInteger(expenseAccountId) || expenseAccountId <= 0) {
+          throw new BadRequestException('معرف حساب المصروف غير صالح.');
+        }
+        const expAccount = await tx.account.findFirst({
+          where: {
+            id: expenseAccountId,
+            hospitalId,
+            isActive: true,
+            type: 'EXPENSE',
+          },
+        });
+        if (!expAccount) {
+          throw new BadRequestException(
+            'حساب المصروف للصنف يجب أن يكون حساب مصروفات (EXPENSE) نشطاً ضمن نفس المنشأة.',
+          );
+        }
+      }
+
+      return tx.product.create({
+        data: {
+          hospitalId,
+          name,
+          code,
+          type: normalizedType as ProductType,
+          categoryId,
+          baseUomId,
+          expenseAccountId,
+          costPrice: Money.toDbString(costPriceStr),
+          sellPrice: Money.toDbString(sellPriceStr),
+          minStock: minStockDec.toFixed(3),
+          maxStock: maxStockDec ? maxStockDec.toFixed(3) : null,
+        },
+      });
     });
   }
 
@@ -1237,13 +1391,29 @@ export class InventoryService {
     });
   }
 
-  async createUOM(hospitalId: number, dto: any) {
+  async createUOM(hospitalId: number, dto: Record<string, unknown>) {
+    const code =
+      typeof dto?.code === 'string' ? dto.code.trim().toUpperCase() : '';
+    const name = typeof dto?.name === 'string' ? dto.name.trim() : '';
+    if (!code || !name || code.length > 50 || name.length > 100) {
+      throw new BadRequestException('رمز واسم وحدة القياس مطلوبان وبطول صالح.');
+    }
+
+    const existing = await this.prisma.unitOfMeasure.findUnique({
+      where: { hospitalId_code: { hospitalId, code } },
+    });
+    if (existing) {
+      throw new ConflictException(
+        'رمز وحدة القياس موجود مسبقاً في هذه المنشأة.',
+      );
+    }
+
     return this.prisma.unitOfMeasure.create({
       data: {
         hospitalId,
-        code: dto.code,
-        name: dto.name,
-        isActive: dto.isActive !== undefined ? dto.isActive : true,
+        code,
+        name,
+        isActive: dto.isActive !== undefined ? Boolean(dto.isActive) : true,
       },
     });
   }
@@ -1253,21 +1423,142 @@ export class InventoryService {
       where: { id, hospitalId },
     });
     if (!existing) {
-      throw new Error('Unit of Measure not found or unauthorized');
+      throw new NotFoundException('وحدة القياس غير موجودة في هذه المنشأة.');
     }
+
+    const code =
+      dto?.code !== undefined
+        ? String(dto.code).trim().toUpperCase()
+        : existing.code;
+    const name =
+      dto?.name !== undefined ? String(dto.name).trim() : existing.name;
+    if (!code || !name || code.length > 50 || name.length > 100) {
+      throw new BadRequestException('رمز واسم وحدة القياس مطلوبان وبطول صالح.');
+    }
+
+    if (code !== existing.code) {
+      const dup = await this.prisma.unitOfMeasure.findUnique({
+        where: { hospitalId_code: { hospitalId, code } },
+      });
+      if (dup && dup.id !== id) {
+        throw new ConflictException(
+          'رمز وحدة القياس موجود مسبقاً في هذه المنشأة.',
+        );
+      }
+    }
+
+    const nextActive =
+      dto?.isActive !== undefined ? Boolean(dto.isActive) : existing.isActive;
+    if (existing.isActive && !nextActive) {
+      const [activeBaseProducts, openPOs, openPRs, openMRs] = await Promise.all(
+        [
+          this.prisma.product.count({
+            where: {
+              hospitalId,
+              baseUomId: id,
+              isActive: true,
+              isDeleted: false,
+            },
+          }),
+          this.prisma.purchaseOrderItem.count({
+            where: {
+              uomId: id,
+              purchaseOrder: {
+                hospitalId,
+                status: { in: ['DRAFT', 'SENT', 'PARTIALLY_RECEIVED'] },
+              },
+            },
+          }),
+          this.prisma.purchaseRequestItem.count({
+            where: {
+              uomId: id,
+              purchaseRequest: {
+                hospitalId,
+                status: { in: ['PENDING', 'APPROVED'] },
+              },
+            },
+          }),
+          this.prisma.materialRequestItem.count({
+            where: {
+              uomId: id,
+              materialRequest: {
+                hospitalId,
+                status: {
+                  in: [
+                    'DRAFT',
+                    'PENDING_APPROVAL',
+                    'APPROVED',
+                    'PARTIALLY_ISSUED',
+                  ],
+                },
+              },
+            },
+          }),
+        ],
+      );
+      if (activeBaseProducts + openPOs + openPRs + openMRs > 0) {
+        throw new ConflictException(
+          'لا يمكن تعطيل وحدة قياس مرتبطة بأصناف نشطة أو طلبات مفتوحة.',
+        );
+      }
+    }
+
     return this.prisma.unitOfMeasure.update({
       where: { id },
       data: {
-        code: dto.code,
-        name: dto.name,
-        isActive: dto.isActive !== undefined ? dto.isActive : true,
+        code,
+        name,
+        isActive: nextActive,
       },
     });
   }
 
   async deleteUOM(hospitalId: number, id: number) {
-    return this.prisma.unitOfMeasure.deleteMany({
+    const existing = await this.prisma.unitOfMeasure.findFirst({
       where: { id, hospitalId },
+    });
+    if (!existing) {
+      throw new NotFoundException('وحدة القياس غير موجودة في هذه المنشأة.');
+    }
+
+    const [
+      productsCount,
+      productUomsCount,
+      mrItemsCount,
+      siItemsCount,
+      prItemsCount,
+      poItemsCount,
+      grnItemsCount,
+      stCount,
+    ] = await Promise.all([
+      this.prisma.product.count({ where: { baseUomId: id } }),
+      this.prisma.productUOM.count({ where: { uomId: id } }),
+      this.prisma.materialRequestItem.count({ where: { uomId: id } }),
+      this.prisma.stockIssueItem.count({ where: { uomId: id } }),
+      this.prisma.purchaseRequestItem.count({ where: { uomId: id } }),
+      this.prisma.purchaseOrderItem.count({ where: { uomId: id } }),
+      this.prisma.goodsReceiptItem.count({ where: { uomId: id } }),
+      this.prisma.stockTransaction.count({ where: { uomId: id } }),
+    ]);
+
+    if (
+      productsCount +
+        productUomsCount +
+        mrItemsCount +
+        siItemsCount +
+        prItemsCount +
+        poItemsCount +
+        grnItemsCount +
+        stCount >
+      0
+    ) {
+      throw new ConflictException(
+        'لا يمكن حذف وحدة القياس لأنها مرتبطة بأصناف أو طلبات أو حركات مخزنية.',
+      );
+    }
+
+    return this.prisma.unitOfMeasure.delete({
+      where: { id },
     });
   }
 
@@ -1279,7 +1570,7 @@ export class InventoryService {
     await tx.$executeRaw`SELECT 1 FROM "Hospital" WHERE id = ${hospitalId} FOR UPDATE`;
 
     const last = await tx.materialRequest.findFirst({
-      where: { hospitalId },
+      where: { hospitalId, requestNumber: { startsWith: 'MR-' } },
       orderBy: { id: 'desc' },
       select: { requestNumber: true },
     });

@@ -8,36 +8,47 @@ import {
   OnGatewayConnection,
   OnGatewayDisconnect,
 } from '@nestjs/websockets';
-import { Server, Socket } from 'socket.io';
+import { Namespace, Socket } from 'socket.io';
+import { OnEvent } from '@nestjs/event-emitter';
+import type { VitalsRecordedEvent } from '../vitals/events/vitals-recorded.event';
+import { NURSING_RECORD_RECEIVED } from './staff-realtime.bus';
+import type { NursingRecordNotice } from '../nursing/nursing-notification-journal';
+import { NursingNotificationService } from '../nursing/nursing-notification.service';
 import { AuthService } from '../auth/auth.service';
+import { JwtStrategy } from '../auth/jwt.strategy';
+import type { JwtPayload } from '../auth/jwt-payload.type';
+import { hasNursingSocketRead } from '../nursing/nursing-socket-access';
 import { PrismaService } from '../prisma/prisma.service';
+import {
+  matchesStaffSocketScope,
+  readStaffSocketCookie,
+  staffSocketOptions,
+} from './staff-socket-options';
 
 @WebSocketGateway({
+  ...staffSocketOptions,
   namespace: '/nursing',
-  cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-    credentials: true, // Important for cookies
-  },
 })
 export class NursingGateway
   implements OnGatewayConnection, OnGatewayDisconnect
 {
   @WebSocketServer()
-  server: Server;
+  server: Namespace;
 
-  private connectedNurses = new Map<number, Socket>(); // userId -> socket
+  private readonly nextRecoveryAt = new WeakMap<Socket, number>();
 
   constructor(
     private prisma: PrismaService,
     private authService: AuthService,
+    private jwtStrategy: JwtStrategy,
+    private notifications: NursingNotificationService,
   ) {}
 
   async handleConnection(client: Socket) {
     try {
       console.log('🔌 WebSocket connection attempt...');
 
-      const cookie = client.handshake.headers.cookie;
-      const token = this.extractToken(cookie);
+      const token = readStaffSocketCookie(client.handshake.headers.cookie);
 
       if (!token) {
         console.log('❌ No token found in cookies, disconnecting...');
@@ -53,17 +64,19 @@ export class NursingGateway
         return;
       }
 
+      const identity = await this.jwtStrategy.validate(payload);
+      if (
+        !matchesStaffSocketScope(client.handshake.auth?.staffScope, identity) ||
+        !hasNursingSocketRead(identity.roles, identity.permissions)
+      ) {
+        client.disconnect();
+        return;
+      }
       const user = {
-        id: payload.sub,
-        hospitalId: payload.hospitalId,
-        username: payload.username,
-        roles: payload.roles,
+        id: identity.sub,
+        hospitalId: identity.hospitalId,
+        username: identity.username,
       };
-
-      // Store connection
-      this.connectedNurses.set(user.id, client);
-      client.data.userId = user.id;
-      client.data.hospitalId = user.hospitalId;
 
       console.log(
         `✅ User ${user.username} (ID: ${user.id}) connected to nursing station`,
@@ -71,6 +84,23 @@ export class NursingGateway
 
       // Join hospital room
       await client.join(`hospital-${user.hospitalId}`);
+      await client.join(`HOSPITAL_${user.hospitalId}:USER_${user.id}`);
+      await client.join(`STAFF_USER:${user.id}`);
+      await client.join(`STAFF_SESSION:${identity.sid}`);
+      await client.join(
+        `STAFF_SESSION:${identity.sid}:BRANCH:${identity.branchVersion}`,
+      );
+      client.data = {
+        staffClaims: payload,
+        sessionId: identity.sid,
+        branchVersion: identity.branchVersion,
+        authVersion: identity.authVersion,
+        userId: user.id,
+        hospitalId: user.hospitalId,
+        roles: identity.roles,
+        requiresNursingRead: true,
+      };
+      if (!(await this.currentNurse(client))) return;
 
       // Send initial data
       await this.sendInitialData(client, user.hospitalId);
@@ -86,19 +116,11 @@ export class NursingGateway
     }
   }
 
-  private extractToken(cookieString?: string): string | null {
-    if (!cookieString) return null;
-    const match = cookieString.match(/Authentication=([^;]+)/);
-    return match ? match[1] : null;
-  }
-
   handleDisconnect(client: Socket) {
     const userId = client.data.userId;
     const hospitalId = client.data.hospitalId;
 
     if (userId && hospitalId) {
-      this.connectedNurses.delete(userId);
-
       // Notify others
       client.to(`hospital-${hospitalId}`).emit('nurse_disconnected', {
         nurseId: userId,
@@ -113,103 +135,101 @@ export class NursingGateway
     @ConnectedSocket() client: Socket,
     @MessageBody() data: { wardId: number },
   ) {
-    const hospitalId = client.data.hospitalId;
+    const identity = await this.currentNurse(client);
+    if (!identity) return;
+    const hospitalId = identity.hospitalId;
     await client.join(`hospital-${hospitalId}-ward-${data.wardId}`);
 
     // Send ward-specific data
     await this.sendWardData(client, hospitalId, data.wardId);
   }
 
-  @SubscribeMessage('medication_administered')
-  async handleMedicationAdministered(
-    @ConnectedSocket() client: Socket,
-    @MessageBody()
-    data: {
-      encounterId: number;
-      medicationName: string;
-      administeredBy: string;
-      status: string;
-    },
-  ) {
-    const hospitalId = client.data.hospitalId;
-
-    // Broadcast to all nurses in hospital
-    this.server.to(`hospital-${hospitalId}`).emit('medication_update', {
-      type: 'administered',
-      encounterId: data.encounterId,
-      medication: data.medicationName,
-      administeredBy: data.administeredBy,
-      status: data.status,
-      timestamp: new Date().toISOString(),
-    });
-
-    // Check for medication reminders
-    await this.checkMedicationReminders(hospitalId, data.encounterId);
-  }
-
-  @SubscribeMessage('vitals_updated')
-  async handleVitalsUpdated(
-    @ConnectedSocket() client: Socket,
-    @MessageBody()
-    data: {
-      encounterId: number;
-      vitals: any;
-      nurseName: string;
-    },
-  ) {
-    const hospitalId = client.data.hospitalId;
-
-    // Broadcast vitals update
-    this.server.to(`hospital-${hospitalId}`).emit('vitals_update', {
-      type: 'vitals_updated',
-      encounterId: data.encounterId,
-      vitals: data.vitals,
-      nurseName: data.nurseName,
-      timestamp: new Date().toISOString(),
-    });
-
-    // Check for critical vitals
-    await this.checkCriticalVitals(hospitalId, data.encounterId, data.vitals);
-  }
-
-  @SubscribeMessage('patient_alert')
-  async handlePatientAlert(
-    @ConnectedSocket() client: Socket,
-    @MessageBody()
-    data: {
-      encounterId: number;
-      alertType: 'CRITICAL' | 'WARNING' | 'INFO';
-      message: string;
-      patientName: string;
-    },
-  ) {
-    const hospitalId = client.data.hospitalId;
-
-    // Broadcast alert to all nurses
-    this.server.to(`hospital-${hospitalId}`).emit('patient_alert', {
-      type: data.alertType,
-      encounterId: data.encounterId,
-      patientName: data.patientName,
-      message: data.message,
-      timestamp: new Date().toISOString(),
+  @OnEvent('nursing.medication_administered')
+  publishMedicationRecord(event: {
+    hospitalId: number;
+    encounterId: number;
+    administrationId: number;
+  }) {
+    return this.publishRecord({
+      kind: 'medication',
+      hospitalId: event.hospitalId,
+      encounterId: event.encounterId,
+      recordId: event.administrationId,
     });
   }
 
-  // Helper methods
-  private async verifyToken(token: string): Promise<any> {
-    // Implement JWT verification logic
-    // This is simplified - in production, use proper JWT verification
+  @OnEvent('vitals.recorded')
+  publishVitalRecord(
+    event: Pick<
+      VitalsRecordedEvent,
+      'hospitalId' | 'encounterId' | 'vitalSignId'
+    >,
+  ) {
+    return this.publishRecord({
+      kind: 'vital',
+      hospitalId: event.hospitalId,
+      encounterId: event.encounterId,
+      recordId: event.vitalSignId,
+    });
+  }
+
+  @OnEvent(NURSING_RECORD_RECEIVED)
+  async publishRecord(notice: NursingRecordNotice) {
+    const room = `hospital-${notice.hospitalId}`;
+    if (!notice.recordId || !this.server?.adapter.rooms.has(room)) return;
+    const messages = await this.notifications.resolve(notice);
+    for (const { event, payload } of messages)
+      this.server.local.to(room).emit(event, payload);
+  }
+
+  @SubscribeMessage('recover_notifications')
+  async recoverNotifications(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { after?: unknown } | undefined,
+  ) {
+    const after = data?.after;
+    if (
+      after !== null &&
+      (typeof after !== 'string' ||
+        !/^(0|[1-9]\d{0,18})$/.test(after) ||
+        BigInt(after) > 9223372036854775807n)
+    )
+      return { error: 'invalid_cursor' };
+
+    const now = Date.now();
+    if ((this.nextRecoveryAt.get(client) ?? 0) > now) return { error: 'retry' };
+    this.nextRecoveryAt.set(client, now + 250);
+
+    const identity = await this.currentNurse(client);
+    if (!identity) return { error: 'unauthorized' };
     try {
-      // For demo purposes, return mock user
-      return {
-        id: 1,
-        fullName: 'Demo Nurse',
-        role: 'NURSE',
-        hospitalId: 1,
-      };
+      const page = await this.notifications.recover(
+        identity.hospitalId,
+        after === null ? null : BigInt(after),
+      );
+      if (!(await this.currentNurse(client))) return { error: 'unauthorized' };
+      return page;
     } catch {
-      return null;
+      return { error: 'retry' };
     }
+  }
+
+  private async currentNurse(client: Socket) {
+    const claims = (client.data as { staffClaims?: JwtPayload }).staffClaims;
+    try {
+      if (claims && client.connected) {
+        const identity = await this.jwtStrategy.validate(claims);
+        if (
+          client.connected &&
+          hasNursingSocketRead(identity.roles, identity.permissions)
+        )
+          return identity;
+      }
+    } catch {
+      // Unverified or revoked sessions cannot issue nursing events.
+    }
+    client.disconnect();
+    return null;
   }
 
   private async sendInitialData(client: Socket, hospitalId: number) {
@@ -451,6 +471,7 @@ export class NursingGateway
         if (issues.length > 0) {
           criticalAlerts.push({
             type: 'CRITICAL',
+            vitalSignId: vital.id,
             patientName: vital.encounter.patient.fullName,
             mrn: vital.encounter.patient.mrn,
             location:
@@ -467,60 +488,6 @@ export class NursingGateway
     }
 
     return criticalAlerts;
-  }
-
-  private async checkMedicationReminders(
-    hospitalId: number,
-    encounterId: number,
-  ) {
-    // Triggered after specific med updates or scheduled checks
-    // Implementation can reuse getPendingMedications logic
-  }
-
-  private async checkCriticalVitals(
-    hospitalId: number,
-    encounterId: number,
-    vitals: any,
-  ) {
-    // Check for critical values immediately upon update
-    const criticalValues: string[] = [];
-
-    if (
-      vitals.bpSystolic &&
-      (vitals.bpSystolic > 180 || vitals.bpSystolic < 90)
-    ) {
-      criticalValues.push(`BP ${vitals.bpSystolic}/${vitals.bpDiastolic}`);
-    }
-    if (vitals.pulse && (vitals.pulse > 120 || vitals.pulse < 50)) {
-      criticalValues.push(`HR ${vitals.pulse}`);
-    }
-    if (
-      vitals.temperature &&
-      (vitals.temperature > 39 || vitals.temperature < 35)
-    ) {
-      criticalValues.push(`Temp ${vitals.temperature}`);
-    }
-    if (vitals.o2Sat && vitals.o2Sat < 90) {
-      criticalValues.push(`SpO2 ${vitals.o2Sat}%`);
-    }
-
-    if (criticalValues.length > 0) {
-      // Get patient info
-      const encounter = await this.prisma.encounter.findUnique({
-        where: { id: encounterId },
-        include: {
-          patient: { select: { fullName: true, mrn: true } },
-        },
-      });
-
-      this.server.to(`hospital-${hospitalId}`).emit('patient_alert', {
-        type: 'CRITICAL',
-        encounterId,
-        patientName: encounter?.patient.fullName,
-        message: `Critical Vitals Detected: ${criticalValues.join(', ')}`,
-        timestamp: new Date().toISOString(),
-      });
-    }
   }
 
   // Public method for other services to emit events

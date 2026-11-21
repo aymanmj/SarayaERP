@@ -3,111 +3,138 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service'; // Adjust path if needed, assuming global or in src/prisma
+import {
+  lockBedEncounter,
+  moveBed,
+  assertNoPendingBedMovement,
+  bedLocation,
+} from '../beds/bed-allocation';
+import { PrismaService } from '../prisma/prisma.service';
 import {
   RequestTransferDto,
   AllocateBedDto,
   HandoverNoteDto,
 } from './dto/transfer.dto';
-import { TransferOrderStatus, BedStatus } from '@prisma/client';
+import { Prisma, TransferOrderStatus, BedStatus } from '@prisma/client';
+
+const ACTIVE: TransferOrderStatus[] = [
+  TransferOrderStatus.REQUESTED,
+  TransferOrderStatus.BED_ALLOCATED,
+  TransferOrderStatus.HANDOVER_DRAFTED,
+  TransferOrderStatus.HANDOVER_SIGNED,
+];
 
 @Injectable()
 export class TransfersService {
   constructor(private readonly prisma: PrismaService) {}
+
+  private async lockEncounter(
+    tx: Prisma.TransactionClient,
+    hospitalId: number,
+    encounterId: number,
+    requireOpen = true,
+  ) {
+    return lockBedEncounter(tx, hospitalId, encounterId, requireOpen);
+  }
+
+  private async lockTransfer(
+    tx: Prisma.TransactionClient,
+    hospitalId: number,
+    transferId: number,
+    requireOpen = true,
+  ) {
+    const identity = await tx.transferOrder.findFirst({
+      where: { id: transferId, hospitalId },
+    });
+    if (!identity) throw new NotFoundException('Transfer Order not found');
+    const encounter = await this.lockEncounter(
+      tx,
+      hospitalId,
+      identity.encounterId,
+      requireOpen,
+    );
+    await tx.$queryRaw`SELECT "id" FROM "TransferOrder" WHERE "id" = ${transferId} AND "hospitalId" = ${hospitalId} FOR UPDATE`;
+    const transfer = await tx.transferOrder.findFirst({
+      where: { id: transferId, hospitalId },
+      include: { handoverNote: true },
+    });
+    if (!transfer) throw new NotFoundException('Transfer Order not found');
+    return { transfer, encounter };
+  }
 
   async requestTransfer(
     hospitalId: number,
     userId: number,
     dto: RequestTransferDto,
   ) {
-    const encounter = await this.prisma.encounter.findUnique({
-      where: { id: dto.encounterId, hospitalId },
-    });
-    if (!encounter) throw new NotFoundException('Encounter not found');
-
-    let fromBedId = dto.fromBedId;
-    if (!fromBedId) {
-      const currentAssignment = await this.prisma.bedAssignment.findFirst({
+    return this.prisma.$transaction(async (tx) => {
+      await this.lockEncounter(tx, hospitalId, dto.encounterId);
+      await assertNoPendingBedMovement(tx, hospitalId, dto.encounterId);
+      const assignment = await tx.bedAssignment.findFirst({
         where: { hospitalId, encounterId: dto.encounterId, to: null },
       });
-      if (currentAssignment) {
-        fromBedId = currentAssignment.bedId;
+      if (dto.fromBedId !== undefined && dto.fromBedId !== assignment?.bedId) {
+        throw new BadRequestException(
+          'سرير المصدر لا يطابق الحجز الحالي للحالة',
+        );
       }
-    }
-
-    // Prevent transfer if patient still has active ICU procedures running
-    const activeEquipment = await this.prisma.iCUEquipmentUsage.findFirst({
-      where: { encounterId: dto.encounterId, stoppedAt: null },
-    });
-    if (activeEquipment) {
-      throw new BadRequestException(
-        'لا يمكن إنشاء طلب النقل: يوجد جهاز عناية مركزة متصل بالمريض ولم يتم فصله.',
-      );
-    }
-
-    const activeDrips = await this.prisma.iCUMedicationDrip.findFirst({
-      where: { encounterId: dto.encounterId, stoppedAt: null },
-    });
-    if (activeDrips) {
-      throw new BadRequestException(
-        'لا يمكن إنشاء طلب النقل: توجد أدوية وريدية مستمرة (Drips) لم يتم إيقافها.',
-      );
-    }
-
-    // Prevent duplicate active transfer requests
-    const existingActiveTransfer = await this.prisma.transferOrder.findFirst({
-      where: {
-        hospitalId,
-        encounterId: dto.encounterId,
-        status: {
-          in: [
-            TransferOrderStatus.REQUESTED,
-            TransferOrderStatus.BED_ALLOCATED,
-            TransferOrderStatus.HANDOVER_DRAFTED,
-            TransferOrderStatus.HANDOVER_SIGNED,
-          ],
+      if (
+        await tx.iCUEquipmentUsage.findFirst({
+          where: { encounterId: dto.encounterId, stoppedAt: null },
+        })
+      ) {
+        throw new BadRequestException(
+          'يوجد جهاز عناية مركزة متصل بالمريض ولم يتم فصله',
+        );
+      }
+      if (
+        await tx.iCUMedicationDrip.findFirst({
+          where: { encounterId: dto.encounterId, stoppedAt: null },
+        })
+      ) {
+        throw new BadRequestException(
+          'توجد أدوية وريدية مستمرة لم يتم إيقافها',
+        );
+      }
+      const existing = await tx.transferOrder.findFirst({
+        where: {
+          hospitalId,
+          encounterId: dto.encounterId,
+          status: { in: ACTIVE },
         },
-      },
+      });
+      if (existing)
+        throw new BadRequestException('يوجد طلب نقل نشط مسبقًا لهذه الحالة');
+      return tx.transferOrder.create({
+        data: {
+          hospitalId,
+          encounterId: dto.encounterId,
+          fromBedId: assignment?.bedId,
+          requestedById: userId,
+          status: TransferOrderStatus.REQUESTED,
+          reason: dto.reason,
+          notes: dto.notes,
+        },
+      });
     });
-
-    if (existingActiveTransfer) {
-      throw new BadRequestException('يوجد طلب نقل نشط مسبقاً لهذا المريض');
-    }
-
-    const transfer = await this.prisma.transferOrder.create({
-      data: {
-        hospitalId,
-        encounterId: dto.encounterId,
-        fromBedId,
-        requestedById: userId,
-        status: TransferOrderStatus.REQUESTED,
-        reason: dto.reason,
-        notes: dto.notes,
-      },
-    });
-    return transfer;
   }
 
   async getPendingTransfers(hospitalId: number) {
     return this.prisma.transferOrder.findMany({
-      where: {
-        hospitalId,
-        status: {
-          in: [
-            TransferOrderStatus.REQUESTED,
-            TransferOrderStatus.BED_ALLOCATED,
-            TransferOrderStatus.HANDOVER_DRAFTED,
-            TransferOrderStatus.HANDOVER_SIGNED,
-          ],
-        },
-      },
+      where: { hospitalId, status: { in: ACTIVE } },
       include: {
         encounter: {
-          include: { patient: true },
+          select: {
+            id: true,
+            type: true,
+            status: true,
+            patient: { select: { id: true, fullName: true, mrn: true } },
+          },
         },
         fromBed: true,
         toBed: true,
-        requestedBy: true,
+        handoverNote: true,
+        requestedBy: { select: { id: true, fullName: true, username: true } },
       },
       orderBy: { requestedAt: 'desc' },
     });
@@ -119,29 +146,36 @@ export class TransfersService {
     userId: number,
     dto: AllocateBedDto,
   ) {
-    const transfer = await this.prisma.transferOrder.findUnique({
-      where: { id: transferId, hospitalId },
-    });
-    if (!transfer) throw new NotFoundException('Transfer Order not found');
-
-    // Make sure bed is available
-    const bed = await this.prisma.bed.findUnique({
-      where: { id: dto.toBedId, hospitalId },
-    });
-    if (!bed || bed.status !== BedStatus.AVAILABLE) {
-      throw new BadRequestException('Target bed is not available');
-    }
-
-    // Allocate bed and change status
-    const result = await this.prisma.$transaction(async (tx) => {
-      // Reserve bed
-      await tx.bed.update({
-        where: { id: dto.toBedId },
-        data: { status: BedStatus.BLOCKED }, // Temporary blocked until arrival
+    return this.prisma.$transaction(async (tx) => {
+      const { transfer } = await this.lockTransfer(tx, hospitalId, transferId);
+      await assertNoPendingBedMovement(tx, hospitalId, transfer.encounterId, {
+        transferOrderId: transferId,
       });
-
+      if (
+        transfer.status !== TransferOrderStatus.REQUESTED ||
+        transfer.toBedId
+      ) {
+        throw new BadRequestException(
+          'لا يمكن حجز الوجهة إلا لطلب جديد لم يخصص له سرير',
+        );
+      }
+      if (transfer.fromBedId === dto.toBedId)
+        throw new BadRequestException('سرير المصدر والوجهة متطابقان');
+      await bedLocation(tx, hospitalId, dto.toBedId);
+      const claimed = await tx.bed.updateMany({
+        where: {
+          id: dto.toBedId,
+          hospitalId,
+          isActive: true,
+          status: BedStatus.AVAILABLE,
+          assignments: { none: { to: null } },
+        },
+        data: { status: BedStatus.BLOCKED },
+      });
+      if (claimed.count !== 1)
+        throw new BadRequestException('سرير الوجهة لم يعد متاحًا');
       return tx.transferOrder.update({
-        where: { id: transferId },
+        where: { id: transferId, hospitalId },
         data: {
           toBedId: dto.toBedId,
           allocatedById: userId,
@@ -150,8 +184,6 @@ export class TransfersService {
         },
       });
     });
-
-    return result;
   }
 
   async saveHandoverNote(
@@ -160,143 +192,138 @@ export class TransfersService {
     userId: number,
     dto: HandoverNoteDto,
   ) {
-    const transfer = await this.prisma.transferOrder.findUnique({
-      where: { id: transferId, hospitalId },
-    });
-    if (!transfer) throw new NotFoundException('Transfer Order not found');
-
-    const statusObj = dto.isSigned
-      ? { signedById: userId, signedAt: new Date() }
-      : { draftedById: userId };
-    const transferStatusUpdate = dto.isSigned
-      ? TransferOrderStatus.HANDOVER_SIGNED
-      : TransferOrderStatus.HANDOVER_DRAFTED;
-
-    const handover = await this.prisma.handoverNote.upsert({
-      where: { transferOrderId: transferId },
-      create: {
+    return this.prisma.$transaction(async (tx) => {
+      const { transfer } = await this.lockTransfer(tx, hospitalId, transferId);
+      await assertNoPendingBedMovement(tx, hospitalId, transfer.encounterId, {
         transferOrderId: transferId,
+      });
+      if (
+        (transfer.status !== TransferOrderStatus.BED_ALLOCATED &&
+          transfer.status !== TransferOrderStatus.HANDOVER_DRAFTED) ||
+        transfer.handoverNote?.signedAt
+      ) {
+        throw new BadRequestException(
+          'تقرير التسليم معتمد أو حالة النقل لا تسمح بتعديله',
+        );
+      }
+      const content = {
         situation: dto.situation,
         background: dto.background,
         assessment: dto.assessment,
         recommendation: dto.recommendation,
-        ...statusObj,
-      },
-      update: {
-        situation: dto.situation,
-        background: dto.background,
-        assessment: dto.assessment,
-        recommendation: dto.recommendation,
-        ...statusObj,
-      },
+      };
+      if (
+        dto.isSigned === true &&
+        Object.values(content).some((value) => !value.trim())
+      ) {
+        throw new BadRequestException(
+          'يجب استكمال جميع حقول تقرير التسليم قبل اعتماده',
+        );
+      }
+      const signature =
+        dto.isSigned === true
+          ? { signedById: userId, signedAt: new Date() }
+          : {};
+      const handover = await tx.handoverNote.upsert({
+        where: { transferOrderId: transferId },
+        create: {
+          transferOrderId: transferId,
+          ...content,
+          draftedById: userId,
+          ...signature,
+        },
+        update: { ...content, ...signature },
+      });
+      await tx.transferOrder.update({
+        where: { id: transferId, hospitalId },
+        data: {
+          status:
+            dto.isSigned === true
+              ? TransferOrderStatus.HANDOVER_SIGNED
+              : TransferOrderStatus.HANDOVER_DRAFTED,
+        },
+      });
+      return handover;
     });
+  }
 
-    await this.prisma.transferOrder.update({
-      where: { id: transferId },
-      data: { status: transferStatusUpdate },
+  async cancelTransfer(hospitalId: number, transferId: number) {
+    return this.prisma.$transaction(async (tx) => {
+      const { transfer } = await this.lockTransfer(
+        tx,
+        hospitalId,
+        transferId,
+        false,
+      );
+      if (transfer.status === TransferOrderStatus.CANCELLED) return transfer;
+      if (!ACTIVE.includes(transfer.status))
+        throw new BadRequestException('لا يمكن إلغاء نقل مكتمل');
+      if (transfer.toBedId) {
+        const overlapping = await tx.transferOrder.count({
+          where: {
+            hospitalId,
+            toBedId: transfer.toBedId,
+            id: { not: transferId },
+            status: { in: ACTIVE },
+          },
+        });
+        if (overlapping)
+          throw new BadRequestException('يوجد تعارض في ملكية حجز الوجهة');
+        const released = await tx.bed.updateMany({
+          where: {
+            id: transfer.toBedId,
+            hospitalId,
+            status: BedStatus.BLOCKED,
+            assignments: { none: { to: null } },
+          },
+          data: { status: BedStatus.AVAILABLE },
+        });
+        if (released.count !== 1)
+          throw new BadRequestException(
+            'تغير حجز الوجهة ولا يمكن تحريره آليًا',
+          );
+      }
+      return tx.transferOrder.update({
+        where: { id: transferId, hospitalId },
+        data: { status: TransferOrderStatus.CANCELLED },
+      });
     });
-
-    return handover;
   }
 
   async confirmArrival(hospitalId: number, transferId: number, userId: number) {
-    const transfer = await this.prisma.transferOrder.findUnique({
-      where: { id: transferId, hospitalId },
-    });
-    if (!transfer) throw new NotFoundException('Transfer Order not found');
-
-    if (
-      transfer.status !== TransferOrderStatus.HANDOVER_SIGNED &&
-      transfer.status !== TransferOrderStatus.BED_ALLOCATED
-    ) {
-      // In some urgent ER->ICU, handover might be skipped, but typically required
-    }
-
-    if (!transfer.toBedId) {
-      throw new BadRequestException('Target bed must be allocated first');
-    }
-
-    const now = new Date();
-    const toBedId = transfer.toBedId; // Capture for TS closure narrowing
-
-    const result = await this.prisma.$transaction(async (tx) => {
-      // 1. Mark fromBed as CLEANING
-      if (transfer.fromBedId) {
-        await tx.bed.update({
-          where: { id: transfer.fromBedId },
-          data: { status: BedStatus.CLEANING },
-        });
+    return this.prisma.$transaction(async (tx) => {
+      const { transfer } = await this.lockTransfer(tx, hospitalId, transferId);
+      if (
+        transfer.status !== TransferOrderStatus.HANDOVER_SIGNED ||
+        !transfer.handoverNote?.signedAt ||
+        !transfer.handoverNote.signedById
+      ) {
+        throw new BadRequestException(
+          'يجب حجز السرير واعتماد تقرير التسليم قبل تأكيد الوصول',
+        );
       }
-
-      // Close ALL previous active bed assignments to enforce single source of truth
-      await tx.bedAssignment.updateMany({
+      if (!transfer.toBedId)
+        throw new BadRequestException('لم يخصص سرير للوجهة');
+      const overlapping = await tx.transferOrder.count({
         where: {
-          encounterId: transfer.encounterId,
-          to: null,
-        },
-        data: { to: now },
-      });
-
-      // 2. Mark toBed as OCCUPIED
-      await tx.bed.update({
-        where: { id: toBedId },
-        data: { status: BedStatus.OCCUPIED },
-      });
-
-      // 3. Create new bed assignment
-      await tx.bedAssignment.create({
-        data: {
           hospitalId,
-          encounterId: transfer.encounterId,
-          bedId: toBedId,
-          from: now,
+          toBedId: transfer.toBedId,
+          id: { not: transferId },
+          status: { in: ACTIVE },
         },
       });
-
-      // 4. Update encounter & admission location
-      let newRoomId: number | undefined;
-      let newWardId: number | undefined;
-      let newDepartmentId: number | undefined;
-
-      const toBed = await tx.bed.findUnique({ where: { id: toBedId } });
-      if (toBed) {
-        newRoomId = toBed.roomId;
-        newWardId = toBed.wardId;
-        const toWard = await tx.ward.findUnique({
-          where: { id: toBed.wardId },
-        });
-        if (toWard && toWard.departmentId) {
-          newDepartmentId = toWard.departmentId;
-        }
-      }
-
-      // Find the admission connected to this encounter to update it
-      const admission = await tx.admission.findUnique({
-        where: { encounterId: transfer.encounterId },
+      if (overlapping)
+        throw new BadRequestException('يوجد تعارض في ملكية حجز الوجهة');
+      await moveBed(tx, hospitalId, transfer.encounterId, transfer.toBedId, {
+        expectedFromBedId: transfer.fromBedId,
+        targetStatus: 'BLOCKED',
+        transferOrderId: transferId,
       });
-      if (admission) {
-        await tx.admission.update({
-          where: { id: admission.id },
-          data: {
-            bedId: toBedId,
-            roomId: newRoomId,
-            wardId: newWardId,
-            departmentId: newDepartmentId,
-            // Dynamic billing: we would ideally hook an event here or run a nightly cron
-          },
-        });
-      }
-
-      // 5. Update transfer strictly to TRANSFERRED
+      const now = new Date();
       return tx.transferOrder.update({
-        where: { id: transferId },
-        data: {
-          status: TransferOrderStatus.TRANSFERRED,
-          transferredAt: now,
-        },
+        where: { id: transferId, hospitalId },
+        data: { status: TransferOrderStatus.TRANSFERRED, transferredAt: now },
       });
     });
-
-    return result;
   }
 }

@@ -11,7 +11,7 @@ services:
     shm_size: 1g # تحسين الأداء: زيادة الذاكرة المشتركة
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-admin}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
       POSTGRES_DB: ${POSTGRES_DB:-saraya_erp}
       TZ: Africa/Tripoli
     volumes:
@@ -46,13 +46,13 @@ services:
       --save "900 1"
       --save "300 10"
       --save "60 10000"
-      --requirepass ${REDIS_PASSWORD}
+      --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
     volumes:
       - redis_data:/data
     networks:
       - saraya_net
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:?REDIS_PASSWORD is required}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -63,22 +63,22 @@ services:
   # 2. طبقة التطبيق (Application Layer)
   # ==========================================
   backend:
-    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-aymanmj}/saraya-backend:${IMAGE_TAG:-latest}
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-aymanmj}/saraya-backend:${IMAGE_TAG:?IMAGE_TAG is required - pin a release tag or digest}
     container_name: saraya_backend
     env_file:
       - .env
     restart: always
     user: "node" # تشغيل بمستخدم غير الروت للأمان
     environment:
-      DATABASE_URL: "postgresql://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-saraya_erp}?schema=public"
-      JWT_SECRET: ${JWT_SECRET}
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@postgres:5432/${POSTGRES_DB:-saraya_erp}?schema=public"
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-86400s}
       OTLP_ENDPOINT: "http://saraya_otel_collector:4318/v1/traces"
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
       VAULT_ADDR: "http://vault:8200"
-      VAULT_TOKEN: ${VAULT_TOKEN:-saraya-root-token-dev}
+      VAULT_TOKEN: ${VAULT_TOKEN:?VAULT_TOKEN is required}
       NODE_ENV: production
       PORT: 3000
       TZ: Africa/Tripoli
@@ -86,8 +86,8 @@ services:
       # 🔒 Security: تحديد المصادر المسموحة (CORS)
       CORS_ORIGINS: ${CORS_ORIGINS:-}
       # 🔒 Security: مفتاح تشفير بيانات المرضى (AES-256)
-      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
-      ENCRYPTION_SALT: ${ENCRYPTION_SALT:-saraya-default-salt-123}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?ENCRYPTION_KEY is required}
+      ENCRYPTION_SALT: ${ENCRYPTION_SALT:?ENCRYPTION_SALT is required}
       # إعدادات البريد (تأكد من وجودها في .env)
       SMTP_HOST: ${SMTP_HOST}
       SMTP_PORT: ${SMTP_PORT}
@@ -130,7 +130,7 @@ services:
     logging: *default_logging
 
   frontend:
-    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-aymanmj}/saraya-frontend:${IMAGE_TAG:-latest}
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-aymanmj}/saraya-frontend:${IMAGE_TAG:?IMAGE_TAG is required - pin a release tag or digest}
     container_name: saraya_frontend
     restart: always
     environment:
@@ -388,7 +388,7 @@ services:
       - "127.0.0.1:3001:3000" # يمكن الوصول لـ Grafana عبر المنفذ 3001 محلياً فقط
     environment:
       - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin123}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:?GRAFANA_PASSWORD is required}
       - GF_USERS_ALLOW_SIGN_UP=false
     volumes:
       - grafana_data:/var/lib/grafana
@@ -484,23 +484,8 @@ services:
   # ==========================================
   # 6. أدوات الإدارة عن بعد
   # ==========================================
-
-  watchtower:
-    image: containrrr/watchtower:latest
-    container_name: saraya_watchtower
-    restart: always
-    environment:
-      - WATCHTOWER_CLEANUP=true
-      - WATCHTOWER_INCLUDE_RESTARTING=true
-      - DOCKER_API_VERSION=1.44 # Fix old client error
-      # 🔄 OFFLINE-FIX: لا تتوقف أو تعيد تشغيل حاويات عند فشل السحب
-      - WATCHTOWER_NO_RESTART=false
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    # تحقق كل 6 ساعات بدل كل ساعة لتقليل المحاولات الفاشلة عند انقطاع الإنترنت
-    command: --interval 21600 --cleanup
-    networks:
-      - saraya_net
+  # سياسة النشر الطبي: يُمنع التحديث التلقائي غير المراقب (تمت إزالة Watchtower).
+  # يجب أن تتم الترقيات عبر تثبيت IMAGE_TAG بإصدار أو بصمة (digest) معتمدة بعد القبول وتجهيز خطة الرجوع.
 
   portainer:
     image: portainer/portainer-ce:latest

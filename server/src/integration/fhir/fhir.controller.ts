@@ -84,31 +84,19 @@ export class FhirController {
   getSmartConfiguration(@Req() req: Request) {
     const base = this.getBaseUrl(req);
     return {
-      authorization_endpoint: `${base}/oauth/authorize`,
       token_endpoint: `${base}/oauth/token`,
       token_endpoint_auth_methods_supported: ['client_secret_post'],
-      grant_types_supported: ['authorization_code', 'client_credentials'],
+      grant_types_supported: ['client_credentials'],
       scopes_supported: [
         'patient/*.read',
-        'patient/*.write',
-        'patient/*.*',
         'user/*.read',
-        'user/*.write',
-        'user/*.*',
         'system/*.read',
-        'system/*.write',
-        'system/*.*',
         'launch/patient',
-        'openid',
-        'fhirUser',
       ],
       capabilities: [
-        'launch-standalone',
         'client-confidential-symmetric',
-        'context-standalone-patient',
         'permission-patient',
         'permission-user',
-        'sso-openid-connect',
       ],
     };
   }
@@ -441,7 +429,18 @@ export class FhirController {
   }
 
   @Post('cds-services/:id')
-  handleCdsHook(@Param('id') id: string, @Body() body: any) {
+  @UseGuards(FhirAuthGuard)
+  @FhirScope('patient/Patient.read')
+  handleCdsHook(
+    @Param('id') id: string,
+    @Body() body: { context?: { patientId?: string | number } },
+    @Req() req: Request,
+  ) {
+    const patientId = body.context?.patientId;
+    const context = this.getPatientContext(req);
+    if (context && String(patientId) !== String(context)) {
+      throw new ForbiddenException('CDS patient does not match token context');
+    }
     return this.fhirService.handleCdsHook(id, body);
   }
 }

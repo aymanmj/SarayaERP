@@ -1,11 +1,34 @@
-import { PrismaService } from '../src/prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
-import { User } from '@prisma/client';
+import type { PrismaClient, User } from '@prisma/client';
+
+export async function testStaffSessionClaims(
+  prisma: PrismaClient,
+  userId: number,
+  hospitalId: number,
+) {
+  const user = await prisma.user.findUniqueOrThrow({
+    where: { id: userId },
+    select: { authVersion: true },
+  });
+  const session = await prisma.staffSession.create({
+    data: {
+      userId,
+      activeBranchId: hospitalId,
+      authVersion: user.authVersion,
+      expiresAt: new Date(Date.now() + 3600000),
+    },
+  });
+  return {
+    sid: session.id,
+    branchVersion: session.branchVersion,
+    authVersion: user.authVersion,
+  };
+}
 
 export class AuthHelper {
   constructor(
-    private prisma: PrismaService,
+    private prisma: PrismaClient,
     private jwt: JwtService,
   ) {}
 
@@ -14,6 +37,7 @@ export class AuthHelper {
     password = 'password123',
     options: {
       hospitalId?: number;
+      isDoctor?: boolean;
       roles?: string[];
       permissions?: string[];
     } = {},
@@ -44,6 +68,7 @@ export class AuthHelper {
         fullName: 'Test User',
         hospitalId: hospital.id,
         isActive: true,
+        isDoctor: options.isDoctor ?? false,
       },
       include: {
         userRoles: {
@@ -52,8 +77,42 @@ export class AuthHelper {
       },
     });
 
+    // Real persisted grants: JWT claims alone must never authorize E2E requests.
+    for (const name of options.roles ?? []) {
+      const role = await this.prisma.role.upsert({
+        where: { name },
+        update: {},
+        create: { name, description: 'Synthetic E2E role' },
+      });
+      await this.prisma.userRole.create({
+        data: { userId: user.id, roleId: role.id },
+      });
+    }
+    if (options.permissions?.length) {
+      const role = await this.prisma.role.create({
+        data: {
+          name: `SYNTHETIC_PERMISSIONS_${user.id}`,
+          description: 'Per-user synthetic test grants',
+        },
+      });
+      for (const code of [...new Set(options.permissions)]) {
+        const permission = await this.prisma.permission.upsert({
+          where: { code },
+          update: {},
+          create: { code },
+        });
+        await this.prisma.rolePermission.create({
+          data: { roleId: role.id, permissionId: permission.id },
+        });
+      }
+      await this.prisma.userRole.create({
+        data: { userId: user.id, roleId: role.id },
+      });
+    }
+
     // 3. Generate Token
     const payload = {
+      ...(await testStaffSessionClaims(this.prisma, user.id, user.hospitalId)),
       sub: user.id,
       username: user.username,
       roles: options.roles ?? [],

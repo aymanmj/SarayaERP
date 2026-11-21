@@ -1,0 +1,2 @@
+ALTER INDEX "ServiceMaterialConsumption_hospitalId_serviceItemId_referenceTy"
+RENAME TO "service_material_consumption_identity_key";

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
@@ -6,6 +6,12 @@ import { ClsService } from 'nestjs-cls';
 import type { Request } from 'express';
 import { VaultService } from '../common/vault/vault.service';
 import * as jwt from 'jsonwebtoken';
+import { PrismaService } from '../prisma/prisma.service';
+import type { JwtPayload } from './jwt-payload.type';
+import {
+  hasStaffSessionClaims,
+  staffSessionFilter,
+} from './staff-session-lock';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
@@ -13,6 +19,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     config: ConfigService,
     private readonly cls: ClsService,
     private readonly vaultService: VaultService,
+    private readonly prisma: PrismaService,
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromExtractors([
@@ -43,15 +50,126 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     });
   }
 
-  async validate(payload: any) {
+  async validate(payload: JwtPayload) {
+    if (
+      !payload ||
+      !hasStaffSessionClaims(payload) ||
+      !Number.isSafeInteger(payload.sub) ||
+      payload.sub <= 0 ||
+      !Number.isSafeInteger(payload.hospitalId) ||
+      payload.hospitalId <= 0 ||
+      !Array.isArray(payload.roles) ||
+      !payload.roles.every((role) => typeof role === 'string') ||
+      !Array.isArray(payload.permissions) ||
+      !payload.permissions.every((permission) => typeof permission === 'string')
+    )
+      throw new UnauthorizedException('جلسة الدخول غير صالحة');
+    const user = await this.prisma.user.findFirst({
+      where: {
+        id: payload.sub,
+        isActive: true,
+        isDeleted: false,
+        OR: [
+          { hospitalId: payload.hospitalId, hospital: { isActive: true } },
+          {
+            accessibleHospitals: {
+              some: {
+                hospitalId: payload.hospitalId,
+                hospital: { isActive: true },
+              },
+            },
+          },
+        ],
+      },
+      select: {
+        id: true,
+        username: true,
+        authVersion: true,
+        hospitalId: true,
+        hospital: { select: { isActive: true, organizationId: true } },
+        accessibleHospitals: {
+          where: {
+            hospitalId: payload.hospitalId,
+            hospital: { isActive: true },
+          },
+          select: { hospital: { select: { organizationId: true } } },
+        },
+        userRoles: {
+          select: {
+            role: {
+              select: {
+                name: true,
+                rolePermissions: {
+                  select: { permission: { select: { code: true } } },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+    if (!user)
+      throw new UnauthorizedException(
+        'الحساب أو المنشأة غير نشط أو تغير نطاق الحساب؛ يلزم تسجيل الدخول',
+      );
+    if (
+      !Number.isSafeInteger(payload.authVersion ?? 0) ||
+      (payload.authVersion ?? 0) !== (user.authVersion ?? 0)
+    )
+      throw new UnauthorizedException(
+        'ألغيت جلسة الدخول؛يلزم تسجيل الدخول مجددًا',
+      );
+    const homeBranch = user.hospitalId === payload.hospitalId;
+    if (
+      homeBranch
+        ? !user.hospital.isActive
+        : user.accessibleHospitals.length === 0
+    )
+      throw new UnauthorizedException('المنشأة غير نشطة أو ألغي تصريح الفرع');
+    const session = await this.prisma.staffSession.findFirst({
+      where: staffSessionFilter(
+        payload.sid,
+        user.id,
+        payload.hospitalId,
+        user.authVersion ?? 0,
+        payload.branchVersion,
+      ),
+      select: { id: true },
+    });
+    if (!session)
+      throw new UnauthorizedException('ألغيت جلسة الجهاز أو تغير فرعها');
+    const roles = user.userRoles.map(({ role }) => role.name);
+    const permissions = [
+      ...new Set(
+        user.userRoles.flatMap(({ role }) =>
+          role.rolePermissions.map(({ permission }) => permission.code),
+        ),
+      ),
+    ];
+    const organizationId = homeBranch
+      ? user.hospital.organizationId
+      : user.accessibleHospitals[0].hospital.organizationId;
+    // The signed token proves identity and selected branch, never current privileges.
+    const identity: JwtPayload = {
+      sid: payload.sid,
+      branchVersion: payload.branchVersion,
+      authVersion: user.authVersion ?? 0,
+      sub: user.id,
+      username: user.username,
+      hospitalId: payload.hospitalId,
+      organizationId: organizationId ?? undefined,
+      roles,
+      permissions,
+      isSuperAdmin: roles.includes('SUPER_ADMIN'),
+    };
     if (this.cls.isActive()) {
-      this.cls.set('userId', payload.sub);
-      this.cls.set('hospitalId', payload.hospitalId);
-      this.cls.set('organizationId', payload.organizationId || null);
-      this.cls.set('isSuperAdmin', payload.isSuperAdmin || false);
-      this.cls.set('user', payload);
+      this.cls.set('userId', identity.sub);
+      this.cls.set('hospitalId', identity.hospitalId);
+      this.cls.set('organizationId', identity.organizationId ?? null);
+      this.cls.set('isSuperAdmin', identity.isSuperAdmin);
+      this.cls.set('user', identity);
     }
-    return payload;
+    return identity;
   }
 }
 

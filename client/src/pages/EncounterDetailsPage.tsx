@@ -1096,6 +1096,7 @@ export default function EncounterDetailsPage() {
                 fallback={<LazyPanelFallback label={t("encounter.loading.prescriptions", "تحميل تبويب الأدوية...")} />}
               >
                 <PrescriptionsTab
+                  key={encounter.id}
                   encounterId={encounter.id}
                   hospitalId={encounter.hospitalId}
                   doctorId={encounter.doctorId}

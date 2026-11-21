@@ -1,10 +1,13 @@
+import { PharmacySourcePolicy } from '../components/pharmacy/PharmacySourcePolicy';
 // src/pages/PharmacyWorklistPage.tsx
 
+import { Money } from "../utils/money";
 import { useEffect, useState, useMemo } from "react";
 import { apiClient } from "../api/apiClient";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useAuthStore } from "../stores/authStore";
 
 // Enums & Types
 type PrescriptionStatus =
@@ -24,7 +27,7 @@ type ProductItemLite = {
   genericName: string | null;
   strength: string | null;
   form: string | null;
-  unitPrice: number;
+  unitPrice: number | string;
   stockOnHand: number;
 };
 
@@ -41,6 +44,9 @@ type PrescriptionItemLite = {
 
 type WorklistPrescription = {
   id: number;
+  prepaidInvoiceId?: number | null;
+  partialClosureEligible?: boolean;
+  pharmacistVerificationStatus: "PENDING" | "VERIFIED" | "REJECTED";
   status: PrescriptionStatus;
   createdAt: string;
   encounterId: number | null;
@@ -55,8 +61,8 @@ function formatDateTime(value: string, locale: string = "ar-LY") {
   return d.toLocaleString(locale);
 }
 
-function formatMoney(value: number, currency: string = "LYD") {
-  return `${currency} ${value.toFixed(3)}`;
+function formatMoney(value: number | string, currency: string = "LYD") {
+  return `${currency} ${Money.toFixed(value)}`;
 }
 
 export default function PharmacyWorklistPage() {
@@ -66,14 +72,21 @@ export default function PharmacyWorklistPage() {
   const currencyLabel = t("common.currency.lyd", "LYD");
 
   const queryClient = useQueryClient();
+  const user = useAuthStore((state) => state.user);
+  const worklistKey = ["pharmacy-worklist", user?.hospitalId, user?.id];
+  const canVerify = user?.roles.some((role) => role === "PHARMACIST" || role === "ADMIN")
+    && user.permissions.includes("pharmacy:manage");
 
   // Selection & Modal State
   const [selectedPrescription, setSelectedPrescription] =
     useState<WorklistPrescription | null>(null);
+  const isPrepaid = selectedPrescription?.prepaidInvoiceId != null;
   const [showDispenseModal, setShowDispenseModal] = useState(false);
 
   // Dispense Form State
   const [qtyMap, setQtyMap] = useState<Record<number, number>>({});
+  const [finalPartial, setFinalPartial] = useState(false);
+  const [closureReason, setClosureReason] = useState("");
   const [subMap, setSubMap] = useState<Record<number, number>>({}); // OriginalItemId -> SelectedProductId
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("CASH");
   const [amountPaid, setAmountPaid] = useState<string>("");
@@ -85,7 +98,9 @@ export default function PharmacyWorklistPage() {
     isLoading: loading,
     refetch: loadData,
   } = useQuery({
-    queryKey: ["pharmacy-worklist"],
+    queryKey: worklistKey,
+    enabled: Boolean(user),
+    refetchInterval: 15_000,
     queryFn: async () => {
       const res = await apiClient.get<any>("/pharmacy/worklist");
       return Array.isArray(res.data) ? res.data : (res.data.data || []);
@@ -116,6 +131,8 @@ export default function PharmacyWorklistPage() {
     });
 
     setQtyMap(initialQty);
+    setFinalPartial(false);
+    setClosureReason("");
     setSubMap(initialSub);
     setSelectedPrescription(p);
 
@@ -128,26 +145,50 @@ export default function PharmacyWorklistPage() {
 
   // حساب الإجمالي الحي
   const currentTotal = useMemo(() => {
-    if (!selectedPrescription) return 0;
-    return selectedPrescription.items.reduce((sum, it) => {
-      const qty = qtyMap[it.id] ?? 0;
-      const productId = subMap[it.id];
-      const product = catalog.find((p) => p.id === productId);
-      const price = product ? product.unitPrice : (it.drugItem?.unitPrice ?? 0);
-      return sum + qty * price;
-    }, 0);
-  }, [selectedPrescription, qtyMap, subMap, catalog]);
+    if (!selectedPrescription) return "0.000";
+    const lines = selectedPrescription.items.map((it) => {
+      const product = catalog.find((p) => p.id === subMap[it.id]);
+      const price = isPrepaid ? it.drugItem?.unitPrice : product?.unitPrice ?? it.drugItem?.unitPrice;
+      return Money.decimal(price ?? 0).times(qtyMap[it.id] ?? 0);
+    });
+    return Money.toDbString(Money.sumPosted(...lines));
+  }, [selectedPrescription, qtyMap, subMap, catalog, isPrepaid]);
 
-  // تحديث المبلغ المدفوع تلقائياً عند تغير الإجمالي (للراحة)
   useEffect(() => {
-    if (showDispenseModal && currentTotal > 0) {
-      setAmountPaid(currentTotal.toFixed(3));
-    }
-  }, [currentTotal, showDispenseModal]);
+    if (showDispenseModal && !isPrepaid) setAmountPaid(currentTotal);
+  }, [currentTotal, showDispenseModal, isPrepaid]);
 
   // تنفيذ العملية (المنطق الذكي)
+  const verifyPrescription = async () => {
+    if (!selectedPrescription) return;
+    setProcessing(true);
+    try {
+      await apiClient.post(`/pharmacy/prescriptions/${selectedPrescription.id}/verify`);
+      setSelectedPrescription({ ...selectedPrescription, pharmacistVerificationStatus: "VERIFIED" });
+      await loadData();
+      toast.success(t("pharmacy.verificationSuccess", "تم اعتماد المراجعة الصيدلية."));
+    } catch {
+      toast.error(t("pharmacy.verificationFailed", "تعذر اعتماد الوصفة. راجع تنبيهات السلامة وحالة المريض قبل المحاولة مجددًا."));
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const partialReady = selectedPrescription?.partialClosureEligible &&
+    closureReason.trim().length >= 5 && Money.decimal(currentTotal).gt(0) &&
+    selectedPrescription.items.some((item) => (qtyMap[item.id] ?? 0) < item.quantity) &&
+    selectedPrescription.items.every((item) => {
+      const quantity = qtyMap[item.id] ?? 0;
+      return Number.isInteger(quantity) && quantity >= 0 && quantity <= item.quantity;
+    });
+
   const handleDispenseAction = async () => {
     if (!selectedPrescription) return;
+    if (finalPartial && (!partialReady || !window.confirm(t("pharmacy.confirmFinalPartial")))) return;
+    if (selectedPrescription.pharmacistVerificationStatus !== "VERIFIED") {
+      toast.error(t("pharmacy.verificationRequired", "تجب مراجعة الوصفة واعتمادها من الصيدلي قبل الصرف."));
+      return;
+    }
 
     // تحديد نوع الحالة
     const isInpatient = selectedPrescription.encounter?.type === "IPD";
@@ -163,15 +204,16 @@ export default function PharmacyWorklistPage() {
           quantity: qtyMap[it.id] ?? 0,
           dispensedDrugItemId: subMap[it.id],
         }))
-        .filter((x) => x.quantity > 0);
+        .filter((x) => finalPartial || x.quantity > 0);
 
-      if (isInpatient) {
+      if (isPrepaid || isInpatient) {
         // ✅ سيناريو الإيواء: صرف فقط (إضافة للفاتورة المفتوحة)
         await apiClient.post(`/pharmacy/prescriptions/${pId}/dispense`, {
           items: itemsPayload,
-          notes: t("pharmacy.notes.ipdDispense", "صرف للعنبر (IPD Dispense)"),
+          ...(finalPartial && { partialClosureReason: closureReason.trim() }),
+          notes: isPrepaid ? undefined : t("pharmacy.notes.ipdDispense", "صرف للعنبر (IPD Dispense)"),
         });
-        toast.success(t("pharmacy.success.ipdDispensed", "تم صرف الأدوية وإرسالها للعنبر."));
+        toast.success(finalPartial ? t("pharmacy.partialClosed") : isPrepaid ? t("pharmacy.success.prepaidDispensed", "تم صرف الوصفة.") : t("pharmacy.success.ipdDispensed", "تم صرف الأدوية وإرسالها للعنبر."));
       } else {
         // ✅ سيناريو الخارجي: صرف + دفع فوري
         await apiClient.post(`/pharmacy/prescriptions/${pId}/dispense-pay`, {
@@ -187,7 +229,7 @@ export default function PharmacyWorklistPage() {
       setSelectedPrescription(null);
 
       // تحديث القائمة
-      queryClient.setQueryData<WorklistPrescription[]>(["pharmacy-worklist"], (prev) =>
+      queryClient.setQueryData<WorklistPrescription[]>(worklistKey, (prev) =>
         prev ? prev.filter((x) => x.id !== pId) : []
       );
      
@@ -208,6 +250,7 @@ export default function PharmacyWorklistPage() {
       dir={isRtl ? "rtl" : "ltr"}
       data-testid="pharmacy-page"
     >
+      <PharmacySourcePolicy />
       {/* Header */}
       <div className="flex items-center justify-between gap-4">
         <div>
@@ -334,6 +377,21 @@ export default function PharmacyWorklistPage() {
 
             {/* Body */}
             <div className="p-4 overflow-y-auto flex-1">
+              <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-slate-700 p-3 text-sm">
+                <span>
+                  {selectedPrescription.pharmacistVerificationStatus === "VERIFIED"
+                    ? t("pharmacy.verified", "المراجعة الصيدلية معتمدة")
+                    : t("pharmacy.reviewRequired", "راجع الأدوية والجرعات وحالة المريض ثم اعتمد الوصفة قبل الصرف.")}
+                </span>
+                {canVerify && selectedPrescription.pharmacistVerificationStatus !== "VERIFIED" && (
+                  <button type="button" onClick={verifyPrescription} disabled={processing}
+                    data-testid="pharmacy-verify-prescription"
+                    className="shrink-0 rounded-lg bg-sky-600 px-4 py-2 text-white disabled:opacity-50">
+                    {t("pharmacy.verifyPrescription", "اعتماد المراجعة الصيدلية")}
+                  </button>
+                )}
+              </div>
+              <p className="mb-3 text-xs text-amber-300">{t("pharmacy.approvedItemsOnly", "يُصرف الصنف والكمية المعتمدان فقط. البدائل والصرف الجزئي يحتاجان دورة اعتماد مستقلة.")}</p>
               <table className="w-full text-xs text-right border-collapse">
                 <thead className="bg-slate-900 text-slate-400">
                   <tr>
@@ -360,9 +418,9 @@ export default function PharmacyWorklistPage() {
                     const selectedProduct = catalog.find(
                       (c) => c.id === selectedId,
                     );
-                    const price = selectedProduct?.unitPrice ?? 0;
+                    const price = (isPrepaid ? it.drugItem?.unitPrice : selectedProduct?.unitPrice ?? it.drugItem?.unitPrice) ?? 0;
                     const qty = qtyMap[it.id] ?? 0;
-                    const lineTotal = price * qty;
+                    const lineTotal = Money.decimal(price).times(qty).toFixed(3);
                     const similarDrugs = catalog.filter(
                       (c) =>
                         c.genericName &&
@@ -388,6 +446,7 @@ export default function PharmacyWorklistPage() {
                             className="w-full bg-slate-900 border border-slate-700 rounded p-1 text-xs outline-none focus:border-sky-500"
                             value={selectedId ?? ""}
                             data-testid={`dispense-product-${it.id}`}
+                            disabled
                             onChange={(e) =>
                               setSubMap((prev) => ({
                                 ...prev,
@@ -439,9 +498,13 @@ export default function PharmacyWorklistPage() {
                           <input
                             type="number"
                             min={0}
+                            max={it.quantity}
+                            step={1}
+                            aria-label={t("pharmacy.modal.quantity", "الكمية") + " " + (it.drugItem?.name ?? it.id)}
                             className="w-full bg-slate-900 border border-slate-700 rounded p-1 text-center text-xs"
                             value={qty}
                             data-testid={`dispense-qty-${it.id}`}
+                            readOnly={!finalPartial}
                             onChange={(e) =>
                               setQtyMap((prev) => ({
                                 ...prev,
@@ -469,18 +532,49 @@ export default function PharmacyWorklistPage() {
                 isIPD ? "bg-purple-900/20" : "bg-slate-900"
               }`}
             >
+              {selectedPrescription.partialClosureEligible && selectedPrescription.pharmacistVerificationStatus === "VERIFIED" && (
+                <div className="mb-4 space-y-2 text-sm">
+                  <label className="flex items-center gap-2">
+                    <input type="checkbox" checked={finalPartial} disabled={processing} onChange={(event) => {
+                      setFinalPartial(event.target.checked);
+                      if (!event.target.checked) {
+                        setClosureReason("");
+                        setQtyMap(Object.fromEntries(selectedPrescription.items.map((item) => [item.id, item.quantity])));
+                      }
+                    }} />
+                    {t("pharmacy.finalPartial")}
+                  </label>
+                  {finalPartial && <label className="block">{t("pharmacy.partialClosureReason")}
+                    <textarea value={closureReason} minLength={5} maxLength={1000} disabled={processing}
+                      onChange={(event) => setClosureReason(event.target.value)}
+                      className="block w-full rounded border border-slate-700 bg-slate-900 p-2" />
+                  </label>}
+                </div>
+              )}
               <div className="flex justify-between items-start mb-4">
                 <div>
                   <div className="text-sm text-slate-300 mb-1">
-                    {t("pharmacy.modal.totalRequired", "الإجمالي المطلوب:")}
+                    {finalPartial ? t("pharmacy.partialDispensedTotal") : isPrepaid ? t("pharmacy.modal.prepaidTotal", "إجمالي الوصفة المثبت") : t("pharmacy.modal.totalRequired", "الإجمالي المطلوب:")}
                   </div>
                   <div className="text-2xl font-bold text-emerald-400">
                     {formatMoney(currentTotal, currencyLabel)}
                   </div>
                 </div>
 
+                {isPrepaid && (
+                  <div className="text-sm">
+                    <p className="text-emerald-300">
+                      {t("pharmacy.modal.cashierSettled", "فاتورة الخزينة مسوّاة. الصرف فقط.")}
+                    </p>
+                    <p className="text-slate-300">
+                      {t("pharmacy.modal.cashierInvoiceNumber", "رقم فاتورة الخزينة")}{" "}
+                      <bdi>#{selectedPrescription.prepaidInvoiceId}</bdi>
+                    </p>
+                  </div>
+                )}
                 {/* خيارات الدفع تظهر فقط للمرضى غير المنومين */}
-                {!isIPD && (
+                {!isIPD && !isPrepaid && <p className="text-xs text-amber-300">{t("pharmacy.fullPaymentRequired", "الدفع الفوري يتطلب المبلغ كاملًا وجلسة صندوق مفتوحة. التأمين يُعالج عبر دورة فوترة مستقلة.")}</p>}
+                {!isIPD && !isPrepaid && (
                   <div className="flex gap-4 bg-slate-950 p-3 rounded-xl border border-slate-800">
                     <div>
                       <label className="block text-xs text-slate-400 mb-1">
@@ -496,7 +590,7 @@ export default function PharmacyWorklistPage() {
                       >
                         <option value="CASH">{t("pharmacy.payment.cash", "نقداً")}</option>
                         <option value="CARD">{t("pharmacy.payment.card", "بطاقة")}</option>
-                        <option value="INSURANCE">{t("pharmacy.payment.insurance", "تأمين")}</option>
+                        <option value="TRANSFER">{t("pharmacy.payment.transfer", "تحويل")}</option>
                       </select>
                     </div>
                     <div>
@@ -514,7 +608,7 @@ export default function PharmacyWorklistPage() {
                   </div>
                 )}
 
-                {isIPD && (
+                {isIPD && !isPrepaid && (
                   <div className="bg-purple-900/30 border border-purple-500/30 p-3 rounded-xl max-w-xs text-xs text-purple-200">
                     {t("pharmacy.modal.ipdInfoTitle", "ℹ️ هذا المريض في حالة إيواء (Inpatient).")}
                     <br />
@@ -534,7 +628,7 @@ export default function PharmacyWorklistPage() {
 
                 <button
                   onClick={handleDispenseAction}
-                  disabled={processing || currentTotal <= 0}
+                  disabled={processing || (finalPartial && !partialReady) || (!isPrepaid && !Money.decimal(currentTotal).gt(0)) || selectedPrescription.pharmacistVerificationStatus !== "VERIFIED"}
                   data-testid="pharmacy-confirm-dispense"
                   className={`px-8 py-2 rounded-xl text-white text-sm font-bold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed ${
                     isIPD
@@ -544,7 +638,9 @@ export default function PharmacyWorklistPage() {
                 >
                   {processing
                     ? t("pharmacy.processing", "جارِ التنفيذ...")
-                    : isIPD
+                    : finalPartial ? t("pharmacy.finalPartial") : isPrepaid
+                      ? t("pharmacy.confirmPrepaidDispense", "تأكيد الصرف")
+                      : isIPD
                       ? t("pharmacy.confirmDispenseIPD", "تأكيد الصرف للعنبر")
                       : t("pharmacy.confirmDispenseAndPay", "تأكيد الصرف والدفع")}
                 </button>

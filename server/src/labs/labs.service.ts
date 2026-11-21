@@ -7,6 +7,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { enqueueConsumptionIntent } from '../inventory/consumption-intent';
 import {
   ChargeSource,
   LabResultStatus,
@@ -333,6 +334,7 @@ export class LabService {
     // Wait, I should add the import at the TOP of the file.
 
     return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT l.id FROM "LabOrder" l JOIN "Order" o ON o.id=l."orderId" WHERE l.id=${params.labOrderId} AND o."hospitalId"=${params.hospitalId} FOR UPDATE OF l`;
       const labOrder = await tx.labOrder.findUnique({
         where: { id: params.labOrderId },
         include: { test: true, order: true },
@@ -365,6 +367,17 @@ export class LabService {
       });
 
       // ✨ [EVENT] Lab Result Verified -> CDSS
+      if (
+        labOrder.resultStatus !== LabResultStatus.COMPLETED &&
+        labOrder.test.serviceItemId
+      )
+        await enqueueConsumptionIntent(tx, {
+          hospitalId: params.hospitalId,
+          serviceItemId: labOrder.test.serviceItemId,
+          referenceType: 'LAB_ORDER',
+          referenceId: labOrder.id,
+          userId: params.performedById,
+        });
       if (params.resultValue && encounter) {
         const numericValue = parseFloat(params.resultValue);
         if (!isNaN(numericValue)) {

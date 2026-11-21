@@ -1,6 +1,8 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { OrgType } from '@prisma/client';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { lockStaffUser } from '../../auth/staff-session-lock';
 
 /**
  * خدمة إدارة المؤسسات (Multi-Tenancy)
@@ -10,7 +12,10 @@ import { OrgType } from '@prisma/client';
 export class TenantService {
   private readonly logger = new Logger(TenantService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private readonly events: EventEmitter2,
+  ) {}
 
   /**
    * إنشاء مؤسسة جديدة (مستشفى، عيادة، أو شبكة)
@@ -258,18 +263,27 @@ export class TenantService {
    * إلغاء وصول مستخدم من فرع
    */
   async removeUserFromBranch(userId: number, hospitalId: number) {
-    // لا تسمح بإزالة الفرع الافتراضي (hospitalId في User)
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (user && user.hospitalId === hospitalId) {
-      this.logger.warn(
-        `Cannot remove default branch (hospitalId=${hospitalId}) for user ${userId}`,
-      );
-      // نحذف السجل لكن الفرع يبقى كفرع أساسي عبر user.hospitalId
-    }
-
-    return this.prisma.userHospitalAccess.deleteMany({
-      where: { userId, hospitalId },
+    const { result, revoked } = await this.prisma.$transaction(async (tx) => {
+      const user = await lockStaffUser(tx, userId);
+      const result = await tx.userHospitalAccess.deleteMany({
+        where: { userId, hospitalId },
+      });
+      const revoked = result.count > 0 && user?.hospitalId !== hospitalId;
+      if (revoked) {
+        await tx.staffSession.updateMany({
+          where: { userId, activeBranchId: hospitalId, revokedAt: null },
+          data: { revokedAt: new Date() },
+        });
+        await tx.refreshToken.updateMany({
+          where: { userId, activeBranchId: hospitalId },
+          data: { revoked: true, replacedByToken: null },
+        });
+      }
+      return { result, revoked };
     });
+    if (revoked)
+      this.events.emit('auth.branch_access_revoked', { userId, hospitalId });
+    return result;
   }
 
   /**
@@ -353,19 +367,49 @@ export class TenantService {
     userId: number,
     branches: { hospitalId: number; isDefault?: boolean }[],
   ) {
-    // حذف كل السجلات القديمة
-    await this.prisma.userHospitalAccess.deleteMany({ where: { userId } });
-
-    // إنشاء سجلات جديدة
-    if (branches.length > 0) {
-      await this.prisma.userHospitalAccess.createMany({
-        data: branches.map((b) => ({
-          userId,
-          hospitalId: b.hospitalId,
-          isDefault: b.isDefault || false,
-        })),
+    const removed = await this.prisma.$transaction(async (tx) => {
+      const user = await lockStaffUser(tx, userId);
+      if (!user) throw new NotFoundException('المستخدم غير موجود');
+      const previous = await tx.userHospitalAccess.findMany({
+        where: { userId },
+        select: { hospitalId: true },
       });
-    }
+      const next = new Set(branches.map(({ hospitalId }) => hospitalId));
+      const removed = previous.filter(
+        ({ hospitalId }) =>
+          hospitalId !== user.hospitalId && !next.has(hospitalId),
+      );
+      await tx.userHospitalAccess.deleteMany({ where: { userId } });
+      if (branches.length) {
+        await tx.userHospitalAccess.createMany({
+          data: branches.map(({ hospitalId, isDefault }) => ({
+            userId,
+            hospitalId,
+            isDefault: isDefault ?? false,
+          })),
+        });
+      }
+      if (removed.length) {
+        await tx.staffSession.updateMany({
+          where: {
+            userId,
+            activeBranchId: { in: removed.map(({ hospitalId }) => hospitalId) },
+            revokedAt: null,
+          },
+          data: { revokedAt: new Date() },
+        });
+        await tx.refreshToken.updateMany({
+          where: {
+            userId,
+            activeBranchId: { in: removed.map(({ hospitalId }) => hospitalId) },
+          },
+          data: { revoked: true, replacedByToken: null },
+        });
+      }
+      return removed;
+    });
+    for (const { hospitalId } of removed)
+      this.events.emit('auth.branch_access_revoked', { userId, hospitalId });
 
     return this.getUserBranches(userId);
   }

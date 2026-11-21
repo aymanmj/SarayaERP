@@ -1,7 +1,7 @@
 // src/health/health.service.ts
 // Enhanced Health Check Service with detailed metrics
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import * as os from 'os';
 
@@ -46,10 +46,14 @@ import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
 
 @Injectable()
-export class HealthService {
+export class HealthService implements OnModuleDestroy {
   private readonly logger = new Logger(HealthService.name);
   private startTime = Date.now();
   private redisClient: Redis;
+
+  onModuleDestroy() {
+    this.redisClient?.disconnect();
+  }
 
   constructor(
     private prisma: PrismaService,
@@ -89,6 +93,7 @@ export class HealthService {
         }
         // Prevent unhandled error crashes and fallback
         const { InMemoryRedis } = require('../common/in-memory-redis');
+        this.redisClient.disconnect();
         this.redisClient = new InMemoryRedis();
       });
     } catch (err) {

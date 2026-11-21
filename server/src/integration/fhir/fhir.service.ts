@@ -6,7 +6,16 @@ import {
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { Prisma } from '@prisma/client';
+import { Prisma, PrescriptionStatus } from '@prisma/client';
+
+const medicationRequestInclude = {
+  items: { include: { product: true } },
+  dispenses: {
+    where: { partialClosureReason: { not: null } },
+    select: { partialClosureReason: true },
+    take: 1,
+  },
+} satisfies Prisma.PrescriptionInclude;
 
 /**
  * Enterprise FHIR R4 Service
@@ -1044,7 +1053,7 @@ export class FhirService {
   async getMedicationRequest(id: number, patientContext?: number) {
     const prescription = await this.prisma.prescription.findUnique({
       where: { id },
-      include: { items: { include: { product: true } } },
+      include: medicationRequestInclude,
     });
     if (!prescription)
       throw new NotFoundException('MedicationRequest not found');
@@ -1060,7 +1069,10 @@ export class FhirService {
     }
 
     // Map each PrescriptionItem to a separate MedicationRequest
-    const resources = this.mapPrescriptionToMedicationRequests(prescription);
+    const resources = this.mapPrescriptionToMedicationRequests(
+      prescription,
+      prescription.dispenses[0]?.partialClosureReason,
+    );
 
     if (resources.length === 1) {
       return resources[0]; // Single medication — return directly
@@ -1094,14 +1106,21 @@ export class FhirService {
       where.patientId = Number(patientId);
     }
 
-    if (query.status) {
-      where.status = query.status.toUpperCase();
+    const requestedStatus: unknown = query.status;
+    if (
+      typeof requestedStatus === 'string' &&
+      requestedStatus.toLowerCase() === 'stopped'
+    ) {
+      where.status = 'PARTIALLY_COMPLETED';
+      where.dispenses = { some: { partialClosureReason: { not: null } } };
+    } else if (typeof requestedStatus === 'string' && requestedStatus) {
+      where.status = requestedStatus.toUpperCase() as PrescriptionStatus;
     }
 
     const [items, total] = await this.prisma.$transaction([
       this.prisma.prescription.findMany({
         where,
-        include: { items: { include: { product: true } } },
+        include: medicationRequestInclude,
         take: 50,
         orderBy: { createdAt: 'desc' },
       }),
@@ -1111,7 +1130,12 @@ export class FhirService {
     // Flatten: each PrescriptionItem becomes its own MedicationRequest
     const resources: any[] = [];
     for (const prescription of items) {
-      resources.push(...this.mapPrescriptionToMedicationRequests(prescription));
+      resources.push(
+        ...this.mapPrescriptionToMedicationRequests(
+          prescription,
+          prescription.dispenses[0]?.partialClosureReason,
+        ),
+      );
     }
 
     return this.createBundle(
@@ -1126,14 +1150,29 @@ export class FhirService {
    * Each PrescriptionItem generates a separate MedicationRequest with its own
    * dosageInstruction, making it compliant with the FHIR R4 standard.
    */
-  private mapPrescriptionToMedicationRequests(prescription: any): any[] {
+  private mapPrescriptionToMedicationRequests(
+    prescription: any,
+    closureReason?: string | null,
+  ): any[] {
+    const { status: sourceStatus } = prescription as { status: string };
+    const finalPartial =
+      sourceStatus === 'PARTIALLY_COMPLETED' && closureReason;
+    const status = finalPartial
+      ? 'stopped'
+      : sourceStatus === 'DRAFT'
+        ? 'draft'
+        : sourceStatus === 'CANCELLED'
+          ? 'cancelled'
+          : sourceStatus === 'ACTIVE'
+            ? 'active'
+            : 'completed';
     if (!prescription.items || prescription.items.length === 0) {
       // Prescription with no items — return a single placeholder
       return [
         {
           resourceType: 'MedicationRequest',
           id: `${prescription.id}-0`,
-          status: prescription.status === 'ACTIVE' ? 'active' : 'completed',
+          status,
           intent: 'order',
           subject: { reference: `Patient/${prescription.patientId}` },
           encounter: { reference: `Encounter/${prescription.encounterId}` },
@@ -1157,7 +1196,10 @@ export class FhirService {
             prescription.updatedAt?.toISOString() ||
             prescription.createdAt?.toISOString(),
         },
-        status: prescription.status === 'ACTIVE' ? 'active' : 'completed',
+        status,
+        ...(finalPartial && {
+          statusReason: { text: closureReason },
+        }),
         intent: 'order',
         subject: { reference: `Patient/${prescription.patientId}` },
         encounter: { reference: `Encounter/${prescription.encounterId}` },
@@ -1669,10 +1711,13 @@ export class FhirService {
     // 6. MedicationRequests (Prescriptions)
     const prescriptions = await this.prisma.prescription.findMany({
       where: { patientId },
-      include: { items: { include: { product: true } } },
+      include: medicationRequestInclude,
     });
     prescriptions.forEach((p) => {
-      const mappedItems = this.mapPrescriptionToMedicationRequests(p);
+      const mappedItems = this.mapPrescriptionToMedicationRequests(
+        p,
+        p.dispenses[0]?.partialClosureReason,
+      );
       mappedItems.forEach((reqItem: any) =>
         ndjsonLines.push(JSON.stringify(reqItem)),
       );
@@ -1833,6 +1878,19 @@ export class FhirService {
    * @param payload - The CDS Hooks request payload with context and prefetch data
    */
   async handleCdsHook(serviceId: string, payload: any) {
+    const patientId = Number(
+      (payload as { context?: { patientId?: string | number } })?.context
+        ?.patientId,
+    );
+    if (
+      !Number.isSafeInteger(patientId) ||
+      patientId <= 0 ||
+      !(await this.prisma.patient.findFirst({ where: { id: patientId } }))
+    ) {
+      throw new NotFoundException(
+        'Patient not found in the authorized context',
+      );
+    }
     if (serviceId === 'medication-advisor-1') {
       return this.handleMedicationAdvisor(payload);
     }

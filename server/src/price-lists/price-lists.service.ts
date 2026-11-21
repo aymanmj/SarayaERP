@@ -1,5 +1,6 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { Money } from '../common/utils/money.util';
 
 @Injectable()
 export class PriceListsService {
@@ -38,11 +39,12 @@ export class PriceListsService {
     serviceItemId: number,
     price: number,
   ) {
-    // التحقق من أن serviceItem موجود
     const service = await this.prisma.serviceItem.findUnique({
       where: { id: serviceItemId },
     });
     if (!service) throw new BadRequestException('الخدمة غير موجودة');
+
+    const roundedPrice = Money.toDb(price);
 
     return this.prisma.priceListItem.upsert({
       where: {
@@ -51,11 +53,11 @@ export class PriceListsService {
           serviceItemId,
         },
       },
-      update: { price },
+      update: { price: roundedPrice },
       create: {
         priceListId,
         serviceItemId,
-        price,
+        price: roundedPrice,
       },
     });
   }
@@ -77,13 +79,13 @@ export class PriceListsService {
     insurancePolicyId?: number | null,
   ): Promise<number> {
     // 1. السعر الأساسي (Fallback)
-    const service = await this.prisma.serviceItem.findUnique({
-      where: { id: serviceItemId },
+    const service = await this.prisma.serviceItem.findFirst({
+      where: { id: serviceItemId, hospitalId },
       select: { defaultPrice: true },
     });
 
     if (!service) return 0;
-    const finalPrice = Number(service.defaultPrice);
+    const finalPrice = Money.fromPrisma(service.defaultPrice);
 
     // 2. إذا كان هناك بوليصة تأمين، نبحث عن قائمة الأسعار المرتبطة بها
     if (insurancePolicyId) {
@@ -93,7 +95,6 @@ export class PriceListsService {
       });
 
       if (policy && policy.priceListId) {
-        // البحث عن السعر في القائمة الخاصة بالبوليصة
         const customPrice = await this.prisma.priceListItem.findUnique({
           where: {
             priceListId_serviceItemId: {
@@ -105,13 +106,31 @@ export class PriceListsService {
         });
 
         if (customPrice) {
-          return Number(customPrice.price); // ✅ وجدنا سعراً خاصاً
+          return Money.fromPrisma(customPrice.price);
         }
       }
     } else {
-      // 3. إذا لم يكن هناك تأمين (كاش)، هل هناك قائمة أسعار افتراضية للكاش غير السعر الأساسي؟
-      // (مثلاً قائمة أسعار مسائية أو عطلات - يمكن تطوير هذا لاحقاً)
-      // حالياً سنكتفي بالسعر الافتراضي للخدمة
+      // 3. إذا لم يكن هناك تأمين (نقدي)، نتحقق من قائمة الأسعار الافتراضية للمستشفى إن وجدت
+      const defaultPriceList = await this.prisma.priceList.findFirst({
+        where: { hospitalId, isDefault: true, isActive: true },
+        select: { id: true },
+      });
+
+      if (defaultPriceList) {
+        const customCashPrice = await this.prisma.priceListItem.findUnique({
+          where: {
+            priceListId_serviceItemId: {
+              priceListId: defaultPriceList.id,
+              serviceItemId,
+            },
+          },
+          select: { price: true },
+        });
+
+        if (customCashPrice) {
+          return Money.fromPrisma(customCashPrice.price);
+        }
+      }
     }
 
     return finalPrice;

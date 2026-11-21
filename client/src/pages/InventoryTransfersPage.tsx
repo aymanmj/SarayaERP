@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { apiClient } from "../api/apiClient";
 import { toast } from "sonner";
 
@@ -52,6 +52,7 @@ export default function InventoryTransfersPage() {
     { productId: "", quantity: 1 },
   ]);
   const [sourceProducts, setSourceProducts] = useState<ProductStockRow[]>([]);
+  const operation = useRef<{payload:string; key:string}|null>(null);
 
   useEffect(() => {
     async function loadWarehouses() {
@@ -132,7 +133,7 @@ export default function InventoryTransfersPage() {
           );
           if (stockRow) {
             updated.productName = stockRow.product.name;
-            updated.currentStock = Number(stockRow.quantity);
+            updated.currentStock = sourceProducts.filter(s=>s.product.id===Number(val)).reduce((sum,s)=>sum+Number(s.quantity),0);
           }
         }
         return updated;
@@ -173,7 +174,7 @@ export default function InventoryTransfersPage() {
     if (!window.confirm(t("inventory.transfers.toast.confirm", "هل أنت متأكد من إتمام عملية التحويل؟"))) return;
 
     try {
-      await apiClient.post("/inventory/transfer", {
+      const payload = {
         fromWarehouseId: Number(fromWhId),
         toWarehouseId: Number(toWhId),
         notes,
@@ -181,7 +182,12 @@ export default function InventoryTransfersPage() {
           productId: Number(l.productId),
           quantity: Number(l.quantity),
         })),
-      });
+      };
+      const fingerprint=JSON.stringify(payload);
+      if(operation.current && operation.current.payload!==fingerprint) throw new Error("راجع التحويل السابق وأعد تحميل الأرصدة قبل تغيير عملية لم يتأكد تنفيذها");
+      operation.current ??= {payload:fingerprint,key:crypto.randomUUID()};
+      await apiClient.post("/inventory/transfer", {...payload,requestKey:operation.current.key});
+      operation.current=null;
 
       toast.success(t("inventory.transfers.toast.success", "تم التحويل المخزني بنجاح."));
       setTransferLines([{ productId: "", quantity: 1 }]);
@@ -194,7 +200,7 @@ export default function InventoryTransfersPage() {
       }
     } catch (err: any) {
       console.error(err);
-      toast.error(err?.response?.data?.message || t("inventory.transfers.toast.error", "فشل عملية التحويل."));
+      toast.error(err?.response?.data?.message || err.message || t("inventory.transfers.toast.error", "فشل عملية التحويل."));
     }
   };
 
@@ -397,7 +403,7 @@ export default function InventoryTransfersPage() {
                             className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs"
                           >
                             <option value="">{t("inventory.transfers.form.table.selectProduct", "-- اختر منتجاً --")}</option>
-                            {sourceProducts.map((sp) => (
+                            {sourceProducts.filter((sp,index,rows)=>rows.findIndex(row=>row.product.id===sp.product.id)===index).map((sp) => (
                               <option key={sp.product.id} value={sp.product.id}>
                                 {sp.product.name} ({sp.product.code})
                               </option>

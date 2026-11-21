@@ -1,4 +1,9 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleInit,
+  OnModuleDestroy,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { HttpService } from '@nestjs/axios';
 import { lastValueFrom } from 'rxjs';
@@ -7,13 +12,14 @@ import { lastValueFrom } from 'rxjs';
  * Enterprise Key Management Service using HashiCorp Vault
  */
 @Injectable()
-export class VaultService implements OnModuleInit {
+export class VaultService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(VaultService.name);
   private keysCache: Map<string, string> = new Map();
   private defaultSecret: string;
   private vaultUrl: string;
   private vaultToken: string;
   private isVaultEnabled: boolean;
+  private refreshInterval?: ReturnType<typeof setInterval>;
 
   constructor(
     private configService: ConfigService,
@@ -43,7 +49,7 @@ export class VaultService implements OnModuleInit {
       await this.refreshKeys();
 
       // Schedule key refreshment every hour
-      setInterval(
+      this.refreshInterval = setInterval(
         () => {
           this.refreshKeys().catch((err) =>
             this.logger.error('Failed to refresh keys', err),
@@ -61,6 +67,10 @@ export class VaultService implements OnModuleInit {
   /**
    * Refreshes keys from HashiCorp vault
    */
+  onModuleDestroy() {
+    if (this.refreshInterval) clearInterval(this.refreshInterval);
+  }
+
   async refreshKeys() {
     if (!this.isVaultEnabled) return;
     try {

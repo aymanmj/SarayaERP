@@ -187,6 +187,7 @@ describe('Patient Journey Integration Tests', () => {
       throw new Error('Encounter was not created');
     }
     const visit = await visitsService.createVisit({
+      hospitalId: 1,
       encounterId: encounter.id,
       doctorId: 5,
       notes: 'Initial ER assessment',

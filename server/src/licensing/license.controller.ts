@@ -77,9 +77,8 @@ export class LicenseController {
   }
 
   /**
-   * Renew a license with smart bonus days calculation.
-   * - If renewed before expiry: bonus days = remaining days from current license
-   * - If renewed during grace period or after expiry: starts from today
+   * Renew using the issuer-signed expiry date. Any carry-over must be included
+   * in the new signed license; local metadata cannot extend its validity.
    * This endpoint is PUBLIC (must be accessible even when license is expired).
    */
   @Public()

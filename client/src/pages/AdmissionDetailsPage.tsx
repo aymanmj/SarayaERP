@@ -3,6 +3,23 @@ import { useParams, useNavigate } from "react-router-dom";
 import { apiClient } from "../api/apiClient";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
+import { useAuthStore } from "../stores/authStore";
+import { LegacyBedTransfers, type LegacyBedTransfer } from '../components/LegacyBedTransfers';
+import { ROOM_DAY_OPTIONS } from '../utils/roomBillingPolicy';
+
+type DischargeReadiness = {
+  ready: boolean;
+  hasDischargePlan: boolean;
+  hasDischargeSummary: boolean;
+  financialClearance: boolean;
+  patientDebt: string;
+  uninvoicedChargesCount: number;
+  pendingRoomDays: number;
+  roomBillingReviewReason?: string | null;
+  pendingTransfersCount: number;
+  roomBillingPolicy: string;
+  roomBillingTimeZone: string;
+};
 
 type AdmissionDetails = {
   id: number;
@@ -113,16 +130,7 @@ type AdmissionDetails = {
     homeHealthServices?: boolean;
     equipmentNeeded?: string[];
   };
-  bedTransfers?: Array<{
-    id: number;
-    requestedAt: string;
-    requestedBy: string;
-    fromBed: string;
-    toBed?: string;
-    reason: string;
-    status: string;
-    completedAt?: string;
-  }>;
+  bedTransfers?: LegacyBedTransfer[];
 };
 
 export default function AdmissionDetailsPage() {
@@ -132,6 +140,14 @@ export default function AdmissionDetailsPage() {
   const navigate = useNavigate();
   const [admission, setAdmission] = useState<AdmissionDetails | null>(null);
   const [loading, setLoading] = useState(true);
+  const [readiness, setReadiness] = useState<DischargeReadiness | null>(null);
+  const [checkingReadiness, setCheckingReadiness] = useState(false);
+  const [discharging, setDischarging] = useState(false);
+  const canDischarge = useAuthStore((state) => state.user?.permissions.includes("admission:manage") ?? false);
+  const user = useAuthStore((state) => state.user);
+  const fullAccess = !!user?.roles.includes('ADMIN') || !!user?.permissions.includes('ADMIN_FULL_ACCESS');
+  const canApproveTransfer = fullAccess || !!user?.permissions.includes('inpatient:transfers:approve');
+  const canCancelTransfer = canApproveTransfer || !!user?.permissions.includes('admission:manage');
   const [activeTab, setActiveTab] = useState<'overview' | 'vitals' | 'medications' | 'procedures' | 'notes' | 'transfers'>('overview');
 
   useEffect(() => {
@@ -153,9 +169,24 @@ export default function AdmissionDetailsPage() {
     }
   };
 
+  const checkReadiness = async () => {
+    if (!admission) return;
+    setCheckingReadiness(true);
+    try {
+      const response = await apiClient.get<DischargeReadiness>(`/admissions/${admission.id}/discharge-readiness`);
+      setReadiness(response.data);
+    } catch {
+      setReadiness(null);
+      toast.error(t("admissions.readinessFailed", "تعذر التحقق من جاهزية الخروج. حاول مجددًا."));
+    } finally {
+      setCheckingReadiness(false);
+    }
+  };
+
   const handleDischargePatient = async () => {
     if (!admission || !confirm(t("admissions.detailsPage.confirmDischarge", "هل أنت متأكد من تسريح المريض؟"))) return;
 
+    setDischarging(true);
     try {
       await apiClient.post(`/admissions/${admission.id}/discharge`, {
         dischargeDisposition: "HOME",
@@ -164,9 +195,12 @@ export default function AdmissionDetailsPage() {
       });
 
       toast.success(t("admissions.detailsPage.dischargeSuccess", "تم تسريح المريض بنجاح"));
+      setReadiness(null);
       loadAdmissionDetails(admission.id);
     } catch (err: any) {
       toast.error(err?.response?.data?.message || t("admissions.detailsPage.dischargeFailed", "فشل تسريح المريض"));
+    } finally {
+      setDischarging(false);
     }
   };
 
@@ -259,14 +293,37 @@ export default function AdmissionDetailsPage() {
           </div>
         </div>
         {admission.admissionStatus !== 'DISCHARGED' && (
+          <div className="flex items-center gap-3">
+          <button onClick={checkReadiness} disabled={checkingReadiness || discharging}
+            className="px-4 py-2 rounded-lg bg-slate-700 disabled:opacity-50">
+            {t("admissions.checkReadiness", "فحص جاهزية الخروج")}
+          </button>
+          {canDischarge && (
           <button
             onClick={handleDischargePatient}
+            disabled={discharging || checkingReadiness}
             className="px-6 py-2 bg-green-600 hover:bg-green-500 text-white font-bold rounded-lg transition-all"
           >
             {t("admissions.detailsPage.dischargePatient", "تسريح المريض")}
           </button>
+          )}
+          </div>
         )}
       </div>
+
+      {readiness && (
+        <div role="status" className="rounded-xl border border-slate-700 bg-slate-900 p-4 space-y-2 text-sm">
+          <p className="font-bold">{readiness.ready ? t("admissions.ready", "متطلبات الخروج مكتملة وفق آخر فحص") : t("admissions.notReady", "توجد متطلبات لم تكتمل قبل الخروج")}</p>
+          <p>{t("admissions.dischargePlan", "خطة الخروج")}: {readiness.hasDischargePlan ? t("common.complete", "مكتمل") : t("common.incomplete", "غير مكتمل")}</p>
+          <p>{t("admissions.dischargeSummary", "ملخص الخروج المعتمد")}: {readiness.hasDischargeSummary ? t("common.complete", "مكتمل") : t("common.incomplete", "غير مكتمل")}</p>
+          <p>{t("admissions.patientDebt", "الرصيد المستحق على المريض")}: {readiness.patientDebt} LYD</p>
+          <p>{t('admissions.savedRoomPolicy', 'طريقة احتساب الإقامة المثبتة عند الدخول')}: {(() => { const option = ROOM_DAY_OPTIONS.find((item) => item.value === readiness.roomBillingPolicy); return option ? t(option.labelKey, option.label) : readiness.roomBillingPolicy; })()} ({readiness.roomBillingTimeZone})</p>
+          <p>{t("admissions.uninvoiced", "الخدمات غير المفوترة")}: {readiness.uninvoicedChargesCount} — {t("admissions.pendingRoomDays", "أيام الإقامة التي تحتاج فوترة")}: {readiness.pendingRoomDays}</p>
+          <p>{t("admissions.pendingTransfers", "طلبات النقل النشطة")}: {readiness.pendingTransfersCount}</p>
+          {readiness.roomBillingReviewReason && <p role="alert" className="text-amber-300">{t('admissions.roomBillingReview', 'تحتاج رسوم الإقامة مراجعة')}: {readiness.roomBillingReviewReason}</p>}
+          {!readiness.financialClearance && <p>{t("admissions.settleBeforeDischarge", "راجع الحسابات لإصدار فاتورة الخدمات والإقامة وتسوية الرصيد ثم أعد الفحص.")}</p>}
+        </div>
+      )}
 
       {/* Status Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -409,8 +466,9 @@ export default function AdmissionDetailsPage() {
           </div>
         )}
 
+        {activeTab === 'transfers' && <LegacyBedTransfers transfers={admission.bedTransfers ?? []} canApprove={canApproveTransfer} canCancel={canCancelTransfer} activeAdmission={['ADMITTED', 'IN_PROGRESS', 'DISCHARGE_PENDING'].includes(admission.admissionStatus)} onChanged={async () => { setReadiness(null); await loadAdmissionDetails(admission.id); }} />}
         {/* Other tabs */}
-        {activeTab !== 'overview' && (
+        {activeTab !== 'overview' && activeTab !== 'transfers' && (
           <div className="bg-slate-900/50 rounded-xl p-6 border border-slate-700">
             <div className="text-center py-8 text-slate-400">
               <p>{t("admissions.detailsPage.tabDeveloping", { defaultValue: "محتوى {{tab}} قيد التطوير...", tab: getTabLabel(activeTab) })}</p>

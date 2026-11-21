@@ -89,6 +89,7 @@ export class HrController {
   }
 
   // --- Leaves ---
+  @Permissions('hr:view', 'hr:manage')
   @Post('leaves')
   async requestLeave(@Req() req: any, @Body() body: any) {
     return this.hrService.requestLeave({

@@ -3,11 +3,14 @@ import React, { useState } from 'react';
 import { SystemSetting, systemSettingsApi } from '../../api/systemSettings';
 import { toast } from 'sonner';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { ROOM_DAY_OPTIONS } from '../../utils/roomBillingPolicy';
+import { useAuthStore } from '../../stores/authStore';
 
 export const SystemSettingsPage = () => {
   const { t, i18n } = useTranslation();
   const isRtl = i18n.language === "ar";
   const queryClient = useQueryClient();
+  const canManage = useAuthStore((state) => state.user?.permissions.includes('admin:manage') ?? false);
 
   // Moved inside component to fix module-level t() bug
   const GROUP_META: Record<string, { label: string; icon: string; color: string }> = {
@@ -20,6 +23,8 @@ export const SystemSettingsPage = () => {
   };
 
   const KEY_LABELS: Record<string, string> = {
+    'billing.roomDayPolicy': t('settings.system.roomDayPolicy', 'طريقة احتساب أيام الإقامة'),
+    'billing.roomTimeZone': t('settings.system.roomTimeZone', 'المنطقة الزمنية لليالي المبيت'),
     'billing.debtLimit': t("settings.system.permissibleDebtLimit", "حد المديونية المسموح"),
     'billing.currency': t("settings.system.virtualCurrency", "العملة الافتراضية"),
     'accounting.allowNegativeStock': t("settings.system.negativeWithdrawalFromStock", "السحب بالسالب من المخزون"),
@@ -78,10 +83,10 @@ export const SystemSettingsPage = () => {
       setSavingKey(key);
       return systemSettingsApi.update(key, value);
     },
-    onSuccess: (_, variables) => {
+    onSuccess: (updated, variables) => {
       toast.success(t("settings.system.theSettingHasBeenUpdatedSuccessfully", "تم تحديث الإعداد بنجاح"));
       queryClient.setQueryData(["systemSettings"], (prev: SystemSetting[] | undefined) =>
-        (prev || []).map((s) => (s.key === variables.key ? { ...s, value: variables.value } : s))
+        (prev || []).map((s) => (s.key === variables.key ? { ...s, ...updated } : s))
       );
       setSavingKey(null);
     },
@@ -92,10 +97,22 @@ export const SystemSettingsPage = () => {
   });
 
   const handleUpdate = (key: string, value: string) => {
+    if (!canManage) return;
     updateMutation.mutate({ key, value });
   };
 
   const renderInput = (setting: SystemSetting) => {
+    if (setting.key === 'billing.roomDayPolicy') {
+      return <div className="space-y-2 w-full max-w-xl">
+        <select aria-label={KEY_LABELS[setting.key]} value={setting.value}
+          onChange={(event) => handleUpdate(setting.key, event.target.value)} disabled={!canManage || savingKey === setting.key}
+          className="w-full bg-slate-800 border border-slate-600 rounded-xl px-4 py-2 text-white disabled:opacity-60">
+          {ROOM_DAY_OPTIONS.map((option) => <option key={option.value} value={option.value}>{t(option.labelKey, option.label)}</option>)}
+        </select>
+        <p className="text-xs text-slate-400">{t('settings.system.roomPolicyScope', 'التعديل يسري على حالات الدخول الجديدة فقط. تبقى طريقة الحساب والتوقيت للحالات القائمة والرسوم السابقة محفوظة.')}</p>
+        <p className="text-xs text-slate-400">{t('settings.system.roomPolicyExample', 'مثال لإقامة 36 ساعة: الخيار الأول يوم واحد، والثاني يومان. الخيار الثالث يحسب مرات عبور منتصف الليل المحلي، بحد أدنى يوم.')}</p>
+      </div>;
+    }
     if (setting.type === 'BOOLEAN') {
       return (
         <label className="relative inline-flex items-center cursor-pointer">
@@ -104,7 +121,7 @@ export const SystemSettingsPage = () => {
             className="sr-only peer"
             checked={setting.value === 'true'}
             onChange={(e) => handleUpdate(setting.key, String(e.target.checked))}
-            disabled={savingKey === setting.key}
+            disabled={!canManage || savingKey === setting.key}
           />
           <div className="w-11 h-6 bg-slate-700/50 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-sky-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sky-600"></div>
           <span className="mr-3 text-sm font-medium text-slate-300">
@@ -125,7 +142,7 @@ export const SystemSettingsPage = () => {
             }
           }}
           className="bg-slate-800 border border-slate-600 text-white rounded-xl px-4 py-2 w-full max-w-sm focus:ring-2 focus:ring-sky-500 outline-none transition-all shadow-inner"
-          disabled={savingKey === setting.key}
+          disabled={!canManage || savingKey === setting.key}
         />
       );
     }
@@ -140,7 +157,7 @@ export const SystemSettingsPage = () => {
           }
         }}
         className="bg-slate-800 border border-slate-600 text-white rounded-xl px-4 py-2 w-full max-w-sm focus:ring-2 focus:ring-sky-500 outline-none transition-all shadow-inner"
-        disabled={savingKey === setting.key}
+        disabled={!canManage || savingKey === setting.key}
       />
     );
   };

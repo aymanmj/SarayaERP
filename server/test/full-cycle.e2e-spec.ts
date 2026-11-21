@@ -113,62 +113,22 @@ describe('Full Cycle E2E Simulation', () => {
       });
       labTestId = labTest.id;
 
-      // Create Users with Roles
-      // We need to create Roles first (Global, no hospitalId)
-      const roleDoctor = await prisma.role.upsert({
-        where: { name: 'DOCTOR' },
-        update: {},
-        create: { name: 'DOCTOR', description: 'Doctor' },
-      });
-      const roleLab = await prisma.role.upsert({
-        where: { name: 'LAB_TECH' },
-        update: {},
-        create: { name: 'LAB_TECH', description: 'Lab Tech' },
-      });
-      const roleRecep = await prisma.role.upsert({
-        where: { name: 'RECEPTION' },
-        update: {},
-        create: { name: 'RECEPTION', description: 'Reception' },
-      });
-      const roleAccountant = await prisma.role.upsert({
-        where: { name: 'ACCOUNTANT' },
-        update: {},
-        create: { name: 'ACCOUNTANT', description: 'Accountant' },
-      });
-
-      // Helper to create user and assign role
       const createUser = async (username: string, roleName: string) => {
-        const { user, accessToken } = await authHelper.createTestUser(
-          username,
-          'pass123',
-        );
-        // Update user to use our new hospitalId
-        await prisma.user.update({
-          where: { id: user.id },
-          data: { hospitalId },
-        });
-
-        const role = await prisma.role.findUnique({
-          where: { name: roleName },
-        });
-        if (!role) throw new Error(`Role ${roleName} not found`);
-
-        // Assign Role
-        await prisma.userRole.create({
-          data: { userId: user.id, roleId: role.id },
-        });
-
-        // Re-issue token with role NAME (Array of strings)
-        const payload = {
-          sub: user.id,
-          username: user.username,
-          roles: [roleName],
-          hospitalId,
-          permissions: [],
-        };
-        return jwt.sign(payload, {
-          secret: process.env.JWT_SECRET || 'PRODUCTION_SECRET_KEY_CHANGE_ME',
-        });
+        const permissions =
+          roleName === 'RECEPTION'
+            ? ['patients:manage', 'encounters:manage']
+            : roleName === 'DOCTOR'
+              ? ['diagnosis:manage', 'labs:manage', 'labs:view']
+              : roleName === 'LAB_TECH'
+                ? ['labs:manage', 'labs:view']
+                : ['billing:view'];
+        return (
+          await authHelper.createTestUser(username, 'pass123', {
+            hospitalId,
+            roles: [roleName],
+            permissions,
+          })
+        ).accessToken;
       };
 
       doctorToken = await createUser('dr_house', 'DOCTOR');

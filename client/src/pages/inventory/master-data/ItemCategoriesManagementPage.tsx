@@ -93,8 +93,6 @@ export function ItemCategoriesManagementPage() {
               <label className="block text-xs text-indigo-400 font-medium mb-1">{t("inventory.categories.valuationMethod", "طريقة تقييم المخزون")}</label>
               <select value={formData.valuationMethod} onChange={e => setFormData({...formData, valuationMethod: e.target.value})} className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200">
                 <option value="WEIGHTED_AVERAGE">{t("inventory.categories.valuation.weighted", "المتوسط المرجح (Weighted Average)")}</option>
-                <option value="FIFO">{t("inventory.categories.valuation.fifo", "الوارد أولاً يصرف أولاً (FIFO)")}</option>
-                <option value="LIFO">{t("inventory.categories.valuation.lifo", "الوارد أخيراً يصرف أولاً (LIFO)")}</option>
               </select>
             </div>
             <div>

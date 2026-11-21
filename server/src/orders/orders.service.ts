@@ -3,7 +3,10 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { RadiologyService } from '../radiology/radiology.service';
+import { lockRadiologyExecution } from '../radiology/radiology-release';
 import { PrismaService } from '../prisma/prisma.service';
+import { enqueueConsumptionIntent } from '../inventory/consumption-intent';
 import {
   OrderStatus,
   OrderType,
@@ -11,13 +14,11 @@ import {
   RadiologyStatus,
 } from '@prisma/client';
 
-import { EventEmitter2 } from '@nestjs/event-emitter';
-
 @Injectable()
 export class OrdersService {
   constructor(
     private prisma: PrismaService,
-    private eventEmitter: EventEmitter2,
+    private radiology: RadiologyService,
   ) {}
 
   async createLabOrder(data: {
@@ -76,42 +77,19 @@ export class OrdersService {
     studyId: number;
     notes?: string;
   }) {
-    const enc = await this.prisma.encounter.findFirst({
-      where: { id: data.encounterId, hospitalId: data.hospitalId },
+    const [created] = await this.radiology.createOrdersForEncounter({
+      hospitalId: data.hospitalId,
+      encounterId: data.encounterId,
+      doctorId: data.orderedById,
+      studyIds: [data.studyId],
+      notes: data.notes,
     });
-
-    if (!enc) {
-      throw new NotFoundException('Encounter غير موجود في هذه المنشأة');
-    }
-
-    const study = await this.prisma.radiologyStudy.findFirst({
-      where: { id: data.studyId, hospitalId: data.hospitalId, isActive: true },
+    const radiologyOrder = await this.prisma.radiologyOrder.findUniqueOrThrow({
+      where: { id: created.id },
+      include: { order: true, study: true },
     });
-
-    if (!study) {
-      throw new NotFoundException('دراسة الأشعة غير موجودة أو غير مفعّلة');
-    }
-
-    const order = await this.prisma.order.create({
-      data: {
-        hospitalId: data.hospitalId,
-        encounterId: data.encounterId,
-        orderedById: data.orderedById,
-        type: OrderType.RADIOLOGY,
-        status: OrderStatus.NEW,
-        notes: data.notes ?? null,
-      },
-    });
-
-    const radOrder = await this.prisma.radiologyOrder.create({
-      data: {
-        orderId: order.id,
-        studyId: study.id,
-        status: 'PENDING',
-      },
-    });
-
-    return { order, radiologyOrder: radOrder, study };
+    const { order, study, ...details } = radiologyOrder;
+    return { order, radiologyOrder: details, study };
   }
 
   async listForEncounter(hospitalId: number, encounterId: number) {
@@ -153,65 +131,71 @@ export class OrdersService {
     resultDate?: Date;
     userId?: number;
   }) {
-    const labOrder = await this.prisma.labOrder.findFirst({
-      where: { id: params.labOrderId },
-      include: {
-        order: true,
-      },
-    });
-
-    if (!labOrder) {
-      throw new NotFoundException('طلب المعمل غير موجود');
-    }
-
-    if (labOrder.order.hospitalId !== params.hospitalId) {
-      throw new ForbiddenException('لا يمكنك تعديل طلب من منشأة أخرى');
-    }
-
-    const resultDate = params.resultDate ?? new Date();
-
-    const updatedLabOrder = await this.prisma.labOrder.update({
-      where: { id: params.labOrderId },
-      data: {
-        resultValue: params.resultValue ?? labOrder.resultValue,
-        resultUnit: params.resultUnit ?? labOrder.resultUnit,
-        referenceRange: params.referenceRange ?? labOrder.referenceRange,
-        resultStatus: params.resultStatus,
-        resultDate,
-      },
-    });
-
-    // لو اكتملت النتيجة: نحدث حالة الـ Order نفسها ونشغل حدث الخصم من المخزون
-    if (
-      params.resultStatus === LabResultStatus.COMPLETED &&
-      labOrder.resultStatus !== LabResultStatus.COMPLETED
-    ) {
-      await this.prisma.order.update({
-        where: { id: labOrder.orderId },
-        data: {
-          status: OrderStatus.COMPLETED,
-          completedAt: resultDate,
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT l.id FROM "LabOrder" l JOIN "Order" o ON o.id=l."orderId" WHERE l.id=${params.labOrderId} AND o."hospitalId"=${params.hospitalId} FOR UPDATE OF l`;
+      const labOrder = await tx.labOrder.findFirst({
+        where: { id: params.labOrderId },
+        include: {
+          order: true,
         },
       });
 
-      // جلب معلومات الخدمة للإيفنت
-      const labTest = await this.prisma.labTest.findUnique({
-        where: { id: labOrder.testId },
-        select: { serviceItemId: true },
+      if (!labOrder) {
+        throw new NotFoundException('طلب المعمل غير موجود');
+      }
+
+      if (labOrder.order.hospitalId !== params.hospitalId) {
+        throw new ForbiddenException('لا يمكنك تعديل طلب من منشأة أخرى');
+      }
+
+      const resultDate = params.resultDate ?? new Date();
+
+      const updatedLabOrder = await tx.labOrder.update({
+        where: { id: params.labOrderId },
+        data: {
+          resultValue: params.resultValue ?? labOrder.resultValue,
+          resultUnit: params.resultUnit ?? labOrder.resultUnit,
+          referenceRange: params.referenceRange ?? labOrder.referenceRange,
+          resultStatus: params.resultStatus,
+          resultDate,
+        },
       });
 
-      if (labTest?.serviceItemId) {
-        this.eventEmitter.emit('service.completed', {
-          hospitalId: params.hospitalId,
-          serviceItemId: labTest.serviceItemId,
-          performerId: params.userId || labOrder.order.orderedById,
-          referenceType: 'LAB_ORDER',
-          referenceId: labOrder.id,
+      // لو اكتملت النتيجة: نحدث حالة الـ Order نفسها ونشغل حدث الخصم من المخزون
+      if (
+        params.resultStatus === LabResultStatus.COMPLETED &&
+        labOrder.resultStatus !== LabResultStatus.COMPLETED
+      ) {
+        await tx.order.update({
+          where: { id: labOrder.orderId },
+          data: {
+            status: OrderStatus.COMPLETED,
+            completedAt: resultDate,
+          },
         });
-      }
-    }
 
-    return updatedLabOrder;
+        // جلب معلومات الخدمة للإيفنت
+        const labTest = await tx.labTest.findUnique({
+          where: { id: labOrder.testId },
+          select: { serviceItemId: true },
+        });
+
+        if (labTest?.serviceItemId) {
+          const identity = {
+            hospitalId: params.hospitalId,
+            serviceItemId: labTest.serviceItemId,
+            referenceType: 'LAB_ORDER',
+            referenceId: labOrder.id,
+          };
+          await enqueueConsumptionIntent(tx, {
+            ...identity,
+            userId: params.userId ?? labOrder.order.orderedById,
+          });
+        }
+      }
+
+      return updatedLabOrder;
+    });
   }
 
   // 🔹 تحديث تقرير أشعة (RadiologyOrder)
@@ -223,60 +207,71 @@ export class OrdersService {
     reportedAt?: Date;
     userId?: number;
   }) {
-    const radOrder = await this.prisma.radiologyOrder.findFirst({
-      where: { id: params.radiologyOrderId },
-      include: {
-        order: true,
-      },
-    });
-
-    if (!radOrder) {
-      throw new NotFoundException('طلب الأشعة غير موجود');
-    }
-
-    if (radOrder.order.hospitalId !== params.hospitalId) {
-      throw new ForbiddenException('لا يمكنك تعديل طلب من منشأة أخرى');
-    }
-
-    const reportedAt = params.reportedAt ?? new Date();
-
-    const updatedRadOrder = await this.prisma.radiologyOrder.update({
-      where: { id: params.radiologyOrderId },
-      data: {
-        status: params.status,
-        reportText: params.reportText ?? radOrder.reportText,
-        reportedAt,
-      },
-    });
-
-    if (
-      params.status === RadiologyStatus.COMPLETED &&
-      radOrder.status !== RadiologyStatus.COMPLETED
-    ) {
-      await this.prisma.order.update({
-        where: { id: radOrder.orderId },
-        data: {
-          status: OrderStatus.COMPLETED,
-          completedAt: reportedAt,
+    return this.prisma.$transaction(async (tx) => {
+      await lockRadiologyExecution(
+        tx,
+        params.hospitalId,
+        params.radiologyOrderId,
+        'legacy-report',
+      );
+      const radOrder = await tx.radiologyOrder.findFirst({
+        where: { id: params.radiologyOrderId },
+        include: {
+          order: true,
         },
       });
 
-      const study = await this.prisma.radiologyStudy.findUnique({
-        where: { id: radOrder.studyId },
-        select: { serviceItemId: true },
+      if (!radOrder) {
+        throw new NotFoundException('طلب الأشعة غير موجود');
+      }
+
+      if (radOrder.order.hospitalId !== params.hospitalId) {
+        throw new ForbiddenException('لا يمكنك تعديل طلب من منشأة أخرى');
+      }
+
+      const reportedAt = params.reportedAt ?? new Date();
+
+      const updatedRadOrder = await tx.radiologyOrder.update({
+        where: { id: params.radiologyOrderId },
+        data: {
+          status: params.status,
+          reportText: params.reportText ?? radOrder.reportText,
+          reportedAt,
+        },
       });
 
-      if (study?.serviceItemId) {
-        this.eventEmitter.emit('service.completed', {
-          hospitalId: params.hospitalId,
-          serviceItemId: study.serviceItemId,
-          performerId: params.userId || radOrder.order.orderedById,
-          referenceType: 'RADIOLOGY_ORDER',
-          referenceId: radOrder.id,
+      if (
+        params.status === RadiologyStatus.COMPLETED &&
+        radOrder.status !== RadiologyStatus.COMPLETED
+      ) {
+        await tx.order.update({
+          where: { id: radOrder.orderId },
+          data: {
+            status: OrderStatus.COMPLETED,
+            completedAt: reportedAt,
+          },
         });
-      }
-    }
 
-    return updatedRadOrder;
+        const study = await tx.radiologyStudy.findUnique({
+          where: { id: radOrder.studyId },
+          select: { serviceItemId: true },
+        });
+
+        if (study?.serviceItemId) {
+          const identity = {
+            hospitalId: params.hospitalId,
+            serviceItemId: study.serviceItemId,
+            referenceType: 'RADIOLOGY_ORDER',
+            referenceId: radOrder.id,
+          };
+          await enqueueConsumptionIntent(tx, {
+            ...identity,
+            userId: params.userId ?? radOrder.order.orderedById,
+          });
+        }
+      }
+
+      return updatedRadOrder;
+    });
   }
 }

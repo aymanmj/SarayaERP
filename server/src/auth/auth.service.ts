@@ -1,5 +1,7 @@
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
   Injectable,
+  ConflictException,
   ForbiddenException,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -9,6 +11,16 @@ import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { ConfigService } from '@nestjs/config';
 import { VaultService } from '../common/vault/vault.service';
+import type { Prisma } from '@prisma/client';
+import type { JwtPayload } from './jwt-payload.type';
+import {
+  invalidateStaffSessions,
+  lockActiveStaffBranch,
+  lockStaffUser,
+  hasStaffSessionClaims,
+  revokeStaffDevice,
+  staffSessionFilter,
+} from './staff-session-lock';
 
 @Injectable()
 export class AuthService {
@@ -17,6 +29,7 @@ export class AuthService {
     private jwtService: JwtService,
     private configService: ConfigService,
     private vaultService: VaultService,
+    private readonly events: EventEmitter2,
   ) {}
 
   // التحقق من المستخدم (تسجيل الدخول)
@@ -54,7 +67,7 @@ export class AuthService {
       },
     });
 
-    if (!user || !user.isActive)
+    if (!user || !user.isActive || user.isDeleted)
       throw new UnauthorizedException('بيانات غير صحيحة');
     if (!user.hospital?.isActive)
       throw new UnauthorizedException('المنشأة غير مفعلة');
@@ -107,8 +120,22 @@ export class AuthService {
   }
 
   // توليد Access Token
-  async generateAccessToken(user: any) {
+  async generateAccessToken(user: {
+    sid: string;
+    branchVersion: number;
+    id: number;
+    username: string;
+    roles: string[];
+    permissions: string[];
+    hospitalId: number;
+    organizationId?: number | null;
+    isSuperAdmin?: boolean;
+    authVersion?: number;
+  }) {
     const payload = {
+      sid: user.sid,
+      branchVersion: user.branchVersion,
+      authVersion: user.authVersion ?? 0,
       sub: user.id,
       username: user.username,
       roles: user.roles,
@@ -130,7 +157,7 @@ export class AuthService {
   }
 
   // التحقق من التوكن
-  async verifyToken(token: string) {
+  async verifyToken(token: string): Promise<JwtPayload | null> {
     try {
       const decoded: any = this.jwtService.decode(token, { complete: true });
       if (!decoded || !decoded.header) return null;
@@ -138,7 +165,7 @@ export class AuthService {
       const kid = decoded.header.kid;
       const secret = await this.vaultService.getKeyOrSecret(kid);
 
-      return await this.jwtService.verifyAsync(token, {
+      return await this.jwtService.verifyAsync<JwtPayload>(token, {
         secret,
         issuer: 'saraya-staff', // Token Segregation Validation
       });
@@ -147,260 +174,380 @@ export class AuthService {
     }
   }
 
-  // توليد Refresh Token (Opaque Token stored in DB)
-  async generateRefreshToken(userId: number) {
+  private async prepareRefreshToken() {
     const token = crypto.randomBytes(32).toString('hex');
-    const hash = await bcrypt.hash(token, 10);
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7); // 7 days
-
-    const record = await this.prisma.refreshToken.create({
-      data: {
-        userId,
-        hashedToken: hash,
-        expiresAt,
-      },
-    });
-
-    // Return format: id.token (allows efficient lookup)
-    return `${record.id}.${token}`;
+    const hashedToken = await bcrypt.hash(token, 10);
+    return { token, hashedToken };
   }
 
-  // تسجيل الدخول الكامل
+  private async storeRefreshToken(
+    tx: Prisma.TransactionClient,
+    user: { id: number; authVersion: number },
+    activeBranchId: number,
+    sessionId: string,
+    expiresAt: Date,
+    prepared: { token: string; hashedToken: string },
+  ) {
+    const record = await tx.refreshToken.create({
+      data: {
+        userId: user.id,
+        activeBranchId,
+        authVersion: user.authVersion,
+        sessionId,
+        hashedToken: prepared.hashedToken,
+        expiresAt,
+      },
+      select: { id: true },
+    });
+    return `${record.id}.${prepared.token}`;
+  }
+
   async login(username: string, password: string) {
     const user = await this.validateUser(username, password);
-    const accessToken = await this.generateAccessToken({
-      id: user.id,
-      username: user.username,
-      roles: user.roles,
-      hospitalId: user.hospitalId,
-      organizationId: user.organizationId, // ✅ Multi-Tenancy
-      isSuperAdmin: user.isSuperAdmin, // ✅ Multi-Tenancy
-      permissions: user.permissions,
+    const prepared = await this.prepareRefreshToken();
+    const tokens = await this.prisma.$transaction(async (tx) => {
+      const current = await lockStaffUser(tx, user.id);
+      if (
+        !current?.isActive ||
+        current.isDeleted ||
+        current.passwordHash !== user.passwordHash ||
+        current.authVersion !== user.authVersion ||
+        current.hospitalId !== user.hospitalId
+      )
+        throw new UnauthorizedException(
+          'تغيّرت بيانات الحساب؛ أعد تسجيل الدخول',
+        );
+      const branch = await lockActiveStaffBranch(
+        tx,
+        current,
+        current.hospitalId,
+      );
+      if (!branch) throw new UnauthorizedException('المنشأة غير مفعلة');
+      const session = await tx.staffSession.create({
+        data: {
+          userId: current.id,
+          authVersion: current.authVersion,
+          activeBranchId: branch.id,
+          expiresAt: this.nextExpiry(),
+        },
+      });
+      const accessToken = await this.generateAccessToken({
+        ...user,
+        sid: session.id,
+        branchVersion: session.branchVersion,
+        organizationId: branch.organizationId,
+      });
+      return {
+        accessToken,
+        refreshToken: await this.storeRefreshToken(
+          tx,
+          current,
+          branch.id,
+          session.id,
+          session.expiresAt,
+          prepared,
+        ),
+      };
     });
-    const refreshToken = await this.generateRefreshToken(user.id);
-
+    const { passwordHash: credentialHash, ...safeUser } = user;
+    void credentialHash;
     return {
-      accessToken,
-      refreshToken,
-      user,
-      // ✅ Multi-Branch: إرسال قائمة الفروع المتاحة للواجهة الأمامية
+      ...tokens,
+      user: safeUser,
       accessibleBranches: user.accessibleBranches,
     };
   }
 
-  /**
-   * ✅ Multi-Branch: تبديل الفرع النشط
-   * يتحقق من صلاحية المستخدم للوصول للفرع المستهدف
-   * ثم يُصدر JWT Token جديد يحمل hospitalId الفرع الجديد
-   */
-  async switchBranch(userId: number, targetHospitalId: number) {
-    // 1. التحقق من أن المستخدم يملك وصولاً لهذا الفرع
-    const access = await this.prisma.userHospitalAccess.findUnique({
-      where: {
-        userId_hospitalId: { userId, hospitalId: targetHospitalId },
-      },
-      include: {
-        hospital: {
-          include: { organization: { select: { id: true } } },
-        },
-      },
-    });
-
-    // إذا لم يكن هناك سجل وصول، تحقق إذا كان هذا هو الفرع الافتراضي
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      include: {
-        userRoles: {
-          include: {
-            role: {
-              include: { rolePermissions: { include: { permission: true } } },
-            },
-          },
-        },
-      },
-    });
-
-    if (!user || !user.isActive) {
-      throw new ForbiddenException('المستخدم غير نشط');
-    }
-
-    // السماح بالتبديل إذا كان الفرع الافتراضي أو لديه سجل وصول
-    if (!access && user.hospitalId !== targetHospitalId) {
-      throw new ForbiddenException('ليس لديك صلاحية الوصول لهذا الفرع');
-    }
-
-    const hospital =
-      access?.hospital ||
-      (await this.prisma.hospital.findUnique({
-        where: { id: targetHospitalId },
-        include: { organization: { select: { id: true } } },
-      }));
-
-    if (!hospital || !hospital.isActive) {
-      throw new ForbiddenException('الفرع غير مفعل');
-    }
-
-    const roles = user.userRoles.map((r) => r.role.name);
-    const permissions = Array.from(
-      new Set(
-        user.userRoles.flatMap((ur) =>
-          ur.role.rolePermissions.map((rp) => rp.permission.code),
-        ),
-      ),
-    );
-
-    // 2. إصدار Access Token جديد بالفرع الجديد
-    const newAccessToken = await this.generateAccessToken({
-      id: user.id,
-      username: user.username,
-      roles,
-      hospitalId: targetHospitalId, // ← الفرع الجديد!
-      organizationId: hospital.organization?.id || null,
-      isSuperAdmin: roles.includes('SUPER_ADMIN'),
-      permissions,
-    });
-
-    // 3. إصدار Refresh Token جديد
-    const newRefreshToken = await this.generateRefreshToken(user.id);
-
-    return {
-      accessToken: newAccessToken,
-      refreshToken: newRefreshToken,
-      currentBranch: {
-        id: hospital.id,
-        code: hospital.code,
-        name: (hospital as any).displayName || hospital.name,
-      },
-    };
+  switchBranch(
+    actor: JwtPayload,
+    targetHospitalId: number,
+    refreshToken: string,
+  ) {
+    return this.rotateRefreshToken(refreshToken, { actor, targetHospitalId });
   }
 
-  // تسجيل الخروج (Revoke specific token)
-  async logout(userId: number, refreshToken?: string) {
-    if (refreshToken) {
-      const [id] = refreshToken.split('.');
-      if (id && !isNaN(Number(id))) {
-        await this.prisma.refreshToken.updateMany({
-          where: { id: Number(id) },
-          data: { revoked: true },
-        });
-      }
-    } else {
-      // Fallback: revoke all sessions or just return?
-      // Ideally we revoke the one from the cookie.
-    }
+  async logout(actor: JwtPayload, allDevices = false) {
+    const user = await this.prisma.$transaction(async (tx) => {
+      const { user: locked, session } = await this.lockCurrentSession(
+        tx,
+        actor,
+      );
+      if (allDevices) await invalidateStaffSessions(tx, actor.sub);
+      else await revokeStaffDevice(tx, actor.sub, session.id);
+      return locked;
+    });
+    if (allDevices) this.emitSessionInvalidated(user);
+    else
+      this.events.emit('auth.device_session_invalidated', {
+        sessionId: actor.sid,
+      });
     return true;
   }
 
-  // تجديد التوكن
+  async listDeviceSessions(actor: JwtPayload) {
+    const sessions = await this.prisma.staffSession.findMany({
+      where: {
+        userId: actor.sub,
+        authVersion: actor.authVersion,
+        revokedAt: null,
+        expiresAt: { gt: new Date() },
+      },
+      select: {
+        id: true,
+        activeBranchId: true,
+        createdAt: true,
+        lastRenewedAt: true,
+      },
+      orderBy: [{ lastRenewedAt: 'desc' }, { id: 'asc' }],
+    });
+    const branches = await this.prisma.hospital.findMany({
+      where: {
+        id: {
+          in: [...new Set(sessions.map((session) => session.activeBranchId))],
+        },
+        isActive: true,
+        OR: [
+          { users: { some: { id: actor.sub } } },
+          { userAccesses: { some: { userId: actor.sub } } },
+        ],
+      },
+      select: { id: true, name: true, displayName: true },
+    });
+    const names = new Map(
+      branches.map((branch) => [branch.id, branch.displayName || branch.name]),
+    );
+    return {
+      userId: actor.sub,
+      sessions: sessions.map(({ activeBranchId, ...session }) => ({
+        ...session,
+        branchName: names.get(activeBranchId) ?? null,
+        current: session.id === actor.sid,
+      })),
+    };
+  }
+
+  async revokeOtherDevice(actor: JwtPayload, sessionId: string) {
+    const revoked = await this.prisma.$transaction(async (tx) => {
+      const { session } = await this.lockCurrentSession(tx, actor);
+      if (session.id === sessionId)
+        throw new ConflictException(
+          'استخدم تسجيل الخروج لإنهاء الجلسة الحالية',
+        );
+      return revokeStaffDevice(tx, actor.sub, sessionId);
+    });
+    if (revoked)
+      this.events.emit('auth.device_session_invalidated', { sessionId });
+  }
+
+  private async lockCurrentSession(
+    tx: Prisma.TransactionClient,
+    actor: JwtPayload,
+  ) {
+    if (!hasStaffSessionClaims(actor))
+      throw new UnauthorizedException('الجلسة غير صالحة');
+    const user = await lockStaffUser(tx, actor.sub);
+    if (
+      !user?.isActive ||
+      user.isDeleted ||
+      user.authVersion !== actor.authVersion
+    )
+      throw new UnauthorizedException('الجلسة غير صالحة');
+    if (!(await lockActiveStaffBranch(tx, user, actor.hospitalId)))
+      throw new UnauthorizedException('صلاحية الوصول إلى الفرع غير سارية');
+    const session = await tx.staffSession.findFirst({
+      where: staffSessionFilter(
+        actor.sid,
+        actor.sub,
+        actor.hospitalId,
+        user.authVersion,
+        actor.branchVersion,
+      ),
+      select: { id: true },
+    });
+    if (!session) throw new UnauthorizedException('الجلسة غير صالحة');
+    return { user, session };
+  }
+
   async refreshTokens(incomingRt: string) {
-    if (!incomingRt) throw new ForbiddenException('Access Denied');
+    const { accessToken, refreshToken, currentBranch, userId } =
+      await this.rotateRefreshToken(incomingRt);
+    return { accessToken, refreshToken, hospitalId: currentBranch.id, userId };
+  }
 
-    const [idStr, token] = incomingRt.split('.');
-    const id = Number(idStr);
-
-    if (isNaN(id) || !token)
+  private async rotateRefreshToken(
+    incomingRt: string,
+    branchSwitch?: { actor: JwtPayload; targetHospitalId: number },
+  ) {
+    const format = /^([1-9]\d{0,9})\.([0-9a-f]{64})$/.exec(incomingRt);
+    if (!format || Number(format[1]) > 2147483647)
       throw new ForbiddenException('Invalid Token Format');
-
-    const rtRecord = await this.prisma.refreshToken.findUnique({
+    const id = Number(format[1]);
+    const proof = await this.prisma.refreshToken.findUnique({
       where: { id },
-      include: {
-        user: {
-          include: {
-            userRoles: {
-              include: {
-                role: {
-                  include: {
-                    rolePermissions: { include: { permission: true } },
+      select: { userId: true, hashedToken: true },
+    });
+    if (
+      !proof ||
+      (branchSwitch && proof.userId !== branchSwitch.actor.sub) ||
+      !(await bcrypt.compare(format[2], proof.hashedToken))
+    )
+      throw new ForbiddenException('Invalid Token');
+    const prepared = await this.prepareRefreshToken();
+    const result = await this.prisma.$transaction(async (tx) => {
+      // Logout and branch changes acquire the same user lock before changing sessions.
+      const current = await lockStaffUser(tx, proof.userId);
+      if (!current?.isActive || current.isDeleted)
+        throw new ForbiddenException('الجلسة غير صالحة');
+      const ticket = await tx.refreshToken.findUnique({
+        where: { id },
+        include: {
+          session: true,
+          user: {
+            select: {
+              username: true,
+              userRoles: {
+                include: {
+                  role: {
+                    include: {
+                      rolePermissions: { include: { permission: true } },
+                    },
                   },
                 },
               },
             },
           },
         },
-      },
-    });
+      });
+      if (
+        !ticket ||
+        ticket.userId !== current.id ||
+        ticket.hashedToken !== proof.hashedToken ||
+        ticket.authVersion !== current.authVersion ||
+        !ticket.session ||
+        ticket.session.userId !== current.id ||
+        ticket.session.authVersion !== current.authVersion ||
+        ticket.session.revokedAt !== null ||
+        ticket.session.expiresAt.getTime() <= Date.now() ||
+        ticket.expiresAt.getTime() <= Date.now() ||
+        (branchSwitch &&
+          (branchSwitch.actor.hospitalId !== ticket.activeBranchId ||
+            branchSwitch.actor.sid !== ticket.session.id ||
+            branchSwitch.actor.authVersion !== current.authVersion))
+      )
+        throw new ForbiddenException('الجلسة غير صالحة أو منتهية');
 
-    // 1. Check if token exists
-    if (!rtRecord) throw new ForbiddenException('Token Not Found');
-
-    // 2. Reuse Detection (If revoked or replaced -> Compromised!)
-    if (rtRecord.revoked) {
-      // 🛡️ Added Grace Period: If the token was rotated in the last 10 seconds, allow it.
-      // This handles race conditions when multiple parallel requests trigger refresh.
-      const GRACE_PERIOD_MS = 10000;
-      const updatedAt = (rtRecord as any).updatedAt as Date | undefined;
-      const isRecentlyRotated =
-        rtRecord.replacedByToken === 'ROTATED' &&
-        updatedAt &&
-        new Date().getTime() - updatedAt.getTime() < GRACE_PERIOD_MS;
-
-      if (!isRecentlyRotated) {
-        // Real theft or old reuse! Revoke all tokens for this user
-        await this.prisma.refreshToken.updateMany({
-          where: { userId: rtRecord.userId },
-          data: { revoked: true },
-        });
-        throw new ForbiddenException('Token Reuse Detected - Access Revoked');
+      const activeBranch = await lockActiveStaffBranch(
+        tx,
+        current,
+        ticket.activeBranchId,
+      );
+      if (!activeBranch)
+        throw new ForbiddenException('صلاحية الوصول إلى الفرع غير سارية');
+      if (ticket.revoked) {
+        if (ticket.replacedByToken !== 'ROTATED')
+          throw new ForbiddenException('الجلسة ملغاة');
+        if (Date.now() - ticket.updatedAt.getTime() < 10000)
+          throw new ConflictException('AUTH_REFRESH_CONFLICT');
+        await revokeStaffDevice(tx, current.id, ticket.session.id);
+        return { invalidated: ticket.session.id } as const;
       }
+      if (
+        ticket.activeBranchId !== ticket.session.activeBranchId ||
+        (branchSwitch &&
+          branchSwitch.actor.branchVersion !== ticket.session.branchVersion)
+      )
+        throw new ForbiddenException('تغير فرع الجلسة');
 
-      // If it IS in the grace period, we should technically return the NEW tokens
-      // but we don't have them easily here without extra DB lookups.
-      // However, the client should have already received them from the first request.
-      // To break the loop, we can either throw or return a specific signal.
-      // For now, let's just throw a slightly different message or allow it to return old-but-valid?
-      // Actually, NestJS refresh logic usually just needs to NOT nuke everything.
-      throw new ForbiddenException('Refresh Concurrency - Please Wait');
-    }
+      const branch =
+        !branchSwitch || branchSwitch.targetHospitalId === activeBranch.id
+          ? activeBranch
+          : await lockActiveStaffBranch(
+              tx,
+              current,
+              branchSwitch.targetHospitalId,
+            );
+      if (!branch)
+        throw new ForbiddenException('لا يوجد تصريح للوصول إلى الفرع المطلوب');
 
-    // 3. Verify Hash
-    const isMatch = await bcrypt.compare(token, rtRecord.hashedToken);
-    if (!isMatch) throw new ForbiddenException('Invalid Token');
-
-    // 4. Check Expiry
-    if (new Date() > rtRecord.expiresAt) {
-      await this.prisma.refreshToken.update({
-        where: { id },
-        data: { revoked: true },
-      }); // Mark revoked on expiry cleanup
-      throw new ForbiddenException('Token Expired');
-    }
-
-    // 5. Rotation: Revoke Old, Create New
-    // We mark the old one as revoked/replaced
-    await this.prisma.refreshToken.update({
-      where: { id },
-      data: { revoked: true, replacedByToken: 'ROTATED' },
-    });
-
-    const user = rtRecord.user;
-    const roles = user.userRoles.map((r) => r.role.name);
-    const permissions = Array.from(
-      new Set(
-        user.userRoles.flatMap((ur) =>
-          ur.role.rolePermissions.map((rp) => rp.permission.code),
+      const roles = ticket.user.userRoles.map(({ role }) => role.name);
+      const permissions = [
+        ...new Set(
+          ticket.user.userRoles.flatMap(({ role }) =>
+            role.rolePermissions.map(({ permission }) => permission.code),
+          ),
         ),
-      ),
-    );
-
-    // ✅ Multi-Tenancy: جلب organizationId عند تجديد التوكن
-    const hospital = await this.prisma.hospital.findUnique({
-      where: { id: user.hospitalId },
-      select: { organizationId: true },
+      ];
+      await tx.refreshToken.update({
+        where: { id },
+        data: { revoked: true, replacedByToken: 'ROTATED' },
+      });
+      const changedBranch = branch.id !== activeBranch.id;
+      const session = await tx.staffSession.update({
+        where: { id: ticket.session.id },
+        data: {
+          ...(changedBranch
+            ? { activeBranchId: branch.id, branchVersion: { increment: 1 } }
+            : {}),
+          expiresAt: this.nextExpiry(),
+          lastRenewedAt: new Date(),
+        },
+      });
+      const refreshToken = await this.storeRefreshToken(
+        tx,
+        current,
+        branch.id,
+        session.id,
+        session.expiresAt,
+        prepared,
+      );
+      const accessToken = await this.generateAccessToken({
+        sid: session.id,
+        branchVersion: session.branchVersion,
+        id: current.id,
+        authVersion: current.authVersion,
+        username: ticket.user.username,
+        roles,
+        permissions,
+        hospitalId: branch.id,
+        organizationId: branch.organizationId,
+        isSuperAdmin: roles.includes('SUPER_ADMIN'),
+      });
+      return {
+        accessToken,
+        refreshToken,
+        userId: current.id,
+        previousBranch: changedBranch
+          ? {
+              sessionId: session.id,
+              branchVersion: ticket.session.branchVersion,
+            }
+          : null,
+        currentBranch: {
+          id: branch.id,
+          code: branch.code,
+          name: branch.displayName || branch.name,
+        },
+      };
     });
+    if (typeof result.invalidated === 'string') {
+      this.events.emit('auth.device_session_invalidated', {
+        sessionId: result.invalidated,
+      });
+      throw new ForbiddenException('Token Reuse Detected - Access Revoked');
+    }
+    if (result.previousBranch)
+      this.events.emit('auth.device_branch_changed', result.previousBranch);
+    return result;
+  }
 
-    const newAccessToken = await this.generateAccessToken({
-      id: user.id,
-      username: user.username,
-      roles,
+  private nextExpiry() {
+    return new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  }
+
+  private emitSessionInvalidated(user: { id: number; hospitalId: number }) {
+    this.events.emit('auth.session_invalidated', {
       hospitalId: user.hospitalId,
-      organizationId: hospital?.organizationId || null,
-      isSuperAdmin: roles.includes('SUPER_ADMIN'),
-      permissions,
+      userId: user.id,
     });
-
-    const newRefreshToken = await this.generateRefreshToken(user.id);
-
-    return { accessToken: newAccessToken, refreshToken: newRefreshToken };
   }
 }

@@ -26,19 +26,24 @@ describe('StartupSecurityValidator', () => {
   afterEach(() => jest.restoreAllMocks());
 
   function validate(values: Record<string, string | undefined>) {
-    return () =>
-      new StartupSecurityValidator(new ConfigService(values)).onModuleInit();
+    const config = {
+      get: (key: string, fallback?: string) => values[key] ?? fallback,
+    } as unknown as ConfigService;
+    return () => new StartupSecurityValidator(config).onModuleInit();
   }
 
   it('accepts generated production secrets', () => {
     expect(validate(validConfig())).not.toThrow();
   });
 
-  it.each(['JWT_SECRET', 'ENCRYPTION_KEY'])('rejects missing %s', (key) => {
-    expect(validate({ ...validConfig(), [key]: undefined })).toThrow(
-      'SECURITY_STARTUP_BLOCKED',
-    );
-  });
+  it.each(['JWT_SECRET', 'ENCRYPTION_KEY', 'ENCRYPTION_SALT'])(
+    'rejects missing %s',
+    (key) => {
+      expect(validate({ ...validConfig(), [key]: undefined })).toThrow(
+        'SECURITY_STARTUP_BLOCKED',
+      );
+    },
+  );
 
   it.each([
     ' ',
@@ -66,17 +71,59 @@ describe('StartupSecurityValidator', () => {
     ).toThrow('SECURITY_STARTUP_BLOCKED');
   });
 
-  it('keeps existing encryption salt compatible and warns about it', () => {
+  it.each([
+    'saraya-default-salt-123',
+    'short-salt',
+    'CHANGE_ME_SALT_VALUE_123456',
+  ])('rejects unsafe ENCRYPTION_SALT %s in production', (salt) => {
     expect(
       validate({
         ...validConfig(),
+        ENCRYPTION_SALT: salt,
+      }),
+    ).toThrow('SECURITY_STARTUP_BLOCKED');
+    for (const args of errorSpy.mock.calls as unknown[][]) {
+      expect(args.join(' ')).not.toContain(salt);
+    }
+  });
+
+  it.each([
+    'saraya-root-token-dev',
+    'root',
+    'dev',
+    'CHANGE_ME_VAULT_TOKEN',
+    '   ',
+  ])('rejects unsafe VAULT_TOKEN in production without logging it', (token) => {
+    expect(
+      validate({
+        ...validConfig(),
+        VAULT_TOKEN: token,
+      }),
+    ).toThrow('SECURITY_STARTUP_BLOCKED');
+    if (token.trim()) {
+      for (const args of errorSpy.mock.calls as unknown[][]) {
+        expect(args.join(' ')).not.toContain(token);
+      }
+    }
+  });
+
+  it('accepts a generated production VAULT_TOKEN', () => {
+    expect(
+      validate({
+        ...validConfig(),
+        VAULT_TOKEN: randomBytes(24).toString('hex'),
+      }),
+    ).not.toThrow();
+  });
+
+  it('allows development without secrets and warns on dev defaults', () => {
+    expect(
+      validate({
+        NODE_ENV: 'development',
         ENCRYPTION_SALT: 'saraya-default-salt-123',
+        VAULT_TOKEN: 'saraya-root-token-dev',
       }),
     ).not.toThrow();
     expect(warnSpy).toHaveBeenCalled();
-  });
-
-  it('allows development without secrets', () => {
-    expect(validate({ NODE_ENV: 'development' })).not.toThrow();
   });
 });

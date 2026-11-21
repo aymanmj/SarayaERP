@@ -27,6 +27,7 @@ type RadiologyOrderDto = {
   reportedAt?: string | null;
   reportText?: string | null;
   pacsUrl?: string | null;
+  viewerUrl?: string | null;
   study: RadiologyStudy;
   order: {
     id: number;
@@ -355,7 +356,12 @@ export function RadiologyTab({ encounterId, hospitalId, doctorId }: RadiologyTab
                   )}
 
                   <div className="flex gap-2 justify-end">
-                    {o.pacsUrl && (
+                    {o.viewerUrl && (
+                      <a href={o.viewerUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-xs font-bold">
+                        {t("radiology.actions.openStudy", "فتح دراسة الأشعة")}
+                      </a>
+                    )}
+                    {!o.viewerUrl && o.pacsUrl && (
                       <button
                         onClick={() => setViewImageUrl(o.pacsUrl!)}
                         className="flex items-center gap-1.5 px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-xs font-bold shadow-lg transition-all active:scale-95"

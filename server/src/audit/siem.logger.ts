@@ -1,4 +1,6 @@
 import * as winston from 'winston';
+import { Logger } from '@nestjs/common';
+import { sanitizeAuditData } from './audit-chain';
 
 const sensitiveKeys = [
   'password',
@@ -63,3 +65,14 @@ export const siemLogger = winston.createLogger({
   defaultMeta: { service: 'saraya-erp', stream: 'SiemAudit' },
   transports: [new winston.transports.Console()],
 });
+
+export function publishCommittedCriticalAudit(fields: Record<string, unknown>) {
+  try {
+    siemLogger.warn({
+      ...(sanitizeAuditData(fields) as Record<string, unknown>),
+      message: 'CRITICAL_AUDIT_TRAIL',
+    });
+  } catch {
+    Logger.warn('Unable to publish a committed audit to SIEM', 'Audit');
+  }
+}

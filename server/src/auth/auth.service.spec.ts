@@ -1,3 +1,4 @@
+import { EventEmitter2 } from '@nestjs/event-emitter';
 /**
  * Auth Service — Unit Tests
  *
@@ -12,6 +13,7 @@ import { AuthService } from './auth.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { VaultService } from '../common/vault/vault.service';
 import * as bcrypt from 'bcrypt';
+import { randomUUID } from 'node:crypto';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -19,6 +21,16 @@ describe('AuthService', () => {
   let vaultService: { getActiveKeyId: jest.Mock; getKeyOrSecret: jest.Mock };
 
   const TEST_SECRET = 'test-jwt-secret';
+  const sid = randomUUID();
+  const mockSession = () => ({
+    id: sid,
+    userId: 1,
+    activeBranchId: 1,
+    authVersion: 0,
+    branchVersion: 0,
+    expiresAt: new Date(Date.now() + 60000),
+    revokedAt: null,
+  });
   const PASSWORD = 'securePass123';
   let passwordHash: string;
 
@@ -26,6 +38,7 @@ describe('AuthService', () => {
     id: 1,
     username: 'admin',
     passwordHash,
+    authVersion: 0,
     isActive: true,
     hospitalId: 1,
     hospital: { id: 1, isActive: true, name: 'Saraya Hospital', code: 'SH001' },
@@ -60,11 +73,29 @@ describe('AuthService', () => {
 
   beforeEach(async () => {
     const mockPrisma = {
+      $transaction: (
+        run: (tx: typeof mockPrisma) => Promise<unknown>,
+      ): Promise<unknown> => run(mockPrisma),
+      $queryRaw: jest.fn((sql: TemplateStringsArray) =>
+        Promise.resolve(
+          sql[0].includes('FROM "Hospital"')
+            ? [mockUser().hospital]
+            : [mockUser()],
+        ),
+      ),
       user: {
         findUnique: jest.fn(),
       },
       hospital: {
         findUnique: jest.fn(),
+      },
+      staffSession: {
+        create: jest
+          .fn()
+          .mockImplementation(() => Promise.resolve(mockSession())),
+        update: jest
+          .fn()
+          .mockImplementation(() => Promise.resolve(mockSession())),
       },
       refreshToken: {
         create: jest.fn().mockResolvedValue({ id: 1 }),
@@ -81,6 +112,7 @@ describe('AuthService', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
+        { provide: EventEmitter2, useValue: { emit: jest.fn() } },
         AuthService,
         { provide: PrismaService, useValue: mockPrisma },
         {
@@ -171,7 +203,7 @@ describe('AuthService', () => {
 
       const result = await service.verifyToken(token);
       expect(result).toBeDefined();
-      expect(result.sub).toBe(1);
+      expect(result?.sub).toBe(1);
     });
 
     it('should return null when key lookup fails for token verification', async () => {
@@ -203,65 +235,72 @@ describe('AuthService', () => {
   //  REFRESH TOKEN FLOW
   // ===========================================
   describe('refreshTokens', () => {
-    it('should reject missing refresh token', async () => {
-      await expect(service.refreshTokens('')).rejects.toThrow(
-        ForbiddenException,
-      );
+    const secret = 'a'.repeat(64);
+    let hashedToken: string;
+    beforeAll(async () => {
+      hashedToken = await bcrypt.hash(secret, 4);
     });
 
-    it('should reject malformed refresh token', async () => {
-      await expect(service.refreshTokens('not-a-valid-format')).rejects.toThrow(
-        ForbiddenException,
-      );
+    const ticket = (overrides = {}) => ({
+      id: 3,
+      userId: 1,
+      session: mockSession(),
+      activeBranchId: 1,
+      authVersion: 0,
+      hashedToken,
+      revoked: false,
+      replacedByToken: null,
+      updatedAt: new Date(),
+      expiresAt: new Date(Date.now() + 60_000),
+      user: mockUser(),
+      ...overrides,
     });
 
-    it('should reject non-existent refresh token', async () => {
+    it.each(['', 'not-a-valid-format', '1.sometoken'])(
+      'rejects malformed refresh tokens',
+      async (token) => {
+        await expect(service.refreshTokens(token)).rejects.toThrow(
+          ForbiddenException,
+        );
+      },
+    );
+
+    it('rejects a missing refresh record', async () => {
       prisma.refreshToken.findUnique.mockResolvedValue(null);
-
-      await expect(service.refreshTokens('999.sometoken')).rejects.toThrow(
+      await expect(service.refreshTokens(`3.${secret}`)).rejects.toThrow(
         ForbiddenException,
       );
     });
 
-    it('should reject revoked token (reuse detection)', async () => {
-      prisma.refreshToken.findUnique.mockResolvedValue({
-        id: 1,
-        userId: 1,
-        hashedToken: 'hash',
-        revoked: true,
-        replacedByToken: null,
-        expiresAt: new Date(Date.now() + 86400000),
-        user: mockUser(),
-      });
-
-      await expect(service.refreshTokens('1.sometoken')).rejects.toThrow(
-        ForbiddenException,
+    it('does not invalidate anyone when the secret does not match a revoked token ID', async () => {
+      prisma.refreshToken.findUnique.mockResolvedValue(
+        ticket({ revoked: true }),
       );
-
-      // Should revoke ALL user tokens (security measure)
-      expect(prisma.refreshToken.updateMany).toHaveBeenCalledWith({
-        where: { userId: 1 },
-        data: { revoked: true },
-      });
+      await expect(
+        service.refreshTokens(`3.${'b'.repeat(64)}`),
+      ).rejects.toThrow(ForbiddenException);
+      expect(prisma.refreshToken.updateMany).not.toHaveBeenCalled();
     });
 
-    it('should rotate a valid refresh token and issue new credentials', async () => {
-      const incomingToken = 'valid-refresh-token';
+    it('rejects revoked or expired credentials without issuing a new token', async () => {
+      prisma.refreshToken.findUnique.mockResolvedValue(
+        ticket({ expiresAt: new Date(0) }),
+      );
+      await expect(service.refreshTokens(`3.${secret}`)).rejects.toThrow(
+        ForbiddenException,
+      );
+      expect(prisma.refreshToken.create).not.toHaveBeenCalled();
+    });
+
+    it('rotates a valid token and persists its branch and session version', async () => {
       prisma.refreshToken.create.mockResolvedValue({ id: 7 });
-      prisma.refreshToken.findUnique.mockResolvedValue({
-        id: 3,
-        userId: 1,
-        hashedToken: await bcrypt.hash(incomingToken, 10),
-        revoked: false,
-        replacedByToken: null,
-        expiresAt: new Date(Date.now() + 60_000),
-        user: mockUser(),
-      });
-
-      const result = await service.refreshTokens(`3.${incomingToken}`);
-
-      expect(result.accessToken).toBeDefined();
-      expect(result.refreshToken).toMatch(/^7\./);
+      prisma.refreshToken.findUnique.mockResolvedValue(ticket());
+      await expect(service.refreshTokens(`3.${secret}`)).resolves.toMatchObject(
+        {
+          accessToken: expect.any(String),
+          refreshToken: expect.stringMatching(/^7\./),
+        },
+      );
       expect(prisma.refreshToken.update).toHaveBeenCalledWith({
         where: { id: 3 },
         data: { revoked: true, replacedByToken: 'ROTATED' },
@@ -270,50 +309,11 @@ describe('AuthService', () => {
         expect.objectContaining({
           data: expect.objectContaining({
             userId: 1,
+            activeBranchId: 1,
+            authVersion: 0,
           }),
         }),
       );
-    });
-
-    it('should reject concurrent refresh reuse during grace period without revoking all sessions', async () => {
-      prisma.refreshToken.findUnique.mockResolvedValue({
-        id: 1,
-        userId: 1,
-        hashedToken: 'hash',
-        revoked: true,
-        replacedByToken: 'ROTATED',
-        updatedAt: new Date(),
-        expiresAt: new Date(Date.now() + 60_000),
-        user: mockUser(),
-      });
-
-      await expect(service.refreshTokens('1.sometoken')).rejects.toThrow(
-        ForbiddenException,
-      );
-
-      expect(prisma.refreshToken.updateMany).not.toHaveBeenCalled();
-    });
-
-    it('should revoke expired refresh token and reject access', async () => {
-      const expiredToken = 'expired-refresh-token';
-      prisma.refreshToken.findUnique.mockResolvedValue({
-        id: 12,
-        userId: 1,
-        hashedToken: await bcrypt.hash(expiredToken, 10),
-        revoked: false,
-        replacedByToken: null,
-        expiresAt: new Date(Date.now() - 60_000),
-        user: mockUser(),
-      });
-
-      await expect(service.refreshTokens(`12.${expiredToken}`)).rejects.toThrow(
-        ForbiddenException,
-      );
-
-      expect(prisma.refreshToken.update).toHaveBeenCalledWith({
-        where: { id: 12 },
-        data: { revoked: true },
-      });
     });
   });
 

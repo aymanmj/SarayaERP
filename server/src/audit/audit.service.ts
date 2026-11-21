@@ -2,7 +2,11 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 import { siemLogger } from './siem.logger';
-import * as crypto from 'crypto';
+import {
+  appendChainedAudit,
+  auditRecordHash,
+  sanitizeAuditData,
+} from './audit-chain';
 
 interface AuditLogOptions {
   hospitalId?: number | null;
@@ -24,7 +28,7 @@ export class AuditService {
       // 1- SIEM Logger (Stream to Console for Promtail)
       siemLogger.info({
         message: 'AUDIT_TRAIL',
-        ...options,
+        ...(sanitizeAuditData(options) as Record<string, unknown>),
       });
 
       // 2- DB Storage with ISO 27001 Hash Chain
@@ -45,7 +49,7 @@ export class AuditService {
       // 1- SIEM Logger (Stream to Console for Promtail)
       siemLogger.warn({
         message: 'CRITICAL_AUDIT_TRAIL',
-        ...options,
+        ...(sanitizeAuditData(options) as Record<string, unknown>),
       });
 
       // 2- DB Storage with ISO 27001 Hash Chain
@@ -181,40 +185,15 @@ export class AuditService {
    * which causes broken chains due to simultaneous hash calculations.
    */
   private async createSecureLog(options: AuditLogOptions) {
-    return this.prisma.$transaction(async (tx) => {
-      // Acquire a transaction-level advisory lock specifically for the audit log chain.
-      // The lock ID 27001 is used as a symbolic reference to ISO 27001.
-      // This forces concurrent audit logs to execute sequentially, preventing chain forks.
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(27001)`;
-
-      // Get the most recent log to continue the chain
-      const lastLog = await tx.auditLog.findFirst({
-        orderBy: { id: 'desc' },
-        select: { hash: true },
-      });
-
-      const previousHash = lastLog?.hash || 'GENESIS';
-      const timestamp = new Date();
-
-      // Compute hash: SHA256(previousHash + action + entity + entityId + userId + timestamp)
-      const dataToHash = `${previousHash}|${options.action}|${options.entity || ''}|${options.entityId || ''}|${options.userId || ''}|${timestamp.toISOString()}`;
-      const hash = crypto.createHash('sha256').update(dataToHash).digest('hex');
-
-      return tx.auditLog.create({
-        data: {
-          hospitalId: options.hospitalId ?? null,
-          userId: options.userId ?? null,
-          action: options.action,
-          entity: options.entity ?? null,
-          entityId: options.entityId ?? null,
-          ipAddress: options.ipAddress ?? null,
-          clientName: options.clientName ?? null,
-          details: options.details ?? null,
-          createdAt: timestamp,
-          previousHash,
-          hash,
-        },
-      });
+    return appendChainedAudit(this.prisma, {
+      hospitalId: options.hospitalId ?? null,
+      userId: options.userId ?? null,
+      action: options.action,
+      entity: options.entity ?? null,
+      entityId: options.entityId ?? null,
+      ipAddress: options.ipAddress ?? null,
+      clientName: options.clientName ?? null,
+      details: options.details ?? Prisma.JsonNull,
     });
   }
 
@@ -235,6 +214,12 @@ export class AuditService {
         entityId: true,
         userId: true,
         createdAt: true,
+        hospitalId: true,
+        details: true,
+        oldValues: true,
+        newValues: true,
+        ipAddress: true,
+        clientName: true,
         previousHash: true,
         hash: true,
       },
@@ -243,9 +228,16 @@ export class AuditService {
     if (logs.length === 0) return { valid: true, message: 'No logs to verify' };
 
     let expectedPrevious = 'GENESIS';
+    const perHospital = new Map<number | null, string>();
 
     for (const log of logs) {
-      if (log.previousHash !== expectedPrevious) {
+      const version = (log.details as { _chainVersion?: number } | null)
+        ?._chainVersion;
+      const expected =
+        version === 2
+          ? perHospital.get(log.hospitalId) || 'GENESIS'
+          : expectedPrevious;
+      if (!log.hash || log.previousHash !== expected) {
         return {
           valid: false,
           brokenAtId: log.id,
@@ -253,11 +245,20 @@ export class AuditService {
         };
       }
 
-      const dataToHash = `${log.previousHash}|${log.action}|${log.entity || ''}|${log.entityId || ''}|${log.userId || ''}|${log.createdAt.toISOString()}`;
-      const computedHash = crypto
-        .createHash('sha256')
-        .update(dataToHash)
-        .digest('hex');
+      const computedHash = auditRecordHash({
+        previousHash: log.previousHash,
+        hospitalId: log.hospitalId,
+        action: log.action,
+        entity: log.entity,
+        entityId: log.entityId,
+        userId: log.userId,
+        createdAt: log.createdAt,
+        details: log.details,
+        oldValues: log.oldValues,
+        newValues: log.newValues,
+        ipAddress: log.ipAddress,
+        clientName: log.clientName,
+      });
 
       if (log.hash !== computedHash) {
         return {
@@ -268,6 +269,7 @@ export class AuditService {
       }
 
       expectedPrevious = log.hash;
+      perHospital.set(log.hospitalId, log.hash);
     }
 
     return {

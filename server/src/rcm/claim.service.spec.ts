@@ -37,9 +37,9 @@ describe('ClaimService', () => {
     encounter: {
       id: 50,
       type: 'OUTPATIENT',
-      diagnoses: [{ type: 'PRIMARY', code: 'J06.9' }],
+      encounterDiagnoses: [{ type: 'PRIMARY', code: 'J06.9' }],
     },
-    items: [
+    charges: [
       {
         id: 1,
         serviceItemId: 10,
@@ -65,11 +65,18 @@ describe('ClaimService', () => {
     updatedAt: new Date(),
   };
 
+  const adjustmentAggregate = jest
+    .fn()
+    .mockResolvedValue({ _sum: { insuranceDelta: null } });
   const mockPrisma = {
+    $executeRaw: jest.fn(),
+    $queryRaw: jest.fn(),
+    claimReceipt: { count: jest.fn().mockResolvedValue(0) },
     invoice: {
       findFirst: jest.fn(),
       findUnique: jest.fn(),
     },
+    invoiceAdjustment: { aggregate: adjustmentAggregate },
     claim: {
       create: jest.fn(),
       findFirst: jest.fn(),
@@ -174,9 +181,11 @@ describe('ClaimService', () => {
   // ============================================
   describe('scrubClaim', () => {
     it('should pass scrubbing when no errors found', async () => {
-      mockPrisma.claim.findUnique.mockResolvedValue({
+      mockPrisma.claim.findFirst.mockResolvedValue({
         ...mockClaim,
         invoice: mockInvoice,
+        scrubResults: [],
+        history: [],
       });
       mockScrubber.scrub.mockResolvedValue([
         {
@@ -192,13 +201,6 @@ describe('ClaimService', () => {
         status: ClaimStatus.SCRUBBED,
       });
       mockPrisma.claimHistory.create.mockResolvedValue({});
-      // getClaimById
-      mockPrisma.claim.findUnique.mockResolvedValue({
-        ...mockClaim,
-        status: ClaimStatus.SCRUBBED,
-        scrubResults: [],
-        history: [],
-      });
 
       const result = await service.scrubClaim(1);
 
@@ -208,9 +210,11 @@ describe('ClaimService', () => {
     });
 
     it('should fail scrubbing when errors are found', async () => {
-      mockPrisma.claim.findUnique.mockResolvedValue({
+      mockPrisma.claim.findFirst.mockResolvedValue({
         ...mockClaim,
         invoice: { ...mockInvoice, patient: null },
+        scrubResults: [],
+        history: [],
       });
       mockScrubber.scrub.mockResolvedValue([
         {
@@ -227,10 +231,6 @@ describe('ClaimService', () => {
         status: ClaimStatus.SCRUB_FAILED,
       });
       mockPrisma.claimHistory.create.mockResolvedValue({});
-      mockPrisma.claim.findUnique.mockResolvedValue({
-        ...mockClaim,
-        status: ClaimStatus.SCRUB_FAILED,
-      });
 
       const result = await service.scrubClaim(1);
 
@@ -239,7 +239,7 @@ describe('ClaimService', () => {
     });
 
     it('should throw NotFoundException for non-existent claim', async () => {
-      mockPrisma.claim.findUnique.mockResolvedValue(null);
+      mockPrisma.claim.findFirst.mockResolvedValue(null);
 
       await expect(service.scrubClaim(999)).rejects.toThrow(NotFoundException);
     });
@@ -248,42 +248,29 @@ describe('ClaimService', () => {
   // ============================================
   // postPayment
   // ============================================
-  describe('postPayment', () => {
-    it('should fully pay a claim when amount covers claimed amount', async () => {
-      mockPrisma.claim.findUnique.mockResolvedValue({
-        ...mockClaim,
-        claimedAmount: new Decimal(400),
-        paidAmount: new Decimal(0),
-      });
-      mockPrisma.claim.update.mockResolvedValue({
-        ...mockClaim,
-        status: ClaimStatus.PAID,
-        paidAmount: new Decimal(400),
-        paidAt: new Date(),
-      });
-      mockPrisma.claimHistory.create.mockResolvedValue({});
-
-      const result = await service.postPayment(1, { paidAmount: 400 });
-
-      expect(result.status).toBe(ClaimStatus.PAID);
+  describe('postPayment contract', () => {
+    it('requires an explicit tenant and persisted actor for collection', async () => {
+      await expect(
+        service.postPayment(
+          1,
+          { requestId: 'invalid', paidAmount: '400' },
+          1,
+          1,
+        ),
+      ).rejects.toThrow();
     });
-
-    it('should partially pay when amount does not cover full claim', async () => {
-      mockPrisma.claim.findUnique.mockResolvedValue({
-        ...mockClaim,
-        claimedAmount: new Decimal(400),
-        paidAmount: new Decimal(0),
-      });
-      mockPrisma.claim.update.mockResolvedValue({
-        ...mockClaim,
-        status: ClaimStatus.PARTIALLY_PAID,
-        paidAmount: new Decimal(200),
-      });
-      mockPrisma.claimHistory.create.mockResolvedValue({});
-
-      const result = await service.postPayment(1, { paidAmount: 200 });
-
-      expect(result.status).toBe(ClaimStatus.PARTIALLY_PAID);
+    it('rejects a non-positive monetary collection', async () => {
+      await expect(
+        service.postPayment(
+          1,
+          {
+            requestId: '00000000-0000-4000-8000-000000000001',
+            paidAmount: '0',
+          },
+          1,
+          1,
+        ),
+      ).rejects.toThrow();
     });
   });
 
@@ -292,7 +279,7 @@ describe('ClaimService', () => {
   // ============================================
   describe('denyClaim', () => {
     it('should deny claim with denial code and reason', async () => {
-      mockPrisma.claim.findUnique.mockResolvedValue(mockClaim);
+      mockPrisma.claim.findFirst.mockResolvedValue(mockClaim);
       mockPrisma.claim.update.mockResolvedValue({
         ...mockClaim,
         status: ClaimStatus.REJECTED,
@@ -316,12 +303,21 @@ describe('ClaimService', () => {
   // ============================================
   describe('findClaims', () => {
     it('should return paginated claims with default pagination', async () => {
-      mockPrisma.claim.findMany.mockResolvedValue([mockClaim]);
+      mockPrisma.claim.findMany.mockResolvedValue([
+        {
+          ...mockClaim,
+          invoice: {
+            ...mockInvoice,
+            adjustments: [{ insuranceDelta: '-20.000' }],
+          },
+        },
+      ]);
       mockPrisma.claim.count.mockResolvedValue(1);
 
       const result = await service.findClaims(mockHospitalId);
 
       expect(result.data).toHaveLength(1);
+      expect(result.data[0].effectiveClaimedAmount).toBe('380.000');
       expect(result.page).toBe(1);
       expect(result.limit).toBe(20);
     });
@@ -385,12 +381,16 @@ describe('ClaimService', () => {
         .mockResolvedValueOnce({ _sum: { paidAmount: new Decimal(7500) } });
       mockPrisma.claim.findMany.mockResolvedValue([]);
 
+      adjustmentAggregate.mockResolvedValueOnce({
+        _sum: { insuranceDelta: new Decimal(-2000) },
+      });
       const result = await service.getClaimsDashboard(mockHospitalId);
 
       expect(result.byStatus).toHaveLength(2);
       expect(result.totals.claimed).toBe(10000);
+      expect(result.totals.effectiveClaimed).toBe('8000.000');
       expect(result.totals.paid).toBe(7500);
-      expect(Number(result.totals.collectionRate)).toBeCloseTo(75);
+      expect(result.totals.collectionRate).toBe('93.8');
     });
   });
 });
@@ -402,6 +402,8 @@ describe('ClaimScrubberService', () => {
   let scrubber: ClaimScrubberService;
 
   const mockPrisma = {
+    $executeRaw: jest.fn(),
+    claimReceipt: { count: jest.fn().mockResolvedValue(0) },
     claim: {
       findFirst: jest.fn(),
     },
@@ -425,8 +427,8 @@ describe('ClaimScrubberService', () => {
       invoice: {
         patient: null,
         insuranceProvider: { isActive: true },
-        encounter: { diagnoses: [] },
-        items: [],
+        encounter: { encounterDiagnoses: [] },
+        charges: [],
       },
     };
 
@@ -444,8 +446,8 @@ describe('ClaimScrubberService', () => {
       invoice: {
         patient: { fullName: 'أحمد', dateOfBirth: null, gender: 'MALE' },
         insuranceProvider: { isActive: true },
-        encounter: { diagnoses: [{ type: 'PRIMARY', code: 'J06.9' }] },
-        items: [{ id: 1 }],
+        encounter: { encounterDiagnoses: [{ type: 'PRIMARY', code: 'J06.9' }] },
+        charges: [{ id: 1 }],
       },
     };
 
@@ -465,8 +467,8 @@ describe('ClaimScrubberService', () => {
       invoice: {
         patient: { fullName: 'أحمد', dateOfBirth: new Date(), gender: 'MALE' },
         insuranceProvider: { name: 'شركة منتهية', isActive: false },
-        encounter: { diagnoses: [{ type: 'PRIMARY', code: 'J06.9' }] },
-        items: [{ id: 1 }],
+        encounter: { encounterDiagnoses: [{ type: 'PRIMARY', code: 'J06.9' }] },
+        charges: [{ id: 1 }],
       },
     };
 
@@ -486,8 +488,8 @@ describe('ClaimScrubberService', () => {
       invoice: {
         patient: { fullName: 'أحمد', dateOfBirth: new Date(), gender: 'MALE' },
         insuranceProvider: { name: 'تأمين سارية', isActive: true },
-        encounter: { type: 'OUTPATIENT', diagnoses: [] },
-        items: [{ id: 1 }],
+        encounter: { type: 'OUTPATIENT', encounterDiagnoses: [] },
+        charges: [{ id: 1 }],
       },
     };
 
@@ -507,9 +509,9 @@ describe('ClaimScrubberService', () => {
         insuranceProvider: { name: 'تأمين سارية', isActive: true },
         encounter: {
           type: 'IPD',
-          diagnoses: [{ type: 'PRIMARY', code: 'I21.0' }],
+          encounterDiagnoses: [{ type: 'PRIMARY', code: 'I21.0' }],
         },
-        items: [{ id: 1 }],
+        charges: [{ id: 1 }],
       },
     };
 
@@ -535,9 +537,9 @@ describe('ClaimScrubberService', () => {
         insuranceProvider: { name: 'بوبا العربية', isActive: true },
         encounter: {
           type: 'OUTPATIENT',
-          diagnoses: [{ type: 'PRIMARY', code: 'J06.9' }],
+          encounterDiagnoses: [{ type: 'PRIMARY', code: 'J06.9' }],
         },
-        items: [{ id: 1, name: 'استشارة' }],
+        charges: [{ id: 1, name: 'استشارة' }],
       },
     };
 

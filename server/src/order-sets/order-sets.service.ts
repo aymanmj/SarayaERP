@@ -13,6 +13,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { LabService } from '../labs/labs.service';
 import { RadiologyService } from '../radiology/radiology.service';
+import { PharmacyService } from '../pharmacy/pharmacy.service';
 
 type OrderSetItemInput = {
   itemType: OrderSetItemType;
@@ -59,6 +60,7 @@ export class OrderSetsService {
     private prisma: PrismaService,
     private labService: LabService,
     private radiologyService: RadiologyService,
+    private pharmacyService: PharmacyService,
   ) {}
 
   private orderSetInclude(includeCounts = false) {
@@ -779,28 +781,24 @@ export class OrderSetsService {
             break;
           case 'MEDICATION':
             if (item.productId) {
-              const prescription = await this.prisma.prescription.create({
-                data: {
+              const prescription =
+                await this.pharmacyService.createPrescriptionForEncounter({
                   hospitalId,
                   encounterId,
-                  patientId: encounter.patientId,
                   doctorId: userId,
                   notes: `تم الإنشاء من مجموعة الطلبات المنشورة: ${orderSet.name}`,
-                  items: {
-                    create: [
-                      {
-                        productId: item.productId,
-                        dose: item.dose || '1',
-                        route: (item.route as any) || 'PO',
-                        frequency: (item.frequency as any) || 'OD',
-                        durationDays: item.durationDays || 7,
-                        quantity: item.durationDays || 7,
-                        notes: item.instructions,
-                      },
-                    ],
-                  },
-                },
-              });
+                  items: [
+                    {
+                      drugItemId: item.productId,
+                      dose: item.dose || '1',
+                      route: item.route || 'PO',
+                      frequency: item.frequency || 'OD',
+                      durationDays: item.durationDays || 7,
+                      quantity: item.durationDays || 7,
+                      notes: item.instructions || undefined,
+                    },
+                  ],
+                });
               results.prescriptions.push(prescription);
               results.total++;
             }

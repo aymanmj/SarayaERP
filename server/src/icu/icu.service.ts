@@ -423,6 +423,7 @@ export class IcuService {
       fio2: number; // 0.21 - 1.0
       peep: number; // cmH2O (typically 5-20)
       tidalVolume?: number; // mL (typically 300-600)
+      predictedBodyWeightKg?: number; // Explicit clinician-supplied PBW, not actual weight.
       respiratoryRate?: number; // breaths/min
       inspiratoryPressure?: number; // cmH2O
       pressureSupport?: number; // cmH2O
@@ -522,13 +523,20 @@ export class IcuService {
     if (dto.fio2 > 0.6) {
       alerts.push(`⚠️ FiO2 ${dto.fio2 * 100}% - consider oxygen toxicity risk`);
     }
-    if (dto.tidalVolume && dto.tidalVolume > 8) {
+    const tidalVolumeMlPerKg =
+      dto.tidalVolume &&
+      dto.predictedBodyWeightKg &&
+      Number.isFinite(dto.predictedBodyWeightKg) &&
+      dto.predictedBodyWeightKg > 0
+        ? dto.tidalVolume / dto.predictedBodyWeightKg
+        : undefined;
+    if (tidalVolumeMlPerKg && tidalVolumeMlPerKg > 8) {
       alerts.push(
-        `⚠️ Tidal Volume ${dto.tidalVolume} mL/kg - lung-protective target is ≤6-8 mL/kg IBW`,
+        `⚠️ Tidal Volume ${tidalVolumeMlPerKg.toFixed(2)} mL/kg PBW exceeds the configured threshold`,
       );
     }
 
-    return { entry, ventUsage, alerts };
+    return { entry, ventUsage, alerts, tidalVolumeMlPerKg };
   }
 
   /**

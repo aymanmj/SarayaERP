@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { apiClient } from "../api/apiClient";
 import { toast } from "sonner";
-import { formatMoney } from "@/lib/utils";
+import { formatMoney as formatLydMoney } from "../utils/money";
 import {
   BanknotesIcon,
   CheckBadgeIcon,
@@ -12,6 +12,9 @@ import {
   DocumentTextIcon,
 } from "@heroicons/react/24/outline";
 import { useTranslation } from "react-i18next";
+
+const formatMoney = (amount: number | string | null | undefined) =>
+  formatLydMoney(amount, false);
 
 export default function PayrollPage() {
   const { t, i18n } = useTranslation();
@@ -258,7 +261,7 @@ export default function PayrollPage() {
                             {formatMoney(slip.basicSalary)}
                           </td>
                           <td className="px-6 py-4 font-mono text-sky-400">
-                            {formatMoney(slip.otherAllowance)}
+                            {formatMoney(slip.totalAllowances ?? slip.otherAllowance)}
                           </td>
                           <td className="px-6 py-4 font-mono text-rose-400">
                             {formatMoney(slip.deductions)}

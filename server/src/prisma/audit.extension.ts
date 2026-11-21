@@ -1,10 +1,22 @@
+import { appendChainedAudit, sanitizeAuditData } from '../audit/audit-chain';
 import { Prisma } from '@prisma/client';
 import { ClsService } from 'nestjs-cls';
 import { siemLogger } from '../audit/siem.logger';
 import { applyTenantPolicy } from './prisma.extension';
 
 // List of tables to skip auditing
-const SKIP_MODELS = ['AuditLog', 'Session', 'SystemSetting'];
+// Recall workflows write their own audit events inside the business transaction.
+const SKIP_MODELS = [
+  'AuditLog',
+  'Session',
+  'RefreshToken',
+  'StaffSession',
+  'SystemSetting',
+  'InventoryRecallContact',
+  'InventoryRecallSupplierReceipt',
+  'InventoryRecallDisposal',
+  'InventoryRecallDisposalInvestigation',
+];
 
 export const auditExtension = (cls: ClsService, rootPrisma: any) => {
   return Prisma.defineExtension({
@@ -13,6 +25,21 @@ export const auditExtension = (cls: ClsService, rootPrisma: any) => {
       $allModels: {
         async create({ model, args, query }) {
           if (SKIP_MODELS.includes(model)) return query(args);
+          const data = args.data as Record<string, unknown>;
+          if (
+            // The clinical endpoint appends its audit row in the same transaction.
+            (model === 'VitalSign' &&
+              Object.hasOwn(data, 'requestFingerprint')) ||
+            (model === 'MedicationAdministration' &&
+              typeof data.requestKey === 'string' &&
+              data.requestKey.startsWith('medication:')) ||
+            (model === 'StockTransaction' &&
+              data.referenceType === 'RECALL_DISPOSAL') ||
+            (model === 'AccountingEntry' &&
+              typeof data.postingKey === 'string' &&
+              data.postingKey.startsWith('recall-disposal:'))
+          )
+            return query(args);
 
           const result = await query(args);
 
@@ -26,9 +53,12 @@ export const auditExtension = (cls: ClsService, rootPrisma: any) => {
               hospitalId,
               action: 'CREATE',
               entity: model,
-              entityId: result.id || null,
+              entityId:
+                'id' in result && typeof result.id === 'number'
+                  ? result.id
+                  : null,
               ipAddress,
-              newValues: args.data as any,
+              newValues: sanitizeAuditData(args.data) as Prisma.InputJsonObject,
             };
 
             // 1- SIEM Logger (Stream to Console for Promtail)
@@ -38,11 +68,9 @@ export const auditExtension = (cls: ClsService, rootPrisma: any) => {
             });
 
             // 2- Save audit log asynchronously
-            rootPrisma.auditLog
-              .create({
-                data: auditPayload,
-              })
-              .catch(console.error);
+            void appendChainedAudit(rootPrisma, auditPayload).catch(
+              console.error,
+            );
           }
 
           return result;
@@ -54,11 +82,14 @@ export const auditExtension = (cls: ClsService, rootPrisma: any) => {
           // Get the original record before update
           let originalRecord = null;
           try {
-            if (args.where?.id) {
+            if (args.where && 'id' in args.where && args.where.id) {
               const lookupArgs = applyTenantPolicy(model, 'findUnique', {
                 where: { ...args.where },
               });
-              originalRecord = await rootPrisma[model].findUnique(lookupArgs);
+              originalRecord =
+                await rootPrisma[
+                  model[0].toLowerCase() + model.slice(1)
+                ].findUnique(lookupArgs);
             }
           } catch (e) {
             // Safe fallback
@@ -89,10 +120,15 @@ export const auditExtension = (cls: ClsService, rootPrisma: any) => {
               hospitalId,
               action: 'UPDATE',
               entity: model,
-              entityId: result.id || null,
+              entityId:
+                'id' in result && typeof result.id === 'number'
+                  ? result.id
+                  : null,
               ipAddress,
-              oldValues: oldValues,
-              newValues: changedValues, // Store exactly what changed
+              oldValues: sanitizeAuditData(oldValues) as Prisma.InputJsonObject,
+              newValues: sanitizeAuditData(
+                changedValues,
+              ) as Prisma.InputJsonObject, // Store exactly what changed
             };
 
             // 1- SIEM Logger
@@ -101,11 +137,9 @@ export const auditExtension = (cls: ClsService, rootPrisma: any) => {
               ...auditPayload,
             });
 
-            rootPrisma.auditLog
-              .create({
-                data: auditPayload,
-              })
-              .catch(console.error);
+            void appendChainedAudit(rootPrisma, auditPayload).catch(
+              console.error,
+            );
           }
 
           return result;
@@ -119,7 +153,10 @@ export const auditExtension = (cls: ClsService, rootPrisma: any) => {
             const lookupArgs = applyTenantPolicy(model, 'findUnique', {
               where: { ...args.where },
             });
-            originalRecord = await rootPrisma[model].findUnique(lookupArgs);
+            originalRecord =
+              await rootPrisma[
+                model[0].toLowerCase() + model.slice(1)
+              ].findUnique(lookupArgs);
           } catch (e) {}
 
           const result = await query(args);
@@ -134,9 +171,14 @@ export const auditExtension = (cls: ClsService, rootPrisma: any) => {
               hospitalId,
               action: 'DELETE',
               entity: model,
-              entityId: result.id || null,
+              entityId:
+                'id' in result && typeof result.id === 'number'
+                  ? result.id
+                  : null,
               ipAddress,
-              oldValues: originalRecord,
+              oldValues: sanitizeAuditData(
+                originalRecord,
+              ) as Prisma.InputJsonObject,
             };
 
             // 1- SIEM Logger
@@ -145,11 +187,9 @@ export const auditExtension = (cls: ClsService, rootPrisma: any) => {
               ...auditPayload,
             });
 
-            rootPrisma.auditLog
-              .create({
-                data: auditPayload,
-              })
-              .catch(console.error);
+            void appendChainedAudit(rootPrisma, auditPayload).catch(
+              console.error,
+            );
           }
 
           return result;

@@ -4,6 +4,7 @@ import {
   NotFoundException,
   BadRequestException,
   Logger,
+  OnModuleDestroy,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import * as crypto from 'crypto';
@@ -15,9 +16,13 @@ import Redis from 'ioredis';
 import { OutboundQueueService } from '../integration/outbound-queue.service';
 
 @Injectable()
-export class MpiService {
+export class MpiService implements OnModuleDestroy {
   private readonly logger = new Logger(MpiService.name);
   private redisClient: Redis;
+
+  onModuleDestroy() {
+    this.redisClient?.disconnect();
+  }
 
   constructor(
     private prisma: PrismaService,
@@ -60,6 +65,7 @@ export class MpiService {
           'Redis connection failed in MpiService. Switching to In-Memory Redis fallback.',
         );
         const { InMemoryRedis } = require('../common/in-memory-redis');
+        this.redisClient.disconnect();
         this.redisClient = new InMemoryRedis();
       });
     } catch (err) {

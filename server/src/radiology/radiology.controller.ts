@@ -14,6 +14,8 @@ import {
 } from '@nestjs/common';
 import { RadiologyService } from './radiology.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { CurrentUser } from '../auth/current-user.decorator';
+import type { JwtPayload } from '../auth/jwt-payload.type';
 import { PermissionsGuard } from '../auth/permissions.guard';
 import { Permissions } from '../auth/permissions.decorator';
 import { RequireFeature } from '../licensing/license.decorator';
@@ -53,18 +55,21 @@ export class RadiologyController {
   constructor(private readonly radiologyService: RadiologyService) {}
 
   @Get('catalog')
+  @Permissions('radiology:view')
   async getCatalog(@Req() req: any) {
     return this.radiologyService.getCatalog(req.user.hospitalId);
   }
 
   @Get('encounters/:encounterId/orders')
+  @Permissions('radiology:view')
   async listOrdersForEncounter(
-    @Req() req: any,
+    @CurrentUser() user: JwtPayload,
     @Param('encounterId', ParseIntPipe) encounterId: number,
   ) {
     return this.radiologyService.listOrdersForEncounter(
       encounterId,
-      req.user.hospitalId,
+      user.hospitalId,
+      user,
     );
   }
 

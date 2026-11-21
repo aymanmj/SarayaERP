@@ -126,6 +126,17 @@ export function IncidentDetailsModal({ isOpen, incidentId, onClose, onUpdate }: 
     }
   };
 
+  const handleUpdateStatus = async (newStatus: string) => {
+    try {
+      await apiClient.patch(`/quality/incidents/${incidentId}`, { status: newStatus });
+      toast.success(t("quality.statusUpdated", "تم تحديث الحالة بنجاح"));
+      await loadIncident();
+      onUpdate();
+    } catch {
+      toast.error(t("quality.statusUpdateFailed", "فشل تحديث الحالة"));
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -174,7 +185,18 @@ export function IncidentDetailsModal({ isOpen, incidentId, onClose, onUpdate }: 
                       }`}>
                         {incident.severity}
                       </span>
-                      <span className="text-xs bg-slate-700 px-2 py-1 rounded-lg">{incident.status}</span>
+                      <select
+                        value={incident.status}
+                        onChange={(e) => handleUpdateStatus(e.target.value)}
+                        className="text-xs bg-slate-700 px-2 py-1 rounded-lg border-none outline-none cursor-pointer focus:ring-1 focus:ring-slate-500"
+                      >
+                        <option value="REPORTED">{t("quality.reported", "مبلغ عنه")}</option>
+                        <option value="UNDER_REVIEW">{t("quality.underReview", "قيد المراجعة")}</option>
+                        <option value="INVESTIGATED">{t("quality.underInvestigation", "تحت التحقيق")}</option>
+                        <option value="CAPA_OPEN">{t("quality.capaIsOpen", "CAPA مفتوحة")}</option>
+                        <option value="CAPA_VERIFIED">{t("quality.capaVerified", "CAPA متحققة")}</option>
+                        <option value="CLOSED">{t("quality.closed", "مغلق")}</option>
+                      </select>
                       <span className="text-xs font-medium text-slate-400">{incident.incidentType}</span>
                     </div>
 

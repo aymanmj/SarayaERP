@@ -37,8 +37,36 @@ describe('Clinical Services Integration Tests', () => {
     getServicePrice: jest.fn().mockResolvedValue(60),
   };
 
+  const createCharge = jest.fn();
+  const createInvoice = jest.fn();
   beforeEach(async () => {
     prisma = {
+      financialYear: {
+        findMany: jest.fn().mockResolvedValue([{ id: 1 }]),
+        findUniqueOrThrow: jest
+          .fn()
+          .mockResolvedValue({ id: 1, status: 'OPEN' }),
+      },
+      financialPeriod: {
+        findMany: jest.fn().mockResolvedValue([{ id: 1 }]),
+        findUniqueOrThrow: jest.fn().mockResolvedValue({ id: 1, isOpen: true }),
+      },
+      $queryRaw: jest.fn().mockResolvedValue([{ id: 50, sellPrice: 0 }]),
+      $executeRaw: jest.fn(),
+      serviceItem: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 305,
+          hospitalId: 1,
+          type: 'PHARMACY',
+          isActive: true,
+          isDeleted: false,
+          isBillable: true,
+        }),
+      },
+      auditLog: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        create: jest.fn(),
+      },
       encounter: {
         findUnique: jest.fn(),
       },
@@ -76,11 +104,11 @@ describe('Clinical Services Integration Tests', () => {
         create: jest.fn(),
       },
       encounterCharge: {
-        create: jest.fn(),
+        create: createCharge,
         updateMany: jest.fn(),
       },
       invoice: {
-        create: jest.fn(),
+        create: createInvoice,
       },
       $transaction: jest.fn(async (fn: any) => fn(prisma)),
     };
@@ -161,10 +189,14 @@ describe('Clinical Services Integration Tests', () => {
       studyId: 20,
     });
 
-    prisma.encounterCharge.create
+    createCharge
+      .mockReset()
+      .mockResolvedValueOnce({ id: 700 })
       .mockResolvedValueOnce({ id: 701 })
       .mockResolvedValueOnce({ id: 702 });
-    prisma.invoice.create
+    createInvoice
+      .mockReset()
+      .mockResolvedValueOnce({ id: 800 })
       .mockResolvedValueOnce({ id: 801 })
       .mockResolvedValueOnce({ id: 802 });
 
@@ -199,7 +231,7 @@ describe('Clinical Services Integration Tests', () => {
     expect(prescription.id).toBe(201);
     expect(labOrders).toHaveLength(1);
     expect(radiologyOrders).toHaveLength(1);
-    expect(prisma.invoice.create).toHaveBeenCalledTimes(2);
+    expect(prisma.invoice.create).toHaveBeenCalledTimes(3);
     expect(prisma.encounterCharge.updateMany).toHaveBeenNthCalledWith(1, {
       where: { id: { in: [701] } },
       data: { invoiceId: 801 },

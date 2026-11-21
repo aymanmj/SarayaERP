@@ -753,7 +753,7 @@ export class ClinicalPathwaysService {
 
       const tasksList = step.milestones
         ? step.milestones
-            .split('\\n')
+            .split(/\r?\n|\\n/)
             .map((t) => t.trim())
             .filter(Boolean)
         : [step.title];
@@ -776,9 +776,9 @@ export class ClinicalPathwaysService {
     return enrollment;
   }
 
-  async getEnrollment(id: number) {
+  async getEnrollment(id: number, hospitalId: number) {
     const enrollment = await this.prisma.pathwayEnrollment.findUnique({
-      where: { id },
+      where: { id, pathway: { hospitalId } },
       include: {
         pathway: {
           include: {
@@ -820,7 +820,7 @@ export class ClinicalPathwaysService {
   }
 
   async advanceDay(id: number, userId: number, hospitalId: number) {
-    const enrollment = await this.getEnrollment(id);
+    const enrollment = await this.getEnrollment(id, hospitalId);
     if (enrollment.status !== 'ACTIVE')
       throw new ForbiddenException('المسار غير نشط');
 
@@ -866,7 +866,7 @@ export class ClinicalPathwaysService {
       // Generate Tasks for next day
       const tasksList = step.milestones
         ? step.milestones
-            .split('\\n')
+            .split(/\r?\n|\\n/)
             .map((t) => t.trim())
             .filter(Boolean)
         : [step.title];
@@ -886,7 +886,7 @@ export class ClinicalPathwaysService {
       }
     }
 
-    const isComplete = nextDay >= maxDay;
+    const isComplete = nextDay > maxDay;
 
     return this.prisma.pathwayEnrollment.update({
       where: { id },
@@ -908,33 +908,52 @@ export class ClinicalPathwaysService {
       varianceType: VarianceType;
       reason: string;
     },
+    hospitalId: number,
   ) {
-    const enrollment = await this.prisma.pathwayEnrollment.findUnique({
-      where: { id },
-    });
-    if (!enrollment) throw new NotFoundException('التسجيل في المسار غير موجود');
-
-    return this.prisma.pathwayVariance.create({
-      data: {
-        enrollmentId: id,
-        stepId: data.stepId,
-        varianceType: data.varianceType,
-        reason: data.reason,
-        reportedById: userId,
-      },
-      include: {
-        step: { select: { id: true, title: true, dayNumber: true } },
-        reportedBy: { select: { id: true, fullName: true } },
-      },
+    const enrollment = await this.getEnrollment(id, hospitalId);
+    if (enrollment.status !== 'ACTIVE' || !data.reason.trim())
+      throw new ForbiddenException('يلزم مسار نشط ومبرر واضح');
+    const step = enrollment.pathway.steps.find(
+      (item) =>
+        item.id === data.stepId && item.dayNumber === enrollment.currentDay,
+    );
+    if (!step)
+      throw new ForbiddenException('الخطوة ليست ضمن اليوم الحالي للمسار');
+    return this.prisma.$transaction(async (tx) => {
+      const variance = await tx.pathwayVariance.create({
+        data: {
+          enrollmentId: id,
+          stepId: data.stepId,
+          varianceType: data.varianceType,
+          reason: data.reason.trim(),
+          reportedById: userId,
+        },
+        include: {
+          step: { select: { id: true, title: true, dayNumber: true } },
+          reportedBy: { select: { id: true, fullName: true } },
+        },
+      });
+      await tx.careTask.updateMany({
+        where: {
+          enrollmentId: id,
+          stepId: data.stepId,
+          status: { in: ['PENDING', 'IN_PROGRESS'] },
+        },
+        data: { status: 'SKIPPED', notes: data.reason.trim() },
+      });
+      return variance;
     });
   }
 
-  async completeEnrollment(id: number) {
-    const enrollment = await this.prisma.pathwayEnrollment.findUnique({
-      where: { id },
+  async completeEnrollment(id: number, hospitalId: number) {
+    const enrollment = await this.getEnrollment(id, hospitalId);
+    const pending = await this.prisma.careTask.count({
+      where: { enrollmentId: id, status: { in: ['PENDING', 'IN_PROGRESS'] } },
     });
-    if (!enrollment) throw new NotFoundException('التسجيل في المسار غير موجود');
-
+    if (pending || enrollment.status !== 'ACTIVE')
+      throw new ForbiddenException(
+        'لا يمكن الإكمال قبل تسوية مهام المسار النشط',
+      );
     return this.prisma.pathwayEnrollment.update({
       where: { id },
       data: {
@@ -944,9 +963,9 @@ export class ClinicalPathwaysService {
     });
   }
 
-  async getEnrollmentsByEncounter(encounterId: number) {
+  async getEnrollmentsByEncounter(encounterId: number, hospitalId: number) {
     return this.prisma.pathwayEnrollment.findMany({
-      where: { encounterId },
+      where: { encounterId, pathway: { hospitalId } },
       include: {
         pathway: {
           select: {

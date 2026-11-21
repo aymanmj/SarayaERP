@@ -11,32 +11,18 @@ import {
   ParseIntPipe,
 } from '@nestjs/common';
 import { InventoryCountService } from './inventory-count.service';
-import { InventoryCountStatus, InventoryCountType } from '@prisma/client';
-import { IsInt, IsEnum, IsOptional, IsString } from 'class-validator';
-import { Type } from 'class-transformer';
+import {
+  CreateInventoryCountDto,
+  UpdateCountLineDto,
+  UpdateCountStatusDto,
+  CountScopeDto,
+} from './dto/count.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/permissions.guard';
 import { Permissions } from '../auth/permissions.decorator';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { JwtPayload } from '../auth/jwt-payload.type';
-
-class CreateInventoryCountDto {
-  @IsOptional()
-  @IsInt()
-  @Type(() => Number)
-  hospitalId?: number;
-
-  @IsInt()
-  @Type(() => Number)
-  warehouseId: number;
-
-  @IsEnum(['FULL', 'QUARTERLY', 'SPOT_CHECK'])
-  type: InventoryCountType;
-
-  @IsOptional()
-  @IsString()
-  notes?: string;
-}
+import { AuditInTransaction } from '../audit/audit.decorator';
 
 @Controller('inventory/counts')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -60,6 +46,7 @@ export class InventoryCountController {
   }
 
   @Permissions('inventory:manage')
+  @AuditInTransaction()
   @Post()
   create(
     @Body() dto: CreateInventoryCountDto,
@@ -76,13 +63,8 @@ export class InventoryCountController {
 
   @Permissions('inventory:view')
   @Get()
-  findAll(
-    @CurrentUser() user: JwtPayload,
-    @Query('hospitalId') hospitalId?: string,
-  ) {
-    return this.service.findAll(
-      this.resolveHospitalId(user, hospitalId ? Number(hospitalId) : undefined),
-    );
+  findAll(@CurrentUser() user: JwtPayload, @Query() query: CountScopeDto) {
+    return this.service.findAll(this.resolveHospitalId(user, query.hospitalId));
   }
 
   @Permissions('inventory:view')
@@ -90,35 +72,51 @@ export class InventoryCountController {
   findOne(
     @CurrentUser() user: JwtPayload,
     @Param('id', ParseIntPipe) id: number,
-    @Query('hospitalId') hospitalId?: string,
+    @Query() query: CountScopeDto,
   ) {
     return this.service.getCount(
       id,
-      this.resolveHospitalId(user, hospitalId ? Number(hospitalId) : undefined),
+      this.resolveHospitalId(user, query.hospitalId),
     );
   }
 
   @Permissions('inventory:manage')
+  @AuditInTransaction()
   @Put(':id/lines/:lineId')
   updateLine(
     @CurrentUser() user: JwtPayload,
+    @Param('id', ParseIntPipe) id: number,
     @Param('lineId', ParseIntPipe) lineId: number,
-    @Body('physicalQty') physicalQty: number,
+    @Body() body: UpdateCountLineDto,
   ) {
-    return this.service.updateLine(lineId, physicalQty, user.hospitalId);
+    return this.service.updateLine(
+      id,
+      lineId,
+      body.physicalQty,
+      body.revision,
+      user.sub,
+      user.hospitalId,
+    );
   }
 
   @Permissions('inventory:manage')
+  @AuditInTransaction()
   @Put(':id/status')
   updateStatus(
     @CurrentUser() user: JwtPayload,
     @Param('id', ParseIntPipe) id: number,
-    @Body('status') status: InventoryCountStatus,
+    @Body() body: UpdateCountStatusDto,
   ) {
-    return this.service.updateStatus(id, status, user.hospitalId);
+    return this.service.updateStatus(
+      id,
+      body.status,
+      user.hospitalId,
+      user.sub,
+    );
   }
 
-  @Permissions('inventory:manage')
+  @Permissions('inventory:counts:post')
+  @AuditInTransaction()
   @Post(':id/post')
   postCount(
     @CurrentUser() user: JwtPayload,
@@ -131,12 +129,11 @@ export class InventoryCountController {
   @Get('dashboard/stats')
   getDashboardStats(
     @CurrentUser() user: JwtPayload,
-    @Query('hospitalId') hospitalId?: string,
-    @Query('warehouseId') warehouseId?: string,
+    @Query() query: CountScopeDto,
   ) {
     return this.service.getDashboardStats(
-      this.resolveHospitalId(user, hospitalId ? Number(hospitalId) : undefined),
-      warehouseId ? Number(warehouseId) : undefined,
+      this.resolveHospitalId(user, query.hospitalId),
+      query.warehouseId,
     );
   }
 }

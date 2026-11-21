@@ -8,16 +8,29 @@ import {
   UseGuards,
   HttpException,
   HttpStatus,
+  ForbiddenException,
 } from '@nestjs/common';
+import { CurrentUser } from '../auth/current-user.decorator';
+import type { JwtPayload } from '../auth/jwt-payload.type';
 import { BackupService } from './backup.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/permissions.guard';
 import { Permissions } from '../auth/permissions.decorator';
+import { PlatformAdminGuard } from '../auth/platform-admin.guard';
 
 @Controller('backup')
-@UseGuards(JwtAuthGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard, PlatformAdminGuard)
 export class BackupController {
   constructor(private readonly backupService: BackupService) {}
+
+  // Backups contain the entire shared database, not a single hospital.
+  private requirePlatformAdmin(user: JwtPayload) {
+    if (!user.isSuperAdmin) {
+      throw new ForbiddenException(
+        'النسخ والاستعادة المشتركة متاحة لإدارة المنصة فقط',
+      );
+    }
+  }
 
   // ==========================================
   // قائمة النسخ الاحتياطية
@@ -26,14 +39,16 @@ export class BackupController {
   /** عرض جميع النسخ المتوفرة */
   @Permissions('backup:view')
   @Get()
-  async getBackups() {
+  async getBackups(@CurrentUser() user: JwtPayload) {
+    this.requirePlatformAdmin(user);
     return this.backupService.getBackups();
   }
 
   /** البحث في جميع الأقراص المتاحة عن نسخ احتياطية */
   @Permissions('backup:manage')
   @Post('scan')
-  async scanAllPaths() {
+  async scanAllPaths(@CurrentUser() user: JwtPayload) {
+    this.requirePlatformAdmin(user);
     return this.backupService.scanAllPaths();
   }
 
@@ -45,8 +60,10 @@ export class BackupController {
   @Permissions('backup:manage')
   @Post()
   async createBackup(
+    @CurrentUser() user: JwtPayload,
     @Body() body?: { targetPath?: string; secondaryPath?: string },
   ) {
+    this.requirePlatformAdmin(user);
     return this.backupService.createBackup(
       body?.targetPath,
       body?.secondaryPath,
@@ -62,8 +79,10 @@ export class BackupController {
   @Post(':filename/restore')
   async restoreBackup(
     @Param('filename') filename: string,
+    @CurrentUser() user: JwtPayload,
     @Body() body?: { storagePath?: string },
   ) {
+    this.requirePlatformAdmin(user);
     // التحقق من صيغة اسم الملف
     if (
       !filename.match(

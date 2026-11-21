@@ -1,3 +1,5 @@
+import { PharmacyManualAdjustmentDto } from './dto/manual-adjustment.dto';
+import { PrescriptionReplacementDto } from './dto/prescription-replacement.dto';
 import {
   Body,
   Controller,
@@ -9,13 +11,19 @@ import {
   UseGuards,
   Query,
   BadRequestException,
+  ForbiddenException,
+  Put,
+  Header,
 } from '@nestjs/common';
+import { PharmacyWarehousePolicyDto } from './dto/warehouse-policy.dto';
 import { PharmacyService } from './pharmacy.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import type { JwtPayload } from '../auth/jwt-payload.type';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { PermissionsGuard } from '../auth/permissions.guard';
 import { Permissions } from '../auth/permissions.decorator';
+import { Roles } from '../auth/roles.decorator';
+import { RolesGuard } from '../auth/roles.guard';
 import { StockTransactionType, PaymentMethod } from '@prisma/client';
 import { Sensitive } from '../audit/audit.decorator';
 import { RequireFeature } from '../licensing/license.decorator';
@@ -26,8 +34,36 @@ import { RequireFeature } from '../licensing/license.decorator';
 export class PharmacyController {
   constructor(private readonly pharmacy: PharmacyService) {}
 
+  @Get('source-policy')
+  @Header('Cache-Control', 'no-store')
+  @Permissions('pharmacy:view', 'pharmacy:source:manage')
+  sourcePolicy(@CurrentUser() user: JwtPayload) {
+    return this.pharmacy.pharmacySourcePolicy(user.hospitalId);
+  }
+
+  @Get('source-policy/warehouses')
+  @Header('Cache-Control', 'no-store')
+  @Permissions('pharmacy:source:manage')
+  sourceWarehouses(@CurrentUser() user: JwtPayload) {
+    return this.pharmacy.pharmacySourceWarehouses(user.hospitalId);
+  }
+
+  @Put('source-policy')
+  @Permissions('pharmacy:source:manage')
+  configureSource(
+    @CurrentUser() user: JwtPayload,
+    @Body() body: PharmacyWarehousePolicyDto,
+  ) {
+    return this.pharmacy.configurePharmacySource(
+      user.hospitalId,
+      user.sub,
+      body,
+    );
+  }
+
   // ✅ كتالوج الأدوية
   @Get('catalog')
+  @Permissions('pharmacy:view', 'pharmacy:prescriptions:replace')
   async getDrugCatalog(@Req() req: any, @Query('q') q?: string) {
     const hospitalId = req.user.hospitalId;
     return this.pharmacy.getDrugCatalog(hospitalId, q);
@@ -35,6 +71,7 @@ export class PharmacyController {
 
   // ✅ الوصفات المرتبطة بـ Encounter
   @Get('encounters/:encounterId/prescriptions')
+  @Permissions('pharmacy:view', 'pharmacy:prescriptions:replace')
   @Sensitive('VIEW_PHARMACY_PRESCRIPTIONS')
   async getEncounterPrescriptions(
     @Req() req: any,
@@ -87,6 +124,29 @@ export class PharmacyController {
     });
   }
 
+  @Post('encounters/:encounterId/prescriptions/:originalId/replacement')
+  @Permissions('pharmacy:prescriptions:replace')
+  @Sensitive('ISSUE_PRESCRIPTION_REPLACEMENT')
+  replacePrescription(
+    @Param('encounterId', ParseIntPipe) encounterId: number,
+    @Param('originalId', ParseIntPipe) originalId: number,
+    @Body() body: PrescriptionReplacementDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    if (!user.roles.includes('DOCTOR'))
+      throw new ForbiddenException('إصدار الوصفة البديلة يتطلب طبيبًا مخولًا');
+    return this.pharmacy.createPrescriptionForEncounter({
+      hospitalId: user.hospitalId,
+      encounterId,
+      doctorId: user.sub,
+      notes: body.notes,
+      overrideSafety: body.overrideSafety,
+      overrideReason: body.overrideReason,
+      items: body.items,
+      replacement: { originalId, reason: body.reason },
+    });
+  }
+
   // ✅ Worklist الصيدلية
   @Get('worklist')
   @Permissions('pharmacy:view')
@@ -102,14 +162,26 @@ export class PharmacyController {
   }
 
   // ✅ صرف وصفة (Dispense) - يدعم الآن الصرف التلقائي حسب FEFO
+  @Post('prescriptions/:id/verify')
+  @Permissions('pharmacy:manage')
+  @UseGuards(RolesGuard)
+  @Roles('PHARMACIST', 'ADMIN')
+  async verifyPrescription(
+    @Param('id', ParseIntPipe) prescriptionId: number,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.pharmacy.verifyOrder(prescriptionId, user.sub, user.hospitalId);
+  }
+
   @Post('prescriptions/:id/dispense')
-  @Permissions('pharmacy:view')
+  @Permissions('pharmacy:manage')
   async dispensePrescription(
     @Req() req: any,
     @Param('id', ParseIntPipe) prescriptionId: number,
     @Body()
     body: {
       notes?: string;
+      partialClosureReason?: string;
       items?: {
         prescriptionItemId: number;
         quantity: number;
@@ -126,6 +198,7 @@ export class PharmacyController {
         prescriptionId,
         pharmacistId,
         notes: body.notes,
+        partialClosureReason: body.partialClosureReason,
         items: body.items,
       });
     } catch (err) {
@@ -145,43 +218,15 @@ export class PharmacyController {
   // ✅ إنشاء حركة مخزون يدويّة (توريد / تسوية)
   // تم التحديث لدعم batchNumber و expiryDate
   @Post('stock/transactions')
-  @Permissions('pharmacy:view')
-  async createStockTransaction(
-    @Req() req: any,
-    @Body()
-    body: {
-      drugItemId: number;
-      type: 'IN' | 'ADJUST';
-      quantity: number;
-      unitCost?: number;
-      batchNumber?: string; // جديد
-      expiryDate?: string; // جديد (ISO Date)
-    },
+  @Permissions('pharmacy:stock:adjust')
+  createStockTransaction(
+    @CurrentUser() user: JwtPayload,
+    @Body() body: PharmacyManualAdjustmentDto,
   ) {
-    const hospitalId = req.user.hospitalId;
-    const userId = req.user.sub;
-
-    // تحويل التاريخ إن وجد
-    let expiryDateObj: Date | undefined;
-    if (body.expiryDate) {
-      expiryDateObj = new Date(body.expiryDate);
-      if (isNaN(expiryDateObj.getTime())) {
-        throw new BadRequestException('تاريخ الصلاحية غير صحيح.');
-      }
-    }
-
     return this.pharmacy.createManualStockTransaction({
-      hospitalId,
-      userId,
-      drugItemId: Number(body.drugItemId),
-      type: body.type,
-      quantity: Number(body.quantity),
-      unitCost:
-        body.unitCost !== undefined && body.unitCost !== null
-          ? Number(body.unitCost)
-          : undefined,
-      batchNumber: body.batchNumber,
-      expiryDate: expiryDateObj,
+      ...body,
+      hospitalId: user.hospitalId,
+      userId: user.sub,
     });
   }
 
@@ -252,7 +297,7 @@ export class PharmacyController {
 
   //  صرف ودفع فوري (POS) - يدعم FEFO الآن
   @Post('prescriptions/:id/dispense-pay')
-  @Permissions('pharmacy:view')
+  @Permissions('pharmacy:manage')
   async dispenseAndPay(
     @Req() req: any,
     @Param('id', ParseIntPipe) prescriptionId: number,

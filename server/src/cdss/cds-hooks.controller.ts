@@ -7,7 +7,11 @@ import {
   Param,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { Permissions } from '../auth/permissions.decorator';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { CDSSService } from './cdss.service';
 import { Public } from '../licensing/license.decorator';
@@ -44,6 +48,8 @@ export class CdsHooksController {
   }
 
   @Post(':id')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('cdss:view')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Invoke a CDS service' })
   async invokeService(

@@ -1,3 +1,4 @@
+import { Money } from '../common/utils/money.util';
 import {
   BadRequestException,
   Injectable,
@@ -111,7 +112,11 @@ export class SuppliersService {
 
     // كل فواتير الشراء للمورد
     const invoices = await this.prisma.purchaseInvoice.findMany({
-      where: { hospitalId, supplierId },
+      where: {
+        hospitalId,
+        supplierId,
+        status: { in: ['APPROVED', 'PARTIALLY_PAID', 'PAID'] },
+      },
       orderBy: { invoiceDate: 'asc' },
     });
 
@@ -121,16 +126,41 @@ export class SuppliersService {
       orderBy: { paidAt: 'asc' },
     });
 
+    const returns = await this.prisma.purchaseReturn.findMany({
+      where: {
+        hospitalId,
+        supplierId,
+        status: 'COMPLETED',
+        requestKey: { not: null },
+        accountingEntryId: { not: null },
+      },
+      orderBy: { returnDate: 'asc' },
+    });
+    const unreconciledReturns = await this.prisma.purchaseReturn.findMany({
+      where: {
+        hospitalId,
+        supplierId,
+        status: { not: 'CANCELLED' },
+        requestKey: null,
+      },
+      select: {
+        id: true,
+        purchaseInvoiceId: true,
+        status: true,
+        totalAmount: true,
+      },
+    });
+
     type Row = {
       date: Date;
-      kind: 'INVOICE' | 'PAYMENT';
+      kind: 'INVOICE' | 'PAYMENT' | 'RETURN';
       ref: string;
       description: string;
       debit: number;
       credit: number;
 
       // ✅ جديد (لـ drill-down)
-      sourceType: 'PURCHASE_INVOICE' | 'SUPPLIER_PAYMENT';
+      sourceType: 'PURCHASE_INVOICE' | 'SUPPLIER_PAYMENT' | 'PURCHASE_RETURN';
       sourceId: number;
 
       // ✅ مفيد للدفعات المرتبطة بفاتورة
@@ -173,6 +203,20 @@ export class SuppliersService {
         supplierPaymentId: pay.id,
       });
     }
+
+    for (const ret of returns)
+      rows.push({
+        date: ret.returnDate,
+        kind: 'RETURN',
+        ref: `RET-${ret.id}`,
+        description: ret.reason ?? 'مرتجع مشتريات',
+        debit: 0,
+        credit: Money.toDb(ret.totalAmount),
+        sourceType: 'PURCHASE_RETURN',
+        sourceId: ret.id,
+        purchaseInvoiceId: ret.purchaseInvoiceId,
+        supplierPaymentId: null,
+      });
 
     // ترتيب حسب التاريخ ثم النوع (فواتير قبل دفعات في نفس اليوم)
     rows.sort((a, b) => {
@@ -241,6 +285,7 @@ export class SuppliersService {
       totalCredit,
       closingBalance,
       rows: statementRows,
+      unreconciledReturns,
     };
   }
 
@@ -267,6 +312,15 @@ export class SuppliersService {
         supplierId: true,
         invoiceDate: true,
         netAmount: true,
+        purchaseReturns: {
+          where: {
+            status: 'COMPLETED',
+            requestKey: { not: null },
+            accountingEntryId: { not: null },
+            returnDate: { lte: asOfDate },
+          },
+          select: { totalAmount: true },
+        },
         supplier: { select: { id: true, name: true, code: true } },
       },
     });
@@ -305,6 +359,7 @@ export class SuppliersService {
       unallocMap.set(u.supplierId, Number(u._sum.amount ?? 0));
     }
 
+    const supplierCredits = new Map<number, number>();
     type Buckets = {
       b0_30: number;
       b31_60: number;
@@ -313,6 +368,7 @@ export class SuppliersService {
       b121_plus: number;
       total: number;
       unallocatedCredit: number;
+      creditBalance: number;
     };
 
     const emptyBuckets = (): Buckets => ({
@@ -323,6 +379,7 @@ export class SuppliersService {
       b121_plus: 0,
       total: 0,
       unallocatedCredit: 0,
+      creditBalance: 0,
     });
 
     const bySupplier = new Map<
@@ -338,9 +395,10 @@ export class SuppliersService {
     for (const inv of invoices) {
       const net = Number(inv.netAmount ?? 0);
       const paidUpTo = paidMap.get(inv.id) ?? 0;
-      const remaining = round3(net - paidUpTo);
-
-      if (remaining <= 0.0001) continue;
+      const returned = Money.toDb(
+        Money.sumDecimal(...inv.purchaseReturns.map((r) => r.totalAmount)),
+      );
+      const remaining = round3(net - paidUpTo - returned);
 
       const s = inv.supplier;
       if (!s) continue;
@@ -354,6 +412,15 @@ export class SuppliersService {
           buckets: emptyBuckets(),
         };
         bySupplier.set(s.id, holder);
+      }
+
+      if (remaining <= 0) {
+        if (remaining < 0)
+          supplierCredits.set(
+            s.id,
+            round3((supplierCredits.get(s.id) ?? 0) - remaining),
+          );
+        continue;
       }
 
       const diffMs = asOfDate.getTime() - inv.invoiceDate.getTime();
@@ -373,7 +440,10 @@ export class SuppliersService {
 
     // ✅ خصم الدفعات غير المربوطة من الأقدم (تقريب FIFO على مستوى الشرائح)
     for (const holder of bySupplier.values()) {
-      let credit = round3(unallocMap.get(holder.supplierId) ?? 0);
+      let credit = round3(
+        (unallocMap.get(holder.supplierId) ?? 0) +
+          (supplierCredits.get(holder.supplierId) ?? 0),
+      );
       if (credit <= 0.0001) continue;
 
       holder.buckets.unallocatedCredit = credit;
@@ -393,6 +463,7 @@ export class SuppliersService {
       take('b31_60');
       take('b0_30');
 
+      holder.buckets.creditBalance = credit;
       // حدّث total بعد الخصم
       const b = holder.buckets;
       b.total = round3(b.b0_30 + b.b31_60 + b.b61_90 + b.b91_120 + b.b121_plus);
@@ -418,6 +489,7 @@ export class SuppliersService {
         acc.b91_120 = round3(acc.b91_120 + s.b91_120);
         acc.b121_plus = round3(acc.b121_plus + s.b121_plus);
         acc.total = round3(acc.total + s.total);
+        acc.creditBalance = round3(acc.creditBalance + s.creditBalance);
         acc.unallocatedCredit = round3(
           acc.unallocatedCredit + (s.unallocatedCredit ?? 0),
         );
@@ -431,6 +503,7 @@ export class SuppliersService {
         b121_plus: 0,
         total: 0,
         unallocatedCredit: 0,
+        creditBalance: 0,
       },
     );
 

@@ -58,7 +58,7 @@ export class PatientsController {
   // }
 
   @Post()
-  @Permissions('patients:view')
+  @Permissions('patients:manage')
   create(@Body() body: any, @CurrentUser() user: JwtPayload) {
     let dob: Date | undefined;
     if (body.dateOfBirth) {
@@ -186,7 +186,7 @@ export class PatientsController {
   // }
 
   @Patch(':id')
-  @Permissions('patients:view')
+  @Permissions('patients:manage')
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() body: any,
@@ -238,7 +238,7 @@ export class PatientsController {
   }
 
   @Post(':id/allergies')
-  @Permissions('patients:view')
+  @Permissions('patients:manage')
   async addAllergy(
     @Param('id', ParseIntPipe) id: number,
     @Body() body: { allergen: string; severity: string; reaction?: string },

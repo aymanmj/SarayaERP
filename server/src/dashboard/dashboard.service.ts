@@ -134,17 +134,13 @@ export class DashboardService {
           stockOnHand: { lte: this.prisma.product.fields.minStock },
         },
       }),
-      // قيمة المخزون
-      this.prisma.product.aggregate({
-        where: {
-          hospitalId,
-          isActive: true,
-        },
-        _sum: {
-          costPrice: true,
-          stockOnHand: true,
-        },
-      }),
+      // Sum each stock row's quantity times its product cost, not cross-products.
+      this.prisma.$queryRaw<{ value: string | null }[]>`
+        SELECT COALESCE(SUM(s.quantity * p."costPrice"), 0)::text AS value
+        FROM "ProductStock" s JOIN "Product" p ON p.id = s."productId"
+        WHERE s."hospitalId" = ${hospitalId} AND p."hospitalId" = ${hospitalId}
+          AND p."isActive" = true AND p."isDeleted" = false
+      `,
     ]);
 
     // 2. ✅ حساب الإيرادات
@@ -195,9 +191,7 @@ export class DashboardService {
       totalBeds > 0 ? Math.round((occupiedBeds / totalBeds) * 100) : 0;
 
     // حساب قيمة المخزون (الكمية × التكلفة)
-    const inventoryValueCalc =
-      Number(inventoryValue._sum.costPrice || 0) *
-      Number(inventoryValue._sum.stockOnHand || 0);
+    const inventoryValueCalc = Number(inventoryValue[0]?.value || 0);
 
     // 3. بيانات الأسبوعي للمخططات
     const weeklyTrend = await this.getWeeklyTrend(hospitalId, weekStart);

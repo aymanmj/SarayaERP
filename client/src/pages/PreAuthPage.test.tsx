@@ -118,6 +118,57 @@ describe('PreAuthPage', () => {
     });
   });
 
+  it('submits a service-specific request with an exact decimal amount', async () => {
+    vi.mocked(apiClient.get).mockImplementation(async (url) => {
+      if (url === '/insurance/pre-auth/services')
+        return { data: [{ id: 25, name: 'أدوية الوصفة', code: 'PHARMACY-DRUGS' }] };
+      if (url.startsWith('/patients/search'))
+        return { data: [{ id: 10 }] };
+      if (url === '/patients/10')
+        return { data: { id: 10, fullName: 'Synthetic patient', insurancePolicy: { id: 5 } } };
+      if (url === '/insurance/coverage-balance/10')
+        return { data: { policyId: 5, cap: '4.000', remainingAmount: '1.334', requiresReconciliation: false } };
+      return { data: mockPreAuths };
+    });
+    vi.mocked(apiClient.post).mockResolvedValue({ data: {} });
+    render(<PreAuthPage />);
+    fireEvent.click(screen.getByRole('button', { name: /طلب موافقة جديد/ }));
+    await screen.findByRole('option', { name: /أدوية الوصفة/ });
+    fireEvent.change(screen.getByLabelText('الخدمة المطلوب اعتمادها'), { target: { value: '25' } });
+    fireEvent.change(screen.getByPlaceholderText(/MRN-0001/), { target: { value: 'MRN-001' } });
+    fireEvent.click(screen.getByRole('button', { name: 'بحث' }));
+    await screen.findByText('Synthetic patient');
+    expect(await screen.findByText(/1.334/)).toBeInTheDocument();
+    fireEvent.change(screen.getByPlaceholderText('مثال: 500'), { target: { value: '2.666' } });
+    fireEvent.click(screen.getByRole('button', { name: 'حفظ الطلب' }));
+    await waitFor(() => expect(apiClient.post).toHaveBeenCalledWith(
+      '/insurance/pre-auth',
+      expect.objectContaining({ patientId: 10, policyId: 5, serviceItemId: 25, requestedAmount: '2.666' }),
+    ));
+  });
+
+  it('requires the decision reason when declining a prescription-linked request', async () => {
+    vi.mocked(apiClient.get).mockResolvedValue({ data: [{
+      ...mockPreAuths[0],
+      isPrescriptionRequest: true,
+      prescription: { id: 42, encounterId: 5, status: 'DRAFT', prepaidInvoiceId: null },
+    }] });
+    vi.mocked(apiClient.patch).mockResolvedValue({ data: {} });
+    render(<PreAuthPage />);
+    fireEvent.click(await screen.findByRole('button', { name: 'رفض' }));
+    const submit = screen.getByRole('button', { name: 'تأكيد الرفض' });
+    fireEvent.click(submit);
+    expect(apiClient.patch).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText('سبب القرار'), {
+      target: { value: 'سبب الرفض الموثق' },
+    });
+    fireEvent.click(submit);
+    await waitFor(() => expect(apiClient.patch).toHaveBeenCalledWith(
+      '/insurance/pre-auth/1',
+      expect.objectContaining({ status: 'REJECTED', decisionReason: 'سبب الرفض الموثق' }),
+    ));
+  });
+
   it('should show action buttons only for PENDING pre-auths', async () => {
     render(<PreAuthPage />);
     await waitFor(() => {

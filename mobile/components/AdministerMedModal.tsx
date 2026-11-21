@@ -1,4 +1,7 @@
-import React, { useState } from 'react';
+import * as Crypto from 'expo-crypto';
+import axios from 'axios';
+import { useAuth } from '../context/AuthContext';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, TextInput, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Keyboard } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../services/api';
@@ -6,7 +9,7 @@ import { theme } from '../constants/theme';
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { useQueryClient } from '@tanstack/react-query';
+
 
 const administerSchema = z.object({
   status: z.enum(['GIVEN', 'NOT_GIVEN', 'HELD']),
@@ -22,6 +25,8 @@ const administerSchema = z.object({
 });
 
 type AdministerFormValues = z.infer<typeof administerSchema>;
+const scheduledFrequencies = new Set(['DAILY', 'BID', 'TID', 'QID', 'QHS']);
+type DoseSlot = { prescriptionItemId: number; scheduledSlot: string; status: string };
 
 interface AdministerMedModalProps {
   visible: boolean;
@@ -37,7 +42,33 @@ export default function AdministerMedModal({ visible, onClose, medication, encou
   const [submitting, setSubmitting] = useState(false);
   const [scannerVisible, setScannerVisible] = useState(false);
 
-  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const pending = useRef<{ scope: string; encounterId: number; itemId: number; status: string; notes: string; requestId: string; scheduledSlot?: string } | null>(null);
+  const flight = useRef(false);
+  const needsSlot = scheduledFrequencies.has(medication?.frequency);
+  const itemId = medication?.id;
+  const [slots, setSlots] = useState<DoseSlot[]>([]);
+  const [selectedSlot, setSelectedSlot] = useState<string>();
+  const [slotError, setSlotError] = useState(false);
+  const [loadingSlots, setLoadingSlots] = useState(false);
+  useEffect(() => {
+    setSlots([]);
+    setSelectedSlot(undefined);
+    setSlotError(false);
+    if (!visible || !needsSlot) return;
+    let current = true;
+    setLoadingSlots(true);
+    void api.getMedicationSchedule(encounterId).then((rows) => {
+      if (current) setSlots(rows.filter((slot) =>
+        slot.prescriptionItemId === itemId && ['PENDING', 'OVERDUE', 'HELD'].includes(slot.status),
+      ));
+    }).catch(() => {
+      if (current) setSlotError(true);
+    }).finally(() => {
+      if (current) setLoadingSlots(false);
+    });
+    return () => { current = false; };
+  }, [visible, needsSlot, encounterId, itemId]);
 
   const { control, handleSubmit, watch, setValue, reset, formState: { errors } } = useForm<AdministerFormValues>({
     resolver: zodResolver(administerSchema),
@@ -47,55 +78,47 @@ export default function AdministerMedModal({ visible, onClose, medication, encou
   const status = watch('status');
 
   const onSubmit = async (data: AdministerFormValues) => {
-    if (!medication) return;
-
+    if (!medication || flight.current) return;
+    const scope = `${user?.hospitalId}:${user?.id}:${encounterId}:${medication.id}`;
+    if (pending.current && pending.current.scope !== scope) {
+      Alert.alert('عملية غير محسومة', 'توجد محاولة سابقة تخص موظفًا أو مريضًا آخر؛يلزم حسمها قبل تنفيذ عملية جديدة');
+      return;
+    }
+    const previous = pending.current;
+    const dose = slots.find((slot) => slot.scheduledSlot === selectedSlot);
+    if (!previous && needsSlot && (!dose || (data.status === 'HELD' && dose.status === 'HELD'))) {
+      Alert.alert('موعد الجرعة', 'اختر موعدًا متاحًا للإجراء.');
+      return;
+    }
+    const request = previous ?? { scope, encounterId, itemId: medication.id, status: data.status, notes: data.notes || '', requestId: Crypto.randomUUID(), scheduledSlot: dose?.scheduledSlot };
+    pending.current = request;
+    flight.current = true;
     setSubmitting(true);
     try {
-      // Optimistic update
-      const tempAdmin = {
-        id: Date.now(),
-        prescriptionItemId: medication.id,
-        status: data.status,
-        notes: data.notes,
-        administeredAt: new Date().toISOString(),
-        performer: { id: 0, fullName: "You (Pending)" }
-      };
-
-      queryClient.setQueryData(['medications', encounterId], (oldData: any) => {
-        if (!oldData) return oldData;
-        const newHistory = [tempAdmin, ...(oldData.administrations || [])];
-        return { ...oldData, administrations: newHistory };
-      });
-
-      await api.administerMedication(encounterId, medication.id, data.status, data.notes || '');
-      Alert.alert("Success", "Medication administration recorded");
+      await api.administerMedication(request.encounterId, request.itemId, request.status, request.notes, request.requestId, request.scheduledSlot);
+      pending.current = null;
+      Alert.alert('تم التسجيل', 'أكد الخادم تسجيل إعطاء الدواء');
       onSuccess();
       reset();
       onClose();
-    } catch (error: any) {
-      console.error(error);
-      Alert.alert("خطأ", error.message || "فشل تسجيل إعطاء الدواء");
+    } catch (error: unknown) {
+      if (!previous && axios.isAxiosError(error) && error.response && [400, 401, 403, 404, 409, 422].includes(error.response.status)) pending.current = null;
+      Alert.alert('لم تتأكد النتيجة', 'لم يعرض الإعطاء كمنفذ. أعد المحاولة بنفس البيانات والمعرف لحسم النتيجة، ولا تسجل جرعة جديدة قبل التحقق.');
     } finally {
+      flight.current = false;
       setSubmitting(false);
     }
+  };
+
+  const handleClose = () => {
+    if (pending.current || flight.current) { Alert.alert('عملية غير محسومة', 'احسم نتيجة المحاولة الحالية بالمعرف نفسه قبل إغلاق النافذة أو بدء إعطاء جديد'); return; }
+    onClose();
   };
 
   const handleScan = (data: string) => {
     setScannerVisible(false);
     
-    const drugName = medication.drugItem?.name || medication.product?.name || '';
-    const drugCode = medication.drugItem?.code || medication.product?.code || '';
-    
-    // Simple matching logic
-    // In production, might need to query API to resolve barcode to product
-    const isMatch = (data === drugCode) || (drugName.toLowerCase().includes(data.toLowerCase())) || (data.toLowerCase().includes(drugName.toLowerCase()));
-
-    if (isMatch) {
-        setValue('status', 'GIVEN');
-        Alert.alert("Match Confirmed", "Medication verified successfully.");
-    } else {
-        Alert.alert("Mismatch Warning", `Scanned code '${data}' does not match '${drugName}'. Please verify manually.`);
-    }
+    Alert.alert('قراءة رمز فقط', `الرمز المقروء: ${data}. هذه القراءة المحلية لا تتحقق من المريض أو الدواء أو الجرعة أو الطريق أو الموعد. يلزم تحقق سريري مباشر قبل التسجيل.`);
   };
 
   if (!medication) return null;
@@ -105,7 +128,7 @@ export default function AdministerMedModal({ visible, onClose, medication, encou
       visible={visible} 
       transparent 
       animationType="fade" 
-      onRequestClose={onClose}
+      onRequestClose={handleClose}
     >
       <TouchableOpacity 
         style={styles.overlay} 
@@ -124,7 +147,7 @@ export default function AdministerMedModal({ visible, onClose, medication, encou
                   <TouchableOpacity onPress={() => setScannerVisible(true)} style={styles.scanBtn}>
                     <Ionicons name="qr-code-outline" size={20} color="#0284c7" />
                   </TouchableOpacity>
-                  <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+                  <TouchableOpacity onPress={handleClose} style={styles.closeBtn}>
                     <Ionicons name="close" size={20} color="#64748b" />
                   </TouchableOpacity>
               </View>
@@ -141,11 +164,33 @@ export default function AdministerMedModal({ visible, onClose, medication, encou
               </View>
             </View>
 
+            {needsSlot && (
+              <View>
+                <Text style={styles.sectionLabel}>اختر موعد الجرعة</Text>
+                {loadingSlots && <ActivityIndicator />}
+                {!loadingSlots && slots.length === 0 && (
+                  <Text>{slotError ? 'تعذر تحميل جدول الدواء.' : 'لا توجد جرعات متاحة لهذا اليوم.'}</Text>
+                )}
+                {slots.map((slot) => (
+                  <TouchableOpacity
+                    key={slot.scheduledSlot}
+                    accessibilityRole="radio"
+                    accessibilityState={{ checked: selectedSlot === slot.scheduledSlot }}
+                    disabled={submitting || !!pending.current}
+                    onPress={() => setSelectedSlot(slot.scheduledSlot)}
+                  >
+                    <Text>{selectedSlot === slot.scheduledSlot ? '✓ ' : ''}{slot.scheduledSlot.slice(11)}{slot.status === 'HELD' ? ' — مؤجل' : ''}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
             {/* Status Selection */}
             <Text style={styles.sectionLabel}>Administration Status</Text>
             <View style={styles.statusContainer}>
               <TouchableOpacity
                 style={[styles.statusBtn, status === 'GIVEN' && styles.statusBtnGiven]}
+                disabled={submitting || !!pending.current}
                 onPress={() => setValue('status', 'GIVEN')}
               >
                 <Ionicons name="checkmark-circle" size={18} color={status === 'GIVEN' ? '#fff' : '#15803d'} />
@@ -154,6 +199,7 @@ export default function AdministerMedModal({ visible, onClose, medication, encou
 
               <TouchableOpacity
                 style={[styles.statusBtn, status === 'NOT_GIVEN' && styles.statusBtnNotGiven]}
+                disabled={submitting || !!pending.current}
                 onPress={() => setValue('status', 'NOT_GIVEN')}
               >
                 <Ionicons name="alert-circle" size={18} color={status === 'NOT_GIVEN' ? '#fff' : '#b91c1c'} />
@@ -162,6 +208,7 @@ export default function AdministerMedModal({ visible, onClose, medication, encou
               
               <TouchableOpacity
                 style={[styles.statusBtn, status === 'HELD' && styles.statusBtnHeld]}
+                disabled={submitting || !!pending.current}
                 onPress={() => setValue('status', 'HELD')}
               >
                 <Ionicons name="hand-left" size={18} color={status === 'HELD' ? '#fff' : '#b45309'} />
@@ -180,6 +227,7 @@ export default function AdministerMedModal({ visible, onClose, medication, encou
                   placeholder="Add any observations or reasons..."
                   placeholderTextColor="#94a3b8"
                   value={value}
+                  editable={!submitting && !pending.current}
                   onChangeText={onChange}
                   multiline
                   textAlignVertical="top"
@@ -197,13 +245,13 @@ export default function AdministerMedModal({ visible, onClose, medication, encou
                 submitting && styles.disabledButton
               ]}
               onPress={handleSubmit(onSubmit)}
-              disabled={submitting}
+              disabled={submitting || (needsSlot && !selectedSlot && !pending.current)}
             >
               {submitting ? (
                 <ActivityIndicator color="#fff" />
               ) : (
                 <Text style={styles.submitText}>
-                  Confirm {status === 'GIVEN' ? 'Administration' : status.replace('_', ' ')}
+                  {pending.current ? 'إعادة المحاولة بالبيانات والمعرف الأصليين' : `Confirm ${status === 'GIVEN' ? 'Administration' : status.replace('_', ' ')}`}
                 </Text>
               )}
             </TouchableOpacity>

@@ -1,7 +1,11 @@
+import type { JwtPayload } from '../auth/jwt-payload.type';
+import type { Request } from 'express';
 import {
   Body,
   Controller,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   ParseIntPipe,
   Post,
@@ -21,7 +25,14 @@ import { NursingService } from './nursing.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/permissions.guard';
 import { Permissions } from '../auth/permissions.decorator';
-import { AdministrationStatus } from '@prisma/client';
+import {
+  VerifyFiveRightsDto,
+  AdministerBarcodeDto,
+  AdministerMedicationDto,
+  AddNursingNoteDto,
+} from './dto/clma.dto';
+import { CareTaskStatus } from '@prisma/client';
+import { AuditInTransaction } from '../audit/audit.decorator';
 
 @ApiTags('nursing')
 @ApiBearerAuth()
@@ -38,8 +49,11 @@ export class NursingController {
     description: 'Inpatients retrieved successfully.',
   })
   @Get('inpatients')
-  @Permissions('nursing:view')
-  async getInpatients(@Req() req: any, @Query('wardId') wardId?: string) {
+  @Permissions('nursing:view', 'nursing:dashboard:view', 'nursing:station:view')
+  async getInpatients(
+    @Req() req: { user: JwtPayload },
+    @Query('wardId') wardId?: string,
+  ) {
     const wId = wardId ? Number(wardId) : undefined;
     return this.nursingService.getInpatients(req.user.hospitalId, wId);
   }
@@ -51,41 +65,103 @@ export class NursingController {
   @ApiParam({ name: 'id', description: 'Encounter ID' })
   @ApiResponse({ status: 200, description: 'MAR retrieved successfully.' })
   @Get('encounters/:id/mar')
-  @Permissions('nursing:view')
-  async getMAR(@Req() req: any, @Param('id', ParseIntPipe) id: number) {
+  @Permissions('nursing:view', 'nursing:station:view')
+  async getMAR(
+    @Req() req: { user: JwtPayload },
+    @Param('id', ParseIntPipe) id: number,
+  ) {
     return this.nursingService.getPatientMAR(req.user.hospitalId, id);
   }
 
-  // 3. تسجيل إعطاء دواء
-  @ApiOperation({ summary: 'Administer medication for a prescription item' })
+  // 3. التحقق الخماسي للباركود (CLMA 5 Rights Verification)
+  @ApiOperation({
+    summary: 'Verify 5 Rights of medication administration via barcodes',
+  })
+  @ApiParam({ name: 'id', description: 'Encounter ID' })
+  @ApiResponse({ status: 200, description: '5 Rights verification completed.' })
+  @Post('encounters/:id/verify-five-rights')
+  @HttpCode(HttpStatus.OK)
+  @Permissions('nursing:station:view', 'nursing:view')
+  async verifyFiveRights(
+    @Req() req: { user: JwtPayload },
+    @Param('id', ParseIntPipe) encounterId: number,
+    @Body() dto: VerifyFiveRightsDto,
+  ) {
+    return this.nursingService.verifyFiveRights(
+      req.user.hospitalId,
+      encounterId,
+      dto.prescriptionItemId,
+      dto.patientBarcode,
+      dto.drugBarcode,
+    );
+  }
+
+  // 4. إعطاء دواء عبر الباركود المغلق (CLMA Barcode Administration)
+  @ApiOperation({
+    summary: 'Administer medication with barcode scanning and CLMA audit',
+  })
+  @ApiParam({ name: 'id', description: 'Encounter ID' })
+  @ApiResponse({
+    status: 201,
+    description: 'Medication administered with barcode successfully.',
+  })
+  @Post('encounters/:id/administer-barcode')
+  @AuditInTransaction()
+  @Permissions('nursing:medications:administer')
+  async administerWithBarcode(
+    @Req() req: Request & { user: JwtPayload },
+    @Param('id', ParseIntPipe) encounterId: number,
+    @Body() dto: AdministerBarcodeDto,
+  ) {
+    return this.nursingService.administerWithBarcode({
+      hospitalId: req.user.hospitalId,
+      userId: req.user.sub,
+      ipAddress: req.ip,
+      clientName: req.get('user-agent'),
+      encounterId,
+      prescriptionItemId: dto.prescriptionItemId,
+      patientBarcode: dto.patientBarcode,
+      drugBarcode: dto.drugBarcode,
+      requestId: dto.requestId,
+      scheduledSlot: dto.scheduledSlot,
+      isEmergencyOverride: dto.isEmergencyOverride ?? false,
+      varianceReason: dto.varianceReason,
+      notes: dto.notes,
+    });
+  }
+
+  // 5. تسجيل إعطاء دواء يدوي (eMAR Manual Action)
+  @ApiOperation({
+    summary: 'Administer medication manually for a prescription item',
+  })
   @ApiParam({ name: 'id', description: 'Encounter ID' })
   @ApiResponse({
     status: 201,
     description: 'Medication administered successfully.',
   })
   @Post('encounters/:id/administer-med')
-  @Permissions('nursing:view')
+  @AuditInTransaction()
+  @Permissions('nursing:medications:administer')
   async administerMed(
-    @Req() req: any,
+    @Req() req: Request & { user: JwtPayload },
     @Param('id', ParseIntPipe) encounterId: number,
-    @Body()
-    body: {
-      prescriptionItemId: number;
-      status: AdministrationStatus;
-      notes?: string;
-    },
+    @Body() body: AdministerMedicationDto,
   ) {
     return this.nursingService.administerMedication({
       hospitalId: req.user.hospitalId,
       userId: req.user.sub,
+      ipAddress: req.ip,
+      clientName: req.get('user-agent'),
       encounterId,
       prescriptionItemId: Number(body.prescriptionItemId),
+      requestId: body.requestId,
+      scheduledSlot: body.scheduledSlot,
       status: body.status,
       notes: body.notes,
     });
   }
 
-  // 4. ملاحظات التمريض
+  // 6. ملاحظات التمريض
   @ApiOperation({ summary: 'Get nursing notes for an encounter' })
   @ApiParam({ name: 'id', description: 'Encounter ID' })
   @ApiResponse({
@@ -93,8 +169,11 @@ export class NursingController {
     description: 'Nursing notes retrieved successfully.',
   })
   @Get('encounters/:id/notes')
-  @Permissions('nursing:view')
-  async getNotes(@Req() req: any, @Param('id', ParseIntPipe) id: number) {
+  @Permissions('nursing:view', 'nursing:station:view')
+  async getNotes(
+    @Req() req: { user: JwtPayload },
+    @Param('id', ParseIntPipe) id: number,
+  ) {
     return this.nursingService.getNursingNotes(req.user.hospitalId, id);
   }
 
@@ -102,11 +181,11 @@ export class NursingController {
   @ApiParam({ name: 'id', description: 'Encounter ID' })
   @ApiResponse({ status: 201, description: 'Nursing note added successfully.' })
   @Post('encounters/:id/notes')
-  @Permissions('nursing:view')
+  @Permissions('nursing:notes:manage')
   async addNote(
-    @Req() req: any,
+    @Req() req: { user: JwtPayload },
     @Param('id', ParseIntPipe) encounterId: number,
-    @Body() body: { note: string; isShiftHandover?: boolean },
+    @Body() body: AddNursingNoteDto,
   ) {
     return this.nursingService.addNursingNote({
       hospitalId: req.user.hospitalId,
@@ -117,21 +196,25 @@ export class NursingController {
     });
   }
 
-  // 5. المهام السريرية
+  // 7. المهام السريرية
   @Get('encounters/:id/care-tasks')
-  @Permissions('nursing:view')
-  async getCareTasks(@Param('id', ParseIntPipe) encounterId: number) {
-    return this.nursingService.getCareTasks(encounterId);
+  @Permissions('nursing:view', 'nursing:station:view')
+  async getCareTasks(
+    @Req() req: { user: JwtPayload },
+    @Param('id', ParseIntPipe) encounterId: number,
+  ) {
+    return this.nursingService.getCareTasks(req.user.hospitalId, encounterId);
   }
 
   @Post('care-tasks/:id/status')
-  @Permissions('nursing:view')
+  @Permissions('nursing:notes:manage')
   async updateCareTaskStatus(
-    @Req() req: any,
+    @Req() req: { user: JwtPayload },
     @Param('id', ParseIntPipe) taskId: number,
-    @Body() body: { status: any; notes?: string },
+    @Body() body: { status: CareTaskStatus; notes?: string },
   ) {
     return this.nursingService.updateCareTaskStatus(
+      req.user.hospitalId,
       req.user.sub,
       taskId,
       body.status,
@@ -139,27 +222,26 @@ export class NursingController {
     );
   }
 
-  // 6. MAR Schedule
+  // 8. MAR Schedule
   @Get('encounters/:id/mar-schedule')
-  @Permissions('nursing:view')
+  @Permissions('nursing:view', 'nursing:station:view')
   async getMARSchedule(
-    @Req() req: any,
+    @Req() req: { user: JwtPayload },
     @Param('id', ParseIntPipe) encounterId: number,
     @Query('targetDate') targetDate?: string,
   ) {
-    const date = targetDate ? new Date(targetDate) : new Date();
     return this.nursingService.generateMARSchedule(
       req.user.hospitalId,
       encounterId,
-      date,
+      targetDate,
     );
   }
 
-  // 7. Overdue Medications Alerts
+  // 9. Overdue Medications Alerts
   @Get('overdue-medications')
-  @Permissions('nursing:view')
+  @Permissions('nursing:view', 'nursing:station:view')
   async getOverdueMedications(
-    @Req() req: any,
+    @Req() req: { user: JwtPayload },
     @Query('encounterId') encounterId?: string,
   ) {
     const encId = encounterId ? Number(encounterId) : undefined;

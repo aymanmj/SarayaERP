@@ -1,18 +1,26 @@
+import { Money } from '../common/utils/money.util';
 import {
   Injectable,
   BadRequestException,
+  ConflictException,
   NotFoundException,
   Logger,
 } from '@nestjs/common';
+import {
+  consumeSurgerySupply,
+  type SurgerySupplyInput,
+} from './surgery-consumption';
+import { appendChainedAuditInTransaction } from '../audit/audit-chain';
+import { publishCommittedCriticalAudit } from '../audit/siem.logger';
 import { PrismaService } from '../prisma/prisma.service';
 import { CommissionService } from '../commission/commission.service';
 import {
   SurgeryStatus,
   SurgeryRole,
-  StockTransactionType,
   ChargeSource,
   ServiceType,
   TerminologySystem,
+  Prisma,
 } from '@prisma/client';
 
 @Injectable()
@@ -24,31 +32,88 @@ export class SurgeryService {
   ) {}
 
   // --------------------------------------------------------
-  // 🏥 Helper: تحديد مخزون العمليات
+  // 1. غرف العمليات (Theatres)
   // --------------------------------------------------------
-  private async getOTWarehouseId(hospitalId: number): Promise<number> {
-    const wh = await this.prisma.warehouse.findFirst({
-      where: {
-        hospitalId,
-        isActive: true,
-        OR: [
-          { name: { contains: 'Operation', mode: 'insensitive' } },
-          { name: { contains: 'OT', mode: 'insensitive' } },
-          { name: { contains: 'عمليات', mode: 'insensitive' } },
-        ],
-      },
-    });
-
-    if (wh) return wh.id;
-
-    throw new BadRequestException(
-      'لم يتم العثور على "مخزن عمليات" معرف في النظام. يرجى إنشاء مخزن باسم "Operations Store" أو "مخزون العمليات".',
+  async surgerySourcePolicy(hospitalId: number) {
+    return (
+      (await this.prisma.surgeryWarehousePolicy.findUnique({
+        where: { hospitalId },
+        include: {
+          warehouse: { select: { id: true, name: true, isActive: true } },
+        },
+      })) ?? { hospitalId, warehouseId: null, warehouse: null }
     );
   }
 
-  // --------------------------------------------------------
-  // 1. غرف العمليات (Theatres)
-  // --------------------------------------------------------
+  async surgerySourceWarehouses(hospitalId: number) {
+    return this.prisma.warehouse.findMany({
+      where: { hospitalId, isActive: true },
+      select: { id: true, name: true },
+      orderBy: { id: 'asc' },
+    });
+  }
+
+  async configureSurgerySource(
+    hospitalId: number,
+    userId: number,
+    dto: { warehouseId: number; reason: string },
+  ) {
+    if (
+      !Number.isInteger(dto.warehouseId) ||
+      dto.warehouseId <= 0 ||
+      dto.warehouseId > 2147483647 ||
+      typeof dto.reason !== 'string' ||
+      dto.reason.trim().length < 10 ||
+      dto.reason.length > 500
+    )
+      throw new BadRequestException('يلزم مخزن صالح وسبب واضح من10 إلى500 حرف');
+    let committedAudit: Record<string, unknown> | null = null;
+    const result = await this.prisma.$transaction(async (tx) => {
+      committedAudit = null;
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(27003, ${hospitalId}::integer)`;
+      if (
+        !(await tx.user.findFirst({
+          where: { id: userId, hospitalId, isActive: true, isDeleted: false },
+        }))
+      )
+        throw new NotFoundException('المستخدم غير متاح ضمن المنشأة');
+      const warehouses = await tx.$queryRaw<
+        { id: number }[]
+      >`SELECT id FROM "Warehouse" WHERE id=${dto.warehouseId} AND "hospitalId"=${hospitalId} AND "isActive"=true FOR SHARE`;
+      if (warehouses.length !== 1)
+        throw new BadRequestException('المخزن غير نشط أو خارج المنشأة');
+      const previous = await tx.surgeryWarehousePolicy.findUnique({
+        where: { hospitalId },
+      });
+      const policy = await tx.surgeryWarehousePolicy.upsert({
+        where: { hospitalId },
+        create: {
+          hospitalId,
+          warehouseId: dto.warehouseId,
+          updatedById: userId,
+        },
+        update: { warehouseId: dto.warehouseId, updatedById: userId },
+      });
+      const auditFields = {
+        hospitalId,
+        userId,
+        action: 'CONFIGURE_SURGERY_WAREHOUSE',
+        entity: 'SurgeryWarehousePolicy',
+        entityId: policy.id,
+        details: {
+          reason: dto.reason.trim(),
+          previousWarehouseId: previous?.warehouseId ?? null,
+          warehouseId: dto.warehouseId,
+        },
+      };
+      await appendChainedAuditInTransaction(tx, auditFields);
+      committedAudit = auditFields;
+      return policy;
+    });
+    if (committedAudit) publishCommittedCriticalAudit(committedAudit);
+    return result;
+  }
+
   async getTheatres(hospitalId: number) {
     return this.prisma.operatingTheatre.findMany({
       where: { hospitalId, isActive: true },
@@ -56,8 +121,12 @@ export class SurgeryService {
   }
 
   async createTheatre(hospitalId: number, name: string) {
+    const trimmed = typeof name === 'string' ? name.trim() : '';
+    if (!trimmed || trimmed.length > 200) {
+      throw new BadRequestException('اسم غرفة العمليات مطلوب وبطول صالح.');
+    }
     return this.prisma.operatingTheatre.create({
-      data: { hospitalId, name },
+      data: { hospitalId, name: trimmed },
     });
   }
 
@@ -83,7 +152,7 @@ export class SurgeryService {
   }
 
   // --------------------------------------------------------
-  // 3. حجز وجدولة عملية (Booking)
+  // 3. حجز وجدولة عملية (Booking) داخل معاملة ذرية مع عزل المنشأة
   // --------------------------------------------------------
   async scheduleSurgery(params: {
     hospitalId: number;
@@ -95,64 +164,170 @@ export class SurgeryService {
     scheduledEnd: Date;
     teamMembers?: { userId: number; role: SurgeryRole }[];
   }) {
-    const { hospitalId, encounterId, theatreId, scheduledStart, scheduledEnd } =
-      params;
+    const {
+      hospitalId,
+      encounterId,
+      theatreId,
+      serviceItemId,
+      scheduledStart,
+      scheduledEnd,
+    } = params;
 
-    // جلب بيانات الخدمة لملء اسم العملية
-    const serviceItem = await this.prisma.serviceItem.findFirst({
-      where: { id: params.serviceItemId, hospitalId, isActive: true },
-    });
-    if (!serviceItem) {
+    if (
+      ![hospitalId, encounterId, theatreId, serviceItemId].every(
+        (id) => Number.isInteger(id) && id > 0 && id <= 2147483647,
+      )
+    ) {
+      throw new BadRequestException('معرفات الحجز الجراحي غير صالحة.');
+    }
+
+    if (
+      !(scheduledStart instanceof Date) ||
+      !(scheduledEnd instanceof Date) ||
+      Number.isNaN(scheduledStart.getTime()) ||
+      Number.isNaN(scheduledEnd.getTime()) ||
+      scheduledEnd.getTime() <= scheduledStart.getTime()
+    ) {
       throw new BadRequestException(
-        'خدمة العملية غير موجودة في كتالوج الخدمات.',
+        'وقت نهاية العملية يجب أن يكون بعد وقت البداية.',
       );
     }
 
-    // التحقق من تضارب المواعيد
-    const conflict = await this.prisma.surgeryCase.findFirst({
-      where: {
-        hospitalId,
-        theatreId,
-        status: { not: 'CANCELLED' },
-        OR: [
-          {
-            scheduledStart: { lt: scheduledEnd },
-            scheduledEnd: { gt: scheduledStart },
-          },
-        ],
-      },
-    });
-
-    if (conflict) {
-      throw new BadRequestException('غرفة العمليات مشغولة في هذا التوقيت.');
-    }
-
-    const surgery = await this.prisma.surgeryCase.create({
-      data: {
-        hospitalId,
-        encounterId,
-        theatreId,
-        surgeryName: params.surgeryName || serviceItem.name,
-        serviceItemId: params.serviceItemId,
-        scheduledStart,
-        scheduledEnd,
-        status: SurgeryStatus.SCHEDULED,
-      },
-    });
-
-    // إضافة الطاقم الطبي
-    if (params.teamMembers && params.teamMembers.length > 0) {
-      for (const member of params.teamMembers) {
-        await this.addTeamMember(
-          hospitalId,
-          surgery.id,
-          member.userId,
-          member.role,
+    return this.prisma.$transaction(async (tx) => {
+      const parent = await tx.encounter.findFirst({
+        where: { id: encounterId, hospitalId, isDeleted: false },
+      });
+      if (!parent)
+        throw new BadRequestException('الحالة غير موجودة ضمن المنشأة');
+      await tx.$queryRaw`SELECT id FROM "Patient" WHERE id=${parent.patientId} AND "hospitalId"=${hospitalId} FOR UPDATE`;
+      await tx.$queryRaw`SELECT id FROM "Encounter" WHERE id=${encounterId} AND "hospitalId"=${hospitalId} FOR UPDATE`;
+      // قفل غرفة العمليات لمنع الحجز المتزامن المتضارب والتأكد من ملكيتها للمنشأة
+      const lockedTheatre = await tx.$queryRaw<{ id: number }[]>`
+        SELECT id FROM "OperatingTheatre"
+        WHERE id = ${theatreId} AND "hospitalId" = ${hospitalId} AND "isActive" = true
+        FOR UPDATE
+      `;
+      if (lockedTheatre.length !== 1) {
+        throw new BadRequestException(
+          'غرفة العمليات غير موجودة أو غير نشطة في هذه المنشأة.',
         );
       }
-    }
 
-    return surgery;
+      // التحقق من ملكية وحالة الزيارة العلاجية (Encounter)
+      const encounter = await tx.encounter.findFirst({
+        where: {
+          id: encounterId,
+          hospitalId,
+          isDeleted: false,
+        },
+        include: { patient: true },
+      });
+      if (
+        !encounter ||
+        encounter.status !== 'OPEN' ||
+        !encounter.patient?.isActive ||
+        encounter.patient?.isDeleted
+      ) {
+        throw new BadRequestException(
+          'الحالة العلاجية غير موجودة أو مغلقة أو خارج المنشأة.',
+        );
+      }
+
+      // جلب بيانات الخدمة لملء اسم العملية والتحقق من نوعها
+      const serviceItem = await tx.serviceItem.findFirst({
+        where: {
+          id: serviceItemId,
+          hospitalId,
+          isActive: true,
+          isDeleted: false,
+          type: ServiceType.SURGERY,
+        },
+      });
+      if (!serviceItem) {
+        throw new BadRequestException(
+          'خدمة العملية غير موجودة في كتالوج الخدمات.',
+        );
+      }
+
+      // التحقق من تضارب المواعيد تحت قفل الغرفة
+      const conflict = await tx.surgeryCase.findFirst({
+        where: {
+          hospitalId,
+          theatreId,
+          status: { not: 'CANCELLED' },
+          OR: [
+            {
+              scheduledStart: { lt: scheduledEnd },
+              scheduledEnd: { gt: scheduledStart },
+            },
+          ],
+        },
+      });
+
+      if (conflict) {
+        throw new BadRequestException('غرفة العمليات مشغولة في هذا التوقيت.');
+      }
+
+      const surgery = await tx.surgeryCase.create({
+        data: {
+          hospitalId,
+          encounterId,
+          theatreId,
+          surgeryName: params.surgeryName?.trim() || serviceItem.name,
+          serviceItemId,
+          scheduledStart,
+          scheduledEnd,
+          status: SurgeryStatus.SCHEDULED,
+        },
+      });
+
+      // إضافة الطاقم الطبي داخل نفس المعاملة الذرية مع التحقق من الانتماء للمنشأة
+      if (params.teamMembers && params.teamMembers.length > 0) {
+        const seenMembers = new Set<string>();
+        for (const member of params.teamMembers) {
+          const memberUserId = Number(member.userId);
+          if (
+            !Number.isInteger(memberUserId) ||
+            memberUserId <= 0 ||
+            !Object.values(SurgeryRole).includes(member.role)
+          ) {
+            throw new BadRequestException('بيانات عضو الطاقم الطبي غير صالحة.');
+          }
+          const memberKey = `${memberUserId}:${member.role}`;
+          if (seenMembers.has(memberKey)) {
+            throw new ConflictException(
+              'لا يمكن تكرار نفس عضو الطاقم بنفس الدور في العملية.',
+            );
+          }
+          seenMembers.add(memberKey);
+
+          const staffUser = await tx.user.findFirst({
+            where: {
+              id: memberUserId,
+              hospitalId,
+              isActive: true,
+              isDeleted: false,
+            },
+          });
+          if (!staffUser) {
+            throw new BadRequestException(
+              'عضو الطاقم الطبي غير موجود أو غير نشط في هذه المنشأة.',
+            );
+          }
+
+          await tx.surgeryTeam.create({
+            data: {
+              surgeryCaseId: surgery.id,
+              userId: memberUserId,
+              role: member.role,
+              commissionAmount: null,
+            },
+          });
+        }
+      }
+
+      return surgery;
+    });
   }
 
   async getSurgeryCases(hospitalId: number, date?: Date) {
@@ -190,7 +365,7 @@ export class SurgeryService {
   }
 
   async getCaseDetails(hospitalId: number, caseId: number) {
-    return this.prisma.surgeryCase.findFirst({
+    const result = await this.prisma.surgeryCase.findFirst({
       where: { id: caseId, hospitalId },
       include: {
         encounter: {
@@ -211,7 +386,7 @@ export class SurgeryService {
           },
         },
         theatre: true,
-        team: { include: { user: true } },
+        team: { include: { user: { select: { id: true, fullName: true } } } },
         consumables: { include: { product: true } },
         serviceItem: true,
         procedureConcept: true,
@@ -219,120 +394,261 @@ export class SurgeryService {
         postOpDiagnosisConcept: true,
       },
     });
+    if (!result) return null;
+    const supplies = Money.sumDecimal(
+      ...result.consumables.map((c) => c.totalPrice),
+    );
+    const catalogue = result.serviceItem?.defaultPrice ?? '0';
+    return {
+      ...result,
+      financialPreview: {
+        cataloguePrice: Money.toFixed(catalogue),
+        consumables: Money.toFixed(supplies),
+        estimatedTotal: Money.toFixed(Money.sumDecimal(catalogue, supplies)),
+        teamCommissions: Money.toFixed(
+          Money.sumDecimal(
+            ...result.team.map((t) => t.commissionAmount ?? '0'),
+          ),
+        ),
+      },
+    };
   }
 
   // --------------------------------------------------------
-  // 4. إدارة الحالة (Start / End) + الربط المالي
+  // 4. إدارة الحالة (Start / End) + الربط المالي الذري
   // --------------------------------------------------------
   async updateStatus(
     hospitalId: number,
     caseId: number,
     status: SurgeryStatus,
+    userId?: number,
   ) {
-    const data: any = { status };
-    if (status === SurgeryStatus.IN_PROGRESS) {
-      data.actualStart = new Date();
-    } else if (status === SurgeryStatus.COMPLETED) {
-      data.actualEnd = new Date();
+    if (!Object.values(SurgeryStatus).includes(status)) {
+      throw new BadRequestException('حالة العملية الجراحية غير صالحة.');
     }
 
-    const updated = await this.prisma.surgeryCase.update({
-      where: { id: caseId, hospitalId },
-      data,
-      include: {
-        serviceItem: true,
-        team: true,
-      },
-    });
-
-    // ──────────────────────────────────────────
-    // 💰 الربط المالي: عند اكتمال العملية
-    // ──────────────────────────────────────────
-    if (status === SurgeryStatus.COMPLETED && updated.serviceItemId) {
-      await this.createSurgeryCharge(hospitalId, updated);
-    }
-
-    return updated;
-  }
-
-  /**
-   * 💰 إنشاء رسوم العملية الجراحية + حساب العمولات
-   */
-  private async createSurgeryCharge(hospitalId: number, surgeryCase: any) {
-    try {
-      const serviceItem = surgeryCase.serviceItem;
-      if (!serviceItem) return;
-
-      // التحقق من عدم وجود Charge مسبق لنفس العملية
-      const existingCharge = await this.prisma.encounterCharge.findFirst({
-        where: {
-          hospitalId,
-          encounterId: surgeryCase.encounterId,
-          sourceType: ChargeSource.SURGERY,
-          sourceId: surgeryCase.id,
-        },
+    let committedAudit: Record<string, unknown> | null = null;
+    const result = await this.prisma.$transaction(async (tx) => {
+      committedAudit = null;
+      const identity = await tx.surgeryCase.findFirst({
+        where: { id: caseId, hospitalId },
+        include: { encounter: true },
       });
-
-      if (existingCharge) {
-        this.logger.warn(
-          `Charge already exists for surgery case #${surgeryCase.id}`,
-        );
-        return;
+      if (!identity || identity.encounter.hospitalId !== hospitalId)
+        throw new NotFoundException('العملية غير موجودة ضمن المنشأة');
+      await tx.$queryRaw`SELECT id FROM "Patient" WHERE id=${identity.encounter.patientId} AND "hospitalId"=${hospitalId} FOR UPDATE`;
+      await tx.$queryRaw`SELECT id FROM "Encounter" WHERE id=${identity.encounterId} AND "hospitalId"=${hospitalId} FOR UPDATE`;
+      const locked = await tx.$queryRaw<{ id: number }[]>`
+        SELECT id FROM "SurgeryCase"
+        WHERE id = ${caseId} AND "hospitalId" = ${hospitalId}
+        FOR UPDATE
+      `;
+      if (locked.length !== 1) {
+        throw new NotFoundException('العملية الجراحية غير موجودة ضمن المنشأة.');
       }
 
-      // الجراح الرئيسي (للعمولة)
-      const leadSurgeon = surgeryCase.team?.find(
-        (t: any) => t.role === SurgeryRole.SURGEON,
-      );
-
-      // إنشاء الرسم
-      await this.prisma.encounterCharge.create({
-        data: {
-          hospitalId,
-          encounterId: surgeryCase.encounterId,
-          serviceItemId: serviceItem.id,
-          sourceType: ChargeSource.SURGERY,
-          sourceId: surgeryCase.id,
-          quantity: 1,
-          unitPrice: serviceItem.defaultPrice,
-          totalAmount: serviceItem.defaultPrice,
-          performerId: leadSurgeon?.userId || null,
+      const existingCase = await tx.surgeryCase.findFirstOrThrow({
+        where: { id: caseId, hospitalId },
+        include: {
+          serviceItem: true,
+          team: { orderBy: { id: 'asc' } },
+          encounter: { include: { patient: true } },
+          _count: { select: { consumables: true } },
         },
       });
 
-      this.logger.log(
-        `✅ Surgery charge created: case #${surgeryCase.id}, amount: ${serviceItem.defaultPrice}`,
-      );
+      if (
+        existingCase.encounterId !== identity.encounterId ||
+        existingCase.encounter.patientId !== identity.encounter.patientId
+      )
+        throw new ConflictException('تغيرت مراجع العملية أثناء التنفيذ');
+      const allowedTransitions: Record<SurgeryStatus, SurgeryStatus[]> = {
+        [SurgeryStatus.SCHEDULED]: [
+          SurgeryStatus.IN_PROGRESS,
+          SurgeryStatus.RECOVERY,
+          SurgeryStatus.COMPLETED,
+          SurgeryStatus.CANCELLED,
+        ],
+        [SurgeryStatus.IN_PROGRESS]: [
+          SurgeryStatus.RECOVERY,
+          SurgeryStatus.COMPLETED,
+          SurgeryStatus.CANCELLED,
+        ],
+        [SurgeryStatus.RECOVERY]: [SurgeryStatus.COMPLETED],
+        [SurgeryStatus.COMPLETED]: [],
+        [SurgeryStatus.CANCELLED]: [],
+      };
 
-      // حساب وتسجيل عمولات الطاقم
-      if (leadSurgeon?.userId) {
-        const doctorRate = await this.commissionService.getDoctorRate(
-          hospitalId,
-          leadSurgeon.userId,
-          ServiceType.SURGERY,
+      if (!allowedTransitions[existingCase.status]?.includes(status)) {
+        throw new ConflictException(
+          `انتقال حالة العملية الجراحية من ${existingCase.status} إلى ${status} غير مسموح.`,
         );
+      }
 
-        if (doctorRate > 0) {
-          const commissionAmount =
-            (Number(serviceItem.defaultPrice) * doctorRate) / 100;
+      if (
+        status === SurgeryStatus.CANCELLED &&
+        existingCase._count.consumables > 0
+      ) {
+        throw new ConflictException(
+          'لا يمكن إلغاء العملية الجراحية بعد صرف مستلزمات مخزنية لها.',
+        );
+      }
 
-          await this.prisma.surgeryTeam.update({
-            where: { id: leadSurgeon.id },
-            data: { commissionAmount },
-          });
+      const data: Prisma.SurgeryCaseUpdateInput = { status };
+      const now = new Date();
+      if (status === SurgeryStatus.IN_PROGRESS) {
+        data.actualStart = existingCase.actualStart ?? now;
+      } else if (status === SurgeryStatus.COMPLETED) {
+        data.actualStart = existingCase.actualStart ?? now;
+        data.actualEnd = now;
+      }
 
-          this.logger.log(
-            `💰 Surgeon commission: ${commissionAmount} (${doctorRate}%) for user #${leadSurgeon.userId}`,
+      // ──────────────────────────────────────────
+      // 💰 الربط المالي الذري: عند اكتمال العملية
+      // ──────────────────────────────────────────
+      let createdChargeId: number | null = null;
+      let calculatedCommission: string | null = null;
+
+      if (status === SurgeryStatus.COMPLETED && existingCase.serviceItemId) {
+        if (
+          !existingCase.encounter ||
+          existingCase.encounter.hospitalId !== hospitalId ||
+          existingCase.encounter.isDeleted ||
+          existingCase.encounter.status !== 'OPEN' ||
+          !existingCase.encounter.patient?.isActive ||
+          existingCase.encounter.patient?.isDeleted
+        ) {
+          throw new BadRequestException(
+            'الحالة العلاجية أو ملف المريض غير متاح لإصدار رسوم العملية.',
           );
         }
+
+        const serviceItem = existingCase.serviceItem;
+        if (
+          !serviceItem ||
+          serviceItem.hospitalId !== hospitalId ||
+          !serviceItem.isActive ||
+          serviceItem.isDeleted ||
+          Money.decimal(serviceItem.defaultPrice).lt(0)
+        ) {
+          throw new BadRequestException(
+            'خدمة العملية الجراحية غير متاحة أو غير صالحة للفوترة.',
+          );
+        }
+
+        await tx.$queryRaw`
+          SELECT id FROM "Encounter"
+          WHERE id = ${existingCase.encounterId} AND "hospitalId" = ${hospitalId}
+          FOR UPDATE
+        `;
+
+        const existingCharge = await tx.encounterCharge.findFirst({
+          where: {
+            hospitalId,
+            encounterId: existingCase.encounterId,
+            sourceType: ChargeSource.SURGERY,
+            sourceId: existingCase.id,
+          },
+        });
+        if (existingCharge) {
+          throw new ConflictException(
+            'تم إصدار رسوم هذه العملية الجراحية مسبقاً.',
+          );
+        }
+
+        const leadSurgeon = existingCase.team.find(
+          (t) => t.role === SurgeryRole.SURGEON,
+        );
+        if (leadSurgeon) {
+          const surgeonUser = await tx.user.findFirst({
+            where: {
+              id: leadSurgeon.userId,
+              hospitalId,
+              isDeleted: false,
+            },
+          });
+          if (!surgeonUser) {
+            throw new BadRequestException(
+              'الجراح الرئيسي المسجل خارج المنشأة.',
+            );
+          }
+        }
+
+        const basePrice = Money.toDbString(serviceItem.defaultPrice);
+        const charge = await tx.encounterCharge.create({
+          data: {
+            hospitalId,
+            encounterId: existingCase.encounterId,
+            serviceItemId: serviceItem.id,
+            sourceType: ChargeSource.SURGERY,
+            sourceId: existingCase.id,
+            quantity: 1,
+            unitPrice: basePrice,
+            totalAmount: basePrice,
+            performerId: leadSurgeon?.userId ?? null,
+          },
+        });
+        createdChargeId = charge.id;
+
+        if (leadSurgeon?.userId) {
+          if (leadSurgeon.commissionAmount !== null) {
+            calculatedCommission = Money.toDbString(
+              leadSurgeon.commissionAmount,
+            );
+          } else {
+            const doctorRate = await this.commissionService.getDoctorRate(
+              hospitalId,
+              leadSurgeon.userId,
+              ServiceType.SURGERY,
+              tx,
+            );
+            if (doctorRate > 0) {
+              calculatedCommission = Money.toDbString(
+                Money.percentDecimal(basePrice, doctorRate),
+              );
+              await tx.surgeryTeam.update({
+                where: { id: leadSurgeon.id },
+                data: { commissionAmount: calculatedCommission },
+              });
+            }
+          }
+        }
       }
-    } catch (error) {
-      this.logger.error(
-        `Failed to create surgery charge for case #${surgeryCase.id}`,
-        error,
-      );
-      // لا نمنع اكتمال العملية بسبب خطأ مالي
-    }
+
+      const updated = await tx.surgeryCase.update({
+        where: { id: caseId },
+        data,
+        include: {
+          serviceItem: true,
+          team: { orderBy: { id: 'asc' } },
+        },
+      });
+
+      const auditFields = {
+        hospitalId,
+        userId: userId ?? null,
+        action:
+          status === SurgeryStatus.COMPLETED
+            ? 'COMPLETE_SURGERY_CASE'
+            : 'UPDATE_SURGERY_STATUS',
+        entity: 'SurgeryCase',
+        entityId: updated.id,
+        details: {
+          previousStatus: existingCase.status,
+          status,
+          encounterId: updated.encounterId,
+          serviceItemId: updated.serviceItemId,
+          chargeId: createdChargeId,
+          surgeonCommission: calculatedCommission,
+        },
+      };
+      await appendChainedAuditInTransaction(tx, auditFields);
+      committedAudit = auditFields;
+
+      return updated;
+    });
+    if (committedAudit) publishCommittedCriticalAudit(committedAudit);
+    return result;
   }
 
   async updateNotes(
@@ -354,6 +670,14 @@ export class SurgeryService {
       postOpTerminologyCode?: string;
     },
   ) {
+    const existing = await this.prisma.surgeryCase.findFirst({
+      where: { id: caseId, hospitalId },
+      select: { id: true },
+    });
+    if (!existing) {
+      throw new NotFoundException('العملية الجراحية غير موجودة ضمن المنشأة.');
+    }
+
     const updateData: any = {
       surgeonNotes: data.surgeonNotes,
       anesthesiaNotes: data.anesthesiaNotes,
@@ -404,7 +728,7 @@ export class SurgeryService {
     }
 
     return this.prisma.surgeryCase.update({
-      where: { id: caseId, hospitalId },
+      where: { id: caseId },
       data: updateData,
     });
   }
@@ -421,18 +745,24 @@ export class SurgeryService {
     const formattedNote =
       `--- PRE-OP CHECKLIST (By User ${userId}) ---\n` +
       JSON.stringify(checklist, null, 2);
-    const existing = await this.prisma.surgeryCase.findUnique({
-      where: { id: caseId },
-      select: { anesthesiaNotes: true },
-    });
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "SurgeryCase" WHERE id = ${caseId} AND "hospitalId" = ${hospitalId} FOR UPDATE`;
+      const existing = await tx.surgeryCase.findFirst({
+        where: { id: caseId, hospitalId },
+        select: { anesthesiaNotes: true },
+      });
+      if (!existing) {
+        throw new NotFoundException('العملية الجراحية غير موجودة ضمن المنشأة.');
+      }
 
-    return this.prisma.surgeryCase.update({
-      where: { id: caseId, hospitalId },
-      data: {
-        anesthesiaNotes: existing?.anesthesiaNotes
-          ? existing.anesthesiaNotes + '\n\n' + formattedNote
-          : formattedNote,
-      },
+      return tx.surgeryCase.update({
+        where: { id: caseId },
+        data: {
+          anesthesiaNotes: existing.anesthesiaNotes
+            ? existing.anesthesiaNotes + '\n\n' + formattedNote
+            : formattedNote,
+        },
+      });
     });
   }
 
@@ -445,18 +775,24 @@ export class SurgeryService {
     const formattedNote =
       `--- INTRA-OP LOG (By User ${userId}) ---\n` +
       JSON.stringify(log, null, 2);
-    const existing = await this.prisma.surgeryCase.findUnique({
-      where: { id: caseId },
-      select: { surgeonNotes: true },
-    });
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "SurgeryCase" WHERE id = ${caseId} AND "hospitalId" = ${hospitalId} FOR UPDATE`;
+      const existing = await tx.surgeryCase.findFirst({
+        where: { id: caseId, hospitalId },
+        select: { surgeonNotes: true },
+      });
+      if (!existing) {
+        throw new NotFoundException('العملية الجراحية غير موجودة ضمن المنشأة.');
+      }
 
-    return this.prisma.surgeryCase.update({
-      where: { id: caseId, hospitalId },
-      data: {
-        surgeonNotes: existing?.surgeonNotes
-          ? existing.surgeonNotes + '\n\n' + formattedNote
-          : formattedNote,
-      },
+      return tx.surgeryCase.update({
+        where: { id: caseId },
+        data: {
+          surgeonNotes: existing.surgeonNotes
+            ? existing.surgeonNotes + '\n\n' + formattedNote
+            : formattedNote,
+        },
+      });
     });
   }
 
@@ -469,179 +805,168 @@ export class SurgeryService {
     const formattedNote =
       `--- PACU RECOVERY LOG (By User ${userId}) ---\n` +
       JSON.stringify(pacuLog, null, 2);
-    const existing = await this.prisma.surgeryCase.findUnique({
-      where: { id: caseId },
-      select: { postOpDiagnosis: true },
-    });
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "SurgeryCase" WHERE id = ${caseId} AND "hospitalId" = ${hospitalId} FOR UPDATE`;
+      const existing = await tx.surgeryCase.findFirst({
+        where: { id: caseId, hospitalId },
+        select: { postOpDiagnosis: true },
+      });
+      if (!existing) {
+        throw new NotFoundException('العملية الجراحية غير موجودة ضمن المنشأة.');
+      }
 
-    return this.prisma.surgeryCase.update({
-      where: { id: caseId, hospitalId },
-      data: {
-        postOpDiagnosis: existing?.postOpDiagnosis
-          ? existing.postOpDiagnosis + '\n\n' + formattedNote
-          : formattedNote,
-      },
+      return tx.surgeryCase.update({
+        where: { id: caseId },
+        data: {
+          postOpDiagnosis: existing.postOpDiagnosis
+            ? existing.postOpDiagnosis + '\n\n' + formattedNote
+            : formattedNote,
+        },
+      });
     });
   }
 
   // --------------------------------------------------------
-  // 5. إدارة الطاقم (Team)
+  // 5. إدارة الطاقم (Team) مع عزل المنشأة وحماية الحالة المكتملة
   // --------------------------------------------------------
   async addTeamMember(
     hospitalId: number,
     caseId: number,
     userId: number,
     role: SurgeryRole,
-    commissionAmount?: number,
+    commissionAmount?: number | string | null,
   ) {
-    return this.prisma.surgeryTeam.create({
-      data: {
-        surgeryCaseId: caseId,
-        userId,
-        role,
-        commissionAmount: commissionAmount ? commissionAmount : null,
-      },
+    if (
+      !Number.isInteger(caseId) ||
+      caseId <= 0 ||
+      !Number.isInteger(userId) ||
+      userId <= 0 ||
+      !Object.values(SurgeryRole).includes(role)
+    ) {
+      throw new BadRequestException('بيانات عضو الطاقم الجراحي غير صالحة.');
+    }
+
+    let normalizedCommission: string | null = null;
+    if (
+      commissionAmount !== undefined &&
+      commissionAmount !== null &&
+      commissionAmount !== ''
+    ) {
+      const commStr = String(commissionAmount);
+      if (!/^(0|[1-9]\d{0,14})(\.\d{1,3})?$/.test(commStr)) {
+        throw new BadRequestException('قيمة عمولة عضو الطاقم غير صالحة.');
+      }
+      normalizedCommission = Money.toDbString(commStr);
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const locked = await tx.$queryRaw<
+        { id: number; status: SurgeryStatus }[]
+      >`
+        SELECT id, status FROM "SurgeryCase"
+        WHERE id = ${caseId} AND "hospitalId" = ${hospitalId}
+        FOR UPDATE
+      `;
+      if (locked.length !== 1) {
+        throw new NotFoundException('العملية الجراحية غير موجودة ضمن المنشأة.');
+      }
+      if (
+        locked[0].status === SurgeryStatus.COMPLETED ||
+        locked[0].status === SurgeryStatus.CANCELLED
+      ) {
+        throw new ConflictException(
+          'لا يمكن تعديل الطاقم الطبي بعد اكتمال العملية أو إلغائها.',
+        );
+      }
+
+      const staffUser = await tx.user.findFirst({
+        where: { id: userId, hospitalId, isActive: true, isDeleted: false },
+        select: { id: true, fullName: true },
+      });
+      if (!staffUser) {
+        throw new BadRequestException(
+          'عضو الطاقم الطبي غير موجود أو غير نشط في هذه المنشأة.',
+        );
+      }
+
+      const dup = await tx.surgeryTeam.findFirst({
+        where: { surgeryCaseId: caseId, userId, role },
+      });
+      if (dup) {
+        throw new ConflictException(
+          'عضو الطاقم مضاف مسبقاً بهذا الدور في هذه العملية.',
+        );
+      }
+
+      return tx.surgeryTeam.create({
+        data: {
+          surgeryCaseId: caseId,
+          userId,
+          role,
+          commissionAmount: normalizedCommission,
+        },
+        include: {
+          user: { select: { id: true, fullName: true } },
+        },
+      });
     });
   }
 
-  async removeTeamMember(id: number) {
-    return this.prisma.surgeryTeam.delete({ where: { id } });
+  async removeTeamMember(hospitalId: number, id: number, caseId?: number) {
+    if (!Number.isInteger(id) || id <= 0) {
+      throw new BadRequestException('معرف عضو الطاقم غير صالح.');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const member = await tx.surgeryTeam.findUnique({
+        where: { id },
+        include: { surgeryCase: true },
+      });
+      if (
+        !member ||
+        member.surgeryCase.hospitalId !== hospitalId ||
+        (caseId !== undefined && member.surgeryCaseId !== caseId)
+      ) {
+        throw new NotFoundException('عضو الطاقم غير موجود ضمن المنشأة.');
+      }
+
+      await tx.$queryRaw`
+        SELECT id FROM "SurgeryCase"
+        WHERE id = ${member.surgeryCaseId} AND "hospitalId" = ${hospitalId}
+        FOR UPDATE
+      `;
+
+      const currentCase = await tx.surgeryCase.findFirstOrThrow({
+        where: { id: member.surgeryCaseId, hospitalId },
+      });
+      if (
+        currentCase.status === SurgeryStatus.COMPLETED ||
+        currentCase.status === SurgeryStatus.CANCELLED
+      ) {
+        throw new ConflictException(
+          'لا يمكن حذف عضو الطاقم بعد اكتمال العملية أو إلغائها.',
+        );
+      }
+
+      return tx.surgeryTeam.delete({ where: { id } });
+    });
   }
 
   // --------------------------------------------------------
   // 6. استهلاك المواد (Consumables) من مخزن العمليات
   // --------------------------------------------------------
-  async addConsumable(params: {
-    hospitalId: number;
-    userId: number;
-    caseId: number;
-    productId: number;
-    quantity: number;
-  }) {
-    const { hospitalId, userId, caseId, productId, quantity } = params;
-
-    // 1. تحديد مخزن العمليات
-    const otWarehouseId = await this.getOTWarehouseId(hospitalId);
-
-    return this.prisma.$transaction(async (tx) => {
-      // 2. حجز الأرصدة ومنع التضارب (Pessimistic Locking + FEFO)
-      const stocks = await tx.$queryRaw<any[]>`
-        SELECT id, quantity, "batchNumber", "expiryDate"
-        FROM "ProductStock"
-        WHERE "warehouseId" = ${otWarehouseId} 
-          AND "productId" = ${productId} 
-          AND "quantity" > 0
-        ORDER BY "expiryDate" ASC, "createdAt" ASC
-        FOR UPDATE
-      `;
-
-      const totalAvail = stocks.reduce((acc, s) => acc + Number(s.quantity), 0);
-
-      if (totalAvail < quantity) {
-        throw new BadRequestException(
-          `الكمية غير متوفرة في مخزن العمليات لهذا الصنف. المتاح: ${totalAvail}, المطلوب: ${quantity}`,
-        );
-      }
-
-      // 3. جلب بيانات المنتج
-      const product = await tx.product.findUnique({ where: { id: productId } });
-      if (!product)
-        throw new NotFoundException('المنتج غير موجود في قاعدة البيانات');
-
-      let remainingQty = quantity;
-      let totalUsageCost = 0;
-
-      // 4. الخصم من التشغيلات (FEFO)
-      for (const stock of stocks) {
-        if (remainingQty <= 0) break;
-
-        const availableInBatch = Number(stock.quantity);
-        const take = Math.min(remainingQty, availableInBatch);
-
-        await tx.productStock.update({
-          where: { id: stock.id },
-          data: { quantity: { decrement: take } },
+  async addConsumable(params: SurgerySupplyInput) {
+    let committedAudit: Record<string, unknown> | null = null;
+    const result = await this.prisma.$transaction(
+      (tx) => {
+        committedAudit = null;
+        return consumeSurgerySupply(tx, params, (auditFields) => {
+          committedAudit = auditFields;
         });
-
-        await tx.stockTransaction.create({
-          data: {
-            hospitalId,
-            warehouseId: otWarehouseId,
-            productId,
-            type: StockTransactionType.OUT,
-            quantity: take,
-            unitCost: product.costPrice,
-            totalCost: Number(product.costPrice) * take,
-            referenceType: 'SURGERY_CONSUMABLE',
-            referenceId: caseId,
-            createdById: userId,
-            batchNumber: stock.batchNumber,
-            expiryDate: stock.expiryDate,
-          },
-        });
-
-        remainingQty -= take;
-        totalUsageCost += Number(product.costPrice) * take;
-      }
-
-      // 5. تحديث إجمالي الرصيد
-      await tx.product.update({
-        where: { id: productId },
-        data: { stockOnHand: { decrement: quantity } },
-      });
-
-      // 6. تسجيل المستهلك
-      const totalSalesPrice = Number(product.sellPrice) * quantity;
-
-      const consumable = await tx.surgeryConsumable.create({
-        data: {
-          surgeryCaseId: caseId,
-          productId,
-          quantity,
-          unitPrice: product.sellPrice,
-          totalPrice: totalSalesPrice,
-        },
-      });
-
-      // 7. إضافة التكلفة لفاتورة المريض (Encounter Charge)
-      const surgeryCase = await tx.surgeryCase.findUnique({
-        where: { id: caseId },
-        select: { encounterId: true },
-      });
-
-      if (!surgeryCase)
-        throw new NotFoundException('العملية الجراحية غير موجودة');
-
-      let serviceItem = await tx.serviceItem.findFirst({
-        where: { hospitalId, code: 'SURGERY-CONS', isActive: true },
-      });
-
-      if (!serviceItem) {
-        serviceItem = await tx.serviceItem.findFirst({
-          where: { hospitalId, code: 'PHARMACY-DRUGS', isActive: true },
-        });
-      }
-
-      if (serviceItem) {
-        await tx.encounterCharge.create({
-          data: {
-            hospitalId,
-            encounterId: surgeryCase.encounterId,
-            serviceItemId: serviceItem.id,
-            sourceType: ChargeSource.OTHER,
-            sourceId: consumable.id,
-            quantity: 1,
-            unitPrice: totalSalesPrice,
-            totalAmount: totalSalesPrice,
-          },
-        });
-      } else {
-        this.logger.warn(
-          `Could not find a ServiceItem for billing surgery consumable ${product.name}`,
-        );
-      }
-
-      return consumable;
-    });
+      },
+      { timeout: 20000 },
+    );
+    if (committedAudit) publishCommittedCriticalAudit(committedAudit);
+    return result;
   }
 }

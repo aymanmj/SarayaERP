@@ -73,9 +73,6 @@ export default function NursingStationPage() {
     vitalsUpdates,
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     joinWard,
-    reportMedicationAdministered,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    reportVitalsUpdated,
   } = useNursingWebSocket();
 
   const {
@@ -122,13 +119,6 @@ export default function NursingStationPage() {
         note: executeForm.note || null,
       });
       
-      // Report to WebSocket for real-time updates
-      reportMedicationAdministered({
-        encounterId: selectedEncounter.id,
-        medicationName: selectedItem.instruction,
-        administeredBy: "Current User", // Should come from auth context
-        status: "ADMINISTERED",
-      });
       
       toast.success(t("nursing.saveSuccess", "تم تسجيل التنفيذ بنجاح"));
       setShowExecuteModal(false);

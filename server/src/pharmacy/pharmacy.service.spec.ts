@@ -15,9 +15,13 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { PharmacyService } from './pharmacy.service';
+jest.mock('../cashier/cash-control', () => ({
+  guardCashierMovement: jest.fn().mockResolvedValue({ session: { id: 1 } }),
+}));
 import { PrismaService } from '../prisma/prisma.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { AccountingService } from '../accounting/accounting.service';
+import type { Prisma } from '@prisma/client';
 import { CDSSService } from '../cdss/cdss.service';
 
 describe('PharmacyService', () => {
@@ -30,6 +34,19 @@ describe('PharmacyService', () => {
   // ==================================================
   const mockPrismaService = () => {
     const mock: any = {
+      hospital: {
+        findUniqueOrThrow: jest.fn().mockResolvedValue({ organization: null }),
+      },
+      inventoryBatchRestriction: {
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+      pharmacyWarehousePolicy: {
+        findUnique: jest.fn().mockResolvedValue({ warehouseId: 4 }),
+      },
+      auditLog: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        create: jest.fn().mockResolvedValue({ id: 1 }),
+      },
       warehouse: {
         findFirst: jest.fn(),
       },
@@ -41,7 +58,18 @@ describe('PharmacyService', () => {
         count: jest.fn(),
       },
       prescriptionItem: {
+        findMany: jest.fn().mockResolvedValue([{ productId: 100 }]),
         create: jest.fn(),
+      },
+      financialYear: {
+        findMany: jest.fn().mockResolvedValue([{ id: 1 }]),
+        findUniqueOrThrow: jest
+          .fn()
+          .mockResolvedValue({ id: 1, status: 'OPEN' }),
+      },
+      financialPeriod: {
+        findMany: jest.fn().mockResolvedValue([{ id: 1 }]),
+        findUniqueOrThrow: jest.fn().mockResolvedValue({ id: 1, isOpen: true }),
       },
       encounter: {
         findUnique: jest.fn(),
@@ -51,6 +79,7 @@ describe('PharmacyService', () => {
         findFirst: jest.fn(),
       },
       product: {
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
         findUnique: jest.fn(),
         findMany: jest.fn(),
         update: jest.fn(),
@@ -76,10 +105,18 @@ describe('PharmacyService', () => {
         create: jest.fn(),
       },
       serviceItem: {
-        findFirst: jest.fn(),
+        findFirst: jest.fn().mockResolvedValue({
+          id: 305,
+          hospitalId: 1,
+          type: 'PHARMACY',
+          isActive: true,
+          isDeleted: false,
+          isBillable: true,
+        }),
       },
       invoice: {
-        create: jest.fn(),
+        fields: { patientShare: undefined },
+        create: jest.fn().mockResolvedValue({ id: 800 }),
       },
       payment: {
         create: jest.fn(),
@@ -92,6 +129,8 @@ describe('PharmacyService', () => {
         if (Array.isArray(fn)) return Promise.all(fn);
         return fn(mock); // Pass the same mock as tx
       }),
+      $queryRaw: jest.fn().mockResolvedValue([{ id: 100, sellPrice: 0 }]),
+      $executeRaw: jest.fn().mockResolvedValue(1),
     };
     return mock;
   };
@@ -101,6 +140,7 @@ describe('PharmacyService', () => {
   };
 
   const mockAccountingService = {
+    recordCogsEntry: jest.fn(),
     recordInvoiceEntry: jest.fn(),
     recordPaymentEntry: jest.fn(),
   };
@@ -305,7 +345,7 @@ describe('PharmacyService', () => {
             },
           },
         ],
-        encounter: { id: 10 },
+        encounter: { id: 10, status: 'OPEN' },
       });
 
       // No existing dispense
@@ -333,13 +373,23 @@ describe('PharmacyService', () => {
         id: 1,
         status: 'COMPLETED',
       });
-      prisma.serviceItem.findFirst.mockResolvedValue(null);
+      prisma.serviceItem.findFirst.mockResolvedValue({ id: 1 });
     });
 
     it('should dispense prescription successfully', async () => {
       const result = await service.dispensePrescription(baseDispenseParams);
       expect(result).toBeDefined();
       expect(result.dispense).toBeDefined();
+    });
+
+    it('keeps the committed result when the refresh notification fails', async () => {
+      mockEventEmitter.emit.mockImplementationOnce(() => {
+        throw new Error('Synthetic refresh failure');
+      });
+      await expect(
+        service.dispensePrescription(baseDispenseParams),
+      ).resolves.toMatchObject({ dispense: { id: 1 } });
+      expect(mockAccountingService.recordCogsEntry).toHaveBeenCalledTimes(1);
     });
 
     it('should reject non-existent prescription', async () => {
@@ -355,7 +405,7 @@ describe('PharmacyService', () => {
         id: 1,
         status: 'COMPLETED',
         items: [],
-        encounter: { id: 10 },
+        encounter: { id: 10, status: 'OPEN' },
       });
 
       await expect(
@@ -445,20 +495,13 @@ describe('PharmacyService', () => {
       );
     });
 
-    it('should fall back to any active warehouse when a named pharmacy warehouse is missing', async () => {
-      prisma.warehouse.findFirst
-        .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce({ id: 9 });
-
-      await service.dispensePrescription(baseDispenseParams);
-
-      expect(prisma.stockTransaction.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({
-            warehouseId: 9,
-          }),
-        }),
-      );
+    it('rejects dispensing without an explicit source even when another warehouse exists', async () => {
+      prisma.pharmacyWarehousePolicy.findUnique.mockResolvedValue(null);
+      prisma.warehouse.findFirst.mockResolvedValue({ id: 9 });
+      await expect(
+        service.dispensePrescription(baseDispenseParams),
+      ).rejects.toThrow(BadRequestException);
+      expect(prisma.dispenseRecord.create).not.toHaveBeenCalled();
     });
   });
 
@@ -494,7 +537,7 @@ describe('PharmacyService', () => {
             },
           },
         ],
-        encounter: { id: 10 },
+        encounter: { id: 10, status: 'OPEN' },
       });
       prisma.dispenseRecord.create.mockResolvedValue({ id: 2 });
       prisma.dispenseItem.create.mockResolvedValue({ id: 1 });
@@ -536,8 +579,8 @@ describe('PharmacyService', () => {
             patientId: 1,
             encounterId: 10,
             status: 'PAID',
-            totalAmount: 7.5,
-            paidAmount: 7.5,
+            totalAmount: '7.500',
+            paidAmount: '7.500',
           }),
         }),
       );
@@ -545,12 +588,24 @@ describe('PharmacyService', () => {
         invoiceId: 20,
         hospitalId: 1,
         userId: 3,
+        prisma: prisma as Prisma.TransactionClient,
       });
       expect(mockAccountingService.recordPaymentEntry).toHaveBeenCalledWith({
         paymentId: 21,
         hospitalId: 1,
         userId: 3,
+        prisma: prisma as Prisma.TransactionClient,
       });
+    });
+
+    it('does not report a failed POS payment after a refresh notification error', async () => {
+      mockEventEmitter.emit.mockImplementationOnce(() => {
+        throw new Error('Synthetic refresh failure');
+      });
+      await expect(
+        service.dispenseAndPay(basePosParams),
+      ).resolves.toMatchObject({ invoice: { id: 20 }, payment: { id: 21 } });
+      expect(mockAccountingService.recordCogsEntry).toHaveBeenCalledTimes(1);
     });
 
     it('should reject POS dispense when nothing is actually dispensed', async () => {
@@ -574,7 +629,7 @@ describe('PharmacyService', () => {
             },
           },
         ],
-        encounter: { id: 10 },
+        encounter: { id: 10, status: 'OPEN' },
       });
 
       await expect(service.dispenseAndPay(basePosParams)).rejects.toThrow(
@@ -613,8 +668,8 @@ describe('PharmacyService', () => {
   //  NO WAREHOUSE CONFIGURED
   // ===========================================
   describe('warehouse validation', () => {
-    it('should throw when no pharmacy warehouse exists', async () => {
-      prisma.warehouse.findFirst.mockResolvedValue(null);
+    it('should throw when no pharmacy source is configured', async () => {
+      prisma.pharmacyWarehousePolicy.findUnique.mockResolvedValue(null);
       prisma.prescription.findUnique.mockResolvedValue({
         id: 1,
         status: 'ACTIVE',
@@ -625,7 +680,7 @@ describe('PharmacyService', () => {
             quantity: 1,
           },
         ],
-        encounter: { id: 10 },
+        encounter: { id: 10, status: 'OPEN' },
       });
       prisma.dispenseRecord.findFirst.mockResolvedValue(null);
 
@@ -656,52 +711,20 @@ describe('PharmacyService', () => {
       });
     });
 
-    it('should create manual stock adjustment with default batch number', async () => {
-      const result = await service.createManualStockTransaction({
-        hospitalId: 1,
-        userId: 9,
-        drugItemId: 100,
-        type: 'IN',
-        quantity: 6,
-      });
-
-      expect(result.id).toBe(401);
-      expect(prisma.productStock.upsert).toHaveBeenCalledWith({
-        where: {
-          warehouseId_productId_batchNumber: {
-            warehouseId: 4,
-            productId: 100,
-            batchNumber: 'GENERAL',
-          },
-        },
-        update: {
-          quantity: { increment: 6 },
-        },
-        create: {
+    it('rejects unsupported manual receipts in favor of documented purchasing', async () => {
+      await expect(
+        service.createManualStockTransaction({
           hospitalId: 1,
-          warehouseId: 4,
-          productId: 100,
-          batchNumber: 'GENERAL',
-          expiryDate: undefined,
+          userId: 9,
+          drugItemId: 100,
+          type: 'IN',
           quantity: 6,
-        },
-      });
-      expect(prisma.stockTransaction.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({
-            hospitalId: 1,
-            warehouseId: 4,
-            productId: 100,
-            quantity: 6,
-            unitCost: 2.5,
-            totalCost: 15,
-            batchNumber: 'GENERAL',
-          }),
         }),
-      );
+      ).rejects.toThrow(BadRequestException);
+      expect(prisma.productStock.upsert).not.toHaveBeenCalled();
     });
 
-    it('should reject manual stock transaction for a product outside the hospital', async () => {
+    it('requires a documented adjustment identity before any stock mutation', async () => {
       prisma.product.findUnique.mockResolvedValue({
         id: 100,
         hospitalId: 99,
@@ -715,7 +738,7 @@ describe('PharmacyService', () => {
           type: 'ADJUST',
           quantity: 2,
         }),
-      ).rejects.toThrow(NotFoundException);
+      ).rejects.toThrow(BadRequestException);
     });
   });
 });

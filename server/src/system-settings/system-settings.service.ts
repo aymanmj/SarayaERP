@@ -2,6 +2,13 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateSystemSettingDto } from './dto/update-system-setting.dto';
 import { SystemSetting } from '@prisma/client';
+import {
+  defaultRoomSettings,
+  parseRoomDayPolicy,
+  parseRoomTimeZone,
+  ROOM_POLICY_KEY,
+} from '../admission/room-billing-policy';
+import { appendChainedAuditInTransaction } from '../audit/audit-chain';
 
 @Injectable()
 export class SystemSettingsService {
@@ -14,7 +21,12 @@ export class SystemSettingsService {
     });
 
     // Grouping logic can be done here or frontend. Let's return flat list for now.
-    return settings;
+    return [
+      ...settings,
+      ...defaultRoomSettings(hospitalId).filter(
+        (fallback) => !settings.some((setting) => setting.key === fallback.key),
+      ),
+    ];
   }
 
   async findOne(hospitalId: number, key: string) {
@@ -22,6 +34,10 @@ export class SystemSettingsService {
       where: { hospitalId_key: { hospitalId, key } },
     });
     if (!setting) {
+      const fallback = defaultRoomSettings(hospitalId).find(
+        (candidate) => candidate.key === key,
+      );
+      if (fallback) return fallback;
       throw new NotFoundException(`Setting with key ${key} not found`);
     }
     return setting;
@@ -31,7 +47,47 @@ export class SystemSettingsService {
     hospitalId: number,
     key: string,
     updateDto: UpdateSystemSettingDto,
+    userId?: number,
   ) {
+    const fallback = defaultRoomSettings(hospitalId).find(
+      (candidate) => candidate.key === key,
+    );
+    if (fallback) {
+      const value =
+        key === ROOM_POLICY_KEY
+          ? parseRoomDayPolicy(updateDto.value)
+          : parseRoomTimeZone(updateDto.value);
+      return this.prisma.$transaction(async (tx) => {
+        // Separate advisory namespace serializes configuration without locking the
+        // Hospital row used by audit foreign keys (which would invert lock order).
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(27002::integer, ${hospitalId}::integer)`;
+        const previous = await tx.systemSetting.findUnique({
+          where: { hospitalId_key: { hospitalId, key } },
+        });
+        const updated = await tx.systemSetting.upsert({
+          where: { hospitalId_key: { hospitalId, key } },
+          create: {
+            hospitalId,
+            key,
+            value,
+            type: fallback.type,
+            group: fallback.group,
+            description: fallback.description,
+          },
+          update: { value },
+        });
+        await appendChainedAuditInTransaction(tx, {
+          hospitalId,
+          userId: userId ?? null,
+          action: 'UPDATE_ROOM_BILLING_CONFIGURATION',
+          entity: 'SystemSetting',
+          entityId: updated.id,
+          oldValues: { key, value: previous?.value ?? fallback.value },
+          newValues: { key, value },
+        });
+        return updated;
+      });
+    }
     // Check if exists
     await this.findOne(hospitalId, key);
 

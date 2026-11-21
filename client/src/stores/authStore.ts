@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { apiClient } from "../api/apiClient";
 import { useLicenseStore } from "./licenseStore"; 
+import { useSocketStore } from "./socketStore";
 
 // ============================================
 // Types
@@ -24,15 +25,18 @@ interface User {
 
 interface AuthState {
   user: User | null;
-  token: string | null;
   isAuthenticated: boolean;
+  sessionRevision: number;
   // ✅ Multi-Branch
   accessibleBranches: Branch[];
   currentBranchId: number | null;
   isSwitchingBranch: boolean;
   // Actions
+  setAuth: (payload: { user: User; accessibleBranches?: Branch[] }) => void;
   login: (username: string, password: string) => Promise<void>;
   logout: () => void;
+  clearSession: () => void;
+  acceptRefreshedSession: (hospitalId: number, userId: number) => boolean;
   switchBranch: (targetHospitalId: number) => Promise<void>;
   hydrateFromStorage: () => void;
 }
@@ -45,7 +49,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   user: typeof window !== "undefined" && localStorage.getItem("user_info") 
         ? JSON.parse(localStorage.getItem("user_info") || "null") 
         : null,
-  token: typeof window !== "undefined" ? localStorage.getItem("auth_token") : null,
+  sessionRevision: 0,
   isAuthenticated:
     typeof window !== "undefined" ? localStorage.getItem("auth_status") === "true" : false,
   
@@ -58,17 +62,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     : null,
   isSwitchingBranch: false,
 
-  async login(username, password) {
-    const res = await apiClient.post("/auth/login", { username, password });
-    const payload = res.data;
-
+  setAuth(payload) {
     const branches: Branch[] = payload.accessibleBranches || [];
     const currentBranchId = payload.user?.hospitalId || null;
 
-    // Persist UI state
     localStorage.setItem("auth_status", "true");
     localStorage.setItem("user_info", JSON.stringify(payload.user));
-    localStorage.setItem("auth_token", payload.token || "");
+    localStorage.removeItem("auth_token");
     localStorage.setItem("accessible_branches", JSON.stringify(branches));
     if (currentBranchId) {
       localStorage.setItem("current_branch_id", String(currentBranchId));
@@ -78,18 +78,29 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     set({
       user: payload.user,
-      token: payload.token || null,
       isAuthenticated: true,
       accessibleBranches: branches,
       currentBranchId,
     });
   },
 
-  async logout() {
-    // 1. Clear State Immediately
+  async login(username, password) {
+    const res = await apiClient.post("/auth/login", { username, password });
+    const payload = res.data;
+
+    get().setAuth(payload);
+  },
+
+  clearSession() {
+    // 1. Disconnect WebSocket & Clear State Immediately
+    try {
+      useSocketStore.getState().disconnect();
+    } catch {
+      // Ignore if socket store is not initialized
+    }
+
     set({
       user: null,
-      token: null,
       isAuthenticated: false,
       accessibleBranches: [],
       currentBranchId: null,
@@ -99,7 +110,22 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     localStorage.removeItem("auth_token");
     localStorage.removeItem("accessible_branches");
     localStorage.removeItem("current_branch_id");
+  },
 
+  acceptRefreshedSession(hospitalId, userId) {
+    const state = get();
+    if (!state.isAuthenticated || state.currentBranchId !== hospitalId || state.user?.id !== userId) return false;
+    set({ sessionRevision: state.sessionRevision + 1 });
+    const realtime = useSocketStore.getState();
+    if (realtime.socket) {
+      realtime.disconnect();
+      realtime.connect();
+    }
+    return true;
+  },
+
+  async logout() {
+    get().clearSession();
     // 2. Attempt API Logout (Fire & Forget)
     try {
         await apiClient.post("/auth/logout");
@@ -122,9 +148,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ isSwitchingBranch: true });
 
     try {
-      const res = await apiClient.post("/auth/switch-branch", { targetHospitalId });
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { currentBranch } = res.data;
+      const { data } = await apiClient.post<{ currentBranch: { id: number } }>(
+        "/auth/switch-branch", { targetHospitalId },
+      );
+      if (data.currentBranch.id !== targetHospitalId || get().user?.id !== state.user?.id)
+        throw new Error("Invalid staff branch response");
 
       // Update user's hospitalId in local state
       const updatedUser = state.user ? { ...state.user, hospitalId: targetHospitalId } : null;
@@ -151,7 +179,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   hydrateFromStorage: () => {
     // Cleanup Legacy Keys
     if (typeof window !== "undefined") {
-        const legacyKeys = ['token', 'refreshToken', 'user', 'auth-storage'];
+        const legacyKeys = ['auth_token', 'token', 'refreshToken', 'user', 'auth-storage'];
         legacyKeys.forEach(key => localStorage.removeItem(key));
     }
   },

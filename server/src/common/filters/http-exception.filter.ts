@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { Request, Response } from 'express';
+import { requestLogPath } from '../utils/request-log-path';
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
@@ -41,6 +42,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
+    const logPath = requestLogPath(request.originalUrl || request.url);
 
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
     let message = 'حدث خطأ غير متوقع في الخادم.';
@@ -94,11 +96,11 @@ export class AllExceptionsFilter implements ExceptionFilter {
     // تسجيل الخطأ
     if (status >= 500) {
       this.logger.error(
-        `[${request.method}] ${request.url}`,
+        `[${request.method}] ${logPath}`,
         exception instanceof Error ? exception.stack : String(exception),
       );
     } else {
-      this.logger.warn(`[${request.method}] ${request.url} >> ${message}`);
+      this.logger.warn(`[${request.method}] ${logPath} >> ${message}`);
       // Log details for validation errors to help debugging
       if (exception instanceof Prisma.PrismaClientValidationError) {
         this.logger.error(
@@ -134,7 +136,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
           ? errorResponse['error']
           : undefined,
       timestamp: new Date().toISOString(),
-      path: request.url,
+      path: logPath,
       // يمكن عرض التفاصيل فقط في بيئة التطوير
       // errorDetails: process.env.NODE_ENV !== 'production' ? errorDetails : undefined,
     });

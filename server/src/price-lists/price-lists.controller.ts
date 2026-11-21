@@ -19,6 +19,7 @@ import { Permissions } from '../auth/permissions.decorator';
 export class PriceListsController {
   constructor(private readonly service: PriceListsService) {}
 
+  @Permissions('price-lists:view', 'price-lists:manage')
   @Get()
   async findAll(@Req() req: any) {
     return this.service.findAll(req.user.hospitalId);
@@ -44,6 +45,7 @@ export class PriceListsController {
     );
   }
 
+  @Permissions('price-lists:view', 'price-lists:manage')
   @Get(':id/items')
   async getItems(@Param('id', ParseIntPipe) listId: number) {
     return this.service.getListItems(listId);

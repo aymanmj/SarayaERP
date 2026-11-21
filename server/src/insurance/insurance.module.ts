@@ -4,11 +4,17 @@ import { InsuranceController } from './insurance.controller';
 import { PrismaModule } from '../prisma/prisma.module';
 import { AccountingModule } from '../accounting/accounting.module';
 import { InsuranceCalculationService } from './insurance-calculation.service';
+import { PharmacyModule } from '../pharmacy/pharmacy.module';
 
 import { SystemSettingsModule } from '../system-settings/system-settings.module';
 
 @Module({
-  imports: [PrismaModule, AccountingModule, SystemSettingsModule],
+  imports: [
+    PrismaModule,
+    AccountingModule,
+    SystemSettingsModule,
+    PharmacyModule,
+  ],
   controllers: [InsuranceController],
   providers: [InsuranceService, InsuranceCalculationService],
   exports: [InsuranceService, InsuranceCalculationService], // نحتاجه في BillingService لاحقاً

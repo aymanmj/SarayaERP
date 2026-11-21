@@ -65,7 +65,7 @@ export class BedsController {
 
   // 🔹 ربط Encounter بسرير (تنويم مريض)
   @Post('assign')
-  @Permissions('beds:view')
+  @Permissions('beds:manage')
   assignBed(@Body() dto: AssignBedDto, @CurrentUser() user: JwtPayload) {
     return this.bedsService.assignBed(
       user.hospitalId,
@@ -76,14 +76,14 @@ export class BedsController {
 
   // 🔹 فك الربط (خروج المريض من السرير)
   @Post('release')
-  @Permissions('beds:view')
+  @Permissions('beds:manage')
   releaseBed(@Body() dto: ReleaseBedDto, @CurrentUser() user: JwtPayload) {
     return this.bedsService.releaseBed(user.hospitalId, dto.encounterId);
   }
 
   // 🔹 بعد انتهاء التنظيف: تحويل السرير من CLEANING إلى AVAILABLE
   @Post('mark-clean')
-  @Permissions('beds:view') // لاحقًا نقدر نضيف ROLE خاص مثلاً HOUSEKEEPING
+  @Permissions('beds:manage')
   markBedClean(@Body() dto: MarkBedCleanDto, @CurrentUser() user: JwtPayload) {
     return this.bedsService.markBedClean(user.hospitalId, dto.bedId);
   }

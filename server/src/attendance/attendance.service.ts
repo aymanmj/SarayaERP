@@ -1,6 +1,7 @@
 // src/attendance/attendance.service.ts
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePunchDto } from './dto/attendance.dto';
 
@@ -13,21 +14,44 @@ export class AttendanceService {
   private parseShiftTime(dateRef: Date, timeStr: string): Date {
     const [h, m] = timeStr.split(':').map(Number);
     const d = new Date(dateRef);
-    d.setHours(h, m, 0, 0);
+    d.setUTCHours(h, m, 0, 0);
     return d;
   }
 
-  async processPunch(dto: CreatePunchDto) {
+  async processPunch(dto: CreatePunchDto, hospitalId?: number) {
+    if (hospitalId !== undefined) {
+      const user = await this.prisma.user.findFirst({
+        where: { id: dto.userId, hospitalId, isDeleted: false },
+        select: { id: true },
+      });
+      if (!user) {
+        throw new NotFoundException('الموظف غير موجود في هذه المنشأة.');
+      }
+    }
+
     const punchTime = new Date(dto.timestamp);
-    const startOfDay = new Date(punchTime);
-    startOfDay.setHours(0, 0, 0, 0);
+    const startOfDay = new Date(
+      Date.UTC(
+        punchTime.getUTCFullYear(),
+        punchTime.getUTCMonth(),
+        punchTime.getUTCDate(),
+        0,
+        0,
+        0,
+        0,
+      ),
+    );
 
     const existingRecord = await this.prisma.attendanceRecord.findUnique({
       where: { userId_date: { userId: dto.userId, date: startOfDay } },
     });
 
     const roster = await this.prisma.employeeRoster.findFirst({
-      where: { userId: dto.userId, date: startOfDay },
+      where: {
+        userId: dto.userId,
+        date: startOfDay,
+        ...(hospitalId !== undefined ? { hospitalId } : {}),
+      },
       include: { shift: true },
     });
 
@@ -71,20 +95,25 @@ export class AttendanceService {
     }
   }
 
-  async processBulkPunches(punches: CreatePunchDto[]) {
+  async processBulkPunches(punches: CreatePunchDto[], hospitalId?: number) {
     let processed = 0;
     let errors = 0;
-    const sortedPunches = punches.sort(
+    const sortedPunches = [...punches].sort(
       (a, b) =>
         new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
     );
     for (const punch of sortedPunches) {
       try {
-        const user = await this.prisma.user.findUnique({
-          where: { id: punch.userId },
+        const user = await this.prisma.user.findFirst({
+          where: {
+            id: punch.userId,
+            ...(hospitalId !== undefined
+              ? { hospitalId, isDeleted: false }
+              : {}),
+          },
         });
         if (user) {
-          await this.processPunch(punch);
+          await this.processPunch(punch, hospitalId);
           processed++;
         } else {
           errors++;
@@ -125,14 +154,27 @@ export class AttendanceService {
     userId: number,
     startDate: Date,
     endDate: Date,
+    tx?: Prisma.TransactionClient,
   ) {
-    const records = await this.prisma.attendanceRecord.findMany({
+    const client = tx ?? this.prisma;
+    const records = await client.attendanceRecord.findMany({
       where: { userId, date: { gte: startDate, lte: endDate } },
     });
 
-    const rosters = await this.prisma.employeeRoster.findMany({
+    const rosters = await client.employeeRoster.findMany({
       where: { userId, date: { gte: startDate, lte: endDate } },
       include: { shift: true },
+    });
+
+    const paidLeaves = await client.leaveRequest.findMany({
+      where: {
+        userId,
+        status: 'APPROVED',
+        type: { not: 'UNPAID' },
+        startDate: { lte: endDate },
+        endDate: { gte: startDate },
+      },
+      select: { startDate: true, endDate: true },
     });
 
     let totalLateMinutes = 0;
@@ -158,6 +200,17 @@ export class AttendanceService {
       }
 
       workDaysCount++;
+
+      const rosterDay = rosterItem.date.toISOString().slice(0, 10);
+      if (
+        paidLeaves.some(
+          (leave) =>
+            leave.startDate.toISOString().slice(0, 10) <= rosterDay &&
+            leave.endDate.toISOString().slice(0, 10) >= rosterDay,
+        )
+      ) {
+        continue;
+      }
 
       if (!record) {
         absentDays++;

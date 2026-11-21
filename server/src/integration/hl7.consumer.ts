@@ -1,6 +1,7 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Job } from 'bullmq';
 import { Logger } from '@nestjs/common';
+import { lockRadiologyExecution } from '../radiology/radiology-release';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Processor('hl7-queue')
@@ -44,7 +45,7 @@ export class Hl7Consumer extends WorkerHost {
       const msgType = msh[8]; // e.g. ORU^R01 or ADT^A01
 
       if (msgType && msgType.includes('ORU')) {
-        await this.handleORU(segments);
+        await this.handleORU(segments, integrationLog.device.hospitalId);
       } else if (msgType && msgType.includes('ADT')) {
         await this.handleADT(segments, integrationLog.device.hospitalId);
       } else {
@@ -73,7 +74,7 @@ export class Hl7Consumer extends WorkerHost {
   }
 
   // --- منطق معالجة النتائج (منقول من الخدمة القديمة) ---
-  private async handleORU(segments: string[]) {
+  private async handleORU(segments: string[], hospitalId: number) {
     let orderId: number | null = null;
     let pacsLink: string | null = null;
     const labResults: {
@@ -129,7 +130,7 @@ export class Hl7Consumer extends WorkerHost {
 
     // Database Update
     const order = await this.prisma.order.findUnique({
-      where: { id: orderId },
+      where: { id: orderId, hospitalId, isDeleted: false },
       include: {
         labOrders: { include: { test: { include: { parameters: true } } } },
         radiologyOrder: true,
@@ -189,19 +190,28 @@ export class Hl7Consumer extends WorkerHost {
     }
     // --- معالجة الأشعة ---
     else if (order.type === 'RADIOLOGY' && order.radiologyOrder) {
-      const reportText = radiologyReportLines.join('\n');
-      await this.prisma.radiologyOrder.update({
-        where: { id: order.radiologyOrder.id },
-        data: {
-          status: 'COMPLETED',
-          reportedAt: new Date(),
-          reportText: reportText || 'Attached Image',
-          pacsUrl: pacsLink,
-        },
-      });
-      await this.prisma.order.update({
-        where: { id: order.id },
-        data: { status: 'COMPLETED', completedAt: new Date() },
+      const radiologyOrderId = order.radiologyOrder.id;
+      await this.prisma.$transaction(async (tx) => {
+        await lockRadiologyExecution(
+          tx,
+          hospitalId,
+          radiologyOrderId,
+          'legacy-report',
+        );
+        const reportText = radiologyReportLines.join('\n');
+        await tx.radiologyOrder.update({
+          where: { id: radiologyOrderId },
+          data: {
+            status: 'COMPLETED',
+            reportedAt: new Date(),
+            reportText: reportText || 'Attached Image',
+            pacsUrl: pacsLink,
+          },
+        });
+        await tx.order.update({
+          where: { id: order.id },
+          data: { status: 'COMPLETED', completedAt: new Date() },
+        });
       });
     }
   }

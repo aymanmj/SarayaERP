@@ -35,6 +35,7 @@ export default function NursingPatientDetailsPage() {
 
   const [header, setHeader] = useState<PatientHeader | null>(null);
   const [activeTab, setActiveTab] = useState<"VITALS" | "MAR" | "NOTES">("MAR");
+  const [hasPendingClinicalWrite, setHasPendingClinicalWrite] = useState(false);
 
   // Notes State
   const [notes, setNotes] = useState<NursingNote[]>([]);
@@ -50,8 +51,6 @@ export default function NursingPatientDetailsPage() {
     medicationUpdates,
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     vitalsUpdates,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    reportVitalsUpdated,
   } = useNursingWebSocket();
 
   const loadHeader = async () => {
@@ -116,6 +115,7 @@ export default function NursingPatientDetailsPage() {
           <div className="flex items-center gap-3">
             <button
               onClick={() => navigate(-1)}
+              disabled={hasPendingClinicalWrite}
               className="text-slate-400 hover:text-white text-sm"
             >
               🡲 رجوع
@@ -166,6 +166,7 @@ export default function NursingPatientDetailsPage() {
       <div className="flex gap-2 border-b border-slate-800">
         <button
           onClick={() => setActiveTab("MAR")}
+          disabled={hasPendingClinicalWrite}
           className={`px-4 py-2 text-sm font-medium rounded-t-xl transition ${
             activeTab === "MAR"
               ? "bg-slate-800 text-sky-300 border-t border-x border-slate-700"
@@ -176,6 +177,7 @@ export default function NursingPatientDetailsPage() {
         </button>
         <button
           onClick={() => setActiveTab("VITALS")}
+          disabled={hasPendingClinicalWrite}
           className={`px-4 py-2 text-sm font-medium rounded-t-xl transition ${
             activeTab === "VITALS"
               ? "bg-slate-800 text-sky-300 border-t border-x border-slate-700"
@@ -186,6 +188,7 @@ export default function NursingPatientDetailsPage() {
         </button>
         <button
           onClick={() => setActiveTab("NOTES")}
+          disabled={hasPendingClinicalWrite}
           className={`px-4 py-2 text-sm font-medium rounded-t-xl transition ${
             activeTab === "NOTES"
               ? "bg-slate-800 text-sky-300 border-t border-x border-slate-700"
@@ -200,11 +203,19 @@ export default function NursingPatientDetailsPage() {
       <div className="flex-1 bg-slate-900/50 border border-slate-800 rounded-b-2xl rounded-tl-2xl p-6 overflow-y-auto">
         {/* TAB: eMAR */}
         {activeTab === "MAR" && (
-          <MedicationAdministrationPane encounterId={encounterId} />
+          <MedicationAdministrationPane
+            encounterId={encounterId}
+            onPendingChange={setHasPendingClinicalWrite}
+          />
         )}
 
         {/* TAB: Vitals */}
-        {activeTab === "VITALS" && <VitalsPane encounterId={encounterId} />}
+        {activeTab === "VITALS" && (
+          <VitalsPane
+            encounterId={encounterId}
+            onPendingChange={setHasPendingClinicalWrite}
+          />
+        )}
 
         {/* TAB: Nursing Notes */}
         {activeTab === "NOTES" && (

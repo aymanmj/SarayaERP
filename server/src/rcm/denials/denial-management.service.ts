@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ClaimStatus } from '@prisma/client';
+import { Money } from '../../common/utils/money.util';
 
 /**
  * خدمة إدارة المطالبات المرفوضة والاستئناف
@@ -68,11 +69,11 @@ export class DenialManagementService {
 
     return {
       totalDenials: totals._count,
-      totalDeniedAmount: Number(totals._sum.claimedAmount || 0),
+      totalDeniedAmount: Money.fromPrisma(totals._sum.claimedAmount),
       byDenialCode: byDenialCode.map((d) => ({
         code: d.denialCode || 'UNKNOWN',
         count: d._count,
-        amount: Number(d._sum.claimedAmount || 0),
+        amount: Money.fromPrisma(d._sum.claimedAmount),
       })),
       appealStats: appealStats.map((a) => ({
         status: a.status,

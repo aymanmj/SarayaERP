@@ -35,6 +35,114 @@ const EXEMPT_CONTROLLERS = [
 // Portal controllers use PatientAuthGuard (separate auth model for patients)
 const PORTAL_EXEMPT = (name) => name.startsWith('Portal');
 
+function stripComments(source) {
+  return source
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/\/\/.*$/gm, '');
+}
+
+function scanDecoratorBlockAfterRoute(afterRoute) {
+  let i = 0;
+  const n = afterRoute.length;
+
+  while (i < n) {
+    while (i < n && /\s/.test(afterRoute[i])) i++;
+    if (i >= n || afterRoute[i] !== '@') break;
+    i++; // skip '@'
+    while (i < n && /[\w.]/.test(afterRoute[i])) i++;
+    while (i < n && /\s/.test(afterRoute[i])) i++;
+    if (i < n && afterRoute[i] === '(') {
+      let depth = 0;
+      while (i < n) {
+        if (afterRoute[i] === '(') depth++;
+        else if (afterRoute[i] === ')') {
+          depth--;
+          if (depth === 0) {
+            i++;
+            break;
+          }
+        }
+        i++;
+      }
+    }
+  }
+
+  const trailingDecorators = afterRoute.slice(0, i);
+  const rest = afterRoute.slice(i);
+  const methodMatch = rest.match(/^\s*(?:public\s+|private\s+|protected\s+)?(?:async\s+)?(\w+)\s*\(/);
+  const methodName = methodMatch ? methodMatch[1] : 'unknown';
+
+  return { trailingDecorators, methodName };
+}
+
+function analyzeControllerRoutes(content) {
+  const cleanContent = stripComments(content);
+  const classMatch = cleanContent.match(/export\s+class\s+\w+Controller\b/);
+  if (!classMatch) {
+    return { routeCount: 0, unguardedRoutes: [], hasClassLevelAuth: false };
+  }
+
+  const classStartIdx = classMatch.index;
+  const beforeClass = cleanContent.slice(0, classStartIdx);
+  const lastBlockEnd = Math.max(
+    beforeClass.lastIndexOf('}'),
+    beforeClass.lastIndexOf(';'),
+  );
+  const classDecorators = beforeClass.slice(lastBlockEnd + 1);
+  const hasClassLevelAuth =
+    classDecorators.includes('@Permissions(') ||
+    classDecorators.includes('@Roles(') ||
+    classDecorators.includes('@Public(');
+
+  const classBody = cleanContent.slice(classStartIdx);
+  const routeRegex = /@(Get|Post|Put|Patch|Delete)\s*\(([^)]*)\)/g;
+  const unguardedRoutes = [];
+  let routeCount = 0;
+  let match;
+
+  while ((match = routeRegex.exec(classBody)) !== null) {
+    routeCount++;
+    const verb = match[1].toUpperCase();
+    const rawPath = match[2].trim().replace(/^['"`]|['"`]$/g, '');
+    const matchIdx = match.index;
+
+    const beforeRoute = classBody.slice(0, matchIdx);
+    const linesBefore = beforeRoute.split('\n');
+    let decoratorStartLine = 0;
+    for (let idx = linesBefore.length - 1; idx >= 0; idx--) {
+      const trimmed = linesBefore[idx].trim();
+      if (
+        trimmed === '}' ||
+        trimmed.endsWith('{}') ||
+        trimmed.endsWith(';') ||
+        /^(?:export\s+)?class\s+\w+/.test(trimmed)
+      ) {
+        decoratorStartLine = idx + 1;
+        break;
+      }
+    }
+    const leadingDecorators = linesBefore.slice(decoratorStartLine).join('\n');
+
+    const afterRoute = classBody.slice(matchIdx);
+    const { trailingDecorators, methodName } =
+      scanDecoratorBlockAfterRoute(afterRoute);
+    const fullDecoratorBlock = `${leadingDecorators}\n${trailingDecorators}`;
+
+    const isRouteGuarded =
+      hasClassLevelAuth ||
+      fullDecoratorBlock.includes('@Permissions(') ||
+      fullDecoratorBlock.includes('@Public(') ||
+      fullDecoratorBlock.includes('@Roles(');
+
+    if (!isRouteGuarded) {
+      const normalizedRoute = `${verb} /${rawPath}`.replace(/\/+/g, '/');
+      unguardedRoutes.push(`${normalizedRoute} (${methodName})`);
+    }
+  }
+
+  return { routeCount, unguardedRoutes, hasClassLevelAuth };
+}
+
 walkDir(srcDir, function(filePath) {
   if (filePath.endsWith('.controller.ts') && !filePath.includes('.spec.')) {
     totalControllers++;
@@ -55,8 +163,13 @@ walkDir(srcDir, function(filePath) {
     const hasPatientGuard = content.includes('PatientAuthGuard');
     const hasAnyGuard = hasPermissionsGuard || hasPatientGuard;
     
-    // Check for @Permissions decorator
+    // Check for @Permissions decorator and route-level coverage
     const hasPermissions = content.includes('@Permissions(');
+    const { routeCount, unguardedRoutes, hasClassLevelAuth } =
+      analyzeControllerRoutes(content);
+    const allRoutesGuarded =
+      hasClassLevelAuth ||
+      (routeCount > 0 ? unguardedRoutes.length === 0 : hasPermissions);
     
     // Determine effective status
     const isExempt = EXEMPT_CONTROLLERS.includes(controllerName);
@@ -72,7 +185,7 @@ walkDir(srcDir, function(filePath) {
       abacStatus = hasPatientGuard ? 'YES' : 'NO';
     } else {
       tenantStatus = hasTenantIsolation ? 'YES' : 'NO';
-      abacStatus = (hasPermissionsGuard && hasPermissions) ? 'YES' : 'NO';
+      abacStatus = (hasPermissionsGuard && hasPermissions && allRoutesGuarded) ? 'YES' : 'NO';
     }
     
     if (tenantStatus === 'YES' || tenantStatus === 'EXEMPT') tenantIsolated++;
@@ -82,6 +195,7 @@ walkDir(srcDir, function(filePath) {
       controller: controllerName,
       tenantStatus,
       abacStatus,
+      unguardedRoutes: isExempt || isPortal ? [] : unguardedRoutes,
     });
   }
 });
@@ -121,10 +235,14 @@ results.filter(r => r.abacStatus === 'YES').forEach(r => {
 const nonCompliant = results.filter(r => r.abacStatus === 'NO');
 if (nonCompliant.length > 0) {
   report += '\n## Requires Attention\n\n';
-  report += '| Controller | Tenant Isolated | ABAC Guarded |\n';
-  report += '|------------|:---------------:|:------------:|\n';
+  report += '| Controller | Tenant Isolated | ABAC Guarded | Unguarded Routes |\n';
+  report += '|------------|:---------------:|:------------:|------------------|\n';
   nonCompliant.forEach(r => {
-    report += `| ${r.controller} | ${r.tenantStatus === 'YES' ? '✅' : '❌'} | ❌ |\n`;
+    const routesInfo =
+      r.unguardedRoutes && r.unguardedRoutes.length > 0
+        ? r.unguardedRoutes.join(', ')
+        : 'Missing controller/method guard';
+    report += `| ${r.controller} | ${r.tenantStatus === 'YES' ? '✅' : '❌'} | ❌ | ${routesInfo} |\n`;
   });
 }
 
@@ -153,7 +271,11 @@ if (isCheckMode) {
   if (nonCompliant.length > 0) {
     console.error(`\n❌ ABAC AUDIT FAILURE: The following ${nonCompliant.length} controllers require ABAC/Tenant Isolation:`);
     nonCompliant.forEach(r => {
-      console.error(`  - ${r.controller} (Tenant: ${r.tenantStatus === 'YES' ? '✅' : '❌'}, ABAC: ${r.abacStatus === 'YES' ? '✅' : '❌'})`);
+      const routesSuffix =
+        r.unguardedRoutes && r.unguardedRoutes.length > 0
+          ? ` | Unguarded routes: ${r.unguardedRoutes.join(', ')}`
+          : '';
+      console.error(`  - ${r.controller} (Tenant: ${r.tenantStatus === 'YES' ? '✅' : '❌'}, ABAC: ${r.abacStatus === 'YES' ? '✅' : '❌'}${routesSuffix})`);
     });
     process.exit(1);
   } else {

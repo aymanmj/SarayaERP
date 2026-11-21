@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { drainPendingAuditWrites } from '../src/audit/audit-chain';
 
 export const resetDatabase = async (prisma: PrismaClient) => {
   if (process.env.NODE_ENV !== 'test') {
@@ -33,6 +34,7 @@ export const resetDatabase = async (prisma: PrismaClient) => {
     .join(', ');
 
   if (tables) {
+    await drainPendingAuditWrites();
     // Setup failures must fail the test rather than leave contaminated fixtures.
     await prisma.$executeRawUnsafe(`TRUNCATE TABLE ${tables} CASCADE;`);
   }

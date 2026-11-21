@@ -1,3 +1,4 @@
+import type { JwtPayload } from '../auth/jwt-payload.type';
 import {
   Body,
   Controller,
@@ -35,10 +36,11 @@ export class VisitsController {
 
   @Permissions('visits:manage')
   @Post()
-  create(@Body() dto: CreateVisitDto, @CurrentUser() user: any) {
+  create(@Body() dto: CreateVisitDto, @CurrentUser() user: JwtPayload) {
     return this.visitsService.createVisit({
       encounterId: dto.encounterId,
       doctorId: user.sub,
+      hospitalId: user.hospitalId,
       notes: dto.notes,
       diagnosisText: dto.diagnosisText,
     });
@@ -46,12 +48,12 @@ export class VisitsController {
 
   @Permissions('visits:view')
   @Get('by-encounter/:id')
-  listForEncounter(@Param('id') id: string) {
+  listForEncounter(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
     const encId = Number(id);
     if (!encId || Number.isNaN(encId)) {
       throw new BadRequestException('رقم Encounter غير صحيح');
     }
 
-    return this.visitsService.listForEncounter(encId);
+    return this.visitsService.listForEncounter(encId, user.hospitalId);
   }
 }

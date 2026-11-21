@@ -26,6 +26,7 @@ import {
 import { Observable, throwError } from 'rxjs';
 import { tap, catchError } from 'rxjs/operators';
 import { getRequestId } from '../middleware/correlation.middleware';
+import { requestLogPath } from '../utils/request-log-path';
 
 @Injectable()
 export class RequestLifecycleInterceptor implements NestInterceptor {
@@ -41,7 +42,7 @@ export class RequestLifecycleInterceptor implements NestInterceptor {
     const res = httpCtx.getResponse<any>();
 
     const method = req.method;
-    const url = req.originalUrl || req.url;
+    const url = requestLogPath(req.originalUrl || req.url || '');
     const requestId = getRequestId();
     const start = Date.now();
 

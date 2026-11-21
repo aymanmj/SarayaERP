@@ -1,3 +1,4 @@
+import { RefundReportSummary, type RefundReportFields } from '../components/RefundReportSummary';
 // src/pages/CashierUserReportPage.tsx
 
 import { useEffect, useState, useMemo } from "react";
@@ -40,7 +41,7 @@ type PaymentRow = {
   } | null;
 };
 
-type CashierUserReport = {
+type CashierUserReport = RefundReportFields & {
   cashier: CashierUser;
   dateFrom: string;
   dateTo: string;
@@ -342,6 +343,7 @@ export default function CashierUserReportPage() {
       </div>
 
       {/* محتوى التقرير */}
+      {report && <RefundReportSummary report={report} />}
       {!report ? (
         <div className="flex-1 flex items-center justify-center text-xs text-slate-500">
           {t("treasury.userReport.noReportData", "لا يوجد تقرير للعرض حالياً.")}

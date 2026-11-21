@@ -55,6 +55,10 @@ export class PatientPortalService {
     return this.otpService.requestOtp(mrn, phone);
   }
 
+  async requestTelegramLink(patientId: number) {
+    return this.otpService.createTelegramLink(patientId);
+  }
+
   async verifyOtpAndLogin(mrn: string, code: string) {
     const patient = await this.otpService.verifyOtp(mrn, code);
 
@@ -327,7 +331,7 @@ export class PatientPortalService {
     return this.prisma.prescription.findMany({
       where: {
         patientId,
-        status: { not: 'CANCELLED' },
+        status: { notIn: ['CANCELLED', 'DRAFT'] },
       },
       orderBy: { createdAt: 'desc' },
       take: 50,
@@ -657,7 +661,7 @@ export class PatientPortalService {
       this.prisma.prescription.findMany({
         where: {
           patientId,
-          status: { not: 'CANCELLED' },
+          status: { notIn: ['CANCELLED', 'DRAFT'] },
         },
         take: 5,
         orderBy: { createdAt: 'desc' },
@@ -975,61 +979,21 @@ export class PatientPortalService {
   //  PAYMENTS PROCESSING (SIMULATED)
   // ===========================================
 
-  async processPayment(
-    patientId: number,
-    invoiceId: number,
-    amount: number,
-    paymentMethod: string,
-  ) {
-    const invoice = await this.prisma.invoice.findUnique({
-      where: { id: invoiceId },
-    });
-
-    if (!invoice || invoice.patientId !== patientId) {
-      throw new NotFoundException('الفاتورة غير موجودة');
-    }
-
-    if (invoice.status === 'PAID') {
-      throw new BadRequestException('الفاتورة مدفوعة بالكامل');
-    }
-
-    const remaining = Number(invoice.totalAmount) - Number(invoice.paidAmount);
-    if (amount > remaining) {
-      throw new BadRequestException(
-        `لا يمكن دفع أكثر من المبلغ المتبقي (${remaining})`,
-      );
-    }
-
-    return this.prisma.$transaction(async (tx) => {
-      // 1. Create Payment Record
-      const payment = await tx.payment.create({
-        data: {
-          hospitalId: invoice.hospitalId,
-          invoiceId,
-          amount,
-          method: paymentMethod as any, // e.g. 'CREDIT_CARD', 'PORTAL_SIMULATED'
-          reference: `PRTL-${Date.now()}`,
-          paidAt: new Date(),
-        },
-      });
-
-      // 2. Update Invoice
-      const newPaidAmount = Number(invoice.paidAmount) + amount;
-      const newStatus =
-        newPaidAmount >= Number(invoice.totalAmount)
-          ? 'PAID'
-          : 'PARTIALLY_PAID';
-
-      await tx.invoice.update({
-        where: { id: invoiceId },
-        data: {
-          paidAmount: newPaidAmount,
-          status: newStatus,
-        },
-      });
-
-      return { success: true, payment, newStatus };
-    });
+  processPayment(
+    ...request: [
+      patientId: number,
+      invoiceId: number,
+      amount: number,
+      paymentMethod: string,
+    ]
+  ): Promise<never> {
+    void request;
+    // Only a verified settlement callback may record a payment.
+    return Promise.reject(
+      new BadRequestException(
+        'الدفع الإلكتروني غير متاح حتى ربط مزود تحصيل معتمد. يرجى مراجعة الصندوق.',
+      ),
+    );
   }
 
   // ===========================================

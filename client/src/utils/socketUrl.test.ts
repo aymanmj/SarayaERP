@@ -29,6 +29,10 @@ describe('socketUrl', () => {
         href: '',
         pathname: '/',
         ...overrides,
+        origin: new URL(
+          (overrides.protocol || 'http:') + '//' + (overrides.hostname || 'localhost') +
+          (overrides.port ? ':' + overrides.port : ''),
+        ).origin,
       },
       writable: true,
       configurable: true,
@@ -37,16 +41,16 @@ describe('socketUrl', () => {
 
   // ─── getSocketUrl ──────────────────────────────────────────
   describe('getSocketUrl', () => {
-    it('should return localhost:3000 in development (port 5173)', () => {
+    it('should return localhost:5173 in development (port 5173)', () => {
       mockLocation({ protocol: 'http:', hostname: 'localhost', port: '5173' });
 
-      expect(getSocketUrl()).toBe('http://localhost:3000');
+      expect(getSocketUrl()).toBe('http://localhost:5173');
     });
 
     it('should return correct URL for dev on LAN IP', () => {
       mockLocation({ protocol: 'http:', hostname: '192.168.1.100', port: '5173' });
 
-      expect(getSocketUrl()).toBe('http://192.168.1.100:3000');
+      expect(getSocketUrl()).toBe('http://192.168.1.100:5173');
     });
 
     it('should return same origin in production (port 80)', () => {
@@ -82,7 +86,7 @@ describe('socketUrl', () => {
     it('should handle port 5174 as development', () => {
       mockLocation({ protocol: 'http:', hostname: 'localhost', port: '5174' });
 
-      expect(getSocketUrl()).toBe('http://localhost:3000');
+      expect(getSocketUrl()).toBe('http://localhost:5174');
     });
   });
 
@@ -91,14 +95,14 @@ describe('socketUrl', () => {
     it('should append namespace with leading slash', () => {
       mockLocation({ protocol: 'http:', hostname: 'localhost', port: '5173' });
 
-      expect(getSocketUrlWithNamespace('/nursing')).toBe('http://localhost:3000/nursing');
+      expect(getSocketUrlWithNamespace('/nursing')).toBe('http://localhost:5173/nursing');
     });
 
     it('should add leading slash if namespace does not have one', () => {
       mockLocation({ protocol: 'http:', hostname: 'localhost', port: '5173' });
 
       expect(getSocketUrlWithNamespace('notifications')).toBe(
-        'http://localhost:3000/notifications'
+        'http://localhost:5173/notifications'
       );
     });
 

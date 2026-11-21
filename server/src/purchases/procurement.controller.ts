@@ -1,3 +1,6 @@
+import { CurrentUser } from '../auth/current-user.decorator';
+import type { JwtPayload } from '../auth/jwt-payload.type';
+import { CreateGoodsReceiptDto } from './dto/goods-receipt.dto';
 // src/purchases/procurement.controller.ts
 
 import {
@@ -23,7 +26,6 @@ import {
   IsOptional,
   IsString,
   ValidateNested,
-  IsDateString,
   Min,
   IsNumber,
 } from 'class-validator';
@@ -124,41 +126,6 @@ class CreatePODirectDto {
   items!: PODirectItemDto[];
 }
 
-class GRNItemDto {
-  @IsInt()
-  productId!: number;
-
-  @IsInt()
-  uomId!: number;
-
-  @IsInt()
-  @Min(1)
-  quantity!: number;
-
-  @IsString()
-  batchNumber!: string;
-
-  @IsDateString()
-  expiryDate!: string;
-}
-
-class CreateGRNDto {
-  @IsInt()
-  poId!: number;
-
-  @IsInt()
-  warehouseId!: number;
-
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => GRNItemDto)
-  items!: GRNItemDto[];
-
-  @IsOptional()
-  @IsString()
-  notes?: string;
-}
-
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('procurement')
 export class ProcurementController {
@@ -201,7 +168,7 @@ export class ProcurementController {
       where: { hospitalId: req.user.hospitalId },
       include: {
         department: true,
-        requestedBy: true,
+        requestedBy: { select: { id: true, fullName: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -230,7 +197,7 @@ export class ProcurementController {
       where: { hospitalId: req.user.hospitalId },
       include: {
         supplier: true,
-        createdBy: true,
+        createdBy: { select: { id: true, fullName: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -243,7 +210,7 @@ export class ProcurementController {
       where: { id, hospitalId: req.user.hospitalId },
       include: {
         supplier: true,
-        createdBy: true,
+        createdBy: { select: { id: true, fullName: true } },
         items: {
           include: {
             product: true,
@@ -255,7 +222,15 @@ export class ProcurementController {
     if (!po) {
       throw new NotFoundException('أمر الشراء غير موجود');
     }
-    return po;
+    return {
+      ...po,
+      items: po.items.map((item) => ({
+        ...item,
+        remainingQuantity: item.quantity
+          .minus(item.receivedQuantity)
+          .toFixed(3),
+      })),
+    };
   }
 
   @Post('orders')
@@ -284,20 +259,16 @@ export class ProcurementController {
   @Patch('orders/:id/status')
   @Permissions('inventory:manage')
   async updatePOStatus(
-    @Req() req: any,
+    @CurrentUser() user: JwtPayload,
     @Param('id', ParseIntPipe) id: number,
     @Body('status') status: POStatus,
   ) {
-    const po = await this.prisma.purchaseOrder.findFirst({
-      where: { id, hospitalId: req.user.hospitalId },
-    });
-    if (!po) {
-      throw new NotFoundException('أمر الشراء غير موجود');
-    }
-    return this.prisma.purchaseOrder.update({
-      where: { id },
-      data: { status },
-    });
+    return this.procurementService.updatePOStatus(
+      user.hospitalId,
+      user.sub,
+      id,
+      status,
+    );
   }
 
   // ==============================
@@ -306,10 +277,14 @@ export class ProcurementController {
 
   @Post('receipts')
   @Permissions('inventory:manage')
-  async createGRN(@Req() req: any, @Body() dto: CreateGRNDto) {
+  async createGRN(
+    @CurrentUser() user: JwtPayload,
+    @Body() dto: CreateGoodsReceiptDto,
+  ) {
     return this.procurementService.createGRN({
-      hospitalId: req.user.hospitalId,
-      userId: req.user.sub,
+      hospitalId: user.hospitalId,
+      userId: user.sub,
+      requestId: dto.requestId,
       poId: dto.poId,
       warehouseId: dto.warehouseId,
       items: dto.items.map((i) => ({

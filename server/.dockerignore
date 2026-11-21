@@ -2,6 +2,9 @@
 node_modules
 npm-debug.log
 dist
+coverage
+scratch
+*.log
 
 # Environment
 .env
@@ -9,6 +12,9 @@ dist
 
 # Licensing & Keys
 saraya.lic
+license/
+machine.id
+.sys.dat
 private.key
 *.pem
 licensing-tools/

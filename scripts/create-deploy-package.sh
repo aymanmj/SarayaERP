@@ -37,6 +37,7 @@ echo ""
 # Copy required files
 echo -e "  نسخ docker-compose.production.yml..."
 cp "$PROJECT_DIR/docker-compose.production.yml" "$OUTPUT_DIR/$PACKAGE_NAME/"
+cp "$PROJECT_DIR/docker-compose.pacs.yml" "$PROJECT_DIR/docker-compose.pacs-backend.yml" "$OUTPUT_DIR/$PACKAGE_NAME/"
 
 echo -e "  نسخ .env.example..."
 cp "$PROJECT_DIR/.env.example" "$OUTPUT_DIR/$PACKAGE_NAME/"
@@ -47,6 +48,7 @@ cp "$PROJECT_DIR/.env.template" "$OUTPUT_DIR/$PACKAGE_NAME/" 2>/dev/null || true
 echo -e "  نسخ مجلد scripts..."
 mkdir -p "$OUTPUT_DIR/$PACKAGE_NAME/scripts"
 cp "$PROJECT_DIR/scripts/"*.sh "$OUTPUT_DIR/$PACKAGE_NAME/scripts/"
+cp "$PROJECT_DIR/scripts/orthanc-archive.cjs" "$OUTPUT_DIR/$PACKAGE_NAME/scripts/"
 chmod +x "$OUTPUT_DIR/$PACKAGE_NAME/scripts/"*.sh
 
 echo -e "  نسخ مجلد production (nginx + kong)..."
@@ -116,6 +118,9 @@ sudo ./INSTALL.sh
 | `scripts/install.sh` | السكربت الكامل للتثبيت |
 | `scripts/update.sh` | سكربت التحديث |
 | `docker-compose.production.yml` | إعدادات Docker |
+| `docker-compose.pacs.yml` و`docker-compose.pacs-backend.yml` | إعدادات نشر أرشيف الأشعة الاختياري وربطه بالسرايا |
+
+توجد خطوات تجهيز [أرشيف الأشعة والنسخ والاستعادة](docs/RADIOLOGY_CAP13_DICOM_PILOT_2026-11-19_AR.md#الأرشيف-الدائم-والاستعادة) في توثيق الحزمة.
 
 ## بعد التثبيت
 

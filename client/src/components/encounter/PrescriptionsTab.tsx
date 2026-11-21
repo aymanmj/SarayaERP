@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { apiClient } from "../../api/apiClient";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
+import { useAuthStore } from "../../stores/authStore";
 import {
   AlertTriangle,
   Info,
@@ -52,6 +53,11 @@ type PrescriptionDto = {
   createdAt: string;
   doctor?: { fullName: string };
   status: string;
+  prepaidInvoiceId?: number | null;
+  partialClosureReason?: string | null;
+  preAuthorization?: { id: number; status: string; decisionReason: string | null; expiresAt: string | null } | null;
+  replacesPrescription?: { id: number; prepaidInvoiceId: number | null } | null;
+  replacement?: { id: number; prepaidInvoiceId: number | null } | null;
   notes?: string | null;
   items: {
     id: number;
@@ -61,6 +67,7 @@ type PrescriptionDto = {
     frequency: string;
     durationDays: number;
     quantity: number;
+    dispensedQuantity?: string | null;
     notes?: string | null;
   }[];
 };
@@ -98,6 +105,12 @@ export function PrescriptionsTab({
   patientId,
 }: PrescriptionsTabProps) {
   const { t } = useTranslation();
+  const user = useAuthStore((state) => state.user);
+  const canReplace = user?.roles.includes("DOCTOR") && (
+    user.roles.includes("ADMIN") ||
+    user.permissions.includes("pharmacy:prescriptions:replace") ||
+    user.permissions.includes("ADMIN_FULL_ACCESS")
+  );
 
   const ROUTE_OPTIONS = [
     { value: "ORAL", label: t("homeMeds.route.oral", "فموي (Oral)") },
@@ -136,6 +149,14 @@ export function PrescriptionsTab({
   ]);
   const [nextTempId, setNextTempId] = useState(2);
   const [globalNotes, setGlobalNotes] = useState("");
+  const [originalId, setOriginalId] = useState<number | null>(null);
+  const [replacementReason, setReplacementReason] = useState("");
+  const [saving, setSaving] = useState(false);
+  const originals = prescriptions.filter((prescription) =>
+    prescription.status === "CANCELLED" &&
+    prescription.prepaidInvoiceId != null &&
+    !prescription.replacement,
+  );
 
   // Live CDSS State
   const [cdssResult, setCdssResult] = useState<{
@@ -150,10 +171,14 @@ export function PrescriptionsTab({
   const [overrideReason, setOverrideReason] = useState("");
   const [submittingWithOverride, setSubmittingWithOverride] = useState(false);
 
-  const canOrder = !!doctorId;
+  const canOrder = originalId == null ? !!doctorId : !!canReplace;
 
   // Load Catalog and Prescriptions
   useEffect(() => {
+    let active = true;
+    setOriginalId(null);
+    setReplacementReason("");
+    setPrescriptions([]);
     const load = async () => {
       try {
         const [resP, resC] = await Promise.all([
@@ -162,13 +187,16 @@ export function PrescriptionsTab({
           ),
           apiClient.get<ProductItemLite[]>(`/pharmacy/catalog`),
         ]);
-        setPrescriptions(resP.data);
-        setCatalog(resC.data);
+        if (active) {
+          setPrescriptions(resP.data);
+          setCatalog(resC.data);
+        }
       } catch (e) {
         console.error(e);
       }
     };
     if (encounterId) load();
+    return () => { active = false; };
   }, [encounterId]);
 
   // Live CDSS check (debounced)
@@ -238,12 +266,21 @@ export function PrescriptionsTab({
 
   // Submit Logic
   const handleSavePrescription = async (forcedOverride = false) => {
+    if (saving) return;
     if (!canOrder) {
       toast.error(t("prescriptions.toast.assignDoctorFirst", "لا يمكن إنشاء وصفة. يرجى تعيين طبيب للحالة أولاً."));
       return;
     }
 
     const validItems = items.filter((i) => i.drugItemId);
+    if (originalId != null && (
+      replacementReason.trim().length < 5 ||
+      validItems.length !== items.length ||
+      validItems.some((item) => !item.dose.trim())
+    )) {
+      toast.warning(t("prescriptions.replacement.required"));
+      return;
+    }
     if (validItems.length === 0) {
       toast.warning(t("prescriptions.toast.addMedicationFirst", "أضف دواء واحداً على الأقل."));
       return;
@@ -260,17 +297,19 @@ export function PrescriptionsTab({
       setSubmittingWithOverride(true);
     }
 
+    setSaving(true);
+    const path = `/pharmacy/encounters/${encounterId}/prescriptions`;
     try {
-      await apiClient.post(
-        `/pharmacy/encounters/${encounterId}/prescriptions`,
+      const { data: saved } = await apiClient.post<PrescriptionDto>(
+        originalId == null ? path : `${path}/${originalId}/replacement`,
         {
-          doctorId,
+          ...(originalId == null ? { doctorId } : { reason: replacementReason.trim() }),
           notes: globalNotes || undefined,
           overrideSafety: forcedOverride ? true : undefined,
           overrideReason: forcedOverride ? overrideReason : undefined,
           items: validItems.map((it) => ({
             drugItemId: it.drugItemId,
-            dose: it.dose || "As directed",
+            dose: originalId == null ? it.dose || "As directed" : it.dose.trim(),
             route: it.route,
             frequency: it.frequency,
             durationDays: Number(it.durationDays),
@@ -281,7 +320,9 @@ export function PrescriptionsTab({
       );
 
       toast.success(
-        forcedOverride
+        saved.status === "DRAFT"
+          ? t("prescriptions.authorization.savedPending")
+          : forcedOverride
           ? t("prescriptions.toast.savedWithOverride", "تم حفظ الوصفة (مع تجاوز التحذيرات ومبرر طبي)")
           : t("prescriptions.toast.savedSuccess", "تم حفظ الوصفة بنجاح"),
       );
@@ -300,6 +341,8 @@ export function PrescriptionsTab({
         },
       ]);
       setGlobalNotes("");
+      setOriginalId(null);
+      setReplacementReason("");
       setOverrideReason("");
       setShowOverrideModal(false);
 
@@ -315,6 +358,7 @@ export function PrescriptionsTab({
         toast.error(e.response?.data?.message || t("prescriptions.toast.saveFailed", "فشل حفظ الوصفة."));
       }
     } finally {
+      setSaving(false);
       setSubmittingWithOverride(false);
     }
   };
@@ -377,7 +421,7 @@ export function PrescriptionsTab({
         {/* Form Area */}
         <div
           className={`border border-slate-800 rounded-2xl p-5 bg-slate-900/60 shadow-sm relative overflow-hidden ${
-            !canOrder ? "opacity-60 pointer-events-none grayscale" : ""
+            !canOrder && !canReplace ? "opacity-60 pointer-events-none grayscale" : ""
           }`}
         >
           {/* Glassmorphic border glow */}
@@ -530,6 +574,36 @@ export function PrescriptionsTab({
             </button>
           </div>
 
+          {canReplace && originals.length > 0 && (
+            <div className="mt-4 flex flex-wrap gap-3">
+              <label className="text-sm text-slate-300">
+                {t("prescriptions.replacement.original")}
+                <select
+                  value={originalId ?? ""}
+                  onChange={(event) => setOriginalId(event.target.value ? Number(event.target.value) : null)}
+                  className="block rounded-lg bg-slate-900 p-2"
+                >
+                  <option value="">{t("prescriptions.replacement.newOrder")}</option>
+                  {originals.map((prescription) => (
+                    <option key={prescription.id} value={prescription.id}>
+                      {t("prescriptions.replacement.reference", { prescriptionId: prescription.id, invoiceId: prescription.prepaidInvoiceId })}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {originalId != null && (
+                <label className="text-sm text-slate-300">
+                  {t("prescriptions.replacement.reason")}
+                  <input
+                    maxLength={1000}
+                    value={replacementReason}
+                    onChange={(event) => setReplacementReason(event.target.value)}
+                    className="block rounded-lg bg-slate-900 p-2"
+                  />
+                </label>
+              )}
+            </div>
+          )}
           <div className="mt-4 pt-4 border-t border-slate-800/60 flex flex-col md:flex-row gap-4 items-end">
             <div className="flex-1 w-full">
               <label className="text-[10px] text-slate-500 mb-1 block font-medium">
@@ -544,10 +618,10 @@ export function PrescriptionsTab({
             </div>
             <button
               onClick={() => handleSavePrescription(false)}
-              disabled={!canOrder}
+              disabled={!canOrder || saving || (originalId != null && replacementReason.trim().length < 5)}
               className="bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white px-7 py-2.5 rounded-xl text-xs font-bold shadow-lg shadow-emerald-950/40 disabled:opacity-50 transition w-full md:w-auto"
             >
-              حفظ وإرسال الوصفة
+              {originalId == null ? t("prescriptions.replacement.saveNew") : t("prescriptions.replacement.saveReplacement")}
             </button>
           </div>
         </div>
@@ -555,7 +629,7 @@ export function PrescriptionsTab({
         {/* List Area */}
         <div className="space-y-4">
           <h3 className="text-xs font-bold text-slate-400 px-1 uppercase tracking-wider flex items-center gap-2">
-            <span>{t("prescriptions.historyTitle", "سجل الوصفات المعتمدة لهذه الحالة")}</span>
+            <span>{t("prescriptions.historyTitle", "سجل الوصفات لهذه الحالة")}</span>
             <span className="h-px bg-slate-800/40 flex-1" />
           </h3>
           {prescriptions.length === 0 && (
@@ -572,7 +646,8 @@ export function PrescriptionsTab({
               <div className="flex justify-between items-center mb-3 pb-2 border-b border-slate-800/40">
                 <div className="flex items-center gap-2.5">
                   <span className="text-emerald-400 font-mono text-xs font-bold bg-emerald-950/30 px-2 py-0.5 rounded border border-emerald-900/30">
-                    t("prescriptions.prescriptionLabel", "وصفة #"){pres.id}
+                    {t("prescriptions.prescriptionLabel", "وصفة #")}{pres.id}
+                  {pres.status === "CANCELLED" && <span className="ms-2 text-amber-300">{t("prescriptions.replacement.cancelled")}</span>}
                   </span>
                   <span className="text-[10px] text-slate-500 font-mono">
                     {new Date(pres.createdAt).toLocaleString("ar-LY")}
@@ -582,6 +657,36 @@ export function PrescriptionsTab({
                   الطبيب: {pres.doctor?.fullName ?? "—"}
                 </span>
               </div>
+
+              {pres.preAuthorization && (
+                <div className="mb-2 text-xs text-slate-300">
+                  {t("prescriptions.authorization.reference", { id: pres.preAuthorization.id })}{" · "}
+                  {pres.preAuthorization.status === "REJECTED"
+                    ? t("prescriptions.authorization.rejected")
+                    : pres.preAuthorization.status === "APPROVED"
+                      ? pres.preAuthorization.expiresAt && new Date(pres.preAuthorization.expiresAt).getTime() <= Date.now()
+                        ? t("prescriptions.authorization.expired")
+                        : t("prescriptions.authorization.approved")
+                      : t("prescriptions.authorization.pending")}
+                  {pres.preAuthorization.decisionReason && <p className="mt-1 text-slate-400">{pres.preAuthorization.decisionReason}</p>}
+                </div>
+              )}
+
+              {pres.replacesPrescription && (
+                <p className="mb-2 text-xs text-slate-300">
+                  {t("prescriptions.replacement.replaces", { id: pres.replacesPrescription.id })}
+                </p>
+              )}
+              {pres.replacement && (
+                <p className="mb-2 text-xs text-slate-300">
+                  {t("prescriptions.replacement.replacedBy", { id: pres.replacement.id })}
+                </p>
+              )}
+              {pres.partialClosureReason && (
+                <p className="mb-2 text-xs text-amber-300">
+                  {t("pharmacy.partialClosureReason")} <bdi>{pres.partialClosureReason}</bdi>
+                </p>
+              )}
 
               <div className="space-y-2">
                 {pres.items.map((it) => (
@@ -600,7 +705,9 @@ export function PrescriptionsTab({
                       <span>{it.durationDays} {t("common.days", "يوم")}</span>
                     </div>
                     <div className="font-mono text-emerald-400 font-bold bg-emerald-950/20 px-2.5 py-0.5 rounded">
-                      x{it.quantity}
+                      {it.dispensedQuantity != null
+                        ? t("pharmacy.dispensedOfPrescribed", { actual: it.dispensedQuantity, prescribed: it.quantity })
+                        : `x${it.quantity}`}
                     </div>
                   </div>
                 ))}

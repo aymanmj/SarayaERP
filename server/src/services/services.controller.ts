@@ -22,11 +22,13 @@ import { ServiceType } from '@prisma/client';
 export class ServicesController {
   constructor(private readonly servicesService: ServicesService) {}
 
+  @Permissions('services:view', 'services:manage')
   @Get()
   async list(@Req() req: any, @Query('type') type?: ServiceType) {
     return this.servicesService.findAll(req.user.hospitalId, type);
   }
 
+  @Permissions('services:view', 'services:manage')
   @Get('categories')
   async listCategories(@Req() req: any) {
     return this.servicesService.findAllCategories(req.user.hospitalId);
@@ -41,6 +43,7 @@ export class ServicesController {
     });
   }
 
+  @Permissions('services:view', 'services:manage')
   @Get(':id')
   async findOne(@Req() req: any, @Param('id', ParseIntPipe) id: number) {
     return this.servicesService.findOne(req.user.hospitalId, id);
@@ -83,6 +86,7 @@ export class ServicesController {
   // Material Mappings (Service-to-Item)
   // =====================================================================
 
+  @Permissions('services:view', 'services:manage')
   @Get(':id/materials')
   async getMaterials(@Param('id', ParseIntPipe) id: number) {
     return this.servicesService.getMaterialMappings(id);
@@ -120,6 +124,7 @@ export class ServicesController {
   // Bundle Items (Charge Explosion)
   // =====================================================================
 
+  @Permissions('services:view', 'services:manage')
   @Get(':id/bundle')
   async getBundleItems(@Param('id', ParseIntPipe) id: number) {
     return this.servicesService.getBundleItems(id);

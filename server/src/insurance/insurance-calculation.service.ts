@@ -1,10 +1,14 @@
 // src/insurance/insurance-calculation.service.ts
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-// ✅ إضافة الـ Imports الضرورية من Prisma Client
-import { CopayType, CoverageRuleType, CoverageRule } from '@prisma/client';
-import { Money } from '../common/utils/money.util'; // ✅ [NEW]
+import {
+  CopayType,
+  CoverageRuleType,
+  CoverageRule,
+  Prisma,
+} from '@prisma/client';
+import { Money, type MoneyValue } from '../common/utils/money.util';
 
 export type CoverageResult = {
   covered: boolean;
@@ -19,171 +23,289 @@ export type CoverageResult = {
 
 @Injectable()
 export class InsuranceCalculationService {
-  private readonly logger = new Logger(InsuranceCalculationService.name);
-
   constructor(private prisma: PrismaService) {}
 
   async calculateCoverage(
     patientId: number,
     serviceItemId: number,
     servicePrice: number,
+    options?: {
+      preserveServicePrice?: boolean;
+      benefitUnits?: string | number;
+    },
   ): Promise<CoverageResult> {
-    // 1. جلب بيانات المريض والبوليصة والخطة
-    const patient = await this.prisma.patient.findUnique({
-      where: { id: patientId },
-      include: {
-        insurancePolicy: {
-          include: {
-            plan: {
-              include: {
-                rules: true, // جلب القواعد
-              },
+    const result = await calculateCoverageExact(
+      this.prisma,
+      patientId,
+      serviceItemId,
+      servicePrice,
+      options,
+    );
+    return {
+      covered: result.covered,
+      patientShare: Money.toDb(result.patientShare),
+      insuranceShare: Money.toDb(result.insuranceShare),
+      requiresPreAuth: result.requiresPreAuth,
+      preAuthCode: result.preAuthCode,
+      reason: result.reason,
+      ruleApplied: result.ruleApplied,
+      contractedPrice:
+        result.contractedPrice === undefined
+          ? undefined
+          : Money.toDb(result.contractedPrice),
+    };
+  }
+}
+
+function percentageShare(amount: MoneyValue, rate: MoneyValue) {
+  const decimal = Money.decimal(rate);
+  return Money.toDbString(
+    Money.decimal(amount).times(decimal.gt(1) ? decimal.div(100) : decimal),
+  );
+}
+
+export async function calculateCoverageExact(
+  db: Pick<
+    Prisma.TransactionClient,
+    'patient' | 'serviceItem' | 'priceListItem' | 'preAuthorization'
+  >,
+  patientId: number,
+  serviceItemId: number,
+  servicePrice: MoneyValue,
+  options?: {
+    preserveServicePrice?: boolean;
+    benefitUnits?: string | number;
+    deferPreAuth?: boolean;
+  },
+): Promise<
+  Omit<
+    CoverageResult,
+    'patientShare' | 'insuranceShare' | 'contractedPrice'
+  > & {
+    patientShare: string;
+    insuranceShare: string;
+    contractedPrice?: string;
+    policyId?: number;
+    providerId?: number;
+    maxCoverageAmount?: string | null;
+  }
+> {
+  // 1. جلب بيانات المريض والبوليصة والخطة
+  const effectiveServiceItemId = serviceItemId;
+  const effectiveServicePrice = servicePrice;
+  const effectiveOptions = options;
+  const patient = await db.patient.findUnique({
+    where: { id: patientId },
+    include: {
+      insurancePolicy: {
+        include: {
+          provider: true,
+          plan: {
+            include: {
+              rules: true,
             },
           },
         },
       },
-    });
+    },
+  });
 
-    // جلب تفاصيل الخدمة
-    const serviceItem = await this.prisma.serviceItem.findUnique({
-      where: { id: serviceItemId },
-      include: { category: true },
-    });
+  // جلب تفاصيل الخدمة
+  const serviceItem = await db.serviceItem.findUnique({
+    where: { id: effectiveServiceItemId },
+    include: { category: true },
+  });
 
-    // --- الحالة 0: مريض نقدي (لا يوجد تأمين) ---
-    if (!patient?.insurancePolicy || !patient.insurancePolicy.isActive) {
-      return {
-        covered: false,
-        patientShare: Money.toDb(servicePrice),
-        insuranceShare: 0,
-        requiresPreAuth: false,
-        reason: 'Patient has no active insurance policy',
-        ruleApplied: 'CASH_PATIENT',
-      };
-    }
+  // --- الحالة 0: مريض نقدي (لا يوجد تأمين أو البوليصة غير نشطة/منتهية/خارج المنشأة) ---
+  const policy = patient?.insurancePolicy;
+  const now = new Date();
+  const isNotStartedYet =
+    policy?.startDate != null && new Date(policy.startDate) > now;
+  const isExpired = policy?.endDate != null && new Date(policy.endDate) < now;
+  const isProviderInactive = policy?.provider?.isActive === false;
+  const isTenantMismatch =
+    (patient && serviceItem && patient.hospitalId !== serviceItem.hospitalId) ||
+    (patient &&
+      policy?.provider &&
+      policy.provider.hospitalId !== patient.hospitalId) ||
+    (policy?.plan && policy.plan.providerId !== policy.insuranceProviderId);
 
-    const policy = patient.insurancePolicy;
-    const plan = policy.plan;
-
-    let finalServicePrice = servicePrice;
-    if (policy.priceListId) {
-      const contractItem = await this.prisma.priceListItem.findFirst({
-        where: {
-          priceListId: policy.priceListId,
-          serviceItemId: serviceItemId,
-        },
-      });
-      if (contractItem) {
-        finalServicePrice = Number(contractItem.price);
-      }
-    }
-
-    // --- الحالة 1: بوليصة بدون خطة (Legacy) ---
-    if (!plan) {
-      const copayRate = Money.fromPrisma(policy.patientCopayRate);
-      const patientShare = Money.rate(finalServicePrice, copayRate);
-      return {
-        covered: true,
-        patientShare: Money.toDb(patientShare),
-        insuranceShare: Money.toDb(Money.sub(finalServicePrice, patientShare)),
-        requiresPreAuth: false,
-        ruleApplied: 'LEGACY_POLICY_RATE',
-        contractedPrice:
-          finalServicePrice !== servicePrice ? finalServicePrice : undefined,
-      };
-    }
-
-    // --- الحالة 2: المحرك الذكي ---
-
-    // ✅ تعريف المتغير بنوع صريح لتجنب مشاكل TypeScript
-    let appliedRule: CoverageRule | null | undefined = null;
-
-    // البحث عن قاعدة للخدمة مباشرة
-    const itemRule = plan.rules.find((r) => r.serviceItemId === serviceItemId);
-
-    // البحث عن قاعدة للفئة
-    const categoryRule =
-      !itemRule && serviceItem?.categoryId
-        ? plan.rules.find((r) => r.serviceCategoryId === serviceItem.categoryId)
-        : null;
-
-    appliedRule = itemRule || categoryRule;
-
-    // أ) هل الخدمة مستثناة؟
-    if (appliedRule && appliedRule.ruleType === CoverageRuleType.EXCLUSION) {
-      return {
-        covered: false,
-        patientShare: Money.toDb(finalServicePrice),
-        insuranceShare: 0,
-        requiresPreAuth: false,
-        reason: 'Service is excluded in the insurance plan',
-        ruleApplied: `EXCLUSION_${appliedRule.id}`,
-        contractedPrice:
-          finalServicePrice !== servicePrice ? finalServicePrice : undefined,
-      };
-    }
-
-    // ب) حساب التحمل (Copay) باستخدام Money Utility
-    let patientShare = 0;
-
-    if (appliedRule) {
-      const val = Money.fromPrisma(appliedRule.copayValue);
-      if (appliedRule.copayType === CopayType.PERCENTAGE) {
-        patientShare = Money.rate(finalServicePrice, val);
-      } else {
-        patientShare = val;
-      }
-    } else {
-      // القاعدة الافتراضية
-      const defaultRate = Money.fromPrisma(plan.defaultCopayRate);
-      patientShare = Money.rate(finalServicePrice, defaultRate);
-    }
-
-    // ج) سقف التحمل
-    if (plan.maxCopayAmount) {
-      const maxCopay = Money.fromPrisma(plan.maxCopayAmount);
-      if (Money.gt(patientShare, maxCopay)) {
-        patientShare = maxCopay;
-      }
-    }
-
-    // التأكد من عدم تجاوز سعر الخدمة
-    if (Money.gt(patientShare, finalServicePrice)) {
-      patientShare = finalServicePrice;
-    }
-
-    const insuranceShare = Money.sub(finalServicePrice, patientShare);
-
-    // د) الموافقة المسبقة
-    let requiresPreAuth = appliedRule?.requiresApproval ?? false;
-    let preAuthCode: string | undefined = undefined;
-
-    if (requiresPreAuth) {
-      const validAuth = await this.prisma.preAuthorization.findFirst({
-        where: {
-          patientId: patientId,
-          policyId: policy.id,
-          serviceItemId: serviceItemId,
-          status: 'APPROVED',
-        },
-        orderBy: { createdAt: 'desc' },
-      });
-
-      if (validAuth) {
-        requiresPreAuth = false;
-        preAuthCode = validAuth.authCode ?? undefined;
-      }
-    }
-
+  if (
+    !policy ||
+    !policy.isActive ||
+    isNotStartedYet ||
+    isExpired ||
+    isProviderInactive ||
+    isTenantMismatch
+  ) {
     return {
-      covered: true,
-      patientShare: Money.toDb(patientShare),
-      insuranceShare: Money.toDb(insuranceShare),
-      requiresPreAuth,
-      preAuthCode,
-      ruleApplied: appliedRule ? `RULE_${appliedRule.id}` : 'PLAN_DEFAULT',
-      contractedPrice:
-        finalServicePrice !== servicePrice ? finalServicePrice : undefined,
+      covered: false,
+      patientShare: Money.toDbString(effectiveServicePrice),
+      insuranceShare: '0.000',
+      requiresPreAuth: false,
+      reason: isTenantMismatch
+        ? 'Tenant mismatch between patient, policy, or service'
+        : isProviderInactive
+          ? 'Insurance provider is inactive'
+          : isNotStartedYet
+            ? 'Insurance policy has not started yet'
+            : isExpired
+              ? 'Insurance policy has expired'
+              : 'Patient has no active insurance policy',
+      ruleApplied: 'CASH_PATIENT',
     };
   }
+
+  const plan = policy.plan;
+
+  const coveragePolicy = {
+    policyId: policy.id,
+    providerId: policy.insuranceProviderId,
+    maxCoverageAmount:
+      policy.maxCoverageAmount == null
+        ? null
+        : Money.toDbString(policy.maxCoverageAmount),
+  };
+  let finalServicePrice = Money.toDbString(effectiveServicePrice);
+  if (policy.priceListId && !effectiveOptions?.preserveServicePrice) {
+    const contractItem = await db.priceListItem.findFirst({
+      where: {
+        priceListId: policy.priceListId,
+        serviceItemId: effectiveServiceItemId,
+      },
+    });
+    if (contractItem) {
+      finalServicePrice = Money.toDbString(contractItem.price);
+    }
+  }
+
+  // --- الحالة 1: بوليصة بدون خطة (Legacy) ---
+  if (!plan) {
+    const patientShare = percentageShare(
+      finalServicePrice,
+      policy.patientCopayRate,
+    );
+    return {
+      covered: true,
+      patientShare,
+      insuranceShare: Money.toDbString(
+        Money.subtractDecimal(finalServicePrice, patientShare),
+      ),
+      ...coveragePolicy,
+      requiresPreAuth: false,
+      ruleApplied: 'LEGACY_POLICY_RATE',
+      contractedPrice: !Money.eq(finalServicePrice, servicePrice)
+        ? finalServicePrice
+        : undefined,
+    };
+  }
+
+  // --- الحالة 2: المحرك الذكي ---
+  let appliedRule: CoverageRule | null | undefined = null;
+
+  // البحث عن قاعدة للخدمة مباشرة
+  const itemRule = plan.rules.find(
+    (r) => r.serviceItemId === effectiveServiceItemId,
+  );
+
+  // البحث عن قاعدة للفئة
+  const categoryRule =
+    !itemRule && serviceItem?.categoryId
+      ? plan.rules.find((r) => r.serviceCategoryId === serviceItem.categoryId)
+      : null;
+
+  appliedRule = itemRule || categoryRule;
+
+  // أ) هل الخدمة مستثناة؟
+  if (appliedRule && appliedRule.ruleType === CoverageRuleType.EXCLUSION) {
+    return {
+      covered: false,
+      patientShare: finalServicePrice,
+      insuranceShare: '0.000',
+      ...coveragePolicy,
+      requiresPreAuth: false,
+      reason: 'Service is excluded in the insurance plan',
+      ruleApplied: `EXCLUSION_${appliedRule.id}`,
+      contractedPrice: !Money.eq(finalServicePrice, servicePrice)
+        ? finalServicePrice
+        : undefined,
+    };
+  }
+
+  // ب) حساب التحمل (Copay) باستخدام Money Utility
+  const benefitUnits = effectiveOptions?.preserveServicePrice
+    ? Money.decimal(options?.benefitUnits ?? 1)
+    : Money.decimal(1);
+  if (!benefitUnits.isPositive() || benefitUnits.gt(1))
+    throw new Error('Invalid prorated benefit units');
+  let patientShare: string;
+
+  if (appliedRule) {
+    const val = appliedRule.copayValue;
+    if (appliedRule.copayType === CopayType.PERCENTAGE) {
+      patientShare = percentageShare(finalServicePrice, val);
+    } else {
+      patientShare = Money.toDbString(Money.decimal(val).times(benefitUnits));
+    }
+  } else {
+    // القاعدة الافتراضية
+    patientShare = percentageShare(finalServicePrice, plan.defaultCopayRate);
+  }
+
+  // ج) سقف التحمل
+  if (plan.maxCopayAmount) {
+    const maxCopay = Money.toDbString(
+      Money.decimal(plan.maxCopayAmount).times(benefitUnits),
+    );
+    if (Money.gt(patientShare, maxCopay)) {
+      patientShare = maxCopay;
+    }
+  }
+
+  // التأكد من عدم تجاوز سعر الخدمة
+  if (Money.gt(patientShare, finalServicePrice)) {
+    patientShare = finalServicePrice;
+  }
+
+  const insuranceShare = Money.toDbString(
+    Money.subtractDecimal(finalServicePrice, patientShare),
+  );
+
+  // د) الموافقة المسبقة
+  let requiresPreAuth = appliedRule?.requiresApproval ?? false;
+  let preAuthCode: string | undefined = undefined;
+
+  if (requiresPreAuth && !options?.deferPreAuth) {
+    const validAuth = await db.preAuthorization.findFirst({
+      where: {
+        ...(patient?.hospitalId ? { hospitalId: patient.hospitalId } : {}),
+        patientId: patientId,
+        policyId: policy.id,
+        serviceItemId: effectiveServiceItemId,
+        prescription: null,
+        isPrescriptionRequest: false,
+        status: 'APPROVED',
+        OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (validAuth) {
+      requiresPreAuth = false;
+      preAuthCode = validAuth.authCode ?? undefined;
+    }
+  }
+
+  return {
+    covered: true,
+    ...coveragePolicy,
+    patientShare,
+    insuranceShare,
+    requiresPreAuth,
+    preAuthCode,
+    ruleApplied: appliedRule ? `RULE_${appliedRule.id}` : 'PLAN_DEFAULT',
+    contractedPrice: !Money.eq(finalServicePrice, servicePrice)
+      ? finalServicePrice
+      : undefined,
+  };
 }

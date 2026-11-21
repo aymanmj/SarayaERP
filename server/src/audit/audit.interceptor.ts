@@ -5,9 +5,9 @@ import {
   CallHandler,
   Logger,
 } from '@nestjs/common';
-import { Observable, tap } from 'rxjs';
+import { Observable, mergeMap } from 'rxjs';
 import { Reflector } from '@nestjs/core';
-import { IS_SENSITIVE_KEY } from './audit.decorator';
+import { AUDIT_IN_TRANSACTION_KEY, IS_SENSITIVE_KEY } from './audit.decorator';
 import { AuditService } from './audit.service';
 import type { JwtPayload } from '../auth/jwt-payload.type';
 
@@ -38,51 +38,55 @@ export class AuditInterceptor implements NestInterceptor {
     );
     const shouldLog = isSensitiveRead || isModifyingAction;
 
-    if (!shouldLog) {
+    if (
+      !shouldLog ||
+      (isModifyingAction &&
+        this.reflector.getAllAndOverride<boolean>(AUDIT_IN_TRANSACTION_KEY, [
+          context.getHandler(),
+        ]))
+    ) {
       return next.handle();
     }
 
     const start = Date.now();
 
     return next.handle().pipe(
-      tap({
-        next: async (responseBody) => {
-          const duration = Date.now() - start;
-          const { entity, entityId } = this.inferEntityAndId(path, req);
-          const actionName = this.getActionName(
-            method,
-            path,
-            isSensitiveRead,
-            sensitiveAnnotation,
-            responseBody,
-          );
+      mergeMap(async (responseBody: unknown) => {
+        const duration = Date.now() - start;
+        const { entity, entityId } = this.inferEntityAndId(path, req);
+        const actionName = this.getActionName(
+          method,
+          path,
+          isSensitiveRead,
+          sensitiveAnnotation,
+          responseBody,
+        );
 
-          try {
-            // For general writes, we can use log() instead of logCritical() to avoid blocking if the SIEM is down,
-            // but for ISO 27001, logCritical is preferred for all state changes.
-            await this.audit.logCritical({
-              hospitalId: user?.hospitalId ?? null,
-              userId: user?.sub ?? null,
-              action: actionName,
-              entity: entity,
-              entityId: entityId,
-              ipAddress: this.getClientIP(req),
-              clientName: req.headers['user-agent'],
-              details: {
-                method,
-                path,
-                statusCode: context.switchToHttp().getResponse().statusCode,
-                durationMs: duration,
-                accessType: 'READ_ACCESS',
-                params: req.params,
-                query: req.query,
-              },
-            });
-          } catch (err: any) {
-            this.logger.error('Failed to log sensitive audit', err);
-            throw new Error('Critical Audit Failure: ' + err.message);
-          }
-        },
+        try {
+          // Await persistence so audit failure reaches the request stream.
+          await this.audit.logCritical({
+            hospitalId: user?.hospitalId ?? null,
+            userId: user?.sub ?? null,
+            action: actionName,
+            entity: entity,
+            entityId: entityId,
+            ipAddress: this.getClientIP(req),
+            clientName: req.headers['user-agent'],
+            details: {
+              method,
+              path,
+              statusCode: context.switchToHttp().getResponse().statusCode,
+              durationMs: duration,
+              accessType: isSensitiveRead ? 'READ_ACCESS' : 'WRITE_ACCESS',
+              params: req.params,
+              query: req.query,
+            },
+          });
+        } catch (err: any) {
+          this.logger.error('Failed to log sensitive audit', err);
+          throw new Error('Critical Audit Failure: ' + err.message);
+        }
+        return responseBody;
       }),
     );
   }

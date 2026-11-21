@@ -3,6 +3,8 @@
 // src/pages/InvoiceDetailsPage.tsx
 
 import { useMemo, useState } from "react";
+import { InvoiceAdjustmentsPanel } from '../components/InvoiceAdjustmentsPanel';
+import { InvoiceRefundsPanel } from '../components/InvoiceRefundsPanel';
 import { useParams, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { apiClient } from "../api/apiClient";
@@ -71,6 +73,8 @@ type PaymentLite = {
 };
 
 type InvoiceLite = {
+  amountDue?: string;
+  patientCredit?: string;
   id: number;
   status: InvoiceStatus;
   totalAmount: number | null;
@@ -208,6 +212,7 @@ export default function InvoiceDetailsPage() {
 
   const outstanding = useMemo(() => {
     if (!data) return 0;
+    if (data.invoice.amountDue !== undefined) return Number(data.invoice.amountDue);
     const total = Number(data.invoice.totalAmount ?? 0);
     const paid = Number(data.invoice.paidAmount ?? 0);
     return total - paid;
@@ -588,10 +593,11 @@ export default function InvoiceDetailsPage() {
            (!data.creditNotes || data.creditNotes.length === 0) && (
             <button
               type="button"
-              onClick={() => setIsReturnModalOpen(true)}
-              className="px-3 py-1.5 rounded-full text-xs bg-rose-600 hover:bg-rose-500 text-white"
+              disabled
+              title={t('treasury.invoiceDetails.legacyReturnDisabled', 'مسار المرتجع القديم موقوف لحين استكمال التسوية والاسترداد المعتمدين')}
+              className="px-3 py-1.5 rounded-full text-xs bg-slate-700 text-slate-300 cursor-not-allowed"
             >
-              مرتجع
+              {t('treasury.invoiceDetails.returnUnavailable', 'المرتجع موقوف مؤقتًا')}
             </button>
           )}
 
@@ -611,6 +617,8 @@ export default function InvoiceDetailsPage() {
         </div>
       </div>
       
+      <InvoiceAdjustmentsPanel key={id} invoiceId={Number(id)} onChanged={() => void refetch()} />
+      <InvoiceRefundsPanel key={id} invoiceId={Number(id)} onChanged={() => void refetch()} />
       {/* Return Modal */}
       {isReturnModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">

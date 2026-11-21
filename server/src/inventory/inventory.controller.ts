@@ -1,9 +1,11 @@
+import type { JwtPayload } from '../auth/jwt-payload.type';
 // src/inventory/inventory.controller.ts
 
 import {
   Body,
   Controller,
   Get,
+  Header,
   Param,
   ParseIntPipe,
   Post,
@@ -27,14 +29,29 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  IsUUID,
+  IsEnum,
+  IsISO8601,
+  MinLength,
+  MaxLength,
+  Matches,
   Min,
+  Max,
   ValidateNested,
 } from 'class-validator';
-import { MaterialRequestStatus } from '@prisma/client';
+import {
+  InventoryBatchStatus,
+  MaterialRequestStatus,
+  RecallContactAudience,
+  RecallContactChannel,
+  RecallContactOutcome,
+} from '@prisma/client';
 
 // ✅ Product UOM DTOs
 class CreateProductUomDto {
   @IsInt()
+  @Min(1)
+  @Max(2147483647)
   @Type(() => Number)
   uomId!: number;
 
@@ -55,22 +72,30 @@ class CreateProductUomDto {
 // ✅ تعريف DTO للبند في التحويل المباشر
 class TransferItemDto {
   @IsInt()
+  @Min(1)
+  @Max(2147483647)
   @Type(() => Number)
   productId!: number;
 
-  @IsInt()
-  @Min(1)
+  @IsNumber({ maxDecimalPlaces: 3 })
+  @Min(0.001)
   @Type(() => Number)
   quantity!: number;
 }
 
 // ✅ تعريف DTO للتحويل المباشر
 class TransferStockDto {
+  @IsUUID()
+  requestKey!: string;
   @IsInt()
+  @Min(1)
+  @Max(2147483647)
   @Type(() => Number)
   fromWarehouseId!: number;
 
   @IsInt()
+  @Min(1)
+  @Max(2147483647)
   @Type(() => Number)
   toWarehouseId!: number;
 
@@ -87,14 +112,19 @@ class TransferStockDto {
 // ✅ تعريف DTO للبند في طلب المواد
 class MaterialRequestItemDto {
   @IsInt()
+  @Min(1)
+  @Max(2147483647)
   @Type(() => Number)
   productId!: number;
 
   @IsOptional()
   @IsInt()
+  @Min(1)
+  @Max(2147483647)
   @Type(() => Number)
   uomId?: number;
 
+  @IsNumber({ maxDecimalPlaces: 3 })
   @Min(0.001)
   @Type(() => Number)
   requestedQty!: number;
@@ -107,15 +137,21 @@ class MaterialRequestItemDto {
 // ✅ تعريف DTO لإنشاء طلب المواد
 class CreateMaterialRequestDto {
   @IsInt()
+  @Min(1)
+  @Max(2147483647)
   @Type(() => Number)
   requestingWarehouseId!: number;
 
   @IsInt()
+  @Min(1)
+  @Max(2147483647)
   @Type(() => Number)
   fulfillingWarehouseId!: number;
 
   @IsOptional()
   @IsInt()
+  @Min(1)
+  @Max(2147483647)
   @Type(() => Number)
   fromDepartmentId?: number;
 
@@ -132,9 +168,12 @@ class CreateMaterialRequestDto {
 // ✅ DTO للصرف التفصيلي بالتشغيلات
 class IssueItemDto {
   @IsInt()
+  @Min(1)
+  @Max(2147483647)
   @Type(() => Number)
   productId!: number;
 
+  @IsNumber({ maxDecimalPlaces: 3 })
   @Min(0.001)
   @Type(() => Number)
   quantity!: number;
@@ -145,6 +184,8 @@ class IssueItemDto {
 }
 
 class IssueMaterialRequestDto {
+  @IsUUID()
+  requestKey!: string;
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
@@ -162,15 +203,232 @@ class RejectRequestDto {
   notes?: string;
 }
 
+class SetBatchRestrictionDto {
+  @IsEnum(InventoryBatchStatus)
+  status!: InventoryBatchStatus;
+
+  @IsString()
+  @MinLength(5)
+  @MaxLength(1000)
+  reason!: string;
+}
+
+class RecallIsolationDto {
+  @IsInt()
+  @Min(1)
+  stockVersion!: number;
+
+  @IsString()
+  @Matches(/^(0|[1-9]\d{0,14})(\.\d{1,3})?$/)
+  isolatedQuantity!: string;
+
+  @IsString()
+  @MinLength(2)
+  @MaxLength(200)
+  location!: string;
+
+  @IsString()
+  @MinLength(5)
+  @MaxLength(1000)
+  reason!: string;
+
+  @IsUUID('4')
+  requestId!: string;
+}
+
+class RecallTraceQuery {
+  @Type(() => Number)
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(2147483647)
+  before?: number;
+}
+
+class RecallContactQuery extends RecallTraceQuery {
+  @IsEnum(RecallContactAudience)
+  audience!: RecallContactAudience;
+}
+
+class RecallContactDto {
+  @IsEnum(RecallContactAudience)
+  audience!: RecallContactAudience;
+
+  @IsEnum(RecallContactOutcome)
+  outcome!: RecallContactOutcome;
+
+  @IsEnum(RecallContactChannel)
+  channel!: RecallContactChannel;
+
+  @IsString()
+  @MinLength(5)
+  @MaxLength(1000)
+  note!: string;
+
+  @IsUUID('4')
+  requestId!: string;
+}
+
+class RecallSupplierReceiptDto {
+  @IsString()
+  @Matches(/^(0|[1-9]\d{0,14})(\.\d{1,3})?$/)
+  quantity!: string;
+
+  @IsString()
+  @MinLength(3)
+  @MaxLength(200)
+  evidenceReference!: string;
+
+  @IsString()
+  @MinLength(2)
+  @MaxLength(200)
+  receivedBy!: string;
+
+  @IsISO8601({ strict: true, strictSeparator: true })
+  @Matches(/(Z|[+-]\d{2}:\d{2})$/)
+  receivedAt!: string;
+
+  @IsUUID('4')
+  requestId!: string;
+}
+
+function canViewRecallPatients(user: JwtPayload) {
+  return (
+    user.roles.includes('ADMIN') ||
+    user.permissions.includes('ADMIN_FULL_ACCESS') ||
+    user.permissions.includes('patients:view')
+  );
+}
+
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('inventory')
 export class InventoryController {
   constructor(private readonly inventoryService: InventoryService) {}
 
+  @Get('stock/:id/recall-followup')
+  @Header('Cache-Control', 'no-store')
+  @Permissions('inventory:manage')
+  getRecallFollowup(
+    @CurrentUser() user: JwtPayload,
+    @Param('id', ParseIntPipe) stockId: number,
+    @Query() query: RecallTraceQuery,
+  ) {
+    return this.inventoryService.recallFollowup(
+      user.hospitalId,
+      user.sub,
+      stockId,
+      canViewRecallPatients(user),
+      query.before,
+    );
+  }
+
+  @Get('stock/:id/recall-contacts/:movementId')
+  @Header('Cache-Control', 'no-store')
+  @Permissions('inventory:manage')
+  getRecallContacts(
+    @CurrentUser() user: JwtPayload,
+    @Param('id', ParseIntPipe) stockId: number,
+    @Param('movementId', ParseIntPipe) movementId: number,
+    @Query() query: RecallContactQuery,
+  ) {
+    return this.inventoryService.recallContacts(
+      user.hospitalId,
+      user.sub,
+      stockId,
+      movementId,
+      query.audience,
+      canViewRecallPatients(user),
+      query.before,
+    );
+  }
+
+  @Post('stock/:id/recall-contacts/:movementId')
+  @Permissions('inventory:manage')
+  saveRecallContact(
+    @CurrentUser() user: JwtPayload,
+    @Param('id', ParseIntPipe) stockId: number,
+    @Param('movementId', ParseIntPipe) movementId: number,
+    @Body() body: RecallContactDto,
+  ) {
+    return this.inventoryService.recordRecallContact(
+      user.hospitalId,
+      user.sub,
+      stockId,
+      movementId,
+      canViewRecallPatients(user),
+      body,
+    );
+  }
+
+  @Get('stock/:id/recall-supplier-receipts/:movementId')
+  @Header('Cache-Control', 'no-store')
+  @Permissions('inventory:manage')
+  getRecallSupplierReceipts(
+    @CurrentUser() user: JwtPayload,
+    @Param('id', ParseIntPipe) stockId: number,
+    @Param('movementId', ParseIntPipe) movementId: number,
+    @Query() query: RecallTraceQuery,
+  ) {
+    return this.inventoryService.recallSupplierReceipts(
+      user.hospitalId,
+      stockId,
+      movementId,
+      query.before,
+    );
+  }
+
+  @Post('stock/:id/recall-supplier-receipts/:movementId')
+  @Permissions('inventory:manage')
+  saveRecallSupplierReceipt(
+    @CurrentUser() user: JwtPayload,
+    @Param('id', ParseIntPipe) stockId: number,
+    @Param('movementId', ParseIntPipe) movementId: number,
+    @Body() body: RecallSupplierReceiptDto,
+  ) {
+    return this.inventoryService.recordRecallSupplierReceipt(
+      user.hospitalId,
+      user.sub,
+      stockId,
+      movementId,
+      body,
+    );
+  }
+
+  @Post('stock/:id/recall-isolation')
+  @Permissions('inventory:manage')
+  recordRecallIsolation(
+    @CurrentUser() user: JwtPayload,
+    @Param('id', ParseIntPipe) stockId: number,
+    @Body() body: RecallIsolationDto,
+  ) {
+    return this.inventoryService.recordRecallIsolation(
+      user.hospitalId,
+      user.sub,
+      stockId,
+      body,
+    );
+  }
+
+  @Post('stock/:id/batch-restriction')
+  @Permissions('inventory:manage')
+  setBatchRestriction(
+    @CurrentUser() user: JwtPayload,
+    @Param('id', ParseIntPipe) stockId: number,
+    @Body() body: SetBatchRestrictionDto,
+  ) {
+    return this.inventoryService.changeBatchRestriction(
+      user.hospitalId,
+      user.sub,
+      stockId,
+      body.status,
+      body.reason,
+    );
+  }
+
   // 🔔 لوحة تنبيهات المخزون
   @Get('alerts')
   @Permissions('inventory:view')
-  async getStockAlerts(@CurrentUser() user: any) {
+  async getStockAlerts(@CurrentUser() user: JwtPayload) {
     return this.inventoryService.monitorStockLevels(user.hospitalId);
   }
 
@@ -178,7 +436,7 @@ export class InventoryController {
   @Get('warehouses/:id/stock')
   @Permissions('inventory:view')
   async getWarehouseStock(
-    @Req() req: any,
+    @Req() req: { user: JwtPayload },
     @Param('id', ParseIntPipe) warehouseId: number,
     @Query('q') search?: string,
   ) {
@@ -190,19 +448,30 @@ export class InventoryController {
   }
 
   // قائمة المخازن
+  @Permissions('inventory:view', 'inventory:manage')
   @Get('warehouses')
-  async listWarehouses(@Req() req: any) {
+  async listWarehouses(@Req() req: { user: JwtPayload }) {
     return this.inventoryService.listWarehouses(req.user.hospitalId);
   }
 
   // إجراء تحويل مخزني مباشر (بدون طلب)
+  @Get('in-transit')
+  @Permissions('inventory:view')
+  getInTransit(@CurrentUser() user: { hospitalId: number }) {
+    return this.inventoryService.getInTransit(user.hospitalId);
+  }
+
   @Post('transfer')
   @Permissions('inventory:manage')
-  async transferStock(@Req() req: any, @Body() dto: TransferStockDto) {
+  async transferStock(
+    @Req() req: { user: JwtPayload },
+    @Body() dto: TransferStockDto,
+  ) {
     return this.inventoryService.transferStock({
       hospitalId: req.user.hospitalId,
       userId: req.user.sub,
       fromWarehouseId: dto.fromWarehouseId,
+      requestKey: dto.requestKey,
       toWarehouseId: dto.toWarehouseId,
       items: dto.items,
       notes: dto.notes,
@@ -217,7 +486,7 @@ export class InventoryController {
   @Post('material-requests')
   @Permissions('inventory:manage')
   async createMaterialRequest(
-    @Req() req: any,
+    @Req() req: { user: JwtPayload },
     @Body() dto: CreateMaterialRequestDto,
   ) {
     return this.inventoryService.createMaterialRequest({
@@ -235,7 +504,7 @@ export class InventoryController {
   @Get('material-requests')
   @Permissions('inventory:view')
   async getMaterialRequests(
-    @Req() req: any,
+    @Req() req: { user: JwtPayload },
     @Query('status') status?: MaterialRequestStatus,
     @Query('q') search?: string,
   ) {
@@ -249,7 +518,7 @@ export class InventoryController {
   @Get('material-requests/:id')
   @Permissions('inventory:view')
   async getMaterialRequestById(
-    @Req() req: any,
+    @Req() req: { user: JwtPayload },
     @Param('id', ParseIntPipe) id: number,
   ) {
     return this.inventoryService.getMaterialRequestById(
@@ -262,7 +531,7 @@ export class InventoryController {
   @Post('material-requests/:id/approve')
   @Permissions('inventory:manage')
   async approveMaterialRequest(
-    @Req() req: any,
+    @Req() req: { user: JwtPayload },
     @Param('id', ParseIntPipe) id: number,
   ) {
     return this.inventoryService.approveMaterialRequest(
@@ -276,7 +545,7 @@ export class InventoryController {
   @Post('material-requests/:id/reject')
   @Permissions('inventory:manage')
   async rejectMaterialRequest(
-    @Req() req: any,
+    @Req() req: { user: JwtPayload },
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: RejectRequestDto,
   ) {
@@ -292,7 +561,7 @@ export class InventoryController {
   @Post('material-requests/:id/issue')
   @Permissions('inventory:manage')
   async issueMaterialRequest(
-    @Req() req: any,
+    @Req() req: { user: JwtPayload },
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: IssueMaterialRequestDto,
   ) {
@@ -300,6 +569,7 @@ export class InventoryController {
       hospitalId: req.user.hospitalId,
       userId: req.user.sub,
       materialRequestId: id,
+      requestKey: dto.requestKey,
       notes: dto.notes,
       items: dto.items,
     });
@@ -309,7 +579,7 @@ export class InventoryController {
   @Post('stock-issues/:id/receive')
   @Permissions('inventory:manage')
   async receiveStockIssue(
-    @Req() req: any,
+    @Req() req: { user: JwtPayload },
     @Param('id', ParseIntPipe) id: number,
   ) {
     return this.inventoryService.receiveStockIssue(
@@ -324,26 +594,32 @@ export class InventoryController {
   // ==========================================
   @Get('products')
   @Permissions('inventory:view')
-  async getProducts(@CurrentUser() user: any) {
+  async getProducts(@CurrentUser() user: JwtPayload) {
     return this.inventoryService.getProductsWithUoms(user.hospitalId);
   }
 
   @Post('products/:productId/uoms')
   @Permissions('inventory:manage')
   async addProductUom(
+    @CurrentUser() user: JwtPayload,
     @Param('productId', ParseIntPipe) productId: number,
     @Body() dto: CreateProductUomDto,
   ) {
-    return this.inventoryService.addProductUom(productId, dto);
+    return this.inventoryService.addProductUom(user.hospitalId, productId, dto);
   }
 
   @Delete('products/:productId/uoms/:uomId')
   @Permissions('inventory:manage')
   async removeProductUom(
+    @CurrentUser() user: JwtPayload,
     @Param('productId', ParseIntPipe) productId: number,
     @Param('uomId', ParseIntPipe) uomId: number,
   ) {
-    return this.inventoryService.removeProductUom(productId, uomId);
+    return this.inventoryService.removeProductUom(
+      user.hospitalId,
+      productId,
+      uomId,
+    );
   }
 
   // ==========================================
@@ -351,53 +627,56 @@ export class InventoryController {
   // ==========================================
   @Get('master-data/categories')
   @Permissions('inventory:view')
-  async getCategories(@CurrentUser() user: any) {
+  async getCategories(@CurrentUser() user: JwtPayload) {
     return this.inventoryService.getItemCategories(user.hospitalId);
   }
 
   @Post('master-data/categories')
   @Permissions('inventory:manage')
-  async createCategory(@CurrentUser() user: any, @Body() dto: any) {
+  async createCategory(@CurrentUser() user: JwtPayload, @Body() dto: any) {
     return this.inventoryService.createItemCategory(user.hospitalId, dto);
   }
 
   @Get('master-data/products')
   @Permissions('inventory:view')
-  async getMasterProducts(@CurrentUser() user: any) {
+  async getMasterProducts(@CurrentUser() user: JwtPayload) {
     return this.inventoryService.getMasterProducts(user.hospitalId);
   }
 
   @Post('master-data/products')
   @Permissions('inventory:manage')
-  async createProduct(@CurrentUser() user: any, @Body() dto: any) {
+  async createProduct(@CurrentUser() user: JwtPayload, @Body() dto: any) {
     return this.inventoryService.createProduct(user.hospitalId, dto);
   }
 
   @Get('master-data/uoms')
   @Permissions('inventory:view')
-  async getUOMs(@CurrentUser() user: any) {
+  async getUOMs(@CurrentUser() user: JwtPayload) {
     return this.inventoryService.getUOMs(user.hospitalId);
   }
 
   @Post('master-data/uoms')
   @Permissions('inventory:manage')
-  async createUOM(@CurrentUser() user: any, @Body() dto: any) {
+  async createUOM(@CurrentUser() user: JwtPayload, @Body() dto: any) {
     return this.inventoryService.createUOM(user.hospitalId, dto);
   }
 
   @Put('master-data/uoms/:id')
   @Permissions('inventory:manage')
   async updateUOM(
-    @CurrentUser() user: any,
-    @Param('id') id: string,
+    @CurrentUser() user: JwtPayload,
+    @Param('id', ParseIntPipe) id: number,
     @Body() dto: any,
   ) {
-    return this.inventoryService.updateUOM(user.hospitalId, Number(id), dto);
+    return this.inventoryService.updateUOM(user.hospitalId, id, dto);
   }
 
   @Delete('master-data/uoms/:id')
   @Permissions('inventory:manage')
-  async deleteUOM(@CurrentUser() user: any, @Param('id') id: string) {
-    return this.inventoryService.deleteUOM(user.hospitalId, Number(id));
+  async deleteUOM(
+    @CurrentUser() user: JwtPayload,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.inventoryService.deleteUOM(user.hospitalId, id);
   }
 }

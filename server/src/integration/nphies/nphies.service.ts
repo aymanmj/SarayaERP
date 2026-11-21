@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { v4 as uuidv4 } from 'uuid';
 import * as fs from 'fs';
@@ -291,7 +291,33 @@ export class NphiesService {
     localFilePath: string,
     title: string,
     contentType: string = 'application/pdf',
+    hospitalId?: number,
   ): any {
+    if (!Number.isSafeInteger(hospitalId) || !hospitalId || hospitalId <= 0) {
+      throw new BadRequestException('A hospital-scoped attachment is required');
+    }
+    const uploadRoot = path.resolve(
+      this.configService.get<string>('NPHIES_ATTACHMENT_ROOT') ||
+        'uploads/nphies',
+      String(hospitalId),
+    );
+    const target = path.resolve(localFilePath);
+    if (!target.startsWith(uploadRoot + path.sep) || !fs.existsSync(target)) {
+      throw new BadRequestException(
+        'Attachment is outside the hospital upload directory or missing',
+      );
+    }
+    const realRoot = fs.realpathSync(uploadRoot);
+    const realTarget = fs.realpathSync(target);
+    const stat = fs.statSync(realTarget);
+    if (
+      !realTarget.startsWith(realRoot + path.sep) ||
+      !stat.isFile() ||
+      stat.size > 10 * 1024 * 1024 ||
+      !['application/pdf', 'image/jpeg', 'image/png'].includes(contentType)
+    ) {
+      throw new BadRequestException('Invalid attachment');
+    }
     if (!fs.existsSync(localFilePath)) {
       this.logger.warn(`⚠️ المرفق غير موجود في المسار: ${localFilePath}`);
       return null;

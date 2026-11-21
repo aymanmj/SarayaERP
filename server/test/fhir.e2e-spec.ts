@@ -4,6 +4,9 @@ import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { resetDatabase } from './db-reset';
+import { JwtService } from '@nestjs/jwt';
+import { FhirService } from '../src/integration/fhir/fhir.service';
+import { AuthHelper } from './auth-helper';
 
 describe('FHIR & SMART App Launch (e2e)', () => {
   let app: INestApplication;
@@ -29,18 +32,53 @@ describe('FHIR & SMART App Launch (e2e)', () => {
     await app.close();
   });
 
+  it('exports a withdrawn prescription with cancelled status', async () => {
+    const { user } = await new AuthHelper(
+      prisma,
+      app.get(JwtService),
+    ).createTestUser();
+    const { hospitalId } = user;
+    const patient = await prisma.patient.create({
+      data: {
+        hospitalId,
+        fullName: 'Synthetic cancelled prescription',
+        mrn: 'FHIR-RX',
+      },
+    });
+    const encounter = await prisma.encounter.create({
+      data: { hospitalId, patientId: patient.id, type: 'OPD' },
+    });
+    const prescription = await prisma.prescription.create({
+      data: {
+        hospitalId,
+        patientId: patient.id,
+        encounterId: encounter.id,
+        doctorId: user.id,
+        status: 'CANCELLED',
+      },
+    });
+    expect(
+      await app
+        .get(FhirService)
+        .getMedicationRequest(prescription.id, patient.id),
+    ).toMatchObject({ resourceType: 'MedicationRequest', status: 'cancelled' });
+  });
+
   describe('SMART on FHIR Discovery', () => {
     it('should return SMART configuration from .well-known endpoint', async () => {
       const response = await request(app.getHttpServer())
         .get('/fhir/.well-known/smart-configuration')
         .expect(200);
 
-      expect(response.body).toHaveProperty('authorization_endpoint');
+      expect(response.body).not.toHaveProperty('authorization_endpoint');
       expect(response.body).toHaveProperty('token_endpoint');
-      expect(response.body.capabilities).toContain('launch-standalone');
+      expect(response.body.grant_types_supported).toEqual([
+        'client_credentials',
+      ]);
       expect(response.body.capabilities).toContain(
-        'context-standalone-patient',
+        'client-confidential-symmetric',
       );
+      expect(response.body.capabilities).not.toContain('launch-standalone');
     });
 
     it('should return basic Capability Statement', async () => {
@@ -90,13 +128,17 @@ describe('FHIR & SMART App Launch (e2e)', () => {
       // But we need a valid client and code. To simplify E2E, we can directly generate a token using JwtService
       // with the SMART payload structure format our Guard expects.
 
-      const jwtService = app.get('JwtService'); // From imports, assuming global
-      const tokenForPatientA = jwtService.sign({
-        sub: 'ext-app-client',
-        aud: 'saraya-fhir',
-        smartContext: { patient: patientA.id.toString() },
-        scope: 'patient/Patient.read',
-      });
+      const jwtService = app.get(JwtService);
+      const tokenForPatientA = jwtService.sign(
+        {
+          sub: 'ext-app-client',
+          aud: 'saraya-fhir',
+          patient: patientA.id.toString(),
+          hospitalId: hospital.id,
+          scope: 'patient/Patient.read',
+        },
+        { secret: process.env.JWT_SECRET },
+      );
 
       // 3. Request data for Patient A (Should succeed)
       await request(app.getHttpServer())

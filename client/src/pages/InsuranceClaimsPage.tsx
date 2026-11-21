@@ -1,10 +1,13 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { apiClient } from "../api/apiClient";
 import { toast } from "sonner";
 import { formatDate } from "@/lib/utils";
 import { ShieldCheck, FileText, CheckCircle2, XCircle, Printer, RefreshCw, AlertCircle, Building2, Upload, Loader2 } from "lucide-react";
 import { FeatureGuard } from "@/components/FeatureGuard";
+import { Money } from "../utils/money";
+import { ClaimReceiptRefundDialog } from "./ClaimReceiptRefundDialog";
+import { InsuranceSettlementRefundDialog } from "./InsuranceSettlementRefundDialog";
 
 type InsuranceProvider = {
   id: number;
@@ -15,10 +18,19 @@ type ClaimInvoice = {
   id: number;
   invoiceNumber: string | null;
   createdAt: string;
-  totalAmount: number;
-  insuranceShare: number;
-  patientShare: number;
+  totalAmount: number | string;
+  insuranceShare: number | string;
+  patientShare: number | string;
+  insuranceProviderId: number | null;
   claimStatus: string | null;
+  coveragePolicyId?: number | null;
+  prepaidPrescription?: { id: number } | null;
+  claims?: { status: string; batchId: number | null; paidAmount: number | string | null; _count?: { receipts: number } }[];
+  claimWithdrawal?: { payerReference: string; reason: string; createdAt: string } | null;
+  settlementOutstanding?: string | null;
+  settlementEffectiveShare?: string;
+  settlementEffectivePatientShare?: string;
+  insuranceSettlementAllocations?: { amount: string; settlement: { id: number; bankReference: string } }[];
   rejectionReason?: string | null;
   patient: {
     fullName: string;
@@ -30,8 +42,45 @@ type ClaimInvoice = {
   };
 };
 
-function formatMoney(v: number) {
-  return v.toFixed(3);
+function formatMoney(v: Parameters<typeof Money.toFixed>[0]) {
+  return Money.toFixed(v);
+}
+
+function effectiveClaimShare(invoice: ClaimInvoice) {
+  return invoice.settlementEffectiveShare ?? invoice.insuranceShare;
+}
+
+function effectivePatientShare(invoice: ClaimInvoice) {
+  return invoice.settlementEffectivePatientShare ?? invoice.patientShare;
+}
+
+function collectibleClaimAmount(invoice: ClaimInvoice) {
+  return invoice.settlementOutstanding ?? effectiveClaimShare(invoice);
+}
+
+function hasRcmPrescriptionClaim(invoice: ClaimInvoice) {
+  return !!invoice.prepaidPrescription && !!invoice.claims?.length;
+}
+
+function canWithdrawClaim(invoice: ClaimInvoice) {
+  if (invoice.claimWithdrawal ||
+      ["PAID", "PARTIALLY_PAID", "WITHDRAWN"].includes(invoice.claimStatus ?? "")) return false;
+  const claims = invoice.claims ?? [];
+  if (invoice.insuranceSettlementAllocations?.length) {
+    return !claims.length && invoice.claimStatus === "SUBMITTED" && invoice.settlementOutstanding != null &&
+      Money.decimal(invoice.settlementOutstanding).eq(effectiveClaimShare(invoice));
+  }
+  if (!invoice.prepaidPrescription || !invoice.coveragePolicyId) return false;
+  if (!claims.length) return ["SUBMITTED", "REJECTED"].includes(invoice.claimStatus ?? "");
+  const [claim] = claims;
+  return claims.length === 1 && claim.batchId == null && !Money.decimal(claim.paidAmount).gt(0) &&
+    ["SUBMITTED", "ACCEPTED", "REJECTED", "APPEAL_ACCEPTED"].includes(claim.status);
+}
+
+function canSettleClaim(invoice: ClaimInvoice) {
+  return !invoice.claimWithdrawal && !!invoice.insuranceProviderId && !invoice.claims?.length &&
+    ["SUBMITTED", "PARTIALLY_PAID"].includes(invoice.claimStatus ?? "") &&
+    Money.decimal(collectibleClaimAmount(invoice)).gt(0);
 }
 
 export default function InsuranceClaimsPage() {
@@ -51,6 +100,30 @@ export default function InsuranceClaimsPage() {
   // Rejection Modal State
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
+  const [withdrawalInvoice, setWithdrawalInvoice] = useState<number | null>(null);
+  const [refundInvoice, setRefundInvoice] = useState<number | null>(null);
+  const [payerReference, setPayerReference] = useState("");
+  const [withdrawalReason, setWithdrawalReason] = useState("");
+  const [payerConfirmed, setPayerConfirmed] = useState(false);
+  const [withdrawing, setWithdrawing] = useState(false);
+  const [settlement, setSettlement] = useState<{
+    invoices: { id: number; due: string }[];
+    providerId: number;
+    providerName: string;
+    expected: string;
+  } | null>(null);
+  const [allocateSettlement, setAllocateSettlement] = useState(false);
+  const [settlementAmounts, setSettlementAmounts] = useState<Record<number, string>>({});
+  const [bankReference, setBankReference] = useState("");
+  const [receivedAmount, setReceivedAmount] = useState("");
+  const [bankConfirmed, setBankConfirmed] = useState(false);
+  const [settling, setSettling] = useState(false);
+  const settlementDialog = useRef<HTMLDialogElement>(null);
+  const [settlementRefund, setSettlementRefund] = useState<number | null>(null);
+  const settlementFilter = ["SUBMITTED", "PARTIALLY_PAID"].includes(statusFilter);
+  const selectable = claims.filter((claim) => settlementFilter ? canSettleClaim(claim) :
+    !claim.claimWithdrawal && !claim.insuranceSettlementAllocations?.length && !hasRcmPrescriptionClaim(claim));
+  const selectedHasSettlement = claims.some((claim) => selectedIds.includes(claim.id) && !!claim.insuranceSettlementAllocations?.length);
 
   // NPHIES State
   const [nphiesLoading, setNphiesLoading] = useState(false);
@@ -94,17 +167,103 @@ export default function InsuranceClaimsPage() {
   };
 
   const toggleSelectAll = () => {
-    if (selectedIds.length === claims.length) {
+    if (selectedIds.length === selectable.length) {
       setSelectedIds([]);
     } else {
-      setSelectedIds(claims.map((c) => c.id));
+      setSelectedIds(selectable.map((c) => c.id));
+    }
+  };
+
+  const openWithdrawal = (invoiceId: number) => {
+    setWithdrawalInvoice(invoiceId);
+    setPayerReference("");
+    setWithdrawalReason("");
+    setPayerConfirmed(false);
+  };
+
+  const saveWithdrawal = async () => {
+    if (withdrawalInvoice == null || withdrawing || !payerConfirmed ||
+        payerReference.trim().length < 5 || withdrawalReason.trim().length < 5) return;
+    setWithdrawing(true);
+    try {
+      await apiClient.post(`/insurance/claims/${withdrawalInvoice}/withdrawal`, {
+        payerReference: payerReference.trim(),
+        reason: withdrawalReason.trim(),
+        confirmed: payerConfirmed,
+      });
+      setWithdrawalInvoice(null);
+      toast.success(t("insuranceClaims.withdrawal.saved", "تم توثيق سحب المطالبة."));
+      await loadClaims();
+    } catch (error) {
+      const message = (error as { response?: { data?: { message?: unknown } } }).response?.data?.message;
+      toast.error(typeof message === "string" ? message : t("preAuth.toast.updateFailed", "فشل التحديث."));
+    } finally {
+      setWithdrawing(false);
+    }
+  };
+
+  const openSettlement = () => {
+    const invoices = claims.filter((invoice) => selectedIds.includes(invoice.id));
+    const first = invoices[0];
+    if (!first?.insuranceProviderId || invoices.length > 100 || invoices.some((invoice) =>
+      invoice.insuranceProviderId !== first.insuranceProviderId || !canSettleClaim(invoice))) {
+      toast.error(t("insuranceClaims.settlement.eligible"));
+      return;
+    }
+    setBankReference("");
+    setReceivedAmount("");
+    setBankConfirmed(false);
+    setAllocateSettlement(false);
+    setSettlementAmounts({});
+    setSettlement({
+      invoices: invoices.map((invoice) => ({ id: invoice.id, due: formatMoney(collectibleClaimAmount(invoice)) })),
+      providerId: first.insuranceProviderId,
+      providerName: first.insuranceProvider.name,
+      expected: formatMoney(Money.sumDecimal(...invoices.map(collectibleClaimAmount))),
+    });
+  };
+
+  const allocatedInvoices = settlement?.invoices.map((invoice) => ({
+    ...invoice, amount: settlementAmounts[invoice.id] ?? "",
+  })) ?? [];
+  const validAllocations = allocatedInvoices.length > 0 && allocatedInvoices.every(({ amount, due }) =>
+    /^(0|[1-9]\d{0,14})(\.\d{1,3})?$/.test(amount) && Money.decimal(amount).gt(0) && Money.decimal(amount).lte(due));
+  const allocatedTotal = validAllocations ? Money.sumDecimal(...allocatedInvoices.map(({ amount }) => amount)) : null;
+  const matchesExpectedAmount = settlement && /^(0|[1-9]\d{0,14})(\.\d{1,3})?$/.test(receivedAmount) &&
+    (allocateSettlement ? allocatedTotal?.eq(receivedAmount) : Money.decimal(receivedAmount).eq(settlement.expected));
+  const validSettlement = matchesExpectedAmount && bankConfirmed && bankReference.trim().length >= 5;
+
+  useEffect(() => {
+    if (settlement) settlementDialog.current?.showModal();
+  }, [settlement]);
+
+  const saveSettlement = async () => {
+    if (!settlement || !validSettlement || settling) return;
+    setSettling(true);
+    try {
+      await apiClient.post("/insurance/claims/settlements", {
+        providerId: settlement.providerId,
+        invoiceIds: settlement.invoices.map(({ id }) => id),
+        amount: receivedAmount,
+        bankReference: bankReference.trim(),
+        confirmed: bankConfirmed,
+        ...(allocateSettlement && { allocations: allocatedInvoices.map(({ id, amount }) => ({ invoiceId: id, amount })) }),
+      });
+      setSettlement(null);
+      toast.success(t("insuranceClaims.settlement.saved"));
+      await loadClaims();
+    } catch (error) {
+      const message = (error as { response?: { data?: { message?: unknown } } }).response?.data?.message;
+      toast.error(typeof message === "string" ? message : t("preAuth.toast.updateFailed"));
+    } finally {
+      setSettling(false);
     }
   };
 
   // Actions
-  const handleUpdateStatus = async (newStatus: string) => {
+  const handleUpdateStatus = async (newStatus: "SUBMITTED" | "PENDING") => {
     if (selectedIds.length === 0) return;
-    const actionName = newStatus === "SUBMITTED" ? t("insuranceClaims.action.submitBtn", "إرسال المطالبة") : t("insuranceClaims.action.payBtn", "تسجيل السداد");
+    const actionName = newStatus === "SUBMITTED" ? t("insuranceClaims.action.submitBtn", "إرسال المطالبة") : t("insuranceClaims.action.resubmitBtn", "إعادة تقديم المطالبة");
     if (!confirm(t("insuranceClaims.confirmBatchAction", { action: actionName, count: selectedIds.length, defaultValue: `هل أنت متأكد من ${actionName} لعدد ${selectedIds.length} فاتورة؟` }))) return;
 
     try {
@@ -189,7 +348,7 @@ export default function InsuranceClaimsPage() {
     }
 
     const providerName = itemsToPrint[0]?.insuranceProvider?.name || t("insuranceClaims.filter.provider", "شركة التأمين");
-    const totalClaim = itemsToPrint.reduce((sum, c) => sum + Number(c.insuranceShare), 0);
+    const totalClaim = Money.sumPosted(...itemsToPrint.map(effectiveClaimShare));
 
     const printWindow = window.open("", "_blank");
     if (!printWindow) {
@@ -244,9 +403,9 @@ export default function InsuranceClaimsPage() {
                   <td>${formatDate(item.createdAt)}</td>
                   <td>${item.patient.fullName}</td>
                   <td>${item.patient.insuranceMemberId || "-"}</td>
-                  <td>${formatMoney(Number(item.totalAmount))}</td>
-                  <td>${formatMoney(Number(item.patientShare))}</td>
-                  <td style="font-weight: bold">${formatMoney(Number(item.insuranceShare))}</td>
+                  <td>${formatMoney(Money.sumDecimal(item.totalAmount, effectiveClaimShare(item), effectivePatientShare(item)).minus(item.insuranceShare).minus(item.patientShare))}</td>
+                  <td>${formatMoney(effectivePatientShare(item))}</td>
+                  <td style="font-weight: bold">${formatMoney(effectiveClaimShare(item))}</td>
                 </tr>
               `).join("")}
             </tbody>
@@ -276,14 +435,13 @@ export default function InsuranceClaimsPage() {
   };
 
   const totalClaimAmount = useMemo(() => {
-    return claims.reduce((sum, c) => sum + Number(c.insuranceShare), 0);
+    return Money.sumPosted(...claims.map(effectiveClaimShare));
   }, [claims]);
 
   const selectedTotal = useMemo(() => {
-    return claims
-      .filter((c) => selectedIds.includes(c.id))
-      .reduce((sum, c) => sum + Number(c.insuranceShare), 0);
-  }, [claims, selectedIds]);
+    return Money.sumDecimal(...claims.filter((c) => selectedIds.includes(c.id)).map((c) =>
+      settlementFilter ? collectibleClaimAmount(c) : effectiveClaimShare(c)));
+  }, [claims, selectedIds, settlementFilter]);
 
   return (
     <div className="flex flex-col h-full text-slate-100 p-4 md:p-6 space-y-6 overflow-hidden" dir={isRtl ? "rtl" : "ltr"} data-testid="insurance-claims-page">
@@ -337,6 +495,8 @@ export default function InsuranceClaimsPage() {
             <option value="SUBMITTED">📤 {t("insuranceClaims.status.submittedOption", "تم الإرسال (Submitted)")}</option>
             <option value="PAID">💰 {t("insuranceClaims.status.paidOption", "تم السداد (Paid)")}</option>
             <option value="REJECTED">❌ {t("insuranceClaims.status.rejectedOption", "مرفوضة (Rejected)")}</option>
+            <option value="WITHDRAWN">{t("insuranceClaims.withdrawal.status", "مسحوبة")}</option>
+            <option value="PARTIALLY_PAID">{t("insuranceClaims.refund.partial")}</option>
           </select>
         </div>
 
@@ -383,20 +543,20 @@ export default function InsuranceClaimsPage() {
                 </button>
               </FeatureGuard>
             )}
-            {statusFilter === "SUBMITTED" && (
+            {settlementFilter && (
               <>
                 <button
-                  onClick={() => handleUpdateStatus("PAID")}
+                  onClick={openSettlement}
                   className="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white text-sm rounded-xl font-bold shadow-lg transition-colors flex items-center gap-2"
                 >
-                  <CheckCircle2 className="w-4 h-4" /> {t("insuranceClaims.action.payBtn", "تسجيل كسداد")}
+                  <CheckCircle2 className="w-4 h-4" /> {t("insuranceClaims.settlement.title")}
                 </button>
-                <button
+                {statusFilter === "SUBMITTED" && !selectedHasSettlement && <button
                   onClick={() => setShowRejectModal(true)}
                   className="px-4 py-2 bg-rose-900/50 hover:bg-rose-900/80 border border-rose-500/30 text-rose-300 hover:text-white text-sm rounded-xl font-bold transition-colors flex items-center gap-2"
                 >
                   <XCircle className="w-4 h-4" /> {t("insuranceClaims.action.rejectBtn", "رفض المطالبات")}
-                </button>
+                </button>}
               </>
             )}
 
@@ -428,9 +588,11 @@ export default function InsuranceClaimsPage() {
                 <th className="w-12 px-4 py-4 text-center">
                   <input
                     type="checkbox"
+                    aria-label={t("insuranceClaims.settlement.selectAll")}
                     className="rounded border-slate-700 bg-slate-950 text-sky-500 focus:ring-sky-500/20"
                     onChange={toggleSelectAll}
-                    checked={selectedIds.length > 0 && selectedIds.length === claims.length}
+                    disabled={!selectable.length}
+                    checked={selectedIds.length > 0 && selectedIds.length === selectable.length}
                   />
                 </th>
                 <th className="px-4 py-4 font-bold">{t("insuranceClaims.table.invoiceNumber", "رقم الفاتورة")}</th>
@@ -475,8 +637,10 @@ export default function InsuranceClaimsPage() {
                   <td className="px-4 py-3 text-center">
                     <input
                       type="checkbox"
+                      aria-label={t("insuranceClaims.settlement.selectInvoice", { id: c.id })}
                       className="rounded border-slate-700 bg-slate-950 text-sky-500 focus:ring-sky-500/20"
                       checked={selectedIds.includes(c.id)}
+                      disabled={!selectable.includes(c)}
                       onChange={() => toggleSelect(c.id)}
                     />
                   </td>
@@ -490,10 +654,10 @@ export default function InsuranceClaimsPage() {
                   </td>
                   <td className="px-4 py-3">{c.insuranceProvider?.name}</td>
                   <td className="px-4 py-3 font-black text-sky-400 text-base tracking-tight">
-                    {formatMoney(Number(c.insuranceShare))}
+                    {formatMoney(effectiveClaimShare(c))}
                   </td>
                   <td className="px-4 py-3 font-medium text-slate-500">
-                    {formatMoney(Number(c.patientShare))}
+                    {formatMoney(effectivePatientShare(c))}
                   </td>
                   <td className="px-4 py-3">
                     <span
@@ -507,14 +671,38 @@ export default function InsuranceClaimsPage() {
                               : "bg-slate-800 text-slate-400 border-slate-700"
                       }`}
                     >
-                      {c.claimStatus === "SUBMITTED" ? t("preAuth.status.submitted", "تم الإرسال") :
+                      {c.claimStatus === "WITHDRAWN" ? t("insuranceClaims.withdrawal.status", "مسحوبة") :
+                       c.claimStatus === "SUBMITTED" ? t("preAuth.status.submitted", "تم الإرسال") :
                        c.claimStatus === "PAID" ? t("preAuth.status.paid", "تم السداد") :
+                       c.claimStatus === "PARTIALLY_PAID" ? t("insuranceClaims.refund.partial") :
                        c.claimStatus === "REJECTED" ? t("preAuth.status.rejected", "مرفوضة") : t("preAuth.status.pending", "معلقة")}
                     </span>
                     {c.claimStatus === "REJECTED" && c.rejectionReason && (
                       <div className="text-[10px] text-rose-400/80 mt-1 max-w-[150px] truncate" title={c.rejectionReason}>
                         {t("insuranceClaims.rejectionReasonLabel", "السبب:")} {c.rejectionReason}
                       </div>
+                    )}
+                    {c.claimWithdrawal && (
+                      <p className="mt-1 text-xs text-slate-400">{c.claimWithdrawal.payerReference} · {c.claimWithdrawal.reason}</p>
+                    )}
+                    {c.settlementOutstanding != null && c.claimStatus !== "WITHDRAWN" && (
+                      <p className="mt-1 text-xs text-slate-400">{t("insuranceClaims.settlement.outstanding")} <bdi>{formatMoney(c.settlementOutstanding)}</bdi></p>
+                    )}
+                    {c.insuranceSettlementAllocations?.map(({ settlement }) => (
+                      <button key={settlement.id} type="button" className="mt-1 block text-xs text-sky-300 underline"
+                        onClick={() => setSettlementRefund(settlement.id)}>
+                        {t("insuranceClaims.settlementRefund.title")} <bdi>{settlement.bankReference}</bdi>
+                      </button>
+                    ))}
+                    {canWithdrawClaim(c) && (
+                      <button className="mt-1 block text-xs text-sky-300 underline" onClick={() => openWithdrawal(c.id)}>
+                        {t("insuranceClaims.withdrawal.open", "توثيق سحب المطالبة")}
+                      </button>
+                    )}
+                    {c.claims?.length === 1 && c.claims[0].batchId == null && !!c.claims[0]._count?.receipts && (
+                      <button className="mt-1 block text-xs text-sky-300 underline" onClick={() => setRefundInvoice(c.id)}>
+                        {t("insuranceClaims.refund.title")}
+                      </button>
                     )}
                   </td>
                 </tr>
@@ -523,6 +711,96 @@ export default function InsuranceClaimsPage() {
           </table>
         </div>
       </div>
+
+      {settlement && (
+        <dialog ref={settlementDialog} dir={i18n.dir()} aria-labelledby="insurance-settlement-title"
+          className="m-auto max-h-[85vh] w-[min(92vw,28rem)] overflow-y-auto rounded-2xl border border-slate-700 bg-slate-900 p-6 text-slate-100 backdrop:bg-slate-950/80"
+          onCancel={(event) => { event.preventDefault(); if (!settling) setSettlement(null); }}>
+          <form className="space-y-4"
+            onSubmit={(event) => { event.preventDefault(); void saveSettlement(); }}>
+            <h2 id="insurance-settlement-title" className="text-lg font-bold">{t("insuranceClaims.settlement.title")}</h2>
+            <p>{settlement.providerName}</p>
+            <p>{t("insuranceClaims.settlement.expected", { count: settlement.invoices.length })} <bdi>{settlement.expected}</bdi></p>
+            <fieldset disabled={settling} className="space-y-3">
+              <label className="flex gap-2 text-sm">
+                <input type="checkbox" checked={allocateSettlement} onChange={(event) => setAllocateSettlement(event.target.checked)} />
+                {t("insuranceClaims.settlement.allocate")}
+              </label>
+              {allocateSettlement && (
+                <div className="space-y-2">
+                  {allocatedInvoices.map(({ id, due, amount }) => (
+                    <label key={id} className="block text-sm">
+                      {t("insuranceClaims.settlement.allocateInvoice", { id })} <bdi>{due}</bdi>
+                      <input dir="ltr" inputMode="decimal" required maxLength={19} value={amount}
+                        onChange={(event) => setSettlementAmounts((previous) => ({ ...previous, [id]: event.target.value }))}
+                        className="mt-1 block w-full rounded border border-slate-700 bg-slate-950 p-2" />
+                    </label>
+                  ))}
+                  {allocatedTotal && (
+                    <p className="text-sm">{t("insuranceClaims.settlement.remaining")} <bdi>{formatMoney(Money.decimal(settlement.expected).minus(allocatedTotal))}</bdi></p>
+                  )}
+                </div>
+              )}
+              <label className="block text-sm">{t("insuranceClaims.settlement.amount")}
+                <input dir="ltr" inputMode="decimal" required maxLength={19} value={receivedAmount} onChange={(event) => setReceivedAmount(event.target.value)} aria-describedby={receivedAmount && !matchesExpectedAmount ? "insurance-settlement-amount-error" : undefined} className="mt-1 block w-full rounded border border-slate-700 bg-slate-950 p-2" />
+              </label>
+              {receivedAmount && !matchesExpectedAmount && (
+                <p id="insurance-settlement-amount-error" className="text-sm text-amber-300">
+                  {t(allocateSettlement ? "insuranceClaims.settlement.allocationMismatch" : "insuranceClaims.settlement.amountMismatch")}
+                </p>
+              )}
+              <label className="block text-sm">{t("insuranceClaims.settlement.reference")}
+                <input dir="ltr" required minLength={5} maxLength={200} value={bankReference} onChange={(event) => setBankReference(event.target.value)} className="mt-1 block w-full rounded border border-slate-700 bg-slate-950 p-2" />
+              </label>
+              <label className="flex gap-2 text-sm">
+                <input type="checkbox" checked={bankConfirmed} onChange={(event) => setBankConfirmed(event.target.checked)} />
+                {t("insuranceClaims.settlement.confirmed")}
+              </label>
+              <div className="flex justify-end gap-3">
+                <button type="button" onClick={() => setSettlement(null)}>{t("common.cancel", "إلغاء")}</button>
+                <button className="rounded bg-sky-700 p-2 disabled:opacity-50" disabled={!validSettlement}>
+                  {t("insuranceClaims.settlement.post")}
+                </button>
+              </div>
+            </fieldset>
+          </form>
+        </dialog>
+      )}
+      {refundInvoice != null && (
+        <ClaimReceiptRefundDialog invoiceId={refundInvoice} onClose={() => setRefundInvoice(null)} onChange={loadClaims} />
+      )}
+      {settlementRefund != null && (
+        <InsuranceSettlementRefundDialog settlementId={settlementRefund} onClose={() => setSettlementRefund(null)} onChange={loadClaims} />
+      )}
+      {withdrawalInvoice != null && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/80 p-4">
+          <form role="dialog" aria-modal="true" aria-labelledby="claim-withdrawal-title"
+            className="w-full max-w-md space-y-4 rounded-2xl border border-slate-700 bg-slate-900 p-6"
+            onSubmit={(event) => { event.preventDefault(); void saveWithdrawal(); }}>
+            <h2 id="claim-withdrawal-title" className="text-lg font-bold">
+              {t("insuranceClaims.withdrawal.open", "توثيق سحب المطالبة")} <bdi>#{withdrawalInvoice}</bdi>
+            </h2>
+            <label className="block text-sm">
+              {t("insuranceClaims.withdrawal.reference", "مرجع تأكيد شركة التأمين")}
+              <input required minLength={5} maxLength={200} value={payerReference} onChange={(event) => setPayerReference(event.target.value)} className="mt-1 block w-full rounded border border-slate-700 bg-slate-950 p-2" />
+            </label>
+            <label className="block text-sm">
+              {t("insuranceClaims.withdrawal.reason", "سبب السحب")}
+              <textarea required minLength={5} maxLength={1000} value={withdrawalReason} onChange={(event) => setWithdrawalReason(event.target.value)} className="mt-1 block w-full rounded border border-slate-700 bg-slate-950 p-2" />
+            </label>
+            <label className="flex gap-2 text-sm">
+              <input type="checkbox" checked={payerConfirmed} onChange={(event) => setPayerConfirmed(event.target.checked)} />
+              {t("insuranceClaims.withdrawal.confirmed", "استلمت تأكيد السحب من شركة التأمين.")}
+            </label>
+            <div className="flex justify-end gap-3">
+              <button type="button" onClick={() => setWithdrawalInvoice(null)} disabled={withdrawing}>{t("common.cancel", "إلغاء")}</button>
+              <button className="rounded bg-sky-700 p-2 disabled:opacity-50" disabled={withdrawing || !payerConfirmed || payerReference.trim().length < 5 || withdrawalReason.trim().length < 5}>
+                {t("insuranceClaims.withdrawal.save", "حفظ التأكيد")}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {/* Reject Modal */}
       {showRejectModal && (

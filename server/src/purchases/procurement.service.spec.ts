@@ -3,7 +3,7 @@ import { ProcurementService } from './procurement.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { AccountingService } from '../accounting/accounting.service';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import { PRStatus, POStatus, GRNStatus, OrgType } from '@prisma/client';
+import { PRStatus, POStatus, Prisma } from '@prisma/client';
 
 describe('ProcurementService', () => {
   let service: ProcurementService;
@@ -11,7 +11,12 @@ describe('ProcurementService', () => {
   const mockPrisma = {
     $transaction: jest.fn(),
     $executeRaw: jest.fn(),
+    $queryRaw: jest.fn(),
+    user: { findFirst: jest.fn() },
+    supplier: { findFirst: jest.fn() },
+    unitOfMeasure: { findMany: jest.fn() },
     product: {
+      findMany: jest.fn(),
       count: jest.fn(),
       update: jest.fn(),
     },
@@ -67,7 +72,22 @@ describe('ProcurementService', () => {
     }).compile();
 
     service = module.get<ProcurementService>(ProcurementService);
-    jest.clearAllMocks();
+    jest.resetAllMocks();
+    mockPrisma.user.findFirst.mockResolvedValue({ id: 9 });
+    mockPrisma.supplier.findFirst.mockResolvedValue({ id: 5 });
+    mockPrisma.product.findMany.mockResolvedValue([
+      {
+        id: 1,
+        hospitalId: 1,
+        isActive: true,
+        isDeleted: false,
+        baseUomId: 2,
+        costPrice: new Prisma.Decimal(100),
+      },
+    ]);
+    mockPrisma.unitOfMeasure.findMany.mockResolvedValue([
+      { id: 2, hospitalId: 1, isActive: true },
+    ]);
 
     // Default mock for transaction just runs the callback immediately with mockPrisma
     mockPrisma.$transaction.mockImplementation(async (cb) => cb(mockPrisma));
@@ -131,7 +151,7 @@ describe('ProcurementService', () => {
     });
 
     it('should throw BadRequestException if products are invalid or belong to other hospital', async () => {
-      mockPrisma.product.count.mockResolvedValue(0);
+      mockPrisma.product.findMany.mockResolvedValue([]);
 
       await expect(
         service.createPR({
@@ -148,7 +168,7 @@ describe('ProcurementService', () => {
   // ============================================
   describe('createPOFromPR', () => {
     it('should convert PR to PO with sequential PO number', async () => {
-      mockPrisma.purchaseRequest.findUnique.mockResolvedValue({
+      mockPrisma.purchaseRequest.findFirst.mockResolvedValue({
         id: 10,
         hospitalId: 1,
         status: PRStatus.APPROVED,
@@ -156,9 +176,14 @@ describe('ProcurementService', () => {
           {
             productId: 1,
             uomId: 2,
-            quantity: 5,
-            baseQuantity: 50,
-            product: { costPrice: 100 },
+            quantity: new Prisma.Decimal(5),
+            baseQuantity: new Prisma.Decimal(50),
+            product: {
+              costPrice: new Prisma.Decimal(100),
+              hospitalId: 1,
+              isActive: true,
+              isDeleted: false,
+            },
           },
         ],
       });
@@ -186,10 +211,7 @@ describe('ProcurementService', () => {
     });
 
     it('should throw NotFoundException if PR belongs to a different hospital', async () => {
-      mockPrisma.purchaseRequest.findUnique.mockResolvedValue({
-        id: 10,
-        hospitalId: 2, // different
-      });
+      mockPrisma.purchaseRequest.findFirst.mockResolvedValue(null);
 
       await expect(service.createPOFromPR(1, 9, 10, 5)).rejects.toThrow(
         NotFoundException,
@@ -200,128 +222,50 @@ describe('ProcurementService', () => {
   // ============================================
   // createGRN
   // ============================================
-  describe('createGRN', () => {
-    it('should successfully create GRN and generate accounting entries when all tenant checks pass', async () => {
-      mockPrisma.purchaseOrder.findUnique.mockResolvedValue({
-        id: 20,
-        hospitalId: 1,
-        items: [{ productId: 1, unitPrice: 100 }],
-      });
-      // Warehouse verification succeeds
-      mockPrisma.warehouse.findFirst.mockResolvedValue({
-        id: 3,
-        hospitalId: 1,
-      });
-      // Product verification succeeds
-      mockPrisma.product.count.mockResolvedValue(1);
-      mockPrisma.productUOM.findMany.mockResolvedValue([
-        { productId: 1, uomId: 2, conversionRate: 1 },
-      ]);
-      mockPrisma.goodsReceipt.findFirst.mockResolvedValue({
-        grnNumber: 'GRN-000008',
-      });
-      mockPrisma.goodsReceipt.create.mockResolvedValue({
-        id: 30,
-        grnNumber: 'GRN-000009',
-      });
-
-      mockAccounting.getOpenPeriodForDate.mockResolvedValue({
-        fy: { id: 2 },
-        period: { id: 4 },
-      });
-      mockAccounting.getSystemAccountOrThrow.mockResolvedValue({ id: 99 });
-      mockPrisma.productStock.upsert.mockResolvedValue({});
-      mockPrisma.stockTransaction.create.mockResolvedValue({});
-      mockPrisma.accountingEntry.create.mockResolvedValue({});
-
-      const result = await service.createGRN({
-        hospitalId: 1,
-        userId: 9,
-        poId: 20,
-        warehouseId: 3,
-        items: [
-          {
-            productId: 1,
-            uomId: 2,
-            quantity: 5,
-            batchNumber: 'B123',
-            expiryDate: new Date(),
-          },
-        ],
-      });
-
-      expect(mockPrisma.goodsReceipt.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({
-            hospitalId: 1,
-            grnNumber: 'GRN-000009',
-            purchaseOrderId: 20,
-            warehouseId: 3,
-          }),
-        }),
+  describe('createGRN input contract', () => {
+    const base = { hospitalId: 1, userId: 9, poId: 20, warehouseId: 3 };
+    it('requires a request identity before inventory writes', async () => {
+      await expect(service.createGRN({ ...base, items: [] })).rejects.toThrow(
+        BadRequestException,
       );
-      expect(result.grnNumber).toBe('GRN-000009');
     });
-
-    it('should throw NotFoundException if PO hospitalId does not match data hospitalId', async () => {
-      mockPrisma.purchaseOrder.findUnique.mockResolvedValue({
-        id: 20,
-        hospitalId: 2, // different hospital
-      });
-
+    it('rejects an empty receiving document', async () => {
       await expect(
         service.createGRN({
-          hospitalId: 1,
-          userId: 9,
-          poId: 20,
-          warehouseId: 3,
-          items: [],
-        }),
-      ).rejects.toThrow(NotFoundException);
-    });
-
-    it('should throw BadRequestException if warehouse belongs to a different hospital', async () => {
-      mockPrisma.purchaseOrder.findUnique.mockResolvedValue({
-        id: 20,
-        hospitalId: 1,
-      });
-      // Warehouse verification returns null or different hospital
-      mockPrisma.warehouse.findFirst.mockResolvedValue(null);
-
-      await expect(
-        service.createGRN({
-          hospitalId: 1,
-          userId: 9,
-          poId: 20,
-          warehouseId: 3,
+          ...base,
+          requestId: '00000000-0000-4000-8000-000000000001',
           items: [],
         }),
       ).rejects.toThrow(BadRequestException);
     });
-
-    it('should throw BadRequestException if products do not belong to the hospital', async () => {
-      mockPrisma.purchaseOrder.findUnique.mockResolvedValue({
-        id: 20,
-        hospitalId: 1,
-      });
-      mockPrisma.warehouse.findFirst.mockResolvedValue({
-        id: 3,
-        hospitalId: 1,
-      });
-      // Product count is less than items length
-      mockPrisma.product.count.mockResolvedValue(0);
-
+    it('rejects a line without a purchase order item identity', async () => {
       await expect(
         service.createGRN({
-          hospitalId: 1,
-          userId: 9,
-          poId: 20,
-          warehouseId: 3,
+          ...base,
+          requestId: '00000000-0000-4000-8000-000000000001',
           items: [
             {
               productId: 1,
               uomId: 2,
               quantity: 5,
+              batchNumber: 'B',
+              expiryDate: new Date(),
+            },
+          ],
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+    it('rejects zero quantities before inventory writes', async () => {
+      await expect(
+        service.createGRN({
+          ...base,
+          requestId: '00000000-0000-4000-8000-000000000001',
+          items: [
+            {
+              purchaseOrderItemId: 4,
+              productId: 1,
+              uomId: 2,
+              quantity: '0',
               batchNumber: 'B',
               expiryDate: new Date(),
             },

@@ -1,3 +1,4 @@
+import type { Request } from 'express';
 import { PermissionsGuard } from '../auth/permissions.guard';
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException } from '@nestjs/common';
@@ -9,6 +10,7 @@ import { PrismaService } from '../prisma/prisma.service';
 describe('CashierController', () => {
   let controller: CashierController;
   let cashierService: any;
+  let recordPaymentMock: jest.Mock;
   let pdfService: any;
   let prisma: any;
 
@@ -16,9 +18,10 @@ describe('CashierController', () => {
   const admin = { sub: 1, id: 1, hospitalId: 1, roles: ['ADMIN'] };
 
   beforeEach(async () => {
+    recordPaymentMock = jest.fn();
     cashierService = {
       getWorklist: jest.fn(),
-      recordPayment: jest.fn(),
+      recordPayment: recordPaymentMock,
       getPatientStatement: jest.fn(),
       getInvoiceDetails: jest.fn(),
       getPaymentReceipt: jest.fn(),
@@ -72,7 +75,36 @@ describe('CashierController', () => {
       amount: 40,
       method: 'CASH',
       reference: 'R-1',
+      requestId: undefined,
       userId: 8,
+    });
+  });
+
+  it('forwards request IP and user-agent when request context is available', async () => {
+    recordPaymentMock.mockResolvedValue({ id: 11 });
+    const req = {
+      ip: '10.0.0.5',
+      get: jest.fn().mockReturnValue('Saraya-POS/1.0'),
+    } as unknown as Request;
+
+    const result: unknown = await controller.recordPayment(
+      5,
+      { amount: 40, method: 'CASH', reference: 'R-2' } as never,
+      user as never,
+      req,
+    );
+
+    expect(result).toEqual({ id: 11 });
+    expect(recordPaymentMock).toHaveBeenCalledWith({
+      hospitalId: 1,
+      invoiceId: 5,
+      amount: 40,
+      method: 'CASH',
+      reference: 'R-2',
+      requestId: undefined,
+      userId: 8,
+      ipAddress: '10.0.0.5',
+      clientName: 'Saraya-POS/1.0',
     });
   });
 

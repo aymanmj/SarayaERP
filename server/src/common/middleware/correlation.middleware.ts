@@ -23,6 +23,7 @@ import { Injectable, NestMiddleware } from '@nestjs/common';
 import type { Request, Response, NextFunction } from 'express';
 import { AsyncLocalStorage } from 'async_hooks';
 import { randomUUID } from 'crypto';
+import { requestLogPath } from '../utils/request-log-path';
 
 // AsyncLocalStorage instance — available globally
 const requestStore = new AsyncLocalStorage<Map<string, string>>();
@@ -58,7 +59,7 @@ export class CorrelationMiddleware implements NestMiddleware {
     const store = new Map<string, string>();
     store.set('requestId', requestId);
     store.set('method', req.method);
-    store.set('path', req.originalUrl || req.url);
+    store.set('path', requestLogPath(req.originalUrl || req.url));
     store.set('startTime', Date.now().toString());
 
     // Extract userId from JWT if present (for audit correlation)

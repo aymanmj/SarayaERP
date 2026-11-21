@@ -1,3 +1,4 @@
+import type { JwtPayload } from '../auth/jwt-payload.type';
 // src/attendance/attendance.controller.ts
 
 import {
@@ -23,22 +24,31 @@ export class AttendanceController {
   // تسجيل بصمة واحدة (Live API)
   @Post('punch')
   @Permissions('attendance:manage')
-  async logPunch(@Body() dto: CreatePunchDto) {
-    return this.attendanceService.processPunch(dto);
+  async logPunch(
+    @Req() req: { user: JwtPayload },
+    @Body() dto: CreatePunchDto,
+  ) {
+    return this.attendanceService.processPunch(dto, req.user?.hospitalId);
   }
 
   // استيراد بصمات متعددة (من ملف أو جهاز)
   @Post('bulk-import')
   @Permissions('attendance:manage')
-  async bulkImport(@Body() dto: BulkPunchDto) {
-    return this.attendanceService.processBulkPunches(dto.punches);
+  async bulkImport(
+    @Req() req: { user: JwtPayload },
+    @Body() dto: BulkPunchDto,
+  ) {
+    return this.attendanceService.processBulkPunches(
+      dto.punches,
+      req.user?.hospitalId,
+    );
   }
 
   // عرض السجلات
   @Get()
   @Permissions('attendance:manage')
   async list(
-    @Req() req: any,
+    @Req() req: { user: JwtPayload },
     @Query('from') from?: string,
     @Query('to') to?: string,
     @Query('userId') userId?: string,
@@ -57,8 +67,14 @@ export class AttendanceController {
 
   @Post('upload')
   @Permissions('attendance:manage')
-  async uploadAttendanceFile(@Body() body: { data: any[] }) {
+  async uploadAttendanceFile(
+    @Req() req: { user: JwtPayload },
+    @Body() body: { data: any[] },
+  ) {
     // body.data متوقع أن تكون مصفوفة: [{ employeeId: 101, timestamp: '2025-02-01 08:00:00' }, ...]
-    return this.attendanceService.processBulkPunches(body.data);
+    return this.attendanceService.processBulkPunches(
+      body.data,
+      req.user?.hospitalId,
+    );
   }
 }

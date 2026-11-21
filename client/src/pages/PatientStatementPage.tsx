@@ -57,6 +57,7 @@ type StatementResponse = {
   };
   invoices: InvoiceDto[];
   payments: PaymentDto[];
+  refunds?: { id: number; invoiceId: number; paymentId: number; amount: string | number; method: PaymentMethod; executedAt: string; executionReference: string }[];
 };
 
 type DispensedDrugLite = {
@@ -88,7 +89,7 @@ type DispenseSummary = {
 
 type StatementRow = {
   date: string;
-  kind: "INVOICE" | "PAYMENT";
+  kind: "INVOICE" | "PAYMENT" | "REFUND";
   ref: string;
   description: string;
   debit: number;
@@ -283,6 +284,10 @@ export default function PatientStatementPage() {
         debit: 0,
         credit: amount,
       });
+    }
+
+    for (const refund of data.refunds ?? []) {
+      tmp.push({ date: refund.executedAt, kind: "REFUND", ref: `استرداد #${refund.id}`, description: `صرف للمريض — فاتورة #${refund.invoiceId} / إيصال #${refund.paymentId} (${formatMethod(refund.method)}) — ${refund.executionReference}`, debit: Number(refund.amount), credit: 0 });
     }
 
     // ⏱️ ترتيب زمني (الفواتير قبل الدفعات إذا في نفس اللحظة)
@@ -578,7 +583,7 @@ export default function PatientStatementPage() {
                           </td>
                           <td>
                             <span className={`badge ${row.kind === "INVOICE" ? "badge-invoice" : "badge-payment"}`}>
-                              {row.kind === "INVOICE" ? "فاتورة" : "دفعة"}
+                              {row.kind === "INVOICE" ? "فاتورة" : row.kind === "REFUND" ? "استرداد" : "دفعة"}
                             </span>
                           </td>
                           <td className="num-val text-slate-500">

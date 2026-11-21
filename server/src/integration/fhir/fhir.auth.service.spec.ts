@@ -151,14 +151,14 @@ describe('FhirAuthService', () => {
         'client_credentials',
         'enterprise_fhir_client',
         undefined,
-        'patient/*.read',
+        'user/*.read',
       );
 
       expect(result).toBeDefined();
       expect(result.access_token).toBeDefined();
       expect(result.token_type).toBe('Bearer');
       expect(result.expires_in).toBe(3600);
-      expect(result.scope).toBe('patient/*.read');
+      expect(result.scope).toBe('user/*.read');
       expect(result.patient).toBeUndefined(); // No patient context without explicit parameter
     });
 
@@ -208,133 +208,48 @@ describe('FhirAuthService', () => {
   // ===========================================
   // AUTHORIZATION CODE FLOW
   // ===========================================
-  describe('Authorization Code Flow', () => {
-    it('should issue an auth code via authorize()', async () => {
-      const result = await service.authorize(
-        'enterprise_fhir_client',
-        'patient/*.read',
-        'http://localhost:3000/callback',
-        '1',
-      );
-
-      expect(result).toBeDefined();
-      expect(result.code).toBeDefined();
-      expect(result.code).toMatch(/^auth_/);
+  describe('Interactive launch containment', () => {
+    it('does not issue codes without a consent and PKCE workflow', async () => {
+      await expect(
+        service.authorize(
+          'enterprise_fhir_client',
+          'patient/*.read',
+          'http://localhost:3000/callback',
+        ),
+      ).rejects.toThrow(UnauthorizedException);
+      expect(mockRedisClient.set).not.toHaveBeenCalled();
     });
-
-    it('should exchange auth code for token', async () => {
-      mockPrisma.patient.findUnique.mockResolvedValue({ id: 1 });
-
-      // Step 1: Get auth code
-      const authResult = await service.authorize(
-        'enterprise_fhir_client',
-        'patient/*.read',
-        'http://localhost:3000/callback',
-        '1',
-      );
-
-      // Step 2: Exchange code for token
-      mockRedisClient.get.mockResolvedValue(
-        JSON.stringify({
-          clientId: 'enterprise_fhir_client',
-          scope: 'patient/*.read',
-          patient: '1',
-        }),
-      );
-
-      const tokenResult = await service.generateToken(
-        'authorization_code',
-        'enterprise_fhir_client',
-        undefined,
-        undefined,
-        authResult.code,
-      );
-
-      expect(tokenResult.access_token).toBeDefined();
-      expect(tokenResult.scope).toBe('patient/*.read');
-      expect(tokenResult.patient).toBe('1');
-    });
-
-    it('should reject reused auth code (one-time use)', async () => {
-      mockPrisma.patient.findUnique.mockResolvedValue({ id: 1 });
-
-      const authResult = await service.authorize(
-        'enterprise_fhir_client',
-        'patient/*.read',
-        'http://localhost:3000/callback',
-        '1',
-      );
-
-      // First exchange: success
-      mockRedisClient.get.mockResolvedValueOnce(
-        JSON.stringify({
-          clientId: 'enterprise_fhir_client',
-          scope: 'patient/*.read',
-          patient: '1',
-        }),
-      );
-      await service.generateToken(
-        'authorization_code',
-        'enterprise_fhir_client',
-        undefined,
-        undefined,
-        authResult.code,
-      );
-
-      // Second exchange: MUST fail
-      mockRedisClient.get.mockResolvedValueOnce(null);
+    it('rejects scope escalation', async () => {
       await expect(
         service.generateToken(
-          'authorization_code',
+          'client_credentials',
           'enterprise_fhir_client',
           undefined,
-          undefined,
-          authResult.code,
+          'system/*.*',
         ),
       ).rejects.toThrow(UnauthorizedException);
     });
-
-    it('should reject auth code issued to a different client', async () => {
-      const authResult = await service.authorize(
-        'enterprise_fhir_client',
-        'patient/*.read',
-        'http://localhost:3000/callback',
-      );
-
-      // Try to exchange with different client
-      mockRedisClient.get.mockResolvedValue(
-        JSON.stringify({
-          clientId: 'enterprise_fhir_client',
-          scope: 'patient/*.read',
-        }),
-      );
-      await expect(
-        service.generateToken(
-          'authorization_code',
-          'suspicious_client',
-          undefined,
-          undefined,
-          authResult.code,
-        ),
-      ).rejects.toThrow(UnauthorizedException);
-    });
-
-    it('should reject missing redirect_uri in authorize', async () => {
-      await expect(
-        service.authorize('enterprise_fhir_client', 'patient/*.read', ''),
-      ).rejects.toThrow(BadRequestException);
+    it('fails closed in production without a client secret', async () => {
+      const previous = process.env.NODE_ENV;
+      process.env.NODE_ENV = 'production';
+      try {
+        await expect(
+          service.generateToken('client_credentials', 'enterprise_fhir_client'),
+        ).rejects.toThrow(UnauthorizedException);
+      } finally {
+        process.env.NODE_ENV = previous;
+      }
     });
   });
 
-  // ===========================================
-  // CLIENT SECRET ENFORCEMENT (Production Mode)
-  // ===========================================
   describe('Client Secret Validation (Production Mode)', () => {
     beforeEach(() => {
       process.env.FHIR_CLIENT_SECRET = 'super-secret-123';
+      process.env.FHIR_ALLOWED_SCOPES = 'system/*.read';
     });
 
     afterEach(() => {
+      delete process.env.FHIR_ALLOWED_SCOPES;
       delete process.env.FHIR_CLIENT_SECRET;
     });
 

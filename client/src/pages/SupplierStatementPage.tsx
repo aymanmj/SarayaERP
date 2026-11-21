@@ -13,14 +13,14 @@ type SupplierLite = {
 
 type StatementRow = {
   date: string;
-  kind: "INVOICE" | "PAYMENT";
+  kind: "INVOICE" | "PAYMENT" | "RETURN";
   ref: string;
   description: string;
   debit: number;
   credit: number;
   balance: number;
 
-  sourceType?: "PURCHASE_INVOICE" | "SUPPLIER_PAYMENT";
+  sourceType?: "PURCHASE_INVOICE" | "SUPPLIER_PAYMENT" | "PURCHASE_RETURN";
   sourceId?: number;
   purchaseInvoiceId?: number | null;
   supplierPaymentId?: number | null;
@@ -35,6 +35,7 @@ type SupplierStatementResponse = {
   totalCredit: number;
   closingBalance: number;
   rows: StatementRow[];
+  unreconciledReturns?: { id:number; purchaseInvoiceId:number }[];
 };
 
 function formatMoney(v: number) {
@@ -79,7 +80,7 @@ function buildSupplierStatementCsv(data: SupplierStatementResponse, t: any): str
     const dateStr = new Date(r.date).toISOString().slice(0, 10);
     const kindLabel = r.kind === "INVOICE" 
       ? t("inventory.supplierStatement.kinds.invoice", "فاتورة شراء") 
-      : t("inventory.supplierStatement.kinds.payment", "دفعة مورد");
+      : r.kind === "RETURN" ? t("inventory.supplierStatement.kinds.return", "مرتجع مشتريات") : t("inventory.supplierStatement.kinds.payment", "دفعة مورد");
     const esc = (s: string | null | undefined) =>
       `"${(s ?? "").replace(/"/g, '""')}"`;
 
@@ -232,6 +233,7 @@ export default function SupplierStatementPage() {
 
   return (
     <div className="flex flex-col h-full text-slate-100" dir={isRtl ? "rtl" : "ltr"}>
+      {!!data?.unreconciledReturns?.length && <p role="alert" className="text-amber-300">{t("purchaseReturns.legacyWarning", "توجد مردودات تاريخية غير مطابقة؛لا تدخل قيمتها ضمن الرصيد المحسوب قبل مراجعة قيدها ومخزونها.")} {data.unreconciledReturns.map(r=>`#${r.id}`).join('، ')}</p>}
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold mb-1">
@@ -392,7 +394,7 @@ export default function SupplierStatementPage() {
                       <td className="px-2 py-1 align-top">
                         {r.kind === "INVOICE" 
                           ? t("inventory.supplierStatement.kinds.invoice", "فاتورة شراء") 
-                          : t("inventory.supplierStatement.kinds.payment", "دفعة مورد")}
+                          : r.kind === "RETURN" ? t("inventory.supplierStatement.kinds.return", "مرتجع مشتريات") : t("inventory.supplierStatement.kinds.payment", "دفعة مورد")}
                       </td>
                       <td className="px-2 py-1 align-top">{r.ref}</td>
                       <td className="px-2 py-1 align-top max-w-[260px]">

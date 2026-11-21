@@ -2,15 +2,19 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { AccountingService } from '../accounting/accounting.service'; // Assuming existing service
+import { AccountingService } from '../accounting/accounting.service';
 import {
   InventoryCountStatus,
   InventoryCountType,
-  StockTransactionType,
-  AccountingSourceModule,
+  Prisma,
 } from '@prisma/client';
+import { Money } from '../common/utils/money.util';
+import { appendChainedAuditInTransaction } from '../audit/audit-chain';
+import { publishCommittedCriticalAudit } from '../audit/siem.logger';
+import { assertOwnedQuantity } from './material-transfer';
 
 @Injectable()
 export class InventoryCountService {
@@ -18,8 +22,38 @@ export class InventoryCountService {
     private prisma: PrismaService,
     private accounting: AccountingService,
   ) {}
-
-  // 1. Create Count & Snapshot Stock
+  private async actor(
+    tx: Prisma.TransactionClient,
+    hospitalId: number,
+    userId: number,
+  ) {
+    if (
+      !(await tx.user.findFirst({
+        where: { id: userId, hospitalId, isActive: true, isDeleted: false },
+      }))
+    )
+      throw new NotFoundException('المستخدم غير متاح ضمن المنشأة');
+  }
+  private async lock(
+    tx: Prisma.TransactionClient,
+    hospitalId: number,
+    id?: number,
+  ) {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(27003, ${hospitalId}::integer)`;
+    if (id !== undefined)
+      await tx.$queryRaw`SELECT id FROM "InventoryCount" WHERE id=${id} AND "hospitalId"=${hospitalId} FOR UPDATE`;
+  }
+  private async warehouse(
+    tx: Prisma.TransactionClient,
+    hospitalId: number,
+    id: number,
+  ) {
+    const rows = await tx.$queryRaw<
+      { id: number }[]
+    >`SELECT id FROM "Warehouse" WHERE id=${id} AND "hospitalId"=${hospitalId} AND "isActive"=true FOR SHARE`;
+    if (rows.length !== 1)
+      throw new BadRequestException('المخزن غير نشط أو خارج المنشأة');
+  }
   async createDraftCount(params: {
     hospitalId: number;
     warehouseId: number;
@@ -28,29 +62,45 @@ export class InventoryCountService {
     notes?: string;
   }) {
     const { hospitalId, warehouseId, userId, type, notes } = params;
-
-    // 1. Get Current Stock Snapshot
-    // Note: We might want to filter by category or active items only in future
-    const stocks = await this.prisma.productStock.findMany({
-      where: { warehouseId, hospitalId },
-      include: { product: true },
-    });
-
-    return this.prisma.$transaction(async (tx) => {
-      // Create Header
-      const count = await tx.inventoryCount.create({
-        data: {
-          hospitalId,
-          warehouseId,
-          assignedToId: userId,
-          type,
-          status: InventoryCountStatus.DRAFT,
-          notes,
-        },
-      });
-
-      // Create Lines from Snapshot
-      if (stocks.length > 0) {
+    if (!['FULL', 'QUARTERLY', 'SPOT_CHECK'].includes(type))
+      throw new BadRequestException('نوع الجرد غير صالح');
+    let committedAudit: Record<string, unknown> | null = null;
+    const createdCount = await this.prisma.$transaction(
+      async (tx) => {
+        committedAudit = null;
+        await this.lock(tx, hospitalId);
+        await this.actor(tx, hospitalId, userId);
+        await this.warehouse(tx, hospitalId, warehouseId);
+        await tx.$queryRaw`SELECT p.id FROM "Product" p WHERE p."hospitalId"=${hospitalId} AND EXISTS (SELECT 1 FROM "ProductStock" s WHERE s."productId"=p.id AND s."warehouseId"=${warehouseId}) ORDER BY p.id FOR UPDATE`;
+        await tx.$queryRaw`SELECT id FROM "ProductStock" WHERE "warehouseId"=${warehouseId} AND "hospitalId"=${hospitalId} ORDER BY "productId",id FOR UPDATE`;
+        const stocks = await tx.productStock.findMany({
+          where: { hospitalId, warehouseId },
+          include: { product: true },
+          orderBy: { id: 'asc' },
+        });
+        if (!stocks.length)
+          throw new BadRequestException('لا توجد تشغيلات لأخذ لقطة جرد');
+        for (const stock of stocks)
+          if (
+            stock.product.hospitalId !== hospitalId ||
+            !stock.quantity.isFinite() ||
+            stock.quantity.lt(0) ||
+            !stock.product.costPrice.isFinite() ||
+            stock.product.costPrice.lt(0)
+          )
+            throw new BadRequestException(
+              'رصيد أو تكلفة أو ملكية صنف غير صالحة',
+            );
+        const count = await tx.inventoryCount.create({
+          data: {
+            hospitalId,
+            warehouseId,
+            assignedToId: userId,
+            type,
+            status: 'DRAFT',
+            notes,
+          },
+        });
         await tx.inventoryCountLine.createMany({
           data: stocks.map((stock) => ({
             inventoryCountId: count.id,
@@ -58,268 +108,458 @@ export class InventoryCountService {
             batchNumber: stock.batchNumber,
             expiryDate: stock.expiryDate,
             systemQty: stock.quantity,
-            physicalQty: stock.quantity, // Default to system qty to avoid typing everything
+            physicalQty: null,
             variance: 0,
             costPrice: stock.product.costPrice,
+            snapshotStockId: stock.id,
+            snapshotStockVersion: stock.version,
+            snapshotProductVersion: stock.product.version,
           })),
         });
-      }
-
-      return count;
-    });
+        const auditFields = {
+          hospitalId,
+          userId,
+          action: 'CREATE_INVENTORY_COUNT',
+          entity: 'InventoryCount',
+          entityId: count.id,
+          details: { warehouseId, lineCount: stocks.length },
+        };
+        await appendChainedAuditInTransaction(tx, auditFields);
+        committedAudit = auditFields;
+        return count;
+      },
+      { maxWait: 10000, timeout: 20000 },
+    );
+    if (committedAudit) publishCommittedCriticalAudit(committedAudit);
+    return createdCount;
   }
-
-  // 1.5 Get All Counts
   async findAll(hospitalId: number) {
     return this.prisma.inventoryCount.findMany({
       where: { hospitalId },
       include: {
-        warehouse: true,
-        assignedTo: true,
+        warehouse: { select: { id: true, name: true, isActive: true } },
+        assignedTo: { select: { id: true, fullName: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
   }
-
-  // 2. Get Count Details
-  async getCount(id: number, hospitalId?: number) {
-    const count = await this.prisma.inventoryCount.findUnique({
-      where: { id },
+  async getCount(id: number, hospitalId: number) {
+    const count = await this.prisma.inventoryCount.findFirst({
+      where: { id, hospitalId },
       include: {
-        lines: { include: { product: true } },
-        warehouse: true,
-        assignedTo: true,
-        accountingEntry: true,
+        lines: {
+          include: {
+            product: { select: { id: true, name: true, code: true } },
+          },
+          orderBy: { id: 'asc' },
+        },
+        warehouse: { select: { id: true, name: true, isActive: true } },
+        assignedTo: { select: { id: true, fullName: true } },
+        accountingEntry: { select: { id: true, postingKey: true } },
       },
     });
-
-    if (!count) {
-      throw new NotFoundException('Inventory count not found');
-    }
-
-    if (hospitalId && count.hospitalId !== hospitalId) {
-      throw new NotFoundException('Inventory count not found in this hospital');
-    }
-
+    if (!count) throw new NotFoundException('الجرد غير موجود ضمن المنشأة');
     return count;
   }
-
-  // 3. Update Line Quantities
-  async updateLine(lineId: number, physicalQty: number, hospitalId: number) {
-    const line = await this.prisma.inventoryCountLine.findUnique({
-      where: { id: lineId },
-      include: {
-        inventoryCount: {
-          select: { hospitalId: true },
+  async updateLine(
+    countId: number,
+    lineId: number,
+    physicalQty: string,
+    revision: number,
+    userId: number,
+    hospitalId: number,
+  ) {
+    if (
+      typeof physicalQty !== 'string' ||
+      !/^(0|[1-9]\d{0,14})(\.\d{1,3})?$/.test(physicalQty) ||
+      !Number.isInteger(revision) ||
+      revision < 0
+    )
+      throw new BadRequestException(
+        'العد الفعلي ودقة الكمية أو إصدار البند غير صالحين',
+      );
+    let committedAudit: Record<string, unknown> | null = null;
+    const updatedLine = await this.prisma.$transaction(async (tx) => {
+      committedAudit = null;
+      await this.lock(tx, hospitalId, countId);
+      await this.actor(tx, hospitalId, userId);
+      const count = await tx.inventoryCount.findFirst({
+        where: { id: countId, hospitalId },
+      });
+      if (!count) throw new NotFoundException('الجرد غير موجود');
+      if (!['DRAFT', 'IN_PROGRESS'].includes(count.status))
+        throw new ConflictException('الجرد غير قابل لتعديل العد');
+      const line = await tx.inventoryCountLine.findFirst({
+        where: { id: lineId, inventoryCountId: countId },
+      });
+      if (!line) throw new NotFoundException('البند لا يتبع هذا الجرد');
+      if (line.revision !== revision)
+        throw new ConflictException('تغير العد؛أعد تحميل البند قبل التعديل');
+      const physical = new Prisma.Decimal(physicalQty);
+      const result = await tx.inventoryCountLine.update({
+        where: { id: lineId },
+        data: {
+          physicalQty: physical,
+          variance: physical.minus(line.systemQty),
+          revision: { increment: 1 },
+          countedAt: new Date(),
+          countedById: userId,
         },
-      },
+      });
+      if (count.status === 'DRAFT')
+        await tx.inventoryCount.update({
+          where: { id: countId },
+          data: { status: 'IN_PROGRESS' },
+        });
+      const auditFields = {
+        hospitalId,
+        userId,
+        action: 'COUNT_INVENTORY_LINE',
+        entity: 'InventoryCountLine',
+        entityId: lineId,
+        details: {
+          countId,
+          physicalQty,
+          previousPhysicalQty: line.physicalQty?.toFixed(3) ?? null,
+          revision: result.revision,
+        },
+      };
+      await appendChainedAuditInTransaction(tx, auditFields);
+      committedAudit = auditFields;
+      return result;
     });
-    if (!line) throw new NotFoundException('Line not found');
-    if (line.inventoryCount.hospitalId !== hospitalId) {
-      throw new NotFoundException('Line not found');
-    }
-
-    const variance = Number(physicalQty) - Number(line.systemQty);
-
-    return this.prisma.inventoryCountLine.update({
-      where: { id: lineId },
-      data: {
-        physicalQty,
-        variance,
-      },
-    });
+    if (committedAudit) publishCommittedCriticalAudit(committedAudit);
+    return updatedLine;
   }
-
-  // 4. Update Status (e.g. DRAFT -> IN_PROGRESS -> REVIEW)
   async updateStatus(
     id: number,
     status: InventoryCountStatus,
     hospitalId: number,
+    userId: number,
   ) {
-    const count = await this.prisma.inventoryCount.findUnique({
-      where: { id },
-      select: { hospitalId: true },
-    });
-
-    if (!count || count.hospitalId !== hospitalId) {
-      throw new NotFoundException('Inventory count not found');
-    }
-
-    return this.prisma.inventoryCount.update({
-      where: { id },
-      data: { status },
-    });
-  }
-
-  // 5. Post Count (Finalize & Accounting)
-  async postCount(id: number, userId: number, hospitalId: number) {
-    const count = await this.prisma.inventoryCount.findUnique({
-      where: { id },
-      include: { lines: true, warehouse: true },
-    });
-
-    if (!count) throw new NotFoundException('Count not found');
-    if (count.hospitalId !== hospitalId) {
-      throw new NotFoundException('Count not found');
-    }
-    if (count.status === InventoryCountStatus.POSTED) {
-      throw new BadRequestException('Already posted');
-    }
-
-    // Filter lines with variance
-    const varianceLines = count.lines.filter((l) => Number(l.variance) !== 0);
-
-    return this.prisma.$transaction(async (tx) => {
-      // A. Update Product Stocks
-      for (const line of varianceLines) {
-        // Adjust Stock Transaction
-        await tx.stockTransaction.create({
-          data: {
-            hospital: { connect: { id: count.hospitalId } },
-            warehouse: { connect: { id: count.warehouseId } },
-            product: { connect: { id: line.productId } },
-            batchNumber: line.batchNumber,
-            quantity: line.variance, // + or -
-            type: StockTransactionType.ADJUST,
-            referenceType: 'INVENTORY_COUNT',
-            referenceId: count.id,
-            unitCost: line.costPrice,
-            totalCost: Number(line.variance) * Number(line.costPrice),
-            notes: `Inventory Count #${count.id} Adjustment`,
-            createdBy: { connect: { id: userId } },
-          },
-        });
-
-        // Update Stock Record
-        const stock = await tx.productStock.findUnique({
-          where: {
-            warehouseId_productId_batchNumber: {
-              warehouseId: count.warehouseId,
-              productId: line.productId,
-              batchNumber: line.batchNumber || '', // Handle null batch if needed
-            },
-          },
-        });
-
-        if (stock) {
-          await tx.productStock.update({
-            where: { id: stock.id },
-            data: {
-              quantity: { increment: line.variance },
-            },
-          });
-        } else {
-          // Handle case where stock record might strictly not exist but we are adding it?
-          // Usually snapshots only take existing stocks.
-          // If we support "Blind Count" adding new items, we'd need create logic here.
-          // For now assuming we only adjusted snapshot or matched existing items.
-        }
-      }
-
-      // B. Create Accounting Entry if there is variance value
-      // Value = Variance * CostPrice
-      let totalGain = 0;
-      let totalLoss = 0;
-
-      varianceLines.forEach((line) => {
-        const val = Number(line.variance) * Number(line.costPrice);
-        if (val > 0) totalGain += val;
-        else totalLoss += Math.abs(val); // Store as positive magnitude
+    let committedAudit: Record<string, unknown> | null = null;
+    const updatedCount = await this.prisma.$transaction(async (tx) => {
+      committedAudit = null;
+      await this.lock(tx, hospitalId, id);
+      await this.actor(tx, hospitalId, userId);
+      const count = await tx.inventoryCount.findFirst({
+        where: { id, hospitalId },
+        include: { lines: true },
       });
-
-      const netAdjustment = totalGain - totalLoss;
-
-      if (Math.abs(netAdjustment) > 0) {
-        // Call Accounting Service to record entry
-        // We probably need a specialized method or use generic createEntry
-        // For now, I will create Entry manually here or assume a helper exists
-        // Using "createInventoryAdjustmentEntry" which I will add to AccountingService next
-
-        // NOTE: Since I can't modify AccountingService in same step easily, I'll rely on it later.
-        // Or I can call a generic 'createEntry' if available.
-        // Let's assume we update AccountingService to handle this cleanly.
-        // Passing the responsibility to AccountingService.
+      if (!count) throw new NotFoundException('الجرد غير موجود');
+      const allowed: Partial<
+        Record<InventoryCountStatus, InventoryCountStatus[]>
+      > = {
+        DRAFT: ['CANCELLED'],
+        IN_PROGRESS: ['REVIEW', 'CANCELLED'],
+        REVIEW: ['IN_PROGRESS', 'CANCELLED'],
+      };
+      if (!allowed[count.status]?.includes(status))
+        throw new ConflictException('انتقال حالة الجرد غير مسموح');
+      if (
+        status === 'REVIEW' &&
+        (!count.lines.length ||
+          count.lines.some(
+            (l) => l.physicalQty === null || !l.countedById || !l.countedAt,
+          ))
+      )
+        throw new BadRequestException('يلزم عد كل بند صراحةً قبل المراجعة');
+      const result = await tx.inventoryCount.update({
+        where: { id },
+        data: { status },
+      });
+      const auditFields = {
+        hospitalId,
+        userId,
+        action: 'CHANGE_INVENTORY_COUNT_STATUS',
+        entity: 'InventoryCount',
+        entityId: id,
+        details: { previousStatus: count.status, status },
+      };
+      await appendChainedAuditInTransaction(tx, auditFields);
+      committedAudit = auditFields;
+      return result;
+    });
+    if (committedAudit) publishCommittedCriticalAudit(committedAudit);
+    return updatedCount;
+  }
+  async postCount(id: number, userId: number, hospitalId: number) {
+    let committedAudit: Record<string, unknown> | null = null;
+    const postedCount = await this.prisma.$transaction(
+      async (tx) => {
+        committedAudit = null;
+        await this.lock(tx, hospitalId, id);
+        await this.actor(tx, hospitalId, userId);
+        await tx.$queryRaw`SELECT l.id FROM "InventoryCountLine" l JOIN "InventoryCount" c ON c.id=l."inventoryCountId" WHERE c.id=${id} AND c."hospitalId"=${hospitalId} ORDER BY l.id FOR UPDATE OF l`;
+        const count = await tx.inventoryCount.findFirst({
+          where: { id, hospitalId },
+          include: { lines: { orderBy: { id: 'asc' } } },
+        });
+        if (!count) throw new NotFoundException('الجرد غير موجود');
+        if (count.status === 'POSTED') return count;
+        if (
+          count.status !== 'REVIEW' ||
+          !count.lines.length ||
+          count.lines.some(
+            (l) => l.physicalQty === null || !l.countedAt || !l.countedById,
+          )
+        )
+          throw new BadRequestException(
+            'يلزم استكمال العد وإرسال الجرد للمراجعة',
+          );
+        if (
+          count.assignedToId === userId ||
+          count.lines.some((l) => l.countedById === userId)
+        )
+          throw new BadRequestException('يلزم معتمد مستقل عن منفذ العد');
+        await this.warehouse(tx, hospitalId, count.warehouseId);
+        const ids = [...new Set(count.lines.map((l) => l.productId))].sort(
+          (a, b) => a - b,
+        );
+        for (const productId of ids)
+          await tx.$queryRaw`SELECT id FROM "Product" WHERE id=${productId} AND "hospitalId"=${hospitalId} FOR UPDATE`;
+        for (const productId of ids)
+          await tx.$queryRaw`SELECT id FROM "ProductStock" WHERE "productId"=${productId} AND "hospitalId"=${hospitalId} ORDER BY id FOR UPDATE`;
+        const stocks = await tx.productStock.findMany({
+          where: { hospitalId, warehouseId: count.warehouseId },
+        });
+        const snapshots = new Set(count.lines.map((l) => l.snapshotStockId));
+        if (
+          stocks.length !== count.lines.length ||
+          stocks.some((s) => !snapshots.has(s.id))
+        )
+          throw new ConflictException(
+            'تغيرت تشغيلات المخزن منذ اللقطة؛ألغِ الجرد وأنشئ لقطة وعدًا جديدين',
+          );
+        const values: { productId: number; amount: string }[] = [];
+        for (const productId of ids) {
+          const product = await tx.product.findFirst({
+            where: {
+              id: productId,
+              hospitalId,
+              isActive: true,
+              isDeleted: false,
+            },
+            include: { category: true },
+          });
+          if (
+            !product ||
+            !['DRUG', 'SUPPLY', 'LAB_REAGENT'].includes(product.type) ||
+            (product.category &&
+              (product.category.hospitalId !== hospitalId ||
+                !product.category.isActive ||
+                product.category.valuationMethod !== 'WEIGHTED_AVERAGE'))
+          )
+            throw new BadRequestException(
+              'نوع الصنف أو تصنيفه أو ملكيته لا يدعم هذا الجرد',
+            );
+          await assertOwnedQuantity(
+            tx,
+            hospitalId,
+            productId,
+            product.stockOnHand,
+          );
+          let running = product.stockOnHand;
+          let changed = false;
+          for (const line of count.lines.filter(
+            (l) => l.productId === productId,
+          )) {
+            const stock = stocks.find((s) => s.id === line.snapshotStockId);
+            if (
+              !stock ||
+              stock.productId !== productId ||
+              stock.batchNumber !== line.batchNumber ||
+              stock.version !== line.snapshotStockVersion ||
+              !stock.quantity.eq(line.systemQty) ||
+              product.version !== line.snapshotProductVersion ||
+              !product.costPrice.eq(line.costPrice) ||
+              (stock.expiryDate?.getTime() ?? null) !==
+                (line.expiryDate?.getTime() ?? null)
+            )
+              throw new ConflictException(
+                'تغير رصيد أو إصدار أو تكلفة بعد لقطة الجرد؛يلزم إلغاؤه وإعادة العد',
+              );
+            const physical = line.physicalQty!;
+            const delta = physical.minus(stock.quantity);
+            if (!delta.eq(line.variance))
+              throw new ConflictException('فرق العد غير متسق');
+            if (delta.isZero()) continue;
+            if (
+              delta.gt(0) &&
+              stock.expiryDate &&
+              stock.expiryDate <= new Date()
+            )
+              throw new BadRequestException(
+                'زيادة المنتهي تتطلب معالجة حجر مستقلة',
+              );
+            const next = running.plus(delta);
+            if (next.lt(0) || next.gte('1000000000000000'))
+              throw new BadRequestException('الرصيد الناتج غير صالح');
+            const amount = Money.toDbString(
+              Money.subtractDecimal(
+                Money.toDbString(Money.multiply(product.costPrice, next)),
+                Money.toDbString(Money.multiply(product.costPrice, running)),
+              ),
+            );
+            const updated = await tx.productStock.updateMany({
+              where: {
+                id: stock.id,
+                version: stock.version,
+                quantity: stock.quantity,
+              },
+              data: { quantity: physical, version: { increment: 1 } },
+            });
+            if (updated.count !== 1)
+              throw new ConflictException('تغير رصيد التشغيلة أثناء الترحيل');
+            await tx.stockTransaction.create({
+              data: {
+                hospitalId,
+                warehouseId: count.warehouseId,
+                productId,
+                type: 'ADJUST',
+                quantity: delta,
+                baseQuantity: delta,
+                unitCost: Money.toDbString(product.costPrice),
+                totalCost: amount,
+                batchNumber: stock.batchNumber,
+                expiryDate: stock.expiryDate,
+                referenceType: 'INVENTORY_COUNT',
+                referenceId: id,
+                createdById: userId,
+              },
+            });
+            values.push({ productId, amount });
+            running = next;
+            changed = true;
+          }
+          if (changed) {
+            const updated = await tx.product.updateMany({
+              where: {
+                id: productId,
+                hospitalId,
+                version: product.version,
+                stockOnHand: product.stockOnHand,
+              },
+              data: { stockOnHand: running, version: { increment: 1 } },
+            });
+            if (updated.count !== 1)
+              throw new ConflictException('تغير الرصيد الإجمالي أثناء الترحيل');
+          }
+        }
         await this.accounting.recordInventoryAdjustmentEntry({
-          inventoryCountId: count.id,
-          hospitalId: count.hospitalId,
+          inventoryCountId: id,
+          hospitalId,
           userId,
-          varianceLines: varianceLines.map((l) => ({
-            productId: l.productId,
-            varianceQty: Number(l.variance),
-            costPrice: Number(l.costPrice),
-          })),
+          varianceLines: values,
           tx,
         });
-      }
-
-      // C. Update Status
-      return tx.inventoryCount.update({
-        where: { id },
-        data: {
-          status: InventoryCountStatus.POSTED,
-          approvedById: userId,
-        },
-      });
-    });
+        const result = await tx.inventoryCount.update({
+          where: { id },
+          data: { status: 'POSTED', approvedById: userId },
+        });
+        const auditFields = {
+          hospitalId,
+          userId,
+          action: 'POST_INVENTORY_COUNT',
+          entity: 'InventoryCount',
+          entityId: id,
+          details: {
+            warehouseId: count.warehouseId,
+            movementCount: values.length,
+          },
+        };
+        await appendChainedAuditInTransaction(tx, auditFields);
+        committedAudit = auditFields;
+        return result;
+      },
+      { maxWait: 10000, timeout: 20000 },
+    );
+    if (committedAudit) publishCommittedCriticalAudit(committedAudit);
+    return postedCount;
   }
 
   // 6. Dashboard Stats
   async getDashboardStats(hospitalId: number, warehouseId?: number) {
-    // Helper to build where clause
-    const whereBase: any = { hospitalId };
-    if (warehouseId) whereBase.warehouseId = warehouseId;
+    if (warehouseId !== undefined) {
+      const wh = await this.prisma.warehouse.findFirst({
+        where: { id: warehouseId, hospitalId },
+        select: { id: true },
+      });
+      if (!wh) {
+        throw new NotFoundException('المخزن غير موجود ضمن هذه المنشأة');
+      }
+    }
 
-    // 1. Total Stock Value
+    const whereBase: Prisma.ProductStockWhereInput = {
+      hospitalId,
+      ...(warehouseId ? { warehouseId } : {}),
+      product: { hospitalId, isDeleted: false },
+    };
+
     const allStocks = await this.prisma.productStock.findMany({
       where: whereBase,
-      include: { product: { select: { costPrice: true } } },
+      include: {
+        product: {
+          select: {
+            id: true,
+            name: true,
+            costPrice: true,
+            minStock: true,
+            isActive: true,
+          },
+        },
+      },
+      orderBy: [{ quantity: 'asc' }, { id: 'asc' }],
     });
 
-    const totalValue = allStocks.reduce((sum, stock) => {
-      return (
-        sum + Number(stock.quantity) * Number(stock.product.costPrice || 0)
-      );
-    }, 0);
+    // 1. Total Stock Value (WAC aggregated per product in scope using Money)
+    const productTotals = new Map<
+      number,
+      { costPrice: Prisma.Decimal; quantity: Prisma.Decimal }
+    >();
+    for (const stock of allStocks) {
+      if (stock.quantity.lte(0)) continue;
+      const existing = productTotals.get(stock.productId);
+      if (existing) {
+        existing.quantity = existing.quantity.plus(stock.quantity);
+      } else {
+        productTotals.set(stock.productId, {
+          costPrice: stock.product.costPrice,
+          quantity: stock.quantity,
+        });
+      }
+    }
 
-    // 2. Low Stock Items (Top 5)
-    // Adjust where clause for quantity
-    const lowStockWhere = { ...whereBase, quantity: { lte: 10 } };
+    const productValues = Array.from(productTotals.values()).map((entry) =>
+      Money.toDbString(Money.multiply(entry.costPrice, entry.quantity)),
+    );
+    const totalValueDecimal = Money.sumPosted(...productValues);
+    const totalValue = Money.fromPrisma(totalValueDecimal);
+    const totalValueText = Money.toDbString(totalValueDecimal);
 
-    const lowStockItems = await this.prisma.productStock.findMany({
-      where: lowStockWhere,
-      include: { product: true },
-      take: 5,
-      orderBy: { quantity: 'asc' },
-    });
+    // 2. Low Stock Items (Top 5) using configured stock/product minStock (fallback 10)
+    const lowStockMatches = allStocks
+      .filter((s) => s.product.isActive)
+      .map((s) => {
+        const limit = s.minStock.gt(0)
+          ? s.minStock
+          : s.product.minStock.gt(0)
+            ? s.product.minStock
+            : new Prisma.Decimal(10);
+        return { stock: s, limit };
+      })
+      .filter(({ stock, limit }) => stock.quantity.lte(limit));
 
-    const lowStockDisplay = lowStockItems.map((item) => ({
-      name: item.product.name,
-      qty: Number(item.quantity),
-      limit:
-        Number(item.minStock) > 0
-          ? Number(item.minStock)
-          : Number(item.product.minStock),
-    }));
+    const lowStockCount = lowStockMatches.length;
+    const lowStockDisplay = lowStockMatches
+      .slice(0, 5)
+      .map(({ stock, limit }) => ({
+        name: stock.product.name,
+        qty: Money.fromPrisma(stock.quantity),
+        limit: Money.fromPrisma(limit),
+      }));
 
-    const lowStockCount = await this.prisma.productStock.count({
-      where: lowStockWhere,
-    });
-
-    // 3. Pending Purchase Orders (PO is usually global per hospital, but GRN is per warehouse)
-    // If filtering by warehouse, maybe we only count POs that have GRNs for this warehouse?
-    // Or just items destined? PO structure links to Hospital.
-    // Schema: PurchaseOrder -> Hospital (no Warehouse link directly on PO Header, only GRN).
-    // So for POs, we might keep it Hospital-wide OR try to look at PurchaseRequest -> Department...
-    // For simplicity, let's keep POs Hospital-wide if no direct Warehouse link, OR return 0/Hidden.
-    // However, users usually want to see incoming stock.
-    // Let's keep it global if warehouseId is set, or better, clarify "Pending Orders (Hospital)".
-    // BUT, if the user strictly wants "My Warehouse Dashboard", showing global POs is confusing.
-    // Let's skip PO filtering for now (show all) or mark it.
-    // Actually, PurchaseOrder doesn't have warehouseId. GoodsReceipt does.
-    // Let's just return hospital-wide PO count for now with a note, or if strict, 0.
-    // Let's return hospital-wide count but maybe user requested strict filtering.
-    // The prompt says "reflect that choice".
-    // I'll stick to Hospital-wide for POs unless easy to filter.
+    // 3. Pending Purchase Orders (Hospital-wide)
     const pendingOrders = await this.prisma.purchaseOrder.count({
       where: {
         hospitalId,
@@ -327,18 +567,23 @@ export class InventoryCountService {
       },
     });
 
+    const countWhereBase: Prisma.InventoryCountWhereInput = {
+      hospitalId,
+      ...(warehouseId ? { warehouseId } : {}),
+    };
+
     // 4. Active Inventory Counts
     const activeCounts = await this.prisma.inventoryCount.count({
       where: {
-        ...whereBase,
-        status: { not: 'POSTED' },
+        ...countWhereBase,
+        status: { in: ['DRAFT', 'IN_PROGRESS', 'REVIEW'] },
       },
     });
 
     // 5. Count Status Distribution
     const countsByStatus = await this.prisma.inventoryCount.groupBy({
       by: ['status'],
-      where: whereBase,
+      where: countWhereBase,
       _count: { id: true },
     });
 
@@ -347,40 +592,16 @@ export class InventoryCountService {
       value: s._count.id,
     }));
 
-    // 6. Trend (Simulated History with Real Month Names)
-    const currentVal = totalValue;
-    const monthsArabic = [
-      'يناير',
-      'فبراير',
-      'مارس',
-      'أبريل',
-      'مايو',
-      'يونيو',
-      'يوليو',
-      'أغسطس',
-      'سبتمبر',
-      'أكتوبر',
-      'نوفمبر',
-      'ديسمبر',
-    ];
-    const today = new Date();
-
-    const trendData = Array.from({ length: 6 }).map((_, i) => {
-      const d = new Date(today.getFullYear(), today.getMonth() - (5 - i), 1);
-      const monthName = monthsArabic[d.getMonth()];
-      // Simulate slight variation
-      const variation = 0.9 + Math.random() * 0.2; // 0.9 to 1.1
-      return {
-        name: monthName,
-        value: i === 5 ? currentVal : currentVal * variation,
-      };
-    });
+    // Historical valuation is unavailable; never fabricate operational data.
+    const trendData: { name: string; value: number }[] = [];
 
     return {
+      totalProducts: productTotals.size,
       totalValue,
+      totalValueText,
       lowStockItems: lowStockDisplay,
       lowStockCount,
-      pendingOrders, // Note: This remains hospital-wide
+      pendingOrders,
       activeCounts,
       statusDistribution,
       stockTrend: trendData,

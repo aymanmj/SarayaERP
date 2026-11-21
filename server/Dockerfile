@@ -5,7 +5,9 @@
 # ------------------------------------------
 # Stage 1: Builder
 # ------------------------------------------
-FROM node:20-slim AS builder
+ARG NODE_IMAGE=node:24-slim
+FROM ${NODE_IMAGE} AS node-base
+FROM node-base AS builder
 
 WORKDIR /app
 
@@ -17,7 +19,7 @@ COPY package*.json ./
 COPY prisma ./prisma/
 
 # تثبيت الكل
-RUN npm ci
+RUN PUPPETEER_SKIP_DOWNLOAD=true npm ci
 
 # نسخ السورس كود
 COPY . .
@@ -42,7 +44,7 @@ RUN npx tsc src/scripts/seed-allergy-groups.ts --outDir dist/scripts --module co
 # ------------------------------------------
 # Stage 2: Production
 # ------------------------------------------
-FROM node:20-slim AS production
+FROM node-base AS production
 
 # تثبيت Tini لإدارة العمليات (يمنع مشاكل الزومبي مع Puppeteer)
 # وتثبيت الخطوط العربية (ضروري جداً للفواتير)
@@ -64,7 +66,7 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 
 # إعدادات Puppeteer والبيئة
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
+ENV PUPPETEER_SKIP_DOWNLOAD=true \
     PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
     NODE_ENV=production
 
@@ -86,7 +88,7 @@ RUN npx prisma generate
 # نسخ المفتاح العام والسكربتات (نادرة التغيير)
 COPY --from=builder /app/src/licensing/public.key ./public.key
 COPY --from=builder /app/src/licensing/public.key ./dist/licensing/public.key
-COPY docker-entrypoint.sh /app/docker-entrypoint.sh
+COPY --chmod=755 docker-entrypoint.sh /app/docker-entrypoint.sh
 COPY --from=builder /app/scripts ./scripts
 
 # ========= طبقة كثيرة التغيير (كود التطبيق) — الأخيرة دائماً! =========
@@ -96,8 +98,7 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/dist/scripts ./dist/scripts
 
 # ✅ ضبط الصلاحيات للمستخدم node (غير الروت)
-RUN chmod +x /app/docker-entrypoint.sh && \
-    chown -R node:node /app
+RUN chown node:node /app
 
 # التحويل للمستخدم الآمن
 USER node

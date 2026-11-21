@@ -82,6 +82,7 @@ export interface CreateMaterialRequestPayload {
 }
 
 export interface IssueMaterialRequestPayload {
+  requestKey: string;
   notes?: string;
   items?: {
     productId: number;
@@ -89,6 +90,8 @@ export interface IssueMaterialRequestPayload {
     batchNumber?: string;
   }[];
 }
+
+export type InventoryBatchStatus = 'QUARANTINED' | 'RECALLED' | 'RELEASED';
 
 export interface ProductStock {
   id: number;
@@ -101,6 +104,7 @@ export interface ProductStock {
   reorderLevel?: number | null;
   batchNumber?: string | null;
   expiryDate?: string | null;
+  batchRestriction?: { status: InventoryBatchStatus; reason: string } | null;
   product?: {
     name: string;
     code: string | null;
@@ -176,6 +180,10 @@ export const inventoryApi = {
       params: { q: search },
     });
     return data as ProductStock[];
+  },
+
+  changeBatchRestriction: async (stockId: number, status: InventoryBatchStatus, reason: string) => {
+    await apiClient.post(`/inventory/stock/${stockId}/batch-restriction`, { status, reason });
   },
 
   // ==========================================

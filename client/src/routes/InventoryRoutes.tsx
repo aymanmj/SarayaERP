@@ -1,4 +1,5 @@
 import { Route } from "react-router-dom";
+import { ConsumptionOperationsPage } from '../pages/inventory/ConsumptionOperationsPage';
 import { InventoryDashboardPage } from "../pages/inventory/InventoryDashboardPage";
 import { InventoryCountListPage } from "../pages/inventory/InventoryCountListPage";
 import { InventoryCountDetailsPage } from "../pages/inventory/InventoryCountDetailsPage";
@@ -28,6 +29,7 @@ export const InventoryRoutes = (
     {/* Supply Chain Dashboard */}
     <Route path="/inventory/dashboard" element={<InventoryDashboardPage />} />
     <Route path="/inventory/alerts" element={<InventoryAlertsPage />} />
+    <Route path="/inventory/consumption-operations" element={<ConsumptionOperationsPage />} />
 
     {/* Warehouse Management */}
     <Route path="/inventory/warehouses" element={<WarehouseManagementPage />} />

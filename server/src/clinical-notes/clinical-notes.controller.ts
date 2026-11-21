@@ -13,7 +13,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/permissions.guard';
 import { Permissions } from '../auth/permissions.decorator';
 import { CurrentUser } from '../auth/current-user.decorator';
-import { JwtPayload } from '../auth/jwt-payload.type';
+import type { JwtPayload } from '../auth/jwt-payload.type';
 
 @Controller('clinical-notes')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -23,7 +23,7 @@ export class ClinicalNotesController {
   @Permissions('clinical-notes:manage')
   @Post()
   create(
-    @CurrentUser() user: any,
+    @CurrentUser() user: JwtPayload,
     @Body() createClinicalNoteDto: CreateClinicalNoteDto,
   ) {
     return this.clinicalNotesService.create(
@@ -37,20 +37,26 @@ export class ClinicalNotesController {
   @Get('encounter/:id')
   findAllByEncounter(
     @Param('id', ParseIntPipe) id: number,
-    @CurrentUser() user: any,
+    @CurrentUser() user: JwtPayload,
   ) {
     return this.clinicalNotesService.findAllByEncounter(id, user.hospitalId);
   }
 
   @Permissions('clinical-notes:manage')
   @Post(':id/sign')
-  signNote(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: any) {
-    return this.clinicalNotesService.signNote(id, user.sub);
+  signNote(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.clinicalNotesService.signNote(id, user.sub, user.hospitalId);
   }
 
   @Permissions('clinical-notes:manage')
   @Post(':id/cosign')
-  coSignNote(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: any) {
-    return this.clinicalNotesService.coSignNote(id, user.sub);
+  coSignNote(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.clinicalNotesService.coSignNote(id, user.sub, user.hospitalId);
   }
 }

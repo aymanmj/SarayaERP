@@ -1,8 +1,13 @@
 // src/commission/commission.service.ts
 
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { ServiceType } from '@prisma/client';
+import { Prisma, ServiceType } from '@prisma/client';
+import { Money } from '../common/utils/money.util';
 
 @Injectable()
 export class CommissionService {
@@ -31,36 +36,59 @@ export class CommissionService {
       doctorId?: number | null;
       doctorRate: number;
     },
+    tx?: Prisma.TransactionClient,
   ) {
-    const hospitalRate = Math.round((100 - data.doctorRate) * 100) / 100;
+    const client = tx ?? this.prisma;
+    if (
+      typeof data.doctorRate !== 'number' ||
+      !Number.isFinite(data.doctorRate) ||
+      data.doctorRate < 0 ||
+      data.doctorRate > 100
+    ) {
+      throw new BadRequestException(
+        'نسبة عمولة الطبيب يجب أن تكون بين 0 و 100',
+      );
+    }
+
+    const doctorRate = Money.to2dp(data.doctorRate);
+    const hospitalRate = Money.to2dp(Money.sub(100, doctorRate));
     const doctorId = data.doctorId ?? null;
 
-    // Prisma's upsert doesn't allow null in composite unique where clauses,
-    // so we use findFirst + update/create instead.
-    const existing = await this.prisma.commissionRule.findFirst({
+    if (doctorId !== null) {
+      const doctor = await client.user.findFirst({
+        where: { id: doctorId, hospitalId, isActive: true, isDeleted: false },
+      });
+      if (!doctor) {
+        throw new NotFoundException(
+          'الطبيب غير موجود أو غير نشط في هذه المنشأة.',
+        );
+      }
+    }
+
+    const existing = await client.commissionRule.findFirst({
       where: { hospitalId, serviceType: data.serviceType, doctorId },
     });
 
     if (existing) {
-      return this.prisma.commissionRule.update({
+      return client.commissionRule.update({
         where: { id: existing.id },
-        data: { doctorRate: data.doctorRate, hospitalRate },
+        data: { doctorRate, hospitalRate },
       });
     }
 
-    return this.prisma.commissionRule.create({
+    return client.commissionRule.create({
       data: {
         hospitalId,
         serviceType: data.serviceType,
         doctorId,
-        doctorRate: data.doctorRate,
+        doctorRate,
         hospitalRate,
       },
     });
   }
 
   /**
-   * تحديث مجموعة قواعد دفعة واحدة (Bulk upsert)
+   * تحديث مجموعة قواعد دفعة واحدة (Bulk upsert) داخل معاملة ذرية
    */
   async bulkUpsert(
     hospitalId: number,
@@ -70,12 +98,14 @@ export class CommissionService {
       doctorRate: number;
     }>,
   ) {
-    const results: Awaited<ReturnType<CommissionService['upsert']>>[] = [];
-    for (const rule of rules) {
-      const result = await this.upsert(hospitalId, rule);
-      results.push(result);
-    }
-    return results;
+    return this.prisma.$transaction(async (tx) => {
+      const results: Awaited<ReturnType<CommissionService['upsert']>>[] = [];
+      for (const rule of rules) {
+        const result = await this.upsert(hospitalId, rule, tx);
+        results.push(result);
+      }
+      return results;
+    });
   }
 
   /**
@@ -97,18 +127,20 @@ export class CommissionService {
     hospitalId: number,
     doctorId: number,
     serviceType: ServiceType,
+    tx?: Prisma.TransactionClient,
   ): Promise<number> {
+    const client = tx ?? this.prisma;
     // 1. البحث عن نسبة مخصصة لهذا الطبيب
-    const doctorRule = await this.prisma.commissionRule.findFirst({
+    const doctorRule = await client.commissionRule.findFirst({
       where: { hospitalId, serviceType, doctorId, isActive: true },
     });
-    if (doctorRule) return Number(doctorRule.doctorRate);
+    if (doctorRule) return Money.fromPrisma(doctorRule.doctorRate);
 
     // 2. البحث عن نسبة افتراضية لنوع الخدمة (doctorId = null)
-    const defaultRule = await this.prisma.commissionRule.findFirst({
+    const defaultRule = await client.commissionRule.findFirst({
       where: { hospitalId, serviceType, doctorId: null, isActive: true },
     });
-    if (defaultRule) return Number(defaultRule.doctorRate);
+    if (defaultRule) return Money.fromPrisma(defaultRule.doctorRate);
 
     // 3. لا توجد قاعدة
     return 0;

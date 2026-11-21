@@ -16,6 +16,7 @@ import { PermissionsGuard } from '../auth/permissions.guard';
 import { Permissions } from '../auth/permissions.decorator';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { JwtPayload } from '../auth/jwt-payload.type';
+import { UpdateRolePermissionsDto } from './dto/update-role-permissions.dto';
 
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('users')
@@ -81,8 +82,14 @@ export class UsersController {
   @Permissions('users:manage')
   async updateRolePermissions(
     @Param('id', ParseIntPipe) id: number,
-    @Body() body: { permissionIds: number[] },
+    @Body() body: UpdateRolePermissionsDto,
+    @CurrentUser() user: JwtPayload,
   ) {
+    if (!user.isSuperAdmin) {
+      throw new ForbiddenException(
+        'إدارة الأدوار العامة متاحة لإدارة المنصة فقط',
+      );
+    }
     return this.usersService.updateRolePermissions(id, body.permissionIds);
   }
 
@@ -90,7 +97,9 @@ export class UsersController {
   // Allow simplified access for debugging
   @Post('fix-permissions')
   @Permissions('users:manage')
-  async fixPermissions() {
+  async fixPermissions(@CurrentUser() user: JwtPayload) {
+    if (!user.isSuperAdmin)
+      throw new ForbiddenException('Platform administrator required');
     if (process.env.ENABLE_DIAGNOSTIC_ENDPOINTS !== 'true') {
       throw new ForbiddenException('Diagnostic endpoints are disabled');
     }
@@ -101,7 +110,9 @@ export class UsersController {
   // ✅ [Diagnostic] Fix Nurse Permissions
   @Post('fix-nurse-permissions')
   @Permissions('users:manage')
-  async fixNursePermissions() {
+  async fixNursePermissions(@CurrentUser() user: JwtPayload) {
+    if (!user.isSuperAdmin)
+      throw new ForbiddenException('Platform administrator required');
     if (process.env.ENABLE_DIAGNOSTIC_ENDPOINTS !== 'true') {
       throw new ForbiddenException('Diagnostic endpoints are disabled');
     }

@@ -1,0 +1,85 @@
+services:
+  pacs-db:
+    image: postgres@sha256:aae6554de426ae1990f1a939ff183a0299146cf7142a6f4c379c3357af9cc2d8
+    labels:
+      com.centurylinklabs.watchtower.enable: "false"
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: orthanc
+      POSTGRES_USER: orthanc
+      POSTGRES_PASSWORD: ${PACS_DB_PASSWORD:?Set PACS_DB_PASSWORD}
+    volumes:
+      - pacs_index:/var/lib/postgresql/data
+    networks: [pacs_db]
+    healthcheck:
+      test: [CMD, pg_isready, -U, orthanc, -d, orthanc]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  orthanc:
+    image: orthancteam/orthanc@sha256:25738bcd515926ac8d33cacf09729a410a32c0a65d6cb8e61bd86fce81a4cd30
+    labels:
+      com.centurylinklabs.watchtower.enable: "false"
+    restart: unless-stopped
+    stop_grace_period: 60s
+    depends_on:
+      pacs-db:
+        condition: service_healthy
+    environment:
+      POSTGRESQL_PLUGIN_ENABLED: "true"
+      ORTHANC__POSTGRESQL__ENABLE_INDEX: "true"
+      ORTHANC__POSTGRESQL__ENABLE_STORAGE: "false"
+      ORTHANC__POSTGRESQL__HOST: pacs-db
+      ORTHANC__POSTGRESQL__DATABASE: orthanc
+      ORTHANC__POSTGRESQL__USERNAME: orthanc
+      ORTHANC__POSTGRESQL__PASSWORD: ${PACS_DB_PASSWORD:?Set PACS_DB_PASSWORD}
+      ORTHANC__POSTGRESQL__LOCK: "true"
+      ORTHANC__STORAGE_DIRECTORY: /var/lib/orthanc/db
+      ORTHANC__STORE_MD5_FOR_ATTACHMENTS: "true"
+      ORTHANC__AUTHENTICATION_ENABLED: "true"
+      ORTHANC__REGISTERED_USERS: "${PACS_HTTP_USERS:?Set PACS_HTTP_USERS to a JSON user map}"
+      ORTHANC__REMOTE_ACCESS_ALLOWED: "true"
+      ORTHANC__EXECUTE_LUA_ENABLED: "false"
+      DICOM_WEB_PLUGIN_ENABLED: "true"
+      OHIF_PLUGIN_ENABLED: "true"
+      ORTHANC__OHIF__DATA_SOURCE: dicom-web
+      WORKLISTS_PLUGIN_ENABLED: "true"
+      ORTHANC__WORKLISTS__ENABLE: "true"
+      ORTHANC__WORKLISTS__SAVE_IN_ORTHANC_DATABASE: "true"
+      ORTHANC__WORKLISTS__FILTER_ISSUER_AET: "true"
+      ORTHANC__WORKLISTS__DELETE_WORKLISTS_ON_STABLE_STUDY: "false"
+      ORTHANC__WORKLISTS__DELETE_WORKLISTS_DELAY: 0
+      ORTHANC__DICOM_AET: ${PACS_DICOM_AET:-SARAYAPACS}
+      ORTHANC__DICOM_CHECK_CALLED_AET: "true"
+      ORTHANC__DICOM_CHECK_MODALITY_HOST: "true"
+      ORTHANC__DICOM_ALWAYS_ALLOW_ECHO: "false"
+      ORTHANC__DICOM_ALWAYS_ALLOW_STORE: "false"
+      ORTHANC__DICOM_ALWAYS_ALLOW_FIND: "false"
+      ORTHANC__DICOM_ALWAYS_ALLOW_FIND_WORKLIST: "false"
+      ORTHANC__DICOM_ALWAYS_ALLOW_GET: "false"
+      ORTHANC__DICOM_ALWAYS_ALLOW_MOVE: "false"
+      ORTHANC__DICOM_MODALITIES: "${PACS_DICOM_MODALITIES:?Set a DICOM modality JSON map or an empty object}"
+    ports:
+      - target: 4242
+        published: "${PACS_DICOM_PORT:-4242}"
+        host_ip: "${PACS_DICOM_BIND_IP:-127.0.0.1}"
+        protocol: tcp
+    volumes:
+      - pacs_objects:/var/lib/orthanc/db
+    networks: [pacs_api, pacs_db]
+    healthcheck:
+      test: [CMD, python3, /probes/test-aliveness.py]
+      interval: 5s
+      timeout: 4s
+      retries: 20
+      start_period: 10s
+
+volumes:
+  pacs_index:
+  pacs_objects:
+
+networks:
+  pacs_api:
+  pacs_db:
+    internal: true

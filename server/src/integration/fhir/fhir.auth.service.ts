@@ -10,15 +10,17 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
 import Redis from 'ioredis';
+import { timingSafeEqual } from 'node:crypto';
 
 /**
- * Enterprise SMART on FHIR Authorization Service
+ * Restricted FHIR authorization service.
  *
- * Implements the SMART App Launch Framework (v2) with:
+ * Currently supports confidential client credentials with:
  * - Registered app validation (client_id + client_secret)
  * - Dynamic patient context binding (no hardcoded IDs)
  * - Full scope parsing including wildcard read/write
- * - Authorization code + client_credentials grant types
+ * - A client_credentials grant only. Interactive launch is disabled until
+ *   consent, PKCE and redirect validation are implemented and verified.
  *
  * @see https://hl7.org/fhir/smart-app-launch/
  */
@@ -31,6 +33,8 @@ interface RegisteredApp {
   redirectUris: string[];
   grantTypes: ('client_credentials' | 'authorization_code')[];
   defaultScopes: string;
+  allowedScopes?: string;
+  hospitalId?: number;
 }
 
 @Injectable()
@@ -135,6 +139,11 @@ export class FhirAuthService implements OnModuleInit, OnModuleDestroy {
       ],
       grantTypes: ['client_credentials', 'authorization_code'],
       defaultScopes: 'user/*.read launch/patient',
+      allowedScopes:
+        this.config.get<string>('FHIR_ALLOWED_SCOPES') ||
+        'user/*.read launch/patient',
+      hospitalId:
+        Number(this.config.get<string>('FHIR_HOSPITAL_ID')) || undefined,
     });
 
     // Additional registered apps can be added here or loaded from DB
@@ -169,15 +178,27 @@ export class FhirAuthService implements OnModuleInit, OnModuleDestroy {
     }
 
     // In development mode (no FHIR_CLIENT_SECRET set), skip secret validation
-    const isDev = !this.config.get<string>('FHIR_CLIENT_SECRET');
+    const isDev =
+      ['development', 'test'].includes(
+        this.config.get<string>('NODE_ENV') || 'development',
+      ) && !this.config.get<string>('FHIR_CLIENT_SECRET');
 
     if (!isDev) {
-      if (!clientSecret) {
+      if (
+        !clientSecret ||
+        !app.clientSecret ||
+        app.clientSecret === '__dev_secret_must_be_configured__'
+      ) {
         throw new UnauthorizedException(
           'client_secret is required for registered applications',
         );
       }
-      if (clientSecret !== app.clientSecret) {
+      const actual = Buffer.from(clientSecret);
+      const expected = Buffer.from(app.clientSecret);
+      if (
+        actual.length !== expected.length ||
+        !timingSafeEqual(actual, expected)
+      ) {
         throw new UnauthorizedException('Invalid client_secret');
       }
     }
@@ -197,42 +218,19 @@ export class FhirAuthService implements OnModuleInit, OnModuleDestroy {
    * Current implementation: validates app registration and issues
    * an auth code with the requested scope and patient context.
    */
-  async authorize(
-    clientId: string,
-    scope: string,
-    redirectUri: string,
-    launchPatient?: string,
-  ) {
-    if (!clientId || !redirectUri) {
-      throw new BadRequestException('Missing client_id or redirect_uri');
-    }
-
-    // Validate the client_id is a registered app
-    const app = this.validateClient(clientId);
-
-    // Verify redirect_uri matches registered URIs
-    if (
-      !app.redirectUris.includes(redirectUri) &&
-      !redirectUri.startsWith('http://localhost')
-    ) {
-      throw new BadRequestException(
-        `redirect_uri not registered for this application`,
-      );
-    }
-
-    // Generate authorization code (valid for 60 seconds per SMART spec)
-    const code = `auth_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
-
-    const payload = JSON.stringify({
-      clientId,
-      patient: launchPatient, // Can be undefined for system-level access
-      scope: scope || app.defaultScopes,
-    });
-
-    // Store in Redis with 60s expiration
-    await this.redisClient.set(`fhir_auth:${code}`, payload, 'EX', 60);
-
-    return { code, state: 'smart_state' };
+  authorize(
+    ...request: [
+      clientId: string,
+      scope: string,
+      redirectUri: string,
+      launchPatient?: string,
+    ]
+  ): Promise<{ code: string; state: string }> {
+    void request;
+    // A separate authenticated consent + PKCE workflow must precede interactive launch.
+    return Promise.reject(
+      new UnauthorizedException('Interactive SMART launch is not configured'),
+    );
   }
 
   /**
@@ -257,69 +255,66 @@ export class FhirAuthService implements OnModuleInit, OnModuleDestroy {
     // Validate the client
     const app = this.validateClient(clientId, clientSecret);
 
+    if (
+      this.config.get<string>('NODE_ENV') === 'production' &&
+      (!Number.isSafeInteger(app.hospitalId) ||
+        !app.hospitalId ||
+        app.hospitalId <= 0)
+    ) {
+      throw new UnauthorizedException(
+        'FHIR application must be assigned to a hospital',
+      );
+    }
+
+    if (code || grantType !== 'client_credentials') {
+      throw new BadRequestException(
+        'Only confidential backend client credentials are currently supported',
+      );
+    }
+
     if (!app.grantTypes.includes(grantType as any)) {
       throw new BadRequestException(
         `Grant type '${grantType}' not allowed for this application. Allowed: ${app.grantTypes.join(', ')}`,
       );
     }
 
-    let finalScope = scope || app.defaultScopes;
-    let patientContext: string | undefined = patient;
-
-    // ---------------------
-    // Authorization Code Flow
-    // ---------------------
-    if (grantType === 'authorization_code') {
-      if (!code) {
-        throw new BadRequestException(
-          'authorization_code grant requires a valid code',
-        );
-      }
-
-      const redisKey = `fhir_auth:${code}`;
-      const authDataStr = await this.redisClient.get(redisKey);
-
-      if (!authDataStr) {
+    const finalScope = scope || app.defaultScopes;
+    const allowed = (app.allowedScopes || app.defaultScopes)
+      .split(/\s+/)
+      .filter(Boolean);
+    for (const requested of finalScope.split(/\s+/).filter(Boolean)) {
+      if (!this.scopeSatisfies(allowed, requested)) {
         throw new UnauthorizedException(
-          'Invalid or expired authorization code',
+          'Requested scope exceeds registered application permissions',
         );
       }
-
-      const authData = JSON.parse(authDataStr);
-      if (authData.clientId !== clientId) {
-        throw new UnauthorizedException(
-          'Authorization code was issued to a different client',
-        );
-      }
-
-      // One-time use: delete code immediately
-      await this.redisClient.del(redisKey);
-
-      // Use the scope and patient from the auth code
-      finalScope = authData.scope;
-      patientContext = authData.patient || patient;
-
-      // Already consumed code above via redisClient.del(redisKey)
     }
-
-    // ---------------------
-    // Client Credentials Flow
-    // ---------------------
-    if (grantType === 'client_credentials') {
-      // Patient context can be passed as a parameter for standalone launch
-      patientContext = patient;
+    if (
+      finalScope.split(/\s+/).some((s) => s.startsWith('patient/')) &&
+      !patient
+    ) {
+      throw new BadRequestException(
+        'Patient-scoped access requires a patient context',
+      );
     }
+    const patientContext: string | undefined = patient;
 
     // Validate patient exists if context is provided
     if (patientContext) {
       const patientId = parseInt(patientContext);
-      if (isNaN(patientId)) {
+      if (
+        !/^[1-9]\d*$/.test(patientContext) ||
+        !Number.isSafeInteger(patientId)
+      ) {
         throw new BadRequestException(
           'patient parameter must be a valid numeric ID',
         );
       }
       const exists = await this.prisma.patient.findUnique({
-        where: { id: patientId },
+        where: {
+          id: patientId,
+          ...(app.hospitalId ? { hospitalId: app.hospitalId } : {}),
+        },
       });
       if (!exists) {
         throw new BadRequestException(`Patient with ID ${patientId} not found`);
@@ -337,6 +332,7 @@ export class FhirAuthService implements OnModuleInit, OnModuleDestroy {
       aud: 'https://saraya-erp.com/api/fhir',
       client_id: clientId,
       scope: finalScope,
+      hospitalId: app.hospitalId,
     };
 
     // Only inject patient context if explicitly provided — NEVER hardcode

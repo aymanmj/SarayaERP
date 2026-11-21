@@ -64,15 +64,11 @@ export default function ClinicalKpisPage() {
     );
   }
 
-  // Mock data for the chart to show trends over the last 6 months
-  const trendData = [
-    { name: t("clinicalKpis.months.jan", "يناير"), readmission: 12, override: 8, gapClosure: 70 },
-    { name: t("clinicalKpis.months.feb", "فبراير"), readmission: 11, override: 9, gapClosure: 72 },
-    { name: t("clinicalKpis.months.mar", "مارس"), readmission: 14, override: 7, gapClosure: 68 },
-    { name: t("clinicalKpis.months.apr", "أبريل"), readmission: 9, override: 5, gapClosure: 75 },
-    { name: t("clinicalKpis.months.may", "مايو"), readmission: 8, override: 4, gapClosure: 80 },
-    { name: t("clinicalKpis.months.jun", "يونيو"), readmission: Number(kpis?.readmissionRate?.toFixed(1) || 0), override: Number(kpis?.medicationOverrideRate?.toFixed(1) || 0), gapClosure: Number(kpis?.careGapClosureRate?.toFixed(1) || 0) },
-  ];
+  // Only the measured period is available; historical points must come from real snapshots.
+  const trendData = [{ name: t('clinicalKpis.last30Days', 'آخر 30 يوم'),
+    readmission: Number(kpis?.readmissionRate?.toFixed(1) || 0),
+    override: Number(kpis?.medicationOverrideRate?.toFixed(1) || 0),
+    gapClosure: Number(kpis?.careGapClosureRate?.toFixed(1) || 0) }];
 
   return (
     <div className="p-6 text-slate-100 h-full overflow-y-auto" dir={isRtl ? "rtl" : "ltr"}>

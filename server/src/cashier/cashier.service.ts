@@ -1,3 +1,21 @@
+import { financialPeriod } from '../accounting/financial-posting';
+import { guardCashierMovement, lockCashier } from './cash-control';
+import {
+  adjustmentBalance,
+  effectivePatientShare,
+  effectiveInsuranceShare,
+  totalInvoiceAdjustment,
+  netPaidAmount,
+} from '../billing/invoice-snapshot';
+import { lockFinancialInvoice } from '../accounting/financial-posting';
+import { Money } from '../common/utils/money.util';
+import { appendChainedAuditInTransaction } from '../audit/audit-chain';
+import { publishCommittedCriticalAudit } from '../audit/siem.logger';
+import {
+  assertPrescriptionCollectionAvailable,
+  currentPrescriptionAuthorization,
+  pendingPrescriptionCancellation,
+} from '../pharmacy/prescription-prepayment';
 // src/cashier/cashier.service.ts
 
 import {
@@ -7,10 +25,10 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import {
+  Invoice,
   InvoiceStatus,
   PaymentMethod,
   ChargeSource,
-  ServiceType,
   SystemAccountKey,
   AccountingSourceModule,
   Prisma,
@@ -81,36 +99,66 @@ export class CashierService {
     private accounting: AccountingService,
   ) {}
 
-  private mapInvoiceToWorklistDto(inv: any) {
-    const totalAmount = Number(inv.totalAmount);
-    const discountAmount = Number(inv.discountAmount);
-    const paidAmount = Number(inv.paidAmount);
-    const remainingAmount = totalAmount - discountAmount - paidAmount;
-
-    return {
-      id: inv.id as number,
-      status: inv.status as InvoiceStatus,
-      totalAmount,
-      discountAmount,
-      paidAmount,
-      remainingAmount,
-      patientShare: Number(inv.patientShare ?? 0),
-      insuranceShare: Number(inv.insuranceShare ?? 0),
-      claimStatus: inv.claimStatus,
-      createdAt: inv.createdAt as Date,
-      patient: inv.patient as {
+  private mapInvoiceToWorklistDto(
+    inv: Pick<
+      Invoice,
+      | 'id'
+      | 'status'
+      | 'totalAmount'
+      | 'discountAmount'
+      | 'paidAmount'
+      | 'patientShare'
+      | 'insuranceShare'
+      | 'claimStatus'
+      | 'createdAt'
+    > & {
+      prepaidPrescription?: { id: number } | null;
+      adjustments?: {
+        delta: Prisma.Decimal;
+        insuranceDelta?: Prisma.Decimal;
+      }[];
+      refunds?: { amount: Prisma.Decimal }[];
+      patient: {
         id: number;
         fullName: string;
         mrn: string;
-        insurancePolicy?: {
-          name: string;
-          provider: { name: string };
-        } | null;
-      } | null,
-      encounter: inv.encounter as {
-        id: number;
-        type: string;
-      } | null,
+        insurancePolicy?: { name: string; provider: { name: string } } | null;
+      } | null;
+      encounter: { id: number; type: string } | null;
+    },
+  ) {
+    const totalAmount = Money.fromPrisma(inv.totalAmount);
+    const discountAmount = Money.fromPrisma(inv.discountAmount);
+    const paidAmount = Money.fromPrisma(inv.paidAmount);
+    const refunded = Money.sumDecimal(
+      ...(inv.refunds ?? []).map((item) => item.amount),
+    );
+    const correction = totalInvoiceAdjustment(inv.adjustments ?? []);
+    return {
+      id: inv.id,
+      ...(inv.prepaidPrescription && {
+        prescriptionId: inv.prepaidPrescription.id,
+      }),
+      status: inv.status,
+      totalAmount,
+      discountAmount,
+      paidAmount,
+      refundedAmount: Money.toDb(refunded),
+      netPaidAmount: Money.toDb(Money.decimal(paidAmount).minus(refunded)),
+      remainingAmount: Money.toDb(
+        Money.sumDecimal(totalAmount, correction)
+          .minus(discountAmount)
+          .minus(paidAmount)
+          .plus(refunded),
+      ),
+      originalPatientShare: Money.fromPrisma(inv.patientShare),
+      adjustmentAmount: Money.toDb(correction),
+      patientShare: Money.toDb(effectivePatientShare(inv)),
+      insuranceShare: Money.toDb(effectiveInsuranceShare(inv)),
+      claimStatus: inv.claimStatus,
+      createdAt: inv.createdAt,
+      patient: inv.patient,
+      encounter: inv.encounter,
     };
   }
 
@@ -118,15 +166,30 @@ export class CashierService {
     const invoices = await this.prisma.invoice.findMany({
       where: {
         hospitalId,
+        adjustments: { none: pendingPrescriptionCancellation },
+        OR: [
+          { prepaidPrescription: null },
+          { prepaidPrescription: { preAuthorizationId: null } },
+          {
+            prepaidPrescription: {
+              preAuthorization: {
+                hospitalId,
+                ...currentPrescriptionAuthorization(),
+              },
+            },
+          },
+        ],
         status: {
           in: [
             InvoiceStatus.DRAFT,
             InvoiceStatus.ISSUED,
             InvoiceStatus.PARTIALLY_PAID,
+            InvoiceStatus.PAID,
           ],
         },
       },
       include: {
+        prepaidPrescription: { select: { id: true } },
         patient: {
           select: {
             id: true,
@@ -140,6 +203,11 @@ export class CashierService {
             },
           },
         },
+        adjustments: {
+          where: { status: 'POSTED' },
+          select: { delta: true, insuranceDelta: true },
+        },
+        refunds: { where: { status: 'EXECUTED' }, select: { amount: true } },
         encounter: { select: { id: true, type: true } },
       },
       orderBy: { createdAt: 'asc' },
@@ -150,14 +218,11 @@ export class CashierService {
     for (const inv of invoices) {
       const dto = this.mapInvoiceToWorklistDto(inv);
 
-      // ✅ منطق الفلترة المحدث:
-      // نحسب المتبقي على المريض
-      // نفترض أن المدفوع (paidAmount) يغطي حصة المريض أولاً
-      const patientPaid = Math.min(dto.paidAmount, dto.patientShare);
-      const patientRemaining = dto.patientShare - patientPaid;
+      const patientRemaining = effectivePatientShare(inv).minus(
+        netPaidAmount(inv),
+      );
 
-      // إذا كان المريض لا يزال مديناً (أكبر من 0.001 لتجنب كسور القسمة)
-      if (patientRemaining > 0.001) {
+      if (patientRemaining.gt(0)) {
         result.push(dto);
       }
       // حالة خاصة: إذا كانت حصة المريض 0 (مغطى بالكامل) وحالة الفاتورة DRAFT أو ISSUED
@@ -180,142 +245,220 @@ export class CashierService {
     amount: number;
     method: PaymentMethod;
     reference?: string;
+    requestId?: string;
     userId: number;
+    ipAddress?: string;
+    clientName?: string;
   }) {
-    const { hospitalId, invoiceId, amount, method, reference, userId } = params;
-
-    await this.accounting.validateDateInOpenPeriod(
-      params.hospitalId,
-      new Date(),
-    );
-
-    // ✅ السماح بالقيمة 0
-    if (amount < 0) {
-      throw new BadRequestException('قيمة الدفعة لا يمكن أن تكون سالبة.');
-    }
-
-    const { updatedInvoice, payment } = await this.prisma.$transaction(
+    const {
+      hospitalId,
+      invoiceId,
+      amount,
+      method,
+      reference,
+      requestId,
+      userId,
+      ipAddress,
+      clientName,
+    } = params;
+    if (
+      !Number.isFinite(amount) ||
+      amount < 0 ||
+      Money.decimal(amount).decimalPlaces() > 3
+    )
+      throw new BadRequestException(
+        'قيمة التحصيل يجب أن تكون غير سالبة وبدقة ثلاث منازل كحد أقصى',
+      );
+    if (!['CASH', 'CARD', 'TRANSFER'].includes(method))
+      throw new BadRequestException('طريقة التحصيل غير مدعومة');
+    if (
+      requestId !== undefined &&
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+        requestId,
+      )
+    )
+      throw new BadRequestException('معرف طلب التحصيل غير صالح');
+    let committedAudit: Record<string, unknown> | null = null;
+    const result = await this.prisma.$transaction(
       async (tx) => {
-        const invoice = await tx.invoice.findUnique({
-          where: { id: invoiceId },
+        committedAudit = null;
+        const invoice = await lockFinancialInvoice(tx, hospitalId, invoiceId);
+        const response = (
+          paid: {
+            id: number;
+            status: InvoiceStatus;
+            totalAmount: Prisma.Decimal;
+            discountAmount: Prisma.Decimal;
+            paidAmount: Prisma.Decimal;
+          },
+          paymentId: number | null,
+        ) => ({
+          id: paid.id,
+          status: paid.status,
+          totalAmount: Money.fromPrisma(paid.totalAmount),
+          discountAmount: Money.fromPrisma(paid.discountAmount),
+          paidAmount: Money.fromPrisma(paid.paidAmount),
+          paymentId,
         });
-
-        if (!invoice) throw new NotFoundException('الفاتورة غير موجودة.');
-        if (invoice.hospitalId !== hospitalId)
-          throw new BadRequestException('هذه الفاتورة لا تنتمي لهذه المنشأة.');
-
-        const totalAmount = Number(invoice.totalAmount);
-        const discountAmount = Number(invoice.discountAmount);
-        const paidAmount = Number(invoice.paidAmount);
-
-        let patientShare = Number(invoice.patientShare);
-        const insuranceShare = Number(invoice.insuranceShare);
-
-        // تصحيح للبيانات القديمة: إذا لم يكن هناك تأمين، المريض يتحمل الكل
-        if (insuranceShare === 0 && patientShare === 0 && totalAmount > 0) {
-          patientShare = totalAmount;
-        }
-
-        // المبلغ المستحق المتبقي على المريض
-        const remainingPatientLiability = Math.max(
-          0,
-          patientShare - paidAmount,
-        );
-
-        // ✅ التحقق
-        if (amount > remainingPatientLiability + 0.001) {
-          throw new BadRequestException(
-            `المبلغ المدخل (${amount}) أكبر من المستحق على المريض (${remainingPatientLiability.toFixed(3)}).`,
-          );
-        }
-
-        // ✅ معالجة الدفعة الصفرية (0) - تأكيد الفاتورة المغطاة بالكامل
-        if (amount === 0) {
-          const totalRemaining = totalAmount - discountAmount - paidAmount;
-          let newStatus = invoice.status;
-
-          // إذا كان المتبقي هو فقط حصة التأمين، نحولها لـ PARTIALLY_PAID
-          // (أو PAID إذا كان التأمين 0 أيضاً، وهو غير محتمل هنا)
-          if (totalRemaining <= 0.001) {
-            newStatus = InvoiceStatus.PAID;
-          } else {
-            newStatus = InvoiceStatus.PARTIALLY_PAID;
-          }
-
-          // إذا كانت الحالة الحالية already متقدمة، لا نرجع للخلف
-          if (invoice.status === InvoiceStatus.PAID)
-            newStatus = InvoiceStatus.PAID;
-
-          const updated = await tx.invoice.update({
-            where: { id: invoiceId },
-            data: { status: newStatus },
+        const requestKey = requestId
+          ? 'payment:' + hospitalId + ':' + invoiceId + ':' + requestId
+          : null;
+        if (requestKey) {
+          const existing = await tx.payment.findUnique({
+            where: { requestKey },
           });
-
-          // ✅ [HOOK] Update Order Payment Status when patient share is fully paid
-          const patientShareAmt = Number(invoice.patientShare || totalAmount);
-          const isPatientPaidFully = paidAmount >= patientShareAmt - 0.001;
-          if (isPatientPaidFully || newStatus === InvoiceStatus.PAID) {
-            await this.updateRelatedOrdersPaymentStatus(tx, invoiceId);
+          if (existing) {
+            if (
+              !Money.eq(existing.amount, amount) ||
+              existing.method !== method ||
+              existing.reference !== (reference ?? null)
+            )
+              throw new BadRequestException(
+                'أعيد استخدام معرف التحصيل ببيانات مختلفة',
+              );
+            return response(invoice, existing.id);
           }
-
-          return { updatedInvoice: updated, payment: null };
         }
-
-        const payment = await tx.payment.create({
-          data: {
+        if (
+          invoice.type !== 'INVOICE' ||
+          !['ISSUED', 'PARTIALLY_PAID', 'PAID'].includes(invoice.status)
+        )
+          throw new BadRequestException(
+            'حالة الفاتورة أو نوعها لا يسمحان بالتحصيل',
+          );
+        await assertPrescriptionCollectionAvailable(tx, invoice);
+        if (
+          await tx.invoice.count({
+            where: {
+              hospitalId,
+              originalInvoiceId: invoiceId,
+              type: 'CREDIT_NOTE',
+              status: { not: 'CANCELLED' },
+            },
+          })
+        )
+          throw new BadRequestException(
+            'الفاتورة مرتبطة بإشعار دائن؛ يجب مطابقة التسوية قبل التحصيل',
+          );
+        const stored = await tx.payment.aggregate({
+          where: { hospitalId, invoiceId },
+          _sum: { amount: true },
+        });
+        if (!Money.eq(stored._sum.amount ?? 0, invoice.paidAmount))
+          throw new BadRequestException(
+            'رصيد المدفوعات لا يطابق سجل التحصيل؛ يلزم إجراء مطابقة',
+          );
+        const total = Money.subtractDecimal(
+          invoice.totalAmount,
+          invoice.discountAmount,
+        );
+        const shares = Money.sumDecimal(
+          invoice.patientShare,
+          invoice.insuranceShare,
+        );
+        if (
+          total.isNegative() ||
+          !Money.eq(total, shares) ||
+          Money.isNegative(invoice.patientShare) ||
+          Money.isNegative(invoice.insuranceShare)
+        )
+          throw new BadRequestException(
+            'حصص الفاتورة أو الخصم غير متسقة؛ يلزم تصحيح معتمد',
+          );
+        const adjusted = await adjustmentBalance(
+          tx,
+          hospitalId,
+          invoiceId,
+          invoice.patientShare,
+          invoice.paidAmount,
+        );
+        const remaining = adjusted.balance;
+        if (remaining.isNegative() || Money.gt(amount, remaining))
+          throw new BadRequestException(
+            'قيمة التحصيل تتجاوز المستحق على المريض',
+          );
+        if (amount === 0 && remaining.gt(0))
+          throw new BadRequestException(
+            'لا يمكن تأكيد سداد صفري مع وجود رصيد على المريض',
+          );
+        let sessionId: number | null = null;
+        let paidAt = new Date();
+        if (amount > 0) {
+          const movement = await guardCashierMovement(
+            tx,
             hospitalId,
+            userId,
+            method === 'CASH' ? 'IF_CONTROLLED' : false,
+          );
+          sessionId = method === 'CASH' ? (movement.session?.id ?? null) : null;
+          paidAt = movement.at;
+        }
+        await this.accounting.recordInvoiceEntry({
+          invoiceId,
+          hospitalId,
+          userId,
+          prisma: tx,
+        });
+        const newPaid = Money.sumDecimal(invoice.paidAmount, amount);
+        const newNetPaid = newPaid.minus(adjusted.refunded);
+        const status = Money.eq(newNetPaid, total.plus(adjusted.delta))
+          ? InvoiceStatus.PAID
+          : InvoiceStatus.PARTIALLY_PAID;
+        const payment =
+          amount === 0
+            ? null
+            : await tx.payment.create({
+                data: {
+                  hospitalId,
+                  invoiceId,
+                  amount: Money.toDbString(amount),
+                  method,
+                  reference: reference ?? null,
+                  requestKey,
+                  sessionId,
+                  paidAt,
+                  cashierId: userId,
+                },
+              });
+        const updated = await tx.invoice.update({
+          where: { id: invoiceId, hospitalId },
+          data: { paidAmount: Money.toDbString(newPaid), status },
+        });
+        if (payment)
+          await this.accounting.recordPaymentEntry({
+            paymentId: payment.id,
+            hospitalId,
+            userId,
+            prisma: tx,
+          });
+        if (Money.gte(newNetPaid, adjusted.liability))
+          await this.updateRelatedOrdersPaymentStatus(tx, invoiceId);
+        const auditFields = {
+          hospitalId,
+          userId,
+          action: 'RECORD_PATIENT_PAYMENT',
+          entity: 'Invoice',
+          entityId: invoiceId,
+          ipAddress: ipAddress ?? null,
+          clientName: clientName ?? null,
+          details: {
             invoiceId,
-            amount,
+            paymentId: payment?.id ?? null,
+            amount: Money.toDbString(amount),
             method,
             reference: reference ?? null,
-            cashierId: userId,
+            requestKey,
+            status: updated.status,
           },
-        });
-
-        const newPaid = paidAmount + amount;
-
-        // تحديث الحالة
-        let newStatus: InvoiceStatus = InvoiceStatus.PARTIALLY_PAID;
-        const totalRemaining = totalAmount - discountAmount - newPaid;
-
-        if (totalRemaining <= 0.001) {
-          newStatus = InvoiceStatus.PAID;
-        }
-
-        const updatedInvoice = await tx.invoice.update({
-          where: { id: invoiceId },
-          data: { paidAmount: newPaid, status: newStatus },
-        });
-
-        // ✅ [HOOK] Update Order Payment Status when patient share is fully paid
-        // للمرضى المؤمنين: نحدث حالة الطلب عندما يدفع المريض حصته (حتى لو التأمين لم يسدد بعد)
-        const patientShareAmount = Number(invoice.patientShare || totalAmount);
-        const isPatientShareFullyPaid = newPaid >= patientShareAmount - 0.001;
-        if (isPatientShareFullyPaid) {
-          await this.updateRelatedOrdersPaymentStatus(tx, invoiceId);
-        }
-
-        return { updatedInvoice, payment };
+        };
+        await appendChainedAuditInTransaction(tx, auditFields);
+        committedAudit = auditFields;
+        return response(updated, payment?.id ?? null);
       },
+      { maxWait: 10000, timeout: 20000 },
     );
-
-    // ✅ تسجيل القيد المحاسبي فقط إذا كان هناك دفعة حقيقية
-    if (payment) {
-      await this.accounting.recordPaymentEntry({
-        paymentId: payment.id,
-        hospitalId,
-        userId,
-      });
-    }
-
-    return {
-      id: updatedInvoice.id,
-      status: updatedInvoice.status,
-      totalAmount: Number(updatedInvoice.totalAmount),
-      discountAmount: Number(updatedInvoice.discountAmount),
-      paidAmount: Number(updatedInvoice.paidAmount),
-      paymentId: payment?.id ?? null,
-    };
+    if (committedAudit) publishCommittedCriticalAudit(committedAudit);
+    return result;
   }
 
   async getInvoiceDetails(hospitalId: number, invoiceId: number) {
@@ -330,6 +473,11 @@ export class CashierService {
             insurancePolicy: { include: { provider: true } },
           },
         },
+        adjustments: {
+          where: { status: 'POSTED' },
+          select: { delta: true, insuranceDelta: true },
+        },
+        refunds: { where: { status: 'EXECUTED' }, select: { amount: true } },
         encounter: { select: { id: true, type: true } },
         charges: {
           include: { serviceItem: true },
@@ -343,13 +491,17 @@ export class CashierService {
     const totalAmount = Number(invoice.totalAmount);
     const discountAmount = Number(invoice.discountAmount);
     const paidAmount = Number(invoice.paidAmount);
-    const remainingAmount = totalAmount - discountAmount - paidAmount;
+    const correctedShare = effectivePatientShare(invoice);
+    const correctedInsuranceShare = effectiveInsuranceShare(invoice);
+    const remainingAmount = Money.toDb(
+      correctedShare
+        .plus(correctedInsuranceShare)
+        .minus(netPaidAmount(invoice)),
+    );
 
     // --- Pharmacy breakdown ---
     const dispenseIds = invoice.charges
-      .filter(
-        (ch) => ch.serviceItem?.type === ServiceType.PHARMACY && ch.sourceId,
-      )
+      .filter((ch) => ch.sourceType === ChargeSource.PHARMACY && ch.sourceId)
       .map((c) => c.sourceId as number);
 
     const itemsByDispense = new Map<number, any[]>();
@@ -373,7 +525,10 @@ export class CashierService {
     const lines: InvoiceLineDetailDto[] = invoice.charges.map((ch: any) => {
       const line: InvoiceLineDetailDto = {
         id: ch.id,
-        description: ch.serviceItem?.name ?? 'خدمة',
+        description:
+          ch.sourceType === ChargeSource.PHARMACY_PRESCRIPTION
+            ? `وصفة صيدلية #${ch.sourceId}`
+            : (ch.serviceItem?.name ?? 'خدمة'),
         serviceCode: ch.serviceItem?.code ?? null,
         serviceType: ch.serviceItem?.type ?? null,
         quantity: Number(ch.quantity ?? 1),
@@ -381,7 +536,7 @@ export class CashierService {
         totalAmount: Number(ch.totalAmount),
       };
 
-      if (ch.serviceItem?.type === ServiceType.PHARMACY && ch.sourceId) {
+      if (ch.sourceType === ChargeSource.PHARMACY && ch.sourceId) {
         const dItems = itemsByDispense.get(ch.sourceId) ?? [];
         line.pharmacyItems = dItems.map(
           (it: any): PharmacyInvoiceItemDto => ({
@@ -410,8 +565,18 @@ export class CashierService {
         remainingAmount,
         currency: invoice.currency,
         createdAt: invoice.createdAt,
-        patientShare: Number(invoice.patientShare),
-        insuranceShare: Number(invoice.insuranceShare),
+        refundedAmount: Money.toDb(
+          Money.sumDecimal(
+            ...(invoice.refunds ?? []).map((item) => item.amount),
+          ),
+        ),
+        netPaidAmount: Money.toDb(netPaidAmount(invoice)),
+        originalPatientShare: Number(invoice.patientShare),
+        adjustmentAmount: Money.toDb(
+          totalInvoiceAdjustment(invoice.adjustments ?? []),
+        ),
+        patientShare: Money.toDb(correctedShare),
+        insuranceShare: Money.toDb(correctedInsuranceShare),
         patient: invoice.patient,
         encounter: invoice.encounter
           ? { id: invoice.encounter.id, type: invoice.encounter.type }
@@ -432,7 +597,14 @@ export class CashierService {
 
     const invoices = await this.prisma.invoice.findMany({
       where: { hospitalId, patientId },
-      include: { encounter: { select: { id: true, type: true } } },
+      include: {
+        adjustments: {
+          where: { status: 'POSTED' },
+          select: { delta: true, insuranceDelta: true },
+        },
+        refunds: { where: { status: 'EXECUTED' }, select: { amount: true } },
+        encounter: { select: { id: true, type: true } },
+      },
       orderBy: { createdAt: 'asc' },
     });
 
@@ -442,14 +614,30 @@ export class CashierService {
       orderBy: { paidAt: 'asc' },
     });
 
+    const refundRows = await this.prisma.invoiceRefund.findMany({
+      where: { hospitalId, invoice: { patientId }, status: 'EXECUTED' },
+      select: {
+        id: true,
+        invoiceId: true,
+        paymentId: true,
+        amount: true,
+        method: true,
+        executedAt: true,
+        executionReference: true,
+      },
+      orderBy: { executedAt: 'asc' },
+    });
     const invoiceDtos = invoices.map((inv) => {
-      const t = Number(inv.totalAmount);
+      const correction = totalInvoiceAdjustment(inv.adjustments ?? []);
+      const t = Money.fromPrisma(Money.sumDecimal(inv.totalAmount, correction));
       const d = Number(inv.discountAmount);
-      const p = Number(inv.paidAmount);
+      const p = Money.toDb(netPaidAmount(inv));
       return {
         id: inv.id,
         status: inv.status,
         totalAmount: t,
+        originalTotalAmount: Number(inv.totalAmount),
+        adjustmentAmount: Money.toDb(correction),
         discountAmount: d,
         paidAmount: p,
         remainingAmount: t - d - p,
@@ -479,10 +667,17 @@ export class CashierService {
         totalInvoiced,
         totalDiscount,
         totalPaid,
+        grossCollected: Money.toDb(
+          Money.sumDecimal(...payments.map((p) => p.amount)),
+        ),
+        totalRefunded: Money.toDb(
+          Money.sumDecimal(...refundRows.map((p) => p.amount)),
+        ),
         remaining: totalInvoiced - totalDiscount - totalPaid,
       },
       invoices: invoiceDtos,
       payments: paymentDtos,
+      refunds: refundRows,
     };
   }
 
@@ -493,6 +688,10 @@ export class CashierService {
         invoice: {
           include: {
             patient: { select: { id: true, fullName: true, mrn: true } },
+            adjustments: {
+              where: { status: 'POSTED' },
+              select: { delta: true },
+            },
             encounter: { select: { id: true, type: true } },
           },
         },
@@ -540,6 +739,20 @@ export class CashierService {
       _count: { _all: true },
     });
 
+    const refundRows = await this.prisma.invoiceRefund.findMany({
+      where: {
+        hospitalId,
+        status: 'EXECUTED',
+        executedAt: { gte: start, lte: end },
+      },
+      orderBy: { executedAt: 'asc' },
+    });
+    const refunded = Money.sumDecimal(...refundRows.map((row) => row.amount));
+    const refundedCash = Money.sumDecimal(
+      ...refundRows
+        .filter((row) => row.method === 'CASH')
+        .map((row) => row.amount),
+    );
     const totalPaymentsAmount = paymentsAgg.reduce(
       (s, r) => s + Number(r._sum.amount ?? 0),
       0,
@@ -573,6 +786,15 @@ export class CashierService {
         totalCount: totalPaymentsCount,
       },
       paymentsByMethod,
+      refunds: refundRows,
+      refundsSummary: {
+        totalAmount: Money.toDb(refunded),
+        cashAmount: Money.toDb(refundedCash),
+        totalCount: refundRows.length,
+      },
+      netPaymentsSummary: {
+        totalAmount: Money.sub(totalPaymentsAmount, refunded),
+      },
       invoicesSummary: {
         invoiceCount: invoicesAgg._count._all,
         totalInvoiced: tInv,
@@ -616,6 +838,21 @@ export class CashierService {
       orderBy: { paidAt: 'asc' },
     });
 
+    const refundRows = await this.prisma.invoiceRefund.findMany({
+      where: {
+        hospitalId,
+        executedById: cashierId,
+        status: 'EXECUTED',
+        executedAt: { gte: start, lte: end },
+      },
+      orderBy: { executedAt: 'asc' },
+    });
+    const refunded = Money.sumDecimal(...refundRows.map((row) => row.amount));
+    const refundedCash = Money.sumDecimal(
+      ...refundRows
+        .filter((row) => row.method === 'CASH')
+        .map((row) => row.amount),
+    );
     let totalAmount = 0;
     let cashAmount = 0;
     const byMethod = new Map<
@@ -658,6 +895,16 @@ export class CashierService {
         cashAmount,
       },
       paymentsByMethod,
+      refunds: refundRows,
+      refundsSummary: {
+        totalAmount: Money.toDb(refunded),
+        cashAmount: Money.toDb(refundedCash),
+        totalCount: refundRows.length,
+      },
+      netPaymentsSummary: {
+        totalAmount: Money.sub(totalAmount, refunded),
+        cashAmount: Money.sub(cashAmount, refundedCash),
+      },
       payments: paymentRows,
     };
   }
@@ -667,140 +914,189 @@ export class CashierService {
     cashierId: number,
     params: { start: Date; end: Date; actualCash: number; note?: string },
   ) {
-    const { start, end, actualCash, note } = params;
+    return this.prisma.$transaction(
+      async (tx) => {
+        await lockCashier(tx, hospitalId, cashierId);
+        const { start, end, actualCash, note } = params;
 
-    const rangeStart = start;
-    let rangeEnd = end;
-    if (rangeEnd <= rangeStart) {
-      rangeEnd = new Date(rangeEnd.getTime() + 24 * 60 * 60 * 1000);
-    }
+        const rangeStart = start;
+        let rangeEnd = end;
+        if (rangeEnd <= rangeStart) {
+          rangeEnd = new Date(rangeEnd.getTime() + 24 * 60 * 60 * 1000);
+        }
 
-    if (actualCash < 0)
-      throw new BadRequestException('المبلغ لا يمكن أن يكون سالباً.');
+        if (
+          !Number.isFinite(start.getTime()) ||
+          !Number.isFinite(rangeEnd.getTime()) ||
+          rangeEnd.getTime() > Date.now()
+        )
+          throw new BadRequestException(
+            'فترة الإقفال غير صالحة أو تنتهي في المستقبل',
+          );
+        if (
+          !Number.isFinite(actualCash) ||
+          Money.decimal(actualCash).decimalPlaces() > 3 ||
+          actualCash < 0
+        )
+          throw new BadRequestException('المبلغ لا يمكن أن يكون سالباً.');
 
-    const overlapping = await this.prisma.cashierShiftClosing.findFirst({
-      where: {
-        hospitalId,
-        cashierId,
-        rangeStart: { lt: rangeEnd },
-        rangeEnd: { gt: rangeStart },
-      },
-    });
-    if (overlapping)
-      throw new BadRequestException('يوجد شفت مغلق يتداخل مع هذه الفترة.');
-
-    const payments = await this.prisma.payment.findMany({
-      where: {
-        hospitalId,
-        cashierId,
-        paidAt: { gte: rangeStart, lte: rangeEnd },
-      },
-    });
-
-    const systemCashTotalDec = payments
-      .filter((p) => p.method === PaymentMethod.CASH)
-      .reduce((sum, p) => sum.plus(p.amount ?? 0), new Prisma.Decimal(0));
-
-    const actualDec = new Prisma.Decimal(actualCash);
-    const difference = actualDec.minus(systemCashTotalDec);
-    const absDiff = difference.abs();
-
-    const result = await this.prisma.$transaction(async (tx) => {
-      const shift = await tx.cashierShiftClosing.create({
-        data: {
-          hospitalId,
-          cashierId,
-          rangeStart,
-          rangeEnd,
-          systemCashTotal: systemCashTotalDec,
-          actualCashTotal: actualDec,
-          difference,
-          note: note ?? null,
-        },
-      });
-
-      let accountingEntryId: number | null = null;
-      if (!difference.isZero()) {
-        const cashMapping = await tx.systemAccountMapping.findFirst({
+        if (
+          await tx.cashierSession.count({
+            where: {
+              hospitalId,
+              cashierId,
+              openedAt: { lte: rangeEnd },
+              OR: [
+                { closedAt: null, status: { in: ['OPEN', 'CLOSING'] } },
+                { closedAt: { gte: rangeStart } },
+              ],
+            },
+          })
+        )
+          throw new BadRequestException(
+            'هذه الفترة لها جلسة صندوق؛ استخدم العد الفعلي واعتماد الإقفال',
+          );
+        const overlapping = await tx.cashierShiftClosing.findFirst({
           where: {
             hospitalId,
-            key: SystemAccountKey.CASH_MAIN,
-            isActive: true,
+            cashierId,
+            rangeStart: { lt: rangeEnd },
+            rangeEnd: { gt: rangeStart },
           },
-          include: { account: true },
         });
-        const diffMapping = await tx.systemAccountMapping.findFirst({
+        if (overlapping)
+          throw new BadRequestException('يوجد شفت مغلق يتداخل مع هذه الفترة.');
+
+        const payments = await tx.payment.findMany({
           where: {
             hospitalId,
-            key: SystemAccountKey.CASH_SHORT_OVER,
-            isActive: true,
+            cashierId,
+            paidAt: { gte: rangeStart, lt: rangeEnd },
           },
-          include: { account: true },
         });
 
-        if (cashMapping?.account && diffMapping?.account) {
-          const lines: Prisma.AccountingEntryLineCreateWithoutEntryInput[] =
-            difference.greaterThan(0)
-              ? [
-                  {
-                    account: { connect: { id: cashMapping.account.id } },
-                    debit: absDiff,
-                    credit: 0,
-                    description: `زيادة صندوق - شفت #${shift.id}`,
-                  },
-                  {
-                    account: { connect: { id: diffMapping.account.id } },
-                    debit: 0,
-                    credit: absDiff,
-                    description: `زيادة صندوق - شفت #${shift.id}`,
-                  },
-                ]
-              : [
-                  {
-                    account: { connect: { id: diffMapping.account.id } },
-                    debit: absDiff,
-                    credit: 0,
-                    description: `عجز صندوق - شفت #${shift.id}`,
-                  },
-                  {
-                    account: { connect: { id: cashMapping.account.id } },
-                    debit: 0,
-                    credit: absDiff,
-                    description: `عجز صندوق - شفت #${shift.id}`,
-                  },
-                ];
+        const systemCashTotalDec = payments
+          .filter((p) => p.method === PaymentMethod.CASH)
+          .reduce((sum, p) => sum.plus(p.amount ?? 0), new Prisma.Decimal(0));
 
-          const entry = await tx.accountingEntry.create({
+        const actualDec = new Prisma.Decimal(actualCash);
+        const difference = actualDec.minus(systemCashTotalDec);
+        const absDiff = difference.abs();
+
+        const result = await (async () => {
+          const shift = await tx.cashierShiftClosing.create({
             data: {
               hospitalId,
-              entryDate: rangeEnd,
-              description: `فروق صندوق - شفت كاشير #${cashierId}`,
-              sourceModule: AccountingSourceModule.CASHIER,
-              sourceId: shift.id,
-              lines: { create: lines },
+              cashierId,
+              rangeStart,
+              rangeEnd,
+              systemCashTotal: systemCashTotalDec,
+              actualCashTotal: actualDec,
+              difference,
+              note: note ?? null,
             },
           });
-          accountingEntryId = entry.id;
 
-          await tx.cashierShiftClosing.update({
-            where: { id: shift.id },
-            data: { accountingEntryId },
-          });
-        }
-      }
-      return { shift, accountingEntryId };
-    });
+          let accountingEntryId: number | null = null;
+          if (!difference.isZero()) {
+            const cashMapping = await tx.systemAccountMapping.findFirst({
+              where: {
+                hospitalId,
+                key: SystemAccountKey.CASH_MAIN,
+                isActive: true,
+              },
+              include: { account: true },
+            });
+            const diffMapping = await tx.systemAccountMapping.findFirst({
+              where: {
+                hospitalId,
+                key: SystemAccountKey.CASH_SHORT_OVER,
+                isActive: true,
+              },
+              include: { account: true },
+            });
 
-    return {
-      id: result.shift.id,
-      rangeStart: result.shift.rangeStart,
-      rangeEnd: result.shift.rangeEnd,
-      systemCashTotal: Number(systemCashTotalDec.toFixed(3)),
-      actualCashTotal: Number(actualDec.toFixed(3)),
-      difference: Number(difference.toFixed(3)),
-      note: result.shift.note,
-      accountingEntryId: result.accountingEntryId,
-    };
+            if (
+              !cashMapping?.account.isActive ||
+              cashMapping.account.hospitalId !== hospitalId ||
+              !diffMapping?.account.isActive ||
+              diffMapping.account.hospitalId !== hospitalId
+            )
+              throw new BadRequestException('حسابات فروق الصندوق غير صالحة');
+            const { financialYear, period } = await financialPeriod(
+              tx,
+              hospitalId,
+              rangeEnd,
+            );
+            if (cashMapping.account && diffMapping.account) {
+              const lines: Prisma.AccountingEntryLineCreateWithoutEntryInput[] =
+                difference.greaterThan(0)
+                  ? [
+                      {
+                        account: { connect: { id: cashMapping.account.id } },
+                        debit: absDiff,
+                        credit: 0,
+                        description: `زيادة صندوق - شفت #${shift.id}`,
+                      },
+                      {
+                        account: { connect: { id: diffMapping.account.id } },
+                        debit: 0,
+                        credit: absDiff,
+                        description: `زيادة صندوق - شفت #${shift.id}`,
+                      },
+                    ]
+                  : [
+                      {
+                        account: { connect: { id: diffMapping.account.id } },
+                        debit: absDiff,
+                        credit: 0,
+                        description: `عجز صندوق - شفت #${shift.id}`,
+                      },
+                      {
+                        account: { connect: { id: cashMapping.account.id } },
+                        debit: 0,
+                        credit: absDiff,
+                        description: `عجز صندوق - شفت #${shift.id}`,
+                      },
+                    ];
+
+              const entry = await tx.accountingEntry.create({
+                data: {
+                  hospitalId,
+                  entryDate: rangeEnd,
+                  financialYearId: financialYear.id,
+                  financialPeriodId: period.id,
+                  postingKey: `legacy-shift:${hospitalId}:${shift.id}`,
+                  description: `فروق صندوق - شفت كاشير #${cashierId}`,
+                  sourceModule: AccountingSourceModule.CASHIER,
+                  sourceId: shift.id,
+                  lines: { create: lines },
+                },
+              });
+              accountingEntryId = entry.id;
+
+              await tx.cashierShiftClosing.update({
+                where: { id: shift.id },
+                data: { accountingEntryId },
+              });
+            }
+          }
+          return { shift, accountingEntryId };
+        })();
+
+        return {
+          id: result.shift.id,
+          rangeStart: result.shift.rangeStart,
+          rangeEnd: result.shift.rangeEnd,
+          systemCashTotal: Number(systemCashTotalDec.toFixed(3)),
+          actualCashTotal: Number(actualDec.toFixed(3)),
+          difference: Number(difference.toFixed(3)),
+          note: result.shift.note,
+          accountingEntryId: result.accountingEntryId,
+        };
+      },
+      { maxWait: 10000, timeout: 20000 },
+    );
   }
 
   async listCashierShifts(
@@ -1011,6 +1307,7 @@ export class CashierService {
 //             },
 //           },
 //         },
+//         adjustments: { where: { status: 'POSTED' }, select: { delta: true } },
 //         encounter: { select: { id: true, type: true } },
 //       },
 //       orderBy: { createdAt: 'asc' },
@@ -1168,6 +1465,7 @@ export class CashierService {
 //             insurancePolicy: { include: { provider: true } },
 //           },
 //         },
+//         adjustments: { where: { status: 'POSTED' }, select: { delta: true } },
 //         encounter: { select: { id: true, type: true } },
 //         charges: {
 //           include: { serviceItem: true },
@@ -1362,7 +1660,8 @@ export class CashierService {
 //         invoice: {
 //           include: {
 //             patient: { select: { id: true, fullName: true, mrn: true } },
-//             encounter: { select: { id: true, type: true } },
+//             adjustments: { where: { status: 'POSTED' }, select: { delta: true } },
+//         encounter: { select: { id: true, type: true } },
 //           },
 //         },
 //       },
@@ -1840,6 +2139,7 @@ export class CashierService {
 //             },
 //           },
 //         },
+//         adjustments: { where: { status: 'POSTED' }, select: { delta: true } },
 //         encounter: { select: { id: true, type: true } },
 //       },
 //       orderBy: { createdAt: 'asc' },
@@ -1995,6 +2295,7 @@ export class CashierService {
 //             insurancePolicy: { include: { provider: true } },
 //           },
 //         },
+//         adjustments: { where: { status: 'POSTED' }, select: { delta: true } },
 //         encounter: { select: { id: true, type: true } },
 //         charges: {
 //           include: { serviceItem: true },
@@ -2217,7 +2518,8 @@ export class CashierService {
 //         invoice: {
 //           include: {
 //             patient: { select: { id: true, fullName: true, mrn: true } },
-//             encounter: { select: { id: true, type: true } },
+//             adjustments: { where: { status: 'POSTED' }, select: { delta: true } },
+//         encounter: { select: { id: true, type: true } },
 //           },
 //         },
 //       },
@@ -2673,6 +2975,7 @@ export class CashierService {
 //       },
 //       include: {
 //         patient: { select: { id: true, fullName: true, mrn: true } },
+//         adjustments: { where: { status: 'POSTED' }, select: { delta: true } },
 //         encounter: { select: { id: true, type: true } },
 //       },
 //       orderBy: { createdAt: 'asc' },
@@ -2771,6 +3074,7 @@ export class CashierService {
 //       where: { id: invoiceId, hospitalId },
 //       include: {
 //         patient: { select: { id: true, fullName: true, mrn: true } },
+//         adjustments: { where: { status: 'POSTED' }, select: { delta: true } },
 //         encounter: { select: { id: true, type: true } },
 //         charges: {
 //           include: { serviceItem: true },
@@ -2972,7 +3276,8 @@ export class CashierService {
 //         invoice: {
 //           include: {
 //             patient: { select: { id: true, fullName: true, mrn: true } },
-//             encounter: { select: { id: true, type: true } },
+//             adjustments: { where: { status: 'POSTED' }, select: { delta: true } },
+//         encounter: { select: { id: true, type: true } },
 //           },
 //         },
 //       },

@@ -4,11 +4,26 @@ import { RadiologyController } from './radiology.controller';
 import { PrismaModule } from '../prisma/prisma.module';
 import { PriceListsModule } from '../price-lists/price-lists.module';
 import { AccountingModule } from '../accounting/accounting.module';
+import { RadiologyPacsController } from './radiology-pacs.controller';
+import { RadiologyPacsService } from './radiology-pacs.service';
+import { RadiologyMwlService } from './radiology-mwl.service';
+import { AuthModule } from '../auth/auth.module';
+import { RadiologyViewerController } from './radiology-viewer.controller';
+import { RadiologyViewerService } from './radiology-viewer.service';
 
 @Module({
-  imports: [PrismaModule, PriceListsModule, AccountingModule],
-  providers: [RadiologyService],
-  controllers: [RadiologyController],
+  imports: [PrismaModule, PriceListsModule, AccountingModule, AuthModule],
+  providers: [
+    RadiologyService,
+    RadiologyPacsService,
+    RadiologyMwlService,
+    RadiologyViewerService,
+  ],
+  controllers: [
+    RadiologyController,
+    RadiologyPacsController,
+    RadiologyViewerController,
+  ],
   exports: [RadiologyService],
 })
 export class RadiologyModule {}

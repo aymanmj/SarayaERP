@@ -69,6 +69,8 @@ type PurchaseInvoiceDetails = {
   vatAmount: number | string;
   netAmount: number | string;
   paidAmount: number | string;
+  returnedAmount?: number;
+  remainingPayable?: number;
 
   currency: string;
   notes?: string | null;
@@ -216,7 +218,7 @@ export default function PurchaseInvoiceDetailsPage() {
 
       const rem = Math.max(
         0,
-        toNum(res.data.netAmount) - toNum(res.data.paidAmount),
+        toNum(res.data.netAmount) - toNum(res.data.paidAmount) - toNum(res.data.returnedAmount),
       );
       setPayAmount(rem > 0 ? rem.toFixed(3) : "0.000");
     } catch (err: any) {
@@ -234,7 +236,7 @@ export default function PurchaseInvoiceDetailsPage() {
 
   const remaining = useMemo(() => {
     if (!data) return 0;
-    return Math.max(0, toNum(data.netAmount) - toNum(data.paidAmount));
+    return Math.max(0, toNum(data.netAmount) - toNum(data.paidAmount) - toNum(data.returnedAmount));
   }, [data]);
 
   const canApprove = data?.status === "DRAFT";
@@ -248,7 +250,7 @@ export default function PurchaseInvoiceDetailsPage() {
 
   const canEdit =
     !!data &&
-    (data.status === "DRAFT" || data.status === "APPROVED") &&
+    data.status === "DRAFT" &&
     paidAmountNum <= 0.0001 &&
     !hasAnyPayments;
 

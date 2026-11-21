@@ -1,3 +1,7 @@
+import { getInvoiceShares } from '../utils/cashierInvoiceShares';
+import { CashierSessionsPanel } from '../components/CashierSessionsPanel';
+import { InvoiceRefundsPanel } from '../components/InvoiceRefundsPanel';
+import { RefundWorklistPicker } from '../components/RefundWorklistPicker';
 // src/pages/CashierPage.tsx
 
 import { useEffect, useState } from "react";
@@ -19,6 +23,7 @@ type PaymentMethod = "CASH" | "CARD" | "TRANSFER" | "INSURANCE" | "OTHER";
 
 type CashierInvoice = {
   id: number;
+  prescriptionId?: number;
   status: InvoiceStatus;
   totalAmount: number;
   discountAmount: number;
@@ -26,6 +31,9 @@ type CashierInvoice = {
   remainingAmount: number;
 
   patientShare: number;
+  originalPatientShare?: number;
+  adjustmentAmount?: number;
+  refundedAmount?: number;
   insuranceShare: number;
 
   createdAt: string;
@@ -62,31 +70,6 @@ function formatMoney(val: number | string | null | undefined) {
 }
 
 // ✅ دالة مساعدة لحساب القيم الفعلية
-function getInvoiceShares(inv: CashierInvoice) {
-  const total = Number(inv.totalAmount);
-  const insurance = Number(inv.insuranceShare ?? 0);
-
-  // إذا كان التأمين 0، المريض يتحمل الكل (إصلاح للبيانات القديمة)
-  let patient = Number(inv.patientShare ?? 0);
-  if (insurance === 0 && patient === 0 && total > 0) {
-    patient = total;
-  }
-
-  // المدفوع: نفترض أن المدفوعات المسجلة هنا هي من المريض
-  const paid = Number(inv.paidAmount);
-
-  // المطلوب الآن = حصة المريض - ما دفعه
-  const dueNow = Math.max(0, patient - paid);
-
-  return {
-    total,
-    insurance,
-    patient,
-    paid,
-    dueNow,
-    isInsurance: insurance > 0,
-  };
-}
 
 export default function CashierPage() {
   const { t, i18n } = useTranslation();
@@ -195,7 +178,7 @@ export default function CashierPage() {
 
     // إذا كان هناك مبلغ مستحق، لا نسمح بـ 0
     // أما إذا كان المستحق 0 (تأمين كامل)، نسمح بـ 0 للتأكيد
-    if (value === 0 && selectedValues && selectedValues.dueNow > 0.005) {
+    if (value === 0 && selectedValues && selectedValues.dueNow > 0) {
       toast.warning(t("treasury.cashier.toast.positiveValue", "أدخل قيمة دفع صحيحة (المبلغ المستحق أكبر من 0)."));
       return;
     }
@@ -252,6 +235,9 @@ export default function CashierPage() {
       dir={isRtl ? "rtl" : "ltr"}
       data-testid="cashier-page"
     >
+      <CashierSessionsPanel onChanged={() => void loadWorklist()} />
+      <RefundWorklistPicker onSelect={setSelectedId} />
+      {selectedId !== null && <InvoiceRefundsPanel invoiceId={selectedId} onChanged={() => void loadWorklist()} />}
       {/* الهيدر */}
       <div className="flex items-center justify-between">
         <div>
@@ -326,7 +312,14 @@ export default function CashierPage() {
                           : "hover:bg-slate-900/40"
                       }`}
                     >
-                      <td className="px-3 py-3 font-mono">#{inv.id}</td>
+                      <td className="px-3 py-3">
+                        <span className="font-mono">#{inv.id}</span>
+                        {inv.prescriptionId != null && (
+                          <div className="text-xs text-slate-400">
+                            {t("treasury.cashier.prescription", "وصفة صيدلية")} #{inv.prescriptionId}
+                          </div>
+                        )}
+                      </td>
                       <td className="px-3 py-3">
                         <div className="font-semibold text-slate-200">
                           {inv.patient?.fullName}

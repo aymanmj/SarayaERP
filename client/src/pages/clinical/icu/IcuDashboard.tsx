@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { apiClient } from '../../../api/apiClient';
 import { Loader2, FileSignature, Activity, Users, Bed, AlertCircle, HeartPulse, ShieldAlert } from 'lucide-react';
 import { HandoverNoteModal } from '../transfers/HandoverNoteModal';
+import { useAuthStore } from '../../../stores/authStore';
 
 export const IcuDashboard = () => {
   const { t, i18n } = useTranslation();
@@ -16,6 +17,22 @@ export const IcuDashboard = () => {
   const [patients, setPatients] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const canManageTransfers = useAuthStore((state) => state.user?.permissions.includes('transfers:manage') ?? false);
+  const [cancellingId, setCancellingId] = useState<number | null>(null);
+
+  const cancelTransfer = async (id: number) => {
+    if (!window.confirm(t('icu.dashboard.cancelTransferConfirm', 'هل تريد إلغاء طلب النقل وتحرير حجز الوجهة؟'))) return;
+    setCancellingId(id);
+    try {
+      await apiClient.patch(`/transfers/${id}/cancel`);
+      await fetchData();
+    } catch (error) {
+      const message = (error as { response?: { data?: { message?: string } } }).response?.data?.message;
+      window.alert(message || t('icu.dashboard.cancelTransferFailed', 'تعذر إلغاء طلب النقل.'));
+    } finally {
+      setCancellingId(null);
+    }
+  };
 
   // Handover Modal State
   const [showHandoverModal, setShowHandoverModal] = useState(false);
@@ -29,7 +46,6 @@ export const IcuDashboard = () => {
   const [selectedBedId, setSelectedBedId] = useState<string>('');
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/immutability
     fetchData();
   }, []);
 
@@ -200,9 +216,6 @@ export const IcuDashboard = () => {
                             <Bed className="w-3 h-3" /> {t('icu.dashboard.patients.bed', 'سرير')} {p.bed.bedNumber} ({p.bed.ward?.name})
                           </span>
                         )}
-                        <span className="bg-emerald-900/20 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded font-medium">
-                          {t('icu.dashboard.patients.stable', 'مستقر')}
-                        </span>
                       </div>
                     </div>
                   </div>
@@ -337,6 +350,10 @@ export const IcuDashboard = () => {
                           {t('icu.dashboard.transfers.confirmArrival', 'تأكيد وصول المريض للعناية')}
                         </button>
                       )}
+                      {canManageTransfers && <button onClick={() => cancelTransfer(tr.id as number)} disabled={cancellingId !== null}
+                        className="w-full py-2 text-xs text-rose-400 border border-rose-900 rounded-lg disabled:opacity-50">
+                        {t('icu.dashboard.cancelTransfer', 'إلغاء طلب النقل')}
+                      </button>}
                     </div>
                   </div>
                 ))
@@ -369,10 +386,12 @@ export const IcuDashboard = () => {
       </div>
 
       <HandoverNoteModal 
+        key={selectedTransfer?.id ?? 'none'}
         isOpen={showHandoverModal} 
         onClose={() => setShowHandoverModal(false)}
         transferId={selectedTransfer?.id}
         patientName={selectedTransfer?.encounter?.patient?.fullName || ''}
+        existingData={selectedTransfer?.handoverNote}
         onSuccess={() => {
           setShowHandoverModal(false);
           fetchData();

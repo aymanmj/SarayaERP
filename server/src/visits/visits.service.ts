@@ -11,13 +11,14 @@ export class VisitsService {
 
   async createVisit(data: {
     encounterId: number;
+    hospitalId: number;
     doctorId: number;
     notes?: string;
     diagnosisText?: string;
   }) {
     // تأكد أن الـ Encounter موجود ومفتوح
     const enc = await this.prisma.encounter.findUnique({
-      where: { id: data.encounterId },
+      where: { id: data.encounterId, hospitalId: data.hospitalId },
     });
 
     if (!enc) {
@@ -40,9 +41,9 @@ export class VisitsService {
     });
   }
 
-  async listForEncounter(encounterId: number) {
+  async listForEncounter(encounterId: number, hospitalId: number) {
     return this.prisma.visit.findMany({
-      where: { encounterId },
+      where: { encounterId, encounter: { hospitalId } },
       orderBy: { visitDate: 'asc' },
     });
   }

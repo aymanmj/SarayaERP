@@ -1,3 +1,16 @@
+import type { Prisma } from '@prisma/client';
+type ScrubClaim = Prisma.ClaimGetPayload<{
+  include: {
+    invoice: {
+      include: {
+        patient: true;
+        insuranceProvider: true;
+        encounter: { include: { encounterDiagnoses: true } };
+        charges: true;
+      };
+    };
+  };
+}>;
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 
@@ -31,7 +44,7 @@ export class ClaimScrubberService {
   /**
    * تنفيذ كل قواعد الفحص على المطالبة
    */
-  async scrub(claim: any): Promise<ScrubResult[]> {
+  async scrub(claim: ScrubClaim): Promise<ScrubResult[]> {
     const results: ScrubResult[] = [];
 
     results.push(...this.checkCompleteness(claim));
@@ -51,9 +64,19 @@ export class ClaimScrubberService {
   /**
    * فحص اكتمال البيانات — هل كل الحقول المطلوبة موجودة؟
    */
-  private checkCompleteness(claim: any): ScrubResult[] {
+  private checkCompleteness(claim: ScrubClaim): ScrubResult[] {
     const results: ScrubResult[] = [];
     const invoice = claim.invoice;
+
+    if (!invoice) {
+      results.push({
+        ruleCode: 'COMPLETENESS',
+        severity: 'ERROR',
+        message: 'الفاتورة غير مرتبطة بالمطالبة',
+        field: 'invoice',
+      });
+      return results;
+    }
 
     // بيانات المريض
     if (!invoice?.patient) {
@@ -103,12 +126,13 @@ export class ClaimScrubberService {
     }
 
     // بنود الفاتورة
-    if (!invoice?.items || invoice.items.length === 0) {
+    const charges = invoice?.charges || [];
+    if (charges.length === 0) {
       results.push({
         ruleCode: 'COMPLETENESS',
         severity: 'ERROR',
         message: 'الفاتورة لا تحتوي على بنود',
-        field: 'items',
+        field: 'charges',
       });
     }
 
@@ -128,7 +152,7 @@ export class ClaimScrubberService {
   /**
    * فحص الأهلية — هل التغطية التأمينية فعالة؟
    */
-  private checkEligibility(claim: any): ScrubResult[] {
+  private checkEligibility(claim: ScrubClaim): ScrubResult[] {
     const results: ScrubResult[] = [];
     const provider = claim.invoice?.insuranceProvider;
 
@@ -147,13 +171,13 @@ export class ClaimScrubberService {
   /**
    * فحص دقة الترميز — هل التشخيصات والإجراءات مرمزة؟
    */
-  private checkCodingAccuracy(claim: any): ScrubResult[] {
+  private checkCodingAccuracy(claim: ScrubClaim): ScrubResult[] {
     const results: ScrubResult[] = [];
     const encounter = claim.invoice?.encounter;
 
     // التحقق من وجود تشخيص رئيسي
     if (encounter) {
-      const diagnoses = encounter.diagnoses || [];
+      const diagnoses = encounter.encounterDiagnoses || [];
       if (diagnoses.length === 0) {
         results.push({
           ruleCode: 'CODING',
@@ -164,7 +188,7 @@ export class ClaimScrubberService {
         });
       } else {
         // التحقق من وجود تشخيص رئيسي
-        const hasPrimary = diagnoses.some((d: any) => d.type === 'PRIMARY');
+        const hasPrimary = diagnoses.some((d) => d.type === 'PRIMARY');
         if (!hasPrimary) {
           results.push({
             ruleCode: 'CODING',
@@ -182,13 +206,14 @@ export class ClaimScrubberService {
   /**
    * فحص التكرار — هل هذه مطالبة مكررة؟
    */
-  private async checkDuplicates(claim: any): Promise<ScrubResult[]> {
+  private async checkDuplicates(claim: ScrubClaim): Promise<ScrubResult[]> {
     const results: ScrubResult[] = [];
 
     // 1. الفحص الأساسي: هل يوجد مطالبة أخرى لنفس الفاتورة؟
     if (claim.invoiceId) {
       const existingClaims = await this.prisma.claim.findMany({
         where: {
+          ...(claim.hospitalId ? { hospitalId: claim.hospitalId } : {}),
           invoiceId: claim.invoiceId,
           id: { not: claim.id },
           status: { notIn: ['REJECTED', 'VOID'] },
@@ -215,6 +240,7 @@ export class ClaimScrubberService {
 
       const sameDayClaims = await this.prisma.claim.findMany({
         where: {
+          ...(claim.hospitalId ? { hospitalId: claim.hospitalId } : {}),
           id: { not: claim.id },
           status: { notIn: ['REJECTED', 'VOID'] },
           invoice: {
@@ -246,7 +272,7 @@ export class ClaimScrubberService {
   /**
    * فحص الموافقات المسبقة — هل توجد pre-auth سارية؟
    */
-  private checkAuthorization(claim: any): ScrubResult[] {
+  private checkAuthorization(claim: ScrubClaim): ScrubResult[] {
     const results: ScrubResult[] = [];
 
     // تحذير إذا كانت الزيارة تتطلب موافقة مسبقة (Inpatient/Surgery)

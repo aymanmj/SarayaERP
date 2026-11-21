@@ -13,9 +13,27 @@ describe('RadiologyService', () => {
   let accounting: any;
   let priceService: any;
   let eventEmitter: any;
+  const queryRaw = jest.fn();
 
   beforeEach(async () => {
+    queryRaw.mockReset().mockResolvedValue([
+      {
+        orderStatus: 'NEW',
+        radiologyStatus: 'PENDING',
+        paymentStatus: 'PAID',
+      },
+    ]);
     prisma = {
+      $queryRaw: queryRaw,
+      serviceItem: { findFirst: jest.fn().mockResolvedValue({ id: 1 }) },
+      consumptionWarehousePolicy: {
+        findUnique: jest.fn().mockResolvedValue(null),
+      },
+      serviceMaterialConsumption: {
+        upsert: jest.fn(),
+        findUnique: jest.fn().mockResolvedValue(null),
+      },
+      serviceItemProduct: { findMany: jest.fn().mockResolvedValue([]) },
       encounter: {
         findUnique: jest.fn(),
       },
@@ -30,6 +48,7 @@ describe('RadiologyService', () => {
         findMany: jest.fn(),
         findFirst: jest.fn(),
         findUnique: jest.fn(),
+        findUniqueOrThrow: jest.fn(),
         create: jest.fn(),
         update: jest.fn(),
       },
@@ -215,7 +234,7 @@ describe('RadiologyService', () => {
 
   describe('startProcessing', () => {
     it('moves radiology order to in-progress and emits event', async () => {
-      prisma.radiologyOrder.findUnique.mockResolvedValue({
+      prisma.radiologyOrder.findUniqueOrThrow.mockResolvedValue({
         id: 1,
         status: RadiologyStatus.PENDING,
         order: { hospitalId: 1 },
@@ -240,7 +259,7 @@ describe('RadiologyService', () => {
         status: RadiologyStatus.COMPLETED,
         order: { hospitalId: 1 },
       };
-      prisma.radiologyOrder.findUnique.mockResolvedValue(completedOrder);
+      prisma.radiologyOrder.findUniqueOrThrow.mockResolvedValue(completedOrder);
 
       const result = await service.startProcessing(1, 1, 7);
 
@@ -309,6 +328,7 @@ describe('RadiologyService', () => {
     });
 
     it('rejects completion when radiology order is missing', async () => {
+      queryRaw.mockResolvedValue([]);
       prisma.radiologyOrder.findUnique.mockResolvedValue(null);
 
       await expect(

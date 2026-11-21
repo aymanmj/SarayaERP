@@ -1,3 +1,16 @@
+import {
+  inventoryKey,
+  mappedAccount,
+} from '../purchases/purchase-return-posting';
+import {
+  lockFinancialInvoice,
+  financialPeriod,
+  invoicePostingKey,
+  insuranceReceivableLinePrefix,
+  postPayment,
+} from './financial-posting';
+import { Money } from '../common/utils/money.util';
+import type { Account } from '@prisma/client';
 // src/accounting/accounting.service.ts
 
 import {
@@ -38,7 +51,7 @@ import {
   JournalEntryLineDto,
 } from './dto/journal-entry.dto';
 
-const ACCOUNT_CODES = {
+export const ACCOUNT_CODES = {
   CASH_MAIN: '100100', // صندوق الكاشير
   BANK_MAIN: '101100', // حساب بنك رئيسي
   AR_PATIENTS: '120100', // ذمم المرضى
@@ -50,6 +63,7 @@ const ACCOUNT_CODES = {
   VAT_INPUT: '140100', // ضريبة مدخلات قابلة للاسترداد (Asset)
   AP_SUPPLIERS: '200100', // دائنون موردون (حالياً نستخدم 200100)
   SALES_RETURNS: '400900', // مردودات مبيعات
+  PATIENT_DEPOSITS: '200500', // أمانات ودفعات المرضى المقدمة (Custodial Liability)
 } as const;
 
 type SampleAccountDef = {
@@ -215,6 +229,12 @@ const SAMPLE_COA: SampleAccountDef[] = [
   {
     code: '200400',
     name: 'ضرائب ورسوم مستحقة',
+    type: 'LIABILITY',
+    parentCode: '200000',
+  },
+  {
+    code: ACCOUNT_CODES.PATIENT_DEPOSITS,
+    name: 'أمانات ودفعات المرضى المقدمة',
     type: 'LIABILITY',
     parentCode: '200000',
   },
@@ -404,7 +424,7 @@ export class AccountingService {
     hospitalId: number,
     key: SystemAccountKey,
     tx?: Prisma.TransactionClient,
-  ) {
+  ): Promise<Account> {
     const db = this.db(tx);
 
     const mapping = await db.systemAccountMapping.findFirst({
@@ -412,7 +432,22 @@ export class AccountingService {
       include: { account: true },
     });
 
-    if (!mapping || !mapping.account) {
+    if (
+      !mapping ||
+      !mapping.account ||
+      !mapping.account.isActive ||
+      mapping.account.hospitalId !== hospitalId
+    ) {
+      if (
+        key.startsWith('REVENUE_') &&
+        key !== SystemAccountKey.REVENUE_OUTPATIENT
+      ) {
+        return this.getSystemAccountOrThrow(
+          hospitalId,
+          SystemAccountKey.REVENUE_OUTPATIENT,
+          tx,
+        );
+      }
       throw new BadRequestException(
         `لم يتم إعداد الحساب النظامي للمفتاح ${key} لهذه المنشأة.`,
       );
@@ -430,6 +465,12 @@ export class AccountingService {
     switch (type) {
       case ServiceType.PHARMACY:
         return SystemAccountKey.REVENUE_PHARMACY;
+      case ServiceType.BED:
+        return SystemAccountKey.REVENUE_INPATIENT;
+      case ServiceType.LAB:
+        return SystemAccountKey.REVENUE_LAB;
+      case ServiceType.RADIOLOGY:
+        return SystemAccountKey.REVENUE_RADIOLOGY;
 
       // لاحقًا نوسع:
       // case ServiceType.LAB:
@@ -496,6 +537,10 @@ export class AccountingService {
         { key: SystemAccountKey.CASH_MAIN, code: ACCOUNT_CODES.CASH_MAIN },
         { key: SystemAccountKey.BANK_MAIN, code: ACCOUNT_CODES.BANK_MAIN },
         {
+          key: SystemAccountKey.RECEIVABLE_INSURANCE,
+          code: ACCOUNT_CODES.AR_INSURANCE,
+        },
+        {
           key: SystemAccountKey.RECEIVABLE_PATIENTS,
           code: ACCOUNT_CODES.AR_PATIENTS,
         },
@@ -506,6 +551,22 @@ export class AccountingService {
         {
           key: SystemAccountKey.REVENUE_PHARMACY,
           code: '400500', // إيرادات الصيدلية من SAMPLE_COA
+        },
+        {
+          key: SystemAccountKey.REVENUE_LAB,
+          code: '400300',
+        },
+        {
+          key: SystemAccountKey.REVENUE_RADIOLOGY,
+          code: '400400',
+        },
+        {
+          key: SystemAccountKey.REVENUE_INPATIENT,
+          code: ACCOUNT_CODES.REVENUE_MEDICAL,
+        },
+        {
+          key: SystemAccountKey.REVENUE_SURGERY,
+          code: ACCOUNT_CODES.REVENUE_MEDICAL,
         },
         {
           key: SystemAccountKey.DISCOUNT_ALLOWED,
@@ -793,7 +854,108 @@ export class AccountingService {
     };
   }
 
-  private async getAccountByCode(hospitalId: number, code: string) {
+  async getAccountByCode(
+    hospitalId: number,
+    code: string,
+    tx?: Prisma.TransactionClient,
+  ) {
+    const db = this.db(tx);
+    let acc = await db.account.findFirst({
+      where: { hospitalId, code },
+    });
+    if (!acc) {
+      await this.ensureDefaultAccounts(hospitalId);
+      acc = await db.account.findFirst({
+        where: { hospitalId, code },
+      });
+    }
+    if (!acc) {
+      throw new Error(
+        `Account with code ${code} not found for hospital ${hospitalId}. تأكد من وجود دليل الحسابات الافتراضي.`,
+      );
+    }
+    return acc;
+  }
+
+  /**
+   * قيد تسوية/تطبيق أمانات المريض على فاتورة:
+   * Debit  أمانات ودفعات المرضى المقدمة (PATIENT_DEPOSITS: 200500)
+   * Credit ذمم المرضى (AR_PATIENTS: 120100)
+   */
+  async recordDepositApplicationEntry(params: {
+    hospitalId: number;
+    paymentId: number;
+    invoiceId: number;
+    amount: number | Prisma.Decimal;
+    voucherId?: number;
+    userId: number;
+    prisma?: Prisma.TransactionClient;
+  }): Promise<void> {
+    const db = params.prisma || this.prisma;
+    const { hospitalId, paymentId, invoiceId, amount, userId } = params;
+    const decimalAmount = Money.decimal(amount);
+
+    if (decimalAmount.lte(0)) {
+      throw new BadRequestException(
+        'مبلغ تطبيق الأمانات يجب أن يكون أكبر من صفر',
+      );
+    }
+
+    const postingKey = `deposit:apply:${hospitalId}:${paymentId}`;
+    const existing = await db.accountingEntry.findUnique({
+      where: { postingKey },
+    });
+    if (existing) return;
+
+    const { financialYear, period } = await financialPeriod(
+      db,
+      hospitalId,
+      new Date(),
+    );
+
+    const depositAccount = await this.getAccountByCode(
+      hospitalId,
+      ACCOUNT_CODES.PATIENT_DEPOSITS,
+      params.prisma,
+    );
+    const arPatientsAccount = await this.getAccountByCode(
+      hospitalId,
+      ACCOUNT_CODES.AR_PATIENTS,
+      params.prisma,
+    );
+
+    await db.accountingEntry.create({
+      data: {
+        hospitalId,
+        postingKey,
+        sourceModule: 'BILLING',
+        sourceId: paymentId,
+        entryDate: new Date(),
+        financialYearId: financialYear.id,
+        financialPeriodId: period.id,
+        createdById: userId,
+        description: `تطبيق أمانات على فاتورة #${invoiceId} عبر دفعة #${paymentId}`,
+        lines: {
+          create: [
+            {
+              accountId: depositAccount.id,
+              debit: decimalAmount,
+              credit: 0,
+              description: `تسوية أمانات مريض - خصم من حساب الأمانات لفاتورة #${invoiceId}`,
+            },
+            {
+              accountId: arPatientsAccount.id,
+              debit: 0,
+              credit: decimalAmount,
+              description: `سداد ذمم مريض من الأمانات لفاتورة #${invoiceId}`,
+            },
+          ],
+        },
+      },
+    });
+  }
+
+  private async _oldGetAccountByCode(hospitalId: number, code: string) {
     const acc = await this.prisma.account.findFirst({
       where: { hospitalId, code },
     });
@@ -815,6 +977,7 @@ export class AccountingService {
    * netReceivable = totalAmount - discountAmount
    */
   async recordInvoiceEntry(params: {
+    prisma?: Prisma.TransactionClient;
     invoiceId: number;
     hospitalId: number;
     userId?: number;
@@ -822,10 +985,36 @@ export class AccountingService {
     patientShare?: number;
     insuranceShare?: number;
     insuranceProviderId?: number;
-  }) {
+  }): Promise<void> {
+    if (!params.prisma) {
+      await this.prisma.$transaction(
+        async (tx) => {
+          await lockFinancialInvoice(tx, params.hospitalId, params.invoiceId);
+          await this.recordInvoiceEntry({ ...params, prisma: tx });
+        },
+        { maxWait: 10000, timeout: 20000 },
+      );
+      return;
+    }
+    const db = params.prisma;
+    const postingKey = invoicePostingKey(params.hospitalId, params.invoiceId);
+    if (await db.accountingEntry.findUnique({ where: { postingKey } })) return;
+    if (
+      await db.accountingEntry.count({
+        where: {
+          hospitalId: params.hospitalId,
+          sourceModule: 'BILLING',
+          sourceId: params.invoiceId,
+          postingKey: null,
+        },
+      })
+    )
+      throw new BadRequestException(
+        'القيد القديم يحتاج مطابقة قبل إعادة ترحيله؛ لن يتم حذف سطوره أو إعادة كتابتها',
+      );
     const { invoiceId, hospitalId, userId } = params;
 
-    const invoice = await this.prisma.invoice.findFirst({
+    const invoice = await db.invoice.findFirst({
       where: {
         id: invoiceId,
         hospitalId,
@@ -851,14 +1040,13 @@ export class AccountingService {
       return;
     }
 
-    const totalAmount = Number(invoice.totalAmount ?? 0);
+    const totalAmount = Money.decimal(invoice.totalAmount);
 
     // ✅ تحديد القيم (إما من الباراميترز أو من الفاتورة المخزنة)
-    const pShare = params.patientShare ?? Number(invoice.patientShare);
-    const iShare = params.insuranceShare ?? Number(invoice.insuranceShare);
-    const iProvId = params.insuranceProviderId ?? invoice.insuranceProviderId;
+    const pShare = Money.decimal(invoice.patientShare);
+    const iShare = Money.decimal(invoice.insuranceShare);
 
-    if (totalAmount <= 0) {
+    if (totalAmount.lte(0)) {
       throw new BadRequestException(
         'قيمة الفاتورة المحاسبية يجب أن تكون أكبر من صفر.',
       );
@@ -869,7 +1057,8 @@ export class AccountingService {
       (invoice as any).invoiceDate ??
       invoice.createdAt;
 
-    const { financialYear, period } = await this.ensureOpenFinancialPeriod(
+    const { financialYear, period } = await financialPeriod(
+      db,
       hospitalId,
       entryDate as Date,
     );
@@ -877,32 +1066,40 @@ export class AccountingService {
     const fpId = period.id;
 
     // 1) تجميع الإيرادات (الجانب الدائن)
-    const revenueMap = new Map<SystemAccountKey, number>();
+    const revenueMap = new Map<
+      SystemAccountKey,
+      ReturnType<typeof Money.decimal>
+    >();
 
     if (invoice.charges && invoice.charges.length > 0) {
       for (const ch of invoice.charges) {
-        const lineAmount = Number(ch.totalAmount ?? 0);
-        if (!lineAmount) continue;
+        const lineAmount = Money.decimal(ch.totalAmount);
+        if (lineAmount.isZero()) continue;
 
         let key: SystemAccountKey = SystemAccountKey.REVENUE_OUTPATIENT;
 
         if (ch.serviceItem) {
           key = this.mapServiceTypeToRevenueKey(ch.serviceItem.type ?? null);
         }
-        revenueMap.set(key, (revenueMap.get(key) ?? 0) + lineAmount);
+        revenueMap.set(
+          key,
+          Money.sumDecimal(revenueMap.get(key) ?? 0, lineAmount),
+        );
       }
     } else {
       revenueMap.set(SystemAccountKey.REVENUE_OUTPATIENT, totalAmount);
     }
 
     // معالجة الفروق البسيطة
-    let revSum = 0;
-    for (const amount of revenueMap.values()) revSum += amount;
-    const diff = totalAmount - revSum;
-    if (Math.abs(diff) > 0.0001) {
+    const revSum = Money.sumDecimal(...revenueMap.values());
+    const diff = totalAmount.minus(revSum);
+    if (!diff.isZero()) {
       revenueMap.set(
         SystemAccountKey.REVENUE_OUTPATIENT,
-        (revenueMap.get(SystemAccountKey.REVENUE_OUTPATIENT) ?? 0) + diff,
+        Money.sumDecimal(
+          revenueMap.get(SystemAccountKey.REVENUE_OUTPATIENT) ?? 0,
+          diff,
+        ),
       );
     }
 
@@ -910,33 +1107,46 @@ export class AccountingService {
     const debitLines: Prisma.AccountingEntryLineCreateManyInput[] = [];
 
     // أ) ذمم المرضى
-    if (pShare > 0) {
+    if (pShare.gt(0)) {
       const arPatientAcc = await this.getSystemAccountOrThrow(
         hospitalId,
         SystemAccountKey.RECEIVABLE_PATIENTS,
+        db,
       );
       debitLines.push({
         // سيتم ملء entryId لاحقاً
         entryId: 0,
         accountId: arPatientAcc.id,
-        debit: new Prisma.Decimal(pShare),
+        debit: new Prisma.Decimal(pShare.toString()),
         credit: new Prisma.Decimal(0),
         description: 'استحقاق على المريض - فاتورة',
       });
     }
 
     // ب) ذمم التأمين
-    if (iShare > 0) {
+    if (iShare.gt(0)) {
       let insuranceAccId: number;
 
       // نحاول استخدام الحساب الخاص بالشركة إذا وجد
       if (invoice.insuranceProvider?.accountId) {
-        insuranceAccId = invoice.insuranceProvider.accountId;
+        const insuranceAccount = await db.account.findFirst({
+          where: {
+            id: invoice.insuranceProvider.accountId,
+            hospitalId,
+            isActive: true,
+          },
+        });
+        if (!insuranceAccount)
+          throw new BadRequestException(
+            'حساب ذمة التأمين لا ينتمي إلى المنشأة أو غير نشط',
+          );
+        insuranceAccId = insuranceAccount.id;
       } else {
         // وإلا نستخدم حساب ذمم التأمين العام
         const generalInsAcc = await this.getSystemAccountOrThrow(
           hospitalId,
           SystemAccountKey.RECEIVABLE_INSURANCE,
+          db,
         );
         insuranceAccId = generalInsAcc.id;
       }
@@ -944,200 +1154,82 @@ export class AccountingService {
       debitLines.push({
         entryId: 0,
         accountId: insuranceAccId,
-        debit: new Prisma.Decimal(iShare),
+        debit: new Prisma.Decimal(iShare.toString()),
         credit: new Prisma.Decimal(0),
-        description: `استحقاق تأمين (${invoice.insuranceProvider?.name})`,
+        description: `${insuranceReceivableLinePrefix}${invoice.insuranceProvider?.name})`,
       });
     }
 
     // 3) إعداد الجانب الدائن (Credit Side - Revenues)
     const creditLines: Prisma.AccountingEntryLineCreateManyInput[] = [];
     for (const [key, amount] of revenueMap.entries()) {
-      const acc = await this.getSystemAccountOrThrow(hospitalId, key);
+      const acc = await this.getSystemAccountOrThrow(hospitalId, key, db);
       creditLines.push({
         entryId: 0,
         accountId: acc.id,
         debit: new Prisma.Decimal(0),
-        credit: new Prisma.Decimal(amount),
+        credit: new Prisma.Decimal(amount.toString()),
         description: 'إيرادات خدمات طبية',
       });
     }
 
-    // 4) الحفظ في قاعدة البيانات
-    await this.prisma.$transaction(async (tx) => {
-      const existing = await tx.accountingEntry.findFirst({
-        where: {
-          hospitalId,
-          sourceModule: AccountingSourceModule.BILLING,
-          sourceId: invoiceId,
-        },
-      });
-
-      let entryId: number;
-
-      if (existing) {
-        entryId = existing.id;
-        await this.validateEntryModification(entryId, hospitalId, tx);
-        await tx.accountingEntryLine.deleteMany({ where: { entryId } });
-      } else {
-        const created = await tx.accountingEntry.create({
-          data: {
-            hospitalId,
-            financialYearId: fyId,
-            financialPeriodId: fpId,
-            entryDate,
-            description: `قيد فاتورة رقم ${invoice.id} ${iShare > 0 ? '(تأمين)' : ''}`,
-            sourceModule: AccountingSourceModule.BILLING,
-            sourceId: invoice.id,
-            createdById: userId ?? null,
-          },
-        });
-        entryId = created.id;
-      }
-
-      // دمج السطور وتحديث رقم القيد
-      const allLines = [...debitLines, ...creditLines].map((l) => ({
-        ...l,
-        entryId,
-      }));
-
-      if (allLines.length > 0) {
-        await tx.accountingEntryLine.createMany({ data: allLines });
-      }
+    const lines = [...debitLines, ...creditLines].map(
+      ({ accountId, debit, credit, description }) => ({
+        accountId,
+        debit: Money.toDbString(debit),
+        credit: Money.toDbString(credit),
+        description,
+      }),
+    );
+    if (
+      !Money.eq(
+        Money.sumDecimal(...lines.map((line) => line.debit)),
+        Money.sumDecimal(...lines.map((line) => line.credit)),
+      )
+    )
+      throw new BadRequestException('القيد المحاسبي للفاتورة غير متوازن');
+    await db.accountingEntry.create({
+      data: {
+        hospitalId,
+        postingKey,
+        sourceModule: AccountingSourceModule.BILLING,
+        sourceId: invoiceId,
+        financialYearId: fyId,
+        financialPeriodId: fpId,
+        entryDate,
+        createdById: userId ?? null,
+        description: 'قيد فاتورة #' + invoiceId,
+        lines: { create: lines },
+      },
     });
   }
 
-  /**
-   * قيد تحصيل دفعة على فاتورة:
-   *
-   * لو الدفع نقدًا:
-   *   Debit  الصندوق الرئيسي (CASH_MAIN)
-   *   Credit ذمم المرضى (RECEIVABLE_PATIENTS)
-   *
-   * لو الدفع بطاقة / تحويل:
-   *   Debit  البنك الرئيسي (BANK_MAIN)
-   *   Credit ذمم المرضى
-   */
   async recordPaymentEntry(params: {
     paymentId: number;
     hospitalId: number;
     userId: number;
-  }) {
-    const { paymentId, hospitalId, userId } = params;
-
-    const payment = await this.prisma.payment.findFirst({
-      where: {
-        id: paymentId,
-        hospitalId,
-      },
-      include: {
-        invoice: true,
-      },
-    });
-
-    if (!payment || !payment.invoice) {
-      throw new NotFoundException(
-        'الدفعة أو الفاتورة المرتبطة بها غير موجودة.',
+    prisma?: Prisma.TransactionClient;
+  }): Promise<void> {
+    if (params.prisma) {
+      await postPayment(
+        params.prisma,
+        params.hospitalId,
+        params.paymentId,
+        params.userId,
       );
+      return;
     }
-
-    const invoice = payment.invoice;
-    const amount = Number(payment.amount ?? 0);
-
-    if (amount <= 0) {
-      throw new BadRequestException(
-        'قيمة الدفعة يجب أن تكون أكبر من صفر لتسجيل قيد محاسبي.',
-      );
-    }
-
-    // ✅ نعتمد على تاريخ الدفعة نفسه، ونتأكد أنه داخل سنة/فترة مفتوحة
-    const entryDate = payment.paidAt ?? new Date();
-    const { financialYear, period } = await this.ensureOpenFinancialPeriod(
-      hospitalId,
-      entryDate,
+    await this.prisma.$transaction(
+      async (tx) => {
+        await postPayment(
+          tx,
+          params.hospitalId,
+          params.paymentId,
+          params.userId,
+        );
+      },
+      { maxWait: 10000, timeout: 20000 },
     );
-
-    const arAccount = await this.getSystemAccountOrThrow(
-      hospitalId,
-      SystemAccountKey.RECEIVABLE_PATIENTS,
-    );
-
-    let debitKey: SystemAccountKey;
-
-    switch (payment.method) {
-      case PaymentMethod.CASH:
-        debitKey = SystemAccountKey.CASH_MAIN;
-        break;
-
-      case PaymentMethod.CARD:
-      case PaymentMethod.TRANSFER:
-        debitKey = SystemAccountKey.BANK_MAIN;
-        break;
-
-      default:
-        // INSURANCE / OTHER حالياً نعتبرها نقدية، ويمكن تخصيصها لاحقاً
-        debitKey = SystemAccountKey.CASH_MAIN;
-        break;
-    }
-
-    const debitAccount = await this.getSystemAccountOrThrow(
-      hospitalId,
-      debitKey,
-    );
-
-    await this.prisma.$transaction(async (tx) => {
-      const existing = await tx.accountingEntry.findFirst({
-        where: {
-          hospitalId,
-          sourceModule: AccountingSourceModule.BILLING, // 👈 استبدال CASHIER بـ BILLING
-          sourceId: paymentId,
-        },
-      });
-
-      let entryId: number;
-
-      if (existing) {
-        entryId = existing.id;
-        await tx.accountingEntryLine.deleteMany({
-          where: { entryId },
-        });
-      } else {
-        const created = await tx.accountingEntry.create({
-          data: {
-            hospitalId,
-            financialYearId: financialYear.id,
-            financialPeriodId: period.id,
-            entryDate,
-            description: `تحصيل دفعة على الفاتورة رقم ${invoice.id}`,
-            sourceModule: AccountingSourceModule.BILLING,
-            sourceId: payment.id,
-            createdById: userId,
-          },
-        });
-        entryId = created.id;
-      }
-
-      const lines: Prisma.AccountingEntryLineCreateManyInput[] = [
-        {
-          entryId,
-          accountId: debitAccount.id,
-          debit: amount,
-          credit: 0,
-          description: 'تحصيل نقدي/بنكي من المريض',
-        },
-        {
-          entryId,
-          accountId: arAccount.id,
-          debit: 0,
-          credit: amount,
-          description: 'تسوية ذمم المرضى',
-        },
-      ];
-
-      await tx.accountingEntryLine.createMany({
-        data: lines,
-      });
-    });
   }
 
   // ==============================
@@ -1873,7 +1965,7 @@ export class AccountingService {
     sourceId: number; // DispenseRecordId or InvoiceId
     hospitalId: number;
     userId: number;
-    totalCost: number;
+    totalCost: number | Prisma.Decimal;
     module: 'PHARMACY' | 'INVENTORY';
     tx?: Prisma.TransactionClient;
     inventoryAccountId?: number | null;
@@ -1890,14 +1982,18 @@ export class AccountingService {
       expenseAccountId,
     } = params;
 
-    // تكلفة صفرية أو سالبة لا تحتاج لقيد
-    if (totalCost <= 0.0001) return;
+    // تحقق من المدخل، ثم طبّق سياسة Money عند حد الحفظ.
+    const rawCost = new Prisma.Decimal(totalCost);
+    if (!rawCost.isFinite() || rawCost.lt(0))
+      throw new BadRequestException('تكلفة استهلاك غير صالحة');
+    const cost = new Prisma.Decimal(Money.toDbString(rawCost));
+    if (cost.isZero()) return;
 
     const db = this.db(tx);
 
     // 1. تحديد الحسابات (Debit: COGS, Credit: Inventory)
-    let inventoryAccount: any = null;
-    let cogsAccount: any = null;
+    let inventoryAccount: Account | null = null;
+    let cogsAccount: Account | null = null;
 
     if (inventoryAccountId) {
       inventoryAccount = await db.account.findFirst({
@@ -1935,6 +2031,17 @@ export class AccountingService {
       }
       cogsAccount = await this.getSystemAccountOrThrow(hospitalId, cogsKey, tx);
     }
+    if (
+      !inventoryAccount ||
+      !cogsAccount ||
+      inventoryAccount.hospitalId !== hospitalId ||
+      !inventoryAccount.isActive ||
+      inventoryAccount.type !== 'ASSET' ||
+      cogsAccount.hospitalId !== hospitalId ||
+      !cogsAccount.isActive ||
+      cogsAccount.type !== 'EXPENSE'
+    )
+      throw new BadRequestException('حسابات تكلفة المخزون غير صالحة');
 
     // 2. تحديد الفترة المالية
     const entryDate = new Date();
@@ -1961,14 +2068,14 @@ export class AccountingService {
           create: [
             {
               accountId: cogsAccount.id,
-              debit: new Prisma.Decimal(totalCost),
+              debit: cost,
               credit: new Prisma.Decimal(0),
               description: 'ت. بضاعة مباعة (COGS)',
             },
             {
               accountId: inventoryAccount.id,
               debit: new Prisma.Decimal(0),
-              credit: new Prisma.Decimal(totalCost),
+              credit: cost,
               description: 'نقص مخزون (Inventory)',
             },
           ],
@@ -1977,7 +2084,7 @@ export class AccountingService {
     });
 
     this.logger.log(
-      `COGS Entry created for ${module} #${sourceId}, Cost: ${totalCost} (Tx-aware)`,
+      `COGS Entry created for ${module} #${sourceId}, Cost: ${cost.toString()} (Tx-aware)`,
     );
   }
 
@@ -3066,7 +3173,7 @@ export class AccountingService {
 
   //     // 👈 منطق التصنيف
   //     const isRevenue =
-  //       type === AccountType.REVENUE || (code && code.startsWith('4'));
+  //       type === AccountType.REVENUE || type === AccountType.CONTRA_REVENUE;
 
   //     const isExpense =
   //       type === AccountType.EXPENSE ||
@@ -3200,24 +3307,7 @@ export class AccountingService {
 
     // 👈 نجيب كل سطور القيود لحسابات قائمة الدخل في الفترة
     const lines = await this.prisma.accountingEntryLine.findMany({
-      where: {
-        entry: {
-          hospitalId,
-          entryDate: {
-            gte: fromInclusive,
-            lt: toExclusive,
-          },
-        },
-        account: {
-          type: {
-            in: [
-              AccountType.REVENUE,
-              AccountType.EXPENSE,
-              AccountType.CONTRA_REVENUE,
-            ],
-          },
-        },
-      },
+      where: whereLines,
       select: {
         accountId: true,
         debit: true,
@@ -3294,10 +3384,7 @@ export class AccountingService {
       const isRevenue =
         type === AccountType.REVENUE || (code && code.startsWith('4'));
 
-      const isExpense =
-        type === AccountType.EXPENSE ||
-        type === AccountType.CONTRA_REVENUE ||
-        (code && code.startsWith('5'));
+      const isExpense = type === AccountType.EXPENSE;
 
       // لو لأي سبب الحساب مش إيراد ولا مصروف نتجاهله
       if (!isRevenue && !isExpense) {
@@ -3575,8 +3662,7 @@ export class AccountingService {
     }
 
     // 3) إجمالي الالتزامات + حقوق الملكية (بالقيمة المطلقة لحقوق الملكية)
-    const liabilitiesAndEquity =
-      liabilitiesTotal + Math.abs(equityTotalWithNetIncome);
+    const liabilitiesAndEquity = -liabilitiesTotal - equityTotalWithNetIncome;
 
     return {
       asOfDate: asOfStart,
@@ -3757,20 +3843,19 @@ export class AccountingService {
       where: { id: purchaseInvoiceId, hospitalId },
       include: {
         supplier: true,
-        lines: true, // ✅ نحتاج inventoryItemId / drugItemId
+        lines: {
+          orderBy: { id: 'asc' },
+          include: { product: { include: { category: true } } },
+        },
       },
     });
     if (!inv) return;
 
-    if (
-      (inv as any).status === 'DRAFT' ||
-      (inv as any).status === 'CANCELLED'
-    ) {
+    if (inv.status === 'DRAFT' || inv.status === 'CANCELLED') {
       return;
     }
 
-    const rawEntryDate =
-      inv.invoiceDate ?? (inv as any).createdAt ?? new Date();
+    const rawEntryDate = inv.invoiceDate;
     const entryDate = startOfDayUtc(rawEntryDate);
 
     const { financialYear, period } = await this.ensureOpenFinancialPeriod(
@@ -3779,75 +3864,95 @@ export class AccountingService {
       tx,
     );
 
-    const round3 = (n: number) => Math.round(n * 1000) / 1000;
-
-    // ✅ حساب الموردين (AP)
-    const apAccount = await db.account.findFirst({
-      where: { hospitalId, code: ACCOUNT_CODES.AP_SUPPLIERS },
+    // ✅ حساب الموردين (AP): يدعم الربط النظامي PAYABLE_SUPPLIERS أو الكود الافتراضي
+    const mappedPayable = await db.systemAccountMapping.findFirst({
+      where: {
+        hospitalId,
+        key: SystemAccountKey.PAYABLE_SUPPLIERS,
+        isActive: true,
+        account: { hospitalId, isActive: true, type: 'LIABILITY' },
+      },
+      include: { account: true },
     });
-    if (!apAccount) {
+    const apAccount =
+      mappedPayable?.account ??
+      (await db.account.findFirst({
+        where: {
+          hospitalId,
+          code: ACCOUNT_CODES.AP_SUPPLIERS,
+          isActive: true,
+          type: 'LIABILITY',
+        },
+      }));
+    if (!apAccount || apAccount.type !== 'LIABILITY' || !apAccount.isActive) {
       throw new BadRequestException(
         `حساب الموردين (${ACCOUNT_CODES.AP_SUPPLIERS}) غير موجود.`,
       );
     }
 
     // ✅ VAT Input (Asset)
-    const vatAmount = Number(inv.vatAmount ?? 0);
-    const vatAccount =
-      vatAmount > 0.0001
-        ? await db.account.findFirst({
-            where: { hospitalId, code: ACCOUNT_CODES.VAT_INPUT },
-          })
-        : null;
+    const vatAmount = Money.toDbString(inv.vatAmount ?? 0);
+    const vatAccount = Money.isPositive(vatAmount)
+      ? await db.account.findFirst({
+          where: {
+            hospitalId,
+            code: ACCOUNT_CODES.VAT_INPUT,
+            isActive: true,
+            type: 'ASSET',
+          },
+        })
+      : null;
 
     // ✅ Accounts fallback
     const defaultExpense = await db.account.findFirst({
-      where: { hospitalId, code: '500200' }, // مصروف أدوية
+      where: { hospitalId, code: '500200', isActive: true }, // مصروف أدوية
       select: { id: true },
     });
 
-    const invDrugs = await db.account.findFirst({
-      where: { hospitalId, code: '130100' }, // مخزون أدوية
-      select: { id: true },
-    });
+    // ✅ تجميع البنود حسب الحساب (مصروف/مخزون) بدقة Money
+    const postingMap = new Map<number, string>();
 
-    const invSupplies = await db.account.findFirst({
-      where: { hospitalId, code: '130200' }, // مخزون مستلزمات
-      select: { id: true },
-    });
-
-    // ✅ تجميع البنود حسب الحساب (مصروف/مخزون)
-    const postingMap = new Map<number, number>();
-
-    for (const line of inv.lines as any[]) {
-      const lineTotal = Number(line.totalAmount ?? 0);
-      if (lineTotal <= 0) continue;
-
+    for (const line of inv.lines) {
+      const lineTotal = Money.toDbString(line.totalAmount ?? 0);
+      if (!Money.isPositive(lineTotal)) continue;
       let accountId: number | null = null;
-
-      // 1) لو اختار المستخدم حساب يدويًا -> نستخدمه
       if (line.expenseAccountId) {
-        accountId = Number(line.expenseAccountId);
-      } else if (line.drugItemId) {
-        // 2) لو بند أدوية -> مخزون أدوية
-        if (!invDrugs?.id) {
+        const selected = await db.account.findFirst({
+          where: {
+            id: line.expenseAccountId,
+            hospitalId,
+            isActive: true,
+            ...(line.productId ? { type: 'ASSET' as const } : {}),
+          },
+        });
+        if (!selected)
           throw new BadRequestException(
-            'لا يوجد حساب مخزون أدوية (130100) في دليل الحسابات.',
+            'حساب بند الشراء غير صالح أو لا يطابق طبيعة المخزون',
           );
+        accountId = selected.id;
+      } else if (line.productId) {
+        if (!line.product || line.product.hospitalId !== hospitalId)
+          throw new BadRequestException('المنتج خارج نطاق المنشأة');
+        const categoryAccount = line.product.category?.inventoryAccountId
+          ? await db.account.findFirst({
+              where: {
+                id: line.product.category.inventoryAccountId,
+                hospitalId,
+                isActive: true,
+              },
+            })
+          : null;
+        if (
+          line.product.category?.inventoryAccountId &&
+          (!categoryAccount || categoryAccount.type !== 'ASSET')
+        ) {
+          throw new BadRequestException('حساب مخزون التصنيف غير صالح');
         }
-        accountId = invDrugs.id;
-      } else if (line.inventoryItemId) {
-        // 3) لو بند مستلزمات -> مخزون مستلزمات
-        if (!invSupplies?.id) {
-          throw new BadRequestException(
-            'لا يوجد حساب مخزون مستلزمات (130200) في دليل الحسابات.',
-          );
-        }
-        accountId = invSupplies.id;
-      } else {
-        // 4) fallback -> مصروف أدوية
-        accountId = defaultExpense?.id ?? null;
-      }
+        accountId = (
+          categoryAccount ??
+          (await mappedAccount(db, hospitalId, inventoryKey(line.product.type)))
+        ).id;
+      } else accountId = defaultExpense?.id ?? null;
 
       if (!accountId) {
         throw new BadRequestException(
@@ -3855,98 +3960,98 @@ export class AccountingService {
         );
       }
 
-      postingMap.set(accountId, (postingMap.get(accountId) ?? 0) + lineTotal);
+      postingMap.set(
+        accountId,
+        Money.toDbString(
+          Money.sumPosted(postingMap.get(accountId) ?? '0.000', lineTotal),
+        ),
+      );
     }
 
     if (!postingMap.size) return;
 
-    const discount = Number(inv.discountAmount ?? 0);
-    const grossTotal = Array.from(postingMap.values()).reduce(
-      (s, v) => s + v,
-      0,
+    const entries = Array.from(postingMap.entries());
+    const grossTotal = Money.toDbString(
+      Money.sumPosted(...entries.map(([, amount]) => amount)),
     );
+    const discount = Money.toDbString(inv.discountAmount ?? 0);
 
-    if (grossTotal <= 0) return;
-    if (discount < 0 || discount > grossTotal + 0.0001) {
+    if (!Money.isPositive(grossTotal)) return;
+    if (Money.isNegative(discount) || Money.decimal(discount).gt(grossTotal)) {
       throw new BadRequestException(
         'قيمة الخصم غير منطقية مقارنة بإجمالي البنود.',
       );
     }
 
-    // ✅ توزيع الخصم proportionally
-    const discountAlloc = new Map<number, number>();
-    let allocated = 0;
+    // ✅ توزيع الخصم تناسبيًا بدقة Money.allocate
+    const allocations = Money.isPositive(discount)
+      ? Money.allocate(
+          discount,
+          entries.map(([, amount]) => amount),
+        )
+      : entries.map(() => Money.decimal(0));
 
-    const entries = Array.from(postingMap.entries());
-    for (let i = 0; i < entries.length; i++) {
-      const [accountId, amount] = entries[i];
-      let alloc = 0;
-
-      if (discount > 0) {
-        alloc = round3((discount * amount) / grossTotal);
-        if (i === entries.length - 1) {
-          alloc = round3(discount - allocated);
-        }
-        allocated = round3(allocated + alloc);
-      }
-
-      discountAlloc.set(accountId, alloc);
-    }
-
-    const net = Number(inv.netAmount ?? grossTotal - discount + vatAmount);
+    const net = Money.toDbString(
+      inv.netAmount ??
+        Money.sumPosted(Money.subtractDecimal(grossTotal, discount), vatAmount),
+    );
 
     const linesCreate: {
       accountId: number;
-      debit: number;
-      credit: number;
+      debit: string;
+      credit: string;
       description?: string;
     }[] = [];
 
     // ✅ مصروف/مخزون بعد الخصم
-    for (const [accountId, amount] of postingMap.entries()) {
-      const alloc = discountAlloc.get(accountId) ?? 0;
-      const debit = round3(amount - alloc);
-      if (debit <= 0.0001) continue;
+    for (let i = 0; i < entries.length; i++) {
+      const [accountId, amount] = entries[i];
+      const debit = Money.toDbString(
+        Money.subtractDecimal(amount, allocations[i]),
+      );
+      if (!Money.isPositive(debit)) continue;
 
       linesCreate.push({
         accountId,
         debit,
-        credit: 0,
+        credit: '0.000',
         description: 'إثبات مشتريات/مخزون (بعد الخصم)',
       });
     }
 
     // ✅ VAT Input
-    if (vatAmount > 0.0001) {
+    if (Money.isPositive(vatAmount)) {
       if (vatAccount) {
         linesCreate.push({
           accountId: vatAccount.id,
-          debit: round3(vatAmount),
-          credit: 0,
+          debit: vatAmount,
+          credit: '0.000',
           description: 'ضريبة مدخلات (VAT Input)',
         });
       } else if (linesCreate.length) {
-        linesCreate[0].debit = round3((linesCreate[0].debit ?? 0) + vatAmount);
+        linesCreate[0].debit = Money.toDbString(
+          Money.sumPosted(linesCreate[0].debit, vatAmount),
+        );
       }
     }
 
     // ✅ المورد (دائن)
     linesCreate.push({
       accountId: apAccount.id,
-      debit: 0,
-      credit: round3(net),
+      debit: '0.000',
+      credit: net,
       description: 'إثبات دائنون الموردين',
     });
 
-    // ✅ تحقق التوازن
-    const totalDebit = round3(
-      linesCreate.reduce((s, l) => s + (l.debit || 0), 0),
+    // ✅ تحقق التوازن بدقة Money
+    const totalDebit = Money.toDbString(
+      Money.sumPosted(...linesCreate.map((l) => l.debit)),
     );
-    const totalCredit = round3(
-      linesCreate.reduce((s, l) => s + (l.credit || 0), 0),
+    const totalCredit = Money.toDbString(
+      Money.sumPosted(...linesCreate.map((l) => l.credit)),
     );
 
-    if (Math.abs(totalDebit - totalCredit) > 0.001) {
+    if (!Money.eq(totalDebit, totalCredit)) {
       throw new BadRequestException(
         `قيد فاتورة الشراء غير متوازن (Debit=${totalDebit}, Credit=${totalCredit}).`,
       );
@@ -3977,6 +4082,16 @@ export class AccountingService {
     }`.trim();
 
     if (entryId) {
+      if (
+        await db.purchaseReturn.count({
+          where: {
+            hospitalId,
+            purchaseInvoiceId: inv.id,
+            status: { not: 'CANCELLED' },
+          },
+        })
+      )
+        throw new BadRequestException('لا يعاد ترحيل أصل مرتبط بمردودات');
       await this.validateEntryModification(entryId, hospitalId, tx);
       await db.accountingEntry.update({
         where: { id: entryId },
@@ -4002,6 +4117,7 @@ export class AccountingService {
           description: desc,
           sourceModule,
           sourceId: inv.id,
+          postingKey: `purchase-invoice:${hospitalId}:${inv.id}`,
           createdById: userId,
         },
         select: { id: true },
@@ -4796,94 +4912,23 @@ export class AccountingService {
     hospitalId: number;
     userId: number;
   }) {
-    const { purchaseReturnId, hospitalId, userId } = params;
-
-    const ret = await this.prisma.purchaseReturn.findUnique({
-      where: { id: purchaseReturnId },
-      include: { supplier: true },
-    });
-    if (!ret) throw new NotFoundException('Purchase Return not found');
-
-    if (ret.hospitalId !== hospitalId)
-      throw new BadRequestException('Hospital Mismatch');
-
-    const entryDate = ret.returnDate;
-    const { fy, period } = await this.getOpenPeriodForDate(
-      hospitalId,
-      entryDate,
-    );
-
-    // 1. تحديد الحسابات
-    // AP Suppliers
-    const apAccount = await this.prisma.account.findFirst({
-      where: { hospitalId, code: ACCOUNT_CODES.AP_SUPPLIERS },
-    });
-    if (!apAccount) throw new Error('AP Suppliers account missing');
-
-    // Inventory (General or default to Supplies/Drugs - simplification: defaulting to Supplies if mixed, or could split if needed)
-    // For now, let's assume Supplies/Drugs based on a generic check or default to INVENTORY_SUPPLIES
-    // Ideally we should check the lines.
-    const inventoryKey = SystemAccountKey.INVENTORY_SUPPLIES;
-    const inventoryAccount = await this.getSystemAccountOrThrow(
-      hospitalId,
-      inventoryKey,
-    );
-
-    // VAT Recoverable
-    const vatAccount = await this.getSystemAccountOrThrow(
-      hospitalId,
-      SystemAccountKey.VAT_RECOVERABLE,
-    );
-
-    const netAmount = Number(ret.netAmount);
-    const vatAmount = Number(ret.vatAmount);
-    const totalAmount = Number(ret.totalAmount); // Net + VAT? Or Total = Net? Usually Total = Net + VAT.
-
-    // قيد المرتجع:
-    // Debit: الموردين (نقص الالتزام) = المجموع الكلي
-    // Credit: المخزون (نقص الأصل) = الصافي
-    // Credit: ضريبة المدخلات (عكس الاسترداد) = الضريبة
-
-    await this.prisma.accountingEntry.create({
-      data: {
-        hospitalId,
-        financialYearId: fy.id,
-        financialPeriodId: period.id,
-        entryDate,
-        sourceModule: AccountingSourceModule.PURCHASE_RETURN,
-        sourceId: ret.id,
-        description: `مرتجع مشتريات رقم ${ret.id} للمورد ${ret.supplier.name}`,
-        createdById: userId,
-        lines: {
-          create: [
-            {
-              accountId: apAccount.id,
-              debit: totalAmount,
-              credit: 0,
-              description: 'تخفيض التزام المورد (مرتجع)',
-            },
-            {
-              accountId: inventoryAccount.id,
-              debit: 0,
-              credit: netAmount,
-              description: 'إخراج بضاعة من المخزون (مرتجع)',
-            },
-            ...(vatAmount > 0
-              ? [
-                  {
-                    accountId: vatAccount.id,
-                    debit: 0,
-                    credit: vatAmount, // دائن لأننا بنقلل اللي "لينا" عند الحكومة
-                    description: 'عكس ضريبة مدخلات',
-                  },
-                ]
-              : []),
-          ],
-        },
+    const ret = await this.prisma.purchaseReturn.findFirst({
+      where: {
+        id: params.purchaseReturnId,
+        hospitalId: params.hospitalId,
+        status: 'COMPLETED',
       },
+      include: { accountingEntry: true },
     });
-
-    this.logger.log(`Purchase Return Entry created for #${ret.id}`);
+    if (
+      !ret?.accountingEntry ||
+      ret.accountingEntry.postingKey !==
+        `purchase-return:${params.hospitalId}:${ret.id}`
+    )
+      throw new BadRequestException(
+        'المرتجع يحتاج إكمالًا ذريًا ومطابقة؛لا ينشأ قيده منفردًا بعد نجاحه',
+      );
+    return ret.accountingEntry;
   }
 
   // ✅ [NEW] قيد استرداد نقدي لمريض (Refund Payment)
@@ -5026,145 +5071,144 @@ export class AccountingService {
   }
 
   // ✅ [NEW] قيد تسوية الجرد (Inventory Adjustment)
+  async recordPharmacyAdjustmentEntry(params: {
+    tx: Prisma.TransactionClient;
+    hospitalId: number;
+    userId: number;
+    movementId: number;
+    amount: string;
+    inventoryAccountId?: number;
+  }) {
+    const { tx, hospitalId, userId, movementId, inventoryAccountId } = params;
+    const amount = Money.decimal(params.amount);
+    const { financialYear, period } = await financialPeriod(
+      tx,
+      hospitalId,
+      new Date(),
+    );
+    if (amount.isZero()) return;
+    const inventory = inventoryAccountId
+      ? await tx.account.findFirst({
+          where: { id: inventoryAccountId, hospitalId, isActive: true },
+        })
+      : await this.getSystemAccountOrThrow(
+          hospitalId,
+          SystemAccountKey.INVENTORY_DRUGS,
+          tx,
+        );
+    const opposite = await this.getSystemAccountOrThrow(
+      hospitalId,
+      amount.gt(0)
+        ? SystemAccountKey.INVENTORY_GAIN
+        : SystemAccountKey.INVENTORY_LOSS,
+      tx,
+    );
+    if (
+      !inventory ||
+      inventory.type !== 'ASSET' ||
+      opposite.type !== (amount.gt(0) ? 'REVENUE' : 'EXPENSE')
+    )
+      throw new BadRequestException('حسابات تسوية المخزون غير صالحة');
+    const value = Money.toDbString(amount.abs());
+    await tx.accountingEntry.create({
+      data: {
+        hospitalId,
+        financialYearId: financialYear.id,
+        financialPeriodId: period.id,
+        entryDate: new Date(),
+        createdById: userId,
+        sourceModule: 'INVENTORY_ADJUSTMENT',
+        sourceId: movementId,
+        postingKey: `pharmacy-adjustment:${hospitalId}:${movementId}`,
+        description: `تسوية مخزون الصيدلية #${movementId}`,
+        lines: {
+          create: [
+            {
+              accountId: inventory.id,
+              debit: amount.gt(0) ? value : '0.000',
+              credit: amount.lt(0) ? value : '0.000',
+            },
+            {
+              accountId: opposite.id,
+              debit: amount.lt(0) ? value : '0.000',
+              credit: amount.gt(0) ? value : '0.000',
+            },
+          ],
+        },
+      },
+    });
+  }
+
   async recordInventoryAdjustmentEntry(params: {
     inventoryCountId: number;
     hospitalId: number;
     userId: number;
-    varianceLines: {
-      productId: number;
-      varianceQty: number;
-      costPrice: number;
-    }[];
-    tx?: any;
+    varianceLines: { productId: number; amount: string }[];
+    tx: Prisma.TransactionClient;
   }) {
-    const { inventoryCountId, hospitalId, userId, varianceLines, tx } = params;
-    const db = tx || this.prisma;
-
-    // 1. Group by Product Type to find relevant Inventory Accounts (Drugs vs Supplies vs Lab)
-    // To do this strictly, we need Product details. We can fetch them or assume they are passed?
-    // Let's fetch them here to be safe and accurate.
-    const productIds = varianceLines.map((v) => v.productId);
-    const products = await db.product.findMany({
-      where: { id: { in: productIds } },
-      select: { id: true, type: true },
-    });
-
-    // Helper to get Account Key by Product Type
-    const getInventoryKey = (type: any): SystemAccountKey => {
-      switch (type) {
-        case 'DRUG':
-          return SystemAccountKey.INVENTORY_DRUGS;
-        case 'LAB_REAGENT':
-          return SystemAccountKey.INVENTORY_LAB;
-        /* case 'RADIOLOGY': return SystemAccountKey.INVENTORY_RADIOLOGY; */ // If exists
-        default:
-          return SystemAccountKey.INVENTORY_SUPPLIES;
-      }
-    };
-
-    // 2. Prepare Totals per Inventory Account
-    // We also need separate totals for LOSS (Expense) vs GAIN (Income)
-    // Structure: Map<AccountKey, { gain: number, loss: number }>
-
-    const accountTotals = new Map<
-      SystemAccountKey,
-      { gain: number; loss: number }
-    >();
-
+    const { tx, hospitalId, userId, inventoryCountId, varianceLines } = params;
+    const { financialYear, period } = await financialPeriod(
+      tx,
+      hospitalId,
+      new Date(),
+    );
+    const lines: { accountId: number; debit: string; credit: string }[] = [];
     for (const item of varianceLines) {
-      const product = products.find((p: any) => p.id === item.productId);
-      const key = getInventoryKey(product?.type);
-
-      const value = item.varianceQty * item.costPrice;
-
-      const current = accountTotals.get(key) || { gain: 0, loss: 0 };
-      if (value > 0) {
-        current.gain += value;
-      } else {
-        current.loss += Math.abs(value);
-      }
-      accountTotals.set(key, current);
+      const amount = Money.decimal(item.amount);
+      if (amount.isZero()) continue;
+      const product = await tx.product.findFirst({
+        where: { id: item.productId, hospitalId },
+        include: { category: true },
+      });
+      if (!product) throw new BadRequestException('الصنف خارج المنشأة');
+      const inventory = product.category?.inventoryAccountId
+        ? await tx.account.findFirst({
+            where: {
+              id: product.category.inventoryAccountId,
+              hospitalId,
+              isActive: true,
+            },
+          })
+        : await mappedAccount(tx, hospitalId, inventoryKey(product.type));
+      const opposite = await mappedAccount(
+        tx,
+        hospitalId,
+        amount.gt(0) ? 'INVENTORY_GAIN' : 'INVENTORY_LOSS',
+      );
+      if (
+        !inventory ||
+        inventory.type !== 'ASSET' ||
+        opposite.type !== (amount.gt(0) ? 'REVENUE' : 'EXPENSE')
+      )
+        throw new BadRequestException('تصنيف حسابات فروق الجرد غير صالح');
+      const value = Money.toDbString(amount.abs());
+      lines.push(
+        {
+          accountId: inventory.id,
+          debit: amount.gt(0) ? value : '0.000',
+          credit: amount.lt(0) ? value : '0.000',
+        },
+        {
+          accountId: opposite.id,
+          debit: amount.lt(0) ? value : '0.000',
+          credit: amount.gt(0) ? value : '0.000',
+        },
+      );
     }
-
-    // 3. Get Financial Period
-    const entryDate = new Date();
-    const { fy, period } = await this.getOpenPeriodForDate(
-      hospitalId,
-      entryDate,
-    );
-
-    // 4. Get Account IDs
-    const gainAccount = await this.getSystemAccountOrThrow(
-      hospitalId,
-      SystemAccountKey.INVENTORY_GAIN,
-    );
-    const lossAccount = await this.getSystemAccountOrThrow(
-      hospitalId,
-      SystemAccountKey.INVENTORY_LOSS,
-    );
-
-    const linesToIsert: any[] = [];
-
-    // 5. Generate Lines
-    for (const [invKey, totals] of accountTotals.entries()) {
-      const invAccount = await this.getSystemAccountOrThrow(hospitalId, invKey);
-
-      // A. Handling GAINS (Increase Asset, Credit Gain)
-      if (totals.gain > 0) {
-        // Dr Inventory Asset
-        linesToIsert.push({
-          accountId: invAccount.id,
-          debit: totals.gain,
-          credit: 0,
-          description: `تسوية جردية - زيادة مخزون (${invKey})`,
-        });
-        // Cr Inventory Gain (Income/Revenue)
-        linesToIsert.push({
-          accountId: gainAccount.id,
-          debit: 0,
-          credit: totals.gain,
-          description: `أرباح فروقات جرد - زيادة`,
-        });
-      }
-
-      // B. Handling LOSSES (Increase Expense, Credit Asset)
-      if (totals.loss > 0) {
-        // Dr Inventory Loss (Expense)
-        linesToIsert.push({
-          accountId: lossAccount.id,
-          debit: totals.loss,
-          credit: 0,
-          description: `عجز جرد - مصروفات`,
-        });
-        // Cr Inventory Asset
-        linesToIsert.push({
-          accountId: invAccount.id,
-          debit: 0,
-          credit: totals.loss,
-          description: `تسوية جردية - تخفيض مخزون (${invKey})`,
-        });
-      }
-    }
-
-    if (linesToIsert.length === 0) return; // No financial impact
-
-    // 6. Create Entry
-    await db.accountingEntry.create({
+    if (!lines.length) return;
+    await tx.accountingEntry.create({
       data: {
         hospitalId,
-        financialYearId: fy.id,
+        financialYearId: financialYear.id,
         financialPeriodId: period.id,
-        entryDate,
-        sourceModule: AccountingSourceModule.INVENTORY_ADJUSTMENT,
+        entryDate: new Date(),
+        sourceModule: 'INVENTORY_ADJUSTMENT',
         sourceId: inventoryCountId,
-        description: `قيد تسوية جرد رقم #${inventoryCountId}`,
+        postingKey: `inventory-count:${hospitalId}:${inventoryCountId}`,
         createdById: userId,
-        lines: {
-          create: linesToIsert,
-        },
-        inventoryCount: {
-          connect: { id: inventoryCountId },
-        },
+        description: `قيد فروق الجرد #${inventoryCountId}`,
+        lines: { create: lines },
+        inventoryCount: { connect: { id: inventoryCountId } },
       },
     });
   }
@@ -5191,6 +5235,80 @@ export class AccountingService {
     if (!originalEntry) {
       throw new NotFoundException('القيد المحاسبي غير موجود.');
     }
+    if (
+      originalEntry.postingKey &&
+      [
+        'deposit:',
+        'claim-receipt:',
+        'claim-refund:',
+        'adjustment:',
+        'refund:',
+        'payment:',
+        'session-close:',
+        'purchase-return:',
+        'payroll-run:',
+        'insurance-claim-settlement:',
+        'insurance-settlement-refund:',
+      ].some((prefix) => originalEntry.postingKey!.startsWith(prefix))
+    )
+      throw new BadRequestException(
+        'قيد التسوية المعتمدة محمي؛ يلزم طلب تصحيح مستقل بدل عكسه يدويًا',
+      );
+    if (originalEntry.sourceModule === 'INVENTORY') {
+      const purchase = await db.purchaseInvoice.findFirst({
+        where: { hospitalId, accountingEntryId: originalEntry.id },
+      });
+      if (purchase) {
+        if (!prismaTx)
+          throw new BadRequestException(
+            'عكس فاتورة الشراء يتطلب مسار الإلغاء الذري الموثق',
+          );
+        await db.$queryRaw`SELECT id FROM "PurchaseInvoice" WHERE id=${purchase.id} AND "hospitalId"=${hospitalId} FOR UPDATE`;
+        if (
+          await db.purchaseReturn.count({
+            where: {
+              hospitalId,
+              purchaseInvoiceId: purchase.id,
+              status: { not: 'CANCELLED' },
+            },
+          })
+        )
+          throw new BadRequestException('لا يعكس أصل شراء مرتبط بمردودات');
+      }
+    }
+    if (
+      originalEntry.postingKey?.startsWith('invoice:') &&
+      originalEntry.sourceId &&
+      ((await db.insuranceSettlementAllocation.count({
+        where: {
+          invoiceId: originalEntry.sourceId,
+          settlement: { hospitalId },
+        },
+      })) ||
+        (await db.claimReceipt.count({
+          where: {
+            hospitalId,
+            claim: { hospitalId, invoiceId: originalEntry.sourceId },
+          },
+        })))
+    )
+      throw new BadRequestException(
+        'تم تحصيل ذمة التأمين؛ يلزم تصحيح موثق قبل عكس قيد الفاتورة',
+      );
+    if (
+      originalEntry.postingKey?.startsWith('invoice:') &&
+      originalEntry.sourceId &&
+      (await db.invoiceAdjustment.count({
+        where: {
+          hospitalId,
+          invoiceId: originalEntry.sourceId,
+          status: { in: ['PENDING', 'POSTED'] },
+        },
+      }))
+    )
+      throw new BadRequestException(
+        'الفاتورة لها تسويات؛ لا يمكن عكس قيدها عبر المسار اليدوي',
+      );
 
     // 2. التحقق هل تم عكسه مسبقاً؟
     const alreadyReversed = await db.accountingEntry.findFirst({

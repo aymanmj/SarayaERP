@@ -74,9 +74,13 @@ export class InsuranceContractService {
   /**
    * جلب عقد تأمين مع جميع المنافع
    */
-  async getContract(id: number) {
-    const contract = await this.prisma.insuranceContract.findUnique({
-      where: { id },
+  async getContract(id: number, hospitalIdParam?: number) {
+    const hospitalId = hospitalIdParam ?? this.cls.get('hospitalId');
+    const contract = await this.prisma.insuranceContract.findFirst({
+      where: {
+        id,
+        ...(hospitalId ? { hospitalId } : {}),
+      },
       include: {
         benefits: true,
         insuranceProvider: true,
@@ -93,19 +97,23 @@ export class InsuranceContractService {
   /**
    * البحث عن العقود الفعالة
    */
-  async findActiveContracts(insuranceProviderId?: number) {
+  async findActiveContracts(
+    insuranceProviderId?: number,
+    hospitalIdParam?: number,
+  ) {
+    const hospitalId = hospitalIdParam ?? this.cls.get('hospitalId');
     const whereClause: any = {
       isDeleted: false,
       status: 'ACTIVE',
       effectiveFrom: { lte: new Date() },
       effectiveTo: { gte: new Date() },
+      ...(hospitalId ? { hospitalId } : {}),
     };
 
     if (insuranceProviderId) {
       whereClause.insuranceProviderId = insuranceProviderId;
     }
 
-    // لا حاجة لتمرير hospitalId لأن الـ RLS يتولى الفلترة تلقائياً
     return this.prisma.insuranceContract.findMany({
       where: whereClause,
       include: {
@@ -118,9 +126,21 @@ export class InsuranceContractService {
   /**
    * إيقاف أو إلغاء عقد تأمين
    */
-  async suspendContract(id: number, reason?: string) {
+  async suspendContract(id: number, reason?: string, hospitalIdParam?: number) {
+    const hospitalId = hospitalIdParam ?? this.cls.get('hospitalId');
+    const existing = await this.prisma.insuranceContract.findFirst({
+      where: {
+        id,
+        isDeleted: false,
+        ...(hospitalId ? { hospitalId } : {}),
+      },
+    });
+    if (!existing) {
+      throw new NotFoundException('عقد التأمين غير موجود');
+    }
+
     return this.prisma.insuranceContract.update({
-      where: { id },
+      where: { id: existing.id },
       data: {
         status: 'SUSPENDED',
         notes: reason,

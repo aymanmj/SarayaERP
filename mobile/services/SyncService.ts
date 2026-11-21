@@ -3,11 +3,10 @@ import {
   OfflineAction, 
   CreateNotePayload, 
   CreateVitalsPayload, 
-  AdministerMedPayload, 
   DispensePrescriptionPayload, 
   AdjustStockPayload 
 } from '../types';
-import api from './api'; 
+import api, { getUserInfo } from './api';
 import Logger from './Logger'; 
 import NetInfo from '@react-native-community/netinfo';
 
@@ -63,15 +62,21 @@ const SyncService = {
             break;
         case 'CREATE_VITALS': {
             const payload = action.payload as CreateVitalsPayload;
-            const { encounterId, ...vitalsData } = payload;
-            await api.createVitals(Number(encounterId), vitalsData);
+            const { encounterId, actorScope, ...vitalsData } = payload;
+            const staff = await getUserInfo();
+            if (!vitalsData.requestId || actorScope !== `${staff?.hospitalId}:${staff?.id}:${encounterId}` || !staff?.id) {
+              Logger.warn('SyncService: Vital reading is retained for its original staff member or manual reconciliation.');
+              return;
+            }
+            await api.post(`/vitals/encounter/${encounterId}`, vitalsData);
             break;
         }
         case 'ADMINISTER_MED': {
-            const payload = action.payload as AdministerMedPayload;
-            const { encounterId, prescriptionItemId, status, notes } = payload;
-            await api.administerMedication(Number(encounterId), Number(prescriptionItemId), status, notes);
-            break;
+            // Legacy queued administrations lack a trustworthy execution identity and actor scope.
+            // Preserve them for manual reconciliation; never replay as the current staff member.
+            await StorageService.saveFailedAction(action, 'إعطاء دواء قديم دون هوية تنفيذ معتمدة؛يلزم تحقق سريري يدوي قبل أي إعادة تنفيذ');
+            await StorageService.removeAction(action.id);
+            return;
         }
         case 'DISPENSE_PRESCRIPTION': {
             const payload = action.payload as DispensePrescriptionPayload;
@@ -100,7 +105,7 @@ const SyncService = {
       // Determine if error is permanent (4xx) or transient (5xx / Network)
       const status = error.response?.status;
       
-      if (status >= 400 && status < 500) {
+      if (status >= 400 && status < 500 && !(action.type === 'CREATE_VITALS' && status === 429)) {
           // Permanent failure (e.g. Validation Error, Forbidden)
           // Move to Failed List so we don't block the queue forever
           await StorageService.saveFailedAction(action, error.message || JSON.stringify(error.response?.data));

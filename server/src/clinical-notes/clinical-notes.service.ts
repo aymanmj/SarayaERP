@@ -23,6 +23,22 @@ export class ClinicalNotesService {
     if (!encounter)
       throw new ForbiddenException('Encounter not found or access denied');
 
+    if (createClinicalNoteDto.parentNoteId) {
+      const parent = await this.prisma.clinicalNote.findFirst({
+        where: {
+          id: createClinicalNoteDto.parentNoteId,
+          encounterId: encounter.id,
+          encounter: { hospitalId },
+          signedAt: { not: null },
+        },
+      });
+      if (!parent || !createClinicalNoteDto.isAddendum) {
+        throw new ForbiddenException('يلزم ملحق لملاحظة موقعة في الحالة نفسها');
+      }
+    } else if (createClinicalNoteDto.isAddendum) {
+      throw new ForbiddenException('الملحق يحتاج إلى مرجع الملاحظة الأصلية');
+    }
+
     const note = await this.prisma.clinicalNote.create({
       data: {
         ...createClinicalNoteDto,
@@ -85,9 +101,9 @@ export class ClinicalNotesService {
     });
   }
 
-  async signNote(noteId: number, userId: number) {
+  async signNote(noteId: number, userId: number, hospitalId: number) {
     return this.prisma.clinicalNote.update({
-      where: { id: noteId },
+      where: { id: noteId, encounter: { hospitalId }, signedAt: null },
       data: {
         signedById: userId,
         signedAt: new Date(),
@@ -100,9 +116,14 @@ export class ClinicalNotesService {
     });
   }
 
-  async coSignNote(noteId: number, userId: number) {
+  async coSignNote(noteId: number, userId: number, hospitalId: number) {
     return this.prisma.clinicalNote.update({
-      where: { id: noteId },
+      where: {
+        id: noteId,
+        encounter: { hospitalId },
+        signedAt: { not: null },
+        coSignedAt: null,
+      },
       data: {
         coSignedById: userId,
         coSignedAt: new Date(),

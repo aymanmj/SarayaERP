@@ -16,6 +16,7 @@ type Policy = {
   startDate: string | null;
   endDate: string | null;
   isActive: boolean;
+  releaseCoverageOnPartialDispense?: boolean;
   plan?: { name: string } | null;
 };
 
@@ -50,6 +51,7 @@ export default function InsuranceProviderDetailsPage() {
     startDate: "",
     endDate: "",
     maxCoverageAmount: "",
+    releaseCoverageOnPartialDispense: false,
   });
 
   const loadData = async () => {
@@ -109,9 +111,8 @@ export default function InsuranceProviderDetailsPage() {
         planId: newPolicy.planId ? Number(newPolicy.planId) : undefined, // ربط بالخطة
         startDate: newPolicy.startDate || undefined,
         endDate: newPolicy.endDate || undefined,
-        maxCoverageAmount: newPolicy.maxCoverageAmount
-          ? Number(newPolicy.maxCoverageAmount)
-          : undefined,
+        maxCoverageAmount: newPolicy.maxCoverageAmount || undefined,
+        releaseCoverageOnPartialDispense: newPolicy.releaseCoverageOnPartialDispense,
       });
       toast.success(t("insuranceProviders.details.toast.policyCreated", "تم إنشاء البوليصة"));
       setShowPolicyModal(false);
@@ -122,6 +123,7 @@ export default function InsuranceProviderDetailsPage() {
         startDate: "",
         endDate: "",
         maxCoverageAmount: "",
+        releaseCoverageOnPartialDispense: false,
       });
       loadData();
     } catch (err) {
@@ -183,7 +185,14 @@ export default function InsuranceProviderDetailsPage() {
               )}
               {policies.map((pol) => (
                 <tr key={pol.id} className="hover:bg-slate-800/40">
-                  <td className="px-4 py-2 font-semibold">{pol.name}</td>
+                  <td className="px-4 py-2 font-semibold">
+                    {pol.name}
+                    {pol.releaseCoverageOnPartialDispense && (
+                      <div className="mt-1 text-xs font-normal text-slate-400">
+                        {t("insuranceProviders.details.partialDispenseReleaseEnabled")}
+                      </div>
+                    )}
+                  </td>
                   <td className="px-4 py-2 font-mono text-slate-400">
                     {pol.policyNumber || "—"}
                   </td>
@@ -398,6 +407,34 @@ export default function InsuranceProviderDetailsPage() {
                 </div>
               </div>
             </div>
+            <label className="block text-sm text-slate-400">
+              {t("insuranceProviders.details.coverageCapLabel", "سقف التغطية للمريض في هذه البوليصة (د.ل.)")}
+              <input
+                type="number"
+                min="0.001"
+                step="0.001"
+                value={newPolicy.maxCoverageAmount}
+                onChange={(event) => {
+                  const maxCoverageAmount = event.target.value;
+                  setNewPolicy({
+                    ...newPolicy,
+                    maxCoverageAmount,
+                    releaseCoverageOnPartialDispense: maxCoverageAmount !== "" && newPolicy.releaseCoverageOnPartialDispense,
+                  });
+                }}
+                className="mt-1 block w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2"
+              />
+            </label>
+            <label className="flex items-start gap-2 text-sm text-slate-300">
+              <input
+                type="checkbox"
+                checked={newPolicy.releaseCoverageOnPartialDispense}
+                disabled={!newPolicy.maxCoverageAmount}
+                onChange={(event) => setNewPolicy({ ...newPolicy, releaseCoverageOnPartialDispense: event.target.checked })}
+                className="mt-1"
+              />
+              <span>{t("insuranceProviders.details.releaseCoverageOnPartialDispense")}</span>
+            </label>
             <div className="flex justify-end gap-2 pt-2">
               <button
                 onClick={() => setShowPolicyModal(false)}
@@ -409,7 +446,7 @@ export default function InsuranceProviderDetailsPage() {
                 onClick={handleCreatePolicy}
                 className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-sm font-bold"
               >
-                t("insuranceProviders.details.savePolicyBtn", "حفظ البوليصة")
+                {t("insuranceProviders.details.savePolicyBtn", "حفظ البوليصة")}
               </button>
             </div>
           </div>

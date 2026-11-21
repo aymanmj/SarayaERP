@@ -111,4 +111,11 @@ export class PortalAuthController {
   async getMe(@CurrentPatient() patient: any) {
     return this.portalService.getProfile(patient.sub, patient.hospitalId);
   }
+
+  @Post('telegram-link')
+  @UseGuards(PatientAuthGuard)
+  @Throttle({ short: { limit: 3, ttl: 60000 } })
+  async requestTelegramLink(@CurrentPatient() patient: { sub: number }) {
+    return this.portalService.requestTelegramLink(patient.sub);
+  }
 }

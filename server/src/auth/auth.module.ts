@@ -31,6 +31,6 @@ import { RtStrategy } from './rt.strategy';
   ],
   providers: [AuthService, JwtStrategy, RtStrategy],
   controllers: [AuthController],
-  exports: [AuthService, JwtModule],
+  exports: [AuthService, JwtModule, JwtStrategy],
 })
 export class AuthModule {}

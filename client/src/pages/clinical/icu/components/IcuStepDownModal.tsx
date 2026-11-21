@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { apiClient } from '../../../../api/apiClient';
 import { ArrowLeftRight, Bed, CheckCircle2, Activity, AlertTriangle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { HandoverNoteModal } from '../../transfers/HandoverNoteModal';
 
 interface Props {
   isOpen: boolean;
@@ -21,12 +22,16 @@ interface Props {
  * in a single streamlined flow:
  *   1. Select target ward → bed
  *   2. Enter clinical reason
- *   3. System chains: requestTransfer → allocateBed → confirmArrival
+ *   3. Reserve the destination, then review and sign the handover
+ *   4. Explicitly confirm the patient's physical arrival
  */
 export const IcuStepDownModal = ({ isOpen, onClose, encounterId, patientName, fromBedId, currentWardName, currentBedNumber, onSuccess }: Props) => {
   const { t, i18n } = useTranslation();
   const isRtl = i18n.language === 'ar';
-  const [step, setStep] = useState<'form' | 'processing' | 'done' | 'error'>('form');
+  const [step, setStep] = useState<'form' | 'processing' | 'handover' | 'arrival' | 'done' | 'error'>('form');
+  const [transferId, setTransferId] = useState<number | null>(null);
+  const [handoverSigned, setHandoverSigned] = useState(false);
+  const [allocationComplete, setAllocationComplete] = useState(false);
    
   const [wardTree, setWardTree] = useState<any[]>([]);
   const [selectedBedId, setSelectedBedId] = useState('');
@@ -44,6 +49,9 @@ export const IcuStepDownModal = ({ isOpen, onClose, encounterId, patientName, fr
       setReason('');
       setNotes('');
       setErrorMsg('');
+      setTransferId(null);
+      setHandoverSigned(false);
+      setAllocationComplete(false);
     }
   }, [isOpen]);
 
@@ -89,7 +97,8 @@ export const IcuStepDownModal = ({ isOpen, onClose, encounterId, patientName, fr
         reason,
         notes
       });
-      const transferId = transferRes.data.id;
+      const transferId = transferRes.data.id as number;
+      setTransferId(transferId);
 
       // Step 2: Allocate the target bed
       setStatusText(t('icu.stepDown.processing.allocating', 'تخصيص السرير في القسم الجديد...'));
@@ -97,16 +106,38 @@ export const IcuStepDownModal = ({ isOpen, onClose, encounterId, patientName, fr
         toBedId: Number(selectedBedId)
       });
 
-      // Step 3: Confirm arrival (complete transfer)
-      setStatusText(t('icu.stepDown.processing.confirming', 'تأكيد النقل وتحديث السجلات...'));
-      await apiClient.patch(`/transfers/${transferId}/arrive`);
-
-      setStep('done');
+      setAllocationComplete(true);
+      setStep('handover');
      
     } catch (err: any) {
       console.error(err);
       setErrorMsg(err?.response?.data?.message || t('icu.stepDown.error.defaultMessage', 'فشلت عملية النقل. يرجى المحاولة مرة أخرى.'));
       setStep('error');
+    }
+  };
+
+  const confirmArrival = async () => {
+    if (!transferId || !handoverSigned) return;
+    setStep('processing');
+    setStatusText(t('icu.stepDown.processing.confirming', 'تأكيد وصول المريض إلى سرير الوجهة...'));
+    try {
+      await apiClient.patch(`/transfers/${transferId}/arrive`);
+      setStep('done');
+    } catch (error) {
+      const message = (error as { response?: { data?: { message?: string } } }).response?.data?.message;
+      setErrorMsg(message || t('icu.stepDown.arrivalFailed', 'تعذر تأكيد الوصول. تحقق من حالة طلب النقل قبل إعادة المحاولة.'));
+      setStep('error');
+    }
+  };
+
+  const retryTransfer = async () => {
+    if (allocationComplete) { setStep('arrival'); return; }
+    try {
+      if (transferId) await apiClient.patch(`/transfers/${transferId}/cancel`);
+      setTransferId(null);
+      setStep('form');
+    } catch {
+      setErrorMsg(t('icu.stepDown.cancelFailed', 'تعذر إلغاء الطلب السابق. راجع لوحة النقل قبل إنشاء طلب جديد.'));
     }
   };
 
@@ -212,6 +243,14 @@ export const IcuStepDownModal = ({ isOpen, onClose, encounterId, patientName, fr
           </div>
         )}
 
+        {(step === 'handover' || step === 'arrival') && (
+          <div className="p-6 space-y-4 text-sm">
+            <p>{t('icu.stepDown.handoverRequired', 'تم حجز سرير الوجهة. أكمل واعتمد تقرير التسليم، ثم أكد الوصول بعد انتقال المريض فعليًا.')}</p>
+            {!handoverSigned && <button onClick={() => setStep('handover')} className="w-full rounded-xl bg-indigo-600 p-3 text-white font-bold">{t('icu.stepDown.openHandover', 'تقرير التسليم واعتماده')}</button>}
+            <button onClick={confirmArrival} disabled={!handoverSigned} className="w-full rounded-xl bg-emerald-600 p-3 text-white font-bold disabled:opacity-40">{t('icu.stepDown.confirmPhysicalArrival', 'تأكيد وصول المريض إلى سرير الوجهة')}</button>
+          </div>
+        )}
+
         {/* SUCCESS STATE */}
         {step === 'done' && (
           <div className="p-12 flex flex-col items-center justify-center gap-4">
@@ -242,12 +281,15 @@ export const IcuStepDownModal = ({ isOpen, onClose, encounterId, patientName, fr
             <p className="text-slate-400 text-sm text-center">{errorMsg}</p>
             <div className="flex gap-3 mt-4">
               <button onClick={onClose} className="px-6 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-bold transition text-sm">{t('icu.stepDown.error.close', 'إغلاق')}</button>
-              <button onClick={() => setStep('form')} className="px-6 py-2.5 bg-amber-600 hover:bg-amber-500 text-white rounded-xl font-bold transition text-sm">{t('icu.stepDown.error.retry', 'المحاولة مرة أخرى')}</button>
+              <button onClick={retryTransfer} className="px-6 py-2.5 bg-amber-600 hover:bg-amber-500 text-white rounded-xl font-bold transition text-sm">{t('icu.stepDown.error.retry', 'المحاولة مرة أخرى')}</button>
             </div>
           </div>
         )}
 
       </div>
+      <HandoverNoteModal key={transferId ?? 'none'} isOpen={step === 'handover'}
+        onClose={() => setStep('arrival')} transferId={transferId ?? 0} patientName={patientName}
+        onSuccess={(signed) => setHandoverSigned(signed === true)} />
     </div>
   );
 };

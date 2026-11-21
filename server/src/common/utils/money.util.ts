@@ -1,76 +1,439 @@
 // src/common/utils/money.util.ts
-// مكتبة الحسابات المالية الدقيقة - نسخة محسّنة وشاملة
+// مكتبة الحسابات المالية الدقيقة - نسخة مؤسسية موحدة متعددة العملات (مقتبسة ومطورة من @saraya/shared-utils)
 
 import Decimal from 'decimal.js';
 
-// ✅ تكوين الدقة العالية للعمليات الحسابية
-Decimal.set({
-  precision: 20,
-  rounding: Decimal.ROUND_HALF_UP,
-  minE: -9, // أصغر أس للأعداد الصغيرة جداً
-  maxE: 9, // أكبر أس
+// A private constructor prevents unrelated Decimal consumers from changing financial policy.
+// Preserve small intermediate rates and large totals; round only at explicit boundaries.
+/** The only approved financial rounding policy: round midpoint ties to even (Banker's Rounding). */
+export const MONEY_SCALE = 3;
+export const BANKERS_ROUNDING = Decimal.ROUND_HALF_EVEN;
+export type FinancialDecimal = Decimal;
+
+const FinancialDecimal = Decimal.clone({
+  precision: 40,
+  rounding: BANKERS_ROUNDING,
+  minE: -9e15,
+  maxE: 9e15,
 });
 
-type MoneyValue = number | string | Decimal;
+export type DecimalLike = { toString(): string; toNumber?: () => number };
+export type MoneyValue =
+  | number
+  | string
+  | Decimal
+  | DecimalLike
+  | null
+  | undefined;
+
+function moneyDecimal(value: MoneyValue): Decimal {
+  if (value === null || value === undefined || value === '') {
+    return new FinancialDecimal(0);
+  }
+  if (
+    typeof value === 'object' &&
+    !(value instanceof Decimal) &&
+    !(value instanceof FinancialDecimal)
+  ) {
+    if (
+      typeof value.toString !== 'function' ||
+      value.toString() === '[object Object]'
+    ) {
+      throw new TypeError('A valid decimal representation is required');
+    }
+    value = value.toString();
+  }
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return new FinancialDecimal(0);
+    if (trimmed.length > 4096) {
+      throw new RangeError('Financial input is too long');
+    }
+    value = trimmed;
+  }
+  if (typeof value === 'number' && !Number.isFinite(value)) {
+    throw new RangeError('Money requires a finite decimal value');
+  }
+  if (typeof value === 'number' && Math.abs(value) > Number.MAX_SAFE_INTEGER) {
+    throw new RangeError(
+      'Pass large monetary values as decimal strings, not numbers',
+    );
+  }
+  const result = new FinancialDecimal(value as number | string | Decimal);
+  if (result.precision() > 40 || Math.abs(result.e) > 1000) {
+    throw new RangeError(
+      'Value exceeds the supported financial calculation range',
+    );
+  }
+  if (!result.isFinite()) {
+    throw new RangeError('Money requires a finite decimal value');
+  }
+  return result;
+}
+
+function assertScale(decimals: number): void {
+  if (!Number.isInteger(decimals) || decimals < 0 || decimals > 40) {
+    throw new RangeError('Financial scale must be an integer between 0 and 40');
+  }
+}
+
+/** Converts a FinancialDecimal to a safe JS number at legacy numeric boundaries. */
+function compatibleNumber(value: Decimal): number {
+  const numeric = value.toNumber();
+  if (
+    !Number.isFinite(numeric) ||
+    Math.abs(numeric) > Number.MAX_SAFE_INTEGER ||
+    (numeric === 0 && !value.isZero()) ||
+    !value
+      .toDecimalPlaces(MONEY_SCALE, BANKERS_ROUNDING)
+      .eq(
+        new FinancialDecimal(numeric).toDecimalPlaces(
+          MONEY_SCALE,
+          BANKERS_ROUNDING,
+        ),
+      )
+  ) {
+    throw new RangeError(
+      'Financial precision would be lost; retain Decimal or use Money.toDbString',
+    );
+  }
+  return numeric;
+}
+
+export function getCurrency(code: string = 'LYD'): Readonly<CurrencyConfig> {
+  const currency = CURRENCIES[code];
+  if (!Object.prototype.hasOwnProperty.call(CURRENCIES, code)) {
+    throw new RangeError(`Unsupported currency: ${code}`);
+  }
+  return currency;
+}
+
+/** إعدادات العملة */
+export interface CurrencyConfig {
+  code: string;
+  nameAr: string;
+  nameEn: string;
+  symbol: string;
+  decimals: number; // عدد الخانات العشرية (2 لمعظم العملات، 3 للدينار)
+  subUnitNameAr: string; // اسم الوحدة الفرعية (قرش، درهم، هللة)
+  subUnitNameEn: string;
+}
+
+/** العملات المدعومة */
+export const CURRENCIES: Readonly<Record<string, Readonly<CurrencyConfig>>> = {
+  SDG: {
+    code: 'SDG',
+    nameAr: 'جنيه سوداني',
+    nameEn: 'Sudanese Pound',
+    symbol: 'ج.س',
+    decimals: 2,
+    subUnitNameAr: 'قرش',
+    subUnitNameEn: 'Qirsh',
+  },
+  SAR: {
+    code: 'SAR',
+    nameAr: 'ريال سعودي',
+    nameEn: 'Saudi Riyal',
+    symbol: 'ر.س',
+    decimals: 2,
+    subUnitNameAr: 'هللة',
+    subUnitNameEn: 'Halala',
+  },
+  AED: {
+    code: 'AED',
+    nameAr: 'درهم إماراتي',
+    nameEn: 'UAE Dirham',
+    symbol: 'د.إ',
+    decimals: 2,
+    subUnitNameAr: 'فلس',
+    subUnitNameEn: 'Fils',
+  },
+  EGP: {
+    code: 'EGP',
+    nameAr: 'جنيه مصري',
+    nameEn: 'Egyptian Pound',
+    symbol: 'ج.م',
+    decimals: 2,
+    subUnitNameAr: 'قرش',
+    subUnitNameEn: 'Piastre',
+  },
+  LYD: {
+    code: 'LYD',
+    nameAr: 'دينار ليبي',
+    nameEn: 'Libyan Dinar',
+    symbol: 'د.ل',
+    decimals: 3,
+    subUnitNameAr: 'درهم',
+    subUnitNameEn: 'Dirham',
+  },
+  KWD: {
+    code: 'KWD',
+    nameAr: 'دينار كويتي',
+    nameEn: 'Kuwaiti Dinar',
+    symbol: 'د.ك',
+    decimals: 3,
+    subUnitNameAr: 'فلس',
+    subUnitNameEn: 'Fils',
+  },
+  USD: {
+    code: 'USD',
+    nameAr: 'دولار أمريكي',
+    nameEn: 'US Dollar',
+    symbol: '$',
+    decimals: 2,
+    subUnitNameAr: 'سنت',
+    subUnitNameEn: 'Cent',
+  },
+  EUR: {
+    code: 'EUR',
+    nameAr: 'يورو',
+    nameEn: 'Euro',
+    symbol: '€',
+    decimals: 2,
+    subUnitNameAr: 'سنت',
+    subUnitNameEn: 'Cent',
+  },
+};
+Object.values(CURRENCIES).forEach((config) => Object.freeze(config));
+Object.freeze(CURRENCIES);
+
+/** Shared default for monetary amounts and measured quantities. */
+export const OFFICIAL_CURRENCY = Object.freeze({
+  ...CURRENCIES.LYD,
+  subUnit: CURRENCIES.LYD.subUnitNameAr,
+});
 
 /**
  * 💰 Money Utility Class
- * فئة مساعدة لإجراء العمليات الحسابية المالية بدقة عالية
- * تستخدم مكتبة decimal.js لتجنب أخطاء الأرقام العشرية في JavaScript
- *
- * @example
- * // جمع
- * Money.add(10.1, 20.2) // 30.3 (بدلاً من 30.299999999999997)
- *
- * // حساب العمولة
- * Money.mul(1000, 0.15) // 150
- *
- * // حساب نسبة مئوية
- * Money.percent(500, 20) // 100 (20% من 500)
+ * فئة مساعدة لإجراء العمليات الحسابية المالية بدقة 40 خانة عشرية والتقريب المصرفي المعتمد (ROUND_HALF_EVEN)
  */
 export class Money {
+  static decimal(value: MoneyValue): Decimal {
+    return moneyDecimal(value);
+  }
+
+  static addDecimal(a: MoneyValue, b: MoneyValue): Decimal {
+    return moneyDecimal(a).plus(moneyDecimal(b));
+  }
+
+  static subtractDecimal(a: MoneyValue, b: MoneyValue): Decimal {
+    return moneyDecimal(a).minus(moneyDecimal(b));
+  }
+
+  static percentDecimal(amount: MoneyValue, percent: MoneyValue): Decimal {
+    return Money.multiply(amount, percent).div(100);
+  }
+
+  static rateDecimal(amount: MoneyValue, rate: MoneyValue): Decimal {
+    return Money.multiply(amount, rate);
+  }
+
+  /** Strict numeric boundary; falls back to compatibleNumber for safe 3dp representation. */
+  static toNumber(value: MoneyValue): number {
+    const decimal = moneyDecimal(value);
+    const number = decimal.toNumber();
+    if (
+      !Number.isFinite(number) ||
+      Math.abs(number) > Number.MAX_SAFE_INTEGER
+    ) {
+      throw new RangeError('Value cannot be represented safely as a number');
+    }
+    if (!decimal.eq(String(number))) {
+      throw new RangeError('Value cannot be represented exactly as a number');
+    }
+    return number;
+  }
+
+  static currencyDecimal(
+    value: MoneyValue,
+    currencyCode = OFFICIAL_CURRENCY.code,
+  ): Decimal {
+    return Money.roundDecimal(value, getCurrency(currencyCode).decimals);
+  }
+
+  static decimalMin(...values: MoneyValue[]): Decimal {
+    if (!values.length)
+      throw new RangeError('Money.decimalMin requires values');
+    return FinancialDecimal.min(...values.map(moneyDecimal));
+  }
+
+  static minDecimal(...values: MoneyValue[]): Decimal {
+    return Money.decimalMin(...values);
+  }
+
+  static maxDecimal(...values: MoneyValue[]): Decimal {
+    return Money.decimalMax(...values);
+  }
+
+  static decimalMax(...values: MoneyValue[]): Decimal {
+    if (!values.length)
+      throw new RangeError('Money.decimalMax requires values');
+    return FinancialDecimal.max(...values.map(moneyDecimal));
+  }
+
+  static toFixed(value: MoneyValue, decimals = 3): string {
+    assertScale(decimals);
+    return moneyDecimal(value).toFixed(decimals, BANKERS_ROUNDING);
+  }
+
   // ======================== العمليات الأساسية ========================
 
   /** جمع قيمتين */
   static add(a: MoneyValue, b: MoneyValue): number {
-    return new Decimal(a).plus(new Decimal(b)).toNumber();
+    return compatibleNumber(Money.addDecimal(a, b));
   }
 
   /** طرح قيمتين: a - b */
   static sub(a: MoneyValue, b: MoneyValue): number {
-    return new Decimal(a).minus(new Decimal(b)).toNumber();
+    return compatibleNumber(Money.subtractDecimal(a, b));
   }
 
   /** ضرب قيمتين */
   static mul(a: MoneyValue, b: MoneyValue): number {
-    return new Decimal(a).times(new Decimal(b)).toNumber();
+    return compatibleNumber(Money.multiply(a, b));
   }
 
   /** قسمة: a / b */
   static div(a: MoneyValue, b: MoneyValue): number {
-    if (new Decimal(b).isZero()) {
+    if (moneyDecimal(b).isZero()) {
       throw new Error('Division by zero');
     }
-    return new Decimal(a).div(new Decimal(b)).toNumber();
+    return compatibleNumber(Money.divide(a, b));
   }
 
   // ======================== عمليات متقدمة ========================
 
-  /** جمع مصفوفة من القيم */
+  /** Exact sum for calculations and database writes, with no numeric intermediate. */
+  static sumDecimal(...values: MoneyValue[]): Decimal {
+    return values.reduce<Decimal>(
+      (total, value) => total.plus(moneyDecimal(value)),
+      moneyDecimal(0),
+    );
+  }
+
+  /** Sum the amounts that will actually be posted, rather than unrounded components. */
+  static sumPosted(...values: MoneyValue[]): Decimal {
+    return Money.sumDecimal(
+      ...values.map((value) => Money.roundDecimal(value)),
+    );
+  }
+
+  /** Normalize measured quantities and unit prices before computing a posted line. */
+  static postedLine(unitPrice: MoneyValue, quantity: MoneyValue) {
+    const storedQuantity = Money.toDb(quantity);
+    const storedPrice = Money.toDb(unitPrice);
+    return {
+      quantity: storedQuantity,
+      unitPrice: storedPrice,
+      totalPrice: Money.toDb(Money.multiply(storedPrice, storedQuantity)),
+    };
+  }
+
+  /**
+   * Largest-remainder allocation in integer minor units; ties follow input order.
+   * The total is rounded once with half-even, then conserved exactly, also for negatives.
+   */
+  static allocate(
+    total: MoneyValue,
+    weights: readonly MoneyValue[],
+    decimals = MONEY_SCALE,
+  ): string[] {
+    if (!Number.isInteger(decimals) || decimals < 0 || decimals > 20) {
+      throw new RangeError('Invalid allocation scale');
+    }
+    if (!weights.length || weights.length > 10000) {
+      throw new RangeError('Allocation requires 1 to 10000 weights');
+    }
+    const values = weights.map(moneyDecimal);
+    if (values.some((value) => value.isNegative() && !value.isZero())) {
+      throw new RangeError('Weights must be nonnegative');
+    }
+    const scale = Math.max(...values.map((value) => value.decimalPlaces()));
+    const integers = values.map((value) =>
+      BigInt(value.toFixed(scale).replace('.', '')),
+    );
+    const denominator = integers.reduce((sum, value) => sum + value, 0n);
+    if (!denominator) {
+      throw new RangeError('At least one allocation weight must be positive');
+    }
+    const posted = BigInt(Money.toFixed(total, decimals).replace('.', ''));
+    const negative = posted < 0n;
+    const units = negative ? -posted : posted;
+    const shares = integers.map((weight, index) => ({
+      index,
+      units: (units * weight) / denominator,
+      remainder: (units * weight) % denominator,
+    }));
+    let remaining =
+      units - shares.reduce((sum, share) => sum + share.units, 0n);
+    const ranked = [...shares].sort((a, b) =>
+      a.remainder === b.remainder
+        ? a.index - b.index
+        : a.remainder > b.remainder
+          ? -1
+          : 1,
+    );
+    for (const share of ranked) {
+      if (!remaining) break;
+      share.units++;
+      remaining--;
+    }
+    return shares.map((share) => {
+      const digits = share.units.toString().padStart(decimals + 1, '0');
+      const fixed = decimals
+        ? digits.slice(0, -decimals) + '.' + digits.slice(-decimals)
+        : digits;
+      return negative && share.units !== 0n ? '-' + fixed : fixed;
+    });
+  }
+
+  static split(
+    total: MoneyValue,
+    count: number,
+    decimals = MONEY_SCALE,
+  ): string[] {
+    if (!Number.isInteger(count) || count < 1 || count > 10000) {
+      throw new RangeError('Invalid split count');
+    }
+    return Money.allocate(total, Array<MoneyValue>(count).fill(1), decimals);
+  }
+
+  /**
+   * تقسيم مبلغ الفاتورة بين حصة المريض وحصة التأمين مع ضمان تطابق المجموع 100% دون فقدان أي درهم
+   * @param totalAmount إجمالي المبلغ
+   * @param patientRate نسبة تحمل المريض (كعامل مثل 0.20 أو نسبة مئوية إذا كانت > 1)
+   */
+  static splitShare(
+    totalAmount: MoneyValue,
+    patientRate: MoneyValue,
+    decimals: number = MONEY_SCALE,
+  ): { patientShare: number; insuranceShare: number } {
+    const total = Money.round(totalAmount, decimals);
+    const rateDec = moneyDecimal(patientRate);
+    const normalizedRate = rateDec.gt(1) ? rateDec.div(100) : rateDec;
+    const patientShare = Money.round(
+      Money.multiply(total, normalizedRate),
+      decimals,
+    );
+    const insuranceShare = Money.round(
+      Money.subtractDecimal(total, patientShare),
+      decimals,
+    );
+    return { patientShare, insuranceShare };
+  }
+
   static sum(...values: MoneyValue[]): number {
-    return values
-      .reduce<Decimal>((acc, val) => acc.plus(new Decimal(val)), new Decimal(0))
-      .toNumber();
+    return compatibleNumber(Money.sumDecimal(...values));
   }
 
   /** حساب النسبة المئوية: (amount * percent / 100) */
   static percent(amount: MoneyValue, percent: MoneyValue): number {
-    return new Decimal(amount).times(new Decimal(percent)).div(100).toNumber();
+    return compatibleNumber(Money.percentDecimal(amount, percent));
   }
 
   /** حساب النسبة كعامل: (amount * rate) حيث rate عدد عشري مثل 0.15 */
-  static rate(amount: MoneyValue, rate: MoneyValue): number {
-    return new Decimal(amount).times(new Decimal(rate)).toNumber();
+  static rate(amount: MoneyValue, rateValue: MoneyValue): number {
+    return compatibleNumber(Money.rateDecimal(amount, rateValue));
   }
 
   /** حساب المتبقي: base - deduction */
@@ -80,202 +443,310 @@ export class Money {
 
   // ======================== التقريب والتنسيق ========================
 
-  /** تقريب لـ 3 خانات عشرية (للدينار الليبي/الكويتي) */
+  /** تقريب لـ 3 خانات عشرية (للدينار الليبي/الكويتي) للتخزين في قاعدة البيانات */
   static toDb(amount: MoneyValue): number {
-    return new Decimal(amount)
-      .toDecimalPlaces(3, Decimal.ROUND_HALF_UP)
-      .toNumber();
+    return Money.to3dp(amount);
   }
 
-  /** تقريب لـ 2 خانات عشرية (للعملات القياسية USD, EUR, SAR) */
+  /** Exact three-place string for Prisma Decimal fields when string representation is desired. */
+  static toDbString(value: MoneyValue): string {
+    return Money.toFixed(value, OFFICIAL_CURRENCY.decimals);
+  }
+
+  /** تقريب حسب عدد خانات العملة */
+  static toCurrency(
+    amount: MoneyValue,
+    currencyCode: string = OFFICIAL_CURRENCY.code,
+  ): number {
+    return Money.toNumber(Money.currencyDecimal(amount, currencyCode));
+  }
+
+  /** تقريب لـ 2 خانات عشرية */
   static to2dp(amount: MoneyValue): number {
-    return new Decimal(amount)
-      .toDecimalPlaces(2, Decimal.ROUND_HALF_UP)
-      .toNumber();
+    return Money.toNumber(Money.roundDecimal(amount, 2));
   }
 
-  /** تقريب لعدد مخصص من الخانات */
+  /** تقريب لـ 3 خانات عشرية */
+  static to3dp(amount: MoneyValue): number {
+    return Money.toNumber(Money.roundDecimal(amount, 3));
+  }
+
+  /** تقريب لعدد مخصص من الخانات (الافتراضي 3 للدينار والوحدات المصرفية) */
   static round(amount: MoneyValue, decimals: number = 3): number {
-    return new Decimal(amount)
-      .toDecimalPlaces(decimals, Decimal.ROUND_HALF_UP)
-      .toNumber();
+    return Money.toNumber(Money.roundDecimal(amount, decimals));
   }
 
   /** تقريب لأعلى */
   static ceil(amount: MoneyValue, decimals: number = 3): number {
-    return new Decimal(amount)
-      .toDecimalPlaces(decimals, Decimal.ROUND_UP)
-      .toNumber();
+    assertScale(decimals);
+    return Money.toNumber(
+      moneyDecimal(amount).toDecimalPlaces(decimals, Decimal.ROUND_CEIL),
+    );
   }
 
   /** تقريب لأسفل */
   static floor(amount: MoneyValue, decimals: number = 3): number {
-    return new Decimal(amount)
-      .toDecimalPlaces(decimals, Decimal.ROUND_DOWN)
-      .toNumber();
+    assertScale(decimals);
+    return Money.toNumber(
+      moneyDecimal(amount).toDecimalPlaces(decimals, Decimal.ROUND_FLOOR),
+    );
   }
 
   // ======================== المقارنات ========================
 
-  /** هل القيمتان متساويتان؟ */
   static eq(a: MoneyValue, b: MoneyValue): boolean {
-    return new Decimal(a).equals(new Decimal(b));
+    return moneyDecimal(a).equals(moneyDecimal(b));
   }
 
-  /** هل a أكبر من b؟ */
   static gt(a: MoneyValue, b: MoneyValue): boolean {
-    return new Decimal(a).greaterThan(new Decimal(b));
+    return moneyDecimal(a).greaterThan(moneyDecimal(b));
   }
 
-  /** هل a أكبر من أو تساوي b؟ */
   static gte(a: MoneyValue, b: MoneyValue): boolean {
-    return new Decimal(a).greaterThanOrEqualTo(new Decimal(b));
+    return moneyDecimal(a).greaterThanOrEqualTo(moneyDecimal(b));
   }
 
-  /** هل a أصغر من b؟ */
   static lt(a: MoneyValue, b: MoneyValue): boolean {
-    return new Decimal(a).lessThan(new Decimal(b));
+    return moneyDecimal(a).lessThan(moneyDecimal(b));
   }
 
-  /** هل a أصغر من أو تساوي b؟ */
   static lte(a: MoneyValue, b: MoneyValue): boolean {
-    return new Decimal(a).lessThanOrEqualTo(new Decimal(b));
+    return moneyDecimal(a).lessThanOrEqualTo(moneyDecimal(b));
   }
 
-  /** هل القيمة صفر؟ */
   static isZero(amount: MoneyValue): boolean {
-    return new Decimal(amount).isZero();
+    return moneyDecimal(amount).isZero();
   }
 
-  /** هل القيمة موجبة؟ */
   static isPositive(amount: MoneyValue): boolean {
-    return new Decimal(amount).isPositive();
+    return moneyDecimal(amount).gt(0);
   }
 
-  /** هل القيمة سالبة؟ */
   static isNegative(amount: MoneyValue): boolean {
-    return new Decimal(amount).isNegative();
+    return moneyDecimal(amount).lt(0);
   }
 
   // ======================== دوال مساعدة للأعمال ========================
 
-  /** حساب الإجمالي مع الضريبة: amount + (amount * taxRate) */
+  /** حساب الإجمالي مع الضريبة */
   static withTax(amount: MoneyValue, taxRate: MoneyValue): number {
-    const tax = Money.rate(amount, taxRate);
-    return Money.add(amount, tax);
+    return compatibleNumber(Money.withTaxDecimal(amount, taxRate));
   }
 
-  /** حساب الصافي بعد الخصم: amount - (amount * discountRate) */
+  /** حساب الصافي بعد الخصم */
   static withDiscount(amount: MoneyValue, discountRate: MoneyValue): number {
-    const discount = Money.rate(amount, discountRate);
-    return Money.sub(amount, discount);
+    return compatibleNumber(Money.withDiscountDecimal(amount, discountRate));
   }
 
-  /** حساب سعر الوحدة: totalAmount / quantity */
+  /** Rates are factors: 0.15 means 15%; percentDecimal accepts 15 instead. */
+  static withTaxDecimal(amount: MoneyValue, taxRate: MoneyValue): Decimal {
+    return Money.addDecimal(amount, Money.rateDecimal(amount, taxRate));
+  }
+
+  static withDiscountDecimal(
+    amount: MoneyValue,
+    discountRate: MoneyValue,
+  ): Decimal {
+    return Money.subtractDecimal(
+      amount,
+      Money.rateDecimal(amount, discountRate),
+    );
+  }
+
+  /** سعر الوحدة */
   static unitPrice(totalAmount: MoneyValue, quantity: MoneyValue): number {
     return Money.div(totalAmount, quantity);
   }
 
-  /** حساب الإجمالي: unitPrice * quantity */
-  static lineTotal(unitPrice: MoneyValue, quantity: MoneyValue): number {
-    return Money.toDb(Money.mul(unitPrice, quantity));
+  /** إجمالي السطر */
+  static lineTotal(
+    unitPrice: MoneyValue,
+    quantity: MoneyValue,
+    currencyCode: string = OFFICIAL_CURRENCY.code,
+  ): number {
+    return Money.toCurrency(Money.multiply(unitPrice, quantity), currencyCode);
   }
 
-  /** حساب المعدل اليومي: monthlyAmount / 30 */
+  /** المعدل اليومي: monthlyAmount / 30 */
   static dailyRate(monthlyAmount: MoneyValue): number {
     return Money.div(monthlyAmount, 30);
   }
 
-  /** حساب المعدل بالساعة: dailyRate / 8 */
+  /** المعدل بالساعة: dailyRate / 8 */
   static hourlyRate(dailyAmount: MoneyValue): number {
     return Money.div(dailyAmount, 8);
   }
 
-  /** حساب المعدل بالدقيقة: hourlyRate / 60 */
+  /** المعدل بالدقيقة */
   static minuteRate(hourlyAmount: MoneyValue): number {
     return Money.div(hourlyAmount, 60);
   }
 
-  // ======================== سلسلة العمليات (Fluent API) ========================
+  /** حساب ساعة إضافية عادية: (الراتب / 30 / 8) × المضاعف */
+  static overtimeHourly(
+    monthlySalary: MoneyValue,
+    multiplier: number = 1.5,
+  ): number {
+    return compatibleNumber(
+      Money.divide(monthlySalary, 240).times(moneyDecimal(multiplier)),
+    );
+  }
+
+  /** تنسيق المبلغ مع رمز العملة */
+  static format(
+    amount: MoneyValue,
+    currencyCode: string = OFFICIAL_CURRENCY.code,
+  ): string {
+    const config = getCurrency(currencyCode);
+    const { decimals, symbol } = config;
+    return `${Money.toFixed(amount, decimals)} ${symbol}`;
+  }
+
+  /** ضرب قيمتين وإعادة Decimal بدقة فائقة دون تحويل وسيط */
+  static multiply(a: MoneyValue, b: MoneyValue): Decimal {
+    return moneyDecimal(a).times(moneyDecimal(b));
+  }
+
+  /** قسمة قيمتين وإعادة Decimal بدقة فائقة مع حماية منع القسمة على صفر */
+  static divide(a: MoneyValue, b: MoneyValue): Decimal {
+    const divisor = moneyDecimal(b);
+    if (divisor.isZero())
+      throw new Error('Division by zero in Money calculation');
+    return moneyDecimal(a).div(divisor);
+  }
+
+  /** Preserve existing numeric API values when exact; use a decimal string otherwise. */
+  static toWire(value: MoneyValue): number | string {
+    const decimal = moneyDecimal(value);
+    const numeric = decimal.toNumber();
+    return Number.isFinite(numeric) &&
+      Math.abs(numeric) <= Number.MAX_SAFE_INTEGER &&
+      decimal.eq(String(numeric))
+      ? numeric
+      : decimal.toString();
+  }
+
+  /** تقريب المنتصف إلى الزوجي وإعادة Decimal للحفاظ على السلسلة الحسابية */
+  static roundDecimal(amount: MoneyValue, decimals: number = 3): Decimal {
+    assertScale(decimals);
+    return moneyDecimal(amount).toDecimalPlaces(decimals, BANKERS_ROUNDING);
+  }
+
+  /** تحويل Prisma Decimal أو أي تمثيل نصي/رقمي إلى number بأمان */
+  static fromPrisma(
+    value:
+      | { toString(): string; toNumber?: () => number }
+      | number
+      | string
+      | null
+      | undefined,
+  ): number {
+    if (value == null) return 0;
+    if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+    if (typeof value === 'string') return Money.toNumber(value);
+    if (
+      typeof value.toString === 'function' &&
+      value.toString() !== '[object Object]'
+    ) {
+      return Money.toNumber(value.toString());
+    }
+    if (typeof value.toNumber === 'function') {
+      return value.toNumber();
+    }
+    throw new TypeError('A decimal string representation is required');
+  }
 
   /** إنشاء كائن Money للعمليات المتسلسلة */
   static from(value: MoneyValue): MoneyChain {
     return new MoneyChain(value);
   }
-
-  // ======================== التحويل من Prisma Decimal ========================
-
-  /** تحويل Prisma Decimal إلى number */
-  static fromPrisma(value: { toNumber(): number } | null | undefined): number {
-    return value?.toNumber() ?? 0;
-  }
 }
 
 /**
- * 🔗 MoneyChain Class
- * فئة للعمليات المتسلسلة (Fluent API)
- *
+ * 🔗 MoneyChain - عمليات متسلسلة (Fluent API)
  * @example
- * Money.from(1000)
- *   .sub(100)      // طرح 100
- *   .rate(0.15)    // ضرب في 0.15
- *   .add(50)       // إضافة 50
- *   .toDb()        // تقريب للتخزين
+ * Money.from(1000).sub(100).rate(0.15).add(50).toDb()
  */
 export class MoneyChain {
   private value: Decimal;
 
   constructor(initial: MoneyValue) {
-    this.value = new Decimal(initial);
+    this.value = moneyDecimal(initial);
   }
 
   add(amount: MoneyValue): MoneyChain {
-    this.value = this.value.plus(new Decimal(amount));
+    this.value = this.value.plus(moneyDecimal(amount));
     return this;
   }
 
   sub(amount: MoneyValue): MoneyChain {
-    this.value = this.value.minus(new Decimal(amount));
+    this.value = this.value.minus(moneyDecimal(amount));
     return this;
   }
 
   mul(amount: MoneyValue): MoneyChain {
-    this.value = this.value.times(new Decimal(amount));
+    this.value = this.value.times(moneyDecimal(amount));
     return this;
   }
 
   div(amount: MoneyValue): MoneyChain {
-    this.value = this.value.div(new Decimal(amount));
+    if (moneyDecimal(amount).isZero()) throw new Error('Division by zero');
+    this.value = this.value.div(moneyDecimal(amount));
     return this;
   }
 
   rate(rateValue: MoneyValue): MoneyChain {
-    this.value = this.value.times(new Decimal(rateValue));
+    this.value = this.value.times(moneyDecimal(rateValue));
     return this;
   }
 
   percent(percentValue: MoneyValue): MoneyChain {
-    this.value = this.value.times(new Decimal(percentValue)).div(100);
+    this.value = this.value.times(moneyDecimal(percentValue)).div(100);
     return this;
   }
 
   round(decimals: number = 3): MoneyChain {
-    this.value = this.value.toDecimalPlaces(decimals, Decimal.ROUND_HALF_UP);
+    this.value = Money.roundDecimal(this.value, decimals);
     return this;
   }
 
-  /** الحصول على القيمة كـ number */
-  toNumber(): number {
-    return this.value.toNumber();
+  roundDecimal(decimals: number = 3): Decimal {
+    return Money.roundDecimal(this.value, decimals);
   }
 
-  /** الحصول على القيمة مقربة لـ 3 خانات للتخزين */
+  toFixed(decimals = 3): string {
+    return Money.toFixed(this.value, decimals);
+  }
+
+  /** الحصول على القيمة مقربة لـ 3 خانات للتخزين كـ number */
   toDb(): number {
-    return this.value.toDecimalPlaces(3, Decimal.ROUND_HALF_UP).toNumber();
+    return Money.toDb(this.value);
   }
 
-  /** الحصول على القيمة مقربة لـ 2 خانات */
+  /** الحصول على القيمة مقربة لـ 3 خانات كـ string */
+  toDbString(): string {
+    return Money.toDbString(this.value);
+  }
+
+  decimal(): Decimal {
+    return this.value;
+  }
+
+  toNumber(): number {
+    return Money.toNumber(this.value);
+  }
+
   to2dp(): number {
-    return this.value.toDecimalPlaces(2, Decimal.ROUND_HALF_UP).toNumber();
+    return Money.to2dp(this.value);
+  }
+
+  to3dp(): number {
+    return Money.to3dp(this.value);
+  }
+
+  toCurrency(currencyCode: string = OFFICIAL_CURRENCY.code): number {
+    return Money.toCurrency(this.value, currencyCode);
   }
 }
+
+export default Money;

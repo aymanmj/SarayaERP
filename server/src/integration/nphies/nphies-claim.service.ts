@@ -94,6 +94,7 @@ export class NphiesClaimService {
             charges: {
               include: { serviceItem: true },
             },
+            prepaidPrescription: { select: { status: true } },
           },
         },
         hospital: true,
@@ -101,6 +102,10 @@ export class NphiesClaimService {
     });
 
     if (!claim) throw new NotFoundException('المطالبة غير موجودة');
+    if (claim.invoice.prepaidPrescription?.status === 'PARTIALLY_COMPLETED')
+      throw new BadRequestException(
+        'يتطلب إرسال الصرف الجزئي إلى نفيس مطابقة بنود الكميات والأسعار حسب عقد الجهة',
+      );
 
     // Prevent double submissions via DB status check
     const completedStatuses: ClaimStatus[] = [
@@ -110,8 +115,12 @@ export class NphiesClaimService {
       ClaimStatus.PARTIALLY_PAID,
       ClaimStatus.REJECTED,
       ClaimStatus.APPEAL_ACCEPTED,
+      ClaimStatus.VOID,
     ];
-    if (completedStatuses.includes(claim.status)) {
+    if (
+      claim.invoice.claimStatus === 'WITHDRAWN' ||
+      completedStatuses.includes(claim.status)
+    ) {
       throw new BadRequestException('لا يمكن إرسال مطالبة تمت معالجتها مسبقاً');
     }
 
@@ -553,6 +562,7 @@ export class NphiesClaimService {
                 att.localFilePath,
                 att.title,
                 att.contentType,
+                hospitalId,
               );
               if (!attachmentData) return null;
               return {

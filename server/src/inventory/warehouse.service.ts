@@ -1,5 +1,6 @@
 import {
   Injectable,
+  BadRequestException,
   NotFoundException,
   ConflictException,
 } from '@nestjs/common';
@@ -13,16 +14,25 @@ export class WarehouseService {
     hospitalId: number,
     data: { name: string; code?: string; isActive?: boolean },
   ) {
+    const name = typeof data?.name === 'string' ? data.name.trim() : '';
+    const code =
+      typeof data?.code === 'string' && data.code.trim()
+        ? data.code.trim()
+        : undefined;
+    if (!name || name.length > 200) {
+      throw new BadRequestException('اسم المستودع مطلوب وبطول صالح');
+    }
+
     const existing = await this.prisma.warehouse.findUnique({
-      where: { hospitalId_name: { hospitalId, name: data.name } },
+      where: { hospitalId_name: { hospitalId, name } },
     });
     if (existing) throw new ConflictException('مستودع بهذا الاسم موجود مسبقاً');
 
     return this.prisma.warehouse.create({
       data: {
         hospitalId,
-        name: data.name,
-        code: data.code,
+        name,
+        code,
         isActive: data.isActive ?? true,
       },
     });
@@ -33,10 +43,102 @@ export class WarehouseService {
     warehouseId: number,
     data: { name?: string; code?: string; isActive?: boolean },
   ) {
-    await this.getWarehouse(hospitalId, warehouseId);
+    const existing = await this.getWarehouse(hospitalId, warehouseId);
+    const nextName =
+      data?.name !== undefined ? String(data.name).trim() : existing.name;
+    if (!nextName || nextName.length > 200) {
+      throw new BadRequestException('اسم المستودع مطلوب وبطول صالح');
+    }
+
+    if (nextName !== existing.name) {
+      const dup = await this.prisma.warehouse.findUnique({
+        where: { hospitalId_name: { hospitalId, name: nextName } },
+      });
+      if (dup && dup.id !== warehouseId) {
+        throw new ConflictException('مستودع بهذا الاسم موجود مسبقاً');
+      }
+    }
+
+    if (existing.isActive && data?.isActive === false) {
+      const [
+        positiveStocks,
+        activeCounts,
+        inTransitIssues,
+        openRequests,
+        consumptionPolicies,
+        pharmacyPolicies,
+        surgeryPolicies,
+      ] = await Promise.all([
+        this.prisma.productStock.count({
+          where: { hospitalId, warehouseId, quantity: { gt: 0 } },
+        }),
+        this.prisma.inventoryCount.count({
+          where: {
+            hospitalId,
+            warehouseId,
+            status: { in: ['DRAFT', 'IN_PROGRESS', 'REVIEW'] },
+          },
+        }),
+        this.prisma.stockIssue.count({
+          where: {
+            hospitalId,
+            status: 'ISSUED',
+            OR: [
+              { issuedFromId: warehouseId },
+              { materialRequest: { requestingWarehouseId: warehouseId } },
+            ],
+          },
+        }),
+        this.prisma.materialRequest.count({
+          where: {
+            hospitalId,
+            status: {
+              in: ['DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'PARTIALLY_ISSUED'],
+            },
+            OR: [
+              { requestingWarehouseId: warehouseId },
+              { fulfillingWarehouseId: warehouseId },
+            ],
+          },
+        }),
+        this.prisma.consumptionWarehousePolicy.count({
+          where: { hospitalId, warehouseId },
+        }),
+        this.prisma.pharmacyWarehousePolicy.count({
+          where: { hospitalId, warehouseId },
+        }),
+        this.prisma.surgeryWarehousePolicy.count({
+          where: { hospitalId, warehouseId },
+        }),
+      ]);
+
+      if (
+        positiveStocks +
+          activeCounts +
+          inTransitIssues +
+          openRequests +
+          consumptionPolicies +
+          pharmacyPolicies +
+          surgeryPolicies >
+        0
+      ) {
+        throw new ConflictException(
+          'لا يمكن تعطيل المستودع لوجود أرصدة مخزنية أو عمليات جرد أو تحويلات نشطة أو سياسات صرف مرتبطة به',
+        );
+      }
+    }
+
     return this.prisma.warehouse.update({
       where: { id: warehouseId },
-      data,
+      data: {
+        name: nextName,
+        ...(data.code !== undefined
+          ? { code: data.code ? String(data.code).trim() : null }
+          : {}),
+        ...(data.isActive !== undefined
+          ? { isActive: Boolean(data.isActive) }
+          : {}),
+      },
     });
   }
 

@@ -9,9 +9,23 @@ describe('CashierService', () => {
   let service: CashierService;
   let prisma: any;
   let accounting: any;
+  let auditLogCreate: jest.Mock;
 
   beforeEach(async () => {
+    auditLogCreate = jest.fn().mockResolvedValue({ id: 1 });
     prisma = {
+      invoiceRefund: {
+        aggregate: jest.fn().mockResolvedValue({ _sum: { amount: null } }),
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+      cashierSession: {
+        count: jest.fn().mockResolvedValue(0),
+        findFirst: jest.fn().mockResolvedValue(null),
+      },
+      invoiceAdjustment: {
+        count: jest.fn().mockResolvedValue(0),
+        findMany: jest.fn().mockResolvedValue([]),
+      },
       invoice: {
         findMany: jest.fn(),
         findUnique: jest.fn(),
@@ -41,9 +55,14 @@ describe('CashierService', () => {
       },
       user: {
         findMany: jest.fn(),
-        findFirst: jest.fn(),
+        findFirst: jest
+          .fn()
+          .mockResolvedValue({ id: 7, hospitalId: 1, isActive: true }),
       },
+      $queryRaw: jest.fn().mockResolvedValue([]),
+      $executeRaw: jest.fn().mockResolvedValue(1),
       cashierShiftClosing: {
+        count: jest.fn().mockResolvedValue(0),
         findFirst: jest.fn(),
         create: jest.fn(),
       },
@@ -53,6 +72,10 @@ describe('CashierService', () => {
       accountingEntry: {
         create: jest.fn(),
       },
+      auditLog: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        create: auditLogCreate,
+      },
       $transaction: jest.fn(async (fn: any) => fn(prisma)),
     };
 
@@ -61,6 +84,7 @@ describe('CashierService', () => {
         financialYear: { id: 1 },
         period: { id: 2 },
       }),
+      recordInvoiceEntry: jest.fn(),
       recordPaymentEntry: jest.fn(),
     };
 
@@ -130,6 +154,39 @@ describe('CashierService', () => {
   });
 
   describe('recordPayment', () => {
+    beforeEach(() => {
+      const db = prisma as {
+        $queryRaw: jest.Mock;
+        invoice: {
+          findUnique: jest.Mock<
+            Promise<{ paidAmount: number } & Record<string, unknown>>
+          >;
+          findFirst: jest.Mock;
+          findFirstOrThrow: jest.Mock;
+          count: jest.Mock;
+        };
+        payment: { aggregate: jest.Mock };
+      };
+      db.$queryRaw = jest.fn().mockResolvedValue([]);
+      const invoice = async () => {
+        const row = await db.invoice.findUnique();
+        return row
+          ? {
+              patientId: 1,
+              encounterId: 1,
+              type: 'INVOICE',
+              ...row,
+              encounter: { hospitalId: 1, patientId: 1 },
+            }
+          : null;
+      };
+      db.invoice.findFirst.mockImplementation(invoice);
+      db.invoice.findFirstOrThrow = jest.fn(invoice);
+      db.invoice.count = jest.fn().mockResolvedValue(0);
+      db.payment.aggregate = jest.fn(async () => ({
+        _sum: { amount: (await db.invoice.findUnique()).paidAmount },
+      }));
+    });
     it('rejects overpayment beyond patient liability', async () => {
       prisma.invoice.findUnique.mockResolvedValue({
         id: 1,
@@ -184,8 +241,8 @@ describe('CashierService', () => {
       expect(prisma.payment.create).not.toHaveBeenCalled();
       expect(accounting.recordPaymentEntry).not.toHaveBeenCalled();
       expect(prisma.invoice.update).toHaveBeenCalledWith({
-        where: { id: 2 },
-        data: { status: InvoiceStatus.PARTIALLY_PAID },
+        where: { id: 2, hospitalId: 1 },
+        data: { status: InvoiceStatus.PARTIALLY_PAID, paidAmount: '0.000' },
       });
     });
 
@@ -219,15 +276,23 @@ describe('CashierService', () => {
       });
 
       expect(result.paymentId).toBe(40);
-      expect(prisma.payment.create).toHaveBeenCalledWith({
-        data: {
-          hospitalId: 1,
-          invoiceId: 3,
-          amount: 30,
-          method: PaymentMethod.CARD,
-          reference: 'POS-1',
-          cashierId: 7,
-        },
+      const recorded = (
+        prisma.payment.create as jest.Mock<
+          unknown,
+          [{ data: { paidAt: Date } & Record<string, unknown> }]
+        >
+      ).mock.calls[0][0].data;
+      const { paidAt, ...paymentData } = recorded;
+      expect(paidAt).toBeInstanceOf(Date);
+      expect(paymentData).toEqual({
+        hospitalId: 1,
+        invoiceId: 3,
+        amount: '30.000',
+        requestKey: null,
+        sessionId: null,
+        method: PaymentMethod.CARD,
+        reference: 'POS-1',
+        cashierId: 7,
       });
       expect(
         (service as any).updateRelatedOrdersPaymentStatus,
@@ -236,7 +301,9 @@ describe('CashierService', () => {
         paymentId: 40,
         hospitalId: 1,
         userId: 7,
+        prisma: prisma as PrismaService,
       });
+      expect(auditLogCreate).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -257,6 +324,7 @@ describe('CashierService', () => {
         charges: [
           {
             id: 99,
+            sourceType: 'PHARMACY',
             sourceId: 501,
             quantity: 1,
             unitPrice: 75,
@@ -361,6 +429,8 @@ describe('CashierService', () => {
         totalInvoiced: 150,
         totalDiscount: 10,
         totalPaid: 90,
+        grossCollected: 40,
+        totalRefunded: 0,
         remaining: 50,
       });
       expect(result.payments).toHaveLength(1);

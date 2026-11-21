@@ -50,6 +50,7 @@ describe('VisitsService', () => {
       });
 
       const result = await service.createVisit({
+        hospitalId: 1,
         encounterId: 10,
         doctorId: 5,
       });
@@ -70,6 +71,7 @@ describe('VisitsService', () => {
 
       await expect(
         service.createVisit({
+          hospitalId: 1,
           encounterId: 999,
           doctorId: 5,
         }),
@@ -84,6 +86,7 @@ describe('VisitsService', () => {
 
       await expect(
         service.createVisit({
+          hospitalId: 1,
           encounterId: 10,
           doctorId: 5,
           notes: 'follow-up',
@@ -96,11 +99,11 @@ describe('VisitsService', () => {
     it('lists visits in chronological order for the encounter', async () => {
       prisma.visit.findMany.mockResolvedValue([{ id: 1 }, { id: 2 }]);
 
-      const result = await service.listForEncounter(10);
+      const result = await service.listForEncounter(10, 1);
 
       expect(result).toEqual([{ id: 1 }, { id: 2 }]);
       expect(prisma.visit.findMany).toHaveBeenCalledWith({
-        where: { encounterId: 10 },
+        where: { encounterId: 10, encounter: { hospitalId: 1 } },
         orderBy: { visitDate: 'asc' },
       });
     });

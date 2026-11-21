@@ -41,6 +41,7 @@ const DashboardPage = lazy(() =>
 const AboutPage = lazy(() =>
   import("./pages/AboutPage").then((m) => ({ default: m.AboutPage })),
 );
+const DeviceSessionsPage = lazy(() => import("./pages/settings/DeviceSessionsPage"));
 
 // Print Pages (outside MainLayout)
 const InvoicePrintCleanPage = lazy(() => import("./pages/InvoicePrintCleanPage"));
@@ -102,6 +103,7 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
                 {/* Dashboard */}
                 <Route path="/" element={<DashboardPage />} />
                 <Route path="/about" element={<AboutPage />} />
+                <Route path="/account/sessions" element={<DeviceSessionsPage />} />
 
                 {/* Module Routes */}
                 {ClinicalRoutes}

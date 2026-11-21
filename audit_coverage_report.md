@@ -1,14 +1,14 @@
 # ABAC & Tenant Isolation Coverage Report
 
-**Generated:** 2026-05-22
+**Generated:** 2026-11-08
 
 | Metric | Count | Percentage |
 |--------|-------|------------|
-| Total Controllers | 91 | — |
-| ABAC Guarded | 91 | 100% |
-| Tenant Isolated | 91 | 100% |
+| Total Controllers | 97 | — |
+| ABAC Guarded | 97 | 100% |
+| Tenant Isolated | 97 | 100% |
 | Exempt (Auth/Health/FHIR) | 12 | — |
-| **Effective ABAC Coverage** | **79/79** | **100%** |
+| **Effective ABAC Coverage** | **85/85** | **100%** |
 
 ## Compliant Controllers
 
@@ -26,6 +26,7 @@
 | BedsController | ✅ | ✅ |
 | BillingController | ✅ | ✅ |
 | CashierController | ✅ | ✅ |
+| CashierSessionsController | ✅ | ✅ |
 | CDSSController | ✅ | ✅ |
 | ClaimController | ✅ | ✅ |
 | ClinicalNotesController | ✅ | ✅ |
@@ -33,9 +34,11 @@
 | ClinicalProfileController | ✅ | ✅ |
 | CommissionController | ✅ | ✅ |
 | ConsentFormsController | ✅ | ✅ |
+| ConsumptionOperationsController | ✅ | ✅ |
 | DashboardController | ✅ | ✅ |
 | DeliveryController | ✅ | ✅ |
 | DepartmentsController | ✅ | ✅ |
+| DeveloperController | ✅ | ✅ |
 | DiagnosisController | ✅ | ✅ |
 | DischargeSummaryController | ✅ | ✅ |
 | EncountersController | ✅ | ✅ |
@@ -48,6 +51,8 @@
 | IntegrationController | ✅ | ✅ |
 | InventoryController | ✅ | ✅ |
 | InventoryCountController | ✅ | ✅ |
+| InvoiceAdjustmentsController | ✅ | ✅ |
+| InvoiceRefundsController | ✅ | ✅ |
 | LabController | ✅ | ✅ |
 | LabOrdersController | ✅ | ✅ |
 | MpiController | ✅ | ✅ |
@@ -76,6 +81,7 @@
 | QualityController | ✅ | ✅ |
 | RadiologyController | ✅ | ✅ |
 | ReferralController | ✅ | ✅ |
+| RefundWorklistController | ✅ | ✅ |
 | RegistriesController | ✅ | ✅ |
 | ReportsController | ✅ | ✅ |
 | SchedulingController | ✅ | ✅ |

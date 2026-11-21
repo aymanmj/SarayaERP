@@ -1,12 +1,27 @@
-import axios from "axios";
+import axios, { type AxiosRequestConfig, type InternalAxiosRequestConfig } from "axios";
 import { useAuthStore } from "../stores/authStore";
 
 export const apiClient = axios.create({
   baseURL: "/api",
   withCredentials: true, // ✅ Important for Cookies
+  headers: { "X-Client-Name": "saraya-web" },
 });
 
 let isRefreshing = false;
+
+type StaffRequest = InternalAxiosRequestConfig & {
+  _retry?: boolean;
+  staffScope?: string;
+};
+
+function staffScope(userId?: number, hospitalId?: number | null) {
+  return `${userId ?? ""}:${hospitalId ?? ""}`;
+}
+
+function currentStaffScope() {
+  const state = useAuthStore.getState();
+  return staffScope(state.user?.id, state.currentBranchId);
+}
  
 let failedQueue: any[] = [];
 
@@ -20,6 +35,7 @@ const processQueue = (error: any) => {
 };
 // 1. Request Interceptor (Minimal - just return config)
 apiClient.interceptors.request.use((config) => {
+  (config as StaffRequest).staffScope ??= currentStaffScope();
   const currentLang = localStorage.getItem("language") || "ar";
   if (config.headers) {
     config.headers["Accept-Language"] = currentLang;
@@ -64,34 +80,41 @@ apiClient.interceptors.response.use(
     return response;
   },
   async (error) => {
-    const originalRequest = error.config;
+    const originalRequest = error.config as StaffRequest | undefined;
 
     // Handle 401 (Unauthorized)
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
       if (
-        originalRequest.url.includes("/auth/login") ||
-        originalRequest.url.includes("/auth/refresh") ||
-        originalRequest.url.includes("/auth/logout")
+        originalRequest.url?.includes("/auth/login") ||
+        originalRequest.url?.includes("/auth/refresh") ||
+        originalRequest.url?.includes("/auth/logout")
       ) {
         return Promise.reject(error);
       }
 
+      originalRequest._retry = true;
+      if (originalRequest.staffScope !== currentStaffScope()) return Promise.reject(error);
       if (isRefreshing) {
         return new Promise(function (resolve, reject) {
           failedQueue.push({ resolve, reject });
         })
           .then(() => {
+            if (originalRequest.staffScope !== currentStaffScope()) throw error;
             return apiClient(originalRequest);
           })
           .catch((err) => Promise.reject(err));
       }
 
-      originalRequest._retry = true;
       isRefreshing = true;
 
       try {
         // Attempt Silent Refresh
-        await apiClient.post("/auth/refresh");
+        const { data } = await apiClient.post<{ hospitalId: number; userId: number }>("/auth/refresh");
+        if (
+          originalRequest.staffScope !== staffScope(data.userId, data.hospitalId) ||
+          !useAuthStore.getState().acceptRefreshedSession(data.hospitalId, data.userId)
+        )
+          throw new Error("Staff session branch changed");
 
         // Refresh success
         processQueue(null);
@@ -99,13 +122,33 @@ apiClient.interceptors.response.use(
 
         return apiClient(originalRequest);
       } catch (refreshError) {
-        processQueue(refreshError);
-        isRefreshing = false;
-        useAuthStore.getState().logout();
-        // Redirect to login only if not already there
-        if (window.location.pathname !== "/login") {
-            window.location.href = "/login";
+        if (axios.isAxiosError(refreshError)) {
+          const status = refreshError.response?.status;
+          if (status === 409 && refreshError.response?.data?.message === "AUTH_REFRESH_CONFLICT") {
+            const config: AxiosRequestConfig & { _retry: boolean } = { _retry: true };
+            try {
+              const { data } = await apiClient.get<{ sub: number; hospitalId: number }>("/auth/me", config);
+              if (
+                originalRequest.staffScope === staffScope(data.sub, data.hospitalId) &&
+                useAuthStore.getState().acceptRefreshedSession(data.hospitalId, data.sub)
+              ) {
+                isRefreshing = false;
+                processQueue(null);
+                return apiClient(originalRequest);
+              }
+            } catch {
+              // The other tab may not have installed its cookies yet.
+            }
+          }
+          if (status === 401 || (status === 403 && refreshError.response?.data?.message !== "LICENSE_REQUIRED")) {
+            if (originalRequest.staffScope === currentStaffScope()) {
+              useAuthStore.getState().clearSession();
+              if (window.location.pathname !== "/login") window.location.href = "/login";
+            }
+          }
         }
+        isRefreshing = false;
+        processQueue(refreshError);
         return Promise.reject(refreshError);
       }
     }

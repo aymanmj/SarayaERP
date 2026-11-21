@@ -25,8 +25,8 @@ export default function DoctorTelehealthDashboard() {
     queryFn: async () => {
       // Fetching doctor's appointments for today
       // Assuming a generic endpoint, we will filter for VIRTUAL on the frontend if the backend doesn't
-      const res = await apiClient.get<VirtualAppointment[]>("/appointments/my-appointments");
-      return res.data.filter((app) => app.type === "VIRTUAL");
+      const res = await apiClient.get<VirtualAppointment[]>("/appointments", { params: { doctorId: user?.id } });
+      return res.data.filter((app) => app.type === "ONLINE");
     },
   });
 

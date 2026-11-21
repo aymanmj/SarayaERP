@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { TenantService } from './tenant.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotFoundException } from '@nestjs/common';
@@ -68,6 +69,7 @@ describe('TenantService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TenantService,
+        { provide: EventEmitter2, useValue: { emit: jest.fn() } },
         { provide: PrismaService, useValue: mockPrisma },
       ],
     }).compile();

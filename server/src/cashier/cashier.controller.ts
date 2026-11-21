@@ -1,3 +1,5 @@
+import { AuditInTransaction } from '../audit/audit.decorator';
+import type { Request } from 'express';
 // src/cashier/cashier.controller.ts
 
 import {
@@ -20,7 +22,13 @@ import { PermissionsGuard } from '../auth/permissions.guard';
 import { Permissions } from '../auth/permissions.decorator';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { JwtPayload } from '../auth/jwt-payload.type';
-import { IsNumber, IsOptional, IsString } from 'class-validator';
+import {
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsEnum,
+  IsUUID,
+} from 'class-validator';
 import { PaymentMethod } from '@prisma/client';
 import type { PaymentReceiptDto } from './cashier.service';
 import { PdfService } from '../pdf/pdf.service';
@@ -31,8 +39,12 @@ class RecordPaymentDto {
   @IsNumber()
   amount!: number;
 
-  @IsString()
+  @IsEnum(PaymentMethod)
   method!: PaymentMethod;
+
+  @IsOptional()
+  @IsUUID()
+  requestId?: string;
 
   @IsOptional()
   @IsString()
@@ -75,11 +87,13 @@ export class CashierController {
 
   // 2) تسجيل دفعة على فاتورة
   @Post('invoices/:id/payments')
+  @AuditInTransaction()
   @Permissions('cashier:manage')
   async recordPayment(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: RecordPaymentDto,
     @CurrentUser() user: JwtPayload,
+    @Req() req?: Request,
   ) {
     return this.cashierService.recordPayment({
       hospitalId: user.hospitalId,
@@ -87,7 +101,14 @@ export class CashierController {
       amount: dto.amount,
       method: dto.method,
       reference: dto.reference,
+      requestId: dto.requestId,
       userId: user.sub,
+      ...(req
+        ? {
+            ipAddress: req.ip,
+            clientName: req.get('user-agent'),
+          }
+        : {}),
     });
   }
 
@@ -112,6 +133,7 @@ export class CashierController {
     return this.cashierService.getInvoiceDetails(hospitalId, invoiceId);
   }
 
+  @Permissions('cashier:view', 'cashier:manage')
   @Get('payments/:id/receipt')
   @HttpCode(200)
   async getPaymentReceipt(
@@ -199,6 +221,7 @@ export class CashierController {
   }
 
   // تقرير يومي للكاشير (بدون تحديد مستخدم)
+  @Permissions('cashier:view', 'cashier:manage')
   @Get('reports/daily')
   async getDailyReport(@Req() req: any, @Query('date') date?: string) {
     const hospitalId = req.user.hospitalId as number;
@@ -283,6 +306,7 @@ export class CashierController {
   }
 
   // 🔹 إغلاق الشفت للكاشير
+  @Permissions('cashier:manage')
   @Post('shifts/close')
   async closeShift(@Req() req: any, @Body() body: CloseShiftDto) {
     const hospitalId = req.user.hospitalId as number;

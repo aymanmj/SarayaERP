@@ -6,13 +6,15 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
 import { LicenseService } from '../licensing/license.service';
-import { ForbiddenException } from '@nestjs/common';
+import { ForbiddenException, Optional } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 @Injectable()
 export class UsersService {
   constructor(
     private prisma: PrismaService,
     private licenseService: LicenseService,
+    @Optional() private eventEmitter?: EventEmitter2,
   ) {}
 
   async findAll(hospitalId: number) {
@@ -235,7 +237,7 @@ export class UsersService {
       updateData.passwordHash = await bcrypt.hash(data.password, 10);
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    const updated = await this.prisma.$transaction(async (tx) => {
       const updatedUser = await tx.user.update({
         where: { id },
         data: updateData,
@@ -257,6 +259,15 @@ export class UsersService {
 
       return updatedUser;
     });
+
+    const lifecycle = data as { isActive?: boolean; roles?: unknown };
+    if (lifecycle.isActive === false) {
+      this.eventEmitter?.emit('user.deactivated', { hospitalId, userId: id });
+    } else if (Array.isArray(lifecycle.roles)) {
+      this.eventEmitter?.emit('user.roles_updated', { hospitalId, userId: id });
+    }
+
+    return updated;
   }
 
   async findActiveDoctors(hospitalId: number) {
@@ -321,27 +332,43 @@ export class UsersService {
 
   // ✅ [NEW] Update permissions for a role
   async updateRolePermissions(roleId: number, permissionIds: number[]) {
-    // Delete existing permissions
-    await this.prisma.rolePermission.deleteMany({
-      where: { roleId },
-    });
-
-    // Add new permissions
-    const data = permissionIds.map((permissionId) => ({
-      roleId,
-      permissionId,
-    }));
-
-    await this.prisma.rolePermission.createMany({ data });
-
-    return this.prisma.role.findUnique({
-      where: { id: roleId },
-      include: {
-        rolePermissions: {
-          include: { permission: true },
+    if (
+      !Number.isSafeInteger(roleId) ||
+      roleId <= 0 ||
+      roleId > 2147483647 ||
+      !Array.isArray(permissionIds) ||
+      permissionIds.some(
+        (id) => !Number.isSafeInteger(id) || id <= 0 || id > 2147483647,
+      ) ||
+      new Set(permissionIds).size !== permissionIds.length
+    )
+      throw new BadRequestException('معرفات الدور والصلاحيات غير صالحة');
+    const updatedRole = await this.prisma.$transaction(async (tx) => {
+      const roles = await tx.$queryRaw<{ id: number }[]>`
+        SELECT id FROM "Role" WHERE id = ${roleId} FOR UPDATE
+      `;
+      if (!roles.length) throw new NotFoundException('الدور غير موجود');
+      const permissions = await tx.permission.count({
+        where: { id: { in: permissionIds } },
+      });
+      if (permissions !== permissionIds.length)
+        throw new BadRequestException('تحتوي القائمة على صلاحية غير موجودة');
+      await tx.rolePermission.deleteMany({ where: { roleId } });
+      if (permissionIds.length) {
+        await tx.rolePermission.createMany({
+          data: permissionIds.map((permissionId) => ({ roleId, permissionId })),
+        });
+      }
+      return tx.role.findUniqueOrThrow({
+        where: { id: roleId },
+        include: {
+          rolePermissions: { include: { permission: true } },
         },
-      },
+      });
     });
+
+    this.eventEmitter?.emit('auth.role_permissions_updated', { roleId });
+    return updatedRole;
   }
   async fixDoctorPermissions() {
     const DOCTOR_PERMISSIONS = [

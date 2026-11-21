@@ -30,6 +30,10 @@ describe('NphiesService', () => {
               const map: Record<string, string> = {
                 NPHIES_SENDER_ID: 'test-provider-001',
                 NPHIES_RECEIVER_ID: 'test-payer-001',
+                NPHIES_ATTACHMENT_ROOT: path.join(
+                  os.tmpdir(),
+                  'saraya-nphies-tests',
+                ),
               };
               return map[key] || defaultValue;
             }),
@@ -215,7 +219,9 @@ describe('NphiesService', () => {
     let tempFile: string;
 
     beforeEach(() => {
-      tempFile = path.join(os.tmpdir(), `nphies-att-${Date.now()}.pdf`);
+      const dir = path.join(os.tmpdir(), 'saraya-nphies-tests', '1');
+      fs.mkdirSync(dir, { recursive: true });
+      tempFile = path.join(dir, `nphies-att-${Date.now()}.pdf`);
       fs.writeFileSync(tempFile, 'mock PDF content');
     });
 
@@ -224,7 +230,12 @@ describe('NphiesService', () => {
     });
 
     it('should read file and return base64 attachment', () => {
-      const att = service.buildAttachment(tempFile, 'Lab Report');
+      const att = service.buildAttachment(
+        tempFile,
+        'Lab Report',
+        'application/pdf',
+        1,
+      );
       expect(att).not.toBeNull();
       expect(att.title).toBe('Lab Report');
       expect(att.contentType).toBe('application/pdf');
@@ -234,11 +245,13 @@ describe('NphiesService', () => {
     });
 
     it('should return null for non-existent file', () => {
-      expect(service.buildAttachment('/no/file.pdf', 'X')).toBeNull();
+      expect(() => {
+        service.buildAttachment('/no/file.pdf', 'X', 'application/pdf', 1);
+      }).toThrow();
     });
 
     it('should use custom contentType', () => {
-      const att = service.buildAttachment(tempFile, 'XRay', 'image/jpeg');
+      const att = service.buildAttachment(tempFile, 'XRay', 'image/jpeg', 1);
       expect(att.contentType).toBe('image/jpeg');
     });
   });

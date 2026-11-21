@@ -8,7 +8,13 @@ describe('VisitsController', () => {
   let controller: VisitsController;
   let visitsService: any;
 
-  const user = { sub: 18, hospitalId: 2, roles: ['DOCTOR'] };
+  const user = {
+    sub: 18,
+    hospitalId: 2,
+    roles: ['DOCTOR'],
+    username: 'synthetic',
+    permissions: ['visits:view'],
+  };
 
   beforeEach(async () => {
     visitsService = {
@@ -47,13 +53,14 @@ describe('VisitsController', () => {
     expect(visitsService.createVisit).toHaveBeenCalledWith({
       encounterId: 10,
       doctorId: 18,
+      hospitalId: 2,
       notes: 'Patient stable',
       diagnosisText: 'Viral syndrome',
     });
   });
 
   it('rejects invalid encounter ids when listing visits', async () => {
-    expect(() => controller.listForEncounter('NaN')).toThrow(
+    expect(() => controller.listForEncounter('NaN', user)).toThrow(
       BadRequestException,
     );
   });
@@ -61,9 +68,9 @@ describe('VisitsController', () => {
   it('lists visits for a valid encounter id', async () => {
     visitsService.listForEncounter.mockResolvedValue([{ id: 1 }]);
 
-    const result = await controller.listForEncounter('10');
+    const result = await controller.listForEncounter('10', user);
 
     expect(result).toEqual([{ id: 1 }]);
-    expect(visitsService.listForEncounter).toHaveBeenCalledWith(10);
+    expect(visitsService.listForEncounter).toHaveBeenCalledWith(10, 2);
   });
 });

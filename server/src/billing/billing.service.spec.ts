@@ -1,3 +1,8 @@
+import { PatientDepositService } from './patient-deposit.service';
+jest.mock('./invoice-snapshot', () => ({
+  ...jest.requireActual<Record<string, unknown>>('./invoice-snapshot'),
+  captureInvoiceSnapshot: jest.fn().mockResolvedValue(undefined),
+}));
 // src/billing/billing.service.spec.ts
 // Unit tests for Billing Service
 
@@ -12,7 +17,6 @@ import { AccountingService } from '../accounting/accounting.service';
 import { PriceListsService } from '../price-lists/price-lists.service';
 import Decimal from 'decimal.js';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
-import { ServiceType, SystemAccountKey } from '@prisma/client';
 
 describe('BillingService', () => {
   let service: BillingService;
@@ -28,6 +32,7 @@ describe('BillingService', () => {
       id: 1,
       hospitalId: mockHospitalId,
       encounterId: mockEncounterId,
+      sourceType: 'MANUAL',
       serviceItemId: 1,
       quantity: 1,
       unitPrice: new Decimal(50),
@@ -39,6 +44,7 @@ describe('BillingService', () => {
       id: 2,
       hospitalId: mockHospitalId,
       encounterId: mockEncounterId,
+      sourceType: 'MANUAL',
       serviceItemId: 2,
       quantity: 2,
       unitPrice: new Decimal(25),
@@ -65,21 +71,25 @@ describe('BillingService', () => {
   };
 
   const mockPrismaService = {
+    $queryRaw: jest.fn().mockResolvedValue([]),
+    admission: { findFirst: jest.fn().mockResolvedValue(null) },
     encounter: {
       findFirst: jest.fn(),
       findUnique: jest.fn(),
     },
     encounterCharge: {
       findMany: jest.fn(),
-      updateMany: jest.fn(),
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       update: jest.fn(),
       findFirst: jest.fn(),
       findUnique: jest.fn(),
       delete: jest.fn(),
     },
+    prescription: { findUnique: jest.fn().mockResolvedValue(null) },
     invoice: {
       create: jest.fn(),
       findFirst: jest.fn(),
+      findFirstOrThrow: jest.fn(),
       findUnique: jest.fn(),
       findMany: jest.fn(),
       update: jest.fn(),
@@ -88,7 +98,20 @@ describe('BillingService', () => {
     payment: {
       findMany: jest.fn(),
     },
+    invoiceRefund: {
+      aggregate: jest.fn().mockResolvedValue({ _sum: { amount: null } }),
+      findMany: jest.fn().mockResolvedValue([]),
+    },
+    cashierSession: {
+      count: jest.fn().mockResolvedValue(0),
+      findFirst: jest.fn().mockResolvedValue(null),
+    },
+    invoiceAdjustment: {
+      count: jest.fn().mockResolvedValue(0),
+      findMany: jest.fn().mockResolvedValue([]),
+    },
     accountingEntry: {
+      count: jest.fn().mockResolvedValue(0),
       findFirst: jest.fn(),
       delete: jest.fn(),
     },
@@ -129,6 +152,7 @@ describe('BillingService', () => {
   };
 
   const mockAccountingService = {
+    recordInvoiceEntry: jest.fn().mockResolvedValue(undefined),
     postBillingEntry: jest.fn().mockResolvedValue({ id: 1 }),
     validateDateInOpenPeriod: jest.fn().mockResolvedValue({
       financialYear: { id: 1 },
@@ -149,6 +173,7 @@ describe('BillingService', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
+        { provide: PatientDepositService, useValue: {} },
         BillingService,
         { provide: PrismaService, useValue: mockPrismaService },
         { provide: EventEmitter2, useValue: mockEventEmitter },
@@ -214,7 +239,7 @@ describe('BillingService', () => {
       mockPrismaService.encounterCharge.findMany.mockResolvedValue(mockCharges);
       mockPrismaService.invoice.create.mockResolvedValue(mockInvoice);
       mockPrismaService.encounterCharge.updateMany.mockResolvedValue({
-        count: 2,
+        count: 1,
       });
       mockPrismaService.invoice.findUnique.mockResolvedValue({
         ...mockInvoice,
@@ -262,7 +287,7 @@ describe('BillingService', () => {
       mockPrismaService.encounterCharge.findMany.mockResolvedValue(mockCharges);
       mockPrismaService.invoice.create.mockResolvedValue(mockInvoice);
       mockPrismaService.encounterCharge.updateMany.mockResolvedValue({
-        count: 2,
+        count: 1,
       });
       mockPrismaService.invoice.findUnique.mockResolvedValue({
         ...mockInvoice,
@@ -346,10 +371,18 @@ describe('BillingService', () => {
           }),
         }),
       );
-      expect(mockPrismaService.encounterCharge.update).toHaveBeenCalledWith({
-        where: { id: 1 },
-        data: { invoiceId: 9, totalAmount: 80 },
-      });
+      expect(mockPrismaService.encounterCharge.updateMany).toHaveBeenCalledWith(
+        {
+          where: {
+            id: 1,
+            hospitalId: mockHospitalId,
+            encounterId: mockEncounterId,
+            sourceType: { not: 'PHARMACY_PRESCRIPTION' },
+            OR: [{ invoiceId: null }, { invoice: { status: 'CANCELLED' } }],
+          },
+          data: { invoiceId: 9, totalAmount: 80 },
+        },
+      );
       expect(mockEventEmitter.emit).toHaveBeenCalledWith(
         'invoice.issued',
         expect.objectContaining({
@@ -469,6 +502,27 @@ describe('BillingService', () => {
   });
 
   describe('cancelInvoice', () => {
+    beforeEach(() => {
+      const invoice = async () => {
+        const row = (await mockPrismaService.invoice.findUnique()) as Record<
+          string,
+          unknown
+        > | null;
+        return row
+          ? {
+              patientId: 1,
+              encounterId: mockEncounterId,
+              type: 'INVOICE',
+              returns: [],
+              ...row,
+              encounter: { hospitalId: mockHospitalId, patientId: 1 },
+            }
+          : null;
+      };
+      mockPrismaService.invoice.findFirst.mockImplementation(invoice);
+      mockPrismaService.invoice.findFirstOrThrow.mockImplementation(invoice);
+      mockPrismaService.accountingEntry.count.mockResolvedValue(0);
+    });
     it('should cancel invoice and unlink charges', async () => {
       const mockInvoice = {
         id: 1,
@@ -524,6 +578,7 @@ describe('BillingService', () => {
       });
       mockPrismaService.invoice.update.mockResolvedValue({
         id: 5,
+        encounterId: mockEncounterId,
         hospitalId: mockHospitalId,
         status: 'CANCELLED',
       });
@@ -549,95 +604,22 @@ describe('BillingService', () => {
     });
   });
 
-  describe('createCreditNote', () => {
-    it('should reject duplicate active credit note for the same invoice', async () => {
-      mockPrismaService.invoice.findUnique.mockResolvedValue({
-        id: 11,
-        hospitalId: mockHospitalId,
-        status: 'ISSUED',
-        patientId: 1,
-        encounterId: mockEncounterId,
-        totalAmount: new Decimal(100),
-        discountAmount: new Decimal(0),
-        patientShare: new Decimal(40),
-        insuranceShare: new Decimal(60),
-        currency: 'LYD',
-        financialYearId: 1,
-        financialPeriodId: 1,
-        charges: [],
-      });
-      mockPrismaService.invoice.findFirst.mockResolvedValue({ id: 99 });
-
+  describe('legacy credit note containment', () => {
+    it('rejects a legacy fake refund without creating any invoice or accounting entry', async () => {
       await expect(
-        service.createCreditNote(mockHospitalId, 11, mockUserId, 'duplicate'),
-      ).rejects.toThrow(BadRequestException);
-    });
-
-    it('should create credit note with revenue split and accounting reversal hooks', async () => {
-      const originalInvoice = {
-        id: 12,
-        hospitalId: mockHospitalId,
-        status: 'PAID',
-        patientId: 1,
-        encounterId: mockEncounterId,
-        totalAmount: new Decimal(150),
-        discountAmount: new Decimal(5),
-        patientShare: new Decimal(70),
-        insuranceShare: new Decimal(80),
-        currency: 'LYD',
-        financialYearId: 1,
-        financialPeriodId: 1,
-        charges: [
-          {
-            totalAmount: new Decimal(50),
-            serviceItem: { type: ServiceType.LAB },
-          },
-          {
-            totalAmount: new Decimal(100),
-            serviceItem: { type: ServiceType.PHARMACY },
-          },
-        ],
-      };
-      mockPrismaService.invoice.findUnique.mockResolvedValue(originalInvoice);
-      mockPrismaService.invoice.findFirst.mockResolvedValue(null);
-      mockPrismaService.invoice.create.mockResolvedValue({
-        id: 13,
-        originalInvoiceId: 12,
-        status: 'PAID',
-      });
-
-      const result = await service.createCreditNote(
-        mockHospitalId,
-        12,
-        mockUserId,
-        'Returned items',
-      );
-
-      expect(result.id).toBe(13);
-      expect(mockAccountingService.recordCreditNoteEntry).toHaveBeenCalledWith(
-        expect.objectContaining({
-          creditNoteId: 13,
-          originalInvoiceId: 12,
-          hospitalId: mockHospitalId,
-          userId: mockUserId,
-          revenueSplit: {
-            [SystemAccountKey.REVENUE_LAB]: 50,
-            [SystemAccountKey.REVENUE_PHARMACY]: 100,
-          },
-          prisma: mockPrismaService,
-        }),
-      );
-      expect(mockEventEmitter.emit).toHaveBeenCalledWith(
-        'billing.credit_note_created',
-        expect.objectContaining({
-          creditNoteId: 13,
-          originalInvoiceId: 12,
-          encounterId: mockEncounterId,
-        }),
-      );
+        service.createCreditNote(
+          mockHospitalId,
+          12,
+          mockUserId,
+          'Returned items',
+        ),
+      ).rejects.toThrow('مسار المرتجع القديم موقوف');
+      expect(mockPrismaService.invoice.create).not.toHaveBeenCalled();
+      expect(
+        mockAccountingService.recordCreditNoteEntry,
+      ).not.toHaveBeenCalled();
     });
   });
-
   describe('deleteCharge', () => {
     it('should successfully delete an unbilled charge', async () => {
       const mockCharge = {

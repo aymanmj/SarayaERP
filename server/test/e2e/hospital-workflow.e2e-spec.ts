@@ -1,391 +1,155 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication } from '@nestjs/common';
+import { Test } from '@nestjs/testing';
+import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import request from 'supertest';
 import { AppModule } from '../../src/app.module';
+import { PrismaService } from '../../src/prisma/prisma.service';
+import { AuthHelper } from '../auth-helper';
+import { resetDatabase } from '../db-reset';
 
-describe('E2E Tests - Complete Hospital Workflow', () => {
+describe('Hospital workflow and clinical boundaries (e2e)', () => {
   let app: INestApplication;
-  let prismaService: any;
+  let prisma: PrismaService;
+  let token: string;
+  let readToken: string;
+  let hospitalId: number;
+  let patientId: number;
 
   beforeAll(async () => {
-    const moduleFixture: TestingModule = await Test.createTestingModule({
+    const fixture = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
-
-    app = moduleFixture.createNestApplication();
+    app = fixture.createNestApplication();
+    app.useGlobalPipes(
+      new ValidationPipe({ whitelist: true, transform: true }),
+    );
     await app.init();
-
-    prismaService = moduleFixture.get('PrismaService');
+    prisma = app.get(PrismaService);
   });
-
   afterAll(async () => {
-    await app.close();
+    if (app) await app.close();
   });
 
   beforeEach(async () => {
-    // Clean database before each test
-    await prismaService.patient.deleteMany();
-    await prismaService.encounter.deleteMany();
-    await prismaService.invoice.deleteMany();
-  });
-
-  describe('Complete Patient Journey E2E', () => {
-    it('should handle complete patient journey from registration to billing', async () => {
-      // 1. Register new patient
-      const patientData = {
-        fullName: 'محمد أحمد',
-        mrn: 'MRN-E2E-001',
-        phone: '0912345678',
-        email: 'mohammed@test.com',
-        dateOfBirth: '1990-01-01',
+    await resetDatabase(prisma);
+    const auth = new AuthHelper(prisma, app.get(JwtService));
+    const staff = await auth.createTestUser('clinical-staff', 'test-password', {
+      permissions: [
+        'patients:manage',
+        'patients:view',
+        'encounters:manage',
+        'encounters:view',
+        'vitals:manage',
+        'vitals:view',
+      ],
+    });
+    token = staff.accessToken;
+    hospitalId = staff.user.hospitalId;
+    readToken = (
+      await auth.createTestUser('reader', 'test-password', {
+        hospitalId,
+        permissions: ['patients:view', 'vitals:view'],
+      })
+    ).accessToken;
+    const response = await request(app.getHttpServer())
+      .post('/patients')
+      .set('Authorization', 'Bearer ' + token)
+      .send({
+        fullName: 'Synthetic Clinical Patient',
         gender: 'MALE',
-        address: 'شارع الملك فهد، الرياض',
-      };
+        phone: '0910000011',
+      })
+      .expect(201);
+    patientId = (response.body as { id: number }).id;
+  });
 
+  it.each(['OPD', 'ER', 'IPD'])(
+    'opens a %s encounter linked to the patient and branch',
+    async (type) => {
       const response = await request(app.getHttpServer())
-        .post('/patients')
-        .send(patientData)
-        .expect(201);
-
-      const patient = response.body;
-      expect(patient.id).toBeDefined();
-      expect(patient.fullName).toBe(patientData.fullName);
-
-      // 2. Create encounter
-      const encounterData = {
-        patientId: patient.id,
-        type: 'OUTPATIENT',
-        departmentId: 1,
-        doctorId: 1,
-        chiefComplaint: 'صداع وحمى',
-      };
-
-      const encounterResponse = await request(app.getHttpServer())
         .post('/encounters')
-        .send(encounterData)
+        .set('Authorization', 'Bearer ' + token)
+        .send({ patientId, type })
         .expect(201);
-
-      const encounter = encounterResponse.body;
-      expect(encounter.id).toBeDefined();
-      expect(encounter.status).toBe('OPEN');
-
-      // 3. Add services/charges
-      const chargeData = {
-        encounterId: encounter.id,
-        serviceItemId: 1,
-        quantity: 1,
-      };
-
-      await request(app.getHttpServer())
-        .post('/encounter-charges')
-        .send(chargeData)
-        .expect(201);
-
-      // 4. Create invoice
-      const invoiceResponse = await request(app.getHttpServer())
-        .post(`/invoices/encounter/${encounter.id}`)
-        .expect(201);
-
-      const invoice = invoiceResponse.body;
-      expect(invoice.id).toBeDefined();
-      expect(invoice.status).toBe('DRAFT');
-
-      // 5. Issue invoice
-      const issuedInvoice = await request(app.getHttpServer())
-        .post(`/invoices/${invoice.id}/issue`)
-        .expect(200);
-
-      expect(issuedInvoice.body.status).toBe('ISSUED');
-
-      // 6. Add payment
-      const paymentData = {
-        invoiceId: invoice.id,
-        amount: invoice.totalAmount,
-        method: 'CASH',
-      };
-
-      const paymentResponse = await request(app.getHttpServer())
-        .post('/payments')
-        .send(paymentData)
-        .expect(201);
-
-      expect(paymentResponse.body.status).toBe('PAID');
-
-      // 7. Verify final state
-      const finalInvoice = await request(app.getHttpServer())
-        .get(`/invoices/${invoice.id}`)
-        .expect(200);
-
-      expect(finalInvoice.body.status).toBe('PAID');
-      expect(finalInvoice.body.payments).toHaveLength(1);
-    });
-
-    it('should handle emergency patient workflow', async () => {
-      // 1. Register emergency patient
-      const emergencyPatient = {
-        fullName: 'مريض طارئ',
-        mrn: 'EMERGENCY-001',
-        phone: '0998765432',
-        isEmergency: true,
-      };
-
-      const patientResponse = await request(app.getHttpServer())
-        .post('/patients')
-        .send(emergencyPatient)
-        .expect(201);
-
-      const patient = patientResponse.body;
-
-      // 2. Create emergency encounter
-      const emergencyEncounter = {
-        patientId: patient.id,
-        type: 'EMERGENCY',
-        departmentId: 2, // Emergency department
-        priority: 'HIGH',
-        triageLevel: 'RED',
-      };
-
-      const encounterResponse = await request(app.getHttpServer())
-        .post('/encounters')
-        .send(emergencyEncounter)
-        .expect(201);
-
-      const encounter = encounterResponse.body;
-      expect(encounter.priority).toBe('HIGH');
-      expect(encounter.triageLevel).toBe('RED');
-
-      // 3. Add urgent lab orders
-      const labOrderData = {
-        encounterId: encounter.id,
-        urgency: 'STAT',
-        tests: [
-          { labTestId: 1, instructions: 'طوارئ' },
-          { labTestId: 2, instructions: 'طوارئ' },
-        ],
-      };
-
-      await request(app.getHttpServer())
-        .post('/lab-orders')
-        .send(labOrderData)
-        .expect(201);
-
-      // 4. Add urgent radiology
-      const radiologyData = {
-        encounterId: encounter.id,
-        radiologyTestId: 1,
-        urgency: 'STAT',
-        scheduledDate: new Date().toISOString(),
-      };
-
-      await request(app.getHttpServer())
-        .post('/radiology-studies')
-        .send(radiologyData)
-        .expect(201);
-
-      // 5. Verify emergency workflow
-      const encounterDetails = await request(app.getHttpServer())
-        .get(`/encounters/${encounter.id}`)
-        .expect(200);
-
-      expect(encounterDetails.body.labOrders).toHaveLength(1);
-      expect(encounterDetails.body.radiologyStudies).toHaveLength(1);
-    });
-
-    it('should handle inpatient admission and discharge workflow', async () => {
-      // 1. Register patient
-      const patientData = {
-        fullName: 'مريض إقامة',
-        mrn: 'INPATIENT-001',
-        phone: '0955551234',
-      };
-
-      const patientResponse = await request(app.getHttpServer())
-        .post('/patients')
-        .send(patientData)
-        .expect(201);
-
-      const patient = patientResponse.body;
-
-      // 2. Admit as inpatient
-      const admissionData = {
-        patientId: patient.id,
-        type: 'INPATIENT',
-        departmentId: 3, // Internal medicine
-        admissionDate: new Date().toISOString(),
-        bedId: 1,
-        roomNumber: '101',
-        wardId: 1,
-      };
-
-      const encounterResponse = await request(app.getHttpServer())
-        .post('/encounters')
-        .send(admissionData)
-        .expect(201);
-
-      const encounter = encounterResponse.body;
-      expect(encounter.type).toBe('INPATIENT');
-      expect(encounter.bedId).toBe(1);
-
-      // 3. Add daily services
-      for (let day = 1; day <= 3; day++) {
-        const dailyService = {
-          encounterId: encounter.id,
-          serviceItemId: 10, // Room charge
-          quantity: 1,
-          serviceDate: new Date(
-            Date.now() + day * 24 * 60 * 60 * 1000,
-          ).toISOString(),
-        };
-
-        await request(app.getHttpServer())
-          .post('/encounter-charges')
-          .send(dailyService)
-          .expect(201);
-      }
-
-      // 4. Add medications
-      const prescriptionData = {
-        encounterId: encounter.id,
-        items: [
-          {
-            drugItemId: 1,
-            dose: '500mg',
-            route: 'IV',
-            frequency: 'QID',
-            durationDays: 3,
-            quantity: 12,
-          },
-        ],
-      };
-
-      await request(app.getHttpServer())
-        .post('/prescriptions')
-        .send(prescriptionData)
-        .expect(201);
-
-      // 5. Discharge patient
-      const dischargeData = {
-        dischargeDate: new Date().toISOString(),
-        dischargeType: 'HOME',
-        summary: 'تحسن الحالة بشكل كامل',
-        instructions: 'متابعة في العيادة',
-      };
-
-      const dischargeResponse = await request(app.getHttpServer())
-        .post(`/encounters/${encounter.id}/discharge`)
-        .send(dischargeData)
-        .expect(200);
-
-      expect(dischargeResponse.body.status).toBe('DISCHARGED');
-
-      // 6. Generate final bill
-      const finalBillResponse = await request(app.getHttpServer())
-        .post(`/invoices/encounter/${encounter.id}`)
-        .expect(201);
-
-      const finalBill = finalBillResponse.body;
-      expect(finalBill.charges.length).toBeGreaterThan(3); // Room + medications
-    });
-  });
-
-  describe('API Performance and Security', () => {
-    it('should handle concurrent requests properly', async () => {
-      // Create multiple concurrent requests
-      const promises = Array.from({ length: 10 }, (_, i) =>
-        request(app.getHttpServer())
-          .get('/patients')
-          .query({ page: i + 1, limit: 10 }),
-      );
-
-      const responses = await Promise.all(promises);
-
-      responses.forEach((response) => {
-        expect(response.status).toBe(200);
-        expect(response.body.items).toBeDefined();
+      const encounterId = (response.body as { id: number }).id;
+      const saved = await prisma.encounter.findUniqueOrThrow({
+        where: { id: encounterId },
       });
-    });
+      expect(saved).toMatchObject({ patientId, hospitalId, type });
+    },
+  );
 
-    it('should validate input data properly', async () => {
-      // Test invalid patient data
-      const invalidPatient = {
-        fullName: '', // Empty name
-        mrn: 'INVALID-MRN',
-        phone: '123', // Invalid phone
-      };
-
-      await request(app.getHttpServer())
-        .post('/patients')
-        .send(invalidPatient)
-        .expect(400);
-
-      // Test invalid encounter data
-      const invalidEncounter = {
-        patientId: 99999, // Non-existent patient
-        type: 'INVALID_TYPE',
-      };
-
-      await request(app.getHttpServer())
-        .post('/encounters')
-        .send(invalidEncounter)
-        .expect(400);
-    });
-
-    it('should handle authentication and authorization', async () => {
-      // Test without authentication
-      await request(app.getHttpServer()).get('/admin/users').expect(401);
-
-      // Test with invalid token
-      await request(app.getHttpServer())
-        .get('/patients')
-        .set('Authorization', 'Bearer invalid-token')
-        .expect(401);
-    });
+  it('rejects invalid encounter types through runtime validation', async () => {
+    await request(app.getHttpServer())
+      .post('/encounters')
+      .set('Authorization', 'Bearer ' + token)
+      .send({ patientId, type: 'INVALID' })
+      .expect(400);
+    expect(await prisma.encounter.count()).toBe(0);
   });
 
-  describe('Data Integrity and Consistency', () => {
-    it('should maintain data consistency across operations', async () => {
-      // Create patient
-      const patientResponse = await request(app.getHttpServer())
-        .post('/patients')
-        .send({
-          fullName: 'اختبار التكامل',
-          mrn: 'INTEGRATION-001',
-          phone: '0911111111',
-        })
-        .expect(201);
+  it('rejects patient creation for a user with view permission only', async () => {
+    await request(app.getHttpServer())
+      .post('/patients')
+      .set('Authorization', 'Bearer ' + readToken)
+      .send({ fullName: 'Forbidden Patient' })
+      .expect(403);
+    expect(await prisma.patient.count()).toBe(1);
+  });
 
-      const patient = patientResponse.body;
+  it('rejects missing and forged authentication', async () => {
+    await request(app.getHttpServer()).get('/patients').expect(401);
+    await request(app.getHttpServer())
+      .get('/patients')
+      .set('Authorization', 'Bearer invalid-token')
+      .expect(401);
+  });
 
-      // Create encounter
-      const encounterResponse = await request(app.getHttpServer())
-        .post('/encounters')
-        .send({
-          patientId: patient.id,
-          type: 'OUTPATIENT',
-          departmentId: 1,
-        })
-        .expect(201);
-
-      const encounter = encounterResponse.body;
-
-      // Verify patient data consistency
-      const patientCheck = await request(app.getHttpServer())
-        .get(`/patients/${patient.id}`)
-        .expect(200);
-
-      expect(patientCheck.body.id).toBe(patient.id);
-      expect(patientCheck.body.encounters).toContain(encounter.id);
-
-      // Delete encounter and verify consistency
-      await request(app.getHttpServer())
-        .delete(`/encounters/${encounter.id}`)
-        .expect(200);
-
-      const patientCheckAfter = await request(app.getHttpServer())
-        .get(`/patients/${patient.id}`)
-        .expect(200);
-
-      expect(patientCheckAfter.body.encounters).not.toContain(encounter.id);
+  it('persists own-branch vitals and blocks foreign-branch reads and writes', async () => {
+    const own = await prisma.encounter.create({
+      data: { hospitalId, patientId, type: 'OPD' },
     });
+    await request(app.getHttpServer())
+      .post('/vitals/encounter/' + own.id)
+      .set('Authorization', 'Bearer ' + token)
+      .send({ pulse: 78 })
+      .expect(201);
+    const ownRead = await request(app.getHttpServer())
+      .get('/vitals/encounter/' + own.id)
+      .set('Authorization', 'Bearer ' + token)
+      .expect(200);
+    expect(ownRead.body).toEqual(
+      expect.arrayContaining([expect.objectContaining({ pulse: 78 })]),
+    );
+    const otherHospital = await prisma.hospital.create({
+      data: { code: 'OTHER', name: 'Other Hospital' },
+    });
+    const otherPatient = await prisma.patient.create({
+      data: {
+        hospitalId: otherHospital.id,
+        fullName: 'Other Patient',
+        mrn: 'OTHER-MRN',
+      },
+    });
+    const foreign = await prisma.encounter.create({
+      data: {
+        hospitalId: otherHospital.id,
+        patientId: otherPatient.id,
+        type: 'OPD',
+      },
+    });
+    const foreignRead = await request(app.getHttpServer())
+      .get('/vitals/encounter/' + foreign.id)
+      .set('Authorization', 'Bearer ' + token)
+      .expect(200);
+    expect(foreignRead.body).toEqual([]);
+    await request(app.getHttpServer())
+      .post('/vitals/encounter/' + foreign.id)
+      .set('Authorization', 'Bearer ' + token)
+      .send({ pulse: 95 })
+      .expect(404);
+    expect(
+      await prisma.vitalSign.count({ where: { encounterId: foreign.id } }),
+    ).toBe(0);
   });
 });

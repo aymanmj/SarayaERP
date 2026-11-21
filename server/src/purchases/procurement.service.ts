@@ -1,26 +1,19 @@
+import { receiveGoods, type ReceiptInput } from './goods-receipt';
+import { invoiceReceipts, type ReceiptInvoiceInput } from './receipt-invoice';
+import { appendChainedAuditInTransaction } from '../audit/audit-chain';
+import { Money } from '../common/utils/money.util';
 import {
   Injectable,
   BadRequestException,
   NotFoundException,
+  ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { AccountingService } from '../accounting/accounting.service';
-import {
-  PRStatus,
-  POStatus,
-  GRNStatus,
-  StockTransactionType,
-  SystemAccountKey,
-  AccountingSourceModule,
-  Prisma,
-} from '@prisma/client';
+import { PRStatus, POStatus, Prisma } from '@prisma/client';
 
 @Injectable()
 export class ProcurementService {
-  constructor(
-    private prisma: PrismaService,
-    private accounting: AccountingService,
-  ) {}
+  constructor(private prisma: PrismaService) {}
 
   // ==========================================
   // 1. Purchase Request (PR) - طلب الشراء
@@ -32,14 +25,70 @@ export class ProcurementService {
     items: { productId: number; uomId: number; quantity: number }[];
     notes?: string;
   }) {
+    if (!Array.isArray(data.items) || data.items.length === 0) {
+      throw new BadRequestException('يجب إضافة صنف واحد على الأقل لطلب الشراء');
+    }
+
     return this.prisma.$transaction(async (tx) => {
-      // التحقق من المنتجات ووحدات القياس
-      const productIds = data.items.map((i) => i.productId);
-      const count = await tx.product.count({
-        where: { id: { in: productIds }, hospitalId: data.hospitalId },
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(27003, ${data.hospitalId}::integer)`;
+
+      const user = await tx.user.findFirst({
+        where: {
+          id: data.userId,
+          hospitalId: data.hospitalId,
+          isActive: true,
+          isDeleted: false,
+        },
+        select: { id: true },
       });
-      if (count !== productIds.length)
-        throw new BadRequestException('بعض المنتجات غير صالحة');
+      if (!user) {
+        throw new NotFoundException('المستخدم غير متاح ضمن المنشأة');
+      }
+
+      if (data.departmentId !== undefined && data.departmentId !== null) {
+        const dept = await tx.department.findFirst({
+          where: {
+            id: data.departmentId,
+            hospitalId: data.hospitalId,
+            isActive: true,
+            isDeleted: false,
+          },
+          select: { id: true },
+        });
+        if (!dept) {
+          throw new BadRequestException(
+            'القسم غير موجود أو غير نشط في المنشأة',
+          );
+        }
+      }
+
+      const uniqueProductIds = [...new Set(data.items.map((i) => i.productId))];
+      const products = await tx.product.findMany({
+        where: {
+          id: { in: uniqueProductIds },
+          hospitalId: data.hospitalId,
+          isActive: true,
+          isDeleted: false,
+        },
+      });
+      if (products.length !== uniqueProductIds.length) {
+        throw new BadRequestException('بعض المنتجات غير صالحة أو خارج المنشأة');
+      }
+      const productMap = new Map(products.map((p) => [p.id, p]));
+
+      const uniqueUomIds = [...new Set(data.items.map((i) => i.uomId))];
+      const uoms = await tx.unitOfMeasure.findMany({
+        where: {
+          id: { in: uniqueUomIds },
+          hospitalId: data.hospitalId,
+          isActive: true,
+        },
+      });
+      if (uoms.length !== uniqueUomIds.length) {
+        throw new BadRequestException(
+          'بعض وحدات القياس غير صالحة أو غير نشطة في المنشأة',
+        );
+      }
 
       const productUoms = await tx.productUOM.findMany({
         where: {
@@ -51,15 +100,47 @@ export class ProcurementService {
       });
 
       const itemsData = data.items.map((i) => {
+        const qtyStr = String(i.quantity ?? '');
+        if (
+          !/^(0|[1-9]\d{0,14})(\.\d{1,3})?$/.test(qtyStr) ||
+          new Prisma.Decimal(qtyStr).lte(0)
+        ) {
+          throw new BadRequestException('كمية الصنف في طلب الشراء غير صالحة');
+        }
+        const qty = new Prisma.Decimal(qtyStr);
+        const product = productMap.get(i.productId)!;
         const uom = productUoms.find(
           (pu) => pu.productId === i.productId && pu.uomId === i.uomId,
         );
-        const conversionRate = uom ? Number(uom.conversionRate) : 1;
+
+        let conversionRate = new Prisma.Decimal(1);
+        if (uom) {
+          conversionRate = uom.conversionRate;
+        } else if (
+          product.baseUomId !== null &&
+          product.baseUomId !== i.uomId
+        ) {
+          throw new BadRequestException(
+            `وحدة القياس غير معرفة للصنف (${product.name})`,
+          );
+        }
+
+        const baseQty = qty.mul(conversionRate);
+        if (
+          !baseQty.isFinite() ||
+          baseQty.lte(0) ||
+          baseQty.decimalPlaces() > 3
+        ) {
+          throw new BadRequestException(
+            'الكمية الأساسية الناتجة تتجاوز دقة المخزون',
+          );
+        }
+
         return {
           productId: i.productId,
           uomId: i.uomId,
-          quantity: i.quantity,
-          baseQuantity: i.quantity * conversionRate,
+          quantity: qty.toFixed(3),
+          baseQuantity: baseQty.toFixed(3),
         };
       });
 
@@ -91,43 +172,88 @@ export class ProcurementService {
     supplierId: number,
   ) {
     return this.prisma.$transaction(async (tx) => {
-      const pr = await tx.purchaseRequest.findUnique({
-        where: { id: prId },
-        include: { items: { include: { product: true } } },
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(27003, ${hospitalId}::integer)`;
+      await tx.$queryRaw`SELECT id FROM "PurchaseRequest" WHERE id=${prId} AND "hospitalId"=${hospitalId} FOR UPDATE`;
+
+      const user = await tx.user.findFirst({
+        where: {
+          id: userId,
+          hospitalId,
+          isActive: true,
+          isDeleted: false,
+        },
+        select: { id: true },
+      });
+      if (!user) {
+        throw new NotFoundException('المستخدم غير متاح ضمن المنشأة');
+      }
+
+      const supplier = await tx.supplier.findFirst({
+        where: { id: supplierId, hospitalId, isActive: true },
+        select: { id: true },
+      });
+      if (!supplier) {
+        throw new BadRequestException('المورد غير موجود أو غير نشط في المنشأة');
+      }
+
+      const pr = await tx.purchaseRequest.findFirst({
+        where: { id: prId, hospitalId },
+        include: { items: { include: { product: true, uom: true } } },
       });
 
-      if (!pr || pr.hospitalId !== hospitalId)
-        throw new NotFoundException('PR not found');
+      if (!pr) throw new NotFoundException('PR not found');
+      if (pr.status === PRStatus.CONVERTED) {
+        throw new ConflictException('تم تحويل طلب الشراء إلى أمر شراء مسبقاً');
+      }
       if (pr.status !== PRStatus.APPROVED && pr.status !== PRStatus.PENDING) {
         throw new BadRequestException(
           'PR must be PENDING or APPROVED to convert',
         );
       }
+      if (!pr.items.length) {
+        throw new BadRequestException('لا يمكن تحويل طلب شراء فارغ');
+      }
 
       const poNumber = await this.getNextSequence(tx, hospitalId, 'PO');
 
-      // حساب الإجمالي المبدئي (بناءً على التكلفة الحالية للمنتج)
-      let totalAmount = 0;
       const poItems = pr.items.map((item) => {
-        const unitPriceBase = Number(item.product.costPrice); // السعر الأساسي المتوقع للوحدة الصغرى
-        const conversionRate =
-          Number(item.quantity) > 0
-            ? Number(item.baseQuantity) / Number(item.quantity)
-            : 1;
-        const uomPrice = unitPriceBase * conversionRate;
-        const lineTotal = uomPrice * Number(item.quantity);
-        totalAmount += lineTotal;
+        if (
+          item.product.hospitalId !== hospitalId ||
+          !item.product.isActive ||
+          item.product.isDeleted
+        ) {
+          throw new BadRequestException('أحد أصناف طلب الشراء غير متاح');
+        }
+        if (
+          item.uom &&
+          (item.uom.hospitalId !== hospitalId || !item.uom.isActive)
+        ) {
+          throw new BadRequestException('إحدى وحدات طلب الشراء غير متاحة');
+        }
+        const conversionRate = item.quantity.gt(0)
+          ? item.baseQuantity.div(item.quantity)
+          : new Prisma.Decimal(1);
+        const uomPrice = Money.toDbString(
+          Money.multiply(item.product.costPrice, conversionRate),
+        );
+        const lineTotal = Money.toDbString(
+          Money.multiply(uomPrice, item.quantity),
+        );
 
         return {
           productId: item.productId,
           uomId: item.uomId,
-          quantity: item.quantity,
-          baseQuantity: item.baseQuantity,
+          quantity: item.quantity.toFixed(3),
+          baseQuantity: item.baseQuantity.toFixed(3),
           unitPrice: uomPrice,
           totalPrice: lineTotal,
-          receivedQuantity: 0,
+          receivedQuantity: '0.000',
         };
       });
+
+      const totalAmount = Money.toDbString(
+        Money.sumPosted(...poItems.map((i) => i.totalPrice)),
+      );
 
       const po = await tx.purchaseOrder.create({
         data: {
@@ -137,12 +263,11 @@ export class ProcurementService {
           createdById: userId,
           status: POStatus.SENT,
           totalAmount,
-          purchaseRequests: { connect: { id: pr.id } }, // ربط
+          purchaseRequests: { connect: { id: pr.id } },
           items: { create: poItems },
         },
       });
 
-      // تحديث حالة الـ PR
       await tx.purchaseRequest.update({
         where: { id: pr.id },
         data: { status: PRStatus.CONVERTED, purchaseOrderId: po.id },
@@ -167,13 +292,64 @@ export class ProcurementService {
       unitPrice: number;
     }[];
   }) {
+    if (!Array.isArray(data.items) || data.items.length === 0) {
+      throw new BadRequestException('يجب إضافة صنف واحد على الأقل لأمر الشراء');
+    }
+
     return this.prisma.$transaction(async (tx) => {
-      const productIds = data.items.map((i) => i.productId);
-      const count = await tx.product.count({
-        where: { id: { in: productIds }, hospitalId: data.hospitalId },
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(27003, ${data.hospitalId}::integer)`;
+
+      const user = await tx.user.findFirst({
+        where: {
+          id: data.userId,
+          hospitalId: data.hospitalId,
+          isActive: true,
+          isDeleted: false,
+        },
+        select: { id: true },
       });
-      if (count !== productIds.length) {
+      if (!user) {
+        throw new NotFoundException('المستخدم غير متاح ضمن المنشأة');
+      }
+
+      const supplier = await tx.supplier.findFirst({
+        where: {
+          id: data.supplierId,
+          hospitalId: data.hospitalId,
+          isActive: true,
+        },
+        select: { id: true },
+      });
+      if (!supplier) {
+        throw new BadRequestException('المورد غير موجود أو غير نشط في المنشأة');
+      }
+
+      const uniqueProductIds = [...new Set(data.items.map((i) => i.productId))];
+      const products = await tx.product.findMany({
+        where: {
+          id: { in: uniqueProductIds },
+          hospitalId: data.hospitalId,
+          isActive: true,
+          isDeleted: false,
+        },
+      });
+      if (products.length !== uniqueProductIds.length) {
         throw new BadRequestException('بعض المنتجات غير صالحة');
+      }
+      const productMap = new Map(products.map((p) => [p.id, p]));
+
+      const uniqueUomIds = [...new Set(data.items.map((i) => i.uomId))];
+      const uoms = await tx.unitOfMeasure.findMany({
+        where: {
+          id: { in: uniqueUomIds },
+          hospitalId: data.hospitalId,
+          isActive: true,
+        },
+      });
+      if (uoms.length !== uniqueUomIds.length) {
+        throw new BadRequestException(
+          'بعض وحدات القياس غير صالحة أو غير نشطة في المنشأة',
+        );
       }
 
       const productUoms = await tx.productUOM.findMany({
@@ -186,27 +362,64 @@ export class ProcurementService {
       });
 
       const poNumber = await this.getNextSequence(tx, data.hospitalId, 'PO');
-      let totalAmount = 0;
 
       const poItems = data.items.map((item) => {
+        const qtyStr = String(item.quantity ?? '');
+        const priceStr = String(item.unitPrice ?? '');
+        if (
+          !/^(0|[1-9]\d{0,14})(\.\d{1,3})?$/.test(qtyStr) ||
+          new Prisma.Decimal(qtyStr).lte(0) ||
+          !/^(0|[1-9]\d{0,14})(\.\d{1,3})?$/.test(priceStr) ||
+          new Prisma.Decimal(priceStr).lt(0)
+        ) {
+          throw new BadRequestException('كمية أو سعر بند أمر الشراء غير صالح');
+        }
+        const qty = new Prisma.Decimal(qtyStr);
+        const product = productMap.get(item.productId)!;
         const uom = productUoms.find(
           (pu) => pu.productId === item.productId && pu.uomId === item.uomId,
         );
-        const conversionRate = uom ? Number(uom.conversionRate) : 1;
-        const baseQty = item.quantity * conversionRate;
-        const lineTotal = item.unitPrice * item.quantity;
-        totalAmount += lineTotal;
+
+        let conversionRate = new Prisma.Decimal(1);
+        if (uom) {
+          conversionRate = uom.conversionRate;
+        } else if (
+          product.baseUomId !== null &&
+          product.baseUomId !== item.uomId
+        ) {
+          throw new BadRequestException(
+            `وحدة القياس غير معرفة للصنف (${product.name})`,
+          );
+        }
+
+        const baseQty = qty.mul(conversionRate);
+        if (
+          !baseQty.isFinite() ||
+          baseQty.lte(0) ||
+          baseQty.decimalPlaces() > 3
+        ) {
+          throw new BadRequestException(
+            'الكمية الأساسية الناتجة تتجاوز دقة المخزون',
+          );
+        }
+
+        const unitPrice = Money.toDbString(priceStr);
+        const lineTotal = Money.toDbString(Money.multiply(unitPrice, qty));
 
         return {
           productId: item.productId,
           uomId: item.uomId,
-          quantity: item.quantity,
-          baseQuantity: baseQty,
-          unitPrice: item.unitPrice,
+          quantity: qty.toFixed(3),
+          baseQuantity: baseQty.toFixed(3),
+          unitPrice,
           totalPrice: lineTotal,
-          receivedQuantity: 0,
+          receivedQuantity: '0.000',
         };
       });
+
+      const totalAmount = Money.toDbString(
+        Money.sumPosted(...poItems.map((i) => i.totalPrice)),
+      );
 
       const po = await tx.purchaseOrder.create({
         data: {
@@ -235,231 +448,10 @@ export class ProcurementService {
    * 2. تسجيل حركة مخزنية (IN).
    * 3. قيد محاسبي: من ح/ المخزون -> إلى ح/ وسيط المشتريات (GRN Suspense).
    */
-  async createGRN(data: {
-    hospitalId: number;
-    userId: number;
-    poId: number;
-    warehouseId: number;
-    items: {
-      productId: number;
-      uomId: number;
-      quantity: number;
-      batchNumber: string;
-      expiryDate: Date;
-    }[];
-    notes?: string;
-  }) {
-    return this.prisma.$transaction(async (tx) => {
-      const po = await tx.purchaseOrder.findUnique({
-        where: { id: data.poId },
-        include: { items: true },
-      });
-      if (!po || po.hospitalId !== data.hospitalId) {
-        throw new NotFoundException(
-          'أمر الشراء غير موجود أو غير تابع لهذه المؤسسة',
-        );
-      }
-
-      // التحقق من أن المستودع تابع لنفس المستشفى
-      const warehouse = await tx.warehouse.findFirst({
-        where: { id: data.warehouseId, hospitalId: data.hospitalId },
-      });
-      if (!warehouse) {
-        throw new BadRequestException(
-          'المستودع المحدد غير موجود أو غير تابع لهذه المؤسسة',
-        );
-      }
-
-      // التحقق من أن جميع المنتجات تابعة لنفس المستشفى
-      const productIds = data.items.map((i) => i.productId);
-      const productsCount = await tx.product.count({
-        where: {
-          id: { in: productIds },
-          hospitalId: data.hospitalId,
-        },
-      });
-      if (productsCount !== productIds.length) {
-        throw new BadRequestException(
-          'بعض المنتجات غير صالحة أو غير تابعة لهذه المؤسسة',
-        );
-      }
-
-      // جلب معاملات التحويل للوحدات
-      const productUoms = await tx.productUOM.findMany({
-        where: {
-          OR: data.items.map((i) => ({
-            productId: i.productId,
-            uomId: i.uomId,
-          })),
-        },
-      });
-
-      const receivedItemsData = data.items.map((i) => {
-        const uom = productUoms.find(
-          (pu) => pu.productId === i.productId && pu.uomId === i.uomId,
-        );
-        const conversionRate = uom ? Number(uom.conversionRate) : 1;
-        return {
-          ...i,
-          baseQuantity: i.quantity * conversionRate,
-        };
-      });
-
-      // 1. إنشاء سجل GRN
-      const grnNumber = await this.getNextSequence(tx, data.hospitalId, 'GRN');
-      const grn = await tx.goodsReceipt.create({
-        data: {
-          hospitalId: data.hospitalId,
-          grnNumber,
-          purchaseOrderId: data.poId,
-          warehouseId: data.warehouseId,
-          receivedById: data.userId,
-          status: GRNStatus.COMPLETED, // نفترض أنه استلام نهائي فوراً
-          notes: data.notes,
-          items: {
-            create: receivedItemsData.map((i) => ({
-              productId: i.productId,
-              uomId: i.uomId,
-              quantity: i.quantity,
-              baseQuantity: i.baseQuantity,
-              batchNumber: i.batchNumber,
-              expiryDate: i.expiryDate,
-            })),
-          },
-        },
-      });
-
-      // إعدادات المحاسبة
-      const { fy, period } = await this.accounting.getOpenPeriodForDate(
-        data.hospitalId,
-        new Date(),
-      );
-      const inventoryAccountRef = await this.accounting.getSystemAccountOrThrow(
-        data.hospitalId,
-        SystemAccountKey.INVENTORY_DRUGS,
-      ); // تبسيط: نفترض كلها أدوية حالياً، يجب تحسينها حسب نوع المنتج
-      const suspenseAccountRef = await this.accounting.getSystemAccountOrThrow(
-        data.hospitalId,
-        SystemAccountKey.GRN_SUSPENSE,
-      );
-
-      let totalGrnValue = 0;
-
-      // 2. معالجة كل صنف
-      for (const receivedItem of receivedItemsData) {
-        // البحث عن السعر في الـ PO (لتقييم المخزون بالتكلفة المتفق عليها)
-        const poItem = po.items.find(
-          (i) => i.productId === receivedItem.productId,
-        );
-        const unitCost = Number(poItem?.unitPrice ?? 0); // التكلفة للوحدة الكبيرة
-        const baseUnitCost =
-          receivedItem.baseQuantity > 0
-            ? (unitCost * receivedItem.quantity) / receivedItem.baseQuantity
-            : 0;
-        const lineValue = unitCost * receivedItem.quantity;
-        totalGrnValue += lineValue;
-
-        // أ) تحديث المخزون (ProductStock) بالوحدة الصغرى
-        await tx.productStock.upsert({
-          where: {
-            warehouseId_productId_batchNumber: {
-              warehouseId: data.warehouseId,
-              productId: receivedItem.productId,
-              batchNumber: receivedItem.batchNumber,
-            },
-          },
-          update: { quantity: { increment: receivedItem.baseQuantity } },
-          create: {
-            hospitalId: data.hospitalId,
-            warehouseId: data.warehouseId,
-            productId: receivedItem.productId,
-            batchNumber: receivedItem.batchNumber,
-            expiryDate: receivedItem.expiryDate,
-            quantity: receivedItem.baseQuantity,
-            unitCost: baseUnitCost,
-          },
-        });
-
-        // ب) تحديث المنتج الرئيسي (StockOnHand & Cost)
-        // (يمكن هنا تطبيق Weighted Average Cost، للتبسيط سنستخدم التكلفة للوحدة الصغرى)
-        await tx.product.update({
-          where: { id: receivedItem.productId },
-          data: {
-            stockOnHand: { increment: receivedItem.baseQuantity },
-            costPrice: baseUnitCost, // تحديث التكلفة للوحدة الصغرى
-          },
-        });
-
-        // ج) تسجيل حركة المخزون
-        await tx.stockTransaction.create({
-          data: {
-            hospitalId: data.hospitalId,
-            warehouseId: data.warehouseId,
-            productId: receivedItem.productId,
-            type: StockTransactionType.IN,
-            quantity: receivedItem.quantity,
-            uomId: receivedItem.uomId,
-            baseQuantity: receivedItem.baseQuantity,
-            unitCost: baseUnitCost, // نسجل التكلفة الأساسية هنا
-            totalCost: lineValue,
-            batchNumber: receivedItem.batchNumber,
-            expiryDate: receivedItem.expiryDate,
-            referenceType: 'GRN',
-            referenceId: grn.id,
-            createdById: data.userId,
-          },
-        });
-
-        // د) تحديث الكمية المستلمة في الـ PO بوحدة الـ PO
-        if (poItem) {
-          // يمكن أن تكون وحدة الـ GRN مختلفة عن وحدة الـ PO، لذلك نحسب النسبة ونعكسها لوحدة PO
-          const poConversionRate =
-            Number(poItem.quantity) > 0
-              ? Number(poItem.baseQuantity) / Number(poItem.quantity)
-              : 1;
-          const receivedQtyInPoUom =
-            receivedItem.baseQuantity / poConversionRate;
-
-          await tx.purchaseOrderItem.update({
-            where: { id: poItem.id },
-            data: { receivedQuantity: { increment: receivedQtyInPoUom } },
-          });
-        }
-      }
-
-      // 3. القيد المحاسبي (Accrual)
-      if (totalGrnValue > 0) {
-        await tx.accountingEntry.create({
-          data: {
-            hospitalId: data.hospitalId,
-            financialYearId: fy.id,
-            financialPeriodId: period.id,
-            entryDate: new Date(),
-            sourceModule: AccountingSourceModule.PROCUREMENT_GRN,
-            sourceId: grn.id,
-            description: `استلام مخزني GRN #${grnNumber} - أمر شراء #${po.poNumber}`,
-            createdById: data.userId,
-            lines: {
-              create: [
-                {
-                  accountId: inventoryAccountRef.id, // مدين: المخزون
-                  debit: totalGrnValue,
-                  credit: 0,
-                  description: 'زيادة المخزون (استلام)',
-                },
-                {
-                  accountId: suspenseAccountRef.id, // دائن: وسيط المشتريات
-                  debit: 0,
-                  credit: totalGrnValue,
-                  description: 'استحقاق مورد (وسيط)',
-                },
-              ],
-            },
-          },
-        });
-      }
-
-      return grn;
+  async createGRN(data: ReceiptInput) {
+    return this.prisma.$transaction((tx) => receiveGoods(tx, data), {
+      maxWait: 10000,
+      timeout: 20000,
     });
   }
 
@@ -473,119 +465,61 @@ export class ProcurementService {
    * من ح/ الضريبة (إن وجدت)
    * إلى ح/ المورد
    */
-  async createInvoiceFromGRN(data: {
-    hospitalId: number;
-    userId: number;
-    supplierId: number;
-    grnIds: number[];
-    invoiceNumber: string; // رقم فاتورة المورد
-    invoiceDate: Date;
-    vatAmount?: number;
-    discountAmount?: number;
-  }) {
+  async createInvoiceFromGRN(data: ReceiptInvoiceInput) {
+    return this.prisma.$transaction((tx) => invoiceReceipts(tx, data), {
+      maxWait: 10000,
+      timeout: 20000,
+    });
+  }
+
+  async updatePOStatus(
+    hospitalId: number,
+    userId: number,
+    id: number,
+    status: POStatus,
+  ) {
     return this.prisma.$transaction(async (tx) => {
-      // جلب الـ GRNs للتأكد من القيم
-      const grns = await tx.goodsReceipt.findMany({
-        where: {
-          id: { in: data.grnIds },
-          hospitalId: data.hospitalId,
-          purchaseInvoiceId: null, // لم تفوتر بعد
-        },
-        include: { items: true, purchaseOrder: { include: { items: true } } },
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(27003, ${hospitalId}::integer)`;
+      await tx.$queryRaw`SELECT id FROM "PurchaseOrder" WHERE id=${id} AND "hospitalId"=${hospitalId} FOR UPDATE`;
+      if (
+        !(await tx.user.findFirst({
+          where: { id: userId, hospitalId, isActive: true, isDeleted: false },
+        }))
+      )
+        throw new NotFoundException('المستخدم غير متاح ضمن المنشأة');
+      const po = await tx.purchaseOrder.findFirst({
+        where: { id, hospitalId },
       });
-
-      if (grns.length !== data.grnIds.length) {
+      if (!po) throw new NotFoundException('أمر الشراء غير موجود');
+      if (po.status === status) return po;
+      if (
+        !(
+          (status === 'SENT' && po.status === 'DRAFT') ||
+          (status === 'CANCELLED' &&
+            ['DRAFT', 'SENT', 'PARTIALLY_RECEIVED'].includes(po.status))
+        )
+      )
         throw new BadRequestException(
-          'بعض أذونات الاستلام غير موجودة أو مفوترة مسبقاً.',
+          'حالة الاستلام يحددها النظام؛لا يجوز تجاوزها أو إعادة فتح أمر مغلق',
         );
-      }
-
-      // حساب قيمة الفاتورة بناءً على الكميات المستلمة * أسعار أمر الشراء
-      let subTotal = 0;
-
-      for (const grn of grns) {
-        // نحتاج لحساب قيمة كل GRN
-        // (في نظام متقدم، قد يختلف سعر الفاتورة عن سعر الـ PO، وهنا ينشأ Variance Account)
-        // للتبسيط: نفترض تطابق الأسعار
-        for (const grnItem of grn.items) {
-          const poItem = grn.purchaseOrder?.items.find(
-            (i) => i.productId === grnItem.productId,
-          );
-          const price = Number(poItem?.unitPrice ?? 0);
-          subTotal += Number(grnItem.quantity) * price;
-        }
-      }
-
-      const vat = data.vatAmount || 0;
-      const discount = data.discountAmount || 0;
-      const netTotal = subTotal + vat - discount;
-
-      // إنشاء الفاتورة
-      const invoice = await tx.purchaseInvoice.create({
-        data: {
-          hospitalId: data.hospitalId,
-          supplierId: data.supplierId,
-          invoiceNumber: data.invoiceNumber,
-          invoiceDate: data.invoiceDate,
-          status: 'APPROVED', // تعتبر معتمدة لأنها مبنية على GRN
-          totalAmount: subTotal,
-          vatAmount: vat,
-          discountAmount: discount,
-          netAmount: netTotal,
-          // ربط الـ GRNs
-          goodsReceipts: { connect: data.grnIds.map((id) => ({ id })) },
-        },
+      const result = await tx.purchaseOrder.update({
+        where: { id },
+        data: { status },
       });
-
-      // القيد المحاسبي
-      const { fy, period } = await this.accounting.getOpenPeriodForDate(
-        data.hospitalId,
-        data.invoiceDate,
-      );
-      const suspenseAcc = await this.accounting.getSystemAccountOrThrow(
-        data.hospitalId,
-        SystemAccountKey.GRN_SUSPENSE,
-      );
-      const supplierAcc = await this.accounting.getSystemAccountOrThrow(
-        data.hospitalId,
-        SystemAccountKey.PAYABLE_SUPPLIERS,
-      );
-      // const vatAcc = ... (لو مفعل الضريبة)
-
-      await tx.accountingEntry.create({
-        data: {
-          hospitalId: data.hospitalId,
-          financialYearId: fy.id,
-          financialPeriodId: period.id,
-          entryDate: data.invoiceDate,
-          sourceModule: AccountingSourceModule.PROCUREMENT_INV,
-          sourceId: invoice.id,
-          description: `فاتورة شراء #${data.invoiceNumber} - إغلاق وسيط`,
-          createdById: data.userId,
-          lines: {
-            create: [
-              {
-                accountId: suspenseAcc.id, // مدين: إغلاق الوسيط
-                debit: subTotal,
-                credit: 0,
-              },
-              {
-                accountId: supplierAcc.id, // دائن: المورد
-                debit: 0,
-                credit: netTotal, // (شامل الضريبة والخصم - يجب ضبط القيد بدقة للضريبة والخصم)
-              },
-              // هنا يجب إضافة سطور للضريبة والخصم ليتوازن القيد إذا وجدت قيم
-            ],
-          },
-        },
+      await appendChainedAuditInTransaction(tx, {
+        hospitalId,
+        userId,
+        action: 'CHANGE_PURCHASE_ORDER_STATUS',
+        entity: 'PurchaseOrder',
+        entityId: id,
+        details: { previousStatus: po.status, status },
       });
-
-      return invoice;
+      return result;
     });
   }
 
   private async getNextSequence(
-    tx: any,
+    tx: Prisma.TransactionClient,
     hospitalId: number,
     prefix: 'PR' | 'PO' | 'GRN',
   ): Promise<string> {

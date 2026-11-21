@@ -6,18 +6,28 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { enqueueConsumptionIntent } from '../inventory/consumption-intent';
 import {
   ChargeSource,
   OrderStatus,
   OrderType,
-  PaymentStatus,
   RadiologyStatus,
+  RadiologyOrder,
 } from '@prisma/client';
 import { PriceListsService } from '../price-lists/price-lists.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { RadiologyOrderCreatedEvent } from './events/radiology-order-created.event';
 import { RadiologyOrderStartedEvent } from './events/radiology-order-started.event';
+import {
+  lockRadiologyExecution,
+  radiologyReleasedPaymentStatuses,
+} from './radiology-release';
 import { AccountingService } from '../accounting/accounting.service';
+import {
+  canReadDepartmentStudies,
+  protectedViewerUrl,
+} from './radiology-viewer.service';
+import type { JwtPayload } from '../auth/jwt-payload.type';
 
 @Injectable()
 export class RadiologyService {
@@ -44,10 +54,14 @@ export class RadiologyService {
   }
 
   // ✅ [FIXED] إضافة pacsUrl هنا ليظهر في ملف المريض
-  async listOrdersForEncounter(encounterId: number, hospitalId: number) {
+  async listOrdersForEncounter(
+    encounterId: number,
+    hospitalId: number,
+    viewer?: JwtPayload,
+  ) {
     const encounter = await this.prisma.encounter.findUnique({
       where: { id: encounterId },
-      select: { id: true, hospitalId: true },
+      select: { id: true, hospitalId: true, doctorId: true },
     });
     if (!encounter) throw new NotFoundException('الحالة غير موجودة.');
     if (encounter.hospitalId !== hospitalId)
@@ -72,7 +86,14 @@ export class RadiologyService {
       scheduledAt: ro.scheduledAt,
       reportedAt: ro.reportedAt,
       reportText: ro.reportText,
-      pacsUrl: ro.pacsUrl, // ✅ تم إضافة الرابط
+      pacsUrl: ro.dicomStudyUid ? null : ro.pacsUrl,
+      viewerUrl:
+        viewer &&
+        (canReadDepartmentStudies(viewer) ||
+          viewer.sub === encounter.doctorId ||
+          viewer.sub === ro.order.orderedById)
+          ? protectedViewerUrl(ro.id, ro.dicomStudyUid)
+          : null,
       study: {
         id: ro.study.id,
         code: ro.study.code,
@@ -123,7 +144,7 @@ export class RadiologyService {
       if (studies.length === 0)
         throw new BadRequestException('لا توجد دراسات أشعة صالحة.');
 
-      const created: any[] = [];
+      const created: (RadiologyOrder & { studyName: string })[] = [];
       const chargeIds: number[] = [];
       let totalAmount = 0;
       const policyId = encounterInfo.patient.insurancePolicy?.isActive
@@ -247,12 +268,13 @@ export class RadiologyService {
   async getWorklist(hospitalId: number) {
     const radOrders = await this.prisma.radiologyOrder.findMany({
       where: {
+        status: { not: RadiologyStatus.CANCELLED },
         order: {
           hospitalId,
           type: OrderType.RADIOLOGY,
           isDeleted: false,
-          // ✅ [PAYWALL] لا تظهر للفني إلا إذا كانت مدفوعة أو معفاة
-          paymentStatus: { in: [PaymentStatus.PAID, PaymentStatus.WAIVED] },
+          status: { not: OrderStatus.CANCELLED },
+          paymentStatus: { in: radiologyReleasedPaymentStatuses },
         },
       },
       include: {
@@ -277,7 +299,8 @@ export class RadiologyService {
       status: ro.status,
       reportedAt: ro.reportedAt,
       reportText: ro.reportText,
-      pacsUrl: ro.pacsUrl, // ✅
+      pacsUrl: ro.dicomStudyUid ? null : ro.pacsUrl,
+      viewerUrl: protectedViewerUrl(ro.id, ro.dicomStudyUid),
       order: {
         id: ro.order.id,
         status: ro.order.status,
@@ -318,7 +341,8 @@ export class RadiologyService {
       scheduledAt: radOrder.scheduledAt,
       reportedAt: radOrder.reportedAt,
       reportText: radOrder.reportText,
-      pacsUrl: radOrder.pacsUrl, // ✅
+      pacsUrl: radOrder.dicomStudyUid ? null : radOrder.pacsUrl,
+      dicomStudyUid: radOrder.dicomStudyUid,
       study: radOrder.study,
       order: {
         id: radOrder.order.id,
@@ -337,32 +361,32 @@ export class RadiologyService {
     radiologyOrderId: number,
     userId: number,
   ) {
-    return this.prisma.$transaction(async (tx) => {
-      const radOrder = await tx.radiologyOrder.findUnique({
+    const { order, started } = await this.prisma.$transaction(async (tx) => {
+      await lockRadiologyExecution(tx, hospitalId, radiologyOrderId);
+      const order = await tx.radiologyOrder.findUniqueOrThrow({
         where: { id: radiologyOrderId },
         include: { order: true },
       });
-
-      if (!radOrder) throw new NotFoundException('الطلب غير موجود.');
-      if (radOrder.order.hospitalId !== hospitalId)
-        throw new BadRequestException('غير مصرح لك.');
-
-      if (radOrder.status === RadiologyStatus.COMPLETED) {
-        return radOrder;
+      if (
+        order.status === RadiologyStatus.COMPLETED ||
+        order.status === RadiologyStatus.IN_PROGRESS
+      ) {
+        return { order, started: false };
       }
-
       const updated = await tx.radiologyOrder.update({
         where: { id: radiologyOrderId },
-        data: { status: RadiologyStatus.IN_PROGRESS }, // Enum updated in schema
+        data: { status: RadiologyStatus.IN_PROGRESS },
+        include: { order: true },
       });
-
+      return { order: updated, started: true };
+    });
+    if (started) {
       this.eventEmitter.emit(
         'radiology.order_started',
         new RadiologyOrderStartedEvent(hospitalId, radiologyOrderId, userId),
       );
-
-      return updated;
-    });
+    }
+    return order;
   }
 
   async completeOrderWithReport(params: {
@@ -372,6 +396,12 @@ export class RadiologyService {
     reportText?: string;
   }) {
     return this.prisma.$transaction(async (tx) => {
+      await lockRadiologyExecution(
+        tx,
+        params.hospitalId,
+        params.radiologyOrderId,
+        'report',
+      );
       const radOrder = await tx.radiologyOrder.findUnique({
         where: { id: params.radiologyOrderId },
       });
@@ -430,6 +460,14 @@ export class RadiologyService {
         });
       }
 
+      if (radOrder.status !== RadiologyStatus.COMPLETED)
+        await enqueueConsumptionIntent(tx, {
+          hospitalId: params.hospitalId,
+          serviceItemId: study.serviceItem.id,
+          referenceType: 'RADIOLOGY_ORDER',
+          referenceId: radOrder.id,
+          userId: params.reportedById,
+        });
       const updatedRadOrder = await tx.radiologyOrder.update({
         where: { id: radOrder.id },
         data: {

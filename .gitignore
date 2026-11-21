@@ -111,6 +111,7 @@ server/test-gemini.js
 # Scripts
 ############################
 *.ps1
+!scripts/test-isolated-repair.ps1
 server/test_db.js
 server/test-mpi.js
 server/test-connections.js
@@ -118,6 +119,7 @@ server/test-connections.js
 ############################
 # Local Scratch & Performance Testing (Never commit to repo)
 ############################
+scratch/
 server/scratch/
 server/stress-test-90days.js
 server/license/*.lic

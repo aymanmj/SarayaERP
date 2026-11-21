@@ -7,6 +7,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { NphiesClaimService } from '../integration/nphies/nphies-claim.service';
 import { ClsService } from 'nestjs-cls';
+import { Money } from '../common/utils/money.util';
 
 /**
  * خدمة الدفعات التأمينية (Batch Submission Workflow)
@@ -28,7 +29,7 @@ export class BatchSubmissionService {
    * إنشاء دفعة جديدة من المطالبات المفحوصة (Scrubbed) والموافق عليها.
    */
   async createBatch(providerId: number, maxClaims: number = 100) {
-    const hospitalId = this.cls.get('hospitalId');
+    const hospitalId = this.cls.get<number>('hospitalId');
     if (!hospitalId) {
       throw new BadRequestException('معرّف المستشفى غير متوفر في السياق');
     }
@@ -41,6 +42,10 @@ export class BatchSubmissionService {
         batchId: null, // غير مرتبطة بدفعة أخرى
         invoice: {
           insuranceProviderId: providerId,
+          OR: [
+            { prepaidPrescription: null },
+            { prepaidPrescription: { status: { not: 'PARTIALLY_COMPLETED' } } },
+          ],
         },
       },
       take: maxClaims,
@@ -53,9 +58,8 @@ export class BatchSubmissionService {
       throw new BadRequestException('لا توجد مطالبات جاهزة لهذه الشركة');
     }
 
-    const totalAmount = readyClaims.reduce(
-      (sum, claim) => sum + Number(claim.claimedAmount),
-      0,
+    const totalAmount = Money.toDb(
+      Money.sum(...readyClaims.map((claim) => claim.claimedAmount)),
     );
     const batchNumber = `BATCH-${hospitalId}-${providerId}-${Date.now()}`;
 
@@ -73,7 +77,10 @@ export class BatchSubmissionService {
       });
 
       await tx.claim.updateMany({
-        where: { id: { in: readyClaims.map((c) => c.id) } },
+        where: {
+          hospitalId,
+          id: { in: readyClaims.map((c) => c.id) },
+        },
         data: { batchId: batch.id },
       });
 
@@ -84,9 +91,17 @@ export class BatchSubmissionService {
   /**
    * إرسال جميع مطالبات الدفعة إلى NPHIES
    */
-  async submitBatchToNphies(batchId: number, userId: number) {
-    const batch = await this.prisma.claimBatch.findUnique({
-      where: { id: batchId },
+  async submitBatchToNphies(
+    batchId: number,
+    userId: number,
+    hospitalIdParam?: number,
+  ) {
+    const hospitalId = hospitalIdParam ?? this.cls.get('hospitalId');
+    const batch = await this.prisma.claimBatch.findFirst({
+      where: {
+        id: batchId,
+        ...(hospitalId ? { hospitalId } : {}),
+      },
       include: { claims: true },
     });
 
@@ -99,6 +114,7 @@ export class BatchSubmissionService {
 
     // إرسال كل مطالبة بشكل فردي (أو مجمع حسب ما يدعمه NPHIES لاحقاً)
     for (const claim of batch.claims) {
+      if (claim.hospitalId !== batch.hospitalId) continue;
       try {
         const result = await this.nphiesClaimService.submitClaim(
           claim.hospitalId,

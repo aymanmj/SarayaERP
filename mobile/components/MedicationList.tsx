@@ -100,6 +100,7 @@ const HistoryMedCard = memo(({ item }: { item: any }) => (
              </View>
           </View>
           <Text style={styles.performer}>By: {item.performer?.fullName}</Text>
+          {!!item.scheduledSlot && <Text style={styles.performer}>موعد الجرعة {item.scheduledSlot.replace('T', ' ')}</Text>}
           {item.notes && <Text style={styles.historyNotes}>"{item.notes}"</Text>}
       </View>
     </View>

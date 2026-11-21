@@ -1,3 +1,4 @@
+import { RefundReportSummary, type RefundReportFields } from '../components/RefundReportSummary';
 // src/pages/CashierDailyReportPage.tsx
 
 import { useEffect, useState } from "react";
@@ -7,7 +8,7 @@ import { DatePicker } from "@/components/ui/date-picker";
 
 type PaymentMethod = "CASH" | "CARD" | "TRANSFER" | "INSURANCE" | "OTHER";
 
-type CashierDailyReport = {
+type CashierDailyReport = RefundReportFields & {
   dateFrom: string;
   dateTo: string;
   paymentsSummary: {
@@ -180,6 +181,7 @@ export default function CashierDailyReportPage() {
           </div>
         )}
 
+      {report && <RefundReportSummary report={report} />}
         {report && (
           <div className="space-y-4">
             {/* Cards ملخص علوي */}

@@ -60,7 +60,7 @@ export class EncountersController {
 
   // الاستقبال أو الادمن يفتح Encounter
   @Post()
-  @Permissions('encounters:view')
+  @Permissions('encounters:manage')
   create(@Body() dto: CreateEncounterDto, @CurrentUser() user: JwtPayload) {
     return this.encountersService.createEncounter(user.hospitalId, {
       patientId: dto.patientId,
@@ -104,7 +104,7 @@ export class EncountersController {
 
   // إغلاق Encounter
   @Patch(':id/close')
-  @Permissions('encounters:view')
+  @Permissions('encounters:manage')
   close(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
     const encId = Number(id);
     if (!encId || Number.isNaN(encId)) {
@@ -132,7 +132,7 @@ export class EncountersController {
   }
 
   @Patch(':id/discharge')
-  @Permissions('encounters:view')
+  @Permissions('encounters:manage')
   async discharge(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
     const encId = Number(id);
     if (!encId || Number.isNaN(encId)) {
@@ -143,7 +143,7 @@ export class EncountersController {
   }
 
   @Patch(':id/assign-doctor')
-  @Permissions('encounters:view')
+  @Permissions('encounters:manage')
   async assignDoctor(
     @Param('id', ParseIntPipe) id: number,
     @Body() body: { doctorId: number },

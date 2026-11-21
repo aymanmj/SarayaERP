@@ -1,12 +1,16 @@
+import { collectClaim, type ClaimReceiptInput } from './claim-receipt';
 import {
   Injectable,
   Logger,
   NotFoundException,
   BadRequestException,
+  Optional,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ClaimScrubberService } from './scrubber/claim-scrubber.service';
-import { ClaimStatus } from '@prisma/client';
+import { ClaimStatus, Prisma } from '@prisma/client';
+import { ClsService } from 'nestjs-cls';
+import { Money } from '../common/utils/money.util';
 
 /**
  * خدمة إدارة المطالبات التأمينية
@@ -19,55 +23,111 @@ export class ClaimService {
   constructor(
     private prisma: PrismaService,
     private scrubber: ClaimScrubberService,
+    @Optional() private cls?: ClsService,
   ) {}
+
+  private resolveHospitalId(hospitalId?: number): number | undefined {
+    return hospitalId ?? this.cls?.get('hospitalId');
+  }
 
   /**
    * إنشاء مطالبة جديدة من فاتورة
    */
   async createClaim(hospitalId: number, invoiceId: number) {
-    // التحقق من الفاتورة
-    const invoice = await this.prisma.invoice.findFirst({
-      where: { id: invoiceId, hospitalId },
-      include: {
-        patient: true,
-        insuranceProvider: true,
-        encounter: true,
-      },
-    });
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(27008, ${hospitalId}::int)`;
+      await tx.$queryRaw`SELECT id FROM "Invoice" WHERE id = ${invoiceId} AND "hospitalId" = ${hospitalId} FOR UPDATE`;
 
-    if (!invoice) throw new NotFoundException('الفاتورة غير موجودة');
-    if (!invoice.insuranceProviderId) {
-      throw new BadRequestException('الفاتورة لا تحتوي على تأمين');
-    }
+      // التحقق من الفاتورة
+      const invoice = await tx.invoice.findFirst({
+        where: { id: invoiceId, hospitalId },
+        include: {
+          patient: true,
+          insuranceProvider: true,
+          encounter: true,
+          insuranceSettlementAllocations: { select: { id: true }, take: 1 },
+          prepaidPrescription: {
+            select: { status: true, _count: { select: { dispenses: true } } },
+          },
+        },
+      });
 
-    // التحقق من عدم وجود مطالبة مكررة
-    const existing = await this.prisma.claim.findFirst({
-      where: { invoiceId, status: { notIn: ['VOID'] } },
-    });
-    if (existing) {
-      throw new BadRequestException(
-        `يوجد مطالبة مفتوحة بالفعل: ${existing.claimNumber}`,
+      if (!invoice) throw new NotFoundException('الفاتورة غير موجودة');
+      if (invoice.claimStatus === 'WITHDRAWN')
+        throw new BadRequestException(
+          'المطالبة مسحوبة ولا يمكن إنشاء مطالبة بديلة على الفاتورة نفسها',
+        );
+      if (invoice.insuranceSettlementAllocations?.length)
+        throw new BadRequestException(
+          'ذمة التأمين مسددة في تسوية مثبتة لهذه الفاتورة',
+        );
+      if (invoice.prepaidPrescription?._count.dispenses === 0)
+        throw new BadRequestException(
+          'يلزم صرف الوصفة قبل إصدار المطالبة التأمينية',
+        );
+      if (invoice.status === 'CANCELLED') {
+        throw new BadRequestException('لا يمكن إنشاء مطالبة لفاتورة ملغاة');
+      }
+      if (!invoice.insuranceProviderId) {
+        throw new BadRequestException('الفاتورة لا تحتوي على تأمين');
+      }
+      let claimedAmount = invoice.insuranceShare;
+      if (invoice.prepaidPrescription?.status === 'PARTIALLY_COMPLETED') {
+        const correction = await tx.invoiceAdjustment.findFirst({
+          where: {
+            hospitalId,
+            invoiceId,
+            status: 'POSTED',
+            partialDispense: true,
+          },
+          select: { insuranceDelta: true },
+        });
+        if (!correction)
+          throw new BadRequestException(
+            'يلزم اعتماد تصحيح الصرف الجزئي قبل المطالبة',
+          );
+        claimedAmount = Money.sumDecimal(
+          claimedAmount,
+          correction.insuranceDelta,
+        );
+      }
+      if (Money.lte(claimedAmount ?? 0, 0)) {
+        throw new BadRequestException(
+          'الفاتورة لا تحتوي على حصة تأمينية موجبة للمطالبة',
+        );
+      }
+
+      // التحقق من عدم وجود مطالبة مكررة
+      const existing = await tx.claim.findFirst({
+        where: { hospitalId, invoiceId, status: { notIn: ['VOID'] } },
+      });
+      if (existing) {
+        throw new BadRequestException(
+          `يوجد مطالبة مفتوحة بالفعل: ${existing.claimNumber}`,
+        );
+      }
+
+      // توليد رقم المطالبة
+      const claimNumber = await this.generateClaimNumber(hospitalId, tx);
+
+      const claim = await tx.claim.create({
+        data: {
+          hospitalId,
+          invoiceId,
+          claimNumber,
+          claimedAmount: Money.toDbString(claimedAmount),
+          status: ClaimStatus.DRAFT,
+        },
+        include: {
+          invoice: { include: { patient: true, insuranceProvider: true } },
+        },
+      });
+
+      this.logger.log(
+        `✅ تم إنشاء مطالبة ${claimNumber} للفاتورة #${invoiceId}`,
       );
-    }
-
-    // توليد رقم المطالبة
-    const claimNumber = await this.generateClaimNumber(hospitalId);
-
-    const claim = await this.prisma.claim.create({
-      data: {
-        hospitalId,
-        invoiceId,
-        claimNumber,
-        claimedAmount: invoice.insuranceShare || invoice.totalAmount,
-        status: ClaimStatus.DRAFT,
-      },
-      include: {
-        invoice: { include: { patient: true, insuranceProvider: true } },
-      },
+      return claim;
     });
-
-    this.logger.log(`✅ تم إنشاء مطالبة ${claimNumber} للفاتورة #${invoiceId}`);
-    return claim;
   }
 
   /**
@@ -84,7 +144,10 @@ export class ClaimService {
         const claim = await this.createClaim(hospitalId, invoiceId);
         results.created.push(claim);
       } catch (err: any) {
-        results.errors.push({ invoiceId, error: err.message });
+        results.errors.push({
+          invoiceId,
+          error: err instanceof Error ? err.message : 'تعذر إنشاء المطالبة',
+        });
       }
     }
 
@@ -94,9 +157,13 @@ export class ClaimService {
   /**
    * فحص المطالبة (Scrubbing) — التحقق من صحتها قبل الإرسال
    */
-  async scrubClaim(claimId: number) {
-    const claim = await this.prisma.claim.findUnique({
-      where: { id: claimId },
+  async scrubClaim(claimId: number, hospitalId?: number) {
+    const tenantId = this.resolveHospitalId(hospitalId);
+    const claim = await this.prisma.claim.findFirst({
+      where: {
+        id: claimId,
+        ...(tenantId ? { hospitalId: tenantId } : {}),
+      },
       include: {
         invoice: {
           include: {
@@ -110,6 +177,8 @@ export class ClaimService {
     });
 
     if (!claim) throw new NotFoundException('المطالبة غير موجودة');
+    if (claim.status === 'VOID')
+      throw new BadRequestException('المطالبة المسحوبة مغلقة');
 
     // تنفيذ الفحص
     const scrubResults = await this.scrubber.scrub(claim);
@@ -138,10 +207,16 @@ export class ClaimService {
       ? ClaimStatus.SCRUB_FAILED
       : ClaimStatus.SCRUBBED;
 
-    await this.updateClaimStatus(claim.id, newStatus, 'نتيجة الفحص التلقائي');
+    await this.updateClaimStatus(
+      claim.id,
+      newStatus,
+      'نتيجة الفحص التلقائي',
+      undefined,
+      claim.hospitalId,
+    );
 
     return {
-      claim: await this.getClaimById(claim.id),
+      claim: await this.getClaimById(claim.id, claim.hospitalId),
       scrubResults,
       passed: !hasErrors,
       errorCount: scrubResults.filter((r) => r.severity === 'ERROR').length,
@@ -157,11 +232,28 @@ export class ClaimService {
     newStatus: ClaimStatus,
     notes?: string,
     changedById?: number,
+    hospitalId?: number,
   ) {
-    const claim = await this.prisma.claim.findUnique({
-      where: { id: claimId },
+    if (newStatus === 'VOID')
+      throw new BadRequestException(
+        'سحب المطالبة يتطلب توثيق تأكيد شركة التأمين',
+      );
+    if (newStatus === 'PAID' || newStatus === 'PARTIALLY_PAID')
+      throw new BadRequestException('حالة التحصيل تستنتج من دفتر الدفعات فقط');
+    const tenantId = this.resolveHospitalId(hospitalId);
+    const claim = await this.prisma.claim.findFirst({
+      where: {
+        id: claimId,
+        ...(tenantId ? { hospitalId: tenantId } : {}),
+      },
     });
     if (!claim) throw new NotFoundException('المطالبة غير موجودة');
+    if (claim.status === 'VOID')
+      throw new BadRequestException('المطالبة المسحوبة مغلقة');
+    if (Money.gt(claim.paidAmount ?? 0, 0) || claim.status === 'PAID')
+      throw new BadRequestException(
+        'المطالبة محصلة؛يلزم تصحيح مالي مستقل بدل تغيير حالتها',
+      );
 
     const [updatedClaim] = await this.prisma.$transaction([
       this.prisma.claim.update({
@@ -171,7 +263,6 @@ export class ClaimService {
           ...(newStatus === ClaimStatus.SUBMITTED && {
             submittedAt: new Date(),
           }),
-          ...(newStatus === ClaimStatus.PAID && { paidAt: new Date() }),
         },
       }),
       this.prisma.claimHistory.create({
@@ -197,49 +288,14 @@ export class ClaimService {
    */
   async postPayment(
     claimId: number,
-    data: {
-      paidAmount: number;
-      adjustmentAmount?: number;
-      adjustmentReason?: string;
-    },
+    data: ClaimReceiptInput,
+    hospitalId: number,
+    userId: number,
   ) {
-    const claim = await this.prisma.claim.findUnique({
-      where: { id: claimId },
-    });
-    if (!claim) throw new NotFoundException('المطالبة غير موجودة');
-
-    const totalPaid = Number(claim.paidAmount || 0) + data.paidAmount;
-    const claimedAmount = Number(claim.claimedAmount);
-    const newStatus =
-      totalPaid >= claimedAmount
-        ? ClaimStatus.PAID
-        : ClaimStatus.PARTIALLY_PAID;
-
-    const updated = await this.prisma.claim.update({
-      where: { id: claimId },
-      data: {
-        paidAmount: totalPaid,
-        adjustmentAmount: data.adjustmentAmount,
-        adjustmentReason: data.adjustmentReason,
-        status: newStatus,
-        paidAt: newStatus === ClaimStatus.PAID ? new Date() : undefined,
-      },
-    });
-
-    await this.prisma.claimHistory.create({
-      data: {
-        claimId,
-        fromStatus: claim.status,
-        toStatus: newStatus,
-        notes: `تم ترحيل دفعة: ${data.paidAmount}`,
-      },
-    });
-
-    this.logger.log(
-      `💰 ترحيل دفعة ${data.paidAmount} على مطالبة ${claim.claimNumber}`,
+    return this.prisma.$transaction(
+      (tx) => collectClaim(tx, hospitalId, userId, claimId, data),
+      { maxWait: 10000, timeout: 20000 },
     );
-
-    return updated;
   }
 
   /**
@@ -248,11 +304,22 @@ export class ClaimService {
   async denyClaim(
     claimId: number,
     data: { denialCode: string; denialReason: string; appealDeadline?: Date },
+    hospitalId?: number,
   ) {
-    const claim = await this.prisma.claim.findUnique({
-      where: { id: claimId },
+    const tenantId = this.resolveHospitalId(hospitalId);
+    const claim = await this.prisma.claim.findFirst({
+      where: {
+        id: claimId,
+        ...(tenantId ? { hospitalId: tenantId } : {}),
+      },
     });
     if (!claim) throw new NotFoundException('المطالبة غير موجودة');
+    if (claim.status === 'VOID')
+      throw new BadRequestException('المطالبة المسحوبة مغلقة');
+    if (Money.gt(claim.paidAmount ?? 0, 0) || claim.status === 'PAID')
+      throw new BadRequestException(
+        'المطالبة محصلة؛يلزم تصحيح مالي مستقل بدل تغيير حالتها',
+      );
 
     const updated = await this.prisma.claim.update({
       where: { id: claimId },
@@ -283,7 +350,23 @@ export class ClaimService {
     claimId: number,
     appealNotes: string,
     changedById?: number,
+    hospitalId?: number,
   ) {
+    const tenantId = this.resolveHospitalId(hospitalId);
+    const claim = await this.prisma.claim.findFirst({
+      where: {
+        id: claimId,
+        ...(tenantId ? { hospitalId: tenantId } : {}),
+      },
+    });
+    if (!claim) throw new NotFoundException('المطالبة غير موجودة');
+    if (claim.status === 'VOID')
+      throw new BadRequestException('المطالبة المسحوبة مغلقة');
+    if (Money.gt(claim.paidAmount ?? 0, 0) || claim.status === 'PAID')
+      throw new BadRequestException(
+        'المطالبة محصلة؛يلزم تصحيح مالي مستقل بدل تغيير حالتها',
+      );
+
     return this.prisma.claim
       .update({
         where: { id: claimId },
@@ -296,7 +379,7 @@ export class ClaimService {
         await this.prisma.claimHistory.create({
           data: {
             claimId,
-            fromStatus: ClaimStatus.REJECTED,
+            fromStatus: claim.status,
             toStatus: ClaimStatus.APPEALED,
             changedById,
             notes: appealNotes,
@@ -309,9 +392,13 @@ export class ClaimService {
   /**
    * جلب مطالبة بالتفاصيل
    */
-  async getClaimById(claimId: number) {
-    return this.prisma.claim.findUnique({
-      where: { id: claimId },
+  async getClaimById(claimId: number, hospitalId?: number) {
+    const tenantId = this.resolveHospitalId(hospitalId);
+    const claim = await this.prisma.claim.findFirst({
+      where: {
+        id: claimId,
+        ...(tenantId ? { hospitalId: tenantId } : {}),
+      },
       include: {
         invoice: {
           include: { patient: true, insuranceProvider: true, charges: true },
@@ -321,6 +408,26 @@ export class ClaimService {
         history: { orderBy: { createdAt: 'desc' } },
       },
     });
+    if (!claim) {
+      throw new NotFoundException('المطالبة غير موجودة');
+    }
+    const credits = await this.prisma.invoiceAdjustment.aggregate({
+      where: {
+        hospitalId: claim.hospitalId,
+        invoiceId: claim.invoiceId,
+        status: 'POSTED',
+        insuranceOnly: true,
+      },
+      _sum: { insuranceDelta: true },
+    });
+    const effectiveShare = Money.sumDecimal(
+      claim.claimedAmount,
+      credits._sum.insuranceDelta,
+    );
+    return {
+      ...claim,
+      effectiveClaimedAmount: Money.toDbString(effectiveShare),
+    };
   }
 
   /**
@@ -340,7 +447,7 @@ export class ClaimService {
     const limit = filters?.limit || 20;
     const skip = (page - 1) * limit;
 
-    const where: any = { hospitalId };
+    const where: Prisma.ClaimWhereInput = { hospitalId };
     if (filters?.status) where.status = filters.status;
     if (filters?.fromDate || filters?.toDate) {
       where.createdAt = {};
@@ -353,7 +460,14 @@ export class ClaimService {
         where,
         include: {
           invoice: {
-            include: { patient: true, insuranceProvider: true },
+            include: {
+              patient: true,
+              insuranceProvider: true,
+              adjustments: {
+                where: { insuranceOnly: true, status: 'POSTED' },
+                select: { insuranceDelta: true },
+              },
+            },
           },
         },
         orderBy: { createdAt: 'desc' },
@@ -364,7 +478,18 @@ export class ClaimService {
     ]);
 
     return {
-      data: claims,
+      data: claims.map(
+        ({ invoice: { adjustments, ...invoice }, ...claim }) => ({
+          ...claim,
+          invoice,
+          effectiveClaimedAmount: Money.toDbString(
+            Money.sumDecimal(
+              claim.claimedAmount,
+              ...adjustments.map((item) => item.insuranceDelta),
+            ),
+          ),
+        }),
+      ),
       total,
       page,
       limit,
@@ -376,7 +501,7 @@ export class ClaimService {
    * لوحة تحكم المطالبات — ملخص سريع
    */
   async getClaimsDashboard(hospitalId: number) {
-    const [statusCounts, totalClaimed, totalPaid, recentDenials] =
+    const [statusCounts, totalClaimed, totalPaid, recentDenials, credits] =
       await this.prisma.$transaction([
         this.prisma.claim.groupBy({
           by: ['status'],
@@ -399,25 +524,39 @@ export class ClaimService {
           orderBy: { updatedAt: 'desc' },
           take: 5,
         }),
+        this.prisma.invoiceAdjustment.aggregate({
+          where: {
+            hospitalId,
+            status: 'POSTED',
+            insuranceOnly: true,
+            invoice: { claims: { some: { hospitalId } } },
+          },
+          _sum: { insuranceDelta: true },
+        }),
       ]);
+
+    const claimedTotal = Money.fromPrisma(totalClaimed._sum.claimedAmount);
+    const paidTotal = Money.fromPrisma(totalPaid._sum.paidAmount);
+    const effectiveClaimed = Money.sumDecimal(
+      totalClaimed._sum.claimedAmount,
+      credits._sum.insuranceDelta,
+    );
 
     return {
       byStatus: statusCounts.map((s) => ({
         status: s.status,
         count: s._count,
-        amount: Number(s._sum?.claimedAmount || 0),
+        amount: Money.fromPrisma(s._sum?.claimedAmount),
       })),
       totals: {
-        claimed: Number(totalClaimed._sum.claimedAmount || 0),
-        paid: Number(totalPaid._sum.paidAmount || 0),
-        collectionRate:
-          Number(totalClaimed._sum.claimedAmount || 0) > 0
-            ? (
-                (Number(totalPaid._sum.paidAmount || 0) /
-                  Number(totalClaimed._sum.claimedAmount || 1)) *
-                100
-              ).toFixed(1)
-            : '0',
+        claimed: claimedTotal,
+        effectiveClaimed: effectiveClaimed.toFixed(3),
+        paid: paidTotal,
+        collectionRate: effectiveClaimed.gt(0)
+          ? Money.divide(totalPaid._sum.paidAmount, effectiveClaimed)
+              .times(100)
+              .toFixed(1)
+          : '0',
       },
       recentDenials,
     };
@@ -426,11 +565,14 @@ export class ClaimService {
   /**
    * توليد رقم مطالبة فريد
    */
-  private async generateClaimNumber(hospitalId: number): Promise<string> {
+  private async generateClaimNumber(
+    hospitalId: number,
+    db: Prisma.TransactionClient = this.prisma,
+  ): Promise<string> {
     const today = new Date();
     const prefix = `CLM-${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}`;
 
-    const lastClaim = await this.prisma.claim.findFirst({
+    const lastClaim = await db.claim.findFirst({
       where: {
         hospitalId,
         claimNumber: { startsWith: prefix },

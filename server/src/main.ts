@@ -13,6 +13,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import compression from 'compression';
+import { isIP } from 'node:net';
 import { ProxyAgent, setGlobalDispatcher } from 'undici';
 
 async function bootstrap() {
@@ -32,7 +33,7 @@ async function bootstrap() {
     try {
       const proxyAgent = new ProxyAgent(proxyUrl);
       setGlobalDispatcher(proxyAgent);
-      logger.log(`🌐 Global HTTP/HTTPS Proxy configured: ${proxyUrl}`);
+      logger.log('Global HTTP/HTTPS proxy configured');
     } catch (proxyError: any) {
       logger.error(
         `❌ Failed to configure global proxy: ${proxyError.message}`,
@@ -198,11 +199,13 @@ async function bootstrap() {
         const originUrl = new URL(origin);
         const host = originUrl.hostname;
         if (
-          host === 'localhost' ||
-          host.startsWith('127.') ||
-          host.startsWith('10.') ||
-          host.startsWith('192.168.') ||
-          /^172\.(1[6-9]|2\d|3[01])\./.test(host)
+          !isProduction &&
+          (host === 'localhost' ||
+            (isIP(host) === 4 &&
+              (host.startsWith('127.') ||
+                host.startsWith('10.') ||
+                host.startsWith('192.168.') ||
+                /^172\.(1[6-9]|2\d|3[01])\./.test(host))))
         ) {
           return callback(null, origin);
         }

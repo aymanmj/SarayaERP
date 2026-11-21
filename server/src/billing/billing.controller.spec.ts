@@ -1,3 +1,4 @@
+import { PatientDepositService } from './patient-deposit.service';
 import { PermissionsGuard } from '../auth/permissions.guard';
 import { Test, TestingModule } from '@nestjs/testing';
 import { BillingController } from './billing.controller';
@@ -13,6 +14,7 @@ describe('BillingController', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [BillingController],
       providers: [
+        { provide: PatientDepositService, useValue: {} },
         {
           provide: BillingService,
           useValue: {

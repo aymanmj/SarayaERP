@@ -1,3 +1,14 @@
+import {
+  captureInvoiceSnapshot,
+  readInvoiceSnapshot,
+  adjustmentBalance,
+  netPaidAmount,
+  totalInvoiceAdjustment,
+} from './invoice-snapshot';
+import {
+  lockFinancialInvoice,
+  invoicePostingKey,
+} from '../accounting/financial-posting';
 // src/billing/billing.service.ts
 
 import {
@@ -9,14 +20,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InvoiceIssuedEvent } from './events/invoice-issued.event';
-import {
-  Prisma,
-  InvoiceStatus,
-  PaymentMethod,
-  SystemAccountKey,
-  ServiceType,
-  AccountingSourceModule, // Added this as well
-} from '@prisma/client';
+import { Prisma, InvoiceStatus, PaymentMethod } from '@prisma/client';
 import { FinancialYearsService } from '../financial-years/financial-years.service';
 import {
   InsuranceCalculationService,
@@ -24,7 +28,12 @@ import {
 } from '../insurance/insurance-calculation.service';
 import { AccountingService } from '../accounting/accounting.service';
 import { Money } from '../common/utils/money.util';
+import { tafqeetArabic } from '../common/utils/tafqeet.util';
+import { pendingRoomCharges } from '../admission/room-charge';
+import type { MoneyValue } from '../common/utils/money.util';
 import { PriceListsService } from '../price-lists/price-lists.service';
+import { PatientDepositService } from './patient-deposit.service';
+import { CreateInterimInvoiceDto } from './dto/patient-deposit.dto';
 
 // ✅ تعريف نوع البيانات للمصفوفة لتجنب خطأ TS2345
 type CalculationDetail = CoverageResult & { chargeId: number };
@@ -40,6 +49,7 @@ export class BillingService {
     private insuranceCalc: InsuranceCalculationService,
     private accounting: AccountingService,
     private priceLists: PriceListsService,
+    private patientDeposit: PatientDepositService,
   ) {}
 
   async getEncounterBilling(encounterId: number, hospitalId: number) {
@@ -55,7 +65,17 @@ export class BillingService {
           orderBy: { createdAt: 'asc' },
         },
         invoices: {
-          include: { payments: true },
+          include: {
+            refunds: {
+              where: { status: 'EXECUTED' },
+              select: { amount: true },
+            },
+            payments: true,
+            adjustments: {
+              where: { status: 'POSTED' },
+              select: { delta: true, insuranceDelta: true },
+            },
+          },
           orderBy: { createdAt: 'asc' },
         },
       },
@@ -63,18 +83,46 @@ export class BillingService {
 
     if (!encounter) throw new NotFoundException('الحالة غير موجودة أو محذوفة.');
 
-    // ✅ استخدام Money Utility للحسابات الدقيقة
-    const totalCharges = encounter.charges.reduce(
+    const activeInvoices = encounter.invoices.filter(
+      (inv) => inv.status !== InvoiceStatus.CANCELLED,
+    );
+
+    // ✅ استخدام Money Utility للحسابات الدقيقة مع مراعاة إشعارات الدائن والفواتير الملغاة
+    const originalTotalCharges = encounter.charges.reduce(
       (sum, c) => Money.add(sum, Money.fromPrisma(c.totalAmount)),
       0,
     );
-    const totalInvoiced = encounter.invoices.reduce(
-      (sum, inv) => Money.add(sum, Money.fromPrisma(inv.totalAmount)),
-      0,
+    const adjustmentTotal = totalInvoiceAdjustment(
+      activeInvoices.flatMap((inv) => inv.adjustments ?? []),
     );
-    const totalPaid = encounter.invoices.reduce(
-      (sum, inv) => Money.add(sum, Money.fromPrisma(inv.paidAmount)),
-      0,
+    const cancelledPrescriptionCharges = Money.sumDecimal(
+      ...encounter.charges
+        .filter(
+          (charge) =>
+            charge.sourceType === 'PHARMACY_PRESCRIPTION' &&
+            charge.invoice?.status === 'CANCELLED',
+        )
+        .map((charge) => charge.totalAmount),
+    );
+    const totalCharges = Money.toDb(
+      Money.sumDecimal(originalTotalCharges, adjustmentTotal).minus(
+        cancelledPrescriptionCharges,
+      ),
+    );
+    const totalInvoiced = activeInvoices.reduce((sum, inv) => {
+      const amount = Money.fromPrisma(inv.totalAmount);
+      return inv.type === 'CREDIT_NOTE'
+        ? Money.sub(sum, amount)
+        : Money.add(sum, amount);
+    }, Money.toDb(adjustmentTotal));
+    const totalPaid = activeInvoices.reduce((sum, inv) => {
+      if (inv.type === 'CREDIT_NOTE') return sum;
+      return Money.add(sum, Money.toDb(netPaidAmount(inv)));
+    }, 0);
+    const totalRefunded = Money.sumDecimal(
+      ...encounter.invoices.flatMap((inv) =>
+        (inv.refunds ?? []).map((item) => item.amount),
+      ),
     );
     const outstanding = Money.sub(totalCharges, totalPaid);
 
@@ -88,9 +136,12 @@ export class BillingService {
       charges: encounter.charges,
       invoices: encounter.invoices,
       totals: {
+        originalTotalCharges: Money.toDb(originalTotalCharges),
+        adjustmentAmount: Money.toDb(adjustmentTotal),
         totalCharges: Money.toDb(totalCharges),
         totalInvoiced: Money.toDb(totalInvoiced),
         totalPaid: Money.toDb(totalPaid),
+        totalRefunded: Money.toDb(totalRefunded),
         outstanding: Money.toDb(outstanding),
       },
     };
@@ -100,152 +151,230 @@ export class BillingService {
     encounterId: number,
     hospitalId: number,
     userId?: number,
+    options: CreateInterimInvoiceDto = {},
   ) {
-    const encounter = await this.prisma.encounter.findFirst({
-      where: { id: encounterId, hospitalId, isDeleted: false },
-      include: {
-        patient: {
-          include: { insurancePolicy: true },
-        },
-      },
-    });
-
-    if (!encounter) throw new NotFoundException('الحالة غير موجودة.');
-
-    const charges = await this.prisma.encounterCharge.findMany({
-      where: { hospitalId, encounterId, invoiceId: null },
-      include: { serviceItem: true },
-    });
-
-    if (charges.length === 0)
-      throw new BadRequestException('لا توجد بنود للفوترة.');
-
-    // ✅ تحديث أسعار البنود غير المفوترة طبقاً لأحدث تسعيرة في النظام قبل إنشاء الفاتورة
-    for (const charge of charges) {
-      const currentPrice = await this.priceLists.getServicePrice(
-        hospitalId,
-        charge.serviceItemId,
-        encounter.patient.insurancePolicy?.id,
-      );
-
-      const quantity = Number(charge.quantity || 1);
-      const newTotalAmount = currentPrice * quantity;
-
-      if (Number(charge.unitPrice) !== currentPrice) {
-        await this.prisma.encounterCharge.update({
-          where: { id: charge.id },
-          data: {
-            unitPrice: currentPrice,
-            totalAmount: newTotalAmount,
+    const invoice = await this.prisma.$transaction(
+      async (tx) => {
+        const encounter = await tx.encounter.findFirst({
+          where: { id: encounterId, hospitalId, isDeleted: false },
+          include: {
+            patient: {
+              include: { insurancePolicy: true },
+            },
           },
         });
-        charge.unitPrice = new Prisma.Decimal(currentPrice);
-        charge.totalAmount = new Prisma.Decimal(newTotalAmount);
-      }
-    }
 
-    // Filter charges to only include priced ones (unitPrice > 0)
-    const pricedCharges = charges.filter((c) => Number(c.unitPrice) > 0);
-
-    if (pricedCharges.length === 0) {
-      throw new BadRequestException(
-        'كل البنود غير مسعرة. يرجى تسعير البنود أولاً أو إلغائها.',
-      );
-    }
-
-    let totalAmount = 0;
-    let totalPatientShare = 0;
-    let totalInsuranceShare = 0;
-
-    // ✅ استخدام النوع المعرف مسبقاً
-    const calculationDetails: CalculationDetail[] = [];
-
-    for (const charge of pricedCharges) {
-      const itemAmount = Money.fromPrisma(charge.totalAmount);
-
-      const result = await this.insuranceCalc.calculateCoverage(
-        encounter.patientId,
-        charge.serviceItemId,
-        itemAmount,
-      );
-
-      if (result.requiresPreAuth && !result.preAuthCode) {
-        this.logger.warn(
-          `Service Item #${charge.serviceItemId} requires Pre-Auth but none found.`,
-        );
-      }
-
-      const finalItemAmount =
-        result.contractedPrice !== undefined
-          ? result.contractedPrice
-          : itemAmount;
-
-      totalAmount = Money.add(totalAmount, finalItemAmount);
-      totalPatientShare = Money.add(totalPatientShare, result.patientShare);
-      totalInsuranceShare = Money.add(
-        totalInsuranceShare,
-        result.insuranceShare,
-      );
-
-      calculationDetails.push({
-        chargeId: charge.id,
-        ...result,
-      });
-    }
-
-    // ✅ تقريب المبالغ للتخزين باستخدام Money Utility
-    totalAmount = Money.toDb(totalAmount);
-    totalPatientShare = Money.toDb(totalPatientShare);
-    totalInsuranceShare = Money.toDb(Money.sub(totalAmount, totalPatientShare)); // الباقي للتأمين لضمان التطابق
-
-    // تحديد الشركة فقط إذا كان المبلغ > 0
-    const insuranceProviderId =
-      totalInsuranceShare > 0
-        ? encounter.patient.insurancePolicy?.insuranceProviderId
-        : null;
-
-    const issueDate = new Date();
-
-    const { financialYear, period } =
-      await this.accounting.validateDateInOpenPeriod(hospitalId, issueDate);
-
-    // const { fy, period } = await this.financialYears.getOpenPeriodForDate(
-    //   hospitalId,
-    //   new Date(),
-    // );
-
-    const invoice = await this.prisma.$transaction(async (tx) => {
-      const createdInvoice = await tx.invoice.create({
-        data: {
+        if (!encounter) throw new NotFoundException('الحالة غير موجودة.');
+        await tx.$queryRaw`SELECT "id" FROM "Patient" WHERE "id" = ${encounter.patientId} AND "hospitalId" = ${hospitalId} FOR UPDATE`;
+        await tx.$queryRaw`SELECT "id" FROM "Encounter" WHERE "id" = ${encounterId} AND "hospitalId" = ${hospitalId} FOR UPDATE`;
+        const cutoff = options.cutoffDate
+          ? new Date(options.cutoffDate)
+          : new Date();
+        if (!Number.isFinite(cutoff.getTime()) || cutoff.getTime() > Date.now())
+          throw new BadRequestException('تاريخ القطع غير صالح أو في المستقبل');
+        const room = await pendingRoomCharges(
+          tx,
           hospitalId,
-          patientId: encounter.patientId,
-          encounterId: encounter.id,
-          status: InvoiceStatus.ISSUED,
-          totalAmount,
-          discountAmount: 0,
-          paidAmount: 0,
-          currency: 'LYD',
-          patientShare: totalPatientShare,
-          insuranceShare: totalInsuranceShare,
-          insuranceProviderId,
-          financialYearId: financialYear.id,
-          financialPeriodId: period.id,
-        },
-      });
+          encounterId,
+          cutoff,
+        );
+        if (room.reviewReason) throw new BadRequestException(room.reviewReason);
+        for (const charge of room.charges)
+          await tx.encounterCharge.create({ data: charge });
 
-      for (const req of calculationDetails) {
-        const chargeUpdateData: any = { invoiceId: createdInvoice.id };
-        if (req.contractedPrice !== undefined) {
-          chargeUpdateData.totalAmount = req.contractedPrice;
-        }
-        await tx.encounterCharge.update({
-          where: { id: req.chargeId },
-          data: chargeUpdateData,
+        const charges = await tx.encounterCharge.findMany({
+          where: {
+            hospitalId,
+            encounterId,
+            createdAt: { lte: cutoff },
+            ...(options.chargeIds?.length
+              ? { id: { in: options.chargeIds } }
+              : {}),
+            sourceType: { not: 'PHARMACY_PRESCRIPTION' },
+            OR: [{ invoiceId: null }, { invoice: { status: 'CANCELLED' } }],
+          },
+          include: { serviceItem: true },
         });
-      }
 
-      return createdInvoice;
-    });
+        if (charges.length === 0)
+          throw new BadRequestException('لا توجد بنود للفوترة.');
+
+        // ✅ تحديث أسعار البنود غير المفوترة طبقاً لأحدث تسعيرة في النظام قبل إنشاء الفاتورة
+        for (const charge of charges) {
+          if (charge.roomBillingKey || charge.sourceType !== 'MANUAL') continue;
+          const currentPrice = await this.priceLists.getServicePrice(
+            hospitalId,
+            charge.serviceItemId,
+            encounter.patient.insurancePolicy?.id ?? 0,
+          );
+
+          const quantity = charge.quantity.toString();
+          const newTotalAmount = Money.lineTotal(currentPrice, quantity);
+
+          if (!Money.eq(Money.fromPrisma(charge.unitPrice), currentPrice)) {
+            await tx.encounterCharge.update({
+              where: { id: charge.id },
+              data: {
+                unitPrice: Money.toDb(currentPrice),
+                totalAmount: newTotalAmount,
+              },
+            });
+            charge.unitPrice = new Prisma.Decimal(Money.toDb(currentPrice));
+            charge.totalAmount = new Prisma.Decimal(newTotalAmount);
+          }
+        }
+
+        // Filter charges to only include priced ones (unitPrice > 0)
+        const pricedCharges = charges.filter((c) =>
+          Money.decimal(c.unitPrice).gt(0),
+        );
+
+        if (pricedCharges.length === 0) {
+          throw new BadRequestException(
+            'كل البنود غير مسعرة. يرجى تسعير البنود أولاً أو إلغائها.',
+          );
+        }
+
+        let totalAmount = 0;
+        let totalPatientShare = 0;
+        let totalInsuranceShare = 0;
+
+        // ✅ استخدام النوع المعرف مسبقاً
+        const calculationDetails: CalculationDetail[] = [];
+
+        for (const charge of pricedCharges) {
+          const itemAmount = Money.fromPrisma(charge.totalAmount);
+
+          const result = await this.insuranceCalc.calculateCoverage(
+            encounter.patientId,
+            charge.serviceItemId,
+            itemAmount,
+            charge.roomBillingKey && charge.roomAllocation
+              ? {
+                  preserveServicePrice: true,
+                  benefitUnits: (() => {
+                    const part = charge.roomAllocation as {
+                      occupiedMilliseconds: number;
+                      periodMilliseconds: number;
+                    };
+                    return Money.decimal(part.occupiedMilliseconds)
+                      .dividedBy(part.periodMilliseconds)
+                      .toString();
+                  })(),
+                }
+              : charge.sourceType !== 'MANUAL'
+                ? { preserveServicePrice: true }
+                : undefined,
+          );
+
+          if (result.requiresPreAuth && !result.preAuthCode) {
+            this.logger.warn(
+              `Service Item #${charge.serviceItemId} requires Pre-Auth but none found.`,
+            );
+          }
+
+          const finalItemAmount =
+            result.contractedPrice !== undefined
+              ? result.contractedPrice
+              : itemAmount;
+
+          totalAmount = Money.add(totalAmount, finalItemAmount);
+          totalPatientShare = Money.add(totalPatientShare, result.patientShare);
+          totalInsuranceShare = Money.add(
+            totalInsuranceShare,
+            result.insuranceShare,
+          );
+
+          calculationDetails.push({
+            chargeId: charge.id,
+            ...result,
+          });
+        }
+
+        // ✅ تقريب المبالغ للتخزين باستخدام Money Utility
+        totalAmount = Money.toDb(totalAmount);
+        totalPatientShare = Money.toDb(totalPatientShare);
+        totalInsuranceShare = Money.toDb(
+          Money.sub(totalAmount, totalPatientShare),
+        ); // الباقي للتأمين لضمان التطابق
+
+        // تحديد الشركة فقط إذا كان المبلغ > 0
+        const insuranceProviderId =
+          totalInsuranceShare > 0
+            ? encounter.patient.insurancePolicy?.insuranceProviderId
+            : null;
+
+        const issueDate = new Date();
+
+        const { financialYear, period } =
+          await this.accounting.validateDateInOpenPeriod(hospitalId, issueDate);
+
+        const createdInvoice = await tx.invoice.create({
+          data: {
+            hospitalId,
+            patientId: encounter.patientId,
+            encounterId: encounter.id,
+            status: InvoiceStatus.ISSUED,
+            totalAmount,
+            discountAmount: 0,
+            paidAmount: 0,
+            currency: 'LYD',
+            patientShare: totalPatientShare,
+            insuranceShare: totalInsuranceShare,
+            insuranceProviderId,
+            financialYearId: financialYear.id,
+            financialPeriodId: period.id,
+          },
+        });
+
+        for (const req of calculationDetails) {
+          const chargeUpdateData: any = { invoiceId: createdInvoice.id };
+          if (req.contractedPrice !== undefined) {
+            chargeUpdateData.totalAmount = req.contractedPrice;
+          }
+          const linked = await tx.encounterCharge.updateMany({
+            where: {
+              id: req.chargeId,
+              hospitalId,
+              encounterId,
+              sourceType: { not: 'PHARMACY_PRESCRIPTION' },
+              OR: [{ invoiceId: null }, { invoice: { status: 'CANCELLED' } }],
+            },
+            data: chargeUpdateData,
+          });
+          if (linked.count !== 1)
+            throw new BadRequestException(
+              'تغيرت بنود الفاتورة أثناء الإصدار. أعد تحميل الحالة',
+            );
+        }
+
+        await this.accounting.recordInvoiceEntry({
+          invoiceId: createdInvoice.id,
+          hospitalId,
+          userId,
+          prisma: tx,
+        });
+        await captureInvoiceSnapshot(tx, hospitalId, createdInvoice.id);
+        if (options.autoApplyDeposit) {
+          const wallet =
+            await this.patientDeposit.getPatientDepositBalanceInternal(
+              tx,
+              hospitalId,
+              encounter.patientId,
+            );
+          if (wallet.availableBalance.gt(0))
+            await this.patientDeposit.applyDepositToInvoice(
+              hospitalId,
+              userId ?? 0,
+              { invoiceId: createdInvoice.id, requestId: '' },
+              tx,
+              `interim:${createdInvoice.id}`,
+            );
+        }
+        return createdInvoice;
+      },
+      { maxWait: 10000, timeout: 20000 },
+    );
 
     this.eventEmitter.emit(
       'invoice.issued',
@@ -271,7 +400,19 @@ export class BillingService {
     });
   }
 
-  // ... (باقي الدوال getInvoicePrintData, listInvoices, getPaymentReceiptData كما هي) ...
+  /**
+   * إصدار فاتورة مرحلية (Interim Staged Invoice) للحالات السريرية
+   * تفوتر البنود المتراكمة حتى تاريخ محدد وتتيح تسوية وتطبيق الأمانات المتاحة تلقائياً
+   */
+  createInterimInvoice(
+    encounterId: number,
+    hospitalId: number,
+    dto: CreateInterimInvoiceDto,
+    userId?: number,
+  ) {
+    return this.createInvoiceForEncounter(encounterId, hospitalId, userId, dto);
+  }
+
   async getInvoicePrintData(params: { invoiceId: number; hospitalId: number }) {
     const { invoiceId, hospitalId } = params;
     const invoice = await this.prisma.invoice.findUnique({
@@ -281,7 +422,7 @@ export class BillingService {
         payments: true,
         financialYear: true,
         financialPeriod: true,
-        returns: true, // ✅ [NEW] Include Returns (relation name is returns)
+        returns: true,
       },
     });
     if (!invoice || invoice.hospitalId !== hospitalId) {
@@ -289,11 +430,11 @@ export class BillingService {
         'لم يتم العثور على هذه الفاتورة للمنشأة الحالية.',
       );
     }
-    const inv: any = invoice; // Quick fix for relation types if inference fails
+    const inv = invoice;
     if (!inv.encounterId || !inv.encounter) {
       throw new BadRequestException('الفاتورة غير مرتبطة بحالة طبية.');
     }
-    const charges = await this.prisma.encounterCharge.findMany({
+    const liveCharges = await this.prisma.encounterCharge.findMany({
       where: {
         hospitalId,
         encounterId: inv.encounterId,
@@ -302,8 +443,35 @@ export class BillingService {
       include: { serviceItem: true },
       orderBy: { id: 'asc' },
     });
+    const charges: {
+      id: number;
+      quantity: number;
+      unitPrice: MoneyValue;
+      totalAmount: MoneyValue;
+      serviceItem: { name: string; code: string | null };
+    }[] = readInvoiceSnapshot(inv.lineSnapshot)?.lines ?? liveCharges;
+    const adjusted = await adjustmentBalance(
+      this.prisma,
+      hospitalId,
+      invoiceId,
+      inv.patientShare,
+      inv.paidAmount,
+    );
     return {
       invoice: {
+        refundedAmount: Money.toDbString(adjusted.refunded),
+        netPaidAmount: Money.toDbString(adjusted.netPaid),
+        effectivePatientShare: Money.toDbString(adjusted.liability),
+        effectiveInsuranceShare: Money.toDbString(
+          Money.sumDecimal(inv.insuranceShare, adjusted.insuranceDelta),
+        ),
+        adjustmentAmount: Money.toDbString(adjusted.totalDelta),
+        amountDue: Money.toDbString(
+          adjusted.balance.gt(0) ? adjusted.balance : 0,
+        ),
+        patientCredit: Money.toDbString(
+          adjusted.balance.lt(0) ? adjusted.balance.negated() : 0,
+        ),
         id: inv.id,
         status: inv.status,
         type: inv.type,
@@ -315,6 +483,12 @@ export class BillingService {
         createdAt: inv.createdAt,
         patientShare: inv.patientShare,
         insuranceShare: inv.insuranceShare,
+        amountInWords: tafqeetArabic(Money.fromPrisma(inv.totalAmount), {
+          currency: inv.currency || 'LYD',
+        }),
+        patientShareInWords: tafqeetArabic(Money.fromPrisma(inv.patientShare), {
+          currency: inv.currency || 'LYD',
+        }),
         financialYear: inv.financialYear
           ? {
               id: inv.financialYear.id,
@@ -340,26 +514,9 @@ export class BillingService {
       patient: inv.encounter.patient,
       charges,
       payments: inv.payments,
-      creditNotes: inv.returns, // Map relation 'returns' to DTO 'creditNotes'
+      creditNotes: inv.returns,
     };
   }
-
-  // async listInvoices(params: any) {
-  //   const { hospitalId, financialYearId, financialPeriodId, status } = params;
-  //   return this.prisma.invoice.findMany({
-  //     where: {
-  //       hospitalId,
-  //       ...(financialYearId ? { financialYearId } : {}),
-  //       ...(financialPeriodId ? { financialPeriodId } : {}),
-  //       ...(status ? { status } : {}),
-  //     },
-  //     include: {
-  //       patient: { select: { id: true, fullName: true, mrn: true } },
-  //       encounter: { select: { id: true, type: true } },
-  //     },
-  //     orderBy: { createdAt: 'desc' },
-  //   });
-  // }
 
   async listInvoices(params: {
     hospitalId: number;
@@ -368,7 +525,7 @@ export class BillingService {
     status?: InvoiceStatus;
     page?: number;
     limit?: number;
-    search?: string; // بحث برقم الفاتورة أو اسم المريض
+    search?: string;
   }) {
     const {
       hospitalId,
@@ -412,7 +569,7 @@ export class BillingService {
         include: {
           patient: { select: { id: true, fullName: true, mrn: true } },
           encounter: { select: { id: true, type: true } },
-          returns: { select: { id: true } }, // ✅ [NEW] Check for returns
+          returns: { select: { id: true } },
         },
       }),
       this.prisma.invoice.count({ where }),
@@ -429,7 +586,10 @@ export class BillingService {
     };
   }
 
-  async getPaymentReceiptData(params: any) {
+  async getPaymentReceiptData(params: {
+    hospitalId: number;
+    paymentId: number;
+  }) {
     const { hospitalId, paymentId } = params;
     const payment = await this.prisma.payment.findFirst({
       where: { id: paymentId, hospitalId },
@@ -447,6 +607,9 @@ export class BillingService {
       payment: {
         id: payment.id,
         amount: payment.amount,
+        amountInWords: tafqeetArabic(Money.fromPrisma(payment.amount), {
+          currency: invoice.currency || 'LYD',
+        }),
         method: payment.method,
         reference: payment.reference,
         paidAt: payment.paidAt,
@@ -459,8 +622,8 @@ export class BillingService {
         paidAmount: invoice.paidAmount,
         currency: invoice.currency,
         createdAt: invoice.createdAt,
-        financialYearId: (invoice as any).financialYearId ?? null,
-        financialPeriodId: (invoice as any).financialPeriodId ?? null,
+        financialYearId: invoice.financialYearId ?? null,
+        financialPeriodId: invoice.financialPeriodId ?? null,
       },
       encounter: {
         id: encounter.id,
@@ -471,11 +634,10 @@ export class BillingService {
     };
   }
 
-  /**
-   * 🛡️ التحقق من قفل الفاتورة
-   * الفاتورة تُقفل إذا كانت صادرة (ISSUED) أو مدفوعة (PAID) أو ملغاة (CANCELLED)
-   */
-  private validateInvoiceIsEditable(invoice: any) {
+  private validateInvoiceIsEditable(invoice: {
+    id: number;
+    status: InvoiceStatus;
+  }) {
     if (invoice.status !== InvoiceStatus.DRAFT) {
       throw new BadRequestException(
         `لا يمكن تعديل الفاتورة رقم ${invoice.id} لأنها في حالة (${invoice.status}). يجب إلغاؤها وإصدار فاتورة جديدة.`,
@@ -483,16 +645,15 @@ export class BillingService {
     }
   }
 
-  /**
-   * ❌ إلغاء فاتورة مرحلة (Issued/Partially Paid)
-   * هذا الإجراء لا يحذف الفاتورة من القاعدة، بل يغير حالتها
-   * ويفك ارتباطها بالبنود (Charges) ليعيدها للحالة "غير مفوتر"
-   */
   async cancelInvoice(hospitalId: number, invoiceId: number, userId: number) {
-    return this.prisma.$transaction(async (tx) => {
-      const invoice = await tx.invoice.findUnique({
-        where: { id: invoiceId },
-        include: { payments: true },
+    const result = await this.prisma.$transaction(async (tx) => {
+      await lockFinancialInvoice(tx, hospitalId, invoiceId);
+      const invoice = await tx.invoice.findFirst({
+        where: { id: invoiceId, hospitalId },
+        include: {
+          payments: true,
+          returns: { where: { status: { not: 'CANCELLED' } } },
+        },
       });
 
       if (!invoice || invoice.hospitalId !== hospitalId) {
@@ -503,189 +664,138 @@ export class BillingService {
         throw new BadRequestException('الفاتورة ملغاة بالفعل.');
       }
 
-      // 🛡️ حماية إضافية: لا يمكن إلغاء فاتورة بها مدفوعات فعلية (يجب استرداد المبالغ أولاً Refund)
       const totalPaid = invoice.payments.reduce(
         (sum, p) => Money.add(sum, Money.fromPrisma(p.amount)),
         0,
       );
-      if (Money.gt(totalPaid, 0)) {
+      if (
+        await tx.invoiceAdjustment.count({
+          where: {
+            hospitalId,
+            invoiceId,
+            status: { in: ['PENDING', 'POSTED'] },
+          },
+        })
+      )
+        throw new BadRequestException(
+          'الفاتورة مرتبطة بطلب تسوية؛ لا يمكن إلغاؤها عبر المسار القديم',
+        );
+      if (invoice.type !== 'INVOICE' || invoice.returns.length)
+        throw new BadRequestException(
+          'لا يمكن إلغاء إشعار دائن أو فاتورة مرتبطة بتسوية عبر هذا المسار',
+        );
+      if (Money.gt(totalPaid, 0) || Money.isPositive(invoice.paidAmount)) {
         throw new BadRequestException(
           'لا يمكن إلغاء فاتورة تحتوي على مدفوعات مسجلة. يرجى معالجة المبالغ المستلمة أولاً.',
         );
       }
+      if (
+        invoice.coveragePolicyId != null &&
+        (['SUBMITTED', 'PAID'].includes(invoice.claimStatus ?? '') ||
+          (await tx.claim.count({
+            where: { hospitalId, invoiceId, status: { not: 'VOID' } },
+          })))
+      )
+        throw new BadRequestException(
+          'يلزم تسوية المطالبة التأمينية قبل إلغاء الفاتورة',
+        );
 
-      // 1. فك ارتباط البنود (Charges) لتصبح قابلة للفوترة من جديد
+      const prepaidPrescription = await tx.prescription.findUnique({
+        where: { prepaidInvoiceId: invoice.id },
+        select: {
+          id: true,
+          hospitalId: true,
+          status: true,
+          dispenses: { select: { id: true }, take: 1 },
+        },
+      });
+      if (prepaidPrescription) {
+        if (
+          prepaidPrescription.hospitalId !== hospitalId ||
+          prepaidPrescription.status === 'COMPLETED' ||
+          prepaidPrescription.dispenses.length > 0
+        )
+          throw new BadRequestException(
+            'يلزم إجراء تصحيح مستقل للفاتورة المرتبطة بصرف منفذ',
+          );
+        await tx.prescription.update({
+          where: { id: prepaidPrescription.id, hospitalId },
+          data: { status: 'CANCELLED' },
+        });
+      }
       await tx.encounterCharge.updateMany({
-        where: { invoiceId: invoice.id },
+        where: {
+          invoiceId: invoice.id,
+          sourceType: { not: 'PHARMACY_PRESCRIPTION' },
+        },
         data: { invoiceId: null },
       });
 
-      // 2. تحديث حالة الفاتورة إلى ملغاة
       const updatedInvoice = await tx.invoice.update({
         where: { id: invoice.id },
         data: { status: InvoiceStatus.CANCELLED },
       });
 
-      // 3. 📉 إلغاء القيد المحاسبي المرتبط بالفاتورة (نستخدم الخدمة التي طورناها سابقاً)
-      // سنجلب القيد المرتبط بهذه الفاتورة ونحذفه (أو نعكسه)
       const entry = await tx.accountingEntry.findFirst({
         where: {
-          sourceModule: AccountingSourceModule.BILLING,
-          sourceId: invoice.id,
+          hospitalId,
+          postingKey: invoicePostingKey(hospitalId, invoice.id),
         },
       });
 
+      const legacy = await tx.accountingEntry.count({
+        where: {
+          hospitalId,
+          sourceModule: 'BILLING',
+          sourceId: invoice.id,
+          postingKey: null,
+        },
+      });
+      if (legacy)
+        throw new BadRequestException(
+          'يوجد قيد قديم يحتاج مطابقة قبل إلغاء الفاتورة',
+        );
       if (entry) {
-        // ✅ [REFRACTOR] استخدام القيد العكسي بدلاً من الحذف النهائي
         await this.accounting.reverseEntry(
           hospitalId,
           entry.id,
           userId,
           `إلغاء الفاتورة #${invoiceId}`,
-          tx, // نمرر الترانزكشن الحالية
+          tx,
         );
       }
 
       this.logger.log(`Invoice #${invoiceId} cancelled by user ${userId}`);
-      if (invoice.encounterId) {
-        this.eventEmitter.emit('invoice.cancelled', {
-          invoiceId: invoice.id,
-          hospitalId,
-          encounterId: invoice.encounterId,
-          userId,
-        });
-      }
-      return updatedInvoice;
+      return {
+        invoice: updatedInvoice,
+        affectsEncounter: !prepaidPrescription,
+      };
     });
+    this.eventEmitter.emit('invoice.cancelled', {
+      invoiceId: result.invoice.id,
+      encounterId: result.invoice.encounterId,
+      hospitalId,
+      userId,
+      ...(result.affectsEncounter ? {} : { affectsEncounter: false }),
+    });
+    return result.invoice;
   }
 
-  async createCreditNote(
+  createCreditNote(
     hospitalId: number,
     originalInvoiceId: number,
     userId: number,
     reason: string,
-    // TODO: Add support for partial items here later
-  ) {
-    return this.prisma.$transaction(async (tx) => {
-      // 1. جلب الفاتورة الأصلية
-      const original = await tx.invoice.findUnique({
-        where: { id: originalInvoiceId },
-        include: {
-          charges: {
-            include: { serviceItem: true },
-          },
-        },
-      });
-
-      if (!original || original.hospitalId !== hospitalId) {
-        throw new NotFoundException('الفاتورة الأصلية غير موجودة.');
-      }
-
-      if (
-        original.status !== InvoiceStatus.ISSUED &&
-        original.status !== InvoiceStatus.PAID
-      ) {
-        throw new BadRequestException(
-          'يمكن إنشاء مرتجع للفواتير الصادرة أو المدفوعة فقط.',
-        );
-      }
-
-      // 2. التحقق من عدم وجود مرتجع سابق لنفس الفاتورة
-      const existingCN = await tx.invoice.findFirst({
-        where: {
-          originalInvoiceId: original.id,
-          type: 'CREDIT_NOTE',
-          status: { not: 'CANCELLED' },
-        },
-        // We might want to allow multiple CNs if partial, but for now blocking if any exists
-        // to simplify the "Full Return" logic.
-      });
-      if (existingCN) {
-        throw new BadRequestException('يوجد مرتجع بالفعل لهذه الفاتورة.');
-      }
-
-      // 3. إنشاء فاتورة المرتجع
-      const totalAmount = Money.toDb(original.totalAmount);
-      const patientShare = Money.toDb(original.patientShare);
-      const insuranceShare = Money.toDb(original.insuranceShare);
-
-      const creditNote = await tx.invoice.create({
-        data: {
-          hospitalId,
-          type: 'CREDIT_NOTE',
-          originalInvoiceId: original.id,
-          patientId: original.patientId,
-          encounterId: original.encounterId,
-          status: InvoiceStatus.PAID,
-
-          totalAmount: totalAmount,
-          discountAmount: Money.toDb(original.discountAmount),
-          patientShare: patientShare,
-          insuranceShare: insuranceShare,
-          paidAmount: totalAmount,
-
-          currency: original.currency,
-          financialYearId: original.financialYearId,
-          financialPeriodId: original.financialPeriodId,
-          notes: reason,
-        },
-      });
-
-      // 4. حساب Revenue Split
-      const revenueSplit: Record<string, number> = {};
-
-      for (const charge of original.charges) {
-        let accountKey: SystemAccountKey = SystemAccountKey.REVENUE_OUTPATIENT;
-
-        // Fix: Access type through serviceItem
-        const type = charge.serviceItem.type;
-
-        switch (type) {
-          case ServiceType.LAB:
-            accountKey = SystemAccountKey.REVENUE_LAB;
-            break;
-          case ServiceType.RADIOLOGY:
-            accountKey = SystemAccountKey.REVENUE_RADIOLOGY;
-            break;
-          case ServiceType.PHARMACY:
-            accountKey = SystemAccountKey.REVENUE_PHARMACY;
-            break;
-          case ServiceType.BED:
-            accountKey = SystemAccountKey.REVENUE_INPATIENT;
-            break;
-          default:
-            accountKey = SystemAccountKey.REVENUE_OUTPATIENT;
-        }
-
-        // Fix: Use totalAmount as net/amount might be missing on type
-        const chargeAmount = Number(charge.totalAmount);
-        if (revenueSplit[accountKey]) {
-          revenueSplit[accountKey] += chargeAmount;
-        } else {
-          revenueSplit[accountKey] = chargeAmount;
-        }
-      }
-
-      // 5. عكس القيود المحاسبية
-      await this.accounting.recordCreditNoteEntry({
-        creditNoteId: creditNote.id,
-        originalInvoiceId: original.id,
-        hospitalId,
-        userId,
-        revenueSplit: revenueSplit as any,
-        prisma: tx, // ✅ Pass Transaction Client (tx)
-      });
-
-      // 6. إذا كانت هناك أدوية، يجب إرجاعها للمخزون
-      this.eventEmitter.emit('billing.credit_note_created', {
-        creditNoteId: creditNote.id,
-        originalInvoiceId: original.id,
-        encounterId: original.encounterId,
-        hospitalId,
-      });
-
-      return creditNote;
-    });
+  ): Promise<never> {
+    void hospitalId;
+    void originalInvoiceId;
+    void userId;
+    void reason;
+    return Promise.reject(
+      new BadRequestException(
+        'مسار المرتجع القديم موقوف لأنه كان يسجل المبلغ كمردود دون تحصيل عكسي مثبت. يلزم استخدام تسوية معتمدة وإشعار دائن مرتبط دون افتراض رد نقدي',
+      ),
+    );
   }
 
   async deleteCharge(hospitalId: number, chargeId: number) {

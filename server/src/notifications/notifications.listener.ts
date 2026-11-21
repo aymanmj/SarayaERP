@@ -26,7 +26,14 @@ export class NotificationListener {
 
   @OnEvent('pharmacy.dispense_completed')
   async handleDispense(event: DispenseCompletedEvent) {
-    // يمكن تفعيل تنبيهات المخزون هنا لاحقاً
+    if (event.partialClosureInvoiceId == null) return;
+    await this.notifications.notifyRoles(
+      event.hospitalId,
+      ['ACCOUNTANT', 'ADMIN'],
+      'تصحيح فاتورة وصفة مصروفة جزئيًا',
+      `راجع الكميات المسلّمة وأرسل طلب التصحيح للفاتورة #${event.partialClosureInvoiceId}`,
+      `/billing/invoices/${event.partialClosureInvoiceId}`,
+    );
   }
 
   // ✅ 3. تنبيه عند طلب تحليل جديد
@@ -46,10 +53,10 @@ export class NotificationListener {
   async handleRadiologyOrder(event: RadiologyOrderCreatedEvent) {
     await this.notifications.notifyRoles(
       event.hospitalId,
-      ['RAD_TECH', 'ADMIN'], // إشعار لفني الأشعة
+      ['CASHIER', 'ACCOUNTANT', 'ADMIN'],
       'طلب أشعة جديد',
       `طلب د. ${event.doctorName} فحص (${event.studyName}) للمريض ${event.patientName}`,
-      '/radiology', // رابط لصفحة الأشعة
+      '/cashier',
     );
   }
 

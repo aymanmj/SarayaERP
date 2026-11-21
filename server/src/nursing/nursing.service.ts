@@ -1,3 +1,11 @@
+import { appendChainedAuditInTransaction } from '../audit/audit-chain';
+import {
+  administer,
+  barcodeVerification,
+  medicationContext,
+  type AdministrationInput,
+} from './medication-administration';
+import { appendNursingNotification } from './nursing-notification-journal';
 import {
   Injectable,
   BadRequestException,
@@ -7,11 +15,17 @@ import { PrismaService } from '../prisma/prisma.service';
 import {
   EncounterStatus,
   EncounterType,
-  BedStatus,
   AdministrationStatus,
   CareTaskStatus,
 } from '@prisma/client';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { publishCommittedCriticalAudit } from '../audit/siem.logger';
+import { TimeZoneUtils } from '../common/utils/date.util';
+import {
+  medicationScheduleDate,
+  medicationScheduleZone,
+  medicationSlots,
+} from './medication-schedule';
 
 @Injectable()
 export class NursingService {
@@ -22,17 +36,15 @@ export class NursingService {
 
   // 1. جلب قائمة المرضى في عنبر معين (أو كل العنابر) - Ward Dashboard
   async getInpatients(hospitalId: number, wardId?: number) {
-    // نبحث عن الحالات المفتوحة (تنويم) والتي لها سرير
     const encounters = await this.prisma.encounter.findMany({
       where: {
         hospitalId,
         type: EncounterType.IPD,
         status: EncounterStatus.OPEN,
-        // إذا حددنا عنبر، نفلتر الأسرة المرتبطة به
         bedAssignments: {
           some: {
-            to: null, // الحجز ما زال سارياً
-            bed: wardId ? { wardId: wardId } : {},
+            to: null,
+            bed: wardId ? { wardId } : {},
           },
         },
       },
@@ -66,7 +78,6 @@ export class NursingService {
       },
     });
 
-    // تنسيق البيانات للواجهة
     return encounters.map((enc) => {
       const assignment = enc.bedAssignments[0];
       return {
@@ -89,12 +100,11 @@ export class NursingService {
 
   // 2. جلب خطة الأدوية للمريض (Medication Administration Record - MAR)
   async getPatientMAR(hospitalId: number, encounterId: number) {
-    // جلب الوصفات الفعالة
     const prescriptions = await this.prisma.prescription.findMany({
       where: {
         hospitalId,
         encounterId,
-        status: { in: ['ACTIVE', 'PARTIALLY_COMPLETED', 'COMPLETED'] }, // نجلب حتى المكتملة لأن المريض قد يأخذ دواء منها لعدة أيام
+        status: { in: ['ACTIVE', 'PARTIALLY_COMPLETED', 'COMPLETED'] },
       },
       include: {
         items: {
@@ -104,7 +114,6 @@ export class NursingService {
       },
     });
 
-    // جلب سجلات الإعطاء السابقة
     const administrations = await this.prisma.medicationAdministration.findMany(
       {
         where: {
@@ -124,49 +133,57 @@ export class NursingService {
     };
   }
 
-  // 3. تسجيل إعطاء دواء (eMAR Action)
-  async administerMedication(params: {
-    hospitalId: number;
-    userId: number;
-    encounterId: number;
-    prescriptionItemId: number;
-    status: AdministrationStatus;
-    notes?: string;
-  }) {
-    const {
-      hospitalId,
-      userId,
-      encounterId,
-      prescriptionItemId,
-      status,
-      notes,
-    } = params;
-
-    const item = await this.prisma.prescriptionItem.findUnique({
-      where: { id: prescriptionItemId },
-      include: { prescription: true },
-    });
-
-    if (!item) throw new NotFoundException('البند الدوائي غير موجود.');
-    if (item.prescription.hospitalId !== hospitalId)
-      throw new BadRequestException('خطأ في البيانات.');
-
-    return this.prisma.medicationAdministration.create({
-      data: {
-        hospitalId,
-        encounterId,
-        prescriptionItemId,
-        performerId: userId,
-        status,
-        notes,
-        administeredAt: new Date(),
+  // 3. تسجيل إعطاء دواء يدوي (eMAR Manual Action)
+  private async administerAndNotify(params: AdministrationInput) {
+    const { record, audit } = await this.prisma.$transaction(
+      async (tx) => {
+        const result = await administer(tx, params);
+        if (result.audit) {
+          await appendNursingNotification(tx, {
+            kind: 'medication',
+            hospitalId: params.hospitalId,
+            encounterId: params.encounterId,
+            recordId: result.record.id,
+          });
+        }
+        return result;
       },
+      { timeout: 20000, maxWait: 10000 },
+    );
+    if (!audit) return record;
+    // The committed audit is authoritative; publish only non-clinical metadata.
+    publishCommittedCriticalAudit({
+      hospitalId: audit.hospitalId,
+      userId: audit.userId,
+      entity: audit.entity,
+      entityId: audit.entityId,
+      action: audit.action,
+      ipAddress: audit.ipAddress,
+      clientName: audit.clientName,
+      details: { encounterId: params.encounterId },
     });
+    this.eventEmitter.emit('nursing.medication_administered', {
+      hospitalId: params.hospitalId,
+      encounterId: params.encounterId,
+      performerId: params.userId,
+      administrationId: record.id,
+      prescriptionItemId: params.prescriptionItemId,
+      status: record.status,
+      administeredAt: record.administeredAt,
+    });
+    if (record.isEmergencyOverride)
+      this.eventEmitter.emit('clinical.variance.clma', {
+        hospitalId: params.hospitalId,
+        encounterId: params.encounterId,
+        performerId: params.userId,
+        administrationId: record.id,
+        varianceReason: record.varianceReason ?? undefined,
+      });
+    return record;
   }
-
-  // -----------------------------------------------------------------------
-  // 🟢 CLMA (Closed-Loop Medication Administration) - HIMSS Stage 6
-  // -----------------------------------------------------------------------
+  administerMedication(params: AdministrationInput) {
+    return this.administerAndNotify(params);
+  }
 
   async verifyFiveRights(
     hospitalId: number,
@@ -175,122 +192,25 @@ export class NursingService {
     patientBarcode: string,
     drugBarcode: string,
   ) {
-    const item = await this.prisma.prescriptionItem.findUnique({
-      where: { id: prescriptionItemId },
-      include: {
-        product: true,
-        prescription: {
-          include: { patient: true },
-        },
-      },
-    });
-
-    if (!item) throw new NotFoundException('البند الدوائي غير موجود.');
-    if (
-      item.prescription.hospitalId !== hospitalId ||
-      item.prescription.encounterId !== encounterId
-    ) {
-      throw new BadRequestException('بيانات المطابقة غير صحيحة.');
-    }
-
-    // 1. Right Patient Check (Using MRN as barcode)
-    const patientStr = item.prescription.patient.mrn;
-    const isPatientMatch = patientStr === patientBarcode;
-
-    // 2. Right Drug Check
-    const isDrugMatch = item.product?.barcode === drugBarcode;
-
-    return {
-      isPatientMatch,
-      isDrugMatch,
-      isVerified5Rights: isPatientMatch && isDrugMatch,
-      expectedPatientBarcode: patientStr,
-      expectedDrugBarcode: item.product?.barcode,
-    };
+    return this.prisma.$transaction(async (tx) =>
+      barcodeVerification(
+        await medicationContext(
+          tx,
+          hospitalId,
+          encounterId,
+          prescriptionItemId,
+        ),
+        patientBarcode,
+        drugBarcode,
+      ),
+    );
   }
 
-  async administerWithBarcode(params: {
-    hospitalId: number;
-    userId: number;
-    encounterId: number;
-    prescriptionItemId: number;
-    patientBarcode: string;
-    drugBarcode: string;
-    isEmergencyOverride: boolean;
-    varianceReason?: string;
-    notes?: string;
-  }) {
-    const {
-      hospitalId,
-      userId,
-      encounterId,
-      prescriptionItemId,
-      patientBarcode,
-      drugBarcode,
-      isEmergencyOverride,
-      varianceReason,
-      notes,
-    } = params;
-
-    // إجراء المطابقة (Barcode Scanning)
-    const verification = await this.verifyFiveRights(
-      hospitalId,
-      encounterId,
-      prescriptionItemId,
-      patientBarcode,
-      drugBarcode,
-    );
-
-    // المنع الصارم ما لم يكن هناك تجاوز طارئ (Soft Blocking with Emergency Override)
-    if (!verification.isVerified5Rights && !isEmergencyOverride) {
-      throw new BadRequestException(
-        'خطأ طبي: فشل المطابقة الخماسية للباركود (5 Rights). لا يمكن إعطاء الدواء. التجاوز مسموح في الحالات الحرجة فقط.',
-      );
-    }
-
-    if (
-      !verification.isVerified5Rights &&
-      isEmergencyOverride &&
-      !varianceReason
-    ) {
-      throw new BadRequestException(
-        'في حالات تجاوز المطابقة (Emergency Override)، يجب إدخال سبب التجاوز (Variance Reason) إجبارياً للتدقيق.',
-      );
-    }
-
-    // بناءً على قواعد HIMSS، يجب توثيق كل عملية إعطاء.
-    const record = await this.prisma.medicationAdministration.create({
-      data: {
-        hospitalId,
-        encounterId,
-        prescriptionItemId,
-        performerId: userId,
-        status: AdministrationStatus.GIVEN,
-        notes,
-        // CLMA Auditing fields
-        scannedPatientBarcode: patientBarcode,
-        scannedDrugBarcode: drugBarcode,
-        isVerified5Rights: verification.isVerified5Rights,
-        isEmergencyOverride:
-          !verification.isVerified5Rights && isEmergencyOverride,
-        varianceReason: varianceReason || null,
-        administeredAt: new Date(),
-      },
+  administerWithBarcode(params: Omit<AdministrationInput, 'status'>) {
+    return this.administerAndNotify({
+      ...params,
+      status: AdministrationStatus.GIVEN,
     });
-
-    if (!verification.isVerified5Rights && isEmergencyOverride) {
-      this.eventEmitter.emit('clinical.variance.clma', {
-        hospitalId,
-        encounterId,
-        performerId: userId,
-        varianceReason,
-        prescribedBarcode: verification.expectedDrugBarcode,
-        scannedBarcode: drugBarcode,
-        administrationId: record.id,
-      });
-    }
-
-    return record;
   }
 
   // 4. إضافة ملاحظة تمريض
@@ -301,14 +221,36 @@ export class NursingService {
     note: string;
     isShiftHandover: boolean;
   }) {
-    return this.prisma.nursingNote.create({
-      data: {
+    if (!params.note.trim() || params.note.length > 4000)
+      throw new BadRequestException('ملاحظة التمريض مطلوبة وبحد أقصى4000حرف');
+    return this.prisma.$transaction(async (tx) => {
+      const rows = await tx.$queryRaw<
+        { id: number }[]
+      >`SELECT e.id FROM "Encounter" e JOIN "Patient" p ON p.id=e."patientId" WHERE e.id=${params.encounterId} AND e."hospitalId"=${params.hospitalId} AND p."hospitalId"=${params.hospitalId} AND e."isDeleted"=false FOR SHARE OF e,p`;
+      if (rows.length !== 1)
+        throw new NotFoundException('الحالة لا تخص المنشأة');
+      const note = await tx.nursingNote.create({
+        data: {
+          hospitalId: params.hospitalId,
+          encounterId: params.encounterId,
+          createdById: params.userId,
+          note: params.note.trim(),
+          isShiftHandover: params.isShiftHandover,
+        },
+      });
+      await appendChainedAuditInTransaction(tx, {
         hospitalId: params.hospitalId,
-        encounterId: params.encounterId,
-        createdById: params.userId,
-        note: params.note,
-        isShiftHandover: params.isShiftHandover,
-      },
+        userId: params.userId,
+        action: 'NURSING_NOTE_CREATED',
+        entity: 'NursingNote',
+        entityId: note.id,
+        details: {
+          encounterId: params.encounterId,
+          isShiftHandover: params.isShiftHandover,
+          length: params.note.trim().length,
+        },
+      });
+      return note;
     });
   }
 
@@ -324,9 +266,17 @@ export class NursingService {
   }
 
   // 6. المهام السريرية (Care Tasks)
-  async getCareTasks(encounterId: number) {
+  async getCareTasks(hospitalId: number, encounterId: number) {
+    const encounter = await this.prisma.encounter.findFirst({
+      where: { id: encounterId, hospitalId, isDeleted: false },
+      select: { id: true },
+    });
+    if (!encounter) {
+      throw new NotFoundException('الحالة غير موجودة في هذه المنشأة');
+    }
+
     return this.prisma.careTask.findMany({
-      where: { enrollment: { encounterId } },
+      where: { enrollment: { encounterId, pathway: { hospitalId } } },
       include: {
         step: { select: { title: true, dayNumber: true } },
         assignedTo: { select: { fullName: true } },
@@ -337,21 +287,49 @@ export class NursingService {
   }
 
   async updateCareTaskStatus(
+    hospitalId: number,
     userId: number,
     taskId: number,
     status: CareTaskStatus,
     notes?: string,
   ) {
-    const data: any = { status, notes };
+    const existingTask = await this.prisma.careTask.findFirst({
+      where: { id: taskId, enrollment: { pathway: { hospitalId } } },
+      select: { id: true, enrollment: { select: { encounterId: true } } },
+    });
+    if (!existingTask) {
+      throw new NotFoundException('المهمة السريرية غير موجودة في هذه المنشأة');
+    }
+
+    const encounter = await this.prisma.encounter.findFirst({
+      where: {
+        id: existingTask.enrollment.encounterId,
+        hospitalId,
+        isDeleted: false,
+      },
+      select: { id: true },
+    });
+    if (!encounter) {
+      throw new NotFoundException('المهمة السريرية غير موجودة في هذه المنشأة');
+    }
+
+    const data: {
+      status: CareTaskStatus;
+      notes?: string;
+      completedById: number | null;
+      completedAt: Date | null;
+    } = {
+      status,
+      notes,
+      completedById: null,
+      completedAt: null,
+    };
     if (status === 'COMPLETED' || status === 'SKIPPED') {
       data.completedById = userId;
       data.completedAt = new Date();
-    } else {
-      data.completedById = null;
-      data.completedAt = null;
     }
     return this.prisma.careTask.update({
-      where: { id: taskId },
+      where: { id: existingTask.id },
       data,
       include: {
         step: { select: { title: true, dayNumber: true } },
@@ -370,113 +348,68 @@ export class NursingService {
   async generateMARSchedule(
     hospitalId: number,
     encounterId: number,
-    targetDate: Date = new Date(),
+    targetDate: Date | string = new Date(),
   ) {
-    // 1. Get active prescription items
-    const prescriptions = await this.prisma.prescription.findMany({
-      where: {
-        hospitalId,
-        encounterId,
-        status: { in: ['ACTIVE', 'PARTIALLY_COMPLETED'] },
-      },
-      include: {
-        items: { include: { product: true } },
-      },
-    });
-
-    const schedule: any[] = [];
-
-    // Normalize targetDate to start of day
-    const startOfDay = new Date(targetDate);
-    startOfDay.setHours(0, 0, 0, 0);
-
-    // 2. Get today's administrations to map to slots
-    const todayAdmins = await this.prisma.medicationAdministration.findMany({
-      where: {
-        hospitalId,
-        encounterId,
-        administeredAt: {
-          gte: startOfDay,
-          lt: new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000),
+    const timezone = await medicationScheduleZone(this.prisma, hospitalId);
+    const dateKey = medicationScheduleDate(targetDate, timezone);
+    const [prescriptions, administrations] = await Promise.all([
+      this.prisma.prescription.findMany({
+        where: {
+          hospitalId,
+          encounterId,
+          status: 'ACTIVE',
+          createdAt: { lte: TimeZoneUtils.endOfLocalDay(dateKey, timezone) },
+          dispenses: { none: { partialClosureReason: { not: null } } },
         },
-      },
-    });
-
-    // 3. Generate slots based on frequency
-    for (const rx of prescriptions) {
-      for (const item of rx.items) {
-        const slots: Date[] = [];
-
-        switch (item.frequency) {
-          case 'DAILY':
-            slots.push(new Date(startOfDay.getTime() + 8 * 60 * 60 * 1000)); // 08:00
-            break;
-          case 'BID':
-            slots.push(new Date(startOfDay.getTime() + 8 * 60 * 60 * 1000)); // 08:00
-            slots.push(new Date(startOfDay.getTime() + 20 * 60 * 60 * 1000)); // 20:00
-            break;
-          case 'TID':
-            slots.push(new Date(startOfDay.getTime() + 8 * 60 * 60 * 1000)); // 08:00
-            slots.push(new Date(startOfDay.getTime() + 14 * 60 * 60 * 1000)); // 14:00
-            slots.push(new Date(startOfDay.getTime() + 20 * 60 * 60 * 1000)); // 20:00
-            break;
-          case 'QID':
-            slots.push(new Date(startOfDay.getTime() + 6 * 60 * 60 * 1000)); // 06:00
-            slots.push(new Date(startOfDay.getTime() + 12 * 60 * 60 * 1000)); // 12:00
-            slots.push(new Date(startOfDay.getTime() + 18 * 60 * 60 * 1000)); // 18:00
-            slots.push(
-              new Date(
-                startOfDay.getTime() + 23 * 60 * 60 * 1000 + 59 * 60 * 1000,
-              ),
-            ); // 23:59 (stay within today)
-            break;
-          case 'QHS':
-            slots.push(new Date(startOfDay.getTime() + 22 * 60 * 60 * 1000)); // 22:00
-            break;
-          // PRN, ONCE, OTHER can be handled dynamically or omitted from rigid scheduling
-        }
-
-        // 4. Map slots to administration records
-        for (const slotTime of slots) {
-          // Find if there's an administration record within +/- 2 hours of this slot
-          const slotStart = new Date(slotTime.getTime() - 2 * 60 * 60 * 1000);
-          const slotEnd = new Date(slotTime.getTime() + 2 * 60 * 60 * 1000);
-
-          const adminRecord = todayAdmins.find(
-            (a) =>
-              a.prescriptionItemId === item.id &&
-              a.administeredAt >= slotStart &&
-              a.administeredAt <= slotEnd,
-          );
-
-          let status = 'PENDING';
-          let isOverdue = false;
-
-          if (adminRecord) {
-            status = adminRecord.status; // GIVEN, REFUSED, etc.
-          } else {
-            // Check if overdue (more than 1 hour past the slot time)
-            if (new Date().getTime() > slotTime.getTime() + 60 * 60 * 1000) {
-              status = 'OVERDUE';
-              isOverdue = true;
-            }
-          }
-
-          schedule.push({
+        select: {
+          items: {
+            select: {
+              id: true,
+              frequency: true,
+              dose: true,
+              route: true,
+              product: { select: { name: true } },
+            },
+          },
+        },
+      }),
+      this.prisma.medicationAdministration.findMany({
+        where: {
+          hospitalId,
+          encounterId,
+          scheduledSlot: { startsWith: dateKey },
+        },
+        omit: { requestKey: true, requestFingerprint: true },
+      }),
+    ]);
+    const recorded = new Map<string, (typeof administrations)[number]>();
+    for (const admin of administrations) {
+      const key = `${admin.prescriptionItemId}:${admin.scheduledSlot}`;
+      if (!recorded.has(key) || admin.status !== 'HELD')
+        recorded.set(key, admin);
+    }
+    const now = Date.now();
+    const schedule = prescriptions.flatMap(({ items }) =>
+      items.flatMap((item) =>
+        medicationSlots(item.frequency, dateKey, timezone).map((slot) => {
+          const record = recorded.get(`${item.id}:${slot.scheduledSlot}`);
+          const scheduledTime = record?.scheduledFor ?? slot.scheduledTime;
+          const isOverdue =
+            !record && now > scheduledTime.getTime() + 60 * 60 * 1000;
+          return {
+            ...slot,
+            scheduledTime,
             prescriptionItemId: item.id,
             drugName: item.product.name,
             dose: item.dose,
             route: item.route,
-            scheduledTime: slotTime,
-            status,
+            status: record?.status ?? (isOverdue ? 'OVERDUE' : 'PENDING'),
             isOverdue,
-            administrationRecord: adminRecord || null,
-          });
-        }
-      }
-    }
-
-    // Sort by scheduled time
+            administrationRecord: record ?? null,
+          };
+        }),
+      ),
+    );
     return schedule.sort(
       (a, b) => a.scheduledTime.getTime() - b.scheduledTime.getTime(),
     );
@@ -509,7 +442,6 @@ export class NursingService {
           overdueItems,
         });
 
-        // Emit event for alerting system
         this.eventEmitter.emit('nursing.medication.overdue', {
           hospitalId,
           encounterId: enc.id,

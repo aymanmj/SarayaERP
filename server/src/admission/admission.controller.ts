@@ -78,7 +78,7 @@ export class AdmissionController {
 
   @Post()
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @Permissions('admission:view')
+  @Permissions('admission:manage')
   @Sensitive('CREATE_ADMISSION')
   @ApiOperation({ summary: 'Create a new admission' })
   @ApiResponse({ status: 201, description: 'Admission created successfully' })
@@ -95,7 +95,7 @@ export class AdmissionController {
 
   @Put(':id')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @Permissions('admission:view')
+  @Permissions('admission:manage')
   @Sensitive('UPDATE_ADMISSION')
   @ApiOperation({ summary: 'Update admission' })
   @ApiResponse({ status: 200, description: 'Admission updated successfully' })
@@ -114,7 +114,7 @@ export class AdmissionController {
 
   @Post(':id/discharge')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @Permissions('admission:view')
+  @Permissions('admission:manage')
   @Sensitive('DISCHARGE_PATIENT')
   @ApiOperation({ summary: 'Discharge patient' })
   @ApiResponse({ status: 200, description: 'Patient discharged successfully' })
@@ -131,9 +131,19 @@ export class AdmissionController {
     );
   }
 
+  @Get(':id/discharge-readiness')
+  @Permissions('admission:view')
+  @Sensitive('VIEW_DISCHARGE_READINESS')
+  async dischargeReadiness(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.admissionService.checkDischargeReadiness(user.hospitalId, id);
+  }
+
   @Post(':id/discharge-planning')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @Permissions('admission:view')
+  @Permissions('admission:manage')
   @Sensitive('CREATE_DISCHARGE_PLANNING')
   @ApiOperation({ summary: 'Create discharge planning' })
   @ApiResponse({
@@ -155,7 +165,7 @@ export class AdmissionController {
 
   @Delete(':id/discharge-planning')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @Permissions('admission:view')
+  @Permissions('admission:manage')
   @Sensitive('DELETE_DISCHARGE_PLANNING')
   @ApiOperation({ summary: 'Delete discharge planning (PENDING only)' })
   @ApiResponse({
@@ -190,7 +200,7 @@ export class AdmissionController {
 
   @Patch('discharge-planning/:planId/status')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @Permissions('admission:view')
+  @Permissions('admission:manage')
   @Sensitive('UPDATE_DISCHARGE_PLANNING')
   @ApiOperation({ summary: 'Update discharge plan status' })
   async updateDischargePlanStatus(
@@ -210,7 +220,7 @@ export class AdmissionController {
 
   @Post(':id/bed-transfer/request')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @Permissions('admission:view')
+  @Permissions('admission:manage')
   @Sensitive('REQUEST_BED_TRANSFER')
   @ApiOperation({ summary: 'Request bed transfer' })
   @ApiResponse({
@@ -230,9 +240,29 @@ export class AdmissionController {
     );
   }
 
+  @Post('transfers/:id/approve')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('inpatient:transfers:approve')
+  @Sensitive('APPROVE_BED_TRANSFER')
+  @ApiOperation({ summary: 'Approve and execute bed transfer' })
+  @ApiResponse({
+    status: 200,
+    description: 'Bed transfer approved and completed successfully',
+  })
+  async approveBedTransfer(
+    @Param('id', ParseIntPipe) transferId: number,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.admissionService.approveBedTransfer(
+      transferId,
+      user.hospitalId,
+      user.sub,
+    );
+  }
+
   @Post('bed-transfer/:transferId/complete')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @Permissions('admission:view')
+  @Permissions('inpatient:transfers:approve')
   @Sensitive('COMPLETE_BED_TRANSFER')
   @ApiOperation({ summary: 'Complete bed transfer' })
   @ApiResponse({
@@ -248,6 +278,16 @@ export class AdmissionController {
       transferId,
       user.sub,
     );
+  }
+
+  @Post('bed-transfer/:transferId/cancel')
+  @Permissions('admission:manage', 'inpatient:transfers:approve')
+  @Sensitive('CANCEL_BED_TRANSFER')
+  async cancelBedTransfer(
+    @Param('transferId', ParseIntPipe) transferId: number,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.admissionService.cancelBedTransfer(user.hospitalId, transferId);
   }
 
   @Get('statistics/overview')
@@ -282,7 +322,7 @@ export class AdmissionController {
 
   @Post('quick-admission')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @Permissions('admission:view')
+  @Permissions('admission:manage')
   @Sensitive('QUICK_ADMISSION')
   @ApiOperation({ summary: 'Quick admission for emergency cases' })
   @ApiResponse({

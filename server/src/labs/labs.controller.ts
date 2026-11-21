@@ -61,11 +61,13 @@ export class LabController {
   constructor(private readonly labService: LabService) {}
 
   @Get('catalog')
+  @Permissions('labs:view')
   async getCatalog(@Req() req: any) {
     return this.labService.getCatalog(req.user.hospitalId);
   }
 
   @Get('encounters/:encounterId/orders')
+  @Permissions('labs:view')
   async listOrdersForEncounter(
     @Param('encounterId', ParseIntPipe) encounterId: number,
     @Req() req: any,
@@ -101,7 +103,7 @@ export class LabController {
 
   // ✅ [NEW] زر بدء التحليل (يرسل HL7)
   @Post('orders/:id/start')
-  @Permissions('labs:view')
+  @Permissions('labs:manage')
   async startOrder(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
     return this.labService.startProcessing(
       req.user.hospitalId,
@@ -111,7 +113,7 @@ export class LabController {
   }
 
   @Patch('orders/:id/complete')
-  @Permissions('labs:view')
+  @Permissions('labs:manage')
   async completeOrder(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: CompleteLabOrderDto,

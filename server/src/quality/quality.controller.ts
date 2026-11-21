@@ -42,6 +42,7 @@ export class QualityController {
 
   // ─── My CAPA Tasks ────────────────────────────────────
   @Get('my-capa-tasks')
+  @Permissions('quality:incidents:view')
   getMyCapaTasks(@CurrentUser() user: JwtPayload) {
     return this.qualityService.getMyCapaTasks(user.sub);
   }
@@ -66,6 +67,7 @@ export class QualityController {
   }
 
   @Post('incidents')
+  @Permissions('quality:incidents:report')
   reportIncident(
     @CurrentUser() user: JwtPayload,
     @Body() dto: CreateIncidentDto,

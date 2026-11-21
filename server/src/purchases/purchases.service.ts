@@ -1,7 +1,12 @@
+import { financialPeriod } from '../accounting/financial-posting';
+import { assertOwnedQuantity } from '../inventory/material-transfer';
+import { appendChainedAuditInTransaction } from '../audit/audit-chain';
+import { publishCommittedCriticalAudit } from '../audit/siem.logger';
 // src/purchases/purchases.service.ts
 
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -9,23 +14,23 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AccountingService } from '../accounting/accounting.service';
 import {
   PaymentMethod,
+  Prisma,
   PurchaseInvoiceStatus,
   StockTransactionType,
-  SystemAccountKey,
 } from '@prisma/client';
+import { Money } from '../common/utils/money.util';
 
 type PurchaseInvoiceLineInput = {
   description?: string;
-  quantity: number;
-  unitPrice: number;
+  quantity: number | string;
+  unitPrice: number | string;
   expenseAccountId?: number;
+  productId?: number;
   inventoryItemId?: number;
   drugItemId?: number;
   batchNumber?: string;
-  expiryDate?: Date;
+  expiryDate?: Date | string;
 };
-
-const round3 = (n: number) => Math.round(n * 1000) / 1000;
 
 @Injectable()
 export class PurchasesService {
@@ -33,6 +38,86 @@ export class PurchasesService {
     private prisma: PrismaService,
     private accounting: AccountingService,
   ) {}
+
+  private normalizeInvoiceLines(lines: PurchaseInvoiceLineInput[]) {
+    if (!lines?.length || lines.length > 100) {
+      throw new BadRequestException(
+        'يجب إضافة بند واحد على الأقل وبحد أقصى 100 بند.',
+      );
+    }
+
+    const seenProductBatch = new Set<string>();
+    const normalized = lines.map((l) => {
+      const qtyDec = new Prisma.Decimal(l.quantity ?? 0);
+      const priceDec = new Prisma.Decimal(l.unitPrice ?? -1);
+      if (
+        !qtyDec.isFinite() ||
+        qtyDec.lte(0) ||
+        qtyDec.decimalPlaces() > 3 ||
+        qtyDec.gte('1000000000000000') ||
+        !priceDec.isFinite() ||
+        priceDec.lt(0) ||
+        priceDec.decimalPlaces() > 3 ||
+        priceDec.gte('1000000000000000')
+      ) {
+        throw new BadRequestException('الكمية أو السعر غير صالح.');
+      }
+
+      const productId =
+        l.productId ?? l.drugItemId ?? l.inventoryItemId ?? null;
+      if (productId !== null && priceDec.lte(0)) {
+        throw new BadRequestException(
+          'سعر الصنف المخزني يجب أن يكون أكبر من الصفر.',
+        );
+      }
+
+      const batchNumber = l.batchNumber?.trim() || null;
+      if (batchNumber && batchNumber.length > 100) {
+        throw new BadRequestException('رقم التشغيلة يتجاوز الحد المسموح.');
+      }
+
+      let expiryDate: Date | null = null;
+      if (l.expiryDate) {
+        expiryDate =
+          l.expiryDate instanceof Date ? l.expiryDate : new Date(l.expiryDate);
+        if (!Number.isFinite(expiryDate.getTime())) {
+          throw new BadRequestException('تاريخ صلاحية غير صالح.');
+        }
+        if (productId !== null && expiryDate.getTime() <= Date.now()) {
+          throw new BadRequestException('لا يقبل إدخال صنف منتهي الصلاحية.');
+        }
+      }
+
+      if (productId !== null) {
+        const key = `${productId}:${batchNumber ?? 'GENERAL'}`;
+        if (seenProductBatch.has(key)) {
+          throw new BadRequestException(
+            'لا يمكن تكرار نفس الصنف والتشغيلة في الفاتورة الواحدة.',
+          );
+        }
+        seenProductBatch.add(key);
+      } else if (!l.description?.trim()) {
+        throw new BadRequestException('وصف البند مطلوب للبنود غير المخزنية.');
+      }
+
+      const totalAmount = Money.toDbString(Money.multiply(qtyDec, priceDec));
+      return {
+        description: l.description?.trim() ?? '',
+        quantity: qtyDec.toFixed(3),
+        unitPrice: Money.toDbString(priceDec),
+        totalAmount,
+        expenseAccountId: l.expenseAccountId ?? null,
+        productId,
+        batchNumber,
+        expiryDate,
+      };
+    });
+
+    const totalAmount = Money.toDbString(
+      Money.sumPosted(...normalized.map((l) => l.totalAmount)),
+    );
+    return { lineData: normalized, totalAmount };
+  }
 
   async listPurchaseInvoices(hospitalId: number) {
     return this.prisma.purchaseInvoice.findMany({
@@ -54,11 +139,42 @@ export class PurchasesService {
           },
         },
         payments: true,
+        purchaseReturns: {
+          where: { status: 'COMPLETED' },
+          include: { lines: true },
+        },
       },
     });
 
     if (!inv) throw new NotFoundException('فاتورة الشراء غير موجودة.');
-    return inv;
+    const verified = inv.purchaseReturns.filter(
+      (r) => r.requestKey && r.accountingEntryId,
+    );
+    return {
+      ...inv,
+      returnedAmount: Money.toDb(
+        Money.sumDecimal(...verified.map((r) => r.totalAmount)),
+      ),
+      remainingPayable: Money.toDb(
+        Money.decimal(inv.netAmount)
+          .minus(inv.paidAmount)
+          .minus(Money.sumDecimal(...verified.map((r) => r.totalAmount))),
+      ),
+      lines: inv.lines.map((line) => ({
+        ...line,
+        remainingReturnQuantity: Money.toDb(
+          Money.decimal(line.quantity).minus(
+            Money.sumDecimal(
+              ...verified.flatMap((r) =>
+                r.lines
+                  .filter((l) => l.purchaseInvoiceLineId === line.id)
+                  .map((l) => l.quantity),
+              ),
+            ),
+          ),
+        ),
+      })),
+    };
   }
 
   async createPurchaseInvoice(params: {
@@ -68,8 +184,8 @@ export class PurchasesService {
     invoiceDate: Date;
     dueDate?: Date;
     currency?: string;
-    discountAmount?: number;
-    vatAmount?: number;
+    discountAmount?: number | string;
+    vatAmount?: number | string;
     notes?: string;
     lines: PurchaseInvoiceLineInput[];
     userId: number;
@@ -81,88 +197,140 @@ export class PurchasesService {
       invoiceNumber,
       invoiceDate,
       dueDate,
-      currency,
+      currency = 'LYD',
       discountAmount = 0,
       vatAmount = 0,
       notes,
       lines,
-      warehouseId,
       userId,
+      warehouseId,
     } = params;
 
-    if (!lines?.length) {
-      throw new BadRequestException('يجب إضافة بند واحد على الأقل.');
+    if (!Number.isFinite(invoiceDate?.getTime())) {
+      throw new BadRequestException('تاريخ الفاتورة غير صالح.');
+    }
+    if (dueDate && !Number.isFinite(dueDate.getTime())) {
+      throw new BadRequestException('تاريخ الاستحقاق غير صالح.');
+    }
+    if (currency !== 'LYD') {
+      throw new BadRequestException('العملة المدعومة حاليًا هي LYD فقط.');
     }
 
-    await this.accounting.ensureDefaultAccountsForHospital(hospitalId);
+    const { lineData, totalAmount } = this.normalizeInvoiceLines(lines);
+    const hasInventoryLines = lineData.some((l) => l.productId !== null);
+    if (hasInventoryLines && typeof warehouseId !== 'number') {
+      throw new BadRequestException('يجب تحديد المخزن المستلم لبنود المخزون.');
+    }
 
-    const invoice = await this.prisma.$transaction(async (tx) => {
+    const discountStr = Money.toDbString(discountAmount);
+    const vatStr = Money.toDbString(vatAmount);
+    if (
+      Money.isNegative(discountStr) ||
+      Money.isNegative(vatStr) ||
+      Money.decimal(discountStr).gt(totalAmount)
+    ) {
+      throw new BadRequestException('قيمة الخصم أو الضريبة غير صالحة.');
+    }
+    if (
+      hasInventoryLines &&
+      (!Money.eq(discountStr, 0) || !Money.eq(vatStr, 0))
+    ) {
+      throw new BadRequestException(
+        'فواتير المخزون المباشرة لا تقبل خصمًا أو ضريبة إجمالية غير موزعة.',
+      );
+    }
+
+    const netStr = Money.toDbString(
+      Money.sumPosted(Money.subtractDecimal(totalAmount, discountStr), vatStr),
+    );
+
+    return this.prisma.$transaction(async (tx) => {
+      if (
+        !(await tx.user.findFirst({
+          where: { id: userId, hospitalId, isActive: true, isDeleted: false },
+          select: { id: true },
+        }))
+      ) {
+        throw new NotFoundException('المستخدم غير نشط أو خارج المنشأة.');
+      }
+
       const supplier = await tx.supplier.findFirst({
-        where: { id: supplierId, hospitalId },
+        where: { id: supplierId, hospitalId, isActive: true },
         select: { id: true },
       });
-      if (!supplier) throw new BadRequestException('المورد غير موجود.');
+      if (!supplier)
+        throw new BadRequestException('المورد غير موجود أو غير نشط.');
 
       if (typeof warehouseId === 'number') {
         const wh = await tx.warehouse.findFirst({
-          where: { id: warehouseId, hospitalId },
+          where: { id: warehouseId, hospitalId, isActive: true },
           select: { id: true },
         });
-        if (!wh) throw new BadRequestException('المخزن غير موجود.');
+        if (!wh) throw new BadRequestException('المخزن غير موجود أو غير نشط.');
       }
 
-      let totalAmount = 0;
-
-      const lineData = lines.map((l) => {
-        const qty = Number(l.quantity || 0);
-        const price = Number(l.unitPrice || 0);
-        if (qty <= 0 || price < 0) {
-          throw new BadRequestException('الكمية أو السعر غير صالح.');
+      for (const l of lineData) {
+        if (l.productId !== null) {
+          const product = await tx.product.findFirst({
+            where: {
+              id: l.productId,
+              hospitalId,
+              isActive: true,
+              isDeleted: false,
+            },
+            include: { category: true },
+          });
+          if (
+            !product ||
+            !['DRUG', 'SUPPLY', 'LAB_REAGENT'].includes(product.type) ||
+            (product.category &&
+              (product.category.hospitalId !== hospitalId ||
+                !product.category.isActive ||
+                product.category.valuationMethod !== 'WEIGHTED_AVERAGE'))
+          ) {
+            throw new BadRequestException(
+              'الصنف غير متاح أو تقييمه غير مدعوم.',
+            );
+          }
         }
-        const total = qty * price;
-        totalAmount += total;
+        if (l.expenseAccountId !== null) {
+          const acc = await tx.account.findFirst({
+            where: {
+              id: l.expenseAccountId,
+              hospitalId,
+              isActive: true,
+              ...(l.productId !== null ? { type: 'ASSET' as const } : {}),
+            },
+            select: { id: true },
+          });
+          if (!acc) {
+            throw new BadRequestException(
+              'حساب البند غير صالح أو خارج المنشأة.',
+            );
+          }
+        }
+      }
 
-        const productId = l.drugItemId || l.inventoryItemId || null;
-
-        return {
-          description: l.description ?? '',
-          quantity: qty,
-          unitPrice: price,
-          totalAmount: total,
-          expenseAccountId: l.expenseAccountId ?? null,
-          productId: productId,
-          batchNumber: l.batchNumber || null,
-          expiryDate: l.expiryDate || null,
-        };
-      });
-
-      totalAmount = round3(totalAmount);
-      const net = round3(totalAmount - discountAmount + vatAmount);
-
-      const created = await tx.purchaseInvoice.create({
+      return tx.purchaseInvoice.create({
         data: {
           hospitalId,
           supplierId,
-          invoiceNumber: invoiceNumber ?? null,
+          invoiceNumber: invoiceNumber?.trim() || null,
           invoiceDate,
           dueDate: dueDate ?? null,
           status: PurchaseInvoiceStatus.DRAFT,
           totalAmount,
-          discountAmount,
-          vatAmount,
-          netAmount: net,
-          paidAmount: 0,
-          currency: currency ?? 'LYD',
-          notes: notes ?? null,
+          discountAmount: discountStr,
+          vatAmount: vatStr,
+          netAmount: netStr,
+          paidAmount: '0.000',
+          currency: 'LYD',
+          notes: notes?.trim() || null,
           warehouseId: typeof warehouseId === 'number' ? warehouseId : null,
           lines: { create: lineData },
         },
       });
-
-      return created;
     });
-
-    return invoice;
   }
 
   async approvePurchaseInvoice(params: {
@@ -172,118 +340,342 @@ export class PurchasesService {
   }) {
     const { hospitalId, purchaseInvoiceId, userId } = params;
 
-    // التأكد من الحسابات النظامية قبل البدء
-    await this.accounting.ensureDefaultAccountsForHospital(hospitalId);
+    let committedAudit: Record<string, unknown> | null = null;
+    const result = await this.prisma.$transaction(async (tx) => {
+      committedAudit = null;
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(27003, ${hospitalId}::integer)`;
 
-    // 👇 1. جلب الفاتورة للتحقق من التاريخ أولاً (خارج الترانزاكشن)
-    // نستخدم findFirst بدلاً من findUnique لأن id ليس unique عالمياً بل ضمن المستشفى (إذا كان التصميم multi-tenant)
-    // أو للتأكد من الملكية
-    const invForCheck = await this.prisma.purchaseInvoice.findFirst({
-      where: { id: purchaseInvoiceId, hospitalId },
-    });
+      if (
+        !(await tx.user.findFirst({
+          where: { id: userId, hospitalId, isActive: true, isDeleted: false },
+          select: { id: true },
+        }))
+      ) {
+        throw new NotFoundException('المستخدم غير نشط أو خارج المنشأة.');
+      }
 
-    // 👇 الفحص الصارم للوجود
-    if (!invForCheck) {
-      throw new NotFoundException('فاتورة الشراء غير موجودة.');
-    }
+      await tx.$queryRaw`SELECT id FROM "PurchaseInvoice" WHERE id=${purchaseInvoiceId} AND "hospitalId"=${hospitalId} FOR UPDATE`;
 
-    // الآن invForCheck مؤكد الوجود، يمكننا الوصول لـ invoiceDate بأمان
-    await this.accounting.validateDateInOpenPeriod(
-      hospitalId,
-      invForCheck.invoiceDate,
-    );
-
-    return this.prisma.$transaction(async (tx) => {
-      // نعيد جلب الفاتورة مع البنود داخل الترانزاكشن للقفل والتكامل
       const inv = await tx.purchaseInvoice.findFirst({
         where: { id: purchaseInvoiceId, hospitalId },
-        include: { lines: true },
+        include: { lines: { orderBy: { id: 'asc' } } },
       });
 
-      // فحص إضافي (رغم أننا فحصنا بالأعلى، لكن للترانزاكشن)
-      if (!inv || inv.status !== PurchaseInvoiceStatus.DRAFT) {
+      if (!inv) {
+        throw new NotFoundException('فاتورة الشراء غير موجودة.');
+      }
+
+      if (
+        inv.status !== PurchaseInvoiceStatus.DRAFT ||
+        inv.accountingEntryId !== null
+      ) {
         throw new BadRequestException('الفاتورة غير موجودة أو معتمدة مسبقاً.');
+      }
+
+      if (!inv.lines.length) {
+        throw new BadRequestException('لا يمكن اعتماد فاتورة شراء فارغة.');
+      }
+
+      if (inv.currency !== 'LYD') {
+        throw new BadRequestException('العملة غير مدعومة للاعتماد.');
       }
 
       if (!inv.warehouseId) {
         throw new BadRequestException('يجب تحديد المخزن المستلم في الفاتورة.');
       }
 
-      // 2. معالجة كل بند (مخزون + تكلفة)
+      if (
+        !(await tx.supplier.findFirst({
+          where: { id: inv.supplierId, hospitalId, isActive: true },
+          select: { id: true },
+        }))
+      ) {
+        throw new BadRequestException('المورد غير نشط أو خارج المنشأة.');
+      }
+
+      const warehouses = await tx.$queryRaw<
+        { id: number }[]
+      >`SELECT id FROM "Warehouse" WHERE id=${inv.warehouseId} AND "hospitalId"=${hospitalId} AND "isActive"=true FOR SHARE`;
+      if (warehouses.length !== 1) {
+        throw new BadRequestException('المخزن غير نشط أو خارج المنشأة.');
+      }
+
+      if (
+        (await tx.goodsReceipt.count({
+          where: { hospitalId, purchaseInvoiceId: inv.id },
+        })) > 0 ||
+        (await tx.stockTransaction.count({
+          where: { hospitalId, purchaseInvoiceId: inv.id },
+        })) > 0
+      ) {
+        throw new BadRequestException(
+          'الفاتورة مرتبطة بإذن توريد أو حركات مخزون؛لا يعتمد المخزون مرتين',
+        );
+      }
+
+      await financialPeriod(tx, hospitalId, inv.invoiceDate);
+
+      const hasInventoryLines = inv.lines.some((l) => l.productId !== null);
+      if (
+        hasInventoryLines &&
+        (!inv.discountAmount.eq(0) ||
+          !inv.vatAmount.eq(0) ||
+          !inv.netAmount.eq(inv.totalAmount))
+      ) {
+        throw new BadRequestException(
+          'فواتير المخزون المباشرة تتطلب تطابق الإجمالي والصافي دون خصم أو ضريبة.',
+        );
+      }
+
+      const seenProductBatch = new Set<string>();
+      let computedLinesTotal = '0.000';
+      for (const line of inv.lines) {
+        if (
+          !line.quantity.isFinite() ||
+          line.quantity.lte(0) ||
+          line.quantity.decimalPlaces() > 3 ||
+          line.quantity.gte('1000000000000000') ||
+          !line.unitPrice.isFinite() ||
+          line.unitPrice.lt(0) ||
+          (line.productId !== null && line.unitPrice.lte(0)) ||
+          line.unitPrice.decimalPlaces() > 3 ||
+          line.unitPrice.gte('1000000000000000')
+        ) {
+          throw new BadRequestException('بيانات كمية أو سعر البند غير صالحة.');
+        }
+        const expectedLineTotal = Money.toDbString(
+          Money.multiply(line.quantity, line.unitPrice),
+        );
+        if (!Money.eq(line.totalAmount, expectedLineTotal)) {
+          throw new BadRequestException(
+            'إجمالي بند الفاتورة لا يطابق الكمية × السعر.',
+          );
+        }
+        computedLinesTotal = Money.toDbString(
+          Money.sumPosted(computedLinesTotal, expectedLineTotal),
+        );
+        if (line.productId !== null) {
+          const batchKey = `${line.productId}:${line.batchNumber?.trim() || 'GENERAL'}`;
+          if (seenProductBatch.has(batchKey)) {
+            throw new BadRequestException(
+              'لا يمكن تكرار نفس الصنف والتشغيلة في الفاتورة الواحدة.',
+            );
+          }
+          seenProductBatch.add(batchKey);
+        }
+      }
+
+      if (!Money.eq(inv.totalAmount, computedLinesTotal)) {
+        throw new BadRequestException('إجمالي الفاتورة لا يطابق مجموع البنود.');
+      }
+
+      const expectedNet = Money.toDbString(
+        Money.sumPosted(
+          Money.subtractDecimal(inv.totalAmount, inv.discountAmount),
+          inv.vatAmount,
+        ),
+      );
+      if (!Money.eq(inv.netAmount, expectedNet)) {
+        throw new BadRequestException(
+          'صافي الفاتورة لا يطابق المعادلة المالية.',
+        );
+      }
+
+      const productIds = [
+        ...new Set(
+          inv.lines
+            .map((l) => l.productId)
+            .filter((id): id is number => id !== null),
+        ),
+      ].sort((a, b) => a - b);
+
+      for (const productId of productIds) {
+        await tx.$queryRaw`SELECT id FROM "Product" WHERE id=${productId} AND "hospitalId"=${hospitalId} FOR UPDATE`;
+      }
+      for (const productId of productIds) {
+        await tx.$queryRaw`SELECT id FROM "ProductStock" WHERE "productId"=${productId} AND "hospitalId"=${hospitalId} ORDER BY id FOR UPDATE`;
+      }
+
+      const residuals: { productId: number; amount: string }[] = [];
+
+      // 2. معالجة كل بند (مخزون + تكلفة مرجحة WAC بدقة Money)
       for (const line of inv.lines) {
         if (line.productId) {
-          const qtyIn = Number(line.quantity);
-          const costIn = Number(line.unitPrice);
-
-          const product = await tx.product.findUnique({
-            where: { id: line.productId },
+          const product = await tx.product.findFirst({
+            where: {
+              id: line.productId,
+              hospitalId,
+              isActive: true,
+              isDeleted: false,
+            },
+            include: { category: true },
           });
 
-          if (product) {
-            const currentStock = Number(product.stockOnHand);
-            const currentCost = Number(product.costPrice);
-
-            let newWac = costIn;
-
-            if (currentStock > 0) {
-              const totalValueOld = currentStock * currentCost;
-              const totalValueNew = qtyIn * costIn;
-              newWac = (totalValueOld + totalValueNew) / (currentStock + qtyIn);
-            }
-
-            newWac = Math.round(newWac * 1000) / 1000;
-
-            await tx.product.update({
-              where: { id: product.id },
-              data: {
-                stockOnHand: { increment: qtyIn },
-                costPrice: newWac,
-              },
-            });
-
-            const batchNo = line.batchNumber || 'GENERAL';
-
-            await tx.productStock.upsert({
-              where: {
-                warehouseId_productId_batchNumber: {
-                  warehouseId: inv.warehouseId,
-                  productId: product.id,
-                  batchNumber: batchNo,
-                },
-              },
-              update: {
-                quantity: { increment: qtyIn },
-                ...(line.expiryDate ? { expiryDate: line.expiryDate } : {}),
-              },
-              create: {
-                hospitalId,
-                warehouseId: inv.warehouseId,
-                productId: product.id,
-                quantity: qtyIn,
-                batchNumber: batchNo,
-                expiryDate: line.expiryDate,
-                version: 1,
-              },
-            });
-
-            await tx.stockTransaction.create({
-              data: {
-                hospitalId,
-                warehouseId: inv.warehouseId,
-                productId: product.id,
-                type: StockTransactionType.IN,
-                quantity: qtyIn,
-                unitCost: costIn,
-                totalCost: qtyIn * costIn,
-                batchNumber: batchNo,
-                expiryDate: line.expiryDate,
-                referenceType: 'PURCHASE_INVOICE',
-                referenceId: inv.id,
-                createdById: userId,
-                purchaseInvoiceId: inv.id,
-              },
-            });
+          if (
+            !product ||
+            !['DRUG', 'SUPPLY', 'LAB_REAGENT'].includes(product.type) ||
+            (product.category &&
+              (product.category.hospitalId !== hospitalId ||
+                !product.category.isActive ||
+                product.category.valuationMethod !== 'WEIGHTED_AVERAGE'))
+          ) {
+            throw new BadRequestException('المنتج غير نشط أو تقييمه غير مدعوم');
           }
+
+          if (
+            !product.costPrice.isFinite() ||
+            product.costPrice.lt(0) ||
+            !product.stockOnHand.isFinite() ||
+            product.stockOnHand.lt(0)
+          ) {
+            throw new BadRequestException('رصيد أو تكلفة الصنف غير صالحين');
+          }
+
+          await assertOwnedQuantity(
+            tx,
+            hospitalId,
+            product.id,
+            product.stockOnHand,
+          );
+
+          const batchNo = line.batchNumber?.trim() || 'GENERAL';
+          if (batchNo.length > 100) {
+            throw new BadRequestException('رقم التشغيلة يتجاوز الحد المسموح.');
+          }
+          if (line.expiryDate && line.expiryDate.getTime() <= Date.now()) {
+            throw new BadRequestException('لا يقبل استلام صنف منتهي الصلاحية.');
+          }
+
+          const stock = await tx.productStock.findUnique({
+            where: {
+              warehouseId_productId_batchNumber: {
+                warehouseId: inv.warehouseId,
+                productId: product.id,
+                batchNumber: batchNo,
+              },
+            },
+          });
+
+          if (
+            stock &&
+            (stock.hospitalId !== hospitalId ||
+              (stock.expiryDate?.getTime() ?? null) !==
+                (line.expiryDate?.getTime() ?? null))
+          ) {
+            throw new ConflictException(
+              'التشغيلة موجودة بصلاحية أو ملكية مختلفة',
+            );
+          }
+
+          if (
+            stock &&
+            (!stock.quantity.isFinite() ||
+              stock.quantity.lt(0) ||
+              !stock.unitCost.isFinite() ||
+              stock.unitCost.lt(0))
+          ) {
+            throw new BadRequestException('رصيد أو تكلفة التشغيلة غير صالحين');
+          }
+
+          const base = line.quantity;
+          const amount = Money.toDbString(line.totalAmount);
+          const unitCost = Money.toDbString(line.unitPrice);
+          const next = product.stockOnHand.plus(base);
+
+          if (
+            next.gte('1000000000000000') ||
+            next.lte(0) ||
+            (stock && stock.quantity.plus(base).gte('1000000000000000'))
+          ) {
+            throw new BadRequestException('الرصيد الناتج يتجاوز سعة المخزون');
+          }
+
+          const beforeValue = Money.toDbString(
+            Money.multiply(product.stockOnHand, product.costPrice),
+          );
+          const cost = Money.toDbString(
+            Money.sumDecimal(beforeValue, amount).div(next.toString()),
+          );
+          const batchQuantity = (stock?.quantity ?? new Prisma.Decimal(0)).plus(
+            base,
+          );
+          const batchCost = Money.toDbString(
+            Money.sumDecimal(
+              stock ? Money.multiply(stock.quantity, stock.unitCost) : 0,
+              amount,
+            ).div(batchQuantity.toString()),
+          );
+
+          await tx.productStock.upsert({
+            where: {
+              warehouseId_productId_batchNumber: {
+                warehouseId: inv.warehouseId,
+                productId: product.id,
+                batchNumber: batchNo,
+              },
+            },
+            update: {
+              quantity: { increment: base.toString() },
+              unitCost: batchCost,
+              version: { increment: 1 },
+            },
+            create: {
+              hospitalId,
+              warehouseId: inv.warehouseId,
+              productId: product.id,
+              quantity: base.toString(),
+              unitCost: batchCost,
+              batchNumber: batchNo,
+              expiryDate: line.expiryDate,
+              version: 1,
+            },
+          });
+
+          const updatedProduct = await tx.product.updateMany({
+            where: {
+              id: product.id,
+              hospitalId,
+              version: product.version,
+              stockOnHand: product.stockOnHand,
+            },
+            data: {
+              stockOnHand: next,
+              costPrice: cost,
+              version: { increment: 1 },
+            },
+          });
+          if (updatedProduct.count !== 1) {
+            throw new ConflictException('تغير رصيد الصنف أثناء الاعتماد');
+          }
+
+          await tx.stockTransaction.create({
+            data: {
+              hospitalId,
+              warehouseId: inv.warehouseId,
+              productId: product.id,
+              type: StockTransactionType.IN,
+              quantity: base.toString(),
+              baseQuantity: base.toString(),
+              unitCost,
+              totalCost: amount,
+              batchNumber: batchNo,
+              expiryDate: line.expiryDate,
+              referenceType: 'PURCHASE_INVOICE',
+              referenceId: inv.id,
+              createdById: userId,
+              purchaseInvoiceId: inv.id,
+            },
+          });
+
+          residuals.push({
+            productId: product.id,
+            amount: Money.toDbString(
+              Money.subtractDecimal(
+                Money.toDbString(Money.multiply(cost, next)),
+                Money.sumPosted(beforeValue, amount),
+              ),
+            ),
+          });
         }
       }
 
@@ -299,8 +691,37 @@ export class PurchasesService {
         tx,
       });
 
-      return updated;
+      const posted = await tx.purchaseInvoice.findUniqueOrThrow({
+        where: { id: updated.id },
+      });
+      if (Money.isPositive(posted.netAmount) && !posted.accountingEntryId) {
+        throw new BadRequestException(
+          'تعذر إنشاء القيد المحاسبي لفاتورة الشراء.',
+        );
+      }
+
+      const auditFields = {
+        hospitalId,
+        userId,
+        action: 'APPROVE_PURCHASE_INVOICE',
+        entity: 'PurchaseInvoice',
+        entityId: posted.id,
+        details: {
+          supplierId: inv.supplierId,
+          warehouseId: inv.warehouseId,
+          totalAmount: Money.toDbString(inv.totalAmount),
+          netAmount: Money.toDbString(inv.netAmount),
+          accountingEntryId: posted.accountingEntryId,
+          valuationRoundingResiduals: residuals,
+        },
+      };
+      await appendChainedAuditInTransaction(tx, auditFields);
+      committedAudit = auditFields;
+
+      return posted;
     });
+    if (committedAudit) publishCommittedCriticalAudit(committedAudit);
+    return result;
   }
 
   async updatePurchaseInvoice(params: {
@@ -312,16 +733,16 @@ export class PurchasesService {
     invoiceDate: Date;
     dueDate?: Date;
     currency?: string;
-    discountAmount?: number;
-    vatAmount?: number;
+    discountAmount?: number | string;
+    vatAmount?: number | string;
     notes?: string;
     warehouseId?: number | null;
     lines: PurchaseInvoiceLineInput[];
   }) {
-    // (نفس الكود السابق مع إضافة batchNumber/expiryDate في create lines)
     const {
       hospitalId,
       purchaseInvoiceId,
+      userId,
       supplierId,
       invoiceNumber,
       invoiceDate,
@@ -334,8 +755,50 @@ export class PurchasesService {
       lines,
     } = params;
 
+    if (!Number.isFinite(invoiceDate?.getTime())) {
+      throw new BadRequestException('تاريخ الفاتورة غير صالح.');
+    }
+    if (dueDate && !Number.isFinite(dueDate.getTime())) {
+      throw new BadRequestException('تاريخ الاستحقاق غير صالح.');
+    }
+
+    const { lineData, totalAmount } = this.normalizeInvoiceLines(lines);
+    const hasInventoryLines = lineData.some((l) => l.productId !== null);
+    const discountStr = Money.toDbString(discountAmount);
+    const vatStr = Money.toDbString(vatAmount);
+
+    if (
+      Money.isNegative(discountStr) ||
+      Money.isNegative(vatStr) ||
+      Money.decimal(discountStr).gt(totalAmount)
+    ) {
+      throw new BadRequestException('قيمة الخصم أو الضريبة غير صالحة.');
+    }
+    if (
+      hasInventoryLines &&
+      (!Money.eq(discountStr, 0) || !Money.eq(vatStr, 0))
+    ) {
+      throw new BadRequestException(
+        'فواتير المخزون المباشرة لا تقبل خصمًا أو ضريبة إجمالية غير موزعة.',
+      );
+    }
+
+    const netStr = Money.toDbString(
+      Money.sumPosted(Money.subtractDecimal(totalAmount, discountStr), vatStr),
+    );
+
     const updated = await this.prisma.$transaction(async (tx) => {
-      // ... (validation logic similar to previous)
+      if (
+        !(await tx.user.findFirst({
+          where: { id: userId, hospitalId, isActive: true, isDeleted: false },
+          select: { id: true },
+        }))
+      ) {
+        throw new NotFoundException('المستخدم غير نشط أو خارج المنشأة.');
+      }
+
+      await tx.$queryRaw`SELECT id FROM "PurchaseInvoice" WHERE id=${purchaseInvoiceId} AND "hospitalId"=${hospitalId} FOR UPDATE`;
+
       const inv = await tx.purchaseInvoice.findFirst({
         where: { id: purchaseInvoiceId, hospitalId },
         include: {
@@ -344,46 +807,113 @@ export class PurchasesService {
         },
       });
       if (!inv) throw new NotFoundException('Invoice not found');
-      if (inv.stockTransactions.length > 0)
+      if (
+        inv.status !== 'DRAFT' ||
+        inv.accountingEntryId !== null ||
+        (await tx.purchaseReturn.count({
+          where: {
+            hospitalId,
+            purchaseInvoiceId: inv.id,
+            status: { not: 'CANCELLED' },
+          },
+        })) ||
+        (await tx.goodsReceipt.count({
+          where: { hospitalId, purchaseInvoiceId: inv.id },
+        }))
+      )
+        throw new BadRequestException('لا تعدل فاتورة معتمدة أو لها مردودات');
+      if (inv.stockTransactions.length > 0 || inv.payments.length > 0)
         throw new BadRequestException('Cannot update processed invoice');
 
-      let totalAmount = 0;
-      const lineData = lines.map((l) => {
-        const qty = Number(l.quantity || 0);
-        const price = Number(l.unitPrice || 0);
-        const total = qty * price;
-        totalAmount += total;
+      const resolvedCurrency = currency ?? inv.currency;
+      if (resolvedCurrency !== 'LYD') {
+        throw new BadRequestException('العملة المدعومة حاليًا هي LYD فقط.');
+      }
 
-        return {
-          description: l.description ?? '',
-          quantity: qty,
-          unitPrice: price,
-          totalAmount: total,
-          expenseAccountId: l.expenseAccountId ?? null,
-          productId: l.drugItemId || l.inventoryItemId || null,
-          batchNumber: l.batchNumber || null, // ✅
-          expiryDate: l.expiryDate || null, // ✅
-        };
-      });
+      const resolvedSupplierId = supplierId ?? inv.supplierId;
+      if (
+        !(await tx.supplier.findFirst({
+          where: { id: resolvedSupplierId, hospitalId, isActive: true },
+          select: { id: true },
+        }))
+      ) {
+        throw new BadRequestException('المورد غير موجود أو غير نشط.');
+      }
 
-      totalAmount = round3(totalAmount);
-      const net = round3(totalAmount - discountAmount + vatAmount);
+      const resolvedWarehouseId =
+        warehouseId === undefined ? inv.warehouseId : warehouseId;
+      if (hasInventoryLines && typeof resolvedWarehouseId !== 'number') {
+        throw new BadRequestException(
+          'يجب تحديد المخزن المستلم لبنود المخزون.',
+        );
+      }
+      if (typeof resolvedWarehouseId === 'number') {
+        if (
+          !(await tx.warehouse.findFirst({
+            where: { id: resolvedWarehouseId, hospitalId, isActive: true },
+            select: { id: true },
+          }))
+        ) {
+          throw new BadRequestException('المخزن غير موجود أو غير نشط.');
+        }
+      }
+
+      for (const l of lineData) {
+        if (l.productId !== null) {
+          const product = await tx.product.findFirst({
+            where: {
+              id: l.productId,
+              hospitalId,
+              isActive: true,
+              isDeleted: false,
+            },
+            include: { category: true },
+          });
+          if (
+            !product ||
+            !['DRUG', 'SUPPLY', 'LAB_REAGENT'].includes(product.type) ||
+            (product.category &&
+              (product.category.hospitalId !== hospitalId ||
+                !product.category.isActive ||
+                product.category.valuationMethod !== 'WEIGHTED_AVERAGE'))
+          ) {
+            throw new BadRequestException(
+              'الصنف غير متاح أو تقييمه غير مدعوم.',
+            );
+          }
+        }
+        if (l.expenseAccountId !== null) {
+          const acc = await tx.account.findFirst({
+            where: {
+              id: l.expenseAccountId,
+              hospitalId,
+              isActive: true,
+              ...(l.productId !== null ? { type: 'ASSET' as const } : {}),
+            },
+            select: { id: true },
+          });
+          if (!acc) {
+            throw new BadRequestException(
+              'حساب البند غير صالح أو خارج المنشأة.',
+            );
+          }
+        }
+      }
 
       const invUpdated = await tx.purchaseInvoice.update({
         where: { id: inv.id },
         data: {
-          supplierId: supplierId ?? inv.supplierId,
-          invoiceNumber: invoiceNumber ?? null,
+          supplierId: resolvedSupplierId,
+          invoiceNumber: invoiceNumber?.trim() || null,
           invoiceDate,
           dueDate: dueDate ?? null,
-          currency: currency ?? inv.currency,
-          discountAmount,
-          vatAmount,
+          currency: resolvedCurrency,
+          discountAmount: discountStr,
+          vatAmount: vatStr,
           totalAmount,
-          netAmount: net,
-          notes: notes ?? null,
-          warehouseId:
-            warehouseId === undefined ? inv.warehouseId : warehouseId,
+          netAmount: netStr,
+          notes: notes?.trim() || null,
+          warehouseId: resolvedWarehouseId,
           lines: {
             deleteMany: {},
             create: lineData,
@@ -403,9 +933,10 @@ export class PurchasesService {
     userId: number;
     reason?: string;
   }) {
-    // (نفس الكود السابق تماماً)
-    const { hospitalId, purchaseInvoiceId } = params;
+    const { hospitalId, purchaseInvoiceId, userId, reason } = params;
     const cancelled = await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "PurchaseInvoice" WHERE id=${purchaseInvoiceId} AND "hospitalId"=${hospitalId} FOR UPDATE`;
+
       const inv = await tx.purchaseInvoice.findFirst({
         where: { id: purchaseInvoiceId, hospitalId },
         include: {
@@ -414,6 +945,24 @@ export class PurchasesService {
         },
       });
       if (!inv) throw new NotFoundException('فاتورة الشراء غير موجودة.');
+      if (
+        await tx.purchaseReturn.count({
+          where: {
+            hospitalId,
+            purchaseInvoiceId: inv.id,
+            status: { not: 'CANCELLED' },
+          },
+        })
+      )
+        throw new BadRequestException('الفاتورة مرتبطة بمردودات');
+      if (
+        await tx.goodsReceipt.count({
+          where: { hospitalId, purchaseInvoiceId: inv.id },
+        })
+      )
+        throw new BadRequestException(
+          'فاتورة مرتبطة باستلام تحتاج دورة تصحيح ومطابقة مستقلة؛لا يمكن إلغاؤها من هذا المسار',
+        );
       if (inv.stockTransactions.length > 0)
         throw new BadRequestException('لا يمكن إلغاء فاتورة تم توريدها.');
       if (inv.payments.length > 0)
@@ -423,17 +972,17 @@ export class PurchasesService {
         where: { id: inv.id },
         data: {
           status: PurchaseInvoiceStatus.CANCELLED,
-          accountingEntryId: null,
         },
       });
 
       if (inv.accountingEntryId) {
-        await tx.accountingEntryLine.deleteMany({
-          where: { entryId: inv.accountingEntryId },
-        });
-        await tx.accountingEntry.delete({
-          where: { id: inv.accountingEntryId },
-        });
+        await this.accounting.reverseEntry(
+          hospitalId,
+          inv.accountingEntryId,
+          userId,
+          reason || `إلغاء فاتورة شراء #${inv.id}`,
+          tx,
+        );
       }
       return updated;
     });
@@ -450,7 +999,6 @@ export class PurchasesService {
     notes?: string;
     userId: number;
   }) {
-    // (نفس الكود السابق تماماً - لا تغيير)
     const {
       hospitalId,
       purchaseInvoiceId,
@@ -461,21 +1009,45 @@ export class PurchasesService {
       notes,
       userId,
     } = params;
-    if (!amount || amount <= 0)
+    const paymentAmount = Money.toDb(amount || 0);
+    if (paymentAmount <= 0)
       throw new BadRequestException('قيمة الدفعة غير صحيحة');
 
-    await this.accounting.ensureDefaultAccountsForHospital(hospitalId);
-
     const result = await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "PurchaseInvoice" WHERE id=${purchaseInvoiceId} AND "hospitalId"=${hospitalId} FOR UPDATE`;
+
       const inv = await tx.purchaseInvoice.findFirst({
         where: { id: purchaseInvoiceId, hospitalId, supplierId },
       });
       if (!inv) throw new NotFoundException('فاتورة الشراء غير موجودة.');
 
-      const net = Number(inv.netAmount);
-      const paid = Number(inv.paidAmount);
+      if (
+        await tx.purchaseReturn.count({
+          where: {
+            hospitalId,
+            purchaseInvoiceId: inv.id,
+            status: { not: 'CANCELLED' },
+            requestKey: null,
+          },
+        })
+      )
+        throw new BadRequestException('يلزم مطابقة مردودات قديمة قبل السداد');
+      await financialPeriod(tx, hospitalId, new Date());
+      const net = Money.fromPrisma(inv.netAmount);
+      const paid = Money.fromPrisma(inv.paidAmount);
+      if (!['APPROVED', 'PARTIALLY_PAID', 'PAID'].includes(inv.status))
+        throw new BadRequestException('الفاتورة غير قابلة للسداد');
+      const returned = await tx.purchaseReturn.aggregate({
+        where: { hospitalId, purchaseInvoiceId: inv.id, status: 'COMPLETED' },
+        _sum: { totalAmount: true },
+      });
+      const remaining = Money.toDb(
+        Money.decimal(net)
+          .minus(paid)
+          .minus(Money.decimal(returned._sum.totalAmount)),
+      );
 
-      if (amount > net - paid + 0.0001)
+      if (Money.gt(paymentAmount, remaining))
         throw new BadRequestException('قيمة الدفعة أكبر من الرصيد.');
 
       const payment = await tx.supplierPayment.create({
@@ -483,7 +1055,7 @@ export class PurchasesService {
           hospitalId,
           supplierId,
           purchaseInvoiceId,
-          amount,
+          amount: paymentAmount,
           method,
           reference: reference || null,
           notes: notes || null,
@@ -491,11 +1063,10 @@ export class PurchasesService {
         },
       });
 
-      const newPaid = paid + amount;
-      const newStatus =
-        newPaid >= net - 0.0001
-          ? PurchaseInvoiceStatus.PAID
-          : PurchaseInvoiceStatus.PARTIALLY_PAID;
+      const newPaid = Money.toDb(Money.add(paid, paymentAmount));
+      const newStatus = Money.gte(newPaid, net)
+        ? PurchaseInvoiceStatus.PAID
+        : PurchaseInvoiceStatus.PARTIALLY_PAID;
 
       const updatedInvoice = await tx.purchaseInvoice.update({
         where: { id: inv.id },

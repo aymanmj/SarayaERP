@@ -6,8 +6,14 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { ShiftType, LeaveType, LeaveStatus } from '@prisma/client';
-import { Prisma } from '@prisma/client';
+import { ShiftType, LeaveType, LeaveStatus, Prisma } from '@prisma/client';
+import { appendChainedAuditInTransaction } from '../audit/audit-chain';
+
+function toUtcDayStart(date: Date): Date {
+  return new Date(
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
+  );
+}
 
 @Injectable()
 export class HrService {
@@ -24,10 +30,31 @@ export class HrService {
       graceMinutes?: number;
     },
   ) {
+    if (!data.name || !data.name.trim()) {
+      throw new BadRequestException('اسم الوردية مطلوب.');
+    }
+    const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+    if (!timeRegex.test(data.startTime) || !timeRegex.test(data.endTime)) {
+      throw new BadRequestException(
+        'صيغة وقت البداية والنهاية يجب أن تكون HH:mm.',
+      );
+    }
+    if (
+      data.graceMinutes !== undefined &&
+      (!Number.isInteger(data.graceMinutes) ||
+        data.graceMinutes < 0 ||
+        data.graceMinutes > 240)
+    ) {
+      throw new BadRequestException(
+        'فترة السماحية يجب أن تكون رقماً صحيحاً بين 0 و 240 دقيقة.',
+      );
+    }
+
     return this.prisma.workShift.create({
       data: {
         hospitalId,
         ...data,
+        name: data.name.trim(),
       },
     });
   }
@@ -50,27 +77,60 @@ export class HrService {
     const { hospitalId, userId, workShiftId, fromDate, toDate, isOffDay } =
       params;
 
-    // التأكد من التواريخ
-    const start = new Date(fromDate);
-    const end = new Date(toDate);
+    const rawStart = new Date(fromDate);
+    const rawEnd = new Date(toDate);
+    if (isNaN(rawStart.getTime()) || isNaN(rawEnd.getTime())) {
+      throw new BadRequestException('تاريخ بداية أو نهاية الجدول غير صالح.');
+    }
+
+    const start = toUtcDayStart(rawStart);
+    const end = toUtcDayStart(rawEnd);
+    if (end < start) {
+      throw new BadRequestException(
+        'تاريخ نهاية الجدول يجب أن يكون مساوياً أو بعد تاريخ البداية.',
+      );
+    }
+
+    const spanDays =
+      Math.round((end.getTime() - start.getTime()) / 86400000) + 1;
+    if (spanDays > 366) {
+      throw new BadRequestException(
+        'لا يمكن جدولة أكثر من 366 يوماً في عملية واحدة.',
+      );
+    }
+
     const rostersData: Prisma.EmployeeRosterCreateManyInput[] = [];
-
-    // حلقة تكرار لكل يوم في النطاق
-    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-      // نسخ التاريخ لتجنب التعديل بالمرجع
-      const currentDay = new Date(d);
-
+    for (
+      let d = new Date(start.getTime());
+      d <= end;
+      d.setUTCDate(d.getUTCDate() + 1)
+    ) {
       rostersData.push({
         hospitalId,
         userId,
         workShiftId,
-        date: currentDay,
-        isOffDay: isOffDay || false,
+        date: new Date(d.getTime()),
+        isOffDay: Boolean(isOffDay),
       });
     }
 
-    // نستخدم transaction لحذف القديم (إن وجد) وإضافة الجديد لهذا الموظف في هذه الأيام
     return this.prisma.$transaction(async (tx) => {
+      const employee = await tx.user.findFirst({
+        where: { id: userId, hospitalId, isDeleted: false },
+        select: { id: true },
+      });
+      if (!employee) {
+        throw new NotFoundException('الموظف غير موجود في هذه المنشأة.');
+      }
+
+      const shift = await tx.workShift.findFirst({
+        where: { id: workShiftId, hospitalId },
+        select: { id: true },
+      });
+      if (!shift) {
+        throw new NotFoundException('الوردية غير موجودة في هذه المنشأة.');
+      }
+
       // 1. حذف أي جدول سابق في هذه الأيام لهذا الموظف
       await tx.employeeRoster.deleteMany({
         where: {
@@ -81,7 +141,7 @@ export class HrService {
       });
 
       // 2. إضافة الجدول الجديد
-      await tx.employeeRoster.createMany({
+      return tx.employeeRoster.createMany({
         data: rostersData,
       });
     });
@@ -108,7 +168,6 @@ export class HrService {
     id: number,
     data: { workShiftId?: number; isOffDay?: boolean },
   ) {
-    // التحقق من وجود الإدخال وأنه يخص هذا المستشفى
     const entry = await this.prisma.employeeRoster.findUnique({
       where: { id },
     });
@@ -117,11 +176,21 @@ export class HrService {
       throw new NotFoundException('إدخال الجدول غير موجود');
     }
 
+    if (data.workShiftId !== undefined) {
+      const shift = await this.prisma.workShift.findFirst({
+        where: { id: data.workShiftId, hospitalId },
+        select: { id: true },
+      });
+      if (!shift) {
+        throw new NotFoundException('الوردية غير موجودة في هذه المنشأة.');
+      }
+    }
+
     return this.prisma.employeeRoster.update({
       where: { id },
       data: {
-        workShiftId: data.workShiftId,
-        isOffDay: data.isOffDay ?? false,
+        workShiftId: data.workShiftId ?? entry.workShiftId,
+        isOffDay: data.isOffDay ?? entry.isOffDay,
       },
       include: {
         user: { select: { fullName: true } },
@@ -132,7 +201,6 @@ export class HrService {
 
   // حذف إدخال roster واحد
   async deleteRosterEntry(hospitalId: number, id: number) {
-    // التحقق من وجود الإدخال وأنه يخص هذا المستشفى
     const entry = await this.prisma.employeeRoster.findUnique({
       where: { id },
     });
@@ -156,28 +224,81 @@ export class HrService {
     endDate: Date;
     reason?: string;
   }) {
-    const { startDate, endDate } = params;
-    const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
-    const daysCount = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-
-    // تحقق بسيط من الرصيد (يمكن تعقيده لاحقاً)
-    const user = await this.prisma.user.findUnique({
-      where: { id: params.userId },
-    });
-    if (
-      user &&
-      user.annualLeaveBalance < daysCount &&
-      params.type === 'ANNUAL'
-    ) {
-      throw new BadRequestException('رصيد الإجازات السنوية لا يكفي.');
+    const rawStart = new Date(params.startDate);
+    const rawEnd = new Date(params.endDate);
+    if (isNaN(rawStart.getTime()) || isNaN(rawEnd.getTime())) {
+      throw new BadRequestException('تاريخ بداية أو نهاية الإجازة غير صالح.');
     }
 
-    return this.prisma.leaveRequest.create({
-      data: {
-        ...params,
-        daysCount,
-        status: LeaveStatus.PENDING,
-      },
+    const start = toUtcDayStart(rawStart);
+    const end = toUtcDayStart(rawEnd);
+    if (end < start) {
+      throw new BadRequestException(
+        'تاريخ نهاية الإجازة يجب أن يكون مساوياً أو بعد تاريخ البداية.',
+      );
+    }
+
+    const daysCount =
+      Math.round((end.getTime() - start.getTime()) / 86400000) + 1;
+
+    return this.prisma.$transaction(async (tx) => {
+      const lockedUsers = await tx.$queryRaw<
+        Array<{ id: number; hospitalId: number; isDeleted: boolean }>
+      >`SELECT "id", "hospitalId", "isDeleted" FROM "User" WHERE "id" = ${params.userId} AND "hospitalId" = ${params.hospitalId} FOR UPDATE`;
+
+      if (!lockedUsers.length || lockedUsers[0].isDeleted) {
+        throw new NotFoundException('الموظف غير موجود في هذه المنشأة.');
+      }
+
+      const overlapping = await tx.leaveRequest.findFirst({
+        where: {
+          hospitalId: params.hospitalId,
+          userId: params.userId,
+          status: { in: [LeaveStatus.PENDING, LeaveStatus.APPROVED] },
+          startDate: { lte: end },
+          endDate: { gte: start },
+        },
+      });
+      if (overlapping) {
+        throw new BadRequestException(
+          'يوجد طلب إجازة معلق أو معتمد يتداخل مع هذه الفترة.',
+        );
+      }
+
+      if (params.type === LeaveType.ANNUAL) {
+        const user = await tx.user.findUnique({
+          where: { id: params.userId },
+          select: { annualLeaveBalance: true },
+        });
+        const pendingAnnual = await tx.leaveRequest.aggregate({
+          where: {
+            hospitalId: params.hospitalId,
+            userId: params.userId,
+            type: LeaveType.ANNUAL,
+            status: LeaveStatus.PENDING,
+          },
+          _sum: { daysCount: true },
+        });
+        const reservedDays = pendingAnnual._sum.daysCount ?? 0;
+        const availableBalance = (user?.annualLeaveBalance ?? 0) - reservedDays;
+
+        if (availableBalance < daysCount) {
+          throw new BadRequestException('رصيد الإجازات السنوية لا يكفي.');
+        }
+      }
+
+      return tx.leaveRequest.create({
+        data: {
+          hospitalId: params.hospitalId,
+          userId: params.userId,
+          type: params.type,
+          startDate: start,
+          endDate: end,
+          reason: params.reason,
+          daysCount,
+          status: LeaveStatus.PENDING,
+        },
+      });
     });
   }
 
@@ -187,25 +308,96 @@ export class HrService {
     approverId: number,
     status: LeaveStatus,
   ) {
-    const leave = await this.prisma.leaveRequest.findUnique({
-      where: { id: requestId },
-    });
-    if (!leave || leave.hospitalId !== hospitalId)
-      throw new NotFoundException('الطلب غير موجود');
+    if (status !== LeaveStatus.APPROVED && status !== LeaveStatus.REJECTED) {
+      throw new BadRequestException(
+        'حالة البت في الإجازة يجب أن تكون APPROVED أو REJECTED.',
+      );
+    }
 
     return this.prisma.$transaction(async (tx) => {
+      const lockedLeaves = await tx.$queryRaw<
+        Array<{
+          id: number;
+          hospitalId: number;
+          userId: number;
+          status: string;
+        }>
+      >`SELECT "id", "hospitalId", "userId", "status" FROM "LeaveRequest" WHERE "id" = ${requestId} FOR UPDATE`;
+
+      if (!lockedLeaves.length || lockedLeaves[0].hospitalId !== hospitalId) {
+        throw new NotFoundException('الطلب غير موجود');
+      }
+
+      const leave = await tx.leaveRequest.findUnique({
+        where: { id: requestId },
+      });
+      if (!leave || leave.hospitalId !== hospitalId) {
+        throw new NotFoundException('الطلب غير موجود');
+      }
+
+      if (leave.status !== LeaveStatus.PENDING) {
+        throw new BadRequestException(
+          'تم البت في طلب الإجازة مسبقاً ولا يمكن تغيير حالته مرة أخرى.',
+        );
+      }
+
+      await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${leave.userId} AND "hospitalId" = ${hospitalId} FOR UPDATE`;
+
+      if (status === LeaveStatus.APPROVED) {
+        const overlappingApproved = await tx.leaveRequest.findFirst({
+          where: {
+            hospitalId,
+            userId: leave.userId,
+            id: { not: requestId },
+            status: LeaveStatus.APPROVED,
+            startDate: { lte: leave.endDate },
+            endDate: { gte: leave.startDate },
+          },
+        });
+        if (overlappingApproved) {
+          throw new BadRequestException(
+            'توجد إجازة معتمدة أخرى للموظف تتداخل مع هذه الفترة.',
+          );
+        }
+
+        if (leave.type === LeaveType.ANNUAL) {
+          const user = await tx.user.findUnique({
+            where: { id: leave.userId },
+            select: { annualLeaveBalance: true },
+          });
+          if (!user || user.annualLeaveBalance < leave.daysCount) {
+            throw new BadRequestException('رصيد الإجازات السنوية لا يكفي.');
+          }
+
+          await tx.user.update({
+            where: { id: leave.userId },
+            data: { annualLeaveBalance: { decrement: leave.daysCount } },
+          });
+        }
+      }
+
       const updated = await tx.leaveRequest.update({
         where: { id: requestId },
         data: { status, approvedById: approverId },
       });
 
-      // إذا تمت الموافقة وكانت إجازة سنوية، نخصم من الرصيد
-      if (status === LeaveStatus.APPROVED && leave.type === 'ANNUAL') {
-        await tx.user.update({
-          where: { id: leave.userId },
-          data: { annualLeaveBalance: { decrement: leave.daysCount } },
-        });
-      }
+      await appendChainedAuditInTransaction(tx, {
+        hospitalId,
+        userId: approverId,
+        action:
+          status === LeaveStatus.APPROVED
+            ? 'APPROVE_LEAVE_REQUEST'
+            : 'REJECT_LEAVE_REQUEST',
+        entity: 'LeaveRequest',
+        entityId: requestId,
+        details: {
+          employeeId: leave.userId,
+          type: leave.type,
+          daysCount: leave.daysCount,
+          previousStatus: leave.status,
+          newStatus: status,
+        },
+      });
 
       return updated;
     });

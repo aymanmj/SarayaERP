@@ -1,10 +1,12 @@
-import { IsNumber, IsOptional, IsString, IsEnum } from 'class-validator';
+import { IsInt, IsOptional, IsString, IsBoolean, Min } from 'class-validator';
 
 export class RequestTransferDto {
-  @IsNumber()
+  @IsInt()
+  @Min(1)
   encounterId: number;
 
-  @IsNumber()
+  @IsInt()
+  @Min(1)
   @IsOptional()
   fromBedId?: number;
 
@@ -18,7 +20,8 @@ export class RequestTransferDto {
 }
 
 export class AllocateBedDto {
-  @IsNumber()
+  @IsInt()
+  @Min(1)
   toBedId: number;
 }
 
@@ -36,5 +39,6 @@ export class HandoverNoteDto {
   recommendation: string;
 
   @IsOptional()
+  @IsBoolean()
   isSigned?: boolean;
 }

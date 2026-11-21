@@ -1,3 +1,5 @@
+import { PharmacyAdjustmentForm } from '../components/pharmacy/PharmacyAdjustmentForm';
+import { PharmacySourcePolicy } from '../components/pharmacy/PharmacySourcePolicy';
 import { useEffect, useState } from "react";
 import { apiClient } from "../api/apiClient";
 import { toast } from "sonner";
@@ -14,7 +16,7 @@ type ProductStockItem = {
   stockOnHand: number;
 };
 
-type StockTxnType = "IN" | "ADJUST";
+
 
 export default function PharmacyStockPage() {
   const { t, i18n } = useTranslation();
@@ -23,12 +25,6 @@ export default function PharmacyStockPage() {
   const [data, setData] = useState<ProductStockItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
-  const [selectedId, setSelectedId] = useState<number | null>(null);
-
-  const [txnType, setTxnType] = useState<StockTxnType>("IN");
-  const [quantity, setQuantity] = useState<string>("");
-  const [unitCost, setUnitCost] = useState<string>("");
-
   async function loadData() {
     try {
       setLoading(true);
@@ -49,51 +45,9 @@ export default function PharmacyStockPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function resetForm() {
-    setSelectedId(null);
-    setTxnType("IN");
-    setQuantity("");
-    setUnitCost("");
-  }
-
-  async function handleSubmit() {
-    if (!selectedId) {
-      toast.error(t("inventory.pharmacyStock.toast.selectProduct", "يرجى اختيار دواء/منتج."));
-      return;
-    }
-
-    const q = Number(quantity);
-    if (!quantity || isNaN(q)) {
-      toast.error(t("inventory.pharmacyStock.toast.validQty", "يرجى إدخال كمية صحيحة."));
-      return;
-    }
-
-    if (txnType === "IN" && q <= 0) {
-      toast.error(t("inventory.pharmacyStock.toast.qtyPositive", "كمية التوريد يجب أن تكون أكبر من الصفر."));
-      return;
-    }
-
-    try {
-      await apiClient.post("/pharmacy/stock/transactions", {
-        drugItemId: selectedId,
-        type: txnType,
-        quantity: q,
-        unitCost: unitCost ? Number(unitCost) : undefined,
-      });
-
-      toast.success(t("inventory.pharmacyStock.toast.success", "تم تسجيل حركة المخزون بنجاح."));
-      resetForm();
-      await loadData();
-    } catch (err: any) {
-      console.error(err);
-      const msg =
-        err?.response?.data?.message ?? t("inventory.pharmacyStock.toast.error", "حدث خطأ أثناء تسجيل حركة المخزون.");
-      toast.error(msg);
-    }
-  }
-
   return (
     <div className="p-6 space-y-6" dir={isRtl ? "rtl" : "ltr"}>
+      <PharmacySourcePolicy />
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-white">
@@ -127,88 +81,7 @@ export default function PharmacyStockPage() {
         </div>
       </div>
 
-      <div className="rounded-2xl bg-gray-900 border border-gray-800 p-4 space-y-4">
-        <h2 className="font-semibold text-gray-100 text-lg">
-          {t("inventory.pharmacyStock.form.title", "تسجيل حركة مخزون")}
-        </h2>
-
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-          <div className="space-y-1">
-            <label className="block text-xs text-gray-400 mb-1">{t("inventory.pharmacyStock.form.product", "المنتج")}</label>
-            <select
-              className="w-full bg-gray-950 border border-gray-700 rounded px-2 py-2 text-sm text-gray-100"
-              value={selectedId ?? ""}
-              onChange={(e) =>
-                setSelectedId(e.target.value ? Number(e.target.value) : null)
-              }
-            >
-              <option value="">{t("inventory.pharmacyStock.form.productPlaceholder", "اختر منتج...")}</option>
-              {data.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name}
-                  {d.strength ? ` (${d.strength})` : ""}{" "}
-                  {d.code ? ` - [${d.code}]` : ""}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="space-y-1">
-            <label className="block text-xs text-gray-400 mb-1">
-              {t("inventory.pharmacyStock.form.type", "نوع الحركة")}
-            </label>
-            <select
-              className="w-full bg-gray-950 border border-gray-700 rounded px-2 py-2 text-sm text-gray-100"
-              value={txnType}
-              onChange={(e) => setTxnType(e.target.value as StockTxnType)}
-            >
-              <option value="IN">{t("inventory.pharmacyStock.form.typeIn", "توريد إلى المخزون (IN)")}</option>
-              <option value="ADJUST">{t("inventory.pharmacyStock.form.typeAdjust", "تسوية رصيد (ADJUST)")}</option>
-            </select>
-          </div>
-
-          <div className="space-y-1">
-            <label className="block text-xs text-gray-400 mb-1">{t("inventory.pharmacyStock.form.qty", "الكمية")}</label>
-            <input
-              type="number"
-              step="0.001"
-              className={`w-full bg-gray-950 border border-gray-700 rounded px-2 py-2 text-sm text-gray-100 ${isRtl ? 'text-right' : 'text-left'}`}
-              placeholder={txnType === "IN" ? t("inventory.pharmacyStock.form.qtyPlaceholderIn", "مثال: 50") : t("inventory.pharmacyStock.form.qtyPlaceholderAdjust", "مثال: 10 أو -5")}
-              value={quantity}
-              onChange={(e) => setQuantity(e.target.value)}
-            />
-          </div>
-
-          <div className="space-y-1">
-            <label className="block text-xs text-gray-400 mb-1">
-              {t("inventory.pharmacyStock.form.cost", "تكلفة / سعر الوحدة (اختياري)")}
-            </label>
-            <input
-              type="number"
-              step="0.001"
-              className={`w-full bg-gray-950 border border-gray-700 rounded px-2 py-2 text-sm text-gray-100 ${isRtl ? 'text-right' : 'text-left'}`}
-              placeholder={t("inventory.pharmacyStock.form.costPlaceholder", "مثال: 5.250")}
-              value={unitCost}
-              onChange={(e) => setUnitCost(e.target.value)}
-            />
-          </div>
-        </div>
-
-        <div className="flex items-center justify-end gap-3">
-          <button
-            onClick={resetForm}
-            className="px-4 py-2 rounded border border-gray-700 text-sm text-gray-200 hover:bg-gray-800"
-          >
-            {t("inventory.pharmacyStock.form.clearBtn", "تفريغ الحقول")}
-          </button>
-          <button
-            onClick={handleSubmit}
-            className="px-4 py-2 rounded bg-emerald-600 hover:bg-emerald-700 text-sm text-white font-bold"
-          >
-            {t("inventory.pharmacyStock.form.saveBtn", "حفظ حركة المخزون")}
-          </button>
-        </div>
-      </div>
+      <PharmacyAdjustmentForm products={data} onPosted={loadData} />
 
       <div className="rounded-2xl bg-gray-900 border border-gray-800 overflow-hidden">
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">

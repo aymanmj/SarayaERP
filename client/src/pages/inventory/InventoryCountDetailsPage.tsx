@@ -1,416 +1,385 @@
-import { useTranslation } from "react-i18next";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
+import { isAxiosError } from "axios";
 import { useAuth } from "@/hooks/useAuth";
 import { apiClient as api } from "@/api/apiClient";
-import { toast } from "sonner";
-import { Loader2, Save, CheckCircle, ArrowLeft, Printer, AlertTriangle } from "lucide-react";
-import { formatDate } from "@/lib/utils";
-import { useQuery } from "@tanstack/react-query";
+import { formatMoney } from "@/utils/money";
 
-interface InventoryLine {
+type Line = {
   id: number;
   productId: number;
-  product: { name: string; code: string };
-  batchNumber: string;
-  expiryDate: string;
-  systemQty: number;
-  physicalQty: number;
-  variance: number;
-  costPrice: number;
-}
-
-interface InventoryCount {
+  product: { name: string; code: string | null };
+  batchNumber: string | null;
+  systemQty: string;
+  physicalQty: string | null;
+  variance: string;
+  costPrice: string;
+  revision: number;
+  countedById: number | null;
+};
+type Count = {
   id: number;
-  date: string;
-  status: string; // DRAFT, IN_PROGRESS, REVIEW, POSTED
-  type: string;
-  warehouseId: number;
+  status: string;
   warehouse: { name: string };
-  lines: InventoryLine[];
-  notes?: string;
-  assignedTo?: { fullName: string };
-}
-
+  assignedToId: number | null;
+  lines: Line[];
+};
 export function InventoryCountDetailsPage() {
-  const { t, i18n } = useTranslation();
-  const isRtl = i18n.language === "ar";
-
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
+  const { i18n } = useTranslation();
+  const ar = i18n.language.startsWith("ar");
   const isNew = id === "new";
-
-  const [count, setCount] = useState<InventoryCount | null>(null);
-  const [saving, setSaving] = useState(false);
-
-  // New Count State
-  const [newCountParams, setNewCountParams] = useState({
-    warehouseId: "", 
-    type: "FULL",
-    notes: "",
+  const cache = useQueryClient();
+  const [warehouseId, setWarehouseId] = useState("");
+  const [type, setType] = useState("FULL");
+  const [notes, setNotes] = useState("");
+  const [drafts, setDrafts] = useState<Record<number, string>>({});
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  const admin = user?.permissions?.includes("ADMIN_FULL_ACCESS") === true;
+  const canManage = admin || hasPermission("inventory:manage");
+  const canPost = admin || hasPermission("inventory:counts:post");
+  const key = ["inventory-count", user?.id, user?.hospitalId, id];
+  const query = useQuery({
+    queryKey: key,
+    enabled: !isNew && !!id && !!user,
+    refetchOnWindowFocus: false,
+    queryFn: async () => (await api.get<Count>(`/inventory/counts/${id}`)).data,
   });
-
-  // 1. Fetch Warehouses
-  const { data: warehouses = [] } = useQuery({
-     queryKey: ['warehouses', user?.hospitalId],
-     queryFn: async () => {
-         const res = await api.get('/inventory/warehouses');
-         return res.data;
-     },
-     enabled: !!user?.hospitalId
+  const warehouses = useQuery({
+    queryKey: ["count-warehouses", user?.id, user?.hospitalId],
+    enabled: isNew && !!user,
+    queryFn: async () =>
+      (
+        await api.get<{ id: number; name: string; isActive?: boolean }[]>(
+          "/inventory/warehouses",
+        )
+      ).data,
   });
-
-  // Set default warehouse for new count
-  useEffect(() => {
-     if(isNew && warehouses.length > 0 && !newCountParams.warehouseId) {
-         setNewCountParams(prev => ({...prev, warehouseId: warehouses[0].id.toString()}));
-     }
-  }, [warehouses, isNew, newCountParams.warehouseId]);
-
-  // 2. Fetch Count Details (if not new)
-  const { data: fetchedCount, isLoading: loading, refetch: refetchCount } = useQuery({
-      queryKey: ['inventoryCount', id],
-      queryFn: async () => {
-           const hospitalId = user?.hospitalId || 1;
-           const res = await api.get(`/inventory/counts/${id}?hospitalId=${hospitalId}`);
-           return res.data;
-      },
-      enabled: !isNew && !!id
-  });
-
-  // Sync fetched data to local state for editing (Since we edit physicalQty locally)
-  useEffect(() => {
-      if(fetchedCount) {
-          setCount(fetchedCount);
-      }
-  }, [fetchedCount]);
-
-  // Alias for manual refresh if needed
-  const fetchCount = () => refetchCount();
-
-  const handleCreate = async () => {
-    if (!newCountParams.warehouseId) {
-        toast.error(t("inventory.count.details.toast.selectWarehouse", "يرجى اختيار المخزن"));
-        return;
-    }
-
-    setSaving(true);
-    try {
-      const hospitalId = user?.hospitalId || 1;
-      const payload = {
-        hospitalId: Number(hospitalId),
-        warehouseId: Number(newCountParams.warehouseId),
-        type: newCountParams.type,
-        notes: newCountParams.notes,
-      };
-      
-      const res = await api.post("/inventory/counts", payload);
-      toast.success(t("inventory.count.details.toast.createSuccess", "تم إنشاء مسودة الجرد بنجاح"));
-      navigate(`/inventory/counts/${res.data.id}`);
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch (error) {
-      toast.error(t("inventory.count.details.toast.createFailed", "فشل إنشاء الجرد (تأكد من صحة البيانات)"));
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleUpdateLine = async (lineId: number, qty: number) => {
-    // Optimistic Update
-    setCount((prev) => {
-        if (!prev) return null;
-        return {
-            ...prev,
-            lines: prev.lines.map(l => {
-                if (l.id === lineId) {
-                    const diff = qty - Number(l.systemQty);
-                    return { ...l, physicalQty: qty, variance: diff };
-                }
-                return l;
-            })
-        }
-    });
-
-    try {
-        await api.put(`/inventory/counts/lines/${lineId}`, { physicalQty: qty });
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch (error) {
-        toast.error(t("inventory.count.details.toast.updateLineFailed", "فشل تحديث الصنف"));
-    }
-  };
-
-  const handlePost = async () => {
-    if (!count) return;
-    if (!confirm(t("inventory.count.details.confirmPost", "هل أنت متأكد من اعتماد هذا الجرد وتحديث الأرصدة؟ لا يمكن التراجع عن هذه العملية."))) return;
-
-    setSaving(true);
-    try {
-      await api.post(`/inventory/counts/${count.id}/post`);
-      toast.success(t("inventory.count.details.toast.postSuccess", "تم ترحيل الجرد وتحديث المخزون!"));
-      fetchCount(); // Refresh without args
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch (error) {
-      toast.error(t("inventory.count.details.toast.postFailed", "فشل ترحيل الجرد"));
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const getStatusLabel = (status: string) => {
-    switch(status) {
-      case "POSTED": return t("inventory.count.status.posted", "مرحل");
-      case "DRAFT": return t("inventory.count.status.draft", "مسودة");
-      case "REVIEW": return t("inventory.count.status.review", "مراجعة");
-      case "IN_PROGRESS": return t("inventory.count.status.inProgress", "قيد التنفيذ");
-      default: return status;
-    }
-  };
-
-  const getTypeLabel = (type: string) => {
-     switch(type) {
-         case "FULL": return t("inventory.count.type.full", "جرد شامل");
-         case "QUARTERLY": return t("inventory.count.type.quarterly", "ربع سنوي");
-         case "SPOT_CHECK": return t("inventory.count.type.spotCheck", "جرد مفاجئ");
-         default: return type;
-     }
-  }
-
-  if (loading) {
-      return (
-          <div className="flex h-full items-center justify-center">
-              <Loader2 className="h-8 w-8 animate-spin text-sky-500" />
-          </div>
-      );
-  }
-
-  if (isNew) {
-    return (
-      <div className="flex flex-col h-full text-slate-100 p-4 md:p-6 space-y-8 max-w-4xl mx-auto" dir={isRtl ? "rtl" : "ltr"}>
-        <div className="flex items-center gap-4">
-             <button onClick={() => navigate(-1)} className="p-2 hover:bg-slate-800 rounded-full transition-colors text-slate-400 hover:text-white">
-                 <ArrowLeft className="w-6 h-6" />
-             </button>
-             <div>
-                <h1 className="text-3xl font-black text-white tracking-tight">{t("inventory.count.details.newTitle", "بدء جرد مخزني جديد")}</h1>
-                <p className="text-sm text-slate-400 mt-1">{t("inventory.count.details.newSubtitle", "قم بتحديد المخزن ونوع الجرد للبدء في المطابقة الفعلية للأرصدة.")}</p>
-             </div>
-        </div>
-
-        <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-8 shadow-2xl">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-                <div className="space-y-3">
-                    <label className="text-sm font-medium text-slate-300">{t("inventory.warehouse", "المخزن")} <span className="text-rose-500">*</span></label>
-                    <div className="relative">
-                        <select
-                            className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition-all appearance-none"
-                            value={newCountParams.warehouseId}
-                            onChange={(e) => setNewCountParams(prev => ({ ...prev, warehouseId: e.target.value }))}
-                        >
-                            <option value="" disabled>{t("inventory.count.details.selectWarehouse", "اختر المخزن...")}</option>
-                            {warehouses.map(w => (
-                                <option key={w.id} value={w.id}>{w.name}</option>
-                            ))}
-                        </select>
-                         <div className="absolute left-3 top-3.5 pointer-events-none text-slate-500">
-                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-                          </div>
-                    </div>
-                </div>
-
-                <div className="space-y-3">
-                    <label className="text-sm font-medium text-slate-300">{t("inventory.count.details.countType", "نوع الجرد")} <span className="text-rose-500">*</span></label>
-                    <div className="relative">
-                        <select
-                            className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition-all appearance-none"
-                            value={newCountParams.type}
-                            onChange={(e) => setNewCountParams(prev => ({ ...prev, type: e.target.value }))}
-                        >
-                            <option value="FULL">{t("inventory.count.type.full", "جرد شامل")}</option>
-                            <option value="QUARTERLY">{t("inventory.count.type.quarterly", "جرد ربع سنوي")}</option>
-                            <option value="SPOT_CHECK">{t("inventory.count.type.spotCheck", "جرد مفاجئ")}</option>
-                        </select>
-                         <div className="absolute left-3 top-3.5 pointer-events-none text-slate-500">
-                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-                          </div>
-                    </div>
-                </div>
-            </div>
-
-            <div className="space-y-3 mb-8">
-                <label className="text-sm font-medium text-slate-300">{t("inventory.count.details.notesLabel", "ملاحظات / وصف")}</label>
-                <textarea 
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition-all min-h-[100px]"
-                    placeholder={t("inventory.count.details.notesPlaceholder", "اكتب أي ملاحظات إضافية هنا...")}
-                    value={newCountParams.notes}
-                    onChange={(e) => setNewCountParams(prev => ({ ...prev, notes: e.target.value }))}
-                />
-            </div>
-
-            <div className="flex justify-end gap-3 pt-4 border-t border-slate-800/50">
-                <button
-                    onClick={() => navigate(-1)}
-                    className="px-6 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-sm font-bold border border-slate-700 transition-all"
-                >
-                    {t("common.cancel", "إلغاء")}
-                </button>
-                <button
-                    onClick={handleCreate}
-                    disabled={saving}
-                    className="px-8 py-2.5 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-sm font-bold shadow-lg shadow-sky-900/20 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                    {t("inventory.count.details.createBtn", "إنشاء وبدء الجرد")}
-                </button>
-            </div>
-        </div>
-      </div>
+  function error(e: unknown) {
+    const text = isAxiosError<{ message?: string | string[] }>(e)
+      ? e.response?.data?.message
+      : undefined;
+    setMessage(
+      Array.isArray(text)
+        ? text.join("، ")
+        : text || (ar ? "تعذر إتمام العملية" : "Operation failed"),
     );
   }
-
-  if (!count) return <div className="p-10 text-center text-slate-500">{t("inventory.count.details.notFound", "لم يتم العثور على الجرد")}</div>;
-
-  const isEditable = count.status !== "POSTED";
-
+  async function create() {
+    setBusy(true);
+    setMessage("");
+    try {
+      const result = await api.post<{ id: number }>("/inventory/counts", {
+        warehouseId: Number(warehouseId),
+        type,
+        notes: notes.trim(),
+      });
+      navigate(`/inventory/counts/${result.data.id}`);
+    } catch (e) {
+      error(e);
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function save(line: Line) {
+    setBusy(true);
+    setMessage("");
+    try {
+      const result = await api.put<Line>(
+        `/inventory/counts/${id}/lines/${line.id}`,
+        {
+          physicalQty: drafts[line.id] ?? line.physicalQty ?? "",
+          revision: line.revision,
+        },
+      );
+      cache.setQueryData<Count>(key, (old) =>
+        old
+          ? {
+              ...old,
+              status: old.status === "DRAFT" ? "IN_PROGRESS" : old.status,
+              lines: old.lines.map((l) =>
+                l.id === line.id ? { ...l, ...result.data } : l,
+              ),
+            }
+          : old,
+      );
+      setDrafts((old) => {
+        const next = { ...old };
+        delete next[line.id];
+        return next;
+      });
+    } catch (e) {
+      error(e);
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function transition(status: string) {
+    setBusy(true);
+    setMessage("");
+    try {
+      if (status === "POSTED") await api.post(`/inventory/counts/${id}/post`);
+      else await api.put(`/inventory/counts/${id}/status`, { status });
+      await query.refetch();
+    } catch (e) {
+      error(e);
+    } finally {
+      setBusy(false);
+    }
+  }
+  const count = query.data;
+  const editable =
+    canManage && !!count && ["DRAFT", "IN_PROGRESS"].includes(count.status);
+  const dirty = Object.keys(drafts).length > 0;
+  const allCounted =
+    !!count?.lines.length && count.lines.every((l) => l.physicalQty !== null);
+  const independent =
+    !!count &&
+    count.assignedToId !== user?.id &&
+    !count.lines.some((l) => l.countedById === user?.id);
   return (
-    <div className="flex flex-col h-full text-slate-100 p-4 md:p-6 space-y-6" dir={isRtl ? "rtl" : "ltr"}>
-      {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div className="flex items-center gap-4">
-            <button onClick={() => navigate('/inventory/counts')} className="p-2 hover:bg-slate-800 rounded-full transition-colors text-slate-400 hover:text-white">
-                 <ArrowLeft className="w-6 h-6" />
-             </button>
-            <div>
-                <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight flex items-center gap-3">
-                    {t("inventory.count.details.countPrefix", "جرد #")}{count.id}
-                    <span className={`px-3 py-1 rounded-full text-[10px] md:text-xs font-bold border uppercase tracking-wider ${
-                        count.status === "POSTED" 
-                        ? "bg-emerald-900/30 text-emerald-400 border-emerald-500/30" 
-                        : "bg-amber-900/20 text-amber-400 border-amber-500/30"
-                    }`}>
-                        {getStatusLabel(count.status)}
-                    </span>
-                </h1>
-                <p className="text-sm text-slate-400 mt-1 flex items-center gap-2">
-                    <span className="text-sky-400 font-medium">{count.warehouse?.name}</span>
-                    <span className="text-slate-600">•</span>
-                    <span>{formatDate(count.date)}</span>
-                    {count.assignedTo && (
-                        <>
-                            <span className="text-slate-600">•</span>
-                            <span className="flex items-center gap-1">
-                                {t("inventory.count.details.by", "بواسطة")} {count.assignedTo.fullName}
-                            </span>
-                        </>
-                    )}
-                </p>
-            </div>
-        </div>
-
-        <div className="flex gap-3">
-            <button 
-                onClick={() => window.open(`/inventory/counts/${count.id}/print`, '_blank')}
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold border border-slate-700 transition-all flex items-center gap-2"
+    <div className="p-6 space-y-5 text-slate-100" dir={ar ? "rtl" : "ltr"}>
+      <button onClick={() => navigate("/inventory/counts")}>
+        {ar ? "العودة لقائمة الجرد" : "Back to counts"}
+      </button>
+      <h1 className="text-2xl font-bold">
+        {isNew
+          ? ar
+            ? "جرد مخزني جديد"
+            : "New inventory count"
+          : `${ar ? "جرد" : "Count"} #${id}`}
+      </h1>
+      <p>
+        {ar
+          ? "يجب عد كل بند صراحةً. حركة المخزون تستمر أثناء العد؛إذا تغيرت اللقطة يُرفض الترحيل ويلزم إلغاء الجرد وإعادة العد. يعتمد الجرد مستخدم مستقل عن منفذ العد."
+          : "Confirm every line explicitly. Stock movements continue during counting; changed snapshots require cancellation and recounting. Posting requires an independent approver."}
+      </p>
+      {message && <p role="alert">{message}</p>}
+      {isNew ? (
+        canManage ? (
+          <form
+            className="space-y-3"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void create();
+            }}
+          >
+            <label>
+              {ar ? "المخزن" : "Warehouse"}
+              <select
+                required
+                disabled={busy || warehouses.isError}
+                value={warehouseId}
+                onChange={(e) => setWarehouseId(e.target.value)}
+                className="block bg-slate-800 p-2"
+              >
+                <option value="">
+                  {ar ? "اختر المخزن" : "Select warehouse"}
+                </option>
+                {warehouses.data
+                  ?.filter((w) => w.isActive !== false)
+                  .map((w) => (
+                    <option value={w.id} key={w.id}>
+                      {w.name}
+                    </option>
+                  ))}
+              </select>
+            </label>
+            <label>
+              {ar ? "نوع الجرد" : "Count type"}
+              <select
+                value={type}
+                disabled={busy}
+                onChange={(e) => setType(e.target.value)}
+                className="block bg-slate-800 p-2"
+              >
+                <option value="FULL">{ar ? "شامل" : "Full"}</option>
+                <option value="QUARTERLY">
+                  {ar ? "ربع سنوي" : "Quarterly"}
+                </option>
+                <option value="SPOT_CHECK">
+                  {ar ? "مفاجئ" : "Spot check"}
+                </option>
+              </select>
+            </label>
+            <label>
+              {ar ? "ملاحظات" : "Notes"}
+              <input
+                maxLength={500}
+                value={notes}
+                disabled={busy}
+                onChange={(e) => setNotes(e.target.value)}
+                className="block bg-slate-800 p-2"
+              />
+            </label>
+            <button
+              type="submit"
+              disabled={busy || !warehouseId || warehouses.isError}
             >
-                <Printer className="w-4 h-4" /> {t("inventory.count.details.printBtn", "طباعة القائمة")}
+              {ar ? "أخذ لقطة وبدء الجرد" : "Take snapshot and create count"}
             </button>
-           {isEditable && (
-             <button
-                onClick={handlePost}
-                disabled={saving}
-                className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-emerald-900/20 transition-all flex items-center gap-2 disabled:opacity-50"
-             >
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
-                {t("inventory.count.details.postBtn", "اعتماد وترحيل الفروقات")}
-             </button>
-           )}
-        </div>
-      </div>
-
-      {/* Warning Box for Review */}
-      {count.lines.some(l => Number(l.variance) !== 0) && isEditable && (
-          <div className="bg-amber-900/10 border border-amber-500/20 p-4 rounded-2xl flex items-start gap-3">
-              <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
-              <div>
-                  <h4 className="font-bold text-amber-400 text-sm">{t("inventory.count.details.varianceWarningTitle", "تنبيه وجود فروقات")}</h4>
-                  <p className="text-xs text-amber-200/70 mt-1">{t("inventory.count.details.varianceWarningDesc", "يوجد فروقات بين الرصيد النظامي والجرد الفعلي للأصناف. عند الاعتماد، سيقوم النظام بإنشاء حركة تسوية مخزنية وتوليد القيد المحاسبي للفارق تلقائياً.")}</p>
-              </div>
-          </div>
-      )}
-
-      {/* Main Table */}
-      <div className="flex-1 bg-slate-900/50 border border-slate-800 rounded-3xl overflow-hidden flex flex-col shadow-2xl">
-        <div className="overflow-x-auto flex-1 custom-scrollbar">
-          <table className={`w-full text-sm ${isRtl ? "text-right" : "text-left"}`}>
-            <thead className="bg-slate-950/50 text-slate-500 sticky top-0 backdrop-blur z-10">
-              <tr className="text-[10px] uppercase tracking-widest border-b border-slate-800">
-                <th className="px-6 py-4 font-bold w-[30%]">{t("inventory.warehouse.tableProduct", "الصنف")}</th>
-                <th className="px-6 py-4 font-bold">{t("inventory.count.details.tableBatchExpiry", "التشغيلة / الصلاحية")}</th>
-                <th className="px-6 py-4 font-bold text-center">{t("inventory.count.details.tableSystemQty", "رصيد النظام")}</th>
-                <th className="px-6 py-4 font-bold text-center w-32">{t("inventory.count.details.tablePhysicalQty", "الجرد الفعلي")}</th>
-                <th className="px-6 py-4 font-bold text-center">{t("inventory.count.details.tableVariance", "الفارق")}</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800/50 text-xs">
-                {count.lines?.map((line) => (
-                    <tr key={line.id} className="hover:bg-white/[0.02] transition-colors group">
-                        <td className="px-6 py-4">
-                            <div className="font-bold text-slate-200 text-sm mb-1">{line.product?.name}</div>
-                            <div className="text-[10px] font-mono text-slate-500 bg-slate-950/50 px-2 py-0.5 rounded w-fit">{line.product?.code}</div>
-                        </td>
-                        <td className="px-6 py-4 text-slate-400">
-                            {line.batchNumber ? (
-                                <div className="flex flex-col gap-1">
-                                    <span className="text-slate-300 font-mono text-[11px]">BN: {line.batchNumber}</span>
-                                    {line.expiryDate && <span className="text-[10px] text-slate-500">Exp: {formatDate(line.expiryDate)}</span>}
-                                </div>
-                            ) : (
-                                <span className="opacity-30">-</span>
-                            )}
-                        </td>
-                        <td className="px-6 py-4 text-center font-mono text-slate-300 font-medium text-sm">
-                            {Number(line.systemQty).toFixed(2)}
-                        </td>
-                        <td className="px-6 py-4 text-center">
-                            {isEditable ? (
-                                <input
-                                    type="number"
-                                    className={`w-24 bg-slate-950 border rounded-lg px-2 py-1.5 text-center font-bold text-sm outline-none transition-all focus:ring-2 focus:ring-sky-500/50
-                                        ${Number(line.physicalQty) !== Number(line.systemQty) 
-                                            ? "border-amber-500/50 text-amber-400 bg-amber-900/10" 
-                                            : "border-slate-700 text-white focus:border-sky-500"}`}
-                                    value={line.physicalQty}
-                                    onChange={(e) => handleUpdateLine(line.id, parseFloat(e.target.value))}
-                                    onFocus={(e) => e.target.select()}
-                                />
-                            ) : (
-                                <span className="font-bold text-white text-sm">{Number(line.physicalQty).toFixed(2)}</span>
-                            )}
-                        </td>
-                        <td className="px-6 py-4 text-center">
-                            <span className={`px-3 py-1 rounded-lg font-bold font-mono text-xs block w-fit mx-auto ${
-                                Number(line.variance) < 0 
-                                    ? "bg-rose-900/20 text-rose-400 border border-rose-500/20" 
-                                    : Number(line.variance) > 0 
-                                        ? "bg-emerald-900/20 text-emerald-400 border border-emerald-500/20" 
-                                        : "text-slate-600 opacity-50"
-                             }`}>
-                                {Number(line.variance) > 0 ? "+" : ""}{Number(line.variance).toFixed(2)}
-                            </span>
-                        </td>
+            {warehouses.isError && (
+              <p role="alert">
+                {ar ? "تعذر تحميل المخازن" : "Could not load warehouses"}
+              </p>
+            )}
+          </form>
+        ) : (
+          <p>
+            {ar
+              ? "ليست لديك صلاحية إنشاء الجرد"
+              : "Count management permission is required"}
+          </p>
+        )
+      ) : query.isPending ? (
+        <p>{ar ? "جارٍ التحميل" : "Loading"}</p>
+      ) : query.isError ? (
+        <p role="alert">{ar ? "تعذر تحميل الجرد" : "Could not load count"}</p>
+      ) : (
+        count && (
+          <>
+            <p>
+              {count.warehouse.name} — {count.status}
+            </p>
+            <div className="flex flex-wrap gap-4">
+              {dirty && <button disabled={busy} onClick={() => { setDrafts({}); void query.refetch(); }}>{ar ? 'استبعاد التعديلات المحلية وإعادة التحميل' : 'Discard local edits and reload'}</button>}
+              <button
+                disabled={busy || dirty}
+                onClick={() => void query.refetch()}
+              >
+                {ar ? "تحديث البيانات" : "Reload"}
+              </button>
+              <button
+                onClick={() =>
+                  window.open(`/inventory/counts/${id}/print`, "_blank")
+                }
+              >
+                {ar ? "طباعة" : "Print"}
+              </button>
+              {canManage && count.status === "IN_PROGRESS" && (
+                <button
+                  disabled={busy || dirty || !allCounted}
+                  onClick={() => void transition("REVIEW")}
+                >
+                  {ar ? "إرسال للمراجعة" : "Submit for review"}
+                </button>
+              )}
+              {canManage && count.status === "REVIEW" && (
+                <button
+                  disabled={busy}
+                  onClick={() => void transition("IN_PROGRESS")}
+                >
+                  {ar ? "إعادة للعد" : "Return to counting"}
+                </button>
+              )}
+              {canPost && count.status === "REVIEW" && (
+                <button
+                  disabled={busy || !independent}
+                  onClick={() => void transition("POSTED")}
+                >
+                  {ar ? "اعتماد وترحيل مستقل" : "Approve and post"}
+                </button>
+              )}
+              {canManage && !["POSTED", "CANCELLED"].includes(count.status) && (
+                <button
+                  disabled={busy || dirty}
+                  onClick={() => void transition("CANCELLED")}
+                >
+                  {ar ? "إلغاء الجرد" : "Cancel count"}
+                </button>
+              )}
+            </div>
+            {canPost && count.status === "REVIEW" && !independent && (
+              <p>
+                {ar
+                  ? "لا يجوز اعتماد الجرد الذي شاركت في عده"
+                  : "You cannot approve a count you participated in"}
+              </p>
+            )}
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr>
+                    {(ar
+                      ? [
+                          "الصنف",
+                          "التشغيلة",
+                          "لقطة النظام",
+                          "العد الفعلي",
+                          "الفرق",
+                          "تكلفة الوحدة",
+                          "الحفظ",
+                        ]
+                      : [
+                          "Product",
+                          "Batch",
+                          "Snapshot quantity",
+                          "Physical count",
+                          "Variance",
+                          "Unit cost",
+                          "Save",
+                        ]
+                    ).map((h) => (
+                      <th className="p-2" key={h}>
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {count.lines.map((line) => (
+                    <tr key={line.id}>
+                      <td className="p-2">{line.product.name}</td>
+                      <td>{line.batchNumber}</td>
+                      <td>{line.systemQty}</td>
+                      <td>
+                        {editable ? (
+                          <input
+                            aria-label={`${ar ? "عد" : "Count"} ${line.id}`}
+                            type="text"
+                            inputMode="decimal"
+                            value={drafts[line.id] ?? line.physicalQty ?? ""}
+                            disabled={busy}
+                            onChange={(e) =>
+                              setDrafts((old) => ({
+                                ...old,
+                                [line.id]: e.target.value,
+                              }))
+                            }
+                            className="bg-slate-800 p-2"
+                          />
+                        ) : (
+                          (line.physicalQty ?? (ar ? "لم يُعد" : "Not counted"))
+                        )}
+                      </td>
+                      <td>{line.physicalQty === null ? "—" : line.variance}</td>
+                      <td>{formatMoney(line.costPrice, false)}</td>
+                      <td>
+                        {editable && (
+                          <button
+                            disabled={
+                              busy ||
+                              (drafts[line.id] ?? line.physicalQty ?? "") === ""
+                            }
+                            onClick={() => void save(line)}
+                          >
+                            {ar ? "تأكيد العد" : "Confirm count"}
+                          </button>
+                        )}
+                      </td>
                     </tr>
-                ))}
-                {count.lines?.length === 0 && (
-                     <tr>
-                        <td colSpan={5} className="text-center py-20 text-slate-500">
-                          {t("inventory.count.details.emptyLines", "لا توجد أصناف في هذا الجرد.")}
-                        </td>
-                      </tr>
-                )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )
+      )}
     </div>
   );
 }

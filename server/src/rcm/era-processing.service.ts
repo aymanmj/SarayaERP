@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ClsService } from 'nestjs-cls';
+import { Money } from '../common/utils/money.util';
 
 /**
  * خدمة معالجة إشعارات التحويل الإلكتروني (ERA - Electronic Remittance Advice)
@@ -57,17 +58,17 @@ export class EraProcessingService {
 
     // 1. حساب الإجماليات للمطابقة (Reconciliation)
     const totalClaims = data.lineItems.length;
-    const totalAdjustments = data.lineItems.reduce(
-      (acc, item) => acc + (item.adjustmentAmount || 0),
-      0,
+    const totalAdjustments = Money.toDb(
+      Money.sum(...data.lineItems.map((item) => item.adjustmentAmount || 0)),
     );
-    const computedTotalPaid = data.lineItems.reduce(
-      (acc, item) => acc + item.paidAmount,
-      0,
+    const computedTotalPaid = Money.toDb(
+      Money.sum(...data.lineItems.map((item) => item.paidAmount)),
     );
 
     // التحقق من صحة إجمالي الملف
-    if (Math.abs(computedTotalPaid - data.totalPaid) > 0.01) {
+    if (
+      !Money.eq(Money.round(computedTotalPaid), Money.round(data.totalPaid))
+    ) {
       this.logger.warn(
         `ERA ${data.eraNumber}: إجمالي المدفوعات لا يتطابق. مدعّى: ${data.totalPaid}, محسوب: ${computedTotalPaid}`,
       );
@@ -80,6 +81,7 @@ export class EraProcessingService {
         const claim = await this.prisma.claim.findFirst({
           where: {
             hospitalId, // ضمان الأمان (RLS)
+            status: { not: 'VOID' },
             OR: [
               { claimNumber: item.claimNumber },
               { externalClaimId: item.claimNumber },
@@ -90,9 +92,9 @@ export class EraProcessingService {
         // تصنيف الحالة
         let status = 'UNMATCHED';
         if (claim) {
-          if (item.paidAmount === 0 && item.denialCode) {
+          if (Money.isZero(item.paidAmount) && item.denialCode) {
             status = 'DENIED';
-          } else if (item.paidAmount < Number(claim.claimedAmount)) {
+          } else if (Money.lt(item.paidAmount, claim.claimedAmount)) {
             status = 'UNDERPAID';
           } else {
             status = 'MATCHED';
@@ -139,9 +141,13 @@ export class EraProcessingService {
   /**
    * تطبيق التسويات واعتماد المطالبات بناءً على ملف ERA
    */
-  async reconcileEra(eraId: number, userId: number) {
-    const era = await this.prisma.eRATransaction.findUnique({
-      where: { id: eraId },
+  async reconcileEra(eraId: number, userId: number, hospitalIdParam?: number) {
+    const hospitalId = hospitalIdParam ?? this.cls.get('hospitalId');
+    const era = await this.prisma.eRATransaction.findFirst({
+      where: {
+        id: eraId,
+        ...(hospitalId ? { hospitalId } : {}),
+      },
       include: { lineItems: true },
     });
 
@@ -149,22 +155,64 @@ export class EraProcessingService {
     if (era.status === 'RECONCILED')
       throw new BadRequestException('تمت تسوية هذا الملف مسبقاً');
 
+    if (
+      era.lineItems.some(
+        (item) =>
+          !Money.isZero(item.paidAmount) ||
+          !Money.isZero(item.adjustmentAmount ?? 0) ||
+          item.status === 'MATCHED' ||
+          item.status === 'UNDERPAID',
+      )
+    ) {
+      throw new BadRequestException(
+        'ترحيل ERA المالي يحتاج مطابقة بدفتر التحصيل؛استخدم تحصيل المطالبة المعتمد ولا تعِد تسجيل المبلغ يدويًا',
+      );
+    }
+
     let processedCount = 0;
 
     // استخدام Transaction لضمان سلامة التحديثات
     await this.prisma.$transaction(async (tx) => {
+      if (
+        await tx.claimReceipt.count({
+          where: {
+            hospitalId: era.hospitalId,
+            claimId: {
+              in: era.lineItems.flatMap((i) => (i.claimId ? [i.claimId] : [])),
+            },
+          },
+        })
+      )
+        throw new BadRequestException(
+          'توجد تحصيلات مثبتة لهذه المطالبة؛تلزم مطابقة ERA دون إعادة ترحيل الرصيد',
+        );
       for (const item of era.lineItems) {
         if (!item.claimId) continue;
+
+        const existingClaim = await tx.claim.findFirst({
+          where: {
+            id: item.claimId,
+            hospitalId: era.hospitalId,
+          },
+        });
+        if (!existingClaim) continue;
+        if (existingClaim.status === 'VOID')
+          throw new BadRequestException(
+            'يحتاج ملف التسوية لمراجعة بند المطالبة المسحوبة',
+          );
 
         const newStatus = this.determineClaimStatus(item.status);
 
         // تحديث المطالبة
         await tx.claim.update({
-          where: { id: item.claimId },
+          where: { id: existingClaim.id },
           data: {
             status: newStatus,
-            paidAmount: item.paidAmount,
-            adjustmentAmount: item.adjustmentAmount,
+            paidAmount: Money.toDb(item.paidAmount),
+            adjustmentAmount:
+              item.adjustmentAmount != null
+                ? Money.toDb(item.adjustmentAmount)
+                : undefined,
             adjustmentReason: item.adjustmentReason || item.adjustmentCode,
             denialCode: item.denialCode,
             denialReason: item.denialReason,
@@ -175,8 +223,8 @@ export class EraProcessingService {
         // تسجيل في تاريخ المطالبة
         await tx.claimHistory.create({
           data: {
-            claimId: item.claimId,
-            fromStatus: 'SUBMITTED', // افتراض أنها كانت مرسلة
+            claimId: existingClaim.id,
+            fromStatus: existingClaim.status,
             toStatus: newStatus,
             changedById: userId,
             notes: `ERA Reconciled (ERA: ${era.eraNumber}) - Paid: ${item.paidAmount}, Adj: ${item.adjustmentAmount}`,
@@ -188,7 +236,7 @@ export class EraProcessingService {
 
       // تحديث حالة ERA
       await tx.eRATransaction.update({
-        where: { id: eraId },
+        where: { id: era.id },
         data: {
           status: 'RECONCILED',
           reconciledAt: new Date(),
