@@ -12,6 +12,7 @@ import {
   lockFinancialInvoice,
 } from '../accounting/financial-posting';
 import { appendChainedAuditInTransaction } from '../audit/audit-chain';
+import { publishCommittedCriticalAudit } from '../audit/siem.logger';
 import { Money } from '../common/utils/money.util';
 import { allocateRoomDays } from '../admission/room-allocation';
 import { parseRoomRateSnapshot } from '../admission/room-rate-snapshot';
@@ -395,7 +396,8 @@ export class InvoiceAdjustmentsService {
       partialDispense?: boolean;
     },
   ) {
-    return this.prisma.$transaction(
+    const committedAudits: Record<string, unknown>[] = [];
+    const result = await this.prisma.$transaction(
       async (tx) => {
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(27007, ${hospitalId}::integer)`;
         const locked = await lockFinancialInvoice(tx, hospitalId, invoiceId);
@@ -501,7 +503,7 @@ export class InvoiceAdjustmentsService {
             } as unknown as Prisma.InputJsonValue,
           },
         });
-        await appendChainedAuditInTransaction(tx, {
+        const auditEntry = await appendChainedAuditInTransaction(tx, {
           hospitalId,
           userId,
           action: 'REQUEST_INVOICE_ADJUSTMENT',
@@ -515,10 +517,13 @@ export class InvoiceAdjustmentsService {
             reason: adjustment.reason,
           },
         });
+        committedAudits.push(auditEntry);
         return adjustment;
       },
       { maxWait: 10000, timeout: 20000 },
     );
+    for (const entry of committedAudits) publishCommittedCriticalAudit(entry);
+    return result;
   }
 
   async review(
@@ -529,7 +534,8 @@ export class InvoiceAdjustmentsService {
     action: 'POST' | 'REJECT' | 'CANCEL',
     reason: string,
   ) {
-    return this.prisma.$transaction(
+    const committedAudits: Record<string, unknown>[] = [];
+    const result = await this.prisma.$transaction(
       async (tx) => {
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(27007, ${hospitalId}::integer)`;
         const locked = await lockFinancialInvoice(tx, hospitalId, invoiceId);
@@ -754,14 +760,18 @@ export class InvoiceAdjustmentsService {
                 data: { status: 'CANCELLED' },
               });
             }
-            await appendChainedAuditInTransaction(tx, {
-              hospitalId,
-              userId,
-              action: 'CANCEL_PREPAID_PRESCRIPTION',
-              entity: 'Prescription',
-              entityId: prescriptionId,
-              newValues: { invoiceId, adjustmentId, postingEntryId },
-            });
+            const prescriptionAudit = await appendChainedAuditInTransaction(
+              tx,
+              {
+                hospitalId,
+                userId,
+                action: 'CANCEL_PREPAID_PRESCRIPTION',
+                entity: 'Prescription',
+                entityId: prescriptionId,
+                newValues: { invoiceId, adjustmentId, postingEntryId },
+              },
+            );
+            committedAudits.push(prescriptionAudit);
           }
         }
         const updated = await tx.invoiceAdjustment.update({
@@ -792,7 +802,7 @@ export class InvoiceAdjustmentsService {
               : {}),
           },
         });
-        await appendChainedAuditInTransaction(tx, {
+        const reviewAudit = await appendChainedAuditInTransaction(tx, {
           hospitalId,
           userId,
           action: `INVOICE_ADJUSTMENT_${status}`,
@@ -807,9 +817,12 @@ export class InvoiceAdjustmentsService {
             insuranceDelta: adjustment.insuranceDelta.toString(),
           },
         });
+        committedAudits.push(reviewAudit);
         return updated;
       },
       { maxWait: 10000, timeout: 20000 },
     );
+    for (const entry of committedAudits) publishCommittedCriticalAudit(entry);
+    return result;
   }
 }

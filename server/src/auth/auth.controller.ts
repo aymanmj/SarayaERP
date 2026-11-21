@@ -23,6 +23,7 @@ import { JwtAuthGuard } from './jwt-auth.guard';
 import { CurrentUser } from './current-user.decorator';
 import type { JwtPayload } from './jwt-payload.type';
 import { Sensitive } from '../audit/audit.decorator';
+import { buildAuthCookieOptions } from '../common/security/http-security.config';
 
 @Controller('auth')
 export class AuthController {
@@ -119,8 +120,7 @@ export class AuthController {
   ) {
     await this.authService.logout(user);
 
-    response.clearCookie('Authentication');
-    response.clearCookie('Refresh');
+    this.clearCookies(response);
     return { success: true };
   }
 
@@ -153,8 +153,7 @@ export class AuthController {
     @Res({ passthrough: true }) response: Response,
   ) {
     await this.authService.logout(user, true);
-    response.clearCookie('Authentication');
-    response.clearCookie('Refresh');
+    this.clearCookies(response);
     return { success: true };
   }
 
@@ -177,25 +176,22 @@ export class AuthController {
     return { accessToken };
   }
 
+  private clearCookies(res: Response) {
+    const base = buildAuthCookieOptions();
+    res.clearCookie('Authentication', base);
+    res.clearCookie('Refresh', base);
+  }
+
   private setCookies(res: Response, at: string, rt: string) {
-    const isSecure =
-      process.env.COOKIE_SECURE === 'true' ||
-      (process.env.NODE_ENV === 'production' &&
-        process.env.COOKIE_SECURE !== 'false');
+    const base = buildAuthCookieOptions();
 
     res.cookie('Authentication', at, {
-      httpOnly: true,
-      secure: isSecure,
-      sameSite: 'lax',
-      path: '/',
+      ...base,
       maxAge: 15 * 60 * 1000, // 15m
     });
 
     res.cookie('Refresh', rt, {
-      httpOnly: true,
-      secure: isSecure,
-      sameSite: 'lax',
-      path: '/',
+      ...base,
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7d
     });
   }

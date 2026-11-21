@@ -1,14 +1,14 @@
 # ABAC & Tenant Isolation Coverage Report
 
-**Generated:** 2026-11-08
+**Generated:** 2026-11-21
 
 | Metric | Count | Percentage |
 |--------|-------|------------|
-| Total Controllers | 97 | — |
-| ABAC Guarded | 97 | 100% |
-| Tenant Isolated | 97 | 100% |
+| Total Controllers | 100 | — |
+| ABAC Guarded | 100 | 100% |
+| Tenant Isolated | 100 | 100% |
 | Exempt (Auth/Health/FHIR) | 12 | — |
-| **Effective ABAC Coverage** | **85/85** | **100%** |
+| **Effective ABAC Coverage** | **88/88** | **100%** |
 
 ## Compliant Controllers
 
@@ -80,6 +80,9 @@
 | PurchasesController | ✅ | ✅ |
 | QualityController | ✅ | ✅ |
 | RadiologyController | ✅ | ✅ |
+| RadiologyPacsController | ✅ | ✅ |
+| RadiologyViewerController | ✅ | ✅ |
+| RecallDisposalController | ✅ | ✅ |
 | ReferralController | ✅ | ✅ |
 | RefundWorklistController | ✅ | ✅ |
 | RegistriesController | ✅ | ✅ |

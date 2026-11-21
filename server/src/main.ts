@@ -13,13 +13,19 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import compression from 'compression';
-import { isIP } from 'node:net';
 import { ProxyAgent, setGlobalDispatcher } from 'undici';
+import {
+  buildCspDirectives,
+  isCorsOriginAllowed,
+  parseConfiguredOrigins,
+} from './common/security/http-security.config';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
   const isProduction = process.env.NODE_ENV === 'production';
-  const enableStrictCsp = process.env.ENABLE_STRICT_CSP === 'true';
+  const enableStrictCsp = isProduction
+    ? process.env.ENABLE_STRICT_CSP !== 'false'
+    : process.env.ENABLE_STRICT_CSP === 'true';
 
   // ============================================
   // 🌐 GLOBAL PROXY SUPPORT (For undici/fetch)
@@ -70,42 +76,17 @@ async function bootstrap() {
 
   // Dynamic domain for multi-tenant deployments
   const sarayaDomain = process.env.SARAYA_DOMAIN || '';
-  const cspConnectSrc: string[] = [
-    "'self'",
-    'http://localhost:*',
-    'ws://localhost:*',
-  ];
-  if (sarayaDomain) {
-    cspConnectSrc.push(`https://${sarayaDomain}`, `wss://${sarayaDomain}`);
-  }
-
-  const compatibilityCspDirectives = {
-    defaultSrc: ["'self'"],
-    baseUri: ["'self'"],
-    objectSrc: ["'none'"],
-    frameAncestors: ["'self'"],
-    styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
-    fontSrc: ["'self'", 'data:', 'https://fonts.gstatic.com'],
-    scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
-    imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
-    mediaSrc: ["'self'", 'data:', 'blob:'],
-    connectSrc: cspConnectSrc,
-    workerSrc: ["'self'", 'blob:'],
-  };
-
-  const strictCspDirectives = {
-    ...compatibilityCspDirectives,
-    scriptSrc: ["'self'"],
-  };
+  const cspDirectives = buildCspDirectives({
+    isProduction,
+    enableStrictCsp,
+    sarayaDomain,
+  });
 
   // Helmet: Security headers (XSS, clickjacking, etc.)
   app.use(
     helmet({
       contentSecurityPolicy: {
-        directives:
-          isProduction && enableStrictCsp
-            ? strictCspDirectives
-            : compatibilityCspDirectives,
+        directives: cspDirectives,
       },
       crossOriginEmbedderPolicy: false, // For WebSocket compatibility
       crossOriginResourcePolicy: { policy: 'cross-origin' },
@@ -114,7 +95,7 @@ async function bootstrap() {
 
   if (isProduction && !enableStrictCsp) {
     logger.warn(
-      '⚠️ Running with compatibility CSP. Set ENABLE_STRICT_CSP=true after frontend CSP hardening is complete.',
+      '⚠️ Running with compatibility CSP in production because ENABLE_STRICT_CSP=false. Re-enable strict CSP after frontend CSP hardening is verified.',
     );
   }
 
@@ -161,19 +142,9 @@ async function bootstrap() {
   // ============================================
   // 🌐 CORS CONFIGURATION
   // ============================================
-  const configuredOrigins = (
-    process.env.CORS_ORIGINS ||
-    process.env.CORS_ORIGIN ||
-    ''
-  )
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean);
-
-  // In production: require explicit CORS_ORIGINS. In dev: allow all for convenience.
-  const allowAllOrigins =
-    !isProduction &&
-    (configuredOrigins.includes('*') || configuredOrigins.length === 0);
+  const configuredOrigins = parseConfiguredOrigins(
+    process.env.CORS_ORIGINS || process.env.CORS_ORIGIN,
+  );
 
   if (isProduction && configuredOrigins.length === 0) {
     logger.warn(
@@ -183,39 +154,12 @@ async function bootstrap() {
 
   app.enableCors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (mobile apps, Postman, curl, same-origin)
-      if (!origin) {
-        return callback(null, true);
-      }
-
-      // In dev mode with no config: reflect requesting origin
-      if (allowAllOrigins) {
-        return callback(null, origin);
-      }
-
-      // 🏥 OFFLINE-FIX: Auto-allow requests from LAN (private network IPs)
-      // This ensures the system works locally without listing every possible local origin
-      try {
-        const originUrl = new URL(origin);
-        const host = originUrl.hostname;
-        if (
-          !isProduction &&
-          (host === 'localhost' ||
-            (isIP(host) === 4 &&
-              (host.startsWith('127.') ||
-                host.startsWith('10.') ||
-                host.startsWith('192.168.') ||
-                /^172\.(1[6-9]|2\d|3[01])\./.test(host))))
-        ) {
-          return callback(null, origin);
-        }
-      } catch {
-        /* invalid origin URL — fall through to whitelist check */
-      }
-
-      // Check if origin is in whitelist
-      if (configuredOrigins.includes(origin)) {
-        return callback(null, origin);
+      const check = isCorsOriginAllowed(origin, {
+        isProduction,
+        configuredOrigins,
+      });
+      if (check.allowed) {
+        return callback(null, check.reflectOrigin ?? true);
       }
 
       // Origin not allowed

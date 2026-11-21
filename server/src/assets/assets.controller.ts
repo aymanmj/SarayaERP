@@ -41,7 +41,12 @@ export class AssetsController {
   }
 
   @Get()
-  @Permissions('assets:manage')
+  @Permissions(
+    'assets:view',
+    'assets:dashboard:view',
+    'assets:manage',
+    'assets:maintenance:manage',
+  )
   async listAssets(@Req() req: any, @Query('q') q?: string) {
     return this.assetsService.getAssets(req.user.hospitalId, q);
   }
@@ -60,7 +65,11 @@ export class AssetsController {
 
   // --- Maintenance ---
   @Post('maintenance')
-  @Permissions('assets:view') // أي شخص يمكنه الإبلاغ عن عطل
+  @Permissions(
+    'assets:manage',
+    'assets:maintenance:manage',
+    'assets:maintenance:report',
+  )
   async createTicket(@Req() req: any, @Body() body: any) {
     return this.assetsService.createMaintenanceTicket({
       hospitalId: req.user.hospitalId,
@@ -73,7 +82,12 @@ export class AssetsController {
   }
 
   @Get('maintenance')
-  @Permissions('assets:manage')
+  @Permissions(
+    'assets:view',
+    'assets:dashboard:view',
+    'assets:manage',
+    'assets:maintenance:manage',
+  )
   async getTickets(@Req() req: any, @Query('status') status?: string) {
     return this.assetsService.getTickets(
       req.user.hospitalId,

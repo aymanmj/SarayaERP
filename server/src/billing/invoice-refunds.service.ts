@@ -12,6 +12,7 @@ import {
   lockFinancialInvoice,
 } from '../accounting/financial-posting';
 import { appendChainedAuditInTransaction } from '../audit/audit-chain';
+import { publishCommittedCriticalAudit } from '../audit/siem.logger';
 import { adjustmentBalance } from './invoice-snapshot';
 import {
   fullInsuredPrescriptionCredit,
@@ -248,7 +249,8 @@ export class InvoiceRefundsService {
   ) {
     const amount = validAmount(dto.amount);
     const reason = evidence(dto.reason);
-    return cashTransaction(
+    let committedAudit: Record<string, unknown> | null = null;
+    const result = await cashTransaction(
       this.prisma,
       async (tx) => {
         await lockFinancialInvoice(tx, hospitalId, invoiceId);
@@ -301,7 +303,7 @@ export class InvoiceRefundsService {
             },
           },
         });
-        await this.audit(
+        committedAudit = await this.audit(
           tx,
           hospitalId,
           userId,
@@ -319,6 +321,8 @@ export class InvoiceRefundsService {
       },
       { maxWait: 10000, timeout: 20000 },
     );
+    if (committedAudit) publishCommittedCriticalAudit(committedAudit);
+    return result;
   }
   private audit(
     tx: Prisma.TransactionClient,
@@ -359,7 +363,8 @@ export class InvoiceRefundsService {
     reason: string,
   ) {
     reason = evidence(reason);
-    return cashTransaction(
+    let committedAudit: Record<string, unknown> | null = null;
+    const result = await cashTransaction(
       this.prisma,
       async (tx) => {
         const row = await this.locked(tx, hospitalId, invoiceId, id);
@@ -419,7 +424,7 @@ export class InvoiceRefundsService {
                 }),
           },
         });
-        await this.audit(
+        committedAudit = await this.audit(
           tx,
           hospitalId,
           userId,
@@ -431,6 +436,8 @@ export class InvoiceRefundsService {
       },
       { maxWait: 10000, timeout: 20000 },
     );
+    if (committedAudit) publishCommittedCriticalAudit(committedAudit);
+    return result;
   }
   private async payoutAccounts(
     tx: Prisma.TransactionClient,
@@ -482,7 +489,8 @@ export class InvoiceRefundsService {
     userId: number,
     requestId: string,
   ) {
-    return cashTransaction(this.prisma, async (tx) => {
+    let committedAudit: Record<string, unknown> | null = null;
+    const result = await cashTransaction(this.prisma, async (tx) => {
       const row = await this.locked(tx, hospitalId, invoiceId, id);
       if (row.status === 'DISBURSING' && row.assignedExecutorId === userId)
         return row;
@@ -531,13 +539,22 @@ export class InvoiceRefundsService {
           sessionId: row.method === 'CASH' ? session!.id : null,
         },
       });
-      await this.audit(tx, hospitalId, userId, 'PREPARE_INVOICE_REFUND', id, {
-        invoiceId,
-        sessionId: updated.sessionId,
-        amount: row.amount.toString(),
-      });
+      committedAudit = await this.audit(
+        tx,
+        hospitalId,
+        userId,
+        'PREPARE_INVOICE_REFUND',
+        id,
+        {
+          invoiceId,
+          sessionId: updated.sessionId,
+          amount: row.amount.toString(),
+        },
+      );
       return updated;
     });
+    if (committedAudit) publishCommittedCriticalAudit(committedAudit);
+    return result;
   }
   async release(
     hospitalId: number,
@@ -552,7 +569,8 @@ export class InvoiceRefundsService {
       throw new BadRequestException(
         'يلزم التأكد من عدم صرف المبلغ قبل تحرير الحجز',
       );
-    return cashTransaction(this.prisma, async (tx) => {
+    let committedAudit: Record<string, unknown> | null = null;
+    const result = await cashTransaction(this.prisma, async (tx) => {
       const row = await this.locked(tx, hospitalId, invoiceId, id);
       if (row.reviewedById !== userId || row.assignedExecutorId === userId)
         throw new ForbiddenException('تحرير الحجز للمعتمد المستقل فقط');
@@ -574,13 +592,22 @@ export class InvoiceRefundsService {
           releasedAt: new Date(),
         },
       });
-      await this.audit(tx, hospitalId, userId, 'RELEASE_UNPAID_REFUND', id, {
-        invoiceId,
-        reason,
-        confirmedNotPaid: true,
-      });
+      committedAudit = await this.audit(
+        tx,
+        hospitalId,
+        userId,
+        'RELEASE_UNPAID_REFUND',
+        id,
+        {
+          invoiceId,
+          reason,
+          confirmedNotPaid: true,
+        },
+      );
       return updated;
     });
+    if (committedAudit) publishCommittedCriticalAudit(committedAudit);
+    return result;
   }
   async execute(
     hospitalId: number,
@@ -598,7 +625,8 @@ export class InvoiceRefundsService {
     const proof = evidence(dto.evidence);
     if (dto.confirmedPaid !== true)
       throw new BadRequestException('يلزم تأكيد تنفيذ الدفع واستلام المستفيد');
-    return cashTransaction(
+    let committedAudit: Record<string, unknown> | null = null;
+    const result = await cashTransaction(
       this.prisma,
       async (tx) => {
         const row = await this.locked(tx, hospitalId, invoiceId, id);
@@ -696,20 +724,29 @@ export class InvoiceRefundsService {
             sessionId: row.method === 'CASH' ? session!.id : null,
           },
         });
-        await this.audit(tx, hospitalId, userId, 'EXECUTE_INVOICE_REFUND', id, {
-          invoiceId,
-          paymentId: row.paymentId,
-          adjustmentId: row.adjustmentId,
-          amount: row.amount.toString(),
-          method: row.method,
-          reference,
-          evidence: proof,
-          postingEntryId: entry.id,
-          sessionId: updated.sessionId,
-        });
+        committedAudit = await this.audit(
+          tx,
+          hospitalId,
+          userId,
+          'EXECUTE_INVOICE_REFUND',
+          id,
+          {
+            invoiceId,
+            paymentId: row.paymentId,
+            adjustmentId: row.adjustmentId,
+            amount: row.amount.toString(),
+            method: row.method,
+            reference,
+            evidence: proof,
+            postingEntryId: entry.id,
+            sessionId: updated.sessionId,
+          },
+        );
         return updated;
       },
       { maxWait: 10000, timeout: 20000 },
     );
+    if (committedAudit) publishCommittedCriticalAudit(committedAudit);
+    return result;
   }
 }

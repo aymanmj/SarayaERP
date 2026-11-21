@@ -20,7 +20,7 @@ import { PermissionsGuard } from '../auth/permissions.guard';
 import { Permissions } from '../auth/permissions.decorator';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { JwtPayload } from '../auth/jwt-payload.type';
-import { Sensitive } from '../audit/audit.decorator';
+import { AuditInTransaction } from '../audit/audit.decorator';
 import { CashierSessionsService } from './cashier-sessions.service';
 class SessionRequestDto {
   @IsString() @Matches(/^(0|[1-9]\d{0,14})(\.\d{1,3})?$/) amount: string;
@@ -55,13 +55,13 @@ export class CashierSessionsController {
   }
   @Post()
   @Permissions('cashier:manage')
-  @Sensitive('REQUEST_CASH_SESSION')
+  @AuditInTransaction()
   request(@Body() dto: SessionRequestDto, @CurrentUser() user: JwtPayload) {
     return this.service.request(user.hospitalId, user.sub, dto);
   }
   @Post(':id/approve')
   @Permissions('cashier:sessions:approve')
-  @Sensitive('APPROVE_CASH_SESSION')
+  @AuditInTransaction()
   approve(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: SessionReviewDto,
@@ -78,7 +78,7 @@ export class CashierSessionsController {
   }
   @Post(':id/reject')
   @Permissions('cashier:sessions:approve')
-  @Sensitive('REJECT_CASH_SESSION')
+  @AuditInTransaction()
   reject(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: SessionReviewDto,
@@ -95,7 +95,7 @@ export class CashierSessionsController {
   }
   @Post(':id/handovers')
   @Permissions('cashier:manage')
-  @Sensitive('REQUEST_CASH_HANDOVER')
+  @AuditInTransaction()
   handover(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: SessionRequestDto,
@@ -105,7 +105,7 @@ export class CashierSessionsController {
   }
   @Post(':id/handovers/:handoverId/approve')
   @Permissions('cashier:sessions:approve')
-  @Sensitive('APPROVE_CASH_HANDOVER')
+  @AuditInTransaction()
   approveHandover(
     @Param('id', ParseIntPipe) id: number,
     @Param('handoverId', ParseIntPipe) handoverId: number,
@@ -124,7 +124,7 @@ export class CashierSessionsController {
   }
   @Post(':id/handovers/:handoverId/reject')
   @Permissions('cashier:sessions:approve')
-  @Sensitive('REJECT_CASH_HANDOVER')
+  @AuditInTransaction()
   rejectHandover(
     @Param('id', ParseIntPipe) id: number,
     @Param('handoverId', ParseIntPipe) handoverId: number,
@@ -143,7 +143,7 @@ export class CashierSessionsController {
   }
   @Post(':id/count')
   @Permissions('cashier:manage')
-  @Sensitive('COUNT_CASH_SESSION')
+  @AuditInTransaction()
   count(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: SessionCountDto,
@@ -159,7 +159,7 @@ export class CashierSessionsController {
   }
   @Post(':id/custody-count')
   @Permissions('cashier:sessions:approve')
-  @Sensitive('COUNT_EXCEPTIONAL_CASH_CUSTODY')
+  @AuditInTransaction()
   custodyCount(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: CustodyCountDto,
@@ -169,7 +169,7 @@ export class CashierSessionsController {
   }
   @Post(':id/reject-count')
   @Permissions('cashier:sessions:approve')
-  @Sensitive('REJECT_CASH_COUNT')
+  @AuditInTransaction()
   rejectCount(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: SessionReasonDto,
@@ -179,7 +179,7 @@ export class CashierSessionsController {
   }
   @Post(':id/close')
   @Permissions('cashier:sessions:approve')
-  @Sensitive('CLOSE_CASH_SESSION')
+  @AuditInTransaction()
   close(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: SessionReasonDto,
@@ -189,7 +189,7 @@ export class CashierSessionsController {
   }
   @Post(':id/withdraw')
   @Permissions('cashier:manage', 'cashier:sessions:approve')
-  @Sensitive('WITHDRAW_CASH_SESSION_REQUEST')
+  @AuditInTransaction()
   withdraw(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: SessionReasonDto,

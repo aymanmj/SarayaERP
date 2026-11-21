@@ -16,6 +16,7 @@ import {
 import { Money } from '../common/utils/money.util';
 import { financialPeriod } from '../accounting/financial-posting';
 import { appendChainedAuditInTransaction } from '../audit/audit-chain';
+import { publishCommittedCriticalAudit } from '../audit/siem.logger';
 
 @Injectable()
 export class CashierSessionsService {
@@ -92,7 +93,8 @@ export class CashierSessionsService {
   ) {
     const amount = validAmount(dto.amount, true);
     const reason = evidence(dto.reason);
-    return cashTransaction(this.prisma, async (tx) => {
+    let committedAudit: Record<string, unknown> | null = null;
+    const created = await cashTransaction(this.prisma, async (tx) => {
       await lockCashier(tx, hospitalId, cashierId);
       const requestKey = `session:${hospitalId}:${cashierId}:${dto.requestId}`;
       const previous = await tx.cashierSession.findUnique({
@@ -125,7 +127,7 @@ export class CashierSessionsService {
           reason,
         },
       });
-      await this.audit(
+      committedAudit = await this.audit(
         tx,
         hospitalId,
         cashierId,
@@ -135,6 +137,8 @@ export class CashierSessionsService {
       );
       return row;
     });
+    if (committedAudit) publishCommittedCriticalAudit(committedAudit);
+    return created;
   }
   async review(
     hospitalId: number,
@@ -146,7 +150,8 @@ export class CashierSessionsService {
   ) {
     reason = evidence(reason);
     reference = evidence(reference);
-    return cashTransaction(this.prisma, async (tx) => {
+    let committedAudit: Record<string, unknown> | null = null;
+    const reviewed = await cashTransaction(this.prisma, async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(27004::integer, ${hospitalId}::integer)`;
       const session = await this.locked(tx, hospitalId, id);
       if (session.cashierId === reviewerId)
@@ -192,7 +197,7 @@ export class CashierSessionsService {
           openedAt: approve ? openedAt : null,
         },
       });
-      await this.audit(
+      committedAudit = await this.audit(
         tx,
         hospitalId,
         reviewerId,
@@ -202,6 +207,8 @@ export class CashierSessionsService {
       );
       return row;
     });
+    if (committedAudit) publishCommittedCriticalAudit(committedAudit);
+    return reviewed;
   }
   async handover(
     hospitalId: number,
@@ -211,7 +218,8 @@ export class CashierSessionsService {
   ) {
     const amount = validAmount(dto.amount);
     const reason = evidence(dto.reason);
-    return cashTransaction(this.prisma, async (tx) => {
+    let committedAudit: Record<string, unknown> | null = null;
+    const created = await cashTransaction(this.prisma, async (tx) => {
       const session = await this.locked(tx, hospitalId, sessionId);
       if (session.cashierId !== userId)
         throw new ForbiddenException('التسليم لموظف الصندوق المسؤول فقط');
@@ -238,7 +246,7 @@ export class CashierSessionsService {
           reason,
         },
       });
-      await this.audit(
+      committedAudit = await this.audit(
         tx,
         hospitalId,
         userId,
@@ -248,6 +256,8 @@ export class CashierSessionsService {
       );
       return row;
     });
+    if (committedAudit) publishCommittedCriticalAudit(committedAudit);
+    return created;
   }
   async reviewHandover(
     hospitalId: number,
@@ -260,7 +270,8 @@ export class CashierSessionsService {
   ) {
     reason = evidence(reason);
     reference = evidence(reference);
-    return cashTransaction(this.prisma, async (tx) => {
+    let committedAudit: Record<string, unknown> | null = null;
+    const reviewed = await cashTransaction(this.prisma, async (tx) => {
       const session = await this.locked(tx, hospitalId, sessionId);
       const row = await tx.cashHandover.findFirst({
         where: { id, sessionId, hospitalId },
@@ -297,7 +308,7 @@ export class CashierSessionsService {
           postedAt: approve ? new Date() : null,
         },
       });
-      await this.audit(
+      committedAudit = await this.audit(
         tx,
         hospitalId,
         userId,
@@ -307,6 +318,8 @@ export class CashierSessionsService {
       );
       return updated;
     });
+    if (committedAudit) publishCommittedCriticalAudit(committedAudit);
+    return reviewed;
   }
   async count(
     hospitalId: number,
@@ -349,7 +362,8 @@ export class CashierSessionsService {
   ) {
     amount = validAmount(amount, true);
     reason = evidence(reason);
-    return cashTransaction(this.prisma, async (tx) => {
+    let committedAudit: Record<string, unknown> | null = null;
+    const counted = await cashTransaction(this.prisma, async (tx) => {
       const session = await this.locked(tx, hospitalId, id);
       if (
         custodyReference
@@ -404,7 +418,7 @@ export class CashierSessionsService {
           countedAt: new Date(),
         },
       });
-      await this.audit(
+      committedAudit = await this.audit(
         tx,
         hospitalId,
         cashierId,
@@ -422,6 +436,8 @@ export class CashierSessionsService {
       );
       return row;
     });
+    if (committedAudit) publishCommittedCriticalAudit(committedAudit);
+    return counted;
   }
   async close(
     hospitalId: number,
@@ -430,7 +446,8 @@ export class CashierSessionsService {
     reason: string,
   ) {
     reason = evidence(reason);
-    return cashTransaction(
+    let committedAudit: Record<string, unknown> | null = null;
+    const closed = await cashTransaction(
       this.prisma,
       async (tx) => {
         const session = await this.locked(tx, hospitalId, id);
@@ -547,19 +564,28 @@ export class CashierSessionsService {
             closedById: reviewerId,
           },
         });
-        await this.audit(tx, hospitalId, reviewerId, 'CLOSE_CASH_SESSION', id, {
-          reason,
-          expected: Money.toDbString(balance.expected),
-          counted: session.countedAmount.toString(),
-          difference: Money.toDbString(difference),
-          accountingEntryId,
-          countedById: session.countedById,
-          custodyReference: session.custodyReference,
-        });
+        committedAudit = await this.audit(
+          tx,
+          hospitalId,
+          reviewerId,
+          'CLOSE_CASH_SESSION',
+          id,
+          {
+            reason,
+            expected: Money.toDbString(balance.expected),
+            counted: session.countedAmount.toString(),
+            difference: Money.toDbString(difference),
+            accountingEntryId,
+            countedById: session.countedById,
+            custodyReference: session.custodyReference,
+          },
+        );
         return row;
       },
       { maxWait: 10000, timeout: 20000 },
     );
+    if (committedAudit) publishCommittedCriticalAudit(committedAudit);
+    return closed;
   }
   async withdraw(
     hospitalId: number,
@@ -568,7 +594,8 @@ export class CashierSessionsService {
     reason: string,
   ) {
     reason = evidence(reason);
-    return cashTransaction(this.prisma, async (tx) => {
+    let committedAudit: Record<string, unknown> | null = null;
+    const withdrawn = await cashTransaction(this.prisma, async (tx) => {
       const session = await this.locked(tx, hospitalId, id);
       const ownOrdinary =
         session.cashierId === cashierId && !session.custodyReference;
@@ -592,7 +619,7 @@ export class CashierSessionsService {
           custodyReference: null,
         },
       });
-      await this.audit(
+      committedAudit = await this.audit(
         tx,
         hospitalId,
         cashierId,
@@ -609,6 +636,8 @@ export class CashierSessionsService {
       );
       return row;
     });
+    if (committedAudit) publishCommittedCriticalAudit(committedAudit);
+    return withdrawn;
   }
   async rejectCount(
     hospitalId: number,
@@ -617,7 +646,8 @@ export class CashierSessionsService {
     reason: string,
   ) {
     reason = evidence(reason);
-    return cashTransaction(this.prisma, async (tx) => {
+    let committedAudit: Record<string, unknown> | null = null;
+    const rejected = await cashTransaction(this.prisma, async (tx) => {
       const session = await this.locked(tx, hospitalId, id);
       if (
         session.cashierId === reviewerId ||
@@ -639,14 +669,23 @@ export class CashierSessionsService {
           custodyReference: null,
         },
       });
-      await this.audit(tx, hospitalId, reviewerId, 'REJECT_CASH_COUNT', id, {
-        reason,
-        previousCountedById: session.countedById,
-        previousCount: session.countedAmount?.toString() ?? null,
-        previousCustodyReference: session.custodyReference,
-        previousCountReason: session.countReason,
-      });
+      committedAudit = await this.audit(
+        tx,
+        hospitalId,
+        reviewerId,
+        'REJECT_CASH_COUNT',
+        id,
+        {
+          reason,
+          previousCountedById: session.countedById,
+          previousCount: session.countedAmount?.toString() ?? null,
+          previousCustodyReference: session.custodyReference,
+          previousCountReason: session.countReason,
+        },
+      );
       return row;
     });
+    if (committedAudit) publishCommittedCriticalAudit(committedAudit);
+    return rejected;
   }
 }

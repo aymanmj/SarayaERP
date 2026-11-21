@@ -23,7 +23,7 @@ import { PermissionsGuard } from '../auth/permissions.guard';
 import { Permissions } from '../auth/permissions.decorator';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { JwtPayload } from '../auth/jwt-payload.type';
-import { Sensitive } from '../audit/audit.decorator';
+import { AuditInTransaction } from '../audit/audit.decorator';
 import { InvoiceAdjustmentsService } from './invoice-adjustments.service';
 
 class RequestAdjustmentDto {
@@ -59,7 +59,7 @@ export class InvoiceAdjustmentsController {
   }
   @Post()
   @Permissions('billing:adjustments:request')
-  @Sensitive('REQUEST_INVOICE_ADJUSTMENT')
+  @AuditInTransaction()
   request(
     @Param('invoiceId', ParseIntPipe) id: number,
     @Body() dto: RequestAdjustmentDto,
@@ -69,7 +69,7 @@ export class InvoiceAdjustmentsController {
   }
   @Post(':id/approve')
   @Permissions('billing:adjustments:approve')
-  @Sensitive('POST_INVOICE_ADJUSTMENT')
+  @AuditInTransaction()
   approve(
     @Param('invoiceId', ParseIntPipe) invoiceId: number,
     @Param('id', ParseIntPipe) id: number,
@@ -87,7 +87,7 @@ export class InvoiceAdjustmentsController {
   }
   @Post(':id/reject')
   @Permissions('billing:adjustments:approve')
-  @Sensitive('REJECT_INVOICE_ADJUSTMENT')
+  @AuditInTransaction()
   reject(
     @Param('invoiceId', ParseIntPipe) invoiceId: number,
     @Param('id', ParseIntPipe) id: number,
@@ -105,7 +105,7 @@ export class InvoiceAdjustmentsController {
   }
   @Post(':id/cancel')
   @Permissions('billing:adjustments:request')
-  @Sensitive('CANCEL_INVOICE_ADJUSTMENT')
+  @AuditInTransaction()
   cancel(
     @Param('invoiceId', ParseIntPipe) invoiceId: number,
     @Param('id', ParseIntPipe) id: number,

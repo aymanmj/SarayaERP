@@ -126,11 +126,26 @@ async function main() {
   // ====================================================
   const permissionsList = [
     { code: 'cashier:refunds:request', description: 'طلب استرداد مبلغ للمريض' },
-    { code: 'cashier:refunds:approve', description: 'اعتماد أو رفض طلب استرداد' },
-    { code: 'cashier:refunds:execute', description: 'تسجيل تنفيذ استرداد مثبت' },
-    { code: 'cashier:sessions:approve', description: 'اعتماد فتح الصندوق وتسليم الخزينة وإقفال العد الفعلي' },
-    { code: 'billing:adjustments:request', description: 'طلب تصحيح رسوم الإقامة النقدية' },
-    { code: 'billing:adjustments:approve', description: 'اعتماد أو رفض تصحيح رسوم الإقامة النقدية' },
+    {
+      code: 'cashier:refunds:approve',
+      description: 'اعتماد أو رفض طلب استرداد',
+    },
+    {
+      code: 'cashier:refunds:execute',
+      description: 'تسجيل تنفيذ استرداد مثبت',
+    },
+    {
+      code: 'cashier:sessions:approve',
+      description: 'اعتماد فتح الصندوق وتسليم الخزينة وإقفال العد الفعلي',
+    },
+    {
+      code: 'billing:adjustments:request',
+      description: 'طلب تصحيح رسوم الإقامة النقدية',
+    },
+    {
+      code: 'billing:adjustments:approve',
+      description: 'اعتماد أو رفض تصحيح رسوم الإقامة النقدية',
+    },
     // --- الشؤون الإدارية (Admin) ---
     { code: 'admin:dashboard:view', description: 'عرض لوحة تحكم الإدارة' },
     { code: 'admin:settings:manage', description: 'إدارة إعدادات النظام' },
@@ -188,16 +203,37 @@ async function main() {
     { code: 'rad:reports:create', description: 'كتابة تقارير الأشعة' },
     { code: 'rad:settings:manage', description: 'إدارة إعدادات الأشعة' },
 
-    { code: 'inventory:counts:post', description: 'اعتماد وترحيل الجرد باستقلال عن منفذ العد' },
+    {
+      code: 'inventory:counts:post',
+      description: 'اعتماد وترحيل الجرد باستقلال عن منفذ العد',
+    },
     // --- الصيدلية (Pharmacy) ---
-    { code: 'pharmacy:stock:adjust', description: 'تسوية مخزون الصيدلية بتكلفته المعتمدة' },
-    {code:'nursing:medications:administer',description:'تنفيذ توثيق إعطاء الأدوية'},
-    {code:'nursing:medications:override',description:'تجاوز دوائي طارئ موثق'},
-    { code: 'surgery:source:manage', description: 'تعيين مخزن مستهلكات العمليات' },
-    { code: 'pharmacy:source:manage', description: 'تعيين مخزن الصيدلية ومراجعة مصدر المخزون' },
+    {
+      code: 'pharmacy:stock:adjust',
+      description: 'تسوية مخزون الصيدلية بتكلفته المعتمدة',
+    },
+    {
+      code: 'nursing:medications:administer',
+      description: 'تنفيذ توثيق إعطاء الأدوية',
+    },
+    {
+      code: 'nursing:medications:override',
+      description: 'تجاوز دوائي طارئ موثق',
+    },
+    {
+      code: 'surgery:source:manage',
+      description: 'تعيين مخزن مستهلكات العمليات',
+    },
+    {
+      code: 'pharmacy:source:manage',
+      description: 'تعيين مخزن الصيدلية ومراجعة مصدر المخزون',
+    },
     { code: 'pharmacy:dashboard:view', description: 'عرض لوحة تحكم الصيدلية' },
     { code: 'pharmacy:prescriptions:view', description: 'عرض الوصفات الطبية' },
-    { code: 'pharmacy:prescriptions:replace', description: 'إصدار وصفة بديلة بعد إلغاء الوصفة الأصلية' },
+    {
+      code: 'pharmacy:prescriptions:replace',
+      description: 'إصدار وصفة بديلة بعد إلغاء الوصفة الأصلية',
+    },
     { code: 'pharmacy:dispense', description: 'صرف الأدوية' },
     { code: 'pharmacy:inventory:view', description: 'عرض مخزون الصيدلية' },
     { code: 'pharmacy:inventory:manage', description: 'إدارة مخزون الصيدلية' },
@@ -272,6 +308,10 @@ async function main() {
     { code: 'assets:dashboard:view', description: 'عرض إدارة الأصول' },
     { code: 'assets:manage', description: 'إضافة وإدارة الأصول' },
     { code: 'assets:maintenance:manage', description: 'إدارة الصيانة' },
+    {
+      code: 'assets:maintenance:report',
+      description: 'الإبلاغ عن أعطال الأصول والأجهزة',
+    },
 
     // --- التكامل (Integration) ---
     {
@@ -1653,8 +1693,22 @@ async function main() {
 
   // 12. إعدادات النظام الافتراضية (System Settings)
   const defaultSettings = [
-    { key: 'billing.roomDayPolicy', value: 'COMPLETED_24H', type: 'STRING', group: 'BILLING', description: 'طريقة احتساب أيام الإقامة للحالات الجديدة؛ لا تغير طريقة حساب الدخول القائم.' },
-    { key: 'billing.roomTimeZone', value: 'Africa/Tripoli', type: 'STRING', group: 'BILLING', description: 'التوقيت المحلي المستخدم في احتساب ليالي المبيت للحالات الجديدة.' },
+    {
+      key: 'billing.roomDayPolicy',
+      value: 'COMPLETED_24H',
+      type: 'STRING',
+      group: 'BILLING',
+      description:
+        'طريقة احتساب أيام الإقامة للحالات الجديدة؛ لا تغير طريقة حساب الدخول القائم.',
+    },
+    {
+      key: 'billing.roomTimeZone',
+      value: 'Africa/Tripoli',
+      type: 'STRING',
+      group: 'BILLING',
+      description:
+        'التوقيت المحلي المستخدم في احتساب ليالي المبيت للحالات الجديدة.',
+    },
     {
       key: 'billing.debtLimit',
       value: '0.01',

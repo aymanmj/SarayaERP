@@ -22,7 +22,7 @@ import { PermissionsGuard } from '../auth/permissions.guard';
 import { Permissions } from '../auth/permissions.decorator';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { JwtPayload } from '../auth/jwt-payload.type';
-import { Sensitive } from '../audit/audit.decorator';
+import { AuditInTransaction } from '../audit/audit.decorator';
 import { InvoiceRefundsService } from './invoice-refunds.service';
 class RefundRequestDto {
   @IsInt() @Min(1) adjustmentId: number;
@@ -66,7 +66,7 @@ export class InvoiceRefundsController {
   }
   @Post()
   @Permissions('cashier:refunds:request')
-  @Sensitive('REQUEST_INVOICE_REFUND')
+  @AuditInTransaction()
   request(
     @Param('invoiceId', ParseIntPipe) invoiceId: number,
     @Body() dto: RefundRequestDto,
@@ -76,7 +76,7 @@ export class InvoiceRefundsController {
   }
   @Post(':id/approve')
   @Permissions('cashier:refunds:approve')
-  @Sensitive('APPROVE_INVOICE_REFUND')
+  @AuditInTransaction()
   approve(
     @Param('invoiceId', ParseIntPipe) invoiceId: number,
     @Param('id', ParseIntPipe) id: number,
@@ -94,7 +94,7 @@ export class InvoiceRefundsController {
   }
   @Post(':id/reject')
   @Permissions('cashier:refunds:approve')
-  @Sensitive('REJECT_INVOICE_REFUND')
+  @AuditInTransaction()
   reject(
     @Param('invoiceId', ParseIntPipe) invoiceId: number,
     @Param('id', ParseIntPipe) id: number,
@@ -112,7 +112,7 @@ export class InvoiceRefundsController {
   }
   @Post(':id/cancel')
   @Permissions('cashier:refunds:request')
-  @Sensitive('CANCEL_INVOICE_REFUND')
+  @AuditInTransaction()
   cancel(
     @Param('invoiceId', ParseIntPipe) invoiceId: number,
     @Param('id', ParseIntPipe) id: number,
@@ -130,7 +130,7 @@ export class InvoiceRefundsController {
   }
   @Post(':id/prepare')
   @Permissions('cashier:refunds:execute')
-  @Sensitive('PREPARE_INVOICE_REFUND')
+  @AuditInTransaction()
   prepare(
     @Param('invoiceId', ParseIntPipe) invoiceId: number,
     @Param('id', ParseIntPipe) id: number,
@@ -147,7 +147,7 @@ export class InvoiceRefundsController {
   }
   @Post(':id/release')
   @Permissions('cashier:refunds:approve')
-  @Sensitive('RELEASE_UNPAID_REFUND')
+  @AuditInTransaction()
   release(
     @Param('invoiceId', ParseIntPipe) invoiceId: number,
     @Param('id', ParseIntPipe) id: number,
@@ -165,7 +165,7 @@ export class InvoiceRefundsController {
   }
   @Post(':id/execute')
   @Permissions('cashier:refunds:execute')
-  @Sensitive('EXECUTE_INVOICE_REFUND')
+  @AuditInTransaction()
   execute(
     @Param('invoiceId', ParseIntPipe) invoiceId: number,
     @Param('id', ParseIntPipe) id: number,
