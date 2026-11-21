@@ -437,6 +437,9 @@ export class InvoiceAdjustmentsService {
             userId,
             requestKey,
             dto.reason.trim(),
+            (entry) => {
+              committedAudits.push(entry);
+            },
           );
         if (dto.insuranceOnly === true)
           return requestInsuranceServiceCredit(
@@ -447,6 +450,9 @@ export class InvoiceAdjustmentsService {
             requestKey,
             dto.correctedAmount,
             dto.reason.trim(),
+            (entry) => {
+              committedAudits.push(entry);
+            },
           );
         const {
           invoice,
@@ -574,6 +580,9 @@ export class InvoiceAdjustmentsService {
             adjustment,
             userId,
             reason.trim(),
+            (entry) => {
+              committedAudits.push(entry);
+            },
           );
         if (action === 'POST' && adjustment.partialDispense)
           return postPartialPrescriptionCredit(
@@ -582,6 +591,9 @@ export class InvoiceAdjustmentsService {
             adjustment,
             userId,
             reason.trim(),
+            (entry) => {
+              committedAudits.push(entry);
+            },
           );
         let postingEntryId: number | null = null;
         if (action === 'POST') {

@@ -344,6 +344,7 @@ export class PurchasesController {
 
   @Post('grn')
   @Permissions('inventory:manage')
+  @AuditInTransaction()
   async createGRN(@Req() req: any, @Body() body: CreateGoodsReceiptDto) {
     return this.procurement.createGRN({
       hospitalId: req.user.hospitalId,

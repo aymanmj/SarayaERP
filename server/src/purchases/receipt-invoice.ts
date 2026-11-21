@@ -21,6 +21,7 @@ export type ReceiptInvoiceInput = {
 export async function invoiceReceipts(
   tx: Prisma.TransactionClient,
   data: ReceiptInvoiceInput,
+  onAudit?: (audit: Record<string, unknown>) => void,
 ) {
   if (
     !data.grnIds.length ||
@@ -171,7 +172,7 @@ export async function invoiceReceipts(
       },
     });
   }
-  await appendChainedAuditInTransaction(tx, {
+  const auditEntry = await appendChainedAuditInTransaction(tx, {
     hospitalId: data.hospitalId,
     userId: data.userId,
     action: 'INVOICE_GOODS_RECEIPTS',
@@ -179,5 +180,6 @@ export async function invoiceReceipts(
     entityId: invoice.id,
     details: { grnIds: ids, totalAmount: total, supplierId: data.supplierId },
   });
+  onAudit?.(auditEntry);
   return tx.purchaseInvoice.findUniqueOrThrow({ where: { id: invoice.id } });
 }

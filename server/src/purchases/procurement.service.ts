@@ -1,6 +1,7 @@
 import { receiveGoods, type ReceiptInput } from './goods-receipt';
 import { invoiceReceipts, type ReceiptInvoiceInput } from './receipt-invoice';
 import { appendChainedAuditInTransaction } from '../audit/audit-chain';
+import { publishCommittedCriticalAudit } from '../audit/siem.logger';
 import { Money } from '../common/utils/money.util';
 import {
   Injectable,
@@ -449,10 +450,19 @@ export class ProcurementService {
    * 3. قيد محاسبي: من ح/ المخزون -> إلى ح/ وسيط المشتريات (GRN Suspense).
    */
   async createGRN(data: ReceiptInput) {
-    return this.prisma.$transaction((tx) => receiveGoods(tx, data), {
-      maxWait: 10000,
-      timeout: 20000,
-    });
+    let committedAudit: Record<string, unknown> | null = null;
+    const grn = await this.prisma.$transaction(
+      (tx) =>
+        receiveGoods(tx, data, (audit) => {
+          committedAudit = audit;
+        }),
+      {
+        maxWait: 10000,
+        timeout: 20000,
+      },
+    );
+    if (committedAudit) publishCommittedCriticalAudit(committedAudit);
+    return grn;
   }
 
   // ==========================================
@@ -466,10 +476,19 @@ export class ProcurementService {
    * إلى ح/ المورد
    */
   async createInvoiceFromGRN(data: ReceiptInvoiceInput) {
-    return this.prisma.$transaction((tx) => invoiceReceipts(tx, data), {
-      maxWait: 10000,
-      timeout: 20000,
-    });
+    let committedAudit: Record<string, unknown> | null = null;
+    const invoice = await this.prisma.$transaction(
+      (tx) =>
+        invoiceReceipts(tx, data, (audit) => {
+          committedAudit = audit;
+        }),
+      {
+        maxWait: 10000,
+        timeout: 20000,
+      },
+    );
+    if (committedAudit) publishCommittedCriticalAudit(committedAudit);
+    return invoice;
   }
 
   async updatePOStatus(
@@ -478,7 +497,8 @@ export class ProcurementService {
     id: number,
     status: POStatus,
   ) {
-    return this.prisma.$transaction(async (tx) => {
+    let committedAudit: Record<string, unknown> | null = null;
+    const updated = await this.prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(27003, ${hospitalId}::integer)`;
       await tx.$queryRaw`SELECT id FROM "PurchaseOrder" WHERE id=${id} AND "hospitalId"=${hospitalId} FOR UPDATE`;
       if (
@@ -506,7 +526,7 @@ export class ProcurementService {
         where: { id },
         data: { status },
       });
-      await appendChainedAuditInTransaction(tx, {
+      committedAudit = await appendChainedAuditInTransaction(tx, {
         hospitalId,
         userId,
         action: 'CHANGE_PURCHASE_ORDER_STATUS',
@@ -516,6 +536,8 @@ export class ProcurementService {
       });
       return result;
     });
+    if (committedAudit) publishCommittedCriticalAudit(committedAudit);
+    return updated;
   }
 
   private async getNextSequence(

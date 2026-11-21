@@ -214,6 +214,7 @@ export async function requestInsuranceServiceCredit(
   requestKey: string,
   amount: string,
   reason: string,
+  onAudit?: (audit: Record<string, unknown>) => void,
 ) {
   if (!/^(0|[1-9]\d{0,14})(\.\d{1,3})?$/.test(amount))
     throw new BadRequestException('أدخل حصة التأمين المصححة بدقة مالية');
@@ -255,7 +256,7 @@ export async function requestInsuranceServiceCredit(
       },
     },
   });
-  await appendChainedAuditInTransaction(tx, {
+  const auditEntry = await appendChainedAuditInTransaction(tx, {
     hospitalId,
     userId,
     action: 'REQUEST_INSURANCE_SERVICE_CREDIT',
@@ -269,6 +270,7 @@ export async function requestInsuranceServiceCredit(
       netCollected: Money.toDbString(net),
     },
   });
+  onAudit?.(auditEntry);
   return result;
 }
 
@@ -278,6 +280,7 @@ export async function postInsuranceServiceCredit(
   adjustment: InvoiceAdjustment,
   userId: number,
   reason: string,
+  onAudit?: (audit: Record<string, unknown>) => void,
 ) {
   const { id: invoiceId, hospitalId } = invoice;
   await assertActiveActor(tx, hospitalId, userId);
@@ -387,7 +390,7 @@ export async function postInsuranceServiceCredit(
       },
     });
   }
-  await appendChainedAuditInTransaction(tx, {
+  const auditEntry = await appendChainedAuditInTransaction(tx, {
     hospitalId,
     userId,
     action: 'POST_INSURANCE_SERVICE_CREDIT',
@@ -401,5 +404,6 @@ export async function postInsuranceServiceCredit(
       reason,
     },
   });
+  onAudit?.(auditEntry);
   return result;
 }

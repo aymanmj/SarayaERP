@@ -21,6 +21,7 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/permissions.guard';
 import { Permissions } from '../auth/permissions.decorator';
+import { AuditInTransaction } from '../audit/audit.decorator';
 import { Type } from 'class-transformer';
 import {
   IsArray,
@@ -463,6 +464,7 @@ export class InventoryController {
 
   @Post('transfer')
   @Permissions('inventory:manage')
+  @AuditInTransaction()
   async transferStock(
     @Req() req: { user: JwtPayload },
     @Body() dto: TransferStockDto,
@@ -560,6 +562,7 @@ export class InventoryController {
   // صرف طلب المواد (إنشاء إذن صرف مع FEFO وتخصيص التشغيلات الاختياري)
   @Post('material-requests/:id/issue')
   @Permissions('inventory:manage')
+  @AuditInTransaction()
   async issueMaterialRequest(
     @Req() req: { user: JwtPayload },
     @Param('id', ParseIntPipe) id: number,
@@ -578,6 +581,7 @@ export class InventoryController {
   // استلام إذن الصرف (تأكيد وصول المواد للمخزن المستلم)
   @Post('stock-issues/:id/receive')
   @Permissions('inventory:manage')
+  @AuditInTransaction()
   async receiveStockIssue(
     @Req() req: { user: JwtPayload },
     @Param('id', ParseIntPipe) id: number,

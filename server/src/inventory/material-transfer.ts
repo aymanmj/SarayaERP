@@ -12,6 +12,7 @@ import {
 import { createHash, randomUUID } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { appendChainedAuditInTransaction } from '../audit/audit-chain';
+import { publishCommittedCriticalAudit } from '../audit/siem.logger';
 
 type Tx = Prisma.TransactionClient;
 type Item = { productId: number; quantity: number; batchNumber?: string };
@@ -122,6 +123,7 @@ export async function issueMaterialTransfer(
   db: PrismaService,
   params: MaterialTransferParams,
   existingTx?: Tx,
+  onAudit?: (audit: Record<string, unknown>) => void,
 ) {
   const { hospitalId, userId, materialRequestId, items, notes, requestKey } =
     params;
@@ -150,6 +152,7 @@ export async function issueMaterialTransfer(
       }),
     )
     .digest('hex');
+  let committedAudit: Record<string, unknown> | null = null;
   const execute = async (tx: Tx) => {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(27003, ${hospitalId}::integer)`;
     await tx.$queryRaw`SELECT id FROM "MaterialRequest" WHERE id=${materialRequestId} AND "hospitalId"=${hospitalId} FOR UPDATE`;
@@ -343,7 +346,7 @@ export async function issueMaterialTransfer(
           : 'PARTIALLY_ISSUED',
       },
     });
-    await appendChainedAuditInTransaction(tx, {
+    const auditEntry = await appendChainedAuditInTransaction(tx, {
       hospitalId,
       userId,
       action: 'ISSUE_INTERNAL_TRANSFER',
@@ -351,15 +354,21 @@ export async function issueMaterialTransfer(
       entityId: issue.id,
       details: { materialRequestId, requestKey },
     });
+    if (onAudit) onAudit(auditEntry);
+    else committedAudit = auditEntry;
     return {
       success: true,
       stockIssueId: issue.id,
       issueNumber: issue.issueNumber,
     };
   };
-  return existingTx
-    ? execute(existingTx)
-    : db.$transaction(execute, { maxWait: 10000, timeout: 20000 });
+  if (existingTx) return execute(existingTx);
+  const outcome = await db.$transaction(execute, {
+    maxWait: 10000,
+    timeout: 20000,
+  });
+  if (committedAudit) publishCommittedCriticalAudit(committedAudit);
+  return outcome;
 }
 
 export async function receiveMaterialTransfer(
@@ -368,7 +377,9 @@ export async function receiveMaterialTransfer(
   issueId: number,
   userId: number,
   existingTx?: Tx,
+  onAudit?: (audit: Record<string, unknown>) => void,
 ) {
+  let committedAudit: Record<string, unknown> | null = null;
   const execute = async (tx: Tx) => {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(27003, ${hospitalId}::integer)`;
     await tx.$queryRaw`SELECT id FROM "StockIssue" WHERE id=${issueId} AND "hospitalId"=${hospitalId} FOR UPDATE`;
@@ -502,7 +513,7 @@ export async function receiveMaterialTransfer(
       where: { id: issueId },
       data: { status: 'RECEIVED' },
     });
-    await appendChainedAuditInTransaction(tx, {
+    const auditEntry = await appendChainedAuditInTransaction(tx, {
       hospitalId,
       userId,
       action: 'RECEIVE_INTERNAL_TRANSFER',
@@ -510,11 +521,17 @@ export async function receiveMaterialTransfer(
       entityId: issueId,
       details: { items: issue.items.length },
     });
+    if (onAudit) onAudit(auditEntry);
+    else committedAudit = auditEntry;
     return { success: true };
   };
-  return existingTx
-    ? execute(existingTx)
-    : db.$transaction(execute, { maxWait: 10000, timeout: 20000 });
+  if (existingTx) return execute(existingTx);
+  const outcome = await db.$transaction(execute, {
+    maxWait: 10000,
+    timeout: 20000,
+  });
+  if (committedAudit) publishCommittedCriticalAudit(committedAudit);
+  return outcome;
 }
 
 export async function directMaterialTransfer(
@@ -557,7 +574,8 @@ export async function directMaterialTransfer(
         }),
       )
       .digest('hex');
-  return db.$transaction(
+  const committedAudits: Record<string, unknown>[] = [];
+  const outcome = await db.$transaction(
     async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(27003, ${hospitalId}::integer)`;
       const replay = await tx.stockIssue.findFirst({
@@ -618,6 +636,9 @@ export async function directMaterialTransfer(
           },
         },
       });
+      const collectAudit = (entry: Record<string, unknown>) => {
+        committedAudits.push(entry);
+      };
       const issued = await issueMaterialTransfer(
         db,
         {
@@ -629,6 +650,7 @@ export async function directMaterialTransfer(
           items,
         },
         tx,
+        collectAudit,
       );
       await receiveMaterialTransfer(
         db,
@@ -636,6 +658,7 @@ export async function directMaterialTransfer(
         issued.stockIssueId,
         userId,
         tx,
+        collectAudit,
       );
       await tx.stockIssue.update({
         where: { id: issued.stockIssueId },
@@ -645,4 +668,6 @@ export async function directMaterialTransfer(
     },
     { maxWait: 10000, timeout: 20000 },
   );
+  for (const entry of committedAudits) publishCommittedCriticalAudit(entry);
+  return outcome;
 }

@@ -172,6 +172,7 @@ export async function requestPartialPrescriptionCredit(
   userId: number,
   requestKey: string,
   reason: string,
+  onAudit?: (audit: Record<string, unknown>) => void,
 ) {
   const quote = await requirePartialQuote(tx, invoice, chargeId);
   if (
@@ -208,7 +209,7 @@ export async function requestPartialPrescriptionCredit(
       },
     },
   });
-  await appendChainedAuditInTransaction(tx, {
+  const auditEntry = await appendChainedAuditInTransaction(tx, {
     hospitalId: invoice.hospitalId,
     userId,
     action: 'REQUEST_PARTIAL_PRESCRIPTION_CREDIT',
@@ -221,6 +222,7 @@ export async function requestPartialPrescriptionCredit(
       reason,
     },
   });
+  onAudit?.(auditEntry);
   return result;
 }
 
@@ -230,6 +232,7 @@ export async function postPartialPrescriptionCredit(
   adjustment: InvoiceAdjustment,
   userId: number,
   reason: string,
+  onAudit?: (audit: Record<string, unknown>) => void,
 ) {
   const quote = await requirePartialQuote(tx, invoice, adjustment.chargeId);
   if (
@@ -331,7 +334,7 @@ export async function postPartialPrescriptionCredit(
       status: zeroShare ? 'PAID' : 'PARTIALLY_PAID',
     },
   });
-  await appendChainedAuditInTransaction(tx, {
+  const auditEntry = await appendChainedAuditInTransaction(tx, {
     hospitalId: invoice.hospitalId,
     userId,
     action: 'POST_PARTIAL_PRESCRIPTION_CREDIT',
@@ -348,5 +351,6 @@ export async function postPartialPrescriptionCredit(
       reason,
     },
   });
+  onAudit?.(auditEntry);
   return result;
 }

@@ -30,6 +30,7 @@ export type ReceiptInput = {
 export async function receiveGoods(
   tx: Prisma.TransactionClient,
   data: ReceiptInput,
+  onAudit?: (audit: Record<string, unknown>) => void,
 ) {
   if (
     !data.requestId ||
@@ -445,7 +446,7 @@ export async function receiveGoods(
         : 'PARTIALLY_RECEIVED',
     },
   });
-  await appendChainedAuditInTransaction(tx, {
+  const auditEntry = await appendChainedAuditInTransaction(tx, {
     hospitalId: data.hospitalId,
     userId: data.userId,
     action: 'RECEIVE_PURCHASE_ORDER',
@@ -459,5 +460,6 @@ export async function receiveGoods(
       valuationRoundingResiduals: residuals,
     },
   });
+  onAudit?.(auditEntry);
   return tx.goodsReceipt.findUniqueOrThrow({ where: { id: grn.id } });
 }

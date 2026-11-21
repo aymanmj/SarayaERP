@@ -19,6 +19,7 @@ import { ProcurementService } from './procurement.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/permissions.guard';
 import { Permissions } from '../auth/permissions.decorator';
+import { AuditInTransaction } from '../audit/audit.decorator';
 import { Type } from 'class-transformer';
 import {
   IsArray,
@@ -258,6 +259,7 @@ export class ProcurementController {
 
   @Patch('orders/:id/status')
   @Permissions('inventory:manage')
+  @AuditInTransaction()
   async updatePOStatus(
     @CurrentUser() user: JwtPayload,
     @Param('id', ParseIntPipe) id: number,
@@ -277,6 +279,7 @@ export class ProcurementController {
 
   @Post('receipts')
   @Permissions('inventory:manage')
+  @AuditInTransaction()
   async createGRN(
     @CurrentUser() user: JwtPayload,
     @Body() dto: CreateGoodsReceiptDto,

@@ -26,6 +26,7 @@ import {
   Prisma,
 } from '@prisma/client';
 import { appendChainedAuditInTransaction } from '../audit/audit-chain';
+import { publishCommittedCriticalAudit } from '../audit/siem.logger';
 import { Money } from '../common/utils/money.util';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { DispenseCompletedEvent } from './events/dispense-completed.event';
@@ -196,7 +197,8 @@ export class PharmacyService {
       dto.reason.length > 500
     )
       throw new BadRequestException('يلزم مخزن صالح وسبب واضح من10 إلى500 حرف');
-    return this.prisma.$transaction(async (tx) => {
+    let committedAudit: Record<string, unknown> | null = null;
+    const configured = await this.prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(27003, ${hospitalId}::integer)`;
       if (
         !(await tx.user.findFirst({
@@ -221,7 +223,7 @@ export class PharmacyService {
         },
         update: { warehouseId: dto.warehouseId, updatedById: userId },
       });
-      await appendChainedAuditInTransaction(tx, {
+      committedAudit = await appendChainedAuditInTransaction(tx, {
         hospitalId,
         userId,
         action: 'CONFIGURE_PHARMACY_WAREHOUSE',
@@ -235,6 +237,8 @@ export class PharmacyService {
       });
       return result;
     });
+    if (committedAudit) publishCommittedCriticalAudit(committedAudit);
+    return configured;
   }
 
   private async getPharmacyWarehouseId(
@@ -1175,6 +1179,7 @@ export class PharmacyService {
     )
       throw new BadRequestException('يلزم تحديد بنود الوصفة وكمياتها');
     let calculatedTotalCost = new Prisma.Decimal(0);
+    let committedAudit: Record<string, unknown> | null = null;
 
     // سنحاول العملية، إذا فشلت بسبب التزامن، الفرونت إند يجب أن يعيد المحاولة أو يظهر رسالة
     const result = await this.prisma.$transaction(async (tx) => {
@@ -1514,7 +1519,7 @@ export class PharmacyService {
           module: 'PHARMACY',
           tx,
         });
-      await appendChainedAuditInTransaction(tx, {
+      committedAudit = await appendChainedAuditInTransaction(tx, {
         hospitalId,
         userId: pharmacistId,
         action: 'PHARMACY_DISPENSE',
@@ -1534,6 +1539,7 @@ export class PharmacyService {
         partialClosureInvoiceId: finalPartial ? prepaidInvoice?.id : undefined,
       };
     });
+    if (committedAudit) publishCommittedCriticalAudit(committedAudit);
 
     const { partialClosureInvoiceId, ...outcome } = result;
     // A UI notification is best effort; all financial writes already committed.
@@ -1583,6 +1589,7 @@ export class PharmacyService {
     if (!['CASH', 'CARD', 'TRANSFER'].includes(paymentMethod))
       throw new BadRequestException('طريقة التحصيل غير مدعومة');
     let calculatedTotalCost = new Prisma.Decimal(0);
+    let committedAudit: Record<string, unknown> | null = null;
 
     const result = await this.prisma.$transaction(async (tx) => {
       const { session } = await guardCashierMovement(
@@ -1858,7 +1865,7 @@ export class PharmacyService {
           module: 'PHARMACY',
           tx,
         });
-      await appendChainedAuditInTransaction(tx, {
+      committedAudit = await appendChainedAuditInTransaction(tx, {
         hospitalId,
         userId: pharmacistId,
         action: 'PHARMACY_DISPENSE_POS',
@@ -1875,6 +1882,7 @@ export class PharmacyService {
       });
       return { invoice, payment, dispense };
     });
+    if (committedAudit) publishCommittedCriticalAudit(committedAudit);
 
     // A UI notification is best effort; all financial writes already committed.
     try {
@@ -1936,16 +1944,22 @@ export class PharmacyService {
   }
 
   async createManualStockTransaction(params: ManualAdjustment) {
-    return this.prisma.$transaction(
+    let committedAudit: Record<string, unknown> | null = null;
+    const result = await this.prisma.$transaction(
       (tx) =>
         adjustPharmacyStock(
           tx,
           params,
           () => this.getPharmacyWarehouseId(tx, params.hospitalId),
           this.accounting,
+          (audit) => {
+            committedAudit = audit;
+          },
         ),
       { maxWait: 10000, timeout: 20000 },
     );
+    if (committedAudit) publishCommittedCriticalAudit(committedAudit);
+    return result;
   }
 
   async getStockTransactionsReport(params: {

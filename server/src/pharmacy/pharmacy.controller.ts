@@ -25,7 +25,7 @@ import { Permissions } from '../auth/permissions.decorator';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import { StockTransactionType, PaymentMethod } from '@prisma/client';
-import { Sensitive } from '../audit/audit.decorator';
+import { AuditInTransaction, Sensitive } from '../audit/audit.decorator';
 import { RequireFeature } from '../licensing/license.decorator';
 
 @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -50,6 +50,7 @@ export class PharmacyController {
 
   @Put('source-policy')
   @Permissions('pharmacy:source:manage')
+  @AuditInTransaction()
   configureSource(
     @CurrentUser() user: JwtPayload,
     @Body() body: PharmacyWarehousePolicyDto,
@@ -175,6 +176,7 @@ export class PharmacyController {
 
   @Post('prescriptions/:id/dispense')
   @Permissions('pharmacy:manage')
+  @AuditInTransaction()
   async dispensePrescription(
     @Req() req: any,
     @Param('id', ParseIntPipe) prescriptionId: number,
@@ -219,6 +221,7 @@ export class PharmacyController {
   // تم التحديث لدعم batchNumber و expiryDate
   @Post('stock/transactions')
   @Permissions('pharmacy:stock:adjust')
+  @AuditInTransaction()
   createStockTransaction(
     @CurrentUser() user: JwtPayload,
     @Body() body: PharmacyManualAdjustmentDto,
@@ -298,6 +301,7 @@ export class PharmacyController {
   //  صرف ودفع فوري (POS) - يدعم FEFO الآن
   @Post('prescriptions/:id/dispense-pay')
   @Permissions('pharmacy:manage')
+  @AuditInTransaction()
   async dispenseAndPay(
     @Req() req: any,
     @Param('id', ParseIntPipe) prescriptionId: number,

@@ -27,6 +27,7 @@ export async function adjustPharmacyStock(
   params: ManualAdjustment,
   source: () => Promise<number>,
   accounting: AccountingService,
+  onAudit?: (audit: Record<string, unknown>) => void,
 ) {
   const { hospitalId, userId, drugItemId } = params;
   if (params.type !== 'ADJUST')
@@ -186,7 +187,7 @@ export async function adjustPharmacyStock(
     amount,
     inventoryAccountId: product.category?.inventoryAccountId ?? undefined,
   });
-  await appendChainedAuditInTransaction(tx, {
+  const auditEntry = await appendChainedAuditInTransaction(tx, {
     hospitalId,
     userId,
     action: 'ADJUST_PHARMACY_STOCK',
@@ -206,5 +207,6 @@ export async function adjustPharmacyStock(
       valuationAfter,
     },
   });
+  onAudit?.(auditEntry);
   return movement;
 }
