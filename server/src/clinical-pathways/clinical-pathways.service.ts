@@ -963,6 +963,68 @@ export class ClinicalPathwaysService {
     });
   }
 
+  async listEnrollments(hospitalId: number, status?: string) {
+    const allowedStatuses = Object.values(PathwayEnrollmentStatus) as string[];
+    const normalizedStatus =
+      status && allowedStatuses.includes(status)
+        ? (status as PathwayEnrollmentStatus)
+        : undefined;
+
+    const enrollments = await this.prisma.pathwayEnrollment.findMany({
+      where: {
+        pathway: { hospitalId },
+        ...(normalizedStatus ? { status: normalizedStatus } : {}),
+      },
+      include: {
+        pathway: {
+          select: {
+            id: true,
+            name: true,
+            nameAr: true,
+            expectedLOS: true,
+            version: true,
+            status: true,
+          },
+        },
+        enrolledBy: { select: { id: true, fullName: true } },
+        variances: {
+          select: {
+            id: true,
+            varianceType: true,
+            reason: true,
+            reportedAt: true,
+          },
+        },
+      },
+      orderBy: { enrolledAt: 'desc' },
+      take: 100,
+    });
+
+    const encounterIds = [
+      ...new Set(enrollments.map((item) => item.encounterId)),
+    ];
+    const encounters = encounterIds.length
+      ? await this.prisma.encounter.findMany({
+          where: { hospitalId, id: { in: encounterIds } },
+          select: {
+            id: true,
+            status: true,
+            patient: { select: { id: true, fullName: true, mrn: true } },
+          },
+        })
+      : [];
+    const byEncounterId = new Map(encounters.map((enc) => [enc.id, enc]));
+
+    return enrollments.map((item) => {
+      const enc = byEncounterId.get(item.encounterId);
+      return {
+        ...item,
+        patient: enc?.patient ?? null,
+        encounterStatus: enc?.status ?? null,
+      };
+    });
+  }
+
   async getEnrollmentsByEncounter(encounterId: number, hospitalId: number) {
     return this.prisma.pathwayEnrollment.findMany({
       where: { encounterId, pathway: { hospitalId } },

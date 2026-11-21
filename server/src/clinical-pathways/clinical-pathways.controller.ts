@@ -44,6 +44,15 @@ export class ClinicalPathwaysController {
     });
   }
 
+  @Get('enrollments')
+  @Permissions('clinical-pathways:view')
+  listEnrollments(
+    @CurrentUser() user: JwtPayload,
+    @Query('status') status?: string,
+  ) {
+    return this.service.listEnrollments(user.hospitalId, status);
+  }
+
   @Get(':id/history')
   @Permissions('clinical-pathways:view')
   history(@Param('id') id: string, @CurrentUser() user: JwtPayload) {

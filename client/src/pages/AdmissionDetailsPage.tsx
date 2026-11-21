@@ -6,6 +6,8 @@ import { useTranslation } from "react-i18next";
 import { useAuthStore } from "../stores/authStore";
 import { LegacyBedTransfers, type LegacyBedTransfer } from '../components/LegacyBedTransfers';
 import { ROOM_DAY_OPTIONS } from '../utils/roomBillingPolicy';
+import { VitalsPane } from '../components/encounter/VitalsPane';
+import { MedicationAdministrationPane } from '../components/nursing/MedicationAdministrationPane';
 
 type DischargeReadiness = {
   ready: boolean;
@@ -23,6 +25,7 @@ type DischargeReadiness = {
 
 type AdmissionDetails = {
   id: number;
+  encounterId?: number | null;
   patient: {
     id: number;
     fullName: string;
@@ -467,12 +470,155 @@ export default function AdmissionDetailsPage() {
         )}
 
         {activeTab === 'transfers' && <LegacyBedTransfers transfers={admission.bedTransfers ?? []} canApprove={canApproveTransfer} canCancel={canCancelTransfer} activeAdmission={['ADMITTED', 'IN_PROGRESS', 'DISCHARGE_PENDING'].includes(admission.admissionStatus)} onChanged={async () => { setReadiness(null); await loadAdmissionDetails(admission.id); }} />}
-        {/* Other tabs */}
-        {activeTab !== 'overview' && activeTab !== 'transfers' && (
-          <div className="bg-slate-900/50 rounded-xl p-6 border border-slate-700">
-            <div className="text-center py-8 text-slate-400">
-              <p>{t("admissions.detailsPage.tabDeveloping", { defaultValue: "محتوى {{tab}} قيد التطوير...", tab: getTabLabel(activeTab) })}</p>
+
+        {/* Vitals Tab */}
+        {activeTab === 'vitals' && (
+          <div className="bg-slate-900/50 rounded-xl p-6 border border-slate-700 space-y-4">
+            {admission.encounterId ? (
+              <VitalsPane encounterId={admission.encounterId} />
+            ) : admission.vitalSigns && admission.vitalSigns.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm text-right">
+                  <thead className="text-slate-400 border-b border-slate-700">
+                    <tr>
+                      <th className="py-2 px-3">{t("common.date", "الوقت")}</th>
+                      <th className="py-2 px-3">{t("vitals.bp", "الضغط")}</th>
+                      <th className="py-2 px-3">{t("vitals.pulse", "النبض")}</th>
+                      <th className="py-2 px-3">{t("vitals.temp", "الحرارة")}</th>
+                      <th className="py-2 px-3">{t("vitals.o2", "الأكسجين")}</th>
+                      <th className="py-2 px-3">{t("vitals.resp", "التنفس")}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800">
+                    {admission.vitalSigns.map((v) => (
+                      <tr key={v.id} className="text-slate-200">
+                        <td className="py-2 px-3">{new Date(v.timestamp).toLocaleString(isRtl ? 'ar-LY' : 'en-US')}</td>
+                        <td className="py-2 px-3 font-mono">{v.bloodPressure}</td>
+                        <td className="py-2 px-3 font-mono">{v.heartRate}</td>
+                        <td className="py-2 px-3 font-mono">{v.temperature}°C</td>
+                        <td className="py-2 px-3 font-mono">{v.oxygenSaturation}%</td>
+                        <td className="py-2 px-3 font-mono">{v.respiratoryRate}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="text-center py-8 text-slate-400">
+                {t("admissions.detailsPage.noVitals", "لا توجد علامات حيوية مسجلة لهذا الإيواء.")}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Medications Tab */}
+        {activeTab === 'medications' && (
+          <div className="bg-slate-900/50 rounded-xl p-6 border border-slate-700 space-y-4">
+            {admission.encounterId ? (
+              <>
+                <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                  <span className="text-sm text-slate-400">
+                    {t("admissions.detailsPage.medicationsEncounterHint", "سجل إعطاء الأدوية المرتبط بالزيارة")}
+                  </span>
+                  <button
+                    onClick={() => navigate(`/encounters/${admission.encounterId}`)}
+                    className="px-4 py-1.5 bg-sky-600 hover:bg-sky-500 text-white rounded-lg text-xs font-semibold transition-colors"
+                  >
+                    {t("admissions.detailsPage.openPrescriptions", "فتح وصفات الزيارة")}
+                  </button>
+                </div>
+                <MedicationAdministrationPane encounterId={admission.encounterId} />
+              </>
+            ) : admission.medications && admission.medications.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {admission.medications.map((m) => (
+                  <div key={m.id} className="bg-slate-950/60 border border-slate-800 rounded-xl p-4">
+                    <div className="font-semibold text-white">{m.name}</div>
+                    <div className="text-xs text-slate-400 mt-1">
+                      {m.dosage} • {m.frequency}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-slate-400">
+                {t("admissions.detailsPage.noMedications", "لا توجد أدوية مسجلة لهذا الإيواء.")}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Procedures Tab */}
+        {activeTab === 'procedures' && (
+          <div className="bg-slate-900/50 rounded-xl p-6 border border-slate-700 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="text-base font-semibold text-white">
+                {t("admissions.detailsPage.tabs.procedures", "الإجراءات")}
+              </h3>
+              {admission.encounterId && (
+                <button
+                  onClick={() => navigate(`/encounters/${admission.encounterId}`)}
+                  className="px-4 py-1.5 bg-sky-600 hover:bg-sky-500 text-white rounded-lg text-xs font-semibold transition-colors"
+                >
+                  {t("admissions.detailsPage.openEncounterChart", "فتح ملف الزيارة الكامل")}
+                </button>
+              )}
             </div>
+            {admission.procedures && admission.procedures.length > 0 ? (
+              <div className="space-y-2">
+                {admission.procedures.map((proc) => (
+                  <div key={proc.id} className="flex items-center justify-between bg-slate-950/60 border border-slate-800 rounded-xl p-3">
+                    <div>
+                      <div className="font-medium text-white">{proc.name}</div>
+                      <div className="text-xs text-slate-400">{new Date(proc.date).toLocaleDateString(isRtl ? 'ar-LY' : 'en-US')}</div>
+                    </div>
+                    <span className="px-2.5 py-1 rounded-lg text-xs bg-slate-800 text-slate-300 border border-slate-700">
+                      {proc.status}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-slate-400">
+                {t("admissions.detailsPage.noProcedures", "لا توجد إجراءات مسجلة بعد.")}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Notes Tab */}
+        {activeTab === 'notes' && (
+          <div className="bg-slate-900/50 rounded-xl p-6 border border-slate-700 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="text-base font-semibold text-white">
+                {t("admissions.detailsPage.tabs.notes", "الملاحظات")}
+              </h3>
+              {admission.encounterId && (
+                <button
+                  onClick={() => navigate(`/encounters/${admission.encounterId}`)}
+                  className="px-4 py-1.5 bg-sky-600 hover:bg-sky-500 text-white rounded-lg text-xs font-semibold transition-colors"
+                >
+                  {t("admissions.detailsPage.openEncounterChart", "فتح ملف الزيارة الكامل")}
+                </button>
+              )}
+            </div>
+            {admission.notes && admission.notes.length > 0 ? (
+              <div className="space-y-3">
+                {admission.notes.map((note) => (
+                  <div key={note.id} className="bg-slate-950/60 border border-slate-800 rounded-xl p-4 space-y-1">
+                    <div className="flex items-center justify-between text-xs text-slate-400">
+                      <span className="font-semibold text-slate-300">{note.author} ({note.type})</span>
+                      <span>{new Date(note.timestamp).toLocaleString(isRtl ? 'ar-LY' : 'en-US')}</span>
+                    </div>
+                    <p className="text-sm text-slate-200 whitespace-pre-wrap">{note.content}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-slate-400">
+                {t("admissions.detailsPage.noNotes", "لا توجد ملاحظات سريرية مسجلة بعد.")}
+              </div>
+            )}
           </div>
         )}
       </div>

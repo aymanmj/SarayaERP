@@ -103,6 +103,74 @@ describe('AnalyticsService', () => {
       expect(result.medicationOverrideRate).toBe(20); // 2 out of 10
       expect(result.careGapClosureRate).toBe(80); // 4 out of 5
       expect(result.cdssOverrideRate).toBe(25); // 5 out of 20
+      expect(result.trends).toHaveLength(6);
+      expect(result.trends[0].name).toBe('2025-12');
+      expect(result.trends[5].name).toBe('2026-05');
+    });
+
+    it('computes 6 monthly historical trends from real database buckets (UI08)', async () => {
+      mockPrisma.encounter.findMany.mockResolvedValue([]);
+      mockPrisma.encounter.findFirst.mockResolvedValue(null);
+      mockPrisma.medicationAdministration.count.mockResolvedValue(0);
+      mockPrisma.careGap.count.mockResolvedValue(0);
+      mockPrisma.cDSSAlert.count.mockResolvedValue(0);
+
+      // Period queries (2 encounter.findMany: admissions + discharged) then 6 months x 1 encounter.findMany
+      mockPrisma.encounter.findMany
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([
+          { patientId: 7, createdAt: new Date('2026-05-10') },
+        ]);
+      mockPrisma.encounter.findFirst.mockResolvedValueOnce({ id: 99 });
+
+      mockPrisma.medicationAdministration.count
+        .mockResolvedValueOnce(0)
+        .mockResolvedValueOnce(0);
+      // Skip 5 months x 2 = 10 zeroes, then 6th month: total 4, overrides 1 => 25%
+      for (let i = 0; i < 10; i++) {
+        mockPrisma.medicationAdministration.count.mockResolvedValueOnce(0);
+      }
+      mockPrisma.medicationAdministration.count
+        .mockResolvedValueOnce(4)
+        .mockResolvedValueOnce(1);
+
+      mockPrisma.careGap.count
+        .mockResolvedValueOnce(0)
+        .mockResolvedValueOnce(0);
+      for (let i = 0; i < 10; i++) {
+        mockPrisma.careGap.count.mockResolvedValueOnce(0);
+      }
+      mockPrisma.careGap.count
+        .mockResolvedValueOnce(5)
+        .mockResolvedValueOnce(3);
+
+      const result = await service.getClinicalKPIs(
+        1,
+        new Date('2026-05-01T00:00:00Z'),
+        new Date('2026-05-30T00:00:00Z'),
+      );
+
+      expect(result.trends).toHaveLength(6);
+      expect(result.trends.map((m) => m.name)).toEqual([
+        '2025-12',
+        '2026-01',
+        '2026-02',
+        '2026-03',
+        '2026-04',
+        '2026-05',
+      ]);
+      expect(result.trends[5]).toEqual({
+        name: '2026-05',
+        readmission: 100,
+        override: 25,
+        gapClosure: 60,
+      });
     });
   });
 

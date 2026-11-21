@@ -64,11 +64,20 @@ export default function ClinicalKpisPage() {
     );
   }
 
-  // Only the measured period is available; historical points must come from real snapshots.
-  const trendData = [{ name: t('clinicalKpis.last30Days', 'آخر 30 يوم'),
-    readmission: Number(kpis?.readmissionRate?.toFixed(1) || 0),
-    override: Number(kpis?.medicationOverrideRate?.toFixed(1) || 0),
-    gapClosure: Number(kpis?.careGapClosureRate?.toFixed(1) || 0) }];
+  // Prefer real historical monthly trends returned by backend; fall back to measured single-period summary.
+  const averageLos = Number(kpis?.averageLOSDays ?? kpis?.averageLengthOfStay ?? 0);
+  const alertFatigue = Number(kpis?.cdssOverrideRate ?? kpis?.alertFatigueRate ?? 0);
+  const trendData =
+    Array.isArray(kpis?.trends) && kpis.trends.length > 0
+      ? kpis.trends
+      : [
+          {
+            name: t('clinicalKpis.last30Days', 'آخر 30 يوم'),
+            readmission: Number(kpis?.readmissionRate?.toFixed(1) || 0),
+            override: Number(kpis?.medicationOverrideRate?.toFixed(1) || 0),
+            gapClosure: Number(kpis?.careGapClosureRate?.toFixed(1) || 0),
+          },
+        ];
 
   return (
     <div className="p-6 text-slate-100 h-full overflow-y-auto" dir={isRtl ? "rtl" : "ltr"}>
@@ -101,7 +110,7 @@ export default function ClinicalKpisPage() {
         />
         <KPICard
           title={t("clinicalKpis.cards.alos.title", "متوسط مدة الإقامة (ALOS)")}
-          value={kpis?.averageLengthOfStay?.toFixed(1) || 0}
+          value={averageLos.toFixed(1)}
           unit={t("clinicalKpis.cards.alos.unit", "أيام")}
           color="text-amber-400"
           icon="⏳"
@@ -117,7 +126,7 @@ export default function ClinicalKpisPage() {
         />
         <KPICard
           title={t("clinicalKpis.cards.alertFatigue.title", "إجهاد التنبيهات (Fatigue)")}
-          value={kpis?.alertFatigueRate?.toFixed(1) || 0}
+          value={alertFatigue.toFixed(1)}
           unit="%"
           color="text-purple-400"
           icon="🔔"

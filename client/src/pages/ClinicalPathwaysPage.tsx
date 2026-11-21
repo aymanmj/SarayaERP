@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../api/apiClient';
 import { toast } from 'sonner';
 
@@ -57,7 +58,8 @@ type Enrollment = {
   notes?: string;
   pathway: ClinicalPathway;
   enrolledBy: { fullName: string };
-   
+  patient?: { id: number; fullName: string; mrn: string } | null;
+  encounterStatus?: string | null;
   variances: any[];
 };
 
@@ -72,6 +74,7 @@ const PHASE_COLORS: Record<string, string> = {
 
 export default function ClinicalPathwaysPage() {
   const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
   const isRtl = i18n.dir() === "rtl";
 
   const STATUS_META: Record<ClinicalContentStatus, { label: string; className: string }> = {
@@ -89,8 +92,9 @@ export default function ClinicalPathwaysPage() {
   const [showBuilder, setShowBuilder] = useState(false);
   const [showEnrollModal, setShowEnrollModal] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [enrollmentDetail, setEnrollmentDetail] = useState<Enrollment | null>(null);
+  const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
+  const [enrollmentsLoading, setEnrollmentsLoading] = useState(false);
+  const [enrollmentBusyId, setEnrollmentBusyId] = useState<number | null>(null);
   const [searchFilter, setSearchFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [workflowBusyId, setWorkflowBusyId] = useState<number | null>(null);
@@ -119,6 +123,52 @@ export default function ClinicalPathwaysPage() {
     loadData();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchFilter, statusFilter]);
+
+  useEffect(() => {
+    if (activeTab === 'enrollments') {
+      void loadEnrollments();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
+
+  const loadEnrollments = async () => {
+    setEnrollmentsLoading(true);
+    try {
+      const res = await apiClient.get('/clinical-pathways/enrollments');
+      setEnrollments(Array.isArray(res.data) ? res.data : []);
+    } catch {
+      toast.error(t('pathways.toast.loadEnrollmentsFailed', 'فشل تحميل تسجيلات المرضى'));
+      setEnrollments([]);
+    } finally {
+      setEnrollmentsLoading(false);
+    }
+  };
+
+  const advanceEnrollmentDay = async (enrollmentId: number) => {
+    setEnrollmentBusyId(enrollmentId);
+    try {
+      await apiClient.post(`/clinical-pathways/enrollment/${enrollmentId}/advance`);
+      toast.success(t('pathways.toast.advanced', 'تم الانتقال لليوم التالي من المسار'));
+      await loadEnrollments();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || t('pathways.toast.advanceFailed', 'تعذر التقدم لليوم التالي'));
+    } finally {
+      setEnrollmentBusyId(null);
+    }
+  };
+
+  const completeEnrollment = async (enrollmentId: number) => {
+    setEnrollmentBusyId(enrollmentId);
+    try {
+      await apiClient.post(`/clinical-pathways/enrollment/${enrollmentId}/complete`);
+      toast.success(t('pathways.toast.completed', 'تم إكمال المسار بنجاح'));
+      await loadEnrollments();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || t('pathways.toast.completeFailed', 'تعذر إكمال المسار'));
+    } finally {
+      setEnrollmentBusyId(null);
+    }
+  };
 
   const searchEncounters = async (q: string) => {
     if (q.length < 2) {
@@ -285,7 +335,11 @@ export default function ClinicalPathwaysPage() {
       setEncounterSearchTerm('');
       setEnrollNotes('');
       setActiveEncounters([]);
-     
+      if (activeTab === 'enrollments') {
+        await loadEnrollments();
+      } else {
+        await loadData();
+      }
     } catch (err: any) {
       toast.error(err?.response?.data?.message || t("pathways.toast.enrollFailed", "فشل التسجيل"));
     } finally {
@@ -555,10 +609,86 @@ export default function ClinicalPathwaysPage() {
       )}
 
       {!loading && activeTab === 'enrollments' && (
-        <div className="text-center py-16 text-slate-400">
-          <p className="text-xl mb-2">{t("pathways.enrollmentsEmpty", "تسجيلات المرضى")}</p>
-          <p className="text-sm">{t("pathways.enrollmentsEmptyHint", "لعرض تفاصيل التسجيلات انتقل إلى الحالة المرضية أو شغّل لوحة متابعة منفصلة لاحقًا")}</p>
-          {enrollmentDetail && <div className="hidden">{enrollmentDetail.id}</div>}
+        <div className="space-y-4">
+          {enrollmentsLoading ? (
+            <div className="flex justify-center py-10">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-sky-500" />
+            </div>
+          ) : enrollments.length === 0 ? (
+            <div className="text-center py-16 text-slate-400">
+              <p className="text-xl mb-2">{t("pathways.enrollmentsEmpty", "لا توجد تسجيلات مسارات حاليًا")}</p>
+              <p className="text-sm">{t("pathways.enrollmentsEmptyHint", "سجّل مريضًا في أي مسار منشور من تبويب المسارات العلاجية")}</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {enrollments.map((item) => {
+                const isBusy = enrollmentBusyId === item.id;
+                const isActive = item.status === 'ACTIVE';
+                return (
+                  <div key={item.id} className="bg-slate-900/70 border border-slate-800 rounded-2xl p-5 space-y-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="font-bold text-white text-base">
+                          {item.patient?.fullName || `#${item.patientId}`}
+                          {item.patient?.mrn && (
+                            <span className="ms-2 text-xs font-mono text-slate-400">({item.patient.mrn})</span>
+                          )}
+                        </div>
+                        <div className="text-xs text-sky-400 mt-0.5">
+                          {item.pathway.nameAr || item.pathway.name}
+                        </div>
+                      </div>
+                      <span className={`px-2.5 py-1 rounded-lg text-xs font-semibold border ${
+                        isActive
+                          ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+                          : 'bg-slate-700/40 text-slate-300 border-slate-600'
+                      }`}>
+                        {item.status}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs text-slate-400">
+                      <span>
+                        {t("pathways.dayProgress", "اليوم")}: <strong className="text-slate-200">{item.currentDay}</strong>
+                        {item.pathway.expectedLOS ? ` / ${item.pathway.expectedLOS}` : ''}
+                      </span>
+                      <span>
+                        {t("pathways.variancesCount", "الحيود")}: <strong className="text-slate-200">{item.variances?.length ?? 0}</strong>
+                      </span>
+                      <span>{new Date(item.enrolledAt).toLocaleDateString(isRtl ? 'ar-LY' : 'en-US')}</span>
+                    </div>
+
+                    <div className="flex items-center gap-2 flex-wrap pt-2 border-t border-slate-800">
+                      {isActive && (
+                        <>
+                          <button
+                            disabled={isBusy}
+                            onClick={() => void advanceEnrollmentDay(item.id)}
+                            className="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 disabled:opacity-50 text-xs font-semibold text-white transition-colors"
+                          >
+                            {t("pathways.btn.advanceDay", "تقدم يوم")}
+                          </button>
+                          <button
+                            disabled={isBusy}
+                            onClick={() => void completeEnrollment(item.id)}
+                            className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-xs font-semibold text-white transition-colors"
+                          >
+                            {t("pathways.btn.complete", "إكمال")}
+                          </button>
+                        </>
+                      )}
+                      <button
+                        onClick={() => navigate(`/encounters/${item.encounterId}`)}
+                        className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 border border-slate-700 transition-colors"
+                      >
+                        {t("pathways.btn.openEncounter", "فتح الزيارة")}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 

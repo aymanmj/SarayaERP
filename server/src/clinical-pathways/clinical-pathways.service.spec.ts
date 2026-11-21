@@ -104,4 +104,59 @@ describe('pathway lifecycle boundaries', () => {
       expect.objectContaining({ where: { id: 1, pathway: { hospitalId: 8 } } }),
     );
   });
+
+  it('lists hospital enrollments scoped by tenant and enriched with encounter patient info (UI02)', async () => {
+    const findManyEnrollments = jest.fn().mockResolvedValue([
+      {
+        id: 10,
+        pathwayId: 3,
+        encounterId: 44,
+        patientId: 9,
+        status: 'ACTIVE',
+        currentDay: 2,
+        pathway: {
+          id: 3,
+          name: 'Sepsis Bundle',
+          nameAr: 'مسار الإنتان',
+          expectedLOS: 5,
+        },
+        enrolledBy: { id: 2, fullName: 'Dr. Ali' },
+        variances: [],
+      },
+    ]);
+    const findManyEncounters = jest.fn().mockResolvedValue([
+      {
+        id: 44,
+        status: 'OPEN',
+        patient: { id: 9, fullName: 'Patient One', mrn: 'MRN-09' },
+      },
+    ]);
+    const service = Object.create(
+      ClinicalPathwaysService.prototype,
+    ) as ClinicalPathwaysService;
+    Object.defineProperty(service, 'prisma', {
+      value: {
+        pathwayEnrollment: { findMany: findManyEnrollments },
+        encounter: { findMany: findManyEncounters },
+      },
+    });
+
+    const list = await service.listEnrollments(8, 'ACTIVE');
+    expect(findManyEnrollments).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { pathway: { hospitalId: 8 }, status: 'ACTIVE' },
+      }),
+    );
+    expect(findManyEncounters).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { hospitalId: 8, id: { in: [44] } },
+      }),
+    );
+    expect(list[0]).toMatchObject({
+      id: 10,
+      encounterId: 44,
+      encounterStatus: 'OPEN',
+      patient: { id: 9, fullName: 'Patient One', mrn: 'MRN-09' },
+    });
+  });
 });

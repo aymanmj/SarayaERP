@@ -308,6 +308,102 @@ export class AnalyticsService {
     const cdssOverrideRate =
       totalAlerts > 0 ? (overriddenAlerts / totalAlerts) * 100 : 0;
 
+    // 6. Real 6-month historical trends ending in endDate's UTC month
+    const trends: Array<{
+      name: string;
+      readmission: number;
+      override: number;
+      gapClosure: number;
+    }> = [];
+    const baseYear = endDate.getUTCFullYear();
+    const baseMonth = endDate.getUTCMonth();
+
+    for (let offset = 5; offset >= 0; offset--) {
+      const mStart = new Date(
+        Date.UTC(baseYear, baseMonth - offset, 1, 0, 0, 0, 0),
+      );
+      const mEnd = new Date(
+        Date.UTC(baseYear, baseMonth - offset + 1, 0, 23, 59, 59, 999),
+      );
+      const label = `${mStart.getUTCFullYear()}-${String(
+        mStart.getUTCMonth() + 1,
+      ).padStart(2, '0')}`;
+
+      const mAdmissions =
+        (await this.prisma.encounter.findMany({
+          where: {
+            hospitalId,
+            type: 'IPD',
+            createdAt: { gte: mStart, lte: mEnd },
+          },
+          select: { patientId: true, createdAt: true },
+        })) ?? [];
+
+      let mReadmissions = 0;
+      for (const adm of mAdmissions) {
+        const thirtyDaysBefore = new Date(
+          adm.createdAt.getTime() - 30 * 24 * 60 * 60 * 1000,
+        );
+        const prev = await this.prisma.encounter.findFirst({
+          where: {
+            patientId: adm.patientId,
+            hospitalId,
+            type: 'IPD',
+            status: 'CLOSED',
+            dischargeDate: { gte: thirtyDaysBefore, lt: adm.createdAt },
+          },
+        });
+        if (prev) mReadmissions++;
+      }
+      const mReadmissionRate =
+        mAdmissions.length > 0 ? (mReadmissions / mAdmissions.length) * 100 : 0;
+
+      const mTotalMeds = Number(
+        (await this.prisma.medicationAdministration.count({
+          where: { hospitalId, administeredAt: { gte: mStart, lte: mEnd } },
+        })) ?? 0,
+      );
+      const mOverrideMeds = Number(
+        (await this.prisma.medicationAdministration.count({
+          where: {
+            hospitalId,
+            isEmergencyOverride: true,
+            administeredAt: { gte: mStart, lte: mEnd },
+          },
+        })) ?? 0,
+      );
+      const mOverrideRate =
+        mTotalMeds > 0 ? (mOverrideMeds / mTotalMeds) * 100 : 0;
+
+      const mTotalGaps = Number(
+        (await this.prisma.careGap.count({
+          where: {
+            patient: { hospitalId },
+            createdAt: { lte: mEnd },
+            OR: [{ closedAt: null }, { closedAt: { gte: mStart } }],
+          },
+        })) ?? 0,
+      );
+      const mClosedGaps = Number(
+        (await this.prisma.careGap.count({
+          where: {
+            patient: { hospitalId },
+            status: 'CLOSED',
+            closedAt: { gte: mStart, lte: mEnd },
+          },
+        })) ?? 0,
+      );
+      const mGapClosureRate =
+        mTotalGaps > 0 ? (mClosedGaps / mTotalGaps) * 100 : 0;
+
+      trends.push({
+        name: label,
+        readmission: Number(mReadmissionRate.toFixed(1)),
+        override: Number(mOverrideRate.toFixed(1)),
+        gapClosure: Number(mGapClosureRate.toFixed(1)),
+      });
+    }
+
     return {
       period: { startDate, endDate },
       readmissionRate: Number(readmissionRate.toFixed(2)),
@@ -318,6 +414,7 @@ export class AnalyticsService {
       medicationOverrideRate: Number(medicationOverrideRate.toFixed(2)),
       careGapClosureRate: Number(careGapClosureRate.toFixed(2)),
       cdssOverrideRate: Number(cdssOverrideRate.toFixed(2)),
+      trends,
       generationDate: new Date(),
     };
   }
