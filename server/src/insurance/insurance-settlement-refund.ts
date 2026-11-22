@@ -15,6 +15,7 @@ import { ensureUnusedRefundBankReference } from './refund-bank-reference';
 import {
   MONEY_INPUT_PATTERN,
   readSettlementBalance,
+  readWriteOffBalance,
   settledClaimStatus,
   trackedInsuranceShare,
   unallocatedSummary,
@@ -450,10 +451,18 @@ export async function reviewSettlementRefund(
         );
         const { posted } = amounts(ledger.get(allocation.id)!);
         const { net } = await readSettlementBalance(tx, hospitalId, invoice.id);
+        const writtenOff = await readWriteOffBalance(
+          tx,
+          hospitalId,
+          invoice.id,
+        );
         const share = await trackedInsuranceShare(tx, invoice);
+        const currentTotal = net.plus(writtenOff.posted);
+        const nextTotal = net.minus(line.amount).plus(writtenOff.posted);
         const next = net.minus(line.amount);
         const receivable = allocation.originalReceivable;
         if (
+          writtenOff.pending.gt(0) ||
           invoice.type !== 'INVOICE' ||
           invoice.status === 'CANCELLED' ||
           invoice.insuranceProviderId !== settlement.providerId ||
@@ -465,9 +474,9 @@ export async function reviewSettlementRefund(
           receivable.accountId === bank[0].accountId ||
           posted.plus(line.amount).gt(allocation.amount) ||
           next.lt(0) ||
-          net.gt(share) ||
+          currentTotal.gt(share) ||
           invoice.claimStatus === 'WITHDRAWN' ||
-          invoice.claimStatus !== settledClaimStatus(net, share) ||
+          invoice.claimStatus !== settledClaimStatus(currentTotal, share) ||
           (await tx.invoiceAdjustment.count({
             where: { hospitalId, invoiceId: invoice.id, status: 'PENDING' },
           }))
@@ -481,7 +490,7 @@ export async function reviewSettlementRefund(
         );
         invoiceUpdates.push({
           id: invoice.id,
-          claimStatus: settledClaimStatus(next, share),
+          claimStatus: settledClaimStatus(nextTotal, share),
         });
       }
     }

@@ -56,6 +56,7 @@ model OrgSetting {
 
 model Hospital {
   batchRestrictions InventoryBatchRestriction[]
+  insuranceClaimWriteOffs InsuranceClaimWriteOff[]
   insuranceSettlementApplications InsuranceSettlementApplication[]
   insuranceSettlementRefunds InsuranceSettlementRefund[]
   insuranceSettlements InsuranceSettlement[]
@@ -321,6 +322,7 @@ model ServiceBundleItem {
 }
 
 model Invoice {
+  insuranceClaimWriteOffs InsuranceClaimWriteOff[]
   insuranceSettlementAllocations InsuranceSettlementAllocation[]
   claimWithdrawal InsuranceClaimWithdrawal?
   coveragePolicyId Int?
@@ -527,6 +529,8 @@ model Payment {
 }
 
 model User {
+  requestedInsuranceClaimWriteOffs InsuranceClaimWriteOff[] @relation("ClaimWriteOffRequester")
+  reviewedInsuranceClaimWriteOffs InsuranceClaimWriteOff[] @relation("ClaimWriteOffReviewer")
   recordedInsuranceSettlementApplications InsuranceSettlementApplication[]
   requestedInsuranceSettlementRefunds InsuranceSettlementRefund[] @relation("SettlementRefundRequester")
   reviewedInsuranceSettlementRefunds InsuranceSettlementRefund[] @relation("SettlementRefundReviewer")
@@ -2895,6 +2899,7 @@ model Account {
   inventoryCategories        ItemCategory[]         @relation("CategoryInventoryAccount")
   expenseCategories          ItemCategory[]         @relation("CategoryExpenseAccount")
   unallocatedInsuranceSettlements InsuranceSettlement[]
+  insuranceClaimWriteOffs    InsuranceClaimWriteOff[] @relation("InsuranceWriteOffAccount")
 
   @@unique([hospitalId, code])
   @@index([hospitalId, type])
@@ -2903,6 +2908,7 @@ model Account {
 
 model AccountingEntry {
   recallDisposal InventoryRecallDisposal?
+  insuranceClaimWriteOff InsuranceClaimWriteOff?
   insuranceSettlementApplication InsuranceSettlementApplication?
   insuranceSettlementRefund InsuranceSettlementRefund?
   insuranceSettlement InsuranceSettlement?
@@ -2940,6 +2946,7 @@ model AccountingEntry {
 }
 
 model AccountingEntryLine {
+  insuranceClaimWriteOffs InsuranceClaimWriteOff[]
   insuranceSettlementAllocations InsuranceSettlementAllocation[]
   id           Int             @id @default(autoincrement())
   entryId      Int
@@ -4191,6 +4198,7 @@ enum SystemAccountKey {
   INVENTORY_LOSS
   RETAINED_EARNINGS
   INSURANCE_UNALLOCATED_RECEIPTS
+  INSURANCE_BAD_DEBT_EXPENSE
 }
 
 enum SupplierType {
@@ -6731,4 +6739,36 @@ model InsuranceSettlementRefundLine {
 
   @@id([refundId, allocationId])
   @@index([allocationId])
+}
+
+model InsuranceClaimWriteOff {
+  id                   Int                 @id @default(autoincrement())
+  hospitalId           Int
+  invoiceId            Int
+  originalReceivableId Int
+  requestKey           String              @unique
+  category             String
+  amount               Decimal             @db.Decimal(18, 3)
+  outstandingBefore    Decimal             @db.Decimal(18, 3)
+  reason               String
+  status               String              @default("PENDING")
+  requestedById        Int
+  reviewedById         Int?
+  reviewNote           String?
+  writeOffAccountId    Int?
+  postingEntryId       Int?                @unique
+  createdAt            DateTime            @default(now())
+  reviewedAt           DateTime?
+  hospital             Hospital            @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
+  invoice              Invoice             @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+  originalReceivable   AccountingEntryLine @relation(fields: [originalReceivableId], references: [id], onDelete: Restrict)
+  requestedBy          User                @relation("ClaimWriteOffRequester", fields: [requestedById], references: [id], onDelete: Restrict)
+  reviewedBy           User?               @relation("ClaimWriteOffReviewer", fields: [reviewedById], references: [id], onDelete: Restrict)
+  writeOffAccount      Account?            @relation("InsuranceWriteOffAccount", fields: [writeOffAccountId], references: [id], onDelete: Restrict)
+  postingEntry         AccountingEntry?    @relation(fields: [postingEntryId], references: [id], onDelete: Restrict)
+
+  @@index([invoiceId, status])
+  @@index([hospitalId, status, createdAt])
+  @@index([originalReceivableId])
+  @@index([writeOffAccountId])
 }

@@ -1575,6 +1575,307 @@ describe('Insurance Providers, Policies, Plans, Coverage Calculation, Pre-Auth, 
     }
   });
 
+  it('enforces 4-eyes approved contractual and bad-debt claim write-offs, reservation blocking, settlement continuity, tenant isolation, and reversal protection', async () => {
+    await accountingService.ensureDefaultAccountsForHospital(hospitalId);
+    const provider = await db.insuranceProvider.create({
+      data: {
+        hospitalId,
+        code: 'WRITEOFF-INSURER',
+        name: 'Synthetic WriteOff Insurer',
+      },
+    });
+    const patient = await db.patient.create({
+      data: {
+        hospitalId,
+        mrn: 'WRITEOFF-PATIENT',
+        fullName: 'Synthetic WriteOff Patient',
+        gender: 'MALE',
+      },
+    });
+    const encounter = await db.encounter.create({
+      data: { hospitalId, patientId: patient.id, type: 'OPD', status: 'OPEN' },
+    });
+    const reviewer = await auth.createTestUser(
+      'writeoff-reviewer',
+      'synthetic',
+      {
+        hospitalId,
+        permissions: ['insurance:manage'],
+      },
+    );
+    const issue = async (
+      share: string,
+      claimStatus: 'SUBMITTED' | 'REJECTED',
+    ) => {
+      const invoice = await db.invoice.create({
+        data: {
+          hospitalId,
+          patientId: patient.id,
+          encounterId: encounter.id,
+          totalAmount: share,
+          insuranceShare: share,
+          patientShare: '0.000',
+          status: 'ISSUED',
+          claimStatus,
+          insuranceProviderId: provider.id,
+        },
+      });
+      await accountingService.recordInvoiceEntry({
+        hospitalId,
+        invoiceId: invoice.id,
+        userId: adminUserId,
+      });
+      return invoice;
+    };
+
+    const invContract = await issue('1.000', 'SUBMITTED');
+    const invBadDebt = await issue('1.000', 'REJECTED');
+
+    // 1. Settle 0.700 partially on invContract -> remaining 0.300
+    await request(app.getHttpServer())
+      .post('/insurance/claims/settlements')
+      .auth(adminToken, { type: 'bearer' })
+      .send({
+        providerId: provider.id,
+        invoiceIds: [invContract.id],
+        amount: '0.700',
+        bankReference: 'WRITEOFF-PARTIAL-01',
+        confirmed: true,
+        allocations: [{ invoiceId: invContract.id, amount: '0.700' }],
+      })
+      .expect(201);
+
+    // 2. Request CONTRACTUAL_ALLOWANCE write-off of 0.300 + idempotency + 409 conflict
+    const writeOffReqKey = randomUUID();
+    const requestWriteOff = (
+      invoiceId: number,
+      body: object,
+      token = adminToken,
+    ) =>
+      request(app.getHttpServer())
+        .post(`/insurance/claims/${invoiceId}/write-offs`)
+        .auth(token, { type: 'bearer' })
+        .send(body);
+
+    const woReqBody = {
+      requestId: writeOffReqKey,
+      category: 'CONTRACTUAL_ALLOWANCE',
+      amount: '0.300',
+      reason: 'Contractual fee schedule adjustment on claim',
+    };
+    const [wo1, wo1Replay] = await Promise.all([
+      requestWriteOff(invContract.id, woReqBody).expect(201),
+      requestWriteOff(invContract.id, woReqBody).expect(201),
+    ]);
+    expect(wo1Replay.body).toEqual(wo1.body);
+    await requestWriteOff(invContract.id, {
+      ...woReqBody,
+      amount: '0.250',
+    }).expect(409);
+
+    // Cross-tenant isolation blocked with 404
+    await requestWriteOff(
+      invContract.id,
+      { ...woReqBody, requestId: randomUUID() },
+      otherToken,
+    ).expect(404);
+
+    // Pending write-off blocks concurrent settlement & withdrawal (400)
+    await request(app.getHttpServer())
+      .post('/insurance/claims/settlements')
+      .auth(adminToken, { type: 'bearer' })
+      .send({
+        providerId: provider.id,
+        invoiceIds: [invContract.id],
+        amount: '0.300',
+        bankReference: 'WRITEOFF-BLOCKED-02',
+        confirmed: true,
+      })
+      .expect(400);
+
+    // Over-limit second write-off blocked (400)
+    await requestWriteOff(invContract.id, {
+      ...woReqBody,
+      requestId: randomUUID(),
+      amount: '0.001',
+    }).expect(400);
+
+    const wo1Id = responseBody<{ id: number }>(wo1).id;
+    const reviewWriteOff = (
+      invoiceId: number,
+      writeOffId: number,
+      body: object,
+      token = reviewer.accessToken,
+    ) =>
+      request(app.getHttpServer())
+        .post(`/insurance/claims/${invoiceId}/write-offs/${writeOffId}/review`)
+        .auth(token, { type: 'bearer' })
+        .send(body);
+
+    // Maker cannot self-approve (403)
+    await reviewWriteOff(
+      invContract.id,
+      wo1Id,
+      { decision: 'POST', note: 'Self approval must fail' },
+      adminToken,
+    ).expect(403);
+
+    // Reviewer approves CONTRACTUAL_ALLOWANCE -> Dr 400800 / Cr 120200, invoice becomes PAID
+    const postedContractWo = await reviewWriteOff(invContract.id, wo1Id, {
+      decision: 'POST',
+      note: 'Approved per contract tariff table',
+    }).expect(201);
+    const contractEntryId = responseBody<{ postingEntryId: number }>(
+      postedContractWo,
+    ).postingEntryId;
+
+    const contraRevAccount = await db.account.findFirstOrThrow({
+      where: { hospitalId, code: '400800' },
+    });
+    const badDebtAccount = await db.account.findFirstOrThrow({
+      where: { hospitalId, code: '510900' },
+    });
+    const receivableAccount = await db.account.findFirstOrThrow({
+      where: { hospitalId, code: '120200' },
+    });
+    const contractEntry = await db.accountingEntry.findUniqueOrThrow({
+      where: { id: contractEntryId },
+      include: { lines: true },
+    });
+    expect(
+      contractEntry.lines.map((l) => [
+        l.accountId,
+        l.debit.toFixed(3),
+        l.credit.toFixed(3),
+      ]),
+    ).toEqual(
+      expect.arrayContaining([
+        [contraRevAccount.id, '0.300', '0.000'],
+        [receivableAccount.id, '0.000', '0.300'],
+      ]),
+    );
+    expect(
+      await db.invoice.findUniqueOrThrow({ where: { id: invContract.id } }),
+    ).toMatchObject({ claimStatus: 'PAID', status: 'PAID' });
+
+    // 3. BAD_DEBT write-off on REJECTED invoice: reject releases reservation -> re-request -> POST -> settle remainder
+    const rejectedWoReq = await requestWriteOff(invBadDebt.id, {
+      requestId: randomUUID(),
+      category: 'BAD_DEBT',
+      amount: '0.700',
+      reason: 'Initial partial bad debt reserve',
+    }).expect(201);
+    const rejectedWoId = responseBody<{ id: number }>(rejectedWoReq).id;
+    await reviewWriteOff(invBadDebt.id, rejectedWoId, {
+      decision: 'REJECT',
+      note: 'Reduce write-off amount to 0.400 only',
+    }).expect(201);
+
+    const badDebtReq = await requestWriteOff(invBadDebt.id, {
+      requestId: randomUUID(),
+      category: 'BAD_DEBT',
+      amount: '0.400',
+      reason: 'Final disallowed claim portion after appeal',
+    }).expect(201);
+    const badDebtId = responseBody<{ id: number }>(badDebtReq).id;
+    const postedBadDebt = await reviewWriteOff(invBadDebt.id, badDebtId, {
+      decision: 'POST',
+      note: 'Approved bad debt write-off by finance manager',
+    }).expect(201);
+    const badDebtEntryId = responseBody<{ postingEntryId: number }>(
+      postedBadDebt,
+    ).postingEntryId;
+
+    const badDebtEntry = await db.accountingEntry.findUniqueOrThrow({
+      where: { id: badDebtEntryId },
+      include: { lines: true },
+    });
+    expect(
+      badDebtEntry.lines.map((l) => [
+        l.accountId,
+        l.debit.toFixed(3),
+        l.credit.toFixed(3),
+      ]),
+    ).toEqual(
+      expect.arrayContaining([
+        [badDebtAccount.id, '0.400', '0.000'],
+        [receivableAccount.id, '0.000', '0.400'],
+      ]),
+    );
+    expect(
+      await db.invoice.findUniqueOrThrow({ where: { id: invBadDebt.id } }),
+    ).toMatchObject({
+      claimStatus: 'PARTIALLY_PAID',
+      status: 'PARTIALLY_PAID',
+    });
+
+    // Claims list shows settlementWrittenOff & settlementOutstanding = 0.600
+    const claimsList = await request(app.getHttpServer())
+      .get('/insurance/claims?status=PARTIALLY_PAID')
+      .auth(adminToken, { type: 'bearer' })
+      .expect(200);
+    expect(claimsList.body).toContainEqual(
+      expect.objectContaining({
+        id: invBadDebt.id,
+        settlementWrittenOff: '0.400',
+        settlementOutstanding: '0.600',
+      }),
+    );
+
+    // Withdrawal blocked once write-off posted (400)
+    await request(app.getHttpServer())
+      .post(`/insurance/claims/${invBadDebt.id}/withdrawal`)
+      .auth(adminToken, { type: 'bearer' })
+      .send({
+        payerReference: 'WITHDRAW-WO-BLOCK',
+        reason: 'Cannot withdraw after write-off',
+        confirmed: true,
+      })
+      .expect(400);
+
+    // Subsequent bank settlement for remaining 0.600 succeeds -> invoice PAID
+    await request(app.getHttpServer())
+      .post('/insurance/claims/settlements')
+      .auth(adminToken, { type: 'bearer' })
+      .send({
+        providerId: provider.id,
+        invoiceIds: [invBadDebt.id],
+        amount: '0.600',
+        bankReference: 'WRITEOFF-REMAINDER-01',
+        confirmed: true,
+      })
+      .expect(201);
+    expect(
+      await db.invoice.findUniqueOrThrow({ where: { id: invBadDebt.id } }),
+    ).toMatchObject({ claimStatus: 'PAID', status: 'PAID' });
+
+    // Write-off ledger returns complete audit summary
+    const ledgerRes = await request(app.getHttpServer())
+      .get(`/insurance/claims/${invBadDebt.id}/write-offs`)
+      .auth(adminToken, { type: 'bearer' })
+      .expect(200);
+    expect(ledgerRes.body).toMatchObject({
+      invoiceId: invBadDebt.id,
+      effectiveShare: '1.000',
+      settledNet: '0.600',
+      postedWriteOff: '0.400',
+      pendingWriteOff: '0.000',
+      available: '0.000',
+    });
+
+    // Manual reversal must be blocked on write-off entries
+    for (const entryId of [contractEntryId, badDebtEntryId]) {
+      await expect(
+        accountingService.reverseEntry(
+          hospitalId,
+          entryId,
+          adminUserId,
+          'Synthetic unauthorized write-off reversal',
+        ),
+      ).rejects.toThrow();
+    }
+  });
+
   it('enforces RCM claim creation concurrency, scrubbing, payment validation, denial/appeal workflow, and tenant isolation', async () => {
     const provider = await db.insuranceProvider.create({
       data: {

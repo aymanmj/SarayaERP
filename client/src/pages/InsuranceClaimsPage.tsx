@@ -8,6 +8,7 @@ import { FeatureGuard } from "@/components/FeatureGuard";
 import { Money } from "../utils/money";
 import { ClaimReceiptRefundDialog } from "./ClaimReceiptRefundDialog";
 import { InsuranceSettlementRefundDialog } from "./InsuranceSettlementRefundDialog";
+import { InsuranceWriteOffDialog } from "./InsuranceWriteOffDialog";
 import { useIdempotentPost } from "../hooks/useIdempotentPost";
 
 const MONEY_RE = /^(0|[1-9]\d{0,14})(\.\d{1,3})?$/;
@@ -47,6 +48,8 @@ type ClaimInvoice = {
   settlementOutstanding?: string | null;
   settlementEffectiveShare?: string;
   settlementEffectivePatientShare?: string;
+  settlementWrittenOff?: string;
+  pendingWriteOffCount?: number;
   insuranceSettlementAllocations?: { amount: string; settlement: { id: number; bankReference: string } }[];
   rejectionReason?: string | null;
   patient: {
@@ -100,6 +103,14 @@ function canSettleClaim(invoice: ClaimInvoice) {
     Money.decimal(collectibleClaimAmount(invoice)).gt(0);
 }
 
+function canManageWriteOff(invoice: ClaimInvoice) {
+  return !invoice.claimWithdrawal && !!invoice.insuranceProviderId && !invoice.claims?.length && (
+    ["SUBMITTED", "PARTIALLY_PAID", "REJECTED"].includes(invoice.claimStatus ?? "") ||
+    Money.decimal(invoice.settlementWrittenOff ?? 0).gt(0) ||
+    (invoice.pendingWriteOffCount ?? 0) > 0
+  );
+}
+
 export default function InsuranceClaimsPage() {
   const { t, i18n } = useTranslation();
   const isRtl = i18n.dir() === "rtl";
@@ -150,6 +161,7 @@ export default function InsuranceClaimsPage() {
   );
   const settlementDialog = useRef<HTMLDialogElement>(null);
   const [settlementRefund, setSettlementRefund] = useState<number | null>(null);
+  const [writeOffInvoice, setWriteOffInvoice] = useState<number | null>(null);
   const settlementFilter = ["SUBMITTED", "PARTIALLY_PAID"].includes(statusFilter);
   const selectable = claims.filter((claim) => settlementFilter ? canSettleClaim(claim) :
     !claim.claimWithdrawal && !claim.insuranceSettlementAllocations?.length && !hasRcmPrescriptionClaim(claim));
@@ -870,6 +882,14 @@ export default function InsuranceClaimsPage() {
                     {c.settlementOutstanding != null && c.claimStatus !== "WITHDRAWN" && (
                       <p className="mt-1 text-xs text-slate-400">{t("insuranceClaims.settlement.outstanding")} <bdi>{formatMoney(c.settlementOutstanding)}</bdi></p>
                     )}
+                    {c.settlementWrittenOff && Money.decimal(c.settlementWrittenOff).gt(0) && (
+                      <p className="mt-1 text-xs text-amber-300">{t("insuranceClaims.writeOff.writtenOffAmount")}: <bdi>{formatMoney(c.settlementWrittenOff)}</bdi></p>
+                    )}
+                    {canManageWriteOff(c) && (
+                      <button type="button" className="mt-1 block text-xs text-sky-300 underline" onClick={() => setWriteOffInvoice(c.id)}>
+                        {t("insuranceClaims.writeOff.open")}
+                      </button>
+                    )}
                     {Array.from(
                       new Map(
                         (c.insuranceSettlementAllocations ?? []).map(({ settlement }) => [settlement.id, settlement]),
@@ -1094,6 +1114,9 @@ export default function InsuranceClaimsPage() {
       )}
       {settlementRefund != null && (
         <InsuranceSettlementRefundDialog settlementId={settlementRefund} onClose={() => setSettlementRefund(null)} onChange={loadClaims} />
+      )}
+      {writeOffInvoice != null && (
+        <InsuranceWriteOffDialog invoiceId={writeOffInvoice} onClose={() => setWriteOffInvoice(null)} onChange={loadClaims} />
       )}
       {withdrawalInvoice != null && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/80 p-4">

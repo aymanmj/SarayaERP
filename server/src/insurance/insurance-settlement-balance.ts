@@ -79,6 +79,28 @@ export async function readSettlementBalance(
   return { net: settlementNet(history), hasHistory: history.length > 0 };
 }
 
+export async function readWriteOffBalance(
+  tx: Prisma.TransactionClient,
+  hospitalId: number,
+  invoiceId: number,
+) {
+  const rows = await tx.insuranceClaimWriteOff.findMany({
+    where: { hospitalId, invoiceId, status: { in: ['PENDING', 'POSTED'] } },
+    select: { status: true, amount: true },
+  });
+  const posted = Money.sumDecimal(
+    ...rows
+      .filter((item) => item.status === 'POSTED')
+      .map((item) => item.amount),
+  );
+  const pending = Money.sumDecimal(
+    ...rows
+      .filter((item) => item.status === 'PENDING')
+      .map((item) => item.amount),
+  );
+  return { posted, pending, hasHistory: rows.length > 0 };
+}
+
 export function unallocatedSummary(settlement: {
   unallocatedAmount: Prisma.Decimal;
   applications: { amount: Prisma.Decimal }[];
@@ -224,12 +246,19 @@ export async function prepareSettlementAllocations(
       hospitalId,
       invoice.id,
     );
+    const writtenOff = await readWriteOffBalance(tx, hospitalId, invoice.id);
+    if (writtenOff.pending.gt(0))
+      throw new BadRequestException(
+        'يوجد طلب شطب تأميني معلق على الفاتورة يتطلب الحسم أولًا',
+      );
     const share = await trackedInsuranceShare(tx, invoice);
-    const outstanding = share.minus(net);
+    const completed = net.plus(writtenOff.posted);
+    const outstanding = share.minus(completed);
     if (
       net.lt(0) ||
+      writtenOff.posted.lt(0) ||
       !outstanding.gt(0) ||
-      invoice.claimStatus !== settledClaimStatus(net, share)
+      invoice.claimStatus !== settledClaimStatus(completed, share)
     )
       throw new BadRequestException('رصيد التأمين المستحق يحتاج إلى مطابقة');
     const amount = Money.decimal(explicit?.get(invoice.id) ?? outstanding);

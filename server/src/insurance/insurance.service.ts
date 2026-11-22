@@ -32,6 +32,13 @@ import {
   type SettlementRefundReview,
 } from './insurance-settlement-refund';
 import {
+  listClaimWriteOffs,
+  requestClaimWriteOff,
+  reviewClaimWriteOff,
+  type ClaimWriteOffInput,
+  type ClaimWriteOffReview,
+} from './insurance-claim-writeoff';
+import {
   recordClaimWithdrawal,
   type ClaimWithdrawalInput,
 } from './claim-withdrawal';
@@ -636,15 +643,32 @@ export class InsuranceService {
             settlement: { select: { id: true, bankReference: true } },
           },
         },
+        insuranceClaimWriteOffs: {
+          where: { status: { in: ['PENDING', 'POSTED'] } },
+          select: { id: true, status: true, amount: true },
+        },
       },
       orderBy: { createdAt: 'desc' },
     });
     return invoices.map(
-      ({ insuranceSettlementAllocations, adjustments, ...invoice }) => {
+      ({
+        insuranceSettlementAllocations,
+        insuranceClaimWriteOffs,
+        adjustments,
+        ...invoice
+      }) => {
         const share = Money.sumDecimal(
           invoice.insuranceShare,
           ...adjustments.map((item) => item.insuranceDelta),
         );
+        const writtenOffPosted = Money.sumDecimal(
+          ...insuranceClaimWriteOffs
+            .filter((item) => item.status === 'POSTED')
+            .map((item) => item.amount),
+        );
+        const pendingWriteOffCount = insuranceClaimWriteOffs.filter(
+          (item) => item.status === 'PENDING',
+        ).length;
         const individual =
           invoice.claims.length === 1 && invoice.claims[0]._count.receipts > 0
             ? invoice.claims[0]
@@ -658,15 +682,20 @@ export class InsuranceService {
               ...adjustments.map((item) => item.delta),
             ),
           ),
-          settlementOutstanding: insuranceSettlementAllocations.length
-            ? Money.toDbString(
-                share.minus(settlementNet(insuranceSettlementAllocations)),
-              )
-            : individual
+          settlementWrittenOff: Money.toDbString(writtenOffPosted),
+          pendingWriteOffCount,
+          settlementOutstanding:
+            insuranceSettlementAllocations.length || writtenOffPosted.gt(0)
               ? Money.toDbString(
-                  share.minus(Money.decimal(individual.paidAmount)),
+                  share
+                    .minus(settlementNet(insuranceSettlementAllocations))
+                    .minus(writtenOffPosted),
                 )
-              : null,
+              : individual
+                ? Money.toDbString(
+                    share.minus(Money.decimal(individual.paidAmount)),
+                  )
+                : null,
           insuranceSettlementAllocations: insuranceSettlementAllocations.map(
             ({ settlement, amount }) => ({ settlement, amount }),
           ),
@@ -745,6 +774,42 @@ export class InsuranceService {
           tx,
           { hospitalId, settlementId, userId },
           refundId,
+          input,
+        ),
+      { maxWait: 10000, timeout: 30000 },
+    );
+  }
+
+  listClaimWriteOffs(hospitalId: number, invoiceId: number) {
+    return listClaimWriteOffs(this.prisma, hospitalId, invoiceId);
+  }
+
+  requestClaimWriteOff(
+    hospitalId: number,
+    invoiceId: number,
+    userId: number,
+    input: ClaimWriteOffInput,
+  ) {
+    return this.prisma.$transaction(
+      (tx) =>
+        requestClaimWriteOff(tx, { hospitalId, invoiceId, userId }, input),
+      { maxWait: 10000, timeout: 30000 },
+    );
+  }
+
+  reviewClaimWriteOff(
+    hospitalId: number,
+    invoiceId: number,
+    userId: number,
+    writeOffId: number,
+    input: ClaimWriteOffReview,
+  ) {
+    return this.prisma.$transaction(
+      (tx) =>
+        reviewClaimWriteOff(
+          tx,
+          { hospitalId, invoiceId, userId },
+          writeOffId,
           input,
         ),
       { maxWait: 10000, timeout: 30000 },
@@ -840,6 +905,19 @@ export class InsuranceService {
       )
         throw new BadRequestException(
           'تحديث المطالبة المرتبطة بحوالة يتطلب مسار التسوية الموثق',
+        );
+
+      if (
+        await tx.insuranceClaimWriteOff.count({
+          where: {
+            hospitalId,
+            invoiceId: { in: uniqueInvoiceIds },
+            status: { in: ['PENDING', 'POSTED'] },
+          },
+        })
+      )
+        throw new BadRequestException(
+          'تحديث المطالبة المرتبطة بطلب شطب يتطلب مسار الشطب المعتمد',
         );
 
       if (

@@ -126,6 +126,19 @@ class SettlementRefundDto {
   @Matches(/^(0|[1-9]\d{0,14})(\.\d{1,3})?$/)
   unallocatedAmount?: string;
 }
+
+class ClaimWriteOffDto {
+  @IsUUID('4') requestId!: string;
+  @IsIn(['CONTRACTUAL_ALLOWANCE', 'BAD_DEBT'])
+  category!: 'CONTRACTUAL_ALLOWANCE' | 'BAD_DEBT';
+  @IsString() @Matches(/^(0|[1-9]\d{0,14})(\.\d{1,3})?$/) amount!: string;
+  @IsString() @MinLength(5) @MaxLength(1000) reason!: string;
+}
+
+class ClaimWriteOffReviewDto {
+  @IsIn(['POST', 'REJECT']) decision!: 'POST' | 'REJECT';
+  @IsString() @MinLength(5) @MaxLength(1000) note!: string;
+}
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('insurance')
 export class InsuranceController {
@@ -419,6 +432,50 @@ export class InsuranceController {
       settlementId,
       req.user.sub,
       refundId,
+      body,
+    );
+  }
+
+  @Get('claims/:invoiceId/write-offs')
+  @Permissions('insurance:manage')
+  listClaimWriteOffs(
+    @Req() req: { user: JwtPayload },
+    @Param('invoiceId', ParseIntPipe) invoiceId: number,
+  ) {
+    return this.insuranceService.listClaimWriteOffs(
+      req.user.hospitalId,
+      invoiceId,
+    );
+  }
+
+  @Post('claims/:invoiceId/write-offs')
+  @Permissions('insurance:manage')
+  requestClaimWriteOff(
+    @Req() req: { user: JwtPayload },
+    @Param('invoiceId', ParseIntPipe) invoiceId: number,
+    @Body() body: ClaimWriteOffDto,
+  ) {
+    return this.insuranceService.requestClaimWriteOff(
+      req.user.hospitalId,
+      invoiceId,
+      req.user.sub,
+      body,
+    );
+  }
+
+  @Post('claims/:invoiceId/write-offs/:writeOffId/review')
+  @Permissions('insurance:manage')
+  reviewClaimWriteOff(
+    @Req() req: { user: JwtPayload },
+    @Param('invoiceId', ParseIntPipe) invoiceId: number,
+    @Param('writeOffId', ParseIntPipe) writeOffId: number,
+    @Body() body: ClaimWriteOffReviewDto,
+  ) {
+    return this.insuranceService.reviewClaimWriteOff(
+      req.user.hospitalId,
+      invoiceId,
+      req.user.sub,
+      writeOffId,
       body,
     );
   }

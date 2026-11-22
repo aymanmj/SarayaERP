@@ -65,6 +65,8 @@ export const ACCOUNT_CODES = {
   SALES_RETURNS: '400900', // مردودات مبيعات
   PATIENT_DEPOSITS: '200500', // أمانات ودفعات المرضى المقدمة (Custodial Liability)
   INSURANCE_UNALLOCATED: '200600', // حوالات تأمين غير موزعة / فوائض شركات التأمين
+  INSURANCE_CONTRACTUAL_WRITEOFF: '400800', // شطب تعاقدي وفروق تأمين (Contra Revenue)
+  INSURANCE_BAD_DEBT: '510900', // مصروف ديون معدومة / مطالبات غير محصلة (Expense)
 } as const;
 
 type SampleAccountDef = {
@@ -311,6 +313,12 @@ const SAMPLE_COA: SampleAccountDef[] = [
     type: 'CONTRA_REVENUE',
     parentCode: '402000',
   },
+  {
+    code: ACCOUNT_CODES.INSURANCE_CONTRACTUAL_WRITEOFF,
+    name: 'خصم / شطب تعاقدي لمطالبات التأمين',
+    type: 'CONTRA_REVENUE',
+    parentCode: '402000',
+  },
 
   // ===== المصروفات =====
   { code: '500000', name: 'مصروفات تشغيلية', type: 'EXPENSE' },
@@ -346,6 +354,12 @@ const SAMPLE_COA: SampleAccountDef[] = [
   },
 
   { code: '510000', name: 'مصروفات إدارية وعمومية', type: 'EXPENSE' },
+  {
+    code: ACCOUNT_CODES.INSURANCE_BAD_DEBT,
+    name: 'مصروف ديون معدومة ومطالبات مرفوضة نهائياً',
+    type: 'EXPENSE',
+    parentCode: '510000',
+  },
   {
     code: '510100',
     name: 'إيجار',
@@ -586,6 +600,14 @@ export class AccountingService {
         {
           key: SystemAccountKey.INSURANCE_UNALLOCATED_RECEIPTS,
           code: ACCOUNT_CODES.INSURANCE_UNALLOCATED,
+        },
+        {
+          key: SystemAccountKey.REVENUE_WRITE_OFF,
+          code: ACCOUNT_CODES.INSURANCE_CONTRACTUAL_WRITEOFF,
+        },
+        {
+          key: SystemAccountKey.INSURANCE_BAD_DEBT_EXPENSE,
+          code: ACCOUNT_CODES.INSURANCE_BAD_DEBT,
         },
       ];
 

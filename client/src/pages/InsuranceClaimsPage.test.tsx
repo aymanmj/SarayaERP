@@ -420,3 +420,106 @@ it("requests a refund from unallocated settlement balance inside InsuranceSettle
     restoreDialog();
   }
 });
+
+it("submits a contractual claim write-off request via InsuranceWriteOffDialog", async () => {
+  const url = "/insurance/claims/55/write-offs";
+  vi.mocked(apiClient.get).mockImplementation(async (path, config) => {
+    if (path === url) {
+      return {
+        data: {
+          invoiceId: 55,
+          claimStatus: "PARTIALLY_PAID",
+          effectiveShare: "1.000",
+          settledNet: "0.700",
+          postedWriteOff: "0.000",
+          pendingWriteOff: "0.000",
+          available: "0.300",
+          writeOffs: [],
+        },
+      };
+    }
+    if (path === "/insurance/claims" && (config?.params as { status?: string } | undefined)?.status === "PARTIALLY_PAID") {
+      return {
+        data: [{
+          id: 55, claimStatus: "PARTIALLY_PAID", createdAt: "2026-11-22T09:00:00Z", insuranceShare: "1.000", patientShare: "0.000",
+          settlementOutstanding: "0.300", insuranceProviderId: 7, patient: { fullName: "Synthetic patient" }, insuranceProvider: { name: "Synthetic insurer" }, claims: [],
+        }],
+      };
+    }
+    return { data: [] };
+  });
+  vi.mocked(apiClient.post).mockClear().mockResolvedValue({ data: {} });
+  const restoreDialog = mockDialog();
+  try {
+    render(<InsuranceClaimsPage />);
+    const partialOpt = document.querySelector<HTMLOptionElement>("option[value='PARTIALLY_PAID']")!;
+    fireEvent.change(partialOpt.parentElement!, { target: { value: "PARTIALLY_PAID" } });
+    fireEvent.click(await screen.findByRole("button", { name: "insuranceClaims.writeOff.open" }));
+    fireEvent.click(await screen.findByRole("button", { name: "insuranceClaims.writeOff.fillRemaining" }));
+    fireEvent.change(screen.getByLabelText("insuranceClaims.writeOff.reason"), { target: { value: "Contractual fee cap difference" } });
+    fireEvent.click(screen.getByRole("button", { name: "insuranceClaims.writeOff.request" }));
+    await waitFor(() => expect(apiClient.post).toHaveBeenCalledWith(url, {
+      requestId: expect.any(String),
+      category: "CONTRACTUAL_ALLOWANCE",
+      amount: "0.300",
+      reason: "Contractual fee cap difference",
+    }));
+  } finally {
+    restoreDialog();
+  }
+});
+
+it("allows an independent reviewer to approve and post a pending write-off in InsuranceWriteOffDialog", async () => {
+  const url = "/insurance/claims/56/write-offs";
+  vi.mocked(apiClient.get).mockImplementation(async (path, config) => {
+    if (path === url) {
+      return {
+        data: {
+          invoiceId: 56,
+          claimStatus: "REJECTED",
+          effectiveShare: "1.000",
+          settledNet: "0.000",
+          postedWriteOff: "0.000",
+          pendingWriteOff: "0.400",
+          available: "0.600",
+          writeOffs: [{
+            id: 91,
+            category: "BAD_DEBT",
+            amount: "0.400",
+            reason: "Final insurer denial of line item",
+            status: "PENDING",
+            requestedById: 99,
+            reviewNote: null,
+            postingEntryId: null,
+          }],
+        },
+      };
+    }
+    if (path === "/insurance/claims" && (config?.params as { status?: string } | undefined)?.status === "REJECTED") {
+      return {
+        data: [{
+          id: 56, claimStatus: "REJECTED", createdAt: "2026-11-22T09:00:00Z", insuranceShare: "1.000", patientShare: "0.000",
+          pendingWriteOffCount: 1, insuranceProviderId: 7, patient: { fullName: "Synthetic patient" }, insuranceProvider: { name: "Synthetic insurer" }, claims: [],
+        }],
+      };
+    }
+    return { data: [] };
+  });
+  vi.mocked(apiClient.post).mockClear().mockResolvedValue({ data: {} });
+  const restoreDialog = mockDialog();
+  try {
+    render(<InsuranceClaimsPage />);
+    const rejectedOpt = document.querySelector<HTMLOptionElement>("option[value='REJECTED']")!;
+    fireEvent.change(rejectedOpt.parentElement!, { target: { value: "REJECTED" } });
+    fireEvent.click(await screen.findByRole("button", { name: "insuranceClaims.writeOff.open" }));
+    fireEvent.click(await screen.findByRole("button", { name: "insuranceClaims.writeOff.review" }));
+    fireEvent.change(screen.getByLabelText("insuranceClaims.writeOff.reviewNote"), { target: { value: "Approved by finance reviewer" } });
+    fireEvent.click(screen.getByRole("button", { name: "insuranceClaims.writeOff.post" }));
+    await waitFor(() => expect(apiClient.post).toHaveBeenCalledWith(`${url}/91/review`, {
+      decision: "POST",
+      note: "Approved by finance reviewer",
+    }));
+  } finally {
+    restoreDialog();
+  }
+});

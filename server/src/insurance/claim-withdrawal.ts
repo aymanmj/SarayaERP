@@ -95,6 +95,14 @@ export async function recordClaimWithdrawal(
     throw new BadRequestException(
       'يلزم حسم طلب تصحيح حصة التأمين قبل توثيق السحب',
     );
+  if (
+    await tx.insuranceClaimWriteOff.count({
+      where: { hospitalId, invoiceId, status: { in: ['PENDING', 'POSTED'] } },
+    })
+  )
+    throw new BadRequestException(
+      'توجد طلبات شطب قائمة أو معتمدة تمنع سحب المطالبة',
+    );
   const [legacySettlement] = await tx.$queryRaw<{ id: number }[]>`
     SELECT e.id FROM "AccountingEntry" e
     WHERE e."hospitalId" = ${hospitalId}
