@@ -194,11 +194,11 @@ export const FlowsheetEntryModal = ({ isOpen, onClose, encounterId, onSuccess }:
                 </div>
                 <div>
                   <label className={labelCls}>{t('icu.flowsheetEntry.ventilator.fio2', 'FiO2 (%)')}</label>
-                  <input type="number" name="ventFio2" value={formData.ventFio2} onChange={handleChange} className={inputCls} placeholder="40" dir="ltr" />
+                  <input type="number" name="ventFio2" value={formData.ventFio2} onChange={handleChange} min={21} max={100} step="1" className={inputCls} placeholder="40" dir="ltr" />
                 </div>
                 <div>
                   <label className={labelCls}>{t('icu.flowsheetEntry.ventilator.peep', 'PEEP (cmH2O)')}</label>
-                  <input type="number" name="ventPeep" value={formData.ventPeep} onChange={handleChange} className={inputCls} placeholder="5" dir="ltr" />
+                  <input type="number" name="ventPeep" value={formData.ventPeep} onChange={handleChange} min={0} max={30} step="1" className={inputCls} placeholder="5" dir="ltr" />
                 </div>
               </div>
             </div>

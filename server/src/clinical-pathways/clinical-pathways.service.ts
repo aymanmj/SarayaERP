@@ -840,9 +840,10 @@ export class ClinicalPathwaysService {
     }
 
     const nextDay = enrollment.currentDay + 1;
-    const maxDay = Math.max(
-      ...enrollment.pathway.steps.map((step) => step.dayNumber),
-    );
+    const maxDay =
+      enrollment.pathway.steps.length > 0
+        ? Math.max(...enrollment.pathway.steps.map((step) => step.dayNumber))
+        : enrollment.currentDay;
 
     const nextDaySteps = enrollment.pathway.steps.filter(
       (step) => step.dayNumber === nextDay,
@@ -862,41 +863,45 @@ export class ClinicalPathwaysService {
           );
         }
       }
-
-      // Generate Tasks for next day
-      const tasksList = step.milestones
-        ? step.milestones
-            .split(/\r?\n|\\n/)
-            .map((t) => t.trim())
-            .filter(Boolean)
-        : [step.title];
-      for (const t of tasksList) {
-        await this.prisma.careTask.create({
-          data: {
-            enrollmentId: enrollment.id,
-            stepId: step.id,
-            title: t,
-            type: t.toLowerCase().includes('med')
-              ? 'MEDICATION_CHECK'
-              : t.toLowerCase().includes('assess')
-                ? 'ASSESSMENT'
-                : 'MONITORING',
-          },
-        });
-      }
     }
 
     const isComplete = nextDay > maxDay;
 
-    return this.prisma.pathwayEnrollment.update({
-      where: { id },
-      data: {
-        currentDay: nextDay,
-        status: isComplete
-          ? PathwayEnrollmentStatus.COMPLETED
-          : PathwayEnrollmentStatus.ACTIVE,
-        completedAt: isComplete ? new Date() : undefined,
-      },
+    return this.prisma.$transaction(async (tx) => {
+      for (const step of nextDaySteps) {
+        // Generate Tasks for next day
+        const tasksList = step.milestones
+          ? step.milestones
+              .split(/\r?\n|\\n/)
+              .map((t) => t.trim())
+              .filter(Boolean)
+          : [step.title];
+        for (const t of tasksList) {
+          await tx.careTask.create({
+            data: {
+              enrollmentId: enrollment.id,
+              stepId: step.id,
+              title: t,
+              type: t.toLowerCase().includes('med')
+                ? 'MEDICATION_CHECK'
+                : t.toLowerCase().includes('assess')
+                  ? 'ASSESSMENT'
+                  : 'MONITORING',
+            },
+          });
+        }
+      }
+
+      return tx.pathwayEnrollment.update({
+        where: { id },
+        data: {
+          currentDay: isComplete ? maxDay : nextDay,
+          status: isComplete
+            ? PathwayEnrollmentStatus.COMPLETED
+            : PathwayEnrollmentStatus.ACTIVE,
+          completedAt: isComplete ? new Date() : undefined,
+        },
+      });
     });
   }
 

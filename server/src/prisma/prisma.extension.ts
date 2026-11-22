@@ -44,7 +44,37 @@ function handleDecryption(data: any, encryptionService: EncryptionService) {
   return decryptObject(data);
 }
 
-/** Decrypt only named patient relations; preserve Decimal/Date and unrelated JSON. */
+const PATIENT_RELATION_KEYS = new Set([
+  'patient',
+  'patients',
+  'guarantor',
+  'guaranteedPatients',
+  'mother',
+  'localPatients',
+  'generatedPatient',
+  'femalePatient',
+  'malePatient',
+  'depositPatient',
+]);
+
+function isLikelyPatientRecord(value: unknown): boolean {
+  if (
+    !value ||
+    typeof value !== 'object' ||
+    Object.getPrototypeOf(value) !== Object.prototype
+  ) {
+    return false;
+  }
+  const rec = value as Record<string, unknown>;
+  return (
+    'mrn' in rec ||
+    'motherId' in rec ||
+    'nationalId' in rec ||
+    'fullName' in rec
+  );
+}
+
+/** Decrypt all Patient relations (while keeping Decimal/Date and non-patient trees untouched). */
 export function decryptPatientRelations<T>(
   data: T,
   encryptionService: EncryptionService,
@@ -62,8 +92,14 @@ export function decryptPatientRelations<T>(
       return;
     const record = value as Record<string, unknown>;
     for (const [key, child] of Object.entries(record)) {
-      if ((key === 'patient' || key === 'patients') && child) {
+      if (PATIENT_RELATION_KEYS.has(key) && child) {
         record[key] = handleDecryption(child, encryptionService);
+      } else if (key === 'children' && Array.isArray(child)) {
+        child.forEach((item) => {
+          if (isLikelyPatientRecord(item)) {
+            handleDecryption(item, encryptionService);
+          }
+        });
       }
       walk(record[key]);
     }
@@ -329,24 +365,36 @@ export const extendedPrisma = (
             includeSoftDeleteFilter: true,
           });
           const result = await query(args);
-          return handleDecryption(result, encryptionService);
+          return decryptPatientRelations(
+            handleDecryption(result, encryptionService),
+            encryptionService,
+          );
         },
         async findMany({ args, query }) {
           applyTenantPolicy('Patient', 'findMany', args as any, {
             includeSoftDeleteFilter: true,
           });
           const result = await query(args);
-          return handleDecryption(result, encryptionService);
+          return decryptPatientRelations(
+            handleDecryption(result, encryptionService),
+            encryptionService,
+          );
         },
         async findUnique({ args, query }) {
           applyTenantPolicy('Patient', 'findUnique', args as any);
           const result = await query(args);
-          return handleDecryption(result, encryptionService);
+          return decryptPatientRelations(
+            handleDecryption(result, encryptionService),
+            encryptionService,
+          );
         },
         async findUniqueOrThrow({ args, query }) {
           applyTenantPolicy('Patient', 'findUniqueOrThrow', args as any);
           const result = await query(args);
-          return handleDecryption(result, encryptionService);
+          return decryptPatientRelations(
+            handleDecryption(result, encryptionService),
+            encryptionService,
+          );
         },
       },
       $allModels: {

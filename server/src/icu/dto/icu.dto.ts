@@ -1,4 +1,4 @@
-import { IsNumber, IsOptional, IsString, IsDecimal } from 'class-validator';
+import { IsNumber, IsOptional, IsString, Max, Min } from 'class-validator';
 
 export class RecordVitalsDto {
   @IsNumber()
@@ -32,6 +32,8 @@ export class RecordVitalsDto {
   temperature?: number;
 
   @IsNumber()
+  @Min(0)
+  @Max(100)
   @IsOptional()
   o2Sat?: number;
 
@@ -52,6 +54,8 @@ export class RecordVitalsDto {
   outputAmount?: number;
 
   @IsNumber()
+  @Min(3)
+  @Max(15)
   @IsOptional()
   gcsScore?: number;
 
@@ -69,10 +73,14 @@ export class RecordVitalsDto {
   ventMode?: string;
 
   @IsNumber()
+  @Min(21)
+  @Max(100)
   @IsOptional()
   ventFio2?: number;
 
   @IsNumber()
+  @Min(0)
+  @Max(30)
   @IsOptional()
   ventPeep?: number;
 }

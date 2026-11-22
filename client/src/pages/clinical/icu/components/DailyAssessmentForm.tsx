@@ -211,7 +211,7 @@ export const DailyAssessmentForm = ({ encounterId, onSuccess, onCancel }: Props)
               </div>
               <div>
                  <label className="block text-xs font-bold text-slate-400 mb-2">{t('icu.assessment.respiratory.fio2', 'نسبة الأكسجين - FiO2 (%)')}</label>
-                 <input type="number" name="fio2" value={formData.fio2} onChange={handleChange} className="w-full p-3 bg-slate-900 border border-slate-700 text-white rounded-lg focus:outline-none focus:border-emerald-500 transition-colors text-sm" placeholder="21-100" />
+                 <input type="number" name="fio2" value={formData.fio2} onChange={handleChange} min={21} max={100} step="1" className="w-full p-3 bg-slate-900 border border-slate-700 text-white rounded-lg focus:outline-none focus:border-emerald-500 transition-colors text-sm" placeholder="21-100" />
               </div>
             </div>
           </div>

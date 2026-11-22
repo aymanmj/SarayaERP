@@ -31,6 +31,10 @@ describe('pathway lifecycle boundaries', () => {
     const update = jest
       .fn<Promise<{ ok: boolean }>, [Prisma.PathwayEnrollmentUpdateArgs]>()
       .mockResolvedValue({ ok: true });
+    const mockTx = {
+      careTask: { create },
+      pathwayEnrollment: { update },
+    };
     const service = Object.create(
       ClinicalPathwaysService.prototype,
     ) as ClinicalPathwaysService;
@@ -38,6 +42,7 @@ describe('pathway lifecycle boundaries', () => {
       value: {
         careTask: { count: () => Promise.resolve(0), create },
         pathwayEnrollment: { update },
+        $transaction: (fn: (tx: typeof mockTx) => unknown) => fn(mockTx),
       },
     });
     const lookup = jest
@@ -50,6 +55,101 @@ describe('pathway lifecycle boundaries', () => {
       currentDay: 2,
     });
     expect(lookup).toHaveBeenCalledWith(1, 8);
+  });
+
+  it('completes enrollment on final day without exceeding maxDay (UI04)', async () => {
+    const create = jest.fn(() => Promise.resolve({}));
+    const update = jest
+      .fn<Promise<{ status: string }>, [Prisma.PathwayEnrollmentUpdateArgs]>()
+      .mockResolvedValue({ status: 'COMPLETED' });
+    const mockTx = {
+      careTask: { create },
+      pathwayEnrollment: { update },
+    };
+    const service = Object.create(
+      ClinicalPathwaysService.prototype,
+    ) as ClinicalPathwaysService;
+    Object.defineProperty(service, 'prisma', {
+      value: {
+        careTask: { count: () => Promise.resolve(0), create },
+        pathwayEnrollment: { update },
+        $transaction: (fn: (tx: typeof mockTx) => unknown) => fn(mockTx),
+      },
+    });
+    jest.spyOn(service, 'getEnrollment').mockResolvedValue(enrollment(2));
+
+    await service.advanceDay(1, 2, 8);
+    expect(create).not.toHaveBeenCalled();
+    expect(update.mock.calls[0][0].data).toMatchObject({
+      status: 'COMPLETED',
+      currentDay: 2,
+    });
+    expect(update.mock.calls[0][0].data.completedAt).toBeInstanceOf(Date);
+  });
+
+  it('atomically creates variance and skips pending step tasks inside $transaction (UI03)', async () => {
+    const varianceCreate = jest.fn().mockResolvedValue({ id: 99 });
+    const careTaskUpdateMany = jest.fn().mockResolvedValue({ count: 2 });
+    const mockTx = {
+      pathwayVariance: { create: varianceCreate },
+      careTask: { updateMany: careTaskUpdateMany },
+    };
+    const service = Object.create(
+      ClinicalPathwaysService.prototype,
+    ) as ClinicalPathwaysService;
+    Object.defineProperty(service, 'prisma', {
+      value: {
+        $transaction: (fn: (tx: typeof mockTx) => unknown) => fn(mockTx),
+      },
+    });
+    jest.spyOn(service, 'getEnrollment').mockResolvedValue(enrollment(1));
+
+    const variance = await service.reportVariance(
+      1,
+      2,
+      {
+        stepId: 11,
+        reason: 'Patient NPO prior to procedure',
+        varianceType: Object.values(VarianceType)[0],
+      },
+      8,
+    );
+    expect(variance).toEqual({ id: 99 });
+    expect(varianceCreate).toHaveBeenCalledTimes(1);
+    expect(careTaskUpdateMany).toHaveBeenCalledWith({
+      where: {
+        enrollmentId: 1,
+        stepId: 11,
+        status: { in: ['PENDING', 'IN_PROGRESS'] },
+      },
+      data: { status: 'SKIPPED', notes: 'Patient NPO prior to procedure' },
+    });
+  });
+
+  it('blocks completeEnrollment when pending tasks remain and succeeds once cleared (UI03)', async () => {
+    const count = jest.fn();
+    const update = jest.fn().mockResolvedValue({ id: 1, status: 'COMPLETED' });
+    const service = Object.create(
+      ClinicalPathwaysService.prototype,
+    ) as ClinicalPathwaysService;
+    Object.defineProperty(service, 'prisma', {
+      value: {
+        careTask: { count },
+        pathwayEnrollment: { update },
+      },
+    });
+    jest.spyOn(service, 'getEnrollment').mockResolvedValue(enrollment(2));
+
+    count.mockResolvedValueOnce(1);
+    await expect(service.completeEnrollment(1, 8)).rejects.toThrow(
+      ForbiddenException,
+    );
+    expect(update).not.toHaveBeenCalled();
+
+    count.mockResolvedValueOnce(0);
+    const res = await service.completeEnrollment(1, 8);
+    expect(res).toMatchObject({ id: 1, status: 'COMPLETED' });
+    expect(update).toHaveBeenCalledTimes(1);
   });
 
   it('prevents advancement while current tasks remain pending', async () => {

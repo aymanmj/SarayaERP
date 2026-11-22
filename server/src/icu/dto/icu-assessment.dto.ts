@@ -2,12 +2,11 @@ import {
   IsNumber,
   IsOptional,
   IsString,
-  IsDecimal,
   IsBoolean,
   IsArray,
-  ValidateNested,
+  Max,
+  Min,
 } from 'class-validator';
-import { Type } from 'class-transformer';
 
 export class DailyAssessmentDto {
   @IsNumber()
@@ -30,6 +29,8 @@ export class DailyAssessmentDto {
   gcsMotor?: number;
 
   @IsNumber()
+  @Min(3)
+  @Max(15)
   @IsOptional()
   gcsTotal?: number;
 
@@ -68,6 +69,8 @@ export class DailyAssessmentDto {
   oxygenDevice?: string;
 
   @IsNumber()
+  @Min(21)
+  @Max(100)
   @IsOptional()
   fio2?: number;
 
