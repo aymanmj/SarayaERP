@@ -186,9 +186,10 @@ export class QualityService implements OnModuleDestroy {
       incidentId: incident.id,
       incidentNumber: incident.incidentNumber,
       severity: incident.severity,
+      isAnonymous: incident.isAnonymous,
       reporterName: incident.isAnonymous
-        ? 'Anonymous'
-        : incident.reporter?.fullName || 'Anonymous',
+        ? 'مبلغ مجهول الهوية'
+        : incident.reporter?.fullName || 'مبلغ مجهول الهوية',
     });
 
     return this.redactReporter(incident);
@@ -500,12 +501,13 @@ export class QualityService implements OnModuleDestroy {
 
   // ======================== 8. My CAPA Tasks ========================
 
-  async getMyCapaTasks(userId: number) {
+  async getMyCapaTasks(hospitalId: number, userId: number) {
     const now = new Date();
 
     const tasks = await this.prisma.capaAction.findMany({
       where: {
         assignedToId: userId,
+        incident: { hospitalId },
         status: { notIn: [CapaStatus.VERIFIED] },
       },
       include: {

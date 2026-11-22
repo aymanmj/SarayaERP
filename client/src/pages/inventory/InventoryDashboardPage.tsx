@@ -117,9 +117,10 @@ export function InventoryDashboardPage() {
             <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-6 shadow-xl">
                  <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
                     <TrendingUp className="w-5 h-5 text-emerald-500" />
-                    {t("inventory.dashboard.stockValueTrend", "تطور قيمة المخزون (تقريبي)")}
+                    {t("inventory.dashboard.stockValueTrend", "تطور قيمة المخزون (آخر 6 أشهر)")}
                  </h3>
                  <div className="h-[300px] w-full" dir="ltr">
+                    {stats.stockTrend && stats.stockTrend.length > 0 ? (
                     <ResponsiveContainer width="100%" height="100%">
                         <AreaChart data={stats.stockTrend}>
                             <defs>
@@ -129,7 +130,7 @@ export function InventoryDashboardPage() {
                                 </linearGradient>
                             </defs>
                             <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                            <XAxis dataKey="name" stroke="#64748b" tick={{fill: '#94a3b8'}} reversed />
+                            <XAxis dataKey="name" stroke="#64748b" tick={{fill: '#94a3b8'}} />
                             <YAxis stroke="#64748b" tick={{fill: '#94a3b8'}} orientation="right" />
                             <Tooltip 
                                 contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', borderRadius: '8px', color: '#f8fafc' }}
@@ -140,6 +141,11 @@ export function InventoryDashboardPage() {
                             <Area type="monotone" dataKey="value" stroke="#10b981" fillOpacity={1} fill="url(#colorValue)" />
                         </AreaChart>
                     </ResponsiveContainer>
+                    ) : (
+                      <div className="h-full flex items-center justify-center text-slate-500 text-sm">
+                        {t("inventory.dashboard.noTrendData", "لا توجد بيانات كافية لعرض التطور التاريخي")}
+                      </div>
+                    )}
                  </div>
             </div>
 

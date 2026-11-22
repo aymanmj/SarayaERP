@@ -1,10 +1,19 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { QualityService } from './quality.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
-import { IncidentStatus, IncidentSeverity, CapaStatus } from '@prisma/client';
+import { BadRequestException } from '@nestjs/common';
+import {
+  IncidentStatus,
+  IncidentSeverity,
+  IncidentType,
+  CapaStatus,
+} from '@prisma/client';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ConfigService } from '@nestjs/config';
+
+type QualityServiceInternals = {
+  redisClient: { on: jest.Mock; eval: jest.Mock };
+};
 
 jest.mock('ioredis', () => {
   return jest.fn().mockImplementation(() => {
@@ -46,12 +55,16 @@ describe('QualityService', () => {
     }),
   };
 
+  const mockEventEmitter = {
+    emit: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         QualityService,
         { provide: PrismaService, useValue: mockPrisma },
-        { provide: EventEmitter2, useValue: { emit: jest.fn() } },
+        { provide: EventEmitter2, useValue: mockEventEmitter },
         { provide: ConfigService, useValue: mockConfigService },
       ],
     }).compile();
@@ -223,6 +236,111 @@ describe('QualityService', () => {
           2,
         ),
       ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('Anonymous reporter confidentiality and tenant scope', () => {
+    it('redacts reporter and emits anonymous event flag on anonymous incident report', async () => {
+      mockPrisma.clinicalIncident.count.mockResolvedValue(0);
+      mockPrisma.clinicalIncident.create.mockResolvedValue({
+        id: 77,
+        incidentNumber: 'INC-2026-0001',
+        severity: IncidentSeverity.MODERATE,
+        reportedById: 9,
+        isAnonymous: true,
+        reporter: { id: 9, fullName: 'Dr. Secret Reporter' },
+      });
+
+      (service as unknown as QualityServiceInternals).redisClient = {
+        on: jest.fn(),
+        eval: jest.fn().mockResolvedValue(1),
+      };
+
+      const res = await service.reportIncident(1, 9, {
+        incidentDate: '2026-11-22',
+        incidentType: IncidentType.MEDICATION_ERROR,
+        severity: IncidentSeverity.MODERATE,
+        description: 'Anonymous report test with enough length',
+        isAnonymous: true,
+      });
+
+      expect(res.reporter).toBeNull();
+      expect(res.reportedById).toBeNull();
+      expect(mockEventEmitter.emit).toHaveBeenCalledWith(
+        'quality.incident_reported',
+        {
+          hospitalId: 1,
+          incidentId: 77,
+          incidentNumber: 'INC-2026-0001',
+          severity: IncidentSeverity.MODERATE,
+          isAnonymous: true,
+          reporterName: 'مبلغ مجهول الهوية',
+        },
+      );
+    });
+
+    it('redacts reporter in findOne, findAll, updateIncident, and closeIncident when isAnonymous is true', async () => {
+      const anonymousRow = {
+        id: 88,
+        hospitalId: 1,
+        reportedById: 14,
+        isAnonymous: true,
+        status: IncidentStatus.REPORTED,
+        reporter: { id: 14, fullName: 'Nurse Secret' },
+      };
+
+      mockPrisma.clinicalIncident.findFirst.mockResolvedValue(anonymousRow);
+      const one = await service.findOne(1, 88);
+      expect(one.reporter).toBeNull();
+      expect(one.reportedById).toBeNull();
+
+      mockPrisma.$transaction.mockResolvedValue([[anonymousRow], 1]);
+      const list = await service.findAll({ hospitalId: 1 });
+      expect(list.items[0].reporter).toBeNull();
+      expect(list.items[0].reportedById).toBeNull();
+
+      mockPrisma.clinicalIncident.update.mockResolvedValue({
+        ...anonymousRow,
+        investigationNotes: 'Reviewed',
+      });
+      const updated = (await service.updateIncident(
+        1,
+        88,
+        { investigationNotes: 'Reviewed' },
+        2,
+      )) as unknown as { reporter?: unknown; reportedById?: number | null };
+      expect(updated.reporter).toBeNull();
+      expect(updated.reportedById).toBeNull();
+
+      mockPrisma.capaAction.count.mockResolvedValue(0);
+      mockPrisma.clinicalIncident.update.mockResolvedValue({
+        ...anonymousRow,
+        status: IncidentStatus.CLOSED,
+      });
+      const closed = (await service.closeIncident(1, 88, 2)) as unknown as {
+        reporter?: unknown;
+        reportedById?: number | null;
+      };
+      expect(closed.reporter).toBeNull();
+      expect(closed.reportedById).toBeNull();
+    });
+
+    it('scopes getMyCapaTasks to the caller hospitalId', async () => {
+      mockPrisma.capaAction.findMany.mockResolvedValue([]);
+      await service.getMyCapaTasks(3, 42);
+
+      const findCall = mockPrisma.capaAction.findMany.mock.calls[0] as [
+        {
+          where: {
+            assignedToId: number;
+            incident: { hospitalId: number };
+          };
+        },
+      ];
+      expect(findCall[0].where).toMatchObject({
+        assignedToId: 42,
+        incident: { hospitalId: 3 },
+      });
     });
   });
 });

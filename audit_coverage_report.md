@@ -1,6 +1,6 @@
 # ABAC & Tenant Isolation Coverage Report
 
-**Generated:** 2026-11-21
+**Generated:** 2026-11-22
 
 | Metric | Count | Percentage |
 |--------|-------|------------|

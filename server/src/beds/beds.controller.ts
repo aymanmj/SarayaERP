@@ -7,6 +7,7 @@ import {
   Delete,
   Param,
   ParseIntPipe,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { BedsService } from './beds.service';
@@ -61,6 +62,20 @@ export class BedsController {
   @Permissions('beds:view')
   getTree(@CurrentUser() user: JwtPayload) {
     return this.bedsService.listTree(user.hospitalId);
+  }
+
+  // 🔹 سجل نشاط الأسرة والتنظيف والصيانة
+  @Get('activities')
+  @Permissions('beds:view')
+  getActivities(
+    @CurrentUser() user: JwtPayload,
+    @Query('limit') limit?: string,
+  ) {
+    const parsed = limit ? parseInt(limit, 10) : 50;
+    return this.bedsService.getActivities(
+      user.hospitalId,
+      Number.isFinite(parsed) ? parsed : 50,
+    );
   }
 
   // 🔹 ربط Encounter بسرير (تنويم مريض)

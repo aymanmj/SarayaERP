@@ -10,6 +10,7 @@ import {
   InventoryCountStatus,
   InventoryCountType,
   Prisma,
+  StockTransactionType,
 } from '@prisma/client';
 import { Money } from '../common/utils/money.util';
 import { appendChainedAuditInTransaction } from '../audit/audit-chain';
@@ -592,8 +593,83 @@ export class InventoryCountService {
       value: s._count.id,
     }));
 
-    // Historical valuation is unavailable; never fabricate operational data.
-    const trendData: { name: string; value: number }[] = [];
+    // Reconstruct 6-month UTC valuation history backwards from current total stock value using Money.
+    const now = new Date();
+    const monthKeys: string[] = [];
+    for (let offset = 5; offset >= 0; offset--) {
+      const monthDate = new Date(
+        Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - offset, 1),
+      );
+      const key = `${monthDate.getUTCFullYear()}-${String(monthDate.getUTCMonth() + 1).padStart(2, '0')}`;
+      monthKeys.push(key);
+    }
+    const windowStart = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 5, 1, 0, 0, 0, 0),
+    );
+
+    const recentTxs = await this.prisma.stockTransaction.findMany({
+      where: {
+        hospitalId,
+        ...(warehouseId ? { warehouseId } : {}),
+        createdAt: { gte: windowStart },
+      },
+      select: {
+        type: true,
+        quantity: true,
+        baseQuantity: true,
+        totalCost: true,
+        createdAt: true,
+      },
+    });
+
+    const monthlyNetDelta = new Map<string, ReturnType<typeof Money.decimal>>();
+    for (const key of monthKeys) {
+      monthlyNetDelta.set(key, Money.decimal(0));
+    }
+
+    for (const tx of recentTxs) {
+      const d = tx.createdAt;
+      const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+      const existingDelta = monthlyNetDelta.get(key);
+      if (!existingDelta) continue;
+
+      const costMagnitude = Money.decimal(tx.totalCost).abs();
+      let signedDelta = costMagnitude;
+
+      if (tx.type === StockTransactionType.OUT) {
+        signedDelta = costMagnitude.neg();
+      } else if (tx.type === StockTransactionType.ADJUST) {
+        const baseQty = tx.baseQuantity ?? new Prisma.Decimal(0);
+        const rawQty = tx.quantity ?? new Prisma.Decimal(0);
+        const isNegative = baseQty.lt(0) || (baseQty.eq(0) && rawQty.lt(0));
+        signedDelta = isNegative ? costMagnitude.neg() : costMagnitude;
+      }
+
+      monthlyNetDelta.set(key, Money.addDecimal(existingDelta, signedDelta));
+    }
+
+    const trendData: Array<{ name: string; value: number; valueText: string }> =
+      new Array(monthKeys.length);
+
+    let runningEndValue = Money.decimal(totalValueDecimal);
+    for (let i = monthKeys.length - 1; i >= 0; i--) {
+      const clamped = runningEndValue.lt(0)
+        ? Money.decimal(0)
+        : runningEndValue;
+      trendData[i] = {
+        name: monthKeys[i],
+        value: Money.fromPrisma(clamped),
+        valueText: Money.toDbString(clamped),
+      };
+      if (i > 0) {
+        const currentMonthDelta =
+          monthlyNetDelta.get(monthKeys[i]) ?? Money.decimal(0);
+        runningEndValue = Money.subtractDecimal(
+          runningEndValue,
+          currentMonthDelta,
+        );
+      }
+    }
 
     return {
       totalProducts: productTotals.size,

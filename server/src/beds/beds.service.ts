@@ -141,14 +141,147 @@ export class BedsService {
         isActive: true,
         status: BedStatus.CLEANING,
         assignments: { none: { to: null } },
+        transferOrdersTo: {
+          none: { status: { in: [...ACTIVE_TRANSFER_ORDERS] } },
+        },
       },
       data: { status: BedStatus.AVAILABLE },
     });
     if (changed.count !== 1)
       throw new BadRequestException(
-        'لا يمكن إتاحة السرير إلا بعد إخلائه وفي حالة التنظيف',
+        'لا يمكن إتاحة السرير إلا بعد إخلائه وفي حالة التنظيف ودون نقل محجوز',
       );
     return { success: true };
+  }
+
+  async getActivities(hospitalId: number, limit = 50) {
+    const safeLimit = Math.min(Math.max(Number(limit) || 50, 1), 100);
+
+    const [assignments, auditLogs] = await Promise.all([
+      this.prisma.bedAssignment.findMany({
+        where: { hospitalId },
+        orderBy: { from: 'desc' },
+        take: safeLimit,
+        include: {
+          bed: {
+            select: {
+              bedNumber: true,
+              ward: { select: { name: true } },
+            },
+          },
+          encounter: {
+            select: {
+              patient: { select: { fullName: true } },
+            },
+          },
+        },
+      }),
+      this.prisma.auditLog.findMany({
+        where: { hospitalId, entity: 'beds' },
+        orderBy: { createdAt: 'desc' },
+        take: safeLimit,
+        include: {
+          user: { select: { fullName: true } },
+        },
+      }),
+    ]);
+
+    const referencedBedIds = Array.from(
+      new Set(
+        auditLogs
+          .map((log) => log.entityId)
+          .filter((id): id is number => typeof id === 'number' && id > 0),
+      ),
+    );
+    const referencedBeds =
+      referencedBedIds.length > 0
+        ? await this.prisma.bed.findMany({
+            where: { hospitalId, id: { in: referencedBedIds } },
+            select: {
+              id: true,
+              bedNumber: true,
+              ward: { select: { name: true } },
+            },
+          })
+        : [];
+    const bedLookup = new Map(referencedBeds.map((b) => [b.id, b]));
+
+    const activities: Array<{
+      id: string;
+      timestamp: string;
+      type: 'ASSIGNMENT' | 'RELEASE' | 'CLEANING' | 'MAINTENANCE';
+      bedNumber: string;
+      wardName: string;
+      patientName?: string;
+      performedBy: string;
+      notes?: string;
+    }> = [];
+
+    for (const assignment of assignments) {
+      const bedNumber = assignment.bed?.bedNumber || '-';
+      const wardName = assignment.bed?.ward?.name || '-';
+      const patientName = assignment.encounter?.patient?.fullName || undefined;
+
+      activities.push({
+        id: `assign-${assignment.id}`,
+        timestamp: assignment.from.toISOString(),
+        type: 'ASSIGNMENT',
+        bedNumber,
+        wardName,
+        patientName,
+        performedBy: 'System',
+      });
+
+      if (assignment.to) {
+        activities.push({
+          id: `release-${assignment.id}`,
+          timestamp: assignment.to.toISOString(),
+          type: 'RELEASE',
+          bedNumber,
+          wardName,
+          patientName,
+          performedBy: 'System',
+        });
+      }
+    }
+
+    for (const log of auditLogs) {
+      const details =
+        log.details && typeof log.details === 'object'
+          ? (log.details as Record<string, unknown>)
+          : {};
+      const path = typeof details.path === 'string' ? details.path : '';
+      const type: 'CLEANING' | 'MAINTENANCE' | null = path.includes(
+        'mark-clean',
+      )
+        ? 'CLEANING'
+        : path.includes('/beds/')
+          ? 'MAINTENANCE'
+          : null;
+      if (!type) continue;
+
+      const bedInfo =
+        typeof log.entityId === 'number'
+          ? bedLookup.get(log.entityId)
+          : undefined;
+
+      activities.push({
+        id: `audit-${log.id}`,
+        timestamp: log.createdAt.toISOString(),
+        type,
+        bedNumber:
+          bedInfo?.bedNumber || (log.entityId ? `#${log.entityId}` : '-'),
+        wardName: bedInfo?.ward?.name || '-',
+        performedBy: log.user?.fullName || 'System',
+      });
+    }
+
+    activities.sort(
+      (a, b) =>
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+    );
+
+    return activities.slice(0, safeLimit);
   }
 
   // 1. إدارة العنابر (Wards)

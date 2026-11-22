@@ -62,12 +62,22 @@ export class NotificationListener {
 
   // ✅ 5. تنبيه الجودة - الإبلاغ عن حادث
   @OnEvent('quality.incident_reported')
-  async handleIncidentReported(event: any) {
+  async handleIncidentReported(event: {
+    hospitalId: number;
+    incidentId: number;
+    incidentNumber: string;
+    severity: string;
+    isAnonymous?: boolean;
+    reporterName?: string;
+  }) {
+    const reporterLabel = event.isAnonymous
+      ? 'بلاغ مجهول الهوية'
+      : event.reporterName || 'مستخدم النظام';
     await this.notifications.notifyRoles(
       event.hospitalId,
       ['QUALITY_MANAGER', 'ADMIN'],
       'حادثة سريرية جديدة',
-      `تم الإبلاغ عن حادثة (${event.incidentNumber}) بخطورة ${event.severity} بواسطة ${event.reporterName}`,
+      `تم الإبلاغ عن حادثة (${event.incidentNumber}) بخطورة ${event.severity} بواسطة ${reporterLabel}`,
       '/quality?tab=incidents&incidentId=' + event.incidentId,
     );
   }

@@ -62,16 +62,31 @@ export class AuditInterceptor implements NestInterceptor {
           responseBody,
         );
 
+        const cleanPath = (path || '').split('?')[0].replace(/\/+$/, '');
+        const isAnonymousQualityIncident =
+          method === 'POST' &&
+          (cleanPath === '/quality/incidents' ||
+            cleanPath.endsWith('/quality/incidents')) &&
+          Boolean(
+            responseBody &&
+              typeof responseBody === 'object' &&
+              (responseBody as Record<string, unknown>).isAnonymous === true,
+          );
+
         try {
           // Await persistence so audit failure reaches the request stream.
           await this.audit.logCritical({
             hospitalId: user?.hospitalId ?? null,
-            userId: user?.sub ?? null,
+            userId: isAnonymousQualityIncident ? null : (user?.sub ?? null),
             action: actionName,
             entity: entity,
             entityId: entityId,
-            ipAddress: this.getClientIP(req),
-            clientName: req.headers['user-agent'],
+            ipAddress: isAnonymousQualityIncident
+              ? 'ANONYMOUS'
+              : this.getClientIP(req),
+            clientName: isAnonymousQualityIncident
+              ? 'ANONYMOUS'
+              : req.headers['user-agent'],
             details: {
               method,
               path,

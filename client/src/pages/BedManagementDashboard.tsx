@@ -63,7 +63,7 @@ type BedStats = {
 };
 
 type BedActivity = {
-  id: number;
+  id: string | number;
   timestamp: string;
   type: 'ASSIGNMENT' | 'RELEASE' | 'CLEANING' | 'MAINTENANCE';
   bedNumber: string;
@@ -107,9 +107,10 @@ export default function BedManagementDashboard() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [wardsRes, statsRes] = await Promise.all([
+      const [wardsRes, statsRes, activitiesRes] = await Promise.all([
         apiClient.get('/beds/tree'),
-        apiClient.get('/beds/summary')
+        apiClient.get('/beds/summary'),
+        apiClient.get('/beds/activities').catch(() => ({ data: [] })),
       ]);
       
       // Process wards data
@@ -148,7 +149,7 @@ export default function BedManagementDashboard() {
       
       setWards(processedWards);
       setStats(statsRes.data);
-      setActivities([]);
+      setActivities(Array.isArray(activitiesRes.data) ? activitiesRes.data : []);
     } catch (error: any) {
       toast.error(error?.response?.data?.message || t("beds.loadFailed", "فشل تحميل بيانات الأسرة"));
     } finally {
@@ -166,9 +167,9 @@ export default function BedManagementDashboard() {
     }
   };
 
-  const handleMarkBedMaintenance = async (bedId: number, _notes: string) => {
+  const handleUpdateBedStatus = async (bedId: number, status: 'MAINTENANCE' | 'AVAILABLE') => {
     try {
-      await apiClient.post('/beds/mark-clean', { bedId });
+      await apiClient.patch(`/beds/beds/${bedId}`, { status });
       toast.success(t("beds.updateSuccess", "تم تحديث السرير بنجاح"));
       loadData();
     } catch (error: any) {
@@ -507,11 +508,16 @@ export default function BedManagementDashboard() {
                                   if (confirm(t("beds.confirmClean", { bedNumber: bed.bedNumber }))) {
                                     handleMarkBedClean(bed.id);
                                   }
-                                } else if (bed.status === 'MAINTENANCE' || bed.status === 'BLOCKED') {
-                                  const notes = prompt(t("beds.notesPrompt", { bedNumber: bed.bedNumber }));
-                                  if (notes !== null) {
-                                    handleMarkBedMaintenance(bed.id, notes);
+                                } else if (bed.status === 'AVAILABLE') {
+                                  if (confirm(t("beds.confirmMaintenance", `هل تريد تحويل السرير ${bed.bedNumber} إلى الصيانة؟`))) {
+                                    handleUpdateBedStatus(bed.id, 'MAINTENANCE');
                                   }
+                                } else if (bed.status === 'MAINTENANCE') {
+                                  if (confirm(t("beds.confirmAvailable", `هل انتهت صيانة السرير ${bed.bedNumber} وجاهز للإتاحة؟`))) {
+                                    handleUpdateBedStatus(bed.id, 'AVAILABLE');
+                                  }
+                                } else if (bed.status === 'BLOCKED') {
+                                  toast.info(t("beds.blockedInfo", "السرير محجوز لنقل أو محظور؛ يجب التعامل معه من مسار النقل أو إعدادات الأسرة"));
                                 }
                               }}
                             >

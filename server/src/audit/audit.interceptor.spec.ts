@@ -35,13 +35,19 @@ describe('AuditInterceptor', () => {
     interceptor = module.get<AuditInterceptor>(AuditInterceptor);
   });
 
-  const makeContext = (method: string, url = '/patients') =>
+  const makeContext = (
+    method: string,
+    url = '/patients',
+    user?: { hospitalId?: number; sub?: number },
+  ) =>
     ({
       switchToHttp: () => ({
         getRequest: () => ({
           method,
           url,
-          headers: {},
+          user,
+          headers: { 'user-agent': 'Mozilla/5.0' },
+          ip: '10.10.1.50',
           params: {},
           query: {},
         }),
@@ -141,6 +147,59 @@ describe('AuditInterceptor', () => {
         action: 'VIEW_PATIENT_RECORD',
         entity: 'patients',
         entityId: 99,
+      }),
+    );
+  });
+
+  it('redacts userId, ipAddress, and clientName for anonymous quality incident creation', async () => {
+    const res = await lastValueFrom<unknown>(
+      interceptor.intercept(
+        makeContext('POST', '/quality/incidents', { hospitalId: 1, sub: 45 }),
+        {
+          handle: () =>
+            of({ id: 700, incidentNumber: 'INC-2026-0700', isAnonymous: true }),
+        },
+      ),
+    );
+
+    expect(res).toEqual({
+      id: 700,
+      incidentNumber: 'INC-2026-0700',
+      isAnonymous: true,
+    });
+    expect(logCritical).toHaveBeenCalledWith(
+      expect.objectContaining({
+        hospitalId: 1,
+        userId: null,
+        ipAddress: 'ANONYMOUS',
+        clientName: 'ANONYMOUS',
+        entity: 'quality',
+      }),
+    );
+  });
+
+  it('preserves userId for non-anonymous quality incident creation', async () => {
+    await lastValueFrom<unknown>(
+      interceptor.intercept(
+        makeContext('POST', '/quality/incidents', { hospitalId: 1, sub: 45 }),
+        {
+          handle: () =>
+            of({
+              id: 701,
+              incidentNumber: 'INC-2026-0701',
+              isAnonymous: false,
+            }),
+        },
+      ),
+    );
+
+    expect(logCritical).toHaveBeenCalledWith(
+      expect.objectContaining({
+        hospitalId: 1,
+        userId: 45,
+        ipAddress: '10.10.1.50',
+        clientName: 'Mozilla/5.0',
+        entity: 'quality',
       }),
     );
   });
