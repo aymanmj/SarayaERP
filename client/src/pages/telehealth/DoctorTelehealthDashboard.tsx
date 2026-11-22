@@ -9,8 +9,9 @@ import { useAuthStore } from "../../stores/authStore";
 
 type VirtualAppointment = {
   id: number;
-  appointmentDate: string;
-  patient: { id: number; fullName: string; gender: string };
+  scheduledStart?: string;
+  appointmentDate?: string;
+  patient?: { id: number; fullName: string; gender?: string | null } | null;
   status: string;
   type: string;
 };
@@ -23,10 +24,14 @@ export default function DoctorTelehealthDashboard() {
   const { data: appointments = [], isLoading, refetch } = useQuery({
     queryKey: ["doctor-virtual-appointments"],
     queryFn: async () => {
-      // Fetching doctor's appointments for today
-      // Assuming a generic endpoint, we will filter for VIRTUAL on the frontend if the backend doesn't
-      const res = await apiClient.get<VirtualAppointment[]>("/appointments", { params: { doctorId: user?.id } });
-      return res.data.filter((app) => app.type === "ONLINE");
+      // Fetching doctor's appointments and safely unwrapping array/paginated responses
+      const res = await apiClient.get<
+        VirtualAppointment[] | { items?: VirtualAppointment[] }
+      >("/appointments", { params: { doctorId: user?.id } });
+      const list = Array.isArray(res.data)
+        ? res.data
+        : res.data?.items ?? [];
+      return list.filter((app) => app.type === "ONLINE");
     },
   });
 
@@ -126,9 +131,10 @@ export default function DoctorTelehealthDashboard() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {appointments.map((app) => {
-              const appDate = new Date(app.appointmentDate);
-              // eslint-disable-next-line @typescript-eslint/no-unused-vars
-              const isPast = appDate < new Date();
+              const rawDate = app.scheduledStart || app.appointmentDate;
+              const appDate = rawDate ? new Date(rawDate) : new Date(NaN);
+              const hasValidDate = !Number.isNaN(appDate.getTime());
+              const patientName = app.patient?.fullName || "مريض";
               return (
                 <div
                   key={app.id}
@@ -137,20 +143,22 @@ export default function DoctorTelehealthDashboard() {
                   <div className="flex justify-between items-start mb-4 relative z-10">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold text-lg">
-                        {app.patient.fullName.charAt(0)}
+                        {patientName.charAt(0)}
                       </div>
                       <div>
                         <h3 className="font-bold text-slate-200 truncate max-w-[150px]">
-                          {app.patient.fullName}
+                          {patientName}
                         </h3>
                         <div className="text-xs text-slate-500">
-                          {app.patient.gender === "MALE" ? "ذكر" : "أنثى"}
+                          {app.patient?.gender === "MALE" ? "ذكر" : app.patient?.gender === "FEMALE" ? "أنثى" : "-"}
                         </div>
                       </div>
                     </div>
                     <div className="text-right">
                       <div className="text-[10px] text-slate-500 bg-slate-950 px-2 py-1 rounded border border-slate-800">
-                        {appDate.toLocaleTimeString("ar-LY", { hour: "2-digit", minute: "2-digit" })}
+                        {hasValidDate
+                          ? appDate.toLocaleTimeString("ar-LY", { hour: "2-digit", minute: "2-digit" })
+                          : "--:--"}
                       </div>
                     </div>
                   </div>

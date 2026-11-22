@@ -618,34 +618,28 @@ export default function EncounterDetailsPage() {
   const aiCodingMutation = useMutation({
      
     mutationFn: async (data: any) => {
-      if (!data?.note) return;
-      await apiClient.post("/clinical/ai-coding/clinical-notes", {
-        clinicalNote: JSON.stringify(data.note),
+      if (!data?.note) return null;
+      const clinicalNote =
+        typeof data.note === "string"
+          ? data.note
+          : JSON.stringify(data.note);
+      const response = await apiClient.post("/clinical/ai-coding/suggest", {
+        clinicalNote,
       });
-      return data;
+      return response.data;
     },
     onSuccess: (data) => {
       setAiSuggestions(data);
-      // Auto-select all codes by default
+      // Require explicit physician opt-in before applying suggested codes
+      setSelectedDxCodes(new Set());
+      setSelectedPxCodes(new Set());
       if (data?.diagnoses) {
-         
-        setSelectedDxCodes(
-           
-          new Set(data.diagnoses.map((_: any, i: number) => i)),
-        );
         const types: Record<number, "PRIMARY" | "SECONDARY"> = {};
          
         data.diagnoses.forEach((_: any, i: number) => {
           types[i] = i === 0 ? "PRIMARY" : "SECONDARY";
         });
         setDxTypes(types);
-      }
-      if (data?.procedures) {
-         
-        setSelectedPxCodes(
-           
-          new Set(data.procedures.map((_: any, i: number) => i)),
-        );
       }
     },
     onError: () =>

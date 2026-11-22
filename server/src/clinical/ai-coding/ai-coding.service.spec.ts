@@ -1,3 +1,4 @@
+import { ServiceUnavailableException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { AiCodingService } from './ai-coding.service';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -35,12 +36,11 @@ jest.mock('@google/generative-ai', () => {
 
 describe('AiCodingService', () => {
   let service: AiCodingService;
-  let configService: any;
-  let vaultService: any;
-  let prismaService: any;
-  let priceListsService: any;
-  let billingService: any;
-  let mockGoogleGenAIInstance: any;
+  let configService: { get: jest.Mock };
+  let vaultService: { getOptionalSecret: jest.Mock };
+  let prismaService: Record<string, unknown>;
+  let priceListsService: Record<string, unknown>;
+  let billingService: Record<string, unknown>;
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -138,6 +138,109 @@ describe('AiCodingService', () => {
           apiVersion: 'v1beta',
         },
       );
+    });
+  });
+
+  describe('free-tier fallback and rate-limit resilience', () => {
+    it('defaults to gemini-3.1-flash-lite when GEMINI_MODEL is unset', async () => {
+      configService.get = jest.fn().mockReturnValue(undefined);
+      vaultService.getOptionalSecret.mockResolvedValue('vault-default-key');
+
+      const generateContent = jest.fn().mockResolvedValue({
+        response: {
+          text: () =>
+            JSON.stringify({
+              reasoning: 'Default model test',
+              diagnoses: [],
+              procedures: [],
+            }),
+        },
+      });
+      const getGenerativeModel = jest.fn().mockReturnValue({ generateContent });
+      (GoogleGenerativeAI as unknown as jest.Mock).mockImplementationOnce(
+        () => ({ getGenerativeModel }),
+      );
+
+      await service.suggestCodes('Acute pharyngitis');
+
+      expect(getGenerativeModel).toHaveBeenCalledWith(
+        expect.objectContaining({ model: 'gemini-3.1-flash-lite' }),
+        {},
+      );
+    });
+
+    it('falls back to gemini-2.5-flash-lite when primary free-tier model hits 429 quota or 404', async () => {
+      configService.get = jest.fn().mockReturnValue(undefined);
+      vaultService.getOptionalSecret.mockResolvedValue('vault-fallback-key');
+
+      const primaryGenerate = jest
+        .fn()
+        .mockRejectedValue(new Error('429 Resource Exhausted: Quota exceeded'));
+      const fallbackGenerate = jest.fn().mockResolvedValue({
+        response: {
+          text: () =>
+            JSON.stringify({
+              reasoning: 'Fallback succeeded',
+              diagnoses: [
+                {
+                  code: 'J06.9',
+                  nameEn: 'Acute URI',
+                  nameAr: 'التهاب جهاز تنفسي علوي حاد',
+                  confidence: 0.92,
+                },
+              ],
+              procedures: [
+                {
+                  code: '99213',
+                  nameEn: 'Office visit',
+                  nameAr: 'زيارة عيادة',
+                  confidence: 0.9,
+                },
+              ],
+            }),
+        },
+      });
+
+      const getGenerativeModel = jest
+        .fn()
+        .mockReturnValueOnce({ generateContent: primaryGenerate })
+        .mockReturnValueOnce({ generateContent: fallbackGenerate });
+
+      (GoogleGenerativeAI as unknown as jest.Mock).mockImplementationOnce(
+        () => ({ getGenerativeModel }),
+      );
+
+      const res = await service.suggestCodes('Fever and sore throat');
+
+      expect(getGenerativeModel).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({ model: 'gemini-3.1-flash-lite' }),
+        {},
+      );
+      expect(getGenerativeModel).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({ model: 'gemini-2.5-flash-lite' }),
+        {},
+      );
+      expect(res.diagnoses[0].code).toBe('J06.9');
+    });
+
+    it('throws ServiceUnavailableException when all configured models hit 429 quota limits', async () => {
+      configService.get = jest.fn().mockReturnValue(undefined);
+      vaultService.getOptionalSecret.mockResolvedValue('vault-quota-key');
+
+      const quotaError = new Error('429 Too Many Requests: quota exceeded');
+      const getGenerativeModel = jest.fn().mockReturnValue({
+        generateContent: jest.fn().mockRejectedValue(quotaError),
+      });
+
+      (GoogleGenerativeAI as unknown as jest.Mock).mockImplementationOnce(
+        () => ({ getGenerativeModel }),
+      );
+
+      await expect(
+        service.suggestCodes('Hypertension follow-up'),
+      ).rejects.toThrow(ServiceUnavailableException);
     });
   });
 });

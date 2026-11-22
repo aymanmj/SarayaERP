@@ -3,10 +3,14 @@ import {
   Logger,
   InternalServerErrorException,
   BadRequestException,
+  ServiceUnavailableException,
   OnModuleInit,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import {
+  GoogleGenerativeAI,
+  type GenerativeModel,
+} from '@google/generative-ai';
 import { VaultService } from '../../common/vault/vault.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PriceListsService } from '../../price-lists/price-lists.service';
@@ -19,6 +23,12 @@ import {
 } from '@prisma/client';
 import { ServicesService } from '../../services/services.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+
+const DEFAULT_GEMINI_MODEL = 'gemini-3.1-flash-lite';
+const DEFAULT_GEMINI_FALLBACK_MODELS = [
+  'gemini-3.1-flash-lite',
+  'gemini-2.5-flash-lite',
+];
 
 // ─── Interfaces ────────────────────────────────────────────────────
 
@@ -67,8 +77,11 @@ export interface ApplyCodesResult {
 export class AiCodingService implements OnModuleInit {
   private readonly logger = new Logger(AiCodingService.name);
   private genAI: GoogleGenerativeAI;
-  private model: any;
+  private model: GenerativeModel | null = null;
   private currentApiKey: string | null = null;
+  private currentModelName: string = DEFAULT_GEMINI_MODEL;
+  private requestOptions: { baseUrl?: string; apiVersion?: string } = {};
+  private fallbackModelNames: string[] = [];
 
   constructor(
     private configService: ConfigService,
@@ -82,6 +95,105 @@ export class AiCodingService implements OnModuleInit {
 
   async onModuleInit() {
     await this.ensureModelLoaded();
+  }
+
+  private createGenerativeModel(modelName: string): GenerativeModel {
+    return this.genAI.getGenerativeModel(
+      {
+        model: modelName,
+        generationConfig: {
+          responseMimeType: 'application/json',
+          temperature: 0.0,
+          topP: 0.8,
+        },
+      },
+      this.requestOptions,
+    );
+  }
+
+  private extractErrorMessage(error: unknown): string {
+    if (error instanceof Error) return error.message;
+    if (typeof error === 'string') return error;
+    if (error && typeof error === 'object' && 'message' in error) {
+      const msg = (error as { message?: unknown }).message;
+      if (typeof msg === 'string') return msg;
+    }
+    return '';
+  }
+
+  private isQuotaError(error: unknown): boolean {
+    const errObj =
+      error && typeof error === 'object'
+        ? (error as { status?: unknown; code?: unknown })
+        : {};
+    const status = Number(errObj.status ?? errObj.code ?? 0);
+    if (status === 429) return true;
+    const msg = this.extractErrorMessage(error).toLowerCase();
+    return (
+      msg.includes('429') ||
+      msg.includes('resource_exhausted') ||
+      msg.includes('quota') ||
+      msg.includes('rate limit')
+    );
+  }
+
+  private isRetryableModelError(error: unknown): boolean {
+    if (this.isQuotaError(error)) return true;
+    const errObj =
+      error && typeof error === 'object'
+        ? (error as { status?: unknown; code?: unknown })
+        : {};
+    const status = Number(errObj.status ?? errObj.code ?? 0);
+    if (status === 404 || status === 503) return true;
+    const msg = this.extractErrorMessage(error).toLowerCase();
+    return (
+      msg.includes('404') ||
+      msg.includes('not_found') ||
+      msg.includes('503') ||
+      msg.includes('unavailable') ||
+      msg.includes('deprecated')
+    );
+  }
+
+  private cleanJsonText(rawText: string): string {
+    return rawText
+      .replace(/```json\n?/gi, '')
+      .replace(/```\n?/g, '')
+      .trim();
+  }
+
+  private async generateJsonText(prompt: string): Promise<string> {
+    if (!this.model) {
+      throw new InternalServerErrorException('AI Model is not initialized');
+    }
+
+    try {
+      const result = await this.model.generateContent(prompt);
+      return this.cleanJsonText(result.response.text());
+    } catch (primaryError: unknown) {
+      if (!this.isRetryableModelError(primaryError)) {
+        throw primaryError;
+      }
+
+      let lastError: unknown = primaryError;
+      for (const fallbackModelName of this.fallbackModelNames) {
+        this.logger.warn(
+          `Gemini model "${this.currentModelName}" unavailable/throttled; retrying with fallback "${fallbackModelName}".`,
+        );
+        try {
+          const fallbackModel = this.createGenerativeModel(fallbackModelName);
+          const fallbackResult = await fallbackModel.generateContent(prompt);
+          return this.cleanJsonText(fallbackResult.response.text());
+        } catch (fallbackError: unknown) {
+          lastError = fallbackError;
+          if (!this.isRetryableModelError(fallbackError)) {
+            throw fallbackError;
+          }
+        }
+      }
+
+      throw lastError;
+    }
   }
 
   private async ensureModelLoaded() {
@@ -119,12 +231,14 @@ export class AiCodingService implements OnModuleInit {
     this.currentApiKey = apiKey;
     this.genAI = new GoogleGenerativeAI(apiKey);
 
-    // Model selection: configurable via env, with stable fallback
+    // Model selection: configurable via env, defaulting to free-tier lightweight Gemini model
     const modelName =
-      this.configService.get<string>('GEMINI_MODEL') || 'gemini-3.1-flash-lite';
+      this.configService.get<string>('GEMINI_MODEL')?.trim() ||
+      DEFAULT_GEMINI_MODEL;
+    this.currentModelName = modelName;
     this.logger.log(`🤖 Initializing AI Coding with model: ${modelName}`);
 
-    const requestOptions: any = {};
+    const requestOptions: { baseUrl?: string; apiVersion?: string } = {};
     const baseUrl =
       this.configService.get<string>('GEMINI_BASE_URL') ||
       process.env.GEMINI_BASE_URL;
@@ -144,18 +258,19 @@ export class AiCodingService implements OnModuleInit {
         `🤖 AI Coding configured with Custom API Version: ${requestOptions.apiVersion}`,
       );
     }
+    this.requestOptions = requestOptions;
 
-    this.model = this.genAI.getGenerativeModel(
-      {
-        model: modelName,
-        generationConfig: {
-          responseMimeType: 'application/json',
-          temperature: 0.0,
-          topP: 0.8,
-        },
-      },
-      requestOptions,
-    );
+    const configuredFallbacks = (
+      this.configService.get<string>('GEMINI_FALLBACK_MODELS') ||
+      process.env.GEMINI_FALLBACK_MODELS ||
+      DEFAULT_GEMINI_FALLBACK_MODELS.join(',')
+    )
+      .split(',')
+      .map((item) => item.trim())
+      .filter((item) => item.length > 0 && item !== modelName);
+    this.fallbackModelNames = Array.from(new Set(configuredFallbacks));
+
+    this.model = this.createGenerativeModel(modelName);
     return true;
   }
 
@@ -203,17 +318,8 @@ ${clinicalNote}
 `;
 
     try {
-      const result = await this.model.generateContent(prompt);
-      const response = await result.response;
-      let text = response.text();
-
-      // Clean up markdown if model decides to output it anyway
-      text = text
-        .replace(/```json\n?/g, '')
-        .replace(/```\n?/g, '')
-        .trim();
-
-      const parsed: AiCodingSuggestion = JSON.parse(text);
+      const text = await this.generateJsonText(prompt);
+      const parsed = JSON.parse(text) as AiCodingSuggestion;
 
       // Validate response structure
       if (!Array.isArray(parsed.diagnoses)) {
@@ -225,11 +331,18 @@ ${clinicalNote}
       }
 
       return parsed;
-    } catch (error) {
+    } catch (error: unknown) {
+      const message = this.extractErrorMessage(error);
+      const stack = error instanceof Error ? error.stack : undefined;
       this.logger.error(
-        `Failed to generate AI coding suggestions: ${error.message}`,
-        error.stack,
+        `Failed to generate AI coding suggestions: ${message}`,
+        stack,
       );
+      if (this.isQuotaError(error)) {
+        throw new ServiceUnavailableException(
+          'تم تجاوز حد الاستخدام المجاني لنموذج Gemini مؤقتاً. يرجى المحاولة بعد قليل أو ضبط GEMINI_MODEL / ترقية الحصة.',
+        );
+      }
       throw new InternalServerErrorException(
         'Failed to process AI Coding request',
       );
@@ -569,31 +682,42 @@ If no follow-up items are found, return an empty array [].
 Only return valid JSON, no markdown or explanation.`;
 
     try {
-      const result = await this.model.generateContent(prompt);
-      const text = result.response.text();
-      const parsed = JSON.parse(text);
+      const text = await this.generateJsonText(prompt);
+      const parsed = JSON.parse(text) as unknown;
 
       if (!Array.isArray(parsed)) {
         this.logger.warn('AI returned non-array for follow-up extraction');
         return [];
       }
 
-      return parsed.map((item: any) => ({
-        action: item.action || '',
-        actionAr: item.actionAr || '',
-        timeframe: item.timeframe || '',
-        timeframeDays: Number(item.timeframeDays) || 14,
-        priority: ['ROUTINE', 'URGENT', 'STAT'].includes(item.priority)
-          ? item.priority
-          : 'ROUTINE',
-        department: item.department || '',
-        notes: item.notes || '',
-      }));
-    } catch (error: any) {
-      this.logger.error(
-        `Failed to extract follow-up plan: ${error.message}`,
-        error.stack,
-      );
+      return parsed.map((raw) => {
+        const item = (raw && typeof raw === 'object' ? raw : {}) as {
+          action?: string;
+          actionAr?: string;
+          timeframe?: string;
+          timeframeDays?: number;
+          priority?: string;
+          department?: string;
+          notes?: string;
+        };
+        const priority: FollowUpExtraction['priority'] =
+          item.priority === 'URGENT' || item.priority === 'STAT'
+            ? item.priority
+            : 'ROUTINE';
+        return {
+          action: item.action || '',
+          actionAr: item.actionAr || '',
+          timeframe: item.timeframe || '',
+          timeframeDays: Number(item.timeframeDays) || 14,
+          priority,
+          department: item.department || '',
+          notes: item.notes || '',
+        };
+      });
+    } catch (error: unknown) {
+      const message = this.extractErrorMessage(error);
+      const stack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to extract follow-up plan: ${message}`, stack);
       return [];
     }
   }

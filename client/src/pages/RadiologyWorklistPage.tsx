@@ -71,13 +71,17 @@ export default function RadiologyWorklistPage() {
   });
 
   const filtered = useMemo(() => {
-    const s = search.trim();
+    const s = search.trim().toLowerCase();
     if (!s) return items;
     return items.filter(
       (x) =>
-        x.study.name.includes(s) ||
-        x.patient?.fullName.includes(s) ||
-        x.patient?.mrn.includes(s),
+        x.study.name.toLowerCase().includes(s) ||
+        (x.study.code?.toLowerCase().includes(s) ?? false) ||
+        (x.study.modality?.toLowerCase().includes(s) ?? false) ||
+        (x.study.bodyPart?.toLowerCase().includes(s) ?? false) ||
+        (x.patient?.fullName?.toLowerCase().includes(s) ?? false) ||
+        (x.patient?.mrn?.toLowerCase().includes(s) ?? false) ||
+        String(x.order.id).includes(s),
     );
   }, [items, search]);
 
