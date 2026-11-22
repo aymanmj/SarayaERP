@@ -1,4 +1,8 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  OnModuleDestroy,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
@@ -13,8 +17,19 @@ import {
   staffSessionFilter,
 } from './staff-session-lock';
 
+type PassportRegistry = {
+  use(name: string, strategy: Strategy): unknown;
+  unuse(name: string): unknown;
+};
+
 @Injectable()
-export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
+export class JwtStrategy
+  extends PassportStrategy(Strategy, 'jwt')
+  implements OnModuleDestroy
+{
+  private static readonly activeInstances: JwtStrategy[] = [];
+  declare getPassportInstance: () => PassportRegistry;
+
   constructor(
     config: ConfigService,
     private readonly cls: ClsService,
@@ -48,6 +63,21 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
         }
       },
     });
+    JwtStrategy.activeInstances.push(this);
+  }
+
+  onModuleDestroy() {
+    const index = JwtStrategy.activeInstances.lastIndexOf(this);
+    if (index === -1) return;
+    JwtStrategy.activeInstances.splice(index, 1);
+    const passport = this.getPassportInstance();
+    const previous =
+      JwtStrategy.activeInstances[JwtStrategy.activeInstances.length - 1];
+    if (previous) {
+      passport.use('jwt', previous);
+    } else {
+      passport.unuse('jwt');
+    }
   }
 
   async validate(payload: JwtPayload) {

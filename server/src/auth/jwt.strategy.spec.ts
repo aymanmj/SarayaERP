@@ -21,6 +21,20 @@ describe('Staff JWT current account eligibility', () => {
     permissions: ['cashier:manage'],
   };
   let strategy: JwtStrategy;
+  let extraStrategies: JwtStrategy[] = [];
+  const createStrategy = () =>
+    new JwtStrategy(
+      new ConfigService(),
+      { isActive: () => true, set } as unknown as ClsService,
+      {} as VaultService,
+      {
+        user: { findFirst },
+        staffSession: {
+          findFirst: jest.fn().mockResolvedValue({ id: payload.sid }),
+        },
+      } as unknown as PrismaService,
+    );
+
   beforeEach(() => {
     jest.clearAllMocks();
     findFirst.mockResolvedValue({
@@ -38,17 +52,16 @@ describe('Staff JWT current account eligibility', () => {
         },
       ],
     });
-    strategy = new JwtStrategy(
-      new ConfigService(),
-      { isActive: () => true, set } as unknown as ClsService,
-      {} as VaultService,
-      {
-        user: { findFirst },
-        staffSession: {
-          findFirst: jest.fn().mockResolvedValue({ id: payload.sid }),
-        },
-      } as unknown as PrismaService,
-    );
+    extraStrategies = [];
+    strategy = createStrategy();
+  });
+
+  afterEach(() => {
+    for (const extra of extraStrategies.reverse()) {
+      extra.onModuleDestroy();
+    }
+    extraStrategies = [];
+    strategy.onModuleDestroy();
   });
   it('checks persisted user and hospital eligibility before publishing the identity', async () => {
     await expect(strategy.validate(payload)).resolves.toEqual({
@@ -176,5 +189,34 @@ describe('Staff JWT current account eligibility', () => {
       strategy.validate({ ...payload, hospitalId: 6 }),
     ).rejects.toThrow(UnauthorizedException);
     expect(set).not.toHaveBeenCalled();
+  });
+
+  it('restores the previous JwtStrategy in Passport when a secondary module destroys', () => {
+    const second = createStrategy();
+    extraStrategies.push(second);
+    const registry = strategy.getPassportInstance();
+    const useSpy = jest.spyOn(registry, 'use');
+    const unuseSpy = jest.spyOn(registry, 'unuse');
+
+    try {
+      second.onModuleDestroy();
+      extraStrategies.pop();
+      expect(useSpy).toHaveBeenCalledWith('jwt', strategy);
+      expect(unuseSpy).not.toHaveBeenCalled();
+    } finally {
+      useSpy.mockRestore();
+      unuseSpy.mockRestore();
+    }
+  });
+
+  it('unregisters the jwt strategy from Passport when the last active instance destroys', () => {
+    const registry = strategy.getPassportInstance();
+    const unuseSpy = jest.spyOn(registry, 'unuse');
+    try {
+      strategy.onModuleDestroy();
+      expect(unuseSpy).toHaveBeenCalledWith('jwt');
+    } finally {
+      unuseSpy.mockRestore();
+    }
   });
 });
