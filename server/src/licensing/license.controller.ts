@@ -27,8 +27,36 @@ export class LicenseController {
   @Public()
   @Get('status')
   getStatus() {
-    // Force fresh validation (bypass cache)
-    return this.licenseService.getStatus(true);
+    // Force fresh validation (bypass cache) without exposing server path or active HW fingerprint
+    const status = this.licenseService.getStatus(true);
+    const {
+      isValid,
+      plan,
+      hospitalName,
+      expiryDate,
+      maxUsers,
+      modules,
+      isGracePeriod,
+      isExpired,
+      daysRemaining,
+      graceDaysRemaining,
+      error,
+      machineId,
+    } = status;
+    return {
+      isValid,
+      ...(plan !== undefined ? { plan } : {}),
+      ...(hospitalName !== undefined ? { hospitalName } : {}),
+      ...(expiryDate !== undefined ? { expiryDate } : {}),
+      ...(maxUsers !== undefined ? { maxUsers } : {}),
+      ...(modules !== undefined ? { modules } : {}),
+      ...(isGracePeriod !== undefined ? { isGracePeriod } : {}),
+      ...(isExpired !== undefined ? { isExpired } : {}),
+      ...(daysRemaining !== undefined ? { daysRemaining } : {}),
+      ...(graceDaysRemaining !== undefined ? { graceDaysRemaining } : {}),
+      ...(error !== undefined ? { error } : {}),
+      ...(isValid && !isGracePeriod ? {} : { machineId }),
+    };
   }
 
   /**
@@ -104,7 +132,9 @@ export class LicenseController {
   getInfo() {
     const status = this.licenseService.getStatus();
     return {
-      machineId: status.machineId,
+      ...(status.isValid && !status.isGracePeriod
+        ? {}
+        : { machineId: status.machineId }),
       isValid: status.isValid,
       details: status.isValid
         ? {

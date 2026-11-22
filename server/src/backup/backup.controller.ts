@@ -18,6 +18,9 @@ import { PermissionsGuard } from '../auth/permissions.guard';
 import { Permissions } from '../auth/permissions.decorator';
 import { PlatformAdminGuard } from '../auth/platform-admin.guard';
 
+const BACKUP_FILENAME_PATTERN =
+  /^saraya_backup_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.sql\.gz$/;
+
 @Controller('backup')
 @UseGuards(JwtAuthGuard, PermissionsGuard, PlatformAdminGuard)
 export class BackupController {
@@ -84,11 +87,7 @@ export class BackupController {
   ) {
     this.requirePlatformAdmin(user);
     // التحقق من صيغة اسم الملف
-    if (
-      !filename.match(
-        /^saraya_backup_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.sql\.gz$/,
-      )
-    ) {
+    if (!BACKUP_FILENAME_PATTERN.test(filename)) {
       throw new HttpException(
         'صيغة اسم الملف غير صالحة',
         HttpStatus.BAD_REQUEST,
@@ -106,9 +105,11 @@ export class BackupController {
   @Delete(':filename')
   async deleteBackup(
     @Param('filename') filename: string,
+    @CurrentUser() user: JwtPayload,
     @Body() body?: { storagePath?: string },
   ) {
-    if (!filename.match(/^saraya_backup_.*\.sql\.gz$/)) {
+    this.requirePlatformAdmin(user);
+    if (!BACKUP_FILENAME_PATTERN.test(filename)) {
       throw new HttpException(
         'صيغة اسم الملف غير صالحة',
         HttpStatus.BAD_REQUEST,
@@ -125,7 +126,8 @@ export class BackupController {
   /** عرض حالة عامل النسخ الاحتياطي */
   @Permissions('backup:view')
   @Get('status')
-  async getStatus() {
+  async getStatus(@CurrentUser() user: JwtPayload) {
+    this.requirePlatformAdmin(user);
     return this.backupService.getStatus();
   }
 
@@ -136,7 +138,8 @@ export class BackupController {
   /** عرض جميع أماكن التخزين المتاحة (أقراص، USB، شبكة) */
   @Permissions('backup:view')
   @Get('storage-paths')
-  async getStoragePaths() {
+  async getStoragePaths(@CurrentUser() user: JwtPayload) {
+    this.requirePlatformAdmin(user);
     return this.backupService.listStoragePaths();
   }
 
@@ -147,14 +150,19 @@ export class BackupController {
   /** عرض إعدادات النسخ الاحتياطي */
   @Permissions('backup:view')
   @Get('auto-path')
-  async getAutoPath() {
+  async getAutoPath(@CurrentUser() user: JwtPayload) {
+    this.requirePlatformAdmin(user);
     return this.backupService.getConfig();
   }
 
   /** تحديث مسار النسخ التلقائي (بسيط) */
   @Permissions('backup:manage')
   @Post('auto-path')
-  async setAutoPath(@Body() body: { path: string }) {
+  async setAutoPath(
+    @CurrentUser() user: JwtPayload,
+    @Body() body: { path: string },
+  ) {
+    this.requirePlatformAdmin(user);
     if (!body?.path) {
       throw new HttpException('المسار مطلوب', HttpStatus.BAD_REQUEST);
     }
@@ -165,6 +173,7 @@ export class BackupController {
   @Permissions('backup:manage')
   @Post('config')
   async setConfig(
+    @CurrentUser() user: JwtPayload,
     @Body()
     body: {
       autoBackupPath?: string;
@@ -172,6 +181,7 @@ export class BackupController {
       dualBackupEnabled?: boolean;
     },
   ) {
+    this.requirePlatformAdmin(user);
     return this.backupService.setConfig(body);
   }
 }

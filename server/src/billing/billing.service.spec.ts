@@ -16,6 +16,7 @@ import { InsuranceCalculationService } from '../insurance/insurance-calculation.
 import { AccountingService } from '../accounting/accounting.service';
 import { PriceListsService } from '../price-lists/price-lists.service';
 import Decimal from 'decimal.js';
+import { InvoiceStatus } from '@prisma/client';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 
 describe('BillingService', () => {
@@ -466,38 +467,49 @@ describe('BillingService', () => {
     });
   });
 
-  // NOTE: validateInvoiceIsEditable is now private, these tests are skipped
-  describe.skip('validateInvoiceIsEditable (private)', () => {
+  describe('validateInvoiceIsEditable (private)', () => {
+    const getValidator = () =>
+      service as unknown as {
+        validateInvoiceIsEditable: (invoice: {
+          id: number;
+          status: InvoiceStatus;
+        }) => void;
+      };
+
     it('should allow editing DRAFT invoices', () => {
-      const invoice = { status: 'DRAFT' };
-      // @ts-ignore - accessing private method for testing
       expect(() =>
-        (service as any).validateInvoiceIsEditable(invoice),
+        getValidator().validateInvoiceIsEditable({
+          id: 1,
+          status: InvoiceStatus.DRAFT,
+        }),
       ).not.toThrow();
     });
 
     it('should throw error for PAID invoices', () => {
-      const invoice = { status: 'PAID' };
-      // @ts-ignore - accessing private method for testing
-      expect(() => (service as any).validateInvoiceIsEditable(invoice)).toThrow(
-        BadRequestException,
-      );
+      expect(() =>
+        getValidator().validateInvoiceIsEditable({
+          id: 1,
+          status: InvoiceStatus.PAID,
+        }),
+      ).toThrow(BadRequestException);
     });
 
     it('should throw error for CANCELLED invoices', () => {
-      const invoice = { status: 'CANCELLED' };
-      // @ts-ignore - accessing private method for testing
-      expect(() => (service as any).validateInvoiceIsEditable(invoice)).toThrow(
-        BadRequestException,
-      );
+      expect(() =>
+        getValidator().validateInvoiceIsEditable({
+          id: 1,
+          status: InvoiceStatus.CANCELLED,
+        }),
+      ).toThrow(BadRequestException);
     });
 
     it('should throw error for ISSUED invoices', () => {
-      const invoice = { status: 'ISSUED' };
-      // @ts-ignore - accessing private method for testing
-      expect(() => (service as any).validateInvoiceIsEditable(invoice)).toThrow(
-        BadRequestException,
-      );
+      expect(() =>
+        getValidator().validateInvoiceIsEditable({
+          id: 1,
+          status: InvoiceStatus.ISSUED,
+        }),
+      ).toThrow(BadRequestException);
     });
   });
 
