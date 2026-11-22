@@ -45,7 +45,8 @@ class InsuranceSettlementLineDto {
 
 class InsuranceSettlementDto {
   @IsInt() @Min(1) providerId!: number;
-  @ArrayMinSize(1)
+  @IsArray()
+  @ArrayMinSize(0)
   @ArrayMaxSize(100)
   @ArrayUnique()
   @IsInt({ each: true })
@@ -54,6 +55,28 @@ class InsuranceSettlementDto {
   @IsString() @Matches(/^(0|[1-9]\d{0,14})(\.\d{1,3})?$/) amount!: string;
   @IsString() @MinLength(5) @MaxLength(200) bankReference!: string;
   @Equals(true) confirmed!: boolean;
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(0)
+  @ArrayMaxSize(100)
+  @ValidateNested({ each: true })
+  @Type(() => InsuranceSettlementLineDto)
+  allocations?: InsuranceSettlementLineDto[];
+  @IsOptional()
+  @IsString()
+  @Matches(/^(0|[1-9]\d{0,14})(\.\d{1,3})?$/)
+  unallocatedAmount?: string;
+}
+
+class ApplySettlementCreditDto {
+  @IsUUID('4') requestId!: string;
+  @ArrayMinSize(1)
+  @ArrayMaxSize(100)
+  @ArrayUnique()
+  @IsInt({ each: true })
+  @Min(1, { each: true })
+  invoiceIds!: number[];
+  @IsString() @Matches(/^(0|[1-9]\d{0,14})(\.\d{1,3})?$/) amount!: string;
   @IsOptional()
   @IsArray()
   @ArrayMinSize(1)
@@ -91,11 +114,17 @@ class SettlementRefundLineDto {
 class SettlementRefundDto {
   @IsUUID('4') requestId!: string;
   @IsString() @MinLength(5) @MaxLength(1000) reason!: string;
-  @ArrayMinSize(1)
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(0)
   @ArrayMaxSize(100)
   @ValidateNested({ each: true })
   @Type(() => SettlementRefundLineDto)
-  lines!: SettlementRefundLineDto[];
+  lines?: SettlementRefundLineDto[];
+  @IsOptional()
+  @IsString()
+  @Matches(/^(0|[1-9]\d{0,14})(\.\d{1,3})?$/)
+  unallocatedAmount?: string;
 }
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('insurance')
@@ -303,6 +332,25 @@ export class InsuranceController {
     });
   }
 
+  @Get('claims/settlements')
+  @Permissions('insurance:manage')
+  listInsuranceSettlements(
+    @Req() req: { user: JwtPayload },
+    @Query('providerId') providerId?: string,
+    @Query('onlyUnallocated') onlyUnallocated?: string,
+  ) {
+    const parsedProviderId =
+      providerId &&
+      Number.isInteger(Number(providerId)) &&
+      Number(providerId) > 0
+        ? Number(providerId)
+        : undefined;
+    return this.insuranceService.listInsuranceSettlements(req.user.hospitalId, {
+      providerId: parsedProviderId,
+      onlyUnallocated: onlyUnallocated === 'true',
+    });
+  }
+
   @Post('claims/settlements')
   @Permissions('insurance:manage')
   postInsuranceSettlement(
@@ -311,6 +359,21 @@ export class InsuranceController {
   ) {
     return this.insuranceService.postInsuranceSettlement(
       req.user.hospitalId,
+      req.user.sub,
+      body,
+    );
+  }
+
+  @Post('claims/settlements/:settlementId/apply')
+  @Permissions('insurance:manage')
+  applyInsuranceSettlementCredit(
+    @Req() req: { user: JwtPayload },
+    @Param('settlementId', ParseIntPipe) settlementId: number,
+    @Body() body: ApplySettlementCreditDto,
+  ) {
+    return this.insuranceService.applyInsuranceSettlementCredit(
+      req.user.hospitalId,
+      settlementId,
       req.user.sub,
       body,
     );

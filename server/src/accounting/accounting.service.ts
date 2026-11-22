@@ -64,6 +64,7 @@ export const ACCOUNT_CODES = {
   AP_SUPPLIERS: '200100', // دائنون موردون (حالياً نستخدم 200100)
   SALES_RETURNS: '400900', // مردودات مبيعات
   PATIENT_DEPOSITS: '200500', // أمانات ودفعات المرضى المقدمة (Custodial Liability)
+  INSURANCE_UNALLOCATED: '200600', // حوالات تأمين غير موزعة / فوائض شركات التأمين
 } as const;
 
 type SampleAccountDef = {
@@ -235,6 +236,12 @@ const SAMPLE_COA: SampleAccountDef[] = [
   {
     code: ACCOUNT_CODES.PATIENT_DEPOSITS,
     name: 'أمانات ودفعات المرضى المقدمة',
+    type: 'LIABILITY',
+    parentCode: '200000',
+  },
+  {
+    code: ACCOUNT_CODES.INSURANCE_UNALLOCATED,
+    name: 'حوالات تأمين غير موزعة / فوائض شركات التأمين',
     type: 'LIABILITY',
     parentCode: '200000',
   },
@@ -575,6 +582,10 @@ export class AccountingService {
         {
           key: SystemAccountKey.SALES_RETURNS,
           code: ACCOUNT_CODES.SALES_RETURNS,
+        },
+        {
+          key: SystemAccountKey.INSURANCE_UNALLOCATED_RECEIPTS,
+          code: ACCOUNT_CODES.INSURANCE_UNALLOCATED,
         },
       ];
 

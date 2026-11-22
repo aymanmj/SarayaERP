@@ -6509,7 +6509,20 @@
       "reference": "مرجع التحويل البنكي",
       "confirmed": "تحققت من وصول المبلغ إلى البنك.",
       "post": "ترحيل التسوية",
-      "saved": "تم ترحيل تسوية حوالة التأمين."
+      "saved": "تم ترحيل تسوية حوالة التأمين.",
+      "recordUnallocated": "تسجيل حوالة غير موزعة",
+      "recordExcessAsUnallocated": "تسجيل الفائض كرصيد غير موزع لشركة التأمين",
+      "excessAmount": "الفائض غير الموزع المتوقع",
+      "selectProvider": "اختر شركة التأمين",
+      "unallocatedTitle": "حوالات تأمين بأرصدة غير موزعة متاحة",
+      "unallocatedAvailable": "المتاح غير الموزع",
+      "unallocatedOriginal": "أصل غير الموزع",
+      "applyBtn": "تخصيص على المطالبات المحددة",
+      "manageRefundBtn": "رد الفائض / السجل",
+      "applyModalTitle": "تخصيص رصيد حوالة غير موزع",
+      "applyAmount": "المبلغ المراد تخصيصه",
+      "applyExceedsAvailable": "المبلغ المخصص يتجاوز الرصيد غير الموزع المتاح في الحوالة.",
+      "applySaved": "تم ترحيل تخصيص الرصيد غير الموزع بنجاح."
     },
     "refund": {
       "title": "رد تحصيل التأمين",
@@ -6532,7 +6545,13 @@
       "saved": "تم حفظ الإجراء.",
       "PENDING": "بانتظار المراجعة",
       "POSTED": "مُرحّل",
-      "REJECTED": "مرفوض"
+      "REJECTED": "مرفوض",
+      "unallocatedAvailable": "الفائض غير الموزع المتاح للرد",
+      "unallocatedRefunded": "الفائض المردود",
+      "unallocatedApplied": "المخصّص للمطالبات",
+      "unallocatedPending": "فائض قيد المراجعة",
+      "unallocatedInput": "مبلغ رد الفائض غير الموزع",
+      "unallocatedTag": "رد فائض غير موزع"
     },
     "withdrawal": {
       "status": "مسحوبة",

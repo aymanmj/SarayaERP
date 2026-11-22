@@ -1141,6 +1141,440 @@ describe('Insurance Providers, Policies, Plans, Coverage Calculation, Pre-Auth, 
     );
   });
 
+  it('records overpaid and pure unallocated remittances, applies unallocated credit to invoices, enforces 4-eyes unallocated refunds, and blocks journal reversals', async () => {
+    const provider = await db.insuranceProvider.create({
+      data: {
+        hospitalId,
+        code: 'UNALLOC-INSURER',
+        name: 'Synthetic Unallocated Insurer',
+      },
+    });
+    const patient = await db.patient.create({
+      data: {
+        hospitalId,
+        mrn: 'UNALLOC-PATIENT',
+        fullName: 'Synthetic patient',
+        gender: 'MALE',
+      },
+    });
+    const encounter = await db.encounter.create({
+      data: { hospitalId, patientId: patient.id, type: 'OPD', status: 'OPEN' },
+    });
+    const reviewer = await auth.createTestUser(
+      'unallocated-reviewer',
+      'synthetic',
+      {
+        hospitalId,
+        permissions: ['insurance:manage'],
+      },
+    );
+    const issue = async (share: string) => {
+      const invoice = await db.invoice.create({
+        data: {
+          hospitalId,
+          patientId: patient.id,
+          encounterId: encounter.id,
+          totalAmount: share,
+          insuranceShare: share,
+          patientShare: '0.000',
+          status: 'ISSUED',
+          claimStatus: 'SUBMITTED',
+          insuranceProviderId: provider.id,
+        },
+      });
+      await accountingService.recordInvoiceEntry({
+        hospitalId,
+        invoiceId: invoice.id,
+        userId: adminUserId,
+      });
+      return invoice;
+    };
+
+    const inv1 = await issue('1.000');
+    const inv2 = await issue('1.000');
+    const inv3 = await issue('0.500');
+
+    const settle = (body: object, token = adminToken) =>
+      request(app.getHttpServer())
+        .post('/insurance/claims/settlements')
+        .auth(token, { type: 'bearer' })
+        .send(body);
+
+    // 1. Overpayment without explicit unallocatedAmount must still be rejected (400)
+    await settle({
+      providerId: provider.id,
+      invoiceIds: [inv1.id],
+      amount: '1.500',
+      bankReference: 'OVERPAY-REJECT-01',
+      confirmed: true,
+    }).expect(400);
+
+    // Pure unallocated without unallocatedAmount must be rejected (400)
+    await settle({
+      providerId: provider.id,
+      invoiceIds: [],
+      amount: '2.000',
+      bankReference: 'PURE-REJECT-01',
+      confirmed: true,
+    }).expect(400);
+
+    // 2. Record overpaid remittance (1.000 allocated to inv1 + 0.500 unallocated = 1.500)
+    const overpaidPayload = {
+      providerId: provider.id,
+      invoiceIds: [inv1.id],
+      amount: '1.500',
+      bankReference: 'OVERPAY-TRANSFER-01',
+      confirmed: true,
+      unallocatedAmount: '0.500',
+    };
+    const [overpaidRes, overpaidReplay] = await Promise.all([
+      settle(overpaidPayload).expect(201),
+      settle(overpaidPayload).expect(201),
+    ]);
+    expect(overpaidReplay.body).toEqual(overpaidRes.body);
+    await settle({
+      ...overpaidPayload,
+      amount: '1.400',
+      unallocatedAmount: '0.400',
+    }).expect(409);
+
+    const overpaid = responseBody<{
+      id: number;
+      postingEntryId: number;
+      unallocatedAccountId: number;
+      allocations: { id: number; invoiceId: number; amount: string }[];
+    }>(overpaidRes);
+
+    const bankAccount = await db.account.findFirstOrThrow({
+      where: { hospitalId, code: '101100' },
+    });
+    const receivableAccount = await db.account.findFirstOrThrow({
+      where: { hospitalId, code: '120200' },
+    });
+    const unallocatedAccount = await db.account.findFirstOrThrow({
+      where: { hospitalId, code: '200600' },
+    });
+    expect(overpaid.unallocatedAccountId).toBe(unallocatedAccount.id);
+
+    const overpaidEntry = await db.accountingEntry.findUniqueOrThrow({
+      where: { id: overpaid.postingEntryId },
+      include: { lines: true },
+    });
+    expect(
+      overpaidEntry.lines.map((line) => [
+        line.accountId,
+        line.debit.toFixed(3),
+        line.credit.toFixed(3),
+      ]),
+    ).toEqual(
+      expect.arrayContaining([
+        [bankAccount.id, '1.500', '0.000'],
+        [receivableAccount.id, '0.000', '1.000'],
+        [unallocatedAccount.id, '0.000', '0.500'],
+      ]),
+    );
+    expect(
+      await db.invoice.findUniqueOrThrow({ where: { id: inv1.id } }),
+    ).toMatchObject({ claimStatus: 'PAID', status: 'PAID' });
+
+    // 3. Record pure unallocated remittance (2.000)
+    const pureRes = await settle({
+      providerId: provider.id,
+      invoiceIds: [],
+      amount: '2.000',
+      bankReference: 'PURE-UNALLOC-01',
+      confirmed: true,
+      unallocatedAmount: '2.000',
+    }).expect(201);
+    const pure = responseBody<{ id: number; postingEntryId: number }>(pureRes);
+
+    const pureEntry = await db.accountingEntry.findUniqueOrThrow({
+      where: { id: pure.postingEntryId },
+      include: { lines: true },
+    });
+    expect(
+      pureEntry.lines.map((line) => [
+        line.accountId,
+        line.debit.toFixed(3),
+        line.credit.toFixed(3),
+      ]),
+    ).toEqual(
+      expect.arrayContaining([
+        [bankAccount.id, '2.000', '0.000'],
+        [unallocatedAccount.id, '0.000', '2.000'],
+      ]),
+    );
+
+    const listUnallocated = await request(app.getHttpServer())
+      .get('/insurance/claims/settlements?onlyUnallocated=true')
+      .auth(adminToken, { type: 'bearer' })
+      .expect(200);
+    expect(listUnallocated.body).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: pure.id,
+          availableUnallocated: '2.000',
+        }),
+        expect.objectContaining({
+          id: overpaid.id,
+          availableUnallocated: '0.500',
+        }),
+      ]),
+    );
+    const crossTenantList = await request(app.getHttpServer())
+      .get('/insurance/claims/settlements?onlyUnallocated=true')
+      .auth(otherToken, { type: 'bearer' })
+      .expect(200);
+    expect(crossTenantList.body).toEqual([]);
+
+    // 4. Subsequent credit applications & tenant isolation
+    const applyCredit = (
+      settlementId: number,
+      body: object,
+      token = adminToken,
+    ) =>
+      request(app.getHttpServer())
+        .post(`/insurance/claims/settlements/${settlementId}/apply`)
+        .auth(token, { type: 'bearer' })
+        .send(body);
+
+    const apply1Req = {
+      requestId: randomUUID(),
+      invoiceIds: [inv2.id],
+      amount: '0.600',
+      allocations: [{ invoiceId: inv2.id, amount: '0.600' }],
+    };
+    await applyCredit(pure.id, apply1Req, otherToken).expect(404);
+    await applyCredit(pure.id, {
+      ...apply1Req,
+      requestId: randomUUID(),
+      amount: '2.001',
+      allocations: undefined,
+    }).expect(400);
+
+    const [applied1, applied1Replay] = await Promise.all([
+      applyCredit(pure.id, apply1Req).expect(201),
+      applyCredit(pure.id, apply1Req).expect(201),
+    ]);
+    expect(applied1Replay.body).toEqual(applied1.body);
+    await applyCredit(pure.id, {
+      ...apply1Req,
+      amount: '0.500',
+      allocations: [{ invoiceId: inv2.id, amount: '0.500' }],
+    }).expect(409);
+
+    const app1Body = responseBody<{ id: number; postingEntryId: number }>(
+      applied1,
+    );
+    const app1Entry = await db.accountingEntry.findUniqueOrThrow({
+      where: { id: app1Body.postingEntryId },
+      include: { lines: true },
+    });
+    expect(
+      app1Entry.lines.map((line) => [
+        line.accountId,
+        line.debit.toFixed(3),
+        line.credit.toFixed(3),
+      ]),
+    ).toEqual(
+      expect.arrayContaining([
+        [unallocatedAccount.id, '0.600', '0.000'],
+        [receivableAccount.id, '0.000', '0.600'],
+      ]),
+    );
+    expect(
+      await db.invoice.findUniqueOrThrow({ where: { id: inv2.id } }),
+    ).toMatchObject({
+      claimStatus: 'PARTIALLY_PAID',
+      status: 'PARTIALLY_PAID',
+    });
+
+    // Second application from the SAME pure settlement finishes inv2 (0.400) + inv3 (0.500)
+    await applyCredit(pure.id, {
+      requestId: randomUUID(),
+      invoiceIds: [inv2.id, inv3.id],
+      amount: '0.900',
+    }).expect(201);
+    expect(
+      await db.invoice.findUniqueOrThrow({ where: { id: inv2.id } }),
+    ).toMatchObject({ claimStatus: 'PAID', status: 'PAID' });
+    expect(
+      await db.invoice.findUniqueOrThrow({ where: { id: inv3.id } }),
+    ).toMatchObject({ claimStatus: 'PAID', status: 'PAID' });
+
+    // 5. 4-eyes Maker-Checker unallocated refund & pending reservation
+    const pureRefundRes = await request(app.getHttpServer())
+      .post(`/insurance/claims/settlements/${pure.id}/refunds`)
+      .auth(adminToken, { type: 'bearer' })
+      .send({
+        requestId: randomUUID(),
+        reason: 'Reserve part of pure unallocated remittance',
+        unallocatedAmount: '0.300',
+      })
+      .expect(201);
+    const reservedRefundId = responseBody<{ id: number }>(pureRefundRes).id;
+
+    // Applying 0.300 now exceeds remaining 0.200 because 0.300 is PENDING refund
+    const inv4 = await issue('0.300');
+    await applyCredit(pure.id, {
+      requestId: randomUUID(),
+      invoiceIds: [inv4.id],
+      amount: '0.300',
+    }).expect(400);
+
+    // Reject releases the 0.300 reservation cleanly
+    await request(app.getHttpServer())
+      .post(
+        `/insurance/claims/settlements/${pure.id}/refunds/${reservedRefundId}/review`,
+      )
+      .auth(reviewer.accessToken, { type: 'bearer' })
+      .send({
+        decision: 'REJECT',
+        note: 'Hold off pending final reconciliation',
+      })
+      .expect(201);
+
+    // Request full remaining 0.500 unallocated refund -> Maker blocked (403) -> Reviewer POSTs
+    const finalUnallocReq = await request(app.getHttpServer())
+      .post(`/insurance/claims/settlements/${pure.id}/refunds`)
+      .auth(adminToken, { type: 'bearer' })
+      .send({
+        requestId: randomUUID(),
+        reason: 'Return unused unallocated transfer balance',
+        unallocatedAmount: '0.500',
+      })
+      .expect(201);
+    const finalUnallocId = responseBody<{ id: number }>(finalUnallocReq).id;
+
+    await request(app.getHttpServer())
+      .post(
+        `/insurance/claims/settlements/${pure.id}/refunds/${finalUnallocId}/review`,
+      )
+      .auth(adminToken, { type: 'bearer' })
+      .send({
+        decision: 'POST',
+        note: 'Self approval must fail',
+        bankReference: 'REFUND-UNALLOC-SELF',
+        confirmed: true,
+      })
+      .expect(403);
+
+    const postedPureRefund = await request(app.getHttpServer())
+      .post(
+        `/insurance/claims/settlements/${pure.id}/refunds/${finalUnallocId}/review`,
+      )
+      .auth(reviewer.accessToken, { type: 'bearer' })
+      .send({
+        decision: 'POST',
+        note: 'Confirmed bank wire for unallocated excess',
+        bankReference: 'REFUND-UNALLOC-01',
+        confirmed: true,
+      })
+      .expect(201);
+    const pureRefundEntryId = responseBody<{ postingEntryId: number }>(
+      postedPureRefund,
+    ).postingEntryId;
+    const pureRefundEntry = await db.accountingEntry.findUniqueOrThrow({
+      where: { id: pureRefundEntryId },
+      include: { lines: true },
+    });
+    expect(
+      pureRefundEntry.lines.map((line) => [
+        line.accountId,
+        line.debit.toFixed(3),
+        line.credit.toFixed(3),
+      ]),
+    ).toEqual(
+      expect.arrayContaining([
+        [unallocatedAccount.id, '0.500', '0.000'],
+        [bankAccount.id, '0.000', '0.500'],
+      ]),
+    );
+
+    const pureLedger = await request(app.getHttpServer())
+      .get(`/insurance/claims/settlements/${pure.id}/refunds`)
+      .auth(adminToken, { type: 'bearer' })
+      .expect(200);
+    expect(pureLedger.body).toMatchObject({
+      unallocatedAmount: '2.000',
+      appliedUnallocated: '1.500',
+      refundedUnallocated: '0.500',
+      availableUnallocated: '0.000',
+    });
+
+    // 6. Mixed refund on overpaid settlement (allocation 0.250 on inv1 + unallocated 0.500 = 0.750)
+    const mixedReq = await request(app.getHttpServer())
+      .post(`/insurance/claims/settlements/${overpaid.id}/refunds`)
+      .auth(adminToken, { type: 'bearer' })
+      .send({
+        requestId: randomUUID(),
+        reason: 'Mixed refund of allocation and unallocated excess',
+        lines: [{ allocationId: overpaid.allocations[0].id, amount: '0.250' }],
+        unallocatedAmount: '0.500',
+      })
+      .expect(201);
+    const mixedId = responseBody<{ id: number }>(mixedReq).id;
+    const mixedPosted = await request(app.getHttpServer())
+      .post(
+        `/insurance/claims/settlements/${overpaid.id}/refunds/${mixedId}/review`,
+      )
+      .auth(reviewer.accessToken, { type: 'bearer' })
+      .send({
+        decision: 'POST',
+        note: 'Verified mixed refund bank transfer',
+        bankReference: 'REFUND-MIXED-02',
+        confirmed: true,
+      })
+      .expect(201);
+    const mixedEntryId = responseBody<{ postingEntryId: number }>(
+      mixedPosted,
+    ).postingEntryId;
+    const mixedEntry = await db.accountingEntry.findUniqueOrThrow({
+      where: { id: mixedEntryId },
+      include: { lines: true },
+    });
+    expect(
+      mixedEntry.lines.map((line) => [
+        line.accountId,
+        line.debit.toFixed(3),
+        line.credit.toFixed(3),
+      ]),
+    ).toEqual(
+      expect.arrayContaining([
+        [receivableAccount.id, '0.250', '0.000'],
+        [unallocatedAccount.id, '0.500', '0.000'],
+        [bankAccount.id, '0.000', '0.750'],
+      ]),
+    );
+    expect(
+      await db.invoice.findUniqueOrThrow({ where: { id: inv1.id } }),
+    ).toMatchObject({ claimStatus: 'PARTIALLY_PAID' });
+
+    const remainingList = await request(app.getHttpServer())
+      .get('/insurance/claims/settlements?onlyUnallocated=true')
+      .auth(adminToken, { type: 'bearer' })
+      .expect(200);
+    expect(remainingList.body).toEqual([]);
+
+    // 7. Manual reversal must be blocked on settlement, application, and refund journal entries
+    for (const protectedEntryId of [
+      overpaid.postingEntryId,
+      pure.postingEntryId,
+      app1Body.postingEntryId,
+      pureRefundEntryId,
+      mixedEntryId,
+    ]) {
+      await expect(
+        accountingService.reverseEntry(
+          hospitalId,
+          protectedEntryId,
+          adminUserId,
+          'Synthetic unauthorized reversal',
+        ),
+      ).rejects.toThrow();
+    }
+  });
+
   it('enforces RCM claim creation concurrency, scrubbing, payment validation, denial/appeal workflow, and tenant isolation', async () => {
     const provider = await db.insuranceProvider.create({
       data: {

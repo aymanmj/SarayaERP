@@ -270,3 +270,153 @@ it("allocates a short transfer explicitly and keeps its remainder visible", asyn
     restoreDialog();
   }
 });
+
+it("records an overpaid insurer transfer only after opting into unallocated balance recording", async () => {
+  vi.mocked(apiClient.get).mockImplementation(async (path, config) => ({
+    data: path === "/insurance/claims" && (config?.params as { status?: string } | undefined)?.status === "SUBMITTED"
+      ? [{
+          id: 19, claimStatus: "SUBMITTED", createdAt: "2026-11-16T08:00:00Z",
+          insuranceShare: "2.000", patientShare: "0.000", patient: { fullName: "Synthetic patient" },
+          insuranceProviderId: 7, insuranceProvider: { name: "Synthetic insurer" }, claims: [],
+        }]
+      : [],
+  }));
+  vi.mocked(apiClient.post).mockClear().mockResolvedValue({ data: {} });
+  const restoreDialog = mockDialog();
+  try {
+    render(<InsuranceClaimsPage />);
+    fireEvent.change(screen.getByRole("option", { name: /Submitted/ }).parentElement!, {
+      target: { value: "SUBMITTED" },
+    });
+    fireEvent.click(await screen.findByRole("checkbox", { name: "insuranceClaims.settlement.selectInvoice" }));
+    fireEvent.click(screen.getByRole("button", { name: "insuranceClaims.settlement.title" }));
+    fireEvent.change(screen.getByLabelText("insuranceClaims.settlement.amount"), { target: { value: "2.500" } });
+    fireEvent.change(screen.getByLabelText("insuranceClaims.settlement.reference"), { target: { value: "BANK-OVERPAY-19" } });
+    fireEvent.click(screen.getByLabelText("insuranceClaims.settlement.confirmed"));
+    const post = screen.getByRole("button", { name: "insuranceClaims.settlement.post" });
+    expect(post).toBeDisabled();
+    fireEvent.click(screen.getByLabelText("insuranceClaims.settlement.recordExcessAsUnallocated"));
+    expect(post).toBeEnabled();
+    fireEvent.click(post);
+    await waitFor(() => expect(apiClient.post).toHaveBeenCalledWith("/insurance/claims/settlements", {
+      providerId: 7, invoiceIds: [19], amount: "2.500", bankReference: "BANK-OVERPAY-19", confirmed: true, unallocatedAmount: "0.500",
+    }));
+  } finally {
+    restoreDialog();
+  }
+});
+
+it("records a standalone pure unallocated insurer transfer", async () => {
+  vi.mocked(apiClient.get).mockImplementation(async (path) => ({
+    data: path === "/insurance/providers" ? [{ id: 7, name: "Synthetic insurer" }] : [],
+  }));
+  vi.mocked(apiClient.post).mockClear().mockResolvedValue({ data: {} });
+  const restoreDialog = mockDialog();
+  try {
+    render(<InsuranceClaimsPage />);
+    await screen.findByRole("option", { name: "Synthetic insurer" });
+    fireEvent.click(screen.getByRole("button", { name: "insuranceClaims.settlement.recordUnallocated" }));
+    fireEvent.change(screen.getByLabelText("insuranceClaims.settlement.amount"), { target: { value: "10.000" } });
+    fireEvent.change(screen.getByLabelText("insuranceClaims.settlement.reference"), { target: { value: "BANK-PURE-7" } });
+    fireEvent.click(screen.getByLabelText("insuranceClaims.settlement.confirmed"));
+    fireEvent.click(screen.getByRole("button", { name: "insuranceClaims.settlement.post" }));
+    await waitFor(() => expect(apiClient.post).toHaveBeenCalledWith("/insurance/claims/settlements", {
+      providerId: 7, invoiceIds: [], amount: "10.000", bankReference: "BANK-PURE-7", confirmed: true, unallocatedAmount: "10.000",
+    }));
+  } finally {
+    restoreDialog();
+  }
+});
+
+it("applies an available unallocated settlement credit to selected claims with partial allocation", async () => {
+  vi.mocked(apiClient.get).mockImplementation(async (path, config) => {
+    if (path === "/insurance/claims/settlements") {
+      return {
+        data: [{
+          id: 41, providerId: 7, provider: { id: 7, name: "Synthetic insurer", code: "INS-7" },
+          bankReference: "BANK-UNALLOC-41", amount: "2.000", unallocatedAmount: "2.000",
+          appliedUnallocated: "0.000", refundedUnallocated: "0.000", pendingRefundUnallocated: "0.000",
+          availableUnallocated: "1.200", createdAt: "2026-11-22T10:00:00Z",
+        }],
+      };
+    }
+    if (path === "/insurance/claims" && (config?.params as { status?: string } | undefined)?.status === "SUBMITTED") {
+      return {
+        data: [{
+          id: 30, claimStatus: "SUBMITTED", createdAt: "2026-11-22T09:00:00Z",
+          insuranceShare: "1.500", patientShare: "0.000", patient: { fullName: "Synthetic patient" },
+          insuranceProviderId: 7, insuranceProvider: { name: "Synthetic insurer" }, claims: [],
+        }],
+      };
+    }
+    return { data: [] };
+  });
+  vi.mocked(apiClient.post).mockClear().mockResolvedValue({ data: {} });
+  const restoreDialog = mockDialog();
+  try {
+    render(<InsuranceClaimsPage />);
+    fireEvent.change(screen.getByRole("option", { name: /Submitted/ }).parentElement!, {
+      target: { value: "SUBMITTED" },
+    });
+    fireEvent.click(await screen.findByRole("checkbox", { name: "insuranceClaims.settlement.selectInvoice" }));
+    const applyButtons = await screen.findAllByRole("button", { name: "insuranceClaims.settlement.applyBtn" });
+    fireEvent.click(applyButtons[0]);
+    expect(screen.getByText("insuranceClaims.settlement.applyExceedsAvailable")).toBeInTheDocument();
+    const allocInput = screen.getByLabelText("insuranceClaims.settlement.allocateInvoice");
+    fireEvent.change(allocInput, { target: { value: "1.200" } });
+    const dialogButtons = screen.getAllByRole("button", { name: "insuranceClaims.settlement.applyBtn" });
+    fireEvent.click(dialogButtons[dialogButtons.length - 1]);
+    await waitFor(() => expect(apiClient.post).toHaveBeenCalledWith("/insurance/claims/settlements/41/apply", {
+      requestId: expect.any(String),
+      invoiceIds: [30],
+      amount: "1.200",
+      allocations: [{ invoiceId: 30, amount: "1.200" }],
+    }));
+  } finally {
+    restoreDialog();
+  }
+});
+
+it("requests a refund from unallocated settlement balance inside InsuranceSettlementRefundDialog", async () => {
+  const url = "/insurance/claims/settlements/42/refunds";
+  vi.mocked(apiClient.get).mockImplementation(async (path, config) => {
+    if (path === url) {
+      return {
+        data: {
+          bankReference: "BANK-UNALLOC-42", amount: "2.000",
+          unallocatedAmount: "2.000", appliedUnallocated: "0.000", refundedUnallocated: "0.000", availableUnallocated: "2.000",
+          allocations: [], refunds: [],
+        },
+      };
+    }
+    if (path === "/insurance/claims" && (config?.params as { status?: string } | undefined)?.status === "PAID") {
+      return {
+        data: [{
+          id: 31, claimStatus: "PAID", createdAt: "2026-11-22T09:00:00Z", insuranceShare: "1.000", patientShare: "0.000",
+          patient: { fullName: "Synthetic patient" }, insuranceProvider: { name: "Synthetic insurer" }, claims: [],
+          insuranceSettlementAllocations: [{ amount: "1.000", settlement: { id: 42, bankReference: "BANK-UNALLOC-42" } }],
+        }],
+      };
+    }
+    return { data: [] };
+  });
+  vi.mocked(apiClient.post).mockClear().mockResolvedValue({ data: {} });
+  const restoreDialog = mockDialog();
+  try {
+    render(<InsuranceClaimsPage />);
+    const paid = document.querySelector<HTMLOptionElement>("option[value='PAID']")!;
+    fireEvent.change(paid.parentElement!, { target: { value: "PAID" } });
+    fireEvent.click(await screen.findByRole("button", { name: /insuranceClaims.settlementRefund.title/ }));
+    const unallocInput = await screen.findByLabelText(/insuranceClaims.refund.unallocatedInput/);
+    fireEvent.change(unallocInput, { target: { value: "0.750" } });
+    fireEvent.change(screen.getByLabelText("insuranceClaims.refund.reason"), { target: { value: "Return excess transfer" } });
+    fireEvent.click(screen.getByRole("button", { name: "insuranceClaims.refund.request" }));
+    await waitFor(() => expect(apiClient.post).toHaveBeenCalledWith(url, {
+      requestId: expect.any(String),
+      reason: "Return excess transfer",
+      unallocatedAmount: "0.750",
+    }));
+  } finally {
+    restoreDialog();
+  }
+});

@@ -56,6 +56,7 @@ model OrgSetting {
 
 model Hospital {
   batchRestrictions InventoryBatchRestriction[]
+  insuranceSettlementApplications InsuranceSettlementApplication[]
   insuranceSettlementRefunds InsuranceSettlementRefund[]
   insuranceSettlements InsuranceSettlement[]
   claimReceiptRefunds ClaimReceiptRefund[]
@@ -526,6 +527,7 @@ model Payment {
 }
 
 model User {
+  recordedInsuranceSettlementApplications InsuranceSettlementApplication[]
   requestedInsuranceSettlementRefunds InsuranceSettlementRefund[] @relation("SettlementRefundRequester")
   reviewedInsuranceSettlementRefunds InsuranceSettlementRefund[] @relation("SettlementRefundReviewer")
   recordedInsuranceSettlements InsuranceSettlement[]
@@ -2892,6 +2894,7 @@ model Account {
   systemAccountMappings      SystemAccountMapping[]
   inventoryCategories        ItemCategory[]         @relation("CategoryInventoryAccount")
   expenseCategories          ItemCategory[]         @relation("CategoryExpenseAccount")
+  unallocatedInsuranceSettlements InsuranceSettlement[]
 
   @@unique([hospitalId, code])
   @@index([hospitalId, type])
@@ -2900,6 +2903,7 @@ model Account {
 
 model AccountingEntry {
   recallDisposal InventoryRecallDisposal?
+  insuranceSettlementApplication InsuranceSettlementApplication?
   insuranceSettlementRefund InsuranceSettlementRefund?
   insuranceSettlement InsuranceSettlement?
   claimReceiptRefund ClaimReceiptRefund?
@@ -4186,6 +4190,7 @@ enum SystemAccountKey {
   INVENTORY_GAIN
   INVENTORY_LOSS
   RETAINED_EARNINGS
+  INSURANCE_UNALLOCATED_RECEIPTS
 }
 
 enum SupplierType {
@@ -6626,50 +6631,78 @@ model ClaimReceiptRefund {
 }
 
 model InsuranceSettlement {
-  refunds        InsuranceSettlementRefund[]
+  refunds              InsuranceSettlementRefund[]
+  applications         InsuranceSettlementApplication[]
+  id                   Int       @id @default(autoincrement())
+  hospitalId           Int
+  providerId           Int
+  bankReference        String
+  amount               Decimal   @db.Decimal(18, 3)
+  unallocatedAmount    Decimal   @default(0) @db.Decimal(18, 3)
+  unallocatedAccountId Int?
+  postingEntryId       Int       @unique
+  recordedById         Int
+  createdAt            DateTime  @default(now())
+  hospital             Hospital  @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
+  provider             InsuranceProvider @relation(fields: [providerId], references: [id], onDelete: Restrict)
+  unallocatedAccount   Account?  @relation(fields: [unallocatedAccountId], references: [id], onDelete: Restrict)
+  postingEntry         AccountingEntry @relation(fields: [postingEntryId], references: [id], onDelete: Restrict)
+  recordedBy           User @relation(fields: [recordedById], references: [id], onDelete: Restrict)
+  allocations          InsuranceSettlementAllocation[]
+
+  @@unique([hospitalId, bankReference])
+  @@index([hospitalId, providerId, createdAt])
+  @@index([unallocatedAccountId])
+}
+
+model InsuranceSettlementApplication {
   id             Int       @id @default(autoincrement())
   hospitalId     Int
-  providerId     Int
-  bankReference  String
+  settlementId   Int
+  requestKey     String    @unique
   amount         Decimal   @db.Decimal(18, 3)
   postingEntryId Int       @unique
   recordedById   Int
   createdAt      DateTime  @default(now())
   hospital       Hospital  @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
-  provider       InsuranceProvider @relation(fields: [providerId], references: [id], onDelete: Restrict)
+  settlement     InsuranceSettlement @relation(fields: [settlementId], references: [id], onDelete: Restrict)
   postingEntry   AccountingEntry @relation(fields: [postingEntryId], references: [id], onDelete: Restrict)
   recordedBy     User @relation(fields: [recordedById], references: [id], onDelete: Restrict)
   allocations    InsuranceSettlementAllocation[]
 
-  @@unique([hospitalId, bankReference])
-  @@index([hospitalId, providerId, createdAt])
+  @@index([settlementId, createdAt])
+  @@index([hospitalId, createdAt])
 }
 
 model InsuranceSettlementAllocation {
   refunds              InsuranceSettlementRefundLine[]
   id                   Int       @id @default(autoincrement())
   settlementId         Int
+  applicationId        Int?
   invoiceId            Int
   originalReceivableId Int
   amount               Decimal   @db.Decimal(18, 3)
   outstandingBefore    Decimal   @db.Decimal(18, 3)
   settlement           InsuranceSettlement @relation(fields: [settlementId], references: [id], onDelete: Restrict)
+  application          InsuranceSettlementApplication? @relation(fields: [applicationId], references: [id], onDelete: Restrict)
   invoice              Invoice @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
   originalReceivable   AccountingEntryLine @relation(fields: [originalReceivableId], references: [id], onDelete: Restrict)
 
   @@index([settlementId])
+  @@index([applicationId])
   @@index([invoiceId])
   @@index([originalReceivableId])
-  @@unique([settlementId, invoiceId])
+  @@unique([applicationId, invoiceId])
 }
 
 model InsuranceSettlementRefund {
-  id             Int       @id @default(autoincrement())
-  hospitalId     Int
-  settlementId   Int
-  requestKey     String    @unique
-  amount         Decimal   @db.Decimal(18, 3)
-  reason         String
+  id                Int       @id @default(autoincrement())
+  hospitalId        Int
+  settlementId      Int
+  requestKey        String    @unique
+  amount            Decimal   @db.Decimal(18, 3)
+  unallocatedAmount Decimal   @default(0) @db.Decimal(18, 3)
+  reason            String
   status         String    @default("PENDING")
   requestedById  Int
   reviewedById   Int?

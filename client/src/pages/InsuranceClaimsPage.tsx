@@ -8,6 +8,23 @@ import { FeatureGuard } from "@/components/FeatureGuard";
 import { Money } from "../utils/money";
 import { ClaimReceiptRefundDialog } from "./ClaimReceiptRefundDialog";
 import { InsuranceSettlementRefundDialog } from "./InsuranceSettlementRefundDialog";
+import { useIdempotentPost } from "../hooks/useIdempotentPost";
+
+const MONEY_RE = /^(0|[1-9]\d{0,14})(\.\d{1,3})?$/;
+
+type UnallocatedSettlement = {
+  id: number;
+  providerId: number;
+  provider: { id: number; name: string; code: string };
+  bankReference: string;
+  amount: string;
+  unallocatedAmount: string;
+  appliedUnallocated: string;
+  refundedUnallocated: string;
+  pendingRefundUnallocated: string;
+  availableUnallocated: string;
+  createdAt: string;
+};
 
 type InsuranceProvider = {
   id: number;
@@ -118,6 +135,19 @@ export default function InsuranceClaimsPage() {
   const [receivedAmount, setReceivedAmount] = useState("");
   const [bankConfirmed, setBankConfirmed] = useState(false);
   const [settling, setSettling] = useState(false);
+  const [recordExcessAsUnallocated, setRecordExcessAsUnallocated] = useState(false);
+  const [unallocatedSettlements, setUnallocatedSettlements] = useState<UnallocatedSettlement[]>([]);
+  const [applyTarget, setApplyTarget] = useState<{
+    settlement: UnallocatedSettlement;
+    invoices: { id: number; due: string }[];
+  } | null>(null);
+  const [applyAllocate, setApplyAllocate] = useState(false);
+  const [applyAmounts, setApplyAmounts] = useState<Record<number, string>>({});
+  const [applying, setApplying] = useState(false);
+  const applyDialog = useRef<HTMLDialogElement>(null);
+  const applyPost = useIdempotentPost(
+    applyTarget ? `/insurance/claims/settlements/${applyTarget.settlement.id}/apply` : "apply",
+  );
   const settlementDialog = useRef<HTMLDialogElement>(null);
   const [settlementRefund, setSettlementRefund] = useState<number | null>(null);
   const settlementFilter = ["SUBMITTED", "PARTIALLY_PAID"].includes(statusFilter);
@@ -143,7 +173,13 @@ export default function InsuranceClaimsPage() {
       const params: any = { status: statusFilter };
       if (selectedProvider) params.providerId = selectedProvider;
 
-      const res = await apiClient.get<ClaimInvoice[]>("/insurance/claims", { params });
+      const settlementParams: Record<string, string> = { onlyUnallocated: "true" };
+      if (selectedProvider) settlementParams.providerId = selectedProvider;
+      const [res, settlementRes] = await Promise.all([
+        apiClient.get<ClaimInvoice[]>("/insurance/claims", { params }),
+        apiClient.get<UnallocatedSettlement[]>("/insurance/claims/settlements", { params: settlementParams }),
+      ]);
+      setUnallocatedSettlements(Array.isArray(settlementRes?.data) ? settlementRes.data : []);
       setClaims(res.data);
       setSelectedIds([]); // Reset selection
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -202,6 +238,24 @@ export default function InsuranceClaimsPage() {
     }
   };
 
+  const openUnallocatedSettlement = () => {
+    const initialProvider = selectedProvider
+      ? providers.find((provider) => String(provider.id) === selectedProvider)
+      : providers[0];
+    setBankReference("");
+    setReceivedAmount("");
+    setBankConfirmed(false);
+    setAllocateSettlement(false);
+    setRecordExcessAsUnallocated(false);
+    setSettlementAmounts({});
+    setSettlement({
+      invoices: [],
+      providerId: initialProvider?.id ?? 0,
+      providerName: initialProvider?.name ?? "",
+      expected: "0.000",
+    });
+  };
+
   const openSettlement = () => {
     const invoices = claims.filter((invoice) => selectedIds.includes(invoice.id));
     const first = invoices[0];
@@ -214,6 +268,7 @@ export default function InsuranceClaimsPage() {
     setReceivedAmount("");
     setBankConfirmed(false);
     setAllocateSettlement(false);
+    setRecordExcessAsUnallocated(false);
     setSettlementAmounts({});
     setSettlement({
       invoices: invoices.map((invoice) => ({ id: invoice.id, due: formatMoney(collectibleClaimAmount(invoice)) })),
@@ -228,10 +283,24 @@ export default function InsuranceClaimsPage() {
   })) ?? [];
   const validAllocations = allocatedInvoices.length > 0 && allocatedInvoices.every(({ amount, due }) =>
     /^(0|[1-9]\d{0,14})(\.\d{1,3})?$/.test(amount) && Money.decimal(amount).gt(0) && Money.decimal(amount).lte(due));
+  const isPureUnallocated = settlement?.invoices.length === 0;
   const allocatedTotal = validAllocations ? Money.sumDecimal(...allocatedInvoices.map(({ amount }) => amount)) : null;
-  const matchesExpectedAmount = settlement && /^(0|[1-9]\d{0,14})(\.\d{1,3})?$/.test(receivedAmount) &&
-    (allocateSettlement ? allocatedTotal?.eq(receivedAmount) : Money.decimal(receivedAmount).eq(settlement.expected));
-  const validSettlement = matchesExpectedAmount && bankConfirmed && bankReference.trim().length >= 5;
+  const targetAllocated = settlement ? (allocateSettlement ? allocatedTotal : Money.decimal(settlement.expected)) : null;
+  const parsedReceived = MONEY_RE.test(receivedAmount) && Money.decimal(receivedAmount).gt(0) ? Money.decimal(receivedAmount) : null;
+  const excessAmount = !isPureUnallocated && parsedReceived != null && targetAllocated != null && parsedReceived.gt(targetAllocated)
+    ? parsedReceived.minus(targetAllocated)
+    : null;
+  const exactAllocatedMatch = !isPureUnallocated && parsedReceived != null && targetAllocated != null && parsedReceived.eq(targetAllocated);
+  const matchesExpectedAmount = isPureUnallocated
+    ? parsedReceived != null
+    : Boolean(exactAllocatedMatch || (recordExcessAsUnallocated && excessAmount != null));
+
+  const validSettlement = Boolean(
+    matchesExpectedAmount &&
+      (!isPureUnallocated || (settlement?.providerId ?? 0) > 0) &&
+      bankConfirmed &&
+      bankReference.trim().length >= 5,
+  );
 
   useEffect(() => {
     if (settlement) settlementDialog.current?.showModal();
@@ -247,7 +316,12 @@ export default function InsuranceClaimsPage() {
         amount: receivedAmount,
         bankReference: bankReference.trim(),
         confirmed: bankConfirmed,
-        ...(allocateSettlement && { allocations: allocatedInvoices.map(({ id, amount }) => ({ invoiceId: id, amount })) }),
+        ...(!isPureUnallocated && allocateSettlement && { allocations: allocatedInvoices.map(({ id, amount }) => ({ invoiceId: id, amount })) }),
+        ...(isPureUnallocated
+          ? { unallocatedAmount: receivedAmount }
+          : recordExcessAsUnallocated && excessAmount != null
+            ? { unallocatedAmount: formatMoney(excessAmount) }
+            : {}),
       });
       setSettlement(null);
       toast.success(t("insuranceClaims.settlement.saved"));
@@ -258,6 +332,70 @@ export default function InsuranceClaimsPage() {
     } finally {
       setSettling(false);
     }
+  };
+
+  const openApplyCredit = (source: UnallocatedSettlement) => {
+    const invoices = claims.filter((invoice) => selectedIds.includes(invoice.id));
+    if (
+      invoices.length === 0 ||
+      invoices.length > 100 ||
+      invoices.some((invoice) => invoice.insuranceProviderId !== source.providerId || !canSettleClaim(invoice))
+    ) {
+      toast.error(t("insuranceClaims.settlement.eligible"));
+      return;
+    }
+    const dues = invoices.map((invoice) => ({
+      id: invoice.id,
+      due: formatMoney(collectibleClaimAmount(invoice)),
+    }));
+    const totalDue = Money.sumDecimal(...dues.map((line) => line.due));
+    setApplyAllocate(totalDue.gt(source.availableUnallocated));
+    setApplyAmounts(Object.fromEntries(dues.map((line) => [line.id, line.due])));
+    setApplyTarget({ settlement: source, invoices: dues });
+  };
+
+  const applyLines =
+    applyTarget?.invoices.map((invoice) => ({
+      ...invoice,
+      amount: applyAllocate ? (applyAmounts[invoice.id] ?? "") : invoice.due,
+    })) ?? [];
+  const validApplyLines =
+    applyLines.length > 0 &&
+    applyLines.every(({ amount, due }) => MONEY_RE.test(amount) && Money.decimal(amount).gt(0) && Money.decimal(amount).lte(due));
+  const applyTotal = validApplyLines ? Money.sumDecimal(...applyLines.map(({ amount }) => amount)) : null;
+  const applyExceedsAvailable =
+    applyTarget != null && applyTotal != null && applyTotal.gt(applyTarget.settlement.availableUnallocated);
+  const validApply = Boolean(applyTarget && validApplyLines && applyTotal && applyTotal.gt(0) && !applyExceedsAvailable);
+
+  useEffect(() => {
+    if (applyTarget) applyDialog.current?.showModal();
+  }, [applyTarget]);
+
+  const submitApplyCredit = async (action: () => Promise<unknown>) => {
+    if (applying) return;
+    setApplying(true);
+    try {
+      await action();
+      setApplyTarget(null);
+      toast.success(t("insuranceClaims.settlement.applySaved"));
+      await loadClaims();
+    } catch (error) {
+      const message = (error as { response?: { data?: { message?: unknown } } }).response?.data?.message;
+      toast.error(typeof message === "string" ? message : t("preAuth.toast.updateFailed"));
+    } finally {
+      setApplying(false);
+    }
+  };
+
+  const saveApplyCredit = async () => {
+    if (!applyTarget || !validApply || !applyTotal || applyPost.pending) return;
+    await submitApplyCredit(() =>
+      applyPost.submit(`/insurance/claims/settlements/${applyTarget.settlement.id}/apply`, {
+        invoiceIds: applyTarget.invoices.map(({ id }) => id),
+        amount: formatMoney(applyTotal),
+        ...(applyAllocate && { allocations: applyLines.map(({ id, amount }) => ({ invoiceId: id, amount })) }),
+      }),
+    );
   };
 
   // Actions
@@ -500,6 +638,14 @@ export default function InsuranceClaimsPage() {
           </select>
         </div>
 
+        <button
+          type="button"
+          onClick={openUnallocatedSettlement}
+          className="px-4 py-2.5 bg-amber-600/20 hover:bg-amber-600/30 border border-amber-500/40 text-amber-200 text-sm rounded-xl font-bold transition-colors"
+        >
+          {t("insuranceClaims.settlement.recordUnallocated")}
+        </button>
+
         <div className="mr-auto flex gap-4 items-center bg-slate-950 p-3 rounded-xl border border-slate-800 shadow-inner">
           <div className="p-2 bg-sky-900/20 text-sky-400 rounded-lg">
             <AlertCircle className="w-6 h-6" />
@@ -514,6 +660,42 @@ export default function InsuranceClaimsPage() {
           </div>
         </div>
       </div>
+
+      {unallocatedSettlements.length > 0 && (
+        <section className="bg-amber-950/20 border border-amber-500/30 rounded-2xl p-4 space-y-3" aria-label={t("insuranceClaims.settlement.unallocatedTitle")}>
+          <h2 className="text-sm font-bold text-amber-200">{t("insuranceClaims.settlement.unallocatedTitle")}</h2>
+          <div className="grid gap-3 md:grid-cols-2">
+            {unallocatedSettlements.map((item) => (
+              <div key={item.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-500/20 bg-slate-950/70 p-3 text-sm">
+                <div>
+                  <p className="font-bold text-slate-100">{item.provider.name} · <bdi>{item.bankReference}</bdi></p>
+                  <p className="text-xs text-slate-400">
+                    {t("insuranceClaims.settlement.unallocatedAvailable")}: <bdi className="text-amber-300 font-bold">{item.availableUnallocated}</bdi>
+                    {" · "}
+                    {t("insuranceClaims.settlement.unallocatedOriginal")}: <bdi>{item.unallocatedAmount}</bdi>
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => openApplyCredit(item)}
+                    className="rounded-lg bg-sky-700 hover:bg-sky-600 px-3 py-1.5 text-xs font-bold text-white"
+                  >
+                    {t("insuranceClaims.settlement.applyBtn")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSettlementRefund(item.id)}
+                    className="rounded-lg bg-slate-800 hover:bg-slate-700 px-3 py-1.5 text-xs font-bold text-slate-200"
+                  >
+                    {t("insuranceClaims.settlement.manageRefundBtn")}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Actions Bar (When items selected) */}
       <div className={`transition-all duration-300 ease-in-out origin-top overflow-hidden ${selectedIds.length > 0 ? 'opacity-100 max-h-24' : 'opacity-0 max-h-0'}`}>
@@ -688,7 +870,11 @@ export default function InsuranceClaimsPage() {
                     {c.settlementOutstanding != null && c.claimStatus !== "WITHDRAWN" && (
                       <p className="mt-1 text-xs text-slate-400">{t("insuranceClaims.settlement.outstanding")} <bdi>{formatMoney(c.settlementOutstanding)}</bdi></p>
                     )}
-                    {c.insuranceSettlementAllocations?.map(({ settlement }) => (
+                    {Array.from(
+                      new Map(
+                        (c.insuranceSettlementAllocations ?? []).map(({ settlement }) => [settlement.id, settlement]),
+                      ).values(),
+                    ).map((settlement) => (
                       <button key={settlement.id} type="button" className="mt-1 block text-xs text-sky-300 underline"
                         onClick={() => setSettlementRefund(settlement.id)}>
                         {t("insuranceClaims.settlementRefund.title")} <bdi>{settlement.bankReference}</bdi>
@@ -719,9 +905,37 @@ export default function InsuranceClaimsPage() {
           <form className="space-y-4"
             onSubmit={(event) => { event.preventDefault(); void saveSettlement(); }}>
             <h2 id="insurance-settlement-title" className="text-lg font-bold">{t("insuranceClaims.settlement.title")}</h2>
-            <p>{settlement.providerName}</p>
-            <p>{t("insuranceClaims.settlement.expected", { count: settlement.invoices.length })} <bdi>{settlement.expected}</bdi></p>
+            {isPureUnallocated ? (
+              <label className="block text-sm">
+                {t("insuranceClaims.settlement.selectProvider")}
+                <select
+                  className="mt-1 block w-full rounded border border-slate-700 bg-slate-950 p-2"
+                  value={settlement.providerId || ""}
+                  onChange={(event) => {
+                    const id = Number(event.target.value);
+                    const matched = providers.find((p) => p.id === id);
+                    setSettlement((prev) =>
+                      prev ? { ...prev, providerId: id, providerName: matched?.name ?? "" } : null,
+                    );
+                  }}
+                >
+                  <option value="">{t("insuranceClaims.settlement.selectProvider")}</option>
+                  {providers.map((provider) => (
+                    <option key={provider.id} value={provider.id}>
+                      {provider.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : (
+              <p>{settlement.providerName}</p>
+            )}
+            {!isPureUnallocated && (
+              <p>{t("insuranceClaims.settlement.expected", { count: settlement.invoices.length })} <bdi>{settlement.expected}</bdi></p>
+            )}
             <fieldset disabled={settling} className="space-y-3">
+              {!isPureUnallocated && (
+                <>
               <label className="flex gap-2 text-sm">
                 <input type="checkbox" checked={allocateSettlement} onChange={(event) => setAllocateSettlement(event.target.checked)} />
                 {t("insuranceClaims.settlement.allocate")}
@@ -741,9 +955,24 @@ export default function InsuranceClaimsPage() {
                   )}
                 </div>
               )}
+                </>
+              )}
               <label className="block text-sm">{t("insuranceClaims.settlement.amount")}
                 <input dir="ltr" inputMode="decimal" required maxLength={19} value={receivedAmount} onChange={(event) => setReceivedAmount(event.target.value)} aria-describedby={receivedAmount && !matchesExpectedAmount ? "insurance-settlement-amount-error" : undefined} className="mt-1 block w-full rounded border border-slate-700 bg-slate-950 p-2" />
               </label>
+              {excessAmount != null && (
+                <div className="space-y-2 rounded-lg border border-amber-500/30 bg-amber-950/20 p-3 text-sm">
+                  <p>{t("insuranceClaims.settlement.excessAmount")}: <bdi>{formatMoney(excessAmount)}</bdi></p>
+                  <label className="flex gap-2">
+                    <input
+                      type="checkbox"
+                      checked={recordExcessAsUnallocated}
+                      onChange={(event) => setRecordExcessAsUnallocated(event.target.checked)}
+                    />
+                    {t("insuranceClaims.settlement.recordExcessAsUnallocated")}
+                  </label>
+                </div>
+              )}
               {receivedAmount && !matchesExpectedAmount && (
                 <p id="insurance-settlement-amount-error" className="text-sm text-amber-300">
                   {t(allocateSettlement ? "insuranceClaims.settlement.allocationMismatch" : "insuranceClaims.settlement.amountMismatch")}
@@ -763,6 +992,100 @@ export default function InsuranceClaimsPage() {
                 </button>
               </div>
             </fieldset>
+          </form>
+        </dialog>
+      )}
+      {applyTarget && (
+        <dialog
+          ref={applyDialog}
+          dir={i18n.dir()}
+          aria-labelledby="insurance-apply-credit-title"
+          className="m-auto max-h-[85vh] w-[min(92vw,30rem)] overflow-y-auto rounded-2xl border border-slate-700 bg-slate-900 p-6 text-slate-100 backdrop:bg-slate-950/80"
+          onCancel={(event) => {
+            event.preventDefault();
+            if (!applying) setApplyTarget(null);
+          }}
+        >
+          <form
+            className="space-y-4"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void saveApplyCredit();
+            }}
+          >
+            <h2 id="insurance-apply-credit-title" className="text-lg font-bold">
+              {t("insuranceClaims.settlement.applyModalTitle")}
+            </h2>
+            <p className="text-sm">
+              {applyTarget.settlement.provider.name} · <bdi>{applyTarget.settlement.bankReference}</bdi>
+            </p>
+            <p className="text-sm text-amber-300">
+              {t("insuranceClaims.settlement.unallocatedAvailable")}: <bdi>{applyTarget.settlement.availableUnallocated}</bdi>
+            </p>
+            <fieldset disabled={applying || !!applyPost.pending} className="space-y-3">
+              <label className="flex gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={applyAllocate}
+                  onChange={(event) => setApplyAllocate(event.target.checked)}
+                />
+                {t("insuranceClaims.settlement.allocate")}
+              </label>
+              <div className="space-y-2">
+                {applyTarget.invoices.map(({ id, due }) => (
+                  <div key={id} className="rounded-lg border border-slate-700 p-2 text-sm">
+                    <div className="flex justify-between">
+                      <span>#{id}</span>
+                      <bdi>{due}</bdi>
+                    </div>
+                    {applyAllocate && (
+                      <label className="mt-1 block text-xs">
+                        {t("insuranceClaims.settlement.allocateInvoice", { id })}
+                        <input
+                          dir="ltr"
+                          inputMode="decimal"
+                          required
+                          maxLength={19}
+                          value={applyAmounts[id] ?? ""}
+                          onChange={(event) =>
+                            setApplyAmounts((previous) => ({ ...previous, [id]: event.target.value }))
+                          }
+                          className="mt-1 block w-full rounded border border-slate-700 bg-slate-950 p-2"
+                        />
+                      </label>
+                    )}
+                  </div>
+                ))}
+              </div>
+              {applyTotal && (
+                <p className="text-sm">
+                  {t("insuranceClaims.settlement.applyAmount")}: <bdi>{formatMoney(applyTotal)}</bdi>
+                </p>
+              )}
+              {applyExceedsAvailable && (
+                <p className="text-sm text-amber-300" role="alert">
+                  {t("insuranceClaims.settlement.applyExceedsAvailable")}
+                </p>
+              )}
+              <div className="flex justify-end gap-3">
+                <button type="button" onClick={() => setApplyTarget(null)} disabled={applying}>
+                  {t("common.cancel", "إلغاء")}
+                </button>
+                <button className="rounded bg-sky-700 p-2 disabled:opacity-50" disabled={!validApply || !!applyPost.pending}>
+                  {t("insuranceClaims.settlement.applyBtn")}
+                </button>
+              </div>
+            </fieldset>
+            {applyPost.pending && (
+              <button
+                type="button"
+                className="rounded bg-sky-700 p-2 disabled:opacity-50"
+                disabled={applying}
+                onClick={() => void submitApplyCredit(() => applyPost.retry())}
+              >
+                {t("insuranceClaims.refund.retry")}
+              </button>
+            )}
           </form>
         </dialog>
       )}

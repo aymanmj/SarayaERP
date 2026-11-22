@@ -16,9 +16,14 @@ import {
   settlementNet,
 } from './insurance-settlement-balance';
 import {
+  listInsuranceSettlements,
   postInsuranceSettlement,
   type InsuranceSettlementInput,
 } from './insurance-settlement';
+import {
+  applyInsuranceSettlementCredit,
+  type ApplySettlementCreditInput,
+} from './insurance-settlement-application';
 import {
   listSettlementRefunds,
   requestSettlementRefund,
@@ -671,6 +676,13 @@ export class InsuranceService {
   }
 
   // ✅ 11. تحديث حالة المطالبة (الذكي والذري)
+  listInsuranceSettlements(
+    hospitalId: number,
+    filters: { providerId?: number; onlyUnallocated?: boolean },
+  ) {
+    return listInsuranceSettlements(this.prisma, hospitalId, filters);
+  }
+
   postInsuranceSettlement(
     hospitalId: number,
     userId: number,
@@ -678,6 +690,23 @@ export class InsuranceService {
   ) {
     return this.prisma.$transaction(
       (tx) => postInsuranceSettlement(tx, hospitalId, userId, input),
+      { maxWait: 10000, timeout: 30000 },
+    );
+  }
+
+  applyInsuranceSettlementCredit(
+    hospitalId: number,
+    settlementId: number,
+    userId: number,
+    input: ApplySettlementCreditInput,
+  ) {
+    return this.prisma.$transaction(
+      (tx) =>
+        applyInsuranceSettlementCredit(
+          tx,
+          { hospitalId, settlementId, userId },
+          input,
+        ),
       { maxWait: 10000, timeout: 30000 },
     );
   }

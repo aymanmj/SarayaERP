@@ -1,20 +1,18 @@
 import { BadRequestException, ConflictException } from '@nestjs/common';
-import { type Invoice, Prisma } from '@prisma/client';
+import { type Account, Prisma } from '@prisma/client';
 import { createHash } from 'node:crypto';
-import {
-  financialPeriod,
-  lockFinancialInvoice,
-} from '../accounting/financial-posting';
-import { originalInsuranceReceivable } from '../accounting/insurance-receivable';
+import { financialPeriod } from '../accounting/financial-posting';
 import { appendChainedAuditInTransaction } from '../audit/audit-chain';
-import { adjustmentBalance } from '../billing/invoice-snapshot';
 import { Money } from '../common/utils/money.util';
-import { dispensedPrescriptionClaim } from '../pharmacy/prescription-prepayment';
 import { mappedAccount } from '../purchases/purchase-return-posting';
 import {
-  readSettlementBalance,
-  settledClaimStatus,
-  trackedInsuranceShare,
+  MONEY_INPUT_PATTERN,
+  type PreparedSettlementDue,
+  type SettlementLineInput,
+  parseExplicitAllocations,
+  prepareSettlementAllocations,
+  unallocatedSummary,
+  updateSettledInvoiceStatuses,
 } from './insurance-settlement-balance';
 
 export type InsuranceSettlementInput = {
@@ -23,7 +21,8 @@ export type InsuranceSettlementInput = {
   amount: string;
   bankReference: string;
   confirmed: boolean;
-  allocations?: { invoiceId: number; amount: string }[];
+  allocations?: SettlementLineInput[];
+  unallocatedAmount?: string;
 };
 
 export async function postInsuranceSettlement(
@@ -34,46 +33,54 @@ export async function postInsuranceSettlement(
 ) {
   const { providerId } = input;
   const bankReference = input.bankReference.trim().toUpperCase();
-  const invoiceIds = [...new Set(input.invoiceIds)].sort((a, b) => a - b);
+  const rawInvoiceIds = Array.isArray(input.invoiceIds) ? input.invoiceIds : [];
+  const invoiceIds = [...new Set(rawInvoiceIds)].sort((a, b) => a - b);
+  const rawUnallocated = input.unallocatedAmount;
+  const hasUnallocated = rawUnallocated !== undefined;
   if (
     input.confirmed !== true ||
     bankReference.length < 5 ||
     bankReference.length > 200 ||
-    !/^(0|[1-9]\d{0,14})(\.\d{1,3})?$/.test(input.amount) ||
+    !MONEY_INPUT_PATTERN.test(input.amount) ||
     !Money.isPositive(input.amount) ||
-    !invoiceIds.length ||
     invoiceIds.length > 100 ||
-    invoiceIds.length !== input.invoiceIds.length ||
-    invoiceIds.some((id) => !Number.isInteger(id) || id <= 0)
+    invoiceIds.length !== rawInvoiceIds.length ||
+    invoiceIds.some((id) => !Number.isInteger(id) || id <= 0) ||
+    (!invoiceIds.length && !hasUnallocated) ||
+    (rawUnallocated !== undefined &&
+      (!MONEY_INPUT_PATTERN.test(rawUnallocated) ||
+        !Money.isPositive(rawUnallocated)))
   )
     throw new BadRequestException(
-      'يلزم مبلغ دقيق ومرجع بنكي مؤكد وفواتير مميزة',
+      'يلزم مبلغ دقيق ومرجع بنكي مؤكد وتحديد الفواتير أو الرصيد غير الموزع',
     );
-  let explicit: Map<number, string> | undefined;
-  if (input.allocations !== undefined) {
+
+  const unallocatedDecimal =
+    rawUnallocated !== undefined
+      ? Money.decimal(rawUnallocated)
+      : Money.decimal(0);
+  const allocatedExpected = Money.decimal(input.amount).minus(
+    unallocatedDecimal,
+  );
+
+  if (invoiceIds.length === 0) {
     if (
-      !Array.isArray(input.allocations) ||
-      input.allocations.length !== invoiceIds.length ||
-      input.allocations.some(
-        (line) =>
-          !line ||
-          !invoiceIds.includes(line.invoiceId) ||
-          !/^(0|[1-9]\d{0,14})(\.\d{1,3})?$/.test(line.amount) ||
-          !Money.isPositive(line.amount),
-      )
-    )
-      throw new BadRequestException('يلزم تخصيص موجب ودقيق لكل فاتورة مختارة');
-    explicit = new Map(
-      input.allocations.map(({ invoiceId, amount }) => [invoiceId, amount]),
-    );
-    if (
-      explicit.size !== invoiceIds.length ||
-      !Money.eq(Money.sumDecimal(...explicit.values()), input.amount)
+      (input.allocations !== undefined && input.allocations.length > 0) ||
+      !allocatedExpected.isZero()
     )
       throw new BadRequestException(
-        'مجموع التخصيصات يجب أن يطابق مبلغ الحوالة',
+        'الحوالة غير الموزعة بالكامل تتطلب تطابق المبلغ غير الموزع مع مبلغ التحويل دون تخصيص فواتير',
       );
+  } else if (!allocatedExpected.gt(0)) {
+    throw new BadRequestException(
+      'المبلغ غير الموزع يجب أن يكون أقل من إجمالي الحوالة عند اختيار فواتير',
+    );
   }
+
+  const explicit = invoiceIds.length
+    ? parseExplicitAllocations(invoiceIds, input.allocations, allocatedExpected)
+    : undefined;
+
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(27007, ${hospitalId}::integer)`;
   if (
     !(await tx.user.findFirst({
@@ -82,14 +89,21 @@ export async function postInsuranceSettlement(
     }))
   )
     throw new BadRequestException('المستخدم غير متاح ضمن المنشأة');
+
   const previous = await tx.insuranceSettlement.findUnique({
     where: { hospitalId_bankReference: { hospitalId, bankReference } },
-    include: { allocations: { orderBy: { invoiceId: 'asc' } } },
+    include: {
+      allocations: {
+        where: { applicationId: null },
+        orderBy: { invoiceId: 'asc' },
+      },
+    },
   });
   if (previous) {
     if (
       previous.providerId !== providerId ||
       !Money.eq(previous.amount, input.amount) ||
+      !Money.eq(previous.unallocatedAmount, unallocatedDecimal) ||
       previous.allocations.length !== invoiceIds.length ||
       previous.allocations.some(
         (item, index) =>
@@ -103,6 +117,7 @@ export async function postInsuranceSettlement(
       throw new ConflictException('مرجع التحويل مستخدم في تسوية مختلفة');
     return previous;
   }
+
   await tx.$queryRaw`SELECT id FROM "InsuranceProvider" WHERE id = ${providerId} AND "hospitalId" = ${hospitalId} FOR SHARE`;
   if (
     !(await tx.insuranceProvider.findFirst({
@@ -112,98 +127,6 @@ export async function postInsuranceSettlement(
   )
     throw new BadRequestException('شركة التأمين غير نشطة ضمن المنشأة');
 
-  const candidates = await tx.invoice.findMany({
-    where: {
-      id: { in: invoiceIds },
-      hospitalId,
-      insuranceProviderId: providerId,
-      ...dispensedPrescriptionClaim,
-    },
-    select: { id: true },
-    orderBy: [{ patientId: 'asc' }, { encounterId: 'asc' }, { id: 'asc' }],
-  });
-  if (candidates.length !== invoiceIds.length)
-    throw new BadRequestException(
-      'كل الفواتير المؤهلة يجب أن تخص المنشأة وشركة التأمين المختارة',
-    );
-  const invoices: Invoice[] = [];
-  for (const { id } of candidates) {
-    invoices.push(await lockFinancialInvoice(tx, hospitalId, id));
-  }
-  if (
-    invoices.some(
-      (invoice) =>
-        invoice.type !== 'INVOICE' ||
-        invoice.insuranceProviderId !== providerId ||
-        !['ISSUED', 'PARTIALLY_PAID', 'PAID'].includes(invoice.status) ||
-        !['SUBMITTED', 'PARTIALLY_PAID'].includes(invoice.claimStatus ?? '') ||
-        !Money.isPositive(invoice.insuranceShare),
-    )
-  )
-    throw new BadRequestException(
-      'الفواتير يجب أن تخص مطالبات مرسلة ومبالغ مستحقة لم تسو بعد',
-    );
-  if (
-    await tx.claim.count({
-      where: { hospitalId, invoiceId: { in: invoiceIds } },
-    })
-  )
-    throw new BadRequestException(
-      'توجد مطالبات مسجلة في دورة الإيرادات؛ استكملها في المسار نفسه',
-    );
-  if (
-    await tx.invoiceAdjustment.count({
-      where: {
-        hospitalId,
-        invoiceId: { in: invoiceIds },
-        OR: [
-          { status: 'PENDING' },
-          {
-            status: 'POSTED',
-            insuranceOnly: false,
-            partialDispense: false,
-            insuranceDelta: { not: 0 },
-          },
-        ],
-      },
-    })
-  )
-    throw new BadRequestException(
-      'توجد تسويات معلقة أو تغيرات في ذمة التأمين تتطلب المطابقة',
-    );
-
-  const dues: {
-    invoice: Invoice;
-    outstanding: Prisma.Decimal;
-    amount: Prisma.Decimal;
-    hasHistory: boolean;
-  }[] = [];
-  for (const invoice of invoices) {
-    const { net, hasHistory } = await readSettlementBalance(
-      tx,
-      hospitalId,
-      invoice.id,
-    );
-    const share = await trackedInsuranceShare(tx, invoice);
-    const outstanding = share.minus(net);
-    if (
-      net.lt(0) ||
-      !outstanding.gt(0) ||
-      invoice.claimStatus !== settledClaimStatus(net, share)
-    )
-      throw new BadRequestException('رصيد التأمين المستحق يحتاج إلى مطابقة');
-    const amount = Money.decimal(explicit?.get(invoice.id) ?? outstanding);
-    if (amount.gt(outstanding))
-      throw new BadRequestException(
-        `التخصيص يتجاوز الرصيد المستحق للفاتورة #${invoice.id}`,
-      );
-    dues.push({ invoice, outstanding, amount, hasHistory });
-  }
-  const total = Money.sumDecimal(...dues.map(({ amount }) => amount));
-  if (!Money.eq(total, input.amount))
-    throw new BadRequestException(
-      'مبلغ الحوالة لا يطابق مجموع الأرصدة المستحقة؛ حدد تخصيص كل فاتورة للحوالة الجزئية',
-    );
   const entryDate = new Date();
   const { financialYear, period } = await financialPeriod(
     tx,
@@ -214,81 +137,116 @@ export async function postInsuranceSettlement(
   if (bank.type !== 'ASSET')
     throw new BadRequestException('حساب البنك يجب أن يكون من الأصول');
 
-  const credits = new Map<number, Prisma.Decimal>();
-  const allocations: Prisma.InsuranceSettlementAllocationUncheckedCreateWithoutSettlementInput[] =
-    [];
-  for (const { invoice, outstanding, amount } of dues) {
-    const { receivable } = await originalInsuranceReceivable(tx, invoice);
-    if (receivable.accountId === bank.id)
-      throw new BadRequestException('حساب البنك يطابق حساب ذمة التأمين');
-    credits.set(
-      receivable.accountId,
-      Money.sumDecimal(credits.get(receivable.accountId), amount),
+  let unallocatedAccount: Account | null = null;
+  if (unallocatedDecimal.gt(0)) {
+    unallocatedAccount = await mappedAccount(
+      tx,
+      hospitalId,
+      'INSURANCE_UNALLOCATED_RECEIPTS',
     );
-    allocations.push({
-      invoiceId: invoice.id,
-      originalReceivableId: receivable.id,
-      amount: Money.toDbString(amount),
-      outstandingBefore: Money.toDbString(outstanding),
+    if (
+      unallocatedAccount.type !== 'LIABILITY' ||
+      unallocatedAccount.id === bank.id
+    )
+      throw new BadRequestException(
+        'حساب الحوالات غير الموزعة يجب أن يكون حساب التزام مستقل عن البنك',
+      );
+  }
+
+  let dues: PreparedSettlementDue[] = [];
+  let credits = new Map<number, Prisma.Decimal>();
+  let allocations: Prisma.InsuranceSettlementAllocationUncheckedCreateWithoutSettlementInput[] =
+    [];
+  if (invoiceIds.length > 0) {
+    const prepared = await prepareSettlementAllocations(
+      tx,
+      hospitalId,
+      providerId,
+      invoiceIds,
+      allocatedExpected,
+      explicit,
+      unallocatedAccount,
+    );
+    if (prepared.credits.has(bank.id))
+      throw new BadRequestException('حساب البنك يطابق حساب ذمة التأمين');
+    dues = prepared.dues;
+    credits = prepared.credits;
+    allocations = prepared.allocations;
+  }
+
+  const amount = Money.toDbString(input.amount);
+  const unallocatedAmountStr = Money.toDbString(unallocatedDecimal);
+  const refHash = createHash('sha256').update(bankReference).digest('hex');
+  const postingKey =
+    invoiceIds.length === 0
+      ? `insurance-claim-settlement:${hospitalId}:unallocated:${refHash}`
+      : `insurance-claim-settlement:${hospitalId}:${invoiceIds.join(',')}${
+          dues.some(({ hasHistory }) => hasHistory) || unallocatedDecimal.gt(0)
+            ? `:${refHash}`
+            : ''
+        }`;
+
+  const journalLines: Prisma.AccountingEntryLineUncheckedCreateWithoutEntryInput[] =
+    [
+      { accountId: bank.id, debit: amount, credit: '0.000' },
+      ...[...credits].map(([accountId, credit]) => ({
+        accountId,
+        debit: '0.000',
+        credit: Money.toDbString(credit),
+      })),
+    ];
+  if (unallocatedAccount) {
+    journalLines.push({
+      accountId: unallocatedAccount.id,
+      debit: '0.000',
+      credit: unallocatedAmountStr,
     });
   }
-  const amount = Money.toDbString(total);
-  const suffix = dues.some(({ hasHistory }) => hasHistory)
-    ? `:${createHash('sha256').update(bankReference).digest('hex')}`
-    : '';
-  const postingKey = `insurance-claim-settlement:${hospitalId}:${invoiceIds.join(',')}${suffix}`;
+
   const entry = await tx.accountingEntry.create({
     data: {
       hospitalId,
       entryDate,
       postingKey,
-      description: `تحصيل تأمين - ${bankReference}`,
+      description:
+        invoiceIds.length === 0
+          ? `حوالة تأمين غير موزعة - ${bankReference}`
+          : unallocatedDecimal.gt(0)
+            ? `تحصيل تأمين مع فائض غير موزع - ${bankReference}`
+            : `تحصيل تأمين - ${bankReference}`,
       sourceModule: 'CASHIER',
-      sourceId: invoiceIds[0],
+      sourceId: invoiceIds[0] ?? providerId,
       createdById: userId,
       financialYearId: financialYear.id,
       financialPeriodId: period.id,
-      lines: {
-        create: [
-          { accountId: bank.id, debit: amount, credit: '0.000' },
-          ...[...credits].map(([accountId, credit]) => ({
-            accountId,
-            debit: '0.000',
-            credit: Money.toDbString(credit),
-          })),
-        ],
-      },
+      lines: { create: journalLines },
     },
   });
+
   const settlement = await tx.insuranceSettlement.create({
     data: {
       hospitalId,
       providerId,
       bankReference,
       amount,
+      unallocatedAmount: unallocatedAmountStr,
+      unallocatedAccountId: unallocatedAccount?.id ?? null,
       postingEntryId: entry.id,
       recordedById: userId,
-      allocations: { create: allocations },
+      ...(allocations.length ? { allocations: { create: allocations } } : {}),
     },
-    include: { allocations: { orderBy: { invoiceId: 'asc' } } },
-  });
-  for (const { invoice, amount, outstanding } of dues) {
-    const patient = await adjustmentBalance(
-      tx,
-      hospitalId,
-      invoice.id,
-      invoice.patientShare,
-      invoice.paidAmount,
-    );
-    const settled = amount.eq(outstanding);
-    await tx.invoice.update({
-      where: { id: invoice.id },
-      data: {
-        claimStatus: settled ? 'PAID' : 'PARTIALLY_PAID',
-        status: settled && patient.balance.lte(0) ? 'PAID' : 'PARTIALLY_PAID',
+    include: {
+      allocations: {
+        where: { applicationId: null },
+        orderBy: { invoiceId: 'asc' },
       },
-    });
+    },
+  });
+
+  if (dues.length > 0) {
+    await updateSettledInvoiceStatuses(tx, hospitalId, dues);
   }
+
   await appendChainedAuditInTransaction(tx, {
     hospitalId,
     userId,
@@ -299,15 +257,62 @@ export async function postInsuranceSettlement(
       providerId,
       bankReference,
       amount,
+      unallocatedAmount: unallocatedAmountStr,
+      unallocatedAccountId: unallocatedAccount?.id ?? null,
       invoiceIds,
-      allocations: dues.map(({ invoice, amount, outstanding }) => ({
+      allocations: dues.map(({ invoice, amount: lineAmt, outstanding }) => ({
         invoiceId: invoice.id,
-        amount: Money.toDbString(amount),
+        amount: Money.toDbString(lineAmt),
         outstandingBefore: Money.toDbString(outstanding),
-        remaining: Money.toDbString(outstanding.minus(amount)),
+        remaining: Money.toDbString(outstanding.minus(lineAmt)),
       })),
       accountingEntryId: entry.id,
     },
   });
   return settlement;
+}
+
+export async function listInsuranceSettlements(
+  db: Pick<Prisma.TransactionClient, 'insuranceSettlement'>,
+  hospitalId: number,
+  filters: { providerId?: number; onlyUnallocated?: boolean },
+) {
+  const rows = await db.insuranceSettlement.findMany({
+    where: {
+      hospitalId,
+      ...(filters.providerId ? { providerId: filters.providerId } : {}),
+      ...(filters.onlyUnallocated ? { unallocatedAmount: { gt: 0 } } : {}),
+    },
+    include: {
+      provider: { select: { id: true, name: true, code: true } },
+      applications: { select: { id: true, amount: true } },
+      refunds: { select: { id: true, status: true, unallocatedAmount: true } },
+      _count: { select: { allocations: true } },
+    },
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+  });
+
+  const mapped = rows.map((row) => {
+    const summary = unallocatedSummary(row);
+    return {
+      id: row.id,
+      providerId: row.providerId,
+      provider: row.provider,
+      bankReference: row.bankReference,
+      amount: Money.toDbString(row.amount),
+      unallocatedAmount: Money.toDbString(summary.unallocatedAmount),
+      appliedUnallocated: Money.toDbString(summary.applied),
+      refundedUnallocated: Money.toDbString(summary.refunded),
+      pendingRefundUnallocated: Money.toDbString(summary.pendingRefund),
+      availableUnallocated: Money.toDbString(summary.available),
+      createdAt: row.createdAt,
+      allocationsCount: row._count.allocations,
+      applicationsCount: row.applications.length,
+    };
+  });
+
+  if (filters.onlyUnallocated) {
+    return mapped.filter((item) => Money.isPositive(item.availableUnallocated));
+  }
+  return mapped;
 }

@@ -6509,7 +6509,20 @@
       "reference": "Bank transfer reference",
       "confirmed": "I verified the transfer was received by the bank.",
       "post": "Post settlement",
-      "saved": "Insurer transfer settlement posted."
+      "saved": "Insurer transfer settlement posted.",
+      "recordUnallocated": "Record unallocated transfer",
+      "recordExcessAsUnallocated": "Record excess as unallocated insurer balance",
+      "excessAmount": "Unallocated excess to record",
+      "selectProvider": "Select insurer",
+      "unallocatedTitle": "Transfers with unallocated credit available",
+      "unallocatedAvailable": "Available unallocated",
+      "unallocatedOriginal": "Original unallocated",
+      "applyBtn": "Apply to selected claims",
+      "manageRefundBtn": "Refund excess / Ledger",
+      "applyModalTitle": "Apply unallocated transfer balance",
+      "applyAmount": "Amount to apply",
+      "applyExceedsAvailable": "The amount to apply exceeds the available unallocated balance.",
+      "applySaved": "Unallocated balance applied successfully."
     },
     "refund": {
       "title": "Insurer receipt refunds",
@@ -6532,7 +6545,13 @@
       "saved": "Action saved.",
       "PENDING": "Awaiting review",
       "POSTED": "Posted",
-      "REJECTED": "Rejected"
+      "REJECTED": "Rejected",
+      "unallocatedAvailable": "Unallocated excess available",
+      "unallocatedRefunded": "Unallocated refunded",
+      "unallocatedApplied": "Applied to claims",
+      "unallocatedPending": "Pending unallocated refund",
+      "unallocatedInput": "Unallocated excess refund amount",
+      "unallocatedTag": "Unallocated excess"
     },
     "withdrawal": {
       "status": "Withdrawn",

@@ -13,15 +13,18 @@ import { appendChainedAuditInTransaction } from '../audit/audit-chain';
 import { Money } from '../common/utils/money.util';
 import { ensureUnusedRefundBankReference } from './refund-bank-reference';
 import {
+  MONEY_INPUT_PATTERN,
   readSettlementBalance,
   settledClaimStatus,
   trackedInsuranceShare,
+  unallocatedSummary,
 } from './insurance-settlement-balance';
 
 export type SettlementRefundInput = {
   requestId: string;
   reason: string;
-  lines: { allocationId: number; amount: string }[];
+  lines?: { allocationId: number; amount: string }[];
+  unallocatedAmount?: string;
 };
 export type SettlementRefundReview = {
   decision: 'POST' | 'REJECT';
@@ -36,9 +39,14 @@ type RefundContext = {
 };
 
 const settlementLedger = {
+  unallocatedAccount: true,
   allocations: {
     orderBy: { id: 'asc' },
     include: { refunds: { include: { refund: { select: { status: true } } } } },
+  },
+  applications: {
+    orderBy: { id: 'desc' },
+    include: { allocations: { orderBy: { invoiceId: 'asc' } } },
   },
   refunds: {
     orderBy: { id: 'desc' },
@@ -82,14 +90,21 @@ export async function listSettlementRefunds(
   settlementId: number,
 ) {
   const settlement = await readSettlement(db, hospitalId, settlementId);
+  const summary = unallocatedSummary(settlement);
   return {
     id: settlement.id,
     bankReference: settlement.bankReference,
     amount: Money.toDbString(settlement.amount),
+    unallocatedAmount: Money.toDbString(summary.unallocatedAmount),
+    appliedUnallocated: Money.toDbString(summary.applied),
+    refundedUnallocated: Money.toDbString(summary.refunded),
+    pendingRefundUnallocated: Money.toDbString(summary.pendingRefund),
+    availableUnallocated: Money.toDbString(summary.available),
     allocations: settlement.allocations.map((allocation) => {
       const { available, posted } = amounts(allocation);
       return {
         id: allocation.id,
+        applicationId: allocation.applicationId ?? null,
         invoiceId: allocation.invoiceId,
         amount: Money.toDbString(allocation.amount),
         outstandingBefore: Money.toDbString(allocation.outstandingBefore),
@@ -100,6 +115,7 @@ export async function listSettlementRefunds(
         refunded: Money.toDbString(posted),
       };
     }),
+    applications: settlement.applications,
     refunds: settlement.refunds,
   };
 }
@@ -127,27 +143,38 @@ export async function requestSettlementRefund(
 ) {
   const { hospitalId, settlementId, userId } = context;
   const reason = input.reason.trim();
-  const lines = [...input.lines].sort(
+  const lines = [...(input.lines ?? [])].sort(
     (a, b) => a.allocationId - b.allocationId,
   );
+  const rawUnallocated = input.unallocatedAmount;
+  const hasUnallocated = rawUnallocated !== undefined;
   if (
     !/^[\da-f]{8}-[\da-f]{4}-4[\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/i.test(
       input.requestId,
     ) ||
     reason.length < 5 ||
     reason.length > 1000 ||
-    !lines.length ||
     lines.length > 100 ||
     new Set(lines.map((line) => line.allocationId)).size !== lines.length ||
     lines.some(
       (line) =>
-        !/^(0|[1-9]\d{0,14})(\.\d{1,3})?$/.test(line.amount) ||
+        !MONEY_INPUT_PATTERN.test(line.amount) ||
         !Money.isPositive(line.amount),
-    )
+    ) ||
+    (rawUnallocated !== undefined &&
+      (!MONEY_INPUT_PATTERN.test(rawUnallocated) ||
+        !Money.isPositive(rawUnallocated))) ||
+    (!lines.length && !hasUnallocated)
   )
     throw new BadRequestException(
-      'يلزم سبب الرد وتخصيص واحد على الأقل بمبلغ دقيق موجب',
+      'يلزم سبب الرد وتخصيص أو فائض غير موزع بمبلغ دقيق موجب',
     );
+
+  const unallocatedDecimal =
+    rawUnallocated !== undefined
+      ? Money.decimal(rawUnallocated)
+      : Money.decimal(0);
+
   const settlement = await lockSettlement(tx, context);
   const requestKey = `settlement-refund:${hospitalId}:${settlementId}:${input.requestId.toLowerCase()}`;
   const previous = settlement.refunds.find(
@@ -157,6 +184,7 @@ export async function requestSettlementRefund(
     if (
       previous.requestedById !== userId ||
       previous.reason !== reason ||
+      !Money.eq(previous.unallocatedAmount, unallocatedDecimal) ||
       previous.lines.length !== lines.length ||
       previous.lines.some(
         (line, index) =>
@@ -167,6 +195,18 @@ export async function requestSettlementRefund(
       throw new ConflictException('معرف الرد مستخدم لطلب مختلف');
     return previous;
   }
+
+  const summary = unallocatedSummary(settlement);
+  if (unallocatedDecimal.gt(0)) {
+    if (
+      !settlement.unallocatedAccountId ||
+      Money.gt(unallocatedDecimal, summary.available)
+    )
+      throw new BadRequestException(
+        'مبلغ رد الفائض يتجاوز الرصيد غير الموزع المتاح في الحوالة',
+      );
+  }
+
   const allocations = new Map(
     settlement.allocations.map((allocation) => [allocation.id, allocation]),
   );
@@ -177,8 +217,10 @@ export async function requestSettlementRefund(
         'مبلغ الرد يتجاوز الرصيد المتاح في تخصيص الفاتورة',
       );
   }
+
+  const unallocatedStr = Money.toDbString(unallocatedDecimal);
   const amount = Money.toDbString(
-    Money.sumDecimal(...lines.map((line) => line.amount)),
+    Money.sumDecimal(unallocatedDecimal, ...lines.map((line) => line.amount)),
   );
   const result = await tx.insuranceSettlementRefund.create({
     data: {
@@ -188,12 +230,17 @@ export async function requestSettlementRefund(
       reason,
       requestedById: userId,
       amount,
-      lines: {
-        create: lines.map((line) => ({
-          ...line,
-          amount: Money.toDbString(line.amount),
-        })),
-      },
+      unallocatedAmount: unallocatedStr,
+      ...(lines.length
+        ? {
+            lines: {
+              create: lines.map((line) => ({
+                ...line,
+                amount: Money.toDbString(line.amount),
+              })),
+            },
+          }
+        : {}),
     },
     include: { lines: { orderBy: { allocationId: 'asc' } } },
   });
@@ -203,7 +250,12 @@ export async function requestSettlementRefund(
     entity: 'InsuranceSettlementRefund',
     entityId: result.id,
     action: 'REQUEST_INSURANCE_SETTLEMENT_REFUND',
-    details: { settlementId, amount, lines },
+    details: {
+      settlementId,
+      amount,
+      unallocatedAmount: unallocatedStr,
+      lines,
+    },
   });
   return result;
 }
@@ -270,22 +322,18 @@ export async function reviewSettlementRefund(
       throw new BadRequestException(
         'قيد حوالة التأمين الأصلي يحتاج إلى مطابقة',
       );
+
     const credits = new Map<number, Prisma.Decimal>();
     const debits = new Map<number, Prisma.Decimal>();
-    const allocations = await tx.insuranceSettlementAllocation.findMany({
-      where: { settlementId },
+
+    const initialAllocations = await tx.insuranceSettlementAllocation.findMany({
+      where: { settlementId, applicationId: null },
       include: {
         originalReceivable: { include: { account: true } },
-        invoice: {
-          select: { patientId: true, encounterId: true, insuranceShare: true },
-        },
+        invoice: { select: { insuranceShare: true } },
       },
     });
-    const byAllocation = new Map(allocations.map((item) => [item.id, item]));
-    const ledger = new Map(
-      settlement.allocations.map((item) => [item.id, item]),
-    );
-    for (const allocation of allocations) {
+    for (const allocation of initialAllocations) {
       const line = allocation.originalReceivable;
       if (
         !Money.eq(line.debit, allocation.invoice.insuranceShare) ||
@@ -302,6 +350,21 @@ export async function reviewSettlementRefund(
         Money.sumDecimal(credits.get(line.accountId), allocation.amount),
       );
     }
+    if (Money.isPositive(settlement.unallocatedAmount)) {
+      const unalloc = settlement.unallocatedAccount;
+      if (
+        !unalloc ||
+        unalloc.hospitalId !== hospitalId ||
+        unalloc.type !== 'LIABILITY' ||
+        !unalloc.isActive ||
+        unalloc.id === bank[0].accountId ||
+        credits.has(unalloc.id)
+      )
+        throw new BadRequestException(
+          'حساب الفائض غير الموزع للحوالة يحتاج إلى مطابقة',
+        );
+      credits.set(unalloc.id, settlement.unallocatedAmount);
+    }
     const originalCredits = original!.lines.filter(
       (line) => line.id !== bank[0].id,
     );
@@ -317,57 +380,112 @@ export async function reviewSettlementRefund(
       )
     )
       throw new BadRequestException(
-        'حسابات قيد الحوالة لا تطابق الذمم المخصصة',
+        'حسابات قيد الحوالة لا تطابق الذمم المخصصة والرصيد غير الموزع',
       );
-    const affected = refund.lines
-      .map((line) => ({
-        line,
-        allocation: byAllocation.get(line.allocationId)!,
-      }))
-      .sort(
-        (a, b) =>
-          a.allocation.invoice.patientId - b.allocation.invoice.patientId ||
-          a.allocation.invoice.encounterId - b.allocation.invoice.encounterId ||
-          a.allocation.invoiceId - b.allocation.invoiceId,
-      );
-    for (const { line, allocation } of affected) {
-      const invoice = await lockFinancialInvoice(
-        tx,
-        hospitalId,
-        allocation.invoiceId,
-      );
-      const { posted } = amounts(ledger.get(allocation.id)!);
-      const { net } = await readSettlementBalance(tx, hospitalId, invoice.id);
-      const share = await trackedInsuranceShare(tx, invoice);
-      const next = net.minus(line.amount);
-      const receivable = allocation.originalReceivable;
+
+    if (Money.isPositive(refund.unallocatedAmount)) {
+      const summary = unallocatedSummary(settlement);
+      const remainingBeforePost = settlement.unallocatedAmount
+        .minus(summary.applied)
+        .minus(summary.refunded);
       if (
-        invoice.type !== 'INVOICE' ||
-        invoice.status === 'CANCELLED' ||
-        invoice.insuranceProviderId !== settlement.providerId ||
-        !Money.eq(invoice.insuranceShare, receivable.debit) ||
-        posted.plus(line.amount).gt(allocation.amount) ||
-        next.lt(0) ||
-        net.gt(share) ||
-        invoice.claimStatus === 'WITHDRAWN' ||
-        invoice.claimStatus !== settledClaimStatus(net, share) ||
-        !receivable.account.isActive ||
-        (await tx.invoiceAdjustment.count({
-          where: { hospitalId, invoiceId: invoice.id, status: 'PENDING' },
-        }))
+        !settlement.unallocatedAccountId ||
+        !settlement.unallocatedAccount?.isActive ||
+        remainingBeforePost.lt(refund.unallocatedAmount)
       )
         throw new BadRequestException(
-          'حالة الفاتورة أو قيدها يحتاج إلى مطابقة قبل الرد',
+          'رصيد الفائض غير الموزع المتبقي لا يكفي لاعتماد الرد',
         );
       debits.set(
-        receivable.accountId,
-        Money.sumDecimal(debits.get(receivable.accountId), line.amount),
+        settlement.unallocatedAccountId,
+        Money.sumDecimal(
+          debits.get(settlement.unallocatedAccountId),
+          refund.unallocatedAmount,
+        ),
       );
-      invoiceUpdates.push({
-        id: invoice.id,
-        claimStatus: settledClaimStatus(next, share),
-      });
     }
+
+    if (refund.lines.length > 0) {
+      const refundAllocations = await tx.insuranceSettlementAllocation.findMany(
+        {
+          where: {
+            settlementId,
+            id: { in: refund.lines.map((line) => line.allocationId) },
+          },
+          include: {
+            originalReceivable: { include: { account: true } },
+            invoice: {
+              select: {
+                patientId: true,
+                encounterId: true,
+                insuranceShare: true,
+              },
+            },
+          },
+        },
+      );
+      const byAllocation = new Map(
+        refundAllocations.map((item) => [item.id, item]),
+      );
+      const ledger = new Map(
+        settlement.allocations.map((item) => [item.id, item]),
+      );
+      const affected = refund.lines
+        .map((line) => ({
+          line,
+          allocation: byAllocation.get(line.allocationId)!,
+        }))
+        .sort(
+          (a, b) =>
+            a.allocation.invoice.patientId - b.allocation.invoice.patientId ||
+            a.allocation.invoice.encounterId -
+              b.allocation.invoice.encounterId ||
+            a.allocation.invoiceId - b.allocation.invoiceId,
+        );
+      for (const { line, allocation } of affected) {
+        const invoice = await lockFinancialInvoice(
+          tx,
+          hospitalId,
+          allocation.invoiceId,
+        );
+        const { posted } = amounts(ledger.get(allocation.id)!);
+        const { net } = await readSettlementBalance(tx, hospitalId, invoice.id);
+        const share = await trackedInsuranceShare(tx, invoice);
+        const next = net.minus(line.amount);
+        const receivable = allocation.originalReceivable;
+        if (
+          invoice.type !== 'INVOICE' ||
+          invoice.status === 'CANCELLED' ||
+          invoice.insuranceProviderId !== settlement.providerId ||
+          !Money.eq(invoice.insuranceShare, receivable.debit) ||
+          !Money.isZero(receivable.credit) ||
+          receivable.account.hospitalId !== hospitalId ||
+          receivable.account.type !== 'ASSET' ||
+          !receivable.account.isActive ||
+          receivable.accountId === bank[0].accountId ||
+          posted.plus(line.amount).gt(allocation.amount) ||
+          next.lt(0) ||
+          net.gt(share) ||
+          invoice.claimStatus === 'WITHDRAWN' ||
+          invoice.claimStatus !== settledClaimStatus(net, share) ||
+          (await tx.invoiceAdjustment.count({
+            where: { hospitalId, invoiceId: invoice.id, status: 'PENDING' },
+          }))
+        )
+          throw new BadRequestException(
+            'حالة الفاتورة أو قيدها يحتاج إلى مطابقة قبل الرد',
+          );
+        debits.set(
+          receivable.accountId,
+          Money.sumDecimal(debits.get(receivable.accountId), line.amount),
+        );
+        invoiceUpdates.push({
+          id: invoice.id,
+          claimStatus: settledClaimStatus(next, share),
+        });
+      }
+    }
+
     const { financialYear, period } = await financialPeriod(
       tx,
       hospitalId,
@@ -431,6 +549,7 @@ export async function reviewSettlementRefund(
     details: {
       settlementId,
       amount: Money.toDbString(refund.amount),
+      unallocatedAmount: Money.toDbString(refund.unallocatedAmount),
       postingEntryId,
       reference,
       note,
