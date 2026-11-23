@@ -532,6 +532,8 @@ model Payment {
 model User {
   preAuthAttachmentsUploaded PreAuthorizationAttachment[] @relation("PreAuthAttachmentUploader")
   preAuthAttachmentsRetired  PreAuthorizationAttachment[] @relation("PreAuthAttachmentRetirer")
+  reviewedPreAuthorizations  PreAuthorization[]           @relation("PreAuthReviewer")
+  adjudicatedClaimBatches    ClaimBatch[]                 @relation("ClaimBatchAdjudicator")
   requestedInsuranceClaimWriteOffs InsuranceClaimWriteOff[] @relation("ClaimWriteOffRequester")
   reviewedInsuranceClaimWriteOffs InsuranceClaimWriteOff[] @relation("ClaimWriteOffReviewer")
   recordedInsuranceSettlementApplications InsuranceSettlementApplication[]
@@ -3422,12 +3424,16 @@ model PreAuthorization {
   approvedAmount  Decimal?        @db.Decimal(18, 3)
   expiresAt       DateTime?
   notes           String?
+  reviewedById    Int?
+  reviewedAt      DateTime?
+  reviewRequestKey String?        @unique
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
   hospital        Hospital                     @relation(fields: [hospitalId], references: [id])
   patient         Patient                      @relation(fields: [patientId], references: [id])
   policy          InsurancePolicy              @relation(fields: [policyId], references: [id])
   serviceItem     ServiceItem?                 @relation(fields: [serviceItemId], references: [id])
+  reviewedBy      User?                        @relation("PreAuthReviewer", fields: [reviewedById], references: [id])
   attachments     PreAuthorizationAttachment[]
 }
 
@@ -5856,21 +5862,31 @@ model InsuranceClaimWithdrawal {
 }
 
 model ClaimBatch {
-  id          Int       @id @default(autoincrement())
-  hospitalId  Int
-  providerId  Int
-  batchNumber String    @unique
-  totalClaims Int       @default(0)
-  totalAmount Decimal   @default(0) @db.Decimal(18, 3)
-  status      String    @default("OPEN") // OPEN, SUBMITTED, CLOSED
-  submittedAt DateTime?
-  closedAt    DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id                     Int       @id @default(autoincrement())
+  hospitalId             Int
+  providerId             Int
+  batchNumber            String    @unique
+  clearingChannel        String    @default("LOCAL_CLEARINGHOUSE")
+  totalClaims            Int       @default(0)
+  totalAmount            Decimal   @default(0) @db.Decimal(18, 3)
+  approvedAmount         Decimal?  @db.Decimal(18, 3)
+  rejectedClaimsCount    Int       @default(0)
+  status                 String    @default("OPEN") // OPEN, SUBMITTED, CLOSED
+  submissionRequestKey   String?   @unique
+  adjudicationRequestKey String?   @unique
+  submittedAt            DateTime?
+  adjudicatedById        Int?
+  adjudicatedAt          DateTime?
+  eraTransactionId       Int?      @unique
+  closedAt               DateTime?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
 
-  hospital Hospital          @relation(fields: [hospitalId], references: [id])
-  provider InsuranceProvider @relation(fields: [providerId], references: [id])
-  claims   Claim[]
+  hospital       Hospital          @relation(fields: [hospitalId], references: [id])
+  provider       InsuranceProvider @relation(fields: [providerId], references: [id])
+  adjudicatedBy  User?             @relation("ClaimBatchAdjudicator", fields: [adjudicatedById], references: [id])
+  eraTransaction ERATransaction?   @relation(fields: [eraTransactionId], references: [id])
+  claims         Claim[]
 
   @@index([hospitalId, status])
 }
@@ -5987,6 +6003,7 @@ model ERATransaction {
   hospital          Hospital          @relation(fields: [hospitalId], references: [id])
   insuranceProvider InsuranceProvider @relation(fields: [insuranceProviderId], references: [id])
   lineItems         ERALineItem[]
+  claimBatch        ClaimBatch?
 
   @@index([hospitalId, status])
   @@index([hospitalId, bankReference])

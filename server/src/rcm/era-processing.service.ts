@@ -353,7 +353,10 @@ export class EraProcessingService {
         await tx.$queryRaw`SELECT id FROM "ERATransaction" WHERE id = ${eraId} AND "hospitalId" = ${hospitalId} FOR UPDATE`;
         const era = await tx.eRATransaction.findFirst({
           where: { id: eraId, hospitalId },
-          include: { lineItems: { orderBy: { id: 'asc' } } },
+          include: {
+            lineItems: { orderBy: { id: 'asc' } },
+            claimBatch: { select: { id: true } },
+          },
         });
         if (!era) {
           throw new NotFoundException('لم يتم العثور على ملف ERA');
@@ -479,7 +482,17 @@ export class EraProcessingService {
             const lockedClaim = await tx.claim.findFirstOrThrow({
               where: { id: claimId, hospitalId },
             });
+            const denialCode = line.denialCode?.trim() || 'DENIED';
+            const denialReason =
+              line.denialReason?.trim() ||
+              line.adjustmentReason?.trim() ||
+              `مرفوضة وفق إشعار التحويل الإلكتروني ${era.eraNumber}`;
+            const alreadyRejectedByBatch =
+              era.claimBatch != null &&
+              lockedClaim.status === ClaimStatus.REJECTED &&
+              lockedClaim.denialCode === denialCode;
             if (
+              !alreadyRejectedByBatch &&
               !['SUBMITTED', 'ACCEPTED', 'APPEAL_SUBMITTED'].includes(
                 lockedClaim.status,
               )
@@ -498,33 +511,30 @@ export class EraProcessingService {
                 `المطالبة #${claimId} عليها تحصيلات ولا يمكن قلبها إلى مرفوضة تلقائيًا`,
               );
             }
-            const denialCode = line.denialCode?.trim() || 'DENIED';
-            const denialReason =
-              line.denialReason?.trim() ||
-              line.adjustmentReason?.trim() ||
-              `مرفوضة وفق إشعار التحويل الإلكتروني ${era.eraNumber}`;
 
-            await tx.claim.update({
-              where: { id: claimId },
-              data: {
-                status: ClaimStatus.REJECTED,
-                denialCode,
-                denialReason,
-              },
-            });
-            await tx.invoice.update({
-              where: { id: lockedClaim.invoiceId },
-              data: { claimStatus: 'REJECTED' },
-            });
-            await tx.claimHistory.create({
-              data: {
-                claimId,
-                fromStatus: lockedClaim.status,
-                toStatus: ClaimStatus.REJECTED,
-                changedById: userId,
-                notes: `ERA ${era.eraNumber}: رفض (${denialCode}) - ${denialReason}`,
-              },
-            });
+            if (!alreadyRejectedByBatch) {
+              await tx.claim.update({
+                where: { id: claimId },
+                data: {
+                  status: ClaimStatus.REJECTED,
+                  denialCode,
+                  denialReason,
+                },
+              });
+              await tx.invoice.update({
+                where: { id: lockedClaim.invoiceId },
+                data: { claimStatus: 'REJECTED' },
+              });
+              await tx.claimHistory.create({
+                data: {
+                  claimId,
+                  fromStatus: lockedClaim.status,
+                  toStatus: ClaimStatus.REJECTED,
+                  changedById: userId,
+                  notes: `ERA ${era.eraNumber}: رفض (${denialCode}) - ${denialReason}`,
+                },
+              });
+            }
             deniedClaimsCount++;
           } else {
             throw new BadRequestException(

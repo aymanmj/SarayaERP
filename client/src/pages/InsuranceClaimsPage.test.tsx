@@ -563,3 +563,50 @@ it("posts an ERA file financially via EraReconciliationDialog", async () => {
     restoreDialog();
   }
 });
+
+it("submits and adjudicates a claim batch via PayerBatchClearingDialog", async () => {
+  let batchState: "OPEN" | "SUBMITTED" = "OPEN";
+  vi.mocked(apiClient.get).mockImplementation(async (path) => {
+    if (path === "/rcm/claims/batches") {
+      return {
+        data: [{
+          id: 88,
+          batchNumber: "BATCH-1-7-88",
+          clearingChannel: "LOCAL_CLEARINGHOUSE",
+          status: batchState,
+          totalClaims: 1,
+          totalAmount: "100.000",
+          provider: { id: 7, name: "Synthetic insurer", code: "INS-7" },
+          eraTransaction: null,
+          claims: [
+            { id: 881, claimNumber: "CLM-881", status: batchState === "OPEN" ? "SCRUBBED" : "SUBMITTED", claimedAmount: "100.000" },
+          ],
+        }],
+      };
+    }
+    return { data: [] };
+  });
+  vi.mocked(apiClient.post).mockClear().mockImplementation(async () => {
+    batchState = "SUBMITTED";
+    return { data: { success: true } };
+  });
+  const restoreDialog = mockDialog();
+  try {
+    render(<InsuranceClaimsPage />);
+    fireEvent.click(screen.getByRole("button", { name: "insuranceClaims.clearinghouse.open" }));
+    fireEvent.click(await screen.findByRole("button", { name: "insuranceClaims.clearinghouse.submitBtn" }));
+    await waitFor(() => expect(apiClient.post).toHaveBeenCalledWith("/rcm/claims/batches/88/submit", {
+      requestId: expect.any(String),
+      channel: "LOCAL_CLEARINGHOUSE",
+    }));
+    const approveInput = await screen.findByLabelText("insuranceClaims.clearinghouse.approvedAmount CLM-881");
+    fireEvent.change(approveInput, { target: { value: "85.000" } });
+    fireEvent.click(screen.getByRole("button", { name: "insuranceClaims.clearinghouse.adjudicateBtn" }));
+    await waitFor(() => expect(apiClient.post).toHaveBeenCalledWith("/rcm/claims/batches/88/adjudicate", {
+      requestId: expect.any(String),
+      decisions: [{ claimId: 881, approvedAmount: "85.000" }],
+    }));
+  } finally {
+    restoreDialog();
+  }
+});

@@ -12,7 +12,12 @@ import { Money } from '../common/utils/money.util';
 import { appendChainedAuditInTransaction } from '../audit/audit-chain';
 import { dispensedPrescriptionClaim } from '../pharmacy/prescription-prepayment';
 import { PharmacyService } from '../pharmacy/pharmacy.service';
-import { readCoverageBalance } from './coverage-balance';
+import {
+  listPayerPreAuthInbox,
+  readNationalPatientCoverage,
+  reviewPayerPreAuth,
+  type PayerPreAuthDecisionInput,
+} from './national-payer-gateway';
 import {
   settlementAllocationBalance,
   settlementNet,
@@ -409,6 +414,23 @@ export class InsuranceService {
         throw new BadRequestException('المبلغ المطلوب يجب أن يكون أكبر من صفر');
       }
       requestedAmount = Money.toDbString(data.requestedAmount);
+      if (policy.maxCoverageAmount != null) {
+        const nationalCoverage = await readNationalPatientCoverage(
+          this.prisma,
+          hospitalId,
+          patientId,
+        );
+        if (
+          nationalCoverage &&
+          nationalCoverage.policyId === policyId &&
+          nationalCoverage.networkRemainingAmount != null &&
+          Money.gt(requestedAmount, nationalCoverage.networkRemainingAmount)
+        ) {
+          throw new BadRequestException(
+            'المبلغ المطلوب يتجاوز الرصيد المتبقي من سقف التغطية عبر الشبكة الوطنية (MPI)',
+          );
+        }
+      }
     }
 
     return this.prisma.preAuthorization.create({
@@ -427,30 +449,29 @@ export class InsuranceService {
     });
   }
 
-  // 8. جلب الموافقات
-  async getPatientCoverageBalance(hospitalId: number, patientId: number) {
-    const patient = await this.prisma.patient.findFirst({
-      where: { id: patientId, hospitalId, isDeleted: false },
-      select: {
-        insurancePolicy: {
-          select: {
-            id: true,
-            maxCoverageAmount: true,
-            provider: { select: { id: true, hospitalId: true } },
-          },
-        },
-      },
-    });
-    if (!patient) throw new NotFoundException('المريض غير موجود');
-    const policy = patient.insurancePolicy;
-    if (!policy || policy.provider.hospitalId !== hospitalId) return null;
-    return readCoverageBalance(this.prisma, {
-      hospitalId,
-      patientId,
-      policyId: policy.id,
-      providerId: policy.provider.id,
-      cap: policy.maxCoverageAmount,
-    });
+  // 8. جلب الموافقات وأرصدة الشبكة الوطنية (MPI)
+  getPatientCoverageBalance(hospitalId: number, patientId: number) {
+    return readNationalPatientCoverage(this.prisma, hospitalId, patientId);
+  }
+
+  listPayerPreAuthInbox(
+    hospitalId: number,
+    filters?: { providerId?: number; status?: string },
+  ) {
+    return listPayerPreAuthInbox(this.prisma, hospitalId, filters);
+  }
+
+  reviewPayerPreAuth(
+    hospitalId: number,
+    preAuthId: number,
+    userId: number,
+    input: PayerPreAuthDecisionInput,
+  ) {
+    return reviewPayerPreAuth(
+      this.prisma,
+      { hospitalId, userId, preAuthId },
+      input,
+    );
   }
 
   getPreAuthServices(hospitalId: number) {

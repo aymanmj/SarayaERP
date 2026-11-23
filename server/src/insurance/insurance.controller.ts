@@ -31,7 +31,7 @@ import {
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/permissions.guard';
 import { Permissions } from '../auth/permissions.decorator';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   ArrayMaxSize,
   ArrayMinSize,
@@ -39,6 +39,7 @@ import {
   IsArray,
   Equals,
   IsBoolean,
+  IsDateString,
   IsIn,
   IsInt,
   IsOptional,
@@ -50,6 +51,7 @@ import {
   MinLength,
   ValidateNested,
 } from 'class-validator';
+import { MONEY_INPUT_PATTERN } from './national-payer-gateway';
 
 class InsuranceSettlementLineDto {
   @IsInt() @Min(1) invoiceId!: number;
@@ -157,6 +159,22 @@ class PreAuthAttachmentUploadDto {
   @IsIn([...PREAUTH_ATTACHMENT_CATEGORIES])
   category!: PreAuthAttachmentCategory;
   @IsOptional() @IsString() @MaxLength(200) title?: string;
+}
+
+const coerceMoneyInput = ({ value }: { value: unknown }) =>
+  typeof value === 'number' && Number.isFinite(value) ? String(value) : value;
+
+class PayerPreAuthDecisionDto {
+  @IsUUID('4') requestId!: string;
+  @IsIn(['APPROVED', 'REJECTED']) decision!: 'APPROVED' | 'REJECTED';
+  @IsString() @MinLength(5) @MaxLength(1000) decisionReason!: string;
+  @IsOptional() @IsString() @MinLength(3) @MaxLength(100) authCode?: string;
+  @IsOptional()
+  @Transform(coerceMoneyInput)
+  @IsString()
+  @Matches(MONEY_INPUT_PATTERN)
+  approvedAmount?: string;
+  @IsOptional() @IsDateString() expiresAt?: string;
 }
 
 class PreAuthAttachmentRetireDto {
@@ -368,6 +386,40 @@ export class InsuranceController {
       id,
       req.user.sub,
       attachmentId,
+      body,
+    );
+  }
+
+  @Permissions('insurance:view', 'insurance:manage')
+  @Get('payer-portal/pre-auths')
+  listPayerPreAuthInbox(
+    @Req() req: { user: JwtPayload },
+    @Query('providerId') providerId?: string,
+    @Query('status') status?: string,
+  ) {
+    const parsedProviderId =
+      providerId &&
+      Number.isInteger(Number(providerId)) &&
+      Number(providerId) > 0
+        ? Number(providerId)
+        : undefined;
+    return this.insuranceService.listPayerPreAuthInbox(req.user.hospitalId, {
+      providerId: parsedProviderId,
+      status: status || undefined,
+    });
+  }
+
+  @Permissions('insurance:manage')
+  @Post('payer-portal/pre-auths/:id/decision')
+  reviewPayerPreAuth(
+    @Req() req: { user: JwtPayload },
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: PayerPreAuthDecisionDto,
+  ) {
+    return this.insuranceService.reviewPayerPreAuth(
+      req.user.hospitalId,
+      id,
+      req.user.sub,
       body,
     );
   }

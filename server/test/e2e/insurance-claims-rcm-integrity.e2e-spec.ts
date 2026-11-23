@@ -2631,4 +2631,455 @@ describe('Insurance Providers, Policies, Plans, Coverage Calculation, Pre-Auth, 
     expect(actionSet.has('DOWNLOAD_PREAUTH_ATTACHMENT')).toBe(true);
     expect(actionSet.has('RETIRE_PREAUTH_ATTACHMENT')).toBe(true);
   });
+
+  it('enforces cross-hospital MPI coverage caps, Payer Portal PreAuth review, cross-hospital duplicate scrubbing, and local clearinghouse batch adjudication into ERA settlement', async () => {
+    const uniqueSuffix = Date.now();
+    const sharedPolicyNumber = `NAT-POL-${uniqueSuffix}`;
+    const sharedMemberId = `LY-MEM-${uniqueSuffix}`;
+
+    const gp = await db.globalPatient.create({
+      data: {
+        fullName: 'مختار علي السنوسي',
+        nationalId: `119900${String(uniqueSuffix).slice(-6)}`,
+        gender: 'MALE',
+        dateOfBirth: new Date('1990-01-15T00:00:00.000Z'),
+      },
+    });
+
+    const providerRes = await request(app.getHttpServer())
+      .post('/insurance/providers')
+      .auth(adminToken, { type: 'bearer' })
+      .send({
+        name: 'صندوق التأمين الصحي الليبي',
+        code: `INS-LY-A-${uniqueSuffix}`,
+      })
+      .expect(201);
+    const providerId = responseBody<{ id: number }>(providerRes).id;
+
+    const policyRes = await request(app.getHttpServer())
+      .post(`/insurance/providers/${providerId}/policies`)
+      .auth(adminToken, { type: 'bearer' })
+      .send({
+        name: 'الوثيقة الوطنية الموحدة',
+        policyNumber: sharedPolicyNumber,
+        startDate: '2026-01-01T00:00:00.000Z',
+        endDate: '2027-01-01T00:00:00.000Z',
+        patientCopayRate: 0,
+        maxCoverageAmount: 500,
+      })
+      .expect(201);
+    const policyId = responseBody<{ id: number }>(policyRes).id;
+
+    const localPatient = await db.patient.create({
+      data: {
+        hospitalId,
+        globalPatientId: gp.id,
+        mrn: `MRN-NAT-A-${uniqueSuffix}`,
+        fullName: 'مختار علي السنوسي',
+        gender: 'MALE',
+        dateOfBirth: new Date('1990-01-15T00:00:00.000Z'),
+        insurancePolicyId: policyId,
+        insuranceMemberId: sharedMemberId,
+      },
+    });
+
+    // Other connected hospital consumes 320.000 of the shared MPI coverage and files a same-day claim
+    const otherProvider = await db.insuranceProvider.create({
+      data: {
+        hospitalId: otherHospitalId,
+        name: 'صندوق التأمين الصحي الليبي - فرع',
+        code: `INS-LY-B-${uniqueSuffix}`,
+        isActive: true,
+      },
+    });
+    const otherPolicy = await db.insurancePolicy.create({
+      data: {
+        insuranceProviderId: otherProvider.id,
+        name: 'الوثيقة الوطنية الموحدة',
+        policyNumber: sharedPolicyNumber,
+        patientCopayRate: 0,
+        maxCoverageAmount: 500,
+        isActive: true,
+      },
+    });
+    const otherPatient = await db.patient.create({
+      data: {
+        hospitalId: otherHospitalId,
+        globalPatientId: gp.id,
+        mrn: `MRN-NAT-B-${uniqueSuffix}`,
+        fullName: 'مختار علي السنوسي',
+        gender: 'MALE',
+        dateOfBirth: new Date('1990-01-15T00:00:00.000Z'),
+        insurancePolicyId: otherPolicy.id,
+        insuranceMemberId: sharedMemberId,
+      },
+    });
+    const otherEncounter = await db.encounter.create({
+      data: {
+        hospitalId: otherHospitalId,
+        patientId: otherPatient.id,
+        type: 'OPD',
+        status: 'OPEN',
+      },
+    });
+    const otherInvoice = await db.invoice.create({
+      data: {
+        hospitalId: otherHospitalId,
+        patientId: otherPatient.id,
+        encounterId: otherEncounter.id,
+        status: 'ISSUED',
+        totalAmount: '320.000',
+        patientShare: '0.000',
+        insuranceShare: '320.000',
+        insuranceProviderId: otherProvider.id,
+        claimStatus: 'SUBMITTED',
+      },
+    });
+    await db.claim.create({
+      data: {
+        hospitalId: otherHospitalId,
+        invoiceId: otherInvoice.id,
+        claimNumber: `CLM-OTHER-MPI-${uniqueSuffix}`,
+        claimedAmount: '320.000',
+        status: 'SUBMITTED',
+      },
+    });
+
+    // 1. Cross-hospital MPI coverage balance aggregates 320.000 from otherHospitalId -> 180.000 remaining across network
+    const covRes = await request(app.getHttpServer())
+      .get(`/insurance/coverage-balance/${localPatient.id}`)
+      .auth(adminToken, { type: 'bearer' })
+      .expect(200);
+    expect(covRes.body).toMatchObject({
+      policyId,
+      cap: '500.000',
+      usedAmount: '0.000',
+      remainingAmount: '500.000',
+      mpiLinked: true,
+      globalPatientId: gp.id,
+      linkedHospitalsCount: 2,
+      networkUsedAmount: '320.000',
+      otherHospitalsUsedAmount: '320.000',
+      networkRemainingAmount: '180.000',
+    });
+
+    // PreAuth exceeding networkRemainingAmount (180.000) is blocked (400), within remaining succeeds (201)
+    await request(app.getHttpServer())
+      .post('/insurance/pre-auth')
+      .auth(adminToken, { type: 'bearer' })
+      .send({
+        patientId: localPatient.id,
+        policyId,
+        requestedAmount: 200,
+        notes: 'تجاوز السقف الشبكي MPI',
+      })
+      .expect(400);
+
+    const preAuthRes = await request(app.getHttpServer())
+      .post('/insurance/pre-auth')
+      .auth(adminToken, { type: 'bearer' })
+      .send({
+        patientId: localPatient.id,
+        policyId,
+        requestedAmount: 150,
+        notes: 'طلب موافقة ضمن سقف MPI',
+      })
+      .expect(201);
+    const preAuthId = responseBody<{ id: number }>(preAuthRes).id;
+
+    // 2. Attach clinical report and review via Payer Portal Inbox with idempotent replay & 409 conflict
+    const pdfBuf = Buffer.from('%PDF-1.4\n<<>>\n%%EOF\n', 'utf8');
+    await request(app.getHttpServer())
+      .post(`/insurance/pre-auth/${preAuthId}/attachments`)
+      .auth(adminToken, { type: 'bearer' })
+      .field('category', 'MEDICAL_REPORT')
+      .attach('file', pdfBuf, {
+        filename: 'mpi-report.pdf',
+        contentType: 'application/pdf',
+      })
+      .expect(201);
+
+    const inboxRes = await request(app.getHttpServer())
+      .get(`/insurance/payer-portal/pre-auths?providerId=${providerId}`)
+      .auth(adminToken, { type: 'bearer' })
+      .expect(200);
+    const inboxItem = (inboxRes.body as Array<Record<string, unknown>>).find(
+      (x) => x.id === preAuthId,
+    );
+    expect(inboxItem).toBeDefined();
+    expect((inboxItem?.attachments as unknown[]).length).toBe(1);
+    expect(inboxItem?.mpiCoverage).toMatchObject({
+      networkRemainingAmount: '180.000',
+    });
+
+    const reviewReqId = randomUUID();
+    const [revA, revB] = await Promise.all([
+      request(app.getHttpServer())
+        .post(`/insurance/payer-portal/pre-auths/${preAuthId}/decision`)
+        .auth(adminToken, { type: 'bearer' })
+        .send({
+          requestId: reviewReqId,
+          decision: 'APPROVED',
+          decisionReason: 'اعتماد لجنة المراجعة الطبية ضمن السقف الشبكي',
+          authCode: 'LY-AUTH-2026',
+          approvedAmount: '150.000',
+        }),
+      request(app.getHttpServer())
+        .post(`/insurance/payer-portal/pre-auths/${preAuthId}/decision`)
+        .auth(adminToken, { type: 'bearer' })
+        .send({
+          requestId: reviewReqId,
+          decision: 'APPROVED',
+          decisionReason: 'اعتماد لجنة المراجعة الطبية ضمن السقف الشبكي',
+          authCode: 'LY-AUTH-2026',
+          approvedAmount: '150.000',
+        }),
+    ]);
+    expect([revA.status, revB.status]).toEqual([201, 201]);
+
+    await request(app.getHttpServer())
+      .post(`/insurance/payer-portal/pre-auths/${preAuthId}/decision`)
+      .auth(adminToken, { type: 'bearer' })
+      .send({
+        requestId: randomUUID(),
+        decision: 'REJECTED',
+        decisionReason: 'محاولة تغيير قرار معتمد',
+      })
+      .expect(409);
+
+    // 3. Cross-hospital MPI duplicate scrubbing + Local Clearinghouse Batch -> Auto-ERA -> Ledger Settlement
+    const svcCat = await db.serviceCategory.create({
+      data: { hospitalId, name: 'عيادات', code: `CAT-LY-${uniqueSuffix}` },
+    });
+    const svcItem = await db.serviceItem.create({
+      data: {
+        hospitalId,
+        categoryId: svcCat.id,
+        code: `SRV-LY-${uniqueSuffix}`,
+        name: 'كشف استشاري',
+        type: 'CONSULTATION',
+        defaultPrice: '100.000',
+        isActive: true,
+        isBillable: true,
+      },
+    });
+    const diagCode = await db.diagnosisCode.create({
+      data: {
+        code: `J06.${String(uniqueSuffix).slice(-2)}`,
+        nameEn: 'Acute URI',
+        icd10Code: 'J06.9',
+      },
+    });
+    const encounterA = await db.encounter.create({
+      data: {
+        hospitalId,
+        patientId: localPatient.id,
+        type: 'OPD',
+        status: 'OPEN',
+        createdAt: otherEncounter.createdAt,
+      },
+    });
+    await db.encounterDiagnosis.create({
+      data: {
+        encounterId: encounterA.id,
+        diagnosisCodeId: diagCode.id,
+        type: 'PRIMARY',
+      },
+    });
+
+    const makeScrubbedClaim = async (amount: string) => {
+      const invoice = await db.invoice.create({
+        data: {
+          hospitalId,
+          patientId: localPatient.id,
+          encounterId: encounterA.id,
+          status: 'ISSUED',
+          totalAmount: amount,
+          patientShare: '0.000',
+          insuranceShare: amount,
+          insuranceProviderId: providerId,
+          claimStatus: 'PENDING',
+        },
+      });
+      await db.encounterCharge.create({
+        data: {
+          hospitalId,
+          encounterId: encounterA.id,
+          serviceItemId: svcItem.id,
+          sourceType: 'MANUAL',
+          quantity: 1,
+          unitPrice: amount,
+          totalAmount: amount,
+          invoiceId: invoice.id,
+        },
+      });
+      await accountingService.recordInvoiceEntry({
+        hospitalId,
+        invoiceId: invoice.id,
+        userId: adminUserId,
+      });
+      const clmRes = await request(app.getHttpServer())
+        .post('/rcm/claims/claims')
+        .auth(adminToken, { type: 'bearer' })
+        .send({ invoiceId: invoice.id })
+        .expect(201);
+      const clm = responseBody<{ id: number; claimNumber: string }>(clmRes);
+      const scrubRes = await request(app.getHttpServer())
+        .post(`/rcm/claims/claims/${clm.id}/scrub`)
+        .auth(adminToken, { type: 'bearer' })
+        .expect(201);
+      return {
+        ...clm,
+        scrub: responseBody<{
+          passed: boolean;
+          scrubResults: Array<{ ruleCode: string; severity: string }>;
+        }>(scrubRes),
+      };
+    };
+
+    const claim1 = await makeScrubbedClaim('100.000');
+    const claim2 = await makeScrubbedClaim('60.000');
+    expect(claim1.scrub.passed).toBe(true);
+    expect(
+      claim1.scrub.scrubResults.some(
+        (r) =>
+          r.ruleCode === 'CROSS_HOSPITAL_MPI_DUPLICATE' &&
+          r.severity === 'WARNING',
+      ),
+    ).toBe(true);
+
+    const batchRes = await request(app.getHttpServer())
+      .post('/rcm/claims/batches')
+      .auth(adminToken, { type: 'bearer' })
+      .send({ providerId })
+      .expect(201);
+    const batch = responseBody<{
+      id: number;
+      status: string;
+      clearingChannel: string;
+      totalAmount: string;
+    }>(batchRes);
+    expect(batch.status).toBe('OPEN');
+    expect(batch.clearingChannel).toBe('LOCAL_CLEARINGHOUSE');
+    expect(Money.toDbString(batch.totalAmount)).toBe('160.000');
+
+    // Cross-tenant isolation & suspended NPHIES channel rejection
+    await request(app.getHttpServer())
+      .get(`/rcm/claims/batches/${batch.id}`)
+      .auth(otherToken, { type: 'bearer' })
+      .expect(404);
+    await request(app.getHttpServer())
+      .post(`/rcm/claims/batches/${batch.id}/submit`)
+      .auth(adminToken, { type: 'bearer' })
+      .send({ channel: 'NPHIES' })
+      .expect(400);
+
+    const submitReqId = randomUUID();
+    const [subA, subB] = await Promise.all([
+      request(app.getHttpServer())
+        .post(`/rcm/claims/batches/${batch.id}/submit`)
+        .auth(adminToken, { type: 'bearer' })
+        .send({ requestId: submitReqId, channel: 'LOCAL_CLEARINGHOUSE' }),
+      request(app.getHttpServer())
+        .post(`/rcm/claims/batches/${batch.id}/submit`)
+        .auth(adminToken, { type: 'bearer' })
+        .send({ requestId: submitReqId, channel: 'LOCAL_CLEARINGHOUSE' }),
+    ]);
+    expect([subA.status, subB.status]).toEqual([201, 201]);
+
+    const adjReqId = randomUUID();
+    const adjRes = await request(app.getHttpServer())
+      .post(`/rcm/claims/batches/${batch.id}/adjudicate`)
+      .auth(adminToken, { type: 'bearer' })
+      .send({
+        requestId: adjReqId,
+        decisions: [
+          {
+            claimId: claim1.id,
+            approvedAmount: '90.000',
+            adjustmentReason: 'تعرفة المقاصة الليبية',
+          },
+          {
+            claimId: claim2.id,
+            approvedAmount: '0.000',
+            denialCode: 'CO-50',
+            denialReason: 'خدمة غير مشمولة بالبروتوكول',
+          },
+        ],
+      })
+      .expect(201);
+
+    const adjBody = responseBody<{
+      status: string;
+      approvedAmount: string;
+      rejectedClaimsCount: number;
+      eraTransaction: { id: number; eraNumber: string; totalPaid: string };
+    }>(adjRes);
+    expect(adjBody.status).toBe('CLOSED');
+    expect(adjBody.approvedAmount).toBe('90.000');
+    expect(adjBody.rejectedClaimsCount).toBe(1);
+    expect(adjBody.eraTransaction.eraNumber).toBe(`ERA-CLH-${batch.id}`);
+
+    // Idempotent replay -> 201; conflicting adjudication -> 409; DB trigger immutability
+    await request(app.getHttpServer())
+      .post(`/rcm/claims/batches/${batch.id}/adjudicate`)
+      .auth(adminToken, { type: 'bearer' })
+      .send({
+        requestId: adjReqId,
+        decisions: [
+          { claimId: claim1.id, approvedAmount: '90.000' },
+          { claimId: claim2.id, approvedAmount: '0.000', denialCode: 'CO-50' },
+        ],
+      })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .post(`/rcm/claims/batches/${batch.id}/adjudicate`)
+      .auth(adminToken, { type: 'bearer' })
+      .send({
+        requestId: randomUUID(),
+        decisions: [
+          { claimId: claim1.id, approvedAmount: '100.000' },
+          { claimId: claim2.id, approvedAmount: '0.000', denialCode: 'CO-50' },
+        ],
+      })
+      .expect(409);
+
+    await expect(
+      db.claimBatch.delete({ where: { id: batch.id } }),
+    ).rejects.toThrow();
+    await expect(
+      db.claimBatch.update({
+        where: { id: batch.id },
+        data: { status: 'OPEN' },
+      }),
+    ).rejects.toThrow();
+
+    // Post auto-generated ERA financially -> ClaimReceipt & ledger updated atomically
+    await request(app.getHttpServer())
+      .post(`/rcm/claims/era/${adjBody.eraTransaction.id}/post`)
+      .auth(adminToken, { type: 'bearer' })
+      .send({
+        requestId: randomUUID(),
+        bankReference: `BANK-CLH-${uniqueSuffix}`,
+        confirmed: true,
+      })
+      .expect(201);
+
+    const updatedClaim1 = await db.claim.findUniqueOrThrow({
+      where: { id: claim1.id },
+    });
+    expect(updatedClaim1.status).toBe('PARTIALLY_PAID');
+    expect(Money.toDbString(updatedClaim1.paidAmount)).toBe('90.000');
+
+    const gatewayAudits = await db.auditLog.findMany({
+      where: { hospitalId },
+      select: { action: true },
+    });
+    const gwActions = new Set(gatewayAudits.map((a) => a.action));
+    expect(gwActions.has('PAYER_REVIEW_PREAUTH')).toBe(true);
+    expect(gwActions.has('SUBMIT_CLAIM_BATCH_CLEARINGHOUSE')).toBe(true);
+    expect(gwActions.has('ADJUDICATE_CLAIM_BATCH_CLEARINGHOUSE')).toBe(true);
+    expect(gwActions.has('POST_ERA_FINANCIAL_RECONCILIATION')).toBe(true);
+  });
 });

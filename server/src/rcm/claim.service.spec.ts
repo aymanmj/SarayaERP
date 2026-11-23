@@ -548,4 +548,47 @@ describe('ClaimScrubberService', () => {
 
     expect(errors).toHaveLength(0);
   });
+
+  it('should emit CROSS_HOSPITAL_MPI_DUPLICATE warning when same globalPatientId has a same-day claim in another hospital', async () => {
+    const queryRawMock = jest.fn().mockResolvedValue([{ cnt: BigInt(1) }]);
+    (mockPrisma as any).$queryRaw = queryRawMock;
+
+    try {
+      const claim = {
+        id: 12,
+        hospitalId: 1,
+        claimNumber: 'CLM-TEST-MPI',
+        claimedAmount: 120,
+        invoice: {
+          patient: {
+            id: 5,
+            globalPatientId: 777,
+            fullName: 'سالم المصراتي',
+            dateOfBirth: new Date('1989-02-02'),
+            gender: 'MALE',
+          },
+          insuranceProvider: { name: 'الصحاري للتأمين', isActive: true },
+          encounter: {
+            type: 'OPD',
+            createdAt: new Date('2026-11-23T09:00:00.000Z'),
+            encounterDiagnoses: [{ type: 'PRIMARY', code: 'J06.9' }],
+          },
+          charges: [{ id: 1, name: 'كشفية' }],
+        },
+      };
+
+      const results = await scrubber.scrub(claim as any);
+      expect(queryRawMock).toHaveBeenCalled();
+      expect(
+        results.some(
+          (r) =>
+            r.ruleCode === 'CROSS_HOSPITAL_MPI_DUPLICATE' &&
+            r.severity === 'WARNING' &&
+            r.field === 'patient.globalPatientId',
+        ),
+      ).toBe(true);
+    } finally {
+      delete (mockPrisma as any).$queryRaw;
+    }
+  });
 });

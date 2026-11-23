@@ -266,6 +266,54 @@ export class ClaimScrubberService {
       }
     }
 
+    // 3. كشف المطالبات العابرة للمستشفيات عبر السجل الوطني الموحد (MPI)
+    if (
+      claim.invoice?.patient?.globalPatientId &&
+      claim.invoice?.encounter?.createdAt &&
+      typeof (this.prisma as { $queryRaw?: unknown })?.$queryRaw === 'function'
+    ) {
+      const encounterDate = new Date(claim.invoice.encounter.createdAt);
+      const startOfUtcDay = new Date(
+        Date.UTC(
+          encounterDate.getUTCFullYear(),
+          encounterDate.getUTCMonth(),
+          encounterDate.getUTCDate(),
+          0,
+          0,
+          0,
+          0,
+        ),
+      );
+      const endOfUtcDay = new Date(
+        startOfUtcDay.getTime() + 24 * 60 * 60 * 1000,
+      );
+
+      const crossRows = await this.prisma.$queryRaw<Array<{ cnt: bigint }>>`
+        SELECT COUNT(*)::bigint AS cnt
+        FROM "Claim" c
+        JOIN "Invoice" i ON i.id = c."invoiceId"
+        JOIN "Patient" p ON p.id = i."patientId"
+        JOIN "Encounter" e ON e.id = i."encounterId"
+        WHERE p."globalPatientId" = ${claim.invoice.patient.globalPatientId}::integer
+          AND p."isDeleted" = false
+          AND c."hospitalId" <> ${claim.hospitalId ?? -1}::integer
+          AND c.id <> ${claim.id ?? -1}::integer
+          AND c.status NOT IN ('REJECTED', 'VOID')
+          AND e."createdAt" >= ${startOfUtcDay}
+          AND e."createdAt" < ${endOfUtcDay}
+      `;
+
+      if (Number(crossRows[0]?.cnt ?? 0) > 0) {
+        results.push({
+          ruleCode: 'CROSS_HOSPITAL_MPI_DUPLICATE',
+          severity: 'WARNING',
+          message:
+            'تحذير الشبكة الوطنية (MPI): توجد مطالبة تأمينية أخرى لنفس المريض في منشأة صحية أخرى بنفس اليوم',
+          field: 'patient.globalPatientId',
+        });
+      }
+    }
+
     return results;
   }
 

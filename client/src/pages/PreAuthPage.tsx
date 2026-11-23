@@ -8,6 +8,7 @@ import { formatDate } from "@/lib/utils";
 import { FeatureGuard } from "@/components/FeatureGuard";
 import { ShieldCheck, Upload, FileCheck, Loader2 } from "lucide-react";
 import { PreAuthAttachmentsDialog } from "./PreAuthAttachmentsDialog";
+import { Money } from "../utils/money";
 
 type PreAuthorization = {
   id: number;
@@ -53,6 +54,11 @@ type CoverageBalance = {
   cap: string | null;
   remainingAmount: string | null;
   requiresReconciliation: boolean;
+  mpiLinked?: boolean;
+  linkedHospitalsCount?: number;
+  otherHospitalsUsedAmount?: string;
+  networkUsedAmount?: string;
+  networkRemainingAmount?: string | null;
 };
 
 export default function PreAuthPage() {
@@ -516,6 +522,14 @@ export default function PreAuthPage() {
                         {t("preAuth.coverage.remaining", "رصيد التغطية المتبقي")}{" "}
                         <bdi>{coverageBalance.remainingAmount}</bdi>{" "}
                         {t("preAuth.coverage.currency", "د.ل.")}
+                        {coverageBalance.mpiLinked && coverageBalance.networkRemainingAmount != null && (
+                          <span className="ms-2 text-xs text-sky-300">
+                            ({t("preAuth.coverage.networkRemaining", "المتبقي بالشبكة الوطنية MPI")}: <bdi>{coverageBalance.networkRemainingAmount}</bdi>
+                            {coverageBalance.otherHospitalsUsedAmount && Money.decimal(coverageBalance.otherHospitalsUsedAmount).gt(0) && (
+                              <> · {t("preAuth.coverage.otherHospitalsUsed", "مستهلك بمستشفيات أخرى")}: <bdi>{coverageBalance.otherHospitalsUsedAmount}</bdi></>
+                            )})
+                          </span>
+                        )}
                       </>}
                 </p>
               )}

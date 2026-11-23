@@ -6395,7 +6395,9 @@
       "loadFailed": "Could not read the coverage balance.",
       "reconciliation": "Earlier invoices must be reconciled before the balance can be shown.",
       "remaining": "Remaining coverage",
-      "currency": "LYD"
+      "currency": "LYD",
+      "networkRemaining": "National MPI remaining",
+      "otherHospitalsUsed": "Used at other facilities"
     },
     "prescription": {
       "reference": "Prescription #{{id}}",
@@ -6634,6 +6636,28 @@
       "UNDERPAID": "Underpaid",
       "DENIED": "Denied",
       "UNMATCHED": "Unmatched"
+    },
+    "clearinghouse": {
+      "open": "National Clearinghouse & Payer Portal",
+      "title": "Claim Batches & Libya National Clearinghouse",
+      "empty": "No claim batches found.",
+      "providerSelect": "Insurance Provider",
+      "createBtn": "Create Batch from Scrubbed Claims",
+      "createdMsg": "Claim batch created for the national clearinghouse.",
+      "batchNumber": "Batch Number",
+      "totalAmount": "Total Batch Amount",
+      "submitBtn": "Submit to National Clearinghouse",
+      "submittedMsg": "Batch submitted to the national clearinghouse.",
+      "adjudicateBtn": "Adjudicate Batch & Generate ERA",
+      "adjudicatedMsg": "Batch adjudicated and ERA generated successfully.",
+      "approvedAmount": "Approved Amount",
+      "denialCode": "Denial Code",
+      "denialReason": "Denial Reason (optional)",
+      "generatedEra": "Generated ERA",
+      "retry": "Retry same clearinghouse action",
+      "status_OPEN": "Open (Ready to Submit)",
+      "status_SUBMITTED": "Submitted to Payer",
+      "status_CLOSED": "Closed & ERA Generated"
     },
     "withdrawal": {
       "status": "Withdrawn",

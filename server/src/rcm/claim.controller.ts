@@ -18,6 +18,7 @@ import {
   EraProcessingService,
   MONEY_INPUT_PATTERN,
 } from './era-processing.service';
+import { BatchSubmissionService } from './batch-submission.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Permissions } from '../auth/permissions.decorator';
 import { PermissionsGuard } from '../auth/permissions.guard';
@@ -31,11 +32,13 @@ import {
   Equals,
   IsArray,
   IsDateString,
+  IsIn,
   IsInt,
   IsOptional,
   IsString,
   IsUUID,
   Matches,
+  Max,
   MaxLength,
   Min,
   MinLength,
@@ -106,6 +109,40 @@ class PostEraFinancialDto {
   @Equals(true) confirmed!: boolean;
 }
 
+class CreateClaimBatchDto {
+  @IsInt() @Min(1) providerId!: number;
+  @IsOptional() @IsInt() @Min(1) @Max(200) maxClaims?: number;
+}
+
+class SubmitClaimBatchDto {
+  @IsOptional() @IsUUID('4') requestId?: string;
+  @IsOptional()
+  @IsIn(['LOCAL_CLEARINGHOUSE', 'NPHIES'])
+  channel?: 'LOCAL_CLEARINGHOUSE' | 'NPHIES';
+}
+
+class AdjudicateClaimDecisionDto {
+  @IsInt() @Min(1) claimId!: number;
+  @Transform(coerceMoneyInput)
+  @IsString()
+  @Matches(MONEY_INPUT_PATTERN)
+  approvedAmount!: string;
+  @IsOptional() @IsString() @MaxLength(100) denialCode?: string;
+  @IsOptional() @IsString() @MaxLength(500) denialReason?: string;
+  @IsOptional() @IsString() @MaxLength(500) adjustmentReason?: string;
+}
+
+class AdjudicateClaimBatchDto {
+  @IsUUID('4') requestId!: string;
+  @IsOptional() @IsDateString() paymentDate?: string;
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(200)
+  @ValidateNested({ each: true })
+  @Type(() => AdjudicateClaimDecisionDto)
+  decisions!: AdjudicateClaimDecisionDto[];
+}
+
 /**
  * واجهة تحكم دورة الإيرادات (Revenue Cycle Management)
  *
@@ -126,6 +163,7 @@ export class ClaimController {
     private claimService: ClaimService,
     private denialService: DenialManagementService,
     private eraService: EraProcessingService,
+    private batchService: BatchSubmissionService,
   ) {}
 
   // ============================================
@@ -470,6 +508,91 @@ export class ClaimController {
     @Body() data: PostEraFinancialDto,
   ) {
     return this.eraService.postEraFinancialSettlement(
+      user.hospitalId,
+      user.sub,
+      id,
+      data,
+    );
+  }
+
+  // ============================================
+  // National Clearinghouse Claim Batches
+  // ============================================
+
+  @ApiOperation({ summary: 'List clearinghouse claim batches' })
+  @Get('batches')
+  @Permissions('claims:read')
+  listBatches(
+    @CurrentUser() user: JwtPayload,
+    @Query('providerId') providerId?: string,
+    @Query('status') status?: string,
+  ) {
+    const parsedProviderId =
+      providerId &&
+      Number.isInteger(Number(providerId)) &&
+      Number(providerId) > 0
+        ? Number(providerId)
+        : undefined;
+    return this.batchService.listBatches(user.hospitalId, {
+      providerId: parsedProviderId,
+      status: status || undefined,
+    });
+  }
+
+  @ApiOperation({ summary: 'Get clearinghouse claim batch by ID' })
+  @Get('batches/:id')
+  @Permissions('claims:read')
+  getBatchById(
+    @CurrentUser() user: JwtPayload,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.batchService.getBatchById(user.hospitalId, id);
+  }
+
+  @ApiOperation({ summary: 'Create a claim batch for scrubbed claims' })
+  @Post('batches')
+  @Permissions('claims:update')
+  createBatch(
+    @CurrentUser() user: JwtPayload,
+    @Body() data: CreateClaimBatchDto,
+  ) {
+    return this.batchService.createBatch(
+      data.providerId,
+      data.maxClaims ?? 100,
+      user.hospitalId,
+    );
+  }
+
+  @ApiOperation({
+    summary: 'Submit claim batch through the national clearinghouse',
+  })
+  @Post('batches/:id/submit')
+  @Permissions('claims:update')
+  submitBatchToClearinghouse(
+    @CurrentUser() user: JwtPayload,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() data: SubmitClaimBatchDto,
+  ) {
+    return this.batchService.submitBatchToClearinghouse(
+      id,
+      user.sub,
+      user.hospitalId,
+      data,
+    );
+  }
+
+  @ApiOperation({
+    summary:
+      'Adjudicate submitted claim batch in Payer Portal and generate ERA',
+  })
+  @Post('batches/:id/adjudicate')
+  @Permissions('claims:update')
+  adjudicateBatchInClearinghouse(
+    @CurrentUser() user: JwtPayload,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() data: AdjudicateClaimBatchDto,
+  ) {
+    return this.batchService.adjudicateBatchInClearinghouse(
       user.hospitalId,
       user.sub,
       id,
