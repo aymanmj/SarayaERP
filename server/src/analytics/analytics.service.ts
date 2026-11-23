@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { Money } from '../common/utils/money.util';
 
 @Injectable()
 export class AnalyticsService {
@@ -33,22 +34,24 @@ export class AnalyticsService {
       },
     });
 
-    // 3. قيمة المخزون (Inventory Value)
-    // تجميع قيمة كل الأرصدة: الكمية * سعر التكلفة
+    // 3. قيمة المخزون (Inventory Value) بدقة Money مع استبعاد الأصناف المعطلة/المحذوفة
     const allStock = await this.prisma.productStock.findMany({
-      where: { hospitalId },
+      where: {
+        hospitalId,
+        product: { isActive: true, isDeleted: false },
+      },
       include: {
         product: { select: { costPrice: true } },
       },
     });
 
-    const inventoryValue = allStock.reduce((sum, item) => {
-      const qty = Number(item.quantity);
-      const cost = Number(item.product.costPrice);
-      return sum + qty * cost;
-    }, 0);
+    const inventoryValueDec = Money.sumDecimal(
+      ...allStock.map((item) =>
+        Money.multiply(item.quantity, item.product.costPrice),
+      ),
+    );
 
-    // 4. الإيرادات اليومية الفعلية (Actual Daily Revenue from Billing)
+    // 4. الإيرادات اليومية الفعلية (Actual Daily Revenue from Billing) بدقة Money
     const invoicesToday = await this.prisma.invoice.aggregate({
       _sum: { totalAmount: true },
       where: {
@@ -70,15 +73,20 @@ export class AnalyticsService {
     });
 
     // Revenue is Gross Billed amount minus Credit Notes
-    const grossRevenue = Number(invoicesToday._sum.totalAmount || 0);
-    const returnsValue = Number(creditNotesToday._sum.totalAmount || 0);
-    const actualRevenue = grossRevenue - returnsValue;
+    const grossRevenueDec = Money.decimal(invoicesToday._sum.totalAmount ?? 0);
+    const returnsValueDec = Money.decimal(
+      creditNotesToday._sum.totalAmount ?? 0,
+    );
+    const actualRevenueDec = Money.subtractDecimal(
+      grossRevenueDec,
+      returnsValueDec,
+    );
 
     return {
       dailyVisits,
       activeInpatients,
-      inventoryValue: Math.round(inventoryValue),
-      dailyRevenue: Math.round(actualRevenue),
+      inventoryValue: Money.toDb(inventoryValueDec),
+      dailyRevenue: Money.toDb(actualRevenueDec),
       lastUpdated: new Date(),
     };
   }

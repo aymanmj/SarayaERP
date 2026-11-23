@@ -382,10 +382,10 @@ export class BillingService {
         invoice.id,
         hospitalId,
         userId || 0,
-        Number(invoice.totalAmount),
+        Money.toDb(invoice.totalAmount),
         new Date(),
-        Number(invoice.patientShare),
-        Number(invoice.insuranceShare),
+        Money.toDb(invoice.patientShare),
+        Money.toDb(invoice.insuranceShare),
         invoice.insuranceProviderId ?? undefined,
       ),
     );

@@ -4,10 +4,13 @@ const FinancialDecimal = Decimal.clone({
   precision: 40,
   rounding: Decimal.ROUND_HALF_EVEN,
 });
+export const MONEY_SCALE = 3;
+export const UNIT_PRICE_SCALE = 4;
+export const RATE_SCALE = 6;
 export const OFFICIAL_CURRENCY = {
   code: "LYD",
   symbol: "د.ل",
-  decimals: 3,
+  decimals: MONEY_SCALE,
   nameAr: "دينار ليبي",
   subUnitNameAr: "درهم",
 } as const;
@@ -35,10 +38,34 @@ export class Money {
     return this.decimal(value).toFixed(decimals, Decimal.ROUND_HALF_EVEN);
   }
   static toDbString(value: Decimal.Value) {
-    const text = this.toFixed(value);
+    const text = this.toFixed(value, MONEY_SCALE);
     if (this.decimal(text).abs().gte("1000000000000000"))
       throw new RangeError("Amount exceeds Decimal(18,3)");
     return text;
+  }
+  static toUnitDbString(value: Decimal.Value) {
+    const text = this.toFixed(value, UNIT_PRICE_SCALE);
+    if (this.decimal(text).abs().gte("1000000000000000"))
+      throw new RangeError("Unit price/cost exceeds Decimal(19,4)");
+    return text;
+  }
+  static toRateDbString(value: Decimal.Value) {
+    const text = this.toFixed(value, RATE_SCALE);
+    if (this.decimal(text).abs().gte("10000000000000"))
+      throw new RangeError("Rate exceeds Decimal(19,6)");
+    return text;
+  }
+  static postedUnitLine(unitPrice: Decimal.Value, quantity: Decimal.Value) {
+    const unitPriceDb = this.toUnitDbString(unitPrice);
+    const quantityDb = this.toFixed(quantity, MONEY_SCALE);
+    const totalPriceDb = this.toDbString(
+      this.decimal(unitPriceDb).times(this.decimal(quantityDb)),
+    );
+    return {
+      unitPriceDb,
+      quantityDb,
+      totalPriceDb,
+    };
   }
   static sumPosted(...values: Decimal.Value[]) {
     return this.sumDecimal(...values.map((v) => this.toFixed(v)));
@@ -75,6 +102,22 @@ export function formatMoney(
     return includeSymbol
       ? `${formatted} ${OFFICIAL_CURRENCY.symbol}`
       : formatted;
+  } catch {
+    return "—";
+  }
+}
+export function formatUnitPrice(
+  unitPrice: number | string | null | undefined,
+  includeSymbol = true,
+): string {
+  return formatMoney(unitPrice, includeSymbol, UNIT_PRICE_SCALE);
+}
+export function formatRate(
+  rate: number | string | null | undefined,
+  decimals: number = RATE_SCALE,
+): string {
+  try {
+    return Money.toFixed(rate ?? 0, decimals);
   } catch {
     return "—";
   }

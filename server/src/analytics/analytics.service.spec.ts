@@ -208,4 +208,25 @@ describe('AnalyticsService', () => {
       expect(result.pathwayDeviations.totalSkippedTasks).toBe(1);
     });
   });
+
+  describe('getExecutiveStats', () => {
+    it('computes inventoryValue (from 4dp costPrice) and net dailyRevenue with 3dp Money precision', async () => {
+      mockPrisma.encounter.count
+        .mockResolvedValueOnce(12)
+        .mockResolvedValueOnce(4);
+      mockPrisma.productStock.findMany.mockResolvedValue([
+        { quantity: '300.000', product: { costPrice: '0.4167' } },
+        { quantity: '10.000', product: { costPrice: '2.5005' } },
+      ]);
+      mockPrisma.invoice.aggregate
+        .mockResolvedValueOnce({ _sum: { totalAmount: '500.375' } })
+        .mockResolvedValueOnce({ _sum: { totalAmount: '50.125' } });
+
+      const stats = await service.getExecutiveStats(1);
+      // 300 * 0.4167 = 125.010; 10 * 2.5005 = 25.005 => 150.015 LYD (no Math.round truncation!)
+      expect(stats.inventoryValue).toBe(150.015);
+      // 500.375 - 50.125 = 450.250 LYD
+      expect(stats.dailyRevenue).toBe(450.25);
+    });
+  });
 });

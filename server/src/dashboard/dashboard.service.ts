@@ -8,6 +8,7 @@ import {
   EncounterType,
   AdmissionStatus,
 } from '@prisma/client';
+import { Money } from '../common/utils/money.util';
 
 @Injectable()
 export class DashboardService {
@@ -183,15 +184,15 @@ export class DashboardService {
         }),
       ]);
 
-      todayRevenue = Number(revenueAgg._sum.amount ?? 0);
-      lastMonthRevenue = Number(lastMonthRevenueAgg._sum.amount ?? 0);
+      todayRevenue = Money.toDb(revenueAgg._sum.amount ?? 0);
+      lastMonthRevenue = Money.toDb(lastMonthRevenueAgg._sum.amount ?? 0);
     }
 
     const occupancyRate =
       totalBeds > 0 ? Math.round((occupiedBeds / totalBeds) * 100) : 0;
 
-    // حساب قيمة المخزون (الكمية × التكلفة)
-    const inventoryValueCalc = Number(inventoryValue[0]?.value || 0);
+    // حساب قيمة المخزون (الكمية × التكلفة) بدقة Money
+    const inventoryValueCalc = Money.toDb(inventoryValue[0]?.value ?? 0);
 
     // 3. بيانات الأسبوعي للمخططات
     const weeklyTrend = await this.getWeeklyTrend(hospitalId, weekStart);
@@ -266,9 +267,9 @@ export class DashboardService {
       };
     });
 
-    // 9. ✅ [NEW] معدل نمو الإيرادات الشهري
-    const currentMonthRevenue = hasRevenueAccess
-      ? Number(
+    // 9. ✅ [NEW] معدل نمو الإيرادات الشهري بدقة Money
+    const currentMonthRevenueDec = hasRevenueAccess
+      ? Money.decimal(
           (
             await this.prisma.payment.aggregate({
               where: {
@@ -280,15 +281,19 @@ export class DashboardService {
             })
           )._sum.amount ?? 0,
         )
-      : 0;
+      : Money.decimal(0);
+
+    const currentMonthRevenue = Money.toDb(currentMonthRevenueDec);
 
     const revenueGrowthRate =
       lastMonthRevenue > 0
-        ? Math.round(
-            ((currentMonthRevenue - lastMonthRevenue) / lastMonthRevenue) *
-              100 *
-              10,
-          ) / 10
+        ? Money.round(
+            Money.divide(
+              Money.subtractDecimal(currentMonthRevenueDec, lastMonthRevenue),
+              lastMonthRevenue,
+            ).mul(100),
+            1,
+          )
         : 0;
 
     return {
@@ -371,7 +376,7 @@ export class DashboardService {
 
       days.push({
         day: dayNames[i],
-        revenue: Number(revenue._sum.amount ?? 0),
+        revenue: Money.toDb(revenue._sum.amount ?? 0),
         visits,
         admissions,
       });
@@ -437,7 +442,7 @@ export class DashboardService {
 
         return {
           name: dept.name,
-          value: Number(revenue._sum.amount || 0),
+          value: Money.toDb(revenue._sum.amount ?? 0),
           color: colors[departments.indexOf(dept) % colors.length],
           patients: patientCount,
         };

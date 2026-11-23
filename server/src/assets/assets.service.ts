@@ -11,8 +11,8 @@ import {
   MaintenanceType,
   TicketStatus,
   AccountingSourceModule,
-  Prisma,
 } from '@prisma/client';
+import { Money } from '../common/utils/money.util';
 
 @Injectable()
 export class AssetsService {
@@ -39,12 +39,33 @@ export class AssetsService {
     departmentId?: number;
     roomId?: number;
   }) {
+    // التحقق من صحة التكلفة والخردة والعمر الإنتاجي
+    const purchaseCostDec = Money.decimal(data.purchaseCost);
+    const salvageValueDec = Money.decimal(data.salvageValue ?? 0);
+    if (
+      purchaseCostDec.lt(0) ||
+      salvageValueDec.lt(0) ||
+      salvageValueDec.gt(purchaseCostDec)
+    ) {
+      throw new BadRequestException(
+        'تكلفة الشراء وقيمة الخردة يجب أن تكون غير سالبة ولا تتجاوز الخردة تكلفة الأصل.',
+      );
+    }
+    if (!Number.isInteger(data.usefulLifeYears) || data.usefulLifeYears <= 0) {
+      throw new BadRequestException(
+        'العمر الإنتاجي للأصل يجب أن يكون عدداً صحيحاً موجباً.',
+      );
+    }
+
     // التحقق من تكرار الكود
     const exists = await this.prisma.asset.findUnique({
       where: { tagNumber: data.tagNumber },
     });
     if (exists)
       throw new BadRequestException('كود الأصل (Tag Number) مستخدم مسبقاً.');
+
+    const purchaseCostDb = Money.toDbString(purchaseCostDec);
+    const salvageValueDb = Money.toDbString(salvageValueDec);
 
     return this.prisma.asset.create({
       data: {
@@ -53,12 +74,12 @@ export class AssetsService {
         tagNumber: data.tagNumber,
         serialNumber: data.serialNumber,
         purchaseDate: data.purchaseDate,
-        purchaseCost: data.purchaseCost,
+        purchaseCost: purchaseCostDb,
         usefulLifeYears: data.usefulLifeYears,
-        salvageValue: data.salvageValue ?? 0,
+        salvageValue: salvageValueDb,
 
         // القيمة الأولية تساوي تكلفة الشراء
-        currentValue: data.purchaseCost,
+        currentValue: purchaseCostDb,
 
         departmentId: data.departmentId,
         roomId: data.roomId,
@@ -141,55 +162,97 @@ export class AssetsService {
 
       try {
         await this.prisma.$transaction(async (tx) => {
-          // معادلة القسط الثابت (Straight Line)
+          if (typeof tx.$queryRaw === 'function') {
+            await tx.$queryRaw`
+              SELECT id FROM "Asset"
+              WHERE id = ${asset.id} AND "hospitalId" = ${hospitalId}
+              FOR UPDATE
+            `;
+          }
+
+          const duplicate = await tx.assetDepreciation.findFirst({
+            where: {
+              assetId: asset.id,
+              financialYearId: financialYear.id,
+              periodId: period.id,
+            },
+            select: { id: true },
+          });
+          if (duplicate) return;
+
+          const lockedAsset = await tx.asset.findFirst({
+            where: { id: asset.id, hospitalId, status: AssetStatus.IN_SERVICE },
+          });
+          if (!lockedAsset) return;
+
+          // معادلة القسط الثابت (Straight Line) بدقة Money (ROUND_HALF_EVEN)
           // القسط الشهري = (التكلفة - الخردة) / (العمر * 12)
-          const cost = Number(asset.purchaseCost);
-          const salvage = Number(asset.salvageValue);
-          const years = asset.usefulLifeYears;
+          const costDec = Money.decimal(lockedAsset.purchaseCost);
+          const salvageDec = Money.decimal(lockedAsset.salvageValue);
+          const years = lockedAsset.usefulLifeYears;
 
-          if (years === 0) return; // حماية من القسمة على صفر
+          if (years <= 0) return; // حماية من القسمة على صفر
 
-          const monthlyDepreciation = (cost - salvage) / (years * 12);
+          const depreciableBaseDec = Money.subtractDecimal(costDec, salvageDec);
+          if (!depreciableBaseDec.gt(0)) return;
 
-          // التأكد أننا لا نخصم أكثر من القيمة المتبقية
-          const currentVal = Number(asset.currentValue);
-          const actualDeduction = Math.min(
-            monthlyDepreciation,
-            currentVal - salvage,
+          const monthlyDepreciationDec = Money.divide(
+            depreciableBaseDec,
+            years * 12,
           );
 
-          if (actualDeduction <= 0) return; // الأصل تم إهلاكه بالكامل
+          // التأكد أننا لا نخصم أكثر من القيمة المتبقية
+          const currentValDec = Money.decimal(lockedAsset.currentValue);
+          const remainingDepreciableDec = Money.subtractDecimal(
+            currentValDec,
+            salvageDec,
+          );
+          if (!remainingDepreciableDec.gt(0)) return;
 
-          const newBookValue = currentVal - actualDeduction;
+          const actualDeductionDec = Money.roundDecimal(
+            Money.minDecimal(monthlyDepreciationDec, remainingDepreciableDec),
+            3,
+          );
+
+          if (!actualDeductionDec.gt(0)) return; // الأصل تم إهلاكه بالكامل
+
+          const newBookValueDec = Money.subtractDecimal(
+            currentValDec,
+            actualDeductionDec,
+          );
+          const actualDeductionDb = Money.toDbString(actualDeductionDec);
+          const newBookValueDb = Money.toDbString(newBookValueDec);
 
           // أ) تحديث قيمة الأصل
           await tx.asset.update({
-            where: { id: asset.id },
-            data: { currentValue: newBookValue },
+            where: { id: lockedAsset.id },
+            data: { currentValue: newBookValueDb },
           });
 
-          // ب) إنشاء قيد محاسبي
+          // ب) إنشاء قيد محاسبي محمي بمفتاح عدم تكرار
           const entry = await tx.accountingEntry.create({
             data: {
               hospitalId,
               financialYearId: financialYear.id,
               financialPeriodId: period.id,
               entryDate: date,
-              description: `إهلاك أصل ثابت: ${asset.name} (${asset.tagNumber})`,
-              sourceModule: AccountingSourceModule.MANUAL, // أو نضيف ASSETS للـ Enum
+              description: `إهلاك أصل ثابت: ${lockedAsset.name} (${lockedAsset.tagNumber})`,
+              sourceModule: AccountingSourceModule.MANUAL,
+              sourceId: lockedAsset.id,
+              postingKey: `asset-depreciation:${hospitalId}:${lockedAsset.id}:${financialYear.id}:${period.id}`,
               createdById: userId,
               lines: {
                 create: [
                   {
                     accountId: expenseAccount.id,
-                    debit: actualDeduction,
-                    credit: 0,
+                    debit: actualDeductionDb,
+                    credit: '0.000',
                     description: 'مصروف إهلاك شهري',
                   },
                   {
                     accountId: accumulatedAccount.id,
-                    debit: 0,
-                    credit: actualDeduction,
+                    debit: '0.000',
+                    credit: actualDeductionDb,
                     description: 'مجمع إهلاك',
                   },
                 ],
@@ -201,11 +264,11 @@ export class AssetsService {
           await tx.assetDepreciation.create({
             data: {
               hospitalId,
-              assetId: asset.id,
+              assetId: lockedAsset.id,
               financialYearId: financialYear.id,
               periodId: period.id,
-              amount: actualDeduction,
-              bookValueAfter: newBookValue,
+              amount: actualDeductionDb,
+              bookValueAfter: newBookValueDb,
               accountingEntryId: entry.id,
               createdById: userId,
             },
@@ -213,9 +276,10 @@ export class AssetsService {
 
           processedCount++;
         });
-      } catch (err: any) {
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
         this.logger.error(`Error depreciating asset ${asset.id}`, err);
-        errors.push(`Asset #${asset.tagNumber}: ${err.message}`);
+        errors.push(`Asset #${asset.tagNumber}: ${message}`);
       }
     }
 
@@ -239,22 +303,32 @@ export class AssetsService {
     priority: string;
     issueDescription: string;
   }) {
-    // تغيير حالة الأصل إلى "تحت الصيانة"
-    await this.prisma.asset.update({
-      where: { id: data.assetId },
-      data: { status: AssetStatus.UNDER_MAINTENANCE },
-    });
+    return this.prisma.$transaction(async (tx) => {
+      const asset = await tx.asset.findFirst({
+        where: { id: data.assetId, hospitalId: data.hospitalId },
+        select: { id: true },
+      });
+      if (!asset) {
+        throw new NotFoundException('الأصل غير موجود ضمن هذه المنشأة.');
+      }
 
-    return this.prisma.maintenanceTicket.create({
-      data: {
-        hospitalId: data.hospitalId,
-        assetId: data.assetId,
-        requestedBy: data.userId,
-        type: data.type,
-        priority: data.priority,
-        issueDescription: data.issueDescription,
-        status: TicketStatus.OPEN,
-      },
+      // تغيير حالة الأصل إلى "تحت الصيانة"
+      await tx.asset.update({
+        where: { id: asset.id },
+        data: { status: AssetStatus.UNDER_MAINTENANCE },
+      });
+
+      return tx.maintenanceTicket.create({
+        data: {
+          hospitalId: data.hospitalId,
+          assetId: asset.id,
+          requestedBy: data.userId,
+          type: data.type,
+          priority: data.priority,
+          issueDescription: data.issueDescription,
+          status: TicketStatus.OPEN,
+        },
+      });
     });
   }
 
@@ -278,39 +352,42 @@ export class AssetsService {
     cost: number;
     newStatus: TicketStatus; // RESOLVED or CLOSED
   }) {
-    const { ticketId, notes, cost, newStatus } = params;
+    const { hospitalId, ticketId, notes, cost, newStatus } = params;
+    const costDec = Money.decimal(cost ?? 0);
+    if (costDec.lt(0)) {
+      throw new BadRequestException('تكلفة الصيانة لا يمكن أن تكون سالبة.');
+    }
 
     return this.prisma.$transaction(async (tx) => {
-      const ticket = await tx.maintenanceTicket.findUnique({
-        where: { id: ticketId },
+      const ticket = await tx.maintenanceTicket.findFirst({
+        where: { id: ticketId, hospitalId },
       });
-      if (!ticket) throw new NotFoundException('التذكرة غير موجودة');
+      if (!ticket) {
+        throw new NotFoundException('التذكرة غير موجودة ضمن هذه المنشأة');
+      }
 
-      // تحديث التذكرة
+      // تحديث التذكرة بدقة Money
       const updated = await tx.maintenanceTicket.update({
-        where: { id: ticketId },
+        where: { id: ticket.id },
         data: {
           status: newStatus,
           technicianNotes: notes,
-          cost,
+          cost: Money.toDbString(costDec),
           completedAt: new Date(),
           assignedTo: params.userId, // الذي قام بالحل
         },
       });
 
-      // إذا أغلقت التذكرة، نعيد الأصل للخدمة
+      // إذا أغلقت التذكرة، نعيد الأصل للخدمة ضمن نفس المنشأة
       if (
         newStatus === TicketStatus.CLOSED ||
         newStatus === TicketStatus.RESOLVED
       ) {
-        await tx.asset.update({
-          where: { id: ticket.assetId },
+        await tx.asset.updateMany({
+          where: { id: ticket.assetId, hospitalId },
           data: { status: AssetStatus.IN_SERVICE },
         });
       }
-
-      // إذا كان هناك تكلفة، يمكننا إنشاء قيد مصروف صيانة هنا (اختياري)
-      // ... (code for maintenance expense entry) ...
 
       return updated;
     });
