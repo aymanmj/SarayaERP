@@ -3,7 +3,8 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CommissionService } from '../commission/commission.service';
-import { InvoiceStatus, ServiceType } from '@prisma/client';
+import { ServiceType } from '@prisma/client';
+import { Money, type FinancialDecimal } from '../common/utils/money.util';
 
 @Injectable()
 export class ReportsService {
@@ -14,55 +15,73 @@ export class ReportsService {
 
   /**
    * 📊 الملخص المالي التنفيذي (Cash Flow)
-   * يحسب (الإيرادات المحصلة فعلياً) مقابل (المصروفات المعتمدة)
+   * يحسب (صافي الإيرادات المحصلة فعلياً بعد خصم المرتجعات المنفّذة) مقابل (المصروفات المعتمدة) بدقة Money
    */
   async getFinancialSummary(hospitalId: number, year: number) {
     const months = Array.from({ length: 12 }, (_, i) => i + 1);
 
     return await Promise.all(
       months.map(async (month) => {
-        const startDate = new Date(year, month - 1, 1);
-        const endDate = new Date(year, month, 0, 23, 59, 59);
+        const startDate = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0, 0));
+        const endDate = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
 
-        // 1. الإيرادات المحصلة فعلياً (من جدول Payments)
-        const revenue = await this.prisma.payment.aggregate({
-          where: {
-            hospitalId,
-            paidAt: { gte: startDate, lte: endDate },
-          },
-          _sum: { amount: true },
-        });
+        // 1. الإيرادات المحصلة فعلياً (من جدول Payments) ناقص المرتجعات المنفّذة (InvoiceRefund)
+        const [revenue, refunds, purchases, payroll] = await Promise.all([
+          this.prisma.payment.aggregate({
+            where: {
+              hospitalId,
+              paidAt: { gte: startDate, lte: endDate },
+            },
+            _sum: { amount: true },
+          }),
+          this.prisma.invoiceRefund.aggregate({
+            where: {
+              hospitalId,
+              status: 'EXECUTED',
+              executedAt: { gte: startDate, lte: endDate },
+            },
+            _sum: { amount: true },
+          }),
+          this.prisma.purchaseInvoice.aggregate({
+            where: {
+              hospitalId,
+              status: 'APPROVED',
+              invoiceDate: { gte: startDate, lte: endDate },
+            },
+            _sum: { netAmount: true },
+          }),
+          this.prisma.payrollRun.aggregate({
+            where: {
+              hospitalId,
+              year,
+              month,
+              status: 'APPROVED',
+            },
+            _sum: { totalNet: true },
+          }),
+        ]);
 
-        // 2. المصروفات (مشتريات معتمدة + رواتب معتمدة)
-        const purchases = await this.prisma.purchaseInvoice.aggregate({
-          where: {
-            hospitalId,
-            status: 'APPROVED',
-            invoiceDate: { gte: startDate, lte: endDate },
-          },
-          _sum: { netAmount: true },
-        });
-
-        const payroll = await this.prisma.payrollRun.aggregate({
-          where: {
-            hospitalId,
-            year,
-            month,
-            status: 'APPROVED',
-          },
-          _sum: { totalNet: true },
-        });
-
-        const totalRevenue = Number(revenue._sum.amount || 0);
-        const totalExpense =
-          Number(purchases._sum.netAmount || 0) +
-          Number(payroll._sum.totalNet || 0);
+        const totalRevenueDec = Money.subtractDecimal(
+          revenue._sum.amount ?? 0,
+          refunds._sum.amount ?? 0,
+        );
+        const totalExpenseDec = Money.addDecimal(
+          purchases._sum.netAmount ?? 0,
+          payroll._sum.totalNet ?? 0,
+        );
+        const profitDec = Money.subtractDecimal(
+          totalRevenueDec,
+          totalExpenseDec,
+        );
 
         return {
-          name: startDate.toLocaleString('ar-LY', { month: 'short' }),
-          revenue: totalRevenue,
-          expense: totalExpense,
-          profit: totalRevenue - totalExpense,
+          name: startDate.toLocaleString('ar-LY', {
+            month: 'short',
+            timeZone: 'UTC',
+          }),
+          revenue: Money.toDb(totalRevenueDec),
+          expense: Money.toDb(totalExpenseDec),
+          profit: Money.toDb(profitDec),
         };
       }),
     );
@@ -105,19 +124,22 @@ export class ReportsService {
       include: { category: true },
     });
 
-    const composition = new Map<string, number>();
+    const composition = new Map<string, FinancialDecimal>();
     revenueByService.forEach((item) => {
       const srv = services.find((s) => s.id === item.serviceItemId);
       const catName = srv?.category?.name || 'خدمات عامة';
       composition.set(
         catName,
-        (composition.get(catName) || 0) + Number(item._sum.totalAmount),
+        Money.addDecimal(
+          composition.get(catName) ?? Money.decimal(0),
+          item._sum.totalAmount ?? 0,
+        ),
       );
     });
 
     return {
       revenueByService: Array.from(composition.entries()).map(
-        ([name, value]) => ({ name, value }),
+        ([name, value]) => ({ name, value: Money.toDb(value) }),
       ),
     };
   }
@@ -240,10 +262,10 @@ export class ReportsService {
       },
       _sum: { totalAmount: true },
     });
-    const revenueMap = new Map<number, number>();
+    const revenueMap = new Map<number, FinancialDecimal>();
     revenueByDoctor.forEach((r) => {
       if (r.performerId) {
-        revenueMap.set(r.performerId, Number(r._sum.totalAmount || 0));
+        revenueMap.set(r.performerId, Money.decimal(r._sum.totalAmount ?? 0));
       }
     });
 
@@ -285,8 +307,8 @@ export class ReportsService {
       }),
     );
 
-    // Build results
-    let totalRevenue = 0;
+    // Build results with exact Money precision (3 decimals for LYD, ROUND_HALF_EVEN)
+    let totalRevenueDec: FinancialDecimal = Money.decimal(0);
     let totalSurgeries = 0;
     let totalEncounters = 0;
 
@@ -297,15 +319,19 @@ export class ReportsService {
       const admissionCount =
         admissions.find((a) => a.admittingDoctorId === docId)?._count?.id || 0;
       const surgeryCount = surgeryCountMap.get(docId) || 0;
-      const revenue = revenueMap.get(docId) || 0;
+      const revenueDec = revenueMap.get(docId) ?? Money.decimal(0);
 
       // Commission rate: CommissionRule system first, then User.commissionRate as fallback
       const ruleRate = commissionRateMap.get(docId) || 0;
-      const userRate = Number(user?.commissionRate || 0);
+      const userRateDec = Money.decimal(user?.commissionRate ?? 0);
       // ruleRate is already 0-100 (percentage), userRate is 0-1 (fraction)
-      const commissionPct = ruleRate > 0 ? ruleRate : userRate * 100;
-      const doctorCommission =
-        commissionPct > 0 ? Math.round(revenue * commissionPct) / 100 : 0;
+      const commissionPctDec =
+        ruleRate > 0
+          ? Money.decimal(ruleRate)
+          : Money.multiply(userRateDec, 100);
+      const doctorCommissionDec = commissionPctDec.gt(0)
+        ? Money.percentDecimal(revenueDec, commissionPctDec)
+        : Money.decimal(0);
 
       // Avg consultation
       const durations = durationMap.get(docId) || [];
@@ -314,20 +340,20 @@ export class ReportsService {
           ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length)
           : 0;
 
-      totalRevenue += revenue;
+      totalRevenueDec = Money.addDecimal(totalRevenueDec, revenueDec);
       totalSurgeries += surgeryCount;
       totalEncounters += encounters;
 
       return {
         id: docId,
         fullName: user?.fullName || 'غير معروف',
-        specialty: (user?.specialty as any)?.name || '—',
+        specialty: user?.specialty?.name || '—',
         totalEncounters: encounters,
         totalAdmissions: admissionCount,
         totalSurgeries: surgeryCount,
-        totalRevenue: Math.round(revenue * 100) / 100,
-        commissionRate: Math.round(commissionPct * 100) / 100,
-        doctorCommission: Math.round(doctorCommission * 100) / 100,
+        totalRevenue: Money.toDb(revenueDec),
+        commissionRate: Money.toDb(commissionPctDec),
+        doctorCommission: Money.toDb(doctorCommissionDec),
         avgConsultationMins,
       };
     });
@@ -339,7 +365,7 @@ export class ReportsService {
       doctors,
       summary: {
         totalEncounters,
-        totalRevenue: Math.round(totalRevenue * 100) / 100,
+        totalRevenue: Money.toDb(totalRevenueDec),
         totalSurgeries,
         activeDoctors: doctors.length,
       },
@@ -383,13 +409,22 @@ export class ReportsService {
     });
     const serviceItemMap = new Map(serviceItems.map((s) => [s.id, s]));
 
-    // Aggregate by service type
-    const typeAgg = new Map<string, { revenue: number; count: number }>();
+    // Aggregate by service type with Money
+    const typeAgg = new Map<
+      string,
+      { revenue: FinancialDecimal; count: number }
+    >();
     for (const row of byServiceType) {
       const si = serviceItemMap.get(row.serviceItemId);
       const type = si?.type || 'OTHER';
-      const existing = typeAgg.get(type) || { revenue: 0, count: 0 };
-      existing.revenue += Number(row._sum.totalAmount || 0);
+      const existing = typeAgg.get(type) ?? {
+        revenue: Money.decimal(0),
+        count: 0,
+      };
+      existing.revenue = Money.addDecimal(
+        existing.revenue,
+        row._sum.totalAmount ?? 0,
+      );
       existing.count += row._count._all;
       typeAgg.set(type, existing);
     }
@@ -408,7 +443,7 @@ export class ReportsService {
       .map(([type, data]) => ({
         type,
         label: typeLabels[type] || type,
-        revenue: Math.round(data.revenue * 100) / 100,
+        revenue: Money.toDb(data.revenue),
         count: data.count,
       }))
       .sort((a, b) => b.revenue - a.revenue);
@@ -430,15 +465,20 @@ export class ReportsService {
       },
     });
 
-    const specialtyAgg = new Map<string, { revenue: number; count: number }>();
+    const specialtyAgg = new Map<
+      string,
+      { revenue: FinancialDecimal; count: number }
+    >();
     for (const charge of chargesWithPerformer) {
-      const specialtyName =
-        (charge.performer as any)?.specialty?.name || 'غير محدد';
-      const existing = specialtyAgg.get(specialtyName) || {
-        revenue: 0,
+      const specialtyName = charge.performer?.specialty?.name || 'غير محدد';
+      const existing = specialtyAgg.get(specialtyName) ?? {
+        revenue: Money.decimal(0),
         count: 0,
       };
-      existing.revenue += Number(charge.totalAmount || 0);
+      existing.revenue = Money.addDecimal(
+        existing.revenue,
+        charge.totalAmount ?? 0,
+      );
       existing.count += 1;
       specialtyAgg.set(specialtyName, existing);
     }
@@ -446,20 +486,20 @@ export class ReportsService {
     const bySpecialty = Array.from(specialtyAgg.entries())
       .map(([specialty, data]) => ({
         specialty,
-        revenue: Math.round(data.revenue * 100) / 100,
+        revenue: Money.toDb(data.revenue),
         count: data.count,
       }))
       .sort((a, b) => b.revenue - a.revenue);
 
     // 3. Total
-    const totalRevenue = byType.reduce((s, r) => s + r.revenue, 0);
+    const totalRevenue = Money.sum(...byType.map((r) => r.revenue));
     const totalCount = byType.reduce((s, r) => s + r.count, 0);
 
     return {
       byServiceType: byType,
       bySpecialty,
       total: {
-        revenue: Math.round(totalRevenue * 100) / 100,
+        revenue: totalRevenue,
         count: totalCount,
       },
     };

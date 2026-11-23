@@ -8,7 +8,7 @@ import {
   netPaidAmount,
 } from '../billing/invoice-snapshot';
 import { lockFinancialInvoice } from '../accounting/financial-posting';
-import { Money } from '../common/utils/money.util';
+import { Money, type FinancialDecimal } from '../common/utils/money.util';
 import { appendChainedAuditInTransaction } from '../audit/audit-chain';
 import { publishCommittedCriticalAudit } from '../audit/siem.logger';
 import {
@@ -488,9 +488,9 @@ export class CashierService {
 
     if (!invoice) throw new NotFoundException('الفاتورة غير موجودة.');
 
-    const totalAmount = Number(invoice.totalAmount);
-    const discountAmount = Number(invoice.discountAmount);
-    const paidAmount = Number(invoice.paidAmount);
+    const totalAmount = Money.toDb(invoice.totalAmount);
+    const discountAmount = Money.toDb(invoice.discountAmount);
+    const paidAmount = Money.toDb(invoice.paidAmount);
     const correctedShare = effectivePatientShare(invoice);
     const correctedInsuranceShare = effectiveInsuranceShare(invoice);
     const remainingAmount = Money.toDb(
@@ -532,8 +532,8 @@ export class CashierService {
         serviceCode: ch.serviceItem?.code ?? null,
         serviceType: ch.serviceItem?.type ?? null,
         quantity: Number(ch.quantity ?? 1),
-        unitPrice: Number(ch.unitPrice),
-        totalAmount: Number(ch.totalAmount),
+        unitPrice: Money.toDb(ch.unitPrice ?? 0),
+        totalAmount: Money.toDb(ch.totalAmount ?? 0),
       };
 
       if (ch.sourceType === ChargeSource.PHARMACY && ch.sourceId) {
@@ -542,8 +542,8 @@ export class CashierService {
           (it: any): PharmacyInvoiceItemDto => ({
             id: it.id,
             quantity: Number(it.quantity),
-            unitPrice: Number(it.unitPrice),
-            totalAmount: Number(it.totalAmount),
+            unitPrice: Money.toDb(it.unitPrice ?? 0),
+            totalAmount: Money.toDb(it.totalAmount ?? 0),
             isSubstitute:
               it.prescriptionItem &&
               it.productId !== it.prescriptionItem.productId,
@@ -571,7 +571,7 @@ export class CashierService {
           ),
         ),
         netPaidAmount: Money.toDb(netPaidAmount(invoice)),
-        originalPatientShare: Number(invoice.patientShare),
+        originalPatientShare: Money.toDb(invoice.patientShare),
         adjustmentAmount: Money.toDb(
           totalInvoiceAdjustment(invoice.adjustments ?? []),
         ),
@@ -587,7 +587,6 @@ export class CashierService {
   }
 
   // ... (بقية الدوال: getPatientStatement, getPaymentReceipt, getDailyReport, listCashierUsers, getCashierUserReport, closeCashierShift, listCashierShifts)
-  // يرجى نسخها كما كانت في النسخة السابقة، لم تتطلب تعديلات.
   async getPatientStatement(hospitalId: number, patientId: number) {
     const patient = await this.prisma.patient.findFirst({
       where: { id: patientId, hospitalId },
@@ -629,18 +628,22 @@ export class CashierService {
     });
     const invoiceDtos = invoices.map((inv) => {
       const correction = totalInvoiceAdjustment(inv.adjustments ?? []);
-      const t = Money.fromPrisma(Money.sumDecimal(inv.totalAmount, correction));
-      const d = Number(inv.discountAmount);
-      const p = Money.toDb(netPaidAmount(inv));
+      const totalDec = Money.sumDecimal(inv.totalAmount, correction);
+      const discountDec = Money.decimal(inv.discountAmount ?? 0);
+      const paidDec = netPaidAmount(inv);
+      const remainingDec = Money.subtractDecimal(
+        Money.subtractDecimal(totalDec, discountDec),
+        paidDec,
+      );
       return {
         id: inv.id,
         status: inv.status,
-        totalAmount: t,
-        originalTotalAmount: Number(inv.totalAmount),
+        totalAmount: Money.toDb(totalDec),
+        originalTotalAmount: Money.toDb(inv.totalAmount),
         adjustmentAmount: Money.toDb(correction),
-        discountAmount: d,
-        paidAmount: p,
-        remainingAmount: t - d - p,
+        discountAmount: Money.toDb(discountDec),
+        paidAmount: Money.toDb(paidDec),
+        remainingAmount: Money.toDb(remainingDec),
         createdAt: inv.createdAt,
         encounter: inv.encounter,
       };
@@ -649,31 +652,41 @@ export class CashierService {
     const paymentDtos = payments.map((p) => ({
       id: p.id,
       invoiceId: p.invoiceId,
-      amount: Number(p.amount),
+      amount: Money.toDb(p.amount),
       method: p.method,
       reference: p.reference,
       paidAt: p.paidAt,
       invoice: p.invoice,
     }));
 
-    // حساب الإجماليات
-    const totalInvoiced = invoiceDtos.reduce((s, i) => s + i.totalAmount, 0);
-    const totalDiscount = invoiceDtos.reduce((s, i) => s + i.discountAmount, 0);
-    const totalPaid = invoiceDtos.reduce((s, i) => s + i.paidAmount, 0);
+    // حساب الإجماليات بدقة Money
+    const totalInvoicedDec = Money.sumDecimal(
+      ...invoiceDtos.map((i) => i.totalAmount),
+    );
+    const totalDiscountDec = Money.sumDecimal(
+      ...invoiceDtos.map((i) => i.discountAmount),
+    );
+    const totalPaidDec = Money.sumDecimal(
+      ...invoiceDtos.map((i) => i.paidAmount),
+    );
+    const remainingDec = Money.subtractDecimal(
+      Money.subtractDecimal(totalInvoicedDec, totalDiscountDec),
+      totalPaidDec,
+    );
 
     return {
       patient,
       summary: {
-        totalInvoiced,
-        totalDiscount,
-        totalPaid,
+        totalInvoiced: Money.toDb(totalInvoicedDec),
+        totalDiscount: Money.toDb(totalDiscountDec),
+        totalPaid: Money.toDb(totalPaidDec),
         grossCollected: Money.toDb(
           Money.sumDecimal(...payments.map((p) => p.amount)),
         ),
         totalRefunded: Money.toDb(
           Money.sumDecimal(...refundRows.map((p) => p.amount)),
         ),
-        remaining: totalInvoiced - totalDiscount - totalPaid,
+        remaining: Money.toDb(remainingDec),
       },
       invoices: invoiceDtos,
       payments: paymentDtos,
@@ -692,6 +705,10 @@ export class CashierService {
               where: { status: 'POSTED' },
               select: { delta: true },
             },
+            refunds: {
+              where: { status: 'EXECUTED' },
+              select: { amount: true },
+            },
             encounter: { select: { id: true, type: true } },
           },
         },
@@ -701,15 +718,22 @@ export class CashierService {
     if (!payment) throw new NotFoundException('الدفعة غير موجودة.');
     const inv = payment.invoice;
 
-    const totalAmount = Number(inv.totalAmount);
-    const discountAmount = Number(inv.discountAmount);
-    const paidAmount = Number(inv.paidAmount);
-    const remainingAmount = totalAmount - discountAmount - paidAmount;
+    const correction = totalInvoiceAdjustment(inv.adjustments ?? []);
+    const refunded = Money.sumDecimal(
+      ...(inv.refunds ?? []).map((item) => item.amount),
+    );
+    const totalAmountDec = Money.sumDecimal(inv.totalAmount, correction);
+    const discountAmountDec = Money.decimal(inv.discountAmount ?? 0);
+    const netPaidDec = netPaidAmount(inv);
+    const remainingAmountDec = Money.subtractDecimal(
+      Money.subtractDecimal(totalAmountDec, discountAmountDec),
+      netPaidDec,
+    );
 
     return {
       payment: {
         id: payment.id,
-        amount: Number(payment.amount),
+        amount: Money.toDb(payment.amount),
         method: payment.method,
         paidAt: payment.paidAt,
         reference: payment.reference ?? null,
@@ -717,10 +741,13 @@ export class CashierService {
       invoice: {
         id: inv.id,
         status: inv.status,
-        totalAmount,
-        discountAmount,
-        paidAmount,
-        remainingAmount,
+        totalAmount: Money.toDb(totalAmountDec),
+        originalTotalAmount: Money.toDb(inv.totalAmount),
+        adjustmentAmount: Money.toDb(correction),
+        discountAmount: Money.toDb(discountAmountDec),
+        paidAmount: Money.toDb(netPaidDec),
+        refundedAmount: Money.toDb(refunded),
+        remainingAmount: Money.toDb(remainingAmountDec),
         currency: inv.currency,
         createdAt: inv.createdAt,
       },
@@ -753,9 +780,8 @@ export class CashierService {
         .filter((row) => row.method === 'CASH')
         .map((row) => row.amount),
     );
-    const totalPaymentsAmount = paymentsAgg.reduce(
-      (s, r) => s + Number(r._sum.amount ?? 0),
-      0,
+    const totalPaymentsAmountDec = Money.sumDecimal(
+      ...paymentsAgg.map((r) => r._sum.amount ?? 0),
     );
     const totalPaymentsCount = paymentsAgg.reduce(
       (s, r) => s + (r._count._all ?? 0),
@@ -764,7 +790,7 @@ export class CashierService {
 
     const paymentsByMethod = paymentsAgg.map((row) => ({
       method: row.method,
-      totalAmount: Number(row._sum.amount ?? 0),
+      totalAmount: Money.toDb(row._sum.amount ?? 0),
       count: row._count._all ?? 0,
     }));
 
@@ -774,15 +800,19 @@ export class CashierService {
       _count: { _all: true },
     });
 
-    const tInv = Number(invoicesAgg._sum.totalAmount ?? 0);
-    const tDisc = Number(invoicesAgg._sum.discountAmount ?? 0);
-    const tPaid = Number(invoicesAgg._sum.paidAmount ?? 0);
+    const tInvDec = Money.decimal(invoicesAgg._sum.totalAmount ?? 0);
+    const tDiscDec = Money.decimal(invoicesAgg._sum.discountAmount ?? 0);
+    const tPaidDec = Money.decimal(invoicesAgg._sum.paidAmount ?? 0);
+    const tRemDec = Money.subtractDecimal(
+      Money.subtractDecimal(tInvDec, tDiscDec),
+      tPaidDec,
+    );
 
     return {
       dateFrom: start.toISOString(),
       dateTo: end.toISOString(),
       paymentsSummary: {
-        totalAmount: totalPaymentsAmount,
+        totalAmount: Money.toDb(totalPaymentsAmountDec),
         totalCount: totalPaymentsCount,
       },
       paymentsByMethod,
@@ -793,14 +823,16 @@ export class CashierService {
         totalCount: refundRows.length,
       },
       netPaymentsSummary: {
-        totalAmount: Money.sub(totalPaymentsAmount, refunded),
+        totalAmount: Money.toDb(
+          Money.subtractDecimal(totalPaymentsAmountDec, refunded),
+        ),
       },
       invoicesSummary: {
         invoiceCount: invoicesAgg._count._all,
-        totalInvoiced: tInv,
-        totalDiscount: tDisc,
-        totalPaid: tPaid,
-        totalRemaining: tInv - tDisc - tPaid,
+        totalInvoiced: Money.toDb(tInvDec),
+        totalDiscount: Money.toDb(tDiscDec),
+        totalPaid: Money.toDb(tPaidDec),
+        totalRemaining: Money.toDb(tRemDec),
       },
     };
   }
@@ -853,31 +885,40 @@ export class CashierService {
         .filter((row) => row.method === 'CASH')
         .map((row) => row.amount),
     );
-    let totalAmount = 0;
-    let cashAmount = 0;
+    let totalAmountDec: FinancialDecimal = Money.decimal(0);
+    let cashAmountDec: FinancialDecimal = Money.decimal(0);
     const byMethod = new Map<
       PaymentMethod,
-      { totalAmount: number; count: number }
+      { totalAmount: FinancialDecimal; count: number }
     >();
 
     for (const p of payments) {
-      const amt = Number(p.amount);
-      totalAmount += amt;
-      if (p.method === PaymentMethod.CASH) cashAmount += amt;
+      const amtDec = Money.decimal(p.amount ?? 0);
+      totalAmountDec = Money.addDecimal(totalAmountDec, amtDec);
+      if (p.method === PaymentMethod.CASH) {
+        cashAmountDec = Money.addDecimal(cashAmountDec, amtDec);
+      }
 
-      const current = byMethod.get(p.method) ?? { totalAmount: 0, count: 0 };
-      current.totalAmount += amt;
+      const current = byMethod.get(p.method) ?? {
+        totalAmount: Money.decimal(0),
+        count: 0,
+      };
+      current.totalAmount = Money.addDecimal(current.totalAmount, amtDec);
       current.count += 1;
       byMethod.set(p.method, current);
     }
 
     const paymentsByMethod = Array.from(byMethod.entries()).map(
-      ([method, agg]) => ({ method, ...agg }),
+      ([method, agg]) => ({
+        method,
+        totalAmount: Money.toDb(agg.totalAmount),
+        count: agg.count,
+      }),
     );
 
     const paymentRows = payments.map((p) => ({
       id: p.id,
-      amount: Number(p.amount),
+      amount: Money.toDb(p.amount),
       method: p.method,
       paidAt: p.paidAt,
       reference: p.reference,
@@ -890,9 +931,9 @@ export class CashierService {
       dateFrom: start.toISOString(),
       dateTo: end.toISOString(),
       paymentsSummary: {
-        totalAmount,
+        totalAmount: Money.toDb(totalAmountDec),
         totalCount: payments.length,
-        cashAmount,
+        cashAmount: Money.toDb(cashAmountDec),
       },
       paymentsByMethod,
       refunds: refundRows,
@@ -902,8 +943,12 @@ export class CashierService {
         totalCount: refundRows.length,
       },
       netPaymentsSummary: {
-        totalAmount: Money.sub(totalAmount, refunded),
-        cashAmount: Money.sub(cashAmount, refundedCash),
+        totalAmount: Money.toDb(
+          Money.subtractDecimal(totalAmountDec, refunded),
+        ),
+        cashAmount: Money.toDb(
+          Money.subtractDecimal(cashAmountDec, refundedCash),
+        ),
       },
       payments: paymentRows,
     };
@@ -975,13 +1020,36 @@ export class CashierService {
           },
         });
 
-        const systemCashTotalDec = payments
-          .filter((p) => p.method === PaymentMethod.CASH)
-          .reduce((sum, p) => sum.plus(p.amount ?? 0), new Prisma.Decimal(0));
+        const cashRefunds = await tx.invoiceRefund.findMany({
+          where: {
+            hospitalId,
+            executedById: cashierId,
+            status: 'EXECUTED',
+            method: PaymentMethod.CASH,
+            executedAt: { gte: rangeStart, lt: rangeEnd },
+          },
+          select: { amount: true },
+        });
 
-        const actualDec = new Prisma.Decimal(actualCash);
-        const difference = actualDec.minus(systemCashTotalDec);
-        const absDiff = difference.abs();
+        const grossCashDec = Money.sumDecimal(
+          ...payments
+            .filter((p) => p.method === PaymentMethod.CASH)
+            .map((p) => p.amount ?? 0),
+        );
+        const cashRefundsDec = Money.sumDecimal(
+          ...cashRefunds.map((r) => r.amount ?? 0),
+        );
+        const systemCashTotalDec = Money.subtractDecimal(
+          grossCashDec,
+          cashRefundsDec,
+        );
+
+        const actualDec = Money.decimal(actualCash);
+        const differenceDec = Money.subtractDecimal(
+          actualDec,
+          systemCashTotalDec,
+        );
+        const absDiffDb = Money.toDbString(differenceDec.abs());
 
         const result = await (async () => {
           const shift = await tx.cashierShiftClosing.create({
@@ -990,15 +1058,15 @@ export class CashierService {
               cashierId,
               rangeStart,
               rangeEnd,
-              systemCashTotal: systemCashTotalDec,
-              actualCashTotal: actualDec,
-              difference,
+              systemCashTotal: Money.toDbString(systemCashTotalDec),
+              actualCashTotal: Money.toDbString(actualDec),
+              difference: Money.toDbString(differenceDec),
               note: note ?? null,
             },
           });
 
           let accountingEntryId: number | null = null;
-          if (!difference.isZero()) {
+          if (!Money.isZero(differenceDec)) {
             const cashMapping = await tx.systemAccountMapping.findFirst({
               where: {
                 hospitalId,
@@ -1030,32 +1098,32 @@ export class CashierService {
             );
             if (cashMapping.account && diffMapping.account) {
               const lines: Prisma.AccountingEntryLineCreateWithoutEntryInput[] =
-                difference.greaterThan(0)
+                differenceDec.gt(0)
                   ? [
                       {
                         account: { connect: { id: cashMapping.account.id } },
-                        debit: absDiff,
-                        credit: 0,
+                        debit: absDiffDb,
+                        credit: '0.000',
                         description: `زيادة صندوق - شفت #${shift.id}`,
                       },
                       {
                         account: { connect: { id: diffMapping.account.id } },
-                        debit: 0,
-                        credit: absDiff,
+                        debit: '0.000',
+                        credit: absDiffDb,
                         description: `زيادة صندوق - شفت #${shift.id}`,
                       },
                     ]
                   : [
                       {
                         account: { connect: { id: diffMapping.account.id } },
-                        debit: absDiff,
-                        credit: 0,
+                        debit: absDiffDb,
+                        credit: '0.000',
                         description: `عجز صندوق - شفت #${shift.id}`,
                       },
                       {
                         account: { connect: { id: cashMapping.account.id } },
-                        debit: 0,
-                        credit: absDiff,
+                        debit: '0.000',
+                        credit: absDiffDb,
                         description: `عجز صندوق - شفت #${shift.id}`,
                       },
                     ];
@@ -1088,9 +1156,9 @@ export class CashierService {
           id: result.shift.id,
           rangeStart: result.shift.rangeStart,
           rangeEnd: result.shift.rangeEnd,
-          systemCashTotal: Number(systemCashTotalDec.toFixed(3)),
-          actualCashTotal: Number(actualDec.toFixed(3)),
-          difference: Number(difference.toFixed(3)),
+          systemCashTotal: Money.toDb(systemCashTotalDec),
+          actualCashTotal: Money.toDb(actualDec),
+          difference: Money.toDb(differenceDec),
           note: result.shift.note,
           accountingEntryId: result.accountingEntryId,
         };

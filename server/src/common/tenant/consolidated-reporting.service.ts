@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { TenantService } from './tenant.service';
+import { Money } from '../utils/money.util';
 
 /**
  * خدمة التقارير الموحدة عبر الفروع
@@ -55,13 +56,13 @@ export class ConsolidatedReportingService {
     const enriched = results.map((r) => ({
       hospital: hospitalMap.get(r.hospitalId),
       invoiceCount: r._count,
-      totalRevenue: Number(r._sum.totalAmount || 0),
-      paidAmount: Number(r._sum.paidAmount || 0),
-      insuranceShare: Number(r._sum.insuranceShare || 0),
-      patientShare: Number(r._sum.patientShare || 0),
+      totalRevenue: Money.toDb(r._sum.totalAmount ?? 0),
+      paidAmount: Money.toDb(r._sum.paidAmount ?? 0),
+      insuranceShare: Money.toDb(r._sum.insuranceShare ?? 0),
+      patientShare: Money.toDb(r._sum.patientShare ?? 0),
     }));
 
-    const grandTotal = enriched.reduce((sum, r) => sum + r.totalRevenue, 0);
+    const grandTotal = Money.sum(...enriched.map((r) => r.totalRevenue));
 
     return {
       organizationId,
@@ -131,12 +132,13 @@ export class ConsolidatedReportingService {
       _count: true,
     });
 
-    // الإيرادات لكل فرع
+    // الإيرادات لكل فرع (مع استبعاد الفواتير الملغاة والمسودات)
     const revenue = await this.prisma.invoice.groupBy({
       by: ['hospitalId'],
       where: {
         hospitalId: { in: hospitalIds },
         createdAt: { gte: fromDate, lte: toDate },
+        status: { notIn: ['CANCELLED', 'DRAFT'] },
       },
       _sum: { totalAmount: true, paidAmount: true },
     });
@@ -153,8 +155,8 @@ export class ConsolidatedReportingService {
       revenue.map((r) => [
         r.hospitalId,
         {
-          total: Number(r._sum.totalAmount || 0),
-          paid: Number(r._sum.paidAmount || 0),
+          total: Money.toDb(r._sum.totalAmount ?? 0),
+          paid: Money.toDb(r._sum.paidAmount ?? 0),
         },
       ]),
     );

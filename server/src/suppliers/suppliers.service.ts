@@ -1,19 +1,7 @@
-import { Money } from '../common/utils/money.util';
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Money, type FinancialDecimal } from '../common/utils/money.util';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { PurchaseInvoiceStatus } from '@prisma/client';
-
-const round3 = (n: number) => Math.round(n * 1000) / 1000;
-
-const startOfDayUtc = (d: Date) => {
-  const x = new Date(d);
-  x.setUTCHours(0, 0, 0, 0);
-  return x;
-};
 
 const endOfDayUtc = (d: Date) => {
   const x = new Date(d);
@@ -177,7 +165,7 @@ export class SuppliersService {
         kind: 'INVOICE',
         ref: inv.invoiceNumber ?? `INV-${inv.id}`,
         description: inv.notes ?? 'فاتورة شراء',
-        debit: Number(inv.netAmount),
+        debit: Money.toDb(inv.netAmount ?? 0),
         credit: 0,
 
         sourceType: 'PURCHASE_INVOICE',
@@ -195,7 +183,7 @@ export class SuppliersService {
         ref: pay.reference ?? `PAY-${pay.id}`,
         description: pay.notes ?? 'دفعة لمورد',
         debit: 0,
-        credit: Number(pay.amount),
+        credit: Money.toDb(pay.amount ?? 0),
 
         sourceType: 'SUPPLIER_PAYMENT',
         sourceId: pay.id,
@@ -225,8 +213,8 @@ export class SuppliersService {
       return a.kind.localeCompare(b.kind);
     });
 
-    // ✅ حساب الرصيد الافتتاحي + تصفية الفترة
-    let openingBalance = 0;
+    // ✅ حساب الرصيد الافتتاحي + تصفية الفترة بدقة Money
+    let openingBalanceDec: FinancialDecimal = Money.decimal(0);
     const periodRows: Row[] = [];
 
     for (const r of rows) {
@@ -238,7 +226,10 @@ export class SuppliersService {
 
       if (!inRange) {
         if (fromDate && t < fromDate.getTime()) {
-          openingBalance = openingBalance + r.debit - r.credit;
+          openingBalanceDec = Money.addDecimal(
+            openingBalanceDec,
+            Money.subtractDecimal(r.debit, r.credit),
+          );
         }
         continue;
       }
@@ -246,13 +237,16 @@ export class SuppliersService {
       periodRows.push(r);
     }
 
-    const totalDebit = periodRows.reduce((sum, r) => sum + r.debit, 0);
-    const totalCredit = periodRows.reduce((sum, r) => sum + r.credit, 0);
+    const totalDebitDec = Money.sumDecimal(...periodRows.map((r) => r.debit));
+    const totalCreditDec = Money.sumDecimal(...periodRows.map((r) => r.credit));
 
-    let running = openingBalance;
+    let runningDec: FinancialDecimal = openingBalanceDec;
 
     const statementRows = periodRows.map((r) => {
-      running = running + r.debit - r.credit;
+      runningDec = Money.addDecimal(
+        runningDec,
+        Money.subtractDecimal(r.debit, r.credit),
+      );
       return {
         date: r.date.toISOString(),
         kind: r.kind,
@@ -260,7 +254,7 @@ export class SuppliersService {
         description: r.description,
         debit: r.debit,
         credit: r.credit,
-        balance: running,
+        balance: Money.toDb(runningDec),
 
         // ✅ تمرير بيانات المصدر للـ UI
         sourceType: r.sourceType,
@@ -270,7 +264,10 @@ export class SuppliersService {
       };
     });
 
-    const closingBalance = openingBalance + totalDebit - totalCredit;
+    const closingBalanceDec = Money.subtractDecimal(
+      Money.addDecimal(openingBalanceDec, totalDebitDec),
+      totalCreditDec,
+    );
 
     return {
       supplier: {
@@ -280,16 +277,16 @@ export class SuppliersService {
       },
       fromDate: fromDate ? fromDate.toISOString() : null,
       toDate: toDate ? toDate.toISOString() : null,
-      openingBalance,
-      totalDebit,
-      totalCredit,
-      closingBalance,
+      openingBalance: Money.toDb(openingBalanceDec),
+      totalDebit: Money.toDb(totalDebitDec),
+      totalCredit: Money.toDb(totalCreditDec),
+      closingBalance: Money.toDb(closingBalanceDec),
       rows: statementRows,
       unreconciledReturns,
     };
   }
 
-  // ✅ Aging صحيح حسب asOf (يحسب المدفوعات حتى asOf وليس paidAmount الحالي)
+  // ✅ Aging صحيح حسب asOf (يحسب المدفوعات حتى asOf وليس paidAmount الحالي) بدقة Money
   async getSuppliersAging(hospitalId: number, asOf?: Date) {
     const asOfDate = asOf
       ? endOfDayUtc(new Date(asOf))
@@ -338,10 +335,10 @@ export class SuppliersService {
         })
       : [];
 
-    const paidMap = new Map<number, number>();
+    const paidMap = new Map<number, FinancialDecimal>();
     for (const g of paidByInvoice) {
       if (g.purchaseInvoiceId == null) continue;
-      paidMap.set(g.purchaseInvoiceId, Number(g._sum.amount ?? 0));
+      paidMap.set(g.purchaseInvoiceId, Money.decimal(g._sum.amount ?? 0));
     }
 
     // ✅ Credits غير مربوطة بفواتير (اختياري) نخصمها من أقدم الشرائح
@@ -354,32 +351,33 @@ export class SuppliersService {
       },
       _sum: { amount: true },
     });
-    const unallocMap = new Map<number, number>();
+    const unallocMap = new Map<number, FinancialDecimal>();
     for (const u of unallocated) {
-      unallocMap.set(u.supplierId, Number(u._sum.amount ?? 0));
+      unallocMap.set(u.supplierId, Money.decimal(u._sum.amount ?? 0));
     }
 
-    const supplierCredits = new Map<number, number>();
-    type Buckets = {
-      b0_30: number;
-      b31_60: number;
-      b61_90: number;
-      b91_120: number;
-      b121_plus: number;
-      total: number;
-      unallocatedCredit: number;
-      creditBalance: number;
+    const supplierCredits = new Map<number, FinancialDecimal>();
+    type DecimalBuckets = {
+      b0_30: FinancialDecimal;
+      b31_60: FinancialDecimal;
+      b61_90: FinancialDecimal;
+      b91_120: FinancialDecimal;
+      b121_plus: FinancialDecimal;
+      total: FinancialDecimal;
+      unallocatedCredit: FinancialDecimal;
+      creditBalance: FinancialDecimal;
     };
+    type BucketKey = 'b0_30' | 'b31_60' | 'b61_90' | 'b91_120' | 'b121_plus';
 
-    const emptyBuckets = (): Buckets => ({
-      b0_30: 0,
-      b31_60: 0,
-      b61_90: 0,
-      b91_120: 0,
-      b121_plus: 0,
-      total: 0,
-      unallocatedCredit: 0,
-      creditBalance: 0,
+    const emptyBuckets = (): DecimalBuckets => ({
+      b0_30: Money.decimal(0),
+      b31_60: Money.decimal(0),
+      b61_90: Money.decimal(0),
+      b91_120: Money.decimal(0),
+      b121_plus: Money.decimal(0),
+      total: Money.decimal(0),
+      unallocatedCredit: Money.decimal(0),
+      creditBalance: Money.decimal(0),
     });
 
     const bySupplier = new Map<
@@ -388,17 +386,20 @@ export class SuppliersService {
         supplierId: number;
         supplierName: string;
         supplierCode: string | null;
-        buckets: Buckets;
+        buckets: DecimalBuckets;
       }
     >();
 
     for (const inv of invoices) {
-      const net = Number(inv.netAmount ?? 0);
-      const paidUpTo = paidMap.get(inv.id) ?? 0;
-      const returned = Money.toDb(
-        Money.sumDecimal(...inv.purchaseReturns.map((r) => r.totalAmount)),
+      const netDec = Money.decimal(inv.netAmount ?? 0);
+      const paidUpToDec = paidMap.get(inv.id) ?? Money.decimal(0);
+      const returnedDec = Money.sumDecimal(
+        ...inv.purchaseReturns.map((r) => r.totalAmount),
       );
-      const remaining = round3(net - paidUpTo - returned);
+      const remainingDec = Money.subtractDecimal(
+        Money.subtractDecimal(netDec, paidUpToDec),
+        returnedDec,
+      );
 
       const s = inv.supplier;
       if (!s) continue;
@@ -414,12 +415,14 @@ export class SuppliersService {
         bySupplier.set(s.id, holder);
       }
 
-      if (remaining <= 0) {
-        if (remaining < 0)
+      if (!remainingDec.gt(0)) {
+        if (remainingDec.lt(0)) {
+          const prevCredit = supplierCredits.get(s.id) ?? Money.decimal(0);
           supplierCredits.set(
             s.id,
-            round3((supplierCredits.get(s.id) ?? 0) - remaining),
+            Money.addDecimal(prevCredit, remainingDec.abs()),
           );
+        }
         continue;
       }
 
@@ -429,31 +432,34 @@ export class SuppliersService {
       const ageDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
       const b = holder.buckets;
 
-      if (ageDays <= 30) b.b0_30 = round3(b.b0_30 + remaining);
-      else if (ageDays <= 60) b.b31_60 = round3(b.b31_60 + remaining);
-      else if (ageDays <= 90) b.b61_90 = round3(b.b61_90 + remaining);
-      else if (ageDays <= 120) b.b91_120 = round3(b.b91_120 + remaining);
-      else b.b121_plus = round3(b.b121_plus + remaining);
+      if (ageDays <= 30) b.b0_30 = Money.addDecimal(b.b0_30, remainingDec);
+      else if (ageDays <= 60)
+        b.b31_60 = Money.addDecimal(b.b31_60, remainingDec);
+      else if (ageDays <= 90)
+        b.b61_90 = Money.addDecimal(b.b61_90, remainingDec);
+      else if (ageDays <= 120)
+        b.b91_120 = Money.addDecimal(b.b91_120, remainingDec);
+      else b.b121_plus = Money.addDecimal(b.b121_plus, remainingDec);
 
-      b.total = round3(b.total + remaining);
+      b.total = Money.addDecimal(b.total, remainingDec);
     }
 
-    // ✅ خصم الدفعات غير المربوطة من الأقدم (تقريب FIFO على مستوى الشرائح)
+    // ✅ خصم الدفعات غير المربوطة من الأقدم (تقريب FIFO على مستوى الشرائح) بدقة Money
     for (const holder of bySupplier.values()) {
-      let credit = round3(
-        (unallocMap.get(holder.supplierId) ?? 0) +
-          (supplierCredits.get(holder.supplierId) ?? 0),
+      let creditDec = Money.addDecimal(
+        unallocMap.get(holder.supplierId) ?? Money.decimal(0),
+        supplierCredits.get(holder.supplierId) ?? Money.decimal(0),
       );
-      if (credit <= 0.0001) continue;
+      if (!creditDec.gt(0)) continue;
 
-      holder.buckets.unallocatedCredit = credit;
+      holder.buckets.unallocatedCredit = creditDec;
 
-      const take = (key: keyof Buckets) => {
+      const take = (key: BucketKey) => {
         const cur = holder.buckets[key];
-        if (cur <= 0 || credit <= 0) return;
-        const used = Math.min(cur, credit);
-        holder.buckets[key] = round3(cur - used) as any;
-        credit = round3(credit - used);
+        if (!cur.gt(0) || !creditDec.gt(0)) return;
+        const used = Money.minDecimal(cur, creditDec);
+        holder.buckets[key] = Money.subtractDecimal(cur, used);
+        creditDec = Money.subtractDecimal(creditDec, used);
       };
 
       // الأقدم أولاً
@@ -463,49 +469,51 @@ export class SuppliersService {
       take('b31_60');
       take('b0_30');
 
-      holder.buckets.creditBalance = credit;
+      holder.buckets.creditBalance = creditDec;
       // حدّث total بعد الخصم
       const b = holder.buckets;
-      b.total = round3(b.b0_30 + b.b31_60 + b.b61_90 + b.b91_120 + b.b121_plus);
+      b.total = Money.sumDecimal(
+        b.b0_30,
+        b.b31_60,
+        b.b61_90,
+        b.b91_120,
+        b.b121_plus,
+      );
     }
 
     const suppliers = Array.from(bySupplier.values())
       .filter(
-        (x) => x.buckets.total > 0.0001 || x.buckets.unallocatedCredit > 0.0001,
+        (x) =>
+          !Money.isZero(x.buckets.total) ||
+          !Money.isZero(x.buckets.unallocatedCredit),
       )
       .map((x) => ({
         supplierId: x.supplierId,
         supplierName: x.supplierName,
         supplierCode: x.supplierCode,
-        ...x.buckets,
+        b0_30: Money.toDb(x.buckets.b0_30),
+        b31_60: Money.toDb(x.buckets.b31_60),
+        b61_90: Money.toDb(x.buckets.b61_90),
+        b91_120: Money.toDb(x.buckets.b91_120),
+        b121_plus: Money.toDb(x.buckets.b121_plus),
+        total: Money.toDb(x.buckets.total),
+        unallocatedCredit: Money.toDb(x.buckets.unallocatedCredit),
+        creditBalance: Money.toDb(x.buckets.creditBalance),
       }))
       .sort((a, b) => b.total - a.total);
 
-    const grandTotals = suppliers.reduce(
-      (acc, s) => {
-        acc.b0_30 = round3(acc.b0_30 + s.b0_30);
-        acc.b31_60 = round3(acc.b31_60 + s.b31_60);
-        acc.b61_90 = round3(acc.b61_90 + s.b61_90);
-        acc.b91_120 = round3(acc.b91_120 + s.b91_120);
-        acc.b121_plus = round3(acc.b121_plus + s.b121_plus);
-        acc.total = round3(acc.total + s.total);
-        acc.creditBalance = round3(acc.creditBalance + s.creditBalance);
-        acc.unallocatedCredit = round3(
-          acc.unallocatedCredit + (s.unallocatedCredit ?? 0),
-        );
-        return acc;
-      },
-      {
-        b0_30: 0,
-        b31_60: 0,
-        b61_90: 0,
-        b91_120: 0,
-        b121_plus: 0,
-        total: 0,
-        unallocatedCredit: 0,
-        creditBalance: 0,
-      },
-    );
+    const grandTotals = {
+      b0_30: Money.sum(...suppliers.map((s) => s.b0_30)),
+      b31_60: Money.sum(...suppliers.map((s) => s.b31_60)),
+      b61_90: Money.sum(...suppliers.map((s) => s.b61_90)),
+      b91_120: Money.sum(...suppliers.map((s) => s.b91_120)),
+      b121_plus: Money.sum(...suppliers.map((s) => s.b121_plus)),
+      total: Money.sum(...suppliers.map((s) => s.total)),
+      unallocatedCredit: Money.sum(
+        ...suppliers.map((s) => s.unallocatedCredit),
+      ),
+      creditBalance: Money.sum(...suppliers.map((s) => s.creditBalance)),
+    };
 
     return {
       asOf: asOfDate.toISOString(),

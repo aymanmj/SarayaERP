@@ -461,5 +461,68 @@ describe('CashierService', () => {
       expect(result.invoice.remainingAmount).toBe(70);
       expect(result.payment?.reference).toBe('REF-10');
     });
+
+    it('applies posted adjustments and executed refunds in getPaymentReceipt and deducts cash refunds in closeCashierShift', async () => {
+      const db = prisma as {
+        payment: { findFirst: jest.Mock; findMany: jest.Mock };
+        cashierShiftClosing: { findFirst: jest.Mock; create: jest.Mock };
+        invoiceRefund: { findMany: jest.Mock };
+      };
+      db.payment.findFirst.mockResolvedValue({
+        id: 31,
+        amount: '60.125',
+        method: PaymentMethod.CASH,
+        paidAt: new Date('2026-04-19T10:00:00Z'),
+        reference: 'REF-11',
+        invoice: {
+          id: 10,
+          status: InvoiceStatus.PARTIALLY_PAID,
+          totalAmount: '100.500',
+          discountAmount: '10.125',
+          paidAmount: '60.125',
+          currency: 'LYD',
+          createdAt: new Date('2026-04-19T09:00:00Z'),
+          adjustments: [{ delta: '15.000' }],
+          refunds: [{ amount: '20.000' }],
+          patient: { id: 1, fullName: 'Patient', mrn: 'MRN-1' },
+          encounter: { id: 10, type: 'OPD' },
+        },
+      });
+
+      const receipt = await service.getPaymentReceipt(1, 31);
+      // Adjusted total = 100.500 + 15.000 = 115.500
+      // Net paid = 60.125 - 20.000 = 40.125
+      // Remaining = 115.500 - 10.125 - 40.125 = 65.250
+      expect(receipt.invoice.totalAmount).toBe(115.5);
+      expect(receipt.invoice.originalTotalAmount).toBe(100.5);
+      expect(receipt.invoice.adjustmentAmount).toBe(15);
+      expect(receipt.invoice.paidAmount).toBe(40.125);
+      expect(receipt.invoice.refundedAmount).toBe(20);
+      expect(receipt.invoice.remainingAmount).toBe(65.25);
+
+      db.cashierShiftClosing.findFirst.mockResolvedValue(null);
+      db.payment.findMany.mockResolvedValue([
+        { id: 1, method: PaymentMethod.CASH, amount: '100.250' },
+        { id: 2, method: PaymentMethod.CARD, amount: '50.000' },
+      ]);
+      db.invoiceRefund.findMany.mockResolvedValue([{ amount: '25.125' }]);
+      db.cashierShiftClosing.create.mockResolvedValue({
+        id: 88,
+        rangeStart: new Date('2026-04-19T08:00:00Z'),
+        rangeEnd: new Date('2026-04-19T16:00:00Z'),
+        note: 'Clean shift with cash refund',
+      });
+
+      const shift = await service.closeCashierShift(1, 7, {
+        start: new Date('2026-04-19T08:00:00Z'),
+        end: new Date('2026-04-19T16:00:00Z'),
+        actualCash: 75.125,
+        note: 'Clean shift with cash refund',
+      });
+      // Expected cash = 100.250 - 25.125 = 75.125 => difference = 0
+      expect(shift.systemCashTotal).toBe(75.125);
+      expect(shift.actualCashTotal).toBe(75.125);
+      expect(shift.difference).toBe(0);
+    });
   });
 });

@@ -4273,8 +4273,6 @@ export class AccountingService {
       tx,
     );
 
-    const round3 = (n: number) => Math.round(n * 1000) / 1000;
-
     const apAccount = await db.account.findFirst({
       where: { hospitalId, code: ACCOUNT_CODES.AP_SUPPLIERS },
     });
@@ -4295,8 +4293,9 @@ export class AccountingService {
       tx,
     );
 
-    const amount = round3(Number(pay.amount ?? 0));
-    if (amount <= 0.0001) return;
+    const amountDec = Money.decimal(pay.amount ?? 0);
+    if (!amountDec.gt(0)) return;
+    const amountDb = Money.toDbString(amountDec);
 
     // ✅ المصدر الجديد الصحيح
     const sourceModule = AccountingSourceModule.SUPPLIER_PAYMENT;
@@ -4380,15 +4379,15 @@ export class AccountingService {
         {
           entryId: entryId,
           accountId: apAccount.id,
-          debit: amount,
-          credit: 0,
+          debit: amountDb,
+          credit: '0.000',
           description: 'تسوية دائنون الموردين',
         },
         {
           entryId: entryId,
           accountId: cashOrBankAccount.id,
-          debit: 0,
-          credit: amount,
+          debit: '0.000',
+          credit: amountDb,
           description: 'سداد نقدي/بنكي للمورد',
         },
       ],
@@ -4915,27 +4914,25 @@ export class AccountingService {
     hospitalId: number;
     userId: number;
     revenueSplit?: Record<SystemAccountKey, number>;
-    prisma?: any; // Allow passing transaction client
+    prisma?: Prisma.TransactionClient;
   }) {
-    const {
-      creditNoteId,
-      originalInvoiceId,
-      hospitalId,
-      userId,
-      revenueSplit,
-      prisma,
-    } = params;
-    const db = prisma || this.prisma;
+    const { creditNoteId, originalInvoiceId, hospitalId, userId, prisma } =
+      params;
+    const db = prisma ?? this.prisma;
 
-    // 1. جلب الفاتورة الأصلية والمرتجع
-    const original = await db.invoice.findUnique({
-      where: { id: originalInvoiceId },
+    // 1. جلب الفاتورة الأصلية والمرتجع مع عزل المنشأة
+    const original = await db.invoice.findFirst({
+      where: { id: originalInvoiceId, hospitalId },
     });
-    const creditNote = await db.invoice.findUnique({
-      where: { id: creditNoteId },
+    const creditNote = await db.invoice.findFirst({
+      where: { id: creditNoteId, hospitalId },
     });
 
-    if (!original || !creditNote) throw new Error('Invoices data missing');
+    if (!original || !creditNote) {
+      throw new NotFoundException(
+        'بيانات الفاتورة الأصلية أو المرتجع غير موجودة.',
+      );
+    }
 
     const entryDate = new Date();
     const { fy, period } = await this.getOpenPeriodForDate(
@@ -4947,44 +4944,52 @@ export class AccountingService {
     const arAccount = await this.getSystemAccountOrThrow(
       hospitalId,
       SystemAccountKey.RECEIVABLE_PATIENTS,
+      prisma,
     );
 
-    // ✅ بناء سطور الإيرادات بناءً على الـ Split أو الافتراضي
-    // ✅ بناء سطور مردودات المبيعات (بدلاً من خصم الإيرادات مباشرة)
-    const linesTocreate: any[] = [];
-    const val = Number(creditNote.totalAmount);
-    const totalRevenueDebit = val;
+    // ✅ بناء سطور مردودات المبيعات بدقة Money
+    const valDec = Money.decimal(creditNote.totalAmount);
+    if (!valDec.gt(0)) {
+      throw new BadRequestException(
+        'مبلغ إشعار المرتجع يجب أن يكون أكبر من صفر.',
+      );
+    }
+    const valDb = Money.toDbString(valDec);
+    const linesToCreate: Prisma.AccountingEntryLineCreateWithoutEntryInput[] =
+      [];
 
     try {
       const salesReturnsAcc = await this.getSystemAccountOrThrow(
         hospitalId,
         SystemAccountKey.SALES_RETURNS,
+        prisma,
       );
-      linesTocreate.push({
-        accountId: salesReturnsAcc.id,
-        debit: val,
-        credit: 0,
+      linesToCreate.push({
+        account: { connect: { id: salesReturnsAcc.id } },
+        debit: valDb,
+        credit: '0.000',
         description: 'مردودات مبيعات (مرتجعات عامة)',
       });
-    } catch (err) {
+    } catch {
       // Fallback in case the user hasn't successfully initialized the SALES_RETURNS mapping yet
       const defRev = await this.getSystemAccountOrThrow(
         hospitalId,
         SystemAccountKey.REVENUE_OUTPATIENT,
+        prisma,
       );
-      linesTocreate.push({
-        accountId: defRev.id,
-        debit: val,
-        credit: 0,
+      linesToCreate.push({
+        account: { connect: { id: defRev.id } },
+        debit: valDb,
+        credit: '0.000',
         description: 'مردودات مبيعات (طوارئ)',
       });
     }
 
     // ✅ إضافة سطر الذمم (الدائن)
-    linesTocreate.push({
-      accountId: arAccount.id,
-      debit: 0,
-      credit: totalRevenueDebit, // Matching debits
+    linesToCreate.push({
+      account: { connect: { id: arAccount.id } },
+      debit: '0.000',
+      credit: valDb,
       description: 'تخفيض مستحقات مريض - مرتجع',
     });
 
@@ -4994,12 +4999,12 @@ export class AccountingService {
         financialYearId: fy.id,
         financialPeriodId: period.id,
         entryDate,
-        sourceModule: AccountingSourceModule.BILLING, // Or SALES_RETURN
+        sourceModule: AccountingSourceModule.BILLING,
         sourceId: creditNoteId,
         description: `فاتورة مرتجع رقم ${creditNote.id} (أصل: ${original.id})`,
         createdById: userId,
         lines: {
-          create: linesTocreate,
+          create: linesToCreate,
         },
       },
     });
@@ -5488,16 +5493,18 @@ export class AccountingService {
     voucherId: number;
     hospitalId: number;
     userId: number;
-    prisma?: any;
+    prisma?: Prisma.TransactionClient;
   }) {
     const { voucherId, hospitalId, userId, prisma } = params;
-    const db = prisma || this.prisma;
+    const db = prisma ?? this.prisma;
 
-    const voucher = await db.voucher.findUnique({
-      where: { id: voucherId },
+    const voucher = await db.voucher.findFirst({
+      where: { id: voucherId, hospitalId },
       include: { account: true, cashAccount: true },
     });
-    if (!voucher) throw new Error('Voucher not found');
+    if (!voucher) {
+      throw new NotFoundException('إذن الصرف/القبض غير موجود في هذه المؤسسة.');
+    }
 
     const entryDate = voucher.date;
     const { fy, period } = await this.getOpenPeriodForDate(
@@ -5505,36 +5512,41 @@ export class AccountingService {
       entryDate,
     );
 
-    const val = Number(voucher.amount);
+    const valDec = Money.decimal(voucher.amount);
+    if (!valDec.gt(0)) {
+      throw new BadRequestException('مبلغ الإذن يجب أن يكون أكبر من صفر.');
+    }
+    const valDb = Money.toDbString(valDec);
 
-    const linesTocreate: any[] = [];
+    const linesToCreate: Prisma.AccountingEntryLineCreateWithoutEntryInput[] =
+      [];
 
     if (voucher.type === 'PAYMENT') {
       // إذن صرف (مدين للمصروف/الذمة، دائن للصندوق)
-      linesTocreate.push({
-        accountId: voucher.accountId,
-        debit: val,
-        credit: 0,
+      linesToCreate.push({
+        account: { connect: { id: voucher.accountId } },
+        debit: valDb,
+        credit: '0.000',
         description: voucher.notes || `إذن صرف رقم ${voucher.code}`,
       });
-      linesTocreate.push({
-        accountId: voucher.cashAccountId,
-        debit: 0,
-        credit: val,
+      linesToCreate.push({
+        account: { connect: { id: voucher.cashAccountId } },
+        debit: '0.000',
+        credit: valDb,
         description: voucher.notes || `إذن صرف رقم ${voucher.code}`,
       });
     } else {
       // إذن قبض (مدين للصندوق، دائن للإيراد/الذمة)
-      linesTocreate.push({
-        accountId: voucher.cashAccountId,
-        debit: val,
-        credit: 0,
+      linesToCreate.push({
+        account: { connect: { id: voucher.cashAccountId } },
+        debit: valDb,
+        credit: '0.000',
         description: voucher.notes || `إذن قبض رقم ${voucher.code}`,
       });
-      linesTocreate.push({
-        accountId: voucher.accountId,
-        debit: 0,
-        credit: val,
+      linesToCreate.push({
+        account: { connect: { id: voucher.accountId } },
+        debit: '0.000',
+        credit: valDb,
         description: voucher.notes || `إذن قبض رقم ${voucher.code}`,
       });
     }
@@ -5545,7 +5557,7 @@ export class AccountingService {
         financialYearId: fy.id,
         financialPeriodId: period.id,
         entryDate,
-        sourceModule: 'VOUCHER',
+        sourceModule: AccountingSourceModule.VOUCHER,
         sourceId: voucher.id,
         description:
           voucher.type === 'PAYMENT'
@@ -5553,7 +5565,7 @@ export class AccountingService {
             : `إذن قبض رقم ${voucher.code}`,
         createdById: userId,
         lines: {
-          create: linesTocreate,
+          create: linesToCreate,
         },
       },
     });

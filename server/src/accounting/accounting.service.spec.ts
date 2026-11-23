@@ -539,4 +539,120 @@ describe('AccountingService FIN02 & FLOW04 Money precision & year closing', () =
       total: 100.2,
     });
   });
+
+  it('enforces hospitalId tenant isolation and Money precision in recordCreditNoteEntry and recordVoucherEntry', async () => {
+    const createEntryMock = jest.fn().mockResolvedValue({ id: 9901 });
+    const invoiceFindFirstMock = jest
+      .fn()
+      .mockResolvedValueOnce({ id: 50, hospitalId: 1 })
+      .mockResolvedValueOnce({
+        id: 51,
+        hospitalId: 1,
+        totalAmount: new Prisma.Decimal('123.455'),
+      });
+    const voucherFindFirstMock = jest
+      .fn()
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        id: 77,
+        hospitalId: 1,
+        code: 'PV-77',
+        type: 'PAYMENT',
+        date: new Date('2026-06-15T00:00:00.000Z'),
+        amount: new Prisma.Decimal('88.125'),
+        accountId: 501,
+        cashAccountId: 101,
+        notes: 'صرف عهدة',
+      });
+
+    const prismaMock = {
+      invoice: { findFirst: invoiceFindFirstMock },
+      voucher: { findFirst: voucherFindFirstMock },
+      accountingEntry: { create: createEntryMock },
+    };
+
+    const service = new AccountingService(
+      prismaMock as unknown as PrismaService,
+    );
+    jest
+      .spyOn(
+        service as unknown as {
+          getOpenPeriodForDate: () => Promise<{
+            fy: { id: number };
+            period: { id: number };
+          }>;
+        },
+        'getOpenPeriodForDate',
+      )
+      .mockResolvedValue({ fy: { id: 2026 }, period: { id: 6 } });
+    jest
+      .spyOn(
+        service as unknown as {
+          getSystemAccountOrThrow: (
+            hospitalId: number,
+            key: string,
+          ) => Promise<{ id: number }>;
+        },
+        'getSystemAccountOrThrow',
+      )
+      .mockImplementation((_hospitalId: number, key: string) =>
+        Promise.resolve({
+          id: key === 'RECEIVABLE_PATIENTS' ? 1201 : 4009,
+        }),
+      );
+
+    await service.recordCreditNoteEntry({
+      hospitalId: 1,
+      userId: 9,
+      originalInvoiceId: 50,
+      creditNoteId: 51,
+    });
+    expect(invoiceFindFirstMock.mock.calls).toMatchObject([
+      [{ where: { id: 50, hospitalId: 1 } }],
+      [{ where: { id: 51, hospitalId: 1 } }],
+    ]);
+    expect(createEntryMock.mock.calls).toMatchObject([
+      [
+        {
+          data: {
+            hospitalId: 1,
+            lines: {
+              create: [
+                { debit: '123.455', credit: '0.000' },
+                { debit: '0.000', credit: '123.455' },
+              ],
+            },
+          },
+        },
+      ],
+    ]);
+
+    await expect(
+      service.recordVoucherEntry({ hospitalId: 2, userId: 9, voucherId: 77 }),
+    ).rejects.toThrow('إذن الصرف/القبض غير موجود في هذه المؤسسة.');
+
+    await service.recordVoucherEntry({
+      hospitalId: 1,
+      userId: 9,
+      voucherId: 77,
+    });
+    expect(voucherFindFirstMock.mock.calls).toMatchObject([
+      [{ where: { id: 77, hospitalId: 2 } }],
+      [{ where: { id: 77, hospitalId: 1 } }],
+    ]);
+    expect(createEntryMock.mock.calls[1]).toMatchObject([
+      {
+        data: {
+          hospitalId: 1,
+          sourceModule: 'VOUCHER',
+          lines: {
+            create: [
+              { debit: '88.125', credit: '0.000' },
+              { debit: '0.000', credit: '88.125' },
+            ],
+          },
+        },
+      },
+    ]);
+  });
 });
