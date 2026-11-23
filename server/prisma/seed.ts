@@ -254,6 +254,18 @@ async function main() {
     { code: 'hr:shifts:manage', description: 'إدارة الورديات والمناوبات' },
     { code: 'hr:leave:manage', description: 'إدارة الإجازات' },
     { code: 'hr:leaves:request', description: 'تقديم طلب إجازة للموظف' },
+    {
+      code: 'hr:credentials:view',
+      description: 'عرض تراخيص الكادر الطبي والشهادات الصحية',
+    },
+    {
+      code: 'hr:credentials:manage',
+      description: 'تسجيل وتجديد أذونات المزاولة والشهادات الصحية',
+    },
+    {
+      code: 'hr:credentials:verify',
+      description: 'اعتماد وتعليق وإلغاء تراخيص الكادر الطبي والشهادات الصحية',
+    },
     { code: 'hr:payroll:manage', description: 'إدارة الرواتب' },
     { code: 'hr:attendance:manage', description: 'إدارة الحضور والانصراف' },
 
@@ -595,6 +607,9 @@ async function main() {
       'hr:leave:manage',
       'hr:payroll:manage',
       'hr:attendance:manage',
+      'hr:credentials:view',
+      'hr:credentials:manage',
+      'hr:credentials:verify',
     ],
 
     // 12. مسؤول الأنظمة (IT Admin)

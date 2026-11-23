@@ -214,6 +214,7 @@ model Hospital {
   labSpecimens              LabSpecimen[]
   labSpecimenEvents         LabSpecimenEvent[]
   labCultureReports         LabCultureReport[]
+  staffCredentials          StaffCredential[]
 }
 
 model Department {
@@ -615,6 +616,10 @@ model User {
   labSpecimenEvents         LabSpecimenEvent[]         @relation("SpecimenEventActor")
   labCulturesEntered        LabCultureReport[]         @relation("CultureEnterer")
   labCulturesVerified       LabCultureReport[]         @relation("CultureVerifier")
+  staffCredentials          StaffCredential[]          @relation("StaffCredentialOwner")
+  credentialsCreated        StaffCredential[]          @relation("StaffCredentialCreator")
+  credentialsVerified       StaffCredential[]          @relation("StaffCredentialVerifier")
+  credentialsSuspended      StaffCredential[]          @relation("StaffCredentialSuspender")
   createdDischargeSummaries DischargeSummary[]         @relation("DischargeSummaryCreator")
   dispensesAsPharmacist     DispenseRecord[]           @relation("PharmacistUser")
   doctorSchedule            DoctorSchedule?
@@ -5143,6 +5148,42 @@ model ClinicalNoteTemplate {
   createdBy User     @relation(fields: [createdById], references: [id])
 
   @@index([hospitalId, specialty])
+}
+
+model StaffCredential {
+  id               Int       @id @default(autoincrement())
+  hospitalId       Int
+  userId           Int
+  staffCategory    String    @default("MEDICAL")
+  credentialType   String
+  title            String    @db.VarChar(200)
+  licenseNumber    String    @db.VarChar(120)
+  issuingAuthority String    @db.VarChar(200)
+  specialty        String?   @db.VarChar(150)
+  issueDate        DateTime
+  expiryDate       DateTime
+  alertDaysBefore  Int       @default(30)
+  isMandatory      Boolean   @default(true)
+  status           String    @default("PENDING_VERIFICATION")
+  verifiedById     Int?
+  verifiedAt       DateTime?
+  suspendedById    Int?
+  suspendedAt      DateTime?
+  suspensionReason String?   @db.VarChar(500)
+  documentRef      String?   @db.VarChar(255)
+  notes            String?   @db.VarChar(500)
+  createdById      Int
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  hospital    Hospital @relation(fields: [hospitalId], references: [id])
+  user        User     @relation("StaffCredentialOwner", fields: [userId], references: [id])
+  createdBy   User     @relation("StaffCredentialCreator", fields: [createdById], references: [id])
+  verifiedBy  User?    @relation("StaffCredentialVerifier", fields: [verifiedById], references: [id])
+  suspendedBy User?    @relation("StaffCredentialSuspender", fields: [suspendedById], references: [id])
+
+  @@index([hospitalId, userId, credentialType])
+  @@index([hospitalId, status, expiryDate])
 }
 
 // ================================================

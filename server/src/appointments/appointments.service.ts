@@ -19,6 +19,7 @@ import {
 } from '@prisma/client';
 import { PriceListsService } from '../price-lists/price-lists.service';
 import { AccountingService } from '../accounting/accounting.service';
+import { assertStaffSchedulingEligibility } from '../hr/staff-credentialing.service';
 import { randomUUID } from 'crypto';
 
 @Injectable()
@@ -387,6 +388,14 @@ export class AppointmentsService {
           'المستخدم المختار ليس طبيباً. لا يمكن حجز موعد إلا للأطباء.',
         );
       }
+
+      // CAP12: منع حجز موعد لطبيب انتهى أو عُلّق إذن مزاولته أو شهادته الصحية (الخلو من الأمراض)
+      await assertStaffSchedulingEligibility(
+        this.prisma,
+        hospitalId,
+        doctorId,
+        new Date(scheduledStart),
+      );
 
       // 1. التحقق من أيام العمل (Doctor Work Days)
       const scheduleVal = await this.prisma.doctorSchedule.findUnique({

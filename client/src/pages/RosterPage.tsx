@@ -14,6 +14,7 @@ import {
 import { ar } from "date-fns/locale";
 import { DatePicker } from "@/components/ui/date-picker";
 import { useTranslation } from "react-i18next";
+import { StaffCredentialsModal } from "../components/hr/StaffCredentialsModal";
 
 // --- Types ---
 type UserLite = { id: number; fullName: string };
@@ -48,6 +49,7 @@ export default function RosterPage() {
 
   // --- Assignment Form State ---
   const [showAssignModal, setShowAssignModal] = useState(false);
+  const [showCredentialsModal, setShowCredentialsModal] = useState(false);
   const [form, setForm] = useState({
     userId: "",
     workShiftId: "",
@@ -231,12 +233,20 @@ export default function RosterPage() {
           </div>
         </div>
 
-        <button
-          onClick={() => setShowAssignModal(true)}
-          className="px-6 py-2.5 bg-sky-600 hover:bg-sky-500 text-white rounded-2xl font-bold shadow-lg shadow-sky-900/20 transition-all"
-        >
-          {t("hr.roster.bulkAssignBtn", "+ توزيع ورديات (Bulk Assign)")}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => setShowCredentialsModal(true)}
+            className="px-4 py-2.5 bg-amber-600/90 hover:bg-amber-500 text-white rounded-2xl font-bold shadow-lg transition-all text-sm"
+          >
+            🩺 {t("hr.roster.credentialsBtn", "تراخيص الكادر والشهادات الصحية")}
+          </button>
+          <button
+            onClick={() => setShowAssignModal(true)}
+            className="px-6 py-2.5 bg-sky-600 hover:bg-sky-500 text-white rounded-2xl font-bold shadow-lg shadow-sky-900/20 transition-all"
+          >
+            {t("hr.roster.bulkAssignBtn", "+ توزيع ورديات (Bulk Assign)")}
+          </button>
+        </div>
       </div>
 
       {/* Roster Grid View */}
@@ -545,6 +555,12 @@ export default function RosterPage() {
             </div>
           </div>
         </div>
+      )}
+      {showCredentialsModal && (
+        <StaffCredentialsModal
+          staffOptions={users}
+          onClose={() => setShowCredentialsModal(false)}
+        />
       )}
     </div>
   );

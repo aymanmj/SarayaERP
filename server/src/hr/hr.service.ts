@@ -9,6 +9,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ShiftType, LeaveType, LeaveStatus, Prisma } from '@prisma/client';
 import { appendChainedAuditInTransaction } from '../audit/audit-chain';
 import { publishCommittedCriticalAudit } from '../audit/siem.logger';
+import { assertStaffSchedulingEligibility } from './staff-credentialing.service';
 
 function toUtcDayStart(date: Date): Date {
   return new Date(
@@ -122,6 +123,11 @@ export class HrService {
       });
       if (!employee) {
         throw new NotFoundException('الموظف غير موجود في هذه المنشأة.');
+      }
+
+      // CAP12: منع جدولة ورديات عمل لموظف انتهى/عُلّق إذن مزاولته أو شهادته الصحية
+      if (!isOffDay) {
+        await assertStaffSchedulingEligibility(tx, hospitalId, userId, end);
       }
 
       const shift = await tx.workShift.findFirst({
