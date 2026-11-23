@@ -190,6 +190,7 @@ describe('Review RV01–RV13: independent financial, medication and live-session
     const actor = await auth.createTestUser('repair-actor', 'synthetic', {
       roles: ['NURSE'],
       permissions: [
+        'accounting:manage',
         'billing:manage',
         'billing:view',
         'nursing:view',
@@ -1124,5 +1125,241 @@ describe('Review RV01–RV13: independent financial, medication and live-session
           ?.has(live.id ?? '') === true,
     );
     expect(live.connected).toBe(true);
+  });
+
+  it('FIN02 & FLOW04 verifies HTTP trial-balance, ledger, income-statement, balance-sheet, year-closing with CONTRA_REVENUE, and cost-center opening carry-forward', async () => {
+    const year = new Date().getUTCFullYear();
+    const fy = await db.financialYear.findFirstOrThrow({
+      where: { hospitalId, code: 'REPAIR' },
+    });
+    const cc = await db.costCenter.create({
+      data: {
+        hospitalId,
+        code: 'CC-OUTPATIENT',
+        name: 'العيادات الخارجية',
+        type: 'MEDICAL',
+      },
+    });
+
+    const [cashAcc, revAcc, contraRevAcc, expAcc, equityAcc] =
+      await Promise.all([
+        db.account.findFirstOrThrow({
+          where: { hospitalId, code: '100100' },
+        }),
+        db.account.findFirstOrThrow({
+          where: { hospitalId, code: '400100' },
+        }),
+        db.account.findFirstOrThrow({
+          where: { hospitalId, code: '400800' },
+        }),
+        db.account.findFirstOrThrow({
+          where: { hospitalId, code: '510900' },
+        }),
+        db.account.findFirstOrThrow({
+          where: { hospitalId, code: '300200' },
+        }),
+      ]);
+
+    await request(app.getHttpServer())
+      .post('/accounting/manual-entry')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        entryDate: `${year}-06-15`,
+        description: 'إيرادات عيادات مع شطب تعاقدي تأميني',
+        lines: [
+          {
+            accountId: cashAcc.id,
+            debit: 850,
+            credit: 0,
+            costCenterId: cc.id,
+          },
+          {
+            accountId: contraRevAcc.id,
+            debit: 150,
+            credit: 0,
+            costCenterId: cc.id,
+          },
+          {
+            accountId: revAcc.id,
+            debit: 0,
+            credit: 1000,
+            costCenterId: cc.id,
+          },
+        ],
+      })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .post('/accounting/manual-entry')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        entryDate: `${year}-06-20`,
+        description: 'مصروفات تشغيل عيادات',
+        lines: [
+          {
+            accountId: expAcc.id,
+            debit: 350,
+            credit: 0,
+            costCenterId: cc.id,
+          },
+          {
+            accountId: cashAcc.id,
+            debit: 0,
+            credit: 350,
+            costCenterId: cc.id,
+          },
+        ],
+      })
+      .expect(201);
+
+    const tbRes = await request(app.getHttpServer())
+      .get(`/accounting/trial-balance?costCenterId=${cc.id}`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+    const tbBody = tbRes.body as {
+      totals: { totalDebit: number; totalCredit: number };
+    };
+    expect(tbBody.totals).toEqual({
+      totalDebit: 1350,
+      totalCredit: 1350,
+    });
+
+    const ledgerRes = await request(app.getHttpServer())
+      .get(
+        `/accounting/ledger?accountId=${cashAcc.id}&from=${year}-06-01&to=${year}-06-30&costCenterId=${cc.id}`,
+      )
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+    const ledgerBody = ledgerRes.body as {
+      openingBalance: number;
+      totalDebit: number;
+      totalCredit: number;
+      closingBalance: number;
+    };
+    expect(ledgerBody.openingBalance).toBe(0);
+    expect(ledgerBody.totalDebit).toBe(850);
+    expect(ledgerBody.totalCredit).toBe(350);
+    expect(ledgerBody.closingBalance).toBe(500);
+
+    const isBeforeClose = await request(app.getHttpServer())
+      .get(
+        `/accounting/income-statement?financialYearId=${fy.id}&costCenterId=${cc.id}`,
+      )
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+    const isBeforeBody = isBeforeClose.body as {
+      totalRevenue: number;
+      totalExpense: number;
+      netProfit: number;
+    };
+    expect(isBeforeBody.totalRevenue).toBe(850);
+    expect(isBeforeBody.totalExpense).toBe(350);
+    expect(isBeforeBody.netProfit).toBe(500);
+
+    const bsRes = await request(app.getHttpServer())
+      .get(`/accounting/balance-sheet?asOfDate=${year}-06-30`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+    const bsBody = bsRes.body as {
+      totals: {
+        assets: number;
+        liabilitiesAndEquity: number;
+        difference: number;
+      };
+    };
+    expect(bsBody.totals).toEqual({
+      assets: 500,
+      liabilitiesAndEquity: 500,
+      difference: 0,
+    });
+
+    await db.financialPeriod.updateMany({
+      where: { financialYearId: fy.id },
+      data: { isOpen: false },
+    });
+
+    const closeRes = await request(app.getHttpServer())
+      .post(`/accounting/financial-years/${fy.id}/close`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ retainedEarningsAccountId: equityAcc.id })
+      .expect(200);
+    const closeBody = closeRes.body as {
+      success: boolean;
+      data: {
+        financialYearId: number;
+        totalRevenue: number;
+        totalExpense: number;
+        netProfit: number;
+      };
+    };
+    expect(closeBody.success).toBe(true);
+    expect(closeBody.data).toMatchObject({
+      financialYearId: fy.id,
+      totalRevenue: 850,
+      totalExpense: 350,
+      netProfit: 500,
+    });
+
+    const isAfterClose = await request(app.getHttpServer())
+      .get(
+        `/accounting/income-statement?financialYearId=${fy.id}&costCenterId=${cc.id}`,
+      )
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+    const isAfterBody = isAfterClose.body as {
+      totalRevenue: number;
+      totalExpense: number;
+      netProfit: number;
+    };
+    expect(isAfterBody.totalRevenue).toBe(850);
+    expect(isAfterBody.totalExpense).toBe(350);
+    expect(isAfterBody.netProfit).toBe(500);
+
+    const nextYear = year + 1;
+    const nextFy = await db.financialYear.create({
+      data: {
+        hospitalId,
+        code: `REPAIR-${nextYear}`,
+        name: `Synthetic repair year ${nextYear}`,
+        isCurrent: true,
+        startDate: new Date(`${nextYear}-01-01`),
+        endDate: new Date(`${nextYear}-12-31`),
+        status: 'OPEN',
+      },
+    });
+    await db.financialPeriod.create({
+      data: {
+        financialYearId: nextFy.id,
+        periodCode: `REPAIR-P-${nextYear}`,
+        periodIndex: 1,
+        monthStartDate: new Date(`${nextYear}-01-01`),
+        monthEndDate: new Date(`${nextYear}-12-31`),
+        numberOfDays: 365,
+        isOpen: true,
+      },
+    });
+
+    const genOpenRes = await request(app.getHttpServer())
+      .post(
+        `/accounting/financial-years/${nextFy.id}/generate-opening-from-last`,
+      )
+      .set('Authorization', `Bearer ${token}`)
+      .send({})
+      .expect(200);
+    const genOpenBody = genOpenRes.body as { success: boolean };
+    expect(genOpenBody.success).toBe(true);
+
+    const openingLines = await db.accountingEntryLine.findMany({
+      where: {
+        entry: {
+          hospitalId,
+          financialYearId: nextFy.id,
+          sourceModule: 'OPENING',
+        },
+      },
+      orderBy: { accountId: 'asc' },
+    });
+    expect(openingLines).toHaveLength(2);
+    expect(openingLines.every((l) => l.costCenterId === cc.id)).toBe(true);
   });
 });

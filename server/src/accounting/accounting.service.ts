@@ -9,7 +9,7 @@ import {
   insuranceReceivableLinePrefix,
   postPayment,
 } from './financial-posting';
-import { Money } from '../common/utils/money.util';
+import { Money, type FinancialDecimal } from '../common/utils/money.util';
 import type { Account } from '@prisma/client';
 // src/accounting/accounting.service.ts
 
@@ -752,9 +752,9 @@ export class AccountingService {
   async getLedger(
     hospitalId: number,
     accountId: number,
-    params: { from: Date; to: Date },
+    params: { from: Date; to: Date; costCenterId?: number },
   ): Promise<LedgerResponseDto> {
-    const { from, to } = params;
+    const { from, to, costCenterId } = params;
 
     if (
       !(from instanceof Date) ||
@@ -792,17 +792,15 @@ export class AccountingService {
     const normalSide = this.getNormalSide(account.type);
 
     // 2) رصيد افتتاحي = مجموع الحركات قبل بداية الفترة
-    //    (يشمل أي قيود للأرصدة الافتتاحية طالما مسجلة كقيود عادية)
     const prevAgg = await this.prisma.accountingEntryLine.aggregate({
       where: {
         accountId,
+        ...(costCenterId ? { costCenterId } : {}),
         entry: {
           hospitalId,
           entryDate: {
             lt: from,
           },
-          // لو عندك حقل status للقيود (POSTED فقط) يمكن تضيفه هنا
-          // status: 'POSTED',
         },
       },
       _sum: {
@@ -811,17 +809,21 @@ export class AccountingService {
       },
     });
 
-    const prevDebit = Number(prevAgg._sum?.debit ?? 0);
-    const prevCredit = Number(prevAgg._sum?.credit ?? 0);
+    const prevDebitDec = Money.decimal(prevAgg._sum?.debit ?? 0);
+    const prevCreditDec = Money.decimal(prevAgg._sum?.credit ?? 0);
 
-    // رصيد موجه حسب الطبيعة (مدين/دائن)
-    const openingBalance =
-      normalSide === 'DEBIT' ? prevDebit - prevCredit : prevCredit - prevDebit;
+    // رصيد موجه حسب الطبيعة (مدين/دائن) عبر Money
+    const openingBalanceDec =
+      normalSide === 'DEBIT'
+        ? Money.subtractDecimal(prevDebitDec, prevCreditDec)
+        : Money.subtractDecimal(prevCreditDec, prevDebitDec);
+    const openingBalance = Money.toDb(openingBalanceDec);
 
     // 3) جلب القيود داخل الفترة
     const linesDb = await this.prisma.accountingEntryLine.findMany({
       where: {
         accountId,
+        ...(costCenterId ? { costCenterId } : {}),
         entry: {
           hospitalId,
           entryDate: {
@@ -838,11 +840,11 @@ export class AccountingService {
 
     const lines: LedgerLineDto[] = [];
 
-    // 🧮 نبدأ الرصيد التراكمي من الرصيد الافتتاحي
-    let running = openingBalance;
+    // 🧮 نبدأ الرصيد التراكمي من الرصيد الافتتاحي بدقة Money
+    let runningDec = openingBalanceDec;
 
     // 4) إضافة سطر "رصيد سابق" في بداية الكشف (لو في رصيد فعلاً)
-    if (openingBalance !== 0) {
+    if (!openingBalanceDec.isZero()) {
       lines.push({
         id: 0, // رقم وهمي للسطر الافتتاحي
         entryDate: from,
@@ -852,47 +854,59 @@ export class AccountingService {
         sourceId: null,
         debit: 0,
         credit: 0,
-        balance: running,
+        balance: openingBalance,
         isOpening: true,
       });
     }
 
-    // 5) بناء سطور القيود الحقيقية + تجميع إجمالي مدين/دائن
-    let totalDebit = 0;
-    let totalCredit = 0;
+    // 5) بناء سطور القيود الحقيقية + تجميع إجمالي مدين/دائن عبر Money
+    let totalDebitDec = Money.decimal(0);
+    let totalCreditDec = Money.decimal(0);
 
     for (const line of linesDb) {
-      const debit = Number((line as any).debit ?? 0);
-      const credit = Number((line as any).credit ?? 0);
-      const entry: any = line.entry;
+      const debitDec = Money.decimal(line.debit ?? 0);
+      const creditDec = Money.decimal(line.credit ?? 0);
+      const entry = line.entry;
 
       if (normalSide === 'DEBIT') {
-        running += debit - credit;
+        runningDec = Money.addDecimal(
+          runningDec,
+          Money.subtractDecimal(debitDec, creditDec),
+        );
       } else {
-        running += credit - debit;
+        runningDec = Money.addDecimal(
+          runningDec,
+          Money.subtractDecimal(creditDec, debitDec),
+        );
       }
 
-      totalDebit += debit;
-      totalCredit += credit;
+      totalDebitDec = Money.addDecimal(totalDebitDec, debitDec);
+      totalCreditDec = Money.addDecimal(totalCreditDec, creditDec);
 
       lines.push({
         id: line.id,
         entryDate: entry.entryDate,
         description: entry.description ?? null,
-        reference: entry.reference ?? null,
+        reference: (entry as { reference?: string | null }).reference ?? null,
         sourceModule: entry.sourceModule ?? null,
         sourceId: entry.sourceId ?? null,
-        debit,
-        credit,
-        balance: running,
+        debit: Money.toDb(debitDec),
+        credit: Money.toDb(creditDec),
+        balance: Money.toDb(runningDec),
       });
     }
 
     // 6) رصيد إغلاق الفترة
-    const closingBalance =
+    const closingBalanceDec =
       normalSide === 'DEBIT'
-        ? openingBalance + totalDebit - totalCredit
-        : openingBalance + totalCredit - totalDebit;
+        ? Money.subtractDecimal(
+            Money.addDecimal(openingBalanceDec, totalDebitDec),
+            totalCreditDec,
+          )
+        : Money.subtractDecimal(
+            Money.addDecimal(openingBalanceDec, totalCreditDec),
+            totalDebitDec,
+          );
 
     return {
       accountId: account.id,
@@ -902,9 +916,9 @@ export class AccountingService {
       from,
       to,
       openingBalance,
-      totalDebit,
-      totalCredit,
-      closingBalance,
+      totalDebit: Money.toDb(totalDebitDec),
+      totalCredit: Money.toDb(totalCreditDec),
+      closingBalance: Money.toDb(closingBalanceDec),
       lines,
     };
   }
@@ -1438,23 +1452,27 @@ export class AccountingService {
 
     const rows = grouped.map((g) => {
       const acc = accounts.find((a) => a.id === g.accountId);
-      const debit = Number(g._sum.debit ?? 0);
-      const credit = Number(g._sum.credit ?? 0);
-      const balance = debit - credit;
+      const debitDec = Money.decimal(g._sum.debit ?? 0);
+      const creditDec = Money.decimal(g._sum.credit ?? 0);
+      const balanceDec = Money.subtractDecimal(debitDec, creditDec);
 
       return {
         accountId: g.accountId,
         code: acc?.code ?? '',
         name: acc?.name ?? '',
         type: acc?.type ?? '',
-        debit,
-        credit,
-        balance,
+        debit: Money.toDb(debitDec),
+        credit: Money.toDb(creditDec),
+        balance: Money.toDb(balanceDec),
       };
     });
 
-    const totalDebit = rows.reduce((s, r) => s + r.debit, 0);
-    const totalCredit = rows.reduce((s, r) => s + r.credit, 0);
+    const totalDebit = Money.toDb(
+      Money.sumDecimal(...rows.map((r) => r.debit)),
+    );
+    const totalCredit = Money.toDb(
+      Money.sumDecimal(...rows.map((r) => r.credit)),
+    );
 
     return {
       rows,
@@ -1661,11 +1679,11 @@ export class AccountingService {
       );
     }
 
-    // 4) التحقق من توازن القيد (مجموع المدين = مجموع الدائن)
-    const totalDebit = lines.reduce((acc, l) => acc + (l.debit || 0), 0);
-    const totalCredit = lines.reduce((acc, l) => acc + (l.credit || 0), 0);
+    // 4) التحقق من توازن القيد (مجموع المدين = مجموع الدائن) عبر Money
+    const totalDebitDec = Money.sumDecimal(...lines.map((l) => l.debit || 0));
+    const totalCreditDec = Money.sumDecimal(...lines.map((l) => l.credit || 0));
 
-    if (Math.abs(totalDebit - totalCredit) > 0.0001) {
+    if (!Money.eq(totalDebitDec, totalCreditDec)) {
       throw new BadRequestException(
         'إجمالي المدين يجب أن يساوي إجمالي الدائن في الأرصدة الافتتاحية.',
       );
@@ -1700,13 +1718,14 @@ export class AccountingService {
           sourceModule: AccountingSourceModule.OPENING,
           sourceId: null,
           financialYearId: year.id,
-          financialPeriodId: null, // أو أول فترة في السنة لو حابب تربطها
+          financialPeriodId: null,
           createdById: userId,
           lines: {
             create: lines.map((l) => ({
               accountId: l.accountId,
-              debit: new Prisma.Decimal(l.debit || 0),
-              credit: new Prisma.Decimal(l.credit || 0),
+              costCenterId: l.costCenterId ?? null,
+              debit: Money.toDbString(l.debit || 0),
+              credit: Money.toDbString(l.credit || 0),
               description: l.description || 'رصيد افتتاحي',
             })),
           },
@@ -1722,8 +1741,8 @@ export class AccountingService {
     return {
       success: true,
       entryId: result.id,
-      totalDebit,
-      totalCredit,
+      totalDebit: Money.toDb(totalDebitDec),
+      totalCredit: Money.toDb(totalCreditDec),
       linesCount: result.lines.length,
     };
   }
@@ -1842,7 +1861,7 @@ export class AccountingService {
       accMap.set(a.id, a);
     }
 
-    // 4) بناء سطور الأرصدة الافتتاحية (debit/credit) لكل حساب
+    // 4) بناء سطور الأرصدة الافتتاحية (debit/credit) لكل حساب بدقة Money
     const openingLines: {
       accountId: number;
       costCenterId?: number | null;
@@ -1851,46 +1870,36 @@ export class AccountingService {
       description: string;
     }[] = [];
 
-    let totalDebit = 0;
-    let totalCredit = 0;
+    let totalDebitDec = Money.decimal(0);
+    let totalCreditDec = Money.decimal(0);
 
     for (const g of grouped) {
       const acc = accMap.get(g.accountId);
       if (!acc) continue;
 
-      const debit = Number(g._sum.debit ?? 0);
-      const credit = Number(g._sum.credit ?? 0);
+      const debitDec = Money.decimal(g._sum.debit ?? 0);
+      const creditDec = Money.decimal(g._sum.credit ?? 0);
       const costCenterId = g.costCenterId;
 
       // الرصيد = مدين - دائن
-      const net = debit - credit;
+      const netDec = Money.subtractDecimal(debitDec, creditDec);
 
       // نتجاهل الحسابات التي أصبحت صفر
-      if (Math.abs(net) < 0.000001) continue;
+      if (netDec.isZero()) continue;
 
-      let openDebit = 0;
-      let openCredit = 0;
-
-      if (net > 0) {
-        // رصيد مدين
-        openDebit = net;
-      } else if (net < 0) {
-        // رصيد دائن
-        openCredit = Math.abs(net);
-      }
-
-      if (openDebit === 0 && openCredit === 0) continue;
+      const openDebitDec = netDec.gt(0) ? netDec : Money.decimal(0);
+      const openCreditDec = netDec.lt(0) ? netDec.abs() : Money.decimal(0);
 
       openingLines.push({
         accountId: acc.id,
         costCenterId,
-        debit: openDebit,
-        credit: openCredit,
+        debit: Money.toDb(openDebitDec),
+        credit: Money.toDb(openCreditDec),
         description: `رصيد افتتاحي مرحّل من السنة ${sourceYear.code ?? sourceYear.name ?? ''}`,
       });
 
-      totalDebit += openDebit;
-      totalCredit += openCredit;
+      totalDebitDec = Money.addDecimal(totalDebitDec, openDebitDec);
+      totalCreditDec = Money.addDecimal(totalCreditDec, openCreditDec);
     }
 
     if (!openingLines.length) {
@@ -1899,22 +1908,22 @@ export class AccountingService {
       );
     }
 
-    // للتأكد فقط (يفترض أن يكون متوازنًا دائمًا)
-    if (Math.abs(totalDebit - totalCredit) > 0.0001) {
+    if (!Money.eq(totalDebitDec, totalCreditDec)) {
       this.logger.error(
-        `عدم توازن في قيد الأرصدة الافتتاحية: Debit=${totalDebit}, Credit=${totalCredit}`,
+        `عدم توازن في قيد الأرصدة الافتتاحية: Debit=${Money.toDbString(totalDebitDec)}, Credit=${Money.toDbString(totalCreditDec)}`,
       );
       throw new BadRequestException(
         'قيد الأرصدة الافتتاحية الناتج غير متوازن. تحقق من البيانات.',
       );
     }
 
-    // 5) تجهيز DTO واستخدام saveOpeningBalances حتى نستفيد من منطق التحقق الموجود
+    // 5) تجهيز DTO واستخدام saveOpeningBalances مع حفظ costCenterId
     const openingDto: SaveOpeningBalancesDto = {
       financialYearId: targetYear.id,
       entryDate: entryDate ?? targetYear.startDate.toISOString(),
       lines: openingLines.map((l) => ({
         accountId: l.accountId,
+        costCenterId: l.costCenterId ?? null,
         debit: l.debit,
         credit: l.credit,
         description: l.description,
@@ -2197,14 +2206,21 @@ export class AccountingService {
       );
     }
 
-    const totalDebit = lines.reduce((acc, l) => acc + (l.debit || 0), 0);
-    const totalCredit = lines.reduce((acc, l) => acc + (l.credit || 0), 0);
+    const totalDebitDec = Money.sumDecimal(
+      ...lines.map((l) => Money.decimal(l.debit ?? 0)),
+    );
+    const totalCreditDec = Money.sumDecimal(
+      ...lines.map((l) => Money.decimal(l.credit ?? 0)),
+    );
 
-    if (Math.abs(totalDebit - totalCredit) > 0.0001) {
+    if (!Money.eq(totalDebitDec, totalCreditDec)) {
       throw new BadRequestException(
         'إجمالي المدين يجب أن يساوي إجمالي الدائن في القيد.',
       );
     }
+
+    const totalDebit = Money.toDb(totalDebitDec);
+    const totalCredit = Money.toDb(totalCreditDec);
 
     const entry = await this.prisma.accountingEntry.create({
       data: {
@@ -2219,10 +2235,10 @@ export class AccountingService {
         lines: {
           create: lines.map((l) => ({
             accountId: l.accountId,
-            debit: new Prisma.Decimal(l.debit || 0),
-            credit: new Prisma.Decimal(l.credit || 0),
+            debit: Money.toDbString(l.debit ?? 0),
+            credit: Money.toDbString(l.credit ?? 0),
             description: l.description || null,
-            costCenterId: l.costCenterId || null,
+            costCenterId: l.costCenterId ?? null,
           })),
         },
       },
@@ -2783,14 +2799,14 @@ export class AccountingService {
         id: inv.id,
         reference: `مسودة #${inv.id} - مريض: ${inv.patient?.fullName ?? 'غير محدد'}`,
         date: inv.createdAt,
-        amount: Number(inv.totalAmount),
+        amount: Money.toDb(inv.totalAmount),
       })),
       ...draftPurchases.map((pi) => ({
         type: 'فاتورة مشتريات',
         id: pi.id,
         reference: `رقم المورد: ${pi.invoiceNumber ?? '---'} - مورد: ${pi.supplier?.name ?? 'غير محدد'}`,
         date: pi.createdAt,
-        amount: Number(pi.totalAmount),
+        amount: Money.toDb(pi.totalAmount),
       })),
     ];
 
@@ -2816,6 +2832,14 @@ export class AccountingService {
     await this.validateYearClosingPrerequisites(hospitalId, financialYearId);
 
     return this.prisma.$transaction(async (tx) => {
+      if (typeof tx.$queryRaw === 'function') {
+        await tx.$queryRaw`
+          SELECT id FROM "FinancialYear"
+          WHERE id = ${financialYearId} AND "hospitalId" = ${hospitalId}
+          FOR UPDATE
+        `;
+      }
+
       // 1) التحقق من السنة المالية
       const year = await tx.financialYear.findFirst({
         where: { id: financialYearId, hospitalId },
@@ -2871,6 +2895,7 @@ export class AccountingService {
           entry: {
             hospitalId,
             financialYearId: year.id,
+            sourceModule: { not: AccountingSourceModule.CLOSING },
             entryDate: {
               gte: year.startDate,
               lte: year.endDate,
@@ -2918,8 +2943,8 @@ export class AccountingService {
       type LineInput = {
         accountId: number;
         costCenterId?: number | null;
-        debit: Prisma.Decimal;
-        credit: Prisma.Decimal;
+        debit: string;
+        credit: string;
         description: string;
       };
 
@@ -2927,17 +2952,17 @@ export class AccountingService {
 
       // التجميع لحساب الأرباح المحتجزة حسب مركز التكلفة
       // المفتاح: costCenterId (أو 'null') -> القيمة: صافي الربح (موجب) أو الخسارة (سالب)
-      const reByCostCenter = new Map<number | 'null', number>();
+      const reByCostCenter = new Map<number | 'null', FinancialDecimal>();
 
-      let totalRevenue = 0; // مجموع أرصدة الإيراد (دائن)
-      let totalExpense = 0; // مجموع أرصدة المصروف (مدين)
+      let totalRevenueDec = Money.decimal(0); // صافي الإيرادات (شامل خصم حسابات الإيراد العكسية CONTRA_REVENUE)
+      let totalExpenseDec = Money.decimal(0); // مجموع أرصدة المصروفات
 
       for (const agg of lineAgg) {
         const acc = accMap.get(agg.accountId);
         if (!acc) continue; // ليس من حسابات قائمة الدخل
 
-        const debit = Number(agg._sum.debit ?? 0);
-        const credit = Number(agg._sum.credit ?? 0);
+        const debitDec = Money.decimal(agg._sum.debit ?? 0);
+        const creditDec = Money.decimal(agg._sum.credit ?? 0);
         const costCenterId = agg.costCenterId;
         const ccKey = costCenterId ?? 'null';
 
@@ -2945,64 +2970,62 @@ export class AccountingService {
           acc.type === AccountType.REVENUE ||
           acc.type === AccountType.CONTRA_REVENUE
         ) {
-          // الإيرادات (الرصيد الطبيعي دائن)
-          const balance = credit - debit;
-          if (Math.abs(balance) < 0.0005) continue;
+          // صافي الإيراد = دائن - مدين (في CONTRA_REVENUE يكون سالباً فيُخصم من صافي الإيرادات بدلاً من تضخيم المصروفات)
+          const netRevDec = Money.subtractDecimal(creditDec, debitDec);
+          if (Money.isZero(netRevDec)) continue;
 
-          // تحديث صافي الربح/الخسارة لهذا المركز
-          const currentNet = reByCostCenter.get(ccKey) ?? 0;
-          reByCostCenter.set(ccKey, currentNet + balance);
+          const currentNet = reByCostCenter.get(ccKey) ?? Money.decimal(0);
+          reByCostCenter.set(ccKey, Money.addDecimal(currentNet, netRevDec));
+          totalRevenueDec = Money.addDecimal(totalRevenueDec, netRevDec);
 
-          if (balance > 0) {
-            totalRevenue += balance;
-            // قيد إغلاق: مدين حساب الإيراد لقفل رصيده
+          if (netRevDec.gt(0)) {
+            // قيد إغلاق حساب إيراد دائن: مدين حساب الإيراد لقفل رصيده
             closingLines.push({
               accountId: acc.id,
               costCenterId,
-              debit: new Prisma.Decimal(balance),
-              credit: new Prisma.Decimal(0),
+              debit: Money.toDbString(netRevDec),
+              credit: '0.000',
               description: `إقفال حساب ${acc.name}`,
             });
           } else {
-            // حالة نادرة لو الرصيد مدين في حساب إيراد
-            const abs = Math.abs(balance);
-            totalExpense += abs;
+            // قيد إغلاق حساب CONTRA_REVENUE (أو إيراد رصيده مدين): دائن لقفل رصيده
             closingLines.push({
               accountId: acc.id,
               costCenterId,
-              debit: new Prisma.Decimal(0),
-              credit: new Prisma.Decimal(abs),
+              debit: '0.000',
+              credit: Money.toDbString(netRevDec.abs()),
               description: `إقفال حساب ${acc.name}`,
             });
           }
         } else if (acc.type === AccountType.EXPENSE) {
-          // المصروفات (الرصيد الطبيعي مدين)
-          const balance = debit - credit;
-          if (Math.abs(balance) < 0.0005) continue;
+          // المصروفات (الرصيد الطبيعي مدين: مدين - دائن)
+          const netExpDec = Money.subtractDecimal(debitDec, creditDec);
+          if (Money.isZero(netExpDec)) continue;
 
           // المصروف يقلل الربح
-          const currentNet = reByCostCenter.get(ccKey) ?? 0;
-          reByCostCenter.set(ccKey, currentNet - balance);
+          const currentNet = reByCostCenter.get(ccKey) ?? Money.decimal(0);
+          reByCostCenter.set(
+            ccKey,
+            Money.subtractDecimal(currentNet, netExpDec),
+          );
+          totalExpenseDec = Money.addDecimal(totalExpenseDec, netExpDec);
 
-          if (balance > 0) {
-            totalExpense += balance;
+          if (netExpDec.gt(0)) {
             // قيد إغلاق: دائن حساب المصروف لقفل رصيده
             closingLines.push({
               accountId: acc.id,
               costCenterId,
-              debit: new Prisma.Decimal(0),
-              credit: new Prisma.Decimal(balance),
+              debit: '0.000',
+              credit: Money.toDbString(netExpDec),
               description: `إقفال حساب ${acc.name}`,
             });
           } else {
             // حالة نادرة لو الرصيد دائن في حساب مصروف
-            const abs = Math.abs(balance);
-            totalRevenue += abs;
             closingLines.push({
               accountId: acc.id,
               costCenterId,
-              debit: new Prisma.Decimal(abs),
-              credit: new Prisma.Decimal(0),
+              debit: Money.toDbString(netExpDec.abs()),
+              credit: '0.000',
               description: `إقفال حساب ${acc.name}`,
             });
           }
@@ -3016,36 +3039,38 @@ export class AccountingService {
       }
 
       // 6) إضافة سطور الأرباح المحتجزة لكل مركز تكلفة
-      for (const [key, netProfit] of reByCostCenter.entries()) {
+      for (const [key, netProfitCcDec] of reByCostCenter.entries()) {
         const costCenterId = key === 'null' ? null : key;
 
-        if (Math.abs(netProfit) > 0.0005) {
-          if (netProfit > 0) {
+        if (!Money.isZero(netProfitCcDec)) {
+          if (netProfitCcDec.gt(0)) {
             // ربح -> دائن في حقوق الملكية
             closingLines.push({
               accountId: reAccount.id,
               costCenterId,
-              debit: new Prisma.Decimal(0),
-              credit: new Prisma.Decimal(netProfit),
+              debit: '0.000',
+              credit: Money.toDbString(netProfitCcDec),
               description: 'ترحيل صافي الربح',
             });
           } else {
             // خسارة -> مدين في حقوق الملكية
-            const loss = Math.abs(netProfit);
             closingLines.push({
               accountId: reAccount.id,
               costCenterId,
-              debit: new Prisma.Decimal(loss),
-              credit: new Prisma.Decimal(0),
+              debit: Money.toDbString(netProfitCcDec.abs()),
+              credit: '0.000',
               description: 'ترحيل صافي الخسارة',
             });
           }
         }
       }
 
-      const netProfit = totalRevenue - totalExpense;
+      const netProfitDec = Money.subtractDecimal(
+        totalRevenueDec,
+        totalExpenseDec,
+      );
 
-      // 7) إنشاء قيد الإقفال
+      // 7) إنشاء قيد الإقفال مع مفتاح عدم تكرار
       const closingEntry = await tx.accountingEntry.create({
         data: {
           hospitalId,
@@ -3057,6 +3082,7 @@ export class AccountingService {
             `قيد إقفال السنة المالية ${year.code ?? ''}`.trim(),
           sourceModule: AccountingSourceModule.CLOSING,
           sourceId: year.id,
+          postingKey: `year-close:${hospitalId}:${year.id}`,
           createdById: userId,
           lines: {
             create: closingLines,
@@ -3064,16 +3090,12 @@ export class AccountingService {
         },
       });
 
-      // 7) تحديث حالة السنة إلى CLOSED
-      // 7) تحديث حالة السنة إلى CLOSED وإلغاء كونها السنة الحالية
+      // 8) تحديث حالة السنة إلى CLOSED وإلغاء كونها السنة الحالية
       await tx.financialYear.update({
         where: { id: year.id },
         data: {
           status: FinancialYearStatus.CLOSED,
           isCurrent: false,
-          // لو عندك حقل updatedById في الجدول يمكنك تفعيله:
-          // updatedById: userId,
-          // ويمكن لاحقاً إضافة closedAt / closedById
         },
       });
 
@@ -3081,9 +3103,9 @@ export class AccountingService {
         financialYearId: year.id,
         financialYearName: year.name,
         closingEntryId: closingEntry.id,
-        totalRevenue: Number(totalRevenue.toFixed(3)),
-        totalExpense: Number(totalExpense.toFixed(3)),
-        netProfit: Number(netProfit.toFixed(3)),
+        totalRevenue: Money.toDb(totalRevenueDec),
+        totalExpense: Money.toDb(totalExpenseDec),
+        netProfit: Money.toDb(netProfitDec),
       };
     });
   }
@@ -3339,6 +3361,7 @@ export class AccountingService {
     const whereLines: Prisma.AccountingEntryLineWhereInput = {
       entry: {
         hospitalId,
+        sourceModule: { not: AccountingSourceModule.CLOSING },
         entryDate: {
           gte: fromInclusive,
           lt: toExclusive,
@@ -3396,19 +3419,19 @@ export class AccountingService {
       code: string;
       name: string;
       type: AccountType;
-      debitTotal: number;
-      creditTotal: number;
+      debitTotal: FinancialDecimal;
+      creditTotal: FinancialDecimal;
     };
 
     const aggMap = new Map<number, Agg>();
 
-    // نجمع المدين/الدائن لكل حساب
+    // نجمع المدين/الدائن لكل حساب بدقة Money
     for (const line of lines) {
       const acc = line.account;
       if (!acc) continue;
 
-      const debit = Number(line.debit ?? 0);
-      const credit = Number(line.credit ?? 0);
+      const debitDec = Money.decimal(line.debit ?? 0);
+      const creditDec = Money.decimal(line.credit ?? 0);
 
       let agg = aggMap.get(acc.id);
       if (!agg) {
@@ -3417,27 +3440,31 @@ export class AccountingService {
           code: acc.code,
           name: acc.name,
           type: acc.type,
-          debitTotal: 0,
-          creditTotal: 0,
+          debitTotal: Money.decimal(0),
+          creditTotal: Money.decimal(0),
         };
         aggMap.set(acc.id, agg);
       }
 
-      agg.debitTotal += debit;
-      agg.creditTotal += credit;
+      agg.debitTotal = Money.addDecimal(agg.debitTotal, debitDec);
+      agg.creditTotal = Money.addDecimal(agg.creditTotal, creditDec);
     }
 
     const revenues: IncomeStatementRowDto[] = [];
     const expenses: IncomeStatementRowDto[] = [];
+    let totalRevenueDec = Money.decimal(0);
+    let totalExpenseDec = Money.decimal(0);
 
     for (const agg of aggMap.values()) {
       const { accountId, code, name, type } = agg;
-      const debit = agg.debitTotal;
-      const credit = agg.creditTotal;
+      const debitDec = agg.debitTotal;
+      const creditDec = agg.creditTotal;
 
-      // 👈 منطق التصنيف
+      // 👈 منطق التصنيف: الإيرادات وحسابات الإيراد العكسية (CONTRA_REVENUE)
       const isRevenue =
-        type === AccountType.REVENUE || (code && code.startsWith('4'));
+        type === AccountType.REVENUE ||
+        type === AccountType.CONTRA_REVENUE ||
+        (type !== AccountType.EXPENSE && Boolean(code && code.startsWith('4')));
 
       const isExpense = type === AccountType.EXPENSE;
 
@@ -3446,39 +3473,38 @@ export class AccountingService {
         continue;
       }
 
-      let net = 0;
-      if (isRevenue) {
-        // الإيرادات: دائن - مدين
-        net = credit - debit;
-      } else {
-        // المصروفات وخصومات الإيرادات: مدين - دائن
-        net = debit - credit;
-      }
+      const netDec = isRevenue
+        ? Money.subtractDecimal(creditDec, debitDec)
+        : Money.subtractDecimal(debitDec, creditDec);
 
       // تجاهل الحسابات اللي رصيدها صفر فعليًا
-      if (Math.abs(net) < 0.000001) continue;
+      if (Money.isZero(netDec)) continue;
 
       const row: IncomeStatementRowDto = {
         accountId,
         code,
         name,
         type,
-        debit,
-        credit,
-        net,
+        debit: Money.toDb(debitDec),
+        credit: Money.toDb(creditDec),
+        net: Money.toDb(netDec),
       };
 
       if (isRevenue) {
         revenues.push(row);
+        totalRevenueDec = Money.addDecimal(totalRevenueDec, netDec);
       } else {
         expenses.push(row);
+        totalExpenseDec = Money.addDecimal(totalExpenseDec, netDec);
       }
     }
 
-    // إجماليات وصافي الربح
-    const totalRevenue = revenues.reduce((s, r) => s + r.net, 0);
-    const totalExpense = expenses.reduce((s, r) => s + r.net, 0);
-    const netProfit = totalRevenue - totalExpense;
+    // إجماليات وصافي الربح بدقة Money
+    const totalRevenue = Money.toDb(totalRevenueDec);
+    const totalExpense = Money.toDb(totalExpenseDec);
+    const netProfit = Money.toDb(
+      Money.subtractDecimal(totalRevenueDec, totalExpenseDec),
+    );
 
     // ترتيب حسب رقم الحساب لراحة العرض
     revenues.sort((a, b) => a.code.localeCompare(b.code, 'en'));
@@ -3496,10 +3522,11 @@ export class AccountingService {
     };
   }
 
-  // 🔹 حساب صافي الربح / الخسارة حتى تاريخ معيّن
+  // 🔹 حساب صافي الربح / الخسارة حتى تاريخ معيّن (مع عزل السنة المالية عند تمريرها)
   private async calculateNetIncome(
     hospitalId: number,
     asOfDate: Date,
+    financialYearId?: number,
   ): Promise<number> {
     const asOfStart = startOfDayUtc(asOfDate);
     const asOfExclusive = addDaysUtc(asOfStart, 1);
@@ -3508,6 +3535,7 @@ export class AccountingService {
       where: {
         entry: {
           hospitalId,
+          ...(financialYearId ? { financialYearId } : {}),
           entryDate: { lt: asOfExclusive },
         },
         account: {
@@ -3529,32 +3557,31 @@ export class AccountingService {
       },
     });
 
-    let totalRevenue = 0;
-    let totalExpenses = 0;
+    let totalRevenueDec = Money.decimal(0);
+    let totalExpensesDec = Money.decimal(0);
 
     for (const line of lines) {
-      const debit = Number(line.debit);
-      const credit = Number(line.credit);
+      const debitDec = Money.decimal(line.debit ?? 0);
+      const creditDec = Money.decimal(line.credit ?? 0);
 
-      // الإيرادات (رصيدها الطبيعي دائن)
+      // الإيرادات وحسابات الإيراد العكسية (صافي الإيراد = دائن - مدين)
       if (
         line.account.type === AccountType.REVENUE ||
         line.account.type === AccountType.CONTRA_REVENUE
       ) {
-        const balance = credit - debit; // دائن - مدين
-        totalRevenue += balance;
+        const balanceDec = Money.subtractDecimal(creditDec, debitDec);
+        totalRevenueDec = Money.addDecimal(totalRevenueDec, balanceDec);
       }
 
-      // المصروفات (رصيدها الطبيعي مدين)
+      // المصروفات (رصيدها الطبيعي مدين = مدين - دائن)
       if (line.account.type === AccountType.EXPENSE) {
-        const balance = debit - credit; // مدين - دائن
-        totalExpenses += balance;
+        const balanceDec = Money.subtractDecimal(debitDec, creditDec);
+        totalExpensesDec = Money.addDecimal(totalExpensesDec, balanceDec);
       }
     }
 
     // صافي الربح = إجمالي الإيرادات - إجمالي المصروفات
-    const netIncome = totalRevenue - totalExpenses;
-    return netIncome;
+    return Money.toDb(Money.subtractDecimal(totalRevenueDec, totalExpensesDec));
   }
 
   /**
@@ -3610,8 +3637,8 @@ export class AccountingService {
       code: string;
       name: string;
       type: AccountType;
-      debitTotal: number;
-      creditTotal: number;
+      debitTotal: FinancialDecimal;
+      creditTotal: FinancialDecimal;
     };
 
     const map = new Map<number, Agg>();
@@ -3620,8 +3647,8 @@ export class AccountingService {
       const acc = line.account;
       if (!acc) continue;
 
-      const debit = Number(line.debit);
-      const credit = Number(line.credit);
+      const debitDec = Money.decimal(line.debit ?? 0);
+      const creditDec = Money.decimal(line.credit ?? 0);
 
       let agg = map.get(acc.id);
       if (!agg) {
@@ -3630,37 +3657,37 @@ export class AccountingService {
           code: acc.code,
           name: acc.name,
           type: acc.type,
-          debitTotal: 0,
-          creditTotal: 0,
+          debitTotal: Money.decimal(0),
+          creditTotal: Money.decimal(0),
         };
         map.set(acc.id, agg);
       }
 
-      agg.debitTotal += debit;
-      agg.creditTotal += credit;
+      agg.debitTotal = Money.addDecimal(agg.debitTotal, debitDec);
+      agg.creditTotal = Money.addDecimal(agg.creditTotal, creditDec);
     }
 
     const assetAccounts: any[] = [];
     const liabilityAccounts: any[] = [];
     const equityAccounts: any[] = [];
 
-    let assetsTotal = 0;
-    let liabilitiesTotal = 0;
-    let equityTotal = 0;
+    let assetsTotalDec = Money.decimal(0);
+    let liabilitiesTotalDec = Money.decimal(0);
+    let equityTotalDec = Money.decimal(0);
 
     for (const agg of map.values()) {
       // نفس منطق ميزان المراجعة: الرصيد = مدين - دائن
-      const balance = agg.debitTotal - agg.creditTotal;
+      const balanceDec = Money.subtractDecimal(agg.debitTotal, agg.creditTotal);
 
       // نتجاهل الحسابات التي ليس لها رصيد فعلي
-      if (Math.abs(balance) < 0.000001) continue;
+      if (Money.isZero(balanceDec)) continue;
 
       const base = {
         accountId: agg.accountId,
         code: agg.code,
         name: agg.name,
         type: agg.type,
-        balance,
+        balance: Money.toDb(balanceDec),
       };
 
       // الأصول (مع الأصول السالبة إن وجدت)
@@ -3669,21 +3696,21 @@ export class AccountingService {
         agg.type === AccountType.CONTRA_ASSET
       ) {
         assetAccounts.push(base);
-        assetsTotal += balance;
+        assetsTotalDec = Money.addDecimal(assetsTotalDec, balanceDec);
         continue;
       }
 
       // الالتزامات
       if (agg.type === AccountType.LIABILITY) {
         liabilityAccounts.push(base);
-        liabilitiesTotal += balance;
+        liabilitiesTotalDec = Money.addDecimal(liabilitiesTotalDec, balanceDec);
         continue;
       }
 
       // حقوق الملكية (بدون الإيرادات/المصروفات)
       if (agg.type === AccountType.EQUITY) {
         equityAccounts.push(base);
-        equityTotal += balance;
+        equityTotalDec = Money.addDecimal(equityTotalDec, balanceDec);
         continue;
       }
 
@@ -3691,16 +3718,20 @@ export class AccountingService {
       // لا نعرضها في الميزانية، تدخل في صافي الربح فقط
     }
 
-    // 1) حساب صافي الربح / الخسارة المتراكم حتى هذا التاريخ
-    // ⚠️ نفترض أن calculateNetIncome نفسها تأخذ في الاعتبار السنة المالية
-    const netIncome = await this.calculateNetIncome(hospitalId, asOfStart);
+    // 1) حساب صافي الربح / الخسارة المتراكم حتى هذا التاريخ داخل نفس السنة المالية
+    const netIncome = await this.calculateNetIncome(
+      hospitalId,
+      asOfStart,
+      fy.id,
+    );
+    const netIncomeDec = Money.decimal(netIncome);
 
     // 2) إضافة صافي الربح كحساب افتراضي ضمن حقوق الملكية
-    let equityTotalWithNetIncome = equityTotal;
+    let equityTotalWithNetIncomeDec = equityTotalDec;
 
-    if (Math.abs(netIncome) > 0.000001) {
+    if (!Money.isZero(netIncomeDec)) {
       // في نظامنا: الرصيد الدائن يظهر بالسالب (مثل رأس المال)
-      const niBalanceForEquity = -netIncome;
+      const niBalanceForEquityDec = Money.subtractDecimal(0, netIncomeDec);
 
       equityAccounts.push({
         accountId: 0, // حساب افتراضي للعرض فقط
@@ -3710,14 +3741,28 @@ export class AccountingService {
             ? 'صافي الربح المتراكم حتى التاريخ'
             : 'صافي الخسارة المتراكمة حتى التاريخ',
         type: AccountType.EQUITY,
-        balance: niBalanceForEquity,
+        balance: Money.toDb(niBalanceForEquityDec),
       });
 
-      equityTotalWithNetIncome += niBalanceForEquity;
+      equityTotalWithNetIncomeDec = Money.addDecimal(
+        equityTotalWithNetIncomeDec,
+        niBalanceForEquityDec,
+      );
     }
 
     // 3) إجمالي الالتزامات + حقوق الملكية (بالقيمة المطلقة لحقوق الملكية)
-    const liabilitiesAndEquity = -liabilitiesTotal - equityTotalWithNetIncome;
+    const liabilitiesAndEquityDec = Money.subtractDecimal(
+      Money.subtractDecimal(0, liabilitiesTotalDec),
+      equityTotalWithNetIncomeDec,
+    );
+
+    const assetsTotal = Money.toDb(assetsTotalDec);
+    const liabilitiesTotal = Money.toDb(liabilitiesTotalDec);
+    const equityTotalWithNetIncome = Money.toDb(equityTotalWithNetIncomeDec);
+    const liabilitiesAndEquity = Money.toDb(liabilitiesAndEquityDec);
+    const difference = Money.toDb(
+      Money.subtractDecimal(assetsTotalDec, liabilitiesAndEquityDec),
+    );
 
     return {
       asOfDate: asOfStart,
@@ -3736,7 +3781,7 @@ export class AccountingService {
       totals: {
         assets: assetsTotal,
         liabilitiesAndEquity,
-        difference: assetsTotal - liabilitiesAndEquity,
+        difference,
       },
     };
   }
@@ -4470,19 +4515,24 @@ export class AccountingService {
       const patientInfo = patientMap.get(inv.patientId as number);
       if (!patientInfo) continue;
 
-      // صافي الفاتورة:
-      const net =
+      // صافي الفاتورة بدقة Money:
+      const netDec =
         inv.netAmount != null
-          ? Number(inv.netAmount)
-          : Number(inv.totalAmount ?? 0) -
-            Number(inv.discountAmount ?? 0) +
-            Number(inv.vatAmount ?? 0);
+          ? Money.decimal(inv.netAmount)
+          : Money.addDecimal(
+              Money.subtractDecimal(
+                inv.totalAmount ?? 0,
+                inv.discountAmount ?? 0,
+              ),
+              inv.vatAmount ?? 0,
+            );
 
-      const paid = Number(inv.paidAmount ?? 0);
-      const remaining = net - paid;
+      const paidDec = Money.decimal(inv.paidAmount ?? 0);
+      const remainingDec = Money.subtractDecimal(netDec, paidDec);
 
       // لو ما فيش رصيد متبقي نتجاهل الفاتورة
-      if (remaining <= 0.0001) continue;
+      if (!remainingDec.gt(0)) continue;
+      const remaining = Money.toDb(remainingDec);
 
       let holder = byPatient.get(patientInfo.id);
       if (!holder) {
@@ -4510,22 +4560,22 @@ export class AccountingService {
       const b = holder.buckets;
 
       if (ageDays <= 30) {
-        b.b0_30 += remaining;
+        b.b0_30 = Money.add(b.b0_30, remaining);
       } else if (ageDays <= 60) {
-        b.b31_60 += remaining;
+        b.b31_60 = Money.add(b.b31_60, remaining);
       } else if (ageDays <= 90) {
-        b.b61_90 += remaining;
+        b.b61_90 = Money.add(b.b61_90, remaining);
       } else if (ageDays <= 120) {
-        b.b91_120 += remaining;
+        b.b91_120 = Money.add(b.b91_120, remaining);
       } else {
-        b.b121_plus += remaining;
+        b.b121_plus = Money.add(b.b121_plus, remaining);
       }
 
-      b.total += remaining;
+      b.total = Money.add(b.total, remaining);
     }
 
     const patientsAging = Array.from(byPatient.values())
-      .filter((p) => p.buckets.total > 0.0001)
+      .filter((p) => p.buckets.total > 0)
       .map((p) => ({
         patientId: p.patientId,
         patientName: p.patientName,
@@ -4536,12 +4586,12 @@ export class AccountingService {
 
     const grand = patientsAging.reduce(
       (acc, p) => {
-        acc.b0_30 += p.b0_30;
-        acc.b31_60 += p.b31_60;
-        acc.b61_90 += p.b61_90;
-        acc.b91_120 += p.b91_120;
-        acc.b121_plus += p.b121_plus;
-        acc.total += p.total;
+        acc.b0_30 = Money.add(acc.b0_30, p.b0_30);
+        acc.b31_60 = Money.add(acc.b31_60, p.b31_60);
+        acc.b61_90 = Money.add(acc.b61_90, p.b61_90);
+        acc.b91_120 = Money.add(acc.b91_120, p.b91_120);
+        acc.b121_plus = Money.add(acc.b121_plus, p.b121_plus);
+        acc.total = Money.add(acc.total, p.total);
         return acc;
       },
       {
@@ -4618,8 +4668,8 @@ export class AccountingService {
     >();
     for (const t of totalsByEntry) {
       totalsMap.set(t.entryId, {
-        totalDebit: Number(t._sum.debit ?? 0),
-        totalCredit: Number(t._sum.credit ?? 0),
+        totalDebit: Money.toDb(t._sum.debit ?? 0),
+        totalCredit: Money.toDb(t._sum.credit ?? 0),
       });
     }
 
@@ -4690,14 +4740,8 @@ export class AccountingService {
       orderBy: { id: 'asc' },
     });
 
-    const totalDebit = linesRaw.reduce(
-      (sum, l) => sum + Number(l.debit || 0),
-      0,
-    );
-    const totalCredit = linesRaw.reduce(
-      (sum, l) => sum + Number(l.credit || 0),
-      0,
-    );
+    const totalDebit = Money.sum(...linesRaw.map((l) => l.debit ?? 0));
+    const totalCredit = Money.sum(...linesRaw.map((l) => l.credit ?? 0));
 
     const user =
       entry.createdById != null
@@ -4712,8 +4756,8 @@ export class AccountingService {
       accountId: l.accountId,
       accountCode: l.account?.code ?? '',
       accountName: l.account?.name ?? '',
-      debit: Number(l.debit || 0),
-      credit: Number(l.credit || 0),
+      debit: Money.toDb(l.debit ?? 0),
+      credit: Money.toDb(l.credit ?? 0),
       description: l.description,
     }));
 

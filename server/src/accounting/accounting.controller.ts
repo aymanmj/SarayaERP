@@ -121,16 +121,19 @@ export class AccountingController {
     @Query('financialYearId') financialYearId?: string,
     @Query('from') from?: string,
     @Query('to') to?: string,
+    @Query('costCenterId') costCenterId?: string,
   ) {
     const fyId = financialYearId ? Number(financialYearId) : undefined;
     const fromDate = from ? new Date(from) : undefined;
     const toDate = to ? new Date(to) : undefined;
+    const ccId = costCenterId ? Number(costCenterId) : undefined;
 
     return this.accountingService.getIncomeStatement({
       hospitalId: user.hospitalId,
       financialYearId: fyId,
       fromDate,
       toDate,
+      costCenterId: ccId,
     });
   }
 
@@ -141,6 +144,7 @@ export class AccountingController {
     @Query('accountId', ParseIntPipe) accountId: number,
     @Query('from') fromStr?: string,
     @Query('to') toStr?: string,
+    @Query('costCenterId') costCenterId?: string,
   ) {
     const hospitalId = user.hospitalId;
 
@@ -155,9 +159,12 @@ export class AccountingController {
       throw new BadRequestException('صيغة التاريخ غير صحيحة.');
     }
 
+    const ccId = costCenterId ? Number(costCenterId) : undefined;
+
     return this.accountingService.getLedger(hospitalId, accountId, {
       from,
       to,
+      costCenterId: ccId,
     });
   }
 
@@ -276,11 +283,11 @@ export class AccountingController {
   async closeFinancialYear(
     @Param('id', ParseIntPipe) id: number,
     @Body() body: CloseFinancialYearDto,
-    @Req() req: any,
+    @Req() req: { user: JwtPayload & { id?: number } },
   ): Promise<ApiResponse<CloseFinancialYearResultDto>> {
     const user = req.user;
     const hospitalId = user.hospitalId;
-    const userId = user.id;
+    const userId = user.sub ?? user.id ?? 0;
 
     const result = await this.accountingService.closeFinancialYear(
       hospitalId,
@@ -300,13 +307,13 @@ export class AccountingController {
   @HttpCode(200)
   async generateOpeningFromLastClosedYear(
     @Param('id', ParseIntPipe) id: number,
-    @Req() req: any,
+    @Req() req: { user: JwtPayload & { id?: number } },
     @Body() body?: { entryDate?: string },
   ): Promise<ApiResponse<any>> {
     try {
       const user = req.user;
-      const hospitalId = user.hospitalId as number;
-      const userId = user.id as number;
+      const hospitalId = user.hospitalId;
+      const userId = user.sub ?? user.id ?? 0;
 
       const result =
         await this.accountingService.generateOpeningBalancesFromLastClosedYear({

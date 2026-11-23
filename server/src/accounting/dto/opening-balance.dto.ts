@@ -2,8 +2,9 @@
 
 export type OpeningBalanceLineDto = {
   accountId: number;
-  debit: number;
-  credit: number;
+  costCenterId?: number | null;
+  debit: number | string;
+  credit: number | string;
   description?: string;
 };
 
