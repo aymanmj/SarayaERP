@@ -20,6 +20,7 @@ import {
 } from './era-processing.service';
 import { BatchSubmissionService } from './batch-submission.service';
 import { GatewayClearingLedgerService } from './gateway-clearing-ledger.service';
+import { PayerFhirGatewayService } from './payer-fhir-gateway.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Permissions } from '../auth/permissions.decorator';
 import { PermissionsGuard } from '../auth/permissions.guard';
@@ -197,6 +198,41 @@ class ReconcileBankStatementDto {
   @IsInt() @Min(1) targetId!: number;
 }
 
+class UpsertPayerIntegrationProfileDto {
+  @IsInt() @Min(1) providerId!: number;
+  @IsOptional() @IsString() @MaxLength(500) webhookUrl?: string;
+  @IsOptional() @IsString() @MaxLength(300) mtlsSubjectDn?: string;
+  @IsOptional() @IsString() @MaxLength(300) allowedScopes?: string;
+}
+
+class ExportFhirBatchBundleDto {
+  @IsUUID('4') requestId!: string;
+}
+
+class FhirClaimResponseWebhookPayloadDto {
+  @IsIn(['ClaimResponse']) resourceType!: 'ClaimResponse';
+  @IsInt() @Min(1) batchId!: number;
+  @IsOptional() @IsDateString() paymentDate?: string;
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(200)
+  @ValidateNested({ each: true })
+  @Type(() => AdjudicateClaimDecisionDto)
+  decisions!: AdjudicateClaimDecisionDto[];
+}
+
+class InboundSignedClaimResponseWebhookDto {
+  @IsString() @MinLength(5) @MaxLength(150) clientId!: string;
+  @IsString() @MinLength(10) @MaxLength(200) apiKey!: string;
+  @IsUUID('4') deliveryId!: string;
+  @IsDateString() timestamp!: string;
+  @IsString() @MinLength(71) @MaxLength(71) signature!: string;
+  @IsOptional() @IsString() @MaxLength(300) mtlsClientSubjectDn?: string;
+  @ValidateNested()
+  @Type(() => FhirClaimResponseWebhookPayloadDto)
+  fhirClaimResponse!: FhirClaimResponseWebhookPayloadDto;
+}
+
 /**
  * واجهة تحكم دورة الإيرادات (Revenue Cycle Management)
  *
@@ -219,6 +255,7 @@ export class ClaimController {
     private eraService: EraProcessingService,
     private batchService: BatchSubmissionService,
     private gatewayLedgerService: GatewayClearingLedgerService,
+    private payerFhirGatewayService: PayerFhirGatewayService,
   ) {}
 
   // ============================================
@@ -758,6 +795,94 @@ export class ClaimController {
       user.hospitalId,
       user.sub,
       id,
+      data,
+    );
+  }
+
+  // ============================================
+  // Layer 5: Payer FHIR R4 & HMAC-SHA256 Signed Webhooks
+  // ============================================
+
+  @ApiOperation({
+    summary: 'List external payer FHIR/webhook integration profiles',
+  })
+  @Get('payer-gateway/profiles')
+  @Permissions('claims:read')
+  listPayerIntegrationProfiles(@CurrentUser() user: JwtPayload) {
+    return this.payerFhirGatewayService.listIntegrationProfiles(
+      user.hospitalId,
+    );
+  }
+
+  @ApiOperation({
+    summary: 'Configure or rotate external payer FHIR/webhook credentials',
+  })
+  @Post('payer-gateway/profiles')
+  @Permissions('claims:update')
+  upsertPayerIntegrationProfile(
+    @CurrentUser() user: JwtPayload,
+    @Body() data: UpsertPayerIntegrationProfileDto,
+  ) {
+    return this.payerFhirGatewayService.upsertIntegrationProfile(
+      user.hospitalId,
+      user.sub,
+      data,
+    );
+  }
+
+  @ApiOperation({
+    summary:
+      'Export a submitted or closed claim batch as an HMAC-signed HL7 FHIR R4 Bundle',
+  })
+  @Post('batches/:id/fhir-bundle')
+  @Permissions('claims:update')
+  exportBatchAsSignedFhirBundle(
+    @CurrentUser() user: JwtPayload,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() data: ExportFhirBatchBundleDto,
+  ) {
+    return this.payerFhirGatewayService.exportBatchAsSignedFhirBundle(
+      user.hospitalId,
+      user.sub,
+      id,
+      data,
+    );
+  }
+
+  @ApiOperation({
+    summary: 'List outbound/inbound signed payer FHIR webhook events',
+  })
+  @Get('payer-gateway/webhooks')
+  @Permissions('claims:read')
+  listPayerWebhookEvents(
+    @CurrentUser() user: JwtPayload,
+    @Query('providerId') providerId?: string,
+  ) {
+    const parsedProviderId =
+      providerId &&
+      Number.isInteger(Number(providerId)) &&
+      Number(providerId) > 0
+        ? Number(providerId)
+        : undefined;
+    return this.payerFhirGatewayService.listWebhookEvents(
+      user.hospitalId,
+      parsedProviderId,
+    );
+  }
+
+  @ApiOperation({
+    summary:
+      'Process an inbound HMAC-SHA256 signed FHIR R4 ClaimResponse webhook from a payer',
+  })
+  @Post('payer-gateway/webhooks/claim-response')
+  @Permissions('claims:update')
+  processInboundSignedClaimResponseWebhook(
+    @CurrentUser() user: JwtPayload,
+    @Body() data: InboundSignedClaimResponseWebhookDto,
+  ) {
+    return this.payerFhirGatewayService.processInboundSignedClaimResponseWebhook(
+      user.hospitalId,
+      user.sub,
       data,
     );
   }

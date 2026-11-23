@@ -692,3 +692,48 @@ it("accrues and settles a B2B gateway clearing fee on a closed batch via PayerBa
     restoreDialog();
   }
 });
+
+it("exports an HMAC-signed FHIR R4 claim batch bundle via PayerBatchClearingDialog", async () => {
+  vi.mocked(apiClient.get).mockImplementation(async (path) => {
+    if (path === "/rcm/claims/batches") {
+      return {
+        data: [{
+          id: 105,
+          batchNumber: "BATCH-1-7-105",
+          clearingChannel: "LOCAL_CLEARINGHOUSE",
+          status: "SUBMITTED",
+          totalClaims: 1,
+          totalAmount: "150.000",
+          provider: { id: 7, name: "Synthetic insurer", code: "INS-7" },
+          eraTransaction: null,
+          gatewayFeeEntry: null,
+          claims: [
+            { id: 1051, claimNumber: "CLM-1051", status: "SUBMITTED", claimedAmount: "150.000" },
+          ],
+        }],
+      };
+    }
+    return { data: [] };
+  });
+
+  vi.mocked(apiClient.post).mockClear().mockResolvedValue({
+    data: {
+      id: 501,
+      deliveryId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      hmacSignature: "sha256=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    },
+  });
+
+  const restoreDialog = mockDialog();
+  try {
+    render(<InsuranceClaimsPage />);
+    fireEvent.click(screen.getByRole("button", { name: "insuranceClaims.clearinghouse.open" }));
+    fireEvent.click(await screen.findByRole("button", { name: "insuranceClaims.clearinghouse.exportFhirBtn" }));
+
+    await waitFor(() => expect(apiClient.post).toHaveBeenCalledWith("/rcm/claims/batches/105/fhir-bundle", {
+      requestId: expect.any(String),
+    }));
+  } finally {
+    restoreDialog();
+  }
+});

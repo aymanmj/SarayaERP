@@ -6682,7 +6682,10 @@
       "reconcileBankBtn": "اعتماد المطابقة البنكية",
       "bankReconciledMsg": "تمت المطابقة البنكية والترحيل المالي الذري بنجاح.",
       "bankStatus_UNMATCHED": "غير مطابقة",
-      "bankStatus_MATCHED": "مطابقة ومرحّلة"
+      "bankStatus_MATCHED": "مطابقة ومرحّلة",
+      "exportFhirBtn": "تصدير حزمة FHIR R4 موقّعة بـ HMAC",
+      "fhirExportedMsg": "تم تصدير وتوقيع حزمة FHIR R4 للجهة الضامنة بنجاح.",
+      "fhirSignatureLabel": "بصمة وتوقيع حزمة FHIR R4"
     },
     "withdrawal": {
       "status": "مسحوبة",

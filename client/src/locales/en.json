@@ -6682,7 +6682,10 @@
       "reconcileBankBtn": "Reconcile Bank Line",
       "bankReconciledMsg": "Bank statement line matched and financially posted.",
       "bankStatus_UNMATCHED": "Unmatched",
-      "bankStatus_MATCHED": "Matched & Reconciled"
+      "bankStatus_MATCHED": "Matched & Reconciled",
+      "exportFhirBtn": "Export HMAC-Signed FHIR R4 Bundle",
+      "fhirExportedMsg": "Signed FHIR R4 claim batch bundle exported.",
+      "fhirSignatureLabel": "FHIR R4 HMAC Signature"
     },
     "withdrawal": {
       "status": "Withdrawn",

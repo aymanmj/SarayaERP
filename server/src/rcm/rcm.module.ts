@@ -8,6 +8,7 @@ import { EraProcessingService } from './era-processing.service';
 import { InsuranceContractService } from './insurance-contract.service';
 import { BatchSubmissionService } from './batch-submission.service';
 import { GatewayClearingLedgerService } from './gateway-clearing-ledger.service';
+import { PayerFhirGatewayService } from './payer-fhir-gateway.service';
 import { NphiesModule } from '../integration/nphies/nphies.module';
 
 /**
@@ -32,6 +33,7 @@ import { NphiesModule } from '../integration/nphies/nphies.module';
     InsuranceContractService,
     BatchSubmissionService,
     GatewayClearingLedgerService,
+    PayerFhirGatewayService,
   ],
   exports: [
     ClaimService,
@@ -41,6 +43,7 @@ import { NphiesModule } from '../integration/nphies/nphies.module';
     InsuranceContractService,
     BatchSubmissionService,
     GatewayClearingLedgerService,
+    PayerFhirGatewayService,
   ],
 })
 export class RcmModule {}

@@ -207,6 +207,8 @@ model Hospital {
   preAuthAttachments PreAuthorizationAttachment[]
   gatewayClearingFeeEntries GatewayClearingFeeEntry[]
   bankStatementLines        BankStatementLine[]
+  payerIntegrationProfiles  PayerIntegrationProfile[]
+  payerWebhookEvents        PayerWebhookEvent[]
 }
 
 model Department {
@@ -724,6 +726,7 @@ model User {
   settledGatewayFees         GatewayClearingFeeEntry[] @relation("GatewayFeeSettledBy")
   importedBankStatementLines BankStatementLine[]       @relation("BankStatementImportedBy")
   matchedBankStatementLines  BankStatementLine[]       @relation("BankStatementMatchedBy")
+  createdPayerIntegrations   PayerIntegrationProfile[] @relation("PayerIntegrationCreatedBy")
 }
 
 model RefreshToken {
@@ -3356,9 +3359,11 @@ model InsuranceProvider {
   hospital        Hospital            @relation(fields: [hospitalId], references: [id])
   invoices        Invoice[]
   claimBatches    ClaimBatch[]
-  contracts       InsuranceContract[]
-  eraTransactions ERATransaction[]
+  contracts                 InsuranceContract[]
+  eraTransactions           ERATransaction[]
   gatewayClearingFeeEntries GatewayClearingFeeEntry[]
+  integrationProfile        PayerIntegrationProfile?
+  webhookEvents             PayerWebhookEvent[]
 }
 
 model InsurancePolicy {
@@ -6911,4 +6916,54 @@ model BankStatementLine {
 
   @@unique([hospitalId, direction, bankReference])
   @@index([hospitalId, status, transactionDate])
+}
+
+model PayerIntegrationProfile {
+  id                   Int       @id @default(autoincrement())
+  hospitalId           Int
+  providerId           Int       @unique
+  clientId             String    @unique
+  apiKeyHash           String    @unique
+  webhookSigningSecret String
+  webhookUrl           String?
+  mtlsSubjectDn        String?
+  allowedScopes        String    @default("Claim.read ClaimResponse.write PreAuth.write")
+  isActive             Boolean   @default(true)
+  createdById          Int
+  rotatedAt            DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  hospital      Hospital            @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
+  provider      InsuranceProvider   @relation(fields: [providerId], references: [id], onDelete: Restrict)
+  createdBy     User                @relation("PayerIntegrationCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  webhookEvents PayerWebhookEvent[]
+
+  @@index([hospitalId, isActive])
+}
+
+model PayerWebhookEvent {
+  id                 Int      @id @default(autoincrement())
+  hospitalId         Int
+  providerId         Int
+  profileId          Int
+  direction          String
+  eventType          String
+  deliveryId         String   @unique
+  payloadSha256      String
+  hmacSignature      String
+  signatureTimestamp DateTime
+  fhirResourceType   String
+  claimBatchId       Int?
+  preAuthId          Int?
+  status             String   @default("VERIFIED")
+  fhirPayload        Json
+  createdAt          DateTime @default(now())
+
+  hospital Hospital                @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
+  provider InsuranceProvider       @relation(fields: [providerId], references: [id], onDelete: Restrict)
+  profile  PayerIntegrationProfile @relation(fields: [profileId], references: [id], onDelete: Restrict)
+
+  @@index([hospitalId, providerId, createdAt])
+  @@index([profileId, createdAt])
 }

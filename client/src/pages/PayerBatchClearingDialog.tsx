@@ -158,11 +158,15 @@ function BatchCard({
   const adjudicateUrl = `/rcm/claims/batches/${batch.id}/adjudicate`;
   const accrueFeeUrl = `/rcm/claims/batches/${batch.id}/gateway-fee`;
   const settleFeeUrl = `/rcm/claims/gateway-fees/${batch.gatewayFeeEntry?.id ?? 0}/settle`;
+  const exportFhirUrl = `/rcm/claims/batches/${batch.id}/fhir-bundle`;
 
   const submitHook = useIdempotentPost(submitUrl);
   const adjudicateHook = useIdempotentPost(adjudicateUrl);
   const accrueFeeHook = useIdempotentPost(accrueFeeUrl);
   const settleFeeHook = useIdempotentPost(settleFeeUrl);
+  const exportFhirHook = useIdempotentPost(exportFhirUrl);
+
+  const [fhirSignature, setFhirSignature] = useState<string | null>(null);
 
   const [amounts, setAmounts] = useState<Record<number, string>>({});
   const [denialCodes, setDenialCodes] = useState<Record<number, string>>({});
@@ -229,6 +233,34 @@ function BatchCard({
           <bdi className="font-bold">{batch.eraTransaction.eraNumber}</bdi> (
           <bdi>{Money.toFixed(batch.eraTransaction.totalPaid)}</bdi>)
         </p>
+      )}
+
+      {(batch.status === "SUBMITTED" || batch.status === "CLOSED") && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded border border-slate-800 bg-slate-900/40 px-3 py-2 text-xs">
+          <button
+            type="button"
+            disabled={busy || !!exportFhirHook.pending}
+            onClick={() =>
+              void onRun(async () => {
+                const res = (await exportFhirHook.submit(exportFhirUrl, {})) as {
+                  data?: { hmacSignature?: string };
+                };
+                if (res?.data?.hmacSignature) {
+                  setFhirSignature(res.data.hmacSignature);
+                }
+              }, t("insuranceClaims.clearinghouse.fhirExportedMsg"))
+            }
+            className="rounded border border-sky-500/40 bg-sky-950/50 px-3 py-1.5 font-bold text-sky-200 disabled:opacity-50"
+          >
+            {t("insuranceClaims.clearinghouse.exportFhirBtn")}
+          </button>
+          {fhirSignature && (
+            <span className="font-mono text-[11px] text-sky-300">
+              {t("insuranceClaims.clearinghouse.fhirSignatureLabel")}:{" "}
+              <bdi>{fhirSignature.slice(0, 23)}…</bdi>
+            </span>
+          )}
+        </div>
       )}
 
       {batch.status === "OPEN" && (

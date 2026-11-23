@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from 'node:crypto';
+import { createHash, createHmac, randomUUID } from 'node:crypto';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -3537,5 +3537,407 @@ describe('Insurance Providers, Policies, Plans, Coverage Calculation, Pre-Auth, 
     expect(stageDActions.has('SETTLE_GATEWAY_CLEARING_FEE')).toBe(true);
     expect(stageDActions.has('IMPORT_BANK_STATEMENT_LINES')).toBe(true);
     expect(stageDActions.has('RECONCILE_BANK_STATEMENT_LINE')).toBe(true);
+  });
+
+  it('enforces Layer 5 Payer FHIR R4 bundle export, HMAC-SHA256 signed ClaimResponse webhooks, mTLS subject DN binding, replay protection, cross-payer Zero-Trust isolation, and webhook log immutability', async () => {
+    const uniqueSuffix = Date.now() + 900;
+
+    // Create two distinct payers in the same hospital to verify Cross-Payer Isolation
+    const payerARes = await request(app.getHttpServer())
+      .post('/insurance/providers')
+      .auth(adminToken, { type: 'bearer' })
+      .send({
+        name: 'التأمين الطبي الليبي (أ)',
+        code: `INS-FHIR-A-${uniqueSuffix}`,
+      })
+      .expect(201);
+    const payerAId = responseBody<{ id: number }>(payerARes).id;
+
+    const payerBRes = await request(app.getHttpServer())
+      .post('/insurance/providers')
+      .auth(adminToken, { type: 'bearer' })
+      .send({
+        name: 'المتحدة للتأمين (ب)',
+        code: `INS-FHIR-B-${uniqueSuffix}`,
+      })
+      .expect(201);
+    const payerBId = responseBody<{ id: number }>(payerBRes).id;
+
+    // Non-HTTPS webhookUrl must be rejected (400)
+    await request(app.getHttpServer())
+      .post('/rcm/claims/payer-gateway/profiles')
+      .auth(adminToken, { type: 'bearer' })
+      .send({
+        providerId: payerAId,
+        webhookUrl: 'http://insecure.payer-a.ly/webhook',
+      })
+      .expect(400);
+
+    const profileARes = await request(app.getHttpServer())
+      .post('/rcm/claims/payer-gateway/profiles')
+      .auth(adminToken, { type: 'bearer' })
+      .send({
+        providerId: payerAId,
+        webhookUrl: 'https://api.payer-a.ly/fhir/webhooks',
+        mtlsSubjectDn: 'CN=payer-a.saraya-health.ly,O=PayerA',
+      })
+      .expect(201);
+    const profileA = responseBody<{
+      id: number;
+      clientId: string;
+      apiKey: string;
+      webhookSigningSecret: string;
+      mtlsSubjectDn: string;
+    }>(profileARes);
+    expect(profileA.clientId).toContain('payer_client_');
+    expect(profileA.apiKey).toContain('sry_payer_');
+    expect(profileA.webhookSigningSecret).toHaveLength(64);
+
+    const profileBRes = await request(app.getHttpServer())
+      .post('/rcm/claims/payer-gateway/profiles')
+      .auth(adminToken, { type: 'bearer' })
+      .send({
+        providerId: payerBId,
+        webhookUrl: 'https://api.payer-b.ly/fhir/webhooks',
+      })
+      .expect(201);
+    const profileB = responseBody<{
+      id: number;
+      clientId: string;
+      apiKey: string;
+      webhookSigningSecret: string;
+    }>(profileBRes);
+
+    // Listing profiles redacts full signing secret and hides raw apiKey
+    const listProfilesRes = await request(app.getHttpServer())
+      .get('/rcm/claims/payer-gateway/profiles')
+      .auth(adminToken, { type: 'bearer' })
+      .expect(200);
+    const listedA = (
+      listProfilesRes.body as Array<Record<string, unknown>>
+    ).find((p) => p.id === profileA.id);
+    expect(listedA).toBeDefined();
+    expect(listedA?.apiKey).toBeUndefined();
+    expect(String(listedA?.signingSecretHint)).toBe(
+      `...${profileA.webhookSigningSecret.slice(-4)}`,
+    );
+
+    // Prepare a submitted batch for Payer A
+    const policyRes = await request(app.getHttpServer())
+      .post(`/insurance/providers/${payerAId}/policies`)
+      .auth(adminToken, { type: 'bearer' })
+      .send({
+        name: 'وثيقة FHIR القياسية',
+        policyNumber: `POL-FHIR-${uniqueSuffix}`,
+        startDate: '2026-01-01T00:00:00.000Z',
+        endDate: '2027-01-01T00:00:00.000Z',
+        patientCopayRate: 0,
+        maxCoverageAmount: 5000,
+      })
+      .expect(201);
+    const policyId = responseBody<{ id: number }>(policyRes).id;
+
+    const patient = await db.patient.create({
+      data: {
+        hospitalId,
+        mrn: `MRN-FHIR-${uniqueSuffix}`,
+        fullName: 'محمود الهوني',
+        gender: 'MALE',
+        dateOfBirth: new Date('1988-04-20T00:00:00.000Z'),
+        insurancePolicyId: policyId,
+        insuranceMemberId: `MEM-FHIR-${uniqueSuffix}`,
+      },
+    });
+    const svcCat = await db.serviceCategory.create({
+      data: { hospitalId, name: 'قلب', code: `CAT-FHIR-${uniqueSuffix}` },
+    });
+    const svcItem = await db.serviceItem.create({
+      data: {
+        hospitalId,
+        categoryId: svcCat.id,
+        code: `SRV-FHIR-${uniqueSuffix}`,
+        name: 'تخطيط قلب',
+        type: 'CONSULTATION',
+        defaultPrice: '150.000',
+        isActive: true,
+        isBillable: true,
+      },
+    });
+    const diag = await db.diagnosisCode.create({
+      data: {
+        code: `I20.${String(uniqueSuffix).slice(-2)}`,
+        nameEn: 'Angina pectoris',
+        icd10Code: 'I20.9',
+      },
+    });
+    const encounter = await db.encounter.create({
+      data: {
+        hospitalId,
+        patientId: patient.id,
+        type: 'OPD',
+        status: 'OPEN',
+      },
+    });
+    await db.encounterDiagnosis.create({
+      data: {
+        encounterId: encounter.id,
+        diagnosisCodeId: diag.id,
+        type: 'PRIMARY',
+      },
+    });
+
+    const invoice = await db.invoice.create({
+      data: {
+        hospitalId,
+        patientId: patient.id,
+        encounterId: encounter.id,
+        status: 'ISSUED',
+        totalAmount: '150.000',
+        patientShare: '0.000',
+        insuranceShare: '150.000',
+        insuranceProviderId: payerAId,
+        claimStatus: 'PENDING',
+      },
+    });
+    await db.encounterCharge.create({
+      data: {
+        hospitalId,
+        encounterId: encounter.id,
+        serviceItemId: svcItem.id,
+        sourceType: 'MANUAL',
+        quantity: 1,
+        unitPrice: '150.000',
+        totalAmount: '150.000',
+        invoiceId: invoice.id,
+      },
+    });
+    await accountingService.recordInvoiceEntry({
+      hospitalId,
+      invoiceId: invoice.id,
+      userId: adminUserId,
+    });
+    const clmRes = await request(app.getHttpServer())
+      .post('/rcm/claims/claims')
+      .auth(adminToken, { type: 'bearer' })
+      .send({ invoiceId: invoice.id })
+      .expect(201);
+    const claim = responseBody<{ id: number }>(clmRes);
+    await request(app.getHttpServer())
+      .post(`/rcm/claims/claims/${claim.id}/scrub`)
+      .auth(adminToken, { type: 'bearer' })
+      .expect(201);
+
+    const batchRes = await request(app.getHttpServer())
+      .post('/rcm/claims/batches')
+      .auth(adminToken, { type: 'bearer' })
+      .send({ providerId: payerAId })
+      .expect(201);
+    const batch = responseBody<{ id: number }>(batchRes);
+
+    // Cannot export FHIR bundle while batch is still OPEN (400)
+    await request(app.getHttpServer())
+      .post(`/rcm/claims/batches/${batch.id}/fhir-bundle`)
+      .auth(adminToken, { type: 'bearer' })
+      .send({ requestId: randomUUID() })
+      .expect(400);
+
+    await request(app.getHttpServer())
+      .post(`/rcm/claims/batches/${batch.id}/submit`)
+      .auth(adminToken, { type: 'bearer' })
+      .send({ requestId: randomUUID(), channel: 'LOCAL_CLEARINGHOUSE' })
+      .expect(201);
+
+    // 1. Export HMAC-Signed FHIR R4 Bundle with idempotent replay
+    const exportReqId = randomUUID();
+    const [expA, expB] = await Promise.all([
+      request(app.getHttpServer())
+        .post(`/rcm/claims/batches/${batch.id}/fhir-bundle`)
+        .auth(adminToken, { type: 'bearer' })
+        .send({ requestId: exportReqId }),
+      request(app.getHttpServer())
+        .post(`/rcm/claims/batches/${batch.id}/fhir-bundle`)
+        .auth(adminToken, { type: 'bearer' })
+        .send({ requestId: exportReqId }),
+    ]);
+    expect([expA.status, expB.status]).toEqual([201, 201]);
+
+    const outboundEvent = responseBody<{
+      id: number;
+      direction: string;
+      fhirResourceType: string;
+      hmacSignature: string;
+      fhirPayload: { resourceType: string; entry: unknown[] };
+    }>(expA);
+    expect(outboundEvent.direction).toBe('OUTBOUND');
+    expect(outboundEvent.fhirResourceType).toBe('Bundle');
+    expect(outboundEvent.hmacSignature).toMatch(/^sha256=[\da-f]{64}$/);
+    expect(outboundEvent.fhirPayload.resourceType).toBe('Bundle');
+    expect(outboundEvent.fhirPayload.entry).toHaveLength(3);
+
+    // 2. Inbound Signed FHIR R4 ClaimResponse Webhook
+    const fhirClaimResponse = {
+      resourceType: 'ClaimResponse' as const,
+      batchId: batch.id,
+      decisions: [
+        {
+          claimId: claim.id,
+          approvedAmount: '140.000',
+          adjustmentReason: 'تسوية FHIR آلية',
+        },
+      ],
+    };
+    const payloadSha256 = createHash('sha256')
+      .update(JSON.stringify(fhirClaimResponse), 'utf8')
+      .digest('hex');
+
+    const signWebhook = (
+      secret: string,
+      ts: string,
+      delivId: string,
+      hash = payloadSha256,
+    ) =>
+      `sha256=${createHmac('sha256', secret)
+        .update(`${ts}.${delivId.toLowerCase()}.${hash}`, 'utf8')
+        .digest('hex')}`;
+
+    const nowIso = new Date().toISOString();
+    const deliveryId = randomUUID();
+    const validSignatureA = signWebhook(
+      profileA.webhookSigningSecret,
+      nowIso,
+      deliveryId,
+    );
+
+    // Tampered HMAC signature -> 401
+    await request(app.getHttpServer())
+      .post('/rcm/claims/payer-gateway/webhooks/claim-response')
+      .auth(adminToken, { type: 'bearer' })
+      .send({
+        clientId: profileA.clientId,
+        apiKey: profileA.apiKey,
+        deliveryId: randomUUID(),
+        timestamp: nowIso,
+        signature: `sha256=${'f'.repeat(64)}`,
+        mtlsClientSubjectDn: profileA.mtlsSubjectDn,
+        fhirClaimResponse,
+      })
+      .expect(401);
+
+    // Mismatched mTLS certificate Subject DN -> 403
+    await request(app.getHttpServer())
+      .post('/rcm/claims/payer-gateway/webhooks/claim-response')
+      .auth(adminToken, { type: 'bearer' })
+      .send({
+        clientId: profileA.clientId,
+        apiKey: profileA.apiKey,
+        deliveryId,
+        timestamp: nowIso,
+        signature: validSignatureA,
+        mtlsClientSubjectDn: 'CN=wrong-cert.payer.ly',
+        fhirClaimResponse,
+      })
+      .expect(403);
+
+    // Cross-Payer Isolation (Payer B signed credentials trying to adjudicate Payer A's batch) -> 403
+    const crossDeliveryId = randomUUID();
+    const validSignatureB = signWebhook(
+      profileB.webhookSigningSecret,
+      nowIso,
+      crossDeliveryId,
+    );
+    await request(app.getHttpServer())
+      .post('/rcm/claims/payer-gateway/webhooks/claim-response')
+      .auth(adminToken, { type: 'bearer' })
+      .send({
+        clientId: profileB.clientId,
+        apiKey: profileB.apiKey,
+        deliveryId: crossDeliveryId,
+        timestamp: nowIso,
+        signature: validSignatureB,
+        fhirClaimResponse,
+      })
+      .expect(403);
+
+    // Cross-Tenant Isolation -> 404
+    await request(app.getHttpServer())
+      .post('/rcm/claims/payer-gateway/webhooks/claim-response')
+      .auth(otherToken, { type: 'bearer' })
+      .send({
+        clientId: profileA.clientId,
+        apiKey: profileA.apiKey,
+        deliveryId,
+        timestamp: nowIso,
+        signature: validSignatureA,
+        mtlsClientSubjectDn: profileA.mtlsSubjectDn,
+        fhirClaimResponse,
+      })
+      .expect(404);
+
+    // Valid Payer A webhook -> 201 + idempotent replay -> 201
+    const whRes1 = await request(app.getHttpServer())
+      .post('/rcm/claims/payer-gateway/webhooks/claim-response')
+      .auth(adminToken, { type: 'bearer' })
+      .send({
+        clientId: profileA.clientId,
+        apiKey: profileA.apiKey,
+        deliveryId,
+        timestamp: nowIso,
+        signature: validSignatureA,
+        mtlsClientSubjectDn: profileA.mtlsSubjectDn,
+        fhirClaimResponse,
+      })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .post('/rcm/claims/payer-gateway/webhooks/claim-response')
+      .auth(adminToken, { type: 'bearer' })
+      .send({
+        clientId: profileA.clientId,
+        apiKey: profileA.apiKey,
+        deliveryId,
+        timestamp: nowIso,
+        signature: validSignatureA,
+        mtlsClientSubjectDn: profileA.mtlsSubjectDn,
+        fhirClaimResponse,
+      })
+      .expect(201);
+
+    const whBody = responseBody<{
+      webhookEvent: { id: number; direction: string; status: string };
+      adjudication: {
+        status: string;
+        approvedAmount: string;
+        eraTransaction: { eraNumber: string };
+      };
+    }>(whRes1);
+    expect(whBody.webhookEvent.direction).toBe('INBOUND');
+    expect(whBody.webhookEvent.status).toBe('VERIFIED');
+    expect(whBody.adjudication.status).toBe('CLOSED');
+    expect(whBody.adjudication.approvedAmount).toBe('140.000');
+    expect(whBody.adjudication.eraTransaction.eraNumber).toBe(
+      `ERA-CLH-${batch.id}`,
+    );
+
+    // PostgreSQL trigger blocks mutating or deleting PayerWebhookEvent
+    await expect(
+      db.payerWebhookEvent.delete({ where: { id: outboundEvent.id } }),
+    ).rejects.toThrow();
+    await expect(
+      db.payerWebhookEvent.update({
+        where: { id: outboundEvent.id },
+        data: { status: 'VERIFIED' },
+      }),
+    ).rejects.toThrow();
+
+    const layer5Audits = await db.auditLog.findMany({
+      where: { hospitalId },
+      select: { action: true },
+    });
+    const layer5Actions = new Set(layer5Audits.map((a) => a.action));
+    expect(layer5Actions.has('CONFIGURE_PAYER_INTEGRATION_PROFILE')).toBe(true);
+    expect(layer5Actions.has('EXPORT_FHIR_CLAIM_BATCH_BUNDLE')).toBe(true);
+    expect(layer5Actions.has('PROCESS_PAYER_FHIR_CLAIM_RESPONSE_WEBHOOK')).toBe(
+      true,
+    );
   });
 });

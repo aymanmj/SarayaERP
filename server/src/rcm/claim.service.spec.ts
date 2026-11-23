@@ -715,3 +715,101 @@ describe('GatewayClearingLedgerService (unit)', () => {
     ]);
   });
 });
+
+import {
+  computePayerWebhookHmac,
+  PayerFhirGatewayService,
+  sha256Hex,
+} from './payer-fhir-gateway.service';
+import type { BatchSubmissionService } from './batch-submission.service';
+
+describe('PayerFhirGatewayService (unit)', () => {
+  it('enforces HMAC-SHA256 signature, replay window, mTLS subject DN, and Zero-Trust cross-payer isolation', async () => {
+    const rawApiKey = 'sry_payer_test_secret_key_2026';
+    const signingSecret =
+      '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+    const profileRecord = {
+      id: 11,
+      hospitalId: 1,
+      providerId: 7,
+      clientId: 'payer_client_1_7_abc',
+      apiKeyHash: sha256Hex(rawApiKey),
+      webhookSigningSecret: signingSecret,
+      mtlsSubjectDn: 'CN=payer7.saraya-health.ly,O=LibyaInsurance',
+      isActive: true,
+    };
+
+    const prismaMock = {
+      payerIntegrationProfile: {
+        findFirst: jest.fn().mockResolvedValue(profileRecord),
+      },
+      payerWebhookEvent: {
+        findUnique: jest.fn().mockResolvedValue(null),
+      },
+      claimBatch: {
+        findFirst: jest
+          .fn()
+          .mockResolvedValue({ id: 88, providerId: 99, status: 'SUBMITTED' }),
+      },
+    };
+
+    const service = new PayerFhirGatewayService(
+      prismaMock as unknown as PrismaService,
+      {} as unknown as BatchSubmissionService,
+    );
+
+    const deliveryId = '33333333-3333-4333-8333-333333333333';
+    const timestamp = new Date().toISOString();
+    const fhirClaimResponse = {
+      resourceType: 'ClaimResponse' as const,
+      batchId: 88,
+      decisions: [{ claimId: 500, approvedAmount: '100.000' }],
+    };
+    const payloadHash = sha256Hex(JSON.stringify(fhirClaimResponse));
+    const validSig = computePayerWebhookHmac(
+      signingSecret,
+      timestamp,
+      deliveryId,
+      payloadHash,
+    );
+
+    // 1. Expired timestamp (> 5 min) -> BadRequestException
+    await expect(
+      service.processInboundSignedClaimResponseWebhook(1, 9, {
+        clientId: profileRecord.clientId,
+        apiKey: rawApiKey,
+        deliveryId,
+        timestamp: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
+        signature: validSig,
+        mtlsClientSubjectDn: profileRecord.mtlsSubjectDn,
+        fhirClaimResponse,
+      }),
+    ).rejects.toThrow('خارج النافذة المسموحة');
+
+    // 2. Mismatched mTLS certificate Subject DN -> ForbiddenException
+    await expect(
+      service.processInboundSignedClaimResponseWebhook(1, 9, {
+        clientId: profileRecord.clientId,
+        apiKey: rawApiKey,
+        deliveryId,
+        timestamp,
+        signature: validSig,
+        mtlsClientSubjectDn: 'CN=attacker.example.com',
+        fhirClaimResponse,
+      }),
+    ).rejects.toThrow('mTLS');
+
+    // 3. Cross-Payer Isolation (Payer 7 trying to adjudicate Payer 99's batch #88) -> ForbiddenException
+    await expect(
+      service.processInboundSignedClaimResponseWebhook(1, 9, {
+        clientId: profileRecord.clientId,
+        apiKey: rawApiKey,
+        deliveryId,
+        timestamp,
+        signature: validSig,
+        mtlsClientSubjectDn: profileRecord.mtlsSubjectDn,
+        fhirClaimResponse,
+      }),
+    ).rejects.toThrow('Zero-Trust');
+  });
+});
