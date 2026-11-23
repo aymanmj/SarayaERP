@@ -15,6 +15,7 @@ import {
 } from "@tanstack/react-query";
 import { DatePicker } from "@/components/ui/date-picker";
 import { MpiSearchModal } from "@/components/patients/MpiSearchModal";
+import { PatientGovernanceDialog } from "@/components/patients/PatientGovernanceDialog";
 
 // --- Types ---
 type Gender = "MALE" | "FEMALE" | "OTHER" | null;
@@ -66,6 +67,9 @@ export function PatientsPage() {
   // --- Modal & Form State ---
   const [modalOpen, setModalOpen] = useState(false);
   const [mpiModalOpen, setMpiModalOpen] = useState(false);
+  const [governancePatient, setGovernancePatient] = useState<Patient | null>(
+    null,
+  );
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
 
   const [formData, setFormData] = useState({
@@ -464,6 +468,17 @@ export function PatientsPage() {
                           ✍️
                         </button>
 
+                        <button
+                          onClick={() => setGovernancePatient(p)}
+                          className="p-2 bg-slate-800 hover:bg-amber-900/40 text-amber-400 rounded-xl transition-all border border-slate-700"
+                          title={t(
+                            "patients.tooltips.governance",
+                            "حوكمة الملف (دمج / وفاة)",
+                          )}
+                        >
+                          🛡️
+                        </button>
+
                         {/* 🗑️ زر الأرشفة  */}
                         <button
                           onClick={() => handleSoftDelete(p)}
@@ -756,6 +771,19 @@ export function PatientsPage() {
 
       {/* --- MPI Search Modal --- */}
       {mpiModalOpen && <MpiSearchModal onClose={() => setMpiModalOpen(false)} />}
+
+      {/* --- Patient Governance Modal (Merge / Unmerge & Death Management) --- */}
+      {governancePatient && (
+        <PatientGovernanceDialog
+          patientId={governancePatient.id}
+          patientName={governancePatient.fullName}
+          patientMrn={governancePatient.mrn}
+          onClose={() => setGovernancePatient(null)}
+          onUpdated={() =>
+            queryClient.invalidateQueries({ queryKey: ["patients"] })
+          }
+        />
+      )}
     </div>
   );
 }

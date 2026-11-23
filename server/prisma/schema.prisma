@@ -209,6 +209,8 @@ model Hospital {
   bankStatementLines        BankStatementLine[]
   payerIntegrationProfiles  PayerIntegrationProfile[]
   payerWebhookEvents        PayerWebhookEvent[]
+  patientMergeRecords       PatientMergeRecord[]
+  patientDeathEvents        PatientDeathEvent[]
 }
 
 model Department {
@@ -597,6 +599,12 @@ model User {
   createdClinicalNotes      ClinicalNote[]             @relation("NoteCreator")
   signedClinicalNotes       ClinicalNote[]             @relation("NoteSigner")
   coSignedClinicalNotes     ClinicalNote[]             @relation("NoteCoSigner")
+  patientDeathsRecorded     Patient[]                  @relation("PatientDeathRecorder")
+  patientsMergedBy          Patient[]                  @relation("PatientMergedBy")
+  patientMergeRequests      PatientMergeRecord[]       @relation("PatientMergeRequester")
+  patientMergeReviews       PatientMergeRecord[]       @relation("PatientMergeReviewer")
+  patientMergeUnmerges      PatientMergeRecord[]       @relation("PatientMergeUnmerger")
+  patientDeathEvents        PatientDeathEvent[]        @relation("PatientDeathActor")
   createdDischargeSummaries DischargeSummary[]         @relation("DischargeSummaryCreator")
   dispensesAsPharmacist     DispenseRecord[]           @relation("PharmacistUser")
   doctorSchedule            DoctorSchedule?
@@ -920,11 +928,88 @@ model Patient {
   // Quality & Patient Safety
   clinicalIncidents ClinicalIncident[]
 
+  // CAP06: Death Management & Patient Merge Governance
+  isDeceased             Boolean   @default(false)
+  dateOfDeath            DateTime?
+  deathCertificateNumber String?   @db.VarChar(100)
+  causeOfDeath           String?   @db.VarChar(500)
+  deathLocation          String?   @db.VarChar(200)
+  deathRecordedById      Int?
+  deathRecordedAt        DateTime?
+  deathRecordedBy        User?     @relation("PatientDeathRecorder", fields: [deathRecordedById], references: [id])
+
+  mergedIntoPatientId Int?
+  mergedAt            DateTime?
+  mergedById          Int?
+  mergedIntoPatient   Patient?  @relation("PatientMergedInto", fields: [mergedIntoPatientId], references: [id])
+  mergedFromPatients  Patient[] @relation("PatientMergedInto")
+  mergedBy            User?     @relation("PatientMergedBy", fields: [mergedById], references: [id])
+
+  mergeRequestsAsSource PatientMergeRecord[] @relation("MergeSourcePatient")
+  mergeRequestsAsTarget PatientMergeRecord[] @relation("MergeTargetPatient")
+  deathEvents           PatientDeathEvent[]
+
   @@unique([hospitalId, mrn])
   @@index([hospitalId, phone])
   @@index([hospitalId, fullName])
+  @@index([hospitalId, isDeceased])
+  @@index([mergedIntoPatientId])
   @@index([nationalId])
   @@index([telegramLinkToken])
+}
+
+model PatientMergeRecord {
+  id               Int       @id @default(autoincrement())
+  hospitalId       Int
+  sourcePatientId  Int
+  targetPatientId  Int
+  status           String    @default("PENDING")
+  reason           String    @db.VarChar(500)
+  requestedById    Int
+  requestedAt      DateTime  @default(now())
+  reviewedById     Int?
+  reviewedAt       DateTime?
+  reviewNote       String?   @db.VarChar(500)
+  unmergedById     Int?
+  unmergedAt       DateTime?
+  unmergeReason    String?   @db.VarChar(500)
+  transferManifest Json?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  hospital      Hospital @relation(fields: [hospitalId], references: [id])
+  sourcePatient Patient  @relation("MergeSourcePatient", fields: [sourcePatientId], references: [id])
+  targetPatient Patient  @relation("MergeTargetPatient", fields: [targetPatientId], references: [id])
+  requestedBy   User     @relation("PatientMergeRequester", fields: [requestedById], references: [id])
+  reviewedBy    User?    @relation("PatientMergeReviewer", fields: [reviewedById], references: [id])
+  unmergedBy    User?    @relation("PatientMergeUnmerger", fields: [unmergedById], references: [id])
+
+  @@index([hospitalId, status, createdAt])
+  @@index([sourcePatientId])
+  @@index([targetPatientId])
+}
+
+model PatientDeathEvent {
+  id                      Int       @id @default(autoincrement())
+  hospitalId              Int
+  patientId               Int
+  eventType               String
+  dateOfDeath             DateTime?
+  deathCertificateNumber  String?   @db.VarChar(100)
+  causeOfDeath            String?   @db.VarChar(500)
+  deathLocation           String?   @db.VarChar(200)
+  encounterId             Int?
+  cancelledAppointmentIds Json?
+  reason                  String?   @db.VarChar(500)
+  actorId                 Int
+  relatedEventId          Int?
+  createdAt               DateTime  @default(now())
+
+  hospital Hospital @relation(fields: [hospitalId], references: [id])
+  patient  Patient  @relation(fields: [patientId], references: [id])
+  actor    User     @relation("PatientDeathActor", fields: [actorId], references: [id])
+
+  @@index([hospitalId, patientId, createdAt])
 }
 
 model GlobalPatient {

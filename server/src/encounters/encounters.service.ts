@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ConflictException,
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
@@ -55,6 +56,18 @@ export class EncountersService {
 
     if (!patient || patient.hospitalId !== hospitalId) {
       throw new NotFoundException('المريض غير موجود.');
+    }
+
+    if (patient.mergedIntoPatientId) {
+      throw new ConflictException(
+        'تم دمج ملف هذا المريض في ملف آخر؛ يرجى فتح الزيارة على الملف الأساسي.',
+      );
+    }
+
+    if (patient.isDeceased) {
+      throw new ConflictException(
+        'لا يمكن فتح زيارة سريرية جديدة لمريض مسجّل كمتوفى.',
+      );
     }
 
     // 2. التحقق من وجود حالة مفتوحة (للطوارئ والإيواء) لتجنب التكرار

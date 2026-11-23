@@ -359,6 +359,19 @@ async function main() {
       description: 'دخول غرفة انتظار الطب الاتصالي',
     },
     { code: 'patients:manage', description: 'إدارة السجل الوطني للمرضى (MPI)' },
+    {
+      code: 'patients:merge:request',
+      description: 'طلب دمج ملفات المرضى المكررة',
+    },
+    {
+      code: 'patients:merge:approve',
+      description: 'اعتماد دمج وفك دمج ملفات المرضى',
+    },
+    { code: 'patients:death:record', description: 'توثيق وفاة المريض' },
+    {
+      code: 'patients:death:reverse',
+      description: 'طلب واعتماد إلغاء توثيق الوفاة المسجّلة بالخطأ',
+    },
 
     // --- المطالبات المالية (RCM) ---
     { code: 'claims:read', description: 'عرض المطالبات المالية' },
@@ -419,6 +432,8 @@ async function main() {
       'clinical-notes:view',
       'clinical-notes:manage',
       'clinical-notes:cosign',
+      'patients:death:record',
+      'patients:death:reverse',
       'discharge:view',
       'discharge:manage',
       'order-sets:view',
@@ -456,6 +471,7 @@ async function main() {
       'clinical:appointments:status',
       'clinical:patients:view',
       'clinical:patients:manage',
+      'patients:merge:request',
       'billing:invoices:create', // إنشاء فاتورة مبدئية
       'billing:payments:collect', // استلام نقدية (إذا كان يقوم دور الكاشير أيضاً)
       'patients:manage', // إدارة السجل الوطني MPI

@@ -2,6 +2,7 @@
 
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
   Logger,
@@ -363,6 +364,14 @@ export class AppointmentsService {
     });
     if (!patient) {
       throw new BadRequestException('المريض غير موجود في هذا المشفى.');
+    }
+    if (patient.mergedIntoPatientId) {
+      throw new ConflictException(
+        'تم دمج ملف هذا المريض في ملف آخر؛ يرجى حجز الموعد على الملف الأساسي.',
+      );
+    }
+    if (patient.isDeceased) {
+      throw new ConflictException('لا يمكن حجز موعد لمريض مسجّل كمتوفى.');
     }
 
     let finalQueueNumber: number | null = null;

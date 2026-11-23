@@ -55,6 +55,10 @@ const PATIENT_RELATION_KEYS = new Set([
   'femalePatient',
   'malePatient',
   'depositPatient',
+  'sourcePatient',
+  'targetPatient',
+  'mergedIntoPatient',
+  'mergedFromPatients',
 ]);
 
 function isLikelyPatientRecord(value: unknown): boolean {

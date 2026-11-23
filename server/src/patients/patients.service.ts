@@ -248,6 +248,7 @@ export class PatientsService {
       hospitalId,
       isDeleted: false,
       isActive: true,
+      mergedIntoPatientId: null,
     };
 
     if (cleanSearch) {
