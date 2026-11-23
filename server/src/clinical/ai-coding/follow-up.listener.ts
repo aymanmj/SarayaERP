@@ -25,6 +25,13 @@ export class FollowUpListener {
     planText: string;
     createdById: number;
   }) {
+    if (
+      process.env.NODE_ENV === 'test' &&
+      process.env.ALLOW_LIVE_AI_IN_TESTS !== 'true'
+    ) {
+      return;
+    }
+
     this.logger.log(
       `🤖 Processing follow-up extraction for note #${payload.noteId}, encounter #${payload.encounterId}`,
     );

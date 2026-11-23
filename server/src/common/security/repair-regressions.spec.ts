@@ -88,20 +88,105 @@ describe('critical repair regressions without live services', () => {
 
   it('signatures constrain the hospital and cannot overwrite an existing signature', async () => {
     const update = jest
-      .fn<Promise<{ id: number }>, [Prisma.ClinicalNoteUpdateArgs]>()
-      .mockResolvedValue({ id: 1 });
-    const prisma = { clinicalNote: { update } } as unknown as PrismaService;
+      .fn<
+        Promise<{
+          id: number;
+          encounterId: number;
+          signatureHash: string;
+        }>,
+        [Prisma.ClinicalNoteUpdateArgs]
+      >()
+      .mockResolvedValue({
+        id: 1,
+        encounterId: 10,
+        signatureHash: 'a'.repeat(64),
+      });
+    const findUnique = jest.fn();
+    const tx = {
+      $executeRaw: jest.fn().mockResolvedValue(1),
+      clinicalNote: { findUnique, update },
+      auditLog: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        create: jest.fn().mockResolvedValue({ id: 1 }),
+      },
+    };
+    const prisma = {
+      $transaction: (work: (transaction: typeof tx) => unknown) => work(tx),
+    } as unknown as PrismaService;
     const service = new ClinicalNotesService(prisma, new EventEmitter2());
+
+    // Cross-hospital note must be rejected without updating
+    findUnique.mockResolvedValueOnce({
+      id: 1,
+      encounterId: 10,
+      type: 'DOCTOR_ROUND',
+      content: 'Progress note',
+      subjective: null,
+      objective: null,
+      assessment: null,
+      plan: null,
+      isAddendum: false,
+      parentNoteId: null,
+      addendumReason: null,
+      shiftId: null,
+      createdById: 2,
+      signedById: null,
+      signedAt: null,
+      signatureHash: null,
+      encounter: { hospitalId: 99 },
+    });
+    await expect(service.signNote(1, 2, 7)).rejects.toThrow();
+    expect(update).not.toHaveBeenCalled();
+
+    // Already signed note cannot be overwritten
+    findUnique.mockResolvedValueOnce({
+      id: 1,
+      encounterId: 10,
+      type: 'DOCTOR_ROUND',
+      content: 'Progress note',
+      subjective: null,
+      objective: null,
+      assessment: null,
+      plan: null,
+      isAddendum: false,
+      parentNoteId: null,
+      addendumReason: null,
+      shiftId: null,
+      createdById: 2,
+      signedById: 2,
+      signedAt: new Date(),
+      signatureHash: 'b'.repeat(64),
+      encounter: { hospitalId: 7, patientId: 100 },
+    });
+    await expect(service.signNote(1, 2, 7)).rejects.toThrow();
+    expect(update).not.toHaveBeenCalled();
+
+    // Same-hospital unsigned note by author signs cleanly with SHA-256 hash
+    findUnique.mockResolvedValueOnce({
+      id: 1,
+      encounterId: 10,
+      type: 'DOCTOR_ROUND',
+      content: 'Progress note',
+      subjective: null,
+      objective: null,
+      assessment: null,
+      plan: null,
+      isAddendum: false,
+      parentNoteId: null,
+      addendumReason: null,
+      shiftId: null,
+      createdById: 2,
+      signedById: null,
+      signedAt: null,
+      signatureHash: null,
+      encounter: { hospitalId: 7, patientId: 100 },
+    });
     await service.signNote(1, 2, 7);
-    expect(update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: {
-          id: 1,
-          encounter: { hospitalId: 7 },
-          signedAt: null,
-        },
-      }),
-    );
+    expect(update).toHaveBeenCalledTimes(1);
+    const updateArg = update.mock.calls[0][0];
+    expect(updateArg.where).toEqual({ id: 1 });
+    expect(updateArg.data.signedById).toBe(2);
+    expect(updateArg.data.signatureHash).toMatch(/^[0-9a-f]{64}$/);
   });
 
   it('does not write a vital sign when the owning encounter is unavailable in the hospital', async () => {

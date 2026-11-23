@@ -3731,14 +3731,17 @@ model ClinicalNote {
   plan       String? @db.Text
 
   // Metadata & Hierarchy
-  isAddendum   Boolean @default(false)
-  parentNoteId Int?
+  isAddendum     Boolean @default(false)
+  parentNoteId   Int?
+  addendumReason String? @db.VarChar(255)
 
-  // Signature fields
-  signedById   Int?
-  signedAt     DateTime?
-  coSignedById Int?
-  coSignedAt   DateTime?
+  // Signature fields (CAP07 — Electronic Signature & Immutability)
+  signedById      Int?
+  signedAt        DateTime?
+  signatureHash   String?   @db.VarChar(64)
+  coSignedById    Int?
+  coSignedAt      DateTime?
+  coSignatureHash String?   @db.VarChar(64)
 
   shiftId     Int?
   createdById Int
@@ -3753,6 +3756,7 @@ model ClinicalNote {
   appendages ClinicalNote[] @relation("NoteAddendum")
 
   @@index([encounterId])
+  @@index([parentNoteId])
   @@index([type])
 }
 

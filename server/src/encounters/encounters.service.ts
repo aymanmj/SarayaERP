@@ -245,8 +245,21 @@ export class EncountersService {
           orderBy: { createdAt: 'desc' },
         },
         clinicalNotes: {
+          where: { isAddendum: false },
           orderBy: { createdAt: 'desc' },
-          include: { createdBy: { select: { fullName: true } } },
+          include: {
+            createdBy: { select: { id: true, fullName: true } },
+            signedBy: { select: { id: true, fullName: true } },
+            coSignedBy: { select: { id: true, fullName: true } },
+            appendages: {
+              orderBy: { createdAt: 'asc' },
+              include: {
+                createdBy: { select: { id: true, fullName: true } },
+                signedBy: { select: { id: true, fullName: true } },
+                coSignedBy: { select: { id: true, fullName: true } },
+              },
+            },
+          },
         },
       },
     });

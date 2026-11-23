@@ -5,13 +5,14 @@ import {
   IsString,
   IsEnum,
   IsBoolean,
+  MaxLength,
 } from 'class-validator';
 import { NoteType } from '@prisma/client';
 
 export class CreateClinicalNoteDto {
   @IsNumber()
   @IsNotEmpty()
-  encounterId: number;
+  encounterId!: number;
 
   @IsEnum(NoteType)
   @IsOptional()
@@ -46,6 +47,11 @@ export class CreateClinicalNoteDto {
   @IsNumber()
   @IsOptional()
   parentNoteId?: number;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(255)
+  addendumReason?: string;
 
   @IsNumber()
   @IsOptional()

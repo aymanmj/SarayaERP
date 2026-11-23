@@ -343,6 +343,15 @@ async function main() {
     { code: 'transfers:manage', description: 'إدارة التحويلات الطبية' },
     { code: 'clinical-profile:view', description: 'عرض السجل السريري' },
     { code: 'clinical-profile:manage', description: 'إدارة السجل السريري' },
+    { code: 'clinical-notes:view', description: 'عرض الملاحظات السريرية' },
+    {
+      code: 'clinical-notes:manage',
+      description: 'إنشاء وتعديل وتوقيع الملاحظات السريرية والملحقات',
+    },
+    {
+      code: 'clinical-notes:cosign',
+      description: 'التوقيع المشترك على الملاحظات السريرية',
+    },
     { code: 'discharge:view', description: 'عرض ملخص الخروج' },
     { code: 'discharge:manage', description: 'إدارة ملخص الخروج' },
     {
@@ -407,6 +416,9 @@ async function main() {
       'transfers:manage',
       'clinical-profile:view',
       'clinical-profile:manage',
+      'clinical-notes:view',
+      'clinical-notes:manage',
+      'clinical-notes:cosign',
       'discharge:view',
       'discharge:manage',
       'order-sets:view',
@@ -431,6 +443,8 @@ async function main() {
       'icu:view',
       'icu:manage',
       'clinical-profile:view',
+      'clinical-notes:view',
+      'clinical-notes:manage',
       'transfers:view',
     ],
 
