@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { formatDate } from "@/lib/utils";
 import { DatePicker } from "@/components/ui/date-picker";
 import { useNavigate } from "react-router-dom";
+import { TreasuryReconciliationModal } from "@/components/accounting/TreasuryReconciliationModal";
 
 // --- Types ---
 interface EntryLine {
@@ -52,6 +53,7 @@ export default function AccountingEntriesPage() {
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [sourceModule, setSourceModule] = useState("");
+  const [treasuryModalOpen, setTreasuryModalOpen] = useState(false);
 
   const {
     data,
@@ -96,12 +98,20 @@ export default function AccountingEntriesPage() {
             {t("accounting.entries.subtitle", "مراجعة وتدقيق القيود المحاسبية من جميع الأقسام.")}
           </p>
         </div>
-        <button
-          onClick={() => navigate("/accounting/manual-entry")}
-          className="px-6 py-2.5 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded-2xl text-sm shadow-lg transition-all"
-        >
-          {t("accounting.entries.newManualEntry", "+ قيد يدوي جديد")}
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setTreasuryModalOpen(true)}
+            className="px-5 py-2.5 bg-emerald-700 hover:bg-emerald-600 text-white font-bold rounded-2xl text-sm shadow-lg transition-all"
+          >
+            {t("accounting.entries.treasuryAndBankRecon", "العملات والتسوية البنكية")}
+          </button>
+          <button
+            onClick={() => navigate("/accounting/manual-entry")}
+            className="px-6 py-2.5 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded-2xl text-sm shadow-lg transition-all"
+          >
+            {t("accounting.entries.newManualEntry", "+ قيد يدوي جديد")}
+          </button>
+        </div>
       </div>
 
       {/* Filters Bar */}
@@ -273,6 +283,11 @@ export default function AccountingEntriesPage() {
           </div>
         </div>
       </div>
+
+      <TreasuryReconciliationModal
+        open={treasuryModalOpen}
+        onClose={() => setTreasuryModalOpen(false)}
+      />
     </div>
   );
 }

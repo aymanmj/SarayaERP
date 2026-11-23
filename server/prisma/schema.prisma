@@ -55,6 +55,11 @@ model OrgSetting {
 // ============================================
 
 model Hospital {
+  currencies                Currency[]
+  exchangeRates             ExchangeRate[]
+  bankAccounts              BankAccount[]
+  bankReconciliationSessions BankReconciliationSession[]
+  treasuryBankStatementItems TreasuryBankStatementItem[]
   batchRestrictions InventoryBatchRestriction[]
   insuranceClaimWriteOffs InsuranceClaimWriteOff[]
   insuranceSettlementApplications InsuranceSettlementApplication[]
@@ -540,6 +545,13 @@ model Payment {
 }
 
 model User {
+  createdCurrencies               Currency[]                  @relation("CurrencyCreatedBy")
+  createdExchangeRates            ExchangeRate[]              @relation("ExchangeRateCreatedBy")
+  verifiedExchangeRates           ExchangeRate[]              @relation("ExchangeRateVerifiedBy")
+  createdBankAccounts             BankAccount[]               @relation("BankAccountCreatedBy")
+  preparedBankReconciliations     BankReconciliationSession[] @relation("BankReconPreparedBy")
+  approvedBankReconciliations     BankReconciliationSession[] @relation("BankReconApprovedBy")
+  matchedTreasuryStatementItems   TreasuryBankStatementItem[] @relation("TreasuryStmtMatchedBy")
   preAuthAttachmentsUploaded PreAuthorizationAttachment[] @relation("PreAuthAttachmentUploader")
   preAuthAttachmentsRetired  PreAuthorizationAttachment[] @relation("PreAuthAttachmentRetirer")
   reviewedPreAuthorizations  PreAuthorization[]           @relation("PreAuthReviewer")
@@ -3126,6 +3138,7 @@ model Account {
   insuranceClaimWriteOffs    InsuranceClaimWriteOff[] @relation("InsuranceWriteOffAccount")
   gatewayFeeExpenseEntries   GatewayClearingFeeEntry[] @relation("GatewayFeeExpenseAccount")
   gatewayFeePayableEntries   GatewayClearingFeeEntry[] @relation("GatewayFeePayableAccount")
+  bankAccount                BankAccount?
 
   @@unique([hospitalId, code])
   @@index([hospitalId, type])
@@ -3137,6 +3150,7 @@ model AccountingEntry {
   insuranceClaimWriteOff InsuranceClaimWriteOff?
   gatewayFeeAccrual GatewayClearingFeeEntry? @relation("GatewayFeeAccrualEntry")
   gatewayFeeSettlement GatewayClearingFeeEntry? @relation("GatewayFeeSettlementEntry")
+  treasuryStatementAdjustment TreasuryBankStatementItem? @relation("TreasuryStmtAdjustmentEntry")
   insuranceSettlementApplication InsuranceSettlementApplication?
   insuranceSettlementRefund InsuranceSettlementRefund?
   insuranceSettlement InsuranceSettlement?
@@ -3176,6 +3190,7 @@ model AccountingEntry {
 model AccountingEntryLine {
   insuranceClaimWriteOffs InsuranceClaimWriteOff[]
   insuranceSettlementAllocations InsuranceSettlementAllocation[]
+  treasuryStatementMatch TreasuryBankStatementItem? @relation("TreasuryStmtMatchedLine")
   id           Int             @id @default(autoincrement())
   entryId      Int
   accountId    Int
@@ -4366,6 +4381,7 @@ enum AccountingSourceModule {
   INVENTORY_ADJUSTMENT
   JOURNAL_REVERSAL
   VOUCHER
+  BANK_RECONCILIATION
 }
 
 enum PurchaseReturnStatus {
@@ -4465,6 +4481,8 @@ enum SystemAccountKey {
   INSURANCE_BAD_DEBT_EXPENSE
   GATEWAY_CLEARING_FEE_EXPENSE
   GATEWAY_CLEARING_FEE_PAYABLE
+  FX_GAIN_LOSS
+  BANK_CHARGES_EXPENSE
 }
 
 enum SupplierType {
@@ -7216,4 +7234,151 @@ model PayerWebhookEvent {
 
   @@index([hospitalId, providerId, createdAt])
   @@index([profileId, createdAt])
+}
+
+// =========================================================================
+// CAP09: Multi-Currency Exchange Rate Ledger (DECIMAL 19,6) & General Bank Reconciliation
+// =========================================================================
+
+model Currency {
+  id            Int      @id @default(autoincrement())
+  hospitalId    Int
+  code          String   @db.VarChar(3)
+  nameAr        String   @db.VarChar(100)
+  nameEn        String   @db.VarChar(100)
+  symbol        String   @db.VarChar(16)
+  decimalPlaces Int      @default(3)
+  isBase        Boolean  @default(false)
+  isActive      Boolean  @default(true)
+  createdById   Int
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  hospital          Hospital                    @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
+  createdBy         User                        @relation("CurrencyCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  ratesFrom         ExchangeRate[]              @relation("ExchangeRateFrom")
+  ratesTo           ExchangeRate[]              @relation("ExchangeRateTo")
+  bankAccounts      BankAccount[]
+  foreignBankItems  TreasuryBankStatementItem[] @relation("TreasuryStmtForeignCurrency")
+
+  @@unique([hospitalId, code])
+  @@index([hospitalId, isActive])
+}
+
+model ExchangeRate {
+  id             Int       @id @default(autoincrement())
+  hospitalId     Int
+  fromCurrencyId Int
+  toCurrencyId   Int
+  rate           Decimal   @db.Decimal(19, 6)
+  inverseRate    Decimal   @db.Decimal(19, 6)
+  effectiveDate  DateTime
+  source         String    @default("MANUAL")
+  referenceNote  String?   @db.VarChar(250)
+  isVerified     Boolean   @default(false)
+  createdById    Int
+  verifiedById   Int?
+  verifiedAt     DateTime?
+  createdAt      DateTime  @default(now())
+
+  hospital     Hospital @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
+  fromCurrency Currency @relation("ExchangeRateFrom", fields: [fromCurrencyId], references: [id], onDelete: Restrict)
+  toCurrency   Currency @relation("ExchangeRateTo", fields: [toCurrencyId], references: [id], onDelete: Restrict)
+  createdBy    User     @relation("ExchangeRateCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  verifiedBy   User?    @relation("ExchangeRateVerifiedBy", fields: [verifiedById], references: [id], onDelete: Restrict)
+
+  @@unique([hospitalId, fromCurrencyId, toCurrencyId, effectiveDate, source])
+  @@index([hospitalId, fromCurrencyId, toCurrencyId, effectiveDate])
+}
+
+model BankAccount {
+  id            Int      @id @default(autoincrement())
+  hospitalId    Int
+  accountId     Int      @unique
+  currencyId    Int
+  bankName      String   @db.VarChar(150)
+  branchName    String?  @db.VarChar(150)
+  accountNumber String   @db.VarChar(64)
+  iban          String?  @db.VarChar(64)
+  swiftCode     String?  @db.VarChar(20)
+  isActive      Boolean  @default(true)
+  createdById   Int
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  hospital       Hospital                    @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
+  account        Account                     @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  currency       Currency                    @relation(fields: [currencyId], references: [id], onDelete: Restrict)
+  createdBy      User                        @relation("BankAccountCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  sessions       BankReconciliationSession[]
+  statementItems TreasuryBankStatementItem[]
+
+  @@unique([hospitalId, accountNumber])
+  @@index([hospitalId, isActive])
+  @@index([currencyId])
+}
+
+model BankReconciliationSession {
+  id                 Int       @id @default(autoincrement())
+  hospitalId         Int
+  bankAccountId      Int
+  statementNumber    String    @db.VarChar(80)
+  periodStart        DateTime
+  periodEnd          DateTime
+  openingBalanceBank Decimal   @db.Decimal(18, 3)
+  closingBalanceBank Decimal   @db.Decimal(18, 3)
+  bookBalanceAsOfEnd Decimal   @default(0) @db.Decimal(18, 3)
+  reconciledBalance  Decimal   @default(0) @db.Decimal(18, 3)
+  differenceAmount   Decimal   @default(0) @db.Decimal(18, 3)
+  status             String    @default("DRAFT")
+  preparedById       Int
+  approvedById       Int?
+  approvedAt         DateTime?
+  notes              String?   @db.VarChar(500)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  hospital    Hospital                    @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
+  bankAccount BankAccount                 @relation(fields: [bankAccountId], references: [id], onDelete: Restrict)
+  preparedBy  User                        @relation("BankReconPreparedBy", fields: [preparedById], references: [id], onDelete: Restrict)
+  approvedBy  User?                       @relation("BankReconApprovedBy", fields: [approvedById], references: [id], onDelete: Restrict)
+  items       TreasuryBankStatementItem[]
+
+  @@unique([hospitalId, bankAccountId, statementNumber])
+  @@index([hospitalId, bankAccountId, periodEnd])
+  @@index([hospitalId, status])
+}
+
+model TreasuryBankStatementItem {
+  id                 Int       @id @default(autoincrement())
+  hospitalId         Int
+  sessionId          Int
+  bankAccountId      Int
+  transactionDate    DateTime
+  valueDate          DateTime?
+  reference          String    @db.VarChar(120)
+  description        String?   @db.VarChar(500)
+  direction          String
+  amount             Decimal   @db.Decimal(18, 3)
+  foreignCurrencyId  Int?
+  foreignAmount      Decimal?  @db.Decimal(18, 3)
+  exchangeRateUsed   Decimal?  @db.Decimal(19, 6)
+  matchStatus        String    @default("UNMATCHED")
+  matchedEntryLineId Int?      @unique
+  adjustmentEntryId  Int?      @unique
+  matchedById        Int?
+  matchedAt          DateTime?
+  createdAt          DateTime  @default(now())
+
+  hospital        Hospital                  @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
+  session         BankReconciliationSession @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+  bankAccount     BankAccount               @relation(fields: [bankAccountId], references: [id], onDelete: Restrict)
+  foreignCurrency Currency?                 @relation("TreasuryStmtForeignCurrency", fields: [foreignCurrencyId], references: [id], onDelete: Restrict)
+  matchedLine     AccountingEntryLine?      @relation("TreasuryStmtMatchedLine", fields: [matchedEntryLineId], references: [id], onDelete: Restrict)
+  adjustmentEntry AccountingEntry?          @relation("TreasuryStmtAdjustmentEntry", fields: [adjustmentEntryId], references: [id], onDelete: Restrict)
+  matchedBy       User?                     @relation("TreasuryStmtMatchedBy", fields: [matchedById], references: [id], onDelete: Restrict)
+
+  @@unique([hospitalId, bankAccountId, direction, reference, transactionDate, amount])
+  @@index([sessionId, matchStatus])
+  @@index([hospitalId, bankAccountId, transactionDate])
 }

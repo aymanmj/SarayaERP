@@ -304,6 +304,18 @@ async function main() {
     { code: 'acc:reports:view', description: 'عرض التقارير المالية' },
     { code: 'acc:year:close', description: 'إقفال السنة المالية' },
     { code: 'acc:cost_centers:manage', description: 'إدارة مراكز التكلفة' },
+    {
+      code: 'acc:treasury:view',
+      description: 'عرض العملات وأسعار الصرف والحسابات البنكية والتسويات',
+    },
+    {
+      code: 'acc:treasury:manage',
+      description: 'إدارة العملات وأسعار الصرف وإعداد التسويات البنكية',
+    },
+    {
+      code: 'acc:treasury:approve',
+      description: 'اعتماد أسعار الصرف وإغلاق جلسات التسوية البنكية برقابة 4 عيون',
+    },
 
     // --- المشتريات والمخزون (Purchases & Inventory) ---
     { code: 'purchases:dashboard:view', description: 'عرض لوحة المشتريات' },
@@ -542,6 +554,9 @@ async function main() {
       'acc:reports:view',
       'acc:year:close',
       'acc:cost_centers:manage',
+      'acc:treasury:view',
+      'acc:treasury:manage',
+      'acc:treasury:approve',
       'purchases:invoices:manage',
       'purchases:dashboard:view',
       'assets:dashboard:view',
@@ -1405,6 +1420,16 @@ async function main() {
       name: 'تكلفة أفلام ومواد الأشعة',
       type: AccountType.EXPENSE,
     },
+    {
+      code: '400950',
+      name: 'فروق عملة (أرباح وخسائر صرف)',
+      type: AccountType.REVENUE,
+    },
+    {
+      code: '500950',
+      name: 'عمولات ومصاريف بنكية',
+      type: AccountType.EXPENSE,
+    },
   ];
 
   for (const acc of accounts) {
@@ -1437,6 +1462,8 @@ async function main() {
     { k: SystemAccountKey.COGS_DRUGS, c: '500200' },
     { k: SystemAccountKey.SALARIES_EXPENSE, c: '500100' },
     { k: SystemAccountKey.SALARIES_PAYABLE, c: '200300' },
+    { k: SystemAccountKey.FX_GAIN_LOSS, c: '400950' },
+    { k: SystemAccountKey.BANK_CHARGES_EXPENSE, c: '500950' },
   ];
 
   for (const m of systemMappings) {
