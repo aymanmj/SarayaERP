@@ -272,14 +272,14 @@ describe('Goods receipt identity, ordered quantities, valuation snapshots and at
       (
         await db.product.findUniqueOrThrow({ where: { id: productId } })
       ).costPrice.toString(),
-    ).toBe('2.333');
+    ).toBe('2.3333');
     const audit = await db.auditLog.findFirstOrThrow({
       where: { action: 'RECEIVE_PURCHASE_ORDER' },
       orderBy: { id: 'desc' },
     });
     expect(audit.details).toMatchObject({
       payload: {
-        valuationRoundingResiduals: [{ productId, amount: '-0.002' }],
+        valuationRoundingResiduals: [{ productId, amount: '0.000' }],
       },
     });
     const before = await stockState();

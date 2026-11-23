@@ -1,4 +1,10 @@
-import { Money, getCurrency } from './money.util';
+import {
+  Money,
+  MONEY_SCALE,
+  UNIT_PRICE_SCALE,
+  RATE_SCALE,
+  getCurrency,
+} from './money.util';
 import {
   MonetaryAmount,
   Quantity,
@@ -71,5 +77,32 @@ describe('financial precision and compatibility boundaries', () => {
     ).toBe('6.200');
     expect(() => amount.add(MonetaryAmount.from(1, 'LYD'))).toThrow();
     expect(() => amount.convert(ExchangeRate.from(5, 'LYD', 'USD'))).toThrow();
+  });
+
+  it('enforces the 3-tier precision contract: 3dp final ledger, 4dp unit prices/WAC, 6dp rates/FX', () => {
+    expect(MONEY_SCALE).toBe(3);
+    expect(UNIT_PRICE_SCALE).toBe(4);
+    expect(RATE_SCALE).toBe(6);
+
+    // 4dp half-even rounding for DECIMAL(19, 4) unit prices and WAC
+    expect(Money.toUnitDbString('0.41665')).toBe('0.4166');
+    expect(Money.toUnitDbString('0.41675')).toBe('0.4168');
+    expect(Money.toUnitDb('1.2545')).toBe(1.2545);
+
+    // 6dp half-even rounding for DECIMAL(19, 6) rates, commissions, conversions, FX
+    expect(Money.toRateDbString('12.3456505')).toBe('12.345650');
+    expect(Money.toRateDbString('12.3456515')).toBe('12.345652');
+    expect(Money.toRateDb('5.34218')).toBe(5.34218);
+
+    // 4dp unit price * 3dp quantity -> 3dp posted line total (prevents sub-millime GL drift)
+    const line = Money.postedUnitLine('0.4167', '300');
+    expect(line.unitPrice).toBe(0.4167);
+    expect(line.unitPriceDb).toBe('0.4167');
+    expect(line.totalPrice).toBe(125.01);
+    expect(line.totalPriceDb).toBe('125.010');
+
+    // MoneyChain fluent 4dp / 6dp boundaries
+    expect(Money.from('125').div('300').toUnitDbString()).toBe('0.4167');
+    expect(Money.from('1').div('3').toRateDbString()).toBe('0.333333');
   });
 });

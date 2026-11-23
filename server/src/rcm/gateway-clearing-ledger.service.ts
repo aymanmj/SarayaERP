@@ -17,10 +17,10 @@ import {
 
 const UUID_V4_PATTERN =
   /^[\da-f]{8}-[\da-f]{4}-4[\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/i;
-const RATE_INPUT_PATTERN = /^0(\.\d{1,4})?$|^1(\.0{1,4})?$/;
+const RATE_INPUT_PATTERN = /^0(\.\d{1,6})?$|^1(\.0{1,6})?$/;
 
 export const DEFAULT_GATEWAY_FLAT_FEE_PER_CLAIM = '2.000';
-export const DEFAULT_GATEWAY_FEE_RATE = '0.0050';
+export const DEFAULT_GATEWAY_FEE_RATE = '0.005000';
 
 export type AccrueGatewayFeeInput = {
   requestId: string;
@@ -122,7 +122,7 @@ function parseBoundedDecimal(
   }
 
   const pattern =
-    opts.maxScale === 4 ? RATE_INPUT_PATTERN : MONEY_INPUT_PATTERN;
+    opts.maxScale === 6 ? RATE_INPUT_PATTERN : MONEY_INPUT_PATTERN;
   if (!pattern.test(rawStr)) {
     throw new BadRequestException(`صيغة غير صالحة في ${opts.fieldLabel}`);
   }
@@ -207,8 +207,8 @@ export class GatewayClearingLedgerService {
     });
     const feeRateDec = parseBoundedDecimal(input.feeRate, {
       defaultValue: DEFAULT_GATEWAY_FEE_RATE,
-      maxScale: 4,
-      max: '0.2500',
+      maxScale: 6,
+      max: '0.250000',
       fieldLabel: 'feeRate',
     });
 
@@ -357,7 +357,7 @@ export class GatewayClearingLedgerService {
               billableClaimsCount: batch.totalClaims,
               adjudicatedAmount: Money.toDbString(adjudicatedDec),
               flatFeePerClaim: Money.toDbString(flatFeePerClaimDec),
-              feeRate: feeRateDec.toFixed(4),
+              feeRate: Money.toRateDbString(feeRateDec),
               flatFeeTotal: flatFeeTotalStr,
               percentageFeeTotal: percentageFeeTotalStr,
               totalFeeAmount: totalFeeAmountStr,

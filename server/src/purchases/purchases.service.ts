@@ -57,7 +57,7 @@ export class PurchasesService {
         qtyDec.gte('1000000000000000') ||
         !priceDec.isFinite() ||
         priceDec.lt(0) ||
-        priceDec.decimalPlaces() > 3 ||
+        priceDec.decimalPlaces() > 4 ||
         priceDec.gte('1000000000000000')
       ) {
         throw new BadRequestException('الكمية أو السعر غير صالح.');
@@ -104,7 +104,7 @@ export class PurchasesService {
       return {
         description: l.description?.trim() ?? '',
         quantity: qtyDec.toFixed(3),
-        unitPrice: Money.toDbString(priceDec),
+        unitPrice: Money.toUnitDbString(priceDec),
         totalAmount,
         expenseAccountId: l.expenseAccountId ?? null,
         productId,
@@ -438,7 +438,7 @@ export class PurchasesService {
           !line.unitPrice.isFinite() ||
           line.unitPrice.lt(0) ||
           (line.productId !== null && line.unitPrice.lte(0)) ||
-          line.unitPrice.decimalPlaces() > 3 ||
+          line.unitPrice.decimalPlaces() > 4 ||
           line.unitPrice.gte('1000000000000000')
         ) {
           throw new BadRequestException('بيانات كمية أو سعر البند غير صالحة.');
@@ -579,7 +579,7 @@ export class PurchasesService {
 
           const base = line.quantity;
           const amount = Money.toDbString(line.totalAmount);
-          const unitCost = Money.toDbString(line.unitPrice);
+          const unitCost = Money.toUnitDbString(line.unitPrice);
           const next = product.stockOnHand.plus(base);
 
           if (
@@ -593,13 +593,13 @@ export class PurchasesService {
           const beforeValue = Money.toDbString(
             Money.multiply(product.stockOnHand, product.costPrice),
           );
-          const cost = Money.toDbString(
+          const cost = Money.toUnitDbString(
             Money.sumDecimal(beforeValue, amount).div(next.toString()),
           );
           const batchQuantity = (stock?.quantity ?? new Prisma.Decimal(0)).plus(
             base,
           );
-          const batchCost = Money.toDbString(
+          const batchCost = Money.toUnitDbString(
             Money.sumDecimal(
               stock ? Money.multiply(stock.quantity, stock.unitCost) : 0,
               amount,

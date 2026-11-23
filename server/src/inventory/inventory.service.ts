@@ -958,7 +958,7 @@ export class InventoryService {
     if (
       !Number.isInteger(uomId) ||
       uomId <= 0 ||
-      !/^(0|[1-9]\d{0,14})(\.\d{1,3})?$/.test(rateStr) ||
+      !/^(0|[1-9]\d{0,12})(\.\d{1,6})?$/.test(rateStr) ||
       new Prisma.Decimal(rateStr).lte(0)
     ) {
       throw new BadRequestException(
@@ -1038,14 +1038,14 @@ export class InventoryService {
           },
         },
         update: {
-          conversionRate: conversionRate.toFixed(3),
+          conversionRate: Money.toRateDbString(conversionRate),
           isPurchasingUOM,
           isIssuingUOM,
         },
         create: {
           productId,
           uomId,
-          conversionRate: conversionRate.toFixed(3),
+          conversionRate: Money.toRateDbString(conversionRate),
           isPurchasingUOM,
           isIssuingUOM,
         },
@@ -1262,12 +1262,12 @@ export class InventoryService {
     const sellPriceStr = decimalInput(dto?.sellPrice);
     const minStockStr = decimalInput(dto?.minStock);
     if (
-      !/^(0|[1-9]\d{0,14})(\.\d{1,3})?$/.test(costPriceStr) ||
-      !/^(0|[1-9]\d{0,14})(\.\d{1,3})?$/.test(sellPriceStr) ||
+      !/^(0|[1-9]\d{0,14})(\.\d{1,4})?$/.test(costPriceStr) ||
+      !/^(0|[1-9]\d{0,14})(\.\d{1,4})?$/.test(sellPriceStr) ||
       !/^(0|[1-9]\d{0,14})(\.\d{1,3})?$/.test(minStockStr)
     ) {
       throw new BadRequestException(
-        'التكلفة وسعر البيع والحد الأدنى للمخزون يجب أن تكون قيماً غير سالبة بدقة لا تتجاوز 3 منازل عشرية.',
+        'التكلفة وسعر البيع (بدقة حتى 4 منازل) والحد الأدنى للمخزون (حتى 3 منازل) يجب أن تكون قيماً غير سالبة.',
       );
     }
 
@@ -1375,8 +1375,8 @@ export class InventoryService {
           categoryId,
           baseUomId,
           expenseAccountId,
-          costPrice: Money.toDbString(costPriceStr),
-          sellPrice: Money.toDbString(sellPriceStr),
+          costPrice: Money.toUnitDbString(costPriceStr),
+          sellPrice: Money.toUnitDbString(sellPriceStr),
           minStock: minStockDec.toFixed(3),
           maxStock: maxStockDec ? maxStockDec.toFixed(3) : null,
         },

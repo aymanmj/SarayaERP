@@ -267,7 +267,7 @@ export async function receiveGoods(
         ),
       ),
     );
-    const unitCost = Money.toDbString(Money.decimal(amount).div(base));
+    const unitCost = Money.toUnitDbString(Money.decimal(amount).div(base));
     const stock = await tx.productStock.findUnique({
       where: {
         warehouseId_productId_batchNumber: {
@@ -302,13 +302,13 @@ export async function receiveGoods(
     const beforeValue = Money.toDbString(
       Money.multiply(product.stockOnHand, product.costPrice),
     );
-    const cost = Money.toDbString(
+    const cost = Money.toUnitDbString(
       Money.sumDecimal(beforeValue, amount).div(next.toString()),
     );
     const batchQuantity = (stock?.quantity ?? new Prisma.Decimal(0)).plus(
       base.toString(),
     );
-    const batchCost = Money.toDbString(
+    const batchCost = Money.toUnitDbString(
       Money.sumDecimal(
         stock ? Money.multiply(stock.quantity, stock.unitCost) : 0,
         amount,
@@ -358,7 +358,7 @@ export async function receiveGoods(
         baseQuantity: base.toString(),
         batchNumber: item.batchNumber,
         expiryDate: new Date(item.expiryDate),
-        unitPrice: Money.toDbString(order.unitPrice),
+        unitPrice: Money.toUnitDbString(order.unitPrice),
         unitCost,
         totalCost: amount,
       },

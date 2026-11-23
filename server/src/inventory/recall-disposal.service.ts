@@ -591,7 +591,7 @@ export class RecallDisposalService {
           type: 'OUT',
           quantity,
           baseQuantity: quantity,
-          unitCost: Money.toDbString(product.costPrice),
+          unitCost: Money.toUnitDbString(product.costPrice),
           totalCost: value,
           batchNumber: stock.batchNumber,
           expiryDate: stock.expiryDate,

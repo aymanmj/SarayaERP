@@ -420,7 +420,7 @@ export class InventoryCountService {
                 type: 'ADJUST',
                 quantity: delta,
                 baseQuantity: delta,
-                unitCost: Money.toDbString(product.costPrice),
+                unitCost: Money.toUnitDbString(product.costPrice),
                 totalCost: amount,
                 batchNumber: stock.batchNumber,
                 expiryDate: stock.expiryDate,

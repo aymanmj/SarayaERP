@@ -168,7 +168,7 @@ export async function adjustPharmacyStock(
       type: 'ADJUST',
       quantity: delta,
       baseQuantity: delta,
-      unitCost: Money.toDbString(product.costPrice),
+      unitCost: Money.toUnitDbString(product.costPrice),
       totalCost: amount,
       batchNumber: batch,
       expiryDate: stock.expiryDate,

@@ -224,7 +224,7 @@ describe('Direct purchase invoice creation, approval, WAC valuation and atomic p
       where: { id: productId },
     });
     expect(product.stockOnHand.toString()).toBe('6');
-    expect(product.costPrice.toString()).toBe('2.333');
+    expect(product.costPrice.toString()).toBe('2.3333');
     expect(product.version).toBe(2);
 
     const newStock = await db.productStock.findUniqueOrThrow({
@@ -260,7 +260,7 @@ describe('Direct purchase invoice creation, approval, WAC valuation and atomic p
     });
     expect(audit.details).toMatchObject({
       payload: {
-        valuationRoundingResiduals: [{ productId, amount: '-0.002' }],
+        valuationRoundingResiduals: [{ productId, amount: '0.000' }],
       },
     });
   });
@@ -425,5 +425,65 @@ describe('Direct purchase invoice creation, approval, WAC valuation and atomic p
       .post(`/purchases/invoices/${draft.id}/approve`)
       .auth(reader, { type: 'bearer' })
       .expect(403);
+  });
+
+  it('persists 4-decimal wholesale unitPrice and WAC unitCost in DECIMAL(19,4) while posting 3-decimal GL totals in DECIMAL(18,3)', async () => {
+    const freshProduct = await db.product.create({
+      data: {
+        hospitalId,
+        code: 'AMP-4DP-TEST',
+        name: 'أمبول جملة بدقة 4 خانات',
+        type: 'DRUG',
+        costPrice: '0.0000',
+        sellPrice: '1.0000',
+        stockOnHand: '0.000',
+      },
+    });
+    const draft = await createDraftViaApi({
+      invoiceNumber: 'INV-4DP-001',
+      lines: [
+        {
+          description: 'أمبول جملة 300 × 0.4167',
+          productId: freshProduct.id,
+          quantity: 300,
+          unitPrice: 0.4167,
+          batchNumber: 'BATCH-4DP',
+          expiryDate,
+        },
+      ],
+    });
+
+    await request(app.getHttpServer())
+      .post(`/purchases/invoices/${draft.id}/approve`)
+      .auth(token, { type: 'bearer' })
+      .expect(201);
+
+    const updatedProduct = await db.product.findUniqueOrThrow({
+      where: { id: freshProduct.id },
+    });
+    expect(updatedProduct.costPrice.toString()).toBe('0.4167');
+
+    const batchStock = await db.productStock.findUniqueOrThrow({
+      where: {
+        warehouseId_productId_batchNumber: {
+          warehouseId,
+          productId: freshProduct.id,
+          batchNumber: 'BATCH-4DP',
+        },
+      },
+    });
+    expect(batchStock.unitCost.toString()).toBe('0.4167');
+
+    const entry = await db.accountingEntry.findUniqueOrThrow({
+      where: { postingKey: `purchase-invoice:${hospitalId}:${draft.id}` },
+      include: { lines: true },
+    });
+    // 300 * 0.4167 = 125.010 posted cleanly at 3dp GL scale
+    expect(
+      entry.lines.map((l) => [l.debit.toString(), l.credit.toString()]),
+    ).toEqual([
+      ['125.01', '0'],
+      ['0', '125.01'],
+    ]);
   });
 });

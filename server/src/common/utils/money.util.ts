@@ -7,6 +7,10 @@ import Decimal from 'decimal.js';
 // Preserve small intermediate rates and large totals; round only at explicit boundaries.
 /** The only approved financial rounding policy: round midpoint ties to even (Banker's Rounding). */
 export const MONEY_SCALE = 3;
+/** Four-decimal database scale for unit prices, WAC unit costs, and intermediate tariffs: DECIMAL(19, 4). */
+export const UNIT_PRICE_SCALE = 4;
+/** Six-decimal database scale for percentages, commission/copay/fee rates, UOM conversions, and FX rates: DECIMAL(19, 6). */
+export const RATE_SCALE = 6;
 export const BANKERS_ROUNDING = Decimal.ROUND_HALF_EVEN;
 export type FinancialDecimal = Decimal;
 
@@ -318,7 +322,7 @@ export class Money {
     );
   }
 
-  /** Normalize measured quantities and unit prices before computing a posted line. */
+  /** Normalize measured quantities (3dp) and unit prices (3dp legacy boundary) before computing a posted line. */
   static postedLine(unitPrice: MoneyValue, quantity: MoneyValue) {
     const storedQuantity = Money.toDb(quantity);
     const storedPrice = Money.toDb(unitPrice);
@@ -326,6 +330,21 @@ export class Money {
       quantity: storedQuantity,
       unitPrice: storedPrice,
       totalPrice: Money.toDb(Money.multiply(storedPrice, storedQuantity)),
+    };
+  }
+
+  /** Normalize measured quantities (3dp) and high-precision unit prices (4dp DECIMAL(19,4)) with 3dp posted line total. */
+  static postedUnitLine(unitPrice: MoneyValue, quantity: MoneyValue) {
+    const storedQuantity = Money.toDb(quantity);
+    const storedPrice = Money.toUnitDb(unitPrice);
+    return {
+      quantity: storedQuantity,
+      unitPrice: storedPrice,
+      unitPriceDb: Money.toUnitDbString(storedPrice),
+      totalPrice: Money.toDb(Money.multiply(storedPrice, storedQuantity)),
+      totalPriceDb: Money.toDbString(
+        Money.multiply(storedPrice, storedQuantity),
+      ),
     };
   }
 
@@ -448,9 +467,29 @@ export class Money {
     return Money.to3dp(amount);
   }
 
-  /** Exact three-place string for Prisma Decimal fields when string representation is desired. */
+  /** Exact three-place string for Prisma Decimal(18,3) final monetary columns. */
   static toDbString(value: MoneyValue): string {
     return Money.toFixed(value, OFFICIAL_CURRENCY.decimals);
+  }
+
+  /** تقريب لـ 4 خانات عشرية لأسعار الوحدات وتكلفة المتوسط المرجّح WAC: DECIMAL(19, 4) */
+  static toUnitDb(amount: MoneyValue): number {
+    return Money.to4dp(amount);
+  }
+
+  /** Exact four-place string for Prisma Decimal(19,4) unit price and WAC cost columns. */
+  static toUnitDbString(value: MoneyValue): string {
+    return Money.toFixed(value, UNIT_PRICE_SCALE);
+  }
+
+  /** تقريب لـ 6 خانات عشرية للنسب والعمولات ومعاملات التحويل وأسعار الصرف: DECIMAL(19, 6) */
+  static toRateDb(value: MoneyValue): number {
+    return Money.to6dp(value);
+  }
+
+  /** Exact six-place string for Prisma Decimal(19,6) percentage, conversion, and FX rate columns. */
+  static toRateDbString(value: MoneyValue): string {
+    return Money.toFixed(value, RATE_SCALE);
   }
 
   /** تقريب حسب عدد خانات العملة */
@@ -469,6 +508,16 @@ export class Money {
   /** تقريب لـ 3 خانات عشرية */
   static to3dp(amount: MoneyValue): number {
     return Money.toNumber(Money.roundDecimal(amount, 3));
+  }
+
+  /** تقريب لـ 4 خانات عشرية (أسعار الوحدات والتكاليف) */
+  static to4dp(amount: MoneyValue): number {
+    return Money.toNumber(Money.roundDecimal(amount, UNIT_PRICE_SCALE));
+  }
+
+  /** تقريب لـ 6 خانات عشرية (النسب وأسعار الصرف ومعاملات التحويل) */
+  static to6dp(amount: MoneyValue): number {
+    return Money.toNumber(Money.roundDecimal(amount, RATE_SCALE));
   }
 
   /** تقريب لعدد مخصص من الخانات (الافتراضي 3 للدينار والوحدات المصرفية) */
@@ -728,6 +777,26 @@ export class MoneyChain {
     return Money.toDbString(this.value);
   }
 
+  /** الحصول على سعر الوحدة / التكلفة مقربًا لـ 4 خانات */
+  toUnitDb(): number {
+    return Money.toUnitDb(this.value);
+  }
+
+  /** الحصول على سعر الوحدة / التكلفة مقربًا لـ 4 خانات كـ string */
+  toUnitDbString(): string {
+    return Money.toUnitDbString(this.value);
+  }
+
+  /** الحصول على النسبة / سعر الصرف مقربًا لـ 6 خانات */
+  toRateDb(): number {
+    return Money.toRateDb(this.value);
+  }
+
+  /** الحصول على النسبة / سعر الصرف مقربًا لـ 6 خانات كـ string */
+  toRateDbString(): string {
+    return Money.toRateDbString(this.value);
+  }
+
   decimal(): Decimal {
     return this.value;
   }
@@ -742,6 +811,14 @@ export class MoneyChain {
 
   to3dp(): number {
     return Money.to3dp(this.value);
+  }
+
+  to4dp(): number {
+    return Money.to4dp(this.value);
+  }
+
+  to6dp(): number {
+    return Money.to6dp(this.value);
   }
 
   toCurrency(currencyCode: string = OFFICIAL_CURRENCY.code): number {

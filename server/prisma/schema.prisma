@@ -270,7 +270,7 @@ model ServiceItem {
   nameAr            String?
   nameEn            String?
   type              ServiceType
-  defaultPrice      Decimal            @db.Decimal(18, 3)
+  defaultPrice      Decimal            @db.Decimal(19, 4)
   isActive          Boolean            @default(true)
   isBillable        Boolean            @default(true)
   deletedAt         DateTime?
@@ -583,7 +583,7 @@ model User {
   housingAllowance          Decimal                    @default(0) @db.Decimal(18, 3)
   otherAllowance            Decimal                    @default(0) @db.Decimal(18, 3)
   transportAllowance        Decimal                    @default(0) @db.Decimal(18, 3)
-  commissionRate            Decimal                    @default(0) @db.Decimal(5, 4)
+  commissionRate            Decimal                    @default(0) @db.Decimal(19, 6)
   annualLeaveBalance        Int                        @default(21)
   // hashedRefreshToken Removed
   jobRank                   JobRank?                   @default(GENERAL_PRACTITIONER)
@@ -1119,7 +1119,7 @@ model EncounterCharge {
   sourceType    ChargeSource
   sourceId      Int?
   quantity      Int                        @default(1)
-  unitPrice     Decimal                    @db.Decimal(18, 3)
+  unitPrice     Decimal                    @db.Decimal(19, 4)
   totalAmount   Decimal                    @db.Decimal(18, 3)
   createdAt     DateTime                   @default(now())
   invoiceId     Int?
@@ -1415,8 +1415,8 @@ model Product {
   strength             String?
   form                 String?
   route                MedicationRoute?
-  costPrice            Decimal               @default(0) @db.Decimal(18, 3)
-  sellPrice            Decimal               @default(0) @db.Decimal(18, 3)
+  costPrice            Decimal               @default(0) @db.Decimal(19, 4)
+  sellPrice            Decimal               @default(0) @db.Decimal(19, 4)
   stockOnHand          Decimal               @default(0) @db.Decimal(18, 3)
   minStock             Decimal               @default(0) @db.Decimal(18, 3)
   maxStock             Decimal?              @db.Decimal(18, 3)
@@ -1528,7 +1528,7 @@ model PurchaseOrderItem {
   quantity         Decimal @db.Decimal(18, 3)
   uomId            Int?
   baseQuantity     Decimal @default(0) @db.Decimal(18, 3)
-  unitPrice        Decimal @db.Decimal(18, 3)
+  unitPrice        Decimal @db.Decimal(19, 4)
   totalPrice       Decimal @db.Decimal(18, 3)
   receivedQuantity Decimal @default(0) @db.Decimal(18, 3)
 
@@ -2180,8 +2180,8 @@ model GoodsReceipt {
 model GoodsReceiptItem {
   purchaseOrderItemId Int?
   purchaseOrderItem PurchaseOrderItem? @relation(fields:[purchaseOrderItemId],references:[id],onDelete:Restrict)
-  unitPrice Decimal? @db.Decimal(18,3)
-  unitCost Decimal? @db.Decimal(18,3)
+  unitPrice Decimal? @db.Decimal(19, 4)
+  unitCost Decimal? @db.Decimal(19, 4)
   totalCost Decimal? @db.Decimal(18,3)
   id             Int       @id @default(autoincrement())
   goodsReceiptId Int
@@ -2268,7 +2268,7 @@ model ProductStock {
   minStock     Decimal       @default(0) @db.Decimal(18, 3)
   maxStock     Decimal?      @db.Decimal(18, 3)
   reorderLevel Decimal?      @db.Decimal(18, 3)
-  unitCost     Decimal       @default(0) @db.Decimal(18, 3)
+  unitCost     Decimal       @default(0) @db.Decimal(19, 4)
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
   batchNumber  String?
@@ -2456,7 +2456,7 @@ model StockTransaction {
   quantity          Decimal              @db.Decimal(18, 3)
   uomId             Int?
   baseQuantity      Decimal              @default(0) @db.Decimal(18, 3)
-  unitCost          Decimal              @db.Decimal(18, 3)
+  unitCost          Decimal              @db.Decimal(19, 4)
   totalCost         Decimal              @db.Decimal(18, 3)
   referenceType     String?
   referenceId       Int?
@@ -2553,7 +2553,7 @@ model ProductUOM {
   id              Int           @id @default(autoincrement())
   productId       Int
   uomId           Int
-  conversionRate  Decimal       @db.Decimal(18, 3)
+  conversionRate  Decimal       @db.Decimal(19, 6)
   isPurchasingUOM Boolean       @default(false)
   isIssuingUOM    Boolean       @default(false)
   product         Product       @relation(fields: [productId], references: [id])
@@ -2630,9 +2630,9 @@ model StockIssue {
 }
 
 model StockIssueItem {
-  unitCost Decimal? @db.Decimal(18, 3)
+  unitCost Decimal? @db.Decimal(19, 4)
   totalCost Decimal? @db.Decimal(18, 3)
-  batchUnitCost Decimal? @db.Decimal(18, 3)
+  batchUnitCost Decimal? @db.Decimal(19, 4)
   id           Int       @id @default(autoincrement())
   stockIssueId Int
   productId    Int
@@ -2686,7 +2686,7 @@ model Prescription {
 }
 
 model PrescriptionItem {
-  prepaidUnitPrice Decimal? @db.Decimal(18, 3)
+  prepaidUnitPrice Decimal? @db.Decimal(19, 4)
   id              Int                        @id @default(autoincrement())
   prescriptionId  Int
   dose            String
@@ -2722,7 +2722,7 @@ model DispenseItem {
   dispenseRecordId   Int
   prescriptionItemId Int?
   quantity           Decimal           @db.Decimal(18, 3)
-  unitPrice          Decimal           @db.Decimal(18, 3)
+  unitPrice          Decimal           @db.Decimal(19, 4)
   totalAmount        Decimal           @db.Decimal(18, 3)
   productId          Int
   batchNumber        String?
@@ -2801,7 +2801,7 @@ model DoctorSchedule {
   specialty         String?
   startTime         String?  @default("08:00")
   workDays          String?  @default("0,1,2,3,4")
-  consultationPrice Decimal? @default(0) @db.Decimal(18, 3)
+  consultationPrice Decimal? @default(0) @db.Decimal(19, 4)
   doctor            User     @relation(fields: [doctorId], references: [id])
   hospital          Hospital @relation(fields: [hospitalId], references: [id])
 }
@@ -2994,9 +2994,9 @@ model CashierShiftClosing {
   cashierId         Int
   rangeStart        DateTime
   rangeEnd          DateTime
-  systemCashTotal   Decimal          @default(0)
-  actualCashTotal   Decimal          @default(0)
-  difference        Decimal          @default(0)
+  systemCashTotal   Decimal          @default(0) @db.Decimal(18, 3)
+  actualCashTotal   Decimal          @default(0) @db.Decimal(18, 3)
+  difference        Decimal          @default(0) @db.Decimal(18, 3)
   note              String?
   createdAt         DateTime         @default(now())
   accountingEntryId Int?
@@ -3073,7 +3073,7 @@ model InventoryCountLine {
   systemQty        Decimal        @default(0) @db.Decimal(18, 3)
   physicalQty      Decimal?       @db.Decimal(18, 3)
   variance         Decimal        @default(0) @db.Decimal(18, 3)
-  costPrice        Decimal        @default(0) @db.Decimal(18, 3)
+  costPrice        Decimal        @default(0) @db.Decimal(19, 4)
   notes            String?
   inventoryCount   InventoryCount @relation(fields: [inventoryCountId], references: [id], onDelete: Cascade)
   product          Product        @relation(fields: [productId], references: [id])
@@ -3167,7 +3167,7 @@ model PurchaseReturnLine {
   purchaseReturnId Int
   productId        Int
   quantity         Decimal        @db.Decimal(18, 3)
-  unitPrice        Decimal        @db.Decimal(18, 3)
+  unitPrice        Decimal        @db.Decimal(19, 4)
   totalAmount      Decimal        @db.Decimal(18, 3)
   description      String?
   product          Product        @relation(fields: [productId], references: [id])
@@ -3180,7 +3180,7 @@ model PurchaseInvoiceLine {
   purchaseInvoiceId Int
   description       String
   quantity          Decimal         @default(1) @db.Decimal(18, 3)
-  unitPrice         Decimal         @db.Decimal(18, 3)
+  unitPrice         Decimal         @db.Decimal(19, 4)
   totalAmount       Decimal         @db.Decimal(18, 3)
   expenseAccountId  Int?
   productId         Int?
@@ -3373,7 +3373,7 @@ model InsurancePolicy {
   insuranceProviderId Int
   name                String
   policyNumber        String?
-  patientCopayRate    Decimal            @default(0) @db.Decimal(5, 4)
+  patientCopayRate    Decimal            @default(0) @db.Decimal(19, 6)
   maxCoverageAmount   Decimal?           @db.Decimal(18, 3)
   releaseCoverageOnPartialDispense Boolean @default(false)
   isActive            Boolean            @default(true)
@@ -3403,7 +3403,7 @@ model InsurancePlan {
   id               Int               @id @default(autoincrement())
   providerId       Int
   name             String
-  defaultCopayRate Decimal           @default(0) @db.Decimal(5, 4)
+  defaultCopayRate Decimal           @default(0) @db.Decimal(19, 6)
   maxCopayAmount   Decimal?          @db.Decimal(18, 3)
   rules            CoverageRule[]
   provider         InsuranceProvider @relation(fields: [providerId], references: [id])
@@ -3417,7 +3417,7 @@ model CoverageRule {
   serviceItemId     Int?
   ruleType          CoverageRuleType @default(INCLUSION)
   copayType         CopayType        @default(PERCENTAGE)
-  copayValue        Decimal          @default(0) @db.Decimal(18, 3)
+  copayValue        Decimal          @default(0) @db.Decimal(19, 6)
   requiresApproval  Boolean          @default(false)
   plan              InsurancePlan    @relation(fields: [planId], references: [id])
   serviceCategory   ServiceCategory? @relation(fields: [serviceCategoryId], references: [id])
@@ -3591,7 +3591,7 @@ model SurgeryConsumable {
   surgeryCaseId Int
   productId     Int
   quantity      Decimal     @db.Decimal(18, 3)
-  unitPrice     Decimal     @db.Decimal(18, 3)
+  unitPrice     Decimal     @db.Decimal(19, 4)
   totalPrice    Decimal     @db.Decimal(18, 3)
   product       Product     @relation(fields: [productId], references: [id])
   surgeryCase   SurgeryCase @relation(fields: [surgeryCaseId], references: [id])
@@ -3676,7 +3676,7 @@ model PriceListItem {
   priceListId   Int
   serviceItemId Int?
   productId     Int?
-  price         Decimal      @db.Decimal(18, 3)
+  price         Decimal      @db.Decimal(19, 4)
   priceList     PriceList    @relation(fields: [priceListId], references: [id], onDelete: Cascade)
   product       Product?     @relation(fields: [productId], references: [id])
   serviceItem   ServiceItem? @relation(fields: [serviceItemId], references: [id])
@@ -4027,8 +4027,8 @@ model CommissionRule {
   hospitalId   Int
   serviceType  ServiceType
   doctorId     Int? // null = قاعدة افتراضية للجميع
-  doctorRate   Decimal     @default(0) @db.Decimal(5, 2) // نسبة الطبيب %
-  hospitalRate Decimal     @default(100) @db.Decimal(5, 2) // نسبة المستشفى %
+  doctorRate   Decimal     @default(0) @db.Decimal(19, 6) // نسبة الطبيب %
+  hospitalRate Decimal     @default(100) @db.Decimal(19, 6) // نسبة المستشفى %
   isActive     Boolean     @default(true)
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @default(now()) @updatedAt
@@ -4590,8 +4590,8 @@ model Admission {
   followUpInstructions  Json?
 
   // Financial Information
-  estimatedCost Decimal?
-  actualCost    Decimal?
+  estimatedCost Decimal? @db.Decimal(18, 3)
+  actualCost    Decimal? @db.Decimal(18, 3)
   paymentStatus String?
   billingStatus String?
 
@@ -4699,7 +4699,7 @@ model DischargePlanning {
 
   // Financial Planning
   insuranceApproval   Boolean  @default(false)
-  estimatedCost       Decimal?
+  estimatedCost       Decimal? @db.Decimal(18, 3)
   paymentArrangements Json?
 
   // Status and Tracking
@@ -5155,7 +5155,7 @@ model ICUEquipmentUsage {
   equipmentName String?
   startedAt     DateTime  @default(now())
   stoppedAt     DateTime?
-  dailyRate     Decimal?  @db.Decimal(10, 2) // Billing rate per day
+  dailyRate     Decimal?  @db.Decimal(19, 4) // Billing rate per day
   notes         String?
 
   createdAt DateTime @default(now())
@@ -5951,8 +5951,8 @@ model InsuranceContract {
   name                String // اسم العقد (مثلاً: "عقد بوبا 2026")
   effectiveFrom       DateTime // تاريخ بدء السريان
   effectiveTo         DateTime // تاريخ الانتهاء
-  discountPercentage  Decimal? @db.Decimal(5, 2) // خصم عام %
-  copayPercentage     Decimal? @db.Decimal(5, 2) // نسبة تحمّل المريض %
+  discountPercentage  Decimal? @db.Decimal(19, 6) // خصم عام %
+  copayPercentage     Decimal? @db.Decimal(19, 6) // نسبة تحمّل المريض %
   deductible          Decimal? @db.Decimal(18, 3) // المبلغ المقتطع
   maxCoverage         Decimal? @db.Decimal(18, 3) // سقف التغطية السنوي
   preAuthRequired     Boolean  @default(false) // هل الموافقة المسبقة مطلوبة؟
@@ -5978,10 +5978,10 @@ model ContractBenefit {
   contractId      Int
   serviceType     String // CONSULTATION, LAB, RADIOLOGY, PHARMACY, SURGERY, etc.
   serviceCode     String? // كود خدمة محددة (اختياري)
-  agreedPrice     Decimal? @db.Decimal(18, 3) // السعر المتفق عليه
-  discountPercent Decimal? @db.Decimal(5, 2) // خصم خاص بالخدمة
+  agreedPrice     Decimal? @db.Decimal(19, 4) // السعر المتفق عليه
+  discountPercent Decimal? @db.Decimal(19, 6) // خصم خاص بالخدمة
   copayAmount     Decimal? @db.Decimal(18, 3) // تحمّل المريض (مبلغ ثابت)
-  copayPercent    Decimal? @db.Decimal(5, 2) // تحمّل المريض (نسبة)
+  copayPercent    Decimal? @db.Decimal(19, 6) // تحمّل المريض (نسبة)
   maxQuantity     Int? // حد أقصى للكمية (مثل: 2 أشعة/شهر)
   requiresPreAuth Boolean  @default(false)
   isActive        Boolean  @default(true)
@@ -6306,7 +6306,7 @@ model ServiceMaterialConsumption {
   referenceId Int
   warehouseId Int?
   userId Int
-  multiplier Decimal @db.Decimal(18,3)
+  multiplier Decimal @db.Decimal(19, 6)
   status String @default("PENDING")
   attempts Int @default(0)
   nextRetryAt DateTime @default(now())
@@ -6856,7 +6856,7 @@ model GatewayClearingFeeEntry {
   billableClaimsCount     Int
   adjudicatedAmount       Decimal         @db.Decimal(18, 3)
   flatFeePerClaim         Decimal         @db.Decimal(18, 3)
-  feeRate                 Decimal         @db.Decimal(7, 4)
+  feeRate                 Decimal         @db.Decimal(19, 6)
   flatFeeTotal            Decimal         @db.Decimal(18, 3)
   percentageFeeTotal      Decimal         @db.Decimal(18, 3)
   totalFeeAmount          Decimal         @db.Decimal(18, 3)

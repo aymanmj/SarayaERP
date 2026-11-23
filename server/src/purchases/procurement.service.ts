@@ -370,7 +370,7 @@ export class ProcurementService {
         if (
           !/^(0|[1-9]\d{0,14})(\.\d{1,3})?$/.test(qtyStr) ||
           new Prisma.Decimal(qtyStr).lte(0) ||
-          !/^(0|[1-9]\d{0,14})(\.\d{1,3})?$/.test(priceStr) ||
+          !/^(0|[1-9]\d{0,14})(\.\d{1,4})?$/.test(priceStr) ||
           new Prisma.Decimal(priceStr).lt(0)
         ) {
           throw new BadRequestException('كمية أو سعر بند أمر الشراء غير صالح');
@@ -404,7 +404,7 @@ export class ProcurementService {
           );
         }
 
-        const unitPrice = Money.toDbString(priceStr);
+        const unitPrice = Money.toUnitDbString(priceStr);
         const lineTotal = Money.toDbString(Money.multiply(unitPrice, qty));
 
         return {
