@@ -322,6 +322,7 @@ export class EraProcessingService {
     userId: number,
     eraId: number,
     input: PostEraFinancialInput,
+    txParam?: Prisma.TransactionClient,
   ) {
     const bankReference = input.bankReference?.trim().toUpperCase() ?? '';
     if (
@@ -337,252 +338,247 @@ export class EraProcessingService {
 
     const requestKey = `era-post:${hospitalId}:${eraId}:${input.requestId.toLowerCase()}`;
 
-    return this.prisma.$transaction(
-      async (tx) => {
-        await tx.$executeRaw`SELECT pg_advisory_xact_lock(27007, ${hospitalId}::integer)`;
+    const run = async (tx: Prisma.TransactionClient) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(27007, ${hospitalId}::integer)`;
 
+      if (
+        !(await tx.user.findFirst({
+          where: { hospitalId, id: userId, isActive: true, isDeleted: false },
+          select: { id: true },
+        }))
+      ) {
+        throw new NotFoundException('المستخدم غير متاح ضمن المنشأة');
+      }
+
+      await tx.$queryRaw`SELECT id FROM "ERATransaction" WHERE id = ${eraId} AND "hospitalId" = ${hospitalId} FOR UPDATE`;
+      const era = await tx.eRATransaction.findFirst({
+        where: { id: eraId, hospitalId },
+        include: {
+          lineItems: { orderBy: { id: 'asc' } },
+          claimBatch: { select: { id: true } },
+        },
+      });
+      if (!era) {
+        throw new NotFoundException('لم يتم العثور على ملف ERA');
+      }
+
+      if (era.status === 'RECONCILED') {
         if (
-          !(await tx.user.findFirst({
-            where: { hospitalId, id: userId, isActive: true, isDeleted: false },
-            select: { id: true },
-          }))
+          era.postingRequestKey === requestKey &&
+          era.bankReference === bankReference &&
+          era.reconciledById === userId
         ) {
-          throw new NotFoundException('المستخدم غير متاح ضمن المنشأة');
-        }
-
-        await tx.$queryRaw`SELECT id FROM "ERATransaction" WHERE id = ${eraId} AND "hospitalId" = ${hospitalId} FOR UPDATE`;
-        const era = await tx.eRATransaction.findFirst({
-          where: { id: eraId, hospitalId },
-          include: {
-            lineItems: { orderBy: { id: 'asc' } },
-            claimBatch: { select: { id: true } },
-          },
-        });
-        if (!era) {
-          throw new NotFoundException('لم يتم العثور على ملف ERA');
-        }
-
-        if (era.status === 'RECONCILED') {
-          if (
-            era.postingRequestKey === requestKey &&
-            era.bankReference === bankReference &&
-            era.reconciledById === userId
-          ) {
-            return {
-              success: true,
-              eraId: era.id,
-              eraNumber: era.eraNumber,
-              bankReference: era.bankReference,
-              postedReceiptsCount: era.lineItems.filter(
-                (item) => item.receiptId != null,
-              ).length,
-              deniedClaimsCount: era.lineItems.filter(
-                (item) => item.receiptId == null && item.status === 'DENIED',
-              ).length,
-              totalPaid: Money.toDbString(era.totalPaid),
-            };
-          }
-          throw new ConflictException(
-            'تم ترحيل ملف ERA مسبقًا بمعرف أو مرجع مختلف',
-          );
-        }
-
-        if (
-          !(await tx.insuranceProvider.findFirst({
-            where: { id: era.insuranceProviderId, hospitalId, isActive: true },
-            select: { id: true },
-          }))
-        ) {
-          throw new BadRequestException('شركة التأمين غير نشطة ضمن المنشأة');
-        }
-
-        if (!era.lineItems.length) {
-          throw new BadRequestException('ملف ERA لا يحتوي على بنود للمعالجة');
-        }
-
-        const claimIds = era.lineItems.map((item) => item.claimId);
-        if (
-          era.lineItems.some(
-            (item) => !item.claimId || item.status === 'UNMATCHED',
-          )
-        ) {
-          throw new BadRequestException(
-            'توجد بنود غير مطابقة بمطالبات داخلية في ملف ERA؛ يلزم ربطها قبل الترحيل المالي',
-          );
-        }
-
-        const uniqueClaimIds = new Set(claimIds);
-        if (uniqueClaimIds.size !== era.lineItems.length) {
-          throw new BadRequestException(
-            'يحتوي ملف ERA على أسطر مكررة لنفس المطالبة',
-          );
-        }
-
-        const sumLinePaid = Money.sumDecimal(
-          ...era.lineItems.map((item) => item.paidAmount),
-        );
-        if (!Money.eq(sumLinePaid, era.totalPaid)) {
-          throw new BadRequestException(
-            'إجمالي مدفوعات أسطر ERA لا يطابق إجمالي التحويل المصرّح به',
-          );
-        }
-
-        const orderedLines = [...era.lineItems].sort(
-          (a, b) => (a.claimId ?? 0) - (b.claimId ?? 0),
-        );
-
-        let postedReceiptsCount = 0;
-        let deniedClaimsCount = 0;
-
-        for (const line of orderedLines) {
-          const claimId = line.claimId!;
-          const claimRecord = await tx.claim.findFirst({
-            where: { id: claimId, hospitalId },
-            include: { invoice: { select: { insuranceProviderId: true } } },
-          });
-          if (
-            !claimRecord ||
-            claimRecord.status === 'VOID' ||
-            claimRecord.invoice.insuranceProviderId !== era.insuranceProviderId
-          ) {
-            throw new BadRequestException(
-              `المطالبة #${claimId} لا تخص شركة التأمين أو غير صالحة للترحيل`,
-            );
-          }
-
-          if (Money.isPositive(line.paidAmount)) {
-            const lineRequestId = deterministicUuidV4(
-              `era-line:${hospitalId}:${era.id}:${line.id}:${input.requestId.toLowerCase()}`,
-            );
-            const adjTag = line.adjustmentCode
-              ? ` · ${line.adjustmentCode}`
-              : '';
-            await collectClaim(tx, hospitalId, userId, claimId, {
-              requestId: lineRequestId,
-              paidAmount: Money.toDbString(line.paidAmount),
-              adjustmentReason: `ERA ${era.eraNumber} (${bankReference})${adjTag}`,
-            });
-
-            const receiptKey = `claim-receipt:${hospitalId}:${lineRequestId}`;
-            const receipt = await tx.claimReceipt.findUniqueOrThrow({
-              where: { requestKey: receiptKey },
-              select: { id: true },
-            });
-            await tx.eRALineItem.update({
-              where: { id: line.id },
-              data: { receiptId: receipt.id },
-            });
-            postedReceiptsCount++;
-          } else if (
-            Money.isZero(line.paidAmount) &&
-            (line.status === 'DENIED' || Boolean(line.denialCode))
-          ) {
-            await lockFinancialInvoice(tx, hospitalId, claimRecord.invoiceId);
-            await tx.$queryRaw`SELECT id FROM "Claim" WHERE id = ${claimId} AND "hospitalId" = ${hospitalId} FOR UPDATE`;
-            const lockedClaim = await tx.claim.findFirstOrThrow({
-              where: { id: claimId, hospitalId },
-            });
-            const denialCode = line.denialCode?.trim() || 'DENIED';
-            const denialReason =
-              line.denialReason?.trim() ||
-              line.adjustmentReason?.trim() ||
-              `مرفوضة وفق إشعار التحويل الإلكتروني ${era.eraNumber}`;
-            const alreadyRejectedByBatch =
-              era.claimBatch != null &&
-              lockedClaim.status === ClaimStatus.REJECTED &&
-              lockedClaim.denialCode === denialCode;
-            if (
-              !alreadyRejectedByBatch &&
-              !['SUBMITTED', 'ACCEPTED', 'APPEAL_SUBMITTED'].includes(
-                lockedClaim.status,
-              )
-            ) {
-              throw new BadRequestException(
-                `حالة المطالبة #${claimId} لا تسمح بتسجيل رفض ERA`,
-              );
-            }
-            const { net } = await claimCollectionBalance(
-              tx,
-              hospitalId,
-              claimId,
-            );
-            if (!net.isZero()) {
-              throw new BadRequestException(
-                `المطالبة #${claimId} عليها تحصيلات ولا يمكن قلبها إلى مرفوضة تلقائيًا`,
-              );
-            }
-
-            if (!alreadyRejectedByBatch) {
-              await tx.claim.update({
-                where: { id: claimId },
-                data: {
-                  status: ClaimStatus.REJECTED,
-                  denialCode,
-                  denialReason,
-                },
-              });
-              await tx.invoice.update({
-                where: { id: lockedClaim.invoiceId },
-                data: { claimStatus: 'REJECTED' },
-              });
-              await tx.claimHistory.create({
-                data: {
-                  claimId,
-                  fromStatus: lockedClaim.status,
-                  toStatus: ClaimStatus.REJECTED,
-                  changedById: userId,
-                  notes: `ERA ${era.eraNumber}: رفض (${denialCode}) - ${denialReason}`,
-                },
-              });
-            }
-            deniedClaimsCount++;
-          } else {
-            throw new BadRequestException(
-              'يوجد بند في ملف ERA بدون مبلغ تحصيل أو كود رفض صالح',
-            );
-          }
-        }
-
-        const reconciledAt = new Date();
-        await tx.eRATransaction.update({
-          where: { id: era.id },
-          data: {
-            status: 'RECONCILED',
-            reconciledAt,
-            reconciledById: userId,
-            bankReference,
-            postingRequestKey: requestKey,
-          },
-        });
-
-        await appendChainedAuditInTransaction(tx, {
-          hospitalId,
-          userId,
-          entity: 'ERATransaction',
-          entityId: era.id,
-          action: 'POST_ERA_FINANCIAL_RECONCILIATION',
-          details: {
+          return {
+            success: true,
+            eraId: era.id,
             eraNumber: era.eraNumber,
-            bankReference,
+            bankReference: era.bankReference,
+            postedReceiptsCount: era.lineItems.filter(
+              (item) => item.receiptId != null,
+            ).length,
+            deniedClaimsCount: era.lineItems.filter(
+              (item) => item.receiptId == null && item.status === 'DENIED',
+            ).length,
             totalPaid: Money.toDbString(era.totalPaid),
-            postedReceiptsCount,
-            deniedClaimsCount,
-            lineCount: era.lineItems.length,
-          },
-        });
+          };
+        }
+        throw new ConflictException(
+          'تم ترحيل ملف ERA مسبقًا بمعرف أو مرجع مختلف',
+        );
+      }
 
-        return {
-          success: true,
-          eraId: era.id,
+      if (
+        !(await tx.insuranceProvider.findFirst({
+          where: { id: era.insuranceProviderId, hospitalId, isActive: true },
+          select: { id: true },
+        }))
+      ) {
+        throw new BadRequestException('شركة التأمين غير نشطة ضمن المنشأة');
+      }
+
+      if (!era.lineItems.length) {
+        throw new BadRequestException('ملف ERA لا يحتوي على بنود للمعالجة');
+      }
+
+      const claimIds = era.lineItems.map((item) => item.claimId);
+      if (
+        era.lineItems.some(
+          (item) => !item.claimId || item.status === 'UNMATCHED',
+        )
+      ) {
+        throw new BadRequestException(
+          'توجد بنود غير مطابقة بمطالبات داخلية في ملف ERA؛ يلزم ربطها قبل الترحيل المالي',
+        );
+      }
+
+      const uniqueClaimIds = new Set(claimIds);
+      if (uniqueClaimIds.size !== era.lineItems.length) {
+        throw new BadRequestException(
+          'يحتوي ملف ERA على أسطر مكررة لنفس المطالبة',
+        );
+      }
+
+      const sumLinePaid = Money.sumDecimal(
+        ...era.lineItems.map((item) => item.paidAmount),
+      );
+      if (!Money.eq(sumLinePaid, era.totalPaid)) {
+        throw new BadRequestException(
+          'إجمالي مدفوعات أسطر ERA لا يطابق إجمالي التحويل المصرّح به',
+        );
+      }
+
+      const orderedLines = [...era.lineItems].sort(
+        (a, b) => (a.claimId ?? 0) - (b.claimId ?? 0),
+      );
+
+      let postedReceiptsCount = 0;
+      let deniedClaimsCount = 0;
+
+      for (const line of orderedLines) {
+        const claimId = line.claimId!;
+        const claimRecord = await tx.claim.findFirst({
+          where: { id: claimId, hospitalId },
+          include: { invoice: { select: { insuranceProviderId: true } } },
+        });
+        if (
+          !claimRecord ||
+          claimRecord.status === 'VOID' ||
+          claimRecord.invoice.insuranceProviderId !== era.insuranceProviderId
+        ) {
+          throw new BadRequestException(
+            `المطالبة #${claimId} لا تخص شركة التأمين أو غير صالحة للترحيل`,
+          );
+        }
+
+        if (Money.isPositive(line.paidAmount)) {
+          const lineRequestId = deterministicUuidV4(
+            `era-line:${hospitalId}:${era.id}:${line.id}:${input.requestId.toLowerCase()}`,
+          );
+          const adjTag = line.adjustmentCode ? ` · ${line.adjustmentCode}` : '';
+          await collectClaim(tx, hospitalId, userId, claimId, {
+            requestId: lineRequestId,
+            paidAmount: Money.toDbString(line.paidAmount),
+            adjustmentReason: `ERA ${era.eraNumber} (${bankReference})${adjTag}`,
+          });
+
+          const receiptKey = `claim-receipt:${hospitalId}:${lineRequestId}`;
+          const receipt = await tx.claimReceipt.findUniqueOrThrow({
+            where: { requestKey: receiptKey },
+            select: { id: true },
+          });
+          await tx.eRALineItem.update({
+            where: { id: line.id },
+            data: { receiptId: receipt.id },
+          });
+          postedReceiptsCount++;
+        } else if (
+          Money.isZero(line.paidAmount) &&
+          (line.status === 'DENIED' || Boolean(line.denialCode))
+        ) {
+          await lockFinancialInvoice(tx, hospitalId, claimRecord.invoiceId);
+          await tx.$queryRaw`SELECT id FROM "Claim" WHERE id = ${claimId} AND "hospitalId" = ${hospitalId} FOR UPDATE`;
+          const lockedClaim = await tx.claim.findFirstOrThrow({
+            where: { id: claimId, hospitalId },
+          });
+          const denialCode = line.denialCode?.trim() || 'DENIED';
+          const denialReason =
+            line.denialReason?.trim() ||
+            line.adjustmentReason?.trim() ||
+            `مرفوضة وفق إشعار التحويل الإلكتروني ${era.eraNumber}`;
+          const alreadyRejectedByBatch =
+            era.claimBatch != null &&
+            lockedClaim.status === ClaimStatus.REJECTED &&
+            lockedClaim.denialCode === denialCode;
+          if (
+            !alreadyRejectedByBatch &&
+            !['SUBMITTED', 'ACCEPTED', 'APPEAL_SUBMITTED'].includes(
+              lockedClaim.status,
+            )
+          ) {
+            throw new BadRequestException(
+              `حالة المطالبة #${claimId} لا تسمح بتسجيل رفض ERA`,
+            );
+          }
+          const { net } = await claimCollectionBalance(tx, hospitalId, claimId);
+          if (!net.isZero()) {
+            throw new BadRequestException(
+              `المطالبة #${claimId} عليها تحصيلات ولا يمكن قلبها إلى مرفوضة تلقائيًا`,
+            );
+          }
+
+          if (!alreadyRejectedByBatch) {
+            await tx.claim.update({
+              where: { id: claimId },
+              data: {
+                status: ClaimStatus.REJECTED,
+                denialCode,
+                denialReason,
+              },
+            });
+            await tx.invoice.update({
+              where: { id: lockedClaim.invoiceId },
+              data: { claimStatus: 'REJECTED' },
+            });
+            await tx.claimHistory.create({
+              data: {
+                claimId,
+                fromStatus: lockedClaim.status,
+                toStatus: ClaimStatus.REJECTED,
+                changedById: userId,
+                notes: `ERA ${era.eraNumber}: رفض (${denialCode}) - ${denialReason}`,
+              },
+            });
+          }
+          deniedClaimsCount++;
+        } else {
+          throw new BadRequestException(
+            'يوجد بند في ملف ERA بدون مبلغ تحصيل أو كود رفض صالح',
+          );
+        }
+      }
+
+      const reconciledAt = new Date();
+      await tx.eRATransaction.update({
+        where: { id: era.id },
+        data: {
+          status: 'RECONCILED',
+          reconciledAt,
+          reconciledById: userId,
+          bankReference,
+          postingRequestKey: requestKey,
+        },
+      });
+
+      await appendChainedAuditInTransaction(tx, {
+        hospitalId,
+        userId,
+        entity: 'ERATransaction',
+        entityId: era.id,
+        action: 'POST_ERA_FINANCIAL_RECONCILIATION',
+        details: {
           eraNumber: era.eraNumber,
           bankReference,
+          totalPaid: Money.toDbString(era.totalPaid),
           postedReceiptsCount,
           deniedClaimsCount,
-          totalPaid: Money.toDbString(era.totalPaid),
-        };
-      },
-      { maxWait: 10000, timeout: 30000 },
-    );
+          lineCount: era.lineItems.length,
+        },
+      });
+
+      return {
+        success: true,
+        eraId: era.id,
+        eraNumber: era.eraNumber,
+        bankReference,
+        postedReceiptsCount,
+        deniedClaimsCount,
+        totalPaid: Money.toDbString(era.totalPaid),
+      };
+    };
+
+    return txParam
+      ? run(txParam)
+      : this.prisma.$transaction(run, { maxWait: 10000, timeout: 30000 });
   }
 
   /**

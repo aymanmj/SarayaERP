@@ -19,6 +19,7 @@ import {
   MONEY_INPUT_PATTERN,
 } from './era-processing.service';
 import { BatchSubmissionService } from './batch-submission.service';
+import { GatewayClearingLedgerService } from './gateway-clearing-ledger.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Permissions } from '../auth/permissions.decorator';
 import { PermissionsGuard } from '../auth/permissions.guard';
@@ -143,6 +144,59 @@ class AdjudicateClaimBatchDto {
   decisions!: AdjudicateClaimDecisionDto[];
 }
 
+const RATE_INPUT_PATTERN = /^0(\.\d{1,4})?$|^1(\.0{1,4})?$/;
+
+class AccrueGatewayFeeDto {
+  @IsUUID('4') requestId!: string;
+  @Equals(true) confirmed!: boolean;
+  @IsOptional()
+  @Transform(coerceMoneyInput)
+  @IsString()
+  @Matches(MONEY_INPUT_PATTERN)
+  flatFeePerClaim?: string;
+  @IsOptional()
+  @Transform(coerceMoneyInput)
+  @IsString()
+  @Matches(RATE_INPUT_PATTERN)
+  feeRate?: string;
+}
+
+class SettleGatewayFeeDto {
+  @IsUUID('4') requestId!: string;
+  @Equals(true) confirmed!: boolean;
+  @IsString() @MinLength(5) @MaxLength(200) bankReference!: string;
+}
+
+class BankStatementLineInputDto {
+  @IsString() @MinLength(5) @MaxLength(200) bankReference!: string;
+  @IsOptional() @IsDateString() transactionDate?: string;
+  @IsIn(['CREDIT', 'DEBIT']) direction!: 'CREDIT' | 'DEBIT';
+  @Transform(coerceMoneyInput)
+  @IsString()
+  @Matches(MONEY_INPUT_PATTERN)
+  amount!: string;
+  @IsOptional() @IsString() @MaxLength(500) description?: string;
+}
+
+class ImportBankStatementDto {
+  @IsUUID('4') requestId!: string;
+  @IsString() @MinLength(3) @MaxLength(100) bankName!: string;
+  @IsOptional() @IsString() @MaxLength(100) accountNumber?: string;
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(200)
+  @ValidateNested({ each: true })
+  @Type(() => BankStatementLineInputDto)
+  lines!: BankStatementLineInputDto[];
+}
+
+class ReconcileBankStatementDto {
+  @IsUUID('4') requestId!: string;
+  @Equals(true) confirmed!: boolean;
+  @IsIn(['ERA', 'GATEWAY_FEE']) targetType!: 'ERA' | 'GATEWAY_FEE';
+  @IsInt() @Min(1) targetId!: number;
+}
+
 /**
  * واجهة تحكم دورة الإيرادات (Revenue Cycle Management)
  *
@@ -164,6 +218,7 @@ export class ClaimController {
     private denialService: DenialManagementService,
     private eraService: EraProcessingService,
     private batchService: BatchSubmissionService,
+    private gatewayLedgerService: GatewayClearingLedgerService,
   ) {}
 
   // ============================================
@@ -593,6 +648,113 @@ export class ClaimController {
     @Body() data: AdjudicateClaimBatchDto,
   ) {
     return this.batchService.adjudicateBatchInClearinghouse(
+      user.hospitalId,
+      user.sub,
+      id,
+      data,
+    );
+  }
+
+  // ============================================
+  // National Gateway Clearing Fees (B2B) & Bank Statement Reconciliation
+  // ============================================
+
+  @ApiOperation({ summary: 'List B2B gateway clearing fee ledger entries' })
+  @Get('gateway-fees')
+  @Permissions('claims:read')
+  listGatewayFeeLedger(
+    @CurrentUser() user: JwtPayload,
+    @Query('providerId') providerId?: string,
+    @Query('status') status?: string,
+  ) {
+    const parsedProviderId =
+      providerId &&
+      Number.isInteger(Number(providerId)) &&
+      Number(providerId) > 0
+        ? Number(providerId)
+        : undefined;
+    return this.gatewayLedgerService.listFeeLedger(user.hospitalId, {
+      providerId: parsedProviderId,
+      status: status || undefined,
+    });
+  }
+
+  @ApiOperation({
+    summary: 'Accrue B2B gateway clearing fee for a closed clearinghouse batch',
+  })
+  @Post('batches/:id/gateway-fee')
+  @Permissions('claims:update')
+  accrueBatchClearingFee(
+    @CurrentUser() user: JwtPayload,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() data: AccrueGatewayFeeDto,
+  ) {
+    return this.gatewayLedgerService.accrueBatchClearingFee(
+      user.hospitalId,
+      user.sub,
+      id,
+      data,
+    );
+  }
+
+  @ApiOperation({ summary: 'Settle accrued B2B gateway clearing fee entry' })
+  @Post('gateway-fees/:id/settle')
+  @Permissions('claims:update')
+  settleGatewayClearingFee(
+    @CurrentUser() user: JwtPayload,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() data: SettleGatewayFeeDto,
+  ) {
+    return this.gatewayLedgerService.settleGatewayClearingFee(
+      user.hospitalId,
+      user.sub,
+      id,
+      data,
+    );
+  }
+
+  @ApiOperation({ summary: 'List imported bank statement lines' })
+  @Get('bank-statements')
+  @Permissions('claims:read')
+  listBankStatementLines(
+    @CurrentUser() user: JwtPayload,
+    @Query('direction') direction?: string,
+    @Query('status') status?: string,
+  ) {
+    return this.gatewayLedgerService.listBankStatementLines(user.hospitalId, {
+      direction: direction || undefined,
+      status: status || undefined,
+    });
+  }
+
+  @ApiOperation({
+    summary: 'Import bank statement lines for clearing reconciliation',
+  })
+  @Post('bank-statements/import')
+  @Permissions('claims:update')
+  importBankStatementLines(
+    @CurrentUser() user: JwtPayload,
+    @Body() data: ImportBankStatementDto,
+  ) {
+    return this.gatewayLedgerService.importBankStatementLines(
+      user.hospitalId,
+      user.sub,
+      data,
+    );
+  }
+
+  @ApiOperation({
+    summary:
+      'Reconcile a bank statement line against an ERA or a B2B gateway fee entry',
+  })
+  @Post('bank-statements/:id/reconcile')
+  @Permissions('claims:update')
+  reconcileBankStatementLine(
+    @CurrentUser() user: JwtPayload,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() data: ReconcileBankStatementDto,
+  ) {
+    return this.gatewayLedgerService.reconcileBankStatementLine(
       user.hospitalId,
       user.sub,
       id,

@@ -610,3 +610,85 @@ it("submits and adjudicates a claim batch via PayerBatchClearingDialog", async (
     restoreDialog();
   }
 });
+
+it("accrues and settles a B2B gateway clearing fee on a closed batch via PayerBatchClearingDialog", async () => {
+  let feeEntry: {
+    id: number;
+    b2bInvoiceNumber: string;
+    totalFeeAmount: string;
+    flatFeeTotal: string;
+    percentageFeeTotal: string;
+    status: "ACCRUED" | "SETTLED";
+    settlementBankReference: string | null;
+  } | null = null;
+
+  vi.mocked(apiClient.get).mockImplementation(async (path) => {
+    if (path === "/rcm/claims/batches") {
+      return {
+        data: [{
+          id: 99,
+          batchNumber: "BATCH-1-7-99",
+          clearingChannel: "LOCAL_CLEARINGHOUSE",
+          status: "CLOSED",
+          totalClaims: 2,
+          totalAmount: "200.000",
+          approvedAmount: "200.000",
+          provider: { id: 7, name: "Synthetic insurer", code: "INS-7" },
+          eraTransaction: { id: 199, eraNumber: "ERA-CLH-99", status: "PROCESSING", totalPaid: "200.000" },
+          gatewayFeeEntry: feeEntry,
+          claims: [],
+        }],
+      };
+    }
+    return { data: [] };
+  });
+
+  vi.mocked(apiClient.post).mockClear().mockImplementation(async (path) => {
+    if (path === "/rcm/claims/batches/99/gateway-fee") {
+      feeEntry = {
+        id: 301,
+        b2bInvoiceNumber: "SARAYA-B2B-1-99",
+        totalFeeAmount: "5.000",
+        flatFeeTotal: "4.000",
+        percentageFeeTotal: "1.000",
+        status: "ACCRUED",
+        settlementBankReference: null,
+      };
+    } else if (path === "/rcm/claims/gateway-fees/301/settle") {
+      feeEntry = {
+        ...feeEntry!,
+        status: "SETTLED",
+        settlementBankReference: "BANK-B2B-99",
+      };
+    }
+    return { data: { success: true } };
+  });
+
+  const restoreDialog = mockDialog();
+  try {
+    render(<InsuranceClaimsPage />);
+    fireEvent.click(screen.getByRole("button", { name: "insuranceClaims.clearinghouse.open" }));
+    fireEvent.click(await screen.findByLabelText("insuranceClaims.clearinghouse.feeConfirmed"));
+    fireEvent.click(screen.getByRole("button", { name: "insuranceClaims.clearinghouse.accrueFeeBtn" }));
+
+    await waitFor(() => expect(apiClient.post).toHaveBeenCalledWith("/rcm/claims/batches/99/gateway-fee", {
+      requestId: expect.any(String),
+      flatFeePerClaim: "2.000",
+      feeRate: "0.0050",
+      confirmed: true,
+    }));
+
+    const bankRefInput = await screen.findByLabelText("insuranceClaims.clearinghouse.feeBankReference");
+    fireEvent.change(bankRefInput, { target: { value: "BANK-B2B-99" } });
+    fireEvent.click(screen.getByLabelText("insuranceClaims.clearinghouse.feeSettleConfirmed"));
+    fireEvent.click(screen.getByRole("button", { name: "insuranceClaims.clearinghouse.settleFeeBtn" }));
+
+    await waitFor(() => expect(apiClient.post).toHaveBeenCalledWith("/rcm/claims/gateway-fees/301/settle", {
+      requestId: expect.any(String),
+      bankReference: "BANK-B2B-99",
+      confirmed: true,
+    }));
+  } finally {
+    restoreDialog();
+  }
+});

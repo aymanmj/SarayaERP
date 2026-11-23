@@ -205,6 +205,8 @@ model Hospital {
   developerApps      DeveloperApp[]
   nursingNotifications NursingNotification[]
   preAuthAttachments PreAuthorizationAttachment[]
+  gatewayClearingFeeEntries GatewayClearingFeeEntry[]
+  bankStatementLines        BankStatementLine[]
 }
 
 model Department {
@@ -718,6 +720,10 @@ model User {
   requestedMaterials    MaterialRequest[]  @relation("UserRequestedMaterials")
   approvedMaterials     MaterialRequest[]  @relation("UserApprovedMaterials")
   issuedStock           StockIssue[]       @relation("UserIssuedStock")
+  accruedGatewayFees         GatewayClearingFeeEntry[] @relation("GatewayFeeAccruedBy")
+  settledGatewayFees         GatewayClearingFeeEntry[] @relation("GatewayFeeSettledBy")
+  importedBankStatementLines BankStatementLine[]       @relation("BankStatementImportedBy")
+  matchedBankStatementLines  BankStatementLine[]       @relation("BankStatementMatchedBy")
 }
 
 model RefreshToken {
@@ -2905,6 +2911,8 @@ model Account {
   expenseCategories          ItemCategory[]         @relation("CategoryExpenseAccount")
   unallocatedInsuranceSettlements InsuranceSettlement[]
   insuranceClaimWriteOffs    InsuranceClaimWriteOff[] @relation("InsuranceWriteOffAccount")
+  gatewayFeeExpenseEntries   GatewayClearingFeeEntry[] @relation("GatewayFeeExpenseAccount")
+  gatewayFeePayableEntries   GatewayClearingFeeEntry[] @relation("GatewayFeePayableAccount")
 
   @@unique([hospitalId, code])
   @@index([hospitalId, type])
@@ -2914,6 +2922,8 @@ model Account {
 model AccountingEntry {
   recallDisposal InventoryRecallDisposal?
   insuranceClaimWriteOff InsuranceClaimWriteOff?
+  gatewayFeeAccrual GatewayClearingFeeEntry? @relation("GatewayFeeAccrualEntry")
+  gatewayFeeSettlement GatewayClearingFeeEntry? @relation("GatewayFeeSettlementEntry")
   insuranceSettlementApplication InsuranceSettlementApplication?
   insuranceSettlementRefund InsuranceSettlementRefund?
   insuranceSettlement InsuranceSettlement?
@@ -3348,6 +3358,7 @@ model InsuranceProvider {
   claimBatches    ClaimBatch[]
   contracts       InsuranceContract[]
   eraTransactions ERATransaction[]
+  gatewayClearingFeeEntries GatewayClearingFeeEntry[]
 }
 
 model InsurancePolicy {
@@ -4233,6 +4244,8 @@ enum SystemAccountKey {
   RETAINED_EARNINGS
   INSURANCE_UNALLOCATED_RECEIPTS
   INSURANCE_BAD_DEBT_EXPENSE
+  GATEWAY_CLEARING_FEE_EXPENSE
+  GATEWAY_CLEARING_FEE_PAYABLE
 }
 
 enum SupplierType {
@@ -5884,9 +5897,10 @@ model ClaimBatch {
 
   hospital       Hospital          @relation(fields: [hospitalId], references: [id])
   provider       InsuranceProvider @relation(fields: [providerId], references: [id])
-  adjudicatedBy  User?             @relation("ClaimBatchAdjudicator", fields: [adjudicatedById], references: [id])
-  eraTransaction ERATransaction?   @relation(fields: [eraTransactionId], references: [id])
-  claims         Claim[]
+  adjudicatedBy   User?                     @relation("ClaimBatchAdjudicator", fields: [adjudicatedById], references: [id])
+  eraTransaction  ERATransaction?           @relation(fields: [eraTransactionId], references: [id])
+  gatewayFeeEntry GatewayClearingFeeEntry?
+  claims          Claim[]
 
   @@index([hospitalId, status])
 }
@@ -6001,9 +6015,11 @@ model ERATransaction {
   updatedAt           DateTime  @updatedAt
 
   hospital          Hospital          @relation(fields: [hospitalId], references: [id])
-  insuranceProvider InsuranceProvider @relation(fields: [insuranceProviderId], references: [id])
-  lineItems         ERALineItem[]
-  claimBatch        ClaimBatch?
+  insuranceProvider        InsuranceProvider         @relation(fields: [insuranceProviderId], references: [id])
+  lineItems                ERALineItem[]
+  claimBatch               ClaimBatch?
+  gatewayFeeEntry          GatewayClearingFeeEntry?
+  matchedBankStatementLine BankStatementLine?        @relation("BankStatementMatchedEra")
 
   @@index([hospitalId, status])
   @@index([hospitalId, bankReference])
@@ -6821,4 +6837,78 @@ model InsuranceClaimWriteOff {
   @@index([hospitalId, status, createdAt])
   @@index([originalReceivableId])
   @@index([writeOffAccountId])
+}
+
+model GatewayClearingFeeEntry {
+  id                      Int             @id @default(autoincrement())
+  hospitalId              Int
+  providerId              Int
+  claimBatchId            Int             @unique
+  eraTransactionId        Int?            @unique
+  b2bInvoiceNumber        String          @unique
+  accrualRequestKey       String          @unique
+  settlementRequestKey    String?         @unique
+  billableClaimsCount     Int
+  adjudicatedAmount       Decimal         @db.Decimal(18, 3)
+  flatFeePerClaim         Decimal         @db.Decimal(18, 3)
+  feeRate                 Decimal         @db.Decimal(7, 4)
+  flatFeeTotal            Decimal         @db.Decimal(18, 3)
+  percentageFeeTotal      Decimal         @db.Decimal(18, 3)
+  totalFeeAmount          Decimal         @db.Decimal(18, 3)
+  status                  String          @default("ACCRUED")
+  settlementBankReference String?
+  expenseAccountId        Int
+  payableAccountId        Int
+  accrualEntryId          Int             @unique
+  settlementEntryId       Int?            @unique
+  accruedById             Int
+  settledById             Int?
+  accruedAt               DateTime        @default(now())
+  settledAt               DateTime?
+
+  hospital        Hospital            @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
+  provider        InsuranceProvider   @relation(fields: [providerId], references: [id], onDelete: Restrict)
+  claimBatch      ClaimBatch          @relation(fields: [claimBatchId], references: [id], onDelete: Restrict)
+  eraTransaction  ERATransaction?     @relation(fields: [eraTransactionId], references: [id], onDelete: Restrict)
+  expenseAccount  Account             @relation("GatewayFeeExpenseAccount", fields: [expenseAccountId], references: [id], onDelete: Restrict)
+  payableAccount  Account             @relation("GatewayFeePayableAccount", fields: [payableAccountId], references: [id], onDelete: Restrict)
+  accrualEntry    AccountingEntry     @relation("GatewayFeeAccrualEntry", fields: [accrualEntryId], references: [id], onDelete: Restrict)
+  settlementEntry AccountingEntry?    @relation("GatewayFeeSettlementEntry", fields: [settlementEntryId], references: [id], onDelete: Restrict)
+  accruedBy       User                @relation("GatewayFeeAccruedBy", fields: [accruedById], references: [id], onDelete: Restrict)
+  settledBy       User?               @relation("GatewayFeeSettledBy", fields: [settledById], references: [id], onDelete: Restrict)
+  matchedBankLine BankStatementLine?
+
+  @@unique([hospitalId, settlementBankReference])
+  @@index([hospitalId, status, accruedAt])
+  @@index([providerId])
+}
+
+model BankStatementLine {
+  id                Int                      @id @default(autoincrement())
+  hospitalId        Int
+  importRequestKey  String
+  bankName          String
+  accountNumber     String?
+  bankReference     String
+  transactionDate   DateTime
+  direction         String
+  amount            Decimal                  @db.Decimal(18, 3)
+  description       String?
+  status            String                   @default("UNMATCHED")
+  matchRequestKey   String?                  @unique
+  matchedEraId      Int?                     @unique
+  matchedFeeEntryId Int?                     @unique
+  importedById      Int
+  matchedById       Int?
+  importedAt        DateTime                 @default(now())
+  matchedAt         DateTime?
+
+  hospital        Hospital                 @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
+  matchedEra      ERATransaction?          @relation("BankStatementMatchedEra", fields: [matchedEraId], references: [id], onDelete: Restrict)
+  matchedFeeEntry GatewayClearingFeeEntry? @relation(fields: [matchedFeeEntryId], references: [id], onDelete: Restrict)
+  importedBy      User                     @relation("BankStatementImportedBy", fields: [importedById], references: [id], onDelete: Restrict)
+  matchedBy       User?                    @relation("BankStatementMatchedBy", fields: [matchedById], references: [id], onDelete: Restrict)
+
+  @@unique([hospitalId, direction, bankReference])
+  @@index([hospitalId, status, transactionDate])
 }

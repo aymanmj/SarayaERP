@@ -3082,4 +3082,460 @@ describe('Insurance Providers, Policies, Plans, Coverage Calculation, Pre-Auth, 
     expect(gwActions.has('ADJUDICATE_CLAIM_BATCH_CLEARINGHOUSE')).toBe(true);
     expect(gwActions.has('POST_ERA_FINANCIAL_RECONCILIATION')).toBe(true);
   });
+
+  it('enforces B2B gateway clearing fee accrual, double-entry ledger posting, bank statement import & reconciliation against ERA and gateway fees, tenant isolation, and trigger/reversal immutability', async () => {
+    const uniqueSuffix = Date.now() + 500;
+
+    const providerRes = await request(app.getHttpServer())
+      .post('/insurance/providers')
+      .auth(adminToken, { type: 'bearer' })
+      .send({
+        name: 'شركة ليبيا للتأمين - مقاصة',
+        code: `INS-CLH-D-${uniqueSuffix}`,
+      })
+      .expect(201);
+    const providerId = responseBody<{ id: number }>(providerRes).id;
+
+    const policyRes = await request(app.getHttpServer())
+      .post(`/insurance/providers/${providerId}/policies`)
+      .auth(adminToken, { type: 'bearer' })
+      .send({
+        name: 'وثيقة مقاصة الشركات',
+        policyNumber: `POL-D-${uniqueSuffix}`,
+        startDate: '2026-01-01T00:00:00.000Z',
+        endDate: '2027-01-01T00:00:00.000Z',
+        patientCopayRate: 0,
+        maxCoverageAmount: 5000,
+      })
+      .expect(201);
+    const policyId = responseBody<{ id: number }>(policyRes).id;
+
+    const patient = await db.patient.create({
+      data: {
+        hospitalId,
+        mrn: `MRN-CLH-D-${uniqueSuffix}`,
+        fullName: 'عبدالسلام الفيتوري',
+        gender: 'MALE',
+        dateOfBirth: new Date('1985-06-10T00:00:00.000Z'),
+        insurancePolicyId: policyId,
+        insuranceMemberId: `MEM-D-${uniqueSuffix}`,
+      },
+    });
+
+    const svcCat = await db.serviceCategory.create({
+      data: { hospitalId, name: 'تخصصية', code: `CAT-D-${uniqueSuffix}` },
+    });
+    const svcItem = await db.serviceItem.create({
+      data: {
+        hospitalId,
+        categoryId: svcCat.id,
+        code: `SRV-D-${uniqueSuffix}`,
+        name: 'فحص تخصصي شامل',
+        type: 'CONSULTATION',
+        defaultPrice: '120.000',
+        isActive: true,
+        isBillable: true,
+      },
+    });
+    const diag = await db.diagnosisCode.create({
+      data: {
+        code: `I10.${String(uniqueSuffix).slice(-2)}`,
+        nameEn: 'Essential hypertension',
+        icd10Code: 'I10',
+      },
+    });
+    const encounter = await db.encounter.create({
+      data: {
+        hospitalId,
+        patientId: patient.id,
+        type: 'OPD',
+        status: 'OPEN',
+      },
+    });
+    await db.encounterDiagnosis.create({
+      data: {
+        encounterId: encounter.id,
+        diagnosisCodeId: diag.id,
+        type: 'PRIMARY',
+      },
+    });
+
+    const createScrubbedClaim = async (amount: string) => {
+      const invoice = await db.invoice.create({
+        data: {
+          hospitalId,
+          patientId: patient.id,
+          encounterId: encounter.id,
+          status: 'ISSUED',
+          totalAmount: amount,
+          patientShare: '0.000',
+          insuranceShare: amount,
+          insuranceProviderId: providerId,
+          claimStatus: 'PENDING',
+        },
+      });
+      await db.encounterCharge.create({
+        data: {
+          hospitalId,
+          encounterId: encounter.id,
+          serviceItemId: svcItem.id,
+          sourceType: 'MANUAL',
+          quantity: 1,
+          unitPrice: amount,
+          totalAmount: amount,
+          invoiceId: invoice.id,
+        },
+      });
+      await accountingService.recordInvoiceEntry({
+        hospitalId,
+        invoiceId: invoice.id,
+        userId: adminUserId,
+      });
+      const clmRes = await request(app.getHttpServer())
+        .post('/rcm/claims/claims')
+        .auth(adminToken, { type: 'bearer' })
+        .send({ invoiceId: invoice.id })
+        .expect(201);
+      const clm = responseBody<{ id: number; claimNumber: string }>(clmRes);
+      await request(app.getHttpServer())
+        .post(`/rcm/claims/claims/${clm.id}/scrub`)
+        .auth(adminToken, { type: 'bearer' })
+        .expect(201);
+      return clm;
+    };
+
+    const claimA = await createScrubbedClaim('120.000');
+    const claimB = await createScrubbedClaim('80.000');
+
+    const batchRes = await request(app.getHttpServer())
+      .post('/rcm/claims/batches')
+      .auth(adminToken, { type: 'bearer' })
+      .send({ providerId })
+      .expect(201);
+    const batch = responseBody<{ id: number }>(batchRes);
+
+    // Accruing fee before batch is CLOSED must fail (400)
+    await request(app.getHttpServer())
+      .post(`/rcm/claims/batches/${batch.id}/gateway-fee`)
+      .auth(adminToken, { type: 'bearer' })
+      .send({
+        requestId: randomUUID(),
+        flatFeePerClaim: '2.500',
+        feeRate: '0.0050',
+        confirmed: true,
+      })
+      .expect(400);
+
+    await request(app.getHttpServer())
+      .post(`/rcm/claims/batches/${batch.id}/submit`)
+      .auth(adminToken, { type: 'bearer' })
+      .send({ requestId: randomUUID(), channel: 'LOCAL_CLEARINGHOUSE' })
+      .expect(201);
+
+    const adjRes = await request(app.getHttpServer())
+      .post(`/rcm/claims/batches/${batch.id}/adjudicate`)
+      .auth(adminToken, { type: 'bearer' })
+      .send({
+        requestId: randomUUID(),
+        decisions: [
+          { claimId: claimA.id, approvedAmount: '110.000' },
+          { claimId: claimB.id, approvedAmount: '70.000' },
+        ],
+      })
+      .expect(201);
+    const adjBody = responseBody<{
+      eraTransaction: { id: number; eraNumber: string; totalPaid: string };
+    }>(adjRes);
+    expect(Money.toDbString(adjBody.eraTransaction.totalPaid)).toBe('180.000');
+
+    // 1. Accrue B2B Gateway Clearing Fee (2 claims * 2.500 = 5.000 + 180.000 * 0.0050 = 0.900 -> 5.900)
+    const accrueReqId = randomUUID();
+    const [feeResA, feeResB] = await Promise.all([
+      request(app.getHttpServer())
+        .post(`/rcm/claims/batches/${batch.id}/gateway-fee`)
+        .auth(adminToken, { type: 'bearer' })
+        .send({
+          requestId: accrueReqId,
+          flatFeePerClaim: '2.500',
+          feeRate: '0.0050',
+          confirmed: true,
+        }),
+      request(app.getHttpServer())
+        .post(`/rcm/claims/batches/${batch.id}/gateway-fee`)
+        .auth(adminToken, { type: 'bearer' })
+        .send({
+          requestId: accrueReqId,
+          flatFeePerClaim: '2.500',
+          feeRate: '0.0050',
+          confirmed: true,
+        }),
+    ]);
+    expect([feeResA.status, feeResB.status]).toEqual([201, 201]);
+
+    const feeEntry = responseBody<{
+      id: number;
+      b2bInvoiceNumber: string;
+      flatFeeTotal: string;
+      percentageFeeTotal: string;
+      totalFeeAmount: string;
+      status: string;
+      accrualEntryId: number;
+    }>(feeResA);
+    expect(feeEntry.b2bInvoiceNumber).toBe(
+      `SARAYA-B2B-${hospitalId}-${batch.id}`,
+    );
+    expect(Money.toDbString(feeEntry.flatFeeTotal)).toBe('5.000');
+    expect(Money.toDbString(feeEntry.percentageFeeTotal)).toBe('0.900');
+    expect(Money.toDbString(feeEntry.totalFeeAmount)).toBe('5.900');
+    expect(feeEntry.status).toBe('ACCRUED');
+
+    // Conflicting accrual request -> 409
+    await request(app.getHttpServer())
+      .post(`/rcm/claims/batches/${batch.id}/gateway-fee`)
+      .auth(adminToken, { type: 'bearer' })
+      .send({
+        requestId: randomUUID(),
+        flatFeePerClaim: '3.000',
+        feeRate: '0.0050',
+        confirmed: true,
+      })
+      .expect(409);
+
+    const accrualJournal = await db.accountingEntry.findUniqueOrThrow({
+      where: { id: feeEntry.accrualEntryId },
+      include: { lines: { include: { account: true } } },
+    });
+    expect(
+      accrualJournal.lines.map((l) => [
+        l.account.code,
+        l.debit.toFixed(3),
+        l.credit.toFixed(3),
+      ]),
+    ).toEqual(
+      expect.arrayContaining([
+        ['511000', '5.900', '0.000'],
+        ['200700', '0.000', '5.900'],
+      ]),
+    );
+
+    await expect(
+      accountingService.reverseEntry(
+        hospitalId,
+        feeEntry.accrualEntryId,
+        adminUserId,
+        'Attempt manual reversal of gateway fee accrual',
+      ),
+    ).rejects.toThrow('محمي');
+
+    // 2. Import Bank Statement Lines (CREDIT for ERA 180.000, DEBIT for B2B Fee 5.900)
+    const creditBankRef = `CBL-CR-ERA-${uniqueSuffix}`;
+    const debitBankRef = `CBL-DR-FEE-${uniqueSuffix}`;
+    const importReqId = randomUUID();
+    const importPayload = {
+      requestId: importReqId,
+      bankName: 'مصرف الجمهورية',
+      accountNumber: 'LY88-001-2026',
+      lines: [
+        {
+          bankReference: creditBankRef,
+          direction: 'CREDIT',
+          amount: '180.000',
+          description: 'تحويل تسوية مطالبات تأمين',
+        },
+        {
+          bankReference: debitBankRef,
+          direction: 'DEBIT',
+          amount: '5.900',
+          description: 'سداد فاتورة عمولة المشغّل الوطني السرايا',
+        },
+      ],
+    };
+
+    const [impA, impB] = await Promise.all([
+      request(app.getHttpServer())
+        .post('/rcm/claims/bank-statements/import')
+        .auth(adminToken, { type: 'bearer' })
+        .send(importPayload),
+      request(app.getHttpServer())
+        .post('/rcm/claims/bank-statements/import')
+        .auth(adminToken, { type: 'bearer' })
+        .send(importPayload),
+    ]);
+    expect([impA.status, impB.status]).toEqual([201, 201]);
+
+    const importedLines =
+      responseBody<
+        Array<{ id: number; direction: string; bankReference: string }>
+      >(impA);
+    expect(importedLines).toHaveLength(2);
+    const creditLine = importedLines.find((l) => l.direction === 'CREDIT')!;
+    const debitLine = importedLines.find((l) => l.direction === 'DEBIT')!;
+
+    // Duplicate bank reference with different requestId -> 409
+    await request(app.getHttpServer())
+      .post('/rcm/claims/bank-statements/import')
+      .auth(adminToken, { type: 'bearer' })
+      .send({
+        requestId: randomUUID(),
+        bankName: 'مصرف الجمهورية',
+        lines: [
+          {
+            bankReference: creditBankRef,
+            direction: 'CREDIT',
+            amount: '180.000',
+          },
+        ],
+      })
+      .expect(409);
+
+    // Cross-tenant isolation -> 404
+    await request(app.getHttpServer())
+      .post(`/rcm/claims/gateway-fees/${feeEntry.id}/settle`)
+      .auth(otherToken, { type: 'bearer' })
+      .send({
+        requestId: randomUUID(),
+        bankReference: debitBankRef,
+        confirmed: true,
+      })
+      .expect(404);
+    await request(app.getHttpServer())
+      .post(`/rcm/claims/bank-statements/${creditLine.id}/reconcile`)
+      .auth(otherToken, { type: 'bearer' })
+      .send({
+        requestId: randomUUID(),
+        targetType: 'ERA',
+        targetId: adjBody.eraTransaction.id,
+        confirmed: true,
+      })
+      .expect(404);
+
+    // Direction mismatch (CREDIT line matched against GATEWAY_FEE) -> 400
+    await request(app.getHttpServer())
+      .post(`/rcm/claims/bank-statements/${creditLine.id}/reconcile`)
+      .auth(adminToken, { type: 'bearer' })
+      .send({
+        requestId: randomUUID(),
+        targetType: 'GATEWAY_FEE',
+        targetId: feeEntry.id,
+        confirmed: true,
+      })
+      .expect(400);
+
+    // 3. Reconcile CREDIT bank line with ERA -> atomically posts ERA & receipts
+    const matchEraReqId = randomUUID();
+    const [recEraA, recEraB] = await Promise.all([
+      request(app.getHttpServer())
+        .post(`/rcm/claims/bank-statements/${creditLine.id}/reconcile`)
+        .auth(adminToken, { type: 'bearer' })
+        .send({
+          requestId: matchEraReqId,
+          targetType: 'ERA',
+          targetId: adjBody.eraTransaction.id,
+          confirmed: true,
+        }),
+      request(app.getHttpServer())
+        .post(`/rcm/claims/bank-statements/${creditLine.id}/reconcile`)
+        .auth(adminToken, { type: 'bearer' })
+        .send({
+          requestId: matchEraReqId,
+          targetType: 'ERA',
+          targetId: adjBody.eraTransaction.id,
+          confirmed: true,
+        }),
+    ]);
+    expect([recEraA.status, recEraB.status]).toEqual([201, 201]);
+
+    const reconciledEra = await db.eRATransaction.findUniqueOrThrow({
+      where: { id: adjBody.eraTransaction.id },
+    });
+    expect(reconciledEra.status).toBe('RECONCILED');
+    expect(reconciledEra.bankReference).toBe(creditBankRef);
+
+    // 4. Reconcile DEBIT bank line with GatewayClearingFeeEntry -> atomically settles B2B fee (Dr 200700 / Cr 101100)
+    const matchFeeReqId = randomUUID();
+    const [recFeeA, recFeeB] = await Promise.all([
+      request(app.getHttpServer())
+        .post(`/rcm/claims/bank-statements/${debitLine.id}/reconcile`)
+        .auth(adminToken, { type: 'bearer' })
+        .send({
+          requestId: matchFeeReqId,
+          targetType: 'GATEWAY_FEE',
+          targetId: feeEntry.id,
+          confirmed: true,
+        }),
+      request(app.getHttpServer())
+        .post(`/rcm/claims/bank-statements/${debitLine.id}/reconcile`)
+        .auth(adminToken, { type: 'bearer' })
+        .send({
+          requestId: matchFeeReqId,
+          targetType: 'GATEWAY_FEE',
+          targetId: feeEntry.id,
+          confirmed: true,
+        }),
+    ]);
+    expect([recFeeA.status, recFeeB.status]).toEqual([201, 201]);
+
+    const settledFee = await db.gatewayClearingFeeEntry.findUniqueOrThrow({
+      where: { id: feeEntry.id },
+    });
+    expect(settledFee.status).toBe('SETTLED');
+    expect(settledFee.settlementBankReference).toBe(debitBankRef);
+    expect(settledFee.settlementEntryId).not.toBeNull();
+
+    const settlementJournal = await db.accountingEntry.findUniqueOrThrow({
+      where: { id: settledFee.settlementEntryId! },
+      include: { lines: { include: { account: true } } },
+    });
+    expect(
+      settlementJournal.lines.map((l) => [
+        l.account.code,
+        l.debit.toFixed(3),
+        l.credit.toFixed(3),
+      ]),
+    ).toEqual(
+      expect.arrayContaining([
+        ['200700', '5.900', '0.000'],
+        ['101100', '0.000', '5.900'],
+      ]),
+    );
+
+    await expect(
+      accountingService.reverseEntry(
+        hospitalId,
+        settledFee.settlementEntryId!,
+        adminUserId,
+        'Attempt manual reversal of gateway fee settlement',
+      ),
+    ).rejects.toThrow('محمي');
+
+    // PostgreSQL triggers enforce immutability on settled fee entries and matched bank lines
+    await expect(
+      db.gatewayClearingFeeEntry.delete({ where: { id: feeEntry.id } }),
+    ).rejects.toThrow();
+    await expect(
+      db.gatewayClearingFeeEntry.update({
+        where: { id: feeEntry.id },
+        data: { status: 'ACCRUED' },
+      }),
+    ).rejects.toThrow();
+    await expect(
+      db.bankStatementLine.delete({ where: { id: creditLine.id } }),
+    ).rejects.toThrow();
+    await expect(
+      db.bankStatementLine.update({
+        where: { id: creditLine.id },
+        data: { status: 'UNMATCHED' },
+      }),
+    ).rejects.toThrow();
+
+    const stageDAudits = await db.auditLog.findMany({
+      where: { hospitalId },
+      select: { action: true },
+    });
+    const stageDActions = new Set(stageDAudits.map((a) => a.action));
+    expect(stageDActions.has('ACCRUE_GATEWAY_CLEARING_FEE')).toBe(true);
+    expect(stageDActions.has('SETTLE_GATEWAY_CLEARING_FEE')).toBe(true);
+    expect(stageDActions.has('IMPORT_BANK_STATEMENT_LINES')).toBe(true);
+    expect(stageDActions.has('RECONCILE_BANK_STATEMENT_LINE')).toBe(true);
+  });
 });

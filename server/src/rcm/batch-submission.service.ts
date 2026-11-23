@@ -54,6 +54,17 @@ const BATCH_INCLUDE = {
   eraTransaction: {
     select: { id: true, eraNumber: true, status: true, totalPaid: true },
   },
+  gatewayFeeEntry: {
+    select: {
+      id: true,
+      b2bInvoiceNumber: true,
+      totalFeeAmount: true,
+      flatFeeTotal: true,
+      percentageFeeTotal: true,
+      status: true,
+      settlementBankReference: true,
+    },
+  },
   claims: {
     orderBy: { id: 'asc' as const },
     select: {

@@ -592,3 +592,126 @@ describe('ClaimScrubberService', () => {
     }
   });
 });
+
+import { GatewayClearingLedgerService } from './gateway-clearing-ledger.service';
+import type { EraProcessingService } from './era-processing.service';
+
+describe('GatewayClearingLedgerService (unit)', () => {
+  it('computes B2B clearing fees with Money HALF_EVEN precision and requires explicit confirmation', async () => {
+    const accountingEntryCreate = jest.fn().mockResolvedValue({ id: 700 });
+    const prismaMock = {
+      $transaction: jest.fn(
+        async <T>(cb: (tx: unknown) => Promise<T>): Promise<T> =>
+          cb(prismaMock),
+      ),
+      $executeRaw: jest.fn().mockResolvedValue(1),
+      $queryRaw: jest.fn().mockResolvedValue([{ id: 44 }]),
+      user: { findFirst: jest.fn().mockResolvedValue({ id: 9 }) },
+      claimBatch: {
+        findFirstOrThrow: jest.fn().mockResolvedValue({
+          id: 44,
+          hospitalId: 1,
+          providerId: 7,
+          batchNumber: 'BATCH-1-7-44',
+          status: 'CLOSED',
+          clearingChannel: 'LOCAL_CLEARINGHOUSE',
+          totalClaims: 3,
+          approvedAmount: '1234.567',
+          eraTransactionId: 91,
+          gatewayFeeEntry: null,
+          eraTransaction: { id: 91, eraNumber: 'ERA-CLH-44' },
+        }),
+      },
+      systemAccountMapping: {
+        findFirst: jest.fn(({ where }: { where: { key: string } }) =>
+          Promise.resolve({
+            account: {
+              id: where.key === 'GATEWAY_CLEARING_FEE_EXPENSE' ? 511 : 207,
+              type:
+                where.key === 'GATEWAY_CLEARING_FEE_EXPENSE'
+                  ? 'EXPENSE'
+                  : 'LIABILITY',
+              isActive: true,
+              hospitalId: 1,
+            },
+          }),
+        ),
+      },
+      financialYear: {
+        findMany: jest.fn().mockResolvedValue([{ id: 1, status: 'OPEN' }]),
+        findUniqueOrThrow: jest
+          .fn()
+          .mockResolvedValue({ id: 1, status: 'OPEN' }),
+      },
+      financialPeriod: {
+        findMany: jest.fn().mockResolvedValue([{ id: 10, isOpen: true }]),
+        findUniqueOrThrow: jest
+          .fn()
+          .mockResolvedValue({ id: 10, isOpen: true }),
+      },
+      accountingEntry: {
+        create: accountingEntryCreate,
+      },
+      gatewayClearingFeeEntry: {
+        create: jest.fn(({ data }: { data: Record<string, unknown> }) =>
+          Promise.resolve({ id: 300, ...data }),
+        ),
+      },
+      auditLog: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        create: jest.fn().mockResolvedValue({ id: 1 }),
+      },
+    };
+
+    const service = new GatewayClearingLedgerService(
+      prismaMock as unknown as PrismaService,
+      {} as unknown as EraProcessingService,
+    );
+
+    await expect(
+      service.accrueBatchClearingFee(1, 9, 44, {
+        requestId: '11111111-1111-4111-8111-111111111111',
+        confirmed: false,
+      }),
+    ).rejects.toThrow('confirmed: true');
+
+    const created = await service.accrueBatchClearingFee(1, 9, 44, {
+      requestId: '22222222-2222-4222-8222-222222222222',
+      confirmed: true,
+      flatFeePerClaim: '2.000',
+      feeRate: '0.0050',
+    });
+
+    expect(created.flatFeeTotal).toBe('6.000');
+    // 1234.567 * 0.0050 = 6.172835 -> 6.173
+    expect(created.percentageFeeTotal).toBe('6.173');
+    expect(created.totalFeeAmount).toBe('12.173');
+    expect(created.b2bInvoiceNumber).toBe('SARAYA-B2B-1-44');
+    expect(accountingEntryCreate).toHaveBeenCalledTimes(1);
+    const callArg = (
+      accountingEntryCreate.mock.calls as Array<
+        [
+          {
+            data: {
+              postingKey: string;
+              lines: { create: Array<Record<string, unknown>> };
+            };
+          },
+        ]
+      >
+    )[0][0];
+    expect(callArg.data.postingKey).toBe('gateway-clearing-fee:1:44');
+    expect(callArg.data.lines.create).toEqual([
+      expect.objectContaining({
+        accountId: 511,
+        debit: '12.173',
+        credit: '0.000',
+      }),
+      expect.objectContaining({
+        accountId: 207,
+        debit: '0.000',
+        credit: '12.173',
+      }),
+    ]);
+  });
+});

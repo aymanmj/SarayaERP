@@ -65,8 +65,10 @@ export const ACCOUNT_CODES = {
   SALES_RETURNS: '400900', // مردودات مبيعات
   PATIENT_DEPOSITS: '200500', // أمانات ودفعات المرضى المقدمة (Custodial Liability)
   INSURANCE_UNALLOCATED: '200600', // حوالات تأمين غير موزعة / فوائض شركات التأمين
+  GATEWAY_CLEARING_FEE_PAYABLE: '200700', // ذمم ومستحقات رسوم المشغّل الوطني — السرايا للتقنية
   INSURANCE_CONTRACTUAL_WRITEOFF: '400800', // شطب تعاقدي وفروق تأمين (Contra Revenue)
   INSURANCE_BAD_DEBT: '510900', // مصروف ديون معدومة / مطالبات غير محصلة (Expense)
+  GATEWAY_CLEARING_FEE_EXPENSE: '511000', // مصروف رسوم وعمولات مقاصة البوابة الوطنية
 } as const;
 
 type SampleAccountDef = {
@@ -247,6 +249,12 @@ const SAMPLE_COA: SampleAccountDef[] = [
     type: 'LIABILITY',
     parentCode: '200000',
   },
+  {
+    code: ACCOUNT_CODES.GATEWAY_CLEARING_FEE_PAYABLE,
+    name: 'ذمم ومستحقات رسوم المشغّل الوطني — شركة السرايا للتقنية',
+    type: 'LIABILITY',
+    parentCode: '200000',
+  },
 
   // ===== حقوق الملكية =====
   { code: '300000', name: 'حقوق الملكية', type: 'EQUITY' },
@@ -357,6 +365,12 @@ const SAMPLE_COA: SampleAccountDef[] = [
   {
     code: ACCOUNT_CODES.INSURANCE_BAD_DEBT,
     name: 'مصروف ديون معدومة ومطالبات مرفوضة نهائياً',
+    type: 'EXPENSE',
+    parentCode: '510000',
+  },
+  {
+    code: ACCOUNT_CODES.GATEWAY_CLEARING_FEE_EXPENSE,
+    name: 'مصروف رسوم وعمولات مقاصة البوابة الوطنية — السرايا للتقنية',
     type: 'EXPENSE',
     parentCode: '510000',
   },
@@ -608,6 +622,14 @@ export class AccountingService {
         {
           key: SystemAccountKey.INSURANCE_BAD_DEBT_EXPENSE,
           code: ACCOUNT_CODES.INSURANCE_BAD_DEBT,
+        },
+        {
+          key: SystemAccountKey.GATEWAY_CLEARING_FEE_PAYABLE,
+          code: ACCOUNT_CODES.GATEWAY_CLEARING_FEE_PAYABLE,
+        },
+        {
+          key: SystemAccountKey.GATEWAY_CLEARING_FEE_EXPENSE,
+          code: ACCOUNT_CODES.GATEWAY_CLEARING_FEE_EXPENSE,
         },
       ];
 
@@ -5282,6 +5304,8 @@ export class AccountingService {
         'payroll-run:',
         'insurance-claim-settlement:',
         'insurance-settlement-refund:',
+        'gateway-clearing-fee:',
+        'gateway-clearing-fee-settlement:',
       ].some((prefix) => originalEntry.postingKey!.startsWith(prefix))
     )
       throw new BadRequestException(
