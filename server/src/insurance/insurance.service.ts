@@ -3,7 +3,9 @@ import {
   BadRequestException,
   NotFoundException,
   Logger,
+  Optional,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { InvoiceStatus, CopayType, CoverageRuleType } from '@prisma/client';
 import { Money } from '../common/utils/money.util';
@@ -49,6 +51,15 @@ import {
   type RefundRequest,
   type RefundReview,
 } from '../rcm/claim-receipt-refund';
+import {
+  listPreAuthAttachments,
+  readPreAuthAttachment,
+  retirePreAuthAttachment,
+  uploadPreAuthAttachment,
+  type PreAuthAttachmentRetireInput,
+  type PreAuthAttachmentUploadInput,
+  type UploadedAttachmentFile,
+} from './preauth-attachments';
 
 @Injectable()
 export class InsuranceService {
@@ -57,6 +68,7 @@ export class InsuranceService {
   constructor(
     private prisma: PrismaService,
     private pharmacy: PharmacyService,
+    @Optional() private config?: ConfigService,
   ) {}
 
   private normalizeCopayFraction(value: unknown, fieldName: string): string {
@@ -529,6 +541,60 @@ export class InsuranceService {
         expiresAt: data.expiresAt ? new Date(data.expiresAt) : undefined,
       },
     });
+  }
+
+  listPreAuthAttachments(hospitalId: number, preAuthId: number) {
+    return listPreAuthAttachments(this.prisma, hospitalId, preAuthId);
+  }
+
+  uploadPreAuthAttachment(
+    hospitalId: number,
+    preAuthId: number,
+    userId: number,
+    file: UploadedAttachmentFile | undefined,
+    input: PreAuthAttachmentUploadInput,
+  ) {
+    return uploadPreAuthAttachment(
+      this.prisma,
+      {
+        hospitalId,
+        userId,
+        preAuthId,
+        configRoot: this.config?.get<string>('INSURANCE_ATTACHMENT_ROOT'),
+      },
+      file,
+      input,
+    );
+  }
+
+  downloadPreAuthAttachment(
+    hospitalId: number,
+    preAuthId: number,
+    userId: number,
+    attachmentId: number,
+  ) {
+    return readPreAuthAttachment(this.prisma, {
+      hospitalId,
+      userId,
+      preAuthId,
+      attachmentId,
+      configRoot: this.config?.get<string>('INSURANCE_ATTACHMENT_ROOT'),
+    });
+  }
+
+  retirePreAuthAttachment(
+    hospitalId: number,
+    preAuthId: number,
+    userId: number,
+    attachmentId: number,
+    input: PreAuthAttachmentRetireInput,
+  ) {
+    return retirePreAuthAttachment(
+      this.prisma,
+      { hospitalId, userId, preAuthId },
+      attachmentId,
+      input,
+    );
   }
 
   // 9. تقرير المطالبات

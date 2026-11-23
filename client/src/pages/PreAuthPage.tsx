@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { formatDate } from "@/lib/utils";
 import { FeatureGuard } from "@/components/FeatureGuard";
 import { ShieldCheck, Upload, FileCheck, Loader2 } from "lucide-react";
+import { PreAuthAttachmentsDialog } from "./PreAuthAttachmentsDialog";
 
 type PreAuthorization = {
   id: number;
@@ -86,6 +87,7 @@ export default function PreAuthPage() {
   // NPHIES State
   const [showNphiesModal, setShowNphiesModal] = useState(false);
   const [nphiesAuth, setNphiesAuth] = useState<PreAuthorization | null>(null);
+  const [attachmentsAuth, setAttachmentsAuth] = useState<PreAuthorization | null>(null);
   const [nphiesServices, setNphiesServices] = useState([{ code: "", name: "", quantity: 1, unitPrice: 0 }]);
   const [nphiesDiagnoses, setNphiesDiagnoses] = useState([{ code: "", display: "", isPrimary: true }]);
   const [nphiesFiles, setNphiesFiles] = useState<File[]>([]);
@@ -425,30 +427,39 @@ export default function PreAuthPage() {
                     )}
                   </td>
                   <td className="px-4 py-3 text-center">
-                    {(auth.status === "PENDING" || (auth.status === "REJECTED" && auth.prescription?.status === "DRAFT")) && (
-                      <div className="flex items-center justify-center gap-2 flex-wrap">
-                        <button
-                          onClick={() => openActionModal(auth, "APPROVED")}
-                          className="px-3 py-1 bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-400 border border-emerald-500/30 rounded text-xs transition"
-                        >
-                          {t("common.confirm", "تأكيد")}
-                        </button>
-                        {auth.status === "PENDING" && <button
-                          onClick={() => openActionModal(auth, "REJECTED")}
-                          className="px-3 py-1 bg-rose-600/20 hover:bg-rose-600/40 text-rose-400 border border-rose-500/30 rounded text-xs transition"
-                        >
-                          رفض
-                        </button>}
-                        {!auth.isPrescriptionRequest && <FeatureGuard feature="INSURANCE_INTEGRATION">
+                    <div className="flex items-center justify-center gap-2 flex-wrap">
+                      {(auth.status === "PENDING" || (auth.status === "REJECTED" && auth.prescription?.status === "DRAFT")) && (
+                        <>
                           <button
-                            onClick={() => openNphiesModal(auth)}
-                            className="px-3 py-1 bg-violet-600/20 hover:bg-violet-600/40 text-violet-400 border border-violet-500/30 rounded text-xs transition flex items-center gap-1"
+                            onClick={() => openActionModal(auth, "APPROVED")}
+                            className="px-3 py-1 bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-400 border border-emerald-500/30 rounded text-xs transition"
                           >
-                            <Upload className="w-3 h-3" /> {t("preAuth.btn.nphies", "نفيس")}
+                            {t("common.confirm", "تأكيد")}
                           </button>
-                        </FeatureGuard>}
-                      </div>
-                    )}
+                          {auth.status === "PENDING" && <button
+                            onClick={() => openActionModal(auth, "REJECTED")}
+                            className="px-3 py-1 bg-rose-600/20 hover:bg-rose-600/40 text-rose-400 border border-rose-500/30 rounded text-xs transition"
+                          >
+                            رفض
+                          </button>}
+                          {!auth.isPrescriptionRequest && <FeatureGuard feature="INSURANCE_INTEGRATION">
+                            <button
+                              onClick={() => openNphiesModal(auth)}
+                              className="px-3 py-1 bg-violet-600/20 hover:bg-violet-600/40 text-violet-400 border border-violet-500/30 rounded text-xs transition flex items-center gap-1"
+                            >
+                              <Upload className="w-3 h-3" /> {t("preAuth.btn.nphies", "نفيس")}
+                            </button>
+                          </FeatureGuard>}
+                        </>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setAttachmentsAuth(auth)}
+                        className="px-3 py-1 bg-sky-600/20 hover:bg-sky-600/40 text-sky-300 border border-sky-500/30 rounded text-xs transition"
+                      >
+                        {t("preAuth.attachments.open", "المرفقات")}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -714,6 +725,13 @@ export default function PreAuthPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {attachmentsAuth && (
+        <PreAuthAttachmentsDialog
+          auth={attachmentsAuth}
+          onClose={() => setAttachmentsAuth(null)}
+        />
       )}
     </div>
   );

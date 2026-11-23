@@ -6411,6 +6411,38 @@
       "newRequest": "+ New Request",
       "nphies": "Nphies"
     },
+    "attachments": {
+      "title": "Pre-Auth Attachments",
+      "open": "Attachments",
+      "upload": "Upload Attachment",
+      "categoryLabel": "Document Category",
+      "titleLabel": "Title / Note (optional)",
+      "titlePlaceholder": "e.g., MRI Radiology Report",
+      "categories": {
+        "MEDICAL_REPORT": "Medical Report",
+        "LAB_RESULT": "Lab Result",
+        "IMAGING": "Imaging",
+        "PRESCRIPTION": "Prescription",
+        "REFERRAL": "Referral Letter",
+        "ID_DOCUMENT": "ID / Insurance Card",
+        "OTHER": "Other"
+      },
+      "file": "File (PDF, JPEG, PNG - max 10MB)",
+      "fileRequired": "Please select a file first",
+      "fileTooLarge": "File size is invalid or exceeds 10 MB",
+      "invalidType": "Unsupported file type (PDF, JPEG, PNG only)",
+      "download": "Download",
+      "retire": "Retire",
+      "retireReason": "Reason to retire attachment (min 5 chars)",
+      "reasonTooShort": "Enter a retirement reason of at least 5 characters",
+      "retired": "Retired",
+      "empty": "No attachments for this request.",
+      "uploaded": "Attachment uploaded successfully",
+      "retiredSuccess": "Attachment retired while preserving audit history",
+      "loadFailed": "Failed to load pre-authorization attachments",
+      "actionFailed": "Attachment action failed",
+      "close": "Close"
+    },
     "table": {
       "providerPolicy": "Provider & Policy",
       "requestedAmount": "Requested Amount",

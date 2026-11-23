@@ -6411,6 +6411,38 @@
       "newRequest": "+ طلب موافقة جديد",
       "nphies": "نفيس"
     },
+    "attachments": {
+      "title": "مرفقات الموافقة المسبقة",
+      "open": "المرفقات",
+      "upload": "رفع المرفق",
+      "categoryLabel": "تصنيف المستند",
+      "titleLabel": "وصف أو عنوان (اختياري)",
+      "titlePlaceholder": "مثال: تقرير أشعة الرنين",
+      "categories": {
+        "MEDICAL_REPORT": "تقرير طبي",
+        "LAB_RESULT": "نتيجة مختبر",
+        "IMAGING": "صورة أو تقرير أشعة",
+        "PRESCRIPTION": "وصفة طبية",
+        "REFERRAL": "خطاب إحالة",
+        "ID_DOCUMENT": "وثيقة هوية/تأمين",
+        "OTHER": "أخرى"
+      },
+      "file": "الملف (PDF أو JPEG أو PNG — حد 10MB)",
+      "fileRequired": "يرجى اختيار ملف أولاً",
+      "fileTooLarge": "حجم الملف غير صالح أو يتجاوز 10 ميجابايت",
+      "invalidType": "نوع الملف غير مدعوم (يُسمح فقط بـ PDF أو JPEG أو PNG)",
+      "download": "تنزيل",
+      "retire": "سحب",
+      "retireReason": "سبب سحب المرفق (5 أحرف على الأقل)",
+      "reasonTooShort": "أدخل سبب سحب المرفق بخمسة أحرف على الأقل",
+      "retired": "مسحوب",
+      "empty": "لا توجد مرفقات لهذا الطلب.",
+      "uploaded": "تم رفع المرفق بنجاح",
+      "retiredSuccess": "تم سحب المرفق مع حفظ سجله",
+      "loadFailed": "تعذر تحميل مرفقات الموافقة المسبقة",
+      "actionFailed": "تعذر تنفيذ العملية على المرفق",
+      "close": "إغلاق"
+    },
     "table": {
       "providerPolicy": "الشركة و الوثيقة",
       "requestedAmount": "المبلغ المطلوب",

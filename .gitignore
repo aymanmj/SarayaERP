@@ -125,4 +125,10 @@ server/stress-test-90days.js
 server/license/*.lic
 server/license/*.id
 
+############################
+# Uploaded Files (Never commit patient/insurance documents)
+############################
+uploads/
+server/uploads/
+
 

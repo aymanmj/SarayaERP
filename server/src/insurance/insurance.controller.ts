@@ -2,19 +2,32 @@ import type { JwtPayload } from '../auth/jwt-payload.type';
 // src/insurance/insurance.controller.ts
 
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
   Param,
   ParseIntPipe,
   Post,
+  Res,
+  StreamableFile,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
   Query,
   Req,
   Patch,
   Delete,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import type { Response } from 'express';
 import { InsuranceService } from './insurance.service';
+import {
+  MAX_PREAUTH_ATTACHMENT_BYTES,
+  PREAUTH_ATTACHMENT_CATEGORIES,
+  type PreAuthAttachmentCategory,
+  type UploadedAttachmentFile,
+} from './preauth-attachments';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/permissions.guard';
 import { Permissions } from '../auth/permissions.decorator';
@@ -138,6 +151,16 @@ class ClaimWriteOffDto {
 class ClaimWriteOffReviewDto {
   @IsIn(['POST', 'REJECT']) decision!: 'POST' | 'REJECT';
   @IsString() @MinLength(5) @MaxLength(1000) note!: string;
+}
+
+class PreAuthAttachmentUploadDto {
+  @IsIn([...PREAUTH_ATTACHMENT_CATEGORIES])
+  category!: PreAuthAttachmentCategory;
+  @IsOptional() @IsString() @MaxLength(200) title?: string;
+}
+
+class PreAuthAttachmentRetireDto {
+  @IsString() @MinLength(5) @MaxLength(1000) reason!: string;
 }
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('insurance')
@@ -264,6 +287,87 @@ export class InsuranceController {
       req.user.hospitalId,
       id,
       req.user.sub,
+      body,
+    );
+  }
+
+  @Permissions('insurance:view', 'insurance:manage')
+  @Get('pre-auth/:id/attachments')
+  listPreAuthAttachments(
+    @Req() req: { user: JwtPayload },
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.insuranceService.listPreAuthAttachments(
+      req.user.hospitalId,
+      id,
+    );
+  }
+
+  @Permissions('insurance:manage')
+  @Post('pre-auth/:id/attachments')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: {
+        fileSize: MAX_PREAUTH_ATTACHMENT_BYTES,
+        files: 1,
+        fields: 4,
+      },
+    }),
+  )
+  uploadPreAuthAttachment(
+    @Req() req: { user: JwtPayload },
+    @Param('id', ParseIntPipe) id: number,
+    @UploadedFile() file: UploadedAttachmentFile | undefined,
+    @Body() body: PreAuthAttachmentUploadDto,
+  ) {
+    if (!file) {
+      throw new BadRequestException('ملف المرفق مطلوب');
+    }
+    return this.insuranceService.uploadPreAuthAttachment(
+      req.user.hospitalId,
+      id,
+      req.user.sub,
+      file,
+      body,
+    );
+  }
+
+  @Permissions('insurance:view', 'insurance:manage')
+  @Get('pre-auth/:id/attachments/:attachmentId/download')
+  async downloadPreAuthAttachment(
+    @Req() req: { user: JwtPayload },
+    @Param('id', ParseIntPipe) id: number,
+    @Param('attachmentId', ParseIntPipe) attachmentId: number,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const { buffer, contentType, fileName } =
+      await this.insuranceService.downloadPreAuthAttachment(
+        req.user.hospitalId,
+        id,
+        req.user.sub,
+        attachmentId,
+      );
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Cache-Control', 'no-store');
+    return new StreamableFile(buffer, {
+      type: contentType,
+      disposition: `attachment; filename*=UTF-8''${encodeURIComponent(fileName)}`,
+    });
+  }
+
+  @Permissions('insurance:manage')
+  @Post('pre-auth/:id/attachments/:attachmentId/retire')
+  retirePreAuthAttachment(
+    @Req() req: { user: JwtPayload },
+    @Param('id', ParseIntPipe) id: number,
+    @Param('attachmentId', ParseIntPipe) attachmentId: number,
+    @Body() body: PreAuthAttachmentRetireDto,
+  ) {
+    return this.insuranceService.retirePreAuthAttachment(
+      req.user.hospitalId,
+      id,
+      req.user.sub,
+      attachmentId,
       body,
     );
   }

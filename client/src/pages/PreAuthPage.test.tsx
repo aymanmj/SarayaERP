@@ -229,4 +229,37 @@ describe('PreAuthPage', () => {
       expect(screen.getByText(/إضافة تشخيص/i)).toBeDefined();
     });
   });
+
+  it('opens attachments dialog and uploads a PDF as FormData', async () => {
+    vi.mocked(apiClient.get).mockImplementation(async (url) => {
+      if (url === '/insurance/pre-auth/1/attachments') {
+        return { data: [] };
+      }
+      return { data: mockPreAuths };
+    });
+    vi.mocked(apiClient.post).mockResolvedValue({ data: { id: 10 } });
+
+    render(<PreAuthPage />);
+    const openButtons = await screen.findAllByRole('button', { name: 'المرفقات' });
+    expect(openButtons.length).toBe(2);
+    fireEvent.click(openButtons[0]);
+
+    await waitFor(() => {
+      expect(apiClient.get).toHaveBeenCalledWith('/insurance/pre-auth/1/attachments');
+    });
+
+    const pdfFile = new File(['%PDF-1.4\n'], 'report.pdf', {
+      type: 'application/pdf',
+    });
+    const fileInput = screen.getByLabelText('ملف المرفق');
+    fireEvent.change(fileInput, { target: { files: [pdfFile] } });
+    fireEvent.click(screen.getByRole('button', { name: 'رفع المرفق' }));
+
+    await waitFor(() => {
+      expect(apiClient.post).toHaveBeenCalledWith(
+        '/insurance/pre-auth/1/attachments',
+        expect.any(FormData),
+      );
+    });
+  });
 });

@@ -1,4 +1,7 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
 import { responseBody } from '../http-response';
 type TestResponse = {
   id: number;
@@ -40,8 +43,11 @@ describe('Insurance Providers, Policies, Plans, Coverage Calculation, Pre-Auth, 
   let adminUserId: number;
   let adminToken: string;
   let otherToken: string;
+  let attachmentRoot = '';
 
   beforeAll(async () => {
+    attachmentRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'saraya-preauth-'));
+    process.env.INSURANCE_ATTACHMENT_ROOT = attachmentRoot;
     const fixture = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
@@ -69,6 +75,10 @@ describe('Insurance Providers, Policies, Plans, Coverage Calculation, Pre-Auth, 
         .catch(() => undefined);
     }
     if (app) await app.close();
+    delete process.env.INSURANCE_ATTACHMENT_ROOT;
+    if (attachmentRoot) {
+      fs.rmSync(attachmentRoot, { recursive: true, force: true });
+    }
   });
 
   beforeEach(async () => {
@@ -2366,5 +2376,259 @@ describe('Insurance Providers, Policies, Plans, Coverage Calculation, Pre-Auth, 
       (await db.eRATransaction.findUniqueOrThrow({ where: { id: badEraId } }))
         .status,
     ).toBe('PROCESSING');
+  });
+
+  it('enforces PreAuth attachment magic bytes, size limit, tenant isolation, integrity sha256, retirement locks, and chained audit (UI07)', async () => {
+    const providerRes = await request(app.getHttpServer())
+      .post('/insurance/providers')
+      .auth(adminToken, { type: 'bearer' })
+      .send({
+        name: 'شركة المدار للتأمين الصحي',
+        code: `INS-PREAUTH-${Date.now()}`,
+      })
+      .expect(201);
+    const providerId = responseBody<{ id: number }>(providerRes).id;
+
+    const policyRes = await request(app.getHttpServer())
+      .post(`/insurance/providers/${providerId}/policies`)
+      .auth(adminToken, { type: 'bearer' })
+      .send({
+        name: 'بوليصة المرفقات الطبية',
+        policyNumber: `POL-ATT-${Date.now()}`,
+        startDate: '2026-01-01T00:00:00.000Z',
+        endDate: '2027-01-01T00:00:00.000Z',
+        patientCopayRate: 10,
+      })
+      .expect(201);
+    const policyId = responseBody<{ id: number }>(policyRes).id;
+
+    const patient = await db.patient.create({
+      data: {
+        hospitalId,
+        mrn: `MRN-ATT-${Date.now()}`,
+        fullName: 'عبد السلام الورفلي',
+        gender: 'MALE',
+        insurancePolicyId: policyId,
+      },
+    });
+
+    const preAuthRes = await request(app.getHttpServer())
+      .post('/insurance/pre-auth')
+      .auth(adminToken, { type: 'bearer' })
+      .send({
+        patientId: patient.id,
+        policyId,
+        requestedAmount: 350,
+        notes: 'موافقة مسبقة مع مرفقات سريرية',
+      })
+      .expect(201);
+    const preAuthId = responseBody<{ id: number }>(preAuthRes).id;
+
+    const pdfBuf = Buffer.from(
+      '%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\n%%EOF\n',
+      'utf8',
+    );
+    const expectedSha = createHash('sha256').update(pdfBuf).digest('hex');
+
+    // 1. Valid PDF with traversal filename -> sanitized, sha256 verified, saved at storageKey
+    const uploadRes = await request(app.getHttpServer())
+      .post(`/insurance/pre-auth/${preAuthId}/attachments`)
+      .auth(adminToken, { type: 'bearer' })
+      .field('category', 'MEDICAL_REPORT')
+      .field('title', 'تقرير طبي مرفق')
+      .attach('file', pdfBuf, {
+        filename: '../../evil report.pdf',
+        contentType: 'application/pdf',
+      })
+      .expect(201);
+    const att1 = responseBody<{
+      id: number;
+      sha256: string;
+      originalFileName: string;
+      storageKey: string;
+      sizeBytes: number;
+      retiredAt: string | null;
+    }>(uploadRes);
+    expect(att1.sha256).toBe(expectedSha);
+    expect(att1.sizeBytes).toBe(pdfBuf.length);
+    expect(att1.originalFileName).not.toContain('/');
+    expect(att1.originalFileName).not.toContain('..');
+    expect(att1.retiredAt).toBeNull();
+    const diskPath = path.resolve(attachmentRoot, att1.storageKey);
+    expect(fs.existsSync(diskPath)).toBe(true);
+
+    // 2. Duplicate active content -> 409
+    await request(app.getHttpServer())
+      .post(`/insurance/pre-auth/${preAuthId}/attachments`)
+      .auth(adminToken, { type: 'bearer' })
+      .field('category', 'MEDICAL_REPORT')
+      .attach('file', pdfBuf, {
+        filename: 'duplicate.pdf',
+        contentType: 'application/pdf',
+      })
+      .expect(409);
+
+    // 3. Mismatched magic bytes -> 400
+    await request(app.getHttpServer())
+      .post(`/insurance/pre-auth/${preAuthId}/attachments`)
+      .auth(adminToken, { type: 'bearer' })
+      .field('category', 'MEDICAL_REPORT')
+      .attach('file', Buffer.from('plain text fake pdf', 'utf8'), {
+        filename: 'x.pdf',
+        contentType: 'application/pdf',
+      })
+      .expect(400);
+
+    const pngMagic = Buffer.from([
+      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00,
+    ]);
+    await request(app.getHttpServer())
+      .post(`/insurance/pre-auth/${preAuthId}/attachments`)
+      .auth(adminToken, { type: 'bearer' })
+      .field('category', 'IMAGING')
+      .attach('file', pngMagic, {
+        filename: 'fake.pdf',
+        contentType: 'application/pdf',
+      })
+      .expect(400);
+
+    // 4. Exceeding 10 MB limit -> 413
+    const oversizeBuf = Buffer.alloc(10 * 1024 * 1024 + 1, 0);
+    Buffer.from('%PDF-').copy(oversizeBuf, 0);
+    await request(app.getHttpServer())
+      .post(`/insurance/pre-auth/${preAuthId}/attachments`)
+      .auth(adminToken, { type: 'bearer' })
+      .field('category', 'MEDICAL_REPORT')
+      .attach('file', oversizeBuf, {
+        filename: 'oversize.pdf',
+        contentType: 'application/pdf',
+      })
+      .expect(413);
+
+    // 5. List contains 1 active attachment
+    const listRes = await request(app.getHttpServer())
+      .get(`/insurance/pre-auth/${preAuthId}/attachments`)
+      .auth(adminToken, { type: 'bearer' })
+      .expect(200);
+    expect(Array.isArray(listRes.body)).toBe(true);
+    expect((listRes.body as unknown[]).length).toBe(1);
+
+    // 6. Download returns exact bytes with security headers
+    const dlRes = await request(app.getHttpServer())
+      .get(`/insurance/pre-auth/${preAuthId}/attachments/${att1.id}/download`)
+      .auth(adminToken, { type: 'bearer' })
+      .buffer(true)
+      .parse((res, cb) => {
+        const chunks: Buffer[] = [];
+        res.on('data', (chunk: Buffer) => chunks.push(chunk));
+        res.on('end', () => cb(null, Buffer.concat(chunks)));
+      })
+      .expect(200);
+    expect(Buffer.compare(dlRes.body as Buffer, pdfBuf)).toBe(0);
+    expect(dlRes.headers['x-content-type-options']).toBe('nosniff');
+    expect(String(dlRes.headers['content-disposition'])).toContain(
+      'attachment',
+    );
+
+    // 7. Cross-tenant isolation -> 404
+    await request(app.getHttpServer())
+      .get(`/insurance/pre-auth/${preAuthId}/attachments`)
+      .auth(otherToken, { type: 'bearer' })
+      .expect(404);
+    await request(app.getHttpServer())
+      .get(`/insurance/pre-auth/${preAuthId}/attachments/${att1.id}/download`)
+      .auth(otherToken, { type: 'bearer' })
+      .expect(404);
+    await request(app.getHttpServer())
+      .post(`/insurance/pre-auth/${preAuthId}/attachments`)
+      .auth(otherToken, { type: 'bearer' })
+      .field('category', 'MEDICAL_REPORT')
+      .attach('file', pngMagic, {
+        filename: 'other.png',
+        contentType: 'image/png',
+      })
+      .expect(404);
+
+    // 8. Tampering on disk -> 409, then restore
+    fs.appendFileSync(diskPath, Buffer.from('TAMPER'));
+    await request(app.getHttpServer())
+      .get(`/insurance/pre-auth/${preAuthId}/attachments/${att1.id}/download`)
+      .auth(adminToken, { type: 'bearer' })
+      .expect(409);
+    fs.writeFileSync(diskPath, pdfBuf);
+
+    // 9. Short retire reason -> 400; valid reason -> retired; re-upload same PDF -> 201
+    await request(app.getHttpServer())
+      .post(`/insurance/pre-auth/${preAuthId}/attachments/${att1.id}/retire`)
+      .auth(adminToken, { type: 'bearer' })
+      .send({ reason: 'abc' })
+      .expect(400);
+
+    const retireRes = await request(app.getHttpServer())
+      .post(`/insurance/pre-auth/${preAuthId}/attachments/${att1.id}/retire`)
+      .auth(adminToken, { type: 'bearer' })
+      .send({ reason: 'مستند غير واضح وسيتم استبداله بنسخة أحدث' })
+      .expect(201);
+    expect(
+      responseBody<{ retiredAt: string | null }>(retireRes).retiredAt,
+    ).not.toBeNull();
+
+    const reUploadRes = await request(app.getHttpServer())
+      .post(`/insurance/pre-auth/${preAuthId}/attachments`)
+      .auth(adminToken, { type: 'bearer' })
+      .field('category', 'MEDICAL_REPORT')
+      .attach('file', pdfBuf, {
+        filename: 'replacement.pdf',
+        contentType: 'application/pdf',
+      })
+      .expect(201);
+    const att2 = responseBody<{ id: number }>(reUploadRes);
+
+    // 10. Decide PreAuth (REJECTED) -> upload & retire blocked (409)
+    await request(app.getHttpServer())
+      .patch(`/insurance/pre-auth/${preAuthId}`)
+      .auth(adminToken, { type: 'bearer' })
+      .send({ status: 'REJECTED' })
+      .expect(200);
+
+    await request(app.getHttpServer())
+      .post(`/insurance/pre-auth/${preAuthId}/attachments`)
+      .auth(adminToken, { type: 'bearer' })
+      .field('category', 'LAB_RESULT')
+      .attach('file', pngMagic, {
+        filename: 'late.png',
+        contentType: 'image/png',
+      })
+      .expect(409);
+
+    await request(app.getHttpServer())
+      .post(`/insurance/pre-auth/${preAuthId}/attachments/${att2.id}/retire`)
+      .auth(adminToken, { type: 'bearer' })
+      .send({ reason: 'محاولة سحب بعد حسم الموافقة المسبقة' })
+      .expect(409);
+
+    // 11. Database trigger immutability enforcement
+    await expect(
+      db.preAuthorizationAttachment.delete({ where: { id: att2.id } }),
+    ).rejects.toThrow();
+    await expect(
+      db.preAuthorizationAttachment.update({
+        where: { id: att2.id },
+        data: { sha256: '0'.repeat(64) },
+      }),
+    ).rejects.toThrow();
+
+    // 12. Chained AuditLog actions present
+    const auditActions = await db.auditLog.findMany({
+      where: {
+        hospitalId,
+        entity: 'PreAuthorizationAttachment',
+      },
+      select: { action: true },
+    });
+    const actionSet = new Set(auditActions.map((a) => a.action));
+    expect(actionSet.has('UPLOAD_PREAUTH_ATTACHMENT')).toBe(true);
+    expect(actionSet.has('DOWNLOAD_PREAUTH_ATTACHMENT')).toBe(true);
+    expect(actionSet.has('RETIRE_PREAUTH_ATTACHMENT')).toBe(true);
   });
 });
