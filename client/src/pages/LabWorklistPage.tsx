@@ -5,6 +5,7 @@ import { apiClient } from "../api/apiClient";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
+import { LabSpecimenCultureModal } from "../components/labs/LabSpecimenCultureModal";
 
 type PatientLite = { id: number; fullName: string; mrn: string };
 type TestLite = {
@@ -48,6 +49,8 @@ export default function LabWorklistPage() {
   const dateLocale = isRtl ? "ar-LY" : "en-US";
 
   const [search, setSearch] = useState("");
+  const [specimenModalItem, setSpecimenModalItem] =
+    useState<LabWorklistItem | null>(null);
 
   const {
     data: items = [],
@@ -265,6 +268,13 @@ export default function LabWorklistPage() {
                 </button>
                 )}
 
+                <button
+                  onClick={() => setSpecimenModalItem(it)}
+                  className="px-3 py-2 rounded-xl bg-teal-800/80 hover:bg-teal-700 text-xs text-teal-100 border border-teal-600/50 transition font-semibold"
+                >
+                  🧪 {t("lab.actions.specimensCulture", "العينات والمزرعة")}
+                </button>
+
                 {/* ✅ زر طباعة التقرير المجمع */}
                 {it.resultStatus === "COMPLETED" && it.order.encounterId && (
                   <button
@@ -289,6 +299,18 @@ export default function LabWorklistPage() {
           )}
         </div>
       </div>
+
+      {specimenModalItem && (
+        <LabSpecimenCultureModal
+          labOrderId={specimenModalItem.id}
+          testName={specimenModalItem.test.name}
+          patientName={specimenModalItem.patient?.fullName || "—"}
+          onClose={() => setSpecimenModalItem(null)}
+          onUpdated={() => {
+            void load();
+          }}
+        />
+      )}
     </div>
   );
 }

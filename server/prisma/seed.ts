@@ -189,6 +189,10 @@ async function main() {
 
     // --- المختبر (Lab) ---
     { code: 'lab:dashboard:view', description: 'عرض لوحة تحكم المختبر' },
+    { code: 'labs:view', description: 'عرض قائمة ونتائج المختبر' },
+    { code: 'labs:manage', description: 'إدارة عمليات وعينات المختبر' },
+    { code: 'lab:specimens:collect', description: 'سحب ووسم عينات المختبر بالباركود' },
+    { code: 'lab:specimens:receive', description: 'استلام ورفض وتشغيل عينات المختبر' },
     { code: 'lab:requests:view', description: 'عرض طلبات التحليل' },
     { code: 'lab:requests:create', description: 'إنشاء طلب تحليل جديد' },
     { code: 'lab:results:enter', description: 'إدخال نتائج التحاليل' },
@@ -453,6 +457,8 @@ async function main() {
       'adt:bed:view',
       'adt:admissions:create',
       'lab:requests:view', // متابعة الطلبات
+      'labs:view',
+      'lab:specimens:collect',
       'rad:requests:view', // متابعة الطلبات
       'pharmacy:prescriptions:view',
       'icu:view',
@@ -491,6 +497,10 @@ async function main() {
     // 6. فني المختبر (Lab Tech)
     LAB_TECH: [
       'lab:dashboard:view',
+      'labs:view',
+      'labs:manage',
+      'lab:specimens:collect',
+      'lab:specimens:receive',
       'lab:requests:view',
       'lab:results:enter',
       'lab:results:verify',

@@ -211,6 +211,9 @@ model Hospital {
   payerWebhookEvents        PayerWebhookEvent[]
   patientMergeRecords       PatientMergeRecord[]
   patientDeathEvents        PatientDeathEvent[]
+  labSpecimens              LabSpecimen[]
+  labSpecimenEvents         LabSpecimenEvent[]
+  labCultureReports         LabCultureReport[]
 }
 
 model Department {
@@ -605,6 +608,13 @@ model User {
   patientMergeReviews       PatientMergeRecord[]       @relation("PatientMergeReviewer")
   patientMergeUnmerges      PatientMergeRecord[]       @relation("PatientMergeUnmerger")
   patientDeathEvents        PatientDeathEvent[]        @relation("PatientDeathActor")
+  labSpecimensCollected     LabSpecimen[]              @relation("SpecimenCollector")
+  labSpecimensReceived      LabSpecimen[]              @relation("SpecimenReceiver")
+  labSpecimensRejected      LabSpecimen[]              @relation("SpecimenRejector")
+  labSpecimensDisposed      LabSpecimen[]              @relation("SpecimenDisposer")
+  labSpecimenEvents         LabSpecimenEvent[]         @relation("SpecimenEventActor")
+  labCulturesEntered        LabCultureReport[]         @relation("CultureEnterer")
+  labCulturesVerified       LabCultureReport[]         @relation("CultureVerifier")
   createdDischargeSummaries DischargeSummary[]         @relation("DischargeSummaryCreator")
   dispensesAsPharmacist     DispenseRecord[]           @relation("PharmacistUser")
   doctorSchedule            DoctorSchedule?
@@ -1367,9 +1377,119 @@ model LabOrder {
   order          Order            @relation(fields: [orderId], references: [id])
   test           LabTest          @relation(fields: [testId], references: [id])
   results        LabOrderResult[]
+  specimens      LabSpecimen[]
+  cultureReports LabCultureReport[]
 
   @@index([resultStatus])
   @@index([orderId])
+}
+
+model LabSpecimen {
+  id               Int       @id @default(autoincrement())
+  hospitalId       Int
+  labOrderId       Int
+  barcode          String    @db.VarChar(64)
+  specimenType     String    @db.VarChar(64)
+  containerType    String?   @db.VarChar(64)
+  collectionSite   String?   @db.VarChar(120)
+  status           String    @default("COLLECTED")
+  collectedById    Int
+  collectedAt      DateTime  @default(now())
+  receivedById     Int?
+  receivedAt       DateTime?
+  rejectedById     Int?
+  rejectedAt       DateTime?
+  rejectionCode    String?   @db.VarChar(64)
+  rejectionReason  String?   @db.VarChar(500)
+  recollectionOfId Int?
+  storageLocation  String?   @db.VarChar(120)
+  disposedById     Int?
+  disposedAt       DateTime?
+  notes            String?   @db.VarChar(500)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  hospital       Hospital           @relation(fields: [hospitalId], references: [id])
+  labOrder       LabOrder           @relation(fields: [labOrderId], references: [id])
+  collectedBy    User               @relation("SpecimenCollector", fields: [collectedById], references: [id])
+  receivedBy     User?              @relation("SpecimenReceiver", fields: [receivedById], references: [id])
+  rejectedBy     User?              @relation("SpecimenRejector", fields: [rejectedById], references: [id])
+  disposedBy     User?              @relation("SpecimenDisposer", fields: [disposedById], references: [id])
+  recollectionOf LabSpecimen?       @relation("SpecimenRecollection", fields: [recollectionOfId], references: [id])
+  recollections  LabSpecimen[]      @relation("SpecimenRecollection")
+  events         LabSpecimenEvent[]
+  cultureReports LabCultureReport[]
+
+  @@unique([hospitalId, barcode])
+  @@index([hospitalId, labOrderId])
+  @@index([hospitalId, status])
+  @@index([recollectionOfId])
+}
+
+model LabSpecimenEvent {
+  id         Int      @id @default(autoincrement())
+  hospitalId Int
+  specimenId Int
+  eventType  String
+  fromStatus String?
+  toStatus   String
+  actorId    Int
+  notes      String?  @db.VarChar(500)
+  createdAt  DateTime @default(now())
+
+  hospital Hospital    @relation(fields: [hospitalId], references: [id])
+  specimen LabSpecimen @relation(fields: [specimenId], references: [id])
+  actor    User        @relation("SpecimenEventActor", fields: [actorId], references: [id])
+
+  @@index([hospitalId, specimenId, createdAt])
+}
+
+model LabCultureReport {
+  id               Int       @id @default(autoincrement())
+  hospitalId       Int
+  labOrderId       Int
+  specimenId       Int?
+  status           String    @default("PRELIMINARY")
+  gramStain        String?   @db.VarChar(500)
+  growthStatus     String
+  organismName     String?   @db.VarChar(200)
+  organismCode     String?   @db.VarChar(64)
+  colonyCount      String?   @db.VarChar(100)
+  incubationHours  Int?
+  comments         String?   @db.Text
+  enteredById      Int
+  verifiedById     Int?
+  verifiedAt       DateTime?
+  verificationHash String?   @db.VarChar(64)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  hospital      Hospital                @relation(fields: [hospitalId], references: [id])
+  labOrder      LabOrder                @relation(fields: [labOrderId], references: [id])
+  specimen      LabSpecimen?            @relation(fields: [specimenId], references: [id])
+  enteredBy     User                    @relation("CultureEnterer", fields: [enteredById], references: [id])
+  verifiedBy    User?                   @relation("CultureVerifier", fields: [verifiedById], references: [id])
+  sensitivities LabCultureSensitivity[]
+
+  @@index([hospitalId, labOrderId])
+  @@index([specimenId])
+}
+
+model LabCultureSensitivity {
+  id              Int     @id @default(autoincrement())
+  cultureReportId Int
+  antibioticName  String  @db.VarChar(120)
+  antibioticCode  String? @db.VarChar(64)
+  interpretation  String
+  micValue        String? @db.VarChar(64)
+  zoneDiameterMm  Int?
+  isRestricted    Boolean @default(false)
+  notes           String? @db.VarChar(255)
+
+  cultureReport LabCultureReport @relation(fields: [cultureReportId], references: [id], onDelete: Cascade)
+
+  @@unique([cultureReportId, antibioticName])
+  @@index([cultureReportId])
 }
 
 model LabOrderResult {
