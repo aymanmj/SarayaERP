@@ -2098,4 +2098,273 @@ describe('Insurance Providers, Policies, Plans, Coverage Calculation, Pre-Auth, 
       ),
     ).toBe('200.000');
   });
+
+  it('ingests ERA files, posts receipts and rejections atomically with idempotency, rolls back partial failures, isolates tenants, and protects reconciled ERA records', async () => {
+    await accountingService.ensureDefaultAccountsForHospital(hospitalId);
+    const provider = await db.insuranceProvider.create({
+      data: {
+        hospitalId,
+        code: `ERA-INS-${Date.now()}`,
+        name: 'شركة المتوسط للتأمين ERA',
+        isActive: true,
+      },
+    });
+    const patient = await db.patient.create({
+      data: {
+        hospitalId,
+        mrn: `MRN-ERA-${Date.now()}`,
+        fullName: 'سالم علي السنوسي',
+        gender: 'MALE',
+      },
+    });
+    const encounter = await db.encounter.create({
+      data: { hospitalId, patientId: patient.id, type: 'OPD', status: 'OPEN' },
+    });
+
+    const createSubmittedClaim = async (share: string) => {
+      const invoice = await db.invoice.create({
+        data: {
+          hospitalId,
+          patientId: patient.id,
+          encounterId: encounter.id,
+          status: 'ISSUED',
+          totalAmount: share,
+          patientShare: '0.000',
+          insuranceShare: share,
+          insuranceProviderId: provider.id,
+          claimStatus: 'PENDING',
+        },
+      });
+      await accountingService.recordInvoiceEntry({
+        hospitalId,
+        invoiceId: invoice.id,
+        userId: adminUserId,
+      });
+      const claimRes = await request(app.getHttpServer())
+        .post('/rcm/claims/claims')
+        .auth(adminToken, { type: 'bearer' })
+        .send({ invoiceId: invoice.id })
+        .expect(201);
+      const claim = responseBody<{ id: number; claimNumber: string }>(claimRes);
+      await request(app.getHttpServer())
+        .put(`/rcm/claims/claims/${claim.id}/status`)
+        .auth(adminToken, { type: 'bearer' })
+        .send({ status: 'SUBMITTED' })
+        .expect(200);
+      return claim;
+    };
+
+    const clm1 = await createSubmittedClaim('100.000');
+    const clm2 = await createSubmittedClaim('80.000');
+    const clmRollback1 = await createSubmittedClaim('50.000');
+    const clmRollback2 = await createSubmittedClaim('40.000');
+
+    // 1. Ingest ERA for clm1 (underpaid 75.000) + clm2 (denied CO-197)
+    const eraRes = await request(app.getHttpServer())
+      .post('/rcm/claims/era')
+      .auth(adminToken, { type: 'bearer' })
+      .send({
+        insuranceProviderId: provider.id,
+        eraNumber: `ERA-${Date.now()}-01`,
+        paymentDate: '2026-11-23T10:00:00.000Z',
+        totalPaid: '75.000',
+        lineItems: [
+          {
+            claimNumber: clm1.claimNumber,
+            billedAmount: '100.000',
+            allowedAmount: '75.000',
+            paidAmount: '75.000',
+            adjustmentAmount: '25.000',
+            adjustmentCode: 'CO-45',
+            adjustmentReason: 'Contractual fee schedule difference',
+          },
+          {
+            claimNumber: clm2.claimNumber,
+            billedAmount: '80.000',
+            paidAmount: '0.000',
+            denialCode: 'CO-197',
+            denialReason: 'Precertification/authorization absent',
+          },
+        ],
+      })
+      .expect(201);
+    const era = responseBody<{
+      id: number;
+      status: string;
+      lineItems: { id: number; status: string; claimId: number }[];
+    }>(eraRes);
+    expect(era.status).toBe('PROCESSING');
+    expect(era.lineItems.map((l) => l.status)).toEqual(['UNDERPAID', 'DENIED']);
+
+    // Cross-tenant isolation on GET list, GET detail, POST financial
+    const otherList = await request(app.getHttpServer())
+      .get('/rcm/claims/era')
+      .auth(otherToken, { type: 'bearer' })
+      .expect(200);
+    expect(otherList.body).toEqual([]);
+    await request(app.getHttpServer())
+      .get(`/rcm/claims/era/${era.id}`)
+      .auth(otherToken, { type: 'bearer' })
+      .expect(404);
+    await request(app.getHttpServer())
+      .post(`/rcm/claims/era/${era.id}/post`)
+      .auth(otherToken, { type: 'bearer' })
+      .send({
+        requestId: randomUUID(),
+        bankReference: 'ERA-CROSS-TENANT',
+        confirmed: true,
+      })
+      .expect(404);
+
+    // 2. Atomic financial ERA posting + idempotent concurrent replay + 409 mismatch
+    const postKey = randomUUID();
+    const postPayload = {
+      requestId: postKey,
+      bankReference: 'ERA-BANK-WIRE-01',
+      confirmed: true,
+    };
+    const [postRes, postReplay] = await Promise.all([
+      request(app.getHttpServer())
+        .post(`/rcm/claims/era/${era.id}/post`)
+        .auth(adminToken, { type: 'bearer' })
+        .send(postPayload)
+        .expect(201),
+      request(app.getHttpServer())
+        .post(`/rcm/claims/era/${era.id}/post`)
+        .auth(adminToken, { type: 'bearer' })
+        .send(postPayload)
+        .expect(201),
+    ]);
+    expect(postReplay.body).toEqual(postRes.body);
+    expect(postRes.body).toMatchObject({
+      success: true,
+      eraId: era.id,
+      bankReference: 'ERA-BANK-WIRE-01',
+      postedReceiptsCount: 1,
+      deniedClaimsCount: 1,
+      totalPaid: '75.000',
+    });
+
+    await request(app.getHttpServer())
+      .post(`/rcm/claims/era/${era.id}/post`)
+      .auth(adminToken, { type: 'bearer' })
+      .send({
+        requestId: randomUUID(),
+        bankReference: 'ERA-BANK-WIRE-02',
+        confirmed: true,
+      })
+      .expect(409);
+
+    // 3. Verify ledger, ClaimReceipt linkage, Claim states, AuditLog & DB immutability triggers
+    const updatedEra = await db.eRATransaction.findUniqueOrThrow({
+      where: { id: era.id },
+      include: { lineItems: { orderBy: { id: 'asc' } } },
+    });
+    expect(updatedEra.status).toBe('RECONCILED');
+    expect(updatedEra.bankReference).toBe('ERA-BANK-WIRE-01');
+    const paidLine = updatedEra.lineItems.find((l) => l.claimId === clm1.id)!;
+    const deniedLine = updatedEra.lineItems.find((l) => l.claimId === clm2.id)!;
+    expect(paidLine.receiptId).not.toBeNull();
+    expect(deniedLine.receiptId).toBeNull();
+
+    const bankAccount = await db.account.findFirstOrThrow({
+      where: { hospitalId, code: '101100' },
+    });
+    const receivableAccount = await db.account.findFirstOrThrow({
+      where: { hospitalId, code: '120200' },
+    });
+    const receiptEntry = await db.accountingEntry.findUniqueOrThrow({
+      where: {
+        postingKey: `claim-receipt:${hospitalId}:${paidLine.receiptId}`,
+      },
+      include: { lines: true },
+    });
+    expect(
+      receiptEntry.lines.map((l) => [
+        l.accountId,
+        l.debit.toFixed(3),
+        l.credit.toFixed(3),
+      ]),
+    ).toEqual(
+      expect.arrayContaining([
+        [bankAccount.id, '75.000', '0.000'],
+        [receivableAccount.id, '0.000', '75.000'],
+      ]),
+    );
+    expect(
+      await db.claim.findUniqueOrThrow({ where: { id: clm1.id } }),
+    ).toMatchObject({ status: 'PARTIALLY_PAID' });
+    expect(
+      (
+        await db.claim.findUniqueOrThrow({ where: { id: clm1.id } })
+      ).paidAmount?.toFixed(3),
+    ).toBe('75.000');
+    expect(
+      await db.claim.findUniqueOrThrow({ where: { id: clm2.id } }),
+    ).toMatchObject({ status: 'REJECTED', denialCode: 'CO-197' });
+
+    const audit = await db.auditLog.findFirst({
+      where: {
+        hospitalId,
+        entity: 'ERATransaction',
+        entityId: era.id,
+        action: 'POST_ERA_FINANCIAL_RECONCILIATION',
+      },
+    });
+    expect(audit).not.toBeNull();
+
+    await expect(
+      db.eRATransaction.update({
+        where: { id: era.id },
+        data: { notes: 'tamper' },
+      }),
+    ).rejects.toThrow();
+    await expect(
+      db.eRALineItem.delete({ where: { id: paidLine.id } }),
+    ).rejects.toThrow();
+
+    // 4. Atomic rollback on partial failure (valid clmRollback1 + overpaid clmRollback2)
+    const badEraRes = await request(app.getHttpServer())
+      .post('/rcm/claims/era')
+      .auth(adminToken, { type: 'bearer' })
+      .send({
+        insuranceProviderId: provider.id,
+        eraNumber: `ERA-${Date.now()}-ROLLBACK`,
+        totalPaid: '100.000',
+        lineItems: [
+          {
+            claimNumber: clmRollback1.claimNumber,
+            billedAmount: '50.000',
+            paidAmount: '50.000',
+          },
+          {
+            claimNumber: clmRollback2.claimNumber,
+            billedAmount: '40.000',
+            paidAmount: '50.000',
+          },
+        ],
+      })
+      .expect(201);
+    const badEraId = responseBody<{ id: number }>(badEraRes).id;
+
+    await request(app.getHttpServer())
+      .post(`/rcm/claims/era/${badEraId}/post`)
+      .auth(adminToken, { type: 'bearer' })
+      .send({
+        requestId: randomUUID(),
+        bankReference: 'ERA-ROLLBACK-01',
+        confirmed: true,
+      })
+      .expect(400);
+
+    expect(
+      await db.claimReceipt.count({
+        where: { claimId: { in: [clmRollback1.id, clmRollback2.id] } },
+      }),
+    ).toBe(0);
+    expect(
+      (await db.eRATransaction.findUniqueOrThrow({ where: { id: badEraId } }))
+        .status,
+    ).toBe('PROCESSING');
+  });
 });

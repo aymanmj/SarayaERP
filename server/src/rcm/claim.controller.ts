@@ -14,11 +14,33 @@ import {
 } from '@nestjs/common';
 import { ClaimService } from './claim.service';
 import { DenialManagementService } from './denials/denial-management.service';
+import {
+  EraProcessingService,
+  MONEY_INPUT_PATTERN,
+} from './era-processing.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Permissions } from '../auth/permissions.decorator';
 import { PermissionsGuard } from '../auth/permissions.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
-import { ClaimStatus } from '@prisma/client';
+import { ClaimStatus, type Prisma } from '@prisma/client';
+import { Transform, Type } from 'class-transformer';
+import {
+  Allow,
+  ArrayMaxSize,
+  ArrayMinSize,
+  Equals,
+  IsArray,
+  IsDateString,
+  IsInt,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Matches,
+  MaxLength,
+  Min,
+  MinLength,
+  ValidateNested,
+} from 'class-validator';
 import {
   ApiTags,
   ApiOperation,
@@ -27,6 +49,62 @@ import {
   ApiParam,
   ApiQuery,
 } from '@nestjs/swagger';
+
+const coerceMoneyInput = ({ value }: { value: unknown }) =>
+  typeof value === 'number' && Number.isFinite(value) ? String(value) : value;
+
+class EraLineItemInputDto {
+  @IsString() @MinLength(1) @MaxLength(100) claimNumber!: string;
+  @IsOptional() @IsString() @MaxLength(200) patientName?: string;
+  @IsOptional() @IsDateString() serviceDate?: string;
+  @Transform(coerceMoneyInput)
+  @IsString()
+  @Matches(MONEY_INPUT_PATTERN)
+  billedAmount!: string;
+  @IsOptional()
+  @Transform(coerceMoneyInput)
+  @IsString()
+  @Matches(MONEY_INPUT_PATTERN)
+  allowedAmount?: string;
+  @Transform(coerceMoneyInput)
+  @IsString()
+  @Matches(MONEY_INPUT_PATTERN)
+  paidAmount!: string;
+  @IsOptional()
+  @Transform(coerceMoneyInput)
+  @IsString()
+  @Matches(MONEY_INPUT_PATTERN)
+  adjustmentAmount?: string;
+  @IsOptional() @IsString() @MaxLength(100) adjustmentCode?: string;
+  @IsOptional() @IsString() @MaxLength(500) adjustmentReason?: string;
+  @IsOptional() @IsString() @MaxLength(100) denialCode?: string;
+  @IsOptional() @IsString() @MaxLength(500) denialReason?: string;
+}
+
+class ProcessEraPayloadDto {
+  @IsInt() @Min(1) insuranceProviderId!: number;
+  @IsString() @MinLength(3) @MaxLength(100) eraNumber!: string;
+  @IsOptional() @IsDateString() paymentDate?: string;
+  @Transform(coerceMoneyInput)
+  @IsString()
+  @Matches(MONEY_INPUT_PATTERN)
+  totalPaid!: string;
+  @IsOptional() @IsString() @MaxLength(100) checkNumber?: string;
+  @IsOptional() @IsString() @MaxLength(200) bankReference?: string;
+  @IsOptional() @Allow() rawPayload?: Prisma.InputJsonValue;
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(200)
+  @ValidateNested({ each: true })
+  @Type(() => EraLineItemInputDto)
+  lineItems!: EraLineItemInputDto[];
+}
+
+class PostEraFinancialDto {
+  @IsUUID('4') requestId!: string;
+  @IsString() @MinLength(5) @MaxLength(200) bankReference!: string;
+  @Equals(true) confirmed!: boolean;
+}
 
 /**
  * واجهة تحكم دورة الإيرادات (Revenue Cycle Management)
@@ -47,6 +125,7 @@ export class ClaimController {
   constructor(
     private claimService: ClaimService,
     private denialService: DenialManagementService,
+    private eraService: EraProcessingService,
   ) {}
 
   // ============================================
@@ -332,6 +411,69 @@ export class ClaimController {
       user.hospitalId,
       fromDate ? new Date(fromDate) : undefined,
       toDate ? new Date(toDate) : undefined,
+    );
+  }
+
+  // ============================================
+  // Electronic Remittance Advice (ERA)
+  // ============================================
+
+  @ApiOperation({ summary: 'List Electronic Remittance Advice files (ERA)' })
+  @Get('era')
+  @Permissions('claims:read')
+  listEras(
+    @CurrentUser() user: JwtPayload,
+    @Query('providerId') providerId?: string,
+    @Query('status') status?: string,
+  ) {
+    const parsedProviderId =
+      providerId &&
+      Number.isInteger(Number(providerId)) &&
+      Number(providerId) > 0
+        ? Number(providerId)
+        : undefined;
+    return this.eraService.listEras(user.hospitalId, {
+      providerId: parsedProviderId,
+      status: status || undefined,
+    });
+  }
+
+  @ApiOperation({ summary: 'Get ERA details by ID' })
+  @Get('era/:id')
+  @Permissions('claims:read')
+  getEraById(
+    @CurrentUser() user: JwtPayload,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.eraService.getEraById(user.hospitalId, id);
+  }
+
+  @ApiOperation({ summary: 'Ingest ERA payload and match internal claims' })
+  @Post('era')
+  @Permissions('claims:update')
+  ingestEra(
+    @CurrentUser() user: JwtPayload,
+    @Body() data: ProcessEraPayloadDto,
+  ) {
+    return this.eraService.processEraPayload(data, user.hospitalId);
+  }
+
+  @ApiOperation({
+    summary:
+      'Atomically post ERA receipts and rejections into claim ledger and accounting',
+  })
+  @Post('era/:id/post')
+  @Permissions('claims:update')
+  postEraFinancialSettlement(
+    @CurrentUser() user: JwtPayload,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() data: PostEraFinancialDto,
+  ) {
+    return this.eraService.postEraFinancialSettlement(
+      user.hospitalId,
+      user.sub,
+      id,
+      data,
     );
   }
 }

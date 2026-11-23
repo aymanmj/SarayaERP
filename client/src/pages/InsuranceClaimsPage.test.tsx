@@ -523,3 +523,43 @@ it("allows an independent reviewer to approve and post a pending write-off in In
     restoreDialog();
   }
 });
+
+it("posts an ERA file financially via EraReconciliationDialog", async () => {
+  vi.mocked(apiClient.get).mockImplementation(async (path) => {
+    if (path === "/rcm/claims/era") {
+      return {
+        data: [{
+          id: 77,
+          eraNumber: "ERA-2026-077",
+          insuranceProvider: { id: 7, name: "Synthetic insurer", code: "INS-7" },
+          totalPaid: "75.000",
+          totalClaims: 2,
+          bankReference: null,
+          status: "PROCESSING",
+          lineItems: [
+            { id: 1, claimId: 101, receiptId: null, claimNumber: "CLM-101", billedAmount: "100.000", paidAmount: "75.000", adjustmentCode: "CO-45", status: "UNDERPAID" },
+            { id: 2, claimId: 102, receiptId: null, claimNumber: "CLM-102", billedAmount: "80.000", paidAmount: "0.000", denialCode: "CO-197", status: "DENIED" },
+          ],
+        }],
+      };
+    }
+    return { data: [] };
+  });
+  vi.mocked(apiClient.post).mockClear().mockResolvedValue({ data: { success: true } });
+  const restoreDialog = mockDialog();
+  try {
+    render(<InsuranceClaimsPage />);
+    fireEvent.click(screen.getByRole("button", { name: "insuranceClaims.era.open" }));
+    const bankInput = await screen.findByLabelText("insuranceClaims.era.bankReference");
+    fireEvent.change(bankInput, { target: { value: "BANK-ERA-77" } });
+    fireEvent.click(screen.getByLabelText("insuranceClaims.era.confirmed"));
+    fireEvent.click(screen.getByRole("button", { name: "insuranceClaims.era.postBtn" }));
+    await waitFor(() => expect(apiClient.post).toHaveBeenCalledWith("/rcm/claims/era/77/post", {
+      requestId: expect.any(String),
+      bankReference: "BANK-ERA-77",
+      confirmed: true,
+    }));
+  } finally {
+    restoreDialog();
+  }
+});

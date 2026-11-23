@@ -9,6 +9,7 @@ import { Money } from "../utils/money";
 import { ClaimReceiptRefundDialog } from "./ClaimReceiptRefundDialog";
 import { InsuranceSettlementRefundDialog } from "./InsuranceSettlementRefundDialog";
 import { InsuranceWriteOffDialog } from "./InsuranceWriteOffDialog";
+import { EraReconciliationDialog } from "./EraReconciliationDialog";
 import { useIdempotentPost } from "../hooks/useIdempotentPost";
 
 const MONEY_RE = /^(0|[1-9]\d{0,14})(\.\d{1,3})?$/;
@@ -162,6 +163,7 @@ export default function InsuranceClaimsPage() {
   const settlementDialog = useRef<HTMLDialogElement>(null);
   const [settlementRefund, setSettlementRefund] = useState<number | null>(null);
   const [writeOffInvoice, setWriteOffInvoice] = useState<number | null>(null);
+  const [showEraDialog, setShowEraDialog] = useState(false);
   const settlementFilter = ["SUBMITTED", "PARTIALLY_PAID"].includes(statusFilter);
   const selectable = claims.filter((claim) => settlementFilter ? canSettleClaim(claim) :
     !claim.claimWithdrawal && !claim.insuranceSettlementAllocations?.length && !hasRcmPrescriptionClaim(claim));
@@ -658,6 +660,14 @@ export default function InsuranceClaimsPage() {
           {t("insuranceClaims.settlement.recordUnallocated")}
         </button>
 
+        <button
+          type="button"
+          onClick={() => setShowEraDialog(true)}
+          className="px-4 py-2.5 bg-sky-600/20 hover:bg-sky-600/30 border border-sky-500/40 text-sky-200 text-sm rounded-xl font-bold transition-colors"
+        >
+          {t("insuranceClaims.era.open")}
+        </button>
+
         <div className="mr-auto flex gap-4 items-center bg-slate-950 p-3 rounded-xl border border-slate-800 shadow-inner">
           <div className="p-2 bg-sky-900/20 text-sky-400 rounded-lg">
             <AlertCircle className="w-6 h-6" />
@@ -1117,6 +1127,13 @@ export default function InsuranceClaimsPage() {
       )}
       {writeOffInvoice != null && (
         <InsuranceWriteOffDialog invoiceId={writeOffInvoice} onClose={() => setWriteOffInvoice(null)} onChange={loadClaims} />
+      )}
+      {showEraDialog && (
+        <EraReconciliationDialog
+          providerId={selectedProvider ? Number(selectedProvider) : undefined}
+          onClose={() => setShowEraDialog(false)}
+          onChange={loadClaims}
+        />
       )}
       {withdrawalInvoice != null && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/80 p-4">

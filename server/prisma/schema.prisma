@@ -5947,6 +5947,7 @@ model ERATransaction {
   totalAdjustments    Decimal?  @db.Decimal(18, 3)
   checkNumber         String? // رقم الشيك/التحويل
   bankReference       String? // مرجع البنك
+  postingRequestKey   String?   @unique
   status              String    @default("RECEIVED") // RECEIVED, PROCESSING, RECONCILED, DISCREPANCY
   reconciledAt        DateTime?
   reconciledById      Int?
@@ -5960,6 +5961,7 @@ model ERATransaction {
   lineItems         ERALineItem[]
 
   @@index([hospitalId, status])
+  @@index([hospitalId, bankReference])
   @@index([insuranceProviderId])
   @@index([receivedAt])
 }
@@ -5968,6 +5970,7 @@ model ERALineItem {
   id               Int       @id @default(autoincrement())
   eraId            Int
   claimId          Int? // ربط بالمطالبة الداخلية
+  receiptId        Int?      @unique
   claimNumber      String // رقم المطالبة كما ورد من التأمين
   patientName      String?
   serviceDate      DateTime?
@@ -5982,7 +5985,8 @@ model ERALineItem {
   status           String    @default("MATCHED") // MATCHED, UNMATCHED, UNDERPAID, DENIED
   createdAt        DateTime  @default(now())
 
-  era ERATransaction @relation(fields: [eraId], references: [id])
+  era     ERATransaction @relation(fields: [eraId], references: [id])
+  receipt ClaimReceipt?  @relation(fields: [receiptId], references: [id], onDelete: Restrict)
 
   @@index([eraId])
   @@index([claimNumber])
@@ -6597,6 +6601,7 @@ model ApiKey {
 
 model ClaimReceipt {
  refunds ClaimReceiptRefund[]
+ eraLineItem ERALineItem?
  id Int @id @default(autoincrement())
  hospitalId Int
  claimId Int
