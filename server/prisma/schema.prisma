@@ -55,6 +55,9 @@ model OrgSetting {
 // ============================================
 
 model Hospital {
+  surgicalSafetyChecklists      SurgicalSafetyChecklist[]
+  surgicalCountItems            SurgicalCountItem[]
+  anesthesiaRecords             AnesthesiaRecord[]
   radiologyReportAddenda        RadiologyReportAddendum[]
   radiologyCriticalNotifications RadiologyCriticalNotification[]
   radiologyReportTemplates      RadiologyReportTemplate[]
@@ -556,6 +559,13 @@ model Payment {
 }
 
 model User {
+  surgicalChecklistsPerformed     SurgicalSafetyChecklist[]       @relation("SurgicalChecklistPerformedBy")
+  surgicalChecklistsVerified      SurgicalSafetyChecklist[]       @relation("SurgicalChecklistVerifiedBy")
+  surgicalCountsScrub             SurgicalCountItem[]             @relation("SurgicalCountScrubNurse")
+  surgicalCountsCirculating       SurgicalCountItem[]             @relation("SurgicalCountCirculatingNurse")
+  anesthesiaRecordsLed            AnesthesiaRecord[]              @relation("AnesthesiaRecordLead")
+  anesthesiaRecordsSigned         AnesthesiaRecord[]              @relation("AnesthesiaRecordSignedBy")
+  deliveriesSigned                DeliveryAdmission[]             @relation("DeliverySignedBy")
   radiologyOrdersReported         RadiologyOrder[]                @relation("RadiologyOrderReportedBy")
   radiologyOrdersSigned           RadiologyOrder[]                @relation("RadiologyOrderSignedBy")
   radiologyReportAddenda          RadiologyReportAddendum[]       @relation("RadiologyAddendumAuthor")
@@ -1945,19 +1955,24 @@ model ObstetricHistory {
 }
 
 model DeliveryAdmission {
-  id               Int              @id @default(autoincrement())
-  encounterId      Int              @unique
-  deliveryMethod   DeliveryMethod
-  inductionMethod  InductionMethod  @default(NONE)
-  placentaDelivery PlacentaDelivery @default(SPONTANEOUS)
-  episiotomy       Boolean          @default(false)
-  perinealTear     PerinealTear     @default(NONE)
-  bloodLoss        Int? // in ml
-  babyCount        Int              @default(1)
-  notes            String?
+  id                    Int              @id @default(autoincrement())
+  encounterId           Int              @unique
+  deliveryMethod        DeliveryMethod
+  inductionMethod       InductionMethod  @default(NONE)
+  placentaDelivery      PlacentaDelivery @default(SPONTANEOUS)
+  episiotomy            Boolean          @default(false)
+  perinealTear          PerinealTear     @default(NONE)
+  bloodLoss             Int? // in ml
+  babyCount             Int              @default(1)
+  notes                 String?
+  pphAlertTriggered     Boolean          @default(false)
+  deliverySignedById    Int?
+  deliverySignedAt      DateTime?
+  deliverySignatureHash String?          @db.VarChar(64)
 
-  encounter Encounter     @relation(fields: [encounterId], references: [id])
-  babies    BabyProfile[]
+  encounter        Encounter     @relation(fields: [encounterId], references: [id])
+  deliverySignedBy User?         @relation("DeliverySignedBy", fields: [deliverySignedById], references: [id])
+  babies           BabyProfile[]
 }
 
 model BabyProfile {
@@ -3949,13 +3964,100 @@ model SurgeryCase {
   theatre                  OperatingTheatre    @relation(fields: [theatreId], references: [id])
   consumables              SurgeryConsumable[]
   team                     SurgeryTeam[]
-  procedureConcept         TerminologyConcept? @relation("SurgeryProcedureConcept", fields: [procedureConceptId], references: [id])
-  preOpDiagnosisConcept    TerminologyConcept? @relation("SurgeryPreOpDiagnosisConcept", fields: [preOpDiagnosisConceptId], references: [id])
-  postOpDiagnosisConcept   TerminologyConcept? @relation("SurgeryPostOpDiagnosisConcept", fields: [postOpDiagnosisConceptId], references: [id])
+  procedureConcept         TerminologyConcept?       @relation("SurgeryProcedureConcept", fields: [procedureConceptId], references: [id])
+  preOpDiagnosisConcept    TerminologyConcept?       @relation("SurgeryPreOpDiagnosisConcept", fields: [preOpDiagnosisConceptId], references: [id])
+  postOpDiagnosisConcept   TerminologyConcept?       @relation("SurgeryPostOpDiagnosisConcept", fields: [postOpDiagnosisConceptId], references: [id])
+  safetyChecklists         SurgicalSafetyChecklist[]
+  countItems               SurgicalCountItem[]
+  anesthesiaRecord         AnesthesiaRecord?
 
   @@index([procedureConceptId])
   @@index([preOpDiagnosisConceptId])
   @@index([postOpDiagnosisConceptId])
+}
+
+model SurgicalSafetyChecklist {
+  id                         Int         @id @default(autoincrement())
+  hospitalId                 Int
+  surgeryCaseId              Int
+  phase                      String      @db.VarChar(24)
+  checklistItems             Json
+  siteMarked                 Boolean     @default(false)
+  consentConfirmed           Boolean     @default(false)
+  allergyChecked             Boolean     @default(false)
+  antibioticProphylaxisGiven Boolean     @default(false)
+  imagingDisplayed           Boolean     @default(false)
+  performedById              Int
+  verifiedById               Int?
+  signedAt                   DateTime    @default(now())
+  signatureHash              String      @db.VarChar(64)
+  notes                      String?
+  createdAt                  DateTime    @default(now())
+  hospital                   Hospital    @relation(fields: [hospitalId], references: [id])
+  surgeryCase                SurgeryCase @relation(fields: [surgeryCaseId], references: [id], onDelete: Cascade)
+  performedBy                User        @relation("SurgicalChecklistPerformedBy", fields: [performedById], references: [id])
+  verifiedBy                 User?       @relation("SurgicalChecklistVerifiedBy", fields: [verifiedById], references: [id])
+
+  @@unique([surgeryCaseId, phase])
+  @@index([hospitalId, surgeryCaseId])
+}
+
+model SurgicalCountItem {
+  id                 Int               @id @default(autoincrement())
+  hospitalId         Int
+  surgeryCaseId      Int
+  category           String            @db.VarChar(24)
+  itemName           String            @db.VarChar(160)
+  initialCount       Int
+  addedCount         Int               @default(0)
+  finalCount         Int?
+  status             String            @default("OPEN") @db.VarChar(24)
+  scrubNurseId       Int
+  circulatingNurseId Int?
+  verifiedAt         DateTime?
+  resolutionNotes    String?
+  incidentId         Int?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  hospital           Hospital          @relation(fields: [hospitalId], references: [id])
+  surgeryCase        SurgeryCase       @relation(fields: [surgeryCaseId], references: [id], onDelete: Cascade)
+  scrubNurse         User              @relation("SurgicalCountScrubNurse", fields: [scrubNurseId], references: [id])
+  circulatingNurse   User?             @relation("SurgicalCountCirculatingNurse", fields: [circulatingNurseId], references: [id])
+  incident           ClinicalIncident? @relation(fields: [incidentId], references: [id])
+
+  @@index([hospitalId, surgeryCaseId, status])
+}
+
+model AnesthesiaRecord {
+  id                   Int         @id @default(autoincrement())
+  hospitalId           Int
+  surgeryCaseId        Int         @unique
+  anesthesiologistId   Int
+  asaClass             String      @db.VarChar(16)
+  isEmergency          Boolean     @default(false)
+  anesthesiaType       String      @db.VarChar(32)
+  airwayManagement     String?     @db.VarChar(120)
+  inductionTime        DateTime?
+  emergenceTime        DateTime?
+  agentsUsed           Json?
+  vitalsTimeline       Json?
+  fluidsInMl           Int         @default(0)
+  estimatedBloodLossMl Int         @default(0)
+  urineOutputMl        Int         @default(0)
+  pacuAldreteScore     Int?
+  complications        String?
+  status               String      @default("DRAFT") @db.VarChar(16)
+  signedById           Int?
+  signedAt             DateTime?
+  signatureHash        String?     @db.VarChar(64)
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+  hospital             Hospital    @relation(fields: [hospitalId], references: [id])
+  surgeryCase          SurgeryCase @relation(fields: [surgeryCaseId], references: [id], onDelete: Cascade)
+  anesthesiologist     User        @relation("AnesthesiaRecordLead", fields: [anesthesiologistId], references: [id])
+  signedBy             User?       @relation("AnesthesiaRecordSignedBy", fields: [signedById], references: [id])
+
+  @@index([hospitalId, status])
 }
 
 model SurgeryTeam {
@@ -6898,8 +7000,9 @@ model ClinicalIncident {
   reporter     User         @relation("IncidentReporter", fields: [reportedById], references: [id])
   patient      Patient?     @relation(fields: [patientId], references: [id])
   investigator User?        @relation("IncidentInvestigator", fields: [investigatedById], references: [id])
-  capaActions  CapaAction[]
-  bloodTransfusion BloodTransfusion?
+  capaActions        CapaAction[]
+  bloodTransfusion   BloodTransfusion?
+  surgicalCountItems SurgicalCountItem[]
 
   @@index([hospitalId, status])
   @@index([hospitalId, incidentDate])

@@ -499,6 +499,20 @@ export class SurgeryService {
       if (status === SurgeryStatus.IN_PROGRESS) {
         data.actualStart = existingCase.actualStart ?? now;
       } else if (status === SurgeryStatus.COMPLETED) {
+        if (typeof tx.surgicalCountItem?.count === 'function') {
+          const unresolvedCounts = await tx.surgicalCountItem.count({
+            where: {
+              surgeryCaseId: caseId,
+              hospitalId,
+              status: { in: ['OPEN', 'DISCREPANCY'] },
+            },
+          });
+          if (unresolvedCounts > 0) {
+            throw new ConflictException(
+              `حظر سلامة جراحي (CAP05): لا يمكن إكمال وإغلاق العملية مع وجود ${unresolvedCounts} بنود عدّ جراحي غير مطابقة أو غير مغلقة.`,
+            );
+          }
+        }
         data.actualStart = existingCase.actualStart ?? now;
         data.actualEnd = now;
       }

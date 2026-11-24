@@ -1,5 +1,6 @@
 import { SurgerySourcePolicy } from "../components/surgery/SurgerySourcePolicy";
 import { SurgeryConsumableForm } from "../components/surgery/SurgeryConsumableForm";
+import { SurgicalSafetyModal } from "../components/surgery/SurgicalSafetyModal";
 // src/pages/SurgeryCaseDetailsPage.tsx
 
 import { useEffect, useState } from "react";
@@ -112,6 +113,7 @@ export default function SurgeryCaseDetailsPage() {
   };
 
   const [surgery, setSurgery] = useState<SurgeryCaseDetails | null>(null);
+  const [showSafetyModal, setShowSafetyModal] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [loading, setLoading] = useState(false);
 
@@ -544,6 +546,14 @@ export default function SurgeryCaseDetailsPage() {
             {surgery.status === "RECOVERY" &&
               t("surgery.status.recovery", "في الإفاقة")}
           </span>
+
+          <button
+            type="button"
+            onClick={() => setShowSafetyModal(true)}
+            className="px-4 py-2 rounded-xl bg-sky-700 hover:bg-sky-600 text-white text-xs font-bold border border-sky-500/60"
+          >
+            🛡️ سلامة الجراحة والعدّ والتخدير (WHO)
+          </button>
 
           {surgery.status === "SCHEDULED" && (
             <button
@@ -1728,6 +1738,14 @@ export default function SurgeryCaseDetailsPage() {
           </div>
         )}
       </div>
+
+      {showSafetyModal && (
+        <SurgicalSafetyModal
+          surgeryCaseId={surgery.id}
+          users={users}
+          onClose={() => setShowSafetyModal(false)}
+        />
+      )}
     </div>
   );
 }
