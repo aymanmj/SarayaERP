@@ -1,4 +1,5 @@
 import { PharmacySourcePolicy } from '../components/pharmacy/PharmacySourcePolicy';
+import { ControlledConsignmentModal } from '../components/pharmacy/ControlledConsignmentModal';
 // src/pages/PharmacyWorklistPage.tsx
 
 import { Money } from "../utils/money";
@@ -82,6 +83,7 @@ export default function PharmacyWorklistPage() {
     useState<WorklistPrescription | null>(null);
   const isPrepaid = selectedPrescription?.prepaidInvoiceId != null;
   const [showDispenseModal, setShowDispenseModal] = useState(false);
+  const [showGovernanceModal, setShowGovernanceModal] = useState(false);
 
   // Dispense Form State
   const [qtyMap, setQtyMap] = useState<Record<number, number>>({});
@@ -257,7 +259,15 @@ export default function PharmacyWorklistPage() {
           <h1 className="text-2xl font-bold">{t("pharmacy.title", "صرف الوصفات (الصيدلية)")}</h1>
           <p className="text-sm text-slate-400">{t("pharmacy.subtitle", "قائمة الوصفات المعلقة للصرف.")}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setShowGovernanceModal(true)}
+            data-testid="pharmacy-open-cap10-governance"
+            className="px-4 py-2 rounded bg-amber-700 hover:bg-amber-600 text-sm text-white font-semibold"
+          >
+            🔐 {t("pharmacy.cap10Governance", "المخدّرات والأمانة ومرتجع العنابر")}
+          </button>
           <button
             onClick={() => loadData()}
             className="px-4 py-2 rounded bg-slate-800 hover:bg-slate-700 text-sm"
@@ -648,6 +658,12 @@ export default function PharmacyWorklistPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {showGovernanceModal && (
+        <ControlledConsignmentModal
+          onClose={() => setShowGovernanceModal(false)}
+        />
       )}
     </div>
   );

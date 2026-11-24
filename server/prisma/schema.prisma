@@ -55,6 +55,10 @@ model OrgSetting {
 // ============================================
 
 model Hospital {
+  controlledSubstanceLogs       ControlledSubstanceLog[]
+  consignmentReceipts           ConsignmentReceipt[]
+  consignmentConsumptions       ConsignmentConsumption[]
+  wardStockReturns              WardStockReturn[]
   surgicalSafetyChecklists      SurgicalSafetyChecklist[]
   surgicalCountItems            SurgicalCountItem[]
   anesthesiaRecords             AnesthesiaRecord[]
@@ -559,6 +563,13 @@ model Payment {
 }
 
 model User {
+  controlledLogsPerformed         ControlledSubstanceLog[]        @relation("ControlledLogPerformedBy")
+  controlledLogsWitnessed         ControlledSubstanceLog[]        @relation("ControlledLogWitnessedBy")
+  consignmentsReceived            ConsignmentReceipt[]            @relation("ConsignmentReceivedBy")
+  consignmentsConsumed            ConsignmentConsumption[]        @relation("ConsignmentConsumedBy")
+  consignmentsWitnessed           ConsignmentConsumption[]        @relation("ConsignmentWitnessedBy")
+  wardReturnsRequested            WardStockReturn[]               @relation("WardReturnRequestedBy")
+  wardReturnsReviewed             WardStockReturn[]               @relation("WardReturnReviewedBy")
   surgicalChecklistsPerformed     SurgicalSafetyChecklist[]       @relation("SurgicalChecklistPerformedBy")
   surgicalChecklistsVerified      SurgicalSafetyChecklist[]       @relation("SurgicalChecklistVerifiedBy")
   surgicalCountsScrub             SurgicalCountItem[]             @relation("SurgicalCountScrubNurse")
@@ -891,6 +902,8 @@ model RolePermission {
 }
 
 model Patient {
+  controlledSubstanceLogs  ControlledSubstanceLog[]
+  consignmentConsumptions  ConsignmentConsumption[]
   labCriticalNotifications LabCriticalNotification[]
   bloodCrossmatches BloodCrossmatch[]
   bloodTransfusions BloodTransfusion[]
@@ -1160,6 +1173,9 @@ model PatientAllergy {
 }
 
 model Encounter {
+  controlledSubstanceLogs ControlledSubstanceLog[]
+  consignmentConsumptions ConsignmentConsumption[]
+  wardStockReturns        WardStockReturn[]
   bloodCrossmatches BloodCrossmatch[]
   bloodTransfusions BloodTransfusion[]
   depositVouchers Voucher[]
@@ -1749,8 +1765,9 @@ model Ward {
   departmentId  Int?
   beds          Bed[]
   rooms         Room[]
-  admissions    Admission[]
-  hospital      Hospital     @relation(fields: [hospitalId], references: [id])
+  admissions       Admission[]
+  wardStockReturns WardStockReturn[]
+  hospital         Hospital     @relation(fields: [hospitalId], references: [id])
   serviceItem   ServiceItem? @relation(fields: [serviceItemId], references: [id])
   department    Department?  @relation(fields: [departmentId], references: [id])
 }
@@ -1819,6 +1836,8 @@ model Product {
   maxStock             Decimal?              @db.Decimal(18, 3)
   isActive             Boolean               @default(true)
   isDeleted            Boolean               @default(false)
+  isControlled         Boolean               @default(false)
+  controlledSchedule   String?               @db.VarChar(24)
   createdAt            DateTime              @default(now())
   updatedAt            DateTime              @updatedAt
   expenseAccountId     Int?
@@ -1850,8 +1869,11 @@ model Product {
   baseUom              UnitOfMeasure?        @relation("ProductBaseUom", fields: [baseUomId], references: [id])
   productUoms          ProductUOM[]
   materialRequestItems MaterialRequestItem[]
-  stockIssueItems      StockIssueItem[]
-  serviceMappings      ServiceItemProduct[]
+  stockIssueItems         StockIssueItem[]
+  serviceMappings         ServiceItemProduct[]
+  controlledSubstanceLogs ControlledSubstanceLog[]
+  consignmentReceipts     ConsignmentReceipt[]
+  wardStockReturns        WardStockReturn[]
 
   @@unique([hospitalId, code])
   @@index([hospitalId, name])
@@ -2808,8 +2830,11 @@ model Warehouse {
   hospital           Hospital           @relation(fields: [hospitalId], references: [id])
   requestedMaterials MaterialRequest[]  @relation("RequestingWarehouse")
   fulfilledMaterials MaterialRequest[]  @relation("FulfillingWarehouse")
-  stockIssues        StockIssue[]
-  zones              WarehouseZone[]
+  stockIssues             StockIssue[]
+  zones                   WarehouseZone[]
+  controlledSubstanceLogs ControlledSubstanceLog[]
+  consignmentReceipts     ConsignmentReceipt[]
+  wardStockReturns        WardStockReturn[]
 
   @@unique([hospitalId, name])
   @@unique([hospitalId, id], map: "warehouse_hospital_id_key")
@@ -2846,6 +2871,7 @@ model StockTransaction {
   recallDisposal InventoryRecallDisposal?
   recallSupplierReceipts InventoryRecallSupplierReceipt[]
   recallContacts InventoryRecallContact[]
+  wardStockReturn WardStockReturn?
   manualRequestKey String? @unique
   manualFingerprint String?
   purchaseReturnId Int?
@@ -3432,10 +3458,129 @@ model Supplier {
   purchaseOrders   PurchaseOrder[]
   purchaseReturns  PurchaseReturn[]
   hospital         Hospital          @relation(fields: [hospitalId], references: [id])
-  payments         SupplierPayment[]
+  payments            SupplierPayment[]
+  consignmentReceipts ConsignmentReceipt[]
 
   @@index([hospitalId, name])
   @@index([hospitalId, code])
+}
+
+model ControlledSubstanceLog {
+  id              Int        @id @default(autoincrement())
+  hospitalId      Int
+  warehouseId     Int
+  productId       Int
+  batchNumber     String     @db.VarChar(80)
+  patientId       Int?
+  encounterId     Int?
+  transactionType String     @db.VarChar(24)
+  quantityBefore  Decimal    @db.Decimal(18, 3)
+  quantityChange  Decimal    @db.Decimal(18, 3)
+  quantityAfter   Decimal    @db.Decimal(18, 3)
+  wastedQuantity  Decimal    @default(0) @db.Decimal(18, 3)
+  performedById   Int
+  witnessedById   Int
+  reason          String     @db.VarChar(500)
+  previousHash    String     @db.VarChar(64)
+  entryHash       String     @db.VarChar(64)
+  createdAt       DateTime   @default(now())
+  hospital        Hospital   @relation(fields: [hospitalId], references: [id])
+  warehouse       Warehouse  @relation(fields: [warehouseId], references: [id])
+  product         Product    @relation(fields: [productId], references: [id])
+  patient         Patient?   @relation(fields: [patientId], references: [id])
+  encounter       Encounter? @relation(fields: [encounterId], references: [id])
+  performedBy     User       @relation("ControlledLogPerformedBy", fields: [performedById], references: [id])
+  witnessedBy     User       @relation("ControlledLogWitnessedBy", fields: [witnessedById], references: [id])
+
+  @@index([hospitalId, warehouseId, productId, batchNumber], map: "ControlledLog_scope_idx")
+}
+
+model ConsignmentReceipt {
+  id               Int                      @id @default(autoincrement())
+  hospitalId       Int
+  supplierId       Int
+  warehouseId      Int
+  productId        Int
+  batchNumber      String                   @db.VarChar(80)
+  serialNumber     String?                  @db.VarChar(100)
+  expiryDate       DateTime?
+  quantityReceived Decimal                  @db.Decimal(18, 3)
+  quantityConsumed Decimal                  @default(0) @db.Decimal(18, 3)
+  quantityReturned Decimal                  @default(0) @db.Decimal(18, 3)
+  agreedUnitPrice  Decimal                  @db.Decimal(19, 4)
+  status           String                   @default("ACTIVE") @db.VarChar(24)
+  receivedById     Int
+  notes            String?
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
+  hospital         Hospital                 @relation(fields: [hospitalId], references: [id])
+  supplier         Supplier                 @relation(fields: [supplierId], references: [id])
+  warehouse        Warehouse                @relation(fields: [warehouseId], references: [id])
+  product          Product                  @relation(fields: [productId], references: [id])
+  receivedBy       User                     @relation("ConsignmentReceivedBy", fields: [receivedById], references: [id])
+  consumptions     ConsignmentConsumption[]
+
+  @@index([hospitalId, supplierId, status])
+  @@index([hospitalId, productId, status])
+}
+
+model ConsignmentConsumption {
+  id                   Int                @id @default(autoincrement())
+  hospitalId           Int
+  consignmentReceiptId Int
+  encounterId          Int
+  patientId            Int
+  quantity             Decimal            @db.Decimal(18, 3)
+  unitPrice            Decimal            @db.Decimal(19, 4)
+  totalAmount          Decimal            @db.Decimal(18, 3)
+  consumedById         Int
+  witnessedById        Int?
+  supplierBillStatus   String             @default("PENDING_BILLING") @db.VarChar(24)
+  notes                String?
+  createdAt            DateTime           @default(now())
+  hospital             Hospital           @relation(fields: [hospitalId], references: [id])
+  consignmentReceipt   ConsignmentReceipt @relation(fields: [consignmentReceiptId], references: [id], onDelete: Restrict)
+  encounter            Encounter          @relation(fields: [encounterId], references: [id])
+  patient              Patient            @relation(fields: [patientId], references: [id])
+  consumedBy           User               @relation("ConsignmentConsumedBy", fields: [consumedById], references: [id])
+  witnessedBy          User?              @relation("ConsignmentWitnessedBy", fields: [witnessedById], references: [id])
+
+  @@index([hospitalId, encounterId])
+  @@index([consignmentReceiptId])
+}
+
+model WardStockReturn {
+  id                  Int               @id @default(autoincrement())
+  hospitalId          Int
+  wardId              Int?
+  encounterId         Int?
+  warehouseId         Int
+  productId           Int
+  batchNumber         String?           @db.VarChar(80)
+  expiryDate          DateTime?
+  quantity            Decimal           @db.Decimal(18, 3)
+  reason              String            @db.VarChar(500)
+  sealIntact          Boolean           @default(true)
+  coldChainMaintained Boolean           @default(true)
+  status              String            @default("PENDING_PHARMACIST") @db.VarChar(24)
+  requestedById       Int
+  reviewedById        Int?
+  reviewedAt          DateTime?
+  reviewNotes         String?
+  stockTransactionId  Int?              @unique
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  hospital            Hospital          @relation(fields: [hospitalId], references: [id])
+  ward                Ward?             @relation(fields: [wardId], references: [id])
+  encounter           Encounter?        @relation(fields: [encounterId], references: [id])
+  warehouse           Warehouse         @relation(fields: [warehouseId], references: [id])
+  product             Product           @relation(fields: [productId], references: [id])
+  requestedBy         User              @relation("WardReturnRequestedBy", fields: [requestedById], references: [id])
+  reviewedBy          User?             @relation("WardReturnReviewedBy", fields: [reviewedById], references: [id])
+  stockTransaction    StockTransaction? @relation(fields: [stockTransactionId], references: [id])
+
+  @@index([hospitalId, status])
+  @@index([hospitalId, warehouseId])
 }
 
 model InventoryCount {

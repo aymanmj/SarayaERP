@@ -9,6 +9,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AccountingModule } from '../accounting/accounting.module';
 import { RecallDisposalController } from './recall-disposal.controller';
 import { RecallDisposalService } from './recall-disposal.service';
+import { ControlledConsignmentController } from './controlled-consignment.controller';
+import { ControlledConsignmentService } from './controlled-consignment.service';
 
 import { InventoryAutoDepletionListener } from './inventory-auto-depletion.listener';
 import {
@@ -19,6 +21,7 @@ import {
 @Module({
   imports: [AccountingModule],
   controllers: [
+    ControlledConsignmentController,
     RecallDisposalController,
     ConsumptionOperationsController,
     InventoryCountController,
@@ -26,6 +29,7 @@ import {
     WarehouseController,
   ],
   providers: [
+    ControlledConsignmentService,
     RecallDisposalService,
     ConsumptionOperationsService,
     InventoryCountService,
@@ -34,6 +38,6 @@ import {
     PrismaService,
     InventoryAutoDepletionListener,
   ],
-  exports: [InventoryService, WarehouseService],
+  exports: [InventoryService, WarehouseService, ControlledConsignmentService],
 })
 export class InventoryModule {}
