@@ -6,25 +6,33 @@ import { AccountingController } from './accounting.controller';
 import { TreasuryFxController } from './treasury-fx.controller';
 import { CurrencyExchangeService } from './currency-exchange.service';
 import { BankReconciliationService } from './bank-reconciliation.service';
+import { BudgetsCashFlowService } from './budgets-cashflow.service';
+import { BudgetsCashFlowController } from './budgets-cashflow.controller';
 import { PrismaModule } from '../prisma/prisma.module';
 import { AccountingListener } from './listeners/accounting.listener';
 import { CostCentersService } from './cost-centers.service';
 
 @Module({
   imports: [PrismaModule],
-  controllers: [TreasuryFxController, AccountingController],
+  controllers: [
+    TreasuryFxController,
+    BudgetsCashFlowController,
+    AccountingController,
+  ],
   providers: [
     AccountingService,
     AccountingListener,
     CostCentersService,
     CurrencyExchangeService,
     BankReconciliationService,
+    BudgetsCashFlowService,
   ],
   exports: [
     AccountingService,
     CostCentersService,
     CurrencyExchangeService,
     BankReconciliationService,
+    BudgetsCashFlowService,
   ],
 })
 export class AccountingModule {}

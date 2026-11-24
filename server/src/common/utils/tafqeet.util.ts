@@ -288,3 +288,18 @@ export function tafqeetArabic(
   if (minor) parts.push(counted(minor, fractional, fractionalName === 'هللة'));
   return `${rounded.isNegative() ? 'سالب ' : ''}${parts.join(' و')}`;
 }
+
+/**
+ * Voucher-style Arabic amount wording ("فقط ... لا غير") suitable for
+ * printed cheques, cash flow statements, receipts, and settlement slips.
+ */
+export function tafqeetVoucher(
+  amount: MoneyValue,
+  optionsOrCurrency: TafqeetOptions | string = 'LYD',
+): string {
+  const options: TafqeetOptions =
+    typeof optionsOrCurrency === 'string'
+      ? { currency: optionsOrCurrency }
+      : optionsOrCurrency;
+  return `فقط ${tafqeetArabic(amount, options)} لا غير`;
+}

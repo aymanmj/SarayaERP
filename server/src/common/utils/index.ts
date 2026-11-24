@@ -22,7 +22,7 @@ export {
   Percentage,
   Quantity,
 } from './financial-values.util';
-export { tafqeetArabic } from './tafqeet.util';
+export { tafqeetArabic, tafqeetVoucher } from './tafqeet.util';
 export type { ArabicUnitForms, TafqeetOptions } from './tafqeet.util';
 export {
   DateUtils,

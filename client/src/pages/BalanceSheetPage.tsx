@@ -6,6 +6,7 @@ import { apiClient } from "../api/apiClient";
 import { useNavigate } from "react-router-dom";
 import { formatDate } from "@/lib/utils";
 import { DatePicker } from "@/components/ui/date-picker";
+import { BudgetsCashFlowModal } from "../components/accounting/BudgetsCashFlowModal";
 
 type AccountType =
   | "ASSET"
@@ -57,6 +58,7 @@ export default function BalanceSheetPage() {
   const [data, setData] = useState<BalanceSheetResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showCashFlowModal, setShowCashFlowModal] = useState(false);
 
   const navigate = useNavigate();
 
@@ -148,6 +150,14 @@ export default function BalanceSheetPage() {
             {loading ? t("accounting.balanceSheet.updating", "جارِ التحديث...") : t("accounting.balanceSheet.toUpdate", "تحديث")}
           </button>
 
+          <button
+            type="button"
+            onClick={() => setShowCashFlowModal(true)}
+            className="print:hidden inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs bg-sky-600 hover:bg-sky-500 text-white shadow-md shadow-sky-600/30"
+          >
+            <span>💧</span>
+            <span>التدفقات النقدية والموازنات</span>
+          </button>
           <button
             type="button"
             onClick={() => window.print()}
@@ -378,6 +388,10 @@ export default function BalanceSheetPage() {
           </div>
         </div>
       </div>
+
+      {showCashFlowModal && (
+        <BudgetsCashFlowModal onClose={() => setShowCashFlowModal(false)} />
+      )}
     </div>
   );
 }

@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { DatePicker } from "@/components/ui/date-picker";
 import { useAuthStore } from "../stores/authStore";
 import { useTranslation } from "react-i18next";
+import { SurgicalPackagesModal } from "../components/surgery/SurgicalPackagesModal";
 
 type SurgeryStatus =
   | "SCHEDULED"
@@ -75,6 +76,7 @@ export default function SurgerySchedulePage() {
   // Modal State
   const [showModal, setShowModal] = useState(false);
   const [showOTModal, setShowOTModal] = useState(false);
+  const [showPackagesModal, setShowPackagesModal] = useState(false);
   const [newOTName, setNewOTName] = useState("");
   const [theatres, setTheatres] = useState<Theatre[]>([]);
   const [inpatients, setInpatients] = useState<ActiveInpatient[]>([]);
@@ -247,6 +249,14 @@ export default function SurgerySchedulePage() {
               {t("surgery.schedule.manageOT", "⚙️ إدارة غرف العمليات")}
             </button>
           )}
+          <button
+            type="button"
+            onClick={() => setShowPackagesModal(true)}
+            data-testid="surgery-open-cap08-packages"
+            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-sm font-bold shadow-lg"
+          >
+            📦 {t("surgery.schedule.packagesBtn", "الحزم الجراحية DRG")}
+          </button>
           <button
             onClick={() => setShowModal(true)}
             className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-sm font-bold shadow-lg"
@@ -731,6 +741,10 @@ export default function SurgerySchedulePage() {
             </div>
           </div>
         </div>
+      )}
+
+      {showPackagesModal && (
+        <SurgicalPackagesModal onClose={() => setShowPackagesModal(false)} />
       )}
     </div>
   );

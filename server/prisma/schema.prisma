@@ -55,6 +55,9 @@ model OrgSetting {
 // ============================================
 
 model Hospital {
+  budgetLines                   BudgetLine[]
+  surgicalPackages              SurgicalPackage[]
+  encounterPackageEnrollments   EncounterPackageEnrollment[]
   biometricDevices              BiometricDevice[]
   biometricPunchLogs            BiometricPunchLog[]
   attendanceMovements           AttendanceMovement[]
@@ -572,6 +575,10 @@ model Payment {
 }
 
 model User {
+  budgetLinesCreated            BudgetLine[]            @relation("BudgetLineCreator")
+  surgicalPackagesCreated       SurgicalPackage[]       @relation("SurgicalPackageCreator")
+  packageEnrollmentsCreated     EncounterPackageEnrollment[] @relation("PackageEnrolledBy")
+  packageEnrollmentsSettled     EncounterPackageEnrollment[] @relation("PackageSettledBy")
   biometricPunchLogs            BiometricPunchLog[]     @relation("PunchLogUser")
   biometricDevicesCreated       BiometricDevice[]       @relation("BiometricDeviceCreator")
   attendanceMovements           AttendanceMovement[]    @relation("AttendanceMovementUser")
@@ -1214,6 +1221,7 @@ model PatientAllergy {
 }
 
 model Encounter {
+  packageEnrollments      EncounterPackageEnrollment[]
   controlledSubstanceLogs ControlledSubstanceLog[]
   consignmentConsumptions ConsignmentConsumption[]
   wardStockReturns        WardStockReturn[]
@@ -3291,6 +3299,7 @@ model FinancialYear {
   updatedAt         DateTime            @updatedAt
   deletedAt         DateTime?
   accountingEntries AccountingEntry[]
+  budgetLines       BudgetLine[]
   periods           FinancialPeriod[]
   invoices          Invoice[]
 
@@ -3375,6 +3384,7 @@ model Account {
   parent                     Account?               @relation("AccountParent", fields: [parentId], references: [id])
   children                   Account[]              @relation("AccountParent")
   lines                      AccountingEntryLine[]
+  budgetLines                BudgetLine[]
   insuranceProviders         InsuranceProvider[]
   productsWithExpenseAccount Product[]              @relation("ProductExpenseAccount")
   purchaseInvoiceLines       PurchaseInvoiceLine[]
@@ -4526,6 +4536,7 @@ model CostCenter {
   isActive    Boolean               @default(true)
   description String?
   entryLines  AccountingEntryLine[]
+  budgetLines BudgetLine[]
   hospital    Hospital              @relation(fields: [hospitalId], references: [id])
   departments Department[]
 
@@ -8341,4 +8352,110 @@ model Holiday {
 
   @@unique([hospitalId, date, name])
   @@index([hospitalId, isActive, date])
+}
+
+// =====================================================================
+// Batch 25: Corporate Budgets + CAP08 Surgical Packages & DRG Bundled Billing
+// =====================================================================
+
+model BudgetLine {
+  id              Int      @id @default(autoincrement())
+  hospitalId      Int
+  financialYearId Int
+  accountId       Int
+  costCenterId    Int?
+  period1         Decimal  @default(0) @db.Decimal(18, 3)
+  period2         Decimal  @default(0) @db.Decimal(18, 3)
+  period3         Decimal  @default(0) @db.Decimal(18, 3)
+  period4         Decimal  @default(0) @db.Decimal(18, 3)
+  period5         Decimal  @default(0) @db.Decimal(18, 3)
+  period6         Decimal  @default(0) @db.Decimal(18, 3)
+  period7         Decimal  @default(0) @db.Decimal(18, 3)
+  period8         Decimal  @default(0) @db.Decimal(18, 3)
+  period9         Decimal  @default(0) @db.Decimal(18, 3)
+  period10        Decimal  @default(0) @db.Decimal(18, 3)
+  period11        Decimal  @default(0) @db.Decimal(18, 3)
+  period12        Decimal  @default(0) @db.Decimal(18, 3)
+  totalBudget     Decimal  @default(0) @db.Decimal(18, 3)
+  notes           String?  @db.VarChar(500)
+  createdById     Int
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  hospital      Hospital      @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
+  financialYear FinancialYear @relation(fields: [financialYearId], references: [id], onDelete: Restrict)
+  account       Account       @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  costCenter    CostCenter?   @relation(fields: [costCenterId], references: [id], onDelete: SetNull)
+  createdBy     User          @relation("BudgetLineCreator", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([hospitalId, financialYearId])
+  @@index([hospitalId, financialYearId, accountId, costCenterId])
+}
+
+model SurgicalPackage {
+  id               Int      @id @default(autoincrement())
+  hospitalId       Int
+  code             String   @db.VarChar(48)
+  name             String   @db.VarChar(180)
+  nameEn           String?  @db.VarChar(180)
+  drgCode          String?  @db.VarChar(32)
+  description      String?  @db.VarChar(500)
+  packagePrice     Decimal  @db.Decimal(18, 3)
+  includedStayDays Int      @default(1)
+  isActive         Boolean  @default(true)
+  createdById      Int
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  hospital    Hospital                     @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
+  createdBy   User                         @relation("SurgicalPackageCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  inclusions  SurgicalPackageInclusion[]
+  enrollments EncounterPackageEnrollment[]
+
+  @@unique([hospitalId, code])
+  @@index([hospitalId, isActive])
+}
+
+model SurgicalPackageInclusion {
+  id           Int      @id @default(autoincrement())
+  packageId    Int
+  category     String   @db.VarChar(32)
+  coverageMode String   @db.VarChar(24)
+  capAmount    Decimal? @db.Decimal(18, 3)
+  notes        String?  @db.VarChar(300)
+
+  surgicalPackage SurgicalPackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
+
+  @@unique([packageId, category])
+}
+
+model EncounterPackageEnrollment {
+  id                     Int       @id @default(autoincrement())
+  hospitalId             Int
+  encounterId            Int
+  packageId              Int
+  status                 String    @default("ACTIVE") @db.VarChar(24)
+  packagePriceSnapshot   Decimal   @db.Decimal(18, 3)
+  actualChargesTotal     Decimal   @default(0) @db.Decimal(18, 3)
+  coveredByPackageAmount Decimal   @default(0) @db.Decimal(18, 3)
+  overageAmount          Decimal   @default(0) @db.Decimal(18, 3)
+  netBillableTotal       Decimal   @default(0) @db.Decimal(18, 3)
+  packageVariance        Decimal   @default(0) @db.Decimal(18, 3)
+  breakdownJson          Json?
+  enrolledById           Int
+  settledById            Int?
+  settledAt              DateTime?
+  signatureHash          String?   @db.VarChar(64)
+  notes                  String?   @db.VarChar(500)
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  hospital        Hospital        @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
+  encounter       Encounter       @relation(fields: [encounterId], references: [id], onDelete: Restrict)
+  surgicalPackage SurgicalPackage @relation(fields: [packageId], references: [id], onDelete: Restrict)
+  enrolledBy      User            @relation("PackageEnrolledBy", fields: [enrolledById], references: [id], onDelete: Restrict)
+  settledBy       User?           @relation("PackageSettledBy", fields: [settledById], references: [id], onDelete: Restrict)
+
+  @@index([hospitalId, encounterId, status])
+  @@index([hospitalId, packageId])
 }
