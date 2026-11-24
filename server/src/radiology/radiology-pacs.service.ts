@@ -13,7 +13,23 @@ import { appendChainedAuditInTransaction } from '../audit/audit-chain';
 import { lockRadiologyExecution } from './radiology-release';
 
 type DicomMetadata = Record<string, { Value?: unknown[] }>;
-export const xrayModalities = new Set(['DX', 'CR']);
+export const supportedRadiologyModalities = new Set([
+  'DX',
+  'CR',
+  'CT',
+  'MR',
+  'US',
+  'MG',
+  'RF',
+  'XA',
+  'NM',
+  'PT',
+  'DXA',
+  'OT',
+]);
+/** Backwards-compatible alias retaining full multi-modality support (DX/CR/CT/MR/US/MG/RF/XA/NM/PT/DXA/OT). */
+export const xrayModalities = supportedRadiologyModalities;
+const MAX_DICOM_STUDY_INSTANCES = 20_000;
 const archiveDispatcher = new Agent();
 
 export function fetchOrthanc(url: string, options: RequestInit) {
@@ -100,9 +116,9 @@ export class RadiologyPacsService {
       await lockRadiologyExecution(tx, hospitalId, id);
       const exam = await loadPacsExam(tx, hospitalId, id);
       const modality = exam.study.modality?.toUpperCase() ?? '';
-      if (!xrayModalities.has(modality))
+      if (!supportedRadiologyModalities.has(modality))
         throw new BadRequestException(
-          'قائمة التكامل الحالية للأشعة العامة DX وCR',
+          'نوع فحص الأشعة غير مدعوم في قائمة عمل DICOM الحالية',
         );
       if (exam.dicomStudyUid || exam.status === 'COMPLETED')
         throw new ConflictException('للطلب دراسة مرتبطة أو نتيجة مكتملة');
@@ -184,9 +200,13 @@ export class RadiologyPacsService {
       if (error instanceof BadRequestException) throw error;
       throw new BadGatewayException('تعذر التحقق من دراسة الأرشيف');
     }
-    if (!Array.isArray(metadata) || !metadata.length || metadata.length > 128)
+    if (
+      !Array.isArray(metadata) ||
+      !metadata.length ||
+      metadata.length > MAX_DICOM_STUDY_INSTANCES
+    )
       throw new BadRequestException(
-        'دراسة الأشعة العامة فارغة أو خارج نطاق الربط الحالي',
+        'دراسة الأشعة فارغة أو تتجاوز الحد المسموح به للربط',
       );
     const verifiedInstances = metadata as DicomMetadata[];
     try {

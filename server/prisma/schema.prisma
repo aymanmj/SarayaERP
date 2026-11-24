@@ -55,6 +55,10 @@ model OrgSetting {
 // ============================================
 
 model Hospital {
+  radiologyReportAddenda        RadiologyReportAddendum[]
+  radiologyCriticalNotifications RadiologyCriticalNotification[]
+  radiologyReportTemplates      RadiologyReportTemplate[]
+  radiologyStations             RadiologyStation[]
   labReferenceRanges       LabReferenceRange[]
   labCriticalNotifications LabCriticalNotification[]
   labResultAmendments      LabResultAmendment[]
@@ -552,6 +556,12 @@ model Payment {
 }
 
 model User {
+  radiologyOrdersReported         RadiologyOrder[]                @relation("RadiologyOrderReportedBy")
+  radiologyOrdersSigned           RadiologyOrder[]                @relation("RadiologyOrderSignedBy")
+  radiologyReportAddenda          RadiologyReportAddendum[]       @relation("RadiologyAddendumAuthor")
+  radiologyCriticalCallsMade      RadiologyCriticalNotification[] @relation("RadiologyCriticalNotifiedBy")
+  radiologyCriticalNotified       RadiologyCriticalNotification[] @relation("RadiologyCriticalNotifiedTo")
+  radiologyReportTemplatesCreated RadiologyReportTemplate[]       @relation("RadiologyTemplateCreatedBy")
   labOrdersEntered                LabOrder[]                @relation("LabOrderEnteredBy")
   labOrdersVerified               LabOrder[]                @relation("LabOrderVerifiedBy")
   labCriticalCallsMade            LabCriticalNotification[] @relation("LabCriticalCalledBy")
@@ -1563,44 +1573,159 @@ model LabOrderResult {
 }
 
 model RadiologyStudy {
-  id              Int              @id @default(autoincrement())
-  hospitalId      Int
-  code            String           @unique
-  name            String
-  nameAr          String?
-  nameEn          String?
-  modality        String?
-  bodyPart        String?
-  isActive        Boolean          @default(true)
-  deletedAt       DateTime?
-  deletedById     Int?
-  isDeleted       Boolean          @default(false)
-  serviceItemId   Int?
-  arabicName      String?
-  radiologyOrders RadiologyOrder[]
-  hospital        Hospital         @relation(fields: [hospitalId], references: [id])
-  serviceItem     ServiceItem?     @relation(fields: [serviceItemId], references: [id])
-  orderSetItems   OrderSetItem[]   @relation("OrderSetStudy")
+  id                Int              @id @default(autoincrement())
+  hospitalId        Int
+  code              String
+  name              String
+  nameAr            String?
+  nameEn            String?
+  modality          String?
+  bodyPart          String?
+  requiresContrast  Boolean          @default(false)
+  contrastType      String?          @db.VarChar(32)
+  ionizingRadiation Boolean          @default(false)
+  minEgfrThreshold  Decimal?         @db.Decimal(6, 2)
+  isActive          Boolean          @default(true)
+  deletedAt         DateTime?
+  deletedById       Int?
+  isDeleted         Boolean          @default(false)
+  serviceItemId     Int?
+  arabicName        String?
+  radiologyOrders   RadiologyOrder[]
+  hospital          Hospital         @relation(fields: [hospitalId], references: [id])
+  serviceItem       ServiceItem?     @relation(fields: [serviceItemId], references: [id])
+  orderSetItems     OrderSetItem[]   @relation("OrderSetStudy")
 
   @@unique([hospitalId, code])
 }
 
 model RadiologyOrder {
-  dicomMwlId String? @unique @db.Uuid
-  dicomMwlMayExist Boolean @default(false)
-  dicomMwlCheckedAt DateTime?
-  dicomAccessionNumber String? @unique
-  dicomStudyUid String? @unique
-  id          Int             @id @default(autoincrement())
-  orderId     Int             @unique
-  studyId     Int
-  status      RadiologyStatus @default(PENDING)
-  scheduledAt DateTime?
-  reportedAt  DateTime?
-  reportText  String?
-  pacsUrl     String?
-  order       Order           @relation(fields: [orderId], references: [id])
-  study       RadiologyStudy  @relation(fields: [studyId], references: [id])
+  dicomMwlId            String?                         @unique @db.Uuid
+  dicomMwlMayExist      Boolean                         @default(false)
+  dicomMwlCheckedAt     DateTime?
+  dicomAccessionNumber  String?                         @unique
+  dicomStudyUid         String?                         @unique
+  id                    Int                             @id @default(autoincrement())
+  orderId               Int                             @unique
+  studyId               Int
+  status                RadiologyStatus                 @default(PENDING)
+  scheduledAt           DateTime?
+  reportedAt            DateTime?
+  reportText            String?
+  pacsUrl               String?
+  reportStatus          String                          @default("DRAFT") @db.VarChar(24)
+  indicationText        String?
+  techniqueText         String?
+  findingsText          String?
+  impressionText        String?
+  biradsScore           String?                         @db.VarChar(32)
+  isCriticalFinding     Boolean                         @default(false)
+  reportedById          Int?
+  signedById            Int?
+  signedAt              DateTime?
+  signatureHash         String?                         @db.VarChar(64)
+  contrastSafetyChecked Boolean                         @default(false)
+  contrastSafetyNotes   String?
+  pregnancyChecked      Boolean                         @default(false)
+  pregnancyStatus       String?                         @db.VarChar(24)
+  egfrAtOrder           Decimal?                        @db.Decimal(6, 2)
+  stationId             Int?
+  order                 Order                           @relation(fields: [orderId], references: [id])
+  study                 RadiologyStudy                  @relation(fields: [studyId], references: [id])
+  reportedBy            User?                           @relation("RadiologyOrderReportedBy", fields: [reportedById], references: [id])
+  signedBy              User?                           @relation("RadiologyOrderSignedBy", fields: [signedById], references: [id])
+  station               RadiologyStation?               @relation(fields: [stationId], references: [id])
+  addenda               RadiologyReportAddendum[]
+  criticalNotifications RadiologyCriticalNotification[]
+
+  @@index([reportStatus])
+  @@index([stationId])
+}
+
+model RadiologyReportAddendum {
+  id                 Int            @id @default(autoincrement())
+  hospitalId         Int
+  radiologyOrderId   Int
+  addendumNumber     Int
+  reason             String         @db.VarChar(255)
+  addendumText       String
+  isCriticalFinding  Boolean        @default(false)
+  authorId           Int
+  signedAt           DateTime       @default(now())
+  previousReportHash String         @db.VarChar(64)
+  addendumHash       String         @db.VarChar(64)
+  createdAt          DateTime       @default(now())
+  hospital           Hospital       @relation(fields: [hospitalId], references: [id])
+  radiologyOrder     RadiologyOrder @relation(fields: [radiologyOrderId], references: [id], onDelete: Cascade)
+  author             User           @relation("RadiologyAddendumAuthor", fields: [authorId], references: [id])
+
+  @@unique([radiologyOrderId, addendumNumber])
+  @@index([hospitalId, radiologyOrderId])
+}
+
+model RadiologyCriticalNotification {
+  id                   Int            @id @default(autoincrement())
+  hospitalId           Int
+  radiologyOrderId     Int
+  findingSummary       String         @db.VarChar(500)
+  severity             String         @default("CRITICAL") @db.VarChar(24)
+  notifiedById         Int
+  notifiedToName       String?        @db.VarChar(160)
+  notifiedToUserId     Int?
+  communicationChannel String?        @db.VarChar(32)
+  readBackConfirmed    Boolean        @default(false)
+  readBackNotes        String?
+  notifiedAt           DateTime?
+  acknowledgedAt       DateTime?
+  slaDeadlineAt        DateTime
+  slaBreached          Boolean        @default(false)
+  createdAt            DateTime       @default(now())
+  hospital             Hospital       @relation(fields: [hospitalId], references: [id])
+  radiologyOrder       RadiologyOrder @relation(fields: [radiologyOrderId], references: [id], onDelete: Cascade)
+  notifiedBy           User           @relation("RadiologyCriticalNotifiedBy", fields: [notifiedById], references: [id])
+  notifiedToUser       User?          @relation("RadiologyCriticalNotifiedTo", fields: [notifiedToUserId], references: [id])
+
+  @@index([hospitalId, readBackConfirmed, slaDeadlineAt])
+  @@index([radiologyOrderId])
+}
+
+model RadiologyReportTemplate {
+  id                 Int      @id @default(autoincrement())
+  hospitalId         Int
+  code               String   @db.VarChar(64)
+  title              String   @db.VarChar(160)
+  modality           String?  @db.VarChar(16)
+  bodyPart           String?  @db.VarChar(64)
+  indicationTemplate String?
+  techniqueTemplate  String?
+  findingsTemplate   String?
+  impressionTemplate String?
+  isActive           Boolean  @default(true)
+  createdById        Int?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  hospital           Hospital @relation(fields: [hospitalId], references: [id])
+  createdBy          User?    @relation("RadiologyTemplateCreatedBy", fields: [createdById], references: [id])
+
+  @@unique([hospitalId, code])
+  @@index([hospitalId, modality, isActive])
+}
+
+model RadiologyStation {
+  id              Int              @id @default(autoincrement())
+  hospitalId      Int
+  stationAet      String           @db.VarChar(16)
+  stationName     String           @db.VarChar(120)
+  modality        String           @db.VarChar(16)
+  roomLocation    String?          @db.VarChar(120)
+  isActive        Boolean          @default(true)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  hospital        Hospital         @relation(fields: [hospitalId], references: [id])
+  radiologyOrders RadiologyOrder[]
+
+  @@unique([hospitalId, stationAet])
+  @@index([hospitalId, modality, isActive])
 }
 
 model Ward {

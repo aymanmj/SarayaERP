@@ -215,9 +215,9 @@ describe('RadiologyService', () => {
           hospitalId: 1,
           patientId: 1,
           encounterId: 100,
-          totalAmount: 200,
-          patientShare: 50,
-          insuranceShare: 150,
+          totalAmount: '200.000',
+          patientShare: '50.000',
+          insuranceShare: '150.000',
           insuranceProviderId: 5,
         }),
       });
@@ -317,7 +317,7 @@ describe('RadiologyService', () => {
           encounterId: 100,
           serviceItemId: 400,
           sourceId: 5,
-          totalAmount: 180,
+          totalAmount: '180.000',
           performerId: 7,
         }),
       });

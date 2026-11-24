@@ -78,7 +78,9 @@ export class RadiologyViewerController {
           "default-src 'self'",
           "base-uri 'none'",
           "object-src 'none'",
-          "frame-ancestors 'none'",
+          process.env.RADIOLOGY_OHIF_ALLOW_SAME_ORIGIN_EMBED === 'true'
+            ? "frame-ancestors 'self'"
+            : "frame-ancestors 'none'",
           `script-src 'self' 'wasm-unsafe-eval' ${scriptHashes}`,
           "style-src 'self' 'unsafe-inline'",
           "img-src 'self' data: blob:",

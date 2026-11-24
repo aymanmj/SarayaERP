@@ -54,14 +54,21 @@ function formatDateTime(iso: string) {
 export function RadiologyTab({ encounterId, hospitalId, doctorId }: RadiologyTabProps) {
   const { t } = useTranslation();
 
-  // Modality icons/styles
+  // Modality icons/styles (standard DICOM codes + legacy aliases)
   const modalityStyle: Record<string, { icon: string; color: string; bg: string; border: string; label: string }> = {
+    'DX':          { icon: '📷', color: 'text-amber-400',   bg: 'bg-amber-950/30',   border: 'border-amber-800/30', label: 'X-Ray (DX)' },
+    'CR':          { icon: '📷', color: 'text-amber-400',   bg: 'bg-amber-950/30',   border: 'border-amber-800/30', label: 'X-Ray (CR)' },
     'X-RAY':       { icon: '📷', color: 'text-amber-400',   bg: 'bg-amber-950/30',   border: 'border-amber-800/30', label: 'X-Ray' },
+    'US':          { icon: '📡', color: 'text-sky-400',     bg: 'bg-sky-950/30',     border: 'border-sky-800/30',   label: t('radiology.modality.ultrasound', 'سونار (US)') },
     'ULTRASOUND':  { icon: '📡', color: 'text-sky-400',     bg: 'bg-sky-950/30',     border: 'border-sky-800/30',   label: t('radiology.modality.ultrasound', 'سونار') },
     'CT':          { icon: '🖥️', color: 'text-violet-400',  bg: 'bg-violet-950/30',  border: 'border-violet-800/30', label: 'CT' },
+    'MR':          { icon: '🧲', color: 'text-emerald-400', bg: 'bg-emerald-950/30', border: 'border-emerald-800/30', label: 'MRI (MR)' },
     'MRI':         { icon: '🧲', color: 'text-emerald-400', bg: 'bg-emerald-950/30', border: 'border-emerald-800/30', label: 'MRI' },
+    'RF':          { icon: '🎬', color: 'text-orange-400',  bg: 'bg-orange-950/30',  border: 'border-orange-800/30', label: t('radiology.modality.fluoroscopy', 'فلوروسكوبي (RF)') },
     'FLUOROSCOPY': { icon: '🎬', color: 'text-orange-400',  bg: 'bg-orange-950/30',  border: 'border-orange-800/30', label: t('radiology.modality.fluoroscopy', 'فلوروسكوبي') },
+    'MG':          { icon: '🩻', color: 'text-pink-400',    bg: 'bg-pink-950/30',    border: 'border-pink-800/30',   label: t('radiology.modality.mammography', 'ماموغرام (MG)') },
     'MAMMOGRAPHY': { icon: '🩻', color: 'text-pink-400',    bg: 'bg-pink-950/30',    border: 'border-pink-800/30',   label: t('radiology.modality.mammography', 'ماموغرام') },
+    'DXA':         { icon: '🦴', color: 'text-yellow-400',  bg: 'bg-yellow-950/30',  border: 'border-yellow-800/30', label: 'DEXA (DXA)' },
     'DEXA':        { icon: '🦴', color: 'text-yellow-400',  bg: 'bg-yellow-950/30',  border: 'border-yellow-800/30', label: 'DEXA' },
   };
   const defaultModStyle = { icon: '📋', color: 'text-slate-400', bg: 'bg-slate-950/30', border: 'border-slate-800/30', label: t('common.other', 'أخرى') };
