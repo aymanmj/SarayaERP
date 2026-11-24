@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { LabSpecimenCultureModal } from "../components/labs/LabSpecimenCultureModal";
+import { BloodBankModal } from "../components/labs/BloodBankModal";
 
 type PatientLite = { id: number; fullName: string; mrn: string };
 type TestLite = {
@@ -51,6 +52,7 @@ export default function LabWorklistPage() {
   const [search, setSearch] = useState("");
   const [specimenModalItem, setSpecimenModalItem] =
     useState<LabWorklistItem | null>(null);
+  const [bloodBankOpen, setBloodBankOpen] = useState(false);
 
   const {
     data: items = [],
@@ -177,6 +179,12 @@ export default function LabWorklistPage() {
           </p>
         </div>
         <div className="flex gap-2">
+          <button
+            onClick={() => setBloodBankOpen(true)}
+            className="px-4 py-1.5 rounded-xl bg-rose-700 hover:bg-rose-600 text-white text-sm font-bold transition"
+          >
+            {t("lab.bloodBank", "بنك الدم وسلامة النقل")}
+          </button>
           <input
             placeholder={t("common.searchPlaceholder", "بحث...")}
             value={search}
@@ -311,6 +319,11 @@ export default function LabWorklistPage() {
           }}
         />
       )}
+
+      <BloodBankModal
+        open={bloodBankOpen}
+        onClose={() => setBloodBankOpen(false)}
+      />
     </div>
   );
 }

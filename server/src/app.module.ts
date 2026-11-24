@@ -21,6 +21,7 @@ import { PharmacyModule } from './pharmacy/pharmacy.module';
 import { AuditModule } from './audit/audit.module';
 import { AppointmentsModule } from './appointments/appointments.module';
 import { LabModule } from './labs/labs.module';
+import { BloodBankModule } from './blood-bank/blood-bank.module';
 import { RadiologyModule } from './radiology/radiology.module';
 import { LabOrdersModule } from './lab-orders/lab-orders.module';
 import { CashierModule } from './cashier/cashier.module';
@@ -189,6 +190,7 @@ import { QualityModule } from './quality/quality.module'; // ✅ [NEW] Quality &
     // Services
     OrdersModule,
     LabModule,
+    BloodBankModule,
     LabOrdersModule,
     RadiologyModule,
     BedsModule,

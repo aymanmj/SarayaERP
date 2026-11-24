@@ -55,6 +55,10 @@ model OrgSetting {
 // ============================================
 
 model Hospital {
+  bloodUnits                 BloodUnit[]
+  bloodCrossmatches          BloodCrossmatch[]
+  bloodTransfusions          BloodTransfusion[]
+  bloodTransfusionEvents     BloodTransfusionEvent[]
   currencies                Currency[]
   exchangeRates             ExchangeRate[]
   bankAccounts              BankAccount[]
@@ -545,6 +549,14 @@ model Payment {
 }
 
 model User {
+  bloodUnitsReceived            BloodUnit[]             @relation("BloodUnitReceivedBy")
+  bloodUnitsScreened            BloodUnit[]             @relation("BloodUnitScreenedBy")
+  bloodCrossmatchesPerformed    BloodCrossmatch[]       @relation("BloodCrossmatchPerformedBy")
+  bloodCrossmatchesVerified     BloodCrossmatch[]       @relation("BloodCrossmatchVerifiedBy")
+  bloodTransfusionsIssued       BloodTransfusion[]      @relation("BloodTransfusionIssuedBy")
+  bloodTransfusionsVerified1    BloodTransfusion[]      @relation("BloodTransfusionVerifier1")
+  bloodTransfusionsVerified2    BloodTransfusion[]      @relation("BloodTransfusionVerifier2")
+  bloodTransfusionEventsLogged  BloodTransfusionEvent[] @relation("BloodTransfusionEventRecordedBy")
   createdCurrencies               Currency[]                  @relation("CurrencyCreatedBy")
   createdExchangeRates            ExchangeRate[]              @relation("ExchangeRateCreatedBy")
   verifiedExchangeRates           ExchangeRate[]              @relation("ExchangeRateVerifiedBy")
@@ -851,6 +863,8 @@ model RolePermission {
 }
 
 model Patient {
+  bloodCrossmatches BloodCrossmatch[]
+  bloodTransfusions BloodTransfusion[]
   coverageBalances InsuranceCoverageBalance[]
   depositVouchers Voucher[]
   id                    Int                @id @default(autoincrement())
@@ -1117,6 +1131,8 @@ model PatientAllergy {
 }
 
 model Encounter {
+  bloodCrossmatches BloodCrossmatch[]
+  bloodTransfusions BloodTransfusion[]
   depositVouchers Voucher[]
   id                        Int                        @id @default(autoincrement())
   hospitalId                Int
@@ -6734,6 +6750,7 @@ model ClinicalIncident {
   patient      Patient?     @relation(fields: [patientId], references: [id])
   investigator User?        @relation("IncidentInvestigator", fields: [investigatedById], references: [id])
   capaActions  CapaAction[]
+  bloodTransfusion BloodTransfusion?
 
   @@index([hospitalId, status])
   @@index([hospitalId, incidentDate])
@@ -7381,4 +7398,141 @@ model TreasuryBankStatementItem {
   @@unique([hospitalId, bankAccountId, direction, reference, transactionDate, amount])
   @@index([sessionId, matchStatus])
   @@index([hospitalId, bankAccountId, transactionDate])
+}
+
+// =========================================================================
+// CAP04: Blood Bank & Transfusion Safety (Hemovigilance, Crossmatch & Dual Bedside Check)
+// =========================================================================
+
+model BloodUnit {
+  id              Int       @id @default(autoincrement())
+  hospitalId      Int
+  unitNumber      String    @db.VarChar(64)
+  componentType   String    @db.VarChar(32)
+  bloodGroup      String    @db.VarChar(4)
+  volumeMl        Int
+  donorReference  String?   @db.VarChar(100)
+  collectedAt     DateTime
+  expiresAt       DateTime
+  storageLocation String?   @db.VarChar(100)
+  screeningStatus String    @default("PENDING")
+  screeningNotes  String?   @db.VarChar(500)
+  status          String    @default("QUARANTINED")
+  discardReason   String?   @db.VarChar(500)
+  receivedById    Int
+  screenedById    Int?
+  screenedAt      DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  hospital     Hospital           @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
+  receivedBy   User               @relation("BloodUnitReceivedBy", fields: [receivedById], references: [id], onDelete: Restrict)
+  screenedBy   User?              @relation("BloodUnitScreenedBy", fields: [screenedById], references: [id], onDelete: Restrict)
+  crossmatches BloodCrossmatch[]
+  transfusions BloodTransfusion[]
+
+  @@unique([hospitalId, unitNumber])
+  @@index([hospitalId, status, bloodGroup, componentType])
+  @@index([hospitalId, expiresAt])
+}
+
+model BloodCrossmatch {
+  id                Int       @id @default(autoincrement())
+  hospitalId        Int
+  patientId         Int
+  encounterId       Int
+  bloodUnitId       Int
+  patientBloodGroup String    @db.VarChar(4)
+  antibodyScreen    String    @default("NEGATIVE")
+  crossmatchResult  String    @default("COMPATIBLE")
+  status            String    @default("ACTIVE")
+  validUntil        DateTime
+  performedById     Int
+  verifiedById      Int?
+  verifiedAt        DateTime?
+  notes             String?   @db.VarChar(500)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  hospital     Hospital          @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
+  patient      Patient           @relation(fields: [patientId], references: [id], onDelete: Restrict)
+  encounter    Encounter         @relation(fields: [encounterId], references: [id], onDelete: Restrict)
+  bloodUnit    BloodUnit         @relation(fields: [bloodUnitId], references: [id], onDelete: Restrict)
+  performedBy  User              @relation("BloodCrossmatchPerformedBy", fields: [performedById], references: [id], onDelete: Restrict)
+  verifiedBy   User?             @relation("BloodCrossmatchVerifiedBy", fields: [verifiedById], references: [id], onDelete: Restrict)
+  transfusion  BloodTransfusion?
+
+  @@index([hospitalId, patientId, status])
+  @@index([hospitalId, encounterId])
+  @@index([bloodUnitId, status])
+}
+
+model BloodTransfusion {
+  id                  Int       @id @default(autoincrement())
+  hospitalId          Int
+  patientId           Int
+  encounterId         Int
+  bloodUnitId         Int
+  crossmatchId        Int       @unique
+  status              String    @default("ISSUED")
+  issuedById          Int
+  issuedAt            DateTime  @default(now())
+  bedsideVerifier1Id  Int?
+  bedsideVerified1At  DateTime?
+  patientBandScanned  Boolean   @default(false)
+  bagBarcodeScanned   Boolean   @default(false)
+  bedsideVerifier2Id  Int?
+  bedsideVerified2At  DateTime?
+  startedAt           DateTime?
+  completedAt         DateTime?
+  stoppedAt           DateTime?
+  volumeTransfusedMl  Int?
+  stopReason          String?   @db.VarChar(500)
+  hasReaction         Boolean   @default(false)
+  reactionType        String?   @db.VarChar(80)
+  reactionSeverity    String?   @db.VarChar(32)
+  clinicalIncidentId  Int?      @unique
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  hospital         Hospital                @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
+  patient          Patient                 @relation(fields: [patientId], references: [id], onDelete: Restrict)
+  encounter        Encounter               @relation(fields: [encounterId], references: [id], onDelete: Restrict)
+  bloodUnit        BloodUnit               @relation(fields: [bloodUnitId], references: [id], onDelete: Restrict)
+  crossmatch       BloodCrossmatch         @relation(fields: [crossmatchId], references: [id], onDelete: Restrict)
+  issuedBy         User                    @relation("BloodTransfusionIssuedBy", fields: [issuedById], references: [id], onDelete: Restrict)
+  bedsideVerifier1 User?                   @relation("BloodTransfusionVerifier1", fields: [bedsideVerifier1Id], references: [id], onDelete: Restrict)
+  bedsideVerifier2 User?                   @relation("BloodTransfusionVerifier2", fields: [bedsideVerifier2Id], references: [id], onDelete: Restrict)
+  clinicalIncident ClinicalIncident?       @relation(fields: [clinicalIncidentId], references: [id], onDelete: Restrict)
+  events           BloodTransfusionEvent[]
+
+  @@index([hospitalId, patientId, status])
+  @@index([hospitalId, encounterId])
+  @@index([bloodUnitId])
+}
+
+model BloodTransfusionEvent {
+  id               Int       @id @default(autoincrement())
+  hospitalId       Int
+  transfusionId    Int
+  eventType        String    @db.VarChar(40)
+  recordedAt       DateTime  @default(now())
+  recordedById     Int
+  temperatureC     Decimal?  @db.Decimal(4, 1)
+  heartRate        Int?
+  systolicBp       Int?
+  diastolicBp      Int?
+  respiratoryRate  Int?
+  spo2             Int?
+  reactionSymptoms String?   @db.VarChar(500)
+  severity         String?   @db.VarChar(32)
+  actionTaken      String?   @db.VarChar(500)
+  notes            String?   @db.VarChar(500)
+
+  hospital    Hospital         @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
+  transfusion BloodTransfusion @relation(fields: [transfusionId], references: [id], onDelete: Restrict)
+  recordedBy  User             @relation("BloodTransfusionEventRecordedBy", fields: [recordedById], references: [id], onDelete: Restrict)
+
+  @@index([transfusionId, recordedAt])
+  @@index([hospitalId, eventType])
 }
