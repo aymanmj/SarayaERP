@@ -55,6 +55,10 @@ model OrgSetting {
 // ============================================
 
 model Hospital {
+  biometricDevices              BiometricDevice[]
+  biometricPunchLogs            BiometricPunchLog[]
+  attendanceMovements           AttendanceMovement[]
+  holidays                      Holiday[]
   taxBrackets                   TaxBracket[]
   employeeAdvances              EmployeeAdvance[]
   employeeDeductions            EmployeeDeduction[]
@@ -568,6 +572,12 @@ model Payment {
 }
 
 model User {
+  biometricPunchLogs            BiometricPunchLog[]     @relation("PunchLogUser")
+  biometricDevicesCreated       BiometricDevice[]       @relation("BiometricDeviceCreator")
+  attendanceMovements           AttendanceMovement[]    @relation("AttendanceMovementUser")
+  attendanceMovementsApproved   AttendanceMovement[]    @relation("AttendanceMovementApprover")
+  absencesClassified            AttendanceRecord[]      @relation("AttendanceAbsenceClassifier")
+  holidaysCreated               Holiday[]               @relation("HolidayCreator")
   employeeAdvances              EmployeeAdvance[]       @relation("EmployeeAdvanceOwner")
   advancesRequested             EmployeeAdvance[]       @relation("EmployeeAdvanceRequester")
   advancesApproved              EmployeeAdvance[]       @relation("EmployeeAdvanceApprover")
@@ -682,6 +692,7 @@ model User {
   standardMonthlyHours      Int                        @default(160)
   isTaxExempt               Boolean                    @default(false)
   isSocialInsuranceExempt   Boolean                    @default(false)
+  biometricId               String?                    @db.VarChar(64)
   // hashedRefreshToken Removed
   jobRank                   JobRank?                   @default(GENERAL_PRACTITIONER)
   appointmentsAsDoctor      Appointment[]              @relation("DoctorAppointments")
@@ -841,6 +852,8 @@ model User {
   importedBankStatementLines BankStatementLine[]       @relation("BankStatementImportedBy")
   matchedBankStatementLines  BankStatementLine[]       @relation("BankStatementMatchedBy")
   createdPayerIntegrations   PayerIntegrationProfile[] @relation("PayerIntegrationCreatedBy")
+
+  @@unique([hospitalId, biometricId])
 }
 
 model RefreshToken {
@@ -3920,14 +3933,21 @@ model PayrollSlip {
 }
 
 model AttendanceRecord {
-  id          Int       @id @default(autoincrement())
-  userId      Int
-  date        DateTime
-  checkIn     DateTime?
-  checkOut    DateTime?
-  status      String?
-  lateMinutes Int       @default(0)
-  user        User      @relation(fields: [userId], references: [id])
+  id                    Int                  @id @default(autoincrement())
+  userId                Int
+  date                  DateTime
+  checkIn               DateTime?
+  checkOut              DateTime?
+  status                String?
+  lateMinutes           Int                  @default(0)
+  workedHours           Decimal              @default(0) @db.Decimal(10, 3)
+  tempLeaveMinutes      Int                  @default(0)
+  absenceAuthorization  String?              @db.VarChar(24)
+  absenceClassifiedById Int?
+  absenceNotes          String?              @db.VarChar(500)
+  user                  User                 @relation(fields: [userId], references: [id])
+  absenceClassifiedBy   User?                @relation("AttendanceAbsenceClassifier", fields: [absenceClassifiedById], references: [id], onDelete: SetNull)
+  movements             AttendanceMovement[]
 
   @@unique([userId, date])
 }
@@ -8226,4 +8246,99 @@ model TaxBracket {
   hospital Hospital @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
 
   @@index([hospitalId, isActive, sortOrder])
+}
+
+// =====================================================================
+// CAP11 Part 2 (Batch 24): Biometric Devices, ZKTeco ADMS, Movements & Holidays
+// =====================================================================
+
+model BiometricDevice {
+  id               Int       @id @default(autoincrement())
+  hospitalId       Int
+  name             String    @db.VarChar(120)
+  brand            String    @default("ZKTECO") @db.VarChar(40)
+  model            String?   @db.VarChar(64)
+  serialNumber     String    @unique @db.VarChar(64)
+  ipAddress        String    @db.VarChar(64)
+  port             Int       @default(4370)
+  connectionMode   String    @default("ADMS") @db.VarChar(24)
+  location         String?   @db.VarChar(120)
+  deviceSecretHash String?   @db.VarChar(64)
+  isActive         Boolean   @default(true)
+  lastSyncAt       DateTime?
+  lastSeenIp       String?   @db.VarChar(64)
+  lastError        String?   @db.VarChar(500)
+  createdById      Int?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  hospital  Hospital            @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
+  createdBy User?               @relation("BiometricDeviceCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  punchLogs BiometricPunchLog[]
+
+  @@index([hospitalId, isActive])
+}
+
+model BiometricPunchLog {
+  id          Int      @id @default(autoincrement())
+  hospitalId  Int
+  deviceId    Int?
+  userId      Int?
+  biometricId String   @db.VarChar(64)
+  punchTime   DateTime
+  punchType   String   @default("UNKNOWN") @db.VarChar(24)
+  verifyMode  String?  @db.VarChar(24)
+  source      String   @default("ADMS") @db.VarChar(24)
+  rawLine     String?  @db.VarChar(500)
+  processed   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  hospital Hospital         @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
+  device   BiometricDevice? @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+  user     User?            @relation("PunchLogUser", fields: [userId], references: [id], onDelete: SetNull)
+
+  @@unique([hospitalId, biometricId, punchTime])
+  @@index([hospitalId, punchTime])
+  @@index([deviceId, punchTime])
+}
+
+model AttendanceMovement {
+  id                 Int       @id @default(autoincrement())
+  hospitalId         Int
+  attendanceRecordId Int
+  userId             Int
+  movementType       String    @db.VarChar(24)
+  movementTime       DateTime
+  approvalStatus     String    @default("PENDING") @db.VarChar(24)
+  approvedById       Int?
+  approvedAt         DateTime?
+  reason             String?   @db.VarChar(500)
+  createdAt          DateTime  @default(now())
+
+  hospital         Hospital         @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
+  attendanceRecord AttendanceRecord @relation(fields: [attendanceRecordId], references: [id], onDelete: Cascade)
+  user             User             @relation("AttendanceMovementUser", fields: [userId], references: [id], onDelete: Restrict)
+  approvedBy       User?            @relation("AttendanceMovementApprover", fields: [approvedById], references: [id], onDelete: Restrict)
+
+  @@index([hospitalId, userId, movementTime])
+  @@index([attendanceRecordId])
+}
+
+model Holiday {
+  id          Int      @id @default(autoincrement())
+  hospitalId  Int
+  name        String   @db.VarChar(120)
+  nameEn      String?  @db.VarChar(120)
+  date        DateTime
+  isAnnual    Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  createdById Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  hospital  Hospital @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
+  createdBy User?    @relation("HolidayCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([hospitalId, date, name])
+  @@index([hospitalId, isActive, date])
 }

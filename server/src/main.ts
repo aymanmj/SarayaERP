@@ -11,6 +11,7 @@ import { LocalizationInterceptor } from './common/interceptors/localization.inte
 import { CorrelationMiddleware } from './common/middleware/correlation.middleware';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
+import express from 'express';
 import helmet from 'helmet';
 import compression from 'compression';
 import { ProxyAgent, setGlobalDispatcher } from 'undici';
@@ -63,9 +64,10 @@ async function bootstrap() {
   });
 
   // ============================================
-  // 🌍 GLOBAL PREFIX
+  // 🌍 GLOBAL PREFIX (exclude ZKTeco ADMS hardware push path /iclock/cdata)
   // ============================================
-  app.setGlobalPrefix('api');
+  app.use('/iclock', express.text({ type: 'text/plain', limit: '2mb' }));
+  app.setGlobalPrefix('api', { exclude: ['iclock/cdata'] });
 
   // ============================================
   // 🔒 SECURITY CONFIGURATION

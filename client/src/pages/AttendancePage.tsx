@@ -10,6 +10,7 @@ import {
   ArrowPathIcon,
 } from "@heroicons/react/24/outline";
 import { useTranslation } from "react-i18next";
+import { BiometricDevicesModal } from "../components/hr/BiometricDevicesModal";
 
 type AttendanceRecord = {
   id: number;
@@ -37,6 +38,7 @@ export default function AttendancePage() {
 
   const [showManualModal, setShowManualModal] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [showBiometricModal, setShowBiometricModal] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [uploading, setUploading] = useState(false);
 
@@ -152,7 +154,15 @@ export default function AttendancePage() {
             </p>
           </div>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
+          <button
+            type="button"
+            onClick={() => setShowBiometricModal(true)}
+            data-testid="attendance-open-biometric-modal"
+            className="px-4 py-2 bg-sky-700 hover:bg-sky-600 text-white rounded-xl text-xs font-bold shadow-lg"
+          >
+            🖥️ {t("hr.attendance.biometricBtn", "أجهزة البصمة ADMS والعطلات")}
+          </button>
           <button
             onClick={() => setShowUploadModal(true)}
             className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs font-bold border border-slate-700 flex items-center gap-2"
@@ -309,6 +319,15 @@ export default function AttendancePage() {
             </button>
           </div>
         </div>
+      )}
+
+      {showBiometricModal && (
+        <BiometricDevicesModal
+          onClose={() => {
+            setShowBiometricModal(false);
+            void loadRecords();
+          }}
+        />
       )}
     </div>
   );

@@ -3,6 +3,7 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { Money } from '../common/utils/money.util';
 import { CreatePunchDto } from './dto/attendance.dto';
 
 @Injectable()
@@ -86,9 +87,18 @@ export class AttendanceService {
       });
     } else {
       if (existingRecord.checkIn && punchTime > existingRecord.checkIn) {
+        const grossMins =
+          (punchTime.getTime() - existingRecord.checkIn.getTime()) / 60000;
+        const netHours = Math.max(
+          0,
+          (grossMins - (existingRecord.tempLeaveMinutes || 0)) / 60,
+        );
         return this.prisma.attendanceRecord.update({
           where: { id: existingRecord.id },
-          data: { checkOut: punchTime },
+          data: {
+            checkOut: punchTime,
+            workedHours: Money.toDbString(Money.roundDecimal(netHours, 3)),
+          },
         });
       }
       return existingRecord;
@@ -177,6 +187,21 @@ export class AttendanceService {
       select: { startDate: true, endDate: true },
     });
 
+    const employeeMeta =
+      typeof client.user?.findUnique === 'function'
+        ? await client.user.findUnique({
+            where: { id: userId },
+            select: { hospitalId: true },
+          })
+        : null;
+    const holidays =
+      employeeMeta && typeof client.holiday?.findMany === 'function'
+        ? await client.holiday.findMany({
+            where: { hospitalId: employeeMeta.hospitalId, isActive: true },
+            select: { date: true, isAnnual: true },
+          })
+        : [];
+
     let totalLateMinutes = 0;
     let absentDays = 0;
     let overtimeMinutes = 0;
@@ -185,6 +210,16 @@ export class AttendanceService {
     const recordsMap = new Map(
       records.map((r) => [r.date.toISOString().slice(0, 10), r]),
     );
+
+    const isOfficialHoliday = (d: Date) =>
+      holidays.some((h) => {
+        const hd = new Date(h.date);
+        return (
+          hd.getUTCMonth() === d.getUTCMonth() &&
+          hd.getUTCDate() === d.getUTCDate() &&
+          (h.isAnnual || hd.getUTCFullYear() === d.getUTCFullYear())
+        );
+      });
 
     for (const rosterItem of rosters) {
       const dateKey = rosterItem.date.toISOString().slice(0, 10);
@@ -203,6 +238,7 @@ export class AttendanceService {
 
       const rosterDay = rosterItem.date.toISOString().slice(0, 10);
       if (
+        isOfficialHoliday(rosterItem.date) ||
         paidLeaves.some(
           (leave) =>
             leave.startDate.toISOString().slice(0, 10) <= rosterDay &&
@@ -214,6 +250,14 @@ export class AttendanceService {
 
       if (!record) {
         absentDays++;
+      } else if (record.status === 'ABSENT') {
+        const excused =
+          record.absenceAuthorization === 'AUTHORIZED' ||
+          record.absenceAuthorization === 'SICK' ||
+          record.absenceAuthorization === 'VACATION';
+        if (!excused) {
+          absentDays++;
+        }
       } else {
         totalLateMinutes += record.lateMinutes || 0;
 
