@@ -106,6 +106,10 @@ describe('Atomic clinical completion and durable consumption intent', () => {
         orderedById: userId,
         testId: test.id,
       });
+      await db.order.update({
+        where: { id: result.order.id },
+        data: { paymentStatus: 'WAIVED' },
+      });
       return {
         parent: result.order.id,
         id: result.labOrder.id,
