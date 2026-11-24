@@ -87,16 +87,17 @@ describe('LabOrdersService', () => {
   });
 
   describe('listForEncounter', () => {
-    it('lists lab orders for encounter in descending order creation time', async () => {
+    it('lists lab orders for encounter scoped to hospitalId in descending order creation time', async () => {
       prisma.labOrder.findMany.mockResolvedValue([{ id: 1 }, { id: 2 }]);
 
-      const result = await service.listForEncounter(10);
+      const result = await service.listForEncounter(10, 1);
 
       expect(result).toEqual([{ id: 1 }, { id: 2 }]);
       expect(prisma.labOrder.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: {
             order: {
+              hospitalId: 1,
               encounterId: 10,
               type: 'LAB',
               isDeleted: false,

@@ -14,8 +14,11 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/permissions.guard';
 import { Permissions } from '../auth/permissions.decorator';
 import { CurrentUser } from '../auth/current-user.decorator';
+import { RequireFeature } from '../licensing/license.decorator';
+import type { JwtPayload } from '../auth/jwt-payload.type';
 
 @UseGuards(JwtAuthGuard, PermissionsGuard)
+@RequireFeature('LAB')
 @Controller('encounters/:encounterId/lab-orders')
 export class LabOrdersController {
   constructor(private readonly labOrdersService: LabOrdersService) {}
@@ -24,15 +27,16 @@ export class LabOrdersController {
   @Get()
   async listForEncounter(
     @Param('encounterId', ParseIntPipe) encounterId: number,
+    @CurrentUser() user: JwtPayload,
   ) {
-    return this.labOrdersService.listForEncounter(encounterId);
+    return this.labOrdersService.listForEncounter(encounterId, user.hospitalId);
   }
 
   @Permissions('lab-orders:manage')
   @Post()
   async createForEncounter(
     @Param('encounterId', ParseIntPipe) encounterId: number,
-    @CurrentUser() user: any,
+    @CurrentUser() user: JwtPayload,
     @Body()
     body: {
       testIds: number[];
@@ -52,13 +56,14 @@ export class LabOrdersController {
 }
 
 @UseGuards(JwtAuthGuard, PermissionsGuard)
+@RequireFeature('LAB')
 @Controller('lab-orders')
 export class LabOrdersGeneralController {
   constructor(private readonly labOrdersService: LabOrdersService) {}
 
   @Permissions('lab-orders:view')
   @Get('worklist')
-  async worklist(@CurrentUser() user: any) {
+  async worklist(@CurrentUser() user: JwtPayload) {
     return this.labOrdersService.getWorklist(user.hospitalId);
   }
 }

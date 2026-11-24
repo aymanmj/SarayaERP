@@ -7,6 +7,7 @@ import {
 import { createHash, randomBytes } from 'node:crypto';
 import { LabResultStatus, OrderStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { enqueueConsumptionIntent } from '../inventory/consumption-intent';
 import { appendChainedAuditInTransaction } from '../audit/audit-chain';
 import { publishCommittedCriticalAudit } from '../audit/siem.logger';
 import {
@@ -787,7 +788,14 @@ export class LabSpecimenService {
         where: { id: reportId, hospitalId },
         include: {
           sensitivities: { orderBy: { antibioticName: 'asc' } },
-          labOrder: { select: { id: true, orderId: true } },
+          labOrder: {
+            select: {
+              id: true,
+              orderId: true,
+              testId: true,
+              resultStatus: true,
+            },
+          },
         },
       });
       if (!existing) {
@@ -841,6 +849,10 @@ export class LabSpecimenService {
           resultStatus: LabResultStatus.COMPLETED,
           resultValue: summary,
           resultDate: verifiedAt,
+          isVerified: true,
+          verifiedById: userId,
+          verifiedAt,
+          verificationHash,
         },
       });
       await tx.order.update({
@@ -850,6 +862,23 @@ export class LabSpecimenService {
           completedAt: verifiedAt,
         },
       });
+
+      const labTestRow = await tx.labTest.findUnique({
+        where: { id: existing.labOrder.testId },
+        select: { serviceItemId: true },
+      });
+      if (
+        existing.labOrder.resultStatus !== LabResultStatus.COMPLETED &&
+        labTestRow?.serviceItemId
+      ) {
+        await enqueueConsumptionIntent(tx, {
+          hospitalId,
+          serviceItemId: labTestRow.serviceItemId,
+          referenceType: 'LAB_ORDER',
+          referenceId: existing.labOrderId,
+          userId,
+        });
+      }
 
       await appendChainedAuditInTransaction(tx, {
         action: 'LAB_CULTURE_REPORT_VERIFIED',

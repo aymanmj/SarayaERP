@@ -15,6 +15,7 @@ import {
 } from '@prisma/client';
 import { AccountingService } from '../accounting/accounting.service';
 import { ServicesService } from '../services/services.service';
+import { Money } from '../common/utils/money.util';
 
 @Injectable()
 export class LabOrdersService {
@@ -25,28 +26,28 @@ export class LabOrdersService {
   ) {}
 
   /**
-   * جلب كل طلبات التحاليل المرتبطة بـ Encounter معيّن
-   * تُرجع LabOrder مع الـ test + order
+   * جلب كل طلبات التحاليل المرتبطة بـ Encounter معيّن ضمن المنشأة نفسها فقط (عزل متعدد المنشآت)
    */
-  async listForEncounter(encounterId: number) {
+  async listForEncounter(encounterId: number, hospitalId: number) {
     const labOrders = await this.prisma.labOrder.findMany({
       where: {
         order: {
+          hospitalId,
           encounterId,
           type: OrderType.LAB,
           isDeleted: false,
         },
       },
       include: {
-        test: true,
+        test: { include: { parameters: true } },
+        results: true,
         order: {
           select: {
             id: true,
             status: true,
+            paymentStatus: true,
             createdAt: true,
             notes: true,
-            // لو حابب تضيف orderedBy:
-            // orderedBy: { select: { id: true, fullName: true } },
           },
         },
       },
@@ -133,7 +134,7 @@ export class LabOrdersService {
     const createdLabOrders = await this.prisma.$transaction(async (tx) => {
       const result: any[] = [];
       const chargeIds: number[] = [];
-      let totalAmount = 0;
+      let totalAmountDec = Money.roundDecimal(0, 3);
 
       for (const test of labTests) {
         // 1) إنشاء Order أساسياً
@@ -172,7 +173,6 @@ export class LabOrdersService {
 
         // 3) إنشاء EncounterCharge لو التحليل مربوط بخدمة تسعير
         if (test.serviceItemId && test.serviceItem) {
-          // Temporarily ignoring insurance policy id since patient is not loaded on encounter here
           const insurancePolicyId = null;
 
           const explodedItems =
@@ -183,44 +183,58 @@ export class LabOrdersService {
             );
 
           for (const expItem of explodedItems) {
+            const unitPriceDec = Money.roundDecimal(
+              test.serviceItem.defaultPrice ?? 0,
+              4,
+            );
+            const lineTotalDec = Money.roundDecimal(
+              Money.multiply(unitPriceDec, expItem.quantity),
+              3,
+            );
             const charge = await tx.encounterCharge.create({
               data: {
                 hospitalId,
                 encounterId,
                 serviceItemId: expItem.serviceItemId,
                 sourceType: ChargeSource.LAB_ORDER,
-                sourceId: order.id,
+                // Fix: sourceId MUST reference labOrder.id so CashierService unlocks the exact LabOrder
+                sourceId: labOrder.id,
                 quantity: expItem.quantity,
-                unitPrice: Number(test.serviceItem.defaultPrice || 0),
-                totalAmount:
-                  Number(test.serviceItem.defaultPrice || 0) * expItem.quantity,
+                unitPrice: Money.toUnitDb(unitPriceDec),
+                totalAmount: Money.toDb(lineTotalDec),
               },
             });
             chargeIds.push(charge.id);
-            totalAmount +=
-              Number(test.serviceItem.defaultPrice || 0) * expItem.quantity;
+            totalAmountDec = Money.addDecimal(totalAmountDec, lineTotalDec);
           }
         }
       }
 
-      // ✅ 4) إنشاء فاتورة تلقائية لطلبات التحليل
-      if (chargeIds.length > 0 && totalAmount > 0) {
+      // ✅ 4) إنشاء فاتورة تلقائية لطلبات التحليل باستخدام مكتبة Money
+      if (chargeIds.length > 0 && Money.isPositive(totalAmountDec)) {
         // جلب بيانات التأمين للمريض
         const patientData = await tx.patient.findUnique({
           where: { id: encounter.patientId },
           include: { insurancePolicy: true },
         });
 
-        // حساب حصة المريض وحصة التأمين
-        let patientShare = totalAmount;
-        let insuranceShare = 0;
+        let patientShareDec = totalAmountDec;
+        let insuranceShareDec = Money.roundDecimal(0, 3);
         let insuranceProviderId: number | null = null;
 
         if (patientData?.insurancePolicy?.isActive) {
-          const copayRate =
-            Number(patientData.insurancePolicy.patientCopayRate || 0) / 100;
-          patientShare = Math.round(totalAmount * copayRate * 100) / 100;
-          insuranceShare = Math.round((totalAmount - patientShare) * 100) / 100;
+          const copayRatio = Money.divide(
+            patientData.insurancePolicy.patientCopayRate ?? 0,
+            100,
+          );
+          patientShareDec = Money.roundDecimal(
+            Money.multiply(totalAmountDec, copayRatio),
+            3,
+          );
+          insuranceShareDec = Money.subtractDecimal(
+            totalAmountDec,
+            patientShareDec,
+          );
           insuranceProviderId = patientData.insurancePolicy.insuranceProviderId;
         }
 
@@ -238,12 +252,12 @@ export class LabOrdersService {
             patientId: encounter.patientId,
             encounterId,
             status: 'ISSUED',
-            totalAmount,
+            totalAmount: Money.toDb(totalAmountDec),
             discountAmount: 0,
             paidAmount: 0,
             currency: 'LYD',
-            patientShare,
-            insuranceShare,
+            patientShare: Money.toDb(patientShareDec),
+            insuranceShare: Money.toDb(insuranceShareDec),
             insuranceProviderId,
             financialYearId: financialYear.id,
             financialPeriodId: period.id,

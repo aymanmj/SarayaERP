@@ -7,6 +7,10 @@ import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { LabSpecimenCultureModal } from "../components/labs/LabSpecimenCultureModal";
 import { BloodBankModal } from "../components/labs/BloodBankModal";
+import {
+  LabResultEntryModal,
+  type LabWorklistOrderForModal,
+} from "../components/labs/LabResultEntryModal";
 
 type PatientLite = { id: number; fullName: string; mrn: string };
 type TestLite = {
@@ -24,13 +28,20 @@ type OrderLite = {
   createdAt: string;
   encounterId: number | null;
 };
-type LabWorklistItem = {
-  id: number;
+type LabWorklistItem = LabWorklistOrderForModal & {
   resultStatus: "PENDING" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
   resultDate?: string | null;
   order: OrderLite;
   patient?: PatientLite | null;
-  test: TestLite;
+  test: TestLite & {
+    parameters?: Array<{
+      id: number;
+      code: string;
+      name: string;
+      unit?: string | null;
+      refRange?: string | null;
+    }>;
+  };
 };
 
 function formatDateTime(iso: string, locale: string = "ar-LY") {
@@ -51,6 +62,8 @@ export default function LabWorklistPage() {
 
   const [search, setSearch] = useState("");
   const [specimenModalItem, setSpecimenModalItem] =
+    useState<LabWorklistItem | null>(null);
+  const [resultModalItem, setResultModalItem] =
     useState<LabWorklistItem | null>(null);
   const [bloodBankOpen, setBloodBankOpen] = useState(false);
 
@@ -81,43 +94,14 @@ export default function LabWorklistPage() {
     );
   }, [items, search]);
 
-  const handleComplete = async (item: LabWorklistItem) => {
-    // ✅ [PAYWALL] منع الإدخال لغير المدفوع
+  const handleComplete = (item: LabWorklistItem) => {
     if (item.order.paymentStatus === "PENDING") {
-      toast.error(t("lab.paymentRequired", "⚠️ لا يمكن إدخال النتيجة قبل سداد الرسوم."));
+      toast.error(
+        t("lab.paymentRequired", "⚠️ لا يمكن إدخال النتيجة قبل سداد الرسوم."),
+      );
       return;
     }
-
-    // هذه طريقة مبسطة، يفضل استخدام Modal
-    const val = window.prompt(
-      t("lab.prompt.enterResult", "إدخال نتيجة") + ` (${item.test.name}) ` + t("lab.prompt.forPatient", "للمريض") + ` ${item.patient?.fullName ?? ""}:`,
-      undefined, // Default value should be empty or existing value if editing, but simplest is empty for now
-    );
-    // Note: If resultValue exists, maybe pre-fill?
-    
-    if (val === null) return; // User cancelled
-
-    const unit =
-      window.prompt(t("lab.prompt.unit", "وحدة القياس (اختياري):"), item.test.unit ?? "") ??
-      undefined;
-    const ref = window.prompt(t("lab.prompt.referenceRange", "المعدل المرجعي (اختياري):"), "") ?? undefined;
-
-    // CDSS Check logic... (simplified for brevity as in original)
-    // ...
-
-    try {
-      await apiClient.patch(`/lab/orders/${item.id}/complete`, {
-        resultValue: val || undefined,
-        resultUnit: unit || undefined,
-        referenceRange: ref || undefined,
-      });
-
-      toast.success(t("common.saved", "تم الحفظ."));
-      load(); // تحديث
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch (err: any) {
-      toast.error(t("common.saveFailed", "فشل الحفظ."));
-    }
+    setResultModalItem(item);
   };
 
   const renderPaymentStatus = (status: string) => {
@@ -270,11 +254,23 @@ export default function LabWorklistPage() {
                   {it.order.paymentStatus === "PENDING" && (
                     <span className="ml-1">🔒</span>
                   )}
-                  {it.resultStatus === "COMPLETED"
-                    ? t("lab.actions.editResult", "تعديل النتيجة")
-                    : t("lab.actions.enterResult", "إدخال النتيجة")}
+                  {it.isVerified
+                    ? t("lab.actions.amendResult", "تصحيح معتمد")
+                    : it.resultStatus === "COMPLETED"
+                      ? t("lab.actions.editResult", "مراجعة/اعتماد")
+                      : t("lab.actions.enterResult", "إدخال النتيجة")}
                 </button>
                 )}
+
+                {it.pendingCriticalNotifications &&
+                  it.pendingCriticalNotifications.length > 0 && (
+                    <button
+                      onClick={() => setResultModalItem(it)}
+                      className="px-3 py-2 rounded-xl bg-rose-700 hover:bg-rose-600 text-xs text-white font-bold animate-pulse"
+                    >
+                      قيمة حرجة ({it.pendingCriticalNotifications.length})
+                    </button>
+                  )}
 
                 <button
                   onClick={() => setSpecimenModalItem(it)}
@@ -315,6 +311,16 @@ export default function LabWorklistPage() {
           patientName={specimenModalItem.patient?.fullName || "—"}
           onClose={() => setSpecimenModalItem(null)}
           onUpdated={() => {
+            void load();
+          }}
+        />
+      )}
+
+      {resultModalItem && (
+        <LabResultEntryModal
+          item={resultModalItem}
+          onClose={() => setResultModalItem(null)}
+          onSaved={() => {
             void load();
           }}
         />

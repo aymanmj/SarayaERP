@@ -223,11 +223,30 @@ describe('Full Cycle E2E Simulation', () => {
       .set('Authorization', `Bearer ${labTechToken}`)
       .expect(200);
 
-    const orderId = listRes.body[0].id; // This is labOrder.id
+    const ordersList = listRes.body as Array<{ id: number; orderId: number }>;
+    const labOrderId = ordersList[0].id;
+    const parentOrderId = ordersList[0].orderId;
+
+    // 5a-paywall: Unpaid OPD lab order must be blocked before cashier payment
+    await request(app.getHttpServer())
+      .patch(`/lab/orders/${labOrderId}/complete`)
+      .set('Authorization', `Bearer ${labTechToken}`)
+      .send({
+        resultValue: '12.5',
+        resultUnit: 'g/dL',
+        referenceRange: '12-16',
+      })
+      .expect(409);
+
+    // Mark OPD order PAID (as cashier payment collection unlocks it)
+    await prisma.order.update({
+      where: { id: parentOrderId },
+      data: { paymentStatus: 'PAID' },
+    });
 
     // 5b. Complete it
     const res = await request(app.getHttpServer())
-      .patch(`/lab/orders/${orderId}/complete`)
+      .patch(`/lab/orders/${labOrderId}/complete`)
       .set('Authorization', `Bearer ${labTechToken}`)
       .send({
         resultValue: '12.5',

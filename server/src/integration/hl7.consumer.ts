@@ -139,54 +139,92 @@ export class Hl7Consumer extends WorkerHost {
 
     if (!order) throw new Error(`Order #${orderId} not found in database.`);
 
-    // --- معالجة المختبر ---
+    // --- معالجة المختبر (تفريغ أولي بانتظار اعتماد الفني، دون إغلاق تلقائي غير موثّق) ---
     if (order.type === 'LAB') {
+      const testMappings = await this.prisma.testMapping.findMany({
+        where: { labTestId: { in: order.labOrders.map((lo) => lo.testId) } },
+      });
+      const deviceCodeToLabTestId = new Map<string, number>();
+      for (const m of testMappings) {
+        if (m.labTestId !== null) {
+          deviceCodeToLabTestId.set(
+            m.deviceTestCode.toUpperCase(),
+            m.labTestId,
+          );
+        }
+      }
+
       for (const res of labResults) {
+        const resCodeUpper = res.code.toUpperCase();
         for (const labOrder of order.labOrders) {
+          // Never overwrite an already verified/signed LabOrder from an analyzer feed
+          if (labOrder.isVerified) continue;
+
           // 1. Check Parameters (Sub-tests like in CBC)
           const param = labOrder.test.parameters.find(
-            (p) => p.code === res.code,
+            (p) => p.code.toUpperCase() === resCodeUpper,
           );
           if (param) {
-            await this.prisma.labOrderResult.create({
-              data: {
-                labOrderId: labOrder.id,
-                parameterId: param.id,
-                parameterName: param.name,
-                value: res.value,
-                unit: res.unit || param.unit,
-                range: res.range || param.refRange,
-                flag: res.flag,
-              },
+            const existingParam = await this.prisma.labOrderResult.findFirst({
+              where: { labOrderId: labOrder.id, parameterId: param.id },
             });
-            // نعتبر الطلب مكتملاً مبدئياً
+            if (existingParam) {
+              await this.prisma.labOrderResult.update({
+                where: { id: existingParam.id },
+                data: {
+                  value: res.value,
+                  unit: res.unit || param.unit,
+                  range: res.range || param.refRange,
+                  flag: res.flag,
+                },
+              });
+            } else {
+              await this.prisma.labOrderResult.create({
+                data: {
+                  labOrderId: labOrder.id,
+                  parameterId: param.id,
+                  parameterName: param.name,
+                  value: res.value,
+                  unit: res.unit || param.unit,
+                  range: res.range || param.refRange,
+                  flag: res.flag,
+                },
+              });
+            }
+            // Stage as IN_PROGRESS (preliminary analyzer result awaiting technician verification)
             await this.prisma.labOrder.update({
               where: { id: labOrder.id },
-              data: { resultStatus: 'COMPLETED', resultDate: new Date() },
+              data: { resultStatus: 'IN_PROGRESS', resultDate: new Date() },
             });
             continue;
           }
 
-          // 2. Check Main Test Code
-          if (labOrder.test.code === res.code) {
+          // 2. Check Main Test Code or reverse TestMapping
+          const mappedTestId = deviceCodeToLabTestId.get(resCodeUpper);
+          if (
+            labOrder.test.code.toUpperCase() === resCodeUpper ||
+            mappedTestId === labOrder.testId
+          ) {
             await this.prisma.labOrder.update({
               where: { id: labOrder.id },
               data: {
                 resultValue: res.value,
                 resultUnit: res.unit,
                 referenceRange: res.range,
-                resultStatus: 'COMPLETED',
+                resultStatus: 'IN_PROGRESS',
                 resultDate: new Date(),
               },
             });
           }
         }
       }
-      // إكمال الطلب الرئيسي
-      await this.prisma.order.update({
-        where: { id: order.id },
-        data: { status: 'COMPLETED', completedAt: new Date() },
-      });
+      // Stage order as IN_PROGRESS so technician verifies & triggers consumption + CDSS cleanly
+      if (order.status === 'NEW') {
+        await this.prisma.order.update({
+          where: { id: order.id },
+          data: { status: 'IN_PROGRESS' },
+        });
+      }
     }
     // --- معالجة الأشعة ---
     else if (order.type === 'RADIOLOGY' && order.radiologyOrder) {

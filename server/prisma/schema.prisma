@@ -55,6 +55,9 @@ model OrgSetting {
 // ============================================
 
 model Hospital {
+  labReferenceRanges       LabReferenceRange[]
+  labCriticalNotifications LabCriticalNotification[]
+  labResultAmendments      LabResultAmendment[]
   bloodUnits                 BloodUnit[]
   bloodCrossmatches          BloodCrossmatch[]
   bloodTransfusions          BloodTransfusion[]
@@ -549,6 +552,11 @@ model Payment {
 }
 
 model User {
+  labOrdersEntered                LabOrder[]                @relation("LabOrderEnteredBy")
+  labOrdersVerified               LabOrder[]                @relation("LabOrderVerifiedBy")
+  labCriticalCallsMade            LabCriticalNotification[] @relation("LabCriticalCalledBy")
+  labCriticalNotified             LabCriticalNotification[] @relation("LabCriticalNotifiedClinician")
+  labResultAmendments             LabResultAmendment[]      @relation("LabResultAmendedBy")
   bloodUnitsReceived            BloodUnit[]             @relation("BloodUnitReceivedBy")
   bloodUnitsScreened            BloodUnit[]             @relation("BloodUnitScreenedBy")
   bloodCrossmatchesPerformed    BloodCrossmatch[]       @relation("BloodCrossmatchPerformedBy")
@@ -863,6 +871,7 @@ model RolePermission {
 }
 
 model Patient {
+  labCriticalNotifications LabCriticalNotification[]
   bloodCrossmatches BloodCrossmatch[]
   bloodTransfusions BloodTransfusion[]
   coverageBalances InsuranceCoverageBalance[]
@@ -1361,57 +1370,72 @@ model Order {
 }
 
 model LabTest {
-  id            Int                @id @default(autoincrement())
-  hospitalId    Int
-  code          String             @unique
-  name          String
-  nameAr        String?
-  nameEn        String?
-  category      String?
-  unit          String?
-  isActive      Boolean            @default(true)
-  deletedAt     DateTime?
-  deletedById   Int?
-  isDeleted     Boolean            @default(false)
-  serviceItemId Int?
-  arabicName    String?
-  labOrders     LabOrder[]
-  hospital      Hospital           @relation(fields: [hospitalId], references: [id])
-  serviceItem   ServiceItem?       @relation(fields: [serviceItemId], references: [id])
-  parameters    LabTestParameter[]
-  testMappings  TestMapping[]
-  orderSetItems OrderSetItem[]     @relation("OrderSetLabTest")
+  id              Int                 @id @default(autoincrement())
+  hospitalId      Int
+  code            String
+  name            String
+  nameAr          String?
+  nameEn          String?
+  category        String?
+  unit            String?
+  isActive        Boolean             @default(true)
+  deletedAt       DateTime?
+  deletedById     Int?
+  isDeleted       Boolean             @default(false)
+  serviceItemId   Int?
+  arabicName      String?
+  labOrders       LabOrder[]
+  hospital        Hospital            @relation(fields: [hospitalId], references: [id])
+  serviceItem     ServiceItem?        @relation(fields: [serviceItemId], references: [id])
+  parameters      LabTestParameter[]
+  referenceRanges LabReferenceRange[]
+  testMappings    TestMapping[]
+  orderSetItems   OrderSetItem[]      @relation("OrderSetLabTest")
 
   @@unique([hospitalId, code])
 }
 
 model LabTestParameter {
-  id        Int              @id @default(autoincrement())
-  labTestId Int
-  name      String
-  code      String
-  unit      String?
-  refRange  String?
-  results   LabOrderResult[]
-  labTest   LabTest          @relation(fields: [labTestId], references: [id])
+  id              Int                 @id @default(autoincrement())
+  labTestId       Int
+  name            String
+  code            String
+  unit            String?
+  refRange        String?
+  results         LabOrderResult[]
+  referenceRanges LabReferenceRange[]
+  labTest         LabTest             @relation(fields: [labTestId], references: [id])
 
   @@index([labTestId])
 }
 
 model LabOrder {
-  id             Int              @id @default(autoincrement())
-  orderId        Int
-  testId         Int
-  resultValue    String?
-  resultUnit     String?
-  referenceRange String?
-  resultStatus   LabResultStatus  @default(PENDING)
-  resultDate     DateTime?
-  order          Order            @relation(fields: [orderId], references: [id])
-  test           LabTest          @relation(fields: [testId], references: [id])
-  results        LabOrderResult[]
-  specimens      LabSpecimen[]
-  cultureReports LabCultureReport[]
+  id                    Int                       @id @default(autoincrement())
+  orderId               Int
+  testId                Int
+  resultValue           String?
+  resultUnit            String?
+  referenceRange        String?
+  resultStatus          LabResultStatus           @default(PENDING)
+  resultDate            DateTime?
+  enteredById           Int?
+  enteredAt             DateTime?
+  isVerified            Boolean                   @default(false)
+  verifiedById          Int?
+  verifiedAt            DateTime?
+  verificationHash      String?                   @db.VarChar(64)
+  isAmended             Boolean                   @default(false)
+  amendedAt             DateTime?
+  lastAmendmentReason   String?                   @db.VarChar(500)
+  order                 Order                     @relation(fields: [orderId], references: [id])
+  test                  LabTest                   @relation(fields: [testId], references: [id])
+  enteredBy             User?                     @relation("LabOrderEnteredBy", fields: [enteredById], references: [id])
+  verifiedBy            User?                     @relation("LabOrderVerifiedBy", fields: [verifiedById], references: [id])
+  results               LabOrderResult[]
+  specimens             LabSpecimen[]
+  cultureReports        LabCultureReport[]
+  criticalNotifications LabCriticalNotification[]
+  amendments            LabResultAmendment[]
 
   @@index([resultStatus])
   @@index([orderId])
@@ -7535,4 +7559,86 @@ model BloodTransfusionEvent {
 
   @@index([transfusionId, recordedAt])
   @@index([hospitalId, eventType])
+}
+
+// =========================================================================
+// LAB-UPGRADE-P0/P1: Structured Reference Ranges, JCI Critical Value Read-Back & Amendments
+// =========================================================================
+
+model LabReferenceRange {
+  id           Int      @id @default(autoincrement())
+  hospitalId   Int
+  labTestId    Int
+  parameterId  Int?
+  gender       String   @default("ANY") @db.VarChar(16)
+  ageMinDays   Int      @default(0)
+  ageMaxDays   Int      @default(50000)
+  normalLow    Decimal? @db.Decimal(14, 4)
+  normalHigh   Decimal? @db.Decimal(14, 4)
+  criticalLow  Decimal? @db.Decimal(14, 4)
+  criticalHigh Decimal? @db.Decimal(14, 4)
+  unit         String?  @db.VarChar(40)
+  textRange    String?  @db.VarChar(120)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  hospital  Hospital          @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
+  labTest   LabTest           @relation(fields: [labTestId], references: [id], onDelete: Restrict)
+  parameter LabTestParameter? @relation(fields: [parameterId], references: [id], onDelete: Restrict)
+
+  @@index([hospitalId, labTestId, parameterId, isActive])
+}
+
+model LabCriticalNotification {
+  id                    Int       @id @default(autoincrement())
+  hospitalId            Int
+  labOrderId            Int
+  patientId             Int
+  parameterName         String    @db.VarChar(120)
+  criticalValue         String    @db.VarChar(80)
+  unit                  String?   @db.VarChar(40)
+  flag                  String    @db.VarChar(16)
+  detectedAt            DateTime  @default(now())
+  slaDeadline           DateTime
+  status                String    @default("PENDING") @db.VarChar(32)
+  calledById            Int?
+  notifiedClinicianId   Int?
+  notifiedClinicianName String?   @db.VarChar(150)
+  notificationMethod    String?   @db.VarChar(32)
+  readBackConfirmed     Boolean   @default(false)
+  readBackValue         String?   @db.VarChar(80)
+  readBackAt            DateTime?
+  notes                 String?   @db.VarChar(500)
+
+  hospital          Hospital @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
+  labOrder          LabOrder @relation(fields: [labOrderId], references: [id], onDelete: Restrict)
+  patient           Patient  @relation(fields: [patientId], references: [id], onDelete: Restrict)
+  calledBy          User?    @relation("LabCriticalCalledBy", fields: [calledById], references: [id], onDelete: Restrict)
+  notifiedClinician User?    @relation("LabCriticalNotifiedClinician", fields: [notifiedClinicianId], references: [id], onDelete: Restrict)
+
+  @@index([hospitalId, status, slaDeadline])
+  @@index([labOrderId])
+}
+
+model LabResultAmendment {
+  id                         Int      @id @default(autoincrement())
+  hospitalId                 Int
+  labOrderId                 Int
+  previousResultValue        String?
+  newResultValue             String?
+  previousParametersSnapshot Json?
+  newParametersSnapshot      Json?
+  reason                     String   @db.VarChar(500)
+  amendedById                Int
+  amendedAt                  DateTime @default(now())
+  previousHash               String?  @db.VarChar(64)
+  newHash                    String   @db.VarChar(64)
+
+  hospital  Hospital @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
+  labOrder  LabOrder @relation(fields: [labOrderId], references: [id], onDelete: Restrict)
+  amendedBy User     @relation("LabResultAmendedBy", fields: [amendedById], references: [id], onDelete: Restrict)
+
+  @@index([labOrderId, amendedAt])
+  @@index([hospitalId, amendedAt])
 }

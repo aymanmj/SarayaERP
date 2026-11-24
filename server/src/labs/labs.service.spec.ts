@@ -61,6 +61,17 @@ describe('LabService', () => {
 
   const mockPrismaService = {
     $queryRaw: jest.fn().mockResolvedValue([]),
+    $executeRaw: jest.fn().mockResolvedValue(1),
+    auditLog: {
+      findFirst: jest.fn().mockResolvedValue(null),
+      create: jest.fn().mockResolvedValue({ id: 1 }),
+    },
+    labReferenceRange: {
+      findMany: jest.fn().mockResolvedValue([]),
+    },
+    labCriticalNotification: {
+      create: jest.fn(),
+    },
     serviceItem: { findFirst: jest.fn().mockResolvedValue({ id: 1 }) },
     consumptionWarehousePolicy: {
       findUnique: jest.fn().mockResolvedValue(null),

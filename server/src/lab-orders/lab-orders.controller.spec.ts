@@ -5,6 +5,7 @@ import {
   LabOrdersGeneralController,
 } from './lab-orders.controller';
 import { LabOrdersService } from './lab-orders.service';
+import type { JwtPayload } from '../auth/jwt-payload.type';
 
 describe('LabOrdersController', () => {
   let encounterController: LabOrdersController;
@@ -37,19 +38,32 @@ describe('LabOrdersController', () => {
     expect(generalController).toBeDefined();
   });
 
-  it('lists lab orders for a specific encounter', async () => {
+  it('lists lab orders for a specific encounter scoped to hospitalId', async () => {
     labOrdersService.listForEncounter.mockResolvedValue([{ id: 5 }]);
 
-    const result = await encounterController.listForEncounter(12);
+    const mockUser: JwtPayload = {
+      sub: 8,
+      hospitalId: 4,
+      username: 'doc',
+      roles: [],
+      permissions: [],
+    };
+    const result = await encounterController.listForEncounter(12, mockUser);
 
     expect(result).toEqual([{ id: 5 }]);
-    expect(labOrdersService.listForEncounter).toHaveBeenCalledWith(12);
+    expect(labOrdersService.listForEncounter).toHaveBeenCalledWith(12, 4);
   });
 
   it('creates lab orders by combining route and body payload', async () => {
     labOrdersService.createForEncounter.mockResolvedValue({ count: 2 });
 
-    const mockUser = { sub: 8, hospitalId: 4 };
+    const mockUser: JwtPayload = {
+      sub: 8,
+      hospitalId: 4,
+      username: 'doc',
+      roles: [],
+      permissions: [],
+    };
     const result = await encounterController.createForEncounter(12, mockUser, {
       testIds: [1, 2],
       notes: 'Fasting',

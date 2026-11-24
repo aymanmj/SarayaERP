@@ -98,24 +98,39 @@ export class IntegrationService implements OnModuleInit, OnModuleDestroy {
   private async saveInboundMessage(rawMsg: string, ip?: string) {
     const segments = rawMsg.split(/[\r\n]+/);
     const msh = segments[0].split('|');
-    const sendingApp = msh[2];
+    const sendingApp = msh[2]?.trim();
     const msgType = msh[8];
-    let device = await this.prisma.medicalDevice.findFirst({
+    const matchClauses: Array<Record<string, unknown>> = [];
+    if (sendingApp) {
+      matchClauses.push({
+        name: { equals: sendingApp, mode: 'insensitive' },
+      });
+    }
+    if (ip) {
+      matchClauses.push({ ipAddress: ip });
+    }
+    if (matchClauses.length === 0) {
+      throw new Error(
+        'HL7 Security Block: Missing both sending application and client IP address',
+      );
+    }
+    const device = await this.prisma.medicalDevice.findFirst({
       where: {
         isActive: true,
-        OR: [
-          { name: { equals: sendingApp, mode: 'insensitive' } },
-          { ipAddress: ip },
-        ],
+        OR: matchClauses,
       },
     });
-    if (!device)
-      device = await this.prisma.medicalDevice.findFirst({
-        where: { isActive: true },
-      });
+    if (!device) {
+      this.logger.warn(
+        `🚫 Rejected unregistered HL7 device connection (ip=${ip ?? 'unknown'}, sendingApp=${sendingApp ?? 'unknown'})`,
+      );
+      throw new Error(
+        `HL7 Security Block: Unregistered or inactive device (ip=${ip ?? 'unknown'}, sendingApp=${sendingApp ?? 'unknown'})`,
+      );
+    }
     return this.prisma.integrationLog.create({
       data: {
-        deviceId: device?.id ?? 1,
+        deviceId: device.id,
         direction: IntegrationDirection.INBOUND,
         messageType: msgType,
         rawMessage: rawMsg,
