@@ -1,8 +1,39 @@
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { appendChainedAudit, sanitizeAuditData } from '../audit/audit-chain';
 import { Prisma } from '@prisma/client';
 import { ClsService } from 'nestjs-cls';
 import { siemLogger } from '../audit/siem.logger';
 import { applyTenantPolicy } from './prisma.extension';
+
+export interface DeferredAuditItem {
+  level: 'info' | 'warn';
+  payload: Prisma.AuditLogUncheckedCreateInput;
+}
+
+export interface ActiveAuditTxContext {
+  deferredAudits: DeferredAuditItem[];
+}
+
+export const activeAuditTxStorage =
+  new AsyncLocalStorage<ActiveAuditTxContext>();
+
+function emitOrDeferAudit(
+  rootPrisma: any,
+  level: 'info' | 'warn',
+  payload: Prisma.AuditLogUncheckedCreateInput,
+) {
+  const txContext = activeAuditTxStorage.getStore();
+  if (txContext) {
+    txContext.deferredAudits.push({ level, payload });
+    return;
+  }
+  if (level === 'warn') {
+    siemLogger.warn({ message: 'AUDIT_TRAIL', ...payload });
+  } else {
+    siemLogger.info({ message: 'AUDIT_TRAIL', ...payload });
+  }
+  void appendChainedAudit(rootPrisma, payload).catch(console.error);
+}
 
 // List of tables to skip auditing
 // Recall workflows write their own audit events inside the business transaction.
@@ -48,7 +79,7 @@ export const auditExtension = (cls: ClsService, rootPrisma: any) => {
           const ipAddress = cls.isActive() ? cls.get('ipAddress') : null;
 
           if (userId) {
-            const auditPayload = {
+            const auditPayload: Prisma.AuditLogUncheckedCreateInput = {
               userId,
               hospitalId,
               action: 'CREATE',
@@ -61,16 +92,7 @@ export const auditExtension = (cls: ClsService, rootPrisma: any) => {
               newValues: sanitizeAuditData(args.data) as Prisma.InputJsonObject,
             };
 
-            // 1- SIEM Logger (Stream to Console for Promtail)
-            siemLogger.info({
-              message: 'AUDIT_TRAIL',
-              ...auditPayload,
-            });
-
-            // 2- Save audit log asynchronously
-            void appendChainedAudit(rootPrisma, auditPayload).catch(
-              console.error,
-            );
+            emitOrDeferAudit(rootPrisma, 'info', auditPayload);
           }
 
           return result;
@@ -79,20 +101,25 @@ export const auditExtension = (cls: ClsService, rootPrisma: any) => {
         async update({ model, args, query }) {
           if (SKIP_MODELS.includes(model)) return query(args);
 
-          // Get the original record before update
+          const inInteractiveTx = Boolean(activeAuditTxStorage.getStore());
+
+          // Never acquire a second pool connection while inside an interactive
+          // transaction (prevents connection-pool starvation deadlocks on small pools).
           let originalRecord = null;
-          try {
-            if (args.where && 'id' in args.where && args.where.id) {
-              const lookupArgs = applyTenantPolicy(model, 'findUnique', {
-                where: { ...args.where },
-              });
-              originalRecord =
-                await rootPrisma[
-                  model[0].toLowerCase() + model.slice(1)
-                ].findUnique(lookupArgs);
+          if (!inInteractiveTx) {
+            try {
+              if (args.where && 'id' in args.where && args.where.id) {
+                const lookupArgs = applyTenantPolicy(model, 'findUnique', {
+                  where: { ...args.where },
+                });
+                originalRecord =
+                  await rootPrisma[
+                    model[0].toLowerCase() + model.slice(1)
+                  ].findUnique(lookupArgs);
+              }
+            } catch (e) {
+              // Safe fallback
             }
-          } catch (e) {
-            // Safe fallback
           }
 
           const result = await query(args);
@@ -101,21 +128,21 @@ export const auditExtension = (cls: ClsService, rootPrisma: any) => {
           const hospitalId = cls.isActive() ? cls.get('hospitalId') : null;
           const ipAddress = cls.isActive() ? cls.get('ipAddress') : null;
 
-          if (userId && originalRecord) {
-            // Compute simple differences (you can use a deep diff algorithm if needed)
+          if (userId && (originalRecord || inInteractiveTx)) {
             const changedValues: any = {};
             const oldValues: any = {};
             const newData: any = args.data;
 
-            for (const key in newData) {
-              // Basic shallow diff or just store the incoming payload
-              if (newData[key] !== originalRecord[key]) {
-                changedValues[key] = newData[key];
-                oldValues[key] = originalRecord[key];
+            if (originalRecord) {
+              for (const key in newData) {
+                if (newData[key] !== originalRecord[key]) {
+                  changedValues[key] = newData[key];
+                  oldValues[key] = originalRecord[key];
+                }
               }
             }
 
-            const auditPayload = {
+            const auditPayload: Prisma.AuditLogUncheckedCreateInput = {
               userId,
               hospitalId,
               action: 'UPDATE',
@@ -125,21 +152,23 @@ export const auditExtension = (cls: ClsService, rootPrisma: any) => {
                   ? result.id
                   : null,
               ipAddress,
-              oldValues: sanitizeAuditData(oldValues) as Prisma.InputJsonObject,
-              newValues: sanitizeAuditData(
-                changedValues,
-              ) as Prisma.InputJsonObject, // Store exactly what changed
+              ...(originalRecord
+                ? {
+                    oldValues: sanitizeAuditData(
+                      oldValues,
+                    ) as Prisma.InputJsonObject,
+                    newValues: sanitizeAuditData(
+                      changedValues,
+                    ) as Prisma.InputJsonObject,
+                  }
+                : {
+                    newValues: sanitizeAuditData(
+                      newData,
+                    ) as Prisma.InputJsonObject,
+                  }),
             };
 
-            // 1- SIEM Logger
-            siemLogger.info({
-              message: 'AUDIT_TRAIL',
-              ...auditPayload,
-            });
-
-            void appendChainedAudit(rootPrisma, auditPayload).catch(
-              console.error,
-            );
+            emitOrDeferAudit(rootPrisma, 'info', auditPayload);
           }
 
           return result;
@@ -148,16 +177,19 @@ export const auditExtension = (cls: ClsService, rootPrisma: any) => {
         async delete({ model, args, query }) {
           if (SKIP_MODELS.includes(model)) return query(args);
 
+          const inInteractiveTx = Boolean(activeAuditTxStorage.getStore());
           let originalRecord = null;
-          try {
-            const lookupArgs = applyTenantPolicy(model, 'findUnique', {
-              where: { ...args.where },
-            });
-            originalRecord =
-              await rootPrisma[
-                model[0].toLowerCase() + model.slice(1)
-              ].findUnique(lookupArgs);
-          } catch (e) {}
+          if (!inInteractiveTx) {
+            try {
+              const lookupArgs = applyTenantPolicy(model, 'findUnique', {
+                where: { ...args.where },
+              });
+              originalRecord =
+                await rootPrisma[
+                  model[0].toLowerCase() + model.slice(1)
+                ].findUnique(lookupArgs);
+            } catch (e) {}
+          }
 
           const result = await query(args);
 
@@ -165,8 +197,9 @@ export const auditExtension = (cls: ClsService, rootPrisma: any) => {
           const hospitalId = cls.isActive() ? cls.get('hospitalId') : null;
           const ipAddress = cls.isActive() ? cls.get('ipAddress') : null;
 
-          if (userId && originalRecord) {
-            const auditPayload = {
+          const deletedSnapshot = originalRecord ?? result;
+          if (userId && deletedSnapshot) {
+            const auditPayload: Prisma.AuditLogUncheckedCreateInput = {
               userId,
               hospitalId,
               action: 'DELETE',
@@ -177,19 +210,11 @@ export const auditExtension = (cls: ClsService, rootPrisma: any) => {
                   : null,
               ipAddress,
               oldValues: sanitizeAuditData(
-                originalRecord,
+                deletedSnapshot,
               ) as Prisma.InputJsonObject,
             };
 
-            // 1- SIEM Logger
-            siemLogger.warn({
-              message: 'AUDIT_TRAIL',
-              ...auditPayload,
-            });
-
-            void appendChainedAudit(rootPrisma, auditPayload).catch(
-              console.error,
-            );
+            emitOrDeferAudit(rootPrisma, 'warn', auditPayload);
           }
 
           return result;

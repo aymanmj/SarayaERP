@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { Prisma, type PrismaClient } from '@prisma/client';
 
 const pendingWrites = new Set<Promise<unknown>>();
+let auditWriteTail: Promise<void> = Promise.resolve();
 
 export async function drainPendingAuditWrites(): Promise<void> {
   while (pendingWrites.size) {
@@ -120,12 +121,18 @@ export async function appendChainedAuditInTransaction(
   });
 }
 
-export async function appendChainedAudit(
+export function appendChainedAudit(
   prisma: Pick<PrismaClient, '$transaction'>,
   data: Prisma.AuditLogUncheckedCreateInput,
 ) {
-  const pending = prisma.$transaction((tx) =>
-    appendChainedAuditInTransaction(tx, data),
+  // Serialize background audit writes in-process so they never consume more than
+  // 1 DB pool connection while contending for pg_advisory_xact_lock(27001).
+  const pending = auditWriteTail.then(() =>
+    prisma.$transaction((tx) => appendChainedAuditInTransaction(tx, data)),
+  );
+  auditWriteTail = pending.then(
+    () => undefined,
+    () => undefined,
   );
   pendingWrites.add(pending);
   void pending.then(
