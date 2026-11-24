@@ -1439,6 +1439,21 @@ async function main() {
       name: 'عمولات ومصاريف بنكية',
       type: AccountType.EXPENSE,
     },
+    {
+      code: '120500',
+      name: 'سلف وعهد الموظفين',
+      type: AccountType.ASSET,
+    },
+    {
+      code: '200350',
+      name: 'استقطاعات وضمانات الموظفين',
+      type: AccountType.LIABILITY,
+    },
+    {
+      code: '500150',
+      name: 'مصروف مكافآت وتصفية نهاية الخدمة',
+      type: AccountType.EXPENSE,
+    },
   ];
 
   for (const acc of accounts) {
@@ -1473,6 +1488,9 @@ async function main() {
     { k: SystemAccountKey.SALARIES_PAYABLE, c: '200300' },
     { k: SystemAccountKey.FX_GAIN_LOSS, c: '400950' },
     { k: SystemAccountKey.BANK_CHARGES_EXPENSE, c: '500950' },
+    { k: SystemAccountKey.EMPLOYEE_ADVANCES, c: '120500' },
+    { k: SystemAccountKey.EMPLOYEE_DEDUCTIONS_PAYABLE, c: '200350' },
+    { k: SystemAccountKey.EOS_EXPENSE, c: '500150' },
   ];
 
   for (const m of systemMappings) {

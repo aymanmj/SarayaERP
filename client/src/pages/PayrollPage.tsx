@@ -12,6 +12,7 @@ import {
   DocumentTextIcon,
 } from "@heroicons/react/24/outline";
 import { useTranslation } from "react-i18next";
+import { HrFinancialModal } from "../components/hr/HrFinancialModal";
 
 const formatMoney = (amount: number | string | null | undefined) =>
   formatLydMoney(amount, false);
@@ -26,6 +27,7 @@ export default function PayrollPage() {
   const [approving, setApproving] = useState(false);
   const [month, setMonth] = useState(new Date().getMonth() + 1);
   const [year, setYear] = useState(new Date().getFullYear());
+  const [showHrFinancialModal, setShowHrFinancialModal] = useState(false);
 
   const getStatusLabel = (s: string) => {
     if (s === "APPROVED") return t("hr.payroll.statusApproved", "معتمد");
@@ -118,6 +120,16 @@ export default function PayrollPage() {
             </div>
           </div>
           <BanknotesIcon className="w-10 h-10 text-slate-700 opacity-50" />
+        </div>
+        <div className="md:col-span-3 flex items-center justify-end">
+          <button
+            type="button"
+            onClick={() => setShowHrFinancialModal(true)}
+            data-testid="payroll-open-cap11-modal"
+            className="px-5 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-lg"
+          >
+            💼 {t("hr.payroll.cap11Governance", "تصنيفات الصرف والسلف والاستقطاعات ونهاية الخدمة")}
+          </button>
         </div>
       </div>
 
@@ -278,6 +290,10 @@ export default function PayrollPage() {
           )}
         </div>
       </div>
+
+      {showHrFinancialModal && (
+        <HrFinancialModal onClose={() => setShowHrFinancialModal(false)} />
+      )}
     </div>
   );
 }

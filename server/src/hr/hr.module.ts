@@ -5,12 +5,19 @@ import { HrService } from './hr.service';
 import { HrController } from './hr.controller';
 import { StaffCredentialingService } from './staff-credentialing.service';
 import { StaffCredentialingController } from './staff-credentialing.controller';
+import { HrFinancialService } from './hr-financial.service';
+import { HrFinancialController } from './hr-financial.controller';
 import { PrismaModule } from '../prisma/prisma.module';
+import { AccountingModule } from '../accounting/accounting.module';
 
 @Module({
-  imports: [PrismaModule],
-  controllers: [StaffCredentialingController, HrController],
-  providers: [HrService, StaffCredentialingService],
-  exports: [HrService, StaffCredentialingService],
+  imports: [PrismaModule, AccountingModule],
+  controllers: [
+    StaffCredentialingController,
+    HrFinancialController,
+    HrController,
+  ],
+  providers: [HrService, StaffCredentialingService, HrFinancialService],
+  exports: [HrService, StaffCredentialingService, HrFinancialService],
 })
 export class HrModule {}

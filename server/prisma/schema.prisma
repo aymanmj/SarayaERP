@@ -55,6 +55,11 @@ model OrgSetting {
 // ============================================
 
 model Hospital {
+  taxBrackets                   TaxBracket[]
+  employeeAdvances              EmployeeAdvance[]
+  employeeDeductions            EmployeeDeduction[]
+  overtimeRequests              OvertimeRequest[]
+  employeeSettlements           EmployeeSettlement[]
   controlledSubstanceLogs       ControlledSubstanceLog[]
   consignmentReceipts           ConsignmentReceipt[]
   consignmentConsumptions       ConsignmentConsumption[]
@@ -563,6 +568,18 @@ model Payment {
 }
 
 model User {
+  employeeAdvances              EmployeeAdvance[]       @relation("EmployeeAdvanceOwner")
+  advancesRequested             EmployeeAdvance[]       @relation("EmployeeAdvanceRequester")
+  advancesApproved              EmployeeAdvance[]       @relation("EmployeeAdvanceApprover")
+  employeeDeductions            EmployeeDeduction[]     @relation("EmployeeDeductionOwner")
+  deductionsCreated             EmployeeDeduction[]     @relation("EmployeeDeductionCreator")
+  overtimeRequests              OvertimeRequest[]       @relation("OvertimeOwner")
+  overtimeRequestedBy           OvertimeRequest[]       @relation("OvertimeRequester")
+  overtimeApprovedBy            OvertimeRequest[]       @relation("OvertimeApprover")
+  employeeSettlements           EmployeeSettlement[]    @relation("SettlementOwner")
+  settlementsCreated            EmployeeSettlement[]    @relation("SettlementCreator")
+  settlementsApproved           EmployeeSettlement[]    @relation("SettlementApprover")
+  settlementsPaid               EmployeeSettlement[]    @relation("SettlementPayer")
   controlledLogsPerformed         ControlledSubstanceLog[]        @relation("ControlledLogPerformedBy")
   controlledLogsWitnessed         ControlledSubstanceLog[]        @relation("ControlledLogWitnessedBy")
   consignmentsReceived            ConsignmentReceipt[]            @relation("ConsignmentReceivedBy")
@@ -654,6 +671,17 @@ model User {
   transportAllowance        Decimal                    @default(0) @db.Decimal(18, 3)
   commissionRate            Decimal                    @default(0) @db.Decimal(19, 6)
   annualLeaveBalance        Int                        @default(21)
+  hireDate                  DateTime?
+  terminationDate           DateTime?
+  employmentStatus          String                     @default("ACTIVE") @db.VarChar(24)
+  payBasis                  String                     @default("MONTHLY") @db.VarChar(24)
+  hourlyRate                Decimal                    @default(0) @db.Decimal(19, 4)
+  fixedShift6hRate          Decimal                    @default(0) @db.Decimal(19, 4)
+  fixedShift12hRate         Decimal                    @default(0) @db.Decimal(19, 4)
+  fixedShift24hRate         Decimal                    @default(0) @db.Decimal(19, 4)
+  standardMonthlyHours      Int                        @default(160)
+  isTaxExempt               Boolean                    @default(false)
+  isSocialInsuranceExempt   Boolean                    @default(false)
   // hashedRefreshToken Removed
   jobRank                   JobRank?                   @default(GENERAL_PRACTITIONER)
   appointmentsAsDoctor      Appointment[]              @relation("DoctorAppointments")
@@ -3352,6 +3380,9 @@ model Account {
 }
 
 model AccountingEntry {
+  advanceDisbursement EmployeeAdvance? @relation("AdvanceDisbursementEntry")
+  settlementAccrual EmployeeSettlement? @relation("SettlementAccrualEntry")
+  settlementPayment EmployeeSettlement? @relation("SettlementPaymentEntry")
   recallDisposal InventoryRecallDisposal?
   insuranceClaimWriteOff InsuranceClaimWriteOff?
   gatewayFeeAccrual GatewayClearingFeeEntry? @relation("GatewayFeeAccrualEntry")
@@ -3858,23 +3889,34 @@ model PayrollRun {
   accountingEntry   AccountingEntry? @relation(fields: [accountingEntryId], references: [id])
   hospital          Hospital         @relation(fields: [hospitalId], references: [id])
   slips             PayrollSlip[]
+  appliedDeductions EmployeeDeduction[]
+  appliedOvertimes  OvertimeRequest[]
 
   @@unique([hospitalId, month, year])
 }
 
 model PayrollSlip {
-  id                 Int        @id @default(autoincrement())
-  payrollRunId       Int
-  userId             Int
-  basicSalary        Decimal    @default(0) @db.Decimal(18, 3)
-  housingAllowance   Decimal    @default(0) @db.Decimal(18, 3)
-  transportAllowance Decimal    @default(0) @db.Decimal(18, 3)
-  otherAllowance     Decimal    @default(0) @db.Decimal(18, 3)
-  deductions         Decimal    @default(0) @db.Decimal(18, 3)
-  netSalary          Decimal    @default(0) @db.Decimal(18, 3)
-  commissionAmount   Decimal    @default(0) @db.Decimal(18, 3)
-  payrollRun         PayrollRun @relation(fields: [payrollRunId], references: [id], onDelete: Cascade)
-  user               User       @relation(fields: [userId], references: [id])
+  id                   Int        @id @default(autoincrement())
+  payrollRunId         Int
+  userId               Int
+  basicSalary          Decimal    @default(0) @db.Decimal(18, 3)
+  housingAllowance     Decimal    @default(0) @db.Decimal(18, 3)
+  transportAllowance   Decimal    @default(0) @db.Decimal(18, 3)
+  otherAllowance       Decimal    @default(0) @db.Decimal(18, 3)
+  deductions           Decimal    @default(0) @db.Decimal(18, 3)
+  netSalary            Decimal    @default(0) @db.Decimal(18, 3)
+  commissionAmount     Decimal    @default(0) @db.Decimal(18, 3)
+  payBasis             String     @default("MONTHLY") @db.VarChar(24)
+  workedHours          Decimal    @default(0) @db.Decimal(10, 3)
+  workedShiftsCount    Int        @default(0)
+  taxDeduction         Decimal    @default(0) @db.Decimal(18, 3)
+  advanceDeduction     Decimal    @default(0) @db.Decimal(18, 3)
+  recurringDeduction   Decimal    @default(0) @db.Decimal(18, 3)
+  unpaidLeaveDeduction Decimal    @default(0) @db.Decimal(18, 3)
+  overtimePay          Decimal    @default(0) @db.Decimal(18, 3)
+  loanInstallmentsJson Json?
+  payrollRun           PayrollRun @relation(fields: [payrollRunId], references: [id], onDelete: Cascade)
+  user                 User       @relation(fields: [userId], references: [id])
 }
 
 model AttendanceRecord {
@@ -4895,6 +4937,9 @@ enum SystemAccountKey {
   GATEWAY_CLEARING_FEE_PAYABLE
   FX_GAIN_LOSS
   BANK_CHARGES_EXPENSE
+  EMPLOYEE_ADVANCES
+  EMPLOYEE_DEDUCTIONS_PAYABLE
+  EOS_EXPENSE
 }
 
 enum SupplierType {
@@ -8014,4 +8059,171 @@ model LabResultAmendment {
 
   @@index([labOrderId, amendedAt])
   @@index([hospitalId, amendedAt])
+}
+
+// =====================================================================
+// CAP11: HR Loans/Advances, Recurring Allowances/Deductions, Overtime & EOS
+// =====================================================================
+
+model EmployeeAdvance {
+  id                  Int       @id @default(autoincrement())
+  hospitalId          Int
+  userId              Int
+  advanceNumber       String    @db.VarChar(48)
+  amount              Decimal   @db.Decimal(18, 3)
+  installments        Int       @default(1)
+  monthlyDeduction    Decimal   @db.Decimal(18, 3)
+  remainingAmount     Decimal   @db.Decimal(18, 3)
+  requestDate         DateTime  @default(now())
+  reason              String?   @db.VarChar(500)
+  status              String    @default("PENDING") @db.VarChar(24)
+  requestedById       Int
+  approvedById        Int?
+  approvedAt          DateTime?
+  disbursementEntryId Int?      @unique
+  notes               String?   @db.VarChar(500)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  hospital          Hospital         @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
+  user              User             @relation("EmployeeAdvanceOwner", fields: [userId], references: [id], onDelete: Restrict)
+  requestedBy       User             @relation("EmployeeAdvanceRequester", fields: [requestedById], references: [id], onDelete: Restrict)
+  approvedBy        User?            @relation("EmployeeAdvanceApprover", fields: [approvedById], references: [id], onDelete: Restrict)
+  disbursementEntry AccountingEntry? @relation("AdvanceDisbursementEntry", fields: [disbursementEntryId], references: [id], onDelete: Restrict)
+
+  @@unique([hospitalId, advanceNumber])
+  @@index([hospitalId, userId, status])
+  @@index([hospitalId, status])
+}
+
+model EmployeeDeduction {
+  id                    Int       @id @default(autoincrement())
+  hospitalId            Int
+  userId                Int
+  kind                  String    @db.VarChar(24)
+  category              String    @db.VarChar(32)
+  title                 String    @db.VarChar(160)
+  amount                Decimal   @db.Decimal(18, 3)
+  isRecurring           Boolean   @default(true)
+  effectiveFrom         DateTime
+  effectiveTo           DateTime?
+  isActive              Boolean   @default(true)
+  appliedInPayrollRunId Int?
+  createdById           Int
+  notes                 String?   @db.VarChar(500)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  hospital            Hospital    @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
+  user                User        @relation("EmployeeDeductionOwner", fields: [userId], references: [id], onDelete: Restrict)
+  createdBy           User        @relation("EmployeeDeductionCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  appliedInPayrollRun PayrollRun? @relation(fields: [appliedInPayrollRunId], references: [id], onDelete: SetNull)
+
+  @@index([hospitalId, userId, isActive])
+  @@index([hospitalId, kind, isActive])
+}
+
+model OvertimeRequest {
+  id                    Int       @id @default(autoincrement())
+  hospitalId            Int
+  userId                Int
+  date                  DateTime
+  requestedHours        Decimal   @db.Decimal(10, 3)
+  approvedHours         Decimal?  @db.Decimal(10, 3)
+  dayType               String    @default("NORMAL") @db.VarChar(16)
+  multiplier            Decimal   @default(1.5) @db.Decimal(10, 3)
+  reason                String    @db.VarChar(500)
+  status                String    @default("REQUESTED") @db.VarChar(24)
+  requestedById         Int
+  approvedById          Int?
+  approvedAt            DateTime?
+  appliedInPayrollRunId Int?
+  notes                 String?   @db.VarChar(500)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  hospital            Hospital    @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
+  user                User        @relation("OvertimeOwner", fields: [userId], references: [id], onDelete: Restrict)
+  requestedBy         User        @relation("OvertimeRequester", fields: [requestedById], references: [id], onDelete: Restrict)
+  approvedBy          User?       @relation("OvertimeApprover", fields: [approvedById], references: [id], onDelete: Restrict)
+  appliedInPayrollRun PayrollRun? @relation(fields: [appliedInPayrollRunId], references: [id], onDelete: SetNull)
+
+  @@index([hospitalId, userId, date])
+  @@index([hospitalId, status, date])
+}
+
+model EmployeeSettlement {
+  id                      Int       @id @default(autoincrement())
+  hospitalId              Int
+  userId                  Int
+  settlementNo            String    @db.VarChar(48)
+  terminationType         String    @db.VarChar(24)
+  hireDate                DateTime
+  effectiveDate           DateTime
+  reason                  String?   @db.VarChar(500)
+  serviceYears            Decimal   @default(0) @db.Decimal(10, 3)
+  serviceMonths           Int       @default(0)
+  serviceDays             Int       @default(0)
+  basicSalary             Decimal   @db.Decimal(18, 3)
+  dailyRate               Decimal   @db.Decimal(18, 3)
+  lastMonthDays           Int       @default(0)
+  lastMonthAmount         Decimal   @default(0) @db.Decimal(18, 3)
+  leaveDaysUnused         Decimal   @default(0) @db.Decimal(10, 3)
+  leaveCompensationAmount Decimal   @default(0) @db.Decimal(18, 3)
+  gratuityAmount          Decimal   @default(0) @db.Decimal(18, 3)
+  otherAdditions          Decimal   @default(0) @db.Decimal(18, 3)
+  additionsNotes          String?   @db.VarChar(500)
+  totalEarnings           Decimal   @default(0) @db.Decimal(18, 3)
+  advancesDeduction       Decimal   @default(0) @db.Decimal(18, 3)
+  otherDeductions         Decimal   @default(0) @db.Decimal(18, 3)
+  deductionsNotes         String?   @db.VarChar(500)
+  totalDeductions         Decimal   @default(0) @db.Decimal(18, 3)
+  netAmount               Decimal   @default(0) @db.Decimal(18, 3)
+  isDepartmentCleared     Boolean   @default(false)
+  isItCleared             Boolean   @default(false)
+  isFinanceCleared        Boolean   @default(false)
+  isHrCleared             Boolean   @default(false)
+  clearanceNotes          String?   @db.VarChar(500)
+  status                  String    @default("DRAFT") @db.VarChar(24)
+  createdById             Int
+  approvedById            Int?
+  approvedAt              DateTime?
+  paidById                Int?
+  paidAt                  DateTime?
+  accrualEntryId          Int?      @unique
+  paymentEntryId          Int?      @unique
+  executionSnapshot       Json?
+  signatureHash           String?   @db.VarChar(64)
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  hospital     Hospital         @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
+  user         User             @relation("SettlementOwner", fields: [userId], references: [id], onDelete: Restrict)
+  createdBy    User             @relation("SettlementCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  approvedBy   User?            @relation("SettlementApprover", fields: [approvedById], references: [id], onDelete: Restrict)
+  paidBy       User?            @relation("SettlementPayer", fields: [paidById], references: [id], onDelete: Restrict)
+  accrualEntry AccountingEntry? @relation("SettlementAccrualEntry", fields: [accrualEntryId], references: [id], onDelete: Restrict)
+  paymentEntry AccountingEntry? @relation("SettlementPaymentEntry", fields: [paymentEntryId], references: [id], onDelete: Restrict)
+
+  @@unique([hospitalId, settlementNo])
+  @@index([hospitalId, userId, status])
+  @@index([hospitalId, status, effectiveDate])
+}
+
+model TaxBracket {
+  id          Int      @id @default(autoincrement())
+  hospitalId  Int
+  name        String   @db.VarChar(120)
+  fromAmount  Decimal  @db.Decimal(18, 3)
+  toAmount    Decimal? @db.Decimal(18, 3)
+  rate        Decimal  @db.Decimal(19, 6)
+  fixedAmount Decimal  @default(0) @db.Decimal(18, 3)
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  hospital Hospital @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
+
+  @@index([hospitalId, isActive, sortOrder])
 }
