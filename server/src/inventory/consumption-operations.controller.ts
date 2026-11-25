@@ -31,6 +31,7 @@ import { PermissionsGuard } from '../auth/permissions.guard';
 import { Permissions } from '../auth/permissions.decorator';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { JwtPayload } from '../auth/jwt-payload.type';
+import { AuditInTransaction } from '../audit/audit.decorator';
 import { appendChainedAuditInTransaction } from '../audit/audit-chain';
 
 class ListConsumptionsDto {
@@ -177,6 +178,7 @@ export class ConsumptionOperationsController {
     return this.operations.policy(user.hospitalId);
   }
   @Put('source-policy')
+  @AuditInTransaction()
   @Permissions('inventory:manage')
   configure(@CurrentUser() user: JwtPayload, @Body() dto: WarehousePolicyDto) {
     return this.operations.configure(user.hospitalId, user.sub, dto);
@@ -188,6 +190,7 @@ export class ConsumptionOperationsController {
     return this.operations.list(user.hospitalId, query);
   }
   @Post(':id/retry')
+  @AuditInTransaction()
   @Permissions('inventory:manage')
   retry(
     @CurrentUser() user: JwtPayload,

@@ -1,7 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateSystemSettingDto } from './dto/update-system-setting.dto';
-import { SystemSetting } from '@prisma/client';
 import {
   defaultRoomSettings,
   parseRoomDayPolicy,
@@ -9,6 +8,7 @@ import {
   ROOM_POLICY_KEY,
 } from '../admission/room-billing-policy';
 import { appendChainedAuditInTransaction } from '../audit/audit-chain';
+import { publishCommittedCriticalAudit } from '../audit/siem.logger';
 
 @Injectable()
 export class SystemSettingsService {
@@ -57,14 +57,14 @@ export class SystemSettingsService {
         key === ROOM_POLICY_KEY
           ? parseRoomDayPolicy(updateDto.value)
           : parseRoomTimeZone(updateDto.value);
-      return this.prisma.$transaction(async (tx) => {
+      const { updated, audit } = await this.prisma.$transaction(async (tx) => {
         // Separate advisory namespace serializes configuration without locking the
         // Hospital row used by audit foreign keys (which would invert lock order).
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(27002::integer, ${hospitalId}::integer)`;
         const previous = await tx.systemSetting.findUnique({
           where: { hospitalId_key: { hospitalId, key } },
         });
-        const updated = await tx.systemSetting.upsert({
+        const saved = await tx.systemSetting.upsert({
           where: { hospitalId_key: { hospitalId, key } },
           create: {
             hospitalId,
@@ -76,28 +76,47 @@ export class SystemSettingsService {
           },
           update: { value },
         });
-        await appendChainedAuditInTransaction(tx, {
+        const auditEntry = await appendChainedAuditInTransaction(tx, {
           hospitalId,
           userId: userId ?? null,
           action: 'UPDATE_ROOM_BILLING_CONFIGURATION',
           entity: 'SystemSetting',
-          entityId: updated.id,
+          entityId: saved.id,
           oldValues: { key, value: previous?.value ?? fallback.value },
           newValues: { key, value },
         });
-        return updated;
+        return { updated: saved, audit: auditEntry };
       });
+      publishCommittedCriticalAudit(audit);
+      return updated;
     }
-    // Check if exists
-    await this.findOne(hospitalId, key);
 
-    return this.prisma.systemSetting.update({
-      where: { hospitalId_key: { hospitalId, key } },
-      data: {
-        value: updateDto.value,
-        // We typically don't update type or group via API, just value
-      },
+    const { updated, audit } = await this.prisma.$transaction(async (tx) => {
+      const previous = await tx.systemSetting.findUnique({
+        where: { hospitalId_key: { hospitalId, key } },
+      });
+      if (!previous) {
+        throw new NotFoundException(`Setting with key ${key} not found`);
+      }
+      const saved = await tx.systemSetting.update({
+        where: { hospitalId_key: { hospitalId, key } },
+        data: {
+          value: updateDto.value,
+        },
+      });
+      const auditEntry = await appendChainedAuditInTransaction(tx, {
+        hospitalId,
+        userId: userId ?? null,
+        action: 'UPDATE_SYSTEM_SETTING',
+        entity: 'SystemSetting',
+        entityId: saved.id,
+        oldValues: { key, value: previous.value },
+        newValues: { key, value: updateDto.value },
+      });
+      return { updated: saved, audit: auditEntry };
     });
+    publishCommittedCriticalAudit(audit);
+    return updated;
   }
 
   // --- Internal Helpers ---

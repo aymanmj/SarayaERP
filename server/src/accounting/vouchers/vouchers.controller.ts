@@ -15,6 +15,8 @@ import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../auth/permissions.guard';
 import { Permissions } from '../../auth/permissions.decorator';
 import { CurrentUser } from '../../auth/current-user.decorator';
+import type { JwtPayload } from '../../auth/jwt-payload.type';
+import { AuditInTransaction } from '../../audit/audit.decorator';
 
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('accounting/vouchers')
@@ -23,7 +25,10 @@ export class VouchersController {
 
   @Permissions('accounting:manage')
   @Post()
-  create(@CurrentUser() user: any, @Body() createVoucherDto: CreateVoucherDto) {
+  create(
+    @CurrentUser() user: JwtPayload,
+    @Body() createVoucherDto: CreateVoucherDto,
+  ) {
     return this.vouchersService.create(
       user.hospitalId,
       user.sub,
@@ -33,20 +38,24 @@ export class VouchersController {
 
   @Permissions('accounting:view')
   @Get()
-  findAll(@CurrentUser() user: any, @Query() query: any) {
+  findAll(
+    @CurrentUser() user: JwtPayload,
+    @Query()
+    query: { type?: string; status?: string; from?: string; to?: string },
+  ) {
     return this.vouchersService.findAll(user.hospitalId, query);
   }
 
   @Permissions('accounting:view')
   @Get(':id')
-  findOne(@CurrentUser() user: any, @Param('id') id: string) {
+  findOne(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
     return this.vouchersService.findOne(user.hospitalId, +id);
   }
 
   @Permissions('accounting:manage')
   @Put(':id')
   update(
-    @CurrentUser() user: any,
+    @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
     @Body() updateVoucherDto: UpdateVoucherDto,
   ) {
@@ -55,19 +64,21 @@ export class VouchersController {
 
   @Permissions('accounting:manage')
   @Delete(':id')
-  remove(@CurrentUser() user: any, @Param('id') id: string) {
+  remove(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
     return this.vouchersService.remove(user.hospitalId, +id);
   }
 
   @Permissions('accounting:manage')
+  @AuditInTransaction()
   @Post(':id/post')
-  postVoucher(@CurrentUser() user: any, @Param('id') id: string) {
+  postVoucher(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
     return this.vouchersService.post(user.hospitalId, +id, user.sub);
   }
 
   @Permissions('accounting:manage')
+  @AuditInTransaction()
   @Post(':id/cancel')
-  cancelVoucher(@CurrentUser() user: any, @Param('id') id: string) {
+  cancelVoucher(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
     return this.vouchersService.cancel(user.hospitalId, +id, user.sub);
   }
 }

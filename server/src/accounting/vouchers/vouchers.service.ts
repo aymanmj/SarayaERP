@@ -6,7 +6,9 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { AccountingService } from '../accounting.service';
 import { CreateVoucherDto, UpdateVoucherDto } from './dto/voucher.dto';
-import { VoucherStatus, AccountingSourceModule } from '@prisma/client';
+import { VoucherStatus, VoucherType } from '@prisma/client';
+import { appendChainedAuditInTransaction } from '../../audit/audit-chain';
+import { publishCommittedCriticalAudit } from '../../audit/siem.logger';
 
 @Injectable()
 export class VouchersService {
@@ -15,11 +17,37 @@ export class VouchersService {
     private readonly accounting: AccountingService,
   ) {}
 
+  private async assertTenantAccounts(
+    hospitalId: number,
+    accountId: number,
+    cashAccountId: number,
+  ) {
+    const accounts = await this.prisma.account.findMany({
+      where: {
+        hospitalId,
+        id: { in: [accountId, cashAccountId] },
+        isActive: true,
+      },
+      select: { id: true },
+    });
+    const ids = new Set(accounts.map((a) => a.id));
+    if (!ids.has(accountId) || !ids.has(cashAccountId)) {
+      throw new NotFoundException(
+        'الحساب المحاسبي أو حساب الصندوق غير موجود ضمن هذه المنشأة.',
+      );
+    }
+  }
+
   async create(hospitalId: number, userId: number, dto: CreateVoucherDto) {
+    await this.assertTenantAccounts(
+      hospitalId,
+      dto.accountId,
+      dto.cashAccountId,
+    );
     return this.prisma.voucher.create({
       data: {
         hospitalId,
-        type: dto.type as any,
+        type: dto.type as VoucherType,
         date: new Date(dto.date),
         amount: dto.amount,
         accountId: dto.accountId,
@@ -33,13 +61,16 @@ export class VouchersService {
     });
   }
 
-  async findAll(hospitalId: number, query: any) {
+  async findAll(
+    hospitalId: number,
+    query: { type?: string; status?: string; from?: string; to?: string },
+  ) {
     const { type, status, from, to } = query;
     return this.prisma.voucher.findMany({
       where: {
         hospitalId,
-        type: type ? type : undefined,
-        status: status ? status : undefined,
+        type: type ? (type as VoucherType) : undefined,
+        status: status ? (status as VoucherStatus) : undefined,
         date: {
           gte: from ? new Date(from) : undefined,
           lte: to ? new Date(to) : undefined,
@@ -72,10 +103,15 @@ export class VouchersService {
     if (voucher.status !== VoucherStatus.DRAFT) {
       throw new BadRequestException('Cannot update a non-draft voucher');
     }
+    await this.assertTenantAccounts(
+      hospitalId,
+      dto.accountId,
+      dto.cashAccountId,
+    );
     return this.prisma.voucher.update({
       where: { id },
       data: {
-        type: dto.type as any,
+        type: dto.type as VoucherType,
         date: new Date(dto.date),
         amount: dto.amount,
         accountId: dto.accountId,
@@ -101,11 +137,11 @@ export class VouchersService {
       throw new BadRequestException('Voucher is already posted or cancelled');
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    const { updated, audit } = await this.prisma.$transaction(async (tx) => {
       // Generate Code PV-0001 or RV-0001
       const prefix = voucher.type === 'PAYMENT' ? 'PV' : 'RV';
       const count = await tx.voucher.count({
-        where: { hospitalId, type: voucher.type as any },
+        where: { hospitalId, type: voucher.type },
       });
       const code = `${prefix}-${String(count + 1).padStart(5, '0')}`;
 
@@ -122,7 +158,7 @@ export class VouchersService {
         );
       }
 
-      const updated = await tx.voucher.findUnique({ where: { id } });
+      const saved = await tx.voucher.findUnique({ where: { id } });
 
       // Record Accounting Entry
       await this.accounting.recordVoucherEntry({
@@ -132,8 +168,26 @@ export class VouchersService {
         prisma: tx,
       });
 
-      return updated;
+      const auditEntry = await appendChainedAuditInTransaction(tx, {
+        hospitalId,
+        userId,
+        action: 'VOUCHER_POSTED',
+        entity: 'Voucher',
+        entityId: id,
+        details: {
+          code,
+          type: voucher.type,
+          amount: voucher.amount.toString(),
+          accountId: voucher.accountId,
+          cashAccountId: voucher.cashAccountId,
+        },
+      });
+
+      return { updated: saved, audit: auditEntry };
     });
+
+    publishCommittedCriticalAudit(audit);
+    return updated;
   }
 
   async cancel(hospitalId: number, id: number, userId: number) {
@@ -142,19 +196,37 @@ export class VouchersService {
       throw new BadRequestException('Can only cancel a POSTED voucher');
     }
 
-    // For now we just mark cancelled. Real ERPs generate a JOURNAL_REVERSAL entry.
-    // OCC check to prevent concurrent cancellations
-    const updateResult = await this.prisma.voucher.updateMany({
-      where: { id, hospitalId, status: VoucherStatus.POSTED },
-      data: { status: VoucherStatus.CANCELLED },
+    const { updated, audit } = await this.prisma.$transaction(async (tx) => {
+      // OCC check to prevent concurrent cancellations
+      const updateResult = await tx.voucher.updateMany({
+        where: { id, hospitalId, status: VoucherStatus.POSTED },
+        data: { status: VoucherStatus.CANCELLED },
+      });
+
+      if (updateResult.count === 0) {
+        throw new BadRequestException(
+          'Voucher was modified by another transaction and is no longer in POSTED status',
+        );
+      }
+
+      const saved = await tx.voucher.findUnique({ where: { id } });
+      const auditEntry = await appendChainedAuditInTransaction(tx, {
+        hospitalId,
+        userId,
+        action: 'VOUCHER_CANCELLED',
+        entity: 'Voucher',
+        entityId: id,
+        details: {
+          code: voucher.code,
+          type: voucher.type,
+          amount: voucher.amount.toString(),
+        },
+      });
+
+      return { updated: saved, audit: auditEntry };
     });
 
-    if (updateResult.count === 0) {
-      throw new BadRequestException(
-        'Voucher was modified by another transaction and is no longer in POSTED status',
-      );
-    }
-
-    return this.prisma.voucher.findUnique({ where: { id } });
+    publishCommittedCriticalAudit(audit);
+    return updated;
   }
 }

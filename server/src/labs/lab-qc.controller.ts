@@ -28,7 +28,7 @@ export class LabQcController {
   constructor(private readonly labQc: LabQcService) {}
 
   @Get('lots')
-  @Permissions('lab:view')
+  @Permissions('labs:view', 'lab:view')
   listLots(@CurrentUser() user: JwtPayload, @Query('testId') testId?: string) {
     return this.labQc.listLots(
       user.hospitalId,
@@ -38,21 +38,21 @@ export class LabQcController {
 
   @Post('lots')
   @AuditInTransaction()
-  @Permissions('lab:manage')
+  @Permissions('labs:manage', 'lab:manage')
   createLot(@CurrentUser() user: JwtPayload, @Body() dto: CreateLabQcLotDto) {
     return this.labQc.createLot(user.hospitalId, user.sub, dto);
   }
 
   @Post('runs')
   @AuditInTransaction()
-  @Permissions('lab:manage')
+  @Permissions('labs:manage', 'lab:manage')
   recordRun(@CurrentUser() user: JwtPayload, @Body() dto: RecordLabQcRunDto) {
     return this.labQc.recordRun(user.hospitalId, user.sub, dto);
   }
 
   @Post('runs/:id/review')
   @AuditInTransaction()
-  @Permissions('lab:manage')
+  @Permissions('labs:manage', 'lab:manage')
   reviewRun(
     @CurrentUser() user: JwtPayload,
     @Param('id', ParseIntPipe) id: number,
@@ -62,7 +62,7 @@ export class LabQcController {
   }
 
   @Get('lots/:id/levey-jennings')
-  @Permissions('lab:view')
+  @Permissions('labs:view', 'lab:view')
   getLeveyJennings(
     @CurrentUser() user: JwtPayload,
     @Param('id', ParseIntPipe) id: number,

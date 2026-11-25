@@ -1486,6 +1486,11 @@
       "editResult": "Edit Result",
       "enterResult": "Enter Result",
       "report": "Aggregate Report"
+    },
+    "qc": {
+      "button": "Quality Control (Westgard QC)",
+      "title": "Internal Lab Quality Control (Westgard QC)",
+      "subtitle": "Levey-Jennings charts, automated Westgard rules, and 4-eyes corrective action review"
     }
   },
   "radiology": {
@@ -1536,7 +1541,11 @@
     },
     "historyTitle": "Radiology Requests & Reports History",
     "regionLabel": "Region:",
-    "reportLabel": "📋 Radiology Report:"
+    "reportLabel": "📋 Radiology Report:",
+    "dose": {
+      "button": "Radiation Dose (RDSR)",
+      "title": "Radiation Dose Structured Report (RDSR)"
+    }
   },
   "pharmacy": {
     "title": "Pharmacy Dispensing",
@@ -3547,8 +3556,18 @@
         "record": "Save contact outcome",
         "refresh": "Refresh history",
         "saveFailed": "Could not save the outcome. Review the history before retrying.",
-        "outcomes": { "PENDING": "Awaiting notification", "ATTEMPTED": "Contact attempted", "NOTIFIED": "Notified", "RESOLVED": "Follow-up completed" },
-        "channels": { "PHONE": "Phone", "IN_PERSON": "In person", "SECURE_MESSAGE": "Secure message", "INTERNAL_HANDOFF": "Internal handoff" }
+        "outcomes": {
+          "PENDING": "Awaiting notification",
+          "ATTEMPTED": "Contact attempted",
+          "NOTIFIED": "Notified",
+          "RESOLVED": "Follow-up completed"
+        },
+        "channels": {
+          "PHONE": "Phone",
+          "IN_PERSON": "In person",
+          "SECURE_MESSAGE": "Secure message",
+          "INTERNAL_HANDOFF": "Internal handoff"
+        }
       },
       "title": "Recall follow-up",
       "loading": "Loading recall history",
@@ -3580,7 +3599,11 @@
         "PURCHASE_RETURN": "Supplier return",
         "RECALL_DISPOSAL": "Recall disposal"
       },
-      "transfer": { "ISSUED": "In transit", "RECEIVED": "Received", "CANCELLED": "Cancelled" }
+      "transfer": {
+        "ISSUED": "In transit",
+        "RECEIVED": "Received",
+        "CANCELLED": "Cancelled"
+      }
     },
     "alerts": {
       "alertNotes": "Alert notes",
@@ -4651,8 +4674,15 @@
       "batchReason": "Reason for action",
       "batchSaved": "Batch safety action saved",
       "batchSaveFailed": "Could not save the action. Refresh the batch and try again.",
-      "batchAction": { "QUARANTINED": "Quarantine", "RECALLED": "Recall", "RELEASED": "Release quarantine" },
-      "batchStatus": { "QUARANTINED": "Quarantined", "RECALLED": "Recalled" },
+      "batchAction": {
+        "QUARANTINED": "Quarantine",
+        "RECALLED": "Recall",
+        "RELEASED": "Release quarantine"
+      },
+      "batchStatus": {
+        "QUARANTINED": "Quarantined",
+        "RECALLED": "Recalled"
+      },
       "tableMinStock": "minimum",
       "tableProduct": "Class",
       "tableQuantity": "Quantity",

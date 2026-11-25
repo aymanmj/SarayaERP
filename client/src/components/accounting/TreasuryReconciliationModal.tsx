@@ -68,6 +68,20 @@ interface ReconSessionSummary {
   };
 }
 
+interface FxRevaluationItem {
+  id: number;
+  asOfDate: string;
+  currencyCode: string;
+  foreignBalance: string;
+  bookBalanceBase: string;
+  closingRate: string;
+  revaluedBalanceBase: string;
+  unrealizedGainLoss: string;
+  accountingEntryId: number | null;
+  notes?: string | null;
+  bankAccount: { id: number; bankName: string; accountNumber: string };
+}
+
 interface TreasuryReconciliationModalProps {
   open: boolean;
   onClose: () => void;
@@ -100,7 +114,7 @@ export function TreasuryReconciliationModal({
   open,
   onClose,
 }: TreasuryReconciliationModalProps) {
-  const [activeTab, setActiveTab] = useState<"fx" | "recon">("fx");
+  const [activeTab, setActiveTab] = useState<"fx" | "recon" | "reval">("fx");
   const [loading, setLoading] = useState(false);
 
   // Currencies & FX
@@ -139,21 +153,38 @@ export function TreasuryReconciliationModal({
     useState<ReconSessionSummary | null>(null);
   const [busyAction, setBusyAction] = useState<string | null>(null);
 
+  // CSV / SWIFT MT940 Statement File Import
+  const [importFormat, setImportFormat] = useState<"CSV" | "MT940">("CSV");
+  const [importContent, setImportContent] = useState("");
+
+  // FX Revaluation Runs
+  const [revaluations, setRevaluations] = useState<FxRevaluationItem[]>([]);
+  const [revalBankAccountId, setRevalBankAccountId] = useState("");
+  const [revalForeignBalance, setRevalForeignBalance] = useState("");
+  const [revalAsOfDate, setRevalAsOfDate] = useState(() =>
+    new Date().toISOString().slice(0, 10),
+  );
+  const [revalNotes, setRevalNotes] = useState("");
+
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [currRes, rateRes, bankRes, sessRes] = await Promise.all([
+      const [currRes, rateRes, bankRes, sessRes, revalRes] = await Promise.all([
         apiClient.get<CurrencyItem[]>("/accounting/treasury/currencies"),
         apiClient.get<ExchangeRateItem[]>("/accounting/treasury/exchange-rates"),
         apiClient.get<BankAccountItem[]>("/accounting/treasury/bank-accounts"),
         apiClient.get<ReconSessionSummary[]>(
           "/accounting/treasury/reconciliations",
         ),
+        apiClient.get<FxRevaluationItem[]>(
+          "/accounting/treasury/fx-revaluations",
+        ),
       ]);
       setCurrencies(currRes.data || []);
       setRates(rateRes.data || []);
       setBankAccounts(bankRes.data || []);
       setSessions(sessRes.data || []);
+      setRevaluations(revalRes.data || []);
     } catch {
       toast.error("تعذر تحميل بيانات العملات والتسوية البنكية");
     } finally {
@@ -351,6 +382,82 @@ export function TreasuryReconciliationModal({
     }
   };
 
+  const handleStatementFileSelected = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const text = await file.text();
+    setImportContent(text);
+    if (
+      file.name.toLowerCase().endsWith(".sta") ||
+      file.name.toLowerCase().endsWith(".mt940") ||
+      text.includes(":61:")
+    ) {
+      setImportFormat("MT940");
+    } else {
+      setImportFormat("CSV");
+    }
+  };
+
+  const handleImportStatementFile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedSession || !importContent.trim()) return;
+    setBusyAction(`import-file-${selectedSession.id}`);
+    try {
+      const res = await apiClient.post<{
+        importedCount: number;
+        session: ReconSessionSummary;
+      }>(
+        `/accounting/treasury/reconciliations/${selectedSession.id}/import-file`,
+        {
+          format: importFormat,
+          content: importContent,
+        },
+      );
+      toast.success(
+        `تم استيراد ${res.data.importedCount} حركة من ملف ${importFormat} بنجاح`,
+      );
+      setImportContent("");
+      setSelectedSession(res.data.session);
+      await loadData();
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data
+          ?.message || "تعذر تحليل أو استيراد ملف كشف البنك";
+      toast.error(msg);
+    } finally {
+      setBusyAction(null);
+    }
+  };
+
+  const handleRunFxRevaluation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!revalBankAccountId || !revalForeignBalance.trim()) return;
+    setBusyAction("run-fx-reval");
+    try {
+      await apiClient.post("/accounting/treasury/fx-revaluations", {
+        bankAccountId: Number(revalBankAccountId),
+        foreignBalance: revalForeignBalance.trim(),
+        asOfDate: `${revalAsOfDate}T00:00:00.000Z`,
+        notes: revalNotes.trim() || undefined,
+      });
+      toast.success(
+        "تم تنفيذ إعادة تقييم فروق العملة وترحيل قيد الفروق غير المحققة بنجاح",
+      );
+      setRevalForeignBalance("");
+      setRevalNotes("");
+      await loadData();
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data
+          ?.message || "تعذر تنفيذ إعادة تقييم فروق العملة";
+      toast.error(msg);
+    } finally {
+      setBusyAction(null);
+    }
+  };
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4"
@@ -390,6 +497,17 @@ export function TreasuryReconciliationModal({
               }`}
             >
               التسوية البنكية ({sessions.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("reval")}
+              className={`px-4 py-2 rounded-xl text-xs font-bold border transition ${
+                activeTab === "reval"
+                  ? "bg-amber-600 border-amber-500 text-white"
+                  : "bg-slate-900 border-slate-700 text-slate-300"
+              }`}
+            >
+              إعادة التقييم ({revaluations.length})
             </button>
             <button
               type="button"
@@ -824,6 +942,56 @@ export function TreasuryReconciliationModal({
                     </div>
                   )}
                 </div>
+                {/* Import CSV / SWIFT MT940 Bank Statement File */}
+                {selectedSession.status !== "CLOSED" && (
+                  <form
+                    onSubmit={handleImportStatementFile}
+                    className="rounded-xl border border-slate-800 bg-slate-950/70 p-3 space-y-2.5 text-xs"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="font-bold text-sky-300">
+                        استيراد ملف كشف الحساب البنكي (CSV / SWIFT MT940)
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <select
+                          aria-label="تنسيق الملف"
+                          value={importFormat}
+                          onChange={(e) =>
+                            setImportFormat(e.target.value as "CSV" | "MT940")
+                          }
+                          className="rounded-lg bg-slate-900 border border-slate-700 px-2.5 py-1"
+                        >
+                          <option value="CSV">CSV</option>
+                          <option value="MT940">SWIFT MT940</option>
+                        </select>
+                        <input
+                          type="file"
+                          accept=".csv,.txt,.sta,.mt940"
+                          onChange={(e) => void handleStatementFileSelected(e)}
+                          className="text-[11px] text-slate-300"
+                        />
+                      </div>
+                    </div>
+                    <textarea
+                      rows={3}
+                      value={importContent}
+                      onChange={(e) => setImportContent(e.target.value)}
+                      placeholder="الصق محتوى CSV (date,reference,description,debit,credit) أو SWIFT MT940 (:61:/:86:)..."
+                      className="w-full rounded-xl bg-slate-900 border border-slate-700 p-2.5 font-mono text-[11px]"
+                    />
+                    <button
+                      type="submit"
+                      disabled={
+                        !importContent.trim() ||
+                        busyAction === `import-file-${selectedSession.id}`
+                      }
+                      className="px-3.5 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold disabled:opacity-50"
+                    >
+                      استيراد الحركات من الملف
+                    </button>
+                  </form>
+                )}
+
                 <div className="overflow-x-auto">
                   <table className="w-full text-right text-xs">
                     <thead className="text-slate-400 border-b border-slate-800">
@@ -874,6 +1042,128 @@ export function TreasuryReconciliationModal({
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {!loading && activeTab === "reval" && (
+          <div className="space-y-6">
+            <form
+              onSubmit={handleRunFxRevaluation}
+              className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 space-y-3"
+            >
+              <h3 className="text-sm font-bold text-amber-300">
+                تنفيذ إعادة تقييم فروق العملة غير المحققة (Period-End FX Revaluation)
+              </h3>
+              <p className="text-[11px] text-slate-400">
+                يُقارن الرصيد الأجنبي بسعر الإقفال المعتمد (6dp) مع الرصيد الدفتري بالأستاذ العام ويرحّل قيد فروق العملة تلقائيًا على حساب 400950.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-2 text-xs">
+                <select
+                  aria-label="الحساب البنكي الأجنبي"
+                  value={revalBankAccountId}
+                  onChange={(e) => setRevalBankAccountId(e.target.value)}
+                  required
+                  className="rounded-xl bg-slate-950 border border-slate-700 px-3 py-2"
+                >
+                  <option value="">اختر الحساب البنكي...</option>
+                  {bankAccounts.map((ba) => (
+                    <option key={ba.id} value={ba.id}>
+                      {ba.bankName} ({ba.currency.code}) — {ba.accountNumber}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  value={revalForeignBalance}
+                  onChange={(e) => setRevalForeignBalance(e.target.value)}
+                  placeholder="الرصيد بالعملة الأجنبية (مثل 10000.000)"
+                  required
+                  className="rounded-xl bg-slate-950 border border-slate-700 px-3 py-2 font-mono"
+                />
+                <input
+                  type="date"
+                  value={revalAsOfDate}
+                  onChange={(e) => setRevalAsOfDate(e.target.value)}
+                  required
+                  className="rounded-xl bg-slate-950 border border-slate-700 px-3 py-2"
+                />
+                <input
+                  value={revalNotes}
+                  onChange={(e) => setRevalNotes(e.target.value)}
+                  placeholder="ملاحظة الإقفال (اختياري)"
+                  className="rounded-xl bg-slate-950 border border-slate-700 px-3 py-2"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={busyAction === "run-fx-reval"}
+                className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-xs font-bold text-white"
+              >
+                تشغيل إعادة التقييم وترحيل القيد
+              </button>
+            </form>
+
+            <div className="overflow-x-auto rounded-2xl border border-slate-800">
+              <table className="w-full text-right text-xs">
+                <thead className="bg-slate-900 text-slate-400">
+                  <tr>
+                    <th className="p-3">تاريخ الإقفال</th>
+                    <th className="p-3">المصرف</th>
+                    <th className="p-3">العملة والرصيد الأجنبي</th>
+                    <th className="p-3">سعر الإقفال (6dp)</th>
+                    <th className="p-3">الدفتري (GL)</th>
+                    <th className="p-3">بعد التقييم</th>
+                    <th className="p-3">فروق غير محققة</th>
+                    <th className="p-3">القيد المحاسبي</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800">
+                  {revaluations.map((rv) => {
+                    const isLoss = rv.unrealizedGainLoss.startsWith("-");
+                    return (
+                      <tr key={rv.id} className="hover:bg-slate-900/50">
+                        <td className="p-3 font-mono">
+                          {rv.asOfDate.slice(0, 10)}
+                        </td>
+                        <td className="p-3 font-bold text-white">
+                          {rv.bankAccount.bankName}
+                        </td>
+                        <td className="p-3 font-mono">
+                          {formatMoney(rv.foreignBalance)} {rv.currencyCode}
+                        </td>
+                        <td className="p-3 font-mono text-sky-300">
+                          {formatRate(rv.closingRate)}
+                        </td>
+                        <td className="p-3 font-mono">
+                          {formatMoney(rv.bookBalanceBase)}
+                        </td>
+                        <td className="p-3 font-mono">
+                          {formatMoney(rv.revaluedBalanceBase)}
+                        </td>
+                        <td
+                          className={`p-3 font-mono font-bold ${
+                            isLoss ? "text-rose-400" : "text-emerald-400"
+                          }`}
+                        >
+                          {formatMoney(rv.unrealizedGainLoss)}
+                        </td>
+                        <td className="p-3 font-mono text-slate-300">
+                          {rv.accountingEntryId
+                            ? `GL #${rv.accountingEntryId}`
+                            : "لا يوجد فرق"}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {revaluations.length === 0 && (
+                    <tr>
+                      <td colSpan={8} className="p-6 text-center text-slate-500">
+                        لا توجد عمليات إعادة تقييم عملات مسجلة بعد
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>

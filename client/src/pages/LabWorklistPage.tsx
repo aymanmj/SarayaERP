@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { LabSpecimenCultureModal } from "../components/labs/LabSpecimenCultureModal";
 import { BloodBankModal } from "../components/labs/BloodBankModal";
+import { LabQcModal } from "../components/labs/LabQcModal";
 import {
   LabResultEntryModal,
   type LabWorklistOrderForModal,
@@ -66,6 +67,7 @@ export default function LabWorklistPage() {
   const [resultModalItem, setResultModalItem] =
     useState<LabWorklistItem | null>(null);
   const [bloodBankOpen, setBloodBankOpen] = useState(false);
+  const [qcOpen, setQcOpen] = useState(false);
 
   const {
     data: items = [],
@@ -163,6 +165,12 @@ export default function LabWorklistPage() {
           </p>
         </div>
         <div className="flex gap-2">
+          <button
+            onClick={() => setQcOpen(true)}
+            className="px-4 py-1.5 rounded-xl bg-indigo-700 hover:bg-indigo-600 text-white text-sm font-bold transition"
+          >
+            {t("lab.qc.button", "ضبط الجودة (Westgard QC)")}
+          </button>
           <button
             onClick={() => setBloodBankOpen(true)}
             className="px-4 py-1.5 rounded-xl bg-rose-700 hover:bg-rose-600 text-white text-sm font-bold transition"
@@ -330,6 +338,8 @@ export default function LabWorklistPage() {
         open={bloodBankOpen}
         onClose={() => setBloodBankOpen(false)}
       />
+
+      <LabQcModal open={qcOpen} onClose={() => setQcOpen(false)} />
     </div>
   );
 }

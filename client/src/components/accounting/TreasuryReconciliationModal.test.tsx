@@ -118,6 +118,28 @@ describe("TreasuryReconciliationModal (CAP09)", () => {
           ],
         } as never;
       }
+      if (url === "/accounting/treasury/fx-revaluations") {
+        return {
+          data: [
+            {
+              id: 71,
+              asOfDate: "2026-11-30T00:00:00.000Z",
+              currencyCode: "USD",
+              foreignBalance: "1000.000",
+              bookBalanceBase: "4800.000",
+              closingRate: "4.950000",
+              revaluedBalanceBase: "4950.000",
+              unrealizedGainLoss: "150.000",
+              accountingEntryId: 999,
+              bankAccount: {
+                id: 5,
+                bankName: "مصرف الجمهورية",
+                accountNumber: "011-00445566",
+              },
+            },
+          ],
+        } as never;
+      }
       return { data: [] } as never;
     });
 
@@ -161,6 +183,42 @@ describe("TreasuryReconciliationModal (CAP09)", () => {
     await waitFor(() => {
       expect(apiClient.post).toHaveBeenCalledWith(
         "/accounting/treasury/reconciliations/30/approve-close",
+      );
+    });
+  });
+
+  it("switches to FX revaluation tab, displays history, and submits new revaluation run", async () => {
+    render(<TreasuryReconciliationModal open={true} onClose={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/إعادة التقييم \(1\)/)).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /إعادة التقييم \(1\)/ }));
+
+    await waitFor(() => {
+      expect(screen.getByText("GL #999")).toBeInTheDocument();
+      expect(screen.getByText("4.950000")).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByLabelText("الحساب البنكي الأجنبي"), {
+      target: { value: "5" },
+    });
+    fireEvent.change(
+      screen.getByPlaceholderText(/الرصيد بالعملة الأجنبية/),
+      { target: { value: "2500.000" } },
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "تشغيل إعادة التقييم وترحيل القيد" }),
+    );
+
+    await waitFor(() => {
+      expect(apiClient.post).toHaveBeenCalledWith(
+        "/accounting/treasury/fx-revaluations",
+        expect.objectContaining({
+          bankAccountId: 5,
+          foreignBalance: "2500.000",
+        }),
       );
     });
   });

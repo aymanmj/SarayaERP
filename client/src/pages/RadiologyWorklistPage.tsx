@@ -10,6 +10,7 @@ import {
   RadiologyReportModal,
   type RadiologyOrderModalItem,
 } from "../components/radiology/RadiologyReportModal";
+import { RadiologyDoseModal } from "../components/radiology/RadiologyDoseModal";
 
 type PatientLite = { id: number; fullName: string; mrn: string };
 type StudyLite = {
@@ -59,6 +60,8 @@ export default function RadiologyWorklistPage() {
 
   const [search, setSearch] = useState("");
   const [activeReportItem, setActiveReportItem] =
+    useState<RadiologyWorklistItem | null>(null);
+  const [activeDoseItem, setActiveDoseItem] =
     useState<RadiologyWorklistItem | null>(null);
   const user = useAuthStore((state) => state.user);
 
@@ -287,6 +290,15 @@ export default function RadiologyWorklistPage() {
                     </button>
                   )}
 
+                  {it.patient?.id && (
+                    <button
+                      onClick={() => setActiveDoseItem(it)}
+                      className="px-3 py-2 rounded-xl bg-amber-800/80 hover:bg-amber-700 text-xs text-amber-100 border border-amber-600/50 font-semibold"
+                    >
+                      ☢️ {t("radiology.dose.button", "الجرعة (RDSR)")}
+                    </button>
+                  )}
+
                   {it.status === "COMPLETED" && (
                     <button
                       onClick={() =>
@@ -317,6 +329,23 @@ export default function RadiologyWorklistPage() {
           item={activeReportItem}
           onClose={() => setActiveReportItem(null)}
           onSaved={() => {
+            void load();
+          }}
+        />
+      )}
+
+      {activeDoseItem && activeDoseItem.patient && (
+        <RadiologyDoseModal
+          open={true}
+          radiologyOrderId={activeDoseItem.id}
+          patientId={activeDoseItem.patient.id}
+          patientName={activeDoseItem.patient.fullName}
+          patientMrn={activeDoseItem.patient.mrn}
+          studyName={activeDoseItem.study.name}
+          defaultModality={activeDoseItem.study.modality}
+          defaultBodyRegion={activeDoseItem.study.bodyPart}
+          onClose={() => setActiveDoseItem(null)}
+          onRecorded={() => {
             void load();
           }}
         />

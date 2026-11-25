@@ -1486,6 +1486,11 @@
       "editResult": "تعديل النتيجة",
       "enterResult": "إدخال النتيجة",
       "report": "تقرير مجمع"
+    },
+    "qc": {
+      "button": "ضبط الجودة (Westgard QC)",
+      "title": "ضبط الجودة الداخلي للمختبر (Westgard QC)",
+      "subtitle": "مخططات Levey-Jennings، قواعد Westgard التلقائية، ومراجعة الإجراء التصحيحي بـ 4 عيون"
     }
   },
   "radiology": {
@@ -1536,7 +1541,11 @@
     },
     "historyTitle": "سجل طلبات الأشعة والتقارير",
     "regionLabel": "المنطقة:",
-    "reportLabel": "📋 تقرير الأشعة:"
+    "reportLabel": "📋 تقرير الأشعة:",
+    "dose": {
+      "button": "الجرعة (RDSR)",
+      "title": "سجل الجرعة الإشعاعية وسلامة المريض (RDSR)"
+    }
   },
   "pharmacy": {
     "title": "صرف الوصفات (الصيدلية)",
@@ -3547,8 +3556,18 @@
         "record": "حفظ نتيجة التواصل",
         "refresh": "تحديث السجل",
         "saveFailed": "تعذّر حفظ النتيجة. راجع السجل قبل إعادة المحاولة.",
-        "outcomes": { "PENDING": "بانتظار الإبلاغ", "ATTEMPTED": "محاولة إبلاغ", "NOTIFIED": "تم الإبلاغ", "RESOLVED": "اكتملت المتابعة" },
-        "channels": { "PHONE": "هاتف", "IN_PERSON": "حضوري", "SECURE_MESSAGE": "رسالة آمنة", "INTERNAL_HANDOFF": "تسليم داخلي" }
+        "outcomes": {
+          "PENDING": "بانتظار الإبلاغ",
+          "ATTEMPTED": "محاولة إبلاغ",
+          "NOTIFIED": "تم الإبلاغ",
+          "RESOLVED": "اكتملت المتابعة"
+        },
+        "channels": {
+          "PHONE": "هاتف",
+          "IN_PERSON": "حضوري",
+          "SECURE_MESSAGE": "رسالة آمنة",
+          "INTERNAL_HANDOFF": "تسليم داخلي"
+        }
       },
       "title": "متابعة الاستدعاء",
       "loading": "جارٍ تحميل سجل الاستدعاء",
@@ -3580,7 +3599,11 @@
         "PURCHASE_RETURN": "مرتجع مورد",
         "RECALL_DISPOSAL": "إتلاف تشغيلة مستدعاة"
       },
-      "transfer": { "ISSUED": "قيد النقل", "RECEIVED": "مستلم", "CANCELLED": "ملغى" }
+      "transfer": {
+        "ISSUED": "قيد النقل",
+        "RECEIVED": "مستلم",
+        "CANCELLED": "ملغى"
+      }
     },
     "alerts": {
       "alertNotes": "ملاحظات التنبيه",
@@ -4651,8 +4674,15 @@
       "batchReason": "سبب الإجراء",
       "batchSaved": "حُفظ إجراء سلامة التشغيلة",
       "batchSaveFailed": "تعذّر حفظ الإجراء. حدّث بيانات التشغيلة وحاول مجددًا.",
-      "batchAction": { "QUARANTINED": "حجر", "RECALLED": "استدعاء", "RELEASED": "رفع الحجر" },
-      "batchStatus": { "QUARANTINED": "محجورة", "RECALLED": "مستدعاة" },
+      "batchAction": {
+        "QUARANTINED": "حجر",
+        "RECALLED": "استدعاء",
+        "RELEASED": "رفع الحجر"
+      },
+      "batchStatus": {
+        "QUARANTINED": "محجورة",
+        "RECALLED": "مستدعاة"
+      },
       "tableMinStock": "الحد الأدنى",
       "tableProduct": "الصنف",
       "tableQuantity": "الكمية",
