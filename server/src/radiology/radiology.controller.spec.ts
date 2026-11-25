@@ -6,7 +6,16 @@ import { RadiologyService } from './radiology.service';
 
 describe('RadiologyController', () => {
   let controller: RadiologyController;
-  let radiologyService: any;
+  let radiologyService: Record<
+    | 'getCatalog'
+    | 'listOrdersForEncounter'
+    | 'createOrdersForEncounter'
+    | 'getWorklist'
+    | 'startProcessing'
+    | 'getOrderById'
+    | 'completeOrderWithReport',
+    jest.Mock
+  >;
 
   const user = { sub: 14, hospitalId: 5, roles: ['RAD_TECH'] };
 

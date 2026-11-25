@@ -7,7 +7,6 @@ jest.mock('./invoice-snapshot', () => ({
 // Unit tests for Billing Service
 
 import { Test, TestingModule } from '@nestjs/testing';
-import { createPrismaMock } from '../test-utils';
 import { BillingService } from './billing.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -21,7 +20,6 @@ import { NotFoundException, BadRequestException } from '@nestjs/common';
 
 describe('BillingService', () => {
   let service: BillingService;
-  let prismaService: PrismaService;
 
   // Mock data
   const mockHospitalId = 1;
@@ -67,7 +65,7 @@ describe('BillingService', () => {
       mrn: 'MRN-001',
       phone: '0912345678',
     },
-    charges: mockCharges as any,
+    charges: mockCharges,
     invoices: [],
   };
 
@@ -119,13 +117,17 @@ describe('BillingService', () => {
     accountingEntryLine: {
       deleteMany: jest.fn(),
     },
-    $transaction: jest.fn((arg) => {
+    $transaction: jest.fn(),
+  };
+
+  mockPrismaService.$transaction.mockImplementation(
+    (arg: unknown[] | ((tx: typeof mockPrismaService) => unknown)) => {
       if (Array.isArray(arg)) {
         return Promise.all(arg);
       }
       return arg(mockPrismaService);
-    }),
-  };
+    },
+  );
 
   const mockEventEmitter = {
     emit: jest.fn(),
@@ -164,7 +166,7 @@ describe('BillingService', () => {
   };
 
   const mockPriceListsService = {
-    getServicePrice: jest.fn().mockImplementation((h, s, p) => {
+    getServicePrice: jest.fn().mockImplementation((_h, s) => {
       if (s === 1) return 50;
       if (s === 2) return 25;
       return 0;
@@ -189,7 +191,6 @@ describe('BillingService', () => {
     }).compile();
 
     service = module.get<BillingService>(BillingService);
-    prismaService = module.get<PrismaService>(PrismaService);
 
     // Reset mocks
     jest.clearAllMocks();
@@ -307,7 +308,7 @@ describe('BillingService', () => {
         expect.objectContaining({
           data: expect.objectContaining({
             totalAmount: 100,
-          }),
+          }) as unknown,
         }),
       );
     });
@@ -369,7 +370,7 @@ describe('BillingService', () => {
             patientShare: 20,
             insuranceShare: 60,
             insuranceProviderId: 77,
-          }),
+          }) as unknown,
         }),
       );
       expect(mockPrismaService.encounterCharge.updateMany).toHaveBeenCalledWith(
@@ -460,8 +461,8 @@ describe('BillingService', () => {
                   mrn: { contains: 'ahmed', mode: 'insensitive' },
                 },
               }),
-            ]),
-          }),
+            ]) as unknown,
+          }) as unknown,
         }),
       );
     });

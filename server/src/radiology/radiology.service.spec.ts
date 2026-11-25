@@ -9,21 +9,10 @@ import { RadiologyStatus, ServiceType } from '@prisma/client';
 
 describe('RadiologyService', () => {
   let service: RadiologyService;
-  let prisma: any;
-  let accounting: any;
-  let priceService: any;
-  let eventEmitter: any;
   const queryRaw = jest.fn();
 
-  beforeEach(async () => {
-    queryRaw.mockReset().mockResolvedValue([
-      {
-        orderStatus: 'NEW',
-        radiologyStatus: 'PENDING',
-        paymentStatus: 'PAID',
-      },
-    ]);
-    prisma = {
+  const buildMocks = () => {
+    const prismaMock = {
       $queryRaw: queryRaw,
       serviceItem: { findFirst: jest.fn().mockResolvedValue({ id: 1 }) },
       consumptionWarehousePolicy: {
@@ -65,23 +54,43 @@ describe('RadiologyService', () => {
       invoice: {
         create: jest.fn(),
       },
-      $transaction: jest.fn(async (fn: any) => fn(prisma)),
+      $transaction: jest.fn(),
     };
+    prismaMock.$transaction.mockImplementation(
+      (fn: (tx: typeof prismaMock) => unknown) =>
+        Promise.resolve(fn(prismaMock)),
+    );
+    return {
+      prisma: prismaMock,
+      accounting: {
+        validateDateInOpenPeriod: jest.fn().mockResolvedValue({
+          financialYear: { id: 1 },
+          period: { id: 2 },
+        }),
+      },
+      priceService: {
+        getServicePrice: jest.fn(),
+      },
+      eventEmitter: {
+        emit: jest.fn(),
+      },
+    };
+  };
 
-    accounting = {
-      validateDateInOpenPeriod: jest.fn().mockResolvedValue({
-        financialYear: { id: 1 },
-        period: { id: 2 },
-      }),
-    };
+  let prisma: ReturnType<typeof buildMocks>['prisma'];
+  let accounting: ReturnType<typeof buildMocks>['accounting'];
+  let priceService: ReturnType<typeof buildMocks>['priceService'];
+  let eventEmitter: ReturnType<typeof buildMocks>['eventEmitter'];
 
-    priceService = {
-      getServicePrice: jest.fn(),
-    };
-
-    eventEmitter = {
-      emit: jest.fn(),
-    };
+  beforeEach(async () => {
+    queryRaw.mockReset().mockResolvedValue([
+      {
+        orderStatus: 'NEW',
+        radiologyStatus: 'PENDING',
+        paymentStatus: 'PAID',
+      },
+    ]);
+    ({ prisma, accounting, priceService, eventEmitter } = buildMocks());
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -137,8 +146,8 @@ describe('RadiologyService', () => {
             order: expect.objectContaining({
               hospitalId: 1,
               paymentStatus: { in: ['PAID', 'WAIVED'] },
-            }),
-          }),
+            }) as unknown,
+          }) as unknown,
         }),
       );
     });
@@ -219,7 +228,7 @@ describe('RadiologyService', () => {
           patientShare: '50.000',
           insuranceShare: '150.000',
           insuranceProviderId: 5,
-        }),
+        }) as unknown,
       });
       expect(prisma.encounterCharge.updateMany).toHaveBeenCalledWith({
         where: { id: { in: [901, 902] } },
@@ -319,11 +328,11 @@ describe('RadiologyService', () => {
           sourceId: 5,
           totalAmount: '180.000',
           performerId: 7,
-        }),
+        }) as unknown,
       });
       expect(prisma.order.update).toHaveBeenCalledWith({
         where: { id: 20 },
-        data: expect.objectContaining({ status: 'COMPLETED' }),
+        data: expect.objectContaining({ status: 'COMPLETED' }) as unknown,
       });
     });
 

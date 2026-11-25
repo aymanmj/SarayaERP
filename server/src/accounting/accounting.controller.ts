@@ -174,9 +174,12 @@ export class AccountingController {
   }
 
   @Post('opening-balances')
-  async saveOpeningBalances(@Req() req, @Body() dto: SaveOpeningBalancesDto) {
-    const hospitalId = req.user.hospitalId as number;
-    const userId = req.user.sub as number;
+  async saveOpeningBalances(
+    @Req() req: { user: JwtPayload },
+    @Body() dto: SaveOpeningBalancesDto,
+  ) {
+    const hospitalId = req.user.hospitalId;
+    const userId = req.user.sub;
 
     return this.accountingService.saveOpeningBalances({
       hospitalId,
@@ -218,9 +221,12 @@ export class AccountingController {
   }
 
   @Post('manual-entry')
-  async createManualEntry(@Req() req, @Body() dto: CreateManualEntryDto) {
-    const hospitalId = req.user.hospitalId as number;
-    const userId = req.user.sub as number;
+  async createManualEntry(
+    @Req() req: { user: JwtPayload },
+    @Body() dto: CreateManualEntryDto,
+  ) {
+    const hospitalId = req.user.hospitalId;
+    const userId = req.user.sub;
 
     return this.accountingService.createManualEntry({
       hospitalId,
@@ -240,15 +246,15 @@ export class AccountingController {
   }
 
   @Get('patients-aging')
-  async getPatientsAging(@Req() req: any) {
-    const hospitalId = req.user.hospitalId as number;
+  async getPatientsAging(@Req() req: { user: JwtPayload }) {
+    const hospitalId = req.user.hospitalId;
     return this.accountingService.getPatientsReceivablesAging(hospitalId);
   }
 
   @Get('equity-accounts')
   @HttpCode(200)
   async listEquityAccounts(
-    @Req() req: any,
+    @Req() req: { user: JwtPayload },
   ): Promise<ApiResponse<AccountLite[]>> {
     const user = req.user;
     const hospitalId = user.hospitalId;
@@ -268,7 +274,7 @@ export class AccountingController {
   @Get('financial-years/:id/pending-documents')
   async getPendingDocuments(
     @Param('id', ParseIntPipe) id: number,
-    @Req() req: any,
+    @Req() req: { user: JwtPayload },
   ) {
     const documents =
       await this.accountingService.getPendingDocumentsForClosing(
@@ -345,7 +351,7 @@ export class AccountingController {
   @Get('journal')
   @HttpCode(200)
   async listJournalEntries(
-    @Req() req: any,
+    @Req() req: { user: JwtPayload },
     @Query('from') from?: string,
     @Query('to') to?: string,
     @Query('sourceModule') sourceModule?: AccountingSourceModule,
@@ -384,7 +390,7 @@ export class AccountingController {
   @Get('journal/:id')
   @HttpCode(200)
   async getJournalEntry(
-    @Req() req: any,
+    @Req() req: { user: JwtPayload },
     @Param('id', ParseIntPipe) id: number,
   ): Promise<ApiResponse<JournalEntryDetailDto>> {
     try {

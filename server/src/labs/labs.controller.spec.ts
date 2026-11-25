@@ -5,7 +5,16 @@ import { LabService } from './labs.service';
 
 describe('LabController', () => {
   let controller: LabController;
-  let labService: any;
+  let labService: Record<
+    | 'getCatalog'
+    | 'listOrdersForEncounter'
+    | 'createOrdersForEncounter'
+    | 'getWorklist'
+    | 'startProcessing'
+    | 'completeOrder'
+    | 'getCumulativeReport',
+    jest.Mock
+  >;
 
   const user = { sub: 17, hospitalId: 3, roles: ['LAB_TECH'] };
 

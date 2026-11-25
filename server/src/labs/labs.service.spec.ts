@@ -2,7 +2,6 @@
 // Unit tests for Lab Service
 
 import { Test, TestingModule } from '@nestjs/testing';
-import { createPrismaMock } from '../test-utils';
 import { LabService } from './labs.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -115,8 +114,12 @@ describe('LabService', () => {
     user: {
       findUnique: jest.fn().mockResolvedValue({ id: 1, fullName: 'Doctor' }),
     },
-    $transaction: jest.fn((fn) => fn(mockPrismaService)),
+    $transaction: jest.fn(),
   };
+
+  mockPrismaService.$transaction.mockImplementation(
+    (fn: (tx: typeof mockPrismaService) => unknown) => fn(mockPrismaService),
+  );
 
   const mockEventEmitter = {
     emit: jest.fn(),
@@ -174,7 +177,7 @@ describe('LabService', () => {
           where: expect.objectContaining({
             hospitalId: mockHospitalId,
             isActive: true,
-          }),
+          }) as unknown,
         }),
       );
     });
@@ -201,8 +204,8 @@ describe('LabService', () => {
             order: expect.objectContaining({
               hospitalId: mockHospitalId,
               paymentStatus: { in: ['PAID', 'WAIVED'] },
-            }),
-          }),
+            }) as unknown,
+          }) as unknown,
         }),
       );
     });
@@ -332,7 +335,7 @@ describe('LabService', () => {
           patientShare: 40,
           insuranceShare: 160,
           insuranceProviderId: 8,
-        }),
+        }) as unknown,
       });
       expect(mockPrismaService.encounterCharge.updateMany).toHaveBeenCalledWith(
         {

@@ -126,7 +126,7 @@ export class CashierController {
   @Get('invoices/:invoiceId/details')
   @Permissions('cashier:manage')
   async getInvoiceDetails(
-    @Req() req: any,
+    @Req() req: { user: JwtPayload },
     @Param('invoiceId', ParseIntPipe) invoiceId: number,
   ) {
     const hospitalId = req.user.hospitalId;
@@ -137,7 +137,7 @@ export class CashierController {
   @Get('payments/:id/receipt')
   @HttpCode(200)
   async getPaymentReceipt(
-    @Req() req: any,
+    @Req() req: { user: JwtPayload },
     @Param('id', ParseIntPipe) id: number,
   ): Promise<PaymentReceiptDto> {
     const user = req.user;
@@ -223,8 +223,11 @@ export class CashierController {
   // تقرير يومي للكاشير (بدون تحديد مستخدم)
   @Permissions('cashier:view', 'cashier:manage')
   @Get('reports/daily')
-  async getDailyReport(@Req() req: any, @Query('date') date?: string) {
-    const hospitalId = req.user.hospitalId as number;
+  async getDailyReport(
+    @Req() req: { user: JwtPayload },
+    @Query('date') date?: string,
+  ) {
+    const hospitalId = req.user.hospitalId;
 
     let target: Date;
     if (date) {
@@ -245,8 +248,8 @@ export class CashierController {
   // 🔹 قائمة المستخدمين (للاختيار في تقرير الكاشير) - للـ ADMIN فقط
   @Get('users')
   @Permissions('cashier:view')
-  async listCashierUsers(@Req() req: any) {
-    const hospitalId = req.user.hospitalId as number;
+  async listCashierUsers(@Req() req: { user: JwtPayload }) {
+    const hospitalId = req.user.hospitalId;
     return this.cashierService.listCashierUsers(hospitalId);
   }
 
@@ -254,13 +257,13 @@ export class CashierController {
   @Get('reports/by-cashier')
   @Permissions('cashier:manage')
   async getCashierUserReport(
-    @Req() req: any,
+    @Req() req: { user: JwtPayload },
     @Query('date') dateStr?: string,
     @Query('from') fromTime?: string,
     @Query('to') toTime?: string,
     @Query('cashierId') cashierIdStr?: string,
   ) {
-    const user = req.user as JwtPayload;
+    const user = req.user;
     const hospitalId = user.hospitalId;
 
     // تحديد الكاشير الهدف
@@ -308,8 +311,11 @@ export class CashierController {
   // 🔹 إغلاق الشفت للكاشير
   @Permissions('cashier:manage')
   @Post('shifts/close')
-  async closeShift(@Req() req: any, @Body() body: CloseShiftDto) {
-    const hospitalId = req.user.hospitalId as number;
+  async closeShift(
+    @Req() req: { user: JwtPayload & { id?: number } },
+    @Body() body: CloseShiftDto,
+  ) {
+    const hospitalId = req.user.hospitalId;
 
     const rawId = req.user?.id ?? req.user?.sub;
     const cashierId = Number(rawId);
@@ -378,12 +384,12 @@ export class CashierController {
   @Get('shifts')
   @Permissions('cashier:manage')
   async listShifts(
-    @Req() req: any,
+    @Req() req: { user: JwtPayload & { id?: number } },
     @Query('fromDate') fromDateStr?: string,
     @Query('toDate') toDateStr?: string,
     @Query('cashierId') cashierIdStr?: string,
   ) {
-    const user = req.user as JwtPayload;
+    const user = req.user;
     const hospitalId = user.hospitalId;
 
     // 🗓️ إعداد نطاق التاريخ الافتراضي (آخر 7 أيام) لو ما فيه قيم من الكلاينت
@@ -415,7 +421,7 @@ export class CashierController {
     end.setHours(23, 59, 59, 999);
 
     // 👤 فلترة حسب الكاشير
-    const currentUserId = (user as any).id ?? user.sub;
+    const currentUserId = user.id ?? user.sub;
     let cashierId: number | undefined;
 
     if (cashierIdStr) {

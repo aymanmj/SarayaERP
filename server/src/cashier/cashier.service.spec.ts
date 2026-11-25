@@ -7,13 +7,10 @@ import { InvoiceStatus, PaymentMethod, ServiceType } from '@prisma/client';
 
 describe('CashierService', () => {
   let service: CashierService;
-  let prisma: any;
-  let accounting: any;
   let auditLogCreate: jest.Mock;
 
-  beforeEach(async () => {
-    auditLogCreate = jest.fn().mockResolvedValue({ id: 1 });
-    prisma = {
+  const buildMocks = (auditCreate: jest.Mock) => {
+    const prismaMock = {
       invoiceRefund: {
         aggregate: jest.fn().mockResolvedValue({ _sum: { amount: null } }),
         findMany: jest.fn().mockResolvedValue([]),
@@ -74,19 +71,34 @@ describe('CashierService', () => {
       },
       auditLog: {
         findFirst: jest.fn().mockResolvedValue(null),
-        create: auditLogCreate,
+        create: auditCreate,
       },
-      $transaction: jest.fn(async (fn: any) => fn(prisma)),
+      $transaction: jest.fn(),
     };
+    prismaMock.$transaction.mockImplementation(
+      (fn: (tx: typeof prismaMock) => unknown) =>
+        Promise.resolve(fn(prismaMock)),
+    );
+    return {
+      prisma: prismaMock,
+      accounting: {
+        validateDateInOpenPeriod: jest.fn().mockResolvedValue({
+          financialYear: { id: 1 },
+          period: { id: 2 },
+        }),
+        recordInvoiceEntry: jest.fn(),
+        recordPaymentEntry: jest.fn(),
+      },
+    };
+  };
 
-    accounting = {
-      validateDateInOpenPeriod: jest.fn().mockResolvedValue({
-        financialYear: { id: 1 },
-        period: { id: 2 },
-      }),
-      recordInvoiceEntry: jest.fn(),
-      recordPaymentEntry: jest.fn(),
-    };
+  let prisma: ReturnType<typeof buildMocks>['prisma'];
+  let accounting: ReturnType<typeof buildMocks>['accounting'];
+  let updateRelatedOrdersSpy: jest.SpyInstance;
+
+  beforeEach(async () => {
+    auditLogCreate = jest.fn().mockResolvedValue({ id: 1 });
+    ({ prisma, accounting } = buildMocks(auditLogCreate));
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -97,8 +109,16 @@ describe('CashierService', () => {
     }).compile();
 
     service = module.get<CashierService>(CashierService);
-    jest
-      .spyOn(service as any, 'updateRelatedOrdersPaymentStatus')
+    updateRelatedOrdersSpy = jest
+      .spyOn(
+        service as unknown as {
+          updateRelatedOrdersPaymentStatus: (
+            tx: unknown,
+            invoiceId: number,
+          ) => Promise<void>;
+        },
+        'updateRelatedOrdersPaymentStatus',
+      )
       .mockResolvedValue(undefined);
   });
 
@@ -155,7 +175,7 @@ describe('CashierService', () => {
 
   describe('recordPayment', () => {
     beforeEach(() => {
-      const db = prisma as {
+      const db = prisma as unknown as {
         $queryRaw: jest.Mock;
         invoice: {
           findUnique: jest.Mock<
@@ -294,14 +314,12 @@ describe('CashierService', () => {
         reference: 'POS-1',
         cashierId: 7,
       });
-      expect(
-        (service as any).updateRelatedOrdersPaymentStatus,
-      ).toHaveBeenCalledWith(prisma, 3);
+      expect(updateRelatedOrdersSpy).toHaveBeenCalledWith(prisma, 3);
       expect(accounting.recordPaymentEntry).toHaveBeenCalledWith({
         paymentId: 40,
         hospitalId: 1,
         userId: 7,
-        prisma: prisma as PrismaService,
+        prisma: prisma as unknown as PrismaService,
       });
       expect(auditLogCreate).toHaveBeenCalledTimes(1);
     });
@@ -463,7 +481,7 @@ describe('CashierService', () => {
     });
 
     it('applies posted adjustments and executed refunds in getPaymentReceipt and deducts cash refunds in closeCashierShift', async () => {
-      const db = prisma as {
+      const db = prisma as unknown as {
         payment: { findFirst: jest.Mock; findMany: jest.Mock };
         cashierShiftClosing: { findFirst: jest.Mock; create: jest.Mock };
         invoiceRefund: { findMany: jest.Mock };

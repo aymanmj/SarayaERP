@@ -1,126 +1,133 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
+import type { Provider, Type } from '@nestjs/common';
 import { PrismaService } from './prisma/prisma.service';
 
 // Generic mock factory for PrismaService
-export const createPrismaMock = () => ({
-  $transaction: jest.fn((fn) => fn(createPrismaMock())),
-  user: {
-    findUnique: jest.fn(),
-    findMany: jest.fn(),
-    create: jest.fn(),
-    update: jest.fn(),
-    delete: jest.fn(),
-    findFirst: jest.fn(),
-  },
-  hospital: {
-    findUnique: jest.fn(),
-    findMany: jest.fn(),
-    create: jest.fn(),
-    update: jest.fn(),
-  },
-  patient: {
-    findUnique: jest.fn(),
-    findMany: jest.fn(),
-    create: jest.fn(),
-    update: jest.fn(),
-    findFirst: jest.fn(),
-  },
-  encounter: {
-    findUnique: jest.fn(),
-    findMany: jest.fn(),
-    create: jest.fn(),
-    update: jest.fn(),
-  },
-  auditLog: {
-    create: jest.fn(),
-    findMany: jest.fn(),
-  },
-  bed: {
-    findMany: jest.fn(),
-    findUnique: jest.fn(),
-    create: jest.fn(),
-    update: jest.fn(),
-    delete: jest.fn(),
-  },
-  bedAssignment: {
-    findMany: jest.fn(),
-    create: jest.fn(),
-    update: jest.fn(),
-  },
-  room: {
-    findUnique: jest.fn(),
-    findMany: jest.fn(),
-  },
-  ward: {
-    findUnique: jest.fn(),
-    findMany: jest.fn(),
-  },
-  refreshToken: {
-    create: jest.fn(),
-    updateMany: jest.fn(),
-    findUnique: jest.fn(),
-    update: jest.fn(),
-  },
-  invoice: {
-    findUnique: jest.fn(),
-    findMany: jest.fn(),
-    create: jest.fn(),
-    update: jest.fn(),
-  },
-  payment: {
-    findMany: jest.fn(),
-    create: jest.fn(),
-  },
-  prescription: {
-    findMany: jest.fn(),
-    create: jest.fn(),
-    update: jest.fn(),
-    findUnique: jest.fn(),
-  },
-  prescriptionItem: {
-    findMany: jest.fn(),
-    create: jest.fn(),
-  },
-  product: {
-    findUnique: jest.fn(),
-    findMany: jest.fn(),
-    create: jest.fn(),
-    update: jest.fn(),
-  },
-  productStock: {
-    findMany: jest.fn(),
-    create: jest.fn(),
-    update: jest.fn(),
-  },
-  appointment: {
-    findMany: jest.fn(),
-    create: jest.fn(),
-    update: jest.fn(),
-    findUnique: jest.fn(),
-    count: jest.fn(),
-  },
-  doctorSchedule: {
-    findUnique: jest.fn(),
-    upsert: jest.fn(),
-    findMany: jest.fn(),
-  },
-  labTest: {
-    findUnique: jest.fn(),
-    findMany: jest.fn(),
-  },
-  radiologyStudy: {
-    findUnique: jest.fn(),
-    findMany: jest.fn(),
-  },
-  order: {
-    create: jest.fn(),
-    update: jest.fn(),
-    findUnique: jest.fn(),
-  },
-  accountingEntry: {
-    create: jest.fn(),
-  },
-});
+export const createPrismaMock = () => {
+  const mock = {
+    $transaction: jest.fn(),
+    user: {
+      findUnique: jest.fn(),
+      findMany: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+      findFirst: jest.fn(),
+    },
+    hospital: {
+      findUnique: jest.fn(),
+      findMany: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+    },
+    patient: {
+      findUnique: jest.fn(),
+      findMany: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      findFirst: jest.fn(),
+    },
+    encounter: {
+      findUnique: jest.fn(),
+      findMany: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+    },
+    auditLog: {
+      create: jest.fn(),
+      findMany: jest.fn(),
+    },
+    bed: {
+      findMany: jest.fn(),
+      findUnique: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+    },
+    bedAssignment: {
+      findMany: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+    },
+    room: {
+      findUnique: jest.fn(),
+      findMany: jest.fn(),
+    },
+    ward: {
+      findUnique: jest.fn(),
+      findMany: jest.fn(),
+    },
+    refreshToken: {
+      create: jest.fn(),
+      updateMany: jest.fn(),
+      findUnique: jest.fn(),
+      update: jest.fn(),
+    },
+    invoice: {
+      findUnique: jest.fn(),
+      findMany: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+    },
+    payment: {
+      findMany: jest.fn(),
+      create: jest.fn(),
+    },
+    prescription: {
+      findMany: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      findUnique: jest.fn(),
+    },
+    prescriptionItem: {
+      findMany: jest.fn(),
+      create: jest.fn(),
+    },
+    product: {
+      findUnique: jest.fn(),
+      findMany: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+    },
+    productStock: {
+      findMany: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+    },
+    appointment: {
+      findMany: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      findUnique: jest.fn(),
+      count: jest.fn(),
+    },
+    doctorSchedule: {
+      findUnique: jest.fn(),
+      upsert: jest.fn(),
+      findMany: jest.fn(),
+    },
+    labTest: {
+      findUnique: jest.fn(),
+      findMany: jest.fn(),
+    },
+    radiologyStudy: {
+      findUnique: jest.fn(),
+      findMany: jest.fn(),
+    },
+    order: {
+      create: jest.fn(),
+      update: jest.fn(),
+      findUnique: jest.fn(),
+    },
+    accountingEntry: {
+      create: jest.fn(),
+    },
+  };
+  mock.$transaction.mockImplementation((fn: (tx: typeof mock) => unknown) =>
+    fn(mock),
+  );
+  return mock;
+};
 
 export const mockEventEmitter = {
   emit: jest.fn(),
@@ -176,8 +183,8 @@ export const mockSoftDeleteService = {
 
 // Generic test module factory
 export const createTestModule = async (
-  providers: any[],
-  controllers: any[] = [],
+  providers: Provider[],
+  controllers: Type<unknown>[] = [],
 ) => {
   return Test.createTestingModule({
     providers: [

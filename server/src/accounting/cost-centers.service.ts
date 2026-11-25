@@ -1,6 +1,11 @@
 // src/accounting/cost-centers.service.ts
 
-import { Injectable, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -32,7 +37,18 @@ export class CostCentersService {
     });
   }
 
-  async update(hospitalId: number, id: number, data: any) {
+  async update(
+    hospitalId: number,
+    id: number,
+    data: Prisma.CostCenterUpdateInput,
+  ) {
+    const existing = await this.prisma.costCenter.findFirst({
+      where: { id, hospitalId },
+      select: { id: true },
+    });
+    if (!existing) {
+      throw new NotFoundException('مركز التكلفة غير موجود ضمن هذه المنشأة.');
+    }
     return this.prisma.costCenter.update({
       where: { id },
       data,

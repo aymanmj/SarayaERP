@@ -213,7 +213,7 @@ export class CashierService {
       orderBy: { createdAt: 'asc' },
     });
 
-    const result: any[] = [];
+    const result: ReturnType<CashierService['mapInvoiceToWorklistDto']>[] = [];
 
     for (const inv of invoices) {
       const dto = this.mapInvoiceToWorklistDto(inv);
@@ -504,7 +504,14 @@ export class CashierService {
       .filter((ch) => ch.sourceType === ChargeSource.PHARMACY && ch.sourceId)
       .map((c) => c.sourceId as number);
 
-    const itemsByDispense = new Map<number, any[]>();
+    type DispenseItemWithProducts = Prisma.DispenseItemGetPayload<{
+      include: {
+        product: true;
+        prescriptionItem: { include: { product: true } };
+      };
+    }>;
+
+    const itemsByDispense = new Map<number, DispenseItemWithProducts[]>();
 
     if (dispenseIds.length > 0) {
       const dispenseItems = await this.prisma.dispenseItem.findMany({
@@ -522,7 +529,7 @@ export class CashierService {
       }
     }
 
-    const lines: InvoiceLineDetailDto[] = invoice.charges.map((ch: any) => {
+    const lines: InvoiceLineDetailDto[] = invoice.charges.map((ch) => {
       const line: InvoiceLineDetailDto = {
         id: ch.id,
         description:
@@ -539,16 +546,17 @@ export class CashierService {
       if (ch.sourceType === ChargeSource.PHARMACY && ch.sourceId) {
         const dItems = itemsByDispense.get(ch.sourceId) ?? [];
         line.pharmacyItems = dItems.map(
-          (it: any): PharmacyInvoiceItemDto => ({
+          (it): PharmacyInvoiceItemDto => ({
             id: it.id,
             quantity: Number(it.quantity),
             unitPrice: Money.toDb(it.unitPrice ?? 0),
             totalAmount: Money.toDb(it.totalAmount ?? 0),
-            isSubstitute:
+            isSubstitute: Boolean(
               it.prescriptionItem &&
-              it.productId !== it.prescriptionItem.productId,
+                it.productId !== it.prescriptionItem.productId,
+            ),
             dispensedDrug: it.product,
-            originalDrug: it.prescriptionItem?.product,
+            originalDrug: it.prescriptionItem?.product ?? null,
           }),
         );
       }
@@ -1172,7 +1180,7 @@ export class CashierService {
     params: { start: Date; end: Date; cashierId?: number },
   ) {
     const { start, end, cashierId } = params;
-    const where: any = {
+    const where: Prisma.CashierShiftClosingWhereInput = {
       hospitalId,
       rangeStart: { gte: start },
       rangeEnd: { lte: end },
@@ -1381,7 +1389,7 @@ export class CashierService {
 //       orderBy: { createdAt: 'asc' },
 //     });
 
-//     const result: any[] = [];
+//     const result: ReturnType<CashierService['mapInvoiceToWorklistDto']>[] = [];
 //     for (const inv of invoices) {
 //       const dto = this.mapInvoiceToWorklistDto(inv);
 //       // اعرض الفاتورة إذا لم تكن مدفوعة بالكامل أو ملغاة
@@ -2213,7 +2221,7 @@ export class CashierService {
 //       orderBy: { createdAt: 'asc' },
 //     });
 
-//     const result: any[] = [];
+//     const result: ReturnType<CashierService['mapInvoiceToWorklistDto']>[] = [];
 //     for (const inv of invoices) {
 //       const dto = this.mapInvoiceToWorklistDto(inv);
 //       // ✅ نعرض الفاتورة إذا كان هناك متبقي على "المريض"
@@ -3049,7 +3057,7 @@ export class CashierService {
 //       orderBy: { createdAt: 'asc' },
 //     });
 
-//     const result: any[] = [];
+//     const result: ReturnType<CashierService['mapInvoiceToWorklistDto']>[] = [];
 //     for (const inv of invoices) {
 //       const dto = this.mapInvoiceToWorklistDto(inv);
 //       if (dto.remainingAmount > 0.0001) {

@@ -1121,15 +1121,19 @@ export class AccountingService {
       );
     }
 
-    const entryDate =
-      (invoice as any).issueDate ??
-      (invoice as any).invoiceDate ??
+    const invoiceWithLegacyDates = invoice as typeof invoice & {
+      issueDate?: Date | null;
+      invoiceDate?: Date | null;
+    };
+    const entryDate: Date =
+      invoiceWithLegacyDates.issueDate ??
+      invoiceWithLegacyDates.invoiceDate ??
       invoice.createdAt;
 
     const { financialYear, period } = await financialPeriod(
       db,
       hospitalId,
-      entryDate as Date,
+      entryDate,
     );
     const fyId = financialYear.id;
     const fpId = period.id;
@@ -1939,10 +1943,9 @@ export class AccountingService {
     // 6) نُرجع معلومات مفيدة عن العملية
     return {
       fromFinancialYearId: sourceYear.id,
-      fromFinancialYearCode:
-        (sourceYear as any).code ?? sourceYear.name ?? null,
+      fromFinancialYearCode: sourceYear.code ?? sourceYear.name ?? null,
       toFinancialYearId: targetYear.id,
-      toFinancialYearCode: (targetYear as any).code ?? targetYear.name ?? null,
+      toFinancialYearCode: targetYear.code ?? targetYear.name ?? null,
       openingEntryId: result.entryId,
       totalDebit: result.totalDebit,
       totalCredit: result.totalCredit,
@@ -3321,8 +3324,8 @@ export class AccountingService {
     toDate?: Date;
     costCenterId?: number;
   }): Promise<IncomeStatementDto> {
-    const { hospitalId, costCenterId } = params;
-    let { financialYearId, fromDate, toDate } = params;
+    const { hospitalId, costCenterId, financialYearId } = params;
+    let { fromDate, toDate } = params;
 
     // نتأكد إن دليل الحسابات والمابات النظامية جاهزة
     await this.ensureDefaultAccounts(hospitalId);
@@ -4424,7 +4427,12 @@ export class AccountingService {
     const asOfDate = asOf ?? new Date();
 
     // 1) فواتير المرضى التي حالتها مازالت مستحقة
-    const invoicesRaw = (await this.prisma.invoice.findMany({
+    type AgingInvoiceRow = Prisma.InvoiceGetPayload<object> & {
+      netAmount?: Prisma.Decimal | number | string | null;
+      vatAmount?: Prisma.Decimal | number | string | null;
+      invoiceDate?: Date | null;
+    };
+    const invoicesRaw: AgingInvoiceRow[] = await this.prisma.invoice.findMany({
       where: {
         hospitalId,
         status: {
@@ -4434,7 +4442,7 @@ export class AccountingService {
       orderBy: {
         createdAt: 'asc', // 👈 بدلنا invoiceDate بـ createdAt
       },
-    })) as any[];
+    });
 
     if (!invoicesRaw.length) {
       return {
@@ -4455,7 +4463,7 @@ export class AccountingService {
     const patientIds = Array.from(
       new Set(
         invoicesRaw
-          .map((inv) => inv.patientId as number | null)
+          .map((inv) => inv.patientId)
           .filter((id): id is number => !!id),
       ),
     );
@@ -4511,7 +4519,8 @@ export class AccountingService {
 
     // 4) توزيع الأرصدة على فترات الأعمار
     for (const inv of invoicesRaw) {
-      const patientInfo = patientMap.get(inv.patientId as number);
+      if (!inv.patientId) continue;
+      const patientInfo = patientMap.get(inv.patientId);
       if (!patientInfo) continue;
 
       // صافي الفاتورة بدقة Money:

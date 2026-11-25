@@ -9,10 +9,22 @@ import { PrismaService } from '../prisma/prisma.service';
 
 describe('CashierController', () => {
   let controller: CashierController;
-  let cashierService: any;
+  let cashierService: Record<
+    | 'getWorklist'
+    | 'recordPayment'
+    | 'getPatientStatement'
+    | 'getInvoiceDetails'
+    | 'getPaymentReceipt'
+    | 'getDailyReport'
+    | 'listCashierUsers'
+    | 'getCashierUserReport'
+    | 'closeCashierShift'
+    | 'listCashierShifts',
+    jest.Mock
+  >;
   let recordPaymentMock: jest.Mock;
-  let pdfService: any;
-  let prisma: any;
+  let pdfService: { generatePdf: jest.Mock };
+  let prisma: { hospital: { findUnique: jest.Mock } };
 
   const user = { sub: 8, id: 8, hospitalId: 1, roles: ['CASHIER'] };
   const admin = { sub: 1, id: 1, hospitalId: 1, roles: ['ADMIN'] };
@@ -194,10 +206,10 @@ describe('CashierController', () => {
       'booking-receipt-modern',
       expect.objectContaining({
         paymentId: 5,
-        patient: expect.objectContaining({ fullName: 'Ahmed' }),
+        patient: expect.objectContaining({ fullName: 'Ahmed' }) as unknown,
         organization: expect.objectContaining({
           displayName: 'Saraya Hospital',
-        }),
+        }) as unknown,
       }),
     );
     expect(res.end).toHaveBeenCalledWith(Buffer.from('pdf'));

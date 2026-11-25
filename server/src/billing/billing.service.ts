@@ -20,7 +20,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InvoiceIssuedEvent } from './events/invoice-issued.event';
-import { Prisma, InvoiceStatus, PaymentMethod } from '@prisma/client';
+import { Prisma, InvoiceStatus } from '@prisma/client';
 import { FinancialYearsService } from '../financial-years/financial-years.service';
 import {
   InsuranceCalculationService,
@@ -328,7 +328,8 @@ export class BillingService {
         });
 
         for (const req of calculationDetails) {
-          const chargeUpdateData: any = { invoiceId: createdInvoice.id };
+          const chargeUpdateData: Prisma.EncounterChargeUncheckedUpdateManyInput =
+            { invoiceId: createdInvoice.id };
           if (req.contractedPrice !== undefined) {
             chargeUpdateData.totalAmount = req.contractedPrice;
           }

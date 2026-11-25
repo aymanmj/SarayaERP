@@ -16,6 +16,10 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/permissions.guard';
 import { Permissions } from '../auth/permissions.decorator';
 import { AuditInTransaction } from '../audit/audit.decorator';
+import type { JwtPayload } from '../auth/jwt-payload.type';
+
+type AuthedReq = { user: JwtPayload };
+
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('payroll')
 export class PayrollController {
@@ -25,7 +29,7 @@ export class PayrollController {
   @AuditInTransaction()
   @Permissions('payroll:manage')
   async generate(
-    @Req() req: any,
+    @Req() req: AuthedReq,
     @Body() body: { month: number; year: number },
   ) {
     return this.payrollService.generatePayroll(
@@ -38,20 +42,20 @@ export class PayrollController {
 
   @Get()
   @Permissions('payroll:view')
-  async findAll(@Req() req: any) {
+  async findAll(@Req() req: AuthedReq) {
     return this.payrollService.findAll(req.user.hospitalId);
   }
 
   @Get(':id')
   @Permissions('payroll:view')
-  async findOne(@Req() req: any, @Param('id', ParseIntPipe) id: number) {
+  async findOne(@Req() req: AuthedReq, @Param('id', ParseIntPipe) id: number) {
     return this.payrollService.findOne(req.user.hospitalId, id);
   }
 
   @Post(':id/approve')
   @AuditInTransaction()
   @Permissions('payroll:manage')
-  async approve(@Req() req: any, @Param('id', ParseIntPipe) id: number) {
+  async approve(@Req() req: AuthedReq, @Param('id', ParseIntPipe) id: number) {
     return this.payrollService.approvePayroll(
       req.user.hospitalId,
       id,
@@ -62,7 +66,7 @@ export class PayrollController {
   // ✅ أضف هذا المسار الجديد هنا
   @Delete(':id')
   @Permissions('payroll:manage') // للحماية، نجعل الحذف للأدمن فقط
-  async remove(@Req() req: any, @Param('id', ParseIntPipe) id: number) {
+  async remove(@Req() req: AuthedReq, @Param('id', ParseIntPipe) id: number) {
     return this.payrollService.deletePayroll(req.user.hospitalId, id);
   }
 }

@@ -18,8 +18,11 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/permissions.guard';
 import { Permissions } from '../auth/permissions.decorator';
 import { AuditInTransaction } from '../audit/audit.decorator';
-import { ShiftType, LeaveType, LeaveStatus } from '@prisma/client';
+import type { JwtPayload } from '../auth/jwt-payload.type';
+import { LeaveType, LeaveStatus, ShiftType } from '@prisma/client';
 import { RequireFeature } from '../licensing/license.decorator';
+
+type AuthedReq = { user: JwtPayload };
 
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('hr')
@@ -30,20 +33,40 @@ export class HrController {
   // --- Shifts ---
   @Post('shifts')
   @Permissions('hr:manage')
-  async createShift(@Req() req: any, @Body() body: any) {
+  async createShift(
+    @Req() req: AuthedReq,
+    @Body()
+    body: {
+      name: string;
+      type: ShiftType;
+      startTime: string;
+      endTime: string;
+      graceMinutes?: number;
+    },
+  ) {
     return this.hrService.createWorkShift(req.user.hospitalId, body);
   }
 
   @Get('shifts')
   @Permissions('hr:manage')
-  async getShifts(@Req() req: any) {
+  async getShifts(@Req() req: AuthedReq) {
     return this.hrService.getWorkShifts(req.user.hospitalId);
   }
 
   // --- Roster ---
   @Post('roster/assign')
   @Permissions('hr:manage')
-  async assignRoster(@Req() req: any, @Body() body: any) {
+  async assignRoster(
+    @Req() req: AuthedReq,
+    @Body()
+    body: {
+      userId: number | string;
+      workShiftId: number | string;
+      fromDate: string;
+      toDate: string;
+      isOffDay?: boolean;
+    },
+  ) {
     return this.hrService.assignRoster({
       hospitalId: req.user.hospitalId,
       userId: Number(body.userId),
@@ -57,7 +80,7 @@ export class HrController {
   @Get('roster')
   @Permissions('hr:view')
   async getRoster(
-    @Req() req: any,
+    @Req() req: AuthedReq,
     @Query('from') from: string,
     @Query('to') to: string,
     @Query('userId') userId?: string,
@@ -73,7 +96,7 @@ export class HrController {
   @Patch('roster/:id')
   @Permissions('hr:manage')
   async updateRosterEntry(
-    @Req() req: any,
+    @Req() req: AuthedReq,
     @Param('id', ParseIntPipe) id: number,
     @Body() body: { workShiftId?: number; isOffDay?: boolean },
   ) {
@@ -83,7 +106,7 @@ export class HrController {
   @Delete('roster/:id')
   @Permissions('hr:manage')
   async deleteRosterEntry(
-    @Req() req: any,
+    @Req() req: AuthedReq,
     @Param('id', ParseIntPipe) id: number,
   ) {
     return this.hrService.deleteRosterEntry(req.user.hospitalId, id);
@@ -92,11 +115,20 @@ export class HrController {
   // --- Leaves ---
   @Permissions('hr:manage', 'hr:leaves:request')
   @Post('leaves')
-  async requestLeave(@Req() req: any, @Body() body: any) {
+  async requestLeave(
+    @Req() req: AuthedReq,
+    @Body()
+    body: {
+      type: LeaveType;
+      startDate: string;
+      endDate: string;
+      reason?: string;
+    },
+  ) {
     return this.hrService.requestLeave({
       hospitalId: req.user.hospitalId,
       userId: req.user.sub,
-      type: body.type as LeaveType,
+      type: body.type,
       startDate: new Date(body.startDate),
       endDate: new Date(body.endDate),
       reason: body.reason,
@@ -107,7 +139,7 @@ export class HrController {
   @Permissions('hr:manage')
   @AuditInTransaction()
   async updateLeaveStatus(
-    @Req() req: any,
+    @Req() req: AuthedReq,
     @Param('id', ParseIntPipe) id: number,
     @Body() body: { status: LeaveStatus },
   ) {
@@ -121,7 +153,10 @@ export class HrController {
 
   @Get('leaves')
   @Permissions('hr:manage')
-  async getLeaves(@Req() req: any, @Query('status') status?: string) {
-    return this.hrService.getLeaves(req.user.hospitalId, status as any);
+  async getLeaves(
+    @Req() req: AuthedReq,
+    @Query('status') status?: LeaveStatus,
+  ) {
+    return this.hrService.getLeaves(req.user.hospitalId, status);
   }
 }
