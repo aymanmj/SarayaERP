@@ -18,6 +18,7 @@
     "lint:fix": "npm run lint -- --fix",
     "lint:ci": "node scripts/check-lint-baseline.cjs",
     "audit:check": "node ../generate-audit-report.cjs --check",
+    "preflight:prod": "node ../scripts/production-preflight.cjs",
     "test": "jest",
     "test:helpers": "jest --rootDir . --runInBand --runTestsByPath test/db-reset.spec.ts",
     "test:watch": "jest --watch",

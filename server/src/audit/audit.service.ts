@@ -16,7 +16,7 @@ interface AuditLogOptions {
   entityId?: number | null;
   ipAddress?: string | null;
   clientName?: string | null;
-  details?: any;
+  details?: unknown;
 }
 
 @Injectable()
@@ -33,7 +33,7 @@ export class AuditService {
 
       // 2- DB Storage with ISO 27001 Hash Chain
       await this.createSecureLog(options);
-    } catch (err) {
+    } catch {
       // مهم جدًا: لا نسمح للـ audit أنه يكسر الـ API للعمليات غير الحرجة
       // لذلك نبلع الخطأ هنا
       // console.error('Audit log error', err);
@@ -63,8 +63,20 @@ export class AuditService {
     }
   }
 
-  async findAll(hospitalId: number, query: any) {
-    const where: any = { hospitalId };
+  async findAll(
+    hospitalId: number,
+    query: {
+      actionType?: string;
+      entity?: string;
+      userId?: number | string;
+      dateFrom?: string | Date;
+      dateTo?: string | Date;
+      q?: string;
+      page?: number | string;
+      limit?: number | string;
+    },
+  ) {
+    const where: Prisma.AuditLogWhereInput = { hospitalId };
 
     // Enhanced filtering
     if (query.actionType) {
@@ -77,7 +89,7 @@ export class AuditService {
       } else if (query.actionType === 'DELETE') {
         where.action = { contains: 'DELETE', mode: 'insensitive' };
       } else if (query.actionType === 'WRITE') {
-        where.action = { not: { contains: 'VIEW', mode: 'insensitive' } };
+        where.NOT = { action: { contains: 'VIEW', mode: 'insensitive' } };
       }
     }
 
@@ -91,13 +103,10 @@ export class AuditService {
 
     // Date range filtering
     if (query.dateFrom || query.dateTo) {
-      where.createdAt = {};
-      if (query.dateFrom) {
-        where.createdAt.gte = new Date(query.dateFrom);
-      }
-      if (query.dateTo) {
-        where.createdAt.lte = new Date(query.dateTo);
-      }
+      where.createdAt = {
+        ...(query.dateFrom ? { gte: new Date(query.dateFrom) } : {}),
+        ...(query.dateTo ? { lte: new Date(query.dateTo) } : {}),
+      };
     }
 
     // Search in multiple fields
@@ -193,7 +202,10 @@ export class AuditService {
       entityId: options.entityId ?? null,
       ipAddress: options.ipAddress ?? null,
       clientName: options.clientName ?? null,
-      details: options.details ?? Prisma.JsonNull,
+      details:
+        options.details === undefined || options.details === null
+          ? Prisma.JsonNull
+          : (options.details as Prisma.InputJsonValue),
     });
   }
 

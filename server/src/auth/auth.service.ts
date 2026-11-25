@@ -104,7 +104,7 @@ export class AuthService {
       accessibleBranches.push({
         id: user.hospital.id,
         code: user.hospital.code,
-        name: (user.hospital as any).displayName || user.hospital.name,
+        name: user.hospital.displayName || user.hospital.name,
         isDefault: true,
       });
     }
@@ -159,10 +159,21 @@ export class AuthService {
   // التحقق من التوكن
   async verifyToken(token: string): Promise<JwtPayload | null> {
     try {
-      const decoded: any = this.jwtService.decode(token, { complete: true });
-      if (!decoded || !decoded.header) return null;
+      const decoded: unknown = this.jwtService.decode(token, {
+        complete: true,
+      });
+      if (
+        !decoded ||
+        typeof decoded !== 'object' ||
+        !('header' in decoded) ||
+        !decoded.header ||
+        typeof decoded.header !== 'object'
+      ) {
+        return null;
+      }
 
-      const kid = decoded.header.kid;
+      const rawKid = (decoded.header as { kid?: unknown }).kid;
+      const kid = typeof rawKid === 'string' ? rawKid : undefined;
       const secret = await this.vaultService.getKeyOrSecret(kid);
 
       return await this.jwtService.verifyAsync<JwtPayload>(token, {

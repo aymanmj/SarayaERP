@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ComplianceService, ComplianceReport } from './compliance.service';
+import { ComplianceService } from './compliance.service';
 import { AuditService } from './audit.service';
 import { PrismaService } from '../prisma/prisma.service';
 

@@ -38,24 +38,29 @@ export class JwtStrategy
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromExtractors([
-        (req: Request) => {
-          if (req && req.cookies) {
-            return req.cookies['Authentication'];
-          }
-          return null;
+        (req: Request): string | null => {
+          const cookies = req?.cookies as Record<string, unknown> | undefined;
+          const token = cookies?.['Authentication'];
+          return typeof token === 'string' ? token : null;
         },
         ExtractJwt.fromAuthHeaderAsBearerToken(),
       ]),
       ignoreExpiration: false,
       issuer: 'saraya-staff', // Enforce Token Isolation
       secretOrKeyProvider: async (
-        request: any,
+        _request: Request,
         rawJwtToken: string,
-        done: any,
+        done: (err: unknown, secretOrKey?: string | Buffer) => void,
       ) => {
         try {
-          const decoded = jwt.decode(rawJwtToken, { complete: true }) as any;
-          const kid = decoded?.header?.kid;
+          const decoded = jwt.decode(rawJwtToken, { complete: true });
+          const kid =
+            decoded &&
+            typeof decoded === 'object' &&
+            'header' in decoded &&
+            typeof decoded.header?.kid === 'string'
+              ? decoded.header.kid
+              : undefined;
           const secret = await this.vaultService.getKeyOrSecret(kid);
           done(null, secret);
         } catch (error) {

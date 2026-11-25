@@ -12,6 +12,17 @@ import {
 } from '../decorators/abac.decorator';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../audit/audit.service';
+import type { JwtPayload } from '../jwt-payload.type';
+
+interface ClinicalAbacRequest {
+  user?: JwtPayload;
+  params?: Record<string, string | undefined>;
+  query?: Record<string, unknown>;
+  body?: Record<string, unknown>;
+  headers: Record<string, string | string[] | undefined>;
+  ip?: string;
+  url?: string;
+}
 
 @Injectable()
 export class ClinicalABACGuard implements CanActivate {
@@ -35,7 +46,7 @@ export class ClinicalABACGuard implements CanActivate {
       return true;
     }
 
-    const request = ctx.switchToHttp().getRequest();
+    const request = ctx.switchToHttp().getRequest<ClinicalAbacRequest>();
     const user = request.user;
 
     // Admins bypass ABAC constraints entirely
@@ -52,9 +63,9 @@ export class ClinicalABACGuard implements CanActivate {
 
     const doctorId = Number(user.sub);
     const paramValue =
-      request.params[abacConfig.paramName] ||
-      request.query[abacConfig.paramName] ||
-      request.body[abacConfig.paramName];
+      request.params?.[abacConfig.paramName] ??
+      request.query?.[abacConfig.paramName] ??
+      request.body?.[abacConfig.paramName];
     const patientId = Number(paramValue);
 
     if (isNaN(patientId)) {
@@ -63,8 +74,13 @@ export class ClinicalABACGuard implements CanActivate {
     }
 
     const isBreakGlass = request.headers['x-break-glass'] === 'true';
+    const rawReason = request.headers['x-break-glass-reason'];
     const breakGlassReason =
-      request.headers['x-break-glass-reason'] || 'Emergency Override';
+      typeof rawReason === 'string' && rawReason.trim()
+        ? rawReason
+        : Array.isArray(rawReason) && rawReason[0]
+          ? rawReason[0]
+          : 'Emergency Override';
 
     // 1. Evaluate "Clinical Relation"
     // Does this doctor have an active Encounter or Appointment with this patient?

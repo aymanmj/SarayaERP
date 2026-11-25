@@ -12,7 +12,7 @@ import { RtStrategy } from './rt.strategy';
     JwtModule.registerAsync({
       imports: [ConfigModule, JwtModule.register({})],
       inject: [ConfigService],
-      useFactory: async (config: ConfigService): Promise<JwtModuleOptions> => {
+      useFactory: (config: ConfigService): JwtModuleOptions => {
         const secret =
           config.get<string>('JWT_SECRET') ?? 'dev_secret_change_me';
 

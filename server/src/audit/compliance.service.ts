@@ -57,13 +57,14 @@ export class ComplianceService {
           dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
         });
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       isReady = false;
+      const message = e instanceof Error ? e.message : String(e);
       controls.push({
         controlId: 'ISO-27001-A.12.4.1',
         name: 'Audit Log Integrity',
         status: 'FAIL',
-        details: `Failed to verify chain: ${e.message}`,
+        details: `Failed to verify chain: ${message}`,
         owner: 'CISO / SecOps',
       });
     }

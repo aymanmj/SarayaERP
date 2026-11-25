@@ -15,9 +15,64 @@ import { VaultService } from '../common/vault/vault.service';
 import * as bcrypt from 'bcrypt';
 import { randomUUID } from 'node:crypto';
 
+interface MockUserHospital {
+  id: number;
+  isActive: boolean;
+  name?: string;
+  code?: string;
+}
+
+interface MockUserRecord {
+  id: number;
+  username: string;
+  passwordHash: string;
+  authVersion: number;
+  isActive: boolean;
+  hospitalId: number;
+  hospital: MockUserHospital;
+  userRoles: {
+    role: {
+      name: string;
+      rolePermissions: { permission: { code: string } }[];
+    };
+  }[];
+  accessibleHospitals: {
+    hospital: {
+      id: number;
+      code: string;
+      name: string;
+      isActive: boolean;
+    };
+    isDefault: boolean;
+  }[];
+}
+
+interface MockAuthPrisma {
+  $transaction: (
+    run: (tx: MockAuthPrisma) => Promise<unknown>,
+  ) => Promise<unknown>;
+  $queryRaw: jest.Mock;
+  user: {
+    findUnique: jest.Mock;
+  };
+  hospital: {
+    findUnique: jest.Mock;
+  };
+  staffSession: {
+    create: jest.Mock;
+    update: jest.Mock;
+  };
+  refreshToken: {
+    create: jest.Mock;
+    findUnique: jest.Mock;
+    update: jest.Mock;
+    updateMany: jest.Mock;
+  };
+}
+
 describe('AuthService', () => {
   let service: AuthService;
-  let prisma: any;
+  let prisma: MockAuthPrisma;
   let vaultService: { getActiveKeyId: jest.Mock; getKeyOrSecret: jest.Mock };
 
   const TEST_SECRET = 'test-jwt-secret';
@@ -34,7 +89,9 @@ describe('AuthService', () => {
   const PASSWORD = 'securePass123';
   let passwordHash: string;
 
-  const mockUser = (overrides: any = {}) => ({
+  const mockUser = (
+    overrides: Partial<MockUserRecord> = {},
+  ): MockUserRecord => ({
     id: 1,
     username: 'admin',
     passwordHash,
@@ -72,9 +129,9 @@ describe('AuthService', () => {
   });
 
   beforeEach(async () => {
-    const mockPrisma = {
+    const mockPrisma: MockAuthPrisma = {
       $transaction: (
-        run: (tx: typeof mockPrisma) => Promise<unknown>,
+        run: (tx: MockAuthPrisma) => Promise<unknown>,
       ): Promise<unknown> => run(mockPrisma),
       $queryRaw: jest.fn((sql: TemplateStringsArray) =>
         Promise.resolve(
@@ -128,7 +185,7 @@ describe('AuthService', () => {
     }).compile();
 
     service = module.get<AuthService>(AuthService);
-    prisma = module.get<PrismaService>(PrismaService);
+    prisma = mockPrisma;
     jest.clearAllMocks();
   });
 
@@ -295,25 +352,29 @@ describe('AuthService', () => {
     it('rotates a valid token and persists its branch and session version', async () => {
       prisma.refreshToken.create.mockResolvedValue({ id: 7 });
       prisma.refreshToken.findUnique.mockResolvedValue(ticket());
-      await expect(service.refreshTokens(`3.${secret}`)).resolves.toMatchObject(
-        {
-          accessToken: expect.any(String),
-          refreshToken: expect.stringMatching(/^7\./),
-        },
-      );
+      const rotated = await service.refreshTokens(`3.${secret}`);
+      expect(typeof rotated.accessToken).toBe('string');
+      expect(rotated.accessToken.length).toBeGreaterThan(0);
+      expect(rotated.refreshToken).toMatch(/^7\./);
       expect(prisma.refreshToken.update).toHaveBeenCalledWith({
         where: { id: 3 },
         data: { revoked: true, replacedByToken: 'ROTATED' },
       });
-      expect(prisma.refreshToken.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({
-            userId: 1,
-            activeBranchId: 1,
-            authVersion: 0,
-          }),
-        }),
-      );
+      const createCalls = prisma.refreshToken.create.mock.calls as [
+        {
+          data: {
+            userId: number;
+            activeBranchId: number;
+            authVersion: number;
+          };
+        },
+      ][];
+      expect(createCalls).toHaveLength(1);
+      expect(createCalls[0][0].data).toMatchObject({
+        userId: 1,
+        activeBranchId: 1,
+        authVersion: 0,
+      });
     });
   });
 

@@ -1,3 +1,4 @@
+import type { Request, Response } from 'express';
 import {
   Injectable,
   NestInterceptor,
@@ -11,6 +12,10 @@ import { AUDIT_IN_TRANSACTION_KEY, IS_SENSITIVE_KEY } from './audit.decorator';
 import { AuditService } from './audit.service';
 import type { JwtPayload } from '../auth/jwt-payload.type';
 
+type AuditedRequest = Request & {
+  user?: JwtPayload;
+};
+
 @Injectable()
 export class AuditInterceptor implements NestInterceptor {
   private readonly logger = new Logger(AuditInterceptor.name);
@@ -20,12 +25,12 @@ export class AuditInterceptor implements NestInterceptor {
     private readonly reflector: Reflector,
   ) {}
 
-  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+  intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     const httpCtx = context.switchToHttp();
-    const req = httpCtx.getRequest<any>();
-    const user = req.user as JwtPayload | undefined;
+    const req = httpCtx.getRequest<AuditedRequest>();
+    const user = req.user;
 
-    const method = req.method as string;
+    const method = req.method;
     const path: string = req.originalUrl ?? req.url;
 
     const sensitiveAnnotation = this.reflector.getAllAndOverride<
@@ -59,7 +64,6 @@ export class AuditInterceptor implements NestInterceptor {
           path,
           isSensitiveRead,
           sensitiveAnnotation,
-          responseBody,
         );
 
         const cleanPath = (path || '').split('?')[0].replace(/\/+$/, '');
@@ -73,6 +77,15 @@ export class AuditInterceptor implements NestInterceptor {
               (responseBody as Record<string, unknown>).isAnonymous === true,
           );
 
+        const rawUserAgent = req.headers?.['user-agent'] as
+          | string
+          | string[]
+          | undefined;
+        const clientName: string | undefined = Array.isArray(rawUserAgent)
+          ? rawUserAgent[0]
+          : rawUserAgent;
+        const res = context.switchToHttp().getResponse<Response>();
+
         try {
           // Await persistence so audit failure reaches the request stream.
           await this.audit.logCritical({
@@ -84,22 +97,21 @@ export class AuditInterceptor implements NestInterceptor {
             ipAddress: isAnonymousQualityIncident
               ? 'ANONYMOUS'
               : this.getClientIP(req),
-            clientName: isAnonymousQualityIncident
-              ? 'ANONYMOUS'
-              : req.headers['user-agent'],
+            clientName: isAnonymousQualityIncident ? 'ANONYMOUS' : clientName,
             details: {
               method,
               path,
-              statusCode: context.switchToHttp().getResponse().statusCode,
+              statusCode: res?.statusCode,
               durationMs: duration,
               accessType: isSensitiveRead ? 'READ_ACCESS' : 'WRITE_ACCESS',
               params: req.params,
               query: req.query,
             },
           });
-        } catch (err: any) {
+        } catch (err: unknown) {
           this.logger.error('Failed to log sensitive audit', err);
-          throw new Error('Critical Audit Failure: ' + err.message);
+          const msg = err instanceof Error ? err.message : String(err);
+          throw new Error('Critical Audit Failure: ' + msg);
         }
         return responseBody;
       }),
@@ -108,10 +120,9 @@ export class AuditInterceptor implements NestInterceptor {
 
   private getActionName(
     method: string,
-    path: string,
-    isSensitiveRead: boolean,
+    _path: string,
+    _isSensitiveRead: boolean,
     sensitiveAnnotation: string | boolean | undefined,
-    responseBody: any,
   ): string {
     if (typeof sensitiveAnnotation === 'string') {
       return sensitiveAnnotation;
@@ -129,7 +140,7 @@ export class AuditInterceptor implements NestInterceptor {
     }
   }
 
-  private inferEntityAndId(path: string, req: any) {
+  private inferEntityAndId(path: string, req: AuditedRequest) {
     const cleanPath = path.split('?')[0];
     const segments = cleanPath.split('/').filter(Boolean);
 
@@ -147,22 +158,22 @@ export class AuditInterceptor implements NestInterceptor {
     return { entity, entityId: id };
   }
 
-  private getClientIP(req: any): string {
-    const forwarded = req.headers['x-forwarded-for'] as string;
+  private getClientIP(req: AuditedRequest): string {
+    const rawForwarded = req.headers?.['x-forwarded-for'];
+    const forwarded = Array.isArray(rawForwarded)
+      ? rawForwarded[0]
+      : rawForwarded;
     if (forwarded) {
       return forwarded.split(',')[0].trim();
     }
-    return (
-      req.ip ||
-      req.connection?.remoteAddress ||
-      req.socket?.remoteAddress ||
-      'unknown'
-    );
+    return req.ip || req.socket?.remoteAddress || 'unknown';
   }
 
-  private sanitizeBody(body: any) {
+  private sanitizeBody(
+    body: Record<string, unknown> | null | undefined,
+  ): Record<string, unknown> | null {
     if (!body) return null;
-    const copy = { ...body };
+    const copy: Record<string, unknown> = { ...body };
     const sensitiveFields = ['password', 'token', 'secret', 'key', 'auth'];
 
     for (const field of sensitiveFields) {

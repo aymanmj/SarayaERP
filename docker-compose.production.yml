@@ -77,7 +77,8 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
-      VAULT_ADDR: "http://vault:8200"
+      VAULT_ADDR: ${VAULT_ADDR:-http://vault:8200}
+      VAULT_CACERT: ${VAULT_CACERT:-}
       VAULT_TOKEN: ${VAULT_TOKEN:?VAULT_TOKEN is required}
       NODE_ENV: production
       PORT: 3000
@@ -125,6 +126,8 @@ services:
         condition: service_healthy
       vault:
         condition: service_started
+      clamav:
+        condition: service_started
     networks:
       - saraya_net
     healthcheck:
@@ -151,7 +154,7 @@ services:
   # 3. الوصول والشبكة (Access Layer)
   # ==========================================
   nginx:
-    image: nginx:alpine
+    image: nginx:${NGINX_IMAGE_TAG:-1.27-alpine}
     container_name: saraya_nginx
     restart: always
     ports:
@@ -221,7 +224,7 @@ services:
   # كل عميل يحتاج Tunnel Token خاص به مرتبط بـ Subdomain فريد
   # مثال: rehab.alsarayatech.ly, nokhba.alsarayatech.ly
   tunnel:
-    image: cloudflare/cloudflared:latest
+    image: cloudflare/cloudflared:${CLOUDFLARED_IMAGE_TAG:-2025.2.1}
     container_name: saraya_tunnel
     restart: always
     command: tunnel --no-autoupdate run
@@ -251,7 +254,7 @@ services:
 
   # 🌐 Tailscale (Secure VPN access)
   tailscale:
-    image: tailscale/tailscale:latest
+    image: tailscale/tailscale:${TAILSCALE_IMAGE_TAG:-v1.80.3}
     container_name: saraya_tailscale
     hostname: ${TAILSCALE_HOSTNAME:-saraya-erp}
     restart: always
@@ -287,7 +290,7 @@ services:
       POSTGRES_HOST: postgres
       POSTGRES_DB: ${POSTGRES_DB:-saraya_erp}
       POSTGRES_USER: ${POSTGRES_USER:-admin}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
       BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-30}
       TZ: Africa/Tripoli
     entrypoint: ["/bin/sh", "-c"]
@@ -345,7 +348,7 @@ services:
 
   # مجمع مقاييس السيرفر (CPU, RAM, Disk)
   node-exporter:
-    image: prom/node-exporter:latest
+    image: prom/node-exporter:${NODE_EXPORTER_IMAGE_TAG:-v1.8.2}
     container_name: saraya_node_exporter
     restart: always
     volumes:
@@ -362,11 +365,11 @@ services:
 
   # مجمع مقاييس قاعدة البيانات
   postgres-exporter:
-    image: prometheuscommunity/postgres-exporter:latest
+    image: prometheuscommunity/postgres-exporter:${POSTGRES_EXPORTER_IMAGE_TAG:-v0.16.0}
     container_name: saraya_postgres_exporter
     restart: always
     environment:
-      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-saraya_erp}?sslmode=disable"
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@postgres:5432/${POSTGRES_DB:-saraya_erp}?sslmode=disable"
     depends_on:
       postgres:
         condition: service_healthy
@@ -375,12 +378,12 @@ services:
 
   # مجمع مقاييس Redis
   redis-exporter:
-    image: oliver006/redis_exporter:latest
+    image: oliver006/redis_exporter:${REDIS_EXPORTER_IMAGE_TAG:-v1.67.0}
     container_name: saraya_redis_exporter
     restart: always
     environment:
       REDIS_ADDR: "redis://redis:6379"
-      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
     depends_on:
       - redis
     networks:
@@ -388,7 +391,7 @@ services:
 
   # Prometheus - تجميع البيانات
   prometheus:
-    image: prom/prometheus:latest
+    image: prom/prometheus:${PROMETHEUS_IMAGE_TAG:-v2.55.1}
     container_name: saraya_prometheus
     restart: always
     volumes:
@@ -404,7 +407,7 @@ services:
 
   # Grafana - لوحة العرض
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:${GRAFANA_IMAGE_TAG:-11.4.0}
     container_name: saraya_grafana
     user: root
     restart: always
@@ -425,7 +428,7 @@ services:
 
   # Alertmanager - إدارة التنبيهات
   alertmanager:
-    image: prom/alertmanager:latest
+    image: prom/alertmanager:${ALERTMANAGER_IMAGE_TAG:-v0.27.0}
     container_name: saraya_alertmanager
     restart: always
     ports:
@@ -441,7 +444,7 @@ services:
 
   # Loki - Centralized Logging
   loki:
-    image: grafana/loki:latest
+    image: grafana/loki:${LOKI_IMAGE_TAG:-3.3.2}
     container_name: saraya_loki
     restart: always
     user: "0:0"
@@ -456,7 +459,7 @@ services:
 
   # Promtail - Log Shipping from Docker
   promtail:
-    image: grafana/promtail:latest
+    image: grafana/promtail:${PROMTAIL_IMAGE_TAG:-3.3.2}
     container_name: saraya_promtail
     restart: always
     user: "0:0"
@@ -472,7 +475,7 @@ services:
 
   # Tempo - Distributed Tracing
   tempo:
-    image: grafana/tempo:latest
+    image: grafana/tempo:${TEMPO_IMAGE_TAG:-2.6.1}
     container_name: saraya_tempo
     restart: always
     user: "0:0"
@@ -487,7 +490,7 @@ services:
 
   # OpenTelemetry Collector - unified receiver
   otel-collector:
-    image: otel/opentelemetry-collector-contrib:latest
+    image: otel/opentelemetry-collector-contrib:${OTEL_COLLECTOR_IMAGE_TAG:-0.115.0}
     container_name: saraya_otel_collector
     restart: always
     user: "0:0"
@@ -512,7 +515,7 @@ services:
   # يجب أن تتم الترقيات عبر تثبيت IMAGE_TAG بإصدار أو بصمة (digest) معتمدة بعد القبول وتجهيز خطة الرجوع.
 
   portainer:
-    image: portainer/portainer-ce:latest
+    image: portainer/portainer-ce:${PORTAINER_IMAGE_TAG:-2.21.5-alpine}
     container_name: saraya_portainer
     restart: always
     volumes:
@@ -535,7 +538,7 @@ services:
   # عند انقطاع الإنترنت، أجهزة المستشفى تترجم النطاق عبر هذا السيرفر
   # ⚠️ هذه الحاوية ضرورية لعمل النظام بدون إنترنت — لا تحذفها!
   local-dns:
-    image: 4km3/dnsmasq:latest
+    image: 4km3/dnsmasq:${DNSMASQ_IMAGE_TAG:-2.90-r0}
     container_name: saraya_dns
     restart: always
     ports:

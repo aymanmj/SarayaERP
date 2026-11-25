@@ -2,12 +2,53 @@ import {
   Injectable,
   BadRequestException,
   NotFoundException,
+  ForbiddenException,
+  Optional,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
 import { LicenseService } from '../licensing/license.service';
-import { ForbiddenException, Optional } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+
+export interface CreateUserInput {
+  fullName: string;
+  username: string;
+  password: string;
+  email?: string | null;
+  phone?: string | null;
+  isDoctor?: boolean;
+  basicSalary?: Prisma.UserUncheckedCreateInput['basicSalary'];
+  housingAllowance?: Prisma.UserUncheckedCreateInput['housingAllowance'];
+  transportAllowance?: Prisma.UserUncheckedCreateInput['transportAllowance'];
+  otherAllowance?: Prisma.UserUncheckedCreateInput['otherAllowance'];
+  departmentId?: number | null;
+  specialtyId?: number | null;
+  jobRank?: Prisma.UserUncheckedCreateInput['jobRank'];
+  commissionRate?: Prisma.UserUncheckedCreateInput['commissionRate'];
+  annualLeaveBalance?: number | null;
+  roles?: string[];
+}
+
+export interface UpdateUserInput {
+  fullName?: string;
+  username?: string;
+  password?: string;
+  email?: string | null;
+  phone?: string | null;
+  isDoctor?: boolean;
+  isActive?: boolean;
+  basicSalary?: Prisma.UserUncheckedUpdateInput['basicSalary'];
+  housingAllowance?: Prisma.UserUncheckedUpdateInput['housingAllowance'];
+  transportAllowance?: Prisma.UserUncheckedUpdateInput['transportAllowance'];
+  otherAllowance?: Prisma.UserUncheckedUpdateInput['otherAllowance'];
+  departmentId?: number | null;
+  specialtyId?: number | null;
+  jobRank?: Prisma.UserUncheckedCreateInput['jobRank'];
+  commissionRate?: Prisma.UserUncheckedUpdateInput['commissionRate'];
+  annualLeaveBalance?: number | null;
+  roles?: string[];
+}
 
 @Injectable()
 export class UsersService {
@@ -104,7 +145,7 @@ export class UsersService {
   //   });
   // }
 
-  async create(hospitalId: number, data: any) {
+  async create(hospitalId: number, data: CreateUserInput) {
     // 1. التحقق من اسم المستخدم
     const exists = await this.prisma.user.findUnique({
       where: { username: data.username },
@@ -148,8 +189,8 @@ export class UsersService {
           departmentId: data.departmentId || null,
           specialtyId: data.specialtyId || null,
           jobRank: data.isDoctor && data.jobRank ? data.jobRank : null,
-          commissionRate: data.commissionRate ?? null,
-          annualLeaveBalance: data.annualLeaveBalance ?? null,
+          commissionRate: data.commissionRate ?? undefined,
+          annualLeaveBalance: data.annualLeaveBalance ?? undefined,
         },
       });
 
@@ -178,7 +219,7 @@ export class UsersService {
     });
   }
 
-  async update(hospitalId: number, id: number, data: any) {
+  async update(hospitalId: number, id: number, data: UpdateUserInput) {
     const user = await this.prisma.user.findFirst({
       where: { id, hospitalId },
     });
@@ -208,7 +249,7 @@ export class UsersService {
       }
     }
 
-    const updateData: any = {
+    const updateData: Prisma.UserUncheckedUpdateInput = {
       fullName: data.fullName,
       username: data.username,
       // تحويل النص الفارغ إلى null لتجنب مشاكل القيود الفريدة
@@ -229,8 +270,8 @@ export class UsersService {
       housingAllowance: data.housingAllowance,
       transportAllowance: data.transportAllowance,
       otherAllowance: data.otherAllowance,
-      commissionRate: data.commissionRate,
-      annualLeaveBalance: data.annualLeaveBalance,
+      commissionRate: data.commissionRate ?? undefined,
+      annualLeaveBalance: data.annualLeaveBalance ?? undefined,
     };
 
     if (data.password && data.password.trim() !== '') {
@@ -260,10 +301,9 @@ export class UsersService {
       return updatedUser;
     });
 
-    const lifecycle = data as { isActive?: boolean; roles?: unknown };
-    if (lifecycle.isActive === false) {
+    if (data.isActive === false) {
       this.eventEmitter?.emit('user.deactivated', { hospitalId, userId: id });
-    } else if (Array.isArray(lifecycle.roles)) {
+    } else if (Array.isArray(data.roles)) {
       this.eventEmitter?.emit('user.roles_updated', { hospitalId, userId: id });
     }
 
@@ -402,7 +442,7 @@ export class UsersService {
           data: { roleId: doctorRole.id, permissionId: perm.id },
         });
         results.push(`Assigned ${code} to DOCTOR`);
-      } catch (e) {
+      } catch {
         results.push(`Permission ${code} already assigned (or skipped)`);
       }
     }

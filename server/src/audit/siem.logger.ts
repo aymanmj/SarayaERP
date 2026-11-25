@@ -16,16 +16,17 @@ const sensitiveKeys = [
  * دالة مساعدة لتنقيح وحجب البيانات الحساسة (Redaction)
  * يتم استخدامها لحماية بيانات المرضى أو أمن النظام قبل إرسالها إلى أنظمة المراقبة SIEM
  */
-function redactObject(obj: any): any {
+function redactObject(obj: unknown): unknown {
   if (!obj || typeof obj !== 'object') {
     return obj;
   }
 
   if (Array.isArray(obj)) {
-    return obj.map(redactObject);
+    return obj.map((item) => redactObject(item));
   }
 
-  const redacted = { ...obj };
+  const source = obj as Record<string, unknown>;
+  const redacted: Record<string, unknown> = { ...source };
   for (const key in redacted) {
     if (Object.prototype.hasOwnProperty.call(redacted, key)) {
       if (sensitiveKeys.some((sk) => key.toLowerCase().includes(sk))) {

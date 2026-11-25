@@ -25,22 +25,25 @@ export class UsersController {
 
   @Get()
   @Permissions('users:manage')
-  async findAll(@Req() req: any) {
+  async findAll(@Req() req: { user: JwtPayload }) {
     return this.usersService.findAll(req.user.hospitalId);
   }
 
   @Post()
   @Permissions('users:manage')
-  async create(@Req() req: any, @Body() body: any) {
+  async create(
+    @Req() req: { user: JwtPayload },
+    @Body() body: Parameters<UsersService['create']>[1],
+  ) {
     return this.usersService.create(req.user.hospitalId, body);
   }
 
   @Patch(':id')
   @Permissions('users:manage')
   async update(
-    @Req() req: any,
+    @Req() req: { user: JwtPayload },
     @Param('id', ParseIntPipe) id: number,
-    @Body() body: any,
+    @Body() body: Parameters<UsersService['update']>[2],
   ) {
     return this.usersService.update(req.user.hospitalId, id, body);
   }

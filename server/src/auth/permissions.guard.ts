@@ -29,8 +29,8 @@ export class PermissionsGuard implements CanActivate {
       return true;
     }
 
-    const request = ctx.switchToHttp().getRequest();
-    const user = request.user as JwtPayload;
+    const request = ctx.switchToHttp().getRequest<{ user?: JwtPayload }>();
+    const user = request.user;
 
     if (!user) {
       return false;
@@ -100,7 +100,7 @@ export class PermissionsGuard implements CanActivate {
           return true;
         } else {
           this.logger.warn(
-            `❌ DB fallback: Permission ${requiredPermissions} NOT found in DB either.`,
+            `❌ DB fallback: Permission ${requiredPermissions.join(', ')} NOT found in DB either.`,
           );
           this.logger.debug(
             `DB Permissions: ${Array.from(dbPermissions).join(', ')}`,
@@ -115,9 +115,11 @@ export class PermissionsGuard implements CanActivate {
 
     // DEBUG LOGGING
     this.logger.warn(
-      `[PermissionsGuard] User: ${user.username}, Roles: ${user.roles}`,
+      `[PermissionsGuard] User: ${user.username}, Roles: ${(user.roles ?? []).join(', ')}`,
     );
-    this.logger.warn(`[PermissionsGuard] Required: ${requiredPermissions}`);
+    this.logger.warn(
+      `[PermissionsGuard] Required: ${requiredPermissions.join(', ')}`,
+    );
     this.logger.warn(
       `[PermissionsGuard] Has in Token: ${JSON.stringify(user.permissions)}`,
     );
