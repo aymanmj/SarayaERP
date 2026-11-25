@@ -10,7 +10,6 @@ import {
   ParseIntPipe,
   Post,
   Put,
-  Patch,
   Delete,
   Query,
   UseGuards,

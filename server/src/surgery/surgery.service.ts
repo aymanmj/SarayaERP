@@ -331,7 +331,7 @@ export class SurgeryService {
   }
 
   async getSurgeryCases(hospitalId: number, date?: Date) {
-    const where: any = { hospitalId };
+    const where: Prisma.SurgeryCaseWhereInput = { hospitalId };
     if (date) {
       const start = new Date(date);
       start.setHours(0, 0, 0, 0);
@@ -692,7 +692,7 @@ export class SurgeryService {
       throw new NotFoundException('العملية الجراحية غير موجودة ضمن المنشأة.');
     }
 
-    const updateData: any = {
+    const updateData: Prisma.SurgeryCaseUncheckedUpdateInput = {
       surgeonNotes: data.surgeonNotes,
       anesthesiaNotes: data.anesthesiaNotes,
       preOpDiagnosis: data.preOpDiagnosis,

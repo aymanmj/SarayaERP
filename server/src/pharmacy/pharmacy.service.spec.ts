@@ -22,18 +22,19 @@ import { PrismaService } from '../prisma/prisma.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { AccountingService } from '../accounting/accounting.service';
 import type { Prisma } from '@prisma/client';
+import { PaymentMethod } from '@prisma/client';
 import { CDSSService } from '../cdss/cdss.service';
 
 describe('PharmacyService', () => {
   let service: PharmacyService;
-  let prisma: any;
-  let cdss: any;
+  let prisma: ReturnType<typeof mockPrismaService>;
+  let cdss: typeof mockCDSSService;
 
   // ==================================================
   // Mock factories
   // ==================================================
   const mockPrismaService = () => {
-    const mock: any = {
+    const baseMock = {
       hospital: {
         findUniqueOrThrow: jest.fn().mockResolvedValue({ organization: null }),
       },
@@ -125,13 +126,17 @@ describe('PharmacyService', () => {
         create: jest.fn(),
         findMany: jest.fn().mockResolvedValue([]),
       },
-      $transaction: jest.fn((fn: any) => {
-        if (Array.isArray(fn)) return Promise.all(fn);
-        return fn(mock); // Pass the same mock as tx
-      }),
       $queryRaw: jest.fn().mockResolvedValue([{ id: 100, sellPrice: 0 }]),
       $executeRaw: jest.fn().mockResolvedValue(1),
     };
+    const mock = {
+      ...baseMock,
+      $transaction: jest.fn(),
+    };
+    mock.$transaction.mockImplementation((fn: unknown) => {
+      if (Array.isArray(fn)) return Promise.all(fn as Promise<unknown>[]);
+      return (fn as (tx: typeof mock) => unknown)(mock);
+    });
     return mock;
   };
 
@@ -168,8 +173,8 @@ describe('PharmacyService', () => {
     }).compile();
 
     service = module.get<PharmacyService>(PharmacyService);
-    prisma = module.get<PrismaService>(PrismaService);
-    cdss = module.get<CDSSService>(CDSSService);
+    prisma = prismaMock;
+    cdss = mockCDSSService;
     jest.clearAllMocks();
   });
 
@@ -472,7 +477,8 @@ describe('PharmacyService', () => {
       await service.dispensePrescription(baseDispenseParams);
 
       // FEFO should use B2-SOON first (sorted by expiryDate asc in allocateStockFEFO)
-      const stockUpdateCalls = prisma.productStock.updateMany.mock.calls;
+      const stockUpdateCalls = prisma.productStock.updateMany.mock
+        .calls as Array<[{ where: { id: number } }]>;
       expect(stockUpdateCalls.length).toBe(1);
       expect(stockUpdateCalls[0][0].where.id).toBe(2); // B2-SOON (earliest expiry)
     });
@@ -490,8 +496,8 @@ describe('PharmacyService', () => {
           data: expect.objectContaining({
             sourceType: 'PHARMACY',
             hospitalId: 1,
-          }),
-        }),
+          }) as unknown,
+        }) as unknown,
       );
     });
 
@@ -510,7 +516,7 @@ describe('PharmacyService', () => {
       hospitalId: 1,
       prescriptionId: 1,
       pharmacistId: 3,
-      paymentMethod: 'CASH' as any,
+      paymentMethod: PaymentMethod.CASH,
       amountPaid: 7.5,
     };
 
@@ -581,20 +587,20 @@ describe('PharmacyService', () => {
             status: 'PAID',
             totalAmount: '7.500',
             paidAmount: '7.500',
-          }),
-        }),
+          }) as unknown,
+        }) as unknown,
       );
       expect(mockAccountingService.recordInvoiceEntry).toHaveBeenCalledWith({
         invoiceId: 20,
         hospitalId: 1,
         userId: 3,
-        prisma: prisma as Prisma.TransactionClient,
+        prisma: prisma as unknown as Prisma.TransactionClient,
       });
       expect(mockAccountingService.recordPaymentEntry).toHaveBeenCalledWith({
         paymentId: 21,
         hospitalId: 1,
         userId: 3,
-        prisma: prisma as Prisma.TransactionClient,
+        prisma: prisma as unknown as Prisma.TransactionClient,
       });
     });
 

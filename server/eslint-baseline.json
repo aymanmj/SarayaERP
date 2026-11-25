@@ -397,10 +397,6 @@
       "@typescript-eslint/no-unsafe-assignment": 1,
       "@typescript-eslint/no-unused-vars": 1
     },
-    "src/insurance/insurance.service.ts": {
-      "@typescript-eslint/no-unsafe-assignment": 13,
-      "@typescript-eslint/no-unsafe-member-access": 39
-    },
     "src/integration/clinical-services.integration.spec.ts": {
       "@typescript-eslint/no-unsafe-assignment": 2,
       "@typescript-eslint/no-unsafe-call": 11,
@@ -541,21 +537,6 @@
       "@typescript-eslint/no-unsafe-member-access": 14,
       "@typescript-eslint/no-unsafe-return": 1,
       "@typescript-eslint/require-await": 2
-    },
-    "src/inventory/inventory-count.service.ts": {
-      "@typescript-eslint/no-unsafe-assignment": 1
-    },
-    "src/inventory/inventory.controller.ts": {
-      "@typescript-eslint/no-unused-vars": 1
-    },
-    "src/inventory/inventory.service.ts": {
-      "@typescript-eslint/no-unsafe-assignment": 4,
-      "@typescript-eslint/no-unsafe-call": 3,
-      "@typescript-eslint/no-unsafe-member-access": 12,
-      "@typescript-eslint/no-unused-vars": 1
-    },
-    "src/inventory/warehouse.controller.ts": {
-      "@typescript-eslint/no-unsafe-member-access": 10
     },
     "src/lab-orders/lab-orders.controller.spec.ts": {
       "@typescript-eslint/no-unsafe-assignment": 2,
@@ -772,20 +753,6 @@
       "@typescript-eslint/no-unsafe-assignment": 4,
       "@typescript-eslint/no-unsafe-member-access": 6
     },
-    "src/pharmacy/pharmacy.controller.ts": {
-      "@typescript-eslint/no-unsafe-assignment": 21,
-      "@typescript-eslint/no-unsafe-member-access": 26
-    },
-    "src/pharmacy/pharmacy.service.spec.ts": {
-      "@typescript-eslint/no-unsafe-assignment": 6,
-      "@typescript-eslint/no-unsafe-call": 57,
-      "@typescript-eslint/no-unsafe-member-access": 64,
-      "@typescript-eslint/no-unsafe-return": 2
-    },
-    "src/pharmacy/pharmacy.service.ts": {
-      "@typescript-eslint/no-unsafe-assignment": 3,
-      "@typescript-eslint/no-unsafe-member-access": 5
-    },
     "src/price-lists/price-lists.controller.ts": {
       "@typescript-eslint/no-unsafe-member-access": 2,
       "@typescript-eslint/no-unused-vars": 2
@@ -813,21 +780,6 @@
       "@typescript-eslint/no-unsafe-member-access": 2,
       "@typescript-eslint/no-unsafe-return": 2
     },
-    "src/purchases/procurement.controller.ts": {
-      "@typescript-eslint/no-unsafe-assignment": 9,
-      "@typescript-eslint/no-unsafe-member-access": 11
-    },
-    "src/purchases/procurement.service.spec.ts": {
-      "@typescript-eslint/no-unsafe-assignment": 2,
-      "@typescript-eslint/no-unsafe-call": 1,
-      "@typescript-eslint/no-unsafe-return": 1,
-      "@typescript-eslint/no-unused-vars": 1,
-      "@typescript-eslint/require-await": 1
-    },
-    "src/purchases/purchases.controller.ts": {
-      "@typescript-eslint/no-unsafe-assignment": 16,
-      "@typescript-eslint/no-unsafe-member-access": 25
-    },
     "src/quality/quality.controller.spec.ts": {
       "@typescript-eslint/no-unsafe-assignment": 2,
       "@typescript-eslint/no-unused-vars": 1
@@ -842,23 +794,6 @@
       "@typescript-eslint/no-require-imports": 3,
       "@typescript-eslint/no-unsafe-assignment": 6,
       "@typescript-eslint/no-unsafe-call": 3
-    },
-    "src/rcm/claim.service.spec.ts": {
-      "@typescript-eslint/no-unsafe-assignment": 4,
-      "@typescript-eslint/no-unsafe-call": 32,
-      "@typescript-eslint/no-unsafe-member-access": 36,
-      "@typescript-eslint/no-unsafe-return": 1
-    },
-    "src/rcm/denials/denial-management.service.ts": {
-      "@typescript-eslint/no-unsafe-assignment": 4,
-      "@typescript-eslint/no-unsafe-member-access": 6
-    },
-    "src/rcm/era-processing.service.ts": {
-      "@typescript-eslint/restrict-template-expressions": 2
-    },
-    "src/rcm/insurance-contract.service.ts": {
-      "@typescript-eslint/no-unsafe-assignment": 3,
-      "@typescript-eslint/no-unsafe-member-access": 1
     },
     "src/referral/referral.controller.ts": {
       "@typescript-eslint/no-unsafe-member-access": 15
@@ -908,14 +843,6 @@
     "src/suppliers/suppliers.controller.ts": {
       "@typescript-eslint/no-unsafe-member-access": 5,
       "@typescript-eslint/no-unused-vars": 1
-    },
-    "src/surgery/surgery.controller.ts": {
-      "@typescript-eslint/no-unsafe-assignment": 2,
-      "@typescript-eslint/no-unsafe-member-access": 7
-    },
-    "src/surgery/surgery.service.ts": {
-      "@typescript-eslint/no-unsafe-assignment": 2,
-      "@typescript-eslint/no-unsafe-member-access": 4
     },
     "src/terminology/terminology.command.ts": {
       "@typescript-eslint/no-unused-vars": 1

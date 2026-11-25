@@ -649,7 +649,9 @@ export class InventoryCountService {
     }
 
     const trendData: Array<{ name: string; value: number; valueText: string }> =
-      new Array(monthKeys.length);
+      new Array<{ name: string; value: number; valueText: string }>(
+        monthKeys.length,
+      );
 
     let runningEndValue = Money.decimal(totalValueDecimal);
     for (let i = monthKeys.length - 1; i >= 0; i--) {

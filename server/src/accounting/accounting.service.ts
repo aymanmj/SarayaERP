@@ -4300,10 +4300,9 @@ export class AccountingService {
     if (!amountDec.gt(0)) return;
     const amountDb = Money.toDbString(amountDec);
 
-    // ✅ المصدر الجديد الصحيح
     const sourceModule = AccountingSourceModule.SUPPLIER_PAYMENT;
+    const postingKey = `supplier-payment:${hospitalId}:${pay.id}`;
 
-    // ✅ تحديد القيد الموجود: (1) من رابط الدفعة (2) من المصدر الجديد (3) fallback للقديم INVENTORY
     let entryId: number | null = null;
 
     if (pay.accountingEntryId) {
@@ -4315,6 +4314,16 @@ export class AccountingService {
     }
 
     if (!entryId) {
+      const existingByKey = await db.accountingEntry.findUnique({
+        where: { postingKey },
+        select: { id: true, hospitalId: true },
+      });
+      if (existingByKey && existingByKey.hospitalId === hospitalId) {
+        entryId = existingByKey.id;
+      }
+    }
+
+    if (!entryId) {
       const existingNew = await db.accountingEntry.findFirst({
         where: { hospitalId, sourceModule, sourceId: pay.id },
         select: { id: true },
@@ -4322,17 +4331,14 @@ export class AccountingService {
       if (existingNew) entryId = existingNew.id;
     }
 
-    if (!entryId) {
-      // ✅ fallback: دفعات قديمة كانت تتسجل على INVENTORY
-      const existingOld = await db.accountingEntry.findFirst({
-        where: {
-          hospitalId,
-          sourceModule: AccountingSourceModule.INVENTORY,
-          sourceId: pay.id,
-        },
-        select: { id: true },
-      });
-      if (existingOld) entryId = existingOld.id;
+    if (entryId) {
+      if (pay.accountingEntryId !== entryId) {
+        await db.supplierPayment.update({
+          where: { id: pay.id },
+          data: { accountingEntryId: entryId },
+        });
+      }
+      return;
     }
 
     const desc = `سداد لمورد ${pay.supplier?.name ?? ''}${
@@ -4343,51 +4349,33 @@ export class AccountingService {
         : ''
     }`.trim();
 
-    if (entryId) {
-      // ✅ لو كان قيد قديم INVENTORY سيتم تحويله هنا لـ SUPPLIER_PAYMENT (حل نهائي للتصادم)
-      await this.validateEntryModification(entryId, hospitalId, tx);
-      await db.accountingEntry.update({
-        where: { id: entryId },
-        data: {
-          financialYearId: financialYear.id,
-          financialPeriodId: period.id,
-          entryDate,
-          description: desc,
-          sourceModule, // ✅ مهم جداً
-          sourceId: pay.id,
-          createdById: userId,
-        },
-      });
-
-      await db.accountingEntryLine.deleteMany({ where: { entryId } });
-    } else {
-      const created = await db.accountingEntry.create({
-        data: {
-          hospitalId,
-          financialYearId: financialYear.id,
-          financialPeriodId: period.id,
-          entryDate,
-          description: desc,
-          sourceModule,
-          sourceId: pay.id,
-          createdById: userId,
-        },
-        select: { id: true },
-      });
-      entryId = created.id;
-    }
+    const created = await db.accountingEntry.create({
+      data: {
+        hospitalId,
+        postingKey,
+        financialYearId: financialYear.id,
+        financialPeriodId: period.id,
+        entryDate,
+        description: desc,
+        sourceModule,
+        sourceId: pay.id,
+        createdById: userId,
+      },
+      select: { id: true },
+    });
+    entryId = created.id;
 
     await db.accountingEntryLine.createMany({
       data: [
         {
-          entryId: entryId,
+          entryId,
           accountId: apAccount.id,
           debit: amountDb,
           credit: '0.000',
           description: 'تسوية دائنون الموردين',
         },
         {
-          entryId: entryId,
+          entryId,
           accountId: cashOrBankAccount.id,
           debit: '0.000',
           credit: amountDb,
@@ -4396,13 +4384,10 @@ export class AccountingService {
       ],
     });
 
-    // ✅ الأهم: ربط القيد بالدفعة
-    if (pay.accountingEntryId !== entryId) {
-      await db.supplierPayment.update({
-        where: { id: pay.id },
-        data: { accountingEntryId: entryId },
-      });
-    }
+    await db.supplierPayment.update({
+      where: { id: pay.id },
+      data: { accountingEntryId: entryId },
+    });
   }
 
   async listEquityAccounts(hospitalId: number): Promise<AccountLite[]> {

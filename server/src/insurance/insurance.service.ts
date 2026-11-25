@@ -7,7 +7,13 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
-import { InvoiceStatus, CopayType, CoverageRuleType } from '@prisma/client';
+import {
+  InvoiceStatus,
+  CopayType,
+  CoverageRuleType,
+  ClaimStatus,
+  Prisma,
+} from '@prisma/client';
 import { Money } from '../common/utils/money.util';
 import { appendChainedAuditInTransaction } from '../audit/audit-chain';
 import { dispensedPrescriptionClaim } from '../pharmacy/prescription-prepayment';
@@ -318,7 +324,18 @@ export class InsuranceService {
   }
 
   // 6. إضافة قاعدة تغطية
-  async addCoverageRule(hospitalId: number, planId: number, data: any) {
+  async addCoverageRule(
+    hospitalId: number,
+    planId: number,
+    data: {
+      serviceCategoryId?: number | string | null;
+      serviceItemId?: number | string | null;
+      ruleType?: CoverageRuleType;
+      copayType?: CopayType;
+      copayValue?: number | string | null;
+      requiresApproval?: boolean;
+    },
+  ) {
     const plan = await this.prisma.insurancePlan.findFirst({
       where: {
         id: planId,
@@ -374,7 +391,17 @@ export class InsuranceService {
   }
 
   // 7. طلب موافقة مسبقة
-  async createPreAuth(hospitalId: number, data: any) {
+  async createPreAuth(
+    hospitalId: number,
+    data: {
+      patientId: number | string;
+      policyId: number | string;
+      serviceItemId?: number | string | null;
+      diagnosisCodeId?: number | string | null;
+      requestedAmount?: number | string | null;
+      notes?: string;
+    },
+  ) {
     const patientId = Number(data.patientId);
     const policyId = Number(data.policyId);
 
@@ -483,7 +510,7 @@ export class InsuranceService {
   }
 
   async getPreAuths(hospitalId: number, patientId?: number) {
-    const where: any = { hospitalId };
+    const where: Prisma.PreAuthorizationWhereInput = { hospitalId };
     if (patientId) where.patientId = patientId;
 
     return this.prisma.preAuthorization.findMany({
@@ -510,7 +537,14 @@ export class InsuranceService {
     hospitalId: number,
     id: number,
     userId: number,
-    data: any,
+    data: {
+      status?: string;
+      authCode?: string;
+      approvedAmount?: number | string | null;
+      expiresAt?: string | Date | null;
+      notes?: string;
+      decisionReason?: string;
+    },
   ) {
     const existing = await this.prisma.preAuthorization.findFirst({
       where: { id, hospitalId },
@@ -676,7 +710,7 @@ export class InsuranceService {
       toDate?: Date;
     },
   ) {
-    const where: any = {
+    const where: Prisma.InvoiceWhereInput = {
       hospitalId,
       insuranceShare: { gt: 0 },
       ...(filters.status === 'WITHDRAWN'
@@ -689,13 +723,14 @@ export class InsuranceService {
     }
 
     if (filters.status) {
-      where.claimStatus = filters.status;
+      where.claimStatus = filters.status as ClaimStatus;
     }
 
     if (filters.fromDate || filters.toDate) {
-      where.createdAt = {};
-      if (filters.fromDate) where.createdAt.gte = filters.fromDate;
-      if (filters.toDate) where.createdAt.lte = filters.toDate;
+      where.createdAt = {
+        ...(filters.fromDate ? { gte: filters.fromDate } : {}),
+        ...(filters.toDate ? { lte: filters.toDate } : {}),
+      };
     }
 
     const invoices = await this.prisma.invoice.findMany({
@@ -1055,7 +1090,18 @@ export class InsuranceService {
   }
 
   // تحديث بيانات شركة التأمين
-  async updateProvider(hospitalId: number, id: number, data: any) {
+  async updateProvider(
+    hospitalId: number,
+    id: number,
+    data: {
+      name?: string;
+      code?: string;
+      phone?: string;
+      email?: string;
+      address?: string;
+      isActive?: boolean;
+    },
+  ) {
     const existing = await this.prisma.insuranceProvider.findFirst({
       where: { id, hospitalId },
     });

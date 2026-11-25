@@ -10,6 +10,7 @@ import {
   Query,
   Req,
   Res,
+  StreamableFile,
   UploadedFile,
   UseGuards,
   UseInterceptors,
@@ -201,12 +202,11 @@ export class StaffCredentialingController {
         user.sub,
         { ipAddress: req.ip, clientName: req.get('user-agent') },
       );
-    res.set({
-      'Content-Type': contentType,
-      'Content-Disposition': `attachment; filename="${fileName}"`,
-      'X-Content-Type-Options': 'nosniff',
-      'Cache-Control': 'private, no-store',
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Cache-Control', 'private, no-store');
+    return new StreamableFile(buffer, {
+      type: contentType,
+      disposition: `attachment; filename="${fileName}"`,
     });
-    return res.send(buffer);
   }
 }

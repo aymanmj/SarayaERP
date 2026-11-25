@@ -3,7 +3,7 @@ import { ProcurementService } from './procurement.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { AccountingService } from '../accounting/accounting.service';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import { PRStatus, POStatus, Prisma } from '@prisma/client';
+import { PRStatus, Prisma } from '@prisma/client';
 
 describe('ProcurementService', () => {
   let service: ProcurementService;
@@ -90,7 +90,10 @@ describe('ProcurementService', () => {
     ]);
 
     // Default mock for transaction just runs the callback immediately with mockPrisma
-    mockPrisma.$transaction.mockImplementation(async (cb) => cb(mockPrisma));
+    mockPrisma.$transaction.mockImplementation(
+      (cb: (tx: typeof mockPrisma) => unknown) =>
+        Promise.resolve(cb(mockPrisma)),
+    );
   });
 
   it('should be defined', () => {
@@ -126,8 +129,8 @@ describe('ProcurementService', () => {
             hospitalId: 1,
             requestNumber: 'PR-000006',
             status: PRStatus.PENDING,
-          }),
-        }),
+          }) as unknown,
+        }) as unknown,
       );
       expect(result.requestNumber).toBe('PR-000006');
     });
@@ -204,8 +207,8 @@ describe('ProcurementService', () => {
             hospitalId: 1,
             poNumber: 'PO-000043',
             supplierId: 5,
-          }),
-        }),
+          }) as unknown,
+        }) as unknown,
       );
       expect(result.poNumber).toBe('PO-000043');
     });

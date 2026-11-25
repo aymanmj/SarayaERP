@@ -141,7 +141,7 @@ export class ProcurementController {
 
   @Get('suppliers')
   @Permissions('inventory:view') // Reusing inventory permissions for now, could be purchases:view
-  async getSuppliers(@Req() req: any) {
+  async getSuppliers(@Req() req: { user: JwtPayload }) {
     return this.prisma.supplier.findMany({
       where: { hospitalId: req.user.hospitalId, isActive: true },
     });
@@ -149,7 +149,10 @@ export class ProcurementController {
 
   @Post('suppliers')
   @Permissions('inventory:manage')
-  async createSupplier(@Req() req: any, @Body() dto: CreateSupplierDto) {
+  async createSupplier(
+    @Req() req: { user: JwtPayload },
+    @Body() dto: CreateSupplierDto,
+  ) {
     return this.prisma.supplier.create({
       data: {
         hospitalId: req.user.hospitalId,
@@ -164,7 +167,7 @@ export class ProcurementController {
 
   @Get('requests')
   @Permissions('inventory:view')
-  async getPRs(@Req() req: any) {
+  async getPRs(@Req() req: { user: JwtPayload }) {
     return this.prisma.purchaseRequest.findMany({
       where: { hospitalId: req.user.hospitalId },
       include: {
@@ -177,7 +180,7 @@ export class ProcurementController {
 
   @Post('requests')
   @Permissions('inventory:manage')
-  async createPR(@Req() req: any, @Body() dto: CreatePRDto) {
+  async createPR(@Req() req: { user: JwtPayload }, @Body() dto: CreatePRDto) {
     return this.procurementService.createPR({
       hospitalId: req.user.hospitalId,
       userId: req.user.sub,
@@ -193,7 +196,7 @@ export class ProcurementController {
 
   @Get('orders')
   @Permissions('inventory:view')
-  async getPOs(@Req() req: any) {
+  async getPOs(@Req() req: { user: JwtPayload }) {
     return this.prisma.purchaseOrder.findMany({
       where: { hospitalId: req.user.hospitalId },
       include: {
@@ -206,7 +209,10 @@ export class ProcurementController {
 
   @Get('orders/:id')
   @Permissions('inventory:view')
-  async getPOById(@Req() req: any, @Param('id', ParseIntPipe) id: number) {
+  async getPOById(
+    @Req() req: { user: JwtPayload },
+    @Param('id', ParseIntPipe) id: number,
+  ) {
     const po = await this.prisma.purchaseOrder.findFirst({
       where: { id, hospitalId: req.user.hospitalId },
       include: {
@@ -236,7 +242,10 @@ export class ProcurementController {
 
   @Post('orders')
   @Permissions('inventory:manage')
-  async createPODirect(@Req() req: any, @Body() dto: CreatePODirectDto) {
+  async createPODirect(
+    @Req() req: { user: JwtPayload },
+    @Body() dto: CreatePODirectDto,
+  ) {
     return this.procurementService.createPODirect({
       hospitalId: req.user.hospitalId,
       userId: req.user.sub,
@@ -248,7 +257,10 @@ export class ProcurementController {
 
   @Post('orders/from-pr')
   @Permissions('inventory:manage')
-  async createPOFromPR(@Req() req: any, @Body() dto: CreatePOFromPRDto) {
+  async createPOFromPR(
+    @Req() req: { user: JwtPayload },
+    @Body() dto: CreatePOFromPRDto,
+  ) {
     return this.procurementService.createPOFromPR(
       req.user.hospitalId,
       req.user.sub,

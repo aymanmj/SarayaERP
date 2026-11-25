@@ -81,7 +81,19 @@ export class SurgeryController {
   // ── جدولة عملية ──
   @Post('schedule')
   @Permissions('surgery:manage')
-  async schedule(@Req() req: { user: JwtPayload }, @Body() body: any) {
+  async schedule(
+    @Req() req: { user: JwtPayload },
+    @Body()
+    body: {
+      encounterId: number | string;
+      theatreId: number | string;
+      serviceItemId: number | string;
+      surgeryName?: string;
+      scheduledStart: string | Date;
+      scheduledEnd: string | Date;
+      teamMembers?: { userId: number; role: SurgeryRole }[];
+    },
+  ) {
     return this.surgeryService.scheduleSurgery({
       hospitalId: req.user.hospitalId,
       encounterId: Number(body.encounterId),

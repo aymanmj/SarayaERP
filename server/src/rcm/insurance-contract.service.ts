@@ -4,6 +4,7 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { ClsService } from 'nestjs-cls';
 
@@ -52,7 +53,7 @@ export class InsuranceContractService {
       requiresPreAuth?: boolean;
     }>;
   }) {
-    const hospitalId = this.cls.get('hospitalId');
+    const hospitalId = this.cls.get<number | undefined>('hospitalId');
     if (!hospitalId) {
       throw new BadRequestException('معرّف المستشفى غير متوفر في السياق');
     }
@@ -75,7 +76,8 @@ export class InsuranceContractService {
    * جلب عقد تأمين مع جميع المنافع
    */
   async getContract(id: number, hospitalIdParam?: number) {
-    const hospitalId = hospitalIdParam ?? this.cls.get('hospitalId');
+    const hospitalId =
+      hospitalIdParam ?? this.cls.get<number | undefined>('hospitalId');
     const contract = await this.prisma.insuranceContract.findFirst({
       where: {
         id,
@@ -101,8 +103,9 @@ export class InsuranceContractService {
     insuranceProviderId?: number,
     hospitalIdParam?: number,
   ) {
-    const hospitalId = hospitalIdParam ?? this.cls.get('hospitalId');
-    const whereClause: any = {
+    const hospitalId =
+      hospitalIdParam ?? this.cls.get<number | undefined>('hospitalId');
+    const whereClause: Prisma.InsuranceContractWhereInput = {
       isDeleted: false,
       status: 'ACTIVE',
       effectiveFrom: { lte: new Date() },
@@ -127,7 +130,8 @@ export class InsuranceContractService {
    * إيقاف أو إلغاء عقد تأمين
    */
   async suspendContract(id: number, reason?: string, hospitalIdParam?: number) {
-    const hospitalId = hospitalIdParam ?? this.cls.get('hospitalId');
+    const hospitalId =
+      hospitalIdParam ?? this.cls.get<number | undefined>('hospitalId');
     const existing = await this.prisma.insuranceContract.findFirst({
       where: {
         id,

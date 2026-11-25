@@ -897,7 +897,7 @@ export class InventoryService {
       }
 
       // تسجيل القيود المحاسبية للتكلفة
-      for (const [_, data] of categoryCostMap) {
+      for (const data of categoryCostMap.values()) {
         if (data.totalCost.gt(0)) {
           try {
             await this.accountingService.recordCogsEntry({
@@ -1418,7 +1418,15 @@ export class InventoryService {
     });
   }
 
-  async updateUOM(hospitalId: number, id: number, dto: any) {
+  async updateUOM(
+    hospitalId: number,
+    id: number,
+    dto: {
+      code?: string | number;
+      name?: string | number;
+      isActive?: boolean;
+    },
+  ) {
     const existing = await this.prisma.unitOfMeasure.findFirst({
       where: { id, hospitalId },
     });
@@ -1563,7 +1571,7 @@ export class InventoryService {
   }
 
   private async getNextSequence(
-    tx: any,
+    tx: Prisma.TransactionClient,
     hospitalId: number,
     prefix: 'MR',
   ): Promise<string> {

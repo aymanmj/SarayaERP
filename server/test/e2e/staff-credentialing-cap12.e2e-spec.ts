@@ -1,12 +1,17 @@
 import { Test } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import type { Server } from 'node:http';
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
 import { JwtService } from '@nestjs/jwt';
 import request from 'supertest';
 import { AppModule } from '../../src/app.module';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { AuthHelper } from '../auth-helper';
 import { resetDatabase } from '../db-reset';
+import { buildEicarTestSignature } from '../../src/common/security/attachment-av-scanner.service';
+import { isEncryptedAttachmentEnvelope } from '../../src/common/security/attachment-crypto.util';
 
 interface CredentialResponse {
   id: number;
@@ -37,8 +42,16 @@ interface EligibilityResponse {
 describe('E2E Tests - Staff Credentialing, Practice Permits & Disease-Free Health Certificates (CAP12)', () => {
   let app: INestApplication<Server>;
   let prisma: PrismaService;
+  let tmpCredRoot: string;
+  let prevCredRoot: string | undefined;
 
   beforeAll(async () => {
+    tmpCredRoot = fs.mkdtempSync(
+      path.join(os.tmpdir(), 'saraya-cap12-cred-test-'),
+    );
+    prevCredRoot = process.env.CREDENTIAL_ATTACHMENT_ROOT;
+    process.env.CREDENTIAL_ATTACHMENT_ROOT = tmpCredRoot;
+
     const fixture = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
@@ -52,6 +65,12 @@ describe('E2E Tests - Staff Credentialing, Practice Permits & Disease-Free Healt
 
   afterAll(async () => {
     if (app) await app.close();
+    if (prevCredRoot === undefined) {
+      delete process.env.CREDENTIAL_ATTACHMENT_ROOT;
+    } else {
+      process.env.CREDENTIAL_ATTACHMENT_ROOT = prevCredRoot;
+    }
+    fs.rmSync(tmpCredRoot, { recursive: true, force: true });
   });
 
   it('manages Medical & Allied Health practice permits and disease-free health certificates, blocks expired/suspended scheduling, enforces 4-eyes, alerts, renewal supersede, and PostgreSQL immutability', async () => {
@@ -333,6 +352,75 @@ describe('E2E Tests - Staff Credentialing, Practice Permits & Disease-Free Healt
       .set('Authorization', `Bearer ${medicalDirector.accessToken}`)
       .expect(201);
 
+    // 6b. Secure Document Upload/Download (SEC05 AV scan + AES-256-GCM at rest + cross-tenant isolation)
+    const infectedCredPdf = Buffer.from(
+      `%PDF-1.4\n% ${buildEicarTestSignature()}\n%%EOF`,
+      'ascii',
+    );
+    await request(server)
+      .post(`/hr/credentials/${renewedLic.id}/document`)
+      .set('Authorization', `Bearer ${hrOfficer.accessToken}`)
+      .attach('file', infectedCredPdf, {
+        filename: 'infected-license.pdf',
+        contentType: 'application/pdf',
+      })
+      .expect(422);
+
+    const credAfterInfected = await prisma.staffCredential.findUniqueOrThrow({
+      where: { id: renewedLic.id },
+      select: { documentRef: true },
+    });
+    expect(credAfterInfected.documentRef).toBeNull();
+
+    const malwareAudit = await prisma.auditLog.findFirst({
+      where: {
+        hospitalId: hospA.id,
+        action: 'SECURITY_MALWARE_BLOCKED',
+        entityId: renewedLic.id,
+      },
+    });
+    expect(malwareAudit).toBeTruthy();
+    expect(malwareAudit?.hash).toBeTruthy();
+
+    const cleanCredPdf = Buffer.from(
+      '%PDF-1.4\n1 0 obj << /Type /Catalog /CAP12 true >> endobj\n%%EOF',
+      'ascii',
+    );
+    const docUploadRes = await request(server)
+      .post(`/hr/credentials/${renewedLic.id}/document`)
+      .set('Authorization', `Bearer ${hrOfficer.accessToken}`)
+      .attach('file', cleanCredPdf, {
+        filename: 'medical-license.pdf',
+        contentType: 'application/pdf',
+      })
+      .expect(201);
+    const docRef = (docUploadRes.body as { documentRef?: string }).documentRef;
+    expect(docRef).toBeTruthy();
+    expect(docRef?.startsWith('enc-v1:')).toBe(true);
+
+    const storedStorageKey = docRef!.slice('enc-v1:'.length + 65);
+    const storedFilePath = path.resolve(tmpCredRoot, storedStorageKey);
+    const rawCredBytes = fs.readFileSync(storedFilePath);
+    expect(isEncryptedAttachmentEnvelope(rawCredBytes)).toBe(true);
+    expect(rawCredBytes.includes(Buffer.from('%PDF-1.4', 'ascii'))).toBe(false);
+
+    // Cross-hospital document download blocked (404)
+    await request(server)
+      .get(`/hr/credentials/${renewedLic.id}/document`)
+      .set('Authorization', `Bearer ${otherHospitalAdmin.accessToken}`)
+      .expect(404);
+
+    // Same-hospital document download decrypts cleanly
+    const dlRes = await request(server)
+      .get(`/hr/credentials/${renewedLic.id}/document`)
+      .set('Authorization', `Bearer ${medicalDirector.accessToken}`)
+      .buffer(true)
+      .expect(200);
+    expect(dlRes.headers['content-type']).toContain('application/pdf');
+    expect(
+      Buffer.compare(Buffer.from(dlRes.body as Uint8Array), cleanCredPdf),
+    ).toBe(0);
+
     // PostgreSQL trigger blocks deleting compliance records
     await expect(
       prisma.$executeRaw`DELETE FROM "StaffCredential" WHERE "id" = ${renewedLic.id}`,
@@ -355,6 +443,8 @@ describe('E2E Tests - Staff Credentialing, Practice Permits & Disease-Free Healt
       'STAFF_CREDENTIAL_VERIFIED',
       'STAFF_CREDENTIAL_SUSPENDED',
       'STAFF_CREDENTIAL_REINSTATED',
+      'STAFF_CREDENTIAL_DOCUMENT_UPLOADED',
+      'STAFF_CREDENTIAL_DOCUMENT_DOWNLOADED',
     ]);
   });
 });

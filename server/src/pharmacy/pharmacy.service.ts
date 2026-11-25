@@ -812,8 +812,12 @@ export class PharmacyService {
 
       // حفظ التنبيهات المرتبطة بهذه الوصفة في قاعدة البيانات
       for (const alert of cdssResult.alerts) {
-        const isOverridden =
-          alert.requiresOverride || alert.context?.autoSuppressed;
+        const autoSuppressed = Boolean(alert.context?.autoSuppressed);
+        const isOverridden = Boolean(alert.requiresOverride || autoSuppressed);
+        const origReason =
+          typeof alert.context?.originalOverrideReason === 'string'
+            ? alert.context.originalOverrideReason
+            : '';
         await tx.cDSSAlert.create({
           data: {
             hospitalId,
@@ -824,12 +828,12 @@ export class PharmacyService {
             severity: alert.severity,
             message: alert.message,
             messageAr: alert.messageAr || alert.message,
-            context: alert.context as any,
+            context: alert.context as Prisma.InputJsonValue | undefined,
             status: isOverridden ? 'OVERRIDDEN' : 'ACTIVE',
             acknowledgedById: doctorId,
             acknowledgedAt: isOverridden ? new Date() : null,
-            overrideReason: alert.context?.autoSuppressed
-              ? `Auto-Suppressed: ${alert.context?.originalOverrideReason}`
+            overrideReason: autoSuppressed
+              ? `Auto-Suppressed: ${origReason}`
               : alert.requiresOverride
                 ? params.overrideReason ||
                   'Overridden by doctor during prescription creation'
@@ -1970,17 +1974,18 @@ export class PharmacyService {
     type?: StockTransactionType;
   }) {
     const { hospitalId, from, to, drugItemId, type } = params;
-    const where: any = { hospitalId };
+    const where: Prisma.StockTransactionWhereInput = { hospitalId };
     if (drugItemId) where.productId = drugItemId;
     if (type) where.type = type;
     if (from || to) {
-      where.createdAt = {};
-      if (from) where.createdAt.gte = from;
+      const createdAtFilter: Prisma.DateTimeFilter = {};
+      if (from) createdAtFilter.gte = from;
       if (to) {
         const end = new Date(to);
         end.setHours(23, 59, 59, 999);
-        where.createdAt.lte = end;
+        createdAtFilter.lte = end;
       }
+      where.createdAt = createdAtFilter;
     }
     const txns = await this.prisma.stockTransaction.findMany({
       where,

@@ -28,6 +28,26 @@ import { StockTransactionType, PaymentMethod } from '@prisma/client';
 import { AuditInTransaction, Sensitive } from '../audit/audit.decorator';
 import { RequireFeature } from '../licensing/license.decorator';
 
+type PrescriptionItemPayload = {
+  drugItemId?: number | string;
+  id?: number | string;
+  dose?: string;
+  route?: string;
+  frequency?: string;
+  durationDays?: number | string;
+  quantity?: number | string;
+  notes?: string;
+};
+
+type CreateEncounterPrescriptionBody = {
+  items?: PrescriptionItemPayload[];
+  lines?: PrescriptionItemPayload[];
+  doctorId?: number;
+  notes?: string;
+  overrideSafety?: boolean;
+  overrideReason?: string;
+};
+
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('pharmacy')
 @RequireFeature('PHARMACY')
@@ -65,7 +85,10 @@ export class PharmacyController {
   // ✅ كتالوج الأدوية
   @Get('catalog')
   @Permissions('pharmacy:view', 'pharmacy:prescriptions:replace')
-  async getDrugCatalog(@Req() req: any, @Query('q') q?: string) {
+  async getDrugCatalog(
+    @Req() req: { user: JwtPayload },
+    @Query('q') q?: string,
+  ) {
     const hospitalId = req.user.hospitalId;
     return this.pharmacy.getDrugCatalog(hospitalId, q);
   }
@@ -75,7 +98,7 @@ export class PharmacyController {
   @Permissions('pharmacy:view', 'pharmacy:prescriptions:replace')
   @Sensitive('VIEW_PHARMACY_PRESCRIPTIONS')
   async getEncounterPrescriptions(
-    @Req() req: any,
+    @Req() req: { user: JwtPayload },
     @Param('encounterId', ParseIntPipe) encounterId: number,
   ) {
     const hospitalId = req.user.hospitalId;
@@ -87,10 +110,10 @@ export class PharmacyController {
   @Permissions('pharmacy:manage')
   async createForEncounter(
     @Param('encounterId', ParseIntPipe) encounterId: number,
-    @Body() body: any,
+    @Body() body: CreateEncounterPrescriptionBody,
     @CurrentUser() user: JwtPayload,
   ) {
-    const rawItems: any[] =
+    const rawItems: PrescriptionItemPayload[] =
       (Array.isArray(body.items) && body.items) ||
       (Array.isArray(body.lines) && body.lines) ||
       [];
@@ -107,8 +130,8 @@ export class PharmacyController {
     const items = rawItems.map((i) => ({
       drugItemId: Number(i.drugItemId ?? i.id),
       dose: i.dose ?? '',
-      route: (i.route as string) ?? 'OTHER',
-      frequency: (i.frequency as string) ?? 'OTHER',
+      route: i.route ?? 'OTHER',
+      frequency: i.frequency ?? 'OTHER',
       durationDays: Number(i.durationDays ?? 1),
       quantity: Number(i.quantity ?? 1),
       notes: i.notes ?? undefined,
@@ -152,7 +175,7 @@ export class PharmacyController {
   @Get('worklist')
   @Permissions('pharmacy:view')
   async getWorklist(
-    @Req() req: any,
+    @Req() req: { user: JwtPayload },
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
@@ -178,7 +201,7 @@ export class PharmacyController {
   @Permissions('pharmacy:manage')
   @AuditInTransaction()
   async dispensePrescription(
-    @Req() req: any,
+    @Req() req: { user: JwtPayload },
     @Param('id', ParseIntPipe) prescriptionId: number,
     @Body()
     body: {
@@ -212,7 +235,7 @@ export class PharmacyController {
   // ✅ قائمة المخزون
   @Get('stock')
   @Permissions('pharmacy:view')
-  async getDrugStock(@Req() req: any, @Query('q') q?: string) {
+  async getDrugStock(@Req() req: { user: JwtPayload }, @Query('q') q?: string) {
     const hospitalId = req.user.hospitalId;
     return this.pharmacy.getDrugStockList(hospitalId, q);
   }
@@ -237,7 +260,7 @@ export class PharmacyController {
   @Get('stock/transactions')
   @Permissions('pharmacy:view')
   async getStockTransactionsReport(
-    @Req() req: any,
+    @Req() req: { user: JwtPayload },
     @Query('from') from?: string,
     @Query('to') to?: string,
     @Query('drugItemId') drugItemId?: string,
@@ -291,7 +314,7 @@ export class PharmacyController {
   @Get('encounters/:encounterId/dispenses-summary')
   @Permissions('pharmacy:view')
   async getEncounterDispensesSummary(
-    @Req() req: any,
+    @Req() req: { user: JwtPayload },
     @Param('encounterId', ParseIntPipe) encounterId: number,
   ) {
     const hospitalId = req.user.hospitalId;
@@ -303,7 +326,7 @@ export class PharmacyController {
   @Permissions('pharmacy:manage')
   @AuditInTransaction()
   async dispenseAndPay(
-    @Req() req: any,
+    @Req() req: { user: JwtPayload },
     @Param('id', ParseIntPipe) prescriptionId: number,
     @Body()
     body: {

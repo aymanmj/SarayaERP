@@ -47,6 +47,7 @@ describe('Phase 6 Batch 26 — CAP08 DRG Automated Discharge Invoicing & CAP10 C
         'inventory:manage',
         'accounting:view',
         'accounting:manage',
+        'purchases:manage',
       ],
     });
     const hospitalId = admin.user.hospitalId;
@@ -167,6 +168,15 @@ describe('Phase 6 Batch 26 — CAP08 DRG Automated Discharge Invoicing & CAP10 C
         isActive: true,
       },
     });
+    const bankMain = await db.account.create({
+      data: {
+        hospitalId,
+        code: '101200',
+        name: 'البنك الرئيسي',
+        type: 'ASSET',
+        isActive: true,
+      },
+    });
 
     await db.systemAccountMapping.createMany({
       data: [
@@ -177,6 +187,7 @@ describe('Phase 6 Batch 26 — CAP08 DRG Automated Discharge Invoicing & CAP10 C
         { hospitalId, key: 'REVENUE_INPATIENT', accountId: revInpatient.id },
         { hospitalId, key: 'REVENUE_RADIOLOGY', accountId: revRadiology.id },
         { hospitalId, key: 'COGS_SUPPLIES', accountId: cogsSupplies.id },
+        { hospitalId, key: 'BANK_MAIN', accountId: bankMain.id },
       ],
     });
 
@@ -514,7 +525,71 @@ describe('Phase 6 Batch 26 — CAP08 DRG Automated Discharge Invoicing & CAP10 C
       .send({ supplierId: supplier.id, consumptionIds: [cid1] })
       .expect(409);
 
-    // PostgreSQL trigger blocks unbilling a billed consignment consumption
+    // Partial supplier payment leaves consignments in BILLED state
+    const partialPayRes = await request(app.getHttpServer())
+      .post(`/purchases/invoices/${apBody.purchaseInvoice.id}/payments`)
+      .auth(admin.accessToken, { type: 'bearer' })
+      .send({
+        supplierId: supplier.id,
+        amount: 1000,
+        method: 'TRANSFER',
+        reference: 'WIRE-CAP10-PART-1',
+      })
+      .expect(201);
+    const partialPayBody = partialPayRes.body as {
+      invoice: { status: string };
+      settledConsignmentsCount: number;
+    };
+    expect(partialPayBody.invoice.status).toBe('PARTIALLY_PAID');
+    expect(partialPayBody.settledConsignmentsCount).toBe(0);
+
+    const midConsumptions = await db.consignmentConsumption.findMany({
+      where: { id: { in: [cid1, cid2] } },
+      select: { supplierBillStatus: true },
+    });
+    expect(midConsumptions.map((c) => c.supplierBillStatus)).toEqual([
+      'BILLED',
+      'BILLED',
+    ]);
+
+    // Full settlement payment atomically promotes BILLED -> SETTLED + chained audit
+    const finalPayRes = await request(app.getHttpServer())
+      .post(`/purchases/invoices/${apBody.purchaseInvoice.id}/payments`)
+      .auth(admin.accessToken, { type: 'bearer' })
+      .send({
+        supplierId: supplier.id,
+        amount: 1500.668,
+        method: 'TRANSFER',
+        reference: 'WIRE-CAP10-FINAL-2',
+      })
+      .expect(201);
+    const finalPayBody = finalPayRes.body as {
+      invoice: { status: string };
+      settledConsignmentsCount: number;
+    };
+    expect(finalPayBody.invoice.status).toBe('PAID');
+    expect(finalPayBody.settledConsignmentsCount).toBe(2);
+
+    const settledConsumptions = await db.consignmentConsumption.findMany({
+      where: { id: { in: [cid1, cid2] } },
+      select: { supplierBillStatus: true },
+    });
+    expect(settledConsumptions.map((c) => c.supplierBillStatus)).toEqual([
+      'SETTLED',
+      'SETTLED',
+    ]);
+
+    const settleAudit = await db.auditLog.findFirst({
+      where: {
+        hospitalId,
+        action: 'CONSIGNMENT_CONSUMPTIONS_AUTO_SETTLED',
+        entityId: apBody.purchaseInvoice.id,
+      },
+    });
+    expect(settleAudit).toBeTruthy();
+    expect(settleAudit?.hash).toBeTruthy();
+
+    // PostgreSQL trigger blocks unbilling a billed/settled consignment consumption
     await expect(
       db.$executeRaw`UPDATE "ConsignmentConsumption" SET "supplierBillStatus" = 'PENDING_BILLING' WHERE "id" = ${cid1}`,
     ).rejects.toThrow(/cannot be unbilled/i);

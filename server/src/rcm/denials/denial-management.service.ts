@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { ClaimStatus } from '@prisma/client';
+import { ClaimStatus, Prisma } from '@prisma/client';
 import { Money } from '../../common/utils/money.util';
 
 /**
@@ -18,7 +18,7 @@ export class DenialManagementService {
    * تحليل أسباب الرفض — لتحسين معدل القبول مستقبلاً
    */
   async getDenialAnalytics(hospitalId: number, fromDate?: Date, toDate?: Date) {
-    const where: any = {
+    const where: Prisma.ClaimWhereInput = {
       hospitalId,
       status: {
         in: [
@@ -30,9 +30,10 @@ export class DenialManagementService {
     };
 
     if (fromDate || toDate) {
-      where.updatedAt = {};
-      if (fromDate) where.updatedAt.gte = fromDate;
-      if (toDate) where.updatedAt.lte = toDate;
+      where.updatedAt = {
+        ...(fromDate ? { gte: fromDate } : {}),
+        ...(toDate ? { lte: toDate } : {}),
+      };
     }
 
     // تحليل حسب كود الرفض
@@ -126,11 +127,12 @@ export class DenialManagementService {
    * تقرير الأداء: نسبة القبول من أول مرة (First Pass Rate)
    */
   async getFirstPassRate(hospitalId: number, fromDate?: Date, toDate?: Date) {
-    const where: any = { hospitalId };
+    const where: Prisma.ClaimWhereInput = { hospitalId };
     if (fromDate || toDate) {
-      where.createdAt = {};
-      if (fromDate) where.createdAt.gte = fromDate;
-      if (toDate) where.createdAt.lte = toDate;
+      where.createdAt = {
+        ...(fromDate ? { gte: fromDate } : {}),
+        ...(toDate ? { lte: toDate } : {}),
+      };
     }
 
     const total = await this.prisma.claim.count({

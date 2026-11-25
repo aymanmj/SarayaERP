@@ -668,7 +668,7 @@ export class EraProcessingService {
             fromStatus: existingClaim.status,
             toStatus: newStatus,
             changedById: userId,
-            notes: `ERA Reconciled (ERA: ${era.eraNumber}) - Paid: ${item.paidAmount}, Adj: ${item.adjustmentAmount}`,
+            notes: `ERA Reconciled (ERA: ${era.eraNumber}) - Paid: ${Money.toDbString(item.paidAmount)}, Adj: ${item.adjustmentAmount != null ? Money.toDbString(item.adjustmentAmount) : '0.000'}`,
           },
         });
 

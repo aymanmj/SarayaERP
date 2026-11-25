@@ -12,6 +12,7 @@ import { PrismaService } from '../../src/prisma/prisma.service';
 import { AuthHelper } from '../auth-helper';
 import { resetDatabase } from '../db-reset';
 import { buildEicarTestSignature } from '../../src/common/security/attachment-av-scanner.service';
+import { isEncryptedAttachmentEnvelope } from '../../src/common/security/attachment-crypto.util';
 
 describe('Phase 6 Batch 30 — SEC05 Antivirus Attachment Scanning (ClamAV / EICAR)', () => {
   let app: INestApplication<Server>;
@@ -168,5 +169,37 @@ describe('Phase 6 Batch 30 — SEC05 Antivirus Attachment Scanning (ClamAV / EIC
       uploadAudit?.details as { payload?: Record<string, unknown> }
     )?.payload;
     expect(auditPayload?.avScanStatus).toBe('CLEAN');
+
+    // 3. SEC05 AES-256-GCM encryption-at-rest: disk file has SRYENC1\0 envelope & no plaintext %PDF-1.4
+    const attRow = await db.preAuthorizationAttachment.findUniqueOrThrow({
+      where: { id: attachmentId },
+      select: { storageKey: true },
+    });
+    const storedPath = path.resolve(tmpUploadRoot, attRow.storageKey);
+    const rawStored = fs.readFileSync(storedPath);
+    expect(isEncryptedAttachmentEnvelope(rawStored)).toBe(true);
+    expect(rawStored.includes(Buffer.from('%PDF-1.4', 'ascii'))).toBe(false);
+
+    // Download endpoint transparently decrypts back to exact cleanPdf bytes
+    const downloadRes = await request(app.getHttpServer())
+      .get(
+        `/insurance/pre-auth/${preAuth.id}/attachments/${attachmentId}/download`,
+      )
+      .set('Authorization', `Bearer ${staff.accessToken}`)
+      .buffer(true)
+      .expect(200);
+    expect(
+      Buffer.compare(Buffer.from(downloadRes.body as Uint8Array), cleanPdf),
+    ).toBe(0);
+
+    // Tampering with ciphertext on disk fails closed (409 ConflictException on GCM tag mismatch)
+    rawStored[rawStored.length - 1] ^= 0xff;
+    fs.writeFileSync(storedPath, rawStored);
+    await request(app.getHttpServer())
+      .get(
+        `/insurance/pre-auth/${preAuth.id}/attachments/${attachmentId}/download`,
+      )
+      .set('Authorization', `Bearer ${staff.accessToken}`)
+      .expect(409);
   });
 });

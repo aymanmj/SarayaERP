@@ -17,6 +17,7 @@ import { AuditInTransaction } from '../audit/audit.decorator';
 import { PermissionsGuard } from '../auth/permissions.guard';
 import { PurchasesService } from './purchases.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import type { JwtPayload } from '../auth/jwt-payload.type';
 import {
   IsArray,
   IsDateString,
@@ -197,6 +198,10 @@ class RecordSupplierPaymentDto {
   notes?: string;
 }
 
+type AuthenticatedRequest = {
+  user: JwtPayload & { id?: number };
+};
+
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @Permissions('purchases:manage')
 @Controller('purchases')
@@ -207,22 +212,28 @@ export class PurchasesController {
   ) {}
 
   @Get('invoices')
-  async list(@Req() req: any) {
-    const hospitalId = req.user.hospitalId as number;
+  async list(@Req() req: AuthenticatedRequest) {
+    const hospitalId = req.user.hospitalId;
     return this.purchases.listPurchaseInvoices(hospitalId);
   }
 
   @Get('invoices/:id')
-  async getOne(@Req() req: any, @Param('id', ParseIntPipe) id: number) {
-    const hospitalId = req.user.hospitalId as number;
+  async getOne(
+    @Req() req: AuthenticatedRequest,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    const hospitalId = req.user.hospitalId;
     return this.purchases.getPurchaseInvoice(hospitalId, id);
   }
 
   @Post('invoices')
   @Permissions('purchases:invoice:create')
-  async createInvoice(@Req() req: any, @Body() dto: CreatePurchaseInvoiceDto) {
-    const hospitalId = req.user.hospitalId as number;
-    const userId = req.user?.id ?? req.user?.sub;
+  async createInvoice(
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: CreatePurchaseInvoiceDto,
+  ) {
+    const hospitalId = req.user.hospitalId;
+    const userId = req.user.id ?? req.user.sub;
 
     return this.purchases.createPurchaseInvoice({
       hospitalId,
@@ -243,9 +254,12 @@ export class PurchasesController {
   @Post('invoices/:id/approve')
   @AuditInTransaction()
   @Permissions('purchases:invoice:approve')
-  async approveInvoice(@Req() req: any, @Param('id', ParseIntPipe) id: number) {
-    const hospitalId = req.user.hospitalId as number;
-    const userId = req.user?.id ?? req.user?.sub;
+  async approveInvoice(
+    @Req() req: AuthenticatedRequest,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    const hospitalId = req.user.hospitalId;
+    const userId = req.user.id ?? req.user.sub;
 
     return this.purchases.approvePurchaseInvoice({
       hospitalId,
@@ -256,12 +270,12 @@ export class PurchasesController {
 
   @Patch('invoices/:id')
   async updateInvoice(
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdatePurchaseInvoiceDto,
   ) {
-    const hospitalId = req.user.hospitalId as number;
-    const userId = req.user?.id ?? req.user?.sub;
+    const hospitalId = req.user.hospitalId;
+    const userId = req.user.id ?? req.user.sub;
 
     return this.purchases.updatePurchaseInvoice({
       hospitalId,
@@ -282,12 +296,12 @@ export class PurchasesController {
 
   @Post('invoices/:id/cancel')
   async cancelInvoice(
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: CancelPurchaseInvoiceDto,
   ) {
-    const hospitalId = req.user.hospitalId as number;
-    const userId = req.user?.id ?? req.user?.sub;
+    const hospitalId = req.user.hospitalId;
+    const userId = req.user.id ?? req.user.sub;
 
     return this.purchases.cancelPurchaseInvoice({
       hospitalId,
@@ -299,12 +313,12 @@ export class PurchasesController {
 
   @Post('invoices/:id/payments')
   async recordPayment(
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: RecordSupplierPaymentDto,
   ) {
-    const hospitalId = req.user.hospitalId as number;
-    const userId = req.user?.id ?? req.user?.sub;
+    const hospitalId = req.user.hospitalId;
+    const userId = req.user.id ?? req.user.sub;
 
     return this.purchases.recordSupplierPayment({
       hospitalId,
@@ -319,7 +333,14 @@ export class PurchasesController {
   }
 
   @Post('pr')
-  async createPR(@Req() req: any, @Body() body: any) {
+  async createPR(
+    @Req() req: AuthenticatedRequest,
+    @Body()
+    body: {
+      items: Parameters<ProcurementService['createPR']>[0]['items'];
+      notes?: string;
+    },
+  ) {
     return this.procurement.createPR({
       hospitalId: req.user.hospitalId,
       userId: req.user.sub,
@@ -330,7 +351,7 @@ export class PurchasesController {
 
   @Post('pr/:id/convert-to-po')
   async convertToPO(
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
     @Param('id', ParseIntPipe) id: number,
     @Body() body: { supplierId: number },
   ) {
@@ -345,7 +366,10 @@ export class PurchasesController {
   @Post('grn')
   @Permissions('inventory:manage')
   @AuditInTransaction()
-  async createGRN(@Req() req: any, @Body() body: CreateGoodsReceiptDto) {
+  async createGRN(
+    @Req() req: AuthenticatedRequest,
+    @Body() body: CreateGoodsReceiptDto,
+  ) {
     return this.procurement.createGRN({
       hospitalId: req.user.hospitalId,
       userId: req.user.sub,
