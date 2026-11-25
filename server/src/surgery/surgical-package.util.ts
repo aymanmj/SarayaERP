@@ -210,3 +210,69 @@ export function computePackageSettlementHash(payload: {
   ].join('|');
   return createHash('sha256').update(canonical, 'utf8').digest('hex');
 }
+
+export interface PackageInvoiceSplitInput {
+  packagePrice: string | number;
+  overageAmount: string | number;
+  insuranceCoveragePercent?: number;
+  coverOverage?: boolean;
+  maxCoverageAmount?: string | number | null;
+}
+
+export interface PackageInvoiceSplitResult {
+  netBillableTotal: string;
+  insuranceShare: string;
+  patientShare: string;
+  appliedCoveragePercent: string;
+}
+
+/**
+ * Pure Money-Decimal DRG Bundled Invoice Patient / Insurance Split Engine:
+ * - Covers `packagePrice` (plus `overageAmount` only when `coverOverage === true`)
+ *   at `insuranceCoveragePercent` (0..100), capped by `maxCoverageAmount` if provided.
+ * - Guarantees `insuranceShare + patientShare === netBillableTotal` to exact 3dp (0.001).
+ */
+export function computePackageInvoiceSplit(
+  input: PackageInvoiceSplitInput,
+): PackageInvoiceSplitResult {
+  const pkgDec = Money.roundDecimal(input.packagePrice, 3);
+  const ovgDec = Money.roundDecimal(input.overageAmount, 3);
+  const netDec = Money.roundDecimal(pkgDec.plus(ovgDec), 3);
+
+  const rawPct = input.insuranceCoveragePercent ?? 0;
+  const clampedPct = Math.max(0, Math.min(100, rawPct));
+  const pctDec = Money.decimal(clampedPct);
+
+  if (pctDec.lte(0) || netDec.lte(0)) {
+    return {
+      netBillableTotal: Money.toDbString(netDec),
+      insuranceShare: '0.000',
+      patientShare: Money.toDbString(netDec),
+      appliedCoveragePercent: '0.000000',
+    };
+  }
+
+  const eligibleBase = input.coverOverage ? netDec : pkgDec;
+  let insDec = Money.roundDecimal(eligibleBase.times(pctDec).div(100), 3);
+
+  if (
+    input.maxCoverageAmount !== undefined &&
+    input.maxCoverageAmount !== null
+  ) {
+    const capDec = Money.roundDecimal(input.maxCoverageAmount, 3);
+    if (capDec.gte(0) && insDec.gt(capDec)) {
+      insDec = capDec;
+    }
+  }
+  if (insDec.gt(netDec)) {
+    insDec = netDec;
+  }
+
+  const patDec = Money.roundDecimal(netDec.minus(insDec), 3);
+  return {
+    netBillableTotal: Money.toDbString(netDec),
+    insuranceShare: Money.toDbString(insDec),
+    patientShare: Money.toDbString(patDec),
+    appliedCoveragePercent: Money.toRateDbString(pctDec),
+  };
+}

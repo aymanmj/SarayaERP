@@ -1,4 +1,6 @@
 import {
+  ArrayMinSize,
+  IsArray,
   IsBoolean,
   IsDateString,
   IsIn,
@@ -193,4 +195,36 @@ export class ReviewWardReturnDto {
   @IsString()
   @MaxLength(1000)
   reviewNotes?: string;
+}
+
+export class GenerateConsignmentSupplierInvoiceDto {
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  supplierId!: number;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(1)
+  @Type(() => Number)
+  @IsInt({ each: true })
+  consumptionIds?: number[];
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  invoiceNumber?: string;
+
+  @IsOptional()
+  @IsDateString()
+  invoiceDate?: string;
+
+  @IsOptional()
+  @IsDateString()
+  dueDate?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  notes?: string;
 }

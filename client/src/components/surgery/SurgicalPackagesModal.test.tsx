@@ -81,4 +81,48 @@ describe("SurgicalPackagesModal (CAP08 — DRG Bundled Billing)", () => {
       );
     });
   });
+
+  it("generates a DRG discharge invoice for a settled surgical package enrollment", async () => {
+    vi.mocked(apiClient.get).mockImplementation(async (url: string) => {
+      if (url.includes("/enrollments")) {
+        return {
+          data: [
+            {
+              id: 9,
+              encounterId: 402,
+              status: "SETTLED",
+              packagePriceSnapshot: "3500.000",
+              actualChargesTotal: "3650.000",
+              overageAmount: "650.000",
+              netBillableTotal: "4150.000",
+              invoiceId: null,
+              surgicalPackage: {
+                code: "PKG-01",
+                name: "استئصال المرارة بالمنظار",
+                drgCode: "DRG-418",
+              },
+            },
+          ],
+        } as never;
+      }
+      return { data: [] } as never;
+    });
+    vi.mocked(apiClient.post).mockResolvedValue({ data: { invoice: { id: 55 } } } as never);
+
+    render(<SurgicalPackagesModal onClose={vi.fn()} />);
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: /الزيارات المسجّلة والتسوية/i }),
+    );
+    fireEvent.click(
+      await screen.findByRole("button", { name: /إصدار فاتورة الخروج/i }),
+    );
+
+    await waitFor(() => {
+      expect(apiClient.post).toHaveBeenCalledWith(
+        "/surgery/packages/enrollments/9/generate-invoice",
+        {},
+      );
+    });
+  });
 });

@@ -17,6 +17,7 @@ import { AuditInTransaction } from '../audit/audit.decorator';
 import { ControlledConsignmentService } from './controlled-consignment.service';
 import {
   ConsumeConsignmentDto,
+  GenerateConsignmentSupplierInvoiceDto,
   ReceiveConsignmentDto,
   RecordControlledTransactionDto,
   RequestWardReturnDto,
@@ -123,6 +124,32 @@ export class ControlledConsignmentController {
     return this.governanceService.returnConsignmentToSupplier(
       user.hospitalId,
       id,
+      user.sub,
+      dto,
+    );
+  }
+
+  @Get('consignments/pending-billing')
+  @Permissions('inventory:view', 'pharmacy:view', 'accounting:view')
+  listPendingConsignmentBilling(
+    @CurrentUser() user: JwtPayload,
+    @Query('supplierId') supplierId?: string,
+  ) {
+    return this.governanceService.listPendingConsignmentBilling(
+      user.hospitalId,
+      supplierId ? Number(supplierId) : undefined,
+    );
+  }
+
+  @Post('consignments/generate-supplier-invoice')
+  @AuditInTransaction()
+  @Permissions('inventory:manage', 'accounting:manage')
+  generateConsignmentSupplierInvoice(
+    @CurrentUser() user: JwtPayload,
+    @Body() dto: GenerateConsignmentSupplierInvoiceDto,
+  ) {
+    return this.governanceService.generateConsignmentSupplierInvoice(
+      user.hospitalId,
       user.sub,
       dto,
     );

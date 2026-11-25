@@ -19,6 +19,7 @@ import { SurgicalPackageService } from './surgical-package.service';
 import {
   CreateSurgicalPackageDto,
   EnrollEncounterPackageDto,
+  GeneratePackageInvoiceDto,
   SettlePackageEnrollmentDto,
 } from './dto/surgical-package.dto';
 
@@ -83,6 +84,22 @@ export class SurgicalPackageController {
     @Body() dto: SettlePackageEnrollmentDto,
   ) {
     return this.service.settleEnrollment(user.hospitalId, id, user.sub, dto);
+  }
+
+  @Post('enrollments/:id/generate-invoice')
+  @AuditInTransaction()
+  @Permissions('billing:manage', 'surgery:manage')
+  generatePackageInvoice(
+    @CurrentUser() user: JwtPayload,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: GeneratePackageInvoiceDto,
+  ) {
+    return this.service.generatePackageInvoice(
+      user.hospitalId,
+      id,
+      user.sub,
+      dto,
+    );
   }
 
   @Get('enrollments/:id/verify')

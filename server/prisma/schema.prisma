@@ -410,6 +410,7 @@ model Invoice {
   patient             Patient            @relation(fields: [patientId], references: [id])
   payments            Payment[]
   claims              Claim[]
+  packageEnrollment   EncounterPackageEnrollment? @relation("PackageEnrollmentInvoice")
 
   @@index([hospitalId, status])
   @@index([patientId])
@@ -579,6 +580,7 @@ model User {
   surgicalPackagesCreated       SurgicalPackage[]       @relation("SurgicalPackageCreator")
   packageEnrollmentsCreated     EncounterPackageEnrollment[] @relation("PackageEnrolledBy")
   packageEnrollmentsSettled     EncounterPackageEnrollment[] @relation("PackageSettledBy")
+  packageEnrollmentsInvoiced    EncounterPackageEnrollment[] @relation("PackageInvoicedBy")
   biometricPunchLogs            BiometricPunchLog[]     @relation("PunchLogUser")
   biometricDevicesCreated       BiometricDevice[]       @relation("BiometricDeviceCreator")
   attendanceMovements           AttendanceMovement[]    @relation("AttendanceMovementUser")
@@ -602,6 +604,7 @@ model User {
   consignmentsReceived            ConsignmentReceipt[]            @relation("ConsignmentReceivedBy")
   consignmentsConsumed            ConsignmentConsumption[]        @relation("ConsignmentConsumedBy")
   consignmentsWitnessed           ConsignmentConsumption[]        @relation("ConsignmentWitnessedBy")
+  consignmentsBilled              ConsignmentConsumption[]        @relation("ConsignmentBilledBy")
   wardReturnsRequested            WardStockReturn[]               @relation("WardReturnRequestedBy")
   wardReturnsReviewed             WardStockReturn[]               @relation("WardReturnReviewedBy")
   surgicalChecklistsPerformed     SurgicalSafetyChecklist[]       @relation("SurgicalChecklistPerformedBy")
@@ -3590,6 +3593,9 @@ model ConsignmentConsumption {
   consumedById         Int
   witnessedById        Int?
   supplierBillStatus   String             @default("PENDING_BILLING") @db.VarChar(24)
+  purchaseInvoiceId    Int?
+  billedAt             DateTime?
+  billedById           Int?
   notes                String?
   createdAt            DateTime           @default(now())
   hospital             Hospital           @relation(fields: [hospitalId], references: [id])
@@ -3598,9 +3604,13 @@ model ConsignmentConsumption {
   patient              Patient            @relation(fields: [patientId], references: [id])
   consumedBy           User               @relation("ConsignmentConsumedBy", fields: [consumedById], references: [id])
   witnessedBy          User?              @relation("ConsignmentWitnessedBy", fields: [witnessedById], references: [id])
+  purchaseInvoice      PurchaseInvoice?   @relation("ConsignmentPurchaseInvoice", fields: [purchaseInvoiceId], references: [id], onDelete: Restrict)
+  billedBy             User?              @relation("ConsignmentBilledBy", fields: [billedById], references: [id], onDelete: Restrict)
 
   @@index([hospitalId, encounterId])
   @@index([consignmentReceiptId])
+  @@index([hospitalId, supplierBillStatus])
+  @@index([purchaseInvoiceId])
 }
 
 model WardStockReturn {
@@ -3711,8 +3721,9 @@ model PurchaseInvoice {
   warehouse         Warehouse?            @relation(fields: [warehouseId], references: [id])
   lines             PurchaseInvoiceLine[]
   purchaseReturns   PurchaseReturn[]
-  stockTransactions StockTransaction[]
-  payments          SupplierPayment[]
+  stockTransactions       StockTransaction[]
+  payments                SupplierPayment[]
+  consignmentConsumptions ConsignmentConsumption[] @relation("ConsignmentPurchaseInvoice")
 
   @@index([hospitalId, supplierId])
   @@index([hospitalId, invoiceDate])
@@ -8446,6 +8457,11 @@ model EncounterPackageEnrollment {
   settledById            Int?
   settledAt              DateTime?
   signatureHash          String?   @db.VarChar(64)
+  invoiceId              Int?      @unique
+  insuranceShare         Decimal   @default(0) @db.Decimal(18, 3)
+  patientShare           Decimal   @default(0) @db.Decimal(18, 3)
+  invoicedAt             DateTime?
+  invoicedById           Int?
   notes                  String?   @db.VarChar(500)
   createdAt              DateTime  @default(now())
   updatedAt              DateTime  @updatedAt
@@ -8455,6 +8471,8 @@ model EncounterPackageEnrollment {
   surgicalPackage SurgicalPackage @relation(fields: [packageId], references: [id], onDelete: Restrict)
   enrolledBy      User            @relation("PackageEnrolledBy", fields: [enrolledById], references: [id], onDelete: Restrict)
   settledBy       User?           @relation("PackageSettledBy", fields: [settledById], references: [id], onDelete: Restrict)
+  invoice         Invoice?        @relation("PackageEnrollmentInvoice", fields: [invoiceId], references: [id], onDelete: Restrict)
+  invoicedBy      User?           @relation("PackageInvoicedBy", fields: [invoicedById], references: [id], onDelete: Restrict)
 
   @@index([hospitalId, encounterId, status])
   @@index([hospitalId, packageId])

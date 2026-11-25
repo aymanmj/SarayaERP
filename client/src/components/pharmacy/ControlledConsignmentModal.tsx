@@ -32,6 +32,12 @@ type ConsignmentRow = {
   status: string;
   supplier?: { id: number; name: string };
   product?: { id: number; code: string; name: string };
+  consumptions?: Array<{
+    id: number;
+    supplierBillStatus: string;
+    totalAmount: string;
+    purchaseInvoiceId?: number | null;
+  }>;
 };
 
 type WardReturnRow = {
@@ -156,6 +162,30 @@ export function ControlledConsignmentModal({ onClose }: Props) {
       const msg =
         (err as { response?: { data?: { message?: string } } })?.response?.data
           ?.message || "فشل استهلاك الأمانة.";
+      toast.error(msg);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleBillSupplierConsignments = async (
+    supplierId: number,
+    consumptionIds: number[],
+  ) => {
+    setBusy(true);
+    try {
+      await apiClient.post(
+        "/inventory/governance/consignments/generate-supplier-invoice",
+        { supplierId, consumptionIds },
+      );
+      toast.success(
+        "تم إصدار فاتورة المورد (AP) وترحيل القيد المحاسبي للأمانة المستهلكة.",
+      );
+      await loadAll();
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data
+          ?.message || "فشل إصدار فاتورة المورد.";
       toast.error(msg);
     } finally {
       setBusy(false);
@@ -434,6 +464,32 @@ export function ControlledConsignmentModal({ onClose }: Props) {
                         </button>
                       </div>
                     )}
+                    {(() => {
+                      const pendingIds = (c.consumptions ?? [])
+                        .filter((x) => x.supplierBillStatus === "PENDING_BILLING")
+                        .map((x) => x.id);
+                      if (!pendingIds.length || !c.supplier?.id) return null;
+                      return (
+                        <div className="flex items-center justify-between pt-2 border-t border-slate-800/80">
+                          <span className="text-amber-300">
+                            استهلاكات معلّقة للفوترة للمورد: {pendingIds.length} بند
+                          </span>
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() =>
+                              handleBillSupplierConsignments(
+                                c.supplier!.id,
+                                pendingIds,
+                              )
+                            }
+                            className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold"
+                          >
+                            إصدار فاتورة مورد (AP)
+                          </button>
+                        </div>
+                      );
+                    })()}
                   </div>
                 ))}
                 {consignments.length === 0 && (

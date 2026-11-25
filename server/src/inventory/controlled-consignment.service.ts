@@ -4,8 +4,14 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma, StockTransactionType } from '@prisma/client';
+import {
+  Prisma,
+  PurchaseInvoiceStatus,
+  StockTransactionType,
+  SystemAccountKey,
+} from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { AccountingService } from '../accounting/accounting.service';
 import { Money } from '../common/utils/money.util';
 import { appendChainedAuditInTransaction } from '../audit/audit-chain';
 import { publishCommittedCriticalAudit } from '../audit/siem.logger';
@@ -17,6 +23,7 @@ import {
 } from './controlled-consignment.util';
 import type {
   ConsumeConsignmentDto,
+  GenerateConsignmentSupplierInvoiceDto,
   ReceiveConsignmentDto,
   RecordControlledTransactionDto,
   RequestWardReturnDto,
@@ -24,9 +31,14 @@ import type {
   ReviewWardReturnDto,
 } from './dto/controlled-consignment.dto';
 
+const ADVISORY_LOCK_CONSIGNMENT_BILLING = 27026;
+
 @Injectable()
 export class ControlledConsignmentService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly accountingService: AccountingService,
+  ) {}
 
   private async ensureActiveUserInHospital(
     tx: Prisma.TransactionClient,
@@ -941,5 +953,236 @@ export class ControlledConsignmentService {
 
     publishCommittedCriticalAudit(audit);
     return wardReturn;
+  }
+
+  // =========================================================================
+  // 4. CAP10 End-to-End Consignment Supplier Billing (PENDING_BILLING -> BILLED)
+  // =========================================================================
+
+  async listPendingConsignmentBilling(hospitalId: number, supplierId?: number) {
+    return this.prisma.consignmentConsumption.findMany({
+      where: {
+        hospitalId,
+        supplierBillStatus: 'PENDING_BILLING',
+        ...(supplierId ? { consignmentReceipt: { supplierId } } : {}),
+      },
+      include: {
+        consignmentReceipt: {
+          select: {
+            id: true,
+            supplierId: true,
+            warehouseId: true,
+            batchNumber: true,
+            supplier: { select: { id: true, name: true, code: true } },
+            product: { select: { id: true, code: true, name: true } },
+          },
+        },
+        patient: { select: { id: true, fullName: true, mrn: true } },
+        consumedBy: { select: { id: true, fullName: true } },
+      },
+      orderBy: { id: 'asc' },
+    });
+  }
+
+  async generateConsignmentSupplierInvoice(
+    hospitalId: number,
+    billedById: number,
+    dto: GenerateConsignmentSupplierInvoiceDto,
+  ) {
+    const { purchaseInvoice, billedConsumptionIds, audit } =
+      await this.prisma.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(${ADVISORY_LOCK_CONSIGNMENT_BILLING}::int, ${hospitalId}::int)`;
+
+        const supplier = await tx.supplier.findFirst({
+          where: { id: dto.supplierId, hospitalId, isActive: true },
+          select: { id: true, name: true, code: true },
+        });
+        if (!supplier) {
+          throw new NotFoundException(
+            'المورد غير موجود أو غير نشط ضمن المنشأة.',
+          );
+        }
+
+        const candidateWhere: Prisma.ConsignmentConsumptionWhereInput = {
+          hospitalId,
+          supplierBillStatus: 'PENDING_BILLING',
+          consignmentReceipt: { supplierId: supplier.id },
+          ...(dto.consumptionIds?.length
+            ? { id: { in: dto.consumptionIds } }
+            : {}),
+        };
+
+        const consumptions = await tx.consignmentConsumption.findMany({
+          where: candidateWhere,
+          include: {
+            consignmentReceipt: {
+              include: {
+                product: { select: { id: true, code: true, name: true } },
+              },
+            },
+            patient: { select: { id: true, mrn: true, fullName: true } },
+          },
+          orderBy: { id: 'asc' },
+        });
+
+        if (dto.consumptionIds?.length) {
+          const foundIds = new Set(consumptions.map((c) => c.id));
+          const missingOrInvalid = dto.consumptionIds.filter(
+            (id) => !foundIds.has(id),
+          );
+          if (missingOrInvalid.length > 0) {
+            throw new ConflictException(
+              `بعض استهلاكات الأمانة غير مؤهلة للفوترة (مفوترة مسبقًا أو تتبع موردًا/منشأة أخرى): ${missingOrInvalid.join(', ')}`,
+            );
+          }
+        }
+
+        if (!consumptions.length) {
+          throw new BadRequestException(
+            'لا توجد استهلاكات أمانة معلّقة للفوترة لهذا المورد.',
+          );
+        }
+
+        // Lock each selected consumption row FOR UPDATE
+        for (const c of consumptions) {
+          const row = await tx.$queryRaw<
+            Array<{ id: number; supplierBillStatus: string }>
+          >`SELECT "id", "supplierBillStatus" FROM "ConsignmentConsumption" WHERE "id" = ${c.id} AND "hospitalId" = ${hospitalId} FOR UPDATE`;
+          if (!row.length || row[0].supplierBillStatus !== 'PENDING_BILLING') {
+            throw new ConflictException(
+              `استهلاك الأمانة #${c.id} لم يعد بحالة انتظار الفوترة (PENDING_BILLING).`,
+            );
+          }
+        }
+
+        // Resolve COGS/Supplies expense account (consignment was already consumed for a patient)
+        const cogsMapping = await tx.systemAccountMapping.findFirst({
+          where: {
+            hospitalId,
+            key: {
+              in: [SystemAccountKey.COGS_SUPPLIES, SystemAccountKey.COGS_DRUGS],
+            },
+            isActive: true,
+            account: { hospitalId, isActive: true },
+          },
+          select: { accountId: true },
+        });
+        const fallbackExpense =
+          cogsMapping?.accountId ??
+          (
+            await tx.account.findFirst({
+              where: {
+                hospitalId,
+                isActive: true,
+                OR: [{ code: '500200' }, { type: 'EXPENSE' }],
+              },
+              orderBy: { code: 'asc' },
+              select: { id: true },
+            })
+          )?.id ??
+          null;
+        if (!fallbackExpense) {
+          throw new BadRequestException(
+            'لا يوجد حساب مصروفات/تكلفة مبيعات فعّال لترحيل فاتورة استهلاك الأمانة.',
+          );
+        }
+
+        const totalAmount = Money.toDbString(
+          Money.sumPosted(...consumptions.map((c) => c.totalAmount)),
+        );
+        const now = new Date();
+        const invoiceDate = dto.invoiceDate ? new Date(dto.invoiceDate) : now;
+        const dueDate = dto.dueDate ? new Date(dto.dueDate) : null;
+        const invoiceNumber =
+          dto.invoiceNumber?.trim() ||
+          `CONS-AP-${supplier.id}-${now.getTime()}`;
+
+        const createdInvoice = await tx.purchaseInvoice.create({
+          data: {
+            hospitalId,
+            supplierId: supplier.id,
+            invoiceNumber,
+            invoiceDate,
+            dueDate,
+            status: PurchaseInvoiceStatus.APPROVED,
+            totalAmount,
+            discountAmount: '0.000',
+            vatAmount: '0.000',
+            netAmount: totalAmount,
+            paidAmount: '0.000',
+            currency: 'LYD',
+            warehouseId: consumptions[0].consignmentReceipt.warehouseId,
+            notes:
+              dto.notes?.trim() ||
+              `فاتورة مورد تلقائية عن استهلاك مستلزمات أمانة (${consumptions.length} بند)`,
+            lines: {
+              create: consumptions.map((c) => ({
+                description: `أمانة مستهلكة: ${c.consignmentReceipt.product.name} (تشغيلة ${c.consignmentReceipt.batchNumber} | زيارة #${c.encounterId} | ملف ${c.patient.mrn})`,
+                quantity: Money.toDbString(c.quantity),
+                unitPrice: Money.toUnitDbString(c.unitPrice),
+                totalAmount: Money.toDbString(c.totalAmount),
+                expenseAccountId: fallbackExpense,
+                productId: null,
+                batchNumber: c.consignmentReceipt.batchNumber,
+                expiryDate: c.consignmentReceipt.expiryDate,
+              })),
+            },
+          },
+          include: {
+            supplier: { select: { id: true, name: true, code: true } },
+            lines: true,
+          },
+        });
+
+        await this.accountingService.recordPurchaseInvoiceEntry({
+          purchaseInvoiceId: createdInvoice.id,
+          hospitalId,
+          userId: billedById,
+          tx,
+        });
+
+        const refreshedInvoice = await tx.purchaseInvoice.findUniqueOrThrow({
+          where: { id: createdInvoice.id },
+          include: {
+            supplier: { select: { id: true, name: true, code: true } },
+            lines: true,
+          },
+        });
+
+        const ids = consumptions.map((c) => c.id);
+        await tx.consignmentConsumption.updateMany({
+          where: { id: { in: ids }, hospitalId },
+          data: {
+            supplierBillStatus: 'BILLED',
+            purchaseInvoiceId: refreshedInvoice.id,
+            billedAt: now,
+            billedById,
+          },
+        });
+
+        const auditEntry = await appendChainedAuditInTransaction(tx, {
+          hospitalId,
+          userId: billedById,
+          action: 'CONSIGNMENT_SUPPLIER_INVOICE_GENERATED',
+          entity: 'PurchaseInvoice',
+          entityId: refreshedInvoice.id,
+          details: {
+            supplierId: supplier.id,
+            invoiceNumber: refreshedInvoice.invoiceNumber,
+            netAmount: totalAmount,
+            accountingEntryId: refreshedInvoice.accountingEntryId,
+            consumptionIds: ids,
+          },
+        });
+
+        return {
+          purchaseInvoice: refreshedInvoice,
+          billedConsumptionIds: ids,
+          audit: auditEntry,
+        };
+      });
+
+    publishCommittedCriticalAudit(audit);
+    return { purchaseInvoice, billedConsumptionIds };
   }
 }

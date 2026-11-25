@@ -2,11 +2,13 @@
 import {
   ArrayMinSize,
   IsArray,
+  IsBoolean,
   IsIn,
   IsInt,
   IsNumber,
   IsOptional,
   IsString,
+  Max,
   MaxLength,
   Min,
   ValidateNested,
@@ -110,6 +112,30 @@ export class EnrollEncounterPackageDto {
 }
 
 export class SettlePackageEnrollmentDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  notes?: string;
+}
+
+export class GeneratePackageInvoiceDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  insuranceProviderId?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  insuranceCoveragePercent?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  coverOverage?: boolean;
+
   @IsOptional()
   @IsString()
   @MaxLength(500)

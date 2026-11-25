@@ -1,5 +1,6 @@
 // server/src/surgery/surgical-package.util.spec.ts
 import {
+  computePackageInvoiceSplit,
   computePackageSettlementHash,
   reconcileSurgicalPackage,
 } from './surgical-package.util';
@@ -64,5 +65,38 @@ describe('SurgicalPackageUtil (CAP08 — DRG Bundled Billing & Overage Engine)',
     expect(h1).toHaveLength(64);
     expect(h1).toBe(h2);
     expect(hTampered).not.toBe(h1);
+  });
+
+  it('splits DRG bundled invoice between insurance and patient with exact Money precision', () => {
+    // 80% insurance on packagePrice (3500) only; patient pays 20% package (700) + 100% overage (650) = 1350
+    const exclOverage = computePackageInvoiceSplit({
+      packagePrice: '3500.000',
+      overageAmount: '650.000',
+      insuranceCoveragePercent: 80,
+      coverOverage: false,
+    });
+    expect(exclOverage.netBillableTotal).toBe('4150.000');
+    expect(exclOverage.insuranceShare).toBe('2800.000');
+    expect(exclOverage.patientShare).toBe('1350.000');
+
+    // 80% insurance including overage with maxCoverageAmount cap of 3000.000
+    const capped = computePackageInvoiceSplit({
+      packagePrice: '3500.000',
+      overageAmount: '650.000',
+      insuranceCoveragePercent: 80,
+      coverOverage: true,
+      maxCoverageAmount: '3000.000',
+    });
+    expect(capped.insuranceShare).toBe('3000.000');
+    expect(capped.patientShare).toBe('1150.000');
+
+    // Self-pay (0% coverage)
+    const selfPay = computePackageInvoiceSplit({
+      packagePrice: '1234.567',
+      overageAmount: '100.000',
+      insuranceCoveragePercent: 0,
+    });
+    expect(selfPay.insuranceShare).toBe('0.000');
+    expect(selfPay.patientShare).toBe('1334.567');
   });
 });

@@ -76,6 +76,13 @@ describe("ControlledConsignmentModal (CAP10 — Narcotics, Consignment & Ward Re
               status: "PARTIALLY_CONSUMED",
               supplier: { id: 1, name: "Ortho Supplier" },
               product: { id: 2, code: "STENT", name: "Coronary Stent" },
+              consumptions: [
+                {
+                  id: 31,
+                  supplierBillStatus: "PENDING_BILLING",
+                  totalAmount: "1250.000",
+                },
+              ],
             },
           ],
         } as never;
@@ -116,6 +123,16 @@ describe("ControlledConsignmentModal (CAP10 — Narcotics, Consignment & Ward Re
       expect(apiClient.post).toHaveBeenCalledWith(
         "/inventory/governance/consignments/7/consume",
         expect.objectContaining({ encounterId: 301, quantity: 1 }),
+      );
+    });
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /إصدار فاتورة مورد/i }),
+    );
+    await waitFor(() => {
+      expect(apiClient.post).toHaveBeenCalledWith(
+        "/inventory/governance/consignments/generate-supplier-invoice",
+        { supplierId: 1, consumptionIds: [31] },
       );
     });
 

@@ -23,6 +23,9 @@ interface EnrollmentRow {
   actualChargesTotal: string;
   overageAmount: string;
   netBillableTotal: string;
+  invoiceId?: number | null;
+  insuranceShare?: string;
+  patientShare?: string;
   surgicalPackage?: { code: string; name: string; drgCode: string | null };
   encounter?: { patient?: { fullName: string; mrn: string } };
 }
@@ -101,6 +104,20 @@ export function SurgicalPackagesModal({ onClose }: { onClose: () => void }) {
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
       toast.error(msg || "فشل التسوية");
+    }
+  };
+
+  const handleGenerateInvoice = async (id: number) => {
+    try {
+      await apiClient.post(
+        `/surgery/packages/enrollments/${id}/generate-invoice`,
+        {},
+      );
+      toast.success("تم إصدار فاتورة الخروج المجمّعة (DRG) وترحيل القيد المحاسبي");
+      await loadAll();
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(msg || "فشل إصدار فاتورة الحزمة الجراحية");
     }
   };
 
@@ -237,6 +254,20 @@ export function SurgicalPackagesModal({ onClose }: { onClose: () => void }) {
                   >
                     تسوية وختم الحزمة
                   </button>
+                )}
+                {e.status === "SETTLED" && !e.invoiceId && (
+                  <button
+                    type="button"
+                    onClick={() => handleGenerateInvoice(e.id)}
+                    className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold"
+                  >
+                    إصدار فاتورة الخروج (DRG)
+                  </button>
+                )}
+                {e.invoiceId && (
+                  <span className="px-2.5 py-1 rounded-lg bg-emerald-950/70 border border-emerald-700 text-emerald-300 font-mono">
+                    فاتورة #{e.invoiceId} (مريض: {Money.toFixed(e.patientShare ?? 0)} | تأمين: {Money.toFixed(e.insuranceShare ?? 0)})
+                  </span>
                 )}
               </div>
             ))}
