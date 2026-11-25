@@ -30,6 +30,29 @@ export class VerifyFiveRightsDto {
   @IsString()
   @IsNotEmpty()
   drugBarcode: string;
+
+  @ApiPropertyOptional({
+    description: 'Nurse-confirmed dose for Right #3 check',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  confirmedDose?: string;
+
+  @ApiPropertyOptional({
+    description: 'Nurse-confirmed administration route for Right #4 check',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  confirmedRoute?: string;
+
+  @ApiPropertyOptional({
+    description: 'Scheduled MAR slot (YYYY-MM-DDTHH:mm) for Right #5 check',
+  })
+  @IsOptional()
+  @Matches(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/)
+  scheduledSlot?: string;
 }
 
 class MedicationRequestDto {
@@ -57,6 +80,18 @@ export class AdministerBarcodeDto extends MedicationRequestDto {
   @IsString()
   @IsNotEmpty()
   drugBarcode: string;
+
+  @ApiPropertyOptional({ description: 'Nurse-confirmed dose (Right #3)' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  confirmedDose?: string;
+
+  @ApiPropertyOptional({ description: 'Nurse-confirmed route (Right #4)' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  confirmedRoute?: string;
 
   @ApiPropertyOptional({
     description: 'Emergency override flag if 5-rights mismatch',

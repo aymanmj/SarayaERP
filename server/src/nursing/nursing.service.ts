@@ -191,19 +191,39 @@ export class NursingService {
     prescriptionItemId: number,
     patientBarcode: string,
     drugBarcode: string,
+    options?: {
+      confirmedDose?: string;
+      confirmedRoute?: string;
+      scheduledSlot?: string;
+    },
   ) {
-    return this.prisma.$transaction(async (tx) =>
-      barcodeVerification(
-        await medicationContext(
-          tx,
-          hospitalId,
-          encounterId,
-          prescriptionItemId,
-        ),
-        patientBarcode,
-        drugBarcode,
-      ),
-    );
+    return this.prisma.$transaction(async (tx) => {
+      const ctx = await medicationContext(
+        tx,
+        hospitalId,
+        encounterId,
+        prescriptionItemId,
+      );
+      let scheduledFor: Date | null = null;
+      if (options?.scheduledSlot) {
+        const timezone = await medicationScheduleZone(tx, hospitalId);
+        const dateKey = medicationScheduleDate(
+          options.scheduledSlot.slice(0, 10),
+          timezone,
+        );
+        const slot = medicationSlots(
+          ctx.item.frequency,
+          dateKey,
+          timezone,
+        ).find((c) => c.scheduledSlot === options.scheduledSlot);
+        if (slot) scheduledFor = slot.scheduledTime;
+      }
+      return barcodeVerification(ctx, patientBarcode, drugBarcode, {
+        confirmedDose: options?.confirmedDose,
+        confirmedRoute: options?.confirmedRoute,
+        scheduledFor,
+      });
+    });
   }
 
   administerWithBarcode(params: Omit<AdministrationInput, 'status'>) {

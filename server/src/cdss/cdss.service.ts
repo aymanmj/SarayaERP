@@ -449,21 +449,49 @@ export class CDSSService {
     const age = new Date().getFullYear() - patient.dateOfBirth.getFullYear();
     const gender = patient.gender || 'MALE';
 
-    // جلب أحدث فحص للكرياتينين
-    const latestCrea = await this.prisma.labOrderResult.findFirst({
-      where: {
-        labOrder: { order: { encounter: { patientId } } },
-        OR: [
-          { parameterName: { contains: 'Creatinine', mode: 'insensitive' } },
-          { parameter: { code: 'CREA' } },
-        ],
-      },
-      orderBy: { labOrder: { resultDate: 'desc' } },
-    });
+    // جلب أحدث فحص للكرياتينين (يدعم النتائج متعددة البراميترات والنتائج الأحادية في LabOrder.resultValue)
+    const [latestCreaParam, latestCreaOrder] = await Promise.all([
+      this.prisma.labOrderResult.findFirst({
+        where: {
+          labOrder: { order: { encounter: { patientId } } },
+          OR: [
+            { parameterName: { contains: 'Creatinine', mode: 'insensitive' } },
+            {
+              parameter: {
+                code: { in: ['CREA', 'CREAT', 'SCR', 'CREATININE'] },
+              },
+            },
+          ],
+        },
+        include: { labOrder: { select: { resultDate: true } } },
+        orderBy: { labOrder: { resultDate: 'desc' } },
+      }),
+      this.prisma.labOrder.findFirst({
+        where: {
+          resultValue: { not: null },
+          order: { encounter: { patientId } },
+          test: {
+            OR: [
+              { code: { in: ['CREA', 'CREAT', 'SCR', 'CREATININE'] } },
+              { name: { contains: 'Creatinine', mode: 'insensitive' } },
+            ],
+          },
+        },
+        select: { resultValue: true, resultDate: true },
+        orderBy: [{ resultDate: 'desc' }, { id: 'desc' }],
+      }),
+    ]);
 
-    if (!latestCrea) return alerts;
+    const paramDate = latestCreaParam?.labOrder?.resultDate?.getTime() ?? 0;
+    const orderDate = latestCreaOrder?.resultDate?.getTime() ?? 0;
+    const rawCreaValue =
+      latestCreaParam && (!latestCreaOrder || paramDate >= orderDate)
+        ? latestCreaParam.value
+        : latestCreaOrder?.resultValue;
 
-    const creaValue = parseFloat(latestCrea.value);
+    if (!rawCreaValue) return alerts;
+
+    const creaValue = parseFloat(rawCreaValue);
     if (isNaN(creaValue) || creaValue === 0) return alerts;
 
     // جلب أحدث وزن للمريض لحساب الكلى بدقة
@@ -727,8 +755,12 @@ export class CDSSService {
 
       if (rule) {
         const isPerKg = rule.doseUnit.toLowerCase().includes('/kg');
-        const minLimit = isPerKg ? rule.minDoseValue * weight : rule.minDoseValue;
-        const maxLimit = isPerKg ? rule.maxDoseValue * weight : rule.maxDoseValue;
+        const minLimit = isPerKg
+          ? rule.minDoseValue * weight
+          : rule.minDoseValue;
+        const maxLimit = isPerKg
+          ? rule.maxDoseValue * weight
+          : rule.maxDoseValue;
 
         if (numDose > maxLimit) {
           alerts.push({
@@ -903,8 +935,39 @@ export class CDSSService {
     const allAlerts: CDSSAlertResult[] = [];
     const genericNames = input.drugs.map((d) => d.genericName);
 
-    // 1. فحص التفاعلات الدوائية
-    const interactions = await this.checkDrugInteractions(genericNames);
+    // 1. فحص التفاعلات الدوائية (بين أدوية الوصفة الجديدة ومع الأدوية النشطة الحالية للمريض)
+    const activePrescriptions = await this.prisma.prescription.findMany({
+      where: {
+        hospitalId: input.hospitalId,
+        patientId: input.patientId,
+        status: 'ACTIVE',
+      },
+      include: {
+        items: {
+          include: {
+            product: { select: { genericName: true, name: true } },
+          },
+        },
+      },
+    });
+    const activeGenericNames = activePrescriptions.flatMap((p) =>
+      p.items
+        .map((it) => it.product?.genericName || it.product?.name || '')
+        .filter((v) => v.trim().length > 0),
+    );
+    const normalizedNew = genericNames.map((n) => n.toLowerCase().trim());
+    const combinedGenericNames = Array.from(
+      new Set([...genericNames, ...activeGenericNames]),
+    );
+    const rawInteractions =
+      await this.checkDrugInteractions(combinedGenericNames);
+    const interactions = rawInteractions.filter((alert) => {
+      const a = String(alert.context?.drugA || '').toLowerCase();
+      const b = String(alert.context?.drugB || '').toLowerCase();
+      return normalizedNew.some(
+        (d) => d.includes(a) || a.includes(d) || d.includes(b) || b.includes(d),
+      );
+    });
     allAlerts.push(...interactions);
 
     // 2. فحص الحساسيات

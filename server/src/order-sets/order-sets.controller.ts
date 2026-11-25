@@ -147,7 +147,12 @@ export class OrderSetsController {
   @Permissions('order-sets:manage')
   execute(
     @Param('id') id: string,
-    @Body() body: { encounterId: number },
+    @Body()
+    body: {
+      encounterId: number;
+      overrideSafety?: boolean;
+      overrideReason?: string;
+    },
     @CurrentUser() user: JwtPayload,
   ) {
     return this.service.execute(
@@ -155,6 +160,10 @@ export class OrderSetsController {
       user.sub,
       +id,
       body.encounterId,
+      {
+        overrideSafety: body.overrideSafety,
+        overrideReason: body.overrideReason,
+      },
     );
   }
 }

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   Logger,
@@ -691,6 +692,7 @@ export class OrderSetsService {
     userId: number,
     orderSetId: number,
     encounterId: number,
+    options?: { overrideSafety?: boolean; overrideReason?: string },
   ) {
     const orderSet = await this.getOrderSetForExecution(hospitalId, orderSetId);
 
@@ -773,48 +775,60 @@ export class OrderSetsService {
       }
     }
 
-    for (const item of orderSet.items) {
+    const medicationItems = orderSet.items
+      .filter((item) => item.itemType === 'MEDICATION' && item.productId)
+      .map((item) => ({
+        drugItemId: item.productId!,
+        dose: item.dose || '1',
+        route: item.route || 'ORAL',
+        frequency: item.frequency || 'DAILY',
+        durationDays: item.durationDays || 7,
+        quantity: item.durationDays || 7,
+        notes: item.instructions || undefined,
+      }));
+
+    if (medicationItems.length > 0) {
+      // CLN03: Submit all Order Set medications together as ONE atomic prescription so
+      // cross-drug interactions inside the Order Set, active-drug DDI, allergies, renal/hepatic
+      // and dose-range CDSS blockers are evaluated together BEFORE creating any prescription.
       try {
-        switch (item.itemType) {
-          case 'LAB':
-          case 'RADIOLOGY':
-            break;
-          case 'MEDICATION':
-            if (item.productId) {
-              const prescription =
-                await this.pharmacyService.createPrescriptionForEncounter({
-                  hospitalId,
-                  encounterId,
-                  doctorId: userId,
-                  notes: `تم الإنشاء من مجموعة الطلبات المنشورة: ${orderSet.name}`,
-                  items: [
-                    {
-                      drugItemId: item.productId,
-                      dose: item.dose || '1',
-                      route: item.route || 'PO',
-                      frequency: item.frequency || 'OD',
-                      durationDays: item.durationDays || 7,
-                      quantity: item.durationDays || 7,
-                      notes: item.instructions || undefined,
-                    },
-                  ],
-                });
-              results.prescriptions.push(prescription);
-              results.total++;
-            }
-            break;
-          case 'NURSING':
-          case 'PROCEDURE':
-            results.skipped.push(
-              `${item.itemType}: ${item.nursingAction || item.instructions || 'N/A'}`,
-            );
-            break;
-        }
+        const prescription =
+          await this.pharmacyService.createPrescriptionForEncounter({
+            hospitalId,
+            encounterId,
+            doctorId: userId,
+            overrideSafety: options?.overrideSafety,
+            overrideReason: options?.overrideReason,
+            notes: `تم الإنشاء من مجموعة الطلبات المنشورة: ${orderSet.name}`,
+            items: medicationItems,
+          });
+        results.prescriptions.push(prescription);
+        results.total += medicationItems.length;
       } catch (err: any) {
+        if (err instanceof BadRequestException) {
+          const response = err.getResponse() as
+            | { code?: string }
+            | string
+            | undefined;
+          if (
+            typeof response === 'object' &&
+            response?.code === 'SAFETY_WARNING'
+          ) {
+            throw err;
+          }
+        }
         this.logger.warn(
-          `Error executing order set item ${item.id}: ${err.message}`,
+          `Error executing order set medication batch: ${err.message}`,
         );
-        results.skipped.push(`${item.itemType}: خطأ - ${err.message}`);
+        results.skipped.push(`MEDICATION_BATCH: خطأ - ${err.message}`);
+      }
+    }
+
+    for (const item of orderSet.items) {
+      if (item.itemType === 'NURSING' || item.itemType === 'PROCEDURE') {
+        results.skipped.push(
+          `${item.itemType}: ${item.nursingAction || item.instructions || 'N/A'}`,
+        );
       }
     }
 

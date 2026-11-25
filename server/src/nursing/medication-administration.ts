@@ -12,6 +12,7 @@ import {
   medicationScheduleZone,
   medicationSlots,
 } from './medication-schedule';
+import { evaluateFiveRights } from './five-rights.util';
 export type AdministrationInput = {
   hospitalId: number;
   userId: number;
@@ -25,6 +26,8 @@ export type AdministrationInput = {
   notes?: string;
   patientBarcode?: string;
   drugBarcode?: string;
+  confirmedDose?: string;
+  confirmedRoute?: string;
   isEmergencyOverride?: boolean;
   varianceReason?: string;
 };
@@ -122,6 +125,12 @@ export function barcodeVerification(
   context: Awaited<ReturnType<typeof medicationContext>>,
   patientBarcode: string,
   drugBarcode: string,
+  options?: {
+    confirmedDose?: string;
+    confirmedRoute?: string;
+    scheduledFor?: Date | null;
+    administeredAt?: Date;
+  },
 ) {
   const { encounter, item } = context;
   const isPatientMatch = [
@@ -131,12 +140,20 @@ export function barcodeVerification(
   const isDrugMatch = [item.product.barcode, item.product.code]
     .filter(Boolean)
     .includes(drugBarcode.trim());
-  return {
+  const fiveRights = evaluateFiveRights({
     isPatientMatch,
     isDrugMatch,
-    isBarcodeMatch: isPatientMatch && isDrugMatch,
-    isVerified5Rights: false,
-    verificationScope: 'PATIENT_AND_DRUG' as const,
+    expectedDose: item.dose,
+    expectedRoute: item.route,
+    confirmedDose: options?.confirmedDose,
+    confirmedRoute: options?.confirmedRoute,
+    scheduledFor: options?.scheduledFor ?? null,
+    administeredAt: options?.administeredAt,
+    pharmacistVerified:
+      item.prescription.pharmacistVerificationStatus === 'VERIFIED',
+  });
+  return {
+    ...fiveRights,
     pharmacistVerificationStatus:
       item.prescription.pharmacistVerificationStatus,
     expectedPatientBarcode: encounter.patient.mrn,
@@ -185,6 +202,12 @@ export async function administer(
         varianceReason: input.varianceReason?.trim() ?? null,
         isEmergencyOverride: input.isEmergencyOverride ?? false,
         ...(scheduledSlot !== undefined ? { scheduledSlot } : {}),
+        ...(input.confirmedDose !== undefined
+          ? { confirmedDose: input.confirmedDose.trim() }
+          : {}),
+        ...(input.confirmedRoute !== undefined
+          ? { confirmedRoute: input.confirmedRoute.trim() }
+          : {}),
       }),
     )
     .digest('hex');
@@ -274,15 +297,27 @@ export async function administer(
   const barcode =
     input.patientBarcode !== undefined && input.drugBarcode !== undefined;
   const verified = barcode
-    ? barcodeVerification(context, input.patientBarcode!, input.drugBarcode!)
+    ? barcodeVerification(context, input.patientBarcode!, input.drugBarcode!, {
+        confirmedDose: input.confirmedDose,
+        confirmedRoute: input.confirmedRoute,
+        scheduledFor: scheduledFor ?? null,
+      })
     : null;
+  const fiveRightsMismatch =
+    verified !== null &&
+    (verified.isDoseMatch === false ||
+      verified.isRouteMatch === false ||
+      (verified.verificationScope === 'FULL_FIVE_RIGHTS' &&
+        verified.isTimeWindowMatch === false));
   const requiresOverride =
     status === 'GIVEN' &&
-    ((barcode && !verified?.isBarcodeMatch) ||
+    ((barcode && (!verified?.isBarcodeMatch || fiveRightsMismatch)) ||
       context.item.prescription.pharmacistVerificationStatus !== 'VERIFIED');
   if (requiresOverride && !input.isEmergencyOverride)
     throw new BadRequestException(
-      'الباركود غير مطابق أو اعتماد الصيدلي غير مكتمل؛يلزم إجراء استثنائي معتمد',
+      fiveRightsMismatch
+        ? `تعارض في التحقق الخماسي للحقوق (${verified?.mismatchReasons.join(', ')})؛ يلزم مراجعة الجرعة/الطريق/الموعد أو تفعيل تجاوز طارئ معتمد`
+        : 'الباركود غير مطابق أو اعتماد الصيدلي غير مكتمل؛يلزم إجراء استثنائي معتمد',
     );
   if (
     input.isEmergencyOverride &&
@@ -323,8 +358,14 @@ export async function administer(
       requestFingerprint: hash,
       scannedPatientBarcode: input.patientBarcode?.trim(),
       scannedDrugBarcode: input.drugBarcode?.trim(),
+      verificationScope: barcode
+        ? (verified?.verificationScope ?? 'PATIENT_AND_DRUG')
+        : 'MANUAL',
+      verifiedDose: input.confirmedDose?.trim() || null,
+      verifiedRoute: input.confirmedRoute?.trim() || null,
+      timeVarianceMinutes: verified?.timeVarianceMinutes ?? null,
       isBarcodeMatch: verified?.isBarcodeMatch ?? false,
-      isVerified5Rights: false,
+      isVerified5Rights: verified?.isVerified5Rights ?? false,
       isEmergencyOverride: input.isEmergencyOverride ?? false,
       varianceReason: input.isEmergencyOverride
         ? input.varianceReason?.trim()
@@ -348,8 +389,11 @@ export async function administer(
       scheduledSlot,
       scheduledFor,
       isBarcodeMatch: record.isBarcodeMatch,
-      verificationScope: barcode ? 'PATIENT_AND_DRUG' : 'MANUAL',
-      isVerified5Rights: false,
+      verificationScope: record.verificationScope,
+      verifiedDose: record.verifiedDose,
+      verifiedRoute: record.verifiedRoute,
+      timeVarianceMinutes: record.timeVarianceMinutes,
+      isVerified5Rights: record.isVerified5Rights,
       isEmergencyOverride: record.isEmergencyOverride,
       varianceReason: record.varianceReason,
       notes: record.notes,

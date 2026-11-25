@@ -1404,6 +1404,10 @@ model MedicationAdministration {
   // CLMA Fields (Closed-Loop Medication Administration)
   scannedPatientBarcode String?
   scannedDrugBarcode    String?
+  verificationScope     String  @default("MANUAL") @db.VarChar(32)
+  verifiedDose          String? @db.VarChar(120)
+  verifiedRoute         String? @db.VarChar(60)
+  timeVarianceMinutes   Int?
   isVerified5Rights     Boolean @default(false)
   isEmergencyOverride   Boolean @default(false)
   varianceReason        String?

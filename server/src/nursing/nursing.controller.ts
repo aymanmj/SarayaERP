@@ -93,6 +93,11 @@ export class NursingController {
       dto.prescriptionItemId,
       dto.patientBarcode,
       dto.drugBarcode,
+      {
+        confirmedDose: dto.confirmedDose,
+        confirmedRoute: dto.confirmedRoute,
+        scheduledSlot: dto.scheduledSlot,
+      },
     );
   }
 
@@ -122,6 +127,8 @@ export class NursingController {
       prescriptionItemId: dto.prescriptionItemId,
       patientBarcode: dto.patientBarcode,
       drugBarcode: dto.drugBarcode,
+      confirmedDose: dto.confirmedDose,
+      confirmedRoute: dto.confirmedRoute,
       requestId: dto.requestId,
       scheduledSlot: dto.scheduledSlot,
       isEmergencyOverride: dto.isEmergencyOverride ?? false,

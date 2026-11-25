@@ -77,6 +77,13 @@ type FiveRightsVerification = {
   isPatientMatch: boolean;
   isDrugMatch: boolean;
   isBarcodeMatch: boolean;
+  isDoseMatch?: boolean | null;
+  isRouteMatch?: boolean | null;
+  isTimeWindowMatch?: boolean | null;
+  timeVarianceMinutes?: number | null;
+  verificationScope?: "MANUAL" | "PATIENT_AND_DRUG" | "FULL_FIVE_RIGHTS";
+  isVerified5Rights?: boolean;
+  mismatchReasons?: string[];
   expectedPatientBarcode?: string;
   expectedDrugBarcode?: string;
   patientName?: string;
@@ -122,6 +129,8 @@ export function MedicationAdministrationPane({
   const [clmaSlot, setClmaSlot] = useState<string>();
   const [patientBarcode, setPatientBarcode] = useState("");
   const [drugBarcode, setDrugBarcode] = useState("");
+  const [confirmedDose, setConfirmedDose] = useState("");
+  const [confirmedRoute, setConfirmedRoute] = useState("");
   const [verificationResult, setVerificationResult] =
     useState<FiveRightsVerification | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
@@ -169,6 +178,8 @@ export function MedicationAdministrationPane({
     setClmaSlot(scheduledSlot);
     setPatientBarcode("");
     setDrugBarcode("");
+    setConfirmedDose("");
+    setConfirmedRoute("");
     setVerificationResult(null);
     setIsEmergencyOverride(false);
     setVarianceReason("");
@@ -194,6 +205,9 @@ export function MedicationAdministrationPane({
           prescriptionItemId: clmaItem.id,
           patientBarcode: patientBarcode.trim(),
           drugBarcode: drugBarcode.trim(),
+          ...(confirmedDose.trim() ? { confirmedDose: confirmedDose.trim() } : {}),
+          ...(confirmedRoute.trim() ? { confirmedRoute: confirmedRoute.trim() } : {}),
+          ...(clmaSlot ? { scheduledSlot: clmaSlot } : {}),
         },
       );
       setVerificationResult(res.data);
@@ -249,6 +263,8 @@ export function MedicationAdministrationPane({
           prescriptionItemId: clmaItem.id,
           patientBarcode: patientBarcode.trim(),
           drugBarcode: drugBarcode.trim(),
+          ...(confirmedDose.trim() ? { confirmedDose: confirmedDose.trim() } : {}),
+          ...(confirmedRoute.trim() ? { confirmedRoute: confirmedRoute.trim() } : {}),
           isEmergencyOverride,
           scheduledSlot: clmaSlot,
           varianceReason: isEmergencyOverride
@@ -657,6 +673,43 @@ export function MedicationAdministrationPane({
                 </div>
               </div>
 
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label htmlFor={`${modalId}-dose`} className="block mb-1 font-semibold text-slate-300 text-[11px]">
+                    3. تأكيد الجرعة (اختياري لـ 5 Rights)
+                  </label>
+                  <input
+                    id={`${modalId}-dose`}
+                    disabled={cannotEditBarcodes}
+                    type="text"
+                    value={confirmedDose}
+                    onChange={(e) => {
+                      setConfirmedDose(e.target.value);
+                      invalidateBarcodeCheck();
+                    }}
+                    placeholder={clmaItem.dose}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-1.5 text-white font-mono text-xs focus:border-sky-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label htmlFor={`${modalId}-route`} className="block mb-1 font-semibold text-slate-300 text-[11px]">
+                    4. تأكيد طريق الإعطاء (PO / IV / IM)
+                  </label>
+                  <input
+                    id={`${modalId}-route`}
+                    disabled={cannotEditBarcodes}
+                    type="text"
+                    value={confirmedRoute}
+                    onChange={(e) => {
+                      setConfirmedRoute(e.target.value);
+                      invalidateBarcodeCheck();
+                    }}
+                    placeholder={clmaItem.route}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-1.5 text-white font-mono text-xs focus:border-sky-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
               <button
                 onClick={handleVerifyFiveRights}
                 disabled={cannotEditBarcodes || !patientBarcode.trim() || !drugBarcode.trim()}
@@ -675,9 +728,11 @@ export function MedicationAdministrationPane({
                   }`}
                 >
                   <div className="font-bold flex items-center gap-1.5">
-                    {verificationResult.isBarcodeMatch
-                      ? "✅ مطابقة المريض والدواء ناجحة"
-                      : "❌ تعارض في الباركود"}
+                    {verificationResult.isVerified5Rights
+                      ? "✅ التحقق الخماسي الكامل (5/5 Rights) ناجح"
+                      : verificationResult.isBarcodeMatch
+                        ? "✅ مطابقة المريض والدواء ناجحة"
+                        : "❌ تعارض في الباركود"}
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-[11px] opacity-90">
                     <div>

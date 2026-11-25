@@ -25,6 +25,12 @@ describe('CDSSService', () => {
     labOrderResult: {
       findFirst: jest.fn(),
     },
+    labOrder: {
+      findFirst: jest.fn().mockResolvedValue(null),
+    },
+    prescription: {
+      findMany: jest.fn().mockResolvedValue([]),
+    },
     terminologyConcept: {
       findFirst: jest.fn(),
       findUnique: jest.fn(),
