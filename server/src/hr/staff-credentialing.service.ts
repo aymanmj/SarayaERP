@@ -4,11 +4,26 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  PayloadTooLargeException,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { createHash, randomUUID } from 'node:crypto';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import { PrismaService } from '../prisma/prisma.service';
 import { appendChainedAuditInTransaction } from '../audit/audit-chain';
 import { publishCommittedCriticalAudit } from '../audit/siem.logger';
+import { scanAttachmentBuffer } from '../common/security/attachment-av-scanner.service';
+import {
+  decryptAttachmentBuffer,
+  encryptAttachmentBuffer,
+} from '../common/security/attachment-crypto.util';
+import {
+  detectContentType,
+  MAX_PREAUTH_ATTACHMENT_BYTES,
+  type UploadedAttachmentFile,
+} from '../insurance/preauth-attachments';
 import {
   CreateStaffCredentialDto,
   SuspendStaffCredentialDto,
@@ -665,5 +680,249 @@ export class StaffCredentialingService {
       userId,
       asOfDate ?? new Date(),
     );
+  }
+
+  private resolveDocumentRoot(configRoot?: string | null): string {
+    return path.resolve(
+      configRoot?.trim() ||
+        process.env.CREDENTIAL_ATTACHMENT_ROOT?.trim() ||
+        'uploads/credentials',
+    );
+  }
+
+  private isPathInsideRoot(rootPath: string, targetPath: string): boolean {
+    const normRoot =
+      process.platform === 'win32' ? rootPath.toLowerCase() : rootPath;
+    const normTarget =
+      process.platform === 'win32' ? targetPath.toLowerCase() : targetPath;
+    const rel = path.relative(normRoot, normTarget);
+    return rel.length > 0 && !rel.startsWith('..') && !path.isAbsolute(rel);
+  }
+
+  async uploadCredentialDocument(
+    hospitalId: number,
+    credentialId: number,
+    userId: number,
+    file: UploadedAttachmentFile | undefined,
+    meta?: CredentialAuditMeta & { configRoot?: string | null },
+  ) {
+    if (!file || !Buffer.isBuffer(file.buffer)) {
+      throw new BadRequestException('ملف الوثيقة مطلوب');
+    }
+    if (file.buffer.length === 0) {
+      throw new BadRequestException('ملف الوثيقة فارغ');
+    }
+    if (
+      file.buffer.length > MAX_PREAUTH_ATTACHMENT_BYTES ||
+      file.size > MAX_PREAUTH_ATTACHMENT_BYTES
+    ) {
+      throw new PayloadTooLargeException(
+        'حجم الوثيقة يتجاوز الحد الأقصى المسموح به (10 ميجابايت)',
+      );
+    }
+
+    const detected = detectContentType(file.buffer);
+    const declaredType = (file.mimetype ?? '').trim().toLowerCase();
+    if (declaredType !== detected.contentType) {
+      throw new BadRequestException(
+        'نوع الملف المعلن لا يطابق بصمة المحتوى الفعلية',
+      );
+    }
+
+    const sha256 = createHash('sha256').update(file.buffer).digest('hex');
+
+    // SEC05: Mandatory antivirus/malware scan BEFORE persisting any bytes
+    const avScan = await scanAttachmentBuffer(file.buffer);
+    if (avScan.infected) {
+      const blockedAudit = await this.prisma.$transaction(async (tx) =>
+        appendChainedAuditInTransaction(tx, {
+          hospitalId,
+          userId,
+          action: 'SECURITY_MALWARE_BLOCKED',
+          entity: 'StaffCredential',
+          entityId: credentialId,
+          ipAddress: meta?.ipAddress,
+          clientName: meta?.clientName,
+          details: {
+            credentialId,
+            contentType: detected.contentType,
+            sizeBytes: file.buffer.length,
+            sha256,
+            signature: avScan.signature,
+            avScanEngine: avScan.engine,
+          },
+        }),
+      );
+      publishCommittedCriticalAudit(blockedAudit);
+      throw new UnprocessableEntityException(
+        `تم رفض الوثيقة لاكتشاف برمجية خبيثة أو توقيع فيروسي (${avScan.signature ?? 'MALWARE'}).`,
+      );
+    }
+
+    const root = this.resolveDocumentRoot(meta?.configRoot);
+    const storageKey = `${hospitalId}/credentials/${credentialId}/${randomUUID()}.${detected.ext}`;
+    const finalPath = path.resolve(root, storageKey);
+    if (!this.isPathInsideRoot(root, finalPath)) {
+      throw new BadRequestException('مسار حفظ الوثيقة غير صالح');
+    }
+
+    // SEC05: Encrypt at rest (AES-256-GCM) before writing atomically
+    const encryptedBytes = encryptAttachmentBuffer(file.buffer);
+    const tmpPath = `${finalPath}.tmp`;
+    fs.mkdirSync(path.dirname(finalPath), { recursive: true });
+    fs.writeFileSync(tmpPath, encryptedBytes, { flag: 'wx' });
+
+    let movedToFinal = false;
+    try {
+      fs.renameSync(tmpPath, finalPath);
+      movedToFinal = true;
+
+      const { updated, audit } = await this.prisma.$transaction(async (tx) => {
+        const existing = await tx.staffCredential.findFirst({
+          where: { id: credentialId, hospitalId },
+        });
+        if (!existing) {
+          throw new NotFoundException('الوثيقة غير موجودة ضمن هذه المنشأة');
+        }
+        if (existing.status === 'REVOKED') {
+          throw new ConflictException(
+            'لا يمكن إرفاق ملف لوثيقة ملغاة نهائيًا (REVOKED)',
+          );
+        }
+
+        const documentRef = `enc-v1:${sha256}:${storageKey}`;
+        const saved = await tx.staffCredential.update({
+          where: { id: existing.id },
+          data: { documentRef },
+          include: CREDENTIAL_INCLUDE,
+        });
+
+        const auditEntry = await appendChainedAuditInTransaction(tx, {
+          hospitalId,
+          userId,
+          action: 'STAFF_CREDENTIAL_DOCUMENT_UPLOADED',
+          entity: 'StaffCredential',
+          entityId: saved.id,
+          ipAddress: meta?.ipAddress,
+          clientName: meta?.clientName,
+          details: {
+            credentialType: saved.credentialType,
+            contentType: detected.contentType,
+            sizeBytes: file.buffer.length,
+            sha256,
+            avScanStatus: 'CLEAN',
+            avScanEngine: avScan.engine,
+            encryptedAtRest: true,
+            cipher: 'AES-256-GCM',
+          },
+        });
+
+        return { updated: saved, audit: auditEntry };
+      });
+
+      publishCommittedCriticalAudit(audit);
+      return {
+        ...updated,
+        ...computeCredentialCompliance(updated),
+      };
+    } catch (err) {
+      try {
+        fs.rmSync(movedToFinal ? finalPath : tmpPath, { force: true });
+      } catch {
+        // Best-effort cleanup after rollback
+      }
+      throw err;
+    }
+  }
+
+  async downloadCredentialDocument(
+    hospitalId: number,
+    credentialId: number,
+    userId: number,
+    meta?: CredentialAuditMeta & { configRoot?: string | null },
+  ): Promise<{ buffer: Buffer; contentType: string; fileName: string }> {
+    const cred = await this.prisma.staffCredential.findFirst({
+      where: { id: credentialId, hospitalId },
+      select: {
+        id: true,
+        credentialType: true,
+        documentRef: true,
+      },
+    });
+    if (!cred || !cred.documentRef?.startsWith('enc-v1:')) {
+      throw new NotFoundException(
+        'لا توجد وثيقة مرفقة صالحة لهذا السجل ضمن المنشأة',
+      );
+    }
+
+    const withoutPrefix = cred.documentRef.slice('enc-v1:'.length);
+    const sepIdx = withoutPrefix.indexOf(':');
+    if (sepIdx !== 64) {
+      throw new ConflictException('مرجع الوثيقة المشفّرة تالف');
+    }
+    const expectedSha256 = withoutPrefix.slice(0, 64);
+    const storageKey = withoutPrefix.slice(65);
+    if (
+      !storageKey ||
+      storageKey.includes('..') ||
+      path.isAbsolute(storageKey)
+    ) {
+      throw new ConflictException('سلامة مسار الوثيقة غير مطابقة');
+    }
+
+    const root = this.resolveDocumentRoot(meta?.configRoot);
+    const target = path.resolve(root, storageKey);
+    if (
+      !fs.existsSync(root) ||
+      !fs.existsSync(target) ||
+      !this.isPathInsideRoot(root, target)
+    ) {
+      throw new ConflictException('سلامة ملف الوثيقة غير مطابقة');
+    }
+
+    const realRoot = fs.realpathSync(root);
+    const realTarget = fs.realpathSync(target);
+    if (!this.isPathInsideRoot(realRoot, realTarget)) {
+      throw new ConflictException('سلامة ملف الوثيقة غير مطابقة');
+    }
+
+    const rawStored = fs.readFileSync(realTarget);
+    const { plaintext: buffer } = decryptAttachmentBuffer(rawStored);
+    const actualSha256 = createHash('sha256').update(buffer).digest('hex');
+    if (actualSha256 !== expectedSha256) {
+      throw new ConflictException('بصمة الوثيقة المفكوك تشفيرها غير مطابقة');
+    }
+
+    const ext = path.extname(storageKey).toLowerCase().replace('.', '');
+    const contentType =
+      ext === 'pdf'
+        ? 'application/pdf'
+        : ext === 'png'
+          ? 'image/png'
+          : 'image/jpeg';
+
+    const audit = await this.prisma.$transaction(async (tx) =>
+      appendChainedAuditInTransaction(tx, {
+        hospitalId,
+        userId,
+        action: 'STAFF_CREDENTIAL_DOCUMENT_DOWNLOADED',
+        entity: 'StaffCredential',
+        entityId: cred.id,
+        ipAddress: meta?.ipAddress,
+        clientName: meta?.clientName,
+        details: {
+          credentialType: cred.credentialType,
+          sha256: expectedSha256,
+          sizeBytes: buffer.length,
+        },
+      }),
+    );
+    publishCommittedCriticalAudit(audit);
+
+    return {
+      buffer,
+      contentType,
+      fileName: `credential-${cred.id}.${ext || 'bin'}`,
+    };
   }
 }

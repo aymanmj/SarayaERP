@@ -1,4 +1,4 @@
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
 import {
   BadRequestException,
   Body,
@@ -9,8 +9,12 @@ import {
   Post,
   Query,
   Req,
+  Res,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/permissions.guard';
 import { Permissions } from '../auth/permissions.decorator';
@@ -18,6 +22,10 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import type { JwtPayload } from '../auth/jwt-payload.type';
 import { RequireFeature } from '../licensing/license.decorator';
 import { AuditInTransaction } from '../audit/audit.decorator';
+import {
+  MAX_PREAUTH_ATTACHMENT_BYTES,
+  type UploadedAttachmentFile,
+} from '../insurance/preauth-attachments';
 import { StaffCredentialingService } from './staff-credentialing.service';
 import {
   CreateStaffCredentialDto,
@@ -147,5 +155,58 @@ export class StaffCredentialingController {
       user.sub,
       { ipAddress: req.ip, clientName: req.get('user-agent') },
     );
+  }
+
+  @Post(':id/document')
+  @Permissions('hr:credentials:manage', 'hr:manage')
+  @AuditInTransaction()
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: {
+        fileSize: MAX_PREAUTH_ATTACHMENT_BYTES,
+        files: 1,
+      },
+    }),
+  )
+  uploadCredentialDocument(
+    @CurrentUser() user: JwtPayload,
+    @Param('id', ParseIntPipe) id: number,
+    @UploadedFile() file: UploadedAttachmentFile | undefined,
+    @Req() req: Request,
+  ) {
+    if (!file) {
+      throw new BadRequestException('ملف الوثيقة مطلوب');
+    }
+    return this.credentialingService.uploadCredentialDocument(
+      user.hospitalId,
+      id,
+      user.sub,
+      file,
+      { ipAddress: req.ip, clientName: req.get('user-agent') },
+    );
+  }
+
+  @Get(':id/document')
+  @Permissions('hr:credentials:view', 'hr:view')
+  async downloadCredentialDocument(
+    @CurrentUser() user: JwtPayload,
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const { buffer, contentType, fileName } =
+      await this.credentialingService.downloadCredentialDocument(
+        user.hospitalId,
+        id,
+        user.sub,
+        { ipAddress: req.ip, clientName: req.get('user-agent') },
+      );
+    res.set({
+      'Content-Type': contentType,
+      'Content-Disposition': `attachment; filename="${fileName}"`,
+      'X-Content-Type-Options': 'nosniff',
+      'Cache-Control': 'private, no-store',
+    });
+    return res.send(buffer);
   }
 }

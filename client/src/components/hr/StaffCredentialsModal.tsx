@@ -23,6 +23,7 @@ interface CredentialItem {
   complianceStatus: string;
   daysUntilExpiry: number;
   createdById: number;
+  documentRef?: string | null;
   user?: { id: number; fullName: string };
 }
 
@@ -192,6 +193,53 @@ export const StaffCredentialsModal: React.FC<StaffCredentialsModalProps> = ({
         (err as { response?: { data?: { message?: string } } })?.response?.data
           ?.message || t("hr.credentials.suspendFailed", "تعذر تعليق الوثيقة.");
       toast.error(msg);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleUploadDocument = async (id: number, file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    setBusy(true);
+    try {
+      await apiClient.post(`/hr/credentials/${id}/document`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      toast.success(
+        t(
+          "hr.credentials.docUploaded",
+          "تم فحص الوثيقة وتشفيرها وحفظها بنجاح.",
+        ),
+      );
+      await loadData();
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data
+          ?.message ||
+        t("hr.credentials.docUploadFailed", "تعذر رفع أو فحص الوثيقة.");
+      toast.error(msg);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleDownloadDocument = async (id: number) => {
+    setBusy(true);
+    try {
+      const res = await apiClient.get<Blob>(`/hr/credentials/${id}/document`, {
+        responseType: "blob",
+      });
+      const url = URL.createObjectURL(res.data);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `credential-${id}`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error(
+        t("hr.credentials.docDownloadFailed", "تعذر تنزيل أو فك تشفير الوثيقة."),
+      );
     } finally {
       setBusy(false);
     }
@@ -384,7 +432,7 @@ export const StaffCredentialsModal: React.FC<StaffCredentialsModalProps> = ({
                       {new Date(c.expiryDate).toLocaleDateString()} ({c.daysUntilExpiry} يوم)
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <span
                       className={`px-2.5 py-0.5 rounded-full font-bold border ${
                         c.complianceStatus === "VALID"
@@ -396,6 +444,33 @@ export const StaffCredentialsModal: React.FC<StaffCredentialsModalProps> = ({
                     >
                       {c.complianceStatus}
                     </span>
+                    {c.documentRef?.startsWith("enc-v1:") && (
+                      <button
+                        type="button"
+                        onClick={() => handleDownloadDocument(c.id)}
+                        disabled={busy}
+                        className="px-2.5 py-1 rounded bg-indigo-800 hover:bg-indigo-700 text-white font-bold"
+                      >
+                        🔒 تنزيل الوثيقة
+                      </button>
+                    )}
+                    {canManage && c.status !== "REVOKED" && (
+                      <label className="px-2.5 py-1 rounded bg-slate-700 hover:bg-slate-600 text-slate-100 font-bold cursor-pointer">
+                        📎 إرفاق وثيقة
+                        <input
+                          type="file"
+                          accept=".pdf,.jpg,.jpeg,.png"
+                          className="hidden"
+                          aria-label={`إرفاق وثيقة ${c.licenseNumber}`}
+                          disabled={busy}
+                          onChange={(e) => {
+                            const f = e.target.files?.[0];
+                            if (f) void handleUploadDocument(c.id, f);
+                            e.target.value = "";
+                          }}
+                        />
+                      </label>
+                    )}
                     {canVerifyThis && (
                       <button
                         type="button"

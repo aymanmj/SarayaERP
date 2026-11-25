@@ -71,6 +71,7 @@ describe("StaffCredentialsModal (CAP12)", () => {
             status: "PENDING_VERIFICATION",
             complianceStatus: "PENDING_VERIFICATION",
             daysUntilExpiry: 21,
+            documentRef: "enc-v1:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef:1/credentials/51/doc.pdf",
             user: { id: 12, fullName: "Nurse Sara" },
           },
         ],
@@ -93,6 +94,27 @@ describe("StaffCredentialsModal (CAP12)", () => {
       expect(apiClient.post).toHaveBeenCalledWith(
         "/hr/credentials/51/verify",
         {},
+      );
+    });
+
+    expect(
+      screen.getByRole("button", { name: /تنزيل الوثيقة/ }),
+    ).toBeInTheDocument();
+
+    const fileInput = screen.getByLabelText("إرفاق وثيقة HC-2026-777");
+    const pdfFile = new File(["%PDF-1.4 sample"], "health-cert.pdf", {
+      type: "application/pdf",
+    });
+    vi.mocked(apiClient.post).mockResolvedValueOnce({ data: { id: 51 } });
+    fireEvent.change(fileInput, { target: { files: [pdfFile] } });
+
+    await waitFor(() => {
+      expect(apiClient.post).toHaveBeenCalledWith(
+        "/hr/credentials/51/document",
+        expect.any(FormData),
+        expect.objectContaining({
+          headers: { "Content-Type": "multipart/form-data" },
+        }),
       );
     });
   });

@@ -12,6 +12,10 @@ import * as path from 'node:path';
 import { appendChainedAuditInTransaction } from '../audit/audit-chain';
 import { publishCommittedCriticalAudit } from '../audit/siem.logger';
 import { scanAttachmentBuffer } from '../common/security/attachment-av-scanner.service';
+import {
+  decryptAttachmentBuffer,
+  encryptAttachmentBuffer,
+} from '../common/security/attachment-crypto.util';
 
 export const MAX_PREAUTH_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 export const MAX_ACTIVE_PREAUTH_ATTACHMENTS = 20;
@@ -288,7 +292,9 @@ export async function uploadPreAuthAttachment(
 
   const tmpPath = `${finalPath}.tmp`;
   fs.mkdirSync(path.dirname(finalPath), { recursive: true });
-  fs.writeFileSync(tmpPath, file.buffer, { flag: 'wx' });
+  // SEC05: Encrypt attachment bytes at rest (AES-256-GCM) before persisting to disk
+  const encryptedBytes = encryptAttachmentBuffer(file.buffer);
+  fs.writeFileSync(tmpPath, encryptedBytes, { flag: 'wx' });
 
   let movedToFinal = false;
   try {
@@ -370,6 +376,8 @@ export async function uploadPreAuthAttachment(
             avScanStatus: 'CLEAN',
             avScanEngine: avScan.engine,
             avScanDurationMs: avScan.durationMs,
+            encryptedAtRest: true,
+            cipher: 'AES-256-GCM',
           },
         });
 
@@ -437,7 +445,8 @@ export async function readPreAuthAttachment(
     throw new ConflictException('سلامة المرفق غير مطابقة');
   }
 
-  const buffer = fs.readFileSync(realTarget);
+  const rawStored = fs.readFileSync(realTarget);
+  const { plaintext: buffer } = decryptAttachmentBuffer(rawStored);
   const actualSha256 = createHash('sha256').update(buffer).digest('hex');
   if (buffer.length !== row.sizeBytes || actualSha256 !== row.sha256) {
     throw new ConflictException('سلامة المرفق غير مطابقة');

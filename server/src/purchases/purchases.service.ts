@@ -1080,8 +1080,55 @@ export class PurchasesService {
         tx,
       });
 
-      return { invoice: updatedInvoice, payment };
+      let settledConsignmentsCount = 0;
+      let settledAudit: Awaited<
+        ReturnType<typeof appendChainedAuditInTransaction>
+      > | null = null;
+
+      if (
+        newStatus === PurchaseInvoiceStatus.PAID &&
+        tx.consignmentConsumption?.updateMany
+      ) {
+        const settled = await tx.consignmentConsumption.updateMany({
+          where: {
+            hospitalId,
+            purchaseInvoiceId: inv.id,
+            supplierBillStatus: 'BILLED',
+          },
+          data: { supplierBillStatus: 'SETTLED' },
+        });
+        settledConsignmentsCount = settled.count;
+        if (settled.count > 0) {
+          settledAudit = await appendChainedAuditInTransaction(tx, {
+            hospitalId,
+            userId,
+            action: 'CONSIGNMENT_CONSUMPTIONS_AUTO_SETTLED',
+            entity: 'PurchaseInvoice',
+            entityId: inv.id,
+            details: {
+              supplierPaymentId: payment.id,
+              settledCount: settled.count,
+              paidAmount: newPaid,
+            },
+          });
+        }
+      }
+
+      return {
+        invoice: updatedInvoice,
+        payment,
+        settledConsignmentsCount,
+        settledAudit,
+      };
     });
-    return result;
+
+    if (result.settledAudit) {
+      publishCommittedCriticalAudit(result.settledAudit);
+    }
+    return {
+      invoice: result.invoice,
+      payment: result.payment,
+      settledConsignmentsCount: result.settledConsignmentsCount,
+    };
   }
 }
