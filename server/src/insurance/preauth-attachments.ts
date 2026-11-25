@@ -3,12 +3,15 @@ import {
   ConflictException,
   NotFoundException,
   PayloadTooLargeException,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 import { Prisma, type PrismaClient } from '@prisma/client';
 import { createHash, randomUUID } from 'node:crypto';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { appendChainedAuditInTransaction } from '../audit/audit-chain';
+import { publishCommittedCriticalAudit } from '../audit/siem.logger';
+import { scanAttachmentBuffer } from '../common/security/attachment-av-scanner.service';
 
 export const MAX_PREAUTH_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 export const MAX_ACTIVE_PREAUTH_ATTACHMENTS = 20;
@@ -247,6 +250,34 @@ export async function uploadPreAuthAttachment(
 
   const sha256 = createHash('sha256').update(file.buffer).digest('hex');
   const originalFileName = sanitizeFileName(file.originalname, detected.ext);
+
+  // SEC05: Mandatory antivirus/malware scan BEFORE writing any bytes to disk
+  const avScan = await scanAttachmentBuffer(file.buffer);
+  if (avScan.infected) {
+    const blockedAudit = await prisma.$transaction(async (tx) =>
+      appendChainedAuditInTransaction(tx, {
+        hospitalId: ctx.hospitalId,
+        userId: ctx.userId,
+        entity: 'PreAuthorizationAttachment',
+        entityId: ctx.preAuthId,
+        action: 'SECURITY_MALWARE_BLOCKED',
+        details: {
+          preAuthId: ctx.preAuthId,
+          originalFileName,
+          contentType: detected.contentType,
+          sizeBytes: file.buffer.length,
+          sha256,
+          signature: avScan.signature,
+          avScanEngine: avScan.engine,
+        },
+      }),
+    );
+    publishCommittedCriticalAudit(blockedAudit);
+    throw new UnprocessableEntityException(
+      `تم رفض الملف المرفق لاكتشاف برمجية خبيثة أو توقيع فيروسي (${avScan.signature ?? 'MALWARE'}).`,
+    );
+  }
+
   const storageKey = `${ctx.hospitalId}/preauth/${ctx.preAuthId}/${randomUUID()}.${detected.ext}`;
 
   const root = resolveAttachmentRoot(ctx.configRoot);
@@ -336,6 +367,9 @@ export async function uploadPreAuthAttachment(
             contentType: detected.contentType,
             sizeBytes: file.buffer.length,
             sha256,
+            avScanStatus: 'CLEAN',
+            avScanEngine: avScan.engine,
+            avScanDurationMs: avScan.durationMs,
           },
         });
 
