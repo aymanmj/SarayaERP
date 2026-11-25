@@ -58,6 +58,10 @@ model Hospital {
   budgetLines                   BudgetLine[]
   surgicalPackages              SurgicalPackage[]
   encounterPackageEnrollments   EncounterPackageEnrollment[]
+  fxRevaluationRuns             FxRevaluationRun[]
+  labQcLots                     LabQcLot[]
+  labQcRuns                     LabQcRun[]
+  radiologyDoseRecords          RadiologyDoseRecord[]
   biometricDevices              BiometricDevice[]
   biometricPunchLogs            BiometricPunchLog[]
   attendanceMovements           AttendanceMovement[]
@@ -581,6 +585,11 @@ model User {
   packageEnrollmentsCreated     EncounterPackageEnrollment[] @relation("PackageEnrolledBy")
   packageEnrollmentsSettled     EncounterPackageEnrollment[] @relation("PackageSettledBy")
   packageEnrollmentsInvoiced    EncounterPackageEnrollment[] @relation("PackageInvoicedBy")
+  fxRevaluationsPerformed       FxRevaluationRun[]           @relation("FxRevaluationPerformer")
+  labQcLotsCreated              LabQcLot[]                   @relation("LabQcLotCreator")
+  labQcRunsPerformed            LabQcRun[]                   @relation("LabQcRunPerformer")
+  labQcRunsReviewed             LabQcRun[]                   @relation("LabQcRunReviewer")
+  radiologyDosesRecorded        RadiologyDoseRecord[]        @relation("RadiologyDoseRecorder")
   biometricPunchLogs            BiometricPunchLog[]     @relation("PunchLogUser")
   biometricDevicesCreated       BiometricDevice[]       @relation("BiometricDeviceCreator")
   attendanceMovements           AttendanceMovement[]    @relation("AttendanceMovementUser")
@@ -958,6 +967,7 @@ model Patient {
   labCriticalNotifications LabCriticalNotification[]
   bloodCrossmatches BloodCrossmatch[]
   bloodTransfusions BloodTransfusion[]
+  radiologyDoseRecords RadiologyDoseRecord[]
   coverageBalances InsuranceCoverageBalance[]
   depositVouchers Voucher[]
   id                    Int                @id @default(autoincrement())
@@ -1481,6 +1491,7 @@ model LabTest {
   serviceItem     ServiceItem?        @relation(fields: [serviceItemId], references: [id])
   parameters      LabTestParameter[]
   referenceRanges LabReferenceRange[]
+  qcLots          LabQcLot[]
   testMappings    TestMapping[]
   orderSetItems   OrderSetItem[]      @relation("OrderSetLabTest")
 
@@ -1719,6 +1730,7 @@ model RadiologyOrder {
   station               RadiologyStation?               @relation(fields: [stationId], references: [id])
   addenda               RadiologyReportAddendum[]
   criticalNotifications RadiologyCriticalNotification[]
+  doseRecord            RadiologyDoseRecord?
 
   @@index([reportStatus])
   @@index([stationId])
@@ -3418,6 +3430,7 @@ model AccountingEntry {
   gatewayFeeAccrual GatewayClearingFeeEntry? @relation("GatewayFeeAccrualEntry")
   gatewayFeeSettlement GatewayClearingFeeEntry? @relation("GatewayFeeSettlementEntry")
   treasuryStatementAdjustment TreasuryBankStatementItem? @relation("TreasuryStmtAdjustmentEntry")
+  fxRevaluationRun            FxRevaluationRun?          @relation("FxRevaluationEntry")
   insuranceSettlementApplication InsuranceSettlementApplication?
   insuranceSettlementRefund InsuranceSettlementRefund?
   insuranceSettlement InsuranceSettlement?
@@ -7815,8 +7828,9 @@ model BankAccount {
   account        Account                     @relation(fields: [accountId], references: [id], onDelete: Restrict)
   currency       Currency                    @relation(fields: [currencyId], references: [id], onDelete: Restrict)
   createdBy      User                        @relation("BankAccountCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
-  sessions       BankReconciliationSession[]
-  statementItems TreasuryBankStatementItem[]
+  sessions        BankReconciliationSession[]
+  statementItems  TreasuryBankStatementItem[]
+  fxRevaluations  FxRevaluationRun[]
 
   @@unique([hospitalId, accountNumber])
   @@index([hospitalId, isActive])
@@ -8480,4 +8494,113 @@ model EncounterPackageEnrollment {
 
   @@index([hospitalId, encounterId, status])
   @@index([hospitalId, packageId])
+}
+
+// =========================================================================
+// PHASE 6 BATCH 28 (Migration #82):
+// CAP09 Period-End FX Revaluation, CAP02 Lab Westgard QC, CAP13 Radiology RDSR
+// =========================================================================
+
+model FxRevaluationRun {
+  id                  Int              @id @default(autoincrement())
+  hospitalId          Int
+  bankAccountId       Int
+  asOfDate            DateTime         @db.Date
+  currencyCode        String           @db.VarChar(8)
+  foreignBalance      Decimal          @db.Decimal(18, 3)
+  bookBalanceBase     Decimal          @db.Decimal(18, 3)
+  closingRate         Decimal          @db.Decimal(19, 6)
+  revaluedBalanceBase Decimal          @db.Decimal(18, 3)
+  unrealizedGainLoss  Decimal          @db.Decimal(18, 3)
+  accountingEntryId   Int?             @unique
+  performedById       Int
+  notes               String?          @db.VarChar(500)
+  createdAt           DateTime         @default(now())
+
+  hospital        Hospital         @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
+  bankAccount     BankAccount      @relation(fields: [bankAccountId], references: [id], onDelete: Restrict)
+  accountingEntry AccountingEntry? @relation("FxRevaluationEntry", fields: [accountingEntryId], references: [id], onDelete: Restrict)
+  performedBy     User             @relation("FxRevaluationPerformer", fields: [performedById], references: [id], onDelete: Restrict)
+
+  @@unique([hospitalId, bankAccountId, asOfDate])
+  @@index([hospitalId, asOfDate])
+}
+
+model LabQcLot {
+  id           Int       @id @default(autoincrement())
+  hospitalId   Int
+  testId       Int
+  analyzerName String    @db.VarChar(120)
+  lotNumber    String    @db.VarChar(64)
+  level        String    @db.VarChar(24)
+  targetMean   Decimal   @db.Decimal(18, 4)
+  targetSd     Decimal   @db.Decimal(18, 4)
+  unit         String?   @db.VarChar(32)
+  expiryDate   DateTime?
+  isActive     Boolean   @default(true)
+  createdById  Int
+  createdAt    DateTime  @default(now())
+
+  hospital  Hospital   @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
+  test      LabTest    @relation(fields: [testId], references: [id], onDelete: Restrict)
+  createdBy User       @relation("LabQcLotCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  runs      LabQcRun[]
+
+  @@unique([hospitalId, testId, analyzerName, lotNumber, level])
+  @@index([hospitalId, testId, isActive])
+}
+
+model LabQcRun {
+  id               Int       @id @default(autoincrement())
+  hospitalId       Int
+  qcLotId          Int
+  measuredValue    Decimal   @db.Decimal(18, 4)
+  zScore           Decimal   @db.Decimal(10, 4)
+  status           String    @db.VarChar(16)
+  violatedRules    Json
+  correctiveAction String?   @db.VarChar(500)
+  performedById    Int
+  reviewedById     Int?
+  reviewedAt       DateTime?
+  measuredAt       DateTime  @default(now())
+  createdAt        DateTime  @default(now())
+
+  hospital    Hospital @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
+  qcLot       LabQcLot @relation(fields: [qcLotId], references: [id], onDelete: Restrict)
+  performedBy User     @relation("LabQcRunPerformer", fields: [performedById], references: [id], onDelete: Restrict)
+  reviewedBy  User?    @relation("LabQcRunReviewer", fields: [reviewedById], references: [id], onDelete: Restrict)
+
+  @@index([hospitalId, qcLotId, measuredAt])
+  @@index([hospitalId, status])
+}
+
+model RadiologyDoseRecord {
+  id                Int      @id @default(autoincrement())
+  hospitalId        Int
+  radiologyOrderId  Int      @unique
+  patientId         Int
+  modality          String   @db.VarChar(16)
+  bodyRegion        String?  @db.VarChar(80)
+  ctdiVolMgy        Decimal? @db.Decimal(12, 4)
+  dlpMgyCm          Decimal? @db.Decimal(12, 4)
+  dapGyCm2          Decimal? @db.Decimal(12, 4)
+  effectiveDoseMsv  Decimal  @db.Decimal(12, 4)
+  kvp               Decimal? @db.Decimal(8, 2)
+  mas               Decimal? @db.Decimal(10, 2)
+  exposureCount     Int      @default(1)
+  exceedsDrl        Boolean  @default(false)
+  cumulative12mMsv  Decimal  @db.Decimal(12, 4)
+  cumulativeWarning Boolean  @default(false)
+  recordedById      Int
+  recordedAt        DateTime @default(now())
+  notes             String?  @db.VarChar(500)
+  createdAt         DateTime @default(now())
+
+  hospital       Hospital       @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
+  radiologyOrder RadiologyOrder @relation(fields: [radiologyOrderId], references: [id], onDelete: Restrict)
+  patient        Patient        @relation(fields: [patientId], references: [id], onDelete: Restrict)
+  recordedBy     User           @relation("RadiologyDoseRecorder", fields: [recordedById], references: [id], onDelete: Restrict)
+
+  @@index([hospitalId, patientId, recordedAt])
+  @@index([hospitalId, modality])
 }

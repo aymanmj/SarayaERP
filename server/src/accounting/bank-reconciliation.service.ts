@@ -19,10 +19,16 @@ import {
   AutoMatchOptionsDto,
   CreateBankAccountDto,
   CreateReconciliationSessionDto,
+  ImportStatementFileDto,
   ImportStatementItemsDto,
   ManualMatchStatementItemDto,
   PostBankAdjustmentDto,
+  RunFxRevaluationDto,
 } from './dto/treasury-fx.dto';
+import {
+  parseBankStatementCsv,
+  parseBankStatementMt940,
+} from './bank-statement-parser.util';
 
 const USER_LITE = {
   id: true,
@@ -1286,5 +1292,265 @@ export class BankReconciliationService {
       reconciledBalance: Money.toDbString(s.reconciledBalance),
       differenceAmount: Money.toDbString(s.differenceAmount),
     };
+  }
+
+  // =========================================================================
+  // CAP09 Batch 28: CSV / SWIFT MT940 Statement File Import & FX Revaluation
+  // =========================================================================
+
+  async importStatementFile(
+    hospitalId: number,
+    sessionId: number,
+    userId: number,
+    dto: ImportStatementFileDto,
+    meta?: TreasuryAuditMeta,
+  ) {
+    const parsed =
+      dto.format === 'MT940'
+        ? parseBankStatementMt940(dto.content)
+        : parseBankStatementCsv(dto.content);
+
+    return this.importStatementItems(
+      hospitalId,
+      sessionId,
+      userId,
+      {
+        items: parsed.map((item) => ({
+          transactionDate: item.transactionDate,
+          valueDate: item.valueDate,
+          reference: item.reference,
+          description: item.description,
+          direction: item.direction,
+          amount: Money.toDbString(item.amount),
+        })),
+      },
+      meta,
+    );
+  }
+
+  async listFxRevaluations(hospitalId: number) {
+    return this.prisma.fxRevaluationRun.findMany({
+      where: { hospitalId },
+      include: {
+        bankAccount: {
+          select: { id: true, bankName: true, accountNumber: true },
+        },
+        performedBy: { select: USER_LITE },
+      },
+      orderBy: { id: 'desc' },
+      take: 100,
+    });
+  }
+
+  async runFxRevaluation(
+    hospitalId: number,
+    userId: number,
+    dto: RunFxRevaluationDto,
+    meta?: TreasuryAuditMeta,
+  ) {
+    const asOfDate = new Date(`${dto.asOfDate.slice(0, 10)}T00:00:00.000Z`);
+    const asOfEndOfDay = new Date(`${dto.asOfDate.slice(0, 10)}T23:59:59.999Z`);
+
+    const { run, audit } = await this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(27028::int, ${hospitalId}::int)`;
+
+      const bankAccount = await tx.bankAccount.findFirst({
+        where: { id: dto.bankAccountId, hospitalId, isActive: true },
+        include: { currency: true, account: true },
+      });
+      if (!bankAccount) {
+        throw new NotFoundException('الحساب البنكي غير موجود ضمن المنشأة.');
+      }
+      if (bankAccount.currency.isBase) {
+        throw new BadRequestException(
+          'إعادة تقييم فروق العملة تنطبق فقط على الحسابات بعملات أجنبية (غير العملة الأساسية).',
+        );
+      }
+
+      const dup = await tx.fxRevaluationRun.findUnique({
+        where: {
+          hospitalId_bankAccountId_asOfDate: {
+            hospitalId,
+            bankAccountId: bankAccount.id,
+            asOfDate,
+          },
+        },
+        select: { id: true },
+      });
+      if (dup) {
+        throw new ConflictException(
+          'تم تنفيذ إعادة تقييم العملة لهذا الحساب البنكي في هذا التاريخ مسبقًا.',
+        );
+      }
+
+      const baseCurrency = await tx.currency.findFirst({
+        where: { hospitalId, isBase: true, isActive: true },
+      });
+      if (!baseCurrency) {
+        throw new BadRequestException(
+          'لا توجد عملة أساسية مفعّلة لهذه المنشأة.',
+        );
+      }
+
+      const conversion = await this.currencyExchange.convertAmount(hospitalId, {
+        fromCode: bankAccount.currency.code,
+        toCode: baseCurrency.code,
+        amount: Money.toDbString(Money.decimal(dto.foreignBalance).abs()),
+        asOfDate: dto.asOfDate.slice(0, 10),
+      });
+
+      const closingRateStr = Money.toRateDbString(conversion.rateUsed);
+      const foreignDec = Money.roundDecimal(dto.foreignBalance, 3);
+      const revaluedDec = Money.roundDecimal(
+        foreignDec.times(closingRateStr),
+        3,
+      );
+
+      // Compute GL book balance of bank account up to asOfDate
+      const glLines = await tx.accountingEntryLine.findMany({
+        where: {
+          accountId: bankAccount.accountId,
+          entry: {
+            hospitalId,
+            entryDate: { lte: asOfEndOfDay },
+          },
+        },
+        select: { debit: true, credit: true },
+      });
+      let bookDec = Money.decimal(0);
+      for (const l of glLines) {
+        bookDec = bookDec.plus(l.debit.toString()).minus(l.credit.toString());
+      }
+      bookDec = Money.roundDecimal(bookDec, 3);
+
+      const gainLossDec = Money.roundDecimal(revaluedDec.minus(bookDec), 3);
+      const gainLossStr = Money.toDbString(gainLossDec);
+
+      let accountingEntryId: number | null = null;
+      if (!Money.isZero(gainLossDec)) {
+        const { financialYear, period } = await financialPeriod(
+          tx,
+          hospitalId,
+          asOfDate,
+        );
+        const fxMapping = await tx.systemAccountMapping.findFirst({
+          where: {
+            hospitalId,
+            key: SystemAccountKey.FX_GAIN_LOSS,
+            isActive: true,
+            account: { hospitalId, isActive: true },
+          },
+          select: { accountId: true },
+        });
+        const fxAccountId =
+          fxMapping?.accountId ??
+          (
+            await tx.account.findFirst({
+              where: { hospitalId, code: '400950', isActive: true },
+              select: { id: true },
+            })
+          )?.id ??
+          null;
+        if (!fxAccountId) {
+          throw new BadRequestException(
+            'حساب فروق العملة (FX_GAIN_LOSS / 400950) غير مهيأ في دليل الحسابات.',
+          );
+        }
+
+        const absDiff = Money.toDbString(gainLossDec.abs());
+        const isGain = gainLossDec.gt(0);
+        const entry = await tx.accountingEntry.create({
+          data: {
+            hospitalId,
+            postingKey: `fx-reval:${hospitalId}:${bankAccount.id}:${dto.asOfDate.slice(0, 10)}`,
+            entryDate: asOfDate,
+            description: `إعادة تقييم فروق عملة غير محققة (${bankAccount.currency.code}) — ${bankAccount.bankName}`,
+            sourceModule: 'BANK_RECONCILIATION',
+            sourceId: bankAccount.id,
+            financialYearId: financialYear.id,
+            financialPeriodId: period.id,
+            createdById: userId,
+            lines: {
+              create: isGain
+                ? [
+                    {
+                      accountId: bankAccount.accountId,
+                      debit: absDiff,
+                      credit: '0.000',
+                      description: `زيادة تقييم رصيد ${bankAccount.currency.code}`,
+                    },
+                    {
+                      accountId: fxAccountId,
+                      debit: '0.000',
+                      credit: absDiff,
+                      description: `أرباح فروق عملة غير محققة (${bankAccount.currency.code})`,
+                    },
+                  ]
+                : [
+                    {
+                      accountId: fxAccountId,
+                      debit: absDiff,
+                      credit: '0.000',
+                      description: `خسائر فروق عملة غير محققة (${bankAccount.currency.code})`,
+                    },
+                    {
+                      accountId: bankAccount.accountId,
+                      debit: '0.000',
+                      credit: absDiff,
+                      description: `تخفيض تقييم رصيد ${bankAccount.currency.code}`,
+                    },
+                  ],
+            },
+          },
+        });
+        accountingEntryId = entry.id;
+      }
+
+      const createdRun = await tx.fxRevaluationRun.create({
+        data: {
+          hospitalId,
+          bankAccountId: bankAccount.id,
+          asOfDate,
+          currencyCode: bankAccount.currency.code,
+          foreignBalance: Money.toDbString(foreignDec),
+          bookBalanceBase: Money.toDbString(bookDec),
+          closingRate: closingRateStr,
+          revaluedBalanceBase: Money.toDbString(revaluedDec),
+          unrealizedGainLoss: gainLossStr,
+          accountingEntryId,
+          performedById: userId,
+          notes: dto.notes?.trim() || null,
+        },
+        include: {
+          bankAccount: {
+            select: { id: true, bankName: true, accountNumber: true },
+          },
+        },
+      });
+
+      const auditEntry = await appendChainedAuditInTransaction(tx, {
+        hospitalId,
+        userId,
+        action: 'TREASURY_FX_REVALUATION_POSTED',
+        entity: 'FxRevaluationRun',
+        entityId: createdRun.id,
+        ipAddress: meta?.ipAddress,
+        clientName: meta?.clientName,
+        details: {
+          bankAccountId: bankAccount.id,
+          currencyCode: bankAccount.currency.code,
+          closingRate: closingRateStr,
+          bookBalanceBase: Money.toDbString(bookDec),
+          revaluedBalanceBase: Money.toDbString(revaluedDec),
+          unrealizedGainLoss: gainLossStr,
+          accountingEntryId,
+        },
+      });
+
+      return { run: createdRun, audit: auditEntry };
+    });
+
+    publishCommittedCriticalAudit(audit);
+    return run;
   }
 }

@@ -259,6 +259,36 @@ export class ManualMatchStatementItemDto {
   entryLineId!: number;
 }
 
+export class ImportStatementFileDto {
+  @IsIn(['CSV', 'MT940'] as const)
+  format!: 'CSV' | 'MT940';
+
+  @IsString()
+  @IsNotEmpty()
+  content!: string;
+}
+
+export class RunFxRevaluationDto {
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  bankAccountId!: number;
+
+  @IsString()
+  @Matches(/^-?\d+(\.\d{1,3})?$/, {
+    message: 'الرصيد بالعملة الأجنبية يجب أن يكون بدقة 3 خانات عشرية كحد أقصى',
+  })
+  foreignBalance!: string;
+
+  @IsDateString()
+  asOfDate!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  notes?: string;
+}
+
 export class PostBankAdjustmentDto {
   @IsIn(BANK_ADJUSTMENT_TYPES)
   adjustmentType!: BankAdjustmentType;

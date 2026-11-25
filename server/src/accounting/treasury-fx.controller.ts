@@ -26,9 +26,11 @@ import {
   CreateCurrencyDto,
   CreateExchangeRateDto,
   CreateReconciliationSessionDto,
+  ImportStatementFileDto,
   ImportStatementItemsDto,
   ManualMatchStatementItemDto,
   PostBankAdjustmentDto,
+  RunFxRevaluationDto,
 } from './dto/treasury-fx.dto';
 
 function extractAuditMeta(req: Request) {
@@ -324,6 +326,46 @@ export class TreasuryFxController {
       user.hospitalId,
       id,
       user.sub,
+      extractAuditMeta(req),
+    );
+  }
+
+  @Post('reconciliations/:id/import-file')
+  @Permissions('acc:treasury:manage')
+  @AuditInTransaction()
+  importStatementFile(
+    @CurrentUser() user: JwtPayload,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: ImportStatementFileDto,
+    @Req() req: Request,
+  ) {
+    return this.bankReconciliation.importStatementFile(
+      user.hospitalId,
+      id,
+      user.sub,
+      dto,
+      extractAuditMeta(req),
+    );
+  }
+
+  @Get('fx-revaluations')
+  @Permissions('acc:treasury:view')
+  listFxRevaluations(@CurrentUser() user: JwtPayload) {
+    return this.bankReconciliation.listFxRevaluations(user.hospitalId);
+  }
+
+  @Post('fx-revaluations')
+  @Permissions('acc:treasury:approve')
+  @AuditInTransaction()
+  runFxRevaluation(
+    @CurrentUser() user: JwtPayload,
+    @Body() dto: RunFxRevaluationDto,
+    @Req() req: Request,
+  ) {
+    return this.bankReconciliation.runFxRevaluation(
+      user.hospitalId,
+      user.sub,
+      dto,
       extractAuditMeta(req),
     );
   }
