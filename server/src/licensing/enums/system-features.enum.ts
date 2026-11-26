@@ -16,4 +16,5 @@ export enum SystemFeature {
   ASSETS = 'ASSETS',
   ACCOUNTS = 'ACCOUNTS', // General accounting
   OBGYN = 'OBGYN', // Specialty
+  INSURANCE_INTEGRATION = 'INSURANCE_INTEGRATION', // National insurance & clearinghouse integration
 }

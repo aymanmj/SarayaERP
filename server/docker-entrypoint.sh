@@ -102,6 +102,20 @@ if [ "$SKIP_SEED" != "true" ]; then
 fi
 
 # --------------------------------------------
+# 2.2 بيانات العرض التنفيذي (Opt-In Demo Dataset)
+# --------------------------------------------
+# لا يعمل أبداً في الإنتاج القياسي إلا عند تفعيل RUN_DEMO_SEED=true صراحةً
+if [ "$RUN_DEMO_SEED" = "true" ]; then
+    echo "🏥 RUN_DEMO_SEED=true — verifying Libyan hospital executive demo dataset..."
+    if [ -f "dist/prisma-demo/prisma/seed-demo.js" ]; then
+        node dist/prisma-demo/prisma/seed-demo.js
+        echo "✅ Demo dataset check/seed completed."
+    else
+        echo "⚠️  Compiled demo seed not found at dist/prisma-demo/prisma/seed-demo.js."
+    fi
+fi
+
+# --------------------------------------------
 # 2.5 تحديث كتالوج التحاليل والأشعة (Lab & Radiology Catalog Update)
 # --------------------------------------------
 # يتحقق إذا كان الكتالوج الموسّع موجود، وإن لم يكن يضيفه تلقائياً

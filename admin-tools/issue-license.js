@@ -76,6 +76,7 @@ const ALL_MODULES = [
   { code: "ACCOUNTS",  nameAr: "المحاسبة العامة",      defaultInPro: false },
   { code: "CDSS",      nameAr: "دعم القرار السريري",   defaultInPro: true },
   { code: "OBGYN",     nameAr: "النساء والتوليد",      defaultInPro: false },
+  { code: "INSURANCE_INTEGRATION", nameAr: "منصة التأمين الصحي والمطالبات", defaultInPro: false },
 ];
 
 // ── Duration Presets ──

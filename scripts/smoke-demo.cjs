@@ -136,7 +136,7 @@ async function main() {
     if (res.status !== 200) throw new Error(`HTTP ${res.status}`);
     const data = unwrap(res.json);
     if (!data?.isValid) throw new Error(`License not valid: ${JSON.stringify(data)}`);
-    const requiredModules = ['ACCOUNTS', 'HR', 'ASSETS', 'LAB', 'RADIOLOGY', 'PHARMACY', 'OBGYN'];
+    const requiredModules = ['ACCOUNTS', 'HR', 'ASSETS', 'LAB', 'RADIOLOGY', 'PHARMACY', 'OBGYN', 'INSURANCE_INTEGRATION'];
     const mods = Array.isArray(data.modules) ? data.modules : [];
     const missingMods = requiredModules.filter((m) => !mods.includes(m));
     if (missingMods.length > 0) {

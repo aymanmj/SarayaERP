@@ -33,6 +33,7 @@ RUN npm run build:protected
 
 # تجميع سكربت الـ Seed
 RUN npx tsc prisma/seed.ts --outDir dist/prisma --module commonjs --target es2019 --esModuleInterop --skipLibCheck --moduleResolution node
+RUN npx tsc prisma/seed-demo.ts --outDir dist/prisma-demo --module commonjs --target es2019 --esModuleInterop --skipLibCheck --moduleResolution node
 
 # تجميع سكربتات الصيانة (Migration Scripts)
 RUN npx tsc src/scripts/backfill-global-hashes.ts --outDir dist/scripts --module commonjs --target es2019 --esModuleInterop --skipLibCheck --moduleResolution node

@@ -1,0 +1,175 @@
+# ==========================================
+# Saraya ERP - Ubuntu VM Full-Production Demo Stack
+# 6 Lightweight Containers (4 GB RAM Friendly) using GHCR Images + Cloudflare Tunnel
+# Runs in full NODE_ENV=production mode with real signed license (/app/data/license/saraya.lic)
+# ==========================================
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: saraya_demo_db
+    restart: always
+    shm_size: 512m
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-saraya_demo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:-saraya_demo}
+      TZ: Africa/Tripoli
+    volumes:
+      - saraya_demo_pgdata:/var/lib/postgresql/data
+    networks:
+      - saraya_demo_net
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-saraya_demo} -d ${POSTGRES_DB:-saraya_demo}",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging: &default_logging
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  redis:
+    image: redis:7-alpine
+    container_name: saraya_demo_redis
+    restart: unless-stopped
+    command: >
+      redis-server
+      --appendonly yes
+      --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+    volumes:
+      - saraya_demo_redisdata:/data
+    networks:
+      - saraya_demo_net
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:?REDIS_PASSWORD is required}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging: *default_logging
+
+  backend:
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-aymanmj}/saraya-backend:${IMAGE_TAG:-latest}
+    container_name: saraya_demo_backend
+    env_file:
+      - path: .env.demo
+        required: false
+    restart: always
+    user: "node"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      TZ: Africa/Tripoli
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-saraya_demo}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@postgres:5432/${POSTGRES_DB:-saraya_demo}?schema=public"
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+      REDIS_MOCK: "false"
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?ENCRYPTION_KEY is required}
+      ENCRYPTION_SALT: ${ENCRYPTION_SALT:?ENCRYPTION_SALT is required}
+      VAULT_ADDR: ""
+      VAULT_TOKEN: ""
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      SARAYA_DOMAIN: ${SARAYA_DOMAIN:?SARAYA_DOMAIN is required}
+      CORS_ORIGINS: ${CORS_ORIGINS:?CORS_ORIGINS is required}
+      ENABLE_STRICT_CSP: ${ENABLE_STRICT_CSP:-false}
+      LICENSE_PATH: /app/data/license/saraya.lic
+      AV_SCANNER_MODE: ${AV_SCANNER_MODE:-eicar_builtin}
+      RUN_DEMO_SEED: "true"
+      DISABLE_THROTTLER: "false"
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_WEBHOOK_URL: ${TELEGRAM_WEBHOOK_URL:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+    volumes:
+      - ./uploads:/app/uploads
+      - ./data/license:/app/data/license
+      - ./data/keys:/app/data/keys
+      - ./backups:/backups
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - saraya_demo_net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    logging: *default_logging
+
+  frontend:
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-aymanmj}/saraya-frontend:${IMAGE_TAG:-latest}
+    container_name: saraya_demo_frontend
+    restart: always
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - saraya_demo_net
+    logging: *default_logging
+
+  nginx:
+    image: nginx:${NGINX_IMAGE_TAG:-1.27-alpine}
+    container_name: saraya_demo_nginx
+    restart: always
+    ports:
+      - "${DEMO_HTTP_PORT:-80}:80"
+    volumes:
+      - ./production/nginx/nginx.demo.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_started
+    networks:
+      saraya_demo_net:
+        aliases:
+          - saraya_nginx
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:80/api/health > /dev/null || exit 1"]
+      interval: 20s
+      timeout: 10s
+      retries: 3
+    logging: *default_logging
+
+  tunnel:
+    image: cloudflare/cloudflared:${CLOUDFLARED_IMAGE_TAG:-2025.2.1}
+    container_name: saraya_demo_tunnel
+    restart: always
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN:?TUNNEL_TOKEN is required}
+      TUNNEL_TRANSPORT_PROTOCOL: http2
+      TUNNEL_RETRIES: "30"
+      TUNNEL_EDGE_BIND_ADDRESS: "0.0.0.0"
+      TUNNEL_GRACE_PERIOD: "60s"
+    depends_on:
+      nginx:
+        condition: service_healthy
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+    networks:
+      - saraya_demo_net
+    logging: *default_logging
+
+volumes:
+  saraya_demo_pgdata:
+  saraya_demo_redisdata:
+
+networks:
+  saraya_demo_net:
+    driver: bridge
