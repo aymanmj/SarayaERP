@@ -35,9 +35,25 @@ export class PdfService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  private resolveExecutablePath(): string | undefined {
+    const candidates = [
+      process.env.PUPPETEER_EXECUTABLE_PATH,
+      'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+      'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+      'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+      'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
+      '/usr/bin/chromium',
+      '/usr/bin/google-chrome',
+    ].filter((p): p is string => Boolean(p && fs.existsSync(p)));
+
+    return candidates[0];
+  }
+
   private async launchBrowser() {
     try {
+      const executablePath = this.resolveExecutablePath();
       this.browser = await puppeteer.launch({
+        ...(executablePath ? { executablePath } : {}),
         headless: true, // الوضع الجديد
         args: [
           '--no-sandbox',

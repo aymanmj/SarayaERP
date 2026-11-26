@@ -183,11 +183,11 @@ export class LicenseService implements OnModuleInit {
       return {
         isValid: true,
         machineId: this._machineId || 'BYPASS',
-        hospitalName: 'Saraya Medical Center (Bypass) [DEV MODE]',
+        hospitalName: 'مستشفى السرايا الدولي — Enterprise Demo',
         plan: 'ENTERPRISE',
         expiryDate: '2030-12-31',
         maxUsers: 99999,
-        modules: [],
+        modules: Object.values(SystemFeature),
         isGracePeriod: false,
         isExpired: false,
         daysRemaining: 9999,

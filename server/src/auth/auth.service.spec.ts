@@ -207,6 +207,32 @@ describe('AuthService', () => {
       expect(result.user.permissions).toContain('VIEW_PATIENTS');
     });
 
+    it('should keep accessToken compact (< 1024 bytes) even with 200+ permissions while returning full user.permissions', async () => {
+      const manyPermissions = Array.from({ length: 220 }, (_, idx) => ({
+        permission: { code: `module_${idx}:action_${idx}:manage` },
+      }));
+      prisma.user.findUnique.mockResolvedValue(
+        mockUser({
+          userRoles: [
+            {
+              role: {
+                name: 'ADMIN',
+                rolePermissions: manyPermissions,
+              },
+            },
+          ],
+        }),
+      );
+      prisma.refreshToken.create.mockResolvedValue({ id: 1 });
+
+      const result = await service.login('admin', PASSWORD);
+
+      expect(Buffer.byteLength(result.accessToken, 'utf8')).toBeLessThan(1024);
+      expect(result.user.permissions).toHaveLength(220);
+      expect(result.user.permissions).toContain('module_0:action_0:manage');
+      expect(result.user.permissions).toContain('module_219:action_219:manage');
+    });
+
     it('should reject wrong password', async () => {
       prisma.user.findUnique.mockResolvedValue(mockUser());
 

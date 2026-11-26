@@ -273,9 +273,14 @@ export const useLicenseStore = create<LicenseStoreState>((set, get) => ({
    * Check if a specific module is enabled (Legacy Check).
    */
   isModuleEnabled: (moduleName: string): boolean => {
-    const { licenseState, details } = get();
-    if (licenseState !== "active" || !details?.modules) return false;
-    return details.modules.includes(moduleName.toUpperCase());
+    const { licenseState, details, features } = get();
+    if (licenseState !== "active") return false;
+    const normalized = moduleName.toUpperCase();
+    return (
+      Boolean(
+        details?.modules?.some((m) => m.toUpperCase() === normalized),
+      ) || features.some((f) => f.toUpperCase() === normalized)
+    );
   },
 
   /**

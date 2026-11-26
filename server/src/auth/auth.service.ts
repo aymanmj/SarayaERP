@@ -132,6 +132,11 @@ export class AuthService {
     isSuperAdmin?: boolean;
     authVersion?: number;
   }) {
+    // Keep the signed cookie JWT under RFC 6265's 4096-byte browser limit:
+    // JwtStrategy.validate(), EventsGateway, and NursingGateway always reload
+    // authoritative roles & permissions from PostgreSQL, while login() returns
+    // full user.permissions in the JSON response body for the UI.
+    void user.permissions;
     const payload = {
       sid: user.sid,
       branchVersion: user.branchVersion,
@@ -142,7 +147,7 @@ export class AuthService {
       hospitalId: user.hospitalId,
       organizationId: user.organizationId || null, // ✅ Multi-Tenancy
       isSuperAdmin: user.isSuperAdmin || false, // ✅ Multi-Tenancy
-      permissions: user.permissions,
+      permissions: [] as string[],
     };
 
     const kid = this.vaultService.getActiveKeyId();

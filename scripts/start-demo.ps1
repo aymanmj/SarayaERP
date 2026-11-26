@@ -35,6 +35,19 @@ $env:CORS_ORIGINS = 'http://localhost:5173,http://127.0.0.1:5173'
 $env:DISABLE_THROTTLER = 'true'
 $env:NODE_OPTIONS = '--no-experimental-webstorage'
 
+$chromeCandidates = @(
+    'C:\Program Files\Google\Chrome\Application\chrome.exe',
+    'C:\Program Files (x86)\Google\Chrome\Application\chrome.exe',
+    'C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe',
+    'C:\Program Files\Microsoft\Edge\Application\msedge.exe'
+)
+foreach ($candidate in $chromeCandidates) {
+    if (Test-Path -LiteralPath $candidate) {
+        $env:PUPPETEER_EXECUTABLE_PATH = $candidate
+        break
+    }
+}
+
 Write-Host ''
 Write-Host '============================================================' -ForegroundColor Cyan
 Write-Host '  SarayaERP Live Demo Environment Prepared' -ForegroundColor Green

@@ -2044,6 +2044,52 @@ async function main() {
     details: { environment: 'client-live-demo', version: DEMO_SEED_VERSION },
   });
 
+  // 15. Seed Executive & Clinical Notifications for Notification Bell
+  await prisma.notification.createMany({
+    data: [
+      {
+        hospitalId: hospital.id,
+        userId: admin.id,
+        title: 'تنبيه صلاحية شهادة صحية',
+        message: 'الشهادة الصحية للدكتورة سارة محمد تنتهي خلال 14 يوماً — يرجى التجديد.',
+        link: '/hr/credentials',
+        isRead: false,
+      },
+      {
+        hospitalId: hospital.id,
+        userId: admin.id,
+        title: 'اعتماد موافقة تأمين مسبقة',
+        message: 'تمت الموافقة المسبقة رقم PA-2026-4410 للمريض أحمد الورفلي (استئصال مرارة بالمنظار).',
+        link: '/insurance/pre-auth',
+        isRead: false,
+      },
+      {
+        hospitalId: hospital.id,
+        userId: admin.id,
+        title: 'تقرير Near Miss قيد المراجعة',
+        message: 'تم تسجيل حادثة تشابه أسماء عبر السجل الوطني الموحد ومنع الخطأ قبل الصرف (INC-2026-0001).',
+        link: '/quality',
+        isRead: false,
+      },
+      {
+        hospitalId: hospital.id,
+        userId: drAhmed.id,
+        title: 'نتيجة مختبر حرجة جاهزة',
+        message: 'ظهرت نتائج تحاليل الكيمياء السريرية والدموية للحالة النشطة في العناية المركزة — جاهزة للمراجعة.',
+        link: '/lab',
+        isRead: false,
+      },
+      {
+        hospitalId: hospital.id,
+        userId: drAhmed.id,
+        title: 'قائمة فحص السلامة الجراحية (WHO)',
+        message: 'عملية المريض أحمد الورفلي في مرحلة SIGN_IN بانتظار المراجعة قبل التخدير.',
+        link: '/surgery',
+        isRead: false,
+      },
+    ],
+  });
+
   await prisma.systemSetting.upsert({
     where: {
       hospitalId_key: { hospitalId: hospital.id, key: DEMO_SEED_KEY },

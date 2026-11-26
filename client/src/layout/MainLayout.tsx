@@ -294,8 +294,8 @@ export function MainLayout() {
   const fetchLicenseStatus = useLicenseStore((s) => s.fetchLicenseStatus);
   const isModuleEnabled = useLicenseStore((s) => s.isModuleEnabled);
   const licenseDetails = useLicenseStore((s) => s.details);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const licenseState = useLicenseStore((s) => s.licenseState);
+  const licenseFeatures = useLicenseStore((s) => s.features);
 
   const toggleSection = (key: string) => {
     setOpenSection((prev) => (prev === key ? null : key));
@@ -908,7 +908,7 @@ export function MainLayout() {
       })
       .filter((section): section is MenuSection => section !== null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, isModuleEnabled]);
+  }, [user, isModuleEnabled, licenseState, licenseDetails, licenseFeatures]);
 
   const navLinkClasses = ({ isActive }: { isActive: boolean }) =>
     `block w-full px-4 py-2.5 rounded-lg text-xs md:text-sm transition-all duration-200 ${isRtl ? 'border-r-[3px]' : 'border-l-[3px]'} 

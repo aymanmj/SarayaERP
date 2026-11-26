@@ -74,6 +74,20 @@ function unwrap(body) {
   return body;
 }
 
+function assertSetCookieSize(res, context) {
+  const headers = res.headers['set-cookie'];
+  if (!Array.isArray(headers) || headers.length === 0) {
+    throw new Error(`${context}: missing Set-Cookie headers`);
+  }
+  for (const sc of headers) {
+    const first = sc.split(';')[0];
+    const bytes = Buffer.byteLength(first, 'utf8');
+    if (bytes >= 3800) {
+      throw new Error(`${context}: cookie exceeds RFC 6265 safety margin (${bytes} bytes >= 3800): ${first.slice(0, 60)}...`);
+    }
+  }
+}
+
 async function login(username, password) {
   const res = await request('http://localhost:5173/api/auth/login', {
     method: 'POST',
@@ -82,8 +96,9 @@ async function login(username, password) {
   if (res.status !== 200 && res.status !== 201) {
     throw new Error(`Login failed for ${username}: HTTP ${res.status} ${res.text}`);
   }
+  assertSetCookieSize(res, `login(${username})`);
   const cookie = mergeCookies('', res.headers['set-cookie']);
-  return { cookie, data: unwrap(res.json) };
+  return { cookie, data: unwrap(res.json), setCookieHeaders: res.headers['set-cookie'] };
 }
 
 async function main() {
@@ -116,12 +131,52 @@ async function main() {
   const adminSession = await login('admin', 'admin123');
   const adminCookie = adminSession.cookie;
 
-  await check('License Status (ENTERPRISE bypass)', async () => {
+  await check('License Status (ENTERPRISE bypass & full modules)', async () => {
     const res = await request('http://localhost:5173/api/license/status', { cookie: adminCookie });
     if (res.status !== 200) throw new Error(`HTTP ${res.status}`);
     const data = unwrap(res.json);
     if (!data?.isValid) throw new Error(`License not valid: ${JSON.stringify(data)}`);
-    return `${data.plan} / valid=${data.isValid}`;
+    const requiredModules = ['ACCOUNTS', 'HR', 'ASSETS', 'LAB', 'RADIOLOGY', 'PHARMACY', 'OBGYN'];
+    const mods = Array.isArray(data.modules) ? data.modules : [];
+    const missingMods = requiredModules.filter((m) => !mods.includes(m));
+    if (missingMods.length > 0) {
+      throw new Error(`Missing modules in license status: ${missingMods.join(', ')}`);
+    }
+    return `${data.plan} / modules=${mods.length}`;
+  });
+
+  await check('Admin Cookie Size (< 3800 bytes) & Refresh', async () => {
+    assertSetCookieSize({ headers: { 'set-cookie': adminSession.setCookieHeaders } }, 'admin login');
+    const rf = await request('http://localhost:5173/api/auth/refresh', {
+      method: 'POST',
+      cookie: adminCookie,
+    });
+    if (rf.status !== 200 && rf.status !== 201) {
+      throw new Error(`Refresh failed: HTTP ${rf.status} ${rf.text}`);
+    }
+    assertSetCookieSize(rf, 'admin refresh');
+    adminSession.cookie = mergeCookies(adminCookie, rf.headers['set-cookie']);
+    return 'All Set-Cookie headers < 3800 bytes';
+  });
+
+  const activeAdminCookie = adminSession.cookie;
+
+  await check('Organization Settings (/api/settings/organization)', async () => {
+    const res = await request('http://localhost:5173/api/settings/organization', { cookie: activeAdminCookie });
+    if (res.status !== 200) throw new Error(`HTTP ${res.status}: ${res.text.slice(0, 200)}`);
+    const data = unwrap(res.json);
+    if (!data?.displayName) throw new Error(`Missing displayName: ${JSON.stringify(data)}`);
+    return data.displayName;
+  });
+
+  await check('Admin Notifications (/api/notifications)', async () => {
+    const res = await request('http://localhost:5173/api/notifications', { cookie: activeAdminCookie });
+    if (res.status !== 200) throw new Error(`HTTP ${res.status}: ${res.text.slice(0, 200)}`);
+    const data = unwrap(res.json);
+    if (!Array.isArray(data) || data.length < 1) {
+      throw new Error(`Expected >= 1 notification for admin, got ${JSON.stringify(data)}`);
+    }
+    return `count=${data.length}`;
   });
 
   const endpoints = [
@@ -146,7 +201,7 @@ async function main() {
 
   for (const [label, path] of endpoints) {
     await check(label, async () => {
-      const res = await request(`http://localhost:5173${path}`, { cookie: adminCookie });
+      const res = await request(`http://localhost:5173${path}`, { cookie: activeAdminCookie });
       if (res.status !== 200) {
         throw new Error(`HTTP ${res.status}: ${res.text.slice(0, 200)}`);
       }
@@ -161,7 +216,7 @@ async function main() {
   }
 
   await check('Audit Integrity Chain (/api/audit/integrity-check)', async () => {
-    const res = await request('http://localhost:5173/api/audit/integrity-check', { cookie: adminCookie });
+    const res = await request('http://localhost:5173/api/audit/integrity-check', { cookie: activeAdminCookie });
     if (res.status !== 200) throw new Error(`HTTP ${res.status}`);
     const data = unwrap(res.json);
     if (!data?.valid) throw new Error(`Audit chain invalid: ${JSON.stringify(data)}`);
@@ -177,13 +232,14 @@ async function main() {
 
     const sw1 = await request('http://localhost:5173/api/auth/switch-branch', {
       method: 'POST',
-      cookie: adminCookie,
+      cookie: activeAdminCookie,
       body: { targetHospitalId: ben.id },
     });
     if (sw1.status !== 200 && sw1.status !== 201) {
       throw new Error(`Switch to BEN-01 failed: HTTP ${sw1.status} ${sw1.text}`);
     }
-    const c2 = mergeCookies(adminCookie, sw1.headers['set-cookie']);
+    assertSetCookieSize(sw1, 'switch-branch -> BEN-01');
+    const c2 = mergeCookies(activeAdminCookie, sw1.headers['set-cookie']);
 
     const sw2 = await request('http://localhost:5173/api/auth/switch-branch', {
       method: 'POST',
@@ -193,7 +249,26 @@ async function main() {
     if (sw2.status !== 200 && sw2.status !== 201) {
       throw new Error(`Switch back to MAIN failed: HTTP ${sw2.status} ${sw2.text}`);
     }
+    assertSetCookieSize(sw2, 'switch-branch -> MAIN');
     return `Switched MAIN(${main.id}) -> BEN-01(${ben.id}) -> MAIN(${main.id})`;
+  });
+
+  // Non-admin (dr_ahmed) functional checks
+  await check('Doctor Functional Flow (dr_ahmed dashboard, notifications, patients)', async () => {
+    const doc = await login('dr_ahmed', '123456');
+    for (const p of ['/api/dashboard/stats?period=month', '/api/notifications', '/api/patients']) {
+      const r = await request(`http://localhost:5173${p}`, { cookie: doc.cookie });
+      if (r.status !== 200) {
+        throw new Error(`dr_ahmed GET ${p} failed: HTTP ${r.status} ${r.text.slice(0, 200)}`);
+      }
+      if (p === '/api/notifications') {
+        const list = unwrap(r.json);
+        if (!Array.isArray(list) || list.length < 1) {
+          throw new Error(`Expected >= 1 notification for dr_ahmed`);
+        }
+      }
+    }
+    return 'dashboard + notifications + patients HTTP 200';
   });
 
   // Role accounts login verification
