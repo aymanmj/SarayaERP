@@ -134,6 +134,9 @@ import { QualityModule } from './quality/quality.module'; // ✅ [NEW] Quality &
 
     // ✅ Rate Limiting Configuration
     ThrottlerModule.forRoot({
+      skipIf: () =>
+        process.env.DISABLE_THROTTLER === 'true' &&
+        process.env.NODE_ENV !== 'production',
       throttlers: [
         {
           name: 'short',
